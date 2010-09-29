@@ -1,0 +1,9 @@
+jams++
+*.out
+*.err
+*.dat
+*.cfg
+*.o
+*.swp
+*.bak
+*.job
