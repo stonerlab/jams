@@ -3,6 +3,7 @@
 
 #include "output.h"
 #include "config.h"
+#include "rand.h"
 
 #ifdef __GNUC__
 #define RESTRICT __restrict__
@@ -22,6 +23,8 @@
 GLOBAL Config config;  ///< Config object
 
 GLOBAL Output output;
+
+GLOBAL Random rng;
 
 //extern Solver *solver;
 
