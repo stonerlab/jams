@@ -14,7 +14,8 @@ void Config::open(const char * fname, ...){
     vsprintf(buffer, fname, args);
   va_end(args);
 
-  try{
+  try
+  {
     cfg.readFile(buffer);
   }
   catch(const libconfig::FileIOException &fioex)
