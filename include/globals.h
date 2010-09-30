@@ -4,6 +4,12 @@
 #include "output.h"
 #include "config.h"
 
+#ifdef __GNUC__
+#define RESTRICT __restrict__
+#else
+#define RESTRICT
+#endif
+
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
 #else

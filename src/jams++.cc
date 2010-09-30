@@ -5,6 +5,8 @@
 #include "globals.h"
 #include "utils.h"
 
+#include "vecfield.h"
+
 std::string seedname;
 
 int jams_init(int argc, char **argv)
