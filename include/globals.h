@@ -2,6 +2,7 @@
 #define __GLOBALS_H__
 
 #include "output.h"
+#include "config.h"
 
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
@@ -12,11 +13,14 @@
 
 //extern Cell *cell;  ///< Computational cell object
 
-//extern ConfigFile config;  ///< Config object
+GLOBAL Config config;  ///< Config object
 
 GLOBAL Output output;
 
 //extern Solver *solver;
 
+void jams_error(const char *string, ...);
+
+#undef GLOBAL
 
 #endif // __GLOBALS_H_

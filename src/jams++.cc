@@ -23,6 +23,8 @@ int jams_init(int argc, char **argv)
   output.write("\nJAMS++\n");
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
 
+  config.open("%s.cfg",seedname.c_str());
+
   return 0;
 }
 
@@ -30,5 +32,21 @@ int main(int argc, char **argv)
 {
   jams_init(argc,argv);
 
-  return 0;
+  return EXIT_SUCCESS;
+}
+
+void jams_error(const char *string, ...)
+{
+
+  // TODO: Fix this so that the arguments are passed through.
+  va_list args;
+  char buffer[1024];
+
+  va_start(args,string);
+    vsprintf(buffer, string, args);
+  va_end(args);
+
+  output.write("\n********** JAMS ERROR **********\n");
+  output.write("%s\n",buffer);
+  exit(EXIT_FAILURE);
 }
