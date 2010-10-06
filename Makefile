@@ -1,6 +1,6 @@
 CXX=g++
 CFLAGS=-O2 -Wall -pipe -g -j2
-#CFLAGS=-O2 -Wall -pipe -j2
+#CFLAGS=-O2 -Wall -pipe -j2 -NDEBUG
 
 INC=-I./include -I/opt/local/include
 LDFLAGS=-g -L/opt/local/lib
@@ -9,7 +9,11 @@ LIBS=-lconfig++
 
 OBJS=src/jams++.o \
 		 src/output.o \
-		 src/rand.o
+		 src/rand.o \
+		 src/solver.o \
+		 src/geometry.o \
+		 src/sparsematrix.o \
+		 src/heunllg.o
 
 jams++: $(OBJS)
 	$(CXX) -o $@ $(CFLAGS) $(LDFLAGS) $(LIBS) $^
