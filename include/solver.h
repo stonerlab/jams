@@ -3,7 +3,9 @@
 
 #include "globals.h"
 
-class Solver
+enum SolverType{ HEUNLLG };
+
+class Solver 
 {
   public:
     Solver();
@@ -11,13 +13,17 @@ class Solver
 
     virtual void initialise(int argc, char **argv, double dt);
     virtual void run();
-  private:
+
+    static Solver* Create();
+    static Solver* Create(SolverType type);
+  protected:
     bool initialised;
 
     double time;  // current time
 
     int iteration; // number of iterations
+    double dt;
 
-}
+};
 
 #endif // __SOLVER_H__
