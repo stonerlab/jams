@@ -1,16 +1,22 @@
 #ifndef __GLOBALS_H__
 #define __GLOBALS_H__
 
-#include "output.h"
-#include "rand.h"
-
 #ifdef __GNUC__
 #define RESTRICT __restrict__
 #else
 #define RESTRICT
 #endif
 
+#include "vecfield.h"
+#include "array.h"
+#include "output.h"
+#include "rand.h"
+#include "solver.h"
+#include "geometry.h"
+#include "sparsematrix.h"
+
 #include <libconfig.h++>
+
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
 #else
@@ -18,15 +24,31 @@
 #endif
 
 
-//extern Cell *cell;  ///< Computational cell object
+namespace globals
+{
+  GLOBAL int nspins;
+
+  GLOBAL VecField<double> s;
+  GLOBAL VecField<double> h;
+  GLOBAL VecField<double> w;
+
+  GLOBAL SparseMatrix * jij;
+
+  GLOBAL Array<double> alpha;
+  GLOBAL Array<double> mus;
+  GLOBAL Array<double> gyro;
+
+} // namespace global
+
+//GLOBAL Cell *cell;  ///< Computational cell object
+
+GLOBAL Geometry geometry;
 
 GLOBAL libconfig::Config config;  ///< Config object
 
 GLOBAL Output output;
 
 GLOBAL Random rng;
-
-//extern Solver *solver;
 
 void jams_error(const char *string, ...);
 
