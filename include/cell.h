@@ -1,7 +1,7 @@
 #ifndef __CELL_H__
 #define __CELL_H__
 
-#include "global.h"
+#include "globals.h"
 #include "vecfield.h"
 
 class Cell
@@ -12,9 +12,9 @@ class Cell
 
     int nspins; // number of spins
 
-    vecField s; // spins
-    vecField h; // internal fields
-    vecField w; // Weiner processes
+    vecField<double> s; // spins
+    vecField<double> h; // internal fields
+    vecField<double> w; // Weiner processes
 
 //    Field mus;    // moments
 //    Field alpha;  // Gilbert damping
