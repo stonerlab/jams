@@ -25,7 +25,24 @@ int jams_init(int argc, char **argv)
   output.write("\nJAMS++\n");
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
 
-  config.open("%s.cfg",seedname.c_str());
+  std::string cfgfile = seedname+".cfg";
+
+  try {
+    config.readFile(cfgfile.c_str());
+  }
+  catch(const libconfig::FileIOException &fioex) {
+    jams_error("I/O error while reading '%s'", cfgfile.c_str());
+  }
+  catch(const libconfig::ParseException &pex) {
+    jams_error("Error parsing %s:%i: %s", pex.getFile(), 
+        pex.getLine(), pex.getError());
+  }
+  catch(...) {
+    jams_error("Undefined error");
+  }
+
+  geometry.readFromConfig();
+
 
   return 0;
 }

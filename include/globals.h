@@ -2,7 +2,6 @@
 #define __GLOBALS_H__
 
 #include "output.h"
-#include "config.h"
 #include "rand.h"
 
 #ifdef __GNUC__
@@ -11,6 +10,7 @@
 #define RESTRICT
 #endif
 
+#include <libconfig.h++>
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
 #else
@@ -20,7 +20,7 @@
 
 //extern Cell *cell;  ///< Computational cell object
 
-GLOBAL Config config;  ///< Config object
+GLOBAL libconfig::Config config;  ///< Config object
 
 GLOBAL Output output;
 

@@ -9,7 +9,6 @@ LIBS=-lconfig++
 
 OBJS=src/jams++.o \
 		 src/output.o \
-		 src/config.o \
 		 src/rand.o
 
 jams++: $(OBJS)
