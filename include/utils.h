@@ -46,7 +46,7 @@ inline double rad_to_deg(const double &angle) {
 /// @return x with the sign of y
 ///
 template <typename _Tp1, typename _Tp2>
-inline _Tp1 jams::math::sign(const _Tp1 &x, const _Tp2 &y)
+inline _Tp1 sign(const _Tp1 &x, const _Tp2 &y)
 {
   if(y >= 0.0)
   {
@@ -127,7 +127,7 @@ bool next_point_symmetry(_Tp pts[3]) {
   return true;
 }
 
-inline void jams::math::cartesian_to_spherical(const double x,
+inline void cartesian_to_spherical(const double x,
     const double y, const double z, double& r, double& theta, double& phi)
 {
   r       = sqrt(x*x+y*y+z*z);
@@ -135,13 +135,12 @@ inline void jams::math::cartesian_to_spherical(const double x,
   phi     = atan2(y,x);
 }
 
-inline void jams::math::spherical_to_cartesian(const double r,
+inline void spherical_to_cartesian(const double r,
     const double theta, const double phi, double& x, double& y, double& z)
 {
   x = r*cos(theta)*cos(phi);
   y = r*cos(theta)*sin(phi);
   z = r*sin(theta);
 }
-i
 
 #endif // __UTILS_H__
