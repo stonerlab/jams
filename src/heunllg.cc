@@ -1,19 +1,50 @@
+#include "globals.h"
+
 #include "heunllg.h"
 #include "vecfield.h"
-#include "cblas.h"
+// #include "cblas.h"
+
+#ifdef MKL
+#include <mkl_spblas.h>
+#endif
+
+HeunLLGSolver::HeunLLGSolver(){
+
+}
+
+HeunLLGSolver::~HeunLLGSolver(){
+
+}
 
 void HeunLLGSolver::initialise(int argc, char **argv, double dt)
 {
-  snew.resize(cell::nspins);
+  
+  // initialise base class
+  Solver::initialise(argc,argv,dt);
+
+  output.write("Initialising Heun LLG solver (CPU)\n");
+
+  snew.resize(globals::nspins);
 
   initialised = true;
 }
 
 void HeunLLGSolver::run()
 {
+  using namespace globals;
   // Calculate fields
-  for(int i=0; i<cell::nspins; ++i)
-  {
+  
+  // exchange and anisotropy
+#ifdef MKL
+  const char transa = "N"
+  const char matdescra[6] = "SUNC";
+  const int matsize = 3*nspins;
+  const double one = 1.0;
+  mkl_dcsrmv(transa,&matsize,&matsize,&one,matdescra,val,col,
+      jij.ptrB(),jij.ptrE(),&(s[0]),&one,&(h[0]));
+#endif
+
+  for(int i=0; i<nspins; ++i) {
     double sxh[3] =
       { s.y(i)*h.z(i) - s.z(i)*h.y(i),
         s.z(i)*h.x(i) - s.x(i)*h.z(i),
@@ -21,8 +52,8 @@ void HeunLLGSolver::run()
 
     double rhs[3] =
       { sxh[0] + alpha(i) * ( s.y(i)*sxh[2] - s.z(i)*sxh[1] ),
-        sxh[1] + alpha(i) * ( s.y(i)*sxh[0] - s.z(i)*sxh[2] ),
-        sxh[2] + alpha(i) * ( s.y(i)*sxh[1] - s.z(i)*sxh[0] ) };
+        sxh[1] + alpha(i) * ( s.z(i)*sxh[0] - s.x(i)*sxh[2] ),
+        sxh[2] + alpha(i) * ( s.x(i)*sxh[1] - s.y(i)*sxh[0] ) };
 
     snew.x(i) = s.x(i) + 0.5*dt*rhs[0];
     snew.y(i) = s.y(i) + 0.5*dt*rhs[1];
@@ -42,7 +73,7 @@ void HeunLLGSolver::run()
 
   // Calculate fields
 
-  for(int i=0; i<cell::nspins; ++i)
+  for(int i=0; i<nspins; ++i)
   {
     double sxh[3] =
       { s.y(i)*h.z(i) - s.z(i)*h.y(i),

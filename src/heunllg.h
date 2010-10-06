@@ -6,12 +6,13 @@
 
 class HeunLLGSolver : public Solver {
   public:
-
+    HeunLLGSolver();
+    ~HeunLLGSolver();
     void initialise(int argc, char **argv, double dt);
     void run();
 
   private:
-    vecField snew;
-}
+    VecField<double> snew;
+};
 
 #endif // __HEUNLLG_H__
