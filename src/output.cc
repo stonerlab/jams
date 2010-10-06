@@ -41,6 +41,11 @@ void Output::write(const char* string, ...)
   va_end(args);
 
   logfile << buffer;
+
+  if (console == true) {
+      print(buffer);
+//    fflush(stdout);
+  }
 }
 
 void Output::print(const char* string, ...)

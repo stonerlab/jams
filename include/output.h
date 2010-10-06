@@ -9,15 +9,17 @@ class Output;
 class Output {
 
   public:
-    Output() {}
+    Output() { enableConsole(); }
 
     Output(const char *fname) {
       open(fname);
+      enableConsole();
     }
 
     ~Output() {
       close();
     }
+
 
     void open(const char *fname, ...);
     void close();
@@ -25,9 +27,14 @@ class Output {
     void write(const char* string, ...);
     void print(const char* string, ...);
 
+    void enableConsole(){ console = true; }
+    void disableConsole(){ console = false; }
+
   private:
     std::ofstream logfile;
     char buffer[1024];
+
+    bool console;
 
 };
 
