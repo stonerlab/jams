@@ -105,6 +105,7 @@ void Lattice::createFromConfig() {
 
     output.print("Total atoms: %i\n",counter);
 
+    ///////////////////////// Read Exchange /////////////////////////
     const libconfig::Setting& exch = config.lookup("exchange");
     const int intertot = exch.getLength();
     const int nexch = exch[0][3].getLength();
@@ -163,6 +164,7 @@ void Lattice::createFromConfig() {
       nintype[t1]++;
     }
     
+    /////////////////// Create interaction list /////////////////////////
     counter = 0;
     for (int x=0; x<dim[0]; ++x) {
       for (int y=0; y<dim[1]; ++y) {
@@ -186,7 +188,7 @@ void Lattice::createFromConfig() {
                 for(int j=0; j<3; ++j) {
                   v[j] = (dim[j]+r[j]+q[j])%dim[j];
                 }
-                output.write("%i %i\n",atom, latt(v[0],v[1],v[2],n+m));
+                //output.write("%i %i\n",atom, latt(v[0],v[1],v[2],n+m));
                 counter++;
               } while (next_point_symmetry(q));
             }
@@ -204,19 +206,3 @@ void Lattice::createFromConfig() {
   }
 
 }
-
-/*
-void Lattice::readExchange() {
-  
-
-  double offset[3];
-  matmul(unitcellinv, r, offset);
-
-  for(int i=0; i<3; ++i) {
-    intervec[type1][nintype[type1]][i] = floor(offset[i]+0.5);
-    for(int j=0; j<9; ++j) {
-      jij[type1][nintype[type1]][j] = jijval[j];
-    }
-  }
-}
-*/
