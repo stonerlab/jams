@@ -38,6 +38,11 @@ void Lattice::createFromConfig() {
     for(int i=0; i<3; ++i) {
       output.write("%f %f %f\n",unitcell[i][0],unitcell[i][1],unitcell[i][2]);
     }
+    
+    output.write("\nInverse lattice vectors\n");
+    output.write("---------------------------\n");
+    for(int i=0; i<3; ++i) {
+      output.write("%f %f %f\n",unitcellinv[i][0],unitcellinv[i][1],unitcellinv[i][2]);
     }
 
     ///////////////////////// read atoms /////////////////////////
