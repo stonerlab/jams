@@ -16,7 +16,8 @@ class Array
     typedef const _Tp* const_iterator;
     typedef ptrdiff_t difference_type;
 
-    Array(){ dim=0; }
+    Array() {dim = 0;}
+
     Array(size_type n) {
       dim = n;
       data.resize(dim);
