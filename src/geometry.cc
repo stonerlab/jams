@@ -14,6 +14,27 @@
 #include "globals.h"
 #include "utils.h"
 
+
+void invert_matrix(float in[3][3], float out[3][3]) {
+  float det = in[0][0]*(in[1][1]*in[2][2]-in[1][2]*in[2][1])
+             +in[0][1]*(in[1][2]*in[2][0]-in[1][0]*in[2][2])
+             +in[0][2]*(in[1][0]*in[2][1]-in[1][1]*in[2][0]);
+ 
+  det = 1.0/det;
+
+  out[0][0] = det*(in[1][1]*in[2][2]-in[1][2]*in[2][1]);
+  out[0][1] = det*(in[0][2]*in[2][1]-in[0][1]*in[2][2]);
+  out[0][2] = det*(in[0][1]*in[1][2]-in[0][2]*in[1][1]);
+
+  out[1][0] = det*(in[1][2]*in[2][0]-in[1][0]*in[2][2]);
+  out[1][1] = det*(in[0][0]*in[1][1]-in[0][2]*in[2][0]);
+  out[1][2] = det*(in[0][2]*in[1][0]-in[0][0]*in[1][2]);
+
+  out[2][0] = det*(in[1][0]*in[2][1]-in[1][1]*in[2][0]);
+  out[2][1] = det*(in[0][1]*in[2][0]-in[0][0]*in[2][1]);
+  out[2][2] = det*(in[0][0]*in[1][1]-in[0][1]*in[1][0]);
+}
+
 namespace {
   const float r_eps = 1.0e-5;
   bool fzero(float x, float y) {
@@ -28,11 +49,25 @@ void Geometry::readFromConfig()
   try {
     const libconfig::Setting& basis = config.lookup("lattice.unitcell.basis");
 
+    float lvec[3][3];
+    float lvec_inv[3][3];
+
     for(int i=0; i<3; ++i) {
-      a0[i] = basis[0][i];
-      a1[i] = basis[1][i];
-      a2[i] = basis[2][i];
+      lvec[0][i] = basis[0][i];
+      lvec[1][i] = basis[1][i];
+      lvec[2][i] = basis[2][i];
+
+//      a0[i] = basis[0][i];
+//      a1[i] = basis[1][i];
+//      a2[i] = basis[2][i];
     }
+
+    invert_matrix(lvec,lvec_inv);
+
+    output.write("\nInverse lattice vectors\n");
+    output.write("%f\t%f\t%f\n",lvec[0][0],lvec[0][1],lvec[0][2]);
+    output.write("%f\t%f\t%f\n",lvec[1][0],lvec[1][1],lvec[1][2]);
+    output.write("%f\t%f\t%f\n",lvec[2][0],lvec[2][1],lvec[2][2]);
 
     output.write("\nLattice translation vector\n");
     output.write("---------------------------\n");
@@ -67,6 +102,14 @@ void Geometry::readFromConfig()
     lattice_size[2] = config.lookup("lattice.size.[2]");
 
     output.write("\nLattice size:\t%d\t%d\t%d\n",lattice_size[0],lattice_size[1],lattice_size[2]);
+            
+    for (int n=0; n<natoms; ++n) {
+      const vec3<float> u (atoms[n][1][0], atoms[n][1][1], atoms[n][1][2]);
+      const double nx = lvec_inv[0][0]*u[0]+lvec_inv[1][0]*u[1]+lvec_inv[2][0]*u[2];
+      const double ny = lvec_inv[0][1]*u[0]+lvec_inv[1][1]*u[1]+lvec_inv[2][1]*u[2];
+      const double nz = lvec_inv[0][2]*u[0]+lvec_inv[1][2]*u[1]+lvec_inv[2][2]*u[2];
+      output.write("Integer coords: %f %f %f\n",nx,ny,nz);
+    }
 
     for (int i=0; i<lattice_size[0]; ++i) {
       for (int j=0; j<lattice_size[1]; ++j) {

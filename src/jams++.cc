@@ -5,7 +5,8 @@
 #include "globals.h"
 #include "utils.h"
 #include "solver.h"
-#include "geometry.h"
+#include "lattice.h"
+//#include "geometry.h"
 #include "vecfield.h"
 
 std::string seedname;
@@ -45,7 +46,7 @@ int jams_init(int argc, char **argv) {
     jams_error("Undefined error");
   }
 
-  geometry.readFromConfig();
+  lattice.createFromConfig();
 
 
   solver = Solver::Create();

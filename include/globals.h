@@ -12,7 +12,8 @@
 #include "output.h"
 #include "rand.h"
 #include "solver.h"
-#include "geometry.h"
+//#include "geometry.h"
+#include "lattice.h"
 #include "sparsematrix.h"
 
 #include <libconfig.h++>
@@ -42,7 +43,8 @@ namespace globals
 
 //GLOBAL Cell *cell;  ///< Computational cell object
 
-GLOBAL Geometry geometry;
+//GLOBAL Geometry geometry;
+GLOBAL Lattice lattice;
 
 GLOBAL libconfig::Config config;  ///< Config object
 

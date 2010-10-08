@@ -10,8 +10,9 @@ LIBS=-lconfig++
 OBJS=src/jams++.o \
 		 src/output.o \
 		 src/rand.o \
+		 src/maths.o \
 		 src/solver.o \
-		 src/geometry.o \
+		 src/lattice.o \
 		 src/sparsematrix.o \
 		 src/heunllg.o
 
