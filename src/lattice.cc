@@ -6,6 +6,7 @@
 #include <array3d.h>
 #include <array4d.h>
 
+enum SymmetryType {ISOTROPIC, ANISOTROPIC, TENSOR};
 
 // interactions should be inter[type][ninter][loc] = jij where loc = {dx,dy,dz,natom}
 // atoms should be atoms[x][y][z][natom] = atomnumber
@@ -106,10 +107,27 @@ void Lattice::createFromConfig() {
 
     const libconfig::Setting& exch = config.lookup("exchange");
     const int intertot = exch.getLength();
+    const int nexch = exch[0][3].getLength();
+
+    SymmetryType exchsym;
+    if(nexch == 1) {
+      exchsym = ISOTROPIC;
+    } 
+    else if (nexch == 2) {
+      exchsym = ANISOTROPIC;
+    } 
+    else if (nexch == 9) {
+      exchsym = TENSOR;
+    } 
+    else {
+      jams_error("Unknown exchange symmetry, 1, 2 or 9 components must be specified");
+    }
+
     inter.resize(natoms,intertot,4);
     std::vector<int> nintype(natoms,0);
 
-    double jijval[3][3];
+
+    double jijval[nexch];
     double r[3];
     double p[3];
     int v[4];
@@ -135,9 +153,9 @@ void Lattice::createFromConfig() {
           jams_error("Exchange lattice mismatch on interaction: %i",n+1);
         }
 #endif
-        for(int j=0; j<3; ++j) {
-          jijval[i][j] = exch[n][3][i][j];
-        }
+      }
+      for(int j=0; j<nexch; ++j) {
+        jijval[j] = exch[n][3][j];
       }
       for(int i=0;i<4; ++i){
         inter(t1,nintype[t1],i) = v[i];
@@ -145,6 +163,7 @@ void Lattice::createFromConfig() {
       nintype[t1]++;
     }
     
+    counter = 0;
     for (int x=0; x<dim[0]; ++x) {
       for (int y=0; y<dim[1]; ++y) {
         for (int z=0; z<dim[2]; ++z) {
@@ -154,10 +173,10 @@ void Lattice::createFromConfig() {
             const int r[3] = {x,y,z};  // current lattice point
             int v[3];
             int q[3];
-            output.write("\n%i: ",atom);
+//            output.write("\n%i: ",atom);
             for(int i=0; i<nintype[t1]; ++i) {
               for(int j=0; j<3; ++j) {
-                q[i] = inter(t1,i,j);
+                q[j] = inter(t1,i,j);
               }
               int m = inter(t1,i,3);
 
@@ -167,13 +186,16 @@ void Lattice::createFromConfig() {
                 for(int j=0; j<3; ++j) {
                   v[j] = (dim[j]+r[j]+q[j])%dim[j];
                 }
-                output.write("%i ",latt(v[0],v[1],v[2],n+m));
+                output.write("%i %i\n",atom, latt(v[0],v[1],v[2],n+m));
+                counter++;
               } while (next_point_symmetry(q));
             }
           } // n
         } // z
       } // y
     } // x
+                
+    output.write("\nInteraction count: %i\n", counter);
 
   
   } // try
