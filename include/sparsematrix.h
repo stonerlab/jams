@@ -1,9 +1,9 @@
 #ifndef __SPARSEMATRIX_H__
 #define __SPARSEMATRIX_H__
 
-#include "globals.h"
-
 #include <vector>
+
+#define RESTRICT __restrict__
 
 enum SparseMatrixFormat{ COO, CSR };
 
@@ -30,11 +30,11 @@ class SparseMatrix {
 
 
     // NIST style CSR storage pointers
-    inline double& RESTRICT ptrB() {
+    inline size_type* RESTRICT ptrB() {
       return &(row[0]);
     }
 
-    inline double& RESTRICT ptrE() {
+    inline size_type* RESTRICT ptrE() {
       return &(row[1]);
     }
 
