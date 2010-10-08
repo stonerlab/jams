@@ -36,7 +36,8 @@ void Lattice::createFromConfig() {
     output.write("\nLattice translation vectors\n");
     output.write("---------------------------\n");
     for(int i=0; i<3; ++i) {
-      output.write("%f %f %f\n",unitcell[i][1],unitcell[i][1],unitcell[i][2]);
+      output.write("%f %f %f\n",unitcell[i][0],unitcell[i][1],unitcell[i][2]);
+    }
     }
 
     ///////////////////////// read atoms /////////////////////////
