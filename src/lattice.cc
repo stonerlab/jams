@@ -165,6 +165,7 @@ void Lattice::createFromConfig() {
     }
     
     /////////////////// Create interaction list /////////////////////////
+    bool jsym = config.lookup("lattice.jsym");
     counter = 0;
     for (int x=0; x<dim[0]; ++x) {
       for (int y=0; y<dim[1]; ++y) {
@@ -183,14 +184,23 @@ void Lattice::createFromConfig() {
               int m = inter(t1,i,3);
 
               // loop symmetry points
-              std::sort(q,q+3);
-              do {
-                for(int j=0; j<3; ++j) {
-                  v[j] = (dim[j]+r[j]+q[j])%dim[j];
-                }
+              if(jsym==true) {
+                std::sort(q,q+3);
+                do {
+                  for(int j=0; j<3; ++j) {
+                    v[j] = (dim[j]+r[j]+q[j])%dim[j];
+                  }
                 //output.write("%i %i\n",atom, latt(v[0],v[1],v[2],n+m));
-                counter++;
-              } while (next_point_symmetry(q));
+                  counter++;
+                } while (next_point_symmetry(q));
+              }
+              else {
+               for(int j=0; j<3; ++j) {
+                 v[j] = (dim[j]+r[j]+q[j])%dim[j];
+               }
+                //output.write("%i %i\n",atom, latt(v[0],v[1],v[2],m));
+               counter++;
+              }
             }
           } // n
         } // z
