@@ -141,7 +141,7 @@ void Lattice::createFromConfig() {
       for(int i=0; i<3; ++i) {
         // p is the vector of the exchange partner within the
         // unit cell (real space)
-        p[i] = atoms[t2][1][0];
+        p[i] = atoms[t2][1][i];
         // r is the vector to the unitcell containing the exchange
         // partner (real space)
         r[i] = exch[n][2][i];
