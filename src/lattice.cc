@@ -6,7 +6,7 @@
 #include <array3d.h>
 #include <array4d.h>
 
-enum SymmetryType {ISOTROPIC, ANISOTROPIC, TENSOR};
+enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR};
 
 // interactions should be inter[type][ninter][loc] = jij where loc = {dx,dy,dz,natom}
 // atoms should be atoms[x][y][z][natom] = atomnumber
@@ -111,17 +111,25 @@ void Lattice::createFromConfig() {
     const int nexch = exch[0][3].getLength();
 
     SymmetryType exchsym;
-    if(nexch == 1) {
-      exchsym = ISOTROPIC;
-    } 
-    else if (nexch == 2) {
-      exchsym = ANISOTROPIC;
-    } 
-    else if (nexch == 9) {
-      exchsym = TENSOR;
-    } 
-    else {
-      jams_error("Unknown exchange symmetry, 1, 2 or 9 components must be specified");
+    switch (nexch) {
+      case 1:
+        exchsym = ISOTROPIC;
+        output.write("Found isotropic exchange\n");
+        break;
+      case 2:
+        exchsym = UNIAXIAL;
+        output.write("Found uniaxial exchange\n");
+        break;
+      case 3:
+        exchsym = ANISOTROPIC;
+        output.write("Found anisotropic exchange\n");
+        break;
+      case 9:
+        exchsym = TENSOR;
+        output.write("Found tensorial exchange\n");
+        break;
+      default:
+        jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
     }
 
     inter.resize(natoms,intertot,4);
