@@ -76,4 +76,6 @@ void SparseMatrix::coocsr()
   row = csrrow;
   val = csrval;
   col = csrcol;
+
+  format = CSR;
 }
