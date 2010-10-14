@@ -33,7 +33,15 @@ namespace globals
   GLOBAL VecField<double> h;
   GLOBAL VecField<double> w;
 
-  GLOBAL SparseMatrix * jij;
+  GLOBAL SparseMatrix * jijxx;
+  GLOBAL SparseMatrix * jijxy;
+  GLOBAL SparseMatrix * jijxz;
+  GLOBAL SparseMatrix * jijyx;
+  GLOBAL SparseMatrix * jijyy;
+  GLOBAL SparseMatrix * jijyz;
+  GLOBAL SparseMatrix * jijzx;
+  GLOBAL SparseMatrix * jijzy;
+  GLOBAL SparseMatrix * jijzz;
 
   GLOBAL Array<double> alpha;
   GLOBAL Array<double> mus;
@@ -41,9 +49,6 @@ namespace globals
 
 } // namespace global
 
-//GLOBAL Cell *cell;  ///< Computational cell object
-
-//GLOBAL Geometry geometry;
 GLOBAL Lattice lattice;
 
 GLOBAL libconfig::Config config;  ///< Config object
