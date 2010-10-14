@@ -1,6 +1,6 @@
 CXX=g++
 CFLAGS=-O2 -Wall -pipe -g -j2
-#CFLAGS=-O2 -Wall -pipe -j2 -NDEBUG
+#CFLAGS=-O3 -Wall -pipe -j2 -NDEBUG
 
 INC=-I./include -I/opt/local/include
 LDFLAGS=-g -L/opt/local/lib
@@ -16,10 +16,10 @@ OBJS=src/jams++.o \
 		 src/sparsematrix.o \
 		 src/heunllg.o
 
-jams++: $(OBJS)
+jams++: $(OBJS) 
 	$(CXX) -o $@ $(CFLAGS) $(LDFLAGS) $(LIBS) $^
 
-$(OBJS) : %.o : %.cc
+$(OBJS) : %.o : %.cc include/globals.h
 	$(CXX) -c -o $@ $(INC) $(CFLAGS) $<
 
 clean:
