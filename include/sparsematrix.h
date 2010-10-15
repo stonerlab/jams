@@ -11,7 +11,7 @@ enum SparseMatrixFormat{ COO, CSR };
 class SparseMatrix {
 
   public:
-    typedef unsigned int size_type;
+    typedef int size_type;
 
     SparseMatrix(size_type m, size_type n, size_type nnz_guess) {
       dim[0] = m; dim[1] = n;
