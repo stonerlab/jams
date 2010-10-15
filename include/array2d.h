@@ -23,7 +23,7 @@ class Array2D
     }
 
     Array2D(size_type d0, size_type d1) {
-      resize(d0,d1,d2);
+      resize(d0,d1);
     }
 
     inline void resize(size_type d0, size_type d1) {
