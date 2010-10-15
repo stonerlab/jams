@@ -31,15 +31,13 @@ class Array2D
       data.resize(d0*d1);
     }
 
-    inline _Tp& RESTRICT operator()(const size_type i, const size_type j,
-        const size_type k) {
+    inline _Tp& RESTRICT operator()(const size_type i, const size_type j) {
       assert( (i >= 0) && (i < dim[0]) );
       assert( (j >= 0) && (j < dim[1]) );
       return data[i*dim[1]+j];
     }
     
-    inline const _Tp& operator()(const size_type i, const size_type j,
-        const size_type k) const {
+    inline const _Tp& operator()(const size_type i, const size_type j) const {
       assert( (i >= 0) && (i < dim[0]) );
       assert( (j >= 0) && (j < dim[1]) );
       return data[i*dim[1]+j];
