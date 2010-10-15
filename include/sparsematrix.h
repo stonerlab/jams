@@ -28,6 +28,20 @@ class SparseMatrix {
     double memorySize();
     void coocsr();
 
+    inline int nonzero() { return nnz; }
+    
+    inline double* ptrVal() {
+      return &(val[0]);
+    }
+
+    inline size_type* ptrCol() {
+      return &(col[0]);
+    }
+
+    inline size_type* ptrRow() {
+      return &(row[0]);
+    }
+
 
     // NIST style CSR storage pointers
     inline size_type* RESTRICT ptrB() {
