@@ -38,10 +38,9 @@ void HeunLLGSolver::run()
 #ifdef MKL
   const char transa = "N"
   const char matdescra[6] = "SUNC";
-  const int matsize = 3*nspins;
   const double one = 1.0;
-  mkl_dcsrmv(transa,&matsize,&matsize,&one,matdescra,val,col,
-      jij.ptrB(),jij.ptrE(),&(s[0]),&one,&(h[0]));
+  mkl_dcsrmv(transa,&nspins,&nspins,&one,matdescra,val,col,
+      jijxx.ptrB(),jijxx.ptrE(),&(s[0]),&one,&(h[0]));
 #endif
 
   for(int i=0; i<nspins; ++i) {
