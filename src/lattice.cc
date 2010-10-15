@@ -3,8 +3,9 @@
 #include "lattice.h"
 #include <libconfig.h++>
 #include <map>
-#include <array3d.h>
-#include <array4d.h>
+#include "array2d.h"
+#include "array3d.h"
+#include "array4d.h"
 
 enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR};
 
@@ -13,7 +14,39 @@ enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR};
 // jij should be jij[type][ninter][ii] = jijval where ii is 0-8 (9
 // tensor components
 
+void insert_interaction(int i, int j, int n, Array2D<double> &val, SymmetryType sym) {
+  using namespace globals;
+  switch (sym) {
+    case ISOTROPIC:
+      jijxx->insert(i,j,val(n,0));
+      break;
+    case UNIAXIAL:
+      jijxx->insert(i,j,val(n,0));
+      jijzz->insert(i,j,val(n,1));
+      break;
+    case ANISOTROPIC:
+      jijxx->insert(i,j,val(n,0));
+      jijyy->insert(i,j,val(n,1));
+      jijzz->insert(i,j,val(n,2));
+      break;
+    case TENSOR:
+      jijxx->insert(i,j,val(n,0));
+      jijxy->insert(i,j,val(n,1));
+      jijxz->insert(i,j,val(n,2));
+      jijyx->insert(i,j,val(n,3));
+      jijyy->insert(i,j,val(n,4));
+      jijyz->insert(i,j,val(n,5));
+      jijzx->insert(i,j,val(n,6));
+      jijzy->insert(i,j,val(n,7));
+      jijzz->insert(i,j,val(n,8));
+      break;
+    default:
+      jams_error("Undefined symmetry when->inserting interaction");
+  }
+}
+
 void Lattice::createFromConfig() {
+  using namespace globals;
 
   Array4D<int> latt;
   Array3D<int> inter;
@@ -103,40 +136,63 @@ void Lattice::createFromConfig() {
       } // y
     } // x
 
-    output.print("Total atoms: %i\n",counter);
+    const unsigned int atomcount = counter;
+
+    output.print("Total atoms: %i\n",atomcount);
 
     ///////////////////////// Read Exchange /////////////////////////
     const libconfig::Setting& exch = config.lookup("exchange");
     const int intertot = exch.getLength();
     const int nexch = exch[0][3].getLength();
 
-    SymmetryType exchsym;
+    const int inter_guess = atomcount*intertot;
+    SymmetryType exchsym=ISOTROPIC;
     switch (nexch) {
       case 1:
         exchsym = ISOTROPIC;
         output.write("Found isotropic exchange\n");
+        jijxx = new SparseMatrix(atomcount,atomcount,inter_guess);
+        jijyy = jijxx;
+        jijzz = jijxx;
         break;
       case 2:
         exchsym = UNIAXIAL;
         output.write("Found uniaxial exchange\n");
+        jijxx = new SparseMatrix(atomcount,atomcount,inter_guess);
+        jijyy = jijxx;
+        jijzz = new SparseMatrix(atomcount,atomcount,inter_guess);
         break;
       case 3:
         exchsym = ANISOTROPIC;
         output.write("Found anisotropic exchange\n");
+        jijxx = new SparseMatrix(atomcount,atomcount,inter_guess);
+        jijyy = new SparseMatrix(atomcount,atomcount,inter_guess);
+        jijzz = new SparseMatrix(atomcount,atomcount,inter_guess);
         break;
       case 9:
         exchsym = TENSOR;
+        jijxx = new SparseMatrix(atomcount,atomcount,inter_guess);
+        jijyy = new SparseMatrix(atomcount,atomcount,inter_guess);
+        jijzz = new SparseMatrix(atomcount,atomcount,inter_guess);
         output.write("Found tensorial exchange\n");
         break;
       default:
         jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
     }
+    jijxy = new SparseMatrix(atomcount,atomcount,inter_guess);
+    jijxz = new SparseMatrix(atomcount,atomcount,inter_guess);
+
+    jijyx = new SparseMatrix(atomcount,atomcount,inter_guess);
+    jijyz = new SparseMatrix(atomcount,atomcount,inter_guess);
+
+    jijzx = new SparseMatrix(atomcount,atomcount,inter_guess);
+    jijzy = new SparseMatrix(atomcount,atomcount,inter_guess);
 
     inter.resize(natoms,intertot,4);
     std::vector<int> nintype(natoms,0);
 
 
-    double jijval[nexch];
+    Array2D<double> jijval(intertot,nexch);
     double r[3];
     double p[3];
     int v[4];
@@ -164,7 +220,7 @@ void Lattice::createFromConfig() {
 #endif
       }
       for(int j=0; j<nexch; ++j) {
-        jijval[j] = exch[n][3][j];
+        jijval(n,j) = exch[n][3][j];
       }
       for(int i=0;i<4; ++i){
         inter(t1,nintype[t1],i) = v[i];
@@ -199,6 +255,7 @@ void Lattice::createFromConfig() {
                     v[j] = (dim[j]+r[j]+q[j])%dim[j];
                   }
                 //output.write("%i %i\n",atom, latt(v[0],v[1],v[2],n+m));
+                  insert_interaction(atom,m,i,jijval,exchsym);
                   counter++;
                 } while (next_point_symmetry(q));
               }
@@ -207,6 +264,7 @@ void Lattice::createFromConfig() {
                  v[j] = (dim[j]+r[j]+q[j])%dim[j];
                }
                 //output.write("%i %i\n",atom, latt(v[0],v[1],v[2],m));
+               insert_interaction(atom,m,i,jijval,exchsym);
                counter++;
               }
             }
@@ -216,6 +274,36 @@ void Lattice::createFromConfig() {
     } // x
                 
     output.write("\nInteraction count: %i\n", counter);
+    
+    switch (exchsym) {
+      case ISOTROPIC:
+        jijxx->coocsr();
+        break;
+      case UNIAXIAL:
+        jijxx->coocsr();
+        jijzz->coocsr();
+        break;
+      case ANISOTROPIC:
+        jijxx->coocsr();
+        jijyy->coocsr();
+        jijzz->coocsr();
+        break;
+      case TENSOR:
+        jijxx->coocsr();
+        jijyy->coocsr();
+        jijzz->coocsr();
+        
+        break;
+      default:
+        jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
+    }
+    
+    jijxy->coocsr();
+    jijxz->coocsr();
+    jijyx->coocsr();
+    jijyz->coocsr();
+    jijzx->coocsr();
+    jijzy->coocsr();
 
   
   } // try
