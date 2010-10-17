@@ -1,6 +1,9 @@
 CXX=g++
-CFLAGS=-O2 -Wall -pipe -g -j2
-#CFLAGS=-O3 -Wall -pipe -j2 -NDEBUG
+WARN=-Wall -Wextra -Weffc++ -Wold-style-cast -Wswitch-default \
+		 -Wswitch-enum -Wfloat-equal -Werror=shadow -Winline \
+		 -Wno-long-long -pedantic -fmessage-length=72
+CFLAGS=-O2 $(WARN) -pipe -g -std=c++98 -j2
+#CFLAGS=-O3 -Wall -pipe -j2 -DNDEBUG
 
 INC=-I./include -I/opt/local/include
 LDFLAGS=-g -L/opt/local/lib
