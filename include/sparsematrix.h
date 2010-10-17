@@ -13,15 +13,26 @@ class SparseMatrix {
   public:
     typedef int size_type;
 
-    SparseMatrix(size_type m, size_type n, size_type nnz_guess) {
-      dim[0] = m; dim[1] = n;
-      val.reserve(nnz_guess);
-      row.reserve(nnz_guess);
-      col.reserve(nnz_guess);
-      nnz=0;
-      format=COO;
-    }
+    SparseMatrix()
+      : format(COO),
+        nrows(0),
+        ncols(0),
+        nnz(0),
+        val(0),
+        row(0),
+        col(0) 
+    {}
 
+
+    SparseMatrix(size_type m, size_type n, size_type nnz_guess)
+      : format(COO),
+        nrows(m),
+        ncols(n),
+        nnz(0),
+        val(nnz_guess),
+        row(nnz_guess),
+        col(nnz_guess)
+    {}
 
     void insert(size_type i, size_type j, double &value);
 
@@ -51,15 +62,16 @@ class SparseMatrix {
     inline size_type* RESTRICT ptrE() {
       return &(row[1]);
     }
-
+  
   private:
     SparseMatrixFormat     format;
-
-    size_type              dim[2]; // number of rows, cols
+    size_type              nrows;
+    size_type              ncols;
     size_type              nnz;
     std::vector<double>    val;
     std::vector<size_type> row;
     std::vector<size_type> col;
+
 };
 
 #endif // __SPARSEMATRIX_H__

@@ -15,8 +15,8 @@ void SparseMatrix::insert(size_type i, size_type j, double &value) {
     jams_error("Can only insert into COO format sparse matrix");
   }
 
-  assert(i < dim[0]);
-  assert(j < dim[1]);
+  assert(i < nrows);
+  assert(j < ncols);
 
   row.push_back(i);
   col.push_back(j);
@@ -35,19 +35,19 @@ void SparseMatrix::coocsr()
     return;
   }
 
-  std::vector<size_type>  csrrow((dim[0]+1),0);
+  std::vector<size_type>  csrrow((nrows+1),0);
   std::vector<size_type>  csrcol(nnz,0);
   std::vector<double>     csrval(nnz,0.0);
 
   // determine row lengths
-  for(unsigned int k=0; k<nnz; ++k) {
+  for(int k=0; k<nnz; ++k) {
     csrrow[row[k]]++;
   }
 
 
   // starting poition of each row
   int p=0;
-  for(unsigned int j=0; j<(dim[0]+1); ++j) {
+  for(int j=0; j<(nrows+1); ++j) {
     int p0 = csrrow[j];
     csrrow[j] = p;
     p = p+p0;
@@ -55,7 +55,7 @@ void SparseMatrix::coocsr()
 
   // go through the structure once more, fill in the output matrix
 
-  for(unsigned int k=0; k<nnz; ++k) {
+  for(int k=0; k<nnz; ++k) {
     const int i = row[k];
     const int j = col[k];
     const double x = val[k];
@@ -66,13 +66,13 @@ void SparseMatrix::coocsr()
   }
 
   // shift back csrrow
-  for(unsigned int j=0; j<dim[0]+1; ++j) {
-    const int idx = dim[0]+1-j;
+  for(int j=0; j<nrows+1; ++j) {
+    const int idx = nrows+1-j;
     csrrow[idx] = csrrow[idx-1];
   }
   csrrow[0] = 0;
 
-  row.resize(dim[0]+1);
+  row.resize(nrows+1);
   row = csrrow;
   val = csrval;
   col = csrcol;
