@@ -21,12 +21,12 @@ struct vec3
 
 class Lattice {
   public:
+    Lattice() : dim(3,0), ntypes(0), atom_type(0,0), atom_type_map() {}
     void createFromConfig();
   private:
     void readExchange();
 
-    int      dim[3];
-
+    std::vector<int> dim;
     int ntypes;
     std::vector<int> atom_type;
     std::map<std::string,int> atom_type_map;

@@ -9,9 +9,11 @@ class Output;
 class Output {
 
   public:
-    Output() { enableConsole(); }
+    Output() : logfile(), console(true) { enableConsole(); }
 
-    Output(const char *fname) {
+    Output(const char *fname) 
+      : logfile(), console(true) 
+    {
       open(fname);
       enableConsole();
     }
@@ -32,9 +34,8 @@ class Output {
 
   private:
     std::ofstream logfile;
-    char buffer[1024];
-
     bool console;
+    char buffer[1024];
 
 };
 
