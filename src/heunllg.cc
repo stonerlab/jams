@@ -1,7 +1,6 @@
 #include "globals.h"
 
 #include "heunllg.h"
-#include "vecfield.h"
 // #include "cblas.h"
 
 #ifdef MKL

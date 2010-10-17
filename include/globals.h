@@ -7,7 +7,6 @@
 #define RESTRICT
 #endif
 
-#include "vecfield.h"
 #include "array.h"
 #include "output.h"
 #include "rand.h"
@@ -29,9 +28,6 @@ namespace globals
 {
   GLOBAL int nspins;
 
-  GLOBAL VecField<double> s;
-  GLOBAL VecField<double> h;
-  GLOBAL VecField<double> w;
 
   GLOBAL SparseMatrix * jijxx;
   GLOBAL SparseMatrix * jijxy;
