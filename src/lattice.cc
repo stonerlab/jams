@@ -16,6 +16,7 @@ enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR};
 
 void insert_interaction(int i, int j, int n, Array2D<double> &val, SymmetryType sym) {
   using namespace globals;
+  /*
   switch (sym) {
     case ISOTROPIC:
       jijxx->insert(i,j,val(n,0));
@@ -43,6 +44,7 @@ void insert_interaction(int i, int j, int n, Array2D<double> &val, SymmetryType 
     default:
       jams_error("Undefined symmetry when->inserting interaction");
   }
+  */
 }
 
 void Lattice::createFromConfig() {
@@ -147,6 +149,7 @@ void Lattice::createFromConfig() {
 
     const int inter_guess = atomcount*intertot;
     SymmetryType exchsym=ISOTROPIC;
+    /*
     switch (nexch) {
       case 1:
         exchsym = ISOTROPIC;
@@ -187,16 +190,16 @@ void Lattice::createFromConfig() {
 
     jijzx = new SparseMatrix(atomcount,atomcount,inter_guess);
     jijzy = new SparseMatrix(atomcount,atomcount,inter_guess);
-
+*/
     inter.resize(natoms,intertot,4);
     std::vector<int> nintype(natoms,0);
 
 
     Array2D<double> jijval(intertot,nexch);
+    for(int n=0; n<intertot; ++n) {
     double r[3];
     double p[3];
     int v[4];
-    for(int n=0; n<intertot; ++n) {
       // read exchange tensor
       int t1 = exch[n][0];
       int t2 = exch[n][1];
@@ -275,6 +278,7 @@ void Lattice::createFromConfig() {
                 
     output.write("\nInteraction count: %i\n", counter);
     
+    /*
     switch (exchsym) {
       case ISOTROPIC:
         jijxx->coocsr();
@@ -304,7 +308,7 @@ void Lattice::createFromConfig() {
     jijyz->coocsr();
     jijzx->coocsr();
     jijzy->coocsr();
-
+*/
   
   } // try
   catch(const libconfig::SettingNotFoundException &nfex) {

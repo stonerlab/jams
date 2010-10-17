@@ -6,8 +6,6 @@
 #include "utils.h"
 #include "solver.h"
 #include "lattice.h"
-//#include "geometry.h"
-#include "vecfield.h"
 
 std::string seedname;
 
@@ -63,32 +61,6 @@ int jams_init(int argc, char **argv) {
 
 void jams_finish() {
   using namespace globals;
-
-  // careful of aliasing when freeing exchange matrices
-  if( (jijxx == jijyy) && (jijxx == jijzz) ) {
-    if(jijxx != NULL) { delete jijxx; }
-  }
-  else if( (jijxx == jijyy) ) {
-    if(jijxx != NULL) { delete jijxx; }
-    if(jijzz != NULL) { delete jijzz; }
-  } 
-  else {
-    if(jijxx != NULL) { delete jijxx; }
-    if(jijyy != NULL) { delete jijyy; }
-    if(jijzz != NULL) { delete jijzz; }
-  }
-
-  jijxx = NULL; jijyy = NULL; jijzz = NULL;
-
-  if(jijxy != NULL) { delete jijxy; jijxy = NULL; }
-  if(jijxz != NULL) { delete jijxz; jijxz = NULL; }
-
-  if(jijyx != NULL) { delete jijyx; jijyx = NULL; }
-  if(jijyz != NULL) { delete jijyz; jijyz = NULL; }
-  
-  if(jijzx != NULL) { delete jijzx; jijzx = NULL; }
-  if(jijzy != NULL) { delete jijzy; jijzy = NULL; }
-
 
   if(solver != NULL) { delete solver; }
 }

@@ -2,17 +2,17 @@
 #define __HEUNLLG_H__
 
 #include "solver.h"
-#include "vecfield.h"
+#include "array2d.h"
 
 class HeunLLGSolver : public Solver {
   public:
-    HeunLLGSolver();
-    ~HeunLLGSolver();
+    HeunLLGSolver() : snew() {};
+    ~HeunLLGSolver() {}
     void initialise(int argc, char **argv, double dt);
     void run();
 
   private:
-    VecField<double> snew;
+    Array2D<double> snew;
 };
 
 #endif // __HEUNLLG_H__

@@ -6,7 +6,7 @@ Solver::Solver() {
   initialised = false;
 }
 
-void Solver::initialise(int argc, char **argv, double dt) {
+void Solver::initialise(int argc, char **argv, double idt) {
 
   if(initialised == true) {
     jams_error("Solver is already initialised");

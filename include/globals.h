@@ -8,6 +8,7 @@
 #endif
 
 #include "array.h"
+#include "array2d.h"
 #include "output.h"
 #include "rand.h"
 #include "solver.h"
@@ -28,16 +29,11 @@ namespace globals
 {
   GLOBAL int nspins;
 
+  GLOBAL Array2D<double> s;
+  GLOBAL Array2D<double> h;
+  GLOBAL Array2D<double> w;
 
-  GLOBAL SparseMatrix * jijxx;
-  GLOBAL SparseMatrix * jijxy;
-  GLOBAL SparseMatrix * jijxz;
-  GLOBAL SparseMatrix * jijyx;
-  GLOBAL SparseMatrix * jijyy;
-  GLOBAL SparseMatrix * jijyz;
-  GLOBAL SparseMatrix * jijzx;
-  GLOBAL SparseMatrix * jijzy;
-  GLOBAL SparseMatrix * jijzz;
+  GLOBAL SparseMatrix * Jij;
 
   GLOBAL Array<double> alpha;
   GLOBAL Array<double> mus;

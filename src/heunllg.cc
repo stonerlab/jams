@@ -1,29 +1,24 @@
 #include "globals.h"
 
 #include "heunllg.h"
+#include "array2d.h"
+#include <cmath>
 // #include "cblas.h"
 
 #ifdef MKL
 #include <mkl_spblas.h>
 #endif
 
-HeunLLGSolver::HeunLLGSolver(){
 
-}
-
-HeunLLGSolver::~HeunLLGSolver(){
-
-}
-
-void HeunLLGSolver::initialise(int argc, char **argv, double dt)
+void HeunLLGSolver::initialise(int argc, char **argv, double idt)
 {
   
   // initialise base class
-  Solver::initialise(argc,argv,dt);
+  Solver::initialise(argc,argv,idt);
 
   output.write("Initialising Heun LLG solver (CPU)\n");
 
-  snew.resize(globals::nspins);
+  snew.resize(globals::nspins,3);
 
   initialised = true;
 }
@@ -44,29 +39,28 @@ void HeunLLGSolver::run()
 
   for(int i=0; i<nspins; ++i) {
     double sxh[3] =
-      { s.y(i)*h.z(i) - s.z(i)*h.y(i),
-        s.z(i)*h.x(i) - s.x(i)*h.z(i),
-        s.x(i)*h.y(i) - s.y(i)*h.x(i) };
+      { s(i,1)*h(i,2) - s(i,2)*h(i,1),
+        s(i,2)*h(i,0) - s(i,0)*h(i,2),
+        s(i,0)*h(i,1) - s(i,1)*h(i,0) };
 
     double rhs[3] =
-      { sxh[0] + alpha(i) * ( s.y(i)*sxh[2] - s.z(i)*sxh[1] ),
-        sxh[1] + alpha(i) * ( s.z(i)*sxh[0] - s.x(i)*sxh[2] ),
-        sxh[2] + alpha(i) * ( s.x(i)*sxh[1] - s.y(i)*sxh[0] ) };
+      { sxh[0] + alpha(i) * ( s(i,1)*sxh[2] - s(i,2)*sxh[1] ),
+        sxh[1] + alpha(i) * ( s(i,2)*sxh[0] - s(i,0)*sxh[2] ),
+        sxh[2] + alpha(i) * ( s(i,0)*sxh[1] - s(i,1)*sxh[0] ) };
 
-    snew.x(i) = s.x(i) + 0.5*dt*rhs[0];
-    snew.y(i) = s.y(i) + 0.5*dt*rhs[1];
-    snew.z(i) = s.z(i) + 0.5*dt*rhs[2];
+    for(int n=0; n<3; ++n) {
+      snew(i,n) = s(i,n) + 0.5*dt*rhs[n];
+    }
 
-    s.x(i) = s.x(i) + dt*rhs[0];
-    s.y(i) = s.y(i) + dt*rhs[1];
-    s.z(i) = s.z(i) + dt*rhs[2];
+    for(int n=0; n<3; ++n) {
+      s(i,n) = s(i,n) + dt*rhs[n];
+    }
 
-    double norm = 1.0/sqrt(s.x(i)*s.x(i) + s.y(i)*s.y(i) +
-      s.z(i)*s.z(i));
+    double norm = 1.0/sqrt(s(i,0)*s(i,0) + s(i,1)*s(i,1) + s(i,2)*s(i,2));
 
-    s.x(i) = s.x(i)*norm;
-    s.y(i) = s.y(i)*norm;
-    s.z(i) = s.z(i)*norm;
+    for(int n=0; n<3; ++n) {
+      s(i,n) = s(i,n)*norm;
+    }
   }
 
   // Calculate fields
@@ -74,22 +68,23 @@ void HeunLLGSolver::run()
   for(int i=0; i<nspins; ++i)
   {
     double sxh[3] =
-      { s.y(i)*h.z(i) - s.z(i)*h.y(i),
-        s.z(i)*h.x(i) - s.x(i)*h.z(i),
-        s.x(i)*h.y(i) - s.y(i)*h.x(i) };
+      { s(i,1)*h(i,2) - s(i,2)*h(i,1),
+        s(i,2)*h(i,0) - s(i,0)*h(i,2),
+        s(i,0)*h(i,1) - s(i,1)*h(i,0) };
+    
+    double rhs[3] =
+      { sxh[0] + alpha(i) * ( s(i,1)*sxh[2] - s(i,2)*sxh[1] ),
+        sxh[1] + alpha(i) * ( s(i,2)*sxh[0] - s(i,0)*sxh[2] ),
+        sxh[2] + alpha(i) * ( s(i,0)*sxh[1] - s(i,1)*sxh[0] ) };
 
-    s.x(i) = snew.x(i) + 0.5*dt*(sxh[0] + alpha(i) *
-      ( s.y(i)*sxh[2] - s.z(i)*sxh[1]) );
-    s.y(i) = snew.y(i) + 0.5*dt*(sxh[1] + alpha(i) *
-      ( s.y(i)*sxh[0] - s.z(i)*sxh[2]) );
-    s.z(i) = snew.z(i) + 0.5*dt*(sxh[2] + alpha(i) * 
-      ( s.y(i)*sxh[1] - s.z(i)*sxh[0]) );
+    for(int n=0; n<3; ++n) {
+      s(i,n) = snew(i,n) + 0.5*dt*rhs[n];
+    }
+    
+    double norm = 1.0/sqrt(s(i,0)*s(i,0) + s(i,1)*s(i,1) + s(i,2)*s(i,2));
 
-    double norm = 1.0/sqrt(s.x(i)*s.x(i) + s.y(i)*s.y(i) +
-      s.z(i)*s.z(i));
-
-    s.x(i) = s.x(i)*norm;
-    s.y(i) = s.y(i)*norm;
-    s.z(i) = s.z(i)*norm;
+    for(int n=0; n<3; ++n) {
+      s(i,n) = s(i,n)*norm;
+    }
   }
 }
