@@ -33,7 +33,7 @@ namespace globals
   GLOBAL Array2D<double> h;
   GLOBAL Array2D<double> w;
 
-  GLOBAL SparseMatrix * Jij;
+  GLOBAL SparseMatrix<double> Jij;
 
   GLOBAL Array<double> alpha;
   GLOBAL Array<double> mus;
