@@ -6,46 +6,17 @@
 #include "array2d.h"
 #include "array3d.h"
 #include "array4d.h"
+#include "sparsematrix.h"
+#include <stdint.h>
+
+//#include <metis.h>
 
 enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR};
 
-// interactions should be inter[type][ninter][loc] = jij where loc = {dx,dy,dz,natom}
-// atoms should be atoms[x][y][z][natom] = atomnumber
-// jij should be jij[type][ninter][ii] = jijval where ii is 0-8 (9
-// tensor components
+extern "C" { 
+#include <metis.h>
+} 
 
-void insert_interaction(int i, int j, int n, Array2D<double> &val, SymmetryType sym) {
-  using namespace globals;
-  /*
-  switch (sym) {
-    case ISOTROPIC:
-      jijxx->insert(i,j,val(n,0));
-      break;
-    case UNIAXIAL:
-      jijxx->insert(i,j,val(n,0));
-      jijzz->insert(i,j,val(n,1));
-      break;
-    case ANISOTROPIC:
-      jijxx->insert(i,j,val(n,0));
-      jijyy->insert(i,j,val(n,1));
-      jijzz->insert(i,j,val(n,2));
-      break;
-    case TENSOR:
-      jijxx->insert(i,j,val(n,0));
-      jijxy->insert(i,j,val(n,1));
-      jijxz->insert(i,j,val(n,2));
-      jijyx->insert(i,j,val(n,3));
-      jijyy->insert(i,j,val(n,4));
-      jijyz->insert(i,j,val(n,5));
-      jijzx->insert(i,j,val(n,6));
-      jijzy->insert(i,j,val(n,7));
-      jijzz->insert(i,j,val(n,8));
-      break;
-    default:
-      jams_error("Undefined symmetry when->inserting interaction");
-  }
-  */
-}
 
 void Lattice::createFromConfig() {
   using namespace globals;
@@ -205,6 +176,7 @@ void Lattice::createFromConfig() {
       int t2 = exch[n][1];
       t1--; t2--;
       v[3] = t2-t1;
+
       for(int i=0; i<3; ++i) {
         // p is the vector of the exchange partner within the
         // unit cell (real space)
@@ -232,6 +204,10 @@ void Lattice::createFromConfig() {
     }
     
     /////////////////// Create interaction list /////////////////////////
+
+    // i,j neighbour list for system partitioning
+    SparseMatrix<int> nbr_list(atomcount,atomcount,inter_guess);
+
     bool jsym = config.lookup("lattice.jsym");
     counter = 0;
     for (int x=0; x<dim[0]; ++x) {
@@ -257,8 +233,9 @@ void Lattice::createFromConfig() {
                   for(int j=0; j<3; ++j) {
                     v[j] = (dim[j]+r[j]+q[j])%dim[j];
                   }
-                //output.write("%i %i\n",atom, latt(v[0],v[1],v[2],n+m));
-                  insert_interaction(atom,m,i,jijval,exchsym);
+                  //insert_interaction(atom,m,i,jijval,exchsym);
+                  int nbr = latt(v[0],v[1],v[2],m);
+                  nbr_list.insert(atom,nbr,1);
                   counter++;
                 } while (next_point_symmetry(q));
               }
@@ -266,8 +243,9 @@ void Lattice::createFromConfig() {
                for(int j=0; j<3; ++j) {
                  v[j] = (dim[j]+r[j]+q[j])%dim[j];
                }
-                //output.write("%i %i\n",atom, latt(v[0],v[1],v[2],m));
-               insert_interaction(atom,m,i,jijval,exchsym);
+               //insert_interaction(atom,m,i,jijval,exchsym);
+               int nbr = latt(v[0],v[1],v[2],m);
+               nbr_list.insert(atom,nbr,1);
                counter++;
               }
             }
@@ -275,6 +253,31 @@ void Lattice::createFromConfig() {
         } // z
       } // y
     } // x
+
+    nbr_list.coocsr();
+
+
+    output.write("Partitioning the interaction graph\n");
+    int options[5] = {0,3,1,1,0};
+    int volume = 0;
+    int wgtflag = 0;
+    int numflag = 0;
+    int nparts = 8;
+    int nvertices = static_cast<int>(atomcount); //nbr_list.nonzero();
+    std::vector<int> part(nvertices,0);
+
+    //nbr_list.printCSR();
+    output.write("Parts: %i\n",nparts);
+
+    output.write("Calling METIS\n");
+    METIS_PartGraphVKway(&nvertices, nbr_list.ptrRow(), nbr_list.ptrCol(), NULL, NULL, 
+        &wgtflag, &numflag, &nparts, options, &volume, &part[0]);
+
+    output.write("Communication volume: %i\n",volume);
+
+    //for(int i=0;i<nvertices;++i) {
+    //  output.write("%i\n",part[i]);
+    //}
                 
     output.write("\nInteraction count: %i\n", counter);
     
