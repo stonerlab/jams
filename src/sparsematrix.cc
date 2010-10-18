@@ -5,12 +5,14 @@
 #include <valarray>
 #include <cassert>
 
-double SparseMatrix::memorySize() {
+template <typename _Tp>
+double SparseMatrix<_Tp>::memorySize() {
   const double mb = (1024.0*1024.0);
-  return (((row.size()+col.size())*sizeof(size_type))+(val.size()*sizeof(double)))/mb;
+  return (((row.size()+col.size())*sizeof(size_type))+(val.size()*sizeof(_Tp)))/mb;
 }
 
-void SparseMatrix::insert(size_type i, size_type j, double &value) {
+template <typename _Tp>
+void SparseMatrix<_Tp>::insert(size_type i, size_type j, _Tp &value) {
   if(format != COO) {
     jams_error("Can only insert into COO format sparse matrix");
   }
@@ -27,7 +29,8 @@ void SparseMatrix::insert(size_type i, size_type j, double &value) {
 
 //coo-csr conversion from fortran sparsekit
 // http://people.sc.fsu.edu/~jburkardt/f77_src/sparsekit/sparsekit.f
-void SparseMatrix::coocsr()
+template <typename _Tp>
+void SparseMatrix<_Tp>::coocsr()
 {
   if(format == CSR) {
     output.write("WARNING: Cannot convert SparseMatrix");
@@ -37,7 +40,7 @@ void SparseMatrix::coocsr()
 
   std::vector<size_type>  csrrow((nrows+1),0);
   std::vector<size_type>  csrcol(nnz,0);
-  std::vector<double>     csrval(nnz,0.0);
+  std::vector<_Tp>     csrval(nnz,0.0);
 
   // determine row lengths
   for(int k=0; k<nnz; ++k) {
@@ -58,8 +61,8 @@ void SparseMatrix::coocsr()
   for(int k=0; k<nnz; ++k) {
     const int i = row[k];
     const int j = col[k];
-    const double x = val[k];
-    const double ia = csrrow[i];
+    const _Tp x = val[k];
+    const _Tp ia = csrrow[i];
     csrval[ia] = x;
     csrcol[ia] = j;
     csrrow[i] = ia+1;

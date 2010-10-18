@@ -8,6 +8,7 @@
 enum SparseMatrixFormat{ COO, CSR };
 
 // SparseMatrix stored in CSR format
+template <typename _Tp>
 class SparseMatrix {
 
   public:
@@ -34,14 +35,14 @@ class SparseMatrix {
         col(nnz_guess)
     {}
 
-    void insert(size_type i, size_type j, double &value);
+    void insert(size_type i, size_type j, _Tp &value);
 
     double memorySize();
     void coocsr();
 
     inline int nonzero() { return nnz; }
     
-    inline double* ptrVal() {
+    inline _Tp* ptrVal() {
       return &(val[0]);
     }
 
@@ -68,7 +69,7 @@ class SparseMatrix {
     size_type              nrows;
     size_type              ncols;
     size_type              nnz;
-    std::vector<double>    val;
+    std::vector<_Tp>    val;
     std::vector<size_type> row;
     std::vector<size_type> col;
 
