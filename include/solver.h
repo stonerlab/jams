@@ -8,7 +8,13 @@ enum SolverType{ HEUNLLG };
 class Solver 
 {
   public:
-    Solver();
+    Solver() 
+      : initialised(false),
+        time(0.0),
+        iteration(0),
+        dt(0.0)
+      {}
+
     virtual ~Solver(){}
 
     virtual void initialise(int argc, char **argv, double dt);

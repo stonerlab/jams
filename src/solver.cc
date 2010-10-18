@@ -2,10 +2,6 @@
 #include "heunllg.h"
 #include "globals.h"
 
-Solver::Solver() {
-  initialised = false;
-}
-
 void Solver::initialise(int argc, char **argv, double idt) {
 
   if(initialised == true) {
