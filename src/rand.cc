@@ -152,7 +152,8 @@ double Random::normal() {
       y = -1.0 + 2.0 * static_cast<double>(cmwc4096())*norm_open;
 
       s = (x*x) + (y*y);
-    } while (s > 1.0 || s == 0);
+      // floating point comparison below is needed to avoid log(0.0)
+    } while (s > 1.0 || s == 0.0);
 
     s = sqrt(-2.0 * log(s) / s);
 
