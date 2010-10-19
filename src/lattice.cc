@@ -17,6 +17,42 @@ extern "C" {
 #include <metis.h>
 } 
 
+void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryType exchsym) {
+  using namespace globals;
+    switch (exchsym) {
+      case ISOTROPIC:
+        Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
+        Jij.insert(3*m+1,3*n+1,jijval(i,0)); // Jyy
+        Jij.insert(3*m+2,3*n+2,jijval(i,0)); // Jzz
+        break;
+      case UNIAXIAL:
+        Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
+        Jij.insert(3*m+1,3*n+1,jijval(i,0)); // Jyy
+        Jij.insert(3*m+2,3*n+2,jijval(i,1)); // Jzz
+        break;
+      case ANISOTROPIC:
+        Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
+        Jij.insert(3*m+1,3*n+1,jijval(i,1)); // Jyy
+        Jij.insert(3*m+2,3*n+2,jijval(i,2)); // Jzz
+        break;
+      case TENSOR:
+        Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
+        Jij.insert(3*m+0,3*n+1,jijval(i,1)); // Jxy
+        Jij.insert(3*m+0,3*n+2,jijval(i,2)); // Jxz
+        
+        Jij.insert(3*m+1,3*n+0,jijval(i,0)); // Jyx
+        Jij.insert(3*m+1,3*n+1,jijval(i,1)); // Jyy
+        Jij.insert(3*m+1,3*n+2,jijval(i,2)); // Jyz
+        
+        Jij.insert(3*m+2,3*n+0,jijval(i,0)); // Jzx
+        Jij.insert(3*m+2,3*n+1,jijval(i,1)); // Jzy
+        Jij.insert(3*m+2,3*n+2,jijval(i,2)); // Jzz
+        break;
+      default:
+        jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
+    }
+}
+
 
 void Lattice::createFromConfig() {
   using namespace globals;
@@ -111,60 +147,43 @@ void Lattice::createFromConfig() {
 
     const unsigned int atomcount = counter;
 
-    output.print("Total atoms: %i\n",atomcount);
+    output.write("Total atoms: %i\n",atomcount);
 
     ///////////////////////// Read Exchange /////////////////////////
     const libconfig::Setting& exch = config.lookup("exchange");
     const int intertot = exch.getLength();
     const int nexch = exch[0][3].getLength();
 
-    const int inter_guess = atomcount*intertot;
+    int inter_guess = atomcount*intertot*3;
+
+
     SymmetryType exchsym=ISOTROPIC;
-    /*
     switch (nexch) {
       case 1:
         exchsym = ISOTROPIC;
         output.write("Found isotropic exchange\n");
-        jijxx = new SparseMatrix(atomcount,atomcount,inter_guess);
-        jijyy = jijxx;
-        jijzz = jijxx;
         break;
       case 2:
         exchsym = UNIAXIAL;
         output.write("Found uniaxial exchange\n");
-        jijxx = new SparseMatrix(atomcount,atomcount,inter_guess);
-        jijyy = jijxx;
-        jijzz = new SparseMatrix(atomcount,atomcount,inter_guess);
         break;
       case 3:
         exchsym = ANISOTROPIC;
         output.write("Found anisotropic exchange\n");
-        jijxx = new SparseMatrix(atomcount,atomcount,inter_guess);
-        jijyy = new SparseMatrix(atomcount,atomcount,inter_guess);
-        jijzz = new SparseMatrix(atomcount,atomcount,inter_guess);
         break;
       case 9:
         exchsym = TENSOR;
-        jijxx = new SparseMatrix(atomcount,atomcount,inter_guess);
-        jijyy = new SparseMatrix(atomcount,atomcount,inter_guess);
-        jijzz = new SparseMatrix(atomcount,atomcount,inter_guess);
         output.write("Found tensorial exchange\n");
+        inter_guess = atomcount*intertot*9;
         break;
       default:
         jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
     }
-    jijxy = new SparseMatrix(atomcount,atomcount,inter_guess);
-    jijxz = new SparseMatrix(atomcount,atomcount,inter_guess);
-
-    jijyx = new SparseMatrix(atomcount,atomcount,inter_guess);
-    jijyz = new SparseMatrix(atomcount,atomcount,inter_guess);
-
-    jijzx = new SparseMatrix(atomcount,atomcount,inter_guess);
-    jijzy = new SparseMatrix(atomcount,atomcount,inter_guess);
-*/
+    
     inter.resize(natoms,intertot,4);
     std::vector<int> nintype(natoms,0);
 
+    Jij.resize(3*atomcount,3*atomcount,inter_guess);
 
     Array2D<double> jijval(intertot,nexch);
     for(int n=0; n<intertot; ++n) {
@@ -206,7 +225,7 @@ void Lattice::createFromConfig() {
     /////////////////// Create interaction list /////////////////////////
 
     // i,j neighbour list for system partitioning
-    SparseMatrix<int> nbr_list(atomcount,atomcount,inter_guess);
+    //SparseMatrix<int> nbr_list(atomcount,atomcount,inter_guess);
 
     bool jsym = config.lookup("lattice.jsym");
     counter = 0;
@@ -233,9 +252,9 @@ void Lattice::createFromConfig() {
                   for(int j=0; j<3; ++j) {
                     v[j] = (dim[j]+r[j]+q[j])%dim[j];
                   }
-                  //insert_interaction(atom,m,i,jijval,exchsym);
                   int nbr = latt(v[0],v[1],v[2],m);
-                  nbr_list.insert(atom,nbr,1);
+                  insert_interaction(atom,nbr,i,jijval,exchsym);
+                  //nbr_list.insert(atom,nbr,1);
                   counter++;
                 } while (next_point_symmetry(q));
               }
@@ -243,9 +262,9 @@ void Lattice::createFromConfig() {
                for(int j=0; j<3; ++j) {
                  v[j] = (dim[j]+r[j]+q[j])%dim[j];
                }
-               //insert_interaction(atom,m,i,jijval,exchsym);
                int nbr = latt(v[0],v[1],v[2],m);
-               nbr_list.insert(atom,nbr,1);
+               insert_interaction(atom,nbr,i,jijval,exchsym);
+               //nbr_list.insert(atom,nbr,1);
                counter++;
               }
             }
@@ -254,9 +273,10 @@ void Lattice::createFromConfig() {
       } // y
     } // x
 
-    nbr_list.coocsr();
+    //nbr_list.coocsr();
 
 
+#ifdef MPI
     output.write("Partitioning the interaction graph\n");
     int options[5] = {0,3,1,1,0};
     int volume = 0;
@@ -278,40 +298,13 @@ void Lattice::createFromConfig() {
     //for(int i=0;i<nvertices;++i) {
     //  output.write("%i\n",part[i]);
     //}
-                
+#endif
+
     output.write("\nInteraction count: %i\n", counter);
-    
-    /*
-    switch (exchsym) {
-      case ISOTROPIC:
-        jijxx->coocsr();
-        break;
-      case UNIAXIAL:
-        jijxx->coocsr();
-        jijzz->coocsr();
-        break;
-      case ANISOTROPIC:
-        jijxx->coocsr();
-        jijyy->coocsr();
-        jijzz->coocsr();
-        break;
-      case TENSOR:
-        jijxx->coocsr();
-        jijyy->coocsr();
-        jijzz->coocsr();
-        
-        break;
-      default:
-        jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
-    }
-    
-    jijxy->coocsr();
-    jijxz->coocsr();
-    jijyx->coocsr();
-    jijyz->coocsr();
-    jijzx->coocsr();
-    jijzy->coocsr();
-*/
+    output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
+    output.write("Converting COO to CSR INPLACE\n");
+    Jij.coocsrInplace();
+    output.write("Jij memory (CSR): %f MB\n",Jij.memorySize());
   
   } // try
   catch(const libconfig::SettingNotFoundException &nfex) {
