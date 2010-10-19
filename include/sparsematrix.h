@@ -57,6 +57,7 @@ class SparseMatrix {
     void printCSR();
 
     void coocsr();
+    void coocsrInplace();
 
     inline int nonzero() { return nnz; }
     
@@ -181,6 +182,88 @@ void SparseMatrix<_Tp>::coocsr()
   row.swap(csrrow);
   val.swap(csrval);
   col.swap(csrcol);
+
+  format = CSR;
+}
+
+template <typename _Tp>
+void SparseMatrix<_Tp>::coocsrInplace()
+{
+  if(format == CSR) {
+    output.write("WARNING: Cannot convert SparseMatrix");
+    output.write("Matrix is alread in CSR format");
+    return;
+  }
+  
+  _Tp t,tnext;
+  size_type i,j,k, ipos,init, inext,jnext;
+
+  std::vector<size_type> iwk(nrows+1,0);
+
+  for(k=0; k<nnz; ++k) {
+    i = row[k];
+    iwk[i+1]++;
+  }
+
+  iwk[0] = 0;
+
+  for(i=1; i<nrows; ++i) {
+    iwk[i] = iwk[i-1] + iwk[i];
+  }
+
+  init = 0;
+
+  k=0;
+
+  bool chase = true;
+  while (chase == true) {
+    t = val[init];
+    i = row[init];
+    j = col[init];
+    row[init] = -1;
+
+    for(;k<nnz;++k){
+
+      ipos = iwk[i];
+
+      tnext = val[ipos];
+      inext = row[ipos];
+      jnext = col[ipos];
+
+      val[ipos] = t;
+      col[ipos] = j;
+
+      iwk[i] = ipos+1;
+
+      if(row[ipos] < 0) {
+        for(;row[init] < 0; ++init) {
+          if(init > nnz) {
+            chase = false;
+            break;
+          }
+        }
+      }
+      else {
+        t = tnext;
+        i = inext;
+        j = jnext;
+        row[ipos] = -1;
+      }
+    }
+    chase = false;
+    break;
+    
+  }
+  
+  row.resize(nrows+1);
+
+  for(i=0; i<nrows; ++i) {
+    row[i+1] = iwk[i];
+  }
+
+  row[0] = 0;
+
+
 
   format = CSR;
 }
