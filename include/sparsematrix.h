@@ -37,6 +37,19 @@ class SparseMatrix {
         col(0)
     {val.reserve(nnz_guess); row.reserve(nnz_guess); col.reserve(nnz_guess);}
 
+    void resize(size_type m, size_type n, size_type nnz_guess) {
+      val.empty();
+      col.empty();
+      row.empty();
+      format = COO;
+      nrows = m;
+      ncols = n;
+      nnz = 0;
+      val.reserve(nnz_guess);
+      col.reserve(nnz_guess);
+      row.reserve(nnz_guess);
+    }
+
     void insert(size_type i, size_type j, _Tp value);
 
     double memorySize();
