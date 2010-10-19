@@ -19,6 +19,8 @@ extern "C" {
 
 void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryType exchsym) {
   using namespace globals;
+  // only store upper triangle
+  if( n > m ) {
     switch (exchsym) {
       case ISOTROPIC:
         Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
@@ -51,6 +53,7 @@ void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryT
       default:
         jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
     }
+  }
 }
 
 
