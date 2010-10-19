@@ -4,6 +4,7 @@
 #include <vector>
 #include <cassert>
 #include "globals.h"
+#include <algorithm>
 
 #define RESTRICT __restrict__
 
@@ -194,12 +195,14 @@ void SparseMatrix<_Tp>::coocsrInplace()
     output.write("Matrix is alread in CSR format");
     return;
   }
-  
+ 
+
   _Tp t,tnext;
   size_type i,j,k, ipos,init, inext,jnext;
 
-  std::vector<size_type> iwk(nrows+1,0);
+  std::vector<size_type> iwk(nrows,0);
 
+  // find pointer array for resulting matrix
   for(k=0; k<nnz; ++k) {
     i = row[k];
     iwk[i+1]++;
@@ -211,48 +214,41 @@ void SparseMatrix<_Tp>::coocsrInplace()
     iwk[i] = iwk[i-1] + iwk[i];
   }
 
-  init = 0;
-
   k=0;
 
-  bool chase = true;
-  while (chase == true) {
-    t = val[init];
-    i = row[init];
-    j = col[init];
-    row[init] = -1;
 
-    for(;k<nnz;++k){
+  for(int it=0; it<nnz; ++it) {
+    if(row[it] < 0) { continue; }
+    t = val[it];
+    i = row[it];
+    j = col[it];
+    row[it] = -1;
 
+    for(; k<nnz; ++k) {
+      // current row number is i. determine where to go
       ipos = iwk[i];
 
+      // save the chased element
       tnext = val[ipos];
       inext = row[ipos];
       jnext = col[ipos];
 
+      // then occupy its location
       val[ipos] = t;
       col[ipos] = j;
 
+      // update pointer information for next element to come in row i.
       iwk[i] = ipos+1;
 
       if(row[ipos] < 0) {
-        for(;row[init] < 0; ++init) {
-          if(init > nnz) {
-            chase = false;
-            break;
-          }
-        }
-      }
-      else {
+        break;
+      } else {
         t = tnext;
         i = inext;
         j = jnext;
         row[ipos] = -1;
       }
     }
-    chase = false;
-    break;
-    
   }
   
   row.resize(nrows+1);
@@ -263,10 +259,20 @@ void SparseMatrix<_Tp>::coocsrInplace()
 
   row[0] = 0;
 
-
-
   format = CSR;
 }
 
+/*
+void jams_dcsrmv(const char trans[1], const int m, const int k, 
+    const double alpha, const char descra[6], const double *val, 
+    const int *indx, const int *ptrb, const int *ptre, double *x, 
+    const double beta, double * y)
+{
+
+  assert(i < (ptre(m-1)-ptrb(0))) // length of val
+  y[j] = beta * y[j] + alpha*val[i]*x[j];
+
+}
+*/
 
 #endif // __SPARSEMATRIX_H__
