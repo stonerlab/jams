@@ -12,14 +12,13 @@ void jams_dcsrmv(const char trans[1], const int m, const int n,
         y[i] = beta * y[i];
         for(int j=ptrb[i]; j<ptre[i]; ++j) {
           int k = indx[j];  // column
-          if( i == k ){
-            // diagonal
+          // upper triangle and diagonal
+          if ( i < (k+1) ){
             y[i] = y[i] + alpha*x[k]*val[j];
-          }
-          else if ( i < k ){
-            // upper triangle
-            y[i] = y[i] + alpha*x[k]*val[j];
-            y[k] = y[k] + alpha*x[i]*val[j]; 
+            // lower triangle
+            if( i != k ) {
+              y[k] = y[k] + alpha*x[i]*val[j]; 
+            }
           }
         }
       }
@@ -30,14 +29,13 @@ void jams_dcsrmv(const char trans[1], const int m, const int n,
         y[i] = beta * y[i];
         for(int j=ptrb[i]; j<ptre[i]; ++j) {
           int k = indx[j];  // column
-          if( i == k ){
-            // diagonal
+          // upper triangle and diagonal
+          if ( i < (k+1) ){
             y[i] = y[i] + alpha*x[k]*val[j];
-          }
-          else if ( i > k ){
-            // upper triangle
-            y[i] = y[i] + alpha*x[k]*val[j];
-            y[k] = y[k] + alpha*x[i]*val[j]; 
+            // lower triangle
+            if( i != k ) {
+              y[k] = y[k] + alpha*x[i]*val[j]; 
+            }
           }
         }
       }
