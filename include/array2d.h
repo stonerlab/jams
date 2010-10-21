@@ -40,6 +40,10 @@ class Array2D
       return data[i*dim1+j];
     }
 
+    inline _Tp* RESTRICT ptr() {
+      return &(data[0]);
+    }
+
 //    inline size_type size(const size_type i) const { return dim[i]; }
 
   private:
