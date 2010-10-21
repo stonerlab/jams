@@ -30,7 +30,7 @@ void jams_dcsrmv(const char trans[1], const int m, const int n,
         for(int j=ptrb[i]; j<ptre[i]; ++j) {
           int k = indx[j];  // column
           // upper triangle and diagonal
-          if ( i < (k+1) ){
+          if ( i > (k+1) ){
             y[i] = y[i] + alpha*x[k]*val[j];
             // lower triangle
             if( i != k ) {
