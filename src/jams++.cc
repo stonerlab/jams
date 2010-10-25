@@ -44,19 +44,29 @@ int jams_init(int argc, char **argv) {
     jams_error("Undefined error");
   }
 
-  lattice.createFromConfig();
+  rng.seed(time(NULL));
 
+  lattice.createFromConfig();
 
   solver = Solver::Create();
 
-  const double dt = 0.01;
+  const double dt = (1E-16);
   solver->initialise(argc,argv,dt);
 
+  return 0;
+}
+
+void jams_run() {
+  using namespace globals;
+  
+
   output.write("Running solver\n");
-  for(int i=0; i<1000; ++i) {
+  for(int i=0; i<10000; ++i) {
     solver->run();
   }
-  return 0;
+  for(int i=0;i<nspins;++i) {
+    output.write("%f %f %f \n",s(i,0),s(i,1),s(i,2));
+  }
 }
 
 void jams_finish() {
@@ -66,7 +76,10 @@ void jams_finish() {
 }
 
 int main(int argc, char **argv) {
+
   jams_init(argc,argv);
+
+  jams_run();
 
   jams_finish();
   return EXIT_SUCCESS;
