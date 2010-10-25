@@ -33,6 +33,10 @@ class Array
       assert( i < dim0 );
       return data[i];
     }
+    
+    inline _Tp* RESTRICT ptr() {
+      return &(data[0]);
+    }
 
 
     inline size_type size() const { return dim0; }
