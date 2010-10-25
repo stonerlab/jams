@@ -1,6 +1,7 @@
 #include "solver.h"
 #include "heunllg.h"
 #include "globals.h"
+#include "consts.h"
 
 void Solver::initialise(int argc, char **argv, double idt) {
 
@@ -13,6 +14,8 @@ void Solver::initialise(int argc, char **argv, double idt) {
   // initialise time and iterations to 0
   time = 0.0;
   iteration = 0;
+  
+  dt = idt*gamma_electron_si;
 
   initialised = true;
 }
