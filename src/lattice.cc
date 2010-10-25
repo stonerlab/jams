@@ -1,4 +1,5 @@
 #include "maths.h"
+#include "consts.h"
 #include "globals.h"
 #include "lattice.h"
 #include <libconfig.h++>
@@ -8,6 +9,7 @@
 #include "array4d.h"
 #include "sparsematrix.h"
 #include <stdint.h>
+#include <sstream>
 
 //#include <metis.h>
 
@@ -59,6 +61,90 @@ void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryT
 
 void Lattice::createFromConfig() {
   using namespace globals;
+
+  /*
+  SparseMatrix<double> Test(5,5,13);
+
+  Test.insert(0,0,1);
+  Test.insert(0,1,-1);
+  Test.insert(0,3,-3);
+  //Test.insert(1,0,-2);
+  Test.insert(1,1,5);
+  Test.insert(2,2,4);
+  Test.insert(2,3,6);
+  Test.insert(3,3,7);
+  Test.insert(2,4,4);
+  //Test.insert(3,0,-4);
+  Test.insert(3,2,2);
+  //Test.insert(4,1,8);
+  Test.insert(4,4,-5);
+
+  for(int i=0;i<13;++i) {
+    double *val = Test.ptrVal();
+    output.write("%f ",val[i]);
+  }
+  output.write("\n");
+  
+  for(int i=0;i<13;++i) {
+    int *val = Test.ptrCol();
+    output.write("%d ",val[i]);
+  }
+  output.write("\n");
+  
+  for(int i=0;i<13;++i) {
+    int *val = Test.ptrRow();
+    output.write("%d ",val[i]);
+  }
+  output.write("\n");
+
+  output.write("Convert to CSR\n");
+
+  Test.coocsrInplace();
+  for(int i=0;i<13;++i) {
+    double *val = Test.ptrVal();
+    output.write("%f ",val[i]);
+  }
+  output.write("\n");
+  
+  for(int i=0;i<13;++i) {
+    int *val = Test.ptrCol();
+    output.write("%d ",val[i]);
+  }
+  output.write("\n");
+  
+  for(int i=0;i<5;++i) {
+    int *val = Test.ptrB();
+    output.write("%d ",val[i]);
+  }
+  output.write("\n");
+  
+  for(int i=0;i<5;++i) {
+    int *val = Test.ptrE();
+    output.write("%d ",val[i]);
+  }
+  output.write("\n");
+  output.write("\n");
+
+  char descra[6]={'S','U','C','D','E'};
+  char trans[1] = {'N'};
+  double xvec[5] = {1,2,3,4,5};
+  double yvec[5] = {0,0,0,0,0};
+  for(int i=0;i<5;++i) {
+    output.write("%f ",yvec[i]);
+  }
+  output.write("\n");
+  jams_dcsrmv(trans,5,5,1.0,descra,Test.ptrVal(),Test.ptrCol(),
+      Test.ptrB(), Test.ptrE(),xvec,1.0,yvec);
+  
+  for(int i=0;i<5;++i) {
+    output.write("%f ",yvec[i]);
+  }
+  output.write("\n");
+
+
+
+  exit(0);
+*/
 
   Array4D<int> latt;
   Array3D<int> inter;
@@ -151,10 +237,38 @@ void Lattice::createFromConfig() {
     const unsigned int atomcount = counter;
 
     output.write("Total atoms: %i\n",atomcount);
-
+    nspins = atomcount;
+   
     ///////////////////////// Read Exchange /////////////////////////
     const libconfig::Setting& exch = config.lookup("exchange");
     const int intertot = exch.getLength();
+
+    const libconfig::Setting& mat = config.lookup("materials");
+
+
+    s.resize(nspins,3);
+    h.resize(nspins,3);
+    w.resize(nspins,3);
+    
+    alpha.resize(nspins);
+    mus.resize(nspins);
+    gyro.resize(nspins);
+
+    // init spins
+    for(int i=0; i<nspins; ++i) {
+      int t1 = atom_type[i];
+      for(int j=0;j<3;++j){
+        s(i,j) = mat[t1]["spin"][j];
+        h(i,j) = 0.0;
+        w(i,j) = 0.0;
+      }
+      mus(i) = mat[t1]["moment"];
+      mus(i) = mus(i)*mu_bohr_si;
+      alpha(i) = mat[t1]["alpha"];
+      gyro(i) = mat[t1]["gyro"];
+      gyro(i) = -gyro(i)/((1.0+alpha(i)*alpha(i))*(mus(i)));
+    }
+      
     const int nexch = exch[0][3].getLength();
 
     int inter_guess = atomcount*intertot*3;
@@ -228,16 +342,33 @@ void Lattice::createFromConfig() {
     /////////////////// Create interaction list /////////////////////////
 
     // i,j neighbour list for system partitioning
-    //SparseMatrix<int> nbr_list(atomcount,atomcount,inter_guess);
+//    SparseMatrix<int> nbr_list(atomcount,atomcount,inter_guess);
 
+    double encut = 1e-25;  // energy cutoff
     bool jsym = config.lookup("lattice.jsym");
     counter = 0;
     for (int x=0; x<dim[0]; ++x) {
       for (int y=0; y<dim[1]; ++y) {
         for (int z=0; z<dim[2]; ++z) {
           for (int n=0; n<natoms; ++n) {
+            
             const int atom = latt(x,y,z,n);
             const int t1 = atom_type[atom];
+
+
+            // insert anisotropy
+            double anival = mat[t1]["anisotropy"][1];
+
+            for(int i=0;i<3;++i) {
+              double ei = mat[t1]["anisotropy"][0][i];
+              double di = anival*ei ; 
+              if(fabs(di) > encut ){
+                Jij.insert(3*atom+i,3*atom+i,di);
+              }
+            }
+
+
+
             const int r[3] = {x,y,z};  // current lattice point
             int v[3];
             int q[3];
@@ -257,7 +388,7 @@ void Lattice::createFromConfig() {
                   }
                   int nbr = latt(v[0],v[1],v[2],m);
                   insert_interaction(atom,nbr,i,jijval,exchsym);
-                  //nbr_list.insert(atom,nbr,1);
+//                  nbr_list.insert(atom,nbr,1);
                   counter++;
                 } while (next_point_symmetry(q));
               }
@@ -267,7 +398,7 @@ void Lattice::createFromConfig() {
                }
                int nbr = latt(v[0],v[1],v[2],m);
                insert_interaction(atom,nbr,i,jijval,exchsym);
-               //nbr_list.insert(atom,nbr,1);
+//               nbr_list.insert(atom,nbr,1);
                counter++;
               }
             }
@@ -276,8 +407,7 @@ void Lattice::createFromConfig() {
       } // y
     } // x
 
-    //nbr_list.coocsr();
-
+//    nbr_list.coocsr();
 
 #ifdef MPI
     output.write("Partitioning the interaction graph\n");
@@ -285,7 +415,7 @@ void Lattice::createFromConfig() {
     int volume = 0;
     int wgtflag = 0;
     int numflag = 0;
-    int nparts = 8;
+    int nparts = 4;
     int nvertices = static_cast<int>(atomcount); //nbr_list.nonzero();
     std::vector<int> part(nvertices,0);
 
@@ -297,6 +427,26 @@ void Lattice::createFromConfig() {
         &wgtflag, &numflag, &nparts, options, &volume, &part[0]);
 
     output.write("Communication volume: %i\n",volume);
+    
+    for (int p=0; p<nparts; ++p) {
+      std::stringstream pname;
+      pname << "part" << p << ".out";
+      std::string filename = pname.str();
+      std::ofstream pfile(filename.c_str());
+      for (int x=0; x<dim[0]; ++x) {
+        for (int y=0; y<dim[1]; ++y) {
+          for (int z=0; z<dim[2]; ++z) {
+            for (int n=0; n<natoms; ++n) {
+              if(part[latt(x,y,z,n)] == p){
+                pfile << x <<"\t"<< y <<"\t"<< z <<"\t"<< n <<"\t"<<part[latt(x,y,z,n)]<<"\n";
+              }
+            }
+          }
+        }
+      }
+    }
+
+
 
     //for(int i=0;i<nvertices;++i) {
     //  output.write("%i\n",part[i]);
@@ -308,6 +458,8 @@ void Lattice::createFromConfig() {
     output.write("Converting COO to CSR INPLACE\n");
     Jij.coocsrInplace();
     output.write("Jij memory (CSR): %f MB\n",Jij.memorySize());
+
+
   
   } // try
   catch(const libconfig::SettingNotFoundException &nfex) {
