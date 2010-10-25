@@ -12,6 +12,7 @@ class Solver
       : initialised(false),
         time(0.0),
         iteration(0),
+        temperature(0),
         dt(0.0)
       {}
 
@@ -28,6 +29,8 @@ class Solver
     double time;  // current time
 
     int iteration; // number of iterations
+
+    double temperature;
     double dt;
 
 };
