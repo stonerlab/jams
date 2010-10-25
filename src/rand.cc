@@ -141,8 +141,8 @@ double Random::normal() {
 
   } else {
     do {
-      x = -1.0 + 2.0 * static_cast<double>(cmwc4096())*norm_open;
-      y = -1.0 + 2.0 * static_cast<double>(cmwc4096())*norm_open;
+      x = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
+      y = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
 
       s = (x*x) + (y*y);
       // floating point comparison below is needed to avoid log(0.0)

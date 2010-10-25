@@ -14,6 +14,7 @@ class Random
       init_seed(0),
       ul_limit(std::numeric_limits<uint32_t>::max()),
       norm_open(1.0/static_cast<double>(ul_limit)),
+      norm_open2(2.0/static_cast<double>(ul_limit)),
       norm_closed(1.0/static_cast<double>(ul_limit-1)),
       mwc_x(0),
       cmwc_q(4096,0),
@@ -37,6 +38,7 @@ class Random
 
     const uint32_t ul_limit;
     const double norm_open;
+    const double norm_open2;
     const double norm_closed;
 
     uint64_t mwc_x;
