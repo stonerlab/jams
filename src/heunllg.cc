@@ -69,14 +69,16 @@ void HeunLLGSolver::run()
   int i,j;
   double sxh[3], rhs[3];
   double norm;
-  const double stmp = sqrt(temperature);
 
   // calculate noise
-  for(i=0; i<nspins; ++i) {
-    for(j=0; j<3; ++j) {
-      w(i,j) = (rng.normal())*sigma(i,j)*stmp;
+  if(temperature > 0.0) {
+    const double stmp = sqrt(temperature);
+    for(i=0; i<nspins; ++i) {
+      for(j=0; j<3; ++j) {
+        w(i,j) = (rng.normal())*sigma(i,j)*stmp;
+      }
     }
-  }
+  } 
  
   fields();
   
