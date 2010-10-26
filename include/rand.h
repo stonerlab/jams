@@ -3,6 +3,7 @@ class Random;
 #ifndef __RAND_H__
 #define __RAND_H__
 
+#include <limits>
 #include <stdint.h>
 #include <vector>
 
