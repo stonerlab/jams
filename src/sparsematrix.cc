@@ -34,6 +34,7 @@ void jams_dcsrmv(const char trans[1], const int m, const int n,
     }
     // lower matrix
     else if(descra[1] == 'U') {
+      output.write("WARNING: dcsrmv with 'S' and 'U' is untested.\n");
       for(i=0; i<m; ++i) { // iterate rows
         y[i] = beta * y[i];
         begin = ptrb[i]; end = ptre[i];
@@ -57,6 +58,7 @@ void jams_dcsrmv(const char trans[1], const int m, const int n,
     }
   // general matrix
   } else {
+    output.write("WARNING: general dcsrmv is untested.\n");
     for(i=0; i<m; ++i) { // iterate rows
       y[i] = beta * y[i];
       begin = ptrb[i]; end = ptre[i];
