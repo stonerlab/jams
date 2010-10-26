@@ -101,13 +101,9 @@ void SemiLLGSolver::run()
     fxs[0] = (f[1]*s(i,2) - f[2]*s(i,1));  
     fxs[1] = (f[2]*s(i,0) - f[0]*s(i,2));
     fxs[2] = (f[0]*s(i,1) - f[1]*s(i,0));
-
+    
     for(j=0;j<3;++j) {
-      rhs[j] = s(i,j)*(1.0-b2ff) + 2.0*(fxs[j]+f[j]*fdots);
-    }
-
-    for(j=0; j<3; ++j) {
-      s(i,j) = 0.5*(s(i,j) + rhs[j]*norm);
+      rhs[j] = 0.5 * ( s(i,j) + ( s(i,j)*(1.0-b2ff) + 2.0*(fxs[j]+f[j]*fdots) )*norm );
     }
 
   }
@@ -135,12 +131,7 @@ void SemiLLGSolver::run()
     fxs[2] = (f[0]*sold(i,1) - f[1]*sold(i,0));
 
     for(j=0;j<3;++j) {
-      rhs[j] = sold(i,j)*(1.0-b2ff) + 2.0*(fxs[j]+f[j]*fdots);
+      s(i,j) = norm*(sold(i,j)*(1.0-b2ff) + 2.0*(fxs[j]+f[j]*fdots));
     }
-
-    for(j=0; j<3; ++j) {
-      s(i,j) = rhs[j]*norm;
-    }
-
   }
 }
