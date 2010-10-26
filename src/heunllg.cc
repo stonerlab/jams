@@ -41,9 +41,9 @@ void HeunLLGSolver::fields() {
   // dscrmv below has beta=0.0 -> field array is zeroed
   // exchange
   const char transa[1] = {'N'};
-  const char matdescra[6] = {'S','U','N','C','N','N'};
+  const char matdescra[6] = {'S','L','N','C','N','N'};
   if(Jij.nonzero() > 0) {
-    jams_dcsrmv(transa,3*nspins,3*nspins,1.0,matdescra,Jij.ptrVal(),
+    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,Jij.ptrVal(),
         Jij.ptrCol(), Jij.ptrB(),Jij.ptrE(),s.ptr(),0.0,h.ptr()); 
   }
 
