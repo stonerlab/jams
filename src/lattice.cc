@@ -15,9 +15,11 @@
 
 enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR};
 
+#ifdef MPI
 extern "C" { 
 #include <metis.h>
 } 
+#endif
 
 void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryType exchsym) {
   using namespace globals;
