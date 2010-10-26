@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cassert>
+#include "array.h"
 #include "globals.h"
 #include <algorithm>
 
@@ -200,7 +201,11 @@ void SparseMatrix<_Tp>::coocsrInplace()
   _Tp t,tnext;
   size_type i,j,k, ipos, inext,jnext;
 
-  std::vector<size_type> iwk(nrows,0);
+  //std::vector<size_type> iwk(nrows,0);
+  Array<size_type> iwk(nrows+1);
+  for(i=0; i<nrows+1;++i) {
+    iwk(i) = 0.0;
+  }
 
   // find pointer array for resulting matrix
   for(k=0; k<nnz; ++k) {
@@ -210,7 +215,7 @@ void SparseMatrix<_Tp>::coocsrInplace()
 
   iwk[0] = 0;
 
-  for(i=1; i<nrows; ++i) {
+  for(i=1; i<nrows+1; ++i) {
     iwk[i] = iwk[i-1] + iwk[i];
   }
 
