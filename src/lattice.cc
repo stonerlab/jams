@@ -322,7 +322,8 @@ void Lattice::createFromConfig() {
         // partner (real space)
         r[i] = exch[n][2][i];
         // relative interger coords to unit cell containing interaction
-        v[i] = floor((r[i]-p[i])+0.5);
+//        v[i] = floor((r[i]-p[i])+0.5);
+        v[i] = static_cast<int>((r[i]-p[i])+0.5);
 
         // check exchange-lattice alignment
 #ifndef NOCHECKING
