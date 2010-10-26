@@ -25,7 +25,7 @@ void SemiLLGSolver::initialise(int argc, char **argv, double idt)
   
   sold.resize(globals::nspins,3);
 
-  temperature = 0.0;
+  temperature = 300.0;
 
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {

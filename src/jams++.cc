@@ -65,8 +65,7 @@ void jams_run() {
 
   double mag[3];
   for(int i=0; i<10000; ++i) {
-    solver->run();
-    if( (i%1000) == 0 ){
+    if( (i%100) == 0 ){
       mag[0] = 0.0; mag[1] = 0.0; mag[2] = 0.0;
       for(int n=0;n<nspins;++n) {
         for(int j=0; j<3; ++j) {
@@ -77,8 +76,9 @@ void jams_run() {
       mag[j] = mag[j]/static_cast<double>(nspins); 
     }
     double modmag = sqrt(mag[0]*mag[0]+mag[1]*mag[1]+mag[2]*mag[2]);
-    output.write("%f %f %f %f \n",mag[0],mag[1],mag[2],modmag);
+    output.write("%f %f %f %1.12f \n",mag[0],mag[1],mag[2],modmag);
     }
+    solver->run();
   }
 //  for(int i=0;i<nspins;++i) {
 //    output.write("%f %f %f \n",s(i,0),s(i,1),s(i,2));

@@ -17,6 +17,7 @@ OBJS=src/jams++.o \
 		 src/maths.o \
 		 src/solver.o \
 		 src/lattice.o \
+		 src/semillg.o \
 		 src/heunllg.o
 
 jams++: $(OBJS) src/sparsematrix.o 

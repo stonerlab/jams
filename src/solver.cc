@@ -1,5 +1,6 @@
 #include "solver.h"
 #include "heunllg.h"
+#include "semillg.h"
 #include "globals.h"
 #include "consts.h"
 
@@ -34,6 +35,7 @@ Solver* Solver::Create()
 Solver* Solver::Create(SolverType type)
 {
   if( type == HEUNLLG ) {
-    return new HeunLLGSolver;
+//    return new HeunLLGSolver;
+    return new SemiLLGSolver;
   }
 }
