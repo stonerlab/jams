@@ -1,6 +1,7 @@
 #define GLOBALORIGIN
 
 #include <string>
+#include <cstdarg>
 
 #include "globals.h"
 #include "utils.h"
