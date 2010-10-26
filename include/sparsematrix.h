@@ -166,7 +166,7 @@ void SparseMatrix<_Tp>::coocsr()
     const int i = row[k];
     const int j = col[k];
     const _Tp x = val[k];
-    const _Tp ia = csrrow[i];
+    const int ia = csrrow[i];
     csrval[ia] = x;
     csrcol[ia] = j;
     csrrow[i] = ia+1;
