@@ -260,8 +260,16 @@ void Lattice::createFromConfig() {
     // init spins
     for(int i=0; i<nspins; ++i) {
       int t1 = atom_type[i];
+      double sinit[3];
+      double norm=0.0;
+      for(int j=0;j<3;++j) {
+        sinit[j] = mat[t1]["spin"][j]; 
+        norm += sinit[j]*sinit[j];
+      }
+      norm = 1.0/sqrt(norm);
       for(int j=0;j<3;++j){
-        s(i,j) = mat[t1]["spin"][j];
+        
+        s(i,j) = sinit[j]*norm;
         h(i,j) = 0.0;
         w(i,j) = 0.0;
       }
