@@ -34,6 +34,16 @@ class Array
       return data[i];
     }
     
+    inline _Tp& RESTRICT operator[](const size_type i) {
+      assert( i < dim0 );
+      return data[i];
+    }
+
+    inline const _Tp& operator[](const size_type i) const {
+      assert( i < dim0 );
+      return data[i];
+    }
+    
     inline _Tp* RESTRICT ptr() {
       return &(data[0]);
     }
