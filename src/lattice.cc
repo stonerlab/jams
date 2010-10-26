@@ -238,6 +238,7 @@ void Lattice::createFromConfig() {
 
     output.write("Total atoms: %i\n",atomcount);
     nspins = atomcount;
+    nspins3 = 3*nspins;
    
     ///////////////////////// Read Exchange /////////////////////////
     const libconfig::Setting& exch = config.lookup("exchange");
