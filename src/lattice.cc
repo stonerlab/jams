@@ -151,6 +151,7 @@ void Lattice::createFromConfig() {
   Array4D<int> latt;
   Array3D<int> inter;
   Array3D<double> jij;
+  bool pbc[3] = {true,true,true};
 
   double unitcell[3][3];
   double unitcellinv[3][3];
@@ -211,7 +212,24 @@ void Lattice::createFromConfig() {
     for(int i=0; i<3; ++i) {
       dim[i] = size[i];
     }
+    
     output.write("Lattice size: %i %i %i\n",dim[0],dim[1],dim[2]);
+
+    output.write("Lattice Periodic: ");
+
+    const libconfig::Setting& periodic = config.lookup("lattice.periodic");
+    for(int i=0; i<3; ++i) {
+      pbc[i] = periodic[i];
+      if(pbc[i]) {
+        output.write("periodic ");
+      } else {
+        output.write("open ");
+      }
+    }
+    output.write("\n");
+    
+
+
 
     /////////////////// construct lattice //////////////////////
     // number of atoms will be dim[0]*dim[1]*dim[2]*natomsincell
@@ -393,22 +411,46 @@ void Lattice::createFromConfig() {
                 std::sort(q,q+3);
                 do {
                   for(int j=0; j<3; ++j) {
-                    v[j] = (dim[j]+r[j]+q[j])%dim[j];
+                    v[j] = r[j]+q[j];
+                    if(pbc[j] == true) {
+                      v[j] = (dim[j]+v[j])%dim[j];
+                    }
                   }
-                  int nbr = latt(v[0],v[1],v[2],m);
-                  insert_interaction(atom,nbr,i,jijval,exchsym);
+                  bool idxcheck = true;
+                  for(int j=0;j<3;++j) {
+                    if(v[j] < 0 || !(v[j] < dim[j])) {
+                      idxcheck = false;
+                    }
+                  }
+
+                  if(idxcheck == true) {
+                    int nbr = latt(v[0],v[1],v[2],m);
+                    insert_interaction(atom,nbr,i,jijval,exchsym);
 //                  nbr_list.insert(atom,nbr,1);
-                  counter++;
+                    counter++;
+                  }
                 } while (next_point_symmetry(q));
               }
               else {
-               for(int j=0; j<3; ++j) {
-                 v[j] = (dim[j]+r[j]+q[j])%dim[j];
-               }
-               int nbr = latt(v[0],v[1],v[2],m);
-               insert_interaction(atom,nbr,i,jijval,exchsym);
-//               nbr_list.insert(atom,nbr,1);
-               counter++;
+                for(int j=0; j<3; ++j) {
+                  v[j] = r[j]+q[j];
+                  if(pbc[j] == true) {
+                    v[j] = (dim[j]+v[j])%dim[j];
+                  }
+                }
+                bool idxcheck = true;
+                for(int j=0;j<3;++j) {
+                  if(v[j] < 0 || !(v[j] < dim[j])) {
+                    idxcheck = false;
+                  }
+                }
+
+                if(idxcheck == true) {
+                 int nbr = latt(v[0],v[1],v[2],m);
+                 insert_interaction(atom,nbr,i,jijval,exchsym);
+  //               nbr_list.insert(atom,nbr,1);
+                 counter++;
+                }
               }
             }
           } // n
