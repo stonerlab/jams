@@ -23,7 +23,7 @@ extern "C" {
 
 void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryType exchsym) {
   using namespace globals;
-  // only store upper triangle
+  // only store lower triangle
   if( m > n ) {
     switch (exchsym) {
       case ISOTROPIC:
@@ -335,11 +335,9 @@ void Lattice::createFromConfig() {
         v[i] = floor((r[i]-p[i])+0.5);
 
         // check exchange-lattice alignment
-#ifndef NOCHECKING
         if( fabs(r[i]-p[i]-v[i]) > 0.01) {
           jams_error("Exchange lattice mismatch on interaction: %i (r[%i]-p[%i] = %f, v[%i] = %i)",n+1,i,i,r[i]-p[i],i,v[i]);
         }
-#endif
       }
       for(int j=0; j<nexch; ++j) {
         jijval(n,j) = exch[n][3][j];
