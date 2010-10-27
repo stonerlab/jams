@@ -63,7 +63,7 @@ void SemiLLGSolver::run()
   using namespace globals;
 
   int i,j;
-  double sxh[3], fxs[3], rhs[3], f[3];
+  double sxh[3], fxs[3], f[3];
   double norm;
   double b2ff,fdots;
 
@@ -103,7 +103,7 @@ void SemiLLGSolver::run()
     fxs[2] = (f[0]*s(i,1) - f[1]*s(i,0));
     
     for(j=0;j<3;++j) {
-      rhs[j] = 0.5 * ( s(i,j) + ( s(i,j)*(1.0-b2ff) + 2.0*(fxs[j]+f[j]*fdots) )*norm );
+      s(i,j) = 0.5 * ( s(i,j) + ( s(i,j)*(1.0-b2ff) + 2.0*(fxs[j]+f[j]*fdots) )*norm );
     }
 
   }
