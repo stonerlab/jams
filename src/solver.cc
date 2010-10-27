@@ -29,13 +29,19 @@ void Solver::run()
 Solver* Solver::Create()
 {
   // default solver type
-  return Solver::Create(HEUNLLG);
+  return Solver::Create(SEMILLG);
 }
 
 Solver* Solver::Create(SolverType type)
 {
-  if( type == HEUNLLG ) {
-//    return new HeunLLGSolver;
-    return new SemiLLGSolver;
+  switch (type) {
+    case SEMILLG:
+      return new SemiLLGSolver;
+      break;
+    case HEUNLLG:
+      return new HeunLLGSolver;
+      break;
+    default:
+      jams_error("Unknown solver selected.");
   }
 }

@@ -3,7 +3,7 @@
 
 #include "globals.h"
 
-enum SolverType{ HEUNLLG };
+enum SolverType{ HEUNLLG, SEMILLG };
 
 class Solver 
 {
