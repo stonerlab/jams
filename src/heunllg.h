@@ -9,7 +9,6 @@ class HeunLLGSolver : public Solver {
     HeunLLGSolver() : snew(), sigma() {};
     ~HeunLLGSolver() {}
     void initialise(int argc, char **argv, double dt);
-    void fields();
     void run();
 
   private:

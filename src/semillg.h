@@ -9,7 +9,6 @@ class SemiLLGSolver : public Solver {
     SemiLLGSolver() : sold(), sigma() {};
     ~SemiLLGSolver() {}
     void initialise(int argc, char **argv, double dt);
-    void fields();
     void run();
 
   private:

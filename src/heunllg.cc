@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "consts.h"
+#include "fields.h"
 
 #include "heunllg.h"
 #include "array2d.h"
@@ -35,35 +36,6 @@ void HeunLLGSolver::initialise(int argc, char **argv, double idt)
   initialised = true;
 }
 
-void HeunLLGSolver::fields() {
-  using namespace globals;
- 
-  // dscrmv below has beta=0.0 -> field array is zeroed
-  // exchange
-  const char transa[1] = {'N'};
-  const char matdescra[6] = {'S','L','N','C','N','N'};
-  int i,j;
-
-  if(Jij.nonzero() > 0) {
-    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,Jij.ptrVal(),
-        Jij.ptrCol(), Jij.ptrB(),Jij.ptrE(),s.ptr(),0.0,h.ptr()); 
-  }
-
-  // normalize by the gyroscopic factor
-  for(i=0; i<nspins; ++i) {
-    for(j=0; j<3;++j) {
-      h(i,j) = (h(i,j)+w(i,j))*gyro(i);
-    }
-  }
-
-  // multiply noise array by prefactor and add to fields
-  //cblas_dsbmv(CblasColMajor,CblasUpper,3*nspins,0,sqrt(temperature),sigma.ptr(),1,w.ptr(),1,1.0,h.ptr(),1);
-
-  //cblas_dtbmv(CblasColMajor,CblasUpper,CblasNoTrans,CblasNonUnit,nspins,0,gyro.ptr(),1,h.ptr(),1);
-  //cblas_dtbmv(CblasColMajor,CblasUpper,CblasNoTrans,CblasNonUnit,nspins,0,gyro.ptr(),1,h.ptr()+nspins,1);
-  //cblas_dtbmv(CblasColMajor,CblasUpper,CblasNoTrans,CblasNonUnit,nspins,0,gyro.ptr(),1,h.ptr()+2*nspins,1);
-}
-
 void HeunLLGSolver::run()
 {
   using namespace globals;
@@ -82,7 +54,7 @@ void HeunLLGSolver::run()
     }
   } 
  
-  fields();
+  calculate_fields();
   
   for(i=0; i<nspins; ++i) {
     
@@ -109,7 +81,7 @@ void HeunLLGSolver::run()
     }
   }
   
-  fields();
+  calculate_fields();
 
   for(i=0; i<nspins; ++i) {
 
