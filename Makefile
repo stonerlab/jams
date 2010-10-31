@@ -16,9 +16,12 @@ OBJS=src/jams++.o \
 		 src/rand.o \
 		 src/maths.o \
 		 src/solver.o \
+		 src/fields.o \
 		 src/lattice.o \
 		 src/semillg.o \
-		 src/heunllg.o
+		 src/heunllg.o \
+		 src/noise.o \
+		 src/whitenoise.o
 
 jams++: $(OBJS) src/sparsematrix.o 
 	$(CXX) -o $@ $(CFLAGS) $(LDFLAGS) $(LIBS) $^ 
