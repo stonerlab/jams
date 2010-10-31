@@ -3,10 +3,11 @@
 #include <string>
 #include <cstdarg>
 
+#include "solver.h"
 #include "globals.h"
 #include "utils.h"
-#include "solver.h"
 #include "lattice.h"
+#include "noise.h"
 
 std::string seedname;
 
@@ -52,7 +53,7 @@ int jams_init(int argc, char **argv) {
   solver = Solver::Create();
 
   const double dt = (1E-16);
-  solver->initialise(argc,argv,dt);
+  solver->initialise(argc,argv,dt,WHITE);
 
   return 0;
 }
@@ -65,7 +66,7 @@ void jams_run() {
 
   double mag[3];
   for(int i=0; i<10000; ++i) {
-    if( (i%100) == 0 ){
+    if( (i%1000) == 0 ){
       mag[0] = 0.0; mag[1] = 0.0; mag[2] = 0.0;
       for(int n=0;n<nspins;++n) {
         for(int j=0; j<3; ++j) {
