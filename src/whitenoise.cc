@@ -28,18 +28,15 @@ void WhiteNoise::run() {
 
 
   // toggle for half step
-  if(half == false) {
-    if(temperature > 0.0) {
+  if(half == false && temperature > 0.0) {
+    int i,j;
 
-      int i,j;
-
-      const double stmp = sqrt(temperature);
-      for(i=0; i<nspins; ++i) {
-        for(j=0; j<3; ++j) {
-          w(i,j) = (rng.normal())*sigma(i,j)*stmp;
-        }
+    const double stmp = sqrt(temperature);
+    for(i=0; i<nspins; ++i) {
+      for(j=0; j<3; ++j) {
+        w(i,j) = (rng.normal())*sigma(i,j)*stmp;
       }
-    } 
+    }
     half = true;
   } else {
     half = false;
