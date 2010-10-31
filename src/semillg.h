@@ -6,14 +6,13 @@
 
 class SemiLLGSolver : public Solver {
   public:
-    SemiLLGSolver() : sold(), sigma() {};
+    SemiLLGSolver() : sold() {};
     ~SemiLLGSolver() {}
-    void initialise(int argc, char **argv, double dt);
+    void initialise(int argc, char **argv, double dt, NoiseType ntype);
     void run();
 
   private:
     Array2D<double> sold;
-    Array2D<double> sigma;
 };
 
 #endif // __SEMILLG_H__

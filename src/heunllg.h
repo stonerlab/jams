@@ -6,14 +6,13 @@
 
 class HeunLLGSolver : public Solver {
   public:
-    HeunLLGSolver() : snew(), sigma() {};
+    HeunLLGSolver() : snew() {};
     ~HeunLLGSolver() {}
-    void initialise(int argc, char **argv, double dt);
+    void initialise(int argc, char **argv, double dt, NoiseType ntype);
     void run();
 
   private:
     Array2D<double> snew;
-    Array2D<double> sigma;
 };
 
 #endif // __HEUNLLG_H__

@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "consts.h"
 #include "fields.h"
+#include "noise.h"
 
 #include "semillg.h"
 #include "array2d.h"
@@ -13,26 +14,16 @@
 #endif
 
 
-void SemiLLGSolver::initialise(int argc, char **argv, double idt)
+void SemiLLGSolver::initialise(int argc, char **argv, double idt, NoiseType ntype)
 {
   using namespace globals;
   
   // initialise base class
-  Solver::initialise(argc,argv,idt);
+  Solver::initialise(argc,argv,idt,ntype);
 
   output.write("Initialising Semi Implicit LLG solver (CPU)\n");
 
-  sigma.resize(globals::nspins,3);
-  
   sold.resize(globals::nspins,3);
-
-  temperature = 650.0;
-
-  for(int i=0; i<nspins; ++i) {
-    for(int j=0; j<3; ++j) {
-      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)*mus(i)) / (dt) );
-    }
-  }
 
   initialised = true;
 }
@@ -49,16 +40,8 @@ void SemiLLGSolver::run()
   // copy s to sold
   std::copy(s.ptr(),s.ptr()+nspins3,sold.ptr());
 
-  // calculate noise
-  if(temperature > 0.0) {
-    const double stmp = sqrt(temperature);
-    for(i=0; i<nspins; ++i) {
-      for(j=0; j<3; ++j) {
-        w(i,j) = (rng.normal())*sigma(i,j)*stmp;
-      }
-    }
-  } 
- 
+  noise->run();
+
   calculate_fields();
   
   for(i=0; i<nspins; ++i) {
@@ -87,6 +70,8 @@ void SemiLLGSolver::run()
 
   }
   
+  noise->run();
+
   calculate_fields();
 
   for(i=0; i<nspins; ++i) {

@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "consts.h"
 #include "fields.h"
+#include "noise.h"
 
 #include "heunllg.h"
 #include "array2d.h"
@@ -12,26 +13,16 @@
 #endif
 
 
-void HeunLLGSolver::initialise(int argc, char **argv, double idt)
+void HeunLLGSolver::initialise(int argc, char **argv, double idt, NoiseType ntype)
 {
   using namespace globals;
   
   // initialise base class
-  Solver::initialise(argc,argv,idt);
+  Solver::initialise(argc,argv,idt,ntype);
 
   output.write("Initialising Heun LLG solver (CPU)\n");
 
   snew.resize(globals::nspins,3);
-
-  sigma.resize(globals::nspins,3);
-
-  temperature = 300.0;
-
-  for(int i=0; i<nspins; ++i) {
-    for(int j=0; j<3; ++j) {
-      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)*mus(i)) / (dt) );
-    }
-  }
 
   initialised = true;
 }
@@ -44,16 +35,9 @@ void HeunLLGSolver::run()
   double sxh[3], rhs[3];
   double norm;
 
-  // calculate noise
-  if(temperature > 0.0) {
-    const double stmp = sqrt(temperature);
-    for(i=0; i<nspins; ++i) {
-      for(j=0; j<3; ++j) {
-        w(i,j) = (rng.normal())*sigma(i,j)*stmp;
-      }
-    }
-  } 
- 
+
+  noise->run();
+
   calculate_fields();
   
   for(i=0; i<nspins; ++i) {
@@ -81,6 +65,8 @@ void HeunLLGSolver::run()
     }
   }
   
+  noise->run();
+
   calculate_fields();
 
   for(i=0; i<nspins; ++i) {
