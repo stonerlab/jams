@@ -53,7 +53,7 @@ int jams_init(int argc, char **argv) {
   solver = Solver::Create();
 
   const double dt = (1E-16);
-  solver->initialise(argc,argv,dt,WHITE);
+  solver->initialise(argc,argv,dt,FFT);
 
   return 0;
 }
