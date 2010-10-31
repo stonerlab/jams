@@ -11,7 +11,6 @@ void jams_error(const char *string, ...);
 
 #include "output.h"
 #include "rand.h"
-#include "solver.h"
 #include "lattice.h"
 
 #include <libconfig.h++>
