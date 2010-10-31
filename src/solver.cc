@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "consts.h"
 
-void Solver::initialise(int argc, char **argv, double idt) {
+void Solver::initialise(int argc, char **argv, double idt, NoiseType ntype) {
 
   if(initialised == true) {
     jams_error("Solver is already initialised");
@@ -17,6 +17,10 @@ void Solver::initialise(int argc, char **argv, double idt) {
   iteration = 0;
   
   dt = idt*gamma_electron_si;
+
+  noise = Noise::Create(ntype);
+
+  noise->initialise(dt);
 
   initialised = true;
 }

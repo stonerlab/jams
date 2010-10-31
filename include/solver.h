@@ -1,9 +1,12 @@
 #ifndef __SOLVER_H__
 #define __SOLVER_H__
 
+
 #include "globals.h"
+#include "noise.h"
 
 enum SolverType{ HEUNLLG, SEMILLG };
+
 
 class Solver 
 {
@@ -18,13 +21,15 @@ class Solver
 
     virtual ~Solver(){}
 
-    virtual void initialise(int argc, char **argv, double dt);
+    virtual void initialise(int argc, char **argv, double dt, NoiseType ntype);
     virtual void run();
 
     static Solver* Create();
     static Solver* Create(SolverType type);
   protected:
     bool initialised;
+
+    Noise* noise;
 
     double time;  // current time
 
