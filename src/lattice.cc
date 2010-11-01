@@ -13,7 +13,7 @@
 
 //#include <metis.h>
 
-enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR};
+enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR, NOEXCHANGE};
 
 #ifdef MPI
 extern "C" { 
@@ -297,119 +297,152 @@ void Lattice::createFromConfig() {
       gyro(i) = mat[t1]["gyro"];
       gyro(i) = -gyro(i)/((1.0+alpha(i)*alpha(i))*(mus(i)));
     }
+     
+    int nexch;
+    if(intertot > 0) {
+      nexch = exch[0][3].getLength();
+    } else {
+      nexch = 0;
+    }
+
+
+      int inter_guess = atomcount*intertot*3;
+
+
+      SymmetryType exchsym=ISOTROPIC;
+      switch (nexch) {
+        case 0:
+          exchsym = NOEXCHANGE;
+          output.write("WARNING: No exchange found\n");
+        case 1:
+          exchsym = ISOTROPIC;
+          output.write("Found isotropic exchange\n");
+          break;
+        case 2:
+          exchsym = UNIAXIAL;
+          output.write("Found uniaxial exchange\n");
+          break;
+        case 3:
+          exchsym = ANISOTROPIC;
+          output.write("Found anisotropic exchange\n");
+          break;
+        case 9:
+          exchsym = TENSOR;
+          output.write("Found tensorial exchange\n");
+          inter_guess = atomcount*intertot*9;
+          break;
+        default:
+          jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
+      }
       
-    const int nexch = exch[0][3].getLength();
+      inter.resize(natoms,intertot,4);
+      std::vector<int> nintype(natoms,0);
 
-    int inter_guess = atomcount*intertot*3;
+      Jij.resize(3*atomcount,3*atomcount,inter_guess);
+
+      Array2D<double> jijval(intertot,nexch);
 
 
-    SymmetryType exchsym=ISOTROPIC;
-    switch (nexch) {
-      case 1:
-        exchsym = ISOTROPIC;
-        output.write("Found isotropic exchange\n");
-        break;
-      case 2:
-        exchsym = UNIAXIAL;
-        output.write("Found uniaxial exchange\n");
-        break;
-      case 3:
-        exchsym = ANISOTROPIC;
-        output.write("Found anisotropic exchange\n");
-        break;
-      case 9:
-        exchsym = TENSOR;
-        output.write("Found tensorial exchange\n");
-        inter_guess = atomcount*intertot*9;
-        break;
-      default:
-        jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
-    }
-    
-    inter.resize(natoms,intertot,4);
-    std::vector<int> nintype(natoms,0);
+      for(int n=0; n<intertot; ++n) {
+      double r[3];
+      double p[3];
+      int v[4];
+        // read exchange tensor
+        int t1 = exch[n][0];
+        int t2 = exch[n][1];
+        t1--; t2--;
+        v[3] = t2-t1;
 
-    Jij.resize(3*atomcount,3*atomcount,inter_guess);
+        for(int i=0; i<3; ++i) {
+          // p is the vector of the exchange partner within the
+          // unit cell (real space)
+          p[i] = atoms[t2][1][i];
+          // r is the vector to the unitcell containing the exchange
+          // partner (real space)
+          r[i] = exch[n][2][i];
+          // relative interger coords to unit cell containing interaction
+          v[i] = floor((r[i]-p[i])+0.5);
 
-    Array2D<double> jijval(intertot,nexch);
-    for(int n=0; n<intertot; ++n) {
-    double r[3];
-    double p[3];
-    int v[4];
-      // read exchange tensor
-      int t1 = exch[n][0];
-      int t2 = exch[n][1];
-      t1--; t2--;
-      v[3] = t2-t1;
-
-      for(int i=0; i<3; ++i) {
-        // p is the vector of the exchange partner within the
-        // unit cell (real space)
-        p[i] = atoms[t2][1][i];
-        // r is the vector to the unitcell containing the exchange
-        // partner (real space)
-        r[i] = exch[n][2][i];
-        // relative interger coords to unit cell containing interaction
-        v[i] = floor((r[i]-p[i])+0.5);
-
-        // check exchange-lattice alignment
-        if( fabs(r[i]-p[i]-v[i]) > 0.01) {
-          jams_error("Exchange lattice mismatch on interaction: %i (r[%i]-p[%i] = %f, v[%i] = %i)",n+1,i,i,r[i]-p[i],i,v[i]);
+          // check exchange-lattice alignment
+          if( fabs(r[i]-p[i]-v[i]) > 0.01) {
+            jams_error("Exchange lattice mismatch on interaction: %i (r[%i]-p[%i] = %f, v[%i] = %i)",n+1,i,i,r[i]-p[i],i,v[i]);
+          }
         }
+        for(int j=0; j<nexch; ++j) {
+          jijval(n,j) = exch[n][3][j];
+        }
+        for(int i=0;i<4; ++i){
+          inter(t1,nintype[t1],i) = v[i];
+        }
+        nintype[t1]++;
       }
-      for(int j=0; j<nexch; ++j) {
-        jijval(n,j) = exch[n][3][j];
-      }
-      for(int i=0;i<4; ++i){
-        inter(t1,nintype[t1],i) = v[i];
-      }
-      nintype[t1]++;
-    }
-    
-    /////////////////// Create interaction list /////////////////////////
+      
+      /////////////////// Create interaction list /////////////////////////
 
-    // i,j neighbour list for system partitioning
-//    SparseMatrix<int> nbr_list(atomcount,atomcount,inter_guess);
+      // i,j neighbour list for system partitioning
+  //    SparseMatrix<int> nbr_list(atomcount,atomcount,inter_guess);
 
-    double encut = 1e-25;  // energy cutoff
-    bool jsym = config.lookup("lattice.jsym");
-    counter = 0;
-    for (int x=0; x<dim[0]; ++x) {
-      for (int y=0; y<dim[1]; ++y) {
-        for (int z=0; z<dim[2]; ++z) {
-          for (int n=0; n<natoms; ++n) {
-            
-            const int atom = latt(x,y,z,n);
-            const int t1 = atom_type[atom];
+      double encut = 1e-25;  // energy cutoff
+      bool jsym = config.lookup("lattice.jsym");
+      counter = 0;
+      for (int x=0; x<dim[0]; ++x) {
+        for (int y=0; y<dim[1]; ++y) {
+          for (int z=0; z<dim[2]; ++z) {
+            for (int n=0; n<natoms; ++n) {
+              
+              const int atom = latt(x,y,z,n);
+              const int t1 = atom_type[atom];
 
 
-            // insert anisotropy
-            double anival = mat[t1]["anisotropy"][1];
+              // insert anisotropy
+              double anival = mat[t1]["anisotropy"][1];
 
-            for(int i=0;i<3;++i) {
-              double ei = mat[t1]["anisotropy"][0][i];
-              double di = anival*ei ; 
-              if(fabs(di) > encut ){
-                Jij.insert(3*atom+i,3*atom+i,di);
+              for(int i=0;i<3;++i) {
+                double ei = mat[t1]["anisotropy"][0][i];
+                double di = anival*ei ; 
+                if(fabs(di) > encut ){
+                  Jij.insert(3*atom+i,3*atom+i,di);
+                }
               }
-            }
 
 
 
-            const int r[3] = {x,y,z};  // current lattice point
-            int v[3];
-            int q[3];
-//            output.write("\n%i: ",atom);
-            for(int i=0; i<nintype[t1]; ++i) {
-              for(int j=0; j<3; ++j) {
-                q[j] = inter(t1,i,j);
-              }
-              int m = inter(t1,i,3);
+              const int r[3] = {x,y,z};  // current lattice point
+              int v[3];
+              int q[3];
+  //            output.write("\n%i: ",atom);
+              for(int i=0; i<nintype[t1]; ++i) {
+                for(int j=0; j<3; ++j) {
+                  q[j] = inter(t1,i,j);
+                }
+                int m = inter(t1,i,3);
 
-              // loop symmetry points
-              if(jsym==true) {
-                std::sort(q,q+3);
-                do {
+                // loop symmetry points
+                if(jsym==true) {
+                  std::sort(q,q+3);
+                  do {
+                    for(int j=0; j<3; ++j) {
+                      v[j] = r[j]+q[j];
+                      if(pbc[j] == true) {
+                        v[j] = (dim[j]+v[j])%dim[j];
+                      }
+                    }
+                    bool idxcheck = true;
+                    for(int j=0;j<3;++j) {
+                      if(v[j] < 0 || !(v[j] < dim[j])) {
+                        idxcheck = false;
+                      }
+                    }
+
+                    if(idxcheck == true) {
+                      int nbr = latt(v[0],v[1],v[2],m);
+                      insert_interaction(atom,nbr,i,jijval,exchsym);
+  //                  nbr_list.insert(atom,nbr,1);
+                      counter++;
+                    }
+                  } while (next_point_symmetry(q));
+                }
+                else {
                   for(int j=0; j<3; ++j) {
                     v[j] = r[j]+q[j];
                     if(pbc[j] == true) {
@@ -424,39 +457,17 @@ void Lattice::createFromConfig() {
                   }
 
                   if(idxcheck == true) {
-                    int nbr = latt(v[0],v[1],v[2],m);
-                    insert_interaction(atom,nbr,i,jijval,exchsym);
-//                  nbr_list.insert(atom,nbr,1);
-                    counter++;
+                   int nbr = latt(v[0],v[1],v[2],m);
+                   insert_interaction(atom,nbr,i,jijval,exchsym);
+    //               nbr_list.insert(atom,nbr,1);
+                   counter++;
                   }
-                } while (next_point_symmetry(q));
-              }
-              else {
-                for(int j=0; j<3; ++j) {
-                  v[j] = r[j]+q[j];
-                  if(pbc[j] == true) {
-                    v[j] = (dim[j]+v[j])%dim[j];
-                  }
-                }
-                bool idxcheck = true;
-                for(int j=0;j<3;++j) {
-                  if(v[j] < 0 || !(v[j] < dim[j])) {
-                    idxcheck = false;
-                  }
-                }
-
-                if(idxcheck == true) {
-                 int nbr = latt(v[0],v[1],v[2],m);
-                 insert_interaction(atom,nbr,i,jijval,exchsym);
-  //               nbr_list.insert(atom,nbr,1);
-                 counter++;
                 }
               }
-            }
-          } // n
-        } // z
-      } // y
-    } // x
+            } // n
+          } // z
+        } // y
+      } // x
 
 //    nbr_list.coocsr();
 
