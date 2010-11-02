@@ -103,4 +103,6 @@ void HeunLLGSolver::run()
       s(i,j) = s(i,j)*norm;
     }
   }
+
+  iteration++;
 }

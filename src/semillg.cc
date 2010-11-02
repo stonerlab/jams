@@ -112,4 +112,5 @@ void SemiLLGSolver::run()
       s(i,j) = norm*(sold(i,j)*(1.0-b2ff) + 2.0*(fxs[j]+f[j]*fdots));
     }
   }
+  iteration++;
 }

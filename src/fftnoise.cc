@@ -108,4 +108,5 @@ void FFTNoise::initialise(double dt) {
 
 void FFTNoise::run() {
 
+  iteration++;
 }
