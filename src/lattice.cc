@@ -26,6 +26,9 @@ void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryT
   // only store lower triangle
   if( m > n ) {
     switch (exchsym) {
+      case NOEXCHANGE:
+        output.write("WARNING: Attempting to insert non existent exchange");
+        break;
       case ISOTROPIC:
         Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
         Jij.insert(3*m+1,3*n+1,jijval(i,0)); // Jyy
@@ -314,6 +317,7 @@ void Lattice::createFromConfig() {
         case 0:
           exchsym = NOEXCHANGE;
           output.write("WARNING: No exchange found\n");
+          break;
         case 1:
           exchsym = ISOTROPIC;
           output.write("Found isotropic exchange\n");
