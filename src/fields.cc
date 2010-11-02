@@ -15,6 +15,8 @@ void calculate_fields()
   if(Jij.nonzero() > 0) {
     jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,Jij.ptrVal(),
         Jij.ptrCol(), Jij.ptrB(),Jij.ptrE(),s.ptr(),0.0,h.ptr()); 
+  } else {
+    std::fill(h.ptr(),h.ptr()+nspins3,0.0); 
   }
 
   // normalize by the gyroscopic factor
