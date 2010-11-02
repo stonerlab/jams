@@ -12,6 +12,9 @@ std::string seedname;
 
 namespace {
   Solver *solver;
+  double dt=0.0;
+  unsigned int steps_eq=0;
+  unsigned int steps_run=0;
 } // anon namespace
 
 int jams_init(int argc, char **argv) {
@@ -49,9 +52,30 @@ int jams_init(int argc, char **argv) {
 
   lattice.createFromConfig();
 
-  solver = Solver::Create(FFTNOISE);
 
-  const double dt = (1E-15);
+  try {
+    dt = config.lookup("sim.t_step");
+    output.write("Timestep: %e\n",dt);
+
+    double tmp = config.lookup("sim.t_eq");
+    steps_eq = static_cast<unsigned int>(tmp/dt);
+    output.write("Equilibration time: %e (%d steps)\n",tmp,steps_eq);
+
+    tmp = config.lookup("sim.t_run");
+    steps_run = static_cast<unsigned int>(tmp/dt);
+    output.write("Run time: %e (%d steps)\n",tmp,steps_run);
+  }
+  catch(const libconfig::SettingNotFoundException &nfex) {
+    jams_error("Setting '%s' not found",nfex.getPath());
+  }
+  catch(...) {
+    jams_error("Undefined error");
+  }
+
+
+
+
+  solver = Solver::Create(FFTNOISE);
   solver->initialise(argc,argv,dt);
 
   return 0;
@@ -61,10 +85,16 @@ void jams_run() {
   using namespace globals;
   
 
+  output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
-
+  for(int i=0;i<steps_eq;++i) {
+    solver->run();
+  }
+  
+  output.write("\n----Data Run----\n");
+  output.write("Running solver\n");
   double mag[3];
-  for(int i=0; i<1000000; ++i) {
+  for(int i=0; i<steps_run; ++i) {
     if( (i%1) == 0 ){
       mag[0] = 0.0; mag[1] = 0.0; mag[2] = 0.0;
       for(int n=0;n<nspins;++n) {
@@ -80,9 +110,7 @@ void jams_run() {
     }
     solver->run();
   }
-//  for(int i=0;i<nspins;++i) {
-//    output.write("%f %f %f \n",s(i,0),s(i,1),s(i,2));
-//  }
+
 }
 
 void jams_finish() {
