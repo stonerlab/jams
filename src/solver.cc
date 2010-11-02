@@ -42,7 +42,11 @@ Solver* Solver::Create(SolverType type)
     case SEMILLG:
       return new SemiLLGSolver;
       break;
+    case FFTNOISE:
+      return new FFTNoise;
+      break;
     default:
       jams_error("Unknown solver selected.");
   }
+  return NULL;
 }

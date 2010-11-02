@@ -7,7 +7,6 @@
 #include "globals.h"
 #include "utils.h"
 #include "lattice.h"
-#include "noise.h"
 
 std::string seedname;
 
@@ -50,10 +49,10 @@ int jams_init(int argc, char **argv) {
 
   lattice.createFromConfig();
 
-  solver = Solver::Create();
+  solver = Solver::Create(FFTNOISE);
 
-  const double dt = (1E-16);
-  solver->initialise(argc,argv,dt,FFT);
+  const double dt = (1E-15);
+  solver->initialise(argc,argv,dt);
 
   return 0;
 }
@@ -65,8 +64,8 @@ void jams_run() {
   output.write("Running solver\n");
 
   double mag[3];
-  for(int i=0; i<10000; ++i) {
-    if( (i%1000) == 0 ){
+  for(int i=0; i<1000000; ++i) {
+    if( (i%1) == 0 ){
       mag[0] = 0.0; mag[1] = 0.0; mag[2] = 0.0;
       for(int n=0;n<nspins;++n) {
         for(int j=0; j<3; ++j) {

@@ -20,6 +20,7 @@ OBJS=src/jams++.o \
 		 src/lattice.o \
 		 src/semillg.o \
 		 src/heunllg.o \
+		 src/fftnoise.o
 
 jams++: $(OBJS) src/sparsematrix.o 
 	$(CXX) -o $@ $(CFLAGS) $(LDFLAGS) $(LIBS) $^ 
