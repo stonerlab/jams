@@ -23,12 +23,13 @@ void BoltzmannMonitor::run() {
     angle = rad_to_deg(acos(s(i,2)));
     round = static_cast<unsigned int>(angle*0.2);
     bins(round)++;
+    total++;
   }
 }
 
 void BoltzmannMonitor::write() {
   for(int i=0;i<36;++i) {
-    outfile << i*5+2.5 << "\t" << bins(i) << "\n";
+    outfile << i*5+2.5 << "\t" << bins(i)/total << "\n";
   }
   outfile << "\n" << std::endl;
 }

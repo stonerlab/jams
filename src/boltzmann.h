@@ -9,6 +9,7 @@ class BoltzmannMonitor : public Monitor{
   public:
     BoltzmannMonitor()
       : bins(0),
+        total(0),
         outfile()
     {}
     ~BoltzmannMonitor();
@@ -18,6 +19,7 @@ class BoltzmannMonitor : public Monitor{
     void write();
   private:
     Array<double> bins;
+    double total;
     std::ofstream outfile;
 };
 
