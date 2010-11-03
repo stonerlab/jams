@@ -31,7 +31,7 @@ void FFTNoise::initialise(int argc, char **argv, double idt){
   omega_t = 1.0/dt; //568.180;
   omega_c = omega_t/100.0;
 
-  const int nsteps = 1048576/16; //(2^20)
+  const int nsteps = 10485764; //(2^20)
 
   // resize arrays
   mem.resize(nspins,3);
@@ -160,8 +160,6 @@ void FFTNoise::run() {
 
   calculate_fields();
   
-//  output.write("%e %e %e\n",rhs[0],rhs[1],rhs[2]);
-  
   for(i=0; i<nspins; ++i) {
   
     sxh[0] = s(i,1)*h(i,2) - s(i,2)*h(i,1);
@@ -199,7 +197,6 @@ void FFTNoise::run() {
   }
   
   calculate_fields();
-  //output.write("%e %e %e\n",h(0,0),h(0,1),h(0,2));
 
   for(i=0; i<nspins; ++i) {
 

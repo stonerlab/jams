@@ -6,7 +6,7 @@
 
 class HeunLLGSolver : public Solver {
   public:
-    HeunLLGSolver() : snew(0,0), sigma(0,0) {};
+    HeunLLGSolver() : snew(0,0), sigma(0,0) {}
     ~HeunLLGSolver() {}
     void initialise(int argc, char **argv, double dt);
     void run();
