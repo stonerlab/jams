@@ -159,7 +159,7 @@ void FFTNoise::run() {
   for(i=0; i<nspins; ++i) {
   
     for(j=0; j<3; ++j) {
-      w(i,j) = sqrt(temperature)*sigma(i,j)*spec(iteration,j) ;
+      w(i,j) = sqrt(temperature)*sigma(i,j)*spec(iteration,j)
               - alpha(i) * ( s(i,j)*corr(0,j) -corr(iteration,j)*s0(i,j) ) + alpha(i)*mem(i,j);
       rhs[j] = s(i,j)*(corr(iteration+1,j) - corr(iteration,j));
       memnew(i,j) = mem(i,j) + 0.5*rhs[j];
@@ -198,7 +198,7 @@ void FFTNoise::run() {
   for(i=0; i<nspins; ++i) {
 
     for(j=0; j<3; ++j) {
-      w(i,j) = sqrt(temperature)*sigma(i,j)*spec(iteration,j) ;
+      w(i,j) = sqrt(temperature)*sigma(i,j)*spec(iteration,j) 
               - alpha(i) * ( s(i,j)*corr(0,j) -corr(iteration,j)*s0(i,j) ) + alpha(i)*mem(i,j);
       rhs[j] = s(i,j)*(corr(iteration+1,j) - corr(iteration,j));
       mem(i,j) = memnew(i,j) + 0.5*rhs[j];
