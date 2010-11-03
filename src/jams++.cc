@@ -7,6 +7,8 @@
 #include "globals.h"
 #include "utils.h"
 #include "lattice.h"
+#include "monitor.h"
+#include "boltzmann.h"
 
 std::string seedname;
 
@@ -15,6 +17,7 @@ namespace {
   double dt=0.0;
   unsigned int steps_eq=0;
   unsigned int steps_run=0;
+  unsigned int steps_out=0;
 } // anon namespace
 
 int jams_init(int argc, char **argv) {
@@ -64,6 +67,10 @@ int jams_init(int argc, char **argv) {
     tmp = config.lookup("sim.t_run");
     steps_run = static_cast<unsigned int>(tmp/dt);
     output.write("Run time: %e (%d steps)\n",tmp,steps_run);
+    
+    tmp = config.lookup("sim.t_out");
+    steps_out = static_cast<unsigned int>(tmp/dt);
+    output.write("Output time: %e (%d steps)\n",tmp,steps_out);
   }
   catch(const libconfig::SettingNotFoundException &nfex) {
     jams_error("Setting '%s' not found",nfex.getPath());
@@ -93,11 +100,15 @@ void jams_run() {
     solver->run();
   }
   
+  Monitor *mon = new BoltzmannMonitor();
+  mon->initialise();
+
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   double mag[3];
   for(int i=0; i<steps_run; ++i) {
-    if( (i%1) == 0 ){
+    if( (i%steps_out) == 0 ){
+      mon->write();
       mag[0] = 0.0; mag[1] = 0.0; mag[2] = 0.0;
       for(int n=0;n<nspins;++n) {
         for(int j=0; j<3; ++j) {
@@ -111,6 +122,7 @@ void jams_run() {
     output.write("%f %f %f %1.12f \n",mag[0],mag[1],mag[2],modmag);
     }
     solver->run();
+    mon->run();
   }
 
 }
