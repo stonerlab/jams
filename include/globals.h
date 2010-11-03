@@ -38,6 +38,8 @@ namespace globals
   GLOBAL int nspins;
   GLOBAL int nspins3;
 
+  GLOBAL double h_app[3];
+
   GLOBAL Array2D<double> s;
   GLOBAL Array2D<double> h;
   GLOBAL Array2D<double> w;

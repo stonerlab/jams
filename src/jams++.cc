@@ -85,6 +85,8 @@ void jams_run() {
   using namespace globals;
   
 
+  h_app[0] = 0.0; h_app[1] = 0.0; h_app[2] = 0.1*boltzmann_si/mus(0);
+
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
   for(int i=0;i<steps_eq;++i) {
