@@ -109,18 +109,18 @@ void jams_run() {
   for(int i=0; i<steps_run; ++i) {
     if( (i%steps_out) == 0 ){
       mon->write();
+    }
       mag[0] = 0.0; mag[1] = 0.0; mag[2] = 0.0;
       for(int n=0;n<nspins;++n) {
         for(int j=0; j<3; ++j) {
           mag[j] += s(n,j); 
         }
       }
-    for(int j=0;j<3;++j) {
-      mag[j] = mag[j]/static_cast<double>(nspins); 
-    }
-    double modmag = sqrt(mag[0]*mag[0]+mag[1]*mag[1]+mag[2]*mag[2]);
-    output.write("%f %f %f %1.12f \n",mag[0],mag[1],mag[2],modmag);
-    }
+      for(int j=0;j<3;++j) {
+        mag[j] = mag[j]/static_cast<double>(nspins); 
+      }
+      double modmag = sqrt(mag[0]*mag[0]+mag[1]*mag[1]+mag[2]*mag[2]);
+      output.write("%f %f %f %1.12f \n",mag[0],mag[1],mag[2],modmag);
     solver->run();
     mon->run();
   }
