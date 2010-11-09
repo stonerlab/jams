@@ -22,7 +22,7 @@ void calculate_fields()
   // normalize by the gyroscopic factor
   for(i=0; i<nspins; ++i) {
     for(j=0; j<3;++j) {
-      h(i,j) = (h(i,j)+w(i,j)+h_app[j]*mus(i))*gyro(i);
+      h(i,j) = (h(i,j)+ (w(i,j)+h_app[j])*mus(i) )*gyro(i);
     }
   }
 }

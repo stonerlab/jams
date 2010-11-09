@@ -25,11 +25,11 @@ void SemiLLGSolver::initialise(int argc, char **argv, double idt)
   sold.resize(nspins,3);
   sigma.resize(nspins,3);
     
-  temperature = 300.0;
+  temperature = 0.1;
 
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {
-      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)*mus(i)) / (dt) );
+      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)) / (dt*mus(i)) );
     }
   }
 
