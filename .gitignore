@@ -7,4 +7,6 @@ jams++
 *.swp
 *.bak
 *.job
+*.log
+*.gpl
 .DS_Store
