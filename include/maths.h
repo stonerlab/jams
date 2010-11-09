@@ -5,6 +5,9 @@
 #include <cmath>
 #include "consts.h"
 
+inline int nint(const double &x) {
+  return static_cast<int>(x+0.5);
+}
 
 inline double deg_to_rad(const double &angle) {
   return angle*(pi/180.0);
