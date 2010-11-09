@@ -1,5 +1,6 @@
 #include "solver.h"
 #include "heunllg.h"
+#include "heunllms.h"
 #include "semillg.h"
 #include "fftnoise.h"
 #include "globals.h"
@@ -38,6 +39,9 @@ Solver* Solver::Create(SolverType type)
   switch (type) {
     case HEUNLLG:
       return new HeunLLGSolver;
+      break;
+    case HEUNLLMS:
+      return new HeunLLMSSolver;
       break;
     case SEMILLG:
       return new SemiLLGSolver;

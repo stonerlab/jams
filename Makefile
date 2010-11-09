@@ -20,6 +20,7 @@ OBJS=src/jams++.o \
 		 src/lattice.o \
 		 src/semillg.o \
 		 src/heunllg.o \
+		 src/heunllms.o \
 		 src/monitor.o \
 		 src/boltzmann.o \
 		 src/fftnoise.o
