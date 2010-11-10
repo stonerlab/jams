@@ -374,6 +374,7 @@ void Lattice::createFromConfig() {
         }
         for(int j=0; j<nexch; ++j) {
           jijval(n,j) = exch[n][3][j];
+          jijval(n,j) *= 0.5*jijval(n,j);
         }
         for(int i=0;i<4; ++i){
           inter(t1,nintype[t1],i) = v[i];
