@@ -21,8 +21,6 @@ void HeunLLMSSolver::initialise(int argc, char **argv, double idt)
   u.resize(nspins,3);
   sigma.resize(nspins,3);
   
-  temperature = 0.1; 
-
   omega_corr = 1.0/(10*dt);
 
   for(int i=0; i<nspins; ++i) {

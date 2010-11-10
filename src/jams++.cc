@@ -58,6 +58,8 @@ int jams_init(int argc, char **argv) {
 
   std::string solname;
 
+  double init_temperature=0.0;
+
   try {
     dt = config.lookup("sim.t_step");
     output.write("Timestep: %e\n",dt);
@@ -78,6 +80,9 @@ int jams_init(int argc, char **argv) {
       config.lookupValue("sim.solver",solname);
       std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
     }
+
+    init_temperature = config.lookup("sim.temperature");
+    output.write("Initial temperature: %f\n",init_temperature);
 
   }
   catch(const libconfig::SettingNotFoundException &nfex) {
@@ -108,6 +113,7 @@ int jams_init(int argc, char **argv) {
   }
   
   solver->initialise(argc,argv,dt);
+  solver->setTemperature(init_temperature);
 
 
   return 0;
