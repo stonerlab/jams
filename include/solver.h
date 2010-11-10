@@ -23,6 +23,10 @@ class Solver
     virtual void initialise(int argc, char **argv, double dt);
     virtual void run();
 
+    inline int getIteration() { return iteration; }
+    inline double getTemperature() { return temperature; }
+    inline void setTemperature(double &t) { temperature = t; }
+
     static Solver* Create();
     static Solver* Create(SolverType type);
   protected:
