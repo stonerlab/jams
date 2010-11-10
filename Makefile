@@ -23,6 +23,7 @@ OBJS=src/jams++.o \
 		 src/heunllms.o \
 		 src/monitor.o \
 		 src/boltzmann.o \
+		 src/boltzmann_mag.o \
 		 src/fftnoise.o
 
 jams++: $(OBJS) src/sparsematrix.o 

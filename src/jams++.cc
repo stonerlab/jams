@@ -9,6 +9,7 @@
 #include "lattice.h"
 #include "monitor.h"
 #include "boltzmann.h"
+#include "boltzmann_mag.h"
 
 std::string seedname;
 
@@ -124,7 +125,7 @@ void jams_run() {
     solver->run();
   }
   
-  Monitor *mon = new BoltzmannMonitor();
+  Monitor *mon = new BoltzmannMagMonitor();
   mon->initialise();
 
   output.write("\n----Data Run----\n");
