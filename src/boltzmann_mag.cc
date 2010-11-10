@@ -30,7 +30,7 @@ void BoltzmannMagMonitor::run() {
   }
   double modmag = sqrt(mag[0]*mag[0]+mag[1]*mag[1]+mag[2]*mag[2]);
         
-  round = nint(modmag*100);
+  round = static_cast<int>(modmag*100);
   bins(round)++;
   total++;
 }
