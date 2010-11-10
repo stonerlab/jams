@@ -7,8 +7,8 @@ CFLAGS=-O2 $(WARN) -std=c++98 -pipe -g
 #CFLAGS=-O2 -pipe -DNDEBUG -std=c++98 
 
 INC=-I./include -isystem /opt/local/include -isystem /opt/local/include/metis
-LDFLAGS=-g -L/opt/local/lib
-#LDFLAGS=-L/opt/local/lib
+LDFLAGS=-static -g -L/opt/local/lib
+#LDFLAGS=-static -L/opt/local/lib
 LIBS=-lconfig++ -lfftw3
 
 OBJS=src/jams++.o \
@@ -27,7 +27,7 @@ OBJS=src/jams++.o \
 		 src/fftnoise.o
 
 jams++: $(OBJS) src/sparsematrix.o 
-	$(CXX) -o $@ $(CFLAGS) $(LDFLAGS) $(LIBS) $^ 
+	$(CXX) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS) 
 
 $(OBJS) : %.o : %.cc include/globals.h
 	$(CXX) -c -o $@ $(INC) $(CFLAGS) $<
