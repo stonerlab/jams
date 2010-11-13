@@ -27,7 +27,7 @@ void BoltzmannMonitor::run() {
   }
 }
 
-void BoltzmannMonitor::write() {
+void BoltzmannMonitor::write(const double &time) {
   for(int i=0;i<36;++i) {
     outfile << i*5+2.5 << "\t" << bins(i)/total << "\n";
   }

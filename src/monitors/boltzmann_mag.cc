@@ -35,7 +35,7 @@ void BoltzmannMagMonitor::run() {
   total++;
 }
 
-void BoltzmannMagMonitor::write() {
+void BoltzmannMagMonitor::write(const double &time) {
   for(int i=0;i<101;++i) {
     outfile << i*0.01+0.005 << "\t" << bins(i)/total << "\n";
   }

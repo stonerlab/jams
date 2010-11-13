@@ -16,7 +16,7 @@ class BoltzmannMonitor : public Monitor{
 
     void initialise();
     void run();
-    void write();
+    void write(const double &time);
   private:
     Array<double> bins;
     double total;

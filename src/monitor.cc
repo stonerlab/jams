@@ -13,6 +13,6 @@ void Monitor::run() {
 
 }
 
-void Monitor::write() {
+void Monitor::write(const double &time) {
 
 }

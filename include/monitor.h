@@ -3,13 +3,13 @@
 
 class Monitor {
   public:
-    Monitor() : initialised(true) {}
+    Monitor() : initialised(false) {}
 
     virtual ~Monitor(){}
 
     virtual void initialise();
     virtual void run();
-    virtual void write();
+    virtual void write(const double &time);
 
     static Monitor* Create();
   protected:
