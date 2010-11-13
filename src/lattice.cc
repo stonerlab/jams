@@ -432,6 +432,7 @@ void Lattice::createFromConfig() {
 
                 // loop symmetry points
                 if(jsym==true) {
+                  output.write("WARNING: jsym is currently buggy\n");
                   std::sort(q,q+3);
                   do {
                     for(int j=0; j<3; ++j) {
