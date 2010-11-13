@@ -376,9 +376,9 @@ void Lattice::createFromConfig() {
           v[i] = floor((r[i]-p[i])+0.5);
 
           // check exchange-lattice alignment
-          if( fabs(r[i]-p[i]-v[i]) > 0.01) {
-            jams_error("Exchange lattice mismatch on interaction: %i (r[%i]-p[%i] = %f, v[%i] = %i)",n+1,i,i,r[i]-p[i],i,v[i]);
-          }
+          //if( fabs(r[i]-p[i]-v[i]) > 0.01) {
+          //  jams_error("Exchange lattice mismatch on interaction: %i (r[%i]-p[%i] = %f, v[%i] = %i)",n+1,i,i,r[i]-p[i],i,v[i]);
+          //}
         }
         for(int j=0; j<nexch; ++j) {
           jijval(n,j) = exch[n][3][j];
