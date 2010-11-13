@@ -1,0 +1,58 @@
+SHELL = /bin/sh
+
+withdebug=1
+
+cputype = $(shell uname -m | sed "s/\\ /_/g")
+systype = $(shell uname -s)
+
+
+# Compiler information
+CXX = c++
+OPTFLAGS = -O2 -funroll-all-loops
+COPTIONS = -Wall -pedantic -std=c++98 -pipe
+
+# Linker information
+LDOPTIONS = 
+LD = $(CXX)
+
+# Compile input/output file specification
+SOURCEFILE = -c $<
+OUTPUTFILE = -o $@
+
+# Output specification for executables
+EXEOUTPUTFILE = -o $@
+
+#----------------------------------------------------------------------
+# System based overides
+#----------------------------------------------------------------------
+
+ifeq ($(systype),Linux)
+	COPTIONS += -DLinux
+endif
+
+ifeq ($(systype),Darwin)
+	CXX = llvm-g++ 
+	COPTIONS += -DDarwin
+endif
+
+#----------------------------------------------------------------------
+# Build specific options 
+#----------------------------------------------------------------------
+ifeq ($(withdebug),1)
+	OPTFLAGS += -g -DDEBUG
+	LDOPTIONS += -g
+else 
+	OPTFLAGS += -DNDEBUG	# turn off asserts
+endif
+
+LIBCONFIGDIR = ./libconfig
+
+header-dirs = $(sort $(dir $(shell find $(TOPDIR) -name '*.h'))) 
+HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
+
+INCLUDES = $(foreach d, $(header-dirs), -I$d)  -isystem /opt/local/include
+CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
+
+LIBSDIR = -L/opt/local/lib 
+LIBS = -lfftw3 -lconfig++
+LDFLAGS = $(LIBSDIR)

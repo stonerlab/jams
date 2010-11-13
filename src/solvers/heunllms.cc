@@ -21,14 +21,12 @@ void HeunLLMSSolver::initialise(int argc, char **argv, double idt)
   u.resize(nspins,3);
   sigma.resize(nspins,3);
   
-  omega_corr = 1.0/(10*dt);
-
   for(int i=0; i<nspins; ++i) {
     // restore gyro to just gamma
     gyro(i) = -gyro(i)*(1+alpha(i)*alpha(i));
     for(int j=0; j<3; ++j) {
       //sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)*mus(i)) / (dt) );
-      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)*omega_corr*omega_corr) / (dt*mus(i)) );
+      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)*omega_corr(i)*omega_corr(i)) / (dt*mus(i)) );
       w(i,j) = 0.0;
     }
   }
@@ -78,7 +76,7 @@ void HeunLLMSSolver::run()
     }
 
     for(j=0; j<3; ++j) {
-      rhs[j] = u(i,j) - omega_corr*(w(i,j) + alpha(i)*sxh[j]);
+      rhs[j] = u(i,j) - omega_corr(i)*(w(i,j) + alpha(i)*sxh[j]);
     }
 
     for(j=0; j<3; ++j) {
@@ -106,7 +104,7 @@ void HeunLLMSSolver::run()
       s(i,j) = s(i,j)*norm;
     }
     for(j=0; j<3; ++j) {
-      w(i,j) = wnew(i,j) + 0.5*dt*(u(i,j) - omega_corr*(w(i,j) + alpha(i)*sxh[j]));
+      w(i,j) = wnew(i,j) + 0.5*dt*(u(i,j) - omega_corr(i)*(w(i,j) + alpha(i)*sxh[j]));
     }
     //output.print("%e %e %e\n", w(i,0)/mus(i), w(i,1)/mus(i), w(i,2)/mus(i));
   }

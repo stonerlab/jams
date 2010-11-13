@@ -7,7 +7,7 @@
 
 class HeunLLMSSolver : public Solver {
   public:
-    HeunLLMSSolver() : snew(0,0), wnew(0,0), u(0,0), sigma(0,0), omega_corr(0) {}
+    HeunLLMSSolver() : snew(0,0), wnew(0,0), u(0,0), sigma(0,0) {}
     ~HeunLLMSSolver() {}
     void initialise(int argc, char **argv, double dt);
     void run();
@@ -17,7 +17,6 @@ class HeunLLMSSolver : public Solver {
     Array2D<double> wnew;
     Array2D<double> u;
     Array2D<double> sigma;
-    double omega_corr;
 };
 
 #endif // __HEUNLLG_H__

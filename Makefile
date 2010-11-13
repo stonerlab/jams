@@ -1,41 +1,39 @@
-CXX=g++
-WARN=-Wall -Wextra -Weffc++ -Wold-style-cast -Wswitch-default \
-		 -Wswitch-enum -Wfloat-equal -Werror=shadow -Winline \
-		 -Wno-long-long -pedantic 
-CFLAGS=-O2 $(WARN) -std=c++98 -pipe -g
-#CFLAGS=-O2 -pipe -DNDEBUG -fstrict-aliasing -funroll-all-loops -fprefetch-loop-arrays -std=c++98
-#CFLAGS=-O2 -pipe -DNDEBUG -std=c++98 
+TOPDIR = .
 
-INC=-I./include -isystem /opt/local/include -isystem /opt/local/include/metis
-LDFLAGS=-static -g -L/opt/local/lib
-#LDFLAGS=-static -L/opt/local/lib
-LIBS=-lconfig++ -lfftw3
+include ./Makefile.in
 
-OBJS=src/jams++.o \
-		 src/output.o \
-		 src/rand.o \
-		 src/maths.o \
-		 src/solver.o \
-		 src/fields.o \
-		 src/lattice.o \
-		 src/semillg.o \
-		 src/heunllg.o \
-		 src/heunllms.o \
-		 src/monitor.o \
-		 src/boltzmann.o \
-		 src/boltzmann_mag.o \
-		 src/fftnoise.o
+#SUBDIRS = src src/monitors src/solvers
 
-jams++: $(OBJS) src/sparsematrix.o 
-	$(CXX) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS) 
+source-dirs := $(sort $(dir $(shell find . -name '*.cc')))
 
-$(OBJS) : %.o : %.cc include/globals.h
-	$(CXX) -c -o $@ $(INC) $(CFLAGS) $<
+jams++ :: objects
+	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
+	
 
-src/sparsematrix.o : %.o : %.cc
-	$(CXX) -c -o $@ $(INC) -O3 -pipe -DNDEBUG -fstrict-aliasing -funroll-all-loops -fprefetch-loop-arrays -std=c++98 -j2 $<
-	#$(CXX) -c -o $@ $(INC) -O2 $(WARN) -std=c++98 -pipe -j2 -g $<
+	@echo
+	@echo " JAMS++ build complete. "
+	@echo
+	@echo " System       ... $(systype) "
+	@echo " Architecture ... $(cputype) "
+	@echo " Compiler     ... $(CXX)     "
+ifeq ($(withdebug),1)
+		@echo " Build type   ... Debug      "
+else
+		@echo " Build type   ... Production "
+endif
+	@echo
 
+objects :
+	for d in $(source-dirs) ; \
+		do if test -d $$d; then \
+		  $(MAKE) -C $$d $(@F) || exit 1; \
+		fi; \
+	done
 
-clean:
-	rm -rf src/*.o jams++
+clean :
+	rm -f jams++
+	for d in $(source-dirs) ; \
+		do if test -d $$d; then \
+		  $(MAKE) -C $$d $(@F) || exit 1; \
+		fi; \
+	done
