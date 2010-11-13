@@ -4,6 +4,7 @@
 #include "lattice.h"
 #include <libconfig.h++>
 #include <map>
+#include <cmath>
 #include "array2d.h"
 #include "array3d.h"
 #include "array4d.h"
@@ -407,12 +408,15 @@ void Lattice::createFromConfig() {
               const int t1 = atom_type[atom];
 
 
-              // insert anisotropy
+              // anisotropy value
               double anival = mat[t1]["anisotropy"][1];
 
               for(int i=0;i<3;++i) {
+                // easy axis
                 double ei = mat[t1]["anisotropy"][0][i];
+                // magnitude
                 double di = anival*ei ; 
+                // insert if above encut
                 if(fabs(di) > encut ){
                   Jij.insert(3*atom+i,3*atom+i,di);
                 }
@@ -423,7 +427,6 @@ void Lattice::createFromConfig() {
               const int r[3] = {x,y,z};  // current lattice point
               int v[3];
               int q[3];
-  //            output.write("\n%i: ",atom);
               for(int i=0; i<nintype[t1]; ++i) {
                 for(int j=0; j<3; ++j) {
                   q[j] = inter(t1,i,j);
@@ -530,7 +533,7 @@ void Lattice::createFromConfig() {
     //}
 #endif
 
-    output.write("\nInteraction count: %i\n", counter);
+    output.write("\nInteraction count: %i\n", 2*counter);
     output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
     output.write("Converting COO to CSR INPLACE\n");
     Jij.coocsrInplace();
