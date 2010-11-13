@@ -472,6 +472,7 @@ void Lattice::createFromConfig() {
                   if(idxcheck == true) {
                    int nbr = latt(v[0],v[1],v[2],m);
                    insert_interaction(atom,nbr,i,jijval,exchsym);
+                   insert_interaction(nbr,atom,i,jijval,exchsym);
     //               nbr_list.insert(atom,nbr,1);
                    counter++;
                   }
