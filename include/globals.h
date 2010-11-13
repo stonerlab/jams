@@ -49,6 +49,7 @@ namespace globals
   GLOBAL Array<double> alpha;
   GLOBAL Array<double> mus;
   GLOBAL Array<double> gyro;
+  GLOBAL Array<double> omega_corr;
 
 } // namespace global
 

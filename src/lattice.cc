@@ -277,6 +277,7 @@ void Lattice::createFromConfig() {
     alpha.resize(nspins);
     mus.resize(nspins);
     gyro.resize(nspins);
+    omega_corr.resize(nspins);
 
     // init spins
     for(int i=0; i<nspins; ++i) {
@@ -294,6 +295,13 @@ void Lattice::createFromConfig() {
         h(i,j) = 0.0;
         w(i,j) = 0.0;
       }
+
+      if(config.lookupValue("materials.t_corr",omega_corr(i))){
+        omega_corr(i) = 1.0/(gamma_electron_si*omega_corr(i));
+      } else {
+        omega_corr(i) = 0.0;
+      }
+
       mus(i) = mat[t1]["moment"];
       mus(i) = mus(i)*mu_bohr_si;
       alpha(i) = mat[t1]["alpha"];
