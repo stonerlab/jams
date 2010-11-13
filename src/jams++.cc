@@ -36,6 +36,10 @@ int jams_init(int argc, char **argv) {
   output.write("\nJAMS++\n");
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
 
+#ifdef DEBUG
+  output.write("DEBUG Build\n");
+#endif
+
   std::string cfgfile = seedname+".cfg";
 
   try {
@@ -49,7 +53,7 @@ int jams_init(int argc, char **argv) {
         pex.getLine(), pex.getError());
   }
   catch(...) {
-    jams_error("Undefined error");
+    jams_error("Undefined config error");
   }
 
   rng.seed(time(NULL));
@@ -89,7 +93,7 @@ int jams_init(int argc, char **argv) {
     jams_error("Setting '%s' not found",nfex.getPath());
   }
   catch(...) {
-    jams_error("Undefined error");
+    jams_error("Undefined config error");
   }
 
 
@@ -127,7 +131,7 @@ void jams_run() {
 
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
-  for(int i=0;i<steps_eq;++i) {
+  for(unsigned int i=0;i<steps_eq;++i) {
     solver->run();
   }
   
@@ -137,7 +141,7 @@ void jams_run() {
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   double mag[3];
-  for(int i=0; i<steps_run; ++i) {
+  for(unsigned int i=0; i<steps_run; ++i) {
     if( ((i+1)%steps_out) == 0 ){
       mon->write();
       mag[0] = 0.0; mag[1] = 0.0; mag[2] = 0.0;
