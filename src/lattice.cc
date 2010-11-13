@@ -211,6 +211,11 @@ void Lattice::createFromConfig() {
     }
     output.write("\nUnique types found: %d\n",ntypes);
 
+    type_count.resize(ntypes);
+    for(int i=0; i<ntypes; ++i) {
+      type_count[i] = 0;
+    }
+
     
     const libconfig::Setting& size = config.lookup("lattice.size");
     for(int i=0; i<3; ++i) {
@@ -251,7 +256,9 @@ void Lattice::createFromConfig() {
         for (int z=0; z<dim[2]; ++z) {
           for (int n=0; n<natoms; ++n) {
             const std::string t = atoms[n][0];
-            atom_type.push_back(atom_type_map[t]);
+            const int t1 = atom_type_map[t];
+            atom_type.push_back(t1);
+            type_count[t1]++;
             latt(x,y,z,n) = counter++;
           } // n
         } // z
@@ -297,11 +304,15 @@ void Lattice::createFromConfig() {
         w(i,j) = 0.0;
       }
 
-      if(config.lookupValue("materials.t_corr",omega_corr(i))){
+      std::stringstream ss;
+      ss << "materials.["<<t1<<"].t_corr";
+
+      if(config.lookupValue(ss.str(),omega_corr(i))){
         omega_corr(i) = 1.0/(gamma_electron_si*omega_corr(i));
       } else {
         omega_corr(i) = 0.0;
       }
+
 
       mus(i) = mat[t1]["moment"];
       mus(i) = mus(i)*mu_bohr_si;
