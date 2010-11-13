@@ -15,7 +15,8 @@ class Solver
         time(0.0),
         iteration(0),
         temperature(0),
-        dt(0.0)
+        dt(0.0),
+        t_step(0.0)
       {}
 
     virtual ~Solver(){}
@@ -24,6 +25,7 @@ class Solver
     virtual void run();
 
     inline int getIteration() { return iteration; }
+    inline double getTime() { return iteration*t_step; }
     inline double getTemperature() { return temperature; }
     inline void setTemperature(double &t) { temperature = t; }
 
@@ -38,6 +40,7 @@ class Solver
 
     double temperature;
     double dt;
+    double t_step;
 
 };
 

@@ -18,6 +18,7 @@ void Solver::initialise(int argc, char **argv, double idt) {
   time = 0.0;
   iteration = 0;
   
+  t_step = idt;
   dt = idt*gamma_electron_si;
 
   initialised = true;
