@@ -10,6 +10,7 @@
 #include "monitor.h"
 #include "boltzmann.h"
 #include "boltzmann_mag.h"
+#include "magnetisation.h"
 
 std::string seedname;
 
@@ -127,7 +128,7 @@ void jams_run() {
   using namespace globals;
   
 
-  h_app[0] = 0.0; h_app[1] = 0.0; h_app[2] = 0.1*boltzmann_si/mus(0);
+  h_app[0] = 0.0; h_app[1] = 0.0; h_app[2] = 0.0;//0.1*boltzmann_si/mus(0);
 
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
@@ -135,29 +136,20 @@ void jams_run() {
     solver->run();
   }
   
-  Monitor *mon = new BoltzmannMagMonitor();
-  mon->initialise();
+//  Monitor *mon = new BoltzmannMagMonitor();
+//  mon->initialise();
+  Monitor *mag = new MagnetisationMonitor();
+  mag->initialise();
 
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
-  double mag[3];
   for(unsigned int i=0; i<steps_run; ++i) {
     if( ((i+1)%steps_out) == 0 ){
-      mon->write();
-      mag[0] = 0.0; mag[1] = 0.0; mag[2] = 0.0;
-      for(int n=0;n<nspins;++n) {
-        for(int j=0; j<3; ++j) {
-          mag[j] += s(n,j); 
-        }
-      }
-      for(int j=0;j<3;++j) {
-        mag[j] = mag[j]/static_cast<double>(nspins); 
-      }
-      double modmag = sqrt(mag[0]*mag[0]+mag[1]*mag[1]+mag[2]*mag[2]);
-      output.write("%f %f %f %1.12f \n",mag[0],mag[1],mag[2],modmag);
+      mag->write(solver->getTime());
+//      mon->write(solver->getTime());
     }
     solver->run();
-    mon->run();
+//    mon->run();
   }
 
 }
