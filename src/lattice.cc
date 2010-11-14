@@ -190,6 +190,7 @@ void Lattice::createFromConfig() {
     ///////////////////////// Read Exchange /////////////////////////
     const libconfig::Setting& exch = config.lookup("exchange");
     const int intertot = exch.getLength();
+    output.write("Interactions in config: %d\n",intertot);
 
     const libconfig::Setting& mat = config.lookup("materials");
 
@@ -275,8 +276,8 @@ void Lattice::createFromConfig() {
           jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
       }
       
-      inter.resize(natoms,intertot,4);
-      std::vector<int> nintype(natoms,0);
+      inter.resize(ntypes,intertot,4);
+      std::vector<int> nintype(ntypes,0);
 
       Jij.resize(3*atomcount,3*atomcount,inter_guess);
 
@@ -288,20 +289,21 @@ void Lattice::createFromConfig() {
       double p[3];
       int v[4];
         // read exchange tensor
-        int t1 = exch[n][0];
-        int t2 = exch[n][1];
-        t1--; t2--;
-        v[3] = t2-t1;
+        int p1 = exch[n][0];
+        int p2 = exch[n][1];
+        p1--; p2--;
+        v[3] = p2-p1;
 
         for(int i=0; i<3; ++i) {
           // p is the vector of the exchange partner within the
           // unit cell (real space)
-          p[i] = atoms[t2][1][i];
+          p[i] = atoms[p2][1][i];
           // r is the vector to the unitcell containing the exchange
           // partner (real space)
           r[i] = exch[n][2][i];
           // relative interger coords to unit cell containing interaction
-          v[i] = floor((r[i]-p[i])+0.5);
+          v[i] = r[i];//floor((r[i]-p[i])+0.5);
+
 
           // check exchange-lattice alignment
           //if( fabs(r[i]-p[i]-v[i]) > 0.01) {
@@ -310,11 +312,16 @@ void Lattice::createFromConfig() {
         }
         for(int j=0; j<nexch; ++j) {
           jijval(n,j) = exch[n][3][j];
-//          jijval(n,j) *= 0.5*jijval(n,j);
         }
+        
+        std::string tname = atoms[p1][0];
+        int t1 = atom_type_map[tname];
         for(int i=0;i<4; ++i){
           inter(t1,nintype[t1],i) = v[i];
         }
+//        output.print("t1:%d n:%d x:%d y:%d z:%d k:%d \n",t1,nintype[t1],v[0],v[1],v[2],v[3],v[4]);
+
+//        std::cerr<<v[0]<<"\t"<<v[1]<<"\t"<<v[2]<<"\t"<<v[3]<<"\n";
         nintype[t1]++;
       }
       
@@ -332,8 +339,9 @@ void Lattice::createFromConfig() {
             for (int n=0; n<natoms; ++n) {
               
               const int atom = latt(x,y,z,n);
-              const int t1 = atom_type[atom];
+              assert(atom < nspins);
 
+              const int t1 = atom_type[atom];
 
               // anisotropy value
               double anival = mat[t1]["anisotropy"][1];
@@ -351,14 +359,19 @@ void Lattice::createFromConfig() {
 
 
 
-              const int r[3] = {x,y,z};  // current lattice point
-              int v[3];
-              int q[3];
+              const int r[3] = {x,y,z};  // coord of current unit cell
+              int q[3]; // relative coordiante
+              int v[3]; // total coordinate
+              double p[3];
+              double d[3];
               for(int i=0; i<nintype[t1]; ++i) {
+                int m = (inter(t1,i,3)+n)%natoms;
                 for(int j=0; j<3; ++j) {
-                  q[j] = inter(t1,i,j);
+                  p[j] = atoms[m][1][j];
+                  d[j] = exch[i][2][j];
+                  q[j] = floor(d[j]-p[j]+0.5);
                 }
-                int m = inter(t1,i,3);
+
 
                 // loop symmetry points
                 if(jsym==true) {
@@ -401,11 +414,17 @@ void Lattice::createFromConfig() {
                   }
 
                   if(idxcheck == true) {
-                   int nbr = latt(v[0],v[1],v[2],m);
-                   insert_interaction(atom,nbr,i,jijval,exchsym);
-                   insert_interaction(nbr,atom,i,jijval,exchsym);
+                    int nbr = latt(v[0],v[1],v[2],m);
+                    assert(nbr < nspins);
+                    assert(atom != nbr);
+                    insert_interaction(atom,nbr,i,jijval,exchsym);
     //               nbr_list.insert(atom,nbr,1);
-                   counter++;
+                    if( atom > nbr ) {
+//                      std::cout<<atom<<"\t"<<nbr<<"\n";
+                      counter++;
+                    } else {
+//                      std::cerr<<atom<<"\t"<<nbr<<"\n";
+                    }
                   }
                 }
               }
@@ -460,7 +479,7 @@ void Lattice::createFromConfig() {
     //}
 #endif
 
-    output.write("\nInteraction count: %i\n", 2*counter);
+    output.write("\nInteraction count: %i\n", counter);
     output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
     output.write("Converting COO to CSR INPLACE\n");
     Jij.coocsrInplace();
