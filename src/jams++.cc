@@ -12,8 +12,6 @@
 #include "boltzmann_mag.h"
 #include "magnetisation.h"
 
-std::string seedname;
-
 namespace {
   Solver *solver;
   double dt=0.0;
@@ -57,11 +55,9 @@ int jams_init(int argc, char **argv) {
     jams_error("Undefined config error");
   }
 
-  rng.seed(time(NULL));
-
-  lattice.createFromConfig();
 
   std::string solname;
+  unsigned int randomseed;
 
   double init_temperature=0.0;
 
@@ -90,6 +86,15 @@ int jams_init(int argc, char **argv) {
       std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
     }
 
+    if( config.exists("sim.seed") == true) {
+      config.lookupValue("sim.seed",randomseed);
+      output.write("Random generator seeded from config file\n");
+    } else {
+      randomseed = time(NULL);
+      output.write("Random generator seeded from time\n");
+    }
+    output.write("Seed: %d\n",randomseed);
+
     init_temperature = config.lookup("sim.temperature");
     output.write("Initial temperature: %f\n",init_temperature);
 
@@ -101,6 +106,9 @@ int jams_init(int argc, char **argv) {
     jams_error("Undefined config error");
   }
 
+  rng.seed(randomseed);
+
+  lattice.createFromConfig();
 
   
     
