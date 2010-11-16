@@ -80,6 +80,10 @@ int jams_init(int argc, char **argv) {
     tmp = config.lookup("sim.t_out");
     steps_out = static_cast<unsigned int>(tmp/dt);
     output.write("Output time: %e (%d steps)\n",tmp,steps_out);
+
+    globals::h_app[0] = config.lookup("sim.h_app.[0]");
+    globals::h_app[1] = config.lookup("sim.h_app.[1]");
+    globals::h_app[2] = config.lookup("sim.h_app.[2]");
   
     if( config.exists("sim.solver") == true ) {
       config.lookupValue("sim.solver",solname);
