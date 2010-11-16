@@ -8,7 +8,9 @@ void MagnetisationMonitor::initialise() {
   using namespace globals;
   output.write("Initialising Magnetisation monitor\n");
 
-  outfile.open("magnetisation.dat");
+  std::string name = "_mag.dat";
+  name = seedname+name;
+  outfile.open(name.c_str());
 
   mag.resize(lattice.numTypes(),4);
 

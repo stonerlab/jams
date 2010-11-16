@@ -29,6 +29,8 @@ GLOBAL Output output;
 
 GLOBAL Random rng;
 
+GLOBAL std::string seedname;
+
 #include "array.h"
 #include "array2d.h"
 #include "sparsematrix.h"
