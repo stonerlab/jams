@@ -8,7 +8,7 @@ systype = $(shell uname -s)
 
 # Compiler information
 CXX = c++
-OPTFLAGS = -O2 -funroll-all-loops
+OPTFLAGS = -O3 -funroll-all-loops
 COPTIONS = -Wall -pedantic -std=c++98 -pipe
 
 # Linker information
@@ -31,7 +31,7 @@ ifeq ($(systype),Linux)
 endif
 
 ifeq ($(systype),Darwin)
-	CXX = llvm-g++ 
+	CXX = g++ 
 	COPTIONS += -DDarwin
 endif
 
