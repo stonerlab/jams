@@ -292,9 +292,30 @@ void Lattice::createFromConfig() {
     //  Read exchange parameters from config
     //-----------------------------------------------------------------
     const libconfig::Setting& exch = config.lookup("exchange");
+    
+    int inter_total=0;
 
-    const int inter_total = exch.getLength();
-    output.write("Interactions in config: %d\n",inter_total);
+    bool jsym = config.lookup("lattice.jsym");
+
+    const int inter_config = exch.getLength();
+
+    // count number of interactions
+    if(jsym == true) {
+      for(int n=0;n<inter_config;++n) {
+        double r[3];
+        for(int j=0; j<3; ++j) {
+          r[j] = exch[n][2][j];
+        }
+        std::sort(r,r+3);
+        do {
+          inter_total++;
+        } while (next_point_symmetry(r));
+      }
+    } else {
+      inter_total = inter_config;
+    }
+    output.write("Interactions in config: %d\n",inter_config);
+    output.write("Total interactions (with symmetry): %d\n",inter_total);
 
     // Guess number of interactions to minimise vector reallocing
     // int the sparse matrix inserts
@@ -351,7 +372,8 @@ void Lattice::createFromConfig() {
     //-----------------------------------------------------------------
     Array2D<double> jijval(inter_total,nexch);
 
-    for(int n=0; n<inter_total; ++n) {
+    int inter_counter = 0;
+    for(int n=0; n<inter_config; ++n) {
       double r[3];
       double p[3];
       double d_latt[3]={0.0,0.0,0.0};
@@ -370,30 +392,60 @@ void Lattice::createFromConfig() {
         r[i] = exch[n][2][i];
       }
       
-      // place interaction vector in unitcell space
-      for(int i=0; i<3; ++i) {
-        d_latt[i] = 0.0;
-        for(int j=0; j<3; ++j) {
-          d_latt[i] += r[j]*unitcellinv[j][i];
-        }
-      }
-      
-      // store unitcell atom difference
-      internbr(type_num_1,nintype[type_num_1]) = type_num_2 - type_num_1;
-      
-      // store interaction vectors
-      for(int i=0;i<3; ++i){
-        inter(type_num_1,nintype[type_num_1],i) = d_latt[i];
-      }
+      if(jsym==true) {
+        std::sort(r,r+3);
+        do {
+          //output.print("%f %f %f\n",r[0],r[1],r[2]);
+          // place interaction vector in unitcell space
+          for(int i=0; i<3; ++i) {
+            d_latt[i] = 0.0;
+            for(int j=0; j<3; ++j) {
+              d_latt[i] += r[j]*unitcellinv[j][i];
+            }
+          }
+          
+          // store unitcell atom difference
+          internbr(type_num_1,nintype[type_num_1]) = type_num_2 - type_num_1;
+          
+          // store interaction vectors
+          for(int i=0;i<3; ++i){
+            inter(type_num_1,nintype[type_num_1],i) = d_latt[i];
+          }
 
-      // read tensor components
-      for(int j=0; j<nexch; ++j) {
-        jijval(n,j) = exch[n][3][j];
+          // read tensor components
+          for(int j=0; j<nexch; ++j) {
+            jijval(inter_counter,j) = exch[n][3][j];
+          }
+      
+          nintype[type_num_1]++;
+          inter_counter++;
+        } while (next_point_symmetry(r));
+      } else {
+        // place interaction vector in unitcell space
+        for(int i=0; i<3; ++i) {
+          d_latt[i] = 0.0;
+          for(int j=0; j<3; ++j) {
+            d_latt[i] += r[j]*unitcellinv[j][i];
+          }
+        }
+        
+        // store unitcell atom difference
+        internbr(type_num_1,nintype[type_num_1]) = type_num_2 - type_num_1;
+        
+        // store interaction vectors
+        for(int i=0;i<3; ++i){
+          inter(type_num_1,nintype[type_num_1],i) = d_latt[i];
+        }
+
+        // read tensor components
+        for(int j=0; j<nexch; ++j) {
+          jijval(n,j) = exch[n][3][j];
+        }
+        nintype[type_num_1]++;
       }
       
       // output.print("t1:%d n:%d dx:%f dy:%f dz:%f vx:%d vy:%d vz:%d k:%d \n",t1,nintype[t1],d_latt[0],d_latt[1],d_latt[2]);
 
-      nintype[type_num_1]++;
     }
       
     //-----------------------------------------------------------------
@@ -401,7 +453,6 @@ void Lattice::createFromConfig() {
     //-----------------------------------------------------------------
 
       double encut = 1e-25;  // energy cutoff
-      bool jsym = config.lookup("lattice.jsym");
       double p[3], pnbr[3];
       int v[3], q[3], qnbr[3];
 
@@ -444,66 +495,31 @@ void Lattice::createFromConfig() {
                   qnbr[j] = floor(inter(type_num,i,j)-pnbr[j]+0.5);
                 }
 
-
-                // loop symmetry points
-                if(jsym==true) {
-                  //output.write("WARNING: jsym is currently buggy\n");
-                  std::sort(q,q+3);
-                  do {
-                    for(int j=0; j<3; ++j) {
-                      v[j] = q[j]+qnbr[j];
-                      if(pbc[j] == true) {
-                        v[j] = (dim[j]+v[j])%dim[j];
-                      }
-                    }
-                    bool idxcheck = true;
-                    for(int j=0;j<3;++j) {
-                      if(v[j] < 0 || !(v[j] < dim[j])) {
-                        idxcheck = false;
-                      }
-                    }
-
-                    if(idxcheck == true) {
-                      int nbr = latt(v[0],v[1],v[2],m);
-                      insert_interaction(atom,nbr,i,jijval,exchsym);
-  //                  nbr_list.insert(atom,nbr,1);
-                      if( atom > nbr ) {
-//                        std::cout<<atom<<"\t"<<nbr<<"\n";
-                        counter++;
-                      }
-//                      } else {
-//                        std::cerr<<atom<<"\t"<<nbr<<"\n";
-//                      }
-                    }
-                  } while (next_point_symmetry(q));
+                for(int j=0; j<3; ++j) {
+                  v[j] = q[j]+qnbr[j];
+                  if(pbc[j] == true) {
+                    v[j] = (dim[j]+v[j])%dim[j];
+                  }
                 }
-                else {
-                  for(int j=0; j<3; ++j) {
-                    v[j] = q[j]+qnbr[j];
-                    if(pbc[j] == true) {
-                      v[j] = (dim[j]+v[j])%dim[j];
-                    }
+                bool idxcheck = true;
+                for(int j=0;j<3;++j) {
+                  if(v[j] < 0 || !(v[j] < dim[j])) {
+                    idxcheck = false;
                   }
-                  bool idxcheck = true;
-                  for(int j=0;j<3;++j) {
-                    if(v[j] < 0 || !(v[j] < dim[j])) {
-                      idxcheck = false;
-                    }
-                  }
+                }
 
-                  if(idxcheck == true) {
-                    int nbr = latt(v[0],v[1],v[2],m);
-                    assert(nbr < nspins);
-                    assert(atom != nbr);
-                    insert_interaction(atom,nbr,i,jijval,exchsym);
-    //               nbr_list.insert(atom,nbr,1);
-                    if( atom > nbr ) {
-                      //std::cout<<atom<<"\t"<<nbr<<"\n";
-                      counter++;
-                    } //else {
-                      //std::cerr<<atom<<"\t"<<nbr<<"\n";
-                   // }
-                  }
+                if(idxcheck == true) {
+                  int nbr = latt(v[0],v[1],v[2],m);
+                  assert(nbr < nspins);
+                  assert(atom != nbr);
+                  insert_interaction(atom,nbr,i,jijval,exchsym);
+  //               nbr_list.insert(atom,nbr,1);
+                  if( atom > nbr ) {
+                    //std::cout<<atom<<"\t"<<nbr<<"\n";
+                    counter++;
+                  } //else {
+                    //std::cerr<<atom<<"\t"<<nbr<<"\n";
+                 // }
                 }
               }
             } // n
