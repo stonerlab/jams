@@ -406,7 +406,7 @@ void Lattice::createFromConfig() {
                 // easy axis
                 double ei = mat[t1]["anisotropy"][0][i];
                 // magnitude
-                double di = anival*ei ; 
+                double di = 2.0*anival*ei ; 
                 // insert if above encut
                 if(fabs(di) > encut ){
                   Jij.insert(3*atom+i,3*atom+i,di);
