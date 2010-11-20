@@ -4,7 +4,7 @@
 
 #include "globals.h"
 
-enum SolverType{ HEUNLLG, HEUNLLMS, SEMILLG, FFTNOISE };
+enum SolverType{ HEUNLLG, HEUNLLMS, SEMILLG, CUDASEMILLG, FFTNOISE };
 
 
 class Solver 

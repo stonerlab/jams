@@ -2,6 +2,7 @@
 #include "heunllg.h"
 #include "heunllms.h"
 #include "semillg.h"
+#include "cuda_semillg.h"
 #include "fftnoise.h"
 #include "globals.h"
 #include "consts.h"
@@ -46,6 +47,9 @@ Solver* Solver::Create(SolverType type)
       break;
     case SEMILLG:
       return new SemiLLGSolver;
+      break;
+    case CUDASEMILLG:
+      return new CUDASemiLLGSolver;
       break;
     case FFTNOISE:
       return new FFTNoise;

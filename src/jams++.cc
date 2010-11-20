@@ -12,6 +12,10 @@
 #include "boltzmann_mag.h"
 #include "magnetisation.h"
 
+#ifdef CUDA
+#include <cublas.h>
+#endif
+
 namespace {
   Solver *solver;
   double dt=0.0;
@@ -120,6 +124,9 @@ int jams_init(int argc, char **argv) {
   }
   else if (solname == "SEMILLG") {
     solver = Solver::Create(SEMILLG);
+  }
+  else if (solname == "CUDASEMILLG") {
+    solver = Solver::Create(CUDASEMILLG);
   }
   else if (solname == "FFTNOISE") {
     solver = Solver::Create(FFTNOISE);
