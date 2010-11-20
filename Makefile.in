@@ -8,8 +8,8 @@ systype = $(shell uname -s)
 
 # Compiler information
 CXX = c++
-OPTFLAGS = -O3 -funroll-all-loops
-COPTIONS = -Wall -pedantic -std=c++98 -pipe
+OPTFLAGS = -O3 -funroll-all-loops -DCUDA
+COPTIONS = -Wall -pedantic -std=c++98 -pipe -Wno-long-long
 
 # Linker information
 LDOPTIONS = 
@@ -32,7 +32,7 @@ endif
 
 ifeq ($(systype),Darwin)
 	CXX = g++ 
-	COPTIONS += -DDarwin
+	COPTIONS += -j4 -DDarwin
 endif
 
 #----------------------------------------------------------------------
@@ -50,9 +50,9 @@ LIBCONFIGDIR = ./libconfig
 header-dirs = $(sort $(dir $(shell find $(TOPDIR) -name '*.h'))) 
 HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
 
-INCLUDES = $(foreach d, $(header-dirs), -I$d)  -isystem /opt/local/include
+INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/usr/local/cuda/include 
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
-LIBSDIR = -L/opt/local/lib 
-LIBS = -lfftw3 -lconfig++
+LIBSDIR = -L/usr/local/cuda/lib
+LIBS = -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas
 LDFLAGS = $(LIBSDIR)
