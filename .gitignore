@@ -9,4 +9,5 @@ jams++
 *.job
 *.log
 *.gpl
+*.xyz
 .DS_Store
