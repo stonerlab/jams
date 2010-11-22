@@ -24,8 +24,11 @@ extern "C" {
 
 void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryType exchsym) {
   using namespace globals;
+// cusparse does not support symmetric matrix
+#ifndef CUDA
   // only store lower triangle
   if( m > n ) {
+#endif
     switch (exchsym) {
       case NOEXCHANGE:
         output.write("WARNING: Attempting to insert non existent exchange");
@@ -61,7 +64,9 @@ void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryT
       default:
         jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
     }
+#ifndef CUDA
   }
+#endif
 }
 
 
