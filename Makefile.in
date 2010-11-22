@@ -1,6 +1,6 @@
 SHELL = /bin/sh
 
-withdebug=1
+withdebug=0
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
@@ -53,6 +53,6 @@ HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
 INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/usr/local/cuda/include 
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
-LIBSDIR = -L/usr/local/cuda/lib
-LIBS = -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas
+LIBSDIR = -L/usr/local/cuda/lib64
+LIBS = -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas -lcusparse
 LDFLAGS = $(LIBSDIR)
