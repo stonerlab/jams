@@ -62,7 +62,9 @@ class SparseMatrix {
     void coocsrInplace();
 
     inline int nonzero() { return nnz; }
-    
+    inline int rows() { return nrows; }
+    inline int cols() { return ncols; }
+
     inline _Tp* ptrVal() {
       return &(val[0]);
     }
