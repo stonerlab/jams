@@ -33,7 +33,7 @@
 #endif
 
 // block size for GPU, 64 appears to be most efficient for current kernel
-#define BLOCKSIZE 64
+#define BLOCKSIZE 32
 
 void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 {
@@ -167,6 +167,9 @@ void CUDASemiLLGSolver::run()
       mus_dev,
       gyro_dev,
       alpha_dev,
+      Jij_dev_row,
+      Jij_dev_col,
+      Jij_dev_val,
       h_app[0],
       h_app[1],
       h_app[2],
@@ -187,6 +190,9 @@ void CUDASemiLLGSolver::run()
       mus_dev,
       gyro_dev,
       alpha_dev,
+      Jij_dev_row,
+      Jij_dev_col,
+      Jij_dev_val,
       h_app[0],
       h_app[1],
       h_app[2],

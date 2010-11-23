@@ -162,6 +162,7 @@ void jams_run() {
 
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
+  std::clock_t start = std::clock();
   for(unsigned int i=0; i<steps_run; ++i) {
     if( ((i+1)%steps_out) == 0 ){
       mag->write(solver->getTime());
@@ -170,6 +171,9 @@ void jams_run() {
     solver->run();
 //    mon->run();
   }
+  double elapsed = static_cast<double>(std::clock()-start);
+  elapsed/=CLOCKS_PER_SEC;
+  output.write("Solving time: %f\n",elapsed);
 
 }
 

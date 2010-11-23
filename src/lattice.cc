@@ -460,8 +460,8 @@ void Lattice::createFromConfig() {
       double p[3], pnbr[3];
       int v[3], q[3], qnbr[3];
 
-      SparseMatrix<double> nbr_list;
-      nbr_list.resize(nspins,nspins,inter_guess);
+      //SparseMatrix<double> nbr_list;
+     // nbr_list.resize(nspins,nspins,inter_guess);
 
       counter = 0;
       for (int x=0; x<dim[0]; ++x) {
@@ -484,13 +484,118 @@ void Lattice::createFromConfig() {
               double anival = mat[type_num]["anisotropy"][1];
 
               for(int i=0;i<3;++i) {
+              // easy axis
+                double ei = mat[type_num]["anisotropy"][0][i];
+              // magnitude
+                double di = 2.0*anival*ei ; 
+              // insert if above encut
+                if(fabs(di) > encut ){
+                 Jij.insert(3*atom+i,3*atom+i, di );
+               }
+              }
+
+              for(int i=0; i<nintype[type_num]; ++i) {
+                int m = (internbr(type_num,i)+n)%natoms;
+                
+                for(int j=0; j<3; ++j) {
+                  pnbr[j] = atoms[m][1][j];
+                  qnbr[j] = floor(inter(type_num,i,j)-pnbr[j]+0.5);
+                }
+
+                for(int j=0; j<3; ++j) {
+                  v[j] = q[j]+qnbr[j];
+                  if(pbc[j] == true) {
+                    v[j] = (dim[j]+v[j])%dim[j];
+                  }
+                }
+                bool idxcheck = true;
+                for(int j=0;j<3;++j) {
+                  if(v[j] < 0 || !(v[j] < dim[j])) {
+                    idxcheck = false;
+                  }
+                }
+
+                if(idxcheck == true) {
+                  int nbr = latt(v[0],v[1],v[2],m);
+                  assert(nbr < nspins);
+                  assert(atom != nbr);
+                  insert_interaction(atom,nbr,i,jijval,exchsym);
+//                 nbr_list.insert(atom,nbr,1);
+                  if( atom > nbr ) {
+                    //std::cout<<atom<<"\t"<<nbr<<"\n";
+                    counter++;
+                  } //else {
+                    //std::cerr<<atom<<"\t"<<nbr<<"\n";
+                 // }
+                }
+              }
+            } // n
+          } // z
+        } // y
+      } // x
+
+
+//    nbr_list.coocsr();
+/*
+    //-----------------------------------------------------------------
+    //  Reorder Spins
+    //-----------------------------------------------------------------
+
+    int nvertices = static_cast<int>(atomcount);
+    int numflag = 0;
+    int options[8] = {0,0,0,0,0,0,0,0};
+    Array<int> perm(nvertices);
+    Array<int> iperm(nvertices);
+    output.write("Reordering Matrix\n");
+    METIS_NodeND(&nvertices, nbr_list.ptrRow(), nbr_list.ptrCol(),
+        &numflag,options,perm.ptr(),iperm.ptr());
+
+    std::ofstream metisfile("perm.dat");
+
+    for(int i=0;i<nvertices;++i){
+      metisfile<<i<<"\t"<<perm(i)<<"\n";
+    }
+
+    metisfile.close();
+
+    metisfile.open("iperm.dat");
+
+    for(int i=0;i<nvertices;++i){
+      metisfile<<i<<"\t"<<iperm(i)<<"\n";
+    }
+
+    metisfile.close();
+
+    output.write("Calculating interaction matrix\n");
+      counter = 0;
+      for (int x=0; x<dim[0]; ++x) {
+        for (int y=0; y<dim[1]; ++y) {
+          for (int z=0; z<dim[2]; ++z) {
+            for (int n=0; n<natoms; ++n) {
+
+              const int atom = latt(x,y,z,n);
+              const int type_num = atom_type[atom];
+
+              assert(atom < nspins);
+
+              q[0] = x; q[1] = y; q[2] = z;
+
+              for(int j=0; j<3; ++j) {
+                p[j] = atoms[n][1][j];
+              }
+
+              // anisotropy value
+              double anival = mat[type_num]["anisotropy"][1];
+
+              for(int i=0;i<3;++i) {
                 // easy axis
                 double ei = mat[type_num]["anisotropy"][0][i];
                 // magnitude
-                double di = 2.0*anival*ei ; 
+                double di = 2.0*anival*ei ;
                 // insert if above encut
                 if(fabs(di) > encut ){
-                  Jij.insert(3*atom+i,3*atom+i, di );
+                  //std::cerr<<perm[atom]<<"\t"<<perm[atom]<<"\n";
+                  Jij.insert(3*perm[atom]+i,3*perm[atom]+i, di );
                 }
               }
 
@@ -519,8 +624,8 @@ void Lattice::createFromConfig() {
                   int nbr = latt(v[0],v[1],v[2],m);
                   assert(nbr < nspins);
                   assert(atom != nbr);
-//                  insert_interaction(atom,nbr,i,jijval,exchsym);
-                 nbr_list.insert(atom,nbr,1);
+                  insert_interaction(perm[atom],perm[nbr],i,jijval,exchsym);
+                  //std::cerr<<perm[atom]<<"\t"<<perm[nbr]<<"\n";
                   if( atom > nbr ) {
                     //std::cout<<atom<<"\t"<<nbr<<"\n";
                     counter++;
@@ -533,38 +638,7 @@ void Lattice::createFromConfig() {
           } // z
         } // y
       } // x
-
-
-    nbr_list.coocsr();
-
-    //-----------------------------------------------------------------
-    //  Reorder Spins
-    //-----------------------------------------------------------------
-
-    int nvertices = static_cast<int>(atomcount);
-    int numflag = 0;
-    int options[8] = {0,0,0,0,0,0,0,0};
-    Array<int> perm(nvertices);
-    Array<int> iperm(nvertices);
-    METIS_NodeND(&nvertices, nbr_list.ptrRow(), nbr_list.ptrCol(),
-        &numflag,options,perm.ptr(),iperm.ptr());
-
-    std::ofstream metisfile("perm.dat");
-
-    for(int i=0;i<nvertices;++i){
-      metisfile<<i<<"\t"<<perm(i)<<"\n";
-    }
-
-    metisfile.close();
-
-    metisfile.open("iperm.dat");
-
-    for(int i=0;i<nvertices;++i){
-      metisfile<<i<<"\t"<<iperm(i)<<"\n";
-    }
-
-    metisfile.close();
-
+      */
 //#ifdef MPI
 /*
     output.write("Partitioning the interaction graph\n");
