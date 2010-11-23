@@ -1,6 +1,7 @@
 SHELL = /bin/sh
 
 withdebug=0
+withcuda=1
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
@@ -8,8 +9,8 @@ systype = $(shell uname -s)
 
 # Compiler information
 CXX = c++
-OPTFLAGS = -O3 -funroll-all-loops -DCUDA
-COPTIONS = -Wall -pedantic -std=c++98 -pipe -Wno-long-long
+OPTFLAGS = -O3 -funroll-all-loops
+COPTIONS = -Wall -Wno-long-long -pedantic -std=c++98
 
 # Linker information
 LDOPTIONS = 
@@ -26,13 +27,17 @@ EXEOUTPUTFILE = -o $@
 # System based overides
 #----------------------------------------------------------------------
 
+ifeq ($(withcuda),1)
+	OPTFLAGS += -DCUDA
+endif
+
 ifeq ($(systype),Linux)
 	COPTIONS += -DLinux
 endif
 
 ifeq ($(systype),Darwin)
 	CXX = g++ 
-	COPTIONS += -j4 -DDarwin
+	COPTIONS += -DDarwin
 endif
 
 #----------------------------------------------------------------------
@@ -50,9 +55,9 @@ LIBCONFIGDIR = ./libconfig
 header-dirs = $(sort $(dir $(shell find $(TOPDIR) -name '*.h'))) 
 HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
 
-INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/usr/local/cuda/include 
+INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/usr/local/cuda/include
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 LIBSDIR = -L/usr/local/cuda/lib64
-LIBS = -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas -lcusparse
+LIBS = -lmetis -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas -lcusparse
 LDFLAGS = $(LIBSDIR)

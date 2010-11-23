@@ -12,15 +12,14 @@
 #include <stdint.h>
 #include <sstream>
 
-//#include <metis.h>
 
 enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR, NOEXCHANGE};
 
-#ifdef MPI
-extern "C" { 
-#include <metis.h>
-} 
-#endif
+//#ifdef MPI
+extern "C" {
+#include <metis/metis.h>
+}
+//#endif
 
 void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryType exchsym) {
   using namespace globals;
@@ -448,11 +447,11 @@ void Lattice::createFromConfig() {
         }
         nintype[type_num_1]++;
       }
-      
+
       // output.print("t1:%d n:%d dx:%f dy:%f dz:%f vx:%d vy:%d vz:%d k:%d \n",t1,nintype[t1],d_latt[0],d_latt[1],d_latt[2]);
 
     }
-      
+
     //-----------------------------------------------------------------
     //  Create interaction matrix
     //-----------------------------------------------------------------
@@ -460,6 +459,9 @@ void Lattice::createFromConfig() {
       double encut = 1e-25;  // energy cutoff
       double p[3], pnbr[3];
       int v[3], q[3], qnbr[3];
+
+      SparseMatrix<double> nbr_list;
+      nbr_list.resize(nspins,nspins,inter_guess);
 
       counter = 0;
       for (int x=0; x<dim[0]; ++x) {
@@ -517,8 +519,8 @@ void Lattice::createFromConfig() {
                   int nbr = latt(v[0],v[1],v[2],m);
                   assert(nbr < nspins);
                   assert(atom != nbr);
-                  insert_interaction(atom,nbr,i,jijval,exchsym);
-  //               nbr_list.insert(atom,nbr,1);
+//                  insert_interaction(atom,nbr,i,jijval,exchsym);
+                 nbr_list.insert(atom,nbr,1);
                   if( atom > nbr ) {
                     //std::cout<<atom<<"\t"<<nbr<<"\n";
                     counter++;
@@ -532,15 +534,45 @@ void Lattice::createFromConfig() {
         } // y
       } // x
 
-//    nbr_list.coocsr();
 
-#ifdef MPI
+    nbr_list.coocsr();
+
+    //-----------------------------------------------------------------
+    //  Reorder Spins
+    //-----------------------------------------------------------------
+
+    int nvertices = static_cast<int>(atomcount);
+    int numflag = 0;
+    int options[8] = {0,0,0,0,0,0,0,0};
+    Array<int> perm(nvertices);
+    Array<int> iperm(nvertices);
+    METIS_NodeND(&nvertices, nbr_list.ptrRow(), nbr_list.ptrCol(),
+        &numflag,options,perm.ptr(),iperm.ptr());
+
+    std::ofstream metisfile("perm.dat");
+
+    for(int i=0;i<nvertices;++i){
+      metisfile<<i<<"\t"<<perm(i)<<"\n";
+    }
+
+    metisfile.close();
+
+    metisfile.open("iperm.dat");
+
+    for(int i=0;i<nvertices;++i){
+      metisfile<<i<<"\t"<<iperm(i)<<"\n";
+    }
+
+    metisfile.close();
+
+//#ifdef MPI
+/*
     output.write("Partitioning the interaction graph\n");
     int options[5] = {0,3,1,1,0};
     int volume = 0;
     int wgtflag = 0;
     int numflag = 0;
-    int nparts = 4;
+    int nparts = 8;
     int nvertices = static_cast<int>(atomcount); //nbr_list.nonzero();
     std::vector<int> part(nvertices,0);
 
@@ -576,12 +608,14 @@ void Lattice::createFromConfig() {
     //for(int i=0;i<nvertices;++i) {
     //  output.write("%i\n",part[i]);
     //}
-#endif
+//#endif
+*/
 
     output.write("\nInteraction count: %i\n", counter);
     output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
     output.write("Converting COO to CSR INPLACE\n");
-    Jij.coocsrInplace();
+    //Jij.coocsrInplace();
+    Jij.coocsr();
     output.write("Jij memory (CSR): %f MB\n",Jij.memorySize());
 
 
