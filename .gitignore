@@ -10,4 +10,6 @@ jams++
 *.log
 *.gpl
 *.xyz
+cerr
+cout
 .DS_Store
