@@ -75,9 +75,10 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,Jij.nonzero()*sizeof(Jij_dev_val)));
 
   // material properties
-  CUDA_CALL(cudaMalloc((void**)&mus_dev,nspins*sizeof(mus_dev)));
-  CUDA_CALL(cudaMalloc((void**)&gyro_dev,nspins*sizeof(gyro_dev)));
-  CUDA_CALL(cudaMalloc((void**)&alpha_dev,nspins*sizeof(alpha_dev)));
+  CUDA_CALL(cudaMalloc((void**)&mat_dev,4*nspins*sizeof(mat_dev)));
+  //CUDA_CALL(cudaMalloc((void**)&mus_dev,nspins*sizeof(mus_dev)));
+  //CUDA_CALL(cudaMalloc((void**)&gyro_dev,nspins*sizeof(gyro_dev)));
+  //CUDA_CALL(cudaMalloc((void**)&alpha_dev,nspins*sizeof(alpha_dev)));
   //CUDA_CALL(cudaMalloc((void**)&sigma_dev,nspins*sizeof(sigma_dev)));
 
   //-------------------------------------------------------------------
@@ -106,10 +107,10 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
     mat(i,2) = alpha(i);
     mat(i,3) = sigma(i);
   }
-  //CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(4*nspins*sizeof(mat_dev)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(mus_dev,mus.ptr(),(size_t)(nspins*sizeof(mus_dev)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(gyro_dev,gyro.ptr(),(size_t)(nspins*sizeof(gyro_dev)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(alpha_dev,alpha.ptr(),(size_t)(nspins*sizeof(alpha_dev)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(4*nspins*sizeof(mat_dev)),cudaMemcpyHostToDevice));
+  //CUDA_CALL(cudaMemcpy(mus_dev,mus.ptr(),(size_t)(nspins*sizeof(mus_dev)),cudaMemcpyHostToDevice));
+  //CUDA_CALL(cudaMemcpy(gyro_dev,gyro.ptr(),(size_t)(nspins*sizeof(gyro_dev)),cudaMemcpyHostToDevice));
+  //CUDA_CALL(cudaMemcpy(alpha_dev,alpha.ptr(),(size_t)(nspins*sizeof(alpha_dev)),cudaMemcpyHostToDevice));
   //CUDA_CALL(cudaMemcpy(sigma_dev,sigma.ptr(),(size_t)(nspins*sizeof(sigma_dev)),cudaMemcpyHostToDevice));
 
   //-------------------------------------------------------------------
@@ -164,9 +165,9 @@ void CUDASemiLLGSolver::run()
       s_dev,
       h_dev,
       w_dev,
-      mus_dev,
-      gyro_dev,
-      alpha_dev,
+      mat_dev,
+//      gyro_dev,
+//      alpha_dev,
       Jij_dev_row,
       Jij_dev_col,
       Jij_dev_val,
@@ -187,9 +188,9 @@ void CUDASemiLLGSolver::run()
       s_new_dev,
       h_dev,
       w_dev,
-      mus_dev,
-      gyro_dev,
-      alpha_dev,
+      mat_dev,
+//      gyro_dev,
+//      alpha_dev,
       Jij_dev_row,
       Jij_dev_col,
       Jij_dev_val,
@@ -235,9 +236,9 @@ CUDASemiLLGSolver::~CUDASemiLLGSolver()
   CUDA_CALL(cudaFree(Jij_dev_val));
 
   // material arrays
-  CUDA_CALL(cudaFree(mus_dev));
-  CUDA_CALL(cudaFree(gyro_dev));
-  CUDA_CALL(cudaFree(alpha_dev));
-  //CUDA_CALL(cudaFree(mat_dev));
+  //CUDA_CALL(cudaFree(mus_dev));
+  //CUDA_CALL(cudaFree(gyro_dev));
+  //CUDA_CALL(cudaFree(alpha_dev));
+  CUDA_CALL(cudaFree(mat_dev));
 }
 
