@@ -7,10 +7,10 @@ __global__ void cuda_semi_llg_kernelA
   float * sf_dev,
   float * h_dev,
   float * w_dev,
-  double * mat_dev,
-  double h_app_x,
-  double h_app_y,
-  double h_app_z,
+  float * mat_dev,
+  float h_app_x,
+  float h_app_y,
+  float h_app_z,
   int nspins,
   double dt
 )
@@ -26,14 +26,13 @@ __global__ void cuda_semi_llg_kernelA
     double sxh[3];
     double norm,b2ff,fdots;
 
-    double mus = mat_dev[4*idx];
-    double gyro = mat_dev[4*idx+1];
-    double alpha = mat_dev[4*idx+2];
-    double sigma = mat_dev[4*idx+3];
+    float gyro = mat_dev[idx3];
+    float alpha = mat_dev[idx3+1];
+    float sigma = mat_dev[idx3+2];
 
-    h[0] = ( h_dev[idx3] + ( w_dev[idx]*sigma + h_app_x)*mus )*gyro;
-    h[1] = ( h_dev[idx3+1] + ( w_dev[nspins+idx]*sigma + h_app_y)*mus )*gyro;
-    h[2] = ( h_dev[idx3+2] + ( w_dev[2*nspins+idx]*sigma + h_app_z)*mus )*gyro;
+    h[0] = double(( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x) )*gyro);
+    h[1] = double(( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y) )*gyro);
+    h[2] = double(( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z) )*gyro);
 
     s[0] = s_dev[idx3];
     s[1] = s_dev[idx3+1];
@@ -77,10 +76,10 @@ __global__ void cuda_semi_llg_kernelB
   double * s_new_dev,
   float * h_dev,
   float * w_dev,
-  double * mat_dev,
-  double h_app_x,
-  double h_app_y,
-  double h_app_z,
+  float * mat_dev,
+  float h_app_x,
+  float h_app_y,
+  float h_app_z,
   int nspins,
   double dt
 )
@@ -97,16 +96,15 @@ __global__ void cuda_semi_llg_kernelB
     double sxh[3];
     double norm,b2ff,fdots;
 
-    double mus = mat_dev[4*idx];
-    double gyro = mat_dev[4*idx+1];
-    double alpha = mat_dev[4*idx+2];
-    double sigma = mat_dev[4*idx+3];
+    float gyro = mat_dev[idx3];
+    float alpha = mat_dev[idx3+1];
+    float sigma = mat_dev[idx3+2];
 
 //    double sigma = sqrt((2.0*(1.3806504E-23)*alpha)/(dt*mus));
 
-    h[0] = ( h_dev[idx3] + ( w_dev[idx]*sigma + h_app_x)*mus )*gyro;
-    h[1] = ( h_dev[idx3+1] + ( w_dev[nspins+idx]*sigma + h_app_y)*mus )*gyro;
-    h[2] = ( h_dev[idx3+2] + ( w_dev[2*nspins+idx]*sigma + h_app_z)*mus )*gyro;
+    h[0] = double(( h_dev[idx3] +  w_dev[idx3]*sigma + h_app_x )*gyro);
+    h[1] = double(( h_dev[idx3+1] +  w_dev[idx3+1]*sigma + h_app_y )*gyro);
+    h[2] = double(( h_dev[idx3+2] +  w_dev[idx+2]*sigma + h_app_z )*gyro);
 
     s[0] = s_dev[idx3];
     s[1] = s_dev[idx3+1];

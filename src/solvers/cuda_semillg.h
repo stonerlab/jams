@@ -45,7 +45,7 @@ class CUDASemiLLGSolver : public Solver {
     float  * sf_dev;
     double * s_new_dev;
     float * h_dev;
-    double * mat_dev;
+    float * mat_dev;
     double * mus_dev;
     double * gyro_dev;
     double * alpha_dev;
