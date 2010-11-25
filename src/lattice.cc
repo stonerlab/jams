@@ -12,6 +12,9 @@
 #include <stdint.h>
 #include <sstream>
 
+extern "C" {
+#include <metis/metis.h>
+}
 
 enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR, NOEXCHANGE};
 
@@ -359,9 +362,9 @@ void Lattice::createFromConfig() {
     }
     
     // Resize interaction arrays
-    inter.resize(ntypes,inter_total,3);
-    internbr.resize(ntypes,inter_total);
-    std::vector<int> nintype(ntypes,0);
+    inter.resize(natoms,inter_total,3);
+    internbr.resize(natoms,inter_total);
+    std::vector<int> nintype(natoms,0);
 
     // Resize global Jij matrix
     Jij.resize(3*atomcount,3*atomcount,inter_guess);
@@ -378,19 +381,19 @@ void Lattice::createFromConfig() {
       double d_latt[3]={0.0,0.0,0.0};
       // read exchange tensor
 
-      int type_num_1 = exch[n][0];
-      int type_num_2 = exch[n][1];
+      int atom_num_1 = exch[n][0];
+      int atom_num_2 = exch[n][1];
 
       // count from zero
-      type_num_1--; type_num_2--;
+      atom_num_1--; atom_num_2--;
 
       for(int i=0; i<3; ++i) {
         // fractional vector within unit cell 
-        p[i] = atoms[type_num_2][1][i];
+        p[i] = atoms[atom_num_2][1][i];
         // real space vector to neighbour
         r[i] = exch[n][2][i];
       }
-      
+
       if(jsym==true) {
         std::sort(r,r+3);
         do {
@@ -402,24 +405,28 @@ void Lattice::createFromConfig() {
               d_latt[i] += r[j]*unitcellinv[j][i];
             }
           }
-          
+
           // store unitcell atom difference
-          internbr(type_num_1,nintype[type_num_1]) = type_num_2 - type_num_1;
-          
+          internbr(atom_num_1,nintype[atom_num_1]) = atom_num_2 - atom_num_1;
+
           // store interaction vectors
           for(int i=0;i<3; ++i){
-            inter(type_num_1,nintype[type_num_1],i) = d_latt[i];
+            inter(atom_num_1,nintype[atom_num_1],i) = d_latt[i];
           }
+    
+          const std::string type_name=atoms[atom_num_1][0];
+
+          int type_num = atom_type_map[type_name];
 
           // read tensor components
           for(int j=0; j<nexch; ++j) {
-            double tmp = mat[type_num_1]["moment"];
+            double tmp = mat[type_num]["moment"];
             tmp *= mu_bohr_si;
             jijval(inter_counter,j) = exch[n][3][j];
             jijval(inter_counter,j) /= tmp;
           }
-      
-          nintype[type_num_1]++;
+
+          nintype[atom_num_1]++;
           inter_counter++;
         } while (next_point_symmetry(r));
       } else {
@@ -432,21 +439,27 @@ void Lattice::createFromConfig() {
         }
         
         // store unitcell atom difference
-        internbr(type_num_1,nintype[type_num_1]) = type_num_2 - type_num_1;
+        internbr(atom_num_1,nintype[atom_num_1]) = atom_num_2 - atom_num_1;
         
         // store interaction vectors
         for(int i=0;i<3; ++i){
-          inter(type_num_1,nintype[type_num_1],i) = d_latt[i];
+          inter(atom_num_1,nintype[atom_num_1],i) = d_latt[i];
         }
+
+        const std::string type_name=atoms[atom_num_1][0];
+
+        int type_num = atom_type_map[type_name];
 
         // read tensor components
         for(int j=0; j<nexch; ++j) {
-          jijval(n,j) = exch[n][3][j];
+          double tmp = mat[type_num]["moment"];
+          tmp *= mu_bohr_si;
+          jijval(inter_counter,j) = exch[n][3][j];
+          jijval(inter_counter,j) /= tmp;
         }
-        nintype[type_num_1]++;
+        
+        nintype[atom_num_1]++;
       }
-
-      // output.print("t1:%d n:%d dx:%f dy:%f dz:%f vx:%d vy:%d vz:%d k:%d \n",t1,nintype[t1],d_latt[0],d_latt[1],d_latt[2]);
 
     }
 
@@ -496,13 +509,14 @@ void Lattice::createFromConfig() {
                }
               }
 
-              for(int i=0; i<nintype[type_num]; ++i) {
-                int m = (internbr(type_num,i)+n)%natoms;
+              for(int i=0; i<nintype[n]; ++i) {
+                int m = (internbr(n,i)+n)%natoms;
                 
                 for(int j=0; j<3; ++j) {
                   pnbr[j] = atoms[m][1][j];
-                  qnbr[j] = floor(inter(type_num,i,j)-pnbr[j]+0.5);
+                  qnbr[j] = floor(inter(n,i,j)-pnbr[j]+0.5);
                 }
+                std::cout<<inter(n,i,0)<<"\t"<<inter(n,i,1)<<"\t"<<inter(n,i,2)<<std::endl;
 
                 for(int j=0; j<3; ++j) {
                   v[j] = q[j]+qnbr[j];

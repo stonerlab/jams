@@ -18,6 +18,7 @@ class Lattice {
     std::vector<int> dim;
     int ntypes;
     std::vector<int> atom_type;
+    std::vector<int> unit_cell_atom_num;
     std::vector<int> type_count;
     std::map<std::string,int> atom_type_map;
 
