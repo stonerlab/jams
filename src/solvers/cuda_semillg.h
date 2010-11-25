@@ -19,6 +19,7 @@ class CUDASemiLLGSolver : public Solver {
         Jij_dev_col(0),
         Jij_dev_val(0),
         s_dev(0),
+        sf_dev(0),
         s_new_dev(0),
         h_dev(0),
         mat_dev(0),
@@ -39,10 +40,11 @@ class CUDASemiLLGSolver : public Solver {
     cusparseMatDescr_t descra;
     int * Jij_dev_row;
     int * Jij_dev_col;
-    double * Jij_dev_val;
+    float * Jij_dev_val;
     double * s_dev;
+    float  * sf_dev;
     double * s_new_dev;
-    double * h_dev;
+    float * h_dev;
     double * mat_dev;
     double * mus_dev;
     double * gyro_dev;

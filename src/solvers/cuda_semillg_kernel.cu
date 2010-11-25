@@ -4,14 +4,10 @@
 __global__ void cuda_semi_llg_kernelA
 (
   double * s_dev,
-  double * h_dev,
+  float * sf_dev,
+  float * h_dev,
   float * w_dev,
   double * mat_dev,
-  //double * gyro_dev,
-  //double * alpha_dev,
-  int * rowptr,
-  int * col,
-  double * jij_val,
   double h_app_x,
   double h_app_y,
   double h_app_z,
@@ -60,25 +56,28 @@ __global__ void cuda_semi_llg_kernelA
     fxs[1] = (f[2]*s[0] - f[0]*s[2]);
     fxs[2] = (f[0]*s[1] - f[1]*s[0]);
 
-    s_dev[idx3] = 0.5*( s[0] + ( s[0]*(1.0-b2ff) + 2.0*(fxs[0]+f[0]*fdots) )*norm);
-    s_dev[idx3+1] = 0.5*( s[1] + ( s[1]*(1.0-b2ff) + 2.0*(fxs[1]+f[1]*fdots) )*norm);
-    s_dev[idx3+2] = 0.5*( s[2] + ( s[2]*(1.0-b2ff) + 2.0*(fxs[2]+f[2]*fdots) )*norm);
+    s[0] = 0.5*( s[0] + ( s[0]*(1.0-b2ff) + 2.0*(fxs[0]+f[0]*fdots) )*norm);
+    s[1] = 0.5*( s[1] + ( s[1]*(1.0-b2ff) + 2.0*(fxs[1]+f[1]*fdots) )*norm);
+    s[2] = 0.5*( s[2] + ( s[2]*(1.0-b2ff) + 2.0*(fxs[2]+f[2]*fdots) )*norm);
 
+    s_dev[idx3]   = s[0];
+    s_dev[idx3+1] = s[1];
+    s_dev[idx3+2] = s[2];
+
+    sf_dev[idx3] = float(s[0]);
+    sf_dev[idx3+1] = float(s[1]);
+    sf_dev[idx3+2] = float(s[2]);
   }
 }
 
 __global__ void cuda_semi_llg_kernelB
 (
   double * s_dev,
+  float * sf_dev,
   double * s_new_dev,
-  double * h_dev,
+  float * h_dev,
   float * w_dev,
   double * mat_dev,
-  //double * gyro_dev,
-  //double * alpha_dev,
-  int * rowptr,
-  int * col,
-  double * jij_val,
   double h_app_x,
   double h_app_y,
   double h_app_z,
@@ -134,9 +133,17 @@ __global__ void cuda_semi_llg_kernelB
     fxs[1] = (f[2]*so[0] - f[0]*so[2]);
     fxs[2] = (f[0]*so[1] - f[1]*so[0]);
 
-    s_dev[idx3] = norm*( so[0]*(1.0-b2ff) + 2.0*(fxs[0]+f[0]*fdots) );
-    s_dev[idx3+1] = norm*( so[1]*(1.0-b2ff) + 2.0*(fxs[1]+f[1]*fdots) );
-    s_dev[idx3+2] = norm*( so[2]*(1.0-b2ff) + 2.0*(fxs[2]+f[2]*fdots) );
+    s[0] = norm*( so[0]*(1.0-b2ff) + 2.0*(fxs[0]+f[0]*fdots) );
+    s[1] = norm*( so[1]*(1.0-b2ff) + 2.0*(fxs[1]+f[1]*fdots) );
+    s[2] = norm*( so[2]*(1.0-b2ff) + 2.0*(fxs[2]+f[2]*fdots) );
+
+    s_dev[idx3]   = s[0];
+    s_dev[idx3+1] = s[1];
+    s_dev[idx3+2] = s[2];
+
+    sf_dev[idx3] = float(s[0]);
+    sf_dev[idx3+1] = float(s[1]);
+    sf_dev[idx3+2] = float(s[2]);
   }
 }
 

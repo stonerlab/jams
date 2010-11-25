@@ -61,6 +61,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 
   // spin arrays
   CUDA_CALL(cudaMalloc((void**)&s_dev,nspins3*sizeof(s_dev)));
+  CUDA_CALL(cudaMalloc((void**)&sf_dev,nspins3*sizeof(sf_dev)));
   CUDA_CALL(cudaMalloc((void**)&s_new_dev,nspins3*sizeof(s_new_dev)));
 
   // field arrays
@@ -87,7 +88,14 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 
   output.write("Copying data to device memory...\n");
   // initial spins
+  Array2D<float> sf(nspins,3);
+  for(int i=0; i<nspins; ++i) {
+    for(int j=0; j<3; ++j) {
+      sf(i,j) = static_cast<float>(s(i,j));
+    }
+  }
   CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(s_dev)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
   // jij matrix
   CUDA_CALL(cudaMemcpy(Jij_dev_row,Jij.ptrRow(),
@@ -156,21 +164,17 @@ void CUDASemiLLGSolver::run()
   CURAND_CALL(curandGenerateNormal(gen, w_dev, nspins3, 0.0f, stmp));
 
   // calculate interaction fields (and zero field array)
-  cusparseDcsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
-      Jij_dev_val,Jij_dev_row,Jij_dev_col,s_dev,0.0,h_dev);
+  cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
+      Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
 
   // integrate
   cuda_semi_llg_kernelA<<<nblocks,BLOCKSIZE>>>
     (
       s_dev,
+      sf_dev,
       h_dev,
       w_dev,
       mat_dev,
-//      gyro_dev,
-//      alpha_dev,
-      Jij_dev_row,
-      Jij_dev_col,
-      Jij_dev_val,
       h_app[0],
       h_app[1],
       h_app[2],
@@ -179,21 +183,17 @@ void CUDASemiLLGSolver::run()
     );
 
   // calculate interaction fields (and zero field array)
-  cusparseDcsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
-      Jij_dev_val,Jij_dev_row,Jij_dev_col,s_dev,0.0,h_dev);
+  cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
+      Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
 
   cuda_semi_llg_kernelB<<<nblocks,BLOCKSIZE>>>
     (
       s_dev,
+      sf_dev,
       s_new_dev,
       h_dev,
       w_dev,
       mat_dev,
-//      gyro_dev,
-//      alpha_dev,
-      Jij_dev_row,
-      Jij_dev_col,
-      Jij_dev_val,
       h_app[0],
       h_app[1],
       h_app[2],

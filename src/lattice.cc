@@ -15,11 +15,6 @@
 
 enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR, NOEXCHANGE};
 
-//#ifdef MPI
-extern "C" {
-#include <metis/metis.h>
-}
-//#endif
 
 void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryType exchsym) {
   using namespace globals;
@@ -289,7 +284,7 @@ void Lattice::createFromConfig() {
       alpha(i) = mat[type_num]["alpha"];
 
       gyro(i) = mat[type_num]["gyro"];
-      gyro(i) = -gyro(i)/((1.0+alpha(i)*alpha(i))*(mus(i)));
+      gyro(i) = -gyro(i)/((1.0+alpha(i)*alpha(i)));
     }
 
     //-----------------------------------------------------------------
@@ -418,7 +413,10 @@ void Lattice::createFromConfig() {
 
           // read tensor components
           for(int j=0; j<nexch; ++j) {
+            double tmp = mat[type_num_1]["moment"];
+            tmp *= mu_bohr_si;
             jijval(inter_counter,j) = exch[n][3][j];
+            jijval(inter_counter,j) /= tmp;
           }
       
           nintype[type_num_1]++;
@@ -479,9 +477,13 @@ void Lattice::createFromConfig() {
               for(int j=0; j<3; ++j) {
                 p[j] = atoms[n][1][j];
               }
+            
+              double tmp = mat[type_num]["moment"];
+              tmp *= mu_bohr_si;
 
               // anisotropy value
               double anival = mat[type_num]["anisotropy"][1];
+		anival /= tmp;
 
               for(int i=0;i<3;++i) {
               // easy axis
