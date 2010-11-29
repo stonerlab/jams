@@ -45,8 +45,11 @@ namespace globals
   GLOBAL Array2D<double> s;
   GLOBAL Array2D<double> h;
   GLOBAL Array2D<double> w;
-
+#ifdef CUDA
   GLOBAL SparseMatrix<float> Jij;
+#else
+  GLOBAL SparseMatrix<double> Jij;
+#endif
 
   GLOBAL Array<double> alpha;
   GLOBAL Array<double> mus;
