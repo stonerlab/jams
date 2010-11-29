@@ -10,7 +10,9 @@ systype = $(shell uname -s)
 # Compiler information
 CXX = c++
 OPTFLAGS = -O3 -funroll-all-loops
-COPTIONS = -Wall -Wno-long-long -pedantic -std=c++98
+COPTIONS = -Wall -Wno-long-long -std=c++98 #-pedantic
+
+CUDA = /usr/local/cuda/bin/nvcc
 
 # Linker information
 LDOPTIONS = 
@@ -58,6 +60,7 @@ HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
 INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/usr/local/cuda/include
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
-LIBSDIR = -L/usr/local/cuda/lib64
-LIBS = -lmetis -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas -lcusparse
+LIBSDIR = -L/usr/local/cuda/lib
+LIBS =  -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas -lcusparse
+
 LDFLAGS = $(LIBSDIR)

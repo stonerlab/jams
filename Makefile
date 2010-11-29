@@ -17,6 +17,9 @@ jams++ :: objects kernels
 	@echo
 	@echo " System       ... $(systype) "
 	@echo " Architecture ... $(cputype) "
+ifeq ($(withcuda),1)
+	@echo "              ... CUDA enabled"
+endif
 	@echo " Compiler     ... $(CXX)     "
 ifeq ($(withdebug),1)
 		@echo " Build type   ... Debug      "
@@ -34,7 +37,7 @@ objects :
 
 kernels :
 	for d in $(cuda-kernels); do  \
-		nvcc -arch sm_13 -O3 $(INCLUDES) --maxrregcount=32 --ptxas-options=-v -c $${d}.cu -o $${d}.o; \
+		$(CUDA) -arch sm_13 -O3 $(INCLUDES) --maxrregcount=32 --ptxas-options=-v -c $${d}.cu -o $${d}.o; \
 	done
 
 clean :
