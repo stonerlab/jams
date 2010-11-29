@@ -489,7 +489,7 @@ void Lattice::createFromConfig() {
 
               // anisotropy value
               double anival = mat[type_num]["anisotropy"][1];
-		anival /= tmp;
+              anival /= tmp;
 
               for(int i=0;i<3;++i) {
               // easy axis
@@ -543,6 +543,7 @@ void Lattice::createFromConfig() {
     output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
     output.write("Converting COO to CSR INPLACE\n");
     Jij.coocsrInplace();
+    //Jij.coocsr();
     output.write("Jij memory (CSR): %f MB\n",Jij.memorySize());
 
 

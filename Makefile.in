@@ -8,9 +8,9 @@ systype = $(shell uname -s)
 
 
 # Compiler information
-CXX = c++
-OPTFLAGS = -O3 -funroll-all-loops
-COPTIONS = -Wall -Wno-long-long -std=c++98 #-pedantic
+CXX = icc
+OPTFLAGS = -O3 -DMKL -funroll-all-loops
+COPTIONS = #-Wall -Wno-long-long -std=c++98 #-pedantic
 
 CUDA = /usr/local/cuda/bin/nvcc
 
@@ -57,10 +57,11 @@ LIBCONFIGDIR = ./libconfig
 header-dirs = $(sort $(dir $(shell find $(TOPDIR) -name '*.h'))) 
 HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
 
-INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/usr/local/cuda/include
+INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
-LIBSDIR = -L/usr/local/cuda/lib
-LIBS =  -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas -lcusparse
-
+MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t
+LIBSDIR = -L/usr/local/cuda/lib64
+LIBS =  -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas -lcusparse \
+				 -Wl,--start-group $(MKLroot)/libmkl_intel_lp64.a $(MKLroot)/libmkl_sequential.a $(MKLroot)/libmkl_core.a -Wl,--end-group -lpthread
 LDFLAGS = $(LIBSDIR)
