@@ -12,9 +12,6 @@
 #include <stdint.h>
 #include <sstream>
 
-extern "C" {
-#include <metis/metis.h>
-}
 
 enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR, NOEXCHANGE};
 
@@ -516,7 +513,7 @@ void Lattice::createFromConfig() {
                   pnbr[j] = atoms[m][1][j];
                   qnbr[j] = floor(inter(n,i,j)-pnbr[j]+0.5);
                 }
-                std::cout<<inter(n,i,0)<<"\t"<<inter(n,i,1)<<"\t"<<inter(n,i,2)<<std::endl;
+                //std::cout<<inter(n,i,0)<<"\t"<<inter(n,i,1)<<"\t"<<inter(n,i,2)<<std::endl;
 
                 for(int j=0; j<3; ++j) {
                   v[j] = q[j]+qnbr[j];
