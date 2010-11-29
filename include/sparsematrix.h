@@ -271,7 +271,7 @@ void SparseMatrix<_Tp>::coocsrInplace()
 
 
 void jams_dcsrmv(const char trans[1], const int m, const int k, 
-    const double alpha, const char descra[6], const float *val, 
+    const double alpha, const char descra[6], const double *val, 
     const int *indx, const int *ptrb, const int *ptre, double *x, 
     const double beta, double * y);
 
