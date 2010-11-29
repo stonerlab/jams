@@ -48,9 +48,11 @@ Solver* Solver::Create(SolverType type)
     case SEMILLG:
       return new SemiLLGSolver;
       break;
+#ifdef CUDA
     case CUDASEMILLG:
       return new CUDASemiLLGSolver;
       break;
+#endif
     case FFTNOISE:
       return new FFTNoise;
       break;
