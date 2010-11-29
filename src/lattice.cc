@@ -453,7 +453,7 @@ void Lattice::createFromConfig() {
           jijval(inter_counter,j) = exch[n][3][j];
           jijval(inter_counter,j) /= tmp;
         }
-        
+        inter_counter++;
         nintype[atom_num_1]++;
       }
 
