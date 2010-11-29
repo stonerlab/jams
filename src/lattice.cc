@@ -394,7 +394,6 @@ void Lattice::createFromConfig() {
       if(jsym==true) {
         std::sort(r,r+3);
         do {
-          //output.print("%f %f %f\n",r[0],r[1],r[2]);
           // place interaction vector in unitcell space
           for(int i=0; i<3; ++i) {
             d_latt[i] = 0.0;
@@ -468,9 +467,6 @@ void Lattice::createFromConfig() {
       double p[3], pnbr[3];
       int v[3], q[3], qnbr[3];
 
-      //SparseMatrix<double> nbr_list;
-     // nbr_list.resize(nspins,nspins,inter_guess);
-
       counter = 0;
       for (int x=0; x<dim[0]; ++x) {
         for (int y=0; y<dim[1]; ++y) {
@@ -513,7 +509,6 @@ void Lattice::createFromConfig() {
                   pnbr[j] = atoms[m][1][j];
                   qnbr[j] = floor(inter(n,i,j)-pnbr[j]+0.5);
                 }
-                //std::cout<<inter(n,i,0)<<"\t"<<inter(n,i,1)<<"\t"<<inter(n,i,2)<<std::endl;
 
                 for(int j=0; j<3; ++j) {
                   v[j] = q[j]+qnbr[j];
@@ -533,13 +528,9 @@ void Lattice::createFromConfig() {
                   assert(nbr < nspins);
                   assert(atom != nbr);
                   insert_interaction(atom,nbr,i,jijval,exchsym);
-//                 nbr_list.insert(atom,nbr,1);
                   if( atom > nbr ) {
-                    //std::cout<<atom<<"\t"<<nbr<<"\n";
                     counter++;
-                  } //else {
-                    //std::cerr<<atom<<"\t"<<nbr<<"\n";
-                 // }
+                  }
                 }
               }
             } // n
@@ -547,162 +538,11 @@ void Lattice::createFromConfig() {
         } // y
       } // x
 
-
-//    nbr_list.coocsr();
-/*
-    //-----------------------------------------------------------------
-    //  Reorder Spins
-    //-----------------------------------------------------------------
-
-    int nvertices = static_cast<int>(atomcount);
-    int numflag = 0;
-    int options[8] = {0,0,0,0,0,0,0,0};
-    Array<int> perm(nvertices);
-    Array<int> iperm(nvertices);
-    output.write("Reordering Matrix\n");
-    METIS_NodeND(&nvertices, nbr_list.ptrRow(), nbr_list.ptrCol(),
-        &numflag,options,perm.ptr(),iperm.ptr());
-
-    std::ofstream metisfile("perm.dat");
-
-    for(int i=0;i<nvertices;++i){
-      metisfile<<i<<"\t"<<perm(i)<<"\n";
-    }
-
-    metisfile.close();
-
-    metisfile.open("iperm.dat");
-
-    for(int i=0;i<nvertices;++i){
-      metisfile<<i<<"\t"<<iperm(i)<<"\n";
-    }
-
-    metisfile.close();
-
-    output.write("Calculating interaction matrix\n");
-      counter = 0;
-      for (int x=0; x<dim[0]; ++x) {
-        for (int y=0; y<dim[1]; ++y) {
-          for (int z=0; z<dim[2]; ++z) {
-            for (int n=0; n<natoms; ++n) {
-
-              const int atom = latt(x,y,z,n);
-              const int type_num = atom_type[atom];
-
-              assert(atom < nspins);
-
-              q[0] = x; q[1] = y; q[2] = z;
-
-              for(int j=0; j<3; ++j) {
-                p[j] = atoms[n][1][j];
-              }
-
-              // anisotropy value
-              double anival = mat[type_num]["anisotropy"][1];
-
-              for(int i=0;i<3;++i) {
-                // easy axis
-                double ei = mat[type_num]["anisotropy"][0][i];
-                // magnitude
-                double di = 2.0*anival*ei ;
-                // insert if above encut
-                if(fabs(di) > encut ){
-                  //std::cerr<<perm[atom]<<"\t"<<perm[atom]<<"\n";
-                  Jij.insert(3*perm[atom]+i,3*perm[atom]+i, di );
-                }
-              }
-
-              for(int i=0; i<nintype[type_num]; ++i) {
-                int m = (internbr(type_num,i)+n)%natoms;
-                
-                for(int j=0; j<3; ++j) {
-                  pnbr[j] = atoms[m][1][j];
-                  qnbr[j] = floor(inter(type_num,i,j)-pnbr[j]+0.5);
-                }
-
-                for(int j=0; j<3; ++j) {
-                  v[j] = q[j]+qnbr[j];
-                  if(pbc[j] == true) {
-                    v[j] = (dim[j]+v[j])%dim[j];
-                  }
-                }
-                bool idxcheck = true;
-                for(int j=0;j<3;++j) {
-                  if(v[j] < 0 || !(v[j] < dim[j])) {
-                    idxcheck = false;
-                  }
-                }
-
-                if(idxcheck == true) {
-                  int nbr = latt(v[0],v[1],v[2],m);
-                  assert(nbr < nspins);
-                  assert(atom != nbr);
-                  insert_interaction(perm[atom],perm[nbr],i,jijval,exchsym);
-                  //std::cerr<<perm[atom]<<"\t"<<perm[nbr]<<"\n";
-                  if( atom > nbr ) {
-                    //std::cout<<atom<<"\t"<<nbr<<"\n";
-                    counter++;
-                  } //else {
-                    //std::cerr<<atom<<"\t"<<nbr<<"\n";
-                 // }
-                }
-              }
-            } // n
-          } // z
-        } // y
-      } // x
-      */
-//#ifdef MPI
-/*
-    output.write("Partitioning the interaction graph\n");
-    int options[5] = {0,3,1,1,0};
-    int volume = 0;
-    int wgtflag = 0;
-    int numflag = 0;
-    int nparts = 8;
-    int nvertices = static_cast<int>(atomcount); //nbr_list.nonzero();
-    std::vector<int> part(nvertices,0);
-
-    //nbr_list.printCSR();
-    output.write("Parts: %i\n",nparts);
-
-    output.write("Calling METIS\n");
-    METIS_PartGraphVKway(&nvertices, nbr_list.ptrRow(), nbr_list.ptrCol(), NULL, NULL, 
-        &wgtflag, &numflag, &nparts, options, &volume, &part[0]);
-
-    output.write("Communication volume: %i\n",volume);
-    
-    for (int p=0; p<nparts; ++p) {
-      std::stringstream pname;
-      pname << "part" << p << ".out";
-      std::string filename = pname.str();
-      std::ofstream pfile(filename.c_str());
-      for (int x=0; x<dim[0]; ++x) {
-        for (int y=0; y<dim[1]; ++y) {
-          for (int z=0; z<dim[2]; ++z) {
-            for (int n=0; n<natoms; ++n) {
-              if(part[latt(x,y,z,n)] == p){
-                pfile << x <<"\t"<< y <<"\t"<< z <<"\t"<< n <<"\t"<<part[latt(x,y,z,n)]<<"\n";
-              }
-            }
-          }
-        }
-      }
-    }
-
-
-
-    //for(int i=0;i<nvertices;++i) {
-    //  output.write("%i\n",part[i]);
-    //}
-//#endif
-*/
 
     output.write("\nInteraction count: %i\n", counter);
     output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
     output.write("Converting COO to CSR INPLACE\n");
-    //Jij.coocsrInplace();
-    Jij.coocsr();
+    Jij.coocsrInplace();
     output.write("Jij memory (CSR): %f MB\n",Jij.memorySize());
 
 
