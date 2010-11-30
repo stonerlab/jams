@@ -1,6 +1,6 @@
 SHELL = /bin/sh
 
-withdebug=0
+withdebug=1
 withcuda=0
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
@@ -8,9 +8,9 @@ systype = $(shell uname -s)
 
 
 # Compiler information
-CXX = icc
-OPTFLAGS = -O3 -DMKL -funroll-all-loops
-COPTIONS = #-Wall -Wno-long-long -std=c++98 #-pedantic
+CXX = g++
+OPTFLAGS = -O3 -funroll-all-loops
+COPTIONS = -Wall -Wno-long-long -std=c++98 #-pedantic
 
 CUDA = /usr/local/cuda/bin/nvcc
 
@@ -61,7 +61,7 @@ INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/usr/local/cuda/include -I/opt/i
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t
-LIBSDIR = -L/usr/local/cuda/lib64
+LIBSDIR = -L/usr/local/cuda/lib
 LIBS =  -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas -lcusparse \
-				 -Wl,--start-group $(MKLroot)/libmkl_intel_lp64.a $(MKLroot)/libmkl_sequential.a $(MKLroot)/libmkl_core.a -Wl,--end-group -lpthread
+				 #-Wl,--start-group $(MKLroot)/libmkl_intel_lp64.a $(MKLroot)/libmkl_sequential.a $(MKLroot)/libmkl_core.a -Wl,--end-group -lpthread
 LDFLAGS = $(LIBSDIR)
