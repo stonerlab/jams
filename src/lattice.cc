@@ -301,7 +301,6 @@ void Lattice::createFromConfig() {
     // count number of interactions
     if(jsym == true) {
       for(int n=0;n<inter_config;++n) {
-        double r[3];
         for(int j=0; j<3; ++j) {
           r[j] = exch[n][2][j];
         }
@@ -373,8 +372,6 @@ void Lattice::createFromConfig() {
 
     int inter_counter = 0;
     for(int n=0; n<inter_config; ++n) {
-      double r[3];
-      double p[3];
       double d_latt[3]={0.0,0.0,0.0};
       // read exchange tensor
 
@@ -503,7 +500,10 @@ void Lattice::createFromConfig() {
               }
 
               for(int i=0; i<nintype[n]; ++i) {
+                // neighbour atom number
                 int m = (internbr(n,i)+n)%natoms;
+
+                assert(m >= 0);
                 
                 for(int j=0; j<3; ++j) {
                   pnbr[j] = atoms[m][1][j];
