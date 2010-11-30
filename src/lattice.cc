@@ -284,7 +284,7 @@ void Lattice::createFromConfig() {
       alpha(i) = mat[type_num]["alpha"];
 
       gyro(i) = mat[type_num]["gyro"];
-      gyro(i) = -gyro(i)/((1.0+alpha(i)*alpha(i)));
+      gyro(i) = -gyro(i)/((1.0+alpha(i)*alpha(i))*mus(i));
     }
 
     //-----------------------------------------------------------------
@@ -413,10 +413,10 @@ void Lattice::createFromConfig() {
 
           // read tensor components
           for(int j=0; j<nexch; ++j) {
-            double tmp = mat[type_num]["moment"];
-            tmp *= mu_bohr_si;
+            //double tmp = mat[type_num]["moment"];
+            //tmp *= mu_bohr_si;
             jijval(inter_counter,j) = exch[n][3][j];
-            jijval(inter_counter,j) /= tmp;
+            //jijval(inter_counter,j) /= tmp;
           }
 
           nintype[atom_num_1]++;
@@ -445,10 +445,10 @@ void Lattice::createFromConfig() {
 
         // read tensor components
         for(int j=0; j<nexch; ++j) {
-          double tmp = mat[type_num]["moment"];
-          tmp *= mu_bohr_si;
+          //double tmp = mat[type_num]["moment"];
+          //tmp *= mu_bohr_si;
           jijval(inter_counter,j) = exch[n][3][j];
-          jijval(inter_counter,j) /= tmp;
+          //jijval(inter_counter,j) /= tmp;
         }
         inter_counter++;
         nintype[atom_num_1]++;
@@ -481,12 +481,12 @@ void Lattice::createFromConfig() {
                 p[j] = atoms[n][1][j];
               }
             
-              double tmp = mat[type_num]["moment"];
-              tmp *= mu_bohr_si;
+              //double tmp = mat[type_num]["moment"];
+              //tmp *= mu_bohr_si;
 
               // anisotropy value
               double anival = mat[type_num]["anisotropy"][1];
-              anival /= tmp;
+              //anival /= tmp;
 
               for(int i=0;i<3;++i) {
               // easy axis
@@ -525,11 +525,15 @@ void Lattice::createFromConfig() {
 
                 if(idxcheck == true) {
                   int nbr = latt(v[0],v[1],v[2],m);
+                  //std::cerr<<atom<<"\t"<<nbr<<"\t"<<m<<"\t"<<v[0]<<"\t"<<v[1]<<"\t"<<v[1]<<std::endl;
                   assert(nbr < nspins);
                   assert(atom != nbr);
                   insert_interaction(atom,nbr,i,jijval,exchsym);
                   if( atom > nbr ) {
                     counter++;
+                    //std::cout << atom <<"\t"<<nbr<<std::endl;
+                  }else{
+                    //std::cerr << atom <<"\t"<<nbr<<std::endl;
                   }
                 }
               }
