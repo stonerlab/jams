@@ -26,7 +26,7 @@ void HeunLLMSSolver::initialise(int argc, char **argv, double idt)
     gyro(i) = -gyro(i)*(1+alpha(i)*alpha(i));
     for(int j=0; j<3; ++j) {
       //sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)*mus(i)) / (dt) );
-      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)*omega_corr(i)*omega_corr(i)) / (dt*mus(i)) );
+      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)*omega_corr(i)*omega_corr(i)) / (dt*mus(i)*mu_bohr_si) );
       w(i,j) = 0.0;
     }
   }

@@ -45,7 +45,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   sigma.resize(nspins);
 
   for(int i=0; i<nspins; ++i) {
-    sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)) / (dt*mus(i)) );
+    sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)) / (dt*mus(i)*mu_bohr_si) );
   }
 
 
