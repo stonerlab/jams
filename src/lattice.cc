@@ -16,7 +16,7 @@
 enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR, NOEXCHANGE};
 
 
-void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryType exchsym) {
+void insert_interaction(int m, int n, int atomnum, int i,  Array3D<double> &jijval, SymmetryType exchsym) {
   using namespace globals;
 // cusparse does not support symmetric matrix
 #ifndef CUDA
@@ -28,32 +28,32 @@ void insert_interaction(int m, int n, int i,  Array2D<double> &jijval, SymmetryT
         output.write("WARNING: Attempting to insert non existent exchange");
         break;
       case ISOTROPIC:
-        Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
-        Jij.insert(3*m+1,3*n+1,jijval(i,0)); // Jyy
-        Jij.insert(3*m+2,3*n+2,jijval(i,0)); // Jzz
+        Jij.insert(3*m+0,3*n+0,jijval(atomnum,i,0)); // Jxx
+        Jij.insert(3*m+1,3*n+1,jijval(atomnum,i,0)); // Jyy
+        Jij.insert(3*m+2,3*n+2,jijval(atomnum,i,0)); // Jzz
         break;
       case UNIAXIAL:
-        Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
-        Jij.insert(3*m+1,3*n+1,jijval(i,0)); // Jyy
-        Jij.insert(3*m+2,3*n+2,jijval(i,1)); // Jzz
+        Jij.insert(3*m+0,3*n+0,jijval(atomnum,i,0)); // Jxx
+        Jij.insert(3*m+1,3*n+1,jijval(atomnum,i,0)); // Jyy
+        Jij.insert(3*m+2,3*n+2,jijval(atomnum,i,1)); // Jzz
         break;
       case ANISOTROPIC:
-        Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
-        Jij.insert(3*m+1,3*n+1,jijval(i,1)); // Jyy
-        Jij.insert(3*m+2,3*n+2,jijval(i,2)); // Jzz
+        Jij.insert(3*m+0,3*n+0,jijval(atomnum,i,0)); // Jxx
+        Jij.insert(3*m+1,3*n+1,jijval(atomnum,i,1)); // Jyy
+        Jij.insert(3*m+2,3*n+2,jijval(atomnum,i,2)); // Jzz
         break;
       case TENSOR:
-        Jij.insert(3*m+0,3*n+0,jijval(i,0)); // Jxx
-        Jij.insert(3*m+0,3*n+1,jijval(i,1)); // Jxy
-        Jij.insert(3*m+0,3*n+2,jijval(i,2)); // Jxz
+        Jij.insert(3*m+0,3*n+0,jijval(atomnum,i,0)); // Jxx
+        Jij.insert(3*m+0,3*n+1,jijval(atomnum,i,1)); // Jxy
+        Jij.insert(3*m+0,3*n+2,jijval(atomnum,i,2)); // Jxz
         
-        Jij.insert(3*m+1,3*n+0,jijval(i,0)); // Jyx
-        Jij.insert(3*m+1,3*n+1,jijval(i,1)); // Jyy
-        Jij.insert(3*m+1,3*n+2,jijval(i,2)); // Jyz
+        Jij.insert(3*m+1,3*n+0,jijval(atomnum,i,0)); // Jyx
+        Jij.insert(3*m+1,3*n+1,jijval(atomnum,i,1)); // Jyy
+        Jij.insert(3*m+1,3*n+2,jijval(atomnum,i,2)); // Jyz
         
-        Jij.insert(3*m+2,3*n+0,jijval(i,0)); // Jzx
-        Jij.insert(3*m+2,3*n+1,jijval(i,1)); // Jzy
-        Jij.insert(3*m+2,3*n+2,jijval(i,2)); // Jzz
+        Jij.insert(3*m+2,3*n+0,jijval(atomnum,i,0)); // Jzx
+        Jij.insert(3*m+2,3*n+1,jijval(atomnum,i,1)); // Jzy
+        Jij.insert(3*m+2,3*n+2,jijval(atomnum,i,2)); // Jzz
         break;
       default:
         jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
@@ -368,7 +368,7 @@ void Lattice::createFromConfig() {
     //-----------------------------------------------------------------
     //  Read exchange tensor values from config
     //-----------------------------------------------------------------
-    Array2D<double> jijval(inter_total,nexch);
+    Array3D<double> jijval(natoms,inter_total,nexch);
 
     int inter_counter = 0;
     for(int n=0; n<inter_config; ++n) {
@@ -528,7 +528,7 @@ void Lattice::createFromConfig() {
                   //std::cerr<<atom<<"\t"<<nbr<<"\t"<<m<<"\t"<<v[0]<<"\t"<<v[1]<<"\t"<<v[1]<<std::endl;
                   assert(nbr < nspins);
                   assert(atom != nbr);
-                  insert_interaction(atom,nbr,i,jijval,exchsym);
+                  insert_interaction(atom,nbr,n,i,jijval,exchsym);
                   if( atom > nbr ) {
                     counter++;
                     //std::cout << atom <<"\t"<<nbr<<std::endl;
