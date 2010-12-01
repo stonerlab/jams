@@ -279,7 +279,7 @@ void Lattice::createFromConfig() {
       }
 
       mus(i) = mat[type_num]["moment"];
-      mus(i) = mus(i)*mu_bohr_si;
+      mus(i) = mus(i);//*mu_bohr_si;
       
       alpha(i) = mat[type_num]["alpha"];
 
@@ -410,13 +410,12 @@ void Lattice::createFromConfig() {
           const std::string type_name=atoms[atom_num_1][0];
 
           int type_num = atom_type_map[type_name];
+            
 
           // read tensor components
           for(int j=0; j<nexch; ++j) {
-            //double tmp = mat[type_num]["moment"];
-            //tmp *= mu_bohr_si;
-            jijval(inter_counter,j) = exch[n][3][j];
-            //jijval(inter_counter,j) /= tmp;
+            double exchange = exch[n][3][j];
+            jijval(atom_num_1,nintype[atom_num_1],j) = exchange/mu_bohr_si;
           }
 
           nintype[atom_num_1]++;
@@ -442,13 +441,11 @@ void Lattice::createFromConfig() {
         const std::string type_name=atoms[atom_num_1][0];
 
         int type_num = atom_type_map[type_name];
-
+          
         // read tensor components
         for(int j=0; j<nexch; ++j) {
-          //double tmp = mat[type_num]["moment"];
-          //tmp *= mu_bohr_si;
-          jijval(inter_counter,j) = exch[n][3][j];
-          //jijval(inter_counter,j) /= tmp;
+          double exchange = exch[n][3][j];
+          jijval(atom_num_1,nintype[atom_num_1],j) = exchange/mu_bohr_si;
         }
         inter_counter++;
         nintype[atom_num_1]++;
@@ -481,12 +478,9 @@ void Lattice::createFromConfig() {
                 p[j] = atoms[n][1][j];
               }
             
-              //double tmp = mat[type_num]["moment"];
-              //tmp *= mu_bohr_si;
 
               // anisotropy value
               double anival = mat[type_num]["anisotropy"][1];
-              //anival /= tmp;
 
               for(int i=0;i<3;++i) {
               // easy axis
@@ -495,7 +489,7 @@ void Lattice::createFromConfig() {
                 double di = 2.0*anival*ei ; 
               // insert if above encut
                 if(fabs(di) > encut ){
-                 Jij.insert(3*atom+i,3*atom+i, di );
+                 Jij.insert(3*atom+i,3*atom+i, di/mu_bohr_si );
                }
               }
 

@@ -27,7 +27,7 @@ void SemiLLGSolver::initialise(int argc, char **argv, double idt)
     
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {
-      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)) / (dt*mus(i)) );
+      sigma(i,j) = sqrt( (2.0*boltzmann_si*alpha(i)) / (dt*mus(i)*mu_bohr_si) );
     }
   }
 
