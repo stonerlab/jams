@@ -76,7 +76,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,Jij.nonzero()*sizeof(float)));
 
   // material properties
-  CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins3*sizeof(float)));
+  CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins*4*sizeof(float)));
   //CUDA_CALL(cudaMalloc((void**)&mus_dev,nspins*sizeof(mus_dev)));
   //CUDA_CALL(cudaMalloc((void**)&gyro_dev,nspins*sizeof(gyro_dev)));
   //CUDA_CALL(cudaMalloc((void**)&alpha_dev,nspins*sizeof(alpha_dev)));
