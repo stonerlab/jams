@@ -26,13 +26,14 @@ __global__ void cuda_semi_llg_kernelA
     double sxh[3];
     double norm,b2ff,fdots;
 
-    float gyro = mat_dev[idx3];
-    float alpha = mat_dev[idx3+1];
-    float sigma = mat_dev[idx3+2];
+    float mus = mat_dev[idx*4];
+    float gyro = mat_dev[idx*4+1];
+    float alpha = mat_dev[idx*4+2];
+    float sigma = mat_dev[idx*4+3];
 
-    h[0] = double(( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x) )*gyro);
-    h[1] = double(( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y) )*gyro);
-    h[2] = double(( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z) )*gyro);
+    h[0] = double(( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro);
+    h[1] = double(( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro);
+    h[2] = double(( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z)*mus )*gyro);
 
     s[0] = s_dev[idx3];
     s[1] = s_dev[idx3+1];
@@ -96,15 +97,16 @@ __global__ void cuda_semi_llg_kernelB
     double sxh[3];
     double norm,b2ff,fdots;
 
-    float gyro = mat_dev[idx3];
-    float alpha = mat_dev[idx3+1];
-    float sigma = mat_dev[idx3+2];
+    float mus = mat_dev[idx*4];
+    float gyro = mat_dev[idx*4+1];
+    float alpha = mat_dev[idx*4+2];
+    float sigma = mat_dev[idx*4+3];
 
 //    double sigma = sqrt((2.0*(1.3806504E-23)*alpha)/(dt*mus));
 
-    h[0] = double(( h_dev[idx3] +  w_dev[idx3]*sigma + h_app_x )*gyro);
-    h[1] = double(( h_dev[idx3+1] +  w_dev[idx3+1]*sigma + h_app_y )*gyro);
-    h[2] = double(( h_dev[idx3+2] +  w_dev[idx+2]*sigma + h_app_z )*gyro);
+    h[0] = double(( h_dev[idx3] +  (w_dev[idx3]*sigma + h_app_x)*mus )*gyro);
+    h[1] = double(( h_dev[idx3+1] +  (w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro);
+    h[2] = double(( h_dev[idx3+2] +  (w_dev[idx+2]*sigma + h_app_z)*mus )*gyro);
 
     s[0] = s_dev[idx3];
     s[1] = s_dev[idx3+1];

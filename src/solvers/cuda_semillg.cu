@@ -107,14 +107,15 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(Jij_dev_val,Jij.ptrVal(),
         (size_t)((Jij.nonzero())*(sizeof(float))),cudaMemcpyHostToDevice));
 
-  Array2D<float> mat(nspins,3);
+  Array2D<float> mat(nspins,4);
   // material properties
   for(int i=0; i<nspins; ++i){
-    mat(i,0) = gyro(i);
-    mat(i,1) = alpha(i);
-    mat(i,2) = sigma(i);
+    mat(i,0) = mus(i);
+    mat(i,1) = gyro(i);
+    mat(i,2) = alpha(i);
+    mat(i,3) = sigma(i);
   }
-  CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
   //CUDA_CALL(cudaMemcpy(mus_dev,mus.ptr(),(size_t)(nspins*sizeof(mus_dev)),cudaMemcpyHostToDevice));
   //CUDA_CALL(cudaMemcpy(gyro_dev,gyro.ptr(),(size_t)(nspins*sizeof(gyro_dev)),cudaMemcpyHostToDevice));
   //CUDA_CALL(cudaMemcpy(alpha_dev,alpha.ptr(),(size_t)(nspins*sizeof(alpha_dev)),cudaMemcpyHostToDevice));
