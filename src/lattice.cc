@@ -423,12 +423,7 @@ void Lattice::createFromConfig() {
         } while (next_point_symmetry(r));
       } else {
         // place interaction vector in unitcell space
-        for(int i=0; i<3; ++i) {
-          d_latt[i] = 0.0;
-          for(int j=0; j<3; ++j) {
-            d_latt[i] += r[j]*unitcellinv[j][i];
-          }
-        }
+        matmul(unitcellinv,r,d_latt);
         
         // store unitcell atom difference
         internbr(atom_num_1,nintype[atom_num_1]) = atom_num_2 - atom_num_1;
@@ -437,6 +432,7 @@ void Lattice::createFromConfig() {
         for(int i=0;i<3; ++i){
           inter(atom_num_1,nintype[atom_num_1],i) = d_latt[i];
         }
+        //std::cerr<<n<<"\t"<<atom_num_1<<"\t"<<atom_num_2<<"\t d_latt: "<<d_latt[0]<<"\t"<<d_latt[1]<<"\t"<<d_latt[2]<<std::endl;
 
         const std::string type_name=atoms[atom_num_1][0];
 
@@ -501,7 +497,14 @@ void Lattice::createFromConfig() {
                 
                 for(int j=0; j<3; ++j) {
                   pnbr[j] = atoms[m][1][j];
-                  qnbr[j] = floor(inter(n,i,j)-pnbr[j]+0.5);
+                }
+
+                double pnbrcell[3]={0.0,0.0,0.0};
+                // put pnbr in unit cell
+                matmul(unitcellinv,pnbr,pnbrcell);
+
+                for(int j=0; j<3; ++j) {
+                  qnbr[j] = floor(inter(n,i,j)-pnbrcell[j]+0.5);
                 }
 
                 for(int j=0; j<3; ++j) {
@@ -517,9 +520,10 @@ void Lattice::createFromConfig() {
                   }
                 }
 
+                 //std::cerr<<atom<<"\t"<<m<<"\t v: "<<v[0]<<"\t"<<v[1]<<"\t"<<v[2]<<std::endl;
                 if(idxcheck == true) {
                   int nbr = latt(v[0],v[1],v[2],m);
-                  //std::cerr<<atom<<"\t"<<nbr<<"\t"<<m<<"\t"<<v[0]<<"\t"<<v[1]<<"\t"<<v[1]<<std::endl;
+                  //std::cerr<<atom<<"\t"<<nbr<<"\t"<<m<<"\t"<<v[0]<<"\t"<<v[1]<<"\t"<<v[2]<<std::endl;
                   assert(nbr < nspins);
                   assert(atom != nbr);
                   insert_interaction(atom,nbr,n,i,jijval,exchsym);
