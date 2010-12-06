@@ -141,11 +141,12 @@ void matmul(const _Tp a[3][3], const _Tp b[3][3], _Tp c[3][3]) {
 }
 
 template <typename _Tp>
-void matmul(const _Tp a[3][3], const _Tp b[3], _Tp c[3]) {
-  for(int i=0; i<3; ++i){
-    c[i] = 0;
-    for(int j=0; j<3; ++j){
-      c[i] += a[j][i]*b[j];
+void matmul(const _Tp a[3][3], const _Tp x[3], _Tp y[3]) {
+  int i,j;
+  for(i=0; i<3; ++i){
+    y[i] = 0;
+    for(j=0; j<3; ++j){
+      y[i] += a[j][i]*x[j];
     }
   }
 }
