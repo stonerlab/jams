@@ -176,8 +176,8 @@ void SparseMatrix<_Tp>::coocsr()
   }
 
   // shift back csrrow
-  for(int j=0; j<nrows+1; ++j) {
-    const int idx = nrows+1-j;
+  for(int j=0; j<nrows; ++j) {
+    const int idx = nrows-j;
     csrrow[idx] = csrrow[idx-1];
   }
   csrrow[0] = 0;
