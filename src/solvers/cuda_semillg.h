@@ -23,9 +23,6 @@ class CUDASemiLLGSolver : public Solver {
         s_new_dev(0),
         h_dev(0),
         mat_dev(0),
-        mus_dev(0),
-        gyro_dev(0),
-        alpha_dev(0),
         sigma(0),
         nblocks(0)
     {};
@@ -46,9 +43,6 @@ class CUDASemiLLGSolver : public Solver {
     double * s_new_dev;
     float * h_dev;
     float * mat_dev;
-    double * mus_dev;
-    double * gyro_dev;
-    double * alpha_dev;
     Array<double> sigma;
     int nblocks;
 };
