@@ -4,6 +4,7 @@
 #include <cstdarg>
 
 #include "solver.h"
+#include "physics.h"
 #include "globals.h"
 #include "utils.h"
 #include "lattice.h"
@@ -18,6 +19,7 @@
 
 namespace {
   Solver *solver;
+  Physics *physics;
   double dt=0.0;
   unsigned int steps_eq=0;
   unsigned int steps_run=0;
@@ -135,6 +137,9 @@ int jams_init(int argc, char **argv) {
     output.write("WARNING: Using default solver (HEUNLLG)\n");
     solver = Solver::Create();
   }
+
+  physics = Physics::Create(FMR);
+  physics->init();
   
   solver->initialise(argc,argv,dt);
   solver->setTemperature(init_temperature);
@@ -147,7 +152,7 @@ void jams_run() {
   using namespace globals;
   
 
-  h_app[0] = 0.0; h_app[1] = 0.0; h_app[2] = 0.0;//0.1*boltzmann_si/mus(0);
+  h_app[0] = 0.0; h_app[1] = 0.0; h_app[2] = 0.0;
 
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
@@ -155,8 +160,6 @@ void jams_run() {
     solver->run();
   }
   
-//  Monitor *mon = new BoltzmannMagMonitor();
-//  mon->initialise();
   Monitor *mag = new MagnetisationMonitor();
   mag->initialise();
 
@@ -166,10 +169,10 @@ void jams_run() {
   for(unsigned int i=0; i<steps_run; ++i) {
     if( ((i+1)%steps_out) == 0 ){
       mag->write(solver->getTime());
-//      mon->write(solver->getTime());
+      physics->monitor(solver->getTime(),dt);
     }
     solver->run();
-//    mon->run();
+    physics->run(solver->getTime());
   }
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;
