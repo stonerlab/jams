@@ -50,6 +50,10 @@ void MagnetisationMonitor::write(const double &time) {
   }
 
   outfile << time;
+  for(i=0; i<3; ++i) {
+    outfile << "\t" << h_app[i];  
+  }
+
   for(i=0; i<lattice.numTypes(); ++i) {
     outfile <<"\t"<< mag(i,0) <<"\t"<< mag(i,1) <<"\t"<< mag(i,2) <<"\t"<< mag(i,3);
   }
