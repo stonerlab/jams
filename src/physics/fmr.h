@@ -18,7 +18,7 @@ class FMRPhysics : public Physics {
     {}
     ~FMRPhysics() {}
     void init();
-    void run(double realtime);
+    void run(double realtime, const double dt);
     virtual void monitor(double realtime, const double dt);
   private:
     bool initialised;

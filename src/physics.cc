@@ -12,7 +12,7 @@ void Physics::init() {
   initialised = true;
 }
 
-void Physics::run(double realtime) {
+void Physics::run(double realtime, const double dt) {
 }
 
 void Physics::monitor(const double realtime, const double dt) {

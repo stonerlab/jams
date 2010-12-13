@@ -172,7 +172,7 @@ void jams_run() {
       physics->monitor(solver->getTime(),dt);
     }
     solver->run();
-    physics->run(solver->getTime());
+    physics->run(solver->getTime(),dt);
   }
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;

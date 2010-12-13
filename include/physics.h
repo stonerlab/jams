@@ -13,7 +13,7 @@ class Physics
     virtual ~Physics(){}
 
     virtual void init();
-    virtual void run(const double realtime);
+    virtual void run(const double realtime, const double dt);
     virtual void monitor(const double realtime, const double dt);
 
     static Physics* Create(PhysicsType type);
