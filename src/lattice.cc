@@ -306,6 +306,7 @@ void Lattice::createFromConfig() {
         }
         std::sort(r,r+3);
         do {
+          output.write("%d: %f %f %f\n",n,r[0],r[1],r[2]);
           inter_total++;
         } while (next_point_symmetry(r));
       }
