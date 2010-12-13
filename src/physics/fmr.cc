@@ -42,6 +42,13 @@ void FMRPhysics::run(const double realtime)
       + ACFieldStrength[i] * cos( ACFieldFrequency * realtime );
   }
   
+  for(int i=0; i<nspins; ++i) {
+    const double sProjection = 
+      s(i,0)*ACFieldStrength[0] + s(i,1)*ACFieldStrength[1] + s(i,2)*ACFieldStrength[2];
+
+    PSDIntegral(i) += sProjection * sin( ACFieldFrequency * realtime ) * dt;
+  }
+  
 }
 
 void FMRPhysics::monitor(const double realtime, const double dt)
@@ -51,11 +58,6 @@ void FMRPhysics::monitor(const double realtime, const double dt)
   double pAverage = 0.0;
 
   for(int i=0; i<nspins; ++i) {
-    const double sProjection = 
-      s(i,0)*ACFieldStrength[0] + s(i,1)*ACFieldStrength[1] + s(i,2)*ACFieldStrength[2];
-
-    PSDIntegral(i) += sProjection * sin( ACFieldFrequency * realtime ) * dt;
-
     pAverage += fabs(PSDIntegral(i) * ( ACFieldFrequency * mus(i) ) / realtime);
   }
 
