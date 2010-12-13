@@ -38,16 +38,19 @@ void FMRPhysics::run(const double realtime, const double dt)
 {
   using namespace globals;
   
+  const double cosValue = cos( ACFieldFrequency * realtime );
+  const double sinValue = sin( ACFieldFrequency * realtime );
+
   for(int i=0; i<3; ++i) {
     globals::h_app[i] = DCFieldStrength[i] 
-      + ACFieldStrength[i] * cos( ACFieldFrequency * realtime );
+      + ACFieldStrength[i] * cosValue;
   }
   
   for(int i=0; i<nspins; ++i) {
     const double sProjection = 
       s(i,0)*ACFieldStrength[0] + s(i,1)*ACFieldStrength[1] + s(i,2)*ACFieldStrength[2];
 
-    PSDIntegral(i) += sProjection * sin( ACFieldFrequency * realtime ) * dt;
+    PSDIntegral(i) += sProjection * sinValue * dt;
   }
   
 }
