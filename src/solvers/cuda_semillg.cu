@@ -77,10 +77,6 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 
   // material properties
   CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins*4*sizeof(float)));
-  //CUDA_CALL(cudaMalloc((void**)&mus_dev,nspins*sizeof(mus_dev)));
-  //CUDA_CALL(cudaMalloc((void**)&gyro_dev,nspins*sizeof(gyro_dev)));
-  //CUDA_CALL(cudaMalloc((void**)&alpha_dev,nspins*sizeof(alpha_dev)));
-  //CUDA_CALL(cudaMalloc((void**)&sigma_dev,nspins*sizeof(sigma_dev)));
 
   //-------------------------------------------------------------------
   //  Copy data to device
@@ -116,10 +112,20 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
     mat(i,3) = sigma(i);
   }
   CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
-  //CUDA_CALL(cudaMemcpy(mus_dev,mus.ptr(),(size_t)(nspins*sizeof(mus_dev)),cudaMemcpyHostToDevice));
-  //CUDA_CALL(cudaMemcpy(gyro_dev,gyro.ptr(),(size_t)(nspins*sizeof(gyro_dev)),cudaMemcpyHostToDevice));
-  //CUDA_CALL(cudaMemcpy(alpha_dev,alpha.ptr(),(size_t)(nspins*sizeof(alpha_dev)),cudaMemcpyHostToDevice));
-  //CUDA_CALL(cudaMemcpy(sigma_dev,sigma.ptr(),(size_t)(nspins*sizeof(sigma_dev)),cudaMemcpyHostToDevice));
+
+
+  //-------------------------------------------------------------------
+  //  Initialise arrays to zero
+  //-------------------------------------------------------------------
+  for(int i=0; i<nspins; ++i) {
+    for(int j=0; j<3; ++j) {
+      sf(i,j) = 0.0;
+    }
+  }
+  
+  CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+
 
   //-------------------------------------------------------------------
   //  Initialise curand
@@ -161,20 +167,10 @@ void CUDASemiLLGSolver::run()
 
   // generate wiener trajectories
   float stmp = sqrt(temperature);
-  CURAND_CALL(curandGenerateNormal(gen, w_dev, nspins3, 0.0f, stmp));
+  if(temperature > 0.0) {
+    CURAND_CALL(curandGenerateNormal(gen, w_dev, nspins3, 0.0f, stmp));
+  }
   
-  
-//  Array2D<float> wf(nspins,3);
-//  CUDA_CALL(cudaMemcpy(wf.ptr(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
-
-//  for(int i=0; i<nspins; ++i) {
-//    std::cout<<i<<"\t";
-//    for(int j=0; j<3; ++j) {
-//      std::cout<<wf(i,j)<<"\t";
-//    }
-//    std::cout<<"\n";
-//  }
-
   // calculate interaction fields (and zero field array)
   cusparseStatus_t stat =
   cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
@@ -249,9 +245,6 @@ CUDASemiLLGSolver::~CUDASemiLLGSolver()
   CUDA_CALL(cudaFree(Jij_dev_val));
 
   // material arrays
-  //CUDA_CALL(cudaFree(mus_dev));
-  //CUDA_CALL(cudaFree(gyro_dev));
-  //CUDA_CALL(cudaFree(alpha_dev));
   CUDA_CALL(cudaFree(mat_dev));
 }
 
