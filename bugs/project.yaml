@@ -1,0 +1,24 @@
+--- !ditz.rubyforge.org,2008-03-06/project 
+name: jams++
+version: "0.5"
+components: 
+- !ditz.rubyforge.org,2008-03-06/component 
+  name: jams++
+- !ditz.rubyforge.org,2008-03-06/component 
+  name: Solvers
+- !ditz.rubyforge.org,2008-03-06/component 
+  name: Input
+- !ditz.rubyforge.org,2008-03-06/component 
+  name: Misc
+- !ditz.rubyforge.org,2008-03-06/component 
+  name: Output
+releases: 
+- !ditz.rubyforge.org,2008-03-06/release 
+  name: "0.1"
+  status: :unreleased
+  release_time: 
+  log_events: 
+  - - 2010-12-29 17:52:31.224351 Z
+    - Joe Barker <jb544@york.ac.uk>
+    - created
+    - Should handle input properly for switching between any solver and physics objects.
