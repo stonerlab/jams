@@ -16,7 +16,7 @@ class FMRPhysics : public Physics {
         PSDFile(),
         PSDIntegral(0)
     {}
-    ~FMRPhysics() {}
+    ~FMRPhysics();
     void init();
     void run(double realtime, const double dt);
     virtual void monitor(double realtime, const double dt);

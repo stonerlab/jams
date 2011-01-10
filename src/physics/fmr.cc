@@ -16,7 +16,7 @@ void FMRPhysics::init()
     ACFieldStrength[i] = phys["ACFieldStrength"][i];
   }
   
-  for(int i=0; i<3; ++i) {
+ for(int i=0; i<3; ++i) {
     DCFieldStrength[i] = phys["DCFieldStrength"][i];
   }
 
@@ -32,6 +32,11 @@ void FMRPhysics::init()
 
   initialised = true;
 
+}
+
+FMRPhysics::~FMRPhysics()
+{
+  PSDFile.close();
 }
 
 void FMRPhysics::run(const double realtime, const double dt)
