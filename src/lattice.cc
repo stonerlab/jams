@@ -12,183 +12,136 @@
 #include <stdint.h>
 #include <sstream>
 
-
-enum SymmetryType {ISOTROPIC, UNIAXIAL, ANISOTROPIC, TENSOR, NOEXCHANGE};
-
-
-void insert_interaction(int m, int n, int atomnum, int i,  Array3D<double> &jijval, SymmetryType exchsym) {
+///
+/// @brief  Read basis vectors from config file.
+///
+void readBasis (const libconfig::Setting &cfgBasis, double unitcell[3][3], double unitcellInv[3][3]) 
+{
+  //  Read basis from config
   using namespace globals;
-// cusparse does not support symmetric matrix
-#ifndef CUDA
-  // only store lower triangle
-  if( m > n ) {
-#endif
-    switch (exchsym) {
-      case NOEXCHANGE:
-        output.write("WARNING: Attempting to insert non existent exchange");
-        break;
-      case ISOTROPIC:
-        Jij.insert(3*m+0,3*n+0,jijval(atomnum,i,0)); // Jxx
-        Jij.insert(3*m+1,3*n+1,jijval(atomnum,i,0)); // Jyy
-        Jij.insert(3*m+2,3*n+2,jijval(atomnum,i,0)); // Jzz
-        break;
-      case UNIAXIAL:
-        Jij.insert(3*m+0,3*n+0,jijval(atomnum,i,0)); // Jxx
-        Jij.insert(3*m+1,3*n+1,jijval(atomnum,i,0)); // Jyy
-        Jij.insert(3*m+2,3*n+2,jijval(atomnum,i,1)); // Jzz
-        break;
-      case ANISOTROPIC:
-        Jij.insert(3*m+0,3*n+0,jijval(atomnum,i,0)); // Jxx
-        Jij.insert(3*m+1,3*n+1,jijval(atomnum,i,1)); // Jyy
-        Jij.insert(3*m+2,3*n+2,jijval(atomnum,i,2)); // Jzz
-        break;
-      case TENSOR:
-        Jij.insert(3*m+0,3*n+0,jijval(atomnum,i,0)); // Jxx
-        Jij.insert(3*m+0,3*n+1,jijval(atomnum,i,1)); // Jxy
-        Jij.insert(3*m+0,3*n+2,jijval(atomnum,i,2)); // Jxz
-        
-        Jij.insert(3*m+1,3*n+0,jijval(atomnum,i,0)); // Jyx
-        Jij.insert(3*m+1,3*n+1,jijval(atomnum,i,1)); // Jyy
-        Jij.insert(3*m+1,3*n+2,jijval(atomnum,i,2)); // Jyz
-        
-        Jij.insert(3*m+2,3*n+0,jijval(atomnum,i,0)); // Jzx
-        Jij.insert(3*m+2,3*n+1,jijval(atomnum,i,1)); // Jzy
-        Jij.insert(3*m+2,3*n+2,jijval(atomnum,i,2)); // Jzz
-        break;
-      default:
-        jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
+
+  for(int i=0; i<3; ++i) {
+    for(int j=0; j<3; ++j) {
+      unitcell[i][j] = cfgBasis[i][j];
     }
-#ifndef CUDA
   }
-#endif
+
+  matrix_invert(unitcell,unitcellInv);
+
+  output.write("\nLattice translation vectors\n---------------------------\n");
+  for(int i=0; i<3; ++i) { 
+    output.write("%f %f %f\n",unitcell[i][0],unitcell[i][1],unitcell[i][2]); 
+  }
+  
+  output.write("\nInverse lattice vectors\n---------------------------\n");
+  for(int i=0; i<3; ++i) { 
+    output.write("%f %f %f\n",unitcellInv[i][0],unitcellInv[i][1],unitcellInv[i][2]); 
+  }
 }
 
+///
+/// @brief  Read atom positions and types from config file.
+///
+void readAtoms(const libconfig::Setting &cfgAtoms, int &nAtoms, int &nTypes, std::map<std::string,int> &atomTypeMap) {
+  //  Read atomic positions and types from config
+  
+  nAtoms = cfgAtoms.getLength();
+              
+  output.write("\nAtoms in unit cell\n------------------\n");
+  
+  std::map<std::string,int>::iterator it_type;
+  nTypes = 0;
+  
+  double pos[3];      
+  for (int n=0; n<nAtoms; ++n) {
+    const std::string type_name = cfgAtoms[n][0];
+    
+    for(int j=0; j<3; ++j) { pos[j] = cfgAtoms[n][1][j]; }
+    output.write("%s %f %f %f\n",type_name.c_str(),pos[0],pos[1],pos[2]);
 
-void Lattice::createFromConfig() {
+    it_type = atomTypeMap.find(type_name);
+    if (it_type == atomTypeMap.end()) { 
+      // type not found in map -> add to map
+      // map type_name -> int
+      atomTypeMap.insert( std::pair<std::string,int>(type_name,nTypes) );
+      nTypes++;
+    }
+  }
+  output.write("\nUnique types found: %d\n",nTypes);
+}
+
+///
+/// @brief  Read lattice parameters from config file.
+///
+void readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bool pbc[3]) {
+  //  Read lattice properties from config
+  
+  for(int i=0; i<3; ++i) { 
+    dim[i] = cfgLattice["size"][i]; 
+  }
+  output.write("Lattice size: %i %i %i\n",dim[0],dim[1],dim[2]);
+
+  output.write("Lattice Periodic: ");
+
+  for(int i=0; i<3; ++i) {
+    pbc[i] = cfgLattice["periodic"][i];
+    if (pbc[i]) { 
+      output.write("periodic "); 
+    }
+    else { 
+      output.write("open "); 
+    }
+  }
+  output.write("\n");
+}
+
+///
+/// @brief  Create lattice on numbered spin locations.
+///
+void createLattice(const libconfig::Setting &cfgLattice, const libconfig::Setting &cfgAtoms, std::map<std::string,int> &atomTypeMap, Array4D<int> &latt, 
+  std::vector<int> &atom_type, std::vector<int> &type_count, const std::vector<int> &dim, const int nAtoms, bool pbc[3]) {
   using namespace globals;
+  const int maxatoms = dim[0]*dim[1]*dim[2]*nAtoms;
+  assert(maxatoms > 0);
 
-  Array4D<int> latt;
-  Array3D<double> inter;
-  Array2D<int> internbr;
-  Array3D<double> jij;
-  bool pbc[3] = {true,true,true};
-  double r[3], p[3];
-  int q[3];
+  latt.resize(dim[0],dim[1],dim[2],nAtoms);
 
-  double unitcell[3][3];
-  double unitcellinv[3][3];
+  for (int x=0; x<dim[0]; ++x) {
+    for (int y=0; y<dim[1]; ++y) {
+      for (int z=0; z<dim[2]; ++z) {
+        for (int n=0; n<nAtoms; ++n) {
+          latt(x,y,z,n) = -1;
+        }
+      }
+    }
+  }
   
-  try {
-    //-----------------------------------------------------------------
-    //  Read basis from config
-    //-----------------------------------------------------------------
-    const libconfig::Setting& basis = config.lookup("lattice.unitcell.basis");
-
-    for(int i=0; i<3; ++i) {
-      for(int j=0; j<3; ++j) {
-        unitcell[i][j] = basis[i][j];
-      }
-    }
   
-    matrix_invert(unitcell,unitcellinv);
+  atom_type.reserve(maxatoms);
 
-    output.write("\nLattice translation vectors\n");
-    output.write("---------------------------\n");
-    for(int i=0; i<3; ++i) {
-      output.write("%f %f %f\n",unitcell[i][0],unitcell[i][1],unitcell[i][2]);
+  std::string shape;
+
+  if(cfgLattice.lookupValue("shape",shape)) {
+    std::transform(shape.begin(),shape.end(),shape.begin(),toupper);
+    if( pbc[0] || pbc[1] || pbc[2] ) {
+      output.write("\n************************************************************************\n");
+      output.write("WARNING: Periodic boundaries and shape function applied\n");
+      output.write("************************************************************************\n\n");
     }
+  } else {
+    shape = "DEFAULT";
+    output.write("No shape function give\n");
+  }
     
-    output.write("\nInverse lattice vectors\n");
-    output.write("---------------------------\n");
-    for(int i=0; i<3; ++i) {
-      output.write("%f %f %f\n",unitcellinv[i][0],unitcellinv[i][1],unitcellinv[i][2]);
-    }
+  int counter = 0;
 
-    //-----------------------------------------------------------------
-    //  Read atomic positions and types from config
-    //-----------------------------------------------------------------
-    const libconfig::Setting& atoms = config.lookup("lattice.unitcell.atoms");
-    
-    const int natoms = atoms.getLength();
-
-    // map type_name -> int
-    std::map<std::string,int>::iterator it_type;
-                
-    output.write("\nAtoms in unit cell\n");
-    output.write("------------------\n");
-    
-    
-    ntypes = 0;
-    for (int n=0; n<natoms; ++n) {
-      const std::string type_name=atoms[n][0];
-      
-      double pos[3];      
-      for(int j=0; j<3; ++j) { 
-        pos[j] = atoms[n][1][j]; 
-      }
-
-      output.write("%s %f %f %f\n",type_name.c_str(),pos[0],pos[1],pos[2]);
-
-      it_type = atom_type_map.find(type_name);
-
-      if (it_type == atom_type_map.end()) { 
-        // type not found in map -> add to map
-        atom_type_map.insert( std::pair<std::string,int>(type_name,ntypes) );
-        ntypes++;
-      }
-    }
-
-    output.write("\nUnique types found: %d\n",ntypes);
-
-    type_count.resize(ntypes);
-
-    for(int i=0; i<ntypes; ++i) {
-      type_count[i] = 0;
-    }
-
-    //-----------------------------------------------------------------
-    //  Read lattice properties from config
-    //-----------------------------------------------------------------
-    
-    const libconfig::Setting& size = config.lookup("lattice.size");
-    for(int i=0; i<3; ++i) {
-      dim[i] = size[i];
-    }
-    
-    output.write("Lattice size: %i %i %i\n",dim[0],dim[1],dim[2]);
-
-    output.write("Lattice Periodic: ");
-
-    const libconfig::Setting& periodic = config.lookup("lattice.periodic");
-    for(int i=0; i<3; ++i) {
-      pbc[i] = periodic[i];
-      if(pbc[i]) {
-        output.write("periodic ");
-      } else {
-        output.write("open ");
-      }
-    }
-    output.write("\n");
-    
-
-
-    //-----------------------------------------------------------------
-    //  Construct lattice 
-    //-----------------------------------------------------------------
-
-    const int maxatoms = dim[0]*dim[1]*dim[2]*natoms;
-
-    latt.resize(dim[0],dim[1],dim[2],natoms);
-    
-    atom_type.reserve(maxatoms);
-
-    int counter = 0;
+  if(shape == "DEFAULT") {
     for (int x=0; x<dim[0]; ++x) {
       for (int y=0; y<dim[1]; ++y) {
         for (int z=0; z<dim[2]; ++z) {
-          for (int n=0; n<natoms; ++n) {
-            const std::string type_name = atoms[n][0];
-            const int type_num = atom_type_map[type_name];
+          for (int n=0; n<nAtoms; ++n) {
+            const std::string type_name = cfgAtoms[n][0];
+            const int type_num = atomTypeMap[type_name];
             atom_type.push_back(type_num);
             type_count[type_num]++;
             latt(x,y,z,n) = counter++;
@@ -197,67 +150,105 @@ void Lattice::createFromConfig() {
       } // y
     } // x
 
-    const unsigned int atomcount = counter;
-
-    output.write("Total atoms: %i\n",atomcount);
-    
-    //-----------------------------------------------------------------
-    //  Print lattice to file
-    //-----------------------------------------------------------------
-
-#ifdef DEBUG
-    std::ofstream structfile;
-    structfile.open("structure.xyz");
-    structfile << nspins << "\n";
-    structfile << "Generated by JAMS++\n";
+  }
+  else if(shape == "ELLIPSOID") {
     for (int x=0; x<dim[0]; ++x) {
       for (int y=0; y<dim[1]; ++y) {
         for (int z=0; z<dim[2]; ++z) {
-          for (int n=0; n<natoms; ++n) {
-            const std::string t = atoms[n][0];
+          const double a = 0.5*dim[0];
+          const double b = 0.5*dim[1];
+          const double c = 0.5*dim[2];
+          
+          if( ((x-a)*(x-a)/(a*a) + (y-b)*(y-b)/(b*b) + (z-c)*(z-c)/(c*c)) < 1.0) {
+
+            for (int n=0; n<nAtoms; ++n) {
+              const std::string type_name = cfgAtoms[n][0];
+              const int type_num = atomTypeMap[type_name];
+              atom_type.push_back(type_num);
+              type_count[type_num]++;
+              latt(x,y,z,n) = counter++;
+            } // n
+          }
+        } // z
+      } // y
+    } // x
+  }
+  else {
+    jams_error("Unknown shape function: %s\n",shape.c_str());
+  }
+
+  nspins = counter;
+  nspins3 = 3*nspins;
+
+  output.write("Total atoms: %i\n",nspins);
+}
+
+///
+/// @brief  Print lattice to file.
+///
+void printLattice(const libconfig::Setting &cfgAtoms, Array4D<int> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms) {
+  using namespace globals;
+  assert(nspins > 0);
+
+  std::ofstream structfile;
+  structfile.open("structure.out");
+  structfile << nspins << "\n";
+  structfile << "Generated by JAMS++\n";
+  
+  double r[3], p[3];
+  int q[3];
+  for (int x=0; x<dim[0]; ++x) {
+    for (int y=0; y<dim[1]; ++y) {
+      for (int z=0; z<dim[2]; ++z) {
+        for (int n=0; n<nAtoms; ++n) {
+          if(latt(x,y,z,n) != -1) {
+            const std::string t = cfgAtoms[n][0];
             structfile << t <<"\t";
             q[0] = x; q[1] = y; q[2] = z;
             for(int i=0; i<3; ++i) {
               r[i] = 0.0;
-              p[i] = atoms[n][1][i];
+              p[i] = cfgAtoms[n][1][i];
               for(int j=0; j<3; ++j) {
                 r[i] += unitcell[j][i]*(q[j]+p[i]);
               }
             }
             structfile << 5*r[0] <<"\t"<< 5*r[1] <<"\t"<< 5*r[2] <<"\n";
-          } // n
-        } // z
-      } // y
-    } // x
-    structfile.close();
-#endif
-    
-    //-----------------------------------------------------------------
-    //  Resize global arrays
-    //-----------------------------------------------------------------
-   
-    nspins = atomcount;
-    nspins3 = 3*nspins;
+          }
+        } // n
+      } // z
+    } // y
+  } // x
+  structfile.close();
 
-    s.resize(nspins,3);
-    h.resize(nspins,3);
-    w.resize(nspins,3);
-    alpha.resize(nspins);
-    mus.resize(nspins);
-    gyro.resize(nspins);
-    omega_corr.resize(nspins);
+}
 
-    //-----------------------------------------------------------------
-    //  Initialise material parameters
-    //-----------------------------------------------------------------
-    const libconfig::Setting& mat = config.lookup("materials");
+///
+/// @brief  Resize global arrays.
+///
+void resizeGlobals() {
+  using namespace globals;
+  assert(nspins > 0);
+  s.resize(nspins,3);
+  h.resize(nspins,3);
+  w.resize(nspins,3);
+  alpha.resize(nspins);
+  mus.resize(nspins);
+  gyro.resize(nspins);
+  omega_corr.resize(nspins);
+}
+
+///
+/// @brief  Initialise global arrays with material parameters.
+///
+void initialiseGlobals(const libconfig::Setting &cfgMaterials, std::vector<int> &atom_type) {
+  using namespace globals;
 
     for(int i=0; i<nspins; ++i) {
       int type_num = atom_type[i];
       double sinit[3];
       double norm=0.0;
       for(int j=0;j<3;++j) {
-        sinit[j] = mat[type_num]["spin"][j]; 
+        sinit[j] = cfgMaterials[type_num]["spin"][j]; 
         norm += sinit[j]*sinit[j];
       }
       norm = 1.0/sqrt(norm);
@@ -278,279 +269,444 @@ void Lattice::createFromConfig() {
         omega_corr(i) = 0.0;
       }
 
-      mus(i) = mat[type_num]["moment"];
+      mus(i) = cfgMaterials[type_num]["moment"];
       mus(i) = mus(i);//*mu_bohr_si;
       
-      alpha(i) = mat[type_num]["alpha"];
+      alpha(i) = cfgMaterials[type_num]["alpha"];
 
-      gyro(i) = mat[type_num]["gyro"];
+      gyro(i) = cfgMaterials[type_num]["gyro"];
       gyro(i) = -gyro(i)/((1.0+alpha(i)*alpha(i))*mus(i));
     }
+}
 
-    //-----------------------------------------------------------------
-    //  Read exchange parameters from config
-    //-----------------------------------------------------------------
-    const libconfig::Setting& exch = config.lookup("exchange");
+///
+/// @brief  Read the interaction parameters from configuration file.
+///
+void readInteractions(const libconfig::Setting &cfgExchange, const libconfig::Setting &atoms, Array3D<double> &interactionVectors, 
+  Array2D<int> &interactionNeighbour, Array4D<double> &interactionValues, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3]) {
+  using namespace globals;
     
-    int inter_total=0;
+  int inter_total=0;
 
-    bool jsym = config.lookup("lattice.jsym");
+  // THIS NEEDS TO BE PASSED IN
+  bool jsym = config.lookup("lattice.jsym");
 
-    const int inter_config = exch.getLength();
+  const int inter_config = cfgExchange.getLength();
 
-    // count number of interactions
-    if(jsym == true) {
-      for(int n=0;n<inter_config;++n) {
-        for(int j=0; j<3; ++j) {
-          r[j] = exch[n][2][j];
+  double r[3],p[3];
+  // count number of interactions
+  if(jsym == true) {
+    for(int n=0;n<inter_config;++n) {
+      for(int j=0; j<3; ++j) {
+        r[j] = cfgExchange[n][2][j];
+      }
+      std::sort(r,r+3);
+      do {
+        output.write("%d: %f %f %f\n",n,r[0],r[1],r[2]);
+        inter_total++;
+      } while (next_point_symmetry(r));
+    }
+  } else {
+    inter_total = inter_config;
+  }
+  output.write("Interactions in config: %d\n",inter_config);
+  output.write("Total interactions (with symmetry): %d\n",inter_total);
+
+  // Guess number of interactions to minimise vector reallocing
+  // int the sparse matrix inserts
+  int inter_guess = 3*nspins*inter_total;
+  
+  // Find number of exchange tensor components specified in the
+  // config
+  int nInteractions;
+  if(inter_total > 0) {
+    nInteractions = cfgExchange[0][3].getLength();
+  } else {
+    nInteractions = 0;
+  }
+
+  switch (nInteractions) {
+    case 0:
+      output.write("\n************************************************************************\n");
+      output.write("WARNING: No exchange found\n");
+      output.write("************************************************************************\n\n");
+      break;
+    case 1:
+      output.write("Found isotropic exchange\n");
+      break;
+    case 2:
+      output.write("Found uniaxial exchange\n");
+      break;
+    case 3:
+      output.write("Found anisotropic exchange\n");
+      break;
+    case 9:
+      output.write("Found tensorial exchange\n");
+      inter_guess = nspins*inter_total*9;
+      break;
+    default:
+      jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
+  }
+  
+  // Resize interaction arrays
+  interactionVectors.resize(nAtoms,inter_total,3);
+  interactionNeighbour.resize(nAtoms,inter_total);
+  nInteractionsOfType.resize(nAtoms,0);
+
+  // Resize global Jij matrix
+  Jij.resize(nspins3,nspins3,inter_guess);
+
+  //-----------------------------------------------------------------
+  //  Read exchange tensor values from config
+  //-----------------------------------------------------------------
+  interactionValues.resize(nAtoms,inter_total,3,3);
+
+  // zero jij array
+  for(int i=0; i<nAtoms; ++i) {
+    for(int j=0; j<inter_total; ++j) {
+      for(int k=0; k<3; ++k) {
+        for(int l=0; l<3; ++l) {
+          interactionValues(i,j,k,l) = 0.0;
         }
-        std::sort(r,r+3);
-        do {
-          output.write("%d: %f %f %f\n",n,r[0],r[1],r[2]);
-          inter_total++;
-        } while (next_point_symmetry(r));
       }
+    }
+  }
+
+  int inter_counter = 0;
+  for(int n=0; n<inter_config; ++n) {
+    double d_latt[3]={0.0,0.0,0.0};
+    // read exchange tensor
+
+    int atom_num_1 = cfgExchange[n][0];
+    int atom_num_2 = cfgExchange[n][1];
+
+    // count from zero
+    atom_num_1--; atom_num_2--;
+
+    for(int i=0; i<3; ++i) {
+      // fractional vector within unit cell 
+      p[i] = atoms[atom_num_2][1][i];
+      // real space vector to neighbour
+      r[i] = cfgExchange[n][2][i];
+    }
+
+    if(jsym==true) {
+      std::sort(r,r+3);
+      do {
+        // place interaction vector in unitcell space
+        for(int i=0; i<3; ++i) {
+          d_latt[i] = 0.0;
+          for(int j=0; j<3; ++j) {
+            d_latt[i] += r[j]*unitcellInv[j][i];
+          }
+        }
+
+        // store unitcell atom difference
+        interactionNeighbour(atom_num_1,nInteractionsOfType[atom_num_1]) = atom_num_2 - atom_num_1;
+
+        // store interaction vectors
+        for(int i=0;i<3; ++i){
+          interactionVectors(atom_num_1,nInteractionsOfType[atom_num_1],i) = d_latt[i];
+        }
+  
+        const std::string type_name=atoms[atom_num_1][0];
+
+        //int type_num = atomTypeMap[type_name];
+          
+
+        // read tensor components
+        double J0=0.0,J1=0.0,J2=0.0;
+        switch (nInteractions) {
+          case 0:
+            output.write("\n************************************************************************\n");
+            output.write("WARNING: Attempting to insert non existent exchange");
+            output.write("************************************************************************\n\n");
+            break;
+          case 1:
+            J0 = cfgExchange[n][3][0];
+            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
+            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
+            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J0/mu_bohr_si; // Jzz
+            break;
+          case 2:
+            J0 = cfgExchange[n][3][0];
+            J1 = cfgExchange[n][3][1];
+            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
+            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
+            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J1/mu_bohr_si; // Jzz
+            break;
+          case 3:
+            J0 = cfgExchange[n][3][0];
+            J1 = cfgExchange[n][3][1];
+            J2 = cfgExchange[n][3][2];
+            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
+            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J1/mu_bohr_si; // Jyy
+            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J2/mu_bohr_si; // Jzz
+            break;
+          case 9:
+            for(int i=0; i<3; ++i) {
+              for(int j=0; j<3; ++j) {
+                J0 = cfgExchange[n][3][3*i+j];
+                interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],i,j) = J0/mu_bohr_si;
+              }
+            }
+            break;
+          default:
+            jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
+        }
+
+        nInteractionsOfType[atom_num_1]++;
+        inter_counter++;
+      } while (next_point_symmetry(r));
     } else {
-      inter_total = inter_config;
-    }
-    output.write("Interactions in config: %d\n",inter_config);
-    output.write("Total interactions (with symmetry): %d\n",inter_total);
-
-    // Guess number of interactions to minimise vector reallocing
-    // int the sparse matrix inserts
-    int inter_guess = 3*atomcount*inter_total;
-    
-    // Find number of exchange tensor components specified in the
-    // config
-    int nexch;
-    if(inter_total > 0) {
-      nexch = exch[0][3].getLength();
-    } else {
-      nexch = 0;
-    }
-
-    // Select an exchange symmetry type based in the number of
-    // components specified.
-    SymmetryType exchsym=ISOTROPIC;
-    switch (nexch) {
-      case 0:
-        exchsym = NOEXCHANGE;
-        output.write("WARNING: No exchange found\n");
-        break;
-      case 1:
-        exchsym = ISOTROPIC;
-        output.write("Found isotropic exchange\n");
-        break;
-      case 2:
-        exchsym = UNIAXIAL;
-        output.write("Found uniaxial exchange\n");
-        break;
-      case 3:
-        exchsym = ANISOTROPIC;
-        output.write("Found anisotropic exchange\n");
-        break;
-      case 9:
-        exchsym = TENSOR;
-        output.write("Found tensorial exchange\n");
-        inter_guess = nspins*inter_total*9;
-        break;
-      default:
-        jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
-    }
-    
-    // Resize interaction arrays
-    inter.resize(natoms,inter_total,3);
-    internbr.resize(natoms,inter_total);
-    std::vector<int> nintype(natoms,0);
-
-    // Resize global Jij matrix
-    Jij.resize(3*atomcount,3*atomcount,inter_guess);
-
-    //-----------------------------------------------------------------
-    //  Read exchange tensor values from config
-    //-----------------------------------------------------------------
-    Array3D<double> jijval(natoms,inter_total,nexch);
-
-    int inter_counter = 0;
-    for(int n=0; n<inter_config; ++n) {
-      double d_latt[3]={0.0,0.0,0.0};
-      // read exchange tensor
-
-      int atom_num_1 = exch[n][0];
-      int atom_num_2 = exch[n][1];
-
-      // count from zero
-      atom_num_1--; atom_num_2--;
-
-      for(int i=0; i<3; ++i) {
-        // fractional vector within unit cell 
-        p[i] = atoms[atom_num_2][1][i];
-        // real space vector to neighbour
-        r[i] = exch[n][2][i];
+      // place interaction vector in unitcell space
+      matmul(unitcellInv,r,d_latt);
+      
+      // store unitcell atom difference
+      interactionNeighbour(atom_num_1,nInteractionsOfType[atom_num_1]) = atom_num_2 - atom_num_1;
+      
+      // store interaction vectors
+      for(int i=0;i<3; ++i){
+        interactionVectors(atom_num_1,nInteractionsOfType[atom_num_1],i) = d_latt[i];
       }
+      //std::cerr<<n<<"\t"<<atom_num_1<<"\t"<<atom_num_2<<"\t d_latt: "<<d_latt[0]<<"\t"<<d_latt[1]<<"\t"<<d_latt[2]<<std::endl;
 
-      if(jsym==true) {
-        std::sort(r,r+3);
-        do {
-          // place interaction vector in unitcell space
+      const std::string type_name=atoms[atom_num_1][0];
+
+      //int type_num = atomTypeMap[type_name];
+        
+      // read tensor components
+      double J0=0.0,J1=0.0,J2=0.0;
+      switch (nInteractions) {
+        case 0:
+          output.write("WARNING: Attempting to insert non existent exchange");
+          break;
+        case 1:
+          J0 = cfgExchange[n][3][0];
+          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
+          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
+          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J0/mu_bohr_si; // Jzz
+          break;
+        case 2:
+          J0 = cfgExchange[n][3][0];
+          J1 = cfgExchange[n][3][1];
+          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
+          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
+          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J1/mu_bohr_si; // Jzz
+          break;
+        case 3:
+          J0 = cfgExchange[n][3][0];
+          J1 = cfgExchange[n][3][1];
+          J2 = cfgExchange[n][3][2];
+          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
+          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J1/mu_bohr_si; // Jyy
+          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J2/mu_bohr_si; // Jzz
+          break;
+        case 9:
           for(int i=0; i<3; ++i) {
-            d_latt[i] = 0.0;
             for(int j=0; j<3; ++j) {
-              d_latt[i] += r[j]*unitcellinv[j][i];
+              J0 = cfgExchange[n][3][3*i+j];
+              interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],i,j) = J0/mu_bohr_si;
+            }
+          }
+          break;
+        default:
+          jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
+      }
+        
+      inter_counter++;
+      nInteractionsOfType[atom_num_1]++;
+    }
+
+  }
+}
+
+///
+/// @brief  Create interaction matrix.
+///
+void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libconfig::Setting &cfgAtoms, Array4D<int> &latt, 
+  const std::vector<int> dim, const int nAtoms, const std::vector<int> &atom_type, const Array3D<double> &interactionVectors,
+  const Array2D<int> &interactionNeighbour, const Array4D<double> &interactionValues, const std::vector<int> &nInteractionsOfType, 
+  const double unitcellInv[3][3], const bool pbc[3]) 
+{
+  
+  using namespace globals;
+
+  // single row of interaction matrix
+  Array3D<double> spinInteractions(nspins,3,3);
+
+  //double encut = 1e-25;  // energy cutoff
+  double p[3], pnbr[3];
+  int v[3], q[3], qnbr[3];
+
+  int counter = 0;
+  for (int x=0; x<dim[0]; ++x) {
+    for (int y=0; y<dim[1]; ++y) {
+      for (int z=0; z<dim[2]; ++z) {
+        for (int n=0; n<nAtoms; ++n) {
+
+          for(int i=0; i<nspins; ++i) {
+            for(int j=0; j<3; ++j) {
+              for(int k=0; k<3; ++k) {
+                spinInteractions(i,j,k) = 0.0;
+              }
             }
           }
 
-          // store unitcell atom difference
-          internbr(atom_num_1,nintype[atom_num_1]) = atom_num_2 - atom_num_1;
+          if(latt(x,y,z,n) != -1) {
+            const int s_i = latt(x,y,z,n);
+            const int type_num = atom_type[s_i];
 
-          // store interaction vectors
-          for(int i=0;i<3; ++i){
-            inter(atom_num_1,nintype[atom_num_1],i) = d_latt[i];
-          }
-    
-          const std::string type_name=atoms[atom_num_1][0];
+            assert(s_i < nspins);
 
-          int type_num = atom_type_map[type_name];
+            q[0] = x; q[1] = y; q[2] = z;
             
-
-          // read tensor components
-          for(int j=0; j<nexch; ++j) {
-            double exchange = exch[n][3][j];
-            jijval(atom_num_1,nintype[atom_num_1],j) = exchange/mu_bohr_si;
-          }
-
-          nintype[atom_num_1]++;
-          inter_counter++;
-        } while (next_point_symmetry(r));
-      } else {
-        // place interaction vector in unitcell space
-        matmul(unitcellinv,r,d_latt);
-        
-        // store unitcell atom difference
-        internbr(atom_num_1,nintype[atom_num_1]) = atom_num_2 - atom_num_1;
-        
-        // store interaction vectors
-        for(int i=0;i<3; ++i){
-          inter(atom_num_1,nintype[atom_num_1],i) = d_latt[i];
-        }
-        //std::cerr<<n<<"\t"<<atom_num_1<<"\t"<<atom_num_2<<"\t d_latt: "<<d_latt[0]<<"\t"<<d_latt[1]<<"\t"<<d_latt[2]<<std::endl;
-
-        const std::string type_name=atoms[atom_num_1][0];
-
-        int type_num = atom_type_map[type_name];
+            for(int j=0; j<3; ++j) {
+              p[j] = cfgAtoms[n][1][j];
+            }
           
-        // read tensor components
-        for(int j=0; j<nexch; ++j) {
-          double exchange = exch[n][3][j];
-          jijval(atom_num_1,nintype[atom_num_1],j) = exchange/mu_bohr_si;
-        }
-        inter_counter++;
-        nintype[atom_num_1]++;
-      }
 
-    }
+            // anisotropy value
+            double anival = cfgMaterials[type_num]["anisotropy"][1];
 
-    //-----------------------------------------------------------------
-    //  Create interaction matrix
-    //-----------------------------------------------------------------
+            for(int i=0;i<3;++i) {
+              // easy axis
+              double ei = cfgMaterials[type_num]["anisotropy"][0][i];
+              // magnitude
+              double di = 2.0*anival*ei ; 
+              spinInteractions(s_i,i,i) = di/mu_bohr_si;
+            }
 
-      double encut = 1e-25;  // energy cutoff
-      double p[3], pnbr[3];
-      int v[3], q[3], qnbr[3];
+            for(int i=0; i<nInteractionsOfType[n]; ++i) {
+              // neighbour atom number
+              int m = (interactionNeighbour(n,i)+n)%nAtoms;
 
-      counter = 0;
-      for (int x=0; x<dim[0]; ++x) {
-        for (int y=0; y<dim[1]; ++y) {
-          for (int z=0; z<dim[2]; ++z) {
-            for (int n=0; n<natoms; ++n) {
-
-              const int atom = latt(x,y,z,n);
-              const int type_num = atom_type[atom];
-
-              assert(atom < nspins);
-
-              q[0] = x; q[1] = y; q[2] = z;
+              assert(m >= 0);
               
               for(int j=0; j<3; ++j) {
-                p[j] = atoms[n][1][j];
-              }
-            
-
-              // anisotropy value
-              double anival = mat[type_num]["anisotropy"][1];
-
-              for(int i=0;i<3;++i) {
-              // easy axis
-                double ei = mat[type_num]["anisotropy"][0][i];
-              // magnitude
-                double di = 2.0*anival*ei ; 
-              // insert if above encut
-                if(fabs(di) > encut ){
-                 Jij.insert(3*atom+i,3*atom+i, di/mu_bohr_si );
-               }
+                pnbr[j] = cfgAtoms[m][1][j];
               }
 
-              for(int i=0; i<nintype[n]; ++i) {
-                // neighbour atom number
-                int m = (internbr(n,i)+n)%natoms;
+              double pnbrcell[3]={0.0,0.0,0.0};
+              // put pnbr in unit cell
+              matmul(unitcellInv,pnbr,pnbrcell);
 
-                assert(m >= 0);
-                
-                for(int j=0; j<3; ++j) {
-                  pnbr[j] = atoms[m][1][j];
+              for(int j=0; j<3; ++j) {
+                qnbr[j] = floor(interactionVectors(n,i,j)-pnbrcell[j]+0.5);
+              }
+
+              for(int j=0; j<3; ++j) {
+                v[j] = q[j]+qnbr[j];
+                if(pbc[j] == true) {
+                  v[j] = (dim[j]+v[j])%dim[j];
                 }
-
-                double pnbrcell[3]={0.0,0.0,0.0};
-                // put pnbr in unit cell
-                matmul(unitcellinv,pnbr,pnbrcell);
-
-                for(int j=0; j<3; ++j) {
-                  qnbr[j] = floor(inter(n,i,j)-pnbrcell[j]+0.5);
+              }
+              bool idxcheck = true;
+              for(int j=0;j<3;++j) {
+                if(v[j] < 0 || !(v[j] < dim[j])) {
+                  idxcheck = false;
                 }
+              }
 
-                for(int j=0; j<3; ++j) {
-                  v[j] = q[j]+qnbr[j];
-                  if(pbc[j] == true) {
-                    v[j] = (dim[j]+v[j])%dim[j];
+              if(idxcheck == true && (latt(v[0],v[1],v[2],m) != -1) ) {
+                int nbr = latt(v[0],v[1],v[2],m);
+                assert(nbr < nspins);
+                assert(s_i != nbr);
+
+#ifndef CUDA    // cusparse does not support symmetric matrices
+                if(s_i > nbr) { // store only lower triangle
+#endif
+                  for(int row=0; row<3; ++row) {
+                    for(int col=0; col<3; ++col) {
+                      spinInteractions(nbr,col,row) = interactionValues(n,i,row,col); 
+                    }
                   }
+                  counter++;
+#ifndef CUDA
                 }
-                bool idxcheck = true;
-                for(int j=0;j<3;++j) {
-                  if(v[j] < 0 || !(v[j] < dim[j])) {
-                    idxcheck = false;
-                  }
-                }
+#endif
+              }
 
-                 //std::cerr<<atom<<"\t"<<m<<"\t v: "<<v[0]<<"\t"<<v[1]<<"\t"<<v[2]<<std::endl;
-                if(idxcheck == true) {
-                  int nbr = latt(v[0],v[1],v[2],m);
-                  //std::cerr<<atom<<"\t"<<nbr<<"\t"<<m<<"\t"<<v[0]<<"\t"<<v[1]<<"\t"<<v[2]<<std::endl;
-                  assert(nbr < nspins);
-                  assert(atom != nbr);
-                  insert_interaction(atom,nbr,n,i,jijval,exchsym);
-                  if( atom > nbr ) {
-                    counter++;
-                    //std::cout << atom <<"\t"<<nbr<<std::endl;
-                  }else{
-                    //std::cerr << atom <<"\t"<<nbr<<std::endl;
+              const double encut = 1E-26/mu_bohr_si; // energy cutoff
+              for(int row=0; row<3; ++row){
+                for(int j=0; j<nspins; ++j) {
+                  for(int col=0; col<3; ++col) {
+                    const double value = spinInteractions(j,col,row);
+                    if(fabs(value) > encut) {
+                      Jij.insert(3*s_i+row,3*j+col,value);
+                    }
                   }
                 }
               }
-            } // n
-          } // z
-        } // y
-      } // x
+            }
+
+          }
+        } // n
+      } // z
+    } // y
+  } // x
 
 
-    output.write("\nInteraction count: %i\n", counter);
-    output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
-    output.write("Converting COO to CSR INPLACE\n");
-    Jij.coocsrInplace();
-    //Jij.coocsr();
-    output.write("Jij memory (CSR): %f MB\n",Jij.memorySize());
+  output.write("\nInteraction count: %i\n", counter);
+  output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
+  output.write("Converting COO to CSR INPLACE\n");
+  Jij.coocsrInplace();
+//     Jij.coocsr();
+  output.write("Jij memory (CSR): %f MB\n",Jij.memorySize());
+}
 
 
+
+void Lattice::createFromConfig() {
+  using namespace globals;
+
+  Array4D<int> latt;
+  Array3D<double> interactionVectors;
+  Array4D<double> interactionValues;
+  Array2D<int> interactionNeighbour;
+  std::vector<int> nInteractionsOfType;
+  Array3D<double> jij;
+  int nAtoms=0;
+  bool pbc[3] = {true,true,true};
+
+  double unitcell[3][3];
+  double unitcellInv[3][3];
   
+  try {
+  
+    const libconfig::Setting& cfgLattice    =   config.lookup("lattice");
+    const libconfig::Setting& cfgBasis      =   config.lookup("lattice.unitcell.basis");
+    const libconfig::Setting& cfgAtoms      =   config.lookup("lattice.unitcell.atoms");
+    const libconfig::Setting& cfgMaterials  =   config.lookup("materials");
+    const libconfig::Setting& cfgExchange   =   config.lookup("exchange");
+
+    readBasis(cfgBasis, unitcell, unitcellInv);
+
+    readAtoms(cfgAtoms, nAtoms, nTypes, atomTypeMap);
+    assert(nAtoms > 0);
+    assert(nTypes > 0);
+
+    readLattice(cfgLattice, dim, pbc);
+
+    type_count.resize(nTypes);
+    for(int i=0; i<nTypes; ++i) { type_count[i] = 0; }
+
+    createLattice(cfgLattice,cfgAtoms,atomTypeMap,latt,atom_type,type_count,dim,nAtoms,pbc);
+
+#ifdef DEBUG
+    printLattice(cfgAtoms,latt,dim,unitcell,nAtoms);
+#endif // DEBUG
+
+    resizeGlobals();
+
+    initialiseGlobals(cfgMaterials, atom_type);
+
+    readInteractions(cfgExchange, cfgAtoms, interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
+      nAtoms, atomTypeMap, unitcellInv);
+
+    createInteractionMatrix(cfgMaterials,cfgAtoms,latt,dim,nAtoms,atom_type,interactionVectors, interactionNeighbour, interactionValues,
+      nInteractionsOfType, unitcellInv,pbc);
+
   } // try
   catch(const libconfig::SettingNotFoundException &nfex) {
     jams_error("Setting '%s' not found",nfex.getPath());
