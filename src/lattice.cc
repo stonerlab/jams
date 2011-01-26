@@ -538,6 +538,8 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
   //double encut = 1e-25;  // energy cutoff
   double p[3], pnbr[3];
   int v[3], q[3], qnbr[3];
+  double surfaceAnisotropyValue = 0.0;
+  bool surfaceAnisotropy = true;
 
   int counter = 0;
   for (int x=0; x<dim[0]; ++x) {
@@ -558,7 +560,11 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
             const int type_num = atom_type[s_i];
 
             assert(s_i < nspins);
-
+            
+            // TODO: Check for if this is set
+            surfaceAnisotropyValue = cfgMaterials[type_num]["surfaceAnisotropy"];
+            surfaceAnisotropyValue = surfaceAnisotropyValue/mu_bohr_si;
+            
             q[0] = x; q[1] = y; q[2] = z;
             
             for(int j=0; j<3; ++j) {
@@ -566,17 +572,8 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
             }
           
 
-            // anisotropy value
-            double anival = cfgMaterials[type_num]["anisotropy"][1];
 
-            for(int i=0;i<3;++i) {
-              // easy axis
-              double ei = cfgMaterials[type_num]["anisotropy"][0][i];
-              // magnitude
-              double di = 2.0*anival*ei ; 
-              spinInteractions(s_i,i,i) = di/mu_bohr_si;
-            }
-
+            int localInteractionCount = 0;
             for(int i=0; i<nInteractionsOfType[n]; ++i) {
               // neighbour atom number
               int m = (interactionNeighbour(n,i)+n)%nAtoms;
@@ -618,28 +615,85 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
 #endif
                   for(int row=0; row<3; ++row) {
                     for(int col=0; col<3; ++col) {
-                      spinInteractions(nbr,col,row) = interactionValues(n,i,row,col); 
+                      spinInteractions(nbr,row,col) = interactionValues(n,i,row,col); 
                     }
                   }
-                  counter++;
 #ifndef CUDA
                 }
 #endif
+                localInteractionCount++;
+                counter++;
+                if(surfaceAnisotropy == true) {
+
+                  double u[3]; // unitvector
+                  double norm = 0.0;
+                  for(int j=0; j<3; ++j){
+                    u[j] = p[j]+interactionVectors(n,i,j);
+                    norm += u[j]*u[j];
+                  }
+
+                  norm = 1.0/sqrt(norm);
+                  for(int j=0; j<3; ++j){
+                    u[j] = u[j]*norm;
+                  }
+//                   std::cout<<u[0]<<"\t"<<u[1]<<"\t"<<u[2]<<std::endl;
+
+
+                  // neighbour unit vectors
+                  for(int row=0; row<3; ++row) {
+                    for(int col=0; col<3; ++col) {
+#ifndef CUDA    // cusparse does not support symmetric matrices
+                      if(row >= col) { // store only lower triangle
+#endif
+                        spinInteractions(s_i,row,col) += surfaceAnisotropyValue*u[row]*u[col];
+#ifndef CUDA
+                      }
+#endif
+                    }
+                  }
+                }
               }
+
+            } // interactionsOfType
+
+
+
+//             std::cout<<localInteractionCount<<"\t"<<nInteractionsOfType[n]<<std::endl;
+            if( (surfaceAnisotropy == false) || (localInteractionCount == nInteractionsOfType[n])) {
+
+              // remove surface anisotropy
+              for(int row=0; row<3; ++row) {
+                for(int col=0; col<3; ++col) {
+                  spinInteractions(s_i,row,col) = 0.0;
+                }
+              }
+
+              // Bulk anisotropy
+              double anival = cfgMaterials[type_num]["uniaxialAnisotropy"][1];
+
+              for(int i=0;i<3;++i) {
+                // easy axis
+                double ei = cfgMaterials[type_num]["uniaxialAnisotropy"][0][i];
+                // magnitude
+                double di = 2.0*anival*ei ; 
+                spinInteractions(s_i,i,i) = di/mu_bohr_si;
+              }
+            }
 
               const double encut = 1E-26/mu_bohr_si; // energy cutoff
               for(int row=0; row<3; ++row){
                 for(int j=0; j<nspins; ++j) {
                   for(int col=0; col<3; ++col) {
-                    const double value = spinInteractions(j,col,row);
+                    const double value = spinInteractions(j,row,col);
                     if(fabs(value) > encut) {
                       Jij.insert(3*s_i+row,3*j+col,value);
+//                     std::cerr<<3*s_i+row<<"\t"<<3*j+col<<"\t"<<value<<"\n";
                     }
+
                   }
                 }
               }
-            }
-
+            
           }
         } // n
       } // z
