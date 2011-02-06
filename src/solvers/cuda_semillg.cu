@@ -67,8 +67,13 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   // field arrays
   CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
 
-  // wiener processes
-  CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
+  if(nspins3%2 == 0) {
+    // wiener processes
+    CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
+  } else {
+    CUDA_CALL(cudaMalloc((void**)&w_dev,(nspins3+1)*sizeof(float)));
+  }
+
 
   // jij matrix
   CUDA_CALL(cudaMalloc((void**)&Jij_dev_row,(Jij.rows()+1)*sizeof(int)));
@@ -126,7 +131,6 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
-
   //-------------------------------------------------------------------
   //  Initialise curand
   //-------------------------------------------------------------------
@@ -167,8 +171,14 @@ void CUDASemiLLGSolver::run()
 
   // generate wiener trajectories
   float stmp = sqrt(temperature);
+  
   if(temperature > 0.0) {
-    CURAND_CALL(curandGenerateNormal(gen, w_dev, nspins3, 0.0f, stmp));
+    if(nspins3%2 == 0) {
+      CURAND_CALL(curandGenerateNormal(gen, w_dev, nspins3, 0.0f, stmp));
+    } else {
+      CURAND_CALL(curandGenerateNormal(gen, w_dev, (nspins3+1), 0.0f, stmp));
+    }
+
   }
   
   // calculate interaction fields (and zero field array)
@@ -178,6 +188,13 @@ void CUDASemiLLGSolver::run()
   if(stat != CUSPARSE_STATUS_SUCCESS){
     jams_error("CUSPARSE FAILED\n");
 }
+  
+//  Array2D<float> tmp(nspins,3);
+//  CUDA_CALL(cudaMemcpy(tmp.ptr(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+//
+//  for(int i=0;i<nspins;++i) {
+//    std::cout<< tmp(i,0) << "\t" << tmp(i,1) << "\t" << tmp(i,2) << std::endl;
+//  }
 
   // integrate
   cuda_semi_llg_kernelA<<<nblocks,BLOCKSIZE>>>
@@ -213,11 +230,7 @@ void CUDASemiLLGSolver::run()
       dt
     );
 
-  if(iteration%10 == 0){
   CUDA_CALL(cudaMemcpy(s.ptr(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
-  }
-
-
   iteration++;
 }
 

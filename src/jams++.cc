@@ -154,25 +154,29 @@ void jams_run() {
 
   h_app[0] = 0.0; h_app[1] = 0.0; h_app[2] = 0.0;
 
-  output.write("\n----Equilibration----\n");
-  output.write("Running solver\n");
-  for(unsigned int i=0;i<steps_eq;++i) {
-    solver->run();
-  }
-  
   Monitor *mag = new MagnetisationMonitor();
   mag->initialise();
 
+  output.write("\n----Equilibration----\n");
+  output.write("Running solver\n");
+  for(unsigned int i=0;i<steps_eq;++i) {
+    if( ((i)%steps_out) == 0 ){
+      mag->write(solver->getTime());
+    }
+    physics->run(solver->getTime(),dt);
+    solver->run();
+  }
+  
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   std::clock_t start = std::clock();
   for(unsigned int i=0; i<steps_run; ++i) {
-    if( ((i+1)%steps_out) == 0 ){
+    if( ((i)%steps_out) == 0 ){
       mag->write(solver->getTime());
       physics->monitor(solver->getTime(),dt);
     }
-    solver->run();
     physics->run(solver->getTime(),dt);
+    solver->run();
   }
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;
