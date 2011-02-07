@@ -540,6 +540,7 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
   int v[3], q[3], qnbr[3];
   double surfaceAnisotropyValue = 0.0;
   bool surfaceAnisotropy = true;
+  int surfaceCount = 0;
 
   int counter = 0;
   for (int x=0; x<dim[0]; ++x) {
@@ -678,6 +679,8 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
                 double di = 2.0*anival*ei ; 
                 spinInteractions(s_i,i,i) = di/mu_bohr_si;
               }
+            } else {
+              surfaceCount++;
             }
 
               const double encut = 1E-26/mu_bohr_si; // energy cutoff
@@ -701,6 +704,7 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
   } // x
 
 
+  output.write("\nSurface count: %i\n", surfaceCount);
   output.write("\nInteraction count: %i\n", counter);
   output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
   output.write("Converting COO to CSR INPLACE\n");
