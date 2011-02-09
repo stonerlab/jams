@@ -29,6 +29,7 @@ class CUDASemiLLGSolver : public Solver {
     ~CUDASemiLLGSolver();
     void initialise(int argc, char **argv, double dt);
     void run();
+    void syncOutput();
 
   private:
     curandGenerator_t gen; // device random generator

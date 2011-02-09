@@ -30,6 +30,11 @@ void Solver::run()
 
 }
 
+void Solver::syncOutput()
+{
+
+}
+
 Solver* Solver::Create()
 {
   // default solver type

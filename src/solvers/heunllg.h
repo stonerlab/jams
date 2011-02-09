@@ -10,6 +10,7 @@ class HeunLLGSolver : public Solver {
     ~HeunLLGSolver() {}
     void initialise(int argc, char **argv, double dt);
     void run();
+    void syncOutput();
 
   private:
     Array2D<double> snew;

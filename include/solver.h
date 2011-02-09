@@ -23,6 +23,7 @@ class Solver
 
     virtual void initialise(int argc, char **argv, double dt);
     virtual void run();
+    virtual void syncOutput();
 
     inline int getIteration() { return iteration; }
     inline double getTime() { return iteration*t_step; }

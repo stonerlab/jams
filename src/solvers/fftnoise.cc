@@ -17,6 +17,11 @@ double FFTNoise::kernel_exp(const double omega, const double idt, const int mu, 
   }
 }
 
+void FFTNoise::syncOutput()
+{
+
+}
+
 void FFTNoise::initialise(int argc, char **argv, double idt){
   using namespace globals;
 

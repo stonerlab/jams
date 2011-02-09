@@ -33,6 +33,11 @@ void HeunLLGSolver::initialise(int argc, char **argv, double idt)
   initialised = true;
 }
 
+void HeunLLGSolver::syncOutput()
+{
+
+}
+
 void HeunLLGSolver::run()
 {
   using namespace globals;

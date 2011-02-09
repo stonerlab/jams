@@ -34,6 +34,10 @@ void SemiLLGSolver::initialise(int argc, char **argv, double idt)
   initialised = true;
 }
 
+void SemiLLGSolver::syncOutput()
+{
+}
+
 void SemiLLGSolver::run()
 {
   using namespace globals;

@@ -6,6 +6,10 @@
 #include "array2d.h"
 #include <cmath>
 
+void HeunLLMSSolver::syncOutput()
+{
+
+}
 
 void HeunLLMSSolver::initialise(int argc, char **argv, double idt)
 {

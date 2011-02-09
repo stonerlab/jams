@@ -24,6 +24,8 @@ class FFTNoise : public Solver {
     ~FFTNoise() {}
     void initialise(int argc, char **argv, double idt);
     void run();
+    void syncOutput();
+
   private:
     double delta;
     double gamma_d;

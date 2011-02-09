@@ -161,6 +161,7 @@ void jams_run() {
   output.write("Running solver\n");
   for(unsigned int i=0;i<steps_eq;++i) {
     if( ((i)%steps_out) == 0 ){
+      solver->syncOutput();
       mag->write(solver->getTime());
     }
     physics->run(solver->getTime(),dt);
@@ -172,6 +173,7 @@ void jams_run() {
   std::clock_t start = std::clock();
   for(unsigned int i=0; i<steps_run; ++i) {
     if( ((i)%steps_out) == 0 ){
+      solver->syncOutput();
       mag->write(solver->getTime());
       physics->monitor(solver->getTime(),dt);
     }

@@ -35,6 +35,12 @@
 // block size for GPU, 64 appears to be most efficient for current kernel
 #define BLOCKSIZE 128
 
+void CUDASemiLLGSolver::syncOutput()
+{
+  using namespace globals;
+  CUDA_CALL(cudaMemcpy(s.ptr(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
+}
+
 void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 {
   using namespace globals;
@@ -230,7 +236,6 @@ void CUDASemiLLGSolver::run()
       dt
     );
 
-  CUDA_CALL(cudaMemcpy(s.ptr(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
   iteration++;
 }
 
