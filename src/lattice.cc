@@ -538,8 +538,15 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
   //double encut = 1e-25;  // energy cutoff
   double p[3], pnbr[3];
   int v[3], q[3], qnbr[3];
+
+  bool surfaceAnisotropy=false;
+  if(config.lookup("lattice.surfaceAnisotropy")){
+    surfaceAnisotropy = true;
+    output.write("Neel surface anisotropy on");
+  }else{
+    surfaceAnisotropy = false;
+  }
   double surfaceAnisotropyValue = 0.0;
-  bool surfaceAnisotropy = true;
   int surfaceCount = 0;
 
   int counter = 0;
@@ -563,8 +570,10 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
             assert(s_i < nspins);
             
             // TODO: Check for if this is set
-            surfaceAnisotropyValue = cfgMaterials[type_num]["surfaceAnisotropy"];
-            surfaceAnisotropyValue = surfaceAnisotropyValue/mu_bohr_si;
+            if(surfaceAnisotropy == true) {
+              surfaceAnisotropyValue = cfgMaterials[type_num]["surfaceAnisotropy"];
+              surfaceAnisotropyValue = surfaceAnisotropyValue/mu_bohr_si;
+            }
             
             q[0] = x; q[1] = y; q[2] = z;
             
@@ -704,7 +713,9 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
   } // x
 
 
-  output.write("\nSurface count: %i\n", surfaceCount);
+  if(surfaceAnisotropy == true) {
+    output.write("\nSurface count: %i\n", surfaceCount);
+  }
   output.write("\nInteraction count: %i\n", counter);
   output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
   output.write("Converting COO to CSR INPLACE\n");
