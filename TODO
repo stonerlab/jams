@@ -1,4 +1,0 @@
-* Fix mus normalisation *
-This broke the GdFe code, check that it works correctly for multiple
-species.
-  
