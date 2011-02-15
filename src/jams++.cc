@@ -63,6 +63,7 @@ int jams_init(int argc, char **argv) {
 
 
   std::string solname;
+  std::string physname;
   unsigned int randomseed;
 
   double init_temperature=0.0;
@@ -74,6 +75,7 @@ int jams_init(int argc, char **argv) {
     double tmp = config.lookup("sim.t_eq");
     steps_eq = static_cast<unsigned int>(tmp/dt);
     output.write("Equilibration time: %e (%d steps)\n",tmp,steps_eq);
+    std::string physname;
 
     tmp = config.lookup("sim.t_run");
     steps_run = static_cast<unsigned int>(tmp/dt);
@@ -91,6 +93,12 @@ int jams_init(int argc, char **argv) {
       config.lookupValue("sim.solver",solname);
       std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
     }
+
+    if( config.exists("sim.physics") == true ) {
+      config.lookupValue("sim.physics",physname);
+      std::transform(physname.begin(),physname.end(),physname.begin(),toupper);
+    }
+
 
     if( config.exists("sim.seed") == true) {
       config.lookupValue("sim.seed",randomseed);
@@ -117,6 +125,15 @@ int jams_init(int argc, char **argv) {
   lattice.createFromConfig();
 
   
+  if(physname == "FMR") {
+    physics = Physics::Create(FMR);
+  } else {
+    physics = Physics::Create(EMPTY);
+    output.write("WARNING: Using empty physics package\n");
+  }
+
+  physics->init();
+
     
   if(solname == "HEUNLLG") {
     solver = Solver::Create(HEUNLLG);
@@ -138,9 +155,6 @@ int jams_init(int argc, char **argv) {
     solver = Solver::Create();
   }
 
-  physics = Physics::Create(FMR);
-  physics->init();
-  
   solver->initialise(argc,argv,dt);
   solver->setTemperature(init_temperature);
 

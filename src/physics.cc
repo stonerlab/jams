@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "physics.h"
 #include "fmr.h"
+#include "empty.h"
 
 void Physics::init() {
   if(initialised == true) {
@@ -24,6 +25,9 @@ Physics* Physics::Create(PhysicsType type)
   switch(type){
     case FMR:
       return new FMRPhysics;
+      break;
+    case EMPTY:
+      return new EmptyPhysics;
       break;
     default:
       jams_error("Unknown physics selected.");

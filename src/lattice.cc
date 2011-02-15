@@ -540,9 +540,9 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
   int v[3], q[3], qnbr[3];
 
   bool surfaceAnisotropy=false;
-  if(config.lookup("lattice.surfaceAnisotropy")){
+  if(config.exists("lattice.surfaceAnisotropy")){
     surfaceAnisotropy = true;
-    output.write("Neel surface anisotropy on");
+    output.write("Neel surface anisotropy on\n");
   }else{
     surfaceAnisotropy = false;
   }

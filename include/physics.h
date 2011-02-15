@@ -1,7 +1,7 @@
 #ifndef __PHYSICS_H__
 #define __PHYSICS_H__
 
-enum PhysicsType{ FMR };
+enum PhysicsType{ EMPTY, FMR };
 
 class Physics
 {
