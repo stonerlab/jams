@@ -294,6 +294,9 @@ void readInteractions(const libconfig::Setting &cfgExchange, const libconfig::Se
   const int inter_config = cfgExchange.getLength();
 
   double r[3],p[3];
+
+  std::vector<int> atomInterCount(nspins,0);
+
   // count number of interactions
   if(jsym == true) {
     for(int n=0;n<inter_config;++n) {
@@ -303,18 +306,40 @@ void readInteractions(const libconfig::Setting &cfgExchange, const libconfig::Se
       std::sort(r,r+3);
       do {
         output.write("%d: %f %f %f\n",n,r[0],r[1],r[2]);
+
+        // count number of interaction for each atom in unit cell
+        int atom = cfgExchange[n][0];
+        atomInterCount[atom-1]++;
+
         inter_total++;
       } while (next_point_symmetry(r));
     }
   } else {
     inter_total = inter_config;
+
+    for(int n=0; n<inter_config; ++n) {
+      // count number of interaction for each atom in unit cell
+      int atom = cfgExchange[n][0];
+      atomInterCount[atom-1]++;
+    }
   }
+
+
+  // find maximum number of exchanges for a given atom in unit cell
+  int interMax = 0;
+  for(int i=0; i<nspins; ++i) {
+    if(atomInterCount[i] > interMax) {
+      interMax = atomInterCount[i];
+    }
+  }
+
   output.write("Interactions in config: %d\n",inter_config);
   output.write("Total interactions (with symmetry): %d\n",inter_total);
 
+
   // Guess number of interactions to minimise vector reallocing
   // int the sparse matrix inserts
-  int inter_guess = 3*nspins*inter_total;
+  int inter_guess = 3*nspins*interMax;
   
   // Find number of exchange tensor components specified in the
   // config
@@ -342,15 +367,15 @@ void readInteractions(const libconfig::Setting &cfgExchange, const libconfig::Se
       break;
     case 9:
       output.write("Found tensorial exchange\n");
-      inter_guess = nspins*inter_total*9;
+      inter_guess = nspins*interMax*9;
       break;
     default:
       jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
   }
   
   // Resize interaction arrays
-  interactionVectors.resize(nAtoms,inter_total,3);
-  interactionNeighbour.resize(nAtoms,inter_total);
+  interactionVectors.resize(nAtoms,interMax,3);
+  interactionNeighbour.resize(nAtoms,interMax);
   nInteractionsOfType.resize(nAtoms,0);
 
   // Resize global Jij matrix
@@ -359,11 +384,11 @@ void readInteractions(const libconfig::Setting &cfgExchange, const libconfig::Se
   //-----------------------------------------------------------------
   //  Read exchange tensor values from config
   //-----------------------------------------------------------------
-  interactionValues.resize(nAtoms,inter_total,3,3);
+  interactionValues.resize(nAtoms,interMax,3,3);
 
   // zero jij array
   for(int i=0; i<nAtoms; ++i) {
-    for(int j=0; j<inter_total; ++j) {
+    for(int j=0; j<interMax; ++j) {
       for(int k=0; k<3; ++k) {
         for(int l=0; l<3; ++l) {
           interactionValues(i,j,k,l) = 0.0;
