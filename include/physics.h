@@ -1,6 +1,8 @@
 #ifndef __PHYSICS_H__
 #define __PHYSICS_H__
 
+#include <libconfig.h++>
+
 enum PhysicsType{ EMPTY, FMR };
 
 class Physics
@@ -12,7 +14,7 @@ class Physics
 
     virtual ~Physics(){}
 
-    virtual void init();
+    virtual void init(libconfig::Setting &phys);
     virtual void run(const double realtime, const double dt);
     virtual void monitor(const double realtime, const double dt);
 

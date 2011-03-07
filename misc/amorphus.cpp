@@ -13,22 +13,22 @@ int main() {
   rand.seed(time(NULL));
 
   // size
-  int dim[3] = {25,25,25};
+  int dim[3] = {30,30,30};
   
   std::vector<std::string> atomTypeNames;
   std::vector<double>       atomComposition;
 
   atomTypeNames.push_back("Fe");
-  atomComposition.push_back(0.5);
+  atomComposition.push_back(0.76);
 
   atomTypeNames.push_back("Gd");
-  atomComposition.push_back(0.5);
+  atomComposition.push_back(0.24);
 
   double Jij[2][2];
-  Jij[0][0] = 4.5E-21;
-  Jij[1][1] = 1.2E-21;
-  Jij[0][1] = -4.5E-21;
-  Jij[1][0] = -4.5E-21;
+  Jij[0][0] = 2.835E-21;
+  Jij[1][1] = 1.260E-21;
+  Jij[0][1] = -1.09E-21;
+  Jij[1][0] = -1.09E-21;
 
 
 

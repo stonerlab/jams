@@ -21,6 +21,16 @@ class Array4D
     Array4D(size_type d0, size_type d1, size_type d2, size_type d3)
       : dim0(d0), dim1(d1), dim2(d2), dim3(d3), data(d0*d1*d2*d3) {}
 
+    ~Array4D(){data.clear();}
+
+    inline void clear() {
+      dim0 = 0;
+      dim1 = 0;
+      dim2 = 0;
+      dim3 = 0;
+      data.clear();
+    }
+
     inline void resize(const size_type d0, const size_type d1, const size_type d2, const size_type d3) {
       dim0 = d0; dim1 = d1; dim2 = d2; dim3 = d3;
       data.resize(d0*d1*d2*d3);

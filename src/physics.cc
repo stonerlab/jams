@@ -3,7 +3,9 @@
 #include "fmr.h"
 #include "empty.h"
 
-void Physics::init() {
+#include <libconfig.h++>
+
+void Physics::init(libconfig::Setting &phys) {
   if(initialised == true) {
     jams_error("Physics module is already initialised");
   }

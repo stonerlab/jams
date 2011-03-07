@@ -47,118 +47,123 @@ int jams_init(int argc, char **argv) {
 
   std::string cfgfile = seedname+".cfg";
 
-  try {
-    config.readFile(cfgfile.c_str());
-  }
-  catch(const libconfig::FileIOException &fioex) {
-    jams_error("I/O error while reading '%s'", cfgfile.c_str());
-  }
-  catch(const libconfig::ParseException &pex) {
-    jams_error("Error parsing %s:%i: %s", pex.getFile(), 
-        pex.getLine(), pex.getError());
-  }
-  catch(...) {
-    jams_error("Undefined config error");
-  }
+  {
+    libconfig::Config config;
+
+    try {
+      config.readFile(cfgfile.c_str());
+    }
+    catch(const libconfig::FileIOException &fioex) {
+      jams_error("I/O error while reading '%s'", cfgfile.c_str());
+    }
+    catch(const libconfig::ParseException &pex) {
+      jams_error("Error parsing %s:%i: %s", pex.getFile(), 
+          pex.getLine(), pex.getError());
+    }
+    catch(...) {
+      jams_error("Undefined config error");
+    }
+
+    libconfig::Setting &phys = config.lookup("physics");
 
 
-  std::string solname;
-  std::string physname;
-  unsigned int randomseed;
-
-  double init_temperature=0.0;
-
-  try {
-    dt = config.lookup("sim.t_step");
-    output.write("Timestep: %e\n",dt);
-
-    double tmp = config.lookup("sim.t_eq");
-    steps_eq = static_cast<unsigned int>(tmp/dt);
-    output.write("Equilibration time: %e (%d steps)\n",tmp,steps_eq);
+    std::string solname;
     std::string physname;
+    unsigned int randomseed;
 
-    tmp = config.lookup("sim.t_run");
-    steps_run = static_cast<unsigned int>(tmp/dt);
-    output.write("Run time: %e (%d steps)\n",tmp,steps_run);
+    double init_temperature=0.0;
+
+    try {
+      dt = config.lookup("sim.t_step");
+      output.write("Timestep: %e\n",dt);
+
+      double tmp = config.lookup("sim.t_eq");
+      steps_eq = static_cast<unsigned int>(tmp/dt);
+      output.write("Equilibration time: %e (%d steps)\n",tmp,steps_eq);
+      std::string physname;
+
+      tmp = config.lookup("sim.t_run");
+      steps_run = static_cast<unsigned int>(tmp/dt);
+      output.write("Run time: %e (%d steps)\n",tmp,steps_run);
+      
+      tmp = config.lookup("sim.t_out");
+      steps_out = static_cast<unsigned int>(tmp/dt);
+      output.write("Output time: %e (%d steps)\n",tmp,steps_out);
+
+      globals::h_app[0] = config.lookup("sim.h_app.[0]");
+      globals::h_app[1] = config.lookup("sim.h_app.[1]");
+      globals::h_app[2] = config.lookup("sim.h_app.[2]");
     
-    tmp = config.lookup("sim.t_out");
-    steps_out = static_cast<unsigned int>(tmp/dt);
-    output.write("Output time: %e (%d steps)\n",tmp,steps_out);
+      if( config.exists("sim.solver") == true ) {
+        config.lookupValue("sim.solver",solname);
+        std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
+      }
 
-    globals::h_app[0] = config.lookup("sim.h_app.[0]");
-    globals::h_app[1] = config.lookup("sim.h_app.[1]");
-    globals::h_app[2] = config.lookup("sim.h_app.[2]");
+      if( config.exists("sim.physics") == true ) {
+        config.lookupValue("sim.physics",physname);
+        std::transform(physname.begin(),physname.end(),physname.begin(),toupper);
+      }
+
+
+      if( config.exists("sim.seed") == true) {
+        config.lookupValue("sim.seed",randomseed);
+        output.write("Random generator seeded from config file\n");
+      } else {
+        randomseed = time(NULL);
+        output.write("Random generator seeded from time\n");
+      }
+      output.write("Seed: %d\n",randomseed);
+
+      init_temperature = config.lookup("sim.temperature");
+      output.write("Initial temperature: %f\n",init_temperature);
+
+    }
+    catch(const libconfig::SettingNotFoundException &nfex) {
+      jams_error("Setting '%s' not found",nfex.getPath());
+    }
+    catch(...) {
+      jams_error("Undefined config error");
+    }
+
+    rng.seed(randomseed);
+
+    lattice.createFromConfig(config);
   
-    if( config.exists("sim.solver") == true ) {
-      config.lookupValue("sim.solver",solname);
-      std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
-    }
-
-    if( config.exists("sim.physics") == true ) {
-      config.lookupValue("sim.physics",physname);
-      std::transform(physname.begin(),physname.end(),physname.begin(),toupper);
-    }
-
-
-    if( config.exists("sim.seed") == true) {
-      config.lookupValue("sim.seed",randomseed);
-      output.write("Random generator seeded from config file\n");
+    if(physname == "FMR") {
+      physics = Physics::Create(FMR);
     } else {
-      randomseed = time(NULL);
-      output.write("Random generator seeded from time\n");
+      physics = Physics::Create(EMPTY);
+      output.write("WARNING: Using empty physics package\n");
     }
-    output.write("Seed: %d\n",randomseed);
-
-    init_temperature = config.lookup("sim.temperature");
-    output.write("Initial temperature: %f\n",init_temperature);
-
-  }
-  catch(const libconfig::SettingNotFoundException &nfex) {
-    jams_error("Setting '%s' not found",nfex.getPath());
-  }
-  catch(...) {
-    jams_error("Undefined config error");
-  }
-
-  rng.seed(randomseed);
-
-  lattice.createFromConfig();
-
-  
-  if(physname == "FMR") {
-    physics = Physics::Create(FMR);
-  } else {
-    physics = Physics::Create(EMPTY);
-    output.write("WARNING: Using empty physics package\n");
-  }
-
-  physics->init();
 
     
-  if(solname == "HEUNLLG") {
-    solver = Solver::Create(HEUNLLG);
-  }
-  else if (solname == "HEUNLLMS") {
-    solver = Solver::Create(HEUNLLMS);
-  }
-  else if (solname == "SEMILLG") {
-    solver = Solver::Create(SEMILLG);
-  }
-  else if (solname == "CUDASEMILLG") {
-    solver = Solver::Create(CUDASEMILLG);
-  }
-  else if (solname == "FFTNOISE") {
-    solver = Solver::Create(FFTNOISE);
-  }
-  else { // default
-    output.write("WARNING: Using default solver (HEUNLLG)\n");
-    solver = Solver::Create();
-  }
+    physics->init(phys);
 
-  solver->initialise(argc,argv,dt);
-  solver->setTemperature(init_temperature);
+      
+    if(solname == "HEUNLLG") {
+      solver = Solver::Create(HEUNLLG);
+    }
+    else if (solname == "HEUNLLMS") {
+      solver = Solver::Create(HEUNLLMS);
+    }
+    else if (solname == "SEMILLG") {
+      solver = Solver::Create(SEMILLG);
+    }
+    else if (solname == "CUDASEMILLG") {
+      solver = Solver::Create(CUDASEMILLG);
+    }
+    else if (solname == "FFTNOISE") {
+      solver = Solver::Create(FFTNOISE);
+    }
+    else { // default
+      output.write("WARNING: Using default solver (HEUNLLG)\n");
+      solver = Solver::Create();
+    }
 
+    solver->initialise(argc,argv,dt);
+    solver->setTemperature(init_temperature);
 
+  }
   return 0;
 }
 

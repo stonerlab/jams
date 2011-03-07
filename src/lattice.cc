@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <sstream>
 
+
 ///
 /// @brief  Read basis vectors from config file.
 ///
@@ -240,7 +241,7 @@ void resizeGlobals() {
 ///
 /// @brief  Initialise global arrays with material parameters.
 ///
-void initialiseGlobals(const libconfig::Setting &cfgMaterials, std::vector<int> &atom_type) {
+void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgMaterials, std::vector<int> &atom_type) {
   using namespace globals;
 
     for(int i=0; i<nspins; ++i) {
@@ -282,7 +283,7 @@ void initialiseGlobals(const libconfig::Setting &cfgMaterials, std::vector<int> 
 ///
 /// @brief  Read the interaction parameters from configuration file.
 ///
-void readInteractions(const libconfig::Setting &cfgExchange, const libconfig::Setting &atoms, Array3D<double> &interactionVectors, 
+void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgExchange, const libconfig::Setting &atoms, Array3D<double> &interactionVectors, 
   Array2D<int> &interactionNeighbour, Array4D<double> &interactionValues, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3]) {
   using namespace globals;
     
@@ -549,7 +550,7 @@ void readInteractions(const libconfig::Setting &cfgExchange, const libconfig::Se
 ///
 /// @brief  Create interaction matrix.
 ///
-void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libconfig::Setting &cfgAtoms, Array4D<int> &latt, 
+void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, const libconfig::Setting &cfgAtoms, Array4D<int> &latt, 
   const std::vector<int> dim, const int nAtoms, const std::vector<int> &atom_type, const Array3D<double> &interactionVectors,
   const Array2D<int> &interactionNeighbour, const Array4D<double> &interactionValues, const std::vector<int> &nInteractionsOfType, 
   const double unitcellInv[3][3], const bool pbc[3]) 
@@ -751,22 +752,24 @@ void createInteractionMatrix(const libconfig::Setting &cfgMaterials, const libco
 
 
 
-void Lattice::createFromConfig() {
+void Lattice::createFromConfig(libconfig::Config &config) {
   using namespace globals;
 
-  Array4D<int> latt;
-  Array3D<double> interactionVectors;
-  Array4D<double> interactionValues;
-  Array2D<int> interactionNeighbour;
-  std::vector<int> nInteractionsOfType;
-  Array3D<double> jij;
-  int nAtoms=0;
-  bool pbc[3] = {true,true,true};
-
-  double unitcell[3][3];
-  double unitcellInv[3][3];
-  
   try {
+
+    {
+    Array4D<int> latt;
+    Array3D<double> interactionVectors;
+    Array4D<double> interactionValues;
+    Array2D<int> interactionNeighbour;
+    std::vector<int> nInteractionsOfType;
+    Array3D<double> jij;
+    int nAtoms=0;
+    bool pbc[3] = {true,true,true};
+
+    double unitcell[3][3];
+    double unitcellInv[3][3];
+  
   
     const libconfig::Setting& cfgLattice    =   config.lookup("lattice");
     const libconfig::Setting& cfgBasis      =   config.lookup("lattice.unitcell.basis");
@@ -793,13 +796,14 @@ void Lattice::createFromConfig() {
 
     resizeGlobals();
 
-    initialiseGlobals(cfgMaterials, atom_type);
+    initialiseGlobals(config, cfgMaterials, atom_type);
 
-    readInteractions(cfgExchange, cfgAtoms, interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
+    readInteractions(config, cfgExchange, cfgAtoms, interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
       nAtoms, atomTypeMap, unitcellInv);
 
-    createInteractionMatrix(cfgMaterials,cfgAtoms,latt,dim,nAtoms,atom_type,interactionVectors, interactionNeighbour, interactionValues,
+    createInteractionMatrix(config, cfgMaterials,cfgAtoms,latt,dim,nAtoms,atom_type,interactionVectors, interactionNeighbour, interactionValues,
       nInteractionsOfType, unitcellInv,pbc);
+    }
 
   } // try
   catch(const libconfig::SettingNotFoundException &nfex) {

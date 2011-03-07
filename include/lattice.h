@@ -3,11 +3,12 @@
 
 #include <map>
 #include <vector>
+#include <libconfig.h++>
 
 class Lattice {
   public:
     Lattice() : dim(3,0), nTypes(0), atom_type(0,0), type_count(0), atomTypeMap() {}
-    void createFromConfig();
+    void createFromConfig(libconfig::Config &config);
 
     inline int getType(const int i) { return atom_type[i]; }
     inline int getTypeCount(const int i) { return type_count[i]; }

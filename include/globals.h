@@ -13,7 +13,7 @@ void jams_error(const char *string, ...);
 #include "rand.h"
 #include "lattice.h"
 
-#include <libconfig.h++>
+//#include <libconfig.h++>
 
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
@@ -23,7 +23,7 @@ void jams_error(const char *string, ...);
 
 GLOBAL Lattice lattice;
 
-GLOBAL libconfig::Config config;  ///< Config object
+//GLOBAL libconfig::Config config;  ///< Config object
 
 GLOBAL Output output;
 

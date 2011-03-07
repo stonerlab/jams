@@ -18,6 +18,12 @@ class Array
 
     Array() : dim0(0), data(0) {}
     Array(size_type n) : dim0(n), data(dim0) {}
+    ~Array(){data.clear();}
+
+    inline void clear() {
+      dim0=0;
+      data.clear();
+    }
 
     void resize(size_type n) {
       dim0 = n;

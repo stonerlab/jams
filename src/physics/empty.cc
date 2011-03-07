@@ -1,6 +1,7 @@
+#include <libconfig.h++>
 #include "empty.h"
 
-void EmptyPhysics::init()
+void EmptyPhysics::init(libconfig::Setting &phys)
 {
 }
 

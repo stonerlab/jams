@@ -1,13 +1,13 @@
 #include <cmath>
+#include <libconfig.h++>
 
 #include "globals.h"
 
 #include "fmr.h"
 
-void FMRPhysics::init()
+void FMRPhysics::init(libconfig::Setting &phys)
 {
   using namespace globals;
-  const libconfig::Setting& phys = config.lookup("physics");
 
   ACFieldFrequency = phys["ACFieldFrequency"];
   ACFieldFrequency = 2.0*M_PI*ACFieldFrequency;

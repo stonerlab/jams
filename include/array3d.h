@@ -21,6 +21,15 @@ class Array3D
     Array3D(size_type d0, size_type d1, size_type d2)
       : dim0(d0), dim1(d1), dim2(d2), data(d0*d1*d2) {}
 
+    ~Array3D(){data.clear();}
+
+    inline void clear() {
+      dim0 = 0;
+      dim1 = 0;
+      dim2 = 0;
+      data.clear();
+    }
+
     inline void resize(size_type d0, size_type d1, size_type d2) {
       dim0 = d0; dim1 = d1; dim2 = d2;
       data.resize(d0*d1*d2);

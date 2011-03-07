@@ -2,6 +2,7 @@
 #define __FMR_H__
 
 #include <fstream>
+#include <libconfig.h++>
 #include "array.h"
 
 #include "physics.h"
@@ -17,7 +18,7 @@ class FMRPhysics : public Physics {
         PSDIntegral(0)
     {}
     ~FMRPhysics();
-    void init();
+    void init(libconfig::Setting &phys);
     void run(double realtime, const double dt);
     virtual void monitor(double realtime, const double dt);
   private:

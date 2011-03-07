@@ -23,6 +23,14 @@ class Array2D
     Array2D(size_type d0, size_type d1)
       : dim0(d0), dim1(d1), data(d0*d1) {}
 
+    ~Array2D(){data.clear();}
+
+    inline void clear() {
+      dim0 = 0;
+      dim1 = 0;
+      data.clear();
+    }
+
     inline void resize(size_type d0, size_type d1) {
       dim0 = d0; dim1 = d1;
       data.resize(d0*d1);
