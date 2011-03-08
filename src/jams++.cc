@@ -80,7 +80,6 @@ int jams_init(int argc, char **argv) {
       double tmp = config.lookup("sim.t_eq");
       steps_eq = static_cast<unsigned int>(tmp/dt);
       output.write("Equilibration time: %e (%d steps)\n",tmp,steps_eq);
-      std::string physname;
 
       tmp = config.lookup("sim.t_run");
       steps_run = static_cast<unsigned int>(tmp/dt);
