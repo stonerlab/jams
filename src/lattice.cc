@@ -11,6 +11,9 @@
 #include "sparsematrix.h"
 #include <stdint.h>
 #include <sstream>
+#include <iostream>
+#include <fstream>
+#include <string>
 
 
 ///
@@ -283,45 +286,74 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
 ///
 /// @brief  Read the interaction parameters from configuration file.
 ///
-void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgExchange, const libconfig::Setting &atoms, Array3D<double> &interactionVectors, 
+void readInteractions(libconfig::Config &config, const libconfig::Setting &atoms, Array3D<double> &interactionVectors, 
   Array2D<int> &interactionNeighbour, Array4D<double> &interactionValues, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3]) {
   using namespace globals;
     
-  int inter_total=0;
+  int nInterTotal=0;
 
   // THIS NEEDS TO BE PASSED IN
   bool jsym = config.lookup("lattice.jsym");
 
-  const int inter_config = cfgExchange.getLength();
+  int nInterConfig = 0;
 
   double r[3],p[3];
 
   std::vector<int> atomInterCount(nspins,0);
 
+  std::ifstream exchangeFile("exch.in");
+
+  std::string line;
+
+
+
+
+
   // count number of interactions
   if(jsym == true) {
-    for(int n=0;n<inter_config;++n) {
-      for(int j=0; j<3; ++j) {
-        r[j] = cfgExchange[n][2][j];
+    int atom1=0;
+    int atom2=0;
+
+    if( exchangeFile.is_open() ) {
+      int n=0;
+      for( std::string line; getline(exchangeFile,line); ) {
+        std::stringstream is(line);
+
+        is >> atom1;
+        is >> atom2;
+
+        is >> r[0];
+        is >> r[1];
+        is >> r[2];
+      
+        std::sort(r,r+3);
+        do {
+          output.write("%d: %f %f %f\n",n,r[0],r[1],r[2]);
+
+          // count number of interaction for each atom in unit cell
+          atomInterCount[atom1-1]++;
+
+          nInterTotal++;
+        } while (next_point_symmetry(r));
+        n++;
+        nInterConfig++;
       }
-      std::sort(r,r+3);
-      do {
-        output.write("%d: %f %f %f\n",n,r[0],r[1],r[2]);
-
-        // count number of interaction for each atom in unit cell
-        int atom = cfgExchange[n][0];
-        atomInterCount[atom-1]++;
-
-        inter_total++;
-      } while (next_point_symmetry(r));
     }
   } else {
-    inter_total = inter_config;
 
-    for(int n=0; n<inter_config; ++n) {
-      // count number of interaction for each atom in unit cell
-      int atom = cfgExchange[n][0];
-      atomInterCount[atom-1]++;
+    if( exchangeFile.is_open() ) {
+      int atom1=0;
+      for( std::string line; getline(exchangeFile,line); ) {
+        std::stringstream is(line);
+
+        is >> atom1;
+
+        // count number of interaction for each atom in unit cell
+        atomInterCount[atom1-1]++;
+
+        nInterTotal++;
+        nInterConfig++;
+      }
     }
   }
 
@@ -334,8 +366,8 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgEx
     }
   }
 
-  output.write("Interactions in config: %d\n",inter_config);
-  output.write("Total interactions (with symmetry): %d\n",inter_total);
+  output.write("Interactions in config: %d\n",nInterConfig);
+  output.write("Total interactions (with symmetry): %d\n",nInterTotal);
 
 
   // Guess number of interactions to minimise vector reallocing
@@ -344,9 +376,30 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgEx
   
   // Find number of exchange tensor components specified in the
   // config
-  int nInteractions;
-  if(inter_total > 0) {
-    nInteractions = cfgExchange[0][3].getLength();
+  
+  // rewind file
+  exchangeFile.clear();
+  exchangeFile.seekg(0,std::ios::beg);
+
+  int nInteractions=0;
+  if(nInterTotal > 0) {
+    int atom1=0;
+    int atom2=0;
+
+    getline(exchangeFile,line);
+    std::stringstream is(line);
+
+    is >> atom1;
+    is >> atom2;
+
+    is >> r[0];
+    is >> r[1];
+    is >> r[2];
+
+    double tmp;
+    while ( is >> tmp ) {
+      nInteractions++;
+    }
   } else {
     nInteractions = 0;
   }
@@ -398,13 +451,25 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgEx
     }
   }
 
+
+  // rewind file
+  exchangeFile.clear();
+  exchangeFile.seekg(0,std::ios::beg);
+
   int inter_counter = 0;
-  for(int n=0; n<inter_config; ++n) {
+  for(int n=0; n<nInterConfig; ++n) {
+    
+    getline(exchangeFile,line);
+    std::stringstream is(line);
+
     double d_latt[3]={0.0,0.0,0.0};
     // read exchange tensor
 
-    int atom_num_1 = cfgExchange[n][0];
-    int atom_num_2 = cfgExchange[n][1];
+    int atom_num_1=0;
+    int atom_num_2=0;
+
+    is >> atom_num_1;
+    is >> atom_num_2;
 
     // count from zero
     atom_num_1--; atom_num_2--;
@@ -413,7 +478,7 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgEx
       // fractional vector within unit cell 
       p[i] = atoms[atom_num_2][1][i];
       // real space vector to neighbour
-      r[i] = cfgExchange[n][2][i];
+      is >> r[i];
     }
 
     if(jsym==true) {
@@ -449,22 +514,22 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgEx
             output.write("************************************************************************\n\n");
             break;
           case 1:
-            J0 = cfgExchange[n][3][0];
+            is >> J0;
             interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
             interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
             interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J0/mu_bohr_si; // Jzz
             break;
           case 2:
-            J0 = cfgExchange[n][3][0];
-            J1 = cfgExchange[n][3][1];
+            is >> J0;
+            is >> J1;
             interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
             interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
             interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J1/mu_bohr_si; // Jzz
             break;
           case 3:
-            J0 = cfgExchange[n][3][0];
-            J1 = cfgExchange[n][3][1];
-            J2 = cfgExchange[n][3][2];
+            is >> J0;
+            is >> J1;
+            is >> J2;
             interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
             interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J1/mu_bohr_si; // Jyy
             interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J2/mu_bohr_si; // Jzz
@@ -472,7 +537,7 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgEx
           case 9:
             for(int i=0; i<3; ++i) {
               for(int j=0; j<3; ++j) {
-                J0 = cfgExchange[n][3][3*i+j];
+                is >> J0;
                 interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],i,j) = J0/mu_bohr_si;
               }
             }
@@ -503,27 +568,30 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgEx
         
       // read tensor components
       double J0=0.0,J1=0.0,J2=0.0;
+
       switch (nInteractions) {
         case 0:
+          output.write("\n************************************************************************\n");
           output.write("WARNING: Attempting to insert non existent exchange");
+          output.write("************************************************************************\n\n");
           break;
         case 1:
-          J0 = cfgExchange[n][3][0];
+          is >> J0;
           interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
           interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
           interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J0/mu_bohr_si; // Jzz
           break;
         case 2:
-          J0 = cfgExchange[n][3][0];
-          J1 = cfgExchange[n][3][1];
+          is >> J0;
+          is >> J1;
           interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
           interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
           interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J1/mu_bohr_si; // Jzz
           break;
         case 3:
-          J0 = cfgExchange[n][3][0];
-          J1 = cfgExchange[n][3][1];
-          J2 = cfgExchange[n][3][2];
+          is >> J0;
+          is >> J1;
+          is >> J2;
           interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
           interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J1/mu_bohr_si; // Jyy
           interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J2/mu_bohr_si; // Jzz
@@ -531,7 +599,7 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &cfgEx
         case 9:
           for(int i=0; i<3; ++i) {
             for(int j=0; j<3; ++j) {
-              J0 = cfgExchange[n][3][3*i+j];
+              is >> J0;
               interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],i,j) = J0/mu_bohr_si;
             }
           }
@@ -775,7 +843,8 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     const libconfig::Setting& cfgBasis      =   config.lookup("lattice.unitcell.basis");
     const libconfig::Setting& cfgAtoms      =   config.lookup("lattice.unitcell.atoms");
     const libconfig::Setting& cfgMaterials  =   config.lookup("materials");
-    const libconfig::Setting& cfgExchange   =   config.lookup("exchange");
+//    const libconfig::Setting& cfgExchange   =   config.lookup("exchange");
+
 
     readBasis(cfgBasis, unitcell, unitcellInv);
 
@@ -798,7 +867,7 @@ void Lattice::createFromConfig(libconfig::Config &config) {
 
     initialiseGlobals(config, cfgMaterials, atom_type);
 
-    readInteractions(config, cfgExchange, cfgAtoms, interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
+    readInteractions(config, cfgAtoms, interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
       nAtoms, atomTypeMap, unitcellInv);
 
     createInteractionMatrix(config, cfgMaterials,cfgAtoms,latt,dim,nAtoms,atom_type,interactionVectors, interactionNeighbour, interactionValues,
