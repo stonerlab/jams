@@ -64,7 +64,6 @@ int jams_init(int argc, char **argv) {
       jams_error("Undefined config error");
     }
 
-    libconfig::Setting &phys = config.lookup("physics");
 
 
     std::string solname;
@@ -74,8 +73,11 @@ int jams_init(int argc, char **argv) {
     double init_temperature=0.0;
 
     try {
+
+
       dt = config.lookup("sim.t_step");
       output.write("Timestep: %e\n",dt);
+
 
       double tmp = config.lookup("sim.t_eq");
       steps_eq = static_cast<unsigned int>(tmp/dt);
@@ -101,6 +103,19 @@ int jams_init(int argc, char **argv) {
       if( config.exists("sim.physics") == true ) {
         config.lookupValue("sim.physics",physname);
         std::transform(physname.begin(),physname.end(),physname.begin(),toupper);
+
+        if(physname == "FMR") {
+          physics = Physics::Create(FMR);
+        }else{
+          jams_error("Unknown Physics package selected.");
+        }
+
+        libconfig::Setting &phys = config.lookup("physics");
+        physics->init(phys);
+
+      } else {
+        physics = Physics::Create(EMPTY);
+        output.write("WARNING: Using empty physics package\n");
       }
 
 
@@ -116,6 +131,12 @@ int jams_init(int argc, char **argv) {
       init_temperature = config.lookup("sim.temperature");
       output.write("Initial temperature: %f\n",init_temperature);
 
+
+      rng.seed(randomseed);
+
+      lattice.createFromConfig(config);
+
+
     }
     catch(const libconfig::SettingNotFoundException &nfex) {
       jams_error("Setting '%s' not found",nfex.getPath());
@@ -123,20 +144,6 @@ int jams_init(int argc, char **argv) {
     catch(...) {
       jams_error("Undefined config error");
     }
-
-    rng.seed(randomseed);
-
-    lattice.createFromConfig(config);
-  
-    if(physname == "FMR") {
-      physics = Physics::Create(FMR);
-    } else {
-      physics = Physics::Create(EMPTY);
-      output.write("WARNING: Using empty physics package\n");
-    }
-
-    
-    physics->init(phys);
 
       
     if(solname == "HEUNLLG") {
