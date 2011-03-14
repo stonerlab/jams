@@ -46,11 +46,11 @@ void readBasis (const libconfig::Setting &cfgBasis, double unitcell[3][3], doubl
 ///
 /// @brief  Read atom positions and types from config file.
 ///
-void readAtoms(Array<int> &unitCellTypes, Array2D<double> &unitCellPositions, int &nAtoms, int &nTypes, std::map<std::string,int> &atomTypeMap) {
+void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D<double> &unitCellPositions, int &nAtoms, int &nTypes, std::map<std::string,int> &atomTypeMap) {
   //  Read atomic positions and types from config
   
 
-  std::ifstream positionFile("pos.in");
+  std::ifstream positionFile(positionFileName.c_str());
 
   nAtoms = 0;
   for (std::string line; getline(positionFile,line);) {
@@ -314,7 +314,7 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
 ///
 /// @brief  Read the interaction parameters from configuration file.
 ///
-void readInteractions(libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array3D<double> &interactionVectors, 
+void readInteractions(std::string &exchangeFileName, libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array3D<double> &interactionVectors, 
   Array2D<int> &interactionNeighbour, Array4D<double> &interactionValues, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3]) {
   using namespace globals;
     
@@ -329,7 +329,7 @@ void readInteractions(libconfig::Config &config, const Array<int> &unitCellTypes
 
   std::vector<int> atomInterCount(nspins,0);
 
-  std::ifstream exchangeFile("exch.in");
+  std::ifstream exchangeFile(exchangeFileName.c_str());
 
   // count number of interactions
   if(jsym == true) {
@@ -866,7 +866,9 @@ void Lattice::createFromConfig(libconfig::Config &config) {
 
     readBasis(cfgBasis, unitcell, unitcellInv);
 
-    readAtoms(unitCellTypes, unitCellPositions, nAtoms, nTypes, atomTypeMap);
+    std::string positionFileName = config.lookup("lattice.positions");
+    readAtoms(positionFileName,unitCellTypes, unitCellPositions, nAtoms, nTypes, atomTypeMap);
+
     assert(nAtoms > 0);
     assert(nTypes > 0);
 
@@ -885,7 +887,8 @@ void Lattice::createFromConfig(libconfig::Config &config) {
 
     initialiseGlobals(config, cfgMaterials, atom_type);
 
-    readInteractions(config, unitCellTypes, unitCellPositions,interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
+    std::string exchangeFileName = config.lookup("lattice.exchange");
+    readInteractions(exchangeFileName, config, unitCellTypes, unitCellPositions,interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
       nAtoms, atomTypeMap, unitcellInv);
 
     createInteractionMatrix(config, cfgMaterials,latt,dim, nAtoms, unitCellTypes, unitCellPositions,
