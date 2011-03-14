@@ -46,32 +46,61 @@ void readBasis (const libconfig::Setting &cfgBasis, double unitcell[3][3], doubl
 ///
 /// @brief  Read atom positions and types from config file.
 ///
-void readAtoms(const libconfig::Setting &cfgAtoms, int &nAtoms, int &nTypes, std::map<std::string,int> &atomTypeMap) {
+void readAtoms(Array<int> &unitCellTypes, Array2D<double> &unitCellPositions, int &nAtoms, int &nTypes, std::map<std::string,int> &atomTypeMap) {
   //  Read atomic positions and types from config
   
-  nAtoms = cfgAtoms.getLength();
-              
+
+  std::ifstream positionFile("pos.in");
+
+  nAtoms = 0;
+  for (std::string line; getline(positionFile,line);) {
+    nAtoms++;
+  }
+
+  unitCellTypes.resize(nAtoms);
+  unitCellPositions.resize(nAtoms,3);
+
   output.write("\nAtoms in unit cell\n------------------\n");
   
   std::map<std::string,int>::iterator it_type;
   nTypes = 0;
   
-  double pos[3];      
-  for (int n=0; n<nAtoms; ++n) {
-    const std::string type_name = cfgAtoms[n][0];
-    
-    for(int j=0; j<3; ++j) { pos[j] = cfgAtoms[n][1][j]; }
-    output.write("%s %f %f %f\n",type_name.c_str(),pos[0],pos[1],pos[2]);
+  std::string typeName;
+  
+  positionFile.clear();
+  positionFile.seekg(0,std::ios::beg);
 
-    it_type = atomTypeMap.find(type_name);
+  for(int n=0; n<nAtoms; ++n) {
+
+    std::string line;
+    
+    getline(positionFile,line);
+
+    std::stringstream is(line);
+    
+    is >> typeName;
+    for(int j=0; j<3; ++j) { 
+      is >> unitCellPositions(n,j);
+    }
+
+    output.write("%s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+
+    it_type = atomTypeMap.find(typeName);
     if (it_type == atomTypeMap.end()) { 
       // type not found in map -> add to map
       // map type_name -> int
-      atomTypeMap.insert( std::pair<std::string,int>(type_name,nTypes) );
+      
+      unitCellTypes(n) = nTypes;
+
+      atomTypeMap.insert( std::pair<std::string,int>(typeName,nTypes) );
       nTypes++;
+    } else {
+      unitCellTypes(n) = atomTypeMap[typeName];
     }
   }
   output.write("\nUnique types found: %d\n",nTypes);
+
+  positionFile.close();
 }
 
 ///
@@ -102,8 +131,9 @@ void readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bo
 ///
 /// @brief  Create lattice on numbered spin locations.
 ///
-void createLattice(const libconfig::Setting &cfgLattice, const libconfig::Setting &cfgAtoms, std::map<std::string,int> &atomTypeMap, Array4D<int> &latt, 
-  std::vector<int> &atom_type, std::vector<int> &type_count, const std::vector<int> &dim, const int nAtoms, bool pbc[3]) {
+void createLattice(const libconfig::Setting &cfgLattice, Array<int> &unitCellTypes, Array2D<double> &unitCellPositions, 
+  std::map<std::string,int> &atomTypeMap, Array4D<int> &latt, std::vector<int> &atom_type, std::vector<int> &type_count, 
+  const std::vector<int> &dim, const int nAtoms, bool pbc[3]) {
   using namespace globals;
   const int maxatoms = dim[0]*dim[1]*dim[2]*nAtoms;
   assert(maxatoms > 0);
@@ -144,10 +174,9 @@ void createLattice(const libconfig::Setting &cfgLattice, const libconfig::Settin
       for (int y=0; y<dim[1]; ++y) {
         for (int z=0; z<dim[2]; ++z) {
           for (int n=0; n<nAtoms; ++n) {
-            const std::string type_name = cfgAtoms[n][0];
-            const int type_num = atomTypeMap[type_name];
-            atom_type.push_back(type_num);
-            type_count[type_num]++;
+            const int typeNum = unitCellTypes(n);
+            atom_type.push_back(typeNum);
+            type_count[typeNum]++;
             latt(x,y,z,n) = counter++;
           } // n
         } // z
@@ -166,10 +195,10 @@ void createLattice(const libconfig::Setting &cfgLattice, const libconfig::Settin
           if( ((x-a)*(x-a)/(a*a) + (y-b)*(y-b)/(b*b) + (z-c)*(z-c)/(c*c)) < 1.0) {
 
             for (int n=0; n<nAtoms; ++n) {
-              const std::string type_name = cfgAtoms[n][0];
-              const int type_num = atomTypeMap[type_name];
-              atom_type.push_back(type_num);
-              type_count[type_num]++;
+
+              const int typeNum = unitCellTypes(n);
+              atom_type.push_back(typeNum);
+              type_count[typeNum]++;
               latt(x,y,z,n) = counter++;
             } // n
           }
@@ -190,7 +219,7 @@ void createLattice(const libconfig::Setting &cfgLattice, const libconfig::Settin
 ///
 /// @brief  Print lattice to file.
 ///
-void printLattice(const libconfig::Setting &cfgAtoms, Array4D<int> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms) {
+void printLattice(const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<int> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms) {
   using namespace globals;
   assert(nspins > 0);
 
@@ -206,12 +235,11 @@ void printLattice(const libconfig::Setting &cfgAtoms, Array4D<int> &latt, std::v
       for (int z=0; z<dim[2]; ++z) {
         for (int n=0; n<nAtoms; ++n) {
           if(latt(x,y,z,n) != -1) {
-            const std::string t = cfgAtoms[n][0];
-            structfile << t <<"\t";
+            structfile << unitCellTypes(n) <<"\t";
             q[0] = x; q[1] = y; q[2] = z;
             for(int i=0; i<3; ++i) {
               r[i] = 0.0;
-              p[i] = cfgAtoms[n][1][i];
+              p[i] = unitCellPositions(n,i);
               for(int j=0; j<3; ++j) {
                 r[i] += unitcell[j][i]*(q[j]+p[i]);
               }
@@ -286,7 +314,7 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
 ///
 /// @brief  Read the interaction parameters from configuration file.
 ///
-void readInteractions(libconfig::Config &config, const libconfig::Setting &atoms, Array3D<double> &interactionVectors, 
+void readInteractions(libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array3D<double> &interactionVectors, 
   Array2D<int> &interactionNeighbour, Array4D<double> &interactionValues, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3]) {
   using namespace globals;
     
@@ -302,12 +330,6 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &atoms
   std::vector<int> atomInterCount(nspins,0);
 
   std::ifstream exchangeFile("exch.in");
-
-  std::string line;
-
-
-
-
 
   // count number of interactions
   if(jsym == true) {
@@ -383,6 +405,7 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &atoms
 
   int nInteractions=0;
   if(nInterTotal > 0) {
+    std::string line;
     int atom1=0;
     int atom2=0;
 
@@ -458,6 +481,7 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &atoms
 
   int inter_counter = 0;
   for(int n=0; n<nInterConfig; ++n) {
+    std::string line;
     
     getline(exchangeFile,line);
     std::stringstream is(line);
@@ -476,7 +500,7 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &atoms
 
     for(int i=0; i<3; ++i) {
       // fractional vector within unit cell 
-      p[i] = atoms[atom_num_2][1][i];
+      p[i] = unitCellPositions(atom_num_2,i);
       // real space vector to neighbour
       is >> r[i];
     }
@@ -500,10 +524,6 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &atoms
           interactionVectors(atom_num_1,nInteractionsOfType[atom_num_1],i) = d_latt[i];
         }
   
-        const std::string type_name=atoms[atom_num_1][0];
-
-        //int type_num = atomTypeMap[type_name];
-          
 
         // read tensor components
         double J0=0.0,J1=0.0,J2=0.0;
@@ -562,9 +582,6 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &atoms
       }
       //std::cerr<<n<<"\t"<<atom_num_1<<"\t"<<atom_num_2<<"\t d_latt: "<<d_latt[0]<<"\t"<<d_latt[1]<<"\t"<<d_latt[2]<<std::endl;
 
-      const std::string type_name=atoms[atom_num_1][0];
-
-      //int type_num = atomTypeMap[type_name];
         
       // read tensor components
       double J0=0.0,J1=0.0,J2=0.0;
@@ -618,8 +635,8 @@ void readInteractions(libconfig::Config &config, const libconfig::Setting &atoms
 ///
 /// @brief  Create interaction matrix.
 ///
-void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, const libconfig::Setting &cfgAtoms, Array4D<int> &latt, 
-  const std::vector<int> dim, const int nAtoms, const std::vector<int> &atom_type, const Array3D<double> &interactionVectors,
+void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, Array4D<int> &latt, 
+  const std::vector<int> dim, const int nAtoms, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, const std::vector<int> &atom_type, const Array3D<double> &interactionVectors,
   const Array2D<int> &interactionNeighbour, const Array4D<double> &interactionValues, const std::vector<int> &nInteractionsOfType, 
   const double unitcellInv[3][3], const bool pbc[3]) 
 {
@@ -672,7 +689,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
             q[0] = x; q[1] = y; q[2] = z;
             
             for(int j=0; j<3; ++j) {
-              p[j] = cfgAtoms[n][1][j];
+              p[j] = unitCellPositions(n,j);
             }
           
 
@@ -685,7 +702,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
               assert(m >= 0);
               
               for(int j=0; j<3; ++j) {
-                pnbr[j] = cfgAtoms[m][1][j];
+                pnbr[j] =  unitCellPositions(m,j);
               }
 
               double pnbrcell[3]={0.0,0.0,0.0};
@@ -827,6 +844,8 @@ void Lattice::createFromConfig(libconfig::Config &config) {
 
     {
     Array4D<int> latt;
+    Array2D<double> unitCellPositions;
+    Array<int>      unitCellTypes;
     Array3D<double> interactionVectors;
     Array4D<double> interactionValues;
     Array2D<int> interactionNeighbour;
@@ -841,14 +860,13 @@ void Lattice::createFromConfig(libconfig::Config &config) {
   
     const libconfig::Setting& cfgLattice    =   config.lookup("lattice");
     const libconfig::Setting& cfgBasis      =   config.lookup("lattice.unitcell.basis");
-    const libconfig::Setting& cfgAtoms      =   config.lookup("lattice.unitcell.atoms");
     const libconfig::Setting& cfgMaterials  =   config.lookup("materials");
 //    const libconfig::Setting& cfgExchange   =   config.lookup("exchange");
 
 
     readBasis(cfgBasis, unitcell, unitcellInv);
 
-    readAtoms(cfgAtoms, nAtoms, nTypes, atomTypeMap);
+    readAtoms(unitCellTypes, unitCellPositions, nAtoms, nTypes, atomTypeMap);
     assert(nAtoms > 0);
     assert(nTypes > 0);
 
@@ -857,20 +875,21 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     type_count.resize(nTypes);
     for(int i=0; i<nTypes; ++i) { type_count[i] = 0; }
 
-    createLattice(cfgLattice,cfgAtoms,atomTypeMap,latt,atom_type,type_count,dim,nAtoms,pbc);
+    createLattice(cfgLattice,unitCellTypes, unitCellPositions, atomTypeMap,latt,atom_type,type_count,dim,nAtoms,pbc);
 
 #ifdef DEBUG
-    printLattice(cfgAtoms,latt,dim,unitcell,nAtoms);
+    printLattice(unitCellTypes, unitCellPositions,latt,dim,unitcell,nAtoms);
 #endif // DEBUG
 
     resizeGlobals();
 
     initialiseGlobals(config, cfgMaterials, atom_type);
 
-    readInteractions(config, cfgAtoms, interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
+    readInteractions(config, unitCellTypes, unitCellPositions,interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
       nAtoms, atomTypeMap, unitcellInv);
 
-    createInteractionMatrix(config, cfgMaterials,cfgAtoms,latt,dim,nAtoms,atom_type,interactionVectors, interactionNeighbour, interactionValues,
+    createInteractionMatrix(config, cfgMaterials,latt,dim, nAtoms, unitCellTypes, unitCellPositions,
+      atom_type,interactionVectors, interactionNeighbour, interactionValues,
       nInteractionsOfType, unitcellInv,pbc);
     }
 
