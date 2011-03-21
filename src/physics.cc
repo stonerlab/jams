@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "physics.h"
 #include "fmr.h"
+#include "ttm.h"
 #include "empty.h"
 
 #include <libconfig.h++>
@@ -27,6 +28,9 @@ Physics* Physics::Create(PhysicsType type)
   switch(type){
     case FMR:
       return new FMRPhysics;
+      break;
+    case TTM:
+      return new TTMPhysics;
       break;
     case EMPTY:
       return new EmptyPhysics;

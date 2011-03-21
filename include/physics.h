@@ -3,7 +3,7 @@
 
 #include <libconfig.h++>
 
-enum PhysicsType{ EMPTY, FMR };
+enum PhysicsType{ EMPTY, FMR, TTM };
 
 class Physics
 {

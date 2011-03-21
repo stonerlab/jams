@@ -106,6 +106,8 @@ int jams_init(int argc, char **argv) {
 
         if(physname == "FMR") {
           physics = Physics::Create(FMR);
+        }else if(physname == "TTM") {
+          physics = Physics::Create(TTM);
         }else{
           jams_error("Unknown Physics package selected.");
         }
