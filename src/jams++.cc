@@ -209,12 +209,15 @@ void jams_run() {
   elapsed/=CLOCKS_PER_SEC;
   output.write("Solving time: %f\n",elapsed);
 
+  if(mag != NULL) { delete mag; }
+
 }
 
 void jams_finish() {
   using namespace globals;
 
   if(solver != NULL) { delete solver; }
+  if(physics != NULL) { delete physics; }
 }
 
 int main(int argc, char **argv) {
