@@ -1,4 +1,5 @@
 jams++
+*.in
 *.out
 *.err
 *.dat
