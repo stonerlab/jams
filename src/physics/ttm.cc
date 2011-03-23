@@ -10,7 +10,8 @@ void TTMPhysics::init(libconfig::Setting &phys)
 {
   using namespace globals;
 
-  electronTemp = phys["InitialTemperature"];
+  phononTemp = phys["InitialTemperature"];
+  electronTemp = phononTemp;
 
   // unitless according to Tom's code!
   pumpFluence = phys["PumpFluence"];
