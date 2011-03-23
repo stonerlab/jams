@@ -20,6 +20,8 @@ void TTMPhysics::init(libconfig::Setting &phys)
   // width of gaussian heat pulse in seconds
   pumpTime = phys["PumpTime"];
 
+  pumpStartTime = phys["PumpStartTime"];
+
 
   std::string fileName = "_ttm.dat";
   fileName = seedname+fileName;
@@ -41,14 +43,18 @@ void TTMPhysics::run(const double realtime, const double dt)
 {
   using namespace globals;
 
-  if(realtime < pumpTime) {
-    pumpTemp = pumpFluence*exp(-((realtime-3*pumpTime)/(pumpTime))*((realtime-3*pumpTime)/(pumpTime)));
-  } else {
-    pumpTemp = 0.0;
-  }
+  const double relativeTime = (realtime-pumpStartTime);
 
-  electronTemp = electronTemp + ((-G*(electronTemp-phononTemp)+pumpTemp)*dt)/(Ce*electronTemp);
-  phononTemp   = phononTemp   + (( G*(electronTemp-phononTemp)         )*dt)/(Cl);
+  if( relativeTime > 0.0 ) {
+    if( relativeTime <= 10*pumpTime ) {
+      pumpTemp = pumpFluence*exp(-((relativeTime-3*pumpTime)/(pumpTime))*((relativeTime-3*pumpTime)/(pumpTime)));
+    } else {
+      pumpTemp = 0.0;
+    }
+
+    electronTemp = electronTemp + ((-G*(electronTemp-phononTemp)+pumpTemp)*dt)/(Ce*electronTemp);
+    phononTemp   = phononTemp   + (( G*(electronTemp-phononTemp)         )*dt)/(Cl);
+  }
 
   
 }
