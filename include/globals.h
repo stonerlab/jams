@@ -41,6 +41,7 @@ namespace globals
   GLOBAL int nspins3;
 
   GLOBAL double h_app[3];
+  GLOBAL double globalTemperature;
 
   GLOBAL Array2D<double> s;
   GLOBAL Array2D<double> h;

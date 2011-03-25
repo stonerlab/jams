@@ -131,6 +131,7 @@ int jams_init(int argc, char **argv) {
       output.write("Seed: %d\n",randomseed);
 
       init_temperature = config.lookup("sim.temperature");
+      globals::globalTemperature = init_temperature;
       output.write("Initial temperature: %f\n",init_temperature);
 
 
@@ -192,6 +193,7 @@ void jams_run() {
       mag->write(solver->getTime());
     }
     physics->run(solver->getTime(),dt);
+    solver->setTemperature(globalTemperature);
     solver->run();
   }
   
@@ -205,6 +207,7 @@ void jams_run() {
       physics->monitor(solver->getTime(),dt);
     }
     physics->run(solver->getTime(),dt);
+    solver->setTemperature(globalTemperature);
     solver->run();
   }
   double elapsed = static_cast<double>(std::clock()-start);
