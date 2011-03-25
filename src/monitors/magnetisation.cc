@@ -50,6 +50,9 @@ void MagnetisationMonitor::write(const double &time) {
   }
 
   outfile << time;
+
+  outfile << "\t" << globalTemperature;
+
   for(i=0; i<3; ++i) {
     outfile << "\t" << h_app[i];  
   }
