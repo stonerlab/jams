@@ -22,6 +22,10 @@ void TTMPhysics::init(libconfig::Setting &phys)
 
   pumpStartTime = phys["PumpStartTime"];
 
+  for(int i=0; i<3; ++i) {
+    reversingField[i] = phys["ReversingField"][i];
+  }
+
 
   std::string fileName = "_ttm.dat";
   fileName = seedname+fileName;
@@ -45,7 +49,12 @@ void TTMPhysics::run(const double realtime, const double dt)
 
   const double relativeTime = (realtime-pumpStartTime);
 
+
   if( relativeTime > 0.0 ) {
+
+    for(int i=0; i<3; ++i) {
+      globals::h_app[i] = reversingField[i];
+    }
     if( relativeTime <= 10*pumpTime ) {
       pumpTemp = pumpFluence*exp(-((relativeTime-3*pumpTime)/(pumpTime))*((relativeTime-3*pumpTime)/(pumpTime)));
     } else {
