@@ -65,6 +65,8 @@ void TTMPhysics::run(const double realtime, const double dt)
     phononTemp   = phononTemp   + (( G*(electronTemp-phononTemp)         )*dt)/(Cl);
   }
 
+  globalTemperature = electronTemp;
+
   
 }
 
