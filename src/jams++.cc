@@ -95,30 +95,6 @@ int jams_init(int argc, char **argv) {
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
       globals::h_app[2] = config.lookup("sim.h_app.[2]");
     
-      if( config.exists("sim.solver") == true ) {
-        config.lookupValue("sim.solver",solname);
-        std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
-      }
-
-      if( config.exists("sim.physics") == true ) {
-        config.lookupValue("sim.physics",physname);
-        std::transform(physname.begin(),physname.end(),physname.begin(),toupper);
-
-        if(physname == "FMR") {
-          physics = Physics::Create(FMR);
-        }else if(physname == "TTM") {
-          physics = Physics::Create(TTM);
-        }else{
-          jams_error("Unknown Physics package selected.");
-        }
-
-        libconfig::Setting &phys = config.lookup("physics");
-        physics->init(phys);
-
-      } else {
-        physics = Physics::Create(EMPTY);
-        output.write("WARNING: Using empty physics package\n");
-      }
 
 
       if( config.exists("sim.seed") == true) {
@@ -139,6 +115,32 @@ int jams_init(int argc, char **argv) {
 
       lattice.createFromConfig(config);
 
+      if( config.exists("sim.solver") == true ) {
+        config.lookupValue("sim.solver",solname);
+        std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
+      }
+
+      if( config.exists("sim.physics") == true ) {
+        config.lookupValue("sim.physics",physname);
+        std::transform(physname.begin(),physname.end(),physname.begin(),toupper);
+
+        if(physname == "FMR") {
+          physics = Physics::Create(FMR);
+        }else if(physname == "TTM") {
+          physics = Physics::Create(TTM);
+        }else if(physname == "SPINWAVES") {
+          physics = Physics::Create(SPINWAVES);
+        }else{
+          jams_error("Unknown Physics package selected.");
+        }
+
+        libconfig::Setting &phys = config.lookup("physics");
+        physics->init(phys);
+
+      } else {
+        physics = Physics::Create(EMPTY);
+        output.write("WARNING: Using empty physics package\n");
+      }
 
     }
     catch(const libconfig::SettingNotFoundException &nfex) {
