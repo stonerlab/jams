@@ -180,8 +180,6 @@ void jams_run() {
   using namespace globals;
   
 
-  h_app[0] = 0.0; h_app[1] = 0.0; h_app[2] = 0.0;
-
   Monitor *mag = new MagnetisationMonitor();
   mag->initialise();
 
