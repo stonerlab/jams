@@ -107,10 +107,10 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
 //    FFTArray[i][1] = s(i,1);
 //  }
 
-/*
 
   double magA[3] = {0.0,0.0,0.0};
   double magB[3] = {0.0,0.0,0.0};
+  
   for(int i=0; i<nspins; ++i){
     if(typeOverride[i] == 0){
       magA[0] += s(i,0);
@@ -131,14 +131,15 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
     magB[j] = magB[j]/(0.5*nspins);
   }
 
-  const double phi = acos(mag[2]*norm);
-  const double theta   = atan2(mag[0],mag[1]);
+
+  double phi = acos(magA[2]*normA);
+  double theta   = atan2(magA[0],magA[1]);
 
   // calculate rotation matrix for rotating m->m_z
-  const double c_t = cos(theta);
-  const double c_p = cos(phi);
-  const double s_t = sin(theta);
-  const double s_p = sin(phi);
+  double c_t = cos(theta);
+  double c_p = cos(phi);
+  double s_t = sin(theta);
+  double s_p = sin(phi);
 
   double rotA[3][3];
 
@@ -153,24 +154,54 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
 //   rot[2][1]=0.0;
 //   rot[2][2]=c_t;
 
-  rot[0][0]=c_t*c_p;
-  rot[0][1]=-s_t;
-  rot[0][2]=c_t*s_p;
-  rot[1][0]=s_t*c_p;
-  rot[1][1]=c_t;
-  rot[1][2]=s_t*s_p;
-  rot[2][0]=-s_p;
-  rot[2][1]=0.0;
-  rot[2][2]=c_p;
+  rotA[0][0]=c_t*c_p;
+  rotA[0][1]=s_t*c_p;
+  rotA[0][2]=-s_p;
+  rotA[1][0]=-s_t;
+  rotA[1][1]=c_t;
+  rotA[1][2]=0.0;
+  rotA[2][0]=c_t*s_p;
+  rotA[2][1]=s_t*s_p;
+  rotA[2][2]=c_p;
+
+  phi = acos(magB[2]*normB);
+  theta   = atan2(magB[0],magB[1]);
+
+  // calculate rotation matrix for rotating m->m_z
+  c_t = cos(theta);
+  c_p = cos(phi);
+  s_t = sin(theta);
+  s_p = sin(phi);
+
+  double rotB[3][3];
+//   rotB[0][0]=c_t*c_p;
+//   rotB[0][1]=s_t*c_p;
+//   rotB[0][2]=-s_p;
+//   rotB[1][0]=-s_t;
+//   rotB[1][1]=c_t;
+//   rotB[1][2]=0.0;
+//   rotB[2][0]=c_t*s_p;
+//   rotB[2][1]=s_t*s_p;
+//   rotB[2][2]=c_p;
+
+//   rotB[0][0]=c_t*c_p;
+//   rotB[0][1]=-s_t;
+//   rotB[0][2]=c_t*s_p;
+//   rotB[1][0]=s_t*c_p;
+//   rotB[1][1]=c_t;
+//   rotB[1][2]=s_t*s_p;
+//   rotB[2][0]=-s_p;
+//   rotB[2][1]=0.0;
+//   rotB[2][2]=c_p;
 
   for(int i=0; i<nspins; ++i){
 
     if(typeOverride[i] == 0){
-      FFTArray[i][0] = rot[0][0]*s(i,0) + rot[0][1]*s(i,1) + rot[0][2]*s(i,2);
-      FFTArray[i][1] = rot[1][0]*s(i,0) + rot[1][1]*s(i,1) + rot[1][2]*s(i,2);
+      FFTArray[i][0] = rotA[0][0]*s(i,0) + rotA[0][1]*s(i,1) + rotA[0][2]*s(i,2);
+      FFTArray[i][1] = rotA[1][0]*s(i,0) + rotA[1][1]*s(i,1) + rotA[1][2]*s(i,2);
     } else {
-      FFTArray[i][0] = (rot[0][0]*s(i,0) + rot[0][1]*s(i,1) + rot[0][2]*s(i,2));
-      FFTArray[i][1] = -(rot[1][0]*s(i,0) + rot[1][1]*s(i,1) + rot[1][2]*s(i,2));
+      FFTArray[i][0] = (rotA[0][0]*(-s(i,0)) + rotA[0][1]*s(i,1) + rotA[0][2]*(-s(i,2)));
+      FFTArray[i][1] = (rotA[1][0]*(-s(i,0)) + rotA[1][1]*s(i,1) + rotA[1][2]*(-s(i,2)));
     }
   }
 
@@ -191,16 +222,16 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
   const double kzero = (FFTArray[0][0]*FFTArray[0][0] + FFTArray[0][1]*FFTArray[0][1])/(pow_norm);
 
   SPWFile << realtime << "\t" << kzero << "\t" << 1.0-kzero;
-  SPWFile << "\t"<< mag[0] << "\t" << mag[1] << "\t" << mag[2];
+  SPWFile << "\t"<< magA[0] << "\t" << magA[1] << "\t" << magA[2];
+  SPWFile << "\t"<< magB[0] << "\t" << magB[1] << "\t" << magB[2];
 
-  for(int k=1; k<(dim[2]/2)+1; ++k){
-    const int kVec[3] = {0,0,k};
-    const int idx = kVec[2] + dim[2]*(kVec[1] + dim[1]*kVec[0]);
-    double pow = (FFTArray[idx][0]*FFTArray[idx][0] + FFTArray[idx][1]*FFTArray[idx][1]);
-    SPWFile << "\t" << pow/pow_norm;
-  }
+   for(int k=1; k<(dim[2]/2)+1; ++k){
+     const int kVec[3] = {0,0,k};
+     const int idx = kVec[2] + dim[2]*(kVec[1] + dim[1]*kVec[0]);
+     double pow = (FFTArray[idx][0]*FFTArray[idx][0] + FFTArray[idx][1]*FFTArray[idx][1]);
+     SPWFile << "\t" << pow/pow_norm;
+   }
   SPWFile << "\n";
 
   fftw_execute(FFTPlan);
-  */
 }
