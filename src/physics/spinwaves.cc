@@ -6,6 +6,8 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
 {
   using namespace globals;
 
+  output.write("Initialising physics module - Spinwaves\n");
+
   lattice.getDimensions(dim[0],dim[1],dim[2]);
 
   assert( dim[0]*dim[1]*dim[2] > 0 );
@@ -18,11 +20,13 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
   std::string fileName = "_spw.dat";
   fileName = seedname+fileName;
   SPWFile.open(fileName.c_str());
-  SPWFile << "# t [s]\tk=0\tk!=0\n";
+  SPWFile << "# t [s]\tk=0\tk!=0\tM_AF1_x\tM_AF1_y\tM_AF1_z\n";
 
   typeOverride.resize(nspins);
 
   int count=0;
+  int countAF1=0;
+  int countAF2=0;
   for(int i=0; i<dim[0]; ++i){
     for(int j=0; j<dim[1]; ++j){
       for(int k=0; k<dim[2]; ++k){
@@ -30,17 +34,21 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
           if(j%2 == 0){
             if(k%2 == 0){
               typeOverride[count]=0;
+              countAF1++;
               count++;
             }else{
               typeOverride[count]=1;
+              countAF2++;
               count++;
             }
           }else{
             if(k%2 == 0){
               typeOverride[count]=1;
+              countAF2++;
               count++;
             }else{
               typeOverride[count]=0;
+              countAF1++;
               count++;
             }
           }
@@ -48,17 +56,21 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
           if(j%2 == 0){
             if(k%2 == 0){
               typeOverride[count]=1;
+              countAF2++;
               count++;
             }else{
               typeOverride[count]=0;
+              countAF1++;
               count++;
             }
           }else{
             if(k%2 == 0){
               typeOverride[count]=0;
+              countAF1++;
               count++;
             }else{
               typeOverride[count]=1;
+              countAF2++;
               count++;
             }
           }
@@ -66,6 +78,8 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
       }
     }
   }
+
+  output.write("AF counts AF1:%d AF2:%d\n",countAF1,countAF2);
 
   for(int i=0;i<nspins;++i){
     if(typeOverride[i] == 0){
