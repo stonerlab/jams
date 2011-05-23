@@ -48,8 +48,6 @@ int jams_init(int argc, char **argv) {
   std::string cfgfile = seedname+".cfg";
 
   {
-    libconfig::Config config;
-
     try {
       config.readFile(cfgfile.c_str());
     }

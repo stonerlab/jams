@@ -23,7 +23,7 @@ void jams_error(const char *string, ...);
 
 GLOBAL Lattice lattice;
 
-//GLOBAL libconfig::Config config;  ///< Config object
+GLOBAL libconfig::Config config;  ///< Config object
 
 GLOBAL Output output;
 
