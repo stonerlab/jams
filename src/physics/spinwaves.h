@@ -14,8 +14,10 @@ class SpinwavesPhysics : public Physics {
         FFTPlan(),
         FFTArray(NULL),
         SPWFile(),
+        SPDFile(),
         typeOverride(),
-        initialised(false)
+        initialised(false),
+        spinDump(false)
       {}
 
     ~SpinwavesPhysics();
@@ -29,7 +31,9 @@ class SpinwavesPhysics : public Physics {
     fftw_plan       FFTPlan;
     fftw_complex*   FFTArray;
     std::ofstream   SPWFile;
+    std::ofstream   SPDFile;
     std::vector<int> typeOverride;
     bool initialised;
+    bool spinDump;
 };
 #endif /* __SPINWAVES_H__ */

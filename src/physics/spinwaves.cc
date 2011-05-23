@@ -1,4 +1,7 @@
 #include <cmath>
+#include <iostream>
+#include <fstream>
+
 #include "globals.h"
 #include "spinwaves.h"
 
@@ -17,10 +20,11 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
 
   FFTPlan = fftw_plan_dft_3d(dim[0],dim[1],dim[2],FFTArray,FFTArray,FFTW_FORWARD,FFTW_MEASURE);
   
-  std::string fileName = "_spw.dat";
-  fileName = seedname+fileName;
-  SPWFile.open(fileName.c_str());
+  std::string filename = "_spw.dat";
+  filename = seedname+filename;
+  SPWFile.open(filename.c_str());
   SPWFile << "# t [s]\tk=0\tk!=0\tM_AF1_x\tM_AF1_y\tM_AF1_z\n";
+
 
   typeOverride.resize(nspins);
 
@@ -91,6 +95,25 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
       s(i,1) = 0.0;
       s(i,2) = -1.0;
     }
+  }
+
+  // read from config if spinstates should be dumped
+  // (default is false)
+  spinDump = false;
+  phys.lookupValue("spindump",spinDump);
+
+  // open spin dump file as binary file
+  filename = "_spd.dat";
+  filename = seedname+filename;
+  if(spinDump == true){
+    SPDFile.open(filename.c_str(),std::ofstream::binary);
+  }
+
+  SPDFile.write((char*)&nspins,sizeof(double));
+
+  for(int i=0;i<nspins;++i){
+    int type = lattice.getType(i);
+    SPDFile.write((char*)&type,sizeof(int));
   }
 
   initialised = true;
@@ -217,6 +240,11 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
       FFTArray[i][0] = (rotA[0][0]*(-s(i,0)) + rotA[0][1]*s(i,1) + rotA[0][2]*(-s(i,2)));
       FFTArray[i][1] = (rotA[1][0]*(-s(i,0)) + rotA[1][1]*s(i,1) + rotA[1][2]*(-s(i,2)));
     }
+  }
+
+  if(spinDump == true){
+    // write spin dump data in binary
+    SPDFile.write((char*)FFTArray,nspins*sizeof(fftw_complex));
   }
 
   fftw_execute(FFTPlan);
