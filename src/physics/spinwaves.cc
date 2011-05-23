@@ -109,7 +109,13 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
     SPDFile.open(filename.c_str(),std::ofstream::binary);
   }
 
-  SPDFile.write((char*)&nspins,sizeof(double));
+  const double sampletime = config.lookup("sim.t_out");
+  const double runtime = config.lookup("sim.t_run");
+  const int outcount = runtime/sampletime;
+
+  SPDFile.write((char*)&outcount,sizeof(int));
+  SPDFile.write((char*)&dim[0],3*sizeof(int));
+  SPDFile.write((char*)&sampletime,sizeof(double));
 
   for(int i=0;i<nspins;++i){
     int type = lattice.getType(i);
