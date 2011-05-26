@@ -642,9 +642,12 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 {
   
   using namespace globals;
+              
+  const double encut = 1E-26/mu_bohr_si; // energy cutoff
 
-  // single row of interaction matrix
-  Array3D<double> spinInteractions(nspins,3,3);
+  double KTensor[3][3] = { {0.0, 0.0, 0.0},
+                           {0.0, 0.0, 0.0},
+                           {0.0, 0.0, 0.0} };
 
   //double encut = 1e-25;  // energy cutoff
   double p[3], pnbr[3];
@@ -666,15 +669,14 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
       for (int z=0; z<dim[2]; ++z) {
         for (int n=0; n<nAtoms; ++n) {
 
-          for(int i=0; i<nspins; ++i) {
-            for(int j=0; j<3; ++j) {
-              for(int k=0; k<3; ++k) {
-                spinInteractions(i,j,k) = 0.0;
+          if(latt(x,y,z,n) != -1) {
+
+            for(int row=0; row<3; ++row) {
+              for(int col=0; col<3; ++col) {
+                KTensor[row][col] = 0.0;
               }
             }
-          }
 
-          if(latt(x,y,z,n) != -1) {
             const int s_i = latt(x,y,z,n);
             const int type_num = atom_type[s_i];
 
@@ -701,27 +703,20 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
               assert(m >= 0);
               
-              for(int j=0; j<3; ++j) {
-                pnbr[j] =  unitCellPositions(m,j);
-              }
+              for(int j=0; j<3; ++j) { pnbr[j] =  unitCellPositions(m,j); }
 
               double pnbrcell[3]={0.0,0.0,0.0};
               // put pnbr in unit cell
               matmul(unitcellInv,pnbr,pnbrcell);
 
-              for(int j=0; j<3; ++j) {
-                qnbr[j] = floor(interactionVectors(n,i,j)-pnbrcell[j]+0.5);
-              }
+              for(int j=0; j<3; ++j) { qnbr[j] = floor(interactionVectors(n,i,j)-pnbrcell[j]+0.5); }
 
+              bool idxcheck = true;
               for(int j=0; j<3; ++j) {
                 v[j] = q[j]+qnbr[j];
                 if(pbc[j] == true) {
                   v[j] = (dim[j]+v[j])%dim[j];
-                }
-              }
-              bool idxcheck = true;
-              for(int j=0;j<3;++j) {
-                if(v[j] < 0 || !(v[j] < dim[j])) {
+                } else if (v[j] < 0 || !(v[j] < dim[j])) {
                   idxcheck = false;
                 }
               }
@@ -736,7 +731,9 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 #endif
                   for(int row=0; row<3; ++row) {
                     for(int col=0; col<3; ++col) {
-                      spinInteractions(nbr,row,col) = interactionValues(n,i,row,col); 
+                      if(fabs(interactionValues(n,i,row,col)) > encut) {
+                        Jij.insert(3*s_i+row,3*nbr+col,interactionValues(n,i,row,col));
+                      }
                     }
                   }
 #ifndef CUDA
@@ -763,13 +760,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                   // neighbour unit vectors
                   for(int row=0; row<3; ++row) {
                     for(int col=0; col<3; ++col) {
-#ifndef CUDA    // cusparse does not support symmetric matrices
-                      if(row >= col) { // store only lower triangle
-#endif
-                        spinInteractions(s_i,row,col) += surfaceAnisotropyValue*u[row]*u[col];
-#ifndef CUDA
-                      }
-#endif
+                      KTensor[row][col] += surfaceAnisotropyValue*u[row]*u[col];
                     }
                   }
                 }
@@ -785,38 +776,38 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
               // remove surface anisotropy
               for(int row=0; row<3; ++row) {
                 for(int col=0; col<3; ++col) {
-                  spinInteractions(s_i,row,col) = 0.0;
+                  KTensor[row][col] = 0.0;
                 }
               }
 
               // Bulk anisotropy
               double anival = cfgMaterials[type_num]["uniaxialAnisotropy"][1];
 
+              // TODO: Write anisotropy for arbitrary uniaxial vector
               for(int i=0;i<3;++i) {
                 // easy axis
                 double ei = cfgMaterials[type_num]["uniaxialAnisotropy"][0][i];
                 // magnitude
                 double di = 2.0*anival*ei ; 
-                spinInteractions(s_i,i,i) = di/mu_bohr_si;
+                KTensor[i][i] = di/mu_bohr_si;
               }
             } else {
               surfaceCount++;
             }
 
-              const double encut = 1E-26/mu_bohr_si; // energy cutoff
-              for(int row=0; row<3; ++row){
-                for(int j=0; j<nspins; ++j) {
-                  for(int col=0; col<3; ++col) {
-                    const double value = spinInteractions(j,row,col);
-                    if(fabs(value) > encut) {
-                      Jij.insert(3*s_i+row,3*j+col,value);
-//                     std::cerr<<3*s_i+row<<"\t"<<3*j+col<<"\t"<<value<<"\n";
-                    }
-
+#ifndef CUDA    // cusparse does not support symmetric matrices
+            if(s_i > nbr) { // store only lower triangle
+#endif
+              for(int row=0; row<3; ++row) {
+                for(int col=0; col<3; ++col) {
+                  if(fabs(KTensor[row][col]) > encut) {
+                    Jij.insert(3*s_i+row,3*s_i+col,KTensor[row][col]);
                   }
                 }
               }
-            
+#ifndef CUDA
+            }
+#endif
           }
         } // n
       } // z
