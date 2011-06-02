@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 
 withdebug=0
-withcuda=0
+withcuda=1
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
