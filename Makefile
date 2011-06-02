@@ -42,7 +42,7 @@ objects :
 
 kernels : $(cuda-kernels).o
 	for d in $(cuda-kernels); do  \
-		$(CUDA) -arch sm_13 -O3 $(INCLUDES) --maxrregcount=32 --ptxas-options=-v -c $${d}.cu -o $${d}.o; \
+		$(CUDA) -arch sm_20 -O3 $(INCLUDES) --maxrregcount=32 --ptxas-options=-v -c $${d}.cu -o $${d}.o; \
 	done
 
 clean :
