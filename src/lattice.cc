@@ -392,10 +392,6 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   output.write("Total interactions (with symmetry): %d\n",nInterTotal);
 
 
-  // Guess number of interactions to minimise vector reallocing
-  // int the sparse matrix inserts
-  int inter_guess = 3*nspins*interMax;
-  
   // Find number of exchange tensor components specified in the
   // config
   
@@ -444,7 +440,6 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
       break;
     case 9:
       output.write("Found tensorial exchange\n");
-      inter_guess = nspins*interMax*9;
       break;
     default:
       jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
@@ -456,7 +451,23 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   nInteractionsOfType.resize(nAtoms,0);
 
   // Resize global Jij matrix
-  Jij.resize(nspins3,nspins3,inter_guess);
+  Jij.resize(nspins3,nspins3);
+
+  // Set matrix types
+  std::string solname;
+  if( config.exists("sim.solver") == true ) {
+    config.lookupValue("sim.solver",solname);
+    std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
+  } else {
+    solname = "DEFAULT";
+  }
+  if( ( solname == "CUDAHEUNLLG" ) || ( solname == "CUDASEMILLG" ) ) {
+    Jij.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
+  } else {
+    Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    Jij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+  }
+  
 
   //-----------------------------------------------------------------
   //  Read exchange tensor values from config
@@ -726,19 +737,26 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                 assert(nbr < nspins);
                 assert(s_i != nbr);
 
-#ifndef CUDA    // cusparse does not support symmetric matrices
-                if(s_i > nbr) { // store only lower triangle
-#endif
-                  for(int row=0; row<3; ++row) {
-                    for(int col=0; col<3; ++col) {
-                      if(fabs(interactionValues(n,i,row,col)) > encut) {
-                        Jij.insert(3*s_i+row,3*nbr+col,interactionValues(n,i,row,col));
+                for(int row=0; row<3; ++row) {
+                  for(int col=0; col<3; ++col) {
+                    if(fabs(interactionValues(n,i,row,col)) > encut) {
+                      if(Jij.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                        if(Jij.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                          if(s_i > nbr){
+                            Jij.insertValue(3*s_i+row,3*nbr+col,interactionValues(n,i,row,col));
+                          }
+                        } else {
+                          if(s_i < nbr){
+                            Jij.insertValue(3*s_i+row,3*nbr+col,interactionValues(n,i,row,col));
+                          }
+                        }
+                      } else {
+                        Jij.insertValue(3*s_i+row,3*nbr+col,interactionValues(n,i,row,col));
                       }
                     }
                   }
-#ifndef CUDA
                 }
-#endif
+
                 localInteractionCount++;
                 counter++;
                 if(surfaceAnisotropy == true) {
@@ -759,7 +777,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
                   // neighbour unit vectors
                   for(int row=0; row<3; ++row) {
-                    for(int col=0; col<3; ++col) {
+                    for(int col=row; col<3; ++col) {
                       KTensor[row][col] += surfaceAnisotropyValue*u[row]*u[col];
                     }
                   }
@@ -795,19 +813,14 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
               surfaceCount++;
             }
 
-#ifndef CUDA    // cusparse does not support symmetric matrices
-            if(s_i > nbr) { // store only lower triangle
-#endif
-              for(int row=0; row<3; ++row) {
-                for(int col=0; col<3; ++col) {
-                  if(fabs(KTensor[row][col]) > encut) {
-                    Jij.insert(3*s_i+row,3*s_i+col,KTensor[row][col]);
-                  }
+            for(int row=0; row<3; ++row) {
+              for(int col=0; col<3; ++col) {
+                if(fabs(KTensor[row][col]) > encut) {
+                  Jij.insertValue(3*s_i+row,3*s_i+col,KTensor[row][col]);
                 }
               }
-#ifndef CUDA
             }
-#endif
+
           }
         } // n
       } // z
@@ -819,11 +832,12 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
     output.write("\nSurface count: %i\n", surfaceCount);
   }
   output.write("\nInteraction count: %i\n", counter);
-  output.write("Jij memory (COO): %f MB\n",Jij.memorySize());
-  output.write("Converting COO to CSR INPLACE\n");
-  Jij.coocsrInplace();
-//     Jij.coocsr();
-  output.write("Jij memory (CSR): %f MB\n",Jij.memorySize());
+  output.write("Jij memory (COO): %f MB\n",Jij.calculateMemory());
+  output.write("Converting COO to CSR\n");
+  Jij.convertMAP2CSR();
+  output.write("Jij memory (CSR): %f MB\n",Jij.calculateMemory());
+
+// Jij.printCSR();
 }
 
 

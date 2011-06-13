@@ -33,12 +33,14 @@
 #endif
 
 // block size for GPU, 64 appears to be most efficient for current kernel
-#define BLOCKSIZE 128
+#define BLOCKSIZE 64
 
 void CUDASemiLLGSolver::syncOutput()
 {
   using namespace globals;
+  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMemcpy(s.ptr(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaThreadSynchronize());
 }
 
 void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
@@ -67,27 +69,37 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 
   // spin arrays
   CUDA_CALL(cudaMalloc((void**)&s_dev,nspins3*sizeof(double)));
+  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMalloc((void**)&sf_dev,nspins3*sizeof(float)));
+  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMalloc((void**)&s_new_dev,nspins3*sizeof(double)));
+  CUDA_CALL(cudaThreadSynchronize());
 
   // field arrays
   CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
+  CUDA_CALL(cudaThreadSynchronize());
 
   if(nspins3%2 == 0) {
     // wiener processes
     CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
+  CUDA_CALL(cudaThreadSynchronize());
   } else {
     CUDA_CALL(cudaMalloc((void**)&w_dev,(nspins3+1)*sizeof(float)));
+  CUDA_CALL(cudaThreadSynchronize());
   }
 
 
   // jij matrix
   CUDA_CALL(cudaMalloc((void**)&Jij_dev_row,(Jij.rows()+1)*sizeof(int)));
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev_col,Jij.nonzero()*sizeof(int)));
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,Jij.nonzero()*sizeof(float)));
+  CUDA_CALL(cudaThreadSynchronize());
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev_col,Jij.nonZero()*sizeof(int)));
+  CUDA_CALL(cudaThreadSynchronize());
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,Jij.nonZero()*sizeof(float)));
+  CUDA_CALL(cudaThreadSynchronize());
 
   // material properties
   CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins*4*sizeof(float)));
+  CUDA_CALL(cudaThreadSynchronize());
 
   //-------------------------------------------------------------------
   //  Copy data to device
@@ -102,17 +114,22 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
     }
   }
   CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaThreadSynchronize());
 
   // jij matrix
-  CUDA_CALL(cudaMemcpy(Jij_dev_row,Jij.ptrRow(),
+  CUDA_CALL(cudaMemcpy(Jij_dev_row,Jij.rowPtr(),
         (size_t)((Jij.rows()+1)*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaThreadSynchronize());
 
-  CUDA_CALL(cudaMemcpy(Jij_dev_col,Jij.ptrCol(),
-        (size_t)((Jij.nonzero())*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev_col,Jij.colPtr(),
+        (size_t)((Jij.nonZero())*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaThreadSynchronize());
 
-  CUDA_CALL(cudaMemcpy(Jij_dev_val,Jij.ptrVal(),
-        (size_t)((Jij.nonzero())*(sizeof(float))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev_val,Jij.valPtr(),
+        (size_t)((Jij.nonZero())*(sizeof(float))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaThreadSynchronize());
 
   Array2D<float> mat(nspins,4);
   // material properties
@@ -123,6 +140,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
     mat(i,3) = sigma(i);
   }
   CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaThreadSynchronize());
 
 
   //-------------------------------------------------------------------
@@ -135,15 +153,24 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   }
   
   CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-
+  CUDA_CALL(cudaThreadSynchronize());
+  
   //-------------------------------------------------------------------
   //  Initialise curand
   //-------------------------------------------------------------------
 
   // curand generator
-  CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
-  CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, 1234ULL));
+  //CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
+
+
+  // TODO: set random seed from config
+  const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
+  //CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
+  CUDA_CALL(cudaThreadSynchronize());
+  //CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
+  //CUDA_CALL(cudaThreadSynchronize());
 
   //-------------------------------------------------------------------
   //  Initialise cusparse
@@ -153,15 +180,37 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   if (status != CUSPARSE_STATUS_SUCCESS) {
     jams_error("CUSPARSE Library initialization failed");
   }
+  CUDA_CALL(cudaThreadSynchronize());
 
   // create matrix descriptor
   status = cusparseCreateMatDescr(&descra);
   if (status != CUSPARSE_STATUS_SUCCESS) {
     jams_error("CUSPARSE Matrix descriptor initialization failed");
   }
-  cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
-  cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ZERO);
+  CUDA_CALL(cudaThreadSynchronize());
 
+  status = cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
+  if (status != CUSPARSE_STATUS_SUCCESS) {
+    jams_error("CUSPARSE Matrix descriptor set type failed");
+  }
+  CUDA_CALL(cudaThreadSynchronize());
+  status = cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ZERO);
+  if (status != CUSPARSE_STATUS_SUCCESS) {
+    jams_error("CUSPARSE Matrix descriptor set index base failed");
+  }
+  CUDA_CALL(cudaThreadSynchronize());
+  /*
+  status = cusparseSetMatFillMode(descra,CUSPARSE_FILL_MODE_UPPER);
+  if (status != CUSPARSE_STATUS_SUCCESS) {
+    jams_error("CUSPARSE Matrix descriptor set fill mode failed");
+  }
+  CUDA_CALL(cudaThreadSynchronize());
+  status = cusparseSetMatDiagType(descra,CUSPARSE_DIAG_TYPE_NON_UNIT);
+  if (status != CUSPARSE_STATUS_SUCCESS) {
+    jams_error("CUSPARSE Matrix descriptor set diag type failed");
+  }
+  CUDA_CALL(cudaThreadSynchronize());
+  */
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
 
   initialised = true;
@@ -173,6 +222,7 @@ void CUDASemiLLGSolver::run()
 
   // copy s_dev to s_new_dev
   // NOTE: this is part of the SEMILLG scheme
+  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMemcpy(s_new_dev,s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToDevice));
 
   // generate wiener trajectories
@@ -184,8 +234,8 @@ void CUDASemiLLGSolver::run()
     } else {
       CURAND_CALL(curandGenerateNormal(gen, w_dev, (nspins3+1), 0.0f, stmp));
     }
-
   }
+  CUDA_CALL(cudaThreadSynchronize());
   
   // calculate interaction fields (and zero field array)
   cusparseStatus_t stat =
@@ -194,13 +244,7 @@ void CUDASemiLLGSolver::run()
   if(stat != CUSPARSE_STATUS_SUCCESS){
     jams_error("CUSPARSE FAILED\n");
 }
-  
-//  Array2D<float> tmp(nspins,3);
-//  CUDA_CALL(cudaMemcpy(tmp.ptr(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
-//
-//  for(int i=0;i<nspins;++i) {
-//    std::cout<< tmp(i,0) << "\t" << tmp(i,1) << "\t" << tmp(i,2) << std::endl;
-//  }
+  CUDA_CALL(cudaThreadSynchronize());
 
   // integrate
   cuda_semi_llg_kernelA<<<nblocks,BLOCKSIZE>>>
@@ -216,11 +260,14 @@ void CUDASemiLLGSolver::run()
       nspins,
       dt
     );
+  CUDA_CALL(cudaThreadSynchronize());
 
   // calculate interaction fields (and zero field array)
   cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
       Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
+  CUDA_CALL(cudaThreadSynchronize());
   
+  CUDA_CALL(cudaThreadSynchronize());
   cuda_semi_llg_kernelB<<<nblocks,BLOCKSIZE>>>
     (
       s_dev,
@@ -235,13 +282,26 @@ void CUDASemiLLGSolver::run()
       nspins,
       dt
     );
+  CUDA_CALL(cudaThreadSynchronize());
 
   iteration++;
 }
 
 CUDASemiLLGSolver::~CUDASemiLLGSolver()
 {
+  CUDA_CALL(cudaThreadSynchronize());
   curandDestroyGenerator(gen);
+  cusparseStatus_t status;
+
+  status = cusparseDestroyMatDescr(descra);
+  if (status != CUSPARSE_STATUS_SUCCESS) {
+    jams_error("CUSPARSE matrix destruction failed");
+  }
+
+  status = cusparseDestroy(handle);
+  if (status != CUSPARSE_STATUS_SUCCESS) {
+    jams_error("CUSPARSE Library destruction failed");
+  }
 
   //-------------------------------------------------------------------
   //  Free device memory
@@ -249,6 +309,7 @@ CUDASemiLLGSolver::~CUDASemiLLGSolver()
 
   // spin arrays
   CUDA_CALL(cudaFree(s_dev));
+  CUDA_CALL(cudaFree(sf_dev));
   CUDA_CALL(cudaFree(s_new_dev));
 
   // field arrays

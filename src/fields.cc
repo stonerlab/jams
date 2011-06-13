@@ -18,13 +18,13 @@ void calculate_fields()
   double zero=0.0;
   int i,j;
 
-  if(Jij.nonzero() > 0) {
+  if(Jij.nonZero() > 0) {
 #ifdef MKL
-    mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,Jij.ptrVal(),
-        Jij.ptrCol(), Jij.ptrB(),Jij.ptrE(),s.ptr(),&zero,h.ptr());
+    mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,Jij.valPtr(),
+        Jij.colPtr(), Jij.ptrB(),Jij.ptrE(),s.ptr(),&zero,h.ptr());
 #else
-    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,Jij.ptrVal(),
-        Jij.ptrCol(), Jij.ptrB(),Jij.ptrE(),s.ptr(),0.0,h.ptr());
+    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,Jij.valPtr(),
+        Jij.colPtr(), Jij.ptrB(),Jij.ptrE(),s.ptr(),0.0,h.ptr());
 #endif
   } else {
     std::fill(h.ptr(),h.ptr()+nspins3,0.0); 
