@@ -6,14 +6,14 @@ include ./Makefile.in
 
 source-dirs := $(sort $(dir $(shell find . -name '*.cc')))
 
-cuda-kernels := src/solvers/cuda_semillg
+cuda-kernels := src/solvers/cuda_semillg src/solvers/cuda_heunllg
 
-amorphus:: objects
-	$(CXX) $(CFLAGS) -c misc/amorphus.cpp -o misc/amorphus.o
-	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) misc/amorphus.o $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
+#amorphus:: objects
+#	$(CXX) $(CFLAGS) -c misc/amorphus.cpp -o misc/amorphus.o
+#	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) misc/amorphus.o $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
 
 jams++ :: objects kernels
-	rm -rf misc/amorphus.o
+#	rm -rf misc/amorphus.o
 	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
 	
 
@@ -40,7 +40,7 @@ objects :
 		fi; \
 	done
 
-kernels : $(cuda-kernels).o
+kernels : $(foreach d, $(cuda-kernels), $(wildcard $d*.o)) 
 	for d in $(cuda-kernels); do  \
 		$(CUDA) -arch sm_13 -O3 $(INCLUDES) --maxrregcount=32 --ptxas-options=-v -c $${d}.cu -o $${d}.o; \
 	done
