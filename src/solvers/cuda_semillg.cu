@@ -62,6 +62,29 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   output.write("Initialising CUBLAS\n");
 
   output.write("Allocating device memory...\n");
+  
+  //-------------------------------------------------------------------
+  //  Initialise curand
+  //-------------------------------------------------------------------
+
+  if(nspins3%2 == 0) {
+    // wiener processes
+    CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
+  CUDA_CALL(cudaThreadSynchronize());
+  } else {
+    CUDA_CALL(cudaMalloc((void**)&w_dev,(nspins3+1)*sizeof(float)));
+  CUDA_CALL(cudaThreadSynchronize());
+  }
+
+  // curand generator
+  CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
+
+  // TODO: set random seed from config
+  const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
+  CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
+  CUDA_CALL(cudaThreadSynchronize());
+  CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
+  CUDA_CALL(cudaThreadSynchronize());
 
   //-------------------------------------------------------------------
   //  Allocate device memory
@@ -79,14 +102,6 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
   CUDA_CALL(cudaThreadSynchronize());
 
-  if(nspins3%2 == 0) {
-    // wiener processes
-    CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
-  CUDA_CALL(cudaThreadSynchronize());
-  } else {
-    CUDA_CALL(cudaMalloc((void**)&w_dev,(nspins3+1)*sizeof(float)));
-  CUDA_CALL(cudaThreadSynchronize());
-  }
 
 
   // jij matrix
@@ -157,20 +172,6 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaThreadSynchronize());
   
-  //-------------------------------------------------------------------
-  //  Initialise curand
-  //-------------------------------------------------------------------
-
-  // curand generator
-  //CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
-
-
-  // TODO: set random seed from config
-  const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
-  //CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
-  CUDA_CALL(cudaThreadSynchronize());
-  //CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
-  //CUDA_CALL(cudaThreadSynchronize());
 
   //-------------------------------------------------------------------
   //  Initialise cusparse
