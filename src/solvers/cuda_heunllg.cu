@@ -62,6 +62,21 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   output.write("Allocating device memory...\n");
 
   //-------------------------------------------------------------------
+  //  Initialise curand
+  //-------------------------------------------------------------------
+
+  // curand generator
+  CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
+
+
+  // TODO: set random seed from config
+  const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
+  CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
+  CUDA_CALL(cudaThreadSynchronize());
+  CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
+
+
+  //-------------------------------------------------------------------
   //  Allocate device memory
   //-------------------------------------------------------------------
 
@@ -136,24 +151,6 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   
   CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-
-  //-------------------------------------------------------------------
-  //  Initialise curand
-  //-------------------------------------------------------------------
-
-  //-------------------------------------------------------------------
-  //  Initialise curand
-  //-------------------------------------------------------------------
-
-  // curand generator
-  CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
-
-
-  // TODO: set random seed from config
-  const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
-  CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
-  CUDA_CALL(cudaThreadSynchronize());
-//  CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
 
   //-------------------------------------------------------------------
   //  Initialise cusparse
