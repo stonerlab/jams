@@ -9,7 +9,7 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
 {
   using namespace globals;
 
-  output.write("Initialising physics module - Spinwaves\n");
+  output.write("  * Spinwaves physics module\n");
 
   lattice.getDimensions(dim[0],dim[1],dim[2]);
 

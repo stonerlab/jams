@@ -6,7 +6,7 @@
 
 void MagnetisationMonitor::initialise() {
   using namespace globals;
-  output.write("Initialising Magnetisation monitor\n");
+  output.write("\nInitialising Magnetisation monitor...\n");
 
   std::string name = "_mag.dat";
   name = seedname+name;

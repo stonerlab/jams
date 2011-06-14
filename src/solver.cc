@@ -14,8 +14,6 @@ void Solver::initialise(int argc, char **argv, double idt) {
     jams_error("Solver is already initialised");
   }
 
-  output.write("Initialising solver\n");
-
   // initialise time and iterations to 0
   time = 0.0;
   iteration = 0;

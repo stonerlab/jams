@@ -12,8 +12,6 @@ void Physics::init(libconfig::Setting &phys) {
     jams_error("Physics module is already initialised");
   }
 
-  output.write("Initialising physics\n");
-
   initialised = true;
 }
 

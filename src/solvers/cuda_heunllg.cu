@@ -55,16 +55,13 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   }
 
 
-  output.write("Initialising CUDA Heun Implicit LLG solver (GPU)\n");
-
-  output.write("Initialising CUBLAS\n");
-
-  output.write("Allocating device memory...\n");
+  output.write("  * CUDA Heun LLG solver (GPU)\n");
 
   //-------------------------------------------------------------------
   //  Initialise curand
   //-------------------------------------------------------------------
 
+  output.write("  * Initialising CURAND...\n");
   // curand generator
   CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
 
@@ -80,6 +77,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   //  Allocate device memory
   //-------------------------------------------------------------------
 
+  output.write("  * Allocating device memory...\n");
   // spin arrays
   CUDA_CALL(cudaMalloc((void**)&s_dev,nspins3*sizeof(double)));
   CUDA_CALL(cudaMalloc((void**)&sf_dev,nspins3*sizeof(float)));
@@ -108,7 +106,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   //  Copy data to device
   //-------------------------------------------------------------------
 
-  output.write("Copying data to device memory...\n");
+  output.write("  * Copying data to device memory...\n");
   // initial spins
   Array2D<float> sf(nspins,3);
   for(int i=0; i<nspins; ++i) {
@@ -155,6 +153,8 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   //-------------------------------------------------------------------
   //  Initialise cusparse
   //-------------------------------------------------------------------
+
+  output.write("  * Initialising CUSPARSE...\n");
   cusparseStatus_t status;
   status = cusparseCreate(&handle);
   if (status != CUSPARSE_STATUS_SUCCESS) {

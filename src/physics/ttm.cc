@@ -10,6 +10,8 @@ void TTMPhysics::init(libconfig::Setting &phys)
 {
   using namespace globals;
 
+  output.write("  * Two temperature model physics module\n");  
+
   phononTemp = phys["InitialTemperature"];
   electronTemp = phononTemp;
 

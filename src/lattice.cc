@@ -32,14 +32,14 @@ void readBasis (const libconfig::Setting &cfgBasis, double unitcell[3][3], doubl
 
   matrix_invert(unitcell,unitcellInv);
 
-  output.write("\nLattice translation vectors\n---------------------------\n");
+  output.write("\n    Lattice translation vectors\n    ---------------------------\n");
   for(int i=0; i<3; ++i) { 
-    output.write("%f %f %f\n",unitcell[i][0],unitcell[i][1],unitcell[i][2]); 
+    output.write("    %f %f %f\n",unitcell[i][0],unitcell[i][1],unitcell[i][2]); 
   }
   
-  output.write("\nInverse lattice vectors\n---------------------------\n");
+  output.write("\n    Inverse lattice vectors\n    ---------------------------\n");
   for(int i=0; i<3; ++i) { 
-    output.write("%f %f %f\n",unitcellInv[i][0],unitcellInv[i][1],unitcellInv[i][2]); 
+    output.write("    %f %f %f\n",unitcellInv[i][0],unitcellInv[i][1],unitcellInv[i][2]); 
   }
 }
 
@@ -60,7 +60,7 @@ void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D
   unitCellTypes.resize(nAtoms);
   unitCellPositions.resize(nAtoms,3);
 
-  output.write("\nAtoms in unit cell\n------------------\n");
+  output.write("\n    Atoms in unit cell\n    ------------------\n");
   
   std::map<std::string,int>::iterator it_type;
   nTypes = 0;
@@ -83,7 +83,7 @@ void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D
       is >> unitCellPositions(n,j);
     }
 
-    output.write("%s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+    output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
 
     it_type = atomTypeMap.find(typeName);
     if (it_type == atomTypeMap.end()) { 
@@ -98,7 +98,7 @@ void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D
       unitCellTypes(n) = atomTypeMap[typeName];
     }
   }
-  output.write("\nUnique types found: %d\n",nTypes);
+  output.write("\n  * Unique atom types found: %d\n",nTypes);
 
   positionFile.close();
 }
@@ -112,9 +112,9 @@ void readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bo
   for(int i=0; i<3; ++i) { 
     dim[i] = cfgLattice["size"][i]; 
   }
-  output.write("Lattice size: %i %i %i\n",dim[0],dim[1],dim[2]);
+  output.write("  * Lattice size: %i %i %i\n",dim[0],dim[1],dim[2]);
 
-  output.write("Lattice Periodic: ");
+  output.write("  * Boundary conditions: ");
 
   for(int i=0; i<3; ++i) {
     pbc[i] = cfgLattice["periodic"][i];
@@ -164,7 +164,7 @@ void createLattice(const libconfig::Setting &cfgLattice, Array<int> &unitCellTyp
     }
   } else {
     shape = "DEFAULT";
-    output.write("No shape function give\n");
+    output.write("  * NO shape function\n");
   }
     
   int counter = 0;
@@ -213,7 +213,7 @@ void createLattice(const libconfig::Setting &cfgLattice, Array<int> &unitCellTyp
   nspins = counter;
   nspins3 = 3*nspins;
 
-  output.write("Total atoms: %i\n",nspins);
+  output.write("  * Total atoms in lattice: %i\n",nspins);
 }
 
 ///
@@ -275,6 +275,7 @@ void resizeGlobals() {
 void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgMaterials, std::vector<int> &atom_type) {
   using namespace globals;
 
+  output.write("\nInitialising global variables...\n");
     for(int i=0; i<nspins; ++i) {
       int type_num = atom_type[i];
       double sinit[3];
@@ -317,6 +318,8 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
 void readInteractions(std::string &exchangeFileName, libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array3D<double> &interactionVectors, 
   Array2D<int> &interactionNeighbour, Array4D<double> &interactionValues, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3]) {
   using namespace globals;
+  
+  output.write("\nReading interaction file...\n");
     
   int nInterTotal=0;
 
@@ -388,8 +391,8 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
     }
   }
 
-  output.write("Interactions in config: %d\n",nInterConfig);
-  output.write("Total interactions (with symmetry): %d\n",nInterTotal);
+  output.write("  * Interactions in file: %d\n",nInterConfig);
+  output.write("  * Total interactions (with symmetry): %d\n",nInterTotal);
 
 
   // Find number of exchange tensor components specified in the
@@ -430,16 +433,16 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
       output.write("************************************************************************\n\n");
       break;
     case 1:
-      output.write("Found isotropic exchange\n");
+      output.write("  * Isotropic exchange (1 component)\n");
       break;
     case 2:
-      output.write("Found uniaxial exchange\n");
+      output.write("\tUniaxial exchange (2 components)\n");
       break;
     case 3:
-      output.write("Found anisotropic exchange\n");
+      output.write("\tAnisotropic exchange (3 components)\n");
       break;
     case 9:
-      output.write("Found tensorial exchange\n");
+      output.write("\tTensorial exchange (9 components)\n");
       break;
     default:
       jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
@@ -462,8 +465,10 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
     solname = "DEFAULT";
   }
   if( ( solname == "CUDAHEUNLLG" ) || ( solname == "CUDASEMILLG" ) ) {
+    output.write("  * CUDA solver means a general sparse matrix will be stored\n");
     Jij.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
   } else {
+    output.write("  * Symmetric lower sparse matrix will be stored\n");
     Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
     Jij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   }
@@ -653,6 +658,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 {
   
   using namespace globals;
+  output.write("\nCalculating interaction matrix...\n");
               
   const double encut = 1E-26/mu_bohr_si; // energy cutoff
 
@@ -667,7 +673,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
   bool surfaceAnisotropy=false;
   if(config.exists("lattice.surfaceAnisotropy")){
     surfaceAnisotropy = true;
-    output.write("Neel surface anisotropy on\n");
+    output.write("  * Neel surface anisotropy on!!!\n");
   }else{
     surfaceAnisotropy = false;
   }
@@ -829,13 +835,13 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
 
   if(surfaceAnisotropy == true) {
-    output.write("\nSurface count: %i\n", surfaceCount);
+    output.write("  * Surface spin count: %i\n", surfaceCount);
   }
-  output.write("\nInteraction count: %i\n", counter);
-  output.write("Jij memory (COO): %f MB\n",Jij.calculateMemory());
-  output.write("Converting COO to CSR\n");
+  output.write("  * Total interaction count: %i\n", counter);
+  output.write("  * Jij matrix memory (MAP): %f MB\n",Jij.calculateMemory());
+  output.write("\nConverting MAP to CSR...\n");
   Jij.convertMAP2CSR();
-  output.write("Jij memory (CSR): %f MB\n",Jij.calculateMemory());
+  output.write("  * Jij matrix memory (CSR): %f MB\n",Jij.calculateMemory());
 
 // Jij.printCSR();
 }
@@ -844,6 +850,8 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
 void Lattice::createFromConfig(libconfig::Config &config) {
   using namespace globals;
+
+  output.write("\nCalculating lattice...\n");
 
   try {
 

@@ -42,10 +42,14 @@ int jams_init(int argc, char **argv) {
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
 
 #ifdef DEBUG
-  output.write("DEBUG Build\n");
+  output.write("\nDEBUG Build\n");
 #endif
 
+  output.write("\nReading configuration file...\n");
+
   std::string cfgfile = seedname+".cfg";
+
+  output.write("  * Config file: %s\n",cfgfile.c_str());
 
   {
     try {
@@ -74,20 +78,20 @@ int jams_init(int argc, char **argv) {
 
 
       dt = config.lookup("sim.t_step");
-      output.write("Timestep: %e\n",dt);
+      output.write("  * Timestep:           %1.6e\n",dt);
 
 
       double tmp = config.lookup("sim.t_eq");
       steps_eq = static_cast<unsigned int>(tmp/dt);
-      output.write("Equilibration time: %e (%d steps)\n",tmp,steps_eq);
+      output.write("  * Equilibration time: %1.6e (%d steps)\n",tmp,steps_eq);
 
       tmp = config.lookup("sim.t_run");
       steps_run = static_cast<unsigned int>(tmp/dt);
-      output.write("Run time: %e (%d steps)\n",tmp,steps_run);
+      output.write("  * Run time:           %1.6e (%d steps)\n",tmp,steps_run);
       
       tmp = config.lookup("sim.t_out");
       steps_out = static_cast<unsigned int>(tmp/dt);
-      output.write("Output time: %e (%d steps)\n",tmp,steps_out);
+      output.write("  * Output time:        %1.6e (%d steps)\n",tmp,steps_out);
 
       globals::h_app[0] = config.lookup("sim.h_app.[0]");
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
@@ -97,16 +101,16 @@ int jams_init(int argc, char **argv) {
 
       if( config.exists("sim.seed") == true) {
         config.lookupValue("sim.seed",randomseed);
-        output.write("Random generator seeded from config file\n");
+        output.write("  * Random generator seeded from config file\n");
       } else {
         randomseed = time(NULL);
-        output.write("Random generator seeded from time\n");
+        output.write("  * Random generator seeded from time\n");
       }
-      output.write("Seed: %d\n",randomseed);
+      output.write("  * Seed: %d\n",randomseed);
 
       init_temperature = config.lookup("sim.temperature");
       globals::globalTemperature = init_temperature;
-      output.write("Initial temperature: %f\n",init_temperature);
+      output.write("  * Initial temperature: %f\n",init_temperature);
 
 
       rng.seed(randomseed);
@@ -118,6 +122,7 @@ int jams_init(int argc, char **argv) {
         std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
       }
 
+      output.write("\nInitialising physics module...\n");
       if( config.exists("sim.physics") == true ) {
         config.lookupValue("sim.physics",physname);
         std::transform(physname.begin(),physname.end(),physname.begin(),toupper);
@@ -137,7 +142,7 @@ int jams_init(int argc, char **argv) {
 
       } else {
         physics = Physics::Create(EMPTY);
-        output.write("WARNING: Using empty physics package\n");
+        output.write("\nWARNING: Using empty physics package\n");
       }
 
     }
@@ -148,7 +153,7 @@ int jams_init(int argc, char **argv) {
       jams_error("Undefined config error");
     }
 
-      
+    output.write("\nInitialising solver...\n");
     if(solname == "HEUNLLG") {
       solver = Solver::Create(HEUNLLG);
     }

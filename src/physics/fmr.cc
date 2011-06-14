@@ -9,6 +9,8 @@ void FMRPhysics::init(libconfig::Setting &phys)
 {
   using namespace globals;
 
+  output.write("  * FMR physics module\n");
+
   ACFieldFrequency = phys["ACFieldFrequency"];
   ACFieldFrequency = 2.0*M_PI*ACFieldFrequency;
 
