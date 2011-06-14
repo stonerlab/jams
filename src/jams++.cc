@@ -161,6 +161,9 @@ int jams_init(int argc, char **argv) {
     else if (solname == "CUDASEMILLG") {
       solver = Solver::Create(CUDASEMILLG);
     }
+    else if (solname == "CUDAHEUNLLG") {
+      solver = Solver::Create(CUDAHEUNLLG);
+    }
     else if (solname == "FFTNOISE") {
       solver = Solver::Create(FFTNOISE);
     }
