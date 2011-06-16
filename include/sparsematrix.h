@@ -30,7 +30,11 @@ typedef enum {
 } SparseMatrixMode_t;
 
 
-// SparseMatrix stored in CSR format
+///
+/// @class SparseMatrix
+/// @brief Storage class for sparse matrices.
+/// 
+///
 template <typename _Tp>
 class SparseMatrix {
 
@@ -75,7 +79,7 @@ class SparseMatrix {
       val.clear();
       row.clear();
       col.clear();
-      non_zeros_unmerged.clear();
+      matrixMap.clear();
     }
 
     inline SparseMatrixFormat_t getMatrixFormat(){ return matrixFormat; }
@@ -89,13 +93,13 @@ class SparseMatrix {
     void convertMAP2CSR();
     void convertMAP2COO();
     
-    inline _Tp*       valPtr() { return &(val[0]); }
-    inline size_type* rowPtr() { return &(row[0]); }
-    inline size_type* colPtr() { return &(col[0]); }
+    inline _Tp*       valPtr() { return &(val[0]); } ///< @brief Pointer to values array
+    inline size_type* rowPtr() { return &(row[0]); } ///< @brief Pointer to rows array
+    inline size_type* colPtr() { return &(col[0]); } ///< @breif Pointer to columns array
 
-    inline size_type  nonZero() { return nnz; }
-    inline size_type  rows()    { return nrows; }
-    inline size_type  cols()    { return ncols; }
+    inline size_type  nonZero() { return nnz; }      ///< @brief Number of non zero entries in matrix
+    inline size_type  rows()    { return nrows; }    ///< @brief Number of rows in matrix
+    inline size_type  cols()    { return ncols; }    ///< @brief Number of columns in matrix
     
     // NIST style CSR storage pointers
     inline size_type* RESTRICT ptrB() { return &(row[0]); }
@@ -116,7 +120,7 @@ class SparseMatrix {
     size_type             nnz_unmerged;
     size_type             nnz;
 
-    coo_mmp               non_zeros_unmerged;
+    coo_mmp               matrixMap;
 
     std::vector<_Tp>       val;
     std::vector<size_type> row;
@@ -146,7 +150,7 @@ template <typename _Tp>
 double SparseMatrix<_Tp>::calculateMemory() {
   const double mb = (1024.0*1024.0);
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
-    return ((non_zeros_unmerged.size())*(sizeof(int64_t)+sizeof(_Tp)))/mb;
+    return ((matrixMap.size())*(sizeof(int64_t)+sizeof(_Tp)))/mb;
   } else {
     return (((row.size()+col.size())*sizeof(size_type))+(val.size()*sizeof(_Tp)))/mb;
   }
@@ -155,9 +159,9 @@ double SparseMatrix<_Tp>::calculateMemory() {
 template <typename _Tp>
 void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
   
-  if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP) {
+  if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP) { // can only insert elements into map formatted matrix
 
-    if( ((i < nrows) && (i >= 0)) && ((j < ncols) && (j >= 0)) ) {
+    if( ((i < nrows) && (i >= 0)) && ((j < ncols) && (j >= 0)) ) { // element must be inside matrix boundaries
 
       if(matrixType == SPARSE_MATRIX_TYPE_SYMMETRIC) {
         if(matrixMode == SPARSE_MATRIX_MODE_UPPER) {
@@ -165,7 +169,7 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
             jams_error("Attempted to insert lower matrix element in symmetric upper sparse matrix");
           }
         } else {
-          if( j < i ) {
+          if( i < j ) {
             jams_error("Attempted to insert upper matrix element in symmetric lower sparse matrix");
           }
         }
@@ -174,8 +178,9 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
       jams_error("Attempted to insert matrix element outside of matrix size");
     }
 
+    // static casts to force 64bit arithmetic
     const int64_t index = (static_cast<int64_t>(i)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(j);
-    non_zeros_unmerged.insert(typename coo_mmp::value_type(index,value));
+    matrixMap.insert(typename coo_mmp::value_type(index,value));
     nnz_unmerged++;
   } else {
     jams_error("Can only insert into MAP format sparse matrix");
@@ -197,32 +202,19 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
   val.resize(nnz_unmerged);
   
   if(nnz_unmerged > 0){
-
     index_last = -1; // ensure first index is different;
-
     row_last = 0;
     row[0] = 0;
-    
-
-//     std::cerr<<"UNMERGED "<<nnz_unmerged<<std::endl;
-
-    for(nz = non_zeros_unmerged.begin(); nz != non_zeros_unmerged.end(); ++nz){
-      index = nz->first;
-
+    for(nz = matrixMap.begin(); nz != matrixMap.end(); ++nz){ // iterate matrix map elements
+      index = nz->first; // first part contains row major index
       if(index < 0){
         jams_error("Negative sparse array index");
       }
-
       ival = index/static_cast<int64_t>(ncols);
-
       jval = index - ((ival)*ncols);
-      
-//       std::cerr<<"i:"<<ival<<" j:"<<jval<<std::endl;
-
       if(index != index_last){
         index_last = index; // update last index
         nnz++;
-
         if(ival != row_last){
           // incase there are rows of zeros
           for(int i=row_last; i<ival+1; ++i){
@@ -232,19 +224,17 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
         row_last = ival;
         col[nnz-1] = jval;
         val[nnz-1] = nz->second;
-
       }else{
         // index is the same as the last, add values
         val[nnz-1] += nz->second;
       }
-      non_zeros_unmerged.erase(nz);
+      matrixMap.erase(nz);
     }
   }else{
     for(int i=0;i<nrows+1;++i){
       row[i] = 0;
     }
   }
-
   col.resize(nnz);
   val.resize(nnz);
 
@@ -256,7 +246,6 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
 template <typename _Tp>
 void SparseMatrix<_Tp>::convertMAP2COO()
 {
-  typename coo_mmp::const_iterator nz;
 
   int64_t index_last,ival,jval,index;
   
@@ -270,9 +259,10 @@ void SparseMatrix<_Tp>::convertMAP2COO()
     index_last = -1; // ensure first index is different;
 
     row[0] = 0;
-    
-    for(nz = non_zeros_unmerged.begin(); nz != non_zeros_unmerged.end(); ++nz){
-      index = nz->first;
+  
+    typename coo_mmp::const_iterator elem;
+    for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
+      index = elem->first;
 
       if(index < 0){
         jams_error("Negative sparse array index");
@@ -288,13 +278,13 @@ void SparseMatrix<_Tp>::convertMAP2COO()
 
         row[nnz-1] = ival;
         col[nnz-1] = jval;
-        val[nnz-1] = nz->second;
+        val[nnz-1] = elem->second;
 
       }else{
         // index is the same as the last, add values
-        val[nnz-1] += nz->second;
+        val[nnz-1] += elem->second;
       }
-      non_zeros_unmerged.erase(nz);
+      matrixMap.erase(elem);
     }
   }
   
