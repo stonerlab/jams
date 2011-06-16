@@ -192,7 +192,7 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
 template <typename _Tp>
 void SparseMatrix<_Tp>::convertMAP2CSR()
 {
-  typename coo_mmp::iterator nz;
+  typename coo_mmp::const_iterator nz;
 
   int64_t index_last,ival,jval,index,row_last;
   
@@ -228,13 +228,15 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
         // index is the same as the last, add values
         val[nnz-1] += nz->second;
       }
-      matrixMap.erase(nz);
     }
   }else{
     for(int i=0;i<nrows+1;++i){
       row[i] = 0;
     }
   }
+
+  matrixMap.clear();
+
   col.resize(nnz);
   val.resize(nnz);
 
@@ -284,10 +286,9 @@ void SparseMatrix<_Tp>::convertMAP2COO()
         // index is the same as the last, add values
         val[nnz-1] += elem->second;
       }
-      matrixMap.erase(elem);
     }
   }
-  
+  matrixMap.clear();
   row.resize(nnz);
   col.resize(nnz);
   val.resize(nnz);
