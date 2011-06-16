@@ -783,7 +783,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
                   // neighbour unit vectors
                   for(int row=0; row<3; ++row) {
-                    for(int col=row; col<3; ++col) {
+                    for(int col=0; col<3; ++col) {
                       KTensor[row][col] += surfaceAnisotropyValue*u[row]*u[col];
                     }
                   }
