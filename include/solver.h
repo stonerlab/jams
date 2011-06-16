@@ -21,9 +21,9 @@ class Solver
 
     virtual ~Solver(){}
 
-    virtual void initialise(int argc, char **argv, double dt);
-    virtual void run();
-    virtual void syncOutput();
+    virtual void initialise(int argc, char **argv, double dt) = 0;
+    virtual void run() = 0;
+    virtual void syncOutput() = 0;
 
     inline int getIteration() { return iteration; }
     inline double getTime() { return iteration*t_step; }
