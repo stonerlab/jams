@@ -8,15 +8,9 @@ source-dirs := $(sort $(dir $(shell find . -name '*.cc')))
 
 cuda-kernels := src/solvers/cuda_semillg src/solvers/cuda_heunllg
 
-#amorphus:: objects
-#	$(CXX) $(CFLAGS) -c misc/amorphus.cpp -o misc/amorphus.o
-#	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) misc/amorphus.o $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
-
 jams++ :: objects kernels
-#	rm -rf misc/amorphus.o
 	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
 	
-
 	@echo
 	@echo " JAMS++ build complete. "
 	@echo
