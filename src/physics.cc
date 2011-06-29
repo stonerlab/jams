@@ -3,6 +3,7 @@
 #include "fmr.h"
 #include "ttm.h"
 #include "spinwaves.h"
+#include "square.h"
 #include "empty.h"
 
 #include <libconfig.h++>
@@ -33,6 +34,9 @@ Physics* Physics::Create(PhysicsType type)
       break;
     case SPINWAVES:
       return new SpinwavesPhysics;
+      break;
+    case SQUARE:
+      return new SquarePhysics;
       break;
     case EMPTY:
       return new EmptyPhysics;
