@@ -11,6 +11,17 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
 
   output.write("  * Spinwaves physics module\n");
 
+  PulseDuration = phys["PulseDuration"];
+  PulseTotal    = phys["PulseTotal"];
+  PulseTemperature = phys["PulseTemperature"];
+
+  for(int i=0; i<3; ++i) {
+    FieldStrength[i] = phys["FieldStrength"][i];
+  }
+
+  PulseCount = 1;
+
+
   lattice.getDimensions(dim[0],dim[1],dim[2]);
 
   assert( dim[0]*dim[1]*dim[2] > 0 );
@@ -26,101 +37,9 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
   SPWFile << "# t [s]\tk=0\tk!=0\tM_AF1_x\tM_AF1_y\tM_AF1_z\n";
 
 
-  typeOverride.resize(nspins);
-
-  int count=0;
-  int countAF1=0;
-  int countAF2=0;
-  for(int i=0; i<dim[0]; ++i){
-    for(int j=0; j<dim[1]; ++j){
-      for(int k=0; k<dim[2]; ++k){
-        if(i%2 == 0){
-          if(j%2 == 0){
-            if(k%2 == 0){
-              typeOverride[count]=0;
-              countAF1++;
-              count++;
-            }else{
-              typeOverride[count]=1;
-              countAF2++;
-              count++;
-            }
-          }else{
-            if(k%2 == 0){
-              typeOverride[count]=1;
-              countAF2++;
-              count++;
-            }else{
-              typeOverride[count]=0;
-              countAF1++;
-              count++;
-            }
-          }
-        }else{
-          if(j%2 == 0){
-            if(k%2 == 0){
-              typeOverride[count]=1;
-              countAF2++;
-              count++;
-            }else{
-              typeOverride[count]=0;
-              countAF1++;
-              count++;
-            }
-          }else{
-            if(k%2 == 0){
-              typeOverride[count]=0;
-              countAF1++;
-              count++;
-            }else{
-              typeOverride[count]=1;
-              countAF2++;
-              count++;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  output.write("AF counts AF1:%d AF2:%d\n",countAF1,countAF2);
-
-  for(int i=0;i<nspins;++i){
-    if(typeOverride[i] == 0){
-      s(i,0) = 0.0;
-      s(i,1) = 0.0;
-      s(i,2) = 1.0;
-    }else{
-      s(i,0) = 0.0;
-      s(i,1) = 0.0;
-      s(i,2) = 1.0;
-    }
-  }
-
-  // read from config if spinstates should be dumped
-  // (default is false)
-  //spinDump = false;
-  //phys.lookupValue("spindump",spinDump);
-
-  // open spin dump file as binary file
-  filename = "_spd.dat";
-  filename = seedname+filename;
-  //if(spinDump == true){
-  //  SPDFile.open(filename.c_str(),std::ofstream::binary);
-  //}
-
   const double sampletime = config.lookup("sim.t_out");
   const double runtime = config.lookup("sim.t_run");
   const int outcount = runtime/sampletime;
-
-  SPDFile.write((char*)&outcount,sizeof(int));
-  SPDFile.write((char*)&dim[0],3*sizeof(int));
-  SPDFile.write((char*)&sampletime,sizeof(double));
-
-  for(int i=0;i<nspins;++i){
-    int type = lattice.getType(i);
-    SPDFile.write((char*)&type,sizeof(int));
-  }
 
   initialised = true;
 }
@@ -144,47 +63,41 @@ void SpinwavesPhysics::run(double realtime, const double dt) {
 
 void SpinwavesPhysics::monitor(double realtime, const double dt) {
   using namespace globals;
+
+  double eqtime = config.lookup("sim.t_eq");
+
+  
+  if( (realtime > eqtime) && (realtime-eqtime) > (PulseDuration*PulseCount)){
+    PulseCount++;
+  }
+
+  if( (realtime > eqtime) && ((realtime-eqtime) < (PulseDuration*(PulseTotal)))){
+    if(PulseCount%2 == 0) {
+      for(int i=0; i<3; ++i) {
+        globals::h_app[i] = -FieldStrength[i];
+        globals::globalTemperature = PulseTemperature;
+      }
+    }else{
+      for(int i=0; i<3; ++i) {
+        globals::h_app[i] = FieldStrength[i];
+        globals::globalTemperature = PulseTemperature;
+      }
+    }
+  }else{
+    for(int i=0; i<3; ++i) {
+      globals::h_app[i] = 0.0;                                                                     
+        globals::globalTemperature = config.lookup("sim.temperature");
+    }
+  }
+
   
   // calculate structure factor <S^{k}(-q)S^{k}(q)>
-  double magA[3] = {0.0,0.0,0.0};
-  double magB[3] = {0.0,0.0,0.0};
-  
-  for(int i=0; i<nspins; ++i){
-    if(typeOverride[i] == 0){
-      magA[0] += s(i,0);
-      magA[1] += s(i,1);
-      magA[2] += s(i,2);
-    }else{
-      magB[0] += s(i,0);
-      magB[1] += s(i,1);
-      magB[2] += s(i,2);
-    }
-  }
-
-  double normA = 1.0/sqrt(magA[0]*magA[0]+magA[1]*magA[1]+magA[2]*magA[2]);
-  double normB = 1.0/sqrt(magB[0]*magB[0]+magB[1]*magB[1]+magB[2]*magB[2]);
-
-  for(int j=0; j<3; ++j){
-    magA[j] = magA[j]/(0.5*nspins);
-    magB[j] = magB[j]/(0.5*nspins);
-  }
 
   for(int i=0; i<nspins; ++i){
-
-    if(typeOverride[i] == 0){
-      FFTArray[i][0] = s(i,0);
-      FFTArray[i][1] = s(i,1);
-    } else {
-      FFTArray[i][0] = -s(i,0);
-//       FFTArray[i][0] = s(i,0);
-      FFTArray[i][1] = s(i,1);
-    }
+    FFTArray[i][0] = s(i,0);
+    FFTArray[i][1] = s(i,1);
   }
 
-//   if(spinDump == true){
-//     // write spin dump data in binary
-//     SPDFile.write((char*)FFTArray,nspins*sizeof(fftw_complex));
-//   }
 
   fftw_execute(FFTPlan);
 

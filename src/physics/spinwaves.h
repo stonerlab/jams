@@ -17,7 +17,12 @@ class SpinwavesPhysics : public Physics {
         SPDFile(),
         typeOverride(),
         initialised(false),
-        spinDump(false)
+        spinDump(false),        
+        PulseDuration(0),
+        PulseTemperature(0),
+        PulseCount(0),
+        PulseTotal(0),
+        FieldStrength(3,0)
       {}
 
     ~SpinwavesPhysics();
@@ -35,5 +40,11 @@ class SpinwavesPhysics : public Physics {
     std::vector<int> typeOverride;
     bool initialised;
     bool spinDump;
+    double PulseDuration;
+    double PulseTemperature;
+    int    PulseCount;
+    int    PulseTotal;
+    std::vector<double> FieldStrength;
+
 };
 #endif /* __SPINWAVES_H__ */
