@@ -32,11 +32,13 @@ void SquarePhysics::run(const double realtime, const double dt)
 {
   using namespace globals;
 
-  if(realtime > (PulseDuration*PulseCount)){
+  double eqtime = config.lookup("sim.t_eq");
+
+  if( (realtime > eqtime) && (realtime-eqtime) > (PulseDuration*PulseCount)){
     PulseCount++;
   }
   
-  if(realtime < (PulseDuration*(PulseTotal))){
+  if( (realtime > eqtime) && ((realtime-eqtime) < (PulseDuration*(PulseTotal)))){
     if(PulseCount%2 == 0) {
       for(int i=0; i<3; ++i) {
         globals::h_app[i] = -FieldStrength[i];
