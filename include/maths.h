@@ -146,7 +146,7 @@ void matmul(const _Tp a[3][3], const _Tp x[3], _Tp y[3]) {
   for(i=0; i<3; ++i){
     y[i] = 0;
     for(j=0; j<3; ++j){
-      y[i] += a[j][i]*x[j];
+      y[i] += a[i][j]*x[j];
     }
   }
 }
