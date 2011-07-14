@@ -46,6 +46,8 @@ class CUDAHeunLLGSolver : public Solver {
     float * mat_dev;
     Array<double> sigma;
     int nblocks;
+    int spmvblocksize;
+    int spmvblocks;
 };
 
 #endif // __CUDAHEUNLLG_H__

@@ -467,6 +467,8 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   if( ( solname == "CUDAHEUNLLG" ) || ( solname == "CUDASEMILLG" ) ) {
     output.write("  * CUDA solver means a general sparse matrix will be stored\n");
     Jij.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
+    Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    Jij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   } else {
     output.write("  * Symmetric lower sparse matrix will be stored\n");
     Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
@@ -840,7 +842,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
   output.write("  * Total interaction count: %i\n", counter);
   output.write("  * Jij matrix memory (MAP): %f MB\n",Jij.calculateMemory());
   output.write("\nConverting MAP to CSR...\n");
-  Jij.convertMAP2CSR();
+  Jij.convertMAP2DIA();
   output.write("  * Jij matrix memory (CSR): %f MB\n",Jij.calculateMemory());
 
 // Jij.printCSR();

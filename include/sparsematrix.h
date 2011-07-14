@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <cmath>
 #include "array.h"
+#include "array2d.h"
 #include "globals.h"
 #include <algorithm>
 #include <functional>
@@ -16,7 +17,8 @@
 typedef enum { 
   SPARSE_MATRIX_FORMAT_MAP = 0,
   SPARSE_MATRIX_FORMAT_COO = 1,
-  SPARSE_MATRIX_FORMAT_CSR = 2
+  SPARSE_MATRIX_FORMAT_CSR = 2,
+  SPARSE_MATRIX_FORMAT_DIA = 3,
 } SparseMatrixFormat_t;
 
 typedef enum { 
@@ -98,14 +100,20 @@ class SparseMatrix {
 
     void convertMAP2CSR();
     void convertMAP2COO();
+    void convertMAP2DIA();
     
     inline _Tp*       valPtr() { return &(val[0]); } ///< @brief Pointer to values array
     inline size_type* rowPtr() { return &(row[0]); } ///< @brief Pointer to rows array
     inline size_type* colPtr() { return &(col[0]); } ///< @breif Pointer to columns array
 
+    inline size_type* dia_offPtr() { return &(dia_offsets[0]); } 
+    inline _Tp* dia_valPtr() { return &(dia_values(0,0)); } 
+
     inline size_type  nonZero() { return nnz; }      ///< @brief Number of non zero entries in matrix
     inline size_type  rows()    { return nrows; }    ///< @brief Number of rows in matrix
     inline size_type  cols()    { return ncols; }    ///< @brief Number of columns in matrix
+    inline size_type  diags()    { return num_diagonals; } 
+    
     
     // NIST style CSR storage pointers
     inline size_type* RESTRICT ptrB() { return &(row[0]); }
@@ -134,6 +142,9 @@ class SparseMatrix {
     std::vector<_Tp>       val;
     std::vector<size_type> row;
     std::vector<size_type> col;
+    std::vector<size_type> dia_offsets;
+    Array2D<_Tp>           dia_values;
+    size_type              num_diagonals;
 
 };
 
@@ -160,6 +171,8 @@ double SparseMatrix<_Tp>::calculateMemory() {
   const double mb = (1024.0*1024.0);
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
     return ((matrixMap.size())*(sizeof(int64_t)+sizeof(_Tp)))/mb;
+  }else if(matrixFormat == SPARSE_MATRIX_FORMAT_DIA){
+    return (dia_offsets.size()*sizeof(size_type)+(nrows*num_diagonals)*sizeof(_Tp))/mb;
   } else {
     return (((row.size()+col.size())*sizeof(size_type))+(val.size()*sizeof(_Tp)))/mb;
   }
@@ -307,6 +320,77 @@ void SparseMatrix<_Tp>::convertMAP2COO()
   val.resize(nnz);
 
   matrixFormat = SPARSE_MATRIX_FORMAT_COO;
+}
+
+template <typename _Tp>
+void SparseMatrix<_Tp>::convertMAP2DIA()
+{
+
+  int64_t index_last,ival,jval,index;
+  
+
+  nnz = 0;
+  
+  if(nnz_unmerged > 0){
+
+    index_last = -1; // ensure first index is different;
+
+    row[0] = 0;
+  
+    num_diagonals = 0;
+    std::vector<int> diag_map(nrows+ncols,0);
+  
+    typename coo_mmp::const_iterator elem;
+    for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
+      index = elem->first;
+
+      if(index < 0){
+        jams_error("Negative sparse array index");
+      }
+
+      ival = index/static_cast<int64_t>(ncols);
+
+      jval = index - ((ival)*ncols);
+
+      int map_index = (nrows-ival) + jval;
+      if(diag_map[map_index]==0){
+        diag_map[map_index] = 1;
+        num_diagonals++;
+      }
+    }
+
+    dia_offsets.resize(num_diagonals);
+    dia_values.resize(nrows,num_diagonals);
+
+    for(int i=0, diag=0; i<(nrows+ncols); ++i){
+      if(diag_map[i] == 1){
+        diag_map[i] = diag;
+        dia_offsets[diag] = i - nrows;
+        diag++;
+      }
+    }
+
+    for(int i=0; i<nrows; ++i){
+      for(int j=0; j<num_diagonals; ++j){
+        dia_values(i,j) = 0.0;
+      }
+    }
+    
+    for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
+      index = elem->first;
+      
+      ival = index/static_cast<int64_t>(ncols);
+      jval = index - ((ival)*ncols);
+      int map_index = (nrows - ival) + jval;
+      int diag = diag_map[map_index];
+      dia_values(ival,diag) += elem->second;
+      nnz++;
+    }
+  }
+  
+  matrixMap.clear();
+
+  matrixFormat = SPARSE_MATRIX_FORMAT_DIA;
 }
 
 

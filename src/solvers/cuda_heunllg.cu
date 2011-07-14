@@ -1,3 +1,7 @@
+// block size for GPU, 64 appears to be most efficient for current kernel
+#define BLOCKSIZE 64
+
+#include "cuda_spmv.h"
 #include "cuda_heunllg_kernel.cu"
 #include "globals.h"
 #include "consts.h"
@@ -32,8 +36,6 @@
     #error "-arch sm_13 nvcc flag is required to compile"
 #endif
 
-// block size for GPU, 64 appears to be most efficient for current kernel
-#define BLOCKSIZE 64
 
 void CUDAHeunLLGSolver::syncOutput()
 {
@@ -94,10 +96,15 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   }
 
 
+#ifdef FORCE_CUDA_DIA
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev_row,(Jij.diags())*sizeof(int)));
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,(Jij.rows()*Jij.diags())*sizeof(float)));
+#else
   // jij matrix
   CUDA_CALL(cudaMalloc((void**)&Jij_dev_row,(Jij.rows()+1)*sizeof(int)));
   CUDA_CALL(cudaMalloc((void**)&Jij_dev_col,Jij.nonZero()*sizeof(int)));
   CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,Jij.nonZero()*sizeof(float)));
+#endif
 
   // material properties
   CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins*4*sizeof(float)));
@@ -117,6 +124,12 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
+#ifdef FORCE_CUDA_DIA
+  CUDA_CALL(cudaMemcpy(Jij_dev_row,Jij.dia_offPtr(),
+        (size_t)((Jij.diags())*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev_val,Jij.dia_valPtr(),
+        (size_t)((Jij.diags()*Jij.rows())*(sizeof(float))),cudaMemcpyHostToDevice));
+#else
   // jij matrix
   CUDA_CALL(cudaMemcpy(Jij_dev_row,Jij.rowPtr(),
         (size_t)((Jij.rows()+1)*(sizeof(int))),cudaMemcpyHostToDevice));
@@ -126,6 +139,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   CUDA_CALL(cudaMemcpy(Jij_dev_val,Jij.valPtr(),
         (size_t)((Jij.nonZero())*(sizeof(float))),cudaMemcpyHostToDevice));
+#endif
 
   Array2D<float> mat(nspins,4);
   // material properties
@@ -154,6 +168,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   //  Initialise cusparse
   //-------------------------------------------------------------------
 
+#ifndef FORCE_CUDA_DIA
   output.write("  * Initialising CUSPARSE...\n");
   cusparseStatus_t status;
   status = cusparseCreate(&handle);
@@ -168,8 +183,12 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   }
   cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
   cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ZERO);
+#endif
 
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
+
+  spmvblocksize = 256;
+  spmvblocks = (nspins3+spmvblocksize-1)/spmvblocksize;
 
   initialised = true;
 }
@@ -190,12 +209,17 @@ void CUDAHeunLLGSolver::run()
   }
   
   // calculate interaction fields (and zero field array)
+#ifdef FORCE_CUDA_DIA
+  spmv_dia_kernel<<< spmvblocks, spmvblocksize >>>(nspins3,nspins3,
+    Jij.diags(),Jij.diags(),Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
+#else
   cusparseStatus_t stat =
   cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
       Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
   if(stat != CUSPARSE_STATUS_SUCCESS){
     jams_error("CUSPARSE FAILED\n");
-}
+  }
+#endif
 
   // integrate
   cuda_heun_llg_kernelA<<<nblocks,BLOCKSIZE>>>
@@ -214,8 +238,13 @@ void CUDAHeunLLGSolver::run()
     );
 
   // calculate interaction fields (and zero field array)
+#ifdef FORCE_CUDA_DIA
+  spmv_dia_kernel<<< spmvblocks, spmvblocksize >>>(nspins3,nspins3,
+    Jij.diags(),Jij.diags(),Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
+#else
   cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
       Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
+#endif
   
   cuda_heun_llg_kernelB<<<nblocks,BLOCKSIZE>>>
     (
