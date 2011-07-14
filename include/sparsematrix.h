@@ -29,6 +29,12 @@ typedef enum {
   SPARSE_MATRIX_MODE_LOWER = 1
 } SparseMatrixMode_t;
 
+// taken from CUSP
+template< class _Tp1, class _Tp2>
+bool kv_pair_less(const std::pair<_Tp1,_Tp2>&x, const std::pair<_Tp1,_Tp2>&y){
+  return x.first < y.first;
+}
+
 
 ///
 /// @class SparseMatrix
@@ -110,7 +116,8 @@ class SparseMatrix {
   
   private:
 
-    typedef std::multimap <int64_t,_Tp,std::less<int64_t> > coo_mmp;
+//    typedef std::multimap <int64_t,_Tp,std::less<int64_t> > coo_mmp;
+    typedef std::vector< std::pair<int64_t,_Tp> > coo_mmp;
 
     SparseMatrixFormat_t  matrixFormat;
     SparseMatrixType_t    matrixType;
@@ -120,7 +127,9 @@ class SparseMatrix {
     size_type             nnz_unmerged;
     size_type             nnz;
 
-    coo_mmp               matrixMap;
+//    coo_mmp               matrixMap;
+    
+    coo_mmp matrixMap;
 
     std::vector<_Tp>       val;
     std::vector<size_type> row;
@@ -180,7 +189,9 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
 
     // static casts to force 64bit arithmetic
     const int64_t index = (static_cast<int64_t>(i)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(j);
-    matrixMap.insert(typename coo_mmp::value_type(index,value));
+//    matrixMap.insert(typename coo_mmp::value_type(index,value));
+    matrixMap.push_back( std::pair<int64_t,_Tp>(index,value) );
+    
     nnz_unmerged++;
   } else {
     jams_error("Can only insert into MAP format sparse matrix");
@@ -200,6 +211,8 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
   row.resize(nrows+1);
   col.resize(nnz_unmerged);
   val.resize(nnz_unmerged);
+
+  std::sort(matrixMap.begin(),matrixMap.end(),kv_pair_less<int64_t,_Tp>);
   
   if(nnz_unmerged > 0){
     index_last = -1; // ensure first index is different;
