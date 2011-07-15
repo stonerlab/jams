@@ -113,8 +113,19 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
       for(int k=0; k<dim[2]; ++k){
         const int kVec[3] = {i,j,k};
         const int idx = kVec[2] + dim[2]*(kVec[1] + dim[1]*kVec[0]);
-        FFTArray[idx][0] = FFTArray[idx][0]/sqrt(dim[0]*dim[1]*dim[2]);
-        FFTArray[idx][1] = FFTArray[idx][1]/sqrt(dim[0]*dim[1]*dim[2]);
+        pow_norm = pow_norm+sqrt(FFTArray[idx][0]*FFTArray[idx][0]+FFTArray[idx][1]*FFTArray[idx][1]);
+      }
+    }
+  }
+  
+  pow_norm = (2.0*M_PI)/pow_norm;
+  for(int i=0; i<dim[0]; ++i){
+    for(int j=0; j<dim[1]; ++j){
+      for(int k=0; k<dim[2]; ++k){
+        const int kVec[3] = {i,j,k};
+        const int idx = kVec[2] + dim[2]*(kVec[1] + dim[1]*kVec[0]);
+        FFTArray[idx][0]=FFTArray[idx][0]*pow_norm;
+        FFTArray[idx][1]=FFTArray[idx][1]*pow_norm;
       }
     }
   }

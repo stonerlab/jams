@@ -189,7 +189,6 @@ int jams_init(int argc, char **argv) {
 void jams_run() {
   using namespace globals;
   
-
   Monitor *mag = new MagnetisationMonitor();
   mag->initialise();
 

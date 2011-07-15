@@ -48,6 +48,7 @@ class CUDAHeunLLGSolver : public Solver {
     int nblocks;
     int spmvblocksize;
     int spmvblocks;
+    size_t diaPitch;
 };
 
 #endif // __CUDAHEUNLLG_H__

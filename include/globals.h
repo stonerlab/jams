@@ -7,7 +7,9 @@
 #define RESTRICT
 #endif
 
+#ifndef FORCE_CUDA_DIA
 #define FORCE_CUDA_DIA
+#endif
 
 void jams_error(const char *string, ...);
 

@@ -59,7 +59,9 @@ class SparseMatrix {
         nnz(0),
         val(0),
         row(0),
-        col(0) 
+        col(0), 
+        dia_offsets(0),
+        num_diagonals(0)
     {}
 
 
@@ -73,7 +75,9 @@ class SparseMatrix {
         nnz(0),
         val(0),
         row(0),
-        col(0)
+        col(0),
+        dia_offsets(0),
+        num_diagonals(0)
     {}
 
     // resize clears all data in matrix and prepares for insertion
@@ -107,7 +111,6 @@ class SparseMatrix {
     inline size_type* colPtr() { return &(col[0]); } ///< @breif Pointer to columns array
 
     inline size_type* dia_offPtr() { return &(dia_offsets[0]); } 
-    inline _Tp* dia_valPtr() { return &(dia_values(0,0)); } 
 
     inline size_type  nonZero() { return nnz; }      ///< @brief Number of non zero entries in matrix
     inline size_type  rows()    { return nrows; }    ///< @brief Number of rows in matrix
@@ -143,7 +146,7 @@ class SparseMatrix {
     std::vector<size_type> row;
     std::vector<size_type> col;
     std::vector<size_type> dia_offsets;
-    Array2D<_Tp>           dia_values;
+    //Array2D<_Tp>           dia_values;
     size_type              num_diagonals;
 
 };
@@ -201,6 +204,7 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
     }
 
     // static casts to force 64bit arithmetic
+//    const int64_t index = (static_cast<int64_t>(i)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(j);
     const int64_t index = (static_cast<int64_t>(i)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(j);
 //    matrixMap.insert(typename coo_mmp::value_type(index,value));
     matrixMap.push_back( std::pair<int64_t,_Tp>(index,value) );
@@ -326,17 +330,14 @@ template <typename _Tp>
 void SparseMatrix<_Tp>::convertMAP2DIA()
 {
 
-  int64_t index_last,ival,jval,index;
-  
+  int64_t ival,jval,index;
 
   nnz = 0;
   
   if(nnz_unmerged > 0){
-
-    index_last = -1; // ensure first index is different;
-
-    row[0] = 0;
   
+//    std::sort(matrixMap.begin(),matrixMap.end(),kv_pair_less<int64_t,_Tp>);
+
     num_diagonals = 0;
     std::vector<int> diag_map(nrows+ncols,0);
   
@@ -360,7 +361,7 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
     }
 
     dia_offsets.resize(num_diagonals);
-    dia_values.resize(nrows,num_diagonals);
+    val.resize((nrows*num_diagonals),0.0);
 
     for(int i=0, diag=0; i<(nrows+ncols); ++i){
       if(diag_map[i] == 1){
@@ -369,12 +370,16 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
         diag++;
       }
     }
-
-    for(int i=0; i<nrows; ++i){
-      for(int j=0; j<num_diagonals; ++j){
-        dia_values(i,j) = 0.0;
-      }
-    }
+    
+//    for(int i=0; i<num_diagonals; ++i){
+//      std::cout<<dia_offsets[i]<<std::endl;
+//    }
+//    std::cout<<"\n\n";
+//    for(int i=0; i<nrows; ++i){
+//      for(int j=0; j<num_diagonals; ++j){
+//        dia_values[nrows*j+i] = 0.0;
+//      }
+//    }
     
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
@@ -383,7 +388,9 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
       jval = index - ((ival)*ncols);
       int map_index = (nrows - ival) + jval;
       int diag = diag_map[map_index];
-      dia_values(ival,diag) += elem->second;
+      val[nrows*diag+ival] += elem->second;
+
+//      std::cout<<ival<<" , "<<jval<<" , "<<diag<<" , "<<val[nrows*diag+ival]<<std::endl;
       nnz++;
     }
   }
