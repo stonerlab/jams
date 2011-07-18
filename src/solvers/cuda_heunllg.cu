@@ -36,7 +36,6 @@
     #error "-arch sm_13 nvcc flag is required to compile"
 #endif
 
-
 void CUDAHeunLLGSolver::syncOutput()
 {
   using namespace globals;
@@ -49,6 +48,20 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   // initialise base class
   Solver::initialise(argc,argv,idt);
+
+  int deviceCount = 0;
+  if (cudaGetDeviceCount(&deviceCount) != cudaSuccess) {
+    jams_error("cudaGetDeviceCount FAILED CUDA Driver and Runtime version may be mismatched.\n");
+  }
+
+  if(deviceCount == 0){
+    jams_error("There is no device supporting CUDA\n");
+  }
+
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, 0);
+  
+  output.write("  * CUDA Device compute capability %d.%d\n",deviceProp.major,deviceProp.minor);
 
   sigma.resize(nspins);
 
@@ -72,9 +85,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
   CUDA_CALL(cudaThreadSynchronize());
-#if __CUDA_ARCH__ > 130
   CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
-#endif
 
 
   //-------------------------------------------------------------------

@@ -36,7 +36,9 @@ objects :
 
 kernels : $(foreach d, $(cuda-kernels), $(wildcard $d*.o)) 
 	for d in $(cuda-kernels); do  \
-		$(CUDA) -arch sm_20 -O3 -DNDEBUG -DCUDA $(INCLUDES) --ptxas-options=-v -c $${d}.cu -o $${d}.o; \
+		$(CUDA) -gencode=arch=compute_13,code=sm_13 -gencode=arch=compute_13,code=compute_13 \
+			-gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20\
+			-O3 -DNDEBUG -DCUDA $(INCLUDES) --ptxas-options=-v -c $${d}.cu -o $${d}.o; \
 	done
 
 clean :
