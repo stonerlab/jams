@@ -1,4 +1,3 @@
-
 #include "cuda_spmv.h"
 #include "cuda_heunllg_kernel.cu"
 #include "globals.h"
@@ -14,7 +13,7 @@
 #include <cmath>
 
 // block size for GPU, 64 appears to be most efficient for current kernel
-#define BLOCKSIZE 32
+#define BLOCKSIZE 64
 
 #ifndef NDEBUG
 #define CUDA_CALL(x) do { if((x) != cudaSuccess) { \
@@ -84,8 +83,9 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   // TODO: set random seed from config
   const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
-  CUDA_CALL(cudaThreadSynchronize());
+  CURAND_CALL(curandGenerateSeeds(gen));
   CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
+  CUDA_CALL(cudaThreadSynchronize());
 
 
   //-------------------------------------------------------------------
