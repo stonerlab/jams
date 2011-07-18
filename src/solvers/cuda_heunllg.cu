@@ -72,7 +72,9 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
   CUDA_CALL(cudaThreadSynchronize());
+#if __CUDA_ARCH__ > 130
   CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
+#endif
 
 
   //-------------------------------------------------------------------
