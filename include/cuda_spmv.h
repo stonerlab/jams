@@ -16,20 +16,28 @@ __global__ void spmv_dia_kernel
 {
 
 /*
+
   int row = blockDim.x * blockIdx.x + threadIdx.x;
 
   if(row < nrows){
     float dot=0;
     for(int n=0;n<ndiag;++n){
-      int col = row+dia_offsets[n];
-      float val = dia_values[nrows*n+row];
+      int colUp  = row+dia_offsets[n];
+      int colLow = row-dia_offsets[n];
+      float valUp  = dia_values[nrows*n+row];
+      float valLow = dia_values[nrows*n+colLow];
 
-      if(col >=0 && col < ncols)
-        dot += val*x[col];
+      if(colLow >=row && colLow < ncols)
+        dot += valLow*x[colLow];
+
+      if(colUp >=0 && colUp < row)
+        dot += valUp*x[colUp];
     }
     y[row] = dot;
   }
-  */
+
+*/
+
   __shared__ int offsets[DIA_BLOCK_SIZE];
 
   const int thread_id = DIA_BLOCK_SIZE * blockIdx.x + threadIdx.x;
@@ -52,20 +60,23 @@ __global__ void spmv_dia_kernel
           float sum = (base == 0) ? float(0) : y[row];
   
           // index into values array
-          int idx = row + pitch * base;
+          int idxUp  = row + pitch * base;
   
           for(int n = 0; n < chunk_size; n++)
           {
-              const int col = row + offsets[n];
-      
-              if(col >= 0 && col < ncols)
-              {
-                  const float A_ij = dia_values[idx];
-                  //sum += A_ij * x[col];
-                  sum += A_ij * tex1Dfetch(tex_x_float,col);
+              const int colUp  = row + offsets[n];
+              const int colLow = row - offsets[n];
+
+              if(colLow >= row && colLow < ncols) {
+                const float A_ij = dia_values[pitch*(base+n)+colLow];
+                sum += A_ij * tex1Dfetch(tex_x_float,colLow);
               }
-      
-              idx += pitch;
+              if(colUp >= 0 && colUp < row) {
+                const float A_ij = dia_values[idxUp];
+                sum += A_ij * tex1Dfetch(tex_x_float,colUp);
+              }
+
+              idxUp += pitch;
           }
   
           y[row] = sum;
