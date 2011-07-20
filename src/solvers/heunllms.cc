@@ -19,6 +19,9 @@ void HeunLLMSSolver::initialise(int argc, char **argv, double idt)
   Solver::initialise(argc,argv,idt);
 
   output.write("Initialising Heun LLMS solver (CPU)\n");
+  output.write("  * Converting MAP to CSR\n");
+  Jij.convertMAP2CSR();
+  output.write("  * Jij matrix memory (CSR): %f MB\n",Jij.calculateMemory());
 
   snew.resize(nspins,3);
   wnew.resize(nspins,3);

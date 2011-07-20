@@ -841,16 +841,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
   }
   output.write("  * Total interaction count: %i\n", counter);
   output.write("  * Jij matrix memory (MAP): %f MB\n",Jij.calculateMemory());
-#ifdef FORCE_CUDA_DIA
-  output.write("\nConverting MAP to DIA...\n");
-  Jij.convertMAP2DIA();
-#else
-  output.write("\nConverting MAP to CSR...\n");
-  Jij.convertMAP2CSR();
-#endif
 
-
-  output.write("  * Jij matrix memory (CSR): %f MB\n",Jij.calculateMemory());
 // Jij.printCSR();
 }
 

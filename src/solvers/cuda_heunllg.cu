@@ -70,6 +70,15 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
 
   output.write("  * CUDA Heun LLG solver (GPU)\n");
+#ifdef FORCE_CUDA_DIA
+  output.write("  * Converting MAP to DIA\n");
+  Jij.convertMAP2DIA();
+  output.write("  * Jij matrix memory (DIA): %f MB\n",Jij.calculateMemory());
+#else
+  output.write("  * Converting MAP to CSR\n");
+  Jij.convertMAP2CSR();
+  output.write("  * Jij matrix memory (CSR): %f MB\n",Jij.calculateMemory());
+#endif
 
   //-------------------------------------------------------------------
   //  Initialise curand
