@@ -83,15 +83,15 @@ int jams_init(int argc, char **argv) {
 
       double tmp = config.lookup("sim.t_eq");
       steps_eq = static_cast<unsigned long>(tmp/dt);
-      output.write("  * Equilibration time: %1.8e (%uld steps)\n",tmp,steps_eq);
+      output.write("  * Equilibration time: %1.8e (%lu steps)\n",tmp,steps_eq);
 
       tmp = config.lookup("sim.t_run");
       steps_run = static_cast<unsigned long>(tmp/dt);
-      output.write("  * Run time:           %1.8e (%uld steps)\n",tmp,steps_run);
+      output.write("  * Run time:           %1.8e (%lu steps)\n",tmp,steps_run);
       
       tmp = config.lookup("sim.t_out");
       steps_out = static_cast<unsigned long>(tmp/dt);
-      output.write("  * Output time:        %1.8e (%uld steps)\n",tmp,steps_out);
+      output.write("  * Output time:        %1.8e (%lu steps)\n",tmp,steps_out);
 
       globals::h_app[0] = config.lookup("sim.h_app.[0]");
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
