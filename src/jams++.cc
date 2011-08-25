@@ -21,9 +21,9 @@ namespace {
   Solver *solver;
   Physics *physics;
   double dt=0.0;
-  unsigned int steps_eq=0;
-  unsigned int steps_run=0;
-  unsigned int steps_out=0;
+  unsigned long steps_eq=0;
+  unsigned long steps_run=0;
+  unsigned long steps_out=0;
 } // anon namespace
 
 int jams_init(int argc, char **argv) {
@@ -78,20 +78,20 @@ int jams_init(int argc, char **argv) {
 
 
       dt = config.lookup("sim.t_step");
-      output.write("  * Timestep:           %1.6e\n",dt);
+      output.write("  * Timestep:           %1.8e\n",dt);
 
 
       double tmp = config.lookup("sim.t_eq");
-      steps_eq = static_cast<unsigned int>(tmp/dt);
-      output.write("  * Equilibration time: %1.6e (%d steps)\n",tmp,steps_eq);
+      steps_eq = static_cast<unsigned long>(tmp/dt);
+      output.write("  * Equilibration time: %1.8e (%uld steps)\n",tmp,steps_eq);
 
       tmp = config.lookup("sim.t_run");
-      steps_run = static_cast<unsigned int>(tmp/dt);
-      output.write("  * Run time:           %1.6e (%d steps)\n",tmp,steps_run);
+      steps_run = static_cast<unsigned long>(tmp/dt);
+      output.write("  * Run time:           %1.8e (%uld steps)\n",tmp,steps_run);
       
       tmp = config.lookup("sim.t_out");
-      steps_out = static_cast<unsigned int>(tmp/dt);
-      output.write("  * Output time:        %1.6e (%d steps)\n",tmp,steps_out);
+      steps_out = static_cast<unsigned long>(tmp/dt);
+      output.write("  * Output time:        %1.8e (%uld steps)\n",tmp,steps_out);
 
       globals::h_app[0] = config.lookup("sim.h_app.[0]");
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
@@ -194,7 +194,7 @@ void jams_run() {
 
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
-  for(unsigned int i=0;i<steps_eq;++i) {
+  for(unsigned long i=0;i<steps_eq;++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
       mag->write(solver->getTime());
@@ -207,7 +207,7 @@ void jams_run() {
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   std::clock_t start = std::clock();
-  for(unsigned int i=0; i<steps_run; ++i) {
+  for(unsigned long i=0; i<steps_run; ++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
       mag->write(solver->getTime());
