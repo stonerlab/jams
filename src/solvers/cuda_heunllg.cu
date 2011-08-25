@@ -48,14 +48,15 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   // initialise base class
   Solver::initialise(argc,argv,idt);
 
-  int deviceCount = 0;
-  if (cudaGetDeviceCount(&deviceCount) != cudaSuccess) {
-    jams_error("cudaGetDeviceCount FAILED CUDA Driver and Runtime version may be mismatched.\n");
-  }
-
-  if(deviceCount == 0){
-    jams_error("There is no device supporting CUDA\n");
-  }
+// POSSIBLY BUGGY AT THE MOMENT -> INVESTIGATE
+//  int deviceCount = 0;
+//  if (cudaGetDeviceCount(&deviceCount) != cudaSuccess) {
+//    jams_error("cudaGetDeviceCount FAILED CUDA Driver and Runtime version may be mismatched.\n");
+//  }
+//
+//  if(deviceCount == 0){
+//    jams_error("There is no device supporting CUDA\n");
+//  }
 
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, 0);
