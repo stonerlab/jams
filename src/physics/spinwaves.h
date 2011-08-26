@@ -18,11 +18,17 @@ class SpinwavesPhysics : public Physics {
         typeOverride(),
         initialised(false),
         spinDump(false),        
-        PulseDuration(0),
-        PulseTemperature(0),
-        PulseCount(0),
-        PulseTotal(0),
-        FieldStrength(3,0)
+        pumpTime(0.0),
+        pumpStartTime(0.0),
+        pumpTemp(0.0),
+        pumpFluence(0.0),
+        electronTemp(0.0),
+        phononTemp(0.0),
+        reversingField(3,0.0),
+        Ce(7.0E02),
+        Cl(3.0E06),
+        G(17.0E17),
+        TTMFile()
       {}
 
     ~SpinwavesPhysics();
@@ -40,11 +46,24 @@ class SpinwavesPhysics : public Physics {
     std::vector<int> typeOverride;
     bool initialised;
     bool spinDump;
-    double PulseDuration;
-    double PulseTemperature;
-    int    PulseCount;
-    int    PulseTotal;
-    std::vector<double> FieldStrength;
+
+    // calculation of pump power which is linear with input approx
+    // electron temperature
+    double pumpPower(double &pF){return (1.152E20*pF);}
+
+    double pumpTime;
+    double pumpStartTime;
+    double pumpTemp;
+    double pumpFluence;
+    double electronTemp;
+    double phononTemp;
+    std::vector<double> reversingField;
+
+    double Ce; // electron specific heat
+    double Cl; // phonon specific heat
+    double G;  // electron coupling constant
+
+    std::ofstream TTMFile;
 
 };
 #endif /* __SPINWAVES_H__ */

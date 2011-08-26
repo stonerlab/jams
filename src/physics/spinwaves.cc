@@ -1,4 +1,5 @@
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <fstream>
 
@@ -10,19 +11,40 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
   using namespace globals;
 
   output.write("  * Spinwaves physics module\n");
+  phononTemp = phys["InitialTemperature"];
+  electronTemp = phononTemp;
 
-  PulseDuration = phys["PulseDuration"];
-  PulseTotal    = phys["PulseTotal"];
-  PulseTemperature = phys["PulseTemperature"];
+  // unitless according to Tom's code!
+  pumpFluence = phys["PumpFluence"];
+  pumpFluence = pumpPower(pumpFluence);
+
+  // width of gaussian heat pulse in seconds
+  pumpTime = phys["PumpTime"];
+
+  pumpStartTime = phys["PumpStartTime"];
 
   for(int i=0; i<3; ++i) {
-    FieldStrength[i] = phys["FieldStrength"][i];
+    reversingField[i] = phys["ReversingField"][i];
   }
 
-  PulseCount = 1;
 
 
-  lattice.getDimensions(dim[0],dim[1],dim[2]);
+  std::string fileName = "_ttm.dat";
+  fileName = seedname+fileName;
+  TTMFile.open(fileName.c_str());
+
+  TTMFile << std::setprecision(8);
+  
+  TTMFile << "# t [s]\tT_el [K]\tT_ph [K]\tLaser [arb/]\n";
+
+  if( config.exists("physics.SizeOverride") == true) {
+    for(int i=0; i<3; ++i) {
+      dim[i] = phys["SizeOverride"][i];
+    }
+  output.write("  * Lattice size override [%d,%d,%d]\n",dim[0],dim[1],dim[2]);
+  }else{
+    lattice.getDimensions(dim[0],dim[1],dim[2]);
+  }
 
   assert( dim[0]*dim[1]*dim[2] > 0 );
 
@@ -56,39 +78,36 @@ SpinwavesPhysics::~SpinwavesPhysics()
   }
 
   SPWFile.close();
+  TTMFile.close();
 }
 
 void SpinwavesPhysics::run(double realtime, const double dt) {
+  using namespace globals;
+  const double relativeTime = (realtime-pumpStartTime);
+
+
+  if( relativeTime > 0.0 ) {
+
+    for(int i=0; i<3; ++i) {
+      globals::h_app[i] = reversingField[i];
+    }
+    if( relativeTime <= 10*pumpTime ) {
+      pumpTemp = pumpFluence*exp(-((relativeTime-3*pumpTime)/(pumpTime))*((relativeTime-3*pumpTime)/(pumpTime)));
+    } else {
+      pumpTemp = 0.0;
+    }
+
+    electronTemp = electronTemp + ((-G*(electronTemp-phononTemp)+pumpTemp)*dt)/(Ce*electronTemp);
+    phononTemp   = phononTemp   + (( G*(electronTemp-phononTemp)         )*dt)/(Cl);
+  }
+
+  globalTemperature = electronTemp;
 }
 
 void SpinwavesPhysics::monitor(double realtime, const double dt) {
   using namespace globals;
 
-  double eqtime = config.lookup("sim.t_eq");
-
-  
-  if( (realtime > eqtime) && (realtime-eqtime) > (PulseDuration*PulseCount)){
-    PulseCount++;
-  }
-
-  if( (realtime > eqtime) && ((realtime-eqtime) < (PulseDuration*(PulseTotal)))){
-    if(PulseCount%2 == 0) {
-      for(int i=0; i<3; ++i) {
-        globals::h_app[i] = -FieldStrength[i];
-        globals::globalTemperature = PulseTemperature;
-      }
-    }else{
-      for(int i=0; i<3; ++i) {
-        globals::h_app[i] = FieldStrength[i];
-        globals::globalTemperature = PulseTemperature;
-      }
-    }
-  }else{
-    for(int i=0; i<3; ++i) {
-      globals::h_app[i] = 0.0;                                                                     
-        globals::globalTemperature = config.lookup("sim.temperature");
-    }
-  }
+  TTMFile << realtime << "\t" << electronTemp << "\t" << phononTemp << "\t" << pumpTemp << "\n";
 
   
   // calculate structure factor <S^{k}(-q)S^{k}(q)>
@@ -101,8 +120,8 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
 
   fftw_execute(FFTPlan);
 
-  FFTArray[0][0] = 2.0*FFTArray[0][0];
-  FFTArray[0][1] = 2.0*FFTArray[0][1];
+  FFTArray[0][0] = FFTArray[0][0];
+  FFTArray[0][1] = FFTArray[0][1];
 
   
 
@@ -139,8 +158,8 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
      const int qVecMinus[3] = {0,0,(dim[2]-k)};
      const int qIdx      = qVec[2] + dim[2]*(qVec[1] + dim[1]*qVec[0]);
      const int qIdxMinus = qVecMinus[2] + dim[2]*(qVecMinus[1] + dim[1]*qVecMinus[0]);
-     double Sq      = (FFTArray[qIdx][0]*FFTArray[qIdx][0] + FFTArray[qIdx][1]*FFTArray[qIdx][1]);
-     double SqMinus = (FFTArray[qIdxMinus][0]*FFTArray[qIdxMinus][0] + FFTArray[qIdxMinus][1]*FFTArray[qIdxMinus][1]);
+     double Sq      = sqrt(FFTArray[qIdx][0]*FFTArray[qIdx][0] + FFTArray[qIdx][1]*FFTArray[qIdx][1]);
+     double SqMinus = sqrt(FFTArray[qIdxMinus][0]*FFTArray[qIdxMinus][0] + FFTArray[qIdxMinus][1]*FFTArray[qIdxMinus][1]);
      SPWFile << k << "\t" << (Sq*SqMinus) << "\n";
    }
   SPWFile << "\n\n";
