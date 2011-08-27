@@ -199,7 +199,7 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
 
   std::vector<double> StructureFactorPara((dim[2]/2)+1);
   
-  StructureFactorPerp[0] = (FFTArray[0][0]*FFTArray[0][0] + FFTArray[0][1]*FFTArray[0][1]);
+  StructureFactorPara[0] = (FFTArray[0][0]*FFTArray[0][0] + FFTArray[0][1]*FFTArray[0][1]);
    for(int k=1; k<(dim[2]/2)+1; ++k){
      const int qVec[3]      = {0,0,k};
      const int qVecMinus[3] = {0,0,(dim[2]-k)};
