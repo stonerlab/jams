@@ -58,10 +58,13 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
   SPWFile.open(filename.c_str());
   SPWFile << "# t [s]\tk=0\tk!=0\tM_AF1_x\tM_AF1_y\tM_AF1_z\n";
 
+  filename = "_modes.dat";
+  filename = seedname+filename;
+  ModeFile.open(filename.c_str());
 
-  const double sampletime = config.lookup("sim.t_out");
-  const double runtime = config.lookup("sim.t_run");
-  const int outcount = runtime/sampletime;
+  //const double sampletime = config.lookup("sim.t_out");
+  //const double runtime = config.lookup("sim.t_run");
+  //const int outcount = runtime/sampletime;
 
   initialised = true;
 }
@@ -76,7 +79,7 @@ SpinwavesPhysics::~SpinwavesPhysics()
     }
     FFTArray = NULL;
   }
-
+  ModeFile.close();
   SPWFile.close();
   TTMFile.close();
 }
@@ -109,7 +112,9 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
 
   TTMFile << realtime << "\t" << electronTemp << "\t" << phononTemp << "\t" << pumpTemp << "\n";
 
-  
+//-----------------------------------------------------------------------------
+// Perpendicular Structure Factor
+//-----------------------------------------------------------------------------
   // calculate structure factor <S^{k}(-q)S^{k}(q)>
 
   for(int i=0; i<nspins; ++i){
@@ -120,10 +125,6 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
 
   fftw_execute(FFTPlan);
 
-  FFTArray[0][0] = FFTArray[0][0];
-  FFTArray[0][1] = FFTArray[0][1];
-
-  
 
   // normalise by number of spins and total mode power
   double pow_norm = 0.0;
@@ -148,11 +149,10 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
       }
     }
   }
+
+  std::vector<double> StructureFactorPerp((dim[2]/2)+1);
   
-  const double kzero = (FFTArray[0][0]*FFTArray[0][0] + FFTArray[0][1]*FFTArray[0][1]);
-
-  SPWFile << 0 << "\t" << kzero << "\n";
-
+  StructureFactorPerp[0] = (FFTArray[0][0]*FFTArray[0][0] + FFTArray[0][1]*FFTArray[0][1]);
    for(int k=1; k<(dim[2]/2)+1; ++k){
      const int qVec[3]      = {0,0,k};
      const int qVecMinus[3] = {0,0,(dim[2]-k)};
@@ -160,8 +160,72 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
      const int qIdxMinus = qVecMinus[2] + dim[2]*(qVecMinus[1] + dim[1]*qVecMinus[0]);
      double Sq      = sqrt(FFTArray[qIdx][0]*FFTArray[qIdx][0] + FFTArray[qIdx][1]*FFTArray[qIdx][1]);
      double SqMinus = sqrt(FFTArray[qIdxMinus][0]*FFTArray[qIdxMinus][0] + FFTArray[qIdxMinus][1]*FFTArray[qIdxMinus][1]);
-     SPWFile << k << "\t" << (Sq*SqMinus) << "\n";
+     StructureFactorPerp[k] = (Sq*SqMinus);
+   }
+//-----------------------------------------------------------------------------
+// Parallel Structure Factor
+//-----------------------------------------------------------------------------
+  for(int i=0; i<nspins; ++i){
+    FFTArray[i][0] = s(i,2);
+    FFTArray[i][1] = 0.0;
+  }
+
+
+  fftw_execute(FFTPlan);
+
+  // normalise by number of spins and total mode power
+  pow_norm = 0.0;
+  for(int i=0; i<dim[0]; ++i){
+    for(int j=0; j<dim[1]; ++j){
+      for(int k=0; k<dim[2]; ++k){
+        const int kVec[3] = {i,j,k};
+        const int idx = kVec[2] + dim[2]*(kVec[1] + dim[1]*kVec[0]);
+        pow_norm = pow_norm+sqrt(FFTArray[idx][0]*FFTArray[idx][0]+FFTArray[idx][1]*FFTArray[idx][1]);
+      }
+    }
+  }
+  
+  pow_norm = (2.0*M_PI)/pow_norm;
+  for(int i=0; i<dim[0]; ++i){
+    for(int j=0; j<dim[1]; ++j){
+      for(int k=0; k<dim[2]; ++k){
+        const int kVec[3] = {i,j,k};
+        const int idx = kVec[2] + dim[2]*(kVec[1] + dim[1]*kVec[0]);
+        FFTArray[idx][0]=FFTArray[idx][0]*pow_norm;
+        FFTArray[idx][1]=FFTArray[idx][1]*pow_norm;
+      }
+    }
+  }
+
+  std::vector<double> StructureFactorPara((dim[2]/2)+1);
+  
+  StructureFactorPerp[0] = (FFTArray[0][0]*FFTArray[0][0] + FFTArray[0][1]*FFTArray[0][1]);
+   for(int k=1; k<(dim[2]/2)+1; ++k){
+     const int qVec[3]      = {0,0,k};
+     const int qVecMinus[3] = {0,0,(dim[2]-k)};
+     const int qIdx      = qVec[2] + dim[2]*(qVec[1] + dim[1]*qVec[0]);
+     const int qIdxMinus = qVecMinus[2] + dim[2]*(qVecMinus[1] + dim[1]*qVecMinus[0]);
+     double Sq      = sqrt(FFTArray[qIdx][0]*FFTArray[qIdx][0] + FFTArray[qIdx][1]*FFTArray[qIdx][1]);
+     double SqMinus = sqrt(FFTArray[qIdxMinus][0]*FFTArray[qIdxMinus][0] + FFTArray[qIdxMinus][1]*FFTArray[qIdxMinus][1]);
+     StructureFactorPara[k] = (Sq*SqMinus);
+   }
+
+//-----------------------------------------------------------------------------
+// Print Files
+//-----------------------------------------------------------------------------
+
+   for(int k=0; k<(dim[2]/2)+1; ++k){
+     SPWFile << k << "\t" << StructureFactorPerp[k] << "\t" << StructureFactorPara[k] << "\n";
    }
   SPWFile << "\n\n";
+
+  ModeFile << realtime;
+  for(int k=0; k<(dim[2]/2)+1;++k){
+    ModeFile << "\t" << StructureFactorPerp[k];
+  }
+  for(int k=0; k<(dim[2]/2)+1;++k){
+    ModeFile << "\t" << StructureFactorPara[k];
+  }
+  ModeFile << "\n";
 
 }
