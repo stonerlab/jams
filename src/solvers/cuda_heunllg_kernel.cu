@@ -57,10 +57,6 @@ __global__ void cuda_heun_llg_kernelA
 
     norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
     
-    s[0] = s[0] + dt*rhs[0];
-    s[1] = s[1] + dt*rhs[1];
-    s[2] = s[2] + dt*rhs[2];
-
     s_dev[idx3]   = s[0]*norm;
     s_dev[idx3+1] = s[1]*norm;
     s_dev[idx3+2] = s[2]*norm;
