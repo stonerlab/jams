@@ -29,22 +29,23 @@ EXEOUTPUTFILE = -o $@
 # System based overides
 #----------------------------------------------------------------------
 
-ifeq ($(withcuda),1)
-	OPTFLAGS += -DCUDA
-endif
-
 ifeq ($(systype),Linux)
 	COPTIONS += -DLinux
 endif
 
 ifeq ($(systype),Darwin)
-	CXX = g++ 
+	withcuda=0
+	CXX = g++
 	COPTIONS += -DDarwin
 endif
 
 #----------------------------------------------------------------------
 # Build specific options 
 #----------------------------------------------------------------------
+ifeq ($(withcuda),1)
+	OPTFLAGS += -DCUDA
+endif
+
 ifeq ($(withdebug),1)
 	OPTFLAGS += -g -DDEBUG
 	LDOPTIONS += -g
@@ -62,13 +63,10 @@ CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t
 
-ifeq ($(cputype),x86_64)
-	LIBSDIR += -L/usr/local/cuda/lib64
-else
-	LIBSDIR += -L/usr/local/cuda/lib
-endif
+#LIBSDIR += -L/usr/local/cuda/lib64
+LIBSDIR += -L/usr/local/cuda/lib
 
 
-LIBS =  -lfftw3 -lconfig++ -lcuda -lcudart -lcurand -lcublas -lcusparse \
+LIBS =  -lfftw3 -lconfig++ -lcudart -lcurand -lcublas -lcusparse \
 				 #-Wl,--start-group $(MKLroot)/libmkl_intel_lp64.a $(MKLroot)/libmkl_sequential.a $(MKLroot)/libmkl_core.a -Wl,--end-group -lpthread
 LDFLAGS = $(LIBSDIR)
