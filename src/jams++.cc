@@ -1,4 +1,5 @@
 #define GLOBALORIGIN
+#define JAMS_VERSION "0.1.1"
 
 #include <string>
 #include <cstdarg>
@@ -39,6 +40,7 @@ int jams_init(int argc, char **argv) {
   output.open("%s.out",seedname.c_str());
 
   output.write("\nJAMS++\n");
+  output.write("Version %s\n", JAMS_VERSION);
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
 
 #ifdef DEBUG
