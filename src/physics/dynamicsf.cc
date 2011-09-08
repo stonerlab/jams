@@ -107,12 +107,12 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   if(componentImag == -1){
     for(int i=0; i<nspins; ++i){
       qSpace[i][0] = s(i,componentReal);
-      qSpace[i][2] = 0.0;
+      qSpace[i][1] = 0.0;
     }
   } else {
     for(int i=0; i<nspins; ++i){
       qSpace[i][0] = s(i,componentReal);
-      qSpace[i][2] = s(i,componentImag);
+      qSpace[i][1] = s(i,componentImag);
     }
   }
 
