@@ -3,12 +3,14 @@
 
 #include "physics.h"
 
+#include <vector>
 #include <fftw3.h>
 
 class DynamicSFPhysics : public Physics {
   public:
     DynamicSFPhysics()
     : initialised(false),
+      rDim(3,0),
       qSpace(NULL),
       rSpaceFFT()
     {}
@@ -21,8 +23,11 @@ class DynamicSFPhysics : public Physics {
 
   private:
   bool              initialised;
+  std::vector<int>  rDim;
   fftw_complex*     qSpace;
   fftw_plan         rSpaceFFT;
+  int               componentReal;
+  int               componentImag;
 
 
 };
