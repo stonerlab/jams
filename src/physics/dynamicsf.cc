@@ -13,6 +13,8 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   const double runtime = config.lookup("sim.t_run");
   nTimePoints = runtime/sampletime;
 
+  freqIntervalSize = (2.0*M_PI)/(sampletime);
+
   std::map<std::string,int> componentMap;
   componentMap["X"] = 0;
   componentMap["Y"] = 1;
@@ -118,6 +120,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 
   // average over -q +q
   
+  // cant average zero mode
   int tIdx = ((rDim[2]/2)+1)*timePointCounter;
   tSpace[tIdx][0] = (qSpace[0][0]*qSpace[0][0] + qSpace[0][1]*qSpace[0][1]);
   tSpace[tIdx][1] = 0.0;
@@ -139,6 +142,18 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   if(timePointCounter == nTimePoints){
     fftw_execute(tSpaceFFT);
 
+    // average over -omega +omega
+    for(int qz=0; qz<((rDim[2]/2)+1); ++qz){
+      // cant average zero mode
+      tIdx = qz;
+      DSFFile << qz << "\t" << 0.0 <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
+      for(int omega=1; omega<((nTimePoints/2)+1); ++omega){
+        tIdx = qz + ((rDim[2]/2)+1)*omega;
+        
+          DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
+      }
+      DSFFile << "\n";
+    }
   }
 
   timePointCounter++;

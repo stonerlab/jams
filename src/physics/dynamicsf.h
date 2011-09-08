@@ -17,7 +17,8 @@ class DynamicSFPhysics : public Physics {
       tSpace(NULL),
       qSpaceFFT(),
       tSpaceFFT(),
-      DSFFile()
+      DSFFile(),
+      freqIntervalSize(0)
     {}
     
     ~DynamicSFPhysics();
@@ -38,6 +39,7 @@ class DynamicSFPhysics : public Physics {
   int               componentReal;
   int               componentImag;
   std::ofstream     DSFFile;
+  double            freqIntervalSize;
 
 
 };
