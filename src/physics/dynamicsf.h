@@ -10,9 +10,14 @@ class DynamicSFPhysics : public Physics {
   public:
     DynamicSFPhysics()
     : initialised(false),
+      timePointCounter(0),
+      nTimePoints(0),
       rDim(3,0),
       qSpace(NULL),
-      qSpaceFFT()
+      tSpace(NULL),
+      qSpaceFFT(),
+      tSpaceFFT(),
+      DSFFile()
     {}
     
     ~DynamicSFPhysics();
@@ -23,11 +28,16 @@ class DynamicSFPhysics : public Physics {
 
   private:
   bool              initialised;
+  int               timePointCounter;
+  int               nTimePoints;
   std::vector<int>  rDim;
   fftw_complex*     qSpace;
+  fftw_complex*     tSpace;
   fftw_plan         qSpaceFFT;
+  fftw_plan         tSpaceFFT;
   int               componentReal;
   int               componentImag;
+  std::ofstream     DSFFile;
 
 
 };

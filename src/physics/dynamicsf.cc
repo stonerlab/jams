@@ -9,6 +9,10 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 {
   using namespace globals;
 
+  const double sampletime = config.lookup("sim.t_out");
+  const double runtime = config.lookup("sim.t_run");
+  nTimePoints = runtime/sampletime;
+
   std::map<std::string,int> componentMap;
   componentMap["X"] = 0;
   componentMap["Y"] = 1;
@@ -51,11 +55,17 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   }
 
 
-  output.write("  * Allocating FFTW array...\n");
+  output.write("  * Allocating FFTW arrays...\n");
   qSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*rDim[0]*rDim[1]*rDim[2]));
+  tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*((rDim[2]/2)+1)));
 
   output.write("  * Planning FFTW transform...\n");
   qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
+  tSpaceFFT = fftw_plan_dft_2d(nTimePoints,((rDim[2]/2)+1),tSpace,tSpace,FFTW_FORWARD,FFTW_MEASURE);
+
+  std::string filename = "_dsf.dat";
+  filename = seedname+filename;
+  DSFFile.open(filename.c_str());
 
   initialised = true;
 }
@@ -64,12 +74,19 @@ DynamicSFPhysics::~DynamicSFPhysics()
 {
   if(initialised == true){
     fftw_destroy_plan(qSpaceFFT);
+    fftw_destroy_plan(tSpaceFFT);
 
     if(qSpace != NULL) {
       fftw_free(qSpace);
       qSpace = NULL;
     }
+    if(tSpace != NULL) {
+      fftw_free(tSpace);
+      tSpace = NULL;
+    }
   }
+
+  DSFFile.close();
 }
 
 void  DynamicSFPhysics::run(double realtime, const double dt)
@@ -98,5 +115,32 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   }
 
   fftw_execute(qSpaceFFT);
+
+  // average over -q +q
+  
+  int tIdx = ((rDim[2]/2)+1)*timePointCounter;
+  tSpace[tIdx][0] = (qSpace[0][0]*qSpace[0][0] + qSpace[0][1]*qSpace[0][1]);
+  tSpace[tIdx][1] = 0.0;
+  for(int qz=1; qz<((rDim[2]/2)+1); ++qz){
+
+    int qVec[3] = {0, 0, qz};
+    int qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
+    tIdx = qz + ((rDim[2]/2)+1)*timePointCounter;
+
+    tSpace[tIdx][0] = 0.5*(qSpace[qIdx][0]*qSpace[qIdx][0] + qSpace[qIdx][1]*qSpace[qIdx][1]);
+    tSpace[tIdx][1] = 0.0;
+    
+    qVec[2] = rDim[2]-qz;
+    qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
+
+    tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]*qSpace[qIdx][0] + qSpace[qIdx][1]*qSpace[qIdx][1]);
+  }
+
+  if(timePointCounter == nTimePoints){
+    fftw_execute(tSpaceFFT);
+
+  }
+
+  timePointCounter++;
 
 }
