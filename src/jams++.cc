@@ -135,6 +135,8 @@ int jams_init(int argc, char **argv) {
           physics = Physics::Create(TTM);
         }else if(physname == "SPINWAVES") {
           physics = Physics::Create(SPINWAVES);
+        }else if(physname == "DYNAMICSF") {
+          physics = Physics::Create(DYNAMICSF);
         }else if(physname == "SQUARE") {
           physics = Physics::Create(SQUARE);
         }else{
