@@ -3,10 +3,14 @@
 
 #include "physics.h"
 
+#include <fftw3.h>
+
 class DynamicSFPhysics : public Physics {
   public:
     DynamicSFPhysics()
-    : initialised(false)
+    : initialised(false),
+      qSpace(NULL),
+      rSpaceFFT()
     {}
     
     ~DynamicSFPhysics();
@@ -16,7 +20,10 @@ class DynamicSFPhysics : public Physics {
     virtual void monitor(double realtime, const double dt);
 
   private:
-  bool initialised;
+  bool              initialised;
+  fftw_complex*     qSpace;
+  fftw_plan         rSpaceFFT;
+
 
 };
 
