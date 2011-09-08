@@ -139,7 +139,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
     tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]*qSpace[qIdx][0] + qSpace[qIdx][1]*qSpace[qIdx][1]);
   }
 
-  if(timePointCounter == nTimePoints){
+  if(timePointCounter == (nTimePoints-1)){
     fftw_execute(tSpaceFFT);
 
     // average over -omega +omega
