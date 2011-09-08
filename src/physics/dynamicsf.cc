@@ -25,17 +25,17 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   config.lookupValue("physics.componentReal",strReal);
   std::transform(strReal.begin(),strReal.end(),strReal.begin(),toupper);
 
-  if(strReal != "X" || strReal != "Y" || strReal != "Z"){
-    jams_error("Real Component for Fourier transform must be X,Y or Z");
-  }
+//   if(strReal != "X" || strReal != "Y" || strReal != "Z"){
+//     jams_error("Real Component for Fourier transform must be X,Y or Z");
+//   }
   componentReal = componentMap[strReal];
 
   if( config.exists("physics.componentImag") ) {
     config.lookupValue("physics.componentImag",strImag);
   
-    if(strImag != "X" || strImag != "Y" || strImag != "Z"){
-      jams_error("Imaginary Component for Fourier transform must be X,Y or Z");
-    }
+//     if(strImag != "X" || strImag != "Y" || strImag != "Z"){
+//       jams_error("Imaginary Component for Fourier transform must be X,Y or Z");
+//     }
     std::transform(strImag.begin(),strImag.end(),strImag.begin(),toupper);
     
     componentImag = componentMap[strImag];
