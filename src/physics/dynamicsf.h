@@ -12,7 +12,7 @@ class DynamicSFPhysics : public Physics {
     : initialised(false),
       rDim(3,0),
       qSpace(NULL),
-      rSpaceFFT()
+      qSpaceFFT()
     {}
     
     ~DynamicSFPhysics();
@@ -25,7 +25,7 @@ class DynamicSFPhysics : public Physics {
   bool              initialised;
   std::vector<int>  rDim;
   fftw_complex*     qSpace;
-  fftw_plan         rSpaceFFT;
+  fftw_plan         qSpaceFFT;
   int               componentReal;
   int               componentImag;
 

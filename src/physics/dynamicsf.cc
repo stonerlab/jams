@@ -33,9 +33,12 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     std::transform(strImag.begin(),strImag.end(),strImag.begin(),toupper);
     
     componentImag = componentMap[strImag];
+    output.write("  * Fourier transform component: (%s, i%s)\n",strReal.c_str(),strImag.c_str());
   } else {
     componentImag = -1; // dont use imaginary component
+    output.write("  * Fourier transform component: %s\n",strReal.c_str());
   }
+
 
   // read lattice size
   if( config.exists("physics.SizeOverride") == true) {
@@ -48,17 +51,25 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   }
 
 
+  output.write("  * Allocating FFTW array...\n");
   qSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*rDim[0]*rDim[1]*rDim[2]));
+
+  output.write("  * Planning FFTW transform...\n");
+  qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
 
   initialised = true;
 }
 
 DynamicSFPhysics::~DynamicSFPhysics()
 {
-  if(qSpace != NULL) {
-    fftw_free(qSpace);
-  }
+  if(initialised == true){
+    fftw_destroy_plan(qSpaceFFT);
 
+    if(qSpace != NULL) {
+      fftw_free(qSpace);
+      qSpace = NULL;
+    }
+  }
 }
 
 void  DynamicSFPhysics::run(double realtime, const double dt)
@@ -86,6 +97,6 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
     }
   }
 
-
+  fftw_execute(qSpaceFFT);
 
 }
