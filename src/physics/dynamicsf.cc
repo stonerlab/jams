@@ -58,6 +58,8 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     lattice.getDimensions(rDim[0],rDim[1],rDim[2]);
   }
 
+  const int qzPoints = (rDim[2]/2)+1;
+
 
   output.write("  * Allocating FFTW arrays...\n");
   output.write("  * qSpace allocating %f MB\n", (sizeof(fftw_complex)*rDim[0]*rDim[1]*rDim[2])/(1024.0*1024.0));
@@ -65,19 +67,32 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   if(qSpace == NULL){
     jams_error("Failed to allocate qSpace FFT array");
   }
-//   tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*((rDim[2]/2)+1)));
-  output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*nspins)/(1024.0*1024.0));
-  tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*nspins));
+//   output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*nspins)/(1024.0*1024.0));
+  output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*qzPoints/(1024.0*1024.0)));
+//   tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*nspins));
+  tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*qzPoints));
   if(qSpace == NULL){
     jams_error("Failed to allocate tSpace FFT array");
   }
 
   output.write("  * Planning FFTW transform...\n");
-//   qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
-//   tSpaceFFT = fftw_plan_dft_2d(nTimePoints,((rDim[2]/2)+1),tSpace,tSpace,FFTW_FORWARD,FFTW_MEASURE);
+  qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
   
-  int tDim[4] = {nTimePoints,rDim[0],rDim[1],rDim[2]};
-  tSpaceFFT = fftw_plan_dft(4,tDim,tSpace,tSpace,FFTW_FORWARD,FFTW_ESTIMATE);
+// --------------------------------------------------------------------------------------------------------------------
+// FFTW Advanced interface for time transform
+// --------------------------------------------------------------------------------------------------------------------
+  int rank       = 1;
+  int sizeN[]   = {nTimePoints};
+  int howmany    = qzPoints;
+  int inembed[] = {nTimePoints};  int onembed[] = {nTimePoints};
+  int istride    = qzPoints;      int ostride    = qzPoints;
+  int idist      = 1;             int odist      = 1;
+
+  tSpaceFFT = fftw_plan_many_dft(rank,sizeN,howmany,tSpace,inembed,istride,idist,tSpace,onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
+// --------------------------------------------------------------------------------------------------------------------
+  
+//   int tDim[4] = {nTimePoints,rDim[0],rDim[1],rDim[2]};
+//   tSpaceFFT = fftw_plan_dft(4,tDim,tSpace,tSpace,FFTW_FORWARD,FFTW_ESTIMATE);
 
   std::string filename = "_dsf.dat";
   filename = seedname+filename;
@@ -116,6 +131,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   using namespace globals;
   assert(initialised);
 
+  const int qzPoints = (rDim[2]/2)+1;
 
   // ASSUMPTION: Spin array is C-ordered in space
 //   if(componentImag == -1){
@@ -171,28 +187,58 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 //     }
 //   }
 
-
+  // ASSUMPTION: Spin array is C-ordered in space
   if(componentImag == -1){
     for(int i=0; i<nspins; ++i){
-      int tIdx = i + nspins*timePointCounter;
-      tSpace[tIdx][0] = s(i,componentReal);
-      tSpace[tIdx][1] = 0.0;
+      qSpace[i][0] = s(i,componentReal);
+      qSpace[i][1] = 0.0;
     }
   } else {
     for(int i=0; i<nspins; ++i){
-      int tIdx = i + nspins*timePointCounter;
-      tSpace[tIdx][0] = s(i,componentReal);
-      tSpace[tIdx][1] = s(i,componentImag);
+      qSpace[i][0] = s(i,componentReal);
+      qSpace[i][1] = s(i,componentImag);
     }
+  }
+
+  fftw_execute(qSpaceFFT);
+
+  
+  // average over -q +q
+  
+  // cant average zero mode
+  int tIdx = qzPoints*timePointCounter;
+  assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
+
+  tSpace[tIdx][0] = qSpace[0][0];
+  tSpace[tIdx][1] = qSpace[0][1];
+  for(int qz=1; qz<qzPoints; ++qz){
+
+    int qVec[3] = {0, 0, qz};
+    int qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
+    assert(qIdx < nspins); assert(qIdx > -1);
+    tIdx = qz + qzPoints*timePointCounter;
+    assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
+
+    tSpace[tIdx][0] = 0.5*qSpace[qIdx][0];
+    tSpace[tIdx][1] = 0.5*qSpace[qIdx][1];
+    
+    qVec[2] = rDim[2]-qz;
+    qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
+    assert(qIdx < nspins); assert(qIdx > -1);
+
+    tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]);
+    tSpace[tIdx][1] = tSpace[tIdx][1] + 0.5*(qSpace[qIdx][1]);
   }
 
   if(timePointCounter == (nTimePoints-1)){
     fftw_execute(tSpaceFFT);
 
     for(int t=0; t<nTimePoints;++t){
-      for(int i=0; i<nspins; ++i){
-        tSpace[t*nspins+i][0] = tSpace[t*nspins+i][0]/sqrt(double(nspins*nTimePoints));
-        tSpace[t*nspins+i][1] = tSpace[t*nspins+i][0]/sqrt(double(nspins*nTimePoints));
+      for(int qz=0; qz<qzPoints; ++qz){
+        tIdx = qz + qzPoints*t;
+        assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
+        tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(double(nspins*nTimePoints));
+        tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(double(nspins*nTimePoints));
       }
     }
 
@@ -207,12 +253,11 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
     
 
     // average over -omega +omega
-    for(int qz=0; qz<((rDim[2]/2)+1); ++qz){
+    for(int qz=0; qz<qzPoints; ++qz){
       
       // perform Gaussian convolution
       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
-        int qVec[3] = {0, 0, qz};
-        int tIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*(qVec[0]+rDim[0]*omega));
+        int tIdx = qz+qzPoints*omega;
         double sigma = 0.1;
 //         double x = (double(omega)/((nTimePoints/2)+1) - 0.5);
         double x = (double(omega)/((nTimePoints/2)+1) );
@@ -249,7 +294,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 
       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
         int qVec[3] = {0, 0, qz};
-        int tIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*(qVec[0]+rDim[0]*omega));
+        tIdx = qz + qzPoints*omega;
         DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\t";
         DSFFile << (smoothData[omega][0]*smoothData[omega][0] + smoothData[omega][1]*smoothData[omega][1])/convolutionNorm << "\n";
       }
