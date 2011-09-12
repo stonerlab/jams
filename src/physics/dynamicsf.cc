@@ -60,9 +60,17 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 
 
   output.write("  * Allocating FFTW arrays...\n");
+  output.write("  * qSpace allocating %f MB\n", (sizeof(fftw_complex)*rDim[0]*rDim[1]*rDim[2])/(1024.0*1024.0));
   qSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*rDim[0]*rDim[1]*rDim[2]));
+  if(qSpace == NULL){
+    jams_error("Failed to allocate qSpace FFT array");
+  }
 //   tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*((rDim[2]/2)+1)));
+  output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*nspins)/(1024.0*1024.0));
   tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*nspins));
+  if(qSpace == NULL){
+    jams_error("Failed to allocate tSpace FFT array");
+  }
 
   output.write("  * Planning FFTW transform...\n");
 //   qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
@@ -181,12 +189,69 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   if(timePointCounter == (nTimePoints-1)){
     fftw_execute(tSpaceFFT);
 
+    for(int t=0; t<nTimePoints;++t){
+      for(int i=0; i<nspins; ++i){
+        tSpace[t*nspins+i][0] = tSpace[t*nspins+i][0]/sqrt(double(nspins*nTimePoints));
+        tSpace[t*nspins+i][1] = tSpace[t*nspins+i][0]/sqrt(double(nspins*nTimePoints));
+      }
+    }
+
+    fftw_complex* gaussian = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*((nTimePoints/2)+1)));
+    fftw_complex* smoothData = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*((nTimePoints/2)+1)));
+    
+    fftw_plan gaussianFFT  = fftw_plan_dft_1d((nTimePoints/2)+1,gaussian,gaussian,FFTW_FORWARD,FFTW_ESTIMATE);
+    fftw_plan smoothDataFFT  = fftw_plan_dft_1d((nTimePoints/2)+1,smoothData,smoothData,FFTW_FORWARD,FFTW_ESTIMATE);
+    fftw_plan convolutionFFT  = fftw_plan_dft_1d((nTimePoints/2)+1,smoothData,smoothData,FFTW_BACKWARD,FFTW_ESTIMATE);
+
+    
+    
+
     // average over -omega +omega
     for(int qz=0; qz<((rDim[2]/2)+1); ++qz){
+      
+      // perform Gaussian convolution
       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
         int qVec[3] = {0, 0, qz};
         int tIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*(qVec[0]+rDim[0]*omega));
-        DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
+        double sigma = 0.1;
+//         double x = (double(omega)/((nTimePoints/2)+1) - 0.5);
+        double x = (double(omega)/((nTimePoints/2)+1) );
+        gaussian[omega][0] = (1.0/(sqrt(2.0*M_PI)*sigma))*exp(-(x*x)/(2.0*sigma*sigma));
+        gaussian[omega][1] = 0.0;
+        smoothData[omega][0] = tSpace[tIdx][0];
+        smoothData[omega][1] = tSpace[tIdx][1];
+
+      }
+      fftw_execute(gaussianFFT);
+      fftw_execute(smoothDataFFT);
+
+      for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+        double a = gaussian[omega][0]; double b = gaussian[omega][1]; 
+        double c = smoothData[omega][0]; double d = smoothData[omega][1]; 
+        smoothData[omega][0] = (a*c - b*d)/sqrt(double(((nTimePoints/2)+1)));
+        smoothData[omega][1] = (a*d + b*c)/sqrt(double(((nTimePoints/2)+1)));
+      }
+      fftw_execute(convolutionFFT);
+
+      double convolutionNorm = 0.0;
+      // normalize convoluted data area = 1
+//       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+//         convolutionNorm = convolutionNorm + smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1];
+//       }
+      // normalize convoluted data max = 1
+      for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+        if(smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1] > convolutionNorm){
+          convolutionNorm = smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1];
+        }
+      }
+
+
+
+      for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+        int qVec[3] = {0, 0, qz};
+        int tIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*(qVec[0]+rDim[0]*omega));
+        DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\t";
+        DSFFile << (smoothData[omega][0]*smoothData[omega][0] + smoothData[omega][1]*smoothData[omega][1])/convolutionNorm << "\n";
       }
       DSFFile << "\n";
     }
