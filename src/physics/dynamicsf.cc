@@ -12,8 +12,10 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   const double sampletime = config.lookup("sim.t_out");
   const double runtime = config.lookup("sim.t_run");
   nTimePoints = runtime/sampletime;
+  output.write("  * Time sample points: %d\n",nTimePoints);
 
-  freqIntervalSize = (2.0*M_PI)/(sampletime);
+  freqIntervalSize = (2.0*M_PI)/(sampletime*nTimePoints);
+  output.write("  * Sample frequency: %f [GHz]\n",freqIntervalSize/1E9);
 
   std::map<std::string,int> componentMap;
   componentMap["X"] = 0;
@@ -59,11 +61,15 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 
   output.write("  * Allocating FFTW arrays...\n");
   qSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*rDim[0]*rDim[1]*rDim[2]));
-  tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*((rDim[2]/2)+1)));
+//   tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*((rDim[2]/2)+1)));
+  tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*nspins));
 
   output.write("  * Planning FFTW transform...\n");
-  qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
-  tSpaceFFT = fftw_plan_dft_2d(nTimePoints,((rDim[2]/2)+1),tSpace,tSpace,FFTW_FORWARD,FFTW_MEASURE);
+//   qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
+//   tSpaceFFT = fftw_plan_dft_2d(nTimePoints,((rDim[2]/2)+1),tSpace,tSpace,FFTW_FORWARD,FFTW_MEASURE);
+  
+  int tDim[4] = {nTimePoints,rDim[0],rDim[1],rDim[2]};
+  tSpaceFFT = fftw_plan_dft(4,tDim,tSpace,tSpace,FFTW_FORWARD,FFTW_ESTIMATE);
 
   std::string filename = "_dsf.dat";
   filename = seedname+filename;
@@ -104,39 +110,72 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 
 
   // ASSUMPTION: Spin array is C-ordered in space
+//   if(componentImag == -1){
+//     for(int i=0; i<nspins; ++i){
+//       qSpace[i][0] = s(i,componentReal);
+//       qSpace[i][1] = 0.0;
+//     }
+//   } else {
+//     for(int i=0; i<nspins; ++i){
+//       qSpace[i][0] = s(i,componentReal);
+//       qSpace[i][1] = s(i,componentImag);
+//     }
+//   }
+// 
+//   fftw_execute(qSpaceFFT);
+// 
+//   // average over -q +q
+//   
+//   // cant average zero mode
+//   int tIdx = ((rDim[2]/2)+1)*timePointCounter;
+//   tSpace[tIdx][0] = qSpace[0][0];
+//   tSpace[tIdx][1] = qSpace[0][1];
+//   for(int qz=1; qz<((rDim[2]/2)+1); ++qz){
+// 
+//     int qVec[3] = {0, 0, qz};
+//     int qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
+//     tIdx = qz + ((rDim[2]/2)+1)*timePointCounter;
+// 
+//     tSpace[tIdx][0] = 0.5*qSpace[qIdx][0];
+//     tSpace[tIdx][1] = 0.5*qSpace[qIdx][1];
+//     
+//     qVec[2] = rDim[2]-qz;
+//     qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
+// 
+//     tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]);
+//     tSpace[tIdx][1] = tSpace[tIdx][1] + 0.5*(qSpace[qIdx][1]);
+//   }
+// 
+//   if(timePointCounter == (nTimePoints-1)){
+//     fftw_execute(tSpaceFFT);
+// 
+//     // average over -omega +omega
+//     for(int qz=0; qz<((rDim[2]/2)+1); ++qz){
+//       // cant average zero mode
+//       tIdx = qz;
+//       DSFFile << qz << "\t" << 0.0 <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
+//       for(int omega=1; omega<((nTimePoints/2)+1); ++omega){
+//         tIdx = qz + ((rDim[2]/2)+1)*omega;
+//         
+//           DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
+//       }
+//       DSFFile << "\n";
+//     }
+//   }
+
+
   if(componentImag == -1){
     for(int i=0; i<nspins; ++i){
-      qSpace[i][0] = s(i,componentReal);
-      qSpace[i][1] = 0.0;
+      int tIdx = i + nspins*timePointCounter;
+      tSpace[tIdx][0] = s(i,componentReal);
+      tSpace[tIdx][1] = 0.0;
     }
   } else {
     for(int i=0; i<nspins; ++i){
-      qSpace[i][0] = s(i,componentReal);
-      qSpace[i][1] = s(i,componentImag);
+      int tIdx = i + nspins*timePointCounter;
+      tSpace[tIdx][0] = s(i,componentReal);
+      tSpace[tIdx][1] = s(i,componentImag);
     }
-  }
-
-  fftw_execute(qSpaceFFT);
-
-  // average over -q +q
-  
-  // cant average zero mode
-  int tIdx = ((rDim[2]/2)+1)*timePointCounter;
-  tSpace[tIdx][0] = (qSpace[0][0]*qSpace[0][0] + qSpace[0][1]*qSpace[0][1]);
-  tSpace[tIdx][1] = 0.0;
-  for(int qz=1; qz<((rDim[2]/2)+1); ++qz){
-
-    int qVec[3] = {0, 0, qz};
-    int qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
-    tIdx = qz + ((rDim[2]/2)+1)*timePointCounter;
-
-    tSpace[tIdx][0] = 0.5*(qSpace[qIdx][0]*qSpace[qIdx][0] + qSpace[qIdx][1]*qSpace[qIdx][1]);
-    tSpace[tIdx][1] = 0.0;
-    
-    qVec[2] = rDim[2]-qz;
-    qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
-
-    tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]*qSpace[qIdx][0] + qSpace[qIdx][1]*qSpace[qIdx][1]);
   }
 
   if(timePointCounter == (nTimePoints-1)){
@@ -144,18 +183,15 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 
     // average over -omega +omega
     for(int qz=0; qz<((rDim[2]/2)+1); ++qz){
-      // cant average zero mode
-      tIdx = qz;
-      DSFFile << qz << "\t" << 0.0 <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
-      for(int omega=1; omega<((nTimePoints/2)+1); ++omega){
-        tIdx = qz + ((rDim[2]/2)+1)*omega;
-        
-          DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
+      for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+        int qVec[3] = {0, 0, qz};
+        int tIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*(qVec[0]+rDim[0]*omega));
+        DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
       }
       DSFFile << "\n";
     }
   }
-
+  
   timePointCounter++;
 
 }
