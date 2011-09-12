@@ -231,14 +231,34 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   }
 
   if(timePointCounter == (nTimePoints-1)){
+
+    // apply windowing function
+
+    for(int t=0; t<nTimePoints;++t){
+//       // Gaussian
+//       const double sigma = 0.4;
+//       const double x = (double(t)/double(nTimePoints-1))-0.5;
+//       const double window = (1.0/(sqrt(2.0*M_PI)*sigma))*exp(-(x*x)/(2.0*sigma*sigma));
+      // Hamming
+      const double window = 0.54 - 0.46*cos((2.0*M_PI*t)/double(nTimePoints-1));
+      std::cerr<<t<<"\t"<<window<<std::endl;
+      for(int qz=0; qz<qzPoints; ++qz){
+        tIdx = qz + qzPoints*t;
+        assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
+        tSpace[tIdx][0] = tSpace[tIdx][0]*window;
+        tSpace[tIdx][1] = tSpace[tIdx][1]*window;
+      }
+    }
+    
     fftw_execute(tSpaceFFT);
+
 
     for(int t=0; t<nTimePoints;++t){
       for(int qz=0; qz<qzPoints; ++qz){
         tIdx = qz + qzPoints*t;
         assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
-        tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(double(nspins*nTimePoints));
-        tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(double(nspins*nTimePoints));
+        tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(double(nspins)*double(nTimePoints));
+        tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(double(nspins)*double(nTimePoints));
       }
     }
 
@@ -258,7 +278,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
       // perform Gaussian convolution
       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
         int tIdx = qz+qzPoints*omega;
-        double sigma = 0.1;
+        double sigma = 0.2;
 //         double x = (double(omega)/((nTimePoints/2)+1) - 0.5);
         double x = (double(omega)/((nTimePoints/2)+1) );
         gaussian[omega][0] = (1.0/(sqrt(2.0*M_PI)*sigma))*exp(-(x*x)/(2.0*sigma*sigma));
@@ -272,7 +292,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 
       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
         double a = gaussian[omega][0]; double b = gaussian[omega][1]; 
-        double c = smoothData[omega][0]; double d = smoothData[omega][1]; 
+        double c = (smoothData[omega][0]); double d = (smoothData[omega][1]); 
         smoothData[omega][0] = (a*c - b*d)/sqrt(double(((nTimePoints/2)+1)));
         smoothData[omega][1] = (a*d + b*c)/sqrt(double(((nTimePoints/2)+1)));
       }
@@ -286,7 +306,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
       // normalize convoluted data max = 1
       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
         if(smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1] > convolutionNorm){
-          convolutionNorm = smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1];
+          convolutionNorm = (smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1]);
         }
       }
 
