@@ -13,9 +13,14 @@ class DynamicSFPhysics : public Physics {
       timePointCounter(0),
       nTimePoints(0),
       rDim(3,0),
+      upDim(3,0),
+      upFac(3,1),
       qSpace(NULL),
+      upSpace(NULL),
       tSpace(NULL),
       qSpaceFFT(),
+      upSpaceFFT(),
+      invUpSpaceFFT(),
       tSpaceFFT(),
       DSFFile(),
       freqIntervalSize(0)
@@ -32,9 +37,14 @@ class DynamicSFPhysics : public Physics {
   int               timePointCounter;
   int               nTimePoints;
   std::vector<int>  rDim;
+  std::vector<int>  upDim;
+  std::vector<int>  upFac;
   fftw_complex*     qSpace;
+  fftw_complex*     upSpace;
   fftw_complex*     tSpace;
   fftw_plan         qSpaceFFT;
+  fftw_plan         upSpaceFFT;
+  fftw_plan         invUpSpaceFFT;
   fftw_plan         tSpaceFFT;
   int               componentReal;
   int               componentImag;
