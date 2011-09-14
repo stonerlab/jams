@@ -67,6 +67,9 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   const double dt = config.lookup("sim.t_step");
   steps_window = static_cast<unsigned long>(t_window/dt);
   output.write("  * Window time: %1.8e (%lu steps)\n",t_window,steps_window);
+  if(nTimePoints%steps_window != 0){
+    jams_error("Window time must be an integer multiple of the run time");
+  }
 
 
 
@@ -118,18 +121,6 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     jams_error("Failed to allocate tSpace FFT array");
   }
 
-// --------------------------------------------------------------------------------------------------------------------
-// FFTW Advanced interface for time transform
-// --------------------------------------------------------------------------------------------------------------------
-  int rank       = 1;
-  int sizeN[]   = {nTimePoints};
-  int howmany    = qzPoints;
-  int inembed[] = {nTimePoints};  int onembed[] = {nTimePoints};
-  int istride    = qzPoints;      int ostride    = qzPoints;
-  int idist      = 1;             int odist      = 1;
-
-  tSpaceFFT = fftw_plan_many_dft(rank,sizeN,howmany,tSpace,inembed,istride,idist,tSpace,onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
-// --------------------------------------------------------------------------------------------------------------------
   
 //   int tDim[4] = {nTimePoints,rDim[0],rDim[1],rDim[2]};
 //   tSpaceFFT = fftw_plan_dft(4,tDim,tSpace,tSpace,FFTW_FORWARD,FFTW_ESTIMATE);
@@ -142,7 +133,6 @@ DynamicSFPhysics::~DynamicSFPhysics()
 {
   if(initialised == true){
     fftw_destroy_plan(qSpaceFFT);
-    fftw_destroy_plan(tSpaceFFT);
 
     if(qSpace != NULL) {
       fftw_free(qSpace);
@@ -151,6 +141,10 @@ DynamicSFPhysics::~DynamicSFPhysics()
     if(tSpace != NULL) {
       fftw_free(tSpace);
       tSpace = NULL;
+    if(imageSpace != NULL) {
+      fftw_free(imageSpace);
+      imageSpace = NULL;
+    }
     }
   }
 
@@ -168,60 +162,6 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   assert(initialised);
 
   const int qzPoints = (upDim[2]/2)+1;
-
-  // ASSUMPTION: Spin array is C-ordered in space
-//   if(componentImag == -1){
-//     for(int i=0; i<nspins; ++i){
-//       qSpace[i][0] = s(i,componentReal);
-//       qSpace[i][1] = 0.0;
-//     }
-//   } else {
-//     for(int i=0; i<nspins; ++i){
-//       qSpace[i][0] = s(i,componentReal);
-//       qSpace[i][1] = s(i,componentImag);
-//     }
-//   }
-// 
-//   fftw_execute(qSpaceFFT);
-// 
-//   // average over -q +q
-//   
-//   // cant average zero mode
-//   int tIdx = ((rDim[2]/2)+1)*timePointCounter;
-//   tSpace[tIdx][0] = qSpace[0][0];
-//   tSpace[tIdx][1] = qSpace[0][1];
-//   for(int qz=1; qz<((rDim[2]/2)+1); ++qz){
-// 
-//     int qVec[3] = {0, 0, qz};
-//     int qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
-//     tIdx = qz + ((rDim[2]/2)+1)*timePointCounter;
-// 
-//     tSpace[tIdx][0] = 0.5*qSpace[qIdx][0];
-//     tSpace[tIdx][1] = 0.5*qSpace[qIdx][1];
-//     
-//     qVec[2] = rDim[2]-qz;
-//     qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
-// 
-//     tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]);
-//     tSpace[tIdx][1] = tSpace[tIdx][1] + 0.5*(qSpace[qIdx][1]);
-//   }
-// 
-//   if(timePointCounter == (nTimePoints-1)){
-//     fftw_execute(tSpaceFFT);
-// 
-//     // average over -omega +omega
-//     for(int qz=0; qz<((rDim[2]/2)+1); ++qz){
-//       // cant average zero mode
-//       tIdx = qz;
-//       DSFFile << qz << "\t" << 0.0 <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
-//       for(int omega=1; omega<((nTimePoints/2)+1); ++omega){
-//         tIdx = qz + ((rDim[2]/2)+1)*omega;
-//         
-//           DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
-//       }
-//       DSFFile << "\n";
-//     }
-//   }
 
   // ASSUMPTION: Spin array is C-ordered in space
   if(componentImag == -1){
@@ -305,12 +245,94 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   }
 
   if(timePointCounter == (nTimePoints-1)){
+    timeTransform();
+    outputImage();
 
+
+//     // apply symmetry -omega omega
+// 
+//     fftw_complex* gaussian = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*((nTimePoints/2)+1)));
+//     fftw_complex* smoothData = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*((nTimePoints/2)+1)));
+//     
+//     fftw_plan gaussianFFT  = fftw_plan_dft_1d((nTimePoints/2)+1,gaussian,gaussian,FFTW_FORWARD,FFTW_ESTIMATE);
+//     fftw_plan smoothDataFFT  = fftw_plan_dft_1d((nTimePoints/2)+1,smoothData,smoothData,FFTW_FORWARD,FFTW_ESTIMATE);
+//     fftw_plan convolutionFFT  = fftw_plan_dft_1d((nTimePoints/2)+1,smoothData,smoothData,FFTW_BACKWARD,FFTW_ESTIMATE);
+//     
+// 
+//     // average over -omega +omega
+//     for(int qz=0; qz<qzPoints; ++qz){
+//       
+//       // perform Gaussian convolution
+//       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+//         int tIdx = qz+qzPoints*omega;
+//         double sigma = 0.05;
+// //         double x = (double(omega)/((nTimePoints/2)+1) - 0.5);
+//         double x = (double(omega)/((nTimePoints/2)+1) );
+//         gaussian[omega][0] = (1.0/(sqrt(2.0*M_PI)*sigma))*exp(-(x*x)/(2.0*sigma*sigma));
+//         gaussian[omega][1] = 0.0;
+//         smoothData[omega][0] = tSpace[tIdx][0];
+//         smoothData[omega][1] = tSpace[tIdx][1];
+// 
+//       }
+//       fftw_execute(gaussianFFT);
+//       fftw_execute(smoothDataFFT);
+// 
+//       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+//         double a = gaussian[omega][0]; double b = gaussian[omega][1]; 
+//         double c = (smoothData[omega][0]); double d = (smoothData[omega][1]); 
+//         smoothData[omega][0] = (a*c - b*d)/sqrt(double(((nTimePoints/2)+1)));
+//         smoothData[omega][1] = (a*d + b*c)/sqrt(double(((nTimePoints/2)+1)));
+//       }
+//       fftw_execute(convolutionFFT);
+// 
+//       double convolutionNorm = 0.0;
+//       // normalize convoluted data area = 1
+// //       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+// //         convolutionNorm = convolutionNorm + smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1];
+// //       }
+//       // normalize convoluted data max = 1
+//       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+//         if(smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1] > convolutionNorm){
+//           convolutionNorm = (smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1]);
+//         }
+//       }
+
+  }
+  
+  timePointCounter++;
+
+}
+
+void DynamicSFPhysics::timeTransform()
+{
+  using namespace globals;
+
+  const int qzPoints    = (upDim[2]/2) + 1;
+  const int omegaPoints = (nTimePoints/2) + 1;
+
+  // allocate the image space
+  imageSpace = static_cast<double*>(fftw_malloc(sizeof(double) * omegaPoints * qzPoints));
+
+  for(int i=0; i<nTimePoints/steps_window; ++i){ // integer division is guaranteed in the initialisation
+
+    const int t0 = i*steps_window;
+    const int tEnd = (i+1)*steps_window;
+
+    int rank       = 1;
+    int sizeN[]   = {nTimePoints};
+    int howmany    = qzPoints;
+    int inembed[] = {nTimePoints};  int onembed[] = {nTimePoints};
+    int istride    = qzPoints;      int ostride    = qzPoints;
+    int idist      = 1;             int odist      = 1;
+    fftw_complex* startPtr = (tSpace+i*nTimePoints*qzPoints); // pointer arithmatic
+
+    fftw_plan tSpaceFFT = fftw_plan_many_dft(rank,sizeN,howmany,startPtr,inembed,istride,idist,startPtr,onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
+    
     // apply windowing function
 
-    for(int t=0; t<nTimePoints;++t){
+    for(int t=t0; t<tEnd; ++t){
       for(int qz=0; qz<qzPoints; ++qz){
-        tIdx = qz + qzPoints*t;
+        const int tIdx = qz + qzPoints*t;
         assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
         tSpace[tIdx][0] = tSpace[tIdx][0]*FFTWindow(t,nTimePoints,HAMMING);
         tSpace[tIdx][1] = tSpace[tIdx][1]*FFTWindow(t,nTimePoints,HAMMING);
@@ -321,76 +343,25 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 
 
     // normalise transform and apply symmetry -omega omega
-    for(int t=0; t<(nTimePoints/2)+1;++t){
+    for(int t=t0; t<(t0+omegaPoints);++t){
       for(int qz=0; qz<qzPoints; ++qz){
-        tIdx = qz + qzPoints*t;
-        const int tIdxMinus = qz + qzPoints*(nTimePoints - t);
-        assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
-        assert(tIdxMinus < qzPoints*nTimePoints); assert(tIdxMinus > -1);
+        const int tIdx = qz + qzPoints*t;
+        const int tIdxMinus = qz + qzPoints*( (t0+nTimePoints) - t);
 
         tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(nTimePoints));
         tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(nTimePoints));
 
         // zero -omega to avoid accidental use
         tSpace[tIdxMinus][0] = 0.0; tSpace[tIdxMinus][1] = 0.0;
+
+        // assign pixels to image
+        int imageIdx = qz+qzPoints*(t%steps_window);
+        imageSpace[imageIdx] = (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]);
       }
     }
-
-    // apply symmetry -omega omega
-
-    fftw_complex* gaussian = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*((nTimePoints/2)+1)));
-    fftw_complex* smoothData = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*((nTimePoints/2)+1)));
     
-    fftw_plan gaussianFFT  = fftw_plan_dft_1d((nTimePoints/2)+1,gaussian,gaussian,FFTW_FORWARD,FFTW_ESTIMATE);
-    fftw_plan smoothDataFFT  = fftw_plan_dft_1d((nTimePoints/2)+1,smoothData,smoothData,FFTW_FORWARD,FFTW_ESTIMATE);
-    fftw_plan convolutionFFT  = fftw_plan_dft_1d((nTimePoints/2)+1,smoothData,smoothData,FFTW_BACKWARD,FFTW_ESTIMATE);
-    
-
-    // average over -omega +omega
-    for(int qz=0; qz<qzPoints; ++qz){
-      
-      // perform Gaussian convolution
-      for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
-        int tIdx = qz+qzPoints*omega;
-        double sigma = 0.05;
-//         double x = (double(omega)/((nTimePoints/2)+1) - 0.5);
-        double x = (double(omega)/((nTimePoints/2)+1) );
-        gaussian[omega][0] = (1.0/(sqrt(2.0*M_PI)*sigma))*exp(-(x*x)/(2.0*sigma*sigma));
-        gaussian[omega][1] = 0.0;
-        smoothData[omega][0] = tSpace[tIdx][0];
-        smoothData[omega][1] = tSpace[tIdx][1];
-
-      }
-      fftw_execute(gaussianFFT);
-      fftw_execute(smoothDataFFT);
-
-      for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
-        double a = gaussian[omega][0]; double b = gaussian[omega][1]; 
-        double c = (smoothData[omega][0]); double d = (smoothData[omega][1]); 
-        smoothData[omega][0] = (a*c - b*d)/sqrt(double(((nTimePoints/2)+1)));
-        smoothData[omega][1] = (a*d + b*c)/sqrt(double(((nTimePoints/2)+1)));
-      }
-      fftw_execute(convolutionFFT);
-
-      double convolutionNorm = 0.0;
-      // normalize convoluted data area = 1
-//       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
-//         convolutionNorm = convolutionNorm + smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1];
-//       }
-      // normalize convoluted data max = 1
-      for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
-        if(smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1] > convolutionNorm){
-          convolutionNorm = (smoothData[omega][0]*smoothData[omega][0]+smoothData[omega][1]*smoothData[omega][1]);
-        }
-      }
-
-      outputImage();
-
-    }
+    fftw_destroy_plan(tSpaceFFT);
   }
-  
-  timePointCounter++;
-
 }
 
 void DynamicSFPhysics::outputImage()
@@ -405,7 +376,7 @@ void DynamicSFPhysics::outputImage()
   for(int qz=0; qz<qzPoints; ++qz){
     for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
       int tIdx = qz + qzPoints*omega;
-      DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
+      DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
     }
     DSFFile << "\n";
   }

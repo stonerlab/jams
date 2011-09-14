@@ -23,10 +23,10 @@ class DynamicSFPhysics : public Physics {
       qSpace(NULL),
       upSpace(NULL),
       tSpace(NULL),
+      imageSpace(NULL),
       qSpaceFFT(),
       upSpaceFFT(),
       invUpSpaceFFT(),
-      tSpaceFFT(),
       freqIntervalSize(0),
       t_window(0.0),
       steps_window(0)
@@ -48,10 +48,10 @@ class DynamicSFPhysics : public Physics {
     fftw_complex*     qSpace;
     fftw_complex*     upSpace;
     fftw_complex*     tSpace;
+    double *          imageSpace;
     fftw_plan         qSpaceFFT;
     fftw_plan         upSpaceFFT;
     fftw_plan         invUpSpaceFFT;
-    fftw_plan         tSpaceFFT;
     int               componentReal;
     int               componentImag;
     double            freqIntervalSize;
