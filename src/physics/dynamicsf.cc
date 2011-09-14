@@ -134,9 +134,6 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 //   int tDim[4] = {nTimePoints,rDim[0],rDim[1],rDim[2]};
 //   tSpaceFFT = fftw_plan_dft(4,tDim,tSpace,tSpace,FFTW_FORWARD,FFTW_ESTIMATE);
 
-  std::string filename = "_dsf.dat";
-  filename = seedname+filename;
-  DSFFile.open(filename.c_str());
 
   initialised = true;
 }
@@ -157,7 +154,6 @@ DynamicSFPhysics::~DynamicSFPhysics()
     }
   }
 
-  DSFFile.close();
 }
 
 void  DynamicSFPhysics::run(double realtime, const double dt)
@@ -388,19 +384,33 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
         }
       }
 
+      outputImage();
 
-
-      for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
-        tIdx = qz + qzPoints*omega;
-        DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\t";
-        DSFFile << (smoothData[omega][0]*smoothData[omega][0] + smoothData[omega][1]*smoothData[omega][1])/convolutionNorm << "\n";
-      }
-      DSFFile << "\n";
     }
   }
   
   timePointCounter++;
 
+}
+
+void DynamicSFPhysics::outputImage()
+{
+  using namespace globals;
+  std::ofstream DSFFile;
+
+  std::string filename = "_dsf.dat";
+  filename = seedname+filename;
+  DSFFile.open(filename.c_str());
+  const int qzPoints = (upDim[2]/2)+1;
+  for(int qz=0; qz<qzPoints; ++qz){
+    for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+      int tIdx = qz + qzPoints*omega;
+      DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\n";
+    }
+    DSFFile << "\n";
+  }
+  
+  DSFFile.close();
 }
 
 double DynamicSFPhysics::FFTWindow(const int n, const int nTotal, const FFTWindowType type){
