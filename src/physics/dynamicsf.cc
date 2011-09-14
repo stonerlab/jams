@@ -314,14 +314,23 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
     fftw_execute(tSpaceFFT);
 
 
-    for(int t=0; t<nTimePoints;++t){
+    // normalise transform and apply symmetry -omega omega
+    for(int t=0; t<(nTimePoints/2)+1;++t){
       for(int qz=0; qz<qzPoints; ++qz){
         tIdx = qz + qzPoints*t;
+        const int tIdxMinus = qz + qzPoints*(nTimePoints - t);
         assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
-        tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(double(nspins)*double(nTimePoints));
-        tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(double(nspins)*double(nTimePoints));
+        assert(tIdxMinus < qzPoints*nTimePoints); assert(tIdxMinus > -1);
+
+        tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(nTimePoints));
+        tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(nTimePoints));
+
+        // zero -omega to avoid accidental use
+        tSpace[tIdxMinus][0] = 0.0; tSpace[tIdxMinus][1] = 0.0;
       }
     }
+
+    // apply symmetry -omega omega
 
     fftw_complex* gaussian = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*((nTimePoints/2)+1)));
     fftw_complex* smoothData = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*((nTimePoints/2)+1)));
@@ -372,7 +381,6 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 
 
       for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
-        int qVec[3] = {0, 0, qz};
         tIdx = qz + qzPoints*omega;
         DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]) <<"\t";
         DSFFile << (smoothData[omega][0]*smoothData[omega][0] + smoothData[omega][1]*smoothData[omega][1])/convolutionNorm << "\n";
