@@ -315,7 +315,7 @@ void DynamicSFPhysics::timeTransform()
   output.write("Performing %d window transforms\n",nTransforms);
 
   const int qzPoints    = (upDim[2]/2) + 1;
-  const int omegaPoints = (nTimePoints/2) + 1;
+  const int omegaPoints = (steps_window/2) + 1;
 
   // allocate the image space
   imageSpace = static_cast<double*>(fftw_malloc(sizeof(double) * omegaPoints * qzPoints));
@@ -329,23 +329,22 @@ void DynamicSFPhysics::timeTransform()
     const int tEnd = (i+1)*steps_window;
 
     int rank       = 1;
-    int sizeN[]   = {nTimePoints};
+    int sizeN[]   = {steps_window};
     int howmany    = qzPoints;
-    int inembed[] = {nTimePoints};  int onembed[] = {nTimePoints};
+    int inembed[] = {steps_window}; int onembed[] = {steps_window};
     int istride    = qzPoints;      int ostride    = qzPoints;
     int idist      = 1;             int odist      = 1;
-    fftw_complex* startPtr = (tSpace+i*nTimePoints*qzPoints); // pointer arithmatic
+    fftw_complex* startPtr = (tSpace+i*steps_window*qzPoints); // pointer arithmatic
 
     fftw_plan tSpaceFFT = fftw_plan_many_dft(rank,sizeN,howmany,startPtr,inembed,istride,idist,startPtr,onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
     
     // apply windowing function
 
-    for(int t=0; t<nTimePoints; ++t){
+    for(int t=0; t<steps_window; ++t){
       for(int qz=0; qz<qzPoints; ++qz){
         const int tIdx = qz + qzPoints*(t+t0);
-        assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
-        tSpace[tIdx][0] = tSpace[tIdx][0]*FFTWindow(t,nTimePoints,HAMMING);
-        tSpace[tIdx][1] = tSpace[tIdx][1]*FFTWindow(t,nTimePoints,HAMMING);
+        tSpace[tIdx][0] = tSpace[tIdx][0]*FFTWindow(t,steps_window,HAMMING);
+        tSpace[tIdx][1] = tSpace[tIdx][1]*FFTWindow(t,steps_window,HAMMING);
       }
     }
     
@@ -358,8 +357,8 @@ void DynamicSFPhysics::timeTransform()
         const int tIdx = qz + qzPoints*(t0+t);
         const int tIdxMinus = qz + qzPoints*( (tEnd) - t);
 
-        tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(nTimePoints));
-        tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(nTimePoints));
+        tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(steps_window));
+        tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(steps_window));
 
         // zero -omega to avoid accidental use
         tSpace[tIdxMinus][0] = 0.0; tSpace[tIdxMinus][1] = 0.0;
