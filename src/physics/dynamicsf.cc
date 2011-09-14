@@ -309,13 +309,21 @@ void DynamicSFPhysics::timeTransform()
 {
   using namespace globals;
 
+  const int nTransforms = (nTimePoints/steps_window);
+  const double normTransforms = 1.0/double(nTransforms);
+
+  output.write("Performing %d window transforms\n",nTransforms);
+
   const int qzPoints    = (upDim[2]/2) + 1;
   const int omegaPoints = (nTimePoints/2) + 1;
 
   // allocate the image space
   imageSpace = static_cast<double*>(fftw_malloc(sizeof(double) * omegaPoints * qzPoints));
+  for(int i=0; i<omegaPoints * qzPoints; ++i){
+    imageSpace[i] = 0.0;
+  }
 
-  for(int i=0; i<nTimePoints/steps_window; ++i){ // integer division is guaranteed in the initialisation
+  for(int i=0; i<nTransforms; ++i){ // integer division is guaranteed in the initialisation
 
     const int t0 = i*steps_window;
     const int tEnd = (i+1)*steps_window;
@@ -332,9 +340,9 @@ void DynamicSFPhysics::timeTransform()
     
     // apply windowing function
 
-    for(int t=t0; t<tEnd; ++t){
+    for(int t=0; t<nTimePoints; ++t){
       for(int qz=0; qz<qzPoints; ++qz){
-        const int tIdx = qz + qzPoints*t;
+        const int tIdx = qz + qzPoints*(t+t0);
         assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
         tSpace[tIdx][0] = tSpace[tIdx][0]*FFTWindow(t,nTimePoints,HAMMING);
         tSpace[tIdx][1] = tSpace[tIdx][1]*FFTWindow(t,nTimePoints,HAMMING);
@@ -345,10 +353,10 @@ void DynamicSFPhysics::timeTransform()
 
 
     // normalise transform and apply symmetry -omega omega
-    for(int t=t0; t<(t0+omegaPoints);++t){
+    for(int t=0; t<omegaPoints;++t){
       for(int qz=0; qz<qzPoints; ++qz){
-        const int tIdx = qz + qzPoints*t;
-        const int tIdxMinus = qz + qzPoints*( (t0+nTimePoints) - t);
+        const int tIdx = qz + qzPoints*(t0+t);
+        const int tIdxMinus = qz + qzPoints*( (tEnd) - t);
 
         tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(nTimePoints));
         tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(nTimePoints));
@@ -357,8 +365,8 @@ void DynamicSFPhysics::timeTransform()
         tSpace[tIdxMinus][0] = 0.0; tSpace[tIdxMinus][1] = 0.0;
 
         // assign pixels to image
-        int imageIdx = qz+qzPoints*(t%steps_window);
-        imageSpace[imageIdx] = (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1]);
+        int imageIdx = qz+qzPoints*t;
+        imageSpace[imageIdx] = imageSpace[imageIdx] + (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1])*normTransforms;
       }
     }
     
