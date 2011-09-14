@@ -65,9 +65,11 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     t_window = config.lookup("sim.t_run");
   }
   const double dt = config.lookup("sim.t_step");
+  const double t_out = config.lookup("sim.t_out");
   steps_window = static_cast<unsigned long>(t_window/dt);
   output.write("  * Window time: %1.8e (%lu steps)\n",t_window,steps_window);
-  if(nTimePoints%steps_window != 0){
+  steps_window = t_window/(t_out);
+  if(nTimePoints%(steps_window) != 0){
     jams_error("Window time must be an integer multiple of the run time");
   }
 
