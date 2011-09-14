@@ -303,18 +303,11 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
     // apply windowing function
 
     for(int t=0; t<nTimePoints;++t){
-//       // Gaussian
-//       const double sigma = 0.4;
-//       const double x = (double(t)/double(nTimePoints-1))-0.5;
-//       const double window = (1.0/(sqrt(2.0*M_PI)*sigma))*exp(-(x*x)/(2.0*sigma*sigma));
-      // Hamming
-      const double window = 0.54 - 0.46*cos((2.0*M_PI*t)/double(nTimePoints-1));
-      std::cerr<<t<<"\t"<<window<<std::endl;
       for(int qz=0; qz<qzPoints; ++qz){
         tIdx = qz + qzPoints*t;
         assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
-        tSpace[tIdx][0] = tSpace[tIdx][0]*window;
-        tSpace[tIdx][1] = tSpace[tIdx][1]*window;
+        tSpace[tIdx][0] = tSpace[tIdx][0]*FFTWindow(t,nTimePoints,HAMMING);
+        tSpace[tIdx][1] = tSpace[tIdx][1]*FFTWindow(t,nTimePoints,HAMMING);
       }
     }
     
@@ -390,4 +383,22 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   
   timePointCounter++;
 
+}
+
+double DynamicSFPhysics::FFTWindow(const int n, const int nTotal, const FFTWindowType type){
+  switch(type)
+  {
+    case GAUSSIAN:
+      // sigma = 0.4
+      return (1.0/(sqrt(2.0*M_PI)*0.4))*exp(-( ((double(n)/double(nTotal-1))-0.5) * (double(n)/double(nTotal-1))-0.5  )
+                /(2.0*0.16));
+      break;
+    case HAMMING:
+      return 0.54 - 0.46*cos((2.0*M_PI*n)/double(nTotal-1));
+      break;
+    default:
+      // default to Hamming window
+      return 0.54 - 0.46*cos((2.0*M_PI*n)/double(nTotal-1));
+      break;
+  }
 }

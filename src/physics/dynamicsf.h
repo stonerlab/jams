@@ -6,6 +6,11 @@
 #include <vector>
 #include <fftw3.h>
 
+enum FFTWindowType {
+  GAUSSIAN,
+  HAMMING
+};
+
 class DynamicSFPhysics : public Physics {
   public:
     DynamicSFPhysics()
@@ -33,24 +38,25 @@ class DynamicSFPhysics : public Physics {
     virtual void monitor(double realtime, const double dt);
 
   private:
-  bool              initialised;
-  int               timePointCounter;
-  int               nTimePoints;
-  std::vector<int>  rDim;
-  std::vector<int>  upDim;
-  std::vector<int>  upFac;
-  fftw_complex*     qSpace;
-  fftw_complex*     upSpace;
-  fftw_complex*     tSpace;
-  fftw_plan         qSpaceFFT;
-  fftw_plan         upSpaceFFT;
-  fftw_plan         invUpSpaceFFT;
-  fftw_plan         tSpaceFFT;
-  int               componentReal;
-  int               componentImag;
-  std::ofstream     DSFFile;
-  double            freqIntervalSize;
+    bool              initialised;
+    int               timePointCounter;
+    int               nTimePoints;
+    std::vector<int>  rDim;
+    std::vector<int>  upDim;
+    std::vector<int>  upFac;
+    fftw_complex*     qSpace;
+    fftw_complex*     upSpace;
+    fftw_complex*     tSpace;
+    fftw_plan         qSpaceFFT;
+    fftw_plan         upSpaceFFT;
+    fftw_plan         invUpSpaceFFT;
+    fftw_plan         tSpaceFFT;
+    int               componentReal;
+    int               componentImag;
+    std::ofstream     DSFFile;
+    double            freqIntervalSize;
 
+    double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 
 
 };
 
