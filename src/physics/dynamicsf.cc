@@ -58,6 +58,16 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     lattice.getDimensions(rDim[0],rDim[1],rDim[2]);
   }
 
+  // window time
+  if( config.exists("physics.t_window") == true) {
+    t_window = phys["t_window"];
+  }else{
+    t_window = config.lookup("sim.t_run");
+  }
+  const double dt = config.lookup("sim.t_step");
+  steps_window = static_cast<unsigned long>(t_window/dt);
+  output.write("  * Window time: %1.8e (%lu steps)\n",t_window,steps_window);
+
 
 
   output.write("  * Initialising FFTW variables...\n");

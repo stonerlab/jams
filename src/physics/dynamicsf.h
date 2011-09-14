@@ -28,7 +28,9 @@ class DynamicSFPhysics : public Physics {
       invUpSpaceFFT(),
       tSpaceFFT(),
       DSFFile(),
-      freqIntervalSize(0)
+      freqIntervalSize(0),
+      t_window(0.0),
+      steps_window(0)
     {}
     
     ~DynamicSFPhysics();
@@ -55,6 +57,8 @@ class DynamicSFPhysics : public Physics {
     int               componentImag;
     std::ofstream     DSFFile;
     double            freqIntervalSize;
+    double            t_window;
+    unsigned long     steps_window;
 
     double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 
 
