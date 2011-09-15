@@ -14,8 +14,6 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   nTimePoints = runtime/sampletime;
   output.write("  * Time sample points: %d\n",nTimePoints);
 
-  freqIntervalSize = (2.0*M_PI)/(sampletime*nTimePoints);
-  output.write("  * Sample frequency: %f [GHz]\n",freqIntervalSize/1E9);
 
   std::map<std::string,int> componentMap;
   componentMap["X"] = 0;
@@ -73,6 +71,8 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     jams_error("Window time must be an integer multiple of the run time");
   }
 
+  freqIntervalSize = (2.0*M_PI)/(sampletime*steps_window);
+  output.write("  * Sample frequency: %f [GHz]\n",freqIntervalSize/1E9);
 
 
   output.write("  * Initialising FFTW variables...\n");
@@ -383,11 +383,11 @@ void DynamicSFPhysics::outputImage()
   DSFFile.open(filename.c_str());
   const int qzPoints = (upDim[2]/2)+1;
   for(int qz=0; qz<qzPoints; ++qz){
-    for(int omega=0; omega<((nTimePoints/2)+1); ++omega){
+    for(int omega=0; omega<((steps_window/2)+1); ++omega){
       int tIdx = qz + qzPoints*omega;
       DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
     }
-    DSFFile << "\n";
+    DSFFile << std::endl;
   }
   
   DSFFile.close();
