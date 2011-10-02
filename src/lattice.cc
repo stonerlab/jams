@@ -693,7 +693,7 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
 void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, Array4D<int> &latt, 
   const std::vector<int> dim, const int nAtoms, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, const std::vector<int> &atom_type, const Array3D<double> &interactionVectors,
   const Array2D<int> &interactionNeighbour, const Array4D<double> &JValues, const std::vector<int> &nInteractionsOfType, 
-  const double unitcellInv[3][3], const bool pbc[3],const bool J2Toggle, const Array2D<double> &J2Values) 
+  const double unitcellInv[3][3], const bool pbc[3],const bool &J2Toggle, const Array2D<double> &J2Values) 
 {
   
   using namespace globals;
@@ -782,6 +782,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                 assert(nbr < nspins);
                 assert(s_i != nbr);
 
+                // bilinear interactions
                 for(int row=0; row<3; ++row) {
                   for(int col=0; col<3; ++col) {
                     if(fabs(JValues(n,i,row,col)) > encut) {
@@ -789,24 +790,34 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                         if(Jij.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
                           if(s_i > nbr){
                             Jij.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
-                            if(J2Toggle == true){
-                              J2ij.insertValue(row,col,J2Values(n,i));
-                            }
                           }
                         } else {
                           if(s_i < nbr){
                             Jij.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
-                            if(J2Toggle == true){
-                              J2ij.insertValue(row,col,J2Values(n,i));
-                            }
                           }
                         }
                       } else {
                         Jij.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
-                        if(J2Toggle == true){
-                          J2ij.insertValue(row,col,J2Values(n,i));
+                      }
+                    }
+                  }
+                }
+
+                // biquadratic interactions
+                if(J2Toggle == true){
+                  if(fabs(J2Values(n,i)) > encut) {
+                    if(J2ij.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                      if(J2ij.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                        if(s_i > nbr){
+                          J2ij.insertValue(s_i,nbr,J2Values(n,i));
+                        }
+                      } else {
+                        if(s_i < nbr){
+                          J2ij.insertValue(s_i,nbr,J2Values(n,i));
                         }
                       }
+                    } else {
+                      J2ij.insertValue(s_i,nbr,J2Values(n,i));
                     }
                   }
                 }
