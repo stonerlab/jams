@@ -912,6 +912,7 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     Array3D<double> jij;
     int nAtoms=0;
     bool pbc[3] = {true,true,true};
+    bool J2Toggle = false;
 
     double unitcell[3][3];
     double unitcellInv[3][3];

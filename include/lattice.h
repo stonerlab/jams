@@ -7,7 +7,7 @@
 
 class Lattice {
   public:
-    Lattice() : dim(3,0), nTypes(0), atom_type(0,0), type_count(0), atomTypeMap(), J2Toggle(false) {}
+    Lattice() : dim(3,0), nTypes(0), atom_type(0,0), type_count(0), atomTypeMap() {}
     void createFromConfig(libconfig::Config &config);
 
     inline void getDimensions(int &x, int &y, int& z) { x = dim[0]; y = dim[1]; z = dim[2]; }
@@ -23,8 +23,6 @@ class Lattice {
     std::vector<int> unit_cell_atom_num;
     std::vector<int> type_count;
     std::map<std::string,int> atomTypeMap;
-    bool  J2Toggle;
-
 };
 
 #endif // __LATTICE_H__
