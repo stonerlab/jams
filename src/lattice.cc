@@ -443,7 +443,7 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   switch (nJValues) {
     case 0:
       output.write("\n************************************************************************\n");
-      output.write("WARNING: No exchange found\n");
+      output.write("WARNING: No bilinear exchange found\n");
       output.write("************************************************************************\n\n");
       break;
     case 1:
@@ -572,9 +572,11 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
         double Jval = 0.0;
         switch (nJValues) {
           case 0:
-            output.write("\n************************************************************************\n");
-            output.write("WARNING: Attempting to insert non existent exchange");
-            output.write("************************************************************************\n\n");
+            if(J2Toggle == false){
+              output.write("\n************************************************************************\n");
+              output.write("WARNING: Attempting to insert non existent exchange");
+              output.write("************************************************************************\n\n");
+            }
             break;
           case 1:
             is >> Jval; // bilinear
@@ -634,9 +636,11 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
       double Jval = 0.0;
       switch (nJValues) {
         case 0:
-          output.write("\n************************************************************************\n");
-          output.write("WARNING: Attempting to insert non existent exchange");
-          output.write("************************************************************************\n\n");
+          if(J2Toggle == false){
+            output.write("\n************************************************************************\n");
+            output.write("WARNING: Attempting to insert non existent exchange");
+            output.write("************************************************************************\n\n");
+          }
           break;
         case 1:
           is >> Jval; // bilinear
