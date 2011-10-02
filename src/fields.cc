@@ -14,12 +14,12 @@ void calculate_fields()
   // exchange
   char transa[1] = {'N'};
   char matdescra[6] = {'S','L','N','C','N','N'};
-  double one=1.0;
-  double zero=0.0;
   int i,j;
 
   if(Jij.nonZero() > 0) {
 #ifdef MKL
+  double one=1.0;
+  double zero=0.0;
     mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,Jij.valPtr(),
         Jij.colPtr(), Jij.ptrB(),Jij.ptrE(),s.ptr(),&zero,h.ptr());
 #else
