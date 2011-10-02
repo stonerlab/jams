@@ -320,6 +320,15 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   using namespace globals;
   
   output.write("\nReading interaction file...\n");
+  
+  if( !config.lookupValue("lattice.biquadratic",J2Toggle) ) {
+    J2Toggle = false;
+  }else{
+    output.write("  * Biquadratic exchange ON\n");
+    output.write("\n************************************************************************\n");
+    output.write("Biquadratic values will be read from the last column of the exchange file\n");
+    output.write("************************************************************************\n\n");
+  }
     
   int nInterTotal=0;
 
@@ -461,15 +470,8 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   // Resize global Jij matrix
   Jij.resize(nspins3,nspins3);
 
-  if( !config.lookupValue("lattice.biquadratic",J2Toggle) ) {
-    J2Toggle = false;
-  }
 
   if( J2Toggle == true ){
-    output.write("  * Biquadratic exchange ON\n");
-    output.write("\n************************************************************************\n");
-    output.write("Biquadratic values will be read from the last column of the exchange file\n");
-    output.write("************************************************************************\n\n");
     // Resize biquadratic matrix
     // NOTE: this matrix is NxN because we use a custom routine so the
     // matrix is just a convenient neighbour list.
