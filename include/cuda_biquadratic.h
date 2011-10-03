@@ -33,9 +33,15 @@ __global__ void biquadratic_dia_kernel
       for(int row = thread_id; row < nrows; row += grid_size)
       {
         int sum[3];
-        sum[0] = h_dev[3*row+0]; 
-        sum[1] = h_dev[3*row+1]; 
-        sum[2] = h_dev[3*row+2];
+//         if(base == 0){
+          sum[0] = 0.0;
+          sum[1] = 0.0;
+          sum[2] = 0.0;
+//         } else {
+//            sum[0] = h_dev[3*row+0]; 
+//            sum[1] = h_dev[3*row+1]; 
+//            sum[2] = h_dev[3*row+2];
+//         }
 
           // index into values array
           int idxUp  = row + pitch * base;
@@ -75,9 +81,9 @@ __global__ void biquadratic_dia_kernel
               idxUp += pitch;
           }
   
-          h_dev[3*row+0] = sum[0];
-          h_dev[3*row+1] = sum[1];
-          h_dev[3*row+2] = sum[2];
+          h_dev[3*row+0] += sum[0];
+          h_dev[3*row+1] += sum[1];
+          h_dev[3*row+2] += sum[2];
       }
 
       // wait until all threads are done reading offsets 
