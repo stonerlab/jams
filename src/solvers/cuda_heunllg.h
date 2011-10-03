@@ -29,7 +29,8 @@ class CUDAHeunLLGSolver : public Solver {
         sigma(0),
         nblocks(0),
         spmvblocksize(0),
-        spmvblocks(0),
+        Jspmvblocks(0),
+        J2spmvblocks(0),
         JdiaPitch(0),
         J2diaPitch(0)
     {};
@@ -57,7 +58,8 @@ class CUDAHeunLLGSolver : public Solver {
     Array<double> sigma;
     int nblocks;
     int spmvblocksize;
-    int spmvblocks;
+    int Jspmvblocks;
+    int J2spmvblocks;
     size_t JdiaPitch;
     size_t J2diaPitch;
 };

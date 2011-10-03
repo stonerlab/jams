@@ -227,7 +227,8 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
 
-  spmvblocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  Jspmvblocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J2spmvblocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
 
   initialised = true;
 }
@@ -254,12 +255,12 @@ void CUDAHeunLLGSolver::run()
 //  if(offset !=0){
 //    jams_error("Failed to bind texture");
 //  }
-  spmv_dia_kernel<<< spmvblocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+  spmv_dia_kernel<<< Jspmvblocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
     Jij.diags(),JdiaPitch,Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
   CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
   // biquadratic
-  biquadratic_dia_kernel<<< spmvblocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+  biquadratic_dia_kernel<<< J2spmvblocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
     J2ij.diags(),J2diaPitch,J2ij_dev_row,J2ij_dev_val,sf_dev,h_dev);
   
 #else
@@ -292,13 +293,14 @@ void CUDAHeunLLGSolver::run()
 //  if(offset !=0){
 //    jams_error("Failed to bind texture");
 //  }
-  spmv_dia_kernel<<< spmvblocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+  spmv_dia_kernel<<< Jspmvblocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
     Jij.diags(),JdiaPitch,Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
   CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
   // biquadratic
-  biquadratic_dia_kernel<<< spmvblocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+  biquadratic_dia_kernel<<< J2spmvblocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
     J2ij.diags(),J2diaPitch,J2ij_dev_row,J2ij_dev_val,sf_dev,h_dev);
+  
 #else
   cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
       Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
