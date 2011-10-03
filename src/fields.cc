@@ -6,8 +6,13 @@
 #include <mkl_spblas.h>
 #endif
 
+#ifdef CUDA
+void calculate_biquadratic(const float *val, const int *indx, 
+  const int *ptrb, const int *ptre)
+#else
 void calculate_biquadratic(const double *val, const int *indx, 
   const int *ptrb, const int *ptre)
+#endif
 {
   using namespace globals;
 

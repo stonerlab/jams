@@ -1,4 +1,5 @@
 #include "cuda_spmv.h"
+#include "cuda_biquadratic.h"
 #include "cuda_heunllg_kernel.cu"
 #include "globals.h"
 #include "consts.h"
@@ -124,11 +125,11 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 #ifdef FORCE_CUDA_DIA
   CUDA_CALL(cudaMalloc((void**)&Jij_dev_row,(Jij.diags())*sizeof(int)));
 //  CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,(Jij.rows()*Jij.diags())*sizeof(float)));
-  CUDA_CALL(cudaMallocPitch((void**)&Jij_dev_val,&diaPitch,(Jij.rows())*sizeof(float),Jij.diags()));
+  CUDA_CALL(cudaMallocPitch((void**)&Jij_dev_val,&JdiaPitch,(Jij.rows())*sizeof(float),Jij.diags()));
   
   // biquadratic
   CUDA_CALL(cudaMalloc((void**)&J2ij_dev_row,(J2ij.diags())*sizeof(int)));
-  CUDA_CALL(cudaMallocPitch((void**)&J2ij_dev_val,&diaPitch,(J2ij.rows())*sizeof(float),J2ij.diags()));
+  CUDA_CALL(cudaMallocPitch((void**)&J2ij_dev_val,&J2diaPitch,(J2ij.rows())*sizeof(float),J2ij.diags()));
 #else
   // jij matrix
   CUDA_CALL(cudaMalloc((void**)&Jij_dev_row,(Jij.rows()+1)*sizeof(int)));
@@ -160,13 +161,13 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 //  CUDA_CALL(cudaMemcpy(Jij_dev_val,Jij.valPtr(),
 //        (size_t)((Jij.diags()*Jij.rows())*(sizeof(float))),cudaMemcpyHostToDevice));
 //  diaPitch = Jij.rows();
-   CUDA_CALL(cudaMemcpy2D(Jij_dev_val,diaPitch,Jij.valPtr(),Jij.rows()*sizeof(float),Jij.rows()*sizeof(float),Jij.diags(),cudaMemcpyHostToDevice));
+   CUDA_CALL(cudaMemcpy2D(Jij_dev_val,JdiaPitch,Jij.valPtr(),Jij.rows()*sizeof(float),Jij.rows()*sizeof(float),Jij.diags(),cudaMemcpyHostToDevice));
    JdiaPitch = JdiaPitch/sizeof(float);
 
    // biquadratic
   CUDA_CALL(cudaMemcpy(J2ij_dev_row,J2ij.dia_offPtr(),
         (size_t)((J2ij.diags())*(sizeof(int))),cudaMemcpyHostToDevice));
-   CUDA_CALL(cudaMemcpy2D(J2ij_dev_val,diaPitch,J2ij.valPtr(),J2ij.rows()*sizeof(float),J2ij.rows()*sizeof(float),J2ij.diags(),cudaMemcpyHostToDevice));
+   CUDA_CALL(cudaMemcpy2D(J2ij_dev_val,J2diaPitch,J2ij.valPtr(),J2ij.rows()*sizeof(float),J2ij.rows()*sizeof(float),J2ij.diags(),cudaMemcpyHostToDevice));
    J2diaPitch = J2diaPitch/sizeof(float);
 #else
   // jij matrix
@@ -254,7 +255,7 @@ void CUDAHeunLLGSolver::run()
 //    jams_error("Failed to bind texture");
 //  }
   spmv_dia_kernel<<< spmvblocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-    Jij.diags(),diaPitch,Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
+    Jij.diags(),JdiaPitch,Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
   CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
   // biquadratic
@@ -292,7 +293,7 @@ void CUDAHeunLLGSolver::run()
 //    jams_error("Failed to bind texture");
 //  }
   spmv_dia_kernel<<< spmvblocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-    Jij.diags(),diaPitch,Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
+    Jij.diags(),JdiaPitch,Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
   CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
   // biquadratic
