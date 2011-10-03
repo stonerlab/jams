@@ -18,13 +18,20 @@ class CUDAHeunLLGSolver : public Solver {
         Jij_dev_row(0),
         Jij_dev_col(0),
         Jij_dev_val(0),
+        J2ij_dev_row(0),
+        J2ij_dev_col(0),
+        J2ij_dev_val(0),
         s_dev(0),
         sf_dev(0),
         s_new_dev(0),
         h_dev(0),
         mat_dev(0),
         sigma(0),
-        nblocks(0)
+        nblocks(0),
+        spmvblocksize(0),
+        spmvblocks(0),
+        JdiaPitch(0),
+        J2diaPitch(0)
     {};
     ~CUDAHeunLLGSolver();
     void initialise(int argc, char **argv, double dt);
@@ -39,6 +46,9 @@ class CUDAHeunLLGSolver : public Solver {
     int * Jij_dev_row;
     int * Jij_dev_col;
     float * Jij_dev_val;
+    int * J2ij_dev_row;
+    int * J2ij_dev_col;
+    float * J2ij_dev_val;
     double * s_dev;
     float  * sf_dev;
     double * s_new_dev;
@@ -48,7 +58,8 @@ class CUDAHeunLLGSolver : public Solver {
     int nblocks;
     int spmvblocksize;
     int spmvblocks;
-    size_t diaPitch;
+    size_t JdiaPitch;
+    size_t J2diaPitch;
 };
 
 #endif // __CUDAHEUNLLG_H__
