@@ -5,6 +5,7 @@ withcuda=1
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
+commit = $(shell git rev-parse HEAD)
 
 
 # Compiler information
@@ -42,6 +43,9 @@ endif
 #----------------------------------------------------------------------
 # Build specific options 
 #----------------------------------------------------------------------
+
+OPTFLAGS += -DGITCOMMIT=$(commit)
+
 ifeq ($(withcuda),1)
 	OPTFLAGS += -DCUDA
 endif
