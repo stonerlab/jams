@@ -267,7 +267,9 @@ void jams_error(const char *string, ...) {
     vsprintf(buffer, string, args);
   va_end(args);
 
-  output.write("\n********** JAMS ERROR **********\n");
+  output.write("\n****************************************\n");
+  output.write(  "               JAMS ERROR               \n");
+  output.write(  "****************************************\n");
   output.write("%s\n",buffer);
 
   jams_finish();
