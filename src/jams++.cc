@@ -43,8 +43,18 @@ int jams_init(int argc, char **argv) {
 
   output.write("\nJAMS++\n");
   output.write("Version %s\n", JAMS_VERSION);
-  output.write("Commit %s\n", QUOTEME(GITCOMMIT));
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
+  output.write("%s\n", QUOTEME(GITCOMMIT));
+  output.write("----------------------------------------\n");
+  
+  time_t rawtime;
+  struct tm * timeinfo;
+  char timebuffer[80];
+  time( &rawtime );
+  timeinfo = localtime( &rawtime );
+  strftime(timebuffer,80,"%b %d %Y, %X",timeinfo);
+  output.write("Run time %s\n",timebuffer);
+  output.write("----------------------------------------\n");
 
 #ifdef DEBUG
   output.write("\nDEBUG Build\n");
