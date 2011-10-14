@@ -76,7 +76,7 @@ ifeq ($(withcuda),1)
 		LIBS += -lcudart -lcurand -lcublas -lcusparse
 endif
 
-LIBS =  -lfftw3 -lconfig++ \
+LIBS +=  -lfftw3 -lconfig++ \
 				 #-Wl,--start-group $(MKLroot)/libmkl_intel_lp64.a $(MKLroot)/libmkl_sequential.a $(MKLroot)/libmkl_core.a -Wl,--end-group -lpthread
 
 
