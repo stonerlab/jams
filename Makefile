@@ -2,15 +2,23 @@ TOPDIR = .
 
 include ./Makefile.in
 
-#SUBDIRS = src src/monitors src/solvers
-
 source-dirs := $(sort $(dir $(shell find . -name '*.cc')))
 
 cuda-kernels := src/solvers/cuda_semillg src/solvers/cuda_heunllg
 
+ifeq ($(withcuda),1)
 jams++ :: objects kernels
 	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
-	
+endif
+
+ifeq ($(withcuda),0)
+jams++ :: objects
+	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
+endif
+
+ifeq ($(systype),Darwin)
+	$(warning Disabling CUDA on Darwin platform (64bit incompatible))
+endif
 	@echo
 	@echo " JAMS++ build complete. "
 	@echo
@@ -48,4 +56,4 @@ clean :
 		do if test -d $$d; then \
 		  $(MAKE) -C $$d $(@F) || exit 1; \
 		fi; \
-	done
+	done 

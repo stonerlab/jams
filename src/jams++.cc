@@ -1,4 +1,7 @@
 #define GLOBALORIGIN
+#define JAMS_VERSION "0.1.1"
+#define QUOTEME_(x) #x
+#define QUOTEME(x) QUOTEME_(x)
 
 #include <string>
 #include <cstdarg>
@@ -39,7 +42,19 @@ int jams_init(int argc, char **argv) {
   output.open("%s.out",seedname.c_str());
 
   output.write("\nJAMS++\n");
+  output.write("Version %s\n", JAMS_VERSION);
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
+  output.write("%s\n", QUOTEME(GITCOMMIT));
+  output.write("----------------------------------------\n");
+  
+  time_t rawtime;
+  struct tm * timeinfo;
+  char timebuffer[80];
+  time( &rawtime );
+  timeinfo = localtime( &rawtime );
+  strftime(timebuffer,80,"%b %d %Y, %X",timeinfo);
+  output.write("Run time %s\n",timebuffer);
+  output.write("----------------------------------------\n");
 
 #ifdef DEBUG
   output.write("\nDEBUG Build\n");
@@ -252,7 +267,9 @@ void jams_error(const char *string, ...) {
     vsprintf(buffer, string, args);
   va_end(args);
 
-  output.write("\n********** JAMS ERROR **********\n");
+  output.write("\n****************************************\n");
+  output.write(  "               JAMS ERROR               \n");
+  output.write(  "****************************************\n");
   output.write("%s\n",buffer);
 
   jams_finish();
