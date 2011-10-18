@@ -143,10 +143,10 @@ DynamicSFPhysics::~DynamicSFPhysics()
     if(tSpace != NULL) {
       fftw_free(tSpace);
       tSpace = NULL;
+    }
     if(imageSpace != NULL) {
       fftw_free(imageSpace);
       imageSpace = NULL;
-    }
     }
   }
 
@@ -355,7 +355,11 @@ void DynamicSFPhysics::timeTransform()
     for(int t=0; t<omegaPoints;++t){
       for(int qz=0; qz<qzPoints; ++qz){
         const int tIdx = qz + qzPoints*(t0+t);
-        const int tIdxMinus = qz + qzPoints*( (tEnd) - t);
+        const int tIdxMinus = qz + qzPoints*( (tEnd-1) - t);
+        assert( tIdx >= 0 );
+        assert( tIdx < (nTimePoints*qzPoints) );
+        assert( tIdxMinus >= 0 );
+        assert( tIdxMinus < (nTimePoints*qzPoints) );
 
         tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(steps_window));
         tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(steps_window));
@@ -365,9 +369,13 @@ void DynamicSFPhysics::timeTransform()
 
         // assign pixels to image
         int imageIdx = qz+qzPoints*t;
+        assert( imageIdx >= 0 );
+        assert( imageIdx < (omegaPoints * qzPoints) );
         imageSpace[imageIdx] = imageSpace[imageIdx] + (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1])*normTransforms;
       }
     }
+
+    startPtr = NULL;
     
     fftw_destroy_plan(tSpaceFFT);
   }
