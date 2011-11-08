@@ -166,9 +166,21 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   const int qzPoints = (upDim[2]/2)+1;
 
   // ASSUMPTION: Spin array is C-ordered in space
+
   if(componentImag == -1){
+    std::vector<double> mag(lattice.numTypes(),0.0);
+
     for(int i=0; i<nspins; ++i){
-      qSpace[i][0] = s(i,componentReal);
+      mag[lattice.getType(i)] += s(i,componentReal);
+    }
+
+    for(int t=0; t<lattice.numTypes(); ++t){
+      mag[t] = mag[t]/static_cast<double>(lattice.getTypeCount(t));
+    }
+
+    for(int i=0; i<nspins; ++i){
+
+      qSpace[i][0] = s(i,componentReal)-mag[lattice.getType(i)];
       qSpace[i][1] = 0.0;
     }
   } else {
