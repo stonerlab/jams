@@ -45,6 +45,18 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     output.write("  * Fourier transform component: %s\n",strReal.c_str());
   }
 
+  // read spin type cofactors (i.e. for Holstein Primakoff
+  // transformations and the like)
+  
+  libconfig::Setting &mat = config.lookup("materials");
+  coFactors.resize(lattice.numTypes(),3);
+  for(int i=0; i<lattice.numTypes(); ++i){
+    for(int j=0; j<3; ++j){
+      coFactors(i,j) = mat[i]["coFactors"][j];
+    }
+  }
+    
+
 
   // read lattice size
   if( config.exists("physics.SizeOverride") == true) {
@@ -168,25 +180,18 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   // ASSUMPTION: Spin array is C-ordered in space
 
   if(componentImag == -1){
-//    std::vector<double> mag(lattice.numTypes(),0.0);
-//
-//    for(int i=0; i<nspins; ++i){
-//      mag[lattice.getType(i)] += s(i,componentReal);
-//    }
-
-//    for(int t=0; t<lattice.numTypes(); ++t){
-//      mag[t] = mag[t]/static_cast<double>(lattice.getTypeCount(t));
-//    }
 
     for(int i=0; i<nspins; ++i){
+      int type = lattice.getType(i);
 
-      qSpace[i][0] = fabs(s(i,componentReal));//-mag[lattice.getType(i)];
+      qSpace[i][0] = coFactors(type,componentReal)*s(i,componentReal);
       qSpace[i][1] = 0.0;
     }
   } else {
     for(int i=0; i<nspins; ++i){
-      qSpace[i][0] = s(i,componentReal);
-      qSpace[i][1] = s(i,componentImag);
+      int type = lattice.getType(i);
+      qSpace[i][0] = coFactors(type,componentReal)*s(i,componentReal);
+      qSpace[i][1] = coFactors(type,componentImag)*s(i,componentImag);
     }
   }
 

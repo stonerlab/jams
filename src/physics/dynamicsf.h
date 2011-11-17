@@ -27,6 +27,9 @@ class DynamicSFPhysics : public Physics {
       qSpaceFFT(),
       upSpaceFFT(),
       invUpSpaceFFT(),
+      componentReal(0),
+      componentImag(0),
+      coFactors(0,0),
       freqIntervalSize(0),
       t_window(0.0),
       steps_window(0)
@@ -54,6 +57,7 @@ class DynamicSFPhysics : public Physics {
     fftw_plan         invUpSpaceFFT;
     int               componentReal;
     int               componentImag;
+    Array2D<double>   coFactors;
     double            freqIntervalSize;
     double            t_window;
     unsigned long     steps_window;
