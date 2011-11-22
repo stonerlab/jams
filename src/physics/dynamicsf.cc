@@ -153,14 +153,14 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   assert(initialised);
 
   // ASSUMPTION: Spin array is C-ordered in space
-  const int qzPoints = (upDim[2]/2)+1;
+  const int qzPoints = (rDim[2]/2)+1;
 
   if(componentImag == -1){
     std::vector<double> mag(lattice.numTypes(),0.0);
  
     for(int i=0; i<nspins; ++i){
-      const int type = coFactors(type,componentReal)*lattice.getType(i);
-      mag[type] += s(i,componentReal);
+      const int type = lattice.getType(i);
+      mag[type] += coFactors(type,componentReal)*s(i,componentReal);
     }
  
     for(int t=0; t<lattice.numTypes(); ++t){
@@ -208,15 +208,18 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
     tIdx = qz + qzPoints*timePointCounter;
     assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
 
-    tSpace[tIdx][0] = 0.5*qSpace[qIdx][0];
-    tSpace[tIdx][1] = 0.5*qSpace[qIdx][1];
-    
-    qVec[2] = rDim[2]-qz;
-    qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
-    assert(qIdx < nspins); assert(qIdx > -1);
+    tSpace[tIdx][0] = qSpace[qIdx][0];
+    tSpace[tIdx][1] = qSpace[qIdx][1];
 
-    tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]);
-    tSpace[tIdx][1] = tSpace[tIdx][1] + 0.5*(qSpace[qIdx][1]);
+//     tSpace[tIdx][0] = 0.5*qSpace[qIdx][0];
+//     tSpace[tIdx][1] = 0.5*qSpace[qIdx][1];
+//     
+//     qVec[2] = rDim[2]-qz;
+//     qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
+//     assert(qIdx < nspins); assert(qIdx > -1);
+// 
+//     tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]);
+//     tSpace[tIdx][1] = tSpace[tIdx][1] + 0.5*(qSpace[qIdx][1]);
   }
 
   if(timePointCounter == (nTimePoints-1)){
@@ -237,7 +240,7 @@ void DynamicSFPhysics::timeTransform()
 
   output.write("Performing %d window transforms\n",nTransforms);
 
-  const int qzPoints    = (upDim[2]/2) + 1;
+  const int qzPoints    = (rDim[2]/2) + 1;
   const int omegaPoints = (steps_window/2) + 1;
 
   // allocate the image space
@@ -260,7 +263,7 @@ void DynamicSFPhysics::timeTransform()
     int istride    = qzPoints;      int ostride    = qzPoints;
     int idist      = 1;             int odist      = 1;
 
-    fftw_plan tSpaceFFT = fftw_plan_many_dft(rank,sizeN,howmany,windowSpace,inembed,istride,idist,windowSpace,onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
+    fftw_plan windowSpaceFFT = fftw_plan_many_dft(rank,sizeN,howmany,windowSpace,inembed,istride,idist,windowSpace,onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
     
     // apply windowing function
 
@@ -273,44 +276,54 @@ void DynamicSFPhysics::timeTransform()
     // fill the first half of the array
     for(int t=0; t<steps_window; ++t){
       for(int qz=0; qz<qzPoints; ++qz){
-        const int tIdx = qz + qzPoints*(t+t0);  // s_k(r,t)
+        const int tIdx = qz + qzPoints*(t+t0);  // s_k(r ,t)
         const int refIdx = qz + qzPoints*t0;    // s_k(r',0)
+        const int wdwIdx = qz + qzPoints*t;
 
-        windowSpace[tIdx][0] = tSpace[tIdx][0]*tSpace[refIdx][0]*FFTWindow(t,steps_window,HAMMING);
-        windowSpace[tIdx][1] = tSpace[tIdx][1]*tSpace[refIdx][1]*FFTWindow(t,steps_window,HAMMING);
+        // do full complex multiplication
+        const double za = tSpace[tIdx][0];
+        const double zb = tSpace[tIdx][1];
+        const double zc = tSpace[refIdx][0];
+        const double zd = tSpace[refIdx][1];
+        windowSpace[wdwIdx][0] = (za*zc-zb*zd)*FFTWindow(t,steps_window,HAMMING);
+        windowSpace[wdwIdx][1] = (zb*zc+za*zd)*FFTWindow(t,steps_window,HAMMING);
       }
     }
     
-    fftw_execute(tSpaceFFT);
+    fftw_execute(windowSpaceFFT);
 
 
     // normalise transform and apply symmetry -omega omega
     for(int t=0; t<omegaPoints;++t){
       for(int qz=0; qz<qzPoints; ++qz){
         const int tIdx = qz + qzPoints*t;
-        const int tIdxMinus = qz + qzPoints*( (steps_window-1) - t);
+        const int tIdxMinus = qz + qzPoints*( (steps_window) - t);
         assert( tIdx >= 0 );
         assert( tIdx < (nTimePoints*qzPoints) );
         assert( tIdxMinus >= 0 );
         assert( tIdxMinus < (nTimePoints*qzPoints) );
 
-        windowSpace[tIdx][0] = 0.5*(windowSpace[tIdx][0] + windowSpace[tIdxMinus][0])/sqrt(double(nspins)*double(steps_window));
-        windowSpace[tIdx][1] = 0.5*(windowSpace[tIdx][1] + windowSpace[tIdxMinus][1])/sqrt(double(nspins)*double(steps_window));
-
-        // zero -omega to avoid accidental use
-        windowSpace[tIdxMinus][0] = 0.0; windowSpace[tIdxMinus][1] = 0.0;
+        if(t==0){
+          windowSpace[tIdx][0] = windowSpace[tIdx][0]/sqrt(double(nspins)*double(steps_window));
+          windowSpace[tIdx][1] = windowSpace[tIdx][1]/sqrt(double(nspins)*double(steps_window));
+        }else{
+          windowSpace[tIdx][0] = 0.5*(windowSpace[tIdx][0] + windowSpace[tIdxMinus][0])/sqrt(double(nspins)*double(steps_window));
+          windowSpace[tIdx][1] = 0.5*(windowSpace[tIdx][1] + windowSpace[tIdxMinus][1])/sqrt(double(nspins)*double(steps_window));
+  //         windowSpace[tIdx][0] = windowSpace[tIdx][0]/sqrt(double(nspins)*double(steps_window));
+  //         windowSpace[tIdx][1] = windowSpace[tIdx][1]/sqrt(double(nspins)*double(steps_window));
+        }
 
         // assign pixels to image
         int imageIdx = qz+qzPoints*t;
         assert( imageIdx >= 0 );
         assert( imageIdx < (omegaPoints * qzPoints) );
-        imageSpace[imageIdx] = imageSpace[imageIdx] + (windowSpace[tIdx][0]*windowSpace[tIdx][0] + windowSpace[tIdx][1]*windowSpace[tIdx][1])*normTransforms;
+        imageSpace[imageIdx] = imageSpace[imageIdx] + (windowSpace[tIdx][0]*windowSpace[tIdx][0]+windowSpace[tIdx][1]*windowSpace[tIdx][1])*normTransforms;
       }
     }
 
-    fftw_destroy_plan(tSpaceFFT);
-    fftw_free(windowSpace);
+    fftw_destroy_plan(windowSpaceFFT);
   }
+  fftw_free(windowSpace);
 }
 
 void DynamicSFPhysics::outputImage()
@@ -321,7 +334,7 @@ void DynamicSFPhysics::outputImage()
   std::string filename = "_dsf.dat";
   filename = seedname+filename;
   DSFFile.open(filename.c_str());
-  const int qzPoints = (upDim[2]/2)+1;
+  const int qzPoints = (rDim[2]/2)+1;
   for(int qz=0; qz<qzPoints; ++qz){
     for(int omega=0; omega<((steps_window/2)+1); ++omega){
       int tIdx = qz + qzPoints*omega;
