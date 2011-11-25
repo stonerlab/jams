@@ -8,7 +8,8 @@
 
 enum FFTWindowType {
   GAUSSIAN,
-  HAMMING
+  HAMMING,
+  HANN
 };
 
 class DynamicSFPhysics : public Physics {

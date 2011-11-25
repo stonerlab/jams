@@ -99,23 +99,14 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   }
   qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
 
-  const int qzPoints = (rDim[2]/2)+1;
-
 // --------------------------------------------------------------------------------------------------------------------
 // Time to frequency space transform
 // --------------------------------------------------------------------------------------------------------------------
-//   output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*nspins)/(1024.0*1024.0));
-  output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*qzPoints/(1024.0*1024.0)));
-//   tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*nspins));
-  tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*qzPoints));
+  output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*rDim[2]/(1024.0*1024.0)));
+  tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*rDim[2]));
   if(qSpace == NULL){
     jams_error("Failed to allocate tSpace FFT array");
   }
-
-  
-//   int tDim[4] = {nTimePoints,rDim[0],rDim[1],rDim[2]};
-//   tSpaceFFT = fftw_plan_dft(4,tDim,tSpace,tSpace,FFTW_FORWARD,FFTW_ESTIMATE);
-
 
   initialised = true;
 }
@@ -153,7 +144,6 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   assert(initialised);
 
   // ASSUMPTION: Spin array is C-ordered in space
-  const int qzPoints = (rDim[2]/2)+1;
 
   if(componentImag == -1){
     std::vector<double> mag(lattice.numTypes(),0.0);
@@ -191,35 +181,17 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   }
 
   
-  // average over -q +q
-  
-  // cant average zero mode
-  int tIdx = qzPoints*timePointCounter;
-  assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
-
-
-  tSpace[tIdx][0] = qSpace[0][0];
-  tSpace[tIdx][1] = qSpace[0][1];
-  for(int qz=1; qz<qzPoints; ++qz){
+  for(int qz=0; qz<rDim[2]; ++qz){
 
     int qVec[3] = {0, 0, qz};
     int qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
     assert(qIdx < nspins); assert(qIdx > -1);
-    tIdx = qz + qzPoints*timePointCounter;
-    assert(tIdx < qzPoints*nTimePoints); assert(tIdx > -1);
+    int tIdx = qz + rDim[2]*timePointCounter;
+    assert(tIdx < rDim[2]*nTimePoints); assert(tIdx > -1);
 
     tSpace[tIdx][0] = qSpace[qIdx][0];
     tSpace[tIdx][1] = qSpace[qIdx][1];
-
-//     tSpace[tIdx][0] = 0.5*qSpace[qIdx][0];
-//     tSpace[tIdx][1] = 0.5*qSpace[qIdx][1];
-//     
-//     qVec[2] = rDim[2]-qz;
-//     qIdx = qVec[2] + rDim[2]*(qVec[1] + rDim[1]*qVec[0]);
-//     assert(qIdx < nspins); assert(qIdx > -1);
-// 
-//     tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]);
-//     tSpace[tIdx][1] = tSpace[tIdx][1] + 0.5*(qSpace[qIdx][1]);
+  
   }
 
   if(timePointCounter == (nTimePoints-1)){
@@ -245,9 +217,9 @@ void DynamicSFPhysics::timeTransform()
 
   // allocate the image space
   imageSpace = static_cast<double*>(fftw_malloc(sizeof(double) * omegaPoints * qzPoints));
-  fftw_complex* windowSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * 2 * steps_window * qzPoints));
+  fftw_complex* windowSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * 2 * steps_window * rDim[2]));
 
-  for(int i=0; i<omegaPoints * qzPoints; ++i){
+  for(int i=0; i<omegaPoints * rDim[2]; ++i){
     imageSpace[i] = 0.0;
   }
 
@@ -258,9 +230,9 @@ void DynamicSFPhysics::timeTransform()
 
     int rank       = 1;
     int sizeN[]   = {steps_window};
-    int howmany    = qzPoints;
+    int howmany    = rDim[2];
     int inembed[] = {steps_window}; int onembed[] = {steps_window};
-    int istride    = qzPoints;      int ostride    = qzPoints;
+    int istride    = rDim[2];      int ostride    = rDim[2];
     int idist      = 1;             int odist      = 1;
 
     fftw_plan windowSpaceFFT = fftw_plan_many_dft(rank,sizeN,howmany,windowSpace,inembed,istride,idist,windowSpace,onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
@@ -268,25 +240,25 @@ void DynamicSFPhysics::timeTransform()
     // apply windowing function
 
     // zero the window array
-    for(int t=0; t<(2*steps_window*qzPoints); ++t){
+    for(int t=0; t<(2*steps_window*rDim[2]); ++t){
       windowSpace[t][0] = 0.0;
       windowSpace[t][1] = 0.0;
     }
 
     // fill the first half of the array
     for(int t=0; t<steps_window; ++t){
-      for(int qz=0; qz<qzPoints; ++qz){
-        const int tIdx = qz + qzPoints*(t+t0);  // s_k(r ,t)
-        const int refIdx = qz + qzPoints*t0;    // s_k(r',0)
-        const int wdwIdx = qz + qzPoints*t;
+      for(int qz=0; qz<rDim[2]; ++qz){
+        const int tIdx = qz + rDim[2]*(t+t0);  // s_k(r ,t)
+        const int refIdx = qz + rDim[2]*t0;    // s_k(r',0)
+        const int wdwIdx = qz + rDim[2]*t;
 
         // do full complex multiplication
         const double za = tSpace[tIdx][0];
         const double zb = tSpace[tIdx][1];
         const double zc = tSpace[refIdx][0];
-        const double zd = tSpace[refIdx][1];
-        windowSpace[wdwIdx][0] = (za*zc-zb*zd)*FFTWindow(t,steps_window,HAMMING);
-        windowSpace[wdwIdx][1] = (zb*zc+za*zd)*FFTWindow(t,steps_window,HAMMING);
+        const double zd = -tSpace[refIdx][1];
+        windowSpace[wdwIdx][0] = (za*zc-zb*zd)*FFTWindow(t,steps_window,HANN);
+        windowSpace[wdwIdx][1] = (zb*zc+za*zd)*FFTWindow(t,steps_window,HANN);
       }
     }
     
@@ -296,12 +268,12 @@ void DynamicSFPhysics::timeTransform()
     // normalise transform and apply symmetry -omega omega
     for(int t=0; t<omegaPoints;++t){
       for(int qz=0; qz<qzPoints; ++qz){
-        const int tIdx = qz + qzPoints*t;
-        const int tIdxMinus = qz + qzPoints*( (steps_window) - t);
+        const int tIdx = qz + rDim[2]*t;
+        const int tIdxMinus = qz + rDim[2]*( (steps_window) - t);
         assert( tIdx >= 0 );
-        assert( tIdx < (nTimePoints*qzPoints) );
+        assert( tIdx < (nTimePoints*rDim[2]) );
         assert( tIdxMinus >= 0 );
-        assert( tIdxMinus < (nTimePoints*qzPoints) );
+        assert( tIdxMinus < (nTimePoints*rDim[2]) );
 
         if(t==0){
           windowSpace[tIdx][0] = windowSpace[tIdx][0]/sqrt(double(nspins)*double(steps_window));
@@ -357,9 +329,11 @@ double DynamicSFPhysics::FFTWindow(const int n, const int nTotal, const FFTWindo
     case HAMMING:
       return 0.54 - 0.46*cos((2.0*M_PI*n)/double(nTotal-1));
       break;
+    case HANN:
+      return 0.5*(1.0 - cos((2.0*M_PI*n)/double(nTotal-1)));
     default:
-      // default to Hamming window
-      return 0.54 - 0.46*cos((2.0*M_PI*n)/double(nTotal-1));
+      // default to Hann window
+      return 0.5*(1.0 - cos((2.0*M_PI*n)/double(nTotal-1)));
       break;
   }
 }
