@@ -14,9 +14,9 @@ exchange[0,1] = -6.26E-21
 exchange[1,0] = -6.26E-21
 exchange[1,1] = -6.26E-21
 
-lx=32
-ly=32
-lz=32
+lx=16
+ly=16
+lz=16
 
 latticeType = numpy.zeros((lx,ly,lz))
 latticeNum = numpy.zeros((lx,ly,lz))
@@ -28,6 +28,7 @@ for i in range(0,lx):
     for k in range(0,lz):
       latticeType[i,j,k] = 0
       latticeNum[i,j,k] = count
+      count = count + 1
       if k%2 == 0:
         if i%2 == 0:
           if j%2 == 0:
