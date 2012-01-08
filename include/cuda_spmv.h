@@ -9,6 +9,7 @@ __global__ void spmv_dia_kernel
  const int ncols,
  const int ndiag,
  const int pitch,
+ const float beta,
  const int * dia_offsets,
  const float * dia_values,
  const float * x,
@@ -62,7 +63,12 @@ __global__ void spmv_dia_kernel
         // process chunk
         for(int row = thread_id; row < nrows; row += grid_size)
         {
-            float sum = (base == 0) ? float(0) : y[row];
+            float sum;
+            if(base == 0){
+              sum = beta*y[row];
+            } else {
+              sum = y[row];
+            }
     
             // index into values array
             int idxUp  = row + pitch * base;
