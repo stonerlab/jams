@@ -871,17 +871,20 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                 // easy axis
                 double ei = cfgMaterials[type_num]["uniaxialAnisotropy"][0][i];
                 // magnitude
-                double di = 2.0*anival*ei ; 
+                // NOTE: no factor of 2 is included here because it is
+                // included for the biquadratic tensor multiplication
+                double di = anival*ei ; 
                 KTensor[i][i] = di/mu_bohr_si;
               }
             } else {
               surfaceCount++;
             }
 
+            // anisotropic interactions are biquadratic
             for(int row=0; row<3; ++row) {
               for(int col=0; col<3; ++col) {
                 if(fabs(KTensor[row][col]) > encut) {
-                  Jij.insertValue(3*s_i+row,3*s_i+col,KTensor[row][col]);
+                  J2ij.insertValue(3*s_i+row,3*s_i+col,KTensor[row][col]);
                 }
               }
             }
