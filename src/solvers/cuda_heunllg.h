@@ -8,6 +8,14 @@
 #include <curand.h>
 #include <cusparse.h>
 
+struct devDIA {
+  int     *row;
+  int     *col;
+  float   *val;
+  size_t  pitch;
+  int     blocks;
+};
+
 class CUDAHeunLLGSolver : public Solver {
   public:
     CUDAHeunLLGSolver()
@@ -15,12 +23,10 @@ class CUDAHeunLLGSolver : public Solver {
         w_dev(0),
         handle(0),
         descra(0),
-        Jij_dev_row(0),
-        Jij_dev_col(0),
-        Jij_dev_val(0),
-        J2ij_dev_row(0),
-        J2ij_dev_col(0),
-        J2ij_dev_val(0),
+        J1ij_s_dev(),
+        J1ij_t_dev(),
+        J2ij_s_dev(),
+        J2ij_t_dev(),
         s_dev(0),
         sf_dev(0),
         s_new_dev(0),
@@ -28,11 +34,7 @@ class CUDAHeunLLGSolver : public Solver {
         mat_dev(0),
         sigma(0),
         nblocks(0),
-        spmvblocksize(0),
-        Jspmvblocks(0),
-        J2spmvblocks(0),
-        JdiaPitch(0),
-        J2diaPitch(0)
+        spmvblocksize(0)
     {};
     ~CUDAHeunLLGSolver();
     void initialise(int argc, char **argv, double dt);
@@ -44,12 +46,10 @@ class CUDAHeunLLGSolver : public Solver {
     float * w_dev;
     cusparseHandle_t handle;
     cusparseMatDescr_t descra;
-    int * Jij_dev_row;
-    int * Jij_dev_col;
-    float * Jij_dev_val;
-    int * J2ij_dev_row;
-    int * J2ij_dev_col;
-    float * J2ij_dev_val;
+    devDIA  J1ij_s_dev;
+    devDIA  J1ij_t_dev;
+    devDIA  J2ij_s_dev;
+    devDIA  J2ij_t_dev;
     double * s_dev;
     float  * sf_dev;
     double * s_new_dev;
@@ -58,10 +58,6 @@ class CUDAHeunLLGSolver : public Solver {
     Array<double> sigma;
     int nblocks;
     int spmvblocksize;
-    int Jspmvblocks;
-    int J2spmvblocks;
-    size_t JdiaPitch;
-    size_t J2diaPitch;
 };
 
 #endif // __CUDAHEUNLLG_H__

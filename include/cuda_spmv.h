@@ -9,6 +9,7 @@ __global__ void spmv_dia_kernel
  const int ncols,
  const int ndiag,
  const int pitch,
+ const float alpha,
  const float beta,
  const int * dia_offsets,
  const float * dia_values,
@@ -64,11 +65,12 @@ __global__ void spmv_dia_kernel
         for(int row = thread_id; row < nrows; row += grid_size)
         {
             float sum;
-            if(base == 0){
-              sum = beta*y[row];
-            } else {
-              sum = y[row];
-            }
+            sum = y[row];
+//             if(base == 0){
+//               sum = y[row];
+//             } else {
+//               sum = y[row];
+//             }
     
             // index into values array
             int idxUp  = row + pitch * base;
@@ -79,11 +81,11 @@ __global__ void spmv_dia_kernel
                 const int colLow = row - offsets[n];
 
                 if(colLow >= row && colLow < ncols) {
-                  const float A_ij = dia_values[pitch*(base+n)+colLow];
+                  const float A_ij = alpha*dia_values[pitch*(base+n)+colLow];
                   sum += A_ij * tex1Dfetch(tex_x_float,colLow);
                 }
                 if(colUp >= 0 && colUp < row) {
-                  const float A_ij = dia_values[idxUp];
+                  const float A_ij = alpha*dia_values[idxUp];
                   sum += A_ij * tex1Dfetch(tex_x_float,colUp);
                 }
 
