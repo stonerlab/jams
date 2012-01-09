@@ -467,8 +467,9 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   interactionNeighbour.resize(nAtoms,interMax);
   nInteractionsOfType.resize(nAtoms,0);
 
-  // Resize global Jij matrix
+  // Resize global Jij and D2ii matrices
   Jij.resize(nspins3,nspins3);
+  D2ii.resize(nspins3,nspins3);
 
 
   if( J2Toggle == true ){
@@ -489,14 +490,17 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
     solname = "DEFAULT";
   }
   if( ( solname == "CUDAHEUNLLG" ) || ( solname == "CUDASEMILLG" ) ) {
-    output.write("  * CUDA solver means a general sparse matrix will be stored\n");
-//    Jij.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
+    output.write("  * CUDA solver means a symmetric (lower) sparse matrix will be stored\n");
     Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
     Jij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    D2ii.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    D2ii.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   } else {
-    output.write("  * Symmetric lower sparse matrix will be stored\n");
+    output.write("  * Symmetric (lower) sparse matrix will be stored\n");
     Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
     Jij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    D2ii.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    D2ii.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   }
 
   //-----------------------------------------------------------------
