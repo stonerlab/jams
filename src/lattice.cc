@@ -875,7 +875,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
             for(int row=0; row<3; ++row) {
               for(int col=0; col<3; ++col) {
-                if(Dval > encut) {
+                if((Dval*DTensor[row][col]) > encut) {
                   if(J2ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
                     if(J2ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
                       if(row >= col){
