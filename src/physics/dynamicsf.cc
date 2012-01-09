@@ -219,7 +219,7 @@ void DynamicSFPhysics::timeTransform()
   imageSpace = static_cast<double*>(fftw_malloc(sizeof(double) * omegaPoints * qzPoints));
   fftw_complex* windowSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * 2 * steps_window * rDim[2]));
 
-  for(int i=0; i<omegaPoints * rDim[2]; ++i){
+  for(int i=0; i<omegaPoints * qzPoints; ++i){
     imageSpace[i] = 0.0;
   }
 
@@ -255,8 +255,10 @@ void DynamicSFPhysics::timeTransform()
         // do full complex multiplication
         const double za = tSpace[tIdx][0];
         const double zb = tSpace[tIdx][1];
-        const double zc = tSpace[refIdx][0];
-        const double zd = -tSpace[refIdx][1];
+        const double zc = tSpace[tIdx][0];
+        const double zd = tSpace[tIdx][1];
+//         const double zc = tSpace[refIdx][0];
+//         const double zd = -tSpace[refIdx][1];
         windowSpace[wdwIdx][0] = (za*zc-zb*zd)*FFTWindow(t,steps_window,HANN);
         windowSpace[wdwIdx][1] = (zb*zc+za*zd)*FFTWindow(t,steps_window,HANN);
       }
@@ -270,10 +272,10 @@ void DynamicSFPhysics::timeTransform()
       for(int qz=0; qz<qzPoints; ++qz){
         const int tIdx = qz + rDim[2]*t;
         const int tIdxMinus = qz + rDim[2]*( (steps_window) - t);
-        assert( tIdx >= 0 );
-        assert( tIdx < (nTimePoints*rDim[2]) );
-        assert( tIdxMinus >= 0 );
-        assert( tIdxMinus < (nTimePoints*rDim[2]) );
+//         assert( tIdx >= 0 );
+//         assert( tIdx < (nTimePoints*rDim[2]) );
+//         assert( tIdxMinus >= 0 );
+//         assert( tIdxMinus < (nTimePoints*rDim[2]) );
 
         if(t==0){
           windowSpace[tIdx][0] = windowSpace[tIdx][0]/sqrt(double(nspins)*double(steps_window));
