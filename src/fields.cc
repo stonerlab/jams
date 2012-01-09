@@ -84,9 +84,14 @@ void calc_scalar_biquadratic(const double *val, const int *indx,
   }
 }
 
+#ifdef CUDA
+void calc_tensor_biquadratic(const float *val, const int *indx, 
+  const int *ptrb, const int *ptre)
+#else
 void calc_tensor_biquadratic(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre){
-
+  const int *ptrb, const int *ptre)
+#endif
+{
   // NOTE: Factor of two is included here for biquadratic terms
   // NOTE: Tensor calculations are added to the existing fields
   using namespace globals;
@@ -98,16 +103,22 @@ void calc_tensor_biquadratic(const double *val, const int *indx,
 #ifdef MKL
   double one=1.0;
   double two=2.0;
-    mkl_dcsrmv(transa,&nspins3,&nspins3,&two,matdescra,J2ij_t.valPtr(),
-        J2ij_t.colPtr(), J2ij_t.ptrB(),J2ij_t.ptrE(),s.ptr(),&one,h.ptr());
+    mkl_dcsrmv(transa,&nspins3,&nspins3,&two,matdescra,val,
+        indx, ptrb,ptre,s.ptr(),&zero,h.ptr());
 #else
-    jams_dcsrmv(transa,nspins3,nspins3,2.0,matdescra,J2ij_t.valPtr(),
-        J2ij_t.colPtr(), J2ij_t.ptrB(),J2ij_t.ptrE(),s.ptr(),1.0,h.ptr());
+    jams_dcsrmv(transa,nspins3,nspins3,2.0,matdescra,val,
+        indx, ptrb,ptre,s.ptr(),1.0,h.ptr());
 #endif
 }
 
+
+#ifdef CUDA
+void calc_tensor_bilinear(const float *val, const int *indx, 
+  const int *ptrb, const int *ptre)
+#else
 void calc_tensor_bilinear(const double *val, const int *indx, 
   const int *ptrb, const int *ptre)
+#endif
 {
   // NOTE: this resets the field array to zero
   using namespace globals;
@@ -117,11 +128,11 @@ void calc_tensor_bilinear(const double *val, const int *indx,
 #ifdef MKL
   double one=1.0;
   double one=1.0;
-    mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,J1ij_t.valPtr(),
-        J1ij_t.colPtr(), J1ij_t.ptrB(),J1ij_t.ptrE(),s.ptr(),&zero,h.ptr());
+    mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,val,
+        indx, ptrb,ptre,s.ptr(),&zero,h.ptr());
 #else
-    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,J1ij_t.valPtr(),
-        J1ij_t.colPtr(), J1ij_t.ptrB(),J1ij_t.ptrE(),s.ptr(),1.0,h.ptr());
+    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,val,
+        indx, ptrb,ptre,s.ptr(),1.0,h.ptr());
 #endif
 }
 void calculate_fields()
