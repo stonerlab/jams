@@ -23,8 +23,10 @@ void HeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   output.write("  * Converting MAP to CSR\n");
   Jij.convertMAP2CSR();
+  D2ii.convertMAP2CSR();
   J2ij.convertMAP2CSR();
   output.write("  * Jij matrix memory (CSR): %f MB\n",Jij.calculateMemory());
+  output.write("  * D2ii matrix memory (CSR): %f MB\n",D2ii.calculateMemory());
   output.write("  * J2ij matrix memory (CSR): %f MB\n",J2ij.calculateMemory());
 
   snew.resize(nspins,3);
