@@ -7,6 +7,7 @@ __global__ void bilinear_scalar_dia_kernel
  const int ncols,
  const int ndiag,
  const int pitch,
+ const float alpha,
  const float beta,
  const int * dia_offsets,
  const float * dia_values,
@@ -34,21 +35,28 @@ __global__ void bilinear_scalar_dia_kernel
       {
         const int rowOff = 3*row;
         float sum[3];
-        for(int i=0; i<3; ++i){
-          sum[i] = h_dev[rowOff+i];
+        if(base == 0){
+          // NOTE: floating point comparison avoids reading h_dev[] for
+          // special case
+          if(beta == 0.0){
+            #pragma unroll
+            for(int i=0; i<3; ++i){
+              sum[i] = 0.0;
+            }
+          } else {
+            // read initial sum values
+            #pragma unroll
+            for(int i=0; i<3; ++i){
+              sum[i] = beta*h_dev[rowOff+i];
+            }
+          }
+        } else {
+          // outside base 0 use existing values
+          #pragma unroll
+          for(int i=0; i<3; ++i){
+            sum[i] = h_dev[rowOff+i];
+          }
         }
-//         
-//         if(base == 0){
-//           // read initial sum values
-//           for(int i=0; i<3; ++i){
-//             sum[i] = 0.0; 
-//           }
-//         } else {
-//           // outside base 0 use existing values
-//           for(int i=0; i<3; ++i){
-//             sum[i] = h_dev[rowOff+i];
-//           }
-//         }
 
         // index into values array
         int idxUp  = row + pitch * base;
@@ -61,8 +69,9 @@ __global__ void bilinear_scalar_dia_kernel
             if(colLow >= row && colLow < ncols) {
               const int sj = 3*colLow;
 
-              const float A_ij = dia_values[pitch*(base+n)+colLow];
+              const float A_ij = alpha*dia_values[pitch*(base+n)+colLow];
 
+              #pragma unroll
               for(int i=0; i<3; ++i){
                 sum[i] += A_ij * sf_dev[sj+i];
               }
@@ -70,8 +79,9 @@ __global__ void bilinear_scalar_dia_kernel
             if(colUp >= 0 && colUp < row) {
               const int sj = 3*colUp;
 
-              const float A_ij = dia_values[idxUp];
+              const float A_ij = alpha*dia_values[idxUp];
               
+              #pragma unroll
               for(int i=0; i<3; ++i){
                 sum[i] += A_ij * sf_dev[sj+i];
               }
@@ -80,6 +90,7 @@ __global__ void bilinear_scalar_dia_kernel
             idxUp += pitch;
         }
 
+        #pragma unroll
         for(int i=0; i<3; ++i){
           h_dev[rowOff+i] = sum[i];
         }
@@ -96,6 +107,7 @@ __global__ void biquadratic_scalar_dia_kernel
  const int ncols,
  const int ndiag,
  const int pitch,
+ const float alpha,
  const float beta,
  const int * dia_offsets,
  const float * dia_values,
@@ -125,12 +137,23 @@ __global__ void biquadratic_scalar_dia_kernel
         float sum[3];
         
         if(base == 0){
-          // read initial sum values
-          for(int i=0; i<3; ++i){
-            sum[i] = 0.0; 
+          // NOTE: floating point comparison avoids reading h_dev[] for
+          // special case
+          if(beta == 0.0){
+            #pragma unroll
+            for(int i=0; i<3; ++i){
+              sum[i] = 0.0;
+            }
+          } else {
+            // read initial sum values
+            #pragma unroll
+            for(int i=0; i<3; ++i){
+              sum[i] = beta*h_dev[rowOff+i];
+            }
           }
         } else {
           // outside base 0 use existing values
+          #pragma unroll
           for(int i=0; i<3; ++i){
             sum[i] = h_dev[rowOff+i];
           }
@@ -152,7 +175,7 @@ __global__ void biquadratic_scalar_dia_kernel
                               + sf_dev[si+1]*sf_dev[sj+1]
                               + sf_dev[si+2]*sf_dev[sj+2];
                 
-              const float A_ij = 2.0*prod*dia_values[pitch*(base+n)+colLow];
+              const float A_ij = alpha*prod*dia_values[pitch*(base+n)+colLow];
 
               for(int i=0; i<3; ++i){
                 sum[i] += A_ij * sf_dev[sj+i];
@@ -166,7 +189,7 @@ __global__ void biquadratic_scalar_dia_kernel
                               + sf_dev[si+1]*sf_dev[sj+1]
                               + sf_dev[si+2]*sf_dev[sj+2];
                 
-              const float A_ij = 2.0*prod*dia_values[idxUp];
+              const float A_ij = alpha*prod*dia_values[idxUp];
               
               for(int i=0; i<3; ++i){
                 sum[i] += A_ij * sf_dev[sj+i];

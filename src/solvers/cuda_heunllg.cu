@@ -248,32 +248,36 @@ void CUDAHeunLLGSolver::run()
   // calculate interaction fields (and zero field array)
 #ifdef FORCE_CUDA_DIA
 
-  CUDA_CALL(cudaMemset(h_dev,0,nspins3*sizeof(float)));
   size_t offset = size_t(-1);
   CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
   
+  float beta=0;
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
     bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
   }
 
   // bilinear tensor
   if(J1ij_t.nonZero() > 0){
     spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J1ij_t.diags(),J1ij_t_dev.pitch,1.0,1.0,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+      J1ij_t.diags(),J1ij_t_dev.pitch,beta,1.0,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
   }
   
   // biquadratic scalar
   if(J2ij_s.nonZero() > 0){
     biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J2ij_s.diags(),J2ij_s_dev.pitch,1.0,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+      J2ij_s.diags(),J2ij_s_dev.pitch,2.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
   }
   
   // biquadratic tensor
   if(J2ij_t.nonZero() > 0){
     spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,1.0,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
   }
   
   CUDA_CALL(cudaUnbindTexture(tex_x_float));
@@ -298,31 +302,35 @@ void CUDAHeunLLGSolver::run()
 
   // calculate interaction fields (and zero field array)
 #ifdef FORCE_CUDA_DIA
-  CUDA_CALL(cudaMemset(h_dev,0,nspins3*sizeof(float)));
   CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
 
+  beta=0.0;
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
     bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
   }
 
   // bilinear tensor
   if(J1ij_t.nonZero() > 0){
     spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J1ij_t.diags(),J1ij_t_dev.pitch,1.0,1.0,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+      J1ij_t.diags(),J1ij_t_dev.pitch,1.0,beta,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
   }
   
   // biquadratic scalar
   if(J2ij_s.nonZero() > 0){
     biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J2ij_s.diags(),J2ij_s_dev.pitch,1.0,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+      J2ij_s.diags(),J2ij_s_dev.pitch,2.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
   }
   
   // biquadratic tensor
   if(J2ij_t.nonZero() > 0){
     spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,1.0,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
   }
   
   CUDA_CALL(cudaUnbindTexture(tex_x_float));

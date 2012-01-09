@@ -65,12 +65,17 @@ __global__ void spmv_dia_kernel
         for(int row = thread_id; row < nrows; row += grid_size)
         {
             float sum;
-            sum = y[row];
-//             if(base == 0){
-//               sum = y[row];
-//             } else {
-//               sum = y[row];
-//             }
+            if(base == 0){
+              // NOTE: floating point comparison avoids reading h_dev[] for
+              // special case
+              if(beta == 0.0){
+                sum=0.0;
+              }else{
+                sum = beta*y[row];
+              }
+            } else {
+              sum = y[row];
+            }
     
             // index into values array
             int idxUp  = row + pitch * base;
