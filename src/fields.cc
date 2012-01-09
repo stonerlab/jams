@@ -90,7 +90,6 @@ void calc_tensor_biquadratic(const double *val, const int *indx,
   // NOTE: Factor of two is included here for biquadratic terms
   // NOTE: Tensor calculations are added to the existing fields
   using namespace globals;
-  assert(J2ij_s.nonZero() > 0);
  
   // dscrmv below has beta=0.0 -> field array is zeroed
   // exchange
@@ -99,11 +98,11 @@ void calc_tensor_biquadratic(const double *val, const int *indx,
 #ifdef MKL
   double one=1.0;
   double two=2.0;
-    mkl_dcsrmv(transa,&nspins3,&nspins3,&two,matdescra,J2ij_s.valPtr(),
-        J2ij_s.colPtr(), J2ij_s.ptrB(),J2ij_s.ptrE(),s.ptr(),&one,h.ptr());
+    mkl_dcsrmv(transa,&nspins3,&nspins3,&two,matdescra,J2ij_t.valPtr(),
+        J2ij_t.colPtr(), J2ij_t.ptrB(),J2ij_t.ptrE(),s.ptr(),&one,h.ptr());
 #else
-    jams_dcsrmv(transa,nspins3,nspins3,2.0,matdescra,J2ij_s.valPtr(),
-        J2ij_s.colPtr(), J2ij_s.ptrB(),J2ij_s.ptrE(),s.ptr(),1.0,h.ptr());
+    jams_dcsrmv(transa,nspins3,nspins3,2.0,matdescra,J2ij_t.valPtr(),
+        J2ij_t.colPtr(), J2ij_t.ptrB(),J2ij_t.ptrE(),s.ptr(),1.0,h.ptr());
 #endif
 }
 
@@ -112,7 +111,6 @@ void calc_tensor_bilinear(const double *val, const int *indx,
 {
   // NOTE: this resets the field array to zero
   using namespace globals;
-  assert(J1ij_t.nonZero() > 0);
  
   char transa[1] = {'N'};
   char matdescra[6] = {'S','L','N','C','N','N'};
@@ -139,10 +137,10 @@ void calculate_fields()
     calc_scalar_bilinear(J1ij_t.valPtr(),J1ij_t.colPtr(),J1ij_t.ptrB(),J1ij_t.ptrE());
   }
   if(J2ij_s.nonZero() > 0) {
-    calc_tensor_biquadratic(J2ij_s.valPtr(),J2ij_s.colPtr(),J2ij_s.ptrB(),J2ij_s.ptrE());
+    calc_scalar_biquadratic(J2ij_s.valPtr(),J2ij_s.colPtr(),J2ij_s.ptrB(),J2ij_s.ptrE());
   }
   if(J2ij_t.nonZero() > 0) {
-    calc_scalar_biquadratic(J2ij_t.valPtr(),J2ij_t.colPtr(),J2ij_t.ptrB(),J2ij_t.ptrE());
+    calc_tensor_biquadratic(J2ij_t.valPtr(),J2ij_t.colPtr(),J2ij_t.ptrB(),J2ij_t.ptrE());
   }
 
   // normalize by the gyroscopic factor

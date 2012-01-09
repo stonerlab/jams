@@ -468,6 +468,7 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   nInteractionsOfType.resize(nAtoms,0);
 
   // Resize global J1ij_t and J2ij_t matrices
+  J1ij_s.resize(nspins,nspins);
   J1ij_t.resize(nspins3,nspins3);
   J2ij_t.resize(nspins3,nspins3);
 
@@ -491,12 +492,16 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   }
   if( ( solname == "CUDAHEUNLLG" ) || ( solname == "CUDASEMILLG" ) ) {
     output.write("  * CUDA solver means a symmetric (lower) sparse matrix will be stored\n");
+    J1ij_s.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J1ij_s.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
     J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
     J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
     J2ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
     J2ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   } else {
     output.write("  * Symmetric (lower) sparse matrix will be stored\n");
+    J1ij_s.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J1ij_s.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
     J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
     J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
     J2ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
@@ -767,7 +772,19 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                 // Scalar //
                 //--------//
                   if(fabs(JValues(n,i,0,0)) > encut) {
-                    J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
+                    if(J1ij_s.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                      if(J1ij_s.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                        if(s_i > nbr){
+                          J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
+                        }
+                      }else{
+                        if(s_i < nbr){
+                          J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
+                        }
+                      }
+                    }else{
+                      J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
+                    }
                   }
                 } else {
                 //--------//
@@ -858,14 +875,14 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
             for(int row=0; row<3; ++row) {
               for(int col=0; col<3; ++col) {
-                if(anival > encut) {
+                if(Dval > encut) {
                   if(J2ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
                     if(J2ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-                      if(row > col){
+                      if(row >= col){
                         J2ij_t.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
                       }
                     } else {
-                      if(row < col){
+                      if(row <= col){
                         J2ij_t.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
                       }
                     }
