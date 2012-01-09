@@ -701,23 +701,8 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
               
   const double encut = 1E-26/mu_bohr_si; // energy cutoff
 
-  double KTensor[3][3] = { {0.0, 0.0, 0.0},
-                           {0.0, 0.0, 0.0},
-                           {0.0, 0.0, 0.0} };
-
-  //double encut = 1e-25;  // energy cutoff
   double p[3], pnbr[3];
   int v[3], q[3], qnbr[3];
-
-  bool surfaceAnisotropy=false;
-  if(config.exists("lattice.surfaceAnisotropy")){
-    surfaceAnisotropy = true;
-    output.write("  * Neel surface anisotropy on!!!\n");
-  }else{
-    surfaceAnisotropy = false;
-  }
-  double surfaceAnisotropyValue = 0.0;
-  int surfaceCount = 0;
 
   int counter = 0;
   for (int x=0; x<dim[0]; ++x) {
@@ -727,22 +712,10 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
           if(latt(x,y,z,n) != -1) {
 
-            for(int row=0; row<3; ++row) {
-              for(int col=0; col<3; ++col) {
-                KTensor[row][col] = 0.0;
-              }
-            }
-
             const int s_i = latt(x,y,z,n);
             const int type_num = atom_type[s_i];
 
             assert(s_i < nspins);
-            
-            // TODO: Check for if this is set
-            if(surfaceAnisotropy == true) {
-              surfaceAnisotropyValue = cfgMaterials[type_num]["surfaceAnisotropy"];
-              surfaceAnisotropyValue = surfaceAnisotropyValue/mu_bohr_si;
-            }
             
             q[0] = x; q[1] = y; q[2] = z;
             
@@ -824,71 +797,60 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
                 localInteractionCount++;
                 counter++;
-                if(surfaceAnisotropy == true) {
-
-                  double u[3]; // unitvector
-                  double norm = 0.0;
-                  for(int j=0; j<3; ++j){
-                    u[j] = p[j]+interactionVectors(n,i,j);
-                    norm += u[j]*u[j];
-                  }
-
-                  norm = 1.0/sqrt(norm);
-                  for(int j=0; j<3; ++j){
-                    u[j] = u[j]*norm;
-                  }
-//                   std::cout<<u[0]<<"\t"<<u[1]<<"\t"<<u[2]<<std::endl;
-
-
-                  // neighbour unit vectors
-                  for(int row=0; row<3; ++row) {
-                    for(int col=0; col<3; ++col) {
-                      KTensor[row][col] += surfaceAnisotropyValue*u[row]*u[col];
-                    }
-                  }
-                }
               }
 
             } // interactionsOfType
 
+//---------------------------------------------------------------------
+// Anisotropy
+//---------------------------------------------------------------------
+            double anival = cfgMaterials[type_num]["uniaxialAnisotropy"][1];
 
+            // NOTE: Technically anisotropic is biquadratic but
+            // biquadratic interactions in JAMS++ are implemented as a
+            // scalar not a tensor so we store these in a seperate
+            // array
 
-//             std::cout<<localInteractionCount<<"\t"<<nInteractionsOfType[n]<<std::endl;
-            if( (surfaceAnisotropy == false) || (localInteractionCount == nInteractionsOfType[n])) {
-
-              // remove surface anisotropy
-              for(int row=0; row<3; ++row) {
-                for(int col=0; col<3; ++col) {
-                  KTensor[row][col] = 0.0;
-                }
-              }
-
-              // Bulk anisotropy
-              double anival = cfgMaterials[type_num]["uniaxialAnisotropy"][1];
-
-              // TODO: Write anisotropy for arbitrary uniaxial vector
-              for(int i=0;i<3;++i) {
-                // easy axis
-                double ei = cfgMaterials[type_num]["uniaxialAnisotropy"][0][i];
-                // magnitude
-                // NOTE: no factor of 2 is included here because it is
-                // included for the biquadratic tensor multiplication
-                double di = anival*ei ; 
-                KTensor[i][i] = di/mu_bohr_si;
-              }
-            } else {
-              surfaceCount++;
+            // read anisotropy axis unit vector and ensure it is normalised
+            double e3[3] = {0.0,0.0,0.0};
+            for(int i=0;i<3;++i) {
+              e3[i] = cfgMaterials[type_num]["uniaxialAnisotropy"][0][i];
             }
 
-            // anisotropic interactions are biquadratic
+            double norm = 1.0/sqrt(e3[0]*e3[0]+e3[1]*e3[1]+e3[2]*e3[2]);
+            
+            for(int i=0;i<3;++i) {
+              e3[i] = e3[i]*norm;
+            }
+
+            const double DTensor[3][3] = { { e3[0]*e3[0], e3[0]*e3[1], e3[0]*e3[2] },
+                                           { e3[1]*e3[0], e3[1]*e3[1], e3[1]*e3[2] },
+                                           { e3[2]*e3[0], e3[2]*e3[1], e3[2]*e3[2] } };
+
+            // NOTE: Factor of 2 is accounted for in the biquadratic
+            // calculation
+            const double Dval = anival/mu_bohr_si;
+
+
             for(int row=0; row<3; ++row) {
               for(int col=0; col<3; ++col) {
-                if(fabs(KTensor[row][col]) > encut) {
-                  J2ij.insertValue(3*s_i+row,3*s_i+col,KTensor[row][col]);
+                if(anival > encut) {
+                  if(D2ii.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                    if(D2ii.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                      if(row > col){
+                        D2ii.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
+                      }
+                    } else {
+                      if(row < col){
+                        D2ii.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
+                      }
+                    }
+                  } else {
+                    D2ii.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
+                  }
                 }
               }
             }
-
           }
         } // n
       } // z
@@ -896,9 +858,6 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
   } // x
 
 
-  if(surfaceAnisotropy == true) {
-    output.write("  * Surface spin count: %i\n", surfaceCount);
-  }
   output.write("  * Total interaction count: %i\n", counter);
   output.write("  * Jij matrix memory (MAP): %f MB\n",Jij.calculateMemory());
 
