@@ -164,20 +164,8 @@ int jams_init(int argc, char **argv) {
     if(solname == "HEUNLLG") {
       solver = Solver::Create(HEUNLLG);
     }
-    else if (solname == "HEUNLLMS") {
-      solver = Solver::Create(HEUNLLMS);
-    }
-    else if (solname == "SEMILLG") {
-      solver = Solver::Create(SEMILLG);
-    }
-    else if (solname == "CUDASEMILLG") {
-      solver = Solver::Create(CUDASEMILLG);
-    }
     else if (solname == "CUDAHEUNLLG") {
       solver = Solver::Create(CUDAHEUNLLG);
-    }
-    else if (solname == "FFTNOISE") {
-      solver = Solver::Create(FFTNOISE);
     }
     else { // default
       output.write("WARNING: Using default solver (HEUNLLG)\n");
