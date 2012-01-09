@@ -6,11 +6,15 @@
 #include <mkl_spblas.h>
 #endif
 
+
+// The factor of 2 is included in this function
+// i.e. E = J_{2} sum_{ij}(\vec{s}_i \cdot \vec{s}_j)^2
+//      \vec{H} = 2 J_{2} sum_{ij}(\vec{s}_i \cdot \vec{s}_j)
 #ifdef CUDA
-void calculate_biquadratic(const float *val, const int *indx, 
+void calc_scalar_biquadratic(const float *val, const int *indx, 
   const int *ptrb, const int *ptre)
 #else
-void calculate_biquadratic(const double *val, const int *indx, 
+void calc_scalar_biquadratic(const double *val, const int *indx, 
   const int *ptrb, const int *ptre)
 #endif
 {
@@ -47,17 +51,37 @@ void calculate_biquadratic(const double *val, const int *indx,
     }
   }
 }
-void calculate_fields()
-{
+
+void calc_tensor_biquadratic(const double *val, const int *indx, 
+  const int *ptrb, const int *ptre){
+
+  // NOTE: Tensor calculations are added to the existing fields
   using namespace globals;
+  assert(D2ii.nonZero() > 0);
  
   // dscrmv below has beta=0.0 -> field array is zeroed
   // exchange
   char transa[1] = {'N'};
   char matdescra[6] = {'S','L','N','C','N','N'};
-  int i,j;
+#ifdef MKL
+  double one=1.0;
+    mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,Jij.valPtr(),
+        D2ii.colPtr(), D2ii.ptrB(),D2ii.ptrE(),s.ptr(),&one,h.ptr());
+#else
+    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,Jij.valPtr(),
+        D2ii.colPtr(), D2ii.ptrB(),D2ii.ptrE(),s.ptr(),1.0,h.ptr());
+#endif
+}
 
-  if(Jij.nonZero() > 0) {
+void calc_tensor_bilinear(const double *val, const int *indx, 
+  const int *ptrb, const int *ptre)
+{
+  // NOTE: this resets the field array to zero
+  using namespace globals;
+  assert(Jij.nonZero() > 0);
+ 
+  char transa[1] = {'N'};
+  char matdescra[6] = {'S','L','N','C','N','N'};
 #ifdef MKL
   double one=1.0;
   double zero=0.0;
@@ -67,11 +91,23 @@ void calculate_fields()
     jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,Jij.valPtr(),
         Jij.colPtr(), Jij.ptrB(),Jij.ptrE(),s.ptr(),0.0,h.ptr());
 #endif
+}
+void calculate_fields()
+{
+  using namespace globals;
+  int i,j;
+
+  // bilinear interactions
+  if(Jij.nonZero() > 0) {
+    // implicitly sets h = 0 in function above
+    calc_tensor_bilinear(Jij.valPtr(),Jij.colPtr(),Jij.ptrB(),Jij.ptrE());
   } else {
     std::fill(h.ptr(),h.ptr()+nspins3,0.0); 
   }
 
-  calculate_biquadratic(J2ij.valPtr(),J2ij.colPtr(),J2ij.ptrB(),J2ij.ptrE());
+  // fields added to h array
+  calc_tensor_biquadratic(D2ii.valPtr(),D2ii.colPtr(),D2ii.ptrB(),D2ii.ptrE());
+  calc_scalar_biquadratic(J2ij.valPtr(),J2ij.colPtr(),J2ij.ptrB(),J2ij.ptrE());
 
   // normalize by the gyroscopic factor
   for(i=0; i<nspins; ++i) {
