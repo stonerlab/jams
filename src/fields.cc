@@ -134,7 +134,7 @@ void calculate_fields()
     calc_scalar_bilinear(J1ij_s.valPtr(),J1ij_s.colPtr(),J1ij_s.ptrB(),J1ij_s.ptrE());
   } 
   if(J1ij_t.nonZero() > 0) {
-    calc_scalar_bilinear(J1ij_t.valPtr(),J1ij_t.colPtr(),J1ij_t.ptrB(),J1ij_t.ptrE());
+    calc_tensor_bilinear(J1ij_t.valPtr(),J1ij_t.colPtr(),J1ij_t.ptrB(),J1ij_t.ptrE());
   }
   if(J2ij_s.nonZero() > 0) {
     calc_scalar_biquadratic(J2ij_s.valPtr(),J2ij_s.colPtr(),J2ij_s.ptrB(),J2ij_s.ptrE());
