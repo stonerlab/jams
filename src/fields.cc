@@ -6,10 +6,43 @@
 #include <mkl_spblas.h>
 #endif
 
+#ifdef CUDA
+void calc_scalar_bilinear(const float *val, const int *indx, 
+  const int *ptrb, const int *ptre)
+#else
+void calc_scalar_bilinear(const double *val, const int *indx, 
+  const int *ptrb, const int *ptre)
+#endif
+{
+  using namespace globals;
 
-// The factor of 2 is included in this function
-// i.e. E = J_{2} sum_{ij}(\vec{s}_i \cdot \vec{s}_j)^2
-//      \vec{H} = 2 J_{2} sum_{ij}(\vec{s}_i \cdot \vec{s}_j)
+  int i,j,k,l;
+  int begin,end;
+
+
+  for(i=0; i<nspins; ++i) { // iterate rows
+    begin = ptrb[i]; end = ptre[i];
+    for(j=begin; j<end; ++j) {
+      k = indx[j];  // column
+      // upper triangle and diagonal
+      if ( i > (k-1) ){
+        for(l=0; l<3; ++l){
+          h(i,l) = h(i,l) + s(k,l)*val[j];
+        }
+      }
+    }
+    for(j=begin; j<end; ++j) {
+      k = indx[j];  // column
+      // upper triangle and diagonal
+      if ( i > k ){
+        for(l=0; l<3; ++l){
+          h(k,l) = h(k,l) + s(i,l)*val[j];
+        }
+      }
+    }
+  }
+}
+
 #ifdef CUDA
 void calc_scalar_biquadratic(const float *val, const int *indx, 
   const int *ptrb, const int *ptre)
@@ -18,34 +51,33 @@ void calc_scalar_biquadratic(const double *val, const int *indx,
   const int *ptrb, const int *ptre)
 #endif
 {
+  // NOTE: Factor of two is included here for biquadratic terms
   using namespace globals;
 
   double tmp;
   int i,j,k,l;
   int begin,end;
 
-  if( J2ij.nonZero() > 0 ){
 
-    for(i=0; i<nspins; ++i) { // iterate rows
-      begin = ptrb[i]; end = ptre[i];
-      for(j=begin; j<end; ++j) {
-        k = indx[j];  // column
-        // upper triangle and diagonal
-        tmp = (s(i,0)*s(k,0) + s(i,1)*s(k,1) + s(i,2)*s(k,2))*val[j];
-        if ( i > (k-1) ){
-          for(l=0; l<3; ++l){
-            h(i,l) = h(i,l) + s(k,l)*tmp;
-          }
+  for(i=0; i<nspins; ++i) { // iterate rows
+    begin = ptrb[i]; end = ptre[i];
+    for(j=begin; j<end; ++j) {
+      k = indx[j];  // column
+      // upper triangle and diagonal
+      tmp = (s(i,0)*s(k,0) + s(i,1)*s(k,1) + s(i,2)*s(k,2))*val[j];
+      if ( i > (k-1) ){
+        for(l=0; l<3; ++l){
+          h(i,l) = h(i,l) + 2.0*s(k,l)*tmp;
         }
       }
-      for(j=begin; j<end; ++j) {
-        k = indx[j];  // column
-        // upper triangle and diagonal
-        tmp = (s(i,0)*s(k,0) + s(i,1)*s(k,1) + s(i,2)*s(k,2))*val[j];
-        if ( i > k ){
-          for(l=0; l<3; ++l){
-            h(k,l) = h(k,l) + s(i,l)*tmp;
-          }
+    }
+    for(j=begin; j<end; ++j) {
+      k = indx[j];  // column
+      // upper triangle and diagonal
+      tmp = (s(i,0)*s(k,0) + s(i,1)*s(k,1) + s(i,2)*s(k,2))*val[j];
+      if ( i > k ){
+        for(l=0; l<3; ++l){
+          h(k,l) = h(k,l) + 2.0*s(i,l)*tmp;
         }
       }
     }
@@ -55,9 +87,10 @@ void calc_scalar_biquadratic(const double *val, const int *indx,
 void calc_tensor_biquadratic(const double *val, const int *indx, 
   const int *ptrb, const int *ptre){
 
+  // NOTE: Factor of two is included here for biquadratic terms
   // NOTE: Tensor calculations are added to the existing fields
   using namespace globals;
-  assert(D2ii.nonZero() > 0);
+  assert(J2ij_s.nonZero() > 0);
  
   // dscrmv below has beta=0.0 -> field array is zeroed
   // exchange
@@ -65,11 +98,12 @@ void calc_tensor_biquadratic(const double *val, const int *indx,
   char matdescra[6] = {'S','L','N','C','N','N'};
 #ifdef MKL
   double one=1.0;
-    mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,Jij.valPtr(),
-        D2ii.colPtr(), D2ii.ptrB(),D2ii.ptrE(),s.ptr(),&one,h.ptr());
+  double two=2.0;
+    mkl_dcsrmv(transa,&nspins3,&nspins3,&two,matdescra,J2ij_s.valPtr(),
+        J2ij_s.colPtr(), J2ij_s.ptrB(),J2ij_s.ptrE(),s.ptr(),&one,h.ptr());
 #else
-    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,Jij.valPtr(),
-        D2ii.colPtr(), D2ii.ptrB(),D2ii.ptrE(),s.ptr(),1.0,h.ptr());
+    jams_dcsrmv(transa,nspins3,nspins3,2.0,matdescra,J2ij_s.valPtr(),
+        J2ij_s.colPtr(), J2ij_s.ptrB(),J2ij_s.ptrE(),s.ptr(),1.0,h.ptr());
 #endif
 }
 
@@ -78,18 +112,18 @@ void calc_tensor_bilinear(const double *val, const int *indx,
 {
   // NOTE: this resets the field array to zero
   using namespace globals;
-  assert(Jij.nonZero() > 0);
+  assert(J1ij_t.nonZero() > 0);
  
   char transa[1] = {'N'};
   char matdescra[6] = {'S','L','N','C','N','N'};
 #ifdef MKL
   double one=1.0;
-  double zero=0.0;
-    mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,Jij.valPtr(),
-        Jij.colPtr(), Jij.ptrB(),Jij.ptrE(),s.ptr(),&zero,h.ptr());
+  double one=1.0;
+    mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,J1ij_t.valPtr(),
+        J1ij_t.colPtr(), J1ij_t.ptrB(),J1ij_t.ptrE(),s.ptr(),&zero,h.ptr());
 #else
-    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,Jij.valPtr(),
-        Jij.colPtr(), Jij.ptrB(),Jij.ptrE(),s.ptr(),0.0,h.ptr());
+    jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,J1ij_t.valPtr(),
+        J1ij_t.colPtr(), J1ij_t.ptrB(),J1ij_t.ptrE(),s.ptr(),1.0,h.ptr());
 #endif
 }
 void calculate_fields()
@@ -97,17 +131,19 @@ void calculate_fields()
   using namespace globals;
   int i,j;
 
-  // bilinear interactions
-  if(Jij.nonZero() > 0) {
-    // implicitly sets h = 0 in function above
-    calc_tensor_bilinear(Jij.valPtr(),Jij.colPtr(),Jij.ptrB(),Jij.ptrE());
-  } else {
-    std::fill(h.ptr(),h.ptr()+nspins3,0.0); 
+  std::fill(h.ptr(),h.ptr()+nspins3,0.0); 
+  if(J1ij_s.nonZero() > 0) {
+    calc_scalar_bilinear(J1ij_s.valPtr(),J1ij_s.colPtr(),J1ij_s.ptrB(),J1ij_s.ptrE());
+  } 
+  if(J1ij_t.nonZero() > 0) {
+    calc_scalar_bilinear(J1ij_t.valPtr(),J1ij_t.colPtr(),J1ij_t.ptrB(),J1ij_t.ptrE());
   }
-
-  // fields added to h array
-  calc_tensor_biquadratic(D2ii.valPtr(),D2ii.colPtr(),D2ii.ptrB(),D2ii.ptrE());
-  calc_scalar_biquadratic(J2ij.valPtr(),J2ij.colPtr(),J2ij.ptrB(),J2ij.ptrE());
+  if(J2ij_s.nonZero() > 0) {
+    calc_tensor_biquadratic(J2ij_s.valPtr(),J2ij_s.colPtr(),J2ij_s.ptrB(),J2ij_s.ptrE());
+  }
+  if(J2ij_t.nonZero() > 0) {
+    calc_scalar_biquadratic(J2ij_t.valPtr(),J2ij_t.colPtr(),J2ij_t.ptrB(),J2ij_t.ptrE());
+  }
 
   // normalize by the gyroscopic factor
   for(i=0; i<nspins; ++i) {

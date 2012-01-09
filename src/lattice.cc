@@ -316,7 +316,7 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
 /// @brief  Read the interaction parameters from configuration file.
 ///
 void readInteractions(std::string &exchangeFileName, libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array3D<double> &interactionVectors, 
-  Array2D<int> &interactionNeighbour, Array4D<double> &JValues, Array2D<double> &J2Values, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3], bool &J2Toggle) {
+  Array2D<int> &interactionNeighbour, Array4D<double> &JValues, Array2D<double> &J2Values, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3], bool &J2Toggle, int &nJValues) {
   using namespace globals;
   
   output.write("\nReading interaction file...\n");
@@ -411,7 +411,7 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   exchangeFile.clear();
   exchangeFile.seekg(0,std::ios::beg);
 
-  int nJValues=0;
+  nJValues=0;
   if(nInterTotal > 0) {
     std::string line;
     int atom1=0;
@@ -467,18 +467,18 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   interactionNeighbour.resize(nAtoms,interMax);
   nInteractionsOfType.resize(nAtoms,0);
 
-  // Resize global Jij and D2ii matrices
-  Jij.resize(nspins3,nspins3);
-  D2ii.resize(nspins3,nspins3);
+  // Resize global J1ij_t and J2ij_t matrices
+  J1ij_t.resize(nspins3,nspins3);
+  J2ij_t.resize(nspins3,nspins3);
 
 
   if( J2Toggle == true ){
     // Resize biquadratic matrix
     // NOTE: this matrix is NxN because we use a custom routine so the
     // matrix is just a convenient neighbour list.
-    J2ij.resize(nspins,nspins);
-    J2ij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    J2ij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    J2ij_s.resize(nspins,nspins);
+    J2ij_s.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J2ij_s.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   }
 
   // Set matrix types
@@ -491,16 +491,16 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   }
   if( ( solname == "CUDAHEUNLLG" ) || ( solname == "CUDASEMILLG" ) ) {
     output.write("  * CUDA solver means a symmetric (lower) sparse matrix will be stored\n");
-    Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    Jij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-    D2ii.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    D2ii.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    J2ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J2ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   } else {
     output.write("  * Symmetric (lower) sparse matrix will be stored\n");
-    Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    Jij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-    D2ii.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    D2ii.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    J2ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J2ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   }
 
   //-----------------------------------------------------------------
@@ -697,7 +697,7 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
 void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, Array4D<int> &latt, 
   const std::vector<int> dim, const int nAtoms, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, const std::vector<int> &atom_type, const Array3D<double> &interactionVectors,
   const Array2D<int> &interactionNeighbour, const Array4D<double> &JValues, const std::vector<int> &nInteractionsOfType, 
-  const double unitcellInv[3][3], const bool pbc[3],const bool &J2Toggle, const Array2D<double> &J2Values) 
+  const double unitcellInv[3][3], const bool pbc[3],const bool &J2Toggle, const Array2D<double> &J2Values, const int &nJValues) 
 {
   
   using namespace globals;
@@ -759,42 +759,62 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                 assert(nbr < nspins);
                 assert(s_i != nbr);
 
-                // bilinear interactions
-                for(int row=0; row<3; ++row) {
-                  for(int col=0; col<3; ++col) {
-                    if(fabs(JValues(n,i,row,col)) > encut) {
-                      if(Jij.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-                        if(Jij.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-                          if(s_i > nbr){
-                            Jij.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
+//---------------------------------------------------------------------
+// Bilinear interactions
+//---------------------------------------------------------------------
+                if(nJValues == 1){
+                //--------//
+                // Scalar //
+                //--------//
+                  if(fabs(JValues(n,i,0,0)) > encut) {
+                    J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
+                  }
+                } else {
+                //--------//
+                // Tensor //
+                //--------//
+                  for(int row=0; row<3; ++row) {
+                    for(int col=0; col<3; ++col) {
+                      if(fabs(JValues(n,i,row,col)) > encut) {
+                        if(J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                          if(J1ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                            if(s_i > nbr){
+                              J1ij_t.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
+                            }
+                          } else {
+                            if(s_i < nbr){
+                              J1ij_t.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
+                            }
                           }
                         } else {
-                          if(s_i < nbr){
-                            Jij.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
-                          }
+                          J1ij_t.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
                         }
-                      } else {
-                        Jij.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
                       }
                     }
                   }
                 }
 
-                // biquadratic interactions
+//---------------------------------------------------------------------
+// Biquadratic interactions
+//---------------------------------------------------------------------
+
+                //--------//
+                // Scalar //
+                //--------//
                 if(J2Toggle == true){
                   if(fabs(J2Values(n,i)) > encut) {
-                    if(J2ij.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-                      if(J2ij.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                    if(J2ij_s.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                      if(J2ij_s.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
                         if(s_i > nbr){
-                          J2ij.insertValue(s_i,nbr,J2Values(n,i));
+                          J2ij_s.insertValue(s_i,nbr,J2Values(n,i));
                         }
                       } else {
                         if(s_i < nbr){
-                          J2ij.insertValue(s_i,nbr,J2Values(n,i));
+                          J2ij_s.insertValue(s_i,nbr,J2Values(n,i));
                         }
                       }
                     } else {
-                      J2ij.insertValue(s_i,nbr,J2Values(n,i));
+                      J2ij_s.insertValue(s_i,nbr,J2Values(n,i));
                     }
                   }
                 }
@@ -803,10 +823,10 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                 counter++;
               }
 
-            } // interactionsOfType
+            } 
 
 //---------------------------------------------------------------------
-// Anisotropy
+// Anisotropy (Biquadratic Tensor)
 //---------------------------------------------------------------------
             double anival = cfgMaterials[type_num]["uniaxialAnisotropy"][1];
 
@@ -839,18 +859,18 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
             for(int row=0; row<3; ++row) {
               for(int col=0; col<3; ++col) {
                 if(anival > encut) {
-                  if(D2ii.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-                    if(D2ii.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                  if(J2ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                    if(J2ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
                       if(row > col){
-                        D2ii.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
+                        J2ij_t.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
                       }
                     } else {
                       if(row < col){
-                        D2ii.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
+                        J2ij_t.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
                       }
                     }
                   } else {
-                    D2ii.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
+                    J2ij_t.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
                   }
                 }
               }
@@ -863,9 +883,9 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
 
   output.write("  * Total interaction count: %i\n", counter);
-  output.write("  * Jij matrix memory (MAP): %f MB\n",Jij.calculateMemory());
+  output.write("  * J1ij_t matrix memory (MAP): %f MB\n",J1ij_t.calculateMemory());
 
-// Jij.printCSR();
+// J1ij_t.printCSR();
 }
 
 
@@ -890,6 +910,7 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     int nAtoms=0;
     bool pbc[3] = {true,true,true};
     bool J2Toggle = false;
+    int nJValues=0;
 
     double unitcell[3][3];
     double unitcellInv[3][3];
@@ -926,11 +947,11 @@ void Lattice::createFromConfig(libconfig::Config &config) {
 
     std::string exchangeFileName = config.lookup("lattice.exchange");
     readInteractions(exchangeFileName, config, unitCellTypes, unitCellPositions,interactionVectors, interactionNeighbour, JValues, J2Values, nInteractionsOfType, 
-      nAtoms, atomTypeMap, unitcellInv, J2Toggle);
+      nAtoms, atomTypeMap, unitcellInv, J2Toggle, nJValues);
 
     createInteractionMatrix(config, cfgMaterials,latt,dim, nAtoms, unitCellTypes, unitCellPositions,
       atom_type,interactionVectors, interactionNeighbour, JValues,
-      nInteractionsOfType, unitcellInv,pbc,J2Toggle,J2Values);
+      nInteractionsOfType, unitcellInv,pbc,J2Toggle,J2Values,nJValues);
     }
 
   } // try

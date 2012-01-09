@@ -22,12 +22,15 @@ void HeunLLGSolver::initialise(int argc, char **argv, double idt)
   output.write("Initialising Heun LLG solver (CPU)\n");
 
   output.write("  * Converting MAP to CSR\n");
-  Jij.convertMAP2CSR();
-  D2ii.convertMAP2CSR();
-  J2ij.convertMAP2CSR();
-  output.write("  * Jij matrix memory (CSR): %f MB\n",Jij.calculateMemory());
-  output.write("  * D2ii matrix memory (CSR): %f MB\n",D2ii.calculateMemory());
-  output.write("  * J2ij matrix memory (CSR): %f MB\n",J2ij.calculateMemory());
+  J1ij_s.convertMAP2CSR();
+  J1ij_t.convertMAP2CSR();
+  J2ij_s.convertMAP2CSR();
+  J2ij_t.convertMAP2CSR();
+
+  output.write("  * J1ij Scalar matrix memory (CSR): %f MB\n",J1ij_s.calculateMemory());
+  output.write("  * J1ij Tensor matrix memory (CSR): %f MB\n",J1ij_t.calculateMemory());
+  output.write("  * J2ij Scalar matrix memory (CSR): %f MB\n",J2ij_s.calculateMemory());
+  output.write("  * J2ij Tensor matrix memory (CSR): %f MB\n",J2ij_t.calculateMemory());
 
   snew.resize(nspins,3);
   sigma.resize(nspins,3);

@@ -51,13 +51,15 @@ namespace globals
   GLOBAL Array2D<double> h;
   GLOBAL Array2D<double> w;
 #ifdef CUDA
-  GLOBAL SparseMatrix<float> Jij;
-  GLOBAL SparseMatrix<float> J2ij;  // biquadratic interactions
-  GLOBAL SparseMatrix<float> D2ii;  // biquadratic onsite tensor interactions
+  GLOBAL SparseMatrix<float> J1ij_s;  // bilinear scalar interactions
+  GLOBAL SparseMatrix<float> J1ij_t;  // bilinear tensor interactions
+  GLOBAL SparseMatrix<float> J2ij_s;  // biquadratic scalar interactions
+  GLOBAL SparseMatrix<float> J2ij_t;  // biquadratic tensor interactions
 #else
-  GLOBAL SparseMatrix<double> Jij;
-  GLOBAL SparseMatrix<double> J2ij; // biquadratic interactions
-  GLOBAL SparseMatrix<double> D2ii;  // biquadratic onsite tensor interactions
+  GLOBAL SparseMatrix<double> J1ij_s;  // bilinear scalar interactions
+  GLOBAL SparseMatrix<double> J1ij_t;  // bilinear tensor interactions
+  GLOBAL SparseMatrix<double> J2ij_s;  // biquadratic scalar interactions
+  GLOBAL SparseMatrix<double> J2ij_t;  // biquadratic tensor interactions
 #endif
 
   GLOBAL Array<double> alpha;
