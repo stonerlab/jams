@@ -31,7 +31,9 @@ class CUDAHeunLLGSolver : public Solver {
         sf_dev(0),
         s_new_dev(0),
         h_dev(0),
+        e_dev(0),
         mat_dev(0),
+        eng(0,0),
         sigma(0),
         nblocks(0),
         spmvblocksize(0)
@@ -40,6 +42,7 @@ class CUDAHeunLLGSolver : public Solver {
     void initialise(int argc, char **argv, double dt);
     void run();
     void syncOutput();
+    void calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t);
 
   private:
     curandGenerator_t gen; // device random generator
@@ -54,7 +57,9 @@ class CUDAHeunLLGSolver : public Solver {
     float  * sf_dev;
     double * s_new_dev;
     float * h_dev;
+    float * e_dev;
     float * mat_dev;
+    Array2D<float> eng;
     Array<double> sigma;
     int nblocks;
     int spmvblocksize;

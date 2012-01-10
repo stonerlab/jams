@@ -5,6 +5,8 @@
 
 #include <string>
 #include <cstdarg>
+#include <iostream>
+#include <fstream>
 
 #include "solver.h"
 #include "physics.h"
@@ -185,12 +187,20 @@ void jams_run() {
   Monitor *mag = new MagnetisationMonitor();
   mag->initialise();
 
+  std::string name = "_eng.dat";
+  name = seedname+name;
+  std::ofstream engfile(name.c_str());
+
+  double e1_s, e1_t, e2_s, e2_t;
+
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
   for(unsigned long i=0;i<steps_eq;++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
       mag->write(solver->getTime());
+      solver->calcEnergy(e1_s,e1_t,e2_s,e2_t);
+      engfile << solver->getTime() << "\t" << e1_s << "\t" << e1_t << "\t" << e2_s << "\t" << e2_t << std::endl;
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
@@ -205,6 +215,8 @@ void jams_run() {
       solver->syncOutput();
       mag->write(solver->getTime());
       physics->monitor(solver->getTime(),dt);
+      solver->calcEnergy(e1_s,e1_t,e2_s,e2_t);
+      engfile << solver->getTime() << "\t" << e1_s << "\t" << e1_t << "\t" << e2_s << "\t" << e2_t << std::endl;
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
@@ -213,6 +225,7 @@ void jams_run() {
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;
   output.write("Solving time: %f\n",elapsed);
+  engfile.close();
 
   if(mag != NULL) { delete mag; }
 

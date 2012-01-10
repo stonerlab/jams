@@ -8,10 +8,10 @@
 
 #ifdef CUDA
 void calc_scalar_bilinear(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre)
+  const int *ptrb, const int *ptre, Array2D<double> &y)
 #else
 void calc_scalar_bilinear(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre)
+  const int *ptrb, const int *ptre, Array2D<double> &y)
 #endif
 {
   using namespace globals;
@@ -27,7 +27,7 @@ void calc_scalar_bilinear(const double *val, const int *indx,
       // upper triangle and diagonal
       if ( i > (k-1) ){
         for(l=0; l<3; ++l){
-          h(i,l) = h(i,l) + s(k,l)*val[j];
+          y(i,l) = y(i,l) + s(k,l)*val[j];
         }
       }
     }
@@ -36,7 +36,7 @@ void calc_scalar_bilinear(const double *val, const int *indx,
       // upper triangle and diagonal
       if ( i > k ){
         for(l=0; l<3; ++l){
-          h(k,l) = h(k,l) + s(i,l)*val[j];
+          y(k,l) = y(k,l) + s(i,l)*val[j];
         }
       }
     }
@@ -45,10 +45,10 @@ void calc_scalar_bilinear(const double *val, const int *indx,
 
 #ifdef CUDA
 void calc_scalar_biquadratic(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre)
+  const int *ptrb, const int *ptre, Array2D<double> &y)
 #else
 void calc_scalar_biquadratic(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre)
+  const int *ptrb, const int *ptre, Array2D<double> &y)
 #endif
 {
   // NOTE: Factor of two is included here for biquadratic terms
@@ -67,7 +67,7 @@ void calc_scalar_biquadratic(const double *val, const int *indx,
       tmp = (s(i,0)*s(k,0) + s(i,1)*s(k,1) + s(i,2)*s(k,2))*val[j];
       if ( i > (k-1) ){
         for(l=0; l<3; ++l){
-          h(i,l) = h(i,l) + 2.0*s(k,l)*tmp;
+          y(i,l) = y(i,l) + 2.0*s(k,l)*tmp;
         }
       }
     }
@@ -77,7 +77,7 @@ void calc_scalar_biquadratic(const double *val, const int *indx,
       tmp = (s(i,0)*s(k,0) + s(i,1)*s(k,1) + s(i,2)*s(k,2))*val[j];
       if ( i > k ){
         for(l=0; l<3; ++l){
-          h(k,l) = h(k,l) + 2.0*s(i,l)*tmp;
+          y(k,l) = y(k,l) + 2.0*s(i,l)*tmp;
         }
       }
     }
@@ -86,10 +86,10 @@ void calc_scalar_biquadratic(const double *val, const int *indx,
 
 #ifdef CUDA
 void calc_tensor_biquadratic(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre)
+  const int *ptrb, const int *ptre, Array2D<double> &y)
 #else
 void calc_tensor_biquadratic(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre)
+  const int *ptrb, const int *ptre, Array2D<double> &y)
 #endif
 {
   // NOTE: Factor of two is included here for biquadratic terms
@@ -104,20 +104,20 @@ void calc_tensor_biquadratic(const double *val, const int *indx,
   double one=1.0;
   double two=2.0;
     mkl_dcsrmv(transa,&nspins3,&nspins3,&two,matdescra,val,
-        indx, ptrb,ptre,s.ptr(),&zero,h.ptr());
+        indx, ptrb,ptre,s.ptr(),&zero,y.ptr());
 #else
     jams_dcsrmv(transa,nspins3,nspins3,2.0,matdescra,val,
-        indx, ptrb,ptre,s.ptr(),1.0,h.ptr());
+        indx, ptrb,ptre,s.ptr(),1.0,y.ptr());
 #endif
 }
 
 
 #ifdef CUDA
 void calc_tensor_bilinear(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre)
+  const int *ptrb, const int *ptre, Array2D<double> &y)
 #else
 void calc_tensor_bilinear(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre)
+  const int *ptrb, const int *ptre, Array2D<double> &y)
 #endif
 {
   // NOTE: this resets the field array to zero
@@ -129,10 +129,10 @@ void calc_tensor_bilinear(const double *val, const int *indx,
   double one=1.0;
   double one=1.0;
     mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,val,
-        indx, ptrb,ptre,s.ptr(),&zero,h.ptr());
+        indx, ptrb,ptre,s.ptr(),&zero,y.ptr());
 #else
     jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,val,
-        indx, ptrb,ptre,s.ptr(),1.0,h.ptr());
+        indx, ptrb,ptre,s.ptr(),1.0,y.ptr());
 #endif
 }
 void calculate_fields()
@@ -142,16 +142,16 @@ void calculate_fields()
 
   std::fill(h.ptr(),h.ptr()+nspins3,0.0); 
   if(J1ij_s.nonZero() > 0) {
-    calc_scalar_bilinear(J1ij_s.valPtr(),J1ij_s.colPtr(),J1ij_s.ptrB(),J1ij_s.ptrE());
+    calc_scalar_bilinear(J1ij_s.valPtr(),J1ij_s.colPtr(),J1ij_s.ptrB(),J1ij_s.ptrE(),h);
   } 
   if(J1ij_t.nonZero() > 0) {
-    calc_tensor_bilinear(J1ij_t.valPtr(),J1ij_t.colPtr(),J1ij_t.ptrB(),J1ij_t.ptrE());
+    calc_tensor_bilinear(J1ij_t.valPtr(),J1ij_t.colPtr(),J1ij_t.ptrB(),J1ij_t.ptrE(),h);
   }
   if(J2ij_s.nonZero() > 0) {
-    calc_scalar_biquadratic(J2ij_s.valPtr(),J2ij_s.colPtr(),J2ij_s.ptrB(),J2ij_s.ptrE());
+    calc_scalar_biquadratic(J2ij_s.valPtr(),J2ij_s.colPtr(),J2ij_s.ptrB(),J2ij_s.ptrE(),h);
   }
   if(J2ij_t.nonZero() > 0) {
-    calc_tensor_biquadratic(J2ij_t.valPtr(),J2ij_t.colPtr(),J2ij_t.ptrB(),J2ij_t.ptrE());
+    calc_tensor_biquadratic(J2ij_t.valPtr(),J2ij_t.colPtr(),J2ij_t.ptrB(),J2ij_t.ptrE(),h);
   }
 
   // normalize by the gyroscopic factor
