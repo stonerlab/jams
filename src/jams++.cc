@@ -222,23 +222,31 @@ void jams_run() {
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   std::clock_t start = std::clock();
+  int outcount = 0;
   for(unsigned long i=0; i<steps_run; ++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
       mag->write(solver->getTime());
       physics->monitor(solver->getTime(),dt);
+
+      std::string filenum = zeroPadNumber(outcount);
+      std::string spinfilename = "spins";
+      spinfilename = spinfilename+filenum+".vtu";
+      std::ofstream spinfile(spinfilename.c_str());
+      lattice.outputSpinsVTU(spinfile);
+      spinfile.close();
+      outcount++;
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
     solver->run();
+
+
   }
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;
   output.write("Solving time: %f\n",elapsed);
 
-  std::ofstream spinfile("spins.dat");
-  lattice.outputSpinsVTU(spinfile);
-  spinfile.close();
 
   if(mag != NULL) { delete mag; }
 

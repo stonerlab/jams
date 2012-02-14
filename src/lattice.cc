@@ -220,6 +220,7 @@ void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<do
   using namespace globals;
   assert(nspins > 0);
   
+  atom_pos.resize(nspins,3);
   double r[3], p[3];
   int q[3];
   int count = 0;

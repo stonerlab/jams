@@ -5,8 +5,8 @@
 #include <vector>
 #include <libconfig.h++>
 #include "array.h"
-#include "array2D.h"
-#include "array4D.h"
+#include "array2d.h"
+#include "array4d.h"
 
 class Lattice {
   public:
