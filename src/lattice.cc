@@ -216,6 +216,38 @@ void createLattice(const libconfig::Setting &cfgLattice, Array<int> &unitCellTyp
   output.write("  * Total atoms in lattice: %i\n",nspins);
 }
 
+void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<int> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms) {
+  using namespace globals;
+  assert(nspins > 0);
+  
+  double r[3], p[3];
+  int q[3];
+  int count = 0;
+  for (int x=0; x<dim[0]; ++x) {
+    for (int y=0; y<dim[1]; ++y) {
+      for (int z=0; z<dim[2]; ++z) {
+        for (int n=0; n<nAtoms; ++n) {
+          if(latt(x,y,z,n) != -1) {
+            q[0] = x; q[1] = y; q[2] = z;
+            for(int i=0; i<3; ++i) {
+              r[i] = 0.0;
+              p[i] = unitCellPositions(n,i);
+              for(int j=0; j<3; ++j) {
+                r[i] += unitcell[j][i]*(q[j]+p[i]);
+              }
+            }
+            for(int i=0; i<3; ++i){
+              atom_pos(count,i) = r[i];
+            }
+            count++;
+          }
+        } // n
+      } // z
+    } // y
+  } // x
+  assert(count == nspins);
+}
+
 ///
 /// @brief  Print lattice to file.
 ///
@@ -891,6 +923,7 @@ void Lattice::createFromConfig(libconfig::Config &config) {
 
     createLattice(cfgLattice,unitCellTypes, unitCellPositions, atomTypeMap,latt,atom_type,type_count,dim,nAtoms,pbc);
 
+    calculateAtomPos(unitCellTypes, unitCellPositions,latt,dim,unitcell,nAtoms);
 #ifdef DEBUG
     printLattice(unitCellTypes, unitCellPositions,latt,dim,unitcell,nAtoms);
 #endif // DEBUG
@@ -912,5 +945,45 @@ void Lattice::createFromConfig(libconfig::Config &config) {
   catch(const libconfig::SettingNotFoundException &nfex) {
     jams_error("Setting '%s' not found",nfex.getPath());
   }
+
+}
+
+void Lattice::outputSpinsVTU(std::ofstream &outfile){
+  using namespace globals;
+
+  outfile << "<?xml version=\"1.0\"?>" << "\n"; 
+  outfile << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
+  outfile << "<UnstructuredGrid>" << "\n";
+  outfile << "<Piece NumberOfPoints=\""<<nspins<<"\"  NumberOfCells=\"1\">" << "\n";
+  outfile << "<PointData Scalar=\"Spin\">" << "\n";
+  outfile << "<DataArray type=\"Float32\" Name=\"Spin\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
+  for(int i=0; i<nspins; ++i){
+    outfile << s(i,0) << "\t" << s(i,1) << "\t" << s(i,2) << "\n";
+  }
+  outfile << "</DataArray>" << "\n";
+  outfile << "</PointData>" << "\n";
+  outfile << "<CellData>" << "\n";
+  outfile << "</CellData>" << "\n";
+  outfile << "<Points>" << "\n";
+  outfile << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
+  for(int i=0; i<nspins; ++i){
+    outfile << atom_pos(i,0) << "\t" << atom_pos(i,1) << "\t" << atom_pos(i,2) << "\n";
+  }
+  outfile << "</DataArray>" << "\n";
+  outfile << "</Points>" << "\n";
+  outfile << "<Cells>" << "\n";
+  outfile << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << "\n";
+  outfile << "1" << "\n";
+  outfile << "</DataArray>" << "\n";
+  outfile << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" << "\n";
+  outfile << "1" << "\n";
+  outfile << "</DataArray>" << "\n";
+  outfile << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" << "\n";
+  outfile << "1" << "\n";
+  outfile << "</DataArray>" << "\n";
+  outfile << "</Cells>" << "\n";
+  outfile << "</Piece>" << "\n";
+  outfile << "</UnstructuredGrid>" << "\n";
+  outfile << "</VTKFile>" << "\n";
 
 }

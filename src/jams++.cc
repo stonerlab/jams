@@ -236,6 +236,10 @@ void jams_run() {
   elapsed/=CLOCKS_PER_SEC;
   output.write("Solving time: %f\n",elapsed);
 
+  std::ofstream spinfile("spins.dat");
+  lattice.outputSpinsVTU(spinfile);
+  spinfile.close();
+
   if(mag != NULL) { delete mag; }
 
 }
