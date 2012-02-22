@@ -770,7 +770,8 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
               if(idxcheck == true && (latt(v[0],v[1],v[2],m) != -1) ) {
                 int nbr = latt(v[0],v[1],v[2],m);
                 assert(nbr < nspins);
-                assert(s_i != nbr);
+                //assert(s_i != nbr); self interaction is ok for example
+                //FeRh
 
 //---------------------------------------------------------------------
 // Bilinear interactions
@@ -782,11 +783,11 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                   if(fabs(JValues(n,i,0,0)) > encut) {
                     if(J1ij_s.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
                       if(J1ij_s.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-                        if(s_i > nbr){
+                        if(s_i >= nbr){
                           J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
                         }
                       }else{
-                        if(s_i < nbr){
+                        if(s_i <= nbr){
                           J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
                         }
                       }
@@ -830,11 +831,11 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
                   if(fabs(J2Values(n,i)) > encut) {
                     if(J2ij_s.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
                       if(J2ij_s.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-                        if(s_i > nbr){
+                        if(s_i >= nbr){
                           J2ij_s.insertValue(s_i,nbr,J2Values(n,i));
                         }
                       } else {
-                        if(s_i < nbr){
+                        if(s_i <= nbr){
                           J2ij_s.insertValue(s_i,nbr,J2Values(n,i));
                         }
                       }
