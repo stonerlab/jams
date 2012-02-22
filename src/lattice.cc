@@ -331,7 +331,7 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   
   if( !config.lookupValue("lattice.biquadratic",J2Toggle) ) {
     J2Toggle = false;
-  }else{
+  }else if (!J2Toggle){
     output.write("  * Biquadratic exchange ON\n");
     output.write("\n************************************************************************\n");
     output.write("Biquadratic values will be read from the last column of the exchange file\n");
