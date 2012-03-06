@@ -253,8 +253,7 @@ void CUDAHeunLLGSolver::run()
   // calculate interaction fields (and zero field array)
 #ifdef FORCE_CUDA_DIA
 
-  size_t offset = size_t(-1);
-  CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
+  CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
   
   float beta=0;
   // bilinear scalar
@@ -307,7 +306,7 @@ void CUDAHeunLLGSolver::run()
 
   // calculate interaction fields (and zero field array)
 #ifdef FORCE_CUDA_DIA
-  CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
+  CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
 
   beta=0.0;
   // bilinear scalar
