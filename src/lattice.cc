@@ -244,7 +244,7 @@ void printLattice(const Array<int> &unitCellTypes, const Array2D<double> &unitCe
                 r[i] += unitcell[j][i]*(q[j]+p[i]);
               }
             }
-            structfile << 5*r[0] <<"\t"<< 5*r[1] <<"\t"<< 5*r[2] <<"\n";
+            structfile << r[0] <<"\t"<< r[1] <<"\t"<< r[2] <<"\n";
           }
         } // n
       } // z
