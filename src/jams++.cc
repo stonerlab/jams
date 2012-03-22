@@ -142,6 +142,8 @@ int jams_init(int argc, char **argv) {
           physics = Physics::Create(SPINWAVES);
         }else if(physname == "SQUARE") {
           physics = Physics::Create(SQUARE);
+        }else if(physname == "FIELDCOOL") {
+          physics = Physics::Create(FIELDCOOL);
         }else{
           jams_error("Unknown Physics package selected.");
         }

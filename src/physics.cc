@@ -4,6 +4,7 @@
 #include "ttm.h"
 #include "spinwaves.h"
 #include "square.h"
+#include "fieldcool.h"
 #include "empty.h"
 
 #include <libconfig.h++>
@@ -37,6 +38,9 @@ Physics* Physics::Create(PhysicsType type)
       break;
     case SQUARE:
       return new SquarePhysics;
+      break;
+    case FIELDCOOL:
+      return new FieldCoolPhysics;
       break;
     case EMPTY:
       return new EmptyPhysics;
