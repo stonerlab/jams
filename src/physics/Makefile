@@ -7,7 +7,7 @@ OBJS = $(patsubst %.cc, %.o, $(wildcard *.cc))
 objects: $(OBJS) $(HEADERS)
 
 clean:
-	rm -f $(OBJS)
+	rm -f *.o
 
 $(OBJS) : $(HEADERS) $(TOPDIR)/Makefile.in Makefile
 

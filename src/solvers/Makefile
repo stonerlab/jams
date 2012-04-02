@@ -8,7 +8,7 @@ CUDAOBJS = $(patsubst %.cu, %.o, $(wildcard *.cu))
 objects: $(OBJS) $(HEADERS)
 
 clean:
-	rm -f $(OBJS) $(CUDAOBJS)
+	rm -f *.o
 
 $(OBJS) : $(HEADERS) $(TOPDIR)/Makefile.in Makefile
 

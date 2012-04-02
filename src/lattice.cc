@@ -321,6 +321,120 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
 }
 
 ///
+/// @brief  Read the fourspin interaction parameters from configuration file.
+///
+void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<double> &J4Vectors, 
+  Array3D<int> &J4Neighbour, Array2D<double> &J4Values, std::vector<int> &nJ4InteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3], int &nJ4Values) {
+  using namespace globals;
+
+  output.write("\nReading fourspin interaction file...\n");
+
+  double Jval;
+  int nInterTotal=0;
+  int nInterConfig = 0;
+  double r[3],p[3];
+  std::vector<int> atomInterCount(nspins,0);
+
+  std::ifstream exchangeFile(J4FileName.c_str());
+
+  // count number of interactions
+  if( exchangeFile.is_open() ) {
+    int atom1=0;
+    for( std::string line; getline(exchangeFile,line); ) {
+      std::stringstream is(line);
+
+      is >> atom1;
+
+      // count number of interaction for each atom in unit cell
+      atomInterCount[atom1-1]++;
+
+      nInterTotal++;
+      nInterConfig++;
+    }
+  }
+
+
+  // find maximum number of exchanges for a given atom in unit cell
+  int interMax = 0;
+  for(int i=0; i<nspins; ++i) {
+    if(atomInterCount[i] > interMax) {
+      interMax = atomInterCount[i];
+    }
+  }
+
+  output.write("  * Fourspin interactions in file: %d\n",nInterConfig);
+
+  // Resize interaction arrays
+  J4Vectors.resize(nAtoms,interMax,3,3);
+  J4Neighbour.resize(nAtoms,interMax,3);
+  nJ4InteractionsOfType.resize(nAtoms,0);
+
+  //-----------------------------------------------------------------
+  //  Read exchange tensor values from config
+  //-----------------------------------------------------------------
+  J4Values.resize(nAtoms,interMax);
+
+  // zero jij array
+  for(int i=0; i<nAtoms; ++i) {
+    for(int j=0; j<interMax; ++j) {
+      J4Values(i,j) = 0.0;
+    }
+  }
+
+  // rewind file
+  exchangeFile.clear();
+  exchangeFile.seekg(0,std::ios::beg);
+
+  int inter_counter = 0;
+  for(int n=0; n<nInterConfig; ++n) {
+    std::string line;
+    
+    getline(exchangeFile,line);
+    std::stringstream is(line);
+
+    // read exchange tensor
+
+    double vij[3];
+
+    int atom_num[4];
+
+    for(int j=0;j<4;++j){
+      is >> atom_num[j];
+    }
+
+    // count from zero
+    for(int j=0;j<4;++j){
+      atom_num[j]--;
+    }
+
+    // --------------- vij ----------------
+    for(int j=1;j<4;++j){
+      for(int i=0; i<3; ++i) {
+        p[i] = unitCellPositions(atom_num[j],i);   // fractional vector within unit cell 
+        is >> r[i];                               // real space vector to neighbour
+      }
+      matmul(unitcellInv,r,vij);                  // place interaction vector in unitcell space
+      
+      for(int i=0; i<3; ++i) {
+        J4Neighbour(atom_num[0],nJ4InteractionsOfType[atom_num[0]],j-1) = atom_num[j] - atom_num[0]; // store unitcell atom difference
+        
+        J4Vectors(atom_num[0],nJ4InteractionsOfType[atom_num[0]],j-1,i) = vij[i];
+      }
+    }
+    
+    is >> Jval; // bilinear
+    for(int i=0; i<3; ++i){
+      J4Values(atom_num[0],nJ4InteractionsOfType[atom_num[0]]) = Jval/mu_bohr_si; // Jxx Jyy Jzz
+    }
+      
+    inter_counter++;
+    nJ4InteractionsOfType[atom_num[0]]++;
+  }
+  
+
+
+}
+///
 /// @brief  Read the interaction parameters from configuration file.
 ///
 void readInteractions(std::string &exchangeFileName, libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array3D<double> &interactionVectors, 
@@ -337,7 +451,7 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
     output.write("Biquadratic values will be read from the last column of the exchange file\n");
     output.write("************************************************************************\n\n");
   }
-    
+
   int nInterTotal=0;
 
   // THIS NEEDS TO BE PASSED IN
@@ -704,6 +818,104 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   }
 }
 
+
+
+///
+/// @brief  Create J4 interaction matrix.
+///
+void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, Array4D<int> &latt, 
+  const std::vector<int> dim, const int nAtoms, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, const std::vector<int> &atom_type, const Array4D<double> &J4Vectors,
+  const Array3D<int> &J4Neighbour, const Array2D<double> &J4Values, const std::vector<int> &nJ4InteractionsOfType, 
+  const double unitcellInv[3][3], const bool pbc[3], const int &nJ4Values) 
+{
+  
+  using namespace globals;
+  output.write("\nCalculating fourspin interaction matrix...\n");
+              
+  const double encut = 1E-26/mu_bohr_si; // energy cutoff
+
+  int qi[3], qj[3];
+  double pi[3], pj[3];
+  int vij[3];
+  int sj[3];
+
+  J4ijkl_s.resize(nspins,nspins,nspins,nspins);
+  
+  int counter = 0;
+  for (int x=0; x<dim[0]; ++x) {
+    for (int y=0; y<dim[1]; ++y) {
+      for (int z=0; z<dim[2]; ++z) {
+        for (int n=0; n<nAtoms; ++n) {
+
+          if(latt(x,y,z,n) != -1) {
+
+            const int si = latt(x,y,z,n); assert (si < nspins);
+
+            qi[0] = x; qi[1] = y; qi[2] = z;
+
+            for(int j=0; j<3; ++j){
+              pi[j] = unitCellPositions(n,j);
+            }
+            
+            for(int i=0; i<nJ4InteractionsOfType[n]; ++i) {
+
+              // loop the 3 neighbours of the fourspin term
+              for(int snbr=0; snbr<3; ++snbr){
+
+                int m = (J4Neighbour(n,i,snbr)+n)%nAtoms; assert(m >=0);
+
+                for(int j=0; j<3; ++j){
+                  pj[j] = unitCellPositions(m,j); 
+                }
+
+                // put pj in unitcell
+                double pj_cell[3] = {0.0,0.0,0.0};
+                matmul(unitcellInv,pj,pj_cell);
+
+                for(int j=0; j<3; ++j){
+                  qj[j] = floor(J4Vectors(n,i,snbr,j) - pj_cell[j] + 0.5);
+                }
+
+                // calculate realspace interaction vector
+                bool idxcheck = true;
+                for(int j=0; j<3; ++j){
+                  vij[j] = qi[j] - qj[j];
+                  if(pbc[j] == true) {
+                    vij[j] = (dim[j]+vij[j])%dim[j];
+                  } else if (vij[j] < 0 || !(vij[j] < dim[j])) {
+                    idxcheck = false;
+                  }
+                }
+
+                // check interaction existed
+                if(idxcheck == true) {
+                  sj[snbr] = latt(vij[0],vij[1],vij[2],m); assert(sj < nspins);
+                } else {
+                  sj[snbr] = -1;
+                }
+              }
+
+
+              if( (sj[0] > -1) && (sj[1] > -1) && (sj[2] > -1) ){
+                if( fabs(J4Values(n,i)) > encut) {
+                  J4ijkl_s.insertValue(si,sj[0],sj[1],sj[2],J4Values(n,i));
+                }
+                counter++;
+              }
+
+
+            }
+          }
+        }
+      }
+    }
+  }
+
+  output.write("  * Total J4 interaction count: %i\n", counter);
+  output.write("  * J4ijkl_s matrix memory (MAP): %f MB\n",J4ijkl_s.calculateMemory());
+}
+
+
 ///
 /// @brief  Create interaction matrix.
 ///
@@ -931,12 +1143,17 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     Array4D<double> JValues;
     Array2D<double> J2Values;
     Array2D<int> interactionNeighbour;
+    Array3D<int> J4Neighbour;
+    Array4D<double> J4Vectors;
+    Array2D<double> J4Values;
     std::vector<int> nInteractionsOfType;
+    std::vector<int> nJ4InteractionsOfType;
     Array3D<double> jij;
     int nAtoms=0;
     bool pbc[3] = {true,true,true};
     bool J2Toggle = false;
     int nJValues=0;
+    int nJ4Values=0;
 
     double unitcell[3][3];
     double unitcellInv[3][3];
@@ -978,6 +1195,17 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     createInteractionMatrix(config, cfgMaterials,latt,dim, nAtoms, unitCellTypes, unitCellPositions,
       atom_type,interactionVectors, interactionNeighbour, JValues,
       nInteractionsOfType, unitcellInv,pbc,J2Toggle,J2Values,nJValues);
+    
+    if( config.exists("lattice.fourspin") == true ) {
+      std::string J4FileName = config.lookup("lattice.fourspin");
+      readJ4Interactions(J4FileName, config, unitCellTypes, unitCellPositions, J4Vectors, J4Neighbour, J4Values, nJ4InteractionsOfType, 
+        nAtoms, atomTypeMap, unitcellInv, nJ4Values);
+
+      createJ4Matrix(config, cfgMaterials,latt,dim, nAtoms, unitCellTypes, unitCellPositions,
+        atom_type,J4Vectors, J4Neighbour, J4Values,
+        nJ4InteractionsOfType, unitcellInv,pbc,nJ4Values);
+      
+    }
     }
 
   } // try
