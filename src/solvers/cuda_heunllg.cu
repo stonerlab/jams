@@ -124,6 +124,11 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 #else
 #error "CUDA CSR is not supported in this build"
 #endif
+  
+  output.write("  * Converting J4 MAP to CSR\n");
+  J4ijkl_s.convertMAP2CSR();
+  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J4ijkl_s.calculateMemory());
+
 
   output.write("  * Allocating device memory...\n");
   // spin arrays

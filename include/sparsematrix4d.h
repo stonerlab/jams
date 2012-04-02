@@ -30,13 +30,15 @@ class SparseMatrix4D {
         matrixType(SPARSE_MATRIX_TYPE_GENERAL),
         matrixMode(SPARSE_MATRIX_MODE_UPPER),
         dim(4,0),
-        val(0),
         nnz_unmerged(0),
         nnz(0),
         i_idx(0),
         j_idx(0),
         k_idx(0),
-        l_idx(0)
+        l_idx(0),
+        pointers(0),
+        coords(0,0),
+        val(0)
     {}
 
 
@@ -45,13 +47,15 @@ class SparseMatrix4D {
         matrixType(SPARSE_MATRIX_TYPE_GENERAL),
         matrixMode(SPARSE_MATRIX_MODE_UPPER),
         dim(4,0),
-        val(0),
         nnz_unmerged(0),
         nnz(0),
         i_idx(0),
         j_idx(0),
         k_idx(0),
-        l_idx(0)
+        l_idx(0),
+        pointers(0),
+        coords(0,0),
+        val(0)
     {dim[0] = m; dim[1] = n; dim[2] = p; dim[3] = q;}
 
     // resize clears all data in matrix and prepares for insertion
@@ -80,6 +84,7 @@ class SparseMatrix4D {
     void insertValue(size_type i, size_type j, size_type k, size_type l, _Tp value);
 
     void convertMAP2COO();
+    void convertMAP2CSR();
     
     inline _Tp*       valPtr() { return &(val[0]); } ///< @brief Pointer to values array
     inline size_type* cooPtr() { return coords.ptr(); } ///< @brief Pointer to rows array
@@ -108,6 +113,7 @@ class SparseMatrix4D {
     std::vector<size_type> k_idx;
     std::vector<size_type> l_idx;
 
+    Array<size_type>     pointers;
     Array2D<size_type>     coords;
     std::vector<_Tp>       val;
 
@@ -134,7 +140,13 @@ class SparseMatrix4D {
 template <typename _Tp>
 double SparseMatrix4D<_Tp>::calculateMemory() {
   const double mb = (1024.0*1024.0);
-  return ((4*nnz*sizeof(size_type))+(val.size()*sizeof(_Tp)))/mb;
+  if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP || matrixFormat == SPARSE_MATRIX_FORMAT_COO){
+    return ((4*nnz*sizeof(size_type))+(val.size()*sizeof(_Tp)))/mb;
+  } else if(matrixFormat == SPARSE_MATRIX_FORMAT_CSR){
+    return (((3*nnz+dim[0]+1)*sizeof(size_type))+(val.size()*sizeof(_Tp)))/mb;
+  }else{
+    return ((4*nnz*sizeof(size_type))+(val.size()*sizeof(_Tp)))/mb;
+  }
 }
 
 template <typename _Tp>
@@ -187,6 +199,48 @@ void SparseMatrix4D<_Tp>::convertMAP2COO()
   l_idx.clear();
 
   matrixFormat = SPARSE_MATRIX_FORMAT_COO;
+}
+
+template <typename _Tp>
+void SparseMatrix4D<_Tp>::convertMAP2CSR()
+{
+
+  // Upper most dimension is ordered (as pointers) but other dimensions
+  // are not ordered
+
+  pointers.resize(dim[0]+1);
+  coords.resize(nnz_unmerged,3);
+
+  std::vector<_Tp> csrval(nnz_unmerged,0);
+
+  if(nnz_unmerged > 0){
+    size_type count=0;
+    for(int i=0;i<dim[0];++i){
+      pointers(i) = count;
+
+      for(int n=0;n<nnz_unmerged;++n){
+        if( i_idx[n] == i ){
+          coords(count,0) = j_idx[n];
+          coords(count,1) = k_idx[n];
+          coords(count,2) = l_idx[n];
+          csrval[count] = val[n];
+          count++;
+        }
+      }
+    }
+    pointers(dim[0]) = count; // end pointer
+
+    val = csrval;
+    
+    nnz = count; assert(count == nnz_unmerged);
+  }
+  
+  i_idx.clear();
+  j_idx.clear();
+  k_idx.clear();
+  l_idx.clear();
+
+  matrixFormat = SPARSE_MATRIX_FORMAT_CSR;
 }
 
 #endif // __SPARSEMATRIX_H__
