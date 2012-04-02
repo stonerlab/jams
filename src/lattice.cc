@@ -363,7 +363,6 @@ void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, cons
   }
 
   output.write("  * Fourspin interactions in file: %d\n",nInterConfig);
-  output.write("  * Total fourspin interactions (with symmetry): %d\n",nInterTotal);
 
   // Resize interaction arrays
   J4Vectors.resize(nAtoms,interMax,3,3);
@@ -909,6 +908,9 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
       }
     }
   }
+
+  output.write("  * Total J4 interaction count: %i\n", counter);
+  output.write("  * J4ijkl_s matrix memory (MAP): %f MB\n",J4ijkl_s.calculateMemory());
 }
 
 
