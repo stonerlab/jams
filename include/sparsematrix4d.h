@@ -87,11 +87,12 @@ class SparseMatrix4D {
     void convertMAP2CSR();
     
     inline _Tp*       valPtr() { return &(val[0]); } ///< @brief Pointer to values array
+    inline size_type*       pointersPtr() { return pointers.ptr(); } ///< @brief Pointer to values array
     inline size_type* cooPtr() { return coords.ptr(); } ///< @brief Pointer to rows array
 
 
     inline size_type  nonZero() { return nnz; }      ///< @brief Number of non zero entries in matrix
-    inline size_type  ndim(const size_type i) { return dim[i]; }
+    inline size_type  size(const size_type i) { return dim[i]; }
 
     double calculateMemory();
   
@@ -177,8 +178,6 @@ template <typename _Tp>
 void SparseMatrix4D<_Tp>::convertMAP2COO()
 {
 
-  int64_t index_last,ival,jval,index;
-  
   nnz = 0;
   coords.resize(nnz_unmerged,4);
   

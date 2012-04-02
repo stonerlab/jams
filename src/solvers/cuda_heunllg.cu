@@ -1,5 +1,6 @@
 #include "cuda_spmv.h"
 #include "cuda_biquadratic.h"
+#include "cuda_fourspin.h"
 #include "cuda_heunllg_kernel.cu"
 #include "globals.h"
 #include "consts.h"
@@ -50,6 +51,25 @@ void free_dia(devDIA &Jij_dev)
 {
   CUDA_CALL(cudaFree(Jij_dev.row));
   CUDA_CALL(cudaFree(Jij_dev.col));
+  CUDA_CALL(cudaFree(Jij_dev.val));
+}
+
+void allocate_transfer_csr_4d(SparseMatrix4D<float> &Jij, devCSR &
+    Jij_dev)
+{
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.pointers,(Jij.size(0)+1)*sizeof(int)));
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.coords,(3*Jij.nonZero())*sizeof(int)));
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.val,(Jij.nonZero())*sizeof(float)));
+
+  CUDA_CALL(cudaMemcpy(Jij_dev.pointers,Jij.pointersPtr(),(size_t)((Jij.size(0)+1)*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev.coords,Jij.cooPtr(),(size_t)((3*Jij.nonZero())*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev.val,Jij.valPtr(),(size_t)((Jij.nonZero())*(sizeof(float))),cudaMemcpyHostToDevice));
+}
+
+void free_csr_4d(devCSR &Jij_dev)
+{
+  CUDA_CALL(cudaFree(Jij_dev.pointers));
+  CUDA_CALL(cudaFree(Jij_dev.coords));
   CUDA_CALL(cudaFree(Jij_dev.val));
 }
 
@@ -164,6 +184,8 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 #error "CUDA CSR is not supported in this build"
 #endif
 
+  allocate_transfer_csr_4d(J4ijkl_s, J4ijkl_s_dev);
+
   // material properties
   CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins*4*sizeof(float)));
 
@@ -236,6 +258,8 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   J2ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
   J2ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  
+  J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE,(nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
 
   initialised = true;
 }
@@ -289,6 +313,12 @@ void CUDAHeunLLGSolver::run()
     beta = 1.0;
   }
   
+  if(J4ijkl_s.nonZero() > 0){
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,1.0,beta,
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+    beta = 1.0;
+  }
+  
   CUDA_CALL(cudaUnbindTexture(tex_x_float));
 #else
 #error "CUDA CSR is not supported in this build"
@@ -339,6 +369,12 @@ void CUDAHeunLLGSolver::run()
   if(J2ij_t.nonZero() > 0){
     spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
       J2ij_t.diags(),J2ij_t_dev.pitch,2.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  if(J4ijkl_s.nonZero() > 0){
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,1.0,beta,
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
     beta = 1.0;
   }
   
@@ -414,12 +450,14 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
     spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
       J2ij_t.diags(),J2ij_t_dev.pitch,1.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,e_dev);
     CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+
     for(int i=0; i<nspins; ++i){
       e2_t = e2_t + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
     }
     
     e2_t = e2_t/nspins;
   }
+  
   
   CUDA_CALL(cudaUnbindTexture(tex_x_float));
 }
@@ -450,6 +488,7 @@ CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
   free_dia(J1ij_t_dev);
   free_dia(J2ij_s_dev);
   free_dia(J2ij_t_dev);
+  free_csr_4d(J4ijkl_s_dev);
 
   // spin arrays
   CUDA_CALL(cudaFree(s_dev));

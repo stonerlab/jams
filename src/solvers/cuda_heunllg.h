@@ -16,6 +16,13 @@ struct devDIA {
   int     blocks;
 };
 
+struct devCSR {
+  int     *pointers;
+  int     *coords;
+  float   *val;
+  int     blocks;
+};
+
 class CUDAHeunLLGSolver : public Solver {
   public:
     CUDAHeunLLGSolver()
@@ -53,6 +60,7 @@ class CUDAHeunLLGSolver : public Solver {
     devDIA  J1ij_t_dev;
     devDIA  J2ij_s_dev;
     devDIA  J2ij_t_dev;
+    devCSR  J4ijkl_s_dev;
     double * s_dev;
     float  * sf_dev;
     double * s_new_dev;
