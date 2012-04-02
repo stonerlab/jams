@@ -838,6 +838,8 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
   double pi[3], pj[3];
   int vij[3];
   int sj[3];
+
+  J4ijkl_s.resize(nspins,nspins,nspins,nspins);
   
   int counter = 0;
   for (int x=0; x<dim[0]; ++x) {
