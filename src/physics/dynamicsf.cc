@@ -83,7 +83,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     jams_error("Window time must be an integer multiple of the run time");
   }
 
-  freqIntervalSize = (2.0*M_PI)/(sampletime*steps_window);
+  freqIntervalSize = (M_PI)/(sampletime*steps_window);
   output.write("  * Sample frequency: %f [GHz]\n",freqIntervalSize/1E9);
 
 
