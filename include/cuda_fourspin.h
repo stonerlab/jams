@@ -4,6 +4,7 @@
 
 __global__ void fourspin_scalar_csr_kernel
 (const int num_rows,
+ const int nspins,
  const float alpha,
  const float beta,
  const int * pointers,
@@ -34,18 +35,18 @@ __global__ void fourspin_scalar_csr_kernel
       
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sk[i] = tex1Dfetch(tex_x_float,kidx+i);
+        sk[i] = tex1Dfetch(tex_x_float,3*nspins*kidx+i);
       }
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sl[i] = tex1Dfetch(tex_x_float,lidx+i);
+        sl[i] = tex1Dfetch(tex_x_float,3*nspins*lidx+i);
       }
 
       float k_dot_l = sk[0]*sl[0] + sk[1]*sl[1] + sk[2]*sl[2];
 
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sum[i] += A_ijkl * tex1Dfetch(tex_x_float,jidx+i)*k_dot_l;
+        sum[i] += A_ijkl * tex1Dfetch(tex_x_float,3*nspins*jidx+i)*k_dot_l;
       }
     }
 
