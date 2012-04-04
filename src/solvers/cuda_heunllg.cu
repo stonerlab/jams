@@ -314,7 +314,7 @@ void CUDAHeunLLGSolver::run()
   }
   
   if(J4ijkl_s.nonZero() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,1.0,beta,
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
     beta = 1.0;
   }
@@ -373,7 +373,7 @@ void CUDAHeunLLGSolver::run()
   }
   
   if(J4ijkl_s.nonZero() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,1.0,beta,
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins1.0,beta,
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
     beta = 1.0;
   }
