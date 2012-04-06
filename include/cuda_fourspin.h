@@ -53,12 +53,12 @@ __global__ void fourspin_scalar_csr_kernel
     if(beta == 0.0){ // NOTE: floating point comparison
       #pragma unroll
       for(int i=0; i<3; ++i){
-        h_dev[row+i] = sum[i];
+        h_dev[3*row+i] = sum[i];
       }
     }else{
       #pragma unroll
       for(int i=0; i<3; ++i){
-        h_dev[row+i] = beta*h_dev[row+i] + sum[i];
+        h_dev[3*row+i] = beta*h_dev[3*row+i] + sum[i];
       }
     }
   }
