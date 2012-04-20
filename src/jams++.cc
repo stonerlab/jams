@@ -27,6 +27,8 @@ namespace {
   unsigned long steps_eq=0;
   unsigned long steps_run=0;
   unsigned long steps_out=0;
+
+  bool visualise=false;
 } // anon namespace
 
 int jams_init(int argc, char **argv) {
@@ -112,6 +114,13 @@ int jams_init(int argc, char **argv) {
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
       globals::h_app[2] = config.lookup("sim.h_app.[2]");
     
+
+      if( config.exists("sim.visualise") == true) {
+        config.lookupValue("sim.visualise",visualise);
+        output.write("  * Visualisation is ON\n");
+      } else {
+        visualise = false;
+      }
 
 
       if( config.exists("sim.seed") == true) {
@@ -227,6 +236,13 @@ void jams_run() {
       solver->syncOutput();
       mag->write(solver->getTime());
       physics->monitor(solver->getTime(),dt);
+      
+      int outcount = i/steps_out; // int divisible by modulo above
+      std::string vtufilename;
+      vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
+      std::ofstream vtufile(vtufilename.c_str());
+      lattice.outputSpinsVTU(vtufile);
+      vtufile.close();
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
@@ -235,10 +251,6 @@ void jams_run() {
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;
   output.write("Solving time: %f\n",elapsed);
-
-  std::ofstream spinfile("spins.dat");
-  lattice.outputSpinsVTU(spinfile);
-  spinfile.close();
 
   if(mag != NULL) { delete mag; }
 
