@@ -3,6 +3,7 @@
 
 #include <string>
 #include <sstream>
+#include <iomanip>
 #include <locale>
 #include <functional>
 #include <algorithm>
@@ -25,15 +26,17 @@ inline std::string &trim(std::string &s) {
   return ltrim(rtrim(s));
 }
 
-std::string zeroPadNumber(int num) {
-  std::ostringstream ss;
-  ss << std::setw(6) << std::setfill('0') << num;
-  std::string result = ss.str();
-  if (result.length() > 6)
-  {
-    result.erase(0, result.length() - 6);
-  }
-  return result;
+// Lifted from http://www.cplusplus.com/forum/general/15952/
+std::string zero_pad_num(int num)
+{
+    std::ostringstream ss;
+    ss << std::setw(7) << std::setfill('0') << num;
+    std::string result = ss.str();
+    if (result.length() > 7)
+    {
+        result.erase(0, result.length() - 7);
+    }
+    return result;
 }
 
 #endif // __UTILS_H__
