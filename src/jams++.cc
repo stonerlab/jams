@@ -45,6 +45,7 @@ int jams_init(int argc, char **argv) {
 
   output.write("\nJAMS++\n");
   output.write("Version %s\n", JAMS_VERSION);
+  output.write("Commit %s\n", QUOTEME(GITCOMMIT));
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
   output.write("%s\n", QUOTEME(GITCOMMIT));
   output.write("----------------------------------------\n");
@@ -157,6 +158,8 @@ int jams_init(int argc, char **argv) {
           physics = Physics::Create(TTM);
         }else if(physname == "SPINWAVES") {
           physics = Physics::Create(SPINWAVES);
+        }else if(physname == "DYNAMICSF") {
+          physics = Physics::Create(DYNAMICSF);
         }else if(physname == "SQUARE") {
           physics = Physics::Create(SQUARE);
         }else{
