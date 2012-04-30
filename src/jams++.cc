@@ -1,5 +1,5 @@
 #define GLOBALORIGIN
-#define JAMS_VERSION "0.1.1"
+#define JAMS_VERSION "0.3"
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 
@@ -27,6 +27,8 @@ namespace {
   unsigned long steps_eq=0;
   unsigned long steps_run=0;
   unsigned long steps_out=0;
+
+  bool visualise=false;
 } // anon namespace
 
 int jams_init(int argc, char **argv) {
@@ -43,6 +45,7 @@ int jams_init(int argc, char **argv) {
 
   output.write("\nJAMS++\n");
   output.write("Version %s\n", JAMS_VERSION);
+  output.write("Commit %s\n", QUOTEME(GITCOMMIT));
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
   output.write("%s\n", QUOTEME(GITCOMMIT));
   output.write("----------------------------------------\n");
@@ -113,6 +116,13 @@ int jams_init(int argc, char **argv) {
       globals::h_app[2] = config.lookup("sim.h_app.[2]");
     
 
+      if( config.exists("sim.visualise") == true) {
+        config.lookupValue("sim.visualise",visualise);
+        output.write("  * Visualisation is ON\n");
+      } else {
+        visualise = false;
+      }
+
 
       if( config.exists("sim.seed") == true) {
         config.lookupValue("sim.seed",randomseed);
@@ -148,6 +158,8 @@ int jams_init(int argc, char **argv) {
           physics = Physics::Create(TTM);
         }else if(physname == "SPINWAVES") {
           physics = Physics::Create(SPINWAVES);
+        }else if(physname == "DYNAMICSF") {
+          physics = Physics::Create(DYNAMICSF);
         }else if(physname == "SQUARE") {
           physics = Physics::Create(SQUARE);
         }else{
@@ -227,6 +239,13 @@ void jams_run() {
       solver->syncOutput();
       mag->write(solver->getTime());
       physics->monitor(solver->getTime(),dt);
+      
+      int outcount = i/steps_out; // int divisible by modulo above
+      std::string vtufilename;
+      vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
+      std::ofstream vtufile(vtufilename.c_str());
+      lattice.outputSpinsVTU(vtufile);
+      vtufile.close();
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
