@@ -1,6 +1,8 @@
 #ifndef __CUDAHEUNLLG_H__
 #define __CUDAHEUNLLG_H__
 
+#ifdef CUDA
+
 #include "solver.h"
 #include "array.h"
 #include "array2d.h"
@@ -50,6 +52,8 @@ class CUDAHeunLLGSolver : public Solver {
     int spmvblocks;
     size_t diaPitch;
 };
+
+#endif
 
 #endif // __CUDAHEUNLLG_H__
 

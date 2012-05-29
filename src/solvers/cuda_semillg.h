@@ -1,6 +1,8 @@
 #ifndef __CUDASEMILLG_H__
 #define __CUDASEMILLG_H__
 
+#ifdef CUDA
+
 #include "solver.h"
 #include "array.h"
 #include "array2d.h"
@@ -47,6 +49,8 @@ class CUDASemiLLGSolver : public Solver {
     Array<double> sigma;
     int nblocks;
 };
+
+#endif
 
 #endif // __CUDASEMILLG_H__
 
