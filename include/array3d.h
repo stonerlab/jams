@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <cassert>
+#include <cstddef>
 
 template <typename _Tp>
 class Array3D 
