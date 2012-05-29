@@ -219,6 +219,8 @@ void createLattice(const libconfig::Setting &cfgLattice, Array<int> &unitCellTyp
 void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<int> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms) {
   using namespace globals;
   assert(nspins > 0);
+
+  atom_pos.resize(nspins,3);
   
   atom_pos.resize(nspins,3);
   double r[3], p[3];
