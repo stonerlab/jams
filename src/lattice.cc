@@ -313,9 +313,17 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
       int type_num = atom_type[i];
       double sinit[3];
       double norm=0.0;
-      for(int j=0;j<3;++j) {
-        sinit[j] = cfgMaterials[type_num]["spin"][j]; 
-        norm += sinit[j]*sinit[j];
+      bool spinrand = cfgMaterials[type_num]["spinRand"];
+      if( spinrand == true){
+        for(int j=0;j<3;++j) {
+          sinit[j] = rng.normal(); 
+          norm += sinit[j]*sinit[j];
+        }
+      }else{
+        for(int j=0;j<3;++j) {
+          sinit[j] = cfgMaterials[type_num]["spin"][j]; 
+          norm += sinit[j]*sinit[j];
+        }
       }
       norm = 1.0/sqrt(norm);
       for(int j=0;j<3;++j){
