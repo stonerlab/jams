@@ -240,12 +240,12 @@ void jams_run() {
       mag->write(solver->getTime());
       physics->monitor(solver->getTime(),dt);
       
-      int outcount = i/steps_out; // int divisible by modulo above
-      std::string vtufilename;
-      vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
-      std::ofstream vtufile(vtufilename.c_str());
-      lattice.outputSpinsVTU(vtufile);
-      vtufile.close();
+      //int outcount = i/steps_out; // int divisible by modulo above
+      //std::string vtufilename;
+      //vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
+      //std::ofstream vtufile(vtufilename.c_str());
+      //lattice.outputSpinsVTU(vtufile);
+      //vtufile.close();
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
