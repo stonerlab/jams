@@ -58,15 +58,8 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     
 
 
-  // read lattice size
-  if( config.exists("physics.SizeOverride") == true) {
-    for(int i=0; i<3; ++i) {
-      rDim[i] = phys["SizeOverride"][i];
-    }
-  output.write("  * Lattice size override [%d,%d,%d]\n",rDim[0],rDim[1],rDim[2]);
-  }else{
-    lattice.getDimensions(rDim[0],rDim[1],rDim[2]);
-  }
+    lattice.getKspaceDimensions(rDim[0],rDim[1],rDim[2]);
+    output.write("  * Kspace Size [%d,%d,%d]\n",rDim[0],rDim[1],rDim[2]);
 
   // window time
   if( config.exists("physics.t_window") == true) {
@@ -98,6 +91,25 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     jams_error("Failed to allocate qSpace FFT array");
   }
   qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
+
+
+//---------------------------------------------------------------------------------
+//  Create map from spin number to col major index of qSpace array
+//---------------------------------------------------------------------------------
+    spinToKspaceMap.resize(nspins);
+    for(int i=0; i<nspins; ++i){
+        int x,y,z;
+        lattice.getSpinIntCoord(i,x,y,z);
+
+        // map coordinates to periodic space
+        x = (rDim[0]+x)%rDim[0];
+        y = (rDim[1]+y)%rDim[1];
+        z = (rDim[2]+z)%rDim[2];
+
+        int idx = (x*rDim[1]+y)*rDim[2]+z;
+        spinToKspaceMap[i] = idx;
+    }
+
 
 // --------------------------------------------------------------------------------------------------------------------
 // Time to frequency space transform
@@ -143,7 +155,9 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   using namespace globals;
   assert(initialised);
 
-  // ASSUMPTION: Spin array is C-ordered in space
+
+    // zero qspace array
+    memset(qSpace, 0, rDim[0]*rDim[1]*rDim[2]*sizeof(fftw_complex));
 
   if(componentImag == -1){
     std::vector<double> mag(lattice.numTypes(),0.0);
@@ -157,18 +171,21 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
       mag[t] = mag[t]/static_cast<double>(lattice.getTypeCount(t));
     }
  
+
     for(int i=0; i<nspins; ++i){
       const int type = lattice.getType(i);
+      const int idx = spinToKspaceMap[i];
  
-      qSpace[i][0] = coFactors(type,componentReal)*s(i,componentReal)
+      qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal)
                       -mag[lattice.getType(i)];
-      qSpace[i][1] = 0.0;
+      qSpace[idx][1] = 0.0;
     }
   } else {
     for(int i=0; i<nspins; ++i){
       int type = lattice.getType(i);
-      qSpace[i][0] = coFactors(type,componentReal)*s(i,componentReal);
-      qSpace[i][1] = coFactors(type,componentImag)*s(i,componentImag);
+      const int idx = spinToKspaceMap[i];
+      qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal);
+      qSpace[idx][1] = coFactors(type,componentImag)*s(i,componentImag);
     }
   }
 
