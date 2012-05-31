@@ -106,7 +106,7 @@ void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D
 ///
 /// @brief  Read lattice parameters from config file.
 ///
-void readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bool pbc[3]) {
+void Lattice::readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bool pbc[3]) {
   //  Read lattice properties from config
   
   for(int i=0; i<3; ++i) { 
@@ -126,6 +126,18 @@ void readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bo
     }
   }
   output.write("\n");
+
+  if( config.exists("lattice.kpoints") == true ) {
+      for(int i=0; i<3; ++i) {
+          unitcell_kpoints[i] = cfgLattice["kpoints"][i];
+      }
+  } else {
+      for(int i=0; i<3; ++i) {
+          unitcell_kpoints[i] = 1;
+      }
+  }
+    
+  output.write("  * Kpoints per unit cell: %i %i %i\n",unitcell_kpoints[0],unitcell_kpoints[1],unitcell_kpoints[2]);
 }
 
 ///
@@ -220,6 +232,8 @@ void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<do
   using namespace globals;
   assert(nspins > 0);
   
+  atom_pos.resize(nspins,3);
+
   double r[3], p[3];
   int q[3];
   int count = 0;
@@ -947,6 +961,8 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     createInteractionMatrix(config, cfgMaterials,latt,dim, nAtoms, unitCellTypes, unitCellPositions,
       atom_type,interactionVectors, interactionNeighbour, interactionValues,
       nInteractionsOfType, unitcellInv,pbc);
+
+        mapPosToInt();
     }
 
   } // try
@@ -994,4 +1010,19 @@ void Lattice::outputSpinsVTU(std::ofstream &outfile){
   outfile << "</UnstructuredGrid>" << "\n";
   outfile << "</VTKFile>" << "\n";
 
+}
+
+
+void Lattice::mapPosToInt(){
+    using namespace globals;
+
+    spin_int_map.resize(nspins,3);
+
+    for(int i=0; i<nspins; ++i){
+        for(int j=0; j<3; ++j){
+            spin_int_map(i,j) = nint(atom_pos(i,j))*unitcell_kpoints[j];
+        }
+        std::cout<<atom_pos(i,0)<<"\t"<<atom_pos(i,1)<<"\t"<<atom_pos(i,2)<<"\t";
+        std::cout<<spin_int_map(i,0)<<"\t"<<spin_int_map(i,1)<<"\t"<<spin_int_map(i,2)<<std::endl;
+    }
 }
