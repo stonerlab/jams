@@ -27,9 +27,9 @@ __global__ void fourspin_scalar_csr_kernel
               
       const float A_ijkl = alpha*val[jj];
 
-      const int jidx = coords[jj+0];
-      const int kidx = coords[jj+1];
-      const int lidx = coords[jj+2];
+      const int jidx = coords[3*jj+0];
+      const int kidx = coords[3*jj+1];
+      const int lidx = coords[3*jj+2];
        
       float sk[3], sl[3];
       
