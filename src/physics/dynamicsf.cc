@@ -12,6 +12,9 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   const double sampletime = config.lookup("sim.t_out");
   const double runtime = config.lookup("sim.t_run");
   nTimePoints = runtime/sampletime;
+
+  output.write("WARNING: General DSF only works for CUBIC systems");
+
   output.write("  * Time sample points: %d\n",nTimePoints);
 
 
@@ -96,15 +99,36 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 //---------------------------------------------------------------------------------
 //  Create map from spin number to col major index of qSpace array
 //---------------------------------------------------------------------------------
+
+    // find min and max coordinates
+    int xmin,xmax;
+    int ymin,ymax;
+    int zmin,zmax;
+
+    // populate initial values
+    lattice.getSpinIntCoord(0,xmin,ymin,zmin);
+    lattice.getSpinIntCoord(0,xmax,ymax,zmax);
+
+    for(int i=0; i<nspins; ++i){
+        int x,y,z;
+        lattice.getSpinIntCoord(i,x,y,z);
+        if(x < xmin){ xmin = x; }
+        if(x > xmax){ xmax = x; }
+
+        if(y < ymin){ ymin = y; }
+        if(y > ymax){ ymax = y; }
+
+        if(z < zmin){ zmin = z; }
+        if(z > zmax){ zmax = z; }
+    }
+
+  output.write("  * qSpace range: [ %d:%d , %d:%d , %d:%d ]\n", xmin, xmax, ymin, ymax, zmin, zmax);
+
     spinToKspaceMap.resize(nspins);
     for(int i=0; i<nspins; ++i){
         int x,y,z;
         lattice.getSpinIntCoord(i,x,y,z);
 
-        // map coordinates to periodic space
-        x = (rDim[0]+x)%rDim[0];
-        y = (rDim[1]+y)%rDim[1];
-        z = (rDim[2]+z)%rDim[2];
 
         int idx = (x*rDim[1]+y)*rDim[2]+z;
         spinToKspaceMap[i] = idx;
