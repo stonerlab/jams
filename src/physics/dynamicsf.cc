@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "dynamicsf.h"
+#include "maths.h"
 
 #include <fftw3.h>
 #include <string>
@@ -14,7 +15,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   const double runtime = config.lookup("sim.t_run");
   nTimePoints = runtime/sampletime;
 
-  output.write("WARNING: General DSF only works for CUBIC systems");
+  output.write("WARNING: General DSF only works for CUBIC systems\n");
 
   output.write("  * Time sample points: %d\n",nTimePoints);
 
@@ -74,8 +75,10 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   const double dt = config.lookup("sim.t_step");
   const double t_out = config.lookup("sim.t_out");
   steps_window = static_cast<unsigned long>(t_window/dt);
-  output.write("  * Window time: %1.8e (%lu steps)\n",t_window,steps_window);
-  steps_window = t_window/(t_out);
+  output.write("  * Window time: %1.8e (%lu tsteps)\n",t_window,steps_window);
+  steps_window = nint(t_window/(t_out));
+  output.write("  * Window samples: %d\n",steps_window);
+  output.write("  * nTimePoints%(steps_window): %d\n", nTimePoints%(steps_window));
   if(nTimePoints%(steps_window) != 0){
     jams_error("Window time must be an integer multiple of the run time");
   }
