@@ -3,6 +3,7 @@
 
 #include <fftw3.h>
 #include <string>
+#include <cstring>
 #include <map>
 
 void DynamicSFPhysics::init(libconfig::Setting &phys)
