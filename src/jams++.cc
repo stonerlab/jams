@@ -28,7 +28,7 @@ namespace {
   unsigned long steps_run=0;
   unsigned long steps_out=0;
 
-  bool visualise=false;
+  bool toggleVisualise=false;
 } // anon namespace
 
 int jams_init(int argc, char **argv) {
@@ -117,10 +117,10 @@ int jams_init(int argc, char **argv) {
     
 
       if( config.exists("sim.visualise") == true) {
-        config.lookupValue("sim.visualise",visualise);
+        config.lookupValue("sim.visualise",toggleVisualise);
         output.write("  * Visualisation is ON\n");
       } else {
-        visualise = false;
+        toggleVisualise = false;
       }
 
 
@@ -241,12 +241,14 @@ void jams_run() {
       mag->write(solver->getTime());
       physics->monitor(solver->getTime(),dt);
       
-      int outcount = i/steps_out; // int divisible by modulo above
-      std::string vtufilename;
-      vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
-      std::ofstream vtufile(vtufilename.c_str());
-      lattice.outputSpinsVTU(vtufile);
-      vtufile.close();
+      if(toggleVisualise == true){
+          int outcount = i/steps_out; // int divisible by modulo above
+          std::string vtufilename;
+          vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
+          std::ofstream vtufile(vtufilename.c_str());
+          lattice.outputSpinsVTU(vtufile);
+          vtufile.close();
+      }
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
