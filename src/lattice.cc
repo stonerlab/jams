@@ -246,9 +246,10 @@ void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<do
             for(int i=0; i<3; ++i) {
               r[i] = 0.0;
               p[i] = unitCellPositions(n,i);
-              for(int j=0; j<3; ++j) {
-                r[i] += unitcell[j][i]*(q[j]+p[i]);
-              }
+              r[i] = q[i] + p[i];
+              //for(int j=0; j<3; ++j) {
+                //r[i] += unitcell[j][i]*(q[j]+p[i]);
+              //}
             }
             for(int i=0; i<3; ++i){
               atom_pos(count,i) = r[i];
