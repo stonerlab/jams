@@ -1023,7 +1023,7 @@ void Lattice::mapPosToInt(){
         for(int j=0; j<3; ++j){
             spin_int_map(i,j) = nint(atom_pos(i,j)*unitcell_kpoints[j]);
         }
-        std::cout<<atom_pos(i,0)<<"\t"<<atom_pos(i,1)<<"\t"<<atom_pos(i,2)<<"\t";
-        std::cout<<spin_int_map(i,0)<<"\t"<<spin_int_map(i,1)<<"\t"<<spin_int_map(i,2)<<std::endl;
+        //std::cout<<atom_pos(i,0)<<"\t"<<atom_pos(i,1)<<"\t"<<atom_pos(i,2)<<"\t";
+        //std::cout<<spin_int_map(i,0)<<"\t"<<spin_int_map(i,1)<<"\t"<<spin_int_map(i,2)<<std::endl;
     }
 }
