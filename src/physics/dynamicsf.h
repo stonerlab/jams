@@ -26,8 +26,6 @@ class DynamicSFPhysics : public Physics {
       tSpace(NULL),
       imageSpace(NULL),
       qSpaceFFT(),
-      upSpaceFFT(),
-      invUpSpaceFFT(),
       componentReal(0),
       componentImag(0),
       coFactors(0,0),
@@ -54,14 +52,13 @@ class DynamicSFPhysics : public Physics {
     fftw_complex*     tSpace;
     double *          imageSpace;
     fftw_plan         qSpaceFFT;
-    fftw_plan         upSpaceFFT;
-    fftw_plan         invUpSpaceFFT;
     int               componentReal;
     int               componentImag;
     Array2D<double>   coFactors;
     double            freqIntervalSize;
     double            t_window;
     unsigned long     steps_window;
+    std::vector<int>  spinToKspaceMap;
 
     double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 
     void   timeTransform();

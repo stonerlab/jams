@@ -1,8 +1,10 @@
 #include "globals.h"
 #include "dynamicsf.h"
+#include "maths.h"
 
 #include <fftw3.h>
 #include <string>
+#include <cstring>
 #include <map>
 
 void DynamicSFPhysics::init(libconfig::Setting &phys)
@@ -12,6 +14,9 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   const double sampletime = config.lookup("sim.t_out");
   const double runtime = config.lookup("sim.t_run");
   nTimePoints = runtime/sampletime;
+
+  output.write("WARNING: General DSF only works for CUBIC systems\n");
+
   output.write("  * Time sample points: %d\n",nTimePoints);
 
 
@@ -58,15 +63,8 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     
 
 
-  // read lattice size
-  if( config.exists("physics.SizeOverride") == true) {
-    for(int i=0; i<3; ++i) {
-      rDim[i] = phys["SizeOverride"][i];
-    }
-  output.write("  * Lattice size override [%d,%d,%d]\n",rDim[0],rDim[1],rDim[2]);
-  }else{
-    lattice.getDimensions(rDim[0],rDim[1],rDim[2]);
-  }
+    lattice.getKspaceDimensions(rDim[0],rDim[1],rDim[2]);
+    output.write("  * Kspace Size [%d,%d,%d]\n",rDim[0],rDim[1],rDim[2]);
 
   // window time
   if( config.exists("physics.t_window") == true) {
@@ -77,8 +75,10 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
   const double dt = config.lookup("sim.t_step");
   const double t_out = config.lookup("sim.t_out");
   steps_window = static_cast<unsigned long>(t_window/dt);
-  output.write("  * Window time: %1.8e (%lu steps)\n",t_window,steps_window);
-  steps_window = t_window/(t_out);
+  output.write("  * Window time: %1.8e (%lu tsteps)\n",t_window,steps_window);
+  steps_window = nint(t_window/(t_out));
+  output.write("  * Window samples: %d\n",steps_window);
+  output.write("  * nTimePoints%(steps_window): %d\n", nTimePoints%(steps_window));
   if(nTimePoints%(steps_window) != 0){
     jams_error("Window time must be an integer multiple of the run time");
   }
@@ -98,6 +98,46 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     jams_error("Failed to allocate qSpace FFT array");
   }
   qSpaceFFT = fftw_plan_dft_3d(rDim[0],rDim[1],rDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
+
+
+//---------------------------------------------------------------------------------
+//  Create map from spin number to col major index of qSpace array
+//---------------------------------------------------------------------------------
+
+    // find min and max coordinates
+    int xmin,xmax;
+    int ymin,ymax;
+    int zmin,zmax;
+
+    // populate initial values
+    lattice.getSpinIntCoord(0,xmin,ymin,zmin);
+    lattice.getSpinIntCoord(0,xmax,ymax,zmax);
+
+    for(int i=0; i<nspins; ++i){
+        int x,y,z;
+        lattice.getSpinIntCoord(i,x,y,z);
+        if(x < xmin){ xmin = x; }
+        if(x > xmax){ xmax = x; }
+
+        if(y < ymin){ ymin = y; }
+        if(y > ymax){ ymax = y; }
+
+        if(z < zmin){ zmin = z; }
+        if(z > zmax){ zmax = z; }
+    }
+
+  output.write("  * qSpace range: [ %d:%d , %d:%d , %d:%d ]\n", xmin, xmax, ymin, ymax, zmin, zmax);
+
+    spinToKspaceMap.resize(nspins);
+    for(int i=0; i<nspins; ++i){
+        int x,y,z;
+        lattice.getSpinIntCoord(i,x,y,z);
+
+
+        int idx = (x*rDim[1]+y)*rDim[2]+z;
+        spinToKspaceMap[i] = idx;
+    }
+
 
 // --------------------------------------------------------------------------------------------------------------------
 // Time to frequency space transform
@@ -143,7 +183,9 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
   using namespace globals;
   assert(initialised);
 
-  // ASSUMPTION: Spin array is C-ordered in space
+
+    // zero qspace array
+    memset(qSpace, 0, rDim[0]*rDim[1]*rDim[2]*sizeof(fftw_complex));
 
   if(componentImag == -1){
     std::vector<double> mag(lattice.numTypes(),0.0);
@@ -157,18 +199,21 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
       mag[t] = mag[t]/static_cast<double>(lattice.getTypeCount(t));
     }
  
+
     for(int i=0; i<nspins; ++i){
       const int type = lattice.getType(i);
+      const int idx = spinToKspaceMap[i];
  
-      qSpace[i][0] = coFactors(type,componentReal)*s(i,componentReal)
+      qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal)
                       -mag[lattice.getType(i)];
-      qSpace[i][1] = 0.0;
+      qSpace[idx][1] = 0.0;
     }
   } else {
     for(int i=0; i<nspins; ++i){
       int type = lattice.getType(i);
-      qSpace[i][0] = coFactors(type,componentReal)*s(i,componentReal);
-      qSpace[i][1] = coFactors(type,componentImag)*s(i,componentImag);
+      const int idx = spinToKspaceMap[i];
+      qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal);
+      qSpace[idx][1] = coFactors(type,componentImag)*s(i,componentImag);
     }
   }
 
