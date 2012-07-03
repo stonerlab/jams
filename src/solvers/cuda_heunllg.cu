@@ -1,5 +1,5 @@
 #include "cuda_spmv.h"
-#include "cuda_heunllg_kernel.cu"
+#include "cuda_heunllg_kernel.h"
 #include "globals.h"
 #include "consts.h"
 

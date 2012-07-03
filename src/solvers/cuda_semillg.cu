@@ -1,4 +1,4 @@
-#include "cuda_semillg_kernel.cu"
+#include "cuda_semillg_kernel.h"
 #include "globals.h"
 #include "consts.h"
 

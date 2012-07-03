@@ -14,6 +14,10 @@ OPTFLAGS = -O3 -funroll-loops -funroll-all-loops
 COPTIONS = -Wall -Wno-long-long -std=c++98 #-pedantic
 
 CUDA = /usr/local/cuda/bin/nvcc
+CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 -O3 -DNDEBUG -DCUDA
+#CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 \
+	-gencode=arch=compute_13,code=sm_13 -gencode=arch=compute_13,code=compute_13 \
+	--ptxas-options=-v -O3 -DNDEBUG -DCUDA
 
 # Linker information
 LDOPTIONS = 
