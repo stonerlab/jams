@@ -8,6 +8,7 @@
 #include <functional>
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
 
 inline std::string &ltrim(std::string &s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(),std::not1(std::ptr_fun<int, int>(std::isspace))));
@@ -24,7 +25,6 @@ return s;
 inline std::string &trim(std::string &s) {
   return ltrim(rtrim(s));
 }
-
 
 // Lifted from http://www.cplusplus.com/forum/general/15952/
 std::string zero_pad_num(int num)
