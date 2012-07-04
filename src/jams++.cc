@@ -1,5 +1,5 @@
 #define GLOBALORIGIN
-#define JAMS_VERSION "0.4.0"
+#define JAMS_VERSION "0.4.1"
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 
