@@ -6,9 +6,9 @@
 #include <map>
 #include <stdint.h>
 #include <cmath>
+#include "error.h"
 #include "array.h"
 #include "array2d.h"
-#include "globals.h"
 #include <algorithm>
 #include <functional>
 

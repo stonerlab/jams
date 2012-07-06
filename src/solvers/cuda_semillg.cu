@@ -1,3 +1,5 @@
+#include "cuda_sparse.h"
+#include "cuda_sparse_types.h"
 #include "cuda_semillg_kernel.h"
 #include "globals.h"
 #include "consts.h"
@@ -10,30 +12,6 @@
 #include <cusparse.h>
 
 #include <cmath>
-
-
-#ifndef NDEBUG
-#define CUDA_CALL(x) do { if((x) != cudaSuccess) { \
-  printf("Error at %s:%d\n",__FILE__,__LINE__);\
-    exit(EXIT_FAILURE);}} while(0)
-#else
-#define CUDA_CALL(x) x
-#endif
-
-#ifndef NDEBUG
-#define CURAND_CALL(x) do { if((x) != CURAND_STATUS_SUCCESS) { \
-  printf("Error at %s:%d\n",__FILE__,__LINE__);\
-  exit(EXIT_FAILURE);}} while(0)
-#else
-#define CURAND_CALL(x) x
-#endif
-
-#if defined(__CUDACC__) && defined(CUDA_NO_SM_13_DOUBLE_INTRINSICS)
-    #error "-arch sm_13 nvcc flag is required to compile"
-#endif
-
-// block size for GPU, 64 appears to be most efficient for current kernel
-#define BLOCKSIZE 64
 
 void CUDASemiLLGSolver::syncOutput()
 {
@@ -57,70 +35,84 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   }
 
 
-  output.write("Initialising CUDA Semi Implicit LLG solver (CPU)\n");
+  output.write("  * CUDA Semi-Implicit LLG solver (GPU)\n");
 
-  output.write("Initialising CUBLAS\n");
-
-  output.write("Allocating device memory...\n");
-  
   //-------------------------------------------------------------------
   //  Initialise curand
   //-------------------------------------------------------------------
 
-  if(nspins3%2 == 0) {
-    // wiener processes
-    CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
-  CUDA_CALL(cudaThreadSynchronize());
-  } else {
-    CUDA_CALL(cudaMalloc((void**)&w_dev,(nspins3+1)*sizeof(float)));
-  CUDA_CALL(cudaThreadSynchronize());
-  }
-
+  output.write("  * Initialising CURAND...\n");
   // curand generator
   CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
+
 
   // TODO: set random seed from config
   const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
-  CUDA_CALL(cudaThreadSynchronize());
+  CURAND_CALL(curandGenerateSeeds(gen));
   CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
   CUDA_CALL(cudaThreadSynchronize());
+
 
   //-------------------------------------------------------------------
   //  Allocate device memory
   //-------------------------------------------------------------------
 
+  output.write("  * Converting MAP to DIA\n");
+  J1ij_s.convertMAP2DIA();
+  J1ij_t.convertMAP2DIA();
+  J2ij_s.convertMAP2DIA();
+  J2ij_t.convertMAP2DIA();
+  output.write("  * J1ij scalar matrix memory (DIA): %f MB\n",J1ij_s.calculateMemory());
+  output.write("  * J1ij tensor matrix memory (DIA): %f MB\n",J1ij_t.calculateMemory());
+  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J2ij_s.calculateMemory());
+  output.write("  * J2ij tensor matrix memory (DIA): %f MB\n",J2ij_t.calculateMemory());
+  
+  output.write("  * Converting J4 MAP to CSR\n");
+  J4ijkl_s.convertMAP2CSR();
+  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J4ijkl_s.calculateMemory());
+
+
+  output.write("  * Allocating device memory...\n");
   // spin arrays
   CUDA_CALL(cudaMalloc((void**)&s_dev,nspins3*sizeof(double)));
-  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMalloc((void**)&sf_dev,nspins3*sizeof(float)));
-  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMalloc((void**)&s_new_dev,nspins3*sizeof(double)));
-  CUDA_CALL(cudaThreadSynchronize());
 
   // field arrays
   CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
-  CUDA_CALL(cudaThreadSynchronize());
+  CUDA_CALL(cudaMalloc((void**)&e_dev,nspins3*sizeof(float)));
+
+  if(nspins3%2 == 0) {
+    // wiener processes
+    CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
+  } else {
+    CUDA_CALL(cudaMalloc((void**)&w_dev,(nspins3+1)*sizeof(float)));
+  }
 
 
+  // bilinear scalar
+  allocate_transfer_dia(J1ij_s, J1ij_s_dev);
+  
+  // bilinear tensor
+  allocate_transfer_dia(J1ij_t, J1ij_t_dev);
+  
+  // biquadratic scalar
+  allocate_transfer_dia(J2ij_s, J2ij_s_dev);
+  
+  // bilinear tensor
+  allocate_transfer_dia(J2ij_t, J2ij_t_dev);
 
-  // jij matrix
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev_row,(Jij.rows()+1)*sizeof(int)));
-  CUDA_CALL(cudaThreadSynchronize());
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev_col,Jij.nonZero()*sizeof(int)));
-  CUDA_CALL(cudaThreadSynchronize());
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,Jij.nonZero()*sizeof(float)));
-  CUDA_CALL(cudaThreadSynchronize());
+  allocate_transfer_csr_4d(J4ijkl_s, J4ijkl_s_dev);
 
   // material properties
   CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins*4*sizeof(float)));
-  CUDA_CALL(cudaThreadSynchronize());
 
   //-------------------------------------------------------------------
   //  Copy data to device
   //-------------------------------------------------------------------
 
-  output.write("Copying data to device memory...\n");
+  output.write("  * Copying data to device memory...\n");
   // initial spins
   Array2D<float> sf(nspins,3);
   for(int i=0; i<nspins; ++i) {
@@ -129,22 +121,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
     }
   }
   CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaThreadSynchronize());
-
-  // jij matrix
-  CUDA_CALL(cudaMemcpy(Jij_dev_row,Jij.rowPtr(),
-        (size_t)((Jij.rows()+1)*(sizeof(int))),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaThreadSynchronize());
-
-  CUDA_CALL(cudaMemcpy(Jij_dev_col,Jij.colPtr(),
-        (size_t)((Jij.nonZero())*(sizeof(int))),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaThreadSynchronize());
-
-  CUDA_CALL(cudaMemcpy(Jij_dev_val,Jij.valPtr(),
-        (size_t)((Jij.nonZero())*(sizeof(float))),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaThreadSynchronize());
 
   Array2D<float> mat(nspins,4);
   // material properties
@@ -155,7 +132,8 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
     mat(i,3) = sigma(i);
   }
   CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaThreadSynchronize());
+
+  eng.resize(nspins,3);
 
 
   //-------------------------------------------------------------------
@@ -168,54 +146,23 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   }
   
   CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaThreadSynchronize());
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaThreadSynchronize());
-  
+  CUDA_CALL(cudaMemcpy(e_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
-  //-------------------------------------------------------------------
-  //  Initialise cusparse
-  //-------------------------------------------------------------------
-  cusparseStatus_t status;
-  status = cusparseCreate(&handle);
-  if (status != CUSPARSE_STATUS_SUCCESS) {
-    jams_error("CUSPARSE Library initialization failed");
-  }
-  CUDA_CALL(cudaThreadSynchronize());
-
-  // create matrix descriptor
-  status = cusparseCreateMatDescr(&descra);
-  if (status != CUSPARSE_STATUS_SUCCESS) {
-    jams_error("CUSPARSE Matrix descriptor initialization failed");
-  }
-  CUDA_CALL(cudaThreadSynchronize());
-
-  status = cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
-  if (status != CUSPARSE_STATUS_SUCCESS) {
-    jams_error("CUSPARSE Matrix descriptor set type failed");
-  }
-  CUDA_CALL(cudaThreadSynchronize());
-  status = cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ZERO);
-  if (status != CUSPARSE_STATUS_SUCCESS) {
-    jams_error("CUSPARSE Matrix descriptor set index base failed");
-  }
-  CUDA_CALL(cudaThreadSynchronize());
-  /*
-  status = cusparseSetMatFillMode(descra,CUSPARSE_FILL_MODE_UPPER);
-  if (status != CUSPARSE_STATUS_SUCCESS) {
-    jams_error("CUSPARSE Matrix descriptor set fill mode failed");
-  }
-  CUDA_CALL(cudaThreadSynchronize());
-  status = cusparseSetMatDiagType(descra,CUSPARSE_DIAG_TYPE_NON_UNIT);
-  if (status != CUSPARSE_STATUS_SUCCESS) {
-    jams_error("CUSPARSE Matrix descriptor set diag type failed");
-  }
-  CUDA_CALL(cudaThreadSynchronize());
-  */
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
 
+  J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+
+  J2ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J2ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  
+  J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE,(nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
+
   initialised = true;
+    
 }
+
 
 void CUDASemiLLGSolver::run()
 {
@@ -238,14 +185,44 @@ void CUDASemiLLGSolver::run()
   }
   CUDA_CALL(cudaThreadSynchronize());
   
-  // calculate interaction fields (and zero field array)
-  cusparseStatus_t stat =
-  cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
-      Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
-  if(stat != CUSPARSE_STATUS_SUCCESS){
-    jams_error("CUSPARSE FAILED\n");
-}
-  CUDA_CALL(cudaThreadSynchronize());
+    // calculate interaction fields (and zero field array)
+
+  float beta=0.0;
+  // bilinear scalar
+  if(J1ij_s.nonZero() > 0){
+    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+
+  // bilinear tensor
+  if(J1ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J1ij_t.diags(),J1ij_t_dev.pitch,1.0,beta,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  // biquadratic scalar
+  if(J2ij_s.nonZero() > 0){
+    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J2ij_s.diags(),J2ij_s_dev.pitch,2.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  // biquadratic tensor
+  if(J2ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  if(J4ijkl_s.nonZero() > 0){
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+    beta = 1.0;
+  }
+  
+  CUDA_CALL(cudaUnbindTexture(tex_x_float));
 
   // integrate
   cuda_semi_llg_kernelA<<<nblocks,BLOCKSIZE>>>
@@ -263,12 +240,46 @@ void CUDASemiLLGSolver::run()
     );
   CUDA_CALL(cudaThreadSynchronize());
 
-  // calculate interaction fields (and zero field array)
-  cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
-      Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
-  CUDA_CALL(cudaThreadSynchronize());
+   // calculate interaction fields (and zero field array)
+
+  CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
   
-  CUDA_CALL(cudaThreadSynchronize());
+  beta=0.0;
+  // bilinear scalar
+  if(J1ij_s.nonZero() > 0){
+    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+
+  // bilinear tensor
+  if(J1ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J1ij_t.diags(),J1ij_t_dev.pitch,beta,1.0,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  // biquadratic scalar
+  if(J2ij_s.nonZero() > 0){
+    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J2ij_s.diags(),J2ij_s_dev.pitch,2.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  // biquadratic tensor
+  if(J2ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  if(J4ijkl_s.nonZero() > 0){
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+    beta = 1.0;
+  }
+  
+  CUDA_CALL(cudaUnbindTexture(tex_x_float));
   cuda_semi_llg_kernelB<<<nblocks,BLOCKSIZE>>>
     (
       s_dev,
@@ -290,23 +301,31 @@ void CUDASemiLLGSolver::run()
 
 CUDASemiLLGSolver::~CUDASemiLLGSolver()
 {
-  CUDA_CALL(cudaThreadSynchronize());
-  curandDestroyGenerator(gen);
+      curandDestroyGenerator(gen);
+  
   cusparseStatus_t status;
 
   status = cusparseDestroyMatDescr(descra);
   if (status != CUSPARSE_STATUS_SUCCESS) {
     jams_error("CUSPARSE matrix destruction failed");
   }
+  CUDA_CALL(cudaThreadSynchronize());
 
   status = cusparseDestroy(handle);
   if (status != CUSPARSE_STATUS_SUCCESS) {
     jams_error("CUSPARSE Library destruction failed");
   }
+  CUDA_CALL(cudaThreadSynchronize());
 
   //-------------------------------------------------------------------
   //  Free device memory
   //-------------------------------------------------------------------
+
+  free_dia(J1ij_s_dev);
+  free_dia(J1ij_t_dev);
+  free_dia(J2ij_s_dev);
+  free_dia(J2ij_t_dev);
+  free_csr_4d(J4ijkl_s_dev);
 
   // spin arrays
   CUDA_CALL(cudaFree(s_dev));
@@ -315,16 +334,15 @@ CUDASemiLLGSolver::~CUDASemiLLGSolver()
 
   // field arrays
   CUDA_CALL(cudaFree(h_dev));
+  CUDA_CALL(cudaFree(e_dev));
 
   // wiener processes
   CUDA_CALL(cudaFree(w_dev));
 
-  // jij matrix
-  CUDA_CALL(cudaFree(Jij_dev_row));
-  CUDA_CALL(cudaFree(Jij_dev_col));
-  CUDA_CALL(cudaFree(Jij_dev_val));
 
   // material arrays
   CUDA_CALL(cudaFree(mat_dev));
+
 }
+
 

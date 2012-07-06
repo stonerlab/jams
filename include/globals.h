@@ -1,18 +1,8 @@
 #ifndef __GLOBALS_H__
 #define __GLOBALS_H__
 
-#ifdef __GNUC__
-#define RESTRICT __restrict__
-#else
-#define RESTRICT
-#endif
 
-#ifndef FORCE_CUDA_DIA
-#define FORCE_CUDA_DIA
-#endif
-
-void jams_error(const char *string, ...);
-
+#include "error.h"
 #include "output.h"
 #include "rand.h"
 #include "lattice.h"

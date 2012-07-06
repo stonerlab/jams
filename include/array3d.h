@@ -1,7 +1,11 @@
 #ifndef __ARRAY3D_H__
 #define __ARRAY3D_H__
 
-#include "globals.h"
+#ifdef __GNUC__
+#define RESTRICT __restrict__
+#else
+#define RESTRICT
+#endif
 
 #include <vector>
 #include <cassert>

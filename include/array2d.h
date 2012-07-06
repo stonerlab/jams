@@ -1,12 +1,15 @@
 #ifndef __ARRAY2D_H__
 #define __ARRAY2D_H__
 
+#ifdef __GNUC__
+#define RESTRICT __restrict__
+#else
+#define RESTRICT
+#endif
+
 #include <vector>
 #include <cassert>
 #include <cstddef>
-
-#include "consts.h"
-
 
 // C ordered array
 template <typename _Tp>
