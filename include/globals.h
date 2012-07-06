@@ -38,6 +38,7 @@ GLOBAL std::string seedname;
 #include "array.h"
 #include "array2d.h"
 #include "sparsematrix.h"
+#include "sparsematrix4d.h"
 
 namespace globals
 {
@@ -51,9 +52,17 @@ namespace globals
   GLOBAL Array2D<double> h;
   GLOBAL Array2D<double> w;
 #ifdef CUDA
-  GLOBAL SparseMatrix<float> Jij;
+  GLOBAL SparseMatrix<float> J1ij_s;  // bilinear scalar interactions
+  GLOBAL SparseMatrix<float> J1ij_t;  // bilinear tensor interactions
+  GLOBAL SparseMatrix<float> J2ij_s;  // biquadratic scalar interactions
+  GLOBAL SparseMatrix<float> J2ij_t;  // biquadratic tensor interactions
+  GLOBAL SparseMatrix4D<float> J4ijkl_s;  // fourspin scalar interactions
 #else
-  GLOBAL SparseMatrix<double> Jij;
+  GLOBAL SparseMatrix<double> J1ij_s;  // bilinear scalar interactions
+  GLOBAL SparseMatrix<double> J1ij_t;  // bilinear tensor interactions
+  GLOBAL SparseMatrix<double> J2ij_s;  // biquadratic scalar interactions
+  GLOBAL SparseMatrix<double> J2ij_t;  // biquadratic tensor interactions
+  GLOBAL SparseMatrix4D<double> J4ijkl_s;  // fourspin scalar interactions
 #endif
 
   GLOBAL Array<double> alpha;

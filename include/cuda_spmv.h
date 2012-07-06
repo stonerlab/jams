@@ -9,6 +9,8 @@ __global__ void spmv_dia_kernel
  const int ncols,
  const int ndiag,
  const int pitch,
+ const float alpha,
+ const float beta,
  const int * dia_offsets,
  const float * dia_values,
  const float * x,
@@ -43,46 +45,63 @@ __global__ void spmv_dia_kernel
   const int thread_id = DIA_BLOCK_SIZE * blockIdx.x + threadIdx.x;
   const int grid_size = DIA_BLOCK_SIZE * gridDim.x;
 
-  for(int base = 0; base < ndiag; base += DIA_BLOCK_SIZE)
-  {
-      // read a chunk of the diagonal offsets into shared memory
-      const int chunk_size = thrust::min(int(DIA_BLOCK_SIZE), ndiag - base);
-
-      if(threadIdx.x < chunk_size) {
-          offsets[threadIdx.x] = dia_offsets[base + threadIdx.x];
+  if(ndiag == 0){
+      for(int row = thread_id; row < nrows; row += grid_size){
+        y[row] = 0.0;
       }
-  
-      __syncthreads();
- 
-      // process chunk
-      for(int row = thread_id; row < nrows; row += grid_size)
-      {
-          float sum = (base == 0) ? float(0) : y[row];
-  
-          // index into values array
-          int idxUp  = row + pitch * base;
-  
-          for(int n = 0; n < chunk_size; n++)
-          {
-              const int colUp  = row + offsets[n];
-              const int colLow = row - offsets[n];
+  } else {
+    for(int base = 0; base < ndiag; base += DIA_BLOCK_SIZE)
+    {
+        // read a chunk of the diagonal offsets into shared memory
+        const int chunk_size = thrust::min(int(DIA_BLOCK_SIZE), ndiag - base);
 
-              if(colLow >= row && colLow < ncols) {
-                const float A_ij = dia_values[pitch*(base+n)+colLow];
-                sum += A_ij * tex1Dfetch(tex_x_float,colLow);
+        if(threadIdx.x < chunk_size) {
+            offsets[threadIdx.x] = dia_offsets[base + threadIdx.x];
+        }
+    
+        __syncthreads();
+   
+        // process chunk
+        for(int row = thread_id; row < nrows; row += grid_size)
+        {
+            float sum;
+            if(base == 0){
+              // NOTE: floating point comparison avoids reading h_dev[] for
+              // special case
+              if(beta == 0.0){
+                sum=0.0;
+              }else{
+                sum = beta*y[row];
               }
-              if(colUp >= 0 && colUp < row) {
-                const float A_ij = dia_values[idxUp];
-                sum += A_ij * tex1Dfetch(tex_x_float,colUp);
-              }
+            } else {
+              sum = y[row];
+            }
+    
+            // index into values array
+            int idxUp  = row + pitch * base;
+    
+            for(int n = 0; n < chunk_size; n++)
+            {
+                const int colUp  = row + offsets[n];
+                const int colLow = row - offsets[n];
 
-              idxUp += pitch;
-          }
-  
-          y[row] = sum;
-      }
+                if(colLow >= row && colLow < ncols) {
+                  const float A_ij = alpha*dia_values[pitch*(base+n)+colLow];
+                  sum += A_ij * tex1Dfetch(tex_x_float,colLow);
+                }
+                if(colUp >= 0 && colUp < row) {
+                  const float A_ij = alpha*dia_values[idxUp];
+                  sum += A_ij * tex1Dfetch(tex_x_float,colUp);
+                }
 
-      // wait until all threads are done reading offsets 
-      __syncthreads();
+                idxUp += pitch;
+            }
+    
+            y[row] = sum;
+        }
+
+        // wait until all threads are done reading offsets 
+        __syncthreads();
+    }
   }
 }

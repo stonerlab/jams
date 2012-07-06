@@ -1,5 +1,7 @@
 #include "cuda_spmv.h"
 #include "cuda_heunllg_kernel.h"
+#include "cuda_biquadratic.h"
+#include "cuda_fourspin.h"
 #include "globals.h"
 #include "consts.h"
 
@@ -34,6 +36,42 @@
 #if defined(__CUDACC__) && defined(CUDA_NO_SM_13_DOUBLE_INTRINSICS)
     #error "-arch sm_13 nvcc flag is required to compile"
 #endif
+
+void allocate_transfer_dia(SparseMatrix<float> &Jij, devDIA &Jij_dev)
+{
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.row,(Jij.diags())*sizeof(int)));
+  CUDA_CALL(cudaMallocPitch((void**)&Jij_dev.val,&Jij_dev.pitch,(Jij.rows())*sizeof(float),Jij.diags()));
+  
+  CUDA_CALL(cudaMemcpy(Jij_dev.row,Jij.dia_offPtr(),(size_t)((Jij.diags())*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy2D(Jij_dev.val,Jij_dev.pitch,Jij.valPtr(),Jij.rows()*sizeof(float),Jij.rows()*sizeof(float),Jij.diags(),cudaMemcpyHostToDevice));
+  Jij_dev.pitch = Jij_dev.pitch/sizeof(float);
+}
+
+void free_dia(devDIA &Jij_dev)
+{
+  CUDA_CALL(cudaFree(Jij_dev.row));
+  CUDA_CALL(cudaFree(Jij_dev.col));
+  CUDA_CALL(cudaFree(Jij_dev.val));
+}
+
+void allocate_transfer_csr_4d(SparseMatrix4D<float> &Jij, devCSR &
+    Jij_dev)
+{
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.pointers,(Jij.size(0)+1)*sizeof(int)));
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.coords,(3*Jij.nonZero())*sizeof(int)));
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.val,(Jij.nonZero())*sizeof(float)));
+
+  CUDA_CALL(cudaMemcpy(Jij_dev.pointers,Jij.pointersPtr(),(size_t)((Jij.size(0)+1)*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev.coords,Jij.cooPtr(),(size_t)((3*Jij.nonZero())*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev.val,Jij.valPtr(),(size_t)((Jij.nonZero())*(sizeof(float))),cudaMemcpyHostToDevice));
+}
+
+void free_csr_4d(devCSR &Jij_dev)
+{
+  CUDA_CALL(cudaFree(Jij_dev.pointers));
+  CUDA_CALL(cudaFree(Jij_dev.coords));
+  CUDA_CALL(cudaFree(Jij_dev.val));
+}
 
 void CUDAHeunLLGSolver::syncOutput()
 {
@@ -71,15 +109,6 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
 
   output.write("  * CUDA Heun LLG solver (GPU)\n");
-#ifdef FORCE_CUDA_DIA
-  output.write("  * Converting MAP to DIA\n");
-  Jij.convertMAP2DIA();
-  output.write("  * Jij matrix memory (DIA): %f MB\n",Jij.calculateMemory());
-#else
-  output.write("  * Converting MAP to CSR\n");
-  Jij.convertMAP2CSR();
-  output.write("  * Jij matrix memory (CSR): %f MB\n",Jij.calculateMemory());
-#endif
 
   //-------------------------------------------------------------------
   //  Initialise curand
@@ -102,6 +131,25 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   //  Allocate device memory
   //-------------------------------------------------------------------
 
+#ifdef FORCE_CUDA_DIA
+  output.write("  * Converting MAP to DIA\n");
+  J1ij_s.convertMAP2DIA();
+  J1ij_t.convertMAP2DIA();
+  J2ij_s.convertMAP2DIA();
+  J2ij_t.convertMAP2DIA();
+  output.write("  * J1ij scalar matrix memory (DIA): %f MB\n",J1ij_s.calculateMemory());
+  output.write("  * J1ij tensor matrix memory (DIA): %f MB\n",J1ij_t.calculateMemory());
+  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J2ij_s.calculateMemory());
+  output.write("  * J2ij tensor matrix memory (DIA): %f MB\n",J2ij_t.calculateMemory());
+#else
+#error "CUDA CSR is not supported in this build"
+#endif
+  
+  output.write("  * Converting J4 MAP to CSR\n");
+  J4ijkl_s.convertMAP2CSR();
+  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J4ijkl_s.calculateMemory());
+
+
   output.write("  * Allocating device memory...\n");
   // spin arrays
   CUDA_CALL(cudaMalloc((void**)&s_dev,nspins3*sizeof(double)));
@@ -110,6 +158,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   // field arrays
   CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
+  CUDA_CALL(cudaMalloc((void**)&e_dev,nspins3*sizeof(float)));
 
   if(nspins3%2 == 0) {
     // wiener processes
@@ -120,15 +169,22 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
 
 #ifdef FORCE_CUDA_DIA
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev_row,(Jij.diags())*sizeof(int)));
-//  CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,(Jij.rows()*Jij.diags())*sizeof(float)));
-  CUDA_CALL(cudaMallocPitch((void**)&Jij_dev_val,&diaPitch,(Jij.rows())*sizeof(float),Jij.diags()));
+  // bilinear scalar
+  allocate_transfer_dia(J1ij_s, J1ij_s_dev);
+  
+  // bilinear tensor
+  allocate_transfer_dia(J1ij_t, J1ij_t_dev);
+  
+  // biquadratic scalar
+  allocate_transfer_dia(J2ij_s, J2ij_s_dev);
+  
+  // bilinear tensor
+  allocate_transfer_dia(J2ij_t, J2ij_t_dev);
 #else
-  // jij matrix
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev_row,(Jij.rows()+1)*sizeof(int)));
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev_col,Jij.nonZero()*sizeof(int)));
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev_val,Jij.nonZero()*sizeof(float)));
+#error "CUDA CSR is not supported in this build"
 #endif
+
+  allocate_transfer_csr_4d(J4ijkl_s, J4ijkl_s_dev);
 
   // material properties
   CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins*4*sizeof(float)));
@@ -148,27 +204,6 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
-#ifdef FORCE_CUDA_DIA
-  CUDA_CALL(cudaMemcpy(Jij_dev_row,Jij.dia_offPtr(),
-        (size_t)((Jij.diags())*(sizeof(int))),cudaMemcpyHostToDevice));
-//  CUDA_CALL(cudaMemcpy(Jij_dev_val,Jij.valPtr(),
-//        (size_t)((Jij.diags()*Jij.rows())*(sizeof(float))),cudaMemcpyHostToDevice));
-//  diaPitch = Jij.rows();
-   CUDA_CALL(cudaMemcpy2D(Jij_dev_val,diaPitch,Jij.valPtr(),Jij.rows()*sizeof(float),Jij.rows()*sizeof(float),Jij.diags(),cudaMemcpyHostToDevice));
-   diaPitch = diaPitch/sizeof(float);
-
-#else
-  // jij matrix
-  CUDA_CALL(cudaMemcpy(Jij_dev_row,Jij.rowPtr(),
-        (size_t)((Jij.rows()+1)*(sizeof(int))),cudaMemcpyHostToDevice));
-
-  CUDA_CALL(cudaMemcpy(Jij_dev_col,Jij.colPtr(),
-        (size_t)((Jij.nonZero())*(sizeof(int))),cudaMemcpyHostToDevice));
-
-  CUDA_CALL(cudaMemcpy(Jij_dev_val,Jij.valPtr(),
-        (size_t)((Jij.nonZero())*(sizeof(float))),cudaMemcpyHostToDevice));
-#endif
-
   Array2D<float> mat(nspins,4);
   // material properties
   for(int i=0; i<nspins; ++i){
@@ -178,6 +213,8 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
     mat(i,3) = sigma(i);
   }
   CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
+
+  eng.resize(nspins,3);
 
 
   //-------------------------------------------------------------------
@@ -191,6 +228,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   
   CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(e_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
   //-------------------------------------------------------------------
   //  Initialise cusparse
@@ -215,7 +253,13 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
 
-  spmvblocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+
+  J2ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J2ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  
+  J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE,(nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
 
   initialised = true;
 }
@@ -237,22 +281,47 @@ void CUDAHeunLLGSolver::run()
   
   // calculate interaction fields (and zero field array)
 #ifdef FORCE_CUDA_DIA
-  size_t offset = size_t(-1);
-  CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
-//  if(offset !=0){
-//    jams_error("Failed to bind texture");
-//  }
-  spmv_dia_kernel<<< spmvblocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-    Jij.diags(),diaPitch,Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
-  CUDA_CALL(cudaUnbindTexture(tex_x_float));
+
+  CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
   
-#else
-  cusparseStatus_t stat =
-  cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
-      Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
-  if(stat != CUSPARSE_STATUS_SUCCESS){
-    jams_error("CUSPARSE FAILED\n");
+  float beta=0;
+  // bilinear scalar
+  if(J1ij_s.nonZero() > 0){
+    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
   }
+
+  // bilinear tensor
+  if(J1ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J1ij_t.diags(),J1ij_t_dev.pitch,beta,1.0,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  // biquadratic scalar
+  if(J2ij_s.nonZero() > 0){
+    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J2ij_s.diags(),J2ij_s_dev.pitch,2.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  // biquadratic tensor
+  if(J2ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  if(J4ijkl_s.nonZero() > 0){
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+    beta = 1.0;
+  }
+  
+  CUDA_CALL(cudaUnbindTexture(tex_x_float));
+#else
+#error "CUDA CSR is not supported in this build"
 #endif
   // integrate
   cuda_heun_llg_kernelA<<<nblocks,BLOCKSIZE>>>
@@ -272,16 +341,46 @@ void CUDAHeunLLGSolver::run()
 
   // calculate interaction fields (and zero field array)
 #ifdef FORCE_CUDA_DIA
-  CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
-//  if(offset !=0){
-//    jams_error("Failed to bind texture");
-//  }
-  spmv_dia_kernel<<< spmvblocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-    Jij.diags(),diaPitch,Jij_dev_row,Jij_dev_val,sf_dev,h_dev);
+  CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
+
+  beta=0.0;
+  // bilinear scalar
+  if(J1ij_s.nonZero() > 0){
+    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+
+  // bilinear tensor
+  if(J1ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J1ij_t.diags(),J1ij_t_dev.pitch,1.0,beta,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  // biquadratic scalar
+  if(J2ij_s.nonZero() > 0){
+    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J2ij_s.diags(),J2ij_s_dev.pitch,2.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  // biquadratic tensor
+  if(J2ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+    beta = 1.0;
+  }
+  
+  if(J4ijkl_s.nonZero() > 0){
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+    beta = 1.0;
+  }
+  
   CUDA_CALL(cudaUnbindTexture(tex_x_float));
 #else
-  cusparseScsrmv(handle,CUSPARSE_OPERATION_NON_TRANSPOSE,nspins3,nspins3,1.0,descra,
-      Jij_dev_val,Jij_dev_row,Jij_dev_col,sf_dev,0.0,h_dev);
+#error "CUDA CSR is not supported in this build"
 #endif
   
   cuda_heun_llg_kernelB<<<nblocks,BLOCKSIZE>>>
@@ -299,6 +398,68 @@ void CUDAHeunLLGSolver::run()
       dt
     );
   iteration++;
+}
+
+void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t){
+  using namespace globals;
+  const float beta=0.0;
+
+  e1_s = 0.0; e1_t = 0.0; e2_s = 0.0; e2_t = 0.0;
+  
+  size_t offset = size_t(-1);
+  CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
+
+  // bilinear scalar
+  if(J1ij_s.nonZero() > 0){
+    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,e_dev);
+    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+    for(int i=0; i<nspins; ++i){
+      e1_s = e1_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
+    }
+    e1_s = e1_s/nspins;
+  }
+
+
+  // bilinear tensor
+  if(J1ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J1ij_t.diags(),J1ij_t_dev.pitch,1.0,beta,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,e_dev);
+    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+    for(int i=0; i<nspins; ++i){
+      e1_t = e1_t + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
+    }
+    e1_t = e1_t/nspins;
+  }
+
+  
+  // biquadratic scalar
+  if(J2ij_s.nonZero() > 0){
+    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
+      J2ij_s.diags(),J2ij_s_dev.pitch,1.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,e_dev);
+    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+    for(int i=0; i<nspins; ++i){
+      e2_s = e2_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
+    }
+    
+    e2_s = e2_s/nspins;
+  }
+
+  // biquadratic tensor
+  if(J2ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
+      J2ij_t.diags(),J2ij_t_dev.pitch,1.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,e_dev);
+    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+
+    for(int i=0; i<nspins; ++i){
+      e2_t = e2_t + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
+    }
+    
+    e2_t = e2_t/nspins;
+  }
+  
+  
+  CUDA_CALL(cudaUnbindTexture(tex_x_float));
 }
 
 CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
@@ -323,6 +484,12 @@ CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
   //  Free device memory
   //-------------------------------------------------------------------
 
+  free_dia(J1ij_s_dev);
+  free_dia(J1ij_t_dev);
+  free_dia(J2ij_s_dev);
+  free_dia(J2ij_t_dev);
+  free_csr_4d(J4ijkl_s_dev);
+
   // spin arrays
   CUDA_CALL(cudaFree(s_dev));
   CUDA_CALL(cudaFree(sf_dev));
@@ -330,14 +497,11 @@ CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
 
   // field arrays
   CUDA_CALL(cudaFree(h_dev));
+  CUDA_CALL(cudaFree(e_dev));
 
   // wiener processes
   CUDA_CALL(cudaFree(w_dev));
 
-  // jij matrix
-  CUDA_CALL(cudaFree(Jij_dev_row));
-  CUDA_CALL(cudaFree(Jij_dev_col));
-  CUDA_CALL(cudaFree(Jij_dev_val));
 
   // material arrays
   CUDA_CALL(cudaFree(mat_dev));
