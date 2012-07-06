@@ -5,6 +5,7 @@
 #include "spinwaves.h"
 #include "square.h"
 #include "dynamicsf.h"
+#include "fieldcool.h"
 #include "empty.h"
 
 #include <libconfig.h++>
@@ -41,6 +42,9 @@ Physics* Physics::Create(PhysicsType type)
       break;
     case DYNAMICSF:
       return new DynamicSFPhysics;
+      break;
+    case FIELDCOOL:
+      return new FieldCoolPhysics;
       break;
     case EMPTY:
       return new EmptyPhysics;

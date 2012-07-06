@@ -14,7 +14,7 @@ objects: $(OBJS) $(HEADERS)
 endif
 
 clean:
-	rm -f $(OBJS) $(CUDAOBJS)
+	rm -f *.o
 
 $(OBJS) : $(HEADERS) $(TOPDIR)/Makefile.in Makefile
 

@@ -1,10 +1,6 @@
 #include "solver.h"
 #include "heunllg.h"
-#include "heunllms.h"
-#include "semillg.h"
-#include "cuda_semillg.h"
 #include "cuda_heunllg.h"
-#include "fftnoise.h"
 #include "globals.h"
 #include "consts.h"
 
@@ -46,23 +42,11 @@ Solver* Solver::Create(SolverType type)
     case HEUNLLG:
       return new HeunLLGSolver;
       break;
-    case HEUNLLMS:
-      return new HeunLLMSSolver;
-      break;
-    case SEMILLG:
-      return new SemiLLGSolver;
-      break;
 #ifdef CUDA
-    case CUDASEMILLG:
-      return new CUDASemiLLGSolver;
-      break;
     case CUDAHEUNLLG:
       return new CUDAHeunLLGSolver;
       break;
 #endif
-    case FFTNOISE:
-      return new FFTNoise;
-      break;
     default:
       jams_error("Unknown solver selected.");
   }

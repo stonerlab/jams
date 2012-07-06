@@ -293,7 +293,7 @@ void printLattice(const Array<int> &unitCellTypes, const Array2D<double> &unitCe
                 r[i] += unitcell[j][i]*(q[j]+p[i]);
               }
             }
-            structfile << 5*r[0] <<"\t"<< 5*r[1] <<"\t"<< 5*r[2] <<"\n";
+            structfile << r[0] <<"\t"<< r[1] <<"\t"<< r[2] <<"\n";
           }
         } // n
       } // z
@@ -370,14 +370,137 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
 }
 
 ///
+/// @brief  Read the fourspin interaction parameters from configuration file.
+///
+void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<double> &J4Vectors, 
+  Array3D<int> &J4Neighbour, Array2D<double> &J4Values, std::vector<int> &nJ4InteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3], int &nJ4Values) {
+  using namespace globals;
+
+  output.write("\nReading fourspin interaction file...\n");
+
+  double Jval;
+  int nInterTotal=0;
+  int nInterConfig = 0;
+  double r[3],p[3];
+  std::vector<int> atomInterCount(nspins,0);
+
+  std::ifstream exchangeFile(J4FileName.c_str());
+
+  // count number of interactions
+  if( exchangeFile.is_open() ) {
+    int atom1=0;
+    for( std::string line; getline(exchangeFile,line); ) {
+      std::stringstream is(line);
+
+      is >> atom1;
+
+      // count number of interaction for each atom in unit cell
+      atomInterCount[atom1-1]++;
+
+      nInterTotal++;
+      nInterConfig++;
+    }
+  }
+
+
+  // find maximum number of exchanges for a given atom in unit cell
+  int interMax = 0;
+  for(int i=0; i<nspins; ++i) {
+    if(atomInterCount[i] > interMax) {
+      interMax = atomInterCount[i];
+    }
+  }
+
+  output.write("  * Fourspin interactions in file: %d\n",nInterConfig);
+
+  // Resize interaction arrays
+  J4Vectors.resize(nAtoms,interMax,3,3);
+  J4Neighbour.resize(nAtoms,interMax,3);
+  nJ4InteractionsOfType.resize(nAtoms,0);
+
+  //-----------------------------------------------------------------
+  //  Read exchange tensor values from config
+  //-----------------------------------------------------------------
+  J4Values.resize(nAtoms,interMax);
+
+  // zero jij array
+  for(int i=0; i<nAtoms; ++i) {
+    for(int j=0; j<interMax; ++j) {
+      J4Values(i,j) = 0.0;
+    }
+  }
+
+  // rewind file
+  exchangeFile.clear();
+  exchangeFile.seekg(0,std::ios::beg);
+
+  int inter_counter = 0;
+  for(int n=0; n<nInterConfig; ++n) {
+    std::string line;
+    
+    getline(exchangeFile,line);
+    std::stringstream is(line);
+
+    // read exchange tensor
+
+    double vij[3];
+
+    int atom_num[4];
+
+    for(int j=0;j<4;++j){
+      is >> atom_num[j];
+    }
+
+    // count from zero
+    for(int j=0;j<4;++j){
+      atom_num[j]--;
+    }
+
+    // --------------- vij ----------------
+    for(int j=1;j<4;++j){
+      for(int i=0; i<3; ++i) {
+        p[i] = unitCellPositions(atom_num[j],i);   // fractional vector within unit cell 
+        is >> r[i];                               // real space vector to neighbour
+      }
+      matmul(unitcellInv,r,vij);                  // place interaction vector in unitcell space
+      
+      for(int i=0; i<3; ++i) {
+        J4Neighbour(atom_num[0],nJ4InteractionsOfType[atom_num[0]],j-1) = atom_num[j] - atom_num[0]; // store unitcell atom difference
+        
+        J4Vectors(atom_num[0],nJ4InteractionsOfType[atom_num[0]],j-1,i) = vij[i];
+      }
+    }
+    
+    is >> Jval; // bilinear
+    for(int i=0; i<3; ++i){
+      J4Values(atom_num[0],nJ4InteractionsOfType[atom_num[0]]) = Jval/mu_bohr_si; // Jxx Jyy Jzz
+    }
+      
+    inter_counter++;
+    nJ4InteractionsOfType[atom_num[0]]++;
+  }
+  
+
+
+}
+///
 /// @brief  Read the interaction parameters from configuration file.
 ///
 void readInteractions(std::string &exchangeFileName, libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array3D<double> &interactionVectors, 
-  Array2D<int> &interactionNeighbour, Array4D<double> &interactionValues, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3]) {
+  Array2D<int> &interactionNeighbour, Array4D<double> &JValues, Array2D<double> &J2Values, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3], bool &J2Toggle, int &nJValues) {
   using namespace globals;
   
   output.write("\nReading interaction file...\n");
-    
+  
+  if( !config.lookupValue("lattice.biquadratic",J2Toggle) ) {
+    J2Toggle = false;
+  }else if (!J2Toggle){
+    output.write("  * Biquadratic exchange ON\n");
+    output.write("\n************************************************************************\n");
+    output.write("Biquadratic values will be read from the last column of the exchange file\n");
+    output.write("************************************************************************\n\n");
+  }
+
   int nInterTotal=0;
 
   // THIS NEEDS TO BE PASSED IN
@@ -459,7 +582,7 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   exchangeFile.clear();
   exchangeFile.seekg(0,std::ios::beg);
 
-  int nInteractions=0;
+  nJValues=0;
   if(nInterTotal > 0) {
     std::string line;
     int atom1=0;
@@ -477,16 +600,21 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
 
     double tmp;
     while ( is >> tmp ) {
-      nInteractions++;
+      nJValues++;
     }
   } else {
-    nInteractions = 0;
+    nJValues = 0;
   }
 
-  switch (nInteractions) {
+  // remove extra count for last column if biquadratic is present
+  if(J2Toggle == true){
+    nJValues--;
+  }
+
+  switch (nJValues) {
     case 0:
       output.write("\n************************************************************************\n");
-      output.write("WARNING: No exchange found\n");
+      output.write("WARNING: No bilinear exchange found\n");
       output.write("************************************************************************\n\n");
       break;
     case 1:
@@ -510,8 +638,20 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   interactionNeighbour.resize(nAtoms,interMax);
   nInteractionsOfType.resize(nAtoms,0);
 
-  // Resize global Jij matrix
-  Jij.resize(nspins3,nspins3);
+  // Resize global J1ij_t and J2ij_t matrices
+  J1ij_s.resize(nspins,nspins);
+  J1ij_t.resize(nspins3,nspins3);
+  J2ij_t.resize(nspins3,nspins3);
+
+
+  if( J2Toggle == true ){
+    // Resize biquadratic matrix
+    // NOTE: this matrix is NxN because we use a custom routine so the
+    // matrix is just a convenient neighbour list.
+    J2ij_s.resize(nspins,nspins);
+    J2ij_s.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J2ij_s.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+  }
 
   // Set matrix types
   std::string solname;
@@ -522,28 +662,36 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
     solname = "DEFAULT";
   }
   if( ( solname == "CUDAHEUNLLG" ) || ( solname == "CUDASEMILLG" ) ) {
-    output.write("  * CUDA solver means a general sparse matrix will be stored\n");
-//    Jij.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
-    Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    Jij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    output.write("  * CUDA solver means a symmetric (lower) sparse matrix will be stored\n");
+    J1ij_s.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J1ij_s.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    J2ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J2ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   } else {
-    output.write("  * Symmetric lower sparse matrix will be stored\n");
-    Jij.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    Jij.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    output.write("  * Symmetric (lower) sparse matrix will be stored\n");
+    J1ij_s.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J1ij_s.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+    J2ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+    J2ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
   }
-  
 
   //-----------------------------------------------------------------
   //  Read exchange tensor values from config
   //-----------------------------------------------------------------
-  interactionValues.resize(nAtoms,interMax,3,3);
+  JValues.resize(nAtoms,interMax,3,3);
+  J2Values.resize(nAtoms,interMax);
 
   // zero jij array
   for(int i=0; i<nAtoms; ++i) {
     for(int j=0; j<interMax; ++j) {
+      J2Values(i,j) = 0.0;
       for(int k=0; k<3; ++k) {
         for(int l=0; l<3; ++l) {
-          interactionValues(i,j,k,l) = 0.0;
+          JValues(i,j,k,l) = 0.0;
         }
       }
     }
@@ -601,44 +749,51 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   
 
         // read tensor components
-        double J0=0.0,J1=0.0,J2=0.0;
-        switch (nInteractions) {
+        double Jval = 0.0;
+        switch (nJValues) {
           case 0:
-            output.write("\n************************************************************************\n");
-            output.write("WARNING: Attempting to insert non existent exchange");
-            output.write("************************************************************************\n\n");
+            if(J2Toggle == false){
+              output.write("\n************************************************************************\n");
+              output.write("WARNING: Attempting to insert non existent exchange");
+              output.write("************************************************************************\n\n");
+            }
             break;
           case 1:
-            is >> J0;
-            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
-            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
-            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J0/mu_bohr_si; // Jzz
+            is >> Jval; // bilinear
+            for(int i=0; i<3; ++i){
+              JValues(atom_num_1,nInteractionsOfType[atom_num_1],i,i) = Jval/mu_bohr_si; // Jxx Jyy Jzz
+            }
             break;
           case 2:
-            is >> J0;
-            is >> J1;
-            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
-            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
-            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J1/mu_bohr_si; // Jzz
+            is >> Jval;
+            for(int i=0; i<2; ++i){
+              JValues(atom_num_1,nInteractionsOfType[atom_num_1],i,i) = Jval/mu_bohr_si; // Jxx Jyy
+            }
+            is >> Jval;
+            JValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = Jval/mu_bohr_si; // Jzz
             break;
           case 3:
-            is >> J0;
-            is >> J1;
-            is >> J2;
-            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
-            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J1/mu_bohr_si; // Jyy
-            interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J2/mu_bohr_si; // Jzz
+            for(int i=0; i<3; ++i){
+              is >> Jval;
+              JValues(atom_num_1,nInteractionsOfType[atom_num_1],i,i) = Jval/mu_bohr_si; // Jxx Jyy Jzz
+            }
             break;
           case 9:
             for(int i=0; i<3; ++i) {
               for(int j=0; j<3; ++j) {
-                is >> J0;
-                interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],i,j) = J0/mu_bohr_si;
+                is >> Jval;
+                JValues(atom_num_1,nInteractionsOfType[atom_num_1],i,j) = Jval/mu_bohr_si;
               }
             }
             break;
           default:
             jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
+        }
+
+        // extra column at the end if biquadratic is on
+        if(J2Toggle == true){
+          is >> Jval;
+          J2Values(atom_num_1,nInteractionsOfType[atom_num_1]) = Jval/mu_bohr_si;
         }
 
         nInteractionsOfType[atom_num_1]++;
@@ -657,47 +812,52 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
       }
       //std::cerr<<n<<"\t"<<atom_num_1<<"\t"<<atom_num_2<<"\t d_latt: "<<d_latt[0]<<"\t"<<d_latt[1]<<"\t"<<d_latt[2]<<std::endl;
 
-        
       // read tensor components
-      double J0=0.0,J1=0.0,J2=0.0;
-
-      switch (nInteractions) {
+      double Jval = 0.0;
+      switch (nJValues) {
         case 0:
-          output.write("\n************************************************************************\n");
-          output.write("WARNING: Attempting to insert non existent exchange");
-          output.write("************************************************************************\n\n");
+          if(J2Toggle == false){
+            output.write("\n************************************************************************\n");
+            output.write("WARNING: Attempting to insert non existent exchange");
+            output.write("************************************************************************\n\n");
+          }
           break;
         case 1:
-          is >> J0;
-          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
-          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
-          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J0/mu_bohr_si; // Jzz
+          is >> Jval; // bilinear
+          for(int i=0; i<3; ++i){
+            JValues(atom_num_1,nInteractionsOfType[atom_num_1],i,i) = Jval/mu_bohr_si; // Jxx Jyy Jzz
+          }
           break;
         case 2:
-          is >> J0;
-          is >> J1;
-          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
-          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J0/mu_bohr_si; // Jyy
-          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J1/mu_bohr_si; // Jzz
+          is >> Jval;
+          for(int i=0; i<2; ++i){
+            JValues(atom_num_1,nInteractionsOfType[atom_num_1],i,i) = Jval/mu_bohr_si; // Jxx Jyy
+          }
+          is >> Jval;
+          JValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = Jval/mu_bohr_si; // Jzz
           break;
         case 3:
-          is >> J0;
-          is >> J1;
-          is >> J2;
-          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],0,0) = J0/mu_bohr_si; // Jxx
-          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],1,1) = J1/mu_bohr_si; // Jyy
-          interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],2,2) = J2/mu_bohr_si; // Jzz
+          for(int i=0; i<3; ++i){
+            is >> Jval;
+            JValues(atom_num_1,nInteractionsOfType[atom_num_1],i,i) = Jval/mu_bohr_si; // Jxx Jyy Jzz
+          }
           break;
         case 9:
           for(int i=0; i<3; ++i) {
             for(int j=0; j<3; ++j) {
-              is >> J0;
-              interactionValues(atom_num_1,nInteractionsOfType[atom_num_1],i,j) = J0/mu_bohr_si;
+              is >> Jval;
+              JValues(atom_num_1,nInteractionsOfType[atom_num_1],i,j) = Jval/mu_bohr_si;
             }
           }
           break;
         default:
           jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
+      }
+        
+      // extra column at the end if biquadratic is on
+      if(J2Toggle == true){
+        is >> Jval;
+        J2Values(atom_num_1,nInteractionsOfType[atom_num_1]) = Jval/mu_bohr_si;
       }
         
       inter_counter++;
@@ -707,13 +867,111 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
   }
 }
 
+
+
+///
+/// @brief  Create J4 interaction matrix.
+///
+void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, Array4D<int> &latt, 
+  const std::vector<int> dim, const int nAtoms, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, const std::vector<int> &atom_type, const Array4D<double> &J4Vectors,
+  const Array3D<int> &J4Neighbour, const Array2D<double> &J4Values, const std::vector<int> &nJ4InteractionsOfType, 
+  const double unitcellInv[3][3], const bool pbc[3], const int &nJ4Values) 
+{
+  
+  using namespace globals;
+  output.write("\nCalculating fourspin interaction matrix...\n");
+              
+  const double encut = 1E-26/mu_bohr_si; // energy cutoff
+
+  int qi[3], qj[3];
+  double pi[3], pj[3];
+  int vij[3];
+  int sj[3];
+
+  J4ijkl_s.resize(nspins,nspins,nspins,nspins);
+  
+  int counter = 0;
+  for (int x=0; x<dim[0]; ++x) {
+    for (int y=0; y<dim[1]; ++y) {
+      for (int z=0; z<dim[2]; ++z) {
+        for (int n=0; n<nAtoms; ++n) {
+
+          if(latt(x,y,z,n) != -1) {
+
+            const int si = latt(x,y,z,n); assert (si < nspins);
+
+            qi[0] = x; qi[1] = y; qi[2] = z;
+
+            for(int j=0; j<3; ++j){
+              pi[j] = unitCellPositions(n,j);
+            }
+            
+            for(int i=0; i<nJ4InteractionsOfType[n]; ++i) {
+
+              // loop the 3 neighbours of the fourspin term
+              for(int snbr=0; snbr<3; ++snbr){
+
+                int m = (J4Neighbour(n,i,snbr)+n)%nAtoms; assert(m >=0);
+
+                for(int j=0; j<3; ++j){
+                  pj[j] = unitCellPositions(m,j); 
+                }
+
+                // put pj in unitcell
+                double pj_cell[3] = {0.0,0.0,0.0};
+                matmul(unitcellInv,pj,pj_cell);
+
+                for(int j=0; j<3; ++j){
+                  qj[j] = floor(J4Vectors(n,i,snbr,j) - pj_cell[j] + 0.5);
+                }
+
+                // calculate realspace interaction vector
+                bool idxcheck = true;
+                for(int j=0; j<3; ++j){
+                  vij[j] = qi[j] - qj[j];
+                  if(pbc[j] == true) {
+                    vij[j] = (dim[j]+vij[j])%dim[j];
+                  } else if (vij[j] < 0 || !(vij[j] < dim[j])) {
+                    idxcheck = false;
+                  }
+                }
+
+                // check interaction existed
+                if(idxcheck == true) {
+                  sj[snbr] = latt(vij[0],vij[1],vij[2],m); assert(sj < nspins);
+                } else {
+                  sj[snbr] = -1;
+                }
+              }
+
+
+              if( (sj[0] > -1) && (sj[1] > -1) && (sj[2] > -1) ){
+                if( fabs(J4Values(n,i)) > encut) {
+                  J4ijkl_s.insertValue(si,sj[0],sj[1],sj[2],J4Values(n,i));
+                }
+                counter++;
+              }
+
+
+            }
+          }
+        }
+      }
+    }
+  }
+
+  output.write("  * Total J4 interaction count: %i\n", counter);
+  output.write("  * J4ijkl_s matrix memory (MAP): %f MB\n",J4ijkl_s.calculateMemory());
+}
+
+
 ///
 /// @brief  Create interaction matrix.
 ///
 void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, Array4D<int> &latt, 
   const std::vector<int> dim, const int nAtoms, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, const std::vector<int> &atom_type, const Array3D<double> &interactionVectors,
-  const Array2D<int> &interactionNeighbour, const Array4D<double> &interactionValues, const std::vector<int> &nInteractionsOfType, 
-  const double unitcellInv[3][3], const bool pbc[3]) 
+  const Array2D<int> &interactionNeighbour, const Array4D<double> &JValues, const std::vector<int> &nInteractionsOfType, 
+  const double unitcellInv[3][3], const bool pbc[3],const bool &J2Toggle, const Array2D<double> &J2Values, const int &nJValues) 
 {
   
   using namespace globals;
@@ -721,23 +979,8 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
               
   const double encut = 1E-26/mu_bohr_si; // energy cutoff
 
-  double KTensor[3][3] = { {0.0, 0.0, 0.0},
-                           {0.0, 0.0, 0.0},
-                           {0.0, 0.0, 0.0} };
-
-  //double encut = 1e-25;  // energy cutoff
   double p[3], pnbr[3];
   int v[3], q[3], qnbr[3];
-
-  bool surfaceAnisotropy=false;
-  if(config.exists("lattice.surfaceAnisotropy")){
-    surfaceAnisotropy = true;
-    output.write("  * Neel surface anisotropy on!!!\n");
-  }else{
-    surfaceAnisotropy = false;
-  }
-  double surfaceAnisotropyValue = 0.0;
-  int surfaceCount = 0;
 
   int counter = 0;
   for (int x=0; x<dim[0]; ++x) {
@@ -747,22 +990,10 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
           if(latt(x,y,z,n) != -1) {
 
-            for(int row=0; row<3; ++row) {
-              for(int col=0; col<3; ++col) {
-                KTensor[row][col] = 0.0;
-              }
-            }
-
             const int s_i = latt(x,y,z,n);
             const int type_num = atom_type[s_i];
 
             assert(s_i < nspins);
-            
-            // TODO: Check for if this is set
-            if(surfaceAnisotropy == true) {
-              surfaceAnisotropyValue = cfgMaterials[type_num]["surfaceAnisotropy"];
-              surfaceAnisotropyValue = surfaceAnisotropyValue/mu_bohr_si;
-            }
             
             q[0] = x; q[1] = y; q[2] = z;
             
@@ -800,92 +1031,137 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
               if(idxcheck == true && (latt(v[0],v[1],v[2],m) != -1) ) {
                 int nbr = latt(v[0],v[1],v[2],m);
                 assert(nbr < nspins);
-                assert(s_i != nbr);
+                //assert(s_i != nbr); self interaction is ok for example
+                //FeRh
 
-                for(int row=0; row<3; ++row) {
-                  for(int col=0; col<3; ++col) {
-                    if(fabs(interactionValues(n,i,row,col)) > encut) {
-                      if(Jij.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-                        if(Jij.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-                          if(s_i > nbr){
-                            Jij.insertValue(3*s_i+row,3*nbr+col,interactionValues(n,i,row,col));
+//---------------------------------------------------------------------
+// Bilinear interactions
+//---------------------------------------------------------------------
+                if(nJValues == 1){
+                //--------//
+                // Scalar //
+                //--------//
+                  if(fabs(JValues(n,i,0,0)) > encut) {
+                    if(J1ij_s.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                      if(J1ij_s.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                        if(s_i >= nbr){
+                          J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
+                        }
+                      }else{
+                        if(s_i <= nbr){
+                          J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
+                        }
+                      }
+                    }else{
+                      J1ij_s.insertValue(s_i,nbr,JValues(n,i,0,0));
+                    }
+                  }
+                } else {
+                //--------//
+                // Tensor //
+                //--------//
+                  for(int row=0; row<3; ++row) {
+                    for(int col=0; col<3; ++col) {
+                      if(fabs(JValues(n,i,row,col)) > encut) {
+                        if(J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                          if(J1ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                            if(s_i > nbr){
+                              J1ij_t.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
+                            }
+                          } else {
+                            if(s_i < nbr){
+                              J1ij_t.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
+                            }
                           }
                         } else {
-                          if(s_i < nbr){
-                            Jij.insertValue(3*s_i+row,3*nbr+col,interactionValues(n,i,row,col));
-                          }
+                          J1ij_t.insertValue(3*s_i+row,3*nbr+col,JValues(n,i,row,col));
+                        }
+                      }
+                    }
+                  }
+                }
+
+//---------------------------------------------------------------------
+// Biquadratic interactions
+//---------------------------------------------------------------------
+
+                //--------//
+                // Scalar //
+                //--------//
+                if(J2Toggle == true){
+                  if(fabs(J2Values(n,i)) > encut) {
+                    if(J2ij_s.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                      if(J2ij_s.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                        if(s_i >= nbr){
+                          J2ij_s.insertValue(s_i,nbr,J2Values(n,i));
                         }
                       } else {
-                        Jij.insertValue(3*s_i+row,3*nbr+col,interactionValues(n,i,row,col));
+                        if(s_i <= nbr){
+                          J2ij_s.insertValue(s_i,nbr,J2Values(n,i));
+                        }
                       }
+                    } else {
+                      J2ij_s.insertValue(s_i,nbr,J2Values(n,i));
                     }
                   }
                 }
 
                 localInteractionCount++;
                 counter++;
-                if(surfaceAnisotropy == true) {
-
-                  double u[3]; // unitvector
-                  double norm = 0.0;
-                  for(int j=0; j<3; ++j){
-                    u[j] = p[j]+interactionVectors(n,i,j);
-                    norm += u[j]*u[j];
-                  }
-
-                  norm = 1.0/sqrt(norm);
-                  for(int j=0; j<3; ++j){
-                    u[j] = u[j]*norm;
-                  }
-//                   std::cout<<u[0]<<"\t"<<u[1]<<"\t"<<u[2]<<std::endl;
-
-
-                  // neighbour unit vectors
-                  for(int row=0; row<3; ++row) {
-                    for(int col=0; col<3; ++col) {
-                      KTensor[row][col] += surfaceAnisotropyValue*u[row]*u[col];
-                    }
-                  }
-                }
               }
 
-            } // interactionsOfType
+            } 
 
+//---------------------------------------------------------------------
+// Anisotropy (Biquadratic Tensor)
+//---------------------------------------------------------------------
+            double anival = cfgMaterials[type_num]["uniaxialAnisotropy"][1];
 
+            // NOTE: Technically anisotropic is biquadratic but
+            // biquadratic interactions in JAMS++ are implemented as a
+            // scalar not a tensor so we store these in a seperate
+            // array
 
-//             std::cout<<localInteractionCount<<"\t"<<nInteractionsOfType[n]<<std::endl;
-            if( (surfaceAnisotropy == false) || (localInteractionCount == nInteractionsOfType[n])) {
-
-              // remove surface anisotropy
-              for(int row=0; row<3; ++row) {
-                for(int col=0; col<3; ++col) {
-                  KTensor[row][col] = 0.0;
-                }
-              }
-
-              // Bulk anisotropy
-              double anival = cfgMaterials[type_num]["uniaxialAnisotropy"][1];
-
-              // TODO: Write anisotropy for arbitrary uniaxial vector
-              for(int i=0;i<3;++i) {
-                // easy axis
-                double ei = cfgMaterials[type_num]["uniaxialAnisotropy"][0][i];
-                // magnitude
-                double di = 2.0*anival*ei ; 
-                KTensor[i][i] = di/mu_bohr_si;
-              }
-            } else {
-              surfaceCount++;
+            // read anisotropy axis unit vector and ensure it is normalised
+            double e3[3] = {0.0,0.0,0.0};
+            for(int i=0;i<3;++i) {
+              e3[i] = cfgMaterials[type_num]["uniaxialAnisotropy"][0][i];
             }
+
+            double norm = 1.0/sqrt(e3[0]*e3[0]+e3[1]*e3[1]+e3[2]*e3[2]);
+            
+            for(int i=0;i<3;++i) {
+              e3[i] = e3[i]*norm;
+            }
+
+            const double DTensor[3][3] = { { e3[0]*e3[0], e3[0]*e3[1], e3[0]*e3[2] },
+                                           { e3[1]*e3[0], e3[1]*e3[1], e3[1]*e3[2] },
+                                           { e3[2]*e3[0], e3[2]*e3[1], e3[2]*e3[2] } };
+
+            // NOTE: Factor of 2 is accounted for in the biquadratic
+            // calculation
+            const double Dval = anival/mu_bohr_si;
+
 
             for(int row=0; row<3; ++row) {
               for(int col=0; col<3; ++col) {
-                if(fabs(KTensor[row][col]) > encut) {
-                  Jij.insertValue(3*s_i+row,3*s_i+col,KTensor[row][col]);
+                if((Dval*DTensor[row][col]) > encut) {
+                  if(J2ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+                    if(J2ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+                      if(row >= col){
+                        J2ij_t.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
+                      }
+                    } else {
+                      if(row <= col){
+                        J2ij_t.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
+                      }
+                    }
+                  } else {
+                    J2ij_t.insertValue(3*s_i+row,3*s_i+col,Dval*DTensor[row][col]);
+                  }
                 }
               }
             }
-
           }
         } // n
       } // z
@@ -893,13 +1169,10 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
   } // x
 
 
-  if(surfaceAnisotropy == true) {
-    output.write("  * Surface spin count: %i\n", surfaceCount);
-  }
   output.write("  * Total interaction count: %i\n", counter);
-  output.write("  * Jij matrix memory (MAP): %f MB\n",Jij.calculateMemory());
+  output.write("  * J1ij_t matrix memory (MAP): %f MB\n",J1ij_t.calculateMemory());
 
-// Jij.printCSR();
+// J1ij_t.printCSR();
 }
 
 
@@ -916,12 +1189,20 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     Array2D<double> unitCellPositions;
     Array<int>      unitCellTypes;
     Array3D<double> interactionVectors;
-    Array4D<double> interactionValues;
+    Array4D<double> JValues;
+    Array2D<double> J2Values;
     Array2D<int> interactionNeighbour;
+    Array3D<int> J4Neighbour;
+    Array4D<double> J4Vectors;
+    Array2D<double> J4Values;
     std::vector<int> nInteractionsOfType;
+    std::vector<int> nJ4InteractionsOfType;
     Array3D<double> jij;
     int nAtoms=0;
     bool pbc[3] = {true,true,true};
+    bool J2Toggle = false;
+    int nJValues=0;
+    int nJ4Values=0;
 
     double unitcell[3][3];
     double unitcellInv[3][3];
@@ -958,14 +1239,25 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     initialiseGlobals(config, cfgMaterials, atom_type);
 
     std::string exchangeFileName = config.lookup("lattice.exchange");
-    readInteractions(exchangeFileName, config, unitCellTypes, unitCellPositions,interactionVectors, interactionNeighbour, interactionValues, nInteractionsOfType, 
-      nAtoms, atomTypeMap, unitcellInv);
+    readInteractions(exchangeFileName, config, unitCellTypes, unitCellPositions,interactionVectors, interactionNeighbour, JValues, J2Values, nInteractionsOfType, 
+      nAtoms, atomTypeMap, unitcellInv, J2Toggle, nJValues);
 
     createInteractionMatrix(config, cfgMaterials,latt,dim, nAtoms, unitCellTypes, unitCellPositions,
-      atom_type,interactionVectors, interactionNeighbour, interactionValues,
-      nInteractionsOfType, unitcellInv,pbc);
-
+      atom_type,interactionVectors, interactionNeighbour, JValues,
+      nInteractionsOfType, unitcellInv,pbc,J2Toggle,J2Values,nJValues);
+        
         mapPosToInt();
+    
+    if( config.exists("lattice.fourspin") == true ) {
+      std::string J4FileName = config.lookup("lattice.fourspin");
+      readJ4Interactions(J4FileName, config, unitCellTypes, unitCellPositions, J4Vectors, J4Neighbour, J4Values, nJ4InteractionsOfType, 
+        nAtoms, atomTypeMap, unitcellInv, nJ4Values);
+
+      createJ4Matrix(config, cfgMaterials,latt,dim, nAtoms, unitCellTypes, unitCellPositions,
+        atom_type,J4Vectors, J4Neighbour, J4Values,
+        nJ4InteractionsOfType, unitcellInv,pbc,nJ4Values);
+      
+    }
     }
 
   } // try

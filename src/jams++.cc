@@ -1,10 +1,12 @@
 #define GLOBALORIGIN
-#define JAMS_VERSION "0.4.1"
+#define JAMS_VERSION "0.5.0"
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 
 #include <string>
 #include <cstdarg>
+#include <iostream>
+#include <fstream>
 
 #include "solver.h"
 #include "physics.h"
@@ -162,6 +164,8 @@ int jams_init(int argc, char **argv) {
           physics = Physics::Create(DYNAMICSF);
         }else if(physname == "SQUARE") {
           physics = Physics::Create(SQUARE);
+        }else if(physname == "FIELDCOOL") {
+          physics = Physics::Create(FIELDCOOL);
         }else{
           jams_error("Unknown Physics package selected.");
         }
@@ -186,20 +190,8 @@ int jams_init(int argc, char **argv) {
     if(solname == "HEUNLLG") {
       solver = Solver::Create(HEUNLLG);
     }
-    else if (solname == "HEUNLLMS") {
-      solver = Solver::Create(HEUNLLMS);
-    }
-    else if (solname == "SEMILLG") {
-      solver = Solver::Create(SEMILLG);
-    }
-    else if (solname == "CUDASEMILLG") {
-      solver = Solver::Create(CUDASEMILLG);
-    }
     else if (solname == "CUDAHEUNLLG") {
       solver = Solver::Create(CUDAHEUNLLG);
-    }
-    else if (solname == "FFTNOISE") {
-      solver = Solver::Create(FFTNOISE);
     }
     else { // default
       output.write("WARNING: Using default solver (HEUNLLG)\n");
@@ -219,12 +211,20 @@ void jams_run() {
   Monitor *mag = new MagnetisationMonitor();
   mag->initialise();
 
+  std::string name = "_eng.dat";
+  name = seedname+name;
+  std::ofstream engfile(name.c_str());
+
+  double e1_s, e1_t, e2_s, e2_t;
+
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
   for(unsigned long i=0;i<steps_eq;++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
       mag->write(solver->getTime());
+      solver->calcEnergy(e1_s,e1_t,e2_s,e2_t);
+      engfile << solver->getTime() << "\t" << e1_s << "\t" << e1_t << "\t" << e2_s << "\t" << e2_t << std::endl;
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
@@ -259,6 +259,7 @@ void jams_run() {
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;
   output.write("Solving time: %f\n",elapsed);
+  engfile.close();
 
   if(mag != NULL) { delete mag; }
 
