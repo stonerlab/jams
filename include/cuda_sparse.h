@@ -9,7 +9,7 @@
 #define DIA_BLOCK_SIZE 256
 #define CSR_4D_BLOCK_SIZE 64
 
-extern texture<float,1> tex_x_float;
+//extern texture<float,1> tex_x_float;
 
 void allocate_transfer_dia(SparseMatrix<float> &Jij, devDIA &Jij_dev);
 
@@ -65,6 +65,7 @@ __global__ void fourspin_scalar_csr_kernel
  const int * pointers,
  const int * coords,
  const float * val,
+ const float * sf_dev,
  float * h_dev);
 
 #endif

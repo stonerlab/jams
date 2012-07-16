@@ -13,6 +13,7 @@
 
 #include <cmath>
 
+
 void CUDAHeunLLGSolver::syncOutput()
 {
   using namespace globals;
@@ -48,8 +49,8 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
   CURAND_CALL(curandGenerateSeeds(gen));
-  CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
-  CUDA_CALL(cudaThreadSynchronize());
+  /*CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));*/
+  /*CUDA_CALL(cudaThreadSynchronize());*/
 
 
   //-------------------------------------------------------------------
@@ -177,7 +178,7 @@ void CUDAHeunLLGSolver::run()
   
   // calculate interaction fields (and zero field array)
 
-  CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
+  //CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
   
   float beta=0;
   // bilinear scalar
@@ -210,11 +211,12 @@ void CUDAHeunLLGSolver::run()
   
   if(J4ijkl_s.nonZero() > 0){
     fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
-        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
   
-  CUDA_CALL(cudaUnbindTexture(tex_x_float));
+  //CUDA_CALL(cudaUnbindTexture(tex_x_float));
+  
   // integrate
   cuda_heun_llg_kernelA<<<nblocks,BLOCKSIZE>>>
     (
@@ -264,11 +266,11 @@ void CUDAHeunLLGSolver::run()
   
   if(J4ijkl_s.nonZero() > 0){
     fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
-        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
   
-  CUDA_CALL(cudaUnbindTexture(tex_x_float));
+  //CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
   cuda_heun_llg_kernelB<<<nblocks,BLOCKSIZE>>>
     (
@@ -294,7 +296,7 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
   e1_s = 0.0; e1_t = 0.0; e2_s = 0.0; e2_t = 0.0;
   
   size_t offset = size_t(-1);
-  CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
+  //CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
 
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
@@ -346,7 +348,7 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
   }
   
   
-  CUDA_CALL(cudaUnbindTexture(tex_x_float));
+  //CUDA_CALL(cudaUnbindTexture(tex_x_float));
 }
 
 CUDAHeunLLGSolver::~CUDAHeunLLGSolver()

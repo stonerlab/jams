@@ -2,12 +2,12 @@
 #include "cuda_sparse_types.h"
 #include "sparsematrix.h"
 #include "sparsematrix4d.h"
+#include <cstdio>
 
 #define DIA_BLOCK_SIZE 256
 #define CSR_4D_BLOCK_SIZE 64
 
-texture<float,1> tex_x_float;
-
+/*texture<float,1> tex_x_float;*/
 
 void allocate_transfer_dia(SparseMatrix<float> &Jij, devDIA &Jij_dev)
 {
@@ -339,11 +339,13 @@ __global__ void spmv_dia_kernel
 
                 if(colLow >= row && colLow < ncols) {
                   const float A_ij = alpha*dia_values[pitch*(base+n)+colLow];
-                  sum += A_ij * tex1Dfetch(tex_x_float,colLow);
+                  sum += A_ij * x[colLow];
+                  //sum += A_ij * tex1Dfetch(tex_x_float,colLow);
                 }
                 if(colUp >= 0 && colUp < row) {
                   const float A_ij = alpha*dia_values[idxUp];
-                  sum += A_ij * tex1Dfetch(tex_x_float,colUp);
+                  sum += A_ij * x[colUp];
+                  //sum += A_ij * tex1Dfetch(tex_x_float,colUp);
                 }
 
                 idxUp += pitch;
@@ -365,6 +367,7 @@ __global__ void fourspin_scalar_csr_kernel
  const int * pointers,
  const int * coords,
  const float * val,
+ const float * sf_dev,
  float * h_dev)
 {
 
@@ -390,18 +393,21 @@ __global__ void fourspin_scalar_csr_kernel
       
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sk[i] = tex1Dfetch(tex_x_float,3*kidx+i);
+        sk[i] = sf_dev[3*kidx+i];
+        //sk[i] = tex1Dfetch(tex_x_float,3*kidx+i);
       }
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sl[i] = tex1Dfetch(tex_x_float,3*lidx+i);
+        sl[i] = sf_dev[3*lidx+i];
+        //sl[i] = tex1Dfetch(tex_x_float,3*lidx+i);
       }
 
       float k_dot_l = sk[0]*sl[0] + sk[1]*sl[1] + sk[2]*sl[2];
 
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sum[i] += A_ijkl * tex1Dfetch(tex_x_float,3*jidx+i)*k_dot_l;
+        sum[i] += A_ijkl * sf_dev[3*jidx+i]*k_dot_l;
+        //sum[i] += A_ijkl * tex1Dfetch(tex_x_float,3*jidx+i)*k_dot_l;
       }
     }
 

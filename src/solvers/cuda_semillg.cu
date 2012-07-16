@@ -218,11 +218,11 @@ void CUDASemiLLGSolver::run()
   
   if(J4ijkl_s.nonZero() > 0){
     fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
-        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
   
-  CUDA_CALL(cudaUnbindTexture(tex_x_float));
+  //CUDA_CALL(cudaUnbindTexture(tex_x_float));
 
   // integrate
   cuda_semi_llg_kernelA<<<nblocks,BLOCKSIZE>>>
@@ -242,7 +242,7 @@ void CUDASemiLLGSolver::run()
 
    // calculate interaction fields (and zero field array)
 
-  CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
+  //CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
   
   beta=0.0;
   // bilinear scalar
@@ -275,11 +275,11 @@ void CUDASemiLLGSolver::run()
   
   if(J4ijkl_s.nonZero() > 0){
     fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
-        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
   
-  CUDA_CALL(cudaUnbindTexture(tex_x_float));
+  //CUDA_CALL(cudaUnbindTexture(tex_x_float));
   cuda_semi_llg_kernelB<<<nblocks,BLOCKSIZE>>>
     (
       s_dev,
