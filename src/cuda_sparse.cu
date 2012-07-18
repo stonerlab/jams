@@ -389,8 +389,14 @@ __global__ void fourspin_scalar_csr_kernel
       const int kidx = coords[3*jj+1];
       const int lidx = coords[3*jj+2];
        
-      float sk[3], sl[3];
+      float sj[3], sk[3], sl[3];
       
+      #pragma unroll
+      for(int i=0; i<3; ++i){
+        sj[i] = sf_dev[3*jidx+i];
+        //sk[i] = tex1Dfetch(tex_x_float,3*kidx+i);
+      }
+
       #pragma unroll
       for(int i=0; i<3; ++i){
         sk[i] = sf_dev[3*kidx+i];
@@ -403,10 +409,12 @@ __global__ void fourspin_scalar_csr_kernel
       }
 
       float k_dot_l = sk[0]*sl[0] + sk[1]*sl[1] + sk[2]*sl[2];
+      float j_dot_l = sj[0]*sl[0] + sj[1]*sl[1] + sj[2]*sl[2];
+      float j_dot_k = sk[0]*sj[0] + sk[1]*sj[1] + sk[2]*sj[2];
 
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sum[i] += A_ijkl * sf_dev[3*jidx+i]*k_dot_l;
+        sum[i] += A_ijkl * (sj[i]*k_dot_l + sk[i]*j_dot_l + sl[i]*j_dot_k)/3.0;
         //sum[i] += A_ijkl * tex1Dfetch(tex_x_float,3*jidx+i)*k_dot_l;
       }
     }
