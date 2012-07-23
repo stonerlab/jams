@@ -1,6 +1,7 @@
 #include "solver.h"
 #include "heunllg.h"
 #include "cuda_heunllg.h"
+#include "metropolismc.h"
 #include "globals.h"
 #include "consts.h"
 
@@ -47,6 +48,9 @@ Solver* Solver::Create(SolverType type)
       return new CUDAHeunLLGSolver;
       break;
 #endif
+    case METROPOLISMC:
+      return new MetropolisMCSolver;
+      break;
     default:
       jams_error("Unknown solver selected.");
   }

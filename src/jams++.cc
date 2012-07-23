@@ -193,6 +193,9 @@ int jams_init(int argc, char **argv) {
     else if (solname == "CUDAHEUNLLG") {
       solver = Solver::Create(CUDAHEUNLLG);
     }
+    else if (solname == "METROPOLISMC") {
+        solver = Solver::Create(METROPOLISMC);
+    }
     else { // default
       output.write("WARNING: Using default solver (HEUNLLG)\n");
       solver = Solver::Create();
