@@ -157,3 +157,19 @@ double Random::normal() {
   }
 }
 
+void Random::sphere(double &x, double &y, double &z) {
+    assert(initialised == true);
+    double v1,v2,s,ss;
+
+    do {
+        v1 = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
+        v2 = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
+        s = (v1*v1) + (v2*v2);
+    } while ( s > 1.0 );
+
+    ss = sqrt(1.0 - s);
+
+    x = 2.0*v1*ss;
+    y = 2.0*v2*ss;
+    z = 1.0 - 2.0*s;
+}
