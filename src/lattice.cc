@@ -327,27 +327,27 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
   output.write("\nInitialising global variables...\n");
     for(int i=0; i<nspins; ++i) {
       int type_num = atom_type[i];
-      double sinit[3];
-      double norm=0.0;
       bool spinrand = cfgMaterials[type_num]["spinRand"];
       if( spinrand == true){
-        for(int j=0;j<3;++j) {
-          sinit[j] = rng.normal(); 
-          norm += sinit[j]*sinit[j];
-        }
+          rng.sphere(s(i,0),s(i,1),s(i,2));
+
+            for(int j=0;j<3;++j){
+                h(i,j) = 0.0;
+                w(i,j) = 0.0;
+            }
       }else{
         for(int j=0;j<3;++j) {
-          sinit[j] = cfgMaterials[type_num]["spin"][j]; 
-          norm += sinit[j]*sinit[j];
+          s(i,j) = cfgMaterials[type_num]["spin"][j]; 
+        }
+        double norm = sqrt(s(i,0)*s(i,0) + s(i,1)*s(i,1) + s(i,2)*s(i,2));
+      
+        for(int j=0;j<3;++j){
+            s(i,j) = s(i,j)/norm;
+            h(i,j) = 0.0;
+            w(i,j) = 0.0;
         }
       }
-      norm = 1.0/sqrt(norm);
-      for(int j=0;j<3;++j){
         
-        s(i,j) = sinit[j]*norm;
-        h(i,j) = 0.0;
-        w(i,j) = 0.0;
-      }
 
       // TODO: Move this to LLMS solver initialisation
       std::stringstream ss;
