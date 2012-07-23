@@ -472,9 +472,7 @@ void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, cons
     }
     
     is >> Jval; // bilinear
-    for(int i=0; i<3; ++i){
-      J4Values(atom_num[0],nJ4InteractionsOfType[atom_num[0]]) = Jval/mu_bohr_si; // Jxx Jyy Jzz
-    }
+    J4Values(atom_num[0],nJ4InteractionsOfType[atom_num[0]]) = Jval/mu_bohr_si; // Jxx Jyy Jzz
       
     inter_counter++;
     nJ4InteractionsOfType[atom_num[0]]++;
@@ -881,7 +879,7 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
   using namespace globals;
   output.write("\nCalculating fourspin interaction matrix...\n");
               
-  const double encut = 1E-26/mu_bohr_si; // energy cutoff
+  const double encut = 1E-28/mu_bohr_si; // energy cutoff
 
   int qi[3], qj[3];
   double pi[3], pj[3];

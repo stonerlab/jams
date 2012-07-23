@@ -69,7 +69,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   
   output.write("  * Converting J4 MAP to CSR\n");
   J4ijkl_s.convertMAP2CSR();
-  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J4ijkl_s.calculateMemory());
+  output.write("  * J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemory());
 
 
   output.write("  * Allocating device memory...\n");
@@ -269,6 +269,15 @@ void CUDAHeunLLGSolver::run()
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
+
+  /*Array2D<float> hf(nspins,3);*/
+  /*Array2D<float> sf(nspins,3);*/
+  /*CUDA_CALL(cudaMemcpy(hf.ptr(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));*/
+  /*CUDA_CALL(cudaMemcpy(sf.ptr(),sf_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));*/
+
+  /*for(int i=0; i<nspins; ++i){*/
+      /*std::cout<<i<<sf(i,0)<<"\t"<<sf(i,1)<<"\t"<<sf(i,2)<<"\t"<<hf(i,0)<<"\t"<<hf(i,1)<<"\t"<<hf(i,2)<<std::endl;*/
+  /*}*/
   
   //CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
@@ -295,7 +304,7 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
 
   e1_s = 0.0; e1_t = 0.0; e2_s = 0.0; e2_t = 0.0;
   
-  size_t offset = size_t(-1);
+  //size_t offset = size_t(-1);
   //CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
 
   // bilinear scalar
