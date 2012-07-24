@@ -226,10 +226,10 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
   _Tp value;
 
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
-    if(matrixType == SPARSE_MATRIX_TYPE_SYMMETRIC){
+    //if(matrixType == SPARSE_MATRIX_TYPE_SYMMETRIC){
         matrixType = SPARSE_MATRIX_TYPE_GENERAL;
         const int nitems = matrixMap.size();
-        matrixMap.resize(2*nitems);
+        matrixMap.reserve(2*nitems);
         for(int i=0; i<nitems; ++i){
             index = matrixMap[i].first;
             value = matrixMap[i].second;
@@ -244,9 +244,9 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
                 nnz_unmerged++;
             }
         }
-    } else {
-        jams_error("Attempted to generalise a matrix which is already general");
-    }
+    //} else {
+        //jams_error("Attempted to generalise a matrix which is already general");
+    //}
   }else{
       jams_error("Only a MAP matrix can be generalised");
   }
