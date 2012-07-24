@@ -17,6 +17,8 @@ class MetropolisMCSolver : public Solver {
     Array2D<double> snew;
     Array2D<double> sigma;
     Array2D<double> eng;
+
+    void oneSpinEnergy(const int &i, double total[3]);
 };
 
 #endif // __METROPOLISMC_H__
