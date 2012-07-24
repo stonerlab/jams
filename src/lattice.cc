@@ -936,7 +936,7 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
 
                 // check interaction existed
                 if(idxcheck == true) {
-                  sj[snbr] = latt(vij[0],vij[1],vij[2],m); assert(sj < nspins);
+                  sj[snbr] = latt(vij[0],vij[1],vij[2],m); assert(sj[snbr] < nspins);
                 } else {
                   sj[snbr] = -1;
                 }
