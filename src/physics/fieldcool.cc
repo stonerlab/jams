@@ -32,8 +32,7 @@ void FieldCoolPhysics::init(libconfig::Setting &phys)
       for(int i=0; i<3; ++i){
           deltaH[i] = (initField[i]-finalField[i])/TSteps;
       }
-      t_step = config.lookup("sim.t_run");
-      t_step = t_step/TSteps;
+      t_step = coolTime/TSteps;
       t_eq = config.lookup("sim.t_eq");
       stepToggle = true;
   }else{
