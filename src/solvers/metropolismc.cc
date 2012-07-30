@@ -179,7 +179,7 @@ void MetropolisMCSolver::run()
 {
     using namespace globals;
 
-    const double theta = 0.01;
+    const double theta = 0.1;
     const double Efactor = 0.671713067; // muB/kB
 
     // pick spins randomly on average nspins per step
