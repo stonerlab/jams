@@ -33,6 +33,7 @@ class Random
     double uniform_closed();
     int    uniform_discrete(const int m, const int n);
     double normal();
+    void   sphere(double &x, double &y, double &z);
   private:
     bool initialised;
     unsigned long init_seed;

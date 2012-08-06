@@ -105,6 +105,8 @@ class SparseMatrix {
     void convertMAP2CSR();
     void convertMAP2COO();
     void convertMAP2DIA();
+
+    void convertSymmetric2General();
     
     inline _Tp*       valPtr() { return &(val[0]); } ///< @brief Pointer to values array
     inline size_type* rowPtr() { return &(row[0]); } ///< @brief Pointer to rows array
@@ -212,6 +214,41 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
     nnz_unmerged++;
   } else {
     jams_error("Can only insert into MAP format sparse matrix");
+  }
+
+}
+
+template <typename _Tp>
+void SparseMatrix<_Tp>::convertSymmetric2General() {
+
+
+  int64_t ival,jval,index,index_new;
+  _Tp value;
+
+  if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
+    //if(matrixType == SPARSE_MATRIX_TYPE_SYMMETRIC){
+        matrixType = SPARSE_MATRIX_TYPE_GENERAL;
+        const int nitems = matrixMap.size();
+        matrixMap.reserve(2*nitems);
+        for(int i=0; i<nitems; ++i){
+            index = matrixMap[i].first;
+            value = matrixMap[i].second;
+            
+            // opposite relationship
+            jval = index/static_cast<int64_t>(ncols);
+            ival = index - ((jval)*ncols);
+
+            if(ival != jval){
+                index_new = (static_cast<int64_t>(ival)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(jval);
+                matrixMap.push_back(std::pair<int64_t,_Tp>(index_new,value));
+                nnz_unmerged++;
+            }
+        }
+    //} else {
+        //jams_error("Attempted to generalise a matrix which is already general");
+    //}
+  }else{
+      jams_error("Only a MAP matrix can be generalised");
   }
 
 }
