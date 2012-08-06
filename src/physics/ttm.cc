@@ -14,6 +14,8 @@ void TTMPhysics::init(libconfig::Setting &phys)
 
   phononTemp = phys["InitialTemperature"];
   electronTemp = phononTemp;
+  
+  sinkTemp = phononTemp;
 
   // unitless according to Tom's code!
   pumpFluence = phys["PumpFluence"];
@@ -64,7 +66,7 @@ void TTMPhysics::run(const double realtime, const double dt)
     }
 
     electronTemp = electronTemp + ((-G*(electronTemp-phononTemp)+pumpTemp)*dt)/(Ce*electronTemp);
-    phononTemp   = phononTemp   + (( G*(electronTemp-phononTemp)         )*dt)/(Cl);
+    phononTemp   = phononTemp   + (( G*(electronTemp-phononTemp)-Gsink*(phononTemp-sinkTemp))*dt)/(Cl);
   }
 
   globalTemperature = electronTemp;
