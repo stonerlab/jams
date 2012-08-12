@@ -237,7 +237,7 @@ void jams_run() {
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   std::clock_t start = std::clock();
-  int outcount = 0;
+  // int outcount = 0;
   for(unsigned long i=0; i<steps_run; ++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();

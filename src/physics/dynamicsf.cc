@@ -271,7 +271,7 @@ void DynamicSFPhysics::timeTransform()
   for(int i=0; i<nTransforms; ++i){ // integer division is guaranteed in the initialisation
 
     const int t0 = i*steps_window;
-    const int tEnd = (i+1)*steps_window;
+    // const int tEnd = (i+1)*steps_window;
 
     int rank       = 1;
     int sizeN[]   = {steps_window};
@@ -285,16 +285,16 @@ void DynamicSFPhysics::timeTransform()
     // apply windowing function
 
     // zero the window array
-    for(int t=0; t<(2*steps_window*rDim[2]); ++t){
+    for(unsigned int t=0; t<(2*steps_window*rDim[2]); ++t){
       windowSpace[t][0] = 0.0;
       windowSpace[t][1] = 0.0;
     }
 
     // fill the first half of the array
-    for(int t=0; t<steps_window; ++t){
+    for(unsigned int t=0; t<steps_window; ++t){
       for(int qz=0; qz<rDim[2]; ++qz){
         const int tIdx = qz + rDim[2]*(t+t0);  // s_k(r ,t)
-        const int refIdx = qz + rDim[2]*t0;    // s_k(r',0)
+        // const int refIdx = qz + rDim[2]*t0;    // s_k(r',0)
         const int wdwIdx = qz + rDim[2]*t;
 
         // do full complex multiplication
@@ -355,7 +355,7 @@ void DynamicSFPhysics::outputImage()
   DSFFile.open(filename.c_str());
   const int qzPoints = (rDim[2]/2)+1;
   for(int qz=0; qz<qzPoints; ++qz){
-    for(int omega=0; omega<((steps_window/2)+1); ++omega){
+    for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
       int tIdx = qz + qzPoints*omega;
       DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
     }
