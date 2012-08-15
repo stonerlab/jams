@@ -12,8 +12,8 @@ void MagnetisationMonitor::initialise() {
   name = seedname+name;
   outfile.open(name.c_str());
 
-  // mx my mz |m| m2zz (quadrupole)
-  mag.resize(lattice.numTypes(),5);
+  // mx my mz |m| 
+  mag.resize(lattice.numTypes(),4);
 
   initialised = true;
 }
@@ -55,14 +55,6 @@ void MagnetisationMonitor::write(const double &time) {
       mag(type,j) += s(i,j);
     }
   }
-  for(i=0; i<nspins; ++i) {
-    type = lattice.getType(i);
-    mag(type,4) += ( (s(i,2)*s(i,2))-(1.0/3.0) );
-  }
-  
-  for(i=0; i<lattice.numTypes(); ++i) {
-    mag(i,4) = mag(i,4)/static_cast<double>(lattice.getTypeCount(i));
-  }
 
   for(i=0; i<lattice.numTypes(); ++i) {
     for(j=0; j<3; ++j) {
@@ -84,7 +76,7 @@ void MagnetisationMonitor::write(const double &time) {
   }
 
   for(i=0; i<lattice.numTypes(); ++i) {
-    outfile <<"\t"<< mag(i,0) <<"\t"<< mag(i,1) <<"\t"<< mag(i,2) <<"\t"<< mag(i,3) <<"\t" << mag(i,4);
+    outfile <<"\t"<< mag(i,0) <<"\t"<< mag(i,1) <<"\t"<< mag(i,2) <<"\t"<< mag(i,3);
   }
 #ifdef NDEBUG
   outfile << "\n";
@@ -94,18 +86,18 @@ void MagnetisationMonitor::write(const double &time) {
 
 	switch(convType){
 	case convMag:
-		rs.push(mag(0,4));
+		rs.push(mag(0,3));
 		break;
 	case convPhi:
-		rs.push(acos(mag(0,3)/mag(0,4)));
+		rs.push(acos(mag(0,2)/mag(0,3)));
 		break;
 	case convSinPhi:
-		rs.push(sin(acos(mag(0,3)/mag(0,4))));
+		rs.push(sin(acos(mag(0,2)/mag(0,3))));
 		break;
 	default:
 		break;
 	}
-	
+	//output.write("val %e mean %e stddev %e\n",mag(0,2)/mag(0,3),rs.mean(),rs.stdDev());
 }
 
 MagnetisationMonitor::~MagnetisationMonitor() {
