@@ -29,6 +29,10 @@ namespace {
   unsigned long steps_eq=0;
   unsigned long steps_run=0;
   unsigned long steps_out=0;
+  unsigned long steps_conv=0;
+  
+  std::string convName;
+  double convTolerance=0.0;
 
   bool toggleVisualise=false;
 } // anon namespace
@@ -49,7 +53,6 @@ int jams_init(int argc, char **argv) {
   output.write("Version %s\n", JAMS_VERSION);
   output.write("Commit %s\n", QUOTEME(GITCOMMIT));
   output.write("Compiled %s, %s\n",__DATE__,__TIME__);
-  output.write("%s\n", QUOTEME(GITCOMMIT));
   output.write("----------------------------------------\n");
   
   time_t rawtime;
@@ -89,8 +92,10 @@ int jams_init(int argc, char **argv) {
 
 
     std::string solname;
+
     std::string physname;
     unsigned int randomseed;
+
 
     double init_temperature=0.0;
 
@@ -148,6 +153,17 @@ int jams_init(int argc, char **argv) {
         config.lookupValue("sim.solver",solname);
         std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
       }
+	  
+	  if(config.exists("sim.convergence") == true ){
+		  config.lookupValue("sim.convergence",convName);
+          std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
+		  config.lookupValue("sim.tolerance",convTolerance);
+	      
+		  tmp = config.lookup("sim.t_conv");
+	      steps_conv = static_cast<unsigned long>(tmp/dt);
+	      output.write("  * Convergence test time:        %1.8e (%lu steps)\n",tmp,steps_conv);
+		  
+	  }
 
       output.write("\nInitialising physics module...\n");
       if( config.exists("sim.physics") == true ) {
@@ -209,10 +225,24 @@ int jams_init(int argc, char **argv) {
 }
 
 void jams_run() {
-  using namespace globals;
+	using namespace globals;
   
-  Monitor *mag = new MagnetisationMonitor();
-  mag->initialise();
+  	Monitor *mag = new MagnetisationMonitor();
+ 	mag->initialise();
+  
+  	if(convName == "MAG"){
+		output.write("Convergence for Magnetisation\n");
+  		mag->initConvergence(convMag,convTolerance);
+  	}else if(convName == "PHI"){
+		output.write("Convergence for Phi\n");
+		mag->initConvergence(convPhi,convTolerance);
+	}else if(convName == "SINPHI"){
+		output.write("Convergence for Sin(Phi)\n");
+		mag->initConvergence(convSinPhi,convTolerance);
+	}
+	output.write("StdDev Tolerance: %e\n",convTolerance);
+		
+	
 
   std::string name = "_eng.dat";
   name = seedname+name;
@@ -252,7 +282,19 @@ void jams_run() {
           lattice.outputSpinsVTU(vtufile);
           vtufile.close();
       }
+	  
+
     }
+ 
+ 	if( ( (i+1) % steps_conv ) == 0 ){
+	 	if(mag->checkConvergence() == true){
+			output.write("Calculation converged\n");
+			break;
+	  	}	
+ 	}
+ 	
+	
+	
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
     solver->run();

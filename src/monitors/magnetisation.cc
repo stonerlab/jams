@@ -22,6 +22,22 @@ void MagnetisationMonitor::run() {
 
 }
 
+void MagnetisationMonitor::initConvergence(ConvergenceType type, const double tol){
+	convType = type;
+	tolerance = tol;
+}
+
+bool MagnetisationMonitor::checkConvergence(){
+	if(convType == convNone){
+		return false;
+	} else { 
+		output.write("Convergence: mean %e \t stddev %e [tolerance %e]\n",rs.mean(),rs.stdDev(),tolerance);	
+		if(rs.stdDev() < tolerance){
+			return true;
+		}
+	}
+	return false;
+}
 void MagnetisationMonitor::write(const double &time) {
   using namespace globals;
   assert(initialised);
@@ -76,6 +92,20 @@ void MagnetisationMonitor::write(const double &time) {
   outfile << std::endl;
 #endif
 
+	switch(convType){
+	case convMag:
+		rs.push(mag(0,4));
+		break;
+	case convPhi:
+		rs.push(acos(mag(0,3)/mag(0,4)));
+		break;
+	case convSinPhi:
+		rs.push(sin(acos(mag(0,3)/mag(0,4))));
+		break;
+	default:
+		break;
+	}
+	
 }
 
 MagnetisationMonitor::~MagnetisationMonitor() {
