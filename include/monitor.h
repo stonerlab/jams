@@ -14,8 +14,8 @@ class Monitor {
     virtual void run();
     virtual void write(const double &time);
 	
-	void initConvergence(ConvergenceType type, const double tol);
-	bool checkConvergence();
+	virtual void initConvergence(ConvergenceType type, const double tol);
+	virtual bool checkConvergence();
 	
 
     static Monitor* Create();
