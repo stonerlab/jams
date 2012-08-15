@@ -117,6 +117,17 @@ int jams_init(int argc, char **argv) {
       tmp = config.lookup("sim.t_out");
       steps_out = static_cast<unsigned long>(tmp/dt);
       output.write("  * Output time:        %1.8e (%lu steps)\n",tmp,steps_out);
+	  
+	  if(config.exists("sim.convergence") == true ){
+		  config.lookupValue("sim.convergence",convName);
+          std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
+		  config.lookupValue("sim.tolerance",convTolerance);
+	      
+		  tmp = config.lookup("sim.t_conv");
+	      steps_conv = static_cast<unsigned long>(tmp/dt);
+	      output.write("  * Convergence test time:        %1.8e (%lu steps)\n",tmp,steps_conv);
+		  
+	  }
 
       globals::h_app[0] = config.lookup("sim.h_app.[0]");
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
@@ -154,16 +165,7 @@ int jams_init(int argc, char **argv) {
         std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
       }
 	  
-	  if(config.exists("sim.convergence") == true ){
-		  config.lookupValue("sim.convergence",convName);
-          std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
-		  config.lookupValue("sim.tolerance",convTolerance);
-	      
-		  tmp = config.lookup("sim.t_conv");
-	      steps_conv = static_cast<unsigned long>(tmp/dt);
-	      output.write("  * Convergence test time:        %1.8e (%lu steps)\n",tmp,steps_conv);
-		  
-	  }
+
 
       output.write("\nInitialising physics module...\n");
       if( config.exists("sim.physics") == true ) {
