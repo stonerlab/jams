@@ -14,7 +14,7 @@ class Monitor {
     virtual void run();
     virtual void write(const double &time);
 	
-	virtual void initConvergence(ConvergenceType type, const double tol);
+	virtual void initConvergence(ConvergenceType type, const double meanTol, const double devTol);
 	virtual bool checkConvergence();
 	
 

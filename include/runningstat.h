@@ -27,6 +27,8 @@ class RunningStat{
 		double var() const { return ( (m_n > 1) ? m_newS/(m_n - 1) : 0.0 ); }
 		
 		double stdDev() const { return sqrt( var() ); }
+		
+		double stdErr() const { return sqrt( var() / static_cast<double>(m_n) ); }
 	
 	private:
 		unsigned long m_n;
