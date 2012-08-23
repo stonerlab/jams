@@ -1,7 +1,6 @@
-#include "cuda_spmv.h"
+#include "cuda_sparse.h"
+#include "cuda_sparse_types.h"
 #include "cuda_heunllg_kernel.h"
-#include "cuda_biquadratic.h"
-#include "cuda_fourspin.h"
 #include "globals.h"
 #include "consts.h"
 
@@ -14,64 +13,6 @@
 
 #include <cmath>
 
-// block size for GPU, 64 appears to be most efficient for current kernel
-#define BLOCKSIZE 64
-
-#ifndef NDEBUG
-#define CUDA_CALL(x) do { if((x) != cudaSuccess) { \
-  printf("Error at %s:%d\n",__FILE__,__LINE__);\
-    exit(EXIT_FAILURE);}} while(0)
-#else
-#define CUDA_CALL(x) x
-#endif
-
-#ifndef NDEBUG
-#define CURAND_CALL(x) do { if((x) != CURAND_STATUS_SUCCESS) { \
-  printf("Error at %s:%d\n",__FILE__,__LINE__);\
-  exit(EXIT_FAILURE);}} while(0)
-#else
-#define CURAND_CALL(x) x
-#endif
-
-#if defined(__CUDACC__) && defined(CUDA_NO_SM_13_DOUBLE_INTRINSICS)
-    #error "-arch sm_13 nvcc flag is required to compile"
-#endif
-
-void allocate_transfer_dia(SparseMatrix<float> &Jij, devDIA &Jij_dev)
-{
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev.row,(Jij.diags())*sizeof(int)));
-  CUDA_CALL(cudaMallocPitch((void**)&Jij_dev.val,&Jij_dev.pitch,(Jij.rows())*sizeof(float),Jij.diags()));
-  
-  CUDA_CALL(cudaMemcpy(Jij_dev.row,Jij.dia_offPtr(),(size_t)((Jij.diags())*(sizeof(int))),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy2D(Jij_dev.val,Jij_dev.pitch,Jij.valPtr(),Jij.rows()*sizeof(float),Jij.rows()*sizeof(float),Jij.diags(),cudaMemcpyHostToDevice));
-  Jij_dev.pitch = Jij_dev.pitch/sizeof(float);
-}
-
-void free_dia(devDIA &Jij_dev)
-{
-  CUDA_CALL(cudaFree(Jij_dev.row));
-  CUDA_CALL(cudaFree(Jij_dev.col));
-  CUDA_CALL(cudaFree(Jij_dev.val));
-}
-
-void allocate_transfer_csr_4d(SparseMatrix4D<float> &Jij, devCSR &
-    Jij_dev)
-{
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev.pointers,(Jij.size(0)+1)*sizeof(int)));
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev.coords,(3*Jij.nonZero())*sizeof(int)));
-  CUDA_CALL(cudaMalloc((void**)&Jij_dev.val,(Jij.nonZero())*sizeof(float)));
-
-  CUDA_CALL(cudaMemcpy(Jij_dev.pointers,Jij.pointersPtr(),(size_t)((Jij.size(0)+1)*(sizeof(int))),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(Jij_dev.coords,Jij.cooPtr(),(size_t)((3*Jij.nonZero())*(sizeof(int))),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(Jij_dev.val,Jij.valPtr(),(size_t)((Jij.nonZero())*(sizeof(float))),cudaMemcpyHostToDevice));
-}
-
-void free_csr_4d(devCSR &Jij_dev)
-{
-  CUDA_CALL(cudaFree(Jij_dev.pointers));
-  CUDA_CALL(cudaFree(Jij_dev.coords));
-  CUDA_CALL(cudaFree(Jij_dev.val));
-}
 
 void CUDAHeunLLGSolver::syncOutput()
 {
@@ -85,21 +26,6 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   // initialise base class
   Solver::initialise(argc,argv,idt);
-
-// POSSIBLY BUGGY AT THE MOMENT -> INVESTIGATE
-//  int deviceCount = 0;
-//  if (cudaGetDeviceCount(&deviceCount) != cudaSuccess) {
-//    jams_error("cudaGetDeviceCount FAILED CUDA Driver and Runtime version may be mismatched.\n");
-//  }
-//
-//  if(deviceCount == 0){
-//    jams_error("There is no device supporting CUDA\n");
-//  }
-
-  cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, 0);
-  
-  output.write("  * CUDA Device compute capability %d.%d\n",deviceProp.major,deviceProp.minor);
 
   sigma.resize(nspins);
 
@@ -123,15 +49,14 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
   CURAND_CALL(curandGenerateSeeds(gen));
-  CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
-  CUDA_CALL(cudaThreadSynchronize());
+  /*CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));*/
+  /*CUDA_CALL(cudaThreadSynchronize());*/
 
 
   //-------------------------------------------------------------------
   //  Allocate device memory
   //-------------------------------------------------------------------
 
-#ifdef FORCE_CUDA_DIA
   output.write("  * Converting MAP to DIA\n");
   J1ij_s.convertMAP2DIA();
   J1ij_t.convertMAP2DIA();
@@ -141,13 +66,10 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   output.write("  * J1ij tensor matrix memory (DIA): %f MB\n",J1ij_t.calculateMemory());
   output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J2ij_s.calculateMemory());
   output.write("  * J2ij tensor matrix memory (DIA): %f MB\n",J2ij_t.calculateMemory());
-#else
-#error "CUDA CSR is not supported in this build"
-#endif
   
   output.write("  * Converting J4 MAP to CSR\n");
   J4ijkl_s.convertMAP2CSR();
-  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J4ijkl_s.calculateMemory());
+  output.write("  * J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemory());
 
 
   output.write("  * Allocating device memory...\n");
@@ -168,7 +90,6 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   }
 
 
-#ifdef FORCE_CUDA_DIA
   // bilinear scalar
   allocate_transfer_dia(J1ij_s, J1ij_s_dev);
   
@@ -180,9 +101,6 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   
   // bilinear tensor
   allocate_transfer_dia(J2ij_t, J2ij_t_dev);
-#else
-#error "CUDA CSR is not supported in this build"
-#endif
 
   allocate_transfer_csr_4d(J4ijkl_s, J4ijkl_s_dev);
 
@@ -230,27 +148,6 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(e_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
-  //-------------------------------------------------------------------
-  //  Initialise cusparse
-  //-------------------------------------------------------------------
-
-#ifndef FORCE_CUDA_DIA
-  output.write("  * Initialising CUSPARSE...\n");
-  cusparseStatus_t status;
-  status = cusparseCreate(&handle);
-  if (status != CUSPARSE_STATUS_SUCCESS) {
-    jams_error("CUSPARSE Library initialization failed");
-  }
-
-  // create matrix descriptor
-  status = cusparseCreateMatDescr(&descra);
-  if (status != CUSPARSE_STATUS_SUCCESS) {
-    jams_error("CUSPARSE Matrix descriptor initialization failed");
-  }
-  cusparseSetMatType(descra,CUSPARSE_MATRIX_TYPE_GENERAL);
-  cusparseSetMatIndexBase(descra,CUSPARSE_INDEX_BASE_ZERO);
-#endif
-
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
 
   J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
@@ -280,9 +177,8 @@ void CUDAHeunLLGSolver::run()
   }
   
   // calculate interaction fields (and zero field array)
-#ifdef FORCE_CUDA_DIA
 
-  CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
+  //CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
   
   float beta=0;
   // bilinear scalar
@@ -315,14 +211,12 @@ void CUDAHeunLLGSolver::run()
   
   if(J4ijkl_s.nonZero() > 0){
     fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
-        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
   
-  CUDA_CALL(cudaUnbindTexture(tex_x_float));
-#else
-#error "CUDA CSR is not supported in this build"
-#endif
+  //CUDA_CALL(cudaUnbindTexture(tex_x_float));
+  
   // integrate
   cuda_heun_llg_kernelA<<<nblocks,BLOCKSIZE>>>
     (
@@ -340,8 +234,6 @@ void CUDAHeunLLGSolver::run()
     );
 
   // calculate interaction fields (and zero field array)
-#ifdef FORCE_CUDA_DIA
-  CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
 
   beta=0.0;
   // bilinear scalar
@@ -374,14 +266,20 @@ void CUDAHeunLLGSolver::run()
   
   if(J4ijkl_s.nonZero() > 0){
     fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
-        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,h_dev);
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
+
+  /*Array2D<float> hf(nspins,3);*/
+  /*Array2D<float> sf(nspins,3);*/
+  /*CUDA_CALL(cudaMemcpy(hf.ptr(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));*/
+  /*CUDA_CALL(cudaMemcpy(sf.ptr(),sf_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));*/
+
+  /*for(int i=0; i<nspins; ++i){*/
+      /*std::cout<<i<<sf(i,0)<<"\t"<<sf(i,1)<<"\t"<<sf(i,2)<<"\t"<<hf(i,0)<<"\t"<<hf(i,1)<<"\t"<<hf(i,2)<<std::endl;*/
+  /*}*/
   
-  CUDA_CALL(cudaUnbindTexture(tex_x_float));
-#else
-#error "CUDA CSR is not supported in this build"
-#endif
+  //CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
   cuda_heun_llg_kernelB<<<nblocks,BLOCKSIZE>>>
     (
@@ -406,8 +304,8 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
 
   e1_s = 0.0; e1_t = 0.0; e2_s = 0.0; e2_t = 0.0;
   
-  size_t offset = size_t(-1);
-  CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
+  //size_t offset = size_t(-1);
+  //CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
 
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
@@ -459,7 +357,7 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
   }
   
   
-  CUDA_CALL(cudaUnbindTexture(tex_x_float));
+  //CUDA_CALL(cudaUnbindTexture(tex_x_float));
 }
 
 CUDAHeunLLGSolver::~CUDAHeunLLGSolver()

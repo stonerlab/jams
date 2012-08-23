@@ -6,11 +6,12 @@
 #include <map>
 #include <stdint.h>
 #include <cmath>
+#include "error.h"
 #include "array.h"
 #include "array2d.h"
-#include "globals.h"
 #include <algorithm>
 #include <functional>
+#include <iostream>
 
 #define RESTRICT __restrict__
 
@@ -219,6 +220,7 @@ void SparseMatrix4D<_Tp>::convertMAP2CSR()
 
       for(int n=0;n<nnz_unmerged;++n){
         if( i_idx[n] == i ){
+        //std::cerr<< i << "\t" << count << "\t" << j_idx[n] << "\t" << k_idx[n] << "\t" << l_idx[n] << std::endl;
           coords(count,0) = j_idx[n];
           coords(count,1) = k_idx[n];
           coords(count,2) = l_idx[n];
@@ -229,6 +231,7 @@ void SparseMatrix4D<_Tp>::convertMAP2CSR()
     }
     pointers(dim[0]) = count; // end pointer
 
+    val.clear();
     val = csrval;
     
     nnz = count; assert(count == nnz_unmerged);

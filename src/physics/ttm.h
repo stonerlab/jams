@@ -16,10 +16,12 @@ class TTMPhysics : public Physics {
         pumpFluence(0.0),
         electronTemp(0.0),
         phononTemp(0.0),
+        sinkTemp(0.0),
         reversingField(3,0.0),
         Ce(7.0E02),
         Cl(3.0E06),
         G(17.0E17),
+        Gsink(17.0E16),
         TTMFile(),
         initialised(false)
     {}
@@ -39,11 +41,13 @@ class TTMPhysics : public Physics {
     double pumpFluence;
     double electronTemp;
     double phononTemp;
+    double sinkTemp;
     std::vector<double> reversingField;
 
     double Ce; // electron specific heat
     double Cl; // phonon specific heat
     double G;  // electron coupling constant
+    double Gsink;
 
     std::ofstream TTMFile;
 

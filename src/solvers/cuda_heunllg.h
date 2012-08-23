@@ -6,24 +6,10 @@
 #include "solver.h"
 #include "array.h"
 #include "array2d.h"
+#include "cuda_sparse_types.h"
 
 #include <curand.h>
 #include <cusparse.h>
-
-struct devDIA {
-  int     *row;
-  int     *col;
-  float   *val;
-  size_t  pitch;
-  int     blocks;
-};
-
-struct devCSR {
-  int     *pointers;
-  int     *coords;
-  float   *val;
-  int     blocks;
-};
 
 class CUDAHeunLLGSolver : public Solver {
   public:
