@@ -17,7 +17,7 @@ void Monitor::write(const double &time) {
 
 }
 
-void Monitor::initConvergence(ConvergenceType type, const double tol){
+void Monitor::initConvergence(ConvergenceType type, const double meanTol, const double devTol){
 }
 
 bool Monitor::checkConvergence(){

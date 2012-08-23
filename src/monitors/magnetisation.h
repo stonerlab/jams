@@ -12,8 +12,12 @@ class MagnetisationMonitor : public Monitor {
       : mag(0,0),
         outfile(),
 		convType(convNone),
-		tolerance(1E10),
-		rs()
+		meanTol(1E10),
+		devTol(1E10),
+		blockStats(),
+		runningMean(),
+		runningDev(),
+		old_avg(0.0)
     {}
 
     ~MagnetisationMonitor();
@@ -21,14 +25,18 @@ class MagnetisationMonitor : public Monitor {
     void initialise();
     void run();
     void write(const double &time);
-	void initConvergence(ConvergenceType type, const double tol);
+	void initConvergence(ConvergenceType type, const double meanTol, const double devTol);
 	bool checkConvergence();
   private:
     Array2D<double> mag;
     std::ofstream outfile;
 	ConvergenceType convType;
-	double			tolerance;
-	RunningStat		rs;
+	double			meanTol;
+	double			devTol;
+	RunningStat		blockStats;
+	RunningStat		runningMean;
+	RunningStat		runningDev;
+    double      old_avg;
 };
 
 #endif // __MAGNETISATION_H__

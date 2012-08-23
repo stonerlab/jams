@@ -15,6 +15,9 @@ void MagnetisationMonitor::initialise() {
   // mx my mz |m| 
   mag.resize(lattice.numTypes(),4);
 
+
+  old_avg = 0.0;
+
   initialised = true;
 }
 
@@ -22,19 +25,25 @@ void MagnetisationMonitor::run() {
 
 }
 
-void MagnetisationMonitor::initConvergence(ConvergenceType type, const double tol){
+void MagnetisationMonitor::initConvergence(ConvergenceType type, const double meanTolerance, const double devTolerance){
 	convType = type;
-	tolerance = tol;
+	meanTol = meanTolerance;
+	devTol = devTolerance;
 }
 
 bool MagnetisationMonitor::checkConvergence(){
 	if(convType == convNone){
 		return false;
 	} else { 
-		output.write("Convergence: mean %e \t stddev %e [tolerance %e]\n",rs.mean(),rs.stdDev(),tolerance);	
-		if(rs.stdDev() < tolerance){
+		const double meanRelErr = fabs((runningMean.mean()-blockStats.mean())/runningMean.mean());
+		const double devRelErr = fabs((runningDev.mean()-blockStats.stdDev())/runningMean.mean());
+		output.write("Convergence: mean %1.5f meanRelErr %1.5f [%1.5f] :: stddev %1.5f devRelErr %1.5f [%1.5f] \n",runningMean.mean(),meanRelErr,meanTol,runningDev.mean(),devRelErr,devTol);	
+        if ( (meanRelErr < meanTol) && (devRelErr < devTol) ) {
 			return true;
 		}
+		runningMean.push(blockStats.mean());
+		runningDev.push(blockStats.stdDev());
+		//blockStats.clear();
 	}
 	return false;
 }
@@ -86,13 +95,13 @@ void MagnetisationMonitor::write(const double &time) {
 
 	switch(convType){
 	case convMag:
-		rs.push(mag(0,3));
+		blockStats.push(mag(0,3));
 		break;
 	case convPhi:
-		rs.push(acos(mag(0,2)/mag(0,3)));
+		blockStats.push(acos(mag(0,2)/mag(0,3)));
 		break;
 	case convSinPhi:
-		rs.push(sin(acos(mag(0,2)/mag(0,3))));
+		blockStats.push(sin(acos(mag(0,2)/mag(0,3))));
 		break;
 	default:
 		break;

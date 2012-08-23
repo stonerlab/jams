@@ -32,7 +32,8 @@ namespace {
   unsigned long steps_conv=0;
   
   std::string convName;
-  double convTolerance=0.0;
+  double convMeanTolerance=0.0;  
+  double convDevTolerance=0.0;
 
   bool toggleVisualise=false;
 } // anon namespace
@@ -121,7 +122,8 @@ int jams_init(int argc, char **argv) {
 	  if(config.exists("sim.convergence") == true ){
 		  config.lookupValue("sim.convergence",convName);
           std::transform(solname.begin(),solname.end(),solname.begin(),toupper);
-		  config.lookupValue("sim.tolerance",convTolerance);
+		  config.lookupValue("sim.meanTolerance",convMeanTolerance);
+		  config.lookupValue("sim.devTolerance",convDevTolerance);
 	      
 		  tmp = config.lookup("sim.t_conv");
 	      steps_conv = static_cast<unsigned long>(tmp/dt);
@@ -234,15 +236,15 @@ void jams_run() {
   
   	if(convName == "MAG"){
 		output.write("Convergence for Magnetisation\n");
-  		mag->initConvergence(convMag,convTolerance);
+  		mag->initConvergence(convMag,convMeanTolerance,convDevTolerance);
   	}else if(convName == "PHI"){
 		output.write("Convergence for Phi\n");
-		mag->initConvergence(convPhi,convTolerance);
+		mag->initConvergence(convPhi,convMeanTolerance,convDevTolerance);
 	}else if(convName == "SINPHI"){
 		output.write("Convergence for Sin(Phi)\n");
-		mag->initConvergence(convSinPhi,convTolerance);
+		mag->initConvergence(convSinPhi,convMeanTolerance,convDevTolerance);
 	}
-	output.write("StdDev Tolerance: %e\n",convTolerance);
+	output.write("StdDev Tolerance: %e\n",convMeanTolerance,convDevTolerance);
 		
 	
 
