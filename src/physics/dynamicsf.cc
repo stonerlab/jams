@@ -55,16 +55,9 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 		}
 	}
 
-  // read lattice size
-	if( config.exists("physics.SizeOverride") == true) {
-		for(int i=0; i<3; ++i) {
-			qDim[i] = phys["SizeOverride"][i];
-		}
-		output.write("  * Lattice size override [%d,%d,%d]\n",qDim[0],qDim[1],qDim[2]);
-	}else{
-		lattice.getDimensions(qDim[0],qDim[1],qDim[2]);
-	}
-
+	lattice.getKspaceDimensions(qDim[0],qDim[1],qDim[2]);
+	output.write("  * Kspace Size [%d,%d,%d]\n",qDim[0],qDim[1],qDim[2]);
+	
   // window time
 	if( config.exists("physics.t_window") == true) {
 		t_window = phys["t_window"];
@@ -80,7 +73,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 		jams_error("Window time must be an integer multiple of the run time");
 	}
 
-	freqIntervalSize = (2.0*M_PI)/(sampletime*steps_window);
+	freqIntervalSize = (M_PI)/(sampletime*steps_window);
 	output.write("  * Sample frequency: %f [GHz]\n",freqIntervalSize/1E9);
 
 
