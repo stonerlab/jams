@@ -14,16 +14,11 @@ public:
 		: initialised(false),
 			timePointCounter(0),
 			nTimePoints(0),
-			rDim(3,0),
-			upDim(3,0),
-			upFac(3,1),
+			qDim(3,0),
 			qSpace(NULL),
-			upSpace(NULL),
 			tSpace(NULL),
 			imageSpace(NULL),
 			qSpaceFFT(),
-			upSpaceFFT(),
-			invUpSpaceFFT(),
 			componentReal(0),
 			componentImag(0),
 			coFactors(0,0),
@@ -41,16 +36,11 @@ public:
 		bool              initialised;
 		int               timePointCounter;
 		int               nTimePoints;
-		std::vector<int>  rDim;
-		std::vector<int>  upDim;
-		std::vector<int>  upFac;
+		std::vector<int>  qDim;
 		fftw_complex*     qSpace;
-		fftw_complex*     upSpace;
 		fftw_complex*     tSpace;
 		double *          imageSpace;
 		fftw_plan         qSpaceFFT;
-		fftw_plan         upSpaceFFT;
-		fftw_plan         invUpSpaceFFT;
 		int               componentReal;
 		int               componentImag;
 		Array2D<double>   coFactors;
