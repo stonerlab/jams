@@ -4,6 +4,7 @@
 #include <fftw3.h>
 #include <string>
 #include <map>
+#include "maths.h"
 
 void DynamicSFPhysics::init(libconfig::Setting &phys)
 {
@@ -68,7 +69,8 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	const double t_out = config.lookup("sim.t_out");
 	steps_window = static_cast<unsigned long>(t_window/dt);
 	output.write("  * Window time: %1.8e (%lu steps)\n",t_window,steps_window);
-	steps_window = t_window/(t_out);
+    steps_window = nint(t_window/(t_out));
+    output.write("  * Window samples: %d\n",steps_window);
 	if(nTimePoints%(steps_window) != 0){
 		jams_error("Window time must be an integer multiple of the run time");
 	}
@@ -90,6 +92,44 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	qSpaceFFT = fftw_plan_dft_3d(qDim[0],qDim[1],qDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
 
 	const int qzPoints = (qDim[2]/2)+1;
+	
+//---------------------------------------------------------------------------------
+//  Create map from spin number to col major index of qSpace array
+//---------------------------------------------------------------------------------
+
+    // find min and max coordinates
+    int xmin,xmax;
+    int ymin,ymax;
+    int zmin,zmax;
+
+    // populate initial values
+    lattice.getSpinIntCoord(0,xmin,ymin,zmin);
+    lattice.getSpinIntCoord(0,xmax,ymax,zmax);
+
+    for(int i=0; i<nspins; ++i){
+        int x,y,z;
+        lattice.getSpinIntCoord(i,x,y,z);
+        if(x < xmin){ xmin = x; }
+        if(x > xmax){ xmax = x; }
+
+        if(y < ymin){ ymin = y; }
+        if(y > ymax){ ymax = y; }
+
+        if(z < zmin){ zmin = z; }
+        if(z > zmax){ zmax = z; }
+    }
+
+  output.write("  * qSpace range: [ %d:%d , %d:%d , %d:%d ]\n", xmin, xmax, ymin, ymax, zmin, zmax);
+
+    spinToKspaceMap.resize(nspins);
+    for(int i=0; i<nspins; ++i){
+        int x,y,z;
+        lattice.getSpinIntCoord(i,x,y,z);
+
+
+        int idx = (x*qDim[1]+y)*qDim[2]+z;
+        spinToKspaceMap[i] = idx;
+    }
 
 // --------------------------------------------------------------------------------------------------------------------
 // Time to frequency space transform
@@ -143,14 +183,16 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 	if(componentImag == -1){
 		for(int i=0; i<nspins; ++i){
 			const int type = lattice.getType(i);
-			qSpace[i][0] = coFactors(type,componentReal)*s(i,componentReal);
-			qSpace[i][1] = 0.0;
+			const int idx = spinToKspaceMap[i];
+			qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal);
+			qSpace[idx][1] = 0.0;
 		}
 	} else {
 		for(int i=0; i<nspins; ++i){
 			const int type = lattice.getType(i);
-			qSpace[i][0] = coFactors(type,componentReal)*s(i,componentReal);
-			qSpace[i][1] = coFactors(type,componentImag)*s(i,componentImag);
+			const int idx = spinToKspaceMap[i];
+			qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal);
+			qSpace[idx][1] = coFactors(type,componentImag)*s(i,componentImag);
 		}
 	}
 
@@ -235,7 +277,7 @@ void DynamicSFPhysics::timeTransform()
     
     // apply windowing function
 
-		for(int t=0; t<steps_window; ++t){
+		for(unsigned int t=0; t<steps_window; ++t){
 			for(int qz=0; qz<qzPoints; ++qz){
 				const int tIdx = qz + qzPoints*(t+t0);
 				tSpace[tIdx][0] = tSpace[tIdx][0]*FFTWindow(t,steps_window,HAMMING);
@@ -286,7 +328,7 @@ void DynamicSFPhysics::outputImage()
 	DSFFile.open(filename.c_str());
 	const int qzPoints = (qDim[2]/2)+1;
 	for(int qz=0; qz<qzPoints; ++qz){
-		for(int omega=0; omega<((steps_window/2)+1); ++omega){
+		for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
 			int tIdx = qz + qzPoints*omega;
 			DSFFile << qz << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
 		}

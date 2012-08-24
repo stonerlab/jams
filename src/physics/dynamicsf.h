@@ -47,6 +47,7 @@ public:
 		double            freqIntervalSize;
 		double            t_window;
 		unsigned long     steps_window;
+		std::vector<int>  spinToKspaceMap;
 
 		double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 
 		void   timeTransform();
