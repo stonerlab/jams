@@ -21,7 +21,7 @@ class TTMPhysics : public Physics {
         Ce(7.0E02),
         Cl(3.0E06),
         G(17.0E17),
-        Gsink(17.0E16),
+        Gsink(17.0E14),
         TTMFile(),
         initialised(false)
     {}
