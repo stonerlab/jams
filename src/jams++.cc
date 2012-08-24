@@ -290,12 +290,14 @@ void jams_run() {
 
     }
  
- 	if( ( (i+1) % steps_conv ) == 0 ){
-	 	if(mag->checkConvergence() == true){
-			output.write("Calculation converged\n");
-			break;
-	  	}	
- 	}
+ 	if(steps_conv > 0){
+ 		if( ( (i+1) % steps_conv ) == 0 ){
+	 		if(mag->checkConvergence() == true){
+				output.write("Calculation converged\n");
+				break;
+	  		}	
+ 		}
+	}
  	
 	
 	
