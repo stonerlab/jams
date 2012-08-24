@@ -1,5 +1,5 @@
 #define GLOBALORIGIN
-#define JAMS_VERSION "0.6.1"
+#define JAMS_VERSION "0.6.2"
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 
@@ -290,12 +290,14 @@ void jams_run() {
 
     }
  
- 	if( ( (i+1) % steps_conv ) == 0 ){
-	 	if(mag->checkConvergence() == true){
-			output.write("Calculation converged\n");
-			break;
-	  	}	
- 	}
+ 	if(steps_conv > 0){
+ 		if( ( (i+1) % steps_conv ) == 0 ){
+	 		if(mag->checkConvergence() == true){
+				output.write("Calculation converged\n");
+				break;
+	  		}	
+ 		}
+	}
  	
 	
 	

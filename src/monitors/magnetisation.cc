@@ -55,7 +55,7 @@ void MagnetisationMonitor::write(const double &time) {
   int i,j,type;
   
   for(i=0; i<lattice.numTypes(); ++i) {
-    for(j=0; j<5; ++j) {
+    for(j=0; j<4; ++j) {
       mag(i,j) = 0.0;
     }
   }
@@ -66,6 +66,7 @@ void MagnetisationMonitor::write(const double &time) {
       mag(type,j) += s(i,j);
     }
   }
+  
 
   for(i=0; i<lattice.numTypes(); ++i) {
     for(j=0; j<3; ++j) {
@@ -96,6 +97,8 @@ void MagnetisationMonitor::write(const double &time) {
 #endif
 
 	switch(convType){
+	case convNone:
+		break;
 	case convMag:
 		blockStats.push(mag(0,3));
 		break;
