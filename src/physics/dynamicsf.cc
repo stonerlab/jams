@@ -208,7 +208,6 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 	tSpace[tIdx][0] = qSpace[0][0];
 	tSpace[tIdx][1] = qSpace[0][1];
 	
-	// average -q and +q results
 	for(int qz=1; qz<qzPoints; ++qz){
 
 		int qVec[3] = {0, 0, qz};
@@ -220,17 +219,8 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 		assert(tIdx < qzPoints*nTimePoints); 
 		assert(tIdx > -1);
 
-		tSpace[tIdx][0] = 0.5*qSpace[qIdx][0];
-		tSpace[tIdx][1] = 0.5*qSpace[qIdx][1];
-    
-		qVec[2] = qDim[2]-qz;
-		qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
-		
-		assert(qIdx < nspins); 
-		assert(qIdx > -1);
-
-		tSpace[tIdx][0] = tSpace[tIdx][0] + 0.5*(qSpace[qIdx][0]);
-		tSpace[tIdx][1] = tSpace[tIdx][1] + 0.5*(qSpace[qIdx][1]);
+		tSpace[tIdx][0] = qSpace[qIdx][0];
+		tSpace[tIdx][1] = qSpace[qIdx][1];
 	}
 
 	if(timePointCounter == (nTimePoints-1)){
