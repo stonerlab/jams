@@ -24,7 +24,9 @@ public:
 			coFactors(0,0),
 			freqIntervalSize(0),
 			t_window(0.0),
-			steps_window(0) {}
+			steps_window(0), 
+            nBZPoints(0),
+            BZPoints() {}
     
 		~DynamicSFPhysics();
     
@@ -48,6 +50,8 @@ public:
 		double            t_window;
 		unsigned long     steps_window;
 		std::vector<int>  spinToKspaceMap;
+        int               nBZPoints;
+        Array2D<int>      BZPoints;
 
 		double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 
 		void   timeTransform();
