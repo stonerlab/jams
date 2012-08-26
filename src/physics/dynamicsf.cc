@@ -78,7 +78,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	for(int i=0; i<(nBZPoints-1); ++i){
 		int max=0;
 		for(int j=0; j<3; ++j){
-			int x = abs(BZPoints(i,j) - BZPoints(i+1,j));
+			int x = abs(BZPoints(i+1,j) - BZPoints(i,j));
 			if (x > max){
 				max = x;
 			}
@@ -93,17 +93,16 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	for(int i=0; i<(nBZPoints-1); ++i){
 		int vec[3];
 		for(int j=0; j<3; ++j){
-			vec[j] = BZPoints(i,j)-BZPoints(i+1,j);
-			if(BZPoints(i+1,j) != 0){
-				vec[j] = vec[j] / abs(BZPoints(i+1,j));
+			vec[j] = BZPoints(i+1,j)-BZPoints(i,j);
+			if(vec[j] != 0){
+				vec[j] = vec[j] / abs(vec[j]);
 			}
 		}
 		for(int n=0; n<BZVecCount(i); ++n){
 			for(int j=0; j<3; ++j){
-				BZVecs(counter,j) = BZPoints(i,j)+vec[j];
-				
+				BZVecs(counter,j) = BZPoints(i,j)+n*vec[j];
 			}
-			output.write("BZ Point: %8d [ %4d %4d %4d]", counter, BZVecs(counter,0), BZVecs(counter,1), BZVecs(counter,2));
+			output.write("BZ Point: %8d [ %4d %4d %4d ]\n", counter, BZVecs(counter,0), BZVecs(counter,1), BZVecs(counter,2));
 			counter++;
 		}
 	}
