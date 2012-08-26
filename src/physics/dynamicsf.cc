@@ -59,6 +59,58 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	lattice.getKspaceDimensions(qDim[0],qDim[1],qDim[2]);
 	output.write("  * Kspace Size [%d,%d,%d]\n",qDim[0],qDim[1],qDim[2]);
 	
+	
+	// read irreducible Brillouin zone
+	const int nBZPoints = phys["brillouinzone"].getLength();
+	
+	Array2D<int> BZPoints(nBZPoints,3);
+	Array<int> BZVecCount(nBZPoints-1);
+	
+	
+	for(int i=0; i<nBZPoints; ++i){
+		for(int j=0; j<3; ++j){
+			BZPoints(i,j) = phys["brillouinzone"][i][j];
+		}
+	}
+	
+	// count number of Brillouin zone vector points we need
+	int nBZVecs = 0;
+	for(int i=0; i<(nBZPoints-1); ++i){
+		int max=0;
+		for(int j=0; j<3; ++j){
+			int x = abs(BZPoints(i,j) - BZPoints(i+1,j));
+			if (x > max){
+				max = x;
+			}
+		}
+		BZVecCount(i) = max;
+		nBZVecs += max;
+	}
+	
+	// calculate Brillouin zone vectors points
+	Array2D<int> BZVecs(nBZVecs,3);
+	int counter=0;
+	for(int i=0; i<(nBZPoints-1); ++i){
+		int vec[3];
+		for(int j=0; j<3; ++j){
+			vec[j] = BZPoints(i,j)-BZPoints(i+1,j);
+			if(BZPoints(i+1,j) != 0){
+				vec[j] = vec[j] / abs(BZPoints(i+1,j));
+			}
+		}
+		for(int n=0; n<BZVecCount(i); ++n){
+			for(int j=0; j<3; ++j){
+				BZVecs(counter,j) = BZPoints(i,j)+vec[j];
+				
+			}
+			output.write("BZ Point: %8d [ %4d %4d %4d]", counter, BZVecs(counter,0), BZVecs(counter,1), BZVecs(counter,2));
+			counter++;
+		}
+	}
+	
+	
+	
+	
   // window time
 	if( config.exists("physics.t_window") == true) {
 		t_window = phys["t_window"];
