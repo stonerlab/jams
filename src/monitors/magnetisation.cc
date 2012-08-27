@@ -42,10 +42,10 @@ bool MagnetisationMonitor::checkConvergence(){
 			if ( (meanRelErr < meanTol) && (devRelErr < devTol) ) {
 				return true;
 			}
+        }
 			runningMean.push(blockStats.mean());
 			runningDev.push(blockStats.stdDev());
 		//blockStats.clear();
-		}
 	}
 	return false;
 }

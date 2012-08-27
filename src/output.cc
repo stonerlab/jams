@@ -44,7 +44,7 @@ void Output::write(const char* string, ...)
 
   if (console == true) {
       print(buffer);
-//    fflush(stdout);
+      fflush(stdout);
   }
 }
 
