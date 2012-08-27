@@ -26,7 +26,8 @@ public:
 			t_window(0.0),
 			steps_window(0), 
             nBZPoints(0),
-            BZPoints() {}
+            BZPoints(),
+            BZLengths() {}
     
 		~DynamicSFPhysics();
     
@@ -52,6 +53,7 @@ public:
 		std::vector<int>  spinToKspaceMap;
         int               nBZPoints;
         Array2D<int>      BZPoints;
+        Array<float>      BZLengths;
 
 		double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 
 		void   timeTransform();

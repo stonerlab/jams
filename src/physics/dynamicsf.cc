@@ -86,12 +86,15 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 		BZPointCount(i) = max;
 		nBZPoints += max;
 	}
+
+    nBZPoints += 1; // include last symmetry point
 	
 	// calculate Brillouin zone vectors points
 	BZPoints.resize(nBZPoints,3);
+    BZLengths.resize(nBZPoints);
+	int vec[3] = {0,0,0};
 	int counter=0;
 	for(int i=0; i<(nSymPoints-1); ++i){
-		int vec[3];
 		for(int j=0; j<3; ++j){
 			vec[j] = SymPoints(i+1,j)-SymPoints(i,j);
 			if(vec[j] != 0){
@@ -102,10 +105,18 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 			for(int j=0; j<3; ++j){
 				BZPoints(counter,j) = SymPoints(i,j)+n*vec[j];
 			}
+            BZLengths(counter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
 			output.write("BZ Point: %8d [ %4d %4d %4d ]\n", counter, BZPoints(counter,0), BZPoints(counter,1), BZPoints(counter,2));
 			counter++;
 		}
 	}
+
+    // include last point on curve
+    for(int j=0; j<3; ++j){
+        BZPoints(counter,j) = SymPoints(nSymPoints-1,j);
+    }
+    BZLengths(counter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
+	output.write("BZ Point: %8d [ %4d %4d %4d ]\n", counter, BZPoints(counter,0), BZPoints(counter,1), BZPoints(counter,2));
 	
 	
 	
@@ -359,12 +370,14 @@ void DynamicSFPhysics::outputImage()
 	std::string filename = "_dsf.dat";
 	filename = seedname+filename;
 	DSFFile.open(filename.c_str());
+    float lengthTotal=0.0;
 	for(int q=0; q<nBZPoints; ++q){
 		for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
 			int tIdx = q + nBZPoints*omega;
-			DSFFile << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2) << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
+			DSFFile << lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2) << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
 		}
 		DSFFile << std::endl;
+        lengthTotal += BZLengths(q);
 	}
   
 	DSFFile.close();
