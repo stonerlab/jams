@@ -41,6 +41,7 @@ bool MagnetisationMonitor::checkConvergence(){
 			output.write("Convergence: r_mean %1.5f b_mean %1.5f meanRelErr %1.5f [%1.5f] :: r_stddev %1.5f b_stddev %1.5f devRelErr %1.5f [%1.5f] \n",
 				runningMean.mean(),blockStats.mean(),meanRelErr,meanTol,runningMean.stdDev(),blockStats.stdDev(),devRelErr,devTol);	
 			if ( (meanRelErr < meanTol) && (devRelErr < devTol) ) {
+				output.write("Converged: mean %1.5f meanRelErr %1.5f stdDev %1.5f stdDevRelErr %1.5f\n", blockStats.mean(),meanRelErr,blockStats.stdDev(),devRelErr);
 				return true;
 			}
         }
