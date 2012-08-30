@@ -39,7 +39,7 @@ bool MagnetisationMonitor::checkConvergence(){
 			const double meanRelErr = fabs((runningMean.mean()-blockStats.mean())/runningMean.mean());
 			const double devRelErr = fabs((runningMean.stdDev()-blockStats.stdDev())/runningMean.stdDev());
 			output.write("Convergence: r_mean %1.5f b_mean %1.5f meanRelErr %1.5f [%1.5f] :: r_stddev %1.5f b_stddev %1.5f devRelErr %1.5f [%1.5f] \n",
-				runningMean.mean(),blockStats.mean(),meanRelErr,meanTol,runningMean.mean(),blockStats.stdDev(),devRelErr,devTol);	
+				runningMean.mean(),blockStats.mean(),meanRelErr,meanTol,runningMean.stdDev(),blockStats.stdDev(),devRelErr,devTol);	
 			if ( (meanRelErr < meanTol) && (devRelErr < devTol) ) {
 				return true;
 			}
