@@ -29,6 +29,7 @@ namespace {
   unsigned long steps_eq=0;
   unsigned long steps_run=0;
   unsigned long steps_out=0;
+  unsigned long	steps_vis=0;
   unsigned long steps_conv=0;
   
   std::string convName;
@@ -138,7 +139,10 @@ int jams_init(int argc, char **argv) {
 
       if( config.exists("sim.visualise") == true) {
         config.lookupValue("sim.visualise",toggleVisualise);
+		tmp = config.lookup("sim.t_vis");
+		steps_vis = static_cast<unsigned long>(tmp/dt);
         output.write("  * Visualisation is ON\n");
+        output.write("  * Visualisation time: %1.8e (%lu steps)\n",tmp,steps_vis);
       } else {
         toggleVisualise = false;
       }
@@ -250,9 +254,9 @@ void jams_run() {
 
   std::string name = "_eng.dat";
   name = seedname+name;
-  std::ofstream engfile(name.c_str());
+  //std::ofstream engfile(name.c_str());
 
-  double e1_s, e1_t, e2_s, e2_t;
+  //double e1_s, e1_t, e2_s, e2_t;
 
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
@@ -260,8 +264,8 @@ void jams_run() {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
       mag->write(solver->getTime());
-      solver->calcEnergy(e1_s,e1_t,e2_s,e2_t);
-      engfile << solver->getTime() << "\t" << e1_s << "\t" << e1_t << "\t" << e2_s << "\t" << e2_t << std::endl;
+      //solver->calcEnergy(e1_s,e1_t,e2_s,e2_t);
+      //engfile << solver->getTime() << "\t" << e1_s << "\t" << e1_t << "\t" << e2_s << "\t" << e2_t << std::endl;
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
@@ -277,18 +281,18 @@ void jams_run() {
       solver->syncOutput();
       mag->write(solver->getTime());
       physics->monitor(solver->getTime(),dt);
-      
-      if(toggleVisualise == true){
-          int outcount = i/steps_out; // int divisible by modulo above
-          std::string vtufilename;
-          vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
-          std::ofstream vtufile(vtufilename.c_str());
-          lattice.outputSpinsVTU(vtufile);
-          vtufile.close();
-      }
-	  
 
     }
+	if(toggleVisualise == true){
+		if( ((i)%steps_vis) == 0 ){
+			int outcount = i/steps_vis; // int divisible by modulo above
+			std::string vtufilename;
+			vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
+			std::ofstream vtufile(vtufilename.c_str());
+			lattice.outputSpinsVTU(vtufile);
+			vtufile.close();
+		}
+	}
  
  	if(steps_conv > 0){
  		if( ( (i+1) % steps_conv ) == 0 ){
@@ -310,7 +314,7 @@ void jams_run() {
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;
   output.write("Solving time: %f\n",elapsed);
-  engfile.close();
+  //engfile.close();
 
   if(mag != NULL) { delete mag; }
 
