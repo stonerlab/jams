@@ -90,6 +90,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
     nBZPoints += 1; // include last symmetry point
 	
 	// calculate Brillouin zone vectors points
+	BZIndex.resize(nBZPoints+1);
 	BZPoints.resize(nBZPoints,3);
     BZLengths.resize(nBZPoints);
 	int vec[3] = {0,0,0};
@@ -102,13 +103,26 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 			}
 		}
 		for(int n=0; n<BZPointCount(i); ++n){
+			BZIndex(n) = counter;
+			int bzvec[3];
+			int pbcvec[3];
 			for(int j=0; j<3; ++j){
-				BZPoints(counter,j) = SymPoints(i,j)+n*vec[j];
+				bzvec[j] = abs(SymPoints(i,j)+n*vec[j]);
 			}
-            BZLengths(counter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
-			output.write("BZ Point: %8d [ %4d %4d %4d ]\n", counter, BZPoints(counter,0), BZPoints(counter,1), BZPoints(counter,2));
-			counter++;
+	        std::sort(bzvec,bzvec+3);
+			output.write("BZ Point: %8d [ %4d %4d %4d ]\n", counter, bzvec[0], bzvec[1], bzvec[2]);
+	        do {
+				// apply periodic boundaries here
+				// FFTW stores -q in reverse order at the end of the array.
+				for(int j=0; j<3; ++j){
+				  pbcvec[j] = (qDim[j]+bzvec[j])%qDim[j];
+			  	  BZPoints(counter,j) = pbcvec[j];
+			  	}
+				counter++;
+	        } while (next_point_symmetry(bzvec));
+            BZLengths(n) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
 		}
+		BZIndex(nBZPoints) = counter;
 	}
 
     // include last point on curve
@@ -198,6 +212,10 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*nBZPoints/(1024.0*1024.0)));
 
 	tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*nBZPoints));
+	for(int i=0; i<nTimePoints*nBZPoints; ++i){
+		tSpace[i][0] = 0.0;
+		tSpace[i][1] = 0.0;
+	}
 
 	if(qSpace == NULL){
 		jams_error("Failed to allocate tSpace FFT array");
@@ -263,19 +281,22 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 		qSpace[i][1] /= (qDim[0]*qDim[1]*qDim[2]);
 	}
 
-	for(int q=0; q<nBZPoints; ++q){
 
-		const int qVec[3] = {BZPoints(q,0), BZPoints(q,1), BZPoints(q,2)};
-		const int qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
-		const int tIdx = q + nBZPoints*timePointCounter;
+	// note periodic boundary conditions we applied in the initialisation
+	for(int n=0; n<nBZPoints; ++n){
+		for(int q=BZIndex(n); q<BZIndex(n+1); ++q){
+			const int qVec[3] = {BZPoints(q,0), BZPoints(q,1), BZPoints(q,2)};
+			const int qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
+			const int tIdx = n + nBZPoints*timePointCounter;
 		
-		assert(qIdx < nspins); 
-		assert(qIdx > -1);
-		assert(tIdx < nBZPoints*nTimePoints); 
-		assert(tIdx > -1);
+			assert(qIdx < nspins); 
+			assert(qIdx > -1);
+			assert(tIdx < nBZPoints*nTimePoints); 
+			assert(tIdx > -1);
 
-		tSpace[tIdx][0] = qSpace[qIdx][0];
-		tSpace[tIdx][1] = qSpace[qIdx][1];
+			tSpace[tIdx][0] += qSpace[qIdx][0];
+			tSpace[tIdx][1] += qSpace[qIdx][1];
+		}
 	}
 
 	if(timePointCounter == (nTimePoints-1)){
@@ -371,13 +392,14 @@ void DynamicSFPhysics::outputImage()
 	filename = seedname+filename;
 	DSFFile.open(filename.c_str());
     float lengthTotal=0.0;
-	for(int q=0; q<nBZPoints; ++q){
+	for(int n=0; n<nBZPoints; ++n){
+		const int q = BZIndex(n);
 		for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
-			int tIdx = q + nBZPoints*omega;
+			int tIdx = n + nBZPoints*omega;
 			DSFFile << lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2) << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
 		}
 		DSFFile << std::endl;
-        lengthTotal += BZLengths(q);
+        lengthTotal += BZLengths(n);
 	}
   
 	DSFFile.close();

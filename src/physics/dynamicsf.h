@@ -26,6 +26,7 @@ public:
 			t_window(0.0),
 			steps_window(0), 
             nBZPoints(0),
+			BZIndex(),	
             BZPoints(),
             BZLengths() {}
     
@@ -52,6 +53,7 @@ public:
 		unsigned long     steps_window;
 		std::vector<int>  spinToKspaceMap;
         int               nBZPoints;
+		Array<int>		  BZIndex;
         Array2D<int>      BZPoints;
         Array<float>      BZLengths;
 
