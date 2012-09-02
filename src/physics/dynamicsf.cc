@@ -89,12 +89,12 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 
     nBZPoints += 1; // include last symmetry point
 	
+
 	// calculate Brillouin zone vectors points
-	BZIndex.resize(nBZPoints+1);
-	BZPoints.resize(nBZPoints,3);
-    BZLengths.resize(nBZPoints);
 	int vec[3] = {0,0,0};
 	int counter=0;
+
+    // go through once to count total number of points with symmetry
 	for(int i=0; i<(nSymPoints-1); ++i){
 		for(int j=0; j<3; ++j){
 			vec[j] = SymPoints(i+1,j)-SymPoints(i,j);
@@ -103,36 +103,93 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 			}
 		}
 		for(int n=0; n<BZPointCount(i); ++n){
-			BZIndex(n) = counter;
+			int bzvec[3];
+			for(int j=0; j<3; ++j){
+				bzvec[j] = abs(SymPoints(i,j)+n*vec[j]);
+			}
+	        std::sort(bzvec,bzvec+3);
+	        do {
+				counter++;
+	        } while (next_point_symmetry(bzvec));
+		}
+	}
+	{
+		int bzvec[3];
+		for(int j=0; j<3; ++j){
+			bzvec[j] = abs(SymPoints(nSymPoints-1,j));
+		}
+        std::sort(bzvec,bzvec+3);
+        do {
+			counter++;
+        } while (next_point_symmetry(bzvec));		
+	}
+
+    // go through again and create arrays
+	BZIndex.resize(nBZPoints+1);
+	BZPoints.resize(counter+1,3); // +1 to add on final point
+    BZLengths.resize(nBZPoints);
+	int irreducibleCounter=0;
+    counter=0;
+	for(int i=0; i<(nSymPoints-1); ++i){
+		for(int j=0; j<3; ++j){
+			vec[j] = SymPoints(i+1,j)-SymPoints(i,j);
+			if(vec[j] != 0){
+				vec[j] = vec[j] / abs(vec[j]);
+			}
+		}
+		for(int n=0; n<BZPointCount(i); ++n){
+            BZLengths(irreducibleCounter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
+			BZIndex(irreducibleCounter) = counter;
 			int bzvec[3];
 			int pbcvec[3];
 			for(int j=0; j<3; ++j){
 				bzvec[j] = abs(SymPoints(i,j)+n*vec[j]);
 			}
 	        std::sort(bzvec,bzvec+3);
-			output.write("BZ Point: %8d [ %4d %4d %4d ]\n", counter, bzvec[0], bzvec[1], bzvec[2]);
+			output.write("BZ Point: %8d %8d [ %4d %4d %4d ]\n", irreducibleCounter, counter, bzvec[0], bzvec[1], bzvec[2]);
 	        do {
 				// apply periodic boundaries here
 				// FFTW stores -q in reverse order at the end of the array.
 				for(int j=0; j<3; ++j){
-				  pbcvec[j] = (qDim[j]+bzvec[j])%qDim[j];
+				  pbcvec[j] = ((qDim[j])+bzvec[j])%(qDim[j]);
 			  	  BZPoints(counter,j) = pbcvec[j];
 			  	}
 				counter++;
 	        } while (next_point_symmetry(bzvec));
-            BZLengths(n) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
+			irreducibleCounter++;
 		}
-		BZIndex(nBZPoints) = counter;
+		BZIndex(irreducibleCounter) = counter;
 	}
 
     // include last point on curve
-    for(int j=0; j<3; ++j){
-        BZPoints(counter,j) = SymPoints(nSymPoints-1,j);
-    }
-    BZLengths(counter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
-	output.write("BZ Point: %8d [ %4d %4d %4d ]\n", counter, BZPoints(counter,0), BZPoints(counter,1), BZPoints(counter,2));
-	
-	
+	{
+		for(int j=0; j<3; ++j){
+			vec[j] = SymPoints(nSymPoints-1,j);
+			if(vec[j] != 0){
+				vec[j] = vec[j] / abs(vec[j]);
+			}
+		}
+		BZLengths(irreducibleCounter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
+		BZIndex(irreducibleCounter) = counter;
+		int bzvec[3];
+		int pbcvec[3];
+		for(int j=0; j<3; ++j){
+			bzvec[j] = abs(SymPoints(nSymPoints-1,j));
+		}
+		std::sort(bzvec,bzvec+3);
+		output.write("BZ Point: %8d %8d [ %4d %4d %4d ]\n", irreducibleCounter, counter, bzvec[0], bzvec[1], bzvec[2]);
+		do {
+			// apply periodic boundaries here
+			// FFTW stores -q in reverse order at the end of the array.
+			for(int j=0; j<3; ++j){
+				pbcvec[j] = ((qDim[j])+bzvec[j])%(qDim[j]);
+				BZPoints(counter,j) = pbcvec[j];
+			}
+			counter++;
+		} while (next_point_symmetry(bzvec));
+		irreducibleCounter++;
+	}
+	BZIndex(irreducibleCounter) = counter;
 	
 	
   // window time
@@ -392,17 +449,31 @@ void DynamicSFPhysics::outputImage()
 	filename = seedname+filename;
 	DSFFile.open(filename.c_str());
     float lengthTotal=0.0;
+	
+	std::vector<double> dos((steps_window/2)+1,0.0);
+	
 	for(int n=0; n<nBZPoints; ++n){
 		const int q = BZIndex(n);
 		for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
 			int tIdx = n + nBZPoints*omega;
 			DSFFile << lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2) << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
+			dos[omega] += imageSpace[tIdx];
 		}
 		DSFFile << std::endl;
         lengthTotal += BZLengths(n);
 	}
   
 	DSFFile.close();
+	
+	std::ofstream DOSFile;
+	filename = "_dos.dat";
+	filename = seedname+filename;
+	DOSFile.open(filename.c_str());
+	for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
+		DOSFile << omega*freqIntervalSize <<"\t" << dos[omega] <<"\n";
+	}
+	
+	DOSFile.close();
 }
 
 double DynamicSFPhysics::FFTWindow(const int n, const int nTotal, const FFTWindowType type){
