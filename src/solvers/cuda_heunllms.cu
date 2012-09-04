@@ -14,13 +14,13 @@
 #include <cmath>
 
 
-void CUDAHeunLLGSolver::syncOutput()
+void CUDAHeunLLMSSolver::syncOutput()
 {
   using namespace globals;
   CUDA_CALL(cudaMemcpy(s.ptr(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
 }
 
-void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
+void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
 {
   using namespace globals;
 
@@ -35,11 +35,14 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
     sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)*omega_corr(i)) / (dt*mus(i)*mu_bohr_si) );
   }
   
+  libconfig::Setting &matcfg = config.lookup("materials");
+
   for(int i=0; i<nspins; ++i){
-	omega_corr(i) = config["materials"][type_num]["t_corr"];
+    int type_num = lattice.getType(i);
+	omega_corr(i) = matcfg[type_num]["t_corr"];
     omega_corr(i) = 1.0/(gamma_electron_si*omega_corr(i));
   
-  	gyro(i) = config["materials"][type_num]["gyro"];
+  	gyro(i) = matcfg[type_num]["gyro"];
 	gyro(i) = -gyro(i)/mus(i);
   }
 
@@ -192,7 +195,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   initialised = true;
 }
 
-void CUDAHeunLLGSolver::run()
+void CUDAHeunLLMSSolver::run()
 {
   using namespace globals;
 
@@ -254,11 +257,11 @@ void CUDAHeunLLGSolver::run()
       s_dev,
       sf_dev,
       s_new_dev,
+      h_dev,
+      w_dev,
 	  u_dev,
 	  u_new_dev,
 	  omega_corr_dev,
-      h_dev,
-      w_dev,
       mat_dev,
       h_app[0],
       h_app[1],
@@ -320,11 +323,11 @@ void CUDAHeunLLGSolver::run()
       s_dev,
       sf_dev,
       s_new_dev,
+      h_dev,
+      w_dev,
 	  u_dev,
 	  u_new_dev,
 	  omega_corr_dev,
-      h_dev,
-      w_dev,
       mat_dev,
       h_app[0],
       h_app[1],
@@ -335,12 +338,12 @@ void CUDAHeunLLGSolver::run()
   iteration++;
 }
 
-void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t){
+void CUDAHeunLLMSSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t){
   using namespace globals;
 
 }
 
-CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
+CUDAHeunLLMSSolver::~CUDAHeunLLMSSolver()
 {
   curandDestroyGenerator(gen);
   

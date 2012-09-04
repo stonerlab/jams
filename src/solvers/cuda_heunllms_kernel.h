@@ -10,7 +10,7 @@ __global__ void cuda_heun_llms_kernelA
   float * w_dev,
   double * u_dev,
   double * u_new_dev,
-  double * omega_corr_dev,
+  float * omega_corr_dev,
   float * mat_dev,
   float h_app_x,
   float h_app_y,
@@ -71,7 +71,7 @@ __global__ void cuda_heun_llms_kernelA
 	
 	#pragma unroll
     for(int i=0; i<3; ++i){
-		rhs[i] = u[idx3+i] - omega_corr_dev[i]*(w[idx3+i] + alpha*sxh[i]);
+		rhs[i] = u_dev[idx3+i] - omega_corr_dev[i]*(w_dev[idx3+i] + alpha*sxh[i]);
     }
 	
 	#pragma unroll
@@ -92,7 +92,7 @@ __global__ void cuda_heun_llms_kernelB
   float * w_dev,
   double * u_dev,
   double * u_new_dev,
-  double * omega_corr_dev,
+  float * omega_corr_dev,
   float * mat_dev,
   float h_app_x,
   float h_app_y,
@@ -147,7 +147,7 @@ __global__ void cuda_heun_llms_kernelB
 	}
 	
 	#pragma unroll
-    for(i=0; i<3; ++i) {
+    for(int i=0; i<3; ++i) {
       u_dev[idx3+i] = u_new_dev[idx3+i] + 0.5*dt*(u_dev[idx3+i] - omega_corr_dev[i]*(w_dev[idx3+i] + alpha*sxh[i]));
     }
 
