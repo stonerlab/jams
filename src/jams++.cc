@@ -37,6 +37,9 @@ namespace {
   double convDevTolerance=0.0;
 
   bool toggleVisualise=false;
+  
+  std::vector<Monitor*> monitor_list;
+  
 } // anon namespace
 
 int jams_init(int argc, char **argv) {
@@ -229,29 +232,52 @@ int jams_init(int argc, char **argv) {
     solver->setTemperature(init_temperature);
 
   }
+  
+  // select monitors
+  monitor_list.push_back(new MagnetisationMonitor());
+  
+  	if( config.exists("sim.monitors") == true ) {
+  		libconfig::Setting &simcfg = config.lookup("sim");
+		
+		for(int i=0; i<simcfg["monitors"].getLength();++i){
+			std::string monname;
+			monname = std::string(simcfg["monitors"][i].c_str());
+	        std::transform(monname.begin(),monname.end(),monname.begin(),toupper);
+
+	        if(monname == "BOLTZMANN") {
+				monitor_list.push_back(new BoltzmannMonitor());
+	        }else{
+	          jams_error("Unknown monitor selected.");
+	        }
+			
+		}
+
+	}
+	
+	for(int i=0; i<monitor_list.size(); ++i){
+		monitor_list[i]->initialise();
+	}
+	
+  	if(convName == "MAG"){
+		output.write("Convergence for Magnetisation\n");
+  		monitor_list[0]->initConvergence(convMag,convMeanTolerance,convDevTolerance);
+  	}else if(convName == "PHI"){
+		output.write("Convergence for Phi\n");
+		monitor_list[0]->initConvergence(convPhi,convMeanTolerance,convDevTolerance);
+	}else if(convName == "SINPHI"){
+		output.write("Convergence for Sin(Phi)\n");
+		monitor_list[0]->initConvergence(convSinPhi,convMeanTolerance,convDevTolerance);
+	}
+	output.write("StdDev Tolerance: %e\n",convMeanTolerance,convDevTolerance);
+		
+  
+  
   return 0;
 }
 
 void jams_run() {
 	using namespace globals;
   
-  	Monitor *mag = new MagnetisationMonitor();
- 	mag->initialise();
-  
-  	if(convName == "MAG"){
-		output.write("Convergence for Magnetisation\n");
-  		mag->initConvergence(convMag,convMeanTolerance,convDevTolerance);
-  	}else if(convName == "PHI"){
-		output.write("Convergence for Phi\n");
-		mag->initConvergence(convPhi,convMeanTolerance,convDevTolerance);
-	}else if(convName == "SINPHI"){
-		output.write("Convergence for Sin(Phi)\n");
-		mag->initConvergence(convSinPhi,convMeanTolerance,convDevTolerance);
-	}
-	output.write("StdDev Tolerance: %e\n",convMeanTolerance,convDevTolerance);
-		
-	
-
   std::string name = "_eng.dat";
   name = seedname+name;
   //std::ofstream engfile(name.c_str());
@@ -263,13 +289,20 @@ void jams_run() {
   for(unsigned long i=0;i<steps_eq;++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
-      mag->write(solver->getTime());
+
+  	  // write magnetisation only
+	  monitor_list[0]->write(solver->getTime());
+
       //solver->calcEnergy(e1_s,e1_t,e2_s,e2_t);
       //engfile << solver->getTime() << "\t" << e1_s << "\t" << e1_t << "\t" << e2_s << "\t" << e2_t << std::endl;
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
     solver->run();
+
+	// only run magnetisation
+	monitor_list[0]->run();
+
   }
   
   output.write("\n----Data Run----\n");
@@ -279,7 +312,9 @@ void jams_run() {
   for(unsigned long i=0; i<steps_run; ++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
-      mag->write(solver->getTime());
+		for(int i=0; i<monitor_list.size(); ++i){
+			monitor_list[i]->write(solver->getTime());
+		}
       physics->monitor(solver->getTime(),dt);
 
     }
@@ -296,7 +331,7 @@ void jams_run() {
  
  	if(steps_conv > 0){
  		if( ( (i+1) % steps_conv ) == 0 ){
-	 		if(mag->checkConvergence() == true){
+	 		if(monitor_list[0]->checkConvergence() == true){
 				break;
 	  		}	
  		}
@@ -307,6 +342,9 @@ void jams_run() {
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
     solver->run();
+	for(int i=0; i<monitor_list.size(); ++i){
+		monitor_list[i]->run();
+	}
 
 
   }
@@ -315,7 +353,12 @@ void jams_run() {
   output.write("Solving time: %f\n",elapsed);
   //engfile.close();
 
-  if(mag != NULL) { delete mag; }
+  for(int i=0; i<monitor_list.size(); ++i){
+	  if(monitor_list[i] != NULL){
+		  delete monitor_list[i];
+		  monitor_list[i] = NULL;
+	  }
+  }
 
 }
 
