@@ -28,6 +28,7 @@ public:
             nBZPoints(0),
 			BZIndex(),	
             BZPoints(),
+			BZDegeneracy(),
             BZLengths() {}
     
 		~DynamicSFPhysics();
@@ -55,6 +56,7 @@ public:
         int               nBZPoints;
 		Array<int>		  BZIndex;
         Array2D<int>      BZPoints;
+		Array<int>		  BZDegeneracy;
         Array<float>      BZLengths;
 
 		double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 

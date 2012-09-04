@@ -64,8 +64,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	const int nSymPoints = phys["brillouinzone"].getLength();
 	
 	Array2D<int> SymPoints(nSymPoints,3);
-	Array<int> BZPointCount(nSymPoints-1);
-	
+	Array<int> BZPointCount(nSymPoints-1);	
 	
 	for(int i=0; i<nSymPoints; ++i){
 		for(int j=0; j<3; ++j){
@@ -128,6 +127,9 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	BZIndex.resize(nBZPoints+1);
 	BZPoints.resize(counter+1,3); // +1 to add on final point
     BZLengths.resize(nBZPoints);
+	BZDegeneracy.resize(nBZPoints);
+	for(int i=0; i<nBZPoints; ++i){BZDegeneracy(i)=0;}
+	
 	int irreducibleCounter=0;
     counter=0;
 	for(int i=0; i<(nSymPoints-1); ++i){
@@ -152,9 +154,12 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 				// FFTW stores -q in reverse order at the end of the array.
 				for(int j=0; j<3; ++j){
 				  pbcvec[j] = ((qDim[j])+bzvec[j])%(qDim[j]);
-			  	  BZPoints(counter,j) = pbcvec[j];
+				  BZPoints(counter,j) = pbcvec[j];
 			  	}
+			  std::cout<<bzvec[0]<<"\t"<<bzvec[1]<<"\t"<<bzvec[2]<<"\t"<<pbcvec[0]<<"\t"<<pbcvec[1]<<"\t"<<pbcvec[2]<<std::endl;
+				
 				counter++;
+				BZDegeneracy(irreducibleCounter)++;
 	        } while (next_point_symmetry(bzvec));
 			irreducibleCounter++;
 		}
@@ -185,6 +190,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 				pbcvec[j] = ((qDim[j])+bzvec[j])%(qDim[j]);
 				BZPoints(counter,j) = pbcvec[j];
 			}
+			BZDegeneracy(irreducibleCounter)++;
 			counter++;
 		} while (next_point_symmetry(bzvec));
 		irreducibleCounter++;
@@ -351,8 +357,8 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 			assert(tIdx < nBZPoints*nTimePoints); 
 			assert(tIdx > -1);
 
-			tSpace[tIdx][0] += qSpace[qIdx][0];
-			tSpace[tIdx][1] += qSpace[qIdx][1];
+			tSpace[tIdx][0] = qSpace[qIdx][0];
+			tSpace[tIdx][1] = qSpace[qIdx][1];
 		}
 	}
 
@@ -420,8 +426,11 @@ void DynamicSFPhysics::timeTransform()
 				assert( tIdxMinus >= 0 );
 				assert( tIdxMinus < (nTimePoints*nBZPoints) );
 
-				tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(steps_window));
-				tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(steps_window));
+				tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(double(nspins)*double(steps_window));
+				tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(double(nspins)*double(steps_window));
+
+				//tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(steps_window));
+				//tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(steps_window));
 
         // zero -omega to avoid accidental use
 				tSpace[tIdxMinus][0] = 0.0; tSpace[tIdxMinus][1] = 0.0;
@@ -456,7 +465,8 @@ void DynamicSFPhysics::outputImage()
 		const int q = BZIndex(n);
 		for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
 			int tIdx = n + nBZPoints*omega;
-			DSFFile << lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2) << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
+			DSFFile << lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2);
+			DSFFile << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx]<<"\t"<<static_cast<double>(BZDegeneracy(n))<<"\n";
 			dos[omega] += imageSpace[tIdx];
 		}
 		DSFFile << std::endl;
