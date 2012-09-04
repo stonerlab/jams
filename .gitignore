@@ -1,4 +1,6 @@
 jams++
+tmtags
+tmtagsHistory
 *.in
 *.out
 *.err
