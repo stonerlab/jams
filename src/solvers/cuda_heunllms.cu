@@ -13,7 +13,6 @@
 
 #include <cmath>
 
-
 void CUDAHeunLLMSSolver::syncOutput()
 {
   using namespace globals;
@@ -30,10 +29,6 @@ void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
   output.write("  * CUDA Heun LLMS solver (GPU)\n");
 
   sigma.resize(nspins);
-
-  for(int i=0; i<nspins; ++i) {
-    sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)*omega_corr(i)) / (dt*mus(i)*mu_bohr_si) );
-  }
   
   libconfig::Setting &matcfg = config.lookup("materials");
 
@@ -42,6 +37,8 @@ void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
 	omega_corr(i) = matcfg[type_num]["t_corr"];
     omega_corr(i) = 1.0/(gamma_electron_si*omega_corr(i));
   
+    sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)*omega_corr(i)*omega_corr(i)) / (dt*mus(i)*mu_bohr_si) );
+	  
   	gyro(i) = matcfg[type_num]["gyro"];
 	gyro(i) = -gyro(i)/mus(i);
   }
@@ -210,6 +207,9 @@ void CUDAHeunLLMSSolver::run()
     }
   }
   
+  Array2D<float> tmp(nspins,3);
+
+
   // calculate interaction fields (and zero field array)
 
   //CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
@@ -269,7 +269,16 @@ void CUDAHeunLLMSSolver::run()
       nspins,
       dt
     );
-
+	//   Array2D<float> hf(nspins,3);
+	//   Array2D<float> sf(nspins,3);
+	//   CUDA_CALL(cudaMemcpy(hf.ptr(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+	// CUDA_CALL(cudaMemcpy(sf.ptr(),sf_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+	// 
+	//   for(int i=0; i<nspins; ++i){
+	//       std::cout<<i<<"\t"<<sf(i,0)<<"\t"<<sf(i,1)<<"\t"<<sf(i,2)<<"\t"<<hf(i,0)<<"\t"<<hf(i,1)<<"\t"<<hf(i,2)<<std::endl;
+	//   }
+	  
+  
   // calculate interaction fields (and zero field array)
 
   beta=0.0;

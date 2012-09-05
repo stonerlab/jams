@@ -1,5 +1,5 @@
-#ifndef __CUDA_HEUNLLG_KERNEL__
-#define __CUDA_HEUNLLG_KERNEL__
+#ifndef __CUDA_HEUNLLMS_KERNEL__
+#define __CUDA_HEUNLLMS_KERNEL__
 
 __global__ void cuda_heun_llms_kernelA
 (
@@ -34,9 +34,11 @@ __global__ void cuda_heun_llms_kernelA
     float alpha = mat_dev[idx*4+2];
     float sigma = mat_dev[idx*4+3];
 	
-    h[0] = double(( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro);
-    h[1] = double(( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro);
-    h[2] = double(( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z)*mus )*gyro);
+    h[0] = (( h_dev[idx3  ] + (u_dev[idx3  ] + h_app_x)*mus )*gyro);
+    h[1] = (( h_dev[idx3+1] + (u_dev[idx3+1] + h_app_y)*mus )*gyro);
+    h[2] = (( h_dev[idx3+2] + (u_dev[idx3+2] + h_app_z)*mus )*gyro);
+	
+
 
 	#pragma unroll
 	for(int i=0; i<3; ++i){
@@ -49,12 +51,12 @@ __global__ void cuda_heun_llms_kernelA
 
 	#pragma unroll
 	for(int i=0; i<3; ++i){
-    	s_new_dev[idx3+i] = s[i] + 0.5*dt*rhs[i];
+    	s_new_dev[idx3+i] = s[i] + 0.5*dt*sxh[i];
 	}
 
 	#pragma unroll
 	for(int i=0; i<3; ++i){
-    	s[i] = s[i] + dt*rhs[i];
+    	s[i] = s[i] + dt*sxh[i];
 	}
 
     norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
@@ -71,7 +73,7 @@ __global__ void cuda_heun_llms_kernelA
 	
 	#pragma unroll
     for(int i=0; i<3; ++i){
-		rhs[i] = u_dev[idx3+i] - omega_corr_dev[i]*(w_dev[idx3+i] + alpha*sxh[i]);
+		rhs[i] = sigma*w_dev[idx3+i] - omega_corr_dev[idx]*(u_dev[idx3+i] + alpha*sxh[i]);
     }
 	
 	#pragma unroll
@@ -79,6 +81,10 @@ __global__ void cuda_heun_llms_kernelA
 		u_new_dev[idx3+i] = u_dev[idx3+i] + 0.5*dt*rhs[i];
 		u_dev[idx3+i] = u_dev[idx3+i] + dt*rhs[i];
 	}
+	
+	// for(int i=0; i<3; ++i){
+	// 	h_dev[idx3+i] = float(h[i]);
+	// }
 	
   }
 }
@@ -107,7 +113,6 @@ __global__ void cuda_heun_llms_kernelB
   if(idx < nspins) {
     double h[3];
     double s[3];
-    double rhs[3];
     double sxh[3];
     double norm;
 
@@ -116,9 +121,9 @@ __global__ void cuda_heun_llms_kernelB
     float alpha = mat_dev[idx*4+2];
     float sigma = mat_dev[idx*4+3];
 
-    h[0] = double(( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro);
-    h[1] = double(( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro);
-    h[2] = double(( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z)*mus )*gyro);
+    h[0] = (( h_dev[idx3  ] + (u_dev[idx3  ] + h_app_x)*mus )*gyro);
+    h[1] = (( h_dev[idx3+1] + (u_dev[idx3+1] + h_app_y)*mus )*gyro);
+    h[2] = (( h_dev[idx3+2] + (u_dev[idx3+2] + h_app_z)*mus )*gyro);
 
 	#pragma unroll
 	for(int i=0; i<3; ++i){
@@ -131,7 +136,7 @@ __global__ void cuda_heun_llms_kernelB
 
 	#pragma unroll
 	for(int i=0; i<3; ++i){
-    	s[i] = s_new_dev[idx3+i] + 0.5*dt*rhs[i];
+    	s[i] = s_new_dev[idx3+i] + 0.5*dt*sxh[i];
 	}
 
     norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
@@ -148,7 +153,7 @@ __global__ void cuda_heun_llms_kernelB
 	
 	#pragma unroll
     for(int i=0; i<3; ++i) {
-      u_dev[idx3+i] = u_new_dev[idx3+i] + 0.5*dt*(u_dev[idx3+i] - omega_corr_dev[i]*(w_dev[idx3+i] + alpha*sxh[i]));
+      u_dev[idx3+i] = u_new_dev[idx3+i] + 0.5*dt*(sigma*w_dev[idx3+i] - omega_corr_dev[idx]*(u_dev[idx3+i] + alpha*sxh[i]));
     }
 
   }
