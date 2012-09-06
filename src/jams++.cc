@@ -223,6 +223,9 @@ int jams_init(int argc, char **argv) {
     else if (solname == "CUDAHEUNLLMS") {
       solver = Solver::Create(CUDAHEUNLLMS);
     }
+    else if (solname == "CUDAHEUNLLBP") {
+      solver = Solver::Create(CUDAHEUNLLBP);
+    }
     else if (solname == "METROPOLISMC") {
         solver = Solver::Create(METROPOLISMC);
     }
