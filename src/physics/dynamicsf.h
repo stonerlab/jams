@@ -12,6 +12,7 @@ class DynamicSFPhysics : public Physics {
 public:
 	DynamicSFPhysics()
 		: initialised(false),
+			typeToggle(false),
 			timePointCounter(0),
 			nTimePoints(0),
 			qDim(3,0),
@@ -39,13 +40,14 @@ public:
 
 	private:
 		bool              initialised;
+		bool			  typeToggle;
 		int               timePointCounter;
 		int               nTimePoints;
 		std::vector<int>  qDim;
 		fftw_complex*     qSpace;
 		fftw_complex*     tSpace;
 		double *          imageSpace;
-		fftw_plan         qSpaceFFT;
+		std::vector<fftw_plan>  qSpaceFFT;
 		int               componentReal;
 		int               componentImag;
 		Array2D<double>   coFactors;
