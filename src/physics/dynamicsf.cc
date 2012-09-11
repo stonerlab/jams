@@ -49,7 +49,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	if(config.exists("physics.typewise")){
 		config.lookupValue("physics.typewise",typeToggle);
 		if(typeToggle == true){
-			output.write("  * Typewise transforms enabled");
+			output.write("  * Typewise transforms enabled\n");
 			
 		}
 	}
@@ -167,7 +167,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 				  pbcvec[j] = ((qDim[j])+bzvec[j])%(qDim[j]);
 				  BZPoints(counter,j) = pbcvec[j];
 			  	}
-			  std::cout<<bzvec[0]<<"\t"<<bzvec[1]<<"\t"<<bzvec[2]<<"\t"<<pbcvec[0]<<"\t"<<pbcvec[1]<<"\t"<<pbcvec[2]<<std::endl;
+			  //std::cout<<bzvec[0]<<"\t"<<bzvec[1]<<"\t"<<bzvec[2]<<"\t"<<pbcvec[0]<<"\t"<<pbcvec[1]<<"\t"<<pbcvec[2]<<std::endl;
 				
 				counter++;
 				BZDegeneracy(irreducibleCounter)++;
