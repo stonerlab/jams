@@ -28,7 +28,8 @@ class SpinwavesPhysics : public Physics {
         SPDFile(),
         typeOverride(),
         initialised(false),
-        spinDump(false),        
+        spinDump(false),
+		squareToggle(false),        
         pumpTime(0.0),
         pumpStartTime(0.0),
         pumpTemp(0.0),
@@ -70,6 +71,7 @@ class SpinwavesPhysics : public Physics {
 	  std::vector<int> typeOverride;
 	  bool initialised;
 	  bool spinDump;
+	  bool squareToggle;
 
     // calculation of pump power which is linear with input approx
     // electron temperature

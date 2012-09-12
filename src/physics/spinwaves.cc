@@ -14,6 +14,12 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
 	register int i,j,n; // fast loop variables
 
 	output.write("  * Spinwaves physics module\n");
+	
+	squareToggle = phys["SquarePulse"];
+	if(squareToggle == true){
+		pumpTemp = phys["PumpTemp"];
+	}
+	
 	phononTemp = phys["InitialTemperature"];
 	electronTemp = phononTemp;
 
@@ -385,6 +391,16 @@ SpinwavesPhysics::~SpinwavesPhysics()
 void SpinwavesPhysics::run(double realtime, const double dt) {
 	using namespace globals;
 	const double relativeTime = (realtime-pumpStartTime);
+	
+	if(squareToggle == true){
+	    if( (relativeTime > 0.0) && (relativeTime < pumpTime) ){
+			globalTemperature = pumpTemp;
+		}else{
+			globalTemperature = phononTemp;
+		}
+		
+	}else{
+	
 
 
 	if( relativeTime > 0.0 ) {
@@ -403,6 +419,7 @@ void SpinwavesPhysics::run(double realtime, const double dt) {
 	}
 
 	globalTemperature = electronTemp;
+	}
 }
 
 void SpinwavesPhysics::monitor(double realtime, const double dt) {
@@ -456,7 +473,7 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
 	float lengthTotal=0.0;
 	for(int n=0; n<nBZPoints; ++n){
 		const int q = BZIndex(n);
-			SPWFile << lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2);
+			SPWFile << realtime << "\t"<<lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2);
 			SPWFile << "\t" << BZData(n) <<"\t"<<static_cast<double>(BZDegeneracy(n))<<"\n";
 			lengthTotal += BZLengths(n);
 	}
