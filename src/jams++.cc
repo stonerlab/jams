@@ -278,11 +278,6 @@ int jams_init(int argc, char **argv) {
 void jams_run() {
 	using namespace globals;
   
-  std::string name = "_eng.dat";
-  name = seedname+name;
-  //std::ofstream engfile(name.c_str());
-
-  //double e1_s, e1_t, e2_s, e2_t;
 
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
@@ -293,15 +288,10 @@ void jams_run() {
   	  // write magnetisation only
 	  monitor_list[0]->write(solver->getTime());
 
-      //solver->calcEnergy(e1_s,e1_t,e2_s,e2_t);
-      //engfile << solver->getTime() << "\t" << e1_s << "\t" << e1_t << "\t" << e2_s << "\t" << e2_t << std::endl;
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
     solver->run();
-
-	// only run magnetisation
-	monitor_list[0]->run();
 
   }
   
