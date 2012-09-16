@@ -331,9 +331,13 @@ DynamicSFPhysics::~DynamicSFPhysics()
 {
 	using namespace globals;
 	if(initialised == true){
-		for(int i=0;i<lattice.numTypes();++i){
-		fftw_destroy_plan(qSpaceFFT[i]);
-	}
+		if(typeToggle==true){
+			for(int i=0;i<lattice.numTypes();++i){
+				fftw_destroy_plan(qSpaceFFT[i]);
+			}
+		}else{
+			fftw_destroy_plan(qSpaceFFT[0]);
+		}
 
 		if(qSpace != NULL) {
 			fftw_free(qSpace);
