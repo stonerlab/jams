@@ -425,9 +425,27 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 
 
 	// note periodic boundary conditions we applied in the initialisation
-	for(int n=0; n<nBZPoints; ++n){
-		for(int q=BZIndex(n); q<BZIndex(n+1); ++q){
-			for(int i=0; i<lattice.numTypes();++i){
+	if(typeToggle == true){
+		for(int n=0; n<nBZPoints; ++n){
+			for(int q=BZIndex(n); q<BZIndex(n+1); ++q){
+				for(int i=0; i<lattice.numTypes();++i){
+					const int qVec[3] = {BZPoints(q,0), BZPoints(q,1), BZPoints(q,2)};
+					const int qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
+					const int tIdx = n + nBZPoints*timePointCounter;
+		
+					assert(qIdx < nspins); 
+					assert(qIdx > -1);
+					assert(tIdx < nBZPoints*nTimePoints); 
+					assert(tIdx > -1);
+
+					tSpace[tIdx+i*nTimePoints*nBZPoints][0] = qSpace[qIdx+i*qTotal][0];
+					tSpace[tIdx+i*nTimePoints*nBZPoints][1] = qSpace[qIdx+i*qTotal][1];
+				}
+			}
+		}
+	}else{
+		for(int n=0; n<nBZPoints; ++n){
+			for(int q=BZIndex(n); q<BZIndex(n+1); ++q){
 				const int qVec[3] = {BZPoints(q,0), BZPoints(q,1), BZPoints(q,2)};
 				const int qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
 				const int tIdx = n + nBZPoints*timePointCounter;
@@ -437,10 +455,10 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 				assert(tIdx < nBZPoints*nTimePoints); 
 				assert(tIdx > -1);
 
-				tSpace[tIdx+i*nTimePoints*nBZPoints][0] = qSpace[qIdx+i*qTotal][0];
-				tSpace[tIdx+i*nTimePoints*nBZPoints][1] = qSpace[qIdx+i*qTotal][1];
+				tSpace[tIdx][0] = qSpace[qIdx][0];
+				tSpace[tIdx][1] = qSpace[qIdx][1];
 			}
-		}
+		}		
 	}
 
 	if(timePointCounter == (nTimePoints-1)){
