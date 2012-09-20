@@ -18,7 +18,9 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
 	squareToggle = phys["SquarePulse"];
 	if(squareToggle == true){
 		pumpTemp = phys["PumpTemp"];
-	}
+	} else {
+        pumpTemp = phys["InitialTemperature"];
+    }
 	
 	phononTemp = phys["InitialTemperature"];
 	electronTemp = phononTemp;
@@ -369,10 +371,6 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
 	SPWFile.open(filename.c_str());
 	SPWFile << "# t [s]\tk=0\tk!=0\tM_AF1_x\tM_AF1_y\tM_AF1_z\n";
 
-	filename = "_modes.dat";
-	filename = seedname+filename;
-	ModeFile.open(filename.c_str());
-
 	initialised = true;
 }
 
@@ -383,7 +381,6 @@ SpinwavesPhysics::~SpinwavesPhysics()
     	fftw_destroy_plan(qSpaceFFT[i]);
 	}
   }
-  ModeFile.close();
   SPWFile.close();
   TTMFile.close();
 }
