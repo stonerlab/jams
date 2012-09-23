@@ -83,8 +83,26 @@ void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D
       is >> unitCellPositions(n,j);
     }
 
-    output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+	#ifdef DEBUG
+	output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+	
+	#else
+	
+	// only print 8 atoms to avoid excessive output
+	if( n < 8 ){
+    	output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+	} else if ( n == 8 && nAtoms > 8){
+    	output.write("...");
+	}
+	
+	if(nAtoms > 8 && n == (nAtoms-1) ){
+    	output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+	}
+	
+	#endif
+	
 
+	
     it_type = atomTypeMap.find(typeName);
     if (it_type == atomTypeMap.end()) { 
       // type not found in map -> add to map
