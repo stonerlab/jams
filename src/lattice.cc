@@ -92,7 +92,7 @@ void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D
 	if( n < 8 ){
     	output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
 	} else if ( n == 8 && nAtoms > 8){
-    	output.write("...");
+    	output.write("    ...\n");
 	}
 	
 	if(nAtoms > 8 && n == (nAtoms-1) ){
