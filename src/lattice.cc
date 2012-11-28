@@ -1357,7 +1357,7 @@ void Lattice::readSpinsBinary(std::ifstream &infile){
     if(filenspins != nspins){
         jams_error("I/O error, spin state file has %d spins but simulation has %d spins", filenspins, nspins);
     }else{
-        infile.read(reinterpret_cast<char*>(s.ptr()),sizeof(int));
+        infile.read(reinterpret_cast<char*>(s.ptr()),nspins3*sizeof(double));
     }
 
     if(infile.bad()){
