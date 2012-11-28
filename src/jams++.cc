@@ -187,7 +187,7 @@ int jams_init(int argc, char **argv) {
       // error to avoid mistakingly thinking the file was loaded.
       
       if(toggleReadState==true){
-          output.write("Reading spin state from %s",stateFileName.c_str());
+          output.write("\nReading spin state from %s\n",stateFileName.c_str());
           std::ifstream statefile(stateFileName.c_str(),std::ios::binary|std::ios::in);
           lattice.readSpinsBinary(statefile);
           statefile.close();
@@ -365,7 +365,7 @@ void jams_run() {
   }
 
   if (toggleSaveState == true) {
-    output.write("Saving spin state\n");
+    output.write("\n-------------------\nSaving spin state\n-------------------\n");
     std::string statefilename = seedname+"_state.dat";
     std::ofstream statefile(statefilename.c_str(), std::ios::out|std::ios::binary|std::ios::trunc);
     lattice.outputSpinsBinary(statefile);
