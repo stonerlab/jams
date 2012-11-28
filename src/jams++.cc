@@ -185,6 +185,8 @@ int jams_init(int argc, char **argv) {
       // If read_state is true then attempt to read state from binary file. If
       // this fails (nspins != nspins in the file) then JAMS exits with an
       // error to avoid mistakingly thinking the file was loaded.
+      // NOTE: This must be done after lattice is created but before the solver
+      // is initialised so the GPU solvers can copy the correct spin array.
       
       if(toggleReadState==true){
           output.write("\nReading spin state from %s\n",stateFileName.c_str());
