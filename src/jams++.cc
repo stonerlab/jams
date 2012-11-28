@@ -37,6 +37,9 @@ namespace {
   double convDevTolerance=0.0;
 
   bool toggleVisualise=false;
+  bool toggleSaveState=false;
+  bool toggleReadState=false;
+  std::string stateFileName;
   
   std::vector<Monitor*> monitor_list;
   
@@ -138,7 +141,17 @@ int jams_init(int argc, char **argv) {
       globals::h_app[0] = config.lookup("sim.h_app.[0]");
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
       globals::h_app[2] = config.lookup("sim.h_app.[2]");
+
+        if( config.exists("sim.read_state") == true) {
+            config.lookupValue("sim.read_state",stateFileName);
+            toggleReadState=true;
+            output.write("  * Read state is ON\n");
+        }
     
+      if( config.exists("sim.save_state") == true) {
+          config.lookupValue("sim.save_state",toggleSaveState);
+          output.write("  * Save state is ON\n");
+      }
 
       if( config.exists("sim.visualise") == true) {
         config.lookupValue("sim.visualise",toggleVisualise);
@@ -168,6 +181,18 @@ int jams_init(int argc, char **argv) {
       rng.seed(randomseed);
 
       lattice.createFromConfig(config);
+
+      // If read_state is true then attempt to read state from binary file. If
+      // this fails (nspins != nspins in the file) then JAMS exits with an
+      // error to avoid mistakingly thinking the file was loaded.
+      
+      if(toggleReadState==true){
+          output.write("Reading spin state from %s",stateFileName.c_str());
+          std::ifstream statefile(stateFileName.c_str(),std::ios::binary|std::ios::in);
+          lattice.readSpinsBinary(statefile);
+          statefile.close();
+      }
+
 
       if( config.exists("sim.solver") == true ) {
         config.lookupValue("sim.solver",solname);
@@ -338,6 +363,15 @@ void jams_run() {
 
 
   }
+
+  if (toggleSaveState == true) {
+    output.write("Saving spin state\n");
+    std::string statefilename = seedname+"_state.dat";
+    std::ofstream statefile(statefilename.c_str(), std::ios::out|std::ios::binary|std::ios::trunc);
+    lattice.outputSpinsBinary(statefile);
+    statefile.close();
+  }
+
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;
   output.write("Solving time: %f\n",elapsed);

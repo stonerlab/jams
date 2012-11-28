@@ -1337,3 +1337,30 @@ void Lattice::mapPosToInt(){
         //std::cout<<spin_int_map(i,0)<<"\t"<<spin_int_map(i,1)<<"\t"<<spin_int_map(i,2)<<std::endl;
     }
 }
+
+
+void Lattice::outputSpinsBinary(std::ofstream &outfile){
+    using namespace globals;
+
+    outfile.write(reinterpret_cast<char*>(&nspins),sizeof(int));
+    outfile.write(reinterpret_cast<char*>(s.ptr()),nspins3*sizeof(double));
+}
+
+void Lattice::readSpinsBinary(std::ifstream &infile){
+    using namespace globals;
+
+    infile.seekg(0);
+
+    int filenspins=0;
+    infile.read(reinterpret_cast<char*>(&filenspins),sizeof(int));
+
+    if(filenspins != nspins){
+        jams_error("I/O error, spin state file has %d spins but simulation has %d spins", filenspins, nspins);
+    }else{
+        infile.read(reinterpret_cast<char*>(s.ptr()),sizeof(int));
+    }
+
+    if(infile.bad()){
+        jams_error("I/O error. Unknown failure reading spin state file");
+    }
+}
