@@ -16,7 +16,6 @@ class MagnetisationMonitor : public Monitor {
 		devTol(1E10),
 		blockStats(),
 		runningMean(),
-		runningDev(),
 		old_avg(0.0)
     {}
 
@@ -35,7 +34,6 @@ class MagnetisationMonitor : public Monitor {
 	double			devTol;
 	RunningStat		blockStats;
 	RunningStat		runningMean;
-	RunningStat		runningDev;
     double      old_avg;
 };
 

@@ -37,15 +37,16 @@ bool MagnetisationMonitor::checkConvergence(){
 	} else { 
 		if(runningMean.numDataValues() > 0){
 			const double meanRelErr = fabs((runningMean.mean()-blockStats.mean())/runningMean.mean());
-			const double devRelErr = fabs((runningDev.mean()-blockStats.stdDev())/runningDev.mean());
-			output.write("Convergence: mean %1.5f meanRelErr %1.5f [%1.5f] :: stddev %1.5f devRelErr %1.5f [%1.5f] \n",runningMean.mean(),meanRelErr,meanTol,runningDev.mean(),devRelErr,devTol);	
+			const double devRelErr = fabs((runningMean.stdDev()-blockStats.stdDev())/runningMean.stdDev());
+			output.write("Convergence: r_mean %1.5f b_mean %1.5f meanRelErr %1.5f [%1.5f] :: r_stddev %1.5f b_stddev %1.5f devRelErr %1.5f [%1.5f] \n",
+				runningMean.mean(),blockStats.mean(),meanRelErr,meanTol,runningMean.stdDev(),blockStats.stdDev(),devRelErr,devTol);	
 			if ( (meanRelErr < meanTol) && (devRelErr < devTol) ) {
+				output.write("Converged: mean %1.5f meanRelErr %1.5f stdDev %1.5f stdDevRelErr %1.5f\n", blockStats.mean(),meanRelErr,blockStats.stdDev(),devRelErr);
 				return true;
 			}
         }
-			runningMean.push(blockStats.mean());
-			runningDev.push(blockStats.stdDev());
-		//blockStats.clear();
+		runningMean = blockStats;
+			//runningMean.push(blockStats.mean());
 	}
 	return false;
 }

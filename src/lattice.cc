@@ -83,8 +83,26 @@ void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D
       is >> unitCellPositions(n,j);
     }
 
-    output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+	#ifdef DEBUG
+	output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+	
+	#else
+	
+	// only print 8 atoms to avoid excessive output
+	if( n < 8 ){
+    	output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+	} else if ( n == 8 && nAtoms > 8){
+    	output.write("    ...\n");
+	}
+	
+	if(nAtoms > 8 && n == (nAtoms-1) ){
+    	output.write("    %s %f %f %f\n",typeName.c_str(), unitCellPositions(n,0), unitCellPositions(n,1), unitCellPositions(n,2));
+	}
+	
+	#endif
+	
 
+	
     it_type = atomTypeMap.find(typeName);
     if (it_type == atomTypeMap.end()) { 
       // type not found in map -> add to map
@@ -1317,5 +1335,32 @@ void Lattice::mapPosToInt(){
         }
         //std::cout<<atom_pos(i,0)<<"\t"<<atom_pos(i,1)<<"\t"<<atom_pos(i,2)<<"\t";
         //std::cout<<spin_int_map(i,0)<<"\t"<<spin_int_map(i,1)<<"\t"<<spin_int_map(i,2)<<std::endl;
+    }
+}
+
+
+void Lattice::outputSpinsBinary(std::ofstream &outfile){
+    using namespace globals;
+
+    outfile.write(reinterpret_cast<char*>(&nspins),sizeof(int));
+    outfile.write(reinterpret_cast<char*>(s.ptr()),nspins3*sizeof(double));
+}
+
+void Lattice::readSpinsBinary(std::ifstream &infile){
+    using namespace globals;
+
+    infile.seekg(0);
+
+    int filenspins=0;
+    infile.read(reinterpret_cast<char*>(&filenspins),sizeof(int));
+
+    if(filenspins != nspins){
+        jams_error("I/O error, spin state file has %d spins but simulation has %d spins", filenspins, nspins);
+    }else{
+        infile.read(reinterpret_cast<char*>(s.ptr()),nspins3*sizeof(double));
+    }
+
+    if(infile.bad()){
+        jams_error("I/O error. Unknown failure reading spin state file");
     }
 }

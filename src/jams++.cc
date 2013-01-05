@@ -1,5 +1,5 @@
 #define GLOBALORIGIN
-#define JAMS_VERSION "0.6.3"
+#define JAMS_VERSION "0.7.0"
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 
@@ -29,6 +29,7 @@ namespace {
   unsigned long steps_eq=0;
   unsigned long steps_run=0;
   unsigned long steps_out=0;
+  unsigned long	steps_vis=0;
   unsigned long steps_conv=0;
   
   std::string convName;
@@ -36,6 +37,12 @@ namespace {
   double convDevTolerance=0.0;
 
   bool toggleVisualise=false;
+  bool toggleSaveState=false;
+  bool toggleReadState=false;
+  std::string stateFileName;
+  
+  std::vector<Monitor*> monitor_list;
+  
 } // anon namespace
 
 int jams_init(int argc, char **argv) {
@@ -134,11 +141,24 @@ int jams_init(int argc, char **argv) {
       globals::h_app[0] = config.lookup("sim.h_app.[0]");
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
       globals::h_app[2] = config.lookup("sim.h_app.[2]");
+
+        if( config.exists("sim.read_state") == true) {
+            config.lookupValue("sim.read_state",stateFileName);
+            toggleReadState=true;
+            output.write("  * Read state is ON\n");
+        }
     
+      if( config.exists("sim.save_state") == true) {
+          config.lookupValue("sim.save_state",toggleSaveState);
+          output.write("  * Save state is ON\n");
+      }
 
       if( config.exists("sim.visualise") == true) {
         config.lookupValue("sim.visualise",toggleVisualise);
+		tmp = config.lookup("sim.t_vis");
+		steps_vis = static_cast<unsigned long>(tmp/dt);
         output.write("  * Visualisation is ON\n");
+        output.write("  * Visualisation time: %1.8e (%lu steps)\n",tmp,steps_vis);
       } else {
         toggleVisualise = false;
       }
@@ -161,6 +181,20 @@ int jams_init(int argc, char **argv) {
       rng.seed(randomseed);
 
       lattice.createFromConfig(config);
+
+      // If read_state is true then attempt to read state from binary file. If
+      // this fails (nspins != nspins in the file) then JAMS exits with an
+      // error to avoid mistakingly thinking the file was loaded.
+      // NOTE: This must be done after lattice is created but before the solver
+      // is initialised so the GPU solvers can copy the correct spin array.
+      
+      if(toggleReadState==true){
+          output.write("\nReading spin state from %s\n",stateFileName.c_str());
+          std::ifstream statefile(stateFileName.c_str(),std::ios::binary|std::ios::in);
+          lattice.readSpinsBinary(statefile);
+          statefile.close();
+      }
+
 
       if( config.exists("sim.solver") == true ) {
         config.lookupValue("sim.solver",solname);
@@ -225,47 +259,67 @@ int jams_init(int argc, char **argv) {
     solver->setTemperature(init_temperature);
 
   }
+  
+  // select monitors
+  monitor_list.push_back(new MagnetisationMonitor());
+  
+  	if( config.exists("sim.monitors") == true ) {
+  		libconfig::Setting &simcfg = config.lookup("sim");
+		
+		for(int i=0; i<simcfg["monitors"].getLength();++i){
+			std::string monname;
+			monname = std::string(simcfg["monitors"][i].c_str());
+	        std::transform(monname.begin(),monname.end(),monname.begin(),toupper);
+
+	        if(monname == "BOLTZMANN") {
+				monitor_list.push_back(new BoltzmannMonitor());
+	        }else{
+	          jams_error("Unknown monitor selected.");
+	        }
+			
+		}
+
+	}
+	
+	for(int i=0; i<monitor_list.size(); ++i){
+		monitor_list[i]->initialise();
+	}
+	
+  	if(convName == "MAG"){
+		output.write("Convergence for Magnetisation\n");
+  		monitor_list[0]->initConvergence(convMag,convMeanTolerance,convDevTolerance);
+  	}else if(convName == "PHI"){
+		output.write("Convergence for Phi\n");
+		monitor_list[0]->initConvergence(convPhi,convMeanTolerance,convDevTolerance);
+	}else if(convName == "SINPHI"){
+		output.write("Convergence for Sin(Phi)\n");
+		monitor_list[0]->initConvergence(convSinPhi,convMeanTolerance,convDevTolerance);
+	}
+	output.write("StdDev Tolerance: %e\n",convMeanTolerance,convDevTolerance);
+		
+  
+  
   return 0;
 }
 
 void jams_run() {
 	using namespace globals;
   
-  	Monitor *mag = new MagnetisationMonitor();
- 	mag->initialise();
-  
-  	if(convName == "MAG"){
-		output.write("Convergence for Magnetisation\n");
-  		mag->initConvergence(convMag,convMeanTolerance,convDevTolerance);
-  	}else if(convName == "PHI"){
-		output.write("Convergence for Phi\n");
-		mag->initConvergence(convPhi,convMeanTolerance,convDevTolerance);
-	}else if(convName == "SINPHI"){
-		output.write("Convergence for Sin(Phi)\n");
-		mag->initConvergence(convSinPhi,convMeanTolerance,convDevTolerance);
-	}
-	output.write("StdDev Tolerance: %e\n",convMeanTolerance,convDevTolerance);
-		
-	
-
-  std::string name = "_eng.dat";
-  name = seedname+name;
-  std::ofstream engfile(name.c_str());
-
-  double e1_s, e1_t, e2_s, e2_t;
 
   output.write("\n----Equilibration----\n");
   output.write("Running solver\n");
   for(unsigned long i=0;i<steps_eq;++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
-      mag->write(solver->getTime());
-      solver->calcEnergy(e1_s,e1_t,e2_s,e2_t);
-      engfile << solver->getTime() << "\t" << e1_s << "\t" << e1_t << "\t" << e2_s << "\t" << e2_t << std::endl;
+
+  	  // write magnetisation only
+	  monitor_list[0]->write(solver->getTime());
+
     }
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
     solver->run();
+
   }
   
   output.write("\n----Data Run----\n");
@@ -275,25 +329,26 @@ void jams_run() {
   for(unsigned long i=0; i<steps_run; ++i) {
     if( ((i)%steps_out) == 0 ){
       solver->syncOutput();
-      mag->write(solver->getTime());
+		for(int i=0; i<monitor_list.size(); ++i){
+			monitor_list[i]->write(solver->getTime());
+		}
       physics->monitor(solver->getTime(),dt);
-      
-      if(toggleVisualise == true){
-          int outcount = i/steps_out; // int divisible by modulo above
-          std::string vtufilename;
-          vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
-          std::ofstream vtufile(vtufilename.c_str());
-          lattice.outputSpinsVTU(vtufile);
-          vtufile.close();
-      }
-	  
 
     }
+	if(toggleVisualise == true){
+		if( ((i)%steps_vis) == 0 ){
+			int outcount = i/steps_vis; // int divisible by modulo above
+			std::string vtufilename;
+			vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
+			std::ofstream vtufile(vtufilename.c_str());
+			lattice.outputSpinsVTU(vtufile);
+			vtufile.close();
+		}
+	}
  
  	if(steps_conv > 0){
  		if( ( (i+1) % steps_conv ) == 0 ){
-	 		if(mag->checkConvergence() == true){
-				output.write("Calculation converged\n");
+	 		if(monitor_list[0]->checkConvergence() == true){
 				break;
 	  		}	
  		}
@@ -304,15 +359,32 @@ void jams_run() {
     physics->run(solver->getTime(),dt);
     solver->setTemperature(globalTemperature);
     solver->run();
+	for(int i=0; i<monitor_list.size(); ++i){
+		monitor_list[i]->run();
+	}
 
 
   }
+
+  if (toggleSaveState == true) {
+    output.write("\n-------------------\nSaving spin state\n-------------------\n");
+    std::string statefilename = seedname+"_state.dat";
+    std::ofstream statefile(statefilename.c_str(), std::ios::out|std::ios::binary|std::ios::trunc);
+    lattice.outputSpinsBinary(statefile);
+    statefile.close();
+  }
+
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed/=CLOCKS_PER_SEC;
   output.write("Solving time: %f\n",elapsed);
-  engfile.close();
+  //engfile.close();
 
-  if(mag != NULL) { delete mag; }
+  for(int i=0; i<monitor_list.size(); ++i){
+	  if(monitor_list[i] != NULL){
+		  delete monitor_list[i];
+		  monitor_list[i] = NULL;
+	  }
+  }
 
 }
 

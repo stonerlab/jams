@@ -12,6 +12,7 @@ class DynamicSFPhysics : public Physics {
 public:
 	DynamicSFPhysics()
 		: initialised(false),
+			typeToggle(false),
 			timePointCounter(0),
 			nTimePoints(0),
 			qDim(3,0),
@@ -26,7 +27,9 @@ public:
 			t_window(0.0),
 			steps_window(0), 
             nBZPoints(0),
+			BZIndex(),	
             BZPoints(),
+			BZDegeneracy(),
             BZLengths() {}
     
 		~DynamicSFPhysics();
@@ -37,13 +40,14 @@ public:
 
 	private:
 		bool              initialised;
+		bool			  typeToggle;
 		int               timePointCounter;
 		int               nTimePoints;
 		std::vector<int>  qDim;
 		fftw_complex*     qSpace;
 		fftw_complex*     tSpace;
 		double *          imageSpace;
-		fftw_plan         qSpaceFFT;
+		std::vector<fftw_plan>  qSpaceFFT;
 		int               componentReal;
 		int               componentImag;
 		Array2D<double>   coFactors;
@@ -52,7 +56,9 @@ public:
 		unsigned long     steps_window;
 		std::vector<int>  spinToKspaceMap;
         int               nBZPoints;
+		Array<int>		  BZIndex;
         Array2D<int>      BZPoints;
+		Array<int>		  BZDegeneracy;
         Array<float>      BZLengths;
 
 		double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 

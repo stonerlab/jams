@@ -57,7 +57,9 @@ void FieldCoolPhysics::run(const double realtime, const double dt)
 
       if(stepToggle == true){
           int stepCount = (realtime-t_eq)/t_step;
-          globalTemperature = initTemp-stepCount*deltaT;
+		  if(stepCount < TSteps+1){
+          	globalTemperature = initTemp-stepCount*deltaT;
+		}
       }else{
           double fieldRate[3];
           for(int i=0; i<3; ++i){

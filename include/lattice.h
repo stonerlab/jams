@@ -31,6 +31,8 @@ class Lattice {
     inline int getTypeCount(const int i) { return type_count[i]; }
     inline int numTypes() { return nTypes; }
     void outputSpinsVTU(std::ofstream &outfile);
+    void outputSpinsBinary(std::ofstream &outfile);
+    void readSpinsBinary(std::ifstream &infile);
   private:
     void readExchange();
     void calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<int> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms);

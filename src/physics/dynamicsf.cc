@@ -3,6 +3,7 @@
 
 #include <fftw3.h>
 #include <string>
+#include <sstream>
 #include <map>
 #include "maths.h"
 
@@ -45,9 +46,19 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 		output.write("  * Fourier transform component: %s\n",strReal.c_str());
 	}
 
+	if(config.exists("physics.typewise")){
+		config.lookupValue("physics.typewise",typeToggle);
+		if(typeToggle == true){
+			output.write("  * Typewise transforms enabled\n");
+			
+		}
+	}
+	
+	
   // read spin type cofactors (i.e. for Holstein Primakoff
   // transformations and the like)
-  
+	
+	
 	libconfig::Setting &mat = config.lookup("materials");
 	coFactors.resize(lattice.numTypes(),3);
 	for(int i=0; i<lattice.numTypes(); ++i){
@@ -64,8 +75,7 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	const int nSymPoints = phys["brillouinzone"].getLength();
 	
 	Array2D<int> SymPoints(nSymPoints,3);
-	Array<int> BZPointCount(nSymPoints-1);
-	
+	Array<int> BZPointCount(nSymPoints-1);	
 	
 	for(int i=0; i<nSymPoints; ++i){
 		for(int j=0; j<3; ++j){
@@ -89,11 +99,12 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 
     nBZPoints += 1; // include last symmetry point
 	
+
 	// calculate Brillouin zone vectors points
-	BZPoints.resize(nBZPoints,3);
-    BZLengths.resize(nBZPoints);
 	int vec[3] = {0,0,0};
 	int counter=0;
+
+    // go through once to count total number of points with symmetry
 	for(int i=0; i<(nSymPoints-1); ++i){
 		for(int j=0; j<3; ++j){
 			vec[j] = SymPoints(i+1,j)-SymPoints(i,j);
@@ -102,23 +113,100 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 			}
 		}
 		for(int n=0; n<BZPointCount(i); ++n){
+			int bzvec[3];
 			for(int j=0; j<3; ++j){
-				BZPoints(counter,j) = SymPoints(i,j)+n*vec[j];
+				bzvec[j] = abs(SymPoints(i,j)+n*vec[j]);
 			}
-            BZLengths(counter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
-			output.write("BZ Point: %8d [ %4d %4d %4d ]\n", counter, BZPoints(counter,0), BZPoints(counter,1), BZPoints(counter,2));
-			counter++;
+	        std::sort(bzvec,bzvec+3);
+	        do {
+				counter++;
+	        } while (next_point_symmetry(bzvec));
 		}
+	}
+	{
+		int bzvec[3];
+		for(int j=0; j<3; ++j){
+			bzvec[j] = abs(SymPoints(nSymPoints-1,j));
+		}
+        std::sort(bzvec,bzvec+3);
+        do {
+			counter++;
+        } while (next_point_symmetry(bzvec));		
+	}
+
+    // go through again and create arrays
+	BZIndex.resize(nBZPoints+1);
+	BZPoints.resize(counter+1,3); // +1 to add on final point
+    BZLengths.resize(nBZPoints);
+	BZDegeneracy.resize(nBZPoints);
+	for(int i=0; i<nBZPoints; ++i){BZDegeneracy(i)=0;}
+	
+	int irreducibleCounter=0;
+    counter=0;
+	for(int i=0; i<(nSymPoints-1); ++i){
+		for(int j=0; j<3; ++j){
+			vec[j] = SymPoints(i+1,j)-SymPoints(i,j);
+			if(vec[j] != 0){
+				vec[j] = vec[j] / abs(vec[j]);
+			}
+		}
+		for(int n=0; n<BZPointCount(i); ++n){
+            BZLengths(irreducibleCounter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
+			BZIndex(irreducibleCounter) = counter;
+			int bzvec[3];
+			int pbcvec[3];
+			for(int j=0; j<3; ++j){
+				bzvec[j] = abs(SymPoints(i,j)+n*vec[j]);
+			}
+	        std::sort(bzvec,bzvec+3);
+			output.write("BZ Point: %8d %8d [ %4d %4d %4d ]\n", irreducibleCounter, counter, bzvec[0], bzvec[1], bzvec[2]);
+	        do {
+				// apply periodic boundaries here
+				// FFTW stores -q in reverse order at the end of the array.
+				for(int j=0; j<3; ++j){
+				  pbcvec[j] = ((qDim[j])+bzvec[j])%(qDim[j]);
+				  BZPoints(counter,j) = pbcvec[j];
+			  	}
+			  //std::cout<<bzvec[0]<<"\t"<<bzvec[1]<<"\t"<<bzvec[2]<<"\t"<<pbcvec[0]<<"\t"<<pbcvec[1]<<"\t"<<pbcvec[2]<<std::endl;
+				
+				counter++;
+				BZDegeneracy(irreducibleCounter)++;
+	        } while (next_point_symmetry(bzvec));
+			irreducibleCounter++;
+		}
+		BZIndex(irreducibleCounter) = counter;
 	}
 
     // include last point on curve
-    for(int j=0; j<3; ++j){
-        BZPoints(counter,j) = SymPoints(nSymPoints-1,j);
-    }
-    BZLengths(counter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
-	output.write("BZ Point: %8d [ %4d %4d %4d ]\n", counter, BZPoints(counter,0), BZPoints(counter,1), BZPoints(counter,2));
-	
-	
+	{
+		for(int j=0; j<3; ++j){
+			vec[j] = SymPoints(nSymPoints-1,j);
+			if(vec[j] != 0){
+				vec[j] = vec[j] / abs(vec[j]);
+			}
+		}
+		BZLengths(irreducibleCounter) = sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
+		BZIndex(irreducibleCounter) = counter;
+		int bzvec[3];
+		int pbcvec[3];
+		for(int j=0; j<3; ++j){
+			bzvec[j] = abs(SymPoints(nSymPoints-1,j));
+		}
+		std::sort(bzvec,bzvec+3);
+		output.write("BZ Point: %8d %8d [ %4d %4d %4d ]\n", irreducibleCounter, counter, bzvec[0], bzvec[1], bzvec[2]);
+		do {
+			// apply periodic boundaries here
+			// FFTW stores -q in reverse order at the end of the array.
+			for(int j=0; j<3; ++j){
+				pbcvec[j] = ((qDim[j])+bzvec[j])%(qDim[j]);
+				BZPoints(counter,j) = pbcvec[j];
+			}
+			BZDegeneracy(irreducibleCounter)++;
+			counter++;
+		} while (next_point_symmetry(bzvec));
+		irreducibleCounter++;
+	}
+	BZIndex(irreducibleCounter) = counter;
 	
 	
   // window time
@@ -146,12 +234,30 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 // --------------------------------------------------------------------------------------------------------------------
 // Real space to reciprocal (q) space transform
 // --------------------------------------------------------------------------------------------------------------------
-	output.write("  * qSpace allocating %f MB\n", (sizeof(fftw_complex)*qDim[0]*qDim[1]*qDim[2])/(1024.0*1024.0));
-	qSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*qDim[0]*qDim[1]*qDim[2]));
-	if(qSpace == NULL){
-		jams_error("Failed to allocate qSpace FFT array");
+	
+	if(typeToggle == true){
+		output.write("  * qSpace allocating %f MB\n", (sizeof(fftw_complex)*qDim[0]*qDim[1]*qDim[2]*lattice.numTypes())/(1024.0*1024.0));
+		qSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*qDim[0]*qDim[1]*qDim[2]*lattice.numTypes()));
+		
+		if(qSpace == NULL){
+			jams_error("Failed to allocate qSpace FFT array");
+		}
+	
+		const int qTotal = qDim[0]*qDim[1]*qDim[2];
+		for(int i=0; i<lattice.numTypes();++i){
+			qSpaceFFT.push_back(fftw_plan_dft_3d(qDim[0],qDim[1],qDim[2],qSpace+i*qTotal,qSpace+i*qTotal,FFTW_FORWARD,FFTW_MEASURE));
+		}
+	} else {
+		output.write("  * qSpace allocating %f MB\n", (sizeof(fftw_complex)*qDim[0]*qDim[1]*qDim[2])/(1024.0*1024.0));
+		qSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*qDim[0]*qDim[1]*qDim[2]));
+		
+		if(qSpace == NULL){
+			jams_error("Failed to allocate qSpace FFT array");
+		}
+	
+		qSpaceFFT.push_back(fftw_plan_dft_3d(qDim[0],qDim[1],qDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE));
 	}
-	qSpaceFFT = fftw_plan_dft_3d(qDim[0],qDim[1],qDim[2],qSpace,qSpace,FFTW_FORWARD,FFTW_MEASURE);
+
 
 	
 //---------------------------------------------------------------------------------
@@ -195,11 +301,26 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 // --------------------------------------------------------------------------------------------------------------------
 // Time to frequency space transform
 // --------------------------------------------------------------------------------------------------------------------
-	output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*nBZPoints/(1024.0*1024.0)));
+	if(typeToggle == true){
+		output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*lattice.numTypes()*nTimePoints*nBZPoints/(1024.0*1024.0)));
 
-	tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*nBZPoints));
+		tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*lattice.numTypes()*nTimePoints*nBZPoints));
+		for(int i=0; i<nTimePoints*nBZPoints*lattice.numTypes(); ++i){
+			tSpace[i][0] = 0.0;
+			tSpace[i][1] = 0.0;
+		}
+		
+	} else {
+		output.write("  * tSpace allocating %f MB\n", (sizeof(fftw_complex)*nTimePoints*nBZPoints/(1024.0*1024.0)));
 
-	if(qSpace == NULL){
+		tSpace = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*nTimePoints*nBZPoints));
+		for(int i=0; i<nTimePoints*nBZPoints; ++i){
+			tSpace[i][0] = 0.0;
+			tSpace[i][1] = 0.0;
+		}
+	}
+
+	if(tSpace == NULL){
 		jams_error("Failed to allocate tSpace FFT array");
 	}
 
@@ -208,8 +329,15 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 
 DynamicSFPhysics::~DynamicSFPhysics()
 {
+	using namespace globals;
 	if(initialised == true){
-		fftw_destroy_plan(qSpaceFFT);
+		if(typeToggle==true){
+			for(int i=0;i<lattice.numTypes();++i){
+				fftw_destroy_plan(qSpaceFFT[i]);
+			}
+		}else{
+			fftw_destroy_plan(qSpaceFFT[0]);
+		}
 
 		if(qSpace != NULL) {
 			fftw_free(qSpace);
@@ -238,44 +366,103 @@ void DynamicSFPhysics::monitor(double realtime, const double dt)
 	using namespace globals;
 	assert(initialised);
 
-	// Apply cofactors to transform spin components
-	if(componentImag == -1){
-		for(int i=0; i<nspins; ++i){
-			const int type = lattice.getType(i);
-			const int idx = spinToKspaceMap[i];
-			qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal);
-			qSpace[idx][1] = 0.0;
-		}
-	} else {
-		for(int i=0; i<nspins; ++i){
-			const int type = lattice.getType(i);
-			const int idx = spinToKspaceMap[i];
-			qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal);
-			qSpace[idx][1] = coFactors(type,componentImag)*s(i,componentImag);
-		}
-	}
+	const int qTotal = qDim[0]*qDim[1]*qDim[2];
+	
+	if(typeToggle == true){
+		// Apply cofactors to transform spin components
+			if(componentImag == -1){
+				for(int i=0; i<nspins; ++i){
+					const int type = lattice.getType(i);
+					const int idx = spinToKspaceMap[i];
+					qSpace[idx+qTotal*type][0] = coFactors(type,componentReal)*s(i,componentReal);
+					qSpace[idx+qTotal*type][1] = 0.0;
+				}
+			} else {
+				for(int i=0; i<nspins; ++i){
+					const int type = lattice.getType(i);
+					const int idx = spinToKspaceMap[i];
+					qSpace[idx+qTotal*type][0] = coFactors(type,componentReal)*s(i,componentReal);
+					qSpace[idx+qTotal*type][1] = coFactors(type,componentImag)*s(i,componentImag);
+				}
+			}
 
-	fftw_execute(qSpaceFFT);
+		for(int i=0; i<lattice.numTypes();++i){
+			
+			fftw_execute(qSpaceFFT[i]);
+		}
+			
 
 	// Normalise FFT by Nx*Ny*Nz
-	for(int i=0; i<(qDim[0]*qDim[1]*qDim[2]); ++i){
-		qSpace[i][0] /= (qDim[0]*qDim[1]*qDim[2]);
-		qSpace[i][1] /= (qDim[0]*qDim[1]*qDim[2]);
+			for(int i=0; i<lattice.numTypes();++i){
+				for(int j=0; j<qTotal; ++j){
+					qSpace[i*qTotal+j][0] /= (qTotal);
+					qSpace[i*qTotal+j][1] /= (qTotal);
+				}
+			}
+		
+	} else {
+	// Apply cofactors to transform spin components
+		if(componentImag == -1){
+			for(int i=0; i<nspins; ++i){
+				const int type = lattice.getType(i);
+				const int idx = spinToKspaceMap[i];
+				qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal);
+				qSpace[idx][1] = 0.0;
+			}
+		} else {
+			for(int i=0; i<nspins; ++i){
+				const int type = lattice.getType(i);
+				const int idx = spinToKspaceMap[i];
+				qSpace[idx][0] = coFactors(type,componentReal)*s(i,componentReal);
+				qSpace[idx][1] = coFactors(type,componentImag)*s(i,componentImag);
+			}
+		}
+
+		fftw_execute(qSpaceFFT[0]);
+
+	// Normalise FFT by Nx*Ny*Nz
+		for(int i=0; i<(qDim[0]*qDim[1]*qDim[2]); ++i){
+			qSpace[i][0] /= (qDim[0]*qDim[1]*qDim[2]);
+			qSpace[i][1] /= (qDim[0]*qDim[1]*qDim[2]);
+		}
 	}
 
-	for(int q=0; q<nBZPoints; ++q){
 
-		const int qVec[3] = {BZPoints(q,0), BZPoints(q,1), BZPoints(q,2)};
-		const int qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
-		const int tIdx = q + nBZPoints*timePointCounter;
+	// note periodic boundary conditions we applied in the initialisation
+	if(typeToggle == true){
+		for(int n=0; n<nBZPoints; ++n){
+			for(int q=BZIndex(n); q<BZIndex(n+1); ++q){
+				for(int i=0; i<lattice.numTypes();++i){
+					const int qVec[3] = {BZPoints(q,0), BZPoints(q,1), BZPoints(q,2)};
+					const int qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
+					const int tIdx = n + nBZPoints*timePointCounter;
 		
-		assert(qIdx < nspins); 
-		assert(qIdx > -1);
-		assert(tIdx < nBZPoints*nTimePoints); 
-		assert(tIdx > -1);
+					assert(qIdx < nspins); 
+					assert(qIdx > -1);
+					assert(tIdx < nBZPoints*nTimePoints); 
+					assert(tIdx > -1);
 
-		tSpace[tIdx][0] = qSpace[qIdx][0];
-		tSpace[tIdx][1] = qSpace[qIdx][1];
+					tSpace[tIdx+i*nTimePoints*nBZPoints][0] = qSpace[qIdx+i*qTotal][0];
+					tSpace[tIdx+i*nTimePoints*nBZPoints][1] = qSpace[qIdx+i*qTotal][1];
+				}
+			}
+		}
+	}else{
+		for(int n=0; n<nBZPoints; ++n){
+			for(int q=BZIndex(n); q<BZIndex(n+1); ++q){
+				const int qVec[3] = {BZPoints(q,0), BZPoints(q,1), BZPoints(q,2)};
+				const int qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
+				const int tIdx = n + nBZPoints*timePointCounter;
+		
+				assert(qIdx < nspins); 
+				assert(qIdx > -1);
+				assert(tIdx < nBZPoints*nTimePoints); 
+				assert(tIdx > -1);
+
+				tSpace[tIdx][0] = qSpace[qIdx][0];
+				tSpace[tIdx][1] = qSpace[qIdx][1];
+			}
+		}		
 	}
 
 	if(timePointCounter == (nTimePoints-1)){
@@ -299,15 +486,25 @@ void DynamicSFPhysics::timeTransform()
 	const int omegaPoints = (steps_window/2) + 1;
 
   // allocate the image space
-	imageSpace = static_cast<double*>(fftw_malloc(sizeof(double) * omegaPoints * nBZPoints));
-	for(int i=0; i<omegaPoints * nBZPoints; ++i){
-		imageSpace[i] = 0.0;
+	
+	if(typeToggle==true){
+		imageSpace = static_cast<double*>(fftw_malloc(sizeof(double) * omegaPoints * nBZPoints * lattice.numTypes()));
+		for(int i=0; i<omegaPoints * nBZPoints * lattice.numTypes(); ++i){
+			imageSpace[i] = 0.0;
+		}
+	}else{
+		imageSpace = static_cast<double*>(fftw_malloc(sizeof(double) * omegaPoints * nBZPoints));
+		for(int i=0; i<omegaPoints * nBZPoints; ++i){
+			imageSpace[i] = 0.0;
+		}	
 	}
+	
 
-	for(int i=0; i<nTransforms; ++i){ // integer division is guaranteed in the initialisation
+		
+	for(int n=0; n<nTransforms; ++n){ // integer division is guaranteed in the initialisation
 
-		const int t0 = i*steps_window;
-		const int tEnd = (i+1)*steps_window;
+		const int t0 = n*steps_window;
+		const int tEnd = (n+1)*steps_window;
 
 		int rank       = 1;
 		int sizeN[]   = {steps_window};
@@ -315,72 +512,189 @@ void DynamicSFPhysics::timeTransform()
 		int inembed[] = {steps_window}; int onembed[] = {steps_window};
 		int istride    = nBZPoints;      int ostride    = nBZPoints;
 		int idist      = 1;             int odist      = 1;
-		fftw_complex* startPtr = (tSpace+i*steps_window*nBZPoints); // pointer arithmatic
+		fftw_complex* startPtr = (tSpace+n*steps_window*nBZPoints); // pointer arithmatic
 
 		fftw_plan tSpaceFFT = fftw_plan_many_dft(rank,sizeN,howmany,startPtr,inembed,istride,idist,startPtr,onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
     
     // apply windowing function
+		if(typeToggle==true){
+			for(int i=0; i<lattice.numTypes();++i){
 
-		for(unsigned int t=0; t<steps_window; ++t){
-			for(int q=0; q<nBZPoints; ++q){
-				const int tIdx = q + nBZPoints*(t+t0);
-				tSpace[tIdx][0] = tSpace[tIdx][0]*FFTWindow(t,steps_window,HAMMING);
-				tSpace[tIdx][1] = tSpace[tIdx][1]*FFTWindow(t,steps_window,HAMMING);
-			}
-		}
+				for(unsigned int t=0; t<steps_window; ++t){
+					for(int q=0; q<nBZPoints; ++q){
+						const int tIdx = q + nBZPoints*(t+t0);
+						tSpace[tIdx][0] = tSpace[tIdx+i*nBZPoints*nTimePoints][0]*FFTWindow(t,steps_window,HAMMING);
+						tSpace[tIdx][1] = tSpace[tIdx+i*nBZPoints*nTimePoints][1]*FFTWindow(t,steps_window,HAMMING);
+					}
+				}
     
-		fftw_execute(tSpaceFFT);
+				fftw_execute(tSpaceFFT);
 
 
 		// normalise transform and apply symmetry -omega omega
-		for(int t=0; t<omegaPoints;++t){
-			for(int q=0; q<nBZPoints; ++q){
-				const int tIdx = q + nBZPoints*(t0+t);
-				const int tIdxMinus = q + nBZPoints*( (tEnd-1) - t);
-				assert( tIdx >= 0 );
-				assert( tIdx < (nTimePoints*nBZPoints) );
-				assert( tIdxMinus >= 0 );
-				assert( tIdxMinus < (nTimePoints*nBZPoints) );
+				for(int t=0; t<omegaPoints;++t){
+					for(int q=0; q<nBZPoints; ++q){
+						const int tIdx = q + nBZPoints*(t0+t);
+						const int tIdxMinus = q + nBZPoints*( (tEnd-1) - t);
+						assert( tIdx >= 0 );
+						assert( tIdx < (nTimePoints*nBZPoints) );
+						assert( tIdxMinus >= 0 );
+						assert( tIdxMinus < (nTimePoints*nBZPoints) );
 
-				tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(steps_window));
-				tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(steps_window));
+						tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(double(nspins)*double(steps_window));
+						tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(double(nspins)*double(steps_window));
+
+				//tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(steps_window));
+				//tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(steps_window));
 
         // zero -omega to avoid accidental use
-				tSpace[tIdxMinus][0] = 0.0; tSpace[tIdxMinus][1] = 0.0;
+						tSpace[tIdxMinus][0] = 0.0; tSpace[tIdxMinus][1] = 0.0;
 
         // assign pixels to image
-				int imageIdx = q+nBZPoints*t;
-				assert( imageIdx >= 0 );
-				assert( imageIdx < (omegaPoints * nBZPoints) );
-				imageSpace[imageIdx] = imageSpace[imageIdx] + (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1])*normTransforms;
+						int imageIdx = q+nBZPoints*t;
+						assert( imageIdx >= 0 );
+						assert( imageIdx < (omegaPoints * nBZPoints) );
+						imageSpace[imageIdx+i*omegaPoints*nBZPoints] = imageSpace[imageIdx+i*omegaPoints*nBZPoints] + (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1])*normTransforms;
+					}
+				}
 			}
-		}
+		
+		}else{
 
+			for(unsigned int t=0; t<steps_window; ++t){
+				for(int q=0; q<nBZPoints; ++q){
+					const int tIdx = q + nBZPoints*(t+t0);
+					tSpace[tIdx][0] = tSpace[tIdx][0]*FFTWindow(t,steps_window,HAMMING);
+					tSpace[tIdx][1] = tSpace[tIdx][1]*FFTWindow(t,steps_window,HAMMING);
+				}
+			}
+    
+			fftw_execute(tSpaceFFT);
+
+
+			// normalise transform and apply symmetry -omega omega
+			for(int t=0; t<omegaPoints;++t){
+				for(int q=0; q<nBZPoints; ++q){
+					const int tIdx = q + nBZPoints*(t0+t);
+					const int tIdxMinus = q + nBZPoints*( (tEnd-1) - t);
+					assert( tIdx >= 0 );
+					assert( tIdx < (nTimePoints*nBZPoints) );
+					assert( tIdxMinus >= 0 );
+					assert( tIdxMinus < (nTimePoints*nBZPoints) );
+
+					tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(double(nspins)*double(steps_window));
+					tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(double(nspins)*double(steps_window));
+
+					//tSpace[tIdx][0] = 0.5*(tSpace[tIdx][0] + tSpace[tIdxMinus][0])/sqrt(double(nspins)*double(steps_window));
+					//tSpace[tIdx][1] = 0.5*(tSpace[tIdx][1] + tSpace[tIdxMinus][1])/sqrt(double(nspins)*double(steps_window));
+
+	        // zero -omega to avoid accidental use
+					tSpace[tIdxMinus][0] = 0.0; tSpace[tIdxMinus][1] = 0.0;
+
+	        // assign pixels to image
+					int imageIdx = q+nBZPoints*t;
+					assert( imageIdx >= 0 );
+					assert( imageIdx < (omegaPoints * nBZPoints) );
+					imageSpace[imageIdx] = imageSpace[imageIdx] + (tSpace[tIdx][0]*tSpace[tIdx][0] + tSpace[tIdx][1]*tSpace[tIdx][1])*normTransforms;
+				}
+			}
+		}	
+			
 		startPtr = NULL;
     
 		fftw_destroy_plan(tSpaceFFT);
 	}
 }
 
+
 void DynamicSFPhysics::outputImage()
 {
 	using namespace globals;
-	std::ofstream DSFFile;
+	const int omegaPoints = (steps_window/2) + 1;
+	
+	if(typeToggle == true){
+	for(int i=0; i<lattice.numTypes();++i){
+		std::ofstream DSFFile;
 
-	std::string filename = "_dsf.dat";
-	filename = seedname+filename;
-	DSFFile.open(filename.c_str());
-    float lengthTotal=0.0;
-	for(int q=0; q<nBZPoints; ++q){
-		for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
-			int tIdx = q + nBZPoints*omega;
-			DSFFile << lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2) << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx] <<"\n";
+	    std::ostringstream ss;
+		std::string filename;
+		
+		ss << seedname << "_dsf_" << i << ".dat";
+		filename = ss.str();
+		DSFFile.open(filename.c_str());
+		float lengthTotal=0.0;
+	
+		std::vector<double> dos((steps_window/2)+1,0.0);
+	
+		for(int n=0; n<nBZPoints; ++n){
+			const int q = BZIndex(n);
+			for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
+				int tIdx = n + nBZPoints*omega;
+				DSFFile << lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2);
+				DSFFile << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx+i*omegaPoints*nBZPoints]<<"\t"<<static_cast<double>(BZDegeneracy(n))<<"\n";
+				dos[omega] += imageSpace[tIdx+i*omegaPoints*nBZPoints];
+			}
+			DSFFile << std::endl;
+			lengthTotal += BZLengths(n);
 		}
-		DSFFile << std::endl;
-        lengthTotal += BZLengths(q);
-	}
   
-	DSFFile.close();
+		DSFFile.close();
+	
+		std::ofstream DOSFile;
+		
+		ss.str("");
+		ss << seedname << "_dos_" << i << ".dat";
+		filename = ss.str();
+		DSFFile.open(filename.c_str());
+
+		DOSFile.open(filename.c_str());
+		for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
+			DOSFile << omega*freqIntervalSize <<"\t" << dos[omega] <<"\n";
+		}
+	
+		DOSFile.close();
+	}
+	}else{
+		std::ofstream DSFFile;
+
+	    std::ostringstream ss;
+		std::string filename;
+		
+		ss << seedname << "_dsf.dat";
+		filename = ss.str();
+		DSFFile.open(filename.c_str());
+		float lengthTotal=0.0;
+	
+		std::vector<double> dos((steps_window/2)+1,0.0);
+	
+		for(int n=0; n<nBZPoints; ++n){
+			const int q = BZIndex(n);
+			for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
+				int tIdx = n + nBZPoints*omega;
+				DSFFile << lengthTotal << "\t" << BZPoints(q,0) << "\t" <<BZPoints(q,1) <<"\t"<<BZPoints(q,2);
+				DSFFile << "\t" << omega*freqIntervalSize <<"\t" << imageSpace[tIdx]<<"\t"<<static_cast<double>(BZDegeneracy(n))<<"\n";
+				dos[omega] += imageSpace[tIdx];
+			}
+			DSFFile << std::endl;
+			lengthTotal += BZLengths(n);
+		}
+  
+		DSFFile.close();
+	
+		std::ofstream DOSFile;
+		
+		ss.str("");
+		ss << seedname << "_dos.dat";
+		filename = ss.str();
+		DSFFile.open(filename.c_str());
+
+		DOSFile.open(filename.c_str());
+		for(unsigned int omega=0; omega<((steps_window/2)+1); ++omega){
+			DOSFile << omega*freqIntervalSize <<"\t" << dos[omega] <<"\n";
+		}
+	
+		DOSFile.close();
+	}
 }
 
 double DynamicSFPhysics::FFTWindow(const int n, const int nTotal, const FFTWindowType type){
