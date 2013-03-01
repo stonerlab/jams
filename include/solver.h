@@ -23,7 +23,7 @@ class Solver
 
     virtual void initialise(int argc, char **argv, double dt) = 0;
     virtual void run() = 0;
-    virtual void calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t) = 0;
+    virtual void calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) = 0;
     virtual void syncOutput() = 0;
 
     inline int getIteration() { return iteration; }

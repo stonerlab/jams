@@ -15,6 +15,7 @@
 #include "lattice.h"
 #include "monitor.h"
 #include "boltzmann.h"
+#include "energy.h"
 #include "boltzmann_mag.h"
 #include "magnetisation.h"
 
@@ -36,6 +37,7 @@ namespace {
     double convMeanTolerance=0.0;  
     double convDevTolerance=0.0;
 
+    bool toggleEnergy=false;
     bool toggleVisualise=false;
     bool toggleSaveState=false;
     bool toggleReadState=false;
@@ -153,6 +155,15 @@ int jams_init(int argc, char **argv) {
                 output.write("  * Save state is ON\n");
             }
 
+            if( config.exists("sim.energy") == true ){
+                config.lookupValue("sim.energy", toggleEnergy);
+                if( toggleEnergy == true ){
+                    output.write("  * Energy calculation ON\n");
+                } else {
+                    output.write("  * Energy calculation OFF\n");
+                }
+            }
+
             if( config.exists("sim.visualise") == true) {
                 config.lookupValue("sim.visualise",toggleVisualise);
                 if( toggleVisualise == true ) {
@@ -266,6 +277,10 @@ int jams_init(int argc, char **argv) {
     // select monitors
     monitor_list.push_back(new MagnetisationMonitor());
 
+    if(toggleEnergy == true){
+        monitor_list.push_back(new EnergyMonitor());
+    }
+
     if( config.exists("sim.monitors") == true ) {
         libconfig::Setting &simcfg = config.lookup("sim");
 
@@ -316,7 +331,7 @@ void jams_run() {
             solver->syncOutput();
 
             // write magnetisation only
-            monitor_list[0]->write(solver->getTime());
+            monitor_list[0]->write(solver);
 
         }
         physics->run(solver->getTime(),dt);
@@ -333,7 +348,7 @@ void jams_run() {
         if( ((i)%steps_out) == 0 ){
             solver->syncOutput();
             for(int i=0; i<monitor_list.size(); ++i){
-                monitor_list[i]->write(solver->getTime());
+                monitor_list[i]->write(solver);
             }
             physics->monitor(solver->getTime(),dt);
 

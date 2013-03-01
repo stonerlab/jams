@@ -298,7 +298,7 @@ void CUDAHeunLLGSolver::run()
   iteration++;
 }
 
-void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t){
+void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
   using namespace globals;
   const float beta=0.0;
 
@@ -354,6 +354,17 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
     }
     
     e2_t = e2_t/nspins;
+  }
+  
+  if(J4ijkl_s.nonZero() > 0){
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
+        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,e_dev);
+    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+    for(int i=0; i<nspins; ++i){
+      e4_s = e4_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
+    }
+    
+    e4_s = e4_s/nspins;
   }
   
   

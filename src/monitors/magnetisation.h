@@ -23,7 +23,7 @@ class MagnetisationMonitor : public Monitor {
 
     void initialise();
     void run();
-    void write(const double &time);
+    void write(Solver *solver);
 	void initConvergence(ConvergenceType type, const double meanTol, const double devTol);
 	bool checkConvergence();
   private:

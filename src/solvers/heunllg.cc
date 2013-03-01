@@ -122,7 +122,7 @@ void HeunLLGSolver::run()
   iteration++;
 }
 
-void HeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t)
+void HeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s)
 {
   using namespace globals;
 

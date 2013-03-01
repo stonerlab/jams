@@ -1,6 +1,8 @@
 #ifndef __MONITOR_H__
 #define __MONITOR_H__
 
+#include "solver.h"
+
 
 enum ConvergenceType {convNone, convMag, convPhi, convSinPhi};
 
@@ -12,7 +14,7 @@ class Monitor {
 
     virtual void initialise();
     virtual void run();
-    virtual void write(const double &time);
+    virtual void write(Solver *solver);
 	
 	virtual void initConvergence(ConvergenceType type, const double meanTol, const double devTol);
 	virtual bool checkConvergence();
