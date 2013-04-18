@@ -377,7 +377,7 @@ void CUDAHeunLLBPSolver::run()
   iteration++;
 }
 
-void CUDAHeunLLBPSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t){
+void CUDAHeunLLBPSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
   using namespace globals;
 
 }
