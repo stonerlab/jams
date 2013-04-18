@@ -367,15 +367,7 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
       }
         
 
-      // TODO: Move this to LLMS solver initialisation
-      std::stringstream ss;
-      ss << "materials.["<<type_num<<"].t_corr";
 
-      if(config.lookupValue(ss.str(),omega_corr(i))){
-        omega_corr(i) = 1.0/(gamma_electron_si*omega_corr(i));
-      } else {
-        omega_corr(i) = 0.0;
-      }
 
       mus(i) = cfgMaterials[type_num]["moment"];
       mus(i) = mus(i);//*mu_bohr_si;

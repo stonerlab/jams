@@ -264,6 +264,12 @@ int jams_init(int argc, char **argv) {
         else if (solname == "METROPOLISMC") {
             solver = Solver::Create(METROPOLISMC);
         }
+        else if (solname == "CUDAHEUNLLMS") {
+            solver = Solver::Create(CUDAHEUNLLMS);
+        }
+        else if (solname == "CUDAHEUNLLBP") {
+            solver = Solver::Create(CUDAHEUNLLBP);
+        }
         else { // default
             output.write("WARNING: Using default solver (HEUNLLG)\n");
             solver = Solver::Create();
@@ -298,7 +304,7 @@ int jams_init(int argc, char **argv) {
         }
 
     }
-
+    
     for(int i=0; i<monitor_list.size(); ++i){
         monitor_list[i]->initialise();
     }
