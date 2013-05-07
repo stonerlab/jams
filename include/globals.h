@@ -41,6 +41,8 @@ namespace globals
   GLOBAL Array2D<double> s;
   GLOBAL Array2D<double> h;
   GLOBAL Array2D<double> w;
+  
+  GLOBAL Array2D<float> r_pos;
 #ifdef CUDA
   GLOBAL SparseMatrix<float> J1ij_s;  // bilinear scalar interactions
   GLOBAL SparseMatrix<float> J1ij_t;  // bilinear tensor interactions

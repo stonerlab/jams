@@ -25,6 +25,7 @@ class CUDAHeunLLGSolver : public Solver {
         s_dev(0),
         sf_dev(0),
         s_new_dev(0),
+        r_dev(0),
         h_dev(0),
         e_dev(0),
         mat_dev(0),
@@ -52,6 +53,7 @@ class CUDAHeunLLGSolver : public Solver {
     double * s_dev;
     float  * sf_dev;
     double * s_new_dev;
+    float * r_dev;
     float * h_dev;
     float * e_dev;
     float * mat_dev;

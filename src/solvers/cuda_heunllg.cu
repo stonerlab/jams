@@ -82,6 +82,9 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
   CUDA_CALL(cudaMalloc((void**)&e_dev,nspins3*sizeof(float)));
 
+  // position arrays
+  CUDA_CALL(cudaMalloc((void**)&r_dev,nspins3*sizeof(float)));
+
   if(nspins3%2 == 0) {
     // wiener processes
     CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
@@ -121,6 +124,9 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   }
   CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+
+  // position array
+  CUDA_CALL(cudaMemcpy(r_dev,r_pos.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
   Array2D<float> mat(nspins,4);
   // material properties
@@ -405,6 +411,7 @@ CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
   CUDA_CALL(cudaFree(s_new_dev));
 
   // field arrays
+  CUDA_CALL(cudaFree(r_dev));
   CUDA_CALL(cudaFree(h_dev));
   CUDA_CALL(cudaFree(e_dev));
 

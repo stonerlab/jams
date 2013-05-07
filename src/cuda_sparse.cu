@@ -45,6 +45,72 @@ void free_csr_4d(devCSR &Jij_dev)
   CUDA_CALL(cudaFree(Jij_dev.val));
 }
 
+__global__ void dipole_brute_kernel
+(
+ const float alpha,
+ const float beta,
+ const float *sf_dev,
+ float *h_dev, 
+ const float *r_dev,
+ const int nspins
+)
+{
+    const int idx = blockIdx.x*blockDim.x+threadIdx.x;
+    int i,n;
+
+    if(idx < nspins){
+        float sum[3];
+        float r_ij[3];
+        float s_j[3];
+          
+        // NOTE: floating point comparison avoids reading h_dev[] for
+          // special case
+          if(beta == 0.0){
+            #pragma unroll
+            for(i=0; i<3; ++i){
+              sum[i] = 0.0;
+            }
+          } else {
+            // read initial sum values
+            #pragma unroll
+            for(i=0; i<3; ++i){
+              sum[i] = beta*h_dev[3*idx+i];
+            }
+          }
+
+        for(n=0; n<nspins; ++n){
+            if(n!=idx){
+              #pragma unroll
+              for(i=0; i<3; ++i){
+                s_j[i] = sf_dev[3*n+i];
+              }
+              
+#pragma unroll
+              for(i=0; i<3; ++i){
+                  r_ij[i] = r_dev[3*idx+i]-r_dev[3*n+i];
+              }
+
+              const float sdotr = s_j[0]*r_ij[0] + s_j[1]*r_ij[1] + s_j[2]*r_ij[2];
+
+              const float r2    = r_ij[0]*r_ij[0] + r_ij[1]*r_ij[1] + r_ij[2]*r_ij[2];
+              const float r     = sqrtf(r2);
+#pragma unroll
+              for(i=0;i<3;++i){
+                  sum[i] = sum[i] + alpha*(3.0*sdotr*r_ij[i] - r2*s_j[i])/(r*r*r*r*r);
+              }
+            }
+        }
+
+
+        for(i=0; i<3; ++i){
+          h_dev[3*idx+i] = sum[i];
+        }
+
+    }
+
+
+}
+
 
 __global__ void biquadratic_scalar_dia_kernel
 (const int nrows,
