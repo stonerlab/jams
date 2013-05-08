@@ -67,9 +67,6 @@ __global__ void dipole_brute_kernel
         float r_ij[3];
         float s_j[3];
 
-        const float r_max[3] = {r_max_dev[0], r_max_dev[1], r_max_dev[2]};
-        const bool  pbc[3] = {pbc_dev[0], pbc_dev[1], pbc_dev[2]};
-    
           #pragma unroll
           for(i=0; i<3; ++i){
               r_i[i] = r_dev[3*idx+i];
@@ -93,9 +90,9 @@ __global__ void dipole_brute_kernel
               for(i=0; i<3; ++i){
                   r_ij[i] = (r_dev[3*n+i]-r_i[i]);
                   // check for and perform periodic boundary conditions
-                  if(pbc[i] == true){
-                      if(fabsf(r_ij[i]) > r_max[i]*0.5f){
-                          r_ij[i] = r_ij[i] - copysignf(r_max[i],r_ij[i]);
+                  if(pbc_dev[i] == true){
+                      if(fabsf(r_ij[i]) > r_max_dev[i]*0.5f){
+                          r_ij[i] = r_ij[i] - copysignf(r_max_dev[i],r_ij[i]);
                       }
                   }
               }

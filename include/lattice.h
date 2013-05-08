@@ -14,7 +14,7 @@ class Lattice {
     void createFromConfig(libconfig::Config &config);
 
     inline void getDimensions(int &x, int &y, int& z) { x = dim[0]; y = dim[1]; z = dim[2]; }
-    inline void getMaxDimensions(float &x, float& y, float& z) { x = rmax[0]; y = rmax[1]; z = rmax[2]; }
+    inline void getMaxDimensions(float &x, float& y, float& z) { x = dim[0]*latticeParameter; y = dim[1]*latticeParameter; z = dim[2]*latticeParameter; }
     inline void getBoundaries(bool &x, bool &y, bool& z) { x = boundaries[0]; y = boundaries[1]; z = boundaries[2]; }
     inline void getKspaceDimensions(int &x, int &y, int& z) {
         x = unitcell_kpoints[0]*dim[0];
