@@ -86,6 +86,9 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   // position arrays
   CUDA_CALL(cudaMalloc((void**)&r_dev,nspins3*sizeof(float)));
 
+  CUDA_CALL(cudaMalloc((void**)&r_max_dev,3*sizeof(float)));
+  CUDA_CALL(cudaMalloc((void**)&pbc_dev,3*sizeof(bool)));
+
   if(nspins3%2 == 0) {
     // wiener processes
     CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
@@ -128,6 +131,14 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   // position array
   CUDA_CALL(cudaMemcpy(r_dev,atom_pos.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  
+  float r_maxf[3];
+  lattice.getMaxDimensions(r_maxf[0],r_maxf[1],r_maxf[2]);
+  CUDA_CALL(cudaMemcpy(r_max_dev,r_maxf,(size_t)(3*sizeof(float)),cudaMemcpyHostToDevice));
+  
+  bool pbc[3];
+  lattice.getBoundaries(pbc[0],pbc[1],pbc[2]);
+  CUDA_CALL(cudaMemcpy(pbc_dev,pbc,(size_t)(3*sizeof(bool)),cudaMemcpyHostToDevice));
 
   Array2D<float> mat(nspins,4);
   // material properties
@@ -227,7 +238,7 @@ void CUDAHeunLLGSolver::run()
   const float dipole_omega = 0.00092740096;
   if(globalSteps%100 == 0){
       // update dipole field
-      dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,nspins);
+      dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,r_max_dev,pbc_dev,nspins);
   }
 
   // add cached field
@@ -291,7 +302,7 @@ void CUDAHeunLLGSolver::run()
   
   if(globalSteps%100 == 0){
       // update dipole field
-      dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,nspins);
+      dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,r_max_dev,pbc_dev,nspins);
   }
 
   // add cached field
@@ -433,6 +444,8 @@ CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
 
   // field arrays
   CUDA_CALL(cudaFree(r_dev));
+  CUDA_CALL(cudaFree(r_max_dev));
+  CUDA_CALL(cudaFree(pbc_dev));
   CUDA_CALL(cudaFree(h_dev));
   CUDA_CALL(cudaFree(hdipole_dev));
   CUDA_CALL(cudaFree(e_dev));

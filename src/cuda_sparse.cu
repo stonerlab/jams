@@ -53,6 +53,8 @@ __global__ void dipole_brute_kernel
  const float *mat_dev,
  float *h_dev, 
  const float *r_dev,
+ const float *r_max_dev,
+ const bool *pbc_dev,
  const int nspins
 )
 {
@@ -64,6 +66,9 @@ __global__ void dipole_brute_kernel
         float r_i[3];
         float r_ij[3];
         float s_j[3];
+
+        const float r_max[3] = {r_max_dev[0], r_max_dev[1], r_max_dev[2]};
+        const bool  pbc[3] = {pbc_dev[0], pbc_dev[1], pbc_dev[2]};
     
           #pragma unroll
           for(i=0; i<3; ++i){
@@ -84,10 +89,17 @@ __global__ void dipole_brute_kernel
                 s_j[i] = sf_dev[3*n+i];
               }
               
-#pragma unroll
+              #pragma unroll
               for(i=0; i<3; ++i){
-                  r_ij[i] = (r_i[i]-r_dev[3*n+i]);
+                  r_ij[i] = (r_dev[3*n+i]-r_i[i]);
+                  // check for and perform periodic boundary conditions
+                  if(pbc[i] == true){
+                      if(fabsf(r_ij[i]) > r_max[i]*0.5f){
+                          r_ij[i] = r_ij[i] - copysignf(r_max[i],r_ij[i]);
+                      }
+                  }
               }
+
 
               const float sdotr = s_j[0]*r_ij[0] + s_j[1]*r_ij[1] + s_j[2]*r_ij[2];
 

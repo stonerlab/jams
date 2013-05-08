@@ -140,6 +140,7 @@ void Lattice::readLattice(const libconfig::Setting &cfgLattice, std::vector<int>
 
   for(int i=0; i<3; ++i) {
     pbc[i] = cfgLattice["periodic"][i];
+    boundaries[i] = pbc[i];
     if (pbc[i]) { 
       output.write("periodic "); 
     }
@@ -276,6 +277,9 @@ void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<do
             }
             for(int i=0; i<3; ++i){
               atom_pos(count,i) = r[i]*latticeParameter;
+              if(atom_pos(count,i) > rmax[i]){
+                  rmax[i] = atom_pos(count,i);
+              }
             }
             count++;
           }

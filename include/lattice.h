@@ -10,10 +10,12 @@
 
 class Lattice {
   public:
-    Lattice() : dim(3,0), nTypes(0), atom_type(0,0), type_count(0), atomTypeMap(), unitcell_kpoints(3,0), latticeParameter(0.0) {}
+    Lattice() : dim(3,0), rmax(3,0), nTypes(0), atom_type(0,0), type_count(0), atomTypeMap(), unitcell_kpoints(3,0), latticeParameter(0.0), boundaries(3,false) {}
     void createFromConfig(libconfig::Config &config);
 
     inline void getDimensions(int &x, int &y, int& z) { x = dim[0]; y = dim[1]; z = dim[2]; }
+    inline void getMaxDimensions(float &x, float& y, float& z) { x = rmax[0]; y = rmax[1]; z = rmax[2]; }
+    inline void getBoundaries(bool &x, bool &y, bool& z) { x = boundaries[0]; y = boundaries[1]; z = boundaries[2]; }
     inline void getKspaceDimensions(int &x, int &y, int& z) {
         x = unitcell_kpoints[0]*dim[0];
         y = unitcell_kpoints[1]*dim[1];
@@ -40,6 +42,7 @@ class Lattice {
     void readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bool pbc[3]);
 
     std::vector<int> dim;
+    std::vector<float> rmax;
     int nTypes;
     std::vector<int> atom_type;
     std::vector<int> unit_cell_atom_num;
@@ -48,6 +51,7 @@ class Lattice {
     Array2D<int>     spin_int_map;
     std::vector<int> unitcell_kpoints;
     float latticeParameter;
+    std::vector<bool> boundaries;
 
 };
 

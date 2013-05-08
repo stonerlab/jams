@@ -28,6 +28,8 @@ __global__ void dipole_brute_kernel
  const float *mat_dev,
  float *h_dev, 
  const float *r_dev,
+ const float *r_max_dev,
+ const bool *pbc_dev,
  const int nspins
 );
 
