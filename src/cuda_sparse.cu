@@ -61,23 +61,18 @@ __global__ void dipole_brute_kernel
 
     if(idx < nspins){
         float sum[3];
+        float r_i[3];
         float r_ij[3];
         float s_j[3];
     
+          #pragma unroll
+          for(i=0; i<3; ++i){
+              r_i[i] = r_dev[3*idx+i];
+          }
           
-        // NOTE: floating point comparison avoids reading h_dev[] for
-          // special case
-          if(beta == 0.0){
-            #pragma unroll
-            for(i=0; i<3; ++i){
+          #pragma unroll
+          for(i=0; i<3; ++i){
               sum[i] = 0.0;
-            }
-          } else {
-            // read initial sum values
-            #pragma unroll
-            for(i=0; i<3; ++i){
-              sum[i] = beta*h_dev[3*idx+i];
-            }
           }
 
         for(n=0; n<nspins; ++n){
@@ -91,7 +86,7 @@ __global__ void dipole_brute_kernel
               
 #pragma unroll
               for(i=0; i<3; ++i){
-                  r_ij[i] = r_dev[3*idx+i]-r_dev[3*n+i];
+                  r_ij[i] = (r_i[i]-r_dev[3*n+i]);
               }
 
               const float sdotr = s_j[0]*r_ij[0] + s_j[1]*r_ij[1] + s_j[2]*r_ij[2];
@@ -105,7 +100,7 @@ __global__ void dipole_brute_kernel
             }
         }
 
-
+#pragma unroll
         for(i=0; i<3; ++i){
           h_dev[3*idx+i] = sum[i];
         }

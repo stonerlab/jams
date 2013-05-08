@@ -329,7 +329,7 @@ int jams_init(int argc, char **argv) {
 void jams_run() {
     using namespace globals;
 
-
+    globalSteps = 0;
     output.write("\n----Equilibration----\n");
     output.write("Running solver\n");
     for(unsigned long i=0;i<steps_eq;++i) {
@@ -343,6 +343,7 @@ void jams_run() {
         physics->run(solver->getTime(),dt);
         solver->setTemperature(globalTemperature);
         solver->run();
+        globalSteps++;
 
     }
 
@@ -383,6 +384,7 @@ void jams_run() {
         physics->run(solver->getTime(),dt);
         solver->setTemperature(globalTemperature);
         solver->run();
+        globalSteps++;
         for(int i=0; i<monitor_list.size(); ++i){
             monitor_list[i]->run();
         }

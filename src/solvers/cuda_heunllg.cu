@@ -80,6 +80,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   // field arrays
   CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
+  CUDA_CALL(cudaMalloc((void**)&hdipole_dev,nspins3*sizeof(float)));
   CUDA_CALL(cudaMalloc((void**)&e_dev,nspins3*sizeof(float)));
 
   // position arrays
@@ -152,6 +153,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   
   CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(hdipole_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(e_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
@@ -223,8 +225,14 @@ void CUDAHeunLLGSolver::run()
 
   // (muB*mu0/4pi)/nm^3
   const float dipole_omega = 0.00092740096;
-  dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,beta,sf_dev,mat_dev,h_dev,r_dev,nspins);
-  beta = 1.0;
+  if(globalSteps%100 == 0){
+      // update dipole field
+      dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,nspins);
+  }
+
+  // add cached field
+  cublasSaxpy(nspins3,1.0,hdipole_dev,1,h_dev,1);
+
   
   //CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
@@ -281,8 +289,13 @@ void CUDAHeunLLGSolver::run()
     beta = 1.0;
   }
   
-  dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,beta,sf_dev,mat_dev,h_dev,r_dev,nspins);
-  beta = 1.0;
+  if(globalSteps%100 == 0){
+      // update dipole field
+      dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,nspins);
+  }
+
+  // add cached field
+  cublasSaxpy(nspins3,1.0,hdipole_dev,1,h_dev,1);
 
   /*Array2D<float> hf(nspins,3);*/
   /*Array2D<float> sf(nspins,3);*/
@@ -421,6 +434,7 @@ CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
   // field arrays
   CUDA_CALL(cudaFree(r_dev));
   CUDA_CALL(cudaFree(h_dev));
+  CUDA_CALL(cudaFree(hdipole_dev));
   CUDA_CALL(cudaFree(e_dev));
 
   // wiener processes

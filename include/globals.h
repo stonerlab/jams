@@ -35,6 +35,8 @@ namespace globals
   GLOBAL int nspins;
   GLOBAL int nspins3;
 
+  GLOBAL int globalSteps;
+
   GLOBAL double h_app[3];
   GLOBAL double globalTemperature;
 
