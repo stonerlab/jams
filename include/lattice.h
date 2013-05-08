@@ -10,7 +10,7 @@
 
 class Lattice {
   public:
-    Lattice() : dim(3,0), nTypes(0), atom_type(0,0), type_count(0), atom_pos(0,0), atomTypeMap(), unitcell_kpoints(3,0) {}
+    Lattice() : dim(3,0), nTypes(0), atom_type(0,0), type_count(0), atomTypeMap(), unitcell_kpoints(3,0), latticeParameter(0.0) {}
     void createFromConfig(libconfig::Config &config);
 
     inline void getDimensions(int &x, int &y, int& z) { x = dim[0]; y = dim[1]; z = dim[2]; }
@@ -44,10 +44,10 @@ class Lattice {
     std::vector<int> atom_type;
     std::vector<int> unit_cell_atom_num;
     std::vector<int> type_count;
-    Array2D<double>  atom_pos;
     std::map<std::string,int> atomTypeMap;
     Array2D<int>     spin_int_map;
     std::vector<int> unitcell_kpoints;
+    float latticeParameter;
 
 };
 

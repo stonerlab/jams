@@ -20,6 +20,15 @@ void allocate_transfer_csr_4d(SparseMatrix4D<float> &Jij, devCSR &
 
 void free_csr_4d(devCSR &Jij_dev);
 
+__global__ void dipole_brute_kernel
+(
+ const float alpha,
+ const float beta,
+ const float *sf_dev,
+ float *h_dev, 
+ const float *r_dev,
+ const int nspins
+);
 
 __global__ void bilinear_scalar_dia_kernel
 (const int nrows,

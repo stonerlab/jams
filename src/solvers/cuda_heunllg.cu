@@ -126,7 +126,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
   // position array
-  CUDA_CALL(cudaMemcpy(r_dev,r_pos.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(r_dev,atom_pos.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
   Array2D<float> mat(nspins,4);
   // material properties
@@ -220,6 +220,10 @@ void CUDAHeunLLGSolver::run()
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
+
+  // alpha = 100.0 because (mu0/4pi)/nm
+  dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(100.0,beta,sf_dev,h_dev,r_dev,nspins);
+  beta = 1.0;
   
   //CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
@@ -275,6 +279,10 @@ void CUDAHeunLLGSolver::run()
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
+  
+  // alpha = 100.0 because (mu0/4pi)/nm
+  dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(100.0,beta,sf_dev,h_dev,r_dev,nspins);
+  beta = 1.0;
 
   /*Array2D<float> hf(nspins,3);*/
   /*Array2D<float> sf(nspins,3);*/

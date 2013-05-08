@@ -132,6 +132,10 @@ void Lattice::readLattice(const libconfig::Setting &cfgLattice, std::vector<int>
   }
   output.write("  * Lattice size: %i %i %i\n",dim[0],dim[1],dim[2]);
 
+  latticeParameter = cfgLattice["unitcell"]["param"];
+  
+  output.write("  * Lattice parameter: %f\n",latticeParameter);
+
   output.write("  * Boundary conditions: ");
 
   for(int i=0; i<3; ++i) {
@@ -252,7 +256,6 @@ void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<do
 
   atom_pos.resize(nspins,3);
   
-  atom_pos.resize(nspins,3);
 
   double r[3], p[3];
   int q[3];
@@ -272,7 +275,7 @@ void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<do
               //}
             }
             for(int i=0; i<3; ++i){
-              atom_pos(count,i) = r[i];
+              atom_pos(count,i) = r[i]*latticeParameter;
             }
             count++;
           }
