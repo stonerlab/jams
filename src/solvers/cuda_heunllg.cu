@@ -221,8 +221,9 @@ void CUDAHeunLLGSolver::run()
     beta = 1.0;
   }
 
-  // alpha = 100.0 because (mu0/4pi)/nm
-  dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(100.0,beta,sf_dev,h_dev,r_dev,nspins);
+  // (muB*mu0/4pi)/nm^3
+  const float dipole_omega = 0.00092740096;
+  dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,beta,sf_dev,mat_dev,h_dev,r_dev,nspins);
   beta = 1.0;
   
   //CUDA_CALL(cudaUnbindTexture(tex_x_float));
@@ -280,8 +281,7 @@ void CUDAHeunLLGSolver::run()
     beta = 1.0;
   }
   
-  // alpha = 100.0 because (mu0/4pi)/nm
-  dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(100.0,beta,sf_dev,h_dev,r_dev,nspins);
+  dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,beta,sf_dev,mat_dev,h_dev,r_dev,nspins);
   beta = 1.0;
 
   /*Array2D<float> hf(nspins,3);*/

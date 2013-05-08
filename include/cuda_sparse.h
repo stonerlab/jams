@@ -25,6 +25,7 @@ __global__ void dipole_brute_kernel
  const float alpha,
  const float beta,
  const float *sf_dev,
+ const float *mat_dev,
  float *h_dev, 
  const float *r_dev,
  const int nspins

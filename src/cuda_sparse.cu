@@ -50,6 +50,7 @@ __global__ void dipole_brute_kernel
  const float alpha,
  const float beta,
  const float *sf_dev,
+ const float *mat_dev,
  float *h_dev, 
  const float *r_dev,
  const int nspins
@@ -62,6 +63,7 @@ __global__ void dipole_brute_kernel
         float sum[3];
         float r_ij[3];
         float s_j[3];
+    
           
         // NOTE: floating point comparison avoids reading h_dev[] for
           // special case
@@ -80,6 +82,8 @@ __global__ void dipole_brute_kernel
 
         for(n=0; n<nspins; ++n){
             if(n!=idx){
+        
+              float mus = mat_dev[n*4];
               #pragma unroll
               for(i=0; i<3; ++i){
                 s_j[i] = sf_dev[3*n+i];
@@ -96,7 +100,7 @@ __global__ void dipole_brute_kernel
               const float r     = sqrtf(r2);
 #pragma unroll
               for(i=0;i<3;++i){
-                  sum[i] = sum[i] + alpha*(3.0*sdotr*r_ij[i] - r2*s_j[i])/(r*r*r*r*r);
+                  sum[i] = sum[i] + mus*alpha*(3.0*sdotr*r_ij[i] - r2*s_j[i])/(r*r*r*r*r);
               }
             }
         }
