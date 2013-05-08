@@ -124,7 +124,7 @@ void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D
 ///
 /// @brief  Read lattice parameters from config file.
 ///
-void Lattice::readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bool pbc[3]) {
+void Lattice::readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bool pbc[3], const double unitcell[3][3]) {
   //  Read lattice properties from config
   
   for(int i=0; i<3; ++i) { 
@@ -135,6 +135,13 @@ void Lattice::readLattice(const libconfig::Setting &cfgLattice, std::vector<int>
   latticeParameter = cfgLattice["unitcell"]["param"];
   
   output.write("  * Lattice parameter: %f\n",latticeParameter);
+
+  for(int i=0; i<3; ++i){
+    rmax[i] = 0;
+    for(int j=0; j<3; ++j){
+      rmax[i] += latticeParameter*unitcell[i][j]*dim[j];
+    }
+  }
 
   output.write("  * Boundary conditions: ");
 
@@ -256,6 +263,7 @@ void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<do
   assert(nspins > 0);
 
   atom_pos.resize(nspins,3);
+  local_atom_pos.resize(nspins,3);
   
 
   double r[3], p[3];
@@ -270,16 +278,14 @@ void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<do
             for(int i=0; i<3; ++i) {
               r[i] = 0.0;
               p[i] = unitCellPositions(n,i);
-              r[i] = q[i] + p[i];
-              //for(int j=0; j<3; ++j) {
-                //r[i] += unitcell[j][i]*(q[j]+p[i]);
-              //}
+              //r[i] = q[i] + p[i];
+              for(int j=0; j<3; ++j) {
+                r[i] += unitcell[j][i]*(q[j]+p[i]);
+              }
             }
             for(int i=0; i<3; ++i){
+              local_atom_pos(count,i) = q[i] + p[i];
               atom_pos(count,i) = r[i]*latticeParameter;
-              if(atom_pos(count,i) > rmax[i]){
-                  rmax[i] = atom_pos(count,i);
-              }
             }
             count++;
           }
@@ -1241,7 +1247,7 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     assert(nAtoms > 0);
     assert(nTypes > 0);
 
-    readLattice(cfgLattice, dim, pbc);
+    readLattice(cfgLattice, dim, pbc, unitcell);
 
     type_count.resize(nTypes);
     for(int i=0; i<nTypes; ++i) { type_count[i] = 0; }
@@ -1335,7 +1341,7 @@ void Lattice::mapPosToInt(){
 
     for(int i=0; i<nspins; ++i){
         for(int j=0; j<3; ++j){
-            spin_int_map(i,j) = nint((atom_pos(i,j)/latticeParameter)*unitcell_kpoints[j]);
+            spin_int_map(i,j) = nint((local_atom_pos(i,j))*unitcell_kpoints[j]);
         }
         //std::cout<<atom_pos(i,0)<<"\t"<<atom_pos(i,1)<<"\t"<<atom_pos(i,2)<<"\t";
         //std::cout<<spin_int_map(i,0)<<"\t"<<spin_int_map(i,1)<<"\t"<<spin_int_map(i,2)<<std::endl;
