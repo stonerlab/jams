@@ -14,7 +14,10 @@ OPTFLAGS = -O3 -funroll-loops -funroll-all-loops
 COPTIONS = -Wall -Wno-long-long -std=c++98 #-pedantic
 
 CUDA = /usr/local/cuda/bin/nvcc
-CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 -O3 -DNDEBUG -DCUDA
+CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 \
+		-gencode=arch=compute_35,code=sm_35 \
+		  -gencode=arch=compute_35,code=compute_35 \
+	   -O3 -DNDEBUG -DCUDA
 #CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 \
 	-gencode=arch=compute_13,code=sm_13 -gencode=arch=compute_13,code=compute_13 \
 	--ptxas-options=-v -O3 -DNDEBUG -DCUDA
@@ -66,7 +69,7 @@ LIBCONFIGDIR = ./libconfig
 header-dirs = $(sort $(dir $(shell find $(TOPDIR) -name '*.h'))) 
 HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
 
-INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include
+INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t
@@ -80,7 +83,7 @@ ifeq ($(withcuda),1)
 		LIBS = -lcudart -lcurand -lcublas -lcusparse
 endif
 
-LIBS +=  /usr/local/lib/libconfig++.a -lfftw3 \
+LIBS +=  -lfftw3 /sfw/libconfig-1.4.9/lib/libconfig++.a \
 				 #-Wl,--start-group $(MKLroot)/libmkl_intel_lp64.a $(MKLroot)/libmkl_sequential.a $(MKLroot)/libmkl_core.a -Wl,--end-group -lpthread
 
 

@@ -162,9 +162,7 @@ void Lattice::readLattice(const libconfig::Setting &cfgLattice, std::vector<int>
           unitcell_kpoints[i] = cfgLattice["kpoints"][i];
       }
   } else {
-      for(int i=0; i<3; ++i) {
-          unitcell_kpoints[i] = 1;
-      }
+      jams_error("Number of kpoints not specified");
   }
     
   output.write("  * Kpoints per unit cell: %i %i %i\n",unitcell_kpoints[0],unitcell_kpoints[1],unitcell_kpoints[2]);
