@@ -49,6 +49,9 @@ Solver* Solver::Create(SolverType type)
     case CUDAHEUNLLG:
       return new CUDAHeunLLGSolver;
       break;
+    case CUDASRK4LLG:
+      return new CUDALLGSolverSRK4;
+      break;
     case CUDAHEUNLLMS:
       return new CUDAHeunLLMSSolver;
       break;
