@@ -23,6 +23,7 @@ class CUDALLGSolverSRK4 : public Solver {
         J2ij_s_dev(),
         J2ij_t_dev(),
         s_dev(0),
+        s_old_dev(0),
         k0_dev(0),
         k1_dev(0),
         k2_dev(0),
@@ -31,7 +32,7 @@ class CUDALLGSolverSRK4 : public Solver {
         r_max_dev(0),
         pbc_dev(0),
         h_dev(0),
-        hdipole_dev(0),
+        h_dipole_dev(0),
         e_dev(0),
         mat_dev(0),
         eng(0,0),
@@ -56,6 +57,7 @@ class CUDALLGSolverSRK4 : public Solver {
     devDIA  J2ij_t_dev;
     devCSR  J4ijkl_s_dev;
     double * s_dev;
+    double * s_old_dev;
     double * k0_dev;
     double * k1_dev;
     double * k2_dev;
@@ -64,7 +66,7 @@ class CUDALLGSolverSRK4 : public Solver {
     float * r_max_dev;
     bool * pbc_dev;
     float * h_dev;
-    float * hdipole_dev;
+    float * h_dipole_dev;
     float * e_dev;
     float * mat_dev;
     Array2D<float> eng;

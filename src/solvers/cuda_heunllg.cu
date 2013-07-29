@@ -1,4 +1,5 @@
 #include "cuda_sparse.h"
+#include "cuda_fields.h"
 #include "cuda_sparse_types.h"
 #include "cuda_heunllg_kernel.h"
 #include "globals.h"
@@ -76,7 +77,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   CUDA_CALL(cudaMalloc((void**)&sf_dev,nspins3*sizeof(float)));
   CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
-  CUDA_CALL(cudaMalloc((void**)&hdipole_dev,nspins3*sizeof(float)));
+  CUDA_CALL(cudaMalloc((void**)&h_dipole_dev,nspins3*sizeof(float)));
   CUDA_CALL(cudaMalloc((void**)&e_dev,nspins3*sizeof(float)));
   CUDA_CALL(cudaMalloc((void**)&r_dev,nspins3*sizeof(float)));
   CUDA_CALL(cudaMalloc((void**)&r_max_dev,3*sizeof(float)));
@@ -144,7 +145,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   
   CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(hdipole_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(h_dipole_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(e_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
@@ -170,12 +171,12 @@ void CUDAHeunLLGSolver::run()
         CURAND_CALL(curandGenerateNormal(gen, w_dev, (nspins3+(nspins3%2)), 0.0f, stmp));
     }
 
-    CUDACalculateFields(sf_dev,r_dev,r_max_dev,pbc_dev,h_dev,h_dipole_dev,true);
+    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,true);
 
     cuda_heun_llg_kernelA<<<nblocks,BLOCKSIZE>>>
         (s_dev,sf_dev,s_new_dev,h_dev,w_dev,mat_dev,h_app[0],h_app[1],h_app[2],nspins,dt);
 
-    CUDACalculateFields(sf_dev,r_dev,r_max_dev,pbc_dev,h_dev,h_dipole_dev,true);
+    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,false);
 
     cuda_heun_llg_kernelB<<<nblocks,BLOCKSIZE>>>
         (s_dev,sf_dev,s_new_dev,h_dev,w_dev,mat_dev,h_app[0],h_app[1],h_app[2],nspins,dt);
@@ -294,7 +295,7 @@ CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
   CUDA_CALL(cudaFree(r_max_dev));
   CUDA_CALL(cudaFree(pbc_dev));
   CUDA_CALL(cudaFree(h_dev));
-  CUDA_CALL(cudaFree(hdipole_dev));
+  CUDA_CALL(cudaFree(h_dipole_dev));
   CUDA_CALL(cudaFree(e_dev));
 
   // wiener processes

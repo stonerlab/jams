@@ -29,7 +29,7 @@ class CUDAHeunLLGSolver : public Solver {
         r_max_dev(0),
         pbc_dev(0),
         h_dev(0),
-        hdipole_dev(0),
+        h_dipole_dev(0),
         e_dev(0),
         mat_dev(0),
         eng(0,0),
@@ -60,7 +60,7 @@ class CUDAHeunLLGSolver : public Solver {
     float * r_max_dev;
     bool * pbc_dev;
     float * h_dev;
-    float * hdipole_dev;
+    float * h_dipole_dev;
     float * e_dev;
     float * mat_dev;
     Array2D<float> eng;

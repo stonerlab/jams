@@ -3,6 +3,7 @@
 #include "cuda_heunllg.h"
 #include "cuda_heunllms.h"
 #include "cuda_heunllbp.h"
+#include "cuda_srk4llg.h"
 #include "metropolismc.h"
 #include "globals.h"
 #include "consts.h"

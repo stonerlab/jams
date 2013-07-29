@@ -73,6 +73,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
 
     // Allocate double arrays
     CUDA_CALL(cudaMalloc((void**)&s_dev,nspins3*sizeof(double)));   // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&s_old_dev,nspins3*sizeof(double)));   // 3*nspins
     CUDA_CALL(cudaMalloc((void**)&k0_dev,nspins3*sizeof(double)));  // 3*nspins
     CUDA_CALL(cudaMalloc((void**)&k1_dev,nspins3*sizeof(double)));  // 3*nspins
     CUDA_CALL(cudaMalloc((void**)&k2_dev,nspins3*sizeof(double)));  // 3*nspins
@@ -80,7 +81,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
     // Allocate float arrays
     CUDA_CALL(cudaMalloc((void**)&sf_dev,nspins3*sizeof(float)));       // 3*nspins
     CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));        // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&hdipole_dev,nspins3*sizeof(float)));  // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&h_dipole_dev,nspins3*sizeof(float)));  // 3*nspins
     CUDA_CALL(cudaMalloc((void**)&e_dev,nspins3*sizeof(float)));        // 3*nspins
     CUDA_CALL(cudaMalloc((void**)&r_dev,nspins3*sizeof(float)));        // 3*nspins
     CUDA_CALL(cudaMalloc((void**)&r_max_dev,3*sizeof(float)));          // 3
@@ -117,6 +118,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
             }
             
         CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+        CUDA_CALL(cudaMemcpy(s_old_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
         CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
     }
 
@@ -158,7 +160,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
 
     CUDA_CALL(cudaMemset(w_dev, 0, nspins3*sizeof(float)));
     CUDA_CALL(cudaMemset(h_dev, 0, nspins3*sizeof(float)));
-    CUDA_CALL(cudaMemset(hdipole_dev, 0, nspins3*sizeof(float)));
+    CUDA_CALL(cudaMemset(h_dipole_dev, 0, nspins3*sizeof(float)));
     CUDA_CALL(cudaMemset(e_dev, 0, nspins3*sizeof(float)));
 
     //-------------------------------------------------------------------
@@ -189,29 +191,29 @@ void CUDALLGSolverSRK4::run()
       CURAND_CALL(curandGenerateNormal(gen, w_dev, (nspins3+(nspins3%2)), 0.0f, stmp));
   }
   
-  CUDACalculateFields(sf_dev,r_dev,r_max_dev,pbc_dev,h_dev,h_dipole_dev,true);
+    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,true);
   
   // Integrate to find K0
   CUDAIntegrateLLG_SRK4<<<nblocks,BLOCKSIZE>>>
-    (s_dev,k0_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],0.5,dt,nspins);
+    (s_dev,s_old_dev,k0_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],0.5,dt,nspins);
   
-  CUDACalculateFields(sf_dev,r_dev,r_max_dev,pbc_dev,h_dev,h_dipole_dev,false);
+    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,false);
   
   // Integrate to find K1
   CUDAIntegrateLLG_SRK4<<<nblocks,BLOCKSIZE>>>
-    (s_dev,k1_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],0.5,dt,nspins);
+    (s_dev,s_old_dev,k1_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],0.5,dt,nspins);
   
-  CUDACalculateFields(sf_dev,r_dev,r_max_dev,pbc_dev,h_dev,h_dipole_dev,false);
+    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,false);
   
   // Integrate to find K2
   CUDAIntegrateLLG_SRK4<<<nblocks,BLOCKSIZE>>>
-    (s_dev,k2_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],1.0,dt,nspins);
+    (s_dev,s_old_dev,k2_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],1.0,dt,nspins);
   
-  CUDACalculateFields(sf_dev,r_dev,r_max_dev,pbc_dev,h_dev,h_dipole_dev,false);
+    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,false);
   
   // Integrate to find K3
   CUDAIntegrateEndPointLLG_SRK4<<<nblocks,BLOCKSIZE>>>
-    (s_dev,k3_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],dt,nspins);
+    (s_dev,s_old_dev,k0_dev,k1_dev,k2_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],dt,nspins);
 
   iteration++;
 }
@@ -248,6 +250,7 @@ CUDALLGSolverSRK4::~CUDALLGSolverSRK4()
   free_csr_4d(J4ijkl_s_dev);
 
   CUDA_CALL(cudaFree(s_dev));
+  CUDA_CALL(cudaFree(s_old_dev));
   CUDA_CALL(cudaFree(k0_dev));
   CUDA_CALL(cudaFree(k1_dev));
   CUDA_CALL(cudaFree(k2_dev));
@@ -257,7 +260,7 @@ CUDALLGSolverSRK4::~CUDALLGSolverSRK4()
   CUDA_CALL(cudaFree(r_max_dev));
   CUDA_CALL(cudaFree(pbc_dev));
   CUDA_CALL(cudaFree(h_dev));
-  CUDA_CALL(cudaFree(hdipole_dev));
+  CUDA_CALL(cudaFree(h_dipole_dev));
   CUDA_CALL(cudaFree(e_dev));
   CUDA_CALL(cudaFree(mat_dev));
 }

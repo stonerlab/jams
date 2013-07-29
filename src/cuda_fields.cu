@@ -1,11 +1,25 @@
+#include "globals.h"
+#include "cuda_sparse.h"
+#include "cuda_sparse_types.h"
+
+#include <cublas.h>
+
+#include "cuda_fields.h"
+
 void CUDACalculateFields(
-        const float * sf_dev, 
-        const float * r_dev,
-        const float * r_max_dev,
-        const float * pbc_dev,
-        float *       h_dev,
-        float *       h_dipole_dev,
-        bool          dipole_toggle
+        const devDIA & J1ij_s_dev,
+        const devDIA & J1ij_t_dev,
+        const devDIA & J2ij_s_dev,
+        const devDIA & J2ij_t_dev,
+        const devCSR & J4ijkl_s_dev,
+        const float *  sf_dev, 
+        const float *  r_dev,
+        const float *  r_max_dev,
+        const float *  mat_dev,
+        const bool *   pbc_dev,
+        float *        h_dev,
+        float *        h_dipole_dev,
+        const bool     dipole_toggle
 ){
     using namespace globals;
 
@@ -75,13 +89,14 @@ void CUDACalculateFields(
     // is not updated then the cached result is still added below
     if( dipole_toggle == true ){
         if(globalSteps%100 == 0){
+            const int nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
             dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>
-                (dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,
+                (dipole_omega,0.0,sf_dev,mat_dev,h_dipole_dev,
                  r_dev,r_max_dev,pbc_dev,nspins);
         }
     }
 
     // add cached dipole-dipole field
-    cublasSaxpy(nspins3,1.0,hdipole_dev,1,h_dev,1);
+    cublasSaxpy(nspins3,1.0,h_dipole_dev,1,h_dev,1);
 
 }
