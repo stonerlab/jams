@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "physics.h"
 #include "fmr.h"
+#include "mfpt.h"
 #include "ttm.h"
 #include "spinwaves.h"
 #include "square.h"
@@ -30,6 +31,9 @@ Physics* Physics::Create(PhysicsType type)
   switch(type){
     case FMR:
       return new FMRPhysics;
+      break;
+    case MFPT:
+      return new MFPTPhysics;
       break;
     case TTM:
       return new TTMPhysics;

@@ -17,6 +17,7 @@ class Lattice {
         atom_type(0,0), 
         unit_cell_atom_num(0,0),
         type_count(0), 
+        atomNames(),
         atomTypeMap(), 
         spin_int_map(0,0),
         local_atom_pos(0,0),
@@ -59,6 +60,7 @@ class Lattice {
     std::vector<int> atom_type;
     std::vector<int> unit_cell_atom_num;
     std::vector<int> type_count;
+    std::vector<std::string> atomNames;
     std::map<std::string,int> atomTypeMap;
     Array2D<int>     spin_int_map;
     Array2D<double>     local_atom_pos;

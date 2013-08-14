@@ -224,6 +224,8 @@ int jams_init(int argc, char **argv) {
 
                 if(physname == "FMR") {
                     physics = Physics::Create(FMR);
+                }else if(physname == "MFPT") {
+                    physics = Physics::Create(MFPT);
                 }else if(physname == "TTM") {
                     physics = Physics::Create(TTM);
                 }else if(physname == "SPINWAVES") {
