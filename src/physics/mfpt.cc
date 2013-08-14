@@ -40,6 +40,7 @@ void MFPTPhysics::monitor(const double realtime, const double dt)
   for(int i=0; i<nspins; ++i){
     if(s(i,2) < 0.0 && maskArray[i] == true){
         MFPTFile << realtime << "\n";
+        maskArray[i] = false;
     }
   }
 }
