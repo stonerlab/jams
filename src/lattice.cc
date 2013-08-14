@@ -554,18 +554,20 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
         is >> r[0];
         is >> r[1];
         is >> r[2];
-      
-        std::sort(r,r+3);
-        do {
-          output.write("%d: %f %f %f\n",n,r[0],r[1],r[2]);
 
-          // count number of interaction for each atom in unit cell
-          atomInterCount[atom1-1]++;
+        if( !is.eof() ){
+            std::sort(r,r+3);
+            do {
+                output.write("%d: %f %f %f\n",n,r[0],r[1],r[2]);
 
-          nInterTotal++;
-        } while (next_point_symmetry(r));
-        n++;
-        nInterConfig++;
+                // count number of interaction for each atom in unit cell
+                atomInterCount[atom1-1]++;
+
+                nInterTotal++;
+            } while (next_point_symmetry(r));
+            n++;
+            nInterConfig++;
+        }
       }
     }
   } else {
