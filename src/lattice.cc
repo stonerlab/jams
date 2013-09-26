@@ -970,7 +970,7 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
 
               if( (sj[0] > -1) && (sj[1] > -1) && (sj[2] > -1) ){
                 if( fabs(J4Values(n,i)) > encut) {
-                  J4ijkl_s.insertValue(si,sj[0],sj[1],sj[2],J4Values(n,i));
+                  J4ijkl_s.insert(si,sj[0],sj[1],sj[2],J4Values(n,i));
                 }
                 counter++;
               }
@@ -984,7 +984,7 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
   }
 
   output.write("  * Total J4 interaction count: %i\n", counter);
-  output.write("  * J4ijkl_s matrix memory (MAP): %f MB\n",J4ijkl_s.calculateMemory());
+  output.write("  * J4ijkl_s matrix memory (MAP): %f MB\n",J4ijkl_s.calculateMemoryUsage());
 }
 
 
