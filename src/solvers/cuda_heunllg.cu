@@ -235,14 +235,14 @@ void CUDAHeunLLGSolver::run()
   }
 
   // (muB*mu0/4pi)/nm^3
-  const float dipole_omega = 0.00092740096;
-  if(globalSteps%100 == 0){
-      // update dipole field
-      dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,r_max_dev,pbc_dev,nspins);
-  }
+  /*const float dipole_omega = 0.00092740096;*/
+  /*if(globalSteps%100 == 0){*/
+      /*// update dipole field*/
+      /*dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,r_max_dev,pbc_dev,nspins);*/
+  /*}*/
 
   // add cached field
-  cublasSaxpy(nspins3,1.0,hdipole_dev,1,h_dev,1);
+  /*cublasSaxpy(nspins3,1.0,hdipole_dev,1,h_dev,1);*/
 
   
   //CUDA_CALL(cudaUnbindTexture(tex_x_float));
@@ -300,13 +300,13 @@ void CUDAHeunLLGSolver::run()
     beta = 1.0;
   }
   
-  if(globalSteps%100 == 0){
-      // update dipole field
-      dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,r_max_dev,pbc_dev,nspins);
-  }
+  /*if(globalSteps%100 == 0){*/
+      /*// update dipole field*/
+      /*dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,r_max_dev,pbc_dev,nspins);*/
+  /*}*/
 
-  // add cached field
-  cublasSaxpy(nspins3,1.0,hdipole_dev,1,h_dev,1);
+  /*// add cached field*/
+  /*cublasSaxpy(nspins3,1.0,hdipole_dev,1,h_dev,1);*/
 
   /*Array2D<float> hf(nspins,3);*/
   /*Array2D<float> sf(nspins,3);*/

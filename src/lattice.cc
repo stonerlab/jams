@@ -46,7 +46,7 @@ void readBasis (const libconfig::Setting &cfgBasis, double unitcell[3][3], doubl
 ///
 /// @brief  Read atom positions and types from config file.
 ///
-void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D<double> &unitCellPositions, int &nAtoms, int &nTypes, std::map<std::string,int> &atomTypeMap) {
+void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D<double> &unitCellPositions, int &nAtoms, int &nTypes, std::map<std::string,int> &atomTypeMap, std::vector<std::string> &atomNames) {
   //  Read atomic positions and types from config
   
 
@@ -111,6 +111,7 @@ void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D
       unitCellTypes(n) = nTypes;
 
       atomTypeMap.insert( std::pair<std::string,int>(typeName,nTypes) );
+      atomNames.push_back(typeName);
       nTypes++;
     } else {
       unitCellTypes(n) = atomTypeMap[typeName];
@@ -1240,7 +1241,7 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     readBasis(cfgBasis, unitcell, unitcellInv);
 
     std::string positionFileName = config.lookup("lattice.positions");
-    readAtoms(positionFileName,unitCellTypes, unitCellPositions, nAtoms, nTypes, atomTypeMap);
+    readAtoms(positionFileName,unitCellTypes, unitCellPositions, nAtoms, nTypes, atomTypeMap,atomNames);
 
     assert(nAtoms > 0);
     assert(nTypes > 0);
@@ -1298,19 +1299,26 @@ void Lattice::outputSpinsVTU(std::ofstream &outfile){
   outfile << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
   outfile << "<UnstructuredGrid>" << "\n";
   outfile << "<Piece NumberOfPoints=\""<<nspins<<"\"  NumberOfCells=\"1\">" << "\n";
-  outfile << "<PointData Scalar=\"Spin\">" << "\n";
-  outfile << "<DataArray type=\"Float32\" Name=\"Spin\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
-  for(int i=0; i<nspins; ++i){
-    outfile << s(i,0) << "\t" << s(i,1) << "\t" << s(i,2) << "\n";
+  outfile << "<PointData Scalar=\"Spins\">" << "\n";
+
+  for(int n=0; n<nTypes; ++n){
+      outfile << "<DataArray type=\"Float32\" Name=\"" << atomNames[n] << "Spin\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
+      for(int i=0; i<nspins; ++i){
+          if(atom_type[i] == n){
+              outfile << s(i,0) << "\t" << s(i,1) << "\t" << s(i,2) << "\n";
+          } else {
+              outfile << 0.0 << "\t" << 0.0 << "\t" << 0.0 << "\n";
+          }
+      }
+      outfile << "</DataArray>" << "\n";
   }
-  outfile << "</DataArray>" << "\n";
   outfile << "</PointData>" << "\n";
   outfile << "<CellData>" << "\n";
   outfile << "</CellData>" << "\n";
   outfile << "<Points>" << "\n";
   outfile << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
   for(int i=0; i<nspins; ++i){
-    outfile << atom_pos(i,0) << "\t" << atom_pos(i,1) << "\t" << atom_pos(i,2) << "\n";
+      outfile << atom_pos(i,0) << "\t" << atom_pos(i,1) << "\t" << atom_pos(i,2) << "\n";
   }
   outfile << "</DataArray>" << "\n";
   outfile << "</Points>" << "\n";
