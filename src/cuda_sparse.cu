@@ -1,4 +1,5 @@
 #include <thrust/extrema.h>
+#include "../../../jbLib/containers/Sparsematrix.h"
 #include "cuda_sparse_types.h"
 #include "sparsematrix.h"
 #include "sparsematrix4d.h"
@@ -24,6 +25,18 @@ void free_dia(devDIA &Jij_dev)
   CUDA_CALL(cudaFree(Jij_dev.row));
   CUDA_CALL(cudaFree(Jij_dev.col));
   CUDA_CALL(cudaFree(Jij_dev.val));
+}
+
+void allocate_transfer_csr_4d(jbLib::Sparsematrix<float,4> &Jij, devCSR &
+    Jij_dev)
+{
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.pointers,(Jij.sizex()+1)*sizeof(int)));
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.coords,(4*Jij.nonZeros())*sizeof(int)));
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.val,(Jij.nonZeros())*sizeof(float)));
+
+  CUDA_CALL(cudaMemcpy(Jij_dev.pointers,Jij.csrData(),(size_t)((Jij.sizex()+1)*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev.coords,Jij.indexData(),(size_t)((4*Jij.nonZeros())*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev.val,Jij.valueData(),(size_t)((Jij.nonZeros())*(sizeof(float))),cudaMemcpyHostToDevice));
 }
 
 void allocate_transfer_csr_4d(SparseMatrix4D<float> &Jij, devCSR &
@@ -459,26 +472,24 @@ __global__ void fourspin_scalar_csr_kernel
               
       const float A_ijkl = alpha*val[jj];
 
-      const int jidx = coords[3*jj+0];
-      const int kidx = coords[3*jj+1];
-      const int lidx = coords[3*jj+2];
+      const int4 idx = {coords[4*jj+0],coords[4*jj+1],coords[4*jj+2],coords[4*jj+3]};
        
       float sj[3], sk[3], sl[3];
       
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sj[i] = sf_dev[3*jidx+i];
+        sj[i] = sf_dev[3*idx.y+i];
         //sk[i] = tex1Dfetch(tex_x_float,3*kidx+i);
       }
 
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sk[i] = sf_dev[3*kidx+i];
+        sk[i] = sf_dev[3*idx.z+i];
         //sk[i] = tex1Dfetch(tex_x_float,3*kidx+i);
       }
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sl[i] = sf_dev[3*lidx+i];
+        sl[i] = sf_dev[3*idx.w+i];
         //sl[i] = tex1Dfetch(tex_x_float,3*lidx+i);
       }
 
@@ -506,3 +517,4 @@ __global__ void fourspin_scalar_csr_kernel
     }
   }
 }
+
