@@ -84,8 +84,8 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
 	output.write("  * J2ij tensor matrix memory (DIA): %f MB\n",J2ij_t.calculateMemory());
   
 	output.write("  * Converting J4 MAP to CSR\n");
-	J4ijkl_s.convertMAP2CSR();
-	output.write("  * J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemory());
+	/*J4ijkl_s.convertMAP2CSR();*/
+	output.write("  * J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemoryUsage());
 
 	output.write("  * Allocating device interaction matrices...\n");
 
@@ -270,7 +270,7 @@ void CUDAHeunLLBPSolver::run()
     beta = 1.0;
   }
   
-  if(J4ijkl_s.nonZero() > 0){
+  if(J4ijkl_s.nonZeros() > 0){
     fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
@@ -337,7 +337,7 @@ void CUDAHeunLLBPSolver::run()
     beta = 1.0;
   }
   
-  if(J4ijkl_s.nonZero() > 0){
+  if(J4ijkl_s.nonZeros() > 0){
     fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
