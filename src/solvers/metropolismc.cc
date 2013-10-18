@@ -27,13 +27,13 @@ void MetropolisMCSolver::initialise(int argc, char **argv, double idt)
     J2ij_s.convertMAP2CSR();
     J2ij_t.convertMAP2CSR();
     
-    J4ijkl_s.convertMAP2CSR();
+    //J4ijkl_s.convertMAP2CSR();
 
     output.write("  * J1ij Scalar matrix memory (CSR): %f MB\n",J1ij_s.calculateMemory());
     output.write("  * J1ij Tensor matrix memory (CSR): %f MB\n",J1ij_t.calculateMemory());
     output.write("  * J2ij Scalar matrix memory (CSR): %f MB\n",J2ij_s.calculateMemory());
     output.write("  * J2ij Tensor matrix memory (CSR): %f MB\n",J2ij_t.calculateMemory());
-    output.write("  * J4ijkl Scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemory());
+    output.write("  * J4ijkl Scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemoryUsage());
 
     initialised = true;
 }
@@ -136,42 +136,42 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3])
         }
     }
 
-    if(J4ijkl_s.nonZero() > 0){ // J4ijkl_s
-#ifdef CUDA
-        const float *val = J4ijkl_s.valPtr();
-#else
-        const double *val = J4ijkl_s.valPtr();
-#endif
-        const int    *row = J4ijkl_s.pointersPtr();
-        const int    *coords = J4ijkl_s.cooPtr();
+    //if(J4ijkl_s.nonZeros() > 0){ // J4ijkl_s
+//#ifdef CUDA
+        //const float *val = J4ijkl_s.valPtr();
+//#else
+        //const double *val = J4ijkl_s.valPtr();
+//#endif
+        //const int    *row = J4ijkl_s.pointersPtr();
+        //const int    *coords = J4ijkl_s.cooPtr();
 
 
-        int begin = row[i]; int end = row[i+1];
+        //int begin = row[i]; int end = row[i+1];
 
-        // upper triangle and diagonal
-        for(int j=begin; j<end; ++j){
-            const int jidx = coords[3*j+0];
-            const int kidx = coords[3*j+1];
-            const int lidx = coords[3*j+2];
+        //// upper triangle and diagonal
+        //for(int j=begin; j<end; ++j){
+            //const int jidx = coords[3*j+0];
+            //const int kidx = coords[3*j+1];
+            //const int lidx = coords[3*j+2];
 
-            double sj[3], sk[3], sl[3];
+            //double sj[3], sk[3], sl[3];
             
-            for(int n=0; n<3; ++n){
-                sj[n] = s(jidx,n);
-                sk[n] = s(kidx,n);
-                sl[n] = s(lidx,n);
-            }
+            //for(int n=0; n<3; ++n){
+                //sj[n] = s(jidx,n);
+                //sk[n] = s(kidx,n);
+                //sl[n] = s(lidx,n);
+            //}
           
-            double k_dot_l = sk[0]*sl[0] + sk[1]*sl[1] + sk[2]*sl[2];
-            double j_dot_l = sj[0]*sl[0] + sj[1]*sl[1] + sj[2]*sl[2];
-            double j_dot_k = sk[0]*sj[0] + sk[1]*sj[1] + sk[2]*sj[2];
+            //double k_dot_l = sk[0]*sl[0] + sk[1]*sl[1] + sk[2]*sl[2];
+            //double j_dot_l = sj[0]*sl[0] + sj[1]*sl[1] + sj[2]*sl[2];
+            //double j_dot_k = sk[0]*sj[0] + sk[1]*sj[1] + sk[2]*sj[2];
 
-            for(int n=0; n<3; ++n){
-                total[n] -= val[j]*(sj[n]*k_dot_l + sk[n]*j_dot_l + sl[n]*j_dot_k)/3.0;
-            }
+            //for(int n=0; n<3; ++n){
+                //total[n] -= val[j]*(sj[n]*k_dot_l + sk[n]*j_dot_l + sl[n]*j_dot_k)/3.0;
+            //}
 
-        }
-    }
+        //}
+    //}
 
 }
 
