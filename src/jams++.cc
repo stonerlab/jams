@@ -31,6 +31,7 @@ namespace {
     unsigned long steps_run=0;
     unsigned long steps_out=0;
     unsigned long	steps_vis=0;
+    unsigned long	steps_bin=0;
     unsigned long steps_conv=0;
 
     std::string convName;
@@ -39,6 +40,7 @@ namespace {
 
     bool toggleEnergy=false;
     bool toggleVisualise=false;
+    bool toggleBinary=false;
     bool toggleSaveState=false;
     bool toggleReadState=false;
     std::string stateFileName;
@@ -176,6 +178,17 @@ int jams_init(int argc, char **argv) {
                 toggleVisualise = false;
             }
 
+            if( config.exists("sim.binary") == true) {
+                config.lookupValue("sim.binary",toggleBinary);
+                if( toggleBinary == true ) {
+                    output.write("  * Binary output is ON\n");
+                    tmp = config.lookup("sim.t_bin");
+                    steps_bin = static_cast<unsigned long>(tmp/dt);
+                    output.write("  * Binary output time: %1.8e (%lu steps)\n",tmp,steps_bin);
+                }
+            } else {
+                toggleBinary = false;
+            }
 
             if( config.exists("sim.seed") == true) {
                 config.lookupValue("sim.seed",randomseed);
@@ -370,6 +383,17 @@ void jams_run() {
                 std::ofstream vtufile(vtufilename.c_str());
                 lattice.outputSpinsVTU(vtufile);
                 vtufile.close();
+            }
+        }
+
+        if(toggleBinary == true){
+            if( ((i)%steps_bin) == 0 ){
+                int outcount = i/steps_bin; // int divisible by modulo above
+                std::string binfilename;
+                binfilename = seedname+"_"+zero_pad_num(outcount)+".bin";
+                std::ofstream binfile(binfilename.c_str());
+                lattice.outputSpinsBinary(binfile);
+                binfile.close();
             }
         }
 
