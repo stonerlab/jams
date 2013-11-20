@@ -15,7 +15,11 @@ void MFPTPhysics::init(libconfig::Setting &phys)
   fileName = seedname+fileName;
   MFPTFile.open(fileName.c_str());
 
-  maskArray.resize(nspins,true);
+  maskArray.resize(nspins);
+
+  for(int i=0; i<nspins; ++i){
+      maskArray[i] = true;
+  }
 
   initialised = true;
 
