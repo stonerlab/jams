@@ -1366,6 +1366,13 @@ void Lattice::outputSpinsBinary(std::ofstream &outfile){
     outfile.write(reinterpret_cast<char*>(s.ptr()),nspins3*sizeof(double));
 }
 
+void Lattice::outputTypesBinary(std::ofstream &outfile){
+    using namespace globals;
+
+    outfile.write(reinterpret_cast<char*>(&nspins),sizeof(int));
+    outfile.write(reinterpret_cast<char*>(&atom_type[0]),nspins*sizeof(int));
+}
+
 void Lattice::readSpinsBinary(std::ifstream &infile){
     using namespace globals;
 

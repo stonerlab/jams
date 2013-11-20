@@ -47,6 +47,7 @@ class Lattice {
     inline int numTypes() { return nTypes; }
     void outputSpinsVTU(std::ofstream &outfile);
     void outputSpinsBinary(std::ofstream &outfile);
+    void outputTypesBinary(std::ofstream &outfile);
     void readSpinsBinary(std::ifstream &infile);
   private:
     void readExchange();

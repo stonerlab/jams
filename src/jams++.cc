@@ -208,6 +208,14 @@ int jams_init(int argc, char **argv) {
 
             lattice.createFromConfig(config);
 
+            if(toggleBinary==true){
+              std::string binfilename;
+              binfilename = seedname+"_types.bin";
+              std::ofstream binfile(binfilename.c_str(),std::ios::binary|std::ios::out);
+              lattice.outputTypesBinary(binfile);
+              binfile.close();
+            }
+
             // If read_state is true then attempt to read state from binary
             // file. If this fails (nspins != nspins in the file) then JAMS
             // exits with an error to avoid mistakingly thinking the file was
@@ -391,7 +399,7 @@ void jams_run() {
                 int outcount = i/steps_bin; // int divisible by modulo above
                 std::string binfilename;
                 binfilename = seedname+"_"+zero_pad_num(outcount)+".bin";
-                std::ofstream binfile(binfilename.c_str());
+                std::ofstream binfile(binfilename.c_str(),std::ios::binary|std::ios::out);
                 lattice.outputSpinsBinary(binfile);
                 binfile.close();
             }
