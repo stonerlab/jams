@@ -7,6 +7,7 @@
 #include "array.h"
 #include "array2d.h"
 #include "array4d.h"
+#include "array5d.h"
 
 class Lattice {
   public:
@@ -23,7 +24,11 @@ class Lattice {
         local_atom_pos(0,0),
         unitcell_kpoints(3,0), 
         latticeParameter(0.0), 
-        boundaries(3,false) {}
+        boundaries(3,false),
+        coarseDim(0),
+        spinToCoarseMap(0,0),
+        coarseMagnetisationTypeCount(0,0,0,0),
+        coarseMagnetisation(0,0,0,0,0) {}
     void createFromConfig(libconfig::Config &config);
 
     inline void getDimensions(int &x, int &y, int& z) { x = dim[0]; y = dim[1]; z = dim[2]; }
@@ -49,6 +54,8 @@ class Lattice {
     void outputSpinsBinary(std::ofstream &outfile);
     void outputTypesBinary(std::ofstream &outfile);
     void readSpinsBinary(std::ifstream &infile);
+    void initializeCoarseMagnetisationMap();
+    void outputCoarseMagnetisationMap(std::ofstream &outfile);
   private:
     void readExchange();
     void calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<int> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms);
@@ -68,7 +75,10 @@ class Lattice {
     std::vector<int> unitcell_kpoints;
     float latticeParameter;
     std::vector<bool> boundaries;
-
+    std::vector<int> coarseDim;
+    Array2D<int> spinToCoarseMap;
+    Array4D<int> coarseMagnetisationTypeCount;
+    Array5D<double> coarseMagnetisation;
 };
 
 #endif // __LATTICE_H__

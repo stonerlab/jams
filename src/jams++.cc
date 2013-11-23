@@ -43,6 +43,7 @@ namespace {
     bool toggleBinary=false;
     bool toggleSaveState=false;
     bool toggleReadState=false;
+    bool toggleCoarse=false;
     std::string stateFileName;
 
     std::vector<Monitor*> monitor_list;
@@ -188,6 +189,15 @@ int jams_init(int argc, char **argv) {
                 }
             } else {
                 toggleBinary = false;
+            }
+            
+            if( config.exists("lattice.coarse") == true) {
+              toggleCoarse = true;
+                if( toggleCoarse == true ) {
+                    output.write("  * Coarse magnetisation map output is ON\n");
+                }
+            } else {
+                toggleCoarse = false;
             }
 
             if( config.exists("sim.seed") == true) {
@@ -352,6 +362,15 @@ int jams_init(int argc, char **argv) {
 void jams_run() {
     using namespace globals;
 
+    std::ofstream coarseFile;
+            
+    if (toggleCoarse == true) {
+      std::string coarseFileName;
+      coarseFileName = seedname+"_map.dat";
+      coarseFile.open(coarseFileName.c_str());
+    }
+
+
     globalSteps = 0;
     output.write("\n----Equilibration----\n");
     output.write("Running solver\n");
@@ -361,6 +380,12 @@ void jams_run() {
 
             // write magnetisation only
             monitor_list[0]->write(solver);
+
+            if (toggleCoarse == true) {
+              lattice.outputCoarseMagnetisationMap(coarseFile);
+              coarseFile << "\n\n";
+            }
+
 
         }
         physics->run(solver->getTime(),dt);
@@ -381,6 +406,11 @@ void jams_run() {
                 monitor_list[i]->write(solver);
             }
             physics->monitor(solver->getTime(),dt);
+
+            if (toggleCoarse == true) {
+              lattice.outputCoarseMagnetisationMap(coarseFile);
+              coarseFile << "\n\n";
+            }
 
         }
         if(toggleVisualise == true){
@@ -444,6 +474,10 @@ void jams_run() {
             delete monitor_list[i];
             monitor_list[i] = NULL;
         }
+    }
+
+    if (toggleCoarse == true) {
+      coarseFile.close();
     }
 
 }
