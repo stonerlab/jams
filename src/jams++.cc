@@ -381,10 +381,10 @@ void jams_run() {
             // write magnetisation only
             monitor_list[0]->write(solver);
 
-            if (toggleCoarse == true) {
-              lattice.outputCoarseMagnetisationMap(coarseFile);
-              coarseFile << "\n\n";
-            }
+            //if (toggleCoarse == true) {
+              //lattice.outputCoarseMagnetisationMap(coarseFile);
+              //coarseFile << "\n\n";
+            //}
 
 
         }
