@@ -1,5 +1,5 @@
-#ifndef __CUDAHEUNLLG_H__
-#define __CUDAHEUNLLG_H__
+#ifndef __CUDAHEUNLLMS_H__
+#define __CUDAHEUNLLMS_H__
 
 #ifdef CUDA
 
@@ -11,9 +11,9 @@
 #include <curand.h>
 #include <cusparse.h>
 
-class CUDAHeunLLGSolver : public Solver {
+class CUDAHeunLLMSSolver : public Solver {
   public:
-    CUDAHeunLLGSolver()
+    CUDAHeunLLMSSolver()
       : gen(0),
         w_dev(0),
         handle(0),
@@ -25,19 +25,18 @@ class CUDAHeunLLGSolver : public Solver {
         s_dev(0),
         sf_dev(0),
         s_new_dev(0),
-        r_dev(0),
-        r_max_dev(0),
-        pbc_dev(0),
+		u_dev(0),
+		u_new_dev(0),
         h_dev(0),
-        hdipole_dev(0),
         e_dev(0),
         mat_dev(0),
+		omega_corr_dev(0),
         eng(0,0),
         sigma(0),
         nblocks(0),
         spmvblocksize(0)
     {};
-    ~CUDAHeunLLGSolver();
+    ~CUDAHeunLLMSSolver();
     void initialise(int argc, char **argv, double dt);
     void run();
     void syncOutput();
@@ -56,13 +55,12 @@ class CUDAHeunLLGSolver : public Solver {
     double * s_dev;
     float  * sf_dev;
     double * s_new_dev;
-    float * r_dev;
-    float * r_max_dev;
-    bool * pbc_dev;
+	double * u_dev;
+	double * u_new_dev;
     float * h_dev;
-    float * hdipole_dev;
     float * e_dev;
     float * mat_dev;
+    float * omega_corr_dev;
     Array2D<float> eng;
     Array<double> sigma;
     int nblocks;

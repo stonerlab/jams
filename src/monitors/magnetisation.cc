@@ -50,7 +50,7 @@ bool MagnetisationMonitor::checkConvergence(){
 	}
 	return false;
 }
-void MagnetisationMonitor::write(const double &time) {
+void MagnetisationMonitor::write(Solver *solver) {
   using namespace globals;
   assert(initialised);
   int i,j,type;
@@ -80,7 +80,7 @@ void MagnetisationMonitor::write(const double &time) {
   }
   
 
-  outfile << time;
+  outfile << solver->getTime();
 
   outfile << "\t" << globalTemperature;
 

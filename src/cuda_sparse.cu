@@ -1,4 +1,5 @@
 #include <thrust/extrema.h>
+#include "../../../jbLib/containers/Sparsematrix.h"
 #include "cuda_sparse_types.h"
 #include "sparsematrix.h"
 #include "sparsematrix4d.h"
@@ -26,6 +27,18 @@ void free_dia(devDIA &Jij_dev)
   CUDA_CALL(cudaFree(Jij_dev.val));
 }
 
+void allocate_transfer_csr_4d(jbLib::Sparsematrix<float,4> &Jij, devCSR &
+    Jij_dev)
+{
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.pointers,(Jij.sizex()+1)*sizeof(int)));
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.coords,(4*Jij.nonZeros())*sizeof(int)));
+  CUDA_CALL(cudaMalloc((void**)&Jij_dev.val,(Jij.nonZeros())*sizeof(float)));
+
+  CUDA_CALL(cudaMemcpy(Jij_dev.pointers,Jij.csrData(),(size_t)((Jij.sizex()+1)*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev.coords,Jij.indexData(),(size_t)((4*Jij.nonZeros())*(sizeof(int))),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(Jij_dev.val,Jij.valueData(),(size_t)((Jij.nonZeros())*(sizeof(float))),cudaMemcpyHostToDevice));
+}
+
 void allocate_transfer_csr_4d(SparseMatrix4D<float> &Jij, devCSR &
     Jij_dev)
 {
@@ -43,6 +56,80 @@ void free_csr_4d(devCSR &Jij_dev)
   CUDA_CALL(cudaFree(Jij_dev.pointers));
   CUDA_CALL(cudaFree(Jij_dev.coords));
   CUDA_CALL(cudaFree(Jij_dev.val));
+}
+
+__global__ void dipole_brute_kernel
+(
+ const float alpha,
+ const float beta,
+ const float *sf_dev,
+ const float *mat_dev,
+ float *h_dev, 
+ const float *r_dev,
+ const float *r_max_dev,
+ const bool *pbc_dev,
+ const int nspins
+)
+{
+    const int idx = blockIdx.x*blockDim.x+threadIdx.x;
+    int i,n;
+
+    if(idx < nspins){
+        float sum[3];
+        float r_i[3];
+        float r_ij[3];
+        float s_j[3];
+
+          #pragma unroll
+          for(i=0; i<3; ++i){
+              r_i[i] = r_dev[3*idx+i];
+          }
+          
+          #pragma unroll
+          for(i=0; i<3; ++i){
+              sum[i] = 0.0;
+          }
+
+        for(n=0; n<nspins; ++n){
+            if(n!=idx){
+        
+              float mus = mat_dev[n*4];
+              #pragma unroll
+              for(i=0; i<3; ++i){
+                s_j[i] = sf_dev[3*n+i];
+              }
+              
+              #pragma unroll
+              for(i=0; i<3; ++i){
+                  r_ij[i] = (r_dev[3*n+i]-r_i[i]);
+                  // check for and perform periodic boundary conditions
+                  if(pbc_dev[i] == true){
+                      if(fabsf(r_ij[i]) > r_max_dev[i]*0.5f){
+                          r_ij[i] = r_ij[i] - copysignf(r_max_dev[i],r_ij[i]);
+                      }
+                  }
+              }
+
+
+              const float sdotr = s_j[0]*r_ij[0] + s_j[1]*r_ij[1] + s_j[2]*r_ij[2];
+
+              const float r2    = r_ij[0]*r_ij[0] + r_ij[1]*r_ij[1] + r_ij[2]*r_ij[2];
+              const float r     = sqrtf(r2);
+#pragma unroll
+              for(i=0;i<3;++i){
+                  sum[i] = sum[i] + mus*alpha*(3.0*sdotr*r_ij[i] - r2*s_j[i])/(r*r*r*r*r);
+              }
+            }
+        }
+
+#pragma unroll
+        for(i=0; i<3; ++i){
+          h_dev[3*idx+i] = sum[i];
+        }
+
+    }
+
+
 }
 
 
@@ -385,26 +472,24 @@ __global__ void fourspin_scalar_csr_kernel
               
       const float A_ijkl = alpha*val[jj];
 
-      const int jidx = coords[3*jj+0];
-      const int kidx = coords[3*jj+1];
-      const int lidx = coords[3*jj+2];
+      const int4 idx = {coords[4*jj+0],coords[4*jj+1],coords[4*jj+2],coords[4*jj+3]};
        
       float sj[3], sk[3], sl[3];
       
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sj[i] = sf_dev[3*jidx+i];
+        sj[i] = sf_dev[3*idx.y+i];
         //sk[i] = tex1Dfetch(tex_x_float,3*kidx+i);
       }
 
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sk[i] = sf_dev[3*kidx+i];
+        sk[i] = sf_dev[3*idx.z+i];
         //sk[i] = tex1Dfetch(tex_x_float,3*kidx+i);
       }
       #pragma unroll
       for(int i=0; i<3; ++i){
-        sl[i] = sf_dev[3*lidx+i];
+        sl[i] = sf_dev[3*idx.w+i];
         //sl[i] = tex1Dfetch(tex_x_float,3*lidx+i);
       }
 
@@ -432,3 +517,4 @@ __global__ void fourspin_scalar_csr_kernel
     }
   }
 }
+

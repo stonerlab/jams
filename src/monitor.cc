@@ -1,5 +1,6 @@
 #include "monitor.h"
 #include "globals.h"
+#include "solver.h"
 
 void Monitor::initialise() {
   if(initialised == true) {
@@ -13,7 +14,7 @@ void Monitor::run() {
 
 }
 
-void Monitor::write(const double &time) {
+void Monitor::write(Solver *solver) {
 
 }
 

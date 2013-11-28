@@ -1,5 +1,5 @@
-#ifndef __CUDAHEUNLLG_H__
-#define __CUDAHEUNLLG_H__
+#ifndef __CUDAHEUNLLBP_H__
+#define __CUDAHEUNLLBP_H__
 
 #ifdef CUDA
 
@@ -11,11 +11,12 @@
 #include <curand.h>
 #include <cusparse.h>
 
-class CUDAHeunLLGSolver : public Solver {
+class CUDAHeunLLBPSolver : public Solver {
   public:
-    CUDAHeunLLGSolver()
+    CUDAHeunLLBPSolver()
       : gen(0),
         w_dev(0),
+		tc_dev(0),	
         handle(0),
         descra(0),
         J1ij_s_dev(),
@@ -25,19 +26,18 @@ class CUDAHeunLLGSolver : public Solver {
         s_dev(0),
         sf_dev(0),
         s_new_dev(0),
-        r_dev(0),
-        r_max_dev(0),
-        pbc_dev(0),
+		u1_dev(0),
+		u2_dev(0),
+		u1_new_dev(0),
+		u2_new_dev(0),
         h_dev(0),
-        hdipole_dev(0),
-        e_dev(0),
         mat_dev(0),
-        eng(0,0),
         sigma(0),
+		t_corr(0,0),
         nblocks(0),
         spmvblocksize(0)
     {};
-    ~CUDAHeunLLGSolver();
+    ~CUDAHeunLLBPSolver();
     void initialise(int argc, char **argv, double dt);
     void run();
     void syncOutput();
@@ -45,7 +45,8 @@ class CUDAHeunLLGSolver : public Solver {
 
   private:
     curandGenerator_t gen; // device random generator
-    float * w_dev;
+    float * w_dev;    				
+	float * tc_dev; 				// store tc_1 and tc_2 in a 2D array
     cusparseHandle_t handle;
     cusparseMatDescr_t descra;
     devDIA  J1ij_s_dev;
@@ -56,20 +57,19 @@ class CUDAHeunLLGSolver : public Solver {
     double * s_dev;
     float  * sf_dev;
     double * s_new_dev;
-    float * r_dev;
-    float * r_max_dev;
-    bool * pbc_dev;
+	double * u1_dev;
+	double * u2_dev;
+	double * u1_new_dev;
+	double * u2_new_dev;
     float * h_dev;
-    float * hdipole_dev;
-    float * e_dev;
     float * mat_dev;
-    Array2D<float> eng;
     Array<double> sigma;
+    Array2D<float> t_corr;
     int nblocks;
     int spmvblocksize;
 };
 
 #endif
 
-#endif // __CUDAHEUNLLG_H__
+#endif // __CUDAHEUNLLBP_H__
 

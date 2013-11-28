@@ -26,6 +26,12 @@ void TTMPhysics::init(libconfig::Setting &phys)
 
   pumpStartTime = phys["PumpStartTime"];
 
+  // if these settings don't exist, the defaults will be left in
+  phys.lookupValue("Ce",Ce);
+  phys.lookupValue("Cl",Cl);
+  phys.lookupValue("Gep",G);
+  phys.lookupValue("Gps",Gsink);
+
   for(int i=0; i<3; ++i) {
     reversingField[i] = phys["ReversingField"][i];
   }

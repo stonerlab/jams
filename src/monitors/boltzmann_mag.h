@@ -16,7 +16,7 @@ class BoltzmannMagMonitor : public Monitor{
 
     void initialise();
     void run();
-    void write(const double &time);
+    void write(Solver *solver);
   private:
     Array<double> bins;
     double total;

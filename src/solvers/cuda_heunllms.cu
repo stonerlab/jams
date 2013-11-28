@@ -1,10 +1,10 @@
 #include "cuda_sparse.h"
 #include "cuda_sparse_types.h"
-#include "cuda_heunllg_kernel.h"
+#include "cuda_heunllms_kernel.h"
 #include "globals.h"
 #include "consts.h"
 
-#include "cuda_heunllg.h"
+#include "cuda_heunllms.h"
 
 #include <curand.h>
 #include <cuda.h>
@@ -13,28 +13,36 @@
 
 #include <cmath>
 
-
-void CUDAHeunLLGSolver::syncOutput()
+void CUDAHeunLLMSSolver::syncOutput()
 {
   using namespace globals;
   CUDA_CALL(cudaMemcpy(s.ptr(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
 }
 
-void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
+void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
 {
   using namespace globals;
 
   // initialise base class
   Solver::initialise(argc,argv,idt);
 
-  sigma.resize(nspins);
+  output.write("  * CUDA Heun LLMS solver (GPU)\n");
 
-  for(int i=0; i<nspins; ++i) {
-    sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)) / (dt*mus(i)*mu_bohr_si) );
+  sigma.resize(nspins);
+  
+  libconfig::Setting &matcfg = config.lookup("materials");
+
+  for(int i=0; i<nspins; ++i){
+    int type_num = lattice.getType(i);
+	omega_corr(i) = matcfg[type_num]["t_corr"];
+    omega_corr(i) = 1.0/(gamma_electron_si*omega_corr(i));
+  
+    sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)*omega_corr(i)*omega_corr(i)) / (dt*mus(i)*mu_bohr_si) );
+	  
+  	gyro(i) = matcfg[type_num]["gyro"];
+	gyro(i) = -gyro(i)/mus(i);
   }
 
-
-  output.write("  * CUDA Heun LLG solver (GPU)\n");
 
   //-------------------------------------------------------------------
   //  Initialise curand
@@ -67,6 +75,8 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J2ij_s.calculateMemory());
   output.write("  * J2ij tensor matrix memory (DIA): %f MB\n",J2ij_t.calculateMemory());
   
+  output.write("  * Converting J4 MAP to CSR\n");
+  /*J4ijkl_s.convertMAP2CSR();*/
   output.write("  * J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemoryUsage());
 
 
@@ -76,16 +86,14 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMalloc((void**)&sf_dev,nspins3*sizeof(float)));
   CUDA_CALL(cudaMalloc((void**)&s_new_dev,nspins3*sizeof(double)));
 
+  // stochastic process arrays
+  CUDA_CALL(cudaMalloc((void**)&u_dev,nspins3*sizeof(double)));
+  CUDA_CALL(cudaMalloc((void**)&u_new_dev,nspins3*sizeof(double)));
+  CUDA_CALL(cudaMalloc((void**)&omega_corr_dev,nspins*sizeof(float)));
+
   // field arrays
   CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
-  CUDA_CALL(cudaMalloc((void**)&hdipole_dev,nspins3*sizeof(float)));
   CUDA_CALL(cudaMalloc((void**)&e_dev,nspins3*sizeof(float)));
-
-  // position arrays
-  CUDA_CALL(cudaMalloc((void**)&r_dev,nspins3*sizeof(float)));
-
-  CUDA_CALL(cudaMalloc((void**)&r_max_dev,3*sizeof(float)));
-  CUDA_CALL(cudaMalloc((void**)&pbc_dev,3*sizeof(bool)));
 
   if(nspins3%2 == 0) {
     // wiener processes
@@ -124,19 +132,9 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
       sf(i,j) = static_cast<float>(s(i,j));
     }
   }
+  
   CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-
-  // position array
-  CUDA_CALL(cudaMemcpy(r_dev,atom_pos.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  
-  float r_maxf[3];
-  lattice.getMaxDimensions(r_maxf[0],r_maxf[1],r_maxf[2]);
-  CUDA_CALL(cudaMemcpy(r_max_dev,r_maxf,(size_t)(3*sizeof(float)),cudaMemcpyHostToDevice));
-  
-  bool pbc[3];
-  lattice.getBoundaries(pbc[0],pbc[1],pbc[2]);
-  CUDA_CALL(cudaMemcpy(pbc_dev,pbc,(size_t)(3*sizeof(bool)),cudaMemcpyHostToDevice));
 
   Array2D<float> mat(nspins,4);
   // material properties
@@ -146,6 +144,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
     mat(i,2) = alpha(i);
     mat(i,3) = sigma(i);
   }
+  
   CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
 
   eng.resize(nspins,3);
@@ -162,9 +161,24 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   
   CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(hdipole_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(e_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-
+  
+  Array<float> tmp(nspins);
+  for(int i=0; i<nspins; ++i) {
+  	tmp(i) = omega_corr(i);
+  }
+  CUDA_CALL(cudaMemcpy(omega_corr_dev,tmp.ptr(),(size_t)(nspins*sizeof(float)),cudaMemcpyHostToDevice));
+  
+  Array2D<double> u(nspins,3);
+  for(int i=0; i<nspins; ++i) {
+    for(int j=0; j<3; ++j) {
+      u(i,j) = 0.0;
+    }
+  }
+  CUDA_CALL(cudaMemcpy(u_dev,u.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(u_new_dev,u.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+  
+  
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
 
   J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
@@ -178,7 +192,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   initialised = true;
 }
 
-void CUDAHeunLLGSolver::run()
+void CUDAHeunLLMSSolver::run()
 {
   using namespace globals;
 
@@ -193,6 +207,9 @@ void CUDAHeunLLGSolver::run()
     }
   }
   
+  Array2D<float> tmp(nspins,3);
+
+
   // calculate interaction fields (and zero field array)
 
   //CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
@@ -231,28 +248,20 @@ void CUDAHeunLLGSolver::run()
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
-
-  // (muB*mu0/4pi)/nm^3
-  /*const float dipole_omega = 0.00092740096;*/
-  /*if(globalSteps%100 == 0){*/
-      /*// update dipole field*/
-      /*dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,r_max_dev,pbc_dev,nspins);*/
-  /*}*/
-
-  // add cached field
-  /*cublasSaxpy(nspins3,1.0,hdipole_dev,1,h_dev,1);*/
-
   
   //CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
   // integrate
-  cuda_heun_llg_kernelA<<<nblocks,BLOCKSIZE>>>
+  cuda_heun_llms_kernelA<<<nblocks,BLOCKSIZE>>>
     (
       s_dev,
       sf_dev,
       s_new_dev,
       h_dev,
       w_dev,
+	  u_dev,
+	  u_new_dev,
+	  omega_corr_dev,
       mat_dev,
       h_app[0],
       h_app[1],
@@ -260,7 +269,16 @@ void CUDAHeunLLGSolver::run()
       nspins,
       dt
     );
-
+	//   Array2D<float> hf(nspins,3);
+	//   Array2D<float> sf(nspins,3);
+	//   CUDA_CALL(cudaMemcpy(hf.ptr(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+	// CUDA_CALL(cudaMemcpy(sf.ptr(),sf_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+	// 
+	//   for(int i=0; i<nspins; ++i){
+	//       std::cout<<i<<"\t"<<sf(i,0)<<"\t"<<sf(i,1)<<"\t"<<sf(i,2)<<"\t"<<hf(i,0)<<"\t"<<hf(i,1)<<"\t"<<hf(i,2)<<std::endl;
+	//   }
+	  
+  
   // calculate interaction fields (and zero field array)
 
   beta=0.0;
@@ -297,14 +315,6 @@ void CUDAHeunLLGSolver::run()
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
     beta = 1.0;
   }
-  
-  /*if(globalSteps%100 == 0){*/
-      /*// update dipole field*/
-      /*dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>(dipole_omega,0.0,sf_dev,mat_dev,hdipole_dev,r_dev,r_max_dev,pbc_dev,nspins);*/
-  /*}*/
-
-  /*// add cached field*/
-  /*cublasSaxpy(nspins3,1.0,hdipole_dev,1,h_dev,1);*/
 
   /*Array2D<float> hf(nspins,3);*/
   /*Array2D<float> sf(nspins,3);*/
@@ -317,13 +327,16 @@ void CUDAHeunLLGSolver::run()
   
   //CUDA_CALL(cudaUnbindTexture(tex_x_float));
   
-  cuda_heun_llg_kernelB<<<nblocks,BLOCKSIZE>>>
+  cuda_heun_llms_kernelB<<<nblocks,BLOCKSIZE>>>
     (
       s_dev,
       sf_dev,
       s_new_dev,
       h_dev,
       w_dev,
+	  u_dev,
+	  u_new_dev,
+	  omega_corr_dev,
       mat_dev,
       h_app[0],
       h_app[1],
@@ -334,80 +347,12 @@ void CUDAHeunLLGSolver::run()
   iteration++;
 }
 
-void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
+void CUDAHeunLLMSSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
   using namespace globals;
-  const float beta=0.0;
 
-  e1_s = 0.0; e1_t = 0.0; e2_s = 0.0; e2_t = 0.0;
-  
-  //size_t offset = size_t(-1);
-  //CUDA_CALL(cudaBindTexture(&offset,tex_x_float,sf_dev));
-
-  // bilinear scalar
-  if(J1ij_s.nonZero() > 0){
-    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
-    for(int i=0; i<nspins; ++i){
-      e1_s = e1_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
-    }
-    e1_s = e1_s/nspins;
-  }
-
-
-  // bilinear tensor
-  if(J1ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J1ij_t.diags(),J1ij_t_dev.pitch,1.0,beta,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
-    for(int i=0; i<nspins; ++i){
-      e1_t = e1_t + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
-    }
-    e1_t = e1_t/nspins;
-  }
-
-  
-  // biquadratic scalar
-  if(J2ij_s.nonZero() > 0){
-    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J2ij_s.diags(),J2ij_s_dev.pitch,1.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
-    for(int i=0; i<nspins; ++i){
-      e2_s = e2_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
-    }
-    
-    e2_s = e2_s/nspins;
-  }
-
-  // biquadratic tensor
-  if(J2ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J2ij_t.diags(),J2ij_t_dev.pitch,1.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
-
-    for(int i=0; i<nspins; ++i){
-      e2_t = e2_t + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
-    }
-    
-    e2_t = e2_t/nspins;
-  }
-  
-  if(J4ijkl_s.nonZeros() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
-        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
-    for(int i=0; i<nspins; ++i){
-      e4_s = e4_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
-    }
-    
-    e4_s = e4_s/nspins;
-  }
-  
-  
-  //CUDA_CALL(cudaUnbindTexture(tex_x_float));
 }
 
-CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
+CUDAHeunLLMSSolver::~CUDAHeunLLMSSolver()
 {
   curandDestroyGenerator(gen);
   
@@ -439,13 +384,13 @@ CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
   CUDA_CALL(cudaFree(s_dev));
   CUDA_CALL(cudaFree(sf_dev));
   CUDA_CALL(cudaFree(s_new_dev));
+  
+  CUDA_CALL(cudaFree(u_dev));
+  CUDA_CALL(cudaFree(u_new_dev));
+  CUDA_CALL(cudaFree(omega_corr_dev));
 
   // field arrays
-  CUDA_CALL(cudaFree(r_dev));
-  CUDA_CALL(cudaFree(r_max_dev));
-  CUDA_CALL(cudaFree(pbc_dev));
   CUDA_CALL(cudaFree(h_dev));
-  CUDA_CALL(cudaFree(hdipole_dev));
   CUDA_CALL(cudaFree(e_dev));
 
   // wiener processes

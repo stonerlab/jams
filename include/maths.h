@@ -2,8 +2,9 @@
 #define __MATHS_H__
 
 #include <algorithm>
-#include <cmath>
 #include "consts.h"
+#include <cmath>
+#include <cstdlib>
 
 inline int nint(const double &x) {
   return static_cast<int>(x+0.5);
