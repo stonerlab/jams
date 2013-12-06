@@ -3,17 +3,17 @@
 
 #include <fstream>
 #include <libconfig.h++>
-#include "array.h"
+#include "../../../jbLib/containers/Array.h"
 
 #include "physics.h"
 
 class TTMPhysics : public Physics {
   public:
     TTMPhysics() 
-      : pumpTime(0.0),
-        pumpStartTime(0.0),
+      : pulseWidth(0),
+        pulseFluence(0),
+        pulseStartTime(0),
         pumpTemp(0.0),
-        pumpFluence(0.0),
         electronTemp(0.0),
         phononTemp(0.0),
         sinkTemp(0.0),
@@ -35,10 +35,10 @@ class TTMPhysics : public Physics {
     // electron temperature
     double pumpPower(double &pF){return (1.152E20*pF);}
 
-    double pumpTime;
-    double pumpStartTime;
+    jbLib::Array<double,1> pulseWidth;
+    jbLib::Array<double,1> pulseFluence;
+    jbLib::Array<double,1> pulseStartTime;
     double pumpTemp;
-    double pumpFluence;
     double electronTemp;
     double phononTemp;
     double sinkTemp;
