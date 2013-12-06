@@ -75,7 +75,7 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3])
 #endif
         const int    *row = J1ij_t.rowPtr();
         const int    *indx = J1ij_t.colPtr();
-        const double *x   = s.ptr();
+        const double *x   = s.data();
         int           k;
 
 
@@ -121,7 +121,7 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3])
 #endif
         const int    *row = J2ij_t.rowPtr();
         const int    *indx = J2ij_t.colPtr();
-        const double *x   = s.ptr();
+        const double *x   = s.data();
         int           k;
 
 

@@ -15,6 +15,7 @@
 #include <fstream>
 #include <string>
 
+#include "../../jbLib/containers/Array.h"
 
 ///
 /// @brief  Read basis vectors from config file.
@@ -46,7 +47,7 @@ void readBasis (const libconfig::Setting &cfgBasis, double unitcell[3][3], doubl
 ///
 /// @brief  Read atom positions and types from config file.
 ///
-void readAtoms(std::string &positionFileName, Array<int> &unitCellTypes, Array2D<double> &unitCellPositions, int &nAtoms, int &nTypes, std::map<std::string,int> &atomTypeMap, std::vector<std::string> &atomNames) {
+void readAtoms(std::string &positionFileName, jbLib::Array<int,1> &unitCellTypes, jbLib::Array<double,2> &unitCellPositions, int &nAtoms, int &nTypes, std::map<std::string,int> &atomTypeMap, std::vector<std::string> &atomNames) {
   //  Read atomic positions and types from config
   
 
@@ -172,8 +173,8 @@ void Lattice::readLattice(const libconfig::Setting &cfgLattice, std::vector<int>
 ///
 /// @brief  Create lattice on numbered spin locations.
 ///
-void createLattice(const libconfig::Setting &cfgLattice, Array<int> &unitCellTypes, Array2D<double> &unitCellPositions, 
-  std::map<std::string,int> &atomTypeMap, Array4D<int> &latt, std::vector<int> &atom_type, std::vector<int> &type_count, 
+void createLattice(const libconfig::Setting &cfgLattice, jbLib::Array<int,1> &unitCellTypes, jbLib::Array<double,2> &unitCellPositions, 
+  std::map<std::string,int> &atomTypeMap, jbLib::Array<int,4> &latt, std::vector<int> &atom_type, std::vector<int> &type_count, 
   const std::vector<int> &dim, const int nAtoms, bool pbc[3]) {
   using namespace globals;
   const int maxatoms = dim[0]*dim[1]*dim[2]*nAtoms;
@@ -257,7 +258,7 @@ void createLattice(const libconfig::Setting &cfgLattice, Array<int> &unitCellTyp
   output.write("  * Total atoms in lattice: %i\n",nspins);
 }
 
-void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<int> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms) {
+void Lattice::calculateAtomPos(const jbLib::Array<int,1> &unitCellTypes, const jbLib::Array<double,2> &unitCellPositions, jbLib::Array<int,4> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms) {
   using namespace globals;
   assert(nspins > 0);
 
@@ -298,7 +299,7 @@ void Lattice::calculateAtomPos(const Array<int> &unitCellTypes, const Array2D<do
 ///
 /// @brief  Print lattice to file.
 ///
-void printLattice(const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<int> &latt, std::vector<int> &dim, const double unitcell[3][3], std::vector<int> &atom_type, const int nAtoms) {
+void printLattice(const jbLib::Array<int,1> &unitCellTypes, const jbLib::Array<double,2> &unitCellPositions, jbLib::Array<int,4> &latt, std::vector<int> &dim, const double unitcell[3][3], std::vector<int> &atom_type, const int nAtoms) {
   using namespace globals;
   assert(nspins > 0);
 
@@ -398,8 +399,8 @@ void initialiseGlobals(libconfig::Config &config, const libconfig::Setting &cfgM
 ///
 /// @brief  Read the fourspin interaction parameters from configuration file.
 ///
-void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array4D<double> &J4Vectors, 
-  Array3D<int> &J4Neighbour, Array2D<double> &J4Values, std::vector<int> &nJ4InteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3], int &nJ4Values) {
+void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, const jbLib::Array<int,1> &unitCellTypes, const jbLib::Array<double,2> &unitCellPositions, jbLib::Array<double,4> &J4Vectors, 
+  jbLib::Array<int,3> &J4Neighbour, jbLib::Array<double,2> &J4Values, std::vector<int> &nJ4InteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3], int &nJ4Values) {
   using namespace globals;
 
   output.write("\nReading fourspin interaction file...\n");
@@ -510,8 +511,8 @@ void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, cons
 ///
 /// @brief  Read the interaction parameters from configuration file.
 ///
-void readInteractions(std::string &exchangeFileName, libconfig::Config &config, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, Array3D<double> &interactionVectors, 
-  Array2D<int> &interactionNeighbour, Array4D<double> &JValues, Array2D<double> &J2Values, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3], bool &J2Toggle, int &nJValues) {
+void readInteractions(std::string &exchangeFileName, libconfig::Config &config, const jbLib::Array<int,1> &unitCellTypes, const jbLib::Array<double,2> &unitCellPositions, jbLib::Array<double,3> &interactionVectors, 
+  jbLib::Array<int,2> &interactionNeighbour, jbLib::Array<double,4> &JValues, jbLib::Array<double,2> &J2Values, std::vector<int> &nInteractionsOfType, const int nAtoms, std::map<std::string,int> &atomTypeMap, const double unitcellInv[3][3], bool &J2Toggle, int &nJValues) {
   using namespace globals;
   
   output.write("\nReading interaction file...\n");
@@ -898,9 +899,9 @@ void readInteractions(std::string &exchangeFileName, libconfig::Config &config, 
 ///
 /// @brief  Create J4 interaction matrix.
 ///
-void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, Array4D<int> &latt, 
-  const std::vector<int> dim, const int nAtoms, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, const std::vector<int> &atom_type, const Array4D<double> &J4Vectors,
-  const Array3D<int> &J4Neighbour, const Array2D<double> &J4Values, const std::vector<int> &nJ4InteractionsOfType, 
+void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, jbLib::Array<int,4> &latt, 
+  const std::vector<int> dim, const int nAtoms, const jbLib::Array<int,1> &unitCellTypes, const jbLib::Array<double,2> &unitCellPositions, const std::vector<int> &atom_type, const jbLib::Array<double,4> &J4Vectors,
+  const jbLib::Array<int,3> &J4Neighbour, const jbLib::Array<double,2> &J4Values, const std::vector<int> &nJ4InteractionsOfType, 
   const double unitcellInv[3][3], const bool pbc[3], const int &nJ4Values) 
 {
   
@@ -996,10 +997,10 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
 ///
 /// @brief  Create interaction matrix.
 ///
-void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, Array4D<int> &latt, 
-  const std::vector<int> dim, const int nAtoms, const Array<int> &unitCellTypes, const Array2D<double> &unitCellPositions, const std::vector<int> &atom_type, const Array3D<double> &interactionVectors,
-  const Array2D<int> &interactionNeighbour, const Array4D<double> &JValues, const std::vector<int> &nInteractionsOfType, 
-  const double unitcellInv[3][3], const bool pbc[3],const bool &J2Toggle, const Array2D<double> &J2Values, const int &nJValues) 
+void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, jbLib::Array<int,4> &latt, 
+  const std::vector<int> dim, const int nAtoms, const jbLib::Array<int,1> &unitCellTypes, const jbLib::Array<double,2> &unitCellPositions, const std::vector<int> &atom_type, const jbLib::Array<double,3> &interactionVectors,
+  const jbLib::Array<int,2> &interactionNeighbour, const jbLib::Array<double,4> &JValues, const std::vector<int> &nInteractionsOfType, 
+  const double unitcellInv[3][3], const bool pbc[3],const bool &J2Toggle, const jbLib::Array<double,2> &J2Values, const int &nJValues) 
 {
   
   using namespace globals;
@@ -1212,19 +1213,19 @@ void Lattice::createFromConfig(libconfig::Config &config) {
 
   try {
 
-    Array4D<int> latt;
-    Array2D<double> unitCellPositions;
-    Array<int>      unitCellTypes;
-    Array3D<double> interactionVectors;
-    Array4D<double> JValues;
-    Array2D<double> J2Values;
-    Array2D<int> interactionNeighbour;
-    Array3D<int> J4Neighbour;
-    Array4D<double> J4Vectors;
-    Array2D<double> J4Values;
+    jbLib::Array<int,4> latt;
+    jbLib::Array<double,2> unitCellPositions;
+    jbLib::Array<int,1>      unitCellTypes;
+    jbLib::Array<double,3> interactionVectors;
+    jbLib::Array<double,4> JValues;
+    jbLib::Array<double,2> J2Values;
+    jbLib::Array<int,2> interactionNeighbour;
+    jbLib::Array<int,3> J4Neighbour;
+    jbLib::Array<double,4> J4Vectors;
+    jbLib::Array<double,2> J4Values;
     std::vector<int> nInteractionsOfType;
     std::vector<int> nJ4InteractionsOfType;
-    Array3D<double> jij;
+    jbLib::Array<double,3> jij;
     int nAtoms=0;
     bool pbc[3] = {true,true,true};
     bool J2Toggle = false;
@@ -1364,7 +1365,7 @@ void Lattice::outputSpinsBinary(std::ofstream &outfile){
     using namespace globals;
 
     outfile.write(reinterpret_cast<char*>(&nspins),sizeof(int));
-    outfile.write(reinterpret_cast<char*>(s.ptr()),nspins3*sizeof(double));
+    outfile.write(reinterpret_cast<char*>(s.data()),nspins3*sizeof(double));
 }
 
 void Lattice::outputTypesBinary(std::ofstream &outfile){
@@ -1385,7 +1386,7 @@ void Lattice::readSpinsBinary(std::ifstream &infile){
     if(filenspins != nspins){
         jams_error("I/O error, spin state file has %d spins but simulation has %d spins", filenspins, nspins);
     }else{
-        infile.read(reinterpret_cast<char*>(s.ptr()),nspins3*sizeof(double));
+        infile.read(reinterpret_cast<char*>(s.data()),nspins3*sizeof(double));
     }
 
     if(infile.bad()){

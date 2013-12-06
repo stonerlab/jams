@@ -3,6 +3,7 @@
 
 #include "solver.h"
 #include "array2d.h"
+#include "../../jbLib/containers/Array.h"
 
 class HeunLLGSolver : public Solver {
   public:
@@ -16,7 +17,7 @@ class HeunLLGSolver : public Solver {
   private:
     Array2D<double> snew;
     Array2D<double> sigma;
-    Array2D<double> eng;
+    jbLib::Array<double,2> eng;
 };
 
 #endif // __HEUNLLG_H__

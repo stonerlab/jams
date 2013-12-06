@@ -8,10 +8,10 @@
 
 #ifdef CUDA
 void calc_scalar_bilinear(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y)
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y)
 #else
 void calc_scalar_bilinear(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y)
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y)
 #endif
 {
   using namespace globals;
@@ -45,10 +45,10 @@ void calc_scalar_bilinear(const double *val, const int *indx,
 
 #ifdef CUDA
 void calc_scalar_biquadratic(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y)
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y)
 #else
 void calc_scalar_biquadratic(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y)
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y)
 #endif
 {
   // NOTE: Factor of two is included here for biquadratic terms
@@ -86,10 +86,10 @@ void calc_scalar_biquadratic(const double *val, const int *indx,
 
 #ifdef CUDA
 void calc_tensor_biquadratic(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y)
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y)
 #else
 void calc_tensor_biquadratic(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y)
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y)
 #endif
 {
   // NOTE: Factor of two is included here for biquadratic terms
@@ -104,20 +104,20 @@ void calc_tensor_biquadratic(const double *val, const int *indx,
   double one=1.0;
   double two=2.0;
     mkl_dcsrmv(transa,&nspins3,&nspins3,&two,matdescra,val,
-        indx, ptrb,ptre,s.ptr(),&zero,y.ptr());
+        indx, ptrb,ptre,s.data(),&zero,y.data());
 #else
     jams_dcsrmv(transa,nspins3,nspins3,2.0,matdescra,val,
-        indx, ptrb,ptre,s.ptr(),1.0,y.ptr());
+        indx, ptrb,ptre,s.data(),1.0,y.data());
 #endif
 }
 
 
 #ifdef CUDA
 void calc_tensor_bilinear(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y)
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y)
 #else
 void calc_tensor_bilinear(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y)
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y)
 #endif
 {
   // NOTE: this resets the field array to zero
@@ -129,10 +129,10 @@ void calc_tensor_bilinear(const double *val, const int *indx,
   double one=1.0;
   double one=1.0;
     mkl_dcsrmv(transa,&nspins3,&nspins3,&one,matdescra,val,
-        indx, ptrb,ptre,s.ptr(),&zero,y.ptr());
+        indx, ptrb,ptre,s.data(),&zero,y.data());
 #else
     jams_dcsrmv(transa,nspins3,nspins3,1.0,matdescra,val,
-        indx, ptrb,ptre,s.ptr(),1.0,y.ptr());
+        indx, ptrb,ptre,s.data(),1.0,y.data());
 #endif
 }
 void calculate_fields()
@@ -140,7 +140,7 @@ void calculate_fields()
   using namespace globals;
   int i,j;
 
-  std::fill(h.ptr(),h.ptr()+nspins3,0.0); 
+  std::fill(h.data(),h.data()+nspins3,0.0); 
   if(J1ij_s.nonZero() > 0) {
     calc_scalar_bilinear(J1ij_s.valPtr(),J1ij_s.colPtr(),J1ij_s.ptrB(),J1ij_s.ptrE(),h);
   } 
