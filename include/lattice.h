@@ -4,11 +4,7 @@
 #include <map>
 #include <vector>
 #include <libconfig.h++>
-#include "array.h"
-#include "array2d.h"
-#include "array4d.h"
-#include "array5d.h"
-#include "../../jbLib/containers/Array.h"
+#include <containers/Array.h>
 
 class Lattice {
   public:

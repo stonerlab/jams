@@ -1,7 +1,7 @@
 #ifndef __FIELDS_H__
 #define __FIELDS_H__
 
-#include "../../jbLib/containers/Array.h"
+#include <containers/Array.h>
 
 void calculate_fields();
 

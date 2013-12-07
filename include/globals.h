@@ -7,8 +7,8 @@
 #include "rand.h"
 #include "lattice.h"
 
-#include "../../jbLib/containers/Sparsematrix.h"
-#include "../../jbLib/containers/Array.h"
+#include <containers/Sparsematrix.h>
+#include <containers/Array.h>
 
 //#include <libconfig.h++>
 
@@ -28,8 +28,6 @@ GLOBAL Random rng;
 
 GLOBAL std::string seedname;
 
-#include "array.h"
-#include "array2d.h"
 #include "sparsematrix.h"
 #include "sparsematrix4d.h"
 
@@ -47,7 +45,7 @@ namespace globals
   GLOBAL jbLib::Array<double,2> h;
   GLOBAL jbLib::Array<double,2> w;
   
-  GLOBAL Array2D<float> atom_pos;
+  GLOBAL jbLib::Array<float,2> atom_pos;
 #ifdef CUDA
   GLOBAL SparseMatrix<float> J1ij_s;  // bilinear scalar interactions
   GLOBAL SparseMatrix<float> J1ij_t;  // bilinear tensor interactions

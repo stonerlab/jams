@@ -3,7 +3,6 @@
 
 #include <fstream>
 #include <libconfig.h++>
-#include "array.h"
 
 #include "physics.h"
 

@@ -6,6 +6,7 @@
 #include <libconfig.h++>
 #include <fftw3.h>
 #include "physics.h"
+#include <containers/Array.h>
 
 class SpinwavesPhysics : public Physics {
   public:
@@ -28,7 +29,6 @@ class SpinwavesPhysics : public Physics {
         SPDFile(),
         typeOverride(),
         initialised(false),
-        spinDump(false),
 		squareToggle(false),        
         pumpTime(0.0),
         pumpStartTime(0.0),
@@ -50,19 +50,19 @@ class SpinwavesPhysics : public Physics {
     virtual void monitor(double realtime, const double dt);
 
   private:
-	  std::vector<int>  		qDim;
-	  fftw_complex*     		qSpace;
-	  std::vector<fftw_plan>  	qSpaceFFT;
-	  int               		componentReal;
-	  int               		componentImag;
-	  Array2D<double>   		coFactors;
-	  std::vector<int>  		spinToKspaceMap;
-      int               		nBZPoints;
-	  Array<int>		  		BZIndex;
-      Array2D<int>      		BZPoints;
-	  Array<int>		  		BZDegeneracy;
-      Array<float>      		BZLengths;
-	  Array<float>				BZData;
+    std::vector<int>  		qDim;
+    fftw_complex*     		qSpace;
+    std::vector<fftw_plan>  	qSpaceFFT;
+    int               		componentReal;
+    int               		componentImag;
+    jbLib::Array<double,2>   		coFactors;
+    std::vector<int>  		spinToKspaceMap;
+    int               		nBZPoints;
+    jbLib::Array<int,1>		  		BZIndex;
+    jbLib::Array<int,2>      		BZPoints;
+    jbLib::Array<int,1>		  		BZDegeneracy;
+    jbLib::Array<float,1>      		BZLengths;
+    jbLib::Array<float,1>				BZData;
 	  
 	
 	  std::ofstream   SPWFile;
@@ -70,7 +70,6 @@ class SpinwavesPhysics : public Physics {
 	  std::ofstream   SPDFile;
 	  std::vector<int> typeOverride;
 	  bool initialised;
-	  bool spinDump;
 	  bool squareToggle;
 
     // calculation of pump power which is linear with input approx

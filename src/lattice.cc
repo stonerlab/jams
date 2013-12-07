@@ -5,9 +5,6 @@
 #include <libconfig.h++>
 #include <map>
 #include <cmath>
-#include "array2d.h"
-#include "array3d.h"
-#include "array4d.h"
 #include "sparsematrix.h"
 #include <stdint.h>
 #include <sstream>
@@ -15,7 +12,7 @@
 #include <fstream>
 #include <string>
 
-#include "../../jbLib/containers/Array.h"
+#include <containers/Array.h>
 
 ///
 /// @brief  Read basis vectors from config file.

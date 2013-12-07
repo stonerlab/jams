@@ -3,7 +3,6 @@
 #include "fields.h"
 
 #include "heunllg.h"
-#include "array2d.h"
 #include <cmath>
 //#include "cblas.h"
 

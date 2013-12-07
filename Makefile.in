@@ -70,7 +70,7 @@ LIBCONFIGDIR = ./libconfig
 header-dirs = $(sort $(dir $(shell find $(TOPDIR) -name '*.h'))) 
 HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
 
-INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include
+INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include -I/Users/joe/Dropbox/Development/jbLib
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t

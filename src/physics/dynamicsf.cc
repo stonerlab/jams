@@ -6,6 +6,7 @@
 #include <sstream>
 #include <map>
 #include "maths.h"
+#include <containers/Array.h>
 
 void DynamicSFPhysics::init(libconfig::Setting &phys)
 {
@@ -74,8 +75,8 @@ void DynamicSFPhysics::init(libconfig::Setting &phys)
 	// read irreducible Brillouin zone
 	const int nSymPoints = phys["brillouinzone"].getLength();
 	
-	Array2D<int> SymPoints(nSymPoints,3);
-	Array<int> BZPointCount(nSymPoints-1);	
+  jbLib::Array<int,2> SymPoints(nSymPoints,3);
+  jbLib::Array<int,1> BZPointCount(nSymPoints-1);	
 	
 	for(int i=0; i<nSymPoints; ++i){
 		for(int j=0; j<3; ++j){

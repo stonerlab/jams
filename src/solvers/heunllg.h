@@ -2,8 +2,7 @@
 #define __HEUNLLG_H__
 
 #include "solver.h"
-#include "array2d.h"
-#include "../../jbLib/containers/Array.h"
+#include <containers/Array.h>
 
 class HeunLLGSolver : public Solver {
   public:
@@ -15,8 +14,8 @@ class HeunLLGSolver : public Solver {
     void calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s);
 
   private:
-    Array2D<double> snew;
-    Array2D<double> sigma;
+    jbLib::Array<double,2> snew;
+    jbLib::Array<double,2> sigma;
     jbLib::Array<double,2> eng;
 };
 

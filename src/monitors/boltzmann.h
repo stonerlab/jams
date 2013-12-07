@@ -2,8 +2,8 @@
 #define __BOLTZMANN_H__
 
 #include "monitor.h"
-#include "array.h"
 #include <fstream>
+#include <containers/Array.h>
 
 class BoltzmannMonitor : public Monitor{
   public:
@@ -18,7 +18,7 @@ class BoltzmannMonitor : public Monitor{
     void run();
     void write(Solver *solver);
   private:
-    Array<double> bins;
+    jbLib::Array<double,1> bins;
     double total;
     std::ofstream outfile;
 };
