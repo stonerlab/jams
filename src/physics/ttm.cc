@@ -17,14 +17,20 @@ void TTMPhysics::init(libconfig::Setting &phys)
   
   sinkTemp = phononTemp;
 
-  // unitless according to Tom's code!
-  pumpFluence = phys["PumpFluence"];
-  pumpFluence = pumpPower(pumpFluence);
+  const libconfig::Setting& laserPulseConfig = ::config.lookup("physics.laserPulses");
 
-  // width of gaussian heat pulse in seconds
-  pumpTime = phys["PumpTime"];
+  const int nLaserPulses = laserPulseConfig.getLength();
 
-  pumpStartTime = phys["PumpStartTime"];
+  pulseWidth.resize(nLaserPulses);
+  pulseFluence.resize(nLaserPulses);
+  pulseStartTime.resize(nLaserPulses);
+
+  for (int i=0; i!=nLaserPulses; ++i) {
+    pulseWidth(i) = laserPulseConfig[i]["width"];
+    pulseFluence(i) = laserPulseConfig[i]["fluence"];
+    pulseFluence(i) = pumpPower(pulseFluence(i));
+    pulseStartTime(i) = laserPulseConfig[i]["t_start"];
+  }
 
   // if these settings don't exist, the defaults will be left in
   phys.lookupValue("Ce",Ce);
@@ -56,28 +62,28 @@ TTMPhysics::~TTMPhysics()
 void TTMPhysics::run(const double realtime, const double dt)
 {
   using namespace globals;
+  using namespace jbLib;
 
-  const double relativeTime = (realtime-pumpStartTime);
 
-
-  if( relativeTime > 0.0 ) {
-
-    for(int i=0; i<3; ++i) {
-      globals::h_app[i] = reversingField[i];
-    }
-    if( relativeTime <= 10*pumpTime ) {
-      pumpTemp = pumpFluence*exp(-((relativeTime-3*pumpTime)/(pumpTime))*((relativeTime-3*pumpTime)/(pumpTime)));
-    } else {
-      pumpTemp = 0.0;
-    }
-
-    electronTemp = electronTemp + ((-G*(electronTemp-phononTemp)+pumpTemp)*dt)/(Ce*electronTemp);
-    phononTemp   = phononTemp   + (( G*(electronTemp-phononTemp)-Gsink*(phononTemp-sinkTemp))*dt)/(Cl);
+  for(int i=0; i<3; ++i) {
+    globals::h_app[i] = reversingField[i];
   }
+
+
+  pumpTemp = 0.0;
+  for (int i=0,iend=pulseFluence.size(); i!=iend; ++i) {
+    const double relativeTime = (realtime-pulseStartTime(i));
+    if( (relativeTime > 0.0) && (relativeTime <= 10*pulseWidth(i)) ) {
+      pumpTemp = pumpTemp + pulseFluence(i)*exp(-jbMath::square((relativeTime-3*pulseWidth(i))/(pulseWidth(i))));
+    }
+  }
+
+  electronTemp = electronTemp + ((-G*(electronTemp-phononTemp)+pumpTemp)*dt)/(Ce*electronTemp);
+  phononTemp   = phononTemp   + (( G*(electronTemp-phononTemp)-Gsink*(phononTemp-sinkTemp))*dt)/(Cl);
 
   globalTemperature = electronTemp;
 
-  
+
 }
 
 void TTMPhysics::monitor(const double realtime, const double dt)
