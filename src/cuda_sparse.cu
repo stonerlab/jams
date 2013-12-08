@@ -142,7 +142,7 @@ __global__ void biquadratic_scalar_dia_kernel
  const float beta,
  const int * dia_offsets,
  const float * dia_values,
- float * sf_dev,
+ const float * sf_dev,
  float * h_dev)
 {
   __shared__ int offsets[DIA_BLOCK_SIZE];
@@ -250,7 +250,7 @@ __global__ void bilinear_scalar_dia_kernel
  const float beta,
  const int * dia_offsets,
  const float * dia_values,
- float * sf_dev,
+ const float * sf_dev,
  float * h_dev)
 {
   __shared__ int offsets[DIA_BLOCK_SIZE];

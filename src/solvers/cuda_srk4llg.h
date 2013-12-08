@@ -1,5 +1,5 @@
-#ifndef __CUDAHEUNLLG_H__
-#define __CUDAHEUNLLG_H__
+#ifndef __CUDASRK4LLG_H__
+#define __CUDASRK4LLG_H__
 
 #ifdef CUDA
 
@@ -11,9 +11,9 @@
 #include <curand.h>
 #include <cusparse.h>
 
-class CUDAHeunLLGSolver : public Solver {
+class CUDALLGSolverSRK4 : public Solver {
   public:
-    CUDAHeunLLGSolver()
+    CUDALLGSolverSRK4()
       : gen(0),
         w_dev(0),
         handle(0),
@@ -23,8 +23,11 @@ class CUDAHeunLLGSolver : public Solver {
         J2ij_s_dev(),
         J2ij_t_dev(),
         s_dev(0),
+        s_old_dev(0),
+        k0_dev(0),
+        k1_dev(0),
+        k2_dev(0),
         sf_dev(0),
-        s_new_dev(0),
         r_dev(0),
         r_max_dev(0),
         pbc_dev(0),
@@ -37,7 +40,7 @@ class CUDAHeunLLGSolver : public Solver {
         nblocks(0),
         spmvblocksize(0)
     {};
-    ~CUDAHeunLLGSolver();
+    ~CUDALLGSolverSRK4();
     void initialise(int argc, char **argv, double dt);
     void run();
     void syncOutput();
@@ -54,8 +57,11 @@ class CUDAHeunLLGSolver : public Solver {
     devDIA  J2ij_t_dev;
     devCSR  J4ijkl_s_dev;
     double * s_dev;
+    double * s_old_dev;
+    double * k0_dev;
+    double * k1_dev;
+    double * k2_dev;
     float  * sf_dev;
-    double * s_new_dev;
     float * r_dev;
     float * r_max_dev;
     bool * pbc_dev;
@@ -71,5 +77,5 @@ class CUDAHeunLLGSolver : public Solver {
 
 #endif
 
-#endif // __CUDAHEUNLLG_H__
+#endif // __CUDASRK4LLG_H__
 

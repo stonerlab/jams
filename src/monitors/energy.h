@@ -2,7 +2,6 @@
 #define __ENERGY_H__
 
 #include "monitor.h"
-#include "array2d.h"
 #include <fstream>
 
 class EnergyMonitor : public Monitor {

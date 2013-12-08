@@ -3,7 +3,7 @@
 
 #include <fstream>
 #include <libconfig.h++>
-#include "../../../jbLib/containers/Array.h"
+#include <containers/Array.h>
 
 #include "physics.h"
 

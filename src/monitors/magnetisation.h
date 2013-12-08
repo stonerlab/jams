@@ -2,9 +2,9 @@
 #define __MAGNETISATION_H__
 
 #include "monitor.h"
-#include "array2d.h"
 #include "runningstat.h"
 #include <fstream>
+#include <containers/Array.h>
 
 class MagnetisationMonitor : public Monitor {
   public:
@@ -27,7 +27,7 @@ class MagnetisationMonitor : public Monitor {
 	void initConvergence(ConvergenceType type, const double meanTol, const double devTol);
 	bool checkConvergence();
   private:
-    Array2D<double> mag;
+    jbLib::Array<double,2> mag;
     std::ofstream outfile;
 	ConvergenceType convType;
 	double			meanTol;

@@ -3,6 +3,7 @@
 #include "cuda_heunllg.h"
 #include "cuda_heunllms.h"
 #include "cuda_heunllbp.h"
+#include "cuda_srk4llg.h"
 #include "metropolismc.h"
 #include "globals.h"
 #include "consts.h"
@@ -48,6 +49,9 @@ Solver* Solver::Create(SolverType type)
 #ifdef CUDA
     case CUDAHEUNLLG:
       return new CUDAHeunLLGSolver;
+      break;
+    case CUDASRK4LLG:
+      return new CUDALLGSolverSRK4;
       break;
     case CUDAHEUNLLMS:
       return new CUDAHeunLLMSSolver;

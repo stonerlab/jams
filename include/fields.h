@@ -1,39 +1,39 @@
 #ifndef __FIELDS_H__
 #define __FIELDS_H__
 
-#include "array2d.h"
+#include <containers/Array.h>
 
 void calculate_fields();
 
 #ifdef CUDA
 void calc_scalar_bilinear(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y);
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y);
 #else
 void calc_scalar_bilinear(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y);
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y);
 #endif
 
 #ifdef CUDA
 void calc_scalar_biquadratic(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y);
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y);
 #else
 void calc_scalar_biquadratic(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y);
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y);
 #endif
 
 #ifdef CUDA
 void calc_tensor_biquadratic(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y);
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y);
 #else
 void calc_tensor_biquadratic(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y);
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y);
 #endif
 
 #ifdef CUDA
 void calc_tensor_bilinear(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y);
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y);
 #else
 void calc_tensor_bilinear(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, Array2D<double> &y);
+  const int *ptrb, const int *ptre, jbLib::Array<double,2> &y);
 #endif
 #endif // __FIELDS_H__

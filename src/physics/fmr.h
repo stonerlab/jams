@@ -3,9 +3,10 @@
 
 #include <fstream>
 #include <libconfig.h++>
-#include "array.h"
 
 #include "physics.h"
+
+#include <containers/Array.h>
 
 class FMRPhysics : public Physics {
   public:
@@ -27,7 +28,7 @@ class FMRPhysics : public Physics {
     std::vector<double> ACFieldStrength;
     std::vector<double> DCFieldStrength;
     std::ofstream PSDFile;
-    Array<double> PSDIntegral;
+    jbLib::Array<double,1> PSDIntegral;
 };
 
 #endif // __FMR_H__

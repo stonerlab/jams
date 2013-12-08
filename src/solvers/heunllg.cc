@@ -3,7 +3,6 @@
 #include "fields.h"
 
 #include "heunllg.h"
-#include "array2d.h"
 #include <cmath>
 //#include "cblas.h"
 
@@ -129,7 +128,7 @@ void HeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double 
   e1_s = 0.0; e1_t = 0.0; e2_s = 0.0; e2_t = 0.0;
 
   if(J1ij_s.nonZero() > 0) {
-    std::fill(eng.ptr(),eng.ptr()+nspins3,0.0); 
+    std::fill(eng.data(),eng.data()+nspins3,0.0); 
     calc_scalar_bilinear(J1ij_s.valPtr(),J1ij_s.colPtr(),J1ij_s.ptrB(),J1ij_s.ptrE(),eng);
     for(int i=0; i<nspins; ++i){
       e1_s = e1_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
@@ -137,7 +136,7 @@ void HeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double 
     e1_s = e1_s/nspins;
   } 
   if(J1ij_t.nonZero() > 0) {
-    std::fill(eng.ptr(),eng.ptr()+nspins3,0.0); 
+    std::fill(eng.data(),eng.data()+nspins3,0.0); 
     calc_tensor_bilinear(J1ij_t.valPtr(),J1ij_t.colPtr(),J1ij_t.ptrB(),J1ij_t.ptrE(),eng);
     for(int i=0; i<nspins; ++i){
       e1_t = e1_t + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
@@ -145,7 +144,7 @@ void HeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double 
     e1_t = e1_t/nspins;
   }
   if(J2ij_s.nonZero() > 0) {
-    std::fill(eng.ptr(),eng.ptr()+nspins3,0.0); 
+    std::fill(eng.data(),eng.data()+nspins3,0.0); 
     calc_scalar_biquadratic(J2ij_s.valPtr(),J2ij_s.colPtr(),J2ij_s.ptrB(),J2ij_s.ptrE(),eng);
     for(int i=0; i<nspins; ++i){
       e2_s = e2_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
@@ -154,7 +153,7 @@ void HeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double 
     e2_s = 0.5*e2_s/nspins;
   }
   if(J2ij_t.nonZero() > 0) {
-    std::fill(eng.ptr(),eng.ptr()+nspins3,0.0); 
+    std::fill(eng.data(),eng.data()+nspins3,0.0); 
     calc_tensor_biquadratic(J2ij_t.valPtr(),J2ij_t.colPtr(),J2ij_t.ptrB(),J2ij_t.ptrE(),eng);
     for(int i=0; i<nspins; ++i){
       e2_t = e2_t + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));

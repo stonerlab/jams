@@ -7,11 +7,10 @@
 #include <stdint.h>
 #include <cmath>
 #include "error.h"
-#include "array.h"
-#include "array2d.h"
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include "../../jbLib/containers/Array.h"
 
 #define RESTRICT __restrict__
 
@@ -88,8 +87,8 @@ class SparseMatrix4D {
         void convertMAP2CSR();
 
         inline _Tp*       valPtr() { return &(val[0]); } ///< @brief Pointer to values array
-        inline size_type*       pointersPtr() { return pointers.ptr(); } ///< @brief Pointer to values array
-        inline size_type* cooPtr() { return coords.ptr(); } ///< @brief Pointer to rows array
+        inline size_type*       pointersPtr() { return pointers.data(); } ///< @brief Pointer to values array
+        inline size_type* cooPtr() { return coords.data(); } ///< @brief Pointer to rows array
 
 
         inline size_type  nonZero() { return nnz; }      ///< @brief Number of non zero entries in matrix
@@ -115,8 +114,8 @@ class SparseMatrix4D {
         std::vector<size_type> k_idx;
         std::vector<size_type> l_idx;
 
-        Array<size_type>     pointers;
-        Array2D<size_type>     coords;
+        jbLib::Array<size_type,1>     pointers;
+        jbLib::Array<size_type,2>     coords;
         std::vector<_Tp>       val;
 
 };

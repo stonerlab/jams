@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <fftw3.h>
+#include <containers/Array.h>
 
 enum FFTWindowType {GAUSSIAN,HAMMING};
 
@@ -39,27 +40,27 @@ public:
 		virtual void monitor(double realtime, const double dt);
 
 	private:
-		bool              initialised;
-		bool			  typeToggle;
-		int               timePointCounter;
-		int               nTimePoints;
-		std::vector<int>  qDim;
-		fftw_complex*     qSpace;
-		fftw_complex*     tSpace;
-		double *          imageSpace;
-		std::vector<fftw_plan>  qSpaceFFT;
-		int               componentReal;
-		int               componentImag;
-		Array2D<double>   coFactors;
-		double            freqIntervalSize;
-		double            t_window;
-		unsigned long     steps_window;
-		std::vector<int>  spinToKspaceMap;
-        int               nBZPoints;
-		Array<int>		  BZIndex;
-        Array2D<int>      BZPoints;
-		Array<int>		  BZDegeneracy;
-        Array<float>      BZLengths;
+    bool              initialised;
+    bool			  typeToggle;
+    int               timePointCounter;
+    int               nTimePoints;
+    std::vector<int>  qDim;
+    fftw_complex*     qSpace;
+    fftw_complex*     tSpace;
+    double *          imageSpace;
+    std::vector<fftw_plan>  qSpaceFFT;
+    int               componentReal;
+    int               componentImag;
+    jbLib::Array<double,2>   coFactors;
+    double            freqIntervalSize;
+    double            t_window;
+    unsigned long     steps_window;
+    std::vector<int>  spinToKspaceMap;
+    int               nBZPoints;
+    jbLib::Array<int,1>		  BZIndex;
+    jbLib::Array<int,2>      BZPoints;
+    jbLib::Array<int,1>		  BZDegeneracy;
+    jbLib::Array<float,1>      BZLengths;
 
 		double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 
 		void   timeTransform();

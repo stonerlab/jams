@@ -7,6 +7,8 @@
 #include "globals.h"
 #include "spinwaves.h"
 
+#include <containers/Array.h>
+
 void SpinwavesPhysics::init(libconfig::Setting &phys)
 {
 	using namespace globals;
@@ -132,8 +134,8 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
 	
 	const int nSymPoints = phys["brillouinzone"].getLength();
 	
-	Array2D<int> SymPoints(nSymPoints,3);
-	Array<int> BZPointCount(nSymPoints-1);	
+  jbLib::Array<int,2> SymPoints(nSymPoints,3);
+	jbLib::Array<int,1> BZPointCount(nSymPoints-1);	
 	
 	for(i=0; i<nSymPoints; ++i){
 		for(j=0; j<3; ++j){
@@ -423,7 +425,7 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
 	using namespace globals;
 	assert(initialised);
 	
-	register int i,q,n;
+	register int i,q;
 
 	TTMFile << realtime << "\t" << electronTemp << "\t" << phononTemp << "\t" << pumpTemp << "\n";
 
