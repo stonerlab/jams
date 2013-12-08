@@ -9,10 +9,10 @@ commit = $(shell git rev-parse HEAD)
 
 
 # Compiler information
-CXX = clang++
-OPTFLAGS = -O3 -funroll-loops 
-COPTIONS = -Wall -Wno-long-long 
-#COPTIONS = -Wall -Wno-long-long -std=c++98 #-pedantic
+CXX = g++
+OPTFLAGS = -march=native -O3 -funroll-loops -funroll-all-loops
+#OPTFLAGS = -pg -g
+COPTIONS = -Wall -Wno-long-long -std=c++98 #-pedantic
 
 CUDA = /usr/local/cuda/bin/nvcc
 CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 \
