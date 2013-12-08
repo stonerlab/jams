@@ -13,10 +13,12 @@
 
 #include <cmath>
 
+#include <containers/Array.h>
+
 void CUDAHeunLLMSSolver::syncOutput()
 {
   using namespace globals;
-  CUDA_CALL(cudaMemcpy(s.ptr(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(s.data(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
 }
 
 void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
@@ -126,17 +128,17 @@ void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
 
   output.write("  * Copying data to device memory...\n");
   // initial spins
-  Array2D<float> sf(nspins,3);
+  jbLib::Array<float,2> sf(nspins,3);
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {
       sf(i,j) = static_cast<float>(s(i,j));
     }
   }
   
-  CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(s_dev,s.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(sf_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
-  Array2D<float> mat(nspins,4);
+  jbLib::Array<float,2> mat(nspins,4);
   // material properties
   for(int i=0; i<nspins; ++i){
     mat(i,0) = mus(i);
@@ -145,7 +147,7 @@ void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
     mat(i,3) = sigma(i);
   }
   
-  CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(mat_dev,mat.data(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
 
   eng.resize(nspins,3);
 
@@ -159,24 +161,24 @@ void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
     }
   }
   
-  CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(e_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(w_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(h_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(e_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   
-  Array<float> tmp(nspins);
+  jbLib::Array<float,1> tmp(nspins);
   for(int i=0; i<nspins; ++i) {
   	tmp(i) = omega_corr(i);
   }
-  CUDA_CALL(cudaMemcpy(omega_corr_dev,tmp.ptr(),(size_t)(nspins*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(omega_corr_dev,tmp.data(),(size_t)(nspins*sizeof(float)),cudaMemcpyHostToDevice));
   
-  Array2D<double> u(nspins,3);
+  jbLib::Array<double,2> u(nspins,3);
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {
       u(i,j) = 0.0;
     }
   }
-  CUDA_CALL(cudaMemcpy(u_dev,u.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(u_new_dev,u.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(u_dev,u.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(u_new_dev,u.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
   
   
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
@@ -207,7 +209,7 @@ void CUDAHeunLLMSSolver::run()
     }
   }
   
-  Array2D<float> tmp(nspins,3);
+  jbLib::Array<float,2> tmp(nspins,3);
 
 
   // calculate interaction fields (and zero field array)
@@ -271,8 +273,8 @@ void CUDAHeunLLMSSolver::run()
     );
 	//   Array2D<float> hf(nspins,3);
 	//   Array2D<float> sf(nspins,3);
-	//   CUDA_CALL(cudaMemcpy(hf.ptr(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
-	// CUDA_CALL(cudaMemcpy(sf.ptr(),sf_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+	//   CUDA_CALL(cudaMemcpy(hf.data(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+	// CUDA_CALL(cudaMemcpy(sf.data(),sf_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
 	// 
 	//   for(int i=0; i<nspins; ++i){
 	//       std::cout<<i<<"\t"<<sf(i,0)<<"\t"<<sf(i,1)<<"\t"<<sf(i,2)<<"\t"<<hf(i,0)<<"\t"<<hf(i,1)<<"\t"<<hf(i,2)<<std::endl;
@@ -318,8 +320,8 @@ void CUDAHeunLLMSSolver::run()
 
   /*Array2D<float> hf(nspins,3);*/
   /*Array2D<float> sf(nspins,3);*/
-  /*CUDA_CALL(cudaMemcpy(hf.ptr(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));*/
-  /*CUDA_CALL(cudaMemcpy(sf.ptr(),sf_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));*/
+  /*CUDA_CALL(cudaMemcpy(hf.data(),h_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));*/
+  /*CUDA_CALL(cudaMemcpy(sf.data(),sf_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));*/
 
   /*for(int i=0; i<nspins; ++i){*/
       /*std::cout<<i<<sf(i,0)<<"\t"<<sf(i,1)<<"\t"<<sf(i,2)<<"\t"<<hf(i,0)<<"\t"<<hf(i,1)<<"\t"<<hf(i,2)<<std::endl;*/

@@ -4,12 +4,12 @@
 #ifdef CUDA
 
 #include "solver.h"
-#include "array.h"
-#include "array2d.h"
 #include "cuda_sparse_types.h"
 
 #include <curand.h>
 #include <cusparse.h>
+
+#include <containers/Array.h>
 
 class CUDAHeunLLBPSolver : public Solver {
   public:
@@ -63,8 +63,8 @@ class CUDAHeunLLBPSolver : public Solver {
 	double * u2_new_dev;
     float * h_dev;
     float * mat_dev;
-    Array<double> sigma;
-    Array2D<float> t_corr;
+    jbLib::Array<double,1> sigma;
+    jbLib::Array<float,2> t_corr;
     int nblocks;
     int spmvblocksize;
 };

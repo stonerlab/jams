@@ -4,12 +4,12 @@
 #ifdef CUDA
 
 #include "solver.h"
-#include "array.h"
-#include "array2d.h"
 #include "cuda_sparse_types.h"
 
 #include <curand.h>
 #include <cusparse.h>
+
+#include <containers/Array.h>
 
 class CUDASemiLLGSolver : public Solver {
   public:
@@ -54,8 +54,8 @@ class CUDASemiLLGSolver : public Solver {
     float * h_dev;
     float * e_dev;
     float * mat_dev;
-    Array2D<float> eng;
-    Array<double> sigma;
+    jbLib::Array<float,2> eng;
+    jbLib::Array<double,1> sigma;
     int nblocks;
     int spmvblocksize;
 };

@@ -71,7 +71,7 @@ void CUDACalculateFields(
     }
 
     // Fourspin Scalar Fields
-    if(J4ijkl_s.nonZero() > 0){
+    if(J4ijkl_s.nonZeros() > 0){
 
         fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>
             (nspins,nspins,1.0,beta,

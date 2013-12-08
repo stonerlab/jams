@@ -14,11 +14,13 @@
 
 #include <cmath>
 
+#include <containers/Array.h>
+
 
 void CUDALLGSolverSRK4::syncOutput()
 {
     using namespace globals;
-    CUDA_CALL(cudaMemcpy(s.ptr(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(s.data(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
 }
 
 void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
@@ -65,9 +67,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
     output.write("    - J2ij scalar matrix memory (DIA): %f MB\n",J2ij_s.calculateMemory());
     output.write("    - J2ij tensor matrix memory (DIA): %f MB\n",J2ij_t.calculateMemory());
 
-    output.write("  * Converting J4 MAP to CSR\n");
-    J4ijkl_s.convertMAP2CSR();
-    output.write("    - J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemory());
+    output.write("    - J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemoryUsage());
 
     output.write("  * Allocating device memory...\n");
 
@@ -110,16 +110,16 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
 
     // Initial spin configuration
     {
-        Array2D<float> sf(nspins,3);
+        jbLib::Array<float,2> sf(nspins,3);
             for(int i=0; i<nspins; ++i) {
                 for(int j=0; j<3; ++j) {
                     sf(i,j) = static_cast<float>(s(i,j));
                 }
             }
             
-        CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
-        CUDA_CALL(cudaMemcpy(s_old_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
-        CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+        CUDA_CALL(cudaMemcpy(s_dev,s.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+        CUDA_CALL(cudaMemcpy(s_old_dev,s.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+        CUDA_CALL(cudaMemcpy(sf_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
     }
 
     // Lattice dimensions
@@ -137,11 +137,11 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
     }
     
     // Atom positions
-    CUDA_CALL(cudaMemcpy(r_dev,atom_pos.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(r_dev,atom_pos.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
     // Material properties
     {
-        Array2D<float> mat(nspins,4);
+        jbLib::Array<float,2> mat(nspins,4);
         for(int i=0; i<nspins; ++i){
             mat(i,0) = mus(i);
             mat(i,1) = gyro(i);
@@ -149,7 +149,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
             mat(i,3) = sigma(i);
         }
 
-        CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
+        CUDA_CALL(cudaMemcpy(mat_dev,mat.data(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
     }
 
 

@@ -14,11 +14,13 @@
 
 #include <cmath>
 
+#include <containers/Array.h>
+
 
 void CUDAHeunLLGSolver::syncOutput()
 {
   using namespace globals;
-  CUDA_CALL(cudaMemcpy(s.ptr(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(s.data(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
 }
 
 void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
@@ -66,9 +68,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   output.write("    - J2ij scalar matrix memory (DIA): %f MB\n",J2ij_s.calculateMemory());
   output.write("    - J2ij tensor matrix memory (DIA): %f MB\n",J2ij_t.calculateMemory());
   
-  output.write("  * Converting J4 MAP to CSR\n");
-  J4ijkl_s.convertMAP2CSR();
-  output.write("    - J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemory());
+  output.write("    - J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemoryUsage());
 
 
   output.write("  * Allocating device memory...\n");
@@ -101,17 +101,17 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   output.write("  * Copying data to device memory...\n");
   // initial spins
-  Array2D<float> sf(nspins,3);
+  jbLib::Array<float,2> sf(nspins,3);
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {
       sf(i,j) = static_cast<float>(s(i,j));
     }
   }
-  CUDA_CALL(cudaMemcpy(s_dev,s.ptr(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(sf_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(s_dev,s.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(sf_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
   // position array
-  CUDA_CALL(cudaMemcpy(r_dev,atom_pos.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(r_dev,atom_pos.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   
   float r_maxf[3];
   lattice.getMaxDimensions(r_maxf[0],r_maxf[1],r_maxf[2]);
@@ -121,7 +121,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   lattice.getBoundaries(pbc[0],pbc[1],pbc[2]);
   CUDA_CALL(cudaMemcpy(pbc_dev,pbc,(size_t)(3*sizeof(bool)),cudaMemcpyHostToDevice));
 
-  Array2D<float> mat(nspins,4);
+  jbLib::Array<float,2> mat(nspins,4);
   // material properties
   for(int i=0; i<nspins; ++i){
     mat(i,0) = mus(i);
@@ -129,7 +129,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
     mat(i,2) = alpha(i);
     mat(i,3) = sigma(i);
   }
-  CUDA_CALL(cudaMemcpy(mat_dev,mat.ptr(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(mat_dev,mat.data(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
 
   eng.resize(nspins,3);
 
@@ -143,10 +143,10 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
     }
   }
   
-  CUDA_CALL(cudaMemcpy(w_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(h_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(h_dipole_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(e_dev,sf.ptr(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(w_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(h_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(h_dipole_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(e_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
 
@@ -197,7 +197,7 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
   if(J1ij_s.nonZero() > 0){
     bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
       J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(eng.data(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
     for(int i=0; i<nspins; ++i){
       e1_s = e1_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
     }
@@ -209,7 +209,7 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
   if(J1ij_t.nonZero() > 0){
     spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
       J1ij_t.diags(),J1ij_t_dev.pitch,1.0,beta,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(eng.data(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
     for(int i=0; i<nspins; ++i){
       e1_t = e1_t + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
     }
@@ -221,7 +221,7 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
   if(J2ij_s.nonZero() > 0){
     biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
       J2ij_s.diags(),J2ij_s_dev.pitch,1.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(eng.data(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
     for(int i=0; i<nspins; ++i){
       e2_s = e2_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
     }
@@ -233,7 +233,7 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
   if(J2ij_t.nonZero() > 0){
     spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
       J2ij_t.diags(),J2ij_t_dev.pitch,1.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(eng.data(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
 
     for(int i=0; i<nspins; ++i){
       e2_t = e2_t + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
@@ -242,10 +242,10 @@ void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
     e2_t = e2_t/nspins;
   }
   
-  if(J4ijkl_s.nonZero() > 0){
+  if(J4ijkl_s.nonZeros() > 0){
     fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
         J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,e_dev);
-    CUDA_CALL(cudaMemcpy(eng.ptr(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(eng.data(),e_dev,(size_t)(nspins3*sizeof(float)),cudaMemcpyDeviceToHost));
     for(int i=0; i<nspins; ++i){
       e4_s = e4_s + (s(i,0)*eng(i,0)+s(i,1)*eng(i,1)+s(i,2)*eng(i,2));
     }
