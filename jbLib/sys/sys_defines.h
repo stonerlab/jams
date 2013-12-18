@@ -1,6 +1,7 @@
 #ifndef SYS_DEFINES_H
 #define SYS_DEFINES_H
 
+#define JBLIB_VERSION 0.1
 // GCC attributes
 
 #define ALIGNTYPE16     __attribute__((aligned(16)))

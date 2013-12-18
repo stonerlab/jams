@@ -3,10 +3,10 @@
 
 #include <cassert>
 
-#ifdef _DEBUG
-#else
-    #undef assert
-    #define assert(x)   
-#endif
+//#ifdef _DEBUG
+//#else
+    //#undef assert
+    //#define assert(x)   
+//#endif
 
 #endif

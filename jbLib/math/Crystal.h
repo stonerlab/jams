@@ -3,13 +3,15 @@
 
 #include <ostream>
 
-enum crystal_t { cubic, tetragonal, orthorhombic, monoclinic, triclinic, trigonal, hexagonal, undefined};
+namespace jbLib{
+  enum crystal_t { cubic, tetragonal, orthorhombic, monoclinic, triclinic, trigonal, hexagonal, undefined};
 
-std::ostream& operator<<(std::ostream& os, enum crystal_t x);
+  std::ostream& operator<<(std::ostream& os, enum crystal_t x);
 
-namespace jbCrystal {
+  namespace jbCrystal {
     crystal_t identifyCrystalSystem(const double a[3], const double b[3], const double c[3]);
 
-};
+  };
+}
 
 #endif

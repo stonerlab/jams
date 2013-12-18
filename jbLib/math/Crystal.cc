@@ -7,38 +7,38 @@
 
 std::ostream& operator<<(std::ostream& os, enum crystal_t x)
 {
-    switch (x){
-        case cubic:
-            return os << "cubic";
-            break;
-        case tetragonal:
-            return os << "tetragonal";
-            break;
-        case orthorhombic:
-            return os << "orthorhombic";
-            break;
-        case monoclinic:
-            return os << "monoclinic";
-            break;
-        case triclinic:
-            return os << "triclinic";
-            break;
-        case trigonal:
-            return os << "trigonal";
-            break;
-        case hexagonal:
-            return os << "hexagonal";
-            break;
-        case undefined:
-            return os << "undefined";
-            break;
-        default:
-            return os << "undefined";
-    }
+  switch (x){
+    case cubic:
+      return os << "cubic";
+      break;
+    case tetragonal:
+      return os << "tetragonal";
+      break;
+    case orthorhombic:
+      return os << "orthorhombic";
+      break;
+    case monoclinic:
+      return os << "monoclinic";
+      break;
+    case triclinic:
+      return os << "triclinic";
+      break;
+    case trigonal:
+      return os << "trigonal";
+      break;
+    case hexagonal:
+      return os << "hexagonal";
+      break;
+    case undefined:
+      return os << "undefined";
+      break;
+    default:
+      return os << "undefined";
+  }
 }
 
-
-crystal_t jbCrystal::identifyCrystalSystem(const double v0[3], const double v1[3], const double v2[3]){
+namespace jbLib {
+  crystal_t jbCrystal::identifyCrystalSystem(const double v0[3], const double v1[3], const double v2[3]){
 
     double a,b,c;               // lengths of basis vectors
     double alpha,beta,gamma;    // angles between basis vectors
@@ -52,27 +52,28 @@ crystal_t jbCrystal::identifyCrystalSystem(const double v0[3], const double v1[3
     gamma = jbVec::angle(v0,v2);
 
     if( jbMath::threewayFloatEquality(a,b,c) ){ 
-            assert( jbMath::threewayFloatEquality(alpha,beta,gamma) );
-            if( jbMath::floatEquality(alpha,HALF_PI) ){ 
-                return cubic;
-            } else {
-                return trigonal;
-            }
+      assert( jbMath::threewayFloatEquality(alpha,beta,gamma) );
+      if( jbMath::floatEquality(alpha,HALF_PI) ){ 
+        return cubic;
+      } else {
+        return trigonal;
+      }
     } else if ( jbMath::threewayFloatNotEquality(a,b,c) ){
-        if( jbMath::threewayFloatEquality(alpha,beta,gamma) ){ 
-            return orthorhombic;
-        } else if ( jbMath::threewayFloatNotEquality(alpha,beta,gamma) ) { 
-            return triclinic;
-        } else { 
-            return monoclinic;
-        }
+      if( jbMath::threewayFloatEquality(alpha,beta,gamma) ){ 
+        return orthorhombic;
+      } else if ( jbMath::threewayFloatNotEquality(alpha,beta,gamma) ) { 
+        return triclinic;
+      } else { 
+        return monoclinic;
+      }
     } else { 
-        if( jbMath::threewayFloatEquality(alpha,beta,gamma) ){ 
-            return tetragonal;
-        } else { 
-            return hexagonal;
-        }
+      if( jbMath::threewayFloatEquality(alpha,beta,gamma) ){ 
+        return tetragonal;
+      } else { 
+        return hexagonal;
+      }
     }
 
     return undefined;
+  }
 }

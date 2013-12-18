@@ -10,16 +10,19 @@
 #include <utility>
 #include <algorithm>
 
-template <typename type, uint32 dimension, typename index=uint32>
-class Array 
-{
-    public:
+namespace jbLib{
+  template <typename Tp_, uint32 Dim_, typename Idx_=uint32>
+    class Array 
+    {
+      public:
         Array(){}
         ~Array(){};
-};
-
+    };
+}
 #include "Array1D.h"
 #include "Array2D.h"
 #include "Array3D.h"
+#include "Array4D.h"
+#include "Array5D.h"
 
 #endif
