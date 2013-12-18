@@ -508,9 +508,9 @@ void DynamicSFPhysics::timeTransform()
 		const int tEnd = (n+1)*steps_window;
 
 		int rank       = 1;
-		int sizeN[]   = {steps_window};
+		int sizeN[]   = {static_cast<int>(steps_window)};
 		int howmany    = nBZPoints;
-		int inembed[] = {steps_window}; int onembed[] = {steps_window};
+		int inembed[] = {static_cast<int>(steps_window)}; int onembed[] = {static_cast<int>(steps_window)};
 		int istride    = nBZPoints;      int ostride    = nBZPoints;
 		int idist      = 1;             int odist      = 1;
 		fftw_complex* startPtr = (tSpace+n*steps_window*nBZPoints); // pointer arithmatic

@@ -1,5 +1,4 @@
-TOPDIR = ../..
-
+TOPDIR = ..
 include $(TOPDIR)/Makefile.in
 
 OBJS = $(patsubst %.cc, %.o, $(wildcard *.cc))

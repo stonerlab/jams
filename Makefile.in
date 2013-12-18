@@ -1,27 +1,28 @@
 SHELL = /bin/sh
 
 withdebug=0
-withcuda=1
+withcuda=0
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
 commit = $(shell git rev-parse HEAD)
 
-
-# Compiler information
+ifeq ($(systype),Darwin)
+withcuda=0
+CXX = clang++
+OPTFLAGS = -stdlib=libc++ -march=native -O3 -funroll-loops -m64
+COPTIONS = -Wall -DDarwin
+else
 CXX = g++
-OPTFLAGS = -march=native -O3 -funroll-loops -funroll-all-loops
-#OPTFLAGS = -pg -g
-COPTIONS = -Wall -Wno-long-long -std=c++98 #-pedantic
-
+OPTFLAGS = -march=native -O3 -funroll-loops -m64
+COPTIONS = -Wall -DLinux
 CUDA = /usr/local/cuda/bin/nvcc
-CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 \
-		-gencode=arch=compute_35,code=sm_35 \
-		  -gencode=arch=compute_35,code=compute_35 \
-	   -O3 -DNDEBUG -DCUDA
-#CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 \
-	-gencode=arch=compute_13,code=sm_13 -gencode=arch=compute_13,code=compute_13 \
-	--ptxas-options=-v -O3 -DNDEBUG -DCUDA
+CUDAOPTS = -O3 -DNDEBUG -DCUDA -ccbin /usr/bin/clang++ -m64 -Xcompiler -arch -Xcompiler x86_64 -Xcompiler -stdlib=libstdc++ \
+					 -gencode=arch=compute_20,code=sm_20 \
+					 -gencode=arch=compute_20,code=compute_20 \
+					 -gencode=arch=compute_35,code=sm_35 \
+		       -gencode=arch=compute_35,code=compute_35
+endif
 
 # Linker information
 LDOPTIONS = 
@@ -33,20 +34,6 @@ OUTPUTFILE = -o $@
 
 # Output specification for executables
 EXEOUTPUTFILE = -o $@
-
-#----------------------------------------------------------------------
-# System based overides
-#----------------------------------------------------------------------
-
-ifeq ($(systype),Linux)
-	COPTIONS += -DLinux
-endif
-
-ifeq ($(systype),Darwin)
-	withcuda=0
-	#CXX = g++-4.7
-	COPTIONS += -DDarwin
-endif
 
 #----------------------------------------------------------------------
 # Build specific options 
@@ -67,25 +54,20 @@ endif
 
 LIBCONFIGDIR = ./libconfig
 
-header-dirs = $(sort $(dir $(shell find $(TOPDIR) -name '*.h'))) 
-HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
-
-INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include -I/Users/joe/Dropbox/Development/jbLib
+INCLUDES = -I$(TOPDIR)/core -I$(TOPDIR)/physics -I$(TOPDIR)/monitors -I$(TOPDIR)/solvers -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include -I$(TOPDIR)/jbLib
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t
 
 ifeq ($(withcuda),1)
-	ifeq ($(cputype),x86_64)
-		LIBSDIR = -L/usr/local/cuda/lib64
-	else
-		LIBSDIR = -L/usr/local/cuda/lib
-	endif
-		LIBS = -lcudart -lcurand -lcublas -lcusparse
+	#ifeq ($(cputype),x86_64)
+		#LIBSDIR = -L/usr/local/cuda/lib64
+	#else
+		#LIBSDIR = -L/usr/local/cuda/lib
+	#endif
+		LIBS = -L/usr/local/cuda/lib -lcudart -lcurand -lcublas -lcusparse
 endif
 
-LIBS +=  -lfftw3 /usr/local/lib/libconfig++.a 
-#LIBS +=  -lfftw3 /sfw/libconfig-1.4.9/lib/libconfig++.a 
-
+LIBS +=  -lfftw3 -lconfig++ 
 
 LDFLAGS = $(LIBSDIR)

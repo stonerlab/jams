@@ -2,14 +2,11 @@ TOPDIR = .
 
 include ./Makefile.in
 
-source-dirs := $(sort $(dir $(shell find . -name '*.cc' -o -name '*.cu')))
+source-dirs := core/ monitors/ physics/ solvers/
 
 jams++ :: objects
-	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
+	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) $(LIBS) $(foreach d, $(source-dirs), $(wildcard $d*.o))  
 
-ifeq ($(systype),Darwin)
-	$(warning Disabling CUDA on Darwin platform (64bit incompatible))
-endif
 	@echo
 	@echo " JAMS++ build complete. "
 	@echo
