@@ -1,6 +1,8 @@
 #ifndef SYS_TYPES_H
 #define SYS_TYPES_H
 
+#include <stdint.h>
+
 //#define UINT32_MAX 4294967295
 
 // integer types
