@@ -17,7 +17,7 @@
 #endif
 
 #define JB_INLINE       inline
-#define JB_FORCE_INLINE __attribute__((always_inline))
+#define JB_FORCE_INLINE __attribute__((always_inline)) inline
 
 #define JB_RESTRICT     __restrict__
 
