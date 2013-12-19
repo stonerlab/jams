@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 
 withdebug=0
-withcuda=0
+withcuda=1
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
@@ -14,10 +14,10 @@ OPTFLAGS = -stdlib=libc++ -march=native -O3 -funroll-loops -m64
 COPTIONS = -Wall -DDarwin
 else
 CXX = g++
-OPTFLAGS = -march=native -O3 -funroll-loops -m64
+OPTFLAGS = -march=native -O3 -funroll-loops
 COPTIONS = -Wall -DLinux
 CUDA = /usr/local/cuda/bin/nvcc
-CUDAOPTS = -O3 -DNDEBUG -DCUDA -ccbin /usr/bin/clang++ -m64 -Xcompiler -arch -Xcompiler x86_64 -Xcompiler -stdlib=libstdc++ \
+CUDAOPTS = -O3 -DNDEBUG -DCUDA \
 					 -gencode=arch=compute_20,code=sm_20 \
 					 -gencode=arch=compute_20,code=compute_20 \
 					 -gencode=arch=compute_35,code=sm_35 \
@@ -54,17 +54,21 @@ endif
 
 LIBCONFIGDIR = ./libconfig
 
-INCLUDES = -I$(TOPDIR)/core -I$(TOPDIR)/physics -I$(TOPDIR)/monitors -I$(TOPDIR)/solvers -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include -I$(TOPDIR)/jbLib
+INCLUDES = -I$(TOPDIR)/core -I$(TOPDIR)/physics -I$(TOPDIR)/monitors -I$(TOPDIR)/solvers -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include -I$(TOPDIR)/jblib
 CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t
 
 ifeq ($(withcuda),1)
-	#ifeq ($(cputype),x86_64)
-		#LIBSDIR = -L/usr/local/cuda/lib64
-	#else
-		#LIBSDIR = -L/usr/local/cuda/lib
-	#endif
+	ifeq ($(cputype),x86_64)
+		ifeq ($(systype),Darwin)
+			LIBSDIR = -L/usr/local/cuda/lib
+		else
+			LIBSDIR = -L/usr/local/cuda/lib64
+		endif
+	else
+		LIBSDIR = -L/usr/local/cuda/lib
+	endif
 		LIBS = -L/usr/local/cuda/lib -lcudart -lcurand -lcublas -lcusparse
 endif
 
