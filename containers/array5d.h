@@ -52,8 +52,9 @@ namespace jblib {
 
 
 
-      private:
         const Idx_ totalSize() const;
+
+      private:
 
 #ifdef BOUNDSCHECK
         bool isRangeValid(const Idx_ i, const Idx_ j, const Idx_ k, const Idx_ l, const Idx_ m) const;

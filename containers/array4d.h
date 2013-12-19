@@ -51,7 +51,7 @@ namespace jblib {
           std::swap(first.sizeW_,second.sizeW_);
         }
 
-
+        const Idx_ totalSize() const;
 
       private:
 
@@ -75,6 +75,12 @@ namespace jblib {
 // implementation
 //
 ///////////////////////////////////////////////////////////////////////
+
+
+  template < typename Tp_, typename Idx_ >
+    JB_INLINE const Idx_ Array<Tp_,4,Idx_>::totalSize() const {
+      return sizeX_*sizeY_*sizeZ_*sizeW_;
+    }
 
 
   template < typename Tp_, typename Idx_ >
