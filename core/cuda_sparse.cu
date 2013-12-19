@@ -1,5 +1,5 @@
 #include <thrust/extrema.h>
-#include <containers/Sparsematrix.h>
+#include <containers/sparsematrix.h>
 #include "cuda_sparse_types.h"
 #include "sparsematrix.h"
 #include "sparsematrix4d.h"
@@ -28,7 +28,7 @@ void free_dia(devDIA &Jij_dev)
   CUDA_CALL(cudaFree(Jij_dev.val));
 }
 
-void allocate_transfer_csr_4d(jbLib::Sparsematrix<float,4> &Jij, devCSR &
+void allocate_transfer_csr_4d(jblib::Sparsematrix<float,4> &Jij, devCSR &
     Jij_dev)
 {
   CUDA_CALL(cudaMalloc((void**)&Jij_dev.pointers,(Jij.sizex()+1)*sizeof(int)));

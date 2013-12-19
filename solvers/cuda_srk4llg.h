@@ -9,7 +9,7 @@
 #include <curand.h>
 #include <cusparse.h>
 
-#include <containers/Array.h>
+#include <containers/array.h>
 
 class CUDALLGSolverSRK4 : public Solver {
   public:
@@ -69,8 +69,8 @@ class CUDALLGSolverSRK4 : public Solver {
     float * h_dipole_dev;
     float * e_dev;
     float * mat_dev;
-    jbLib::Array<float,2> eng;
-    jbLib::Array<double,1> sigma;
+    jblib::Array<float,2> eng;
+    jblib::Array<double,1> sigma;
     int nblocks;
     int spmvblocksize;
 };

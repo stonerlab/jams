@@ -13,7 +13,7 @@
 
 #include <cmath>
 
-#include <containers/Array.h>
+#include <containers/array.h>
 
 void CUDAHeunLLBPSolver::syncOutput()
 {
@@ -113,7 +113,7 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
 	output.write("  * Allocating spin arrays in device memory...\n");
 
   // initial spins
-	jbLib::Array<float,2> sf(nspins,3);
+	jblib::Array<float,2> sf(nspins,3);
 	for(int i=0; i<nspins; ++i) {
 		for(int j=0; j<3; ++j) {
 			sf(i,j) = static_cast<float>(s(i,j));
@@ -137,8 +137,8 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
   //-------------------------------------------------------------------
   
   // initialise colouring processes
-	jbLib::Array<double,2> u1(nspins,3);
-	jbLib::Array<double,2> u2(nspins,3);
+	jblib::Array<double,2> u1(nspins,3);
+	jblib::Array<double,2> u2(nspins,3);
   
   
 	for(int i=0; i<nspins; ++i){
@@ -178,7 +178,7 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
   //  Initialise Material Array
   //-------------------------------------------------------------------
 
-	jbLib::Array<float,2> mat(nspins,4);
+	jblib::Array<float,2> mat(nspins,4);
 	for(int i=0; i<nspins; ++i){
 		mat(i,0) = mus(i);
 		mat(i,1) = gyro(i);
@@ -196,7 +196,7 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
   //-------------------------------------------------------------------
   //  Initialise arrays to zero
   //-------------------------------------------------------------------
-	jbLib::Array<float,2> hf(nspins,3);
+	jblib::Array<float,2> hf(nspins,3);
 	
 	for(int i=0; i<nspins; ++i) {
 		for(int j=0; j<3; ++j) {

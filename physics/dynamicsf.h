@@ -5,7 +5,7 @@
 
 #include <vector>
 #include <fftw3.h>
-#include <containers/Array.h>
+#include <containers/array.h>
 
 enum FFTWindowType {GAUSSIAN,HAMMING};
 
@@ -51,16 +51,16 @@ public:
     std::vector<fftw_plan>  qSpaceFFT;
     int               componentReal;
     int               componentImag;
-    jbLib::Array<double,2>   coFactors;
+    jblib::Array<double,2>   coFactors;
     double            freqIntervalSize;
     double            t_window;
     unsigned long     steps_window;
     std::vector<int>  spinToKspaceMap;
     int               nBZPoints;
-    jbLib::Array<int,1>		  BZIndex;
-    jbLib::Array<int,2>      BZPoints;
-    jbLib::Array<int,1>		  BZDegeneracy;
-    jbLib::Array<float,1>      BZLengths;
+    jblib::Array<int,1>		  BZIndex;
+    jblib::Array<int,2>      BZPoints;
+    jblib::Array<int,1>		  BZDegeneracy;
+    jblib::Array<float,1>      BZLengths;
 
 		double FFTWindow(const int n, const int nTotal, const FFTWindowType type); 
 		void   timeTransform();

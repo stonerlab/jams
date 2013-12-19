@@ -14,7 +14,7 @@
 
 #include <cmath>
 
-#include <containers/Array.h>
+#include <containers/array.h>
 
 
 void CUDAHeunLLGSolver::syncOutput()
@@ -101,7 +101,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   output.write("  * Copying data to device memory...\n");
   // initial spins
-  jbLib::Array<float,2> sf(nspins,3);
+  jblib::Array<float,2> sf(nspins,3);
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {
       sf(i,j) = static_cast<float>(s(i,j));
@@ -121,7 +121,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   lattice.getBoundaries(pbc[0],pbc[1],pbc[2]);
   CUDA_CALL(cudaMemcpy(pbc_dev,pbc,(size_t)(3*sizeof(bool)),cudaMemcpyHostToDevice));
 
-  jbLib::Array<float,2> mat(nspins,4);
+  jblib::Array<float,2> mat(nspins,4);
   // material properties
   for(int i=0; i<nspins; ++i){
     mat(i,0) = mus(i);

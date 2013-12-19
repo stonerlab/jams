@@ -1,7 +1,7 @@
 #ifndef __JAMS_CUDA_SPARSE_H__
 #define __JAMS_CUDA_SPARSE_H__
 #include "sparsematrix.h"
-#include <containers/Sparsematrix.h>
+#include <containers/sparsematrix.h>
 #include "cuda_sparse_types.h"
 
 // block size for GPU, 64 appears to be most efficient for current kernel
@@ -15,7 +15,7 @@ void allocate_transfer_dia(SparseMatrix<float> &Jij, devDIA &Jij_dev);
 
 void free_dia(devDIA &Jij_dev);
 
-void allocate_transfer_csr_4d(jbLib::Sparsematrix<float,4> &Jij, devCSR &
+void allocate_transfer_csr_4d(jblib::Sparsematrix<float,4> &Jij, devCSR &
     Jij_dev);
 
 void free_csr_4d(devCSR &Jij_dev);

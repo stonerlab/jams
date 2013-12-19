@@ -7,8 +7,8 @@
 #include "rand.h"
 #include "lattice.h"
 
-#include <containers/Sparsematrix.h>
-#include <containers/Array.h>
+#include <containers/sparsematrix.h>
+#include <containers/array.h>
 
 //#include <libconfig.h++>
 
@@ -41,29 +41,29 @@ namespace globals
   GLOBAL double h_app[3];
   GLOBAL double globalTemperature;
 
-  GLOBAL jbLib::Array<double,2> s;
-  GLOBAL jbLib::Array<double,2> h;
-  GLOBAL jbLib::Array<double,2> w;
+  GLOBAL jblib::Array<double,2> s;
+  GLOBAL jblib::Array<double,2> h;
+  GLOBAL jblib::Array<double,2> w;
   
-  GLOBAL jbLib::Array<float,2> atom_pos;
+  GLOBAL jblib::Array<float,2> atom_pos;
 #ifdef CUDA
   GLOBAL SparseMatrix<float> J1ij_s;  // bilinear scalar interactions
   GLOBAL SparseMatrix<float> J1ij_t;  // bilinear tensor interactions
   GLOBAL SparseMatrix<float> J2ij_s;  // biquadratic scalar interactions
   GLOBAL SparseMatrix<float> J2ij_t;  // biquadratic tensor interactions
-  GLOBAL jbLib::Sparsematrix<float,4> J4ijkl_s;  // fourspin scalar interactions
+  GLOBAL jblib::Sparsematrix<float,4> J4ijkl_s;  // fourspin scalar interactions
 #else
   GLOBAL SparseMatrix<double> J1ij_s;  // bilinear scalar interactions
   GLOBAL SparseMatrix<double> J1ij_t;  // bilinear tensor interactions
   GLOBAL SparseMatrix<double> J2ij_s;  // biquadratic scalar interactions
   GLOBAL SparseMatrix<double> J2ij_t;  // biquadratic tensor interactions
-  GLOBAL jbLib::Sparsematrix<double,4> J4ijkl_s;  // fourspin scalar interactions
+  GLOBAL jblib::Sparsematrix<double,4> J4ijkl_s;  // fourspin scalar interactions
 #endif
 
-  GLOBAL jbLib::Array<double,1> alpha;
-  GLOBAL jbLib::Array<double,1> mus;
-  GLOBAL jbLib::Array<double,1> gyro;
-  GLOBAL jbLib::Array<double,1> omega_corr;
+  GLOBAL jblib::Array<double,1> alpha;
+  GLOBAL jblib::Array<double,1> mus;
+  GLOBAL jblib::Array<double,1> gyro;
+  GLOBAL jblib::Array<double,1> omega_corr;
 
 } // namespace global
 

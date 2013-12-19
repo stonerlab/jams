@@ -4,7 +4,7 @@
 #include "monitor.h"
 #include "runningstat.h"
 #include <fstream>
-#include <containers/Array.h>
+#include <containers/array.h>
 
 class MagnetisationMonitor : public Monitor {
   public:
@@ -27,7 +27,7 @@ class MagnetisationMonitor : public Monitor {
 	void initConvergence(ConvergenceType type, const double meanTol, const double devTol);
 	bool checkConvergence();
   private:
-    jbLib::Array<double,2> mag;
+    jblib::Array<double,2> mag;
     std::ofstream outfile;
 	ConvergenceType convType;
 	double			meanTol;

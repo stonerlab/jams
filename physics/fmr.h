@@ -6,7 +6,7 @@
 
 #include "physics.h"
 
-#include <containers/Array.h>
+#include <containers/array.h>
 
 class FMRPhysics : public Physics {
   public:
@@ -28,7 +28,7 @@ class FMRPhysics : public Physics {
     std::vector<double> ACFieldStrength;
     std::vector<double> DCFieldStrength;
     std::ofstream PSDFile;
-    jbLib::Array<double,1> PSDIntegral;
+    jblib::Array<double,1> PSDIntegral;
 };
 
 #endif // __FMR_H__

@@ -14,7 +14,7 @@
 
 #include <cmath>
 
-#include <containers/Array.h>
+#include <containers/array.h>
 
 
 void CUDALLGSolverSRK4::syncOutput()
@@ -110,7 +110,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
 
     // Initial spin configuration
     {
-        jbLib::Array<float,2> sf(nspins,3);
+        jblib::Array<float,2> sf(nspins,3);
             for(int i=0; i<nspins; ++i) {
                 for(int j=0; j<3; ++j) {
                     sf(i,j) = static_cast<float>(s(i,j));
@@ -141,7 +141,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
 
     // Material properties
     {
-        jbLib::Array<float,2> mat(nspins,4);
+        jblib::Array<float,2> mat(nspins,4);
         for(int i=0; i<nspins; ++i){
             mat(i,0) = mus(i);
             mat(i,1) = gyro(i);

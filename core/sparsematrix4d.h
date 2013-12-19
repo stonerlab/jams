@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
-#include <containers/Array.h>
+#include <containers/array.h>
 
 #define RESTRICT __restrict__
 
@@ -114,8 +114,8 @@ class SparseMatrix4D {
         std::vector<size_type> k_idx;
         std::vector<size_type> l_idx;
 
-        jbLib::Array<size_type,1>     pointers;
-        jbLib::Array<size_type,2>     coords;
+        jblib::Array<size_type,1>     pointers;
+        jblib::Array<size_type,2>     coords;
         std::vector<_Tp>       val;
 
 };

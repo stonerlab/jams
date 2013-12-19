@@ -13,7 +13,7 @@
 
 #include <cmath>
 
-#include <containers/Array.h>
+#include <containers/array.h>
 
 void CUDASemiLLGSolver::syncOutput()
 {
@@ -116,7 +116,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 
   output.write("  * Copying data to device memory...\n");
   // initial spins
-  jbLib::Array<float,2> sf(nspins,3);
+  jblib::Array<float,2> sf(nspins,3);
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {
       sf(i,j) = static_cast<float>(s(i,j));
@@ -125,7 +125,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(s_dev,s.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(sf_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
-  jbLib::Array<float,2> mat(nspins,4);
+  jblib::Array<float,2> mat(nspins,4);
   // material properties
   for(int i=0; i<nspins; ++i){
     mat(i,0) = mus(i);

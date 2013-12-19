@@ -6,7 +6,7 @@
 #include <libconfig.h++>
 #include <fftw3.h>
 #include "physics.h"
-#include <containers/Array.h>
+#include <containers/array.h>
 
 class SpinwavesPhysics : public Physics {
   public:
@@ -55,14 +55,14 @@ class SpinwavesPhysics : public Physics {
     std::vector<fftw_plan>  	qSpaceFFT;
     int               		componentReal;
     int               		componentImag;
-    jbLib::Array<double,2>   		coFactors;
+    jblib::Array<double,2>   		coFactors;
     std::vector<int>  		spinToKspaceMap;
     int               		nBZPoints;
-    jbLib::Array<int,1>		  		BZIndex;
-    jbLib::Array<int,2>      		BZPoints;
-    jbLib::Array<int,1>		  		BZDegeneracy;
-    jbLib::Array<float,1>      		BZLengths;
-    jbLib::Array<float,1>				BZData;
+    jblib::Array<int,1>		  		BZIndex;
+    jblib::Array<int,2>      		BZPoints;
+    jblib::Array<int,1>		  		BZDegeneracy;
+    jblib::Array<float,1>      		BZLengths;
+    jblib::Array<float,1>				BZData;
 	  
 	
 	  std::ofstream   SPWFile;

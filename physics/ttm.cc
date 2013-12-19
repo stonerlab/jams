@@ -2,6 +2,8 @@
 #include <iomanip>
 #include <libconfig.h++>
 
+#include <math/functions.h>
+
 #include "globals.h"
 
 #include "ttm.h"
@@ -62,7 +64,7 @@ TTMPhysics::~TTMPhysics()
 void TTMPhysics::run(const double realtime, const double dt)
 {
   using namespace globals;
-  using namespace jbLib;
+  using namespace jblib;
 
 
   for(int i=0; i<3; ++i) {
@@ -74,7 +76,7 @@ void TTMPhysics::run(const double realtime, const double dt)
   for (int i=0,iend=pulseFluence.size(); i!=iend; ++i) {
     const double relativeTime = (realtime-pulseStartTime(i));
     if( (relativeTime > 0.0) && (relativeTime <= 10*pulseWidth(i)) ) {
-      pumpTemp = pumpTemp + pulseFluence(i)*exp(-jbMath::square((relativeTime-3*pulseWidth(i))/(pulseWidth(i))));
+      pumpTemp = pumpTemp + pulseFluence(i)*exp(-square((relativeTime-3*pulseWidth(i))/(pulseWidth(i))));
     }
   }
 

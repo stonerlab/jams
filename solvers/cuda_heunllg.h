@@ -9,7 +9,7 @@
 #include <curand.h>
 #include <cusparse.h>
 
-#include <containers/Array.h>
+#include <containers/array.h>
 
 class CUDAHeunLLGSolver : public Solver {
   public:
@@ -63,8 +63,8 @@ class CUDAHeunLLGSolver : public Solver {
     float * h_dipole_dev;
     float * e_dev;
     float * mat_dev;
-    jbLib::Array<float,2> eng;
-    jbLib::Array<double,1> sigma;
+    jblib::Array<float,2> eng;
+    jblib::Array<double,1> sigma;
     int nblocks;
     int spmvblocksize;
 };

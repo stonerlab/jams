@@ -3,7 +3,7 @@
 
 #include "monitor.h"
 #include <fstream>
-#include <containers/Array.h>
+#include <containers/array.h>
 
 class BoltzmannMagMonitor : public Monitor{
   public:
@@ -18,7 +18,7 @@ class BoltzmannMagMonitor : public Monitor{
     void run();
     void write(Solver *solver);
   private:
-    jbLib::Array<double,1> bins;
+    jblib::Array<double,1> bins;
     double total;
     std::ofstream outfile;
 };

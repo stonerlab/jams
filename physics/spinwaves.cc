@@ -7,7 +7,7 @@
 #include "globals.h"
 #include "spinwaves.h"
 
-#include <containers/Array.h>
+#include <containers/array.h>
 
 void SpinwavesPhysics::init(libconfig::Setting &phys)
 {
@@ -134,8 +134,8 @@ void SpinwavesPhysics::init(libconfig::Setting &phys)
 	
 	const int nSymPoints = phys["brillouinzone"].getLength();
 	
-  jbLib::Array<int,2> SymPoints(nSymPoints,3);
-	jbLib::Array<int,1> BZPointCount(nSymPoints-1);	
+  jblib::Array<int,2> SymPoints(nSymPoints,3);
+	jblib::Array<int,1> BZPointCount(nSymPoints-1);	
 	
 	for(i=0; i<nSymPoints; ++i){
 		for(j=0; j<3; ++j){

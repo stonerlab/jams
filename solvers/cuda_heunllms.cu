@@ -13,7 +13,7 @@
 
 #include <cmath>
 
-#include <containers/Array.h>
+#include <containers/array.h>
 
 void CUDAHeunLLMSSolver::syncOutput()
 {
@@ -128,7 +128,7 @@ void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
 
   output.write("  * Copying data to device memory...\n");
   // initial spins
-  jbLib::Array<float,2> sf(nspins,3);
+  jblib::Array<float,2> sf(nspins,3);
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {
       sf(i,j) = static_cast<float>(s(i,j));
@@ -138,7 +138,7 @@ void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(s_dev,s.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(sf_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
 
-  jbLib::Array<float,2> mat(nspins,4);
+  jblib::Array<float,2> mat(nspins,4);
   // material properties
   for(int i=0; i<nspins; ++i){
     mat(i,0) = mus(i);
@@ -165,13 +165,13 @@ void CUDAHeunLLMSSolver::initialise(int argc, char **argv, double idt)
   CUDA_CALL(cudaMemcpy(h_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(e_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
   
-  jbLib::Array<float,1> tmp(nspins);
+  jblib::Array<float,1> tmp(nspins);
   for(int i=0; i<nspins; ++i) {
   	tmp(i) = omega_corr(i);
   }
   CUDA_CALL(cudaMemcpy(omega_corr_dev,tmp.data(),(size_t)(nspins*sizeof(float)),cudaMemcpyHostToDevice));
   
-  jbLib::Array<double,2> u(nspins,3);
+  jblib::Array<double,2> u(nspins,3);
   for(int i=0; i<nspins; ++i) {
     for(int j=0; j<3; ++j) {
       u(i,j) = 0.0;
@@ -209,7 +209,7 @@ void CUDAHeunLLMSSolver::run()
     }
   }
   
-  jbLib::Array<float,2> tmp(nspins,3);
+  jblib::Array<float,2> tmp(nspins,3);
 
 
   // calculate interaction fields (and zero field array)

@@ -4,7 +4,7 @@
 #include <map>
 #include <vector>
 #include <libconfig.h++>
-#include <containers/Array.h>
+#include <containers/array.h>
 
 class Lattice {
   public:
@@ -55,7 +55,7 @@ class Lattice {
     void outputCoarseMagnetisationMap(std::ofstream &outfile);
   private:
     void readExchange();
-    void calculateAtomPos(const jbLib::Array<int,1> &unitCellTypes, const jbLib::Array<double,2> &unitCellPositions, jbLib::Array<int,4> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms);
+    void calculateAtomPos(const jblib::Array<int,1> &unitCellTypes, const jblib::Array<double,2> &unitCellPositions, jblib::Array<int,4> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms);
     void mapPosToInt();
     void readLattice(const libconfig::Setting &cfgLattice, std::vector<int> &dim, bool pbc[3], const double unitcel[3][3]);
 
@@ -67,15 +67,15 @@ class Lattice {
     std::vector<int> type_count;
     std::vector<std::string> atomNames;
     std::map<std::string,int> atomTypeMap;
-    jbLib::Array<int,2>     spin_int_map;
-    jbLib::Array<double,2>     local_atom_pos;
+    jblib::Array<int,2>     spin_int_map;
+    jblib::Array<double,2>     local_atom_pos;
     std::vector<int> unitcell_kpoints;
     float latticeParameter;
     std::vector<bool> boundaries;
     std::vector<int> coarseDim;
-    jbLib::Array<int,2> spinToCoarseMap;
-    jbLib::Array<int,4> coarseMagnetisationTypeCount;
-    jbLib::Array<double,5> coarseMagnetisation;
+    jblib::Array<int,2> spinToCoarseMap;
+    jblib::Array<int,4> coarseMagnetisationTypeCount;
+    jblib::Array<double,5> coarseMagnetisation;
 };
 
 #endif // __LATTICE_H__
