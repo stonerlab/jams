@@ -43,7 +43,7 @@ namespace jblib{
 }
 
 //#include "Sparsematrix3D.h"
-#include "Sparsematrix4D.h"
+#include "sparsematrix4d.h"
 
 #endif
 
