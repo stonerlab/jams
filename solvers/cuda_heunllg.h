@@ -10,28 +10,29 @@
 #include <cusparse.h>
 
 #include <containers/array.h>
+#include <containers/cuda_array.h>
 
 class CUDAHeunLLGSolver : public Solver {
   public:
     CUDAHeunLLGSolver()
       : gen(0),
-        w_dev(0),
         handle(0),
         descra(0),
         J1ij_s_dev(),
         J1ij_t_dev(),
         J2ij_s_dev(),
         J2ij_t_dev(),
-        s_dev(0),
-        sf_dev(0),
-        s_new_dev(0),
-        r_dev(0),
-        r_max_dev(0),
-        pbc_dev(0),
-        h_dev(0),
-        h_dipole_dev(0),
-        e_dev(0),
-        mat_dev(0),
+        w_dev(),
+        r_dev(),
+        e_dev(),
+        h_dev(),
+        mat_dev(),
+        h_dipole_dev(),
+        r_max_dev(),
+        pbc_dev(),
+        sf_dev(),
+        s_dev(),
+        s_new_dev(),
         eng(0,0),
         sigma(0),
         nblocks(0),
@@ -45,7 +46,6 @@ class CUDAHeunLLGSolver : public Solver {
 
   private:
     curandGenerator_t gen; // device random generator
-    float * w_dev;
     cusparseHandle_t handle;
     cusparseMatDescr_t descra;
     devDIA  J1ij_s_dev;
@@ -53,16 +53,17 @@ class CUDAHeunLLGSolver : public Solver {
     devDIA  J2ij_s_dev;
     devDIA  J2ij_t_dev;
     devCSR  J4ijkl_s_dev;
-    double * s_dev;
-    float  * sf_dev;
-    double * s_new_dev;
-    float * r_dev;
-    float * r_max_dev;
-    bool * pbc_dev;
-    float * h_dev;
-    float * h_dipole_dev;
-    float * e_dev;
-    float * mat_dev;
+    jblib::CudaArray<float,1>  w_dev;
+    jblib::CudaArray<float,1>  r_dev;
+    jblib::CudaArray<float,1>  e_dev;
+    jblib::CudaArray<float,1>  h_dev;
+    jblib::CudaArray<float,1>  mat_dev;
+    jblib::CudaArray<float,1>  h_dipole_dev;
+    jblib::CudaArray<float,1>  r_max_dev;
+    jblib::CudaArray<bool,1>   pbc_dev;
+    jblib::CudaArray<float,1>  sf_dev;
+    jblib::CudaArray<double,1> s_dev;
+    jblib::CudaArray<double,1> s_new_dev;
     jblib::Array<float,2> eng;
     jblib::Array<double,1> sigma;
     int nblocks;
