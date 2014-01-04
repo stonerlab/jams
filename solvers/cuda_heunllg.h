@@ -1,5 +1,5 @@
-#ifndef __CUDAHEUNLLG_H__
-#define __CUDAHEUNLLG_H__
+#ifndef JAMS_SOLVER_CUDA_HEUNLLG_H
+#define JAMS_SOLVER_CUDA_HEUNLLG_H
 
 #ifdef CUDA
 
@@ -72,5 +72,5 @@ class CUDAHeunLLGSolver : public Solver {
 
 #endif
 
-#endif // __CUDAHEUNLLG_H__
+#endif // JAMS_SOLVER_CUDA_HEUNLLG_H
 

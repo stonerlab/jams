@@ -1,5 +1,5 @@
-#ifndef __CUDA_HEUNLLBP_KERNEL__
-#define __CUDA_HEUNLLBP_KERNEL__
+#ifndef JAMS_CUDA_HEUNLLBP_KERNEL_H
+#define JAMS_CUDA_HEUNLLBP_KERNEL_H
 
 __global__ void cuda_heun_llbp_kernelA
 (

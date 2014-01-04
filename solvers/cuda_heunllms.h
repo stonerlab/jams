@@ -1,5 +1,5 @@
-#ifndef __CUDAHEUNLLMS_H__
-#define __CUDAHEUNLLMS_H__
+#ifndef JAMS_SOLVER_CUDA_HEUNLLMS_H
+#define JAMS_SOLVER_CUDA_HEUNLLMS_H
 
 #ifdef CUDA
 

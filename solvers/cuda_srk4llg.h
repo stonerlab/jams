@@ -1,5 +1,5 @@
-#ifndef __CUDASRK4LLG_H__
-#define __CUDASRK4LLG_H__
+#ifndef JAMS_SOLVER_CUDA_SRK4LLG_H
+#define JAMS_SOLVER_CUDA_SRK4LLG_H
 
 #ifdef CUDA
 
@@ -77,5 +77,5 @@ class CUDALLGSolverSRK4 : public Solver {
 
 #endif
 
-#endif // __CUDASRK4LLG_H__
+#endif // JAMS_SOLVER_CUDA_SRK4LLG_H
 

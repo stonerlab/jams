@@ -1,5 +1,5 @@
-#ifndef __SPINWAVES_H__
-#define __SPINWAVES_H__
+#ifndef JAMS_PHSYICS_SPINWAVES_H
+#define JAMS_PHSYICS_SPINWAVES_H
 
 #include <fstream>
 #include <vector>
@@ -91,4 +91,4 @@ class SpinwavesPhysics : public Physics {
 	  std::ofstream TTMFile;
 
 };
-#endif /* __SPINWAVES_H__ */
+#endif /* JAMS_PHSYICS_SPINWAVES_H */

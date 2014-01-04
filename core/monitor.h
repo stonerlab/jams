@@ -1,5 +1,5 @@
-#ifndef __MONITOR_H__
-#define __MONITOR_H__
+#ifndef JAMS_CORE_MONITOR_H
+#define JAMS_CORE_MONITOR_H
 
 #include "solver.h"
 
@@ -26,4 +26,4 @@ class Monitor {
 
 };
 
-#endif // __MONITOR_H__
+#endif // JAMS_CORE_MONITOR_H

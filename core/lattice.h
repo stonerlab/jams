@@ -1,10 +1,9 @@
-#ifndef __LATTICE_H__
-#define __LATTICE_H__
+#ifndef JAMS_CORE_LATTICE_H
+#define JAMS_CORE_LATTICE_H
 
 #include <map>
 #include <vector>
 #include <libconfig.h++>
-#include <containers/array.h>
 
 class Lattice {
   public:

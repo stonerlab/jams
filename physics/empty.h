@@ -1,5 +1,5 @@
-#ifndef __EMPTY_H__
-#define __EMPTY_H__
+#ifndef JAMS_PHYSICS_EMPTY_H
+#define JAMS_PHYSICS_EMPTY_H
 
 #include <libconfig.h++>
 #include "physics.h"
@@ -17,4 +17,4 @@ class EmptyPhysics : public Physics {
     bool initialised;
 };
 
-#endif // __EMPTY_H__
+#endif // JAMS_PHYSICS_EMPTY_H

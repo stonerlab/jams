@@ -1,5 +1,5 @@
-#ifndef __GLOBALS_H__
-#define __GLOBALS_H__
+#ifndef JAMS_CORE_GLOBALS_H
+#define JAMS_CORE_GLOBALS_H
 
 
 #include "error.h"
@@ -71,4 +71,4 @@ namespace globals
 
 #undef GLOBAL
 
-#endif // __GLOBALS_H_
+#endif // JAMS_CORE_GLOBALS_H

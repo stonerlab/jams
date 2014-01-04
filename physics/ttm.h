@@ -1,5 +1,5 @@
-#ifndef __TTM_H__
-#define __TTM_H__
+#ifndef JAMS_PHYSICS_TTM_H
+#define JAMS_PHYSICS_TTM_H
 
 #include <fstream>
 #include <libconfig.h++>
@@ -54,4 +54,4 @@ class TTMPhysics : public Physics {
     bool initialised;
 };
 
-#endif // __TTM_H__
+#endif // JAMS_PHYSICS_TTM_H

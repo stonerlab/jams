@@ -1,5 +1,5 @@
-#ifndef __MATHS_H__
-#define __MATHS_H__
+#ifndef JAMS_CORE_MATHS_H
+#define JAMS_CORE_MATHS_H
 
 #include <algorithm>
 #include "consts.h"
@@ -152,4 +152,4 @@ void matmul(const _Tp a[3][3], const _Tp x[3], _Tp y[3]) {
   }
 }
 
-#endif // __MATHS_H__
+#endif // JAMS_CORE_MATHS_H

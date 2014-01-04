@@ -1,5 +1,5 @@
-#ifndef __JAMS_CUDA_SPARSE_H__
-#define __JAMS_CUDA_SPARSE_H__
+#ifndef JAMS_CUDA_SPARSE_H
+#define JAMS_CUDA_SPARSE_H
 #include "sparsematrix.h"
 #include <containers/sparsematrix.h>
 #include "cuda_sparse_types.h"

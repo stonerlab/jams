@@ -1,5 +1,5 @@
-#ifndef __CUDASEMILLG_H__
-#define __CUDASEMILLG_H__
+#ifndef JAMS_SOLVER_CUDA_SEMILLG_H
+#define JAMS_SOLVER_CUDA_SEMILLG_H
 
 #ifdef CUDA
 
@@ -62,5 +62,5 @@ class CUDASemiLLGSolver : public Solver {
 
 #endif
 
-#endif // __CUDASEMILLG_H__
+#endif // JAMS_SOLVER_CUDA_SEMILLG_H
 

@@ -1,5 +1,5 @@
-#ifndef __FieldCool_H__
-#define __FieldCool_H__
+#ifndef JAMS_PHYSICS_FIELDCOOL_H
+#define JAMS_PHYSICS_FIELDCOOL_H
 
 #include <fstream>
 #include <libconfig.h++>
@@ -41,4 +41,4 @@ class FieldCoolPhysics : public Physics {
     bool initialised;
 };
 
-#endif // __FieldCool_H__
+#endif // JAMS_PHYSICS_FIELDCOOL_H

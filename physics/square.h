@@ -1,5 +1,5 @@
-#ifndef __SQUARE_H__
-#define __SQUARE_H__
+#ifndef JAMS_PHYSICS_SQUARE_H
+#define JAMS_PHYSICS_SQUARE_H
 
 #include <fstream>
 #include <libconfig.h++>
@@ -27,4 +27,4 @@ class SquarePhysics : public Physics {
     std::vector<double> FieldStrength;
 };
 
-#endif // __SQUARE_H__
+#endif // JAMS_PHYSICS_SQUARE_H

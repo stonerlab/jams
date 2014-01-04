@@ -1,4 +1,5 @@
-#pragma once
+#ifndef JAMS_CUDA_FIELDS_H
+#define JAMS_CUDA_FIELDS_H
 
 #include "cuda_sparse_types.h"
 
@@ -17,3 +18,5 @@ void CUDACalculateFields(
         float *        h_dipole_dev,
         const bool     dipole_toggle
 );
+
+#endif  // JAMS_CUDA_FIELDS_H

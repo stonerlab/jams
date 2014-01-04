@@ -1,5 +1,5 @@
-#ifndef __METROPOLISMC_H__
-#define __METROPOLISMC_H__
+#ifndef JAMS_SOLVER_METROPOLISMC_H
+#define JAMS_SOLVER_METROPOLISMC_H
 
 #include "solver.h"
 
@@ -22,4 +22,4 @@ class MetropolisMCSolver : public Solver {
     void oneSpinEnergy(const int &i, double total[3]);
 };
 
-#endif // __METROPOLISMC_H__
+#endif // JAMS_SOLVER_METROPOLISMC_H

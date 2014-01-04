@@ -1,7 +1,7 @@
 class Random;
 
-#ifndef __RAND_H__
-#define __RAND_H__
+#ifndef JAMS_CORE_RAND_H
+#define JAMS_CORE_RAND_H
 
 #include <limits>
 #include <stdint.h>
@@ -75,4 +75,4 @@ class Random
     
 };
 
-#endif // __RAND_H__
+#endif // JAMS_CORE_RAND_H

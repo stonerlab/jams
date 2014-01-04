@@ -1,5 +1,5 @@
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef JAMS_CORE_UTILS_H
+#define JAMS_CORE_UTILS_H
 
 #include <string>
 #include <sstream>
@@ -39,4 +39,4 @@ std::string zero_pad_num(int num)
     return result;
 }
 
-#endif // __UTILS_H__
+#endif // JAMS_CORE_UTILS_H

@@ -1,5 +1,5 @@
-#ifndef __ENERGY_H__
-#define __ENERGY_H__
+#ifndef JAMS_MONITOR_ENERGY_H
+#define JAMS_MONITOR_ENERGY_H
 
 #include "monitor.h"
 #include <fstream>
@@ -19,5 +19,5 @@ class EnergyMonitor : public Monitor {
     std::ofstream outfile;
 };
 
-#endif // __ENERGY_H__
+#endif // JAMS_MONITOR_ENERGY_H
 

@@ -1,5 +1,5 @@
-#ifndef __DYNAMICSF_H__
-#define __DYNAMICSF_H__
+#ifndef JAMS_PHYSICS_DYNAMICSF_H
+#define JAMS_PHYSICS_DYNAMICSF_H
 
 #include "physics.h"
 
@@ -68,4 +68,4 @@ public:
 
 	};
 
-#endif /* __DYNAMICSF_H__ */
+#endif /* JAMS_PHYSICS_DYNAMICSF_H */

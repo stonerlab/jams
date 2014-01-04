@@ -1,5 +1,5 @@
-#ifndef __FIELDS_H__
-#define __FIELDS_H__
+#ifndef JAMS_CORE_FIELDS_H
+#define JAMS_CORE_FIELDS_H
 
 #include <containers/array.h>
 
@@ -36,4 +36,4 @@ void calc_tensor_bilinear(const float *val, const int *indx,
 void calc_tensor_bilinear(const double *val, const int *indx, 
   const int *ptrb, const int *ptre, jblib::Array<double,2> &y);
 #endif
-#endif // __FIELDS_H__
+#endif // JAMS_CORE_FIELDS_H

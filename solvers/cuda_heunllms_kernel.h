@@ -1,5 +1,5 @@
-#ifndef __CUDA_HEUNLLMS_KERNEL__
-#define __CUDA_HEUNLLMS_KERNEL__
+#ifndef JAMS_SOLVER_CUDA_HEUNLLMS_KERNEL_H
+#define JAMS_SOLVER_CUDA_HEUNLLMS_KERNEL_H
 
 __global__ void cuda_heun_llms_kernelA
 (

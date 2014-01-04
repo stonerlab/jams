@@ -1,5 +1,5 @@
-#ifndef __SPARSEMATRIX_H__
-#define __SPARSEMATRIX_H__
+#ifndef JAMS_CORE_SPARSEMATRIX_H
+#define JAMS_CORE_SPARSEMATRIX_H
 
 #include <vector>
 #include <cassert>
@@ -447,4 +447,4 @@ void jams_dcsrmv(const char trans[1], const int m, const int k,
     const int *indx, const int *ptrb, const int *ptre, double *x, 
     const double beta, double * y);
 
-#endif // __SPARSEMATRIX_H__
+#endif // JAMS_CORE_SPARSEMATRIX_H

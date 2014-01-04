@@ -1,5 +1,5 @@
-#ifndef __SPARSEMATRIX4D_H__
-#define __SPARSEMATRIX4D_H__
+#ifndef JAMS_CORE_SPARSEMATRIX4D_H
+#define JAMS_CORE_SPARSEMATRIX4D_H
 
 #include <vector>
 #include <cassert>

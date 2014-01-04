@@ -1,5 +1,5 @@
-#ifndef __MFPT_H__
-#define __MFPT_H__
+#ifndef JAMS_PHYSICS_MFPT_H
+#define JAMS_PHYSICS_MFPT_H
 
 #include <fstream>
 #include <libconfig.h++>
@@ -23,4 +23,4 @@ class MFPTPhysics : public Physics {
     std::ofstream MFPTFile;
 };
 
-#endif // __MFPT_H__
+#endif // JAMS_PHYSICS_MFPT_H

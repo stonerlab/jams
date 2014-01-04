@@ -1,5 +1,5 @@
-#ifndef __CUDA_SRK4LLG_KERNEL__
-#define __CUDA_SRK4LLG_KERNEL__
+#ifndef JAMS_SOLVER_CUDA_SRK4LLG_KERNEL_H
+#define JAMS_SOLVER_CUDA_SRK4LLG_KERNEL_H
 
 // IDEA: the double precision array s_dev could be allocated with a pitch,
 // because we don't use if for field calculation anyway. Then the float array

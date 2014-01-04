@@ -1,5 +1,5 @@
-#ifndef __FMR_H__
-#define __FMR_H__
+#ifndef JAMS_PHYSICS_FMR_H
+#define JAMS_PHYSICS_FMR_H
 
 #include <fstream>
 #include <libconfig.h++>
@@ -31,4 +31,4 @@ class FMRPhysics : public Physics {
     jblib::Array<double,1> PSDIntegral;
 };
 
-#endif // __FMR_H__
+#endif // JAMS_PHYSICS_FMR_H

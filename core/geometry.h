@@ -1,5 +1,5 @@
-#ifndef __GEOMETRY_H__
-#define __GEOMETRY_H__
+#ifndef JAMS_CORE_GEOMETRY_H
+#define JAMS_CORE_GEOMETRY_H
 
 #include <vector>
 #include <cstring>
@@ -38,4 +38,4 @@ class Geometry {
 
 };
 
-#endif // __GEOMETRY_H__
+#endif // JAMS_CORE_GEOMETRY_H

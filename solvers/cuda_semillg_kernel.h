@@ -1,5 +1,5 @@
-#ifndef __CUDA_SEMILLG_KERNEL__
-#define __CUDA_SEMILLG_KERNEL__
+#ifndef JAMS_SOLVER_CUDA_SEMILLG_KERNEL_H
+#define JAMS_SOLVER_CUDA_SEMILLG_KERNEL_H
 
 __global__ void cuda_semi_llg_kernelA
 (

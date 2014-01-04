@@ -1,5 +1,5 @@
-#ifndef __BOLTZMANN_H__
-#define __BOLTZMANN_H__
+#ifndef JAMS_MONITOR_BOLTZMANN_H
+#define JAMS_MONITOR_BOLTZMANN_H
 
 #include "monitor.h"
 #include <fstream>
@@ -23,4 +23,4 @@ class BoltzmannMonitor : public Monitor{
     std::ofstream outfile;
 };
 
-#endif // __BOLTZMANN_H__
+#endif // JAMS_MONITOR_BOLTZMANN_H

@@ -1,5 +1,5 @@
-#ifndef __SOLVER_H__
-#define __SOLVER_H__
+#ifndef JAMS_CORE_SOLVER_H
+#define JAMS_CORE_SOLVER_H
 
 
 #include "globals.h"
@@ -46,4 +46,4 @@ class Solver
 
 };
 
-#endif // __SOLVER_H__
+#endif // JAMS_CORE_SOLVER_H

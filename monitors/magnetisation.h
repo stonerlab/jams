@@ -1,5 +1,5 @@
-#ifndef __MAGNETISATION_H__
-#define __MAGNETISATION_H__
+#ifndef JAMS_MONITOR_MAGNETISATION_H
+#define JAMS_MONITOR_MAGNETISATION_H
 
 #include "monitor.h"
 #include "runningstat.h"
@@ -37,5 +37,5 @@ class MagnetisationMonitor : public Monitor {
     double      old_avg;
 };
 
-#endif // __MAGNETISATION_H__
+#endif // JAMS_MONITOR_MAGNETISATION_H
 

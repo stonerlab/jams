@@ -1,5 +1,5 @@
-#ifndef __PHYSICS_H__
-#define __PHYSICS_H__
+#ifndef JAMS_CORE_PHYSICS_H
+#define JAMS_CORE_PHYSICS_H
 
 #include <libconfig.h++>
 
@@ -25,4 +25,4 @@ class Physics
 
 };
 
-#endif // __PHYSICS_H__
+#endif // JAMS_CORE_PHYSICS_H

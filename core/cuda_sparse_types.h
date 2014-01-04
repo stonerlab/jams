@@ -1,5 +1,7 @@
-#ifndef __JAMS_CUDA_SPARSE_TYPES_H__
-#define __JAMS_CUDA_SPARSE_TYPES_H__
+#ifndef JAMS_CUDA_SPARSE_TYPES_H
+#define JAMS_CUDA_SPARSE_TYPES_H
+
+
 typedef struct devDIA {
   int     *row;
   int     *col;

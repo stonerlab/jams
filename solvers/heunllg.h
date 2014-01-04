@@ -1,5 +1,5 @@
-#ifndef __HEUNLLG_H__
-#define __HEUNLLG_H__
+#ifndef JAMS_SOLVER_HEUNLLG_H
+#define JAMS_SOLVER_HEUNLLG_H
 
 #include "solver.h"
 #include <containers/array.h>
@@ -19,4 +19,4 @@ class HeunLLGSolver : public Solver {
     jblib::Array<double,2> eng;
 };
 
-#endif // __HEUNLLG_H__
+#endif // JAMS_SOLVER_HEUNLLG_H

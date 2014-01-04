@@ -1,7 +1,7 @@
 class Output;
 
-#ifndef __OUTPUT_H__
-#define __OUTPUT_H__
+#ifndef JAMS_CORE_OUTPUT_H
+#define JAMS_CORE_OUTPUT_H
 
 #include <iostream>
 #include <fstream>
@@ -39,4 +39,4 @@ class Output {
 
 };
 
-#endif // __OUTPUT_H__
+#endif // JAMS_CORE_OUTPUT_H

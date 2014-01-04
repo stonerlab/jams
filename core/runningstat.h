@@ -1,3 +1,5 @@
+#ifndef JAMS_CORE_RUNNINGSTAT_H
+#define JAMS_CORE_RUNNINGSTAT_H
 // Based on class from http://www.johndcook.com/standard_deviation.html
 class RunningStat{
     public:
@@ -34,3 +36,5 @@ class RunningStat{
         unsigned long m_n;
         double m_oldM, m_newM, m_oldS, m_newS;
 };
+
+#endif

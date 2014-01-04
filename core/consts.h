@@ -1,5 +1,5 @@
-#ifndef __CONSTS_H__
-#define __CONSTS_H__
+#ifndef JAMS_CORE_CONSTS_H
+#define JAMS_CORE_CONSTS_H
 
 #ifdef __GNUC__
 #define RESTRICT __restrict__
@@ -14,4 +14,4 @@ const double boltzmann_si = 1.3806504e-23;
 const double vacuum_permeadbility = 4*pi*1E-7;
 const double nanometer = 1E-9;
 
-#endif // __CONSTS_H__
+#endif // JAMS_CORE_CONSTS_H
