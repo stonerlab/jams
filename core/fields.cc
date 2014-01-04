@@ -1,6 +1,6 @@
-#include "fields.h"
-#include "globals.h"
-#include "sparsematrix.h"
+#include "core/fields.h"
+#include "core/globals.h"
+#include "core/sparsematrix.h"
 
 #ifdef MKL
 #include <mkl_spblas.h>

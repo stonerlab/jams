@@ -1,10 +1,11 @@
-#include <cmath>
-#include <iomanip>
+#include "physics/fieldcool.h"
+
 #include <libconfig.h++>
 
-#include "globals.h"
+#include <cmath>
+#include <iomanip>
 
-#include "fieldcool.h"
+#include "core/globals.h"
 
 void FieldCoolPhysics::init(libconfig::Setting &phys)
 {

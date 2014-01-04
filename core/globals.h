@@ -1,16 +1,17 @@
 #ifndef JAMS_CORE_GLOBALS_H
 #define JAMS_CORE_GLOBALS_H
 
+#include <string>
 
-#include "error.h"
-#include "output.h"
-#include "rand.h"
-#include "lattice.h"
+#include "core/error.h"
+#include "core/lattice.h"
+#include "core/output.h"
+#include "core/rand.h"
+#include "core/sparsematrix.h"
+#include "core/sparsematrix4d.h"
 
-#include <containers/sparsematrix.h>
-#include <containers/array.h>
-
-//#include <libconfig.h++>
+#include "jblib/containers/array.h"
+#include "jblib/containers/sparsematrix.h"
 
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
@@ -27,9 +28,6 @@ GLOBAL Output output;
 GLOBAL Random rng;
 
 GLOBAL std::string seedname;
-
-#include "sparsematrix.h"
-#include "sparsematrix4d.h"
 
 namespace globals
 {

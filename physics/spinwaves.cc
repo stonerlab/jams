@@ -1,13 +1,17 @@
+#include "physics/spinwaves.h"
+
+#include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <fstream>
+#include <map>
+#include <string>
 
-#include "maths.h"
-#include "globals.h"
-#include "spinwaves.h"
+#include "core/globals.h"
+#include "core/maths.h"
 
-#include <containers/array.h>
+#include "jblib/containers/array.h"
 
 void SpinwavesPhysics::init(libconfig::Setting &phys)
 {

@@ -1,4 +1,4 @@
-#include "globals.h"
+#include "core/globals.h"
 
 void jams_dcsrmv(const char trans[1], const int m, const int n, 
     const double alpha, const char descra[6], const double *val, 

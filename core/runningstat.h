@@ -1,5 +1,8 @@
 #ifndef JAMS_CORE_RUNNINGSTAT_H
 #define JAMS_CORE_RUNNINGSTAT_H
+
+#include <cmath>
+
 // Based on class from http://www.johndcook.com/standard_deviation.html
 class RunningStat{
     public:

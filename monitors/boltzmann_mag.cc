@@ -1,6 +1,7 @@
-#include "globals.h"
-#include "boltzmann_mag.h"
-#include "maths.h"
+#include "monitors/boltzmann_mag.h"
+
+#include "core/globals.h"
+#include "core/maths.h"
 
 void BoltzmannMagMonitor::initialise() {
   output.write("Initialising Boltzmann Mag monitor\n");

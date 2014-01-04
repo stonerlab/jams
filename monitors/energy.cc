@@ -1,8 +1,10 @@
-#include "globals.h"
-#include "energy.h"
-#include "lattice.h"
-
 #include <cmath>
+#include <string>
+
+#include "core/globals.h"
+#include "core/lattice.h"
+
+#include "monitors/energy.h"
 
 void EnergyMonitor::initialise() {
   using namespace globals;

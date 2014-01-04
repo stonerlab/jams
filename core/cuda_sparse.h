@@ -1,8 +1,10 @@
 #ifndef JAMS_CUDA_SPARSE_H
 #define JAMS_CUDA_SPARSE_H
-#include "sparsematrix.h"
-#include <containers/sparsematrix.h>
-#include "cuda_sparse_types.h"
+
+#include "core/cuda_sparse_types.h"
+#include "core/sparsematrix.h"
+
+#include "jblib/containers/sparsematrix.h"
 
 // block size for GPU, 64 appears to be most efficient for current kernel
 #define BLOCKSIZE 64

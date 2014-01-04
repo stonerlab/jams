@@ -1,14 +1,17 @@
 #ifndef JAMS_CORE_SPARSEMATRIX_H
 #define JAMS_CORE_SPARSEMATRIX_H
 
-#include <vector>
-#include <cassert>
-#include <map>
 #include <stdint.h>
-#include <cmath>
-#include "error.h"
+
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <functional>
+#include <map>
+#include <utility>
+#include <vector>
+
+#include "core/error.h"
 
 #define RESTRICT __restrict__
 

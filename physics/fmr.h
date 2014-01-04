@@ -1,12 +1,14 @@
 #ifndef JAMS_PHYSICS_FMR_H
 #define JAMS_PHYSICS_FMR_H
 
-#include <fstream>
 #include <libconfig.h++>
 
-#include "physics.h"
+#include <fstream>
+#include <vector>
 
-#include <containers/array.h>
+#include "core/physics.h"
+
+#include "jblib/containers/array.h"
 
 class FMRPhysics : public Physics {
   public:

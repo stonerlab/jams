@@ -1,8 +1,8 @@
-#include "globals.h"
-#include "consts.h"
-#include "fields.h"
+#include "solvers/metropolismc.h"
 
-#include "metropolismc.h"
+#include "core/consts.h"
+#include "core/fields.h"
+#include "core/globals.h"
 
 void MetropolisMCSolver::initialise(int argc, char **argv, double idt)
 {

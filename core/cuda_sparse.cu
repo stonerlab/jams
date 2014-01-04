@@ -1,10 +1,16 @@
+#include "core/cuda_sparse.h"
+
 #include <thrust/extrema.h>
-#include <containers/sparsematrix.h>
-#include "cuda_sparse_types.h"
-#include "sparsematrix.h"
-#include "sparsematrix4d.h"
-#include <cstdio>
+
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
+
+#include "core/cuda_sparse_types.h"
+#include "core/sparsematrix.h"
+#include "core/sparsematrix4d.h"
+
+#include "jblib/containers/sparsematrix.h"
 
 #define DIA_BLOCK_SIZE 256
 #define CSR_4D_BLOCK_SIZE 64

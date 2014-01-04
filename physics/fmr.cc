@@ -1,9 +1,12 @@
-#include <cmath>
+#include "physics/fmr.h"
+
 #include <libconfig.h++>
 
-#include "globals.h"
+#include <cmath>
+#include <string>
 
-#include "fmr.h"
+#include "core/globals.h"
+
 
 void FMRPhysics::init(libconfig::Setting &phys)
 {

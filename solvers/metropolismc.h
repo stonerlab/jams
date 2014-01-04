@@ -1,9 +1,9 @@
 #ifndef JAMS_SOLVER_METROPOLISMC_H
 #define JAMS_SOLVER_METROPOLISMC_H
 
-#include "solver.h"
+#include "core/solver.h"
 
-#include <containers/array.h>
+#include "jblib/containers/array.h"
 
 class MetropolisMCSolver : public Solver {
   public:

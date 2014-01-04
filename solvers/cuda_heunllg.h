@@ -3,14 +3,14 @@
 
 #ifdef CUDA
 
-#include "solver.h"
-#include "cuda_sparse_types.h"
-
 #include <curand.h>
 #include <cusparse.h>
 
-#include <containers/array.h>
-#include <containers/cuda_array.h>
+#include "core/cuda_sparse_types.h"
+#include "core/solver.h"
+
+#include "jblib/containers/array.h"
+#include "jblib/containers/cuda_array.h"
 
 class CUDAHeunLLGSolver : public Solver {
   public:

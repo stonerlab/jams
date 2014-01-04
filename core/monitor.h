@@ -1,8 +1,7 @@
 #ifndef JAMS_CORE_MONITOR_H
 #define JAMS_CORE_MONITOR_H
 
-#include "solver.h"
-
+#include "core/solver.h"
 
 enum ConvergenceType {convNone, convMag, convPhi, convSinPhi};
 

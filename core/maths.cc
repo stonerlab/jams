@@ -1,4 +1,4 @@
-#include "maths.h"
+#include "core/maths.h"
 
 void matrix_invert(const double in[3][3], double out[3][3]) {
   double det = in[0][0]*(in[1][1]*in[2][2]-in[1][2]*in[2][1])

@@ -3,8 +3,9 @@ class Random;
 #ifndef JAMS_CORE_RAND_H
 #define JAMS_CORE_RAND_H
 
-#include <limits>
 #include <stdint.h>
+
+#include <limits>
 #include <vector>
 
 class Random 

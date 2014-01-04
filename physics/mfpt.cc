@@ -1,9 +1,11 @@
-#include <cmath>
+#include "physics/mfpt.h"
+
 #include <libconfig.h++>
 
-#include "globals.h"
+#include <cmath>
+#include <string>
 
-#include "mfpt.h"
+#include "core/globals.h"
 
 void MFPTPhysics::init(libconfig::Setting &phys)
 {

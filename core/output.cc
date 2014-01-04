@@ -1,7 +1,8 @@
+#include "core/output.h"
+
 #include <cstdarg>
 #include <cstdio>
-
-#include "output.h"
+#include <string>
 
 void Output::open(const char *fname, ...)
 {

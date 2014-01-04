@@ -1,9 +1,10 @@
 #ifndef JAMS_MONITOR_BOLTZMANN_H
 #define JAMS_MONITOR_BOLTZMANN_H
 
-#include "monitor.h"
 #include <fstream>
-#include <containers/array.h>
+
+#include "core/monitor.h"
+#include "jblib/containers/array.h"
 
 class BoltzmannMonitor : public Monitor{
   public:

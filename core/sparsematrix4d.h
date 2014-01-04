@@ -1,16 +1,13 @@
 #ifndef JAMS_CORE_SPARSEMATRIX4D_H
 #define JAMS_CORE_SPARSEMATRIX4D_H
 
+#include <utility>
 #include <vector>
-#include <cassert>
-#include <map>
-#include <stdint.h>
-#include <cmath>
-#include "error.h"
-#include <algorithm>
-#include <functional>
-#include <iostream>
-#include <containers/array.h>
+
+#include "core/error.h"
+#include "core/sparsematrix.h"
+
+#include "jblib/containers/array.h"
 
 #define RESTRICT __restrict__
 

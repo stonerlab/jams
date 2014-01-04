@@ -2,7 +2,7 @@
 #define JAMS_CORE_SOLVER_H
 
 
-#include "globals.h"
+#include "core/globals.h"
 
 enum SolverType{ METROPOLISMC, HEUNLLG, CUDAHEUNLLMS, CUDAHEUNLLBP, SEMILLG, CUDASEMILLG, CUDAHEUNLLG, CUDASRK4LLG, FFTNOISE };
 

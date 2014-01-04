@@ -1,9 +1,10 @@
 #ifndef JAMS_CORE_GEOMETRY_H
 #define JAMS_CORE_GEOMETRY_H
 
-#include <vector>
 #include <cstring>
 #include <map>
+#include <string>
+#include <vector>
 
 // struct for convenience
 template <typename T>

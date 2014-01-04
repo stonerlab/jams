@@ -1,19 +1,23 @@
-#include "cuda_sparse.h"
-#include "cuda_sparse_types.h"
-#include "cuda_heunllbp_kernel.h"
-#include "globals.h"
-#include "consts.h"
+#ifdef CUDA
 
-#include "cuda_heunllbp.h"
+#include "solvers/cuda_heunllbp.h"
 
-#include <curand.h>
-#include <cuda.h>
 #include <cublas.h>
+#include <cuda.h>
+#include <curand.h>
 #include <cusparse.h>
 
+#include <algorithm>
 #include <cmath>
 
-#include <containers/array.h>
+#include "solvers/cuda_heunllbp_kernel.h"
+
+#include "core/consts.h"
+#include "core/cuda_sparse.h"
+#include "core/cuda_sparse_types.h"
+#include "core/globals.h"
+
+#include "jblib/containers/array.h"
 
 void CUDAHeunLLBPSolver::syncOutput()
 {
@@ -434,3 +438,4 @@ CUDAHeunLLBPSolver::~CUDAHeunLLBPSolver()
   CUDA_CALL(cudaFree(mat_dev));
 }
 
+#endif

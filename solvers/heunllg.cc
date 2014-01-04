@@ -1,9 +1,11 @@
-#include "globals.h"
-#include "consts.h"
-#include "fields.h"
+#include "solvers/heunllg.h"
 
-#include "heunllg.h"
 #include <cmath>
+
+#include "core/consts.h"
+#include "core/fields.h"
+#include "core/globals.h"
+
 //#include "cblas.h"
 
 #ifdef MKL

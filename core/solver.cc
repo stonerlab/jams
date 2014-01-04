@@ -1,12 +1,14 @@
-#include "solver.h"
-#include "heunllg.h"
-#include "cuda_heunllg.h"
-#include "cuda_heunllms.h"
-#include "cuda_heunllbp.h"
-#include "cuda_srk4llg.h"
-#include "metropolismc.h"
-#include "globals.h"
-#include "consts.h"
+#include "core/solver.h"
+
+#include "core/consts.h"
+#include "core/globals.h"
+
+#include "solvers/cuda_heunllbp.h"
+#include "solvers/cuda_heunllg.h"
+#include "solvers/cuda_heunllms.h"
+#include "solvers/cuda_srk4llg.h"
+#include "solvers/heunllg.h"
+#include "solvers/metropolismc.h"
 
 void Solver::initialise(int argc, char **argv, double idt) {
 

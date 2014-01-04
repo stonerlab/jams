@@ -1,15 +1,18 @@
-#include "globals.h"
-#include "physics.h"
-#include "fmr.h"
-#include "mfpt.h"
-#include "ttm.h"
-#include "spinwaves.h"
-#include "square.h"
-#include "dynamicsf.h"
-#include "fieldcool.h"
-#include "empty.h"
+#include "core/physics.h"
 
 #include <libconfig.h++>
+
+#include "core/globals.h"
+
+#include "physics/dynamicsf.h"
+#include "physics/empty.h"
+#include "physics/fieldcool.h"
+#include "physics/fmr.h"
+#include "physics/mfpt.h"
+#include "physics/spinwaves.h"
+#include "physics/square.h"
+#include "physics/ttm.h"
+
 
 void Physics::init(libconfig::Setting &phys) {
   if(initialised == true) {

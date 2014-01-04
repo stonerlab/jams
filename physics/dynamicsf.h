@@ -1,11 +1,13 @@
 #ifndef JAMS_PHYSICS_DYNAMICSF_H
 #define JAMS_PHYSICS_DYNAMICSF_H
 
-#include "physics.h"
+#include <fftw3.h>
 
 #include <vector>
-#include <fftw3.h>
-#include <containers/array.h>
+
+#include "core/physics.h"
+
+#include "jblib/containers/array.h"
 
 enum FFTWindowType {GAUSSIAN,HAMMING};
 

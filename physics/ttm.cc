@@ -1,12 +1,14 @@
-#include <cmath>
-#include <iomanip>
+#include "physics/ttm.h"
+
 #include <libconfig.h++>
 
-#include <math/functions.h>
+#include <cmath>
+#include <iomanip>
+#include <string>
 
-#include "globals.h"
+#include "core/globals.h"
 
-#include "ttm.h"
+#include "jblib/math/functions.h"
 
 void TTMPhysics::init(libconfig::Setting &phys)
 {

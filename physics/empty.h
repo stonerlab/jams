@@ -2,7 +2,8 @@
 #define JAMS_PHYSICS_EMPTY_H
 
 #include <libconfig.h++>
-#include "physics.h"
+
+#include "core/physics.h"
 
 class EmptyPhysics : public Physics {
   public:

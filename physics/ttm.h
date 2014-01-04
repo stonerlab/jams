@@ -1,11 +1,14 @@
 #ifndef JAMS_PHYSICS_TTM_H
 #define JAMS_PHYSICS_TTM_H
 
-#include <fstream>
 #include <libconfig.h++>
-#include <containers/array.h>
 
-#include "physics.h"
+#include <fstream>
+#include <vector>
+
+#include "core/physics.h"
+
+#include "jblib/containers/array.h"
 
 class TTMPhysics : public Physics {
   public:

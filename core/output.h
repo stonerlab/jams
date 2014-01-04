@@ -3,8 +3,9 @@ class Output;
 #ifndef JAMS_CORE_OUTPUT_H
 #define JAMS_CORE_OUTPUT_H
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <string>
 
 class Output {
 

@@ -2,9 +2,10 @@
 #define JAMS_CORE_MATHS_H
 
 #include <algorithm>
-#include "consts.h"
 #include <cmath>
 #include <cstdlib>
+
+#include "core/consts.h"
 
 inline int nint(const double &x) {
   return static_cast<int>(x+0.5);

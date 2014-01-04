@@ -1,10 +1,11 @@
-#include "globals.h"
-#include "cuda_sparse.h"
-#include "cuda_sparse_types.h"
+#include "core/cuda_fields.h"
 
 #include <cublas.h>
 
-#include "cuda_fields.h"
+#include "core/cuda_sparse.h"
+#include "core/cuda_sparse_types.h"
+#include "core/globals.h"
+
 
 void CUDACalculateFields(
         const devDIA & J1ij_s_dev,

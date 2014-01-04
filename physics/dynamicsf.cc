@@ -1,12 +1,16 @@
-#include "globals.h"
-#include "dynamicsf.h"
+#include "physics/dynamicsf.h"
 
 #include <fftw3.h>
-#include <string>
-#include <sstream>
+
+#include <algorithm>
 #include <map>
-#include "maths.h"
-#include <containers/array.h>
+#include <sstream>
+#include <string>
+
+#include "core/globals.h"
+#include "core/maths.h"
+
+#include "jblib/containers/array.h"
 
 void DynamicSFPhysics::init(libconfig::Setting &phys)
 {

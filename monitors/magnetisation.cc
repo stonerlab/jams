@@ -1,8 +1,10 @@
-#include "globals.h"
-#include "magnetisation.h"
-#include "lattice.h"
-
 #include <cmath>
+#include <string>
+
+#include "core/globals.h"
+#include "core/lattice.h"
+
+#include "monitors/magnetisation.h"
 
 void MagnetisationMonitor::initialise() {
   using namespace globals;

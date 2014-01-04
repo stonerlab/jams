@@ -1,8 +1,9 @@
 #ifndef JAMS_SOLVER_HEUNLLG_H
 #define JAMS_SOLVER_HEUNLLG_H
 
-#include "solver.h"
-#include <containers/array.h>
+#include "core/solver.h"
+
+#include "jblib/containers/array.h"
 
 class HeunLLGSolver : public Solver {
   public:

@@ -1,14 +1,13 @@
 #ifndef JAMS_CORE_UTILS_H
 #define JAMS_CORE_UTILS_H
 
-#include <string>
-#include <sstream>
-#include <iomanip>
-#include <locale>
-#include <functional>
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <iomanip>
+#include <locale>
+#include <sstream>
+#include <string>
 
 inline std::string &ltrim(std::string &s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(),std::not1(std::ptr_fun<int, int>(std::isspace))));

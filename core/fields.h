@@ -1,7 +1,7 @@
 #ifndef JAMS_CORE_FIELDS_H
 #define JAMS_CORE_FIELDS_H
 
-#include <containers/array.h>
+#include "jblib/containers/array.h"
 
 void calculate_fields();
 

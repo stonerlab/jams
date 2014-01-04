@@ -1,18 +1,23 @@
-#include "maths.h"
-#include "consts.h"
-#include "globals.h"
-#include "lattice.h"
-#include <libconfig.h++>
-#include <map>
-#include <cmath>
-#include "sparsematrix.h"
-#include <stdint.h>
-#include <sstream>
-#include <iostream>
-#include <fstream>
-#include <string>
+#include "core/lattice.h"
 
-#include <containers/array.h>
+#include <libconfig.h++>
+#include <stdint.h>
+
+#include <algorithm>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <utility>
+
+#include "core/consts.h"
+#include "core/globals.h"
+#include "core/maths.h"
+#include "core/sparsematrix.h"
+
+#include "jblib/containers/array.h"
 
 ///
 /// @brief  Read basis vectors from config file.

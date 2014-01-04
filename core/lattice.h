@@ -1,9 +1,13 @@
 #ifndef JAMS_CORE_LATTICE_H
 #define JAMS_CORE_LATTICE_H
 
-#include <map>
-#include <vector>
 #include <libconfig.h++>
+
+#include <map>
+#include <string>
+#include <vector>
+
+#include "jblib/containers/array.h"
 
 class Lattice {
   public:
@@ -77,4 +81,4 @@ class Lattice {
     jblib::Array<double,5> coarseMagnetisation;
 };
 
-#endif // __LATTICE_H__
+#endif // JAMS_CORE_LATTICE_H

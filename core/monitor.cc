@@ -1,6 +1,7 @@
-#include "monitor.h"
-#include "globals.h"
-#include "solver.h"
+#include "core/monitor.h"
+
+#include "core/globals.h"
+#include "core/solver.h"
 
 void Monitor::initialise() {
   if(initialised == true) {

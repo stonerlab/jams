@@ -3,21 +3,22 @@
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 
-#include <string>
 #include <cstdarg>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <string>
 
-#include "solver.h"
-#include "physics.h"
-#include "globals.h"
-#include "utils.h"
-#include "lattice.h"
-#include "monitor.h"
-#include "boltzmann.h"
-#include "energy.h"
-#include "boltzmann_mag.h"
-#include "magnetisation.h"
+#include "core/globals.h"
+#include "core/lattice.h"
+#include "core/monitor.h"
+#include "core/physics.h"
+#include "core/solver.h"
+#include "core/utils.h"
+
+#include "monitors/boltzmann.h"
+#include "monitors/boltzmann_mag.h"
+#include "monitors/energy.h"
+#include "monitors/magnetisation.h"
 
 #ifdef CUDA
 #include <cublas.h>
@@ -101,8 +102,6 @@ int jams_init(int argc, char **argv) {
         catch(...) {
             jams_error("Undefined config error");
         }
-
-
 
         std::string solname;
 

@@ -1,12 +1,15 @@
 #ifndef JAMS_PHSYICS_SPINWAVES_H
 #define JAMS_PHSYICS_SPINWAVES_H
 
+#include <fftw3.h>
+#include <libconfig.h++>
+
 #include <fstream>
 #include <vector>
-#include <libconfig.h++>
-#include <fftw3.h>
-#include "physics.h"
-#include <containers/array.h>
+
+#include "core/physics.h"
+
+#include "jblib/containers/array.h"
 
 class SpinwavesPhysics : public Physics {
   public:

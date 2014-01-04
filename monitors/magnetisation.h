@@ -1,10 +1,12 @@
 #ifndef JAMS_MONITOR_MAGNETISATION_H
 #define JAMS_MONITOR_MAGNETISATION_H
 
-#include "monitor.h"
-#include "runningstat.h"
 #include <fstream>
-#include <containers/array.h>
+
+#include "core/monitor.h"
+#include "core/runningstat.h"
+
+#include "jblib/containers/array.h"
 
 class MagnetisationMonitor : public Monitor {
   public:

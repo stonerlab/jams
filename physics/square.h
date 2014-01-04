@@ -1,10 +1,12 @@
 #ifndef JAMS_PHYSICS_SQUARE_H
 #define JAMS_PHYSICS_SQUARE_H
 
-#include <fstream>
 #include <libconfig.h++>
 
-#include "physics.h"
+#include <fstream>
+#include <vector>
+
+#include "core/physics.h"
 
 class SquarePhysics : public Physics {
   public:

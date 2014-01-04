@@ -1,10 +1,12 @@
-#include <limits>
-#include <cmath>
-#include <cassert>
+#include "core/rand.h"
+
 #include <stdint.h>
 
-#include "globals.h"
-#include "rand.h"
+#include <cassert>
+#include <cmath>
+#include <limits>
+
+#include "core/globals.h"
 
 void Random::seed(const unsigned long &x) {
   if (x > ul_limit) {

@@ -1,8 +1,9 @@
 #ifndef JAMS_MONITOR_ENERGY_H
 #define JAMS_MONITOR_ENERGY_H
 
-#include "monitor.h"
 #include <fstream>
+
+#include "core/monitor.h"
 
 class EnergyMonitor : public Monitor {
   public:

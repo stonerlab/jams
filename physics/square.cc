@@ -1,9 +1,10 @@
-#include <cmath>
+#include "physics/square.h"
+
 #include <libconfig.h++>
 
-#include "globals.h"
+#include <cmath>
 
-#include "square.h"
+#include "core/globals.h"
 
 void SquarePhysics::init(libconfig::Setting &phys)
 {

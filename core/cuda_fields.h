@@ -1,7 +1,7 @@
 #ifndef JAMS_CUDA_FIELDS_H
 #define JAMS_CUDA_FIELDS_H
 
-#include "cuda_sparse_types.h"
+#include "core/cuda_sparse_types.h"
 
 void CUDACalculateFields(
         const devDIA & J1ij_s_dev,
