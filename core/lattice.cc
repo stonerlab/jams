@@ -17,7 +17,7 @@
 #include "core/consts.h"
 #include "core/globals.h"
 #include "core/maths.h"
-#include "core/sparsematrix4d.h"
+#include "core/sparsematrix.h"
 
 #include "jblib/containers/array.h"
 
