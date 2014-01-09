@@ -8,20 +8,26 @@ systype = $(shell uname -s)
 commit = $(shell git rev-parse HEAD)
 
 ifeq ($(systype), Darwin)
-withcuda=0
+withcuda=1
 CXX = clang++
 OPTFLAGS = -stdlib=libc++ -march=native -O3 -funroll-loops -m64
 COPTIONS = -Wall -DDarwin
+CUDA = /usr/local/cuda/bin/nvcc
+CUDAOPTS = -O3 -DNDEBUG -DCUDA \
+					 -gencode=arch=compute_20,code=sm_20 \
+					 -gencode=arch=compute_20,code=compute_20 \
+					 -gencode=arch=compute_35,code=sm_35 \
+		       -gencode=arch=compute_35,code=compute_35
 else
 CXX = g++
 OPTFLAGS = -march=native -O3 -funroll-loops
 COPTIONS = -Wall -DLinux
 CUDA = /usr/local/cuda/bin/nvcc
 CUDAOPTS = -O3 -DNDEBUG -DCUDA \
-					 -gencode=arch=compute_20, code=sm_20 \
-					 -gencode=arch=compute_20, code=compute_20 \
-					 -gencode=arch=compute_35, code=sm_35 \
-		       -gencode=arch=compute_35, code=compute_35
+					 -gencode=arch=compute_20,code=sm_20 \
+					 -gencode=arch=compute_20,code=compute_20 \
+					 -gencode=arch=compute_35,code=sm_35 \
+		       -gencode=arch=compute_35,code=compute_35
 endif
 
 # Linker information
