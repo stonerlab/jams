@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_CUDA_SPARSE_H
 #define JAMS_CUDA_SPARSE_H
 
@@ -11,13 +13,13 @@
 #define DIA_BLOCK_SIZE 256
 #define CSR_4D_BLOCK_SIZE 64
 
-//extern texture<float,1> tex_x_float;
+// extern texture<float, 1> tex_x_float;
 
 void allocate_transfer_dia(SparseMatrix<float> &Jij, devDIA &Jij_dev);
 
 void free_dia(devDIA &Jij_dev);
 
-void allocate_transfer_csr_4d(jblib::Sparsematrix<float,4> &Jij, devCSR &
+void allocate_transfer_csr_4d(jblib::Sparsematrix<float, 4> &Jij, devCSR &
     Jij_dev);
 
 void free_csr_4d(devCSR &Jij_dev);
@@ -28,7 +30,7 @@ __global__ void dipole_brute_kernel
  const float beta,
  const float *sf_dev,
  const float *mat_dev,
- float *h_dev, 
+ float *h_dev,
  const float *r_dev,
  const float *r_max_dev,
  const bool *pbc_dev,

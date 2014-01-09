@@ -1,10 +1,43 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #include "core/fields.h"
+
 #include "core/globals.h"
-#include "core/sparsematrix.h"
 
 #ifdef MKL
 #include <mkl_spblas.h>
 #endif
+
+void ComputeBilinearScalarInteractions(
+    const SparseMatrix<float>& interaction_matrix, const jblib::Array<double, 2>&
+    spin, jblib::Array<double, 2>* field) {
+  using globals::nspins;
+
+  register int i, j, k, l, begin, end;
+
+  for (i = 0; i < nspins; ++i) {  // iterate rows
+    begin = interaction_matrix.row(i);
+    end = interaction_matrix.row(i+1);
+    for (j = begin; j < end; ++j) {
+      k = interaction_matrix.col(j);  // column
+      // upper triangle and diagonal
+      if (i > (k-1)) {
+        for (l = 0; l < 3; ++l) {
+          (*field)(i, l) += spin(k, l)*interaction_matrix.val(j);
+        }
+      }
+    }
+    for (j = begin; j < end; ++j) {
+      k = interaction_matrix.col(j);  // column
+      // lower triangle
+      if ( i > k ) {
+        for (l = 0; l < 3; ++l) {
+          (*field)(i, l) += spin(i, l)*interaction_matrix.val(j);
+        }
+      }
+    }
+  }
+}
 
 #ifdef CUDA
 void calc_scalar_bilinear(const float *val, const int *indx,

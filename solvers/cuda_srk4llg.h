@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_SOLVER_CUDA_SRK4LLG_H
 #define JAMS_SOLVER_CUDA_SRK4LLG_H
 
@@ -35,7 +37,7 @@ class CUDALLGSolverSRK4 : public Solver {
         h_dipole_dev(0),
         e_dev(0),
         mat_dev(0),
-        eng(0,0),
+        eng(0, 0),
         sigma(0),
         nblocks(0),
         spmvblocksize(0)
@@ -69,8 +71,8 @@ class CUDALLGSolverSRK4 : public Solver {
     float * h_dipole_dev;
     float * e_dev;
     float * mat_dev;
-    jblib::Array<float,2> eng;
-    jblib::Array<double,1> sigma;
+    jblib::Array<float, 2> eng;
+    jblib::Array<double, 1> sigma;
     int nblocks;
     int spmvblocksize;
 };

@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #include "monitors/boltzmann_mag.h"
 
 #include "core/globals.h"
@@ -9,7 +11,7 @@ void BoltzmannMagMonitor::initialise() {
   outfile.open("boltzmann_mag.dat");
 
   bins.resize(101);
-  for(int i=0;i<101;++i){
+  for (int i = 0; i < 101; ++i) {
     bins(i) = 0.0;
   }
   initialised = true;
@@ -18,26 +20,26 @@ void BoltzmannMagMonitor::initialise() {
 void BoltzmannMagMonitor::run() {
   using namespace globals;
 
-  double mag[3]={0.0,0.0,0.0};
+  double mag[3] = {0.0, 0.0, 0.0};
   unsigned int round;
-  for(int i=0; i<nspins; ++i) {
-    for(int j=0;j<3;++j) {
-      mag[j] += s(i,j);
+  for (int i = 0; i < nspins; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      mag[j] += s(i, j);
     }
   }
 
-  for(int j=0;j<3;++j) {
-    mag[j] = mag[j]/static_cast<double>(nspins); 
+  for (int j = 0; j < 3; ++j) {
+    mag[j] = mag[j]/static_cast<double>(nspins);
   }
   double modmag = sqrt(mag[0]*mag[0]+mag[1]*mag[1]+mag[2]*mag[2]);
-        
+
   round = static_cast<int>(modmag*100);
   bins(round)++;
   total++;
 }
 
 void BoltzmannMagMonitor::write(Solver *solver) {
-  for(int i=0;i<101;++i) {
+  for (int i = 0; i < 101; ++i) {
     outfile << i*0.01+0.005 << "\t" << bins(i)/total << "\n";
   }
   outfile << "\n" << std::endl;

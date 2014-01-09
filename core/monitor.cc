@@ -1,10 +1,12 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #include "core/monitor.h"
 
 #include "core/globals.h"
 #include "core/solver.h"
 
 void Monitor::initialise() {
-  if(initialised == true) {
+  if (initialised == true) {
     jams_error("Monitor is already initialised");
   }
 
@@ -12,16 +14,15 @@ void Monitor::initialise() {
 }
 
 void Monitor::run() {
-
 }
 
 void Monitor::write(Solver *solver) {
-
 }
 
-void Monitor::initConvergence(ConvergenceType type, const double meanTol, const double devTol){
+void Monitor::initConvergence(ConvergenceType type, const double meanTol,
+  const double devTol) {
 }
 
-bool Monitor::checkConvergence(){
-	return false;
+bool Monitor::checkConvergence() {
+  return false;
 }

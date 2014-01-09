@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_SOLVER_CUDA_HEUNLLG_KERNEL_H
 #define JAMS_SOLVER_CUDA_HEUNLLG_KERNEL_H
 

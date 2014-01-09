@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_CORE_SPARSEMATRIX_H
 #define JAMS_CORE_SPARSEMATRIX_H
 
@@ -15,26 +17,26 @@
 
 #define RESTRICT __restrict__
 
-typedef enum { 
+typedef enum {
   SPARSE_MATRIX_FORMAT_MAP = 0,
   SPARSE_MATRIX_FORMAT_COO = 1,
   SPARSE_MATRIX_FORMAT_CSR = 2,
   SPARSE_MATRIX_FORMAT_DIA = 3,
 } SparseMatrixFormat_t;
 
-typedef enum { 
+typedef enum {
   SPARSE_MATRIX_TYPE_GENERAL   = 0,
   SPARSE_MATRIX_TYPE_SYMMETRIC = 1
 } SparseMatrixType_t;
 
-typedef enum { 
+typedef enum {
   SPARSE_MATRIX_MODE_UPPER = 0,
   SPARSE_MATRIX_MODE_LOWER = 1
 } SparseMatrixMode_t;
 
 // taken from CUSP
 template< class _Tp1, class _Tp2>
-bool kv_pair_less(const std::pair<_Tp1,_Tp2>&x, const std::pair<_Tp1,_Tp2>&y){
+bool kv_pair_less(const std::pair<_Tp1, _Tp2>&x, const std::pair<_Tp1, _Tp2>&y){
   return x.first < y.first;
 }
 
@@ -42,7 +44,7 @@ bool kv_pair_less(const std::pair<_Tp1,_Tp2>&x, const std::pair<_Tp1,_Tp2>&y){
 ///
 /// @class SparseMatrix
 /// @brief Storage class for sparse matrices.
-/// 
+///
 ///
 template <typename _Tp>
 class SparseMatrix {
@@ -58,9 +60,9 @@ class SparseMatrix {
         ncols(0),
         nnz_unmerged(0),
         nnz(0),
-        val(0),
-        row(0),
-        col(0), 
+        val_(0),
+        row_(0),
+        col_(0),
         dia_offsets(0),
         num_diagonals(0)
     {}
@@ -74,9 +76,9 @@ class SparseMatrix {
         ncols(n),
         nnz_unmerged(0),
         nnz(0),
-        val(0),
-        row(0),
-        col(0),
+        val_(0),
+        row_(0),
+        col_(0),
         dia_offsets(0),
         num_diagonals(0)
     {}
@@ -89,9 +91,9 @@ class SparseMatrix {
       ncols = n;
       nnz = 0;
       nnz_unmerged = 0;
-      val.clear();
-      row.clear();
-      col.clear();
+      val_.clear();
+      row_.clear();
+      col_.clear();
       matrixMap.clear();
     }
 
@@ -108,30 +110,35 @@ class SparseMatrix {
     void convertMAP2DIA();
 
     void convertSymmetric2General();
-    
-    inline _Tp*       valPtr() { return &(val[0]); } ///< @brief Pointer to values array
-    inline size_type* rowPtr() { return &(row[0]); } ///< @brief Pointer to rows array
-    inline size_type* colPtr() { return &(col[0]); } ///< @breif Pointer to columns array
 
-    inline size_type* dia_offPtr() { return &(dia_offsets[0]); } 
+    inline const _Tp& val(const size_type &i) const { return val_[i]; }
+    inline const _Tp& row(const size_type &i) const { return row_[i]; }
+    inline const _Tp& col(const size_type &i) const { return col_[i]; }
+
+
+    inline _Tp*       valPtr() { return &(val_[0]); } ///< @brief Pointer to values array
+    inline size_type* rowPtr() { return &(row_[0]); } ///< @brief Pointer to rows array
+    inline size_type* colPtr() { return &(col_[0]); } ///< @breif Pointer to columns array
+
+    inline size_type* dia_offPtr() { return &(dia_offsets[0]); }
 
     inline size_type  nonZero() { return nnz; }      ///< @brief Number of non zero entries in matrix
     inline size_type  rows()    { return nrows; }    ///< @brief Number of rows in matrix
     inline size_type  cols()    { return ncols; }    ///< @brief Number of columns in matrix
-    inline size_type  diags()    { return num_diagonals; } 
-    
-    
+    inline size_type  diags()    { return num_diagonals; }
+
+
     // NIST style CSR storage pointers
-    inline size_type* RESTRICT ptrB() { return &(row[0]); }
-    inline size_type* RESTRICT ptrE() { return &(row[1]); }
+    inline const size_type* RESTRICT ptrB() const { return &(row_[0]); }
+    inline const size_type* RESTRICT ptrE() const { return &(row_[1]); }
 
     double calculateMemory();
     //void printCSR();
-  
+
   private:
 
-//    typedef std::multimap <int64_t,_Tp,std::less<int64_t> > coo_mmp;
-    typedef std::vector< std::pair<int64_t,_Tp> > coo_mmp;
+//    typedef std::multimap <int64_t, _Tp, std::less<int64_t> > coo_mmp;
+    typedef std::vector< std::pair<int64_t, _Tp> > coo_mmp;
 
     SparseMatrixFormat_t  matrixFormat;
     SparseMatrixType_t    matrixType;
@@ -142,12 +149,12 @@ class SparseMatrix {
     size_type             nnz;
 
 //    coo_mmp               matrixMap;
-    
+
     coo_mmp matrixMap;
 
-    std::vector<_Tp>       val;
-    std::vector<size_type> row;
-    std::vector<size_type> col;
+    std::vector<_Tp>       val_;
+    std::vector<size_type> row_;
+    std::vector<size_type> col_;
     std::vector<size_type> dia_offsets;
     //Array2D<_Tp>           dia_values;
     size_type              num_diagonals;
@@ -156,18 +163,18 @@ class SparseMatrix {
 
 // template <typename _Tp>
 // void SparseMatrix<_Tp>::printCSR() {
-// 
+//
 //   if(format==CSR) {
-//     for(int i=0; i<nrows+1; ++i) {
-//       output.write("%i\n",row[i]);
+//     for(int i = 0; i<nrows+1; ++i) {
+//       output.write("%i\n", row[i]);
 //     }
 //     output.write("\n\n");
-//     for(int i=0; i<nnz; ++i) {
-//       output.write("%i\n",col[i]);
+//     for(int i = 0; i<nnz; ++i) {
+//       output.write("%i\n", col[i]);
 //     }
 //     output.write("\n\n");
-//     for(int i=0; i<nnz; ++i) {
-//       output.write("%e\n",val[i]);
+//     for(int i = 0; i<nnz; ++i) {
+//       output.write("%e\n", val[i]);
 //     }
 //   }
 // }
@@ -180,13 +187,13 @@ double SparseMatrix<_Tp>::calculateMemory() {
   }else if(matrixFormat == SPARSE_MATRIX_FORMAT_DIA){
     return (dia_offsets.size()*sizeof(size_type)+(nrows*num_diagonals)*sizeof(_Tp))/mb;
   } else {
-    return (((row.size()+col.size())*sizeof(size_type))+(val.size()*sizeof(_Tp)))/mb;
+    return (((row_.size()+col_.size())*sizeof(size_type))+(val_.size()*sizeof(_Tp)))/mb;
   }
 }
 
 template <typename _Tp>
 void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
-  
+
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP) { // can only insert elements into map formatted matrix
 
     if( ((i < nrows) && (i >= 0)) && ((j < ncols) && (j >= 0)) ) { // element must be inside matrix boundaries
@@ -209,9 +216,9 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
     // static casts to force 64bit arithmetic
 //    const int64_t index = (static_cast<int64_t>(i)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(j);
     const int64_t index = (static_cast<int64_t>(i)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(j);
-//    matrixMap.insert(typename coo_mmp::value_type(index,value));
-    matrixMap.push_back( std::pair<int64_t,_Tp>(index,value) );
-    
+//    matrixMap.insert(typename coo_mmp::value_type(index, value));
+    matrixMap.push_back( std::pair<int64_t, _Tp>(index, value) );
+
     nnz_unmerged++;
   } else {
     jams_error("Can only insert into MAP format sparse matrix");
@@ -223,7 +230,7 @@ template <typename _Tp>
 void SparseMatrix<_Tp>::convertSymmetric2General() {
 
 
-  int64_t ival,jval,index,index_new;
+  int64_t ival, jval, index, index_new;
   _Tp value;
 
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
@@ -231,17 +238,17 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
         matrixType = SPARSE_MATRIX_TYPE_GENERAL;
         const int nitems = matrixMap.size();
         matrixMap.reserve(2*nitems);
-        for(int i=0; i<nitems; ++i){
+        for(int i = 0; i<nitems; ++i){
             index = matrixMap[i].first;
             value = matrixMap[i].second;
-            
+
             // opposite relationship
             jval = index/static_cast<int64_t>(ncols);
             ival = index - ((jval)*ncols);
 
             if(ival != jval){
                 index_new = (static_cast<int64_t>(ival)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(jval);
-                matrixMap.push_back(std::pair<int64_t,_Tp>(index_new,value));
+                matrixMap.push_back(std::pair<int64_t, _Tp>(index_new, value));
                 nnz_unmerged++;
             }
         }
@@ -260,19 +267,19 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
 {
   typename coo_mmp::const_iterator nz;
 
-  int64_t index_last,ival,jval,index,row_last;
-  
-  nnz = 0;
-  row.resize(nrows+1);
-  col.resize(nnz_unmerged);
-  val.resize(nnz_unmerged);
+  int64_t index_last, ival, jval, index, row_last;
 
-  std::sort(matrixMap.begin(),matrixMap.end(),kv_pair_less<int64_t,_Tp>);
-  
+  nnz = 0;
+  row_.resize(nrows+1);
+  col_.resize(nnz_unmerged);
+  val_.resize(nnz_unmerged);
+
+  std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_less<int64_t, _Tp>);
+
   if(nnz_unmerged > 0){
     index_last = -1; // ensure first index is different;
     row_last = 0;
-    row[0] = 0;
+    row_[0] = 0;
     for(nz = matrixMap.begin(); nz != matrixMap.end(); ++nz){ // iterate matrix map elements
       index = nz->first; // first part contains row major index
       if(index < 0){
@@ -285,31 +292,31 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
         nnz++;
         if(ival != row_last){
           // incase there are rows of zeros
-          for(int i=row_last; i<ival+1; ++i){
-            row[i+1] = nnz-1;
+          for(int i = row_last; i<ival+1; ++i){
+            row_[i+1] = nnz-1;
           }
         }
         row_last = ival;
-        col[nnz-1] = jval;
-        val[nnz-1] = nz->second;
+        col_[nnz-1] = jval;
+        val_[nnz-1] = nz->second;
       }else{
         // index is the same as the last, add values
-        val[nnz-1] += nz->second;
+        val_[nnz-1] += nz->second;
       }
     }
   }else{
-    for(int i=0;i<nrows+1;++i){
-      row[i] = 0;
+    for(int i = 0;i<nrows+1;++i){
+      row_[i] = 0;
     }
   }
 
   matrixMap.clear();
 
-  col.resize(nnz);
-  val.resize(nnz);
+  col_.resize(nnz);
+  val_.resize(nnz);
 
-  row[nrows] = nnz;
-  
+  row_[nrows] = nnz;
+
   matrixFormat = SPARSE_MATRIX_FORMAT_CSR;
 }
 
@@ -317,19 +324,19 @@ template <typename _Tp>
 void SparseMatrix<_Tp>::convertMAP2COO()
 {
 
-  int64_t index_last,ival,jval,index;
-  
+  int64_t index_last, ival, jval, index;
+
   nnz = 0;
-  row.resize(nrows+1);
-  col.resize(nnz_unmerged);
-  val.resize(nnz_unmerged);
-  
+  row_.resize(nrows+1);
+  col_.resize(nnz_unmerged);
+  val_.resize(nnz_unmerged);
+
   if(nnz_unmerged > 0){
 
     index_last = -1; // ensure first index is different;
 
-    row[0] = 0;
-  
+    row_[0] = 0;
+
     typename coo_mmp::const_iterator elem;
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
@@ -341,25 +348,25 @@ void SparseMatrix<_Tp>::convertMAP2COO()
       ival = index/static_cast<int64_t>(ncols);
 
       jval = index - ((ival)*ncols);
-      
+
       if(index != index_last){
         index_last = index; // update last index
         nnz++;
 
-        row[nnz-1] = ival;
-        col[nnz-1] = jval;
-        val[nnz-1] = elem->second;
+        row_[nnz-1] = ival;
+        col_[nnz-1] = jval;
+        val_[nnz-1] = elem->second;
 
       }else{
         // index is the same as the last, add values
-        val[nnz-1] += elem->second;
+        val_[nnz-1] += elem->second;
       }
     }
   }
   matrixMap.clear();
-  row.resize(nnz);
-  col.resize(nnz);
-  val.resize(nnz);
+  row_.resize(nnz);
+  col_.resize(nnz);
+  val_.resize(nnz);
 
   matrixFormat = SPARSE_MATRIX_FORMAT_COO;
 }
@@ -368,17 +375,17 @@ template <typename _Tp>
 void SparseMatrix<_Tp>::convertMAP2DIA()
 {
 
-  int64_t ival,jval,index;
+  int64_t ival, jval, index;
 
   nnz = 0;
-  
+
   if(nnz_unmerged > 0){
-  
-//    std::sort(matrixMap.begin(),matrixMap.end(),kv_pair_less<int64_t,_Tp>);
+
+//    std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_less<int64_t, _Tp>);
 
     num_diagonals = 0;
-    std::vector<int> diag_map(nrows+ncols,0);
-  
+    std::vector<int> diag_map(nrows+ncols, 0);
+
     typename coo_mmp::const_iterator elem;
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
@@ -399,55 +406,55 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
     }
 
     dia_offsets.resize(num_diagonals);
-    val.resize((nrows*num_diagonals),0.0);
+    val_.resize((nrows*num_diagonals), 0.0);
 
-    for(int i=0, diag=0; i<(nrows+ncols); ++i){
+    for(int i = 0, diag=0; i<(nrows+ncols); ++i){
       if(diag_map[i] == 1){
         diag_map[i] = diag;
         dia_offsets[diag] = i - nrows;
         diag++;
       }
     }
-    
-//    for(int i=0; i<num_diagonals; ++i){
+
+//    for(int i = 0; i<num_diagonals; ++i){
 //      std::cout<<dia_offsets[i]<<std::endl;
 //    }
 //    std::cout<<"\n\n";
-//    for(int i=0; i<nrows; ++i){
-//      for(int j=0; j<num_diagonals; ++j){
+//    for(int i = 0; i<nrows; ++i){
+//      for(int j = 0; j<num_diagonals; ++j){
 //        dia_values[nrows*j+i] = 0.0;
 //      }
 //    }
-    
+
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
-      
+
       ival = index/static_cast<int64_t>(ncols);
       jval = index - ((ival)*ncols);
       int map_index = (nrows - ival) + jval;
       int diag = diag_map[map_index];
-      val[nrows*diag+ival] += elem->second;
+      val_[nrows*diag+ival] += elem->second;
 
 //      std::cout<<ival<<" , "<<jval<<" , "<<diag<<" , "<<val[nrows*diag+ival]<<std::endl;
       nnz++;
     }
   }
-  
+
   matrixMap.clear();
 
   matrixFormat = SPARSE_MATRIX_FORMAT_DIA;
 }
 
 
-void jams_dcsrmv(const char trans[1], const int m, const int k, 
-    const double alpha, const char descra[6], const double *val, 
-    const int *indx, const int *ptrb, const int *ptre, double *x, 
+void jams_dcsrmv(const char trans[1], const int m, const int k,
+    const double alpha, const char descra[6], const double *val,
+    const int *indx, const int *ptrb, const int *ptre, double *x,
     const double beta, double * y);
 
 // TEMPORARY HACK FOR CUDA COMPAT
-void jams_dcsrmv(const char trans[1], const int m, const int k, 
-    const double alpha, const char descra[6], const float *val, 
-    const int *indx, const int *ptrb, const int *ptre, double *x, 
+void jams_dcsrmv(const char trans[1], const int m, const int k,
+    const double alpha, const char descra[6], const float *val,
+    const int *indx, const int *ptrb, const int *ptre, double *x,
     const double beta, double * y);
 
 #endif // JAMS_CORE_SPARSEMATRIX_H

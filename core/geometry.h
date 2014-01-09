@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_CORE_GEOMETRY_H
 #define JAMS_CORE_GEOMETRY_H
 
@@ -34,7 +36,7 @@ class Geometry {
 
     std::vector< vec3<float> >  r;
     std::vector<int>            atom_type;
-    std::map<std::string,int>   atom_type_map;
+    std::map<std::string, int>   atom_type_map;
     double  energy_cutoff;
 
 };

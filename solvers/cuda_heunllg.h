@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_SOLVER_CUDA_HEUNLLG_H
 #define JAMS_SOLVER_CUDA_HEUNLLG_H
 
@@ -33,7 +35,7 @@ class CUDAHeunLLGSolver : public Solver {
         sf_dev(),
         s_dev(),
         s_new_dev(),
-        eng(0,0),
+        eng(0, 0),
         sigma(0),
         nblocks(0),
         spmvblocksize(0)
@@ -53,19 +55,19 @@ class CUDAHeunLLGSolver : public Solver {
     devDIA  J2ij_s_dev;
     devDIA  J2ij_t_dev;
     devCSR  J4ijkl_s_dev;
-    jblib::CudaArray<float,1>  w_dev;
-    jblib::CudaArray<float,1>  r_dev;
-    jblib::CudaArray<float,1>  e_dev;
-    jblib::CudaArray<float,1>  h_dev;
-    jblib::CudaArray<float,1>  mat_dev;
-    jblib::CudaArray<float,1>  h_dipole_dev;
-    jblib::CudaArray<float,1>  r_max_dev;
-    jblib::CudaArray<bool,1>   pbc_dev;
-    jblib::CudaArray<float,1>  sf_dev;
-    jblib::CudaArray<double,1> s_dev;
-    jblib::CudaArray<double,1> s_new_dev;
-    jblib::Array<float,2> eng;
-    jblib::Array<double,1> sigma;
+    jblib::CudaArray<float, 1>  w_dev;
+    jblib::CudaArray<float, 1>  r_dev;
+    jblib::CudaArray<float, 1>  e_dev;
+    jblib::CudaArray<float, 1>  h_dev;
+    jblib::CudaArray<float, 1>  mat_dev;
+    jblib::CudaArray<float, 1>  h_dipole_dev;
+    jblib::CudaArray<float, 1>  r_max_dev;
+    jblib::CudaArray<bool, 1>   pbc_dev;
+    jblib::CudaArray<float, 1>  sf_dev;
+    jblib::CudaArray<double, 1> s_dev;
+    jblib::CudaArray<double, 1> s_new_dev;
+    jblib::Array<float, 2> eng;
+    jblib::Array<double, 1> sigma;
     int nblocks;
     int spmvblocksize;
 };

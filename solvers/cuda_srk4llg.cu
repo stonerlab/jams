@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #include <cublas.h>
 #include <cuda.h>
 #include <curand.h>
@@ -20,7 +22,7 @@
 void CUDALLGSolverSRK4::syncOutput()
 {
     using namespace globals;
-    CUDA_CALL(cudaMemcpy(s.data(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(s.data(), s_dev, (size_t)(nspins3*sizeof(double)), cudaMemcpyDeviceToHost));
 }
 
 void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
@@ -28,11 +30,11 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
     using namespace globals;
 
     // initialise base class
-    Solver::initialise(argc,argv,idt);
+    Solver::initialise(argc, argv, idt);
 
     sigma.resize(nspins);
 
-    for(int i=0; i<nspins; ++i) {
+    for(int i = 0; i<nspins; ++i) {
         sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)) / (dt*mus(i)*mu_bohr_si) );
     }
 
@@ -45,7 +47,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
 
     output.write("  * Initialising CURAND...\n");
     // curand generator
-    CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
+    CURAND_CALL(curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT));
 
     // TODO: set random seed from config
     const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
@@ -62,34 +64,34 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
     J2ij_s.convertMAP2DIA();
     J2ij_t.convertMAP2DIA();
 
-    output.write("    - J1ij scalar matrix memory (DIA): %f MB\n",J1ij_s.calculateMemory());
-    output.write("    - J1ij tensor matrix memory (DIA): %f MB\n",J1ij_t.calculateMemory());
-    output.write("    - J2ij scalar matrix memory (DIA): %f MB\n",J2ij_s.calculateMemory());
-    output.write("    - J2ij tensor matrix memory (DIA): %f MB\n",J2ij_t.calculateMemory());
+    output.write("    - J1ij scalar matrix memory (DIA): %f MB\n", J1ij_s.calculateMemory());
+    output.write("    - J1ij tensor matrix memory (DIA): %f MB\n", J1ij_t.calculateMemory());
+    output.write("    - J2ij scalar matrix memory (DIA): %f MB\n", J2ij_s.calculateMemory());
+    output.write("    - J2ij tensor matrix memory (DIA): %f MB\n", J2ij_t.calculateMemory());
 
-    output.write("    - J4ijkl scalar matrix memory (CSR): %f MB\n",J4ijkl_s.calculateMemoryUsage());
+    output.write("    - J4ijkl scalar matrix memory (CSR): %f MB\n", J4ijkl_s.calculateMemoryUsage());
 
     output.write("  * Allocating device memory...\n");
 
     // Allocate double arrays
-    CUDA_CALL(cudaMalloc((void**)&s_dev,nspins3*sizeof(double)));   // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&s_old_dev,nspins3*sizeof(double)));   // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&k0_dev,nspins3*sizeof(double)));  // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&k1_dev,nspins3*sizeof(double)));  // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&k2_dev,nspins3*sizeof(double)));  // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&s_dev, nspins3*sizeof(double)));   // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&s_old_dev, nspins3*sizeof(double)));   // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&k0_dev, nspins3*sizeof(double)));  // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&k1_dev, nspins3*sizeof(double)));  // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&k2_dev, nspins3*sizeof(double)));  // 3*nspins
 
     // Allocate float arrays
-    CUDA_CALL(cudaMalloc((void**)&sf_dev,nspins3*sizeof(float)));       // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));        // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&h_dipole_dev,nspins3*sizeof(float)));  // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&e_dev,nspins3*sizeof(float)));        // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&r_dev,nspins3*sizeof(float)));        // 3*nspins
-    CUDA_CALL(cudaMalloc((void**)&r_max_dev,3*sizeof(float)));          // 3
-    CUDA_CALL(cudaMalloc((void**)&pbc_dev,3*sizeof(bool)));             // 3
-    CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins*4*sizeof(float)));     // 4*nspins
+    CUDA_CALL(cudaMalloc((void**)&sf_dev, nspins3*sizeof(float)));       // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&h_dev, nspins3*sizeof(float)));        // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&h_dipole_dev, nspins3*sizeof(float)));  // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&e_dev, nspins3*sizeof(float)));        // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&r_dev, nspins3*sizeof(float)));        // 3*nspins
+    CUDA_CALL(cudaMalloc((void**)&r_max_dev, 3*sizeof(float)));          // 3
+    CUDA_CALL(cudaMalloc((void**)&pbc_dev, 3*sizeof(bool)));             // 3
+    CUDA_CALL(cudaMalloc((void**)&mat_dev, nspins*4*sizeof(float)));     // 4*nspins
 
     // CURAND requires that the array is a multiple of 2
-    CUDA_CALL(cudaMalloc((void**)&w_dev,(nspins3+(nspins3%2))*sizeof(float)));  // 3*nspins (+1 if odd)
+    CUDA_CALL(cudaMalloc((void**)&w_dev, (nspins3+(nspins3%2))*sizeof(float)));  // 3*nspins (+1 if odd)
 
     //-------------------------------------------------------------------
     //  Transfer data to device memory
@@ -110,46 +112,46 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
 
     // Initial spin configuration
     {
-        jblib::Array<float,2> sf(nspins,3);
-            for(int i=0; i<nspins; ++i) {
-                for(int j=0; j<3; ++j) {
-                    sf(i,j) = static_cast<float>(s(i,j));
+        jblib::Array<float, 2> sf(nspins, 3);
+            for(int i = 0; i<nspins; ++i) {
+                for(int j = 0; j<3; ++j) {
+                    sf(i, j) = static_cast<float>(s(i, j));
                 }
             }
-            
-        CUDA_CALL(cudaMemcpy(s_dev,s.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
-        CUDA_CALL(cudaMemcpy(s_old_dev,s.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
-        CUDA_CALL(cudaMemcpy(sf_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+
+        CUDA_CALL(cudaMemcpy(s_dev, s.data(), (size_t)(nspins3*sizeof(double)), cudaMemcpyHostToDevice));
+        CUDA_CALL(cudaMemcpy(s_old_dev, s.data(), (size_t)(nspins3*sizeof(double)), cudaMemcpyHostToDevice));
+        CUDA_CALL(cudaMemcpy(sf_dev, sf.data(), (size_t)(nspins3*sizeof(float)), cudaMemcpyHostToDevice));
     }
 
     // Lattice dimensions
     {
         float r_maxf[3];
-        lattice.getMaxDimensions(r_maxf[0],r_maxf[1],r_maxf[2]);
-        CUDA_CALL(cudaMemcpy(r_max_dev,r_maxf,(size_t)(3*sizeof(float)),cudaMemcpyHostToDevice));
+        lattice.getMaxDimensions(r_maxf[0], r_maxf[1], r_maxf[2]);
+        CUDA_CALL(cudaMemcpy(r_max_dev, r_maxf, (size_t)(3*sizeof(float)), cudaMemcpyHostToDevice));
     }
 
     // Periodic boundary conditions
     {
         bool pbc[3];
-        lattice.getBoundaries(pbc[0],pbc[1],pbc[2]);
-        CUDA_CALL(cudaMemcpy(pbc_dev,pbc,(size_t)(3*sizeof(bool)),cudaMemcpyHostToDevice));
+        lattice.getBoundaries(pbc[0], pbc[1], pbc[2]);
+        CUDA_CALL(cudaMemcpy(pbc_dev, pbc, (size_t)(3*sizeof(bool)), cudaMemcpyHostToDevice));
     }
-    
+
     // Atom positions
-    CUDA_CALL(cudaMemcpy(r_dev,atom_pos.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(r_dev, atom_pos.data(), (size_t)(nspins3*sizeof(float)), cudaMemcpyHostToDevice));
 
     // Material properties
     {
-        jblib::Array<float,2> mat(nspins,4);
-        for(int i=0; i<nspins; ++i){
-            mat(i,0) = mus(i);
-            mat(i,1) = gyro(i);
-            mat(i,2) = alpha(i);
-            mat(i,3) = sigma(i);
+        jblib::Array<float, 2> mat(nspins, 4);
+        for(int i = 0; i<nspins; ++i){
+            mat(i, 0) = mus(i);
+            mat(i, 1) = gyro(i);
+            mat(i, 2) = alpha(i);
+            mat(i, 3) = sigma(i);
         }
 
-        CUDA_CALL(cudaMemcpy(mat_dev,mat.data(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
+        CUDA_CALL(cudaMemcpy(mat_dev, mat.data(), (size_t)(nspins*4*sizeof(float)), cudaMemcpyHostToDevice));
     }
 
 
@@ -168,14 +170,14 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
     //-------------------------------------------------------------------
     nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
 
-    
-    J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-    J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-    J2ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-    J2ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-    J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE,(nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
 
-    eng.resize(nspins,3);
+    J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+    J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+    J2ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+    J2ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+    J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE, (nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
+
+    eng.resize(nspins, 3);
 
     initialised = true;
 }
@@ -186,34 +188,34 @@ void CUDALLGSolverSRK4::run()
 
   // generate wiener trajectories
   float stmp = sqrt(temperature);
-  
+
   if(temperature > 0.0) {
       CURAND_CALL(curandGenerateNormal(gen, w_dev, (nspins3+(nspins3%2)), 0.0f, stmp));
   }
-  
-    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,true);
-  
+
+    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, true);
+
   // Integrate to find K0
-  CUDAIntegrateLLG_SRK4<<<nblocks,BLOCKSIZE>>>
-    (s_dev,s_old_dev,k0_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],0.5,dt,nspins);
-  
-    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,false);
-  
+  CUDAIntegrateLLG_SRK4<<<nblocks, BLOCKSIZE>>>
+    (s_dev, s_old_dev, k0_dev, h_dev, w_dev, sf_dev, mat_dev, h_app[0], h_app[1], h_app[2], 0.5, dt, nspins);
+
+    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, false);
+
   // Integrate to find K1
-  CUDAIntegrateLLG_SRK4<<<nblocks,BLOCKSIZE>>>
-    (s_dev,s_old_dev,k1_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],0.5,dt,nspins);
-  
-    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,false);
-  
+  CUDAIntegrateLLG_SRK4<<<nblocks, BLOCKSIZE>>>
+    (s_dev, s_old_dev, k1_dev, h_dev, w_dev, sf_dev, mat_dev, h_app[0], h_app[1], h_app[2], 0.5, dt, nspins);
+
+    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, false);
+
   // Integrate to find K2
-  CUDAIntegrateLLG_SRK4<<<nblocks,BLOCKSIZE>>>
-    (s_dev,s_old_dev,k2_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],1.0,dt,nspins);
-  
-    CUDACalculateFields(J1ij_s_dev,J1ij_t_dev,J2ij_s_dev,J2ij_t_dev,J4ijkl_s_dev,sf_dev,r_dev,r_max_dev,mat_dev,pbc_dev,h_dev,h_dipole_dev,false);
-  
+  CUDAIntegrateLLG_SRK4<<<nblocks, BLOCKSIZE>>>
+    (s_dev, s_old_dev, k2_dev, h_dev, w_dev, sf_dev, mat_dev, h_app[0], h_app[1], h_app[2], 1.0, dt, nspins);
+
+    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, false);
+
   // Integrate to find K3
-  CUDAIntegrateEndPointLLG_SRK4<<<nblocks,BLOCKSIZE>>>
-    (s_dev,s_old_dev,k0_dev,k1_dev,k2_dev,h_dev,w_dev,sf_dev,mat_dev,h_app[0],h_app[1],h_app[2],dt,nspins);
+  CUDAIntegrateEndPointLLG_SRK4<<<nblocks, BLOCKSIZE>>>
+    (s_dev, s_old_dev, k0_dev, k1_dev, k2_dev, h_dev, w_dev, sf_dev, mat_dev, h_app[0], h_app[1], h_app[2], dt, nspins);
 
   iteration++;
 }
@@ -224,7 +226,7 @@ void CUDALLGSolverSRK4::calcEnergy(double &e1_s, double &e1_t, double &e2_s, dou
 CUDALLGSolverSRK4::~CUDALLGSolverSRK4()
 {
   curandDestroyGenerator(gen);
-  
+
   cusparseStatus_t status;
 
   status = cusparseDestroyMatDescr(descra);

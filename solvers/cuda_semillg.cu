@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #include "solvers/cuda_semillg.h"
 
 #include <cublas.h>
@@ -21,7 +23,7 @@ void CUDASemiLLGSolver::syncOutput()
 {
   using namespace globals;
   CUDA_CALL(cudaThreadSynchronize());
-  CUDA_CALL(cudaMemcpy(s.data(),s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(s.data(), s_dev, (size_t)(nspins3*sizeof(double)), cudaMemcpyDeviceToHost));
   CUDA_CALL(cudaThreadSynchronize());
 }
 
@@ -30,11 +32,11 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   using namespace globals;
 
   // initialise base class
-  Solver::initialise(argc,argv,idt);
+  Solver::initialise(argc, argv, idt);
 
   sigma.resize(nspins);
 
-  for(int i=0; i<nspins; ++i) {
+  for(int i = 0; i<nspins; ++i) {
     sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)) / (dt*mus(i)*mu_bohr_si) );
   }
 
@@ -47,14 +49,14 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 
   output.write("  * Initialising CURAND...\n");
   // curand generator
-  CURAND_CALL(curandCreateGenerator(&gen,CURAND_RNG_PSEUDO_DEFAULT));
+  CURAND_CALL(curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT));
 
 
   // TODO: set random seed from config
   const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, gpuseed));
   CURAND_CALL(curandGenerateSeeds(gen));
-  CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize,1024));
+  CUDA_CALL(cudaThreadSetLimit(cudaLimitStackSize, 1024));
   CUDA_CALL(cudaThreadSynchronize());
 
 
@@ -67,50 +69,50 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   J1ij_t.convertMAP2DIA();
   J2ij_s.convertMAP2DIA();
   J2ij_t.convertMAP2DIA();
-  output.write("  * J1ij scalar matrix memory (DIA): %f MB\n",J1ij_s.calculateMemory());
-  output.write("  * J1ij tensor matrix memory (DIA): %f MB\n",J1ij_t.calculateMemory());
-  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J2ij_s.calculateMemory());
-  output.write("  * J2ij tensor matrix memory (DIA): %f MB\n",J2ij_t.calculateMemory());
-  
+  output.write("  * J1ij scalar matrix memory (DIA): %f MB\n", J1ij_s.calculateMemory());
+  output.write("  * J1ij tensor matrix memory (DIA): %f MB\n", J1ij_t.calculateMemory());
+  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n", J2ij_s.calculateMemory());
+  output.write("  * J2ij tensor matrix memory (DIA): %f MB\n", J2ij_t.calculateMemory());
+
   /*output.write("  * Converting J4 MAP to CSR\n");*/
   /*J4ijkl_s.convertMAP2CSR();*/
-  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n",J4ijkl_s.calculateMemoryUsage());
+  output.write("  * J2ij scalar matrix memory (DIA): %f MB\n", J4ijkl_s.calculateMemoryUsage());
 
 
   output.write("  * Allocating device memory...\n");
   // spin arrays
-  CUDA_CALL(cudaMalloc((void**)&s_dev,nspins3*sizeof(double)));
-  CUDA_CALL(cudaMalloc((void**)&sf_dev,nspins3*sizeof(float)));
-  CUDA_CALL(cudaMalloc((void**)&s_new_dev,nspins3*sizeof(double)));
+  CUDA_CALL(cudaMalloc((void**)&s_dev, nspins3*sizeof(double)));
+  CUDA_CALL(cudaMalloc((void**)&sf_dev, nspins3*sizeof(float)));
+  CUDA_CALL(cudaMalloc((void**)&s_new_dev, nspins3*sizeof(double)));
 
   // field arrays
-  CUDA_CALL(cudaMalloc((void**)&h_dev,nspins3*sizeof(float)));
-  CUDA_CALL(cudaMalloc((void**)&e_dev,nspins3*sizeof(float)));
+  CUDA_CALL(cudaMalloc((void**)&h_dev, nspins3*sizeof(float)));
+  CUDA_CALL(cudaMalloc((void**)&e_dev, nspins3*sizeof(float)));
 
   if(nspins3%2 == 0) {
     // wiener processes
-    CUDA_CALL(cudaMalloc((void**)&w_dev,nspins3*sizeof(float)));
+    CUDA_CALL(cudaMalloc((void**)&w_dev, nspins3*sizeof(float)));
   } else {
-    CUDA_CALL(cudaMalloc((void**)&w_dev,(nspins3+1)*sizeof(float)));
+    CUDA_CALL(cudaMalloc((void**)&w_dev, (nspins3+1)*sizeof(float)));
   }
 
 
   // bilinear scalar
   allocate_transfer_dia(J1ij_s, J1ij_s_dev);
-  
+
   // bilinear tensor
   allocate_transfer_dia(J1ij_t, J1ij_t_dev);
-  
+
   // biquadratic scalar
   allocate_transfer_dia(J2ij_s, J2ij_s_dev);
-  
+
   // bilinear tensor
   allocate_transfer_dia(J2ij_t, J2ij_t_dev);
 
   allocate_transfer_csr_4d(J4ijkl_s, J4ijkl_s_dev);
 
   // material properties
-  CUDA_CALL(cudaMalloc((void**)&mat_dev,nspins*4*sizeof(float)));
+  CUDA_CALL(cudaMalloc((void**)&mat_dev, nspins*4*sizeof(float)));
 
   //-------------------------------------------------------------------
   //  Copy data to device
@@ -118,53 +120,53 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 
   output.write("  * Copying data to device memory...\n");
   // initial spins
-  jblib::Array<float,2> sf(nspins,3);
-  for(int i=0; i<nspins; ++i) {
-    for(int j=0; j<3; ++j) {
-      sf(i,j) = static_cast<float>(s(i,j));
+  jblib::Array<float, 2> sf(nspins, 3);
+  for(int i = 0; i<nspins; ++i) {
+    for(int j = 0; j<3; ++j) {
+      sf(i, j) = static_cast<float>(s(i, j));
     }
   }
-  CUDA_CALL(cudaMemcpy(s_dev,s.data(),(size_t)(nspins3*sizeof(double)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(sf_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(s_dev, s.data(), (size_t)(nspins3*sizeof(double)), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(sf_dev, sf.data(), (size_t)(nspins3*sizeof(float)), cudaMemcpyHostToDevice));
 
-  jblib::Array<float,2> mat(nspins,4);
+  jblib::Array<float, 2> mat(nspins, 4);
   // material properties
-  for(int i=0; i<nspins; ++i){
-    mat(i,0) = mus(i);
-    mat(i,1) = gyro(i);
-    mat(i,2) = alpha(i);
-    mat(i,3) = sigma(i);
+  for(int i = 0; i<nspins; ++i){
+    mat(i, 0) = mus(i);
+    mat(i, 1) = gyro(i);
+    mat(i, 2) = alpha(i);
+    mat(i, 3) = sigma(i);
   }
-  CUDA_CALL(cudaMemcpy(mat_dev,mat.data(),(size_t)(nspins*4*sizeof(float)),cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(mat_dev, mat.data(), (size_t)(nspins*4*sizeof(float)), cudaMemcpyHostToDevice));
 
-  eng.resize(nspins,3);
+  eng.resize(nspins, 3);
 
 
   //-------------------------------------------------------------------
   //  Initialise arrays to zero
   //-------------------------------------------------------------------
-  for(int i=0; i<nspins; ++i) {
-    for(int j=0; j<3; ++j) {
-      sf(i,j) = 0.0;
+  for(int i = 0; i<nspins; ++i) {
+    for(int j = 0; j<3; ++j) {
+      sf(i, j) = 0.0;
     }
   }
-  
-  CUDA_CALL(cudaMemcpy(w_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(h_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(e_dev,sf.data(),(size_t)(nspins3*sizeof(float)),cudaMemcpyHostToDevice));
+
+  CUDA_CALL(cudaMemcpy(w_dev, sf.data(), (size_t)(nspins3*sizeof(float)), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(h_dev, sf.data(), (size_t)(nspins3*sizeof(float)), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(e_dev, sf.data(), (size_t)(nspins3*sizeof(float)), cudaMemcpyHostToDevice));
 
   nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
 
-  J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-  J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
 
-  J2ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-  J2ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE,(nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-  
-  J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE,(nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
+  J2ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J2ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+
+  J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE, (nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
 
   initialised = true;
-    
+
 }
 
 
@@ -175,11 +177,11 @@ void CUDASemiLLGSolver::run()
   // copy s_dev to s_new_dev
   // NOTE: this is part of the SEMILLG scheme
   CUDA_CALL(cudaThreadSynchronize());
-  CUDA_CALL(cudaMemcpy(s_new_dev,s_dev,(size_t)(nspins3*sizeof(double)),cudaMemcpyDeviceToDevice));
+  CUDA_CALL(cudaMemcpy(s_new_dev, s_dev, (size_t)(nspins3*sizeof(double)), cudaMemcpyDeviceToDevice));
 
   // generate wiener trajectories
   float stmp = sqrt(temperature);
-  
+
   if(temperature > 0.0) {
     if(nspins3%2 == 0) {
       CURAND_CALL(curandGenerateNormal(gen, w_dev, nspins3, 0.0f, stmp));
@@ -188,48 +190,48 @@ void CUDASemiLLGSolver::run()
     }
   }
   CUDA_CALL(cudaThreadSynchronize());
-  
+
     // calculate interaction fields (and zero field array)
 
   float beta=0.0;
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
-    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+      J1ij_s.diags(), J1ij_s_dev.pitch, 1.0, beta, J1ij_s_dev.row, J1ij_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
 
   // bilinear tensor
   if(J1ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J1ij_t.diags(),J1ij_t_dev.pitch,1.0,beta,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3, nspins3,
+      J1ij_t.diags(), J1ij_t_dev.pitch, 1.0, beta, J1ij_t_dev.row, J1ij_t_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
-  
+
   // biquadratic scalar
   if(J2ij_s.nonZero() > 0){
-    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J2ij_s.diags(),J2ij_s_dev.pitch,2.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+      J2ij_s.diags(), J2ij_s_dev.pitch, 2.0, beta, J2ij_s_dev.row, J2ij_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
-  
+
   // biquadratic tensor
   if(J2ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3, nspins3,
+      J2ij_t.diags(), J2ij_t_dev.pitch, 2.0, beta, J2ij_t_dev.row, J2ij_t_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
-  
+
   if(J4ijkl_s.nonZeros() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
-        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
+        J4ijkl_s_dev.pointers, J4ijkl_s_dev.coords, J4ijkl_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
-  
+
   //CUDA_CALL(cudaUnbindTexture(tex_x_float));
 
   // integrate
-  cuda_semi_llg_kernelA<<<nblocks,BLOCKSIZE>>>
+  cuda_semi_llg_kernelA<<<nblocks, BLOCKSIZE>>>
     (
       s_dev,
       sf_dev,
@@ -246,45 +248,45 @@ void CUDASemiLLGSolver::run()
 
    // calculate interaction fields (and zero field array)
 
-  //CUDA_CALL(cudaBindTexture(0,tex_x_float,sf_dev));
-  
+  //CUDA_CALL(cudaBindTexture(0, tex_x_float, sf_dev));
+
   beta=0.0;
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
-    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J1ij_s.diags(),J1ij_s_dev.pitch,1.0,beta,J1ij_s_dev.row,J1ij_s_dev.val,sf_dev,h_dev);
+    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+      J1ij_s.diags(), J1ij_s_dev.pitch, 1.0, beta, J1ij_s_dev.row, J1ij_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
 
   // bilinear tensor
   if(J1ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J1ij_t.diags(),J1ij_t_dev.pitch,beta,1.0,J1ij_t_dev.row,J1ij_t_dev.val,sf_dev,h_dev);
+    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3, nspins3,
+      J1ij_t.diags(), J1ij_t_dev.pitch, beta, 1.0, J1ij_t_dev.row, J1ij_t_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
-  
+
   // biquadratic scalar
   if(J2ij_s.nonZero() > 0){
-    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins,nspins,
-      J2ij_s.diags(),J2ij_s_dev.pitch,2.0,beta,J2ij_s_dev.row,J2ij_s_dev.val,sf_dev,h_dev);
+    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+      J2ij_s.diags(), J2ij_s_dev.pitch, 2.0, beta, J2ij_s_dev.row, J2ij_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
-  
+
   // biquadratic tensor
   if(J2ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3,nspins3,
-      J2ij_t.diags(),J2ij_t_dev.pitch,2.0,beta,J2ij_t_dev.row,J2ij_t_dev.val,sf_dev,h_dev);
+    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3, nspins3,
+      J2ij_t.diags(), J2ij_t_dev.pitch, 2.0, beta, J2ij_t_dev.row, J2ij_t_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
-  
+
   if(J4ijkl_s.nonZeros() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks,CSR_4D_BLOCK_SIZE>>>(nspins,nspins,1.0,beta,
-        J4ijkl_s_dev.pointers,J4ijkl_s_dev.coords,J4ijkl_s_dev.val,sf_dev,h_dev);
+    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
+        J4ijkl_s_dev.pointers, J4ijkl_s_dev.coords, J4ijkl_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
-  
+
   //CUDA_CALL(cudaUnbindTexture(tex_x_float));
-  cuda_semi_llg_kernelB<<<nblocks,BLOCKSIZE>>>
+  cuda_semi_llg_kernelB<<<nblocks, BLOCKSIZE>>>
     (
       s_dev,
       sf_dev,
@@ -306,7 +308,7 @@ void CUDASemiLLGSolver::run()
 CUDASemiLLGSolver::~CUDASemiLLGSolver()
 {
       curandDestroyGenerator(gen);
-  
+
   cusparseStatus_t status;
 
   status = cusparseDestroyMatDescr(descra);

@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_SOLVER_CUDA_HEUNLLMS_H
 #define JAMS_SOLVER_CUDA_HEUNLLMS_H
 
@@ -31,7 +33,7 @@ class CUDAHeunLLMSSolver : public Solver {
         e_dev(0),
         mat_dev(0),
 		omega_corr_dev(0),
-        eng(0,0),
+        eng(0, 0),
         sigma(0),
         nblocks(0),
         spmvblocksize(0)
@@ -61,8 +63,8 @@ class CUDAHeunLLMSSolver : public Solver {
     float * e_dev;
     float * mat_dev;
     float * omega_corr_dev;
-    jblib::Array<float,2> eng;
-    jblib::Array<double,1> sigma;
+    jblib::Array<float, 2> eng;
+    jblib::Array<double, 1> sigma;
     int nblocks;
     int spmvblocksize;
 };

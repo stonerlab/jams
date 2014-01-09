@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_SOLVER_CUDA_SEMILLG_H
 #define JAMS_SOLVER_CUDA_SEMILLG_H
 
@@ -28,7 +30,7 @@ class CUDASemiLLGSolver : public Solver {
         h_dev(0),
         e_dev(0),
         mat_dev(0),
-        eng(0,0),
+        eng(0, 0),
         sigma(0),
         nblocks(0),
         spmvblocksize(0)
@@ -54,8 +56,8 @@ class CUDASemiLLGSolver : public Solver {
     float * h_dev;
     float * e_dev;
     float * mat_dev;
-    jblib::Array<float,2> eng;
-    jblib::Array<double,1> sigma;
+    jblib::Array<float, 2> eng;
+    jblib::Array<double, 1> sigma;
     int nblocks;
     int spmvblocksize;
 };

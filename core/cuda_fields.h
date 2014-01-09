@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_CUDA_FIELDS_H
 #define JAMS_CUDA_FIELDS_H
 
@@ -9,7 +11,7 @@ void CUDACalculateFields(
         const devDIA & J2ij_s_dev,
         const devDIA & J2ij_t_dev,
         const devCSR & J4ijkl_s_dev,
-        const float *  sf_dev, 
+        const float *  sf_dev,
         const float *  r_dev,
         const float *  r_max_dev,
         const float *  mat_dev,

@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_CUDA_HEUNLLBP_KERNEL_H
 #define JAMS_CUDA_HEUNLLBP_KERNEL_H
 
@@ -36,56 +38,56 @@ __global__ void cuda_heun_llbp_kernelA
     const float gyro = mat_dev[idx*4+1];
     const float alpha = mat_dev[idx*4+2];
     const float sigma = mat_dev[idx*4+3];
-	
+
 	const float tc1 = tc_dev[2*idx+0];
 	const float tc2 = tc_dev[2*idx+1];
-	
+
 	const float ratio = (tc1*tc1)/(tc1*tc1 - tc2*tc2);
-	
+
     h[0] = (( h_dev[idx3  ] + (u2_dev[idx3  ] - u1_dev[idx3  ] + h_app_x)*mus )*gyro);
     h[1] = (( h_dev[idx3+1] + (u2_dev[idx3+1] - u1_dev[idx3+1] + h_app_y)*mus )*gyro);
     h[2] = (( h_dev[idx3+2] + (u2_dev[idx3+2] - u1_dev[idx3+2] + h_app_z)*mus )*gyro);
 
 	#pragma unroll
-	for(i=0; i<3; ++i){
+	for(i = 0; i<3; ++i){
     	s[i] = s_dev[idx3+i];
 	}
-    
+
     sxh[0] = s[1]*h[2] - s[2]*h[1];
     sxh[1] = s[2]*h[0] - s[0]*h[2];
     sxh[2] = s[0]*h[1] - s[1]*h[0];
 
 	#pragma unroll
-	for(i=0; i<3; ++i){
+	for(i = 0; i<3; ++i){
     	s_new_dev[idx3+i] = s[i] + 0.5*dt*sxh[i];
 	}
 
 	#pragma unroll
-	for(i=0; i<3; ++i){
+	for(i = 0; i<3; ++i){
     	s[i] = s[i] + dt*sxh[i];
 	}
 
     norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
-    
+
 	#pragma unroll
-	for(i=0; i<3; ++i){
+	for(i = 0; i<3; ++i){
     	s_dev[idx3+i]   = s[i]*norm;
 	}
-	
+
 	#pragma unroll
-	for(i=0; i<3; ++i){
+	for(i = 0; i<3; ++i){
     	sf_dev[idx3+i]   = float(s[i]*norm);
 	}
-	
-	const double u1[3] = {u1_dev[idx3+0],u1_dev[idx3+1],u1_dev[idx3+2]};
-    for(i=0; i<3; ++i) {
+
+	const double u1[3] = {u1_dev[idx3+0], u1_dev[idx3+1], u1_dev[idx3+2]};
+    for(i = 0; i<3; ++i) {
 		rhs[i] = (sigma*w_dev[idx3+i] - u1[i] - ratio*alpha*sxh[i])/(tc1);
 		u1_new_dev[idx3+i] = u1[i] + 0.5*dt*rhs[i];
       	u1_dev[idx3+i] = u1[i] + dt*rhs[i];
     }
-	
-	const double u2[3] = {u2_dev[idx3+0],u2_dev[idx3+1],u2_dev[idx3+2]};
-    for(i=0; i<3; ++i) {
+
+	const double u2[3] = {u2_dev[idx3+0], u2_dev[idx3+1], u2_dev[idx3+2]};
+    for(i = 0; i<3; ++i) {
 		rhs[i] = (sigma*w_dev[idx3+i] - u2[i] - ratio*alpha*sxh[i])/(tc2);
 		u2_new_dev[idx3+i] = u2[i] + 0.5*dt*rhs[i];
       	u2_dev[idx3+i] = u2[i] + dt*rhs[i];
@@ -129,7 +131,7 @@ __global__ void cuda_heun_llbp_kernelB
     float sigma = mat_dev[idx*4+3];
 	const float tc1 = tc_dev[2*idx+0];
 	const float tc2 = tc_dev[2*idx+1];
-	
+
 	const float ratio = (tc1*tc1)/(tc1*tc1 - tc2*tc2);
 
     h[0] = (( h_dev[idx3  ] + (u2_dev[idx3  ] - u1_dev[idx3  ] + h_app_x)*mus )*gyro);
@@ -138,7 +140,7 @@ __global__ void cuda_heun_llbp_kernelB
 
 
 	#pragma unroll
-	for(i=0; i<3; ++i){
+	for(i = 0; i<3; ++i){
     	s[i] = s_dev[idx3+i];
 	}
 
@@ -147,29 +149,29 @@ __global__ void cuda_heun_llbp_kernelB
     sxh[2] = s[0]*h[1] - s[1]*h[0];
 
 	#pragma unroll
-	for(i=0; i<3; ++i){
+	for(i = 0; i<3; ++i){
     	s[i] = s_new_dev[idx3+i] + 0.5*dt*sxh[i];
 	}
 
     norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
 
 	#pragma unroll
-	for(i=0; i<3; ++i){
+	for(i = 0; i<3; ++i){
     	s_dev[idx3+i]   = s[i]*norm;
 	}
 
 	#pragma unroll
-	for(i=0; i<3; ++i){
+	for(i = 0; i<3; ++i){
     	sf_dev[idx3+i]   = float(s[i]*norm);
 	}
-	
+
 	#pragma unroll
-    for(i=0; i<3; ++i) {
+    for(i = 0; i<3; ++i) {
       u1_dev[idx3+i] = u1_new_dev[idx3+i]+0.5*dt*((sigma*w_dev[idx3+i] - u1_dev[idx3+i] - ratio*alpha*sxh[i])/(tc1));
     }
-   
+
 	#pragma unroll
-    for(i=0; i<3; ++i) {
+    for(i = 0; i<3; ++i) {
       u2_dev[idx3+i] = u2_new_dev[idx3+i]+0.5*dt*((sigma*w_dev[idx3+i] - u2_dev[idx3+i] - ratio*alpha*sxh[i])/(tc2));
     }
 

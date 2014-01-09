@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_SOLVER_CUDA_SRK4LLG_KERNEL_H
 #define JAMS_SOLVER_CUDA_SRK4LLG_KERNEL_H
 
@@ -25,14 +27,14 @@ __global__ void CUDAIntegrateLLG_SRK4
 {
     const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
     const unsigned int idx3 = 3*idx;
-    
+
 
     if ( idx < nSpins ){
         double h[3];
         double s[3];
         double k[3];
         double sxh[3];
-        
+
         float mus   = mat_dev[idx*4];
         float gyro  = mat_dev[idx*4+1];
         float alpha = mat_dev[idx*4+2];
@@ -65,7 +67,7 @@ __global__ void CUDAIntegrateLLG_SRK4
         for(int n=0; n<3; ++n){
             s[n] = s_dev[idx3+n] + q*dt*k[n];
         }
-        
+
         double rnorm = rsqrt(s[0]*s[0] + s[1]*s[1] + s[2]*s[2]);
 
 #pragma unroll
@@ -101,14 +103,14 @@ __global__ void CUDAIntegrateEndPointLLG_SRK4
 {
     const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
     const unsigned int idx3 = 3*idx;
-    
+
 
     if ( idx < nSpins ){
         double h[3];
         double s[3];
         double k[3];
         double sxh[3];
-        
+
         float mus   = mat_dev[idx*4];
         float gyro  = mat_dev[idx*4+1];
         float alpha = mat_dev[idx*4+2];
@@ -143,7 +145,7 @@ __global__ void CUDAIntegrateEndPointLLG_SRK4
         for(int n=0; n<3; ++n){
             s[n] = s[n]*rnorm;
         }
-        
+
 #pragma unroll
         for(int n=0; n<3; ++n){
             s_dev[idx3+n] = s[n];

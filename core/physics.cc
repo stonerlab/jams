@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #include "core/physics.h"
 
 #include <libconfig.h++>
@@ -15,7 +17,7 @@
 
 
 void Physics::init(libconfig::Setting &phys) {
-  if(initialised == true) {
+  if (initialised == true) {
     jams_error("Physics module is already initialised");
   }
 
@@ -26,12 +28,10 @@ void Physics::run(double realtime, const double dt) {
 }
 
 void Physics::monitor(const double realtime, const double dt) {
-
 }
 
-Physics* Physics::Create(PhysicsType type)
-{
-  switch(type){
+Physics* Physics::Create(PhysicsType type) {
+  switch (type) {
     case FMR:
       return new FMRPhysics;
       break;

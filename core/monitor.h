@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_CORE_MONITOR_H
 #define JAMS_CORE_MONITOR_H
 
@@ -6,23 +8,23 @@
 enum ConvergenceType {convNone, convMag, convPhi, convSinPhi};
 
 class Monitor {
-  public:
-    Monitor() : initialised(false) {}
+ public:
+  Monitor() : initialised(false) {}
 
-    virtual ~Monitor(){}
+  virtual ~Monitor() {}
 
-    virtual void initialise();
-    virtual void run();
-    virtual void write(Solver *solver);
-	
-	virtual void initConvergence(ConvergenceType type, const double meanTol, const double devTol);
-	virtual bool checkConvergence();
-	
+  virtual void initialise();
+  virtual void run();
+  virtual void write(Solver *solver);
 
-    static Monitor* Create();
-  protected:
+  virtual void initConvergence(ConvergenceType type, const double meanTol,
+    const double devTol);
+  virtual bool checkConvergence();
+
+
+  static Monitor* Create();
+ protected:
     bool initialised;
-
 };
 
-#endif // JAMS_CORE_MONITOR_H
+#endif  // JAMS_CORE_MONITOR_H

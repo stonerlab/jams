@@ -6,11 +6,11 @@ OBJS = $(patsubst %.cc, %.o, $(wildcard *.cc))
 CUDAOBJS = $(patsubst %.cu, %.o, $(wildcard *.cu))
 LOCALHEAD = $(wildcard *.h)
 
-ifeq ($(withcuda),1)
+ifeq ($(withcuda), 1)
 objects: $(OBJS) $(CUDAOBJS) $(HEADERS) $(LOCALHEAD)
 endif
 
-ifeq ($(withcuda),0)
+ifeq ($(withcuda), 0)
 objects: $(OBJS) $(HEADERS) $(LOCALHEAD)
 endif
 

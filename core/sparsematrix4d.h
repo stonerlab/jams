@@ -1,3 +1,5 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
 #ifndef JAMS_CORE_SPARSEMATRIX4D_H
 #define JAMS_CORE_SPARSEMATRIX4D_H
 
@@ -14,7 +16,7 @@
 ///
 /// @class SparseMatrix
 /// @brief Storage class for sparse matrices.
-/// 
+///
 ///
 template <typename _Tp>
 class SparseMatrix4D {
@@ -26,7 +28,7 @@ class SparseMatrix4D {
             : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
             matrixType(SPARSE_MATRIX_TYPE_GENERAL),
             matrixMode(SPARSE_MATRIX_MODE_UPPER),
-            dim(4,0),
+            dim(4, 0),
             nnz_unmerged(0),
             nnz(0),
             i_idx(0),
@@ -34,7 +36,7 @@ class SparseMatrix4D {
             k_idx(0),
             l_idx(0),
             pointers(0),
-            coords(0,0),
+            coords(0, 0),
             val(0)
     {}
 
@@ -43,7 +45,7 @@ class SparseMatrix4D {
             : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
             matrixType(SPARSE_MATRIX_TYPE_GENERAL),
             matrixMode(SPARSE_MATRIX_MODE_UPPER),
-            dim(4,0),
+            dim(4, 0),
             nnz_unmerged(0),
             nnz(0),
             i_idx(0),
@@ -51,7 +53,7 @@ class SparseMatrix4D {
             k_idx(0),
             l_idx(0),
             pointers(0),
-            coords(0,0),
+            coords(0, 0),
             val(0)
     {dim[0] = m; dim[1] = n; dim[2] = p; dim[3] = q;}
 
@@ -95,7 +97,7 @@ class SparseMatrix4D {
 
     private:
 
-        typedef std::vector< std::pair<int64_t,_Tp> > coo_mmp;
+        typedef std::vector< std::pair<int64_t, _Tp> > coo_mmp;
 
         SparseMatrixFormat_t  matrixFormat;
         SparseMatrixType_t    matrixType;
@@ -111,26 +113,26 @@ class SparseMatrix4D {
         std::vector<size_type> k_idx;
         std::vector<size_type> l_idx;
 
-        jblib::Array<size_type,1>     pointers;
-        jblib::Array<size_type,2>     coords;
+        jblib::Array<size_type, 1>     pointers;
+        jblib::Array<size_type, 2>     coords;
         std::vector<_Tp>       val;
 
 };
 
 // template <typename _Tp>
 // void SparseMatrix<_Tp>::printCSR() {
-// 
+//
 //   if(format==CSR) {
-//     for(int i=0; i<nrows+1; ++i) {
-//       output.write("%i\n",row[i]);
+//     for(int i = 0; i<nrows+1; ++i) {
+//       output.write("%i\n", row[i]);
 //     }
 //     output.write("\n\n");
-//     for(int i=0; i<nnz; ++i) {
-//       output.write("%i\n",col[i]);
+//     for(int i = 0; i<nnz; ++i) {
+//       output.write("%i\n", col[i]);
 //     }
 //     output.write("\n\n");
-//     for(int i=0; i<nnz; ++i) {
-//       output.write("%e\n",val[i]);
+//     for(int i = 0; i<nnz; ++i) {
+//       output.write("%e\n", val[i]);
 //     }
 //   }
 // }
@@ -152,7 +154,7 @@ void SparseMatrix4D<_Tp>::insertValue(size_type i, size_type j, size_type k, siz
 
     if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP) { // can only insert elements into map formatted matrix
 
-        if(  !( ((i < dim[0]) && (i >= 0)) && ((j < dim[1]) && (j >= 0)) 
+        if(  !( ((i < dim[0]) && (i >= 0)) && ((j < dim[1]) && (j >= 0))
                     && ((k < dim[2]) && (k >= 0)) && ((l < dim[3]) && (l >= 0)) ) ) { // element must be inside matrix boundaries
             jams_error("Attempted to insert matrix element outside of matrix size");
         }
@@ -176,14 +178,14 @@ void SparseMatrix4D<_Tp>::convertMAP2COO()
 {
 
     nnz = 0;
-    coords.resize(nnz_unmerged,4);
+    coords.resize(nnz_unmerged, 4);
 
     if(nnz_unmerged > 0){
-        for(int i=0; i<nnz_unmerged; ++i){
-            coords(i,0) = i_idx[i];
-            coords(i,1) = j_idx[i];
-            coords(i,2) = k_idx[i];
-            coords(i,3) = l_idx[i];
+        for(int i = 0; i<nnz_unmerged; ++i){
+            coords(i, 0) = i_idx[i];
+            coords(i, 1) = j_idx[i];
+            coords(i, 2) = k_idx[i];
+            coords(i, 3) = l_idx[i];
         }
     }
 
@@ -205,21 +207,21 @@ void SparseMatrix4D<_Tp>::convertMAP2CSR()
     // are not ordered
 
     pointers.resize(dim[0]+1);
-    coords.resize(nnz_unmerged,3);
+    coords.resize(nnz_unmerged, 3);
 
-    std::vector<_Tp> csrval(nnz_unmerged,0);
+    std::vector<_Tp> csrval(nnz_unmerged, 0);
 
     if(nnz_unmerged > 0){
         size_type count=0;
-        for(int i=0;i<dim[0];++i){
+        for(int i = 0;i<dim[0];++i){
             pointers(i) = count;
 
             for(int n=0;n<nnz_unmerged;++n){
                 if( i_idx[n] == i ){
                     //std::cerr<< i << "\t" << count << "\t" << j_idx[n] << "\t" << k_idx[n] << "\t" << l_idx[n] << std::endl;
-                    coords(count,0) = j_idx[n];
-                    coords(count,1) = k_idx[n];
-                    coords(count,2) = l_idx[n];
+                    coords(count, 0) = j_idx[n];
+                    coords(count, 1) = k_idx[n];
+                    coords(count, 2) = l_idx[n];
                     csrval[count] = val[n];
                     count++;
                 }
