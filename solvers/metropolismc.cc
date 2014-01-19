@@ -253,8 +253,8 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
     iteration++;
   }
 
-  void MetropolisMCSolver::syncOutput() {
+  void MetropolisMCSolver::sync_device_data() {
   }
 
-  void MetropolisMCSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {
+  void MetropolisMCSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {
   }

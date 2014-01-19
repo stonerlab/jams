@@ -21,7 +21,7 @@
 #include "jblib/containers/array.h"
 
 
-void CUDAHeunLLGSolver::syncOutput()
+void CUDAHeunLLGSolver::sync_device_data()
 {
   using namespace globals;
   s_dev.copyToHostArray(s);
@@ -147,7 +147,7 @@ void CUDAHeunLLGSolver::run()
     iteration++;
 }
 
-void CUDAHeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
+void CUDAHeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
   using namespace globals;
   const float beta=0.0;
 

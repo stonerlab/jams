@@ -49,7 +49,7 @@ void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
   initialized = true;
 }
 
-void HeunLLGSolver::syncOutput() {
+void HeunLLGSolver::sync_device_data() {
 }
 
 void HeunLLGSolver::run() {

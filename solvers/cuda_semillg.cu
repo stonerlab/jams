@@ -19,7 +19,7 @@
 
 #include "jblib/containers/array.h"
 
-void CUDASemiLLGSolver::syncOutput()
+void CUDASemiLLGSolver::sync_device_data()
 {
   using namespace globals;
   CUDA_CALL(cudaThreadSynchronize());

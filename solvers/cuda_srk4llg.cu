@@ -19,7 +19,7 @@
 
 #include "jblib/containers/array.h"
 
-void CUDALLGSolverSRK4::syncOutput()
+void CUDALLGSolverSRK4::sync_device_data()
 {
     using namespace globals;
     CUDA_CALL(cudaMemcpy(s.data(), s_dev, (size_t)(nspins3*sizeof(double)), cudaMemcpyDeviceToHost));
@@ -220,7 +220,7 @@ void CUDALLGSolverSRK4::run()
   iteration++;
 }
 
-void CUDALLGSolverSRK4::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
+void CUDALLGSolverSRK4::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
 }
 
 CUDALLGSolverSRK4::~CUDALLGSolverSRK4()

@@ -21,7 +21,7 @@
 
 #include "jblib/containers/array.h"
 
-void CUDAHeunLLBPSolver::syncOutput()
+void CUDAHeunLLBPSolver::sync_device_data()
 {
   using namespace globals;
   CUDA_CALL(cudaMemcpy(s.data(), s_dev, (size_t)(nspins3*sizeof(double)), cudaMemcpyDeviceToHost));
@@ -385,7 +385,7 @@ void CUDAHeunLLBPSolver::run()
   iteration++;
 }
 
-void CUDAHeunLLBPSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
+void CUDAHeunLLBPSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
   using namespace globals;
 
 }
