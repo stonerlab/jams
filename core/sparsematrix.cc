@@ -16,19 +16,13 @@ void jams_dcsrmv(const char trans[1], const int m, const int n,
       for (i = 0; i < m; ++i) {  // iterate rows
         y[i] = beta * y[i];
         begin = ptrb[i]; end = ptre[i];
-        for (j = begin; j < end; ++j) {
-          k = indx[j];  // column
-          // upper triangle and diagonal
+        for (j = begin; j < end; ++j) {  // j is the row
+          k = indx[j];  // k is the column
           tmp = alpha*val[j];
-          if (i > (k-1)) {
+          if (i > k) {  // upper triangle
             y[i] = y[i] + x[k]*tmp;
           }
-        }
-        for (j = begin; j < end; ++j) {
-          k = indx[j];  // column
-          // upper triangle and diagonal
-          tmp = alpha*val[j];
-          if (i > k) {
+          if (i > (k-1)) {  // lower triangle and diagonal
             y[k] = y[k] + x[i]*tmp;
           }
         }
