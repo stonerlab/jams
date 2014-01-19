@@ -111,9 +111,9 @@ class SparseMatrix {
 
     void convertSymmetric2General();
 
-    inline const _Tp& val(const size_type &i) const { return val_[i]; }
-    inline const _Tp& row(const size_type &i) const { return row_[i]; }
-    inline const _Tp& col(const size_type &i) const { return col_[i]; }
+    inline const _Tp val(const size_type &i) const { return val_[i]; }
+    inline const size_type row(const size_type &i) const { return row_[i]; }
+    inline const size_type col(const size_type &i) const { return col_[i]; }
 
 
     inline _Tp*       valPtr() { return &(val_[0]); } ///< @brief Pointer to values array
