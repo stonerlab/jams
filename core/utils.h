@@ -29,6 +29,18 @@ inline std::string& trim(std::string &s) {
   return left_trim(right_trim(s));
 }
 
+// capitalize a string
+inline std::string capitalize(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(), toupper);
+  return s;
+}
+
+inline std::string file_basename(std::string filepath) {
+  int dot = filepath.find_last_of(".");
+  int slash = filepath.find_last_of("/\\");
+  return filepath.substr(slash+1, dot-slash-1);
+}
+
 // Lifted from http://www.cplusplus.com/forum/general/15952/
 inline std::string zero_pad_number(const int num) {
     std::ostringstream ss;
