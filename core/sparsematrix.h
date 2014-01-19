@@ -267,7 +267,8 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
 {
   typename coo_mmp::const_iterator nz;
 
-  int64_t index_last, ival, jval, index, row_last;
+  int64_t current_row, current_col, index;
+  int64_t previous_index = -1, previous_row = 0;
 
   nnz = 0;
   row_.resize(nrows+1);
@@ -276,37 +277,35 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
 
   std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_less<int64_t, _Tp>);
 
-  if(nnz_unmerged > 0){
-    index_last = -1; // ensure first index is different;
-    row_last = 0;
+  if (nnz_unmerged > 0) {
+    previous_index = -1;  // ensure first index is different;
+    previous_row = 0;
     row_[0] = 0;
-    for(nz = matrixMap.begin(); nz != matrixMap.end(); ++nz){ // iterate matrix map elements
-      index = nz->first; // first part contains row major index
-      if(index < 0){
+    for (nz = matrixMap.begin(); nz != matrixMap.end(); ++nz) {  // iterate matrix map elements
+      index = nz->first;  // first part contains row major index
+      if (index < 0) {
         jams_error("Negative sparse array index");
       }
-      ival = index/static_cast<int64_t>(ncols);
-      jval = index - ((ival)*ncols);
-      if(index != index_last){
-        index_last = index; // update last index
-        nnz++;
-        if(ival != row_last){
-          // incase there are rows of zeros
-          for(int i = row_last; i<ival+1; ++i){
-            row_[i+1] = nnz-1;
-          }
-        }
-        row_last = ival;
-        col_[nnz-1] = jval;
-        val_[nnz-1] = nz->second;
-      }else{
+      current_row = index/static_cast<int64_t>(ncols);
+      current_col = index - ((current_row)*ncols);
+      if (index == previous_index) {
         // index is the same as the last, add values
         val_[nnz-1] += nz->second;
+      } else {
+        if (current_row != previous_row) {
+          // fill in row array including any missing entries where there were
+          // no row,col values
+          for (int i = previous_row+1; i < current_row+1; ++i) {
+            row_[i] = nnz;
+          }
+        }
+        col_[nnz] = current_col;
+        val_[nnz] = nz->second;
+        nnz++;
+
       }
-    }
-  }else{
-    for(int i = 0;i<nrows+1;++i){
-      row_[i] = 0;
+      previous_row = current_row;
+      previous_index = index;  // update last index
     }
   }
 
@@ -315,7 +314,10 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
   col_.resize(nnz);
   val_.resize(nnz);
 
-  row_[nrows] = nnz;
+  // complete the rest of the (empty) row array
+  for (int i = previous_row+1; i < nrows+1; ++i) {
+    row_[i] = nnz;
+  }
 
   matrixFormat = SPARSE_MATRIX_FORMAT_CSR;
 }
