@@ -27,12 +27,12 @@ void CUDASemiLLGSolver::syncOutput()
   CUDA_CALL(cudaThreadSynchronize());
 }
 
-void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
+void CUDASemiLLGSolver::initialize(int argc, char **argv, double idt)
 {
   using namespace globals;
 
-  // initialise base class
-  Solver::initialise(argc, argv, idt);
+  // initialize base class
+  Solver::initialize(argc, argv, idt);
 
   sigma.resize(nspins);
 
@@ -44,7 +44,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
   output.write("  * CUDA Semi-Implicit LLG solver (GPU)\n");
 
   //-------------------------------------------------------------------
-  //  Initialise curand
+  //  initialize curand
   //-------------------------------------------------------------------
 
   output.write("  * Initialising CURAND...\n");
@@ -143,7 +143,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 
 
   //-------------------------------------------------------------------
-  //  Initialise arrays to zero
+  //  initialize arrays to zero
   //-------------------------------------------------------------------
   for(int i = 0; i<nspins; ++i) {
     for(int j = 0; j<3; ++j) {
@@ -165,7 +165,7 @@ void CUDASemiLLGSolver::initialise(int argc, char **argv, double idt)
 
   J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE, (nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
 
-  initialised = true;
+  initialized = true;
 
 }
 

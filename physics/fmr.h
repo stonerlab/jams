@@ -15,7 +15,7 @@
 class FMRPhysics : public Physics {
  public:
   FMRPhysics()
-  : initialised(false),
+  : initialized(false),
   ACFieldFrequency(0),
   ACFieldStrength(3, 0),
   DCFieldStrength(3, 0),
@@ -23,11 +23,11 @@ class FMRPhysics : public Physics {
   PSDIntegral(0)
   {}
   ~FMRPhysics();
-  void init(libconfig::Setting &phys);
+  void initialize(libconfig::Setting &phys);
   void run(double realtime, const double dt);
   virtual void monitor(double realtime, const double dt);
  private:
-  bool initialised;
+  bool initialized;
   double ACFieldFrequency;
   std::vector<double> ACFieldStrength;
   std::vector<double> DCFieldStrength;

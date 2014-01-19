@@ -52,7 +52,7 @@ namespace {
   std::vector<Monitor*> monitor_list;
 }  // anon namespace
 
-int jams_init(int argc, char **argv) {
+int jams_initialize(int argc, char **argv) {
   if (argc == 1) {
         // seedname is executable
     seedname = std::string(argv[0]);
@@ -280,7 +280,7 @@ int jams_init(int argc, char **argv) {
         }
 
         libconfig::Setting &phys = config.lookup("physics");
-        physics->init(phys);
+        physics_package->initialize(phys);
 
       } else {
         physics = Physics::Create(EMPTY);
@@ -312,8 +312,8 @@ int jams_init(int argc, char **argv) {
       solver = Solver::Create();
     }
 
-    solver->initialise(argc, argv, dt);
     solver->setTemperature(init_temperature);
+    solver->initialize(argc, argv, dt);
   }
 
   // select monitors
@@ -341,21 +341,21 @@ int jams_init(int argc, char **argv) {
   }
 
   for (int i = 0; i < monitor_list.size(); ++i) {
-    monitor_list[i]->initialise();
+    monitor_list[i]->initialize();
   }
 
   if (convName == "MAG") {
     output.write("Convergence for Magnetisation\n");
-    monitor_list[0]->initConvergence(convMag, convMeanTolerance,
-      convDevTolerance);
+    monitor_list[0]->initialize_convergence(convMag, convergence_tolerance_mean,
+      convergence_tolerance_stddev);
   } else if (convName == "PHI") {
     output.write("Convergence for Phi\n");
-    monitor_list[0]->initConvergence(convPhi, convMeanTolerance,
-      convDevTolerance);
+    monitor_list[0]->initialize_convergence(convPhi, convergence_tolerance_mean,
+      convergence_tolerance_stddev);
   } else if (convName == "SINPHI") {
     output.write("Convergence for Sin(Phi)\n");
-    monitor_list[0]->initConvergence(convSinPhi, convMeanTolerance,
-      convDevTolerance);
+    monitor_list[0]->initialize_convergence(convSinPhi, convergence_tolerance_mean,
+      convergence_tolerance_stddev);
   }
   output.write("StdDev Tolerance: %e\n", convMeanTolerance,
     convDevTolerance);
@@ -480,7 +480,7 @@ void jams_finish() {
 }
 
 int main(int argc, char **argv) {
-  jams_init(argc, argv);
+  jams_initialize(argc, argv);
 
   jams_run();
 

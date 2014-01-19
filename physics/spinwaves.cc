@@ -15,7 +15,7 @@
 
 #include "jblib/containers/array.h"
 
-void SpinwavesPhysics::init(libconfig::Setting &phys) {
+void SpinwavesPhysics::initialize(libconfig::Setting &phys) {
   using namespace globals;
 
   register int i, j, n;  // fast loop variables
@@ -392,11 +392,11 @@ BZIndex(irreducibleCounter) = counter;
   SPWFile.open(filename.c_str());
   SPWFile << "# t [s]\tk=0\tk!=0\tM_AF1_x\tM_AF1_y\tM_AF1_z\n";
 
-  initialised = true;
+  initialized = true;
 }
 
 SpinwavesPhysics::~SpinwavesPhysics() {
-  if (initialised == true) {
+  if (initialized == true) {
     for (int i = 0; i < qSpaceFFT.size(); ++i) {
       fftw_destroy_plan(qSpaceFFT[i]);
     }
@@ -437,7 +437,7 @@ void SpinwavesPhysics::run(double realtime, const double dt) {
 
 void SpinwavesPhysics::monitor(double realtime, const double dt) {
   using namespace globals;
-  assert(initialised);
+  assert(initialized);
 
   register int i, q;
 

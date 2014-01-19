@@ -11,7 +11,7 @@ class MetropolisMCSolver : public Solver {
  public:
   MetropolisMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0) {}
   ~MetropolisMCSolver() {}
-  void initialise(int argc, char **argv, double dt);
+  void initialize(int argc, char **argv, double dt);
   void run();
   void syncOutput();
   void calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t,

@@ -15,7 +15,7 @@
 
 #include "jblib/containers/array.h"
 
-void DynamicSFPhysics::init(libconfig::Setting &phys) {
+void DynamicSFPhysics::initialize(libconfig::Setting &phys) {
   using namespace globals;
 
   const double sampletime = config.lookup("sim.t_out");
@@ -333,12 +333,12 @@ void DynamicSFPhysics::init(libconfig::Setting &phys) {
     jams_error("Failed to allocate tSpace FFT array");
   }
 
-  initialised = true;
+  initialized = true;
 }
 
 DynamicSFPhysics::~DynamicSFPhysics() {
   using namespace globals;
-  if (initialised == true) {
+  if (initialized == true) {
     if (typeToggle == true) {
       for (int i = 0; i < lattice.numTypes(); ++i) {
         fftw_destroy_plan(qSpaceFFT[i]);
@@ -364,19 +364,19 @@ DynamicSFPhysics::~DynamicSFPhysics() {
 
 void  DynamicSFPhysics::run(double realtime, const double dt) {
   using namespace globals;
-  assert(initialised);
+  assert(initialized);
 }
 
 void DynamicSFPhysics::monitor(double realtime, const double dt) {
   using namespace globals;
-  assert(initialised);
+  assert(initialized);
 
   const int qTotal = qDim[0]*qDim[1]*qDim[2];
 
   if (typeToggle == true) {
     // Apply cofactors to transform spin components
       if (componentImag == -1) {
-        for (int i = 0; i < nspins; ++i) {
+        for (int i = 0; i < num_spins; ++i) {
           const int type = lattice.getType(i);
           const int idx = spinToKspaceMap[i];
           qSpace[idx+qTotal*type][0] =

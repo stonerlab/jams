@@ -25,10 +25,10 @@ class MagnetisationMonitor : public Monitor {
 
   ~MagnetisationMonitor();
 
-  void initialise();
+  void initialize();
   void run();
   void write(Solver *solver);
-  void initConvergence(ConvergenceType type, const double meanTol,
+  void initialize_convergence(ConvergenceType type, const double meanTol,
     const double devTol);
   bool checkConvergence();
 

@@ -7,7 +7,7 @@
 #include "core/globals.h"
 #include "core/maths.h"
 
-void BoltzmannMonitor::initialise() {
+void BoltzmannMonitor::initialize() {
   output.write("Initialising Boltzmann monitor\n");
 
   std::string name = "_blt.dat";
@@ -18,7 +18,7 @@ void BoltzmannMonitor::initialise() {
   for (int i = 0; i < 36; ++i) {
     bins(i) = 0.0;
   }
-  initialised = true;
+  initialized = true;
 }
 
 void BoltzmannMonitor::run() {

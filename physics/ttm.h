@@ -28,10 +28,10 @@ class TTMPhysics : public Physics {
   G(17.0E17),
   Gsink(17.0E14),
   TTMFile(),
-  initialised(false)
+  initialized(false)
   {}
   ~TTMPhysics();
-  void init(libconfig::Setting &phys);
+  void initialize(libconfig::Setting &phys);
   void run(double realtime, const double dt);
   virtual void monitor(double realtime, const double dt);
 
@@ -56,7 +56,7 @@ class TTMPhysics : public Physics {
 
   std::ofstream TTMFile;
 
-  bool initialised;
+  bool initialized;
 };
 
 #endif  // JAMS_PHYSICS_TTM_H

@@ -13,7 +13,7 @@ class Random;
 class Random {
  public:
   Random() :
-  initialised(false),
+  initialized(false),
   init_seed(0),
   ul_limit(std::numeric_limits<uint32_t>::max()),
   norm_open(1.0/static_cast<double>(ul_limit)),
@@ -37,7 +37,7 @@ class Random {
   double normal();
   void   sphere(double &x, double &y, double &z);
  private:
-  bool initialised;
+  bool initialized;
   uint32_t init_seed;
 
   const uint32_t ul_limit;

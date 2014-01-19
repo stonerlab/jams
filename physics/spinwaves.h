@@ -33,7 +33,7 @@ class SpinwavesPhysics : public Physics {
   ModeFile(),
   SPDFile(),
   typeOverride(),
-  initialised(false),
+  initialized(false),
   squareToggle(false),
   pumpTime(0.0),
   pumpStartTime(0.0),
@@ -50,7 +50,7 @@ class SpinwavesPhysics : public Physics {
 
   ~SpinwavesPhysics();
 
-  void init(libconfig::Setting &phys);
+  void initialize(libconfig::Setting &phys);
   void run(double realtime, const double dt);
   virtual void monitor(double realtime, const double dt);
 
@@ -73,7 +73,7 @@ class SpinwavesPhysics : public Physics {
   std::ofstream   ModeFile;
   std::ofstream   SPDFile;
   std::vector<int> typeOverride;
-  bool initialised;
+  bool initialized;
   bool squareToggle;
 
     // calculation of pump power which is linear with input approx

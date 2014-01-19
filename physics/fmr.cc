@@ -10,7 +10,7 @@
 #include "core/globals.h"
 
 
-void FMRPhysics::init(libconfig::Setting &phys) {
+void FMRPhysics::initialize(libconfig::Setting &phys) {
   using namespace globals;
 
   output.write("  * FMR physics module\n");
@@ -36,7 +36,7 @@ void FMRPhysics::init(libconfig::Setting &phys) {
     PSDIntegral(i) = 0;
   }
 
-  initialised = true;
+  initialized = true;
 }
 
 FMRPhysics::~FMRPhysics() {

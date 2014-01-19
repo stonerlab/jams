@@ -4,7 +4,7 @@
 
 #include <libconfig.h++>
 
-void EmptyPhysics::init(libconfig::Setting &phys) {
+void EmptyPhysics::initialize(libconfig::Setting &phys) {
 }
 
 EmptyPhysics::~EmptyPhysics() {

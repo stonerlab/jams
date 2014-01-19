@@ -16,7 +16,7 @@ enum FFTWindowType {GAUSSIAN, HAMMING};
 class DynamicSFPhysics : public Physics {
  public:
   DynamicSFPhysics()
-  : initialised(false),
+  : initialized(false),
   typeToggle(false),
   timePointCounter(0),
   nTimePoints(0),
@@ -39,12 +39,12 @@ class DynamicSFPhysics : public Physics {
 
   ~DynamicSFPhysics();
 
-  void init(libconfig::Setting &phys);
+  void initialize(libconfig::Setting &phys);
   void run(double realtime, const double dt);
   virtual void monitor(double realtime, const double dt);
 
  private:
-  bool              initialised;
+  bool              initialized;
   bool        typeToggle;
   int               timePointCounter;
   int               nTimePoints;

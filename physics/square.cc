@@ -8,7 +8,7 @@
 
 #include "core/globals.h"
 
-void SquarePhysics::init(libconfig::Setting &phys) {
+void SquarePhysics::initialize(libconfig::Setting &phys) {
   using namespace globals;
 
   output.write("  * Square physics module\n");
@@ -21,7 +21,7 @@ void SquarePhysics::init(libconfig::Setting &phys) {
     FieldStrength[i] = phys["FieldStrength"][i];
   }
 
-  initialised = true;
+  initialized = true;
 }
 
 SquarePhysics::~SquarePhysics() {

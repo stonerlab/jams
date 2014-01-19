@@ -6,11 +6,11 @@
 #include "core/fields.h"
 #include "core/globals.h"
 
-void MetropolisMCSolver::initialise(int argc, char **argv, double idt) {
+void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
 
-    // initialise base class
-  Solver::initialise(argc, argv, idt);
+    // initialize base class
+  Solver::initialize(argc, argv, idt);
 
   output.write("Initialising Metropolis Monte-Carlo solver\n");
 
@@ -39,7 +39,7 @@ void MetropolisMCSolver::initialise(int argc, char **argv, double idt) {
   output.write("  * J4ijkl Scalar matrix memory (CSR): %f MB\n",
     J4ijkl_s.calculateMemoryUsage());
 
-  initialised = true;
+  initialized = true;
 }
 
 void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {

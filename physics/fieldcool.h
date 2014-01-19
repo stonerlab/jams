@@ -24,10 +24,10 @@ class FieldCoolPhysics : public Physics {
   t_step(0),
   t_eq(0),
   stepToggle(false),
-  initialised(false)
+  initialized(false)
   {}
   ~FieldCoolPhysics();
-  void init(libconfig::Setting &phys);
+  void initialize(libconfig::Setting &phys);
   void run(double realtime, const double dt);
   virtual void monitor(double realtime, const double dt);
 
@@ -43,7 +43,7 @@ class FieldCoolPhysics : public Physics {
   double t_step;
   double t_eq;
   bool stepToggle;
-  bool initialised;
+  bool initialized;
 };
 
 #endif  // JAMS_PHYSICS_FIELDCOOL_H

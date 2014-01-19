@@ -56,8 +56,8 @@ class Lattice {
     void outputSpinsBinary(std::ofstream &outfile);
     void outputTypesBinary(std::ofstream &outfile);
     void readSpinsBinary(std::ifstream &infile);
-    void initializeCoarseMagnetisationMap();
     void outputCoarseMagnetisationMap(std::ofstream &outfile);
+    void initialize_coarse_magnetisation_map();
   private:
     void readExchange();
     void calculateAtomPos(const jblib::Array<int, 1> &unitCellTypes, const jblib::Array<double, 2> &unitCellPositions, jblib::Array<int, 4> &latt, std::vector<int> &dim, const double unitcell[3][3], const int nAtoms);

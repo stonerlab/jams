@@ -9,7 +9,7 @@
 
 #include "core/globals.h"
 
-void MFPTPhysics::init(libconfig::Setting &phys) {
+void MFPTPhysics::initialize(libconfig::Setting &phys) {
   using namespace globals;
 
   output.write("  * MFPT physics module\n");
@@ -24,7 +24,7 @@ void MFPTPhysics::init(libconfig::Setting &phys) {
     maskArray[i] = true;
   }
 
-  initialised = true;
+  initialized = true;
 }
 
 MFPTPhysics::~MFPTPhysics() {

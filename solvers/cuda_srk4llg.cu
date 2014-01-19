@@ -25,12 +25,12 @@ void CUDALLGSolverSRK4::syncOutput()
     CUDA_CALL(cudaMemcpy(s.data(), s_dev, (size_t)(nspins3*sizeof(double)), cudaMemcpyDeviceToHost));
 }
 
-void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
+void CUDALLGSolverSRK4::initialize(int argc, char **argv, double idt)
 {
     using namespace globals;
 
-    // initialise base class
-    Solver::initialise(argc, argv, idt);
+    // initialize base class
+    Solver::initialize(argc, argv, idt);
 
     sigma.resize(nspins);
 
@@ -42,7 +42,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
     output.write("  * CUDA SRK4 LLG solver (GPU)\n");
 
     //-------------------------------------------------------------------
-    //  Initialise curand
+    //  initialize curand
     //-------------------------------------------------------------------
 
     output.write("  * Initialising CURAND...\n");
@@ -157,7 +157,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
 
 
     //-------------------------------------------------------------------
-    //  Initialise arrays to zero
+    //  initialize arrays to zero
     //-------------------------------------------------------------------
 
     CUDA_CALL(cudaMemset(w_dev, 0, nspins3*sizeof(float)));
@@ -179,7 +179,7 @@ void CUDALLGSolverSRK4::initialise(int argc, char **argv, double idt)
 
     eng.resize(nspins, 3);
 
-    initialised = true;
+    initialized = true;
 }
 
 void CUDALLGSolverSRK4::run()

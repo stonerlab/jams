@@ -27,11 +27,11 @@ void CUDAHeunLLGSolver::syncOutput()
   s_dev.copyToHostArray(s);
 }
 
-void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
+void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
 {
   using namespace globals;
 
-  Solver::initialise(argc, argv, idt);
+  Solver::initialize(argc, argv, idt);
 
   output.write("  * CUDA Heun LLG solver (GPU)\n");
 
@@ -90,7 +90,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
   lattice.getMaxDimensions(r_maxf(0), r_maxf(1), r_maxf(2));
   lattice.getBoundaries(pbc(0), pbc(1), pbc(2));
 
-  // allocate and initialise
+  // allocate and initialize
   s_dev        = jblib::CudaArray<double, 1>(s);
   s_new_dev    = jblib::CudaArray<double, 1>(s);
   sf_dev       = jblib::CudaArray<float, 1>(sf);
@@ -121,7 +121,7 @@ void CUDAHeunLLGSolver::initialise(int argc, char **argv, double idt)
 
   J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE, (nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
 
-  initialised = true;
+  initialized = true;
 }
 
 void CUDAHeunLLGSolver::run()

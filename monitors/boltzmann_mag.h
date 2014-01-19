@@ -17,7 +17,7 @@ class BoltzmannMagMonitor : public Monitor{
   {}
   ~BoltzmannMagMonitor();
 
-  void initialise();
+  void initialize();
   void run();
   void write(Solver *solver);
  private:

@@ -13,11 +13,11 @@
 #endif
 
 
-void HeunLLGSolver::initialise(int argc, char **argv, double idt) {
+void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
 
-  // initialise base class
-  Solver::initialise(argc, argv, idt);
+  // initialize base class
+  Solver::initialize(argc, argv, idt);
 
   output.write("Initialising Heun LLG solver (CPU)\n");
 
@@ -46,7 +46,7 @@ void HeunLLGSolver::initialise(int argc, char **argv, double idt) {
     }
   }
 
-  initialised = true;
+  initialized = true;
 }
 
 void HeunLLGSolver::syncOutput() {
@@ -121,47 +121,47 @@ void HeunLLGSolver::run() {
   iteration++;
 }
 
-void HeunLLGSolver::calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {
+void HeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {
   using namespace globals;
 
   e1_s = 0.0; e1_t = 0.0; e2_s = 0.0; e2_t = 0.0;
 
   if (J1ij_s.nonZero() > 0) {
-    std::fill(eng.data(), eng.data()+nspins3, 0.0);
-    calc_scalar_bilinear(J1ij_s.valPtr(), J1ij_s.colPtr(), J1ij_s.ptrB(),
+    std::fill(eng.data(), eng.data()+num_spins3, 0.0);
+    compute_bilinear_scalar_interactions_csr(J1ij_s.valPtr(), J1ij_s.colPtr(), J1ij_s.ptrB(),
       J1ij_s.ptrE(), eng);
-    for (int i = 0; i < nspins; ++i) {
+    for (int i = 0; i < num_spins; ++i) {
       e1_s = e1_s + (s(i, 0)*eng(i, 0)+s(i, 1)*eng(i, 1)+s(i, 2)*eng(i, 2));
     }
-    e1_s = e1_s/nspins;
+    e1_s = e1_s/num_spins;
   }
   if (J1ij_t.nonZero() > 0) {
-    std::fill(eng.data(), eng.data()+nspins3, 0.0);
-    calc_tensor_bilinear(J1ij_t.valPtr(), J1ij_t.colPtr(), J1ij_t.ptrB(),
+    std::fill(eng.data(), eng.data()+num_spins3, 0.0);
+    compute_bilinear_tensor_interactions_csr(J1ij_t.valPtr(), J1ij_t.colPtr(), J1ij_t.ptrB(),
       J1ij_t.ptrE(), eng);
-    for (int i = 0; i < nspins; ++i) {
+    for (int i = 0; i < num_spins; ++i) {
       e1_t = e1_t + (s(i, 0)*eng(i, 0)+s(i, 1)*eng(i, 1)+s(i, 2)*eng(i, 2));
     }
-    e1_t = e1_t/nspins;
+    e1_t = e1_t/num_spins;
   }
   if (J2ij_s.nonZero() > 0) {
-    std::fill(eng.data(), eng.data()+nspins3, 0.0);
-    calc_scalar_biquadratic(J2ij_s.valPtr(), J2ij_s.colPtr(), J2ij_s.ptrB(),
+    std::fill(eng.data(), eng.data()+num_spins3, 0.0);
+    compute_biquadratic_scalar_interactions_csr(J2ij_s.valPtr(), J2ij_s.colPtr(), J2ij_s.ptrB(),
       J2ij_s.ptrE(), eng);
-    for (int i = 0; i < nspins; ++i) {
+    for (int i = 0; i < num_spins; ++i) {
       e2_s = e2_s + (s(i, 0)*eng(i, 0)+s(i, 1)*eng(i, 1)+s(i, 2)*eng(i, 2));
     }
 
-    e2_s = 0.5*e2_s/nspins;
+    e2_s = 0.5*e2_s/num_spins;
   }
   if (J2ij_t.nonZero() > 0) {
-    std::fill(eng.data(), eng.data()+nspins3, 0.0);
-    calc_tensor_biquadratic(J2ij_t.valPtr(), J2ij_t.colPtr(), J2ij_t.ptrB(),
+    std::fill(eng.data(), eng.data()+num_spins3, 0.0);
+    compute_biquadratic_tensor_interactions_csr(J2ij_t.valPtr(), J2ij_t.colPtr(), J2ij_t.ptrB(),
       J2ij_t.ptrE(), eng);
-    for (int i = 0; i < nspins; ++i) {
+    for (int i = 0; i < num_spins; ++i) {
       e2_t = e2_t + (s(i, 0)*eng(i, 0)+s(i, 1)*eng(i, 1)+s(i, 2)*eng(i, 2));
     }
 
-    e2_t = 0.5*e2_t/nspins;
+    e2_t = 0.5*e2_t/num_spins;
   }
 }

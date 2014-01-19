@@ -13,19 +13,19 @@
 class SquarePhysics : public Physics {
  public:
   SquarePhysics()
-  : initialised(false),
+  : initialized(false),
   PulseDuration(0),
   PulseCount(0),
   PulseTotal(0),
   FieldStrength(3, 0)
   {}
   ~SquarePhysics();
-  void init(libconfig::Setting &phys);
+  void initialize(libconfig::Setting &phys);
   void run(double realtime, const double dt);
   virtual void monitor(double realtime, const double dt);
 
  private:
-  bool initialised;
+  bool initialized;
   double PulseDuration;
   int    PulseCount;
   int    PulseTotal;

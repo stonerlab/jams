@@ -12,19 +12,19 @@
 #include "solvers/heunllg.h"
 #include "solvers/metropolismc.h"
 
-void Solver::initialise(int argc, char **argv, double idt) {
-  if (initialised == true) {
-    jams_error("Solver is already initialised");
+void Solver::initialize(int argc, char **argv, double idt) {
+  if (initialized == true) {
+    jams_error("Solver is already initialized");
   }
 
-  // initialise time and iterations to 0
   time = 0.0;
+  // initialize time and iterations to 0
   iteration = 0;
 
   t_step = idt;
   dt = idt*gamma_electron_si;
 
-  initialised = true;
+  initialized = true;
 }
 
 void Solver::run() {

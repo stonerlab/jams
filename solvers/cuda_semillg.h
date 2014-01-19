@@ -36,7 +36,7 @@ class CUDASemiLLGSolver : public Solver {
         spmvblocksize(0)
     {};
     ~CUDASemiLLGSolver();
-    void initialise(int argc, char **argv, double dt);
+    void initialize(int argc, char **argv, double dt);
     void run();
     void syncOutput();
 

@@ -8,7 +8,7 @@
 
 #include "monitors/magnetisation.h"
 
-void MagnetisationMonitor::initialise() {
+void MagnetisationMonitor::initialize() {
   using namespace globals;
   output.write("\nInitialising Magnetisation monitor...\n");
 
@@ -22,13 +22,13 @@ void MagnetisationMonitor::initialise() {
 
   old_avg = 0.0;
 
-  initialised = true;
+  initialized = true;
 }
 
 void MagnetisationMonitor::run() {
 }
 
-void MagnetisationMonitor::initConvergence(ConvergenceType type,
+void MagnetisationMonitor::initialize_convergence(ConvergenceType type,
   const double meanTolerance, const double devTolerance) {
   convType = type;
   meanTol = meanTolerance;
@@ -61,7 +61,7 @@ bool MagnetisationMonitor::checkConvergence() {
 
 void MagnetisationMonitor::write(Solver *solver) {
   using namespace globals;
-  assert(initialised);
+  assert(initialized);
   int i, j, type;
 
   for (i = 0; i < lattice.numTypes(); ++i) {

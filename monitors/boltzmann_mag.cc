@@ -5,7 +5,7 @@
 #include "core/globals.h"
 #include "core/maths.h"
 
-void BoltzmannMagMonitor::initialise() {
+void BoltzmannMagMonitor::initialize() {
   output.write("Initialising Boltzmann Mag monitor\n");
 
   outfile.open("boltzmann_mag.dat");
@@ -14,7 +14,7 @@ void BoltzmannMagMonitor::initialise() {
   for (int i = 0; i < 101; ++i) {
     bins(i) = 0.0;
   }
-  initialised = true;
+  initialized = true;
 }
 
 void BoltzmannMagMonitor::run() {

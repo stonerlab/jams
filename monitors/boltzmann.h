@@ -17,7 +17,7 @@ class BoltzmannMonitor : public Monitor{
   {}
   ~BoltzmannMonitor();
 
-  void initialise();
+  void initialize();
   void run();
   void write(Solver *solver);
  private:

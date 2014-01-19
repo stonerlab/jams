@@ -1268,7 +1268,7 @@ void Lattice::createFromConfig(libconfig::Config &config) {
 
     resizeGlobals();
 
-    initialiseGlobals(config, cfgMaterials, atom_type);
+    initialize_global_arrays(config, cfgMaterials, atom_type);
 
     std::string exchangeFileName = config.lookup("lattice.exchange");
     readInteractions(exchangeFileName, config, unitCellTypes, unitCellPositions, interactionVectors, interactionNeighbour, JValues, J2Values, nInteractionsOfType,
@@ -1292,7 +1292,7 @@ void Lattice::createFromConfig(libconfig::Config &config) {
     }
 
     if (config.exists("lattice.coarse") == true ) {
-      initializeCoarseMagnetisationMap();
+      initialize_coarse_magnetisation_map();
     }
 
   } // try
@@ -1398,7 +1398,7 @@ void Lattice::readSpinsBinary(std::ifstream &infile){
     }
 }
 
-void Lattice::initializeCoarseMagnetisationMap() {
+void Lattice::initialize_coarse_magnetisation_map() {
   using namespace globals;
 
   const libconfig::Setting& cfgLattice    =   config.lookup("lattice");

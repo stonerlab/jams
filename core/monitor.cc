@@ -5,9 +5,9 @@
 #include "core/globals.h"
 #include "core/solver.h"
 
-void Monitor::initialise() {
-  if (initialised == true) {
-    jams_error("Monitor is already initialised");
+void Monitor::initialize() {
+  if (initialized == true) {
+    jams_error("Monitor is already initialized");
   }
 
   output.write("Initialising monitor\n");
@@ -19,7 +19,7 @@ void Monitor::run() {
 void Monitor::write(Solver *solver) {
 }
 
-void Monitor::initConvergence(ConvergenceType type, const double meanTol,
+void Monitor::initialize_convergence(ConvergenceType type, const double meanTol,
   const double devTol) {
 }
 

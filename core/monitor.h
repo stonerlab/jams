@@ -9,22 +9,22 @@ enum ConvergenceType {convNone, convMag, convPhi, convSinPhi};
 
 class Monitor {
  public:
-  Monitor() : initialised(false) {}
+  Monitor() : initialized(false) {}
 
   virtual ~Monitor() {}
 
-  virtual void initialise();
+  virtual void initialize();
   virtual void run();
   virtual void write(Solver *solver);
 
-  virtual void initConvergence(ConvergenceType type, const double meanTol,
+  virtual void initialize_convergence(ConvergenceType type, const double meanTol,
     const double devTol);
   virtual bool checkConvergence();
 
 
   static Monitor* Create();
  protected:
-    bool initialised;
+    bool initialized;
 };
 
 #endif  // JAMS_CORE_MONITOR_H

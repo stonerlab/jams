@@ -31,14 +31,14 @@ void Random::seed(const uint32_t &x) {
   normal_logic = false;
 
   init_seed = x;
-  initialised = true;
+  initialized = true;
 }
 
 ///
 /// @brief random number from the distribution [0, 1)
 ///
 double Random::uniform() {
-  assert(initialised == true);
+  assert(initialized == true);
   return (static_cast<double>(cmwc4096())*norm_open);
 }
 
@@ -46,7 +46,7 @@ double Random::uniform() {
 /// @brief random number from the distribution (0, 1)
 ///
 double Random::uniform_open() {
-  assert(initialised == true);
+  assert(initialized == true);
   uint32_t x;
 
   do {
@@ -60,7 +60,7 @@ double Random::uniform_open() {
 /// @brief random number from the distribution [0, 1]
 ///
 double Random::uniform_closed() {
-  assert(initialised == true);
+  assert(initialized == true);
   return (static_cast<double>(cmwc4096())*norm_closed);
 }
 
@@ -91,7 +91,7 @@ double Random::uniform_closed() {
 /// @return integer random number from the distribution [n, m]
 ///
 int Random::uniform_discrete(const int m, const int n) {
-  assert(initialised == true);
+  assert(initialized == true);
   if (n < m) {
     jams_error("n must be > m in discrete uniform generator");
   }
@@ -136,7 +136,7 @@ int Random::uniform_discrete(const int m, const int n) {
 /// @return standard normally distributed variable
 ///
 double Random::normal() {
-  assert(initialised == true);
+  assert(initialized == true);
   double s, x, y;
   if (normal_logic == true) {
     normal_logic = false;
@@ -160,7 +160,7 @@ double Random::normal() {
 }
 
 void Random::sphere(double &x, double &y, double &z) {
-    assert(initialised == true);
+    assert(initialized == true);
     double v1, v2, s, ss;
 
     do {

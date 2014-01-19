@@ -16,12 +16,12 @@
 #include "physics/ttm.h"
 
 
-void Physics::init(libconfig::Setting &phys) {
-  if (initialised == true) {
-    jams_error("Physics module is already initialised");
+void Physics::initialize(libconfig::Setting &phys) {
+  if (initialized == true) {
+    jams_error("Physics module is already initialized");
   }
 
-  initialised = true;
+  initialized = true;
 }
 
 void Physics::run(double realtime, const double dt) {

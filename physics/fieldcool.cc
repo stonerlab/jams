@@ -9,7 +9,7 @@
 
 #include "core/globals.h"
 
-void FieldCoolPhysics::init(libconfig::Setting &phys) {
+void FieldCoolPhysics::initialize(libconfig::Setting &phys) {
   using namespace globals;
 
   output.write("  * Field cooled physics module\n");
@@ -41,7 +41,7 @@ void FieldCoolPhysics::init(libconfig::Setting &phys) {
     stepToggle = false;
   }
   globalTemperature = initTemp;
-  initialised = true;
+  initialized = true;
 }
 
 FieldCoolPhysics::~FieldCoolPhysics() {

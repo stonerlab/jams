@@ -12,7 +12,7 @@
 
 #include "jblib/math/functions.h"
 
-void TTMPhysics::init(libconfig::Setting &phys) {
+void TTMPhysics::initialize(libconfig::Setting &phys) {
   using namespace globals;
 
   output.write("  * Two temperature model physics module\n");
@@ -55,7 +55,7 @@ void TTMPhysics::init(libconfig::Setting &phys) {
   TTMFile << std::setprecision(8);
   TTMFile << "# t [s]\tT_el [K]\tT_ph [K]\tLaser [arb/]\n";
 
-  initialised = true;
+  initialized = true;
 }
 
 TTMPhysics::~TTMPhysics() {

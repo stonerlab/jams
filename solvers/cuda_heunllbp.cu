@@ -27,12 +27,12 @@ void CUDAHeunLLBPSolver::syncOutput()
   CUDA_CALL(cudaMemcpy(s.data(), s_dev, (size_t)(nspins3*sizeof(double)), cudaMemcpyDeviceToHost));
 }
 
-void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
+void CUDAHeunLLBPSolver::initialize(int argc, char **argv, double idt)
 {
 	using namespace globals;
 
-  // initialise base class
-	Solver::initialise(argc, argv, idt);
+  // initialize base class
+	Solver::initialize(argc, argv, idt);
 
 	output.write("  * CUDA Heun LLBP solver (GPU)\n");
 
@@ -59,7 +59,7 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
 	}
 
   //-------------------------------------------------------------------
-  //  Initialise curand
+  //  initialize curand
   //-------------------------------------------------------------------
 
 	output.write("  * Initialising CURAND...\n");
@@ -113,7 +113,7 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
 
 
   //-------------------------------------------------------------------
-  //  Initialise Spin Arrays
+  //  initialize Spin Arrays
   //-------------------------------------------------------------------
 
 	output.write("  * Allocating spin arrays in device memory...\n");
@@ -139,10 +139,10 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
 
 
   //-------------------------------------------------------------------
-  //  Initialise Colouring Processes
+  //  initialize Colouring Processes
   //-------------------------------------------------------------------
 
-  // initialise colouring processes
+  // initialize colouring processes
 	jblib::Array<double, 2> u1(nspins, 3);
 	jblib::Array<double, 2> u2(nspins, 3);
 
@@ -200,7 +200,7 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
 
 
   //-------------------------------------------------------------------
-  //  Initialise arrays to zero
+  //  initialize arrays to zero
   //-------------------------------------------------------------------
 	jblib::Array<float, 2> hf(nspins, 3);
 
@@ -228,7 +228,7 @@ void CUDAHeunLLBPSolver::initialise(int argc, char **argv, double idt)
 
 	J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE, (nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
 
-	initialised = true;
+	initialized = true;
 }
 
 void CUDAHeunLLBPSolver::run()
