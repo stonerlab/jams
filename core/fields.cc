@@ -11,11 +11,11 @@
 void compute_bilinear_scalar_interactions(
     const SparseMatrix<float>& interaction_matrix, const jblib::Array<double, 2>&
     spin, jblib::Array<double, 2>* field) {
-  using globals::nspins;
+  using globals::num_spins;
 
   register int i, j, k, l, begin, end;
 
-  for (i = 0; i < nspins; ++i) {  // iterate rows
+  for (i = 0; i < num_spins; ++i) {  // iterate rows
     begin = interaction_matrix.row(i);
     end = interaction_matrix.row(i+1);
     for (j = begin; j < end; ++j) {
@@ -50,7 +50,7 @@ void compute_bilinear_scalar_interactions_csr(const double *val, const int *indx
   using namespace globals;
   int i, j, k, l;
   int begin, end;
-  for (i = 0; i < nspins; ++i) {  // iterate rows
+  for (i = 0; i < num_spins; ++i) {  // iterate rows
     begin = ptrb[i]; end = ptre[i];
     for (j = begin; j < end; ++j) {
       k = indx[j];  // column
@@ -85,7 +85,7 @@ void compute_biquadratic_scalar_interactions_csr(const double *val, const int *i
   double tmp;
   int i, j, k, l;
   int begin, end;
-  for (i = 0; i < nspins; ++i) {  // iterate rows
+  for (i = 0; i < num_spins; ++i) {  // iterate rows
     begin = ptrb[i]; end = ptre[i];
     for (j = begin; j < end; ++j) {
       k = indx[j];  // column
@@ -127,10 +127,10 @@ void compute_biquadratic_tensor_interactions_csr(const double *val, const int *i
 #ifdef MKL
   double one = 1.0;
   double two = 2.0;
-    mkl_dcsrmv(transa, &nspins3, &nspins3, &two, matdescra, val,
+    mkl_dcsrmv(transa, &num_spins3, &num_spins3, &two, matdescra, val,
         indx, ptrb, ptre, s.data(), &zero, y.data());
 #else
-    jams_dcsrmv(transa, nspins3, nspins3, 2.0, matdescra, val,
+    jams_dcsrmv(transa, num_spins3, num_spins3, 2.0, matdescra, val,
         indx, ptrb, ptre, s.data(), 1.0, y.data());
 #endif
 }
@@ -149,17 +149,17 @@ void compute_bilinear_tensor_interactions_csr(const double *val, const int *indx
 #ifdef MKL
   double one = 1.0;
   double one = 1.0;
-    mkl_dcsrmv(transa, &nspins3, &nspins3, &one, matdescra, val,
+    mkl_dcsrmv(transa, &num_spins3, &num_spins3, &one, matdescra, val,
         indx, ptrb, ptre, s.data(), &zero, y.data());
 #else
-    jams_dcsrmv(transa, nspins3, nspins3, 1.0, matdescra, val,
+    jams_dcsrmv(transa, num_spins3, num_spins3, 1.0, matdescra, val,
         indx, ptrb, ptre, s.data(), 1.0, y.data());
 #endif
 }
 void compute_effective_fields() {
   using namespace globals;
   int i, j;
-  std::fill(h.data(), h.data()+nspins3, 0.0);
+  std::fill(h.data(), h.data()+num_spins3, 0.0);
   if (J1ij_s.nonZero() > 0) {
     compute_bilinear_scalar_interactions_csr(J1ij_s.valPtr(), J1ij_s.colPtr(), J1ij_s.ptrB(),
       J1ij_s.ptrE(), h);
@@ -177,7 +177,7 @@ void compute_effective_fields() {
       J2ij_t.ptrE(), h);
   }
   // normalize by the gyroscopic factor
-  for (i = 0; i < nspins; ++i) {
+  for (i = 0; i < num_spins; ++i) {
     for (j = 0; j < 3; ++j) {
       h(i, j) = (h(i, j) + (w(i, j) + h_app[j])*mus(i))*gyro(i);
     }

@@ -19,7 +19,7 @@ __global__ void cuda_heun_llbp_kernelA
   float h_app_x,
   float h_app_y,
   float h_app_z,
-  int nspins,
+  int num_spins,
   double dt
 )
 {
@@ -27,7 +27,7 @@ __global__ void cuda_heun_llbp_kernelA
   const int idx3 = 3*idx;
   int i;
 
-  if(idx < nspins) {
+  if(idx < num_spins) {
     double h[3];
     double s[3];
     double rhs[3];
@@ -111,7 +111,7 @@ __global__ void cuda_heun_llbp_kernelB
     float h_app_x,
     float h_app_y,
     float h_app_z,
-    int nspins,
+    int num_spins,
     double dt
 )
 {
@@ -119,7 +119,7 @@ __global__ void cuda_heun_llbp_kernelB
   const int idx3 = 3*idx;
   int i;
 
-  if(idx < nspins) {
+  if(idx < num_spins) {
     double h[3];
     double s[3];
     double sxh[3];

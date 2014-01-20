@@ -30,9 +30,9 @@ void FMRPhysics::initialize(libconfig::Setting &phys) {
   fileName = seedname+fileName;
   PSDFile.open(fileName.c_str());
 
-  PSDIntegral.resize(nspins);
+  PSDIntegral.resize(num_spins);
 
-  for (int i = 0; i < nspins; ++i) {
+  for (int i = 0; i < num_spins; ++i) {
     PSDIntegral(i) = 0;
   }
 
@@ -54,7 +54,7 @@ void FMRPhysics::run(const double realtime, const double dt) {
     + ACFieldStrength[i] * cosValue;
   }
 
-  for (int i = 0; i < nspins; ++i) {
+  for (int i = 0; i < num_spins; ++i) {
     const double sProjection =
     s(i, 0)*ACFieldStrength[0] + s(i, 1)*ACFieldStrength[1]
     + s(i, 2)*ACFieldStrength[2];
@@ -68,9 +68,9 @@ void FMRPhysics::monitor(const double realtime, const double dt) {
 
   double pAverage = 0.0;
 
-  for (int i = 0; i < nspins; ++i) {
+  for (int i = 0; i < num_spins; ++i) {
     pAverage += fabs(PSDIntegral(i)*(ACFieldFrequency*mus(i))/realtime);
   }
 
-  PSDFile << realtime << "\t" << pAverage/nspins << "\n";
+  PSDFile << realtime << "\t" << pAverage/num_spins << "\n";
 }

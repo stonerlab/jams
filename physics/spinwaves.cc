@@ -346,7 +346,7 @@ BZIndex(irreducibleCounter) = counter;
   lattice.getSpinIntCoord(0, xmin, ymin, zmin);
   lattice.getSpinIntCoord(0, xmax, ymax, zmax);
 
-  for (int i = 0; i < nspins; ++i) {
+  for (int i = 0; i < num_spins; ++i) {
     int x, y, z;
     lattice.getSpinIntCoord(i, x, y, z);
     if (x < xmin) { xmin = x; }
@@ -362,8 +362,8 @@ BZIndex(irreducibleCounter) = counter;
   output.write("  * qSpace range: [ %d:%d , %d:%d , %d:%d ]\n", xmin, xmax,
     ymin, ymax, zmin, zmax);
 
-  spinToKspaceMap.resize(nspins);
-  for (int i = 0; i < nspins; ++i) {
+  spinToKspaceMap.resize(num_spins);
+  for (int i = 0; i < num_spins; ++i) {
     int x, y, z;
     lattice.getSpinIntCoord(i, x, y, z);
 
@@ -447,14 +447,14 @@ void SpinwavesPhysics::monitor(double realtime, const double dt) {
 
 // Apply cofactors to transform spin components
   if (componentImag == -1) {
-    for (i = 0; i < nspins; ++i) {
+    for (i = 0; i < num_spins; ++i) {
       const int type = lattice.getType(i);
       const int idx = spinToKspaceMap[i];
       qSpace[idx][0] = coFactors(type, componentReal)*s(i, componentReal);
       qSpace[idx][1] = 0.0;
     }
   } else {
-    for (i = 0; i < nspins; ++i) {
+    for (i = 0; i < num_spins; ++i) {
       const int type = lattice.getType(i);
       const int idx = spinToKspaceMap[i];
       qSpace[idx][0] = coFactors(type, componentReal)*s(i, componentReal);

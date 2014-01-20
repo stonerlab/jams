@@ -76,13 +76,13 @@ __global__ void bruteforce_dipole_interaction_kernel(
  const float *r_dev,
  const float *r_max_dev,
  const bool *pbc_dev,
- const int nspins
+ const int num_spins
 )
 {
     const int idx = blockIdx.x*blockDim.x+threadIdx.x;
     int i, n;
 
-    if(idx < nspins){
+    if(idx < num_spins){
         float sum[3];
         float r_i[3];
         float r_ij[3];
@@ -98,7 +98,7 @@ __global__ void bruteforce_dipole_interaction_kernel(
               sum[i] = 0.0;
           }
 
-        for(n=0; n<nspins; ++n){
+        for(n=0; n<num_spins; ++n){
             if(n!=idx){
 
               float mus = mat_dev[n*4];
@@ -456,7 +456,7 @@ __global__ void spmv_dia_kernel
 }
 __global__ void fourspin_scalar_interaction_csr_kernel(
  const int num_rows,
- const int nspins,
+ const int num_spins,
  const float alpha,
  const float beta,
  const int * pointers,

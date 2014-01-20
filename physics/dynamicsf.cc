@@ -280,7 +280,7 @@ void DynamicSFPhysics::initialize(libconfig::Setting &phys) {
     lattice.getSpinIntCoord(0, xmin, ymin, zmin);
     lattice.getSpinIntCoord(0, xmax, ymax, zmax);
 
-    for (int i = 0; i < nspins; ++i) {
+    for (int i = 0; i < num_spins; ++i) {
       lattice.getSpinIntCoord(i, x, y, z);
       if (x < xmin) { xmin = x; }
       if (x > xmax) { xmax = x; }
@@ -295,8 +295,8 @@ void DynamicSFPhysics::initialize(libconfig::Setting &phys) {
   output.write("  * qSpace range: [ %d:%d , %d:%d , %d:%d ]\n", xmin, xmax,
     ymin, ymax, zmin, zmax);
 
-    spinToKspaceMap.resize(nspins);
-    for (int i = 0; i < nspins; ++i) {
+    spinToKspaceMap.resize(num_spins);
+    for (int i = 0; i < num_spins; ++i) {
       lattice.getSpinIntCoord(i, x, y, z);
       spinToKspaceMap[i] = (x*qDim[1]+y)*qDim[2]+z;
     }
@@ -384,7 +384,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt) {
           qSpace[idx+qTotal*type][1] = 0.0;
         }
       } else {
-        for (int i = 0; i < nspins; ++i) {
+        for (int i = 0; i < num_spins; ++i) {
           const int type = lattice.getType(i);
           const int idx = spinToKspaceMap[i];
           qSpace[idx+qTotal*type][0] =
@@ -409,14 +409,14 @@ void DynamicSFPhysics::monitor(double realtime, const double dt) {
   } else {
   // Apply cofactors to transform spin components
     if (componentImag == -1) {
-      for (int i = 0; i < nspins; ++i) {
+      for (int i = 0; i < num_spins; ++i) {
         const int type = lattice.getType(i);
         const int idx = spinToKspaceMap[i];
         qSpace[idx][0] = coFactors(type, componentReal)*s(i, componentReal);
         qSpace[idx][1] = 0.0;
       }
     } else {
-      for (int i = 0; i < nspins; ++i) {
+      for (int i = 0; i < num_spins; ++i) {
         const int type = lattice.getType(i);
         const int idx = spinToKspaceMap[i];
         qSpace[idx][0] = coFactors(type, componentReal)*s(i, componentReal);
@@ -443,7 +443,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt) {
           const int qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
           const int tIdx = n + nBZPoints*timePointCounter;
 
-          assert(qIdx < nspins);
+          assert(qIdx < num_spins);
           assert(qIdx > -1);
           assert(tIdx < nBZPoints*nTimePoints);
           assert(tIdx > -1);
@@ -460,7 +460,7 @@ void DynamicSFPhysics::monitor(double realtime, const double dt) {
         const int qIdx = qVec[2] + qDim[2]*(qVec[1] + qDim[1]*qVec[0]);
         const int tIdx = n + nBZPoints*timePointCounter;
 
-        assert(qIdx < nspins);
+        assert(qIdx < num_spins);
         assert(qIdx > -1);
         assert(tIdx < nBZPoints*nTimePoints);
         assert(tIdx > -1);
@@ -552,9 +552,9 @@ void DynamicSFPhysics::timeTransform() {
             assert(tIdxMinus >= 0);
             assert(tIdxMinus < (nTimePoints*nBZPoints));
 
-            tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(static_cast<double>(nspins)
+            tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(static_cast<double>(num_spins)
               *static_cast<double>(steps_window));
-            tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(static_cast<double>(nspins)
+            tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(static_cast<double>(num_spins)
               *static_cast<double>(steps_window));
 
         // zero -omega to avoid accidental use
@@ -593,9 +593,9 @@ void DynamicSFPhysics::timeTransform() {
           assert(tIdxMinus >= 0);
           assert(tIdxMinus < (nTimePoints*nBZPoints));
 
-          tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(static_cast<double>(nspins)
+          tSpace[tIdx][0] = tSpace[tIdx][0]/sqrt(static_cast<double>(num_spins)
               *static_cast<double>(steps_window));
-          tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(static_cast<double>(nspins)
+          tSpace[tIdx][1] = tSpace[tIdx][1]/sqrt(static_cast<double>(num_spins)
               *static_cast<double>(steps_window));
 
           // zero -omega to avoid accidental use

@@ -13,14 +13,14 @@ __global__ void cuda_semi_llg_kernelA
   float h_app_x,
   float h_app_y,
   float h_app_z,
-  int nspins,
+  int num_spins,
   double dt
 )
 {
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
   const int idx3 = 3*idx;
 
-  if(idx < nspins) {
+  if(idx < num_spins) {
     double h[3];
     double s[3];
     double f[3];
@@ -83,14 +83,14 @@ __global__ void cuda_semi_llg_kernelB
   float h_app_x,
   float h_app_y,
   float h_app_z,
-  int nspins,
+  int num_spins,
   double dt
 )
 {
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
   const int idx3 = 3*idx;
 
-  if(idx < nspins) {
+  if(idx < num_spins) {
     double h[3];
     double s[3];
     double so[3];

@@ -70,7 +70,7 @@ void MagnetisationMonitor::write(Solver *solver) {
     }
   }
 
-  for (i = 0; i < nspins; ++i) {
+  for (i = 0; i < num_spins; ++i) {
     type = lattice.getType(i);
     for (j = 0; j < 3; ++j) {
       mag(type, j) += s(i, j);

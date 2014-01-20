@@ -22,14 +22,14 @@ void BoltzmannMagMonitor::run() {
 
   double mag[3] = {0.0, 0.0, 0.0};
   unsigned int round;
-  for (int i = 0; i < nspins; ++i) {
+  for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
       mag[j] += s(i, j);
     }
   }
 
   for (int j = 0; j < 3; ++j) {
-    mag[j] = mag[j]/static_cast<double>(nspins);
+    mag[j] = mag[j]/static_cast<double>(num_spins);
   }
   double modmag = sqrt(mag[0]*mag[0]+mag[1]*mag[1]+mag[2]*mag[2]);
 

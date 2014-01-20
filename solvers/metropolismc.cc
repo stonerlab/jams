@@ -184,9 +184,9 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
     const double theta = 0.1;
     const double Efactor = 0.671713067;  // muB/kB
 
-    // pick spins randomly on average nspins per step
-    for (int n = 0; n < nspins; ++n) {
-      int i = rng.uniform()*(nspins-1);
+    // pick spins randomly on average num_spins per step
+    for (int n = 0; n < num_spins; ++n) {
+      int i = rng.uniform()*(num_spins-1);
 
       double Enbr[3] = {0.0, 0.0, 0.0};
       oneSpinEnergy(i, Enbr);
@@ -225,8 +225,8 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
       }
     }
 
-    for (int n = 0; n < nspins; ++n) {
-      int i = rng.uniform()*(nspins-1);
+    for (int n = 0; n < num_spins; ++n) {
+      int i = rng.uniform()*(num_spins-1);
 
       double Enbr[3] = {0.0, 0.0, 0.0};
       oneSpinEnergy(i, Enbr);

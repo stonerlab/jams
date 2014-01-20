@@ -18,9 +18,9 @@ void MFPTPhysics::initialize(libconfig::Setting &phys) {
   fileName = seedname+fileName;
   MFPTFile.open(fileName.c_str());
 
-  maskArray.resize(nspins);
+  maskArray.resize(num_spins);
 
-  for (int i = 0; i < nspins; ++i) {
+  for (int i = 0; i < num_spins; ++i) {
     maskArray[i] = true;
   }
 
@@ -37,7 +37,7 @@ void MFPTPhysics::run(const double realtime, const double dt) {
 void MFPTPhysics::monitor(const double realtime, const double dt) {
   using namespace globals;
 
-  for (int i = 0; i < nspins; ++i) {
+  for (int i = 0; i < num_spins; ++i) {
     if (s(i, 2) < 0.0 && maskArray[i] == true) {
       MFPTFile << realtime << "\n";
       maskArray[i] = false;

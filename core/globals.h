@@ -28,8 +28,8 @@ GLOBAL std::string seedname;
 GLOBAL bool verbose_output_is_set;
 
 namespace globals {
-  GLOBAL int nspins;
-  GLOBAL int nspins3;
+  GLOBAL int num_spins;
+  GLOBAL int num_spins3;
   GLOBAL int globalSteps;
   GLOBAL double h_app[3];
   GLOBAL double globalTemperature;

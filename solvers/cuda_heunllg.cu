@@ -65,24 +65,24 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
   output.write("  * Allocating device memory...\n");
 
   // temporary host arrays for device data
-  jblib::Array<float, 2> zero(nspins, 3, 0.0);
-  jblib::Array<float, 2> sf(nspins, 3);
-  jblib::Array<float, 2> mat(nspins, 4);
+  jblib::Array<float, 2> zero(num_spins, 3, 0.0);
+  jblib::Array<float, 2> sf(num_spins, 3);
+  jblib::Array<float, 2> mat(num_spins, 4);
   jblib::Array<float, 1> r_maxf(3);
   jblib::Array<bool, 1> pbc(3);
 
-  sigma.resize(nspins);
-  for(int i = 0; i!=nspins; ++i) {
+  sigma.resize(num_spins);
+  for(int i = 0; i!=num_spins; ++i) {
     sigma(i) = sqrt( (2.0*boltzmann_si*alpha(i)) / (dt*mus(i)*mu_bohr_si) );
   }
 
-  for(int i = 0; i!=nspins; ++i) {
+  for(int i = 0; i!=num_spins; ++i) {
     for(int j = 0; j!=3; ++j) {
       sf(i, j) = static_cast<float>(s(i, j));
     }
   }
 
-  for(int i = 0; i!=nspins; ++i){
+  for(int i = 0; i!=num_spins; ++i){
     mat(i, 0) = mus(i);   mat(i, 1) = gyro(i);
     mat(i, 2) = alpha(i); mat(i, 3) = sigma(i);
   }
@@ -102,8 +102,8 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
   r_max_dev    = jblib::CudaArray<float, 1>(r_maxf);
   pbc_dev      = jblib::CudaArray<bool, 1>(pbc);
 
-  w_dev.resize(nspins3+(nspins3%2));
-  eng.resize(nspins, 3);
+  w_dev.resize(num_spins3+(num_spins3%2));
+  eng.resize(num_spins, 3);
 
   allocate_transfer_dia(J1ij_s, J1ij_s_dev);
   allocate_transfer_dia(J1ij_t, J1ij_t_dev);
@@ -111,15 +111,15 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
   allocate_transfer_dia(J2ij_t, J2ij_t_dev);
   allocate_transfer_csr_4d(J4ijkl_s, J4ijkl_s_dev);
 
-  nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
+  nblocks = (num_spins+BLOCKSIZE-1)/BLOCKSIZE;
 
-  J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-  J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J1ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (num_spins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
 
-  J2ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-  J2ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (nspins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J2ij_s_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (num_spins+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  J2ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
 
-  J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE, (nspins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
+  J4ijkl_s_dev.blocks = std::min<int>(CSR_4D_BLOCK_SIZE, (num_spins+CSR_4D_BLOCK_SIZE-1)/CSR_4D_BLOCK_SIZE);
 
   initialized = true;
 }
@@ -131,18 +131,18 @@ void CUDAHeunLLGSolver::run()
     float stmp = sqrt(temperature);
 
     if(temperature > 0.0) {
-        CURAND_CALL(curandGenerateNormal(gen, w_dev.data(), (nspins3+(nspins3%2)), 0.0f, stmp));
+        CURAND_CALL(curandGenerateNormal(gen, w_dev.data(), (num_spins3+(num_spins3%2)), 0.0f, stmp));
     }
 
     cuda_device_compute_fields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev.data(), r_dev.data(), r_max_dev.data(), mat_dev.data(), pbc_dev.data(), h_dev.data(), h_dipole_dev.data(), true);
 
     cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE>>>
-        (s_dev.data(), sf_dev.data(), s_new_dev.data(), h_dev.data(), w_dev.data(), mat_dev.data(), h_app[0], h_app[1], h_app[2], nspins, dt);
+        (s_dev.data(), sf_dev.data(), s_new_dev.data(), h_dev.data(), w_dev.data(), mat_dev.data(), h_app[0], h_app[1], h_app[2], num_spins, dt);
 
     cuda_device_compute_fields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev.data(), r_dev.data(), r_max_dev.data(), mat_dev.data(), pbc_dev.data(), h_dev.data(), h_dipole_dev.data(), false);
 
     cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE>>>
-        (s_dev.data(), sf_dev.data(), s_new_dev.data(), h_dev.data(), w_dev.data(), mat_dev.data(), h_app[0], h_app[1], h_app[2], nspins, dt);
+        (s_dev.data(), sf_dev.data(), s_new_dev.data(), h_dev.data(), w_dev.data(), mat_dev.data(), h_app[0], h_app[1], h_app[2], num_spins, dt);
 
     iteration++;
 }
@@ -158,62 +158,62 @@ void CUDAHeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double 
 
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
-    bilinear_scalar_interaction_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+    bilinear_scalar_interaction_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(num_spins, num_spins,
       J1ij_s.diags(), J1ij_s_dev.pitch, 1.0, beta, J1ij_s_dev.row, J1ij_s_dev.val, sf_dev.data(), e_dev.data());
-    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(nspins3*sizeof(float)), cudaMemcpyDeviceToHost));
-    for(int i = 0; i<nspins; ++i){
+    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(num_spins3*sizeof(float)), cudaMemcpyDeviceToHost));
+    for(int i = 0; i<num_spins; ++i){
       e1_s = e1_s + (s(i, 0)*eng(i, 0)+s(i, 1)*eng(i, 1)+s(i, 2)*eng(i, 2));
     }
-    e1_s = e1_s/nspins;
+    e1_s = e1_s/num_spins;
   }
 
 
   // bilinear tensor
   if(J1ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3, nspins3,
+    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(num_spins3, num_spins3,
       J1ij_t.diags(), J1ij_t_dev.pitch, 1.0, beta, J1ij_t_dev.row, J1ij_t_dev.val, sf_dev, e_dev);
-    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(nspins3*sizeof(float)), cudaMemcpyDeviceToHost));
-    for(int i = 0; i<nspins; ++i){
+    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(num_spins3*sizeof(float)), cudaMemcpyDeviceToHost));
+    for(int i = 0; i<num_spins; ++i){
       e1_t = e1_t + (s(i, 0)*eng(i, 0)+s(i, 1)*eng(i, 1)+s(i, 2)*eng(i, 2));
     }
-    e1_t = e1_t/nspins;
+    e1_t = e1_t/num_spins;
   }
 
 
   // biquadratic scalar
   if(J2ij_s.nonZero() > 0){
-    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+    biquadratic_scalar_dia_kernel<<< J2ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(num_spins, num_spins,
       J2ij_s.diags(), J2ij_s_dev.pitch, 1.0, beta, J2ij_s_dev.row, J2ij_s_dev.val, sf_dev, e_dev);
-    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(nspins3*sizeof(float)), cudaMemcpyDeviceToHost));
-    for(int i = 0; i<nspins; ++i){
+    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(num_spins3*sizeof(float)), cudaMemcpyDeviceToHost));
+    for(int i = 0; i<num_spins; ++i){
       e2_s = e2_s + (s(i, 0)*eng(i, 0)+s(i, 1)*eng(i, 1)+s(i, 2)*eng(i, 2));
     }
 
-    e2_s = e2_s/nspins;
+    e2_s = e2_s/num_spins;
   }
 
   // biquadratic tensor
   if(J2ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(nspins3, nspins3,
+    spmv_dia_kernel<<< J2ij_t_dev.blocks, DIA_BLOCK_SIZE >>>(num_spins3, num_spins3,
       J2ij_t.diags(), J2ij_t_dev.pitch, 1.0, beta, J2ij_t_dev.row, J2ij_t_dev.val, sf_dev, e_dev);
-    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(nspins3*sizeof(float)), cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(num_spins3*sizeof(float)), cudaMemcpyDeviceToHost));
 
-    for(int i = 0; i<nspins; ++i){
+    for(int i = 0; i<num_spins; ++i){
       e2_t = e2_t + (s(i, 0)*eng(i, 0)+s(i, 1)*eng(i, 1)+s(i, 2)*eng(i, 2));
     }
 
-    e2_t = e2_t/nspins;
+    e2_t = e2_t/num_spins;
   }
 
   if(J4ijkl_s.nonZeros() > 0){
-    fourspin_scalar_interaction_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
+    fourspin_scalar_interaction_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(num_spins, num_spins, 1.0, beta,
         J4ijkl_s_dev.pointers, J4ijkl_s_dev.coords, J4ijkl_s_dev.val, sf_dev, e_dev);
-    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(nspins3*sizeof(float)), cudaMemcpyDeviceToHost));
-    for(int i = 0; i<nspins; ++i){
+    CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(num_spins3*sizeof(float)), cudaMemcpyDeviceToHost));
+    for(int i = 0; i<num_spins; ++i){
       e4_s = e4_s + (s(i, 0)*eng(i, 0)+s(i, 1)*eng(i, 1)+s(i, 2)*eng(i, 2));
     }
 
-    e4_s = e4_s/nspins;
+    e4_s = e4_s/num_spins;
   }
 */
 

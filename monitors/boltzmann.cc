@@ -28,7 +28,7 @@ void BoltzmannMonitor::write(Solver *solver) {
     using namespace globals;
     double angle;
     unsigned int round;
-    for (int i = 0; i < nspins; ++i) {
+    for (int i = 0; i < num_spins; ++i) {
         angle = rad_to_deg(acos(s(i, 2)));
         round = static_cast<unsigned int>(angle*0.2);
         bins(round)++;

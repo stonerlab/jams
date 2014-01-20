@@ -36,11 +36,11 @@ void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
   output.write("  * J2ij Tensor matrix memory (CSR): %f MB\n",
     J2ij_t.calculateMemory());
 
-  snew.resize(nspins, 3);
-  sigma.resize(nspins, 3);
-  eng.resize(nspins, 3);
+  snew.resize(num_spins, 3);
+  sigma.resize(num_spins, 3);
+  eng.resize(num_spins, 3);
 
-  for (int i = 0; i < nspins; ++i) {
+  for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
       sigma(i, j) = sqrt((2.0*boltzmann_si*alpha(i))/(dt*mus(i)*mu_bohr_si));
     }
@@ -62,7 +62,7 @@ void HeunLLGSolver::run() {
 
   if (globalTemperature > 0.0) {
     const double stmp = sqrt(globalTemperature);
-    for (i = 0; i < nspins; ++i) {
+    for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
         w(i, j) = (rng.normal())*sigma(i, j)*stmp;
       }
@@ -71,7 +71,7 @@ void HeunLLGSolver::run() {
 
   compute_effective_fields();
 
-  for (i = 0; i < nspins; ++i) {
+  for (i = 0; i < num_spins; ++i) {
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
     sxh[1] = s(i, 2)*h(i, 0) - s(i, 0)*h(i, 2);
     sxh[2] = s(i, 0)*h(i, 1) - s(i, 1)*h(i, 0);
@@ -97,7 +97,7 @@ void HeunLLGSolver::run() {
 
   compute_effective_fields();
 
-  for (i = 0; i < nspins; ++i) {
+  for (i = 0; i < num_spins; ++i) {
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
     sxh[1] = s(i, 2)*h(i, 0) - s(i, 0)*h(i, 2);
     sxh[2] = s(i, 0)*h(i, 1) - s(i, 1)*h(i, 0);

@@ -34,7 +34,7 @@ __global__ void bruteforce_dipole_interaction_kernel
  const float *r_dev,
  const float *r_max_dev,
  const bool *pbc_dev,
- const int nspins
+ const int num_spins
 );
 
 __global__ void bilinear_scalar_interaction_dia_kernel
@@ -75,7 +75,7 @@ __global__ void spmv_dia_kernel
 
 __global__ void fourspin_scalar_interaction_csr_kernel
 (const int num_rows,
- const int nspins,
+ const int num_spins,
  const float alpha,
  const float beta,
  const int * pointers,
