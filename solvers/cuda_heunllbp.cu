@@ -171,7 +171,7 @@ void CUDAHeunLLBPSolver::initialize(int argc, char **argv, double idt)
 	CUDA_CALL(cudaMemcpy(u2_dev, u2.data(), (size_t)(nspins3*sizeof(double)), cudaMemcpyHostToDevice));
 
   //-------------------------------------------------------------------
-  //  Initialise Correlation Time Array
+  //  initialize Correlation Time Array
   //-------------------------------------------------------------------
 
 	output.write("  * Allocating correlation time array in device memory...\n");
@@ -181,7 +181,7 @@ void CUDAHeunLLBPSolver::initialize(int argc, char **argv, double idt)
 	CUDA_CALL(cudaMemcpy(tc_dev, t_corr.data(), (size_t)(nspins*2*sizeof(float)), cudaMemcpyHostToDevice));
 
   //-------------------------------------------------------------------
-  //  Initialise Material Array
+  //  initialize Material Array
   //-------------------------------------------------------------------
 
 	jblib::Array<float, 2> mat(nspins, 4);
@@ -252,7 +252,7 @@ void CUDAHeunLLBPSolver::run()
   float beta=0;
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
-    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+    bilinear_scalar_interaction_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
       J1ij_s.diags(), J1ij_s_dev.pitch, 1.0, beta, J1ij_s_dev.row, J1ij_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
@@ -279,7 +279,7 @@ void CUDAHeunLLBPSolver::run()
   }
 
   if(J4ijkl_s.nonZeros() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
+    fourspin_scalar_interaction_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
         J4ijkl_s_dev.pointers, J4ijkl_s_dev.coords, J4ijkl_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
@@ -319,7 +319,7 @@ void CUDAHeunLLBPSolver::run()
   beta=0.0;
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
-    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+    bilinear_scalar_interaction_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
       J1ij_s.diags(), J1ij_s_dev.pitch, 1.0, beta, J1ij_s_dev.row, J1ij_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
@@ -346,7 +346,7 @@ void CUDAHeunLLBPSolver::run()
   }
 
   if(J4ijkl_s.nonZeros() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
+    fourspin_scalar_interaction_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
         J4ijkl_s_dev.pointers, J4ijkl_s_dev.coords, J4ijkl_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }

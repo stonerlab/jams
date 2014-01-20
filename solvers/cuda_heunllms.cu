@@ -223,7 +223,7 @@ void CUDAHeunLLMSSolver::run()
   float beta=0;
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
-    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+    bilinear_scalar_interaction_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
       J1ij_s.diags(), J1ij_s_dev.pitch, 1.0, beta, J1ij_s_dev.row, J1ij_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
@@ -250,7 +250,7 @@ void CUDAHeunLLMSSolver::run()
   }
 
   if(J4ijkl_s.nonZeros() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
+    fourspin_scalar_interaction_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
         J4ijkl_s_dev.pointers, J4ijkl_s_dev.coords, J4ijkl_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
@@ -290,7 +290,7 @@ void CUDAHeunLLMSSolver::run()
   beta=0.0;
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
-    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+    bilinear_scalar_interaction_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
       J1ij_s.diags(), J1ij_s_dev.pitch, 1.0, beta, J1ij_s_dev.row, J1ij_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }
@@ -317,7 +317,7 @@ void CUDAHeunLLMSSolver::run()
   }
 
   if(J4ijkl_s.nonZeros() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
+    fourspin_scalar_interaction_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
         J4ijkl_s_dev.pointers, J4ijkl_s_dev.coords, J4ijkl_s_dev.val, sf_dev, h_dev);
     beta = 1.0;
   }

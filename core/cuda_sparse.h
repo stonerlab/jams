@@ -24,7 +24,7 @@ void allocate_transfer_csr_4d(jblib::Sparsematrix<float, 4> &Jij, devCSR &
 
 void free_csr_4d(devCSR &Jij_dev);
 
-__global__ void dipole_brute_kernel
+__global__ void bruteforce_dipole_interaction_kernel
 (
  const float alpha,
  const float beta,
@@ -37,7 +37,7 @@ __global__ void dipole_brute_kernel
  const int nspins
 );
 
-__global__ void bilinear_scalar_dia_kernel
+__global__ void bilinear_scalar_interaction_dia_kernel
 (const int nrows,
  const int ncols,
  const int ndiag,
@@ -73,7 +73,7 @@ __global__ void spmv_dia_kernel
  const float * x,
  float * y);
 
-__global__ void fourspin_scalar_csr_kernel
+__global__ void fourspin_scalar_interaction_csr_kernel
 (const int num_rows,
  const int nspins,
  const float alpha,

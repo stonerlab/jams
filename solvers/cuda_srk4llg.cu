@@ -193,25 +193,25 @@ void CUDALLGSolverSRK4::run()
       CURAND_CALL(curandGenerateNormal(gen, w_dev, (nspins3+(nspins3%2)), 0.0f, stmp));
   }
 
-    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, true);
+    cuda_device_compute_fields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, true);
 
   // Integrate to find K0
   CUDAIntegrateLLG_SRK4<<<nblocks, BLOCKSIZE>>>
     (s_dev, s_old_dev, k0_dev, h_dev, w_dev, sf_dev, mat_dev, h_app[0], h_app[1], h_app[2], 0.5, dt, nspins);
 
-    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, false);
+    cuda_device_compute_fields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, false);
 
   // Integrate to find K1
   CUDAIntegrateLLG_SRK4<<<nblocks, BLOCKSIZE>>>
     (s_dev, s_old_dev, k1_dev, h_dev, w_dev, sf_dev, mat_dev, h_app[0], h_app[1], h_app[2], 0.5, dt, nspins);
 
-    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, false);
+    cuda_device_compute_fields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, false);
 
   // Integrate to find K2
   CUDAIntegrateLLG_SRK4<<<nblocks, BLOCKSIZE>>>
     (s_dev, s_old_dev, k2_dev, h_dev, w_dev, sf_dev, mat_dev, h_app[0], h_app[1], h_app[2], 1.0, dt, nspins);
 
-    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, false);
+    cuda_device_compute_fields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev, r_dev, r_max_dev, mat_dev, pbc_dev, h_dev, h_dipole_dev, false);
 
   // Integrate to find K3
   CUDAIntegrateEndPointLLG_SRK4<<<nblocks, BLOCKSIZE>>>

@@ -134,12 +134,12 @@ void CUDAHeunLLGSolver::run()
         CURAND_CALL(curandGenerateNormal(gen, w_dev.data(), (nspins3+(nspins3%2)), 0.0f, stmp));
     }
 
-    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev.data(), r_dev.data(), r_max_dev.data(), mat_dev.data(), pbc_dev.data(), h_dev.data(), h_dipole_dev.data(), true);
+    cuda_device_compute_fields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev.data(), r_dev.data(), r_max_dev.data(), mat_dev.data(), pbc_dev.data(), h_dev.data(), h_dipole_dev.data(), true);
 
     cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE>>>
         (s_dev.data(), sf_dev.data(), s_new_dev.data(), h_dev.data(), w_dev.data(), mat_dev.data(), h_app[0], h_app[1], h_app[2], nspins, dt);
 
-    CUDACalculateFields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev.data(), r_dev.data(), r_max_dev.data(), mat_dev.data(), pbc_dev.data(), h_dev.data(), h_dipole_dev.data(), false);
+    cuda_device_compute_fields(J1ij_s_dev, J1ij_t_dev, J2ij_s_dev, J2ij_t_dev, J4ijkl_s_dev, sf_dev.data(), r_dev.data(), r_max_dev.data(), mat_dev.data(), pbc_dev.data(), h_dev.data(), h_dipole_dev.data(), false);
 
     cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE>>>
         (s_dev.data(), sf_dev.data(), s_new_dev.data(), h_dev.data(), w_dev.data(), mat_dev.data(), h_app[0], h_app[1], h_app[2], nspins, dt);
@@ -158,7 +158,7 @@ void CUDAHeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double 
 
   // bilinear scalar
   if(J1ij_s.nonZero() > 0){
-    bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
+    bilinear_scalar_interaction_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>(nspins, nspins,
       J1ij_s.diags(), J1ij_s_dev.pitch, 1.0, beta, J1ij_s_dev.row, J1ij_s_dev.val, sf_dev.data(), e_dev.data());
     CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(nspins3*sizeof(float)), cudaMemcpyDeviceToHost));
     for(int i = 0; i<nspins; ++i){
@@ -206,7 +206,7 @@ void CUDAHeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double 
   }
 
   if(J4ijkl_s.nonZeros() > 0){
-    fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
+    fourspin_scalar_interaction_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>(nspins, nspins, 1.0, beta,
         J4ijkl_s_dev.pointers, J4ijkl_s_dev.coords, J4ijkl_s_dev.val, sf_dev, e_dev);
     CUDA_CALL(cudaMemcpy(eng.data(), e_dev, (size_t)(nspins3*sizeof(float)), cudaMemcpyDeviceToHost));
     for(int i = 0; i<nspins; ++i){

@@ -9,7 +9,7 @@
 #include "core/globals.h"
 
 
-void CUDACalculateFields(
+void cuda_device_compute_fields(
         const devDIA & J1ij_s_dev,
         const devDIA & J1ij_t_dev,
         const devDIA & J2ij_s_dev,
@@ -33,7 +33,7 @@ void CUDACalculateFields(
     // Bilinear Scalar Fields
     if(J1ij_s.nonZero() > 0){
 
-        bilinear_scalar_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>
+        bilinear_scalar_interaction_dia_kernel<<< J1ij_s_dev.blocks, DIA_BLOCK_SIZE >>>
             (nspins, nspins, J1ij_s.diags(), J1ij_s_dev.pitch, 1.0, beta,
              J1ij_s_dev.row, J1ij_s_dev.val, sf_dev, h_dev);
 
@@ -76,7 +76,7 @@ void CUDACalculateFields(
     // Fourspin Scalar Fields
     if(J4ijkl_s.nonZeros() > 0){
 
-        fourspin_scalar_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>
+        fourspin_scalar_interaction_csr_kernel<<< J4ijkl_s_dev.blocks, CSR_4D_BLOCK_SIZE>>>
             (nspins, nspins, 1.0, beta,
              J4ijkl_s_dev.pointers, J4ijkl_s_dev.coords, J4ijkl_s_dev.val, sf_dev, h_dev);
 
@@ -93,7 +93,7 @@ void CUDACalculateFields(
     if( dipole_toggle == true ){
         if(globalSteps%100 == 0){
             const int nblocks = (nspins+BLOCKSIZE-1)/BLOCKSIZE;
-            dipole_brute_kernel<<<nblocks, BLOCKSIZE >>>
+            bruteforce_dipole_interaction_kernel<<<nblocks, BLOCKSIZE >>>
                 (dipole_omega, 0.0, sf_dev, mat_dev, h_dipole_dev,
                  r_dev, r_max_dev, pbc_dev, nspins);
         }

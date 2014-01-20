@@ -5,7 +5,7 @@
 
 #include "core/cuda_sparse_types.h"
 
-void CUDACalculateFields(
+void cuda_device_compute_fields(
         const devDIA & J1ij_s_dev,
         const devDIA & J1ij_t_dev,
         const devDIA & J2ij_s_dev,
