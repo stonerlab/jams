@@ -69,8 +69,7 @@ void HeunLLGSolver::run() {
     }
   }
 
-  // calculate_fields();
-  ComputeEffectiveFields();
+  compute_effective_fields();
 
   for (i = 0; i < nspins; ++i) {
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
@@ -96,8 +95,7 @@ void HeunLLGSolver::run() {
     }
   }
 
-  // calculate_fields();
-  ComputeEffectiveFields();
+  compute_effective_fields();
 
   for (i = 0; i < nspins; ++i) {
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
