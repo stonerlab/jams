@@ -5,10 +5,12 @@
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 
+#include <algorithm>
 #include <cstdarg>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "core/globals.h"
 #include "core/lattice.h"
@@ -117,6 +119,11 @@ int jams_initialize(int argc, char **argv) {
     double init_temperature = 0.0;
 
     try {
+      verbose_output_is_set = false;
+      if (config.exists("sim.verbose_output")) {
+        config.lookupValue("sim.verbose_output", verbose_output_is_set);
+      }
+
       dt = config.lookup("sim.t_step");
       output.write("  * Timestep:           %1.8e\n", dt);
 
