@@ -53,13 +53,17 @@ namespace {
 }  // anon namespace
 
 int jams_initialize(int argc, char **argv) {
+  std::string config_filename;
+
   if (argc == 1) {
-        // seedname is executable
-    seedname = std::string(argv[0]);
+    jams_error("No config file specified");
   } else {
-        // seedname is first argument
-    seedname = std::string(argv[1]);
+    // config file is the only argument
+    config_filename = std::string(argv[1]);
+    trim(config_filename);
   }
+
+  seedname = file_basename(config_filename);
   trim(seedname);
 
   output.open("%s.out", seedname.c_str());
@@ -85,16 +89,14 @@ int jams_initialize(int argc, char **argv) {
 
   output.write("\nReading configuration file...\n");
 
-  std::string cfgfile = seedname+".cfg";
-
-  output.write("  * Config file: %s\n", cfgfile.c_str());
+  output.write("  * Config file: %s\n", config_filename.c_str());
 
   {
     try {
-      config.readFile(cfgfile.c_str());
+      config.readFile(config_filename.c_str());
     }
     catch(const libconfig::FileIOException &fioex) {
-      jams_error("I/O error while reading '%s'", cfgfile.c_str());
+      jams_error("I/O error while reading '%s'", config_filename.c_str());
     }
     catch(const libconfig::ParseException &pex) {
       jams_error("Error parsing %s:%i: %s", pex.getFile(),
