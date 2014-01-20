@@ -160,8 +160,7 @@ void Lattice::readLattice(const libconfig::Setting &cfgLattice,
     is_periodic[i] = pbc[i];
     if (pbc[i]) {
       output.write("periodic ");
-    }
-    else {
+    } else {
       output.write("open ");
     }
   }
@@ -423,15 +422,15 @@ void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, cons
   output.write("\nReading fourspin interaction file...\n");
 
   double Jval;
-  int nInterTotal=0;
   int nInterConfig = 0;
-  double r[3], p[3];
+  double r[3];
   std::vector<int> atomInterCount(num_spins, 0);
 
   std::ifstream exchangeFile(J4FileName.c_str());
 
   // count number of interactions
   if( exchangeFile.is_open() ) {
+    int nInterTotal=0;
     int atom1=0;
     for( std::string line; getline(exchangeFile, line); ) {
       std::stringstream is(line);
@@ -503,7 +502,6 @@ void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, cons
     // --------------- vij ----------------
     for (int j = 1; j < 4;++j) {
       for (int i = 0; i < 3; ++i) {
-        p[i] = unit_cell_positions(atom_num[j], i);   // fractional vector within unit cell
         is >> r[i];                               // real space vector to neighbour
       }
       matmul(unitcellInv, r, vij);                  // place interaction vector in unitcell space
@@ -550,7 +548,7 @@ void read_interactions(std::string &exchangeFileName, libconfig::Config &config,
 
   int nInterConfig = 0;
 
-  double r[3], p[3];
+  double r[3];
 
   std::vector<int> atomInterCount(num_spins, 0);
 
@@ -558,12 +556,13 @@ void read_interactions(std::string &exchangeFileName, libconfig::Config &config,
 
   // count number of interactions
   if(jsym == true) {
-    int atom1=0;
-    int atom2=0;
+
 
     if( exchangeFile.is_open() ) {
       int n=0;
       for( std::string line; getline(exchangeFile, line); ) {
+        int atom1=0;
+        int atom2=0;
         std::stringstream is(line);
 
         is >> atom1;
@@ -770,9 +769,6 @@ void read_interactions(std::string &exchangeFileName, libconfig::Config &config,
     atom_num_1--; atom_num_2--;
 
     for(int i = 0; i<3; ++i) {
-      // fractional vector within unit cell
-      p[i] = unit_cell_positions(atom_num_2, i);
-      // real space vector to neighbour
       is >> r[i];
     }
 
@@ -921,7 +917,7 @@ void read_interactions(std::string &exchangeFileName, libconfig::Config &config,
 /// @brief  Create J4 interaction matrix.
 ///
 void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, jblib::Array<int, 4> &latt,
-  const std::vector<int> dim, const int num_atoms, const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, const std::vector<int> &atom_type, const jblib::Array<double, 4> &J4Vectors,
+  const std::vector<int> &dim, const int num_atoms, const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, const std::vector<int> &atom_type, const jblib::Array<double, 4> &J4Vectors,
   const jblib::Array<int, 3> &J4Neighbour, const jblib::Array<double, 2> &J4Values, const std::vector<int> &nJ4InteractionsOfType,
   const double unitcellInv[3][3], const bool pbc[3], const int &nJ4Values)
 {
@@ -932,7 +928,7 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
   const double encut = 1E-28/mu_bohr_si; // energy cutoff
 
   int qi[3], qj[3];
-  double pi[3], pj[3];
+  double pj[3];
   int vij[3];
   int sj[3];
 
@@ -949,10 +945,6 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
             const int si = latt(x, y, z, n); assert (si < num_spins);
 
             qi[0] = x; qi[1] = y; qi[2] = z;
-
-            for(int j = 0; j<3; ++j){
-              pi[j] = unit_cell_positions(n, j);
-            }
 
             for(int i = 0; i<nJ4InteractionsOfType[n]; ++i) {
 
@@ -1019,7 +1011,7 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
 /// @brief  Create interaction matrix.
 ///
 void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, jblib::Array<int, 4> &latt,
-  const std::vector<int> dim, const int num_atoms, const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, const std::vector<int> &atom_type, const jblib::Array<double, 3> &interactionVectors,
+  const std::vector<int> &dim, const int num_atoms, const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, const std::vector<int> &atom_type, const jblib::Array<double, 3> &interactionVectors,
   const jblib::Array<int, 2> &interactionNeighbour, const jblib::Array<double, 4> &JValues, const std::vector<int> &nInteractionsOfType,
   const double unitcellInv[3][3], const bool pbc[3], const bool &J2Toggle, const jblib::Array<double, 2> &J2Values, const int &nJValues)
 {
@@ -1029,7 +1021,7 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
 
   const double encut = 1E-26/mu_bohr_si; // energy cutoff
 
-  double p[3], pnbr[3];
+  double pnbr[3];
   int v[3], q[3], qnbr[3];
 
   int counter = 0;
@@ -1046,12 +1038,6 @@ void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting
             assert(s_i < num_spins);
 
             q[0] = x; q[1] = y; q[2] = z;
-
-            for(int j = 0; j<3; ++j) {
-              p[j] = unit_cell_positions(n, j);
-            }
-
-
 
             int localInteractionCount = 0;
             for(int i = 0; i<nInteractionsOfType[n]; ++i) {
@@ -1265,7 +1251,6 @@ void Lattice::create_from_config(libconfig::Config &config) {
     bool pbc[3] = {true, true, true};
     bool J2Toggle = false;
     int nJValues=0;
-    int nJ4Values=0;
 
     double unitcell[3][3];
     double unitcellInv[3][3];
@@ -1312,14 +1297,15 @@ void Lattice::create_from_config(libconfig::Config &config) {
         map_position_to_int();
 
     if( config.exists("lattice.fourspin") == true ) {
+      int nJ4Values=0;
       std::string J4FileName = config.lookup("lattice.fourspin");
+
       readJ4Interactions(J4FileName, config, unit_cell_types, unit_cell_positions, J4Vectors, J4Neighbour, J4Values, nJ4InteractionsOfType,
         num_atoms, atom_type_map, unitcellInv, nJ4Values);
 
       createJ4Matrix(config, cfgMaterials, latt, dim, num_atoms, unit_cell_types, unit_cell_positions,
         atom_type, J4Vectors, J4Neighbour, J4Values,
         nJ4InteractionsOfType, unitcellInv, pbc, nJ4Values);
-
     }
 
     if (config.exists("lattice.coarse") == true ) {
@@ -1499,7 +1485,4 @@ void Lattice::output_coarse_magnetisation(std::ofstream &outfile) {
       }
     }
   }
-
-
-
 }
