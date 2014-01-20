@@ -18,7 +18,7 @@ class EnergyMonitor : public Monitor {
   void write(Solver *solver);
   void initialize_convergence(ConvergenceType type, const double meanTol,
     const double devTol);
-  bool checkConvergence();
+  bool has_converged();
  private:
   std::ofstream outfile;
 };

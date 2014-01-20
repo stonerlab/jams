@@ -35,7 +35,7 @@ void MagnetisationMonitor::initialize_convergence(ConvergenceType type,
   devTol = devTolerance;
 }
 
-bool MagnetisationMonitor::checkConvergence() {
+bool MagnetisationMonitor::has_converged() {
   if (convType == convNone) {
     return false;
   } else {
@@ -90,7 +90,7 @@ void MagnetisationMonitor::write(Solver *solver) {
   }
 
 
-  outfile << solver->getTime();
+  outfile << solver->time();
 
   outfile << "\t" << globalTemperature;
 

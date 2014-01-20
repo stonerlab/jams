@@ -29,7 +29,7 @@ void EnergyMonitor::initialize_convergence(ConvergenceType type,
   const double meanTolerance, const double devTolerance) {
 }
 
-bool EnergyMonitor::checkConvergence() {
+bool EnergyMonitor::has_converged() {
   return true;
 }
 void EnergyMonitor::write(Solver *solver) {
@@ -38,9 +38,9 @@ void EnergyMonitor::write(Solver *solver) {
 
   double e1_s = 0.0, e1_t = 0.0, e2_s = 0.0, e2_t = 0.0, e4_s = 0.0;
 
-  solver->calcEnergy(e1_s, e1_t, e2_s, e2_t, e4_s);
+  solver->compute_total_energy(e1_s, e1_t, e2_s, e2_t, e4_s);
 
-    outfile << solver->getTime();
+    outfile << solver->time();
 
       outfile << "\t" << e1_s+e1_t+e2_s+e2_t+e4_s;
 

@@ -435,7 +435,7 @@ void jams_run() {
 
     if (steps_conv > 0) {
       if ((i+1)%steps_conv == 0) {
-        if (monitor_list[0]->checkConvergence() == true) {
+        if (monitor_list[0]->has_converged() == true) {
           break;
         }
       }
