@@ -113,7 +113,6 @@ int jams_initialize(int argc, char **argv) {
     std::string solname;
 
     std::string physname;
-    unsigned int randomseed;
 
 
     double init_temperature = 0.0;
@@ -212,6 +211,7 @@ int jams_initialize(int argc, char **argv) {
         coarse_output_is_set = false;
       }
 
+      unsigned int randomseed;
       if (config.exists("sim.seed")) {
         config.lookupValue("sim.seed", randomseed);
         output.write("  * Random generator seeded from config file\n");
@@ -501,7 +501,6 @@ int main(int argc, char **argv) {
 }
 
 void jams_error(const char *string, ...) {
-  // TODO(joe): Fix this so that the arguments are passed through.
   va_list args;
   char buffer[1024];
 
