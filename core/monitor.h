@@ -19,7 +19,7 @@ class Monitor {
 
   virtual void initialize_convergence(ConvergenceType type, const double meanTol,
     const double devTol);
-  virtual bool checkConvergence();
+  virtual bool has_converged();
 
 
   static Monitor* Create();

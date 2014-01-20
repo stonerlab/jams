@@ -28,7 +28,7 @@
 
 namespace {
   Solver *solver;
-  Physics *physics;
+  Physics *physics_package;
   double dt = 0.0;
   int steps_eq = 0;
   int steps_run = 0;
@@ -38,16 +38,18 @@ namespace {
   int steps_conv = 0;
 
   std::string convName;
-  double convMeanTolerance = 0.0;
-  double convDevTolerance = 0.0;
+  double convergence_tolerance_mean = 0.0;
+  double convergence_tolerance_stddev = 0.0;
 
-  bool toggleEnergy = false;
-  bool toggleVisualise = false;
-  bool toggleBinary = false;
-  bool toggleSaveState = false;
-  bool toggleReadState = false;
-  bool toggleCoarse = false;
-  std::string stateFileName;
+  bool energy_output_is_set = false;
+
+  bool visual_output_is_set = false;
+  bool binary_output_is_set = false;
+  bool coarse_output_is_set = false;
+
+  bool save_state_is_set = false;
+  bool read_state_is_set = false;
+
 
   std::vector<Monitor*> monitor_list;
 }  // anon namespace
@@ -78,7 +80,7 @@ int jams_initialize(int argc, char **argv) {
   struct tm * timeinfo;
   char timebuffer[80];
   time(&rawtime);
-  timeinfo = localtime(&rawtime);
+  timeinfo = localtime(&rawtime); // NOLINT
   strftime(timebuffer, 80, "%b %d %Y, %X", timeinfo);
   output.write("Run time %s\n", timebuffer);
   output.write("----------------------------------------\n");
@@ -119,94 +121,91 @@ int jams_initialize(int argc, char **argv) {
       output.write("  * Timestep:           %1.8e\n", dt);
 
 
-      double tmp = config.lookup("sim.t_eq");
-      steps_eq = static_cast<int>(tmp/dt);
+      double time_value = config.lookup("sim.t_eq");
+      steps_eq = static_cast<int>(time_value/dt);
       output.write("  * Equilibration time: %1.8e (%lu steps)\n",
-        tmp, steps_eq);
+        time_value, steps_eq);
 
-      tmp = config.lookup("sim.t_run");
-      steps_run = static_cast<int>(tmp/dt);
+      time_value = config.lookup("sim.t_run");
+      steps_run = static_cast<int>(time_value/dt);
       output.write("  * Run time:           %1.8e (%lu steps)\n",
-        tmp, steps_run);
+        time_value, steps_run);
 
-      tmp = config.lookup("sim.t_out");
-      steps_out = static_cast<int>(tmp/dt);
+      time_value = config.lookup("sim.t_out");
+      steps_out = static_cast<int>(time_value/dt);
       output.write("  * Output time:        %1.8e (%lu steps)\n",
-        tmp, steps_out);
+        time_value, steps_out);
 
-      if (config.exists("sim.convergence") == true) {
+      if (config.exists("sim.convergence")) {
         config.lookupValue("sim.convergence", convName);
-        std::transform(solname.begin(), solname.end(),
-          solname.begin(), toupper);
-        config.lookupValue("sim.meanTolerance", convMeanTolerance);
-        config.lookupValue("sim.devTolerance", convDevTolerance);
+        config.lookupValue("sim.meanTolerance", convergence_tolerance_mean);
+        config.lookupValue("sim.devTolerance", convergence_tolerance_stddev);
 
-        tmp = config.lookup("sim.t_conv");
-        steps_conv = static_cast<int>(tmp/dt);
+        time_value = config.lookup("sim.t_conv");
+        steps_conv = static_cast<int>(time_value/dt);
         output.write("  * Convergence test time:        %1.8e (%lu steps)\n",
-          tmp, steps_conv);
+          time_value, steps_conv);
       }
 
       globals::h_app[0] = config.lookup("sim.h_app.[0]");
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
       globals::h_app[2] = config.lookup("sim.h_app.[2]");
 
-      if (config.exists("sim.read_state") == true) {
-        config.lookupValue("sim.read_state", stateFileName);
-        toggleReadState = true;
+      if (config.exists("sim.read_state")) {
+        read_state_is_set = true;
         output.write("  * Read state is ON\n");
       }
 
-      if (config.exists("sim.save_state") == true) {
-        config.lookupValue("sim.save_state", toggleSaveState);
+      if (config.exists("sim.save_state")) {
+        config.lookupValue("sim.save_state", save_state_is_set);
         output.write("  * Save state is ON\n");
       }
 
-      if (config.exists("sim.energy") == true) {
-        config.lookupValue("sim.energy", toggleEnergy);
-        if (toggleEnergy == true) {
+      if (config.exists("sim.energy")) {
+        config.lookupValue("sim.energy", energy_output_is_set);
+        if (energy_output_is_set) {
           output.write("  * Energy calculation ON\n");
         } else {
           output.write("  * Energy calculation OFF\n");
         }
       }
 
-      if (config.exists("sim.visualise") == true) {
-        config.lookupValue("sim.visualise", toggleVisualise);
-        if (toggleVisualise == true) {
+      if (config.exists("sim.visualise")) {
+        config.lookupValue("sim.visualise", visual_output_is_set);
+        if (visual_output_is_set) {
           output.write("  * Visualisation is ON\n");
-          tmp = config.lookup("sim.t_vis");
-          steps_vis = static_cast<int>(tmp/dt);
+          time_value = config.lookup("sim.t_vis");
+          steps_vis = static_cast<int>(time_value/dt);
           output.write("  * Visualisation time: %1.8e (%lu steps)\n",
-            tmp, steps_vis);
+            time_value, steps_vis);
         }
       } else {
-        toggleVisualise = false;
+        visual_output_is_set = false;
       }
 
-      if (config.exists("sim.binary") == true) {
-        config.lookupValue("sim.binary", toggleBinary);
-        if (toggleBinary == true) {
+      if (config.exists("sim.binary")) {
+        config.lookupValue("sim.binary", binary_output_is_set);
+        if (binary_output_is_set) {
           output.write("  * Binary output is ON\n");
-          tmp = config.lookup("sim.t_bin");
-          steps_bin = static_cast<int>(tmp/dt);
+          time_value = config.lookup("sim.t_bin");
+          steps_bin = static_cast<int>(time_value/dt);
           output.write("  * Binary output time: %1.8e (%lu steps)\n",
-            tmp, steps_bin);
+            time_value, steps_bin);
         }
       } else {
-        toggleBinary = false;
+        binary_output_is_set = false;
       }
 
-      if (config.exists("lattice.coarse") == true) {
-        toggleCoarse = true;
-        if (toggleCoarse == true) {
+      if (config.exists("lattice.coarse")) {
+        coarse_output_is_set = true;
+        if (coarse_output_is_set) {
           output.write("  * Coarse magnetisation map output is ON\n");
         }
       } else {
-        toggleCoarse = false;
+        coarse_output_is_set = false;
       }
 
-      if (config.exists("sim.seed") == true) {
+      if (config.exists("sim.seed")) {
         config.lookupValue("sim.seed", randomseed);
         output.write("  * Random generator seeded from config file\n");
       } else {
@@ -224,59 +223,63 @@ int jams_initialize(int argc, char **argv) {
 
       lattice.createFromConfig(config);
 
-      if (toggleBinary == true) {
-        std::string binfilename;
-        binfilename = seedname+"_types.bin";
-        std::ofstream binfile(binfilename.c_str(),
-          std::ios::binary|std::ios::out);
-        lattice.outputTypesBinary(binfile);
-        binfile.close();
+      if (binary_output_is_set) {
+        std::ofstream binary_state_file
+          (std::string(seedname+"_types.bin").c_str(),
+          std::ios::binary | std::ios::out);
+
+        lattice.output_spin_types_as_binary(binary_state_file);
+
+        binary_state_file.close();
       }
 
-            // If read_state is true then attempt to read state from binary
-            // file. If this fails (nspins != nspins in the file) then JAMS
-            // exits with an error to avoid mistakingly thinking the file was
-            // loaded. NOTE: This must be done after lattice is created but
-            // before the solver is initialised so the GPU solvers can copy the
-            // correct spin array.
+      // If read_state is true then attempt to read state from binary
+      // file. If this fails (nspins != nspins in the file) then JAMS
+      // exits with an error to avoid mistakingly thinking the file was
+      // loaded. NOTE: This must be done after lattice is created but
+      // before the solver is initialized so the GPU solvers can copy the
+      // correct spin array.
 
-      if (toggleReadState == true) {
-        output.write("\nReading spin state from %s\n", stateFileName.c_str());
-        std::ifstream statefile(stateFileName.c_str(),
+      if (read_state_is_set) {
+        std::string binary_state_filename;
+
+        config.lookupValue("sim.read_state", binary_state_filename);
+
+        output.write("\nReading spin state from %s\n",
+          binary_state_filename.c_str());
+
+        std::ifstream binary_state_file(binary_state_filename.c_str(),
           std::ios::binary|std::ios::in);
-        lattice.readSpinsBinary(statefile);
-        statefile.close();
+
+        lattice.read_spin_state_from_binary(binary_state_file);
+
+        binary_state_file.close();
       }
 
-
-      if (config.exists("sim.solver") == true) {
+      if (config.exists("sim.solver")) {
         config.lookupValue("sim.solver", solname);
-        std::transform(solname.begin(), solname.end(),
-          solname.begin(), toupper);
+        solname = capitalize(solname);
       }
-
-
 
       output.write("\nInitialising physics module...\n");
-      if (config.exists("sim.physics") == true) {
+      if (config.exists("sim.physics")) {
         config.lookupValue("sim.physics", physname);
-        std::transform(physname.begin(), physname.end(),
-          physname.begin(), toupper);
+        physname = capitalize(physname);
 
         if (physname == "FMR") {
-          physics = Physics::Create(FMR);
+          physics_package = Physics::Create(FMR);
         } else if (physname == "MFPT") {
-          physics = Physics::Create(MFPT);
+          physics_package = Physics::Create(MFPT);
         } else if (physname == "TTM") {
-          physics = Physics::Create(TTM);
+          physics_package = Physics::Create(TTM);
         } else if (physname == "SPINWAVES") {
-          physics = Physics::Create(SPINWAVES);
+          physics_package = Physics::Create(SPINWAVES);
         } else if (physname == "DYNAMICSF") {
-          physics = Physics::Create(DYNAMICSF);
+          physics_package = Physics::Create(DYNAMICSF);
         } else if (physname == "SQUARE") {
-          physics = Physics::Create(SQUARE);
+          physics_package = Physics::Create(SQUARE);
         } else if (physname == "FIELDCOOL") {
-          physics = Physics::Create(FIELDCOOL);
+          physics_package = Physics::Create(FIELDCOOL);
         } else {
           jams_error("Unknown Physics package selected.");
         }
@@ -285,7 +288,7 @@ int jams_initialize(int argc, char **argv) {
         physics_package->initialize(phys);
 
       } else {
-        physics = Physics::Create(EMPTY);
+        physics_package = Physics::Create(EMPTY);
         output.write("\nWARNING: Using empty physics package\n");
       }
     }
@@ -314,26 +317,24 @@ int jams_initialize(int argc, char **argv) {
       solver = Solver::Create();
     }
 
-    solver->setTemperature(init_temperature);
     solver->initialize(argc, argv, dt);
+    solver->temperature(init_temperature);
   }
 
   // select monitors
   monitor_list.push_back(new MagnetisationMonitor());
 
-  if (toggleEnergy == true) {
+  if (energy_output_is_set) {
     monitor_list.push_back(new EnergyMonitor());
   }
 
-  if ( config.exists("sim.monitors") == true ) {
+  if ( config.exists("sim.monitors") ) {
     libconfig::Setting &simcfg = config.lookup("sim");
 
     for (int i = 0; i < simcfg["monitors"].getLength(); ++i) {
       std::string monname;
-      monname = std::string(simcfg["monitors"][i].c_str());
-      std::transform(monname.begin(), monname.end(),
-        monname.begin(), toupper);
-
+      // monname = std::string(simcfg["monitors"][i].c_str());
+      monname = capitalize(simcfg["monitors"][i].c_str());
       if (monname == "BOLTZMANN") {
         monitor_list.push_back(new BoltzmannMonitor());
       } else {
@@ -359,23 +360,18 @@ int jams_initialize(int argc, char **argv) {
     monitor_list[0]->initialize_convergence(convSinPhi, convergence_tolerance_mean,
       convergence_tolerance_stddev);
   }
-  output.write("StdDev Tolerance: %e\n", convMeanTolerance,
-    convDevTolerance);
-
-
-
+  output.write("StdDev Tolerance: %e\n", convergence_tolerance_mean,
+    convergence_tolerance_stddev);
   return 0;
 }
 
 void jams_run() {
   using namespace globals;
 
-  std::ofstream coarseFile;
+  std::ofstream coarse_magnetisation_file;
 
-  if (toggleCoarse == true) {
-    std::string coarseFileName;
-    coarseFileName = seedname+"_map.dat";
-    coarseFile.open(coarseFileName.c_str());
+  if (coarse_output_is_set) {
+    coarse_magnetisation_file.open(std::string(seedname+"_map.dat").c_str());
   }
 
 
@@ -384,12 +380,12 @@ void jams_run() {
   output.write("Running solver\n");
   for (int i = 0; i < steps_eq; ++i) {
     if (i%steps_out == 0) {
-      solver->syncOutput();
+      solver->sync_device_data();
 
       monitor_list[0]->write(solver);
     }
-    physics->run(solver->getTime(), dt);
-    solver->setTemperature(globalTemperature);
+    physics_package->run(solver->time(), dt);
+    solver->temperature(globalTemperature);
     solver->run();
     globalSteps++;
   }
@@ -399,37 +395,41 @@ void jams_run() {
   std::clock_t start = std::clock();
   for (int i = 0; i < steps_run; ++i) {
     if (i%steps_out == 0) {
-      solver->syncOutput();
+      solver->sync_device_data();
       for (int i = 0; i < monitor_list.size(); ++i) {
         monitor_list[i]->write(solver);
       }
-      physics->monitor(solver->getTime(), dt);
+      physics_package->monitor(solver->time(), dt);
 
-      if (toggleCoarse == true) {
-        lattice.outputCoarseMagnetisationMap(coarseFile);
-        coarseFile << "\n\n";
+      if (coarse_output_is_set) {
+        lattice.output_coarse_magnetisation(coarse_magnetisation_file);
+        coarse_magnetisation_file << "\n\n";
       }
     }
-    if (toggleVisualise == true) {
+    if (visual_output_is_set) {
       if (i%steps_vis == 0) {
         int outcount = i/steps_vis;  // int divisible by modulo above
-        std::string vtufilename;
-        vtufilename = seedname+"_"+zero_pad_num(outcount)+".vtu";
-        std::ofstream vtufile(vtufilename.c_str());
-        lattice.outputSpinsVTU(vtufile);
-        vtufile.close();
+
+        std::ofstream vtu_state_file
+          (std::string(seedname+"_"+zero_pad_number(outcount)+".vtu").c_str());
+
+        lattice.output_spin_state_as_vtu(vtu_state_file);
+
+        vtu_state_file.close();
       }
     }
 
-    if (toggleBinary == true) {
+    if (binary_output_is_set) {
       if (i%steps_bin == 0) {
         int outcount = i/steps_bin;  // int divisible by modulo above
-        std::string binfilename;
-        binfilename = seedname+"_"+zero_pad_num(outcount)+".bin";
-        std::ofstream binfile(binfilename.c_str(),
+
+        std::ofstream binary_state_file
+          (std::string(seedname+"_"+zero_pad_number(outcount)+".bin").c_str(),
           std::ios::binary|std::ios::out);
-        lattice.outputSpinsBinary(binfile);
-        binfile.close();
+
+        lattice.output_spin_state_as_binary(binary_state_file);
+
+        binary_state_file.close();
       }
     }
 
@@ -441,8 +441,8 @@ void jams_run() {
       }
     }
 
-    physics->run(solver->getTime(), dt);
-    solver->setTemperature(globalTemperature);
+    physics_package->run(solver->time(), dt);
+    solver->temperature(globalTemperature);
     solver->run();
     globalSteps++;
     for (int i = 0; i < monitor_list.size(); ++i) {
@@ -450,14 +450,17 @@ void jams_run() {
     }
   }
 
-  if (toggleSaveState == true) {
+  if (save_state_is_set) {
     output.write(
       "\n-------------------\nSaving spin state\n-------------------\n");
-    std::string statefilename = seedname+"_state.dat";
-    std::ofstream statefile(statefilename.c_str(),
+
+    std::ofstream binary_state_file
+      (std::string(seedname+"_state.dat").c_str(),
       std::ios::out|std::ios::binary|std::ios::trunc);
-    lattice.outputSpinsBinary(statefile);
-    statefile.close();
+
+    lattice.output_spin_state_as_binary(binary_state_file);
+
+    binary_state_file.close();
   }
 
   double elapsed = static_cast<double>(std::clock()-start);
@@ -471,14 +474,14 @@ void jams_run() {
     }
   }
 
-  if (toggleCoarse == true) {
-    coarseFile.close();
+  if (coarse_output_is_set) {
+    coarse_magnetisation_file.close();
   }
 }
 
 void jams_finish() {
   if (solver != NULL) { delete solver; }
-  if (physics != NULL) { delete physics; }
+  if (physics_package != NULL) { delete physics_package; }
 }
 
 int main(int argc, char **argv) {

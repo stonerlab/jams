@@ -17,8 +17,8 @@ void Solver::initialize(int argc, char **argv, double idt) {
     jams_error("Solver is already initialized");
   }
 
-  time = 0.0;
   // initialize time and iterations to 0
+  time_ = 0.0;
   iteration = 0;
 
   t_step = idt;
@@ -30,7 +30,7 @@ void Solver::initialize(int argc, char **argv, double idt) {
 void Solver::run() {
 }
 
-void Solver::syncOutput() {
+void Solver::sync_device_data() {
 }
 
 Solver* Solver::Create() {

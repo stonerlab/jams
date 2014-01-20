@@ -23,6 +23,6 @@ void Monitor::initialize_convergence(ConvergenceType type, const double meanTol,
   const double devTol) {
 }
 
-bool Monitor::checkConvergence() {
+bool Monitor::has_converged() {
   return false;
 }

@@ -60,8 +60,8 @@ void HeunLLGSolver::run() {
   double norm;
 
 
-  if (temperature > 0.0) {
-    const double stmp = sqrt(temperature);
+  if (globalTemperature > 0.0) {
+    const double stmp = sqrt(globalTemperature);
     for (i = 0; i < nspins; ++i) {
       for (j = 0; j < 3; ++j) {
         w(i, j) = (rng.normal())*sigma(i, j)*stmp;
