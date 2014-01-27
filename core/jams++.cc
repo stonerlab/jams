@@ -50,8 +50,6 @@ namespace {
   bool coarse_output_is_set = false;
 
   bool save_state_is_set = false;
-  bool read_state_is_set = false;
-
 
   std::vector<Monitor*> monitor_list;
 }  // anon namespace
@@ -119,13 +117,10 @@ int jams_initialize(int argc, char **argv) {
 
     try {
       verbose_output_is_set = false;
-      if (config.exists("sim.verbose_output")) {
-        config.lookupValue("sim.verbose_output", verbose_output_is_set);
-      }
+      config.lookupValue("sim.verbose_output", verbose_output_is_set);
 
       dt = config.lookup("sim.t_step");
       output.write("  * Timestep:           %1.8e\n", dt);
-
 
       double time_value = config.lookup("sim.t_eq");
       steps_eq = static_cast<int>(time_value/dt);
@@ -142,8 +137,7 @@ int jams_initialize(int argc, char **argv) {
       output.write("  * Output time:        %1.8e (%lu steps)\n",
         time_value, steps_out);
 
-      if (config.exists("sim.convergence")) {
-        config.lookupValue("sim.convergence", convName);
+      if (config.lookupValue("sim.convergence", convName)) {
         config.lookupValue("sim.meanTolerance", convergence_tolerance_mean);
         config.lookupValue("sim.devTolerance", convergence_tolerance_stddev);
 
@@ -157,18 +151,14 @@ int jams_initialize(int argc, char **argv) {
       globals::h_app[1] = config.lookup("sim.h_app.[1]");
       globals::h_app[2] = config.lookup("sim.h_app.[2]");
 
-      if (config.exists("sim.read_state")) {
-        read_state_is_set = true;
-        output.write("  * Read state is ON\n");
+
+      if (config.lookupValue("sim.save_state", save_state_is_set)) {
+        if (save_state_is_set) {
+          output.write("  * Save state is ON\n");
+        }
       }
 
-      if (config.exists("sim.save_state")) {
-        config.lookupValue("sim.save_state", save_state_is_set);
-        output.write("  * Save state is ON\n");
-      }
-
-      if (config.exists("sim.energy")) {
-        config.lookupValue("sim.energy", energy_output_is_set);
+      if (config.lookupValue("sim.energy", energy_output_is_set)) {
         if (energy_output_is_set) {
           output.write("  * Energy calculation ON\n");
         } else {
@@ -176,8 +166,7 @@ int jams_initialize(int argc, char **argv) {
         }
       }
 
-      if (config.exists("sim.visualise")) {
-        config.lookupValue("sim.visualise", visual_output_is_set);
+      if (config.lookupValue("sim.visualise", visual_output_is_set)) {
         if (visual_output_is_set) {
           output.write("  * Visualisation is ON\n");
           time_value = config.lookup("sim.t_vis");
@@ -185,12 +174,9 @@ int jams_initialize(int argc, char **argv) {
           output.write("  * Visualisation time: %1.8e (%lu steps)\n",
             time_value, steps_vis);
         }
-      } else {
-        visual_output_is_set = false;
       }
 
-      if (config.exists("sim.binary")) {
-        config.lookupValue("sim.binary", binary_output_is_set);
+      if (config.lookupValue("sim.binary", binary_output_is_set)) {
         if (binary_output_is_set) {
           output.write("  * Binary output is ON\n");
           time_value = config.lookup("sim.t_bin");
@@ -198,22 +184,15 @@ int jams_initialize(int argc, char **argv) {
           output.write("  * Binary output time: %1.8e (%lu steps)\n",
             time_value, steps_bin);
         }
-      } else {
-        binary_output_is_set = false;
       }
 
       if (config.exists("lattice.coarse")) {
         coarse_output_is_set = true;
-        if (coarse_output_is_set) {
-          output.write("  * Coarse magnetisation map output is ON\n");
-        }
-      } else {
-        coarse_output_is_set = false;
+        output.write("  * Coarse magnetisation map output is ON\n");
       }
 
       unsigned int randomseed;
-      if (config.exists("sim.seed")) {
-        config.lookupValue("sim.seed", randomseed);
+      if (config.lookupValue("sim.seed", randomseed)) {
         output.write("  * Random generator seeded from config file\n");
       } else {
         randomseed = time(NULL);
@@ -247,10 +226,9 @@ int jams_initialize(int argc, char **argv) {
       // before the solver is initialized so the GPU solvers can copy the
       // correct spin array.
 
-      if (read_state_is_set) {
-        std::string binary_state_filename;
-
-        config.lookupValue("sim.read_state", binary_state_filename);
+      std::string binary_state_filename;
+      if (config.lookupValue("sim.read_state", binary_state_filename)) {
+        output.write("  * Read state is ON\n");
 
         output.write("\nReading spin state from %s\n",
           binary_state_filename.c_str());
@@ -327,7 +305,6 @@ int jams_initialize(int argc, char **argv) {
     solver->initialize(argc, argv, dt);
     solver->temperature(init_temperature);
   }
-
   // select monitors
   monitor_list.push_back(new MagnetisationMonitor());
 
@@ -380,7 +357,6 @@ void jams_run() {
   if (coarse_output_is_set) {
     coarse_magnetisation_file.open(std::string(seedname+"_map.dat").c_str());
   }
-
 
   globalSteps = 0;
   output.write("\n----Equilibration----\n");
