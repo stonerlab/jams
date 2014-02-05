@@ -29,9 +29,15 @@ void read_basis(const libconfig::Setting &cfgBasis,
   double unitcell[3][3], double unitcellInv[3][3]) {
   using namespace globals;
 
+  // We transpose during the read because the unit cell matrix must have the
+  // lattice vectors as the columns but it is easiest to define each vector in
+  // the input
+  //  / a1x a2x a2x \  / A \     / A.a1x + B.a2x + C.a3x \
+  // |  a1y a2y a3y  ||  B  | = |  A.a1y + B.a2y + C.a3y  |
+  //  \ a1z a2z a3z /  \ C /     \ A.a1z + B.a2z + C.a3z /
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 3; ++j) {
-      unitcell[i][j] = cfgBasis[i][j];
+      unitcell[i][j] = cfgBasis[j][i];
     }
   }
 
@@ -288,13 +294,9 @@ void Lattice::calculateAtomPos(const jblib::Array<int, 1> &unit_cell_types, cons
           if (latt(x, y, z, n) != -1) {
             q[0] = x; q[1] = y; q[2] = z;
             for (int i = 0; i < 3; ++i) {
-              r[i] = 0.0;
-              p[i] = unit_cell_positions(n, i);
-              // r[i] = q[i] + p[i];
-              for (int j = 0; j < 3; ++j) {
-                r[i] += unitcell[j][i]*(q[j]+p[i]);
-              }
+              p[i] = q[i] + unit_cell_positions(n, i);
             }
+            matmul(unitcell, p, r);
             for (int i = 0; i < 3; ++i) {
               local_atom_pos(atom_counter, i) = q[i] + p[i];
               atom_pos(atom_counter, i) = r[i]*lattice_parameter;
@@ -779,7 +781,7 @@ void read_interactions(std::string &exchangeFileName, libconfig::Config &config,
         for(int i = 0; i<3; ++i) {
           d_latt[i] = 0.0;
           for(int j = 0; j<3; ++j) {
-            d_latt[i] += r[j]*unitcellInv[j][i];
+            d_latt[i] += r[j]*unitcellInv[i][j];
           }
         }
 
