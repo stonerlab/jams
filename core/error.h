@@ -3,4 +3,5 @@
 #ifndef JAMS_CORE_ERROR_H
 #define JAMS_CORE_ERROR_H
 void jams_error(const char *message, ...);
+void jams_warning(const char *message, ...);
 #endif
