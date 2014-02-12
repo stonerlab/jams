@@ -8,7 +8,7 @@ typedef struct devDIA {
   int     *row;
   int     *col;
   float   *val;
-  int     pitch;
+  size_t     pitch;
   int     blocks;
 } devDIA;
 
