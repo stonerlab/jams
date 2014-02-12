@@ -12,7 +12,7 @@
 #include "core/sparsematrix.h"
 
 #include "jblib/containers/array.h"
-#include "jblib/containers/sparsematrix4d.h"
+#include "jblib/containers/sparsematrix.h"
 
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
