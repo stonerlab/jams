@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 
 withdebug=0
-withcuda=0
+withcuda=1
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
@@ -74,9 +74,9 @@ ifeq ($(withcuda), 1)
 	else
 		LIBSDIR = -L/usr/local/cuda/lib
 	endif
-		LIBS = -L/usr/local/cuda/lib -lcudart -lcurand -lcublas -lcusparse
+		LIBS = -L/usr/local/cuda/lib -lcudart -lcurand  -lcublas -lcusparse
 endif
 
-LIBS +=  -lfftw3 -lconfig++
+LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 -lconfig++
 
 LDFLAGS = $(LIBSDIR)
