@@ -1,14 +1,17 @@
-#pragma once
+// Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "cuda_sparse_types.h"
+#ifndef JAMS_CUDA_FIELDS_H
+#define JAMS_CUDA_FIELDS_H
 
-void CUDACalculateFields(
+#include "core/cuda_sparse_types.h"
+
+void cuda_device_compute_fields(
         const devDIA & J1ij_s_dev,
         const devDIA & J1ij_t_dev,
         const devDIA & J2ij_s_dev,
         const devDIA & J2ij_t_dev,
         const devCSR & J4ijkl_s_dev,
-        const float *  sf_dev, 
+        const float *  sf_dev,
         const float *  r_dev,
         const float *  r_max_dev,
         const float *  mat_dev,
@@ -17,3 +20,5 @@ void CUDACalculateFields(
         float *        h_dipole_dev,
         const bool     dipole_toggle
 );
+
+#endif  // JAMS_CUDA_FIELDS_H

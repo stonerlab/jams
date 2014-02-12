@@ -1,22 +1,24 @@
-#ifndef __CUDAHEUNLLBP_H__
-#define __CUDAHEUNLLBP_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#ifndef JAMS_SOLVER_CUDA_HEUNLLBP_H
+#define JAMS_SOLVER_CUDA_HEUNLLBP_H
 
 #ifdef CUDA
-
-#include "solver.h"
-#include "cuda_sparse_types.h"
 
 #include <curand.h>
 #include <cusparse.h>
 
-#include <containers/array.h>
+#include "core/cuda_sparse_types.h"
+#include "core/solver.h"
+
+#include "jblib/containers/array.h"
 
 class CUDAHeunLLBPSolver : public Solver {
   public:
     CUDAHeunLLBPSolver()
       : gen(0),
         w_dev(0),
-		tc_dev(0),	
+		tc_dev(0),
         handle(0),
         descra(0),
         J1ij_s_dev(),
@@ -33,19 +35,19 @@ class CUDAHeunLLBPSolver : public Solver {
         h_dev(0),
         mat_dev(0),
         sigma(0),
-		t_corr(0,0),
+		t_corr(0, 0),
         nblocks(0),
         spmvblocksize(0)
     {};
     ~CUDAHeunLLBPSolver();
-    void initialise(int argc, char **argv, double dt);
+    void initialize(int argc, char **argv, double dt);
     void run();
-    void syncOutput();
-    void calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s);
+    void sync_device_data();
+    void compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s);
 
   private:
     curandGenerator_t gen; // device random generator
-    float * w_dev;    				
+    float * w_dev;
 	float * tc_dev; 				// store tc_1 and tc_2 in a 2D array
     cusparseHandle_t handle;
     cusparseMatDescr_t descra;
@@ -63,13 +65,13 @@ class CUDAHeunLLBPSolver : public Solver {
 	double * u2_new_dev;
     float * h_dev;
     float * mat_dev;
-    jblib::Array<double,1> sigma;
-    jblib::Array<float,2> t_corr;
+    jblib::Array<double, 1> sigma;
+    jblib::Array<float, 2> t_corr;
     int nblocks;
     int spmvblocksize;
 };
 
 #endif
 
-#endif // __CUDAHEUNLLBP_H__
+#endif // JAMS_SOLVER_CUDA_HEUNLLBP_H
 

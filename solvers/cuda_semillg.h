@@ -1,15 +1,17 @@
-#ifndef __CUDASEMILLG_H__
-#define __CUDASEMILLG_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#ifndef JAMS_SOLVER_CUDA_SEMILLG_H
+#define JAMS_SOLVER_CUDA_SEMILLG_H
 
 #ifdef CUDA
-
-#include "solver.h"
-#include "cuda_sparse_types.h"
 
 #include <curand.h>
 #include <cusparse.h>
 
-#include <containers/array.h>
+#include "core/cuda_sparse_types.h"
+#include "core/solver.h"
+
+#include "jblib/containers/array.h"
 
 class CUDASemiLLGSolver : public Solver {
   public:
@@ -28,15 +30,15 @@ class CUDASemiLLGSolver : public Solver {
         h_dev(0),
         e_dev(0),
         mat_dev(0),
-        eng(0,0),
+        eng(0, 0),
         sigma(0),
         nblocks(0),
         spmvblocksize(0)
     {};
     ~CUDASemiLLGSolver();
-    void initialise(int argc, char **argv, double dt);
+    void initialize(int argc, char **argv, double dt);
     void run();
-    void syncOutput();
+    void sync_device_data();
 
   private:
     curandGenerator_t gen; // device random generator
@@ -54,13 +56,13 @@ class CUDASemiLLGSolver : public Solver {
     float * h_dev;
     float * e_dev;
     float * mat_dev;
-    jblib::Array<float,2> eng;
-    jblib::Array<double,1> sigma;
+    jblib::Array<float, 2> eng;
+    jblib::Array<double, 1> sigma;
     int nblocks;
     int spmvblocksize;
 };
 
 #endif
 
-#endif // __CUDASEMILLG_H__
+#endif // JAMS_SOLVER_CUDA_SEMILLG_H
 

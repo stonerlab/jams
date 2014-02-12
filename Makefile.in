@@ -1,17 +1,22 @@
 SHELL = /bin/sh
 
 withdebug=0
-withcuda=1
+withcuda=0
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
 commit = $(shell git rev-parse HEAD)
 
-ifeq ($(systype),Darwin)
-withcuda=0
+ifeq ($(systype), Darwin)
 CXX = clang++
 OPTFLAGS = -stdlib=libc++ -march=native -O3 -funroll-loops -m64
 COPTIONS = -Wall -DDarwin
+CUDA = /usr/local/cuda/bin/nvcc
+CUDAOPTS = -O3 -DNDEBUG -DCUDA \
+					 -gencode=arch=compute_20,code=sm_20 \
+					 -gencode=arch=compute_20,code=compute_20 \
+					 -gencode=arch=compute_35,code=sm_35 \
+		       -gencode=arch=compute_35,code=compute_35
 else
 CXX = g++
 OPTFLAGS = -march=native -O3 -funroll-loops
@@ -25,7 +30,7 @@ CUDAOPTS = -O3 -DNDEBUG -DCUDA \
 endif
 
 # Linker information
-LDOPTIONS = 
+LDOPTIONS =
 LD = $(CXX)
 
 # Compile input/output file specification
@@ -36,32 +41,32 @@ OUTPUTFILE = -o $@
 EXEOUTPUTFILE = -o $@
 
 #----------------------------------------------------------------------
-# Build specific options 
+# Build specific options
 #----------------------------------------------------------------------
 
 OPTFLAGS += -DGITCOMMIT=$(commit)
 
-ifeq ($(withcuda),1)
+ifeq ($(withcuda), 1)
 	OPTFLAGS += -DCUDA
 endif
 
-ifeq ($(withdebug),1)
+ifeq ($(withdebug), 1)
 	OPTFLAGS += -g -DDEBUG
 	LDOPTIONS += -g
-else 
+else
 	OPTFLAGS += -DNDEBUG	# turn off asserts
 endif
 
 LIBCONFIGDIR = ./libconfig
 
-INCLUDES = -I$(TOPDIR)/core -I$(TOPDIR)/physics -I$(TOPDIR)/monitors -I$(TOPDIR)/solvers -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include -I$(TOPDIR)/jblib
-CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
+INCLUDES = -I$(TOPDIR) -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include
+CFLAGS:=$(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t
 
-ifeq ($(withcuda),1)
-	ifeq ($(cputype),x86_64)
-		ifeq ($(systype),Darwin)
+ifeq ($(withcuda), 1)
+	ifeq ($(cputype), x86_64)
+		ifeq ($(systype), Darwin)
 			LIBSDIR = -L/usr/local/cuda/lib
 		else
 			LIBSDIR = -L/usr/local/cuda/lib64
@@ -72,6 +77,6 @@ ifeq ($(withcuda),1)
 		LIBS = -L/usr/local/cuda/lib -lcudart -lcurand -lcublas -lcusparse
 endif
 
-LIBS +=  -lfftw3 -lconfig++ 
+LIBS +=  -lfftw3 -lconfig++
 
 LDFLAGS = $(LIBSDIR)

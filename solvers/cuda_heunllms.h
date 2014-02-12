@@ -1,15 +1,17 @@
-#ifndef __CUDAHEUNLLMS_H__
-#define __CUDAHEUNLLMS_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#ifndef JAMS_SOLVER_CUDA_HEUNLLMS_H
+#define JAMS_SOLVER_CUDA_HEUNLLMS_H
 
 #ifdef CUDA
-
-#include "solver.h"
-#include "cuda_sparse_types.h"
 
 #include <curand.h>
 #include <cusparse.h>
 
-#include <containers/array.h>
+#include "core/cuda_sparse_types.h"
+#include "core/solver.h"
+
+#include "jblib/containers/array.h"
 
 class CUDAHeunLLMSSolver : public Solver {
   public:
@@ -31,16 +33,16 @@ class CUDAHeunLLMSSolver : public Solver {
         e_dev(0),
         mat_dev(0),
 		omega_corr_dev(0),
-        eng(0,0),
+        eng(0, 0),
         sigma(0),
         nblocks(0),
         spmvblocksize(0)
     {};
     ~CUDAHeunLLMSSolver();
-    void initialise(int argc, char **argv, double dt);
+    void initialize(int argc, char **argv, double dt);
     void run();
-    void syncOutput();
-    void calcEnergy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s);
+    void sync_device_data();
+    void compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s);
 
   private:
     curandGenerator_t gen; // device random generator
@@ -61,8 +63,8 @@ class CUDAHeunLLMSSolver : public Solver {
     float * e_dev;
     float * mat_dev;
     float * omega_corr_dev;
-    jblib::Array<float,2> eng;
-    jblib::Array<double,1> sigma;
+    jblib::Array<float, 2> eng;
+    jblib::Array<double, 1> sigma;
     int nblocks;
     int spmvblocksize;
 };

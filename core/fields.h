@@ -1,39 +1,44 @@
-#ifndef __FIELDS_H__
-#define __FIELDS_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <containers/array.h>
+#ifndef JAMS_CORE_FIELDS_H
+#define JAMS_CORE_FIELDS_H
 
-void calculate_fields();
+#include "core/sparsematrix.h"
 
-#ifdef CUDA
-void calc_scalar_bilinear(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, jblib::Array<double,2> &y);
-#else
-void calc_scalar_bilinear(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, jblib::Array<double,2> &y);
-#endif
+#include "jblib/containers/array.h"
 
-#ifdef CUDA
-void calc_scalar_biquadratic(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, jblib::Array<double,2> &y);
-#else
-void calc_scalar_biquadratic(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, jblib::Array<double,2> &y);
-#endif
+void compute_effective_fields();
+
+void ComputeBilinearScalarInteractions(
+    const SparseMatrix<float>& interaction_matrix, const jblib::Array<double, 2>&
+    spins, jblib::Array<double, 2>* fields);
 
 #ifdef CUDA
-void calc_tensor_biquadratic(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, jblib::Array<double,2> &y);
+void compute_bilinear_scalar_interactions_csr(const float *val, const int *indx,
+  const int *ptrb, const int *ptre, jblib::Array<double, 2> &y);
 #else
-void calc_tensor_biquadratic(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, jblib::Array<double,2> &y);
+void compute_bilinear_scalar_interactions_csr(const double *val, const int *indx,
+  const int *ptrb, const int *ptre, jblib::Array<double, 2> &y);
 #endif
-
 #ifdef CUDA
-void calc_tensor_bilinear(const float *val, const int *indx, 
-  const int *ptrb, const int *ptre, jblib::Array<double,2> &y);
+void compute_biquadratic_scalar_interactions_csr(const float *val, const int *indx,
+  const int *ptrb, const int *ptre, jblib::Array<double, 2> &y);
 #else
-void calc_tensor_bilinear(const double *val, const int *indx, 
-  const int *ptrb, const int *ptre, jblib::Array<double,2> &y);
+void compute_biquadratic_scalar_interactions_csr(const double *val, const int *indx,
+  const int *ptrb, const int *ptre, jblib::Array<double, 2> &y);
 #endif
-#endif // __FIELDS_H__
+#ifdef CUDA
+void compute_biquadratic_tensor_interactions_csr(const float *val, const int *indx,
+  const int *ptrb, const int *ptre, jblib::Array<double, 2> &y);
+#else
+void compute_biquadratic_tensor_interactions_csr(const double *val, const int *indx,
+  const int *ptrb, const int *ptre, jblib::Array<double, 2> &y);
+#endif
+#ifdef CUDA
+void compute_bilinear_tensor_interactions_csr(const float *val, const int *indx,
+  const int *ptrb, const int *ptre, jblib::Array<double, 2> &y);
+#else
+void compute_bilinear_tensor_interactions_csr(const double *val, const int *indx,
+  const int *ptrb, const int *ptre, jblib::Array<double, 2> &y);
+#endif
+#endif  // JAMS_CORE_FIELDS_H

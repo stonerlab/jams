@@ -1,57 +1,62 @@
-#ifndef __TTM_H__
-#define __TTM_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#ifndef JAMS_PHYSICS_TTM_H
+#define JAMS_PHYSICS_TTM_H
+
+#include <libconfig.h++>
 
 #include <fstream>
-#include <libconfig.h++>
-#include <containers/array.h>
+#include <vector>
 
-#include "physics.h"
+#include "core/physics.h"
+
+#include "jblib/containers/array.h"
 
 class TTMPhysics : public Physics {
-  public:
-    TTMPhysics() 
-      : pulseWidth(0),
-        pulseFluence(0),
-        pulseStartTime(0),
-        pumpTemp(0.0),
-        electronTemp(0.0),
-        phononTemp(0.0),
-        sinkTemp(0.0),
-        reversingField(3,0.0),
-        Ce(7.0E02),
-        Cl(3.0E06),
-        G(17.0E17),
-        Gsink(17.0E14),
-        TTMFile(),
-        initialised(false)
-    {}
-    ~TTMPhysics();
-    void init(libconfig::Setting &phys);
-    void run(double realtime, const double dt);
-    virtual void monitor(double realtime, const double dt);
-  private:
+ public:
+  TTMPhysics()
+  : pulseWidth(0),
+  pulseFluence(0),
+  pulseStartTime(0),
+  pumpTemp(0.0),
+  electronTemp(0.0),
+  phononTemp(0.0),
+  sinkTemp(0.0),
+  reversingField(3, 0.0),
+  Ce(7.0E02),
+  Cl(3.0E06),
+  G(17.0E17),
+  Gsink(17.0E14),
+  TTMFile(),
+  initialized(false)
+  {}
+  ~TTMPhysics();
+  void initialize(libconfig::Setting &phys);
+  void run(double realtime, const double dt);
+  virtual void monitor(double realtime, const double dt);
 
-    // calculation of pump power which is linear with input approx
-    // electron temperature
-    double pumpPower(double &pF){return (1.152E20*pF);}
+ private:
+  // calculation of pump power which is linear with input approx
+  // electron temperature
+  double pumpPower(double &pF) { return (1.152E20*pF); }
 
-    jblib::Array<double,1> pulseWidth;
-    jblib::Array<double,1> pulseFluence;
-    jblib::Array<double,1> pulseStartTime;
-    double pumpTemp;
-    double electronTemp;
-    double phononTemp;
-    double sinkTemp;
-    std::vector<double> reversingField;
+  jblib::Array<double, 1> pulseWidth;
+  jblib::Array<double, 1> pulseFluence;
+  jblib::Array<double, 1> pulseStartTime;
+  double pumpTemp;
+  double electronTemp;
+  double phononTemp;
+  double sinkTemp;
+  std::vector<double> reversingField;
 
-    double Ce; // electron specific heat
-    double Cl; // phonon specific heat
-    double G;  // electron coupling constant
-    double Gsink;
+  double Ce;  // electron specific heat
+  double Cl;  // phonon specific heat
+  double G;   // electron coupling constant
+  double Gsink;
 
-    std::ofstream TTMFile;
+  std::ofstream TTMFile;
 
-    bool initialised;
+  bool initialized;
 };
 
-#endif // __TTM_H__
+#endif  // JAMS_PHYSICS_TTM_H

@@ -1,10 +1,14 @@
-#include "globals.h"
-#include "energy.h"
-#include "lattice.h"
+// Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <cmath>
+#include <string>
 
-void EnergyMonitor::initialise() {
+#include "core/globals.h"
+#include "core/lattice.h"
+
+#include "monitors/energy.h"
+
+void EnergyMonitor::initialize() {
   using namespace globals;
   output.write("\nInitialising Energy monitor...\n");
 
@@ -12,30 +16,31 @@ void EnergyMonitor::initialise() {
   name = seedname+name;
   outfile.open(name.c_str());
 
-  outfile << "# time (s) | e_tot | e1_s | e1_t | e2_s | e2_t | e4_s "<<std::endl;
+  outfile << "# time (s) | e_tot | e1_s | e1_t | e2_s | e2_t | e4_s "
+    << std::endl;
 
-  initialised = true;
+  initialized = true;
 }
 
 void EnergyMonitor::run() {
-
 }
 
-void EnergyMonitor::initConvergence(ConvergenceType type, const double meanTolerance, const double devTolerance){
+void EnergyMonitor::initialize_convergence(ConvergenceType type,
+  const double meanTolerance, const double devTolerance) {
 }
 
-bool EnergyMonitor::checkConvergence(){
-	return true;
+bool EnergyMonitor::has_converged() {
+  return true;
 }
 void EnergyMonitor::write(Solver *solver) {
   using namespace globals;
-  assert(initialised);
+  assert(initialized);
 
-    double e1_s=0.0, e1_t=0.0, e2_s=0.0, e2_t=0.0, e4_s=0.0;
+  double e1_s = 0.0, e1_t = 0.0, e2_s = 0.0, e2_t = 0.0, e4_s = 0.0;
 
-    solver->calcEnergy(e1_s,e1_t,e2_s,e2_t,e4_s);
-  
-    outfile << solver->getTime();
+  solver->compute_total_energy(e1_s, e1_t, e2_s, e2_t, e4_s);
+
+    outfile << solver->time();
 
       outfile << "\t" << e1_s+e1_t+e2_s+e2_t+e4_s;
 

@@ -1,29 +1,30 @@
-#ifndef __MONITOR_H__
-#define __MONITOR_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "solver.h"
+#ifndef JAMS_CORE_MONITOR_H
+#define JAMS_CORE_MONITOR_H
 
+#include "core/solver.h"
 
 enum ConvergenceType {convNone, convMag, convPhi, convSinPhi};
 
 class Monitor {
-  public:
-    Monitor() : initialised(false) {}
+ public:
+  Monitor() : initialized(false) {}
 
-    virtual ~Monitor(){}
+  virtual ~Monitor() {}
 
-    virtual void initialise();
-    virtual void run();
-    virtual void write(Solver *solver);
-	
-	virtual void initConvergence(ConvergenceType type, const double meanTol, const double devTol);
-	virtual bool checkConvergence();
-	
+  virtual void initialize();
+  virtual void run();
+  virtual void write(Solver *solver);
 
-    static Monitor* Create();
-  protected:
-    bool initialised;
+  virtual void initialize_convergence(ConvergenceType type, const double meanTol,
+    const double devTol);
+  virtual bool has_converged();
 
+
+  static Monitor* Create();
+ protected:
+    bool initialized;
 };
 
-#endif // __MONITOR_H__
+#endif  // JAMS_CORE_MONITOR_H

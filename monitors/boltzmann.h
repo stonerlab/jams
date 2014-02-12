@@ -1,26 +1,29 @@
-#ifndef __BOLTZMANN_H__
-#define __BOLTZMANN_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "monitor.h"
+#ifndef JAMS_MONITOR_BOLTZMANN_H
+#define JAMS_MONITOR_BOLTZMANN_H
+
 #include <fstream>
-#include <containers/array.h>
+
+#include "core/monitor.h"
+#include "jblib/containers/array.h"
 
 class BoltzmannMonitor : public Monitor{
-  public:
-    BoltzmannMonitor()
-      : bins(0),
-        total(0),
-        outfile()
-    {}
-    ~BoltzmannMonitor();
+ public:
+  BoltzmannMonitor()
+    : bins(0),
+      total(0),
+      outfile()
+  {}
+  ~BoltzmannMonitor();
 
-    void initialise();
-    void run();
-    void write(Solver *solver);
-  private:
-    jblib::Array<double,1> bins;
-    double total;
-    std::ofstream outfile;
+  void initialize();
+  void run();
+  void write(Solver *solver);
+ private:
+  jblib::Array<double, 1> bins;
+  double total;
+  std::ofstream outfile;
 };
 
-#endif // __BOLTZMANN_H__
+#endif  // JAMS_MONITOR_BOLTZMANN_H

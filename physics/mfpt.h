@@ -1,26 +1,31 @@
-#ifndef __MFPT_H__
-#define __MFPT_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <fstream>
+#ifndef JAMS_PHYSICS_MFPT_H
+#define JAMS_PHYSICS_MFPT_H
+
 #include <libconfig.h++>
 
-#include "physics.h"
+#include <fstream>
+#include <vector>
+
+#include "core/physics.h"
 
 class MFPTPhysics : public Physics {
-  public:
-    MFPTPhysics() 
-      : initialised(false),
-        maskArray(),
-        MFPTFile()
-    {}
-    ~MFPTPhysics();
-    void init(libconfig::Setting &phys);
-    void run(double realtime, const double dt);
-    virtual void monitor(double realtime, const double dt);
-  private:
-    bool initialised;
-    std::vector<double> maskArray;
-    std::ofstream MFPTFile;
+ public:
+  MFPTPhysics()
+  : initialized(false),
+  maskArray(),
+  MFPTFile()
+  {}
+  ~MFPTPhysics();
+  void initialize(libconfig::Setting &phys);
+  void run(double realtime, const double dt);
+  virtual void monitor(double realtime, const double dt);
+
+ private:
+  bool initialized;
+  std::vector<double> maskArray;
+  std::ofstream MFPTFile;
 };
 
-#endif // __MFPT_H__
+#endif  // JAMS_PHYSICS_MFPT_H

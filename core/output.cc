@@ -1,43 +1,43 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#include "core/output.h"
+
 #include <cstdarg>
 #include <cstdio>
+#include <string>
 
-#include "output.h"
-
-void Output::open(const char *fname, ...)
-{
+void Output::open(const char *fname, ...) {
   va_list args;
 
-  if(fname == reinterpret_cast<const char*>(NULL)) {
+  if (fname == reinterpret_cast<const char*>(NULL)) {
     return;
   }
 
-  va_start(args,fname);
+  va_start(args, fname);
     vsprintf(buffer, fname, args);
   va_end(args);
 
 
   logfile.open(buffer);
 
-  if(!logfile.is_open()) {
+  if (!logfile.is_open()) {
     fprintf(stderr, "Failed to open log file %s\n", buffer);
   }
 }
 
-void Output::close()
-{
+void Output::close() {
   logfile.close();
 }
 
-void Output::write(const char* string, ...)
-{
+void Output::write(const char* message, ...) {
   va_list args;
 
-  if(string == reinterpret_cast<const char*>(NULL)) {
+  if (message == reinterpret_cast<const char*>(NULL)) {
     return;
   }
 
-  va_start(args,string);
-    vsprintf(buffer, string, args);
+  va_start(args, message);
+    vsprintf(buffer, message, args);
   va_end(args);
 
   logfile << buffer;
@@ -48,16 +48,15 @@ void Output::write(const char* string, ...)
   }
 }
 
-void Output::print(const char* string, ...)
-{
+void Output::print(const char* message, ...) {
   va_list args;
 
-  if(string == reinterpret_cast<const char*>(NULL)) {
+  if (message == reinterpret_cast<const char*>(NULL)) {
     return;
   }
 
-  va_start(args, string);
-    vprintf(string, args);
+  va_start(args, message);
+    vprintf(message, args);
   va_end(args);
 
   fflush(stdout);

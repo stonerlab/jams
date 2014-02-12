@@ -1,23 +1,26 @@
-#ifndef __ENERGY_H__
-#define __ENERGY_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "monitor.h"
+#ifndef JAMS_MONITOR_ENERGY_H
+#define JAMS_MONITOR_ENERGY_H
+
 #include <fstream>
 
+#include "core/monitor.h"
+
 class EnergyMonitor : public Monitor {
-  public:
-    EnergyMonitor(){};
+ public:
+  EnergyMonitor() {}
 
-    ~EnergyMonitor();
+  ~EnergyMonitor();
 
-    void initialise();
-    void run();
-    void write(Solver *solver);
-	void initConvergence(ConvergenceType type, const double meanTol, const double devTol);
-	bool checkConvergence();
-  private:
-    std::ofstream outfile;
+  void initialize();
+  void run();
+  void write(Solver *solver);
+  void initialize_convergence(ConvergenceType type, const double meanTol,
+    const double devTol);
+  bool has_converged();
+ private:
+  std::ofstream outfile;
 };
 
-#endif // __ENERGY_H__
-
+#endif  // JAMS_MONITOR_ENERGY_H

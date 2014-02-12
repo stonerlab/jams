@@ -1,47 +1,44 @@
-#include "solver.h"
-#include "heunllg.h"
-#include "cuda_heunllg.h"
-#include "cuda_heunllms.h"
-#include "cuda_heunllbp.h"
-#include "cuda_srk4llg.h"
-#include "metropolismc.h"
-#include "globals.h"
-#include "consts.h"
+// Copyright 2014 Joseph Barker. All rights reserved.
 
-void Solver::initialise(int argc, char **argv, double idt) {
+#include "core/solver.h"
 
-  if(initialised == true) {
-    jams_error("Solver is already initialised");
+#include "core/consts.h"
+#include "core/globals.h"
+
+#include "solvers/cuda_heunllbp.h"
+#include "solvers/cuda_heunllg.h"
+#include "solvers/cuda_heunllms.h"
+#include "solvers/cuda_srk4llg.h"
+#include "solvers/heunllg.h"
+#include "solvers/metropolismc.h"
+
+void Solver::initialize(int argc, char **argv, double idt) {
+  if (initialized == true) {
+    jams_error("Solver is already initialized");
   }
 
-  // initialise time and iterations to 0
-  time = 0.0;
+  // initialize time and iterations to 0
+  time_ = 0.0;
   iteration = 0;
-  
+
   t_step = idt;
   dt = idt*gamma_electron_si;
 
-  initialised = true;
+  initialized = true;
 }
 
-void Solver::run()
-{
-
+void Solver::run() {
 }
 
-void Solver::syncOutput()
-{
-
+void Solver::sync_device_data() {
 }
 
-Solver* Solver::Create()
-{
+Solver* Solver::Create() {
   // default solver type
   return Solver::Create(HEUNLLG);
 }
 
-Solver* Solver::Create(SolverType type)
-{
+Solver* Solver::Create(SolverType type) {
   switch (type) {
     case HEUNLLG:
       return new HeunLLGSolver;

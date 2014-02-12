@@ -1,20 +1,21 @@
-#ifndef __EMPTY_H__
-#define __EMPTY_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#ifndef JAMS_PHYSICS_EMPTY_H
+#define JAMS_PHYSICS_EMPTY_H
 
 #include <libconfig.h++>
-#include "physics.h"
+
+#include "core/physics.h"
 
 class EmptyPhysics : public Physics {
-  public:
-    EmptyPhysics() 
-      : initialised(true)
-    {}
-    ~EmptyPhysics();
-    void init(libconfig::Setting &phys);
-    void run(double realtime, const double dt);
-    virtual void monitor(double realtime, const double dt);
-  private:
-    bool initialised;
+ public:
+  EmptyPhysics() : initialized(true) {}
+  ~EmptyPhysics();
+  void initialize(libconfig::Setting &phys);
+  void run(double realtime, const double dt);
+  virtual void monitor(double realtime, const double dt);
+ private:
+  bool initialized;
 };
 
-#endif // __EMPTY_H__
+#endif  // JAMS_PHYSICS_EMPTY_H

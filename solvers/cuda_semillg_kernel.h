@@ -1,5 +1,7 @@
-#ifndef __CUDA_SEMILLG_KERNEL__
-#define __CUDA_SEMILLG_KERNEL__
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#ifndef JAMS_SOLVER_CUDA_SEMILLG_KERNEL_H
+#define JAMS_SOLVER_CUDA_SEMILLG_KERNEL_H
 
 __global__ void cuda_semi_llg_kernelA
 (
@@ -11,20 +13,20 @@ __global__ void cuda_semi_llg_kernelA
   float h_app_x,
   float h_app_y,
   float h_app_z,
-  int nspins,
+  int num_spins,
   double dt
 )
 {
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
   const int idx3 = 3*idx;
 
-  if(idx < nspins) {
+  if(idx < num_spins) {
     double h[3];
     double s[3];
     double f[3];
     double fxs[3];
     double sxh[3];
-    double norm,b2ff,fdots;
+    double norm, b2ff, fdots;
 
     float mus = mat_dev[idx*4];
     float gyro = mat_dev[idx*4+1];
@@ -81,21 +83,21 @@ __global__ void cuda_semi_llg_kernelB
   float h_app_x,
   float h_app_y,
   float h_app_z,
-  int nspins,
+  int num_spins,
   double dt
 )
 {
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
   const int idx3 = 3*idx;
 
-  if(idx < nspins) {
+  if(idx < num_spins) {
     double h[3];
     double s[3];
     double so[3];
     double f[3];
     double fxs[3];
     double sxh[3];
-    double norm,b2ff,fdots;
+    double norm, b2ff, fdots;
 
     float mus = mat_dev[idx*4];
     float gyro = mat_dev[idx*4+1];

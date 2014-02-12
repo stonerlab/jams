@@ -1,18 +1,17 @@
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#include "physics/empty.h"
+
 #include <libconfig.h++>
-#include "empty.h"
 
-void EmptyPhysics::init(libconfig::Setting &phys)
-{
+void EmptyPhysics::initialize(libconfig::Setting &phys) {
 }
 
-EmptyPhysics::~EmptyPhysics()
-{
+EmptyPhysics::~EmptyPhysics() {
 }
 
-void EmptyPhysics::run(const double realtime, const double dt)
-{
+void EmptyPhysics::run(const double realtime, const double dt) {
 }
 
-void EmptyPhysics::monitor(const double realtime, const double dt)
-{
+void EmptyPhysics::monitor(const double realtime, const double dt) {
 }

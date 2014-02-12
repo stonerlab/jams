@@ -1,9 +1,12 @@
-#ifndef __GEOMETRY_H__
-#define __GEOMETRY_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <vector>
+#ifndef JAMS_CORE_GEOMETRY_H
+#define JAMS_CORE_GEOMETRY_H
+
 #include <cstring>
 #include <map>
+#include <string>
+#include <vector>
 
 // struct for convenience
 template <typename T>
@@ -33,9 +36,9 @@ class Geometry {
 
     std::vector< vec3<float> >  r;
     std::vector<int>            atom_type;
-    std::map<std::string,int>   atom_type_map;
+    std::map<std::string, int>   atom_type_map;
     double  energy_cutoff;
 
 };
 
-#endif // __GEOMETRY_H__
+#endif // JAMS_CORE_GEOMETRY_H

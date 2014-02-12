@@ -1,12 +1,15 @@
-#include <cmath>
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#include "physics/mfpt.h"
+
 #include <libconfig.h++>
 
-#include "globals.h"
+#include <cmath>
+#include <string>
 
-#include "mfpt.h"
+#include "core/globals.h"
 
-void MFPTPhysics::init(libconfig::Setting &phys)
-{
+void MFPTPhysics::initialize(libconfig::Setting &phys) {
   using namespace globals;
 
   output.write("  * MFPT physics module\n");
@@ -15,36 +18,29 @@ void MFPTPhysics::init(libconfig::Setting &phys)
   fileName = seedname+fileName;
   MFPTFile.open(fileName.c_str());
 
-  maskArray.resize(nspins);
+  maskArray.resize(num_spins);
 
-  for(int i=0; i<nspins; ++i){
-      maskArray[i] = true;
+  for (int i = 0; i < num_spins; ++i) {
+    maskArray[i] = true;
   }
 
-  initialised = true;
-
+  initialized = true;
 }
 
-MFPTPhysics::~MFPTPhysics()
-{
+MFPTPhysics::~MFPTPhysics() {
   MFPTFile.close();
 }
 
-void MFPTPhysics::run(const double realtime, const double dt)
-{
-  using namespace globals;
-  
-  
+void MFPTPhysics::run(const double realtime, const double dt) {
 }
 
-void MFPTPhysics::monitor(const double realtime, const double dt)
-{
+void MFPTPhysics::monitor(const double realtime, const double dt) {
   using namespace globals;
-  
-  for(int i=0; i<nspins; ++i){
-    if(s(i,2) < 0.0 && maskArray[i] == true){
-        MFPTFile << realtime << "\n";
-        maskArray[i] = false;
+
+  for (int i = 0; i < num_spins; ++i) {
+    if (s(i, 2) < 0.0 && maskArray[i] == true) {
+      MFPTFile << realtime << "\n";
+      maskArray[i] = false;
     }
   }
 }

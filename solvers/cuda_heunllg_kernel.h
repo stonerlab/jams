@@ -1,5 +1,7 @@
-#ifndef __CUDA_HEUNLLG_KERNEL__
-#define __CUDA_HEUNLLG_KERNEL__
+// Copyright 2014 Joseph Barker. All rights reserved.
+
+#ifndef JAMS_SOLVER_CUDA_HEUNLLG_KERNEL_H
+#define JAMS_SOLVER_CUDA_HEUNLLG_KERNEL_H
 
 __global__ void cuda_heun_llg_kernelA
 (
@@ -12,14 +14,14 @@ __global__ void cuda_heun_llg_kernelA
   float h_app_x,
   float h_app_y,
   float h_app_z,
-  int nspins,
+  int num_spins,
   double dt
 )
 {
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
   const int idx3 = 3*idx;
 
-  if(idx < nspins) {
+  if(idx < num_spins) {
     double h[3];
     double s[3];
     double rhs[3];
@@ -56,7 +58,7 @@ __global__ void cuda_heun_llg_kernelA
     s[2] = s[2] + dt*rhs[2];
 
     norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
-    
+
     s_dev[idx3]   = s[0]*norm;
     s_dev[idx3+1] = s[1]*norm;
     s_dev[idx3+2] = s[2]*norm;
@@ -78,14 +80,14 @@ __global__ void cuda_heun_llg_kernelB
   float h_app_x,
   float h_app_y,
   float h_app_z,
-  int nspins,
+  int num_spins,
   double dt
 )
 {
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
   const int idx3 = 3*idx;
 
-  if(idx < nspins) {
+  if(idx < num_spins) {
     double h[3];
     double s[3];
     double rhs[3];

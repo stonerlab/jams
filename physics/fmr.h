@@ -1,34 +1,38 @@
-#ifndef __FMR_H__
-#define __FMR_H__
+// Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <fstream>
+#ifndef JAMS_PHYSICS_FMR_H
+#define JAMS_PHYSICS_FMR_H
+
 #include <libconfig.h++>
 
-#include "physics.h"
+#include <fstream>
+#include <vector>
 
-#include <containers/array.h>
+#include "core/physics.h"
+
+#include "jblib/containers/array.h"
 
 class FMRPhysics : public Physics {
-  public:
-    FMRPhysics() 
-      : initialised(false),
-        ACFieldFrequency(0), 
-        ACFieldStrength(3,0),
-        DCFieldStrength(3,0),
-        PSDFile(),
-        PSDIntegral(0)
-    {}
-    ~FMRPhysics();
-    void init(libconfig::Setting &phys);
-    void run(double realtime, const double dt);
-    virtual void monitor(double realtime, const double dt);
-  private:
-    bool initialised;
-    double ACFieldFrequency;
-    std::vector<double> ACFieldStrength;
-    std::vector<double> DCFieldStrength;
-    std::ofstream PSDFile;
-    jblib::Array<double,1> PSDIntegral;
+ public:
+  FMRPhysics()
+  : initialized(false),
+  ACFieldFrequency(0),
+  ACFieldStrength(3, 0),
+  DCFieldStrength(3, 0),
+  PSDFile(),
+  PSDIntegral(0)
+  {}
+  ~FMRPhysics();
+  void initialize(libconfig::Setting &phys);
+  void run(double realtime, const double dt);
+  virtual void monitor(double realtime, const double dt);
+ private:
+  bool initialized;
+  double ACFieldFrequency;
+  std::vector<double> ACFieldStrength;
+  std::vector<double> DCFieldStrength;
+  std::ofstream PSDFile;
+  jblib::Array<double, 1> PSDIntegral;
 };
 
-#endif // __FMR_H__
+#endif  // JAMS_PHYSICS_FMR_H
