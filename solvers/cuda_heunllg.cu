@@ -24,7 +24,7 @@
 void CUDAHeunLLGSolver::sync_device_data()
 {
   using namespace globals;
-  s_dev.copyToHostArray(s);
+  s_dev.copy_to_host_array(s);
 }
 
 void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
@@ -128,9 +128,9 @@ void CUDAHeunLLGSolver::run()
 {
   using namespace globals;
 
-    float stmp = sqrt(temperature);
+    float stmp = sqrt(temperature());
 
-    if(temperature > 0.0) {
+    if(temperature() > 0.0) {
         CURAND_CALL(curandGenerateNormal(gen, w_dev.data(), (num_spins3+(num_spins3%2)), 0.0f, stmp));
     }
 

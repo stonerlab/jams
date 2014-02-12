@@ -303,7 +303,7 @@ int jams_initialize(int argc, char **argv) {
     }
 
     solver->initialize(argc, argv, dt);
-    solver->temperature(init_temperature);
+    solver->set_temperature(init_temperature);
   }
   // select monitors
   monitor_list.push_back(new MagnetisationMonitor());
@@ -368,7 +368,7 @@ void jams_run() {
       monitor_list[0]->write(solver);
     }
     physics_package->run(solver->time(), dt);
-    solver->temperature(globalTemperature);
+    solver->set_temperature(globalTemperature);
     solver->run();
     globalSteps++;
   }
@@ -425,7 +425,7 @@ void jams_run() {
     }
 
     physics_package->run(solver->time(), dt);
-    solver->temperature(globalTemperature);
+    solver->set_temperature(globalTemperature);
     solver->run();
     globalSteps++;
     for (int i = 0; i < monitor_list.size(); ++i) {

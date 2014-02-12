@@ -31,8 +31,8 @@ class Solver {
 
   inline int getIteration() { return iteration; }
   inline double time() { return iteration*t_step; }
-  inline double get_temperature() { return temperature_; }
-  inline void temperature(const double &t) { temperature_ = t; }
+  inline double temperature() { return temperature_; }
+  inline void set_temperature(const double &t) { temperature_ = t; }
 
   static Solver* Create();
   static Solver* Create(SolverType type);

@@ -180,9 +180,9 @@ void CUDASemiLLGSolver::run()
   CUDA_CALL(cudaMemcpy(s_new_dev, s_dev, (size_t)(num_spins3*sizeof(double)), cudaMemcpyDeviceToDevice));
 
   // generate wiener trajectories
-  float stmp = sqrt(temperature);
+  float stmp = sqrt(temperature());
 
-  if(temperature > 0.0) {
+  if(temperature() > 0.0) {
     if(num_spins3%2 == 0) {
       CURAND_CALL(curandGenerateNormal(gen, w_dev, num_spins3, 0.0f, stmp));
     } else {

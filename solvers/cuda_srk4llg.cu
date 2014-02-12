@@ -187,9 +187,9 @@ void CUDALLGSolverSRK4::run()
   using namespace globals;
 
   // generate wiener trajectories
-  float stmp = sqrt(temperature);
+  float stmp = sqrt(temperature());
 
-  if(temperature > 0.0) {
+  if(temperature() > 0.0) {
       CURAND_CALL(curandGenerateNormal(gen, w_dev, (num_spins3+(num_spins3%2)), 0.0f, stmp));
   }
 
