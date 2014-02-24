@@ -8,6 +8,7 @@ systype = $(shell uname -s)
 commit = $(shell git rev-parse HEAD)
 
 ifeq ($(systype), Darwin)
+withcuda=0
 CXX = clang++
 OPTFLAGS = -stdlib=libc++ -march=native -O3 -funroll-loops -m64
 COPTIONS = -Wall -DDarwin
