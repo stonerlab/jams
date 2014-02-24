@@ -150,7 +150,7 @@ void Lattice::readLattice(const libconfig::Setting &cfgLattice,
   }
   output.write("  * Lattice size: %i %i %i\n", dim[0], dim[1], dim[2]);
 
-  lattice_parameter = cfgLattice["unitcell"]["param"];
+  lattice_parameter = cfgLattice["parameter"];
   output.write("  * Lattice parameter: %f\n", lattice_parameter);
 
   for (int i = 0; i < 3; ++i) {
@@ -1259,7 +1259,7 @@ void Lattice::create_from_config(libconfig::Config &config) {
 
 
     const libconfig::Setting& cfgLattice    =   config.lookup("lattice");
-    const libconfig::Setting& cfgBasis      =   config.lookup("lattice.unitcell.basis");
+    const libconfig::Setting& cfgBasis      =   config.lookup("lattice.basis");
     const libconfig::Setting& cfgMaterials  =   config.lookup("materials");
 //    const libconfig::Setting& cfgExchange   =   config.lookup("exchange");
 
