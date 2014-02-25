@@ -5,46 +5,58 @@
 
 
 #include "core/globals.h"
-
-enum SolverType{ METROPOLISMC, HEUNLLG, CUDAHEUNLLMS, CUDAHEUNLLBP, SEMILLG,
-  CUDASEMILLG, CUDAHEUNLLG, CUDASRK4LLG, FFTNOISE };
-
+#include "core/physics.h"
+#include "core/monitor.h"
+#include "jblib/containers/vec.h"
 
 class Solver {
  public:
   Solver()
-  : initialized(false),
-  time_(0.0),
-  iteration(0),
-  temperature_(0),
-  dt(0.0),
-  t_step(0.0)
+  : initialized_(false),
+    iteration_(0),
+    time_step_(0.0),
+    physics_module_()
   {}
 
   virtual ~Solver() {}
 
   virtual void initialize(int argc, char **argv, double dt) = 0;
   virtual void run() = 0;
-  virtual void compute_total_energy(double &e1_s, double &e1_t, double &e2_s,
-    double &e2_t, double &e4_s) = 0;
-  virtual void sync_device_data() = 0;
 
-  inline int getIteration() { return iteration; }
-  inline double time() { return iteration*t_step; }
-  inline double temperature() { return temperature_; }
-  inline void set_temperature(const double &t) { temperature_ = t; }
+  inline double time() const {
+    return iteration_*time_step_;
+  }
 
-  static Solver* Create();
-  static Solver* Create(SolverType type);
+  inline void register_physics_module(Physics* package) {
+    physics_module_ = package;
+  }
+
+  inline void update_physics_module() {
+    physics_module_->update(iteration_, time(), time_step_);
+  }
+
+  inline void register_monitor(Monitor* monitor) {
+    monitors_.push_back(monitor);
+  }
+
+  inline void notify_monitors() {
+    for (std::vector<Monitor*>::iterator it = monitors_.begin() ; it != monitors_.end(); ++it) {
+      (*it)->update(iteration_, time(), physics_module_->temperature(), physics_module_->applied_field());
+    }
+  }
+
+  void compute_fields();
+  void compute_energy();
+
+  static Solver* create(const std::string &solver_name);
  protected:
-  bool initialized;
+  bool initialized_;
 
-  double time_;  // current time
+  int    iteration_;
+  double time_step_;
 
-  int iteration;  // number of iterations
-  double temperature_;
-  double dt;
-  double t_step;
+  Physics*              physics_module_;
+  std::vector<Monitor*> monitors_;
 };
 
 #endif  // JAMS_CORE_SOLVER_H

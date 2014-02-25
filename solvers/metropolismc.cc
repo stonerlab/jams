@@ -38,8 +38,6 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     J2ij_t.calculateMemory());
   output.write("  * J4ijkl Scalar matrix memory (CSR): %f MB\n",
     J4ijkl_s.calculateMemoryUsage());
-
-  initialized = true;
 }
 
 void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
@@ -56,16 +54,13 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
 #endif
     const int    *row = J1ij_s.rowPtr();
     const int    *indx = J1ij_s.colPtr();
-    int           k;
-
 
     int begin = row[i]; int end = row[i+1];
 
         // upper triangle and diagonal
     for (int j = begin; j < end; ++j) {
-      k = indx[j];
       for (int n = 0; n < 3; ++n) {
-        total[n] -= s(k, n)*val[j];
+        total[n] -= s(indx[j], n)*val[j];
       }
     }
   }
@@ -102,16 +97,13 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
 #endif
       const int    *row = J2ij_s.rowPtr();
       const int    *indx = J2ij_s.colPtr();
-      int           k;
-
 
       int begin = row[i]; int end = row[i+1];
 
         // upper triangle and diagonal
       for (int j = begin; j < end; ++j) {
-        k = indx[j];
         for (int n = 0; n < 3; ++n) {
-          total[n] -= s(k, n)*val[j];
+          total[n] -= s(indx[j], n)*val[j];
         }
       }
     }
@@ -218,7 +210,7 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
         for (int j = 0; j < 3; ++j) {
           s(i, j) = s_new[j];
         }
-      } else if (rng.uniform() < exp(-(deltaE*Efactor)/globalTemperature)) {
+      } else if (rng.uniform() < exp(-(deltaE*Efactor)/physics_module_->temperature())) {
         for (int j = 0; j < 3; ++j) {
           s(i, j) = s_new[j];
         }
@@ -244,16 +236,13 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
         for (int j = 0; j < 3; ++j) {
           s(i, j) = s_new[j];
         }
-      } else if (rng.uniform() < exp(-(deltaE*Efactor)/globalTemperature)) {
+      } else if (rng.uniform() < exp(-(deltaE*Efactor)/physics_module_->temperature())) {
         for (int j = 0; j < 3; ++j) {
           s(i, j) = s_new[j];
         }
       }
     }
-    iteration++;
-  }
-
-  void MetropolisMCSolver::sync_device_data() {
+    iteration_++;
   }
 
   void MetropolisMCSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {

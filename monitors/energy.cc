@@ -8,9 +8,10 @@
 
 #include "monitors/energy.h"
 
-void EnergyMonitor::initialize() {
+EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
+: Monitor(settings) {
   using namespace globals;
-  output.write("\nInitialising Energy monitor...\n");
+  ::output.write("\nInitialising Energy monitor...\n");
 
   std::string name = "_eng.dat";
   name = seedname+name;
@@ -18,43 +19,32 @@ void EnergyMonitor::initialize() {
 
   outfile << "# time (s) | e_tot | e1_s | e1_t | e2_s | e2_t | e4_s "
     << std::endl;
-
-  initialized = true;
 }
 
-void EnergyMonitor::run() {
-}
-
-void EnergyMonitor::initialize_convergence(ConvergenceType type,
-  const double meanTolerance, const double devTolerance) {
-}
-
-bool EnergyMonitor::has_converged() {
-  return true;
-}
-void EnergyMonitor::write(Solver *solver) {
+void EnergyMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
   using namespace globals;
-  assert(initialized);
 
-  double e1_s = 0.0, e1_t = 0.0, e2_s = 0.0, e2_t = 0.0, e4_s = 0.0;
+  if (iteration%output_step_freq_ == 0) {
+  // double e1_s = 0.0, e1_t = 0.0, e2_s = 0.0, e2_t = 0.0, e4_s = 0.0;
 
-  solver->compute_total_energy(e1_s, e1_t, e2_s, e2_t, e4_s);
+  // solver->compute_total_energy(e1_s, e1_t, e2_s, e2_t, e4_s);
 
-    outfile << solver->time();
+  //   outfile << solver->time();
 
-      outfile << "\t" << e1_s+e1_t+e2_s+e2_t+e4_s;
+  //     outfile << "\t" << e1_s+e1_t+e2_s+e2_t+e4_s;
 
-      outfile << "\t" << e1_s;
-      outfile << "\t" << e1_t;
-      outfile << "\t" << e2_s;
-      outfile << "\t" << e2_t;
-      outfile << "\t" << e4_s;
+  //     outfile << "\t" << e1_s;
+  //     outfile << "\t" << e1_t;
+  //     outfile << "\t" << e2_s;
+  //     outfile << "\t" << e2_t;
+  //     outfile << "\t" << e4_s;
 
 #ifdef NDEBUG
   outfile << "\n";
 #else
   outfile << std::endl;
 #endif
+  }
 }
 
 EnergyMonitor::~EnergyMonitor() {

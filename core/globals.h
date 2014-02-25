@@ -30,12 +30,9 @@ GLOBAL bool verbose_output_is_set;
 namespace globals {
   GLOBAL int num_spins;
   GLOBAL int num_spins3;
-  GLOBAL int globalSteps;
-  GLOBAL double h_app[3];
-  GLOBAL double globalTemperature;
+
   GLOBAL jblib::Array<double, 2> s;
   GLOBAL jblib::Array<double, 2> h;
-  GLOBAL jblib::Array<double, 2> w;
 
   GLOBAL jblib::Array<float, 2> atom_pos;
 #ifdef CUDA
@@ -54,7 +51,6 @@ namespace globals {
   GLOBAL jblib::Array<double, 1> alpha;
   GLOBAL jblib::Array<double, 1> mus;
   GLOBAL jblib::Array<double, 1> gyro;
-  GLOBAL jblib::Array<double, 1> omega_corr;
 }  // namespace globals
 #undef GLOBAL
 #endif  // JAMS_CORE_GLOBALS_H

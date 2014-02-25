@@ -157,29 +157,5 @@ void compute_bilinear_tensor_interactions_csr(const double *val, const int *indx
 #endif
 }
 void compute_effective_fields() {
-  using namespace globals;
-  int i, j;
-  std::fill(h.data(), h.data()+num_spins3, 0.0);
-  if (J1ij_s.nonZero() > 0) {
-    compute_bilinear_scalar_interactions_csr(J1ij_s.valPtr(), J1ij_s.colPtr(), J1ij_s.ptrB(),
-      J1ij_s.ptrE(), h);
-  }
-  if (J1ij_t.nonZero() > 0) {
-    compute_bilinear_tensor_interactions_csr(J1ij_t.valPtr(), J1ij_t.colPtr(), J1ij_t.ptrB(),
-      J1ij_t.ptrE(), h);
-  }
-  if (J2ij_s.nonZero() > 0) {
-    compute_biquadratic_scalar_interactions_csr(J2ij_s.valPtr(), J2ij_s.colPtr(), J2ij_s.ptrB(),
-      J2ij_s.ptrE(), h);
-  }
-  if (J2ij_t.nonZero() > 0) {
-    compute_biquadratic_tensor_interactions_csr(J2ij_t.valPtr(), J2ij_t.colPtr(), J2ij_t.ptrB(),
-      J2ij_t.ptrE(), h);
-  }
-  // normalize by the gyroscopic factor
-  for (i = 0; i < num_spins; ++i) {
-    for (j = 0; j < 3; ++j) {
-      h(i, j) = (h(i, j) + (w(i, j) + h_app[j])*mus(i))*gyro(i);
-    }
-  }
+
 }

@@ -15,44 +15,9 @@
 
 class SpinwavesPhysics : public Physics {
  public:
-  SpinwavesPhysics()
-  : qDim(3, 0),
-  qSpace(),
-  qSpaceFFT(0),
-  componentReal(0),
-  componentImag(0),
-  coFactors(0, 0),
-  spinToKspaceMap(0),
-  nBZPoints(0),
-  BZIndex(0),
-  BZPoints(0, 0),
-  BZDegeneracy(0),
-  BZLengths(0),
-  BZData(0),
-  SPWFile(),
-  ModeFile(),
-  SPDFile(),
-  typeOverride(),
-  initialized(false),
-  squareToggle(false),
-  pumpTime(0.0),
-  pumpStartTime(0.0),
-  pumpTemp(0.0),
-  pumpFluence(0.0),
-  electronTemp(0.0),
-  phononTemp(0.0),
-  reversingField(3, 0.0),
-  Ce(7.0E02),
-  Cl(3.0E06),
-  G(17.0E17),
-  TTMFile()
-  {}
-
+  SpinwavesPhysics(const libconfig::Setting &settings);
   ~SpinwavesPhysics();
-
-  void initialize(libconfig::Setting &phys);
-  void run(double realtime, const double dt);
-  virtual void monitor(double realtime, const double dt);
+  void update(const int &iterations, const double &time, const double &dt);
 
  private:
   std::vector<int>        qDim;

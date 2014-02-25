@@ -10,16 +10,11 @@
 
 class BoltzmannMonitor : public Monitor{
  public:
-  BoltzmannMonitor()
-    : bins(0),
-      total(0),
-      outfile()
-  {}
+  BoltzmannMonitor(const libconfig::Setting &settings);
   ~BoltzmannMonitor();
 
-  void initialize();
-  void run();
-  void write(Solver *solver);
+void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
+
  private:
   jblib::Array<double, 1> bins;
   double total;

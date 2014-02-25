@@ -8,51 +8,51 @@
 
 #include "core/globals.h"
 
-void SquarePhysics::initialize(libconfig::Setting &phys) {
+SquarePhysics::SquarePhysics(const libconfig::Setting &settings)
+  : Physics(settings),
+  PulseDuration(0),
+  PulseCount(0),
+  PulseTotal(0),
+  FieldStrength(3, 0) {
   using namespace globals;
 
   output.write("  * Square physics module\n");
 
-  PulseDuration = phys["PulseDuration"];
-  PulseTotal    = phys["PulseTotal"];
+  PulseDuration = settings["PulseDuration"];
+  PulseTotal    = settings["PulseTotal"];
   PulseCount = 1;
 
   for (int i = 0; i < 3; ++i) {
-    FieldStrength[i] = phys["FieldStrength"][i];
+    FieldStrength[i] = settings["FieldStrength"][i];
   }
-
-  initialized = true;
 }
 
 SquarePhysics::~SquarePhysics() {
 }
 
-void SquarePhysics::run(const double realtime, const double dt) {
+void SquarePhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
 
   double eqtime = config.lookup("sim.t_eq");
 
-  if ((realtime > eqtime) && ((realtime-eqtime) > (PulseDuration*PulseCount))) {
+  if ((time > eqtime) && ((time-eqtime) > (PulseDuration*PulseCount))) {
     PulseCount++;
   }
 
-  if ((realtime > eqtime) &&
-      ((realtime-eqtime) < (PulseDuration*(PulseTotal)))) {
+  if ((time > eqtime) &&
+      ((time-eqtime) < (PulseDuration*(PulseTotal)))) {
     if (PulseCount%2 == 0) {
       for (int i = 0; i < 3; ++i) {
-        globals::h_app[i] = -FieldStrength[i];
+        applied_field_[i] = -FieldStrength[i];
       }
     } else {
       for (int i = 0; i < 3; ++i) {
-        globals::h_app[i] = FieldStrength[i];
+        applied_field_[i] = FieldStrength[i];
       }
     }
   } else {
     for (int i = 0; i < 3; ++i) {
-      globals::h_app[i] = 0.0;
+      applied_field_[i] = 0.0;
     }
   }
-}
-
-void SquarePhysics::monitor(const double realtime, const double dt) {
 }

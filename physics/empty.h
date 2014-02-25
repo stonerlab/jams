@@ -9,13 +9,10 @@
 
 class EmptyPhysics : public Physics {
  public:
-  EmptyPhysics() : initialized(true) {}
-  ~EmptyPhysics();
-  void initialize(libconfig::Setting &phys);
-  void run(double realtime, const double dt);
-  virtual void monitor(double realtime, const double dt);
+  EmptyPhysics(const libconfig::Setting &settings) : Physics(settings) {}
+  ~EmptyPhysics() {};
+  void update(const int &iterations, const double &time, const double &dt) {};
  private:
-  bool initialized;
 };
 
 #endif  // JAMS_PHYSICS_EMPTY_H

@@ -7,8 +7,12 @@
 #include "core/globals.h"
 #include "core/maths.h"
 
-void BoltzmannMonitor::initialize() {
-  output.write("Initialising Boltzmann monitor\n");
+BoltzmannMonitor::BoltzmannMonitor(const libconfig::Setting &settings)
+: Monitor(settings),
+bins(0),
+total(0),
+outfile() {
+  ::output.write("Initialising Boltzmann monitor\n");
 
   std::string name = "_blt.dat";
   name = seedname+name;
@@ -18,29 +22,25 @@ void BoltzmannMonitor::initialize() {
   for (int i = 0; i < 36; ++i) {
     bins(i) = 0.0;
   }
-  initialized = true;
 }
 
-void BoltzmannMonitor::run() {
-}
+void BoltzmannMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+  using namespace globals;
 
-void BoltzmannMonitor::write(Solver *solver) {
-    using namespace globals;
-    double angle;
-    unsigned int round;
+  if (iteration%output_step_freq_ == 0) {
     for (int i = 0; i < num_spins; ++i) {
-        angle = rad_to_deg(acos(s(i, 2)));
-        round = static_cast<unsigned int>(angle*0.2);
-        bins(round)++;
-        total++;
+      int round = static_cast<int>(rad_to_deg(acos(s(i, 2)))*0.2);
+      bins(round)++;
+      total++;
     }
 
     if (total > 0.0) {
-        for (int i = 0; i < 36; ++i) {
-            outfile << i*5+2.5 << "\t" << bins(i)/total << "\n";
-        }
-        outfile << "\n" << std::endl;
+      for (int i = 0; i < 36; ++i) {
+        outfile << i*5+2.5 << "\t" << bins(i)/total << "\n";
+      }
+      outfile << "\n" << std::endl;
     }
+  }
 }
 
 BoltzmannMonitor::~BoltzmannMonitor() {

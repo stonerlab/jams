@@ -9,7 +9,10 @@
 
 #include "core/globals.h"
 
-void MFPTPhysics::initialize(libconfig::Setting &phys) {
+MFPTPhysics::MFPTPhysics(const libconfig::Setting &settings)
+  : Physics(settings),
+  maskArray(),
+  MFPTFile() {
   using namespace globals;
 
   output.write("  * MFPT physics module\n");
@@ -23,24 +26,20 @@ void MFPTPhysics::initialize(libconfig::Setting &phys) {
   for (int i = 0; i < num_spins; ++i) {
     maskArray[i] = true;
   }
-
-  initialized = true;
 }
 
 MFPTPhysics::~MFPTPhysics() {
   MFPTFile.close();
 }
 
-void MFPTPhysics::run(const double realtime, const double dt) {
-}
-
-void MFPTPhysics::monitor(const double realtime, const double dt) {
+void MFPTPhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
-
-  for (int i = 0; i < num_spins; ++i) {
-    if (s(i, 2) < 0.0 && maskArray[i] == true) {
-      MFPTFile << realtime << "\n";
-      maskArray[i] = false;
+  if (iterations%output_step_freq_ == 0) {
+    for (int i = 0; i < num_spins; ++i) {
+      if (s(i, 2) < 0.0 && maskArray[i] == true) {
+        MFPTFile << time << "\n";
+        maskArray[i] = false;
+      }
     }
   }
 }

@@ -9,16 +9,11 @@
 
 class EnergyMonitor : public Monitor {
  public:
-  EnergyMonitor() {}
+  EnergyMonitor(const libconfig::Setting &settings);
 
   ~EnergyMonitor();
+  void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
 
-  void initialize();
-  void run();
-  void write(Solver *solver);
-  void initialize_convergence(ConvergenceType type, const double meanTol,
-    const double devTol);
-  bool has_converged();
  private:
   std::ofstream outfile;
 };

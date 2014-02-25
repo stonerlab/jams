@@ -3,27 +3,31 @@
 #ifndef JAMS_CORE_PHYSICS_H
 #define JAMS_CORE_PHYSICS_H
 
-#include <libconfig.h++>
+#include "jblib/containers/vec.h"
 
-enum PhysicsType{ EMPTY, FMR, MFPT, TTM, SPINWAVES, SQUARE, DYNAMICSF,
-  FIELDCOOL};
+#include <libconfig.h++>
 
 class Physics {
  public:
-  Physics()
-  : initialized(false)
-  {}
-
+  Physics(const libconfig::Setting &settings);
   virtual ~Physics() {}
 
-  virtual void initialize(libconfig::Setting &phys);
-  virtual void run(const double realtime, const double dt);
-  virtual void monitor(const double realtime, const double dt);
+  virtual void update(const int &iterations, const double &time, const double &dt) = 0;
 
-  static Physics* Create(PhysicsType type);
+  inline double temperature() const { return temperature_; }
+  inline void set_temperature(const double t) { temperature_ = t; }
+
+  inline const jblib::Vec3<double>& applied_field() const { return applied_field_; }
+  inline const double applied_field(const int i) const { return applied_field_[i]; }
+
+  inline void set_applied_field(const jblib::Vec3<double> &field) { applied_field_ = field; }
+
+  static Physics* create(const libconfig::Setting &settings);
 
  protected:
-  bool initialized;
+  double              temperature_;
+  jblib::Vec3<double> applied_field_;
+  int                 output_step_freq_;
 };
 
 #endif  // JAMS_CORE_PHYSICS_H

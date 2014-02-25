@@ -10,7 +10,7 @@ commit = $(shell git rev-parse HEAD)
 ifeq ($(systype), Darwin)
 withcuda=0
 CXX = clang++
-OPTFLAGS = -stdlib=libc++ -march=native -O3 -funroll-loops -m64
+OPTFLAGS = -stdlib=libc++ -march=native -O3 -funroll-loops
 COPTIONS = -Wall -DDarwin
 CUDA = /usr/local/cuda/bin/nvcc
 CUDAOPTS = -O3 -DNDEBUG -DCUDA \
@@ -52,7 +52,7 @@ ifeq ($(withcuda), 1)
 endif
 
 ifeq ($(withdebug), 1)
-	OPTFLAGS += -g -DDEBUG
+	OPTFLAGS = -pg -g -DDEBUG -O1 -stdlib=libc++
 	LDOPTIONS += -g
 else
 	OPTFLAGS += -DNDEBUG	# turn off asserts

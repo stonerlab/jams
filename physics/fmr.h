@@ -14,18 +14,9 @@
 
 class FMRPhysics : public Physics {
  public:
-  FMRPhysics()
-  : initialized(false),
-  ACFieldFrequency(0),
-  ACFieldStrength(3, 0),
-  DCFieldStrength(3, 0),
-  PSDFile(),
-  PSDIntegral(0)
-  {}
+  FMRPhysics(const libconfig::Setting &settings);
   ~FMRPhysics();
-  void initialize(libconfig::Setting &phys);
-  void run(double realtime, const double dt);
-  virtual void monitor(double realtime, const double dt);
+  void update(const int &iterations, const double &time, const double &dt);
  private:
   bool initialized;
   double ACFieldFrequency;

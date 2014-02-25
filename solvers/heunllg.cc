@@ -19,37 +19,18 @@ void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
   // initialize base class
   Solver::initialize(argc, argv, idt);
 
-  output.write("Initialising Heun LLG solver (CPU)\n");
-
-  output.write("  * Converting MAP to CSR\n");
-  J1ij_s.convertMAP2CSR();
-  J1ij_t.convertMAP2CSR();
-  J2ij_s.convertMAP2CSR();
-  J2ij_t.convertMAP2CSR();
-
-  output.write("  * J1ij Scalar matrix memory (CSR): %f MB\n",
-    J1ij_s.calculateMemory());
-  output.write("  * J1ij Tensor matrix memory (CSR): %f MB\n",
-    J1ij_t.calculateMemory());
-  output.write("  * J2ij Scalar matrix memory (CSR): %f MB\n",
-    J2ij_s.calculateMemory());
-  output.write("  * J2ij Tensor matrix memory (CSR): %f MB\n",
-    J2ij_t.calculateMemory());
+  ::output.write("Initialising Heun LLG solver (CPU)\n");
 
   snew.resize(num_spins, 3);
-  sigma.resize(num_spins, 3);
+  sigma.resize(num_spins);
   eng.resize(num_spins, 3);
+  w.resize(num_spins, 3);
 
   for (int i = 0; i < num_spins; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      sigma(i, j) = sqrt((2.0*boltzmann_si*alpha(i))/(dt*mus(i)*mu_bohr_si));
-    }
+    sigma(i) = sqrt((2.0*boltzmann_si*alpha(i))/(time_step_*mus(i)*mu_bohr_si));
   }
 
-  initialized = true;
-}
-
-void HeunLLGSolver::sync_device_data() {
+  initialized_ = true;
 }
 
 void HeunLLGSolver::run() {
@@ -59,17 +40,25 @@ void HeunLLGSolver::run() {
   double sxh[3], rhs[3];
   double norm;
 
-
-  if (globalTemperature > 0.0) {
-    const double stmp = sqrt(globalTemperature);
+  if (physics_module_->temperature() > 0.0) {
+    const double stmp = sqrt(physics_module_->temperature());
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
-        w(i, j) = (rng.normal())*sigma(i, j)*stmp;
+        w(i, j) = (rng.normal())*sigma(i)*stmp*mus(i)*gyro(i); // MOVE THESE INTO SIGMA
       }
     }
   }
 
-  compute_effective_fields();
+
+  Solver::compute_fields();
+
+  if (physics_module_->temperature() > 0.0) {
+    for (i = 0; i < num_spins; ++i) {
+      for (j = 0; j < 3; ++j) {
+        h(i, j) += w(i,j);
+      }
+    }
+  }
 
   for (i = 0; i < num_spins; ++i) {
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
@@ -81,11 +70,11 @@ void HeunLLGSolver::run() {
     rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
 
     for (j = 0; j < 3; ++j) {
-      snew(i, j) = s(i, j) + 0.5*dt*rhs[j];
+      snew(i, j) = s(i, j) + 0.5*time_step_*rhs[j];
     }
 
     for (j = 0; j < 3; ++j) {
-      s(i, j) = s(i, j) + dt*rhs[j];
+      s(i, j) = s(i, j) + time_step_*rhs[j];
     }
 
     norm = 1.0/sqrt(s(i, 0)*s(i, 0) + s(i, 1)*s(i, 1) + s(i, 2)*s(i, 2));
@@ -95,7 +84,15 @@ void HeunLLGSolver::run() {
     }
   }
 
-  compute_effective_fields();
+  Solver::compute_fields();
+
+  if (physics_module_->temperature() > 0.0) {
+    for (i = 0; i < num_spins; ++i) {
+      for (j = 0; j < 3; ++j) {
+        h(i, j) += w(i,j);
+      }
+    }
+  }
 
   for (i = 0; i < num_spins; ++i) {
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
@@ -107,7 +104,7 @@ void HeunLLGSolver::run() {
     rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
 
     for (j = 0; j < 3; ++j) {
-      s(i, j) = snew(i, j) + 0.5*dt*rhs[j];
+      s(i, j) = snew(i, j) + 0.5*time_step_*rhs[j];
     }
 
     norm = 1.0/sqrt(s(i, 0)*s(i, 0) + s(i, 1)*s(i, 1) + s(i, 2)*s(i, 2));
@@ -116,7 +113,8 @@ void HeunLLGSolver::run() {
       s(i, j) = s(i, j)*norm;
     }
   }
-  iteration++;
+
+  iteration_++;
 }
 
 void HeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {

@@ -15,33 +15,10 @@ enum FFTWindowType {GAUSSIAN, HAMMING};
 
 class DynamicSFPhysics : public Physics {
  public:
-  DynamicSFPhysics()
-  : initialized(false),
-  typeToggle(false),
-  timePointCounter(0),
-  nTimePoints(0),
-  qDim(3, 0),
-  qSpace(NULL),
-  tSpace(NULL),
-  imageSpace(NULL),
-  qSpaceFFT(),
-  componentReal(0),
-  componentImag(0),
-  coFactors(0, 0),
-  freqIntervalSize(0),
-  t_window(0.0),
-  steps_window(0),
-  nBZPoints(0),
-  BZIndex(),
-  BZPoints(),
-  BZDegeneracy(),
-  BZLengths() {}
-
+  DynamicSFPhysics(const libconfig::Setting &settings);
   ~DynamicSFPhysics();
 
-  void initialize(libconfig::Setting &phys);
-  void run(double realtime, const double dt);
-  virtual void monitor(double realtime, const double dt);
+  void update(const int &iterations, const double &time, const double &dt);
 
  private:
   bool              initialized;
