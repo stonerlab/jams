@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <string>
+#include <iomanip>
 
 #include "core/globals.h"
 #include "core/lattice.h"
@@ -17,8 +18,24 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 
   std::string name = seedname + "_mag.dat";
   outfile.open(name.c_str());
+  outfile.setf(std::ios::right);
 
-  // mx my mz |m|
+  // header for the magnetisation file
+  outfile << "#";
+  outfile << std::setw(11) << "time";
+  outfile << std::setw(16) << "temperature";
+  outfile << std::setw(16) << "Hx";
+  outfile << std::setw(16) << "Hy";
+  outfile << std::setw(16) << "Hz";
+
+  for (int i = 0; i < lattice.num_materials(); ++i) {
+    outfile << std::setw(16) <<  lattice.get_material_name(i) + " -> " + "mx" ;
+    outfile << std::setw(16) << "my";
+    outfile << std::setw(16) << "mz";
+    outfile << std::setw(16) << "|m|";
+  }
+  outfile << "\n";
+
   mag.resize(lattice.num_materials(), 4);
 }
 
@@ -52,17 +69,18 @@ void MagnetisationMonitor::update(const int &iteration, const double &time, cons
         + mag(i, 2)*mag(i, 2));
     }
 
-    outfile << time;
-
-    outfile << "\t" << temperature;
+    outfile << std::setw(12) << std::scientific << time;
+    outfile << std::setw(16) << std::fixed << temperature;
 
     for (i = 0; i < 3; ++i) {
-      outfile << "\t" << applied_field[i];
+      outfile <<  std::setw(16) << applied_field[i];
     }
 
     for (i = 0; i < lattice.num_materials(); ++i) {
-      outfile <<"\t"<< mag(i, 0) <<"\t"<< mag(i, 1) <<"\t"<< mag(i, 2)
-      <<"\t"<< mag(i, 3);
+      outfile << std::setw(16) << mag(i, 0);
+      outfile << std::setw(16) << mag(i, 1);
+      outfile << std::setw(16) << mag(i, 2);
+      outfile << std::setw(16) << mag(i, 3);
     }
 
     outfile << "\n";
