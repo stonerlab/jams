@@ -42,7 +42,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
   if (physics_settings.exists("output_steps")) {
     output_step_freq_ = physics_settings["output_steps"];
   } else {
-    jams_warning("No physics output time chosen - using default of 100");
+    jams_warning("No physics output_steps chosen - using default of 100");
     output_step_freq_ = 100;
   }
 }
