@@ -114,6 +114,7 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
     if (materials_map_.insert( std::pair<std::string, int>(name, counter)).second == false) {
       jams_error("the material %s is specified twice in the configuration", name.c_str());
     }
+    materials_numbered_list_.push_back(name);
     ::output.write("  %-6d %s\n", counter, name.c_str());
     counter++;
   }

@@ -33,6 +33,10 @@ class Lattice {
     //     z = spin_int_map(n, 2);
     // }
 
+    inline std::string get_material_name(const int material_number) const {
+      return materials_numbered_list_[material_number];
+    }
+
     inline int num_spins_of_material(const int i) const { return material_count_[i]; }
     inline std::string get_material(const int i) const { return lattice_materials_[i]; }
     inline int get_material_number(const int i) { return materials_map_[lattice_materials_[i]]; }
@@ -53,6 +57,7 @@ class Lattice {
 
     double energy_cutoff_;
 
+    std::vector<std::string>    materials_numbered_list_;
     std::vector<int>            material_count_;
     std::map<std::string, int>  materials_map_;
     std::vector<std::string>    lattice_materials_;
