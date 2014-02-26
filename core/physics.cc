@@ -10,12 +10,10 @@
 #include "core/monitor.h"
 #include "core/utils.h"
 
-#include "physics/dynamicsf.h"
 #include "physics/empty.h"
 #include "physics/fieldcool.h"
 #include "physics/fmr.h"
 #include "physics/mfpt.h"
-#include "physics/spinwaves.h"
 #include "physics/square.h"
 #include "physics/ttm.h"
 
@@ -63,16 +61,8 @@ Physics* Physics::create(const libconfig::Setting &settings) {
     return new TTMPhysics(settings);
   }
 
-  if (capitalize(settings["module"]) == "SPINWAVES") {
-    return new SpinwavesPhysics(settings);
-  }
-
   if (capitalize(settings["module"]) == "SQUARE") {
     return new SquarePhysics(settings);
-  }
-
-  if (capitalize(settings["module"]) == "DYNAMICSF") {
-    return new DynamicSFPhysics(settings);
   }
 
   if (capitalize(settings["module"]) == "FIELDCOOL") {
