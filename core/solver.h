@@ -15,6 +15,7 @@ class Solver {
   : initialized_(false),
     iteration_(0),
     time_step_(0.0),
+    real_time_step_(0.0),
     physics_module_()
   {}
 
@@ -24,7 +25,7 @@ class Solver {
   virtual void run() = 0;
 
   inline double time() const {
-    return iteration_*time_step_;
+    return iteration_*real_time_step_;
   }
 
   inline void register_physics_module(Physics* package) {
@@ -54,6 +55,7 @@ class Solver {
 
   int    iteration_;
   double time_step_;
+  double real_time_step_;
 
   Physics*              physics_module_;
   std::vector<Monitor*> monitors_;

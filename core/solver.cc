@@ -17,6 +17,7 @@ void Solver::initialize(int argc, char **argv, double idt) {
     jams_error("Solver is already initialized");
   }
 
+  real_time_step_ = idt;
   time_step_ = idt*gamma_electron_si;
 
   ::output.write("Initialising solver (CPU)\n");
