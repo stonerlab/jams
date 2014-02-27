@@ -417,18 +417,18 @@ void Lattice::insert_interaction(const int i, const int j, const double &value) 
     return;
   }
 
-  if(globals::J1ij_s.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-    if(globals::J1ij_s.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+  if(globals::J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+    if(globals::J1ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
       if(i >= j){
-        globals::J1ij_s.insertValue(i, j, value/mu_bohr_si);
+        globals::J1ij_t.insertValue(3*i, 3*j, value/mu_bohr_si);
       }
     }else{
       if(i <= j){
-        globals::J1ij_s.insertValue(i, j, value/mu_bohr_si);
+        globals::J1ij_t.insertValue(3*i+1, 3*j+1, value/mu_bohr_si);
       }
     }
   }else{
-        globals::J1ij_s.insertValue(i, j, value/mu_bohr_si);
+        globals::J1ij_t.insertValue(3*i+2, 3*j+2, value/mu_bohr_si);
   }
 }
 
