@@ -12,6 +12,10 @@
 #include "solvers/heunllg.h"
 #include "solvers/metropolismc.h"
 
+#ifdef MKL
+#include <mkl_spblas.h>
+#endif
+
 void Solver::initialize(int argc, char **argv, double idt) {
   if (initialized_ == true) {
     jams_error("Solver is already initialized");

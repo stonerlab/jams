@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 
 withdebug=0
-withcuda=1
+withcuda=0
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
@@ -19,9 +19,9 @@ CUDAOPTS = -O3 -DNDEBUG -DCUDA \
 					 -gencode=arch=compute_35,code=sm_35 \
 		       -gencode=arch=compute_35,code=compute_35
 else
-CXX = g++
-OPTFLAGS = -march=native -O3 -funroll-loops
-COPTIONS = -Wall -DLinux
+CXX = icc
+OPTFLAGS = -openmp -march=native -O3 -funroll-loops
+COPTIONS = -Wall -DLinux -DMKL -m64
 CUDA = /usr/local/cuda/bin/nvcc
 CUDAOPTS = -O3 -DNDEBUG -DCUDA \
 					 -gencode=arch=compute_20,code=sm_20 \
@@ -59,8 +59,9 @@ else
 endif
 
 LIBCONFIGDIR = ./libconfig
+#MKLROOT = /opt/intel/Compiler/11.1/059/mkl
 
-INCLUDES = -I$(TOPDIR) -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include
+INCLUDES = -I$(TOPDIR) -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I$(MKLROOT)/include
 CFLAGS:=$(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t
@@ -78,6 +79,6 @@ ifeq ($(withcuda), 1)
 		LIBS = -L/usr/local/cuda/lib -lcudart -lcurand  -lcublas -lcusparse
 endif
 
-LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 -lconfig++
+LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 -lconfig++  -L$(MKLROOT)/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -lpthread -lm
 
-LDFLAGS = $(LIBSDIR)
+LDFLAGS = $(LIBSDIR)  

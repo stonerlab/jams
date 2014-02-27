@@ -53,6 +53,7 @@ void HeunLLGSolver::run() {
   Solver::compute_fields();
 
   if (physics_module_->temperature() > 0.0) {
+    #pragma omp parallel for
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
         h(i, j) += w(i,j);
@@ -60,7 +61,8 @@ void HeunLLGSolver::run() {
     }
   }
 
-  for (i = 0; i < num_spins; ++i) {
+  #pragma omp parallel for
+  for (i = 0; i != num_spins; ++i) {
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
     sxh[1] = s(i, 2)*h(i, 0) - s(i, 0)*h(i, 2);
     sxh[2] = s(i, 0)*h(i, 1) - s(i, 1)*h(i, 0);
@@ -87,6 +89,7 @@ void HeunLLGSolver::run() {
   Solver::compute_fields();
 
   if (physics_module_->temperature() > 0.0) {
+    #pragma omp parallel for
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
         h(i, j) += w(i,j);
@@ -94,6 +97,7 @@ void HeunLLGSolver::run() {
     }
   }
 
+  #pragma omp parallel for
   for (i = 0; i < num_spins; ++i) {
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
     sxh[1] = s(i, 2)*h(i, 0) - s(i, 0)*h(i, 2);

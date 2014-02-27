@@ -5,7 +5,7 @@ include ./Makefile.in
 source-dirs := core/ monitors/ physics/ solvers/
 
 jams++ :: objects
-	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) $(LIBS) $(foreach d, $(source-dirs), $(wildcard $d*.o))
+	$(LD) -o $@ $(CFLAGS) $(LDFLAGS) $(foreach d, $(source-dirs), $(wildcard $d*.o)) $(LIBS) 
 
 	@echo
 	@echo " JAMS++ build complete. "

@@ -129,8 +129,8 @@ class SparseMatrix {
 
 
     // NIST style CSR storage pointers
-    inline const size_type* RESTRICT ptrB() const { return &(row_[0]); }
-    inline const size_type* RESTRICT ptrE() const { return &(row_[1]); }
+    inline size_type* RESTRICT ptrB() { return &(row_[0]); }
+    inline size_type* RESTRICT ptrE() { return &(row_[1]); }
 
     double calculateMemory();
     //void printCSR();
