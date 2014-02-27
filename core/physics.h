@@ -18,7 +18,7 @@ class Physics {
   inline void set_temperature(const double t) { temperature_ = t; }
 
   inline const jblib::Vec3<double>& applied_field() const { return applied_field_; }
-  inline const double applied_field(const int i) const { return applied_field_[i]; }
+  inline double applied_field(const int i) const { return applied_field_[i]; }
 
   inline void set_applied_field(const jblib::Vec3<double> &field) { applied_field_ = field; }
 
