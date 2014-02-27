@@ -433,16 +433,13 @@ __global__ void spmv_dia_kernel
                 const int colLow = row - offsets[n];
 
                 if(colLow >= row && colLow < ncols) {
-                  // const float A_ij = alpha*dia_values[pitch*(base+n)+colLow];
-                  sum = fma(alpha*dia_values[pitch*(base+n)+colLow], x[colLow], sum);
-                  //sum += A_ij * tex1Dfetch(tex_x_float, colLow);
+                  const float A_ij = alpha*dia_values[pitch*(base+n)+colLow];
+                  sum += A_ij*x[colLow];
                 }
                 if(colUp >= 0 && colUp < row) {
-                  // const float A_ij = alpha*dia_values[idxUp];
-                  sum = fma(alpha*dia_values[idxUp], x[colUp], sum);
-                  //sum += A_ij * tex1Dfetch(tex_x_float, colUp);
+                  const float A_ij = alpha*dia_values[idxUp];
+                  sum += A_ij*x[colUp];
                 }
-
                 idxUp += pitch;
             }
 
