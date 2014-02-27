@@ -11,7 +11,6 @@
 #include <cmath>
 
 #include "core/consts.h"
-#include "core/cuda_fields.h"
 #include "core/cuda_sparse.h"
 #include "core/cuda_sparse_types.h"
 #include "core/globals.h"
@@ -19,7 +18,6 @@
 #include "solvers/cuda_heunllg_kernel.h"
 
 #include "jblib/containers/array.h"
-
 
 void CUDAHeunLLGSolver::sync_device_data()
 {
@@ -53,7 +51,12 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
 
   output.write("  * Converting sparse matrices\n");
   J1ij_t.convertMAP2DIA();
+
   output.write("    - J1ij tensor matrix memory (DIA): %f MB\n", J1ij_t.calculateMemory());
+
+
+  J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+  allocate_transfer_dia(J1ij_t, J1ij_t_dev);
 
   output.write("  * Allocating device memory...\n");
 
@@ -91,13 +94,7 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
 
   eng.resize(num_spins, 3);
 
-  allocate_transfer_dia(J1ij_t, J1ij_t_dev);
-
-
   nblocks = (num_spins+BLOCKSIZE-1)/BLOCKSIZE;
-
-  J1ij_t_dev.blocks = std::min<int>(DIA_BLOCK_SIZE, (num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-
 }
 
 void CUDAHeunLLGSolver::run()
@@ -110,18 +107,31 @@ void CUDAHeunLLGSolver::run()
         CURAND_CALL(curandGenerateNormal(gen, w_dev.data(), (num_spins3+(num_spins3%2)), 0.0f, stmp));
     }
 
-    cuda_device_compute_fields(J1ij_t_dev, sf_dev.data(), mat_dev.data(), h_dev.data());
+    compute_fields();
 
     cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE>>>
         (s_dev.data(), sf_dev.data(), s_new_dev.data(), h_dev.data(), w_dev.data(), mat_dev.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
 
-    cuda_device_compute_fields(J1ij_t_dev, sf_dev.data(), mat_dev.data(), h_dev.data());
+    compute_fields();
 
     cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE>>>
         (s_dev.data(), sf_dev.data(), s_new_dev.data(), h_dev.data(), w_dev.data(), mat_dev.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
 
     iteration_++;
     sync_device_data();
+}
+
+void CUDAHeunLLGSolver::compute_fields() {
+  using namespace globals;
+
+// bilinear interactions
+  if(J1ij_t.nonZero() > 0){
+
+    spmv_dia_kernel<<< J1ij_t_dev.blocks, DIA_BLOCK_SIZE >>>
+    (num_spins3, num_spins3, J1ij_t.diags(), J1ij_t_dev.pitch, 1.0, 0.0,
+     J1ij_t_dev.row, J1ij_t_dev.val, sf_dev.data(), h_dev.data());
+  }
+
 }
 
 void CUDAHeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
