@@ -148,7 +148,6 @@ void compute_bilinear_tensor_interactions_csr(const double *val, const int *indx
   char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
 #ifdef MKL
   double one = 1.0;
-  double one = 1.0;
     mkl_dcsrmv(transa, &num_spins3, &num_spins3, &one, matdescra, val,
         indx, ptrb, ptre, s.data(), &zero, y.data());
 #else
