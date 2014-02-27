@@ -21,6 +21,11 @@ void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
 
   ::output.write("Initialising Heun LLG solver (CPU)\n");
 
+  ::output.write("\ninitialising base solver class\n");
+  ::output.write("  converting interaction matrix J1ij format from MAP to CSR\n");
+  globals::J1ij_t.convertMAP2CSR();
+  ::output.write("  J1ij matrix memory (CSR): %f MB\n", globals::J1ij_t.calculateMemory());
+
   snew.resize(num_spins, 3);
   sigma.resize(num_spins);
   eng.resize(num_spins, 3);

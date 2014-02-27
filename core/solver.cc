@@ -8,7 +8,6 @@
 #include "core/globals.h"
 
 #include "solvers/cuda_heunllg.h"
-#include "solvers/cuda_srk4llg.h"
 #include "solvers/heunllg.h"
 #include "solvers/metropolismc.h"
 
@@ -23,11 +22,6 @@ void Solver::initialize(int argc, char **argv, double idt) {
 
   real_time_step_ = idt;
   time_step_ = idt*gamma_electron_si;
-
-  ::output.write("\ninitialising base solver class\n");
-  ::output.write("  converting interaction matrix J1ij format from MAP to CSR\n");
-  globals::J1ij_t.convertMAP2CSR();
-  ::output.write("  J1ij matrix memory (CSR): %f MB\n", globals::J1ij_t.calculateMemory());
 
   initialized_ = true;
 }
@@ -77,10 +71,6 @@ Solver* Solver::create(const std::string &solver_name) {
 #ifdef CUDA
   if (capitalize(solver_name) == "CUDAHEUNLLG") {
     return new CUDAHeunLLGSolver;
-  }
-
-  if (capitalize(solver_name) == "CUDASRK4LLG") {
-    return new CUDALLGSolverSRK4;
   }
 #endif
 

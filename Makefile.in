@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 
 withdebug=0
-withcuda=0
+withcuda=1
 
 cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
@@ -21,7 +21,7 @@ CUDAOPTS = -O3 -DNDEBUG -DCUDA \
 else
 CXX = icc
 OPTFLAGS = -openmp -march=native -O3 -funroll-loops
-COPTIONS = -Wall -DLinux -DMKL -m64
+COPTIONS = -Wall -DLinux -m64
 CUDA = /usr/local/cuda/bin/nvcc
 CUDAOPTS = -O3 -DNDEBUG -DCUDA \
 					 -gencode=arch=compute_20,code=sm_20 \
@@ -79,6 +79,6 @@ ifeq ($(withcuda), 1)
 		LIBS = -L/usr/local/cuda/lib -lcudart -lcurand  -lcublas -lcusparse
 endif
 
-LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 -lconfig++  -L$(MKLROOT)/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -lpthread -lm
+LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a  -L$(MKLROOT)/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -lpthread -lm
 
 LDFLAGS = $(LIBSDIR)  
