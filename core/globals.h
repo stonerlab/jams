@@ -36,17 +36,9 @@ namespace globals {
 
   GLOBAL jblib::Array<float, 2> atom_pos;
 #ifdef CUDA
-  GLOBAL SparseMatrix<float> J1ij_s;  // bilinear scalar interactions
   GLOBAL SparseMatrix<float> J1ij_t;  // bilinear tensor interactions
-  GLOBAL SparseMatrix<float> J2ij_s;  // biquadratic scalar interactions
-  GLOBAL SparseMatrix<float> J2ij_t;  // biquadratic tensor interactions
-  GLOBAL jblib::Sparsematrix<float, 4> J4ijkl_s;  // fourspin scalar interaction
 #else
-  GLOBAL SparseMatrix<double> J1ij_s;  // bilinear scalar interactions
   GLOBAL SparseMatrix<double> J1ij_t;  // bilinear tensor interactions
-  GLOBAL SparseMatrix<double> J2ij_s;  // biquadratic scalar interactions
-  GLOBAL SparseMatrix<double> J2ij_t;  // biquadratic tensor interactions
-  GLOBAL jblib::Sparsematrix<double, 4> J4ijkl_s;  // fourspin scalar interacti
 #endif
   GLOBAL jblib::Array<double, 1> alpha;
   GLOBAL jblib::Array<double, 1> mus;

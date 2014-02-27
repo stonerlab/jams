@@ -3,7 +3,7 @@
 #include "solvers/metropolismc.h"
 
 #include "core/consts.h"
-#include "core/fields.h"
+
 #include "core/globals.h"
 
 void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
@@ -16,28 +16,14 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
 
   output.write("  * Converting symmetric to general MAP matrices\n");
 
-  J1ij_s.convertSymmetric2General();
   J1ij_t.convertSymmetric2General();
-  J2ij_s.convertSymmetric2General();
-  J2ij_t.convertSymmetric2General();
 
   output.write("  * Converting MAP to CSR\n");
 
-  J1ij_s.convertMAP2CSR();
   J1ij_t.convertMAP2CSR();
-  J2ij_s.convertMAP2CSR();
-  J2ij_t.convertMAP2CSR();
 
-  output.write("  * J1ij Scalar matrix memory (CSR): %f MB\n",
-    J1ij_s.calculateMemory());
   output.write("  * J1ij Tensor matrix memory (CSR): %f MB\n",
     J1ij_t.calculateMemory());
-  output.write("  * J2ij Scalar matrix memory (CSR): %f MB\n",
-    J2ij_s.calculateMemory());
-  output.write("  * J2ij Tensor matrix memory (CSR): %f MB\n",
-    J2ij_t.calculateMemory());
-  output.write("  * J4ijkl Scalar matrix memory (CSR): %f MB\n",
-    J4ijkl_s.calculateMemoryUsage());
 }
 
 void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
@@ -45,25 +31,6 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
 
   total[0] = 0.0; total[1] = 0.0; total[2] = 0.0;
 
-    // J1ij_s
-  if (J1ij_s.nonZero() > 0) {
-#ifdef CUDA
-    const float *val = J1ij_s.valPtr();
-#else
-    const double *val = J1ij_s.valPtr();
-#endif
-    const int    *row = J1ij_s.rowPtr();
-    const int    *indx = J1ij_s.colPtr();
-
-    int begin = row[i]; int end = row[i+1];
-
-        // upper triangle and diagonal
-    for (int j = begin; j < end; ++j) {
-      for (int n = 0; n < 3; ++n) {
-        total[n] -= s(indx[j], n)*val[j];
-      }
-    }
-  }
 
     if (J1ij_t.nonZero() > 0) {   // J1ij_t
 #ifdef CUDA
@@ -73,49 +40,6 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
 #endif
       const int    *row = J1ij_t.rowPtr();
       const int    *indx = J1ij_t.colPtr();
-      const double *x   = s.data();
-      int           k;
-
-
-      for (int m = 0; m < 3; ++m) {
-        int begin = row[3*i+m]; int end = row[3*i+m+1];
-
-            // upper triangle and diagonal
-        for (int j = begin; j < end; ++j) {
-          k = indx[j];
-          total[m] -= x[k]*val[j];
-        }
-      }
-    }
-
-    // J1ij_s
-    if (J2ij_s.nonZero() > 0) {
-#ifdef CUDA
-      const float *val = J2ij_s.valPtr();
-#else
-      const double *val = J2ij_s.valPtr();
-#endif
-      const int    *row = J2ij_s.rowPtr();
-      const int    *indx = J2ij_s.colPtr();
-
-      int begin = row[i]; int end = row[i+1];
-
-        // upper triangle and diagonal
-      for (int j = begin; j < end; ++j) {
-        for (int n = 0; n < 3; ++n) {
-          total[n] -= s(indx[j], n)*val[j];
-        }
-      }
-    }
-
-    if (J2ij_t.nonZero() > 0) {   // J1ij_t
-#ifdef CUDA
-      const float *val = J2ij_t.valPtr();
-#else
-      const double *val = J2ij_t.valPtr();
-#endif
-      const int    *row = J2ij_t.rowPtr();
-      const int    *indx = J2ij_t.colPtr();
       const double *x   = s.data();
       int           k;
 

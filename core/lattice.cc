@@ -350,11 +350,7 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
 
 void Lattice::compute_interactions() {
 
-  globals::J1ij_s.resize(globals::num_spins,globals::num_spins);
   globals::J1ij_t.resize(globals::num_spins3,globals::num_spins3);
-  globals::J2ij_s.resize(globals::num_spins,globals::num_spins);
-  globals::J4ijkl_s.resize(globals::num_spins,globals::num_spins,globals::num_spins,globals::num_spins);
-
 
   ::output.write("\ncomputed interactions\n");
 

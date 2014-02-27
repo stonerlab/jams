@@ -3,7 +3,7 @@
 #include "core/solver.h"
 
 #include "core/consts.h"
-#include "core/fields.h"
+
 #include "core/utils.h"
 #include "core/globals.h"
 
@@ -20,22 +20,10 @@ void Solver::initialize(int argc, char **argv, double idt) {
   real_time_step_ = idt;
   time_step_ = idt*gamma_electron_si;
 
-  ::output.write("Initialising solver (CPU)\n");
-
-  ::output.write("  * Converting MAP to CSR\n");
-  globals::J1ij_s.convertMAP2CSR();
+  ::output.write("\ninitialising base solver class\n");
+  ::output.write("  converting interaction matrix J1ij format from MAP to CSR\n");
   globals::J1ij_t.convertMAP2CSR();
-  globals::J2ij_s.convertMAP2CSR();
-  globals::J2ij_t.convertMAP2CSR();
-
-  ::output.write("  * J1ij Scalar matrix memory (CSR): %f MB\n",
-    globals::J1ij_s.calculateMemory());
-  ::output.write("  * J1ij Tensor matrix memory (CSR): %f MB\n",
-    globals::J1ij_t.calculateMemory());
-  ::output.write("  * J2ij Scalar matrix memory (CSR): %f MB\n",
-    globals::J2ij_s.calculateMemory());
-  ::output.write("  * J2ij Tensor matrix memory (CSR): %f MB\n",
-    globals::J2ij_t.calculateMemory());
+  ::output.write("  J1ij matrix memory (CSR): %f MB\n", globals::J1ij_t.calculateMemory());
 
   initialized_ = true;
 }
@@ -48,22 +36,22 @@ void Solver::compute_fields() {
   int i, j;
   std::fill(h.data(), h.data()+num_spins3, 0.0);
 
-  if (J1ij_s.nonZero() > 0) {
-    compute_bilinear_scalar_interactions_csr(J1ij_s.valPtr(), J1ij_s.colPtr(), J1ij_s.ptrB(),
-      J1ij_s.ptrE(), h);
-  }
+//-----------------------------------------------------------------------------
+// bilinear interactions
+//-----------------------------------------------------------------------------
   if (J1ij_t.nonZero() > 0) {
-    compute_bilinear_tensor_interactions_csr(J1ij_t.valPtr(), J1ij_t.colPtr(), J1ij_t.ptrB(),
-      J1ij_t.ptrE(), h);
+    char transa[1] = {'N'};
+    char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
+#ifdef MKL
+    double one = 1.0;
+    mkl_dcsrmv(transa, &num_spins3, &num_spins3, &one, matdescra, J1ij_t.valPtr(),
+      J1ij_t.colPtr(), J1ij_t.ptrB(), J1ij_t.ptrE(), s.data(), &one, h.data());
+#else
+    jams_dcsrmv(transa, num_spins3, num_spins3, 1.0, matdescra, J1ij_t.valPtr(),
+      J1ij_t.colPtr(), J1ij_t.ptrB(), J1ij_t.ptrE(), s.data(), 1.0, h.data());
+#endif
   }
-  if (J2ij_s.nonZero() > 0) {
-    compute_biquadratic_scalar_interactions_csr(J2ij_s.valPtr(), J2ij_s.colPtr(), J2ij_s.ptrB(),
-      J2ij_s.ptrE(), h);
-  }
-  if (J2ij_t.nonZero() > 0) {
-    compute_biquadratic_tensor_interactions_csr(J2ij_t.valPtr(), J2ij_t.colPtr(), J2ij_t.ptrB(),
-      J2ij_t.ptrE(), h);
-  }
+
   // normalize by the gyroscopic factor
   for (i = 0; i < num_spins; ++i) {
     for (j = 0; j < 3; ++j) {
