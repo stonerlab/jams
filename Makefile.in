@@ -78,6 +78,10 @@ endif
 
 #LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a
 
+ifeq ($(systype), Darwin)
+LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a
+else
 LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a -L$(MKLROOT)/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+endif
 
 LDFLAGS = $(LIBSDIR)  
