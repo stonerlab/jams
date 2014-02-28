@@ -21,13 +21,10 @@ CUDAOPTS = -O3 -DNDEBUG -DCUDA \
 else
 CXX = icc
 OPTFLAGS = -openmp -march=native -O3 -funroll-loops
-COPTIONS = -Wall -DLinux -m64
+COPTIONS = -Wall -DLinux -DMKL -m64
 CUDA = /usr/local/cuda/bin/nvcc
 CUDAOPTS = -O3 -DNDEBUG -DCUDA \
-					 -gencode=arch=compute_20,code=sm_20 \
-					 -gencode=arch=compute_20,code=compute_20 \
-					 -gencode=arch=compute_35,code=sm_35 \
-		       -gencode=arch=compute_35,code=compute_35
+					 -gencode=arch=compute_30,code=sm_30
 endif
 
 # Linker information
@@ -47,15 +44,15 @@ EXEOUTPUTFILE = -o $@
 
 OPTFLAGS += -DGITCOMMIT=$(commit)
 
-ifeq ($(withcuda), 1)
-	OPTFLAGS += -DCUDA
-endif
-
 ifeq ($(withdebug), 1)
-	OPTFLAGS = -pg -g -DDEBUG -O1 -stdlib=libc++
+	OPTFLAGS = -pg -g -DDEBUG -O1 #-stdlib=libc++
 	LDOPTIONS += -g
 else
 	OPTFLAGS += -DNDEBUG	# turn off asserts
+endif
+
+ifeq ($(withcuda), 1)
+	OPTFLAGS += -DCUDA
 endif
 
 LIBCONFIGDIR = ./libconfig
@@ -79,6 +76,8 @@ ifeq ($(withcuda), 1)
 		LIBS = -L/usr/local/cuda/lib -lcudart -lcurand  -lcublas -lcusparse
 endif
 
-LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a  -L$(MKLROOT)/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -lpthread -lm
+#LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a
+
+LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a -L$(MKLROOT)/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 
 LDFLAGS = $(LIBSDIR)  
