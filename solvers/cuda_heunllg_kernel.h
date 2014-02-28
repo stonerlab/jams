@@ -3,17 +3,19 @@
 #ifndef JAMS_SOLVER_CUDA_HEUNLLG_KERNEL_H
 #define JAMS_SOLVER_CUDA_HEUNLLG_KERNEL_H
 
+#include "core/cuda_defs.h"
+
 __global__ void cuda_heun_llg_kernelA
 (
   double * s_dev,
-  float * sf_dev,
+  CudaFastFloat * sf_dev,
   double * s_new_dev,
-  float * h_dev,
-  float * w_dev,
-  float * mat_dev,
-  float h_app_x,
-  float h_app_y,
-  float h_app_z,
+  CudaFastFloat * h_dev,
+  CudaFastFloat * w_dev,
+  CudaFastFloat * mat_dev,
+  CudaFastFloat h_app_x,
+  CudaFastFloat h_app_y,
+  CudaFastFloat h_app_z,
   int num_spins,
   double dt
 )
@@ -28,10 +30,10 @@ __global__ void cuda_heun_llg_kernelA
     double sxh[3];
     double norm;
 
-    float mus = mat_dev[idx*4];
-    float gyro = mat_dev[idx*4+1];
-    float alpha = mat_dev[idx*4+2];
-    float sigma = mat_dev[idx*4+3];
+    CudaFastFloat mus = mat_dev[idx*4];
+    CudaFastFloat gyro = mat_dev[idx*4+1];
+    CudaFastFloat alpha = mat_dev[idx*4+2];
+    CudaFastFloat sigma = mat_dev[idx*4+3];
 
     h[0] = double(( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro);
     h[1] = double(( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro);
@@ -63,23 +65,23 @@ __global__ void cuda_heun_llg_kernelA
     s_dev[idx3+1] = s[1]*norm;
     s_dev[idx3+2] = s[2]*norm;
 
-    sf_dev[idx3]   = float(s[0]*norm);
-    sf_dev[idx3+1] = float(s[1]*norm);
-    sf_dev[idx3+2] = float(s[2]*norm);
+    sf_dev[idx3]   = CudaFastFloat(s[0]*norm);
+    sf_dev[idx3+1] = CudaFastFloat(s[1]*norm);
+    sf_dev[idx3+2] = CudaFastFloat(s[2]*norm);
   }
 }
 
 __global__ void cuda_heun_llg_kernelB
 (
   double * s_dev,
-  float * sf_dev,
+  CudaFastFloat * sf_dev,
   double * s_new_dev,
-  float * h_dev,
-  float * w_dev,
-  float * mat_dev,
-  float h_app_x,
-  float h_app_y,
-  float h_app_z,
+  CudaFastFloat * h_dev,
+  CudaFastFloat * w_dev,
+  CudaFastFloat * mat_dev,
+  CudaFastFloat h_app_x,
+  CudaFastFloat h_app_y,
+  CudaFastFloat h_app_z,
   int num_spins,
   double dt
 )
@@ -94,10 +96,10 @@ __global__ void cuda_heun_llg_kernelB
     double sxh[3];
     double norm;
 
-    float mus = mat_dev[idx*4];
-    float gyro = mat_dev[idx*4+1];
-    float alpha = mat_dev[idx*4+2];
-    float sigma = mat_dev[idx*4+3];
+    CudaFastFloat mus = mat_dev[idx*4];
+    CudaFastFloat gyro = mat_dev[idx*4+1];
+    CudaFastFloat alpha = mat_dev[idx*4+2];
+    CudaFastFloat sigma = mat_dev[idx*4+3];
 
     h[0] = double(( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro);
     h[1] = double(( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro);
@@ -125,9 +127,9 @@ __global__ void cuda_heun_llg_kernelB
     s_dev[idx3+1] = s[1]*norm;
     s_dev[idx3+2] = s[2]*norm;
 
-    sf_dev[idx3]   = float(s[0]*norm);
-    sf_dev[idx3+1] = float(s[1]*norm);
-    sf_dev[idx3+2] = float(s[2]*norm);
+    sf_dev[idx3]   = CudaFastFloat(s[0]*norm);
+    sf_dev[idx3+1] = CudaFastFloat(s[1]*norm);
+    sf_dev[idx3+2] = CudaFastFloat(s[2]*norm);
   }
 }
 

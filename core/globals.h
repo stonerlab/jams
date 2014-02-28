@@ -20,6 +20,7 @@
 #define GLOBAL
 #endif
 
+
 GLOBAL Lattice lattice;
 GLOBAL libconfig::Config config;  ///< Config object
 GLOBAL Output output;
@@ -35,11 +36,9 @@ namespace globals {
   GLOBAL jblib::Array<double, 2> h;
 
   GLOBAL jblib::Array<float, 2> atom_pos;
-#ifdef CUDA
-  GLOBAL SparseMatrix<float> J1ij_t;  // bilinear tensor interactions
-#else
+
   GLOBAL SparseMatrix<double> J1ij_t;  // bilinear tensor interactions
-#endif
+
   GLOBAL jblib::Array<double, 1> alpha;
   GLOBAL jblib::Array<double, 1> mus;
   GLOBAL jblib::Array<double, 1> gyro;

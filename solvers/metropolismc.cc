@@ -33,11 +33,8 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
 
 
     if (J1ij_t.nonZero() > 0) {   // J1ij_t
-#ifdef CUDA
-      const float *val = J1ij_t.valPtr();
-#else
+
       const double *val = J1ij_t.valPtr();
-#endif
       const int    *row = J1ij_t.rowPtr();
       const int    *indx = J1ij_t.colPtr();
       const double *x   = s.data();
