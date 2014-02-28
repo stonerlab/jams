@@ -12,7 +12,7 @@
 #include "solvers/cuda_heunllg.h"
 #include "solvers/heunllg.h"
 #include "solvers/metropolismc.h"
-#include "core/cuda_sparse.h"
+#include "core/cuda_sparsematrix.h"
 
 
 void CudaSolver::initialize(int argc, char **argv, double idt) {

@@ -11,7 +11,7 @@
 #include <cmath>
 
 #include "core/consts.h"
-#include "core/cuda_sparse.h"
+#include "core/cuda_sparsematrix.h"
 #include "core/globals.h"
 
 #include "solvers/cuda_heunllg_kernel.h"

@@ -1,7 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include "core/cuda_defs.h"
-#include "core/cuda_sparse.h"
+#include "core/cuda_sparsematrix.h"
 
 #include <thrust/extrema.h>
 
