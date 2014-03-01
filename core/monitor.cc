@@ -5,6 +5,7 @@
 #include "core/globals.h"
 #include "core/solver.h"
 #include "monitors/magnetisation.h"
+#include "monitors/anisotropy_energy.h"
 #include "monitors/energy.h"
 #include "monitors/boltzmann.h"
 #include "monitors/vtu.h"
@@ -19,6 +20,10 @@ Monitor::Monitor(const libconfig::Setting &settings)
 Monitor* Monitor::create(const libconfig::Setting &settings) {
   if (capitalize(settings["module"]) == "MAGNETISATION") {
     return new MagnetisationMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "ANISOTROPY_ENERGY") {
+    return new AnisotropyEnergyMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "ENERGY") {
