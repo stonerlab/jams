@@ -39,6 +39,10 @@ namespace globals {
 
   GLOBAL SparseMatrix<double> J1ij_t;  // bilinear tensor interactions
 
+  GLOBAL jblib::Array<double, 1> d2z;
+  GLOBAL jblib::Array<double, 1> d4z;
+  GLOBAL jblib::Array<double, 1> d6z;
+
   GLOBAL jblib::Array<double, 1> alpha;
   GLOBAL jblib::Array<double, 1> mus;
   GLOBAL jblib::Array<double, 1> gyro;

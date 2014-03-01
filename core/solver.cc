@@ -50,6 +50,14 @@ void Solver::compute_fields() {
 #endif
   }
 
+//-----------------------------------------------------------------------------
+// anisotropy interactions
+//-----------------------------------------------------------------------------
+  for (i = 0; i < num_spins; ++i) {
+    h(i, 2) += 2.0*s(i, 2)*d2z(i) + 4.0*s(i, 2)*s(i, 2)*s(i, 2) + 6.0*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2);
+  }
+
+
   // normalize by the gyroscopic factor
   for (i = 0; i < num_spins; ++i) {
     for (j = 0; j < 3; ++j) {

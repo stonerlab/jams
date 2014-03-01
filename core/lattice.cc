@@ -226,13 +226,14 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   globals::alpha.resize(globals::num_spins);
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
+  globals::d2z.resize(globals::num_spins);
+  globals::d4z.resize(globals::num_spins);
+  globals::d6z.resize(globals::num_spins);
 
-
-  for (int i = 0; i != globals::num_spins; ++i) {
-    for (int j = 0; j != 0; ++j) {
-      globals::h(i, j) = 0.0;
-    }
-  }
+  std::fill(globals::h.data(), globals::h.data()+globals::num_spins3, 0.0);
+  std::fill(globals::d2z.data(), globals::d2z.data()+globals::num_spins, 0.0);
+  std::fill(globals::d4z.data(), globals::d4z.data()+globals::num_spins, 0.0);
+  std::fill(globals::d6z.data(), globals::d6z.data()+globals::num_spins, 0.0);
 
   material_count_.resize(num_materials(), 0);
   for (int i = 0; i != globals::num_spins; ++i) {
@@ -264,6 +265,21 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     globals::alpha(i) = type_settings["alpha"];
     globals::gyro(i) = type_settings["gyro"];
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
+
+    if (type_settings.exists("d2z")) {
+      globals::d2z(i) = type_settings["d2z"];
+      globals::d2z(i) /= mu_bohr_si;
+    }
+
+    if (type_settings.exists("d4z")) {
+      globals::d4z(i) = type_settings["d4z"];
+      globals::d4z(i) /= mu_bohr_si;
+    }
+
+    if (type_settings.exists("d6z")) {
+      globals::d6z(i) = type_settings["d6z"];
+      globals::d6z(i) /= mu_bohr_si;
+    }
   }
 }
 
