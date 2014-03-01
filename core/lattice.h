@@ -53,7 +53,7 @@ class Lattice {
     void compute_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void read_interactions(const libconfig::Setting &lattice_settings);
     void compute_interactions();
-    void insert_interaction(const int i, const int j, const double &value);
+    bool insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
 
     double energy_cutoff_;
 
@@ -68,7 +68,7 @@ class Lattice {
     jblib::Matrix<double, 3, 3> inverse_lattice_vectors_;
     std::vector< jblib::Vec3<double> > lattice_positions_;
     jblib::Array<int, 4>          fast_integer_lattice_;
-    std::vector< std::pair<jblib::Vec4<int>, double> > fast_integer_interaction_list_;
+    std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > fast_integer_interaction_list_;
     std::vector< std::pair<std::string, jblib::Vec3<double> > > motif_;
 };
 

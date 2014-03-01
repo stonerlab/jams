@@ -21,6 +21,8 @@
 #include "core/utils.h"
 
 #include "jblib/containers/array.h"
+#include "jblib/containers/matrix.h"
+
 
 void Lattice::initialize() {
   ::output.write("\n----------------------------------------\n");
@@ -315,12 +317,24 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
     }
     fast_integer_vector[3] = type_difference;
 
-    double interaction_strength = 0.0;
-    is >> interaction_strength;
+    jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    if (file_columns(line) == 6) {
+      // one Jij component given - diagonal
+      is >> tensor[0][0];
+      tensor[1][1] = tensor[0][0];
+      tensor[2][2] = tensor[0][0];
+    } else if (file_columns(line) == 14) {
+      // nine Jij components given - full tensor
+      is >> tensor[0][0] >> tensor[0][1] >> tensor[0][2];
+      is >> tensor[1][0] >> tensor[1][1] >> tensor[1][2];
+      is >> tensor[2][0] >> tensor[2][1] >> tensor[2][2];
+    } else {
+      jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
+    }
 
     fast_integer_interaction_list_.push_back(
-      std::pair<jblib::Vec4<int>, double>(
-        fast_integer_vector, interaction_strength) );
+      std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(
+        fast_integer_vector, tensor) );
 
     if (verbose_output_is_set) {
       ::output.write("  line %-9d              %s\n", counter, line.c_str());
@@ -354,6 +368,7 @@ void Lattice::compute_interactions() {
 
   ::output.write("\ncomputed interactions\n");
 
+  bool is_all_inserts_successful = true;
   int counter = 0;
   // loop over the translation vectors for lattice size
   for (int i = 0; i != lattice_size_.x; ++i) {
@@ -394,38 +409,53 @@ void Lattice::compute_interactions() {
             }
             is_already_interacting[neighbour_site] = true;
 
-            //std::cout << "  " << local_site << "\t" << neighbour_site << "\t" << fast_integer_interaction_list_[n].second << std::endl;
-            insert_interaction(local_site, neighbour_site, fast_integer_interaction_list_[n].second);
-            counter++;
+            if (insert_interaction(local_site, neighbour_site, fast_integer_interaction_list_[n].second)) {
+              counter++;
+            } else {
+              is_all_inserts_successful = false;
+            }
           }
         }
       }
     }
   }
 
+  if (!is_all_inserts_successful) {
+    jams_warning("Some interactions were ignored due to the energy cutoff (%e)", energy_cutoff_);
+  }
+
   ::output.write("  total: %d\n", counter);
 }
 
-void Lattice::insert_interaction(const int i, const int j, const double &value) {
+bool Lattice::insert_interaction(const int m, const int n, const jblib::Matrix<double, 3, 3> &value) {
 
-  if (fabs(value) < energy_cutoff_) {
-    ::output.write("  interaction between spins %d and %d is below the energy cutoff (%e)", i, j, energy_cutoff_);
-    return;
-  }
-
-  if(globals::J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-    if(globals::J1ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-      if(i >= j){
-        globals::J1ij_t.insertValue(3*i, 3*j, value/mu_bohr_si);
-      }
-    }else{
-      if(i <= j){
-        globals::J1ij_t.insertValue(3*i+1, 3*j+1, value/mu_bohr_si);
+  int counter = 0;
+  for (int i = 0; i != 3; ++i) {
+    for (int j = 0; j != 3; ++j) {
+      if (fabs(value[i][j]) > energy_cutoff_) {
+        counter++;
+        if(globals::J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+          if(globals::J1ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+            if(i >= j){
+              globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
+            }
+          }else{
+            if(i <= j){
+              globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
+            }
+          }
+        }else{
+          globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
+        }
       }
     }
-  }else{
-        globals::J1ij_t.insertValue(3*i+2, 3*j+2, value/mu_bohr_si);
   }
+
+  if (counter == 0) {
+    return false;
+  }
+
+  return true;
 }
 
 
