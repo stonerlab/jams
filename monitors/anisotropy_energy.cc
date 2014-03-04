@@ -39,7 +39,6 @@ AnisotropyEnergyMonitor::AnisotropyEnergyMonitor(const libconfig::Setting &setti
 void AnisotropyEnergyMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
   using namespace globals;
 
-  if (iteration%output_step_freq_ == 0) {
     int i, j;
 
     for (i = 0; i < lattice.num_materials(); ++i) {
@@ -70,7 +69,6 @@ void AnisotropyEnergyMonitor::update(const int &iteration, const double &time, c
       outfile << std::scientific << std::setw(16) << dz_energy_(i, 2)*mu_bohr_si;
     }
     outfile << "\n";
-  }
 }
 
 AnisotropyEnergyMonitor::~AnisotropyEnergyMonitor() {

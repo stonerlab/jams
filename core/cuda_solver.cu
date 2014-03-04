@@ -28,7 +28,7 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("    memory usage (dia): %f MB\n", J1ij_t.calculateMemory());
   dev_J1ij_t_.blocks = std::min<int>(DIA_BLOCK_SIZE, (num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
 
-  ::output.write("    allocating on device");
+  ::output.write("    allocating on device\n");
 
 //-----------------------------------------------------------------------------
 // transfer sparse matrix to device - optionally converting double precision to
@@ -90,6 +90,23 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
   }
   dev_mat_      = jblib::CudaArray<CudaFastFloat, 1>(mat);
 
+  // anisotropy arrays
+  jblib::Array<CudaFastFloat, 1> dz(num_spins);
+  for (int i = 0; i < num_spins; ++i) {
+    dz[i] = static_cast<CudaFastFloat>(globals::d2z[i]);
+  }
+  dev_d2z_ = jblib::CudaArray<CudaFastFloat, 1>(dz);
+
+  for (int i = 0; i < num_spins; ++i) {
+    dz[i] = static_cast<CudaFastFloat>(globals::d4z[i]);
+  }
+  dev_d4z_ = jblib::CudaArray<CudaFastFloat, 1>(dz);
+
+  for (int i = 0; i < num_spins; ++i) {
+    dz[i] = static_cast<CudaFastFloat>(globals::d6z[i]);
+  }
+  dev_d6z_ = jblib::CudaArray<CudaFastFloat, 1>(dz);
+
 }
 
 void CudaSolver::run() {
@@ -104,6 +121,11 @@ void CudaSolver::compute_fields() {
     (num_spins3, num_spins3, J1ij_t.diags(), dev_J1ij_t_.pitch, 1.0, 0.0,
      dev_J1ij_t_.row, dev_J1ij_t_.val, dev_s_float_.data(), dev_h_.data());
   }
+
+  cuda_anisotropy_kernel<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>
+  (num_spins, dev_d2z_.data(), dev_d4z_.data(), dev_d6z_.data(), dev_s_float_.data(), dev_h_.data());
+
+  // anisotropy interactions
 }
 
 CudaSolver::~CudaSolver() {

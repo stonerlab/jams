@@ -13,6 +13,7 @@ class Monitor {
 
   virtual ~Monitor() {}
   virtual void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) = 0;
+  bool is_updating (const int &iteraction) const;
 
   static Monitor* create(const libconfig::Setting &settings);
 

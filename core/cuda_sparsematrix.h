@@ -7,6 +7,16 @@
 #include "core/sparsematrix.h"
 #include "jblib/containers/sparsematrix.h"
 
+__global__ void cuda_anisotropy_kernel
+(
+  const int num_spins,
+  const CudaFastFloat * dev_d2z_,
+  const CudaFastFloat * dev_d4z_,
+  const CudaFastFloat * dev_d6z_,
+  const CudaFastFloat * dev_sf_,
+  CudaFastFloat * dev_h_
+);
+
 __global__ void spmv_dia_kernel
 (const int nrows,
  const int ncols,

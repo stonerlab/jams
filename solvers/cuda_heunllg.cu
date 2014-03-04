@@ -18,12 +18,6 @@
 
 #include "jblib/containers/array.h"
 
-void CUDAHeunLLGSolver::sync_device_data()
-{
-  using namespace globals;
-  dev_s_.copy_to_host_array(s);
-}
-
 void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
 {
   using namespace globals;

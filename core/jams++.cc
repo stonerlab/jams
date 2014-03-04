@@ -111,11 +111,6 @@ int jams_initialize(int argc, char **argv) {
       output.write("  * Run time:           %1.8e (%lu steps)\n",
         time_value, steps_run);
 
-      time_value = config.lookup("sim.t_out");
-      steps_out = static_cast<int>(time_value/dt);
-      output.write("  * Output time:        %1.8e (%lu steps)\n",
-        time_value, steps_out);
-
       if (config.lookupValue("sim.save_state", save_state_is_set)) {
         if (save_state_is_set) {
           output.write("  * Save state is ON\n");

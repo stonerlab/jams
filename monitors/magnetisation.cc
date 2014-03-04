@@ -42,7 +42,6 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 void MagnetisationMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
   using namespace globals;
 
-  if (iteration%output_step_freq_ == 0) {
     int i, j;
 
     for (i = 0; i < lattice.num_materials(); ++i) {
@@ -84,7 +83,6 @@ void MagnetisationMonitor::update(const int &iteration, const double &time, cons
     }
 
     outfile << "\n";
-  }
 }
 
 MagnetisationMonitor::~MagnetisationMonitor() {

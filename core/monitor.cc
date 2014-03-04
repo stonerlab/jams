@@ -17,6 +17,13 @@ Monitor::Monitor(const libconfig::Setting &settings)
   settings.lookupValue("output_steps", output_step_freq_);
 }
 
+bool Monitor::is_updating(const int &iteration) const {
+  if (iteration % output_step_freq_ == 0) {
+    return true;
+  }
+  return false;
+}
+
 Monitor* Monitor::create(const libconfig::Setting &settings) {
   if (capitalize(settings["module"]) == "MAGNETISATION") {
     return new MagnetisationMonitor(settings);
