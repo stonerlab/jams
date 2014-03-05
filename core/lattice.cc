@@ -266,6 +266,11 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     globals::gyro(i) = type_settings["gyro"];
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
 
+    if ( (type_settings.exists("K1") || type_settings.exists("K2") || type_settings.exists("K3")) &&
+         (type_settings.exists("d2z") || type_settings.exists("d4z") || type_settings.exists("d6z")) ) {
+      jams_error("anisotropy should only be specified in terms of K1, K2, K3 or d2z, d4z, d6z in the config file");
+    }
+
     if (type_settings.exists("d2z")) {
       globals::d2z(i) = type_settings["d2z"];
       globals::d2z(i) /= mu_bohr_si;
@@ -279,6 +284,22 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     if (type_settings.exists("d6z")) {
       globals::d6z(i) = type_settings["d6z"];
       globals::d6z(i) /= mu_bohr_si;
+    }
+
+    double K1 = 0.0, K2 = 0.0, K3 = 0.0;
+    if (type_settings.exists("K3")) {
+      K3 = type_settings["K3"];
+      globals::d6z(i) = -((16.0/231.0)*K3)/mu_bohr_si;
+    }
+
+    if (type_settings.exists("K2")) {
+      globals::d4z(i) = K2;
+      globals::d4z(i) = ((8.0/35.0)*K2 + (144.0/385.0)*K3)/mu_bohr_si;
+    }
+
+    if (type_settings.exists("K1")) {
+      globals::d2z(i) = type_settings["K1"];
+      globals::d2z(i) = -(2.0/3.0)*(K1 + (8.0/7.0)*K2 + (8.0/7.0)*K3)/mu_bohr_si;
     }
   }
 }
