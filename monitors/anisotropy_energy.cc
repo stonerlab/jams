@@ -49,8 +49,9 @@ void AnisotropyEnergyMonitor::update(const int &iteration, const double &time, c
 
     for (i = 0; i < num_spins; ++i) {
       int type = lattice.get_material_number(i);
-      dz_energy_(type, 0) += d2z(i)*0.5*(2.0*s(i, 2)*s(i, 2) - s(i,0)*s(i,0) - s(i,1)*s(i,1));
-      dz_energy_(type, 1) += d4z(i)*0.125*(35.0*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)-30.0*s(i, 2)*s(i, 2) + 3.0);
+      // factors of 1/2 and 1/8 are removed so we are calculating d2z and d4z directly
+      dz_energy_(type, 0) += d2z(i)*(2.0*s(i, 2)*s(i, 2) - s(i,0)*s(i,0) - s(i,1)*s(i,1));
+      dz_energy_(type, 1) += d4z(i)*(35.0*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)-30.0*s(i, 2)*s(i, 2) + 3.0);
       dz_energy_(type, 2) += 0.0; //d6z(i)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2);
     }
 
