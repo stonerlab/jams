@@ -293,12 +293,12 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     }
 
     if (type_settings.exists("K2")) {
-      globals::d4z(i) = K2;
+      K2 = type_settings["K2"];
       globals::d4z(i) = ((8.0/35.0)*K2 + (144.0/385.0)*K3)/mu_bohr_si;
     }
 
     if (type_settings.exists("K1")) {
-      globals::d2z(i) = type_settings["K1"];
+      K1 = type_settings["K1"];
       globals::d2z(i) = -(2.0/3.0)*(K1 + (8.0/7.0)*K2 + (8.0/7.0)*K3)/mu_bohr_si;
     }
   }
