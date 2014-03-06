@@ -427,13 +427,20 @@ void Lattice::compute_interactions() {
               k + fast_integer_interaction_list_[n].first.z,
               (motif_.size() + m + fast_integer_interaction_list_[n].first.w)%motif_.size());
 
+            // apply boundary conditions - if a boundary is not periodic then continue to the next interaction
+            // if we are trying to interact with a site outside of the boundary
+            bool is_outside_boundary = false;
             for (int l = 0; l < 3; ++l) {
               if (lattice_pbc_[l]) {
                 fast_integer_lookup_vector[l] = (fast_integer_lookup_vector[l] + lattice_size_[l])%lattice_size_[l];
               } else {
-                // TODO: check the interaction is within the system bounds
-                jams_error("open boundaries are not implmented");
+                if ((fast_integer_lookup_vector[l] < 0) || (fast_integer_lookup_vector[l] >= lattice_size_[l])) {
+                  is_outside_boundary = true;
+                }
               }
+            }
+            if (is_outside_boundary) {
+              continue;
             }
 
             int neighbour_site = fast_integer_lattice_(
