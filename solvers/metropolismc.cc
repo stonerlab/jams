@@ -14,6 +14,8 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
 
   output.write("Initialising Metropolis Monte-Carlo solver\n");
 
+  jams_warning("Untested since re-write for version 1.0");
+
   output.write("  * Converting symmetric to general MAP matrices\n");
 
   J1ij_t.convertSymmetric2General();
