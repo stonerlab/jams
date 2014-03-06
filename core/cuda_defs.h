@@ -1,8 +1,14 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#ifndef JAMS_CUDA_SPARSE_TYPES_H
-#define JAMS_CUDA_SPARSE_TYPES_H
+#ifndef JAMS_CORE_CUDA_DEFS_H
+#define JAMS_CORE_CUDA_DEFS_H
 
+#include <cstddef>
+
+typedef float CudaFastFloat;
+
+#define BLOCKSIZE 64
+#define DIA_BLOCK_SIZE 256
 
 typedef struct devDIA {
   int     *row;
@@ -39,4 +45,5 @@ typedef struct devCSR {
 #if defined(__CUDACC__) && defined(CUDA_NO_SM_13_DOUBLE_INTRINSICS)
     #error "-arch sm_13 nvcc flag is required to compile"
 #endif
-#endif
+
+#endif  // JAMS_CORE_CUDA_DEFS_H

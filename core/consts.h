@@ -3,12 +3,6 @@
 #ifndef JAMS_CORE_CONSTS_H
 #define JAMS_CORE_CONSTS_H
 
-#ifdef __GNUC__
-#define RESTRICT __restrict__
-#else
-#define RESTRICT
-#endif
-
 const double pi = 3.14159265358979323846;
 const double mu_bohr_si = 9.27400915E-24;
 const double gamma_electron_si = 1.760859770e11;

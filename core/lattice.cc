@@ -21,13 +21,29 @@
 #include "core/utils.h"
 
 #include "jblib/containers/array.h"
+#include "jblib/containers/matrix.h"
+
+
+void Lattice::initialize() {
+  ::output.write("\n----------------------------------------\n");
+  ::output.write("initializing lattice");
+  ::output.write("\n----------------------------------------\n");
+
+  read_lattice(::config.lookup("materials"), ::config.lookup("lattice"));
+  compute_positions(::config.lookup("materials"), ::config.lookup("lattice"));
+  read_interactions(::config.lookup("lattice"));
+  compute_interactions();
+}
 
 ///
-/// @brief  Read basis vectors from config file.
+/// @brief  Read lattice settings from config file.
 ///
-void read_basis(const libconfig::Setting &cfgBasis,
-  double unitcell[3][3], double unitcellInv[3][3]) {
+void Lattice::read_lattice(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   using namespace globals;
+
+//-----------------------------------------------------------------------------
+// Read lattice vectors
+//-----------------------------------------------------------------------------
 
   // We transpose during the read because the unit cell matrix must have the
   // lattice vectors as the columns but it is easiest to define each vector in
@@ -37,964 +53,403 @@ void read_basis(const libconfig::Setting &cfgBasis,
   //  \ a1z a2z a3z /  \ C /     \ A.a1z + B.a2z + C.a3z /
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 3; ++j) {
-      unitcell[i][j] = cfgBasis[j][i];
+      lattice_vectors_[i][j] = lattice_settings["basis"][i][j];
     }
   }
+  ::output.write("\nlattice translation vectors\n");
+  for (int i = 0; i < 3; ++i) {
+    ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+      lattice_vectors_[i][0], lattice_vectors_[i][1], lattice_vectors_[i][2]);
+  }
 
-  matrix_invert(unitcell, unitcellInv);
+  inverse_lattice_vectors_ = lattice_vectors_.inverse();
+  ::output.write("\ninverse lattice vectors\n");
+  for (int i = 0; i < 3; ++i) {
+    ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+      inverse_lattice_vectors_[i][0], inverse_lattice_vectors_[i][1], inverse_lattice_vectors_[i][2]);
+  }
 
-  output.write("\n    Lattice translation vectors");
-  output.write("\n    ---------------------------\n");
+  lattice_parameter_ = lattice_settings["parameter"];
+  if (lattice_parameter_ < 0.0) {
+    jams_error("lattice parameter cannot be negative");
+  }
+  ::output.write("\nlattice parameter (nm)\n  %3.6f\n", lattice_parameter_);
 
   for (int i = 0; i < 3; ++i) {
-    output.write("    %f %f %f\n",
-      unitcell[i][0], unitcell[i][1], unitcell[i][2]);
+    lattice_size_[i] = lattice_settings["size"][i];
   }
+  ::output.write("\nlattice size\n  %d  %d  %d\n",
+    lattice_size_.x, lattice_size_.y, lattice_size_.z);
 
-  output.write("\n    Inverse lattice vectors");
-  output.write("\n    ---------------------------\n");
-  for (int i = 0; i < 3; ++i) {
-    output.write("    %f %f %f\n",
-      unitcellInv[i][0], unitcellInv[i][1], unitcellInv[i][2]);
-  }
-}
+  // TODO: read kpoints
 
-///
-/// @brief  Read atom positions and types from config file.
-///
-void readAtoms(std::string &atom_position_filename,
-               jblib::Array<int, 1> &unit_cell_types,
-               jblib::Array<double, 2> &unit_cell_positions,
-               int &num_atoms, int &num_atom_types,
-               std::map<std::string, int> &atom_type_map,
-               std::vector<std::string> &atom_names) {
-  std::ifstream atom_position_file(atom_position_filename.c_str());
+//-----------------------------------------------------------------------------
+// Read boundary conditions
+//-----------------------------------------------------------------------------
 
-  num_atoms = 0;
-  for (std::string line; getline(atom_position_file, line);) {
-    num_atoms++;
-  }
-
-  unit_cell_types.resize(num_atoms);
-  unit_cell_positions.resize(num_atoms, 3);
-
-  output.write("\n    Atoms in unit cell\n    ------------------\n");
-
-  std::map<std::string, int>::iterator it_type;
-  num_atom_types = 0;
-
-  std::string atom_type_name;
-
-  atom_position_file.clear();
-  atom_position_file.seekg(0, std::ios::beg);
-
-  for (int n = 0; n < num_atoms; ++n) {
-    std::string line;
-
-    getline(atom_position_file, line);
-
-    std::stringstream is(line);
-
-    is >> atom_type_name;
-    for (int j = 0; j < 3; ++j) {
-      is >> unit_cell_positions(n, j);
-    }
-
-#ifdef DEBUG
-    output.write("    %s %f %f %f\n", atom_type_name.c_str(),
-      unit_cell_positions(n, 0),
-      unit_cell_positions(n, 1),
-      unit_cell_positions(n, 2));
-#else
-    if (n < 8) {  // only print 8 atoms to avoid excessive output
-      output.write("    %s %f %f %f\n", atom_type_name.c_str(),
-        unit_cell_positions(n, 0),
-        unit_cell_positions(n, 1),
-        unit_cell_positions(n, 2));
-    } else if ((n == 8) && (num_atoms > 8)) {
-      output.write("    ...\n");
-    }
-    if (num_atoms > 8 && n == (num_atoms-1)) {
-      output.write("    %s %f %f %f\n", atom_type_name.c_str(),
-        unit_cell_positions(n, 0),
-        unit_cell_positions(n, 1),
-        unit_cell_positions(n, 2));
-    }
-#endif  // DEBUG
-
-    it_type = atom_type_map.find(atom_type_name);
-    if (it_type == atom_type_map.end()) {
-      // type not found in map -> add to map
-      // map type_name -> int
-      unit_cell_types(n) = num_atom_types;
-
-      atom_type_map.insert(std::pair<std::string, int>(atom_type_name, num_atom_types));
-      atom_names.push_back(atom_type_name);
-      num_atom_types++;
-    } else {
-      unit_cell_types(n) = atom_type_map[atom_type_name];
-    }
-  }
-  output.write("\n  * Unique atom types found: %d\n", num_atom_types);
-
-  atom_position_file.close();
-}
-
-///
-/// @brief  Read lattice parameters from config file.
-///
-void Lattice::readLattice(const libconfig::Setting &cfgLattice,
-  std::vector<int> &dim, bool pbc[3], const double unitcell[3][3]) {
-  for (int i = 0; i < 3; ++i) {
-    dim[i] = cfgLattice["size"][i];
-  }
-  output.write("  * Lattice size: %i %i %i\n", dim[0], dim[1], dim[2]);
-
-  lattice_parameter = cfgLattice["parameter"];
-  output.write("  * Lattice parameter: %f\n", lattice_parameter);
-
-  for (int i = 0; i < 3; ++i) {
-    rmax[i] = 0;
-    for (int j = 0; j < 3; ++j) {
-      rmax[i] += lattice_parameter*unitcell[i][j]*dim[j];
-    }
-  }
-
-  output.write("  * Boundary conditions: ");
-  for (int i = 0; i < 3; ++i) {
-    pbc[i] = cfgLattice["periodic"][i];
-    is_periodic[i] = pbc[i];
-    if (pbc[i]) {
-      output.write("periodic ");
-    } else {
-      output.write("open ");
-    }
-  }
-  output.write("\n");
-
-  if (config.exists("lattice.kpoints") == true) {
+  if(!lattice_settings.exists("periodic")) {
+    // sane default
+    ::output.write(
+      "\nNo boundary conditions specified - assuming 3D periodic\n");
     for (int i = 0; i < 3; ++i) {
-      unitcell_kpoints[i] = cfgLattice["kpoints"][i];
+      lattice_pbc_[i] = true;
     }
   } else {
-    jams_error("Number of kpoints not specified");
-  }
-
-  output.write("  * Kpoints per unit cell: %i %i %i\n",
-    unitcell_kpoints[0], unitcell_kpoints[1], unitcell_kpoints[2]);
-}
-
-///
-/// @brief  Create lattice on numbered spin locations.
-///
-void create_lattice(const libconfig::Setting &cfgLattice,
-                   jblib::Array<int, 1> &unit_cell_types,
-                   jblib::Array<double, 2> &unit_cell_positions,
-                   std::map<std::string, int> &atom_type_map,
-                   jblib::Array<int, 4> &latt,
-                   std::vector<int> &atom_type,
-                   std::vector<int> &type_count,
-                   const std::vector<int> &dim,
-                   const int num_atoms, bool pbc[3]) {
-  using namespace globals;
-  const int max_atoms_possible = dim[0]*dim[1]*dim[2]*num_atoms;
-  assert(max_atoms_possible > 0);
-
-  latt.resize(dim[0], dim[1], dim[2], num_atoms);
-
-  for (int x = 0; x < dim[0]; ++x) {
-    for (int y = 0; y < dim[1]; ++y) {
-      for (int z = 0; z < dim[2]; ++z) {
-        for (int n = 0; n < num_atoms; ++n) {
-          latt(x, y, z, n) = -1;
-        }
-      }
+    for (int i = 0; i < 3; ++i) {
+      lattice_pbc_[i] = lattice_settings["periodic"][i];
     }
   }
+  ::output.write("\nboundary conditions\n  %s  %s  %s\n",
+    lattice_pbc_.x ? "periodic" : "open",
+    lattice_pbc_.y ? "periodic" : "open",
+    lattice_pbc_.z ? "periodic" : "open");
 
-  atom_type.reserve(max_atoms_possible);
+//-----------------------------------------------------------------------------
+// Read materials
+//-----------------------------------------------------------------------------
 
-  std::string lattice_shape_name;
-  if (cfgLattice.lookupValue("lattice_shape_name", lattice_shape_name)) {
-    lattice_shape_name = capitalize(lattice_shape_name);
-    if( pbc[0] || pbc[1] || pbc[2] ) {
-      output.write("\n************************************************************************\n");
-      output.write("WARNING: Periodic is_periodic and lattice_shape_name function applied\n");
-      output.write("************************************************************************\n\n");
-    }
-  } else {
-    lattice_shape_name = "DEFAULT";
-    output.write("  * NO lattice shape function\n");
-  }
+  ::output.write("\nmaterials\n");
 
   int counter = 0;
-
-  if(lattice_shape_name == "DEFAULT") {
-    for (int x=0; x<dim[0]; ++x) {
-      for (int y=0; y<dim[1]; ++y) {
-        for (int z=0; z<dim[2]; ++z) {
-          for (int n=0; n<num_atoms; ++n) {
-            const int type_number = unit_cell_types(n);
-            atom_type.push_back(type_number);
-            type_count[type_number]++;
-            latt(x, y, z, n) = counter++;
-          } // n
-        } // z
-      } // y
-    } // x
-
-  }
-  else if(lattice_shape_name == "ELLIPSOID") {
-    for (int x=0; x<dim[0]; ++x) {
-      for (int y=0; y<dim[1]; ++y) {
-        for (int z=0; z<dim[2]; ++z) {
-          const double a = 0.5*dim[0];
-          const double b = 0.5*dim[1];
-          const double c = 0.5*dim[2];
-
-          if( ((x-a)*(x-a)/(a*a) + (y-b)*(y-b)/(b*b) + (z-c)*(z-c)/(c*c)) < 1.0) {
-
-            for (int n=0; n<num_atoms; ++n) {
-
-              const int type_number = unit_cell_types(n);
-              atom_type.push_back(type_number);
-              type_count[type_number]++;
-              latt(x, y, z, n) = counter++;
-            } // n
-          }
-        } // z
-      } // y
-    } // x
-  }
-  else {
-    jams_error("Unknown lattice shape function: %s\n", lattice_shape_name.c_str());
+  for (int i = 0; i < material_settings.getLength(); ++i) {
+    std::string name = material_settings[i]["name"];
+    if (materials_map_.insert( std::pair<std::string, int>(name, counter)).second == false) {
+      jams_error("the material %s is specified twice in the configuration", name.c_str());
+    }
+    materials_numbered_list_.push_back(name);
+    ::output.write("  %-6d %s\n", counter, name.c_str());
+    counter++;
   }
 
-  num_spins = counter;
-  num_spins3 = 3*num_spins;
+//-----------------------------------------------------------------------------
+// Read motif
+//-----------------------------------------------------------------------------
 
-  output.write("  * Total atoms in lattice: %i\n", num_spins);
+  // TODO - use libconfig to check if this is a string or a group to allow
+  // positions to be defined in the config file directly
+  std::string position_filename = lattice_settings["positions"];
+
+  std::ifstream position_file(position_filename.c_str());
+
+  if(position_file.fail()) {
+    jams_error("failed to open position file %s", position_filename.c_str());
+  }
+
+  ::output.write("\nlattice motif (%s)\n", position_filename.c_str());
+
+  counter = 0;
+  // read the motif into an array from the positions file
+  for (std::string line; getline(position_file, line); ) {
+    std::stringstream is(line);
+    std::pair<std::string, jblib::Vec3<double> > atom;
+    // read atom type name
+    is >> atom.first;
+
+    // check the material type is defined
+    if (materials_map_.find(atom.first) == materials_map_.end()) {
+      jams_error("material %s in the motif is not defined in the configuration", atom.first.c_str());
+    }
+
+    // read atom coordinates
+    is >> atom.second.x >> atom.second.y >> atom.second.z;
+
+    motif_.push_back(atom);
+    ::output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, atom.first.c_str(), atom.second.x, atom.second.y, atom.second.z);
+    counter++;
+  }
+  position_file.close();
 }
 
-void Lattice::calculateAtomPos(const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, jblib::Array<int, 4> &latt, std::vector<int> &dim, const double unitcell[3][3], const int num_atoms) {
-  using namespace globals;
-  assert(num_spins > 0);
+void Lattice::compute_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
 
-  atom_pos.resize(num_spins, 3);
-  local_atom_pos.resize(num_spins, 3);
+  fast_integer_lattice_.resize(
+    lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
 
+//-----------------------------------------------------------------------------
+// Generate the realspace lattice positions
+//-----------------------------------------------------------------------------
 
-  double r[3], p[3];
-  int q[3];
   int atom_counter = 0;
-  for (int x = 0; x < dim[0]; ++x) {
-    for (int y = 0; y < dim[1]; ++y) {
-      for (int z = 0; z < dim[2]; ++z) {
-        for (int n = 0; n < num_atoms; ++n) {
-          if (latt(x, y, z, n) != -1) {
-            q[0] = x; q[1] = y; q[2] = z;
-            for (int i = 0; i < 3; ++i) {
-              p[i] = q[i] + unit_cell_positions(n, i);
-            }
-            matmul(unitcell, p, r);
-            for (int i = 0; i < 3; ++i) {
-              local_atom_pos(atom_counter, i) = q[i] + p[i];
-              atom_pos(atom_counter, i) = r[i]*lattice_parameter;
-            }
-            atom_counter++;
-          }
-        }  // n
-      }  // z
-    }  // y
-  }  // x
-  assert(atom_counter == num_spins);
-}
-
-///
-/// @brief  Print lattice to file.
-///
-void printLattice(const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, jblib::Array<int, 4> &latt, std::vector<int> &dim, const double unitcell[3][3], std::vector<int> &atom_type, const int num_atoms) {
-  using namespace globals;
-  assert(num_spins > 0);
-
-  std::ofstream structure_file;
-  structure_file.open("structure.xyz");
-  structure_file << num_spins << "\n";
-  structure_file << "Generated by JAMS++\n";
-
-  for(int i = 0; i<num_spins; ++i){
-    structure_file << "Type" << atom_type[i] << "\t" << atom_pos(i, 0) <<"\t"<< atom_pos(i, 1) <<"\t"<< atom_pos(i, 2) <<"\n";
-  }
-
-  //double r[3], p[3];
-  //int q[3];
-  //for (int x=0; x<dim[0]; ++x) {
-    //for (int y=0; y<dim[1]; ++y) {
-      //for (int z=0; z<dim[2]; ++z) {
-        //for (int n=0; n<num_atoms; ++n) {
-          //if(latt(x, y, z, n) != -1) {
-            //structure_file << unit_cell_types(n) <<"\t";
-            //q[0] = x; q[1] = y; q[2] = z;
-            //for(int i = 0; i<3; ++i) {
-              //r[i] = 0.0;
-              //p[i] = unit_cell_positions(n, i);
-              //for(int j = 0; j<3; ++j) {
-                //r[i] += unitcell[j][i]*(q[j]+p[i]);
-              //}
-            //}
-            //structure_file << r[0] <<"\t"<< r[1] <<"\t"<< r[2] <<"\n";
-          //}
-        //} // n
-      //} // z
-    //} // y
-  //} // x
-  structure_file.close();
-
-}
-
-///
-/// @brief  Resize global arrays.
-///
-void resize_global_arrays() {
-  using namespace globals;
-  assert(num_spins > 0);
-  s.resize(num_spins, 3);
-  h.resize(num_spins, 3);
-  w.resize(num_spins, 3);
-  alpha.resize(num_spins);
-  mus.resize(num_spins);
-  gyro.resize(num_spins);
-  omega_corr.resize(num_spins);
-}
-
-///
-/// @brief  initialize global arrays with material parameters.
-///
-void initialize_global_arrays(libconfig::Config &config, const libconfig::Setting &cfgMaterials, std::vector<int> &atom_type) {
-  using namespace globals;
-
-  output.write("\nInitialising global variables...\n");
-    for(int i = 0; i<num_spins; ++i) {
-      int type_num = atom_type[i];
-      libconfig::Setting& type_settings = cfgMaterials[type_num];
-
-      bool randomize_spins_is_set = false;
-      type_settings.lookupValue("spinRand",randomize_spins_is_set);
-
-      if(randomize_spins_is_set){
-          rng.sphere(s(i, 0), s(i, 1), s(i, 2));
-
-            for(int j = 0;j<3;++j){
-                h(i, j) = 0.0;
-                w(i, j) = 0.0;
-            }
-      }else{
-        for(int j = 0;j<3;++j) {
-          s(i, j) = type_settings["spin"][j];
-        }
-        double norm = sqrt(s(i, 0)*s(i, 0) + s(i, 1)*s(i, 1) + s(i, 2)*s(i, 2));
-
-        for(int j = 0;j<3;++j){
-            s(i, j) = s(i, j)/norm;
-            h(i, j) = 0.0;
-            w(i, j) = 0.0;
-        }
-      }
-
-
-
-
-      mus(i) = type_settings["moment"];
-      mus(i) = mus(i);  //*mu_bohr_si;
-
-      alpha(i) = type_settings["alpha"];
-
-      gyro(i) = type_settings["gyro"];
-      gyro(i) = -gyro(i)/((1.0+alpha(i)*alpha(i))*mus(i));
-    }
-}
-
-///
-/// @brief  Read the fourspin interaction parameters from configuration file.
-///
-void readJ4Interactions(std::string &J4FileName, libconfig::Config &config, const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, jblib::Array<double, 4> &J4Vectors,
-  jblib::Array<int, 3> &J4Neighbour, jblib::Array<double, 2> &J4Values, std::vector<int> &nJ4InteractionsOfType, const int num_atoms, std::map<std::string, int> &atom_type_map, const double unitcellInv[3][3], int &nJ4Values) {
-  using namespace globals;
-
-  output.write("\nReading fourspin interaction file...\n");
-
-  double Jval;
-  int nInterConfig = 0;
-  double r[3];
-  std::vector<int> atomInterCount(num_spins, 0);
-
-  std::ifstream exchangeFile(J4FileName.c_str());
-
-  // count number of interactions
-  if( exchangeFile.is_open() ) {
-    int nInterTotal=0;
-    int atom1=0;
-    for( std::string line; getline(exchangeFile, line); ) {
-      std::stringstream is(line);
-
-      is >> atom1;
-
-      // count number of interaction for each atom in unit cell
-      atomInterCount[atom1-1]++;
-
-      nInterTotal++;
-      nInterConfig++;
-    }
-  }
-
-
-  // find maximum number of exchanges for a given atom in unit cell
-  int interMax = 0;
-  for(int i = 0; i<num_spins; ++i) {
-    if(atomInterCount[i] > interMax) {
-      interMax = atomInterCount[i];
-    }
-  }
-
-  output.write("  * Fourspin interactions in file: %d\n", nInterConfig);
-
-  // Resize interaction arrays
-  J4Vectors.resize(num_atoms, interMax, 3, 3);
-  J4Neighbour.resize(num_atoms, interMax, 3);
-  nJ4InteractionsOfType.resize(num_atoms, 0);
-
-  //-----------------------------------------------------------------
-  //  Read exchange tensor values from config
-  //-----------------------------------------------------------------
-  J4Values.resize(num_atoms, interMax);
-
-  // zero jij array
-  for(int i = 0; i<num_atoms; ++i) {
-    for(int j = 0; j<interMax; ++j) {
-      J4Values(i, j) = 0.0;
-    }
-  }
-
-  // rewind file
-  exchangeFile.clear();
-  exchangeFile.seekg(0, std::ios::beg);
-
-  int inter_counter = 0;
-  for(int n=0; n<nInterConfig; ++n) {
-    std::string line;
-
-    getline(exchangeFile, line);
-    std::stringstream is(line);
-
-    // read exchange tensor
-
-    double vij[3];
-
-    int atom_num[4];
-
-    for(int j = 0;j<4;++j){
-      is >> atom_num[j];
-    }
-
-    // count from zero
-    for(int j = 0;j<4;++j){
-      atom_num[j]--;
-    }
-
-    // --------------- vij ----------------
-    for (int j = 1; j < 4;++j) {
-      for (int i = 0; i < 3; ++i) {
-        is >> r[i];                               // real space vector to neighbour
-      }
-      matmul(unitcellInv, r, vij);                  // place interaction vector in unitcell space
-
-      for(int i = 0; i<3; ++i) {
-        J4Neighbour(atom_num[0], nJ4InteractionsOfType[atom_num[0]], j-1) = atom_num[j] - atom_num[0]; // store unitcell atom difference
-
-        J4Vectors(atom_num[0], nJ4InteractionsOfType[atom_num[0]], j-1, i) = vij[i];
-      }
-    }
-
-    is >> Jval; // bilinear
-    J4Values(atom_num[0], nJ4InteractionsOfType[atom_num[0]]) = Jval/mu_bohr_si; // Jxx Jyy Jzz
-
-    inter_counter++;
-    nJ4InteractionsOfType[atom_num[0]]++;
-  }
-
-
-
-}
-///
-/// @brief  Read the interaction parameters from configuration file.
-///
-void read_interactions(std::string &exchangeFileName, libconfig::Config &config, const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, jblib::Array<double, 3> &interactionVectors,
-  jblib::Array<int, 2> &interactionNeighbour, jblib::Array<double, 4> &JValues, jblib::Array<double, 2> &J2Values, std::vector<int> &nInteractionsOfType, const int num_atoms, std::map<std::string, int> &atom_type_map, const double unitcellInv[3][3], bool &J2Toggle, int &nJValues) {
-  using namespace globals;
-
-  output.write("\nReading interaction file...\n");
-
-  if( !config.lookupValue("lattice.biquadratic", J2Toggle) ) {
-    J2Toggle = false;
-  }else if (!J2Toggle){
-    output.write("  * Biquadratic exchange ON\n");
-    output.write("\n************************************************************************\n");
-    output.write("Biquadratic values will be read from the last column of the exchange file\n");
-    output.write("************************************************************************\n\n");
-  }
-
-  int nInterTotal=0;
-
-  // THIS NEEDS TO BE PASSED IN
-  bool jsym = config.lookup("lattice.jsym");
-
-  int nInterConfig = 0;
-
-  double r[3];
-
-  std::vector<int> atomInterCount(num_spins, 0);
-
-  std::ifstream exchangeFile(exchangeFileName.c_str());
-
-  // count number of interactions
-  if(jsym == true) {
-
-
-    if( exchangeFile.is_open() ) {
-      int n=0;
-      for( std::string line; getline(exchangeFile, line); ) {
-        int atom1=0;
-        int atom2=0;
-        std::stringstream is(line);
-
-        is >> atom1;
-        is >> atom2;
-
-        is >> r[0];
-        is >> r[1];
-        is >> r[2];
-
-        if( !is.eof() ){
-            std::sort(r, r+3);
-            do {
-                output.write("%d: %f %f %f\n", n, r[0], r[1], r[2]);
-
-                // count number of interaction for each atom in unit cell
-                atomInterCount[atom1-1]++;
-
-                nInterTotal++;
-            } while (next_point_symmetry(r));
-            n++;
-            nInterConfig++;
+  // loop over the translation vectors for lattice size
+  for (int i = 0; i != lattice_size_.x; ++i) {
+    for (int j = 0; j != lattice_size_.y; ++j) {
+      for (int k = 0; k != lattice_size_.z; ++k) {
+        // loop over atoms in the motif
+        for (int m = 0; m != motif_.size(); ++m) {
+
+          // number the site in the fast integer lattice
+          fast_integer_lattice_(i, j, k, m) = atom_counter;
+
+          // position of motif atom in fractional lattice vectors
+          jblib::Vec3<double> lattice_pos(
+            i+motif_[m].second.x, j+motif_[m].second.y, k+motif_[m].second.z);
+          // position in real (cartesian) space
+          jblib::Vec3<double> real_pos = lattice_vectors_*lattice_pos;
+
+          lattice_positions_.push_back(real_pos);
+          lattice_materials_.push_back(motif_[m].first);
+
+          atom_counter++;
         }
       }
     }
-  } else {
-
-    if( exchangeFile.is_open() ) {
-      int atom1=0;
-      for( std::string line; getline(exchangeFile, line); ) {
-        std::stringstream is(line);
-
-        is >> atom1;
-
-        // count number of interaction for each atom in unit cell
-        atomInterCount[atom1-1]++;
-
-        nInterTotal++;
-        nInterConfig++;
-      }
-    }
   }
 
-
-  // find maximum number of exchanges for a given atom in unit cell
-  int interMax = 0;
-  for(int i = 0; i<num_spins; ++i) {
-    if(atomInterCount[i] > interMax) {
-      interMax = atomInterCount[i];
-    }
+  if (atom_counter == 0) {
+    jams_error("the number of computed lattice sites was zero, check input");
   }
 
-  output.write("  * Interactions in file: %d\n", nInterConfig);
-  output.write("  * Total interactions (with symmetry): %d\n", nInterTotal);
+  globals::num_spins = atom_counter;
+  globals::num_spins3 = 3*atom_counter;
 
-
-  // Find number of exchange tensor components specified in the
-  // config
-
-  // rewind file
-  exchangeFile.clear();
-  exchangeFile.seekg(0, std::ios::beg);
-
-  nJValues=0;
-  if(nInterTotal > 0) {
-    std::string line;
-    int atom1=0;
-    int atom2=0;
-
-    getline(exchangeFile, line);
-    std::stringstream is(line);
-
-    is >> atom1;
-    is >> atom2;
-
-    is >> r[0];
-    is >> r[1];
-    is >> r[2];
-
-    double tmp;
-    while ( is >> tmp ) {
-      nJValues++;
-    }
-  } else {
-    nJValues = 0;
-  }
-
-  // remove extra count for last column if biquadratic is present
-  if(J2Toggle == true){
-    nJValues--;
-  }
-
+  ::output.write("\ncomputed lattice positions\n");
   if (verbose_output_is_set) {
-    output.write("\nFound %d exchange components\n", nJValues);
-  }
-
-  switch (nJValues) {
-    case 0:
-      output.write("\n************************************************************************\n");
-      output.write("WARNING: No bilinear exchange found\n");
-      output.write("************************************************************************\n\n");
-      break;
-    case 1:
-      output.write("  * Isotropic exchange (1 component)\n");
-      break;
-    case 2:
-      output.write("\tUniaxial exchange (2 components)\n");
-      break;
-    case 3:
-      output.write("\tAnisotropic exchange (3 components)\n");
-      break;
-    case 9:
-      output.write("\tTensorial exchange (9 components)\n");
-      break;
-    default:
-      jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
-  }
-
-  // Resize interaction arrays
-  interactionVectors.resize(num_atoms, interMax, 3);
-  interactionNeighbour.resize(num_atoms, interMax);
-  nInteractionsOfType.resize(num_atoms, 0);
-
-  // Resize global J1ij_t and J2ij_t matrices
-  J1ij_s.resize(num_spins, num_spins);
-  J1ij_t.resize(num_spins3, num_spins3);
-  J2ij_t.resize(num_spins3, num_spins3);
-
-
-  if( J2Toggle == true ){
-    // Resize biquadratic matrix
-    // NOTE: this matrix is NxN because we use a custom routine so the
-    // matrix is just a convenient neighbour list.
-    J2ij_s.resize(num_spins, num_spins);
-    J2ij_s.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    J2ij_s.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-  }
-
-  // Set matrix types
-  std::string solname;
-  if( config.exists("sim.solver") == true ) {
-    config.lookupValue("sim.solver", solname);
-    solname = capitalize(solname);
+    for (int i = 0; i != lattice_positions_.size(); ++i) {
+      ::output.write("  %-6d %-6s % 3.6f % 3.6f % 3.6f\n", i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
+    }
   } else {
-    solname = "DEFAULT";
+    // avoid spamming the screen by default
+    for (int i = 0; i != 8; ++i) {
+    ::output.write("  %-6d %-6s %3.6f % 3.6f % 3.6f\n", i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
   }
-  if( ( solname == "CUDAHEUNLLG" ) || ( solname == "CUDASEMILLG" ) ) {
-    output.write("  * CUDA solver means a symmetric (lower) sparse matrix will be stored\n");
-    J1ij_s.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    J1ij_s.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-    J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-    J2ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    J2ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-  } else {
-    output.write("  * Symmetric (lower) sparse matrix will be stored\n");
-    J1ij_s.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    J1ij_s.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-    J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-    J2ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    J2ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-  }
-
-  //-----------------------------------------------------------------
-  //  Read exchange tensor values from config
-  //-----------------------------------------------------------------
-  JValues.resize(num_atoms, interMax, 3, 3);
-  J2Values.resize(num_atoms, interMax);
-
-  // zero jij array
-  for(int i = 0; i<num_atoms; ++i) {
-    for(int j = 0; j<interMax; ++j) {
-      J2Values(i, j) = 0.0;
-      for(int k=0; k<3; ++k) {
-        for(int l=0; l<3; ++l) {
-          JValues(i, j, k, l) = 0.0;
-        }
-      }
+    if (lattice_positions_.size() > 0) {
+      ::output.write("  ... [use verbose output for details] ... \n");
     }
   }
+  ::output.write("  total: %d\n", atom_counter);
+
+//-----------------------------------------------------------------------------
+// initialize global arrays
+//-----------------------------------------------------------------------------
+  globals::s.resize(globals::num_spins, 3);
+  globals::h.resize(globals::num_spins, 3);
+  globals::alpha.resize(globals::num_spins);
+  globals::mus.resize(globals::num_spins);
+  globals::gyro.resize(globals::num_spins);
+  globals::d2z.resize(globals::num_spins);
+  globals::d4z.resize(globals::num_spins);
+  globals::d6z.resize(globals::num_spins);
+
+  std::fill(globals::h.data(), globals::h.data()+globals::num_spins3, 0.0);
+  std::fill(globals::d2z.data(), globals::d2z.data()+globals::num_spins, 0.0);
+  std::fill(globals::d4z.data(), globals::d4z.data()+globals::num_spins, 0.0);
+  std::fill(globals::d6z.data(), globals::d6z.data()+globals::num_spins, 0.0);
+
+  material_count_.resize(num_materials(), 0);
+  for (int i = 0; i != globals::num_spins; ++i) {
+    int material_number = materials_map_[lattice_materials_[i]];
+    material_count_[material_number]++;
+
+    libconfig::Setting& type_settings = material_settings[material_number];
+
+    bool randomize_spins_is_set = false;
+    type_settings.lookupValue("spin_random",randomize_spins_is_set);
+
+    // read initial spin state
+    if(randomize_spins_is_set){
+      rng.sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
+    }else{
+      for(int j = 0; j != 3;++j) {
+        globals::s(i, j) = type_settings["spin"][j];
+      }
+    }
+
+    // normalise spin
+    double norm = sqrt(globals::s(i, 0)*globals::s(i, 0) + globals::s(i, 1)*globals::s(i, 1) + globals::s(i, 2)*globals::s(i, 2));
+    for(int j = 0; j != 3;++j){
+      globals::s(i, j) = globals::s(i, j)/norm;
+    }
+
+    // read material properties
+    globals::mus(i) = type_settings["moment"];
+    globals::alpha(i) = type_settings["alpha"];
+    globals::gyro(i) = type_settings["gyro"];
+    globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
+
+    if ( (type_settings.exists("K1") || type_settings.exists("K2") || type_settings.exists("K3")) &&
+         (type_settings.exists("d2z") || type_settings.exists("d4z") || type_settings.exists("d6z")) ) {
+      jams_error("anisotropy should only be specified in terms of K1, K2, K3 or d2z, d4z, d6z in the config file");
+    }
+
+    if (type_settings.exists("d2z")) {
+      globals::d2z(i) = type_settings["d2z"];
+      globals::d2z(i) /= mu_bohr_si;
+    }
+
+    if (type_settings.exists("d4z")) {
+      globals::d4z(i) = type_settings["d4z"];
+      globals::d4z(i) /= mu_bohr_si;
+    }
+
+    if (type_settings.exists("d6z")) {
+      globals::d6z(i) = type_settings["d6z"];
+      globals::d6z(i) /= mu_bohr_si;
+    }
+
+    double K1 = 0.0, K2 = 0.0, K3 = 0.0;
+    if (type_settings.exists("K3")) {
+      K3 = type_settings["K3"];
+      globals::d6z(i) = -((16.0/231.0)*K3)/mu_bohr_si;
+    }
+
+    if (type_settings.exists("K2")) {
+      globals::d4z(i) = K2;
+      globals::d4z(i) = ((8.0/35.0)*K2 + (144.0/385.0)*K3)/mu_bohr_si;
+    }
+
+    if (type_settings.exists("K1")) {
+      globals::d2z(i) = type_settings["K1"];
+      globals::d2z(i) = -(2.0/3.0)*(K1 + (8.0/7.0)*K2 + (8.0/7.0)*K3)/mu_bohr_si;
+    }
+  }
+}
+
+void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
+  if (!lattice_settings.exists("exchange")) {
+    jams_warning("No exchange interaction file specified");
+    return; // don't try and process the file
+  }
+
+  std::string interaction_filename = lattice_settings["exchange"];
+  // read in typeA typeB rx ry rz Jij
+  std::ifstream interaction_file(interaction_filename.c_str());
+
+  if(interaction_file.fail()) {
+    jams_error("failed to open interaction file %s", interaction_filename.c_str());
+  }
+
+  ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
 
 
-  // rewind file
-  exchangeFile.clear();
-  exchangeFile.seekg(0, std::ios::beg);
-
-  int inter_counter = 0;
-  for(int n=0; n<nInterConfig; ++n) {
-    std::string line;
-
-    getline(exchangeFile, line);
+  int counter = 0;
+  // read the motif into an array from the positions file
+  for (std::string line; getline(interaction_file, line); ) {
     std::stringstream is(line);
 
-    double d_latt[3]={0.0, 0.0, 0.0};
-    // read exchange tensor
+    int typeA, typeB;
 
-    int atom_num_1=0;
-    int atom_num_2=0;
+    is >> typeA >> typeB;
+    typeA--; typeB--;  // zero base the types
 
-    is >> atom_num_1;
-    is >> atom_num_2;
+    // type difference
+    int type_difference = (typeB - typeA);
 
-    // count from zero
-    atom_num_1--; atom_num_2--;
+    jblib::Vec3<double> interaction_vector;
+    is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
 
-    for(int i = 0; i<3; ++i) {
-      is >> r[i];
+    // transform into lattice vector basis
+    jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector);
+
+    // translate by the motif back to (hopefully) the origin of the local unit cell
+    for (int i = 0; i < 3; ++ i) {
+      lattice_vector[i] -= motif_[type_difference].second[i];
     }
 
-    if(jsym==true) {
-      std::sort(r, r+3);
-      do {
-        // place interaction vector in unitcell space
-        for(int i = 0; i<3; ++i) {
-          d_latt[i] = 0.0;
-          for(int j = 0; j<3; ++j) {
-            d_latt[i] += r[j]*unitcellInv[i][j];
-          }
-        }
+    // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
+    // component is the atoms number within the motif
+    jblib::Vec4<int> fast_integer_vector;
+    for (int i = 0; i < 3; ++ i) {
+      // rounding with nint accounts for lack of precision in definition of the real space vectors
+      fast_integer_vector[i] = nint(lattice_vector[i]);
+    }
+    fast_integer_vector[3] = type_difference;
 
-        // store unitcell atom difference
-        interactionNeighbour(atom_num_1, nInteractionsOfType[atom_num_1]) = atom_num_2 - atom_num_1;
-
-        // store interaction vectors
-        for(int i = 0;i<3; ++i){
-          interactionVectors(atom_num_1, nInteractionsOfType[atom_num_1], i) = d_latt[i];
-        }
-
-
-        // read tensor components
-        double Jval = 0.0;
-        switch (nJValues) {
-          case 0:
-            if(J2Toggle == false){
-              output.write("\n************************************************************************\n");
-              output.write("WARNING: Attempting to insert non existent exchange");
-              output.write("************************************************************************\n\n");
-            }
-            break;
-          case 1:
-            is >> Jval; // bilinear
-            for(int i = 0; i<3; ++i){
-              JValues(atom_num_1, nInteractionsOfType[atom_num_1], i, i) = Jval/mu_bohr_si; // Jxx Jyy Jzz
-            }
-            break;
-          case 2:
-            is >> Jval;
-            for(int i = 0; i<2; ++i){
-              JValues(atom_num_1, nInteractionsOfType[atom_num_1], i, i) = Jval/mu_bohr_si; // Jxx Jyy
-            }
-            is >> Jval;
-            JValues(atom_num_1, nInteractionsOfType[atom_num_1], 2, 2) = Jval/mu_bohr_si; // Jzz
-            break;
-          case 3:
-            for(int i = 0; i<3; ++i){
-              is >> Jval;
-              JValues(atom_num_1, nInteractionsOfType[atom_num_1], i, i) = Jval/mu_bohr_si; // Jxx Jyy Jzz
-            }
-            break;
-          case 9:
-            for(int i = 0; i<3; ++i) {
-              for(int j = 0; j<3; ++j) {
-                is >> Jval;
-                JValues(atom_num_1, nInteractionsOfType[atom_num_1], i, j) = Jval/mu_bohr_si;
-              }
-            }
-            break;
-          default:
-            jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
-        }
-
-        // extra column at the end if biquadratic is on
-        if(J2Toggle == true){
-          is >> Jval;
-          J2Values(atom_num_1, nInteractionsOfType[atom_num_1]) = Jval/mu_bohr_si;
-        }
-
-        nInteractionsOfType[atom_num_1]++;
-        inter_counter++;
-      } while (next_point_symmetry(r));
+    jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    if (file_columns(line) == 6) {
+      // one Jij component given - diagonal
+      is >> tensor[0][0];
+      tensor[1][1] = tensor[0][0];
+      tensor[2][2] = tensor[0][0];
+    } else if (file_columns(line) == 14) {
+      // nine Jij components given - full tensor
+      is >> tensor[0][0] >> tensor[0][1] >> tensor[0][2];
+      is >> tensor[1][0] >> tensor[1][1] >> tensor[1][2];
+      is >> tensor[2][0] >> tensor[2][1] >> tensor[2][2];
     } else {
-      // place interaction vector in unitcell space
-      matmul(unitcellInv, r, d_latt);
-
-      // store unitcell atom difference
-      interactionNeighbour(atom_num_1, nInteractionsOfType[atom_num_1]) = atom_num_2 - atom_num_1;
-
-      // store interaction vectors
-      for(int i = 0;i<3; ++i){
-        interactionVectors(atom_num_1, nInteractionsOfType[atom_num_1], i) = d_latt[i];
-      }
-      //std::cerr<<n<<"\t"<<atom_num_1<<"\t"<<atom_num_2<<"\t d_latt: "<<d_latt[0]<<"\t"<<d_latt[1]<<"\t"<<d_latt[2]<<std::endl;
-
-      // read tensor components
-      double Jval = 0.0;
-      switch (nJValues) {
-        case 0:
-          if(J2Toggle == false){
-            output.write("\n************************************************************************\n");
-            output.write("WARNING: Attempting to insert non existent exchange");
-            output.write("************************************************************************\n\n");
-          }
-          break;
-        case 1:
-          is >> Jval; // bilinear
-          for(int i = 0; i<3; ++i){
-            JValues(atom_num_1, nInteractionsOfType[atom_num_1], i, i) = Jval/mu_bohr_si; // Jxx Jyy Jzz
-          }
-          break;
-        case 2:
-          is >> Jval;
-          for(int i = 0; i<2; ++i){
-            JValues(atom_num_1, nInteractionsOfType[atom_num_1], i, i) = Jval/mu_bohr_si; // Jxx Jyy
-          }
-          is >> Jval;
-          JValues(atom_num_1, nInteractionsOfType[atom_num_1], 2, 2) = Jval/mu_bohr_si; // Jzz
-          break;
-        case 3:
-          for(int i = 0; i<3; ++i){
-            is >> Jval;
-            JValues(atom_num_1, nInteractionsOfType[atom_num_1], i, i) = Jval/mu_bohr_si; // Jxx Jyy Jzz
-          }
-          break;
-        case 9:
-          for(int i = 0; i<3; ++i) {
-            for(int j = 0; j<3; ++j) {
-              is >> Jval;
-              JValues(atom_num_1, nInteractionsOfType[atom_num_1], i, j) = Jval/mu_bohr_si;
-            }
-          }
-          break;
-        default:
-          jams_error("Undefined exchange symmetry. 1, 2, 3 or 9 components must be specified\n");
-      }
-
-      // extra column at the end if biquadratic is on
-      if(J2Toggle == true){
-        is >> Jval;
-        J2Values(atom_num_1, nInteractionsOfType[atom_num_1]) = Jval/mu_bohr_si;
-      }
-
-      inter_counter++;
-      nInteractionsOfType[atom_num_1]++;
+      jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
 
+    fast_integer_interaction_list_.push_back(
+      std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(
+        fast_integer_vector, tensor) );
+
+    if (verbose_output_is_set) {
+      ::output.write("  line %-9d              %s\n", counter, line.c_str());
+      ::output.write("  types               A : %d  B : %d  B - A : %d\n", typeA, typeB, type_difference);
+      ::output.write("  interaction vector % 3.6f % 3.6f % 3.6f\n",
+        interaction_vector.x, interaction_vector.y, interaction_vector.z);
+      ::output.write("  fractional vector  % 3.6f % 3.6f % 3.6f\n",
+        lattice_vector.x, lattice_vector.y, lattice_vector.z);
+      ::output.write("  integer vector     % -9d % -9d % -9d % -9d\n\n",
+        fast_integer_vector.x, fast_integer_vector.y, fast_integer_vector.z, fast_integer_vector.w);
+    }
+    counter++;
   }
+
+  if(!verbose_output_is_set) {
+    ::output.write("  ... [use verbose output for details] ... \n");
+    ::output.write("  total: %d\n", counter);
+  }
+
+  interaction_file.close();
+
+  energy_cutoff_ = 1E-26;  // default value (in joules)
+  lattice_settings.lookupValue("energy_cutoff", energy_cutoff_);
+
+  ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
 }
 
+void Lattice::compute_interactions() {
 
+  globals::J1ij_t.resize(globals::num_spins3,globals::num_spins3);
 
-///
-/// @brief  Create J4 interaction matrix.
-///
-void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, jblib::Array<int, 4> &latt,
-  const std::vector<int> &dim, const int num_atoms, const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, const std::vector<int> &atom_type, const jblib::Array<double, 4> &J4Vectors,
-  const jblib::Array<int, 3> &J4Neighbour, const jblib::Array<double, 2> &J4Values, const std::vector<int> &nJ4InteractionsOfType,
-  const double unitcellInv[3][3], const bool pbc[3], const int &nJ4Values)
-{
+  ::output.write("\ncomputed interactions\n");
 
-  using namespace globals;
-  output.write("\nCalculating fourspin interaction matrix...\n");
-
-  const double encut = 1E-28/mu_bohr_si; // energy cutoff
-
-  int qi[3], qj[3];
-  double pj[3];
-  int vij[3];
-  int sj[3];
-
-  J4ijkl_s.resize(num_spins, num_spins, num_spins, num_spins);
-
+  bool is_all_inserts_successful = true;
   int counter = 0;
-  for (int x=0; x<dim[0]; ++x) {
-    for (int y=0; y<dim[1]; ++y) {
-      for (int z=0; z<dim[2]; ++z) {
-        for (int n=0; n<num_atoms; ++n) {
+  // loop over the translation vectors for lattice size
+  for (int i = 0; i != lattice_size_.x; ++i) {
+    for (int j = 0; j != lattice_size_.y; ++j) {
+      for (int k = 0; k != lattice_size_.z; ++k) {
+        // loop over atoms in the motif
+        for (int m = 0; m != motif_.size(); ++m) {
+          std::vector<bool> is_already_interacting(globals::num_spins, false);
 
-          if(latt(x, y, z, n) != -1) {
+          int local_site = fast_integer_lattice_(i, j, k, m);
 
-            const int si = latt(x, y, z, n); assert (si < num_spins);
+          is_already_interacting[local_site] = true;  // don't allow self interaction
+          // loop over all possible interaction vectors
+          for (int n = 0; n != fast_integer_interaction_list_.size(); ++n) {
 
-            qi[0] = x; qi[1] = y; qi[2] = z;
+            jblib::Vec4<int> fast_integer_lookup_vector(
+              i + fast_integer_interaction_list_[n].first.x,
+              j + fast_integer_interaction_list_[n].first.y,
+              k + fast_integer_interaction_list_[n].first.z,
+              (motif_.size() + m + fast_integer_interaction_list_[n].first.w)%motif_.size());
 
-            for(int i = 0; i<nJ4InteractionsOfType[n]; ++i) {
-
-              // loop the 3 neighbours of the fourspin term
-              for(int snbr=0; snbr<3; ++snbr){
-
-                int m = (J4Neighbour(n, i, snbr)+n)%num_atoms; assert(m >=0);
-
-                for(int j = 0; j<3; ++j){
-                  pj[j] = unit_cell_positions(m, j);
-                }
-
-                // put pj in unitcell
-                double pj_cell[3] = {0.0, 0.0, 0.0};
-                matmul(unitcellInv, pj, pj_cell);
-
-                for(int j = 0; j<3; ++j){
-                  qj[j] = floor(J4Vectors(n, i, snbr, j) - pj_cell[j] + 0.5);
-                }
-
-                // calculate realspace interaction vector
-                bool idxcheck = true;
-                for(int j = 0; j<3; ++j){
-                  vij[j] = qi[j] - qj[j];
-                  if(pbc[j] == true) {
-                    vij[j] = (dim[j]+vij[j])%dim[j];
-                  } else if (vij[j] < 0 || !(vij[j] < dim[j])) {
-                    idxcheck = false;
-                  }
-                }
-
-                // check interaction existed
-                if(idxcheck == true) {
-                  sj[snbr] = latt(vij[0], vij[1], vij[2], m); assert(sj[snbr] < num_spins);
-                } else {
-                  sj[snbr] = -1;
-                }
+            for (int l = 0; l < 3; ++l) {
+              if (lattice_pbc_[l]) {
+                fast_integer_lookup_vector[l] = (fast_integer_lookup_vector[l] + lattice_size_[l])%lattice_size_[l];
+              } else {
+                // TODO: check the interaction is within the system bounds
+                jams_error("open boundaries are not implmented");
               }
+            }
 
+            int neighbour_site = fast_integer_lattice_(
+              fast_integer_lookup_vector.x, fast_integer_lookup_vector.y,
+              fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
 
-              if( (sj[0] > -1) && (sj[1] > -1) && (sj[2] > -1) ){
-                if( fabs(J4Values(n, i)) > encut) {
-                  J4ijkl_s.insert(si, sj[0], sj[1], sj[2], J4Values(n, i));
-                }
-                counter++;
-              }
+            // failsafe check that we only interact with any given site once through the input exchange file.
+            if (is_already_interacting[neighbour_site]) {
+              jams_error("Multiple interactions between spins %d and %d. Check the exchange file.", local_site, neighbour_site);
+            }
+            is_already_interacting[neighbour_site] = true;
 
-
+            if (insert_interaction(local_site, neighbour_site, fast_integer_interaction_list_[n].second)) {
+              counter++;
+            } else {
+              is_all_inserts_successful = false;
             }
           }
         }
@@ -1002,489 +457,122 @@ void createJ4Matrix(libconfig::Config &config, const libconfig::Setting &cfgMate
     }
   }
 
-  J4ijkl_s.finalize();
-
-  output.write("  * Total J4 interaction count: %i\n", counter);
-  output.write("  * J4ijkl_s matrix memory (MAP): %f MB\n", J4ijkl_s.calculateMemoryUsage());
-}
-
-
-///
-/// @brief  Create interaction matrix.
-///
-void createInteractionMatrix(libconfig::Config &config, const libconfig::Setting &cfgMaterials, jblib::Array<int, 4> &latt,
-  const std::vector<int> &dim, const int num_atoms, const jblib::Array<int, 1> &unit_cell_types, const jblib::Array<double, 2> &unit_cell_positions, const std::vector<int> &atom_type, const jblib::Array<double, 3> &interactionVectors,
-  const jblib::Array<int, 2> &interactionNeighbour, const jblib::Array<double, 4> &JValues, const std::vector<int> &nInteractionsOfType,
-  const double unitcellInv[3][3], const bool pbc[3], const bool &J2Toggle, const jblib::Array<double, 2> &J2Values, const int &nJValues)
-{
-
-  using namespace globals;
-  output.write("\nCalculating interaction matrix...\n");
-
-  const double encut = 1E-26/mu_bohr_si; // energy cutoff
-
-  double pnbr[3];
-  int v[3], q[3], qnbr[3];
-
-  int counter = 0;
-  for (int x=0; x<dim[0]; ++x) {
-    for (int y=0; y<dim[1]; ++y) {
-      for (int z=0; z<dim[2]; ++z) {
-        for (int n=0; n<num_atoms; ++n) {
-
-          if(latt(x, y, z, n) != -1) {
-
-            const int s_i = latt(x, y, z, n);
-            const int type_num = atom_type[s_i];
-
-            assert(s_i < num_spins);
-
-            q[0] = x; q[1] = y; q[2] = z;
-
-            int localInteractionCount = 0;
-            for(int i = 0; i<nInteractionsOfType[n]; ++i) {
-              // neighbour atom number
-              int m = (interactionNeighbour(n, i)+n)%num_atoms;
-
-              assert(m >= 0);
-
-              for(int j = 0; j<3; ++j) { pnbr[j] =  unit_cell_positions(m, j); }
-
-              double pnbrcell[3]={0.0, 0.0, 0.0};
-              // put pnbr in unit cell
-              matmul(unitcellInv, pnbr, pnbrcell);
-
-              for(int j = 0; j<3; ++j) { qnbr[j] = floor(interactionVectors(n, i, j)-pnbrcell[j]+0.5); }
-
-              bool idxcheck = true;
-              for(int j = 0; j<3; ++j) {
-                v[j] = q[j]+qnbr[j];
-                if(pbc[j] == true) {
-                  v[j] = (dim[j]+v[j])%dim[j];
-                } else if (v[j] < 0 || !(v[j] < dim[j])) {
-                  idxcheck = false;
-                }
-              }
-
-              if(idxcheck == true && (latt(v[0], v[1], v[2], m) != -1) ) {
-                int nbr = latt(v[0], v[1], v[2], m);
-                assert(nbr < num_spins);
-                //assert(s_i != nbr); self interaction is ok for example
-                //FeRh
-
-//---------------------------------------------------------------------
-// Bilinear interactions
-//---------------------------------------------------------------------
-                if(nJValues == 1){
-                //--------//
-                // Scalar //
-                //--------//
-                  if(fabs(JValues(n, i, 0, 0)) > encut) {
-                    if(J1ij_s.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-                      if(J1ij_s.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-                        if(s_i >= nbr){
-                          J1ij_s.insertValue(s_i, nbr, JValues(n, i, 0, 0));
-                        }
-                      }else{
-                        if(s_i <= nbr){
-                          J1ij_s.insertValue(s_i, nbr, JValues(n, i, 0, 0));
-                        }
-                      }
-                    }else{
-                      J1ij_s.insertValue(s_i, nbr, JValues(n, i, 0, 0));
-                    }
-                  }
-                } else {
-                //--------//
-                // Tensor //
-                //--------//
-                  for(int row=0; row<3; ++row) {
-                    for(int col=0; col<3; ++col) {
-                      if(fabs(JValues(n, i, row, col)) > encut) {
-                        if(J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-                          if(J1ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-                            if(s_i > nbr){
-                              J1ij_t.insertValue(3*s_i+row, 3*nbr+col, JValues(n, i, row, col));
-                            }
-                          } else {
-                            if(s_i < nbr){
-                              J1ij_t.insertValue(3*s_i+row, 3*nbr+col, JValues(n, i, row, col));
-                            }
-                          }
-                        } else {
-                          J1ij_t.insertValue(3*s_i+row, 3*nbr+col, JValues(n, i, row, col));
-                        }
-                      }
-                    }
-                  }
-                }
-
-//---------------------------------------------------------------------
-// Biquadratic interactions
-//---------------------------------------------------------------------
-
-                //--------//
-                // Scalar //
-                //--------//
-                if(J2Toggle == true){
-                  if(fabs(J2Values(n, i)) > encut) {
-                    if(J2ij_s.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-                      if(J2ij_s.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-                        if(s_i >= nbr){
-                          J2ij_s.insertValue(s_i, nbr, J2Values(n, i));
-                        }
-                      } else {
-                        if(s_i <= nbr){
-                          J2ij_s.insertValue(s_i, nbr, J2Values(n, i));
-                        }
-                      }
-                    } else {
-                      J2ij_s.insertValue(s_i, nbr, J2Values(n, i));
-                    }
-                  }
-                }
-
-                localInteractionCount++;
-                counter++;
-              }
-
-            }
-
-//---------------------------------------------------------------------
-// Anisotropy (Biquadratic Tensor)
-//---------------------------------------------------------------------
-            libconfig::Setting& type_settings = cfgMaterials[type_num];
-
-            double anival = type_settings["uniaxialAnisotropy"][1];
-            double e3[3] = {0.0, 0.0, 0.0};
-
-            // NOTE: Technically anisotropic is biquadratic but
-            // biquadratic interactions in JAMS++ are implemented as a
-            // scalar not a tensor so we store these in a seperate
-            // array
-            bool random_anisotropy_is_set = false;
-            type_settings.lookupValue("random_anisotropy", random_anisotropy_is_set);
-
-            // read anisotropy axis unit vector and ensure it is normalised
-            if (random_anisotropy_is_set) {
-              rng.sphere(e3[0], e3[1], e3[2]);
-            } else {
-              for (int i = 0; i < 3; ++i) {
-                e3[i] = type_settings["uniaxialAnisotropy"][0][i];
-              }
-              double norm = 1.0/sqrt(e3[0]*e3[0]+e3[1]*e3[1]+e3[2]*e3[2]);
-
-              for(int i = 0;i<3;++i) {
-                e3[i] = e3[i]*norm;
-              }
-            }
-
-            const double DTensor[3][3] = { { e3[0]*e3[0], e3[0]*e3[1], e3[0]*e3[2] },
-                                           { e3[1]*e3[0], e3[1]*e3[1], e3[1]*e3[2] },
-                                           { e3[2]*e3[0], e3[2]*e3[1], e3[2]*e3[2] } };
-
-            if (verbose_output_is_set) {
-              output.write("\nAnisotropy Tensor\n");
-              output.write("%f, %f, %f\n", DTensor[0][0], DTensor[0][1], DTensor[0][2]);
-              output.write("%f, %f, %f\n", DTensor[1][0], DTensor[1][1], DTensor[1][2]);
-              output.write("%f, %f, %f\n", DTensor[2][0], DTensor[2][1], DTensor[2][2]);
-            }
-
-            // NOTE: Factor of 2 is accounted for in the biquadratic
-            // calculation
-            const double Dval = anival/mu_bohr_si;
-
-
-            for (int row = 0; row < 3; ++row) {
-              for (int col = 0; col < 3; ++col) {
-                if((Dval*DTensor[row][col]) > encut) {
-                  if(J2ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-                    if(J2ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-                      if(row >= col){
-                        J2ij_t.insertValue(3*s_i+row, 3*s_i+col, Dval*DTensor[row][col]);
-                      }
-                    } else {
-                      if(row <= col){
-                        J2ij_t.insertValue(3*s_i+row, 3*s_i+col, Dval*DTensor[row][col]);
-                      }
-                    }
-                  } else {
-                    J2ij_t.insertValue(3*s_i+row, 3*s_i+col, Dval*DTensor[row][col]);
-                  }
-                }
-              }
-            }
-          }
-        } // n
-      } // z
-    } // y
-  } // x
-
-
-  output.write("  * Total interaction count: %i\n", counter);
-  output.write("  * J1ij_t matrix memory (MAP): %f MB\n", J1ij_t.calculateMemory());
-
-// J1ij_t.printCSR();
-}
-
-
-
-void Lattice::create_from_config(libconfig::Config &config) {
-  using namespace globals;
-
-  output.write("\nCalculating lattice...\n");
-
-  try {
-
-    jblib::Array<int, 4> latt;
-    jblib::Array<double, 2> unit_cell_positions;
-    jblib::Array<int, 1>      unit_cell_types;
-    jblib::Array<double, 3> interactionVectors;
-    jblib::Array<double, 4> JValues;
-    jblib::Array<double, 2> J2Values;
-    jblib::Array<int, 2> interactionNeighbour;
-    jblib::Array<int, 3> J4Neighbour;
-    jblib::Array<double, 4> J4Vectors;
-    jblib::Array<double, 2> J4Values;
-    std::vector<int> nInteractionsOfType;
-    std::vector<int> nJ4InteractionsOfType;
-    jblib::Array<double, 3> jij;
-    int num_atoms=0;
-    bool pbc[3] = {true, true, true};
-    bool J2Toggle = false;
-    int nJValues=0;
-
-    double unitcell[3][3];
-    double unitcellInv[3][3];
-
-
-    const libconfig::Setting& cfgLattice    =   config.lookup("lattice");
-    const libconfig::Setting& cfgBasis      =   config.lookup("lattice.basis");
-    const libconfig::Setting& cfgMaterials  =   config.lookup("materials");
-//    const libconfig::Setting& cfgExchange   =   config.lookup("exchange");
-
-
-    read_basis(cfgBasis, unitcell, unitcellInv);
-
-    std::string atom_position_filename = config.lookup("lattice.positions");
-    readAtoms(atom_position_filename, unit_cell_types, unit_cell_positions, num_atoms, num_atom_types, atom_type_map, atom_names);
-
-    assert(num_atoms > 0);
-    assert(num_atom_types > 0);
-
-    readLattice(cfgLattice, dim, pbc, unitcell);
-
-    type_count.resize(num_atom_types);
-    for(int i = 0; i<num_atom_types; ++i) { type_count[i] = 0; }
-
-    create_lattice(cfgLattice, unit_cell_types, unit_cell_positions, atom_type_map, latt, atom_type, type_count, dim, num_atoms, pbc);
-
-    calculateAtomPos(unit_cell_types, unit_cell_positions, latt, dim, unitcell, num_atoms);
-#ifdef DEBUG
-    printLattice(unit_cell_types, unit_cell_positions, latt, dim, unitcell, atom_type, num_atoms);
-#endif // DEBUG
-
-    resize_global_arrays();
-
-    initialize_global_arrays(config, cfgMaterials, atom_type);
-
-    std::string exchangeFileName = config.lookup("lattice.exchange");
-    read_interactions(exchangeFileName, config, unit_cell_types, unit_cell_positions, interactionVectors, interactionNeighbour, JValues, J2Values, nInteractionsOfType,
-      num_atoms, atom_type_map, unitcellInv, J2Toggle, nJValues);
-
-    createInteractionMatrix(config, cfgMaterials, latt, dim, num_atoms, unit_cell_types, unit_cell_positions,
-      atom_type, interactionVectors, interactionNeighbour, JValues,
-      nInteractionsOfType, unitcellInv, pbc, J2Toggle, J2Values, nJValues);
-
-        map_position_to_int();
-
-    if( config.exists("lattice.fourspin") == true ) {
-      int nJ4Values=0;
-      std::string J4FileName = config.lookup("lattice.fourspin");
-
-      readJ4Interactions(J4FileName, config, unit_cell_types, unit_cell_positions, J4Vectors, J4Neighbour, J4Values, nJ4InteractionsOfType,
-        num_atoms, atom_type_map, unitcellInv, nJ4Values);
-
-      createJ4Matrix(config, cfgMaterials, latt, dim, num_atoms, unit_cell_types, unit_cell_positions,
-        atom_type, J4Vectors, J4Neighbour, J4Values,
-        nJ4InteractionsOfType, unitcellInv, pbc, nJ4Values);
-    }
-
-    if (config.exists("lattice.coarse") == true ) {
-      initialize_coarse_magnetisation_map();
-    }
-
-  } // try
-  catch(const libconfig::SettingNotFoundException &nfex) {
-    jams_error("Setting '%s' not found", nfex.getPath());
+  if (!is_all_inserts_successful) {
+    jams_warning("Some interactions were ignored due to the energy cutoff (%e)", energy_cutoff_);
   }
 
+  ::output.write("  total: %d\n", counter);
 }
+
+bool Lattice::insert_interaction(const int m, const int n, const jblib::Matrix<double, 3, 3> &value) {
+
+  int counter = 0;
+  for (int i = 0; i != 3; ++i) {
+    for (int j = 0; j != 3; ++j) {
+      if (fabs(value[i][j]) > energy_cutoff_) {
+        counter++;
+        if(globals::J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+          if(globals::J1ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+            if(i >= j){
+              globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
+            }
+          }else{
+            if(i <= j){
+              globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
+            }
+          }
+        }else{
+          globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
+        }
+      }
+    }
+  }
+
+  if (counter == 0) {
+    return false;
+  }
+
+  return true;
+}
+
+
 
 void Lattice::output_spin_state_as_vtu(std::ofstream &outfile){
-  using namespace globals;
+  // using namespace globals;
 
-  outfile << "<?xml version=\"1.0\"?>" << "\n";
-  outfile << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
-  outfile << "<UnstructuredGrid>" << "\n";
-  outfile << "<Piece NumberOfPoints=\""<<num_spins<<"\"  NumberOfCells=\"1\">" << "\n";
-  outfile << "<PointData Scalar=\"Spins\">" << "\n";
+  // outfile << "<?xml version=\"1.0\"?>" << "\n";
+  // outfile << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
+  // outfile << "<UnstructuredGrid>" << "\n";
+  // outfile << "<Piece NumberOfPoints=\""<<num_spins<<"\"  NumberOfCells=\"1\">" << "\n";
+  // outfile << "<PointData Scalar=\"Spins\">" << "\n";
 
-  for(int n=0; n<num_atom_types; ++n){
-      outfile << "<DataArray type=\"Float32\" Name=\"" << atom_names[n] << "Spin\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
-      for(int i = 0; i<num_spins; ++i){
-          if(atom_type[i] == n){
-              outfile << s(i, 0) << "\t" << s(i, 1) << "\t" << s(i, 2) << "\n";
-          } else {
-              outfile << 0.0 << "\t" << 0.0 << "\t" << 0.0 << "\n";
-          }
-      }
-      outfile << "</DataArray>" << "\n";
-  }
-  outfile << "</PointData>" << "\n";
-  outfile << "<CellData>" << "\n";
-  outfile << "</CellData>" << "\n";
-  outfile << "<Points>" << "\n";
-  outfile << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
-  for(int i = 0; i<num_spins; ++i){
-      outfile << atom_pos(i, 0) << "\t" << atom_pos(i, 1) << "\t" << atom_pos(i, 2) << "\n";
-  }
-  outfile << "</DataArray>" << "\n";
-  outfile << "</Points>" << "\n";
-  outfile << "<Cells>" << "\n";
-  outfile << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << "\n";
-  outfile << "1" << "\n";
-  outfile << "</DataArray>" << "\n";
-  outfile << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" << "\n";
-  outfile << "1" << "\n";
-  outfile << "</DataArray>" << "\n";
-  outfile << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" << "\n";
-  outfile << "1" << "\n";
-  outfile << "</DataArray>" << "\n";
-  outfile << "</Cells>" << "\n";
-  outfile << "</Piece>" << "\n";
-  outfile << "</UnstructuredGrid>" << "\n";
-  outfile << "</VTKFile>" << "\n";
+  // for(int n=0; n < num_types(); ++n){
+  //   outfile << "<DataArray type=\"Float32\" Name=\"" << atom_names[n] << "Spin\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
+  //   for(int i = 0; i<num_spins; ++i){
+  //     if(atom_type[i] == n){
+  //       outfile << s(i, 0) << "\t" << s(i, 1) << "\t" << s(i, 2) << "\n";
+  //     } else {
+  //       outfile << 0.0 << "\t" << 0.0 << "\t" << 0.0 << "\n";
+  //     }
+  //   }
+  //   outfile << "</DataArray>" << "\n";
+  // }
+  // outfile << "</PointData>" << "\n";
+  // outfile << "<CellData>" << "\n";
+  // outfile << "</CellData>" << "\n";
+  // outfile << "<Points>" << "\n";
+  // outfile << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
+  // for(int i = 0; i<num_spins; ++i){
+  //   outfile << atom_pos(i, 0) << "\t" << atom_pos(i, 1) << "\t" << atom_pos(i, 2) << "\n";
+  // }
+  // outfile << "</DataArray>" << "\n";
+  // outfile << "</Points>" << "\n";
+  // outfile << "<Cells>" << "\n";
+  // outfile << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << "\n";
+  // outfile << "1" << "\n";
+  // outfile << "</DataArray>" << "\n";
+  // outfile << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" << "\n";
+  // outfile << "1" << "\n";
+  // outfile << "</DataArray>" << "\n";
+  // outfile << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" << "\n";
+  // outfile << "1" << "\n";
+  // outfile << "</DataArray>" << "\n";
+  // outfile << "</Cells>" << "\n";
+  // outfile << "</Piece>" << "\n";
+  // outfile << "</UnstructuredGrid>" << "\n";
+  // outfile << "</VTKFile>" << "\n";
 
 }
-
-
-void Lattice::map_position_to_int(){
-    using namespace globals;
-
-    spin_int_map.resize(num_spins, 3);
-
-    for(int i = 0; i<num_spins; ++i){
-        for(int j = 0; j<3; ++j){
-            spin_int_map(i, j) = nint((local_atom_pos(i, j))*unitcell_kpoints[j]);
-        }
-        //std::cout<<atom_pos(i, 0)<<"\t"<<atom_pos(i, 1)<<"\t"<<atom_pos(i, 2)<<"\t";
-        //std::cout<<spin_int_map(i, 0)<<"\t"<<spin_int_map(i, 1)<<"\t"<<spin_int_map(i, 2)<<std::endl;
-    }
-}
-
 
 void Lattice::output_spin_state_as_binary(std::ofstream &outfile){
-    using namespace globals;
+  using namespace globals;
 
-    outfile.write(reinterpret_cast<char*>(&num_spins), sizeof(int));
-    outfile.write(reinterpret_cast<char*>(s.data()), num_spins3*sizeof(double));
+  outfile.write(reinterpret_cast<char*>(&num_spins), sizeof(int));
+  outfile.write(reinterpret_cast<char*>(s.data()), num_spins3*sizeof(double));
 }
 
 void Lattice::output_spin_types_as_binary(std::ofstream &outfile){
-    using namespace globals;
+  using namespace globals;
 
-    outfile.write(reinterpret_cast<char*>(&num_spins), sizeof(int));
-    outfile.write(reinterpret_cast<char*>(&atom_type[0]), num_spins*sizeof(int));
+  // outfile.write(reinterpret_cast<char*>(&num_spins), sizeof(int));
+  // outfile.write(reinterpret_cast<char*>(&atom_type[0]), num_spins*sizeof(int));
 }
 
 void Lattice::read_spin_state_from_binary(std::ifstream &infile){
-    using namespace globals;
-
-    infile.seekg(0);
-
-    int filenum_spins=0;
-    infile.read(reinterpret_cast<char*>(&filenum_spins), sizeof(int));
-
-    if(filenum_spins != num_spins){
-        jams_error("I/O error, spin state file has %d spins but simulation has %d spins", filenum_spins, num_spins);
-    }else{
-        infile.read(reinterpret_cast<char*>(s.data()), num_spins3*sizeof(double));
-    }
-
-    if(infile.bad()){
-        jams_error("I/O error. Unknown failure reading spin state file");
-    }
-}
-
-void Lattice::initialize_coarse_magnetisation_map() {
   using namespace globals;
 
-  const libconfig::Setting& cfgLattice    =   config.lookup("lattice");
+  infile.seekg(0);
 
-  int register j, n;
-  float resolution[3];
+  int filenum_spins=0;
+  infile.read(reinterpret_cast<char*>(&filenum_spins), sizeof(int));
 
-  coarseDim.resize(3);
-
-  for (j = 0; j!=3; ++j) {
-    coarseDim[j] = cfgLattice["coarse"][j];
-    resolution[j] = coarseDim[j]/rmax[j];
+  if(filenum_spins != num_spins){
+    jams_error("I/O error, spin state file has %d spins but simulation has %d spins", filenum_spins, num_spins);
+  }else{
+    infile.read(reinterpret_cast<char*>(s.data()), num_spins3*sizeof(double));
   }
 
-  spin_to_coarse_cell_map.resize(num_spins, 3);
-  coarse_magnetisation_type_count.resize(coarseDim[0], coarseDim[1], coarseDim[2], num_atom_types);
-  coarseMagnetisation.resize(coarseDim[0], coarseDim[1], coarseDim[2], num_atom_types, 3);
-
-  // atom_pos is realspace atom position in nm
-  for (n=0; n!=num_spins; ++n) {
-    for (j = 0; j!=3; ++j) {
-      spin_to_coarse_cell_map(n, j) = int(atom_pos(n, j)*resolution[j]);
-    }
-    coarse_magnetisation_type_count(spin_to_coarse_cell_map(n, 0), spin_to_coarse_cell_map(n, 1), spin_to_coarse_cell_map(n, 2), atom_type[n])++;
-  }
-
-}
-
-void Lattice::output_coarse_magnetisation(std::ofstream &outfile) {
-  using namespace globals;
-
-  register int n, j, x, y, z, type;
-  for (x=0; x!=coarseDim[0]; ++x) {
-    for (y=0; y!=coarseDim[1]; ++y) {
-      for (z=0; z!=coarseDim[2]; ++z) {
-        for (type = 0; type!=num_atom_types; ++type) {
-          for (j = 0; j!=3; ++j) {
-            coarseMagnetisation(x, y, z, type, j) = 0.0;
-          }
-        }
-      }
-    }
-  }
-  // bin all the spins
-  for (n=0; n!=num_spins; ++n) {
-
-    x = spin_to_coarse_cell_map(n, 0);
-    y = spin_to_coarse_cell_map(n, 1);
-    z = spin_to_coarse_cell_map(n, 2);
-
-    for (j = 0; j!=3; ++j) {
-      coarseMagnetisation(x, y, z, atom_type[n], j) += s(n, j);
-    }
-  }
-
-  // normalise the result
-  for (x=0; x!=coarseDim[0]; ++x) {
-    for (y=0; y!=coarseDim[1]; ++y) {
-      for (z=0; z!=coarseDim[2]; ++z) {
-        outfile << x <<"\t" << y << "\t" << z;
-        for (type = 0; type!=num_atom_types; ++type) {
-          for (j = 0; j!=3; ++j) {
-            outfile << "\t" << (coarseMagnetisation(x, y, z, type, j) / static_cast<double>(coarse_magnetisation_type_count(x, y, z, type) ) );
-          }
-        }
-        outfile << "\n";
-      }
-    }
+  if(infile.bad()){
+    jams_error("I/O error. Unknown failure reading spin state file");
   }
 }

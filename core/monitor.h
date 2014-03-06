@@ -3,28 +3,24 @@
 #ifndef JAMS_CORE_MONITOR_H
 #define JAMS_CORE_MONITOR_H
 
-#include "core/solver.h"
+#include <libconfig.h++>
 
-enum ConvergenceType {convNone, convMag, convPhi, convSinPhi};
+#include "jblib/containers/vec.h"
 
 class Monitor {
  public:
-  Monitor() : initialized(false) {}
+  Monitor(const libconfig::Setting &settings);
 
   virtual ~Monitor() {}
+  virtual void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) = 0;
+  bool is_updating (const int &iteraction) const;
 
-  virtual void initialize();
-  virtual void run();
-  virtual void write(Solver *solver);
+  static Monitor* create(const libconfig::Setting &settings);
 
-  virtual void initialize_convergence(ConvergenceType type, const double meanTol,
-    const double devTol);
-  virtual bool has_converged();
+  protected:
+    bool is_equilibration_monitor_;
+    int  output_step_freq_;
 
-
-  static Monitor* Create();
- protected:
-    bool initialized;
 };
 
 #endif  // JAMS_CORE_MONITOR_H

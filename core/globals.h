@@ -20,6 +20,7 @@
 #define GLOBAL
 #endif
 
+
 GLOBAL Lattice lattice;
 GLOBAL libconfig::Config config;  ///< Config object
 GLOBAL Output output;
@@ -30,31 +31,21 @@ GLOBAL bool verbose_output_is_set;
 namespace globals {
   GLOBAL int num_spins;
   GLOBAL int num_spins3;
-  GLOBAL int globalSteps;
-  GLOBAL double h_app[3];
-  GLOBAL double globalTemperature;
+
   GLOBAL jblib::Array<double, 2> s;
   GLOBAL jblib::Array<double, 2> h;
-  GLOBAL jblib::Array<double, 2> w;
 
   GLOBAL jblib::Array<float, 2> atom_pos;
-#ifdef CUDA
-  GLOBAL SparseMatrix<float> J1ij_s;  // bilinear scalar interactions
-  GLOBAL SparseMatrix<float> J1ij_t;  // bilinear tensor interactions
-  GLOBAL SparseMatrix<float> J2ij_s;  // biquadratic scalar interactions
-  GLOBAL SparseMatrix<float> J2ij_t;  // biquadratic tensor interactions
-  GLOBAL jblib::Sparsematrix<float, 4> J4ijkl_s;  // fourspin scalar interaction
-#else
-  GLOBAL SparseMatrix<double> J1ij_s;  // bilinear scalar interactions
+
   GLOBAL SparseMatrix<double> J1ij_t;  // bilinear tensor interactions
-  GLOBAL SparseMatrix<double> J2ij_s;  // biquadratic scalar interactions
-  GLOBAL SparseMatrix<double> J2ij_t;  // biquadratic tensor interactions
-  GLOBAL jblib::Sparsematrix<double, 4> J4ijkl_s;  // fourspin scalar interacti
-#endif
+
+  GLOBAL jblib::Array<double, 1> d2z;
+  GLOBAL jblib::Array<double, 1> d4z;
+  GLOBAL jblib::Array<double, 1> d6z;
+
   GLOBAL jblib::Array<double, 1> alpha;
   GLOBAL jblib::Array<double, 1> mus;
   GLOBAL jblib::Array<double, 1> gyro;
-  GLOBAL jblib::Array<double, 1> omega_corr;
 }  // namespace globals
 #undef GLOBAL
 #endif  // JAMS_CORE_GLOBALS_H

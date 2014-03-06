@@ -12,18 +12,12 @@
 
 class MFPTPhysics : public Physics {
  public:
-  MFPTPhysics()
-  : initialized(false),
-  maskArray(),
-  MFPTFile()
-  {}
+  MFPTPhysics(const libconfig::Setting &settings);
   ~MFPTPhysics();
-  void initialize(libconfig::Setting &phys);
-  void run(double realtime, const double dt);
-  virtual void monitor(double realtime, const double dt);
+
+  void update(const int &iterations, const double &time, const double &dt);
 
  private:
-  bool initialized;
   std::vector<double> maskArray;
   std::ofstream MFPTFile;
 };

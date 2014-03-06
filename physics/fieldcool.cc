@@ -9,27 +9,43 @@
 
 #include "core/globals.h"
 
-void FieldCoolPhysics::initialize(libconfig::Setting &phys) {
+FieldCoolPhysics::FieldCoolPhysics(const libconfig::Setting &settings)
+  : Physics(settings),
+  initField(3, 0.0),
+  finalField(3, 0.0),
+  deltaH(3, 0.0),
+  initTemp(0.0),
+  finalTemp(0.0),
+  coolTime(0.0),
+  TSteps(0),
+  deltaT(0),
+  t_step(0),
+  t_eq(0),
+  integration_time_step_(0.0),
+  stepToggle(false),
+  initialized(false) {
   using namespace globals;
 
   output.write("  * Field cooled physics module\n");
 
-  initTemp = phys["InitialTemperature"];
-  finalTemp = phys["FinalTemperature"];
+  initTemp = settings["InitialTemperature"];
+  finalTemp = settings["FinalTemperature"];
+
+  integration_time_step_ = ::config.lookup("sim.t_step");
 
   for (int i = 0; i < 3; ++i) {
-    initField[i] = phys["InitialField"][i];
-    finalField[i] = phys["FinalField"][i];
+    initField[i] = settings["InitialField"][i];
+    finalField[i] = settings["FinalField"][i];
   }
 
-  coolTime = phys["CoolTime"];
+  coolTime = settings["CoolTime"];
 
   for (int i = 0; i < 3; ++i) {
-    globals::h_app[i] += initField[i];
+    applied_field_[i] += initField[i];
   }
 
-  if (phys.exists("TSteps") == true) {
-    TSteps = phys["TSteps"];
+  if (settings.exists("TSteps") == true) {
+    TSteps = settings["TSteps"];
     deltaT = (initTemp-finalTemp)/TSteps;
     for (int i = 0; i < 3; ++i) {
         deltaH[i] = (initField[i]-finalField[i])/TSteps;
@@ -40,38 +56,32 @@ void FieldCoolPhysics::initialize(libconfig::Setting &phys) {
   } else {
     stepToggle = false;
   }
-  globalTemperature = initTemp;
+  temperature_ = initTemp;
   initialized = true;
 }
 
-FieldCoolPhysics::~FieldCoolPhysics() {
-}
-
-void FieldCoolPhysics::run(const double realtime, const double dt) {
+void FieldCoolPhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
 
-  if (realtime > t_eq) {
+  if (time > t_eq) {
     if (stepToggle == true) {
-      int stepCount = (realtime-t_eq)/t_step;
+      int stepCount = (time-t_eq)/t_step;
       if (stepCount < TSteps+1) {
-        globalTemperature = initTemp-stepCount*deltaT;
+        temperature_ = initTemp-stepCount*deltaT;
       }
     } else {
       double fieldRate[3];
       for (int i = 0; i < 3; ++i) {
-        fieldRate[i] = ((finalField[i]-initField[i])*dt)/coolTime;
+        fieldRate[i] = ((finalField[i]-initField[i])*integration_time_step_)/coolTime;
       }
-      const double tempRate = ((finalTemp-initTemp)*dt)/coolTime;
+      const double tempRate = ((finalTemp-initTemp)*integration_time_step_)/coolTime;
 
-      if (realtime < coolTime) {
+      if (time < coolTime) {
         for (int i = 0; i < 3; ++i) {
-          globals::h_app[i] += fieldRate[i];
+          applied_field_[i] += fieldRate[i];
         }
-        globalTemperature += tempRate;
+        temperature_ += tempRate;
       }
     }
   }
 }
-
-void FieldCoolPhysics::monitor(const double realtime, const double dt)
-{}

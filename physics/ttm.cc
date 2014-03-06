@@ -12,12 +12,26 @@
 
 #include "jblib/math/functions.h"
 
-void TTMPhysics::initialize(libconfig::Setting &phys) {
+TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
+  : Physics(settings),
+  pulseWidth(0),
+  pulseFluence(0),
+  pulseStartTime(0),
+  pumpTemp(0.0),
+  electronTemp(0.0),
+  phononTemp(0.0),
+  sinkTemp(0.0),
+  reversingField(3, 0.0),
+  Ce(7.0E02),
+  Cl(3.0E06),
+  G(17.0E17),
+  Gsink(17.0E14),
+  TTMFile() {
   using namespace globals;
 
   output.write("  * Two temperature model physics module\n");
 
-  phononTemp = phys["InitialTemperature"];
+  phononTemp = settings["InitialTemperature"];
   electronTemp = phononTemp;
 
   sinkTemp = phononTemp;
@@ -39,13 +53,13 @@ void TTMPhysics::initialize(libconfig::Setting &phys) {
   }
 
   // if these settings don't exist, the defaults will be left in
-  phys.lookupValue("Ce", Ce);
-  phys.lookupValue("Cl", Cl);
-  phys.lookupValue("Gep", G);
-  phys.lookupValue("Gps", Gsink);
+  settings.lookupValue("Ce", Ce);
+  settings.lookupValue("Cl", Cl);
+  settings.lookupValue("Gep", G);
+  settings.lookupValue("Gps", Gsink);
 
   for (int i = 0; i < 3; ++i) {
-    reversingField[i] = phys["ReversingField"][i];
+    reversingField[i] = settings["ReversingField"][i];
   }
 
   std::string fileName = "_ttm.dat";
@@ -54,25 +68,23 @@ void TTMPhysics::initialize(libconfig::Setting &phys) {
 
   TTMFile << std::setprecision(8);
   TTMFile << "# t [s]\tT_el [K]\tT_ph [K]\tLaser [arb/]\n";
-
-  initialized = true;
 }
 
 TTMPhysics::~TTMPhysics() {
   TTMFile.close();
 }
 
-void TTMPhysics::run(const double realtime, const double dt) {
+void TTMPhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
   using namespace jblib;
 
   for (int i = 0; i < 3; ++i) {
-    globals::h_app[i] = reversingField[i];
+    applied_field_[i] = reversingField[i];
   }
 
   pumpTemp = 0.0;
   for (int i = 0, iend = pulseFluence.size(); i != iend; ++i) {
-    const double relativeTime = (realtime-pulseStartTime(i));
+    const double relativeTime = (time-pulseStartTime(i));
     if ((relativeTime > 0.0) && (relativeTime <= 10*pulseWidth(i))) {
       pumpTemp = pumpTemp
         + pulseFluence(i)
@@ -85,12 +97,10 @@ void TTMPhysics::run(const double realtime, const double dt) {
   phononTemp   = phononTemp
     + ((G*(electronTemp-phononTemp)-Gsink*(phononTemp-sinkTemp))*dt)/(Cl);
 
-  globalTemperature = electronTemp;
-}
+  temperature_ = electronTemp;
 
-void TTMPhysics::monitor(const double realtime, const double dt) {
-  using namespace globals;
-
-  TTMFile << realtime << "\t" << electronTemp << "\t"
+  if (iterations%output_step_freq_ == 0) {
+    TTMFile << time << "\t" << electronTemp << "\t"
     << phononTemp << "\t" << pumpTemp << "\n";
+  }
 }

@@ -10,7 +10,7 @@
 #include "core/consts.h"
 
 inline int nint(const double &x) {
-  return static_cast<int>(x+0.5);
+  return floor(x+0.5);
 }
 
 inline double deg_to_rad(const double &angle) {

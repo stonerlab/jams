@@ -52,4 +52,14 @@ inline std::string zero_pad_number(const int num) {
     return result;
 }
 
+inline int file_columns(std::string &line) {
+  std::stringstream is(line);
+  std::string tmp;
+  int count = 0;
+  while (is >> tmp) {
+    count++;
+  }
+  return count;
+}
+
 #endif  // JAMS_CORE_UTILS_H

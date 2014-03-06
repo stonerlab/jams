@@ -12,24 +12,9 @@
 
 class FieldCoolPhysics : public Physics {
  public:
-  FieldCoolPhysics()
-  : initField(3, 0.0),
-  finalField(3, 0.0),
-  deltaH(3, 0.0),
-  initTemp(0.0),
-  finalTemp(0.0),
-  coolTime(0.0),
-  TSteps(0),
-  deltaT(0),
-  t_step(0),
-  t_eq(0),
-  stepToggle(false),
-  initialized(false)
-  {}
-  ~FieldCoolPhysics();
-  void initialize(libconfig::Setting &phys);
-  void run(double realtime, const double dt);
-  virtual void monitor(double realtime, const double dt);
+  FieldCoolPhysics(const libconfig::Setting &settings);
+  ~FieldCoolPhysics() {};
+  void update(const int &iterations, const double &time, const double &dt);
 
  private:
   std::vector<double> initField;
@@ -42,6 +27,7 @@ class FieldCoolPhysics : public Physics {
   double deltaT;
   double t_step;
   double t_eq;
+  double integration_time_step_;
   bool stepToggle;
   bool initialized;
 };
