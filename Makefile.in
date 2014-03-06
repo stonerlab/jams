@@ -7,24 +7,28 @@ cputype = $(shell uname -m | sed "s/\\ /_/g")
 systype = $(shell uname -s)
 commit = $(shell git rev-parse HEAD)
 
-
-# Compiler information
+ifeq ($(systype), Darwin)
+withcuda=0
 CXX = clang++
-OPTFLAGS = -O3 -funroll-loops 
-COPTIONS = -Wall -Wno-long-long 
-#COPTIONS = -Wall -Wno-long-long -std=c++98 #-pedantic
-
+OPTFLAGS = -stdlib=libc++ -march=native -O3 -funroll-loops
+COPTIONS = -Wall -DDarwin
 CUDA = /usr/local/cuda/bin/nvcc
-CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 \
-		-gencode=arch=compute_35,code=sm_35 \
-		  -gencode=arch=compute_35,code=compute_35 \
-	   -O3 -DNDEBUG -DCUDA
-#CUDAOPTS = -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_20,code=compute_20 \
-	-gencode=arch=compute_13,code=sm_13 -gencode=arch=compute_13,code=compute_13 \
-	--ptxas-options=-v -O3 -DNDEBUG -DCUDA
+CUDAOPTS = -O3 -DNDEBUG -DCUDA \
+					 -gencode=arch=compute_20,code=sm_20 \
+					 -gencode=arch=compute_20,code=compute_20 \
+					 -gencode=arch=compute_35,code=sm_35 \
+		       -gencode=arch=compute_35,code=compute_35
+else
+CXX = icc
+OPTFLAGS = -openmp -march=native -O3 -funroll-loops
+COPTIONS = -Wall -DLinux -DMKL -m64
+CUDA = /usr/local/cuda/bin/nvcc
+CUDAOPTS = -O3 -DNDEBUG -DCUDA \
+					 -gencode=arch=compute_30,code=sm_30
+endif
 
 # Linker information
-LDOPTIONS = 
+LDOPTIONS =
 LD = $(CXX)
 
 # Compile input/output file specification
@@ -35,57 +39,49 @@ OUTPUTFILE = -o $@
 EXEOUTPUTFILE = -o $@
 
 #----------------------------------------------------------------------
-# System based overides
-#----------------------------------------------------------------------
-
-ifeq ($(systype),Linux)
-	COPTIONS += -DLinux
-endif
-
-ifeq ($(systype),Darwin)
-	withcuda=0
-	#CXX = g++-4.7
-	COPTIONS += -DDarwin
-endif
-
-#----------------------------------------------------------------------
-# Build specific options 
+# Build specific options
 #----------------------------------------------------------------------
 
 OPTFLAGS += -DGITCOMMIT=$(commit)
 
-ifeq ($(withcuda),1)
-	OPTFLAGS += -DCUDA
-endif
-
-ifeq ($(withdebug),1)
-	OPTFLAGS += -g -DDEBUG
+ifeq ($(withdebug), 1)
+	OPTFLAGS = -pg -g -DDEBUG -O1 #-stdlib=libc++
 	LDOPTIONS += -g
-else 
+else
 	OPTFLAGS += -DNDEBUG	# turn off asserts
 endif
 
+ifeq ($(withcuda), 1)
+	OPTFLAGS += -DCUDA
+endif
+
 LIBCONFIGDIR = ./libconfig
+#MKLROOT = /opt/intel/Compiler/11.1/059/mkl
 
-header-dirs = $(sort $(dir $(shell find $(TOPDIR) -name '*.h'))) 
-HEADERS = $(foreach d, $(header-dirs), $(wildcard $d*.h)) Makefile
-
-INCLUDES = $(foreach d, $(header-dirs), -I$d) -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I/opt/intel/Compiler/11.1/059/mkl/include
-CFLAGS = $(COPTIONS) $(OPTFLAGS) $(INCLUDES)
+INCLUDES = -I$(TOPDIR) -I/sfw/libconfig-1.4.9/include -I/usr/local/cuda/include -I$(MKLROOT)/include
+CFLAGS:=$(COPTIONS) $(OPTFLAGS) $(INCLUDES)
 
 MKLroot = /opt/intel/Compiler/11.1/059/mkl/lib/em64t
 
-ifeq ($(withcuda),1)
-	ifeq ($(cputype),x86_64)
-		LIBSDIR = -L/usr/local/cuda/lib64
+ifeq ($(withcuda), 1)
+	ifeq ($(cputype), x86_64)
+		ifeq ($(systype), Darwin)
+			LIBSDIR = -L/usr/local/cuda/lib
+		else
+			LIBSDIR = -L/usr/local/cuda/lib64
+		endif
 	else
 		LIBSDIR = -L/usr/local/cuda/lib
 	endif
-		LIBS = -lcudart -lcurand -lcublas -lcusparse
+		LIBS = -L/usr/local/cuda/lib -lcudart -lcurand  -lcublas -lcusparse
 endif
 
-LIBS +=  -lfftw3 /usr/local/lib/libconfig++.a 
-#LIBS +=  -lfftw3 /sfw/libconfig-1.4.9/lib/libconfig++.a 
+#LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a
 
+ifeq ($(systype), Darwin)
+LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a
+else
+LIBS += -L/sfw/libconfig-1.4.9/lib -lfftw3 /usr/local/lib/libconfig++.a -L$(MKLROOT)/lib/intel64 -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+endif
 
-LDFLAGS = $(LIBSDIR)
+LDFLAGS = $(LIBSDIR)  
