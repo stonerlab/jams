@@ -54,7 +54,7 @@ void Solver::compute_fields() {
 // anisotropy interactions
 //-----------------------------------------------------------------------------
   for (i = 0; i < num_spins; ++i) {
-    h(i, 2) += 2.0*s(i, 2)*d2z(i) + 4.0*s(i, 2)*s(i, 2)*s(i, 2) + 6.0*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2);
+    h(i, 2) += 2.0*d2z(i)*s(i, 2) + 4.0*d4z(i)*s(i, 2)*s(i, 2)*s(i, 2) + 6.0*d6z(i)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2);
   }
 
 
