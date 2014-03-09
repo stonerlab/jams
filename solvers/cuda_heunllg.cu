@@ -71,7 +71,6 @@ void CUDAHeunLLGSolver::run()
         (dev_s_.data(), dev_s_float_.data(), dev_s_new_.data(), dev_h_.data(), dev_w_.data(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
 
     iteration_++;
-    sync_device_data();
 }
 
 void CUDAHeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
