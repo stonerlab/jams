@@ -40,7 +40,7 @@ class Solver {
     monitors_.push_back(monitor);
   }
 
-  inline void notify_monitors() {
+  virtual inline void notify_monitors() {
     for (std::vector<Monitor*>::iterator it = monitors_.begin() ; it != monitors_.end(); ++it) {
       if((*it)->is_updating(iteration_)){
         (*it)->update(iteration_, time(), physics_module_->temperature(), physics_module_->applied_field());

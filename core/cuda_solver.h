@@ -32,8 +32,6 @@ class CudaSolver : public Solver {
     }
   }
 
-
-
   void compute_fields();
   void compute_energy();
 
