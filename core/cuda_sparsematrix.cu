@@ -29,7 +29,7 @@ __global__ void cuda_anisotropy_kernel
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
   if(idx < num_spins) {
     const float sz = dev_sf_[3*idx+2];
-    dev_h_[3*idx+2] += dev_d2z_[idx]*3.0*sz + dev_d4z_[idx]*(17.5*sz*sz*sz-7.5*sz);
+    dev_h_[3*idx+2] += dev_d2z_[idx]*3.0*sz + dev_d4z_[idx]*(17.5*sz*sz*sz-7.5*sz) + dev_d6z_[idx]*(86.625*sz*sz*sz*sz*sz - 78.75*sz*sz*sz + 13.125*sz);
   }
 }
 
