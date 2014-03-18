@@ -8,9 +8,12 @@ all::
 # Define LIBCONFIGDIR if the libconfig header and library files are in
 # /foo/bar/include and /foo/bar/lib directories.
 #
+# Define NO_CUDA if you wish to build a binary without CUDA support
+NO_CUDA=1
+#
 # Define CUDADIR if the cuda header and library files are in
 # /foo/bar/include and /foo/bar/lib directories.
-CUDADIR=/usr/local/cuda-5.5
+CUDADIR=/usr/local/cuda
 # Define MKLROOT if the mkl root path is not set in the environment
 #
 # Define CUDA_BUILD_FERMI if you want to build support for Fermi architechture
@@ -65,7 +68,7 @@ BASIC_CFLAGS = -I. -I/usr/local/include
 BASIC_CUFLAGS = -I. -I$(CUDADIR)/include
 BASIC_LDFLAGS = -L/usr/local/lib
 
-CC = icc
+CC = cc
 NVCC = nvcc
 RM = rm -f
 
@@ -77,6 +80,8 @@ ifndef V
 endif
 
 GIT_COMMIT = $(shell git rev-parse HEAD)
+CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
+SYSTYPE = $(shell uname -s)
 
 OBJS += core/jams++.o
 OBJS += core/lattice.o
@@ -129,15 +134,22 @@ HDR += physics/ttm.h
 HDR += solvers/heunllg.h
 HDR += solvers/metropolismc.h
 
-CUDA_OBJS += core/cuda_solver.o
-CUDA_OBJS += core/cuda_sparsematrix.o
-CUDA_OBJS += solvers/cuda_heunllg.o
+ifndef NO_CUDA
+	CUDA_OBJS += core/cuda_solver.o
+	CUDA_OBJS += core/cuda_sparsematrix.o
+	CUDA_OBJS += solvers/cuda_heunllg.o
 
-CUDA_HDR += core/cuda_defs.h
-CUDA_HDR += core/cuda_solver.h
-CUDA_HDR += core/cuda_sparsematrix.h
-CUDA_HDR += solvers/cuda_heunllg.h
-CUDA_HDR += solvers/cuda_heunllg_kernel.h
+	CUDA_HDR += core/cuda_defs.h
+	CUDA_HDR += core/cuda_solver.h
+	CUDA_HDR += core/cuda_sparsematrix.h
+	CUDA_HDR += solvers/cuda_heunllg.h
+	CUDA_HDR += solvers/cuda_heunllg_kernel.h
+endif
+
+ifeq ($(SYSTYPE),Darwin)
+	CC = clang++
+	BASIC_CFLAGS += -stdlib=libc++
+endif
 
 ifdef LIBCONFIGDIR
 	BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
@@ -146,6 +158,7 @@ endif
 EXTLIBS += -lconfig++
 
 ifdef MKLROOT
+	CC = icc
 	BASIC_CFLAGS += -I$(MKLROOT)/include -DMKL
 	BASIC_LDFLAGS += -L$(MKLROOT)/lib/intel64
 	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
@@ -186,6 +199,16 @@ all:: jams++
 
 jams++: $(OBJS) $(CUDA_OBJS)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(OBJS) $(CUDA_OBJS) $(ALL_LDFLAGS) $(LIBS)
+	@echo
+	@echo " JAMS++ build complete. "
+	@echo
+	@echo " System       ... $(SYSTYPE) "
+	@echo " Architecture ... $(CPUTYPE) "
+ifndef NO_CUDA
+	@echo "              ... CUDA enabled"
+endif
+	@echo " Compiler     ... $(CC) "
+	@echo
 
 jams++.o: EXTRA_CPPFLAGS += \
 	'-DGIT_COMMIT="$(GIT_COMMIT)"'
