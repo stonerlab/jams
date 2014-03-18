@@ -48,9 +48,9 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   // We transpose during the read because the unit cell matrix must have the
   // lattice vectors as the columns but it is easiest to define each vector in
   // the input
-  //  / a1x a2x a2x \  / A \     / A.a1x + B.a2x + C.a3x \
-  // |  a1y a2y a3y  ||  B  | = |  A.a1y + B.a2y + C.a3y  |
-  //  \ a1z a2z a3z /  \ C /     \ A.a1z + B.a2z + C.a3z /
+  // | a1x a2x a2x |  | A |   | A.a1x + B.a2x + C.a3x |
+  // | a1y a2y a3y |  | B | = | A.a1y + B.a2y + C.a3y |
+  // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 3; ++j) {
       lattice_vectors_[i][j] = lattice_settings["basis"][i][j];
@@ -175,7 +175,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     for (int j = 0; j != lattice_size_.y; ++j) {
       for (int k = 0; k != lattice_size_.z; ++k) {
         // loop over atoms in the motif
-        for (int m = 0; m != motif_.size(); ++m) {
+        for (int m = 0, mend = motif_.size(); m != mend; ++m) {
 
           // number the site in the fast integer lattice
           fast_integer_lattice_(i, j, k, m) = atom_counter;
@@ -204,7 +204,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 
   ::output.write("\ncomputed lattice positions\n");
   if (verbose_output_is_set) {
-    for (int i = 0; i != lattice_positions_.size(); ++i) {
+    for (int i = 0, iend = lattice_positions_.size(); i != iend; ++i) {
       ::output.write("  %-6d %-6s % 3.6f % 3.6f % 3.6f\n", i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
     }
   } else {
@@ -412,14 +412,14 @@ void Lattice::compute_interactions() {
     for (int j = 0; j != lattice_size_.y; ++j) {
       for (int k = 0; k != lattice_size_.z; ++k) {
         // loop over atoms in the motif
-        for (int m = 0; m != motif_.size(); ++m) {
+        for (int m = 0, mend = motif_.size(); m != mend; ++m) {
           std::vector<bool> is_already_interacting(globals::num_spins, false);
 
           int local_site = fast_integer_lattice_(i, j, k, m);
 
           is_already_interacting[local_site] = true;  // don't allow self interaction
           // loop over all possible interaction vectors
-          for (int n = 0; n != fast_integer_interaction_list_.size(); ++n) {
+          for (int n = 0, nend = fast_integer_interaction_list_.size(); n != nend; ++n) {
 
             jblib::Vec4<int> fast_integer_lookup_vector(
               i + fast_integer_interaction_list_[n].first.x,

@@ -29,7 +29,6 @@ namespace {
   double dt = 0.0;
   int steps_eq = 0;
   int steps_run = 0;
-  int steps_out = 0;
   int  steps_bin = 0;
 
   bool energy_output_is_set = false;
