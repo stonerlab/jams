@@ -39,6 +39,8 @@ namespace globals {
 
   GLOBAL SparseMatrix<double> J1ij_t;  // bilinear tensor interactions
 
+  GLOBAL jblib::Array<double, 5> wij; // general interaction matrix (for FFT)
+
   GLOBAL jblib::Array<double, 1> d2z;
   GLOBAL jblib::Array<double, 1> d4z;
   GLOBAL jblib::Array<double, 1> d6z;

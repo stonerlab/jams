@@ -70,6 +70,8 @@ class Lattice {
     jblib::Array<int, 4>          fast_integer_lattice_;
     std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > fast_integer_interaction_list_;
     std::vector< std::pair<std::string, jblib::Vec3<double> > > motif_;
+    jblib::Array<int, 3>        kspace_map_;
+    jblib::Vec3<int>            kpoints_;
 };
 
 #endif // JAMS_CORE_LATTICE_H

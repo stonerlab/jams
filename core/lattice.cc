@@ -81,6 +81,16 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   ::output.write("\nlattice size\n  %d  %d  %d\n",
     lattice_size_.x, lattice_size_.y, lattice_size_.z);
 
+  for (int i = 0; i < 3; ++i) {
+    kpoints_[i] = lattice_settings["kpoints"][i];
+  }
+
+  ::output.write("\nunitcell kpoints\n  %d  %d  %d\n",
+    kpoints_.x, kpoints_.y, kpoints_.z);
+
+  ::output.write("\nkspace size\n  %d  %d  %d\n",
+    kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
+
   // TODO: read kpoints
 
 //-----------------------------------------------------------------------------
@@ -165,6 +175,18 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   fast_integer_lattice_.resize(
     lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
 
+  kspace_map_.resize(lattice_size_.x*kpoints_.x, lattice_size_.y*kpoints_.y, lattice_size_.z*kpoints_.z);
+
+// initialize everything to -1 so we can check for double assignment below
+
+  for (int i = 0, iend = lattice_size_.x*lattice_size_.y*lattice_size_.z*motif_.size(); i < iend; ++i) {
+    fast_integer_lattice_[i] = -1;
+  }
+
+  for (int i = 0, iend = lattice_size_.x*kpoints_.x*lattice_size_.y*kpoints_.y*lattice_size_.z*kpoints_.z; i < iend; ++i) {
+    kspace_map_[i] = -1;
+  }
+
 //-----------------------------------------------------------------------------
 // Generate the realspace lattice positions
 //-----------------------------------------------------------------------------
@@ -188,6 +210,19 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 
           lattice_positions_.push_back(real_pos);
           lattice_materials_.push_back(motif_[m].first);
+
+          jblib::Vec3<double> kvec(
+            (i+motif_[m].second.x)*kpoints_.x, (j+motif_[m].second.y)*kpoints_.y, (k+motif_[m].second.z)*kpoints_.z);
+
+          // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
+          if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
+            jams_error("kpoint mesh does not map to the unit cell");
+          }
+
+          if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
+            jams_error("attempted to assign multiple spins to the same point in the kspace map");
+          }
+          kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) = atom_counter;
 
           atom_counter++;
         }
@@ -217,6 +252,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     }
   }
   ::output.write("  total: %d\n", atom_counter);
+
 
 //-----------------------------------------------------------------------------
 // initialize global arrays
