@@ -151,6 +151,8 @@ ifeq ($(SYSTYPE),Darwin)
 	BASIC_CFLAGS += -stdlib=libc++
 endif
 
+EXTLIBS += -lfftw3
+
 ifdef LIBCONFIGDIR
 	BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
 	BASIC_LDFLAGS += -L$(LIBCONFIGDIR)lib
