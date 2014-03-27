@@ -32,7 +32,8 @@ void Lattice::initialize() {
   read_lattice(::config.lookup("materials"), ::config.lookup("lattice"));
   compute_positions(::config.lookup("materials"), ::config.lookup("lattice"));
   read_interactions(::config.lookup("lattice"));
-  compute_interactions();
+  compute_fft_exchange_interactions();
+  compute_fft_dipole_interactions();
 }
 
 ///
@@ -175,7 +176,8 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   fast_integer_lattice_.resize(
     lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
 
-  kspace_map_.resize(lattice_size_.x*kpoints_.x, lattice_size_.y*kpoints_.y, lattice_size_.z*kpoints_.z);
+  kspace_size_ = jblib::Vec3<int>(lattice_size_.x*kpoints_.x, lattice_size_.y*kpoints_.y, lattice_size_.z*kpoints_.z);
+  kspace_map_.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z);
 
 // initialize everything to -1 so we can check for double assignment below
 
@@ -183,7 +185,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     fast_integer_lattice_[i] = -1;
   }
 
-  for (int i = 0, iend = lattice_size_.x*kpoints_.x*lattice_size_.y*kpoints_.y*lattice_size_.z*kpoints_.z; i < iend; ++i) {
+  for (int i = 0, iend = kspace_size_.x*kspace_size_.y*kspace_size_.z; i < iend; ++i) {
     kspace_map_[i] = -1;
   }
 
@@ -259,17 +261,21 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 //-----------------------------------------------------------------------------
   globals::s.resize(globals::num_spins, 3);
   globals::h.resize(globals::num_spins, 3);
+  globals::h_dipole.resize(globals::num_spins, 3);
   globals::alpha.resize(globals::num_spins);
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
   globals::d2z.resize(globals::num_spins);
   globals::d4z.resize(globals::num_spins);
   globals::d6z.resize(globals::num_spins);
+  globals::wij.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z, 3, 3);
 
   std::fill(globals::h.data(), globals::h.data()+globals::num_spins3, 0.0);
+  std::fill(globals::h_dipole.data(), globals::h_dipole.data()+globals::num_spins3, 0.0);
   std::fill(globals::d2z.data(), globals::d2z.data()+globals::num_spins, 0.0);
   std::fill(globals::d4z.data(), globals::d4z.data()+globals::num_spins, 0.0);
   std::fill(globals::d6z.data(), globals::d6z.data()+globals::num_spins, 0.0);
+  std::fill(globals::wij.data(), globals::wij.data()+kspace_size_.x*kspace_size_.y*kspace_size_.z*3*3, 0.0);
 
   material_count_.resize(num_materials(), 0);
   for (int i = 0; i != globals::num_spins; ++i) {
@@ -498,6 +504,97 @@ void Lattice::compute_interactions() {
   }
 
   ::output.write("  total: %d\n", counter);
+}
+
+void Lattice::compute_fft_exchange_interactions() {
+  ::output.write("\ncomputed fft exchange interactions\n");
+
+  for (int i = 0, iend = fast_integer_interaction_list_.size(); i < iend; ++i) {
+    jblib::Vec3<int> pos(
+              kpoints_.x*(fast_integer_interaction_list_[i].first.x + motif_[fast_integer_interaction_list_[i].first.w].second.x),
+              kpoints_.y*(fast_integer_interaction_list_[i].first.y + motif_[fast_integer_interaction_list_[i].first.w].second.y),
+              kpoints_.z*(fast_integer_interaction_list_[i].first.z + motif_[fast_integer_interaction_list_[i].first.w].second.z));
+
+
+    if (abs(pos.x) > (kspace_size_.x/2) || abs(pos.y) > (kspace_size_.y/2) || abs(pos.z) > (kspace_size_.z/2)) {
+      jams_error("Your exchange is too long-range for the periodic system resulting in self interaction");
+    }
+
+    if (pos.x < 0) {
+      pos.x = kspace_size_.x + pos.x;
+    }
+    if (pos.y < 0) {
+      pos.y = kspace_size_.y + pos.y;
+    }
+    if (pos.z < 0) {
+      pos.z = kspace_size_.z + pos.z;
+    }
+
+    // std::cerr <<fast_integer_interaction_list_[i].first.x << "\t" << fast_integer_interaction_list_[i].first.y << "\t" << fast_integer_interaction_list_[i].first.z << "\t" << pos.x << "\t" << pos.y << "\t" << pos.z << std::endl;
+
+    for (int m = 0; m < 3; ++m) {
+      for (int n = 0; n < 3; ++n) {
+        globals::wij(pos.x, pos.y, pos.z, m, n) += fast_integer_interaction_list_[i].second[m][n]/mu_bohr_si;
+      }
+    }
+  }
+}
+
+void Lattice::compute_fft_dipole_interactions() {
+
+  ::output.write("\ncomputed fft dipole interactions\n");
+
+  // loop over wij and calculate the rij parameters
+  for (int i = 0; i < kspace_size_.x; ++i) {
+    for (int j = 0; j < kspace_size_.y; ++j) {
+      for (int k = 0; k < kspace_size_.z; ++k) {
+
+        if (i == 0 && j == 0 && k == 0) {
+          continue;
+        }
+
+        // position of motif atom in fractional lattice vectors
+        jblib::Vec3<double> pos(i, j, k);
+
+        if ( i > (kspace_size_.x/2) ) {
+          pos.x = periodic_shift(pos.x, kspace_size_.x/2) - kspace_size_.x/2;
+        }
+        if ( j > (kspace_size_.y/2) ) {
+          pos.y = periodic_shift(pos.y, kspace_size_.y/2) - kspace_size_.y/2;
+        }
+        if ( k > (kspace_size_.z/2) ) {
+          pos.z = periodic_shift(pos.z, kspace_size_.z/2) - kspace_size_.z/2;
+        }
+
+        for (int m = 0; m < 3; ++m) {
+          pos[m] = pos[m]/kpoints_[m];
+        }
+
+        jblib::Vec3<double> rij = lattice_vectors_*pos;
+
+        rij *= lattice_parameter_;
+
+        // std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << std::endl;
+
+        jblib::Vec3<double> eij = rij/abs(rij);
+
+        const double rsq = dot(rij, rij);
+        const double r   = sqrt(rsq);
+
+        // identity matrix
+        jblib::Matrix<double, 3, 3> ii( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
+
+        for (int m = 0; m < 3; ++m) {
+          for (int n = 0; n < 3; ++n) {
+            globals::wij(i, j, k, m, n) += (mu_bohr_si*1E-7/(1E-27))*(3.0*eij[m]*eij[n]-ii[m][n])/(r*r*r);
+          }
+        }
+        //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << "\t" << globals::wij(i, j, k, 2, 2) << std::endl;
+
+      }
+    }
+  }
+
 }
 
 bool Lattice::insert_interaction(const int m, const int n, const jblib::Matrix<double, 3, 3> &value) {

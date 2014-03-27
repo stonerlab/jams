@@ -53,6 +53,8 @@ class Lattice {
     void compute_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void read_interactions(const libconfig::Setting &lattice_settings);
     void compute_interactions();
+    void compute_fft_exchange_interactions();
+    void compute_fft_dipole_interactions();
     bool insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
 
     double energy_cutoff_;
@@ -72,6 +74,8 @@ class Lattice {
     std::vector< std::pair<std::string, jblib::Vec3<double> > > motif_;
     jblib::Array<int, 3>        kspace_map_;
     jblib::Vec3<int>            kpoints_;
+    jblib::Vec3<int>            kspace_size_;
+
 };
 
 #endif // JAMS_CORE_LATTICE_H

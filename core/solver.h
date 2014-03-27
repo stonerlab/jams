@@ -3,7 +3,7 @@
 #ifndef JAMS_CORE_SOLVER_H
 #define JAMS_CORE_SOLVER_H
 
-
+#include <fftw3.h>
 #include "core/globals.h"
 #include "core/physics.h"
 #include "core/monitor.h"
@@ -61,6 +61,10 @@ class Solver {
 
   Physics*              physics_module_;
   std::vector<Monitor*> monitors_;
+
+  fftw_plan spin_fft_forward_transform;
+  fftw_plan field_fft_backward_transform;
+  fftw_plan interaction_fft_transform;
 };
 
 #endif  // JAMS_CORE_SOLVER_H

@@ -62,6 +62,12 @@ void AnisotropyEnergyMonitor::update(const int &iteration, const double &time, c
       }
     }
 
+    double dipole_energy = 0.0;
+    for (i = 0; i < num_spins; ++i) {
+      dipole_energy -= mus(i)*mus(i)*(s(i,0)*h_dipole(i, 0) + s(i,1)*h_dipole(i, 1) + s(i,2)*h_dipole(i, 2));
+    }
+    dipole_energy /= static_cast<double>(num_spins);
+
     outfile << std::scientific << std::setw(12) << time;
     outfile << std::fixed << std::setw(16) << temperature;
 
@@ -70,6 +76,7 @@ void AnisotropyEnergyMonitor::update(const int &iteration, const double &time, c
       outfile << std::scientific << std::setw(16) << dz_energy_(i, 1)*mu_bohr_si;
       outfile << std::scientific << std::setw(16) << dz_energy_(i, 2)*mu_bohr_si;
     }
+    outfile << std::scientific << std::setw(16) << dipole_energy*mu_bohr_si;
     outfile << "\n";
 }
 

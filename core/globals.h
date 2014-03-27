@@ -34,12 +34,17 @@ namespace globals {
 
   GLOBAL jblib::Array<double, 2> s;
   GLOBAL jblib::Array<double, 2> h;
+  GLOBAL jblib::Array<double, 2> h_dipole;
 
   GLOBAL jblib::Array<float, 2> atom_pos;
 
   GLOBAL SparseMatrix<double> J1ij_t;  // bilinear tensor interactions
 
   GLOBAL jblib::Array<double, 5> wij; // general interaction matrix (for FFT)
+
+  GLOBAL jblib::Array<fftw_complex, 4> sq;
+  GLOBAL jblib::Array<fftw_complex, 4> hq;
+  GLOBAL jblib::Array<fftw_complex, 5> wq;
 
   GLOBAL jblib::Array<double, 1> d2z;
   GLOBAL jblib::Array<double, 1> d4z;
