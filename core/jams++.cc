@@ -81,19 +81,7 @@ int jams_initialize(int argc, char **argv) {
   {
     try {
       config.readFile(config_filename.c_str());
-    }
-    catch(const libconfig::FileIOException &fioex) {
-      jams_error("I/O error while reading '%s'", config_filename.c_str());
-    }
-    catch(const libconfig::ParseException &pex) {
-      jams_error("Error parsing %s:%i: %s", pex.getFile(),
-        pex.getLine(), pex.getError());
-    }
-    catch(...) {
-      jams_error("Undefined config error");
-    }
 
-    try {
       verbose_output_is_set = false;
       config.lookupValue("sim.verbose_output", verbose_output_is_set);
 
@@ -204,11 +192,18 @@ int jams_initialize(int argc, char **argv) {
         }
       }
     }
-    catch(const libconfig::SettingNotFoundException &nfex) {
-      jams_error("Setting '%s' not found", nfex.getPath());
+    catch(const libconfig::FileIOException &fioex) {
+      jams_error("I/O error while reading '%s'", config_filename.c_str());
+    }
+    catch(const libconfig::ParseException &pex) {
+      jams_error("Error parsing %s:%i: %s", pex.getFile(),
+        pex.getLine(), pex.getError());
+    }
+    catch (std::exception& e) {
+      jams_error("Error: %s", e.what());
     }
     catch(...) {
-      jams_error("Undefined config error");
+      jams_error("Caught an unknown exception");
     }
   }
 
