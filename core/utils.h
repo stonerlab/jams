@@ -62,4 +62,8 @@ inline int file_columns(std::string &line) {
   return count;
 }
 
+inline int periodic_shift(const int x, const int dimx) {
+  return (x+dimx)%dimx;
+}
+
 #endif  // JAMS_CORE_UTILS_H
