@@ -79,7 +79,7 @@ ifndef V
 	export V
 endif
 
-GIT_COMMIT = $(shell git rev-parse HEAD)
+GITCOMMIT = $(shell git rev-parse HEAD)
 CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
 SYSTYPE = $(shell uname -s)
 
@@ -216,8 +216,8 @@ endif
 	@echo " Compiler     ... $(CC) "
 	@echo
 
-jams++.o: EXTRA_CPPFLAGS += \
-	'-DGIT_COMMIT="$(GIT_COMMIT)"'
+core/jams++.o: EXTRA_CPPFLAGS += \
+	'-DGITCOMMIT="$(GITCOMMIT)"'
 
 $(OBJS): %.o: %.cc $(HDR)
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $(EXTRA_CPPFLAGS) $<
