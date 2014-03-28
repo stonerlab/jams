@@ -5,6 +5,7 @@
 #include "core/globals.h"
 #include "core/solver.h"
 #include "monitors/magnetisation.h"
+#include "monitors/torque.h"
 #include "monitors/anisotropy_energy.h"
 #include "monitors/energy.h"
 #include "monitors/boltzmann.h"
@@ -27,6 +28,10 @@ bool Monitor::is_updating(const int &iteration) const {
 Monitor* Monitor::create(const libconfig::Setting &settings) {
   if (capitalize(settings["module"]) == "MAGNETISATION") {
     return new MagnetisationMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "TORQUE") {
+    return new TorqueMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "ANISOTROPY_ENERGY") {
