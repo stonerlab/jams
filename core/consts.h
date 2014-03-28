@@ -4,6 +4,7 @@
 #define JAMS_CORE_CONSTS_H
 
 const double pi = 3.14159265358979323846;
+const double twopi = 2.0*pi;
 const double mu_bohr_si = 9.27400915E-24;
 const double gamma_electron_si = 1.760859770e11;
 const double boltzmann_si = 1.3806504e-23;
