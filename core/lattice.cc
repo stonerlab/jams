@@ -32,8 +32,16 @@ void Lattice::initialize() {
   read_lattice(::config.lookup("materials"), ::config.lookup("lattice"));
   compute_positions(::config.lookup("materials"), ::config.lookup("lattice"));
   read_interactions(::config.lookup("lattice"));
-  compute_fft_exchange_interactions();
-  compute_fft_dipole_interactions();
+
+  config.lookupValue("sim.verbose_output", verbose_output_is_set);
+
+  if (::optimize::use_fft) {
+    compute_fft_exchange_interactions();
+    compute_fft_dipole_interactions();
+  } else {
+    compute_exchange_interactions();
+    jams_warning("no dipole interactions due to the lack of FFT optimizations");
+  }
 }
 
 ///
@@ -115,6 +123,10 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
     lattice_pbc_.y ? "periodic" : "open",
     lattice_pbc_.z ? "periodic" : "open");
 
+  if (!(lattice_pbc_.x && lattice_pbc_.y && lattice_pbc_.z)) {
+    jams_warning("FFT optimizations are not yet supported for open boundaries.\nFFT OPTIMIZATIONS HAVE BEEN DISABLED");
+  }
+
 //-----------------------------------------------------------------------------
 // Read materials
 //-----------------------------------------------------------------------------
@@ -130,6 +142,11 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
     materials_numbered_list_.push_back(name);
     ::output.write("  %-6d %s\n", counter, name.c_str());
     counter++;
+  }
+
+  if (counter > 1) {
+    ::optimize::use_fft = false;
+    jams_warning("FFT optimizations were requested,\nbut this is only supported with a single species.\nFFT OPTIMIZATIONS HAVE BEEN DISABLED");
   }
 
 //-----------------------------------------------------------------------------
@@ -441,7 +458,7 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
   ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
 }
 
-void Lattice::compute_interactions() {
+void Lattice::compute_exchange_interactions() {
 
   globals::J1ij_t.resize(globals::num_spins3,globals::num_spins3);
 
