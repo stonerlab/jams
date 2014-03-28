@@ -10,6 +10,7 @@
 #include "solvers/cuda_heunllg.h"
 #include "solvers/heunllg.h"
 #include "solvers/metropolismc.h"
+#include "solvers/constrainedmc.h"
 
 #ifdef MKL
 #include <mkl_spblas.h>
@@ -54,11 +55,8 @@ void Solver::compute_fields() {
 // anisotropy interactions
 //-----------------------------------------------------------------------------
   for (i = 0; i < num_spins; ++i) {
-    h(i, 0) += d2z(i)*3.0*s(i,0)*s(i,2)*s(i,2) + d4z(i)*2.5*s(i,0)*s(i,2)*s(i,2)*(3.0*s(i,0)*s(i,0) + 3.0*s(i,1)*s(i,1) + 10.0*s(i,2)*s(i,2));
-    h(i, 1) += d2z(i)*3.0*s(i,1)*s(i,2)*s(i,2) + d4z(i)*2.5*s(i,1)*s(i,2)*s(i,2)*(3.0*s(i,0)*s(i,0) + 3.0*s(i,1)*s(i,1) + 10.0*s(i,2)*s(i,2));
-    h(i, 2) += -d2z(i)*3.0*s(i,2)*(s(i,0)*s(i,0) + s(i,1)*s(i,1)) - d4z(i)*2.5*s(i,2)*(s(i,0)*s(i,0) + s(i,1)*s(i,1))*(3.0*s(i,0)*s(i,0) + 3.0*s(i,1)*s(i,1) + 10.0*s(i,2)*s(i,2));
+    h(i, 2) += d2z(i)*3.0*s(i,2) + d4z(i)*(17.5*s(i,2)*s(i,2)*s(i,2)-7.5*s(i,2)) + d6z(i)*(86.625*s(i,2)*s(i,2)*s(i,2)*s(i,2)*s(i,2) - 78.75*s(i,2)*s(i,2)*s(i,2) + 13.125*s(i,2));
   }
-
 
   // normalize by the gyroscopic factor
   for (i = 0; i < num_spins; ++i) {
@@ -76,6 +74,10 @@ Solver* Solver::create(const std::string &solver_name) {
 
   if (capitalize(solver_name) == "METROPOLISMC") {
     return new MetropolisMCSolver;
+  }
+
+  if (capitalize(solver_name) == "CONSTRAINEDMC") {
+    return new ConstrainedMCSolver;
   }
 
 #ifdef CUDA

@@ -86,34 +86,26 @@ double Random::uniform_closed() {
 /// This code is Copyright 2001-2008 Agner Fog (http://www.agner.org)\n
 /// GNU General Public License http://www.gnu.org/licenses/gpl.html
 ///
-/// @param[in] m minimum distribution value
-/// @param[in] n maximum distribution value
-/// @return integer random number from the distribution [n, m]
+/// @param[in] min minimum distribution value
+/// @param[in] max maximum distribution value
+/// @return integer random number from the distribution [min, max]
 ///
-int Random::uniform_discrete(const int m, const int n) {
+int Random::uniform_discrete(const int min, const int max) {
   assert(initialized == true);
-  if (n < m) {
-    jams_error("n must be > m in discrete uniform generator");
-  }
+  assert(min < max);
+  // if (n < m) {
+  //   jams_error("n must be > m in discrete uniform generator");
+  // }
 
   uint32_t  interval;   // Length of interval
   uint64_t  longran;    // Random bits * interval
   uint32_t  iran;       // Longran / 2^32
-  uint32_t  remainder;  // Longran % 2^32
 
-  interval = static_cast<uint32_t>(n - m + 1);
-  if (interval != discrete_ival) {
-    discrete_rlim = uint32_t((static_cast<uint64_t>(1) << 32) / interval)
-    * interval - 1;
-    discrete_ival = interval;
-  }
-  do {  // Rejection loop
-    longran   = static_cast<uint64_t>(cmwc4096() * interval);
-    iran      = static_cast<uint32_t>(longran >> 32);
-    remainder = static_cast<uint32_t>(longran);
-  } while (remainder > discrete_rlim);
-
-  return (static_cast<int32_t>(iran + m));
+ interval = (uint32_t)(max - min + 1);
+ longran  = (uint64_t)cmwc4096() * interval;
+ iran = (uint32_t)(longran >> 32);
+ // Convert back to signed and return result
+ return (int32_t)iran + min;
 }
 
 ///

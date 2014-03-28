@@ -23,8 +23,6 @@ class Random {
   cmwc_q(4096, 0),
   cmwc_c(0),
   cmwc_r(0),
-  discrete_ival(0),
-  discrete_rlim(0),
   normal_logic(false),
   normal_next(0.0)
   {}
@@ -50,9 +48,6 @@ class Random {
   std::vector<uint32_t> cmwc_q;
   uint32_t cmwc_c;
   uint32_t cmwc_r;
-
-  uint32_t        discrete_ival;
-  uint32_t        discrete_rlim;
 
   bool normal_logic;
   double normal_next;
