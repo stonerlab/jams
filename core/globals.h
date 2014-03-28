@@ -28,6 +28,10 @@ GLOBAL Random rng;
 GLOBAL std::string seedname;
 GLOBAL bool verbose_output_is_set;
 
+namespace optimize {
+    GLOBAL bool use_fft;
+}
+
 namespace globals {
   GLOBAL int num_spins;
   GLOBAL int num_spins3;
