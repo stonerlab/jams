@@ -93,29 +93,33 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
   double energy_final = 0.0;
 
   // exchange field
-  jblib::Vec3<double> field(0.0, 0.0, 0.0);
-    if (J1ij_t.nonZero() > 0) {   // J1ij_t
-
-      const double *val = J1ij_t.valPtr();
-      const int    *row = J1ij_t.rowPtr();
-      const int    *indx = J1ij_t.colPtr();
-      const double *x   = s.data();
-      int           k;
+  fftw_execute(spin_fft_forward_transform);
 
 
-      for (int m = 0; m < 3; ++m) {
-        int begin = row[3*ii+m]; int end = row[3*ii+m+1];
-
-            // upper triangle and diagonal
-        for (int j = begin; j < end; ++j) {
-          k = indx[j];
-          field[m] += x[k]*val[j];
+  // perform convolution as multiplication in fourier space
+  for (int i = 0, iend = globals::wij.size(0); i < iend; ++i) {
+    for (int j = 0, jend = globals::wij.size(1); j < jend; ++j) {
+      for (int k = 0, kend = (globals::wij.size(2)/2)+1; k < kend; ++k) {
+        for(int m = 0; m < 3; ++m) {
+          hq(i,j,k,m)[0] = 0.0; hq(i,j,k,m)[1] = 0.0;
+          for(int n = 0; n < 3; ++n) {
+            hq(i,j,k,m)[0] = hq(i,j,k,m)[0] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[0]-wq(i,j,k,m,n)[1]*sq(i,j,k,n)[1] );
+            hq(i,j,k,m)[1] = hq(i,j,k,m)[1] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[1]+wq(i,j,k,m,n)[1]*sq(i,j,k,n)[0] );
+          }
         }
       }
     }
+  }
 
-    energy_initial -= s(ii,0)*field[0] + s(ii,1)*field[1] + s(ii,2)*field[2];
-    energy_final   -= dot(s_final,field);
+  fftw_execute(field_fft_backward_transform);
+
+    // normalise
+  for (int i = 0; i < num_spins3; ++i) {
+    h_dipole[i] /= static_cast<double>(num_spins);
+  }
+
+    energy_initial -= s(ii,0)*h_dipole(ii,0) + s(ii,1)*h_dipole(ii,1) + s(ii,2)*h_dipole(ii,2);
+    energy_final   -= s_final.x*h_dipole(ii,0) + s_final.y*h_dipole(ii,1) + s_final.z*h_dipole(ii,2);
 
     energy_initial -= d2z(ii)*0.5*(3.0*s(ii,2)*s(ii,2) - 1.0);
     energy_initial -= d4z(ii)*0.125*(35.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)-30.0*s(ii,2)*s(ii,2) + 3.0);
@@ -144,6 +148,7 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
     }
 
     for (int i = 0; i < num_spins/2; ++i) {
+      // std::cout << i << std::endl;
       int rand_s1 = rng.uniform_discrete(0, num_spins-1);
 
       jblib::Vec3<double> s1_initial(s(rand_s1, 0), s(rand_s1, 1), s(rand_s1,2));
@@ -217,6 +222,9 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
         }
       }
     }
+
+    // compute fields ready for torque monitor
+    compute_fields();
     iteration_++;
   }
 
