@@ -104,6 +104,7 @@ OBJS += physics/square.o
 OBJS += physics/ttm.o
 OBJS += solvers/heunllg.o
 OBJS += solvers/metropolismc.o
+OBJS += solvers/constrainedmc.o
 
 HDR += core/consts.h
 HDR += core/error.h
@@ -133,6 +134,7 @@ HDR += physics/square.h
 HDR += physics/ttm.h
 HDR += solvers/heunllg.h
 HDR += solvers/metropolismc.h
+HDR += solvers/constrainedmc.h
 
 ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver.o
