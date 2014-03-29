@@ -5,7 +5,7 @@
 
 #include <cstddef>
 
-typedef float CudaFastFloat;
+typedef double CudaFastFloat;
 
 #define BLOCKSIZE 64
 #define DIA_BLOCK_SIZE 256
@@ -13,7 +13,7 @@ typedef float CudaFastFloat;
 typedef struct devDIA {
   int     *row;
   int     *col;
-  float   *val;
+  CudaFastFloat   *val;
   size_t     pitch;
   int     blocks;
 } devDIA;
@@ -21,7 +21,7 @@ typedef struct devDIA {
 typedef struct devCSR {
   int     *pointers;
   int     *coords;
-  float   *val;
+  CudaFastFloat   *val;
   int     blocks;
 } devCSR;
 

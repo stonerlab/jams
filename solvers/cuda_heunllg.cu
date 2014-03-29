@@ -57,7 +57,7 @@ void CUDAHeunLLGSolver::run()
     CudaFastFloat stmp = sqrt(physics_module_->temperature());
 
     if(physics_module_->temperature() > 0.0) {
-        CURAND_CALL(curandGenerateNormal(gen, dev_w_.data(), (num_spins3+(num_spins3%2)), 0.0f, stmp));
+        CURAND_CALL(curandGenerateNormalDouble(gen, dev_w_.data(), (num_spins3+(num_spins3%2)), 0.0f, stmp));
     }
 
     compute_fields();
