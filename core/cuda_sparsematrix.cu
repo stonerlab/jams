@@ -3,6 +3,7 @@
 #include "core/cuda_defs.h"
 #include "core/cuda_sparsematrix.h"
 
+#include <cufft.h>
 #include <thrust/extrema.h>
 
 #include <algorithm>
@@ -31,6 +32,46 @@ __global__ void cuda_anisotropy_kernel
     const float sz = dev_sf_[3*idx+2];
     dev_h_[3*idx+2] += dev_d2z_[idx]*3.0*sz + dev_d4z_[idx]*(17.5*sz*sz*sz-7.5*sz) + dev_d6z_[idx]*(86.625*sz*sz*sz*sz*sz - 78.75*sz*sz*sz + 13.125*sz);
   }
+}
+
+__global__ void cuda_fft_convolution
+(
+  const int size,
+  const int realsize,
+  const cufftDoubleComplex *dev_wq,
+  const cufftDoubleComplex *dev_sq,
+  cufftDoubleComplex *dev_hq
+) {
+  // .x is the real part, .y is the imaginary part
+
+  const int idx = blockIdx.x*blockDim.x+threadIdx.x;
+
+  if (idx < size) {
+    cufftDoubleComplex hq[3] = {0.0, 0.0, 0.0};
+    cufftDoubleComplex sq[3] = {dev_sq[3*idx], dev_sq[3*idx+1], dev_sq[3*idx+2]};
+    cufftDoubleComplex wq[3][3] = { {dev_wq[9*idx + 0], dev_wq[9*idx+1], dev_wq[9*idx+2]},
+                                    {dev_wq[9*idx + 3], dev_wq[9*idx+4], dev_wq[9*idx+5]},
+                                    {dev_wq[9*idx + 6], dev_wq[9*idx+7], dev_wq[9*idx+8]} };
+
+    for(int m = 0; m < 3; ++m) {
+      for(int n = 0; n < 3; ++n) {
+        hq[m].x += ( wq[m][n].x*sq[n].x-wq[m][n].y*sq[n].y );
+        hq[m].y += ( wq[m][n].x*sq[n].y+wq[m][n].y*sq[n].x );
+      }
+    }
+
+  #pragma unroll
+    for (int n = 0; n < 3; ++n) {
+      hq[n].x /= double(realsize);
+      hq[n].y /= double(realsize);
+    }
+
+  #pragma unroll
+    for (int n = 0; n < 3; ++n) {
+      dev_hq[3*idx + n] = hq[n];
+    }
+  }
+
 }
 
 __global__ void spmv_dia_kernel

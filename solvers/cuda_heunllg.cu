@@ -63,12 +63,12 @@ void CUDAHeunLLGSolver::run()
     compute_fields();
 
     cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE>>>
-        (dev_s_.data(), dev_s_float_.data(), dev_s_new_.data(), dev_h_.data(), dev_w_.data(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
+        (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), dev_w_.data(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
 
     compute_fields();
 
     cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE>>>
-        (dev_s_.data(), dev_s_float_.data(), dev_s_new_.data(), dev_h_.data(), dev_w_.data(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
+        (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), dev_w_.data(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
 
     iteration_++;
 }

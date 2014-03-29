@@ -22,13 +22,70 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 
   ::output.write("\ninitializing cuda solver class\n");
 
-  ::output.write("  converting J1ij_t format from map to dia\n");
+  ::output.write("\nconverting J1ij_t format from map to dia\n");
   J1ij_t.convertMAP2DIA();
 
-  ::output.write("    memory usage (dia): %f MB\n", J1ij_t.calculateMemory());
+  ::output.write("\nmemory usage (dia): %f MB\n", J1ij_t.calculateMemory());
   dev_J1ij_t_.blocks = std::min<int>(DIA_BLOCK_SIZE, (num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
 
-  ::output.write("    allocating on device\n");
+  ::output.write("\nallocating on device\n");
+
+//-----------------------------------------------------------------------------
+// fourier transforms
+//-----------------------------------------------------------------------------
+  // globals::sq.resize(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3);
+  // globals::hq.resize(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3);
+  globals::wq.resize(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3, 3);
+
+  int real_storage[3] = {globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2))};
+  int kspace_storage[3] = {globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1};
+  int kspace_dimensions[3] = {globals::wij.size(0), globals::wij.size(1), globals::wij.size(2)};
+
+  ::output.write("\nkspace dimensions: %d %d %d", globals::wij.size(0), globals::wij.size(1), globals::wij.size(2));
+
+  ::output.write("\nFFT planning\n");
+
+  // perform the wij -> wq transformation on the host
+  fftw_plan interaction_fft_transform  = fftw_plan_many_dft_r2c(3, kspace_dimensions, 9, wij.data(),  NULL, 9, 1, wq.data(), NULL, 9, 1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
+  ::output.write("\nFFT transform interaction matrix\n");
+  fftw_execute(interaction_fft_transform);
+
+  ::output.write("\nFFT transfering arrays to device\n");
+
+  // convert fftw_complex data into cufftDoubleComplex format and copy to the device
+  jblib::Array<cufftDoubleComplex, 5> convert_wq(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3, 3);
+
+  for (int i = 0; i < globals::wq.elements(); ++i) {
+    convert_wq[i].x = globals::wq[i][0];
+    convert_wq[i].y = globals::wq[i][1];
+  }
+  dev_wq_ = jblib::CudaArray<cufftDoubleComplex, 1>(convert_wq);
+
+  // for (int i = 0; i < globals::wij.size(0); ++i) {
+  //   for (int j = 0; j < globals::wij.size(1); ++j) {
+  //     for (int k = 0; k < (globals::wij.size(2)/2)+1; ++k) {
+  //       std::cerr << i << "\t" << j << "\t" << k << "\t" << convert_wq(i,j,k,0,1).y << "\t" << convert_wq(i,j,k,0,1).y << "\t" << convert_wq(i,j,k,0,2).y << "\t" << std::endl;
+  //     }
+  //   }
+  // }
+  // exit(0);
+
+  dev_sq_.resize(globals::wij.size(0)*globals::wij.size(1)*((globals::wij.size(2)/2)+1)*3);
+  dev_hq_.resize(globals::wij.size(0)*globals::wij.size(1)*((globals::wij.size(2)/2)+1)*3);
+
+  if (cufftPlanMany(&spin_fft_forward_transform, 3, kspace_dimensions, real_storage, 3, 1, kspace_storage, 3, 1, CUFFT_D2Z, 3) != CUFFT_SUCCESS) {
+    jams_error("CUFFT failure planning spin_fft_forward_transform");
+  }
+  if (cufftSetCompatibilityMode(spin_fft_forward_transform, CUFFT_COMPATIBILITY_NATIVE) != CUFFT_SUCCESS) {
+    jams_error("CUFFT failure changing to compatability mode native for spin_fft_forward_transform");
+  }
+  if (cufftPlanMany(&field_fft_backward_transform, 3, kspace_dimensions, kspace_storage, 3, 1, real_storage, 3, 1, CUFFT_Z2D, 3) != CUFFT_SUCCESS) {
+    jams_error("CUFFT failure planning field_fft_backward_transform");
+  }
+  if (cufftSetCompatibilityMode(field_fft_backward_transform, CUFFT_COMPATIBILITY_NATIVE) != CUFFT_SUCCESS) {
+    jams_error("CUFFT failure changing to compatability mode native for field_fft_backward_transform");
+  }
+
 
 //-----------------------------------------------------------------------------
 // transfer sparse matrix to device - optionally converting double precision to
@@ -55,17 +112,9 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 // Transfer the the other arrays to the device
 //-----------------------------------------------------------------------------
 
-  ::output.write("  transfering arrays to device\n");
+  ::output.write("\ntransfering arrays to device\n");
 
   // spin arrays
-  jblib::Array<CudaFastFloat, 2> sf(num_spins, 3);
-  for(int i = 0; i!=num_spins; ++i) {
-    for(int j = 0; j!=3; ++j) {
-      sf(i, j) = static_cast<CudaFastFloat>(s(i, j));
-    }
-  }
-  dev_s_float_ = jblib::CudaArray<CudaFastFloat, 1>(sf);
-
   dev_s_        = jblib::CudaArray<double, 1>(s);
   dev_s_new_    = jblib::CudaArray<double, 1>(s);
 
@@ -119,11 +168,48 @@ void CudaSolver::compute_fields() {
   if(J1ij_t.nonZero() > 0){
     spmv_dia_kernel<<< dev_J1ij_t_.blocks, DIA_BLOCK_SIZE >>>
     (num_spins3, num_spins3, J1ij_t.diags(), dev_J1ij_t_.pitch, 1.0, 0.0,
-     dev_J1ij_t_.row, dev_J1ij_t_.val, dev_s_float_.data(), dev_h_.data());
+     dev_J1ij_t_.row, dev_J1ij_t_.val, dev_s_.data(), dev_h_.data());
   }
 
+  if (cufftExecD2Z(spin_fft_forward_transform, dev_s_.data(), dev_sq_.data()) != CUFFT_SUCCESS) {
+    jams_error("CUFFT failure executing spin_fft_forward_transform");
+  }
+
+  // jblib::Array<cufftDoubleComplex, 4> convert_sq(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3);
+
+  // dev_sq_.copy_to_host_array(convert_sq);
+
+  // for (int i = 0; i < globals::wij.size(0); ++i) {
+  //   for (int j = 0; j < globals::wij.size(1); ++j) {
+  //     for (int k = 0; k < globals::wij.size(2)/2 +1; ++k) {
+  //       std::cerr << i << "\t" << j << "\t" << k << "\t" << convert_sq(i,j,k,0).x << "\t" << convert_sq(i,j,k,0).y << "\t" << convert_sq(i,j,k,1).x << "\t" << convert_sq(i,j,k,1).y << "\t" << convert_sq(i,j,k,2).x << "\t" << convert_sq(i,j,k,2).y << "\t" << std::endl;
+  //     }
+  //   }
+  // }
+
+  const int convolution_size = globals::wij.size(0)*globals::wij.size(1)*((globals::wij.size(2)/2)+1);
+  const int real_size = globals::wij.size(0)*globals::wij.size(1)*globals::wij.size(2);
+
+  cuda_fft_convolution<<<(convolution_size+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>(convolution_size, real_size, dev_wq_.data(), dev_sq_.data(), dev_hq_.data());
+  if (cufftExecZ2D(field_fft_backward_transform, dev_hq_.data(), dev_h_.data()) != CUFFT_SUCCESS) {
+    jams_error("CUFFT failure executing field_fft_backward_transform");
+  }
+
+  // jblib::Array<double, 4> convert_h(globals::wij.size(0), globals::wij.size(1), globals::wij.size(2), 3);
+
+  // dev_h_.copy_to_host_array(convert_h);
+
+  // for (int i = 0; i < globals::wij.size(0); ++i) {
+  //   for (int j = 0; j < globals::wij.size(1); ++j) {
+  //     for (int k = 0; k < globals::wij.size(2); ++k) {
+  //       std::cerr << i << "\t" << j << "\t" << k << "\t" << convert_h(i,j,k,0) << "\t" << convert_h(i,j,k,1) << "\t" << convert_h(i,j,k,2) << "\t" << std::endl;
+  //     }
+  //   }
+  // }
+  // exit(0);
+
   cuda_anisotropy_kernel<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>
-  (num_spins, dev_d2z_.data(), dev_d4z_.data(), dev_d6z_.data(), dev_s_float_.data(), dev_h_.data());
+  (num_spins, dev_d2z_.data(), dev_d4z_.data(), dev_d6z_.data(), dev_s_.data(), dev_h_.data());
 
   // anisotropy interactions
 }

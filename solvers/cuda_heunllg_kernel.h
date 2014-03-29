@@ -8,7 +8,6 @@
 __global__ void cuda_heun_llg_kernelA
 (
   double * s_dev,
-  CudaFastFloat * sf_dev,
   double * s_new_dev,
   CudaFastFloat * h_dev,
   CudaFastFloat * w_dev,
@@ -35,9 +34,9 @@ __global__ void cuda_heun_llg_kernelA
     CudaFastFloat alpha = mat_dev[idx*4+2];
     CudaFastFloat sigma = mat_dev[idx*4+3];
 
-    h[0] = double(( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro);
-    h[1] = double(( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro);
-    h[2] = double(( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z)*mus )*gyro);
+    h[0] = ( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro;
+    h[1] = ( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
+    h[2] = ( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
 
     s[0] = s_dev[idx3];
     s[1] = s_dev[idx3+1];
@@ -64,17 +63,12 @@ __global__ void cuda_heun_llg_kernelA
     s_dev[idx3]   = s[0]*norm;
     s_dev[idx3+1] = s[1]*norm;
     s_dev[idx3+2] = s[2]*norm;
-
-    sf_dev[idx3]   = CudaFastFloat(s[0]*norm);
-    sf_dev[idx3+1] = CudaFastFloat(s[1]*norm);
-    sf_dev[idx3+2] = CudaFastFloat(s[2]*norm);
   }
 }
 
 __global__ void cuda_heun_llg_kernelB
 (
   double * s_dev,
-  CudaFastFloat * sf_dev,
   double * s_new_dev,
   CudaFastFloat * h_dev,
   CudaFastFloat * w_dev,
@@ -101,9 +95,9 @@ __global__ void cuda_heun_llg_kernelB
     CudaFastFloat alpha = mat_dev[idx*4+2];
     CudaFastFloat sigma = mat_dev[idx*4+3];
 
-    h[0] = double(( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro);
-    h[1] = double(( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro);
-    h[2] = double(( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z)*mus )*gyro);
+    h[0] = ( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro;
+    h[1] = ( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
+    h[2] = ( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
 
     s[0] = s_dev[idx3];
     s[1] = s_dev[idx3+1];
@@ -126,10 +120,6 @@ __global__ void cuda_heun_llg_kernelB
     s_dev[idx3]   = s[0]*norm;
     s_dev[idx3+1] = s[1]*norm;
     s_dev[idx3+2] = s[2]*norm;
-
-    sf_dev[idx3]   = CudaFastFloat(s[0]*norm);
-    sf_dev[idx3+1] = CudaFastFloat(s[1]*norm);
-    sf_dev[idx3+2] = CudaFastFloat(s[2]*norm);
   }
 }
 

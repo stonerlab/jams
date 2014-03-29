@@ -3,6 +3,8 @@
 #ifndef JAMS_CORE_CUDASOLVER_H
 #define JAMS_CORE_CUDASOLVER_H
 
+#include <cufft.h>
+
 #include "core/cuda_defs.h"
 #include "core/globals.h"
 #include "core/solver.h"
@@ -40,9 +42,8 @@ class CudaSolver : public Solver {
       dev_s_.copy_to_host_array(globals::s);
     }
 
-    jblib::CudaArray<CudaFastFloat, 1>  dev_h_;
+    jblib::CudaArray<double, 1>  dev_h_;
     jblib::CudaArray<CudaFastFloat, 1>  dev_mat_;
-    jblib::CudaArray<CudaFastFloat, 1>  dev_s_float_;
     jblib::CudaArray<double, 1> dev_s_;
     jblib::CudaArray<double, 1> dev_s_new_;
     devDIA                      dev_J1ij_t_;
@@ -50,6 +51,12 @@ class CudaSolver : public Solver {
     jblib::CudaArray<CudaFastFloat, 1> dev_d4z_;
     jblib::CudaArray<CudaFastFloat, 1> dev_d6z_;
 
+    jblib::CudaArray<cufftDoubleComplex, 1> dev_sq_;
+    jblib::CudaArray<cufftDoubleComplex, 1> dev_hq_;
+    jblib::CudaArray<cufftDoubleComplex, 1> dev_wq_;
+
+    cufftHandle spin_fft_forward_transform;
+    cufftHandle field_fft_backward_transform;
 };
 
 #endif  // JAMS_CORE_CUDASOLVER_H

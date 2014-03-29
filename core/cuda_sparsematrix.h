@@ -2,10 +2,20 @@
 
 #ifndef JAMS_CUDA_SPARSE_H
 #define JAMS_CUDA_SPARSE_H
+#include <cufft.h>
 
 #include "core/cuda_defs.h"
 #include "core/sparsematrix.h"
 #include "jblib/containers/sparsematrix.h"
+
+__global__ void cuda_fft_convolution
+(
+  const int size,
+  const int realsize,
+  const cufftDoubleComplex *dev_wq,
+  const cufftDoubleComplex *dev_sq,
+  cufftDoubleComplex *dev_hq
+);
 
 __global__ void cuda_anisotropy_kernel
 (

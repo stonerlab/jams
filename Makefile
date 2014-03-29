@@ -2,14 +2,14 @@
 all::
 
 # Define V=1 for verbose output
-# V=1
+#V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
 # /foo/bar/include and /foo/bar/lib directories.
-#
+LIBCONFIGDIR=/home/jb544/local
 # Define NO_CUDA if you wish to build a binary without CUDA support
-NO_CUDA=1
+#NO_CUDA=1
 #
 # Define CUDADIR if the cuda header and library files are in
 # /foo/bar/include and /foo/bar/lib directories.
@@ -159,7 +159,7 @@ EXTLIBS += -lfftw3
 
 ifdef LIBCONFIGDIR
 	BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
-	BASIC_LDFLAGS += -L$(LIBCONFIGDIR)lib
+	BASIC_LDFLAGS += -L$(LIBCONFIGDIR)/lib
 endif
 EXTLIBS += -lconfig++
 
@@ -174,7 +174,7 @@ ifndef NO_CUDA
 	BASIC_CFLAGS += -I$(CUDADIR)/include -DCUDA
 	BASIC_CUFLAGS += -I$(CUDADIR)/include -DCUDA
 	BASIC_LDFLAGS += -L$(CUDADIR)/lib64
-	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse
+	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
 		BASIC_CUFLAGS += -gencode=arch=compute_20,code=sm_20
 	endif
@@ -190,7 +190,7 @@ endif
 
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
-ALL_CUFLAGS += $(BASIC_CUFLAGS)
+ALL_CUFLAGS += $(BASIC_CFLAGS) $(BASIC_CUFLAGS)
 ALL_LDFLAGS += $(BASIC_LDFLAGS)
 
 LIBS = $(EXTLIBS)
