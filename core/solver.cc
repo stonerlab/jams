@@ -119,7 +119,7 @@ void Solver::compute_fields() {
   // normalize by the gyroscopic factor
   for (i = 0; i < num_spins; ++i) {
     for (j = 0; j < 3; ++j) {
-      h(i, j) = (h(i, j) + mus(i)*h_dipole(i,j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
+      h(i, j) = (h(i, j) + h_dipole(i,j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
     }
   }
 }
