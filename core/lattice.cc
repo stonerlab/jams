@@ -603,7 +603,7 @@ void Lattice::compute_fft_dipole_interactions() {
 
         for (int m = 0; m < 3; ++m) {
           for (int n = 0; n < 3; ++n) {
-            globals::wij(i, j, k, m, n) += (mu_bohr_si*1E-7/(1E-27))*(3.0*eij[m]*eij[n]-ii[m][n])/(r*r*r);
+            globals::wij(i, j, k, m, n) += globals::mus(0)*(mu_bohr_si*1E-7/(1E-27))*(3.0*eij[m]*eij[n]-ii[m][n])/(r*r*r);
           }
         }
         //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << "\t" << globals::wij(i, j, k, 2, 2) << std::endl;
