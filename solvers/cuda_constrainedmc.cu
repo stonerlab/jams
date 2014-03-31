@@ -67,31 +67,6 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
 
 
-  :: output.write("Initialising CURAND...\n");
-
-
-  const unsigned long long gpuseed = rng.uniform()*18446744073709551615ULL;
-
-  if (curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS) {
-    jams_error("Failed to create CURAND generator");
-  }
-
-  if (curandSetPseudoRandomGeneratorSeed(gen, gpuseed) != CURAND_STATUS_SUCCESS) {
-    jams_error("Failed to set CURAND seed");
-  }
-
-  if (curandGenerateSeeds(gen) != CURAND_STATUS_SUCCESS) {
-    jams_error("Failed to generate CURAND seeds");
-  }
-
-  random_number_buffer_.resize(10*(num_spins3+(num_spins3%2)));
-
-  dev_random_number_buffer_ = jblib::CudaArray<double, 1>(random_number_buffer_);
-
-  CURAND_CALL(curandGenerateUniformDouble(gen, dev_random_number_buffer_.data(), random_number_buffer_.elements()));
-  dev_random_number_buffer_.copy_to_host_array(random_number_buffer_);
-  curand_iterator_ = 0;
-
   // output.write("\nconverting symmetric to general MAP matrices\n");
 
   // J1ij_t.convertSymmetric2General();
@@ -104,17 +79,6 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
   // J1ij_t.calculateMemory());
 }
-
-double CudaConstrainedMCSolver::get_uniform_random_number() {
-  curand_iterator_++;
-  if (!(curand_iterator_ < random_number_buffer_.elements())) {
-    CURAND_CALL(curandGenerateUniformDouble(gen, dev_random_number_buffer_.data(), random_number_buffer_.elements() ));
-    dev_random_number_buffer_.copy_to_host_array(random_number_buffer_);
-    curand_iterator_ = 0;
-  }
-  return random_number_buffer_[curand_iterator_];
-}
-
 
 
 void CudaConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin) {
@@ -165,7 +129,7 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
 
     for (int i = 0; i < num_spins/2; ++i) {
       // std::cout << i << std::endl;
-      int rand_s1 = floor(get_uniform_random_number()*(num_spins));
+      int rand_s1 = rng.uniform_discrete(0, num_spins-1);
 
       jblib::Vec3<double> s1_initial(s(rand_s1, 0), s(rand_s1, 1), s(rand_s1,2));
 
@@ -184,7 +148,7 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
       // randomly select spin number 2 (i/=j)
       int rand_s2 = rand_s1;
       while (rand_s2 == rand_s1) {
-        rand_s2 = floor(get_uniform_random_number()*(num_spins));
+        rand_s2 = rng.uniform_discrete(0, num_spins-1);
       }
 
       jblib::Vec3<double> s2_initial(s(rand_s2, 0), s(rand_s2, 1), s(rand_s2, 2));
@@ -223,7 +187,7 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
 
         const double probability = exp(-delta_energy21*inv_kbT_bohr)*((mz_new/mz_old)*(mz_new/mz_old))*fabs(s2_initial_rotated.z/s2_final_rotated.z);
 
-        if (probability >= get_uniform_random_number() && (mz_new >= 0.0)) {
+        if (probability >= rng.uniform() && (mz_new >= 0.0)) {
           for (int n = 0; n < 3; ++n) {  // accept s2
             s(rand_s2, n) = s2_final[n];
           }

@@ -29,12 +29,6 @@ class CudaConstrainedMCSolver : public CudaSolver {
   jblib::Matrix<double, 3, 3> rotation_matrix_;
   jblib::Matrix<double, 3, 3> inverse_rotation_matrix_;
 
-  curandGenerator_t gen; // device random generator
-  jblib::Array<double, 1> random_number_buffer_;
-  jblib::CudaArray<double, 1> dev_random_number_buffer_;
-  int curand_iterator_;
-
-  double get_uniform_random_number();
   double compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii);
   void calculate_trial_move(jblib::Vec3<double> &spin);
 };
