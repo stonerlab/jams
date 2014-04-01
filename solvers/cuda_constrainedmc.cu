@@ -36,6 +36,8 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     }
   }
 
+  dev_s_.copy_from_host_array(globals::s);
+
   // calculate rotation matrix for rotating m -> mz
   const double c_t = cos(deg_to_rad(constraint_theta_));
   const double c_p = cos(deg_to_rad(constraint_phi_));
@@ -201,12 +203,14 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
           cudaMemcpy((dev_s_.data()+3*rand_s1), &s1_initial[0], 3*sizeof(double), cudaMemcpyHostToDevice);
         }
       } else {   // if s2 not on unit sphere
-      //   for (int n = 0; n < 3; ++n) {
-      //     s(rand_s1, n) = s1_initial[n];
-      //   }
-      //   for (int n = 0; n < 3; ++n) {
-      //     s(rand_s2, n) = s2_initial[n];
-      //   }
+        for (int n = 0; n < 3; ++n) {
+          s(rand_s1, n) = s1_initial[n];
+        }
+        // for (int n = 0; n < 3; ++n) {
+        //   s(rand_s2, n) = s2_initial[n];
+        // }
+        cudaMemcpy((dev_s_.data()+3*rand_s1), &s1_initial[0], 3*sizeof(double), cudaMemcpyHostToDevice);
+        //cudaMemcpy((dev_s_.data()+3*rand_s2), &s2_initial[0], 3*sizeof(double), cudaMemcpyHostToDevice);
       }
     }
 
