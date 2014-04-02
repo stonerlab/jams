@@ -62,7 +62,7 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 3; ++j) {
-      lattice_vectors_[i][j] = lattice_settings["basis"][i][j];
+      lattice_vectors_[i][j] = lattice_settings["basis"][j][i];
     }
   }
   ::output.write("\nlattice translation vectors\n");
