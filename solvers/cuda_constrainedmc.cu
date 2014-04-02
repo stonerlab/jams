@@ -24,9 +24,14 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("\nconstraint angle theta (deg): % 8.8f\n", constraint_theta_);
   ::output.write("\nconstraint angle phi (deg): % 8.8f\n", constraint_phi_);
 
-  constraint_vector_.x = cos(deg_to_rad(constraint_theta_))*sin(deg_to_rad(constraint_phi_));
-  constraint_vector_.y = sin(deg_to_rad(constraint_theta_))*sin(deg_to_rad(constraint_phi_));
-  constraint_vector_.z = cos(deg_to_rad(constraint_phi_));
+  const double c_t = cos(deg_to_rad(constraint_theta_));
+  const double c_p = cos(deg_to_rad(constraint_phi_));
+  const double s_t = sin(deg_to_rad(constraint_theta_));
+  const double s_p = sin(deg_to_rad(constraint_phi_));
+
+  constraint_vector_.x = s_t*c_p;
+  constraint_vector_.y = s_t*s_p;
+  constraint_vector_.z = c_t;
 
   ::output.write("\nconstraint vector: % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
 
@@ -39,35 +44,53 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   dev_s_.copy_from_host_array(globals::s);
 
   // calculate rotation matrix for rotating m -> mz
-  const double c_t = cos(deg_to_rad(constraint_theta_));
-  const double c_p = cos(deg_to_rad(constraint_phi_));
-  const double s_t = sin(deg_to_rad(constraint_theta_));
-  const double s_p = sin(deg_to_rad(constraint_phi_));
 
   jblib::Matrix<double, 3, 3> r_y;
   jblib::Matrix<double, 3, 3> r_z;
 
-  r_y[0][0] =  c_p;  r_y[0][1] =  0.0;  r_y[0][2] =  s_p;
-  r_y[1][0] =  0.0;  r_y[1][1] =  1.0;  r_y[1][2] =  0.0;
-  r_y[2][0] = -s_p;  r_y[2][1] =  0.0;  r_y[2][2] =  c_p;
+  // first index is row second index is col
+  r_y[0][0] = c_t;  r_y[0][1] = 0.0; r_y[0][2] = -s_t;
+  r_y[1][0] = 0.0;  r_y[1][1] = 1.0; r_y[1][2] = 0.0;
+  r_y[2][0] = s_t; r_y[2][1] = 0.0; r_y[2][2] = c_t;
 
-  r_z[0][0] =  c_t;  r_z[0][1] = -s_t;  r_z[0][2] =  0.0;
-  r_z[1][0] =  s_t;  r_z[1][1] =  c_t;  r_z[1][2] =  0.0;
-  r_z[2][0] =  0.0;  r_z[2][1] =  0.0;  r_z[2][2] =  1.0;
+  r_z[0][0] = c_p; r_z[0][1] = s_p; r_z[0][2] = 0.0;
+  r_z[1][0] = -s_p; r_z[1][1] = c_p;  r_z[1][2] = 0.0;
+  r_z[2][0] = 0.0; r_z[2][1] = 0.0;  r_z[2][2] = 1.0;
 
-  rotation_matrix_ = r_y*r_z;
+
+  inverse_rotation_matrix_ = r_y*r_z;
+  rotation_matrix_ = inverse_rotation_matrix_.transpose();
+
+  ::output.write("\nRy\n");
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[0][0], r_y[0][1], r_y[0][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[1][0], r_y[1][1], r_y[1][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[2][0], r_y[2][1], r_y[2][2]);
+
+  ::output.write("\nRz\n");
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[0][0], r_z[0][1], r_z[0][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[1][0], r_z[1][1], r_z[1][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[2][0], r_z[2][1], r_z[2][2]);
 
   ::output.write("\nrotation matrix m -> mz\n");
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[0][0], rotation_matrix_[0][1], rotation_matrix_[0][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[1][0], rotation_matrix_[1][1], rotation_matrix_[1][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[2][0], rotation_matrix_[2][1], rotation_matrix_[2][2]);
 
-  inverse_rotation_matrix_ = rotation_matrix_.transpose();
   ::output.write("\ninverse rotation matrix mz -> m\n");
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[0][0], inverse_rotation_matrix_[0][1], inverse_rotation_matrix_[0][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
 
+  jblib::Vec3<double> test_a(0.0, 0.0, 1.0);
+  jblib::Vec3<double> test_b, test_c;
+
+  ::output.write("\nsanity check\n");
+  test_b = rotation_matrix_*test_a;
+  ::output.write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_a.x, test_a.y, test_a.z,
+    test_b.x, test_b.y, test_b.z);
+  test_c = inverse_rotation_matrix_*test_b;
+  ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_b.x, test_b.y, test_b.z,
+    test_c.x, test_c.y, test_c.z);
 
   // output.write("\nconverting symmetric to general MAP matrices\n");
 
@@ -86,9 +109,9 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 void CudaConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin) {
   double x,y,z;
   rng.sphere(x,y,z);
-  spin.x += 0.2*x;
-  spin.y += 0.2*y;
-  spin.z += 0.2*z;
+  spin.x += 0.1*x;
+  spin.y += 0.1*y;
+  spin.z += 0.1*z;
   spin /= abs(spin);
 }
 
@@ -127,7 +150,7 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
       }
     }
 
-    std::cout << iteration_ << std::endl;
+//    std::cout << iteration_ << std::endl;
 
     for (int i = 0; i < num_spins/2; ++i) {
       // std::cout << i << std::endl;
