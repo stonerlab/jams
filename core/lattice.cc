@@ -62,7 +62,7 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 3; ++j) {
-      lattice_vectors_[i][j] = lattice_settings["basis"][i][j];
+      lattice_vectors_[i][j] = lattice_settings["basis"][j][i];
     }
   }
   ::output.write("\nlattice translation vectors\n");
@@ -603,7 +603,7 @@ void Lattice::compute_fft_dipole_interactions() {
 
         for (int m = 0; m < 3; ++m) {
           for (int n = 0; n < 3; ++n) {
-            globals::wij(i, j, k, m, n) += (mu_bohr_si*1E-7/(1E-27))*(3.0*eij[m]*eij[n]-ii[m][n])/(r*r*r);
+            globals::wij(i, j, k, m, n) += globals::mus(0)*(mu_bohr_si*1E-7/(1E-27))*(3.0*eij[m]*eij[n]-ii[m][n])/(r*r*r);
           }
         }
         //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << "\t" << globals::wij(i, j, k, 2, 2) << std::endl;

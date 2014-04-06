@@ -1,18 +1,20 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "solvers/constrainedmc.h"
+#include "solvers/cuda_constrainedmc.h"
 
 #include "core/consts.h"
 #include "core/maths.h"
 #include "core/globals.h"
 
-void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
+void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
 
     // initialize base class
-  Solver::initialize(argc, argv, idt);
+  CudaSolver::initialize(argc, argv, idt);
 
   output.write("Initialising Constrained Monte-Carlo solver\n");
+
+
 
   libconfig::Setting &solver_settings = ::config.lookup("sim");
 
@@ -22,9 +24,14 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("\nconstraint angle theta (deg): % 8.8f\n", constraint_theta_);
   ::output.write("\nconstraint angle phi (deg): % 8.8f\n", constraint_phi_);
 
-  constraint_vector_.x = cos(deg_to_rad(constraint_theta_))*sin(deg_to_rad(constraint_phi_));
-  constraint_vector_.y = sin(deg_to_rad(constraint_theta_))*sin(deg_to_rad(constraint_phi_));
-  constraint_vector_.z = cos(deg_to_rad(constraint_phi_));
+  const double c_t = cos(deg_to_rad(constraint_theta_));
+  const double c_p = cos(deg_to_rad(constraint_phi_));
+  const double s_t = sin(deg_to_rad(constraint_theta_));
+  const double s_p = sin(deg_to_rad(constraint_phi_));
+
+  constraint_vector_.x = s_t*c_p;
+  constraint_vector_.y = s_t*s_p;
+  constraint_vector_.z = c_t;
 
   ::output.write("\nconstraint vector: % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
 
@@ -34,127 +41,101 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     }
   }
 
+  dev_s_.copy_from_host_array(globals::s);
+
   // calculate rotation matrix for rotating m -> mz
-  const double c_t = cos(deg_to_rad(constraint_theta_));
-  const double c_p = cos(deg_to_rad(constraint_phi_));
-  const double s_t = sin(deg_to_rad(constraint_theta_));
-  const double s_p = sin(deg_to_rad(constraint_phi_));
 
   jblib::Matrix<double, 3, 3> r_y;
   jblib::Matrix<double, 3, 3> r_z;
 
-  r_y[0][0] =  c_p;  r_y[0][1] =  0.0;  r_y[0][2] =  s_p;
-  r_y[1][0] =  0.0;  r_y[1][1] =  1.0;  r_y[1][2] =  0.0;
-  r_y[2][0] = -s_p;  r_y[2][1] =  0.0;  r_y[2][2] =  c_p;
+  // first index is row second index is col
+  r_y[0][0] = c_t;  r_y[0][1] = 0.0; r_y[0][2] = -s_t;
+  r_y[1][0] = 0.0;  r_y[1][1] = 1.0; r_y[1][2] = 0.0;
+  r_y[2][0] = s_t; r_y[2][1] = 0.0; r_y[2][2] = c_t;
 
-  r_z[0][0] =  c_t;  r_z[0][1] = -s_t;  r_z[0][2] =  0.0;
-  r_z[1][0] =  s_t;  r_z[1][1] =  c_t;  r_z[1][2] =  0.0;
-  r_z[2][0] =  0.0;  r_z[2][1] =  0.0;  r_z[2][2] =  1.0;
+  r_z[0][0] = c_p; r_z[0][1] = s_p; r_z[0][2] = 0.0;
+  r_z[1][0] = -s_p; r_z[1][1] = c_p;  r_z[1][2] = 0.0;
+  r_z[2][0] = 0.0; r_z[2][1] = 0.0;  r_z[2][2] = 1.0;
 
-  rotation_matrix_ = r_y*r_z;
+
+  inverse_rotation_matrix_ = r_y*r_z;
+  rotation_matrix_ = inverse_rotation_matrix_.transpose();
+
+  ::output.write("\nRy\n");
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[0][0], r_y[0][1], r_y[0][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[1][0], r_y[1][1], r_y[1][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[2][0], r_y[2][1], r_y[2][2]);
+
+  ::output.write("\nRz\n");
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[0][0], r_z[0][1], r_z[0][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[1][0], r_z[1][1], r_z[1][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[2][0], r_z[2][1], r_z[2][2]);
 
   ::output.write("\nrotation matrix m -> mz\n");
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[0][0], rotation_matrix_[0][1], rotation_matrix_[0][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[1][0], rotation_matrix_[1][1], rotation_matrix_[1][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[2][0], rotation_matrix_[2][1], rotation_matrix_[2][2]);
 
-  inverse_rotation_matrix_ = rotation_matrix_.transpose();
   ::output.write("\ninverse rotation matrix mz -> m\n");
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[0][0], inverse_rotation_matrix_[0][1], inverse_rotation_matrix_[0][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
 
-  output.write("\nconverting symmetric to general MAP matrices\n");
+  jblib::Vec3<double> test_a(0.0, 0.0, 1.0);
+  jblib::Vec3<double> test_b, test_c;
 
-  J1ij_t.convertSymmetric2General();
+  ::output.write("\nsanity check\n");
+  test_b = rotation_matrix_*test_a;
+  ::output.write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_a.x, test_a.y, test_a.z,
+    test_b.x, test_b.y, test_b.z);
+  test_c = inverse_rotation_matrix_*test_b;
+  ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_b.x, test_b.y, test_b.z,
+    test_c.x, test_c.y, test_c.z);
 
-  output.write("\nconverting MAP to CSR\n");
+  // output.write("\nconverting symmetric to general MAP matrices\n");
 
-  J1ij_t.convertMAP2CSR();
+  // J1ij_t.convertSymmetric2General();
 
-  output.write("\nJ1ij Tensor matrix memory (CSR): %f MB\n",
+  // output.write("\nconverting MAP to CSR\n");
 
-  J1ij_t.calculateMemory());
+  // J1ij_t.convertMAP2CSR();
+
+  // output.write("\nJ1ij Tensor matrix memory (CSR): %f MB\n",
+
+  // J1ij_t.calculateMemory());
 }
 
-void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin) {
+
+void CudaConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin) {
   double x,y,z;
   rng.sphere(x,y,z);
-  spin.x += 0.2*x;
-  spin.y += 0.2*y;
-  spin.z += 0.2*z;
+  spin.x += 0.1*x;
+  spin.y += 0.1*y;
+  spin.z += 0.1*z;
   spin /= abs(spin);
 }
 
-double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii) {
+double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii) {
   using namespace globals;
 
   double energy_initial = 0.0;
   double energy_final = 0.0;
 
+  compute_fields();
 
-    // jblib::Vec3<double> field(0.0, 0.0, 0.0);
-    // if (J1ij_t.nonZero() > 0) {   // J1ij_t
+  double field[3];
 
-    //   const double *val = J1ij_t.valPtr();
-    //   const int    *row = J1ij_t.rowPtr();
-    //   const int    *indx = J1ij_t.colPtr();
-    //   const double *x   = s.data();
-    //   int           k;
+  // extract field for the site we care about
+  cudaMemcpy(&field[0], (dev_h_.data()+3*ii), 3*sizeof(double), cudaMemcpyDeviceToHost);
 
+  energy_initial -= s(ii, 0)*field[0] + s(ii, 1)*field[1] + s(ii,2)*field[2];
 
-    //   for (int m = 0; m < 3; ++m) {
-    //     int begin = row[3*ii+m]; int end = row[3*ii+m+1];
+  energy_final -= s_final[0]*field[0] + s_final[1]*field[1] + s_final[2]*field[2];
 
-    //         // upper triangle and diagonal
-    //     for (int j = begin; j < end; ++j) {
-    //       k = indx[j];
-    //       field[m] += x[k]*val[j];
-    //     }
-    //   }
-    //   energy_initial -= s(ii,0)*field[0] + s(ii,1)*field[1] + s(ii,2)*field[2];
-    //   energy_final   -= dot(s_final,field);
-    // }
+  return (energy_final - energy_initial);
+}
 
-
-    if (::optimize::use_fft) {
-      fftw_execute(spin_fft_forward_transform);
-      // perform convolution as multiplication in fourier space
-      for (int i = 0, iend = globals::wij.size(0); i < iend; ++i) {
-        for (int j = 0, jend = globals::wij.size(1); j < jend; ++j) {
-          for (int k = 0, kend = (globals::wij.size(2)/2)+1; k < kend; ++k) {
-            for(int m = 0; m < 3; ++m) {
-              hq(i,j,k,m)[0] = 0.0; hq(i,j,k,m)[1] = 0.0;
-              for(int n = 0; n < 3; ++n) {
-                hq(i,j,k,m)[0] = hq(i,j,k,m)[0] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[0]-wq(i,j,k,m,n)[1]*sq(i,j,k,n)[1] );
-                hq(i,j,k,m)[1] = hq(i,j,k,m)[1] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[1]+wq(i,j,k,m,n)[1]*sq(i,j,k,n)[0] );
-              }
-            }
-          }
-        }
-      }
-      fftw_execute(field_fft_backward_transform);
-      // normalise
-      for (int i = 0; i < num_spins3; ++i) {
-        h_dipole[i] /= static_cast<double>(num_spins);
-      }
-
-      energy_initial -= s(ii,0)*h_dipole(ii,0) + s(ii,1)*h_dipole(ii,1) + s(ii,2)*h_dipole(ii,2);
-      energy_final   -= s_final.x*h_dipole(ii,0) + s_final.y*h_dipole(ii,1) + s_final.z*h_dipole(ii,2);
-    }
-
-    energy_initial -= d2z(ii)*0.5*(3.0*s(ii,2)*s(ii,2) - 1.0);
-    energy_initial -= d4z(ii)*0.125*(35.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)-30.0*s(ii,2)*s(ii,2) + 3.0);
-    energy_initial -= d6z(ii)*0.0625*(231.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2) - 315.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2) + 105.0*s(ii,2)*s(ii,2) - 5.0);
-
-    energy_final -= d2z(ii)*0.5*(3.0*s_final.z*s_final.z - 1.0);
-    energy_final -= d4z(ii)*0.125*(35.0*s_final.z*s_final.z*s_final.z*s_final.z-30.0*s_final.z*s_final.z + 3.0);
-    energy_final -= d6z(ii)*0.0625*(231.0*s_final.z*s_final.z*s_final.z*s_final.z*s_final.z*s_final.z - 315.0*s_final.z*s_final.z*s_final.z*s_final.z + 105.0*s_final.z*s_final.z - 5.0);
-
-    return (energy_final - energy_initial);
-  }
-
-  void ConstrainedMCSolver::run() {
+  void CudaConstrainedMCSolver::run() {
     // Chooses nspins random spin pairs from the spin system and attempts a
     // Constrained Monte Carlo move on each pair, accepting for either lower
     // energy or with a Boltzmann thermal weighting.
@@ -169,7 +150,7 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
       }
     }
 
-    std::cout << iteration_ << std::endl;
+//    std::cout << iteration_ << std::endl;
 
     for (int i = 0; i < num_spins/2; ++i) {
       // std::cout << i << std::endl;
@@ -214,6 +195,9 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
           s(rand_s1, n) = s1_final[n];
         }
 
+        // also update the CUDA device
+        cudaMemcpy((dev_s_.data()+3*rand_s1), &s1_final[0], 3*sizeof(double), cudaMemcpyHostToDevice);
+
         // CALCULATE THE DETLA E FOR S2
         const double delta_energy2 = compute_one_spin_energy(s2_final, rand_s2);
 
@@ -232,25 +216,32 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
           for (int n = 0; n < 3; ++n) {  // accept s2
             s(rand_s2, n) = s2_final[n];
           }
+          // also update the CUDA device
+          cudaMemcpy((dev_s_.data()+3*rand_s2), &s2_final[0], 3*sizeof(double), cudaMemcpyHostToDevice);
         } else {
           for (int n = 0; n < 3; ++n) {  // revert s1
             s(rand_s1, n) = s1_initial[n];
           }
+          // also revert the CUDA device
+          cudaMemcpy((dev_s_.data()+3*rand_s1), &s1_initial[0], 3*sizeof(double), cudaMemcpyHostToDevice);
         }
       } else {   // if s2 not on unit sphere
         for (int n = 0; n < 3; ++n) {
           s(rand_s1, n) = s1_initial[n];
         }
-        for (int n = 0; n < 3; ++n) {
-          s(rand_s2, n) = s2_initial[n];
-        }
+        // for (int n = 0; n < 3; ++n) {
+        //   s(rand_s2, n) = s2_initial[n];
+        // }
+        cudaMemcpy((dev_s_.data()+3*rand_s1), &s1_initial[0], 3*sizeof(double), cudaMemcpyHostToDevice);
+        //cudaMemcpy((dev_s_.data()+3*rand_s2), &s2_initial[0], 3*sizeof(double), cudaMemcpyHostToDevice);
       }
     }
 
     // compute fields ready for torque monitor
     compute_fields();
+    dev_h_.copy_to_host_array(globals::h);
     iteration_++;
   }
 
-  void ConstrainedMCSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {
+  void CudaConstrainedMCSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {
   }

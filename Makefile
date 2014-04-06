@@ -13,7 +13,7 @@ LIBCONFIGDIR=/home/jb544/local
 #
 # Define CUDADIR if the cuda header and library files are in
 # /foo/bar/include and /foo/bar/lib directories.
-CUDADIR=/usr/local/cuda
+CUDADIR=/usr/local/cuda-5.5
 # Define MKLROOT if the mkl root path is not set in the environment
 #
 # Define CUDA_BUILD_FERMI if you want to build support for Fermi architechture
@@ -142,12 +142,14 @@ ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver.o
 	CUDA_OBJS += core/cuda_sparsematrix.o
 	CUDA_OBJS += solvers/cuda_heunllg.o
+	CUDA_OBJS += solvers/cuda_constrainedmc.o
 
 	CUDA_HDR += core/cuda_defs.h
 	CUDA_HDR += core/cuda_solver.h
 	CUDA_HDR += core/cuda_sparsematrix.h
 	CUDA_HDR += solvers/cuda_heunllg.h
 	CUDA_HDR += solvers/cuda_heunllg_kernel.h
+	CUDA_HDR += solvers/cuda_constrainedmc.h
 endif
 
 ifeq ($(SYSTYPE),Darwin)
@@ -155,7 +157,6 @@ ifeq ($(SYSTYPE),Darwin)
 	BASIC_CFLAGS += -stdlib=libc++
 endif
 
-EXTLIBS += -lfftw3
 
 ifdef LIBCONFIGDIR
 	BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
@@ -165,9 +166,11 @@ EXTLIBS += -lconfig++
 
 ifdef MKLROOT
 	CC = icc
-	BASIC_CFLAGS += -I$(MKLROOT)/include -DMKL
+	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -DMKL
 	BASIC_LDFLAGS += -L$(MKLROOT)/lib/intel64
 	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+else
+	EXTLIBS += -lfftw3
 endif
 
 ifndef NO_CUDA

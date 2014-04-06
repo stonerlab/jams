@@ -39,9 +39,9 @@ void TorqueMonitor::update(const int &iteration, const double &time, const doubl
     torque_.x = 0; torque_.y = 0; torque_.z = 0;
 
     for (i = 0; i < num_spins; ++i) {
-      for (j = 0; j < 3; ++j) {
-        torque_[j] += s(i,j)*(h(i,j) + h_dipole(i,j));
-      }
+      torque_[0] += s(i,1)*(h(i,2) + h_dipole(i,2)) - s(i,2)*(h(i,1) + h_dipole(i,1));
+      torque_[1] += s(i,2)*(h(i,0) + h_dipole(i,0)) - s(i,0)*(h(i,2) + h_dipole(i,2));
+      torque_[2] += s(i,0)*(h(i,1) + h_dipole(i,1)) - s(i,1)*(h(i,0) + h_dipole(i,0));
     }
 
     for (j = 0; j < 3; ++j) {
