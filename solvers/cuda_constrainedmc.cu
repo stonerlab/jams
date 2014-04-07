@@ -109,9 +109,9 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 void CudaConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin) {
   double x,y,z;
   rng.sphere(x,y,z);
-  spin.x += 0.1*x;
-  spin.y += 0.1*y;
-  spin.z += 0.1*z;
+  spin.x += 0.05*x;
+  spin.y += 0.05*y;
+  spin.z += 0.05*z;
   spin /= abs(spin);
 }
 
