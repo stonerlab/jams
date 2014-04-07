@@ -379,6 +379,7 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
 
   ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
 
+  fast_integer_interaction_list_.resize(motif_.size());
 
   int counter = 0;
   // read the motif into an array from the positions file
@@ -428,9 +429,7 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
       jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
 
-    fast_integer_interaction_list_.push_back(
-      std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(
-        fast_integer_vector, tensor) );
+    fast_integer_interaction_list_[typeA].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
 
     if (verbose_output_is_set) {
       ::output.write("  line %-9d              %s\n", counter, line.c_str());
@@ -472,40 +471,43 @@ void Lattice::compute_exchange_interactions() {
       for (int k = 0; k != lattice_size_.z; ++k) {
         // loop over atoms in the motif
         for (int m = 0, mend = motif_.size(); m != mend; ++m) {
-          std::vector<bool> is_already_interacting(globals::num_spins, false);
-
           int local_site = fast_integer_lattice_(i, j, k, m);
 
+          std::vector<bool> is_already_interacting(globals::num_spins, false);
           is_already_interacting[local_site] = true;  // don't allow self interaction
+
           // loop over all possible interaction vectors
-          for (int n = 0, nend = fast_integer_interaction_list_.size(); n != nend; ++n) {
+          for (int n = 0, nend = fast_integer_interaction_list_[m].size(); n != nend; ++n) {
 
             jblib::Vec4<int> fast_integer_lookup_vector(
-              i + fast_integer_interaction_list_[n].first.x,
-              j + fast_integer_interaction_list_[n].first.y,
-              k + fast_integer_interaction_list_[n].first.z,
-              (motif_.size() + m + fast_integer_interaction_list_[n].first.w)%motif_.size());
+              i + fast_integer_interaction_list_[m][n].first.x,
+              j + fast_integer_interaction_list_[m][n].first.y,
+              k + fast_integer_interaction_list_[m][n].first.z,
+              (motif_.size() + m + fast_integer_interaction_list_[m][n].first.w)%motif_.size());
 
+            bool interaction_is_outside_lattice = false;
             for (int l = 0; l < 3; ++l) {
               if (lattice_pbc_[l]) {
                 fast_integer_lookup_vector[l] = (fast_integer_lookup_vector[l] + lattice_size_[l])%lattice_size_[l];
               } else {
-                // TODO: check the interaction is within the system bounds
-                jams_error("open boundaries are not implmented");
+                if (fast_integer_lookup_vector[l] < 0 || fast_integer_lookup_vector[l] >= lattice_size_[l]) {
+                  interaction_is_outside_lattice = true;
+                } 
               }
             }
+            if (interaction_is_outside_lattice) {
+              continue;
+            }
 
-            int neighbour_site = fast_integer_lattice_(
-              fast_integer_lookup_vector.x, fast_integer_lookup_vector.y,
-              fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
+            int neighbour_site = fast_integer_lattice_(fast_integer_lookup_vector.x, fast_integer_lookup_vector.y, fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
 
             // failsafe check that we only interact with any given site once through the input exchange file.
             if (is_already_interacting[neighbour_site]) {
-              jams_error("Multiple interactions between spins %d and %d. Check the exchange file.", local_site, neighbour_site);
+              jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, fast_integer_lookup_vector.x, fast_integer_lookup_vector.y, fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
             }
             is_already_interacting[neighbour_site] = true;
 
-            if (insert_interaction(local_site, neighbour_site, fast_integer_interaction_list_[n].second)) {
+            if (insert_interaction(local_site, neighbour_site, fast_integer_interaction_list_[m][n].second)) {
               counter++;
             } else {
               is_all_inserts_successful = false;
