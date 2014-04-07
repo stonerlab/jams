@@ -528,32 +528,33 @@ void Lattice::compute_exchange_interactions() {
 void Lattice::compute_fft_exchange_interactions() {
   ::output.write("\ncomputed fft exchange interactions\n");
 
-  for (int i = 0, iend = fast_integer_interaction_list_.size(); i < iend; ++i) {
-    jblib::Vec3<int> pos(
-              kpoints_.x*(fast_integer_interaction_list_[i].first.x + motif_[fast_integer_interaction_list_[i].first.w].second.x),
-              kpoints_.y*(fast_integer_interaction_list_[i].first.y + motif_[fast_integer_interaction_list_[i].first.w].second.y),
-              kpoints_.z*(fast_integer_interaction_list_[i].first.z + motif_[fast_integer_interaction_list_[i].first.w].second.z));
+  for (int i = 0, iend = motif_.size(); i < iend; ++i) {
+    for (int j = 0, jend = fast_integer_interaction_list_.size(); j < jend; ++j) {
+      jblib::Vec3<int> pos(
+        kpoints_.x*(fast_integer_interaction_list_[i][j].first.x + motif_[fast_integer_interaction_list_[i][j].first.w].second.x),
+        kpoints_.y*(fast_integer_interaction_list_[i][j].first.y + motif_[fast_integer_interaction_list_[i][j].first.w].second.y),
+        kpoints_.z*(fast_integer_interaction_list_[i][j].first.z + motif_[fast_integer_interaction_list_[i][j].first.w].second.z));
 
+      if (abs(pos.x) > (kspace_size_.x/2) || abs(pos.y) > (kspace_size_.y/2) || abs(pos.z) > (kspace_size_.z/2)) {
+        jams_error("Your exchange is too long-range for the periodic system resulting in self interaction");
+      }
 
-    if (abs(pos.x) > (kspace_size_.x/2) || abs(pos.y) > (kspace_size_.y/2) || abs(pos.z) > (kspace_size_.z/2)) {
-      jams_error("Your exchange is too long-range for the periodic system resulting in self interaction");
-    }
-
-    if (pos.x < 0) {
-      pos.x = kspace_size_.x + pos.x;
-    }
-    if (pos.y < 0) {
-      pos.y = kspace_size_.y + pos.y;
-    }
-    if (pos.z < 0) {
-      pos.z = kspace_size_.z + pos.z;
-    }
+      if (pos.x < 0) {
+        pos.x = kspace_size_.x + pos.x;
+      }
+      if (pos.y < 0) {
+        pos.y = kspace_size_.y + pos.y;
+      }
+      if (pos.z < 0) {
+        pos.z = kspace_size_.z + pos.z;
+      }
 
     // std::cerr <<fast_integer_interaction_list_[i].first.x << "\t" << fast_integer_interaction_list_[i].first.y << "\t" << fast_integer_interaction_list_[i].first.z << "\t" << pos.x << "\t" << pos.y << "\t" << pos.z << std::endl;
 
-    for (int m = 0; m < 3; ++m) {
-      for (int n = 0; n < 3; ++n) {
-        globals::wij(pos.x, pos.y, pos.z, m, n) += fast_integer_interaction_list_[i].second[m][n]/mu_bohr_si;
+      for (int m = 0; m < 3; ++m) {
+        for (int n = 0; n < 3; ++n) {
+          globals::wij(pos.x, pos.y, pos.z, m, n) += fast_integer_interaction_list_[i][j].second[m][n]/mu_bohr_si;
+        }
       }
     }
   }
