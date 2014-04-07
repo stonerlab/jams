@@ -171,42 +171,20 @@ void CudaSolver::compute_fields() {
      dev_J1ij_t_.row, dev_J1ij_t_.val, dev_s_.data(), dev_h_.data());
   }
 
-  if (cufftExecD2Z(spin_fft_forward_transform, dev_s_.data(), dev_sq_.data()) != CUFFT_SUCCESS) {
-    jams_error("CUFFT failure executing spin_fft_forward_transform");
-  }
-
-  // jblib::Array<cufftDoubleComplex, 4> convert_sq(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3);
-
-  // dev_sq_.copy_to_host_array(convert_sq);
-
-  // for (int i = 0; i < globals::wij.size(0); ++i) {
-  //   for (int j = 0; j < globals::wij.size(1); ++j) {
-  //     for (int k = 0; k < globals::wij.size(2)/2 +1; ++k) {
-  //       std::cerr << i << "\t" << j << "\t" << k << "\t" << convert_sq(i,j,k,0).x << "\t" << convert_sq(i,j,k,0).y << "\t" << convert_sq(i,j,k,1).x << "\t" << convert_sq(i,j,k,1).y << "\t" << convert_sq(i,j,k,2).x << "\t" << convert_sq(i,j,k,2).y << "\t" << std::endl;
-  //     }
-  //   }
-  // }
+  if (optimize::use_fft) {
+    if (cufftExecD2Z(spin_fft_forward_transform, dev_s_.data(), dev_sq_.data()) != CUFFT_SUCCESS) {
+      jams_error("CUFFT failure executing spin_fft_forward_transform");
+    }
 
   const int convolution_size = globals::wij.size(0)*globals::wij.size(1)*((globals::wij.size(2)/2)+1);
   const int real_size = globals::wij.size(0)*globals::wij.size(1)*globals::wij.size(2);
 
-  cuda_fft_convolution<<<(convolution_size+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>(convolution_size, real_size, dev_wq_.data(), dev_sq_.data(), dev_hq_.data());
-  if (cufftExecZ2D(field_fft_backward_transform, dev_hq_.data(), dev_h_.data()) != CUFFT_SUCCESS) {
-    jams_error("CUFFT failure executing field_fft_backward_transform");
+    cuda_fft_convolution<<<(convolution_size+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>(convolution_size, real_size, dev_wq_.data(), dev_sq_.data(), dev_hq_.data());
+    if (cufftExecZ2D(field_fft_backward_transform, dev_hq_.data(), dev_h_.data()) != CUFFT_SUCCESS) {
+      jams_error("CUFFT failure executing field_fft_backward_transform");
+    }
+
   }
-
-  // jblib::Array<double, 4> convert_h(globals::wij.size(0), globals::wij.size(1), globals::wij.size(2), 3);
-
-  // dev_h_.copy_to_host_array(convert_h);
-
-  // for (int i = 0; i < globals::wij.size(0); ++i) {
-  //   for (int j = 0; j < globals::wij.size(1); ++j) {
-  //     for (int k = 0; k < globals::wij.size(2); ++k) {
-  //       std::cerr << i << "\t" << j << "\t" << k << "\t" << convert_h(i,j,k,0) << "\t" << convert_h(i,j,k,1) << "\t" << convert_h(i,j,k,2) << "\t" << std::endl;
-  //     }
-  //   }
-  // }
-  // exit(0);
 
   cuda_anisotropy_kernel<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>
   (num_spins, dev_d2z_.data(), dev_d4z_.data(), dev_d6z_.data(), dev_s_.data(), dev_h_.data());
