@@ -55,7 +55,7 @@ void TorqueMonitor::update(const int &iteration, const double &time, const doubl
       outfile <<  std::setw(16) << torque_[i];
     }
 
-    outfile << "\n";
+    outfile << std::endl;
 }
 
 TorqueMonitor::~TorqueMonitor() {

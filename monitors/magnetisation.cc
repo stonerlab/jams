@@ -82,7 +82,7 @@ void MagnetisationMonitor::update(const int &iteration, const double &time, cons
       outfile << std::setw(16) << mag(i, 3);
     }
 
-    outfile << "\n";
+    outfile << std::endl;
 }
 
 MagnetisationMonitor::~MagnetisationMonitor() {
