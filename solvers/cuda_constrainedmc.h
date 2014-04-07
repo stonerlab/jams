@@ -3,6 +3,8 @@
 #ifndef JAMS_SOLVER_CUDACONSTRAINEDMC_H
 #define JAMS_SOLVER_CUDACONSTRAINEDMC_H
 
+#ifdef CUDA
+
 #include <curand.h>
 
 #include "core/cuda_solver.h"
@@ -32,5 +34,7 @@ class CudaConstrainedMCSolver : public CudaSolver {
   double compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii);
   void calculate_trial_move(jblib::Vec3<double> &spin);
 };
+
+#endif  // CUDA
 
 #endif  // JAMS_SOLVER_CUDACONSTRAINEDMC_H
