@@ -35,12 +35,20 @@ void Lattice::initialize() {
 
   config.lookupValue("sim.verbose_output", verbose_output_is_set);
 
+  bool use_dipole = false;
+
+  config.lookupValue("lattice.dipole", use_dipole);
+
   if (::optimize::use_fft) {
     compute_fft_exchange_interactions();
-    compute_fft_dipole_interactions();
+    if (use_dipole) {
+      compute_fft_dipole_interactions();
+    }
   } else {
     compute_exchange_interactions();
-    jams_warning("no dipole interactions due to the lack of FFT optimizations");
+    if (use_dipole) {
+      jams_error("Dipole calculations we requested but are unavailable due to the lack of FFT optimizations");
+    }
   }
 }
 
@@ -591,7 +599,7 @@ void Lattice::compute_fft_dipole_interactions() {
 
         rij *= lattice_parameter_;
 
-        // std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << std::endl;
+        //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << std::endl;
 
         jblib::Vec3<double> eij = rij/abs(rij);
 
@@ -603,7 +611,7 @@ void Lattice::compute_fft_dipole_interactions() {
 
         for (int m = 0; m < 3; ++m) {
           for (int n = 0; n < 3; ++n) {
-            globals::wij(i, j, k, m, n) += globals::mus(0)*(mu_bohr_si*1E-7/(1E-27))*(3.0*eij[m]*eij[n]-ii[m][n])/(r*r*r);
+            globals::wij(i, j, k, m, n) += globals::mus(0)*globals::mus(0)*(mu_bohr_si*1E-7/(1E-27))*(3.0*eij[m]*eij[n]-ii[m][n])/(r*r*r);
           }
         }
         //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << "\t" << globals::wij(i, j, k, 2, 2) << std::endl;
