@@ -83,7 +83,7 @@ int jams_initialize(int argc, char **argv) {
       config.readFile(config_filename.c_str());
 
       verbose_output_is_set = false;
-      config.lookupValue("sim.verbose_output", verbose_output_is_set);
+      config.lookupValue("sim.verbose", verbose_output_is_set);
       output.write("  * Verbose output is ON\n");
 
       ::optimize::use_fft = false;
