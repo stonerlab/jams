@@ -35,12 +35,6 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
   ::output.write("\nconstraint vector: % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
 
-  for (int i = 0; i < num_spins; ++i) {
-    for (int n = 0; n < 3; ++ n) {
-      s(i, n) = constraint_vector_[n];
-    }
-  }
-
   dev_s_.copy_from_host_array(globals::s);
 
   // calculate rotation matrix for rotating m -> mz
