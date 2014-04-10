@@ -39,12 +39,12 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   jblib::Matrix<double, 3, 3> r_z;
 
   // first index is row second index is col
-  r_y[0][0] =  c_t;  r_y[0][1] =  0.0; r_y[0][2] = -s_t;
+  r_y[0][0] =  c_t;  r_y[0][1] =  0.0; r_y[0][2] =  s_t;
   r_y[1][0] =  0.0;  r_y[1][1] =  1.0; r_y[1][2] =  0.0;
-  r_y[2][0] =  s_t;  r_y[2][1] =  0.0; r_y[2][2] =  c_t;
+  r_y[2][0] = -s_t;  r_y[2][1] =  0.0; r_y[2][2] =  c_t;
 
-  r_z[0][0] =  c_p;  r_z[0][1] =  s_p;  r_z[0][2] =  0.0;
-  r_z[1][0] = -s_p;  r_z[1][1] =  c_p;  r_z[1][2] =  0.0;
+  r_z[0][0] =  c_p;  r_z[0][1] = -s_p;  r_z[0][2] =  0.0;
+  r_z[1][0] =  s_p;  r_z[1][1] =  c_p;  r_z[1][2] =  0.0;
   r_z[2][0] =  0.0;  r_z[2][1] =  0.0;  r_z[2][2] =  1.0;
 
 
@@ -71,7 +71,7 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
 
-  if (verbose_output_is_set) {
+  //if (verbose_output_is_set) {
     jblib::Vec3<double> test_unit_vec(0.0, 0.0, 1.0);
     jblib::Vec3<double> test_forward_vec = rotation_matrix_*test_unit_vec;
     jblib::Vec3<double> test_back_vec    = inverse_rotation_matrix_*test_forward_vec;
@@ -80,7 +80,7 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
     ::output.write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
     ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
-  }
+  //}
 }
 
 
