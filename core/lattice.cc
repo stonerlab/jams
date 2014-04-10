@@ -537,7 +537,7 @@ void Lattice::compute_fft_exchange_interactions() {
   ::output.write("\ncomputed fft exchange interactions\n");
 
   for (int i = 0, iend = motif_.size(); i < iend; ++i) {
-    for (int j = 0, jend = fast_integer_interaction_list_.size(); j < jend; ++j) {
+    for (int j = 0, jend = fast_integer_interaction_list_[i].size(); j < jend; ++j) {
       jblib::Vec3<int> pos(
         kpoints_.x*(fast_integer_interaction_list_[i][j].first.x + motif_[fast_integer_interaction_list_[i][j].first.w].second.x),
         kpoints_.y*(fast_integer_interaction_list_[i][j].first.y + motif_[fast_integer_interaction_list_[i][j].first.w].second.y),
