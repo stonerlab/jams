@@ -520,6 +520,11 @@ void Lattice::compute_exchange_interactions() {
             } else {
               is_all_inserts_successful = false;
             }
+            if (insert_interaction(neighbour_site, local_site, fast_integer_interaction_list_[m][n].second)) {
+              counter++;
+            } else {
+              is_all_inserts_successful = false;
+            }
           }
         }
       }
@@ -572,6 +577,10 @@ void Lattice::compute_fft_dipole_interactions() {
 
   ::output.write("\ncomputed fft dipole interactions\n");
 
+  jblib::Vec3<double> rmax = lattice_vectors_*jblib::Vec3<double>(kspace_size_.x/2, kspace_size_.y/2, kspace_size_.z/2);
+  double rcut = (*std::min_element(&rmax[0],&rmax[0]+3))*lattice_parameter_;
+
+
   // loop over wij and calculate the rij parameters
   for (int i = 0; i < kspace_size_.x; ++i) {
     for (int j = 0; j < kspace_size_.y; ++j) {
@@ -601,24 +610,26 @@ void Lattice::compute_fft_dipole_interactions() {
         jblib::Vec3<double> rij = lattice_vectors_*pos;
 
         rij *= lattice_parameter_;
-
-        //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << std::endl;
-
-        jblib::Vec3<double> eij = rij/abs(rij);
-
+        
         const double rsq = dot(rij, rij);
-        const double r   = sqrt(rsq);
+        if (rsq <= rcut*rcut) {
 
-        // identity matrix
-        jblib::Matrix<double, 3, 3> ii( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
+          //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << std::endl;
 
-        for (int m = 0; m < 3; ++m) {
-          for (int n = 0; n < 3; ++n) {
-            globals::wij(i, j, k, m, n) += globals::mus(0)*globals::mus(0)*(mu_bohr_si*1E-7/(1E-27))*(3.0*eij[m]*eij[n]-ii[m][n])/(r*r*r);
+          jblib::Vec3<double> eij = rij/abs(rij);
+
+          const double r   = sqrt(rsq);
+
+          // identity matrix
+          jblib::Matrix<double, 3, 3> ii( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
+
+          for (int m = 0; m < 3; ++m) {
+            for (int n = 0; n < 3; ++n) {
+              globals::wij(i, j, k, m, n) += globals::mus(0)*globals::mus(0)*(mu_bohr_si*1E-7/(1E-27))*(3.0*eij[m]*eij[n]-ii[m][n])/(r*r*r);
+            }
           }
+          //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << "\t" << globals::wij(i, j, k, 2, 2) << std::endl;
         }
-        //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << "\t" << globals::wij(i, j, k, 2, 2) << std::endl;
-
       }
     }
   }
