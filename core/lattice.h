@@ -48,7 +48,7 @@ class Lattice {
     void initialize_coarse_magnetisation_map();
     void output_coarse_magnetisation(std::ofstream &outfile);
   private:
-
+    void calculate_unit_cell_kmesh();
     void read_lattice(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void compute_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void read_interactions(const libconfig::Setting &lattice_settings);

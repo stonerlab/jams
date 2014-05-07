@@ -98,18 +98,6 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   ::output.write("\nlattice size\n  %d  %d  %d\n",
     lattice_size_.x, lattice_size_.y, lattice_size_.z);
 
-  for (int i = 0; i < 3; ++i) {
-    kpoints_[i] = lattice_settings["kpoints"][i];
-  }
-
-  ::output.write("\nunitcell kpoints\n  %d  %d  %d\n",
-    kpoints_.x, kpoints_.y, kpoints_.z);
-
-  ::output.write("\nkspace size\n  %d  %d  %d\n",
-    kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
-
-  // TODO: read kpoints
-
 //-----------------------------------------------------------------------------
 // Read boundary conditions
 //-----------------------------------------------------------------------------
@@ -194,12 +182,28 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
     counter++;
   }
   position_file.close();
+
+
+  ::output.write("\ncalculating unit cell kpoint mesh...\n");
+  calculate_unit_cell_kmesh();
+  ::output.write("\nunit cell kpoints\n  %d  %d  %d\n", kpoints_.x, kpoints_.y, kpoints_.z);
+
+  if (lattice_pbc_.x || lattice_pbc_.y || lattice_pbc_.z) {
+    ::output.write("\nzero padding non-periodic dimensions\n");
+     // double any non-periodic dimensions for zero padding
+    for (int i = 0; i < 3; ++i) {
+      if (!lattice_pbc_[i]) {
+        kpoints_[i] *= 2;
+      }
+    }
+    ::output.write("\nunit cell zero padded kpoints\n  %d  %d  %d\n", kpoints_.x, kpoints_.y, kpoints_.z);
+  }
+  ::output.write("\nkspace size\n  %d  %d  %d\n", kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
 }
 
 void Lattice::compute_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
 
-  fast_integer_lattice_.resize(
-    lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
+  fast_integer_lattice_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
 
   kspace_size_ = jblib::Vec3<int>(lattice_size_.x*kpoints_.x, lattice_size_.y*kpoints_.y, lattice_size_.z*kpoints_.z);
   kspace_map_.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z);
@@ -230,16 +234,14 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
           fast_integer_lattice_(i, j, k, m) = atom_counter;
 
           // position of motif atom in fractional lattice vectors
-          jblib::Vec3<double> lattice_pos(
-            i+motif_[m].second.x, j+motif_[m].second.y, k+motif_[m].second.z);
+          jblib::Vec3<double> lattice_pos(i+motif_[m].second.x, j+motif_[m].second.y, k+motif_[m].second.z);
           // position in real (cartesian) space
           jblib::Vec3<double> real_pos = lattice_vectors_*lattice_pos;
 
           lattice_positions_.push_back(real_pos);
           lattice_materials_.push_back(motif_[m].first);
 
-          jblib::Vec3<double> kvec(
-            (i+motif_[m].second.x)*kpoints_.x, (j+motif_[m].second.y)*kpoints_.y, (k+motif_[m].second.z)*kpoints_.z);
+          jblib::Vec3<double> kvec((i+motif_[m].second.x)*kpoints_.x, (j+motif_[m].second.y)*kpoints_.y, (k+motif_[m].second.z)*kpoints_.z);
 
           // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
           if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
@@ -500,7 +502,7 @@ void Lattice::compute_exchange_interactions() {
               } else {
                 if (fast_integer_lookup_vector[l] < 0 || fast_integer_lookup_vector[l] >= lattice_size_[l]) {
                   interaction_is_outside_lattice = true;
-                } 
+                }
               }
             }
             if (interaction_is_outside_lattice) {
@@ -610,7 +612,7 @@ void Lattice::compute_fft_dipole_interactions() {
         jblib::Vec3<double> rij = lattice_vectors_*pos;
 
         rij *= lattice_parameter_;
-        
+
         const double rsq = dot(rij, rij);
         if (rsq <= rcut*rcut) {
 
@@ -667,6 +669,62 @@ bool Lattice::insert_interaction(const int m, const int n, const jblib::Matrix<d
   return true;
 }
 
+// Calculate the number of kpoints needed in each dimension to represent the unit cell
+// i.e. the number of unique coordinates of each realspace dimension in the motif
+void Lattice::calculate_unit_cell_kmesh() {
+
+  const double tolerance = 0.001;
+
+  std::vector<double> unique_x, unique_y, unique_z;
+
+  unique_x.push_back(motif_[0].second.x);
+  unique_y.push_back(motif_[0].second.y);
+  unique_z.push_back(motif_[0].second.z);
+
+
+  for (int i = 1, iend = motif_.size(); i < iend; ++i) {
+    bool duplicate = false;
+    for (int j = 0, jend = unique_x.size(); j < jend; ++j) {
+      if (fabs(motif_[i].second.x - unique_x[j]) < tolerance) {
+        duplicate = true;
+        break;
+      }
+    }
+    if(!duplicate) {
+      unique_x.push_back(motif_[i].second.x);
+    }
+  }
+
+  for (int i = 1, iend = motif_.size(); i < iend; ++i) {
+    bool duplicate = false;
+    for (int j = 0, jend = unique_y.size(); j < jend; ++j) {
+      if (fabs(motif_[i].second.y - unique_y[j]) < tolerance) {
+        duplicate = true;
+        break;
+      }
+    }
+    if(!duplicate) {
+      unique_y.push_back(motif_[i].second.y);
+    }
+  }
+
+  for (int i = 1, iend = motif_.size(); i < iend; ++i) {
+    bool duplicate = false;
+    for (int j = 0, jend = unique_z.size(); j < jend; ++j) {
+      if (fabs(motif_[i].second.z - unique_z[j]) < tolerance) {
+        duplicate = true;
+        break;
+      }
+    }
+    if(!duplicate) {
+      unique_z.push_back(motif_[i].second.z);
+    }
+  }
+
+  kpoints_.x = unique_x.size();
+  kpoints_.y = unique_y.size();
+  kpoints_.z = unique_z.size();
+}
 
 
 void Lattice::output_spin_state_as_vtu(std::ofstream &outfile){
@@ -738,13 +796,13 @@ void Lattice::read_spin_state_from_binary(std::ifstream &infile){
   int filenum_spins=0;
   infile.read(reinterpret_cast<char*>(&filenum_spins), sizeof(int));
 
-  if(filenum_spins != num_spins){
+  if (filenum_spins != num_spins) {
     jams_error("I/O error, spin state file has %d spins but simulation has %d spins", filenum_spins, num_spins);
-  }else{
+  } else {
     infile.read(reinterpret_cast<char*>(s.data()), num_spins3*sizeof(double));
   }
 
-  if(infile.bad()){
+  if (infile.bad()) {
     jams_error("I/O error. Unknown failure reading spin state file");
   }
 }
