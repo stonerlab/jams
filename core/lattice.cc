@@ -265,14 +265,14 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     jams_error("the number of computed lattice sites was zero, check input");
   }
 
-  std::ofstream kspacefile("kspace_map.dat");
-  for (int i = 0; i < kspace_size_.x; ++i) {
-    for (int j = 0; j < kspace_size_.y; ++j) {
-      for (int k = 0; k < kspace_size_.z; ++k) {
-        kspacefile << i << "\t" << j << "\t" << k << "\t"<< kspace_map_(i,j,k) << std::endl;
-      }
-    }
-  }
+  // std::ofstream kspacefile("kspace_map.dat");
+  // for (int i = 0; i < kspace_size_.x; ++i) {
+  //   for (int j = 0; j < kspace_size_.y; ++j) {
+  //     for (int k = 0; k < kspace_size_.z; ++k) {
+  //       kspacefile << i << "\t" << j << "\t" << k << "\t"<< kspace_map_(i,j,k) << std::endl;
+  //     }
+  //   }
+  // }
 
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;
@@ -292,6 +292,21 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     }
   }
   ::output.write("  total: %d\n", atom_counter);
+
+  kspace_inv_map_.resize(globals::num_spins, 3);
+
+  for (int i = 0; i < kspace_size_.x; ++i) {
+    for (int j = 0; j < kspace_size_.y; ++j) {
+      for (int k = 0; k < kspace_size_.z; ++k) {
+        if (kspace_map_(i,j,k) != -1) {
+          kspace_inv_map_(kspace_map_(i,j,k), 0) = i;
+          kspace_inv_map_(kspace_map_(i,j,k), 1) = j;
+          kspace_inv_map_(kspace_map_(i,j,k), 2) = k;
+        }
+      }
+    }
+  }
+
 
 
 //-----------------------------------------------------------------------------
