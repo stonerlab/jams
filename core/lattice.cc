@@ -188,16 +188,6 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   calculate_unit_cell_kmesh();
   ::output.write("\nunit cell kpoints\n  %d  %d  %d\n", kpoints_.x, kpoints_.y, kpoints_.z);
 
-  if (lattice_pbc_.x || lattice_pbc_.y || lattice_pbc_.z) {
-    ::output.write("\nzero padding non-periodic dimensions\n");
-     // double any non-periodic dimensions for zero padding
-    for (int i = 0; i < 3; ++i) {
-      if (!lattice_pbc_[i]) {
-        kpoints_[i] *= 2;
-      }
-    }
-    ::output.write("\nunit cell zero padded kpoints\n  %d  %d  %d\n", kpoints_.x, kpoints_.y, kpoints_.z);
-  }
   ::output.write("\nkspace size\n  %d  %d  %d\n", kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
 }
 
@@ -205,7 +195,19 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 
   fast_integer_lattice_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
 
-  kspace_size_ = jblib::Vec3<int>(lattice_size_.x*kpoints_.x, lattice_size_.y*kpoints_.y, lattice_size_.z*kpoints_.z);
+  jblib::Vec3<int> kmesh_size(kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
+  if (lattice_pbc_.x || lattice_pbc_.y || lattice_pbc_.z) {
+    ::output.write("\nzero padding non-periodic dimensions\n");
+     // double any non-periodic dimensions for zero padding
+    for (int i = 0; i < 3; ++i) {
+      if (!lattice_pbc_[i]) {
+        kmesh_size[i] = 2*kpoints_[i]*lattice_size_[i];
+      }
+    }
+    ::output.write("\nunit cell zero padded kpoints\n  %d  %d  %d\n", kpoints_.x, kpoints_.y, kpoints_.z);
+  }
+
+  kspace_size_ = jblib::Vec3<int>(kmesh_size.x, kmesh_size.y, kmesh_size.z);
   kspace_map_.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z);
 
 // initialize everything to -1 so we can check for double assignment below
@@ -261,6 +263,15 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 
   if (atom_counter == 0) {
     jams_error("the number of computed lattice sites was zero, check input");
+  }
+
+  std::ofstream kspacefile("kspace_map.dat");
+  for (int i = 0; i < kspace_size_.x; ++i) {
+    for (int j = 0; j < kspace_size_.y; ++j) {
+      for (int k = 0; k < kspace_size_.z; ++k) {
+        kspacefile << i << "\t" << j << "\t" << k << "\t"<< kspace_map_(i,j,k) << std::endl;
+      }
+    }
   }
 
   globals::num_spins = atom_counter;
@@ -725,7 +736,6 @@ void Lattice::calculate_unit_cell_kmesh() {
   kpoints_.y = unique_y.size();
   kpoints_.z = unique_z.size();
 }
-
 
 void Lattice::output_spin_state_as_vtu(std::ofstream &outfile){
   // using namespace globals;
