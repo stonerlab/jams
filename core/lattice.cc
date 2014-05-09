@@ -607,8 +607,17 @@ void Lattice::compute_fft_dipole_interactions() {
   ::output.write("\ncomputed fft dipole interactions\n");
 
   jblib::Vec3<double> rmax = lattice_vectors_*jblib::Vec3<double>(kspace_size_.x/2, kspace_size_.y/2, kspace_size_.z/2);
-  double rcut = (*std::min_element(&rmax[0],&rmax[0]+3))*lattice_parameter_;
 
+  // only use rcut in periodic directions
+  std::vector<double> rmax_pbc;
+  for (int i = 0; i < 3; ++i) {
+    if (lattice_pbc_[i]) {
+      rmax_pbc.push_back(rmax[i]);
+    }
+  }
+  double rcut = (*std::min_element(rmax_pbc.begin(),rmax_pbc.end()))*lattice_parameter_;
+
+  ::output.write("\ndipole cutoff radius: %fnm\n", rcut);
 
   // loop over wij and calculate the rij parameters
   for (int i = 0; i < kspace_size_.x; ++i) {
@@ -640,14 +649,23 @@ void Lattice::compute_fft_dipole_interactions() {
 
         rij *= lattice_parameter_;
 
-        const double rsq = dot(rij, rij);
+        double rsq = 0.0;
+
+        // only use a circular cut off for periodic directions
+        // non-periodic directions us full distance
+        for (int m = 0; m < 3; ++m) {
+          if (lattice_pbc_[m]) {
+            rsq += rij[m]*rij[m];
+          }
+        }
+
         if (rsq <= rcut*rcut) {
 
           //std::cerr << i << "\t" << j << "\t" << k << "\t" << rij.x << "\t" << rij.y << "\t" << rij.z << std::endl;
 
           jblib::Vec3<double> eij = rij/abs(rij);
 
-          const double r   = sqrt(rsq);
+          const double r = sqrt(dot(rij,rij));
 
           // identity matrix
           jblib::Matrix<double, 3, 3> ii( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
