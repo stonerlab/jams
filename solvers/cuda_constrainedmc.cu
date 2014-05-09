@@ -99,11 +99,6 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
   double energy_final = 0.0;
   double field[3];
 
-  if(J1ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< dev_J1ij_t_.blocks, DIA_BLOCK_SIZE >>>
-    (num_spins3, num_spins3, J1ij_t.diags(), dev_J1ij_t_.pitch, 1.0, 0.0,
-     dev_J1ij_t_.row, dev_J1ij_t_.val, dev_s_.data(), dev_h_.data());
-  }
 
   if (optimize::use_fft) {
 
@@ -122,6 +117,12 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
     }
 
     cuda_kspace_to_realspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_h3d_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_h_.data());
+  }
+
+  if(J1ij_t.nonZero() > 0){
+    spmv_dia_kernel<<< dev_J1ij_t_.blocks, DIA_BLOCK_SIZE >>>
+    (num_spins3, num_spins3, J1ij_t.diags(), dev_J1ij_t_.pitch, 1.0, 1.0,
+     dev_J1ij_t_.row, dev_J1ij_t_.val, dev_s_.data(), dev_h_.data());
   }
 
   // extract field for the site we care about
