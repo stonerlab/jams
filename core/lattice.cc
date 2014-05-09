@@ -40,7 +40,8 @@ void Lattice::initialize() {
   config.lookupValue("lattice.dipole", use_dipole);
 
   if (::optimize::use_fft) {
-    compute_fft_exchange_interactions();
+    //compute_fft_exchange_interactions();
+    compute_exchange_interactions();
     if (use_dipole) {
       compute_fft_dipole_interactions();
     }
@@ -119,9 +120,9 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
     lattice_pbc_.y ? "periodic" : "open",
     lattice_pbc_.z ? "periodic" : "open");
 
-  if (!(lattice_pbc_.x && lattice_pbc_.y && lattice_pbc_.z)) {
-    jams_warning("FFT optimizations are not yet supported for open boundaries.\nFFT OPTIMIZATIONS HAVE BEEN DISABLED");
-  }
+  // if (!(lattice_pbc_.x && lattice_pbc_.y && lattice_pbc_.z)) {
+  //   jams_warning("FFT optimizations are not yet supported for open boundaries.\nFFT OPTIMIZATIONS HAVE BEEN DISABLED");
+  // }
 
 //-----------------------------------------------------------------------------
 // Read materials
@@ -140,10 +141,10 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
     counter++;
   }
 
-  if (counter > 1) {
-    ::optimize::use_fft = false;
-    jams_warning("FFT optimizations were requested,\nbut this is only supported with a single species.\nFFT OPTIMIZATIONS HAVE BEEN DISABLED");
-  }
+  // if (counter > 1) {
+  //   ::optimize::use_fft = false;
+  //   jams_warning("FFT optimizations were requested,\nbut this is only supported with a single species.\nFFT OPTIMIZATIONS HAVE BEEN DISABLED");
+  // }
 
 //-----------------------------------------------------------------------------
 // Read motif

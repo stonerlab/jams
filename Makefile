@@ -13,7 +13,7 @@ LIBCONFIGDIR=/home/jb544/local
 #
 # Define CUDADIR if the cuda header and library files are in
 # /foo/bar/include and /foo/bar/lib directories.
-CUDADIR=/usr/local/cuda-5.5
+#CUDADIR=/usr/local/cuda-5.5
 # Define MKLROOT if the mkl root path is not set in the environment
 #
 # Define CUDA_BUILD_FERMI if you want to build support for Fermi architechture
@@ -57,7 +57,7 @@ CUDA_BUILD_KEPLAR=1
 # GeForce GTX 750 Ti, GeForce GTX 750 , GeForce GTX 860M, GeForce GTX 850M,
 # GeForce 840M, GeForce 830M
 
-CFLAGS = -O3 -g -funroll-loops -Wall -DNDEBUG
+CFLAGS = -m64 -O3 -g -funroll-loops -Wall -DNDEBUG
 CUFLAGS =
 LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
@@ -68,7 +68,7 @@ BASIC_CFLAGS = -I. -I/usr/local/include
 BASIC_CUFLAGS = -I. -I$(CUDADIR)/include
 BASIC_LDFLAGS = -L/usr/local/lib
 
-CC = cc
+CC = g++
 NVCC = nvcc
 RM = rm -f
 
@@ -141,12 +141,14 @@ HDR += solvers/constrainedmc.h
 ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver.o
 	CUDA_OBJS += core/cuda_sparsematrix.o
+	CUDA_OBJS += core/cuda_solver_kernels.o
 	CUDA_OBJS += solvers/cuda_heunllg.o
 	CUDA_OBJS += solvers/cuda_constrainedmc.o
 
 	CUDA_HDR += core/cuda_defs.h
 	CUDA_HDR += core/cuda_solver.h
 	CUDA_HDR += core/cuda_sparsematrix.h
+	CUDA_HDR += core/cuda_solver_kernels.h
 	CUDA_HDR += solvers/cuda_heunllg.h
 	CUDA_HDR += solvers/cuda_heunllg_kernel.h
 	CUDA_HDR += solvers/cuda_constrainedmc.h

@@ -1,4 +1,5 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
+#include "core/cuda_solver_kernels.h"
 
 #include "solvers/cuda_constrainedmc.h"
 #include "core/cuda_sparsematrix.h"
@@ -105,17 +106,22 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
   }
 
   if (optimize::use_fft) {
-    if (cufftExecD2Z(spin_fft_forward_transform, dev_s_.data(), dev_sq_.data()) != CUFFT_SUCCESS) {
+
+    cuda_realspace_to_kspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_s_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_s3d_.data());
+
+    if (cufftExecD2Z(spin_fft_forward_transform, dev_s3d_.data(), dev_sq_.data()) != CUFFT_SUCCESS) {
       jams_error("CUFFT failure executing spin_fft_forward_transform");
     }
 
-  const int convolution_size = globals::wij.size(0)*globals::wij.size(1)*((globals::wij.size(2)/2)+1);
-  const int real_size = globals::wij.size(0)*globals::wij.size(1)*globals::wij.size(2);
+    const int convolution_size = num_kpoints_.x*num_kpoints_.y*((num_kpoints_.z/2)+1);
+    const int real_size = num_kpoints_.x*num_kpoints_.y*num_kpoints_.z;
 
     cuda_fft_convolution<<<(convolution_size+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>(convolution_size, real_size, dev_wq_.data(), dev_sq_.data(), dev_hq_.data());
-    if (cufftExecZ2D(field_fft_backward_transform, dev_hq_.data(), dev_h_.data()) != CUFFT_SUCCESS) {
+    if (cufftExecZ2D(field_fft_backward_transform, dev_hq_.data(), dev_h3d_.data()) != CUFFT_SUCCESS) {
       jams_error("CUFFT failure executing field_fft_backward_transform");
     }
+
+    cuda_kspace_to_realspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_h3d_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_h_.data());
   }
 
   // extract field for the site we care about
@@ -144,7 +150,7 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
     // energy or with a Boltzmann thermal weighting.
     //
     // NOTES:
-    // The the Random class (global name rng) has a method uniform_discrete(min,max) 
+    // The the Random class (global name rng) has a method uniform_discrete(min,max)
     // which does a truely uniform sampling in the integer range [min, max]. Doing
     // rng.uniform()*num_spins can have a small bias depending on the value of num_spins.\
     //
@@ -220,7 +226,7 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
                        +(m_other.y + s1_final.y + s2_final.y - s1_initial.y - s2_initial.y)*constraint_vector_.y
                        +(m_other.z + s1_final.z + s2_final.z - s1_initial.z - s2_initial.z)*constraint_vector_.z;
 
-        // calculate the Boltzmann weighted probability including the 
+        // calculate the Boltzmann weighted probability including the
         // Jacobian factors (see paper)
         const double probability = exp(-delta_energy21*inv_kbT_bohr)*((mz_new/mz_old)*(mz_new/mz_old))*fabs(s2_initial_rotated.z/s2_final_rotated.z);
 

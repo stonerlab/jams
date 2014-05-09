@@ -42,6 +42,9 @@ class CudaSolver : public Solver {
       dev_s_.copy_to_host_array(globals::s);
     }
 
+    jblib::Vec3<int> num_kpoints_;
+    jblib::CudaArray<int, 1> r_to_k_mapping_;
+
     jblib::CudaArray<double, 1>  dev_h_;
     jblib::CudaArray<CudaFastFloat, 1>  dev_mat_;
     jblib::CudaArray<double, 1> dev_s_;
@@ -50,6 +53,9 @@ class CudaSolver : public Solver {
     jblib::CudaArray<CudaFastFloat, 1> dev_d2z_;
     jblib::CudaArray<CudaFastFloat, 1> dev_d4z_;
     jblib::CudaArray<CudaFastFloat, 1> dev_d6z_;
+
+    jblib::CudaArray<double, 1> dev_s3d_;
+    jblib::CudaArray<double, 1> dev_h3d_;
 
     jblib::CudaArray<cufftDoubleComplex, 1> dev_sq_;
     jblib::CudaArray<cufftDoubleComplex, 1> dev_hq_;
