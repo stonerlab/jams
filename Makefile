@@ -80,6 +80,7 @@ ifndef V
 endif
 
 GITCOMMIT = $(shell git rev-parse HEAD)
+GITSHORT = $(shell git rev-parse --short HEAD)
 CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
 SYSTYPE = $(shell uname -s)
 
@@ -229,6 +230,10 @@ $(OBJS): %.o: %.cc $(HDR)
 
 $(CUDA_OBJS): %.o: %.cu $(HDR)
 	$(QUIET_NVCC)$(NVCC) -o $*.o -c $(ALL_CUFLAGS) $<
+
+install: jams++
+	cp jams++ ~/local/bin/jams++-$(GITSHORT)
+	ln -sf ~/local/bin/jams++-$(GITSHORT) ~/local/bin/jams++-unstable
 
 clean:
 	$(RM) core/*.o physics/*.o monitors/*.o solvers/*.o
