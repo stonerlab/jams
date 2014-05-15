@@ -71,13 +71,20 @@ void XyzMonitor::update(const int &iteration, const double &time, const double &
     xyz_state_file << std::setw(16) << "sy";
     xyz_state_file << std::setw(16) << "sz" << std::endl;
 
-    for (int i = 0, iend = slice_spins.size(); i < iend; ++i) {
-      const int n = slice_spins[i];
-      xyz_state_file << std::setw(9) << n;
-      xyz_state_file << std::setw(16) << lattice.lattice_positions_[n][0] << std::setw(16) << lattice.lattice_positions_[n][1] << std::setw(16) << lattice.lattice_positions_[n][2];
-      xyz_state_file << std::setw(16) << s(n,0) << std::setw(16) << s(n,1) << std::setw(16) <<  s(n, 2) << "\n";
+    if (slice_spins.size() > 0) {
+      for (int i = 0, iend = slice_spins.size(); i < iend; ++i) {
+        const int n = slice_spins[i];
+        xyz_state_file << std::setw(9) << n;
+        xyz_state_file << std::setw(16) << lattice.lattice_positions_[n][0] << std::setw(16) << lattice.lattice_positions_[n][1] << std::setw(16) << lattice.lattice_positions_[n][2];
+        xyz_state_file << std::setw(16) << s(n,0) << std::setw(16) << s(n,1) << std::setw(16) <<  s(n, 2) << "\n";
+      }
+    } else {
+      for (int n = 0; n < num_spins; ++n) {
+        xyz_state_file << std::setw(9) << n;
+        xyz_state_file << std::setw(16) << lattice.lattice_positions_[n][0] << std::setw(16) << lattice.lattice_positions_[n][1] << std::setw(16) << lattice.lattice_positions_[n][2];
+        xyz_state_file << std::setw(16) << s(n,0) << std::setw(16) << s(n,1) << std::setw(16) <<  s(n, 2) << "\n";
+      }
     }
-
     xyz_state_file.close();
   }
 }
