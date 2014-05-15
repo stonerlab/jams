@@ -10,6 +10,7 @@
 #include "monitors/energy.h"
 #include "monitors/boltzmann.h"
 #include "monitors/vtu.h"
+#include "monitors/xyz.h"
 
 Monitor::Monitor(const libconfig::Setting &settings)
 : is_equilibration_monitor_(false),
@@ -48,6 +49,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "VTU") {
     return new VtuMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "XYZ") {
+    return new XyzMonitor(settings);
   }
 
   jams_error("Unknown monitor specified '%s'", settings["module"].c_str());

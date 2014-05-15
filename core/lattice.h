@@ -48,6 +48,8 @@ class Lattice {
     void initialize_coarse_magnetisation_map();
     void output_coarse_magnetisation(std::ofstream &outfile);
     jblib::Array<int, 2>        kspace_inv_map_;
+    std::vector< jblib::Vec3<double> > lattice_positions_;
+
 
   private:
     void calculate_unit_cell_kmesh();
@@ -70,7 +72,6 @@ class Lattice {
     jblib::Vec3<int>            lattice_size_;
     jblib::Matrix<double, 3, 3> lattice_vectors_;
     jblib::Matrix<double, 3, 3> inverse_lattice_vectors_;
-    std::vector< jblib::Vec3<double> > lattice_positions_;
     jblib::Array<int, 4>          fast_integer_lattice_;
     std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > fast_integer_interaction_list_;
     std::vector< std::pair<std::string, jblib::Vec3<double> > > motif_;
