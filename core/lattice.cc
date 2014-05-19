@@ -503,18 +503,18 @@ void Lattice::compute_exchange_interactions() {
   bool is_all_inserts_successful = true;
   int counter = 0;
   // loop over the translation vectors for lattice size
-  for (int i = 0; i != lattice_size_.x; ++i) {
-    for (int j = 0; j != lattice_size_.y; ++j) {
-      for (int k = 0; k != lattice_size_.z; ++k) {
+  for (int i = 0; i < lattice_size_.x; ++i) {
+    for (int j = 0; j < lattice_size_.y; ++j) {
+      for (int k = 0; k < lattice_size_.z; ++k) {
         // loop over atoms in the motif
-        for (int m = 0, mend = motif_.size(); m != mend; ++m) {
+        for (int m = 0, mend = motif_.size(); m < mend; ++m) {
           int local_site = fast_integer_lattice_(i, j, k, m);
 
           std::vector<bool> is_already_interacting(globals::num_spins, false);
           is_already_interacting[local_site] = true;  // don't allow self interaction
 
           // loop over all possible interaction vectors
-          for (int n = 0, nend = fast_integer_interaction_list_[m].size(); n != nend; ++n) {
+          for (int n = 0, nend = fast_integer_interaction_list_[m].size(); n < nend; ++n) {
 
             jblib::Vec4<int> fast_integer_lookup_vector(
               i + fast_integer_interaction_list_[m][n].first.x,
@@ -686,8 +686,8 @@ void Lattice::compute_fft_dipole_interactions() {
 bool Lattice::insert_interaction(const int m, const int n, const jblib::Matrix<double, 3, 3> &value) {
 
   int counter = 0;
-  for (int i = 0; i != 3; ++i) {
-    for (int j = 0; j != 3; ++j) {
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
       if (fabs(value[i][j]) > energy_cutoff_) {
         counter++;
         if(globals::J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
