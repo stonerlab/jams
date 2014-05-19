@@ -162,27 +162,29 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
 
     const double inv_kbT_bohr = mu_bohr_si/(physics_module_->temperature()*boltzmann_si);
 
-    if (move_acceptance_fraction_ < 0.25) {
+    // assuming an optimal acceptance rate of 0.234 [1 A. Gelman, G. Roberts, and W. Gilks, Bayesian Statistics 5, 599 (1996)]
+    // try to keep within 0.100 of this value for any given sample run through the system
+    if (move_acceptance_fraction_ < 0.15) {
       move_sigma_ = 0.5*move_sigma_;
       if (verbose_output_is_set) {
         ::output.write("CMC acceptance < 0.25 (%f), new sigma %f", move_acceptance_fraction_, move_sigma_);
       }
-    } else if (move_acceptance_fraction_ > 0.75) {
+    } else if (move_acceptance_fraction_ > 0.4) {
       move_sigma_ = 2.0*move_sigma_;
       if (verbose_output_is_set) {
         ::output.write("CMC acceptance > 0.75 (%f), new sigma %f", move_acceptance_fraction_, move_sigma_);
       }
     }
 
-    if (move_sigma_ < 0.001) {
-      move_sigma_ = 0.001;
+    if (move_sigma_ < 0.0001) {
+      move_sigma_ = 0.0001;
       if (verbose_output_is_set) {
         ::output.write("CMC sigma lower limit hit %f", move_sigma_);
       }
     }
 
-    if (move_sigma_ > 1.0) {
-      move_sigma_ = 1.0;
+    if (move_sigma_ > 2.0) {
+      move_sigma_ = 2.0;
       if (verbose_output_is_set) {
         ::output.write("CMC sigma upper limit hit %f", move_sigma_);
       }
