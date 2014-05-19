@@ -13,6 +13,9 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     // initialize base class
   CudaSolver::initialize(argc, argv, idt);
 
+  move_acceptance_fraction_ = 1.0;
+  move_sigma_ = 0.05;
+
   ::output.write("Initialising Constrained Monte-Carlo solver\n");
 
   libconfig::Setting &solver_settings = ::config.lookup("sim");
@@ -85,10 +88,10 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 }
 
 
-void CudaConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin) {
+void CudaConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
   double x,y,z;
   rng.sphere(x,y,z);
-  spin.x += 0.05*x; spin.y += 0.05*y; spin.z += 0.05*z;
+  spin.x += move_sigma*x; spin.y += move_sigma*y; spin.z += move_sigma*z;
   spin /= abs(spin);
 }
 
@@ -159,6 +162,32 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
 
     const double inv_kbT_bohr = mu_bohr_si/(physics_module_->temperature()*boltzmann_si);
 
+    if (move_acceptance_fraction_ < 0.25) {
+      move_sigma_ = 0.5*move_sigma_;
+      if (verbose_output_is_set) {
+        ::output.write("CMC acceptance < 0.25 (%f), new sigma %f", move_acceptance_fraction_, move_sigma_);
+      }
+    } else if (move_acceptance_fraction_ > 0.75) {
+      move_sigma_ = 2.0*move_sigma_;
+      if (verbose_output_is_set) {
+        ::output.write("CMC acceptance > 0.75 (%f), new sigma %f", move_acceptance_fraction_, move_sigma_);
+      }
+    }
+
+    if (move_sigma_ < 0.001) {
+      move_sigma_ = 0.001;
+      if (verbose_output_is_set) {
+        ::output.write("CMC sigma lower limit hit %f", move_sigma_);
+      }
+    }
+
+    if (move_sigma_ > 1.0) {
+      move_sigma_ = 1.0;
+      if (verbose_output_is_set) {
+        ::output.write("CMC sigma upper limit hit %f", move_sigma_);
+      }
+    }
+
     // calculate the initial magnetization before we try to move every spin
     jblib::Vec3<double> m_other(0.0, 0.0, 0.0);
     for (int i = 0; i < num_spins; ++i) {
@@ -169,6 +198,7 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
 
     // loop over every spin (on average), once but divide by 2 because we move
     // two spins each time
+    int num_moves_accepted = 0;
     for (int i = 0; i < num_spins/2; ++i) {
       // randomly select spin 1
       int rand_s1 = rng.uniform_discrete(0, num_spins-1);
@@ -235,6 +265,7 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
           for (int n = 0; n < 3; ++n) {  // accept s2
             s(rand_s2, n) = s2_final[n];
           }
+          num_moves_accepted++;
           // update s2 on the CUDA device
           cudaMemcpy((dev_s_.data()+3*rand_s2), &s2_final[0], 3*sizeof(double), cudaMemcpyHostToDevice);
         } else {
@@ -252,6 +283,8 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
         cudaMemcpy((dev_s_.data()+3*rand_s1), &s1_initial[0], 3*sizeof(double), cudaMemcpyHostToDevice);
       }
     }
+
+    move_acceptance_fraction_ = num_moves_accepted/(0.5*num_spins);
 
     // compute fields ready for torque monitor
     compute_fields();

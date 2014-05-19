@@ -13,7 +13,7 @@
 
 class CudaConstrainedMCSolver : public CudaSolver {
  public:
-  CudaConstrainedMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0) {}
+  CudaConstrainedMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0), move_acceptance_fraction_(1.0), move_sigma_(0.05) {}
   ~CudaConstrainedMCSolver() {}
   void initialize(int argc, char **argv, double dt);
   void run();
@@ -25,6 +25,9 @@ class CudaConstrainedMCSolver : public CudaSolver {
   jblib::Array<double, 2> sigma;
   jblib::Array<double, 2> eng;
 
+  double move_acceptance_fraction_;
+  double move_sigma_;
+
   double constraint_theta_;
   double constraint_phi_;
   jblib::Vec3<double> constraint_vector_;
@@ -32,7 +35,7 @@ class CudaConstrainedMCSolver : public CudaSolver {
   jblib::Matrix<double, 3, 3> inverse_rotation_matrix_;
 
   double compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii);
-  void calculate_trial_move(jblib::Vec3<double> &spin);
+  void calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma);
 };
 
 #endif  // CUDA
