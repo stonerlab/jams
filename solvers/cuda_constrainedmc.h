@@ -33,6 +33,7 @@ class CudaConstrainedMCSolver : public CudaSolver {
   jblib::Vec3<double> constraint_vector_;
   jblib::Matrix<double, 3, 3> rotation_matrix_;
   jblib::Matrix<double, 3, 3> inverse_rotation_matrix_;
+  std::ofstream outfile;
 
   double compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii);
   void calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma);

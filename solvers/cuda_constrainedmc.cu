@@ -7,6 +7,8 @@
 #include "core/maths.h"
 #include "core/globals.h"
 
+#include <iomanip>
+
 void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
 
@@ -85,6 +87,15 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     ::output.write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
     ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
   //}
+
+    std::string name = seedname + "_mc.dat";
+    outfile.open(name.c_str());
+    outfile.setf(std::ios::right);
+    outfile << "#";
+    outfile << std::setw(8) << "iteration";
+    outfile << std::setw(12) << "lowrate";
+    outfile << std::setw(12) << "highrate";
+    outfile << std::setw(12) << "acceptance" << std::endl;
 }
 
 
@@ -291,6 +302,9 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
     // compute fields ready for torque monitor
     compute_fields();
     dev_h_.copy_to_host_array(globals::h);
+
+    outfile << std::setw(8) << iteration_ << std::setw(12) << 0.15 <<  std::setw(12) << 0.40 << std::setw(12) << move_acceptance_fraction_ << std::endl;
+
     iteration_++;
   }
 
