@@ -30,6 +30,7 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
     jams_error("Xyz monitor requires both slice_origin and slice_size to be specificed;");
   }
 
+  slice_spins.resize(0);
 
   if (settings.exists("slice_origin")) {
     for (int i = 0; i < 3; ++i) {
@@ -38,17 +39,16 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
     for (int i = 0; i < 3; ++i) {
       slice_size[i] = settings["slice_size"][i];
     }
-  }
+    // check which spins are inside the slice
+    for (int i = 0; i < num_spins; ++i) {
+      jblib::Vec3<double> pos = lattice.lattice_positions_[i];
 
-  // check which spins are inside the slice
-  for (int i = 0; i < num_spins; ++i) {
-    jblib::Vec3<double> pos = lattice.lattice_positions_[i];
-
-    // check if the current spin in inside the slice
-    if (floats_are_greater_than_or_equal(pos.x, slice_origin.x) && floats_are_less_than_or_equal(pos.x, slice_origin.x + slice_size.x)
-    &&  floats_are_greater_than_or_equal(pos.y, slice_origin.y) && floats_are_less_than_or_equal(pos.y, slice_origin.y + slice_size.y)
-    &&  floats_are_greater_than_or_equal(pos.z, slice_origin.z) && floats_are_less_than_or_equal(pos.z, slice_origin.z + slice_size.z)) {
-      slice_spins.push_back(i);
+      // check if the current spin in inside the slice
+      if (floats_are_greater_than_or_equal(pos.x, slice_origin.x) && floats_are_less_than_or_equal(pos.x, slice_origin.x + slice_size.x)
+      &&  floats_are_greater_than_or_equal(pos.y, slice_origin.y) && floats_are_less_than_or_equal(pos.y, slice_origin.y + slice_size.y)
+      &&  floats_are_greater_than_or_equal(pos.z, slice_origin.z) && floats_are_less_than_or_equal(pos.z, slice_origin.z + slice_size.z)) {
+        slice_spins.push_back(i);
+      }
     }
   }
 }
