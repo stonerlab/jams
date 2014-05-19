@@ -166,8 +166,10 @@ void CudaSolver::run() {
 void CudaSolver::compute_fields() {
   using namespace globals;
 
-  if (optimize::use_fft) {
+  // zero the field array
+  cudaMemset(dev_h_.data(), 0.0, num_spins3*sizeof(CudaFastFloat));
 
+  if (optimize::use_fft) {
     cuda_realspace_to_kspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_s_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_s3d_.data());
 
     if (cufftExecD2Z(spin_fft_forward_transform, dev_s3d_.data(), dev_sq_.data()) != CUFFT_SUCCESS) {
