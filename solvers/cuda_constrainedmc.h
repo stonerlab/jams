@@ -13,7 +13,7 @@
 
 class CudaConstrainedMCSolver : public CudaSolver {
  public:
-  CudaConstrainedMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0), move_acceptance_fraction_(1.0), move_sigma_(0.05) {}
+  CudaConstrainedMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0), move_acceptance_count_(0), move_acceptance_fraction_(1.0), move_sigma_(0.05) {}
   ~CudaConstrainedMCSolver() {}
   void initialize(int argc, char **argv, double dt);
   void run();
@@ -25,6 +25,7 @@ class CudaConstrainedMCSolver : public CudaSolver {
   jblib::Array<double, 2> sigma;
   jblib::Array<double, 2> eng;
 
+  int    move_acceptance_count_;
   double move_acceptance_fraction_;
   double move_sigma_;
 

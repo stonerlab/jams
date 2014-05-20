@@ -15,8 +15,9 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     // initialize base class
   CudaSolver::initialize(argc, argv, idt);
 
-  move_acceptance_fraction_ = 1.0;
-  move_sigma_ = 0.05;
+  move_acceptance_count_ = 0;
+  move_acceptance_fraction_ = 0.234;
+  move_sigma_ = 0.001;
 
   ::output.write("Initialising Constrained Monte-Carlo solver\n");
 
@@ -93,9 +94,8 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     outfile.setf(std::ios::right);
     outfile << "#";
     outfile << std::setw(8) << "iteration";
-    outfile << std::setw(12) << "lowrate";
-    outfile << std::setw(12) << "highrate";
-    outfile << std::setw(12) << "acceptance" << std::endl;
+    outfile << std::setw(12) << "acceptance";
+    outfile << std::setw(12) << "sigma" << std::endl;
 }
 
 
@@ -175,31 +175,35 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
 
     // assuming an optimal acceptance rate of 0.234 [1 A. Gelman, G. Roberts, and W. Gilks, Bayesian Statistics 5, 599 (1996)]
     // try to keep within 0.100 of this value for any given sample run through the system
-    if (move_acceptance_fraction_ < 0.15) {
-      move_sigma_ = 0.5*move_sigma_;
-      if (verbose_output_is_set) {
-        ::output.write("CMC acceptance < 0.25 (%f), new sigma %f", move_acceptance_fraction_, move_sigma_);
-      }
-    } else if (move_acceptance_fraction_ > 0.4) {
-      move_sigma_ = 2.0*move_sigma_;
-      if (verbose_output_is_set) {
-        ::output.write("CMC acceptance > 0.75 (%f), new sigma %f", move_acceptance_fraction_, move_sigma_);
-      }
-    }
+    // if (iteration_%50 == 0) {
+    //     if (move_acceptance_fraction_ < 0.15) {
+    //       move_sigma_ = 0.5*move_sigma_;
+    //       if (verbose_output_is_set) {
+    //         ::output.write("CMC acceptance < 0.45 (%f), new sigma %f", move_acceptance_fraction_, move_sigma_);
+    //       }
+    //     } else if (move_acceptance_fraction_ > 0.40) {
+    //       move_sigma_ = 2.0*move_sigma_;
+    //       if (verbose_output_is_set) {
+    //         ::output.write("CMC acceptance > 0.60 (%f), new sigma %f", move_acceptance_fraction_, move_sigma_);
+    //       }
+    //     }
+    //     if (move_sigma_ < 0.00001) {
+    //       move_sigma_ = 0.00001;
+    //       if (verbose_output_is_set) {
+    //         ::output.write("CMC sigma lower limit hit %f", move_sigma_);
+    //       }
+    //     }
 
-    if (move_sigma_ < 0.0001) {
-      move_sigma_ = 0.0001;
-      if (verbose_output_is_set) {
-        ::output.write("CMC sigma lower limit hit %f", move_sigma_);
-      }
-    }
+    //     if (move_sigma_ > 2.0) {
+    //       move_sigma_ = 2.0;
+    //       if (verbose_output_is_set) {
+    //         ::output.write("CMC sigma upper limit hit %f", move_sigma_);
+    //       }
+    //     }
+    //     move_acceptance_count_ = 0;
+    // }
 
-    if (move_sigma_ > 2.0) {
-      move_sigma_ = 2.0;
-      if (verbose_output_is_set) {
-        ::output.write("CMC sigma upper limit hit %f", move_sigma_);
-      }
-    }
+
 
     // calculate the initial magnetization before we try to move every spin
     jblib::Vec3<double> m_other(0.0, 0.0, 0.0);
@@ -211,7 +215,7 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
 
     // loop over every spin (on average), once but divide by 2 because we move
     // two spins each time
-    int num_moves_accepted = 0;
+    move_acceptance_count_ = 0;
     for (int i = 0; i < num_spins/2; ++i) {
       // randomly select spin 1
       int rand_s1 = rng.uniform_discrete(0, num_spins-1);
@@ -274,13 +278,22 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
         // Jacobian factors (see paper)
         const double probability = exp(-delta_energy21*inv_kbT_bohr)*((mz_new/mz_old)*(mz_new/mz_old))*fabs(s2_initial_rotated.z/s2_final_rotated.z);
 
-        if (probability >= rng.uniform() && (mz_new >= 0.0)) {
+        if (delta_energy21 < 0.0 && (mz_new >= 0.0)) {
+            // moves reduce total energy -> accept
+            for (int n = 0; n < 3; ++n) {  // accept s2
+                s(rand_s2, n) = s2_final[n];
+            }
+            // update s2 on the CUDA device
+            cudaMemcpy((dev_s_.data()+3*rand_s2), &s2_final[0], 3*sizeof(double), cudaMemcpyHostToDevice);
+            move_acceptance_count_++;
+        }else if (probability >= rng.uniform() && (mz_new >= 0.0)) {
+            // moves overcome Boltzmann weighting -> accept
           for (int n = 0; n < 3; ++n) {  // accept s2
             s(rand_s2, n) = s2_final[n];
           }
-          num_moves_accepted++;
           // update s2 on the CUDA device
           cudaMemcpy((dev_s_.data()+3*rand_s2), &s2_final[0], 3*sizeof(double), cudaMemcpyHostToDevice);
+            move_acceptance_count_++;
         } else {
           for (int n = 0; n < 3; ++n) {  // revert s1
             s(rand_s1, n) = s1_initial[n];
@@ -297,13 +310,14 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
       }
     }
 
-    move_acceptance_fraction_ = num_moves_accepted/(0.5*num_spins);
+
 
     // compute fields ready for torque monitor
     compute_fields();
     dev_h_.copy_to_host_array(globals::h);
 
-    outfile << std::setw(8) << iteration_ << std::setw(12) << 0.15 <<  std::setw(12) << 0.40 << std::setw(12) << move_acceptance_fraction_ << std::endl;
+    move_acceptance_fraction_ = move_acceptance_count_/(0.5*num_spins);
+    outfile << std::setw(8) << iteration_ << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << move_sigma_ << std::endl;
 
     iteration_++;
   }
