@@ -44,10 +44,10 @@ void MetropolisMCSolver::oneSpinEnergy(const int &i, double total[3]) {
       for (int m = 0; m < 3; ++m) {
         int begin = row[3*i+m]; int end = row[3*i+m+1];
 
-            // upper triangle and diagonal
+	// factor 0.5 because we double count in the general matrix
         for (int j = begin; j < end; ++j) {
           k = indx[j];
-          total[m] -= x[k]*val[j];
+          total[m] -= 0.5*x[k]*val[j];
         }
       }
     }
