@@ -19,7 +19,11 @@ class Solver {
     physics_module_()
   {}
 
-  virtual ~Solver() {}
+  virtual ~Solver() {
+    for (int i = 0, iend = monitors_.size(); i < iend; ++i) {
+      delete monitors_[i];
+    }
+  }
 
   virtual void initialize(int argc, char **argv, double dt) = 0;
   virtual void run() = 0;
