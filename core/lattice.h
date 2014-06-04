@@ -50,6 +50,8 @@ class Lattice {
     jblib::Array<int, 2>        kspace_inv_map_;
     std::vector< jblib::Vec3<double> > lattice_positions_;
 
+    inline int kspace_size(const int i) const { assert(i >= 0 && i < 3); return kspace_size_[i]; }
+
 
   private:
     void calculate_unit_cell_kmesh();
