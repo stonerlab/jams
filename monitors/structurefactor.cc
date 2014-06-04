@@ -35,6 +35,13 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 void StructureFactorMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
   using namespace globals;
 
+  // zero the sq_xy array
+
+  for (int i = 0; i < sq_xy.elements(); ++i) {
+    sq_xy[i][0] = 0.0;
+    sq_xy[i][1] = 0.0;
+  }
+
   // remap spin data into kspace array
   for (int i = 0; i < num_spins; ++i) {
     int x = lattice.kspace_inv_map_(i,0);
@@ -45,20 +52,14 @@ void StructureFactorMonitor::update(const int &iteration, const double &time, co
     sq_xy(x,y,z)[1] = s(i,1);
   }
 
-  for (int i = 0; i < lattice.kspace_size(0); ++i) {
-    for (int j = 0; j < lattice.kspace_size(1); ++j) {
-      for (int k = 0; k < lattice.kspace_size(2); ++k) {
-        sqw.push_back(std::complex<double>(sq_xy(i,j,k)[0],sq_xy(i,j,k)[1]));
-      }
-    }
-  }
+  // perform in place FFT
+  fftw_execute(fft_plan_sq_xy);
 
-  // // perform in place FFT
-  // fftw_execute(fft_plan_sq_xy);
+  // add the Sq to the timeseries
 
-  // // add the Sq to the timeseries
-
-  // sqw.push_back(std::complex<double>(sq_xy(0, 0, 0)[0],sq_xy(0, 0, 0)[1]));
+for (int i = 0; i < lattice.kspace_size(2)/2 +1; ++i) {
+  sqw.push_back(std::complex<double>(sq_xy(0, 0, i)[0],sq_xy(0, 0, i)[1]));
+}
 
   // outfile << 0 << "\t" << sq_xy(0, 0, 0)[0] << "\t" << sq_xy(0, 0, 0)[1] << "\n";
   // for (int i = 1; i < lattice.kspace_size(2)/2; ++i) {
@@ -82,12 +83,29 @@ double StructureFactorMonitor::fft_windowing(const int n, const int n_total) {
 
 void StructureFactorMonitor::fft_time() {
 
-  int kpoint_total = lattice.kspace_size(0)*lattice.kspace_size(1)*lattice.kspace_size(2);
-  const int n[4] = {sqw.size()/kpoint_total,lattice.kspace_size(0),lattice.kspace_size(1),lattice.kspace_size(2)};
+  const int space_points = (lattice.kspace_size(2)/2) + 1;
+  const int time_points = sqw.size()/space_points;
 
-  jblib::Array<fftw_complex,4> fft_sqw(sqw.size()/kpoint_total,lattice.kspace_size(0),lattice.kspace_size(1),lattice.kspace_size(2));
+  jblib::Array<fftw_complex,2> fft_sqw(time_points, space_points);
 
-  fftw_plan fft_plan_time = fftw_plan_dft(4, n, fft_sqw.data(), fft_sqw.data(), FFTW_FORWARD, FFTW_ESTIMATE);
+  int rank       = 1;
+  int sizeN[]   = {time_points};
+  int howmany    = space_points;
+  int inembed[] = {time_points}; int onembed[] = {time_points};
+  int istride    = space_points; int ostride    = space_points;
+  int idist      = 1;            int odist      = 1;
+  fftw_complex* startPtr = fft_sqw.data();
+
+  fftw_plan fft_plan_time = fftw_plan_many_dft(rank,sizeN,howmany,startPtr,inembed,istride,idist,startPtr,onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
+
+  for (int i = 0; i < time_points; ++i) {
+    for (int j = 0; j < space_points; ++j) {
+      fft_sqw(i,j)[0] = sqw[i*space_points + j].real()*fft_windowing(i, time_points);
+      fft_sqw(i,j)[1] = sqw[i*space_points + j].imag()*fft_windowing(i, time_points);
+    }
+  }
+
+  // fftw_plan fft_plan_time = fftw_plan_dft(2, n, fft_sqw.data(), fft_sqw.data(), FFTW_FORWARD, FFTW_ESTIMATE);
 
   for (int i = 0; i < sqw.size(); ++i){
     fft_sqw[i][0] = sqw[i].real();
@@ -99,9 +117,9 @@ void StructureFactorMonitor::fft_time() {
   std::string name = seedname + "_dsf.dat";
   std::ofstream dsffile(name.c_str());
 
-  for (int i = 0; i < (sqw.size()/kpoint_total/2) + 1; ++i) {
-    for (int j = 0; j < lattice.kspace_size(2)/2 + 1; ++j) {
-      dsffile << j << "\t" << i << "\t" << fft_sqw(i,0,0,j)[0]*fft_sqw(i,0,0,j)[0] + fft_sqw(i,0,0,j)[1]*fft_sqw(i,0,0,j)[1]<< std::endl;
+  for (int i = 0; i < (time_points/2) + 1; ++i) {
+    for (int j = 0; j < space_points; ++j) {
+      dsffile << j << "\t" << i << "\t" << fft_sqw(i,j)[0]*fft_sqw(i,j)[0] + fft_sqw(i,j)[1]*fft_sqw(i,j)[1]<< std::endl;
     }
     dsffile << std::endl;
   }
