@@ -429,7 +429,7 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
     typeA--; typeB--;  // zero base the types
 
     // type difference
-    int type_difference = (typeB - typeA);
+    int type_difference = abs(typeB - typeA);
 
     jblib::Vec3<double> interaction_vector;
     is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
