@@ -197,7 +197,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   fast_integer_lattice_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
 
   jblib::Vec3<int> kmesh_size(kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
-  if (lattice_pbc_.x || lattice_pbc_.y || lattice_pbc_.z) {
+  if (!lattice_pbc_.x || !lattice_pbc_.y || !lattice_pbc_.z) {
     ::output.write("\nzero padding non-periodic dimensions\n");
      // double any non-periodic dimensions for zero padding
     for (int i = 0; i < 3; ++i) {
@@ -205,7 +205,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
         kmesh_size[i] = 2*kpoints_[i]*lattice_size_[i];
       }
     }
-    ::output.write("\nunit cell zero padded kpoints\n  %d  %d  %d\n", kpoints_.x, kpoints_.y, kpoints_.z);
+    ::output.write("\npadded kspace size\n  %d  %d  %d\n", kmesh_size.x, kmesh_size.y, kmesh_size.z);
   }
 
   kspace_size_ = jblib::Vec3<int>(kmesh_size.x, kmesh_size.y, kmesh_size.z);
@@ -227,9 +227,9 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 
   int atom_counter = 0;
   // loop over the translation vectors for lattice size
-  for (int i = 0; i != lattice_size_.x; ++i) {
-    for (int j = 0; j != lattice_size_.y; ++j) {
-      for (int k = 0; k != lattice_size_.z; ++k) {
+  for (int i = 0; i < lattice_size_.x; ++i) {
+    for (int j = 0; j < lattice_size_.y; ++j) {
+      for (int k = 0; k < lattice_size_.z; ++k) {
         // loop over atoms in the motif
         for (int m = 0, mend = motif_.size(); m != mend; ++m) {
 
@@ -429,25 +429,25 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
     typeA--; typeB--;  // zero base the types
 
     // type difference
-    int type_difference = abs(typeB - typeA);
+    int type_difference = (typeB - typeA);
 
     jblib::Vec3<double> interaction_vector;
     is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
 
     // transform into lattice vector basis
-    jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector);
+    jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector) + motif_[typeA].second;
 
     // translate by the motif back to (hopefully) the origin of the local unit cell
-    for (int i = 0; i < 3; ++ i) {
-      lattice_vector[i] -= motif_[type_difference].second[i];
-    }
+    // for (int i = 0; i < 3; ++ i) {
+    //   lattice_vector[i] -= motif_[type_difference].second[i];
+    // }
 
     // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
     // component is the atoms number within the motif
     jblib::Vec4<int> fast_integer_vector;
     for (int i = 0; i < 3; ++ i) {
       // rounding with nint accounts for lack of precision in definition of the real space vectors
-      fast_integer_vector[i] = nint(lattice_vector[i]);
+      fast_integer_vector[i] = floor(lattice_vector[i]);
     }
     fast_integer_vector[3] = type_difference;
 
@@ -497,6 +497,8 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
 void Lattice::compute_exchange_interactions() {
 
   globals::J1ij_t.resize(globals::num_spins3,globals::num_spins3);
+  globals::J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+  globals::J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
 
   ::output.write("\ncomputed interactions\n");
 
@@ -545,6 +547,9 @@ void Lattice::compute_exchange_interactions() {
             is_already_interacting[neighbour_site] = true;
 
             if (insert_interaction(local_site, neighbour_site, fast_integer_interaction_list_[m][n].second)) {
+              if(local_site >= neighbour_site) {
+                std::cerr << local_site << "\t" << neighbour_site << "\t" << neighbour_site << "\t" << local_site << std::endl;
+              }
               counter++;
             } else {
               is_all_inserts_successful = false;
@@ -692,11 +697,12 @@ bool Lattice::insert_interaction(const int m, const int n, const jblib::Matrix<d
         counter++;
         if(globals::J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
           if(globals::J1ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-            if(i >= j){
+            if(m >= n){
               globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
             }
           }else{
-            if(i <= j){
+            if(m <= n){
+
               globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
             }
           }
@@ -810,7 +816,7 @@ void Lattice::output_spin_state_as_vtu(std::ofstream &outfile){
   // outfile << "</DataArray>" << "\n";
   // outfile << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" << "\n";
   // outfile << "1" << "\n";
-  // outfile << "</DataArray>" << "\n";
+  // outfile << "</inaArray>" << "\n";
   // outfile << "</Cells>" << "\n";
   // outfile << "</Piece>" << "\n";
   // outfile << "</UnstructuredGrid>" << "\n";
