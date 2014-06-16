@@ -23,10 +23,15 @@ class StructureFactorMonitor : public Monitor {
   void   fft_time();
   double fft_windowing(const int n, const int n_total);
 
-  std::ofstream outfile;
   fftw_plan fft_plan_sq_xy;
+  fftw_plan fft_plan_sq_z;
   jblib::Array<fftw_complex, 3> sq_xy;
-  std::vector<std::complex<double> > sqw;
+  jblib::Array<fftw_complex, 3> sq_z;
+  jblib::Array<double, 2> s_transform;
+  std::vector<std::complex<double> > sqw_xy;
+  std::vector<std::complex<double> > sqw_z;
+  std::vector<jblib::Vec3<int> > bz_points;
+  std::vector<double> bz_lengths;
 };
 
 #endif  // JAMS_MONITOR_STRUCTUREFACTOR_H
