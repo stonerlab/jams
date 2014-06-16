@@ -57,7 +57,7 @@ CUDA_BUILD_KEPLAR=1
 # GeForce GTX 750 Ti, GeForce GTX 750 , GeForce GTX 860M, GeForce GTX 850M,
 # GeForce 840M, GeForce 830M
 
-CFLAGS = -m64 -O3 -g -funroll-loops -Wall -DNDEBUG
+CFLAGS = -std=c++11 -m64 -O3 -g -funroll-loops -Wall -DNDEBUG
 CUFLAGS =
 LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
