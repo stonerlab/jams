@@ -547,9 +547,9 @@ void Lattice::compute_exchange_interactions() {
             is_already_interacting[neighbour_site] = true;
 
             if (insert_interaction(local_site, neighbour_site, fast_integer_interaction_list_[m][n].second)) {
-              if(local_site >= neighbour_site) {
-                std::cerr << local_site << "\t" << neighbour_site << "\t" << neighbour_site << "\t" << local_site << std::endl;
-              }
+              // if(local_site >= neighbour_site) {
+              //   std::cerr << local_site << "\t" << neighbour_site << "\t" << neighbour_site << "\t" << local_site << std::endl;
+              // }
               counter++;
             } else {
               is_all_inserts_successful = false;
