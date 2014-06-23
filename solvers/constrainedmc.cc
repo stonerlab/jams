@@ -93,28 +93,28 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
   double energy_final = 0.0;
 
 
-    // jblib::Vec3<double> field(0.0, 0.0, 0.0);
-    // if (J1ij_t.nonZero() > 0) {   // J1ij_t
+    jblib::Vec3<double> field(0.0, 0.0, 0.0);
+    if (J1ij_t.nonZero() > 0) {   // J1ij_t
 
-    //   const double *val = J1ij_t.valPtr();
-    //   const int    *row = J1ij_t.rowPtr();
-    //   const int    *indx = J1ij_t.colPtr();
-    //   const double *x   = s.data();
-    //   int           k;
+      const double *val = J1ij_t.valPtr();
+      const int    *row = J1ij_t.rowPtr();
+      const int    *indx = J1ij_t.colPtr();
+      const double *x   = s.data();
+      int           k;
 
 
-    //   for (int m = 0; m < 3; ++m) {
-    //     int begin = row[3*ii+m]; int end = row[3*ii+m+1];
+      for (int m = 0; m < 3; ++m) {
+        int begin = row[3*ii+m]; int end = row[3*ii+m+1];
 
-    //         // upper triangle and diagonal
-    //     for (int j = begin; j < end; ++j) {
-    //       k = indx[j];
-    //       field[m] += x[k]*val[j];
-    //     }
-    //   }
-    //   energy_initial -= s(ii,0)*field[0] + s(ii,1)*field[1] + s(ii,2)*field[2];
-    //   energy_final   -= dot(s_final,field);
-    // }
+            // upper triangle and diagonal
+        for (int j = begin; j < end; ++j) {
+          k = indx[j];
+          field[m] += x[k]*val[j];
+        }
+      }
+      energy_initial -= s(ii,0)*field[0] + s(ii,1)*field[1] + s(ii,2)*field[2];
+      energy_final   -= dot(s_final,field);
+    }
 
 
     if (::optimize::use_fft) {
