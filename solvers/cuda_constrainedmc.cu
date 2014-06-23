@@ -113,6 +113,8 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
   double energy_final = 0.0;
   double field[3];
 
+  // zero the field array
+  cudaMemset(dev_h_.data(), 0.0, num_spins3*sizeof(CudaFastFloat));
 
   if (optimize::use_fft) {
 
