@@ -55,17 +55,29 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   for (int n = 0, nend = bz_nodes.getLength()-1; n < nend; ++n) {
     jblib::Vec3<int> bz_point, bz_line, bz_line_element;
 
+    // validate the nodes
+    for (int i = 0; i < 3; ++i) {
+      if (int(bz_nodes[n][i]) > (lattice.kspace_size(i)/2 + 1)) {
+        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n][0]), int(bz_nodes[n][1]), int(bz_nodes[n][2]));
+      }
+      if (int(bz_nodes[n+1][i]) > (lattice.kspace_size(i)/2 + 1)) {
+        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n+1][0]), int(bz_nodes[n+1][1]), int(bz_nodes[n+1][2]));
+      }
+    }
+
+    // vector between the nodes
     for (int i = 0; i < 3; ++i) {
       bz_line[i] = int(bz_nodes[n+1][i]) - int(bz_nodes[n][i]);
     }
     if (verbose_output_is_set) {::output.write("  bz line: [ %4d %4d %4d ]\n", bz_line.x, bz_line.y, bz_line.z); }
 
+    // normalised vector
     for (int i = 0; i < 3; ++i) {
       bz_line[i] != 0 ? bz_line_element[i] = bz_line[i]/abs(bz_line[i]) : bz_line_element[i] = 0;
     }
 
     // the number of points is the max dimension in line
-    const int bz_line_points = abs(*std::max_element(&bz_line[0], &bz_line[0]+3, [] (int a, int b) { return (abs(a) < abs(b)); }));
+    const int bz_line_points = abs(*std::max_element(bz_line.begin(), bz_line.end(), [] (int a, int b) { return (abs(a) < abs(b)); }));
     if (verbose_output_is_set) { ::output.write("  bz line points: %d\n", bz_line_points); }
 
     // store the length element between these points
