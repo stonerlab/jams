@@ -12,6 +12,7 @@
 #include "monitors/boltzmann.h"
 #include "monitors/vtu.h"
 #include "monitors/xyz.h"
+#include "monitors/binary.h"
 
 Monitor::Monitor(const libconfig::Setting &settings)
 : is_equilibration_monitor_(false),
@@ -58,6 +59,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "XYZ") {
     return new XyzMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "BINARY") {
+    return new BinaryMonitor(settings);
   }
 
   jams_error("Unknown monitor specified '%s'", settings["module"].c_str());
