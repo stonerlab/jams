@@ -166,9 +166,9 @@ int jams_initialize(int argc, char **argv) {
 
       std::string binary_state_filename;
       if (config.lookupValue("sim.read_state", binary_state_filename)) {
-        output.write("  * Read state is ON\n");
+        output.write("\nread state is ON\n");
 
-        output.write("\nReading spin state from %s\n",
+        output.write("  Reading spin state from %s\n",
           binary_state_filename.c_str());
 
         std::ifstream binary_state_file(binary_state_filename.c_str(),
@@ -267,7 +267,7 @@ void jams_run() {
       "\n-------------------\nSaving spin state\n-------------------\n");
 
     std::ofstream binary_state_file
-      (std::string(seedname+"_state.dat").c_str(),
+      (std::string(seedname+"_state.bin").c_str(),
       std::ios::out|std::ios::binary|std::ios::trunc);
 
     lattice.output_spin_state_as_binary(binary_state_file);
