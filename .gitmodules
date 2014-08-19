@@ -1,3 +1,3 @@
 [submodule "jblib"]
 	path = jblib
-	url = git@bitbucket.org:joebarker87/jblib.git
+	url = https://joebarker87@bitbucket.org/joebarker87/jblib.git
