@@ -2,18 +2,18 @@
 all::
 
 # Define V=1 for verbose output
-#V=1
+# V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
 # /foo/bar/include and /foo/bar/lib directories.
-LIBCONFIGDIR=/home/jb544/local
+# LIBCONFIGDIR=/Users/jbarker/local
 # Define NO_CUDA if you wish to build a binary without CUDA support
 #NO_CUDA=1
 #
 # Define CUDADIR if the cuda header and library files are in
 # /foo/bar/include and /foo/bar/lib directories.
-#CUDADIR=/usr/local/cuda-5.5
+CUDADIR=/usr/local/cuda
 # Define MKLROOT if the mkl root path is not set in the environment
 #
 # Define CUDA_BUILD_FERMI if you want to build support for Fermi architechture
@@ -34,7 +34,7 @@ LIBCONFIGDIR=/home/jb544/local
 # GT 435M, GeForce GT 420M, GeForce GT 415M, GeForce 710M, GeForce 410M, Quadro
 # 2000, Quadro 2000D, Quadro 600, Quadro 410, Quadro 4000M, Quadro 3000M, Quadro
 # 2000M, Quadro 1000M, NVS 5400M, NVS 5200M, NVS 4200M
-CUDA_BUILD_FERMI=1
+# CUDA_BUILD_FERMI=1
 
 # Define CUDA_BUILD_KEPLAR if you want to build support for Keplar architechture
 # cards (Compute 3.0/3.5 - GK104, GK106, GK107, GK110, GK208)
@@ -57,7 +57,7 @@ CUDA_BUILD_KEPLAR=1
 # GeForce GTX 750 Ti, GeForce GTX 750 , GeForce GTX 860M, GeForce GTX 850M,
 # GeForce 840M, GeForce 830M
 
-CFLAGS = -std=c++11 -m64 -O3 -g -funroll-loops -Wall -DNDEBUG
+CFLAGS = -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG
 CUFLAGS =
 LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
@@ -162,16 +162,20 @@ ifndef NO_CUDA
 endif
 
 ifeq ($(SYSTYPE),Darwin)
-	CC = clang++
-	BASIC_CFLAGS += -stdlib=libc++
+	CC = clang++ -stdlib=libstdc++
+	BASIC_LDFLAGS += -Wl -rpath /usr/local/cuda/lib
 endif
 
-
-ifdef LIBCONFIGDIR
-	BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
-	BASIC_LDFLAGS += -L$(LIBCONFIGDIR)/lib
+ifeq ($(SYSTYPE),Darwin)
+		BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
+		BASIC_LDFLAGS += /Users/jbarker/local/lib/libconfig++.a
+else
+	ifdef LIBCONFIGDIR
+		BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
+		BASIC_LDFLAGS += -L$(LIBCONFIGDIR)/lib
+	endif
+	EXTLIBS += -lconfig++
 endif
-EXTLIBS += -lconfig++
 
 ifdef MKLROOT
 	CC = icc
@@ -185,7 +189,12 @@ endif
 ifndef NO_CUDA
 	BASIC_CFLAGS += -I$(CUDADIR)/include -DCUDA
 	BASIC_CUFLAGS += -I$(CUDADIR)/include -DCUDA
-	BASIC_LDFLAGS += -L$(CUDADIR)/lib64
+	ifeq ($(SYSTYPE),Darwin)
+		BASIC_LDFLAGS += -L$(CUDADIR)/lib
+		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler -stdlib=libstdc++ -Xlinker -stdlib=libstdc++
+	else
+		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
+	endif
 	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
 		BASIC_CUFLAGS += -gencode=arch=compute_20,code=sm_20
