@@ -45,6 +45,29 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
     jams_warning("No physics output_steps chosen - using default of 100");
     output_step_freq_ = 100;
   }
+
+  jblib::Vec3<double> origin;
+  double radius;
+  if (physics_settings.exists("initial_state")) {
+    libconfig::Setting& state_settings = physics_settings["initial_state"];
+    if (!state_settings["origin"].isArray() || !(state_settings["origin"].getLength() == 3)) {
+      jams_error("Setting 'initial_state.origin' must be an array of length 3.");
+    }
+    for (int i = 0; i < 3; ++i) {
+      origin[i] = state_settings["origin"][i];
+    }
+    radius = state_settings["radius"];
+
+    for (int i = 0; i < globals::num_spins; ++i) {
+      jblib::Vec3<double> pos = (lattice.lattice_positions_[i]-origin);
+
+      if (pos.x*pos.x + pos.y*pos.y < radius*radius) {
+        globals::s(i,2) = -globals::s(i,2);
+      }
+    }
+
+  }
+
 }
 
 Physics* Physics::create(const libconfig::Setting &settings) {
