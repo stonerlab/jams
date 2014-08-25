@@ -41,6 +41,7 @@ void Output::write(const char* message, ...) {
   va_end(args);
 
   logfile << buffer;
+  logfile.flush();
 
   if (console == true) {
       print(buffer);

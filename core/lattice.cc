@@ -525,6 +525,8 @@ void Lattice::compute_exchange_interactions() {
               (motif_.size() + m + fast_integer_interaction_list_[m][n].first.w)%motif_.size());
 
             bool interaction_is_outside_lattice = false;
+            // if we are trying to interact with a site outside of the boundary
+            bool is_outside_boundary = false;
             for (int l = 0; l < 3; ++l) {
               if (lattice_pbc_[l]) {
                 fast_integer_lookup_vector[l] = (fast_integer_lookup_vector[l] + lattice_size_[l])%lattice_size_[l];
