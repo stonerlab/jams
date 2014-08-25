@@ -1,7 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #define GLOBALORIGIN
-#define JAMS_VERSION "0.8.0"
+#define JAMS_VERSION "1.0.0"
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 
