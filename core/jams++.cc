@@ -206,6 +206,9 @@ int jams_initialize(int argc, char **argv) {
       jams_error("Error parsing %s:%i: %s", pex.getFile(),
         pex.getLine(), pex.getError());
     }
+    catch(const libconfig::SettingNotFoundException &nfex) {
+      jams_error("Required config setting not found '%s'", nfex.getPath());
+    }
     catch (std::exception& e) {
       jams_error("Error: %s", e.what());
     }
