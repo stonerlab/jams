@@ -15,7 +15,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
   ::output.write("\nInitialising Vtu monitor...\n");
 
   is_equilibration_monitor_ = false;
-  output_step_freq_ = settings["output_step_frequency"];
+  output_step_freq_ = settings["output_steps"];
 }
 
 void VtuMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {

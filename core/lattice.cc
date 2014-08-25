@@ -243,6 +243,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 
           lattice_positions_.push_back(real_pos);
           lattice_materials_.push_back(motif_[m].first);
+          lattice_material_num_.push_back(materials_map_[motif_[m].first]);
 
           jblib::Vec3<double> kvec((i+motif_[m].second.x)*kpoints_.x, (j+motif_[m].second.y)*kpoints_.y, (k+motif_[m].second.z)*kpoints_.z);
 
@@ -780,49 +781,50 @@ void Lattice::calculate_unit_cell_kmesh() {
 }
 
 void Lattice::output_spin_state_as_vtu(std::ofstream &outfile){
-  // using namespace globals;
+  using namespace globals;
 
-  // outfile << "<?xml version=\"1.0\"?>" << "\n";
-  // outfile << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
-  // outfile << "<UnstructuredGrid>" << "\n";
-  // outfile << "<Piece NumberOfPoints=\""<<num_spins<<"\"  NumberOfCells=\"1\">" << "\n";
-  // outfile << "<PointData Scalar=\"Spins\">" << "\n";
+  outfile << "<?xml version=\"1.0\"?>" << "\n";
+  outfile << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
+  outfile << "<UnstructuredGrid>" << "\n";
+  outfile << "<Piece NumberOfPoints=\"" << num_spins << "\"  NumberOfCells=\"1\">" << "\n";
+  outfile << "<PointData Scalar=\"Spins\">" << "\n";
 
-  // for(int n=0; n < num_types(); ++n){
-  //   outfile << "<DataArray type=\"Float32\" Name=\"" << atom_names[n] << "Spin\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
-  //   for(int i = 0; i<num_spins; ++i){
-  //     if(atom_type[i] == n){
-  //       outfile << s(i, 0) << "\t" << s(i, 1) << "\t" << s(i, 2) << "\n";
-  //     } else {
-  //       outfile << 0.0 << "\t" << 0.0 << "\t" << 0.0 << "\n";
-  //     }
-  //   }
-  //   outfile << "</DataArray>" << "\n";
-  // }
-  // outfile << "</PointData>" << "\n";
-  // outfile << "<CellData>" << "\n";
-  // outfile << "</CellData>" << "\n";
-  // outfile << "<Points>" << "\n";
-  // outfile << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
-  // for(int i = 0; i<num_spins; ++i){
-  //   outfile << atom_pos(i, 0) << "\t" << atom_pos(i, 1) << "\t" << atom_pos(i, 2) << "\n";
-  // }
-  // outfile << "</DataArray>" << "\n";
-  // outfile << "</Points>" << "\n";
-  // outfile << "<Cells>" << "\n";
-  // outfile << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << "\n";
-  // outfile << "1" << "\n";
-  // outfile << "</DataArray>" << "\n";
-  // outfile << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" << "\n";
-  // outfile << "1" << "\n";
-  // outfile << "</DataArray>" << "\n";
-  // outfile << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" << "\n";
-  // outfile << "1" << "\n";
-  // outfile << "</inaArray>" << "\n";
-  // outfile << "</Cells>" << "\n";
-  // outfile << "</Piece>" << "\n";
-  // outfile << "</UnstructuredGrid>" << "\n";
-  // outfile << "</VTKFile>" << "\n";
+  for(int n=0; n < materials_numbered_list_.size(); ++n){
+    outfile << "<DataArray type=\"Float32\" Name=\"" << materials_numbered_list_[n] << "Spin\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
+    for(int i = 0; i<num_spins; ++i){
+      if(lattice_material_num_[i] == n){
+        outfile << s(i, 0) << "\t" << s(i, 1) << "\t" << s(i, 2) << "\n";
+      } else {
+        outfile << 0.0 << "\t" << 0.0 << "\t" << 0.0 << "\n";
+      }
+    }
+    outfile << "</DataArray>" << "\n";
+  }
+
+  outfile << "</PointData>" << "\n";
+  outfile << "<CellData>" << "\n";
+  outfile << "</CellData>" << "\n";
+  outfile << "<Points>" << "\n";
+  outfile << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
+  for(int i = 0; i<num_spins; ++i){
+    outfile << lattice_parameter_*lattice_positions_[i].x << "\t" << lattice_parameter_*lattice_positions_[i].y << "\t" << lattice_parameter_*lattice_positions_[i].z << "\n";
+  }
+  outfile << "</DataArray>" << "\n";
+  outfile << "</Points>" << "\n";
+  outfile << "<Cells>" << "\n";
+  outfile << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << "\n";
+  outfile << "1" << "\n";
+  outfile << "</DataArray>" << "\n";
+  outfile << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" << "\n";
+  outfile << "1" << "\n";
+  outfile << "</DataArray>" << "\n";
+  outfile << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" << "\n";
+  outfile << "1" << "\n";
+  outfile << "</DataArray>" << "\n";
+  outfile << "</Cells>" << "\n";
+  outfile << "</Piece>" << "\n";
+  outfile << "</UnstructuredGrid>" << "\n";
+  outfile << "</VTKFile>" << "\n";
 
 }
 

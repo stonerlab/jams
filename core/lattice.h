@@ -69,6 +69,7 @@ class Lattice {
     std::vector<int>            material_count_;
     std::map<std::string, int>  materials_map_;
     std::vector<std::string>    lattice_materials_;
+    std::vector<int>            lattice_material_num_;
     double                      lattice_parameter_;
     jblib::Vec3<bool>           lattice_pbc_;
     jblib::Vec3<int>            lattice_size_;
