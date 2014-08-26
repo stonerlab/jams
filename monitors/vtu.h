@@ -18,6 +18,8 @@ class VtuMonitor : public Monitor {
   void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
 
  private:
+    jblib::Array<float, 2> points_binary_data;
+    jblib::Array<float, 2> spin_binary_data;
 };
 
 #endif  // JAMS_MONITOR_VTU_H
