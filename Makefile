@@ -57,7 +57,12 @@ CUDA_BUILD_KEPLAR=1
 # GeForce GTX 750 Ti, GeForce GTX 750 , GeForce GTX 860M, GeForce GTX 850M,
 # GeForce 840M, GeForce 830M
 
-CFLAGS = -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG
+GITCOMMIT = $(shell git rev-parse HEAD)
+GITSHORT = $(shell git rev-parse --short HEAD)
+CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
+SYSTYPE = $(shell uname -s)
+
+CFLAGS = -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
 LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
@@ -78,11 +83,6 @@ ifndef V
 	QUIET_LINK = @echo '   ' LINK $@;
 	export V
 endif
-
-GITCOMMIT = $(shell git rev-parse HEAD)
-GITSHORT = $(shell git rev-parse --short HEAD)
-CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
-SYSTYPE = $(shell uname -s)
 
 OBJS += core/jams++.o
 OBJS += core/lattice.o
@@ -237,8 +237,8 @@ endif
 	@echo " Compiler     ... $(CC) "
 	@echo
 
-core/jams++.o: EXTRA_CPPFLAGS += \
-	'-DGITCOMMIT="$(GITCOMMIT)"'
+# core/jams++.o solvers: EXTRA_CPPFLAGS += \
+# 	'-DGITCOMMIT="$(GITCOMMIT)"'
 
 $(OBJS): %.o: %.cc $(HDR)
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $(EXTRA_CPPFLAGS) $<

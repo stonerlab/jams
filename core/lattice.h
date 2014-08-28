@@ -49,6 +49,8 @@ class Lattice {
     void output_coarse_magnetisation(std::ofstream &outfile);
     jblib::Array<int, 2>        kspace_inv_map_;
     std::vector< jblib::Vec3<double> > lattice_positions_;
+    double                      lattice_parameter_;
+    std::vector<int>            lattice_material_num_;
 
     inline int kspace_size(const int i) const { assert(i >= 0 && i < 3); return kspace_size_[i]; }
 
@@ -69,7 +71,6 @@ class Lattice {
     std::vector<int>            material_count_;
     std::map<std::string, int>  materials_map_;
     std::vector<std::string>    lattice_materials_;
-    double                      lattice_parameter_;
     jblib::Vec3<bool>           lattice_pbc_;
     jblib::Vec3<int>            lattice_size_;
     jblib::Matrix<double, 3, 3> lattice_vectors_;
