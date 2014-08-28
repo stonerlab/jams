@@ -19,7 +19,6 @@ class VtuMonitor : public Monitor {
 
  private:
     jblib::Array<float, 2> points_binary_data;
-    jblib::Array<float, 2> spin_binary_data;
 };
 
 #endif  // JAMS_MONITOR_VTU_H

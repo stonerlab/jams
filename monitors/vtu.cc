@@ -18,7 +18,6 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
   ::output.write("\nInitialising Vtu monitor...\n");
 
   points_binary_data.resize(num_spins, 3);
-  spin_binary_data.resize(num_spins, 3);
 
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
@@ -41,8 +40,9 @@ void VtuMonitor::update(const int &iteration, const double &time, const double &
     std::ofstream vtkfile(std::string(seedname+"_"+zero_pad_number(outcount)+".vtu").c_str());
 
     uint32_t header_bytesize = sizeof(uint32_t);
+    uint32_t type_bytesize   = num_spins*sizeof(int32_t);
     uint32_t points_bytesize = num_spins3*sizeof(float);
-    uint32_t spins_bytesize  = num_spins3*sizeof(float);
+    uint32_t spins_bytesize  = num_spins3*sizeof(double);
 
     vtkfile << "<?xml version=\"1.0\"?>" << "\n";
     // header info
@@ -57,15 +57,14 @@ void VtuMonitor::update(const int &iteration, const double &time, const double &
     vtkfile << "<VTKFile type=\"UnstructuredGrid\" version=\"1.0\"  header_type=\"UInt32\" byte_order=\"LittleEndian\">" << "\n";
     vtkfile << "  <UnstructuredGrid>" << "\n";
     vtkfile << "    <Piece NumberOfPoints=\""<< num_spins <<"\"  NumberOfCells=\"1\">" << "\n";
-    vtkfile << "      <PointData Scalars=\"Spins\">" << "\n";
-    for (int n = 0; n < num_materials; ++n) {
-      vtkfile << "        <DataArray type=\"Float32\" Name=\"" << lattice.get_material_name(n) << "_spin\" NumberOfComponents=\"3\" format=\"appended\" RangeMin=\"-1.0\" RangeMax=\"1.0\" offset=\"" << n * (header_bytesize + spins_bytesize) << "\" />" << "\n";
-    }
+    vtkfile << "      <PointData Scalars=\"scalars\">" << "\n";
+    vtkfile << "        <DataArray type=\"Int32\" Name=\"type\" NumberOfComponents=\"1\" format=\"appended\" offset=\"" << 0 << "\" />" << "\n";
+    vtkfile << "        <DataArray type=\"Float64\" Name=\"spin\" NumberOfComponents=\"3\" format=\"appended\" RangeMin=\"-1.0\" RangeMax=\"1.0\" offset=\"" << header_bytesize + type_bytesize << "\" />" << "\n";
     vtkfile << "      </PointData>" << "\n";
     vtkfile << "      <CellData>" << "\n";
     vtkfile << "      </CellData>" << "\n";
     vtkfile << "      <Points>" << "\n";
-    vtkfile << "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"appended\" offset=\"" << (header_bytesize + spins_bytesize)*num_materials << "\" />" << "\n";
+    vtkfile << "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"appended\" offset=\"" << 2*header_bytesize + spins_bytesize + type_bytesize << "\" />" << "\n";
     vtkfile << "      </Points>" << "\n";
     vtkfile << "      <Cells>" << "\n";
     vtkfile << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << "\n";
@@ -83,22 +82,10 @@ void VtuMonitor::update(const int &iteration, const double &time, const double &
     vtkfile << "<AppendedData encoding=\"raw\">" << "\n";
     vtkfile << "_";
 
-    for (int n = 0; n < num_materials; ++n) {
-      for (int i = 0; i < num_spins; ++i) {
-        if (lattice.lattice_material_num_[i] == n) {
-          for (int j = 0; j < 3; ++j) {
-            spin_binary_data(i,j) = static_cast<float>(s(i,j));
-          }
-        } else {
-          for (int j = 0; j < 3; ++j) {
-            spin_binary_data(i,j) = 0.0f;
-          }
-        }
-      }
-      vtkfile.write(reinterpret_cast<char*>(&spins_bytesize), header_bytesize);
-      vtkfile.write(reinterpret_cast<char*>(spin_binary_data.data()), spins_bytesize);
-    }
-
+    vtkfile.write(reinterpret_cast<char*>(&type_bytesize), header_bytesize);
+    vtkfile.write(reinterpret_cast<char*>(&lattice.lattice_material_num_[0]), type_bytesize);
+    vtkfile.write(reinterpret_cast<char*>(&spins_bytesize), header_bytesize);
+    vtkfile.write(reinterpret_cast<char*>(s.data()), spins_bytesize);
     vtkfile.write(reinterpret_cast<char*>(&points_bytesize), header_bytesize);
     vtkfile.write(reinterpret_cast<char*>(points_binary_data.data()), points_bytesize);
     vtkfile << "\n</AppendedData>" << "\n";
