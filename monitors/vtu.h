@@ -4,6 +4,7 @@
 #define JAMS_MONITOR_VTU_H
 
 #include <fstream>
+#include <vector>
 
 #include "core/monitor.h"
 #include "core/runningstat.h"
@@ -18,7 +19,15 @@ class VtuMonitor : public Monitor {
   void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
 
  private:
-    jblib::Array<float, 2> points_binary_data;
+    int num_slice_points;
+    jblib::Vec3<double> slice_origin;
+    jblib::Vec3<double> slice_size;
+    std::vector<int>        slice_spins;
+    jblib::Array<int, 1>    types_binary_data;
+    jblib::Array<float, 2>  points_binary_data;
+    jblib::Array<double, 2> spins_binary_data;
+
+
 };
 
 #endif  // JAMS_MONITOR_VTU_H
