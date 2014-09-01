@@ -16,7 +16,7 @@
 #define QUOTEME(x) QUOTEME_(x)
 
 namespace {
-    const hsize_t h5_compression_chunk_size = 10000;
+    const hsize_t h5_compression_chunk_size = 256;
     const hsize_t h5_compression_factor = 6;
 }
 
