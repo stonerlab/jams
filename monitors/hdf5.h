@@ -23,6 +23,7 @@ class Hdf5Monitor : public Monitor {
  private:
 
   H5::PredType float_pred_type;
+  bool          is_compression_enabled;
 };
 
 #endif  // JAMS_MONITOR_HDF5_H
