@@ -21,6 +21,7 @@ class Hdf5Monitor : public Monitor {
   void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
 
  private:
+  void output_lattice();
 
   H5::PredType float_pred_type;
   bool          is_compression_enabled;
