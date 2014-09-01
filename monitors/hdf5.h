@@ -3,19 +3,19 @@
 #ifndef JAMS_MONITOR_HDF5_H
 #define JAMS_MONITOR_HDF5_H
 
-#include <fstream>
 #include <vector>
 
-#include "H5Cpp.h"
+#include "H5Cpp.h"  // NOLINT
 
 #include "core/monitor.h"
 #include "core/runningstat.h"
+#include "core/slice.h"
 
 #include "jblib/containers/array.h"
 
 class Hdf5Monitor : public Monitor {
  public:
-  Hdf5Monitor(const libconfig::Setting &settings);
+  explicit Hdf5Monitor(const libconfig::Setting &settings);
   ~Hdf5Monitor();
 
   void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
@@ -24,7 +24,8 @@ class Hdf5Monitor : public Monitor {
   void output_lattice();
 
   H5::PredType float_pred_type;
-  bool          is_compression_enabled;
+  bool         is_compression_enabled;
+  Slice        slice;
 };
 
 #endif  // JAMS_MONITOR_HDF5_H

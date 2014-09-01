@@ -127,6 +127,7 @@ HDR += core/solver.h
 HDR += core/sparsematrix4d.h
 HDR += core/sparsematrix.h
 HDR += core/utils.h
+HDR += core/slice.h
 HDR += monitors/anisotropy_energy.h
 HDR += monitors/boltzmann.h
 HDR += monitors/energy.h
