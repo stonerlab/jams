@@ -120,9 +120,16 @@ This section contains material related options.
 
 This module outputs binary data in hdf5 format files (.h5).
 
-##### hdf5.float_type
+##### hdf5.float_type (string)
 
 The output precision of floating point data. The options are `float` or `double` for 32 bit and 64 bit floating point formats respectively. The data is stored as IEEE little endian binary.
+
+##### hdf5.compressed (bool)
+
+Toggle zlib compression of the h5 file. 
+
+Because the data is stored in binary format this does not usually give a large reduction is size. If high accuracy is not needed then storing in *float* instead of *double* will roughly half the size.
+
 
 # JAMS++ Developer Manual
 
