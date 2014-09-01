@@ -15,10 +15,27 @@
 #define QUOTEME(x) QUOTEME_(x)
 
 Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
-: Monitor(settings) {
+: Monitor(settings), float_pred_type(H5::PredType::IEEE_F64LE) {
     using namespace globals;
+    using namespace H5;
 
     ::output.write("\nInitialising HDF5 monitor...\n");
+
+    if (settings.exists("float_type")) {
+        if(capitalize(settings["float_type"]) == "FLOAT") {
+            float_pred_type = PredType::IEEE_F32LE;
+            ::output.write("  float data stored as float (IEEE_F32LE)");
+        } else if(capitalize(settings["float_type"]) == "DOUBLE") {
+            float_pred_type = PredType::IEEE_F64LE;
+            ::output.write("  float data stored as double (IEEE_F64LE)");
+        } else {
+            jams_error("Unknown float_type selected for HDF5 monitor.\nOptions: float or double");
+        }
+    } else {
+        ::output.write("  float data stored as double (IEEE_F64LE)");
+    }
+
+
 
     is_equilibration_monitor_ = false;
     output_step_freq_ = settings["output_steps"];
@@ -38,9 +55,15 @@ void Hdf5Monitor::update(const int &iteration, const double &time, const double 
     hsize_t dims[2] = {static_cast<hsize_t>(num_spins), 3};
     DataSpace dataspace(2, dims);
 
-    DataSet dataset = outfile.createDataSet("spins", PredType::IEEE_F64LE, dataspace);
+    DSetCreatPropList plist;
 
-    dataset.write(s.data(), PredType::IEEE_F64LE);
+    hsize_t chunk_dims[2] = {512, 3};
+    plist.setChunk(2,chunk_dims);
+    plist.setDeflate(6);
+
+    DataSet dataset = outfile.createDataSet("spins", float_pred_type, dataspace, plist);
+
+    dataset.write(s.data(), PredType::NATIVE_DOUBLE);
 
 
   }

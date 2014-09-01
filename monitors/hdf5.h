@@ -6,6 +6,8 @@
 #include <fstream>
 #include <vector>
 
+#include "H5Cpp.h"
+
 #include "core/monitor.h"
 #include "core/runningstat.h"
 
@@ -20,6 +22,7 @@ class Hdf5Monitor : public Monitor {
 
  private:
 
+  H5::PredType float_pred_type;
 };
 
 #endif  // JAMS_MONITOR_HDF5_H
