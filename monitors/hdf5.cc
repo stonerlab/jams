@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <string>
+#include <algorithm>
 
 #include "H5Cpp.h"
 
@@ -15,7 +16,7 @@
 #define QUOTEME(x) QUOTEME_(x)
 
 namespace {
-    const hsize_t h5_compression_chunk_size = 1000;
+    const hsize_t h5_compression_chunk_size = 10000;
     const hsize_t h5_compression_factor = 6;
 }
 
@@ -69,7 +70,7 @@ void Hdf5Monitor::update(const int &iteration, const double &time, const double 
     DSetCreatPropList plist;
 
     if (is_compression_enabled) {
-        hsize_t chunk_dims[2] = {h5_compression_chunk_size, 3};
+        hsize_t chunk_dims[2] = {std::min(h5_compression_chunk_size, static_cast<hsize_t>(num_spins)), 3};
         plist.setChunk(2, chunk_dims);
         plist.setDeflate(h5_compression_factor);
     }
