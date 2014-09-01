@@ -3,6 +3,8 @@
 #include <cmath>
 #include <string>
 
+#include "H5Cpp.h"
+
 #include "core/globals.h"
 #include "core/lattice.h"
 #include "core/utils.h"
@@ -24,8 +26,23 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 
 void Hdf5Monitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
   using namespace globals;
+  using namespace H5;
 
   if (iteration%output_step_freq_ == 0) {
+    int outcount = iteration/output_step_freq_;  // int divisible by modulo above
+
+    const std::string filename(seedname+"_"+zero_pad_number(outcount)+".h5");
+
+    H5File outfile(filename.c_str(), H5F_ACC_TRUNC);
+
+    hsize_t dims[2] = {static_cast<hsize_t>(num_spins), 3};
+    DataSpace dataspace(2, dims);
+
+    DataSet dataset = outfile.createDataSet("spins", PredType::IEEE_F64LE, dataspace);
+
+    dataset.write(s.data(), PredType::IEEE_F64LE);
+
+
   }
 }
 
