@@ -48,8 +48,8 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
     }
 
     // compression options
-    settings.lookupValue("compression", is_compression_enabled);
-    ::output.write("  compression: %s\n", is_compression_enabled ? "enabled": "disabled");
+    settings.lookupValue("compressed", is_compression_enabled);
+    ::output.write("  compressed: %s\n", is_compression_enabled ? "enabled": "disabled");
 
     // output lattice
     output_lattice();
