@@ -24,7 +24,8 @@ namespace {
 Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 : Monitor(settings),
   float_pred_type(H5::PredType::IEEE_F64LE),
-  is_compression_enabled(false) {
+  is_compression_enabled(false),
+  slice() {
     using namespace globals;
     using namespace H5;
 
@@ -150,9 +151,6 @@ void Hdf5Monitor::output_lattice() {
         for (int i = 0; i < type_dims[0]; ++i) {
             types(i) = lattice.lattice_material_num_[i];
         }
-
-        pos_dims[0]  = static_cast<hsize_t>(slice.num_points());
-        pos_dims[1]  = 3;
 
         positions.resize(num_spins, 3);
 
