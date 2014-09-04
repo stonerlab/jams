@@ -26,6 +26,7 @@ class Hdf5Monitor : public Monitor {
   H5::PredType float_pred_type;
   bool         is_compression_enabled;
   Slice        slice;
+  FILE*        xdmf_file;
 };
 
 #endif  // JAMS_MONITOR_HDF5_H

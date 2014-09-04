@@ -1,5 +1,6 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#include <cstdio>
 #include <cmath>
 #include <string>
 #include <algorithm>
@@ -57,8 +58,28 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
         slice = Slice(settings["slice"]);
     }
 
+    // create xdmf_file
+    const std::string xdmf_filename(seedname+".xdmf");
+    xdmf_file = fopen(xdmf_filename.c_str(), "w");
+
+                 fputs("<?xml version=\"1.0\"?>\n", xdmf_file);
+                 fputs("<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\"[]>\n", xdmf_file);
+                 fputs("<Xdmf xmlns:xi=\"http://www.w3.org/2003/XInclude\" Version=\"2.2\">\n", xdmf_file);
+                 fputs("  <Domain Name=\"JAMS\">\n", xdmf_file);
+    fprintf(xdmf_file, "    <Information Name=\"Commit\" Value=\"%s\" />\n", QUOTEME(GITCOMMIT));
+    fprintf(xdmf_file, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", seedname.c_str());
+                 fputs("    <Grid Name=\"Time\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file);
+                 fflush(xdmf_file);
     // output lattice
     output_lattice();
+}
+
+Hdf5Monitor::~Hdf5Monitor() {
+    fputs("    </Grid>\n", xdmf_file);
+    fputs("  </Domain>\n", xdmf_file);
+    fputs("</Xdmf>\n", xdmf_file);
+
+    fclose(xdmf_file);
 }
 
 void Hdf5Monitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
@@ -108,6 +129,35 @@ void Hdf5Monitor::update(const int &iteration, const double &time, const double 
     } else {
         dataset.write(s.data(), PredType::NATIVE_DOUBLE);
     }
+
+                 fputs("      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n", xdmf_file);
+    fprintf(xdmf_file, "        <Time Value=\"%f\" />\n", time/1e-12);
+    fprintf(xdmf_file, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", dims[0]);
+                 fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file);
+    if (float_pred_type == PredType::IEEE_F32LE) {
+    fprintf(xdmf_file, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", dims[0]);
+    } else {
+    fprintf(xdmf_file, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n", dims[0]);
+    }
+    fprintf(xdmf_file, "           %s_lattice.h5:/positions\n", seedname.c_str());
+                 fputs("         </DataItem>\n", xdmf_file);
+                 fputs("       </Geometry>\n", xdmf_file);
+                 fputs("       <Attribute Name=\"Type\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file);
+    fprintf(xdmf_file, "         <DataItem Dimensions=\"%llu\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", dims[0]);
+    fprintf(xdmf_file, "           %s_lattice.h5:/types\n", seedname.c_str());
+                 fputs("         </DataItem>\n", xdmf_file);
+                 fputs("       </Attribute>\n", xdmf_file);
+                 fputs("       <Attribute Name=\"Spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file);
+    if (float_pred_type == PredType::IEEE_F32LE) {
+    fprintf(xdmf_file, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", dims[0]);
+    } else {
+    fprintf(xdmf_file, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n", dims[0]);
+    }
+    fprintf(xdmf_file, "           %s:/spins\n", filename.c_str());
+                 fputs("         </DataItem>\n", xdmf_file);
+                 fputs("       </Attribute>\n", xdmf_file);
+                 fputs("      </Grid>\n", xdmf_file);
+    fflush(xdmf_file);
   }
 }
 
@@ -168,7 +218,4 @@ void Hdf5Monitor::output_lattice() {
     DataSpace pos_dataspace(2, pos_dims);
     DataSet pos_dataset = outfile.createDataSet("positions", float_pred_type, pos_dataspace);
     pos_dataset.write(positions.data(), PredType::NATIVE_DOUBLE);
-}
-
-Hdf5Monitor::~Hdf5Monitor() {
 }
