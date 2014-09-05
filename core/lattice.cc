@@ -333,27 +333,43 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   std::fill(globals::wij.data(), globals::wij.data()+kspace_size_.x*kspace_size_.y*kspace_size_.z*3*3, 0.0);
 
   material_count_.resize(num_materials(), 0);
-  for (int i = 0; i != globals::num_spins; ++i) {
+  for (int i = 0; i < globals::num_spins; ++i) {
     int material_number = materials_map_[lattice_materials_[i]];
     material_count_[material_number]++;
 
     libconfig::Setting& type_settings = material_settings[material_number];
 
-    bool randomize_spins_is_set = false;
-    type_settings.lookupValue("spin_random",randomize_spins_is_set);
+    // Setup the initial spin configuration
+    if (type_settings["spin"].getType() == libconfig::Setting::TypeString) {
+      // spin setting is a string
+      std::string spin_initializer = capitalize(type_settings["spin"]);
+      if (spin_initializer == "RANDOM") {
+        rng.sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
+      } else {
+        jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
+      }
+    } else if (type_settings["spin"].getType() == libconfig::Setting::TypeArray) {
+      if (type_settings["spin"].getLength() == 3) {
+        // spin setting is cartesian
+        for(int j = 0; j < 3;++j) {
+          globals::s(i, j) = type_settings["spin"][j];
+        }
+      } else if (type_settings["spin"].getLength() == 2) {
+        // spin setting is spherical
+        double theta = deg_to_rad(type_settings["spin"][0]);
+        double phi   = deg_to_rad(type_settings["spin"][1]);
 
-    // read initial spin state
-    if(randomize_spins_is_set){
-      rng.sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
-    }else{
-      for(int j = 0; j != 3;++j) {
-        globals::s(i, j) = type_settings["spin"][j];
+        globals::s(i, 0) = sin(theta)*cos(phi);
+        globals::s(i, 1) = sin(theta)*sin(phi);
+        globals::s(i, 2) = cos(theta);
+      } else {
+        jams_error("Spin initializer array must be 2 (spherical) or 3 (cartesian) components");
       }
     }
 
-    // normalise spin
+    // normalise all spins
     double norm = sqrt(globals::s(i, 0)*globals::s(i, 0) + globals::s(i, 1)*globals::s(i, 1) + globals::s(i, 2)*globals::s(i, 2));
-    for(int j = 0; j != 3;++j){
+    for(int j = 0; j < 3;++j){
       globals::s(i, j) = globals::s(i, j)/norm;
     }
 
