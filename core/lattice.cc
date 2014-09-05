@@ -376,7 +376,14 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     // read material properties
     globals::mus(i) = type_settings["moment"];
     globals::alpha(i) = type_settings["alpha"];
-    globals::gyro(i) = type_settings["gyro"];
+
+    if (type_settings.exists("gyro")) {
+      globals::gyro(i) = type_settings["gyro"];
+    } else {
+      // default
+      globals::gyro(i) = 1.0;
+    }
+
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
 
     if ( (type_settings.exists("K1") || type_settings.exists("K2") || type_settings.exists("K3")) &&
