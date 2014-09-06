@@ -69,16 +69,15 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
     fprintf(xdmf_file, "    <Information Name=\"Commit\" Value=\"%s\" />\n", QUOTEME(GITCOMMIT));
     fprintf(xdmf_file, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", seedname.c_str());
                  fputs("    <Grid Name=\"Time\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file);
+                 fputs("    </Grid>\n", xdmf_file);
+                 fputs("  </Domain>\n", xdmf_file);
+                 fputs("</Xdmf>", xdmf_file);
                  fflush(xdmf_file);
     // output lattice
     output_lattice();
 }
 
 Hdf5Monitor::~Hdf5Monitor() {
-    fputs("    </Grid>\n", xdmf_file);
-    fputs("  </Domain>\n", xdmf_file);
-    fputs("</Xdmf>\n", xdmf_file);
-
     fclose(xdmf_file);
 }
 
@@ -129,6 +128,8 @@ void Hdf5Monitor::update(const int &iteration, const double &time, const double 
     } else {
         dataset.write(s.data(), PredType::NATIVE_DOUBLE);
     }
+                 // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
+                 fseek(xdmf_file, -31, SEEK_CUR);
 
                  fputs("      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n", xdmf_file);
     fprintf(xdmf_file, "        <Time Value=\"%f\" />\n", time/1e-12);
@@ -157,6 +158,11 @@ void Hdf5Monitor::update(const int &iteration, const double &time, const double 
                  fputs("         </DataItem>\n", xdmf_file);
                  fputs("       </Attribute>\n", xdmf_file);
                  fputs("      </Grid>\n", xdmf_file);
+
+                 // reprint the closing tags of the XML
+                 fputs("    </Grid>\n", xdmf_file);
+                 fputs("  </Domain>\n", xdmf_file);
+                 fputs("</Xdmf>", xdmf_file);
     fflush(xdmf_file);
   }
 }
