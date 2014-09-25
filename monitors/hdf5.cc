@@ -115,7 +115,21 @@ void Hdf5Monitor::update(const int &iteration, const double &time, const double 
         plist.setDeflate(h5_compression_factor);
     }
 
-    DataSet dataset = outfile.createDataSet("spins", float_pred_type, dataspace, plist);
+    DataSet spin_dataset = outfile.createDataSet("spins", float_pred_type, dataspace, plist);
+
+    DataSpace attribute_dataspace(H5S_SCALAR);
+    Attribute attribute = spin_dataset.createAttribute("iteration", PredType::STD_I32LE, attribute_dataspace);
+    attribute.write(PredType::NATIVE_INT32, &iteration);
+    attribute = spin_dataset.createAttribute("time", PredType::IEEE_F64LE, attribute_dataspace);
+    attribute.write(PredType::NATIVE_DOUBLE, &time);
+    attribute = spin_dataset.createAttribute("temperature", PredType::IEEE_F64LE, attribute_dataspace);
+    attribute.write(PredType::NATIVE_DOUBLE, &temperature);
+    attribute = spin_dataset.createAttribute("hx", PredType::IEEE_F64LE, attribute_dataspace);
+    attribute.write(PredType::NATIVE_DOUBLE, &applied_field.x);
+    attribute = spin_dataset.createAttribute("hy", PredType::IEEE_F64LE, attribute_dataspace);
+    attribute.write(PredType::NATIVE_DOUBLE, &applied_field.y);
+    attribute = spin_dataset.createAttribute("hz", PredType::IEEE_F64LE, attribute_dataspace);
+    attribute.write(PredType::NATIVE_DOUBLE, &applied_field.z);
 
     if (slice.num_points() != 0) {
         jblib::Array<double, 2> spin_slice(slice.num_points(), 3);
@@ -124,10 +138,13 @@ void Hdf5Monitor::update(const int &iteration, const double &time, const double 
                 spin_slice(i,j) = slice.spin(i, j);
             }
         }
-        dataset.write(spin_slice.data(), PredType::NATIVE_DOUBLE);
+        spin_dataset.write(spin_slice.data(), PredType::NATIVE_DOUBLE);
     } else {
-        dataset.write(s.data(), PredType::NATIVE_DOUBLE);
+        spin_dataset.write(s.data(), PredType::NATIVE_DOUBLE);
     }
+
+
+
                  // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
                  fseek(xdmf_file, -31, SEEK_CUR);
 
