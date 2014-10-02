@@ -1,116 +1,85 @@
-# JAMS++ User Manual
+Title:  JAMS++ User Manual  
+Author: Joseph Barker  
+Email:  joseph.barker@imr.tohoku.ac.jp 
+Date:   5 September 2014
 
-## Configuration
+# Introduction
 
-### sim
 
-This section contains simulation related options.
+# Configuration File
 
-    sim : {
-        // solvers and output settings
-    };
+## sim
 
-    physics : {
-        module = "physics_name";
-        // options to pass to the physics package
-        temperature = 20.0;
-        applied_field = [0.0, 0.0, 0.0];
-    };
+`sim.solver` // string // REQUIRED //
+: Solver to evolve the simulations. This can be a dynamic integration such as LLG or energy based such as Monte Carlo.
+: `HEUNLLG` Heun integration on the CPU
+: `CUDAHEUNLLG` -- Heun integration on the GPU
+: `METROPOLISMC` -- Metropolis Monte Carlo intengration on the CPU
 
-    monitors = (
-        {
-            module = "monitor_name";
-            // number of timesteps between output
-            output_steps = 10;
-        }
-    );
+`sim.t_step` // float (seconds) // REQUIRED //
+: Integration time step. For Monte Carlo solvers this should be set to 1.0.
 
-    lattice : {
-        // definition of the system lattice
-    };
+`sim.t_run` // float (seconds) // REQUIRED //
+: Total integration run time.
 
-    materials = (
-        // definition of material properties
-    );
+`sim.seed` // int //
+: Initial seed for the random number generator. By default this seeds from time. 
+: Note: The GPU runs a seperate random number generator. This is seeded from the CPU but means that the random numbers generated for GPU integrators and CPU integrators are not the same set.
 
 ---
 
-##### sim.solver - required
+## lattice
 
-The solver which will be used for the spin system
+`lattice.size` // [ int, int, int ] // REQUIRED //
+: Number of unit cells along each basis vector.
 
-`HEUNLLG` - default two step Heun integration on the CPU
+`lattice.periodic` // [ bool, bool, bool ] // REQUIRED //
+: Enable periodic boundaries along each basis vector.
 
-`CUDAHEUNLLG` - default two step Heun integration on the GPU
+`lattice.parameter` // float (nm) // REQUIRED //
+: Lattice parameter.
 
-`METROPOLISMC` - Metropolis Monte Carlo integration on the CPU
-
-##### sim.seed
-Initial seed for the random number generator.
-
-##### sim.save_state
-
-Toggle to save the final spin state in a binary file (bool).
-
-##### sim.t_step (_required_)
-
-Integration timestep (seconds).
-
-##### sim.t_eq (_required_)
-
-Time to equilbrate the system (seconds).
-
-##### sim.t_run (_required_)
-
-Time to run the system monitors (seconds).
----
-
-### lattice
-
-This section contains lattice related options.
-
----
-
-##### lattice.size (_required_)
-
-Number of unit cells to produce in each basis vector ([int, int, int]).
+`lattice.basis` // ( [ float, float, float ] x3 ) // REQUIRED //
+: Lattice basis vectors (see below)
 
 
-##### lattice.kpoints (_required_)
-
-Number kpoints in the unitcell for each (reprocal) basis vector ([int, int, int]).
-
-##### lattice.periodic (_required_)
-
-Toggle periodic boundaries along each basis vector ([bool, bool, bool]).
-
-##### lattice.parameter (_required_)
-
-Lattice parameter (nanometers).
-
-##### lattice.basis (_required_)
-
-Lattice basis vectors (see below)
-
-    basis = (
+	basis = (
         [ 1.0, 0.0, 0.0],
         [ 0.0, 1.0, 0.0],
         [ 0.0, 0.0, 1.0]);
 
 
-##### lattice.positions (_required_)
+`lattice.positions` // string (file path) // REQUIRED //
+: File path of the atomic positions file.
 
-Lattice positions file ("file path").
+`lattice.exchange` // string (file path) // REQUIRED //
+: File path of the exchange interactions file.
 
-##### lattice.exchange (_required_)
-
-Exchange interactions file ("file path").
+`lattice.spins` // string (file path) // 
+: File path of initial spin configuration from a JAMS .h5 file.
 
 ---
 
-### materials
+## materials
 
-This section contains material related options.
+`materials.[n].name` // string // REQUIRED //
+: Unique name for material to be referenced in the `lattice.positions` input file.
+
+`materials.[n].moment` // float (Bohr magnetons) // REQUIRED //
+: Magnetic moment
+
+`materials.[n].alpha` // float // REQUIRED //
+: Gilbert damping parameter
+
+`materials.[n].gyro` // float (𝛾~e~) // default 1.0 //
+: Gyromagnetic ratio
+
+`materials.[n].spin` // string OR [float, float] OR [float, float, float] // default [ 0.0, 0.0, 1.0 ] //
+: Initial spin value for this material. This setting is overridden if an initial spin file is given in the `lattice` section.
+: Options: 
+: "RANDOM" -- Randomize each spin of this material type
+: [ S~θ~, S~φ~ ] -- Spherical spin components in degrees, θ is polar angle, φ is azimuthal angle.
+: [ S~x~, S~y~, S~z~ ] -- Cartesian spin components
 
 ---
 
