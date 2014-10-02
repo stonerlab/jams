@@ -62,9 +62,9 @@ GITSHORT = $(shell git rev-parse --short HEAD)
 CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
 SYSTYPE = $(shell uname -s)
 
-CFLAGS = -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
+CFLAGS = -fno-finite-math-only -fno-stack-protector -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
-LDFLAGS =
+LDFLAGS = -Wl,--wrap=memcpy
 ALL_CUFLAGS = $(CUFLAGS)
 ALL_CFLAGS = $(CPPFLAGS) $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
@@ -197,6 +197,7 @@ ifndef NO_CUDA
 		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler -stdlib=libstdc++ -Xlinker -stdlib=libstdc++
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
+		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -fno-stack-protector -O3 -g -funroll-loops"
 	endif
 	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
@@ -231,8 +232,8 @@ LIBS = $(EXTLIBS)
 
 all:: jams++
 
-jams++: $(OBJS) $(CUDA_OBJS)
-	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(OBJS) $(CUDA_OBJS) $(ALL_LDFLAGS) $(LIBS)
+jams++: $(OBJS) $(CUDA_OBJS) core/memcpy.o
+	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(OBJS) $(CUDA_OBJS) $(ALL_LDFLAGS) $(LIBS) core/memcpy.o
 	@echo
 	@echo " JAMS++ build complete. "
 	@echo
@@ -246,6 +247,9 @@ endif
 
 # core/jams++.o solvers: EXTRA_CPPFLAGS += \
 # 	'-DGITCOMMIT="$(GITCOMMIT)"'
+
+core/memcpy.o: core/memcpy.c
+	gcc -o $*.o -c $<
 
 $(OBJS): %.o: %.cc $(HDR)
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $(EXTRA_CPPFLAGS) $<
