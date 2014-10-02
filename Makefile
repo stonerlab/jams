@@ -62,9 +62,9 @@ GITSHORT = $(shell git rev-parse --short HEAD)
 CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
 SYSTYPE = $(shell uname -s)
 
-CFLAGS = -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
+CFLAGS = -fno-finite-math-only -fno-stack-protector -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
-LDFLAGS =
+LDFLAGS = -Wl,--wrap=memcpy
 ALL_CUFLAGS = $(CUFLAGS)
 ALL_CFLAGS = $(CPPFLAGS) $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
@@ -100,6 +100,7 @@ OBJS += monitors/magnetisation.o
 OBJS += monitors/structurefactor.o
 OBJS += monitors/torque.o
 OBJS += monitors/vtu.o
+OBJS += monitors/hdf5.o
 OBJS += monitors/xyz.o
 OBJS += monitors/binary.o
 OBJS += physics/fieldcool.o
@@ -126,6 +127,7 @@ HDR += core/solver.h
 HDR += core/sparsematrix4d.h
 HDR += core/sparsematrix.h
 HDR += core/utils.h
+HDR += core/slice.h
 HDR += monitors/anisotropy_energy.h
 HDR += monitors/boltzmann.h
 HDR += monitors/energy.h
@@ -133,6 +135,7 @@ HDR += monitors/magnetisation.h
 HDR += monitors/structurefactor.h
 HDR += monitors/torque.h
 HDR += monitors/vtu.h
+HDR += monitors/hdf5.h
 HDR += monitors/xyz.h
 HDR += monitors/binary.h
 HDR += physics/empty.h
@@ -194,6 +197,7 @@ ifndef NO_CUDA
 		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler -stdlib=libstdc++ -Xlinker -stdlib=libstdc++
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
+		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -fno-stack-protector -O3 -g -funroll-loops"
 	endif
 	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
@@ -208,7 +212,11 @@ ifndef NO_CUDA
 	endif
 endif
 
-
+ifdef H5DIR
+	BASIC_CFLAGS += -I$(H5DIR)/include
+	BASIC_LDFLAGS += -L$(H5DIR)/lib
+endif
+EXTLIBS += -lhdf5 -lhdf5_cpp
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
 ALL_CUFLAGS += $(BASIC_CFLAGS) $(BASIC_CUFLAGS)
@@ -224,8 +232,8 @@ LIBS = $(EXTLIBS)
 
 all:: jams++
 
-jams++: $(OBJS) $(CUDA_OBJS)
-	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(OBJS) $(CUDA_OBJS) $(ALL_LDFLAGS) $(LIBS)
+jams++: $(OBJS) $(CUDA_OBJS) core/memcpy.o
+	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(OBJS) $(CUDA_OBJS) $(ALL_LDFLAGS) $(LIBS) core/memcpy.o
 	@echo
 	@echo " JAMS++ build complete. "
 	@echo
@@ -239,6 +247,9 @@ endif
 
 # core/jams++.o solvers: EXTRA_CPPFLAGS += \
 # 	'-DGITCOMMIT="$(GITCOMMIT)"'
+
+core/memcpy.o: core/memcpy.c
+	gcc -o $*.o -c $<
 
 $(OBJS): %.o: %.cc $(HDR)
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $(EXTRA_CPPFLAGS) $<

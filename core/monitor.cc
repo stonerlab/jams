@@ -11,6 +11,7 @@
 #include "monitors/energy.h"
 #include "monitors/boltzmann.h"
 #include "monitors/vtu.h"
+#include "monitors/hdf5.h"
 #include "monitors/xyz.h"
 #include "monitors/binary.h"
 
@@ -55,6 +56,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "VTU") {
     return new VtuMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "HDF5") {
+    return new Hdf5Monitor(settings);
   }
 
   if (capitalize(settings["module"]) == "XYZ") {

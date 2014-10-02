@@ -25,7 +25,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         jams_error("Xyz monitor requires both slice_origin and slice_size to be specificed;");
     }
 
-    slice_spins.resize(0);
+    slice_spins;
     num_slice_points = 0;
 
     if (settings.exists("slice_origin")) {
@@ -66,6 +66,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
     } else {
 
         points_binary_data.resize(num_spins, 3);
+        types_binary_data.resize(num_spins);
 
         for (int i = 0; i < num_spins; ++i) {
             types_binary_data(i) = lattice.lattice_material_num_[i];

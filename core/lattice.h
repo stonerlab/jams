@@ -54,6 +54,7 @@ class Lattice {
 
     inline int kspace_size(const int i) const { assert(i >= 0 && i < 3); return kspace_size_[i]; }
 
+    void load_spin_state_from_hdf5(std::string &filename);
 
   private:
     void calculate_unit_cell_kmesh();

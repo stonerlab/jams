@@ -14,6 +14,8 @@
 #include <string>
 #include <utility>
 
+#include "H5Cpp.h"
+
 #include "core/consts.h"
 #include "core/globals.h"
 #include "core/maths.h"
@@ -315,6 +317,24 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 // initialize global arrays
 //-----------------------------------------------------------------------------
   globals::s.resize(globals::num_spins, 3);
+
+  // default spin array to (0, 0, 1) which will be used if no other spin settings
+  // are specified
+  for (int i = 0; i < globals::num_spins; ++i) {
+    globals::s(i, 0) = 0.0;
+    globals::s(i, 1) = 0.0;
+    globals::s(i, 2) = 1.0;
+  }
+
+  // read initial spin config if specified
+  if (lattice_settings.exists("spins")) {
+    std::string spin_filename = lattice_settings["spins"];
+
+    ::output.write("  reading initial spin configuration from: %s\n", spin_filename.c_str());
+
+    load_spin_state_from_hdf5(spin_filename);
+  }
+
   globals::h.resize(globals::num_spins, 3);
   globals::h_dipole.resize(globals::num_spins, 3);
   globals::alpha.resize(globals::num_spins);
@@ -333,34 +353,59 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   std::fill(globals::wij.data(), globals::wij.data()+kspace_size_.x*kspace_size_.y*kspace_size_.z*3*3, 0.0);
 
   material_count_.resize(num_materials(), 0);
-  for (int i = 0; i != globals::num_spins; ++i) {
+  for (int i = 0; i < globals::num_spins; ++i) {
     int material_number = materials_map_[lattice_materials_[i]];
     material_count_[material_number]++;
 
     libconfig::Setting& type_settings = material_settings[material_number];
 
-    bool randomize_spins_is_set = false;
-    type_settings.lookupValue("spin_random",randomize_spins_is_set);
+    // Setup the initial spin configuration if we haven't already read in a spin state
+    if (!lattice_settings.exists("spins")) {
+      if (type_settings["spin"].getType() == libconfig::Setting::TypeString) {
+        // spin setting is a string
+        std::string spin_initializer = capitalize(type_settings["spin"]);
+        if (spin_initializer == "RANDOM") {
+          rng.sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
+        } else {
+          jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
+        }
+      } else if (type_settings["spin"].getType() == libconfig::Setting::TypeArray) {
+        if (type_settings["spin"].getLength() == 3) {
+          // spin setting is cartesian
+          for(int j = 0; j < 3;++j) {
+            globals::s(i, j) = type_settings["spin"][j];
+          }
+        } else if (type_settings["spin"].getLength() == 2) {
+          // spin setting is spherical
+          double theta = deg_to_rad(type_settings["spin"][0]);
+          double phi   = deg_to_rad(type_settings["spin"][1]);
 
-    // read initial spin state
-    if(randomize_spins_is_set){
-      rng.sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
-    }else{
-      for(int j = 0; j != 3;++j) {
-        globals::s(i, j) = type_settings["spin"][j];
+          globals::s(i, 0) = sin(theta)*cos(phi);
+          globals::s(i, 1) = sin(theta)*sin(phi);
+          globals::s(i, 2) = cos(theta);
+        } else {
+          jams_error("Spin initializer array must be 2 (spherical) or 3 (cartesian) components");
+        }
       }
     }
 
-    // normalise spin
+    // normalise all spins
     double norm = sqrt(globals::s(i, 0)*globals::s(i, 0) + globals::s(i, 1)*globals::s(i, 1) + globals::s(i, 2)*globals::s(i, 2));
-    for(int j = 0; j != 3;++j){
+    for(int j = 0; j < 3;++j){
       globals::s(i, j) = globals::s(i, j)/norm;
     }
 
     // read material properties
     globals::mus(i) = type_settings["moment"];
     globals::alpha(i) = type_settings["alpha"];
-    globals::gyro(i) = type_settings["gyro"];
+
+    if (type_settings.exists("gyro")) {
+      globals::gyro(i) = type_settings["gyro"];
+    } else {
+      // default
+      globals::gyro(i) = 1.0;
+    }
+
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
 
     if ( (type_settings.exists("K1") || type_settings.exists("K2") || type_settings.exists("K3")) &&
@@ -493,6 +538,21 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
   lattice_settings.lookupValue("energy_cutoff", energy_cutoff_);
 
   ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
+}
+
+void Lattice::load_spin_state_from_hdf5(std::string &filename) {
+  using namespace H5;
+
+  H5File file(filename.c_str(), H5F_ACC_RDONLY);
+  DataSet dataset = file.openDataSet("/spins");
+  DataSpace dataspace = dataset.getSpace();
+
+  if (dataspace.getSimpleExtentNpoints() != static_cast<hssize_t>(globals::num_spins3)){
+    jams_error("Spin state file '%s' has %llu spins but your simulation has %d spins.",
+      filename.c_str(), dataspace.getSimpleExtentNpoints()/3, globals::num_spins);
+  }
+
+  dataset.read(globals::s.data(), PredType::NATIVE_DOUBLE);
 }
 
 void Lattice::compute_exchange_interactions() {
