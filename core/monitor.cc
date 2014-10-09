@@ -14,6 +14,7 @@
 #include "monitors/hdf5.h"
 #include "monitors/xyz.h"
 #include "monitors/binary.h"
+#include "monitors/skyrmion.h"
 
 Monitor::Monitor(const libconfig::Setting &settings)
 : is_equilibration_monitor_(false),
@@ -68,6 +69,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "BINARY") {
     return new BinaryMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "SKYRMION") {
+    return new SkyrmionMonitor(settings);
   }
 
   jams_error("Unknown monitor specified '%s'", settings["module"].c_str());
