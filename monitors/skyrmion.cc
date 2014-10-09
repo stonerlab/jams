@@ -25,6 +25,14 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
     }
   }
 
+  if (settings.exists("thresholds")) {
+    for (int n = 0; n < settings["thresholds"].getLength(); ++n) {
+      thresholds.push_back(settings["thresholds"][n]);
+    }
+  } else {
+    thresholds.push_back(0.0);
+  }
+
   std::string name = seedname + "_sky.dat";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);
@@ -36,8 +44,10 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
 
   for (int i = 0; i < lattice.num_materials(); ++i) {
     outfile << std::setw(16) <<  lattice.get_material_name(i) + " -> " + "r_avg(x,y,z)";
-    outfile << std::setw(16) << "R_gyration";
-    outfile << std::setw(16) << "(2/sqrt(2))*R_gyration";
+    for (int j = 0; j < thresholds.size(); ++j) {
+      outfile << std::setw(16) << "R_g" << "[t" << thresholds[j] << "]";
+      outfile << std::setw(16) << "2R_g/sqrt(2)" << "[t" << thresholds[j] << "]";
+    }
   }
   outfile << "\n";
 }
@@ -52,31 +62,40 @@ void SkyrmionMonitor::update(const int &iteration, const double &time, const dou
 
     // TODO: account for periodic bounaries
 
-    std::vector<jblib::Vec3<double> > r_avg(lattice.num_materials(), jblib::Vec3<double>(0.0, 0.0, 0.0));
-    std::vector<double> r_sq(lattice.num_materials(), 0.0);
-    std::vector<int> r_count(lattice.num_materials(), 0);
+    for (int t = 0; t < thresholds.size(); ++t) {
 
-    for (n = 0; n < lattice.num_materials(); ++n) {
+      std::vector<jblib::Vec3<double> > r_avg(lattice.num_materials(), jblib::Vec3<double>(0.0, 0.0, 0.0));
+      std::vector<double> r_sq(lattice.num_materials(), 0.0);
+      std::vector<int> r_count(lattice.num_materials(), 0);
+
       for (int i = 0; i < num_spins; ++i) {
-        if (s(i, 2)*type_norms[n] > 0.0) {
-          r_avg[n] += lattice.lattice_positions_[i];
-          r_sq[n] += dot(lattice.lattice_positions_[i], lattice.lattice_positions_[i]);
-          r_count[n]++;
+        int type = lattice.get_material_number(i);
+        if (s(i, 2)*type_norms[type] > thresholds[t]) {
+          r_avg[type] += lattice.lattice_positions_[i];
+          r_sq[type] += dot(lattice.lattice_positions_[i], lattice.lattice_positions_[i]);
+          r_count[type]++;
+        }
+      }
+
+      for (n = 0; n < lattice.num_materials(); ++n) {
+        if (r_count[n] == 0) {
+          for (i = 0; i < 5; ++i) {
+            outfile << std::setw(16) << 0.0;
+          }
+        } else {
+          r_avg[n] /= static_cast<double>(r_count[n]);
+          r_sq[n] /= static_cast<double>(r_count[n]);
+          for (i = 0; i < 3; ++i) {
+            outfile << std::setw(16) << lattice.lattice_parameter_*r_avg[n][i];
+          }
+          double r_gyration = lattice.lattice_parameter_*sqrt(r_sq[n]-dot(r_avg[n], r_avg[n]));
+          outfile << std::setw(16) << r_gyration << std::setw(16) << (2.0/sqrt(2.0))*r_gyration;
         }
       }
     }
 
-    for (n = 0; n < lattice.num_materials(); ++n) {
-      r_avg[n] /= static_cast<double>(r_count[n]);
-      r_sq[n] /= static_cast<double>(r_count[n]);
-      for (i = 0; i < 3; ++i) {
-        outfile << std::setw(16) << lattice.lattice_parameter_*r_avg[n][i];
-      }
-      double r_gyration = lattice.lattice_parameter_*sqrt(r_sq[n]-dot(r_avg[n], r_avg[n]));
-      outfile << std::setw(16) << r_gyration << std::setw(16) << (2.0/sqrt(2.0))*r_gyration;
-    }
+    outfile << "\n";
 
-    outfile << std::endl;
 }
 
 SkyrmionMonitor::~SkyrmionMonitor() {

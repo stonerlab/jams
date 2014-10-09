@@ -19,6 +19,7 @@ class SkyrmionMonitor : public Monitor {
 
  private:
     std::vector<double> type_norms;
+    std::vector<double> thresholds;
     std::ofstream outfile;
 };
 
