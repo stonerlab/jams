@@ -64,7 +64,7 @@ SYSTYPE = $(shell uname -s)
 
 CFLAGS = -fno-finite-math-only -fno-stack-protector -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
-LDFLAGS = -Wl,--wrap=memcpy
+LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
 ALL_CFLAGS = $(CPPFLAGS) $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
@@ -103,6 +103,7 @@ OBJS += monitors/vtu.o
 OBJS += monitors/hdf5.o
 OBJS += monitors/xyz.o
 OBJS += monitors/binary.o
+OBJS += monitors/skyrmion.o
 OBJS += physics/fieldcool.o
 OBJS += physics/fmr.o
 OBJS += physics/mfpt.o
@@ -138,6 +139,7 @@ HDR += monitors/vtu.h
 HDR += monitors/hdf5.h
 HDR += monitors/xyz.h
 HDR += monitors/binary.h
+HDR += monitors/skyrmion.h
 HDR += physics/empty.h
 HDR += physics/fieldcool.h
 HDR += physics/fmr.h
@@ -167,6 +169,8 @@ endif
 ifeq ($(SYSTYPE),Darwin)
 	CC = clang++ -stdlib=libstdc++
 	BASIC_LDFLAGS += -Wl -rpath /usr/local/cuda/lib
+else
+	BASIC_LDFLAGS +=  -Wl,--wrap=memcpy
 endif
 
 ifeq ($(SYSTYPE),Darwin)
