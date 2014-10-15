@@ -9,6 +9,10 @@
 
 #include "core/consts.h"
 
+inline double square(const double &x) {
+  return x*x;
+}
+
 inline int nint(const double &x) {
   return floor(x+0.5);
 }

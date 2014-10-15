@@ -7,6 +7,8 @@
 
 #include "core/globals.h"
 #include "core/lattice.h"
+#include "core/maths.h"
+
 
 #include "monitors/skyrmion.h"
 
@@ -50,29 +52,36 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
     }
   }
   outfile << "\n";
+
+  create_center_of_mass_mapping();
 }
 
 void SkyrmionMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
   using namespace globals;
 
-    int i, n;
+    int i, n, type;
 
     outfile << std::setw(12) << std::scientific << time;
     outfile << std::setw(16) << std::fixed << temperature;
 
-    // TODO: account for periodic bounaries
-
     for (int t = 0; t < thresholds.size(); ++t) {
 
-      std::vector<jblib::Vec3<double> > r_avg(lattice.num_materials(), jblib::Vec3<double>(0.0, 0.0, 0.0));
-      std::vector<double> r_sq(lattice.num_materials(), 0.0);
-      std::vector<int> r_count(lattice.num_materials(), 0);
+      std::vector<jblib::Vec3<double> > r_com(lattice.num_materials(), jblib::Vec3<double>(0.0, 0.0, 0.0));
 
-      for (int i = 0; i < num_spins; ++i) {
-        int type = lattice.get_material_number(i);
+      calc_center_of_mass(r_com, t);
+
+      int r_count[lattice.num_materials()];
+      double radius_gyration[lattice.num_materials()];
+
+      for (i = 0; i < lattice.num_materials(); ++i) {
+        r_count[i] = 0;
+        radius_gyration[i] = 0.0;
+      }
+
+      for (i = 0; i < num_spins; ++i) {
+        type = lattice.get_material_number(i);
         if (s(i, 2)*type_norms[type] > thresholds[t]) {
-          r_avg[type] += lattice.lattice_positions_[i];
-          r_sq[type] += dot(lattice.lattice_positions_[i], lattice.lattice_positions_[i]);
+          radius_gyration[type] += dot(lattice.lattice_positions_[i] - r_com[type], lattice.lattice_positions_[i] - r_com[type]);
           r_count[type]++;
         }
       }
@@ -83,13 +92,10 @@ void SkyrmionMonitor::update(const int &iteration, const double &time, const dou
             outfile << std::setw(16) << 0.0;
           }
         } else {
-          r_avg[n] /= static_cast<double>(r_count[n]);
-          r_sq[n] /= static_cast<double>(r_count[n]);
           for (i = 0; i < 3; ++i) {
-            outfile << std::setw(16) << lattice.lattice_parameter_*r_avg[n][i];
+            outfile << std::setw(16) << r_com[n][i];
           }
-          double r_gyration = lattice.lattice_parameter_*sqrt(r_sq[n]-dot(r_avg[n], r_avg[n]));
-          outfile << std::setw(16) << r_gyration << std::setw(16) << (2.0/sqrt(2.0))*r_gyration;
+          outfile << std::setw(16) << sqrt(radius_gyration[n]) << std::setw(16) << (2.0/sqrt(2.0))*sqrt(radius_gyration[n]);
         }
       }
     }
@@ -97,6 +103,105 @@ void SkyrmionMonitor::update(const int &iteration, const double &time, const dou
     outfile << "\n";
 
 }
+
+void SkyrmionMonitor::create_center_of_mass_mapping() {
+  using namespace globals;
+
+  // map the 2D x-y coordinate space onto 3D tubes for calculating the COM
+  // in a periodic system
+  // (see L. Bai and D. Breen, Journal of Graphics, GPU, and Game Tools 13, 53 (2008))
+
+  tube_x.resize(num_spins, jblib::Vec3<double>(0.0, 0.0, 0.0));
+  tube_y.resize(num_spins, jblib::Vec3<double>(0.0, 0.0, 0.0));
+
+  for (int n = 0; n < num_spins; ++n) {
+    double i, j, i_max, j_max, r_i, r_j, theta_i, theta_j, x, y, z;
+
+    i = lattice.lattice_positions_[n].x;
+    j = lattice.lattice_positions_[n].y;
+
+    i_max = lattice.rmax.x;
+    j_max = lattice.rmax.y;
+
+    r_i = i_max / (2.0 * pi);
+    r_j = j_max / (2.0 * pi);
+
+    theta_i = (i / i_max) * (2.0 * pi);
+    theta_j = (j / j_max) * (2.0 * pi);
+
+    x = r_i * cos(theta_i);
+    y = j;
+    z = r_i * sin(theta_i);
+
+    tube_x[n] = jblib::Vec3<double>(x, y, z);
+
+    x = i;
+    y = r_j * cos(theta_j);
+    z = r_j * sin(theta_j);
+
+    tube_y[n] = jblib::Vec3<double>(x, y, z);
+  }
+}
+
+void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_com, const double &threshold) {
+  using namespace globals;
+  // TODO: make the x and y PBC individually optional
+
+  assert(tube_x.size() > 0);
+  assert(tube_y.size() > 0);
+
+  const int num_types = lattice.num_materials();
+  int i, type;
+  double theta_i, theta_j;
+
+  std::vector<jblib::Vec3<double> > tube_x_com(num_types, jblib::Vec3<double>(0.0, 0.0, 0.0));
+  std::vector<jblib::Vec3<double> > tube_y_com(num_types, jblib::Vec3<double>(0.0, 0.0, 0.0));
+  int r_count[num_types];
+
+  for (type = 0; type < num_types; ++type) {
+    r_count[type] = 0;
+  }
+
+  for (i = 0; i < num_spins; ++i) {
+    type = lattice.get_material_number(i);
+    if (s(i, 2)*type_norms[type] > threshold) {
+      tube_x_com[type] += tube_x[i];
+      tube_y_com[type] += tube_y[i];
+      r_count[type]++;
+    }
+  }
+
+  for (type = 0; type < num_types; ++type) {
+    r_com[type] /= static_cast<double>(r_count[type]);
+  }
+
+  for (type = 0; type < num_types; ++type) {
+    theta_i = atan2(-tube_x_com[type].z, -tube_x_com[type].x) + pi;
+    theta_j = atan2(-tube_y_com[type].z, -tube_y_com[type].y) + pi;
+
+    r_com[type].x = (theta_i*lattice.rmax.x/(2.0*pi));
+    r_com[type].y = (theta_j*lattice.rmax.y/(2.0*pi));
+    r_com[type].z = 0.0;
+  }
+
+  // for (type = 0; type < num_types; ++type) {
+  //   r_count[type] = 0;
+  // }
+
+  // for (i = 0; i < num_spins; ++i) {
+  //   type = lattice.get_material_number(i);
+  //   if (s(i, 2)*type_norms[type] > threshold) {
+  //     r_com[type] += lattice.lattice_positions_[i];
+  //     r_count[type]++;
+  //   }
+  // }
+
+  // for (type = 0; type < num_types; ++type) {
+  //   r_com[type] /= static_cast<double>(r_count[type]);
+  // }
+
+}
+
 
 SkyrmionMonitor::~SkyrmionMonitor() {
   outfile.close();

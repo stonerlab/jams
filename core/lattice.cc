@@ -228,6 +228,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 //-----------------------------------------------------------------------------
 
   int atom_counter = 0;
+  rmax.x = 0.0; rmax.y = 0.0; rmax.z = 0.0;
   // loop over the translation vectors for lattice size
   for (int i = 0; i < lattice_size_.x; ++i) {
     for (int j = 0; j < lattice_size_.y; ++j) {
@@ -242,6 +243,13 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
           jblib::Vec3<double> lattice_pos(i+motif_[m].second.x, j+motif_[m].second.y, k+motif_[m].second.z);
           // position in real (cartesian) space
           jblib::Vec3<double> real_pos = lattice_vectors_*lattice_pos;
+
+          // store max coordinates
+          for (int n = 0; n < 3; ++n) {
+            if (real_pos[n] > rmax[n]) {
+              rmax[n] = real_pos[n];
+            }
+          }
 
           lattice_positions_.push_back(real_pos);
           lattice_materials_.push_back(motif_[m].first);
@@ -674,16 +682,16 @@ void Lattice::compute_fft_dipole_interactions() {
 
   ::output.write("\ncomputed fft dipole interactions\n");
 
-  jblib::Vec3<double> rmax = lattice_vectors_*jblib::Vec3<double>(kspace_size_.x/2, kspace_size_.y/2, kspace_size_.z/2);
+  jblib::Vec3<double> kmax = lattice_vectors_*jblib::Vec3<double>(kspace_size_.x/2, kspace_size_.y/2, kspace_size_.z/2);
 
   // only use rcut in periodic directions
-  std::vector<double> rmax_pbc;
+  std::vector<double> kmax_pbc;
   for (int i = 0; i < 3; ++i) {
     if (lattice_pbc_[i]) {
-      rmax_pbc.push_back(rmax[i]);
+      kmax_pbc.push_back(kmax[i]);
     }
   }
-  double rcut = (*std::min_element(rmax_pbc.begin(),rmax_pbc.end()))*lattice_parameter_;
+  double rcut = (*std::min_element(kmax_pbc.begin(),kmax_pbc.end()))*lattice_parameter_;
 
   ::output.write("\ndipole cutoff radius: %fnm\n", rcut);
 
