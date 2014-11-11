@@ -6,6 +6,8 @@
 #include "core/maths.h"
 #include "core/globals.h"
 
+#include <iomanip>
+
 void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
 
@@ -22,67 +24,77 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("\nconstraint angle theta (deg): % 8.8f\n", constraint_theta_);
   ::output.write("\nconstraint angle phi (deg): % 8.8f\n", constraint_phi_);
 
-  constraint_vector_.x = cos(deg_to_rad(constraint_theta_))*sin(deg_to_rad(constraint_phi_));
-  constraint_vector_.y = sin(deg_to_rad(constraint_theta_))*sin(deg_to_rad(constraint_phi_));
-  constraint_vector_.z = cos(deg_to_rad(constraint_phi_));
-
-  ::output.write("\nconstraint vector: % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
-
-  for (int i = 0; i < num_spins; ++i) {
-    for (int n = 0; n < 3; ++ n) {
-      s(i, n) = constraint_vector_[n];
-    }
-  }
-
-  // calculate rotation matrix for rotating m -> mz
   const double c_t = cos(deg_to_rad(constraint_theta_));
   const double c_p = cos(deg_to_rad(constraint_phi_));
   const double s_t = sin(deg_to_rad(constraint_theta_));
   const double s_p = sin(deg_to_rad(constraint_phi_));
 
+  constraint_vector_.x = s_t*c_p;
+  constraint_vector_.y = s_t*s_p;
+  constraint_vector_.z = c_t;
+
+  ::output.write("\nconstraint vector: % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
+
+  // calculate rotation matrix for rotating m -> mz
   jblib::Matrix<double, 3, 3> r_y;
   jblib::Matrix<double, 3, 3> r_z;
 
-  r_y[0][0] =  c_p;  r_y[0][1] =  0.0;  r_y[0][2] =  s_p;
-  r_y[1][0] =  0.0;  r_y[1][1] =  1.0;  r_y[1][2] =  0.0;
-  r_y[2][0] = -s_p;  r_y[2][1] =  0.0;  r_y[2][2] =  c_p;
+  // first index is row second index is col
+  r_y[0][0] =  c_t;  r_y[0][1] =  0.0; r_y[0][2] =  s_t;
+  r_y[1][0] =  0.0;  r_y[1][1] =  1.0; r_y[1][2] =  0.0;
+  r_y[2][0] = -s_t;  r_y[2][1] =  0.0; r_y[2][2] =  c_t;
 
-  r_z[0][0] =  c_t;  r_z[0][1] = -s_t;  r_z[0][2] =  0.0;
-  r_z[1][0] =  s_t;  r_z[1][1] =  c_t;  r_z[1][2] =  0.0;
+  r_z[0][0] =  c_p;  r_z[0][1] = -s_p;  r_z[0][2] =  0.0;
+  r_z[1][0] =  s_p;  r_z[1][1] =  c_p;  r_z[1][2] =  0.0;
   r_z[2][0] =  0.0;  r_z[2][1] =  0.0;  r_z[2][2] =  1.0;
 
-  rotation_matrix_ = r_y*r_z;
+  inverse_rotation_matrix_ = r_y*r_z;
+  rotation_matrix_ = inverse_rotation_matrix_.transpose();
+
+  ::output.write("\nRy\n");
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[0][0], r_y[0][1], r_y[0][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[1][0], r_y[1][1], r_y[1][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[2][0], r_y[2][1], r_y[2][2]);
+
+  ::output.write("\nRz\n");
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[0][0], r_z[0][1], r_z[0][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[1][0], r_z[1][1], r_z[1][2]);
+  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[2][0], r_z[2][1], r_z[2][2]);
 
   ::output.write("\nrotation matrix m -> mz\n");
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[0][0], rotation_matrix_[0][1], rotation_matrix_[0][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[1][0], rotation_matrix_[1][1], rotation_matrix_[1][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[2][0], rotation_matrix_[2][1], rotation_matrix_[2][2]);
 
-  inverse_rotation_matrix_ = rotation_matrix_.transpose();
   ::output.write("\ninverse rotation matrix mz -> m\n");
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[0][0], inverse_rotation_matrix_[0][1], inverse_rotation_matrix_[0][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
   ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
 
+
+  // --- sanity check
+  jblib::Vec3<double> test_unit_vec(0.0, 0.0, 1.0);
+  jblib::Vec3<double> test_forward_vec = rotation_matrix_*test_unit_vec;
+  jblib::Vec3<double> test_back_vec    = inverse_rotation_matrix_*test_forward_vec;
+
+  ::output.write("\nsanity check\n");
+
+  ::output.write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
+  ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
+  // ---
+
   output.write("\nconverting symmetric to general MAP matrices\n");
-
   J1ij_t.convertSymmetric2General();
-
-  output.write("\nconverting MAP to CSR\n");
-
+  output.write("  converting MAP to CSR\n");
   J1ij_t.convertMAP2CSR();
-
-  output.write("\nJ1ij Tensor matrix memory (CSR): %f MB\n",
-
+  output.write("  J1ij Tensor matrix memory (CSR): %f MB\n",
   J1ij_t.calculateMemory());
 }
 
-void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin) {
+void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
   double x,y,z;
   rng.sphere(x,y,z);
-  spin.x += 0.2*x;
-  spin.y += 0.2*y;
-  spin.z += 0.2*z;
+  spin.x += move_sigma*x; spin.y += move_sigma*y; spin.z += move_sigma*z;
   spin /= abs(spin);
 }
 
@@ -92,9 +104,8 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
   double energy_initial = 0.0;
   double energy_final = 0.0;
 
-
-    jblib::Vec3<double> field(0.0, 0.0, 0.0);
-    if (J1ij_t.nonZero() > 0) {   // J1ij_t
+  jblib::Vec3<double> field(0.0, 0.0, 0.0);
+  if (J1ij_t.nonZero() > 0) {   // J1ij_t
 
       const double *val = J1ij_t.valPtr();
       const int    *row = J1ij_t.rowPtr();
@@ -169,55 +180,57 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
       }
     }
 
-    std::cout << iteration_ << std::endl;
-
+    // loop over every spin (on average), once but divide by 2 because we move
+    // two spins each time
+    move_acceptance_count_ = 0;
     for (int i = 0; i < num_spins/2; ++i) {
-      // std::cout << i << std::endl;
+      // randomly select spin 1
       int rand_s1 = rng.uniform_discrete(0, num_spins-1);
-
       jblib::Vec3<double> s1_initial(s(rand_s1, 0), s(rand_s1, 1), s(rand_s1,2));
 
+      // rotate into reference frame of the constraint vector
       jblib::Vec3<double> s1_initial_rotated = rotation_matrix_*s1_initial;
-
 
       // monte carlo move
       jblib::Vec3<double> s1_final = s1_initial;
       calculate_trial_move(s1_final);
-
       jblib::Vec3<double> s1_final_rotated = rotation_matrix_*s1_final;
 
-      // CALCULATE DELTA E
+      // change in energy with spin move
       const double delta_energy1 = compute_one_spin_energy(s1_final, rand_s1);
 
-      // randomly select spin number 2 (i/=j)
+      // randomly select spin 2 for i != j
       int rand_s2 = rand_s1;
       while (rand_s2 == rand_s1) {
         rand_s2 = rng.uniform_discrete(0, num_spins-1);
       }
-
       jblib::Vec3<double> s2_initial(s(rand_s2, 0), s(rand_s2, 1), s(rand_s2, 2));
-
       jblib::Vec3<double> s2_initial_rotated = rotation_matrix_*s2_initial;
 
-      // calculate new spin based on contraint mx=my=0
-      jblib::Vec3<double> s2_final_rotated(s1_initial_rotated.x + s2_initial_rotated.x - s1_final_rotated.x,
-                                           s1_initial_rotated.y + s2_initial_rotated.y - s1_final_rotated.y,
-                                           0.0);
+      // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
+      jblib::Vec3<double> s2_final_rotated(
+        s1_initial_rotated.x + s2_initial_rotated.x - s1_final_rotated.x,
+        s1_initial_rotated.y + s2_initial_rotated.y - s1_final_rotated.y,
+        0.0);
 
+      // check the rotated spin fits in the unit sphere, if not we will reject the move
       if (((s2_final_rotated.x*s2_final_rotated.x) + (s2_final_rotated.y*s2_final_rotated.y)) < 1.0) {
+        // calculate the z-component so that |s2| = 1
         s2_final_rotated.z = sign(1.0, s2_initial_rotated.z)*sqrt(1.0 - (s2_final_rotated.x*s2_final_rotated.x) - (s2_final_rotated.y*s2_final_rotated.y));
 
+        // rotate s2 back into the cartesian reference frame
         jblib::Vec3<double> s2_final = inverse_rotation_matrix_*s2_final_rotated;
 
-        // automatically accept the move for spin1
+        // temporarily accept the move for s1 so we can calculate the s2 energies
+        // this will be reversed later if the move is rejected
         for (int n = 0; n < 3; ++n) {
           s(rand_s1, n) = s1_final[n];
         }
 
-        // CALCULATE THE DETLA E FOR S2
+        // calculate the energy difference for s2
         const double delta_energy2 = compute_one_spin_energy(s2_final, rand_s2);
 
-        // CALCULATE THE DELTA E FOR BOTH SPINS
+        // calculate the total energy difference
         const double delta_energy21 = delta_energy1+delta_energy2;
 
         double mz_old = dot(m_other, constraint_vector_);
@@ -226,12 +239,22 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
                        +(m_other.y + s1_final.y + s2_final.y - s1_initial.y - s2_initial.y)*constraint_vector_.y
                        +(m_other.z + s1_final.z + s2_final.z - s1_initial.z - s2_initial.z)*constraint_vector_.z;
 
+        // calculate the Boltzmann weighted probability including the
+        // Jacobian factors (see paper)
         const double probability = exp(-delta_energy21*inv_kbT_bohr)*((mz_new/mz_old)*(mz_new/mz_old))*fabs(s2_initial_rotated.z/s2_final_rotated.z);
 
-        if (probability >= rng.uniform() && (mz_new >= 0.0)) {
+        if (delta_energy21 < 0.0 && (mz_new >= 0.0)) {
+            // moves reduce total energy -> accept
+            for (int n = 0; n < 3; ++n) {  // accept s2
+                s(rand_s2, n) = s2_final[n];
+            }
+            move_acceptance_count_++;
+        }else if (probability >= rng.uniform() && (mz_new >= 0.0)) {
+            // moves overcome Boltzmann weighting -> accept
           for (int n = 0; n < 3; ++n) {  // accept s2
             s(rand_s2, n) = s2_final[n];
           }
+            move_acceptance_count_++;
         } else {
           for (int n = 0; n < 3; ++n) {  // revert s1
             s(rand_s1, n) = s1_initial[n];
@@ -241,14 +264,15 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
         for (int n = 0; n < 3; ++n) {
           s(rand_s1, n) = s1_initial[n];
         }
-        for (int n = 0; n < 3; ++n) {
-          s(rand_s2, n) = s2_initial[n];
-        }
       }
     }
 
     // compute fields ready for torque monitor
     compute_fields();
+
+    move_acceptance_fraction_ = move_acceptance_count_/(0.5*num_spins);
+    outfile << std::setw(8) << iteration_ << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << move_sigma_ << std::endl;
+
     iteration_++;
   }
 
