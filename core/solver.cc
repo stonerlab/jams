@@ -68,29 +68,33 @@ void Solver::compute_fields() {
 // dipole interactions
 //-----------------------------------------------------------------------------
 
-  fftw_execute(spin_fft_forward_transform);
+  if (::optimize::use_fft) {
+    fftw_execute(spin_fft_forward_transform);
 
 
-  // perform convolution as multiplication in fourier space
-  for (i = 0, iend = globals::wij.size(0); i < iend; ++i) {
-    for (j = 0, jend = globals::wij.size(1); j < jend; ++j) {
-      for (k = 0, kend = (globals::wij.size(2)/2)+1; k < kend; ++k) {
-        for(m = 0; m < 3; ++m) {
-          hq(i,j,k,m)[0] = 0.0; hq(i,j,k,m)[1] = 0.0;
-          for(n = 0; n < 3; ++n) {
-            hq(i,j,k,m)[0] = hq(i,j,k,m)[0] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[0]-wq(i,j,k,m,n)[1]*sq(i,j,k,n)[1] );
-            hq(i,j,k,m)[1] = hq(i,j,k,m)[1] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[1]+wq(i,j,k,m,n)[1]*sq(i,j,k,n)[0] );
+    // perform convolution as multiplication in fourier space
+    for (i = 0, iend = globals::wij.size(0); i < iend; ++i) {
+      for (j = 0, jend = globals::wij.size(1); j < jend; ++j) {
+        for (k = 0, kend = (globals::wij.size(2)/2)+1; k < kend; ++k) {
+          for(m = 0; m < 3; ++m) {
+            hq(i,j,k,m)[0] = 0.0; hq(i,j,k,m)[1] = 0.0;
+            for(n = 0; n < 3; ++n) {
+              hq(i,j,k,m)[0] = hq(i,j,k,m)[0] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[0]-wq(i,j,k,m,n)[1]*sq(i,j,k,n)[1] );
+              hq(i,j,k,m)[1] = hq(i,j,k,m)[1] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[1]+wq(i,j,k,m,n)[1]*sq(i,j,k,n)[0] );
+            }
           }
         }
       }
     }
-  }
 
-  fftw_execute(field_fft_backward_transform);
+    fftw_execute(field_fft_backward_transform);
 
-    // normalise
-  for (i = 0; i < num_spins3; ++i) {
-    h_dipole[i] /= static_cast<double>(num_spins);
+      // normalise
+    for (i = 0; i < num_spins3; ++i) {
+      h_dipole[i] /= static_cast<double>(num_spins);
+    }
+  } else {
+    std::fill(h_dipole.data(), h_dipole.data()+num_spins3, 0.0);
   }
 
 
@@ -98,16 +102,31 @@ void Solver::compute_fields() {
 // bilinear interactions
 //-----------------------------------------------------------------------------
   if (J1ij_t.nonZero() > 0) {
-    char transa[1] = {'N'};
-    char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
+    if (J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
+      // general matrix (i.e. Monte Carlo Solvers)
+      char transa[1] = {'N'};
+      char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
 #ifdef MKL
-    double one = 1.0;
-    mkl_dcsrmv(transa, &num_spins3, &num_spins3, &one, matdescra, J1ij_t.valPtr(),
-      J1ij_t.colPtr(), J1ij_t.ptrB(), J1ij_t.ptrE(), s.data(), &one, h.data());
+      double one = 1.0;
+      mkl_dcsrmv(transa, &num_spins3, &num_spins3, &one, matdescra, J1ij_t.valPtr(),
+        J1ij_t.colPtr(), J1ij_t.ptrB(), J1ij_t.ptrE(), s.data(), &one, h.data());
 #else
-    jams_dcsrmv(transa, num_spins3, num_spins3, 1.0, matdescra, J1ij_t.valPtr(),
-      J1ij_t.colPtr(), J1ij_t.ptrB(), J1ij_t.ptrE(), s.data(), 1.0, h.data());
+      jams_dcsrmv(transa, num_spins3, num_spins3, 1.0, matdescra, J1ij_t.valPtr(),
+        J1ij_t.colPtr(), J1ij_t.ptrB(), J1ij_t.ptrE(), s.data(), 1.0, h.data());
 #endif
+    } else {
+      // symmetric matrix (i.e. Heun Solvers)
+      char transa[1] = {'N'};
+      char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
+#ifdef MKL
+      double one = 1.0;
+      mkl_dcsrmv(transa, &num_spins3, &num_spins3, &one, matdescra, J1ij_t.valPtr(),
+        J1ij_t.colPtr(), J1ij_t.ptrB(), J1ij_t.ptrE(), s.data(), &one, h.data());
+#else
+      jams_dcsrmv(transa, num_spins3, num_spins3, 1.0, matdescra, J1ij_t.valPtr(),
+        J1ij_t.colPtr(), J1ij_t.ptrB(), J1ij_t.ptrE(), s.data(), 1.0, h.data());
+#endif
+    }
   }
 
 //-----------------------------------------------------------------------------
