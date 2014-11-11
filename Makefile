@@ -64,7 +64,7 @@ SYSTYPE = $(shell uname -s)
 
 CFLAGS = -fno-finite-math-only -fno-stack-protector -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
-LDFLAGS = -Wl,--wrap=memcpy
+LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
 ALL_CFLAGS = $(CPPFLAGS) $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
@@ -167,6 +167,8 @@ endif
 ifeq ($(SYSTYPE),Darwin)
 	CC = clang++ -stdlib=libstdc++
 	BASIC_LDFLAGS += -Wl -rpath /usr/local/cuda/lib
+else
+	BASIC_LDFLAGS += -Wl,--wrap=memcpy
 endif
 
 ifeq ($(SYSTYPE),Darwin)
