@@ -136,10 +136,9 @@ void Solver::compute_fields() {
     h(i, 2) += d2z(i)*3.0*s(i,2) + d4z(i)*(17.5*s(i,2)*s(i,2)*s(i,2)-7.5*s(i,2)) + d6z(i)*(86.625*s(i,2)*s(i,2)*s(i,2)*s(i,2)*s(i,2) - 78.75*s(i,2)*s(i,2)*s(i,2) + 13.125*s(i,2));
   }
 
-  // normalize by the gyroscopic factor
   for (i = 0; i < num_spins; ++i) {
     for (j = 0; j < 3; ++j) {
-      h(i, j) = (h(i, j) + h_dipole(i,j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
+      h(i, j) = h(i, j) + h_dipole(i,j);
     }
   }
 }

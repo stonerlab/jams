@@ -61,7 +61,14 @@ void HeunLLGSolver::run() {
     #pragma omp parallel for
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
-        h(i, j) += w(i,j);
+        h(i, j) = w(i,j) + (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
+      }
+    }
+  } else {
+    #pragma omp parallel for
+    for (i = 0; i < num_spins; ++i) {
+      for (j = 0; j < 3; ++j) {
+        h(i, j) = (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
       }
     }
   }
@@ -97,7 +104,14 @@ void HeunLLGSolver::run() {
     #pragma omp parallel for
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
-        h(i, j) += w(i,j);
+        h(i, j) = w(i,j) + (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
+      }
+    }
+  } else {
+    #pragma omp parallel for
+    for (i = 0; i < num_spins; ++i) {
+      for (j = 0; j < 3; ++j) {
+        h(i, j) = (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
       }
     }
   }
