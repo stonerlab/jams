@@ -25,7 +25,6 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         jams_error("Xyz monitor requires both slice_origin and slice_size to be specificed;");
     }
 
-    slice_spins;
     num_slice_points = 0;
 
     if (settings.exists("slice_origin")) {
