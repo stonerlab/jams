@@ -69,11 +69,11 @@ void SkyrmionMonitor::update(const int &iteration, const double &time, const dou
     outfile << std::setw(12) << std::scientific << time;
     outfile << std::setw(16) << std::fixed << temperature;
 
+
     for (int t = 0; t < thresholds.size(); ++t) {
 
       std::vector<jblib::Vec3<double> > r_com(lattice.num_materials(), jblib::Vec3<double>(0.0, 0.0, 0.0));
-
-      calc_center_of_mass(r_com, t);
+      calc_center_of_mass(r_com, thresholds[t]);
 
       int r_count[lattice.num_materials()];
       double radius_gyration[lattice.num_materials()];
