@@ -252,9 +252,6 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
                 nnz_unmerged++;
             }
         }
-    //} else {
-        //jams_error("Attempted to generalise a matrix which is already general");
-    //}
   }else{
       jams_error("Only a MAP matrix can be generalised");
   }
