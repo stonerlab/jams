@@ -14,6 +14,10 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     // initialize base class
   Solver::initialize(argc, argv, idt);
 
+  move_acceptance_count_ = 0;
+  move_acceptance_fraction_ = 0.234;
+  move_sigma_ = 0.001;
+
   output.write("Initialising Constrained Monte-Carlo solver\n");
 
   libconfig::Setting &solver_settings = ::config.lookup("sim");
@@ -116,8 +120,6 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
 
       for (int m = 0; m < 3; ++m) {
         int begin = ptrb[3*ii+m]; int end = ptre[3*ii+m];
-
-        // upper triangle and diagonal
         for (int j = begin; j < end; ++j) {
           k = indx[j];
           field[m] = field[m] + x[k]*val[j];
