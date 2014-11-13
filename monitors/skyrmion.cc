@@ -92,15 +92,19 @@ void SkyrmionMonitor::update(const int &iteration, const double &time, const dou
       }
 
       for (n = 0; n < lattice.num_materials(); ++n) {
+        radius_gyration[n] = sqrt(radius_gyration[n]/static_cast<double>(r_count[n]));
+      }
+
+      for (n = 0; n < lattice.num_materials(); ++n) {
         if (r_count[n] == 0) {
           for (i = 0; i < 5; ++i) {
             outfile << std::setw(16) << 0.0;
           }
         } else {
           for (i = 0; i < 3; ++i) {
-            outfile << std::setw(16) << r_com[n][i];
+            outfile << std::setw(16) << r_com[n][i]*lattice.lattice_parameter_;
           }
-          outfile << std::setw(16) << sqrt(radius_gyration[n]) << std::setw(16) << (2.0/sqrt(2.0))*sqrt(radius_gyration[n]);
+          outfile << std::setw(16) << radius_gyration[n]*lattice.lattice_parameter_ << std::setw(16) << (2.0/sqrt(2.0))*radius_gyration[n]*lattice.lattice_parameter_;
         }
       }
     }
