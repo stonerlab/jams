@@ -35,6 +35,11 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
     thresholds.push_back(0.0);
   }
 
+  ::output.write("  Sz thresholds:\n");
+  for (int n = 0; n < thresholds.size(); ++n) {
+    ::output.write("    %f\n", thresholds[n]);
+  }
+
   std::string name = seedname + "_sky.dat";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);
