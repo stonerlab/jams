@@ -167,13 +167,13 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
     return (energy_final - energy_initial);
   }
 
-  void set_spin(const int &i, const jblib::Vec3<double> &spin) {
+  void ConstrainedMCSolver::set_spin(const int &i, const jblib::Vec3<double> &spin) {
     for (int n = 0; n < 3; ++n) {
       globals::s(i, n) = spin[n];
     }
   }
 
-  void get_spin(const int &i, jblib::Vec3<double> &spin) {
+  void ConstrainedMCSolver::get_spin(const int &i, jblib::Vec3<double> &spin) {
     for (int n = 0; n < 3; ++n) {
       spin[n] = globals::s(i, n);
     }
