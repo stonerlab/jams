@@ -38,6 +38,8 @@ class CudaConstrainedMCSolver : public CudaSolver {
 
   double compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii);
   void calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma);
+  void set_spin(const int &i, jblib::Vec3<double> &spin);
+  void get_spin(const int &i, jblib::Vec3<double> &spin);
 };
 
 #endif  // CUDA
