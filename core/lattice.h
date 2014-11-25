@@ -51,6 +51,7 @@ class Lattice {
     std::vector< jblib::Vec3<double> > lattice_positions_;
     double                      lattice_parameter_;
     std::vector<int>            lattice_material_num_;
+    jblib::Vec3<double>         rmax;
 
     inline int kspace_size(const int i) const { assert(i >= 0 && i < 3); return kspace_size_[i]; }
 
