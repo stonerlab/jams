@@ -40,6 +40,22 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     }
   }
 
+  libconfig::Setting& sim_settings = ::config.lookup("sim");
+
+  double t_step = sim_settings["t_step"];
+  double t_run = sim_settings["t_run"];
+
+  double t_sample = output_step_freq_*t_step;
+  double num_samples = int(t_run/t_sample);
+
+  double max_freq = 1.0/(2.0*t_sample);
+  delta_freq = 1.0/t_run;
+
+  ::output.write("\n  sampling time (s):          %e\n", t_sample);
+  ::output.write("  number of samples:          %d\n", num_samples);
+  ::output.write("  maximum frequency (THz):    %f\n", max_freq/1E12);
+  ::output.write("  frequency resolution (THz): %f\n\n", delta_freq/1E12);
+
   // ------------------------------------------------------------------
   // construct Brillouin zone sample points from the nodes specified
   // in the config file
@@ -167,7 +183,7 @@ void StructureFactorMonitor::fft_time() {
 
   for (int i = 0; i < (time_points/2) + 1; ++i) {
     for (int j = 0; j < space_points; ++j) {
-      dsffile << j << "\t" << i << "\t" << fft_sqw_xy(i,j)[0]*fft_sqw_xy(i,j)[0] + fft_sqw_xy(i,j)[1]*fft_sqw_xy(i,j)[1];
+      dsffile << j << "\t" << i*delta_freq << "\t" << fft_sqw_xy(i,j)[0]*fft_sqw_xy(i,j)[0] + fft_sqw_xy(i,j)[1]*fft_sqw_xy(i,j)[1];
       dsffile << "\t" << fft_sqw_z(i,j)[0]*fft_sqw_z(i,j)[0] + fft_sqw_z(i,j)[1]*fft_sqw_z(i,j)[1] << std::endl;
     }
     dsffile << std::endl;

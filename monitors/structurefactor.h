@@ -32,6 +32,7 @@ class StructureFactorMonitor : public Monitor {
   std::vector<std::complex<double> > sqw_z;
   std::vector<jblib::Vec3<int> > bz_points;
   std::vector<double> bz_lengths;
+  double delta_freq;
 };
 
 #endif  // JAMS_MONITOR_STRUCTUREFACTOR_H
