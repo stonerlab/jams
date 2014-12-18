@@ -65,10 +65,13 @@ void SkyrmionMonitor::update(const int &iteration, const double &time, const dou
   using namespace globals;
 
     int i, n, type;
+    double x, y;
+
+    const double x_size = lattice.rmax.x;
+    const double y_size = lattice.rmax.y;
 
     outfile << std::setw(12) << std::scientific << time;
     outfile << std::setw(16) << std::fixed << temperature;
-
 
     for (int t = 0; t < thresholds.size(); ++t) {
 
@@ -86,7 +89,11 @@ void SkyrmionMonitor::update(const int &iteration, const double &time, const dou
       for (i = 0; i < num_spins; ++i) {
         type = lattice.get_material_number(i);
         if (s(i, 2)*type_norms[type] > thresholds[t]) {
-          radius_gyration[type] += dot(lattice.lattice_positions_[i] - r_com[type], lattice.lattice_positions_[i] - r_com[type]);
+          x = lattice.lattice_positions_[i].x - r_com[type].x;
+          x = x - nint(x / x_size) * x_size;
+          y = lattice.lattice_positions_[i].y - r_com[type].y;
+          y = y - nint(y / y_size) * y_size;
+          radius_gyration[type] += x*x + y*y;
           r_count[type]++;
         }
       }
