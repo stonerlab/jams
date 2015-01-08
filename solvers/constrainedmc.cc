@@ -22,6 +22,12 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
   libconfig::Setting &solver_settings = ::config.lookup("sim");
 
+  if (solver_settings.exists("sigma")) {
+    move_sigma_ = solver_settings["sigma"];
+  }
+
+  ::output.write("\nmove sigma: % 8.8f\n", move_sigma_);
+
   constraint_theta_ = solver_settings["cmc_constraint_theta"];
   constraint_phi_   = solver_settings["cmc_constraint_phi"];
 
@@ -226,7 +232,7 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
 
       // Monte Carlo move
       s1_final = s1_initial;
-      calculate_trial_move(s1_final);
+      calculate_trial_move(s1_final,move_sigma_);
       s1_final_rotated = rotation_matrix_*s1_final;
 
       // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
