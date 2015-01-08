@@ -83,6 +83,20 @@ Date:   5 September 2014
 
 ---
 
+## solvers
+
+#### constrainedmc
+
+`cmc_constraint_theta` // float (deg) // REQUIRED //
+: Polar magnetization constraint angle θ
+
+`cmc_constraint_phi` // float (deg) // REQUIRED //
+: Azimuthal magnetization constraint angle φ
+
+
+`sigma` // float // default 0.05 //
+: Trial move size (width of Gaussian)
+
 ### monitors
 
 #### hdf5
