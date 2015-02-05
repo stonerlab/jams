@@ -62,7 +62,7 @@ GITSHORT = $(shell git rev-parse --short HEAD)
 CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
 SYSTYPE = $(shell uname -s)
 
-CFLAGS = -fno-finite-math-only -fno-stack-protector -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
+CFLAGS = -march=native -fno-finite-math-only -fno-stack-protector -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
 LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
