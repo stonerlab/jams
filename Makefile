@@ -158,6 +158,7 @@ ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver_kernels.o
 	CUDA_OBJS += solvers/cuda_heunllg.o
 	CUDA_OBJS += solvers/cuda_constrainedmc.o
+	OBJS += thermostats/cuda_langevin_white.o
 
 	CUDA_HDR += core/cuda_defs.h
 	CUDA_HDR += core/cuda_solver.h
@@ -166,6 +167,8 @@ ifndef NO_CUDA
 	CUDA_HDR += solvers/cuda_heunllg.h
 	CUDA_HDR += solvers/cuda_heunllg_kernel.h
 	CUDA_HDR += solvers/cuda_constrainedmc.h
+	HDR += thermostats/cuda_langevin_white.h
+
 endif
 
 ifeq ($(SYSTYPE),Darwin)
