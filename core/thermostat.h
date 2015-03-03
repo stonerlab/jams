@@ -3,6 +3,8 @@
 #ifndef JAMS_CORE_THERMOSTAT_H
 #define JAMS_CORE_THERMOSTAT_H
 
+#include <string>
+
 #include "jblib/containers/array.h"
 
 class Thermostat {
@@ -13,8 +15,8 @@ class Thermostat {
       noise_(num_spins, 3)
   {}
 
-  virtual ~Thermostat();
-  virtual void update();
+  virtual ~Thermostat() {}
+  virtual void update() = 0;
 
   // factory
   static Thermostat* create(const std::string &thermostat_name);
