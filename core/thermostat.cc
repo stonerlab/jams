@@ -5,7 +5,7 @@
 #include "core/globals.h"
 #include "core/thermostat.h"
 
-#include "thermostat/cuda_langevin_white.h"
+#include "thermostats/cuda_langevin_white.h"
 
 Thermostat* Thermostat::create(const std::string &thermostat_name) {
     // debugging output
@@ -15,7 +15,7 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
 
     // create the selected thermostat
     if (thermostat_name == "CUDA_LANGEVIN_WHITE") {
-        return new CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const int num_spins);
+        return new CudaLangevinWhiteThermostat(0.0, 0.0, 0);
     }
     // if (thermostat_name == "LANGEVIN_COTH") {
     //     return new LangevinCothThermostat();
