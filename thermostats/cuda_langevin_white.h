@@ -23,10 +23,8 @@ class CudaLangevinWhiteThermostat : public Thermostat {
 
  private:
     jblib::CudaArray<double, 1> dev_noise_;
-    curandGenerator_t           dev_rng_; // device random generator
-
+    curandGenerator_t           dev_rng_;  // device random generator
 };
 
-#endif // CUDA
-
+#endif  // CUDA
 #endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_WHITE_H

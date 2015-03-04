@@ -16,11 +16,10 @@
 
 CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),
-  dev_noise_(3*num_spins) {
+  dev_noise_((3*num_spins+((3*num_spins)%2))) {
+  ::output.write("\n  initialising CUDA Langevin white noise thermostat\n");
 
-  ::output.write("\ninitialising CUDA Langevin white noise thermostat...\n");
-
-  ::output.write("  initialising CURAND...\n");
+  ::output.write("    initialising CURAND\n");
 
   // initialize and seed the CURAND generator on the device
   if (curandCreateGenerator(&dev_rng_, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS) {
