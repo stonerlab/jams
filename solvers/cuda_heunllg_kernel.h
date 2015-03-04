@@ -10,7 +10,7 @@ __global__ void cuda_heun_llg_kernelA
   double * s_dev,
   double * s_new_dev,
   CudaFastFloat * h_dev,
-  CudaFastFloat * w_dev,
+  const double * noise_dev,
   CudaFastFloat * mat_dev,
   CudaFastFloat h_app_x,
   CudaFastFloat h_app_y,
@@ -34,9 +34,9 @@ __global__ void cuda_heun_llg_kernelA
     CudaFastFloat alpha = mat_dev[idx*4+2];
     CudaFastFloat sigma = mat_dev[idx*4+3];
 
-    h[0] = ( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro;
-    h[1] = ( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
-    h[2] = ( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
+    h[0] = ( h_dev[idx3] + ( noise_dev[idx3]*sigma + h_app_x)*mus )*gyro;
+    h[1] = ( h_dev[idx3+1] + ( noise_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
+    h[2] = ( h_dev[idx3+2] + ( noise_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
 
     s[0] = s_dev[idx3];
     s[1] = s_dev[idx3+1];
@@ -71,7 +71,7 @@ __global__ void cuda_heun_llg_kernelB
   double * s_dev,
   double * s_new_dev,
   CudaFastFloat * h_dev,
-  CudaFastFloat * w_dev,
+  const double * noise_dev,
   CudaFastFloat * mat_dev,
   CudaFastFloat h_app_x,
   CudaFastFloat h_app_y,
@@ -95,9 +95,9 @@ __global__ void cuda_heun_llg_kernelB
     CudaFastFloat alpha = mat_dev[idx*4+2];
     CudaFastFloat sigma = mat_dev[idx*4+3];
 
-    h[0] = ( h_dev[idx3] + ( w_dev[idx3]*sigma + h_app_x)*mus )*gyro;
-    h[1] = ( h_dev[idx3+1] + ( w_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
-    h[2] = ( h_dev[idx3+2] + ( w_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
+    h[0] = ( h_dev[idx3] + ( noise_dev[idx3]*sigma + h_app_x)*mus )*gyro;
+    h[1] = ( h_dev[idx3+1] + ( noise_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
+    h[2] = ( h_dev[idx3+2] + ( noise_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
 
     s[0] = s_dev[idx3];
     s[1] = s_dev[idx3+1];
