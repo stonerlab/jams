@@ -12,7 +12,7 @@
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  ::output.write("\nInitialising Magnetisation monitor...\n");
+  ::output.write("\ninitialising Magnetisation monitor");
 
   is_equilibration_monitor_ = true;
 

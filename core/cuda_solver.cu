@@ -22,15 +22,15 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 
   Solver::initialize(argc, argv, idt);
 
-  ::output.write("\ninitializing cuda solver class\n");
+  ::output.write("\ninitializing CUDA base solver\n");
 
-  ::output.write("\nconverting J1ij_t format from map to dia\n");
+  ::output.write("  converting J1ij_t format from map to dia");
   J1ij_t.convertMAP2DIA();
 
-  ::output.write("\nmemory usage (dia): %f MB\n", J1ij_t.calculateMemory());
+  ::output.write("  estimated memory usage (dia): %f MB\n", J1ij_t.calculateMemory());
   dev_J1ij_t_.blocks = std::min<int>(DIA_BLOCK_SIZE, (num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
 
-  ::output.write("\nallocating on device\n");
+  ::output.write("  allocating memory on device\n");
 
 //-----------------------------------------------------------------------------
 // fourier transforms
@@ -45,16 +45,16 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 
   globals::wq.resize(num_kpoints_.x, num_kpoints_.y, (num_kpoints_.z/2)+1, 3, 3);
 
-  ::output.write("\nkspace dimensions: %d %d %d", num_kpoints_.x, num_kpoints_.y, num_kpoints_.z);
+  ::output.write("  kspace dimensions: %d %d %d\n", num_kpoints_.x, num_kpoints_.y, num_kpoints_.z);
 
-  ::output.write("\nFFT planning\n");
+  ::output.write("  FFT planning\n");
 
   // perform the wij -> wq transformation on the host
   fftw_plan interaction_fft_transform  = fftw_plan_many_dft_r2c(3, &num_kpoints_[0], 9, wij.data(),  NULL, 9, 1, wq.data(), NULL, 9, 1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
-  ::output.write("\nFFT transform interaction matrix\n");
+  ::output.write("  FFT transform interaction matrix\n");
   fftw_execute(interaction_fft_transform);
 
-  ::output.write("\nFFT transfering arrays to device\n");
+  ::output.write("  FFT transfering arrays to device\n");
 
   // convert fftw_complex data into cufftDoubleComplex format and copy to the device
   jblib::Array<cufftDoubleComplex, 5> convert_wq(num_hermitian_kpoints.x, num_hermitian_kpoints.y, num_hermitian_kpoints.z, 3, 3);
@@ -114,7 +114,7 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 // Transfer the the other arrays to the device
 //-----------------------------------------------------------------------------
 
-  ::output.write("\ntransfering arrays to device\n");
+  ::output.write("  transfering array data to device\n");
 
   // spin arrays
   dev_s_        = jblib::CudaArray<double, 1>(s);
@@ -158,6 +158,7 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
   }
   dev_d6z_ = jblib::CudaArray<CudaFastFloat, 1>(dz);
 
+  ::output.write("\n");
 }
 
 void CudaSolver::run() {
