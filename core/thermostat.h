@@ -28,7 +28,7 @@ class Thermostat {
   double sigma() const { return sigma_; }
   void set_sigma(const double S) { sigma_ = S;  }
 
-  const double* noise() { return noise_.data(); }
+  virtual const double* noise() { return noise_.data(); }
 
  private:
   double                  temperature_;
