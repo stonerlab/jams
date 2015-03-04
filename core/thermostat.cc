@@ -15,7 +15,7 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
 
     // create the selected thermostat
     if (thermostat_name == "CUDA_LANGEVIN_WHITE") {
-        return new CudaLangevinWhiteThermostat(0.0, 0.0, 0);
+        return new CudaLangevinWhiteThermostat(0.0, 0.0, globals::num_spins);
     }
     // if (thermostat_name == "LANGEVIN_COTH") {
     //     return new LangevinCothThermostat();
