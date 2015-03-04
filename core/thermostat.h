@@ -22,10 +22,10 @@ class Thermostat {
   static Thermostat* create(const std::string &thermostat_name);
 
   // accessors
-  double const temperature() { return temperature_; }
+  double temperature() const { return temperature_; }
   void set_temperature(const double T) { temperature_ = T; }
 
-  double const sigma() { return sigma_; }
+  double sigma() const { return sigma_; }
   void set_sigma(const double S) { sigma_ = S;  }
 
   const double* noise() { return noise_.data(); }
