@@ -1,5 +1,8 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #include <cmath>
 #include <string>
 #include <iomanip>
@@ -24,8 +27,8 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     jams_error("Failed to create CURAND generator in CudaLangevinWhiteThermostat");
   }
 
-  const unsigned long long dev_rng_seed = rng.uniform()*18446744073709551615ULL;
-  ::output.write("  seeding CURAND (%ull)", dev_rng_seed);
+  const uint64_t dev_rng_seed = rng.uniform()*18446744073709551615ULL;
+  ::output.write("    seeding CURAND (%" PRIu64 ")", dev_rng_seed);
 
   if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to set CURAND seed in CudaLangevinWhiteThermostat");
