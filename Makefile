@@ -2,7 +2,7 @@
 all::
 
 # Define V=1 for verbose output
-# V=1
+V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
@@ -158,6 +158,7 @@ ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver_kernels.o
 	CUDA_OBJS += solvers/cuda_heunllg.o
 	CUDA_OBJS += solvers/cuda_constrainedmc.o
+	CUDA_OBJS += thermostats/cuda_langevin_coth.o
 	OBJS += thermostats/cuda_langevin_white.o
 
 	CUDA_HDR += core/cuda_defs.h
@@ -167,7 +168,9 @@ ifndef NO_CUDA
 	CUDA_HDR += solvers/cuda_heunllg.h
 	CUDA_HDR += solvers/cuda_heunllg_kernel.h
 	CUDA_HDR += solvers/cuda_constrainedmc.h
-	HDR += thermostats/cuda_langevin_white.h
+	CUDA_HDR += thermostats/cuda_langevin_coth.h
+	CUDA_HDR += thermostats/cuda_langevin_coth_kernel.h
+	CUDA_HDR += thermostats/cuda_langevin_white.h
 
 endif
 
