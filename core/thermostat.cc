@@ -6,6 +6,7 @@
 #include "core/thermostat.h"
 
 #include "thermostats/cuda_langevin_white.h"
+#include "thermostats/cuda_langevin_coth.h"
 
 Thermostat* Thermostat::create(const std::string &thermostat_name) {
     // debugging output
@@ -17,9 +18,9 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
     if (thermostat_name == "CUDA_LANGEVIN_WHITE") {
         return new CudaLangevinWhiteThermostat(0.0, 0.0, globals::num_spins);
     }
-    // if (thermostat_name == "LANGEVIN_COTH") {
-    //     return new LangevinCothThermostat();
-    // }
+    if (thermostat_name == "CUDA_LANGEVIN_COTH") {
+        return new CudaLangevinCothThermostat(0.0, 0.0, globals::num_spins);
+    }
 
     // throw error if the thermostat name is no known
     jams_error("Unknown thermostat requested '%s'", thermostat_name.c_str());
