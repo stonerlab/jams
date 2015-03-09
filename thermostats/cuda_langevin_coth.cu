@@ -71,7 +71,7 @@ void CudaLangevinCothThermostat::update() {
   //   jams_error("curandGenerateNormalDouble failure in CudaLangevinCothThermostat::update");
   // }
   curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, sqrt(this->temperature()));
-  coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), 0.0005);
+  coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), 0.0005, globals::num_spins3);
 }
 
 CudaLangevinCothThermostat::~CudaLangevinCothThermostat() {

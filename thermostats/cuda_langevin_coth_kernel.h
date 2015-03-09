@@ -69,47 +69,50 @@ __global__ void coth_stochastic_process_cuda_kernel
           double * noise,
           double * zeta,
     const double * eta,
-    const double h
+    const double h,
+    const int    N
 ) {
     const double c[6] = {1.043576, 0.177222, 0.050319, 0.010241, 1.8315, 0.3429};
     double s0 = 0.0, s1 = 0.0;
 
     int i;
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
-    // ------------------------------------------------------
+    if (x < N) {
+        // ------------------------------------------------------
 
-    double z[4] = {zeta[8*x], zeta[8*x+1], zeta[8*x+2], zeta[8*x+3]};
-    double e[4] = {eta[6*x], eta[6*x+1], eta[6*x+2], eta[6*x+3]};
+        double z[4] = {zeta[8*x], zeta[8*x+1], zeta[8*x+2], zeta[8*x+3]};
+        double e[4] = {eta[6*x], eta[6*x+1], eta[6*x+2], eta[6*x+3]};
 
-    rk4(linear_ode, h, e, z);
+        rk4(linear_ode, h, e, z);
 
-    for (i = 0; i < 4; ++i) {
-        zeta[8*x+i] = z[i];
+        for (i = 0; i < 4; ++i) {
+            zeta[8*x+i] = z[i];
+        }
+
+        for (i = 0; i < 4; ++i) {
+            s0 += c[i]*(e[i] - z[i]);
+        }
+        // ------------------------------------------------------
+
+        for (i = 0; i < 4; ++i) {
+            z[i] = zeta[8*x+i+4];
+        }
+
+        for (i = 0; i < 2; ++i) {
+            e[i] = eta[6*x+i+4];
+        }
+        e[2] = 0.0; e[3] = 0.0;
+
+        rk4(bose_ode, h, e, z);
+
+        for (i = 0; i < 4; ++i) {
+            zeta[8*x+4+i] = z[i];
+        }
+        // ------------------------------------------------------
+
+        s1 = c[4]*z[0] + c[5]*z[2];
+        noise[x] = s0 + s1;
     }
-
-    for (i = 0; i < 4; ++i) {
-        s0 += c[i]*(e[i] - z[i]);
-    }
-    // ------------------------------------------------------
-
-    for (i = 0; i < 4; ++i) {
-        z[i] = zeta[8*x+i+4];
-    }
-
-    for (i = 0; i < 2; ++i) {
-        e[i] = eta[6*x+i+4];
-    }
-    e[2] = 0.0; e[3] = 0.0;
-
-    rk4(bose_ode, h, e, z);
-
-    for (i = 0; i < 4; ++i) {
-        zeta[8*x+4+i] = z[i];
-    }
-    // ------------------------------------------------------
-
-    s1 = c[4]*z[0] + c[5]*z[2];
-    noise[x] = s0 + s1;
 }
 
 #endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_COTH_KERNEL_H
