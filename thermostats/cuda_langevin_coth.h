@@ -9,6 +9,7 @@
 #ifdef CUDA
 
 #include <curand.h>
+#include <fstream>
 
 #include "core/thermostat.h"
 
@@ -31,6 +32,8 @@ class CudaLangevinCothThermostat : public Thermostat {
     jblib::CudaArray<double, 1> dev_eta_;
     curandGenerator_t           dev_rng_;  // device random generator
     cudaStream_t                dev_stream_;
+    double                      w_max;
+    std::ofstream               outfile;
 };
 
 #endif  // CUDA
