@@ -2,7 +2,7 @@
 all::
 
 # Define V=1 for verbose output
-V=1
+#V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
