@@ -74,6 +74,15 @@ int jams_initialize(int argc, char **argv) {
   output.write("\nDEBUG Build\n");
 #endif
 
+#ifdef CUDA
+  ::cuda_streams = new cudaStream_t [2];
+  for (int i = 0; i < 2; ++i) {
+    if (cudaStreamCreate(&::cuda_streams[i]) != cudaSuccess){
+      jams_error("Failed to create global CUDA streams");
+    }
+  }
+#endif
+
   output.write("\nReading configuration file...\n");
 
   output.write("  * Config file: %s\n", config_filename.c_str());

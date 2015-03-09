@@ -20,6 +20,12 @@
 #define GLOBAL
 #endif
 
+#ifdef CUDA
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+GLOBAL cudaStream_t* cuda_streams;
+#endif
 
 GLOBAL Lattice lattice;
 GLOBAL libconfig::Config config;  ///< Config object
