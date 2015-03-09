@@ -24,6 +24,16 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 
   ::output.write("\ninitializing CUDA base solver\n");
 
+  ::output.write("  initialising CUDA streams\n");
+
+  dev_streams_ = new cudaStream_t[2];
+
+  for (int i = 0; i < 2; ++i) {
+    if (cudaStreamCreate(&dev_streams_[i]) != cudaSuccess){
+      jams_error("Failed to create CUDA stream in CudaLangevinCothThermostat");
+    }
+  }
+
   ::output.write("  converting J1ij_t format from map to dia");
   J1ij_t.convertMAP2DIA();
 
@@ -168,7 +178,7 @@ void CudaSolver::compute_fields() {
   using namespace globals;
 
   // zero the field array
-  cudaMemset(dev_h_.data(), 0.0, num_spins3*sizeof(CudaFastFloat));
+  cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(CudaFastFloat), ::cuda_streams[0]);
 
   if (optimize::use_fft) {
     cuda_realspace_to_kspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_s_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_s3d_.data());
@@ -188,15 +198,17 @@ void CudaSolver::compute_fields() {
     cuda_kspace_to_realspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_h3d_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_h_.data());
   }
 
+  cudaStreamSynchronize(::cuda_streams[0]); // block until cudaMemsetAsync is finished
+
+  cuda_anisotropy_kernel<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE, 0, dev_streams_[1]>>>
+  (num_spins, dev_d2z_.data(), dev_d4z_.data(), dev_d6z_.data(), dev_s_.data(), dev_h_.data());
+
   // bilinear interactions
   if(J1ij_t.nonZero() > 0){
-    spmv_dia_kernel<<< dev_J1ij_t_.blocks, DIA_BLOCK_SIZE >>>
+    spmv_dia_kernel<<< dev_J1ij_t_.blocks, DIA_BLOCK_SIZE, 0, dev_streams_[0] >>>
     (num_spins3, num_spins3, J1ij_t.diags(), dev_J1ij_t_.pitch, 1.0, 1.0,
      dev_J1ij_t_.row, dev_J1ij_t_.val, dev_s_.data(), dev_h_.data());
   }
-
-  cuda_anisotropy_kernel<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>
-  (num_spins, dev_d2z_.data(), dev_d4z_.data(), dev_d6z_.data(), dev_s_.data(), dev_h_.data());
 
   // anisotropy interactions
 }
@@ -205,4 +217,8 @@ CudaSolver::~CudaSolver() {
   CUDA_CALL(cudaFree(dev_J1ij_t_.row));
   CUDA_CALL(cudaFree(dev_J1ij_t_.col));
   CUDA_CALL(cudaFree(dev_J1ij_t_.val));
+
+  for (int i = 0; i < 2; ++i) {
+    cudaStreamDestroy(dev_streams_[i]);
+  }
 }

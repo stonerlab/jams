@@ -26,7 +26,7 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
 
   ::output.write("\ninitializing CUDA Heun LLG solver");
 
-  thermostat_ = Thermostat::create("CUDA_LANGEVIN_WHITE");
+  thermostat_ = Thermostat::create("CUDA_LANGEVIN_COTH");
   nblocks = (num_spins+BLOCKSIZE-1)/BLOCKSIZE;
 
   ::output.write("\n");
@@ -41,12 +41,16 @@ void CUDAHeunLLGSolver::run()
 
     compute_fields();
 
-    cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE>>>
+    cudaDeviceSynchronize();
+
+    cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE, 0, ::cuda_streams[0]>>>
         (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), thermostat_->noise(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
 
     compute_fields();
 
-    cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE>>>
+    cudaDeviceSynchronize();
+
+    cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE, 0, ::cuda_streams[0]>>>
         (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), thermostat_->noise(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
 
     iteration_++;

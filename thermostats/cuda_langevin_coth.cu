@@ -23,11 +23,8 @@ CudaLangevinCothThermostat::CudaLangevinCothThermostat(const double &temperature
 
   ::output.write("    initialising CUDA streams\n");
 
-  dev_streams_ = new cudaStream_t [2];
-  for (int i = 0; i < 2; ++i) {
-    if (cudaStreamCreate(&dev_streams_[i]) != cudaSuccess){
-      jams_error("Failed to create CUDA streams in CudaLangevinCothThermostat");
-    }
+  if (cudaStreamCreate(&dev_stream_) != cudaSuccess){
+    jams_error("Failed to create CUDA stream in CudaLangevinCothThermostat");
   }
 
   ::output.write("    initialising CURAND\n");
@@ -53,6 +50,7 @@ CudaLangevinCothThermostat::CudaLangevinCothThermostat(const double &temperature
   dev_zeta_.resize(8*globals::num_spins3);
 
   // initialize zeta and eta with random variables
+  curandSetStream(dev_rng_, dev_stream_);
   if (curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, sqrt(this->temperature()))
        != CURAND_STATUS_SUCCESS) {
     jams_error("curandGenerateNormalDouble failure in CudaLangevinCothThermostat::constructor");
@@ -66,57 +64,17 @@ CudaLangevinCothThermostat::CudaLangevinCothThermostat(const double &temperature
 }
 
 void CudaLangevinCothThermostat::update() {
-
-  // if (curandGenerateNormalDouble(dev_rng_, dev_eta_linear_.data(), dev_eta_linear_.size(), 0.0, sqrt(this->temperature()))
-  //      != CURAND_STATUS_SUCCESS) {
-  //   jams_error("curandGenerateNormalDouble failure in CudaLangevinCothThermostat::update");
-  // }
-
-  // if (curandGenerateNormalDouble(dev_rng_, dev_eta_bose_.data(), dev_eta_bose_.size(), 0.0, sqrt(this->temperature()))
-  //      != CURAND_STATUS_SUCCESS) {
-  //   jams_error("curandGenerateNormalDouble failure in CudaLangevinCothThermostat::update");
-  // }
-
-
-  curandSetStream(dev_rng_, dev_streams_[0]);
-  curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, sqrt(this->temperature()));
-
-  // dim3 block_size, grid_size;
-
-  // block_size.x = 4;
-  // block_size.y = 64;
-  // grid_size.x = (4 + block_size.x - 1) / block_size.x;
-  // grid_size.y = (globals::num_spins3 + block_size.y - 1) / block_size.y;
-
-
   int block_size = 64;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
-  coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_streams_[0] >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), 0.0005);
-
-  // linear_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_streams_[0]>>>(dev_zeta_linear_.data(), dev_eta_linear_.data(), 0.0005);
-
-  // block_size.x = 2;
-  // block_size.y = 32;
-  // grid_size.x = (2 + block_size.x - 1) / block_size.x;
-  // grid_size.y = (globals::num_spins3 + block_size.y - 1) / block_size.y;
-  // bose_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_streams_[1]>>>(dev_zeta_bose_.data(), dev_eta_bose_.data(), 0.0005);
-
-  //cudaDeviceSynchronize();
-
-  // cudaStreamSynchronize(dev_streams_[0]);
-  // cudaStreamSynchronize(dev_streams_[1]);
-
-  // block_size.x = 32;
-  // block_size.y = 1;
-  // grid_size.x = globals::num_spins3 / block_size.x;
-  // grid_size.y = 1;
-  // combine_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_streams_[0]>>>(dev_noise_.data(), dev_zeta_linear_.data(), dev_zeta_bose_.data(), dev_eta_linear_.data());
+  // if (curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, sqrt(this->temperature())) != CURAND_STATUS_SUCCESS) {
+  //   jams_error("curandGenerateNormalDouble failure in CudaLangevinCothThermostat::update");
+  // }
+  curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, sqrt(this->temperature()));
+  coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), 0.0005);
 }
 
 CudaLangevinCothThermostat::~CudaLangevinCothThermostat() {
   curandDestroyGenerator(dev_rng_);
-  for (int i = 0; i < 2; ++i) {
-    cudaStreamDestroy(dev_streams_[i]);
-  }
+  cudaStreamDestroy(dev_stream_);
 }

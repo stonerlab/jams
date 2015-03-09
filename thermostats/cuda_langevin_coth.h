@@ -30,7 +30,7 @@ class CudaLangevinCothThermostat : public Thermostat {
     jblib::CudaArray<double, 1> dev_zeta_;
     jblib::CudaArray<double, 1> dev_eta_;
     curandGenerator_t           dev_rng_;  // device random generator
-    cudaStream_t*               dev_streams_;
+    cudaStream_t                dev_stream_;
 };
 
 #endif  // CUDA
