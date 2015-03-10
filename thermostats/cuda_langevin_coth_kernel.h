@@ -99,7 +99,7 @@ __global__ void coth_stochastic_process_cuda_kernel
                        eta[6*x+2]*sqrt(2.0/lambda[2]),
                        eta[6*x+3]*sqrt(2.0/lambda[3])};
 
-        rk4(linear_ode, h, lambda, e, z);
+        rk4(linear_ode, h*w_m, lambda, e, z);
 
         for (i = 0; i < 4; ++i) {
             zeta[8*x+i] = z[i];
