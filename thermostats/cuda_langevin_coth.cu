@@ -25,14 +25,17 @@ CudaLangevinCothThermostat::CudaLangevinCothThermostat(const double &temperature
   if (debug_) {
     ::output.write("    DEBUG ON\n");
     std::string name = seedname + "_noise.dat";
-    outfile.open(name.c_str());
+    outfile_.open(name.c_str());
   }
 
-  w_max = 100*1E12;
+  w_max_ = 100*1E12;
 
-  ::output.write("    omega_max = %6.6f (THz)\n", w_max/1E12);
-  ::output.write("    hbar*w/kB = %4.4e\n", (hbar_si * w_max) / (boltzmann_si));
-  ::output.write("    delta tau = %4.4e * T\n", (1e-16 * boltzmann_si) / hbar_si);
+  const double dt = ::config.lookup("sim.t_step");
+  tau_ = (dt * boltzmann_si) / hbar_si;
+
+  ::output.write("    omega_max = %6.6f (THz)\n", w_max_/1E12);
+  ::output.write("    hbar*w/kB = %4.4e\n", (hbar_si * w_max_) / (boltzmann_si));
+  ::output.write("    delta tau = %4.4e * T\n", tau_);
 
   ::output.write("    initialising CUDA streams\n");
 
@@ -64,7 +67,7 @@ CudaLangevinCothThermostat::CudaLangevinCothThermostat(const double &temperature
 
   // initialize zeta and eta with random variables
   curandSetStream(dev_rng_, dev_stream_);
-  if (curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, sqrt(this->temperature()))
+  if (curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
     jams_error("curandGenerateNormalDouble failure in CudaLangevinCothThermostat::constructor");
   }
@@ -73,7 +76,6 @@ CudaLangevinCothThermostat::CudaLangevinCothThermostat(const double &temperature
        != CURAND_STATUS_SUCCESS) {
     jams_error("curandGenerateNormalDouble failure in CudaLangevinCothThermostat::constructor");
   }
-
 }
 
 void CudaLangevinCothThermostat::update() {
@@ -84,16 +86,16 @@ void CudaLangevinCothThermostat::update() {
   //   jams_error("curandGenerateNormalDouble failure in CudaLangevinCothThermostat::update");
   // }
 
-  const double w_m = (hbar_si * w_max) / (boltzmann_si * this->temperature());
-  const double d_tau = (1e-16 * boltzmann_si * this->temperature()) / hbar_si;
+  const double w_m = (hbar_si * w_max_) / (boltzmann_si * this->temperature());
   const double reduced_temperature = sqrt(this->temperature());
+
   curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, 1.0);
-  coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), d_tau, reduced_temperature, w_m, globals::num_spins3);
+  coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), tau_ * this->temperature(), reduced_temperature, w_m, globals::num_spins3);
 
   if (debug_) {
     jblib::Array<double, 1> dbg_noise(dev_noise_.size(), 0.0);
     dev_noise_.copy_to_host_array(dbg_noise);
-    outfile << dbg_noise(0) << std::endl;
+    outfile_ << dbg_noise(0) << std::endl;
   }
 }
 
@@ -101,6 +103,6 @@ CudaLangevinCothThermostat::~CudaLangevinCothThermostat() {
   curandDestroyGenerator(dev_rng_);
   cudaStreamDestroy(dev_stream_);
   if (debug_) {
-    outfile.close();
+    outfile_.close();
   }
 }
