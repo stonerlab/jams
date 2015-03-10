@@ -28,7 +28,7 @@ CudaLangevinCothThermostat::CudaLangevinCothThermostat(const double &temperature
     outfile_.open(name.c_str());
   }
 
-  w_max_ = 100*1E12;
+  w_max_ = 50*1E12;
 
   const double dt = ::config.lookup("sim.t_step");
   tau_ = (dt * boltzmann_si) / hbar_si;
