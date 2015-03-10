@@ -3,6 +3,7 @@
 #include <string>
 
 #include "core/globals.h"
+#include "core/utils.h"
 #include "core/thermostat.h"
 
 #include "thermostats/cuda_langevin_white.h"
@@ -15,10 +16,10 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
     }
 
     // create the selected thermostat
-    if (thermostat_name == "CUDA_LANGEVIN_WHITE") {
+    if (capitalize(thermostat_name) == "CUDA_LANGEVIN_WHITE") {
         return new CudaLangevinWhiteThermostat(0.0, 0.0, globals::num_spins);
     }
-    if (thermostat_name == "CUDA_LANGEVIN_COTH") {
+    if (capitalize(thermostat_name) == "CUDA_LANGEVIN_COTH") {
         return new CudaLangevinCothThermostat(0.0, 0.0, globals::num_spins);
     }
 
