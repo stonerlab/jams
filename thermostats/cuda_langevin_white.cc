@@ -29,7 +29,9 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   const uint64_t dev_rng_seed = rng.uniform()*18446744073709551615ULL;
   ::output.write("    seeding CURAND (%" PRIu64 ")", dev_rng_seed);
 
-  curandSetStream(dev_rng_, ::cuda_streams[1]);
+  // put into the same stream as the integration kernels so that we don't mix the new
+  // and old numbers while the integration kernels are running
+  curandSetStream(dev_rng_, ::cuda_streams[0]);
 
   if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to set CURAND seed in CudaLangevinWhiteThermostat");
@@ -45,7 +47,6 @@ void CudaLangevinWhiteThermostat::update() {
   //      != CURAND_STATUS_SUCCESS) {
   //   jams_error("curandGenerateNormalDouble failure in CudaLangevinWhiteThermostat::update");
   // }
-  cudaDeviceSynchronize();
   curandGenerateNormalDouble(dev_rng_, dev_noise_.data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, sqrt(this->temperature()));
 }
 
