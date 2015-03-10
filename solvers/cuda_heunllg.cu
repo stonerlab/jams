@@ -24,9 +24,15 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
 
   CudaSolver::initialize(argc, argv, idt);
 
-  ::output.write("\ninitializing CUDA Heun LLG solver");
+  ::output.write("\ninitializing CUDA Heun LLG solver\n");
 
-  thermostat_ = Thermostat::create("CUDA_LANGEVIN_COTH");
+  if (::config.exists("sim.thermostat")) {
+    thermostat_ = Thermostat::create(::config.lookup("sim.thermostat"));
+  } else {
+    ::output.write("  DEFAULT thermostat\n");
+    thermostat_ = Thermostat::create("CUDA_LANGEVIN_WHITE");
+  }
+
   nblocks = (num_spins+BLOCKSIZE-1)/BLOCKSIZE;
 
   ::output.write("\n");
