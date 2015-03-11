@@ -2,7 +2,7 @@
 all::
 
 # Define V=1 for verbose output
-# V=1
+#V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
@@ -93,6 +93,7 @@ OBJS += core/physics.o
 OBJS += core/rand.o
 OBJS += core/solver.o
 OBJS += core/sparsematrix.o
+OBJS += core/thermostat.o
 OBJS += monitors/anisotropy_energy.o
 OBJS += monitors/boltzmann.o
 OBJS += monitors/energy.o
@@ -127,6 +128,7 @@ HDR += core/runningstat.h
 HDR += core/solver.h
 HDR += core/sparsematrix4d.h
 HDR += core/sparsematrix.h
+HDR += core/thermostat.h
 HDR += core/utils.h
 HDR += core/slice.h
 HDR += monitors/anisotropy_energy.h
@@ -156,6 +158,8 @@ ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver_kernels.o
 	CUDA_OBJS += solvers/cuda_heunllg.o
 	CUDA_OBJS += solvers/cuda_constrainedmc.o
+	CUDA_OBJS += thermostats/cuda_langevin_coth.o
+	OBJS += thermostats/cuda_langevin_white.o
 
 	CUDA_HDR += core/cuda_defs.h
 	CUDA_HDR += core/cuda_solver.h
@@ -164,6 +168,10 @@ ifndef NO_CUDA
 	CUDA_HDR += solvers/cuda_heunllg.h
 	CUDA_HDR += solvers/cuda_heunllg_kernel.h
 	CUDA_HDR += solvers/cuda_constrainedmc.h
+	CUDA_HDR += thermostats/cuda_langevin_coth.h
+	CUDA_HDR += thermostats/cuda_langevin_coth_kernel.h
+	CUDA_HDR += thermostats/cuda_langevin_white.h
+
 endif
 
 ifeq ($(SYSTYPE),Darwin)

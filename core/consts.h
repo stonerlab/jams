@@ -10,5 +10,6 @@ const double gamma_electron_si = 1.760859770e11;
 const double boltzmann_si = 1.3806504e-23;
 const double vacuum_permeadbility = 4*pi*1E-7;
 const double nanometer = 1E-9;
+const double hbar_si = 1.05457173e-34;
 
 #endif  // JAMS_CORE_CONSTS_H

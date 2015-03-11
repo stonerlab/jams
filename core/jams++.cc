@@ -74,6 +74,15 @@ int jams_initialize(int argc, char **argv) {
   output.write("\nDEBUG Build\n");
 #endif
 
+#ifdef CUDA
+  ::cuda_streams = new cudaStream_t [2];
+  for (int i = 0; i < 2; ++i) {
+    if (cudaStreamCreate(&::cuda_streams[i]) != cudaSuccess){
+      jams_error("Failed to create global CUDA streams");
+    }
+  }
+#endif
+
   output.write("\nReading configuration file...\n");
 
   output.write("  * Config file: %s\n", config_filename.c_str());
@@ -309,10 +318,9 @@ void jams_error(const char *string, ...) {
   vsprintf(buffer, string, args);
   va_end(args);
 
-  output.write("\n****************************************\n");
-  output.write("               JAMS ERROR               \n");
-  output.write("****************************************\n");
-  output.write("%s\n", buffer);
+  output.write("\n********************************************************************************\n\n");
+  output.write("ERROR: %s\n\n", buffer);
+  output.write("********************************************************************************\n\n");
 
   jams_finish();
   exit(EXIT_FAILURE);
@@ -326,7 +334,7 @@ void jams_warning(const char *string, ...) {
   vsprintf(buffer, string, args);
   va_end(args);
 
-  output.write("\n****************************************\n");
-  output.write("WARNING: %s\n", buffer);
-  output.write("****************************************\n");
+  output.write("\n********************************************************************************\n\n");
+  output.write("WARNING: %s\n\n", buffer);
+  output.write("********************************************************************************\n\n");
 }
