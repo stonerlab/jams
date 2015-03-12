@@ -1,5 +1,9 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+extern "C"{
+    #include "spglib/spglib.h"
+}
+
 #include "core/lattice.h"
 
 #include <libconfig.h++>
@@ -32,6 +36,8 @@ void Lattice::initialize() {
   ::output.write("\n----------------------------------------\n");
 
   read_lattice(::config.lookup("materials"), ::config.lookup("lattice"));
+  calculate_unit_cell_symmetry();
+
   compute_positions(::config.lookup("materials"), ::config.lookup("lattice"));
   read_interactions(::config.lookup("lattice"));
 
@@ -846,6 +852,65 @@ void Lattice::calculate_unit_cell_kmesh() {
   kpoints_.y = unique_y.size();
   kpoints_.z = unique_z.size();
 }
+
+void Lattice::calculate_unit_cell_symmetry() {
+  ::output.write("symmetry analysis\n");
+
+  int i, j;
+  const char *wl = "abcdefghijklmnopqrstuvwxyz";
+
+  double spg_lattice[3][3];
+  for (i = 0; i < 3; ++i) {
+    for (j = 0; j < 3; ++j) {
+      spg_lattice[i][j] = lattice_vectors_[i][j];
+    }
+  }
+
+  double (*spg_positions)[3] = new double[motif_.size()][3];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    for (j = 0; j < 3; ++j) {
+      spg_positions[i][j] = motif_[i].second[j];
+    }
+  }
+
+  int (*spg_types) = new int[motif_.size()];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    spg_types[i] = materials_map_[motif_[i].first];
+  }
+
+  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, motif_.size(), 1e-5);
+
+  ::output.write("  International: %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
+  ::output.write("  Hall symbol:   %s\n", spglib_dataset_->hall_symbol );
+
+  char ptsymbol[6];
+  int pt_trans_mat[3][3];
+  spg_get_pointgroup(ptsymbol,
+           pt_trans_mat,
+           spglib_dataset_->rotations,
+           spglib_dataset_->n_operations);
+  ::output.write("  Point group:   %s\n", ptsymbol);
+  ::output.write("  Transformation matrix:\n");
+  for ( i = 0; i < 3; i++ ) {
+      ::output.write("  %f %f %f\n",
+      spglib_dataset_->transformation_matrix[i][0],
+      spglib_dataset_->transformation_matrix[i][1],
+      spglib_dataset_->transformation_matrix[i][2]);
+  }
+  ::output.write("  Wyckoff letters:\n");
+  for ( i = 0; i < spglib_dataset_->n_atoms; i++ ) {
+      ::output.write("  %c ", wl[spglib_dataset_->wyckoffs[i]]);
+  }
+  ::output.write("\n");
+  ::output.write("  Equivalent atoms:\n");
+  for (i = 0; i < spglib_dataset_->n_atoms; i++) {
+      ::output.write("  %d ", spglib_dataset_->equivalent_atoms[i]);
+  }
+  ::output.write("\n");
+}
+
 
 void Lattice::output_spin_state_as_vtu(std::ofstream &outfile){
   using namespace globals;

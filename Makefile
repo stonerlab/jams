@@ -228,7 +228,7 @@ ifdef H5DIR
 	BASIC_CFLAGS += -I$(H5DIR)/include
 	BASIC_LDFLAGS += -L$(H5DIR)/lib
 endif
-EXTLIBS += -lhdf5 -lhdf5_cpp
+EXTLIBS += -lhdf5 -lhdf5_cpp -lsymspg
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
 ALL_CUFLAGS += $(BASIC_CFLAGS) $(BASIC_CUFLAGS)

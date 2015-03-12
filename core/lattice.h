@@ -3,6 +3,10 @@
 #ifndef JAMS_CORE_LATTICE_H
 #define JAMS_CORE_LATTICE_H
 
+extern "C"{
+    #include "spglib/spglib.h"
+}
+
 #include <libconfig.h++>
 
 #include <map>
@@ -65,6 +69,7 @@ class Lattice {
     void compute_exchange_interactions();
     void compute_fft_exchange_interactions();
     void compute_fft_dipole_interactions();
+    void calculate_unit_cell_symmetry();
     bool insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
 
     double energy_cutoff_;
@@ -83,6 +88,10 @@ class Lattice {
     jblib::Array<int, 3>        kspace_map_;
     jblib::Vec3<int>            kpoints_;
     jblib::Vec3<int>            kspace_size_;
+
+    // spglib
+    SpglibDataset *spglib_dataset_;
+
 };
 
 #endif // JAMS_CORE_LATTICE_H
