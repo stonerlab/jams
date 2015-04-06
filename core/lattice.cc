@@ -501,7 +501,7 @@ void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
     jblib::Vec4<int> fast_integer_vector;
     for (int i = 0; i < 3; ++ i) {
       // rounding with nint accounts for lack of precision in definition of the real space vectors
-      fast_integer_vector[i] = floor(lattice_vector[i]);
+      fast_integer_vector[i] = floor(lattice_vector[i]+0.001);
     }
     fast_integer_vector[3] = type_difference;
 
