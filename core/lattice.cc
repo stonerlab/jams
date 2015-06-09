@@ -935,7 +935,8 @@ void Lattice::calculate_unit_cell_symmetry() {
 
   primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, motif_.size(), 1e-5);
 
-  if (primitive_num_atoms != motif_.size()) {
+  // spg_find_primitive returns 0 if the unit cell is already primitive
+  if (primitive_num_atoms != 0) {
     ::output.write("\n");
     ::output.write("unit cell is not a primitive cell\n");
     ::output.write("\n");
