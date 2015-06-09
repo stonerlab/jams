@@ -909,6 +909,53 @@ void Lattice::calculate_unit_cell_symmetry() {
       ::output.write("  %d ", spglib_dataset_->equivalent_atoms[i]);
   }
   ::output.write("\n");
+
+  int primitive_num_atoms = motif_.size();
+  double primitive_lattice[3][3];
+
+  for (i = 0; i < 3; ++i) {
+    for (j = 0; j < 3; ++j) {
+      primitive_lattice[i][j] = spg_lattice[i][j];
+    }
+  }
+
+  double (*primitive_positions)[3] = new double[motif_.size()][3];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    for (j = 0; j < 3; ++j) {
+      primitive_positions[i][j] = spg_positions[i][j];
+    }
+  }
+
+  int (*primitive_types) = new int[motif_.size()];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    primitive_types[i] = spg_types[i];
+  }
+
+  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, motif_.size(), 1e-5);
+
+  if (primitive_num_atoms != motif_.size()) {
+    ::output.write("\n");
+    ::output.write("unit cell is not a primitive cell\n");
+    ::output.write("\n");
+    ::output.write("  primitive lattice vectors:\n");
+
+    for (int i = 0; i < 3; ++i) {
+      ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+        primitive_lattice[i][0], primitive_lattice[i][1], primitive_lattice[i][2]);
+    }
+    ::output.write("\n");
+    ::output.write("  primitive motif positions:\n");
+
+    int counter  = 0;
+    for (int i = 0; i < primitive_num_atoms; ++i) {
+      ::output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, materials_numbered_list_[primitive_types[i]].c_str(),
+        primitive_positions[i][0], primitive_positions[i][1], primitive_positions[i][2]);
+      counter++;
+    }
+  }
+
 }
 
 
