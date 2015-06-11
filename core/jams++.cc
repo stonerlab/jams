@@ -93,7 +93,11 @@ int jams_initialize(int argc, char **argv) {
 
       verbose_output_is_set = false;
       config.lookupValue("sim.verbose", verbose_output_is_set);
-      output.write("  * Verbose output is ON\n");
+      if (verbose_output_is_set) {
+        output.enableVerbose();
+        output.write("  * Verbose output is ON\n");
+      }
+
 
       ::optimize::use_fft = false;
       ::config.lookupValue("sim.fft", ::optimize::use_fft);

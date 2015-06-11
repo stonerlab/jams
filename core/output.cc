@@ -49,6 +49,26 @@ void Output::write(const char* message, ...) {
   }
 }
 
+void Output::verbose(const char* message, ...) {
+  va_list args;
+
+  if (message == reinterpret_cast<const char*>(NULL)) {
+    return;
+  }
+
+  va_start(args, message);
+    vsprintf(buffer, message, args);
+  va_end(args);
+
+  logfile << buffer;
+  logfile.flush();
+
+  if (console == true) {
+      print(buffer);
+      fflush(stdout);
+  }
+}
+
 void Output::print(const char* message, ...) {
   va_list args;
 
