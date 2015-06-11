@@ -17,6 +17,7 @@ extern "C"{
 #include <sstream>
 #include <string>
 #include <utility>
+#include <set>
 
 #include "H5Cpp.h"
 
@@ -29,6 +30,24 @@ extern "C"{
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
 
+namespace {
+  struct vec4_compare {
+    bool operator() (const jblib::Vec4<int>& lhs, const jblib::Vec4<int>& rhs) const {
+      if (lhs.x < rhs.x) {
+        return true;
+      } else if (lhs.x == rhs.x && lhs.y < rhs.y) {
+        return true;
+      } else if (lhs.x == rhs.x && lhs.y == rhs.y && lhs.z < rhs.z) {
+        return true;
+      } else if (lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z && lhs.w < rhs.w) {
+        return true;
+      }
+      return false;
+    }
+  };
+
+}
+
 
 void Lattice::initialize() {
   ::output.write("\n----------------------------------------\n");
@@ -39,7 +58,7 @@ void Lattice::initialize() {
   calculate_unit_cell_symmetry();
 
   compute_positions(::config.lookup("materials"), ::config.lookup("lattice"));
-  read_interactions(::config.lookup("lattice"));
+  read_interactions_with_symmetry(::config.lookup("lattice"));
 
   config.lookupValue("sim.verbose_output", verbose_output_is_set);
 
@@ -268,9 +287,9 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
             jams_error("kpoint mesh does not map to the unit cell");
           }
 
-          if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
-            jams_error("attempted to assign multiple spins to the same point in the kspace map");
-          }
+          // if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
+          //   jams_error("attempted to assign multiple spins to the same point in the kspace map");
+          // }
           kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) = atom_counter;
 
           atom_counter++;
@@ -460,6 +479,122 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   }
 }
 
+void Lattice::read_interactions_with_symmetry(const libconfig::Setting &lattice_settings) {
+  if (!lattice_settings.exists("exchange")) {
+    jams_warning("No exchange interaction file specified");
+    return; // don't try and process the file
+  }
+
+  std::string interaction_filename = lattice_settings["exchange"];
+  // read in typeA typeB rx ry rz Jij
+  std::ifstream interaction_file(interaction_filename.c_str());
+
+  if(interaction_file.fail()) {
+    jams_error("failed to open interaction file %s", interaction_filename.c_str());
+  }
+
+
+  fast_integer_interaction_list_.resize(motif_.size());
+
+  int counter = 0;
+  // read the motif into an array from the positions file
+  for (std::string line; getline(interaction_file, line); ) {
+    std::stringstream is(line);
+
+    std::string type_name_A, type_name_B;
+
+    // read type names
+    is >> type_name_A >> type_name_B;
+
+    jblib::Vec3<double> interaction_vector;
+    is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
+
+    jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    if (file_columns(line) == 6) {
+      // one Jij component given - diagonal
+      is >> tensor[0][0];
+      tensor[1][1] = tensor[0][0];
+      tensor[2][2] = tensor[0][0];
+    } else if (file_columns(line) == 14) {
+      // nine Jij components given - full tensor
+      is >> tensor[0][0] >> tensor[0][1] >> tensor[0][2];
+      is >> tensor[1][0] >> tensor[1][1] >> tensor[1][2];
+      is >> tensor[2][0] >> tensor[2][1] >> tensor[2][2];
+    } else {
+      jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
+    }
+
+    // transform into lattice vector basis
+    jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector);
+
+    double r[3] = {lattice_vector.x, lattice_vector.y, lattice_vector.z};
+    double r_sym[3];
+
+    jblib::Array<double, 2> sym_interaction_vecs(spglib_dataset_->n_operations, 3);
+
+    ::output.verbose("\ninteraction vectors (%s)\n", interaction_filename.c_str());
+
+    for (int i = 0; i < spglib_dataset_->n_operations; i++) {
+        matmul(spglib_dataset_->rotations[i], r, r_sym);
+        for (int j = 0; j < 3; ++j) {
+          sym_interaction_vecs(i,j) = r_sym[j];
+        }
+        ::output.verbose("%f %f %f\n", r_sym[0], r_sym[1], r_sym[2]);
+    }
+
+    ::output.verbose("unit cell interactions\n");
+    for (int i = 0; i < motif_.size(); ++i) {
+      std::set<jblib::Vec4<int>, vec4_compare> interaction_set;
+      // only process for interactions belonging to this material
+      if (motif_[i].first == type_name_A) {
+        ::output.verbose("motif position %d\n", i);
+        for (int j = 0; j < sym_interaction_vecs.size(0); ++ j) {
+          // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
+          // component is the atoms number within the motif
+          jblib::Vec4<int> fast_integer_vector;
+          for (int k = 0; k < 3; ++k) {
+            // this gives the integer unit cell of the interaction
+            fast_integer_vector[k] = floor(sym_interaction_vecs(j,k) + motif_[i].second[k]);
+          }
+
+          // now calculate the motif offset
+          double motif_offset[3];
+          for (int k = 0; k < 3; ++k) {
+            motif_offset[k] = (sym_interaction_vecs(j,k) + motif_[i].second[k]) - fast_integer_vector[k];
+          }
+          // find which motif position this offset corresponds to
+          // it is possible that it does not correspond to a position in which case the
+          // "motif_partner" is -1
+          int motif_partner = -1;
+          for (int k = 0; k < motif_.size(); ++k) {
+            if ( fabs(motif_[k].second[0] - motif_offset[0]) < 1e-4
+              && fabs(motif_[k].second[1] - motif_offset[1]) < 1e-4
+              && fabs(motif_[k].second[2] - motif_offset[2]) < 1e-4 ) {
+              motif_partner = k;
+              break;
+            }
+          }
+          if (motif_partner != -1) {
+            fast_integer_vector[3] = motif_partner - i;
+            // check the motif partner is of the type that was specified in the exchange input file
+            if (motif_[motif_partner].first != type_name_B) {
+              ::output.write("wrong type ");
+            }
+            // ::output.write("%d %d %d %d %d % 3.6f % 3.6f % 3.6f\n", i, motif_partner, fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2], motif_offset[0], motif_offset[1], motif_offset[2]);
+            interaction_set.insert(fast_integer_vector);
+          }
+        }
+        for (auto it = interaction_set.begin(); it != interaction_set.end(); ++it) {
+          ::output.verbose("%d %d %d %d %d\n", i, (*it)[3], (*it)[0], (*it)[1], (*it)[2]);
+          fast_integer_interaction_list_[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >((*it), tensor));
+          counter++;
+        }
+      }
+    }
+  }
+  ::output.write("  total unit cell interactions: %d\n", counter);
+}
+
 void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
   if (!lattice_settings.exists("exchange")) {
     jams_warning("No exchange interaction file specified");
@@ -576,6 +711,7 @@ void Lattice::compute_exchange_interactions() {
   globals::J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
 
   ::output.write("\ncomputed interactions\n");
+  ::output.verbose("   i         j    ::     integer lattice vector\n");
 
   bool is_all_inserts_successful = true;
   int counter = 0;
@@ -616,6 +752,7 @@ void Lattice::compute_exchange_interactions() {
 
             int neighbour_site = fast_integer_lattice_(fast_integer_lookup_vector.x, fast_integer_lookup_vector.y, fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
 
+            ::output.verbose("% 8d % 8d :: % 8d % 8d % 8d\n", local_site, neighbour_site, fast_integer_lookup_vector.x, fast_integer_lookup_vector.y, fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
             // failsafe check that we only interact with any given site once through the input exchange file.
             if (is_already_interacting[neighbour_site]) {
               jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, fast_integer_lookup_vector.x, fast_integer_lookup_vector.y, fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);

@@ -66,6 +66,7 @@ class Lattice {
     void read_lattice(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void compute_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void read_interactions(const libconfig::Setting &lattice_settings);
+    void read_interactions_with_symmetry(const libconfig::Setting &lattice_settings);
     void compute_exchange_interactions();
     void compute_fft_exchange_interactions();
     void compute_fft_dipole_interactions();
