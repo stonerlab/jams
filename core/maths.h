@@ -161,6 +161,21 @@ void matmul(const _Tp a[3][3], const _Tp x[3], _Tp y[3]) {
   }
 }
 
+template <typename _A, typename _B, typename _C>
+void matmul(const _A a[3][3], const _B x[3], _C y[3]) {
+  int i, j;
+  for (i = 0; i < 3; ++i) {
+    y[i] = 0;
+    for (j = 0; j < 3; ++j) {
+#ifdef FP_FAST_FMA
+      y[i] = fma(a[i][j], x[j], y[i]);
+#else
+      y[i] += a[i][j]*x[j];
+#endif
+    }
+  }
+}
+
 template <typename _Tp>
 inline _Tp DotProduct(const _Tp a[3], const _Tp b[3]) {
 #ifdef FP_FAST_FMA
