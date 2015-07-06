@@ -493,7 +493,6 @@ void Lattice::read_interactions_with_symmetry(const libconfig::Setting &lattice_
     jams_error("failed to open interaction file %s", interaction_filename.c_str());
   }
 
-
   fast_integer_interaction_list_.resize(motif_.size());
 
   int counter = 0;
@@ -525,9 +524,9 @@ void Lattice::read_interactions_with_symmetry(const libconfig::Setting &lattice_
     }
 
     // transform into lattice vector basis
-    jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector);
+    // jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector);
 
-    double r[3] = {lattice_vector.x, lattice_vector.y, lattice_vector.z};
+    double r[3] = {interaction_vector.x, interaction_vector.y, interaction_vector.z};
     double r_sym[3];
 
     jblib::Array<double, 2> sym_interaction_vecs(spglib_dataset_->n_operations, 3);
@@ -535,11 +534,22 @@ void Lattice::read_interactions_with_symmetry(const libconfig::Setting &lattice_
     ::output.verbose("\ninteraction vectors (%s)\n", interaction_filename.c_str());
 
     for (int i = 0; i < spglib_dataset_->n_operations; i++) {
-        matmul(spglib_dataset_->rotations[i], r, r_sym);
-        for (int j = 0; j < 3; ++j) {
-          sym_interaction_vecs(i,j) = r_sym[j];
-        }
-        ::output.verbose("%f %f %f\n", r_sym[0], r_sym[1], r_sym[2]);
+      jblib::Vec3<double> rij(r[0], r[1], r[2]);
+      rij = inverse_lattice_vectors_*rij;
+      r[0] = rij.x; r[1] = rij.y; r[2] = rij.z;
+      matmul(spglib_dataset_->rotations[i], r, r_sym);
+      for (int j = 0; j < 3; ++j) {
+        sym_interaction_vecs(i,j) = r_sym[j]; // + spglib_dataset_->translations[i][j];
+      }
+      // ::output.verbose("%f %f %f\n", r_sym[0], r_sym[1], r_sym[2]);
+    }
+
+    if (verbose_output_is_set) {
+      ::output.verbose("unit cell realspace\n");
+      for (int i = 0; i < motif_.size(); ++i) {
+        jblib::Vec3<double> rij(motif_[i].second[0], motif_[i].second[1], motif_[i].second[2]);
+        ::output.verbose("%8d % 6.6f % 6.6f % 6.6f\n", i, rij[0], rij[1], rij[2]);
+      }
     }
 
     ::output.verbose("unit cell interactions\n");
@@ -548,20 +558,54 @@ void Lattice::read_interactions_with_symmetry(const libconfig::Setting &lattice_
       // only process for interactions belonging to this material
       if (motif_[i].first == type_name_A) {
         ::output.verbose("motif position %d\n", i);
+        ::output.verbose("        i         j ::             rij             |             uij             |             r0              |          motif offset          |          real rij          |         real offset\n");
+
+        // motif position in basis vector space
+        jblib::Vec3<double> pij(motif_[i].second[0], motif_[i].second[1], motif_[i].second[2]);
+        pij = lattice_vectors_*pij;
+
         for (int j = 0; j < sym_interaction_vecs.size(0); ++ j) {
-          // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
-          // component is the atoms number within the motif
-          jblib::Vec4<int> fast_integer_vector;
+
+          // position of neighbour in real space
+          jblib::Vec3<double> rij(sym_interaction_vecs(j,0), sym_interaction_vecs(j,1), sym_interaction_vecs(j,2));
+
+          rij = inverse_lattice_vectors_*rij + pij;
+          // for (int k = 0; k < 3; ++k) {
+          //   rij[k] = sym_interaction_vecs(j,k) + pij[k];
+          // }
+
+          ::output.verbose("% 6.6f % 6.6f % 6.6f | ", rij[0], rij[1], rij[2]);
+
+          jblib::Vec3<double> rij_inv = inverse_lattice_vectors_*rij;
+
+          ::output.verbose("% 6.6f % 6.6f % 6.6f | ", rij_inv[0], rij_inv[1], rij_inv[2]);
+
+          ::output.verbose("% 6.6f % 6.6f % 6.6f\n", floor(rij_inv[0]), floor(rij_inv[1]), floor(rij_inv[2]));
+
+
+          // jblib::Vec3<double> real_rij = lattice_vectors_*(rij + pij);
+
+
+          // integer unit cell index containing the neighbour
+          jblib::Vec3<double> uij = rij + pij;
           for (int k = 0; k < 3; ++k) {
-            // this gives the integer unit cell of the interaction
-            fast_integer_vector[k] = floor(sym_interaction_vecs(j,k) + motif_[i].second[k]);
+            uij[k] = floor(uij[k]);
           }
 
-          // now calculate the motif offset
-          double motif_offset[3];
-          for (int k = 0; k < 3; ++k) {
-            motif_offset[k] = (sym_interaction_vecs(j,k) + motif_[i].second[k]) - fast_integer_vector[k];
-          }
+          // origin of unit cell containing the neighbour in basis vector space
+          jblib::Vec3<double> r0 = uij;
+
+          // jblib::Vec3<double> motif_offset = rij - uij;
+          jblib::Vec3<double> motif_offset = (rij + pij) - uij;
+
+          jblib::Vec3<double> real_offset = lattice_vectors_*motif_offset;
+
+
+          // // now calculate the motif offset
+          // double motif_offset[3];
+          // for (int k = 0; k < 3; ++k) {
+          //   motif_offset[k] = (sym_interaction_vecs(j,k) + motif_[i].second[k]) - fast_integer_vector[k];
+          // }
           // find which motif position this offset corresponds to
           // it is possible that it does not correspond to a position in which case the
           // "motif_partner" is -1
@@ -574,18 +618,24 @@ void Lattice::read_interactions_with_symmetry(const libconfig::Setting &lattice_
               break;
             }
           }
+
+          // ::output.verbose("% 8d % 8d :: % 6.6f % 6.6f % 6.6f | % 8d % 8d % 8d | % 6.6f % 6.6f % 6.6f | % 6.6f % 6.6f % 6.6f | % 6.6f % 6.6f % 6.6f | % 6.6f % 6.6f % 6.6f\n",
+            // i, motif_partner, rij[0], rij[1], rij[2], int(uij[0]), int(uij[1]), int(uij[2]),
+            // r0[0], r0[1], r0[2], motif_offset[0], motif_offset[1], motif_offset[2], real_rij[0], real_rij[1], real_rij[2], real_offset[0], real_offset[1], real_offset[2]);
+
           if (motif_partner != -1) {
-            fast_integer_vector[3] = motif_partner - i;
+            // fast_integer_vector[3] = motif_partner - i;
             // check the motif partner is of the type that was specified in the exchange input file
             if (motif_[motif_partner].first != type_name_B) {
               ::output.write("wrong type ");
             }
+            jblib::Vec4<int> fast_integer_vector(uij[0], uij[1], uij[2], motif_partner - i);
             // ::output.write("%d %d %d %d %d % 3.6f % 3.6f % 3.6f\n", i, motif_partner, fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2], motif_offset[0], motif_offset[1], motif_offset[2]);
             interaction_set.insert(fast_integer_vector);
           }
         }
         for (auto it = interaction_set.begin(); it != interaction_set.end(); ++it) {
-          ::output.verbose("%d %d %d %d %d\n", i, (*it)[3], (*it)[0], (*it)[1], (*it)[2]);
+          ::output.verbose("% 8d % 8d :: % 8d % 8d % 8d\n", i, (*it)[3] + i, (*it)[0], (*it)[1], (*it)[2]);
           fast_integer_interaction_list_[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >((*it), tensor));
           counter++;
         }
@@ -1046,6 +1096,21 @@ void Lattice::calculate_unit_cell_symmetry() {
       ::output.write("  %d ", spglib_dataset_->equivalent_atoms[i]);
   }
   ::output.write("\n");
+  ::output.verbose("  Symmetry operations:\n");
+
+  for (int i = 0; i < spglib_dataset_->n_operations; i++) {
+    ::output.verbose("--- %d ---\n", i + 1);
+    for (j = 0; j < 3; j++) {
+      ::output.verbose("%2d %2d %2d\n",
+      spglib_dataset_->rotations[i][j][0],
+      spglib_dataset_->rotations[i][j][1],
+      spglib_dataset_->rotations[i][j][2]);
+    }
+    ::output.verbose("%f %f %f\n",
+    spglib_dataset_->translations[i][0],
+    spglib_dataset_->translations[i][1],
+    spglib_dataset_->translations[i][2]);
+  }
 
   int primitive_num_atoms = motif_.size();
   double primitive_lattice[3][3];
