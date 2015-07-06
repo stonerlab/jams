@@ -9,6 +9,8 @@ class Output;
 #include <iostream>
 #include <string>
 
+enum OutputFormat {TEXT, HDF5};
+
 class Output {
  public:
   Output() : logfile(), console(true) { enableConsole(); }

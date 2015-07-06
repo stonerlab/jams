@@ -94,6 +94,7 @@ OBJS += core/rand.o
 OBJS += core/solver.o
 OBJS += core/sparsematrix.o
 OBJS += core/thermostat.o
+OBJS += core/hamiltonian.o
 OBJS += monitors/anisotropy_energy.o
 OBJS += monitors/boltzmann.o
 OBJS += monitors/energy.o
@@ -113,6 +114,7 @@ OBJS += physics/ttm.o
 OBJS += solvers/heunllg.o
 OBJS += solvers/metropolismc.o
 OBJS += solvers/constrainedmc.o
+OBJS += hamiltonian/dipole.o
 
 HDR += core/consts.h
 HDR += core/error.h
@@ -131,6 +133,7 @@ HDR += core/sparsematrix.h
 HDR += core/thermostat.h
 HDR += core/utils.h
 HDR += core/slice.h
+HDR += core/hamiltonian.h
 HDR += monitors/anisotropy_energy.h
 HDR += monitors/boltzmann.h
 HDR += monitors/energy.h
@@ -151,6 +154,7 @@ HDR += physics/ttm.h
 HDR += solvers/heunllg.h
 HDR += solvers/metropolismc.h
 HDR += solvers/constrainedmc.h
+HDR += hamiltonian/dipole.h
 
 ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver.o

@@ -39,6 +39,8 @@ namespace optimize {
 }
 
 namespace globals {
+  GLOBAL bool is_cuda_solver_used;
+
   GLOBAL int num_spins;
   GLOBAL int num_spins3;
 
