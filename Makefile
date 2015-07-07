@@ -155,6 +155,7 @@ HDR += solvers/heunllg.h
 HDR += solvers/metropolismc.h
 HDR += solvers/constrainedmc.h
 HDR += hamiltonian/dipole.h
+HDR += hamiltonian/uniaxial.h
 
 ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver.o
@@ -164,6 +165,8 @@ ifndef NO_CUDA
 	CUDA_OBJS += solvers/cuda_constrainedmc.o
 	CUDA_OBJS += thermostats/cuda_langevin_coth.o
 	OBJS += thermostats/cuda_langevin_white.o
+	CUDA_OBJS += hamiltonian/uniaxial.o
+
 
 	CUDA_HDR += core/cuda_defs.h
 	CUDA_HDR += core/cuda_solver.h

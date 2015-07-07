@@ -1,5 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#include <cublas.h>
+
 #include "core/globals.h"
 #include "core/solver.h"
 #include "core/cuda_solver.h"
@@ -25,6 +27,12 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("\ninitializing CUDA base solver\n");
 
   ::output.write("  initialising CUDA streams\n");
+
+  is_cuda_solver_ = true;
+
+  // if (cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS) {
+  //   jams_error("CudaSolver: CUBLAS initialization failed");
+  // }
 
   dev_streams_ = new cudaStream_t[2];
 
@@ -200,9 +208,6 @@ void CudaSolver::compute_fields() {
 
   cudaStreamSynchronize(::cuda_streams[0]); // block until cudaMemsetAsync is finished
 
-  cuda_anisotropy_kernel<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE, 0, dev_streams_[1]>>>
-  (num_spins, dev_d2z_.data(), dev_d4z_.data(), dev_d6z_.data(), dev_s_.data(), dev_h_.data());
-
   // bilinear interactions
   if(J1ij_t.nonZero() > 0){
     spmv_dia_kernel<<< dev_J1ij_t_.blocks, DIA_BLOCK_SIZE, 0, dev_streams_[0] >>>
@@ -210,7 +215,14 @@ void CudaSolver::compute_fields() {
      dev_J1ij_t_.row, dev_J1ij_t_.val, dev_s_.data(), dev_h_.data());
   }
 
-  // anisotropy interactions
+  for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+    (*it)->calculate_fields();
+  }
+
+  const double alpha = 1.0;
+  for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+    cublasDaxpy(globals::num_spins3, alpha, dev_h_.data(), 1, (*it)->dev_ptr_field(), 1);
+  }
 }
 
 CudaSolver::~CudaSolver() {

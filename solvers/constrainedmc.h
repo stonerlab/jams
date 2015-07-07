@@ -3,9 +3,12 @@
 #ifndef JAMS_SOLVER_CONSTRAINEDMC_H
 #define JAMS_SOLVER_CONSTRAINEDMC_H
 
+#include <fstream>
+
 #include "core/solver.h"
 
 #include "jblib/containers/array.h"
+#include "jblib/containers/matrix.h"
 
 class ConstrainedMCSolver : public Solver {
  public:

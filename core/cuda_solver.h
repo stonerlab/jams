@@ -34,6 +34,10 @@ class CudaSolver : public Solver {
     }
   }
 
+  inline double * dev_ptr_spin() {
+    return dev_s_.data();
+  }
+
   void compute_fields();
   void compute_energy();
 

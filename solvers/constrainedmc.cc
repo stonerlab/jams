@@ -162,13 +162,13 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
       energy_final   -= s_final.x*h_dipole(ii,0) + s_final.y*h_dipole(ii,1) + s_final.z*h_dipole(ii,2);
     }
 
-    energy_initial -= d2z(ii)*0.5*(3.0*s(ii,2)*s(ii,2) - 1.0);
-    energy_initial -= d4z(ii)*0.125*(35.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)-30.0*s(ii,2)*s(ii,2) + 3.0);
-    energy_initial -= d6z(ii)*0.0625*(231.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2) - 315.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2) + 105.0*s(ii,2)*s(ii,2) - 5.0);
+    // energy_initial -= d2z(ii)*0.5*(3.0*s(ii,2)*s(ii,2) - 1.0);
+    // energy_initial -= d4z(ii)*0.125*(35.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)-30.0*s(ii,2)*s(ii,2) + 3.0);
+    // energy_initial -= d6z(ii)*0.0625*(231.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2) - 315.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2) + 105.0*s(ii,2)*s(ii,2) - 5.0);
 
-    energy_final -= d2z(ii)*0.5*(3.0*s_final.z*s_final.z - 1.0);
-    energy_final -= d4z(ii)*0.125*(35.0*s_final.z*s_final.z*s_final.z*s_final.z-30.0*s_final.z*s_final.z + 3.0);
-    energy_final -= d6z(ii)*0.0625*(231.0*s_final.z*s_final.z*s_final.z*s_final.z*s_final.z*s_final.z - 315.0*s_final.z*s_final.z*s_final.z*s_final.z + 105.0*s_final.z*s_final.z - 5.0);
+    // energy_final -= d2z(ii)*0.5*(3.0*s_final.z*s_final.z - 1.0);
+    // energy_final -= d4z(ii)*0.125*(35.0*s_final.z*s_final.z*s_final.z*s_final.z-30.0*s_final.z*s_final.z + 3.0);
+    // energy_final -= d6z(ii)*0.0625*(231.0*s_final.z*s_final.z*s_final.z*s_final.z*s_final.z*s_final.z - 315.0*s_final.z*s_final.z*s_final.z*s_final.z + 105.0*s_final.z*s_final.z - 5.0);
 
     return (energy_final - energy_initial);
   }

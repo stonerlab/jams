@@ -10,6 +10,8 @@
 #include "core/output.h"
 #include "core/rand.h"
 #include "core/sparsematrix.h"
+#include "core/solver.h"
+#include "core/physics.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/sparsematrix.h"
@@ -26,7 +28,8 @@
 
 GLOBAL cudaStream_t* cuda_streams;
 #endif
-
+GLOBAL Solver *solver;
+GLOBAL Physics *physics_module;
 GLOBAL Lattice lattice;
 GLOBAL libconfig::Config config;  ///< Config object
 GLOBAL Output output;

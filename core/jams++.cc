@@ -24,8 +24,7 @@
 #endif
 
 namespace {
-  Solver *solver;
-  Physics *physics_module;
+
   double dt = 0.0;
   int steps_eq = 0;
   int steps_run = 0;
@@ -207,6 +206,17 @@ int jams_initialize(int argc, char **argv) {
           solver->register_monitor(Monitor::create(monitor_settings[i]));
         }
       }
+
+      if (!::config.exists("hamiltonians")) {
+        jams_error("No hamiltonian terms selected");
+      } else {
+        // loop over hamiltonian groups and register
+        const libconfig::Setting &hamiltonian_settings = ::config.lookup("hamiltonians");
+        for (int i = 0; i != hamiltonian_settings.getLength(); ++i) {
+          solver->register_hamiltonian(Hamiltonian::create(hamiltonian_settings[i]));
+        }
+      }
+
     }
     catch(const libconfig::FileIOException &fioex) {
       jams_error("I/O error while reading '%s'", config_filename.c_str());

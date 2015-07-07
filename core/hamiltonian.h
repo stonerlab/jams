@@ -6,6 +6,9 @@
 #include <string>
 
 #include "jblib/containers/array.h"
+#include "jblib/containers/cuda_array.h"
+
+#include "core/output.h"
 
 class Hamiltonian {
  public:
@@ -26,7 +29,15 @@ class Hamiltonian {
   virtual void   output_energies(OutputFormat format) = 0;
   virtual void   output_fields(OutputFormat format) = 0;
 
- private:
+  double* dev_ptr_energy() {
+    return dev_energy_.data();
+  }
+
+  double* dev_ptr_field() {
+    return dev_field_.data();
+  }
+
+ protected:
 
   virtual void output_energies_text() = 0;
   // virtual void output_energies_hdf5() = 0;
@@ -34,6 +45,15 @@ class Hamiltonian {
   virtual void output_fields_text() = 0;
   // virtual void output_fields_hdf5() = 0;
 
+
+  OutputFormat            outformat_;
+  jblib::Array<double, 1> energy_;
+  jblib::Array<double, 2> field_;
+
+#ifdef CUDA
+  jblib::CudaArray<double, 1> dev_energy_;
+  jblib::CudaArray<double, 1> dev_field_;
+#endif  // CUDA
 };
 
 #endif  // JAMS_CORE_HAMILTONIAN_H
