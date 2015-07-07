@@ -221,7 +221,7 @@ void CudaSolver::compute_fields() {
 
   const double alpha = 1.0;
   for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-    cublasDaxpy(globals::num_spins3, alpha, dev_h_.data(), 1, (*it)->dev_ptr_field(), 1);
+    cublasDaxpy(globals::num_spins3, alpha, (*it)->dev_ptr_field(), 1, dev_h_.data(), 1);
   }
 }
 
