@@ -37,34 +37,6 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
       jams_error("UniaxialHamiltonian: anisotropy should only be specified in terms of K1, K2, K3 or d2z, d4z, d6z in the config file");
     }
 
-    // deal with magnetocrystalline anisotropy coefficients
-    if(settings.exists("d2z")) {
-        if (settings["d2z"].getLength() != lattice.num_materials()) {
-            jams_error("UniaxialHamiltonian: d2z must be specified for every material");
-        }
-        for (int i = 0; i < globals::num_spins; ++i) {
-            d2z_(i) = double(settings["d2z"][lattice.get_material_number(i)])/mu_bohr_si;
-        }
-    }
-
-    if(settings.exists("d4z")) {
-        if (settings["d4z"].getLength() != lattice.num_materials()) {
-            jams_error("UniaxialHamiltonian: d4z must be specified for every material");
-        }
-        for (int i = 0; i < globals::num_spins; ++i) {
-            d4z_(i) = double(settings["d4z"][lattice.get_material_number(i)])/mu_bohr_si;
-        }
-    }
-
-    if(settings.exists("d6z")) {
-        if (settings["d6z"].getLength() != lattice.num_materials()) {
-            jams_error("UniaxialHamiltonian: d6z must be specified for every material");
-        }
-        for (int i = 0; i < globals::num_spins; ++i) {
-            d6z_(i) = double(settings["d6z"][lattice.get_material_number(i)])/mu_bohr_si;
-        }
-    }
-
     // deal with magnetic anisotropy constants
     jblib::Array<double, 1> K1(globals::num_spins, 0.0);
     jblib::Array<double, 1> K2(globals::num_spins, 0.0);
@@ -103,6 +75,33 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         d6z_(i) = ((16.0/231.0)*K3(i));
     }
 
+    // deal with magnetocrystalline anisotropy coefficients
+    if(settings.exists("d2z")) {
+        if (settings["d2z"].getLength() != lattice.num_materials()) {
+            jams_error("UniaxialHamiltonian: d2z must be specified for every material");
+        }
+        for (int i = 0; i < globals::num_spins; ++i) {
+            d2z_(i) = double(settings["d2z"][lattice.get_material_number(i)])/mu_bohr_si;
+        }
+    }
+
+    if(settings.exists("d4z")) {
+        if (settings["d4z"].getLength() != lattice.num_materials()) {
+            jams_error("UniaxialHamiltonian: d4z must be specified for every material");
+        }
+        for (int i = 0; i < globals::num_spins; ++i) {
+            d4z_(i) = double(settings["d4z"][lattice.get_material_number(i)])/mu_bohr_si;
+        }
+    }
+
+    if(settings.exists("d6z")) {
+        if (settings["d6z"].getLength() != lattice.num_materials()) {
+            jams_error("UniaxialHamiltonian: d6z must be specified for every material");
+        }
+        for (int i = 0; i < globals::num_spins; ++i) {
+            d6z_(i) = double(settings["d6z"][lattice.get_material_number(i)])/mu_bohr_si;
+        }
+    }
 
     // transfer arrays to cuda device if needed
 #ifdef CUDA
@@ -115,7 +114,6 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         dev_d6z_ = jblib::CudaArray<double, 1>(d6z_);
     }
 #endif
-
 
 }
 
@@ -162,7 +160,7 @@ void UniaxialHamiltonian::calculate_fields() {
 #ifdef CUDA
         cuda_uniaxial_field_kernel<<<(globals::num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>
             (globals::num_spins, dev_d2z_.data(), dev_d4z_.data(), dev_d6z_.data(), solver->dev_ptr_spin(), dev_field_.data());
-#endif  //
+#endif  // CUDA
     } else {
         for (int i = 0; i < globals::num_spins; ++i) {
             double h[3];
