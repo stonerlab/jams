@@ -29,7 +29,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   outfile << std::setw(16) << "Hz";
 
   for (int i = 0; i < lattice.num_materials(); ++i) {
-    outfile << std::setw(16) <<  lattice.get_material_name(i) + " -> " + "mx" ;
+    outfile << std::setw(16) <<  lattice.material_name(i) + " -> " + "mx" ;
     outfile << std::setw(16) << "my";
     outfile << std::setw(16) << "mz";
     outfile << std::setw(16) << "|m|";
@@ -51,7 +51,7 @@ void MagnetisationMonitor::update(const int &iteration, const double &time, cons
     }
 
     for (i = 0; i < num_spins; ++i) {
-      int type = lattice.get_material_number(i);
+      int type = lattice.material_id(i);
       for (j = 0; j < 3; ++j) {
         mag(type, j) += s(i, j);
       }

@@ -50,7 +50,7 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
   outfile << std::setw(16) << "temperature";
 
   for (int i = 0; i < lattice.num_materials(); ++i) {
-    outfile << std::setw(16) <<  lattice.get_material_name(i) + " -> " + "r_avg(x,y,z)";
+    outfile << std::setw(16) <<  lattice.material_name(i) + " -> " + "r_avg(x,y,z)";
     for (int j = 0; j < thresholds.size(); ++j) {
       outfile << std::setw(16) << "R_g" << "[t" << thresholds[j] << "]";
       outfile << std::setw(16) << "2R_g/sqrt(2)" << "[t" << thresholds[j] << "]";
@@ -87,7 +87,7 @@ void SkyrmionMonitor::update(const int &iteration, const double &time, const dou
       }
 
       for (i = 0; i < num_spins; ++i) {
-        type = lattice.get_material_number(i);
+        type = lattice.material_id(i);
         if (s(i, 2)*type_norms[type] > thresholds[t]) {
           x = lattice.lattice_positions_[i].x - r_com[type].x;
           x = x - nint(x / x_size) * x_size;
@@ -179,7 +179,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_c
   }
 
   for (i = 0; i < num_spins; ++i) {
-    type = lattice.get_material_number(i);
+    type = lattice.material_id(i);
     if (s(i, 2)*type_norms[type] > threshold) {
       tube_x_com[type] += tube_x[i];
       tube_y_com[type] += tube_y[i];
@@ -205,7 +205,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_c
   // }
 
   // for (i = 0; i < num_spins; ++i) {
-  //   type = lattice.get_material_number(i);
+  //   type = lattice.material_id(i);
   //   if (s(i, 2)*type_norms[type] > threshold) {
   //     r_com[type] += lattice.lattice_positions_[i];
   //     r_count[type]++;

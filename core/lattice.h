@@ -17,30 +17,47 @@ class Lattice {
     Lattice()  {}
     void initialize();
 
-    // inline void getDimensions(int &x, int &y, int& z) { x = dim[0]; y = dim[1]; z = dim[2]; }
-    // inline void getMaxDimensions(float &x, float& y, float& z) { x = rmax[0]; y = rmax[1]; z = rmax[2]; }
-    // inline void getBoundaries(bool &x, bool &y, bool& z) { x = is_periodic[0]; y = is_periodic[1]; z = is_periodic[2]; }
-    // inline void getKspaceDimensions(int &x, int &y, int& z) {
-    //     x = unitcell_kpoints[0]*dim[0];
-    //     y = unitcell_kpoints[1]*dim[1];
-    //     z = unitcell_kpoints[2]*dim[2];
-    // }
-
-
-    // inline void getSpinIntCoord(const int &n, int &x, int &y, int &z){
-    //     x = spin_int_map(n, 0);
-    //     y = spin_int_map(n, 1);
-    //     z = spin_int_map(n, 2);
-    // }
-
-    inline std::string get_material_name(const int material_number) const {
+    // material function
+    inline int num_materials() const {
+        return materials_map_.size();
+    }
+    inline std::string material(const int i) const {
+        return lattice_materials_[i];
+    }
+    inline int material_id(const int i) {
+        return materials_map_[lattice_materials_[i]];
+    }
+    inline std::string material_name(const int material_number) const {
       return materials_numbered_list_[material_number];
     }
+    inline int num_spins_of_material(const int i) const {
+        return material_count_[i];
+    }
 
-    inline int num_spins_of_material(const int i) const { return material_count_[i]; }
-    inline std::string get_material(const int i) const { return lattice_materials_[i]; }
-    inline int get_material_number(const int i) { return materials_map_[lattice_materials_[i]]; }
-    inline int num_materials() { return materials_map_.size(); }
+    // motif functions
+    inline int num_motif_positions() const {
+        return motif_.size();
+    }
+
+    inline jblib::Vec3<double> motif_posititon(const int i) const {
+        return motif_[i].second;
+    }
+    inline std::string motif_material(const int i) const {
+        return motif_[i].first;
+    }
+    inline int motif_material_id(const int i) {
+        return materials_map_[motif_material(i)];
+    }
+
+    // lattice vector functions
+    inline jblib::Vec3<double> cartesian_to_fractional_position(const jblib::Vec3<double>& r_cart) {
+        return inverse_lattice_vectors_*r_cart;
+    }
+
+    inline jblib::Vec3<double> fractional_to_cartesian_position(const jblib::Vec3<double>& r_frac) {
+        return lattice_vectors_*r_frac;
+    }
+
     void output_spin_state_as_vtu(std::ofstream &outfile);
     void output_spin_state_as_binary(std::ofstream &outfile);
     void output_spin_types_as_binary(std::ofstream &outfile);

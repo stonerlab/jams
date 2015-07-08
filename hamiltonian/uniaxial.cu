@@ -47,7 +47,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: K1 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            K1(i) = double(settings["K1"][lattice.get_material_number(i)])/mu_bohr_si;
+            K1(i) = double(settings["K1"][lattice.material_id(i)])/mu_bohr_si;
         }
     }
 
@@ -56,7 +56,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: K2 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            K2(i) = double(settings["K2"][lattice.get_material_number(i)])/mu_bohr_si;
+            K2(i) = double(settings["K2"][lattice.material_id(i)])/mu_bohr_si;
         }
     }
 
@@ -65,7 +65,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: K3 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            K3(i) = double(settings["K3"][lattice.get_material_number(i)])/mu_bohr_si;
+            K3(i) = double(settings["K3"][lattice.material_id(i)])/mu_bohr_si;
         }
     }
 
@@ -81,7 +81,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: d2z must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            d2z_(i) = double(settings["d2z"][lattice.get_material_number(i)])/mu_bohr_si;
+            d2z_(i) = double(settings["d2z"][lattice.material_id(i)])/mu_bohr_si;
         }
     }
 
@@ -90,7 +90,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: d4z must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            d4z_(i) = double(settings["d4z"][lattice.get_material_number(i)])/mu_bohr_si;
+            d4z_(i) = double(settings["d4z"][lattice.material_id(i)])/mu_bohr_si;
         }
     }
 
@@ -99,7 +99,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: d6z must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            d6z_(i) = double(settings["d6z"][lattice.get_material_number(i)])/mu_bohr_si;
+            d6z_(i) = double(settings["d6z"][lattice.material_id(i)])/mu_bohr_si;
         }
     }
 
