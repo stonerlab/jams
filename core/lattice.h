@@ -39,7 +39,7 @@ class Lattice {
         return motif_.size();
     }
 
-    inline jblib::Vec3<double> motif_posititon(const int i) const {
+    inline jblib::Vec3<double> motif_position(const int i) const {
         return motif_[i].second;
     }
     inline std::string motif_material(const int i) const {
