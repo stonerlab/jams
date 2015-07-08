@@ -159,23 +159,6 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
   }
   dev_mat_      = jblib::CudaArray<CudaFastFloat, 1>(mat);
 
-  // anisotropy arrays
-  jblib::Array<CudaFastFloat, 1> dz(num_spins);
-  for (int i = 0; i < num_spins; ++i) {
-    dz[i] = static_cast<CudaFastFloat>(globals::d2z[i]);
-  }
-  dev_d2z_ = jblib::CudaArray<CudaFastFloat, 1>(dz);
-
-  for (int i = 0; i < num_spins; ++i) {
-    dz[i] = static_cast<CudaFastFloat>(globals::d4z[i]);
-  }
-  dev_d4z_ = jblib::CudaArray<CudaFastFloat, 1>(dz);
-
-  for (int i = 0; i < num_spins; ++i) {
-    dz[i] = static_cast<CudaFastFloat>(globals::d6z[i]);
-  }
-  dev_d6z_ = jblib::CudaArray<CudaFastFloat, 1>(dz);
-
   ::output.write("\n");
 }
 

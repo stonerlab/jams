@@ -61,10 +61,6 @@ namespace globals {
   GLOBAL jblib::Array<fftw_complex, 4> hq;
   GLOBAL jblib::Array<fftw_complex, 5> wq;
 
-  GLOBAL jblib::Array<double, 1> d2z;
-  GLOBAL jblib::Array<double, 1> d4z;
-  GLOBAL jblib::Array<double, 1> d6z;
-
   GLOBAL jblib::Array<double, 1> alpha;
   GLOBAL jblib::Array<double, 1> mus;
   GLOBAL jblib::Array<double, 1> gyro;

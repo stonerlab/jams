@@ -147,16 +147,10 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
   // dipole and exchange
   energy_initial -= s(ii, 0)*field[0] + s(ii, 1)*field[1] + s(ii,2)*field[2];
   // anisotropy
-  energy_initial -= d2z(ii)*0.5*(3.0*s(ii, 2)*s(ii, 2) - 1.0);
-  energy_initial -= d4z(ii)*0.125*(35.0*s(ii, 2)*s(ii, 2)*s(ii, 2)*s(ii, 2)-30.0*s(ii, 2)*s(ii, 2) + 3.0);
-  energy_initial -= d6z(ii)*0.0625*(231.0*s(ii, 2)*s(ii, 2)*s(ii, 2)*s(ii, 2)*s(ii, 2)*s(ii, 2) - 315.0*s(ii, 2)*s(ii, 2)*s(ii, 2)*s(ii, 2) + 105.0*s(ii, 2)*s(ii, 2) - 5.0);
 
   // dipole and exchange
   energy_final -= s_final[0]*field[0] + s_final[1]*field[1] + s_final[2]*field[2];
   // anisotropy
-  energy_final -= d2z(ii)*0.5*(3.0*s_final[2]*s_final[2] - 1.0);
-  energy_final -= d4z(ii)*0.125*(35.0*s_final[2]*s_final[2]*s_final[2]*s_final[2]-30.0*s_final[2]*s_final[2] + 3.0);
-  energy_final -= d6z(ii)*0.0625*(231.0*s_final[2]*s_final[2]*s_final[2]*s_final[2]*s_final[2]*s_final[2] - 315.0*s_final[2]*s_final[2]*s_final[2]*s_final[2] + 105.0*s_final[2]*s_final[2] - 5.0);
 
   return (energy_final - energy_initial);
 }

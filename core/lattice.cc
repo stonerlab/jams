@@ -348,16 +348,10 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   globals::alpha.resize(globals::num_spins);
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
-  globals::d2z.resize(globals::num_spins);
-  globals::d4z.resize(globals::num_spins);
-  globals::d6z.resize(globals::num_spins);
   globals::wij.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z, 3, 3);
 
   std::fill(globals::h.data(), globals::h.data()+globals::num_spins3, 0.0);
   std::fill(globals::h_dipole.data(), globals::h_dipole.data()+globals::num_spins3, 0.0);
-  std::fill(globals::d2z.data(), globals::d2z.data()+globals::num_spins, 0.0);
-  std::fill(globals::d4z.data(), globals::d4z.data()+globals::num_spins, 0.0);
-  std::fill(globals::d6z.data(), globals::d6z.data()+globals::num_spins, 0.0);
   std::fill(globals::wij.data(), globals::wij.data()+kspace_size_.x*kspace_size_.y*kspace_size_.z*3*3, 0.0);
 
   material_count_.resize(num_materials(), 0);
@@ -415,42 +409,6 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
     }
 
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
-
-    if ( (type_settings.exists("K1") || type_settings.exists("K2") || type_settings.exists("K3")) &&
-         (type_settings.exists("d2z") || type_settings.exists("d4z") || type_settings.exists("d6z")) ) {
-      jams_error("anisotropy should only be specified in terms of K1, K2, K3 or d2z, d4z, d6z in the config file");
-    }
-
-    if (type_settings.exists("d2z")) {
-      globals::d2z(i) = type_settings["d2z"];
-      globals::d2z(i) /= mu_bohr_si;
-    }
-
-    if (type_settings.exists("d4z")) {
-      globals::d4z(i) = type_settings["d4z"];
-      globals::d4z(i) /= mu_bohr_si;
-    }
-
-    if (type_settings.exists("d6z")) {
-      globals::d6z(i) = type_settings["d6z"];
-      globals::d6z(i) /= mu_bohr_si;
-    }
-
-    double K1 = 0.0, K2 = 0.0, K3 = 0.0;
-    if (type_settings.exists("K3")) {
-      K3 = type_settings["K3"];
-      globals::d6z(i) = -((16.0/231.0)*K3)/mu_bohr_si;
-    }
-
-    if (type_settings.exists("K2")) {
-      K2 = type_settings["K2"];
-      globals::d4z(i) = ((8.0/35.0)*K2 + (144.0/385.0)*K3)/mu_bohr_si;
-    }
-
-    if (type_settings.exists("K1")) {
-      K1 = type_settings["K1"];
-      globals::d2z(i) = -(2.0/3.0)*(K1 + (8.0/7.0)*K2 + (8.0/7.0)*K3)/mu_bohr_si;
-    }
   }
 }
 
