@@ -31,28 +31,15 @@ void Lattice::initialize() {
   ::output.write("initializing lattice");
   ::output.write("\n----------------------------------------\n");
 
-  read_lattice(::config.lookup("materials"), ::config.lookup("lattice"));
-  compute_positions(::config.lookup("materials"), ::config.lookup("lattice"));
-  read_interactions(::config.lookup("lattice"));
-
-  config.lookupValue("sim.verbose_output", verbose_output_is_set);
-
   bool use_dipole = false;
 
+  config.lookupValue("sim.verbose_output", verbose_output_is_set);
   config.lookupValue("lattice.dipole", use_dipole);
 
-  if (::optimize::use_fft) {
-    //compute_fft_exchange_interactions();
-    compute_exchange_interactions();
-    if (use_dipole) {
-      compute_fft_dipole_interactions();
-    }
-  } else {
-    compute_exchange_interactions();
-    if (use_dipole) {
-      jams_error("Dipole calculations we requested but are unavailable due to the lack of FFT optimizations");
-    }
-  }
+  read_lattice(::config.lookup("materials"), ::config.lookup("lattice"));
+  compute_positions(::config.lookup("materials"), ::config.lookup("lattice"));
+
+
 }
 
 ///
@@ -122,10 +109,6 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
     lattice_pbc_.y ? "periodic" : "open",
     lattice_pbc_.z ? "periodic" : "open");
 
-  // if (!(lattice_pbc_.x && lattice_pbc_.y && lattice_pbc_.z)) {
-  //   jams_warning("FFT optimizations are not yet supported for open boundaries.\nFFT OPTIMIZATIONS HAVE BEEN DISABLED");
-  // }
-
 //-----------------------------------------------------------------------------
 // Read materials
 //-----------------------------------------------------------------------------
@@ -142,11 +125,6 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
     ::output.write("  %-6d %s\n", counter, name.c_str());
     counter++;
   }
-
-  // if (counter > 1) {
-  //   ::optimize::use_fft = false;
-  //   jams_warning("FFT optimizations were requested,\nbut this is only supported with a single species.\nFFT OPTIMIZATIONS HAVE BEEN DISABLED");
-  // }
 
 //-----------------------------------------------------------------------------
 // Read motif
@@ -196,7 +174,7 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
 
 void Lattice::compute_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
 
-  fast_integer_lattice_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
+  lattice_integer_lookup_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
 
   jblib::Vec3<int> kmesh_size(kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
   if (!lattice_pbc_.x || !lattice_pbc_.y || !lattice_pbc_.z) {
@@ -216,7 +194,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 // initialize everything to -1 so we can check for double assignment below
 
   for (int i = 0, iend = lattice_size_.x*lattice_size_.y*lattice_size_.z*motif_.size(); i < iend; ++i) {
-    fast_integer_lattice_[i] = -1;
+    lattice_integer_lookup_[i] = -1;
   }
 
   for (int i = 0, iend = kspace_size_.x*kspace_size_.y*kspace_size_.z; i < iend; ++i) {
@@ -237,7 +215,7 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
         for (int m = 0, mend = motif_.size(); m != mend; ++m) {
 
           // number the site in the fast integer lattice
-          fast_integer_lattice_(i, j, k, m) = atom_counter;
+          lattice_integer_lookup_(i, j, k, m) = atom_counter;
 
           // position of motif atom in fractional lattice vectors
           jblib::Vec3<double> lattice_pos(i+motif_[m].second.x, j+motif_[m].second.y, k+motif_[m].second.z);
@@ -348,11 +326,11 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   globals::alpha.resize(globals::num_spins);
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
-  globals::wij.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z, 3, 3);
+  // globals::wij.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z, 3, 3);
 
   std::fill(globals::h.data(), globals::h.data()+globals::num_spins3, 0.0);
   std::fill(globals::h_dipole.data(), globals::h_dipole.data()+globals::num_spins3, 0.0);
-  std::fill(globals::wij.data(), globals::wij.data()+kspace_size_.x*kspace_size_.y*kspace_size_.z*3*3, 0.0);
+  // std::fill(globals::wij.data(), globals::wij.data()+kspace_size_.x*kspace_size_.y*kspace_size_.z*3*3, 0.0);
 
   material_count_.resize(num_materials(), 0);
   for (int i = 0; i < globals::num_spins; ++i) {
@@ -412,100 +390,6 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   }
 }
 
-void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
-  if (!lattice_settings.exists("exchange")) {
-    jams_warning("No exchange interaction file specified");
-    return; // don't try and process the file
-  }
-
-  std::string interaction_filename = lattice_settings["exchange"];
-  // read in typeA typeB rx ry rz Jij
-  std::ifstream interaction_file(interaction_filename.c_str());
-
-  if(interaction_file.fail()) {
-    jams_error("failed to open interaction file %s", interaction_filename.c_str());
-  }
-
-  ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
-
-  fast_integer_interaction_list_.resize(motif_.size());
-
-  int counter = 0;
-  // read the motif into an array from the positions file
-  for (std::string line; getline(interaction_file, line); ) {
-    std::stringstream is(line);
-
-    int typeA, typeB;
-
-    is >> typeA >> typeB;
-    typeA--; typeB--;  // zero base the types
-
-    // type difference
-    int type_difference = (typeB - typeA);
-
-    jblib::Vec3<double> interaction_vector;
-    is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
-
-    // transform into lattice vector basis
-    jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector) + motif_[typeA].second;
-
-    // translate by the motif back to (hopefully) the origin of the local unit cell
-    // for (int i = 0; i < 3; ++ i) {
-    //   lattice_vector[i] -= motif_[type_difference].second[i];
-    // }
-
-    // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
-    // component is the atoms number within the motif
-    jblib::Vec4<int> fast_integer_vector;
-    for (int i = 0; i < 3; ++ i) {
-      // rounding with nint accounts for lack of precision in definition of the real space vectors
-      fast_integer_vector[i] = floor(lattice_vector[i]+0.001);
-    }
-    fast_integer_vector[3] = type_difference;
-
-    jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
-    if (file_columns(line) == 6) {
-      // one Jij component given - diagonal
-      is >> tensor[0][0];
-      tensor[1][1] = tensor[0][0];
-      tensor[2][2] = tensor[0][0];
-    } else if (file_columns(line) == 14) {
-      // nine Jij components given - full tensor
-      is >> tensor[0][0] >> tensor[0][1] >> tensor[0][2];
-      is >> tensor[1][0] >> tensor[1][1] >> tensor[1][2];
-      is >> tensor[2][0] >> tensor[2][1] >> tensor[2][2];
-    } else {
-      jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
-    }
-
-    fast_integer_interaction_list_[typeA].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
-
-    if (verbose_output_is_set) {
-      ::output.write("  line %-9d              %s\n", counter, line.c_str());
-      ::output.write("  types               A : %d  B : %d  B - A : %d\n", typeA, typeB, type_difference);
-      ::output.write("  interaction vector % 3.6f % 3.6f % 3.6f\n",
-        interaction_vector.x, interaction_vector.y, interaction_vector.z);
-      ::output.write("  fractional vector  % 3.6f % 3.6f % 3.6f\n",
-        lattice_vector.x, lattice_vector.y, lattice_vector.z);
-      ::output.write("  integer vector     % -9d % -9d % -9d % -9d\n\n",
-        fast_integer_vector.x, fast_integer_vector.y, fast_integer_vector.z, fast_integer_vector.w);
-    }
-    counter++;
-  }
-
-  if(!verbose_output_is_set) {
-    ::output.write("  ... [use verbose output for details] ... \n");
-    ::output.write("  total: %d\n", counter);
-  }
-
-  interaction_file.close();
-
-  energy_cutoff_ = 1E-26;  // default value (in joules)
-  lattice_settings.lookupValue("energy_cutoff", energy_cutoff_);
-
-  ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
-}
-
 void Lattice::load_spin_state_from_hdf5(std::string &filename) {
   using namespace H5;
 
@@ -519,120 +403,6 @@ void Lattice::load_spin_state_from_hdf5(std::string &filename) {
   }
 
   dataset.read(globals::s.data(), PredType::NATIVE_DOUBLE);
-}
-
-void Lattice::compute_exchange_interactions() {
-
-  globals::J1ij_t.resize(globals::num_spins3,globals::num_spins3);
-  globals::J1ij_t.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-  globals::J1ij_t.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-
-  ::output.write("\ncomputed interactions\n");
-
-  bool is_all_inserts_successful = true;
-  int counter = 0;
-  // loop over the translation vectors for lattice size
-  for (int i = 0; i < lattice_size_.x; ++i) {
-    for (int j = 0; j < lattice_size_.y; ++j) {
-      for (int k = 0; k < lattice_size_.z; ++k) {
-        // loop over atoms in the motif
-        for (int m = 0, mend = motif_.size(); m < mend; ++m) {
-          int local_site = fast_integer_lattice_(i, j, k, m);
-
-          std::vector<bool> is_already_interacting(globals::num_spins, false);
-          is_already_interacting[local_site] = true;  // don't allow self interaction
-
-          // loop over all possible interaction vectors
-          for (int n = 0, nend = fast_integer_interaction_list_[m].size(); n < nend; ++n) {
-
-            jblib::Vec4<int> fast_integer_lookup_vector(
-              i + fast_integer_interaction_list_[m][n].first.x,
-              j + fast_integer_interaction_list_[m][n].first.y,
-              k + fast_integer_interaction_list_[m][n].first.z,
-              (motif_.size() + m + fast_integer_interaction_list_[m][n].first.w)%motif_.size());
-
-            bool interaction_is_outside_lattice = false;
-            // if we are trying to interact with a site outside of the boundary
-            for (int l = 0; l < 3; ++l) {
-              if (lattice_pbc_[l]) {
-                fast_integer_lookup_vector[l] = (fast_integer_lookup_vector[l] + lattice_size_[l])%lattice_size_[l];
-              } else {
-                if (fast_integer_lookup_vector[l] < 0 || fast_integer_lookup_vector[l] >= lattice_size_[l]) {
-                  interaction_is_outside_lattice = true;
-                }
-              }
-            }
-            if (interaction_is_outside_lattice) {
-              continue;
-            }
-
-            int neighbour_site = fast_integer_lattice_(fast_integer_lookup_vector.x, fast_integer_lookup_vector.y, fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
-
-            // failsafe check that we only interact with any given site once through the input exchange file.
-            if (is_already_interacting[neighbour_site]) {
-              jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, fast_integer_lookup_vector.x, fast_integer_lookup_vector.y, fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
-            }
-            is_already_interacting[neighbour_site] = true;
-
-            if (insert_interaction(local_site, neighbour_site, fast_integer_interaction_list_[m][n].second)) {
-              // if(local_site >= neighbour_site) {
-              //   std::cerr << local_site << "\t" << neighbour_site << "\t" << neighbour_site << "\t" << local_site << std::endl;
-              // }
-              counter++;
-            } else {
-              is_all_inserts_successful = false;
-            }
-            if (insert_interaction(neighbour_site, local_site, fast_integer_interaction_list_[m][n].second)) {
-              counter++;
-            } else {
-              is_all_inserts_successful = false;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (!is_all_inserts_successful) {
-    jams_warning("Some interactions were ignored due to the energy cutoff (%e)", energy_cutoff_);
-  }
-
-  ::output.write("  total: %d\n", counter);
-}
-
-void Lattice::compute_fft_exchange_interactions() {
-  ::output.write("\ncomputed fft exchange interactions\n");
-
-  for (int i = 0, iend = motif_.size(); i < iend; ++i) {
-    for (int j = 0, jend = fast_integer_interaction_list_[i].size(); j < jend; ++j) {
-      jblib::Vec3<int> pos(
-        kpoints_.x*(fast_integer_interaction_list_[i][j].first.x + motif_[fast_integer_interaction_list_[i][j].first.w].second.x),
-        kpoints_.y*(fast_integer_interaction_list_[i][j].first.y + motif_[fast_integer_interaction_list_[i][j].first.w].second.y),
-        kpoints_.z*(fast_integer_interaction_list_[i][j].first.z + motif_[fast_integer_interaction_list_[i][j].first.w].second.z));
-
-      if (abs(pos.x) > (kspace_size_.x/2) || abs(pos.y) > (kspace_size_.y/2) || abs(pos.z) > (kspace_size_.z/2)) {
-        jams_error("Your exchange is too long-range for the periodic system resulting in self interaction");
-      }
-
-      if (pos.x < 0) {
-        pos.x = kspace_size_.x + pos.x;
-      }
-      if (pos.y < 0) {
-        pos.y = kspace_size_.y + pos.y;
-      }
-      if (pos.z < 0) {
-        pos.z = kspace_size_.z + pos.z;
-      }
-
-    // std::cerr <<fast_integer_interaction_list_[i].first.x << "\t" << fast_integer_interaction_list_[i].first.y << "\t" << fast_integer_interaction_list_[i].first.z << "\t" << pos.x << "\t" << pos.y << "\t" << pos.z << std::endl;
-
-      for (int m = 0; m < 3; ++m) {
-        for (int n = 0; n < 3; ++n) {
-          globals::wij(pos.x, pos.y, pos.z, m, n) += fast_integer_interaction_list_[i][j].second[m][n]/mu_bohr_si;
-        }
-      }
-    }
-  }
 }
 
 void Lattice::compute_fft_dipole_interactions() {
@@ -713,39 +483,6 @@ void Lattice::compute_fft_dipole_interactions() {
       }
     }
   }
-
-}
-
-bool Lattice::insert_interaction(const int m, const int n, const jblib::Matrix<double, 3, 3> &value) {
-
-  int counter = 0;
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      if (fabs(value[i][j]) > energy_cutoff_) {
-        counter++;
-        if(globals::J1ij_t.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-          if(globals::J1ij_t.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
-            if(m >= n){
-              globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
-            }
-          }else{
-            if(m <= n){
-
-              globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
-            }
-          }
-        }else{
-          globals::J1ij_t.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
-        }
-      }
-    }
-  }
-
-  if (counter == 0) {
-    return false;
-  }
-
-  return true;
 }
 
 // Calculate the number of kpoints needed in each dimension to represent the unit cell

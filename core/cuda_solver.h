@@ -53,10 +53,6 @@ class CudaSolver : public Solver {
     jblib::CudaArray<CudaFastFloat, 1>  dev_mat_;
     jblib::CudaArray<double, 1> dev_s_;
     jblib::CudaArray<double, 1> dev_s_new_;
-    devDIA                      dev_J1ij_t_;
-    jblib::CudaArray<CudaFastFloat, 1> dev_d2z_;
-    jblib::CudaArray<CudaFastFloat, 1> dev_d4z_;
-    jblib::CudaArray<CudaFastFloat, 1> dev_d6z_;
 
     jblib::CudaArray<double, 1> dev_s3d_;
     jblib::CudaArray<double, 1> dev_h3d_;

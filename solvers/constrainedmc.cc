@@ -93,12 +93,12 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
   // ---
 
-  output.write("\nconverting symmetric to general MAP matrices\n");
-  J1ij_t.convertSymmetric2General();
-  output.write("  converting MAP to CSR\n");
-  J1ij_t.convertMAP2CSR();
-  output.write("  J1ij Tensor matrix memory (CSR): %f MB\n",
-  J1ij_t.calculateMemory());
+  // output.write("\nconverting symmetric to general MAP matrices\n");
+  // J1ij_t.convertSymmetric2General();
+  // output.write("  converting MAP to CSR\n");
+  // J1ij_t.convertMAP2CSR();
+  // output.write("  J1ij Tensor matrix memory (CSR): %f MB\n",
+  // J1ij_t.calculateMemory());
 }
 
 void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
@@ -115,25 +115,28 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
   double energy_final = 0.0;
 
   jblib::Vec3<double> field(0.0, 0.0, 0.0);
-  if (J1ij_t.nonZero() > 0) {   // J1ij_t
 
-      const double *val = J1ij_t.valPtr();
-      const int    *indx = J1ij_t.colPtr();
-      const int    *ptrb = J1ij_t.ptrB();
-      const int    *ptre = J1ij_t.ptrE();
-      const double *x   = s.data();
-      int           k;
+  // exchange
 
-      for (int m = 0; m < 3; ++m) {
-        int begin = ptrb[3*ii+m]; int end = ptre[3*ii+m];
-        for (int j = begin; j < end; ++j) {
-          k = indx[j];
-          field[m] = field[m] + x[k]*val[j];
-        }
-      }
-      energy_initial -= (s(ii,0)*field[0] + s(ii,1)*field[1] + s(ii,2)*field[2]);
-      energy_final   -= dot(s_final,field);
-    }
+  // if (J1ij_t.nonZero() > 0) {   // J1ij_t
+
+  //     const double *val = J1ij_t.valPtr();
+  //     const int    *indx = J1ij_t.colPtr();
+  //     const int    *ptrb = J1ij_t.ptrB();
+  //     const int    *ptre = J1ij_t.ptrE();
+  //     const double *x   = s.data();
+  //     int           k;
+
+  //     for (int m = 0; m < 3; ++m) {
+  //       int begin = ptrb[3*ii+m]; int end = ptre[3*ii+m];
+  //       for (int j = begin; j < end; ++j) {
+  //         k = indx[j];
+  //         field[m] = field[m] + x[k]*val[j];
+  //       }
+  //     }
+  //     energy_initial -= (s(ii,0)*field[0] + s(ii,1)*field[1] + s(ii,2)*field[2]);
+  //     energy_final   -= dot(s_final,field);
+  //   }
 
 
     if (::optimize::use_fft) {
