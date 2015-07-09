@@ -1,5 +1,9 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+extern "C"{
+    #include "spglib/spglib.h"
+}
+
 #include "core/lattice.h"
 
 #include <libconfig.h++>
@@ -13,6 +17,7 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <set>
 
 #include "H5Cpp.h"
 
@@ -25,13 +30,35 @@
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
 
+namespace {
+  struct vec4_compare {
+    bool operator() (const jblib::Vec4<int>& lhs, const jblib::Vec4<int>& rhs) const {
+      if (lhs.x < rhs.x) {
+        return true;
+      } else if (lhs.x == rhs.x && lhs.y < rhs.y) {
+        return true;
+      } else if (lhs.x == rhs.x && lhs.y == rhs.y && lhs.z < rhs.z) {
+        return true;
+      } else if (lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z && lhs.w < rhs.w) {
+        return true;
+      }
+      return false;
+    }
+  };
+
+}
+
 
 void Lattice::initialize() {
   ::output.write("\n----------------------------------------\n");
   ::output.write("initializing lattice");
   ::output.write("\n----------------------------------------\n");
 
+  read_lattice(::config.lookup("materials"), ::config.lookup("lattice"));
+  calculate_unit_cell_symmetry();
+
   bool use_dipole = false;
+  read_interactions_with_symmetry(::config.lookup("lattice"));
 
   config.lookupValue("sim.verbose_output", verbose_output_is_set);
   config.lookupValue("lattice.dipole", use_dipole);
@@ -60,7 +87,7 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 3; ++j) {
-      lattice_vectors_[i][j] = lattice_settings["basis"][j][i];
+      lattice_vectors_[i][j] = lattice_settings["basis"][i][j];
     }
   }
   ::output.write("\nlattice translation vectors\n");
@@ -240,9 +267,9 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
             jams_error("kpoint mesh does not map to the unit cell");
           }
 
-          if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
-            jams_error("attempted to assign multiple spins to the same point in the kspace map");
-          }
+          // if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
+          //   jams_error("attempted to assign multiple spins to the same point in the kspace map");
+          // }
           kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) = atom_counter;
 
           atom_counter++;
@@ -388,6 +415,266 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
   }
+}
+
+void Lattice::read_interactions_with_symmetry(const libconfig::Setting &lattice_settings) {
+  if (!lattice_settings.exists("exchange")) {
+    jams_warning("No exchange interaction file specified");
+    return; // don't try and process the file
+  }
+
+  std::string interaction_filename = lattice_settings["exchange"];
+  // read in typeA typeB rx ry rz Jij
+  std::ifstream interaction_file(interaction_filename.c_str());
+
+  if(interaction_file.fail()) {
+    jams_error("failed to open interaction file %s", interaction_filename.c_str());
+  }
+
+  fast_integer_interaction_list_.resize(motif_.size());
+
+  int counter = 0;
+  // read the motif into an array from the positions file
+  for (std::string line; getline(interaction_file, line); ) {
+    std::stringstream is(line);
+
+    std::string type_name_A, type_name_B;
+
+    // read type names
+    is >> type_name_A >> type_name_B;
+
+    jblib::Vec3<double> interaction_vector;
+    is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
+
+    jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    if (file_columns(line) == 6) {
+      // one Jij component given - diagonal
+      is >> tensor[0][0];
+      tensor[1][1] = tensor[0][0];
+      tensor[2][2] = tensor[0][0];
+    } else if (file_columns(line) == 14) {
+      // nine Jij components given - full tensor
+      is >> tensor[0][0] >> tensor[0][1] >> tensor[0][2];
+      is >> tensor[1][0] >> tensor[1][1] >> tensor[1][2];
+      is >> tensor[2][0] >> tensor[2][1] >> tensor[2][2];
+    } else {
+      jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
+    }
+
+    // transform into lattice vector basis
+    // jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector);
+
+    double r[3] = {interaction_vector.x, interaction_vector.y, interaction_vector.z};
+    double r_sym[3];
+
+    jblib::Array<double, 2> sym_interaction_vecs(spglib_dataset_->n_operations, 3);
+
+    ::output.verbose("\ninteraction vectors (%s)\n", interaction_filename.c_str());
+
+    for (int i = 0; i < spglib_dataset_->n_operations; i++) {
+      jblib::Vec3<double> rij(r[0], r[1], r[2]);
+      rij = inverse_lattice_vectors_*rij;
+      r[0] = rij.x; r[1] = rij.y; r[2] = rij.z;
+      matmul(spglib_dataset_->rotations[i], r, r_sym);
+      for (int j = 0; j < 3; ++j) {
+        sym_interaction_vecs(i,j) = r_sym[j]; // + spglib_dataset_->translations[i][j];
+      }
+      // ::output.verbose("%f %f %f\n", r_sym[0], r_sym[1], r_sym[2]);
+    }
+
+    if (verbose_output_is_set) {
+      ::output.verbose("unit cell realspace\n");
+      for (int i = 0; i < motif_.size(); ++i) {
+        jblib::Vec3<double> rij(motif_[i].second[0], motif_[i].second[1], motif_[i].second[2]);
+        ::output.verbose("%8d % 6.6f % 6.6f % 6.6f\n", i, rij[0], rij[1], rij[2]);
+      }
+    }
+
+    ::output.verbose("unit cell interactions\n");
+    for (int i = 0; i < motif_.size(); ++i) {
+      std::set<jblib::Vec4<int>, vec4_compare> interaction_set;
+      // only process for interactions belonging to this material
+      if (motif_[i].first == type_name_A) {
+        ::output.verbose("motif position %d\n", i);
+        ::output.verbose("        i         j ::             rij             |             uij             |             r0              |          motif offset          |          real rij          |         real offset\n");
+
+        // motif position in basis vector space
+        jblib::Vec3<double> pij(motif_[i].second[0], motif_[i].second[1], motif_[i].second[2]);
+        pij = lattice_vectors_*pij;
+
+        for (int j = 0; j < sym_interaction_vecs.size(0); ++ j) {
+
+          // position of neighbour in real space
+          jblib::Vec3<double> rij(sym_interaction_vecs(j,0), sym_interaction_vecs(j,1), sym_interaction_vecs(j,2));
+
+          rij = inverse_lattice_vectors_*rij + pij;
+          // for (int k = 0; k < 3; ++k) {
+          //   rij[k] = sym_interaction_vecs(j,k) + pij[k];
+          // }
+
+          ::output.verbose("% 6.6f % 6.6f % 6.6f | ", rij[0], rij[1], rij[2]);
+
+          jblib::Vec3<double> rij_inv = inverse_lattice_vectors_*rij;
+
+          ::output.verbose("% 6.6f % 6.6f % 6.6f | ", rij_inv[0], rij_inv[1], rij_inv[2]);
+
+          ::output.verbose("% 6.6f % 6.6f % 6.6f\n", floor(rij_inv[0]), floor(rij_inv[1]), floor(rij_inv[2]));
+
+
+          // jblib::Vec3<double> real_rij = lattice_vectors_*(rij + pij);
+
+
+          // integer unit cell index containing the neighbour
+          jblib::Vec3<double> uij = rij + pij;
+          for (int k = 0; k < 3; ++k) {
+            uij[k] = floor(uij[k]);
+          }
+
+          // origin of unit cell containing the neighbour in basis vector space
+          jblib::Vec3<double> r0 = uij;
+
+          // jblib::Vec3<double> motif_offset = rij - uij;
+          jblib::Vec3<double> motif_offset = (rij + pij) - uij;
+
+          jblib::Vec3<double> real_offset = lattice_vectors_*motif_offset;
+
+
+          // // now calculate the motif offset
+          // double motif_offset[3];
+          // for (int k = 0; k < 3; ++k) {
+          //   motif_offset[k] = (sym_interaction_vecs(j,k) + motif_[i].second[k]) - fast_integer_vector[k];
+          // }
+          // find which motif position this offset corresponds to
+          // it is possible that it does not correspond to a position in which case the
+          // "motif_partner" is -1
+          int motif_partner = -1;
+          for (int k = 0; k < motif_.size(); ++k) {
+            if ( fabs(motif_[k].second[0] - motif_offset[0]) < 1e-4
+              && fabs(motif_[k].second[1] - motif_offset[1]) < 1e-4
+              && fabs(motif_[k].second[2] - motif_offset[2]) < 1e-4 ) {
+              motif_partner = k;
+              break;
+            }
+          }
+
+          // ::output.verbose("% 8d % 8d :: % 6.6f % 6.6f % 6.6f | % 8d % 8d % 8d | % 6.6f % 6.6f % 6.6f | % 6.6f % 6.6f % 6.6f | % 6.6f % 6.6f % 6.6f | % 6.6f % 6.6f % 6.6f\n",
+            // i, motif_partner, rij[0], rij[1], rij[2], int(uij[0]), int(uij[1]), int(uij[2]),
+            // r0[0], r0[1], r0[2], motif_offset[0], motif_offset[1], motif_offset[2], real_rij[0], real_rij[1], real_rij[2], real_offset[0], real_offset[1], real_offset[2]);
+
+          if (motif_partner != -1) {
+            // fast_integer_vector[3] = motif_partner - i;
+            // check the motif partner is of the type that was specified in the exchange input file
+            if (motif_[motif_partner].first != type_name_B) {
+              ::output.write("wrong type ");
+            }
+            jblib::Vec4<int> fast_integer_vector(uij[0], uij[1], uij[2], motif_partner - i);
+            // ::output.write("%d %d %d %d %d % 3.6f % 3.6f % 3.6f\n", i, motif_partner, fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2], motif_offset[0], motif_offset[1], motif_offset[2]);
+            interaction_set.insert(fast_integer_vector);
+          }
+        }
+        for (auto it = interaction_set.begin(); it != interaction_set.end(); ++it) {
+          ::output.verbose("% 8d % 8d :: % 8d % 8d % 8d\n", i, (*it)[3] + i, (*it)[0], (*it)[1], (*it)[2]);
+          fast_integer_interaction_list_[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >((*it), tensor));
+          counter++;
+        }
+      }
+    }
+  }
+  ::output.write("  total unit cell interactions: %d\n", counter);
+}
+
+void Lattice::read_interactions(const libconfig::Setting &lattice_settings) {
+  if (!lattice_settings.exists("exchange")) {
+    jams_warning("No exchange interaction file specified");
+    return; // don't try and process the file
+  }
+
+  std::string interaction_filename = lattice_settings["exchange"];
+  // read in typeA typeB rx ry rz Jij
+  std::ifstream interaction_file(interaction_filename.c_str());
+
+  if(interaction_file.fail()) {
+    jams_error("failed to open interaction file %s", interaction_filename.c_str());
+  }
+
+  ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
+
+  fast_integer_interaction_list_.resize(motif_.size());
+
+  int counter = 0;
+  // read the motif into an array from the positions file
+  for (std::string line; getline(interaction_file, line); ) {
+    std::stringstream is(line);
+
+    int typeA, typeB;
+
+    is >> typeA >> typeB;
+    typeA--; typeB--;  // zero base the types
+
+    // type difference
+    int type_difference = (typeB - typeA);
+
+    jblib::Vec3<double> interaction_vector;
+    is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
+
+    // transform into lattice vector basis
+    jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector) + motif_[typeA].second;
+
+    // translate by the motif back to (hopefully) the origin of the local unit cell
+    // for (int i = 0; i < 3; ++ i) {
+    //   lattice_vector[i] -= motif_[type_difference].second[i];
+    // }
+
+    // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
+    // component is the atoms number within the motif
+    jblib::Vec4<int> fast_integer_vector;
+    for (int i = 0; i < 3; ++ i) {
+      // rounding with nint accounts for lack of precision in definition of the real space vectors
+      fast_integer_vector[i] = floor(lattice_vector[i]);
+    }
+    fast_integer_vector[3] = type_difference;
+
+    jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    if (file_columns(line) == 6) {
+      // one Jij component given - diagonal
+      is >> tensor[0][0];
+      tensor[1][1] = tensor[0][0];
+      tensor[2][2] = tensor[0][0];
+    } else if (file_columns(line) == 14) {
+      // nine Jij components given - full tensor
+      is >> tensor[0][0] >> tensor[0][1] >> tensor[0][2];
+      is >> tensor[1][0] >> tensor[1][1] >> tensor[1][2];
+      is >> tensor[2][0] >> tensor[2][1] >> tensor[2][2];
+    } else {
+      jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
+    }
+
+    fast_integer_interaction_list_[typeA].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
+
+    if (verbose_output_is_set) {
+      ::output.write("  line %-9d              %s\n", counter, line.c_str());
+      ::output.write("  types               A : %d  B : %d  B - A : %d\n", typeA, typeB, type_difference);
+      ::output.write("  interaction vector % 3.6f % 3.6f % 3.6f\n",
+        interaction_vector.x, interaction_vector.y, interaction_vector.z);
+      ::output.write("  fractional vector  % 3.6f % 3.6f % 3.6f\n",
+        lattice_vector.x, lattice_vector.y, lattice_vector.z);
+      ::output.write("  integer vector     % -9d % -9d % -9d % -9d\n\n",
+        fast_integer_vector.x, fast_integer_vector.y, fast_integer_vector.z, fast_integer_vector.w);
+    }
+    counter++;
+  }
+
+  if(!verbose_output_is_set) {
+    ::output.write("  ... [use verbose output for details] ... \n");
+    ::output.write("  total: %d\n", counter);
+  }
+
+  interaction_file.close();
+
+  energy_cutoff_ = 1E-26;  // default value (in joules)
+  lattice_settings.lookupValue("energy_cutoff", energy_cutoff_);
+
+  ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
 }
 
 void Lattice::load_spin_state_from_hdf5(std::string &filename) {
@@ -541,6 +828,128 @@ void Lattice::calculate_unit_cell_kmesh() {
   kpoints_.y = unique_y.size();
   kpoints_.z = unique_z.size();
 }
+
+void Lattice::calculate_unit_cell_symmetry() {
+  ::output.write("symmetry analysis\n");
+
+  int i, j;
+  const char *wl = "abcdefghijklmnopqrstuvwxyz";
+
+  double spg_lattice[3][3];
+  for (i = 0; i < 3; ++i) {
+    for (j = 0; j < 3; ++j) {
+      spg_lattice[i][j] = lattice_vectors_[i][j];
+    }
+  }
+
+  double (*spg_positions)[3] = new double[motif_.size()][3];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    for (j = 0; j < 3; ++j) {
+      spg_positions[i][j] = motif_[i].second[j];
+    }
+  }
+
+  int (*spg_types) = new int[motif_.size()];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    spg_types[i] = materials_map_[motif_[i].first];
+  }
+
+  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, motif_.size(), 1e-5);
+
+  ::output.write("  International: %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
+  ::output.write("  Hall symbol:   %s\n", spglib_dataset_->hall_symbol );
+
+  char ptsymbol[6];
+  int pt_trans_mat[3][3];
+  spg_get_pointgroup(ptsymbol,
+           pt_trans_mat,
+           spglib_dataset_->rotations,
+           spglib_dataset_->n_operations);
+  ::output.write("  Point group:   %s\n", ptsymbol);
+  ::output.write("  Transformation matrix:\n");
+  for ( i = 0; i < 3; i++ ) {
+      ::output.write("  %f %f %f\n",
+      spglib_dataset_->transformation_matrix[i][0],
+      spglib_dataset_->transformation_matrix[i][1],
+      spglib_dataset_->transformation_matrix[i][2]);
+  }
+  ::output.write("  Wyckoff letters:\n");
+  for ( i = 0; i < spglib_dataset_->n_atoms; i++ ) {
+      ::output.write("  %c ", wl[spglib_dataset_->wyckoffs[i]]);
+  }
+  ::output.write("\n");
+  ::output.write("  Equivalent atoms:\n");
+  for (i = 0; i < spglib_dataset_->n_atoms; i++) {
+      ::output.write("  %d ", spglib_dataset_->equivalent_atoms[i]);
+  }
+  ::output.write("\n");
+  ::output.verbose("  Symmetry operations:\n");
+
+  for (int i = 0; i < spglib_dataset_->n_operations; i++) {
+    ::output.verbose("--- %d ---\n", i + 1);
+    for (j = 0; j < 3; j++) {
+      ::output.verbose("%2d %2d %2d\n",
+      spglib_dataset_->rotations[i][j][0],
+      spglib_dataset_->rotations[i][j][1],
+      spglib_dataset_->rotations[i][j][2]);
+    }
+    ::output.verbose("%f %f %f\n",
+    spglib_dataset_->translations[i][0],
+    spglib_dataset_->translations[i][1],
+    spglib_dataset_->translations[i][2]);
+  }
+
+  int primitive_num_atoms = motif_.size();
+  double primitive_lattice[3][3];
+
+  for (i = 0; i < 3; ++i) {
+    for (j = 0; j < 3; ++j) {
+      primitive_lattice[i][j] = spg_lattice[i][j];
+    }
+  }
+
+  double (*primitive_positions)[3] = new double[motif_.size()][3];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    for (j = 0; j < 3; ++j) {
+      primitive_positions[i][j] = spg_positions[i][j];
+    }
+  }
+
+  int (*primitive_types) = new int[motif_.size()];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    primitive_types[i] = spg_types[i];
+  }
+
+  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, motif_.size(), 1e-5);
+
+  // spg_find_primitive returns 0 if the unit cell is already primitive
+  if (primitive_num_atoms != 0) {
+    ::output.write("\n");
+    ::output.write("unit cell is not a primitive cell\n");
+    ::output.write("\n");
+    ::output.write("  primitive lattice vectors:\n");
+
+    for (int i = 0; i < 3; ++i) {
+      ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+        primitive_lattice[i][0], primitive_lattice[i][1], primitive_lattice[i][2]);
+    }
+    ::output.write("\n");
+    ::output.write("  primitive motif positions:\n");
+
+    int counter  = 0;
+    for (int i = 0; i < primitive_num_atoms; ++i) {
+      ::output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, materials_numbered_list_[primitive_types[i]].c_str(),
+        primitive_positions[i][0], primitive_positions[i][1], primitive_positions[i][2]);
+      counter++;
+    }
+  }
+
+}
+
 
 void Lattice::output_spin_state_as_vtu(std::ofstream &outfile){
   using namespace globals;
