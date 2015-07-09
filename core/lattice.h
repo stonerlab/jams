@@ -106,6 +106,10 @@ class Lattice {
         return lattice_pbc_[i];
     }
 
+    bool apply_boundary_conditions(jblib::Vec3<int>& pos) const;
+    bool apply_boundary_conditions(jblib::Vec4<int>& pos) const;
+
+
     void output_spin_state_as_vtu(std::ofstream &outfile);
     void output_spin_state_as_binary(std::ofstream &outfile);
     void output_spin_types_as_binary(std::ofstream &outfile);

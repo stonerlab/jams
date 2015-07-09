@@ -622,3 +622,34 @@ void Lattice::read_spin_state_from_binary(std::ifstream &infile){
     jams_error("I/O error. Unknown failure reading spin state file");
   }
 }
+
+
+// reads an position in the fast integer space and applies the periodic boundaries
+// if there are not periodic boundaries and this position is outside of the finite
+// lattice then the function returns false
+bool Lattice::apply_boundary_conditions(jblib::Vec3<int>& pos) const {
+    bool is_within_lattice = true;
+    for (int l = 0; l < 3; ++l) {
+      if (is_periodic(l)) {
+        pos[l] = (pos[l] + lattice.num_unit_cells(l))%lattice.num_unit_cells(l);
+      } else {
+        if (pos[l] < 0 || pos[l] >= lattice.num_unit_cells(l)) {
+          is_within_lattice = false;
+        }
+      }
+    }
+    return is_within_lattice;
+}
+
+// same as the Vec3 version but accepts a Vec4 where the last component is the motif
+// position difference
+bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
+  jblib::Vec3<int> pos3(pos.x, pos.y, pos.z);
+  bool is_within_lattice = apply_boundary_conditions(pos3);
+  if (is_within_lattice) {
+    pos.x = pos3.x;
+    pos.y = pos3.y;
+    pos.z = pos3.z;
+  }
+  return is_within_lattice;
+}

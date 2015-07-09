@@ -68,7 +68,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
 
-    std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > fast_integer_interaction_list_(lattice.num_motif_positions());
+    std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > int_interaction_list(lattice.num_motif_positions());
 
     int counter = 0;
     // read the motif into an array from the positions file
@@ -110,7 +110,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
         jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
       }
 
-      fast_integer_interaction_list_[typeA].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
+      int_interaction_list[typeA].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
 
       if (verbose_output_is_set) {
         ::output.write("  line %-9d              %s\n", counter, line.c_str());
@@ -152,38 +152,28 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
             is_already_interacting[local_site] = true;  // don't allow self interaction
 
             // loop over all possible interaction vectors
-            for (int n = 0, nend = fast_integer_interaction_list_[m].size(); n < nend; ++n) {
+            for (int n = 0, nend = int_interaction_list[m].size(); n < nend; ++n) {
 
-              jblib::Vec4<int> fast_integer_lookup_vector(
-                i + fast_integer_interaction_list_[m][n].first.x,
-                j + fast_integer_interaction_list_[m][n].first.y,
-                k + fast_integer_interaction_list_[m][n].first.z,
-                (lattice.num_motif_positions() + m + fast_integer_interaction_list_[m][n].first.w)%lattice.num_motif_positions());
+              jblib::Vec4<int> int_lookup_vec(
+                i + int_interaction_list[m][n].first.x,
+                j + int_interaction_list[m][n].first.y,
+                k + int_interaction_list[m][n].first.z,
+                (lattice.num_motif_positions() + m + int_interaction_list[m][n].first.w)%lattice.num_motif_positions());
 
-              bool interaction_is_outside_lattice = false;
-              // if we are trying to interact with a site outside of the boundary
-              for (int l = 0; l < 3; ++l) {
-                if (lattice.is_periodic(l)) {
-                  fast_integer_lookup_vector[l] = (fast_integer_lookup_vector[l] + lattice.num_unit_cells(l))%lattice.num_unit_cells(l);
-                } else {
-                  if (fast_integer_lookup_vector[l] < 0 || fast_integer_lookup_vector[l] >= lattice.num_unit_cells(l)) {
-                    interaction_is_outside_lattice = true;
-                  }
-                }
-              }
-              if (interaction_is_outside_lattice) {
+              if (lattice.apply_boundary_conditions(int_lookup_vec) == false) {
                 continue;
               }
 
-              int neighbour_site = lattice.site_index_by_unit_cell(fast_integer_lookup_vector.x, fast_integer_lookup_vector.y, fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
+              int neighbour_site = lattice.site_index_by_unit_cell(
+                int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
 
               // failsafe check that we only interact with any given site once through the input exchange file.
               if (is_already_interacting[neighbour_site]) {
-                jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, fast_integer_lookup_vector.x, fast_integer_lookup_vector.y, fast_integer_lookup_vector.z, fast_integer_lookup_vector.w);
+                jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
               }
               is_already_interacting[neighbour_site] = true;
 
-              if (insert_interaction(local_site, neighbour_site, fast_integer_interaction_list_[m][n].second)) {
+              if (insert_interaction(local_site, neighbour_site, int_interaction_list[m][n].second)) {
                 // if(local_site >= neighbour_site) {
                 //   std::cerr << local_site << "\t" << neighbour_site << "\t" << neighbour_site << "\t" << local_site << std::endl;
                 // }
@@ -191,7 +181,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
               } else {
                 is_all_inserts_successful = false;
               }
-              if (insert_interaction(neighbour_site, local_site, fast_integer_interaction_list_[m][n].second)) {
+              if (insert_interaction(neighbour_site, local_site, int_interaction_list[m][n].second)) {
                 counter++;
               } else {
                 is_all_inserts_successful = false;
