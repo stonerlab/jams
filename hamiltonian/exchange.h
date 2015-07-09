@@ -29,6 +29,12 @@ class ExchangeHamiltonian : public Hamiltonian {
 
     private:
 
+        void read_interactions(const std::string &filename,
+          std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list);
+
+        void read_interactions_with_symmetry(const std::string &filename,
+          std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list);
+
         bool insert_interaction(const int m, const int n, const jblib::Matrix<double, 3, 3> &value);
 
         void output_energies_text();

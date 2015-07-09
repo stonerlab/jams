@@ -114,6 +114,21 @@ class Lattice {
     bool apply_boundary_conditions(jblib::Vec4<int>& pos) const;
 
 
+    // --------------------------------------------------------------------------
+    // symmetry functions
+    // --------------------------------------------------------------------------
+
+    inline int num_sym_ops() const {
+        return spglib_dataset_->n_operations;
+    }
+
+    inline jblib::Matrix<int, 3, 3> sym_rotation(const int i) const {
+         return jblib::Matrix<int, 3, 3>(
+            spglib_dataset_->rotations[i][0][0], spglib_dataset_->rotations[i][0][1], spglib_dataset_->rotations[i][0][2],
+            spglib_dataset_->rotations[i][1][0], spglib_dataset_->rotations[i][1][1], spglib_dataset_->rotations[i][1][2],
+            spglib_dataset_->rotations[i][2][0], spglib_dataset_->rotations[i][2][1], spglib_dataset_->rotations[i][2][2]);
+    }
+
     void output_spin_state_as_vtu(std::ofstream &outfile);
     void output_spin_state_as_binary(std::ofstream &outfile);
     void output_spin_types_as_binary(std::ofstream &outfile);
