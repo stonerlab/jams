@@ -15,7 +15,7 @@ class MagnetisationMonitor : public Monitor {
   MagnetisationMonitor(const libconfig::Setting &settings);
   ~MagnetisationMonitor();
 
-  void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
+  void update(const Solver * const solver);
 
  private:
   jblib::Array<double, 2> mag;

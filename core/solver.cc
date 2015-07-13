@@ -9,6 +9,7 @@
 #include <fftw3.h>
 
 #include "core/solver.h"
+#include "core/hamiltonian.h"
 
 #include "core/consts.h"
 
@@ -24,6 +25,14 @@
 #ifdef MKL
 #include <mkl_spblas.h>
 #endif
+
+Solver::~Solver() {
+  for (int i = 0, iend = monitors_.size(); i < iend; ++i) {
+    delete monitors_[i];
+  }
+}
+
+//---------------------------------------------------------------------
 
 void Solver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
@@ -62,8 +71,12 @@ void Solver::initialize(int argc, char **argv, double idt) {
   initialized_ = true;
 }
 
+//---------------------------------------------------------------------
+
 void Solver::run() {
 }
+
+//---------------------------------------------------------------------
 
 void Solver::compute_fields() {
   using namespace globals;
@@ -108,4 +121,38 @@ Solver* Solver::create(const std::string &solver_name) {
 
   jams_error("Unknown solver '%s' selected.", solver_name.c_str());
   return NULL;
+}
+
+//---------------------------------------------------------------------
+
+void Solver::register_physics_module(Physics* package) {
+    physics_module_ = package;
+}
+
+//---------------------------------------------------------------------
+
+void Solver::update_physics_module() {
+    physics_module_->update(iteration_, time(), time_step_);
+}
+
+//---------------------------------------------------------------------
+
+void Solver::register_monitor(Monitor* monitor) {
+  monitors_.push_back(monitor);
+}
+
+//---------------------------------------------------------------------
+
+void Solver::register_hamiltonian(Hamiltonian* hamiltonian) {
+  hamiltonians_.push_back(hamiltonian);
+}
+
+//---------------------------------------------------------------------
+
+void Solver::notify_monitors() {
+  for (std::vector<Monitor*>::iterator it = monitors_.begin() ; it != monitors_.end(); ++it) {
+    if((*it)->is_updating(iteration_)){
+      (*it)->update(this);
+    }
+  }
 }

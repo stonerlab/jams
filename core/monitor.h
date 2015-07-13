@@ -5,15 +5,16 @@
 
 #include <libconfig.h++>
 
-#include "jblib/containers/vec.h"
+// forward declarations
+class Solver;
 
 class Monitor {
  public:
   Monitor(const libconfig::Setting &settings);
 
   virtual ~Monitor() {}
-  virtual void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) = 0;
-  bool is_updating (const int &iteraction) const;
+  virtual void update(const Solver * const solver) = 0;
+  bool is_updating (const int &iteration) const;
 
   static Monitor* create(const libconfig::Setting &settings);
 

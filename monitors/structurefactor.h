@@ -16,7 +16,7 @@ class StructureFactorMonitor : public Monitor {
   StructureFactorMonitor(const libconfig::Setting &settings);
   ~StructureFactorMonitor();
 
-  void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
+  void update(const Solver * const solver);
 
  private:
 

@@ -17,7 +17,7 @@ class BinaryMonitor : public Monitor {
   BinaryMonitor(const libconfig::Setting &settings);
   ~BinaryMonitor();
 
-  void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
+  void update(const Solver * const solver);
 
  private:
     jblib::Vec3<double> slice_origin;

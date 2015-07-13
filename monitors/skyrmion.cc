@@ -61,7 +61,7 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
   create_center_of_mass_mapping();
 }
 
-void SkyrmionMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+void SkyrmionMonitor::update(const Solver * const solver) {
   using namespace globals;
 
     int i, n, type;
@@ -70,8 +70,8 @@ void SkyrmionMonitor::update(const int &iteration, const double &time, const dou
     const double x_size = lattice.rmax.x;
     const double y_size = lattice.rmax.y;
 
-    outfile << std::setw(12) << std::scientific << time;
-    outfile << std::setw(16) << std::fixed << temperature;
+    outfile << std::setw(12) << std::scientific << solver->time();
+    outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
 
     for (int t = 0; t < thresholds.size(); ++t) {
 

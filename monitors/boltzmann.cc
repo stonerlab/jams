@@ -24,10 +24,10 @@ outfile() {
   }
 }
 
-void BoltzmannMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+void BoltzmannMonitor::update(const Solver * const solver) {
   using namespace globals;
 
-  if (iteration%output_step_freq_ == 0) {
+  if (solver->iteration()%output_step_freq_ == 0) {
     for (int i = 0; i < num_spins; ++i) {
       int round = static_cast<int>(rad_to_deg(acos(s(i, 2)))*0.2);
       bins(round)++;

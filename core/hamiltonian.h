@@ -10,6 +10,16 @@
 
 #include "core/output.h"
 
+// forward declarations
+namespace libconfig {
+  class Setting;
+};
+
+namespace jblib {
+  template <typename T>
+  class Vec3;
+};
+
 class Hamiltonian {
  public:
   Hamiltonian(const libconfig::Setting &settings) {}

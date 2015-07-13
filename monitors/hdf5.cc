@@ -81,12 +81,12 @@ Hdf5Monitor::~Hdf5Monitor() {
     fclose(xdmf_file);
 }
 
-void Hdf5Monitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+void Hdf5Monitor::update(const Solver * const solver) {
   using namespace globals;
   using namespace H5;
 
-  if (iteration%output_step_freq_ == 0) {
-    int outcount = iteration/output_step_freq_;  // int divisible by modulo above
+  if (solver->iteration()%output_step_freq_ == 0) {
+    int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
     hsize_t dims[2], chunk_dims[2];
 
@@ -115,21 +115,26 @@ void Hdf5Monitor::update(const int &iteration, const double &time, const double 
         plist.setDeflate(h5_compression_factor);
     }
 
+    double out_iteration = solver->iteration();
+    double out_time = solver->time();
+    double out_temperature = solver->physics()->temperature();
+    jblib::Vec3<double> out_field = solver->physics()->applied_field();
+
     DataSet spin_dataset = outfile.createDataSet("spins", float_pred_type, dataspace, plist);
 
     DataSpace attribute_dataspace(H5S_SCALAR);
     Attribute attribute = spin_dataset.createAttribute("iteration", PredType::STD_I32LE, attribute_dataspace);
-    attribute.write(PredType::NATIVE_INT32, &iteration);
+    attribute.write(PredType::NATIVE_INT32, &out_iteration);
     attribute = spin_dataset.createAttribute("time", PredType::IEEE_F64LE, attribute_dataspace);
-    attribute.write(PredType::NATIVE_DOUBLE, &time);
+    attribute.write(PredType::NATIVE_DOUBLE, &out_time);
     attribute = spin_dataset.createAttribute("temperature", PredType::IEEE_F64LE, attribute_dataspace);
-    attribute.write(PredType::NATIVE_DOUBLE, &temperature);
+    attribute.write(PredType::NATIVE_DOUBLE, &out_temperature);
     attribute = spin_dataset.createAttribute("hx", PredType::IEEE_F64LE, attribute_dataspace);
-    attribute.write(PredType::NATIVE_DOUBLE, &applied_field.x);
+    attribute.write(PredType::NATIVE_DOUBLE, &out_field.x);
     attribute = spin_dataset.createAttribute("hy", PredType::IEEE_F64LE, attribute_dataspace);
-    attribute.write(PredType::NATIVE_DOUBLE, &applied_field.y);
+    attribute.write(PredType::NATIVE_DOUBLE, &out_field.y);
     attribute = spin_dataset.createAttribute("hz", PredType::IEEE_F64LE, attribute_dataspace);
-    attribute.write(PredType::NATIVE_DOUBLE, &applied_field.z);
+    attribute.write(PredType::NATIVE_DOUBLE, &out_field.z);
 
     if (slice.num_points() != 0) {
         jblib::Array<double, 2> spin_slice(slice.num_points(), 3);
@@ -149,7 +154,7 @@ void Hdf5Monitor::update(const int &iteration, const double &time, const double 
                  fseek(xdmf_file, -31, SEEK_CUR);
 
                  fputs("      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n", xdmf_file);
-    fprintf(xdmf_file, "        <Time Value=\"%f\" />\n", time/1e-12);
+    fprintf(xdmf_file, "        <Time Value=\"%f\" />\n", out_time/1e-12);
     fprintf(xdmf_file, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", dims[0]);
                  fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file);
     if (float_pred_type == PredType::IEEE_F32LE) {

@@ -29,7 +29,7 @@ class CudaSolver : public Solver {
           sync_device_data();
           is_device_synchonised = true;
         }
-        (*it)->update(iteration_, time(), physics_module_->temperature(), physics_module_->applied_field());
+        (*it)->update(this);
       }
     }
   }

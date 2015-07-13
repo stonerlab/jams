@@ -31,10 +31,10 @@ BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
   output_step_freq_ = settings["output_steps"];
 }
 
-void BinaryMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+void BinaryMonitor::update(const Solver * const solver) {
   using namespace globals;
-  if (iteration%output_step_freq_ == 0) {
-    int outcount = iteration/output_step_freq_;  // int divisible by modulo above
+  if (solver->iteration()%output_step_freq_ == 0) {
+    int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
     std::ofstream bin_file;
 

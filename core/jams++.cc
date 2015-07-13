@@ -18,6 +18,7 @@
 #include "core/physics.h"
 #include "core/solver.h"
 #include "core/utils.h"
+#include "core/hamiltonian.h"
 
 #ifdef CUDA
 #include <cublas.h>

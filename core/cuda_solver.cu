@@ -11,6 +11,7 @@
 #include "core/consts.h"
 
 #include "core/utils.h"
+#include "core/hamiltonian.h"
 #include "core/cuda_defs.h"
 
 #include "solvers/cuda_heunllg.h"

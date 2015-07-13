@@ -39,7 +39,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   mag.resize(lattice.num_materials(), 4);
 }
 
-void MagnetisationMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+void MagnetisationMonitor::update(const Solver * const solver) {
   using namespace globals;
 
     int i, j;
@@ -68,11 +68,11 @@ void MagnetisationMonitor::update(const int &iteration, const double &time, cons
         + mag(i, 2)*mag(i, 2));
     }
 
-    outfile << std::setw(12) << std::scientific << time;
-    outfile << std::setw(16) << std::fixed << temperature;
+    outfile << std::setw(12) << std::scientific << solver->time();
+    outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
 
     for (i = 0; i < 3; ++i) {
-      outfile <<  std::setw(16) << applied_field[i];
+      outfile <<  std::setw(16) << solver->physics()->applied_field(i);
     }
 
     for (i = 0; i < lattice.num_materials(); ++i) {

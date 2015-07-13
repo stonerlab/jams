@@ -12,7 +12,7 @@ class EnergyMonitor : public Monitor {
   EnergyMonitor(const libconfig::Setting &settings);
 
   ~EnergyMonitor();
-  void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
+  void update(const Solver * const solver);
 
  private:
   std::ofstream outfile;

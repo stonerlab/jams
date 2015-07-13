@@ -7,11 +7,11 @@
 #include <cassert>
 
 #include <fftw3.h>
-#include "core/physics.h"
-#include "core/monitor.h"
-#include "core/hamiltonian.h"
-#include "jblib/containers/vec.h"
-#include "jblib/containers/sparsematrix.h"
+
+// forward declarations
+class Physics;
+class Monitor;
+class Hamiltonian;
 
 class Solver {
  public:
@@ -24,11 +24,7 @@ class Solver {
     physics_module_()
   {}
 
-  virtual ~Solver() {
-    for (int i = 0, iend = monitors_.size(); i < iend; ++i) {
-      delete monitors_[i];
-    }
-  }
+  virtual ~Solver();
 
   virtual void initialize(int argc, char **argv, double dt) = 0;
   virtual void run() = 0;
@@ -37,33 +33,25 @@ class Solver {
     return is_cuda_solver_;
   }
 
+  inline int iteration() const {
+    return iteration_;
+  }
+
   inline double time() const {
     return iteration_*real_time_step_;
   }
 
-  inline void register_physics_module(Physics* package) {
-    physics_module_ = package;
+  inline const Physics * physics() const {
+    return physics_module_;
   }
 
-  inline void update_physics_module() {
-    physics_module_->update(iteration_, time(), time_step_);
-  }
+  void register_physics_module(Physics* package);
+  void update_physics_module();
 
-  inline void register_monitor(Monitor* monitor) {
-    monitors_.push_back(monitor);
-  }
+  void register_monitor(Monitor* monitor);
+  void register_hamiltonian(Hamiltonian* hamiltonian);
 
-  inline void register_hamiltonian(Hamiltonian* hamiltonian) {
-    hamiltonians_.push_back(hamiltonian);
-  }
-
-  virtual inline void notify_monitors() {
-    for (std::vector<Monitor*>::iterator it = monitors_.begin() ; it != monitors_.end(); ++it) {
-      if((*it)->is_updating(iteration_)){
-        (*it)->update(iteration_, time(), physics_module_->temperature(), physics_module_->applied_field());
-      }
-    }
-  }
+  virtual void notify_monitors();
 
   void compute_fields();
   void compute_energy();
@@ -82,8 +70,8 @@ class Solver {
   double time_step_;
   double real_time_step_;
 
-  Physics*              physics_module_;
-  std::vector<Monitor*> monitors_;
+  Physics*                  physics_module_;
+  std::vector<Monitor*>     monitors_;
   std::vector<Hamiltonian*> hamiltonians_;
 
   fftw_plan spin_fft_forward_transform;

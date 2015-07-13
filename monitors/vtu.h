@@ -16,7 +16,7 @@ class VtuMonitor : public Monitor {
   VtuMonitor(const libconfig::Setting &settings);
   ~VtuMonitor();
 
-  void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
+  void update(const Solver * const solver);
 
  private:
     int num_slice_points;

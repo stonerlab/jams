@@ -31,7 +31,7 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
   outfile << "\n";
 }
 
-void TorqueMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+void TorqueMonitor::update(const Solver * const solver) {
   using namespace globals;
 
     int i, j;
@@ -48,8 +48,8 @@ void TorqueMonitor::update(const int &iteration, const double &time, const doubl
       torque_[j] = torque_[j]*mu_bohr_si/static_cast<double>(num_spins);
     }
 
-    outfile << std::setw(12) << std::scientific << time;
-    outfile << std::setw(16) << std::scientific << temperature;
+    outfile << std::setw(12) << std::scientific << solver->time();
+    outfile << std::setw(16) << std::scientific << solver->physics()->temperature();
 
     for (i = 0; i < 3; ++i) {
       outfile <<  std::setw(16) << torque_[i];

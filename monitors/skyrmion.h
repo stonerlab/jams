@@ -15,7 +15,7 @@ class SkyrmionMonitor : public Monitor {
   SkyrmionMonitor(const libconfig::Setting &settings);
   ~SkyrmionMonitor();
 
-  void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
+  void update(const Solver * const solver);
 
  private:
     void create_center_of_mass_mapping();

@@ -109,7 +109,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   }
 }
 
-void StructureFactorMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+void StructureFactorMonitor::update(const Solver * const solver) {
   using namespace globals;
 
   // zero the sq arrays

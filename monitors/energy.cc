@@ -21,10 +21,10 @@ EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
     << std::endl;
 }
 
-void EnergyMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+void EnergyMonitor::update(const Solver * const solver) {
   using namespace globals;
 
-  if (iteration%output_step_freq_ == 0) {
+  if (solver->iteration()%output_step_freq_ == 0) {
   // double e1_s = 0.0, e1_t = 0.0, e2_s = 0.0, e2_t = 0.0, e4_s = 0.0;
 
   // solver->compute_total_energy(e1_s, e1_t, e2_s, e2_t, e4_s);

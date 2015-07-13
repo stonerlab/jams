@@ -5,6 +5,7 @@
 #include "core/consts.h"
 #include "core/maths.h"
 #include "core/globals.h"
+#include "core/hamiltonian.h"
 
 #include <iomanip>
 

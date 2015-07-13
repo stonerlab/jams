@@ -18,7 +18,7 @@ class Hdf5Monitor : public Monitor {
   explicit Hdf5Monitor(const libconfig::Setting &settings);
   ~Hdf5Monitor();
 
-  void update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field);
+  void update(const Solver * const solver);
 
  private:
   void output_lattice();

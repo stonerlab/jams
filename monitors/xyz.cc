@@ -53,11 +53,11 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
   }
 }
 
-void XyzMonitor::update(const int &iteration, const double &time, const double &temperature, const jblib::Vec3<double> &applied_field) {
+void XyzMonitor::update(const Solver * const solver) {
   using namespace globals;
 
-  if (iteration%output_step_freq_ == 0) {
-    int outcount = iteration/output_step_freq_;  // int divisible by modulo above
+  if (solver->iteration()%output_step_freq_ == 0) {
+    int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
     std::ofstream xyz_state_file(std::string(seedname+"_"+zero_pad_number(outcount)+".xyz").c_str());
 
