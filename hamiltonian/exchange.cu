@@ -93,8 +93,15 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     read_interactions_with_symmetry(interaction_filename, int_interaction_list);
 
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
-    interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    interaction_matrix_.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+
+    if (solver->is_cuda_solver()) {
+#ifdef CUDA
+      interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+      interaction_matrix_.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+#endif  //CUDA
+    } else {
+      interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
+    }
 
     ::output.write("\ncomputed interactions\n");
 
@@ -455,7 +462,38 @@ double ExchangeHamiltonian::calculate_total_energy() {
 
 double ExchangeHamiltonian::calculate_one_spin_energy(const int i) {
     using namespace globals;
-    return 0.0;
+    assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
+
+    double jij_sj[3] = {0.0, 0.0, 0.0};
+    const double *val = interaction_matrix_.valPtr();
+    const int    *indx = interaction_matrix_.colPtr();
+    const int    *ptrb = interaction_matrix_.ptrB();
+    const int    *ptre = interaction_matrix_.ptrE();
+    const double *x   = s.data();
+    int           k;
+
+    for (int m = 0; m < 3; ++m) {
+      int begin = ptrb[3*i+m]; int end = ptre[3*i+m];
+      for (int j = begin; j < end; ++j) {
+        k = indx[j];
+        jij_sj[m] = jij_sj[m] + x[k]*val[j];
+      }
+    }
+    return -(s(i,0)*jij_sj[0] + s(i,1)*jij_sj[1] + s(i,2)*jij_sj[2]);
+}
+
+// --------------------------------------------------------------------------
+
+double ExchangeHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+    assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
+
+    double local_field[3], e_initial, e_final;
+
+    calculate_one_spin_fields(i, local_field);
+    e_initial = -(spin_initial[0]*local_field[0] + spin_initial[1]*local_field[1] + spin_initial[2]*local_field[2]);
+    e_final = -(spin_final[0]*local_field[0] + spin_final[1]*local_field[1] + spin_final[2]*local_field[2]);
+
+    return e_final - e_initial;
 }
 
 // --------------------------------------------------------------------------
@@ -468,10 +506,26 @@ void ExchangeHamiltonian::calculate_energies() {
 
 // --------------------------------------------------------------------------
 
-void ExchangeHamiltonian::calculate_one_spin_fields(const int i, double h[3]) {
+void ExchangeHamiltonian::calculate_one_spin_fields(const int i, double local_field[3]) {
     using namespace globals;
-    h[0] = 0.0; h[1] = 0.0;
-    h[2] = 0.0;
+    assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
+
+    local_field[0] = 0.0, local_field[1] = 0.0; local_field[2] = 0.0;
+
+    const double *val = interaction_matrix_.valPtr();
+    const int    *indx = interaction_matrix_.colPtr();
+    const int    *ptrb = interaction_matrix_.ptrB();
+    const int    *ptre = interaction_matrix_.ptrE();
+    const double *x   = s.data();
+    int k, j, m, begin, end;
+
+    for (m = 0; m < 3; ++m) {
+      begin = ptrb[3*i+m]; end = ptre[3*i+m];
+      for (j = begin; j < end; ++j) {
+        k = indx[j];
+        local_field[m] = local_field[m] + x[k]*val[j];
+      }
+    }
 }
 
 // --------------------------------------------------------------------------
@@ -487,33 +541,31 @@ void ExchangeHamiltonian::calculate_fields() {
             dev_interaction_matrix_.row, dev_interaction_matrix_.val, solver->dev_ptr_spin(), dev_field_.data());
 #endif  // CUDA
     } else {
-          if (interaction_matrix_.nonZero() > 0) {
-            if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
-              // general matrix (i.e. Monte Carlo Solvers)
-              char transa[1] = {'N'};
-              char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
+      if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
+        // general matrix (i.e. Monte Carlo Solvers)
+        char transa[1] = {'N'};
+        char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
 #ifdef MKL
-              double one = 1.0;
-              mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
-                interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &one, globals::h.data());
+        double one = 1.0;
+        mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
+          interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &one, globals::h.data());
 #else
-              jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
-                interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 1.0, globals::h.data());
+        jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
+          interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 1.0, globals::h.data());
 #endif
-            } else {
-              // symmetric matrix (i.e. Heun Solvers)
-              char transa[1] = {'N'};
-              char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
+      } else {
+        // symmetric matrix (i.e. Heun Solvers)
+        char transa[1] = {'N'};
+        char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
 #ifdef MKL
-              double one = 1.0;
-              mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
-                interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &one, globals::h.data());
+        double one = 1.0;
+        mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
+          interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &one, globals::h.data());
 #else
-              jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
-                interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 1.0, globals::h.data());
+        jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
+          interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 1.0, globals::h.data());
 #endif
-            }
-          }
+      }
     }
 }
 // --------------------------------------------------------------------------

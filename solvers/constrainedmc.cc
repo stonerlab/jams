@@ -265,14 +265,20 @@ double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s
       }
 
       // change in energy with spin move
-      delta_energy1 = compute_one_spin_energy(s1_final, rand_s1);
+      delta_energy1 = 0.0;
+
+      for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+        delta_energy1 += (*it)->calculate_one_spin_energy_difference(rand_s1, s1_initial, s1_final);
+      }
 
       // temporarily accept the move for s1 so we can calculate the s2 energies
       // this will be reversed later if the move is rejected
       set_spin(rand_s1, s1_final);
 
-      // calculate the energy difference for s2
-      delta_energy2 = compute_one_spin_energy(s2_final, rand_s2);
+      delta_energy2 = 0.0;
+      for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+        delta_energy2 += (*it)->calculate_one_spin_energy_difference(rand_s2, s2_initial, s2_final);
+      }
 
       // calculate the total energy difference
       delta_energy21 = delta_energy1 + delta_energy2;

@@ -36,6 +36,14 @@ double DipoleHamiltonian::calculate_one_spin_energy(const int i) {
 
 // --------------------------------------------------------------------------
 
+double DipoleHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+    const double e_initial = 0.0;
+    const double e_final = 0.0;
+
+    return e_final - e_initial;
+}
+// --------------------------------------------------------------------------
+
 void DipoleHamiltonian::calculate_energies() {
 }
 

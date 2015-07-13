@@ -1,5 +1,11 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#ifdef __APPLE__
+  #include <Accelerate/Accelerate.h>
+#else
+  #include <cblas.h>
+#endif
+
 #include <fftw3.h>
 
 #include "core/solver.h"
@@ -61,51 +67,18 @@ void Solver::run() {
 
 void Solver::compute_fields() {
   using namespace globals;
-  int i, j, k, m, n, iend, jend, kend;
+
+  // zero the effective field array
   std::fill(h.data(), h.data()+num_spins3, 0.0);
 
-//-----------------------------------------------------------------------------
-// dipole interactions
-//-----------------------------------------------------------------------------
+  // calculate each hamiltonian term's fields
+  for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+    (*it)->calculate_fields();
+  }
 
-  // if (::optimize::use_fft) {
-  //   fftw_execute(spin_fft_forward_transform);
-
-
-  //   // perform convolution as multiplication in fourier space
-  //   for (i = 0, iend = globals::wij.size(0); i < iend; ++i) {
-  //     for (j = 0, jend = globals::wij.size(1); j < jend; ++j) {
-  //       for (k = 0, kend = (globals::wij.size(2)/2)+1; k < kend; ++k) {
-  //         for(m = 0; m < 3; ++m) {
-  //           hq(i,j,k,m)[0] = 0.0; hq(i,j,k,m)[1] = 0.0;
-  //           for(n = 0; n < 3; ++n) {
-  //             hq(i,j,k,m)[0] = hq(i,j,k,m)[0] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[0]-wq(i,j,k,m,n)[1]*sq(i,j,k,n)[1] );
-  //             hq(i,j,k,m)[1] = hq(i,j,k,m)[1] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[1]+wq(i,j,k,m,n)[1]*sq(i,j,k,n)[0] );
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-
-  //   fftw_execute(field_fft_backward_transform);
-
-  //     // normalise
-  //   for (i = 0; i < num_spins3; ++i) {
-  //     h_dipole[i] /= static_cast<double>(num_spins);
-  //   }
-  // } else {
-    std::fill(h_dipole.data(), h_dipole.data()+num_spins3, 0.0);
-  // }
-
-//-----------------------------------------------------------------------------
-// anisotropy interactions
-//-----------------------------------------------------------------------------
-
-
-  for (i = 0; i < num_spins; ++i) {
-    for (j = 0; j < 3; ++j) {
-      h(i, j) = h(i, j) + h_dipole(i,j);
-    }
+  // sum hamiltonian field contributions into effective field
+  for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+    cblas_daxpy(num_spins3, 1.0, (*it)->ptr_field(), 1, h.data(), 1);
   }
 }
 

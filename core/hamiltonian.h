@@ -21,6 +21,8 @@ class Hamiltonian {
 
   virtual double calculate_total_energy() = 0;
   virtual double calculate_one_spin_energy(const int i) = 0;
+  virtual         double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) = 0;
+
   virtual void   calculate_energies() = 0;
 
   virtual void   calculate_one_spin_fields(const int i, double h[3]) = 0;
@@ -30,11 +32,21 @@ class Hamiltonian {
   virtual void   output_fields(OutputFormat format) = 0;
 
   double* dev_ptr_energy() {
+    assert(dev_energy_.is_allocated());
     return dev_energy_.data();
+  }
+  double* ptr_energy() {
+    assert(energy_.is_allocated());
+    return energy_.data();
   }
 
   double* dev_ptr_field() {
+    assert(dev_field_.is_allocated());
     return dev_field_.data();
+  }
+  double* ptr_field() {
+    assert(field_.is_allocated());
+    return field_.data();
   }
 
  protected:

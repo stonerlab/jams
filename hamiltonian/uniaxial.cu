@@ -134,6 +134,22 @@ double UniaxialHamiltonian::calculate_one_spin_energy(const int i) {
 
 // --------------------------------------------------------------------------
 
+double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+
+    const double e_initial = d2z_(i)*0.5*(3.0*spin_initial[2]*spin_initial[2] - 1.0)
+         + d4z_(i)*0.125*(35.0*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2]-30.0*spin_initial[2]*spin_initial[2] + 3.0)
+         + d6z_(i)*0.0625*(231.0*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2] - 315.0*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2] + 105.0*spin_initial[2]*spin_initial[2] - 5.0);
+
+
+    const double e_final = d2z_(i)*0.5*(3.0*spin_final[2]*spin_final[2] - 1.0)
+         + d4z_(i)*0.125*(35.0*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2]-30.0*spin_final[2]*spin_final[2] + 3.0)
+         + d6z_(i)*0.0625*(231.0*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2] - 315.0*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2] + 105.0*spin_final[2]*spin_final[2] - 5.0);
+
+    return e_final - e_initial;
+}
+
+// --------------------------------------------------------------------------
+
 void UniaxialHamiltonian::calculate_energies() {
     for (int i = 0; i < globals::num_spins; ++i) {
         energy_[i] = calculate_one_spin_energy(i);
@@ -142,10 +158,10 @@ void UniaxialHamiltonian::calculate_energies() {
 
 // --------------------------------------------------------------------------
 
-void UniaxialHamiltonian::calculate_one_spin_fields(const int i, double h[3]) {
+void UniaxialHamiltonian::calculate_one_spin_fields(const int i, double local_field[3]) {
     using namespace globals;
-    h[0] = 0.0; h[1] = 0.0;
-    h[2] = d2z_(i)*3.0*s(i, 2)
+    local_field[0] = 0.0; local_field[1] = 0.0;
+    local_field[2] = d2z_(i)*3.0*s(i, 2)
          + d4z_(i)*(17.5*s(i, 2)*s(i, 2)*s(i, 2)-7.5*s(i, 2))
          + d6z_(i)*(86.625*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2) - 78.75*s(i, 2)*s(i, 2)*s(i, 2) + 13.125*s(i, 2));
 }

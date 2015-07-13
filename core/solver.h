@@ -11,6 +11,7 @@
 #include "core/monitor.h"
 #include "core/hamiltonian.h"
 #include "jblib/containers/vec.h"
+#include "jblib/containers/sparsematrix.h"
 
 class Solver {
  public:
