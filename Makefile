@@ -69,9 +69,9 @@ ALL_CUFLAGS = $(CUFLAGS)
 ALL_CFLAGS = $(CPPFLAGS) $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
 
-BASIC_CFLAGS = -I. -I/usr/local/include
+BASIC_CFLAGS = -I. -I/usr/local/include -I/usr/local/opt/openblas/include
 BASIC_CUFLAGS = -I. -I$(CUDADIR)/include
-BASIC_LDFLAGS = -L/usr/local/lib
+BASIC_LDFLAGS = -L/usr/local/lib -L/usr/local/opt/openblas/lib
 
 CC = g++
 NVCC = nvcc
@@ -182,7 +182,7 @@ endif
 
 ifeq ($(SYSTYPE),Darwin)
 	CC = clang++ -stdlib=libstdc++
-	BASIC_LDFLAGS += -Wl -rpath /usr/local/cuda/lib
+	BASIC_LDFLAGS += -Wl -rpath /usr/local/cuda/lib -framework Accelerate
 else
 	BASIC_LDFLAGS +=
 endif
