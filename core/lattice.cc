@@ -18,6 +18,7 @@ extern "C"{
 #include <string>
 #include <utility>
 #include <set>
+#include <cfloat>
 
 #include "H5Cpp.h"
 
@@ -209,7 +210,8 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
 //-----------------------------------------------------------------------------
 
   int atom_counter = 0;
-  rmax.x = 0.0; rmax.y = 0.0; rmax.z = 0.0;
+  rmax.x = -FLT_MAX; rmax.y = -FLT_MAX; rmax.z = -FLT_MAX;
+  rmin.x = FLT_MAX; rmin.y = FLT_MAX; rmin.z = FLT_MAX;
   // loop over the translation vectors for lattice size
   for (int i = 0; i < lattice_size_.x; ++i) {
     for (int j = 0; j < lattice_size_.y; ++j) {
@@ -230,8 +232,12 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
             if (real_pos[n] > rmax[n]) {
               rmax[n] = real_pos[n];
             }
+            if (real_pos[n] < rmin[n]) {
+              rmin[n] = real_pos[n];
+            }
           }
 
+          lattice_frac_positions_.push_back(lattice_pos);
           lattice_positions_.push_back(real_pos);
           lattice_materials_.push_back(motif_[m].first);
           lattice_material_num_.push_back(materials_map_[motif_[m].first]);
@@ -253,6 +259,9 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
       }
     }
   }
+
+  ::output.write("  rmin: % 3.6f % 3.6f % 3.6f\n", rmin.x, rmin.y, rmin.z);
+  ::output.write("  rmax: % 3.6f % 3.6f % 3.6f\n", rmax.x, rmax.y, rmax.z);
 
   if (atom_counter == 0) {
     jams_error("the number of computed lattice sites was zero, check input");
@@ -393,6 +402,137 @@ void Lattice::compute_positions(const libconfig::Setting &material_settings, con
   }
 }
 
+void Lattice::compute_recip_space() {
+
+  int i, j;
+
+  double spg_lattice[3][3];
+  for (i = 0; i < 3; ++i) {
+    for (j = 0; j < 3; ++j) {
+      spg_lattice[i][j] = lattice_vectors_[i][j];
+    }
+  }
+
+  double (*spg_positions)[3] = new double[motif_.size()][3];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    for (j = 0; j < 3; ++j) {
+      spg_positions[i][j] = motif_[i].second[j];
+    }
+  }
+
+  int (*spg_types) = new int[motif_.size()];
+
+  for (i = 0; i < motif_.size(); ++i) {
+    spg_types[i] = materials_map_[motif_[i].first];
+  }
+
+  int num_mesh_points = kspace_size_.x*kspace_size_.y*kspace_size_.z;
+  int (*grid_address)[3] = new int[num_mesh_points][3];
+  int (*weights) = new int[num_mesh_points];
+
+
+  // kspace_map_.resize(num_mesh_points);
+
+  int mesh[3] = {kspace_size_.x, kspace_size_.y, kspace_size_.z};
+  int is_shift[] = {0, 0, 0};
+
+  int num_ibz_points = spg_get_ir_reciprocal_mesh(grid_address,
+                              kspace_map_.data(),
+                              mesh,
+                              is_shift,
+                              1,
+                              spg_lattice,
+                              spg_positions,
+                              spg_types,
+                              motif_.size(),
+                              1e-5);
+
+  ::output.write("\nirreducible kpoints: %d\n", num_ibz_points);
+
+  jblib::Array<int,1> ibz_group;
+  jblib::Array<int,1> ibz_index;
+  jblib::Array<int,1> ibz_weight;
+
+  // ibz_group maps from an ibz index to the grid index
+  ibz_group.resize(num_ibz_points);
+
+  // ibz_weight is the degeneracy of a point in the ibz
+  ibz_weight.resize(num_ibz_points);
+
+  // ibz_indez is the ibz_index from a grid index
+  ibz_index.resize(num_mesh_points);
+
+  // zero the weights array
+  for (i = 0; i < num_mesh_points; ++i) {
+      weights[i] = 0;
+  }
+
+  // calculate the weights
+  for (i = 0; i < num_mesh_points; ++i) {
+      weights[kspace_map_[i]]++;
+  }
+
+  // if weights[i] == 0 then it is not part of the irreducible group
+  // so calculate the irreducible group of kpoints
+  int counter = 0;
+  for (i = 0; i < num_mesh_points; ++i) {
+      if (weights[i] != 0) {
+          ibz_group[counter] = i;
+          ibz_weight[counter] = weights[i];
+          ibz_index[i] = counter;
+          counter++;
+      } else {
+          ibz_index[i] = ibz_index[kspace_map_[i]];
+      }
+  }
+
+  if (verbose_output_is_set) {
+    std::ofstream kspace_file("kspace.dat");
+    for (int i = 0; i < num_mesh_points; ++i) {
+      // if (weights[i] != 0) {
+        kspace_file << i << "\t" << grid_address[i][0] << "\t" << grid_address[i][1] << "\t" << grid_address[i][2] << std::endl;
+      // }
+    }
+    kspace_file.close();
+  }
+
+  // find offset coordinates for unitcell
+
+  double unitcell_offset[3] = {0.0, 0.0, 0.0};
+  for (i = 0; i < motif_.size(); ++i) {
+    for (j = 0; j < 3; ++j) {
+      if (motif_[i].second[j] < unitcell_offset[j]){
+        unitcell_offset[j] = motif_[i].second[j];
+      }
+    }
+  }
+
+  ::output.write("unitcell offset (fractional): % 6.6f % 6.6f % 6.6f",
+    unitcell_offset[0], unitcell_offset[1], unitcell_offset[2]);
+
+  kspace_inv_map_.resize(globals::num_spins, 3);
+
+  for (i = 0; i < lattice_frac_positions_.size(); ++i) {
+    jblib::Vec3<double> kvec;
+    for (j = 0; j < 3; ++j) {
+      kvec[j] = ((lattice_frac_positions_[i][j] - unitcell_offset[j])*kpoints_[j]);
+    }
+    ::output.verbose("  kvec: % 3.6f % 3.6f % 3.6f\n", kvec.x, kvec.y, kvec.z);
+
+    // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
+    if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
+      jams_error("kpoint mesh does not map to the unit cell");
+    }
+    // if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
+    //   jams_error("attempted to assign multiple spins to the same point in the kspace map");
+    // }
+    for (j = 0; j < 3; ++j) {
+      kspace_inv_map_(i, j) = nint(kvec[j]);
+    }
+  }
+  // exit(0);
+}
 
 
 void Lattice::load_spin_state_from_hdf5(std::string &filename) {
@@ -603,20 +743,36 @@ void Lattice::calculate_unit_cell_symmetry() {
       ::output.write("  %d ", spglib_dataset_->equivalent_atoms[i]);
   }
   ::output.write("\n");
-  ::output.verbose("  Symmetry operations:\n");
 
-  for (int i = 0; i < spglib_dataset_->n_operations; i++) {
-    ::output.verbose("--- %d ---\n", i + 1);
-    for (j = 0; j < 3; j++) {
-      ::output.verbose("%2d %2d %2d\n",
-      spglib_dataset_->rotations[i][j][0],
-      spglib_dataset_->rotations[i][j][1],
-      spglib_dataset_->rotations[i][j][2]);
-    }
-    ::output.verbose("%f %f %f\n",
-    spglib_dataset_->translations[i][0],
-    spglib_dataset_->translations[i][1],
-    spglib_dataset_->translations[i][2]);
+  ::output.write("  shifted lattice\n");
+  ::output.write("  origin: % 3.6f % 3.6f % 3.6f\n", spglib_dataset_->origin_shift[0], spglib_dataset_->origin_shift[1], spglib_dataset_->origin_shift[2]);
+  for (int i = 0; i < 3; ++i) {
+    ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+      spglib_dataset_->transformation_matrix[i][0], spglib_dataset_->transformation_matrix[i][1], spglib_dataset_->transformation_matrix[i][2]);
+  }
+
+  for (int i = 0; i < motif_.size(); ++i) {
+
+    double bij[3];
+
+    matmul(spglib_dataset_->transformation_matrix, spg_positions[i], bij);
+
+    // for (int j = 0; j < 3; ++j) {
+    //   bij[j] = (bij[j] + spglib_dataset_->origin_shift[j]);
+    // }
+
+    ::output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, materials_numbered_list_[spg_types[i]].c_str(),
+      bij[0], bij[1], bij[2]);
+  }
+
+  ::output.write("\n");
+  ::output.write("  Bravais lattice\n");
+  ::output.write("  num atoms in Bravais lattice: %d\n", spglib_dataset_->n_std_atoms);
+  ::output.write("  Bravais lattice vectors:\n");
+
+  for (int i = 0; i < 3; ++i) {
+    ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+      spglib_dataset_->std_lattice[i][0], spglib_dataset_->std_lattice[i][1], spglib_dataset_->std_lattice[i][2]);
   }
 
   int primitive_num_atoms = motif_.size();

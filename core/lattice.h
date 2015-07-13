@@ -137,9 +137,11 @@ class Lattice {
     void output_coarse_magnetisation(std::ofstream &outfile);
     jblib::Array<int, 2>        kspace_inv_map_;
     std::vector< jblib::Vec3<double> > lattice_positions_;
+    std::vector< jblib::Vec3<double> > lattice_frac_positions_;
     double                      lattice_parameter_;
     std::vector<int>            lattice_material_num_;
     jblib::Vec3<double>         rmax;
+    jblib::Vec3<double>         rmin;
 
     inline int kspace_size(const int i) const { assert(i >= 0 && i < 3); return kspace_size_[i]; }
 
@@ -149,6 +151,7 @@ class Lattice {
     void calculate_unit_cell_kmesh();
     void read_lattice(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void compute_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void compute_recip_space();
     void read_interactions(const libconfig::Setting &lattice_settings);
     void read_interactions_with_symmetry(const libconfig::Setting &lattice_settings);
     void compute_exchange_interactions();
