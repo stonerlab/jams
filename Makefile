@@ -184,7 +184,7 @@ ifeq ($(SYSTYPE),Darwin)
 	CC = clang++ -stdlib=libstdc++
 	BASIC_LDFLAGS += -Wl -rpath /usr/local/cuda/lib
 else
-	BASIC_LDFLAGS += -Wl,--wrap=memcpy
+	BASIC_LDFLAGS +=
 endif
 
 ifeq ($(SYSTYPE),Darwin)
@@ -250,8 +250,8 @@ LIBS = $(EXTLIBS)
 
 all:: jams++
 
-jams++: $(OBJS) $(CUDA_OBJS) core/memcpy.o
-	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(OBJS) $(CUDA_OBJS) $(ALL_LDFLAGS) $(LIBS) core/memcpy.o
+jams++: $(OBJS) $(CUDA_OBJS)
+	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(OBJS) $(CUDA_OBJS) $(ALL_LDFLAGS) $(LIBS)
 	@echo
 	@echo " JAMS++ build complete. "
 	@echo
@@ -265,9 +265,6 @@ endif
 
 # core/jams++.o solvers: EXTRA_CPPFLAGS += \
 # 	'-DGITCOMMIT="$(GITCOMMIT)"'
-
-core/memcpy.o: core/memcpy.c
-	gcc -o $*.o -c $<
 
 $(OBJS): %.o: %.cc $(HDR)
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $(EXTRA_CPPFLAGS) $<
