@@ -70,9 +70,9 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
     }
 
     for (int i = 0; i < globals::num_spins; ++i) {
-        d2z_(i) = (2.0/3.0)*(K1(i) + (8.0/7.0)*K2(i) + (8.0/7.0)*K3(i));
-        d4z_(i) = -((8.0/35.0)*K2(i) + (144.0/385.0)*K3(i));
-        d6z_(i) = ((16.0/231.0)*K3(i));
+        d2z_(i) = -(2.0/3.0)*(K1(i) + (8.0/7.0)*K2(i) + (8.0/7.0)*K3(i));
+        d4z_(i) = ((8.0/35.0)*K2(i) + (144.0/385.0)*K3(i));
+        d6z_(i) = -((16.0/231.0)*K3(i));
     }
 
     // deal with magnetocrystalline anisotropy coefficients
@@ -161,9 +161,9 @@ void UniaxialHamiltonian::calculate_energies() {
 void UniaxialHamiltonian::calculate_one_spin_fields(const int i, double local_field[3]) {
     using namespace globals;
     local_field[0] = 0.0; local_field[1] = 0.0;
-    local_field[2] = d2z_(i)*3.0*s(i, 2)
-         + d4z_(i)*(17.5*s(i, 2)*s(i, 2)*s(i, 2)-7.5*s(i, 2))
-         + d6z_(i)*(86.625*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2) - 78.75*s(i, 2)*s(i, 2)*s(i, 2) + 13.125*s(i, 2));
+    local_field[2] = -d2z_(i)*3.0*s(i, 2)
+         - d4z_(i)*(17.5*s(i, 2)*s(i, 2)*s(i, 2)-7.5*s(i, 2))
+         - d6z_(i)*(86.625*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2) - 78.75*s(i, 2)*s(i, 2)*s(i, 2) + 13.125*s(i, 2));
 }
 
 // --------------------------------------------------------------------------
