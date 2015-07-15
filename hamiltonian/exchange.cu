@@ -64,6 +64,28 @@ bool ExchangeHamiltonian::insert_interaction(const int m, const int n, const jbl
 ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
 
+    bool is_debug_enabled = false;
+    std::ofstream debug_file;
+
+    if (settings.exists("debug")) {
+      is_debug_enabled = settings["debug"];
+    }
+
+    if (is_debug_enabled) {
+      debug_file.open("exchange_debug.dat");
+
+      std::ofstream pos_file("pos_debug.dat");
+      for (int n = 0; n < lattice.num_materials(); ++n) {
+        for (int i = 0; i < globals::num_spins; ++i) {
+          if (lattice.lattice_material_num_[i] == n) {
+            pos_file << i << "\t" <<  lattice.lattice_positions_[i].x << "\t" <<  lattice.lattice_positions_[i].y << "\t" << lattice.lattice_positions_[i].z << "\n";
+          }
+        }
+        pos_file << "\n\n";
+      }
+      pos_file.close();
+    }
+
     // output in default format for now
     outformat_ = TEXT;
 
@@ -141,6 +163,15 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
               is_already_interacting[neighbour_site] = true;
 
               if (insert_interaction(local_site, neighbour_site, int_interaction_list[m][n].second)) {
+                if (is_debug_enabled) {
+                  debug_file << local_site << "\t" << neighbour_site << "\t";
+                  debug_file << lattice.lattice_positions_[local_site].x << "\t";
+                  debug_file << lattice.lattice_positions_[local_site].y << "\t";
+                  debug_file << lattice.lattice_positions_[local_site].z << "\t";
+                  debug_file << lattice.lattice_positions_[neighbour_site].x << "\t";
+                  debug_file << lattice.lattice_positions_[neighbour_site].y << "\t";
+                  debug_file << lattice.lattice_positions_[neighbour_site].z << "\n";
+                }
                 // if(local_site >= neighbour_site) {
                 //   std::cerr << local_site << "\t" << neighbour_site << "\t" << neighbour_site << "\t" << local_site << std::endl;
                 // }
@@ -154,9 +185,16 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
                 is_all_inserts_successful = false;
               }
             }
+            if (is_debug_enabled) {
+              debug_file << "\n\n";
+            }
           }
         }
       }
+    }
+
+    if (is_debug_enabled) {
+      debug_file.close();
     }
 
     if (!is_all_inserts_successful) {
@@ -331,9 +369,6 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
       jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
 
-    // transform into lattice vector basis
-    // jblib::Vec3<double> lattice_vector = (inverse_lattice_vectors_*interaction_vector);
-
     jblib::Vec3<double> r(interaction_vector.x, interaction_vector.y, interaction_vector.z);
     jblib::Vec3<double> r_sym;
 
@@ -351,6 +386,20 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
       // ::output.verbose("%f %f %f\n", r_sym[0], r_sym[1], r_sym[2]);
     }
 
+    // if the origin of the unit cell is in the center of the lattice vectors with other
+    // atoms positioned around it (+ve and -ve) then we have to use nint later instead of
+    // floor to work out which unit cell offset to use.
+    //
+    // currently only unit cells with origins at the corner or the center are supported
+    bool is_centered_lattice = false;
+    for (int i = 0; i < lattice.num_motif_positions(); ++i) {
+      if (lattice.motif_position(i).x < 0.0 || lattice.motif_position(i).y < 0.0 || lattice.motif_position(i).z < 0.0) {
+        is_centered_lattice = true;
+        jams_warning("Centered lattice is detected. Make sure you know what you are doing!");
+        break;
+      }
+    }
+
     if (verbose_output_is_set) {
       ::output.verbose("unit cell realspace\n");
       for (int i = 0; i < lattice.num_motif_positions(); ++i) {
@@ -364,63 +413,54 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
       std::set<jblib::Vec4<int>, vec4_compare> interaction_set;
       // only process for interactions belonging to this material
       if (lattice.motif_material(i) == type_name_A) {
-        ::output.verbose("motif position %d\n", i);
-        ::output.verbose("        i         j ::             rij             |             uij             |             r0              |          motif offset          |          real rij          |         real offset\n");
 
         // motif position in basis vector space
-        jblib::Vec3<double> pij = lattice.fractional_to_cartesian_position(lattice.motif_position(i));
+        jblib::Vec3<double> pij = lattice.motif_position(i);
+        ::output.verbose("motif position %d (% 3.6f % 3.6f % 3.6f)\n", i, pij.x, pij.y, pij.z);
 
         for (int j = 0; j < sym_interaction_vecs.size(0); ++ j) {
 
           // position of neighbour in real space
           jblib::Vec3<double> rij(sym_interaction_vecs(j,0), sym_interaction_vecs(j,1), sym_interaction_vecs(j,2));
 
-          rij = lattice.cartesian_to_fractional_position(rij) + pij;
-          // for (int k = 0; k < 3; ++k) {
-          //   rij[k] = sym_interaction_vecs(j,k) + pij[k];
-          // }
-
-          ::output.verbose("% 6.6f % 6.6f % 6.6f | ", rij[0], rij[1], rij[2]);
-
-          jblib::Vec3<double> rij_inv = lattice.cartesian_to_fractional_position(rij);
-
-          ::output.verbose("% 6.6f % 6.6f % 6.6f | ", rij_inv[0], rij_inv[1], rij_inv[2]);
-
-          ::output.verbose("% 6.6f % 6.6f % 6.6f\n", floor(rij_inv[0]), floor(rij_inv[1]), floor(rij_inv[2]));
-
-
-          // jblib::Vec3<double> real_rij = lattice_vectors_*(rij + pij);
-
-
-          // integer unit cell index containing the neighbour
+          // this gives the integer unit cell of the interaction
           jblib::Vec3<double> uij = rij + pij;
           for (int k = 0; k < 3; ++k) {
-            uij[k] = floor(uij[k]);
+            if (is_centered_lattice) {
+              // usually nint is floor(x+0.5) but it depends on how the cell is defined :(
+              // it seems using ceil is better supported with spglib
+              uij[k] = ceil(uij[k]-0.5);
+            } else {
+              uij[k] = floor(uij[k]);
+            }
           }
 
-          // origin of unit cell containing the neighbour in basis vector space
-          jblib::Vec3<double> r0 = uij;
+          // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
+          // component is the atoms number within the motif
+          jblib::Vec4<int> fast_integer_vector;
+          for (int k = 0; k < 3; ++k) {
+            fast_integer_vector[k] = uij[k];
+          }
 
-          // jblib::Vec3<double> motif_offset = rij - uij;
-          jblib::Vec3<double> motif_pos_offset = (rij + pij) - uij;
+          // now calculate the motif offset
+          jblib::Vec3<double> motif_offset;
 
-          jblib::Vec3<double> real_offset = lattice.fractional_to_cartesian_position(motif_pos_offset);
+          motif_offset = rij + pij - uij;
 
+          jblib::Vec3<double> rij_cart = lattice.cartesian_to_fractional_position(rij);
+          ::output.verbose("% 3.6f % 3.6f % 3.6f | % 3.6f % 3.6f % 3.6f | % 6d % 6d % 6d | % 3.6f % 3.6f % 3.6f\n",
+            rij.x ,rij.y, rij.z, rij_cart.x ,rij_cart.y, rij_cart.z, int(uij.x), int(uij.y), int(uij.z),
+            motif_offset.x, motif_offset.y, motif_offset.z);
 
-          // // now calculate the motif offset
-          // double motif_offset[3];
-          // for (int k = 0; k < 3; ++k) {
-          //   motif_offset[k] = (sym_interaction_vecs(j,k) + motif_[i].second[k]) - fast_integer_vector[k];
-          // }
           // find which motif position this offset corresponds to
           // it is possible that it does not correspond to a position in which case the
           // "motif_partner" is -1
           int motif_partner = -1;
           for (int k = 0; k < lattice.num_motif_positions(); ++k) {
             jblib::Vec3<double> pos = lattice.motif_position(k);
-            if ( fabs(pos.x - motif_pos_offset.x) < 1e-4
-              && fabs(pos.y - motif_pos_offset.y) < 1e-4
-              && fabs(pos.z - motif_pos_offset.z) < 1e-4 ) {
+            if ( fabs(pos.x - motif_offset.x) < 1e-4
+              && fabs(pos.y - motif_offset.y) < 1e-4
+              && fabs(pos.z - motif_offset.z) < 1e-4 ) {
               motif_partner = k;
               break;
             }
