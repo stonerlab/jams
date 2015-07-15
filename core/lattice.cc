@@ -10,6 +10,7 @@ extern "C"{
 #include <stdint.h>
 
 #include <algorithm>
+#include <numeric>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -43,6 +44,7 @@ void Lattice::initialize() {
 
   read_lattice(::config.lookup("materials"), ::config.lookup("lattice"));
   calculate_unit_cell_symmetry();
+  calculate_unit_cell_kpoints();
   compute_positions(::config.lookup("materials"), ::config.lookup("lattice"));
 }
 
@@ -800,8 +802,8 @@ void Lattice::calculate_unit_cell_symmetry() {
 
   primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, motif_.size(), 1e-5);
 
-  // spg_find_primitive returns 0 if the unit cell is already primitive
-  if (primitive_num_atoms != 0) {
+  // spg_find_primitive returns number of atoms in primitve cell
+  if (primitive_num_atoms != motif_.size()) {
     ::output.write("\n");
     ::output.write("unit cell is not a primitive cell\n");
     ::output.write("\n");
@@ -935,4 +937,40 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
     pos.z = pos3.z;
   }
   return is_within_lattice;
+}
+
+void Lattice::calculate_unit_cell_kpoints() {
+
+  long max_denom = 20;
+  long num_kpoints[3];
+  double approx_error = 0.0;
+
+  std::vector<long> nom(num_motif_positions(), 0);
+  std::vector<long> denom(num_motif_positions(), 0);
+
+  for (int j = 0; j < 3; ++j) {
+    // approximate motif position into fractions
+    for (int i = 0; i < num_motif_positions(); ++i) {
+      approx_error = approximate_float_as_fraction(nom[i], denom[i], motif_position(i)[j], max_denom);
+    }
+
+    // find least common multiple of the denominators
+    num_kpoints[j] = std::accumulate(denom.begin(), denom.end(), 1, lcm);
+  }
+
+  ::output.write("\nauto determined kpoints in unitcell\n");
+  ::output.write("  %3ld %3ld %3ld\n\n", num_kpoints[0], num_kpoints[1], num_kpoints[2]);
+
+  ::output.write("motif positions in fractions\n");
+  for (int i = 0; i < num_motif_positions(); ++i) {
+    ::output.write("%4d", i);
+    for (int j = 0; j < 3; ++j) {
+      long n, d;
+      approx_error = approximate_float_as_fraction(n, d, motif_position(i)[j], max_denom);
+      ::output.write("  %3ld/%ld (err: %3.3e)", n*(d/num_kpoints[j]), num_kpoints[j], approx_error);
+    }
+    ::output.write("\n");
+  }
+  ::output.write("\n");
+
 }

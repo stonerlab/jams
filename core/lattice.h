@@ -129,6 +129,8 @@ class Lattice {
             spglib_dataset_->rotations[i][2][0], spglib_dataset_->rotations[i][2][1], spglib_dataset_->rotations[i][2][2]);
     }
 
+    void calculate_unit_cell_kpoints();
+
     void output_spin_state_as_vtu(std::ofstream &outfile);
     void output_spin_state_as_binary(std::ofstream &outfile);
     void output_spin_types_as_binary(std::ofstream &outfile);

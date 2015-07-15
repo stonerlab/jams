@@ -25,6 +25,25 @@ inline double rad_to_deg(const double &angle) {
   return angle*(180.0/pi);
 }
 
+// greatest common divisor
+long gcd(long a, long b);
+
+// lowest common multiple
+long lcm(long a, long b);
+
+///
+/// @brief  Approximates real as an integer fraction top / bottom
+///
+/// Comes from here https://www.ics.uci.edu/~eppstein/numth/frap.c
+///
+/// @param[out]  nominator of fraction
+/// @param[out]  denominator of fraction
+/// @param[in]   real number to approximate as fraction
+/// @param[in]   max_denomiantor to search
+/// @return error of the fraction relative to the float
+///
+double approximate_float_as_fraction(long &nominator, long &denominator, const double real, const long max_denomiantor);
+
 ///
 /// @brief  Sign transfer function from y->x
 ///
