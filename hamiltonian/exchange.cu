@@ -72,9 +72,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     }
 
     if (is_debug_enabled) {
-      debug_file.open("exchange_debug.dat");
+      debug_file.open("debug_exchange.dat");
 
-      std::ofstream pos_file("pos_debug.dat");
+      std::ofstream pos_file("debug_pos.dat");
       for (int n = 0; n < lattice.num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
           if (lattice.lattice_material_num_[i] == n) {
