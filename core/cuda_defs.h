@@ -19,8 +19,8 @@ typedef struct devDIA {
 } devDIA;
 
 typedef struct devCSR {
-  int     *pointers;
-  int     *coords;
+  int     *row;
+  int     *col;
   CudaFastFloat   *val;
   int     blocks;
 } devCSR;
