@@ -4,6 +4,8 @@
 #define JAMS_HAMILTONIAN_EXCHANGE_H
 
 #include <libconfig.h++>
+#include <cuda_runtime.h>
+#include <cusparse.h>
 
 #include "core/output.h"
 #include "core/hamiltonian.h"
@@ -44,13 +46,19 @@ class ExchangeHamiltonian : public Hamiltonian {
         void output_fields_text();
         // void output_fields_hdf5();
 
+        SparseMatrixFormat_t sparse_matrix_format();
+        void set_sparse_matrix_format(std::string &format_name);
+
         SparseMatrix<double> interaction_matrix_;
+        SparseMatrixFormat_t interaction_matrix_format_;
         double energy_cutoff_;
 
 
 #ifdef CUDA
-        devDIA dev_interaction_matrix_;
-
+        devDIA dev_dia_interaction_matrix_;
+        devCSR dev_csr_interaction_matrix_;
+        cusparseHandle_t   cusparse_handle_;
+        cusparseMatDescr_t cusparse_descra_;
 #endif  // CUDA
 
 };

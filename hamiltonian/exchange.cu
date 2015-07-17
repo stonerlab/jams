@@ -71,6 +71,10 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
       is_debug_enabled = settings["debug"];
     }
 
+    if (settings.exists("sparse_format")) {
+      set_sparse_matrix_format(std::string(settings["sparse_format"]));
+    }
+
     if (is_debug_enabled) {
       debug_file.open("debug_exchange.dat");
 
@@ -116,14 +120,14 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
 
-    if (solver->is_cuda_solver()) {
-#ifdef CUDA
-      interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-      interaction_matrix_.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
-#endif  //CUDA
-    } else {
+    // if (solver->is_cuda_solver()) {
+// #ifdef CUDA
+//       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+//       interaction_matrix_.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+// #endif  //CUDA
+//     } else {
       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
-    }
+    // }
 
     ::output.write("\ncomputed interactions\n");
 
@@ -207,6 +211,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     energy_.resize(globals::num_spins);
     field_.resize(globals::num_spins, 3);
 
+    ::output.write("  converting interaction matrix format from MAP to CSR\n");
+    interaction_matrix_.convertMAP2CSR();
+    ::output.write("  exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
 
     // transfer arrays to cuda device if needed
     if (solver->is_cuda_solver()) {
@@ -214,39 +221,67 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
         dev_energy_ = jblib::CudaArray<double, 1>(energy_);
         dev_field_ = jblib::CudaArray<double, 1>(field_);
 
-        ::output.write("  converting interaction matrix format from map to dia");
-        interaction_matrix_.convertMAP2DIA();
-        ::output.write("  estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
-        dev_interaction_matrix_.blocks = std::min<int>(DIA_BLOCK_SIZE, (globals::num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-        ::output.write("  allocating memory on device\n");
+        if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
+          ::output.write("  * Initialising CUSPARSE...\n");
+          cusparseStatus_t status;
+          status = cusparseCreate(&cusparse_handle_);
+          if (status != CUSPARSE_STATUS_SUCCESS) {
+            jams_error("CUSPARSE Library initialization failed");
+          }
 
-        // allocate rows
-        CUDA_CALL(cudaMalloc((void**)&dev_interaction_matrix_.row, (interaction_matrix_.diags())*sizeof(int)));
-        // allocate values
-        CUDA_CALL(cudaMallocPitch((void**)&dev_interaction_matrix_.val, &dev_interaction_matrix_.pitch,
-            (interaction_matrix_.rows())*sizeof(double), interaction_matrix_.diags()));
-        // copy rows
-        CUDA_CALL(cudaMemcpy(dev_interaction_matrix_.row, interaction_matrix_.dia_offPtr(),
-            (size_t)((interaction_matrix_.diags())*(sizeof(int))), cudaMemcpyHostToDevice));
-        // convert val array into double which may be float or double
-        std::vector<double> float_values(interaction_matrix_.rows()*interaction_matrix_.diags(), 0.0);
+          // create matrix descriptor
+          status = cusparseCreateMatDescr(&cusparse_descra_);
+          if (status != CUSPARSE_STATUS_SUCCESS) {
+            jams_error("CUSPARSE Matrix descriptor initialization failed");
+          }
+          cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
+          cusparseSetMatIndexBase(cusparse_descra_,CUSPARSE_INDEX_BASE_ZERO);
 
-        for (int i = 0; i < interaction_matrix_.rows()*interaction_matrix_.diags(); ++i) {
-          float_values[i] = static_cast<double>(interaction_matrix_.val(i));
+          ::output.write("  allocating memory on device\n");
+          CUDA_CALL(cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
+          CUDA_CALL(cudaMalloc((void**)&dev_csr_interaction_matrix_.col, (interaction_matrix_.nonZero())*sizeof(int)));
+          CUDA_CALL(cudaMalloc((void**)&dev_csr_interaction_matrix_.val, (interaction_matrix_.nonZero())*sizeof(double)));
+
+          CUDA_CALL(cudaMemcpy(dev_csr_interaction_matrix_.row, interaction_matrix_.rowPtr(),
+                (interaction_matrix_.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
+
+          CUDA_CALL(cudaMemcpy(dev_csr_interaction_matrix_.col, interaction_matrix_.colPtr(),
+                (interaction_matrix_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
+
+          CUDA_CALL(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
+                (interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
+
+        } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
+          // ::output.write("  converting interaction matrix format from map to dia");
+          // interaction_matrix_.convertMAP2DIA();
+          ::output.write("  estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
+          dev_dia_interaction_matrix_.blocks = std::min<int>(DIA_BLOCK_SIZE, (globals::num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
+          ::output.write("  allocating memory on device\n");
+
+          // allocate rows
+          CUDA_CALL(cudaMalloc((void**)&dev_dia_interaction_matrix_.row, (interaction_matrix_.diags())*sizeof(int)));
+          // allocate values
+          CUDA_CALL(cudaMallocPitch((void**)&dev_dia_interaction_matrix_.val, &dev_dia_interaction_matrix_.pitch,
+              (interaction_matrix_.rows())*sizeof(double), interaction_matrix_.diags()));
+          // copy rows
+          CUDA_CALL(cudaMemcpy(dev_dia_interaction_matrix_.row, interaction_matrix_.dia_offPtr(),
+              (size_t)((interaction_matrix_.diags())*(sizeof(int))), cudaMemcpyHostToDevice));
+          // convert val array into double which may be float or double
+          std::vector<double> float_values(interaction_matrix_.rows()*interaction_matrix_.diags(), 0.0);
+
+          for (int i = 0; i < interaction_matrix_.rows()*interaction_matrix_.diags(); ++i) {
+            float_values[i] = static_cast<double>(interaction_matrix_.val(i));
+          }
+
+          // copy values
+          CUDA_CALL(cudaMemcpy2D(dev_dia_interaction_matrix_.val, dev_dia_interaction_matrix_.pitch, &float_values[0],
+              interaction_matrix_.rows()*sizeof(double), interaction_matrix_.rows()*sizeof(double),
+              interaction_matrix_.diags(), cudaMemcpyHostToDevice));
+
+          dev_dia_interaction_matrix_.pitch = dev_dia_interaction_matrix_.pitch/sizeof(double);
         }
-
-        // copy values
-        CUDA_CALL(cudaMemcpy2D(dev_interaction_matrix_.val, dev_interaction_matrix_.pitch, &float_values[0],
-            interaction_matrix_.rows()*sizeof(double), interaction_matrix_.rows()*sizeof(double),
-            interaction_matrix_.diags(), cudaMemcpyHostToDevice));
-
-        dev_interaction_matrix_.pitch = dev_interaction_matrix_.pitch/sizeof(double);
 #endif
-    } else {
-        ::output.write("  converting interaction matrix format from MAP to CSR\n");
-        interaction_matrix_.convertMAP2CSR();
-        ::output.write("  exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
-    }
+  }
 
 }
 
@@ -576,9 +611,29 @@ void ExchangeHamiltonian::calculate_fields() {
 
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
-        spmv_dia_kernel<<< dev_interaction_matrix_.blocks, DIA_BLOCK_SIZE >>>
-            (globals::num_spins3, globals::num_spins3, interaction_matrix_.diags(), dev_interaction_matrix_.pitch, 1.0, 0.0,
-            dev_interaction_matrix_.row, dev_interaction_matrix_.val, solver->dev_ptr_spin(), dev_field_.data());
+      if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
+        const double one = 1.0;
+        const double zero = 0.0;
+        cusparseStatus_t stat =
+        cusparseDcsrmv(cusparse_handle_,
+          CUSPARSE_OPERATION_NON_TRANSPOSE,
+          globals::num_spins3,
+          globals::num_spins3,
+          interaction_matrix_.nonZero(),
+          &one,
+          cusparse_descra_,
+          dev_csr_interaction_matrix_.val,
+          dev_csr_interaction_matrix_.row,
+          dev_csr_interaction_matrix_.col,
+          solver->dev_ptr_spin(),
+          &zero,
+          dev_field_.data());
+        assert(stat == CUSPARSE_STATUS_SUCCESS);
+      } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
+        spmv_dia_kernel<<< dev_dia_interaction_matrix_.blocks, DIA_BLOCK_SIZE >>>
+            (globals::num_spins3, globals::num_spins3, interaction_matrix_.diags(), dev_dia_interaction_matrix_.pitch, 1.0, 0.0,
+            dev_dia_interaction_matrix_.row, dev_dia_interaction_matrix_.val, solver->dev_ptr_spin(), dev_field_.data());
+      }
 #endif  // CUDA
     } else {
       if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
@@ -712,4 +767,21 @@ void ExchangeHamiltonian::output_fields_text() {
         outfile << "\n";
     }
     outfile.close();
+}
+
+SparseMatrixFormat_t sparse_matrix_format() {
+  return interaction_matrix_format_;
+}
+
+void ExchangeHamiltonian::set_sparse_matrix_format(std::string &format_name) {
+  if (capitalize(format_name) == "CSR") {
+    interaction_matrix_format_ = SPARSE_MATRIX_FORMAT_CSR;
+  } else if (capitalize(format_name) == "DIA") {
+    if (solver.is_cuda_solver() != true) {
+      jams_error("ExchangeHamiltonian::set_sparse_matrix_format: DIA format is only supported for CUDA");
+    }
+    interaction_matrix_format_ = SPARSE_MATRIX_FORMAT_DIA;
+  } else {
+    jams_error("ExchangeHamiltonian::set_sparse_matrix_format: Unknown format requested %s", format_name.c_str());
+  }
 }
