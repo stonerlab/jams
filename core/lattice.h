@@ -129,6 +129,17 @@ class Lattice {
             spglib_dataset_->rotations[i][2][0], spglib_dataset_->rotations[i][2][1], spglib_dataset_->rotations[i][2][2]);
     }
 
+    const jblib::Vec3<int>& super_cell_pos(const int i) const {
+        return lattice_super_cell_pos_(i);
+    }
+
+    // --------------------------------------------------------------------------
+    // kspace functions
+    // --------------------------------------------------------------------------
+    const jblib::Vec3<int>& kspace_size() const {
+        return kspace_size_;
+    }
+
     void calculate_unit_cell_kpoints();
 
     void output_spin_state_as_vtu(std::ofstream &outfile);
@@ -145,15 +156,13 @@ class Lattice {
     jblib::Vec3<double>         rmax;
     jblib::Vec3<double>         rmin;
 
-    inline int kspace_size(const int i) const { assert(i >= 0 && i < 3); return kspace_size_[i]; }
-
     void load_spin_state_from_hdf5(std::string &filename);
 
   private:
     void calculate_unit_cell_kmesh();
     void read_lattice(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
-    void compute_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
-    void compute_recip_space();
+    void calculate_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void calculate_recip_space();
     void read_interactions(const libconfig::Setting &lattice_settings);
     void read_interactions_with_symmetry(const libconfig::Setting &lattice_settings);
     void compute_exchange_interactions();
@@ -161,6 +170,8 @@ class Lattice {
     void compute_fft_dipole_interactions();
     void calculate_unit_cell_symmetry();
     bool insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
+
+    bool is_debugging_enabled_;
 
     double energy_cutoff_;
 
@@ -170,11 +181,13 @@ class Lattice {
     std::vector<std::string>    lattice_materials_;
     jblib::Vec3<bool>           lattice_pbc_;
     jblib::Vec3<int>            lattice_size_;
+    jblib::Array<jblib::Vec3<int>, 1>        lattice_super_cell_pos_;
     jblib::Array<int, 4>        lattice_integer_lookup_;
     jblib::Matrix<double, 3, 3> lattice_vectors_;
     jblib::Matrix<double, 3, 3> inverse_lattice_vectors_;
     std::vector< std::pair<std::string, jblib::Vec3<double> > > motif_;
     jblib::Array<int, 3>        kspace_map_;
+    jblib::Vec3<int>            unit_cell_kpoints_;
     jblib::Vec3<int>            kpoints_;
     jblib::Vec3<int>            kspace_size_;
 

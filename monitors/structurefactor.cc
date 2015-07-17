@@ -24,11 +24,11 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   is_equilibration_monitor_ = false;
 
   // plan FFTW routines
-  sq_xy.resize(lattice.kspace_size(0), lattice.kspace_size(1), lattice.kspace_size(2));
-  fft_plan_sq_xy = fftw_plan_dft_3d(lattice.kspace_size(0), lattice.kspace_size(1), lattice.kspace_size(2), sq_xy.data(),  sq_xy.data(), FFTW_FORWARD, FFTW_ESTIMATE);
+  sq_xy.resize(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z);
+  fft_plan_sq_xy = fftw_plan_dft_3d(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z, sq_xy.data(),  sq_xy.data(), FFTW_FORWARD, FFTW_ESTIMATE);
 
-  sq_z.resize(lattice.kspace_size(0), lattice.kspace_size(1), lattice.kspace_size(2));
-  fft_plan_sq_z = fftw_plan_dft_3d(lattice.kspace_size(0), lattice.kspace_size(1), lattice.kspace_size(2), sq_z.data(),  sq_z.data(), FFTW_FORWARD, FFTW_ESTIMATE);
+  sq_z.resize(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z);
+  fft_plan_sq_z = fftw_plan_dft_3d(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z, sq_z.data(),  sq_z.data(), FFTW_FORWARD, FFTW_ESTIMATE);
 
   // create transform arrays for example to apply a Holstein Primakoff transform
   s_transform.resize(num_spins, 3);
@@ -73,10 +73,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
-      if (int(bz_nodes[n][i]) > (lattice.kspace_size(i)/2 + 1)) {
+      if (int(bz_nodes[n][i]) > (lattice.kspace_size()[i]/2 + 1)) {
         jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n][0]), int(bz_nodes[n][1]), int(bz_nodes[n][2]));
       }
-      if (int(bz_nodes[n+1][i]) > (lattice.kspace_size(i)/2 + 1)) {
+      if (int(bz_nodes[n+1][i]) > (lattice.kspace_size()[i]/2 + 1)) {
         jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n+1][0]), int(bz_nodes[n+1][1]), int(bz_nodes[n+1][2]));
       }
     }
@@ -127,9 +127,11 @@ void StructureFactorMonitor::update(const Solver * const solver) {
 
   // remap spin data into kspace array
   for (int i = 0; i < num_spins; ++i) {
-    jblib::Vec3<int> r(::lattice.kspace_inv_map_(i,0), ::lattice.kspace_inv_map_(i,1), ::lattice.kspace_inv_map_(i,2));
-    sq_xy(r.x, r.y, r.z)[0] = s(i,0)*s_transform(i,0);     sq_xy(r.x, r.y, r.z)[1] = s(i,1)*s_transform(i,1);
-    sq_z(r.x, r.y, r.z)[0]  = s(i,2)*s_transform(i,2)-mz;  sq_z(r.x, r.y, r.z)[1]  = 0.0;
+    if ((i+2)%20 == 0) {
+      jblib::Vec3<int> r = lattice.super_cell_pos(i);
+      sq_xy(r.x, r.y, r.z)[0] = s(i,0);  sq_xy(r.x, r.y, r.z)[1] = 0.0;
+      sq_z(r.x, r.y, r.z)[0]  = s(i,1);  sq_z(r.x, r.y, r.z)[1]  = 0.0;
+    }
   }
 
   // perform in place FFT
