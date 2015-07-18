@@ -71,9 +71,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
       is_debug_enabled = settings["debug"];
     }
 
-    if (settings.exists("sparse_format")) {
-      set_sparse_matrix_format(std::string(settings["sparse_format"]));
-    }
+    // if (settings.exists("sparse_format")) {
+    //   set_sparse_matrix_format(std::string(settings["sparse_format"]));
+    // }
 
     if (is_debug_enabled) {
       debug_file.open("debug_exchange.dat");
@@ -769,7 +769,7 @@ void ExchangeHamiltonian::output_fields_text() {
     outfile.close();
 }
 
-SparseMatrixFormat_t sparse_matrix_format() {
+SparseMatrixFormat_t ExchangeHamiltonian::sparse_matrix_format() {
   return interaction_matrix_format_;
 }
 
@@ -777,7 +777,7 @@ void ExchangeHamiltonian::set_sparse_matrix_format(std::string &format_name) {
   if (capitalize(format_name) == "CSR") {
     interaction_matrix_format_ = SPARSE_MATRIX_FORMAT_CSR;
   } else if (capitalize(format_name) == "DIA") {
-    if (solver.is_cuda_solver() != true) {
+    if (solver->is_cuda_solver() != true) {
       jams_error("ExchangeHamiltonian::set_sparse_matrix_format: DIA format is only supported for CUDA");
     }
     interaction_matrix_format_ = SPARSE_MATRIX_FORMAT_DIA;
