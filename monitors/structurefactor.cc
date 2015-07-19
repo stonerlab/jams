@@ -24,8 +24,11 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   is_equilibration_monitor_ = false;
 
   // plan FFTW routines
-  sq_xy.resize(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z);
-  fft_plan_sq_xy = fftw_plan_dft_3d(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z, sq_xy.data(),  sq_xy.data(), FFTW_FORWARD, FFTW_ESTIMATE);
+  sq_x.resize(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z);
+  fft_plan_sq_x = fftw_plan_dft_3d(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z, sq_x.data(),  sq_x.data(), FFTW_FORWARD, FFTW_ESTIMATE);
+
+  sq_y.resize(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z);
+  fft_plan_sq_y = fftw_plan_dft_3d(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z, sq_y.data(),  sq_y.data(), FFTW_FORWARD, FFTW_ESTIMATE);
 
   sq_z.resize(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z);
   fft_plan_sq_z = fftw_plan_dft_3d(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z, sq_z.data(),  sq_z.data(), FFTW_FORWARD, FFTW_ESTIMATE);
@@ -113,8 +116,8 @@ void StructureFactorMonitor::update(const Solver * const solver) {
   using namespace globals;
 
   // zero the sq arrays
-  for (int i = 0; i < sq_xy.elements(); ++i) {
-    sq_xy[i][0] = 0.0; sq_xy[i][1] = 0.0;
+  for (int i = 0; i < sq_x.elements(); ++i) {
+    sq_x[i][0] = 0.0; sq_x[i][1] = 0.0;
     sq_z[i][0] = 0.0;  sq_z[i][1] = 0.0;
   }
 
@@ -129,18 +132,22 @@ void StructureFactorMonitor::update(const Solver * const solver) {
   for (int i = 0; i < num_spins; ++i) {
     if ((i+2)%20 == 0) {
       jblib::Vec3<int> r = lattice.super_cell_pos(i);
-      sq_xy(r.x, r.y, r.z)[0] = s(i,0);  sq_xy(r.x, r.y, r.z)[1] = 0.0;
-      sq_z(r.x, r.y, r.z)[0]  = s(i,1);  sq_z(r.x, r.y, r.z)[1]  = 0.0;
+      sq_x(r.x, r.y, r.z)[0] = s(i,0);  sq_x(r.x, r.y, r.z)[1] = 0.0;
+      sq_y(r.x, r.y, r.z)[0] = s(i,1);  sq_y(r.x, r.y, r.z)[1] = 0.0;
+      sq_z(r.x, r.y, r.z)[0] = s(i,2);  sq_z(r.x, r.y, r.z)[1] = 0.0;
     }
   }
 
   // perform in place FFT
-  fftw_execute(fft_plan_sq_xy); fftw_execute(fft_plan_sq_z);
+  fftw_execute(fft_plan_sq_x);
+  fftw_execute(fft_plan_sq_y);
+  fftw_execute(fft_plan_sq_z);
 
   // add the Sq to the timeseries
   for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
     jblib::Vec3<int> q = bz_points[i];
-    sqw_xy.push_back(std::complex<double>(sq_xy(q.x, q.y, q.z)[0],sq_xy(q.x, q.y, q.z)[1]));
+    sqw_x.push_back(std::complex<double>(sq_x(q.x, q.y, q.z)[0],sq_x(q.x, q.y, q.z)[1]));
+    sqw_y.push_back(std::complex<double>(sq_y(q.x, q.y, q.z)[0],sq_y(q.x, q.y, q.z)[1]));
     sqw_z.push_back(std::complex<double>(sq_z(q.x, q.y, q.z)[0],sq_z(q.x, q.y, q.z)[1]));
   }
 }
@@ -152,9 +159,10 @@ double StructureFactorMonitor::fft_windowing(const int n, const int n_total) {
 void StructureFactorMonitor::fft_time() {
 
   const int space_points = bz_points.size();
-  const int time_points = sqw_xy.size()/space_points;
+  const int time_points = sqw_x.size()/space_points;
 
-  jblib::Array<fftw_complex,2> fft_sqw_xy(time_points, space_points);
+  jblib::Array<fftw_complex,2> fft_sqw_x(time_points, space_points);
+  jblib::Array<fftw_complex,2> fft_sqw_y(time_points, space_points);
   jblib::Array<fftw_complex,2> fft_sqw_z(time_points, space_points);
 
   int rank       = 1;
@@ -164,29 +172,38 @@ void StructureFactorMonitor::fft_time() {
   int istride    = space_points; int ostride    = space_points;
   int idist      = 1;            int odist      = 1;
 
-  fftw_plan fft_plan_time_xy = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_xy.data(),inembed,istride,idist,fft_sqw_xy.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
+  fftw_plan fft_plan_time_x = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_x.data(),inembed,istride,idist,fft_sqw_x.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
+  fftw_plan fft_plan_time_y = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_y.data(),inembed,istride,idist,fft_sqw_y.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
   fftw_plan fft_plan_time_z = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_z.data(),inembed,istride,idist,fft_sqw_z.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
 
   for (int i = 0; i < time_points; ++i) {
     for (int j = 0; j < space_points; ++j) {
-      fft_sqw_xy(i,j)[0] = sqw_xy[i*space_points + j].real()*fft_windowing(i, time_points);
-      fft_sqw_xy(i,j)[1] = sqw_xy[i*space_points + j].imag()*fft_windowing(i, time_points);
+      fft_sqw_x(i,j)[0] = sqw_x[i*space_points + j].real()*fft_windowing(i, time_points);
+      fft_sqw_x(i,j)[1] = sqw_x[i*space_points + j].imag()*fft_windowing(i, time_points);
+
+      fft_sqw_y(i,j)[0] = sqw_y[i*space_points + j].real()*fft_windowing(i, time_points);
+      fft_sqw_y(i,j)[1] = sqw_y[i*space_points + j].imag()*fft_windowing(i, time_points);
 
       fft_sqw_z(i,j)[0] = sqw_z[i*space_points + j].real()*fft_windowing(i, time_points);
       fft_sqw_z(i,j)[1] = sqw_z[i*space_points + j].imag()*fft_windowing(i, time_points);
     }
   }
 
-  fftw_execute(fft_plan_time_xy);
+  fftw_execute(fft_plan_time_x);
+  fftw_execute(fft_plan_time_y);
   fftw_execute(fft_plan_time_z);
 
   std::string name = seedname + "_dsf.dat";
   std::ofstream dsffile(name.c_str());
 
   for (int i = 0; i < (time_points/2) + 1; ++i) {
+    double total_length = 0.0;
     for (int j = 0; j < space_points; ++j) {
-      dsffile << j << "\t" << i*delta_freq << "\t" << fft_sqw_xy(i,j)[0]*fft_sqw_xy(i,j)[0] + fft_sqw_xy(i,j)[1]*fft_sqw_xy(i,j)[1];
-      dsffile << "\t" << fft_sqw_z(i,j)[0]*fft_sqw_z(i,j)[0] + fft_sqw_z(i,j)[1]*fft_sqw_z(i,j)[1] << std::endl;
+      dsffile << j << "\t" << total_length << "\t" << i*delta_freq << "\t";
+      dsffile << fft_sqw_x(i,j)[0] << "\t" << fft_sqw_x(i,j)[1] << "\t";
+      dsffile << fft_sqw_y(i,j)[0] << "\t" << fft_sqw_y(i,j)[1] << "\t";
+      dsffile << fft_sqw_z(i,j)[0] << "\t" << fft_sqw_z(i,j)[1] << "\n";
+      total_length += bz_lengths[j];
     }
     dsffile << std::endl;
   }
