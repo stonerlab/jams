@@ -199,10 +199,10 @@ void StructureFactorMonitor::fft_time() {
   for (int i = 0; i < (time_points/2) + 1; ++i) {
     double total_length = 0.0;
     for (int j = 0; j < space_points; ++j) {
-      dsffile << j << "\t" << total_length << "\t" << i*delta_freq << "\t";
       dsffile << fft_sqw_x(i,j)[0] << "\t" << fft_sqw_x(i,j)[1] << "\t";
       dsffile << fft_sqw_y(i,j)[0] << "\t" << fft_sqw_y(i,j)[1] << "\t";
       dsffile << fft_sqw_z(i,j)[0] << "\t" << fft_sqw_z(i,j)[1] << "\n";
+      dsffile << j << "\t" << total_length << "\t" << i*delta_freq_ << "\t";
       total_length += bz_lengths[j];
     }
     dsffile << std::endl;
