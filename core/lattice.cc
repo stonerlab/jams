@@ -553,7 +553,7 @@ void Lattice::calculate_recip_space() {
     for (j = 0; j < 3; ++j) {
       kvec[j] = ((lattice_frac_positions_[i][j] - unitcell_offset[j])*kpoints_[j]);
     }
-    ::output.verbose("  kvec: % 3.6f % 3.6f % 3.6f\n", kvec.x, kvec.y, kvec.z);
+    // ::output.verbose("  kvec: % 3.6f % 3.6f % 3.6f\n", kvec.x, kvec.y, kvec.z);
 
     // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
     if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
