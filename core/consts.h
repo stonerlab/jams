@@ -3,6 +3,13 @@
 #ifndef JAMS_CORE_CONSTS_H
 #define JAMS_CORE_CONSTS_H
 
+#include <complex>
+
+const double kZero = 0.0;
+const double kOne = 1.0;
+
+const std::complex<double> cmplxZero(0.0, 0.0);
+
 const double pi = 3.14159265358979323846;
 const double twopi = 2.0*pi;
 const double mu_bohr_si = 9.27400915E-24;

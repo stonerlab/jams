@@ -30,12 +30,13 @@ class StructureFactorMonitor : public Monitor {
   jblib::Array<fftw_complex, 3> sq_y;
   jblib::Array<fftw_complex, 3> sq_z;
   jblib::Array<double, 2> s_transform;
-  std::vector<std::complex<double> > sqw_x;
-  std::vector<std::complex<double> > sqw_y;
-  std::vector<std::complex<double> > sqw_z;
+  jblib::Array<std::complex<double>, 3> sqw_x;
+  jblib::Array<std::complex<double>, 3> sqw_y;
+  jblib::Array<std::complex<double>, 3> sqw_z;
   std::vector<jblib::Vec3<int> > bz_points;
   std::vector<double> bz_lengths;
   double delta_freq_;
+  int time_point_counter_;
 };
 
 #endif  // JAMS_MONITOR_STRUCTUREFACTOR_H
