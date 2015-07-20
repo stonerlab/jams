@@ -50,22 +50,24 @@ void Output::write(const char* message, ...) {
 }
 
 void Output::verbose(const char* message, ...) {
-  va_list args;
+  if (verbose_) {
+    va_list args;
 
-  if (message == reinterpret_cast<const char*>(NULL)) {
-    return;
-  }
+    if (message == reinterpret_cast<const char*>(NULL)) {
+      return;
+    }
 
-  va_start(args, message);
-    vsprintf(buffer, message, args);
-  va_end(args);
+    va_start(args, message);
+      vsprintf(buffer, message, args);
+    va_end(args);
 
-  logfile << buffer;
-  logfile.flush();
+    logfile << buffer;
+    logfile.flush();
 
-  if (console == true) {
-      print(buffer);
-      fflush(stdout);
+    if (console == true) {
+        print(buffer);
+        fflush(stdout);
+    }
   }
 }
 

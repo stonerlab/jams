@@ -366,8 +366,6 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
 void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &filename,
   std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
 
-  verbose_output_is_set = true;
-
   std::ifstream interaction_file(filename.c_str());
 
   if(interaction_file.fail()) {
