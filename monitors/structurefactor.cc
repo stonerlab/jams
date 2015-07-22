@@ -125,19 +125,13 @@ void StructureFactorMonitor::update(const Solver * const solver) {
     // zero the sq arrays
     for (int i = 0; i < sq_x.elements(); ++i) {
       sq_x[i][0] = 0.0; sq_x[i][1] = 0.0;
-      sq_z[i][0] = 0.0;  sq_z[i][1] = 0.0;
+      sq_y[i][0] = 0.0; sq_y[i][1] = 0.0;
+      sq_z[i][0] = 0.0; sq_z[i][1] = 0.0;
     }
-
-    double mz = 0.0;
-
-    for (int i = 0; i < num_spins; ++i) {
-      mz += s(i,2)*s_transform(i,2);
-    }
-    mz /= double(num_spins);
 
     // remap spin data into kspace array
     for (int i = 0; i < num_spins; ++i) {
-      if ((i+motif_atom)%20 == 0) {
+      if ((i+motif_atom)%lattice.num_motif_positions() == 0) {
         jblib::Vec3<int> r = lattice.super_cell_pos(i);
         sq_x(r.x, r.y, r.z)[0] = s(i,0)*s_transform(i,0);  sq_x(r.x, r.y, r.z)[1] = 0.0;
         sq_y(r.x, r.y, r.z)[0] = s(i,1)*s_transform(i,1);  sq_y(r.x, r.y, r.z)[1] = 0.0;
