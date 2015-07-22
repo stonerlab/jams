@@ -156,8 +156,8 @@ void StructureFactorMonitor::update(const Solver * const solver) {
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
       jblib::Vec3<int> q = bz_points[i];
       sqw_x(motif_atom, time_point_counter_, i) = norm*std::complex<double>(sq_x(q.x, q.y, q.z)[0],sq_x(q.x, q.y, q.z)[1]);
-      sqw_y(motif_atom, time_point_counter_, i) = norm*std::complex<double>(sq_x(q.x, q.y, q.z)[0],sq_x(q.x, q.y, q.z)[1]);
-      sqw_z(motif_atom, time_point_counter_, i) = norm*std::complex<double>(sq_x(q.x, q.y, q.z)[0],sq_x(q.x, q.y, q.z)[1]);
+      sqw_y(motif_atom, time_point_counter_, i) = norm*std::complex<double>(sq_y(q.x, q.y, q.z)[0],sq_y(q.x, q.y, q.z)[1]);
+      sqw_z(motif_atom, time_point_counter_, i) = norm*std::complex<double>(sq_z(q.x, q.y, q.z)[0],sq_z(q.x, q.y, q.z)[1]);
     }
   }
 
