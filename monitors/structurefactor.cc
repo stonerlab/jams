@@ -121,6 +121,12 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 void StructureFactorMonitor::update(const Solver * const solver) {
   using namespace globals;
 
+  std::complex<double> two_pi_i_dr;
+  std::complex<double> exp_phase_0;
+  jblib::Array<std::complex<double>, 1> exp_phase_x(lattice.kspace_size().x);
+  jblib::Array<std::complex<double>, 1> exp_phase_y(lattice.kspace_size().y);
+  jblib::Array<std::complex<double>, 1> exp_phase_z(lattice.kspace_size().z);
+
   for (int motif_atom = 0; motif_atom < lattice.num_motif_positions(); ++motif_atom) {
     // zero the sq arrays
     for (int i = 0; i < sq_x.elements(); ++i) {
@@ -145,6 +151,50 @@ void StructureFactorMonitor::update(const Solver * const solver) {
     fftw_execute(fft_plan_sq_z);
 
     const double norm = 1.0/sqrt(product(lattice.kspace_size()));
+
+    // super speed hack from CASTEP ewald.f90 for generating all of the phase factors on
+    // the fly without calling lots of exp()
+    two_pi_i_dr = two_pi_i*lattice.motif_position(motif_atom).x;
+    exp_phase_0 = exp(two_pi_i_dr);
+    exp_phase_x(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().x - 1)/2));
+    for (int i = 1; i < lattice.kspace_size().x; ++i) {
+      exp_phase_x(i) = exp_phase_x(i-1)*exp_phase_0;
+    }
+
+    two_pi_i_dr = two_pi_i*lattice.motif_position(motif_atom).y;
+    exp_phase_0 = exp(two_pi_i_dr);
+    exp_phase_y(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().y - 1)/2));
+    for (int i = 1; i < lattice.kspace_size().y; ++i) {
+      exp_phase_y(i) = exp_phase_y(i-1)*exp_phase_0;
+    }
+
+    two_pi_i_dr = two_pi_i*lattice.motif_position(motif_atom).z;
+    exp_phase_0 = exp(two_pi_i_dr);
+    exp_phase_z(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().z - 1)/2));
+    for (int i = 1; i < lattice.kspace_size().z; ++i) {
+      exp_phase_z(i) = exp_phase_z(i-1)*exp_phase_0;
+    }
+
+    for (int i = 0; i < lattice.kspace_size().x; ++i) {
+      for (int j = 0; j < lattice.kspace_size().y; ++j) {
+        for (int k = 0; k < lattice.kspace_size().z; ++k) {
+
+          std::complex<double> phased_sq_x(sq_x(i, j, k)[0], sq_x(i, j, k)[1]);
+          std::complex<double> phased_sq_y(sq_y(i, j, k)[0], sq_y(i, j, k)[1]);
+          std::complex<double> phased_sq_z(sq_z(i, j, k)[0], sq_z(i, j, k)[1]);
+
+          phased_sq_x = norm*phased_sq_x*exp_phase_x(i)*exp_phase_y(j)*exp_phase_z(k);
+          sq_x(i, j, k)[0] = phased_sq_x.real(); sq_x(i, j, k)[1] = phased_sq_x.imag();
+
+          phased_sq_y = norm*phased_sq_y*exp_phase_x(i)*exp_phase_y(j)*exp_phase_z(k);
+          sq_y(i, j, k)[0] = phased_sq_y.real(); sq_y(i, j, k)[1] = phased_sq_y.imag();
+
+          phased_sq_z = norm*phased_sq_z*exp_phase_x(i)*exp_phase_y(j)*exp_phase_z(k);
+          sq_z(i, j, k)[0] = phased_sq_z.real(); sq_z(i, j, k)[1] = phased_sq_z.imag();
+        }
+      }
+    }
+
 
     // add the Sq to the timeseries
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
