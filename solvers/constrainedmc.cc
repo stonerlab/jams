@@ -88,229 +88,144 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   jblib::Vec3<double> test_forward_vec = rotation_matrix_*test_unit_vec;
   jblib::Vec3<double> test_back_vec    = inverse_rotation_matrix_*test_forward_vec;
 
-  ::output.write("\nsanity check\n");
+  ::output.write("\nrotation sanity check\n");
 
   ::output.write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
   ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
   // ---
-
-  // output.write("\nconverting symmetric to general MAP matrices\n");
-  // J1ij_t.convertSymmetric2General();
-  // output.write("  converting MAP to CSR\n");
-  // J1ij_t.convertMAP2CSR();
-  // output.write("  J1ij Tensor matrix memory (CSR): %f MB\n",
-  // J1ij_t.calculateMemory());
 }
 
 void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
-  double x,y,z;
-  rng.sphere(x,y,z);
-  spin.x += move_sigma*x; spin.y += move_sigma*y; spin.z += move_sigma*z;
+  jblib::Vec3<double> rvec;
+  rng.sphere(rvec.x, rvec.y, rvec.z);
+  spin += rvec*move_sigma;
   spin /= abs(spin);
 }
 
-double ConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii) {
+void ConstrainedMCSolver::set_spin(const int &i, const jblib::Vec3<double> &spin) {
+  for (int n = 0; n < 3; ++n) {
+    globals::s(i, n) = spin[n];
+  }
+}
+
+void ConstrainedMCSolver::get_spin(const int &i, jblib::Vec3<double> &spin) {
+  for (int n = 0; n < 3; ++n) {
+    spin[n] = globals::s(i, n);
+  }
+}
+
+void ConstrainedMCSolver::run() {
+  // Chooses nspins random spin pairs from the spin system and attempts a
+  // Constrained Monte Carlo move on each pair, accepting for either lower
+  // energy or with a Boltzmann thermal weighting.
   using namespace globals;
+  using jblib::Vec3;
 
-  double energy_initial = 0.0;
-  double energy_final = 0.0;
+  int rand_s1, rand_s2;
+  double delta_energy1, delta_energy2, delta_energy21;
+  double mz_old, mz_new, probability;
+  const double inv_kbT_bohr = mu_bohr_si/(physics_module_->temperature()*boltzmann_si);
 
-  jblib::Vec3<double> field(0.0, 0.0, 0.0);
+  Vec3<double> s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
+  Vec3<double> s2_initial, s2_final, s2_initial_rotated, s2_final_rotated;
 
-  // exchange
+  Vec3<double> m_other(0.0, 0.0, 0.0);
 
-  // if (J1ij_t.nonZero() > 0) {   // J1ij_t
-
-  //     const double *val = J1ij_t.valPtr();
-  //     const int    *indx = J1ij_t.colPtr();
-  //     const int    *ptrb = J1ij_t.ptrB();
-  //     const int    *ptre = J1ij_t.ptrE();
-  //     const double *x   = s.data();
-  //     int           k;
-
-  //     for (int m = 0; m < 3; ++m) {
-  //       int begin = ptrb[3*ii+m]; int end = ptre[3*ii+m];
-  //       for (int j = begin; j < end; ++j) {
-  //         k = indx[j];
-  //         field[m] = field[m] + x[k]*val[j];
-  //       }
-  //     }
-  //     energy_initial -= (s(ii,0)*field[0] + s(ii,1)*field[1] + s(ii,2)*field[2]);
-  //     energy_final   -= dot(s_final,field);
-  //   }
-
-
-    if (::optimize::use_fft) {
-      fftw_execute(spin_fft_forward_transform);
-      // perform convolution as multiplication in fourier space
-      for (int i = 0, iend = globals::wij.size(0); i < iend; ++i) {
-        for (int j = 0, jend = globals::wij.size(1); j < jend; ++j) {
-          for (int k = 0, kend = (globals::wij.size(2)/2)+1; k < kend; ++k) {
-            for(int m = 0; m < 3; ++m) {
-              hq(i,j,k,m)[0] = 0.0; hq(i,j,k,m)[1] = 0.0;
-              for(int n = 0; n < 3; ++n) {
-                hq(i,j,k,m)[0] = hq(i,j,k,m)[0] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[0]-wq(i,j,k,m,n)[1]*sq(i,j,k,n)[1] );
-                hq(i,j,k,m)[1] = hq(i,j,k,m)[1] + ( wq(i,j,k,m,n)[0]*sq(i,j,k,n)[1]+wq(i,j,k,m,n)[1]*sq(i,j,k,n)[0] );
-              }
-            }
-          }
-        }
-      }
-      fftw_execute(field_fft_backward_transform);
-      // normalise
-      for (int i = 0; i < num_spins3; ++i) {
-        h_dipole[i] /= static_cast<double>(num_spins);
-      }
-
-      energy_initial -= s(ii,0)*h_dipole(ii,0) + s(ii,1)*h_dipole(ii,1) + s(ii,2)*h_dipole(ii,2);
-      energy_final   -= s_final.x*h_dipole(ii,0) + s_final.y*h_dipole(ii,1) + s_final.z*h_dipole(ii,2);
-    }
-
-    // energy_initial -= d2z(ii)*0.5*(3.0*s(ii,2)*s(ii,2) - 1.0);
-    // energy_initial -= d4z(ii)*0.125*(35.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)-30.0*s(ii,2)*s(ii,2) + 3.0);
-    // energy_initial -= d6z(ii)*0.0625*(231.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2) - 315.0*s(ii,2)*s(ii,2)*s(ii,2)*s(ii,2) + 105.0*s(ii,2)*s(ii,2) - 5.0);
-
-    // energy_final -= d2z(ii)*0.5*(3.0*s_final.z*s_final.z - 1.0);
-    // energy_final -= d4z(ii)*0.125*(35.0*s_final.z*s_final.z*s_final.z*s_final.z-30.0*s_final.z*s_final.z + 3.0);
-    // energy_final -= d6z(ii)*0.0625*(231.0*s_final.z*s_final.z*s_final.z*s_final.z*s_final.z*s_final.z - 315.0*s_final.z*s_final.z*s_final.z*s_final.z + 105.0*s_final.z*s_final.z - 5.0);
-
-    return (energy_final - energy_initial);
-  }
-
-  void ConstrainedMCSolver::set_spin(const int &i, const jblib::Vec3<double> &spin) {
+  for (int i = 0; i < num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
-      globals::s(i, n) = spin[n];
+      m_other[n] += s(i,n);
     }
   }
 
-  void ConstrainedMCSolver::get_spin(const int &i, jblib::Vec3<double> &spin) {
-    for (int n = 0; n < 3; ++n) {
-      spin[n] = globals::s(i, n);
+  move_acceptance_count_ = 0;
+
+  // In this 'for' loop I've tried to bail and continue at the earliest possible point
+  // in all cases to try and avoid extra unneccesary calculations when the move will be
+  // rejected.
+
+  // we move two spins moving all spins on average is num_spins/2
+  for (int i = 0; i < num_spins/2; ++i) {
+
+    // randomly get two spins s1 != s2
+    rand_s1 = rng.uniform_discrete(0, num_spins-1);
+    rand_s2 = rand_s1;
+    while (rand_s2 == rand_s1) {
+      rand_s2 = rng.uniform_discrete(0, num_spins-1);
+    }
+
+    get_spin(rand_s1, s1_initial);
+    get_spin(rand_s2, s2_initial);
+
+    // rotate into reference frame of the constraint vector
+    s1_initial_rotated = rotation_matrix_*s1_initial;
+    s2_initial_rotated = rotation_matrix_*s2_initial;
+
+    // Monte Carlo move
+    s1_final = s1_initial;
+    calculate_trial_move(s1_final,move_sigma_);
+    s1_final_rotated = rotation_matrix_*s1_final;
+
+    // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
+    s2_final_rotated = s1_initial_rotated + s2_initial_rotated - s1_final_rotated;
+
+    // zero out the z-component which will be calculated below
+    s2_final_rotated.z = 0.0;
+
+    if (dot(s2_final_rotated, s2_final_rotated) > 1.0) {
+      // the rotated spin does not fit on the unit sphere - revert s1 and reject move
+      continue;
+    }
+    // calculate the z-component so that |s2| = 1
+    s2_final_rotated.z = sgn(s2_initial_rotated.z)*sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
+
+    // rotate s2 back into the cartesian reference frame
+    s2_final = inverse_rotation_matrix_*s2_final_rotated;
+
+    mz_new = dot((m_other + s1_final + s2_final - s1_initial - s2_initial), constraint_vector_);
+
+    // The new magnetization is in the opposite sense - revert s1, reject move
+    if (mz_new < 0.0) {
+      continue;
+    }
+
+    // change in energy with spin move
+    delta_energy1 = 0.0;
+
+    for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+      delta_energy1 += (*it)->calculate_one_spin_energy_difference(rand_s1, s1_initial, s1_final);
+    }
+
+    // temporarily accept the move for s1 so we can calculate the s2 energies
+    // this will be reversed later if the move is rejected
+    set_spin(rand_s1, s1_final);
+
+    delta_energy2 = 0.0;
+    for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+      delta_energy2 += (*it)->calculate_one_spin_energy_difference(rand_s2, s2_initial, s2_final);
+    }
+
+    // calculate the total energy difference
+    delta_energy21 = delta_energy1 + delta_energy2;
+
+    mz_old = dot(m_other, constraint_vector_);
+
+    // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
+    probability = exp(-delta_energy21*inv_kbT_bohr)*((mz_new/mz_old)*(mz_new/mz_old))*std::fabs(s2_initial_rotated.z/s2_final_rotated.z);
+
+    if (probability < rng.uniform()) {
+      // move fails to overcome Boltzmann factor - revert s1, reject move
+      set_spin(rand_s1, s1_initial);
+      continue;
+    } else {
+      // accept move
+      set_spin(rand_s2, s2_final);
+      m_other += s1_final + s2_final - s1_initial - s2_initial;
+      move_acceptance_count_++;
     }
   }
 
-  void ConstrainedMCSolver::run() {
-    // Chooses nspins random spin pairs from the spin system and attempts a
-    // Constrained Monte Carlo move on each pair, accepting for either lower
-    // energy or with a Boltzmann thermal weighting.
-    using namespace globals;
-    using jblib::Vec3;
+  move_acceptance_fraction_ = move_acceptance_count_/(0.5*num_spins);
+  outfile << std::setw(8) << iteration_ << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << move_sigma_ << std::endl;
 
-    int rand_s1, rand_s2;
-    double delta_energy1, delta_energy2, delta_energy21;
-    double mz_old, mz_new, probability;
-    const double inv_kbT_bohr = mu_bohr_si/(physics_module_->temperature()*boltzmann_si);
-
-    Vec3<double> s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
-    Vec3<double> s2_initial, s2_final, s2_initial_rotated, s2_final_rotated;
-
-    Vec3<double> m_other(0.0, 0.0, 0.0);
-
-    for (int i = 0; i < num_spins; ++i) {
-      for (int n = 0; n < 3; ++n) {
-        m_other[n] += s(i,n);
-      }
-    }
-
-    move_acceptance_count_ = 0;
-
-    // In this 'for' loop I've tried to bail and continue at the earliest possible point
-    // in all cases to try and avoid extra unneccesary calculations when the move will be
-    // rejected.
-
-    // we move two spins moving all spins on average is num_spins/2
-    for (int i = 0; i < num_spins/2; ++i) {
-
-      // randomly get two spins s1 != s2
-      rand_s1 = rng.uniform_discrete(0, num_spins-1);
-      rand_s2 = rand_s1;
-      while (rand_s2 == rand_s1) {
-        rand_s2 = rng.uniform_discrete(0, num_spins-1);
-      }
-      get_spin(rand_s1, s1_initial);
-      get_spin(rand_s2, s2_initial);
-
-      // rotate into reference frame of the constraint vector
-      s1_initial_rotated = rotation_matrix_*s1_initial;
-      s2_initial_rotated = rotation_matrix_*s2_initial;
-
-      // Monte Carlo move
-      s1_final = s1_initial;
-      calculate_trial_move(s1_final,move_sigma_);
-      s1_final_rotated = rotation_matrix_*s1_final;
-
-      // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
-      s2_final_rotated.x = s1_initial_rotated.x + s2_initial_rotated.x - s1_final_rotated.x;
-      s2_final_rotated.y = s1_initial_rotated.y + s2_initial_rotated.y - s1_final_rotated.y;
-
-      if (((s2_final_rotated.x*s2_final_rotated.x) + (s2_final_rotated.y*s2_final_rotated.y)) > 1.0) {
-        // the rotated spin does not fit on the unit sphere - revert s1 and reject move
-        set_spin(rand_s1, s1_initial);
-        continue;
-      }
-
-      // calculate the z-component so that |s2| = 1
-      s2_final_rotated.z = sign(1.0, s2_initial_rotated.z)*sqrt(1.0 - (s2_final_rotated.x*s2_final_rotated.x) - (s2_final_rotated.y*s2_final_rotated.y));
-
-      // rotate s2 back into the cartesian reference frame
-      s2_final = inverse_rotation_matrix_*s2_final_rotated;
-
-      mz_new = (m_other.x + s1_final.x + s2_final.x - s1_initial.x - s2_initial.x)*constraint_vector_.x
-              +(m_other.y + s1_final.y + s2_final.y - s1_initial.y - s2_initial.y)*constraint_vector_.y
-              +(m_other.z + s1_final.z + s2_final.z - s1_initial.z - s2_initial.z)*constraint_vector_.z;
-
-      // The new magnetization is in the opposite sense - revert s1, reject move
-      if (mz_new < 0.0) {
-        set_spin(rand_s1, s1_initial);
-        continue;
-      }
-
-      // change in energy with spin move
-      delta_energy1 = 0.0;
-
-      for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-        delta_energy1 += (*it)->calculate_one_spin_energy_difference(rand_s1, s1_initial, s1_final);
-      }
-
-      // temporarily accept the move for s1 so we can calculate the s2 energies
-      // this will be reversed later if the move is rejected
-      set_spin(rand_s1, s1_final);
-
-      delta_energy2 = 0.0;
-      for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-        delta_energy2 += (*it)->calculate_one_spin_energy_difference(rand_s2, s2_initial, s2_final);
-      }
-
-      // calculate the total energy difference
-      delta_energy21 = delta_energy1 + delta_energy2;
-
-      mz_old = dot(m_other, constraint_vector_);
-
-      // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-      probability = exp(-delta_energy21*inv_kbT_bohr)*((mz_new/mz_old)*(mz_new/mz_old))*std::fabs(s2_initial_rotated.z/s2_final_rotated.z);
-
-      if (probability < rng.uniform()) {
-        // move fails to overcome Boltzmann factor - revert s1, reject move
-        set_spin(rand_s1, s1_initial);
-        continue;
-      } else {
-        // accept move
-        set_spin(rand_s2, s2_final);
-        for (int n = 0; n < 3; ++n) {
-          m_other[n] = m_other[n] + s1_final[n] + s2_final[n] - s1_initial[n] - s2_initial[n];
-        }
-        move_acceptance_count_++;
-      }
-    }
-
-    // compute fields ready for torque monitor
-    compute_fields();
-
-    move_acceptance_fraction_ = move_acceptance_count_/(0.5*num_spins);
-    outfile << std::setw(8) << iteration_ << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << move_sigma_ << std::endl;
-
-    iteration_++;
-  }
-
-  void ConstrainedMCSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {
-  }
+  iteration_++;
+}

@@ -16,8 +16,6 @@ class ConstrainedMCSolver : public Solver {
   ~ConstrainedMCSolver() {}
   void initialize(int argc, char **argv, double dt);
   void run();
-  void compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t,
-    double &e4_s);
 
  private:
   jblib::Array<double, 2> snew;
@@ -36,7 +34,6 @@ class ConstrainedMCSolver : public Solver {
   std::ofstream outfile;
 
 
-  double compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii);
   void calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma);
   void set_spin(const int &i, const jblib::Vec3<double> &spin);
   void get_spin(const int &i, jblib::Vec3<double> &spin);
