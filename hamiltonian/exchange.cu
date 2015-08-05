@@ -112,6 +112,26 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     }
     ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
 
+    distance_tolerance_ = 1e-3; // fractional coordinate units
+    if (settings.exists("distance_tolerance")) {
+        distance_tolerance_ = settings["distance_tolerance"];
+    }
+
+    ::output.write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
+
+    // --- SAFETY ---
+    // check that no atoms in the unit cell are closer together than the distance_tolerance_
+    for (int i = 0; i < lattice.num_motif_positions(); ++i) {
+      for (int j = i+1; j < lattice.num_motif_positions(); ++j) {
+        if( abs(lattice.motif_position(i) - lattice.motif_position(j)) < distance_tolerance_ ) {
+          jams_error("Atoms %d and %d in the motif are closer together (%f) than the distance_tolerance (%f).\n"
+                     "Check position file or relax distance_tolerance for exchange module",
+                      i, j, abs(lattice.motif_position(i) - lattice.motif_position(j)), distance_tolerance_);
+        }
+      }
+    }
+    // --------------
+
     ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
 
     std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > int_interaction_list(lattice.num_motif_positions());
@@ -162,7 +182,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
               // failsafe check that we only interact with any given site once through the input exchange file.
               if (is_already_interacting[neighbour_site]) {
-                jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
+                // jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
               }
               is_already_interacting[neighbour_site] = true;
 
@@ -375,6 +395,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
   int_interaction_list.resize(lattice.num_motif_positions());
 
   int counter = 0;
+  int line_number = 0;
   // read the motif into an array from the positions file
   for (std::string line; getline(interaction_file, line); ) {
     std::stringstream is(line);
@@ -449,7 +470,8 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
         // motif position in basis vector space
         jblib::Vec3<double> pij = lattice.motif_position(i);
-        ::output.verbose("motif position %d (% 3.6f % 3.6f % 3.6f)\n", i, pij.x, pij.y, pij.z);
+        ::output.verbose("motif position %d [%s] (% 3.6f % 3.6f % 3.6f)\n", i, lattice.motif_material(i).c_str(), pij.x, pij.y, pij.z);
+        ::output.verbose("interaction vector %d [%s] (% 3.6f % 3.6f % 3.6f)\n", line_number, type_name_B.c_str(), r.x, r.y, r.z);
 
         for (int j = 0; j < sym_interaction_vecs.size(0); ++ j) {
 
@@ -464,7 +486,9 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
               // it seems using ceil is better supported with spglib
               uij[k] = ceil(uij[k]-0.5);
             } else {
-              uij[k] = floor(uij[k]);
+              // adding the distance_tolerance_ allows us to still floor properly when the precision
+              // of the interaction vectors is not so good.
+              uij[k] = floor(uij[k] + distance_tolerance_);
             }
           }
 
@@ -491,23 +515,24 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
           int motif_partner = -1;
           for (int k = 0; k < lattice.num_motif_positions(); ++k) {
             jblib::Vec3<double> pos = lattice.motif_position(k);
-            if ( fabs(pos.x - motif_offset.x) < 1e-4
-              && fabs(pos.y - motif_offset.y) < 1e-4
-              && fabs(pos.z - motif_offset.z) < 1e-4 ) {
+            if ( fabs(pos.x - motif_offset.x) < distance_tolerance_
+              && fabs(pos.y - motif_offset.y) < distance_tolerance_
+              && fabs(pos.z - motif_offset.z) < distance_tolerance_ ) {
               motif_partner = k;
               break;
             }
           }
 
           // ::output.verbose("% 8d % 8d :: % 6.6f % 6.6f % 6.6f | % 8d % 8d % 8d | % 6.6f % 6.6f % 6.6f | % 6.6f % 6.6f % 6.6f | % 6.6f % 6.6f % 6.6f | % 6.6f % 6.6f % 6.6f\n",
-            // i, motif_partner, rij[0], rij[1], rij[2], int(uij[0]), int(uij[1]), int(uij[2]),
-            // r0[0], r0[1], r0[2], motif_offset[0], motif_offset[1], motif_offset[2], real_rij[0], real_rij[1], real_rij[2], real_offset[0], real_offset[1], real_offset[2]);
+          //   i, motif_partner, rij[0], rij[1], rij[2], int(uij[0]), int(uij[1]), int(uij[2]),
+          //   r0[0], r0[1], r0[2], motif_offset[0], motif_offset[1], motif_offset[2], real_rij[0], real_rij[1], real_rij[2], real_offset[0], real_offset[1], real_offset[2]);
 
           if (motif_partner != -1) {
             // fast_integer_vector[3] = motif_partner - i;
             // check the motif partner is of the type that was specified in the exchange input file
             if (lattice.motif_material(motif_partner) != type_name_B) {
-              ::output.write("wrong type ");
+              ::output.verbose("wrong type \n");
+              continue;
             }
             jblib::Vec4<int> fast_integer_vector(uij[0], uij[1], uij[2], motif_partner - i);
             // ::output.write("%d %d %d %d %d % 3.6f % 3.6f % 3.6f\n", i, motif_partner, fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2], motif_offset[0], motif_offset[1], motif_offset[2]);
@@ -515,12 +540,13 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
           }
         }
         for (std::set<jblib::Vec4<int> >::iterator it = interaction_set.begin(); it != interaction_set.end(); ++it) {
-          ::output.verbose("% 8d % 8d :: % 8d % 8d % 8d\n", i, (*it)[3] + i, (*it)[0], (*it)[1], (*it)[2]);
+          ::output.verbose("% 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.motif_material(i).c_str(), (*it)[3] + i, lattice.motif_material((*it)[3] + i).c_str(), (*it)[0], (*it)[1], (*it)[2]);
           int_interaction_list[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >((*it), tensor));
           counter++;
         }
       }
     }
+    line_number++;
   }
   ::output.write("  total unit cell interactions: %d\n", counter);
 }
