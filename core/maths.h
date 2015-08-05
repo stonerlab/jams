@@ -65,6 +65,20 @@ inline _Tp1 sign(const _Tp1 &x, const _Tp2 &y) {
 }
 
 ///
+/// @brief  Returns sign of argument
+///
+/// Instead of sign transfer this just returns the sign of the argument
+/// Source: https://stackoverflow.com/questions/1903954/is-there-a-standard-sign-function-signum-sgn-in-c-c
+///
+/// @param[in]  x value to take sign from
+/// @return -1, 0, 1 depending on sign
+///
+template <typename _Tp>
+inline int sgn(_Tp x) {
+    return (_Tp(0) < x) - (x < _Tp(0));
+}
+
+///
 /// @brief  Generates next point space symmetry representation
 ///
 /// This function generates the next point space symmetry representation from
