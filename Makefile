@@ -212,10 +212,10 @@ ifndef NO_CUDA
 	BASIC_CUFLAGS += -I$(CUDADIR)/include -DCUDA
 	ifeq ($(SYSTYPE),Darwin)
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib
-		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler -stdlib=libstdc++ -Xlinker -stdlib=libstdc++
+		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler "-stdlib=libstdc++ -DNDEBUG" -Xlinker -stdlib=libstdc++
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
-		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -fno-stack-protector -O3 -g -funroll-loops"
+		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -fno-stack-protector -O3 -g -funroll-loops -DNDEBUG"
 	endif
 	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
