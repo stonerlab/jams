@@ -256,9 +256,9 @@ void Lattice::calculate_positions(const libconfig::Setting &material_settings, c
           jblib::Vec3<double> kvec((i+motif_[m].second.x)*kpoints_.x, (j+motif_[m].second.y)*kpoints_.y, (k+motif_[m].second.z)*kpoints_.z);
 
           // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
-          if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
-            jams_error("kpoint mesh does not map to the unit cell");
-          }
+          //if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
+          //  jams_error("kpoint mesh does not map to the unit cell");
+          //}
 
           // if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
           //   jams_error("attempted to assign multiple spins to the same point in the kspace map");
@@ -556,9 +556,9 @@ void Lattice::calculate_recip_space() {
     // ::output.verbose("  kvec: % 3.6f % 3.6f % 3.6f\n", kvec.x, kvec.y, kvec.z);
 
     // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
-    if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
-      jams_error("kpoint mesh does not map to the unit cell");
-    }
+    //if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
+    //  jams_error("kpoint mesh does not map to the unit cell");
+    //}
     // if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
     //   jams_error("attempted to assign multiple spins to the same point in the kspace map");
     // }
@@ -566,7 +566,6 @@ void Lattice::calculate_recip_space() {
       kspace_inv_map_(i, j) = nint(kvec[j]);
     }
   }
-  // exit(0);
 }
 
 
