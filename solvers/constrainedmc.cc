@@ -176,7 +176,7 @@ void ConstrainedMCSolver::run() {
       continue;
     }
     // calculate the z-component so that |s2| = 1
-    s2_final_rotated.z = sgn(s2_initial_rotated.z)*sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
+    s2_final_rotated.z = copysign(1.0, s2_initial_rotated.z)*sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
 
     // rotate s2 back into the cartesian reference frame
     s2_final = inverse_rotation_matrix_*s2_final_rotated;
