@@ -20,7 +20,6 @@ class CUDAHeunLLGSolver : public CudaSolver {
     ~CUDAHeunLLGSolver();
     void initialize(int argc, char **argv, double dt);
     void run();
-    void compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s);
 
   private:
     Thermostat* thermostat_;

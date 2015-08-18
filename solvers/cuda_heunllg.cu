@@ -62,9 +62,6 @@ void CUDAHeunLLGSolver::run()
     iteration_++;
 }
 
-void CUDAHeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s){
-
-}
 
 CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
 {
