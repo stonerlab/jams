@@ -28,12 +28,12 @@ CudaLangevinCothThermostat::CudaLangevinCothThermostat(const double &temperature
     outfile_.open(name.c_str());
   }
 
-  w_max_ = 50*1E12;
+  w_max_ = 50*kTHz;
 
   const double dt = ::config.lookup("sim.t_step");
   tau_ = (dt * kBoltzmann) / kHBar;
 
-  ::output.write("    omega_max = %6.6f (THz)\n", w_max_/1E12);
+  ::output.write("    omega_max = %6.6f (THz)\n", w_max_ / kTHz);
   ::output.write("    hbar*w/kB = %4.4e\n", (kHBar * w_max_) / (kBoltzmann));
   ::output.write("    delta tau = %4.4e * T\n", tau_);
 

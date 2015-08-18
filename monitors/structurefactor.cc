@@ -58,8 +58,8 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
   ::output.write("\n  sampling time (s):          %e\n", t_sample);
   ::output.write("  number of samples:          %d\n", num_samples);
-  ::output.write("  maximum frequency (THz):    %f\n", max_freq/1E12);
-  ::output.write("  frequency resolution (THz): %f\n\n", delta_freq_/1E12);
+  ::output.write("  maximum frequency (THz):    %f\n", max_freq/kTHz);
+  ::output.write("  frequency resolution (THz): %f\n\n", delta_freq_/kTHz);
 
   // ------------------------------------------------------------------
   // construct Brillouin zone sample points from the nodes specified
@@ -209,7 +209,7 @@ void StructureFactorMonitor::update(const Solver * const solver) {
 }
 
 double StructureFactorMonitor::fft_windowing(const int n, const int n_total) {
-  return 0.54 - 0.46*cos((2.0*M_PI*n)/double(n_total-1));
+  return 0.54 - 0.46*cos((kTwoPi*n)/double(n_total-1));
 }
 
 void StructureFactorMonitor::fft_time() {
