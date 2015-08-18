@@ -154,21 +154,21 @@ void StructureFactorMonitor::update(const Solver * const solver) {
 
     // super speed hack from CASTEP ewald.f90 for generating all of the phase factors on
     // the fly without calling lots of exp()
-    two_pi_i_dr = two_pi_i*lattice.motif_position(motif_atom).x;
+    two_pi_i_dr = kImagTwoPi*lattice.motif_position(motif_atom).x;
     exp_phase_0 = exp(two_pi_i_dr);
     exp_phase_x(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().x - 1)/2));
     for (int i = 1; i < lattice.kspace_size().x; ++i) {
       exp_phase_x(i) = exp_phase_x(i-1)*exp_phase_0;
     }
 
-    two_pi_i_dr = two_pi_i*lattice.motif_position(motif_atom).y;
+    two_pi_i_dr = kImagTwoPi*lattice.motif_position(motif_atom).y;
     exp_phase_0 = exp(two_pi_i_dr);
     exp_phase_y(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().y - 1)/2));
     for (int i = 1; i < lattice.kspace_size().y; ++i) {
       exp_phase_y(i) = exp_phase_y(i-1)*exp_phase_0;
     }
 
-    two_pi_i_dr = two_pi_i*lattice.motif_position(motif_atom).z;
+    two_pi_i_dr = kImagTwoPi*lattice.motif_position(motif_atom).z;
     exp_phase_0 = exp(two_pi_i_dr);
     exp_phase_z(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().z - 1)/2));
     for (int i = 1; i < lattice.kspace_size().z; ++i) {

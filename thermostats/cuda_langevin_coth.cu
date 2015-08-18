@@ -31,10 +31,10 @@ CudaLangevinCothThermostat::CudaLangevinCothThermostat(const double &temperature
   w_max_ = 50*1E12;
 
   const double dt = ::config.lookup("sim.t_step");
-  tau_ = (dt * boltzmann_si) / hbar_si;
+  tau_ = (dt * kBoltzmann) / kHBar;
 
   ::output.write("    omega_max = %6.6f (THz)\n", w_max_/1E12);
-  ::output.write("    hbar*w/kB = %4.4e\n", (hbar_si * w_max_) / (boltzmann_si));
+  ::output.write("    hbar*w/kB = %4.4e\n", (kHBar * w_max_) / (kBoltzmann));
   ::output.write("    delta tau = %4.4e * T\n", tau_);
 
   ::output.write("    initialising CUDA streams\n");
@@ -86,7 +86,7 @@ void CudaLangevinCothThermostat::update() {
   //   jams_error("curandGenerateNormalDouble failure in CudaLangevinCothThermostat::update");
   // }
 
-  const double w_m = (hbar_si * w_max_) / (boltzmann_si * this->temperature());
+  const double w_m = (kHBar * w_max_) / (kBoltzmann * this->temperature());
   const double reduced_temperature = sqrt(this->temperature());
 
   curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, 1.0);

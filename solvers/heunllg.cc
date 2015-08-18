@@ -29,7 +29,7 @@ void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
   w.resize(num_spins, 3);
 
   for (int i = 0; i < num_spins; ++i) {
-    sigma(i) = sqrt((2.0*boltzmann_si*alpha(i))/(time_step_*mus(i)*mu_bohr_si));
+    sigma(i) = sqrt((2.0*kBoltzmann*alpha(i))/(time_step_*mus(i)*kBohrMagneton));
   }
 
   initialized_ = true;

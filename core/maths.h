@@ -18,11 +18,11 @@ inline int nint(const double &x) {
 }
 
 inline double deg_to_rad(const double &angle) {
-  return angle*(pi/180.0);
+  return angle*(kPi/180.0);
 }
 
 inline double rad_to_deg(const double &angle) {
-  return angle*(180.0/pi);
+  return angle*(180.0/kPi);
 }
 
 // greatest common divisor

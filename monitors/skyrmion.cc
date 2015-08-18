@@ -139,11 +139,11 @@ void SkyrmionMonitor::create_center_of_mass_mapping() {
     i_max = lattice.rmax.x;
     j_max = lattice.rmax.y;
 
-    r_i = i_max / (2.0 * pi);
-    r_j = j_max / (2.0 * pi);
+    r_i = i_max / (kTwoPi);
+    r_j = j_max / (kTwoPi);
 
-    theta_i = (i / i_max) * (2.0 * pi);
-    theta_j = (j / j_max) * (2.0 * pi);
+    theta_i = (i / i_max) * (kTwoPi);
+    theta_j = (j / j_max) * (kTwoPi);
 
     x = r_i * cos(theta_i);
     y = j;
@@ -192,11 +192,11 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_c
   }
 
   for (type = 0; type < num_types; ++type) {
-    theta_i = atan2(-tube_x_com[type].z, -tube_x_com[type].x) + pi;
-    theta_j = atan2(-tube_y_com[type].z, -tube_y_com[type].y) + pi;
+    theta_i = atan2(-tube_x_com[type].z, -tube_x_com[type].x) + kPi;
+    theta_j = atan2(-tube_y_com[type].z, -tube_y_com[type].y) + kPi;
 
-    r_com[type].x = (theta_i*lattice.rmax.x/(2.0*pi));
-    r_com[type].y = (theta_j*lattice.rmax.y/(2.0*pi));
+    r_com[type].x = (theta_i*lattice.rmax.x/(kTwoPi));
+    r_com[type].y = (theta_j*lattice.rmax.y/(kTwoPi));
     r_com[type].z = 0.0;
   }
 

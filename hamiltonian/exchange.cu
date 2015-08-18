@@ -39,16 +39,16 @@ bool ExchangeHamiltonian::insert_interaction(const int m, const int n, const jbl
         if(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
           if(interaction_matrix_.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
             if(m >= n){
-              interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
+              interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/kBohrMagneton);
             }
           }else{
             if(m <= n){
 
-              interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
+              interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/kBohrMagneton);
             }
           }
         }else{
-          interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/mu_bohr_si);
+          interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/kBohrMagneton);
         }
       }
     }

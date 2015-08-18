@@ -45,7 +45,7 @@ void TorqueMonitor::update(const Solver * const solver) {
     }
 
     for (j = 0; j < 3; ++j) {
-      torque_[j] = torque_[j]*mu_bohr_si/static_cast<double>(num_spins);
+      torque_[j] = torque_[j]*kBohrMagneton/static_cast<double>(num_spins);
     }
 
     outfile << std::setw(12) << std::scientific << solver->time();

@@ -41,7 +41,7 @@ void Solver::initialize(int argc, char **argv, double idt) {
   }
 
   real_time_step_ = idt;
-  time_step_ = idt*gamma_electron_si;
+  time_step_ = idt*kGyromagneticRatio;
 
 
   // FFTW Planning

@@ -172,7 +172,7 @@ void CudaConstrainedMCSolver::run() {
     int rand_s1, rand_s2;
     double delta_energy1, delta_energy2, delta_energy21;
     double mz_old, mz_new, probability;
-    const double inv_kbT_bohr = mu_bohr_si/(physics_module_->temperature()*boltzmann_si);
+    const double inv_kbT_bohr = kBohrMagneton/(physics_module_->temperature()*kBoltzmann);
 
     Vec3<double> s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
     Vec3<double> s2_initial, s2_final, s2_initial_rotated, s2_final_rotated;
