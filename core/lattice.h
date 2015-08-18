@@ -12,6 +12,7 @@ extern "C"{
 #include <map>
 #include <string>
 #include <vector>
+#include <complex>
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
