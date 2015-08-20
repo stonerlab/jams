@@ -35,7 +35,7 @@ class Hamiltonian {
 
   virtual void   calculate_energies() = 0;
 
-  virtual void   calculate_one_spin_fields(const int i, double h[3]) = 0;
+  virtual void   calculate_one_spin_field(const int i, double h[3]) = 0;
   virtual void   calculate_fields() = 0;
 
   virtual void   output_energies(OutputFormat format) = 0;

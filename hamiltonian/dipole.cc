@@ -49,14 +49,15 @@ void DipoleHamiltonian::calculate_energies() {
 
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonian::calculate_one_spin_fields(const int i, double h[3]) {
 
+void DipoleHamiltonian::calculate_one_spin_field(const int i, double h[3]) {
+    dipole_strategy->calculate_one_spin_field(i, h);
 }
 
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_fields() {
-
+    dipole_strategy->calculate_fields(field_);
 }
 // --------------------------------------------------------------------------
 

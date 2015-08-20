@@ -21,7 +21,7 @@ class DipoleHamiltonian : public Hamiltonian {
         double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final);
         void   calculate_energies();
 
-        void   calculate_one_spin_fields(const int i, double h[3]);
+        void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
 
         void   output_energies(OutputFormat format);

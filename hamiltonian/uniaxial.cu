@@ -158,7 +158,7 @@ void UniaxialHamiltonian::calculate_energies() {
 
 // --------------------------------------------------------------------------
 
-void UniaxialHamiltonian::calculate_one_spin_fields(const int i, double local_field[3]) {
+void UniaxialHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
     using namespace globals;
     local_field[0] = 0.0; local_field[1] = 0.0;
     local_field[2] = -d2z_(i)*3.0*s(i, 2)
@@ -180,7 +180,7 @@ void UniaxialHamiltonian::calculate_fields() {
     } else {
         for (int i = 0; i < globals::num_spins; ++i) {
             double h[3];
-            calculate_one_spin_fields(i, h);
+            calculate_one_spin_field(i, h);
             for(int j = 0; j < 3; ++j) {
                 field_(i,j) = h[j];
             }

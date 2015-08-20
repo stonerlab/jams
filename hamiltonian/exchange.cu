@@ -588,7 +588,7 @@ double ExchangeHamiltonian::calculate_one_spin_energy_difference(const int i, co
 
     double local_field[3], e_initial, e_final;
 
-    calculate_one_spin_fields(i, local_field);
+    calculate_one_spin_field(i, local_field);
     e_initial = -(spin_initial[0]*local_field[0] + spin_initial[1]*local_field[1] + spin_initial[2]*local_field[2]);
     e_final = -(spin_final[0]*local_field[0] + spin_final[1]*local_field[1] + spin_final[2]*local_field[2]);
 
@@ -605,7 +605,7 @@ void ExchangeHamiltonian::calculate_energies() {
 
 // --------------------------------------------------------------------------
 
-void ExchangeHamiltonian::calculate_one_spin_fields(const int i, double local_field[3]) {
+void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
     using namespace globals;
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
 
