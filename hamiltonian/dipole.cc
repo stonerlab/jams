@@ -2,7 +2,7 @@
 #include "core/utils.h"
 
 #include "hamiltonian/dipole.h"
-
+#include "hamiltonian/dipole_bruteforce.h"
 
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
@@ -20,35 +20,34 @@ DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
     }
 #endif
 
+    dipole_strategy = new DipoleHamiltonianBruteforce(settings);
+
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonian::calculate_total_energy() {
-    return 0.0;
+    return dipole_strategy->calculate_total_energy();
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonian::calculate_one_spin_energy(const int i) {
-    return 0.0;
+    return dipole_strategy->calculate_one_spin_energy(i);
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
-    const double e_initial = 0.0;
-    const double e_final = 0.0;
-
-    return e_final - e_initial;
+    return dipole_strategy->calculate_one_spin_energy_difference(i, spin_initial, spin_final);
 }
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_energies() {
+    dipole_strategy->calculate_energies(energy_);
 }
 
 // --------------------------------------------------------------------------
-
 
 void DipoleHamiltonian::calculate_one_spin_field(const int i, double h[3]) {
     dipole_strategy->calculate_one_spin_field(i, h);
@@ -164,3 +163,4 @@ void DipoleHamiltonian::output_fields_text() {
     }
     outfile.close();
 }
+// --------------------------------------------------------------------------

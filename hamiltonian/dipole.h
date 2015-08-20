@@ -8,6 +8,8 @@
 #include "core/output.h"
 #include "core/hamiltonian.h"
 
+#include "hamiltonian/strategy.h"
+
 #include "jblib/containers/array.h"
 #include "jblib/containers/cuda_array.h"
 
@@ -34,6 +36,8 @@ class DipoleHamiltonian : public Hamiltonian {
 
         void output_fields_text();
         // void output_fields_hdf5();
+
+        HamiltonianStrategy *dipole_strategy;
 
         OutputFormat            outformat_;
         jblib::Array<double, 1> energy_;
