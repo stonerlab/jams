@@ -89,6 +89,14 @@ class Lattice {
         return lattice_vectors_*r_frac;
     }
 
+    inline const jblib::Vec3<double>& position(const int i) const {
+        return lattice_positions_[i];
+    }
+
+    inline double constant() const {
+        return lattice_parameter_;
+    }
+
     // --------------------------------------------------------------------------
     // lattice vector functions
     // --------------------------------------------------------------------------
