@@ -28,7 +28,7 @@ Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
         return new DipoleHamiltonian(settings);
     }
 
-    // throw error if the thermostat name is no known
+    // throw error if the hamiltonian name is no known
     jams_error("Unknown hamiltonian name specified '%s'", settings["module"].c_str());
     return NULL;
 }
