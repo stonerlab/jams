@@ -13,7 +13,7 @@
 class ConstrainedMCSolver : public Solver {
  public:
   ConstrainedMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0), move_acceptance_count_(0), move_acceptance_fraction_(1.0), move_sigma_(0.05) {}
-  ~ConstrainedMCSolver() {}
+  ~ConstrainedMCSolver();
   void initialize(int argc, char **argv, double dt);
   void run();
 

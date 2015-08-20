@@ -11,6 +11,12 @@
 
 #include <iomanip>
 
+ConstrainedMCSolver::~ConstrainedMCSolver() {
+  if (outfile.is_open()) {
+    outfile.close();
+  }
+}
+
 void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
 
@@ -95,6 +101,8 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
   ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
   // ---
+
+  outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
 }
 
 void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
@@ -124,18 +132,23 @@ void ConstrainedMCSolver::run() {
   // energy or with a Boltzmann thermal weighting.
   using namespace globals;
 
+  std::string trial_step_name;
+
   if (iteration_ % 2 == 0) {
     AsselinAlgorithm(mc_uniform_trial_step);
+    trial_step_name = "UTS";
   } else {
     if ((iteration_ - 1) % 4 == 0) {
       AsselinAlgorithm(mc_reflection_trial_step);
+      trial_step_name = "RTS";
     } else {
       AsselinAlgorithm(mc_small_trial_step);
+      trial_step_name = "STS";
     }
   }
 
   move_acceptance_fraction_ = move_acceptance_count_/(0.5*num_spins);
-  outfile << std::setw(8) << iteration_ << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << move_sigma_ << std::endl;
+  outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
 
   iteration_++;
 }
