@@ -33,7 +33,7 @@ class ConstrainedMCSolver : public Solver {
   jblib::Matrix<double, 3, 3> inverse_rotation_matrix_;
   std::ofstream outfile;
 
-
+  void AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>));
   void calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma);
   void set_spin(const int &i, const jblib::Vec3<double> &spin);
   void get_spin(const int &i, jblib::Vec3<double> &spin);
