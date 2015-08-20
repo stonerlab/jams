@@ -91,7 +91,7 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   if (lattice_parameter_ < 0.0) {
     jams_error("lattice parameter cannot be negative");
   }
-  ::output.write("\nlattice parameter (nm)\n  %3.6f\n", lattice_parameter_);
+  ::output.write("\nlattice parameter (m)\n  %3.6f\n", lattice_parameter_);
 
   for (int i = 0; i < 3; ++i) {
     lattice_size_[i] = lattice_settings["size"][i];
