@@ -2,6 +2,7 @@
 
 #include "solvers/constrainedmc.h"
 
+#include "core/utils.h"
 #include "core/consts.h"
 #include "core/maths.h"
 #include "core/globals.h"
@@ -103,12 +104,14 @@ void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const 
 }
 
 void ConstrainedMCSolver::set_spin(const int &i, const jblib::Vec3<double> &spin) {
+  #pragma unroll
   for (int n = 0; n < 3; ++n) {
     globals::s(i, n) = spin[n];
   }
 }
 
 void ConstrainedMCSolver::get_spin(const int &i, jblib::Vec3<double> &spin) {
+  #pragma unroll
   for (int n = 0; n < 3; ++n) {
     spin[n] = globals::s(i, n);
   }
@@ -119,6 +122,8 @@ void ConstrainedMCSolver::run() {
   // Constrained Monte Carlo move on each pair, accepting for either lower
   // energy or with a Boltzmann thermal weighting.
   using namespace globals;
+  using std::pow;
+  using std::abs;
   using jblib::Vec3;
 
   int rand_s1, rand_s2;
@@ -171,7 +176,7 @@ void ConstrainedMCSolver::run() {
     // zero out the z-component which will be calculated below
     s2_final_rotated.z = 0.0;
 
-    if (dot(s2_final_rotated, s2_final_rotated) > 1.0) {
+    if (unlikely(dot(s2_final_rotated, s2_final_rotated) > 1.0)) {
       // the rotated spin does not fit on the unit sphere - revert s1 and reject move
       continue;
     }
@@ -184,7 +189,7 @@ void ConstrainedMCSolver::run() {
     mz_new = dot((m_other + s1_final + s2_final - s1_initial - s2_initial), constraint_vector_);
 
     // The new magnetization is in the opposite sense - revert s1, reject move
-    if (mz_new < 0.0) {
+    if (unlikely(mz_new < 0.0)) {
       continue;
     }
 
@@ -210,7 +215,7 @@ void ConstrainedMCSolver::run() {
     mz_old = dot(m_other, constraint_vector_);
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-    probability = exp(-delta_energy21*inv_kbT_bohr)*((mz_new/mz_old)*(mz_new/mz_old))*std::fabs(s2_initial_rotated.z/s2_final_rotated.z);
+    probability = exp(-delta_energy21*inv_kbT_bohr)*(pow(mz_new/mz_old, 2))*abs(s2_initial_rotated.z/s2_final_rotated.z);
 
     if (probability < rng.uniform()) {
       // move fails to overcome Boltzmann factor - revert s1, reject move
