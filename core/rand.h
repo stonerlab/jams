@@ -6,6 +6,7 @@ class Random;
 #define JAMS_CORE_RAND_H
 
 #include <stdint.h>
+#include <cassert>
 
 #include <limits>
 #include <vector>
@@ -28,9 +29,9 @@ class Random {
   {}
 
   void seed(const uint32_t &x);
-  double uniform();
+  inline double uniform();
   double uniform_open();
-  double uniform_closed();
+  inline double uniform_closed();
   int    uniform_discrete(const int m, const int n);
   double normal();
   void   sphere(double &x, double &y, double &z);
@@ -52,25 +53,44 @@ class Random {
   bool normal_logic;
   double normal_next;
 
-  uint32_t mwc32() {
-    return mwc_x = ( (mwc_x&static_cast<uint64_t>(0xffffffff))*
-      (static_cast<uint32_t>(4294967118U))+(mwc_x>>32) );
-  }
-
-  uint32_t cmwc4096() {
-//      const uint64_t a = static_cast<uint64_t>(18782);
-//      const uint32_t m = static_cast<uint32_t>(0xfffffffe);
-    uint64_t t;
-    uint32_t x;
-
-    cmwc_r = ( cmwc_r + 1 ) & 4095;
-    t = static_cast<uint64_t>(18782) * cmwc_q[cmwc_r] + cmwc_c;
-    cmwc_c = (t >> 32);
-    x = t + cmwc_c;
-    if( x < cmwc_c ){ cmwc_r++; cmwc_c++; }
-    return ( cmwc_q[cmwc_r] = (static_cast<uint32_t>(0xfffffffe) - x) );
-  }
+  inline uint32_t mwc32();
+  inline uint32_t __attribute__((hot)) cmwc4096();
 
 };
+
+///
+/// @brief random number from the distribution [0, 1)
+///
+inline double Random::uniform() {
+  assert(initialized == true);
+  return (static_cast<double>(cmwc4096())*norm_open);
+}
+
+///
+/// @brief random number from the distribution [0, 1]
+///
+inline double Random::uniform_closed() {
+  assert(initialized == true);
+  return (static_cast<double>(cmwc4096())*norm_closed);
+}
+
+inline uint32_t Random::mwc32() {
+  return mwc_x = ( (mwc_x&static_cast<uint64_t>(0xffffffff))*
+    (static_cast<uint32_t>(4294967118U))+(mwc_x>>32) );
+}
+
+inline uint32_t __attribute__((hot)) Random::cmwc4096() {
+//      const uint64_t a = static_cast<uint64_t>(18782);
+//      const uint32_t m = static_cast<uint32_t>(0xfffffffe);
+  uint64_t t;
+  uint32_t x;
+
+  cmwc_r = ( cmwc_r + 1 ) & 4095;
+  t = static_cast<uint64_t>(18782) * cmwc_q[cmwc_r] + cmwc_c;
+  cmwc_c = (t >> 32);
+  x = t + cmwc_c;
+  if( x < cmwc_c ){ cmwc_r++; cmwc_c++; }
+  return ( cmwc_q[cmwc_r] = (static_cast<uint32_t>(0xfffffffe) - x) );
+}
 
 #endif // JAMS_CORE_RAND_H

@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "core/globals.h"
+#include "core/utils.h"
 
 void Random::seed(const uint32_t &x) {
   if (x > ul_limit) {
@@ -35,14 +36,6 @@ void Random::seed(const uint32_t &x) {
 }
 
 ///
-/// @brief random number from the distribution [0, 1)
-///
-double Random::uniform() {
-  assert(initialized == true);
-  return (static_cast<double>(cmwc4096())*norm_open);
-}
-
-///
 /// @brief random number from the distribution (0, 1)
 ///
 double Random::uniform_open() {
@@ -54,14 +47,6 @@ double Random::uniform_open() {
   } while ( x == static_cast<uint32_t>(0) );
 
   return (static_cast<double>(x)*norm_open);
-}
-
-///
-/// @brief random number from the distribution [0, 1]
-///
-double Random::uniform_closed() {
-  assert(initialized == true);
-  return (static_cast<double>(cmwc4096())*norm_closed);
 }
 
 ///
@@ -140,7 +125,7 @@ double Random::normal() {
 
       s = (x*x) + (y*y);
       // floating point comparison below is needed to avoid log(0.0)
-    } while (s > 1.0 || s == 0.0);
+    } while (s > 1.0 || unlikely(s == 0.0));
 
     s = sqrt(-2.0 * log(s) / s);
 
