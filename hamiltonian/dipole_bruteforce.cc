@@ -13,7 +13,12 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianBruteforce::calculate_total_energy() {
-    return 0.0;
+   assert(energies.size(0) == globals::num_spins);
+   double e_total = 0.0;
+   for (int i = 0; i < globals::num_spins; ++i) {
+       e_total += calculate_one_spin_energy(i);
+   }
+    return e_total;
 }
 
 // --------------------------------------------------------------------------
@@ -22,7 +27,7 @@ double DipoleHamiltonianBruteforce::calculate_total_energy() {
 double DipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i, const jblib::Vec3<double> &s_i) {
     double h[3];
     calculate_one_spin_field(i, h);
-    return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2])*globals::mus(i)*kBohrMagneton;
+    return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2])*globals::mus(i);
 
     // using std::pow;
     // // using Vec3s for calculations to avoid bugs in dot products etc...
