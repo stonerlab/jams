@@ -8,6 +8,14 @@
 #include "core/montecarlo.h"
 #include "core/hamiltonian.h"
 
+#include <iomanip>
+
+MetropolisMCSolver::~MetropolisMCSolver() {
+  if (outfile.is_open()) {
+    outfile.close();
+  }
+}
+
 void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
 
@@ -24,6 +32,8 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     preconditioner_delta_theta_ = config.lookup("sim.preconditioner.[0]");
     preconditioner_delta_phi_ = config.lookup("sim.preconditioner.[1]");
   }
+
+  outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
 }
 
   void MetropolisMCSolver::run() {
@@ -35,15 +45,28 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
       output.write("done\n");
     }
 
+    std::string trial_step_name;
     if (iteration_ % 2 == 0) {
       MetropolisAlgorithm(mc_uniform_trial_step);
+      trial_step_name = "UTS";
     } else {
-      if ((iteration_ - 1) % 4 == 0) {
-        MetropolisAlgorithm(mc_reflection_trial_step);
-      } else {
-        MetropolisAlgorithm(mc_small_trial_step);
-      }
+      MetropolisAlgorithm(mc_small_trial_step);
+      trial_step_name = "STS";
     }
+
+    // if (iteration_ % 2 == 0) {
+    //   MetropolisAlgorithm(mc_uniform_trial_step);
+    // } else {
+    //   if ((iteration_ - 1) % 4 == 0) {
+    //     MetropolisAlgorithm(mc_reflection_trial_step);
+    //   } else {
+    //     MetropolisAlgorithm(mc_small_trial_step);
+    //   }
+    // }
+
+    move_acceptance_fraction_ = move_acceptance_count_/double(num_spins);
+    outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::fixed << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
+
     iteration_++;
   }
 
@@ -140,6 +163,7 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     double deltaE = 0.0;
     jblib::Vec3<double> s_initial, s_final;
 
+    move_acceptance_count_ = 0;
     for (n = 0; n < globals::num_spins; ++n) {
       random_spin_number = rng.uniform_discrete(0, globals::num_spins - 1);
       s_initial = mc_spin_as_vec(random_spin_number);
@@ -152,10 +176,12 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
 
       if (deltaE < 0.0) {
         mc_set_spin_as_vec(random_spin_number, s_final);
+        move_acceptance_count_++;
         continue;
       }
 
       if (rng.uniform() < exp(-deltaE*beta)) {
+        move_acceptance_count_++;
         mc_set_spin_as_vec(random_spin_number, s_final);
       }
     }
