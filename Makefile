@@ -2,7 +2,7 @@
 all::
 
 # Define V=1 for verbose output
-#V=1
+# V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
@@ -114,6 +114,7 @@ OBJS += solvers/heunllg.o
 OBJS += solvers/metropolismc.o
 OBJS += solvers/constrainedmc.o
 OBJS += hamiltonian/dipole.o
+OBJS += hamiltonian/dipole_bruteforce.o
 
 HDR += core/consts.h
 HDR += core/error.h
@@ -182,7 +183,8 @@ endif
 
 ifeq ($(SYSTYPE),Darwin)
 	CC = clang++ -stdlib=libstdc++
-	BASIC_LDFLAGS += -Wl -rpath /usr/local/cuda/lib -framework Accelerate
+	CFLAGS += -fslp-vectorize
+	BASIC_LDFLAGS += -framework Accelerate -Wl -rpath /usr/local/cuda/lib
 else
 	BASIC_LDFLAGS +=
 endif
@@ -277,5 +279,5 @@ install: jams++
 	ln -sf ~/local/bin/jams++-$(GITSHORT) ~/local/bin/jams++-unstable
 
 clean:
-	$(RM) core/*.o physics/*.o monitors/*.o solvers/*.o
+	$(RM) core/*.o physics/*.o monitors/*.o solvers/*.o hamiltonian/*.o
 	$(RM) jams++
