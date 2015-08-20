@@ -18,10 +18,17 @@ class MetropolisMCSolver : public Solver {
  private:
 
   void MetropolisAlgorithm(jblib::Vec3<double> (*mc_move)(const jblib::Vec3<double>));
+  void MetropolisPreconditioner(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>));
+  void SystematicPreconditioner(const double delta_theta, const double delta_phi);
+
 
   jblib::Array<double, 2> snew;
   jblib::Array<double, 2> sigma;
   jblib::Array<double, 2> eng;
+
+  bool is_preconditioner_enabled_;
+  double preconditioner_delta_theta_;
+  double preconditioner_delta_phi_;
 };
 
 #endif  // JAMS_SOLVER_METROPOLISMC_H
