@@ -3,6 +3,7 @@
 
 #include "hamiltonian/dipole.h"
 #include "hamiltonian/dipole_bruteforce.h"
+#include "hamiltonian/dipole_tensor.h"
 
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
@@ -20,7 +21,7 @@ DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
     }
 #endif
 
-    dipole_strategy = new DipoleHamiltonianBruteforce(settings);
+    dipole_strategy = new DipoleHamiltonianTensor(settings);
 
 }
 
