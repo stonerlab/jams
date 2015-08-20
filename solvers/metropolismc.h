@@ -5,6 +5,7 @@
 
 #include "core/solver.h"
 
+#include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"
 
 class MetropolisMCSolver : public Solver {
@@ -13,15 +14,14 @@ class MetropolisMCSolver : public Solver {
   ~MetropolisMCSolver() {}
   void initialize(int argc, char **argv, double dt);
   void run();
-  void compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t,
-    double &e4_s);
 
  private:
+
+  void MetropolisAlgorithm(jblib::Vec3<double> (*mc_move)(const jblib::Vec3<double>));
+
   jblib::Array<double, 2> snew;
   jblib::Array<double, 2> sigma;
   jblib::Array<double, 2> eng;
-
-  void oneSpinEnergy(const int &i, double total[3]);
 };
 
 #endif  // JAMS_SOLVER_METROPOLISMC_H
