@@ -554,7 +554,11 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 // --------------------------------------------------------------------------
 
 double ExchangeHamiltonian::calculate_total_energy() {
-    return 0.0;
+    double e_total = 0.0;
+    for (int i = 0; i < globals::num_spins; ++i) {
+        e_total += calculate_one_spin_energy(i);
+    }
+    return e_total;
 }
 
 // --------------------------------------------------------------------------
