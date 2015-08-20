@@ -27,7 +27,6 @@
 namespace {
 
   double dt = 0.0;
-  int steps_eq = 0;
   int steps_run = 0;
   int  steps_bin = 0;
 
@@ -109,9 +108,6 @@ int jams_initialize(int argc, char **argv) {
       output.write("  * Timestep:           %1.8e\n", dt);
 
       double time_value = config.lookup("sim.t_eq");
-      steps_eq = static_cast<int>(time_value/dt);
-      output.write("  * Equilibration time: %1.8e (%lu steps)\n",
-        time_value, steps_eq);
 
       time_value = config.lookup("sim.t_run");
       steps_run = static_cast<int>(time_value/dt);
@@ -253,36 +249,10 @@ void jams_run() {
     coarse_magnetisation_file.open(std::string(seedname+"_map.dat").c_str());
   }
 
-  output.write("\n----Equilibration----\n");
-  output.write("Running solver\n");
-  for (int i = 0; i < steps_eq; ++i) {
-    solver->update_physics_module();
-    solver->run();
-    solver->notify_monitors();
-  }
-
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   std::clock_t start = std::clock();
   for (int i = 0; i < steps_run; ++i) {
-    //   if (coarse_output_is_set) {
-    //     lattice.output_coarse_magnetisation(coarse_magnetisation_file);
-    //     coarse_magnetisation_file << "\n\n";
-    //   }
-
-    // if (binary_output_is_set) {
-    //   if (i%steps_bin == 0) {
-    //     int outcount = i/steps_bin;  // int divisible by modulo above
-
-    //     std::ofstream binary_state_file
-    //       (std::string(seedname+"_"+zero_pad_number(outcount)+".bin").c_str(),
-    //       std::ios::binary|std::ios::out);
-
-    //     lattice.output_spin_state_as_binary(binary_state_file);
-
-    //     binary_state_file.close();
-    //   }
-    // }
 
     solver->update_physics_module();
     solver->run();
