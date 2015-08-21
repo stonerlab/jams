@@ -25,6 +25,9 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
     }
 
     const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.constant(),3);
+    jblib::Matrix<double, 3, 3> tensor;
+
+    jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
 
     for (int i = 0; i < globals::num_spins; ++i) {
@@ -37,19 +40,11 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
             r_hat = r_ij / r_abs;
 
-            jblib::Matrix<double, 3, 3> tensor;
-
-            tensor[0][0] = 3.0*pow(r_hat.x, 2) - 1.0;
-            tensor[0][1] = 3.0*r_hat.y*r_hat.x;
-            tensor[0][2] = 3.0*r_hat.z*r_hat.x;
-
-            tensor[1][0] = 3.0*r_hat.x*r_hat.y;
-            tensor[1][1] = 3.0*pow(r_hat.y, 2) - 1.0;
-            tensor[1][2] = 3.0*r_hat.z*r_hat.y;
-
-            tensor[2][0] = 3.0*r_hat.x*r_hat.z;
-            tensor[2][1] = 3.0*r_hat.y*r_hat.z;
-            tensor[2][2] = 3.0*pow(r_hat.z, 2) - 1.0;
+            for (int m = 0; m < 3; ++m) {
+                for (int n = 0; n < 3; ++n) {
+                    tensor[m][n] = 3*r_hat[m]*r_hat[n] - Id[m][n];
+                }
+            }
 
             for (int m = 0; m < 3; ++m) {
                 for (int n = 0; n < 3; ++n) {
@@ -108,19 +103,11 @@ void DipoleHamiltonianTensor::calculate_one_spin_field(const int i, double h[3])
     for (m = 0; m < 3; ++m) {
         h[m] = 0.0;
     }
-    // for (j = 0; j < globals::num_spins3; ++j) {
-    //     for (m = 0; m < 3; ++m) {
-    //         h[m] += dipole_tensor_(3*i + m, j)*globals::s[j];
-    //     }
-    // }
-    for (j = 0; j < globals::num_spins; ++j) {
+    for (j = 0; j < globals::num_spins3; ++j) {
         for (m = 0; m < 3; ++m) {
-            for (int n = 0; n < 3; ++n) {
-                h[m] += dipole_tensor_(3*i + m, j)*globals::s(j, n);
-            }
+            h[m] += dipole_tensor_(3*i + m, j)*globals::s[j];
         }
     }
-
 }
 
 
