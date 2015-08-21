@@ -28,34 +28,6 @@ double DipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i, const
     double h[3];
     calculate_one_spin_field(i, h);
     return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2])*globals::mus(i);
-
-    // using std::pow;
-    // // using Vec3s for calculations to avoid bugs in dot products etc...
-    // int n,j;
-    // double r_abs, energy = 0.0;
-    // jblib::Vec3<double> r_i, r_ij, r_hat, s_j;
-
-    // r_i = ::lattice.position(i);
-
-    // const double prefactor = kVacuumPermeadbility_FourPi*globals::mus(i)*pow(kBohrMagneton, 2)/pow(::lattice.constant(),3);
-
-    // for (j = 0; j < globals::num_spins; ++j) {
-    //     if (unlikely(j == i)) continue;
-
-    //     r_ij  = lattice.position(j) - r_i;
-    //     r_abs = abs(r_ij);
-
-    //     if (unlikely(r_abs > r_cutoff_) continue;
-
-    //     r_hat = r_ij / r_abs;
-
-    //     #pragma unroll
-    //     for (n = 0; n < 3; ++n) {
-    //         s_j[n] = globals::s(j,n);
-    //     }
-
-    //     energy -= ((prefactor*globals::mus(j))/pow(r_abs,3))*(3*dot(s_i, r_hat)*dot(s_j, r_hat) - dot(s_i, s_j));
-    // }
 }
 
 // --------------------------------------------------------------------------
