@@ -17,7 +17,7 @@ inline jblib::Vec3<double> mc_uniform_trial_step(jblib::Vec3<double> spin) {
 
 // STS
 inline jblib::Vec3<double> mc_small_trial_step(jblib::Vec3<double> spin) {
-    spin = spin + mc_uniform_trial_step(spin)*0.2;
+    spin = spin + mc_uniform_trial_step(spin)*0.5;
     return spin / abs(spin);
 }
 
