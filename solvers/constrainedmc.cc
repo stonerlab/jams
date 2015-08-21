@@ -134,11 +134,11 @@ void ConstrainedMCSolver::run() {
 
   std::string trial_step_name;
   if (iteration_ % 2 == 0) {
-    AsselinAlgorithm(mc_uniform_trial_step);
-    trial_step_name = "UTS";
-  } else {
     AsselinAlgorithm(mc_small_trial_step);
     trial_step_name = "STS";
+  } else {
+    AsselinAlgorithm(mc_uniform_trial_step);
+    trial_step_name = "UTS";
   }
   // if (iteration_ % 2 == 0) {
   //   AsselinAlgorithm(mc_uniform_trial_step);

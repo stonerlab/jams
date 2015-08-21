@@ -47,11 +47,11 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
 
     std::string trial_step_name;
     if (iteration_ % 2 == 0) {
-      MetropolisAlgorithm(mc_uniform_trial_step);
-      trial_step_name = "UTS";
-    } else {
       MetropolisAlgorithm(mc_small_trial_step);
       trial_step_name = "STS";
+    } else {
+      MetropolisAlgorithm(mc_uniform_trial_step);
+      trial_step_name = "UTS";
     }
 
     // if (iteration_ % 2 == 0) {
