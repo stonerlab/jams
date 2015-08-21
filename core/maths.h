@@ -17,6 +17,10 @@ inline int nint(const double &x) {
   return floor(x+0.5);
 }
 
+inline double gaussian(const double x, const double sigma, const double mean = 0.0) {
+  return kOne_SqrtTwoPi*exp(-0.5*std::pow((x - mean) / sigma, 2))/sigma;
+}
+
 inline double deg_to_rad(const double &angle) {
   return angle*(kPi/180.0);
 }

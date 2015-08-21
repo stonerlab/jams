@@ -116,6 +116,7 @@ OBJS += solvers/constrainedmc.o
 OBJS += hamiltonian/dipole.o
 OBJS += hamiltonian/dipole_bruteforce.o
 OBJS += hamiltonian/dipole_tensor.o
+OBJS += hamiltonian/dipole_ewald.o
 
 HDR += core/consts.h
 HDR += core/error.h
@@ -157,6 +158,7 @@ HDR += solvers/constrainedmc.h
 HDR += hamiltonian/dipole.h
 HDR += hamiltonian/dipole_bruteforce.h
 HDR += hamiltonian/dipole_tensor.h
+HDR += hamiltonian/dipole_ewald.h
 HDR += hamiltonian/uniaxial.h
 HDR += hamiltonian/exchange.h
 
