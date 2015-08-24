@@ -130,8 +130,8 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
     ::output.write("    planning FFTs\n");
 
-    spin_fft_forward_transform_   = fftw_plan_many_dft_r2c(3, kspace_dimensions, 3, globals::s.data(),  NULL, 3, 1, s_recip_.data(), NULL, 3, 1, FFTW_MEASURE|FFTW_PRESERVE_INPUT);
-    field_fft_backward_transform_ = fftw_plan_many_dft_c2r(3, kspace_dimensions, 3, h_recip_.data(), NULL, 3, 1, h_nonlocal_.data(),  NULL, 3, 1, FFTW_ESTIMATE);
+    spin_fft_forward_transform_   = fftw_plan_many_dft_r2c(3, kspace_dimensions, 3, globals::s.data(),  NULL, 3, 1, s_recip_.data(), NULL, 3, 1, FFTW_PATIENT|FFTW_PRESERVE_INPUT);
+    field_fft_backward_transform_ = fftw_plan_many_dft_c2r(3, kspace_dimensions, 3, h_recip_.data(), NULL, 3, 1, h_nonlocal_.data(),  NULL, 3, 1, FFTW_PATIENT);
     interaction_fft_transform_    = fftw_plan_many_dft_r2c(3, kspace_dimensions, 9, wij.data(),  NULL, 9, 1, w_recip_.data(), NULL, 9, 1, FFTW_MEASURE|FFTW_PRESERVE_INPUT);
 
     ::output.write("    transform interaction matrix\n");
@@ -245,7 +245,8 @@ void DipoleHamiltonianEwald::calculate_local_ewald_field(const int i, double h[3
 }
 
 void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
-    int i, iend, j, jend, k, kend, m, n;
+    int i, iend, j, jend, k, kend, m;
+
     fftw_execute(spin_fft_forward_transform_);
 
     // perform convolution as multiplication in fourier space
@@ -253,11 +254,13 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
       for (j = 0, jend = w_recip_.size(1); j < jend; ++j) {
         for (k = 0, kend = w_recip_.size(2); k < kend; ++k) {
           for(m = 0; m < 3; ++m) {
-            h_recip_(i,j,k,m)[0] = 0.0; h_recip_(i,j,k,m)[1] = 0.0;
-            for(n = 0; n < 3; ++n) {
-              h_recip_(i,j,k,m)[0] = h_recip_(i,j,k,m)[0] + ( w_recip_(i,j,k,m,n)[0]*s_recip_(i,j,k,n)[0]-w_recip_(i,j,k,m,n)[1]*s_recip_(i,j,k,n)[1] );
-              h_recip_(i,j,k,m)[1] = h_recip_(i,j,k,m)[1] + ( w_recip_(i,j,k,m,n)[0]*s_recip_(i,j,k,n)[1]+w_recip_(i,j,k,m,n)[1]*s_recip_(i,j,k,n)[0] );
-            }
+            h_recip_(i,j,k,m)[0] = ( w_recip_(i,j,k,m,0)[0]*s_recip_(i,j,k,0)[0]-w_recip_(i,j,k,m,0)[1]*s_recip_(i,j,k,0)[1] )
+                                 + ( w_recip_(i,j,k,m,1)[0]*s_recip_(i,j,k,1)[0]-w_recip_(i,j,k,m,1)[1]*s_recip_(i,j,k,1)[1] )
+                                 + ( w_recip_(i,j,k,m,2)[0]*s_recip_(i,j,k,2)[0]-w_recip_(i,j,k,m,2)[1]*s_recip_(i,j,k,2)[1] );
+
+            h_recip_(i,j,k,m)[1] = ( w_recip_(i,j,k,m,0)[0]*s_recip_(i,j,k,0)[1]+w_recip_(i,j,k,m,0)[1]*s_recip_(i,j,k,0)[0] )
+                                 + ( w_recip_(i,j,k,m,1)[0]*s_recip_(i,j,k,1)[1]+w_recip_(i,j,k,m,1)[1]*s_recip_(i,j,k,1)[0] )
+                                 + ( w_recip_(i,j,k,m,2)[0]*s_recip_(i,j,k,2)[1]+w_recip_(i,j,k,m,2)[1]*s_recip_(i,j,k,2)[0] );
           }
         }
       }
