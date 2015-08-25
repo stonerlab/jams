@@ -44,10 +44,8 @@ void Lattice::initialize(const libconfig::Setting &material_settings, const libc
 
   ReadConfig(material_settings, lattice_settings);
   CalculateSymmetryOperations();
-  calculate_unit_cell_kpoints();
   CalculatePositions(material_settings, lattice_settings);
-  calculate_recip_space();
-
+  CalculateKspace();
 }
 
 ///
@@ -166,23 +164,16 @@ void Lattice::ReadConfig(const libconfig::Setting &material_settings, const libc
     // read atom coordinates
     is >> atom.second.x >> atom.second.y >> atom.second.z;
 
-    motif_.push_back(atom);
+    unit_cell_positions_.push_back(atom);
     ::output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, atom.first.c_str(), atom.second.x, atom.second.y, atom.second.z);
     counter++;
   }
   position_file.close();
-
-
-  ::output.write("\ncalculating unit cell kpoint mesh...\n");
-  calculate_unit_cell_kmesh();
-  ::output.write("\nunit cell kpoints\n  %d  %d  %d\n", kpoints_.x, kpoints_.y, kpoints_.z);
-
-  ::output.write("\nkspace size\n  %d  %d  %d\n", kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
 }
 
 void Lattice::CalculatePositions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
 
-  lattice_integer_lookup_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
+  lattice_integer_lookup_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, unit_cell_positions_.size());
 
   jblib::Vec3<int> kmesh_size(kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
   if (!lattice_pbc_.x || !lattice_pbc_.y || !lattice_pbc_.z) {
@@ -201,7 +192,7 @@ void Lattice::CalculatePositions(const libconfig::Setting &material_settings, co
 
 // initialize everything to -1 so we can check for double assignment below
 
-  for (int i = 0, iend = product(lattice_size_)*motif_.size(); i < iend; ++i) {
+  for (int i = 0, iend = product(lattice_size_)*unit_cell_positions_.size(); i < iend; ++i) {
     lattice_integer_lookup_[i] = -1;
   }
 
@@ -217,13 +208,13 @@ void Lattice::CalculatePositions(const libconfig::Setting &material_settings, co
   rmax.x = -FLT_MAX; rmax.y = -FLT_MAX; rmax.z = -FLT_MAX;
   rmin.x = FLT_MAX; rmin.y = FLT_MAX; rmin.z = FLT_MAX;
 
-  lattice_super_cell_pos_.resize(num_motif_positions()*product(lattice_size_));
+  lattice_super_cell_pos_.resize(num_unit_cell_positions()*product(lattice_size_));
   // loop over the translation vectors for lattice size
   for (int i = 0; i < lattice_size_.x; ++i) {
     for (int j = 0; j < lattice_size_.y; ++j) {
       for (int k = 0; k < lattice_size_.z; ++k) {
         // loop over atoms in the motif
-        for (int m = 0, mend = motif_.size(); m != mend; ++m) {
+        for (int m = 0, mend = unit_cell_positions_.size(); m != mend; ++m) {
 
           lattice_super_cell_pos_(atom_counter) = jblib::Vec3<int>(i, j, k);
 
@@ -231,7 +222,7 @@ void Lattice::CalculatePositions(const libconfig::Setting &material_settings, co
           lattice_integer_lookup_(i, j, k, m) = atom_counter;
 
           // position of motif atom in fractional lattice vectors
-          jblib::Vec3<double> lattice_pos(i+motif_[m].second.x, j+motif_[m].second.y, k+motif_[m].second.z);
+          jblib::Vec3<double> lattice_pos(i+unit_cell_positions_[m].second.x, j+unit_cell_positions_[m].second.y, k+unit_cell_positions_[m].second.z);
           // position in real (cartesian) space
           jblib::Vec3<double> real_pos = unit_cell_*lattice_pos;
 
@@ -247,10 +238,10 @@ void Lattice::CalculatePositions(const libconfig::Setting &material_settings, co
 
           lattice_frac_positions_.push_back(lattice_pos);
           lattice_positions_.push_back(real_pos);
-          lattice_materials_.push_back(motif_[m].first);
-          lattice_material_num_.push_back(materials_map_[motif_[m].first]);
+          lattice_materials_.push_back(unit_cell_positions_[m].first);
+          lattice_material_num_.push_back(materials_map_[unit_cell_positions_[m].first]);
 
-          jblib::Vec3<double> kvec((i+motif_[m].second.x)*kpoints_.x, (j+motif_[m].second.y)*kpoints_.y, (k+motif_[m].second.z)*kpoints_.z);
+          jblib::Vec3<double> kvec((i+unit_cell_positions_[m].second.x)*kpoints_.x, (j+unit_cell_positions_[m].second.y)*kpoints_.y, (k+unit_cell_positions_[m].second.z)*kpoints_.z);
 
           // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
           //if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
@@ -412,7 +403,7 @@ void Lattice::CalculatePositions(const libconfig::Setting &material_settings, co
   }
 }
 
-void Lattice::calculate_recip_space() {
+void Lattice::CalculateKspace() {
 
   int i, j;
 
@@ -433,18 +424,18 @@ void Lattice::calculate_recip_space() {
     }
   }
 
-  double (*spg_positions)[3] = new double[motif_.size()][3];
+  double (*spg_positions)[3] = new double[unit_cell_positions_.size()][3];
 
-  for (i = 0; i < motif_.size(); ++i) {
+  for (i = 0; i < unit_cell_positions_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_positions[i][j] = motif_[i].second[j];
+      spg_positions[i][j] = unit_cell_positions_[i].second[j];
     }
   }
 
-  int (*spg_types) = new int[motif_.size()];
+  int (*spg_types) = new int[unit_cell_positions_.size()];
 
-  for (i = 0; i < motif_.size(); ++i) {
-    spg_types[i] = materials_map_[motif_[i].first];
+  for (i = 0; i < unit_cell_positions_.size(); ++i) {
+    spg_types[i] = materials_map_[unit_cell_positions_[i].first];
   }
 
 
@@ -463,7 +454,7 @@ void Lattice::calculate_recip_space() {
                               spg_lattice,
                               spg_positions,
                               spg_types,
-                              motif_.size(),
+                              unit_cell_positions_.size(),
                               1e-5);
 
   ::output.write("\nirreducible kpoints: %d\n", num_ibz_points);
@@ -528,10 +519,10 @@ void Lattice::calculate_recip_space() {
   // find offset coordinates for unitcell
 
   double unitcell_offset[3] = {0.0, 0.0, 0.0};
-  for (i = 0; i < motif_.size(); ++i) {
+  for (i = 0; i < unit_cell_positions_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
-      if (motif_[i].second[j] < unitcell_offset[j]){
-        unitcell_offset[j] = motif_[i].second[j];
+      if (unit_cell_positions_[i].second[j] < unitcell_offset[j]){
+        unitcell_offset[j] = unit_cell_positions_[i].second[j];
       }
     }
   }
@@ -577,63 +568,6 @@ void Lattice::load_spin_state_from_hdf5(std::string &filename) {
   dataset.read(globals::s.data(), PredType::NATIVE_DOUBLE);
 }
 
-// Calculate the number of kpoints needed in each dimension to represent the unit cell
-// i.e. the number of unique coordinates of each realspace dimension in the motif
-void Lattice::calculate_unit_cell_kmesh() {
-
-  const double tolerance = 0.001;
-
-  std::vector<double> unique_x, unique_y, unique_z;
-
-  unique_x.push_back(motif_[0].second.x);
-  unique_y.push_back(motif_[0].second.y);
-  unique_z.push_back(motif_[0].second.z);
-
-
-  for (int i = 1, iend = motif_.size(); i < iend; ++i) {
-    bool duplicate = false;
-    for (int j = 0, jend = unique_x.size(); j < jend; ++j) {
-      if (fabs(motif_[i].second.x - unique_x[j]) < tolerance) {
-        duplicate = true;
-        break;
-      }
-    }
-    if(!duplicate) {
-      unique_x.push_back(motif_[i].second.x);
-    }
-  }
-
-  for (int i = 1, iend = motif_.size(); i < iend; ++i) {
-    bool duplicate = false;
-    for (int j = 0, jend = unique_y.size(); j < jend; ++j) {
-      if (fabs(motif_[i].second.y - unique_y[j]) < tolerance) {
-        duplicate = true;
-        break;
-      }
-    }
-    if(!duplicate) {
-      unique_y.push_back(motif_[i].second.y);
-    }
-  }
-
-  for (int i = 1, iend = motif_.size(); i < iend; ++i) {
-    bool duplicate = false;
-    for (int j = 0, jend = unique_z.size(); j < jend; ++j) {
-      if (fabs(motif_[i].second.z - unique_z[j]) < tolerance) {
-        duplicate = true;
-        break;
-      }
-    }
-    if(!duplicate) {
-      unique_z.push_back(motif_[i].second.z);
-    }
-  }
-
-  kpoints_.x = unique_x.size();
-  kpoints_.y = unique_y.size();
-  kpoints_.z = unique_z.size();
-}
-
 void Lattice::CalculateSymmetryOperations() {
   ::output.write("symmetry analysis\n");
 
@@ -647,21 +581,21 @@ void Lattice::CalculateSymmetryOperations() {
     }
   }
 
-  double (*spg_positions)[3] = new double[motif_.size()][3];
+  double (*spg_positions)[3] = new double[unit_cell_positions_.size()][3];
 
-  for (i = 0; i < motif_.size(); ++i) {
+  for (i = 0; i < unit_cell_positions_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_positions[i][j] = motif_[i].second[j];
+      spg_positions[i][j] = unit_cell_positions_[i].second[j];
     }
   }
 
-  int (*spg_types) = new int[motif_.size()];
+  int (*spg_types) = new int[unit_cell_positions_.size()];
 
-  for (i = 0; i < motif_.size(); ++i) {
-    spg_types[i] = materials_map_[motif_[i].first];
+  for (i = 0; i < unit_cell_positions_.size(); ++i) {
+    spg_types[i] = materials_map_[unit_cell_positions_[i].first];
   }
 
-  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, motif_.size(), 1e-5);
+  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, unit_cell_positions_.size(), 1e-5);
 
   ::output.write("  International: %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
   ::output.write("  Hall symbol:   %s\n", spglib_dataset_->hall_symbol );
@@ -698,7 +632,7 @@ void Lattice::CalculateSymmetryOperations() {
       spglib_dataset_->transformation_matrix[i][0], spglib_dataset_->transformation_matrix[i][1], spglib_dataset_->transformation_matrix[i][2]);
   }
 
-  for (int i = 0; i < motif_.size(); ++i) {
+  for (int i = 0; i < unit_cell_positions_.size(); ++i) {
 
     double bij[3];
 
@@ -722,7 +656,7 @@ void Lattice::CalculateSymmetryOperations() {
       spglib_dataset_->std_lattice[i][0], spglib_dataset_->std_lattice[i][1], spglib_dataset_->std_lattice[i][2]);
   }
 
-  int primitive_num_atoms = motif_.size();
+  int primitive_num_atoms = unit_cell_positions_.size();
   double primitive_lattice[3][3];
 
   for (i = 0; i < 3; ++i) {
@@ -731,24 +665,24 @@ void Lattice::CalculateSymmetryOperations() {
     }
   }
 
-  double (*primitive_positions)[3] = new double[motif_.size()][3];
+  double (*primitive_positions)[3] = new double[unit_cell_positions_.size()][3];
 
-  for (i = 0; i < motif_.size(); ++i) {
+  for (i = 0; i < unit_cell_positions_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
       primitive_positions[i][j] = spg_positions[i][j];
     }
   }
 
-  int (*primitive_types) = new int[motif_.size()];
+  int (*primitive_types) = new int[unit_cell_positions_.size()];
 
-  for (i = 0; i < motif_.size(); ++i) {
+  for (i = 0; i < unit_cell_positions_.size(); ++i) {
     primitive_types[i] = spg_types[i];
   }
 
-  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, motif_.size(), 1e-5);
+  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, unit_cell_positions_.size(), 1e-5);
 
   // spg_find_primitive returns number of atoms in primitve cell
-  if (primitive_num_atoms != motif_.size()) {
+  if (primitive_num_atoms != unit_cell_positions_.size()) {
     ::output.write("\n");
     ::output.write("unit cell is not a primitive cell\n");
     ::output.write("\n");
@@ -807,13 +741,13 @@ void Lattice::calculate_unit_cell_kpoints() {
   long num_kpoints[3];
   double approx_error = 0.0;
 
-  std::vector<long> nom(num_motif_positions(), 0);
-  std::vector<long> denom(num_motif_positions(), 0);
+  std::vector<long> nom(num_unit_cell_positions(), 0);
+  std::vector<long> denom(num_unit_cell_positions(), 0);
 
   for (int j = 0; j < 3; ++j) {
     // approximate motif position into fractions
-    for (int i = 0; i < num_motif_positions(); ++i) {
-      jblib::Vec3<double> pos_cart = fractional_to_cartesian_position(motif_position(i));
+    for (int i = 0; i < num_unit_cell_positions(); ++i) {
+      jblib::Vec3<double> pos_cart = fractional_to_cartesian_position(unit_cell_position(i));
       approx_error = approximate_float_as_fraction(nom[i], denom[i], pos_cart[j], max_denom);
     }
 
@@ -829,11 +763,11 @@ void Lattice::calculate_unit_cell_kpoints() {
   }
 
   ::output.write("motif positions in fractions\n");
-  for (int i = 0; i < num_motif_positions(); ++i) {
+  for (int i = 0; i < num_unit_cell_positions(); ++i) {
     ::output.write("%4d", i);
     for (int j = 0; j < 3; ++j) {
       long n, d;
-      jblib::Vec3<double> pos_cart = fractional_to_cartesian_position(motif_position(i));
+      jblib::Vec3<double> pos_cart = fractional_to_cartesian_position(unit_cell_position(i));
       approx_error = approximate_float_as_fraction(n, d, pos_cart[j], max_denom);
       ::output.write("  %3ld/%ld (err: %3.3e)", n*(num_kpoints[j]/d), num_kpoints[j], approx_error);
     }

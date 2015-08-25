@@ -113,9 +113,9 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     }
   }
 
-  sqw_x.resize(lattice.num_motif_positions(), num_samples, bz_points.size());
-  sqw_y.resize(lattice.num_motif_positions(), num_samples, bz_points.size());
-  sqw_z.resize(lattice.num_motif_positions(), num_samples, bz_points.size());
+  sqw_x.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
+  sqw_y.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
+  sqw_z.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
 }
 
 void StructureFactorMonitor::update(const Solver * const solver) {
@@ -127,7 +127,7 @@ void StructureFactorMonitor::update(const Solver * const solver) {
   jblib::Array<std::complex<double>, 1> exp_phase_y(lattice.kspace_size().y);
   jblib::Array<std::complex<double>, 1> exp_phase_z(lattice.kspace_size().z);
 
-  for (int motif_atom = 0; motif_atom < lattice.num_motif_positions(); ++motif_atom) {
+  for (int unit_cell_atom = 0; unit_cell_atom < lattice.num_unit_cell_positions(); ++unit_cell_atom) {
     // zero the sq arrays
     for (int i = 0; i < sq_x.elements(); ++i) {
       sq_x[i][0] = 0.0; sq_x[i][1] = 0.0;
@@ -137,7 +137,7 @@ void StructureFactorMonitor::update(const Solver * const solver) {
 
     // remap spin data into kspace array
     for (int i = 0; i < num_spins; ++i) {
-      if ((i+motif_atom)%lattice.num_motif_positions() == 0) {
+      if ((i+unit_cell_atom)%lattice.num_unit_cell_positions() == 0) {
         jblib::Vec3<int> r = lattice.super_cell_pos(i);
         sq_x(r.x, r.y, r.z)[0] = s(i,0)*s_transform(i,0);  sq_x(r.x, r.y, r.z)[1] = 0.0;
         sq_y(r.x, r.y, r.z)[0] = s(i,1)*s_transform(i,1);  sq_y(r.x, r.y, r.z)[1] = 0.0;
@@ -154,21 +154,21 @@ void StructureFactorMonitor::update(const Solver * const solver) {
 
     // super speed hack from CASTEP ewald.f90 for generating all of the phase factors on
     // the fly without calling lots of exp()
-    two_pi_i_dr = kImagTwoPi*lattice.motif_position(motif_atom).x;
+    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position(unit_cell_atom).x;
     exp_phase_0 = exp(two_pi_i_dr);
     exp_phase_x(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().x - 1)/2));
     for (int i = 1; i < lattice.kspace_size().x; ++i) {
       exp_phase_x(i) = exp_phase_x(i-1)*exp_phase_0;
     }
 
-    two_pi_i_dr = kImagTwoPi*lattice.motif_position(motif_atom).y;
+    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position(unit_cell_atom).y;
     exp_phase_0 = exp(two_pi_i_dr);
     exp_phase_y(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().y - 1)/2));
     for (int i = 1; i < lattice.kspace_size().y; ++i) {
       exp_phase_y(i) = exp_phase_y(i-1)*exp_phase_0;
     }
 
-    two_pi_i_dr = kImagTwoPi*lattice.motif_position(motif_atom).z;
+    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position(unit_cell_atom).z;
     exp_phase_0 = exp(two_pi_i_dr);
     exp_phase_z(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().z - 1)/2));
     for (int i = 1; i < lattice.kspace_size().z; ++i) {
@@ -199,9 +199,9 @@ void StructureFactorMonitor::update(const Solver * const solver) {
     // add the Sq to the timeseries
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
       jblib::Vec3<int> q = bz_points[i];
-      sqw_x(motif_atom, time_point_counter_, i) = norm*std::complex<double>(sq_x(q.x, q.y, q.z)[0],sq_x(q.x, q.y, q.z)[1]);
-      sqw_y(motif_atom, time_point_counter_, i) = norm*std::complex<double>(sq_y(q.x, q.y, q.z)[0],sq_y(q.x, q.y, q.z)[1]);
-      sqw_z(motif_atom, time_point_counter_, i) = norm*std::complex<double>(sq_z(q.x, q.y, q.z)[0],sq_z(q.x, q.y, q.z)[1]);
+      sqw_x(unit_cell_atom, time_point_counter_, i) = norm*std::complex<double>(sq_x(q.x, q.y, q.z)[0],sq_x(q.x, q.y, q.z)[1]);
+      sqw_y(unit_cell_atom, time_point_counter_, i) = norm*std::complex<double>(sq_y(q.x, q.y, q.z)[0],sq_y(q.x, q.y, q.z)[1]);
+      sqw_z(unit_cell_atom, time_point_counter_, i) = norm*std::complex<double>(sq_z(q.x, q.y, q.z)[0],sq_z(q.x, q.y, q.z)[1]);
     }
   }
 
@@ -252,17 +252,17 @@ void StructureFactorMonitor::fft_time() {
   fftw_plan fft_plan_time_y = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_y.data(),inembed,istride,idist,fft_sqw_y.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
   fftw_plan fft_plan_time_z = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_z.data(),inembed,istride,idist,fft_sqw_z.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
 
-  for (int motif_atom = 0; motif_atom < lattice.num_motif_positions(); ++motif_atom) {
+  for (int unit_cell_atom = 0; unit_cell_atom < lattice.num_unit_cell_positions(); ++unit_cell_atom) {
     for (int i = 0; i < time_points; ++i) {
       for (int j = 0; j < space_points; ++j) {
-        fft_sqw_x(i,j)[0] = sqw_x(motif_atom, i, j).real()*fft_windowing(i, time_points);
-        fft_sqw_x(i,j)[1] = sqw_x(motif_atom, i, j).imag()*fft_windowing(i, time_points);
+        fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j).real()*fft_windowing(i, time_points);
+        fft_sqw_x(i,j)[1] = sqw_x(unit_cell_atom, i, j).imag()*fft_windowing(i, time_points);
 
-        fft_sqw_y(i,j)[0] = sqw_y(motif_atom, i, j).real()*fft_windowing(i, time_points);
-        fft_sqw_y(i,j)[1] = sqw_y(motif_atom, i, j).imag()*fft_windowing(i, time_points);
+        fft_sqw_y(i,j)[0] = sqw_y(unit_cell_atom, i, j).real()*fft_windowing(i, time_points);
+        fft_sqw_y(i,j)[1] = sqw_y(unit_cell_atom, i, j).imag()*fft_windowing(i, time_points);
 
-        fft_sqw_z(i,j)[0] = sqw_z(motif_atom, i, j).real()*fft_windowing(i, time_points);
-        fft_sqw_z(i,j)[1] = sqw_z(motif_atom, i, j).imag()*fft_windowing(i, time_points);
+        fft_sqw_z(i,j)[0] = sqw_z(unit_cell_atom, i, j).real()*fft_windowing(i, time_points);
+        fft_sqw_z(i,j)[1] = sqw_z(unit_cell_atom, i, j).imag()*fft_windowing(i, time_points);
       }
     }
 

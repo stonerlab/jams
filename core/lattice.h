@@ -56,25 +56,25 @@ class Lattice {
     // --------------------------------------------------------------------------
 
     inline int
-    num_motif_positions() const {
-        return motif_.size();
+    num_unit_cell_positions() const {
+        return unit_cell_positions_.size();
     }
 
     inline jblib::Vec3<double>
-    motif_position(const int i) const {
-        assert(i < num_motif_positions());
-        return motif_[i].second;
+    unit_cell_position(const int i) const {
+        assert(i < num_unit_cell_positions_());
+        return unit_cell_positions_[i].second;
     }
 
     inline std::string
-    motif_material(const int i) const {
-        assert(i < num_motif_positions());
-        return motif_[i].first;
+    unit_cell_material(const int i) const {
+        assert(i < num_unit_cell_positions_());
+        return unit_cell_positions_[i].first;
     }
 
     inline int
-    motif_material_id(const int i) {
-        return materials_map_[motif_material(i)];
+    unit_cell_material_id(const int i) {
+        return materials_map_[unit_cell_material(i)];
     }
 
     // --------------------------------------------------------------------------
@@ -110,7 +110,7 @@ class Lattice {
         assert(i < num_unit_cells(0));
         assert(j < num_unit_cells(1));
         assert(k < num_unit_cells(2));
-        assert(m < num_motif_positions());
+        assert(m < num_unit_cell_positions_());
         return lattice_integer_lookup_(i, j, k, m);
     }
 
@@ -162,17 +162,17 @@ class Lattice {
     void load_spin_state_from_hdf5(std::string &filename);
 
   private:
-    void calculate_unit_cell_kmesh();
     void ReadConfig(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void CalculatePositions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
-    void calculate_recip_space();
-    void read_interactions(const libconfig::Setting &lattice_settings);
+    void CalculateKspace();
     void CalculateSymmetryOperations();
 
     bool is_debugging_enabled_;
 
     jblib::Matrix<double, 3, 3> unit_cell_;
     jblib::Matrix<double, 3, 3> unit_cell_inverse_;
+
+    std::vector< std::pair<std::string, jblib::Vec3<double> > > unit_cell_positions_;
 
     std::vector<std::string>    materials_numbered_list_;
     std::vector<int>            material_count_;
@@ -183,7 +183,6 @@ class Lattice {
     jblib::Array<jblib::Vec3<int>, 1>        lattice_super_cell_pos_;
     jblib::Array<int, 4>        lattice_integer_lookup_;
 
-    std::vector< std::pair<std::string, jblib::Vec3<double> > > motif_;
     jblib::Array<int, 3>        kspace_map_;
     jblib::Vec3<int>            unit_cell_kpoints_;
     jblib::Vec3<int>            kpoints_;
