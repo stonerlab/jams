@@ -71,20 +71,20 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
   for (int i = 0; i < 3; ++i) {
     for (int j = 0; j < 3; ++j) {
-      lattice_vectors_[i][j] = lattice_settings["basis"][i][j];
+      unit_cell_[i][j] = lattice_settings["basis"][i][j];
     }
   }
   ::output.write("\nlattice translation vectors\n");
   for (int i = 0; i < 3; ++i) {
     ::output.write("  % 3.6f % 3.6f % 3.6f\n",
-      lattice_vectors_[i][0], lattice_vectors_[i][1], lattice_vectors_[i][2]);
+      unit_cell_[i][0], unit_cell_[i][1], unit_cell_[i][2]);
   }
 
-  inverse_lattice_vectors_ = lattice_vectors_.inverse();
+  unit_cell_inverse_ = unit_cell_.inverse();
   ::output.write("\ninverse lattice vectors\n");
   for (int i = 0; i < 3; ++i) {
     ::output.write("  % 3.6f % 3.6f % 3.6f\n",
-      inverse_lattice_vectors_[i][0], inverse_lattice_vectors_[i][1], inverse_lattice_vectors_[i][2]);
+      unit_cell_inverse_[i][0], unit_cell_inverse_[i][1], unit_cell_inverse_[i][2]);
   }
 
   lattice_parameter_ = lattice_settings["parameter"];
@@ -236,7 +236,7 @@ void Lattice::calculate_positions(const libconfig::Setting &material_settings, c
           // position of motif atom in fractional lattice vectors
           jblib::Vec3<double> lattice_pos(i+motif_[m].second.x, j+motif_[m].second.y, k+motif_[m].second.z);
           // position in real (cartesian) space
-          jblib::Vec3<double> real_pos = lattice_vectors_*lattice_pos;
+          jblib::Vec3<double> real_pos = unit_cell_*lattice_pos;
 
           // store max coordinates
           for (int n = 0; n < 3; ++n) {
@@ -433,7 +433,7 @@ void Lattice::calculate_recip_space() {
   double spg_lattice[3][3];
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_lattice[i][j] = lattice_vectors_[i][j];
+      spg_lattice[i][j] = unit_cell_[i][j];
     }
   }
 
@@ -650,7 +650,7 @@ void Lattice::calculate_unit_cell_symmetry() {
   double spg_lattice[3][3];
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_lattice[i][j] = lattice_vectors_[i][j];
+      spg_lattice[i][j] = unit_cell_[i][j];
     }
   }
 

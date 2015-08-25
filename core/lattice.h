@@ -82,11 +82,11 @@ class Lattice {
     // --------------------------------------------------------------------------
 
     inline jblib::Vec3<double> cartesian_to_fractional_position(const jblib::Vec3<double>& r_cart) {
-        return inverse_lattice_vectors_*r_cart;
+        return unit_cell_inverse_*r_cart;
     }
 
     inline jblib::Vec3<double> fractional_to_cartesian_position(const jblib::Vec3<double>& r_frac) {
-        return lattice_vectors_*r_frac;
+        return unit_cell_*r_frac;
     }
 
     inline const jblib::Vec3<double>& position(const int i) const {
@@ -187,8 +187,8 @@ class Lattice {
     jblib::Vec3<int>            lattice_size_;
     jblib::Array<jblib::Vec3<int>, 1>        lattice_super_cell_pos_;
     jblib::Array<int, 4>        lattice_integer_lookup_;
-    jblib::Matrix<double, 3, 3> lattice_vectors_;
-    jblib::Matrix<double, 3, 3> inverse_lattice_vectors_;
+    jblib::Matrix<double, 3, 3> unit_cell_;
+    jblib::Matrix<double, 3, 3> unit_cell_inverse_;
     std::vector< std::pair<std::string, jblib::Vec3<double> > > motif_;
     jblib::Array<int, 3>        kspace_map_;
     jblib::Vec3<int>            unit_cell_kpoints_;
