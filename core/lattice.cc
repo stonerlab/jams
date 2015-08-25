@@ -35,7 +35,7 @@ extern "C"{
 
 
 
-void Lattice::initialize() {
+void Lattice::initialize(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   ::output.write("\n----------------------------------------\n");
   ::output.write("initializing lattice");
   ::output.write("\n----------------------------------------\n");
@@ -45,10 +45,10 @@ void Lattice::initialize() {
     config.lookupValue("sim.debug", is_debugging_enabled_);
   }
 
-  read_lattice(::config.lookup("materials"), ::config.lookup("lattice"));
+  read_lattice(material_settings, lattice_settings);
   calculate_unit_cell_symmetry();
   calculate_unit_cell_kpoints();
-  calculate_positions(::config.lookup("materials"), ::config.lookup("lattice"));
+  calculate_positions(material_settings, lattice_settings);
   calculate_recip_space();
 
 }

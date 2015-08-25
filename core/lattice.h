@@ -20,7 +20,7 @@ extern "C"{
 class Lattice {
   public:
     Lattice()  {}
-    void initialize();
+    void initialize(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
 
     // --------------------------------------------------------------------------
     // material functions

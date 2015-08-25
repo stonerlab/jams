@@ -154,7 +154,7 @@ int jams_initialize(int argc, char **argv) {
 
       rng.seed(randomseed);
 
-      lattice.initialize();
+      lattice.initialize(::config.lookup("materials"), ::config.lookup("lattice"));
 
       if (binary_output_is_set) {
         std::ofstream binary_state_file
