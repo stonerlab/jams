@@ -32,9 +32,6 @@ extern "C"{
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
 
-
-
-
 void Lattice::initialize(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   ::output.write("\n----------------------------------------\n");
   ::output.write("initializing lattice");
@@ -45,10 +42,10 @@ void Lattice::initialize(const libconfig::Setting &material_settings, const libc
     config.lookupValue("sim.debug", is_debugging_enabled_);
   }
 
-  read_lattice(material_settings, lattice_settings);
-  calculate_unit_cell_symmetry();
+  ReadConfig(material_settings, lattice_settings);
+  CalculateSymmetryOperations();
   calculate_unit_cell_kpoints();
-  calculate_positions(material_settings, lattice_settings);
+  CalculatePositions(material_settings, lattice_settings);
   calculate_recip_space();
 
 }
@@ -56,7 +53,7 @@ void Lattice::initialize(const libconfig::Setting &material_settings, const libc
 ///
 /// @brief  Read lattice settings from config file.
 ///
-void Lattice::read_lattice(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
+void Lattice::ReadConfig(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   using namespace globals;
 
 //-----------------------------------------------------------------------------
@@ -183,7 +180,7 @@ void Lattice::read_lattice(const libconfig::Setting &material_settings, const li
   ::output.write("\nkspace size\n  %d  %d  %d\n", kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
 }
 
-void Lattice::calculate_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
+void Lattice::CalculatePositions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
 
   lattice_integer_lookup_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, motif_.size());
 
@@ -423,7 +420,6 @@ void Lattice::calculate_recip_space() {
 
   for (i = 0; i < 3; ++i) {
     kspace_size_[i] = lattice_size_[i];
-//    kspace_size_[i] = unit_cell_kpoints_[i]*lattice_size_[i];
   }
 
   ::output.write("  kspace size: %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
@@ -455,9 +451,6 @@ void Lattice::calculate_recip_space() {
   int num_mesh_points = kspace_size_.x*kspace_size_.y*kspace_size_.z;
   int (*grid_address)[3] = new int[num_mesh_points][3];
   int (*weights) = new int[num_mesh_points];
-
-
-  // kspace_map_.resize(num_mesh_points);
 
   int mesh[3] = {kspace_size_.x, kspace_size_.y, kspace_size_.z};
   int is_shift[] = {0, 0, 0};
@@ -641,7 +634,7 @@ void Lattice::calculate_unit_cell_kmesh() {
   kpoints_.z = unique_z.size();
 }
 
-void Lattice::calculate_unit_cell_symmetry() {
+void Lattice::CalculateSymmetryOperations() {
   ::output.write("symmetry analysis\n");
 
   int i, j;
@@ -777,89 +770,6 @@ void Lattice::calculate_unit_cell_symmetry() {
   }
 
 }
-
-
-void Lattice::output_spin_state_as_vtu(std::ofstream &outfile){
-  using namespace globals;
-
-  outfile << "<?xml version=\"1.0\"?>" << "\n";
-  outfile << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
-  outfile << "<UnstructuredGrid>" << "\n";
-  outfile << "<Piece NumberOfPoints=\"" << num_spins << "\"  NumberOfCells=\"1\">" << "\n";
-  outfile << "<PointData Scalar=\"Spins\">" << "\n";
-
-  for(int n=0; n < materials_numbered_list_.size(); ++n){
-    outfile << "<DataArray type=\"Float32\" Name=\"" << materials_numbered_list_[n] << "Spin\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
-    for(int i = 0; i<num_spins; ++i){
-      if(lattice_material_num_[i] == n){
-        outfile << s(i, 0) << "\t" << s(i, 1) << "\t" << s(i, 2) << "\n";
-      } else {
-        outfile << 0.0 << "\t" << 0.0 << "\t" << 0.0 << "\n";
-      }
-    }
-    outfile << "</DataArray>" << "\n";
-  }
-
-  outfile << "</PointData>" << "\n";
-  outfile << "<CellData>" << "\n";
-  outfile << "</CellData>" << "\n";
-  outfile << "<Points>" << "\n";
-  outfile << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">" << "\n";
-  for(int i = 0; i<num_spins; ++i){
-    outfile << lattice_parameter_*lattice_positions_[i].x << "\t" << lattice_parameter_*lattice_positions_[i].y << "\t" << lattice_parameter_*lattice_positions_[i].z << "\n";
-  }
-  outfile << "</DataArray>" << "\n";
-  outfile << "</Points>" << "\n";
-  outfile << "<Cells>" << "\n";
-  outfile << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" << "\n";
-  outfile << "1" << "\n";
-  outfile << "</DataArray>" << "\n";
-  outfile << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" << "\n";
-  outfile << "1" << "\n";
-  outfile << "</DataArray>" << "\n";
-  outfile << "<DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">" << "\n";
-  outfile << "1" << "\n";
-  outfile << "</DataArray>" << "\n";
-  outfile << "</Cells>" << "\n";
-  outfile << "</Piece>" << "\n";
-  outfile << "</UnstructuredGrid>" << "\n";
-  outfile << "</VTKFile>" << "\n";
-
-}
-
-void Lattice::output_spin_state_as_binary(std::ofstream &outfile){
-  using namespace globals;
-
-  outfile.write(reinterpret_cast<char*>(&num_spins), sizeof(int));
-  outfile.write(reinterpret_cast<char*>(s.data()), num_spins3*sizeof(double));
-}
-
-void Lattice::output_spin_types_as_binary(std::ofstream &outfile){
-  using namespace globals;
-
-  // outfile.write(reinterpret_cast<char*>(&num_spins), sizeof(int));
-  // outfile.write(reinterpret_cast<char*>(&atom_type[0]), num_spins*sizeof(int));
-}
-
-void Lattice::read_spin_state_from_binary(std::ifstream &infile){
-  using namespace globals;
-
-  infile.seekg(0);
-
-  int filenum_spins=0;
-  infile.read(reinterpret_cast<char*>(&filenum_spins), sizeof(int));
-
-  if (filenum_spins != num_spins) {
-    jams_error("I/O error, spin state file has %d spins but simulation has %d spins", filenum_spins, num_spins);
-  } else {
-    infile.read(reinterpret_cast<char*>(s.data()), num_spins3*sizeof(double));
-  }
-
-  if (infile.bad()) {
-    jams_error("I/O error. Unknown failure reading spin state file");
-  }
-}
-
 
 // reads an position in the fast integer space and applies the periodic boundaries
 // if there are not periodic boundaries and this position is outside of the finite

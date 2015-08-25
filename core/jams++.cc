@@ -156,38 +156,6 @@ int jams_initialize(int argc, char **argv) {
 
       lattice.initialize(::config.lookup("materials"), ::config.lookup("lattice"));
 
-      if (binary_output_is_set) {
-        std::ofstream binary_state_file
-          (std::string(seedname+"_types.bin").c_str(),
-          std::ios::binary | std::ios::out);
-
-        lattice.output_spin_types_as_binary(binary_state_file);
-
-        binary_state_file.close();
-      }
-
-      // If read_state is true then attempt to read state from binary
-      // file. If this fails (num_spins != num_spins in the file) then JAMS
-      // exits with an error to avoid mistakingly thinking the file was
-      // loaded. NOTE: This must be done after lattice is created but
-      // before the solver is initialized so the GPU solvers can copy the
-      // correct spin array.
-
-      std::string binary_state_filename;
-      if (config.lookupValue("sim.read_state", binary_state_filename)) {
-        output.write("\nread state is ON\n");
-
-        output.write("  Reading spin state from %s\n",
-          binary_state_filename.c_str());
-
-        std::ifstream binary_state_file(binary_state_filename.c_str(),
-          std::ios::binary|std::ios::in);
-
-        lattice.read_spin_state_from_binary(binary_state_file);
-
-        binary_state_file.close();
-      }
-
       output.write("\nInitialising physics module...\n");
       physics_module = Physics::create(config.lookup("physics"));
 
@@ -257,19 +225,6 @@ void jams_run() {
     solver->update_physics_module();
     solver->run();
     solver->notify_monitors();
-  }
-
-  if (save_state_is_set) {
-    output.write(
-      "\n-------------------\nSaving spin state\n-------------------\n");
-
-    std::ofstream binary_state_file
-      (std::string(seedname+"_state.bin").c_str(),
-      std::ios::out|std::ios::binary|std::ios::trunc);
-
-    lattice.output_spin_state_as_binary(binary_state_file);
-
-    binary_state_file.close();
   }
 
   double elapsed = static_cast<double>(std::clock()-start);

@@ -151,12 +151,6 @@ class Lattice {
 
     void calculate_unit_cell_kpoints();
 
-    void output_spin_state_as_vtu(std::ofstream &outfile);
-    void output_spin_state_as_binary(std::ofstream &outfile);
-    void output_spin_types_as_binary(std::ofstream &outfile);
-    void read_spin_state_from_binary(std::ifstream &infile);
-    void initialize_coarse_magnetisation_map();
-    void output_coarse_magnetisation(std::ofstream &outfile);
     jblib::Array<int, 2>        kspace_inv_map_;
     std::vector< jblib::Vec3<double> > lattice_positions_;
     std::vector< jblib::Vec3<double> > lattice_frac_positions_;
@@ -169,15 +163,16 @@ class Lattice {
 
   private:
     void calculate_unit_cell_kmesh();
-    void read_lattice(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
-    void calculate_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void ReadConfig(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void CalculatePositions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void calculate_recip_space();
     void read_interactions(const libconfig::Setting &lattice_settings);
-    void calculate_unit_cell_symmetry();
+    void CalculateSymmetryOperations();
 
     bool is_debugging_enabled_;
 
-    double energy_cutoff_;
+    jblib::Matrix<double, 3, 3> unit_cell_;
+    jblib::Matrix<double, 3, 3> unit_cell_inverse_;
 
     std::vector<std::string>    materials_numbered_list_;
     std::vector<int>            material_count_;
@@ -187,8 +182,7 @@ class Lattice {
     jblib::Vec3<int>            lattice_size_;
     jblib::Array<jblib::Vec3<int>, 1>        lattice_super_cell_pos_;
     jblib::Array<int, 4>        lattice_integer_lookup_;
-    jblib::Matrix<double, 3, 3> unit_cell_;
-    jblib::Matrix<double, 3, 3> unit_cell_inverse_;
+
     std::vector< std::pair<std::string, jblib::Vec3<double> > > motif_;
     jblib::Array<int, 3>        kspace_map_;
     jblib::Vec3<int>            unit_cell_kpoints_;
