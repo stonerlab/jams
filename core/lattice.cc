@@ -32,26 +32,45 @@ extern "C"{
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
 
-void Lattice::initialize(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
-  ::output.write("\n----------------------------------------\n");
-  ::output.write("initializing lattice");
-  ::output.write("\n----------------------------------------\n");
+using std::cout;
+using std::endl;
 
-  is_debugging_enabled_ = false;
-  if (config.exists("sim.debug")) {
-    config.lookupValue("sim.debug", is_debugging_enabled_);
-  }
+Lattice::Lattice() {
 
-  ReadConfig(material_settings, lattice_settings);
-  CalculateSymmetryOperations();
-  CalculatePositions(material_settings, lattice_settings);
-  CalculateKspace();
 }
+
+Lattice::~Lattice() {
+  if (spglib_dataset_ != NULL) {
+    spg_free_dataset(spglib_dataset_);
+  }
+}
+
+void Lattice::init_from_config(const libconfig::Config& pConfig) {
+  printf("Initializing lattice\n");
+  init_unit_cell(pConfig.lookup("materials"), pConfig.lookup("lattice"));
+  init_lattice_positions(pConfig.lookup("materials"), pConfig.lookup("lattice"));
+}
+
+// void Lattice::initialize(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
+//   ::output.write("\n----------------------------------------\n");
+//   ::output.write("initializing lattice");
+//   ::output.write("\n----------------------------------------\n");
+
+//   is_debugging_enabled_ = false;
+//   if (config.exists("sim.debug")) {
+//     config.lookupValue("sim.debug", is_debugging_enabled_);
+//   }
+
+//   ReadConfig(material_settings, lattice_settings);
+//   CalculateSymmetryOperations();
+//   CalculatePositions(material_settings, lattice_settings);
+//   CalculateKspace();
+// }
 
 ///
 /// @brief  Read lattice settings from config file.
 ///
-void Lattice::ReadConfig(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
+void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   using namespace globals;
 
 //-----------------------------------------------------------------------------
@@ -69,29 +88,33 @@ void Lattice::ReadConfig(const libconfig::Setting &material_settings, const libc
       unit_cell_[i][j] = lattice_settings["basis"][i][j];
     }
   }
-  ::output.write("\nlattice translation vectors\n");
+
+  printf("\n  unit cell lattice vectors:\n");
   for (int i = 0; i < 3; ++i) {
-    ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+    printf("    % 3.6f % 3.6f % 3.6f\n",
       unit_cell_[i][0], unit_cell_[i][1], unit_cell_[i][2]);
   }
 
   unit_cell_inverse_ = unit_cell_.inverse();
-  ::output.write("\ninverse lattice vectors\n");
+
+  printf("\n  unit cell inverse lattice vectors:\n");
   for (int i = 0; i < 3; ++i) {
-    ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+    printf("    % 3.6f % 3.6f % 3.6f\n",
       unit_cell_inverse_[i][0], unit_cell_inverse_[i][1], unit_cell_inverse_[i][2]);
   }
 
   lattice_parameter_ = lattice_settings["parameter"];
+  printf("\n  lattice parameter (m):\n    %3.6e\n", lattice_parameter_);
+
   if (lattice_parameter_ < 0.0) {
-    jams_error("lattice parameter cannot be negative");
+    throw std::runtime_error("config: lattice parameter cannot be negative");
   }
-  ::output.write("\nlattice parameter (m)\n  %3.6f\n", lattice_parameter_);
 
   for (int i = 0; i < 3; ++i) {
     lattice_size_[i] = lattice_settings["size"][i];
   }
-  ::output.write("\nlattice size\n  %d  %d  %d\n",
+
+  printf("\n  lattice size:\n    %d  %d  %d\n",
     lattice_size_.x, lattice_size_.y, lattice_size_.z);
 
 //-----------------------------------------------------------------------------
@@ -100,8 +123,8 @@ void Lattice::ReadConfig(const libconfig::Setting &material_settings, const libc
 
   if(!lattice_settings.exists("periodic")) {
     // sane default
-    ::output.write(
-      "\nNo boundary conditions specified - assuming 3D periodic\n");
+    printf(
+      "\nASSUMPTION: no boundary conditions specified - assuming 3D periodic\n");
     for (int i = 0; i < 3; ++i) {
       lattice_pbc_[i] = true;
     }
@@ -110,7 +133,7 @@ void Lattice::ReadConfig(const libconfig::Setting &material_settings, const libc
       lattice_pbc_[i] = lattice_settings["periodic"][i];
     }
   }
-  ::output.write("\nboundary conditions\n  %s  %s  %s\n",
+  ::output.write("\n  boundary conditions:\n    %s  %s  %s\n",
     lattice_pbc_.x ? "periodic" : "open",
     lattice_pbc_.y ? "periodic" : "open",
     lattice_pbc_.z ? "periodic" : "open");
@@ -119,59 +142,64 @@ void Lattice::ReadConfig(const libconfig::Setting &material_settings, const libc
 // Read materials
 //-----------------------------------------------------------------------------
 
-  ::output.write("\nmaterials\n");
+  printf("\n  materials\n");
 
   int counter = 0;
   for (int i = 0; i < material_settings.getLength(); ++i) {
     std::string name = material_settings[i]["name"];
     if (materials_map_.insert( std::pair<std::string, int>(name, counter)).second == false) {
-      jams_error("the material %s is specified twice in the configuration", name.c_str());
+      throw std::runtime_error("the material " + name + " is specified twice in the configuration");
     }
     materials_numbered_list_.push_back(name);
-    ::output.write("  %-6d %s\n", counter, name.c_str());
+    printf("    %-6d %s\n", counter, name.c_str());
     counter++;
   }
 
 //-----------------------------------------------------------------------------
-// Read motif
+// Read unit positions
 //-----------------------------------------------------------------------------
 
   // TODO - use libconfig to check if this is a string or a group to allow
   // positions to be defined in the config file directly
   std::string position_filename = lattice_settings["positions"];
-
   std::ifstream position_file(position_filename.c_str());
 
   if(position_file.fail()) {
-    jams_error("failed to open position file %s", position_filename.c_str());
+    throw std::runtime_error("failed to open position file " + position_filename);
   }
 
-  ::output.write("\nlattice motif (%s)\n", position_filename.c_str());
+  printf("\n  unit cell positions (%s)\n", position_filename.c_str());
 
   counter = 0;
+
+  std::string line;
+  std::stringstream line_as_stream;
+  std::pair<std::string, jblib::Vec3<double> > atom;
+
   // read the motif into an array from the positions file
-  for (std::string line; getline(position_file, line); ) {
-    std::stringstream is(line);
-    std::pair<std::string, jblib::Vec3<double> > atom;
+  while (getline(position_file, line)) {
+    line_as_stream.str(line);
     // read atom type name
-    is >> atom.first;
+    line_as_stream >> atom.first;
 
     // check the material type is defined
     if (materials_map_.find(atom.first) == materials_map_.end()) {
-      jams_error("material %s in the motif is not defined in the configuration", atom.first.c_str());
+      throw std::runtime_error("material " + atom.first + " in the motif is not defined in the configuration");
     }
 
     // read atom coordinates
-    is >> atom.second.x >> atom.second.y >> atom.second.z;
+    line_as_stream >> atom.second.x >> atom.second.y >> atom.second.z;
 
     unit_cell_positions_.push_back(atom);
-    ::output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, atom.first.c_str(), atom.second.x, atom.second.y, atom.second.z);
+    printf("    %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, atom.first.c_str(), atom.second.x, atom.second.y, atom.second.z);
     counter++;
   }
   position_file.close();
+
+  calc_symmetry_operations();
 }
 
-void Lattice::CalculatePositions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
+void Lattice::init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
 
   lattice_integer_lookup_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, unit_cell_positions_.size());
 
@@ -401,9 +429,11 @@ void Lattice::CalculatePositions(const libconfig::Setting &material_settings, co
 
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
   }
+
+  init_kspace();
 }
 
-void Lattice::CalculateKspace() {
+void Lattice::init_kspace() {
 
   int i, j;
 
@@ -568,7 +598,7 @@ void Lattice::load_spin_state_from_hdf5(std::string &filename) {
   dataset.read(globals::s.data(), PredType::NATIVE_DOUBLE);
 }
 
-void Lattice::CalculateSymmetryOperations() {
+void Lattice::calc_symmetry_operations() {
   ::output.write("symmetry analysis\n");
 
   int i, j;
@@ -702,7 +732,6 @@ void Lattice::CalculateSymmetryOperations() {
       counter++;
     }
   }
-
 }
 
 // reads an position in the fast integer space and applies the periodic boundaries

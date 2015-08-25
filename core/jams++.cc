@@ -154,7 +154,7 @@ int jams_initialize(int argc, char **argv) {
 
       rng.seed(randomseed);
 
-      lattice.initialize(::config.lookup("materials"), ::config.lookup("lattice"));
+      lattice.init_from_config(::config);
 
       output.write("\nInitialising physics module...\n");
       physics_module = Physics::create(config.lookup("physics"));

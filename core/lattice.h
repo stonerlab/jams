@@ -19,8 +19,14 @@ extern "C"{
 
 class Lattice {
   public:
-    Lattice()  {}
-    void initialize(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    Lattice();
+
+    void init_from_config(const libconfig::Config& pConfig);
+
+    inline int                 num_unit_cell_positions() const;
+    inline jblib::Vec3<double> unit_cell_position(const int i) const;
+    inline std::string         unit_cell_material(const int i) const;
+    inline int                 unit_cell_material_id(const int i);
 
     // --------------------------------------------------------------------------
     // material functions
@@ -51,31 +57,6 @@ class Lattice {
         return material_count_[i];
     }
 
-    // --------------------------------------------------------------------------
-    // motif functions
-    // --------------------------------------------------------------------------
-
-    inline int
-    num_unit_cell_positions() const {
-        return unit_cell_positions_.size();
-    }
-
-    inline jblib::Vec3<double>
-    unit_cell_position(const int i) const {
-        assert(i < num_unit_cell_positions_());
-        return unit_cell_positions_[i].second;
-    }
-
-    inline std::string
-    unit_cell_material(const int i) const {
-        assert(i < num_unit_cell_positions_());
-        return unit_cell_positions_[i].first;
-    }
-
-    inline int
-    unit_cell_material_id(const int i) {
-        return materials_map_[unit_cell_material(i)];
-    }
 
     // --------------------------------------------------------------------------
     // lattice vector functions
@@ -149,23 +130,13 @@ class Lattice {
         return kspace_size_;
     }
 
-    void calculate_unit_cell_kpoints();
-
-    jblib::Array<int, 2>        kspace_inv_map_;
-    std::vector< jblib::Vec3<double> > lattice_positions_;
-    std::vector< jblib::Vec3<double> > lattice_frac_positions_;
-    double                      lattice_parameter_;
-    std::vector<int>            lattice_material_num_;
-    jblib::Vec3<double>         rmax;
-    jblib::Vec3<double>         rmin;
-
     void load_spin_state_from_hdf5(std::string &filename);
 
   private:
-    void ReadConfig(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
-    void CalculatePositions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
-    void CalculateKspace();
-    void CalculateSymmetryOperations();
+    void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void init_kspace();
+    void calc_symmetry_operations();
 
     bool is_debugging_enabled_;
 
@@ -187,10 +158,44 @@ class Lattice {
     jblib::Vec3<int>            unit_cell_kpoints_;
     jblib::Vec3<int>            kpoints_;
     jblib::Vec3<int>            kspace_size_;
+    jblib::Array<int, 2>        kspace_inv_map_;
+    std::vector< jblib::Vec3<double> > lattice_positions_;
+    std::vector< jblib::Vec3<double> > lattice_frac_positions_;
+    double                      lattice_parameter_;
+    std::vector<int>            lattice_material_num_;
+    jblib::Vec3<double>         rmax;
+    jblib::Vec3<double>         rmin;
 
     // spglib
     SpglibDataset *spglib_dataset_;
 
 };
+
+
+// --------------------------------------------------------------------------
+// motif functions
+// --------------------------------------------------------------------------
+
+inline int
+Lattice::num_unit_cell_positions() const {
+    return unit_cell_positions_.size();
+}
+
+inline jblib::Vec3<double>
+Lattice::unit_cell_position(const int i) const {
+    assert(i < num_unit_cell_positions_());
+    return unit_cell_positions_[i].second;
+}
+
+inline std::string
+Lattice::unit_cell_material(const int i) const {
+    assert(i < num_unit_cell_positions_());
+    return unit_cell_positions_[i].first;
+}
+
+inline int
+Lattice::unit_cell_material_id(const int i) {
+    return materials_map_[unit_cell_material(i)];
+}
 
 #endif // JAMS_CORE_LATTICE_H
