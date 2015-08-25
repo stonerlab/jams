@@ -5,6 +5,7 @@
 #include "hamiltonian/dipole_Ewald.h"
 
 using std::pow;
+using std::min;
 
 DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &settings)
 : HamiltonianStrategy(settings) {
@@ -16,20 +17,25 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     }
     local_interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
-    r_cutoff_ = 5.0;
+    r_cutoff_ = 3.0;
+    k_cutoff_ = 6;
+    sigma_ = 2.0*kPi/r_cutoff_;
+
+
+    ::output.write("    sigma: %f\n", sigma_);
     ::output.write("    r_cutoff: %f\n", r_cutoff_);
+    ::output.write("    k_cutoff: %d\n", k_cutoff_);
 
 
     double r_abs;
-    jblib::Vec3<double> r_ij, eij, s_j, pos;
+    jblib::Vec3<double> r_ij, eij, s_j;
+    jblib::Vec3<int> pos;
     jblib::Matrix<double, 3, 3> tensor;
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
     local_interaction_matrix_.resize(globals::num_spins*3, globals::num_spins*3);
 
     const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.constant(),3);
-
-    const double a = r_cutoff_;
 
     // --------------------------------------------------------------------------
     // local real space interactions
@@ -46,11 +52,13 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
             if (r_abs > r_cutoff_) continue;
 
             eij = r_ij / r_abs;
-
+            // TODO: enforce minimum image convention
             for (int m = 0; m < 3; ++m) {
                 for (int n = 0; n < 3; ++n) {
-                    tensor[m][n] = ((3*eij[m]*eij[n] - Id[m][n])*fG(r_abs, a)/(pow(r_abs, 3)))
-                                 - (2*eij[m]*eij[n]*gaussian(r_abs, a)/(a*a));
+                    tensor[m][n] = ((3*eij[m]*eij[n] - Id[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)))
+                                 - (eij[m]*eij[n]*sqrt(2.0/kPi)*exp(-0.5*pow(r_abs/sigma_, 2))/(pow(r_abs, 3)));
+                    // tensor[m][n] = (3*erfc(sigma_*r_abs) + (2*sigma_*r_abs/sqrt(kPi))*(3+2*pow(sigma_*r_abs,2))*exp(-pow(sigma_*r_abs,2))/pow(r_abs,5))*r_ij[m]*r_ij[n]
+                    //              - (erfc(sigma_*r_abs) + (2*sigma_*r_abs/sqrt(kPi))*exp(-pow(sigma_*r_abs,2))/pow(r_abs,3));
                 }
             }
 
@@ -67,51 +75,59 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     local_interaction_matrix_.convertMAP2CSR();
     ::output.write("    local dipole tensor memory (CSR): %3.2f MB\n", local_interaction_matrix_.calculateMemory());
 
+    // std::cerr << "\n\n";
 
     // --------------------------------------------------------------------------
     // nonlocal reciprocal space interactions
     // --------------------------------------------------------------------------
-    jblib::Array<double, 5> wij(::lattice.num_unit_cells(0),
-                                ::lattice.num_unit_cells(1),
-                                ::lattice.num_unit_cells(2),
+
+    for (int n = 0; n < 3; ++n) {
+        kspace_size_[n] = ::lattice.num_unit_cells(n);
+    }
+
+    kspace_padded_size_ = kspace_size_;
+
+    for (int n = 0; n < 3; ++n) {
+        if (!::lattice.is_periodic(n)) {
+            kspace_padded_size_[n] = 2*::lattice.num_unit_cells(n);
+        }
+    }
+
+    jblib::Array<double, 5> wij(kspace_padded_size_[0],
+                                kspace_padded_size_[1],
+                                kspace_padded_size_[2],
                                 3,
                                 3);
 
-    std::fill(wij.data(), wij.data()+::lattice.num_unit_cells(0)*::lattice.num_unit_cells(1)*::lattice.num_unit_cells(2)*3*3, 0.0);
+    std::fill(wij.data(), wij.data()+wij.elements(), 0.0);
 
-    jblib::Vec3<int> kdim(::lattice.num_unit_cells(0), ::lattice.num_unit_cells(1), ::lattice.num_unit_cells(2));
-
-    for (int i = 0; i < kdim.x; ++i) {
-        for (int j = 0; j < kdim.y; ++j) {
-            for (int k = 0; k < kdim.z; ++k) {
+    for (int i = 0; i < kspace_padded_size_.x; ++i) {
+        for (int j = 0; j < kspace_padded_size_.y; ++j) {
+            for (int k = 0; k < kspace_padded_size_.z; ++k) {
                 if (unlikely(i == 0 && j == 0 && k == 0)) continue;
 
-                // need to account for -/+ minimum image convention
-                pos = jblib::Vec3<double>(i, j, k);
+                pos = jblib::Vec3<int>(i, j, k);
 
-                if ( i > kdim.x/2 + 1) {
-                    pos.x = periodic_shift(pos.x, kdim.x/2) - kdim.x/2;
+                // convert to +/- r
+                for (int n = 0; n < 3; ++n) {
+                    if (pos[n] > kspace_padded_size_[n]/2) {
+                        pos[n] = periodic_shift(pos[n], kspace_padded_size_[n]/2) - kspace_padded_size_[n]/2;
+                    }
                 }
 
-                if ( j > kdim.y/2 + 1) {
-                    pos.y = periodic_shift(pos.y, kdim.y/2) - kdim.y/2;
-                }
+                std::cerr << i << "\t" << j << "\t" << k << "\t" << pos.x << "\t" << pos.y << "\t" << pos.z << std::endl;
 
-                if ( k > kdim.z/2 + 1) {
-                    pos.z = periodic_shift(pos.z, kdim.z/2) - kdim.z/2;
-                }
-
-                r_ij  = ::lattice.fractional_to_cartesian_position(pos);
+                r_ij = jblib::Vec3<double>(pos.x, pos.y, pos.z);
+                r_ij  = ::lattice.fractional_to_cartesian_position(r_ij);
                 r_abs = abs(r_ij);
-
-                if (r_abs > r_cutoff_) continue;
 
                 eij = r_ij / r_abs;
 
                 for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
-                        // divide by num_spins instead or normalizing the FFT result later
-                        wij(i, j, k, m, n) += globals::mus(0)*prefactor*(2*eij[m]*eij[n]*gaussian(r_abs, a)/(globals::num_spins*a*a));
+                        // divide by product(kspace_padded_size_) instead or normalizing the FFT result later
+                        // wij(i, j, k, m, n) += globals::mus(0)*prefactor*(2*eij[m]*eij[n]*gaussian(r_abs, sigma_)/(product(kspace_padded_size_)));
+                        wij(i, j, k, m, n) += globals::mus(0)*prefactor*(eij[m]*eij[n]*sqrt(2.0/kPi)*exp(-0.5*pow(r_abs/sigma_, 2))/(product(kspace_padded_size_)*pow(r_abs, 3)));
                     }
                 }
             }
@@ -119,24 +135,54 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     }
 
 
-    h_nonlocal_.resize(wij.size(0), wij.size(1), wij.size(2), 3);
-    s_recip_.resize(wij.size(0), wij.size(1), (wij.size(2)/2)+1, 3);
-    h_recip_.resize(wij.size(0), wij.size(1), (wij.size(2)/2)+1, 3);
-    w_recip_.resize(wij.size(0), wij.size(1), (wij.size(2)/2)+1, 3, 3);
+    h_nonlocal_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
+    s_nonlocal_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
+    s_recip_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
+    h_recip_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
+    w_recip_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3, 3);
 
-    const int kspace_dimensions[3] = {wij.size(0), wij.size(1), wij.size(2)};
+    for (int i = 0, iend = h_recip_.elements(); i < iend; ++i) {
+        h_recip_[i][0] = 0.0;
+        h_recip_[i][1] = 0.0;
+    }
 
-    ::output.write("    kspace dimensions: %d %d %d\n", wij.size(0), wij.size(1), wij.size(2));
+    ::output.write("    kspace size: %d %d %d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
+    ::output.write("    kspace padded size: %d %d %d\n", kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]);
 
     ::output.write("    planning FFTs\n");
 
-    spin_fft_forward_transform_   = fftw_plan_many_dft_r2c(3, kspace_dimensions, 3, globals::s.data(),  NULL, 3, 1, s_recip_.data(), NULL, 3, 1, FFTW_PATIENT|FFTW_PRESERVE_INPUT);
-    field_fft_backward_transform_ = fftw_plan_many_dft_c2r(3, kspace_dimensions, 3, h_recip_.data(), NULL, 3, 1, h_nonlocal_.data(),  NULL, 3, 1, FFTW_PATIENT);
-    interaction_fft_transform_    = fftw_plan_many_dft_r2c(3, kspace_dimensions, 9, wij.data(),  NULL, 9, 1, w_recip_.data(), NULL, 9, 1, FFTW_MEASURE|FFTW_PRESERVE_INPUT);
+    spin_fft_forward_transform_   = fftw_plan_many_dft_r2c(3, &kspace_padded_size_[0], 3, s_nonlocal_.data(),  NULL, 3, 1, s_recip_.data(), NULL, 3, 1, FFTW_PATIENT|FFTW_PRESERVE_INPUT);
+    field_fft_backward_transform_ = fftw_plan_many_dft_c2r(3, &kspace_padded_size_[0], 3, h_recip_.data(), NULL, 3, 1, h_nonlocal_.data(),  NULL, 3, 1, FFTW_PATIENT);
+    interaction_fft_transform_    = fftw_plan_many_dft_r2c(3, &kspace_padded_size_[0], 9, wij.data(),  NULL, 9, 1, w_recip_.data(), NULL, 9, 1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
 
     ::output.write("    transform interaction matrix\n");
 
     fftw_execute(interaction_fft_transform_);
+
+//     for (int i = 0; i < kspace_padded_size_.x; ++i) {
+//         for (int j = 0; j < kspace_padded_size_.y; ++j) {
+//             for (int k = 0; k < kspace_padded_size_.z/2 + 1; ++k) {
+//                 pos = jblib::Vec3<int>(i, j, k);
+
+//                 // convert to +/- k
+//                 for (int n = 0; n < 3; ++n) {
+//                     if (pos[n] > kspace_padded_size_[n]/2 + 1) {
+//                         pos [n] = periodic_shift(pos[n], kspace_padded_size_[n]/2) - kspace_padded_size_[n]/2;
+//                     }
+//                 }
+
+//                 for (int m = 0; m < 3; ++m) {
+//                     for (int n = 0; n < 3; ++n) {
+//                         if (abs(pos) > k_cutoff_  ){
+//                             w_recip_(i,j,k,m,n)[0] = 0.0;
+//                             w_recip_(i,j,k,m,n)[1] = 0.0;
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+
 }
 
 // --------------------------------------------------------------------------
@@ -152,12 +198,9 @@ double DipoleHamiltonianEwald::calculate_total_energy() {
    calculate_nonlocal_ewald_field();
    for (int i = 0; i < globals::num_spins; ++i) {
         pos = ::lattice.super_cell_pos(i);
-        for (int m = 0; m < 3; ++m) {
-
-           e_total += -(globals::s(i,0)*h_nonlocal_(pos.x, pos.y, pos.z, 0)
-                    + globals::s(i,1)*h_nonlocal_(pos.x, pos.y, pos.z, 1)
-                    + globals::s(i,2)*h_nonlocal_(pos.x, pos.y, pos.z, 2))*globals::mus(i);
-        }
+       e_total += -(globals::s(i,0)*h_nonlocal_(pos.x, pos.y, pos.z, 0)
+                     + globals::s(i,1)*h_nonlocal_(pos.x, pos.y, pos.z, 1)
+                     + globals::s(i,2)*h_nonlocal_(pos.x, pos.y, pos.z, 2))*globals::mus(i);
    }
 
 
@@ -187,7 +230,18 @@ double DipoleHamiltonianEwald::calculate_one_spin_energy(const int i) {
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianEwald::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
-    return calculate_one_spin_energy(i, spin_final) - calculate_one_spin_energy(i, spin_initial);
+    jblib::Vec3<int> pos;
+    double h[3] = {0.0, 0.0, 0.0};
+
+    calculate_local_ewald_field(i, h);
+
+    calculate_nonlocal_ewald_field();
+    for (int m = 0; m < 3; ++m) {
+        pos = ::lattice.super_cell_pos(i);
+        h[m] += h_nonlocal_(pos.x, pos.y, pos.z, m);
+    }
+
+    return ((-(spin_final[0]*h[0] + spin_final[1]*h[1] + spin_final[2]*h[2])) - (-(spin_initial[0]*h[0] + spin_initial[1]*h[1] + spin_initial[2]*h[2])))*globals::mus(i);
 }
 // --------------------------------------------------------------------------
 
@@ -245,14 +299,36 @@ void DipoleHamiltonianEwald::calculate_local_ewald_field(const int i, double h[3
 }
 
 void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
+    using std::min;
     int i, iend, j, jend, k, kend, m;
+    jblib::Vec3<int> pos;
+
+
+    for (int i = 0, iend = s_recip_.elements(); i < iend; ++i) {
+        s_nonlocal_[i];
+    }
+
+    for (int i = 0; i < globals::num_spins; ++i) {
+         pos = ::lattice.super_cell_pos(i);
+         for (int m = 0; m < 3; ++m) {
+            s_nonlocal_(pos.x, pos.y, pos.z, m) = globals::s(i, m);
+        }
+    }
+
+    for (int i = 0, iend = h_recip_.elements(); i < iend; ++i) {
+        h_recip_[i][0] = 0.0;
+        h_recip_[i][1] = 0.0;
+    }
 
     fftw_execute(spin_fft_forward_transform_);
 
     // perform convolution as multiplication in fourier space
-    for (i = 0, iend = w_recip_.size(0); i < iend; ++i) {
-      for (j = 0, jend = w_recip_.size(1); j < jend; ++j) {
-        for (k = 0, kend = w_recip_.size(2); k < kend; ++k) {
+
+    for (i = 0, iend = min(kspace_padded_size_[0], k_cutoff_); i < iend; ++i) {
+      for (j = 0, jend = min(kspace_padded_size_[1], k_cutoff_); j < jend; ++j) {
+        for (k = 0, kend = min(kspace_padded_size_[2]/2+1, k_cutoff_); k < kend; ++k) {
+                if (i*i + j*j + k*k < k_cutoff_*k_cutoff_) {
+
           for(m = 0; m < 3; ++m) {
             h_recip_(i,j,k,m)[0] = ( w_recip_(i,j,k,m,0)[0]*s_recip_(i,j,k,0)[0]-w_recip_(i,j,k,m,0)[1]*s_recip_(i,j,k,0)[1] )
                                  + ( w_recip_(i,j,k,m,1)[0]*s_recip_(i,j,k,1)[0]-w_recip_(i,j,k,m,1)[1]*s_recip_(i,j,k,1)[1] )
@@ -262,15 +338,12 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
                                  + ( w_recip_(i,j,k,m,1)[0]*s_recip_(i,j,k,1)[1]+w_recip_(i,j,k,m,1)[1]*s_recip_(i,j,k,1)[0] )
                                  + ( w_recip_(i,j,k,m,2)[0]*s_recip_(i,j,k,2)[1]+w_recip_(i,j,k,m,2)[1]*s_recip_(i,j,k,2)[0] );
           }
+                }
         }
       }
     }
 
     fftw_execute(field_fft_backward_transform_);
-
-    // for (i = 0; i < globals::num_spins3; ++i) {
-    //   h_nonlocal_[i] /= static_cast<double>(globals::num_spins);
-    // }
 }
 
 // --------------------------------------------------------------------------
