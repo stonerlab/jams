@@ -45,31 +45,22 @@ Lattice::~Lattice() {
   }
 }
 
+jblib::Vec3<double> generate_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const {
+  return unit_cell_*generate_fractional_position(unit_cell_frac_pos, translation_vector);
+}
+
+jblib::Vec3<double> generate_fractional_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const {
+  return jblib::Vec3<double>(unit_cell_frac_pos.x + translation_vector.x,
+                             unit_cell_frac_pos.y + translation_vector.y,
+                             unit_cell_frac_pos.z + translation_vector.z);
+}
+
 void Lattice::init_from_config(const libconfig::Config& pConfig) {
   printf("Initializing lattice\n");
   init_unit_cell(pConfig.lookup("materials"), pConfig.lookup("lattice"));
   init_lattice_positions(pConfig.lookup("materials"), pConfig.lookup("lattice"));
 }
 
-// void Lattice::initialize(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
-//   ::output.write("\n----------------------------------------\n");
-//   ::output.write("initializing lattice");
-//   ::output.write("\n----------------------------------------\n");
-
-//   is_debugging_enabled_ = false;
-//   if (config.exists("sim.debug")) {
-//     config.lookupValue("sim.debug", is_debugging_enabled_);
-//   }
-
-//   ReadConfig(material_settings, lattice_settings);
-//   CalculateSymmetryOperations();
-//   CalculatePositions(material_settings, lattice_settings);
-//   CalculateKspace();
-// }
-
-///
-/// @brief  Read lattice settings from config file.
-///
 void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   using namespace globals;
 
@@ -126,17 +117,17 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     printf(
       "\nASSUMPTION: no boundary conditions specified - assuming 3D periodic\n");
     for (int i = 0; i < 3; ++i) {
-      lattice_pbc_[i] = true;
+      lattice_periodic_boundary_[i] = true;
     }
   } else {
     for (int i = 0; i < 3; ++i) {
-      lattice_pbc_[i] = lattice_settings["periodic"][i];
+      lattice_periodic_boundary_[i] = lattice_settings["periodic"][i];
     }
   }
-  ::output.write("\n  boundary conditions:\n    %s  %s  %s\n",
-    lattice_pbc_.x ? "periodic" : "open",
-    lattice_pbc_.y ? "periodic" : "open",
-    lattice_pbc_.z ? "periodic" : "open");
+  printf("\n  boundary conditions:\n    %s  %s  %s\n",
+    lattice_periodic_boundary_.x ? "periodic" : "open",
+    lattice_periodic_boundary_.y ? "periodic" : "open",
+    lattice_periodic_boundary_.z ? "periodic" : "open");
 
 //-----------------------------------------------------------------------------
 // Read materials
@@ -147,10 +138,10 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   int counter = 0;
   for (int i = 0; i < material_settings.getLength(); ++i) {
     std::string name = material_settings[i]["name"];
-    if (materials_map_.insert( std::pair<std::string, int>(name, counter)).second == false) {
+    if (material_map_.insert( std::pair<std::string, int>(name, counter)).second == false) {
       throw std::runtime_error("the material " + name + " is specified twice in the configuration");
     }
-    materials_numbered_list_.push_back(name);
+    material_numbered_list_.push_back(name);
     printf("    %-6d %s\n", counter, name.c_str());
     counter++;
   }
@@ -183,14 +174,14 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     line_as_stream >> atom.first;
 
     // check the material type is defined
-    if (materials_map_.find(atom.first) == materials_map_.end()) {
+    if (material_map_.find(atom.first) == material_map_.end()) {
       throw std::runtime_error("material " + atom.first + " in the motif is not defined in the configuration");
     }
 
     // read atom coordinates
     line_as_stream >> atom.second.x >> atom.second.y >> atom.second.z;
 
-    unit_cell_positions_.push_back(atom);
+    unit_cell_position_.push_back(atom);
     printf("    %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, atom.first.c_str(), atom.second.x, atom.second.y, atom.second.z);
     counter++;
   }
@@ -201,18 +192,18 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
 void Lattice::init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
 
-  lattice_integer_lookup_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, unit_cell_positions_.size());
+  lattice_map_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, unit_cell_position_.size());
 
   jblib::Vec3<int> kmesh_size(kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
-  if (!lattice_pbc_.x || !lattice_pbc_.y || !lattice_pbc_.z) {
-    ::output.write("\nzero padding non-periodic dimensions\n");
+  if (!lattice_periodic_boundary_.x || !lattice_periodic_boundary_.y || !lattice_periodic_boundary_.z) {
+    printf("\nzero padding non-periodic dimensions\n");
      // double any non-periodic dimensions for zero padding
     for (int i = 0; i < 3; ++i) {
-      if (!lattice_pbc_[i]) {
+      if (!lattice_periodic_boundary_[i]) {
         kmesh_size[i] = 2*kpoints_[i]*lattice_size_[i];
       }
     }
-    ::output.write("\npadded kspace size\n  %d  %d  %d\n", kmesh_size.x, kmesh_size.y, kmesh_size.z);
+    printf("\npadded kspace size\n  %d  %d  %d\n", kmesh_size.x, kmesh_size.y, kmesh_size.z);
   }
 
   kspace_size_ = jblib::Vec3<int>(kmesh_size.x, kmesh_size.y, kmesh_size.z);
@@ -220,8 +211,8 @@ void Lattice::init_lattice_positions(const libconfig::Setting &material_settings
 
 // initialize everything to -1 so we can check for double assignment below
 
-  for (int i = 0, iend = product(lattice_size_)*unit_cell_positions_.size(); i < iend; ++i) {
-    lattice_integer_lookup_[i] = -1;
+  for (int i = 0, iend = product(lattice_size_)*unit_cell_position_.size(); i < iend; ++i) {
+    lattice_map_[i] = -1;
   }
 
   for (int i = 0, iend = kspace_size_.x*kspace_size_.y*kspace_size_.z; i < iend; ++i) {
@@ -236,50 +227,24 @@ void Lattice::init_lattice_positions(const libconfig::Setting &material_settings
   rmax.x = -FLT_MAX; rmax.y = -FLT_MAX; rmax.z = -FLT_MAX;
   rmin.x = FLT_MAX; rmin.y = FLT_MAX; rmin.z = FLT_MAX;
 
+  jblib::Vec3<int> translation_vector;
   lattice_super_cell_pos_.resize(num_unit_cell_positions()*product(lattice_size_));
   // loop over the translation vectors for lattice size
   for (int i = 0; i < lattice_size_.x; ++i) {
     for (int j = 0; j < lattice_size_.y; ++j) {
       for (int k = 0; k < lattice_size_.z; ++k) {
         // loop over atoms in the motif
-        for (int m = 0, mend = unit_cell_positions_.size(); m != mend; ++m) {
-
-          lattice_super_cell_pos_(atom_counter) = jblib::Vec3<int>(i, j, k);
+        for (int m = 0, mend = unit_cell_position_.size(); m != mend; ++m) {
+          translation_vector = jblib::Vec3<int>(i, j, k)
 
           // number the site in the fast integer lattice
-          lattice_integer_lookup_(i, j, k, m) = atom_counter;
+          lattice_map_(i, j, k, m) = atom_counter;
 
-          // position of motif atom in fractional lattice vectors
-          jblib::Vec3<double> lattice_pos(i+unit_cell_positions_[m].second.x, j+unit_cell_positions_[m].second.y, k+unit_cell_positions_[m].second.z);
-          // position in real (cartesian) space
-          jblib::Vec3<double> real_pos = unit_cell_*lattice_pos;
-
-          // store max coordinates
-          for (int n = 0; n < 3; ++n) {
-            if (real_pos[n] > rmax[n]) {
-              rmax[n] = real_pos[n];
-            }
-            if (real_pos[n] < rmin[n]) {
-              rmin[n] = real_pos[n];
-            }
-          }
-
-          lattice_frac_positions_.push_back(lattice_pos);
-          lattice_positions_.push_back(real_pos);
-          lattice_materials_.push_back(unit_cell_positions_[m].first);
-          lattice_material_num_.push_back(materials_map_[unit_cell_positions_[m].first]);
-
-          jblib::Vec3<double> kvec((i+unit_cell_positions_[m].second.x)*kpoints_.x, (j+unit_cell_positions_[m].second.y)*kpoints_.y, (k+unit_cell_positions_[m].second.z)*kpoints_.z);
-
-          // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
-          //if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
-          //  jams_error("kpoint mesh does not map to the unit cell");
-          //}
-
-          // if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
-          //   jams_error("attempted to assign multiple spins to the same point in the kspace map");
-          // }
-          kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) = atom_counter;
+          lattice_super_cell_pos_(atom_counter) = translation_vector;
+          lattice_positions_.push_back(generate_position(unit_cell_position_[m], translation_vector));
+          lattice_frac_positions_.push_back(generate_fractional_position(unit_cell_position_[m], translation_vector));
+          lattice_materials_.push_back(unit_cell_position_[m].first);
+          lattice_material_num_.push_back(material_map_[unit_cell_position_[m].first]);
 
           atom_counter++;
         }
@@ -287,58 +252,30 @@ void Lattice::init_lattice_positions(const libconfig::Setting &material_settings
     }
   }
 
-  ::output.write("  rmin: % 3.6f % 3.6f % 3.6f\n", rmin.x, rmin.y, rmin.z);
-  ::output.write("  rmax: % 3.6f % 3.6f % 3.6f\n", rmax.x, rmax.y, rmax.z);
-
   if (atom_counter == 0) {
     jams_error("the number of computed lattice sites was zero, check input");
   }
 
-  // std::ofstream kspacefile("kspace_map.dat");
-  // for (int i = 0; i < kspace_size_.x; ++i) {
-  //   for (int j = 0; j < kspace_size_.y; ++j) {
-  //     for (int k = 0; k < kspace_size_.z; ++k) {
-  //       kspacefile << i << "\t" << j << "\t" << k << "\t"<< kspace_map_(i,j,k) << std::endl;
-  //     }
-  //   }
-  // }
-
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;
 
-  ::output.write("\ncomputed lattice positions\n");
+  printf("\ncomputed lattice positions\n");
   if (is_debugging_enabled_) {
     for (int i = 0, iend = lattice_positions_.size(); i != iend; ++i) {
-      ::output.write("  %-6d %-6s % 3.6f % 3.6f % 3.6f %4d %4d %4d\n",
+      printf("  %-6d %-6s % 3.6f % 3.6f % 3.6f %4d %4d %4d\n",
         i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z,
         lattice_super_cell_pos_(i).x, lattice_super_cell_pos_(i).y, lattice_super_cell_pos_(i).z);
     }
   } else {
     // avoid spamming the screen by default
     for (int i = 0; i < 8; ++i) {
-    ::output.write("  %-6d %-6s %3.6f % 3.6f % 3.6f\n", i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
+    printf("  %-6d %-6s %3.6f % 3.6f % 3.6f\n", i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
   }
     if (lattice_positions_.size() > 0) {
-      ::output.write("  ... [use verbose output for details] ... \n");
+      printf("  ... [use verbose output for details] ... \n");
     }
   }
-  ::output.write("  total: %d\n", atom_counter);
-
-  kspace_inv_map_.resize(globals::num_spins, 3);
-
-  for (int i = 0; i < kspace_size_.x; ++i) {
-    for (int j = 0; j < kspace_size_.y; ++j) {
-      for (int k = 0; k < kspace_size_.z; ++k) {
-        if (kspace_map_(i,j,k) != -1) {
-          kspace_inv_map_(kspace_map_(i,j,k), 0) = i;
-          kspace_inv_map_(kspace_map_(i,j,k), 1) = j;
-          kspace_inv_map_(kspace_map_(i,j,k), 2) = k;
-        }
-      }
-    }
-  }
-
-
+  printf("  total: %d\n", atom_counter);
 
 //-----------------------------------------------------------------------------
 // initialize global arrays
@@ -357,7 +294,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &material_settings
   if (lattice_settings.exists("spins")) {
     std::string spin_filename = lattice_settings["spins"];
 
-    ::output.write("  reading initial spin configuration from: %s\n", spin_filename.c_str());
+    printf("  reading initial spin configuration from: %s\n", spin_filename.c_str());
 
     load_spin_state_from_hdf5(spin_filename);
   }
@@ -375,7 +312,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &material_settings
 
   material_count_.resize(num_materials(), 0);
   for (int i = 0; i < globals::num_spins; ++i) {
-    int material_number = materials_map_[lattice_materials_[i]];
+    int material_number = material_map_[lattice_materials_[i]];
     material_count_[material_number]++;
 
     libconfig::Setting& type_settings = material_settings[material_number];
@@ -437,13 +374,13 @@ void Lattice::init_kspace() {
 
   int i, j;
 
-  ::output.write("\ncalculating reciprocal space\n");
+  printf("\ncalculating reciprocal space\n");
 
   for (i = 0; i < 3; ++i) {
     kspace_size_[i] = lattice_size_[i];
   }
 
-  ::output.write("  kspace size: %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
+  printf("  kspace size: %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
 
   kspace_map_.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z);
 
@@ -454,18 +391,18 @@ void Lattice::init_kspace() {
     }
   }
 
-  double (*spg_positions)[3] = new double[unit_cell_positions_.size()][3];
+  double (*spg_positions)[3] = new double[unit_cell_position_.size()][3];
 
-  for (i = 0; i < unit_cell_positions_.size(); ++i) {
+  for (i = 0; i < unit_cell_position_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_positions[i][j] = unit_cell_positions_[i].second[j];
+      spg_positions[i][j] = unit_cell_position_[i].second[j];
     }
   }
 
-  int (*spg_types) = new int[unit_cell_positions_.size()];
+  int (*spg_types) = new int[unit_cell_position_.size()];
 
-  for (i = 0; i < unit_cell_positions_.size(); ++i) {
-    spg_types[i] = materials_map_[unit_cell_positions_[i].first];
+  for (i = 0; i < unit_cell_position_.size(); ++i) {
+    spg_types[i] = material_map_[unit_cell_position_[i].first];
   }
 
 
@@ -484,10 +421,10 @@ void Lattice::init_kspace() {
                               spg_lattice,
                               spg_positions,
                               spg_types,
-                              unit_cell_positions_.size(),
+                              unit_cell_position_.size(),
                               1e-5);
 
-  ::output.write("\nirreducible kpoints: %d\n", num_ibz_points);
+  printf("\nirreducible kpoints: %d\n", num_ibz_points);
 
   jblib::Array<int,1> ibz_group;
   jblib::Array<int,1> ibz_index;
@@ -549,15 +486,15 @@ void Lattice::init_kspace() {
   // find offset coordinates for unitcell
 
   double unitcell_offset[3] = {0.0, 0.0, 0.0};
-  for (i = 0; i < unit_cell_positions_.size(); ++i) {
+  for (i = 0; i < unit_cell_position_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
-      if (unit_cell_positions_[i].second[j] < unitcell_offset[j]){
-        unitcell_offset[j] = unit_cell_positions_[i].second[j];
+      if (unit_cell_position_[i].second[j] < unitcell_offset[j]){
+        unitcell_offset[j] = unit_cell_position_[i].second[j];
       }
     }
   }
 
-  ::output.write("unitcell offset (fractional): % 6.6f % 6.6f % 6.6f",
+  printf("unitcell offset (fractional): % 6.6f % 6.6f % 6.6f",
     unitcell_offset[0], unitcell_offset[1], unitcell_offset[2]);
 
   kspace_inv_map_.resize(globals::num_spins, 3);
@@ -599,7 +536,7 @@ void Lattice::load_spin_state_from_hdf5(std::string &filename) {
 }
 
 void Lattice::calc_symmetry_operations() {
-  ::output.write("symmetry analysis\n");
+  printf("symmetry analysis\n");
 
   int i, j;
   const char *wl = "abcdefghijklmnopqrstuvwxyz";
@@ -611,24 +548,24 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  double (*spg_positions)[3] = new double[unit_cell_positions_.size()][3];
+  double (*spg_positions)[3] = new double[unit_cell_position_.size()][3];
 
-  for (i = 0; i < unit_cell_positions_.size(); ++i) {
+  for (i = 0; i < unit_cell_position_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_positions[i][j] = unit_cell_positions_[i].second[j];
+      spg_positions[i][j] = unit_cell_position_[i].second[j];
     }
   }
 
-  int (*spg_types) = new int[unit_cell_positions_.size()];
+  int (*spg_types) = new int[unit_cell_position_.size()];
 
-  for (i = 0; i < unit_cell_positions_.size(); ++i) {
-    spg_types[i] = materials_map_[unit_cell_positions_[i].first];
+  for (i = 0; i < unit_cell_position_.size(); ++i) {
+    spg_types[i] = material_map_[unit_cell_position_[i].first];
   }
 
-  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, unit_cell_positions_.size(), 1e-5);
+  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, unit_cell_position_.size(), 1e-5);
 
-  ::output.write("  International: %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
-  ::output.write("  Hall symbol:   %s\n", spglib_dataset_->hall_symbol );
+  printf("  International: %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
+  printf("  Hall symbol:   %s\n", spglib_dataset_->hall_symbol );
 
   char ptsymbol[6];
   int pt_trans_mat[3][3];
@@ -636,33 +573,33 @@ void Lattice::calc_symmetry_operations() {
            pt_trans_mat,
            spglib_dataset_->rotations,
            spglib_dataset_->n_operations);
-  ::output.write("  Point group:   %s\n", ptsymbol);
-  ::output.write("  Transformation matrix:\n");
+  printf("  Point group:   %s\n", ptsymbol);
+  printf("  Transformation matrix:\n");
   for ( i = 0; i < 3; i++ ) {
-      ::output.write("  %f %f %f\n",
+      printf("  %f %f %f\n",
       spglib_dataset_->transformation_matrix[i][0],
       spglib_dataset_->transformation_matrix[i][1],
       spglib_dataset_->transformation_matrix[i][2]);
   }
-  ::output.write("  Wyckoff letters:\n");
+  printf("  Wyckoff letters:\n");
   for ( i = 0; i < spglib_dataset_->n_atoms; i++ ) {
-      ::output.write("  %c ", wl[spglib_dataset_->wyckoffs[i]]);
+      printf("  %c ", wl[spglib_dataset_->wyckoffs[i]]);
   }
-  ::output.write("\n");
-  ::output.write("  Equivalent atoms:\n");
+  printf("\n");
+  printf("  Equivalent atoms:\n");
   for (i = 0; i < spglib_dataset_->n_atoms; i++) {
-      ::output.write("  %d ", spglib_dataset_->equivalent_atoms[i]);
+      printf("  %d ", spglib_dataset_->equivalent_atoms[i]);
   }
-  ::output.write("\n");
+  printf("\n");
 
-  ::output.write("  shifted lattice\n");
-  ::output.write("  origin: % 3.6f % 3.6f % 3.6f\n", spglib_dataset_->origin_shift[0], spglib_dataset_->origin_shift[1], spglib_dataset_->origin_shift[2]);
+  printf("  shifted lattice\n");
+  printf("  origin: % 3.6f % 3.6f % 3.6f\n", spglib_dataset_->origin_shift[0], spglib_dataset_->origin_shift[1], spglib_dataset_->origin_shift[2]);
   for (int i = 0; i < 3; ++i) {
-    ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+    printf("  % 3.6f % 3.6f % 3.6f\n",
       spglib_dataset_->transformation_matrix[i][0], spglib_dataset_->transformation_matrix[i][1], spglib_dataset_->transformation_matrix[i][2]);
   }
 
-  for (int i = 0; i < unit_cell_positions_.size(); ++i) {
+  for (int i = 0; i < unit_cell_position_.size(); ++i) {
 
     double bij[3];
 
@@ -672,21 +609,21 @@ void Lattice::calc_symmetry_operations() {
     //   bij[j] = (bij[j] + spglib_dataset_->origin_shift[j]);
     // }
 
-    ::output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, materials_numbered_list_[spg_types[i]].c_str(),
+    printf("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_numbered_list_[spg_types[i]].c_str(),
       bij[0], bij[1], bij[2]);
   }
 
-  ::output.write("\n");
-  ::output.write("  Bravais lattice\n");
-  ::output.write("  num atoms in Bravais lattice: %d\n", spglib_dataset_->n_std_atoms);
-  ::output.write("  Bravais lattice vectors:\n");
+  printf("\n");
+  printf("  Bravais lattice\n");
+  printf("  num atoms in Bravais lattice: %d\n", spglib_dataset_->n_std_atoms);
+  printf("  Bravais lattice vectors:\n");
 
   for (int i = 0; i < 3; ++i) {
-    ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+    printf("  % 3.6f % 3.6f % 3.6f\n",
       spglib_dataset_->std_lattice[i][0], spglib_dataset_->std_lattice[i][1], spglib_dataset_->std_lattice[i][2]);
   }
 
-  int primitive_num_atoms = unit_cell_positions_.size();
+  int primitive_num_atoms = unit_cell_position_.size();
   double primitive_lattice[3][3];
 
   for (i = 0; i < 3; ++i) {
@@ -695,39 +632,39 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  double (*primitive_positions)[3] = new double[unit_cell_positions_.size()][3];
+  double (*primitive_positions)[3] = new double[unit_cell_position_.size()][3];
 
-  for (i = 0; i < unit_cell_positions_.size(); ++i) {
+  for (i = 0; i < unit_cell_position_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
       primitive_positions[i][j] = spg_positions[i][j];
     }
   }
 
-  int (*primitive_types) = new int[unit_cell_positions_.size()];
+  int (*primitive_types) = new int[unit_cell_position_.size()];
 
-  for (i = 0; i < unit_cell_positions_.size(); ++i) {
+  for (i = 0; i < unit_cell_position_.size(); ++i) {
     primitive_types[i] = spg_types[i];
   }
 
-  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, unit_cell_positions_.size(), 1e-5);
+  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, unit_cell_position_.size(), 1e-5);
 
   // spg_find_primitive returns number of atoms in primitve cell
-  if (primitive_num_atoms != unit_cell_positions_.size()) {
-    ::output.write("\n");
-    ::output.write("unit cell is not a primitive cell\n");
-    ::output.write("\n");
-    ::output.write("  primitive lattice vectors:\n");
+  if (primitive_num_atoms != unit_cell_position_.size()) {
+    printf("\n");
+    printf("unit cell is not a primitive cell\n");
+    printf("\n");
+    printf("  primitive lattice vectors:\n");
 
     for (int i = 0; i < 3; ++i) {
-      ::output.write("  % 3.6f % 3.6f % 3.6f\n",
+      printf("  % 3.6f % 3.6f % 3.6f\n",
         primitive_lattice[i][0], primitive_lattice[i][1], primitive_lattice[i][2]);
     }
-    ::output.write("\n");
-    ::output.write("  primitive motif positions:\n");
+    printf("\n");
+    printf("  primitive motif positions:\n");
 
     int counter  = 0;
     for (int i = 0; i < primitive_num_atoms; ++i) {
-      ::output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, materials_numbered_list_[primitive_types[i]].c_str(),
+      printf("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, material_numbered_list_[primitive_types[i]].c_str(),
         primitive_positions[i][0], primitive_positions[i][1], primitive_positions[i][2]);
       counter++;
     }
@@ -762,46 +699,4 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
     pos.z = pos3.z;
   }
   return is_within_lattice;
-}
-
-void Lattice::calculate_unit_cell_kpoints() {
-
-  long max_denom = 20;
-  long num_kpoints[3];
-  double approx_error = 0.0;
-
-  std::vector<long> nom(num_unit_cell_positions(), 0);
-  std::vector<long> denom(num_unit_cell_positions(), 0);
-
-  for (int j = 0; j < 3; ++j) {
-    // approximate motif position into fractions
-    for (int i = 0; i < num_unit_cell_positions(); ++i) {
-      jblib::Vec3<double> pos_cart = fractional_to_cartesian_position(unit_cell_position(i));
-      approx_error = approximate_float_as_fraction(nom[i], denom[i], pos_cart[j], max_denom);
-    }
-
-    // find least common multiple of the denominators
-    num_kpoints[j] = std::accumulate(denom.begin(), denom.end(), 1, lcm);
-  }
-
-  ::output.write("\nauto determined kpoints in unitcell\n");
-  ::output.write("  %3ld %3ld %3ld\n\n", num_kpoints[0], num_kpoints[1], num_kpoints[2]);
-
-  for (int j = 0; j < 3; ++j) {
-    unit_cell_kpoints_[j] = num_kpoints[j];
-  }
-
-  ::output.write("motif positions in fractions\n");
-  for (int i = 0; i < num_unit_cell_positions(); ++i) {
-    ::output.write("%4d", i);
-    for (int j = 0; j < 3; ++j) {
-      long n, d;
-      jblib::Vec3<double> pos_cart = fractional_to_cartesian_position(unit_cell_position(i));
-      approx_error = approximate_float_as_fraction(n, d, pos_cart[j], max_denom);
-      ::output.write("  %3ld/%ld (err: %3.3e)", n*(num_kpoints[j]/d), num_kpoints[j], approx_error);
-    }
-    ::output.write("\n");
-  }
-  ::output.write("\n");
-
 }
