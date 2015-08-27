@@ -51,7 +51,7 @@ void MagnetisationMonitor::update(const Solver * const solver) {
     }
 
     for (i = 0; i < num_spins; ++i) {
-      int type = lattice.material_id(i);
+      int type = lattice.material(i);
       for (j = 0; j < 3; ++j) {
         mag(type, j) += s(i, j);
       }
@@ -59,7 +59,7 @@ void MagnetisationMonitor::update(const Solver * const solver) {
 
     for (i = 0; i < lattice.num_materials(); ++i) {
       for (j = 0; j < 3; ++j) {
-        mag(i, j) = mag(i, j)/static_cast<double>(lattice.num_spins_of_material(i));
+        mag(i, j) = mag(i, j)/static_cast<double>(lattice.material_count(i));
       }
     }
 

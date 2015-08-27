@@ -10,7 +10,7 @@
 
 #include "core/solver.h"
 #include "core/hamiltonian.h"
-
+#include "core/monitor.h"
 #include "core/consts.h"
 
 #include "core/utils.h"

@@ -72,8 +72,8 @@ class Slice {
     return lattice.parameter()*lattice.position(slice_map[i])[j];
   }
 
-  int& type(const int i) {
-    return lattice.material_id(slice_map[i]);
+  int type(const int i) {
+    return lattice.material(slice_map[i]);
   }
 
  private:

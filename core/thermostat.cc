@@ -16,12 +16,14 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
     }
 
     // create the selected thermostat
+    #ifdef CUDA
     if (capitalize(thermostat_name) == "CUDA_LANGEVIN_WHITE") {
         return new CudaLangevinWhiteThermostat(0.0, 0.0, globals::num_spins);
     }
     if (capitalize(thermostat_name) == "CUDA_LANGEVIN_COTH") {
         return new CudaLangevinCothThermostat(0.0, 0.0, globals::num_spins);
     }
+    #endif
 
     // throw error if the thermostat name is no known
     jams_error("Unknown thermostat requested '%s'", thermostat_name.c_str());

@@ -45,11 +45,17 @@ Lattice::~Lattice() {
   }
 }
 
-jblib::Vec3<double> generate_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const {
+jblib::Vec3<double> Lattice::generate_position(
+  const jblib::Vec3<double> unit_cell_frac_pos,
+  const jblib::Vec3<int> translation_vector) const
+{
   return unit_cell_*generate_fractional_position(unit_cell_frac_pos, translation_vector);
 }
 
-jblib::Vec3<double> generate_fractional_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const {
+jblib::Vec3<double> Lattice::generate_fractional_position(
+  const jblib::Vec3<double> unit_cell_frac_pos,
+  const jblib::Vec3<int> translation_vector) const
+{
   return jblib::Vec3<double>(unit_cell_frac_pos.x + translation_vector.x,
                              unit_cell_frac_pos.y + translation_vector.y,
                              unit_cell_frac_pos.z + translation_vector.z);
@@ -190,7 +196,10 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   calc_symmetry_operations();
 }
 
-void Lattice::init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
+void Lattice::init_lattice_positions(
+  const libconfig::Setting &material_settings,
+  const libconfig::Setting &lattice_settings)
+{
 
   lattice_map_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, unit_cell_position_.size());
 
@@ -235,14 +244,14 @@ void Lattice::init_lattice_positions(const libconfig::Setting &material_settings
       for (int k = 0; k < lattice_size_.z; ++k) {
         // loop over atoms in the motif
         for (int m = 0, mend = unit_cell_position_.size(); m != mend; ++m) {
-          translation_vector = jblib::Vec3<int>(i, j, k)
+          translation_vector = jblib::Vec3<int>(i, j, k);
 
           // number the site in the fast integer lattice
           lattice_map_(i, j, k, m) = atom_counter;
 
           lattice_super_cell_pos_(atom_counter) = translation_vector;
-          lattice_positions_.push_back(generate_position(unit_cell_position_[m], translation_vector));
-          lattice_frac_positions_.push_back(generate_fractional_position(unit_cell_position_[m], translation_vector));
+          lattice_positions_.push_back(generate_position(unit_cell_position_[m].second, translation_vector));
+          lattice_frac_positions_.push_back(generate_fractional_position(unit_cell_position_[m].second, translation_vector));
           lattice_materials_.push_back(unit_cell_position_[m].first);
           lattice_material_num_.push_back(material_map_[unit_cell_position_[m].first]);
 
@@ -269,7 +278,8 @@ void Lattice::init_lattice_positions(const libconfig::Setting &material_settings
   } else {
     // avoid spamming the screen by default
     for (int i = 0; i < 8; ++i) {
-    printf("  %-6d %-6s %3.6f % 3.6f % 3.6f\n", i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
+    printf("  %-6d %-6s %3.6f % 3.6f % 3.6f\n",
+      i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
   }
     if (lattice_positions_.size() > 0) {
       printf("  ... [use verbose output for details] ... \n");
@@ -593,10 +603,13 @@ void Lattice::calc_symmetry_operations() {
   printf("\n");
 
   printf("  shifted lattice\n");
-  printf("  origin: % 3.6f % 3.6f % 3.6f\n", spglib_dataset_->origin_shift[0], spglib_dataset_->origin_shift[1], spglib_dataset_->origin_shift[2]);
+  printf("  origin: % 3.6f % 3.6f % 3.6f\n",
+    spglib_dataset_->origin_shift[0], spglib_dataset_->origin_shift[1], spglib_dataset_->origin_shift[2]);
   for (int i = 0; i < 3; ++i) {
     printf("  % 3.6f % 3.6f % 3.6f\n",
-      spglib_dataset_->transformation_matrix[i][0], spglib_dataset_->transformation_matrix[i][1], spglib_dataset_->transformation_matrix[i][2]);
+      spglib_dataset_->transformation_matrix[i][0],
+      spglib_dataset_->transformation_matrix[i][1],
+      spglib_dataset_->transformation_matrix[i][2]);
   }
 
   for (int i = 0; i < unit_cell_position_.size(); ++i) {

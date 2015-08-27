@@ -4,8 +4,11 @@
 #define JAMS_HAMILTONIAN_EXCHANGE_H
 
 #include <libconfig.h++>
+
+#ifdef CUDA
 #include <cuda_runtime.h>
 #include <cusparse.h>
+#endif
 
 #include "core/output.h"
 #include "core/hamiltonian.h"

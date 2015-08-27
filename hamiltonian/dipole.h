@@ -11,6 +11,7 @@
 #include "hamiltonian/strategy.h"
 
 #include "jblib/containers/array.h"
+
 #include "jblib/containers/cuda_array.h"
 
 class DipoleHamiltonian : public Hamiltonian {

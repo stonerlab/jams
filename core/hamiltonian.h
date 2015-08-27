@@ -6,7 +6,10 @@
 #include <string>
 
 #include "jblib/containers/array.h"
+
+#ifdef CUDA
 #include "jblib/containers/cuda_array.h"
+#endif  // CUDA
 
 #include "core/output.h"
 
@@ -42,8 +45,12 @@ class Hamiltonian {
   virtual void   output_fields(OutputFormat format) = 0;
 
   double* dev_ptr_energy() {
+    #ifdef CUDA
     assert(dev_energy_.is_allocated());
     return dev_energy_.data();
+    #else
+    return NULL;
+    #endif
   }
   double* ptr_energy() {
     assert(energy_.is_allocated());
@@ -51,8 +58,12 @@ class Hamiltonian {
   }
 
   double* dev_ptr_field() {
+    #ifdef CUDA
     assert(dev_field_.is_allocated());
     return dev_field_.data();
+    #else
+    return NULL;
+    #endif
   }
   double* ptr_field() {
     assert(field_.is_allocated());

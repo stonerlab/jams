@@ -227,14 +227,14 @@ void Hdf5Monitor::output_lattice() {
         types.resize(num_spins);
 
         for (int i = 0; i < type_dims[0]; ++i) {
-            types(i) = lattice.lattice_material_num_[i];
+            types(i) = lattice.material(i);
         }
 
         positions.resize(num_spins, 3);
 
         for (int i = 0; i < pos_dims[0]; ++i) {
             for (int j = 0; j < 3; ++j) {
-               positions(i, j) = lattice.lattice_parameter_*lattice.lattice_positions_[i][j];
+               positions(i, j) = lattice.parameter()*lattice.position(i)[j];
             }
         }
     }
