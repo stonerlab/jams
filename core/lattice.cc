@@ -52,6 +52,20 @@ jblib::Vec3<double> Lattice::generate_position(
   return unit_cell_*generate_fractional_position(unit_cell_frac_pos, translation_vector);
 }
 
+// generate a position within a periodic image of the entire system
+jblib::Vec3<double> Lattice::generate_image_position(
+  const jblib::Vec3<double> unit_cell_cart_pos,
+  const jblib::Vec3<int> image_vector) const
+{
+  jblib::Vec3<double> frac_pos = cartesian_to_fractional(unit_cell_cart_pos);
+  for (int n = 0; n < 3; ++n) {
+    if (is_periodic(n)) {
+      frac_pos[n] = frac_pos[n] + image_vector[n]*lattice_size_[n];
+    }
+  }
+  return fractional_to_cartesian(frac_pos);
+}
+
 jblib::Vec3<double> Lattice::generate_fractional_position(
   const jblib::Vec3<double> unit_cell_frac_pos,
   const jblib::Vec3<int> translation_vector) const

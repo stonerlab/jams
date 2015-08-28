@@ -25,6 +25,7 @@ class Lattice {
     void init_from_config(const libconfig::Config& pConfig);
 
     inline double              parameter() const;      ///< lattice parameter (m)
+    inline int                 size(const int i) const;           ///< integer number of unitcell in each lattice vector
     inline int                 num_unit_cells() const; ///< number of unit cells in the whole lattice
     inline int                 num_unit_cell_positions() const;         ///< number atomic positions in the unit cell
     inline jblib::Vec3<double> unit_cell_position(const int i) const;   ///< position i in fractional coordinates
@@ -41,7 +42,9 @@ class Lattice {
     inline jblib::Vec3<double> rmax() const;
     inline jblib::Vec3<double> rmin() const;
     jblib::Vec3<double> generate_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const;
+    jblib::Vec3<double> generate_image_position(const jblib::Vec3<double> unit_cell_cart_pos, const jblib::Vec3<int> image_vector) const;
     jblib::Vec3<double> generate_fractional_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const;
+
 
     inline jblib::Vec3<double> cartesian_to_fractional(const jblib::Vec3<double>& r_cart) const;
     inline jblib::Vec3<double> fractional_to_cartesian(const jblib::Vec3<double>& r_frac) const;
@@ -144,6 +147,11 @@ class Lattice {
 inline double
 Lattice::parameter() const {
     return lattice_parameter_;
+}
+
+inline int
+Lattice::size(const int i) const {
+    return lattice_size_[i];
 }
 
 inline int
