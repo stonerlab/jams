@@ -70,12 +70,11 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
                         // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
                         // so detect based on r_abs rather than i == j
-                        if (r_abs > r_cutoff_ || r_abs < 1e-5) continue;
+                        if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
 
-                        if (i == 0) {
-                        std::cerr << image_vector.x << "\t" << image_vector.y << "\t" << image_vector.z << "\t" <<  r_ij.x << "\t" << r_ij.y << "\t" << r_ij.z << "\t" << lattice.generate_image_position(lattice.position(j), image_vector).x << "\t" << lattice.generate_image_position(lattice.position(j), image_vector).y << "\t" << lattice.generate_image_position(lattice.position(j), image_vector).z << std::endl;
-                        }
-
+                        // if (i == 0) {
+                        // std::cerr << image_vector.x << "\t" << image_vector.y << "\t" << image_vector.z << "\t" <<  r_ij.x << "\t" << r_ij.y << "\t" << r_ij.z << "\t" << lattice.generate_image_position(lattice.position(j), image_vector).x << "\t" << lattice.generate_image_position(lattice.position(j), image_vector).y << "\t" << lattice.generate_image_position(lattice.position(j), image_vector).z << std::endl;
+                        // }
 
                         r_hat = r_ij / r_abs;
 
