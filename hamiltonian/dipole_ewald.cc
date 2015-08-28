@@ -35,7 +35,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
     local_interaction_matrix_.resize(globals::num_spins*3, globals::num_spins*3);
 
-    const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.constant(),3);
+    const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.parameter(),3);
 
     // --------------------------------------------------------------------------
     // local real space interactions
@@ -118,7 +118,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                 std::cerr << i << "\t" << j << "\t" << k << "\t" << pos.x << "\t" << pos.y << "\t" << pos.z << std::endl;
 
                 r_ij = jblib::Vec3<double>(pos.x, pos.y, pos.z);
-                r_ij  = ::lattice.fractional_to_cartesian_position(r_ij);
+                r_ij  = ::lattice.fractional_to_cartesian(r_ij);
                 r_abs = abs(r_ij);
 
                 eij = r_ij / r_abs;

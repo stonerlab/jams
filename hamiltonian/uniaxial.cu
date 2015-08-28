@@ -47,7 +47,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: K1 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            K1(i) = double(settings["K1"][lattice.material_id(i)])/kBohrMagneton;
+            K1(i) = double(settings["K1"][lattice.material(i)])/kBohrMagneton;
         }
     }
 
@@ -56,7 +56,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: K2 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            K2(i) = double(settings["K2"][lattice.material_id(i)])/kBohrMagneton;
+            K2(i) = double(settings["K2"][lattice.material(i)])/kBohrMagneton;
         }
     }
 
@@ -65,7 +65,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: K3 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            K3(i) = double(settings["K3"][lattice.material_id(i)])/kBohrMagneton;
+            K3(i) = double(settings["K3"][lattice.material(i)])/kBohrMagneton;
         }
     }
 
@@ -81,7 +81,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: d2z must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            d2z_(i) = double(settings["d2z"][lattice.material_id(i)])/kBohrMagneton;
+            d2z_(i) = double(settings["d2z"][lattice.material(i)])/kBohrMagneton;
         }
     }
 
@@ -90,7 +90,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: d4z must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            d4z_(i) = double(settings["d4z"][lattice.material_id(i)])/kBohrMagneton;
+            d4z_(i) = double(settings["d4z"][lattice.material(i)])/kBohrMagneton;
         }
     }
 
@@ -99,7 +99,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: d6z must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            d6z_(i) = double(settings["d6z"][lattice.material_id(i)])/kBohrMagneton;
+            d6z_(i) = double(settings["d6z"][lattice.material(i)])/kBohrMagneton;
         }
     }
 
@@ -238,11 +238,11 @@ void UniaxialHamiltonian::output_energies_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << lattice.lattice_material_num_[i];
+        outfile << lattice.material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile <<  lattice.lattice_parameter_*lattice.lattice_positions_[i][j];
+            outfile <<  lattice.parameter()*lattice.position(i)[j];
         }
 
         // energy
@@ -283,11 +283,11 @@ void UniaxialHamiltonian::output_fields_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << std::setw(16) << lattice.lattice_material_num_[i];
+        outfile << std::setw(16) << lattice.material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile << std::setw(16) << std::fixed << lattice.lattice_parameter_*lattice.lattice_positions_[i][j];
+            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.position(i)[j];
         }
 
         // fields

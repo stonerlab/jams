@@ -29,6 +29,7 @@ class Lattice {
     inline int                 num_unit_cell_positions() const;         ///< number atomic positions in the unit cell
     inline jblib::Vec3<double> unit_cell_position(const int i) const;   ///< position i in fractional coordinates
     inline int                 unit_cell_material_uid(const int i);     ///< uid of material at position i
+    inline std::string         unit_cell_material_name(const int i);     ///< uid of material at position i
 
     inline int num_materials() const;                           ///< number of unique materials in lattice
     inline int material_count(const int i) const;               ///< number of lattice sites of material i
@@ -37,6 +38,8 @@ class Lattice {
 
     inline jblib::Vec3<double> position(const int i) const;
     jblib::Vec3<double> minimum_image(const jblib::Vec3<double> ri, const jblib::Vec3<double> rj) const;
+    inline jblib::Vec3<double> rmax() const;
+    inline jblib::Vec3<double> rmin() const;
     jblib::Vec3<double> generate_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const;
     jblib::Vec3<double> generate_fractional_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const;
 
@@ -130,8 +133,8 @@ class Lattice {
     std::vector< jblib::Vec3<double> > lattice_frac_positions_;
     double                      lattice_parameter_;
     std::vector<int>            lattice_material_num_;
-    jblib::Vec3<double>         rmax;
-    jblib::Vec3<double>         rmin;
+    jblib::Vec3<double>         rmax_;
+    jblib::Vec3<double>         rmin_;
 
     // spglib
     SpglibDataset *spglib_dataset_;
@@ -163,6 +166,12 @@ inline int
 Lattice::unit_cell_material_uid(const int i) {
     assert(i < unit_cell_position_.size());
     return material_map_[unit_cell_position_[i].first];
+}
+
+inline std::string
+Lattice::unit_cell_material_name(const int i) {
+    assert(i < unit_cell_position_.size());
+    return material_name(material_map_[unit_cell_position_[i].first]);
 }
 
 inline int
@@ -213,6 +222,17 @@ Lattice::sym_rotation(const int i, const jblib::Vec3<double> vec) const {
     spglib_dataset_->rotations[i][1][0]*vec.x + spglib_dataset_->rotations[i][1][1]*vec.y + spglib_dataset_->rotations[i][1][2]*vec.z,
     spglib_dataset_->rotations[i][2][0]*vec.x + spglib_dataset_->rotations[i][2][1]*vec.y + spglib_dataset_->rotations[i][2][2]*vec.z);
 }
+
+inline jblib::Vec3<double>
+Lattice::rmax() const {
+    return rmax_;
+};
+
+
+inline jblib::Vec3<double>
+Lattice::rmin() const {
+    return rmin_;
+};
 
 
 

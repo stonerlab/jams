@@ -67,6 +67,20 @@ void Lattice::init_from_config(const libconfig::Config& pConfig) {
   init_lattice_positions(pConfig.lookup("materials"), pConfig.lookup("lattice"));
 }
 
+jblib::Vec3<double> Lattice::minimum_image(const jblib::Vec3<double> ri, const jblib::Vec3<double> rj) const {
+
+  jblib::Vec3<double> dr = cartesian_to_fractional(rj - ri);
+
+  for (int n = 0; n < 3; ++n) {
+    if (is_periodic(n)) {
+      dr[n] = dr[n] - nint(dr[n] / lattice_size_[n]) * lattice_size_[n];
+    }
+  }
+
+  return fractional_to_cartesian(dr);
+};
+
+
 void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   using namespace globals;
 
@@ -233,8 +247,8 @@ void Lattice::init_lattice_positions(
 //-----------------------------------------------------------------------------
 
   int atom_counter = 0;
-  rmax.x = -FLT_MAX; rmax.y = -FLT_MAX; rmax.z = -FLT_MAX;
-  rmin.x = FLT_MAX; rmin.y = FLT_MAX; rmin.z = FLT_MAX;
+  rmax_.x = -FLT_MAX; rmax_.y = -FLT_MAX; rmax_.z = -FLT_MAX;
+  rmin_.x = FLT_MAX; rmin_.y = FLT_MAX; rmin_.z = FLT_MAX;
 
   jblib::Vec3<int> translation_vector;
   lattice_super_cell_pos_.resize(num_unit_cell_positions()*product(lattice_size_));
@@ -254,6 +268,17 @@ void Lattice::init_lattice_positions(
           lattice_frac_positions_.push_back(generate_fractional_position(unit_cell_position_[m].second, translation_vector));
           lattice_materials_.push_back(unit_cell_position_[m].first);
           lattice_material_num_.push_back(material_map_[unit_cell_position_[m].first]);
+
+          // store max coordinates
+          for (int n = 0; n < 3; ++n) {
+            if (lattice_positions_.back()[n] > rmax_[n]) {
+              rmax_[n] = lattice_positions_.back()[n];
+            }
+            if (lattice_positions_.back()[n] < rmin_[n]) {
+              rmin_[n] = lattice_positions_.back()[n];
+            }
+          }
+
 
           atom_counter++;
         }

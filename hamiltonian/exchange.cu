@@ -81,8 +81,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
       std::ofstream pos_file("debug_pos.dat");
       for (int n = 0; n < lattice.num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice.lattice_material_num_[i] == n) {
-            pos_file << i << "\t" <<  lattice.lattice_positions_[i].x << "\t" <<  lattice.lattice_positions_[i].y << "\t" << lattice.lattice_positions_[i].z << "\n";
+          if (lattice.material(i) == n) {
+            pos_file << i << "\t" <<  lattice.position(i).x << "\t" <<  lattice.position(i).y << "\t" << lattice.position(i).z << "\n";
           }
         }
         pos_file << "\n\n";
@@ -189,12 +189,12 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
               if (insert_interaction(local_site, neighbour_site, int_interaction_list[m][n].second)) {
                 if (is_debug_enabled) {
                   debug_file << local_site << "\t" << neighbour_site << "\t";
-                  debug_file << lattice.lattice_positions_[local_site].x << "\t";
-                  debug_file << lattice.lattice_positions_[local_site].y << "\t";
-                  debug_file << lattice.lattice_positions_[local_site].z << "\t";
-                  debug_file << lattice.lattice_positions_[neighbour_site].x << "\t";
-                  debug_file << lattice.lattice_positions_[neighbour_site].y << "\t";
-                  debug_file << lattice.lattice_positions_[neighbour_site].z << "\n";
+                  debug_file << lattice.position(local_site).x << "\t";
+                  debug_file << lattice.position(local_site).y << "\t";
+                  debug_file << lattice.position(local_site).z << "\t";
+                  debug_file << lattice.position(neighbour_site).x << "\t";
+                  debug_file << lattice.position(neighbour_site).y << "\t";
+                  debug_file << lattice.position(neighbour_site).z << "\n";
                 }
                 // if(local_site >= neighbour_site) {
                 //   std::cerr << local_site << "\t" << neighbour_site << "\t" << neighbour_site << "\t" << local_site << std::endl;
@@ -331,7 +331,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
 
     is >> interaction_vec_cart.x >> interaction_vec_cart.y >> interaction_vec_cart.z;
     // transform into lattice vector basis
-    interaction_vec_frac = lattice.cartesian_to_fractional_position(interaction_vec_cart) + lattice.unit_cell_position(typeA);
+    interaction_vec_frac = lattice.cartesian_to_fractional(interaction_vec_cart) + lattice.unit_cell_position(typeA);
 
     // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
     // component is the atoms number within the unit_cell
@@ -432,8 +432,8 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
     for (int i = 0; i < lattice.num_sym_ops(); i++) {
       jblib::Vec3<double> rij(r[0], r[1], r[2]);
-      rij = lattice.cartesian_to_fractional_position(r);
-      r_sym = lattice.sym_rotation(i)*rij;
+      rij = lattice.cartesian_to_fractional(r);
+      r_sym = lattice.sym_rotation(i, rij);
       for (int j = 0; j < 3; ++j) {
         sym_interaction_vecs(i,j) = r_sym[j]; // + spglib_dataset_->translations[i][j];
       }
@@ -466,11 +466,11 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
     for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
       std::set<jblib::Vec4<int>, vec4_compare> interaction_set;
       // only process for interactions belonging to this material
-      if (lattice.unit_cell_material(i) == type_name_A) {
+      if (lattice.unit_cell_material_name(i) == type_name_A) {
 
         // unit_cell position in basis vector space
         jblib::Vec3<double> pij = lattice.unit_cell_position(i);
-        ::output.verbose("unit_cell position %d [%s] (% 3.6f % 3.6f % 3.6f)\n", i, lattice.unit_cell_material(i).c_str(), pij.x, pij.y, pij.z);
+        ::output.verbose("unit_cell position %d [%s] (% 3.6f % 3.6f % 3.6f)\n", i, lattice.unit_cell_material_name(i).c_str(), pij.x, pij.y, pij.z);
         ::output.verbose("interaction vector %d [%s] (% 3.6f % 3.6f % 3.6f)\n", line_number, type_name_B.c_str(), r.x, r.y, r.z);
 
         for (int j = 0; j < sym_interaction_vecs.size(0); ++ j) {
@@ -504,7 +504,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
           unit_cell_offset = rij + pij - uij;
 
-          jblib::Vec3<double> rij_cart = lattice.cartesian_to_fractional_position(rij);
+          jblib::Vec3<double> rij_cart = lattice.cartesian_to_fractional(rij);
           ::output.verbose("% 3.6f % 3.6f % 3.6f | % 3.6f % 3.6f % 3.6f | % 6d % 6d % 6d | % 3.6f % 3.6f % 3.6f\n",
             rij.x ,rij.y, rij.z, rij_cart.x ,rij_cart.y, rij_cart.z, int(uij.x), int(uij.y), int(uij.z),
             unit_cell_offset.x, unit_cell_offset.y, unit_cell_offset.z);
@@ -530,7 +530,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
           if (unit_cell_partner != -1) {
             // fast_integer_vector[3] = unit_cell_partner - i;
             // check the unit_cell partner is of the type that was specified in the exchange input file
-            if (lattice.unit_cell_material(unit_cell_partner) != type_name_B) {
+            if (lattice.unit_cell_material_name(unit_cell_partner) != type_name_B) {
               ::output.verbose("wrong type \n");
               continue;
             }
@@ -540,7 +540,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
           }
         }
         for (std::set<jblib::Vec4<int> >::iterator it = interaction_set.begin(); it != interaction_set.end(); ++it) {
-          ::output.verbose("% 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material(i).c_str(), (*it)[3] + i, lattice.unit_cell_material((*it)[3] + i).c_str(), (*it)[0], (*it)[1], (*it)[2]);
+          ::output.verbose("% 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), (*it)[3] + i, lattice.unit_cell_material_name((*it)[3] + i).c_str(), (*it)[0], (*it)[1], (*it)[2]);
           int_interaction_list[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >((*it), tensor));
           counter++;
         }
@@ -738,11 +738,11 @@ void ExchangeHamiltonian::output_energies_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << lattice.lattice_material_num_[i];
+        outfile << lattice.material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile <<  lattice.lattice_parameter_*lattice.lattice_positions_[i][j];
+            outfile <<  lattice.parameter()*lattice.position(i)[j];
         }
 
         // energy
@@ -781,11 +781,11 @@ void ExchangeHamiltonian::output_fields_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << std::setw(16) << lattice.lattice_material_num_[i];
+        outfile << std::setw(16) << lattice.material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile << std::setw(16) << std::fixed << lattice.lattice_parameter_*lattice.lattice_positions_[i][j];
+            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.position(i)[j];
         }
 
         // fields

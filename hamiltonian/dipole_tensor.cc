@@ -12,7 +12,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
     using std::pow;
     double r_abs;
     jblib::Vec3<double> r_ij, r_hat, s_j;
-    r_cutoff_ = 1e10;
+    r_cutoff_ = 32.0;
 
     output.write("  dipole tensor memory estimate: %fMB", std::pow(double(globals::num_spins*3), 2)*8/double(1024*1024) );
 
@@ -24,7 +24,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
         }
     }
 
-    const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.constant(),3);
+    const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.parameter(),3);
     jblib::Matrix<double, 3, 3> tensor;
 
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
@@ -33,7 +33,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
             if (unlikely(j == i)) continue;
-            r_ij  = lattice.position(j) - lattice.position(i);
+            r_ij  = lattice.minimum_image(lattice.position(i), lattice.position(j));
             r_abs = abs(r_ij);
 
             if (r_abs > r_cutoff_) continue;
