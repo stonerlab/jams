@@ -32,13 +32,14 @@ class DipoleHamiltonian : public Hamiltonian {
 
     private:
 
+        HamiltonianStrategy * select_strategy(const libconfig::Setting &settings);
         void output_energies_text();
         // void output_energies_hdf5();
 
         void output_fields_text();
         // void output_fields_hdf5();
 
-        HamiltonianStrategy *dipole_strategy;
+        HamiltonianStrategy *dipole_strategy_;
 
         OutputFormat            outformat_;
         jblib::Array<double, 1> energy_;

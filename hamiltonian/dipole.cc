@@ -22,43 +22,61 @@ DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
     }
 #endif
 
-    dipole_strategy = new DipoleHamiltonianTensor(settings);
+    dipole_strategy_ = select_strategy(settings);
 
+}
+
+// --------------------------------------------------------------------------
+
+HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Setting &settings) {
+    if (settings.exists("strategy")) {
+        std::string strategy_name(capitalize(settings["strategy"]));
+        if (strategy_name == "TENSOR") {
+            return new DipoleHamiltonianTensor(settings);
+        }
+
+        if (strategy_name == "EWALD") {
+            return new DipoleHamiltonianEwald(settings);
+        }
+        std::runtime_error("Unknown DipoleHamiltonian strategy '" + strategy_name + "' requested\n");
+    }
+    jams_warning("no dipole strategy selected, defaulting to TENSOR");
+    return new DipoleHamiltonianTensor(settings);
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonian::calculate_total_energy() {
-    return dipole_strategy->calculate_total_energy();
+    return dipole_strategy_->calculate_total_energy();
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonian::calculate_one_spin_energy(const int i) {
-    return dipole_strategy->calculate_one_spin_energy(i);
+    return dipole_strategy_->calculate_one_spin_energy(i);
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
-    return dipole_strategy->calculate_one_spin_energy_difference(i, spin_initial, spin_final);
+    return dipole_strategy_->calculate_one_spin_energy_difference(i, spin_initial, spin_final);
 }
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_energies() {
-    dipole_strategy->calculate_energies(energy_);
+    dipole_strategy_->calculate_energies(energy_);
 }
 
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_one_spin_field(const int i, double h[3]) {
-    dipole_strategy->calculate_one_spin_field(i, h);
+    dipole_strategy_->calculate_one_spin_field(i, h);
 }
 
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_fields() {
-    dipole_strategy->calculate_fields(field_);
+    dipole_strategy_->calculate_fields(field_);
 }
 // --------------------------------------------------------------------------
 
