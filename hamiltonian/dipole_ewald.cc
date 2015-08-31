@@ -10,28 +10,54 @@ using std::min;
 DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &settings)
 : HamiltonianStrategy(settings) {
 
-    ::output.write("  Ewald Method\n");
+    double r_abs;
+    jblib::Vec3<double> r_ij, eij, s_j;
+    jblib::Vec3<int> pos;
+    jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
+
+    jblib::Vec3<int> L_max(0, 0, 0);
+    jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);
+
+    printf("  Ewald Method\n");
 
     if (::lattice.num_materials() > 1) {
         jams_error("DipoleHamiltonianEwald only supports single species calculations at the moment");
     }
     local_interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
-    r_cutoff_ = 3.0;
+    for (int n = 0; n < 3; ++n) {
+        super_cell_dim[n] = 0.5*double(lattice.size(n));
+    }
+
+    r_cutoff_ = *std::max_element(super_cell_dim.begin(), super_cell_dim.end());
+    if (settings.exists("r_cutoff")) {
+        r_cutoff_ = settings["r_cutoff"];
+    }
+    printf("    r_cutoff: %f\n", r_cutoff_);
+
+    sigma_ = kPi/(r_cutoff_);
+    if (settings.exists("sigma")) {
+        sigma_ = settings["sigma"];
+    }
+    printf("    sigma: %f\n", sigma_);
+
+
     k_cutoff_ = 6;
-    sigma_ = 2.0*kPi/r_cutoff_;
+
+    printf("    k_cutoff: %d\n", k_cutoff_);
 
 
-    ::output.write("    sigma: %f\n", sigma_);
-    ::output.write("    r_cutoff: %f\n", r_cutoff_);
-    ::output.write("    k_cutoff: %d\n", k_cutoff_);
+    // printf("  super cell max extent (cartesian):\n    %f %f %f\n", super_cell_dim[0], super_cell_dim[1], super_cell_dim[2]);
+
+    for (int n = 0; n < 3; ++n) {
+        if (lattice.is_periodic(n)) {
+            L_max[n] = ceil(r_cutoff_/super_cell_dim[n]);
+        }
+    }
+
+    printf("  image vector max extent (fractional):\n    %d %d %d\n", L_max[0], L_max[1], L_max[2]);
 
 
-    double r_abs;
-    jblib::Vec3<double> r_ij, eij, s_j;
-    jblib::Vec3<int> pos;
-    jblib::Matrix<double, 3, 3> tensor;
-    jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
     local_interaction_matrix_.resize(globals::num_spins*3, globals::num_spins*3);
 
@@ -44,24 +70,39 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     int local_interaction_counter = 0;
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
-            if (unlikely(j == i)) continue;
-            r_ij  = lattice.position(j) - lattice.position(i);
-            r_abs = abs(r_ij);
+            jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
 
+            // loop over periodic images of the simulation lattice
+            // this means r_cutoff can be larger than the simulation cell
+            for (int Lx = -L_max[0]; Lx < L_max[0]+1; ++Lx) {
+                for (int Ly = -L_max[1]; Ly < L_max[1]+1; ++Ly) {
+                    for (int Lz = -L_max[2]; Lz < L_max[2]+1; ++Lz) {
+                        jblib::Vec3<int> image_vector(Lx, Ly, Lz);
 
-            if (r_abs > r_cutoff_) continue;
+                        r_ij  = lattice.generate_image_position(lattice.position(j), image_vector) - lattice.position(i);
 
-            eij = r_ij / r_abs;
-            // TODO: enforce minimum image convention
-            for (int m = 0; m < 3; ++m) {
-                for (int n = 0; n < 3; ++n) {
-                    tensor[m][n] = ((3*eij[m]*eij[n] - Id[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)))
-                                 - (eij[m]*eij[n]*sqrt(2.0/kPi)*exp(-0.5*pow(r_abs/sigma_, 2))/(pow(r_abs, 3)));
-                    // tensor[m][n] = (3*erfc(sigma_*r_abs) + (2*sigma_*r_abs/sqrt(kPi))*(3+2*pow(sigma_*r_abs,2))*exp(-pow(sigma_*r_abs,2))/pow(r_abs,5))*r_ij[m]*r_ij[n]
-                    //              - (erfc(sigma_*r_abs) + (2*sigma_*r_abs/sqrt(kPi))*exp(-pow(sigma_*r_abs,2))/pow(r_abs,3));
+                        r_abs = abs(r_ij);
+
+                        // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
+                        // so detect based on r_abs rather than i == j
+                        if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
+
+                        eij = r_ij / r_abs;
+
+                        for (int m = 0; m < 3; ++m) {
+                            for (int n = 0; n < 3; ++n) {
+                                // tensor[m][n] += (3*eij[m]*eij[n] - Id[m][n])/pow(r_abs, 3);
+                                // tensor[m][n] += ((3*eij[m]*eij[n] - Id[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)));
+
+                                tensor[m][n] = ((3*eij[m]*eij[n] - Id[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)))
+                                             - (eij[m]*eij[n]*sqrt(2.0/kPi)*exp(-0.5*pow(r_abs/sigma_, 2))/(pow(r_abs, 2)));
+                            }
+                        }
+
+                    }
                 }
             }
-
+            std::cerr << i << "\t" << j << "\t" << tensor[0][0]*prefactor*globals::mus(j) << std::endl;
             for (int m = 0; m < 3; ++m) {
                 for (int n = 0; n < 3; ++n) {
                     local_interaction_matrix_.insertValue(3*i + m, 3*j + n, tensor[m][n]*prefactor*globals::mus(j));
@@ -71,11 +112,11 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
         }
     }
 
-    ::output.write("    total local interactions: %d (%d per spin)\n", local_interaction_counter, local_interaction_counter/globals::num_spins);
-    local_interaction_matrix_.convertMAP2CSR();
-    ::output.write("    local dipole tensor memory (CSR): %3.2f MB\n", local_interaction_matrix_.calculateMemory());
+    // --------------------------------------------------------------------------
 
-    // std::cerr << "\n\n";
+    printf("    total local interactions: %d (%d per spin)\n", local_interaction_counter, local_interaction_counter/globals::num_spins);
+    local_interaction_matrix_.convertMAP2CSR();
+    printf("    local dipole tensor memory (CSR): %3.2f MB\n", local_interaction_matrix_.calculateMemory());
 
     // --------------------------------------------------------------------------
     // nonlocal reciprocal space interactions
@@ -134,6 +175,11 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
         }
     }
 
+    // --------------------------------------------------------------------------
+
+
+
+
 
     h_nonlocal_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
     s_nonlocal_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
@@ -146,16 +192,16 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
         h_recip_[i][1] = 0.0;
     }
 
-    ::output.write("    kspace size: %d %d %d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
-    ::output.write("    kspace padded size: %d %d %d\n", kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]);
+    printf("    kspace size: %d %d %d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
+    printf("    kspace padded size: %d %d %d\n", kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]);
 
-    ::output.write("    planning FFTs\n");
+    printf("    planning FFTs\n");
 
     spin_fft_forward_transform_   = fftw_plan_many_dft_r2c(3, &kspace_padded_size_[0], 3, s_nonlocal_.data(),  NULL, 3, 1, s_recip_.data(), NULL, 3, 1, FFTW_PATIENT|FFTW_PRESERVE_INPUT);
     field_fft_backward_transform_ = fftw_plan_many_dft_c2r(3, &kspace_padded_size_[0], 3, h_recip_.data(), NULL, 3, 1, h_nonlocal_.data(),  NULL, 3, 1, FFTW_PATIENT);
     interaction_fft_transform_    = fftw_plan_many_dft_r2c(3, &kspace_padded_size_[0], 9, wij.data(),  NULL, 9, 1, w_recip_.data(), NULL, 9, 1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
 
-    ::output.write("    transform interaction matrix\n");
+    printf("    transform interaction matrix\n");
 
     fftw_execute(interaction_fft_transform_);
 
@@ -188,11 +234,9 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianEwald::calculate_total_energy() {
-   assert(energies.size(0) == globals::num_spins);
    double e_total = 0.0;
    double h[3];
    jblib::Vec3<int> pos;
-
 
 
    calculate_nonlocal_ewald_field();
@@ -203,9 +247,8 @@ double DipoleHamiltonianEwald::calculate_total_energy() {
                      + globals::s(i,2)*h_nonlocal_(pos.x, pos.y, pos.z, 2))*globals::mus(i);
    }
 
-
    for (int i = 0; i < globals::num_spins; ++i) {
-        calculate_local_ewald_field(i, h);
+       calculate_local_ewald_field(i, h);
        e_total += -(globals::s(i,0)*h[0] + globals::s(i,1)*h[1] + globals::s(i,2)*h[2])*globals::mus(i);
    }
     return e_total;
@@ -246,7 +289,7 @@ double DipoleHamiltonianEwald::calculate_one_spin_energy_difference(const int i,
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianEwald::calculate_energies(jblib::Array<double, 1>& energies) {
-    assert(energies.size(0) == globals::num_spins);
+    assert(energies.elements() == globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
         energies[i] = calculate_one_spin_energy(i);
     }
@@ -286,14 +329,13 @@ void DipoleHamiltonianEwald::calculate_local_ewald_field(const int i, double h[3
     const int    *indx = local_interaction_matrix_.colPtr();
     const int    *ptrb = local_interaction_matrix_.ptrB();
     const int    *ptre = local_interaction_matrix_.ptrE();
-    const double *x   = globals::s.data();
     int           k;
 
     for (int m = 0; m < 3; ++m) {
       int begin = ptrb[3*i+m]; int end = ptre[3*i+m];
-      for (int j = begin; j < end; ++j) {
-        k = indx[j];
-        h[m] = h[m] + x[k]*val[j];
+      for (int j = begin; j < end; ++j) { // j is row
+        k = indx[j];                      // k is col
+        h[m] = h[m] + globals::s[k]*val[j];
       }
     }
 }
