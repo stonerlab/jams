@@ -24,10 +24,16 @@ class DipoleHamiltonianEwald : public HamiltonianStrategy {
         void   calculate_fields(jblib::Array<double, 2>& fields);
     private:
         inline double fG(const double r, const double a);
+        inline double pG(const double r, const double a);
+
         void   calculate_local_ewald_field(const int i, double h[3]);
+        void   calculate_self_ewald_field(const int i, double h[3]);
+        void   calculate_surface_ewald_field(const int i, double h[3]);
         void   calculate_nonlocal_ewald_field();
 
+        double surf_elec_;
         double sigma_;
+        double delta_error_;
         double r_cutoff_;
         int k_cutoff_;
 
@@ -38,23 +44,23 @@ class DipoleHamiltonianEwald : public HamiltonianStrategy {
 
         jblib::Array<double, 4> h_nonlocal_;
         jblib::Array<double, 4> s_nonlocal_;
-
+        jblib::Array<double, 2> s_old_;
 
         jblib::Array<fftw_complex, 4> s_recip_;
         jblib::Array<fftw_complex, 4> h_recip_;
-        jblib::Array<fftw_complex, 5> w_recip_;
+        jblib::Array<double, 5> w_recip_;
 
         fftw_plan spin_fft_forward_transform_;
         fftw_plan field_fft_backward_transform_;
-        fftw_plan interaction_fft_transform_;
 };
 
 inline double DipoleHamiltonianEwald::fG(const double r, const double a) {
-    // f_G(r) = 1 - erf(r / (a * sqrt(2)) ) + sqrt(2/pi)*(r/a)*exp(-r^2/(2a^2))
-    //        = erfc(r / (a * sqrt(2))) + sqrt(2/pi)*(r/a)*exp(-r^2/(2a^2))
-    //        = erfc(r / (a * sqrt(2))) + 2 r gaussian(r, a)
-    // return erfc(kSqrtOne_Two*r/a) + 2*r*gaussian(r, a);
     return erfc(r / (a*sqrt(2.0))) + ((kSqrtTwo*r)/(kPi*a))*exp(-0.5*pow(r/a, 2));
+}
+
+// Gaussian point dipole
+inline double DipoleHamiltonianEwald::pG(const double r, const double a) {
+    return sqrt(2.0/kPi)*exp(-0.5*pow(r/a, 2))/(pow(r, 2)*pow(a, 3));
 }
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_EWALD_H

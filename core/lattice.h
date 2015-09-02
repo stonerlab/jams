@@ -25,6 +25,8 @@ class Lattice {
     void init_from_config(const libconfig::Config& pConfig);
 
     inline double              parameter() const;      ///< lattice parameter (m)
+    inline double              volume() const;      ///< volume (m^3)
+
     inline int                 size(const int i) const;           ///< integer number of unitcell in each lattice vector
     inline int                 num_unit_cells() const; ///< number of unit cells in the whole lattice
     inline int                 num_unit_cell_positions() const;         ///< number atomic positions in the unit cell
@@ -147,6 +149,11 @@ class Lattice {
 inline double
 Lattice::parameter() const {
     return lattice_parameter_;
+}
+
+inline double
+Lattice::volume() const {
+    return std::abs(unit_cell_.determinant())*std::pow(lattice_parameter_, 3);
 }
 
 inline int

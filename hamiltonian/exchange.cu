@@ -634,7 +634,6 @@ void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_fie
 // --------------------------------------------------------------------------
 
 void ExchangeHamiltonian::calculate_fields() {
-
     // dev_s needs to be found from the solver
 
     if (solver->is_cuda_solver()) {

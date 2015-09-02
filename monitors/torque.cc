@@ -7,6 +7,7 @@
 #include "core/consts.h"
 #include "core/globals.h"
 #include "core/lattice.h"
+#include "core/hamiltonian.h"
 
 #include "monitors/torque.h"
 
@@ -34,26 +35,35 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 void TorqueMonitor::update(Solver * solver) {
   using namespace globals;
 
-    int i, j;
-
-    torque_.x = 0; torque_.y = 0; torque_.z = 0;
-
-    for (i = 0; i < num_spins; ++i) {
-      torque_[0] += s(i,1)*(h(i,2) + h_dipole(i,2)) - s(i,2)*(h(i,1) + h_dipole(i,1));
-      torque_[1] += s(i,2)*(h(i,0) + h_dipole(i,0)) - s(i,0)*(h(i,2) + h_dipole(i,2));
-      torque_[2] += s(i,0)*(h(i,1) + h_dipole(i,1)) - s(i,1)*(h(i,0) + h_dipole(i,0));
-    }
-
-    for (j = 0; j < 3; ++j) {
-      torque_[j] = torque_[j]*kBohrMagneton/static_cast<double>(num_spins);
-    }
+    int i;
+    jblib::Vec3<double> total_torque(0,0,0);
 
     outfile << std::setw(12) << std::scientific << solver->time();
     outfile << std::setw(16) << std::scientific << solver->physics()->temperature();
 
-    for (i = 0; i < 3; ++i) {
-      outfile <<  std::setw(16) << torque_[i];
+    for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
+      torque_.x = 0; torque_.y = 0; torque_.z = 0;
+
+      (*it)->calculate_fields();
+
+      for (i = 0; i < num_spins; ++i) {
+        torque_[0] += s(i,1)*(*it)->field(i,2) - s(i,2)*(*it)->field(i,1);
+        torque_[1] += s(i,2)*(*it)->field(i,0) - s(i,0)*(*it)->field(i,2);
+        torque_[2] += s(i,0)*(*it)->field(i,1) - s(i,1)*(*it)->field(i,0);
+      }
+
+      for (i = 0; i < 3; ++i) {
+        outfile <<  std::setw(16) << torque_[i]*kBohrMagneton/static_cast<double>(num_spins);
+      }
+
+      for (i = 0; i < 3; ++i) {
+        total_torque[i] += torque_[i]*kBohrMagneton/static_cast<double>(num_spins);
+      }
     }
+
+    torque_stats_.add(abs(total_torque));
+
+    outfile << std::setw(16) << torque_stats_.geweke();
 
     outfile << std::endl;
 }

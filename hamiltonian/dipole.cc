@@ -5,6 +5,7 @@
 #include "hamiltonian/dipole_bruteforce.h"
 #include "hamiltonian/dipole_tensor.h"
 #include "hamiltonian/dipole_ewald.h"
+#include "hamiltonian/dipole_fft.h"
 
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
@@ -23,7 +24,6 @@ DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
 #endif
 
     dipole_strategy_ = select_strategy(settings);
-
 }
 
 // --------------------------------------------------------------------------
@@ -31,6 +31,7 @@ DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
 HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Setting &settings) {
     if (settings.exists("strategy")) {
         std::string strategy_name(capitalize(settings["strategy"]));
+
         if (strategy_name == "TENSOR") {
             return new DipoleHamiltonianTensor(settings);
         }
@@ -38,6 +39,11 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
         if (strategy_name == "EWALD") {
             return new DipoleHamiltonianEwald(settings);
         }
+
+        if (strategy_name == "FFT") {
+            return new DipoleHamiltonianFFT(settings);
+        }
+
         std::runtime_error("Unknown DipoleHamiltonian strategy '" + strategy_name + "' requested\n");
     }
     jams_warning("no dipole strategy selected, defaulting to TENSOR");
@@ -76,6 +82,7 @@ void DipoleHamiltonian::calculate_one_spin_field(const int i, double h[3]) {
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_fields() {
+
     dipole_strategy_->calculate_fields(field_);
 }
 // --------------------------------------------------------------------------

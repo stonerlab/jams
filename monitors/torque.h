@@ -6,7 +6,7 @@
 #include <fstream>
 
 #include "core/monitor.h"
-#include "core/runningstat.h"
+#include "core/stats.h"
 
 #include "jblib/containers/vec.h"
 
@@ -20,6 +20,7 @@ class TorqueMonitor : public Monitor {
  private:
   jblib::Vec3<double> torque_;
   std::ofstream outfile;
+  Stats torque_stats_;
 };
 
 #endif  // JAMS_MONITOR_TORQUE_H
