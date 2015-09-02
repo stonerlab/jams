@@ -44,7 +44,10 @@ class DipoleHamiltonianEwald : public HamiltonianStrategy {
 
         jblib::Array<double, 4> h_nonlocal_;
         jblib::Array<double, 4> s_nonlocal_;
-        jblib::Array<double, 2> s_old_;
+        jblib::Array<double, 2> s_old_1_;
+        jblib::Array<double, 2> s_old_2_;
+        jblib::Array<double, 4> h_nonlocal_2_;
+
 
         jblib::Array<fftw_complex, 4> s_recip_;
         jblib::Array<fftw_complex, 4> h_recip_;

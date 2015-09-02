@@ -16,6 +16,7 @@ class MagnetisationMonitor : public Monitor {
   ~MagnetisationMonitor();
 
   void update(Solver * solver);
+  bool is_converged() { return false; }
 
  private:
   jblib::Array<double, 2> mag;

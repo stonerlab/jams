@@ -156,3 +156,12 @@ void Solver::notify_monitors() {
     }
   }
 }
+
+bool Solver::is_converged() {
+  for (std::vector<Monitor*>::iterator it = monitors_.begin() ; it != monitors_.end(); ++it) {
+    if((*it)->is_converged()){
+      return true;
+    }
+  }
+  return false;
+}

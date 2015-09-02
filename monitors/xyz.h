@@ -18,6 +18,7 @@ class XyzMonitor : public Monitor {
   ~XyzMonitor();
 
   void update(Solver * solver);
+  bool is_converged() { return false; }
 
  private:
     jblib::Vec3<double> slice_origin;

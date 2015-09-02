@@ -13,6 +13,7 @@ class EnergyMonitor : public Monitor {
 
   ~EnergyMonitor();
   void update(Solver * solver);
+  bool is_converged() { return false; }
 
  private:
   std::ofstream outfile;

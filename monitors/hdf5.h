@@ -19,6 +19,7 @@ class Hdf5Monitor : public Monitor {
   ~Hdf5Monitor();
 
   void update(Solver * solver);
+  bool is_converged() { return false; }
 
  private:
   void output_lattice();

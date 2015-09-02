@@ -14,6 +14,7 @@ class Monitor {
 
   virtual ~Monitor() {}
   virtual void update(Solver * solver) = 0;
+  virtual bool is_converged() = 0;
   bool is_updating (const int &iteration) const;
 
   static Monitor* create(const libconfig::Setting &settings);

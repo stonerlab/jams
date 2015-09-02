@@ -16,6 +16,7 @@ class ConstrainedMCSolver : public Solver {
   ~ConstrainedMCSolver();
   void initialize(int argc, char **argv, double dt);
   void run();
+  bool is_converged();
 
  private:
   jblib::Array<double, 2> snew;

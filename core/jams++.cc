@@ -220,11 +220,14 @@ void jams_run() {
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   std::clock_t start = std::clock();
-  for (int i = 0; i < steps_run; ++i) {
 
+  for (int i = 0; i < steps_run; ++i) {
+    if (i > 1000 && solver->is_converged()) {
+      break;
+    }
     solver->update_physics_module();
-    solver->run();
     solver->notify_monitors();
+    solver->run();
   }
 
   double elapsed = static_cast<double>(std::clock()-start);

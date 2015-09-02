@@ -14,6 +14,7 @@ class BoltzmannMonitor : public Monitor{
   ~BoltzmannMonitor();
 
 void update(Solver * solver);
+bool is_converged() { return false; }
 
  private:
   jblib::Array<double, 1> bins;

@@ -10,9 +10,9 @@ using std::min;
 
 DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &settings)
 : HamiltonianStrategy(settings),
-  s_old_(globals::s) {
+  s_old_1_(globals::s), s_old_2_(globals::s) {
 
-    double r_abs;
+    double r_abs, rsq_ij;
     jblib::Vec3<double> r_ij, eij, s_j;
     jblib::Vec3<int> pos;
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
@@ -94,25 +94,17 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
                         r_ij  = lattice.generate_image_position(lattice.position(j), image_vector) - lattice.position(i);
 
-                        r_abs = abs(r_ij);
-
+                        rsq_ij = dot(r_ij,r_ij);
                         // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
                         // so detect based on r_abs rather than i == j
-                        if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
-
+                        if (rsq_ij > r_cutoff_*r_cutoff_ || unlikely(rsq_ij < 1e-5)) continue;
                         is_interacting = true;
 
-                        // if (i == 0) {
-                        //     std::cerr << r_ij.x << "\t" << r_ij.y << "\t" << r_ij.z << std::endl;
-                        // }
-
+                        r_abs = sqrt(rsq_ij);
                         eij = r_ij / r_abs;
 
                         for (int m = 0; m < 3; ++m) {
                             for (int n = 0; n < 3; ++n) {
-                                // tensor[m][n] += (3*eij[m]*eij[n] - Id[m][n])/pow(r_abs, 3);
-                                // tensor[m][n] += ((3*eij[m]*eij[n] - Id[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)));
-
                                 tensor[m][n] = ((3*eij[m]*eij[n] - Id[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)))
                                              - (eij[m]*eij[n]*pG(r_abs, sigma_));
                             }
@@ -128,7 +120,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                         local_interaction_matrix_.insertValue(3*i + m, 3*j + n, tensor[m][n]*prefactor*globals::mus(j));
                     }
                 }
-                // local_interaction_counter++;
+                local_interaction_counter++;
             }
         }
     }
@@ -158,6 +150,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     }
 
     h_nonlocal_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
+    h_nonlocal_2_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
     s_nonlocal_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
     s_recip_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
     h_recip_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
@@ -167,6 +160,10 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
     for (int i = 0, iend = h_nonlocal_.elements(); i < iend; ++i) {
         h_nonlocal_[i] = 0.0;
+    }
+
+    for (int i = 0, iend = h_nonlocal_2_.elements(); i < iend; ++i) {
+        h_nonlocal_2_[i] = 0.0;
     }
 
     for (int i = 0, iend = s_nonlocal_.elements(); i < iend; ++i) {
@@ -418,10 +415,26 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
     int i, iend, j, jend, k, kend, m;
     jblib::Vec3<int> pos;
 
-    if (std::equal(&s_old_[0], &s_old_[0]+globals::num_spins3, &globals::s[0]) && !first_run) {
+    // if (std::equal(&s_old_1_[0], &s_old_1_[0]+globals::num_spins3, &globals::s[0]) && !first_run) {
+    //     return; // spins have not changed from last call
+    // } else {
+    //     s_old_1_ = globals::s;
+    // }
+
+    // hack gives a big speedup for constrained Monte Carlo
+    // because we are required to do two energy calculations because of one spin move
+    // so keep a history of the last two spin states
+    if (std::equal(&s_old_1_[0], &s_old_1_[0]+globals::num_spins3, &globals::s[0]) && !first_run) {
+        return; // spins have not changed from last call
+    } else if (std::equal(&s_old_2_[0], &s_old_2_[0]+globals::num_spins3, &globals::s[0]) && !first_run) {
+        // spins have not changes since two calls ago
+        swap(h_nonlocal_, h_nonlocal_2_);
         return;
     } else {
-        s_old_ = globals::s;
+        // spins have changed
+        swap(h_nonlocal_2_, h_nonlocal_);
+        swap(s_old_2_, s_old_1_);
+        s_old_1_ = globals::s;
     }
 
 

@@ -29,6 +29,8 @@ class Solver {
   virtual void initialize(int argc, char **argv, double dt) = 0;
   virtual void run() = 0;
 
+  bool is_converged();
+
   inline bool is_cuda_solver() const {
     return is_cuda_solver_;
   }

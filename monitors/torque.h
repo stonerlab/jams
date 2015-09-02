@@ -16,11 +16,14 @@ class TorqueMonitor : public Monitor {
   ~TorqueMonitor();
 
   void update(Solver * solver);
+  bool is_converged();
 
  private:
-  jblib::Vec3<double> torque_;
   std::ofstream outfile;
   Stats torque_stats_;
+  bool convergence_is_on_;
+  double convergence_tolerance_;
+  double convergence_geweke_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_TORQUE_H

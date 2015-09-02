@@ -16,6 +16,7 @@ class SkyrmionMonitor : public Monitor {
   ~SkyrmionMonitor();
 
   void update(Solver * solver);
+  bool is_converged() { return false; }
 
  private:
     void create_center_of_mass_mapping();

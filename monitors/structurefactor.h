@@ -17,6 +17,7 @@ class StructureFactorMonitor : public Monitor {
   ~StructureFactorMonitor();
 
   void update(Solver * solver);
+  bool is_converged() { return false; }
 
  private:
 

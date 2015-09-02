@@ -17,6 +17,7 @@ class VtuMonitor : public Monitor {
   ~VtuMonitor();
 
   void update(Solver * solver);
+  bool is_converged() { return false; }
 
  private:
     int num_slice_points;
