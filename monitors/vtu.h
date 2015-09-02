@@ -16,7 +16,7 @@ class VtuMonitor : public Monitor {
   VtuMonitor(const libconfig::Setting &settings);
   ~VtuMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
 
  private:
     int num_slice_points;

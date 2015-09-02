@@ -17,7 +17,7 @@ class XyzMonitor : public Monitor {
   XyzMonitor(const libconfig::Setting &settings);
   ~XyzMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
 
  private:
     jblib::Vec3<double> slice_origin;

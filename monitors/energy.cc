@@ -21,7 +21,7 @@ EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
     << std::endl;
 }
 
-void EnergyMonitor::update(const Solver * const solver) {
+void EnergyMonitor::update(Solver * solver) {
   using namespace globals;
 
   if (solver->iteration()%output_step_freq_ == 0) {

@@ -53,7 +53,7 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
   }
 }
 
-void XyzMonitor::update(const Solver * const solver) {
+void XyzMonitor::update(Solver * solver) {
   using namespace globals;
 
   if (solver->iteration()%output_step_freq_ == 0) {

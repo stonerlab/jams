@@ -61,6 +61,10 @@ class Solver {
     return NULL;
   }
 
+  std::vector<Hamiltonian*>& hamiltonians() {
+    return hamiltonians_;
+  }
+
   static Solver* create(const std::string &solver_name);
  protected:
   bool initialized_;

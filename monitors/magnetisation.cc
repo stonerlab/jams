@@ -39,7 +39,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   mag.resize(lattice.num_materials(), 4);
 }
 
-void MagnetisationMonitor::update(const Solver * const solver) {
+void MagnetisationMonitor::update(Solver * solver) {
   using namespace globals;
 
     int i, j;

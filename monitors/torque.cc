@@ -31,7 +31,7 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
   outfile << "\n";
 }
 
-void TorqueMonitor::update(const Solver * const solver) {
+void TorqueMonitor::update(Solver * solver) {
   using namespace globals;
 
     int i, j;

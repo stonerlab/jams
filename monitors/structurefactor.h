@@ -16,7 +16,7 @@ class StructureFactorMonitor : public Monitor {
   StructureFactorMonitor(const libconfig::Setting &settings);
   ~StructureFactorMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
 
  private:
 

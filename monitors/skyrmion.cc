@@ -61,7 +61,7 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
   create_center_of_mass_mapping();
 }
 
-void SkyrmionMonitor::update(const Solver * const solver) {
+void SkyrmionMonitor::update(Solver * solver) {
   using namespace globals;
 
     int i, n, type;

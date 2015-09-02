@@ -118,7 +118,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   sqw_z.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
 }
 
-void StructureFactorMonitor::update(const Solver * const solver) {
+void StructureFactorMonitor::update(Solver * solver) {
   using namespace globals;
 
   std::complex<double> two_pi_i_dr;

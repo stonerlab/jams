@@ -15,7 +15,7 @@ class SkyrmionMonitor : public Monitor {
   SkyrmionMonitor(const libconfig::Setting &settings);
   ~SkyrmionMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
 
  private:
     void create_center_of_mass_mapping();

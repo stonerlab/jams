@@ -13,7 +13,7 @@ class Monitor {
   Monitor(const libconfig::Setting &settings);
 
   virtual ~Monitor() {}
-  virtual void update(const Solver * const solver) = 0;
+  virtual void update(Solver * solver) = 0;
   bool is_updating (const int &iteration) const;
 
   static Monitor* create(const libconfig::Setting &settings);

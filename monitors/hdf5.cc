@@ -81,7 +81,7 @@ Hdf5Monitor::~Hdf5Monitor() {
     fclose(xdmf_file);
 }
 
-void Hdf5Monitor::update(const Solver * const solver) {
+void Hdf5Monitor::update(Solver * solver) {
   using namespace globals;
   using namespace H5;
 

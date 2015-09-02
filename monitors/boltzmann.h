@@ -13,7 +13,7 @@ class BoltzmannMonitor : public Monitor{
   BoltzmannMonitor(const libconfig::Setting &settings);
   ~BoltzmannMonitor();
 
-void update(const Solver * const solver);
+void update(Solver * solver);
 
  private:
   jblib::Array<double, 1> bins;

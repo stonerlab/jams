@@ -24,7 +24,7 @@ outfile() {
   }
 }
 
-void BoltzmannMonitor::update(const Solver * const solver) {
+void BoltzmannMonitor::update(Solver * solver) {
   using namespace globals;
 
   if (solver->iteration()%output_step_freq_ == 0) {

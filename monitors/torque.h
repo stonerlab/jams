@@ -15,7 +15,7 @@ class TorqueMonitor : public Monitor {
   TorqueMonitor(const libconfig::Setting &settings);
   ~TorqueMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
 
  private:
   jblib::Vec3<double> torque_;

@@ -44,6 +44,17 @@ class Hamiltonian {
   virtual void   output_energies(OutputFormat format) = 0;
   virtual void   output_fields(OutputFormat format) = 0;
 
+  inline double energy(const int i) const {
+    assert(i < energy_.elements());
+    return energy(i);
+  }
+
+  inline double field(const int i, const int j) const {
+    assert(i < field_.size(0));
+    assert(j < 3);
+    return field_(i,j);
+  }
+
   double* dev_ptr_energy() {
     #ifdef CUDA
     assert(dev_energy_.is_allocated());
