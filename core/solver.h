@@ -3,8 +3,9 @@
 #ifndef JAMS_CORE_SOLVER_H
 #define JAMS_CORE_SOLVER_H
 
-#include <vector>
 #include <cassert>
+#include <string>
+#include <vector>
 
 #include <fftw3.h>
 

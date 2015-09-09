@@ -3,6 +3,7 @@
 #ifndef JAMS_CORE_STATS_H
 #define JAMS_CORE_STATS_H
 
+#include <algorithm>
 #include <numeric>
 #include <vector>
 
