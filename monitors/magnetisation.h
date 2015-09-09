@@ -6,7 +6,7 @@
 #include <fstream>
 
 #include "core/monitor.h"
-#include "core/runningstat.h"
+#include "core/stats.h"
 
 #include "jblib/containers/array.h"
 
@@ -16,11 +16,16 @@ class MagnetisationMonitor : public Monitor {
   ~MagnetisationMonitor();
 
   void update(Solver * solver);
-  bool is_converged() { return false; }
+  bool is_converged();
 
  private:
   jblib::Array<double, 2> mag;
   std::ofstream outfile;
+
+  Stats magnetisation_stats_;
+  bool convergence_is_on_;
+  double convergence_tolerance_;
+  double convergence_geweke_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_H

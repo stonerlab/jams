@@ -10,9 +10,20 @@
 #include "monitors/magnetisation.h"
 
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
-: Monitor(settings) {
+: Monitor(settings),
+  outfile(),
+  magnetisation_stats_(),
+  convergence_is_on_(false),              // do we want to use convergence in this monitor
+  convergence_tolerance_(1.0),            // 1 standard deviation from the mean
+  convergence_geweke_diagnostic_(100.0)   // number much larger than 1
+{
   using namespace globals;
   ::output.write("\ninitialising Magnetisation monitor");
+
+  if (settings.exists("convergence")) {
+    convergence_is_on_ = true;
+    convergence_tolerance_ = settings.exists("convergence");
+  }
 
   is_equilibration_monitor_ = true;
 
@@ -82,7 +93,22 @@ void MagnetisationMonitor::update(Solver * solver) {
       outfile << std::setw(16) << mag(i, 3);
     }
 
+    if (convergence_is_on_) {
+      double total_mag = 0.0;
+      for (i = 0; i < lattice.num_materials(); ++i) {
+        total_mag += mag(i, 4);
+      }
+
+      magnetisation_stats_.add(total_mag);
+      convergence_geweke_diagnostic_ = magnetisation_stats_.geweke();
+      outfile << std::setw(16) << convergence_geweke_diagnostic_;
+    }
+
     outfile << std::endl;
+}
+
+bool MagnetisationMonitor::is_converged() {
+  return ((std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
 }
 
 MagnetisationMonitor::~MagnetisationMonitor() {
