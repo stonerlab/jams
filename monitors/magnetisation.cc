@@ -11,6 +11,7 @@
 
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
+  mag(::lattice.num_materials(), 4),
   outfile(),
   magnetisation_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
@@ -18,11 +19,12 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
   using namespace globals;
-  ::output.write("\ninitialising Magnetisation monitor");
+  ::output.write("\ninitialising Magnetisation monitor\n");
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
     convergence_tolerance_ = settings.exists("convergence");
+    ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
   }
 
   is_equilibration_monitor_ = true;
@@ -47,7 +49,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   }
   outfile << "\n";
 
-  mag.resize(lattice.num_materials(), 4);
+  // mag.resize(lattice.num_materials(), 4);
 }
 
 void MagnetisationMonitor::update(Solver * solver) {
