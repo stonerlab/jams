@@ -579,7 +579,7 @@ double ExchangeHamiltonian::calculate_one_spin_energy(const int i) {
       int begin = ptrb[3*i+m]; int end = ptre[3*i+m];
       for (int j = begin; j < end; ++j) {
         k = indx[j];
-        jij_sj[m] = jij_sj[m] + x[k]*val[j];
+        jij_sj[m] = jij_sj[m] + 0.5*x[k]*val[j];
       }
     }
     return -(s(i,0)*jij_sj[0] + s(i,1)*jij_sj[1] + s(i,2)*jij_sj[2]);
@@ -626,7 +626,7 @@ void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_fie
       begin = ptrb[3*i+m]; end = ptre[3*i+m];
       for (j = begin; j < end; ++j) {
         k = indx[j];
-        local_field[m] = local_field[m] + x[k]*val[j];
+        local_field[m] = local_field[m] + 0.5*x[k]*val[j];
       }
     }
 }
