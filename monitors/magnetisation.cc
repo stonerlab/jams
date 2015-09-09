@@ -23,7 +23,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
-    convergence_tolerance_ = settings.exists("convergence");
+    convergence_tolerance_ = settings["convergence"];
     ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
   }
 
@@ -48,8 +48,6 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
     outfile << std::setw(16) << "|m|";
   }
   outfile << "\n";
-
-  // mag.resize(lattice.num_materials(), 4);
 }
 
 void MagnetisationMonitor::update(Solver * solver) {

@@ -25,7 +25,7 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
-    convergence_tolerance_ = settings.exists("convergence");
+    convergence_tolerance_ = settings["convergence"];
   }
 
   is_equilibration_monitor_ = true;
