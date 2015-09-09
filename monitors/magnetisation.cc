@@ -96,7 +96,7 @@ void MagnetisationMonitor::update(Solver * solver) {
     if (convergence_is_on_) {
       double total_mag = 0.0;
       for (i = 0; i < lattice.num_materials(); ++i) {
-        total_mag += mag(i, 4);
+        total_mag += mag(i, 3);
       }
 
       magnetisation_stats_.add(total_mag);
