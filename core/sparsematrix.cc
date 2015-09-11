@@ -62,5 +62,3 @@ void jams_dcsrmv(const char trans[1], const int m, const int n,
     }
   }
 }
-
-void
