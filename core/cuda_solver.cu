@@ -35,13 +35,13 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
   //   jams_error("CudaSolver: CUBLAS initialization failed");
   // }
 
-  dev_streams_ = new cudaStream_t[2];
+  // dev_streams_ = new cudaStream_t[2];
 
-  for (int i = 0; i < 2; ++i) {
-    if (cudaStreamCreate(&dev_streams_[i]) != cudaSuccess){
-      jams_error("Failed to create CUDA stream in CudaSolver");
-    }
-  }
+  // for (int i = 0; i < 2; ++i) {
+  //   if (cudaStreamCreate(&dev_streams_[i]) != cudaSuccess){
+  //     jams_error("Failed to create CUDA stream in CudaSolver");
+  //   }
+  // }
 
 
 //-----------------------------------------------------------------------------
@@ -141,7 +141,7 @@ void CudaSolver::compute_fields() {
   using namespace globals;
 
   // zero the field array
-  cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), ::cuda_streams[0]);
+  cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double));
 
   // if (optimize::use_fft) {
   //   cuda_realspace_to_kspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_s_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_s3d_.data());
@@ -161,11 +161,13 @@ void CudaSolver::compute_fields() {
   //   cuda_kspace_to_realspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_h3d_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_h_.data());
   // }
 
-  cudaStreamSynchronize(::cuda_streams[0]); // block until cudaMemsetAsync is finished
+  // cudaStreamSynchronize(::cuda_streams[0]); // block until cudaMemsetAsync is finished
 
   for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
     (*it)->calculate_fields();
   }
+
+  cudaDeviceSynchronize();
 
   const double alpha = 1.0;
   for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
@@ -174,7 +176,7 @@ void CudaSolver::compute_fields() {
 }
 
 CudaSolver::~CudaSolver() {
-  for (int i = 0; i < 2; ++i) {
-    cudaStreamDestroy(dev_streams_[i]);
-  }
+  // for (int i = 0; i < 2; ++i) {
+  //   cudaStreamDestroy(dev_streams_[i]);
+  // }
 }

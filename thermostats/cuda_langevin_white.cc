@@ -31,7 +31,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
 
   // put into the same stream as the integration kernels so that we don't mix the new
   // and old numbers while the integration kernels are running
-  curandSetStream(dev_rng_, ::cuda_streams[0]);
+  // curandSetStream(dev_rng_, ::cuda_streams[0]);
 
   if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to set CURAND seed in CudaLangevinWhiteThermostat");
