@@ -15,6 +15,8 @@ class BoltzmannMonitor : public Monitor{
 
 void update(Solver * solver);
 bool is_converged() { return false; }
+std::string name() const {return "boltzmann";}
+
 
  private:
   jblib::Array<double, 1> bins;

@@ -512,7 +512,7 @@ void Lattice::init_kspace() {
       }
   }
 
-  // if (is_debugging_enabled_) {
+  if (is_debugging_enabled_) {
     std::ofstream ibz_file("debug_ibz.dat");
     for (int i = 0; i < num_mesh_points; ++i) {
       if (weights[i] != 0) {
@@ -520,7 +520,7 @@ void Lattice::init_kspace() {
       }
     }
     ibz_file.close();
-  // }
+  }
 
   if (is_debugging_enabled_) {
     std::ofstream kspace_file("kspace.dat");

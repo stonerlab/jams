@@ -17,8 +17,12 @@ class TorqueMonitor : public Monitor {
 
   void update(Solver * solver);
   bool is_converged();
+  std::string name() const {return "torque";}
 
  private:
+
+  void open_outfile();
+
   std::ofstream outfile;
   Stats torque_stats_;
   bool convergence_is_on_;

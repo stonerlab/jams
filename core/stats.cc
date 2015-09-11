@@ -46,5 +46,4 @@ double Stats::geweke() {
     last_50_pc_var = (last_50_pc_sq_sum/double(elements-1));
 
     return (first_10_pc_mean - last_50_pc_mean) / std::sqrt(first_10_pc_var + last_50_pc_var);
-
 }

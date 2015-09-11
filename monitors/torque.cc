@@ -30,59 +30,75 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 
   is_equilibration_monitor_ = true;
 
-  std::string name = seedname + "_torq.dat";
-  outfile.open(name.c_str());
-  outfile.setf(std::ios::right);
 
-  // header for the magnetisation file
-  outfile << "#";
-  outfile << std::setw(11) << "time";
-  outfile << std::setw(16) << "temperature";
-  outfile << std::setw(16) << "Tx";
-  outfile << std::setw(16) << "Ty";
-  outfile << std::setw(16) << "Tz";
-  outfile << "\n";
 }
 
 void TorqueMonitor::update(Solver * solver) {
   using namespace globals;
 
-    int i;
-    jblib::Vec3<double> torque;
-    jblib::Vec3<double> total_torque(0,0,0);
+  static bool first_run = true;
 
-    outfile << std::setw(12) << std::scientific << solver->time();
-    outfile << std::setw(16) << std::scientific << solver->physics()->temperature();
+  if (first_run) {
+    open_outfile();
+    first_run = false;
+  }
 
-    for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
-      torque.x = 0; torque.y = 0; torque.z = 0;
+  int i;
+  jblib::Vec3<double> torque;
+  jblib::Vec3<double> total_torque(0,0,0);
 
-      (*it)->calculate_fields();
+  outfile << std::setw(12) << std::scientific << solver->time() << "\t";
+  outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
-      for (i = 0; i < num_spins; ++i) {
-        torque[0] += s(i,1)*(*it)->field(i,2) - s(i,2)*(*it)->field(i,1);
-        torque[1] += s(i,2)*(*it)->field(i,0) - s(i,0)*(*it)->field(i,2);
-        torque[2] += s(i,0)*(*it)->field(i,1) - s(i,1)*(*it)->field(i,0);
-      }
+  for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
+    torque.x = 0; torque.y = 0; torque.z = 0;
 
-      for (i = 0; i < 3; ++i) {
-        outfile <<  std::setw(16) << torque[i]*kBohrMagneton/static_cast<double>(num_spins);
-      }
+    (*it)->calculate_fields();
 
-      for (i = 0; i < 3; ++i) {
-        total_torque[i] += torque[i];
-      }
+    for (i = 0; i < num_spins; ++i) {
+      torque[0] += s(i,1)*(*it)->field(i,2) - s(i,2)*(*it)->field(i,1);
+      torque[1] += s(i,2)*(*it)->field(i,0) - s(i,0)*(*it)->field(i,2);
+      torque[2] += s(i,0)*(*it)->field(i,1) - s(i,1)*(*it)->field(i,0);
     }
 
-    torque_stats_.add(abs(total_torque)/static_cast<double>(num_spins));
+    for (i = 0; i < 3; ++i) {
+      outfile <<  std::setw(12) << std::scientific << torque[i]*kBohrMagneton/static_cast<double>(num_spins) << "\t";
+    }
 
-    convergence_geweke_diagnostic_ = torque_stats_.geweke();
+    for (i = 0; i < 3; ++i) {
+      total_torque[i] += torque[i];
+    }
+  }
 
-    outfile << std::setw(16) << convergence_geweke_diagnostic_;
+  torque_stats_.add(abs(total_torque)/static_cast<double>(num_spins));
 
-    outfile << std::endl;
+  convergence_geweke_diagnostic_ = torque_stats_.geweke();
 
+  outfile << std::setw(12) << convergence_geweke_diagnostic_ << "\t";
 
+  outfile << std::endl;
+}
+
+void TorqueMonitor::open_outfile() {
+  std::string name = seedname + "_torq.tsv";
+  outfile.open(name.c_str());
+  outfile.setf(std::ios::right);
+
+  // column headers
+  outfile << std::setw(12) << "time" << "\t";
+  outfile << std::setw(12) << "temperature" << "\t";
+
+  for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
+    outfile << std::setw(12) << (*it)->name()+":Tx" << "\t";
+    outfile << std::setw(12) << (*it)->name()+":Ty" << "\t";
+    outfile << std::setw(12) << (*it)->name()+":Tz" << "\t";
+  }
+
+  if (convergence_is_on_) {
+    outfile << std::setw(12) << "geweke";
+  }
+
+  outfile << "\n";
 }
 
 bool TorqueMonitor::is_converged() {
@@ -90,5 +106,7 @@ bool TorqueMonitor::is_converged() {
 }
 
 TorqueMonitor::~TorqueMonitor() {
-  outfile.close();
+  if (outfile.is_open()) {
+    outfile.close();
+  }
 }

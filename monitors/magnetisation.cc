@@ -29,24 +29,28 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 
   is_equilibration_monitor_ = true;
 
-  std::string name = seedname + "_mag.dat";
+  std::string name = seedname + "_mag.tsv";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);
 
   // header for the magnetisation file
-  outfile << "#";
-  outfile << std::setw(11) << "time";
-  outfile << std::setw(16) << "temperature";
-  outfile << std::setw(16) << "Hx";
-  outfile << std::setw(16) << "Hy";
-  outfile << std::setw(16) << "Hz";
+  outfile << std::setw(12) << "time" << "\t";
+  outfile << std::setw(12) << "temperature" << "\t";
+  outfile << std::setw(12) << "Hx" << "\t";
+  outfile << std::setw(12) << "Hy" << "\t";
+  outfile << std::setw(12) << "Hz" << "\t";
 
   for (int i = 0; i < lattice.num_materials(); ++i) {
-    outfile << std::setw(16) <<  lattice.material_name(i) + " -> " + "mx" ;
-    outfile << std::setw(16) << "my";
-    outfile << std::setw(16) << "mz";
-    outfile << std::setw(16) << "|m|";
+    outfile << std::setw(12) << lattice.material_name(i) + ":mx" << "\t";
+    outfile << std::setw(12) << lattice.material_name(i) + ":my" << "\t";
+    outfile << std::setw(12) << lattice.material_name(i) + ":mz" << "\t";
+    outfile << std::setw(12) << lattice.material_name(i) + ":m" << "\t";
   }
+
+  if (convergence_is_on_) {
+    outfile << std::setw(12) << "geweke";
+  }
+
   outfile << "\n";
 }
 
@@ -79,18 +83,18 @@ void MagnetisationMonitor::update(Solver * solver) {
         + mag(i, 2)*mag(i, 2));
     }
 
-    outfile << std::setw(12) << std::scientific << solver->time();
-    outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
+    outfile << std::setw(12) << std::scientific << solver->time() << "\t";
+    outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
     for (i = 0; i < 3; ++i) {
-      outfile <<  std::setw(16) << solver->physics()->applied_field(i);
+      outfile <<  std::setw(12) << solver->physics()->applied_field(i) << "\t";
     }
 
     for (i = 0; i < lattice.num_materials(); ++i) {
-      outfile << std::setw(16) << mag(i, 0);
-      outfile << std::setw(16) << mag(i, 1);
-      outfile << std::setw(16) << mag(i, 2);
-      outfile << std::setw(16) << mag(i, 3);
+      outfile << std::setw(12) << mag(i, 0) << "\t";
+      outfile << std::setw(12) << mag(i, 1) << "\t";
+      outfile << std::setw(12) << mag(i, 2) << "\t";
+      outfile << std::setw(12) << mag(i, 3) << "\t";
     }
 
     if (convergence_is_on_) {
@@ -101,7 +105,7 @@ void MagnetisationMonitor::update(Solver * solver) {
 
       magnetisation_stats_.add(total_mag);
       convergence_geweke_diagnostic_ = magnetisation_stats_.geweke();
-      outfile << std::setw(16) << convergence_geweke_diagnostic_;
+      outfile << std::setw(12) << convergence_geweke_diagnostic_;
     }
 
     outfile << std::endl;

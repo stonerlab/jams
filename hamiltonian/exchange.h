@@ -22,6 +22,8 @@ class ExchangeHamiltonian : public Hamiltonian {
         ExchangeHamiltonian(const libconfig::Setting &settings);
         ~ExchangeHamiltonian() {};
 
+        std::string name() const { return "exchange"; }
+
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final);
