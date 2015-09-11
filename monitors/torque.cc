@@ -46,6 +46,7 @@ void TorqueMonitor::update(Solver * solver) {
   int i;
   jblib::Vec3<double> torque;
   jblib::Vec3<double> total_torque(0,0,0);
+  const double norm = kBohrMagneton/static_cast<double>(num_spins);
 
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";
   outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
@@ -62,7 +63,7 @@ void TorqueMonitor::update(Solver * solver) {
     }
 
     for (i = 0; i < 3; ++i) {
-      outfile <<  std::setw(12) << std::scientific << torque[i]*kBohrMagneton/static_cast<double>(num_spins) << "\t";
+      outfile <<  std::setw(12) << std::scientific << torque[i] * norm << "\t";
     }
 
     for (i = 0; i < 3; ++i) {

@@ -23,9 +23,7 @@ class Random {
   mwc_x(0),
   cmwc_q(4096, 0),
   cmwc_c(0),
-  cmwc_r(0),
-  normal_logic(false),
-  normal_next(0.0)
+  cmwc_r(0)
   {}
 
   void seed(const uint32_t &x);
@@ -49,9 +47,6 @@ class Random {
   std::vector<uint32_t> cmwc_q;
   uint32_t cmwc_c;
   uint32_t cmwc_r;
-
-  bool normal_logic;
-  double normal_next;
 
   inline uint32_t mwc32();
   inline uint32_t __attribute__((hot)) cmwc4096();

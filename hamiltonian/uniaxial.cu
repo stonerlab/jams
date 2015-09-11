@@ -17,6 +17,10 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
     energy_.resize(globals::num_spins);
     field_.resize(globals::num_spins, 3);
 
+    has_d2z_ = false;
+    has_d4z_ = false;
+    has_d6z_ = false;
+
     d2z_.resize(globals::num_spins);
     d4z_.resize(globals::num_spins);
     d6z_.resize(globals::num_spins);
@@ -49,6 +53,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         for (int i = 0; i < globals::num_spins; ++i) {
             K1(i) = double(settings["K1"][lattice.material(i)])/kBohrMagneton;
         }
+        has_d2z_ = true;
     }
 
     if(settings.exists("K2")) {
@@ -58,6 +63,8 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         for (int i = 0; i < globals::num_spins; ++i) {
             K2(i) = double(settings["K2"][lattice.material(i)])/kBohrMagneton;
         }
+        has_d2z_ = true;
+        has_d4z_ = true;
     }
 
     if(settings.exists("K3")) {
@@ -67,6 +74,9 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         for (int i = 0; i < globals::num_spins; ++i) {
             K3(i) = double(settings["K3"][lattice.material(i)])/kBohrMagneton;
         }
+        has_d2z_ = true;
+        has_d4z_ = true;
+        has_d6z_ = true;
     }
 
     for (int i = 0; i < globals::num_spins; ++i) {
@@ -83,6 +93,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         for (int i = 0; i < globals::num_spins; ++i) {
             d2z_(i) = double(settings["d2z"][lattice.material(i)])/kBohrMagneton;
         }
+        has_d2z_ = true;
     }
 
     if(settings.exists("d4z")) {
@@ -92,6 +103,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         for (int i = 0; i < globals::num_spins; ++i) {
             d4z_(i) = double(settings["d4z"][lattice.material(i)])/kBohrMagneton;
         }
+        has_d4z_ = true;
     }
 
     if(settings.exists("d6z")) {
@@ -101,6 +113,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         for (int i = 0; i < globals::num_spins; ++i) {
             d6z_(i) = double(settings["d6z"][lattice.material(i)])/kBohrMagneton;
         }
+        has_d6z_ = true;
     }
 
     // transfer arrays to cuda device if needed
@@ -139,15 +152,28 @@ double UniaxialHamiltonian::calculate_one_spin_energy(const int i) {
 // --------------------------------------------------------------------------
 
 double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+    using std::pow;
 
-    const double e_initial = d2z_(i)*0.5*(3.0*spin_initial[2]*spin_initial[2] - 1.0)
-         + d4z_(i)*0.125*(35.0*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2]-30.0*spin_initial[2]*spin_initial[2] + 3.0)
-         + d6z_(i)*0.0625*(231.0*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2] - 315.0*spin_initial[2]*spin_initial[2]*spin_initial[2]*spin_initial[2] + 105.0*spin_initial[2]*spin_initial[2] - 5.0);
+    const double sz_initial = spin_initial.z;
+    const double sz_final = spin_final.z;
 
+    double e_initial = 0.0;
+    double e_final = 0.0;
 
-    const double e_final = d2z_(i)*0.5*(3.0*spin_final[2]*spin_final[2] - 1.0)
-         + d4z_(i)*0.125*(35.0*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2]-30.0*spin_final[2]*spin_final[2] + 3.0)
-         + d6z_(i)*0.0625*(231.0*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2] - 315.0*spin_final[2]*spin_final[2]*spin_final[2]*spin_final[2] + 105.0*spin_final[2]*spin_final[2] - 5.0);
+    if (has_d2z_) {
+        e_initial += d2z_(i) * 0.5 * (3.0 * pow(sz_initial, 2) - 1.0);
+        e_final += d2z_(i) * 0.5 * (3.0 * pow(sz_final, 2) - 1.0);
+    }
+
+    if (has_d4z_) {
+        e_initial += d4z_(i) * 0.125 * (35.0 * pow(sz_initial, 4) - 30.0 * pow(sz_initial, 2) + 3.0);
+        e_final += d4z_(i) * 0.125 * (35.0 * pow(sz_final, 4) - 30.0 * pow(sz_final, 2) + 3.0);
+    }
+
+    if (has_d6z_) {
+        e_initial += d6z_(i) * 0.0625 * (231.0 * pow(sz_initial, 6) - 315.0 * pow(sz_initial, 4) + 105.0 * pow(sz_initial, 2) - 5.0);
+        e_final += d6z_(i) * 0.0625 * (231.0 * pow(sz_final, 6) - 315.0 * pow(sz_final, 4) + 105.0 * pow(sz_final, 2) - 5.0);
+    }
 
     return e_final - e_initial;
 }
@@ -164,11 +190,26 @@ void UniaxialHamiltonian::calculate_energies() {
 
 void UniaxialHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
     using namespace globals;
-    local_field[0] = 0.0; local_field[1] = 0.0;
-    local_field[2] = -d2z_(i)*3.0*s(i, 2)
-         - d4z_(i)*(17.5*s(i, 2)*s(i, 2)*s(i, 2)-7.5*s(i, 2))
-         - d6z_(i)*(86.625*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2)*s(i, 2) - 78.75*s(i, 2)*s(i, 2)*s(i, 2) + 13.125*s(i, 2));
+    using std::pow;
+    const double sz = s(i, 2);
+    local_field[0] = 0.0;
+    local_field[1] = 0.0;
+    local_field[2] = 0.0;
+
+    if (has_d2z_) {
+        local_field[2] += -d2z_(i)*3.0*sz;
+    }
+
+    if (has_d4z_) {
+        local_field[2] += -d4z_(i) * (17.5 * pow(sz, 3) - 7.5 * sz);
+    }
+
+    if (has_d6z_) {
+        local_field[2] += -d6z_(i) * (86.625 * pow(sz, 5) - 78.75 * pow(sz, 3) + 13.125 * sz);
+    }
 }
+
+
 
 // --------------------------------------------------------------------------
 
@@ -183,10 +224,21 @@ void UniaxialHamiltonian::calculate_fields() {
 #endif  // CUDA
     } else {
         for (int i = 0; i < globals::num_spins; ++i) {
-            double h[3];
-            calculate_one_spin_field(i, h);
-            for(int j = 0; j < 3; ++j) {
-                field_(i,j) = h[j];
+            field_(i, 0) = 0.0;
+            field_(i, 1) = 0.0;
+            field_(i, 0) = 0.0;
+            const double sz = globals::s(i, 2);
+
+            if (has_d2z_) {
+                field_(i, 2) += -d2z_(i)*3.0*sz;
+            }
+
+            if (has_d4z_) {
+                field_(i, 2) += -d4z_(i) * (17.5 * pow(sz, 3) - 7.5 * sz);
+            }
+
+            if (has_d6z_) {
+                field_(i, 2) += -d6z_(i) * (86.625 * pow(sz, 5) - 78.75 * pow(sz, 3) + 13.125 * sz);
             }
         }
     }

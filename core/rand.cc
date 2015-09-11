@@ -29,8 +29,6 @@ void Random::seed(const uint32_t &x) {
   cmwc_c = 123;
   cmwc_r = 4095;
 
-  normal_logic = false;
-
   init_seed = x;
   initialized = true;
 }
@@ -114,26 +112,30 @@ int Random::uniform_discrete(const int min, const int max) {
 ///
 double Random::normal() {
   assert(initialized == true);
+
+  static bool is_cached = false;
+  static double cached_value = 0.0;
   double s, x, y;
-  if (normal_logic == true) {
-    normal_logic = false;
-    return normal_next;
-  } else {
-    do {
-      x = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
-      y = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
 
-      s = (x*x) + (y*y);
-      // floating point comparison below is needed to avoid log(0.0)
-    } while (s > 1.0 || unlikely(s == 0.0));
-
-    s = sqrt(-2.0 * log(s) / s);
-
-    normal_next = s*y;
-    normal_logic = true;
-
-    return s*x;
+  if (is_cached) {
+    is_cached = false;
+    return cached_value;
   }
+
+  do {
+    x = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
+    y = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
+
+    s = (x*x) + (y*y);
+    // floating point comparison below is needed to avoid log(0.0)
+  } while (s > 1.0 || unlikely(s == 0.0));
+
+  s = sqrt(-2.0 * log(s) / s);
+
+  cached_value = s * y;
+  is_cached = true;
+
+  return s * x;
 }
 
 void Random::sphere(double &x, double &y, double &z) {
@@ -143,12 +145,12 @@ void Random::sphere(double &x, double &y, double &z) {
     do {
         v1 = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
         v2 = -1.0 + static_cast<double>(cmwc4096())*norm_open2;
-        s = (v1*v1) + (v2*v2);
+        s = (v1 * v1) + (v2 * v2);
     } while ( s > 1.0 );
 
     ss = sqrt(1.0 - s);
 
-    x = 2.0*v1*ss;
-    y = 2.0*v2*ss;
-    z = 1.0 - 2.0*s;
+    x = 2.0 * v1 * ss;
+    y = 2.0 * v2 * ss;
+    z = 1.0 - 2.0 * s;
 }

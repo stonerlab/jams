@@ -41,6 +41,10 @@ class UniaxialHamiltonian : public Hamiltonian {
         jblib::Array<double, 1> d4z_;
         jblib::Array<double, 1> d6z_;
 
+        bool has_d2z_;
+        bool has_d4z_;
+        bool has_d6z_;
+
 #ifdef CUDA
         jblib::CudaArray<double, 1> dev_d2z_;
         jblib::CudaArray<double, 1> dev_d4z_;
