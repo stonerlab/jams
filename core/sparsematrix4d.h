@@ -27,7 +27,7 @@ class SparseMatrix4D {
         SparseMatrix4D()
             : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
             matrixType(SPARSE_MATRIX_TYPE_GENERAL),
-            matrixMode(SPARSE_MATRIX_MODE_UPPER),
+            matrixMode(SPARSE_FILL_MODE_UPPER),
             dim(4, 0),
             nnz_unmerged(0),
             nnz(0),
@@ -44,7 +44,7 @@ class SparseMatrix4D {
         SparseMatrix4D(size_type m, size_type n, size_type p, size_type q)
             : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
             matrixType(SPARSE_MATRIX_TYPE_GENERAL),
-            matrixMode(SPARSE_MATRIX_MODE_UPPER),
+            matrixMode(SPARSE_FILL_MODE_UPPER),
             dim(4, 0),
             nnz_unmerged(0),
             nnz(0),
@@ -74,11 +74,11 @@ class SparseMatrix4D {
             l_idx.clear();
         }
 
-        inline SparseMatrixFormat_t getMatrixFormat(){ return matrixFormat; }
-        inline void setMatrixType(SparseMatrixType_t type){ matrixType = type; }
-        inline SparseMatrixType_t getMatrixType(){ return matrixType; }
-        inline void setMatrixMode(SparseMatrixMode_t mode){ matrixMode = mode; }
-        inline SparseMatrixMode_t getMatrixMode(){ return matrixMode; }
+        inline sparse_matrix_format_t getMatrixFormat(){ return matrixFormat; }
+        inline void setMatrixType(sparse_matrix_type_t type){ matrixType = type; }
+        inline sparse_matrix_type_t getMatrixType(){ return matrixType; }
+        inline void setMatrixMode(sparse_fill_mode_t mode){ matrixMode = mode; }
+        inline sparse_fill_mode_t getMatrixMode(){ return matrixMode; }
 
         void insertValue(size_type i, size_type j, size_type k, size_type l, _Tp value);
 
@@ -99,9 +99,9 @@ class SparseMatrix4D {
 
         typedef std::vector< std::pair<int64_t, _Tp> > coo_mmp;
 
-        SparseMatrixFormat_t  matrixFormat;
-        SparseMatrixType_t    matrixType;
-        SparseMatrixMode_t    matrixMode;
+        sparse_matrix_format_t  matrixFormat;
+        sparse_matrix_type_t    matrixType;
+        sparse_fill_mode_t    matrixMode;
         std::vector<size_type>  dim;
         size_type             nnz_unmerged;
         size_type             nnz;

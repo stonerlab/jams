@@ -62,7 +62,7 @@ GITSHORT = $(shell git rev-parse --short HEAD)
 CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
 SYSTYPE = $(shell uname -s)
 
-CFLAGS = -march=native -fno-finite-math-only -fno-stack-protector -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
+CFLAGS = -march=native -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
 LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
@@ -210,8 +210,8 @@ else
 endif
 
 ifdef MKLROOT
-	CC = icc
-	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -DMKL
+	CC = icpc
+	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -D__INTEL_COMPILER -DMKL
 	BASIC_LDFLAGS += -L$(MKLROOT)/lib/intel64
 	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 else
@@ -226,7 +226,7 @@ ifndef NO_CUDA
 		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler "-stdlib=libstdc++ -DNDEBUG" -Xlinker -stdlib=libstdc++
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
-		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -fno-stack-protector -O3 -g -funroll-loops -DNDEBUG"
+		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -O3 -g -funroll-loops -DNDEBUG"
 	endif
 	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
@@ -245,7 +245,7 @@ ifdef H5DIR
 	BASIC_CFLAGS += -I$(H5DIR)/include
 	BASIC_LDFLAGS += -L$(H5DIR)/lib
 endif
-EXTLIBS += -lhdf5 -lhdf5_cpp -lsymspg
+EXTLIBS += -lhdf5 -lhdf5_cpp -lsymspg -lblas
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
 ALL_CUFLAGS += $(BASIC_CFLAGS) $(BASIC_CUFLAGS)

@@ -49,22 +49,22 @@ void Solver::initialize(int argc, char **argv, double idt) {
   // redundancy means that out[i] is the conjugate of out[n-i].
   // (http://www.fftw.org/fftw3_doc/One_002dDimensional-DFTs-of-Real-Data.html#One_002dDimensional-DFTs-of-Real-Data)
 
-  globals::sq.resize(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3);
-  globals::hq.resize(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3);
-  globals::wq.resize(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3, 3);
+  // globals::sq.resize(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3);
+  // globals::hq.resize(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3);
+  // globals::wq.resize(globals::wij.size(0), globals::wij.size(1), (globals::wij.size(2)/2)+1, 3, 3);
 
-  const int kspace_dimensions[3] = {globals::wij.size(0), globals::wij.size(1), globals::wij.size(2)};
+  // const int kspace_dimensions[3] = {globals::wij.size(0), globals::wij.size(1), globals::wij.size(2)};
 
-  ::output.write("kspace dimensions: %d %d %d", globals::wij.size(0), globals::wij.size(1), globals::wij.size(2));
+  // ::output.write("kspace dimensions: %d %d %d", globals::wij.size(0), globals::wij.size(1), globals::wij.size(2));
 
-  ::output.write("\nFFT planning\n");
+  // ::output.write("\nFFT planning\n");
 
 
-  spin_fft_forward_transform   = fftw_plan_many_dft_r2c(3, kspace_dimensions, 3, s.data(),  NULL, 3, 1, sq.data(), NULL, 3, 1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
-  field_fft_backward_transform = fftw_plan_many_dft_c2r(3, kspace_dimensions, 3, hq.data(), NULL, 3, 1, h_dipole.data(),  NULL, 3, 1, FFTW_ESTIMATE);
+  // spin_fft_forward_transform   = fftw_plan_many_dft_r2c(3, kspace_dimensions, 3, s.data(),  NULL, 3, 1, sq.data(), NULL, 3, 1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
+  // field_fft_backward_transform = fftw_plan_many_dft_c2r(3, kspace_dimensions, 3, hq.data(), NULL, 3, 1, h_dipole.data(),  NULL, 3, 1, FFTW_ESTIMATE);
   // interaction_fft_transform    = fftw_plan_many_dft_r2c(3, kspace_dimensions, 9, wij.data(),  NULL, 9, 1, wq.data(), NULL, 9, 1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
 
-  ::output.write("\nFFT transform interaction matrix\n");
+  // ::output.write("\nFFT transform interaction matrix\n");
 
   // fftw_execute(interaction_fft_transform);
 

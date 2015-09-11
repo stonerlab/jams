@@ -72,9 +72,14 @@ class Lattice {
     // lookup the site index but unit cell integer coordinates and motif offset
     inline int site_index_by_unit_cell(const int i, const int j, const int k, const int m) const {
         assert(i < num_unit_cells(0));
+        assert(i >= 0);
         assert(j < num_unit_cells(1));
+        assert(j >= 0);
         assert(k < num_unit_cells(2));
+        assert(k >= 0);
         assert(m < num_unit_cell_positions());
+        assert(m >= 0);
+
         return lattice_map_(i, j, k, m);
     }
 

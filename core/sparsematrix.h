@@ -17,22 +17,39 @@
 
 #define RESTRICT __restrict__
 
-typedef enum {
+typedef enum
+{
   SPARSE_MATRIX_FORMAT_MAP = 0,
   SPARSE_MATRIX_FORMAT_COO = 1,
   SPARSE_MATRIX_FORMAT_CSR = 2,
   SPARSE_MATRIX_FORMAT_DIA = 3,
-} SparseMatrixFormat_t;
+} sparse_matrix_format_t;
 
-typedef enum {
-  SPARSE_MATRIX_TYPE_GENERAL   = 0,
-  SPARSE_MATRIX_TYPE_SYMMETRIC = 1
-} SparseMatrixType_t;
+// these definition mirror those in mkl_spblas.h
+#ifndef MKL
 
-typedef enum {
-  SPARSE_MATRIX_MODE_UPPER = 0,
-  SPARSE_MATRIX_MODE_LOWER = 1
-} SparseMatrixMode_t;
+typedef enum
+{
+  SPARSE_MATRIX_TYPE_GENERAL            = 20,
+  SPARSE_MATRIX_TYPE_SYMMETRIC          = 21,
+  SPARSE_MATRIX_TYPE_HERMITIAN          = 22,
+  SPARSE_MATRIX_TYPE_TRIANGULAR         = 23,
+  SPARSE_MATRIX_TYPE_DIAGONAL           = 24,
+  SPARSE_MATRIX_TYPE_BLOCK_TRIANGULAR   = 25,
+  SPARSE_MATRIX_TYPE_BLOCK_DIAGONAL     = 26
+} sparse_matrix_type_t;
+
+typedef enum
+{
+  SPARSE_FILL_MODE_LOWER = 40,
+  SPARSE_FILL_MODE_UPPER = 41
+} sparse_fill_mode_t;
+
+#else
+
+#include <mkl_spblas.h>
+
+#endif
 
 // taken from CUSP
 template< class _Tp1, class _Tp2>
@@ -55,7 +72,7 @@ class SparseMatrix {
     SparseMatrix()
       : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
         matrixType(SPARSE_MATRIX_TYPE_GENERAL),
-        matrixMode(SPARSE_MATRIX_MODE_UPPER),
+        matrixMode(SPARSE_FILL_MODE_UPPER),
         nrows(0),
         ncols(0),
         nnz_unmerged(0),
@@ -71,7 +88,7 @@ class SparseMatrix {
     SparseMatrix(size_type m, size_type n)
       : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
         matrixType(SPARSE_MATRIX_TYPE_GENERAL),
-        matrixMode(SPARSE_MATRIX_MODE_UPPER),
+        matrixMode(SPARSE_FILL_MODE_UPPER),
         nrows(m),
         ncols(n),
         nnz_unmerged(0),
@@ -97,11 +114,11 @@ class SparseMatrix {
       matrixMap.clear();
     }
 
-    inline SparseMatrixFormat_t getMatrixFormat(){ return matrixFormat; }
-    inline void setMatrixType(SparseMatrixType_t type){ matrixType = type; }
-    inline SparseMatrixType_t getMatrixType(){ return matrixType; }
-    inline void setMatrixMode(SparseMatrixMode_t mode){ matrixMode = mode; }
-    inline SparseMatrixMode_t getMatrixMode(){ return matrixMode; }
+    inline sparse_matrix_format_t getMatrixFormat(){ return matrixFormat; }
+    inline void setMatrixType(sparse_matrix_type_t type){ matrixType = type; }
+    inline sparse_matrix_type_t getMatrixType(){ return matrixType; }
+    inline void setMatrixMode(sparse_fill_mode_t mode){ matrixMode = mode; }
+    inline sparse_fill_mode_t getMatrixMode(){ return matrixMode; }
 
     void insertValue(size_type i, size_type j, _Tp value);
 
@@ -140,9 +157,9 @@ class SparseMatrix {
 //    typedef std::multimap <int64_t, _Tp, std::less<int64_t> > coo_mmp;
     typedef std::vector< std::pair<int64_t, _Tp> > coo_mmp;
 
-    SparseMatrixFormat_t  matrixFormat;
-    SparseMatrixType_t    matrixType;
-    SparseMatrixMode_t    matrixMode;
+    sparse_matrix_format_t  matrixFormat;
+    sparse_matrix_type_t    matrixType;
+    sparse_fill_mode_t    matrixMode;
     size_type             nrows;
     size_type             ncols;
     size_type             nnz_unmerged;
@@ -199,7 +216,7 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
     if( ((i < nrows) && (i >= 0)) && ((j < ncols) && (j >= 0)) ) { // element must be inside matrix boundaries
 
       if(matrixType == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-        if(matrixMode == SPARSE_MATRIX_MODE_UPPER) {
+        if(matrixMode == SPARSE_FILL_MODE_UPPER) {
           if( i > j ) {
             jams_error("Attempted to insert lower matrix element in symmetric upper sparse matrix");
           }
@@ -210,7 +227,7 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
         }
       }
     } else {
-      jams_error("Attempted to insert matrix element outside of matrix size");
+      jams_error("Attempted to insert matrix element (%d, %d) outside of matrix size (%d, %d)", i, j, nrows, ncols);
     }
 
     // static casts to force 64bit arithmetic

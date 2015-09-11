@@ -49,11 +49,11 @@ class ExchangeHamiltonian : public Hamiltonian {
         void output_fields_text();
         // void output_fields_hdf5();
 
-        SparseMatrixFormat_t sparse_matrix_format();
+        sparse_matrix_format_t sparse_matrix_format();
         void set_sparse_matrix_format(std::string &format_name);
 
         SparseMatrix<double> interaction_matrix_;
-        SparseMatrixFormat_t interaction_matrix_format_;
+        sparse_matrix_format_t interaction_matrix_format_;
         double energy_cutoff_;
         double distance_tolerance_;
 

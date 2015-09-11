@@ -37,7 +37,7 @@ bool ExchangeHamiltonian::insert_interaction(const int m, const int n, const jbl
       if (fabs(value[i][j]) > energy_cutoff_) {
         counter++;
         if(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-          if(interaction_matrix_.getMatrixMode() == SPARSE_MATRIX_MODE_LOWER) {
+          if(interaction_matrix_.getMatrixMode() == SPARSE_FILL_MODE_LOWER) {
             if(m >= n){
               interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/kBohrMagneton);
             }
@@ -143,7 +143,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     // if (solver->is_cuda_solver()) {
 // #ifdef CUDA
 //       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-//       interaction_matrix_.setMatrixMode(SPARSE_MATRIX_MODE_LOWER);
+//       interaction_matrix_.setMatrixMode(SPARSE_FILL_MODE_LOWER);
 // #endif  //CUDA
 //     } else {
       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
@@ -158,7 +158,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
       for (int j = 0; j < lattice.num_unit_cells(1); ++j) {
         for (int k = 0; k < lattice.num_unit_cells(2); ++k) {
           // loop over atoms in the unit_cell
-          for (int m = 0, mend = lattice.num_unit_cell_positions(); m < mend; ++m) {
+          for (int m = 0; m < lattice.num_unit_cell_positions(); ++m) {
             int local_site = lattice.site_index_by_unit_cell(i, j, k, m);
 
             std::vector<bool> is_already_interacting(globals::num_spins, false);
@@ -796,7 +796,7 @@ void ExchangeHamiltonian::output_fields_text() {
     outfile.close();
 }
 
-SparseMatrixFormat_t ExchangeHamiltonian::sparse_matrix_format() {
+sparse_matrix_format_t ExchangeHamiltonian::sparse_matrix_format() {
   return interaction_matrix_format_;
 }
 

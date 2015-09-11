@@ -95,7 +95,6 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianTensor::calculate_total_energy() {
-   assert(energies.size(0) == globals::num_spins);
    double e_total = 0.0;
    for (int i = 0; i < globals::num_spins; ++i) {
        e_total += calculate_one_spin_energy(i);
@@ -127,7 +126,7 @@ double DipoleHamiltonianTensor::calculate_one_spin_energy_difference(const int i
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianTensor::calculate_energies(jblib::Array<double, 1>& energies) {
-    assert(energies.size(0) == globals::num_spins);
+    assert(energies.size() == globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
         energies[i] = calculate_one_spin_energy(i);
     }

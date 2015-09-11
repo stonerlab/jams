@@ -727,17 +727,14 @@ void Lattice::calc_symmetry_operations() {
 // if there are not periodic boundaries and this position is outside of the finite
 // lattice then the function returns false
 bool Lattice::apply_boundary_conditions(jblib::Vec3<int>& pos) const {
-    bool is_within_lattice = true;
     for (int l = 0; l < 3; ++l) {
-      if (is_periodic(l)) {
-        pos[l] = (pos[l] + lattice.num_unit_cells(l))%lattice.num_unit_cells(l);
+      if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= lattice.num_unit_cells(l))) {
+        return false;
       } else {
-        if (pos[l] < 0 || pos[l] >= lattice.num_unit_cells(l)) {
-          is_within_lattice = false;
-        }
+        pos[l] = (pos[l] + lattice.num_unit_cells(l))%lattice.num_unit_cells(l);
       }
     }
-    return is_within_lattice;
+    return true;
 }
 
 // same as the Vec3 version but accepts a Vec4 where the last component is the motif
