@@ -98,7 +98,6 @@ double approximate_float_as_fraction(long &nominator, long &denominator, const d
 }
 
 
-
 double legendre_poly(const double x, const int n) {
 
   switch (n)
@@ -119,34 +118,21 @@ double legendre_poly(const double x, const int n) {
       return legendre_poly_6(x);
   }
 
-  if (unlikely(x == 1.0)) {
-    return 1.0;
-  }
+    double p_lm2 = 1.0;
+    double p_lm1 = x;
+    double p_l = 0.0;
 
-  if (unlikely(x == -1.0)) {
-    if (n % 2) {
-      return -1.0;
-    } else {
-      return 1.0;
-    }
-  }
+    for (unsigned int nn = 2; nn <= n; ++nn)
+      {
+        //  This arrangement is supposed to be better for roundoff
+        //  protection, Arfken, 2nd Ed, Eq 12.17a.
+        p_l = 2.0 * x * p_lm1 - p_lm2
+              - (x * p_lm1 - p_lm2) / double(nn);
+        p_lm2 = p_lm1;
+        p_lm1 = p_l;
+      }
 
-  if (unlikely(x == 0.0) && n % 2) {
-    return 0.0;
-  }
-
-  // http://www.storage-b.com/math-numerical-analysis/18
-  double pn1(legendre_poly_2(x));
-  double pn2(legendre_poly_1(x));
-  double pn(pn1);
-
-  for (int l = 3; l < n + 1; ++l) {
-    pn =  (((2.0 * l) - 1.0) * x * pn1 - ((l - 1.0) * pn2)) / static_cast<double>(l);
-    pn2 = pn1;
-    pn1 = pn;
-  }
-
-  return pn;
+      return p_l;
 }
 
 

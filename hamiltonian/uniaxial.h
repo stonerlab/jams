@@ -37,18 +37,12 @@ class UniaxialHamiltonian : public Hamiltonian {
         void output_fields_text();
         // void output_fields_hdf5();
 
-        jblib::Array<double, 1> d2z_;
-        jblib::Array<double, 1> d4z_;
-        jblib::Array<double, 1> d6z_;
-
-        bool has_d2z_;
-        bool has_d4z_;
-        bool has_d6z_;
+        std::vector<int> mca_order_;   // MCA expressed as a Legendre polynomial
+        std::vector< jblib::Array<double, 1> > mca_value_;
 
 #ifdef CUDA
-        jblib::CudaArray<double, 1> dev_d2z_;
-        jblib::CudaArray<double, 1> dev_d4z_;
-        jblib::CudaArray<double, 1> dev_d6z_;
+        jblib::CudaArray<int, 1> dev_mca_order_;
+        jblib::CudaArray<double, 1> dev_mca_value_;
 #endif  // CUDA
 
 };
