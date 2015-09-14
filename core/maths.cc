@@ -1,6 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include "core/maths.h"
+#include "core/utils.h"
 
 void matrix_invert(const double in[3][3], double out[3][3]) {
   double det = in[0][0]*(in[1][1]*in[2][2]-in[1][2]*in[2][1])
@@ -94,4 +95,84 @@ double approximate_float_as_fraction(long &nominator, long &denominator, const d
       nominator = m[0][0];
       denominator = m[1][0];
       return real - ((double) m[0][0] / (double) m[1][0]);
+}
+
+
+
+double legendre_poly(const double x, const int n) {
+
+  switch (n)
+  {
+    case 0:
+      return legendre_poly_0(x);
+    case 1:
+      return legendre_poly_1(x);
+    case 2:
+      return legendre_poly_2(x);
+    case 3:
+      return legendre_poly_3(x);
+    case 4:
+      return legendre_poly_4(x);
+    case 5:
+      return legendre_poly_5(x);
+    case 6:
+      return legendre_poly_6(x);
+  }
+
+  if (unlikely(x == 1.0)) {
+    return 1.0;
+  }
+
+  if (unlikely(x == -1.0)) {
+    if (n % 2) {
+      return -1.0;
+    } else {
+      return 1.0;
+    }
+  }
+
+  if (unlikely(x == 0.0) && n % 2) {
+    return 0.0;
+  }
+
+  // http://www.storage-b.com/math-numerical-analysis/18
+  double pn1(legendre_poly_2(x));
+  double pn2(legendre_poly_1(x));
+  double pn(pn1);
+
+  for (int l = 3; l < n + 1; ++l) {
+    pn =  (((2.0 * l) - 1.0) * x * pn1 - ((l - 1.0) * pn2)) / static_cast<double>(l);
+    pn2 = pn1;
+    pn1 = pn;
+  }
+
+  return pn;
+}
+
+
+double legendre_dpoly(const double x, const int n) {
+
+  switch (n)
+  {
+    case 0:
+      return legendre_dpoly_0(x);
+    case 1:
+      return legendre_dpoly_1(x);
+    case 2:
+      return legendre_dpoly_2(x);
+    case 3:
+      return legendre_dpoly_3(x);
+    case 4:
+      return legendre_dpoly_4(x);
+    case 5:
+      return legendre_dpoly_5(x);
+    case 6:
+      return legendre_dpoly_6(x);
+  }
+
+  if (unlikely(x == 0.0) && n % 2 == 0) {
+    return 0.0;
+  }
+
+  return (x * legendre_poly(x, n) - legendre_poly(x, n - 1)) / static_cast<double>(2 * n + 1);
 }
