@@ -573,13 +573,11 @@ double ExchangeHamiltonian::calculate_one_spin_energy(const int i) {
     const int    *ptrb = interaction_matrix_.ptrB();
     const int    *ptre = interaction_matrix_.ptrE();
     const double *x   = s.data();
-    int           k;
 
     for (int m = 0; m < 3; ++m) {
       int begin = ptrb[3*i+m]; int end = ptre[3*i+m];
       for (int j = begin; j < end; ++j) {
-        k = indx[j];
-        jij_sj[m] = jij_sj[m] + x[k]*val[j];
+        jij_sj[m] = jij_sj[m] + x[ indx[j] ]*val[j];
       }
     }
     return -(s(i,0)*jij_sj[0] + s(i,1)*jij_sj[1] + s(i,2)*jij_sj[2]);
@@ -620,14 +618,14 @@ void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_fie
     const int    *indx = interaction_matrix_.colPtr();
     const int    *ptrb = interaction_matrix_.ptrB();
     const int    *ptre = interaction_matrix_.ptrE();
-    // const double *x   = s.data();
+    const double *x   = s.data();
     int j, m, begin, end;
 
     for (m = 0; m < 3; ++m) {
       begin = ptrb[3*i+m]; end = ptre[3*i+m];
       for (j = begin; j < end; ++j) {
         // k = indx[j];
-        local_field[m] = local_field[m] + s[ indx[j] ]*val[j];
+        local_field[m] = local_field[m] + x[ indx[j] ]*val[j];
       }
     }
 }

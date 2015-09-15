@@ -59,11 +59,7 @@ void MagnetisationMonitor::update(Solver * solver) {
 
     int i, j;
 
-    for (i = 0; i < lattice.num_materials(); ++i) {
-      for (j = 0; j < 4; ++j) {
-        mag(i, j) = 0.0;
-      }
-    }
+    mag.zero();
 
     for (i = 0; i < num_spins; ++i) {
       int type = lattice.material(i);

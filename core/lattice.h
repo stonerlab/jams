@@ -207,7 +207,8 @@ Lattice::material_count(const int i) const {
 inline int
 Lattice::material(const int i) {
     assert(i < lattice_materials_.size());
-    return material_map_[lattice_materials_[i]];
+    return lattice_material_num_[i];
+    // return material_map_[lattice_materials_[i]];
 }
 
 inline std::string

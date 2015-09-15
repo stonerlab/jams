@@ -9,23 +9,19 @@
 
 UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
-
+    ::output.write("initialising Uniaxial Hamiltonian\n");
     // output in default format for now
     outformat_ = TEXT;
 
     // resize member arrays
     energy_.resize(globals::num_spins);
     field_.resize(globals::num_spins, 3);
+    field_.zero();
 
     bool has_d2z = false;
     bool has_d4z = false;
     bool has_d6z = false;
 
-    for (int i = 0; i < globals::num_spins; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            field_(i, j) = 0.0;
-        }
-    }
 
     // don't allow mixed specification of anisotropy
     if ( (settings.exists("K1") || settings.exists("K2") || settings.exists("K3")) &&
@@ -47,6 +43,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         }
         has_d2z = true;
     }
+
 
     if(settings.exists("K2")) {
         if (settings["K2"].getLength() != lattice.num_materials()) {
@@ -105,12 +102,15 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: d2z must be specified for every material");
         }
         mca_order_.push_back(2);
+
         jblib::Array<double, 1> mca(globals::num_spins, 0.0);
         for (int i = 0; i < globals::num_spins; ++i) {
             mca(i) = double(settings["d2z"][lattice.material(i)])/kBohrMagneton;
         }
         mca_value_.push_back(mca);
     }
+
+
 
     if(settings.exists("d4z")) {
         if (settings["d4z"].getLength() != lattice.num_materials()) {
@@ -135,6 +135,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         }
         mca_value_.push_back(mca);
     }
+
 
     // transfer arrays to cuda device if needed
 #ifdef CUDA
@@ -242,14 +243,10 @@ void UniaxialHamiltonian::calculate_fields() {
             (globals::num_spins, mca_order_.size(), dev_mca_order_.data(), dev_mca_value_.data(), solver->dev_ptr_spin(), dev_field_.data());
 #endif  // CUDA
     } else {
-        for (int i = 0; i < globals::num_spins; ++i) {
-            field_(i, 0) = 0.0;
-            field_(i, 1) = 0.0;
-            field_(i, 0) = 0.0;
-            const double sz = globals::s(i, 2);
-
-            for (int n = 0; n < mca_order_.size(); ++n) {
-                field_(i, 2) += -mca_value_[n](i) * legendre_dpoly(sz, mca_order_[n]);
+        field_.zero();
+        for (int n = 0; n < mca_order_.size(); ++n) {
+            for (int i = 0; i < globals::num_spins; ++i) {
+                field_(i, 2) += -mca_value_[n](i) * legendre_dpoly(globals::s(i, 2), mca_order_[n]);
             }
         }
     }

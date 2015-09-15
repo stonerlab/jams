@@ -437,10 +437,10 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
         s_old_1_ = globals::s;
     }
 
-
-    for (int i = 0, iend = s_recip_.elements(); i < iend; ++i) {
-        s_nonlocal_[i];
-    }
+    s_nonlocal_.zero();
+    // for (int i = 0, iend = s_recip_.elements(); i < iend; ++i) {
+    //     s_nonlocal_[i];
+    // }
 
     for (int i = 0; i < globals::num_spins; ++i) {
          pos = ::lattice.super_cell_pos(i);

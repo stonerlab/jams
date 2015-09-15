@@ -198,11 +198,12 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   counter = 0;
 
   std::string line;
-  std::stringstream line_as_stream;
-  std::pair<std::string, jblib::Vec3<double> > atom;
 
   // read the motif into an array from the positions file
   while (getline(position_file, line)) {
+    std::stringstream line_as_stream;
+    std::pair<std::string, jblib::Vec3<double> > atom;
+
     line_as_stream.str(line);
     // read atom type name
     line_as_stream >> atom.first;
