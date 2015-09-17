@@ -8,7 +8,10 @@
 #include "hamiltonian/uniaxial_kernel.h"
 
 UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
-: Hamiltonian(settings) {
+: Hamiltonian(settings),
+  mca_order_(),
+  mca_value_()
+{
     ::output.write("initialising Uniaxial Hamiltonian\n");
     // output in default format for now
     outformat_ = TEXT;
@@ -154,7 +157,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < mca_order_.size(); ++j) {
-                tmp_mca_value[ mca_order_.size() * i + j] = mca_value_[i](j);
+                tmp_mca_value[ mca_order_.size() * i + j] = mca_value_[j](i);
             }
         }
         dev_mca_value_ = tmp_mca_value;
