@@ -1,5 +1,12 @@
 #include <cmath>
 
+#ifdef __APPLE__
+  #include <Accelerate/Accelerate.h>
+#else
+  #include <cblas.h>
+#endif
+
+
 #include "core/globals.h"
 #include "core/consts.h"
 #include "core/utils.h"
@@ -39,7 +46,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
     output.write("  dipole tensor memory estimate (MB):\n    %f\n", std::pow(double(globals::num_spins*3), 2)*8/double(1024*1024) );
 
-    dipole_tensor_.resize(globals::num_spins*3, globals::num_spins*3);
+    dipole_tensor_.resize(globals::num_spins3, globals::num_spins3);
 
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
@@ -83,7 +90,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
                         for (int m = 0; m < 3; ++m) {
                             for (int n = 0; n < 3; ++n) {
-                                dipole_tensor_(3*i + m, 3*j + n) += tensor[m][n]*prefactor*globals::mus(j)/pow(r_abs,3);
+                                dipole_tensor_(3*i + m, 3*j + n) += tensor[m][n]*prefactor*globals::mus(i)*globals::mus(j)/pow(r_abs,3);
                             }
                         }
                     }
@@ -100,7 +107,7 @@ double DipoleHamiltonianTensor::calculate_total_energy() {
    for (int i = 0; i < globals::num_spins; ++i) {
        e_total += calculate_one_spin_energy(i);
    }
-    return e_total;
+    return 0.5*e_total;
 }
 
 // --------------------------------------------------------------------------
@@ -109,7 +116,7 @@ double DipoleHamiltonianTensor::calculate_total_energy() {
 double DipoleHamiltonianTensor::calculate_one_spin_energy(const int i, const jblib::Vec3<double> &s_i) {
     double h[3];
     calculate_one_spin_field(i, h);
-    return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2])*globals::mus(i);
+    return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2]);
 }
 
 // --------------------------------------------------------------------------
@@ -122,7 +129,7 @@ double DipoleHamiltonianTensor::calculate_one_spin_energy(const int i) {
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianTensor::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
-    return calculate_one_spin_energy(i, spin_final) - calculate_one_spin_energy(i, spin_initial);
+    return 0.5*(calculate_one_spin_energy(i, spin_final) - calculate_one_spin_energy(i, spin_initial));
 }
 // --------------------------------------------------------------------------
 
@@ -136,22 +143,63 @@ void DipoleHamiltonianTensor::calculate_energies(jblib::Array<double, 1>& energi
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianTensor::calculate_one_spin_field(const int i, double h[3]) {
-    int j,m;
-    for (m = 0; m < 3; ++m) {
-        h[m] = 0.0;
-    }
-    for (j = 0; j < globals::num_spins3; ++j) {
-        for (m = 0; m < 3; ++m) {
-            h[m] += dipole_tensor_(3*i + m, j)*globals::s[j];
-        }
-    }
+    // int j,m;
+    // for (m = 0; m < 3; ++m) {
+    //     h[m] = 0.0;
+    // }
+    // for (j = 0; j < globals::num_spins3; ++j) {
+    //     for (m = 0; m < 3; ++m) {
+    //         h[m] += dipole_tensor_(3*i + m, j)*globals::s[j];
+    //     }
+    // }
+
+    cblas_dgemv(
+        CblasRowMajor,          // storage order
+        CblasNoTrans,           // transpose?
+        3,                      // m rows
+        globals::num_spins3,    // n cols
+        1.0,                    // alpha
+        dipole_tensor_.data()+(3*i*globals::num_spins3),   // A matrix
+        globals::num_spins3,    // first dimension of A
+        globals::s.data(),       // x vector
+        1,                      // increment of x
+        0.0,                    // beta
+        &h[0],           // y vector
+        1                       // increment of y
+        );
 }
 
 
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianTensor::calculate_fields(jblib::Array<double, 2>& energies) {
+void DipoleHamiltonianTensor::calculate_fields(jblib::Array<double, 2>& fields) {
+    // int i, j, m, n;
+    // for (i = 0; i < globals::num_spins; ++i) {
+    //     fields(i, 0) = 0.0; fields(i, 1) = 0.0; fields(i, 2) = 0.0;
+    //     for (j = 0; j < globals::num_spins; ++j) {
+    //         for (m = 0; m < 3; ++m) {
+    //             for (n = 0; n < 3; ++n) {
+    //                 fields(i, m) += dipole_tensor_(3*i + m, 3*j + n)*globals::s(j, n);
+    //             }
+    //         }
+    //     }
+    // }
 
+    // // y := alpha*A*x + beta*y
+    cblas_dgemv(
+        CblasRowMajor,          // storage order
+        CblasNoTrans,           // transpose?
+        globals::num_spins3,    // m rows
+        globals::num_spins3,    // n cols
+        1.0,                    // alpha
+        dipole_tensor_.data(),   // A matrix
+        globals::num_spins3,    // first dimension of A
+        globals::s.data(),       // x vector
+        1,                      // increment of x
+        0.0,                    // beta
+        fields.data(),           // y vector
+        1                       // increment of y
+        );
 }
 
 // --------------------------------------------------------------------------
