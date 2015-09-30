@@ -135,7 +135,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     throw std::runtime_error("config: lattice parameter cannot be negative");
   }
 
-  printf("\n  unitcell volume (m^3):\n    %3.6e\n", std::abs(unit_cell_.determinant())*std::pow(lattice_parameter_,3));
+  printf("\n  unitcell volume (m^3):\n    %3.6e\n", this->volume());
 
   for (int i = 0; i < 3; ++i) {
     lattice_size_[i] = lattice_settings["size"][i];
