@@ -141,7 +141,7 @@ int jams_initialize(int argc, char **argv) {
         randomseed = time(NULL);
         output.write("  * Random generator seeded from time\n");
       }
-      output.write("  * Seed: %d\n", randomseed);
+      output.write("  * Seed: %u\n", randomseed);
 
       rng.seed(randomseed);
 
