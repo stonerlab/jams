@@ -72,7 +72,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
     local_interaction_matrix_.resize(globals::num_spins*3, globals::num_spins*3);
 
-    const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.parameter(),3);
+    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
 
     // --------------------------------------------------------------------------
     // local real space interactions
@@ -202,7 +202,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                                  FFTW_PATIENT);
 
     // divide by product(kspace_padded_size_) instead or normalizing the FFT result later
-    const double recip_factor = 4*kPi*kVacuumPermeadbility_FourPi*kBohrMagneton/(lattice.volume()*product(kspace_padded_size_));
+    const double recip_factor = kVacuumPermeadbility*kBohrMagneton/(lattice.volume()*product(kspace_padded_size_));
     jblib::Vec3<double> kvec;
     double k_abs;
     for (int i = 0; i < kspace_padded_size_[0]; ++i) {

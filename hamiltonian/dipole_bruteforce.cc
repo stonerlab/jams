@@ -58,7 +58,7 @@ void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h
     double r_abs, sj_dot_rhat;
     jblib::Vec3<double> r_ij, r_hat;
 
-    const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.parameter(),3);
+    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
 
     h[0] = 0.0; h[1] = 0.0; h[2] = 0.0;
     for (j = 0; j < globals::num_spins; ++j) {

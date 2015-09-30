@@ -42,7 +42,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings)
     }
     printf("    k_cutoff: %d\n", k_cutoff_);
 
-    const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.parameter(),3);
+    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
 
     for (int n = 0; n < 3; ++n) {
         kspace_size_[n] = ::lattice.num_unit_cells(n);

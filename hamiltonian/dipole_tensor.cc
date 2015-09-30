@@ -47,7 +47,8 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
         }
     }
 
-    const double prefactor = kVacuumPermeadbility_FourPi*kBohrMagneton/pow(::lattice.parameter(),3);
+    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
+
     jblib::Matrix<double, 3, 3> tensor;
 
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
