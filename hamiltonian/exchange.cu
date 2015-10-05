@@ -504,10 +504,11 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
           unit_cell_offset = rij + pij - uij;
 
-          jblib::Vec3<double> rij_cart = lattice.cartesian_to_fractional(rij);
+          jblib::Vec3<double> rij_cart = lattice.fractional_to_cartesian(rij);
           ::output.verbose("% 3.6f % 3.6f % 3.6f | % 3.6f % 3.6f % 3.6f | % 6d % 6d % 6d | % 3.6f % 3.6f % 3.6f\n",
             rij.x ,rij.y, rij.z, rij_cart.x ,rij_cart.y, rij_cart.z, int(uij.x), int(uij.y), int(uij.z),
             unit_cell_offset.x, unit_cell_offset.y, unit_cell_offset.z);
+
 
           // find which unit_cell position this offset corresponds to
           // it is possible that it does not correspond to a position in which case the
