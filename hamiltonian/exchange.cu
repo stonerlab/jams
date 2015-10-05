@@ -385,6 +385,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
 
 void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &filename,
   std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
+  bool is_debug_enabled = true;
 
   std::ifstream interaction_file(filename.c_str());
 
@@ -392,11 +393,27 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
     jams_error("failed to open interaction file %s", filename.c_str());
   }
 
+  std::ofstream unfolded_interaction_file;
+  if (is_debug_enabled) {
+    unfolded_interaction_file.open(std::string(seedname+"_unfolded_exc.dat").c_str());
+  }
+
   int_interaction_list.resize(lattice.num_unit_cell_positions());
 
   int counter = 0;
   int line_number = 0;
   // read the unit_cell into an array from the positions file
+
+  ::output.verbose("\ninteraction vectors (%s)\n", filename.c_str());
+
+  if (verbose_output_is_set) {
+    ::output.verbose("unit cell realspace\n");
+    for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
+      jblib::Vec3<double> rij = lattice.unit_cell_position(i);
+      ::output.verbose("%8d % 6.6f % 6.6f % 6.6f\n", i, rij[0], rij[1], rij[2]);
+    }
+  }
+
   for (std::string line; getline(interaction_file, line); ) {
     std::stringstream is(line);
 
@@ -423,12 +440,13 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
       jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
 
+    ::output.verbose("exchange file line: %s\n", line.c_str());
+
     jblib::Vec3<double> r(interaction_vector.x, interaction_vector.y, interaction_vector.z);
     jblib::Vec3<double> r_sym;
 
     jblib::Array<double, 2> sym_interaction_vecs(lattice.num_sym_ops(), 3);
 
-    ::output.verbose("\ninteraction vectors (%s)\n", filename.c_str());
 
     for (int i = 0; i < lattice.num_sym_ops(); i++) {
       jblib::Vec3<double> rij(r[0], r[1], r[2]);
@@ -451,14 +469,6 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
         is_centered_lattice = true;
         jams_warning("Centered lattice is detected. Make sure you know what you are doing!");
         break;
-      }
-    }
-
-    if (verbose_output_is_set) {
-      ::output.verbose("unit cell realspace\n");
-      for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
-        jblib::Vec3<double> rij = lattice.unit_cell_position(i);
-        ::output.verbose("%8d % 6.6f % 6.6f % 6.6f\n", i, rij[0], rij[1], rij[2]);
       }
     }
 
@@ -537,19 +547,48 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
             }
             jblib::Vec4<int> fast_integer_vector(uij[0], uij[1], uij[2], unit_cell_partner - i);
             // ::output.write("%d %d %d %d %d % 3.6f % 3.6f % 3.6f\n", i, unit_cell_partner, fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2], unit_cell_offset[0], unit_cell_offset[1], unit_cell_offset[2]);
-            interaction_set.insert(fast_integer_vector);
+
+            std::pair<std::set<jblib::Vec4<int> >::iterator,bool> ret;
+
+            ret = interaction_set.insert(fast_integer_vector);
+
+            if (ret.second == true) {
+              ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), fast_integer_vector[3] + i, lattice.unit_cell_material_name(fast_integer_vector[3] + i).c_str(), fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2]);
+              int_interaction_list[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
+
+              if (is_debug_enabled) {
+                unfolded_interaction_file << std::setw(12) << type_name_A << "\t";
+                unfolded_interaction_file << std::setw(12) << type_name_B << "\t";
+                unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.x << "\t";
+                unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.y << "\t";
+                unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.z << "\t";
+                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[0][0] << "\t";
+                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[0][1] << "\t";
+                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[0][2] << "\t";
+                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[1][0] << "\t";
+                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[1][1] << "\t";
+                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[1][2] << "\t";
+                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[2][0] << "\t";
+                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[2][1] << "\t";
+                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[2][2] << std::endl;
+              }
+
+              counter++;
+            }
           }
         }
-        for (std::set<jblib::Vec4<int> >::iterator it = interaction_set.begin(); it != interaction_set.end(); ++it) {
-          ::output.verbose("% 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), (*it)[3] + i, lattice.unit_cell_material_name((*it)[3] + i).c_str(), (*it)[0], (*it)[1], (*it)[2]);
-          int_interaction_list[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >((*it), tensor));
-          counter++;
-        }
+        // for (std::set<jblib::Vec4<int> >::iterator it = interaction_set.begin(); it != interaction_set.end(); ++it) {
+
+
+
+        // }
       }
     }
     line_number++;
   }
   ::output.write("  total unit cell interactions: %d\n", counter);
+
+  unfolded_interaction_file.close();
 }
 
 // --------------------------------------------------------------------------
