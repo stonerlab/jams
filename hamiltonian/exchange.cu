@@ -64,18 +64,18 @@ bool ExchangeHamiltonian::insert_interaction(const int m, const int n, const jbl
 ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
 
-    bool is_debug_enabled = false;
+    is_debug_enabled_ = false;
     std::ofstream debug_file;
 
     if (settings.exists("debug")) {
-      is_debug_enabled = settings["debug"];
+      is_debug_enabled_ = settings["debug"];
     }
 
     // if (settings.exists("sparse_format")) {
     //   set_sparse_matrix_format(std::string(settings["sparse_format"]));
     // }
 
-    if (is_debug_enabled) {
+    if (is_debug_enabled_) {
       debug_file.open("debug_exchange.dat");
 
       std::ofstream pos_file("debug_pos.dat");
@@ -196,7 +196,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
               is_already_interacting[neighbour_site] = true;
 
               if (insert_interaction(local_site, neighbour_site, int_interaction_list[m][n].second)) {
-                if (is_debug_enabled) {
+                if (is_debug_enabled_) {
                   debug_file << local_site << "\t" << neighbour_site << "\t";
                   debug_file << lattice.position(local_site).x << "\t";
                   debug_file << lattice.position(local_site).y << "\t";
@@ -218,7 +218,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
                 is_all_inserts_successful = false;
               }
             }
-            if (is_debug_enabled) {
+            if (is_debug_enabled_) {
               debug_file << "\n\n";
             }
           }
@@ -226,7 +226,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
       }
     }
 
-    if (is_debug_enabled) {
+    if (is_debug_enabled_) {
       debug_file.close();
     }
 
@@ -316,7 +316,6 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
 void ExchangeHamiltonian::read_interactions(const std::string &filename,
   std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
-  bool is_debug_enabled = true;
 
   std::ifstream interaction_file(filename.c_str());
 
@@ -325,7 +324,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
   }
 
   std::ofstream unfolded_interaction_file;
-  if (is_debug_enabled) {
+  if (is_debug_enabled_) {
     unfolded_interaction_file.open(std::string(seedname+"_unfolded_exc.dat").c_str());
   }
 
@@ -458,7 +457,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
         ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), fast_integer_vector[3] + i, lattice.unit_cell_material_name(fast_integer_vector[3] + i).c_str(), fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2]);
         int_interaction_list[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
 
-        if (is_debug_enabled) {
+        if (is_debug_enabled_) {
           unfolded_interaction_file << std::setw(12) << type_name_A << "\t";
           unfolded_interaction_file << std::setw(12) << type_name_B << "\t";
           unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.x << "\t";
@@ -486,7 +485,6 @@ unfolded_interaction_file.close();
 
 void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &filename,
   std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
-  bool is_debug_enabled = true;
 
   std::ifstream interaction_file(filename.c_str());
 
@@ -495,7 +493,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
   }
 
   std::ofstream unfolded_interaction_file;
-  if (is_debug_enabled) {
+  if (is_debug_enabled_) {
     unfolded_interaction_file.open(std::string(seedname+"_unfolded_exc.dat").c_str());
   }
 
@@ -657,7 +655,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
               ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), fast_integer_vector[3] + i, lattice.unit_cell_material_name(fast_integer_vector[3] + i).c_str(), fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2]);
               int_interaction_list[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
 
-              if (is_debug_enabled) {
+              if (is_debug_enabled_) {
                 unfolded_interaction_file << std::setw(12) << type_name_A << "\t";
                 unfolded_interaction_file << std::setw(12) << type_name_B << "\t";
                 unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.x << "\t";

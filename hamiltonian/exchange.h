@@ -58,6 +58,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         sparse_matrix_format_t interaction_matrix_format_;
         double energy_cutoff_;
         double distance_tolerance_;
+        bool is_debug_enabled_;
 
 
 #ifdef CUDA
