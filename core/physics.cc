@@ -16,6 +16,7 @@
 #include "physics/mfpt.h"
 #include "physics/square.h"
 #include "physics/ttm.h"
+#include "physics/ping.h"
 
 
 Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0),
@@ -59,7 +60,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
     radius = state_settings["radius"];
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      jblib::Vec3<double> pos = (lattice.lattice_positions_[i]-origin);
+      jblib::Vec3<double> pos = (lattice.position(i)-origin);
 
       if (pos.x*pos.x + pos.y*pos.y < radius*radius) {
         globals::s(i,2) = -globals::s(i,2);
@@ -90,6 +91,10 @@ Physics* Physics::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "FIELDCOOL") {
     return new FieldCoolPhysics(settings);
+  }
+
+  if (capitalize(settings["module"]) == "PING") {
+    return new PingPhysics(settings);
   }
 
   if (capitalize(settings["module"]) == "EMPTY") {

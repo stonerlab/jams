@@ -27,7 +27,6 @@
 namespace {
 
   double dt = 0.0;
-  int steps_eq = 0;
   int steps_run = 0;
   int  steps_bin = 0;
 
@@ -74,15 +73,6 @@ int jams_initialize(int argc, char **argv) {
   output.write("\nDEBUG Build\n");
 #endif
 
-#ifdef CUDA
-  ::cuda_streams = new cudaStream_t [2];
-  for (int i = 0; i < 2; ++i) {
-    if (cudaStreamCreate(&::cuda_streams[i]) != cudaSuccess){
-      jams_error("Failed to create global CUDA streams");
-    }
-  }
-#endif
-
   output.write("\nReading configuration file...\n");
 
   output.write("  * Config file: %s\n", config_filename.c_str());
@@ -109,9 +99,6 @@ int jams_initialize(int argc, char **argv) {
       output.write("  * Timestep:           %1.8e\n", dt);
 
       double time_value = config.lookup("sim.t_eq");
-      steps_eq = static_cast<int>(time_value/dt);
-      output.write("  * Equilibration time: %1.8e (%lu steps)\n",
-        time_value, steps_eq);
 
       time_value = config.lookup("sim.t_run");
       steps_run = static_cast<int>(time_value/dt);
@@ -154,43 +141,11 @@ int jams_initialize(int argc, char **argv) {
         randomseed = time(NULL);
         output.write("  * Random generator seeded from time\n");
       }
-      output.write("  * Seed: %d\n", randomseed);
+      output.write("  * Seed: %u\n", randomseed);
 
       rng.seed(randomseed);
 
-      lattice.initialize();
-
-      if (binary_output_is_set) {
-        std::ofstream binary_state_file
-          (std::string(seedname+"_types.bin").c_str(),
-          std::ios::binary | std::ios::out);
-
-        lattice.output_spin_types_as_binary(binary_state_file);
-
-        binary_state_file.close();
-      }
-
-      // If read_state is true then attempt to read state from binary
-      // file. If this fails (num_spins != num_spins in the file) then JAMS
-      // exits with an error to avoid mistakingly thinking the file was
-      // loaded. NOTE: This must be done after lattice is created but
-      // before the solver is initialized so the GPU solvers can copy the
-      // correct spin array.
-
-      std::string binary_state_filename;
-      if (config.lookupValue("sim.read_state", binary_state_filename)) {
-        output.write("\nread state is ON\n");
-
-        output.write("  Reading spin state from %s\n",
-          binary_state_filename.c_str());
-
-        std::ifstream binary_state_file(binary_state_filename.c_str(),
-          std::ios::binary|std::ios::in);
-
-        lattice.read_spin_state_from_binary(binary_state_file);
-
-        binary_state_file.close();
-      }
+      lattice.init_from_config(::config);
 
       output.write("\nInitialising physics module...\n");
       physics_module = Physics::create(config.lookup("physics"));
@@ -253,53 +208,17 @@ void jams_run() {
     coarse_magnetisation_file.open(std::string(seedname+"_map.dat").c_str());
   }
 
-  output.write("\n----Equilibration----\n");
-  output.write("Running solver\n");
-  for (int i = 0; i < steps_eq; ++i) {
-    solver->update_physics_module();
-    solver->run();
-    solver->notify_monitors();
-  }
-
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   std::clock_t start = std::clock();
+
   for (int i = 0; i < steps_run; ++i) {
-    //   if (coarse_output_is_set) {
-    //     lattice.output_coarse_magnetisation(coarse_magnetisation_file);
-    //     coarse_magnetisation_file << "\n\n";
-    //   }
-
-    // if (binary_output_is_set) {
-    //   if (i%steps_bin == 0) {
-    //     int outcount = i/steps_bin;  // int divisible by modulo above
-
-    //     std::ofstream binary_state_file
-    //       (std::string(seedname+"_"+zero_pad_number(outcount)+".bin").c_str(),
-    //       std::ios::binary|std::ios::out);
-
-    //     lattice.output_spin_state_as_binary(binary_state_file);
-
-    //     binary_state_file.close();
-    //   }
-    // }
-
+    if (i > 1000 && solver->is_converged()) {
+      break;
+    }
     solver->update_physics_module();
-    solver->run();
     solver->notify_monitors();
-  }
-
-  if (save_state_is_set) {
-    output.write(
-      "\n-------------------\nSaving spin state\n-------------------\n");
-
-    std::ofstream binary_state_file
-      (std::string(seedname+"_state.bin").c_str(),
-      std::ios::out|std::ios::binary|std::ios::trunc);
-
-    lattice.output_spin_state_as_binary(binary_state_file);
-
-    binary_state_file.close();
+    solver->run();
   }
 
   double elapsed = static_cast<double>(std::clock()-start);

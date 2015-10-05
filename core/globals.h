@@ -25,8 +25,6 @@
 #ifdef CUDA
 #include <cuda.h>
 #include <cuda_runtime.h>
-
-GLOBAL cudaStream_t* cuda_streams;
 #endif
 GLOBAL Solver *solver;
 GLOBAL Physics *physics_module;

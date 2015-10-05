@@ -6,7 +6,10 @@
 #include <string>
 
 #include "jblib/containers/array.h"
+
+#ifdef CUDA
 #include "jblib/containers/cuda_array.h"
+#endif  // CUDA
 
 #include "core/output.h"
 
@@ -29,21 +32,38 @@ class Hamiltonian {
   // factory
   static Hamiltonian* create(const libconfig::Setting &settings);
 
+  virtual std::string name() const = 0;
+
   virtual double calculate_total_energy() = 0;
   virtual double calculate_one_spin_energy(const int i) = 0;
   virtual         double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) = 0;
 
   virtual void   calculate_energies() = 0;
 
-  virtual void   calculate_one_spin_fields(const int i, double h[3]) = 0;
+  virtual void   calculate_one_spin_field(const int i, double h[3]) = 0;
   virtual void   calculate_fields() = 0;
 
   virtual void   output_energies(OutputFormat format) = 0;
   virtual void   output_fields(OutputFormat format) = 0;
 
+  inline double energy(const int i) const {
+    assert(i < energy_.elements());
+    return energy(i);
+  }
+
+  inline double field(const int i, const int j) const {
+    assert(i < field_.size(0));
+    assert(j < 3);
+    return field_(i,j);
+  }
+
   double* dev_ptr_energy() {
+    #ifdef CUDA
     assert(dev_energy_.is_allocated());
     return dev_energy_.data();
+    #else
+    return NULL;
+    #endif
   }
   double* ptr_energy() {
     assert(energy_.is_allocated());
@@ -51,8 +71,12 @@ class Hamiltonian {
   }
 
   double* dev_ptr_field() {
+    #ifdef CUDA
     assert(dev_field_.is_allocated());
     return dev_field_.data();
+    #else
+    return NULL;
+    #endif
   }
   double* ptr_field() {
     assert(field_.is_allocated());

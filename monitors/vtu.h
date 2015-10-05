@@ -16,7 +16,9 @@ class VtuMonitor : public Monitor {
   VtuMonitor(const libconfig::Setting &settings);
   ~VtuMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
+  bool is_converged() { return false; }
+  std::string name() const {return "vtu";}
 
  private:
     int num_slice_points;

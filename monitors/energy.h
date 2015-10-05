@@ -12,7 +12,9 @@ class EnergyMonitor : public Monitor {
   EnergyMonitor(const libconfig::Setting &settings);
 
   ~EnergyMonitor();
-  void update(const Solver * const solver);
+  void update(Solver * solver);
+  bool is_converged() { return false; }
+  std::string name() const {return "energy";}
 
  private:
   std::ofstream outfile;

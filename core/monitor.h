@@ -4,6 +4,7 @@
 #define JAMS_CORE_MONITOR_H
 
 #include <libconfig.h++>
+#include <string>
 
 // forward declarations
 class Solver;
@@ -13,10 +14,13 @@ class Monitor {
   Monitor(const libconfig::Setting &settings);
 
   virtual ~Monitor() {}
-  virtual void update(const Solver * const solver) = 0;
+  virtual void update(Solver * solver) = 0;
+  virtual bool is_converged() = 0;
   bool is_updating (const int &iteration) const;
 
   static Monitor* create(const libconfig::Setting &settings);
+
+  virtual std::string name() const = 0;
 
   protected:
     bool is_equilibration_monitor_;

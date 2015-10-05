@@ -2,12 +2,20 @@
 
 #include "solvers/constrainedmc.h"
 
+#include "core/utils.h"
 #include "core/consts.h"
 #include "core/maths.h"
 #include "core/globals.h"
 #include "core/hamiltonian.h"
+#include "core/montecarlo.h"
 
 #include <iomanip>
+
+ConstrainedMCSolver::~ConstrainedMCSolver() {
+  if (outfile.is_open()) {
+    outfile.close();
+  }
+}
 
 void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
@@ -93,6 +101,8 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
   ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
   // ---
+
+  outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
 }
 
 void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
@@ -103,12 +113,14 @@ void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const 
 }
 
 void ConstrainedMCSolver::set_spin(const int &i, const jblib::Vec3<double> &spin) {
+  #pragma unroll
   for (int n = 0; n < 3; ++n) {
     globals::s(i, n) = spin[n];
   }
 }
 
 void ConstrainedMCSolver::get_spin(const int &i, jblib::Vec3<double> &spin) {
+  #pragma unroll
   for (int n = 0; n < 3; ++n) {
     spin[n] = globals::s(i, n);
   }
@@ -119,21 +131,52 @@ void ConstrainedMCSolver::run() {
   // Constrained Monte Carlo move on each pair, accepting for either lower
   // energy or with a Boltzmann thermal weighting.
   using namespace globals;
+
+  std::string trial_step_name;
+  // if (iteration_ % 2 == 0) {
+  //   AsselinAlgorithm(mc_small_trial_step);
+  //   trial_step_name = "STS";
+  // } else {
+    AsselinAlgorithm(mc_uniform_trial_step);
+    trial_step_name = "UTS";
+  // }
+  // if (iteration_ % 2 == 0) {
+  //   AsselinAlgorithm(mc_uniform_trial_step);
+  //   trial_step_name = "UTS";
+  // } else {
+  //   if ((iteration_ - 1) % 4 == 0) {
+  //     AsselinAlgorithm(mc_reflection_trial_step);
+  //     trial_step_name = "RTS";
+  //   } else {
+  //     AsselinAlgorithm(mc_small_trial_step);
+  //     trial_step_name = "STS";
+  //   }
+  // }
+
+  move_acceptance_fraction_ = move_acceptance_count_/(0.5*num_spins);
+  outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::fixed << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
+
+  iteration_++;
+}
+
+void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>)) {
+  using std::pow;
+  using std::abs;
   using jblib::Vec3;
 
   int rand_s1, rand_s2;
   double delta_energy1, delta_energy2, delta_energy21;
   double mz_old, mz_new, probability;
-  const double inv_kbT_bohr = kBohrMagneton/(physics_module_->temperature()*kBoltzmann);
+  const double beta = kBohrMagneton/(physics_module_->temperature()*kBoltzmann);
 
   Vec3<double> s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
   Vec3<double> s2_initial, s2_final, s2_initial_rotated, s2_final_rotated;
 
   Vec3<double> m_other(0.0, 0.0, 0.0);
 
-  for (int i = 0; i < num_spins; ++i) {
+  for (int i = 0; i < globals::num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
-      m_other[n] += s(i,n);
+      m_other[n] += globals::s(i,n);
     }
   }
 
@@ -144,17 +187,17 @@ void ConstrainedMCSolver::run() {
   // rejected.
 
   // we move two spins moving all spins on average is num_spins/2
-  for (int i = 0; i < num_spins/2; ++i) {
+  for (int i = 0; i < globals::num_spins/2; ++i) {
 
     // randomly get two spins s1 != s2
-    rand_s1 = rng.uniform_discrete(0, num_spins-1);
+    rand_s1 = rng.uniform_discrete(0, globals::num_spins-1);
     rand_s2 = rand_s1;
     while (rand_s2 == rand_s1) {
-      rand_s2 = rng.uniform_discrete(0, num_spins-1);
+      rand_s2 = rng.uniform_discrete(0, globals::num_spins-1);
     }
 
-    get_spin(rand_s1, s1_initial);
-    get_spin(rand_s2, s2_initial);
+    s1_initial = mc_spin_as_vec(rand_s1);
+    s2_initial = mc_spin_as_vec(rand_s2);
 
     // rotate into reference frame of the constraint vector
     s1_initial_rotated = rotation_matrix_*s1_initial;
@@ -162,7 +205,7 @@ void ConstrainedMCSolver::run() {
 
     // Monte Carlo move
     s1_final = s1_initial;
-    calculate_trial_move(s1_final,move_sigma_);
+    s1_final = mc_trial_step(s1_initial);
     s1_final_rotated = rotation_matrix_*s1_final;
 
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
@@ -171,7 +214,7 @@ void ConstrainedMCSolver::run() {
     // zero out the z-component which will be calculated below
     s2_final_rotated.z = 0.0;
 
-    if (dot(s2_final_rotated, s2_final_rotated) > 1.0) {
+    if (unlikely(dot(s2_final_rotated, s2_final_rotated) > 1.0)) {
       // the rotated spin does not fit on the unit sphere - revert s1 and reject move
       continue;
     }
@@ -184,7 +227,7 @@ void ConstrainedMCSolver::run() {
     mz_new = dot((m_other + s1_final + s2_final - s1_initial - s2_initial), constraint_vector_);
 
     // The new magnetization is in the opposite sense - revert s1, reject move
-    if (mz_new < 0.0) {
+    if (unlikely(mz_new < 0.0)) {
       continue;
     }
 
@@ -197,7 +240,7 @@ void ConstrainedMCSolver::run() {
 
     // temporarily accept the move for s1 so we can calculate the s2 energies
     // this will be reversed later if the move is rejected
-    set_spin(rand_s1, s1_final);
+    mc_set_spin_as_vec(rand_s1, s1_final);
 
     delta_energy2 = 0.0;
     for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
@@ -210,22 +253,17 @@ void ConstrainedMCSolver::run() {
     mz_old = dot(m_other, constraint_vector_);
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-    probability = exp(-delta_energy21*inv_kbT_bohr)*((mz_new/mz_old)*(mz_new/mz_old))*std::fabs(s2_initial_rotated.z/s2_final_rotated.z);
+    probability = exp(-delta_energy21*beta)*(pow(mz_new/mz_old, 2))*abs(s2_initial_rotated.z/s2_final_rotated.z);
 
     if (probability < rng.uniform()) {
       // move fails to overcome Boltzmann factor - revert s1, reject move
-      set_spin(rand_s1, s1_initial);
+      mc_set_spin_as_vec(rand_s1, s1_initial);
       continue;
     } else {
       // accept move
-      set_spin(rand_s2, s2_final);
+      mc_set_spin_as_vec(rand_s2, s2_final);
       m_other += s1_final + s2_final - s1_initial - s2_initial;
       move_acceptance_count_++;
     }
   }
-
-  move_acceptance_fraction_ = move_acceptance_count_/(0.5*num_spins);
-  outfile << std::setw(8) << iteration_ << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << move_sigma_ << std::endl;
-
-  iteration_++;
 }

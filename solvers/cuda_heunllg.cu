@@ -49,14 +49,14 @@ void CUDAHeunLLGSolver::run()
 
     cudaDeviceSynchronize();
 
-    cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE, 0, ::cuda_streams[0]>>>
+    cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE, 0>>>
         (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), thermostat_->noise(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
 
     compute_fields();
 
     cudaDeviceSynchronize();
 
-    cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE, 0, ::cuda_streams[0]>>>
+    cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE, 0>>>
         (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), thermostat_->noise(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
 
     iteration_++;

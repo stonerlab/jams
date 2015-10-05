@@ -19,75 +19,47 @@ extern "C"{
 
 class Lattice {
   public:
-    Lattice()  {}
-    void initialize();
+    Lattice();
+    ~Lattice();
 
-    // --------------------------------------------------------------------------
-    // material functions
-    // --------------------------------------------------------------------------
-    inline int
-    num_materials() const {
-        return materials_map_.size();
-    }
+    void init_from_config(const libconfig::Config& pConfig);
 
-    inline std::string
-    material(const int i) const {
-        return lattice_materials_[i];
-    }
+    inline double              parameter() const;      ///< lattice parameter (m)
+    inline double              volume() const;      ///< volume (m^3)
 
-    inline int
-    material_id(const int i) {
-        assert(i < lattice_materials_.size());
-        return materials_map_[lattice_materials_[i]];
-    }
+    inline int                 size(const int i) const;           ///< integer number of unitcell in each lattice vector
+    inline int                 num_unit_cells() const; ///< number of unit cells in the whole lattice
+    inline int                 num_unit_cell_positions() const;         ///< number atomic positions in the unit cell
+    inline jblib::Vec3<double> unit_cell_position(const int i) const;   ///< position i in fractional coordinates
+    inline int                 unit_cell_material_uid(const int i);     ///< uid of material at position i
+    inline std::string         unit_cell_material_name(const int i);     ///< uid of material at position i
 
-    inline std::string
-    material_name(const int material_number) const {
-      return materials_numbered_list_[material_number];
-    }
+    inline int num_materials() const;                           ///< number of unique materials in lattice
+    inline int material_count(const int i) const;               ///< number of lattice sites of material i
+    inline int material(const int i);                     ///< uid of material at lattice site i
+    inline std::string material_name(const int uid) const;  ///< material string name from uid
 
-    inline int
-    num_spins_of_material(const int i) const {
-        return material_count_[i];
-    }
+    inline jblib::Vec3<double> position(const int i) const;
+    jblib::Vec3<double> minimum_image(const jblib::Vec3<double> ri, const jblib::Vec3<double> rj) const;
+    inline jblib::Vec3<double> rmax() const;
+    inline jblib::Vec3<double> rmin() const;
+    jblib::Vec3<double> generate_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const;
+    jblib::Vec3<double> generate_image_position(const jblib::Vec3<double> unit_cell_cart_pos, const jblib::Vec3<int> image_vector) const;
+    jblib::Vec3<double> generate_fractional_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const;
 
-    // --------------------------------------------------------------------------
-    // motif functions
-    // --------------------------------------------------------------------------
 
-    inline int
-    num_motif_positions() const {
-        return motif_.size();
-    }
+    inline jblib::Vec3<double> cartesian_to_fractional(const jblib::Vec3<double>& r_cart) const;
+    inline jblib::Vec3<double> fractional_to_cartesian(const jblib::Vec3<double>& r_frac) const;
 
-    inline jblib::Vec3<double>
-    motif_position(const int i) const {
-        assert(i < num_motif_positions());
-        return motif_[i].second;
-    }
+    inline int num_sym_ops() const;
+    inline jblib::Vec3<double> sym_rotation(const int i, const jblib::Vec3<double> r) const;
 
-    inline std::string
-    motif_material(const int i) const {
-        assert(i < num_motif_positions());
-        return motif_[i].first;
-    }
 
-    inline int
-    motif_material_id(const int i) {
-        return materials_map_[motif_material(i)];
-    }
 
     // --------------------------------------------------------------------------
     // lattice vector functions
     // --------------------------------------------------------------------------
 
-    inline jblib::Vec3<double> cartesian_to_fractional_position(const jblib::Vec3<double>& r_cart) {
-        return inverse_lattice_vectors_*r_cart;
-    }
-
-    inline jblib::Vec3<double> fractional_to_cartesian_position(const jblib::Vec3<double>& r_frac) {
-        return lattice_vectors_*r_frac;
-    }
 
     // --------------------------------------------------------------------------
     // lattice vector functions
@@ -100,35 +72,32 @@ class Lattice {
     // lookup the site index but unit cell integer coordinates and motif offset
     inline int site_index_by_unit_cell(const int i, const int j, const int k, const int m) const {
         assert(i < num_unit_cells(0));
+        assert(i >= 0);
         assert(j < num_unit_cells(1));
+        assert(j >= 0);
         assert(k < num_unit_cells(2));
-        assert(m < num_motif_positions());
-        return lattice_integer_lookup_(i, j, k, m);
+        assert(k >= 0);
+        assert(m < num_unit_cell_positions());
+        assert(m >= 0);
+
+        return lattice_map_(i, j, k, m);
+    }
+
+    inline bool is_bulk_system() const {
+        return (lattice_periodic_boundary_.x && lattice_periodic_boundary_.y && lattice_periodic_boundary_.z);
+    }
+
+    inline bool is_open_system() const {
+        return (!lattice_periodic_boundary_.x && !lattice_periodic_boundary_.y && !lattice_periodic_boundary_.z);
     }
 
     inline bool is_periodic(const int i) const {
         assert(i < 3);
-        return lattice_pbc_[i];
+        return lattice_periodic_boundary_[i];
     }
 
     bool apply_boundary_conditions(jblib::Vec3<int>& pos) const;
     bool apply_boundary_conditions(jblib::Vec4<int>& pos) const;
-
-
-    // --------------------------------------------------------------------------
-    // symmetry functions
-    // --------------------------------------------------------------------------
-
-    inline int num_sym_ops() const {
-        return spglib_dataset_->n_operations;
-    }
-
-    inline jblib::Matrix<int, 3, 3> sym_rotation(const int i) const {
-         return jblib::Matrix<int, 3, 3>(
-            spglib_dataset_->rotations[i][0][0], spglib_dataset_->rotations[i][0][1], spglib_dataset_->rotations[i][0][2],
-            spglib_dataset_->rotations[i][1][0], spglib_dataset_->rotations[i][1][1], spglib_dataset_->rotations[i][1][2],
-            spglib_dataset_->rotations[i][2][0], spglib_dataset_->rotations[i][2][1], spglib_dataset_->rotations[i][2][2]);
-    }
 
     const jblib::Vec3<int>& super_cell_pos(const int i) const {
         return lattice_super_cell_pos_(i);
@@ -141,60 +110,152 @@ class Lattice {
         return kspace_size_;
     }
 
-    void calculate_unit_cell_kpoints();
+    void load_spin_state_from_hdf5(std::string &filename);
 
-    void output_spin_state_as_vtu(std::ofstream &outfile);
-    void output_spin_state_as_binary(std::ofstream &outfile);
-    void output_spin_types_as_binary(std::ofstream &outfile);
-    void read_spin_state_from_binary(std::ifstream &infile);
-    void initialize_coarse_magnetisation_map();
-    void output_coarse_magnetisation(std::ofstream &outfile);
+  private:
+    void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void init_kspace();
+    void calc_symmetry_operations();
+
+    bool is_debugging_enabled_;
+
+    jblib::Matrix<double, 3, 3> unit_cell_;
+    jblib::Matrix<double, 3, 3> unit_cell_inverse_;
+
+    std::vector< std::pair<std::string, jblib::Vec3<double> > > unit_cell_position_;
+
+    std::vector<std::string>    material_numbered_list_;
+    std::vector<int>            material_count_;
+    std::map<std::string, int>  material_map_;
+    std::vector<std::string>    lattice_materials_;
+    jblib::Vec3<bool>           lattice_periodic_boundary_;
+    jblib::Vec3<int>            lattice_size_;
+    jblib::Array<jblib::Vec3<int>, 1>        lattice_super_cell_pos_;
+    jblib::Array<int, 4>        lattice_map_;
+
+    jblib::Array<int, 3>        kspace_map_;
+    jblib::Vec3<int>            unit_cell_kpoints_;
+    jblib::Vec3<int>            kpoints_;
+    jblib::Vec3<int>            kspace_size_;
     jblib::Array<int, 2>        kspace_inv_map_;
     std::vector< jblib::Vec3<double> > lattice_positions_;
     std::vector< jblib::Vec3<double> > lattice_frac_positions_;
     double                      lattice_parameter_;
     std::vector<int>            lattice_material_num_;
-    jblib::Vec3<double>         rmax;
-    jblib::Vec3<double>         rmin;
-
-    void load_spin_state_from_hdf5(std::string &filename);
-
-  private:
-    void calculate_unit_cell_kmesh();
-    void read_lattice(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
-    void calculate_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
-    void calculate_recip_space();
-    void read_interactions(const libconfig::Setting &lattice_settings);
-    void read_interactions_with_symmetry(const libconfig::Setting &lattice_settings);
-    void compute_exchange_interactions();
-    void compute_fft_exchange_interactions();
-    void compute_fft_dipole_interactions();
-    void calculate_unit_cell_symmetry();
-    bool insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
-
-    bool is_debugging_enabled_;
-
-    double energy_cutoff_;
-
-    std::vector<std::string>    materials_numbered_list_;
-    std::vector<int>            material_count_;
-    std::map<std::string, int>  materials_map_;
-    std::vector<std::string>    lattice_materials_;
-    jblib::Vec3<bool>           lattice_pbc_;
-    jblib::Vec3<int>            lattice_size_;
-    jblib::Array<jblib::Vec3<int>, 1>        lattice_super_cell_pos_;
-    jblib::Array<int, 4>        lattice_integer_lookup_;
-    jblib::Matrix<double, 3, 3> lattice_vectors_;
-    jblib::Matrix<double, 3, 3> inverse_lattice_vectors_;
-    std::vector< std::pair<std::string, jblib::Vec3<double> > > motif_;
-    jblib::Array<int, 3>        kspace_map_;
-    jblib::Vec3<int>            unit_cell_kpoints_;
-    jblib::Vec3<int>            kpoints_;
-    jblib::Vec3<int>            kspace_size_;
+    jblib::Vec3<double>         rmax_;
+    jblib::Vec3<double>         rmin_;
 
     // spglib
     SpglibDataset *spglib_dataset_;
 
 };
+
+inline double
+Lattice::parameter() const {
+    return lattice_parameter_;
+}
+
+inline double
+Lattice::volume() const {
+    return std::abs(unit_cell_.determinant())*std::pow(lattice_parameter_, 3);
+}
+
+inline int
+Lattice::size(const int i) const {
+    return lattice_size_[i];
+}
+
+inline int
+Lattice::num_unit_cells() const {
+    return product(lattice_size_);
+}
+
+inline int
+Lattice::num_unit_cell_positions() const {
+    return unit_cell_position_.size();
+}
+
+inline jblib::Vec3<double>
+Lattice::unit_cell_position(const int i) const {
+    assert(i < num_unit_cell_positions());
+    return unit_cell_position_[i].second;
+}
+
+inline int
+Lattice::unit_cell_material_uid(const int i) {
+    assert(i < unit_cell_position_.size());
+    return material_map_[unit_cell_position_[i].first];
+}
+
+inline std::string
+Lattice::unit_cell_material_name(const int i) {
+    assert(i < unit_cell_position_.size());
+    return material_name(material_map_[unit_cell_position_[i].first]);
+}
+
+inline int
+Lattice::num_materials() const {
+    return material_map_.size();
+}
+
+inline int
+Lattice::material_count(const int i) const {
+    return material_count_[i];
+}
+
+inline int
+Lattice::material(const int i) {
+    assert(i < lattice_materials_.size());
+    return lattice_material_num_[i];
+    // return material_map_[lattice_materials_[i]];
+}
+
+inline std::string
+Lattice::material_name(const int uid) const {
+    return material_numbered_list_[uid];
+}
+
+inline jblib::Vec3<double>
+Lattice::position(const int i) const {
+    return lattice_positions_[i];
+}
+
+inline jblib::Vec3<double>
+Lattice::cartesian_to_fractional(const jblib::Vec3<double>& r_cart) const {
+    return unit_cell_inverse_*r_cart;
+}
+
+inline jblib::Vec3<double>
+Lattice::fractional_to_cartesian(const jblib::Vec3<double>& r_frac) const {
+    return unit_cell_*r_frac;
+}
+
+inline int
+Lattice::num_sym_ops() const {
+    return spglib_dataset_->n_operations;
+}
+
+inline jblib::Vec3<double>
+Lattice::sym_rotation(const int i, const jblib::Vec3<double> vec) const {
+    return jblib::Vec3<double>(
+    spglib_dataset_->rotations[i][0][0]*vec.x + spglib_dataset_->rotations[i][0][1]*vec.y + spglib_dataset_->rotations[i][0][2]*vec.z,
+    spglib_dataset_->rotations[i][1][0]*vec.x + spglib_dataset_->rotations[i][1][1]*vec.y + spglib_dataset_->rotations[i][1][2]*vec.z,
+    spglib_dataset_->rotations[i][2][0]*vec.x + spglib_dataset_->rotations[i][2][1]*vec.y + spglib_dataset_->rotations[i][2][2]*vec.z);
+}
+
+inline jblib::Vec3<double>
+Lattice::rmax() const {
+    return rmax_;
+};
+
+
+inline jblib::Vec3<double>
+Lattice::rmin() const {
+    return rmin_;
+};
+
+
+
 
 #endif // JAMS_CORE_LATTICE_H

@@ -15,7 +15,10 @@ class SkyrmionMonitor : public Monitor {
   SkyrmionMonitor(const libconfig::Setting &settings);
   ~SkyrmionMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
+  bool is_converged() { return false; }
+  std::string name() const {return "skyrmion";}
+
 
  private:
     void create_center_of_mass_mapping();

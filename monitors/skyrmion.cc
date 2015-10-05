@@ -61,14 +61,14 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
   create_center_of_mass_mapping();
 }
 
-void SkyrmionMonitor::update(const Solver * const solver) {
+void SkyrmionMonitor::update(Solver * solver) {
   using namespace globals;
 
     int i, n, type;
     double x, y;
 
-    const double x_size = lattice.rmax.x;
-    const double y_size = lattice.rmax.y;
+    const double x_size = lattice.rmax().x;
+    const double y_size = lattice.rmax().y;
 
     outfile << std::setw(12) << std::scientific << solver->time();
     outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
@@ -87,12 +87,12 @@ void SkyrmionMonitor::update(const Solver * const solver) {
       }
 
       for (i = 0; i < num_spins; ++i) {
-        type = lattice.material_id(i);
+        type = lattice.material(i);
         if (s(i, 2)*type_norms[type] > thresholds[t]) {
-          x = lattice.lattice_positions_[i].x - r_com[type].x;
-          x = x - nint(x / x_size) * x_size;
-          y = lattice.lattice_positions_[i].y - r_com[type].y;
-          y = y - nint(y / y_size) * y_size;
+          x = lattice.position(i).x - r_com[type].x;
+          x = x - nint(x / x_size) * x_size;  // min image convention
+          y = lattice.position(i).y - r_com[type].y;
+          y = y - nint(y / y_size) * y_size;  // min image convention
           radius_gyration[type] += x*x + y*y;
           r_count[type]++;
         }
@@ -109,9 +109,9 @@ void SkyrmionMonitor::update(const Solver * const solver) {
           }
         } else {
           for (i = 0; i < 3; ++i) {
-            outfile << std::setw(16) << r_com[n][i]*lattice.lattice_parameter_;
+            outfile << std::setw(16) << r_com[n][i]*lattice.parameter();
           }
-          outfile << std::setw(16) << radius_gyration[n]*lattice.lattice_parameter_ << std::setw(16) << (2.0/sqrt(2.0))*radius_gyration[n]*lattice.lattice_parameter_;
+          outfile << std::setw(16) << radius_gyration[n]*lattice.parameter() << std::setw(16) << (2.0/sqrt(2.0))*radius_gyration[n]*lattice.parameter();
         }
       }
     }
@@ -133,11 +133,11 @@ void SkyrmionMonitor::create_center_of_mass_mapping() {
   for (int n = 0; n < num_spins; ++n) {
     double i, j, i_max, j_max, r_i, r_j, theta_i, theta_j, x, y, z;
 
-    i = lattice.lattice_positions_[n].x;
-    j = lattice.lattice_positions_[n].y;
+    i = lattice.position(n).x;
+    j = lattice.position(n).y;
 
-    i_max = lattice.rmax.x;
-    j_max = lattice.rmax.y;
+    i_max = lattice.rmax().x;
+    j_max = lattice.rmax().y;
 
     r_i = i_max / (kTwoPi);
     r_j = j_max / (kTwoPi);
@@ -179,7 +179,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_c
   }
 
   for (i = 0; i < num_spins; ++i) {
-    type = lattice.material_id(i);
+    type = lattice.material(i);
     if (s(i, 2)*type_norms[type] > threshold) {
       tube_x_com[type] += tube_x[i];
       tube_y_com[type] += tube_y[i];
@@ -195,8 +195,8 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_c
     theta_i = atan2(-tube_x_com[type].z, -tube_x_com[type].x) + kPi;
     theta_j = atan2(-tube_y_com[type].z, -tube_y_com[type].y) + kPi;
 
-    r_com[type].x = (theta_i*lattice.rmax.x/(kTwoPi));
-    r_com[type].y = (theta_j*lattice.rmax.y/(kTwoPi));
+    r_com[type].x = (theta_i*lattice.rmax().x/(kTwoPi));
+    r_com[type].y = (theta_j*lattice.rmax().y/(kTwoPi));
     r_com[type].z = 0.0;
   }
 

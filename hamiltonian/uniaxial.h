@@ -16,12 +16,14 @@ class UniaxialHamiltonian : public Hamiltonian {
         UniaxialHamiltonian(const libconfig::Setting &settings);
         ~UniaxialHamiltonian() {};
 
+        std::string name() const { return "uniaxial"; }
+
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final);
         void   calculate_energies();
 
-        void   calculate_one_spin_fields(const int i, double h[3]);
+        void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
 
         void   output_energies(OutputFormat format);
@@ -35,14 +37,12 @@ class UniaxialHamiltonian : public Hamiltonian {
         void output_fields_text();
         // void output_fields_hdf5();
 
-        jblib::Array<double, 1> d2z_;
-        jblib::Array<double, 1> d4z_;
-        jblib::Array<double, 1> d6z_;
+        std::vector<int> mca_order_;   // MCA expressed as a Legendre polynomial
+        std::vector< jblib::Array<double, 1> > mca_value_;
 
 #ifdef CUDA
-        jblib::CudaArray<double, 1> dev_d2z_;
-        jblib::CudaArray<double, 1> dev_d4z_;
-        jblib::CudaArray<double, 1> dev_d6z_;
+        jblib::CudaArray<int, 1> dev_mca_order_;
+        jblib::CudaArray<double, 1> dev_mca_value_;
 #endif  // CUDA
 
 };

@@ -11,6 +11,9 @@
 #include <sstream>
 #include <string>
 
+#define likely(x)      __builtin_expect(!!(x), 1)
+#define unlikely(x)    __builtin_expect(!!(x), 0)
+
 inline std::string& left_trim(std::string &s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(),
     std::not1(std::ptr_fun<int, int>(std::isspace))));

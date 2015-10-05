@@ -1,6 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include "core/maths.h"
+#include "core/utils.h"
 
 void matrix_invert(const double in[3][3], double out[3][3]) {
   double det = in[0][0]*(in[1][1]*in[2][2]-in[1][2]*in[2][1])
@@ -94,4 +95,70 @@ double approximate_float_as_fraction(long &nominator, long &denominator, const d
       nominator = m[0][0];
       denominator = m[1][0];
       return real - ((double) m[0][0] / (double) m[1][0]);
+}
+
+
+double legendre_poly(const double x, const int n) {
+
+  switch (n)
+  {
+    case 0:
+      return legendre_poly_0(x);
+    case 1:
+      return legendre_poly_1(x);
+    case 2:
+      return legendre_poly_2(x);
+    case 3:
+      return legendre_poly_3(x);
+    case 4:
+      return legendre_poly_4(x);
+    case 5:
+      return legendre_poly_5(x);
+    case 6:
+      return legendre_poly_6(x);
+  }
+
+    double p_lm2 = 1.0;
+    double p_lm1 = x;
+    double p_l = 0.0;
+
+    for (unsigned int nn = 2; nn <= n; ++nn)
+      {
+        //  This arrangement is supposed to be better for roundoff
+        //  protection, Arfken, 2nd Ed, Eq 12.17a.
+        p_l = 2.0 * x * p_lm1 - p_lm2
+              - (x * p_lm1 - p_lm2) / double(nn);
+        p_lm2 = p_lm1;
+        p_lm1 = p_l;
+      }
+
+      return p_l;
+}
+
+
+double legendre_dpoly(const double x, const int n) {
+
+  switch (n)
+  {
+    case 0:
+      return legendre_dpoly_0(x);
+    case 1:
+      return legendre_dpoly_1(x);
+    case 2:
+      return legendre_dpoly_2(x);
+    case 3:
+      return legendre_dpoly_3(x);
+    case 4:
+      return legendre_dpoly_4(x);
+    case 5:
+      return legendre_dpoly_5(x);
+    case 6:
+      return legendre_dpoly_6(x);
+  }
+
+  if (unlikely(x == 0.0) && n % 2 == 0) {
+    return 0.0;
+  }
+
+  return (x * legendre_poly(x, n) - legendre_poly(x, n - 1)) / static_cast<double>(2 * n + 1);
 }

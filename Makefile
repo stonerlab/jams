@@ -2,7 +2,7 @@
 all::
 
 # Define V=1 for verbose output
-#V=1
+# V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
@@ -62,7 +62,7 @@ GITSHORT = $(shell git rev-parse --short HEAD)
 CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
 SYSTYPE = $(shell uname -s)
 
-CFLAGS = -march=native -fno-finite-math-only -fno-stack-protector -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
+CFLAGS = -march=native -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
 LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
@@ -91,6 +91,7 @@ OBJS += core/monitor.o
 OBJS += core/output.o
 OBJS += core/physics.o
 OBJS += core/rand.o
+OBJS += core/stats.o
 OBJS += core/solver.o
 OBJS += core/sparsematrix.o
 OBJS += core/thermostat.o
@@ -110,10 +111,15 @@ OBJS += physics/fmr.o
 OBJS += physics/mfpt.o
 OBJS += physics/square.o
 OBJS += physics/ttm.o
+OBJS += physics/ping.o
 OBJS += solvers/heunllg.o
 OBJS += solvers/metropolismc.o
 OBJS += solvers/constrainedmc.o
 OBJS += hamiltonian/dipole.o
+OBJS += hamiltonian/dipole_bruteforce.o
+OBJS += hamiltonian/dipole_tensor.o
+OBJS += hamiltonian/dipole_ewald.o
+OBJS += hamiltonian/dipole_fft.o
 
 HDR += core/consts.h
 HDR += core/error.h
@@ -125,6 +131,7 @@ HDR += core/monitor.h
 HDR += core/output.h
 HDR += core/physics.h
 HDR += core/rand.h
+HDR += core/stats.h
 HDR += core/runningstat.h
 HDR += core/solver.h
 HDR += core/sparsematrix4d.h
@@ -149,10 +156,15 @@ HDR += physics/fmr.h
 HDR += physics/mfpt.h
 HDR += physics/square.h
 HDR += physics/ttm.h
+HDR += physics/ping.h
 HDR += solvers/heunllg.h
 HDR += solvers/metropolismc.h
 HDR += solvers/constrainedmc.h
 HDR += hamiltonian/dipole.h
+HDR += hamiltonian/dipole_bruteforce.h
+HDR += hamiltonian/dipole_tensor.h
+HDR += hamiltonian/dipole_ewald.h
+HDR += hamiltonian/dipole_fft.h
 HDR += hamiltonian/uniaxial.h
 HDR += hamiltonian/exchange.h
 
@@ -182,7 +194,8 @@ endif
 
 ifeq ($(SYSTYPE),Darwin)
 	CC = clang++ -stdlib=libstdc++
-	BASIC_LDFLAGS += -Wl -rpath /usr/local/cuda/lib -framework Accelerate
+	CFLAGS += -fslp-vectorize
+	BASIC_LDFLAGS += -framework Accelerate -Wl -rpath /usr/local/cuda/lib
 else
 	BASIC_LDFLAGS +=
 endif
@@ -199,8 +212,8 @@ else
 endif
 
 ifdef MKLROOT
-	CC = icc
-	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -DMKL
+	CC = icpc
+	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -D__INTEL_COMPILER -DMKL
 	BASIC_LDFLAGS += -L$(MKLROOT)/lib/intel64
 	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 else
@@ -215,7 +228,7 @@ ifndef NO_CUDA
 		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler "-stdlib=libstdc++ -DNDEBUG" -Xlinker -stdlib=libstdc++
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
-		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -fno-stack-protector -O3 -g -funroll-loops -DNDEBUG"
+		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -O3 -g -funroll-loops -DNDEBUG"
 	endif
 	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
@@ -234,7 +247,7 @@ ifdef H5DIR
 	BASIC_CFLAGS += -I$(H5DIR)/include
 	BASIC_LDFLAGS += -L$(H5DIR)/lib
 endif
-EXTLIBS += -lhdf5 -lhdf5_cpp -lsymspg
+EXTLIBS += -lhdf5 -lhdf5_cpp -lsymspg -lblas
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
 ALL_CUFLAGS += $(BASIC_CFLAGS) $(BASIC_CUFLAGS)
@@ -277,5 +290,5 @@ install: jams++
 	ln -sf ~/local/bin/jams++-$(GITSHORT) ~/local/bin/jams++-unstable
 
 clean:
-	$(RM) core/*.o physics/*.o monitors/*.o solvers/*.o
+	$(RM) core/*.o physics/*.o monitors/*.o solvers/*.o hamiltonian/*.o
 	$(RM) jams++

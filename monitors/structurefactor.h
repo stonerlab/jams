@@ -16,7 +16,9 @@ class StructureFactorMonitor : public Monitor {
   StructureFactorMonitor(const libconfig::Setting &settings);
   ~StructureFactorMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
+  bool is_converged() { return false; }
+  std::string name() const {return "structurefactor";}
 
  private:
 

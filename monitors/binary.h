@@ -17,7 +17,9 @@ class BinaryMonitor : public Monitor {
   BinaryMonitor(const libconfig::Setting &settings);
   ~BinaryMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
+  bool is_converged() { return false; }
+  std::string name() const {return "binary";}
 
  private:
     jblib::Vec3<double> slice_origin;

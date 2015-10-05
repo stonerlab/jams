@@ -6,7 +6,7 @@
 #include <fstream>
 
 #include "core/monitor.h"
-#include "core/runningstat.h"
+#include "core/stats.h"
 
 #include "jblib/containers/vec.h"
 
@@ -15,11 +15,19 @@ class TorqueMonitor : public Monitor {
   TorqueMonitor(const libconfig::Setting &settings);
   ~TorqueMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
+  bool is_converged();
+  std::string name() const {return "torque";}
 
  private:
-  jblib::Vec3<double> torque_;
+
+  void open_outfile();
+
   std::ofstream outfile;
+  Stats torque_stats_;
+  bool convergence_is_on_;
+  double convergence_tolerance_;
+  double convergence_geweke_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_TORQUE_H

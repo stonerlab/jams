@@ -9,12 +9,18 @@
 
 #include "core/consts.h"
 
+using std::pow;
+
 inline double square(const double &x) {
   return x*x;
 }
 
 inline int nint(const double &x) {
   return floor(x+0.5);
+}
+
+inline double gaussian(const double x, const double sigma, const double mean = 0.0) {
+  return kOne_SqrtTwoPi*exp(-0.5*std::pow((x - mean) / sigma, 2))/sigma;
 }
 
 inline double deg_to_rad(const double &angle) {
@@ -224,5 +230,80 @@ inline void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
   out[1] = a[2]*b[0] - a[0]*b[2];
   out[2] = a[0]*b[1] - a[1]*b[0];
 }
+
+
+// Legendre polynomials
+double legendre_poly(const double x, const int n);
+
+// differentiated Legendre polynomials
+double legendre_dpoly(const double x, const int n);
+
+
+
+// uniaxial anisotropy is an expansion in legendre polynomials so lets define upto n = 6
+// so we have some fast intrinsics
+
+inline double legendre_poly_0(const double x) {
+  return 1.0;
+}
+
+inline double legendre_poly_1(const double x) {
+  return x;
+}
+
+inline double legendre_poly_2(const double x) {
+  // (3x^2 - 1)/2
+  return (1.5 * x * x - 0.5);
+}
+
+inline double legendre_poly_3(const double x) {
+  // (5x^3 - 3x)/2
+  return (2.5 * x * x * x - 1.5 * x);
+}
+
+inline double legendre_poly_4(const double x) {
+  // (35x^4 - 30x^2 + 3)/8
+  return (4.375 * x * x * x * x - 3.75 * x * x + 0.375);
+}
+
+inline double legendre_poly_5(const double x) {
+  // (63x^5 - 70x^3 + 15x)/8
+  return (7.875 * x * x * x * x * x - 8.75 * x * x * x + 1.875 * x);
+}
+
+inline double legendre_poly_6(const double x) {
+  // (231x^6 - 315x^4 + 105x^2 - 5)/16
+  return (14.4375 * x * x * x * x * x * x - 19.6875 * x * x * x * x + 6.5625 * x * x - 0.3125);
+}
+
+inline double legendre_dpoly_0(const double x) {
+  return 0.0;
+}
+
+inline double legendre_dpoly_1(const double x) {
+  return 1.0;
+}
+
+inline double legendre_dpoly_2(const double x) {
+  return 3.0 * x;
+}
+
+inline double legendre_dpoly_3(const double x) {
+  return (7.5 * x * x - 1.5);
+}
+
+inline double legendre_dpoly_4(const double x) {
+  return (17.5 * x * x * x - 7.5 * x);
+}
+
+inline double legendre_dpoly_5(const double x) {
+  return (39.375 * x * x * x * x - 26.25 * x * x + 1.875);
+}
+
+inline double legendre_dpoly_6(const double x) {
+  return (86.625 * x * x * x * x * x - 78.75 * x * x * x + 13.125 * x);
+}
+
+
 
 #endif  // JAMS_CORE_MATHS_H

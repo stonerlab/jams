@@ -18,7 +18,9 @@ class Hdf5Monitor : public Monitor {
   explicit Hdf5Monitor(const libconfig::Setting &settings);
   ~Hdf5Monitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
+  bool is_converged() { return false; }
+  std::string name() const {return "hdf5";}
 
  private:
   void output_lattice();

@@ -2,7 +2,10 @@
 #include "core/utils.h"
 
 #include "hamiltonian/dipole.h"
-
+#include "hamiltonian/dipole_bruteforce.h"
+#include "hamiltonian/dipole_tensor.h"
+#include "hamiltonian/dipole_ewald.h"
+#include "hamiltonian/dipole_fft.h"
 
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
@@ -20,43 +23,67 @@ DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
     }
 #endif
 
+    dipole_strategy_ = select_strategy(settings);
+}
+
+// --------------------------------------------------------------------------
+
+HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Setting &settings) {
+    if (settings.exists("strategy")) {
+        std::string strategy_name(capitalize(settings["strategy"]));
+
+        if (strategy_name == "TENSOR") {
+            return new DipoleHamiltonianTensor(settings);
+        }
+
+        if (strategy_name == "EWALD") {
+            return new DipoleHamiltonianEwald(settings);
+        }
+
+        if (strategy_name == "FFT") {
+            return new DipoleHamiltonianFFT(settings);
+        }
+
+        std::runtime_error("Unknown DipoleHamiltonian strategy '" + strategy_name + "' requested\n");
+    }
+    jams_warning("no dipole strategy selected, defaulting to TENSOR");
+    return new DipoleHamiltonianTensor(settings);
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonian::calculate_total_energy() {
-    return 0.0;
+    return dipole_strategy_->calculate_total_energy();
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonian::calculate_one_spin_energy(const int i) {
-    return 0.0;
+    return dipole_strategy_->calculate_one_spin_energy(i);
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
-    const double e_initial = 0.0;
-    const double e_final = 0.0;
-
-    return e_final - e_initial;
+    return dipole_strategy_->calculate_one_spin_energy_difference(i, spin_initial, spin_final);
 }
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_energies() {
+    dipole_strategy_->calculate_energies(energy_);
 }
 
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonian::calculate_one_spin_fields(const int i, double h[3]) {
-
+void DipoleHamiltonian::calculate_one_spin_field(const int i, double h[3]) {
+    dipole_strategy_->calculate_one_spin_field(i, h);
 }
 
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_fields() {
 
+    dipole_strategy_->calculate_fields(field_);
 }
 // --------------------------------------------------------------------------
 
@@ -105,11 +132,11 @@ void DipoleHamiltonian::output_energies_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << lattice.lattice_material_num_[i];
+        outfile << lattice.material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile <<  lattice.lattice_parameter_*lattice.lattice_positions_[i][j];
+            outfile <<  lattice.parameter()*lattice.position(i)[j];
         }
 
         // energy
@@ -148,11 +175,11 @@ void DipoleHamiltonian::output_fields_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << std::setw(16) << lattice.lattice_material_num_[i];
+        outfile << std::setw(16) << lattice.material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile << std::setw(16) << std::fixed << lattice.lattice_parameter_*lattice.lattice_positions_[i][j];
+            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.position(i)[j];
         }
 
         // fields
@@ -163,3 +190,4 @@ void DipoleHamiltonian::output_fields_text() {
     }
     outfile.close();
 }
+// --------------------------------------------------------------------------

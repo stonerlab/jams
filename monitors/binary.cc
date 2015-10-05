@@ -31,7 +31,7 @@ BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
   output_step_freq_ = settings["output_steps"];
 }
 
-void BinaryMonitor::update(const Solver * const solver) {
+void BinaryMonitor::update(Solver * solver) {
   using namespace globals;
   if (solver->iteration()%output_step_freq_ == 0) {
     int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above

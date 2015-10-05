@@ -3,8 +3,9 @@
 #ifndef JAMS_CORE_SOLVER_H
 #define JAMS_CORE_SOLVER_H
 
-#include <vector>
 #include <cassert>
+#include <string>
+#include <vector>
 
 #include <fftw3.h>
 
@@ -28,6 +29,8 @@ class Solver {
 
   virtual void initialize(int argc, char **argv, double dt) = 0;
   virtual void run() = 0;
+
+  bool is_converged();
 
   inline bool is_cuda_solver() const {
     return is_cuda_solver_;
@@ -59,6 +62,10 @@ class Solver {
   virtual inline double * dev_ptr_spin() {
     assert(is_cuda_solver_);
     return NULL;
+  }
+
+  std::vector<Hamiltonian*>& hamiltonians() {
+    return hamiltonians_;
   }
 
   static Solver* create(const std::string &solver_name);

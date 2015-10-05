@@ -4,8 +4,11 @@
 #define JAMS_HAMILTONIAN_EXCHANGE_H
 
 #include <libconfig.h++>
+
+#ifdef CUDA
 #include <cuda_runtime.h>
 #include <cusparse.h>
+#endif
 
 #include "core/output.h"
 #include "core/hamiltonian.h"
@@ -19,12 +22,14 @@ class ExchangeHamiltonian : public Hamiltonian {
         ExchangeHamiltonian(const libconfig::Setting &settings);
         ~ExchangeHamiltonian() {};
 
+        std::string name() const { return "exchange"; }
+
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final);
         void   calculate_energies();
 
-        void   calculate_one_spin_fields(const int i, double h[3]);
+        void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
 
         void   output_energies(OutputFormat format);
@@ -46,11 +51,11 @@ class ExchangeHamiltonian : public Hamiltonian {
         void output_fields_text();
         // void output_fields_hdf5();
 
-        SparseMatrixFormat_t sparse_matrix_format();
+        sparse_matrix_format_t sparse_matrix_format();
         void set_sparse_matrix_format(std::string &format_name);
 
         SparseMatrix<double> interaction_matrix_;
-        SparseMatrixFormat_t interaction_matrix_format_;
+        sparse_matrix_format_t interaction_matrix_format_;
         double energy_cutoff_;
         double distance_tolerance_;
 

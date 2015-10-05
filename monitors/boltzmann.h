@@ -13,7 +13,10 @@ class BoltzmannMonitor : public Monitor{
   BoltzmannMonitor(const libconfig::Setting &settings);
   ~BoltzmannMonitor();
 
-void update(const Solver * const solver);
+void update(Solver * solver);
+bool is_converged() { return false; }
+std::string name() const {return "boltzmann";}
+
 
  private:
   jblib::Array<double, 1> bins;

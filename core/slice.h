@@ -40,7 +40,7 @@ class Slice {
     ::output.write("  slice size: %f %f %f\n", slice_size[0], slice_size[1], slice_size[2]);
 
     for (int i = 0; i < num_spins; ++i) {
-      jblib::Vec3<double> pos = lattice.lattice_positions_[i];
+      jblib::Vec3<double> pos = lattice.position(i);
 
             // check if the current spin in inside the slice
       if (floats_are_greater_than_or_equal(pos.x, slice_origin.x) && floats_are_less_than_or_equal(pos.x, slice_origin.x + slice_size.x)
@@ -69,11 +69,11 @@ class Slice {
   }
 
   double position(const int i, const int j) {
-    return lattice.lattice_parameter_*lattice.lattice_positions_[slice_map[i]][j];
+    return lattice.parameter()*lattice.position(slice_map[i])[j];
   }
 
-  int& type(const int i) {
-    return lattice.lattice_material_num_[slice_map[i]];
+  int type(const int i) {
+    return lattice.material(slice_map[i]);
   }
 
  private:

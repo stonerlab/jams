@@ -17,7 +17,10 @@ class XyzMonitor : public Monitor {
   XyzMonitor(const libconfig::Setting &settings);
   ~XyzMonitor();
 
-  void update(const Solver * const solver);
+  void update(Solver * solver);
+  bool is_converged() { return false; }
+  std::string name() const {return "xyz";}
+
 
  private:
     jblib::Vec3<double> slice_origin;
