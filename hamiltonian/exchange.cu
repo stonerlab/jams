@@ -136,7 +136,16 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > int_interaction_list(lattice.num_unit_cell_positions());
 
-    read_interactions_with_symmetry(interaction_filename, int_interaction_list);
+    bool use_symops = true;
+    if (settings.exists("symops")) {
+      use_symops = settings["symops"];
+    }
+
+    if (use_symops) {
+      read_interactions_with_symmetry(interaction_filename, int_interaction_list);
+    } else {
+      read_interactions(interaction_filename, int_interaction_list);
+    }
 
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
 
@@ -307,6 +316,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
 void ExchangeHamiltonian::read_interactions(const std::string &filename,
   std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
+  bool is_debug_enabled = true;
 
   std::ifstream interaction_file(filename.c_str());
 
@@ -314,42 +324,46 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
     jams_error("failed to open interaction file %s", filename.c_str());
   }
 
+  std::ofstream unfolded_interaction_file;
+  if (is_debug_enabled) {
+    unfolded_interaction_file.open(std::string(seedname+"_unfolded_exc.dat").c_str());
+  }
+
   int_interaction_list.resize(lattice.num_unit_cell_positions());
 
 
   int counter = 0;
+  int line_number = 0;
+
+  ::output.verbose("\ninteraction vectors (%s)\n", filename.c_str());
+
+  if (verbose_output_is_set) {
+    ::output.verbose("unit cell realspace\n");
+    for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
+      jblib::Vec3<double> rij = lattice.unit_cell_position(i);
+      ::output.verbose("%8d % 6.6f % 6.6f % 6.6f\n", i, rij[0], rij[1], rij[2]);
+    }
+  }
+
   // read the unit_cell into an array from the positions file
   for (std::string line; getline(interaction_file, line); ) {
     std::stringstream is(line);
 
-    int typeA, typeB, type_difference;
-    jblib::Vec3<double> interaction_vec_cart, interaction_vec_frac;
+    std::string type_name_A, type_name_B;
+    // read type names
+    is >> type_name_A >> type_name_B;
 
-    is >> typeA >> typeB;
-    typeA--; typeB--;  // zero base the types
-    type_difference = (typeB - typeA);
-
-    is >> interaction_vec_cart.x >> interaction_vec_cart.y >> interaction_vec_cart.z;
-    // transform into lattice vector basis
-    interaction_vec_frac = lattice.cartesian_to_fractional(interaction_vec_cart) + lattice.unit_cell_position(typeA);
-
-    // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
-    // component is the atoms number within the unit_cell
-    jblib::Vec4<int> fast_integer_vector;
-    for (int i = 0; i < 3; ++ i) {
-      // rounding with nint accounts for lack of precision in definition of the real space vectors
-      fast_integer_vector[i] = floor(interaction_vec_frac[i]+0.001);
-    }
-    fast_integer_vector[3] = type_difference;
+    jblib::Vec3<double> interaction_vector;
+    is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
 
     jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
     if (file_columns(line) == 6) {
-      // one Jij component given - diagonal
+          // one Jij component given - diagonal
       is >> tensor[0][0];
       tensor[1][1] = tensor[0][0];
       tensor[2][2] = tensor[0][0];
     } else if (file_columns(line) == 14) {
-      // nine Jij components given - full tensor
+          // nine Jij components given - full tensor
       is >> tensor[0][0] >> tensor[0][1] >> tensor[0][2];
       is >> tensor[1][0] >> tensor[1][1] >> tensor[1][2];
       is >> tensor[2][0] >> tensor[2][1] >> tensor[2][2];
@@ -357,30 +371,117 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
       jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
 
-    int_interaction_list[typeA].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
+    ::output.verbose("exchange file line: %s\n", line.c_str());
 
-    if (verbose_output_is_set) {
-      ::output.write("  line %-9d              %s\n", counter, line.c_str());
-      ::output.write("  types               A : %d  B : %d  B - A : %d\n", typeA, typeB, type_difference);
-      ::output.write("  interaction vector % 3.6f % 3.6f % 3.6f\n",
-        interaction_vec_cart.x, interaction_vec_cart.y, interaction_vec_cart.z);
-      ::output.write("  fractional vector  % 3.6f % 3.6f % 3.6f\n",
-        interaction_vec_frac.x, interaction_vec_frac.y, interaction_vec_frac.z);
-      ::output.write("  integer vector     % -9d % -9d % -9d % -9d\n\n",
-        fast_integer_vector.x, fast_integer_vector.y, fast_integer_vector.z, fast_integer_vector.w);
+    jblib::Vec3<double> r(interaction_vector.x, interaction_vector.y, interaction_vector.z);
+
+    // if the origin of the unit cell is in the center of the lattice vectors with other
+    // atoms positioned around it (+ve and -ve) then we have to use nint later instead of
+    // floor to work out which unit cell offset to use.
+    //
+    // currently only unit cells with origins at the corner or the center are supported
+    bool is_centered_lattice = false;
+    for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
+      if (lattice.unit_cell_position(i).x < 0.0 || lattice.unit_cell_position(i).y < 0.0 || lattice.unit_cell_position(i).z < 0.0) {
+        is_centered_lattice = true;
+        jams_warning("Centered lattice is detected. Make sure you know what you are doing!");
+        break;
+      }
     }
-    counter++;
+
+    ::output.verbose("unit cell interactions\n");
+    for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
+      std::set<jblib::Vec4<int>, vec4_compare> interaction_set;
+      // only process for interactions belonging to this material
+      if (lattice.unit_cell_material_name(i) == type_name_A) {
+        // unit_cell position in basis vector space
+        jblib::Vec3<double> pij = lattice.unit_cell_position(i);
+        ::output.verbose("unit_cell position %d [%s] (% 3.6f % 3.6f % 3.6f)\n", i, lattice.unit_cell_material_name(i).c_str(), pij.x, pij.y, pij.z);
+        ::output.verbose("interaction vector %d [%s] (% 3.6f % 3.6f % 3.6f)\n", line_number, type_name_B.c_str(), r.x, r.y, r.z);
+
+
+        // position of neighbour in real space
+        jblib::Vec3<double> rij = lattice.cartesian_to_fractional(r);
+        // this gives the integer unit cell of the interaction
+        jblib::Vec3<double> uij = rij + pij;
+        for (int k = 0; k < 3; ++k) {
+          if (is_centered_lattice) {
+            // usually nint is floor(x+0.5) but it depends on how the cell is defined :(
+            // it seems using ceil is better supported with spglib
+            uij[k] = ceil(uij[k]-0.5);
+          } else {
+            // adding the distance_tolerance_ allows us to still floor properly when the precision
+            // of the interaction vectors is not so good.
+            uij[k] = floor(uij[k] + distance_tolerance_);
+          }
+        }
+        // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
+        // component is the atoms number within the unit_cell
+        jblib::Vec4<int> fast_integer_vector;
+        for (int k = 0; k < 3; ++k) {
+          fast_integer_vector[k] = uij[k];
+        }
+
+        // now calculate the unit_cell offset
+        jblib::Vec3<double> unit_cell_offset;
+
+        unit_cell_offset = rij + pij - uij;
+
+        jblib::Vec3<double> rij_cart = lattice.fractional_to_cartesian(rij);
+        ::output.verbose("% 3.6f % 3.6f % 3.6f | % 3.6f % 3.6f % 3.6f | % 6d % 6d % 6d | % 3.6f % 3.6f % 3.6f\n",
+          rij.x ,rij.y, rij.z, rij_cart.x ,rij_cart.y, rij_cart.z, int(uij.x), int(uij.y), int(uij.z),
+          unit_cell_offset.x, unit_cell_offset.y, unit_cell_offset.z);
+
+
+        // find which unit_cell position this offset corresponds to
+        // it is possible that it does not correspond to a position in which case the
+        // "unit_cell_partner" is -1
+        int unit_cell_partner = -1;
+        for (int k = 0; k < lattice.num_unit_cell_positions(); ++k) {
+          jblib::Vec3<double> pos = lattice.unit_cell_position(k);
+          if ( fabs(pos.x - unit_cell_offset.x) < distance_tolerance_
+            && fabs(pos.y - unit_cell_offset.y) < distance_tolerance_
+            && fabs(pos.z - unit_cell_offset.z) < distance_tolerance_ ) {
+            unit_cell_partner = k;
+          break;
+        }
+      }
+
+      if (unit_cell_partner != -1) {
+        // fast_integer_vector[3] = unit_cell_partner - i;
+        // check the unit_cell partner is of the type that was specified in the exchange input file
+        if (lattice.unit_cell_material_name(unit_cell_partner) != type_name_B) {
+          ::output.verbose("wrong type \n");
+          continue;
+        }
+        jblib::Vec4<int> fast_integer_vector(uij[0], uij[1], uij[2], unit_cell_partner - i);
+        ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), fast_integer_vector[3] + i, lattice.unit_cell_material_name(fast_integer_vector[3] + i).c_str(), fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2]);
+        int_interaction_list[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
+
+        if (is_debug_enabled) {
+          unfolded_interaction_file << std::setw(12) << type_name_A << "\t";
+          unfolded_interaction_file << std::setw(12) << type_name_B << "\t";
+          unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.x << "\t";
+          unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.y << "\t";
+          unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.z << "\t";
+          unfolded_interaction_file << std::setw(12) << std::scientific << tensor[0][0] << "\t";
+          unfolded_interaction_file << std::setw(12) << std::scientific << tensor[0][1] << "\t";
+          unfolded_interaction_file << std::setw(12) << std::scientific << tensor[0][2] << "\t";
+          unfolded_interaction_file << std::setw(12) << std::scientific << tensor[1][0] << "\t";
+          unfolded_interaction_file << std::setw(12) << std::scientific << tensor[1][1] << "\t";
+          unfolded_interaction_file << std::setw(12) << std::scientific << tensor[1][2] << "\t";
+          unfolded_interaction_file << std::setw(12) << std::scientific << tensor[2][0] << "\t";
+          unfolded_interaction_file << std::setw(12) << std::scientific << tensor[2][1] << "\t";
+          unfolded_interaction_file << std::setw(12) << std::scientific << tensor[2][2] << std::endl;
+        }
+        counter++;
+      }
+    }
   }
-
-  if(!verbose_output_is_set) {
-    ::output.write("  ... [use verbose output for details] ... \n");
-    ::output.write("  total: %d\n", counter);
-  }
-
-  interaction_file.close();
-
-
-
+  line_number++;
+}
+::output.write("  total unit cell interactions: %d\n", counter);
+unfolded_interaction_file.close();
 }
 
 void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &filename,
@@ -402,7 +503,6 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
   int counter = 0;
   int line_number = 0;
-  // read the unit_cell into an array from the positions file
 
   ::output.verbose("\ninteraction vectors (%s)\n", filename.c_str());
 
@@ -414,6 +514,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
     }
   }
 
+  // read the unit_cell into an array from the positions file
   for (std::string line; getline(interaction_file, line); ) {
     std::stringstream is(line);
 
