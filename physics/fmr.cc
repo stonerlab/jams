@@ -8,6 +8,7 @@
 #include <string>
 
 #include "core/globals.h"
+#include "core/consts.h"
 
 
 FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
