@@ -13,7 +13,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
   s_old_1_(globals::s), s_old_2_(globals::s) {
 
     double r_abs, rsq_ij;
-    jblib::Vec3<double> r_ij, eij, s_j;
+    jblib::Vec3<double> r_ij, r_hat, s_j;
     jblib::Vec3<int> pos;
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
@@ -44,12 +44,11 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     }
     printf("    r_cutoff: %f\n", r_cutoff_);
 
-    sigma_ = sqrt(-log(delta_error_))/(r_cutoff_);
+    sigma_ = 2*sqrt(-log(delta_error_))/(r_cutoff_);
     if (settings.exists("sigma")) {
         sigma_ = settings["sigma"];
     }
     printf("    sigma: %f\n", sigma_);
-
 
     k_cutoff_ = nint(sqrt(-log(delta_error_))*sigma_);
     if (settings.exists("k_cutoff")) {
@@ -74,6 +73,8 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
     const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
 
+    printf("  real space prefactor: %e\n", prefactor);
+
     // --------------------------------------------------------------------------
     // local real space interactions
     // --------------------------------------------------------------------------
@@ -94,30 +95,30 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
                         r_ij  = lattice.generate_image_position(lattice.position(j), image_vector) - lattice.position(i);
 
-                        rsq_ij = dot(r_ij,r_ij);
+                        r_abs = abs(r_ij);
+
                         // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
                         // so detect based on r_abs rather than i == j
-                        if (rsq_ij > r_cutoff_*r_cutoff_ || unlikely(rsq_ij < 1e-5)) continue;
+                        if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
                         is_interacting = true;
 
-                        r_abs = sqrt(rsq_ij);
-                        eij = r_ij / r_abs;
+                        r_hat = r_ij / r_abs;
 
                         for (int m = 0; m < 3; ++m) {
                             for (int n = 0; n < 3; ++n) {
-                                tensor[m][n] = ((3*eij[m]*eij[n] - Id[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)))
-                                             - (eij[m]*eij[n]*pG(r_abs, sigma_));
+                                tensor[m][n] = ((3*r_hat[m]*r_hat[n] - Id[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)))
+                                             - (r_hat[m]*r_hat[n]*pG(r_abs, sigma_));
                             }
                         }
 
                     }
                 }
             }
-            // std::cerr << i << "\t" << j << "\t" << tensor[0][0]*prefactor*globals::mus(j) << std::endl;
+
             if (is_interacting) {
                 for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
-                        local_interaction_matrix_.insertValue(3*i + m, 3*j + n, tensor[m][n]*prefactor*globals::mus(j));
+                        local_interaction_matrix_.insertValue(3*i + m, 3*j + n, tensor[m][n]*prefactor*globals::mus(i)*globals::mus(j));
                     }
                 }
                 local_interaction_counter++;
@@ -202,7 +203,9 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                                  FFTW_PATIENT);
 
     // divide by product(kspace_padded_size_) instead or normalizing the FFT result later
-    const double recip_factor = kVacuumPermeadbility*kBohrMagneton/(lattice.volume()*product(kspace_padded_size_));
+    const double recip_factor = kVacuumPermeadbility*kBohrMagneton/(::lattice.volume()*product(kspace_padded_size_));
+    printf("  reciprocal space prefactor: %e\n", recip_factor);
+
     jblib::Vec3<double> kvec;
     double k_abs;
     for (int i = 0; i < kspace_padded_size_[0]; ++i) {
@@ -230,8 +233,9 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
                 for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
-                        w_recip_(i, j, k, m, n) = recip_factor * exp( -0.5 * pow(k_abs / sigma_, 2)) * globals::mus(0)
-                                                * kvec[m] * kvec[n] / double(k_abs);
+                        w_recip_(i, j, k, m, n) = globals::mus(0)*globals::mus(0)*recip_factor
+                                                * (kvec[m] * kvec[n] / double(k_abs))
+                                                * exp( -0.5 * pow(k_abs*sigma_, 2));
                     }
                 }
             }
@@ -347,12 +351,21 @@ void DipoleHamiltonianEwald::calculate_fields(jblib::Array<double, 2>& fields) {
     double h[3];
     jblib::Vec3<int> pos;
 
+    fields.zero();
+
     for (int i = 0; i < globals::num_spins; ++i) {
        calculate_local_ewald_field(i, h);
        for (int j = 0; j < 3; ++j) {
-           fields(i, j) = h[j];
+           fields(i, j) += h[j];
         }
     }
+
+    // for (int i = 0; i < globals::num_spins; ++i) {
+    //    calculate_self_ewald_field(i, h);
+    //    for (int j = 0; j < 3; ++j) {
+    //        fields(i, j) += h[j];
+    //     }
+    // }
 
     calculate_nonlocal_ewald_field();
     for (int i = 0; i < globals::num_spins; ++i) {
@@ -390,7 +403,7 @@ void DipoleHamiltonianEwald::calculate_self_ewald_field(const int i, double h[3]
         h[m] = 0.0;
     }
     for (int n = 0; n < 3; ++n) {
-        h[n] += -2*(2.0/(3.0*sqrt(kPi)))*pow(sigma_, 3)*globals::s(i, n)*globals::mus(i);
+        h[n] += -2*(2.0/(3.0*sqrt(kPi)))*pow(sigma_, 3)*globals::s(i, n)*globals::mus(i)*globals::mus(i);
     }
 }
 

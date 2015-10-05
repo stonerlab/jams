@@ -58,11 +58,13 @@ class DipoleHamiltonianEwald : public HamiltonianStrategy {
 };
 
 inline double DipoleHamiltonianEwald::fG(const double r, const double a) {
-    return erfc(r / (a*sqrt(2.0))) + ((kSqrtTwo*r)/(kPi*a))*exp(-0.5*pow(r/a, 2));
+    using std::pow;
+    return erfc(r / (a*kSqrtTwo)) + sqrt(2.0/kPi)*(r/a)*exp(-0.5*pow(r/a, 2));
 }
 
 // Gaussian point dipole
 inline double DipoleHamiltonianEwald::pG(const double r, const double a) {
+    using std::pow;
     return sqrt(2.0/kPi)*exp(-0.5*pow(r/a, 2))/(pow(r, 2)*pow(a, 3));
 }
 
