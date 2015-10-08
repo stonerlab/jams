@@ -46,17 +46,11 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
     output.write("  dipole tensor memory estimate (MB):\n    %f\n", std::pow(double(globals::num_spins*3), 2)*8/double(1024*1024) );
 
-    dipole_tensor_.resize(globals::num_spins3, globals::num_spins3);
-
-    for (int i = 0; i < globals::num_spins; ++i) {
-        for (int j = 0; j < globals::num_spins; ++j) {
-            dipole_tensor_(i, j) = 0.0;
-        }
-    }
+    dipole_tensor_ = jblib::Array<double,2>(globals::num_spins3, globals::num_spins3);
+    dipole_tensor_.zero();
 
     const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
 
-    jblib::Matrix<double, 3, 3> tensor;
 
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
@@ -84,13 +78,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
                         for (int m = 0; m < 3; ++m) {
                             for (int n = 0; n < 3; ++n) {
-                                tensor[m][n] = 3*r_hat[m]*r_hat[n] - Id[m][n];
-                            }
-                        }
-
-                        for (int m = 0; m < 3; ++m) {
-                            for (int n = 0; n < 3; ++n) {
-                                dipole_tensor_(3*i + m, 3*j + n) += tensor[m][n]*prefactor*globals::mus(i)*globals::mus(j)/pow(r_abs,3);
+                                dipole_tensor_(3*i + m, 3*j + n) += (3*r_hat[m]*r_hat[n] - Id[m][n])*prefactor*globals::mus(i)*globals::mus(j)/pow(r_abs,3);
                             }
                         }
                     }
