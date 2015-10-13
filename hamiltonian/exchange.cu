@@ -317,7 +317,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 void ExchangeHamiltonian::read_interactions(const std::string &filename,
   std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
 
-  ::output.write("  reading interactions (no symops)\n")
+  ::output.write("  reading interactions (no symops)\n");
 
 
   std::ifstream interaction_file(filename.c_str());
@@ -489,7 +489,7 @@ unfolded_interaction_file.close();
 void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &filename,
   std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
 
-  ::output.write("  reading interactions and applying symmetry operations\n")
+  ::output.write("  reading interactions and applying symmetry operations\n");
 
   std::ifstream interaction_file(filename.c_str());
 
