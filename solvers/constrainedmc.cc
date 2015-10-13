@@ -180,6 +180,17 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     }
   }
 
+  if (abs(rad_to_deg(acos(m_other.z/abs(m_other))) - constraint_theta_) > 1e-5 ) {
+    std::stringstream ss;
+    ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint violated (" << rad_to_deg(acos(m_other.z/abs(m_other))) << " deg)";
+    throw std::runtime_error(ss.str());
+  }
+
+  if (abs(rad_to_deg(atan2(m_other.y, m_other.x)) - constraint_phi_) > 1e-5 ) {
+    std::stringstream ss;
+    ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint violated (" << rad_to_deg(atan2(m_other.y, m_other.x)) << " deg)";
+  }
+
   move_acceptance_count_ = 0;
 
   // In this 'for' loop I've tried to bail and continue at the earliest possible point
@@ -211,7 +222,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     s1_final_rotated = rotation_matrix_*s1_final;
 
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
-    s2_final_rotated = (s1_initial_rotated + s2_initial_rotated)*(mu1/mu2) - s1_final_rotated;
+    s2_final_rotated = (s1_initial_rotated - s1_final_rotated)*(mu1/mu2) + s2_initial_rotated;
 
     // zero out the z-component which will be calculated below
     s2_final_rotated.z = 0.0;
