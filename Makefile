@@ -2,7 +2,7 @@
 all::
 
 # Define V=1 for verbose output
-# V=1
+V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
@@ -62,7 +62,7 @@ GITSHORT = $(shell git rev-parse --short HEAD)
 CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
 SYSTYPE = $(shell uname -s)
 
-CFLAGS = -march=native -std=c++11 -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
+CFLAGS =  -std=c++11 -march=native -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
 LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
@@ -193,23 +193,20 @@ ifndef NO_CUDA
 endif
 
 ifeq ($(SYSTYPE),Darwin)
-	CC = clang++ -stdlib=libstdc++
+	CC = clang++
 	CFLAGS += -fslp-vectorize
 	BASIC_LDFLAGS += -framework Accelerate -Wl -rpath /usr/local/cuda/lib
 else
 	BASIC_LDFLAGS +=
 endif
 
-ifeq ($(SYSTYPE),Darwin)
-		BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
-		BASIC_LDFLAGS += /Users/jbarker/local/lib/libconfig++.a
-else
-	ifdef LIBCONFIGDIR
-		BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
-		BASIC_LDFLAGS += -L$(LIBCONFIGDIR)/lib
-	endif
-	EXTLIBS += -lconfig++
+
+ifdef LIBCONFIGDIR
+	BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
+	BASIC_LDFLAGS += -L$(LIBCONFIGDIR)/lib
 endif
+
+EXTLIBS += -lconfig++
 
 ifdef MKLROOT
 	CC = icpc
@@ -225,7 +222,7 @@ ifndef NO_CUDA
 	BASIC_CUFLAGS += -I$(CUDADIR)/include -DCUDA
 	ifeq ($(SYSTYPE),Darwin)
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib
-		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler "-stdlib=libstdc++ -DNDEBUG" -Xlinker -stdlib=libstdc++
+		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG" -Xlinker
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
 		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -O3 -g -funroll-loops -DNDEBUG"

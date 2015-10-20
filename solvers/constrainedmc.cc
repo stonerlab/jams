@@ -166,7 +166,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
 
   int rand_s1, rand_s2;
   double delta_energy1, delta_energy2, delta_energy21;
-  double mz_old, mz_new, probability;
+  double mu1, mu2, mz_old, mz_new, probability;
   const double beta = kBohrMagneton/(physics_module_->temperature()*kBoltzmann);
 
   Vec3<double> s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
@@ -176,8 +176,19 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
 
   for (int i = 0; i < globals::num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
-      m_other[n] += globals::s(i,n);
+      m_other[n] += globals::s(i,n)*globals::mus(i);
     }
+  }
+
+  if (abs(rad_to_deg(acos(m_other.z/abs(m_other))) - constraint_theta_) > 1e-5 ) {
+    std::stringstream ss;
+    ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint violated (" << rad_to_deg(acos(m_other.z/abs(m_other))) << " deg)";
+    throw std::runtime_error(ss.str());
+  }
+
+  if (abs(rad_to_deg(atan2(m_other.y, m_other.x)) - constraint_phi_) > 1e-5 ) {
+    std::stringstream ss;
+    ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint violated (" << rad_to_deg(atan2(m_other.y, m_other.x)) << " deg)";
   }
 
   move_acceptance_count_ = 0;
@@ -198,6 +209,8 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
 
     s1_initial = mc_spin_as_vec(rand_s1);
     s2_initial = mc_spin_as_vec(rand_s2);
+    mu1 = globals::mus(rand_s1);
+    mu2 = globals::mus(rand_s2);
 
     // rotate into reference frame of the constraint vector
     s1_initial_rotated = rotation_matrix_*s1_initial;
@@ -209,7 +222,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     s1_final_rotated = rotation_matrix_*s1_final;
 
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
-    s2_final_rotated = s1_initial_rotated + s2_initial_rotated - s1_final_rotated;
+    s2_final_rotated = (s1_initial_rotated - s1_final_rotated)*(mu1/mu2) + s2_initial_rotated;
 
     // zero out the z-component which will be calculated below
     s2_final_rotated.z = 0.0;
@@ -224,7 +237,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     // rotate s2 back into the cartesian reference frame
     s2_final = inverse_rotation_matrix_*s2_final_rotated;
 
-    mz_new = dot((m_other + s1_final + s2_final - s1_initial - s2_initial), constraint_vector_);
+    mz_new = dot((m_other + s1_final*mu1 + s2_final*mu2 - s1_initial*mu1 - s2_initial*mu2), constraint_vector_);
 
     // The new magnetization is in the opposite sense - revert s1, reject move
     if (unlikely(mz_new < 0.0)) {
@@ -262,7 +275,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     } else {
       // accept move
       mc_set_spin_as_vec(rand_s2, s2_final);
-      m_other += s1_final + s2_final - s1_initial - s2_initial;
+      m_other += s1_final*mu1 + s2_final*mu2 - s1_initial*mu1 - s2_initial*mu2;
       move_acceptance_count_++;
     }
   }
