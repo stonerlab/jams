@@ -9,6 +9,7 @@
 #include "hamiltonian/dipole.h"
 #include "hamiltonian/uniaxial.h"
 #include "hamiltonian/exchange.h"
+#include "hamiltonian/zeeman.h"
 
 Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
     // debugging output
@@ -26,6 +27,10 @@ Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
 
     if (capitalize(settings["module"]) == "DIPOLE") {
         return new DipoleHamiltonian(settings);
+    }
+
+    if (capitalize(settings["module"]) == "ZEEMAN") {
+        return new ZeemanHamiltonian(settings);
     }
 
     // throw error if the hamiltonian name is no known
