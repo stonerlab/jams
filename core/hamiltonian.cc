@@ -13,9 +13,7 @@
 
 Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
     // debugging output
-    if (::verbose_output_is_set) {
-        ::output.write("\ncreating '%s' hamiltonian\n", settings["module"].c_str());
-    }
+    ::output.write("\ncreating '%s' hamiltonian\n", settings["module"].c_str());
 
     if (capitalize(settings["module"]) == "EXCHANGE") {
         return new ExchangeHamiltonian(settings);

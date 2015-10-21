@@ -90,7 +90,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     for (int i = 0; i < 3; ++i) {
       bz_line[i] = int(bz_nodes[n+1][i]) - int(bz_nodes[n][i]);
     }
-    if (verbose_output_is_set) {::output.write("  bz line: [ %4d %4d %4d ]\n", bz_line.x, bz_line.y, bz_line.z); }
+    ::output.verbose("  bz line: [ %4d %4d %4d ]\n", bz_line.x, bz_line.y, bz_line.z);
 
     // normalised vector
     for (int i = 0; i < 3; ++i) {
@@ -99,7 +99,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     // the number of points is the max dimension in line
     const int bz_line_points = abs(*std::max_element(bz_line.begin(), bz_line.end(), [] (int a, int b) { return (abs(a) < abs(b)); }));
-    if (verbose_output_is_set) { ::output.write("  bz line points: %d\n", bz_line_points); }
+    ::output.verbose("  bz line points: %d\n", bz_line_points);
 
     // store the length element between these points
     for (int j = 0; j < bz_line_points; ++j) {

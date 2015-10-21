@@ -10,10 +10,7 @@
 #include "thermostats/cuda_langevin_coth.h"
 
 Thermostat* Thermostat::create(const std::string &thermostat_name) {
-    // debugging output
-    if (::verbose_output_is_set) {
-        ::output.write("\ncreating '%s' thermostat\n", thermostat_name.c_str());
-    }
+    ::output.write("\ncreating '%s' thermostat\n", thermostat_name.c_str());
 
     // create the selected thermostat
     #ifdef CUDA

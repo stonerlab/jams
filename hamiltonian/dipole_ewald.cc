@@ -12,7 +12,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 : HamiltonianStrategy(settings),
   s_old_1_(globals::s), s_old_2_(globals::s) {
 
-    double r_abs, rsq_ij;
+    double r_abs;
     jblib::Vec3<double> r_ij, r_hat, s_j;
     jblib::Vec3<int> pos;
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );

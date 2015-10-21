@@ -28,14 +28,6 @@ namespace {
 
   double dt = 0.0;
   int steps_run = 0;
-  int  steps_bin = 0;
-
-  bool energy_output_is_set = false;
-  bool binary_output_is_set = false;
-  bool coarse_output_is_set = false;
-
-  bool save_state_is_set = false;
-
 }  // anon namespace
 
 int jams_initialize(int argc, char **argv) {
@@ -72,78 +64,39 @@ int jams_initialize(int argc, char **argv) {
 #ifdef DEBUG
   output.write("\nDEBUG Build\n");
 #endif
-
-  output.write("\nReading configuration file...\n");
-
-  output.write("  * Config file: %s\n", config_filename.c_str());
+  output.write("\nconfig file\n  %s\n", config_filename.c_str());
 
   {
     try {
       config.readFile(config_filename.c_str());
 
-      verbose_output_is_set = false;
-      config.lookupValue("sim.verbose", verbose_output_is_set);
-      if (verbose_output_is_set) {
-        output.enableVerbose();
-        output.write("  * Verbose output is ON\n");
+      if (config.exists("sim.verbose")) {
+        if (config.lookup("sim.verbose")) {
+          output.enableVerbose();
+          output.write("verbose output is ON\n");
+        }
       }
 
-
-      ::optimize::use_fft = false;
-      ::config.lookupValue("sim.fft", ::optimize::use_fft);
-      if (::optimize::use_fft) {
-        output.write("  * FFT optimizations have been requested (not guaranteed)\n");
+      unsigned int random_seed = time(NULL);
+      if (config.lookupValue("sim.seed", random_seed)) {
+        output.write("\nrandom seed in config file\n");
+      } else {
+        output.write("\nrandom seed from time\n");
       }
+      output.write("  %u\n", random_seed);
+      rng.seed(random_seed);
+
 
       dt = config.lookup("sim.t_step");
-      output.write("  * Timestep:           %1.8e\n", dt);
+      output.write("\ntimestep\n  %1.8e\n", dt);
 
       double time_value = config.lookup("sim.t_eq");
 
       time_value = config.lookup("sim.t_run");
       steps_run = static_cast<int>(time_value/dt);
-      output.write("  * Run time:           %1.8e (%lu steps)\n",
+      output.write("\nruntime\n  %1.8e (%lu steps)\n",
         time_value, steps_run);
 
-      if (config.lookupValue("sim.save_state", save_state_is_set)) {
-        if (save_state_is_set) {
-          output.write("  * Save state is ON\n");
-        }
-      }
-
-      if (config.lookupValue("sim.energy", energy_output_is_set)) {
-        if (energy_output_is_set) {
-          output.write("  * Energy calculation ON\n");
-        } else {
-          output.write("  * Energy calculation OFF\n");
-        }
-      }
-
-      if (config.lookupValue("sim.binary", binary_output_is_set)) {
-        if (binary_output_is_set) {
-          output.write("  * Binary output is ON\n");
-          time_value = config.lookup("sim.t_bin");
-          steps_bin = static_cast<int>(time_value/dt);
-          output.write("  * Binary output time: %1.8e (%lu steps)\n",
-            time_value, steps_bin);
-        }
-      }
-
-      if (config.exists("lattice.coarse")) {
-        coarse_output_is_set = true;
-        output.write("  * Coarse magnetisation map output is ON\n");
-      }
-
-      unsigned int randomseed;
-      if (config.lookupValue("sim.seed", randomseed)) {
-        output.write("  * Random generator seeded from config file\n");
-      } else {
-        randomseed = time(NULL);
-        output.write("  * Random generator seeded from time\n");
-      }
-      output.write("  * Seed: %u\n", randomseed);
-
-      rng.seed(randomseed);
 
       lattice.init_from_config(::config);
 
@@ -202,12 +155,6 @@ int jams_initialize(int argc, char **argv) {
 void jams_run() {
   using namespace globals;
 
-  std::ofstream coarse_magnetisation_file;
-
-  if (coarse_output_is_set) {
-    coarse_magnetisation_file.open(std::string(seedname+"_map.dat").c_str());
-  }
-
   output.write("\n----Data Run----\n");
   output.write("Running solver\n");
   std::clock_t start = std::clock();
@@ -224,10 +171,6 @@ void jams_run() {
   double elapsed = static_cast<double>(std::clock()-start);
   elapsed /= CLOCKS_PER_SEC;
   output.write("Solving time: %f\n", elapsed);
-
-  if (coarse_output_is_set) {
-    coarse_magnetisation_file.close();
-  }
 }
 
 void jams_finish() {

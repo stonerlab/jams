@@ -33,11 +33,6 @@ GLOBAL libconfig::Config config;  ///< Config object
 GLOBAL Output output;
 GLOBAL Random rng;
 GLOBAL std::string seedname;
-GLOBAL bool verbose_output_is_set;
-
-namespace optimize {
-    GLOBAL bool use_fft;
-}
 
 namespace globals {
   GLOBAL bool is_cuda_solver_used;

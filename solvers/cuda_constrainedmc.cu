@@ -116,24 +116,24 @@ double CudaConstrainedMCSolver::compute_one_spin_energy(const jblib::Vec3<double
   // zero the field array
   cudaMemset(dev_h_.data(), 0.0, num_spins3*sizeof(CudaFastFloat));
 
-  if (optimize::use_fft) {
+  // if (optimize::use_fft) {
 
-    cuda_realspace_to_kspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_s_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_s3d_.data());
+  //   cuda_realspace_to_kspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_s_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_s3d_.data());
 
-    if (cufftExecD2Z(spin_fft_forward_transform, dev_s3d_.data(), dev_sq_.data()) != CUFFT_SUCCESS) {
-      jams_error("CUFFT failure executing spin_fft_forward_transform");
-    }
+  //   if (cufftExecD2Z(spin_fft_forward_transform, dev_s3d_.data(), dev_sq_.data()) != CUFFT_SUCCESS) {
+  //     jams_error("CUFFT failure executing spin_fft_forward_transform");
+  //   }
 
-    const int convolution_size = num_kpoints_.x*num_kpoints_.y*((num_kpoints_.z/2)+1);
-    const int real_size = num_kpoints_.x*num_kpoints_.y*num_kpoints_.z;
+  //   const int convolution_size = num_kpoints_.x*num_kpoints_.y*((num_kpoints_.z/2)+1);
+  //   const int real_size = num_kpoints_.x*num_kpoints_.y*num_kpoints_.z;
 
-    cuda_fft_convolution<<<(convolution_size+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>(convolution_size, real_size, dev_wq_.data(), dev_sq_.data(), dev_hq_.data());
-    if (cufftExecZ2D(field_fft_backward_transform, dev_hq_.data(), dev_h3d_.data()) != CUFFT_SUCCESS) {
-      jams_error("CUFFT failure executing field_fft_backward_transform");
-    }
+  //   cuda_fft_convolution<<<(convolution_size+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>(convolution_size, real_size, dev_wq_.data(), dev_sq_.data(), dev_hq_.data());
+  //   if (cufftExecZ2D(field_fft_backward_transform, dev_hq_.data(), dev_h3d_.data()) != CUFFT_SUCCESS) {
+  //     jams_error("CUFFT failure executing field_fft_backward_transform");
+  //   }
 
-    cuda_kspace_to_realspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_h3d_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_h_.data());
-  }
+  //   cuda_kspace_to_realspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_h3d_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_h_.data());
+  // }
 
   // extract field for the site we care about
   cudaMemcpy(&field[0], (dev_h_.data()+3*ii), 3*sizeof(double), cudaMemcpyDeviceToHost);

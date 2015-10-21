@@ -339,7 +339,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
 
   ::output.verbose("\ninteraction vectors (%s)\n", filename.c_str());
 
-  if (verbose_output_is_set) {
+  if (::output.is_verbose()) {
     ::output.verbose("unit cell realspace\n");
     for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
       jblib::Vec3<double> rij = lattice.unit_cell_position(i);
@@ -510,7 +510,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
   ::output.verbose("\ninteraction vectors (%s)\n", filename.c_str());
 
-  if (verbose_output_is_set) {
+  if (::output.is_verbose()) {
     ::output.verbose("unit cell realspace\n");
     for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
       jblib::Vec3<double> rij = lattice.unit_cell_position(i);

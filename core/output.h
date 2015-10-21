@@ -32,6 +32,8 @@ class Output {
   void verbose(const char* string, ...);
   void print(const char* string, ...);
 
+  bool is_verbose() { return verbose_; };
+
   void enableConsole() { console = true; }
   void disableConsole() { console = false; }
 
