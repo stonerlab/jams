@@ -9,6 +9,9 @@
 
 #include "core/consts.h"
 
+#include "jblib/containers/vec.h"
+
+
 using std::pow;
 
 inline double square(const double &x) {
@@ -29,6 +32,14 @@ inline double deg_to_rad(const double &angle) {
 
 inline double rad_to_deg(const double &angle) {
   return angle*(180.0/kPi);
+}
+
+inline double azimuthal_angle(const jblib::Vec3<double> a) {
+  return acos(a.z/abs(a));
+}
+
+inline double polar_angle(const jblib::Vec3<double> a) {
+  return atan2(a.y, a.x);
 }
 
 // greatest common divisor
@@ -68,6 +79,16 @@ inline _Tp1 sign(const _Tp1 &x, const _Tp2 &y) {
   } else {
     return -std::abs(x);
   }
+}
+
+template <typename _Tp1, typename _Tp2>
+inline bool same_sign(const _Tp1 x, const _Tp2 y) {
+  return (x >= 0) ^ (y < 0);
+}
+
+inline bool floats_are_equal(const double x, const double y, const double tolerance = 1e-8) {
+  using std::abs;
+  return same_sign(x, y) && (abs(x - y) < tolerance);
 }
 
 ///
