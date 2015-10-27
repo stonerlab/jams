@@ -267,17 +267,20 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           cusparseSetMatIndexBase(cusparse_descra_,CUSPARSE_INDEX_BASE_ZERO);
 
           ::output.write("  allocating memory on device\n");
-          CUDA_CALL(cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
-          CUDA_CALL(cudaMalloc((void**)&dev_csr_interaction_matrix_.col, (interaction_matrix_.nonZero())*sizeof(int)));
-          CUDA_CALL(cudaMalloc((void**)&dev_csr_interaction_matrix_.val, (interaction_matrix_.nonZero())*sizeof(double)));
+          cuda_api_error_check(
+            cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
+          cuda_api_error_check(
+            cudaMalloc((void**)&dev_csr_interaction_matrix_.col, (interaction_matrix_.nonZero())*sizeof(int)));
+          cuda_api_error_check(
+            cudaMalloc((void**)&dev_csr_interaction_matrix_.val, (interaction_matrix_.nonZero())*sizeof(double)));
 
-          CUDA_CALL(cudaMemcpy(dev_csr_interaction_matrix_.row, interaction_matrix_.rowPtr(),
+          cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.row, interaction_matrix_.rowPtr(),
                 (interaction_matrix_.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
 
-          CUDA_CALL(cudaMemcpy(dev_csr_interaction_matrix_.col, interaction_matrix_.colPtr(),
+          cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.col, interaction_matrix_.colPtr(),
                 (interaction_matrix_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
 
-          CUDA_CALL(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
+          cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
                 (interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
 
         } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
@@ -288,12 +291,15 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           ::output.write("  allocating memory on device\n");
 
           // allocate rows
-          CUDA_CALL(cudaMalloc((void**)&dev_dia_interaction_matrix_.row, (interaction_matrix_.diags())*sizeof(int)));
+          cuda_api_error_check(
+            cudaMalloc((void**)&dev_dia_interaction_matrix_.row, (interaction_matrix_.diags())*sizeof(int)));
           // allocate values
-          CUDA_CALL(cudaMallocPitch((void**)&dev_dia_interaction_matrix_.val, &dev_dia_interaction_matrix_.pitch,
+          cuda_api_error_check(
+            cudaMallocPitch((void**)&dev_dia_interaction_matrix_.val, &dev_dia_interaction_matrix_.pitch,
               (interaction_matrix_.rows())*sizeof(double), interaction_matrix_.diags()));
           // copy rows
-          CUDA_CALL(cudaMemcpy(dev_dia_interaction_matrix_.row, interaction_matrix_.dia_offPtr(),
+          cuda_api_error_check(
+            cudaMemcpy(dev_dia_interaction_matrix_.row, interaction_matrix_.dia_offPtr(),
               (size_t)((interaction_matrix_.diags())*(sizeof(int))), cudaMemcpyHostToDevice));
           // convert val array into double which may be float or double
           std::vector<double> float_values(interaction_matrix_.rows()*interaction_matrix_.diags(), 0.0);
@@ -303,7 +309,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           }
 
           // copy values
-          CUDA_CALL(cudaMemcpy2D(dev_dia_interaction_matrix_.val, dev_dia_interaction_matrix_.pitch, &float_values[0],
+          cuda_api_error_check(
+            cudaMemcpy2D(dev_dia_interaction_matrix_.val, dev_dia_interaction_matrix_.pitch, &float_values[0],
               interaction_matrix_.rows()*sizeof(double), interaction_matrix_.rows()*sizeof(double),
               interaction_matrix_.diags(), cudaMemcpyHostToDevice));
 

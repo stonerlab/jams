@@ -42,22 +42,37 @@ void CUDAHeunLLGSolver::run()
 {
   using namespace globals;
 
+
     thermostat_->set_temperature(physics_module_->temperature());
     thermostat_->update();
 
+    cuda_api_error_check(
+      cudaMemcpy(dev_s_old_.data(),           // void *               dst
+                 dev_s_.data(),               // const void *         src
+                 num_spins3*sizeof(double),   // size_t               count
+                 cudaMemcpyDeviceToDevice)    // enum cudaMemcpyKind  kind
+    );
+
     compute_fields();
 
-    cudaDeviceSynchronize();
+    cuda_api_error_check( cudaDeviceSynchronize() );
 
-    cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE, 0>>>
-        (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), thermostat_->noise(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
+    cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE>>>
+        (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
+          dev_h_.data(), thermostat_->noise(), dev_sigma_.data(),
+          dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
+
+    cuda_kernel_error_check();
 
     compute_fields();
 
-    cudaDeviceSynchronize();
+    cuda_api_error_check( cudaDeviceSynchronize() );
 
-    cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE, 0>>>
-        (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), thermostat_->noise(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
+    cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE>>>
+      (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
+        dev_h_.data(), thermostat_->noise(), dev_sigma_.data(),
+        dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
+    cuda_kernel_error_check();
 
     iteration_++;
 }

@@ -5,121 +5,117 @@
 
 #include "core/cuda_defs.h"
 
+
+__device__ inline void cuda_cross_product(const double b[3], const double c[3], double a[3]) {
+  // a = b x c
+  a[0] = b[1]*c[2] - b[2]*c[1];
+  a[1] = b[2]*c[0] - b[0]*c[2];
+  a[2] = b[0]*c[1] - b[1]*c[0];
+}
+
+__device__ inline void cuda_llg_rhs(const double alpha, const double s[3], const double sxh[3], double rhs[3]) {
+  rhs[0] = sxh[0] + alpha * ( s[1]*sxh[2] - s[2]*sxh[1] );
+  rhs[1] = sxh[1] + alpha * ( s[2]*sxh[0] - s[0]*sxh[2] );
+  rhs[2] = sxh[2] + alpha * ( s[0]*sxh[1] - s[1]*sxh[0] );
+}
+
+__device__ inline double rnorm(const double s[3]) {
+  return rsqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
+  // return 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
+}
+
 __global__ void cuda_heun_llg_kernelA
 (
   double * s_dev,
-  double * s_new_dev,
-  CudaFastFloat * h_dev,
+  double * ds_dt_dev,
+  const double * s_old_dev,
+  const double * h_dev,
   const double * noise_dev,
-  CudaFastFloat * mat_dev,
-  CudaFastFloat h_app_x,
-  CudaFastFloat h_app_y,
-  CudaFastFloat h_app_z,
-  int num_spins,
-  double dt
+  const double * sigma_dev,
+  const double * gyro_dev,
+  const double * alpha_dev,
+  const int num_spins,
+  const double dt
 )
 {
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
-  const int idx3 = 3*idx;
 
   if(idx < num_spins) {
-    double h[3];
-    double s[3];
-    double rhs[3];
-    double sxh[3];
-    double norm;
+    const int idx3 = 3*idx;
+    double h[3], s[3], rhs[3], sxh[3];
+    int n;
 
-    CudaFastFloat mus = mat_dev[idx*4];
-    CudaFastFloat gyro = mat_dev[idx*4+1];
-    CudaFastFloat alpha = mat_dev[idx*4+2];
-    CudaFastFloat sigma = mat_dev[idx*4+3];
+    for (n = 0; n < 3; ++n) {
+      h[n] = ( h_dev[idx3 + n] + noise_dev[idx3 + n]*sigma_dev[idx])*gyro_dev[idx];
+    }
 
-    h[0] = ( h_dev[idx3] + ( noise_dev[idx3]*sigma + h_app_x)*mus )*gyro;
-    h[1] = ( h_dev[idx3+1] + ( noise_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
-    h[2] = ( h_dev[idx3+2] + ( noise_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
+    for (n = 0; n < 3; ++n) {
+      s[n] = s_dev[idx3 + n];
+    }
 
-    s[0] = s_dev[idx3];
-    s[1] = s_dev[idx3+1];
-    s[2] = s_dev[idx3+2];
+    cuda_cross_product(s, h, sxh);
 
-    sxh[0] = s[1]*h[2] - s[2]*h[1];
-    sxh[1] = s[2]*h[0] - s[0]*h[2];
-    sxh[2] = s[0]*h[1] - s[1]*h[0];
+    cuda_llg_rhs(alpha_dev[idx], s, sxh, rhs);
 
-    rhs[0] = sxh[0] + alpha * ( s[1]*sxh[2] - s[2]*sxh[1] );
-    rhs[1] = sxh[1] + alpha * ( s[2]*sxh[0] - s[0]*sxh[2] );
-    rhs[2] = sxh[2] + alpha * ( s[0]*sxh[1] - s[1]*sxh[0] );
+    for (n = 0; n < 3; ++n) {
+      ds_dt_dev[idx3 + n] = 0.5 * rhs[n];
+    }
 
-    s_new_dev[idx3  ] = s[0] + 0.5*dt*rhs[0];
-    s_new_dev[idx3+1] = s[1] + 0.5*dt*rhs[1];
-    s_new_dev[idx3+2] = s[2] + 0.5*dt*rhs[2];
+    for (n = 0; n < 3; ++n) {
+      s[n] = s[n] + dt * rhs[n];
+    }
 
-    s[0] = s[0] + dt*rhs[0];
-    s[1] = s[1] + dt*rhs[1];
-    s[2] = s[2] + dt*rhs[2];
-
-    norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
-
-    s_dev[idx3]   = s[0]*norm;
-    s_dev[idx3+1] = s[1]*norm;
-    s_dev[idx3+2] = s[2]*norm;
+    for (n = 0; n < 3; ++n) {
+      s_dev[idx3 + n] = s[n]*rnorm(s);
+    }
   }
 }
 
 __global__ void cuda_heun_llg_kernelB
 (
   double * s_dev,
-  double * s_new_dev,
-  CudaFastFloat * h_dev,
+  double * ds_dt_dev,
+  const double * s_old_dev,
+  const double * h_dev,
   const double * noise_dev,
-  CudaFastFloat * mat_dev,
-  CudaFastFloat h_app_x,
-  CudaFastFloat h_app_y,
-  CudaFastFloat h_app_z,
-  int num_spins,
-  double dt
+  const double * sigma_dev,
+  const double * gyro_dev,
+  const double * alpha_dev,
+  const int num_spins,
+  const double dt
 )
 {
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
-  const int idx3 = 3*idx;
 
   if(idx < num_spins) {
-    double h[3];
-    double s[3];
-    double rhs[3];
-    double sxh[3];
-    double norm;
+    const int idx3 = 3*idx;
+    double h[3], s[3], rhs[3], sxh[3];
+    int n;
 
-    CudaFastFloat mus = mat_dev[idx*4];
-    CudaFastFloat gyro = mat_dev[idx*4+1];
-    CudaFastFloat alpha = mat_dev[idx*4+2];
-    CudaFastFloat sigma = mat_dev[idx*4+3];
+    for (n = 0; n < 3; ++n) {
+      h[n] = ( h_dev[idx3 + n] + noise_dev[idx3 + n]*sigma_dev[idx])*gyro_dev[idx];
+    }
 
-    h[0] = ( h_dev[idx3] + ( noise_dev[idx3]*sigma + h_app_x)*mus )*gyro;
-    h[1] = ( h_dev[idx3+1] + ( noise_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
-    h[2] = ( h_dev[idx3+2] + ( noise_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
+    for (n = 0; n < 3; ++n) {
+      s[n] = s_dev[idx3 + n];
+    }
 
-    s[0] = s_dev[idx3];
-    s[1] = s_dev[idx3+1];
-    s[2] = s_dev[idx3+2];
+    cuda_cross_product(s, h, sxh);
 
-    sxh[0] = s[1]*h[2] - s[2]*h[1];
-    sxh[1] = s[2]*h[0] - s[0]*h[2];
-    sxh[2] = s[0]*h[1] - s[1]*h[0];
+    cuda_llg_rhs(alpha_dev[idx], s, sxh, rhs);
 
-    rhs[0] = sxh[0] + alpha * ( s[1]*sxh[2] - s[2]*sxh[1] );
-    rhs[1] = sxh[1] + alpha * ( s[2]*sxh[0] - s[0]*sxh[2] );
-    rhs[2] = sxh[2] + alpha * ( s[0]*sxh[1] - s[1]*sxh[0] );
 
-    s[0] = s_new_dev[idx3  ] + 0.5*dt*rhs[0];
-    s[1] = s_new_dev[idx3+1] + 0.5*dt*rhs[1];
-    s[2] = s_new_dev[idx3+2] + 0.5*dt*rhs[2];
+    for (n = 0; n < 3; ++n) {
+      ds_dt_dev[idx3 + n] = ds_dt_dev[idx3 + n] + 0.5 * rhs[n];
+    }
 
-    norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
+    for (n = 0; n < 3; ++n) {
+      s[n] = s_old_dev[idx3 + n] + dt * ds_dt_dev[idx3 + n];
+    }
 
-    s_dev[idx3]   = s[0]*norm;
-    s_dev[idx3+1] = s[1]*norm;
-    s_dev[idx3+2] = s[2]*norm;
+    for (n = 0; n < 3; ++n) {
+      s_dev[idx3 + n] = s[n]*rnorm(s);
+    }
   }
 }
 
