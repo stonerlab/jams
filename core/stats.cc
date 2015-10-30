@@ -1,12 +1,12 @@
 #include <cmath>
 #include <numeric>
 #include <vector>
+#include <iostream>
 
 #include "core/stats.h"
 #include "core/maths.h"
 
 double Stats::geweke() {
-
     int elements;
     double first_10_pc_mean, first_10_pc_var, first_10_pc_sq_sum;
     double last_50_pc_mean, last_50_pc_var, last_50_pc_sq_sum;
@@ -46,4 +46,66 @@ double Stats::geweke() {
     last_50_pc_var = (last_50_pc_sq_sum/double(elements-1));
 
     return (first_10_pc_mean - last_50_pc_mean) / std::sqrt(first_10_pc_var + last_50_pc_var);
+}
+
+double Stats::median() {
+    std::vector<double> sorted_data(data_);
+    size_t mid_point = sorted_data.size() / 2;
+    std::nth_element(sorted_data.begin(), sorted_data.begin() + mid_point, sorted_data.end());
+    return sorted_data[mid_point];
+}
+
+double Stats::inter_quartile_range() {
+    std::vector<double> sorted_data(data_);
+    double upper_quartile, lower_quartile;
+    const size_t q = sorted_data.size() / 4;
+    const size_t n = sorted_data.size();
+    std::sort(sorted_data.begin(), sorted_data.end());
+
+    if (n % 4 == 0) {
+        lower_quartile = 0.5 * (sorted_data[q] + sorted_data[q - 1]);
+        upper_quartile = 0.5 * (sorted_data[3 * q] + sorted_data[3 * q - 1]);
+    } else {
+        lower_quartile = sorted_data[q];
+        upper_quartile = sorted_data[3 * q];
+    }
+
+    return upper_quartile - lower_quartile;
+}
+
+void Stats::histogram(std::vector<double> &range, std::vector<double> &bin, int num_bins) {
+
+    const double min = this->min();
+    const double max = this->max();
+
+    // algorithmically choose number of bins
+    if (num_bins == 0) {
+        // Freedman–Diaconis method
+        double bin_size = 2.0 * inter_quartile_range() / cbrt(data_.size());
+        if (bin_size < (max - min)) {
+            num_bins = (max - min) / bin_size;
+        } else {
+            num_bins = 1;
+        }
+    }
+
+    bin.resize(num_bins, 0.0);
+    range.resize(num_bins + 1, 0.0);
+
+
+    const double delta = (max - min) / static_cast<double>(num_bins);
+
+    range[0] = min;
+    for (int i = 1; i < num_bins + 1; ++i) {
+        range[i] = min + i * delta;
+    }
+
+    for (int i = 0; i < data_.size(); ++i) {
+        for (int j = 1; j < num_bins + 1; ++j) {
+            if (data_[i] < range[j]) {
+                bin[j - 1] += 1;
+                break;
+            }
+        }
+    }
 }

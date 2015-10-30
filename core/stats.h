@@ -35,16 +35,35 @@ class Stats {
   }
 
   inline void add(const double &x);
+  inline size_t size();
 
+  inline double min();
+  inline double max();
   inline double sum();
   inline double sqsum();
   inline double mean();
   inline double stddev();
+  double median();
+  double inter_quartile_range();
+
   double geweke();
+  void histogram(std::vector<double> &range, std::vector<double> &bin, int num_bins = 0);
 
  protected:
   std::vector<double> data_;
 };
+
+inline size_t Stats::size() {
+  return data_.size();
+}
+
+inline double Stats::min() {
+  return *std::min_element(data_.begin(), data_.end());
+}
+
+inline double Stats::max() {
+  return *std::max_element(data_.begin(), data_.end());
+}
 
 inline void Stats::add(const double &x) {
   data_.push_back(x);
@@ -59,7 +78,7 @@ inline double Stats::sqsum() {
 }
 
 inline double Stats::mean() {
-  return this->sum()/data_.size();
+  return this->sum()/static_cast<double>(data_.size());
 }
 
 inline double Stats::stddev() {
