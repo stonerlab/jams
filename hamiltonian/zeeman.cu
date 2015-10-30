@@ -16,15 +16,26 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 
     // resize member arrays
     energy_.resize(globals::num_spins);
+    energy_.zero();
     field_.resize(globals::num_spins, 3);
     field_.zero();
+
+    dc_local_field_.resize(globals::num_spins, 3);
+    dc_local_field_.zero();
+
+
+    ac_local_field_.resize(globals::num_spins, 3);
+    ac_local_frequency_.resize(globals::num_spins);
+
+    ac_local_field_.zero();
+    ac_local_frequency_.zero();
+
 
     if(settings.exists("dc_local_field")) {
         if (settings["dc_local_field"].getLength() != lattice.num_materials()) {
             jams_error("ZeemanHamiltonian: dc_local_field must be specified for every material");
         }
 
-        dc_local_field_.resize(globals::num_spins, 3);
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
@@ -51,9 +62,6 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
             jams_error("ZeemanHamiltonian: ac_local_field must be specified for every material");
         }
 
-        ac_local_field_.resize(globals::num_spins, 3);
-        ac_local_frequency_.resize(globals::num_spins);
-
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
                 ac_local_field_(i, j) = settings["ac_local_field"][lattice.material(i)][j];
@@ -74,6 +82,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
         dev_field_  = jblib::CudaArray<double, 1>(field_);
 
         dev_dc_local_field_ = jblib::CudaArray<double, 1>(dc_local_field_);
+
         dev_ac_local_field_ = jblib::CudaArray<double, 1>(ac_local_field_);
         dev_ac_local_frequency_ = jblib::CudaArray<double, 1>(ac_local_frequency_);
     }
@@ -155,6 +164,7 @@ void ZeemanHamiltonian::calculate_fields() {
             (globals::num_spins, solver->time(), dev_dc_local_field_.data(),
                 dev_ac_local_field_.data(), dev_ac_local_frequency_.data(),
                 solver->dev_ptr_spin(), dev_field_.data());
+        cuda_kernel_error_check();
 #endif  // CUDA
     } else {
         for (int i = 0; i < globals::num_spins; ++i) {
