@@ -5,9 +5,11 @@
 #include "core/globals.h"
 #include "core/solver.h"
 #include "monitors/magnetisation.h"
+#include "monitors/magnetisation_rate.h"
 #include "monitors/structurefactor.h"
 #include "monitors/torque.h"
 #include "monitors/energy.h"
+#include "monitors/spin_pumping.h"
 #include "monitors/boltzmann.h"
 #include "monitors/vtu.h"
 #include "monitors/hdf5.h"
@@ -34,6 +36,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
     return new MagnetisationMonitor(settings);
   }
 
+  if (capitalize(settings["module"]) == "MAGNETISATION_RATE") {
+    return new MagnetisationRateMonitor(settings);
+  }
+
   if (capitalize(settings["module"]) == "STRUCTUREFACTOR") {
     return new StructureFactorMonitor(settings);
   }
@@ -44,6 +50,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "ENERGY") {
     return new EnergyMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "SPINPUMPING") {
+    return new SpinPumpingMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "BOLTZMANN") {
