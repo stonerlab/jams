@@ -44,6 +44,7 @@ class CudaSolver : public Solver {
  protected:
     inline void sync_device_data() {
       dev_s_.copy_to_host_array(globals::s);
+      dev_ds_dt_.copy_to_host_array(globals::ds_dt);
     }
 
     jblib::Vec3<int> num_kpoints_;
@@ -53,9 +54,9 @@ class CudaSolver : public Solver {
     jblib::CudaArray<double, 1>  dev_sigma_;
     jblib::CudaArray<double, 1>  dev_gyro_;
     jblib::CudaArray<double, 1>  dev_alpha_;
-    jblib::CudaArray<double, 1> dev_s_;
-    jblib::CudaArray<double, 1> dev_s_old_;
-    jblib::CudaArray<double, 1> dev_ds_dt_;
+    jblib::CudaArray<double, 1>  dev_s_;
+    jblib::CudaArray<double, 1>  dev_s_old_;
+    jblib::CudaArray<double, 1>  dev_ds_dt_;
 
     jblib::CudaArray<double, 1> dev_s3d_;
     jblib::CudaArray<double, 1> dev_h3d_;

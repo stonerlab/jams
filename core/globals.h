@@ -42,7 +42,7 @@ namespace globals {
 
   GLOBAL jblib::Array<double, 2> s;
   GLOBAL jblib::Array<double, 2> h;
-  GLOBAL jblib::Array<double, 2> h_dipole;
+  GLOBAL jblib::Array<double, 2> ds_dt;
 
   GLOBAL jblib::Array<float, 2> atom_pos;
 
