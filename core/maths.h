@@ -42,6 +42,22 @@ inline double polar_angle(const jblib::Vec3<double> a) {
   return atan2(a.y, a.x);
 }
 
+inline double azimuthal_angle(const double a[3]) {
+  return acos(a[2]/sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]));
+}
+
+inline double polar_angle(const double a[3]) {
+  return atan2(a[1], a[0]);
+}
+
+inline double azimuthal_angle(const double x, const double y, const double z) {
+  return acos(z/sqrt(x*x + y*y + z*z));
+}
+
+inline double polar_angle(const double x, const double y, const double z) {
+  return atan2(y, x);
+}
+
 // greatest common divisor
 long gcd(long a, long b);
 
