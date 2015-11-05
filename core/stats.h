@@ -47,7 +47,7 @@ class Stats {
   double inter_quartile_range();
 
   double geweke();
-  void histogram(std::vector<double> &range, std::vector<double> &bin, int num_bins = 0);
+  void histogram(std::vector<double> &range, std::vector<double> &bin, double min_value = 0, double max_value = 0, int num_bins = 0);
 
  protected:
   std::vector<double> data_;
@@ -58,10 +58,16 @@ inline size_t Stats::size() {
 }
 
 inline double Stats::min() {
+  if (data_.size() == 0) {
+    return 0.0;
+  }
   return *std::min_element(data_.begin(), data_.end());
 }
 
 inline double Stats::max() {
+  if (data_.size() == 0) {
+    return 0.0;
+  }
   return *std::max_element(data_.begin(), data_.end());
 }
 

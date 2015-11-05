@@ -73,17 +73,25 @@ double Stats::inter_quartile_range() {
     return upper_quartile - lower_quartile;
 }
 
-void Stats::histogram(std::vector<double> &range, std::vector<double> &bin, int num_bins) {
+void Stats::histogram(std::vector<double> &range, std::vector<double> &bin, double min_value, double max_value, int num_bins) {
 
-    const double min = this->min();
-    const double max = this->max();
+    if (data_.size() == 0 && num_bins == 0) {
+        bin.resize(1, 0.0);
+        range.resize(2, 0.0);
+        return;
+    }
+
+    if (min_value == max_value) {
+        min_value = this->min();
+        max_value = this->max();
+    }
 
     // algorithmically choose number of bins
     if (num_bins == 0) {
         // Freedman–Diaconis method
         double bin_size = 2.0 * inter_quartile_range() / cbrt(data_.size());
-        if (bin_size < (max - min)) {
-            num_bins = (max - min) / bin_size;
+        if (bin_size < (max_value - min_value)) {
+            num_bins = (max_value - min_value) / bin_size;
         } else {
             num_bins = 1;
         }
@@ -93,11 +101,11 @@ void Stats::histogram(std::vector<double> &range, std::vector<double> &bin, int 
     range.resize(num_bins + 1, 0.0);
 
 
-    const double delta = (max - min) / static_cast<double>(num_bins);
+    const double delta = (max_value - min_value) / static_cast<double>(num_bins);
 
-    range[0] = min;
+    range[0] = min_value;
     for (int i = 1; i < num_bins + 1; ++i) {
-        range[i] = min + i * delta;
+        range[i] = min_value + i * delta;
     }
 
     for (int i = 0; i < data_.size(); ++i) {
