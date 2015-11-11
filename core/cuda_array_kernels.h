@@ -4,14 +4,14 @@
 #define JAMS_CUDA_ARRAY_KERNELS_H
 
 void cuda_array_elementwise_scale(
-    const int n,            // n elements in i index
-    const int m,            // m elements in j index
+    const unsigned int n,            // n elements in i index
+    const unsigned int m,            // m elements in j index
     const double * alpha,   // scale factors array of length n
     const double   beta,    // uniform scale factor
     double * x,             // input array
-    const int incx,         // input increment
+    const unsigned int incx,         // input increment
     double * y,             // output array
-    const int incy,         // output increment
+    const unsigned int incy,         // output increment
     cudaStream_t stream     // cuda stream
 );
 

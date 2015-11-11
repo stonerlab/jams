@@ -3,17 +3,17 @@
 // y_ij <-- alpha_i * beta * x_ij
 
 __global__ void cuda_array_elementwise_scale_kernel_general_(
-    const int n,            // n elements in i index
-    const int m,            // m elements in j index
+    const unsigned int n,            // n elements in i index
+    const unsigned int m,            // m elements in j index
     const double * alpha,   // scale factors array of length n
     const double   beta,    // uniform scale factor
     double * x,             // input array
-    const int incx,         // input increment
+    const unsigned int incx,         // input increment
     double * y,             // output array
-    const int incy)         // output increment
+    const unsigned int incy)         // output increment
 {
-    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    const int idy = blockIdx.y * blockDim.y + threadIdx.y;
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int idy = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (idx < n) {
         if (idy < m) {
@@ -23,15 +23,15 @@ __global__ void cuda_array_elementwise_scale_kernel_general_(
 }
 
 __global__ void cuda_array_elementwise_scale_kernel_noinc_(
-    const int n,            // n elements in i index
-    const int m,            // m elements in j index
+    const unsigned int n,            // n elements in i index
+    const unsigned int m,            // m elements in j index
     const double * alpha,   // scale factors array of length n
     const double   beta,    // uniform scale factor
     double * x,             // input array
     double * y)             // output array
 {
-    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    const int idy = blockIdx.y * blockDim.y + threadIdx.y;
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int idy = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (idx < n) {
         if (idy < m) {
@@ -41,14 +41,14 @@ __global__ void cuda_array_elementwise_scale_kernel_noinc_(
 }
 
 __global__ void cuda_array_elementwise_scale_kernel_noinc_self_(
-    const int n,            // n elements in i index
-    const int m,            // m elements in j index
+    const unsigned int n,            // n elements in i index
+    const unsigned int m,            // m elements in j index
     const double * alpha,   // scale factors array of length n
     const double   beta,    // uniform scale factor
     double * x)             // input/output array
 {
-    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    const int idy = blockIdx.y * blockDim.y + threadIdx.y;
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int idy = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (idx < n) {
         if (idy < m) {
@@ -58,14 +58,14 @@ __global__ void cuda_array_elementwise_scale_kernel_noinc_self_(
 }
 
 void cuda_array_elementwise_scale(
-    const int n,            // n elements in i index
-    const int m,            // m elements in j index
+    const unsigned int n,            // n elements in i index
+    const unsigned int m,            // m elements in j index
     const double * alpha,   // scale factors array of length n
     const double   beta,    // uniform scale factor
     double * x,             // input array
-    const int incx,         // input increment
+    const unsigned int incx,         // input increment
     double * y,             // output array
-    const int incy,         // output increment
+    const unsigned int incy,         // output increment
     cudaStream_t stream = 0    // cuda stream
 )
 {
