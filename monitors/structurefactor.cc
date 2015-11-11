@@ -136,6 +136,9 @@ void StructureFactorMonitor::update(Solver * solver) {
   chi_xy[time_point_counter_][0] = 0.0;
   chi_xy[time_point_counter_][1] = 0.0;
 
+  std::cerr << solver->time() << "\t" << ((s(0, 0)*ds_dt(0, 1) - s(0, 1)*ds_dt(0, 0))) << std::endl;
+
+
   for (int unit_cell_atom = 0; unit_cell_atom < lattice.num_unit_cell_positions(); ++unit_cell_atom) {
     // zero the sq arrays
     for (int i = 0; i < sq_x.elements(); ++i) {
@@ -229,7 +232,7 @@ void StructureFactorMonitor::update(Solver * solver) {
     }
   }
 
-  std::cerr << time_point_counter_ << "\t" <<  chi_xy[time_point_counter_][0]  << "\t" <<  chi_xy[time_point_counter_][1]  << "\t" << chi_yx[time_point_counter_][0] << "\t" << chi_yx[time_point_counter_][1] << "\n";
+  // std::cerr << time_point_counter_ << "\t" <<  chi_xy[time_point_counter_][0]  << "\t" <<  chi_xy[time_point_counter_][1]  << "\t" << chi_yx[time_point_counter_][0] << "\t" << chi_yx[time_point_counter_][1] << "\n";
 
 
   time_point_counter_++;

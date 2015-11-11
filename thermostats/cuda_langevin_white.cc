@@ -9,6 +9,8 @@
 
 #include "thermostats/cuda_langevin_white.h"
 
+#include "core/cuda_array_kernels.h"
+#include "core/consts.h"
 #include "core/globals.h"
 #include "core/lattice.h"
 
@@ -16,7 +18,9 @@
 
 CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),
-  dev_noise_((3*num_spins+((3*num_spins)%2))) {
+  is_synchronised_(false),
+  dev_noise_((3*num_spins+((3*num_spins)%2)))
+    {
   ::output.write("\n  initialising CUDA Langevin white noise thermostat\n");
 
   ::output.write("    initialising CURAND\n");
@@ -40,14 +44,20 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to generate CURAND seeds in CudaLangevinWhiteThermostat");
   }
+  // sigma.resize(num_spins);
+  for(int i = 0; i < num_spins; ++i) {
+    sigma_(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kBohrMagneton) );
+  }
+
+  dev_sigma_ = jblib::CudaArray<double, 1>(sigma_);
+
+  is_synchronised_ = false;
 }
 
 void CudaLangevinWhiteThermostat::update() {
-  // if (curandGenerateNormalDouble(dev_rng_, dev_noise_.data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, sqrt(this->temperature()))
-  //      != CURAND_STATUS_SUCCESS) {
-  //   jams_error("curandGenerateNormalDouble failure in CudaLangevinWhiteThermostat::update");
-  // }
-  curandGenerateNormalDouble(dev_rng_, dev_noise_.data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, sqrt(this->temperature()));
+  curandGenerateNormalDouble(dev_rng_, dev_noise_.data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0);
+  cuda_array_elementwise_scale(globals::num_spins, 3, dev_sigma_.data(), sqrt(this->temperature()), dev_noise_.data(), 1, dev_noise_.data(), 1);
+  is_synchronised_ = false;
 }
 
 CudaLangevinWhiteThermostat::~CudaLangevinWhiteThermostat() {

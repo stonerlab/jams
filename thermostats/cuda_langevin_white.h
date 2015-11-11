@@ -21,8 +21,24 @@ class CudaLangevinWhiteThermostat : public Thermostat {
   // override the base class implementation
   const double* noise() { return dev_noise_.data(); }
 
+  double field(int i, int j) {
+    if (!is_synchronised_) {
+      sync_device_data();
+      is_synchronised_ = true;
+    }
+    return noise_(i, j);
+  }
+
+
  private:
+  bool is_synchronised_;
+
+    inline void sync_device_data() {
+      dev_noise_.copy_to_host_array(noise_);
+    }
+
     jblib::CudaArray<double, 1> dev_noise_;
+    jblib::CudaArray<double, 1> dev_sigma_;
     curandGenerator_t           dev_rng_;  // device random generator
 };
 

@@ -42,16 +42,12 @@ class CudaSolver : public Solver {
   void compute_energy();
 
  protected:
-    inline void sync_device_data() {
-      dev_s_.copy_to_host_array(globals::s);
-      dev_ds_dt_.copy_to_host_array(globals::ds_dt);
-    }
+    void sync_device_data();
 
     jblib::Vec3<int> num_kpoints_;
     jblib::CudaArray<int, 1> r_to_k_mapping_;
 
     jblib::CudaArray<double, 1>  dev_h_;
-    jblib::CudaArray<double, 1>  dev_sigma_;
     jblib::CudaArray<double, 1>  dev_gyro_;
     jblib::CudaArray<double, 1>  dev_alpha_;
     jblib::CudaArray<double, 1>  dev_s_;

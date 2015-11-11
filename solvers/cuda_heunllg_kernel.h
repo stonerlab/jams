@@ -31,7 +31,6 @@ __global__ void cuda_heun_llg_kernelA
   const double * s_old_dev,
   const double * h_dev,
   const double * noise_dev,
-  const double * sigma_dev,
   const double * gyro_dev,
   const double * alpha_dev,
   const int num_spins,
@@ -46,7 +45,7 @@ __global__ void cuda_heun_llg_kernelA
     int n;
 
     for (n = 0; n < 3; ++n) {
-      h[n] = ( h_dev[idx3 + n] + noise_dev[idx3 + n]*sigma_dev[idx])*gyro_dev[idx];
+      h[n] = ( h_dev[idx3 + n] + noise_dev[idx3 + n])*gyro_dev[idx];
     }
 
     for (n = 0; n < 3; ++n) {
@@ -78,7 +77,6 @@ __global__ void cuda_heun_llg_kernelB
   const double * s_old_dev,
   const double * h_dev,
   const double * noise_dev,
-  const double * sigma_dev,
   const double * gyro_dev,
   const double * alpha_dev,
   const int num_spins,
@@ -93,7 +91,7 @@ __global__ void cuda_heun_llg_kernelB
     int n;
 
     for (n = 0; n < 3; ++n) {
-      h[n] = ( h_dev[idx3 + n] + noise_dev[idx3 + n]*sigma_dev[idx])*gyro_dev[idx];
+      h[n] = ( h_dev[idx3 + n] + noise_dev[idx3 + n])*gyro_dev[idx];
     }
 
     for (n = 0; n < 3; ++n) {

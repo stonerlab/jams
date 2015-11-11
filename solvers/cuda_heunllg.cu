@@ -13,6 +13,7 @@
 #include "core/consts.h"
 #include "core/cuda_sparsematrix.h"
 #include "core/globals.h"
+#include "core/thermostat.h"
 
 #include "solvers/cuda_heunllg_kernel.h"
 
@@ -59,7 +60,7 @@ void CUDAHeunLLGSolver::run()
 
     cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE>>>
         (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
-          dev_h_.data(), thermostat_->noise(), dev_sigma_.data(),
+          dev_h_.data(), thermostat_->noise(),
           dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
 
     cuda_kernel_error_check();
@@ -70,7 +71,7 @@ void CUDAHeunLLGSolver::run()
 
     cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE>>>
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
-        dev_h_.data(), thermostat_->noise(), dev_sigma_.data(),
+        dev_h_.data(), thermostat_->noise(),
         dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
     cuda_kernel_error_check();
 

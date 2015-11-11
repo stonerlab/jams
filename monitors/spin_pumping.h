@@ -5,6 +5,7 @@
 
 #include <fstream>
 
+#include "core/stats.h"
 #include "core/monitor.h"
 #include "jblib/containers/array.h"
 
@@ -14,7 +15,7 @@ class SpinPumpingMonitor : public Monitor{
   ~SpinPumpingMonitor();
 
 void update(Solver * solver);
-bool is_converged() { return false; }
+bool is_converged();
 std::string name() const {return "boltzmann";}
 
 
@@ -22,6 +23,11 @@ std::string name() const {return "boltzmann";}
   std::ofstream w_dist_file;
   std::ofstream iz_dist_file;
   std::ofstream iz_mean_file;
+
+  Stats convergence_stats_;
+  bool convergence_is_on_;
+  double convergence_tolerance_;
+  double convergence_geweke_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_SPIN_PUMPING_H

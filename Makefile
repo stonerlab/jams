@@ -178,6 +178,7 @@ ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver.o
 	CUDA_OBJS += core/cuda_sparsematrix.o
 	CUDA_OBJS += core/cuda_solver_kernels.o
+	CUDA_OBJS += core/cuda_array_kernels.o
 	CUDA_OBJS += solvers/cuda_heunllg.o
 	CUDA_OBJS += solvers/cuda_constrainedmc.o
 	CUDA_OBJS += thermostats/cuda_langevin_coth.o
@@ -190,6 +191,7 @@ ifndef NO_CUDA
 	CUDA_HDR += core/cuda_solver.h
 	CUDA_HDR += core/cuda_sparsematrix.h
 	CUDA_HDR += core/cuda_solver_kernels.h
+	CUDA_HDR += core/cuda_array_kernels.h
 	CUDA_HDR += solvers/cuda_heunllg.h
 	CUDA_HDR += solvers/cuda_heunllg_kernel.h
 	CUDA_HDR += solvers/cuda_constrainedmc.h

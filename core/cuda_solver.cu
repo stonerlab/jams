@@ -2,23 +2,25 @@
 
 #include <cublas.h>
 
-#include "core/globals.h"
-#include "core/solver.h"
 #include "core/cuda_solver.h"
 #include "core/cuda_solver_kernels.h"
 
-
 #include "core/consts.h"
-
-#include "core/utils.h"
-#include "core/hamiltonian.h"
 #include "core/cuda_defs.h"
-
+#include "core/cuda_sparsematrix.h"
+#include "core/globals.h"
+#include "core/hamiltonian.h"
+#include "core/solver.h"
+#include "core/thermostat.h"
+#include "core/utils.h"
 #include "solvers/cuda_heunllg.h"
 #include "solvers/heunllg.h"
 #include "solvers/metropolismc.h"
-#include "core/cuda_sparsematrix.h"
 
+void CudaSolver::sync_device_data() {
+  dev_s_.copy_to_host_array(globals::s);
+  dev_ds_dt_.copy_to_host_array(globals::ds_dt);
+}
 
 void CudaSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
@@ -117,14 +119,7 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 
   // materials array
   jblib::Array<double, 2> mat(num_spins, 3);
-  jblib::Array<double, 1> sigma(num_spins);
 
-  // sigma.resize(num_spins);
-  for(int i = 0; i < num_spins; ++i) {
-    sigma(i) = sqrt( (2.0*kBoltzmann*alpha(i)*mus(i)) / (time_step_*kBohrMagneton) );
-  }
-
-  dev_sigma_      = jblib::CudaArray<double, 1>(sigma);
   dev_gyro_      = jblib::CudaArray<double, 1>(gyro);
   dev_alpha_      = jblib::CudaArray<double, 1>(alpha);
 
