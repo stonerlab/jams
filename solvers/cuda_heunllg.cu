@@ -45,6 +45,14 @@ void CUDAHeunLLGSolver::run()
 {
   using namespace globals;
 
+  dim3 block_size;
+  block_size.x = 16;
+  block_size.y = 3;
+
+  dim3 grid_size;
+  grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
+  grid_size.y = (3 + block_size.y - 1) / block_size.y;
+
   cuda_api_error_check(
     cudaMemcpyAsync(dev_s_old_.data(),           // void *               dst
                dev_s_.data(),               // const void *         src
@@ -60,7 +68,7 @@ void CUDAHeunLLGSolver::run()
 
     compute_fields();
 
-    cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE>>>
+    cuda_heun_llg_kernelA<<<grid_size, block_size>>>
         (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
           dev_h_.data(), thermostat_->noise(),
           dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
@@ -69,7 +77,7 @@ void CUDAHeunLLGSolver::run()
 
     compute_fields();
 
-    cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE>>>
+    cuda_heun_llg_kernelB<<<grid_size, block_size>>>
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
         dev_h_.data(), thermostat_->noise(),
         dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
