@@ -31,15 +31,16 @@ class CudaLangevinWhiteThermostat : public Thermostat {
 
 
  private:
-  bool is_synchronised_;
 
     inline void sync_device_data() {
       dev_noise_.copy_to_host_array(noise_);
     }
 
+    bool is_synchronised_;
     jblib::CudaArray<double, 1> dev_noise_;
     jblib::CudaArray<double, 1> dev_sigma_;
     curandGenerator_t           dev_rng_;  // device random generator
+    cudaStream_t                dev_stream_;
 };
 
 #endif  // CUDA

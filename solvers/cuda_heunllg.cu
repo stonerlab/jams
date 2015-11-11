@@ -37,26 +37,28 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
   nblocks = (num_spins+BLOCKSIZE-1)/BLOCKSIZE;
 
   ::output.write("\n");
+
+  cudaStreamCreate(&dev_stream_);
 }
 
 void CUDAHeunLLGSolver::run()
 {
   using namespace globals;
 
+  cuda_api_error_check(
+    cudaMemcpyAsync(dev_s_old_.data(),           // void *               dst
+               dev_s_.data(),               // const void *         src
+               num_spins3*sizeof(double),   // size_t               count
+               cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
+               dev_stream_)                   // device stream
+  );
+
+
 
     thermostat_->set_temperature(physics_module_->temperature());
     thermostat_->update();
 
-    cuda_api_error_check(
-      cudaMemcpy(dev_s_old_.data(),           // void *               dst
-                 dev_s_.data(),               // const void *         src
-                 num_spins3*sizeof(double),   // size_t               count
-                 cudaMemcpyDeviceToDevice)    // enum cudaMemcpyKind  kind
-    );
-
     compute_fields();
-
-    cuda_api_error_check( cudaDeviceSynchronize() );
 
     cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE>>>
         (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
@@ -66,8 +68,6 @@ void CUDAHeunLLGSolver::run()
     cuda_kernel_error_check();
 
     compute_fields();
-
-    cuda_api_error_check( cudaDeviceSynchronize() );
 
     cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE>>>
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),

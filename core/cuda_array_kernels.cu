@@ -65,17 +65,18 @@ void cuda_array_elementwise_scale(
     double * x,             // input array
     const int incx,         // input increment
     double * y,             // output array
-    const int incy          // output increment
+    const int incy,         // output increment
+    cudaStream_t stream = 0    // cuda stream
 )
 {
     dim3 block_size;
-    block_size.x = 16;
+    block_size.x = 32;
 
-    if (m < 4) {
-        block_size.y = m;
-    } else {
+    // if (m < 4) {
+    //     block_size.y = m;
+    // } else {
         block_size.y = 4;
-    }
+    // }
 
     dim3 grid_size;
     grid_size.x = (n + block_size.x - 1) / block_size.x;
@@ -83,17 +84,17 @@ void cuda_array_elementwise_scale(
 
     if (incx == 1 && incy == 1) {
         if (x == y) {
-            cuda_array_elementwise_scale_kernel_noinc_self_<<<grid_size, block_size>>>(n, m, alpha, beta, x);
+            cuda_array_elementwise_scale_kernel_noinc_self_<<<grid_size, block_size, 0, stream>>>(n, m, alpha, beta, x);
             cuda_kernel_error_check();
             return;
         } else {
-            cuda_array_elementwise_scale_kernel_noinc_<<<grid_size, block_size>>>(n, m, alpha, beta, x, y);
+            cuda_array_elementwise_scale_kernel_noinc_<<<grid_size, block_size, 0, stream>>>(n, m, alpha, beta, x, y);
             cuda_kernel_error_check();
             return;
         }
     }
 
-    cuda_array_elementwise_scale_kernel_general_<<<grid_size, block_size>>>(n, m, alpha, beta, x, incx, y, incy);
+    cuda_array_elementwise_scale_kernel_general_<<<grid_size, block_size, 0, stream>>>(n, m, alpha, beta, x, incx, y, incy);
     cuda_kernel_error_check();
     return;
 }

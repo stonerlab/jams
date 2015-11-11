@@ -247,6 +247,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     // transfer arrays to cuda device if needed
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
+
+        cudaStreamCreate(&dev_stream_);
+
         dev_energy_ = jblib::CudaArray<double, 1>(energy_);
         dev_field_ = jblib::CudaArray<double, 1>(field_);
 
@@ -257,6 +260,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           if (status != CUSPARSE_STATUS_SUCCESS) {
             jams_error("CUSPARSE Library initialization failed");
           }
+          cusparseSetStream(cusparse_handle_, dev_stream_);
+
 
           // create matrix descriptor
           status = cusparseCreateMatDescr(&cusparse_descra_);

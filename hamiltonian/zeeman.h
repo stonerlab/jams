@@ -43,6 +43,7 @@ class ZeemanHamiltonian : public Hamiltonian {
 
 
 #ifdef CUDA
+        cudaStream_t dev_stream_;
         jblib::CudaArray<double, 1> dev_dc_local_field_;
         jblib::CudaArray<double, 1> dev_ac_local_field_;
         jblib::CudaArray<double, 1> dev_ac_local_frequency_;

@@ -33,6 +33,8 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 
   is_cuda_solver_ = true;
 
+  cudaStreamCreate(&dev_stream_);
+
   // if (cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS) {
   //   jams_error("CudaSolver: CUBLAS initialization failed");
   // }
@@ -133,14 +135,12 @@ void CudaSolver::run() {
 void CudaSolver::compute_fields() {
   using namespace globals;
 
-  // zero the field array
-  cuda_api_error_check(cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double)));
-
   for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
     (*it)->calculate_fields();
   }
 
-  cuda_api_error_check(cudaDeviceSynchronize());
+  // zero the field array
+  cuda_api_error_check(cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), dev_stream_));
 
   const double alpha = 1.0;
   for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {

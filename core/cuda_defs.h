@@ -10,7 +10,7 @@
 
 typedef double CudaFastFloat;
 
-#define BLOCKSIZE 64
+#define BLOCKSIZE 16
 #define DIA_BLOCK_SIZE 256
 
 typedef struct devDIA {

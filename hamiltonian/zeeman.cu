@@ -78,6 +78,8 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
     // transfer arrays to cuda device if needed
 #ifdef CUDA
     if (solver->is_cuda_solver()) {
+        cudaStreamCreate(&dev_stream_);
+
         dev_energy_ = jblib::CudaArray<double, 1>(energy_);
         dev_field_  = jblib::CudaArray<double, 1>(field_);
 
@@ -160,7 +162,16 @@ void ZeemanHamiltonian::calculate_one_spin_field(const int i, double local_field
 void ZeemanHamiltonian::calculate_fields() {
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
-        cuda_zeeman_field_kernel<<<(globals::num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>
+        dim3 block_size;
+        block_size.x = 32;
+        block_size.y = 4;
+
+        dim3 grid_size;
+        grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
+        grid_size.y = (3 + block_size.y - 1) / block_size.y;
+
+
+        cuda_zeeman_field_kernel<<<grid_size, block_size, 0, dev_stream_>>>
             (globals::num_spins, solver->time(), dev_dc_local_field_.data(),
                 dev_ac_local_field_.data(), dev_ac_local_frequency_.data(),
                 solver->dev_ptr_spin(), dev_field_.data());
