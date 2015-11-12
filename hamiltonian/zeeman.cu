@@ -154,7 +154,13 @@ void ZeemanHamiltonian::calculate_one_spin_field(const int i, double local_field
     using std::pow;
 
     for (int j = 0; j < 3; ++j) {
-        local_field[j] = dc_local_field_(i, j) + ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
+        local_field[j] = dc_local_field_(i, j);
+    }
+
+    if (has_ac_local_field_) {
+        for (int j = 0; j < 3; ++j) {
+            local_field[j] += ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
+        }
     }
 }
 
