@@ -46,7 +46,7 @@ void CUDAHeunLLGSolver::run()
   using namespace globals;
 
   dim3 block_size;
-  block_size.x = 16;
+  block_size.x = 85;
   block_size.y = 3;
 
   dim3 grid_size;

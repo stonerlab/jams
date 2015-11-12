@@ -18,18 +18,18 @@ __global__ void cuda_heun_llg_kernelA
   const double dt
 )
 {
-  __shared__ double s[16 * 3];
-  __shared__ double h[16 * 3];
+  __shared__ double s[85 * 3];
+  __shared__ double h[85 * 3];
   double rhs;
 
-  const unsigned int tx = threadIdx.x;
+  const unsigned int tx3 = 3 * threadIdx.x;
   const unsigned int ty = threadIdx.y;
 
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-  const unsigned int p0 = (3 * tx) + ty;
-  const unsigned int p1 = (3 * tx) + ((ty + 1) % 3);
-  const unsigned int p2 = (3 * tx) + ((ty + 2) % 3);
+  const unsigned int p0 = tx3 + ty;
+  const unsigned int p1 = tx3 + ((ty + 1) % 3);
+  const unsigned int p2 = tx3 + ((ty + 2) % 3);
 
   const unsigned int gxy = 3 * idx + ty;
 
@@ -49,7 +49,7 @@ __global__ void cuda_heun_llg_kernelA
 
     __syncthreads();
 
-    s_dev[gxy] = s[p0] * rsqrt(s[3 * tx] * s[3 * tx] + s[3 * tx + 1] * s[3 * tx + 1] + s[3 * tx + 2] * s[3 * tx + 2] );
+    s_dev[gxy] = s[p0] * rsqrt(s[tx3] * s[tx3] + s[tx3 + 1] * s[tx3 + 1] + s[tx3 + 2] * s[tx3 + 2] );
   }
 }
 
@@ -66,18 +66,18 @@ __global__ void cuda_heun_llg_kernelB
   const double dt
 )
 {
-  __shared__ double s[16 * 3];
-  __shared__ double h[16 * 3];
-  double rhs, ds_dt;
+  __shared__ double s[85 * 3];
+  __shared__ double h[85 * 3];
+  double rhs;
 
-  const unsigned int tx = threadIdx.x;
+  const unsigned int tx3 = 3*threadIdx.x;
   const unsigned int ty = threadIdx.y;
 
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-  const unsigned int p0 = (3 * tx) + ty;
-  const unsigned int p1 = (3 * tx) + ((ty + 1) % 3);
-  const unsigned int p2 = (3 * tx) + ((ty + 2) % 3);
+  const unsigned int p0 = tx3 + ty;
+  const unsigned int p1 = tx3 + ((ty + 1) % 3);
+  const unsigned int p2 = tx3 + ((ty + 2) % 3);
 
   const unsigned int gxy = 3 * idx + ty;
 
@@ -92,13 +92,12 @@ __global__ void cuda_heun_llg_kernelB
                            - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) );
 
 
-    ds_dt = ds_dt_dev[gxy] + 0.5 * rhs;
-    ds_dt_dev[gxy] = ds_dt;
+    ds_dt_dev[gxy] = ds_dt_dev[gxy] + 0.5 * rhs;
 
-    s[p0] = s_old_dev[gxy] + dt * ds_dt;
+    s[p0] = s_old_dev[gxy] + dt * ds_dt_dev[gxy];
 
     __syncthreads();
-    s_dev[gxy] = s[p0] * rsqrt(s[3 * tx] * s[3 * tx] + s[3 * tx + 1] * s[3 * tx + 1] + s[3 * tx + 2] * s[3 * tx + 2] );
+    s_dev[gxy] = s[p0] * rsqrt(s[tx3] * s[tx3] + s[tx3 + 1] * s[tx3 + 1] + s[tx3 + 2] * s[tx3 + 2] );
   }
 }
 
