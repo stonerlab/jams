@@ -13,10 +13,12 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   mag(::lattice.num_materials(), 4),
   outfile(),
-  magnetisation_stats_(),
+  mx_stats_(),
+  mz_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
   convergence_tolerance_(1.0),            // 1 standard deviation from the mean
-  convergence_geweke_diagnostic_(100.0)   // number much larger than 1
+  convergence_geweke_mx_diagnostic_(100.0),   // number much larger than 1
+  convergence_geweke_mz_diagnostic_(100.0)   // number much larger than 1
 {
   using namespace globals;
   ::output.write("\ninitialising Magnetisation monitor\n");
@@ -94,21 +96,20 @@ void MagnetisationMonitor::update(Solver * solver) {
     }
 
     if (convergence_is_on_) {
-      double total_mag = 0.0;
-      for (i = 0; i < lattice.num_materials(); ++i) {
-        total_mag += mag(i, 3);
-      }
+      mz_stats_.add(mag(0, 2));
+      mx_stats_.add(mag(0, 0));
 
-      magnetisation_stats_.add(total_mag);
-      convergence_geweke_diagnostic_ = magnetisation_stats_.geweke();
-      outfile << std::setw(12) << convergence_geweke_diagnostic_;
+      convergence_geweke_mx_diagnostic_ = mx_stats_.geweke();
+      convergence_geweke_mz_diagnostic_ = mz_stats_.geweke();
+      outfile << std::setw(12) << convergence_geweke_mx_diagnostic_;
+      outfile << std::setw(12) << convergence_geweke_mz_diagnostic_;
     }
 
     outfile << std::endl;
 }
 
 bool MagnetisationMonitor::is_converged() {
-  return ((std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
+  return ((std::abs(convergence_geweke_mz_diagnostic_) < convergence_tolerance_) &&(std::abs(convergence_geweke_mx_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
 }
 
 MagnetisationMonitor::~MagnetisationMonitor() {

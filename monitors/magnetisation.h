@@ -24,10 +24,12 @@ class MagnetisationMonitor : public Monitor {
   jblib::Array<double, 2> mag;
   std::ofstream outfile;
 
-  Stats magnetisation_stats_;
+  Stats mx_stats_;
+  Stats mz_stats_;
   bool convergence_is_on_;
   double convergence_tolerance_;
-  double convergence_geweke_diagnostic_;
+  double convergence_geweke_mx_diagnostic_;
+  double convergence_geweke_mz_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_H
