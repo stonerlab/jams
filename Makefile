@@ -231,7 +231,7 @@ ifndef NO_CUDA
 	BASIC_CUFLAGS += -I$(CUDADIR)/include -DCUDA
 	ifeq ($(SYSTYPE),Darwin)
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib
-		BASIC_CUFLAGS += --restrict -std=c++11 -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG -march=native -O3 -g -funroll-loops" -Xlinker
+		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG -march=native -O3 -g -funroll-loops" -Xlinker
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
 		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -O3 -g -funroll-loops -DNDEBUG"
