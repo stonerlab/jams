@@ -41,6 +41,13 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
 
     if (is_preconditioner_enabled_ && iteration_ == 0) {
       output.write("Preconditioning...");
+
+      // do a short thermalization
+      for (int i = 0; i < 500; ++i) {
+        MetropolisAlgorithm(mc_uniform_trial_step);
+      }
+
+      // now try systematic rotations
       SystematicPreconditioner(preconditioner_delta_theta_, preconditioner_delta_phi_);
       output.write("done\n");
     }
@@ -92,8 +99,6 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
       e_final += (*it)->calculate_total_energy();
     }
 
-    // std::cerr << e_initial << "\t" << e_final << std::endl;
-
     if (e_final - e_initial > 0.0) {
       for (n = 0; n < globals::num_spins; ++n) {
         mc_set_spin_as_vec(n, s_initial);
@@ -104,34 +109,65 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
   void MetropolisMCSolver::SystematicPreconditioner(const double delta_theta, const double delta_phi) {
     // TODO: this should probably rotate spins rather than set definite direction so we can then handle
     // ferrimagnets too
-    int n, num_theta, num_phi;
-    double e_initial, e_final, theta, phi;
-    jblib::Vec3<double> s_min, s_new;
+    int n, m, num_theta, num_phi;
+    double e_min, e_final, theta, phi;
 
-    s_min = jblib::Vec3<double>(0.0, 0.0, 1.0);
+    jblib::Vec3<double> s_new;
+
+    jblib::Array<double, 2> s_init(globals::s);
+    jblib::Array<double, 2> s_min(globals::s);
+
+    double theta_min = 0.0;
+    double phi_min = 0.0;
 
     num_theta = (180.0 / delta_theta) + 1;
-    num_phi   = (360.0 / delta_phi) + 1;
+    num_phi   = (360.0 / delta_phi);
+
+    output.write("d_theta, d_phi (deg)\n");
+    output.write("  %f, %f\n", delta_theta, delta_phi);
+
+    output.write("num_theta, num_phi\n");
+    output.write("  %d, %d\n", num_theta, num_phi);
+
 
     std::ofstream preconditioner_file;
     preconditioner_file.open(std::string(::seedname+"_mc_pre.dat").c_str());
     preconditioner_file << "# theta (deg) | phi (deg) | energy (J) \n";
 
+    e_min = 1e10;
     theta = 0.0;
     for (int i = 0; i < num_theta; ++i) {
       phi = 0.0;
       for (int j = 0; j < num_phi; ++j) {
-        s_new.x = sin(deg_to_rad(theta))*cos(deg_to_rad(phi));
-        s_new.y = sin(deg_to_rad(theta))*sin(deg_to_rad(phi));
-        s_new.z = cos(deg_to_rad(theta));
 
-        e_initial = 0.0;
-        for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-          e_initial += (*it)->calculate_total_energy();
-        }
+        const double c_t = cos(deg_to_rad(theta));
+        const double c_p = cos(deg_to_rad(phi));
+        const double s_t = sin(deg_to_rad(theta));
+        const double s_p = sin(deg_to_rad(phi));
+
+        // calculate rotation matrix for rotating m -> mz
+        jblib::Matrix<double, 3, 3> r_y;
+        jblib::Matrix<double, 3, 3> r_z;
+
+        // first index is row second index is col
+        r_y[0][0] =  c_t;  r_y[0][1] =  0.0; r_y[0][2] =  s_t;
+        r_y[1][0] =  0.0;  r_y[1][1] =  1.0; r_y[1][2] =  0.0;
+        r_y[2][0] = -s_t;  r_y[2][1] =  0.0; r_y[2][2] =  c_t;
+
+        r_z[0][0] =  c_p;  r_z[0][1] = -s_p;  r_z[0][2] =  0.0;
+        r_z[1][0] =  s_p;  r_z[1][1] =  c_p;  r_z[1][2] =  0.0;
+        r_z[2][0] =  0.0;  r_z[2][1] =  0.0;  r_z[2][2] =  1.0;
+
+        jblib::Matrix<double, 3, 3> rotation_matrix = r_y*r_z;
 
         for (n = 0; n < globals::num_spins; ++n) {
-          mc_set_spin_as_vec(n, s_new);
+          for (m = 0; m < 3; ++m) {
+            s_new[m] = s_init(n, m);
+          }
+          s_new = rotation_matrix * s_new;
+          for (m = 0; m < 3; ++m) {
+            globals::s(n, m) = s_new[m];
+          }
         }
 
         e_final = 0.0;
@@ -139,14 +175,14 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
           e_final += (*it)->calculate_total_energy();
         }
 
-        preconditioner_file << theta << "\t" << phi << "\t" << "\t" << e_final*kBohrMagneton << "\n";
+        preconditioner_file << theta << "\t" << phi << "\t" << "\t" << e_final * kBohrMagneton << "\n";
 
-        if ( ! (e_final < e_initial) ) {
-          for (n = 0; n < globals::num_spins; ++n) {
-            mc_set_spin_as_vec(n, s_min);
-          }
-        } else {
-          s_min = s_new;
+        if ( e_final < e_min ) {
+          // this configuration is the new minimum
+          e_min = e_final;
+          s_min = globals::s;
+          theta_min = theta;
+          phi_min = phi;
         }
 
         phi += delta_phi;
@@ -155,6 +191,9 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
       theta += delta_theta;
     }
     preconditioner_file.close();
+
+    // use the minimum configuration
+    globals::s = s_min;
   }
 
   void MetropolisMCSolver::MetropolisAlgorithm(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>)) {
