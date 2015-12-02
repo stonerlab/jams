@@ -3,11 +3,14 @@
 #ifndef JAMS_CORE_CUDA_DEFS_H
 #define JAMS_CORE_CUDA_DEFS_H
 
+#include <exception>
+#include <string>
 #include <cstddef>
+#include <map>
 
 typedef double CudaFastFloat;
 
-#define BLOCKSIZE 64
+#define BLOCKSIZE 16
 #define DIA_BLOCK_SIZE 256
 
 typedef struct devDIA {
@@ -25,6 +28,21 @@ typedef struct devCSR {
   int     blocks;
 } devCSR;
 
+#ifdef DEBUG
+#define cuda_api_error_check(ans) { cuda_throw((ans), __FILE__, __LINE__); }
+#define cuda_kernel_error_check() { cuda_api_error_check(cudaPeekAtLastError()); cuda_api_error_check(cudaDeviceSynchronize()); }
+#else
+#define cuda_api_error_check(ans) { (ans); }
+#define cuda_kernel_error_check() {  }
+#endif
+
+inline void cuda_throw(cudaError_t return_code, const char *file, int line) {
+  using std::string;
+  using std::to_string;
+  if (return_code != cudaSuccess) {
+    throw std::runtime_error(string(file) + "(" + to_string(line) + "): CUDA error: " + string(cudaGetErrorString(return_code)));
+  }
+}
 
 #ifdef DEBUG
 #define CUDA_CALL(x) do { if ((x) != cudaSuccess) { \

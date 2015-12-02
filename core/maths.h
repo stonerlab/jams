@@ -10,7 +10,7 @@
 #include "core/consts.h"
 
 #include "jblib/containers/vec.h"
-
+#include "jblib/containers/matrix.h"
 
 using std::pow;
 
@@ -40,6 +40,22 @@ inline double azimuthal_angle(const jblib::Vec3<double> a) {
 
 inline double polar_angle(const jblib::Vec3<double> a) {
   return atan2(a.y, a.x);
+}
+
+inline double azimuthal_angle(const double a[3]) {
+  return acos(a[2]/sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]));
+}
+
+inline double polar_angle(const double a[3]) {
+  return atan2(a[1], a[0]);
+}
+
+inline double azimuthal_angle(const double x, const double y, const double z) {
+  return acos(z/sqrt(x*x + y*y + z*z));
+}
+
+inline double polar_angle(const double x, const double y, const double z) {
+  return atan2(y, x);
 }
 
 // greatest common divisor
@@ -188,6 +204,11 @@ inline void spherical_to_cartesian(const double r,
   (*z) = r*sin(theta);
 }
 
+inline jblib::Vec3<double> spherical_to_cartesian_vector(const double r,
+    const double theta, const double phi) {
+  return jblib::Vec3<double>(r*cos(theta)*cos(phi), r*cos(theta)*sin(phi), r*sin(theta));
+}
+
 void matrix_invert(const double in[3][3], double out[3][3]);
 
 template <typename _Tp>
@@ -251,6 +272,9 @@ inline void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
   out[1] = a[2]*b[0] - a[0]*b[2];
   out[2] = a[0]*b[1] - a[1]*b[0];
 }
+
+jblib::Matrix<double, 3, 3> rotation_matrix_yz(const double theta, const double phi);
+jblib::Matrix<double, 3, 3> rotation_matrix_between_vectors(const jblib::Vec3<double> &x, const jblib::Vec3<double> &y, const double eps = 1e-8);
 
 
 // Legendre polynomials

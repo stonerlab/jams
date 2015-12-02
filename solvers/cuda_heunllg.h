@@ -9,7 +9,6 @@
 #include <cusparse.h>
 
 #include "core/cuda_solver.h"
-#include "core/thermostat.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/cuda_array.h"
@@ -22,8 +21,7 @@ class CUDAHeunLLGSolver : public CudaSolver {
     void run();
 
   private:
-    Thermostat* thermostat_;
-
+    cudaStream_t dev_stream_;
     jblib::CudaArray<CudaFastFloat, 1>  e_dev;
     jblib::Array<CudaFastFloat, 2> eng;
     int nblocks;

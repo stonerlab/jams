@@ -3,25 +3,24 @@
 #include <cmath>
 #include <string>
 #include <iomanip>
+#include "core/consts.h"
 
 #include "core/globals.h"
 #include "core/lattice.h"
 
-#include "monitors/magnetisation.h"
+#include "monitors/magnetisation_rate.h"
 
-MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
+MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  mag(::lattice.num_materials(), 4),
+  dm_dt(::lattice.num_materials(), 4),
   outfile(),
-  mx_stats_(),
-  mz_stats_(),
+  magnetisation_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
   convergence_tolerance_(1.0),            // 1 standard deviation from the mean
-  convergence_geweke_mx_diagnostic_(100.0),   // number much larger than 1
-  convergence_geweke_mz_diagnostic_(100.0)   // number much larger than 1
+  convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
   using namespace globals;
-  ::output.write("\ninitialising Magnetisation monitor\n");
+  ::output.write("\ninitialising MagnetisationRate monitor\n");
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
@@ -31,7 +30,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 
   is_equilibration_monitor_ = true;
 
-  std::string name = seedname + "_mag.tsv";
+  std::string name = seedname + "_dm_dt.tsv";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);
 
@@ -56,29 +55,29 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   outfile << "\n";
 }
 
-void MagnetisationMonitor::update(Solver * solver) {
+void MagnetisationRateMonitor::update(Solver * solver) {
   using namespace globals;
 
     int i, j;
 
-    mag.zero();
+    dm_dt.zero();
 
     for (i = 0; i < num_spins; ++i) {
       int type = lattice.material(i);
       for (j = 0; j < 3; ++j) {
-        mag(type, j) += s(i, j);
+        dm_dt(type, j) += ds_dt(i, j);
       }
     }
 
     for (i = 0; i < lattice.num_materials(); ++i) {
       for (j = 0; j < 3; ++j) {
-        mag(i, j) = mag(i, j)/static_cast<double>(lattice.material_count(i));
+        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(lattice.material_count(i));
       }
     }
 
     for (i = 0; i < lattice.num_materials(); ++i) {
-      mag(i, 3) = sqrt(mag(i, 0)*mag(i, 0) + mag(i, 1)*mag(i, 1)
-        + mag(i, 2)*mag(i, 2));
+      dm_dt(i, 3) = sqrt(dm_dt(i, 0)*dm_dt(i, 0) + dm_dt(i, 1)*dm_dt(i, 1)
+        + dm_dt(i, 2)*dm_dt(i, 2));
     }
 
     outfile << std::setw(12) << std::scientific << solver->time() << "\t";
@@ -89,29 +88,30 @@ void MagnetisationMonitor::update(Solver * solver) {
     }
 
     for (i = 0; i < lattice.num_materials(); ++i) {
-      outfile << std::setw(12) << mag(i, 0) << "\t";
-      outfile << std::setw(12) << mag(i, 1) << "\t";
-      outfile << std::setw(12) << mag(i, 2) << "\t";
-      outfile << std::setw(12) << mag(i, 3) << "\t";
+      outfile << std::setw(12) << std::scientific << dm_dt(i, 0)*kGyromagneticRatio << "\t";
+      outfile << std::setw(12) << std::scientific << dm_dt(i, 1)*kGyromagneticRatio << "\t";
+      outfile << std::setw(12) << std::scientific << dm_dt(i, 2)*kGyromagneticRatio << "\t";
+      outfile << std::setw(12) << std::scientific << dm_dt(i, 3)*kGyromagneticRatio << "\t";
     }
 
     if (convergence_is_on_) {
-      mz_stats_.add(mag(0, 2));
-      mx_stats_.add(mag(0, 0));
+      double total_dm_dt = 0.0;
+      for (i = 0; i < lattice.num_materials(); ++i) {
+        total_dm_dt += dm_dt(i, 3);
+      }
 
-      convergence_geweke_mx_diagnostic_ = mx_stats_.geweke();
-      convergence_geweke_mz_diagnostic_ = mz_stats_.geweke();
-      outfile << std::setw(12) << convergence_geweke_mx_diagnostic_;
-      outfile << std::setw(12) << convergence_geweke_mz_diagnostic_;
+      magnetisation_stats_.add(total_dm_dt);
+      convergence_geweke_diagnostic_ = magnetisation_stats_.geweke();
+      outfile << std::setw(12) << convergence_geweke_diagnostic_;
     }
 
     outfile << std::endl;
 }
 
-bool MagnetisationMonitor::is_converged() {
-  return ((std::abs(convergence_geweke_mz_diagnostic_) < convergence_tolerance_) &&(std::abs(convergence_geweke_mx_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
+bool MagnetisationRateMonitor::is_converged() {
+  return ((std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
 }
 
-MagnetisationMonitor::~MagnetisationMonitor() {
+MagnetisationRateMonitor::~MagnetisationRateMonitor() {
   outfile.close();
 }

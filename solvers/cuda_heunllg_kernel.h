@@ -8,118 +8,96 @@
 __global__ void cuda_heun_llg_kernelA
 (
   double * s_dev,
-  double * s_new_dev,
-  CudaFastFloat * h_dev,
+  double * ds_dt_dev,
+  const double * s_old_dev,
+  const double * h_dev,
   const double * noise_dev,
-  CudaFastFloat * mat_dev,
-  CudaFastFloat h_app_x,
-  CudaFastFloat h_app_y,
-  CudaFastFloat h_app_z,
-  int num_spins,
-  double dt
+  const double * gyro_dev,
+  const double * alpha_dev,
+  const unsigned int num_spins,
+  const double dt
 )
 {
-  const int idx = blockIdx.x*blockDim.x+threadIdx.x;
-  const int idx3 = 3*idx;
+  __shared__ double s[85 * 3];
+  __shared__ double h[85 * 3];
+  double rhs;
 
-  if(idx < num_spins) {
-    double h[3];
-    double s[3];
-    double rhs[3];
-    double sxh[3];
-    double norm;
+  const unsigned int tx3 = 3 * threadIdx.x;
+  const unsigned int ty = threadIdx.y;
 
-    CudaFastFloat mus = mat_dev[idx*4];
-    CudaFastFloat gyro = mat_dev[idx*4+1];
-    CudaFastFloat alpha = mat_dev[idx*4+2];
-    CudaFastFloat sigma = mat_dev[idx*4+3];
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    h[0] = ( h_dev[idx3] + ( noise_dev[idx3]*sigma + h_app_x)*mus )*gyro;
-    h[1] = ( h_dev[idx3+1] + ( noise_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
-    h[2] = ( h_dev[idx3+2] + ( noise_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
+  const unsigned int p0 = tx3 + ty;
+  const unsigned int p1 = tx3 + ((ty + 1) % 3);
+  const unsigned int p2 = tx3 + ((ty + 2) % 3);
 
-    s[0] = s_dev[idx3];
-    s[1] = s_dev[idx3+1];
-    s[2] = s_dev[idx3+2];
+  const unsigned int gxy = 3 * idx + ty;
 
-    sxh[0] = s[1]*h[2] - s[2]*h[1];
-    sxh[1] = s[2]*h[0] - s[0]*h[2];
-    sxh[2] = s[0]*h[1] - s[1]*h[0];
+  if (idx < num_spins && ty < 3) {
+    h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
+    s[p0] = s_dev[gxy];
 
-    rhs[0] = sxh[0] + alpha * ( s[1]*sxh[2] - s[2]*sxh[1] );
-    rhs[1] = sxh[1] + alpha * ( s[2]*sxh[0] - s[0]*sxh[2] );
-    rhs[2] = sxh[2] + alpha * ( s[0]*sxh[1] - s[1]*sxh[0] );
+    __syncthreads();
 
-    s_new_dev[idx3  ] = s[0] + 0.5*dt*rhs[0];
-    s_new_dev[idx3+1] = s[1] + 0.5*dt*rhs[1];
-    s_new_dev[idx3+2] = s[2] + 0.5*dt*rhs[2];
+    rhs = (s[p1] * h[p2] - s[p2] * h[p1])
+        + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
+                           - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) );
 
-    s[0] = s[0] + dt*rhs[0];
-    s[1] = s[1] + dt*rhs[1];
-    s[2] = s[2] + dt*rhs[2];
+    ds_dt_dev[gxy] = 0.5 * rhs;
 
-    norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
+    s[p0] = s[p0] + dt * rhs;
 
-    s_dev[idx3]   = s[0]*norm;
-    s_dev[idx3+1] = s[1]*norm;
-    s_dev[idx3+2] = s[2]*norm;
+    __syncthreads();
+
+    s_dev[gxy] = s[p0] * rsqrt(s[tx3] * s[tx3] + s[tx3 + 1] * s[tx3 + 1] + s[tx3 + 2] * s[tx3 + 2] );
   }
 }
 
 __global__ void cuda_heun_llg_kernelB
 (
   double * s_dev,
-  double * s_new_dev,
-  CudaFastFloat * h_dev,
+  double * ds_dt_dev,
+  const double * s_old_dev,
+  const double * h_dev,
   const double * noise_dev,
-  CudaFastFloat * mat_dev,
-  CudaFastFloat h_app_x,
-  CudaFastFloat h_app_y,
-  CudaFastFloat h_app_z,
-  int num_spins,
-  double dt
+  const double * gyro_dev,
+  const double * alpha_dev,
+  const unsigned int num_spins,
+  const double dt
 )
 {
-  const int idx = blockIdx.x*blockDim.x+threadIdx.x;
-  const int idx3 = 3*idx;
+  __shared__ double s[85 * 3];
+  __shared__ double h[85 * 3];
+  double rhs;
 
-  if(idx < num_spins) {
-    double h[3];
-    double s[3];
-    double rhs[3];
-    double sxh[3];
-    double norm;
+  const unsigned int tx3 = 3*threadIdx.x;
+  const unsigned int ty = threadIdx.y;
 
-    CudaFastFloat mus = mat_dev[idx*4];
-    CudaFastFloat gyro = mat_dev[idx*4+1];
-    CudaFastFloat alpha = mat_dev[idx*4+2];
-    CudaFastFloat sigma = mat_dev[idx*4+3];
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    h[0] = ( h_dev[idx3] + ( noise_dev[idx3]*sigma + h_app_x)*mus )*gyro;
-    h[1] = ( h_dev[idx3+1] + ( noise_dev[idx3+1]*sigma + h_app_y)*mus )*gyro;
-    h[2] = ( h_dev[idx3+2] + ( noise_dev[idx3+2]*sigma + h_app_z)*mus )*gyro;
+  const unsigned int p0 = tx3 + ty;
+  const unsigned int p1 = tx3 + ((ty + 1) % 3);
+  const unsigned int p2 = tx3 + ((ty + 2) % 3);
 
-    s[0] = s_dev[idx3];
-    s[1] = s_dev[idx3+1];
-    s[2] = s_dev[idx3+2];
+  const unsigned int gxy = 3 * idx + ty;
 
-    sxh[0] = s[1]*h[2] - s[2]*h[1];
-    sxh[1] = s[2]*h[0] - s[0]*h[2];
-    sxh[2] = s[0]*h[1] - s[1]*h[0];
+  if (idx < num_spins && ty < 3) {
+    h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
+    s[p0] = s_dev[gxy];
 
-    rhs[0] = sxh[0] + alpha * ( s[1]*sxh[2] - s[2]*sxh[1] );
-    rhs[1] = sxh[1] + alpha * ( s[2]*sxh[0] - s[0]*sxh[2] );
-    rhs[2] = sxh[2] + alpha * ( s[0]*sxh[1] - s[1]*sxh[0] );
+    __syncthreads();
 
-    s[0] = s_new_dev[idx3  ] + 0.5*dt*rhs[0];
-    s[1] = s_new_dev[idx3+1] + 0.5*dt*rhs[1];
-    s[2] = s_new_dev[idx3+2] + 0.5*dt*rhs[2];
+    rhs = (s[p1] * h[p2] - s[p2] * h[p1])
+        + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
+                           - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) );
 
-    norm = 1.0/sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
 
-    s_dev[idx3]   = s[0]*norm;
-    s_dev[idx3+1] = s[1]*norm;
-    s_dev[idx3+2] = s[2]*norm;
+    ds_dt_dev[gxy] = ds_dt_dev[gxy] + 0.5 * rhs;
+
+    s[p0] = s_old_dev[gxy] + dt * ds_dt_dev[gxy];
+
+    __syncthreads();
+    s_dev[gxy] = s[p0] * rsqrt(s[tx3] * s[tx3] + s[tx3 + 1] * s[tx3 + 1] + s[tx3 + 2] * s[tx3 + 2] );
   }
 }
 

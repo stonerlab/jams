@@ -13,6 +13,7 @@
 #include "core/consts.h"
 #include "core/cuda_sparsematrix.h"
 #include "core/globals.h"
+#include "core/thermostat.h"
 
 #include "solvers/cuda_heunllg_kernel.h"
 
@@ -36,28 +37,51 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
   nblocks = (num_spins+BLOCKSIZE-1)/BLOCKSIZE;
 
   ::output.write("\n");
+
+  cudaStreamCreate(&dev_stream_);
 }
 
 void CUDAHeunLLGSolver::run()
 {
   using namespace globals;
 
+  dim3 block_size;
+  block_size.x = 85;
+  block_size.y = 3;
+
+  dim3 grid_size;
+  grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
+  grid_size.y = (3 + block_size.y - 1) / block_size.y;
+
+  cuda_api_error_check(
+    cudaMemcpyAsync(dev_s_old_.data(),           // void *               dst
+               dev_s_.data(),               // const void *         src
+               num_spins3*sizeof(double),   // size_t               count
+               cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
+               dev_stream_)                   // device stream
+  );
+
+
+
     thermostat_->set_temperature(physics_module_->temperature());
     thermostat_->update();
 
     compute_fields();
 
-    cudaDeviceSynchronize();
+    cuda_heun_llg_kernelA<<<grid_size, block_size>>>
+        (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
+          dev_h_.data(), thermostat_->noise(),
+          dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
 
-    cuda_heun_llg_kernelA<<<nblocks, BLOCKSIZE, 0>>>
-        (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), thermostat_->noise(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
+    cuda_kernel_error_check();
 
     compute_fields();
 
-    cudaDeviceSynchronize();
-
-    cuda_heun_llg_kernelB<<<nblocks, BLOCKSIZE, 0>>>
-        (dev_s_.data(), dev_s_new_.data(), dev_h_.data(), thermostat_->noise(), dev_mat_.data(), physics_module_->applied_field(0), physics_module_->applied_field(1), physics_module_->applied_field(2), num_spins, time_step_);
+    cuda_heun_llg_kernelB<<<grid_size, block_size>>>
+      (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
+        dev_h_.data(), thermostat_->noise(),
+        dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
+    cuda_kernel_error_check();
 
     iteration_++;
 }

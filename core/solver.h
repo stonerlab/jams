@@ -13,6 +13,7 @@
 class Physics;
 class Monitor;
 class Hamiltonian;
+class Thermostat;
 
 class Solver {
  public:
@@ -44,8 +45,20 @@ class Solver {
     return iteration_*real_time_step_;
   }
 
+  inline double time_step() const {
+    return time_step_;
+  }
+
+  inline double real_time_step() const {
+    return real_time_step_;
+  }
+
   inline const Physics * physics() const {
     return physics_module_;
+  }
+
+  inline Thermostat * thermostat() const {
+    return thermostat_;
   }
 
   void register_physics_module(Physics* package);
@@ -78,6 +91,7 @@ class Solver {
   double real_time_step_;
 
   Physics*                  physics_module_;
+  Thermostat*               thermostat_;
   std::vector<Monitor*>     monitors_;
   std::vector<Hamiltonian*> hamiltonians_;
 

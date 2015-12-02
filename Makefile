@@ -2,7 +2,7 @@
 all::
 
 # Define V=1 for verbose output
-V=1
+#V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
@@ -56,6 +56,7 @@ CUDA_BUILD_KEPLAR=1
 #
 # GeForce GTX 750 Ti, GeForce GTX 750 , GeForce GTX 860M, GeForce GTX 850M,
 # GeForce 840M, GeForce 830M
+#CUDA_BUILD_MAXWELL=1
 
 GITCOMMIT = $(shell git rev-parse HEAD)
 GITSHORT = $(shell git rev-parse --short HEAD)
@@ -98,7 +99,9 @@ OBJS += core/thermostat.o
 OBJS += core/hamiltonian.o
 OBJS += monitors/boltzmann.o
 OBJS += monitors/energy.o
+OBJS += monitors/spin_pumping.o
 OBJS += monitors/magnetisation.o
+OBJS += monitors/magnetisation_rate.o
 OBJS += monitors/structurefactor.o
 OBJS += monitors/torque.o
 OBJS += monitors/vtu.o
@@ -142,7 +145,9 @@ HDR += core/slice.h
 HDR += core/hamiltonian.h
 HDR += monitors/boltzmann.h
 HDR += monitors/energy.h
+HDR += monitors/spin_pumping.h
 HDR += monitors/magnetisation.h
+HDR += monitors/magnetisation_rate.h
 HDR += monitors/structurefactor.h
 HDR += monitors/torque.h
 HDR += monitors/vtu.h
@@ -173,6 +178,7 @@ ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver.o
 	CUDA_OBJS += core/cuda_sparsematrix.o
 	CUDA_OBJS += core/cuda_solver_kernels.o
+	CUDA_OBJS += core/cuda_array_kernels.o
 	CUDA_OBJS += solvers/cuda_heunllg.o
 	CUDA_OBJS += solvers/cuda_constrainedmc.o
 	CUDA_OBJS += thermostats/cuda_langevin_coth.o
@@ -185,6 +191,7 @@ ifndef NO_CUDA
 	CUDA_HDR += core/cuda_solver.h
 	CUDA_HDR += core/cuda_sparsematrix.h
 	CUDA_HDR += core/cuda_solver_kernels.h
+	CUDA_HDR += core/cuda_array_kernels.h
 	CUDA_HDR += solvers/cuda_heunllg.h
 	CUDA_HDR += solvers/cuda_heunllg_kernel.h
 	CUDA_HDR += solvers/cuda_constrainedmc.h
@@ -224,21 +231,22 @@ ifndef NO_CUDA
 	BASIC_CUFLAGS += -I$(CUDADIR)/include -DCUDA
 	ifeq ($(SYSTYPE),Darwin)
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib
-		BASIC_CUFLAGS += -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG" -Xlinker
+		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG -march=native -O3 -g -funroll-loops" -Xlinker
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
-		BASIC_CUFLAGS += -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -O3 -g -funroll-loops -DNDEBUG"
+		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -O3 -g -funroll-loops -DNDEBUG"
 	endif
 	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
 		BASIC_CUFLAGS += -gencode=arch=compute_20,code=sm_20
 	endif
 	ifdef CUDA_BUILD_KEPLAR
-		BASIC_CUFLAGS += -gencode=arch=compute_30,code=sm_30 \
-										 -gencode=arch=compute_35,code=sm_35
+		BASIC_CUFLAGS += -gencode=arch=compute_30,code=sm_30
 	endif
 	ifdef CUDA_BUILD_MAXWELL
-		BASIC_CUFLAGS += -gencode=arch=compute_50,code=sm_50
+		BASIC_CUFLAGS += -gencode=arch=compute_50,code=sm_50 \
+						 -gencode=arch=compute_52,code=sm_52 \
+						 -gencode=arch=compute_53,code=sm_53
 	endif
 endif
 
@@ -282,12 +290,12 @@ $(OBJS): %.o: %.cc $(HDR)
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $(EXTRA_CPPFLAGS) $<
 
 $(CUDA_OBJS): %.o: %.cu $(HDR)
-	$(QUIET_NVCC)$(NVCC) -o $*.o -c $(ALL_CUFLAGS) $<
+	$(QUIET_NVCC)$(NVCC) $(ALL_CUFLAGS) -o $*.o -c $<
 
 install: jams++
 	cp jams++ ~/local/bin/jams++-$(GITSHORT)
 	ln -sf ~/local/bin/jams++-$(GITSHORT) ~/local/bin/jams++-unstable
 
 clean:
-	$(RM) core/*.o physics/*.o monitors/*.o solvers/*.o hamiltonian/*.o
+	$(RM) core/*.o physics/*.o monitors/*.o solvers/*.o hamiltonian/*.o thermostats/*.o
 	$(RM) jams++

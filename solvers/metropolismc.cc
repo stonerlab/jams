@@ -7,6 +7,7 @@
 #include "core/globals.h"
 #include "core/montecarlo.h"
 #include "core/hamiltonian.h"
+#include "core/permutations.h"
 
 #include <iomanip>
 
@@ -40,12 +41,22 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     using namespace globals;
 
     if (is_preconditioner_enabled_ && iteration_ == 0) {
-      output.write("Preconditioning...");
+      output.write("preconditioning\n");
+
+      output.write("  thermalizing\n");
+      // do a short thermalization
+      for (int i = 0; i < 500; ++i) {
+        MetropolisAlgorithm(mc_uniform_trial_step);
+      }
+
+      // now try systematic rotations
+      output.write("  magnetization rotations\n");
       SystematicPreconditioner(preconditioner_delta_theta_, preconditioner_delta_phi_);
       output.write("done\n");
     }
 
     std::string trial_step_name;
+/*
     if (iteration_ % 2 == 0) {
       MetropolisAlgorithm(mc_small_trial_step);
       trial_step_name = "STS";
@@ -53,16 +64,19 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
       MetropolisAlgorithm(mc_uniform_trial_step);
       trial_step_name = "UTS";
     }
-
-    // if (iteration_ % 2 == 0) {
-    //   MetropolisAlgorithm(mc_uniform_trial_step);
-    // } else {
-    //   if ((iteration_ - 1) % 4 == 0) {
-    //     MetropolisAlgorithm(mc_reflection_trial_step);
-    //   } else {
-    //     MetropolisAlgorithm(mc_small_trial_step);
-    //   }
-    // }
+*/
+    if (iteration_ % 2 == 0) {
+      MetropolisAlgorithm(mc_uniform_trial_step);
+      trial_step_name = "UTS";
+    } else {
+      if ((iteration_ - 1) % 4 == 0) {
+        MetropolisAlgorithm(mc_reflection_trial_step);
+        trial_step_name = "RTS";
+      } else {
+        MetropolisAlgorithm(mc_small_trial_step);
+        trial_step_name = "STS";
+      }
+    }
 
     move_acceptance_fraction_ = move_acceptance_count_/double(num_spins);
     outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::fixed << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
@@ -92,8 +106,6 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
       e_final += (*it)->calculate_total_energy();
     }
 
-    // std::cerr << e_initial << "\t" << e_final << std::endl;
-
     if (e_final - e_initial > 0.0) {
       for (n = 0; n < globals::num_spins; ++n) {
         mc_set_spin_as_vec(n, s_initial);
@@ -101,60 +113,126 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     }
   }
 
+  class MetropolisMCSolver::MagnetizationRotationMinimizer
+  {
+      std::vector<Hamiltonian*> * hamiltonians_;
+
+      std::uint64_t count;
+      double e_min;
+      jblib::Array<double, 2> s_min;
+  public:
+      explicit MagnetizationRotationMinimizer(std::vector<Hamiltonian*> & hamiltonians_ ) :
+        hamiltonians_(&hamiltonians_), count(0), e_min(1e10), s_min(globals::s) {}
+
+      jblib::Array<double, 2> s() {
+        return s_min;
+      }
+
+      template <class It>
+          bool operator()(It first, It last)  // called for each permutation
+          {
+            using std::vector;
+            using jblib::Vec3;
+            using jblib::Array;
+            using jblib::Matrix;
+
+            int i, j;
+            double energy;
+            Vec3<double> s_new;
+            vector<Matrix<double, 3, 3>> rotation(lattice.num_materials());
+            vector<Vec3<double>> mag(lattice.num_materials());
+
+            if (last - first != lattice.num_materials()) {
+              throw std::runtime_error("number of angles in preconditioner does not match the number of materials");
+            }
+
+            // count the number of times this is called
+            ++count;
+
+            // calculate magnetization vector of each material
+            for (i = 0; i < globals::num_spins; ++i) {
+              for (j = 0; j < 3; ++j) {
+                mag[lattice.material(i)][j] += globals::s(i, j);
+              }
+            }
+            // don't need to normalize magnetization because only the direction is important
+            // calculate rotation matrix between magnetization and desired direction
+            for (i = 0; i < lattice.num_materials(); ++i) {
+              rotation[i] = rotation_matrix_between_vectors(mag[i], spherical_to_cartesian_vector(1.0, *first, 0.0));
+              ++first;
+            }
+
+            for (i = 0; i < globals::num_spins; ++i) {
+              for (j = 0; j < 3; ++j) {
+                s_new[j] = globals::s(i, j);
+              }
+              s_new = rotation[lattice.material(i)] * s_new;
+              for (j = 0; j < 3; ++j) {
+                globals::s(i, j) = s_new[j];
+              }
+            }
+
+            energy = 0.0;
+            for (auto it = hamiltonians_->begin() ; it != hamiltonians_->end(); ++it) {
+              energy += (*it)->calculate_total_energy();
+            }
+
+            if ( energy < e_min ) {
+              // this configuration is the new minimum
+              e_min = energy;
+              s_min = globals::s;
+            }
+            return false;
+          }
+
+      operator std::uint64_t() const {return count;}
+  };
+
   void MetropolisMCSolver::SystematicPreconditioner(const double delta_theta, const double delta_phi) {
     // TODO: this should probably rotate spins rather than set definite direction so we can then handle
     // ferrimagnets too
-    int n, num_theta, num_phi;
-    double e_initial, e_final, theta, phi;
-    jblib::Vec3<double> s_min, s_new;
+    int num_theta;
+    // double e_min, e_final, phi;
 
-    s_min = jblib::Vec3<double>(0.0, 0.0, 1.0);
+    jblib::Vec3<double> s_new;
+
+    jblib::Array<double, 2> s_init(globals::s);
+    jblib::Array<double, 2> s_min(globals::s);
 
     num_theta = (180.0 / delta_theta) + 1;
-    num_phi   = (360.0 / delta_phi) + 1;
+
+
+    std::vector<double> theta(num_theta);
+
+    theta[0] = 0.0;
+    for (int i = 1; i < num_theta; ++i) {
+      theta[i] = theta[i-1] + delta_theta;
+    }
+
+    MagnetizationRotationMinimizer minimizer(hamiltonians_);
+
+    output.write("    delta theta (deg)\n");
+    output.write("      %f\n", delta_theta);
+
+    output.write("    num_theta\n");
+    output.write("      %d\n", num_theta);
+
+    std::uint64_t count = for_each_permutation(theta.begin(),
+                                                   theta.begin() + 3,
+                                                   theta.end(),
+                                                   minimizer);
+
+    output.write("    permutations\n");
+    output.write("      %d\n", count);
 
     std::ofstream preconditioner_file;
     preconditioner_file.open(std::string(::seedname+"_mc_pre.dat").c_str());
     preconditioner_file << "# theta (deg) | phi (deg) | energy (J) \n";
 
-    theta = 0.0;
-    for (int i = 0; i < num_theta; ++i) {
-      phi = 0.0;
-      for (int j = 0; j < num_phi; ++j) {
-        s_new.x = sin(deg_to_rad(theta))*cos(deg_to_rad(phi));
-        s_new.y = sin(deg_to_rad(theta))*sin(deg_to_rad(phi));
-        s_new.z = cos(deg_to_rad(theta));
-
-        e_initial = 0.0;
-        for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-          e_initial += (*it)->calculate_total_energy();
-        }
-
-        for (n = 0; n < globals::num_spins; ++n) {
-          mc_set_spin_as_vec(n, s_new);
-        }
-
-        e_final = 0.0;
-        for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-          e_final += (*it)->calculate_total_energy();
-        }
-
-        preconditioner_file << theta << "\t" << phi << "\t" << "\t" << e_final*kBohrMagneton << "\n";
-
-        if ( ! (e_final < e_initial) ) {
-          for (n = 0; n < globals::num_spins; ++n) {
-            mc_set_spin_as_vec(n, s_min);
-          }
-        } else {
-          s_min = s_new;
-        }
-
-        phi += delta_phi;
-      }
-      preconditioner_file << "\n\n";
-      theta += delta_theta;
-    }
     preconditioner_file.close();
+
+    // use the minimum configuration
+    globals::s = minimizer.s();
   }
 
   void MetropolisMCSolver::MetropolisAlgorithm(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>)) {

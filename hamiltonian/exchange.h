@@ -66,6 +66,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         devCSR dev_csr_interaction_matrix_;
         cusparseHandle_t   cusparse_handle_;
         cusparseMatDescr_t cusparse_descra_;
+        cudaStream_t dev_stream_;
 #endif  // CUDA
 
 };

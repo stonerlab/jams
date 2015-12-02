@@ -116,16 +116,28 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   sqw_x.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
   sqw_y.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
   sqw_z.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
+
+
+  chi_xy.resize(num_samples);
+  chi_yx.resize(num_samples);
+
 }
 
 void StructureFactorMonitor::update(Solver * solver) {
+  using std::complex;
   using namespace globals;
 
-  std::complex<double> two_pi_i_dr;
-  std::complex<double> exp_phase_0;
-  jblib::Array<std::complex<double>, 1> exp_phase_x(lattice.kspace_size().x);
-  jblib::Array<std::complex<double>, 1> exp_phase_y(lattice.kspace_size().y);
-  jblib::Array<std::complex<double>, 1> exp_phase_z(lattice.kspace_size().z);
+  complex<double> two_pi_i_dr;
+  complex<double> exp_phase_0;
+  jblib::Array<complex<double>, 1> exp_phase_x(lattice.kspace_size().x);
+  jblib::Array<complex<double>, 1> exp_phase_y(lattice.kspace_size().y);
+  jblib::Array<complex<double>, 1> exp_phase_z(lattice.kspace_size().z);
+
+  chi_xy[time_point_counter_][0] = 0.0;
+  chi_xy[time_point_counter_][1] = 0.0;
+
+  std::cerr << solver->time() << "\t" << ((s(0, 0)*ds_dt(0, 1) - s(0, 1)*ds_dt(0, 0))) << std::endl;
+
 
   for (int unit_cell_atom = 0; unit_cell_atom < lattice.num_unit_cell_positions(); ++unit_cell_atom) {
     // zero the sq arrays
@@ -179,9 +191,9 @@ void StructureFactorMonitor::update(Solver * solver) {
       for (int j = 0; j < lattice.kspace_size().y; ++j) {
         for (int k = 0; k < lattice.kspace_size().z; ++k) {
 
-          std::complex<double> phased_sq_x(sq_x(i, j, k)[0], sq_x(i, j, k)[1]);
-          std::complex<double> phased_sq_y(sq_y(i, j, k)[0], sq_y(i, j, k)[1]);
-          std::complex<double> phased_sq_z(sq_z(i, j, k)[0], sq_z(i, j, k)[1]);
+          complex<double> phased_sq_x(sq_x(i, j, k)[0], sq_x(i, j, k)[1]);
+          complex<double> phased_sq_y(sq_y(i, j, k)[0], sq_y(i, j, k)[1]);
+          complex<double> phased_sq_z(sq_z(i, j, k)[0], sq_z(i, j, k)[1]);
 
           phased_sq_x = norm*phased_sq_x*exp_phase_x(i)*exp_phase_y(j)*exp_phase_z(k);
           sq_x(i, j, k)[0] = phased_sq_x.real(); sq_x(i, j, k)[1] = phased_sq_x.imag();
@@ -195,15 +207,33 @@ void StructureFactorMonitor::update(Solver * solver) {
       }
     }
 
+    chi_xy[time_point_counter_][0] = ((s(0, 0)*ds_dt(0, 1) - s(0, 1)*ds_dt(0, 0))); //(sq_x(0,0,0)[0]*sq_y(0,0,0)[0]) + (sq_x(0,0,0)[1]*sq_y(0,0,0)[1]);
+    chi_xy[time_point_counter_][1] = 0.0; //(sq_x(0,0,0)[1]*sq_y(0,0,0)[0]) - (sq_x(0,0,0)[0]*sq_y(0,0,0)[1]);
+
+
+    chi_yx[time_point_counter_][0] = (sq_x(0,0,0)[0]*sq_y(0,0,0)[0]) + (sq_x(0,0,0)[1]*sq_y(0,0,0)[1]);
+    chi_yx[time_point_counter_][1] = (sq_x(0,0,0)[0]*sq_y(0,0,0)[1]) - (sq_x(0,0,0)[1]*sq_y(0,0,0)[0]);
+
+    // for (int i = 0; i < lattice.kspace_size().x; ++i) {
+    //   for (int j = 0; j < lattice.kspace_size().y; ++j) {
+    //     for (int k = 0; k < lattice.kspace_size().z; ++k) {
+    //       chi_xy[time_point_counter_][0] = chi_xy[time_point_counter_][0] + 2 * (sq_x(i, j, k)[1]*sq_y(i, j, k)[0] - sq_x(i, j, k)[0]*sq_y(i, j, k)[1]);
+    //     }
+    //   }
+    // }
+
 
     // add the Sq to the timeseries
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
       jblib::Vec3<int> q = bz_points[i];
-      sqw_x(unit_cell_atom, time_point_counter_, i) = norm*std::complex<double>(sq_x(q.x, q.y, q.z)[0],sq_x(q.x, q.y, q.z)[1]);
-      sqw_y(unit_cell_atom, time_point_counter_, i) = norm*std::complex<double>(sq_y(q.x, q.y, q.z)[0],sq_y(q.x, q.y, q.z)[1]);
-      sqw_z(unit_cell_atom, time_point_counter_, i) = norm*std::complex<double>(sq_z(q.x, q.y, q.z)[0],sq_z(q.x, q.y, q.z)[1]);
+      sqw_x(unit_cell_atom, time_point_counter_, i) = norm*complex<double>(sq_x(q.x, q.y, q.z)[0],sq_x(q.x, q.y, q.z)[1]);
+      sqw_y(unit_cell_atom, time_point_counter_, i) = norm*complex<double>(sq_y(q.x, q.y, q.z)[0],sq_y(q.x, q.y, q.z)[1]);
+      sqw_z(unit_cell_atom, time_point_counter_, i) = norm*complex<double>(sq_z(q.x, q.y, q.z)[0],sq_z(q.x, q.y, q.z)[1]);
     }
   }
+
+  // std::cerr << time_point_counter_ << "\t" <<  chi_xy[time_point_counter_][0]  << "\t" <<  chi_xy[time_point_counter_][1]  << "\t" << chi_yx[time_point_counter_][0] << "\t" << chi_yx[time_point_counter_][1] << "\n";
+
 
   time_point_counter_++;
 }
@@ -305,6 +335,24 @@ void StructureFactorMonitor::fft_time() {
   }
 
   dsffile.close();
+
+  // spin pumping
+  fftw_plan chi_xy_plan = fftw_plan_dft_1d(time_points, chi_xy.data(), chi_xy.data(), FFTW_FORWARD, FFTW_ESTIMATE);
+  fftw_execute(chi_xy_plan);
+
+  // spin pumping
+  fftw_plan chi_yx_plan = fftw_plan_dft_1d(time_points, chi_yx.data(), chi_yx.data(), FFTW_FORWARD, FFTW_ESTIMATE);
+  fftw_execute(chi_yx_plan);
+
+
+
+  name = seedname + "_chi.tsv";
+  std::ofstream chifile(name.c_str());
+
+  for (int i = 0; i < (time_points/2) + 1; ++i) {
+    chifile << i*delta_freq_ << "\t" << chi_xy[i][0] << "\t" << chi_xy[i][1] << "\t" << chi_yx[i][0] << "\t" << chi_yx[i][1] << "\n";
+  }
+  chifile.close();
 }
 
 StructureFactorMonitor::~StructureFactorMonitor() {

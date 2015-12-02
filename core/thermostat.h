@@ -11,7 +11,7 @@ class Thermostat {
  public:
   Thermostat(const double &temperature, const double &sigma, const int num_spins)
     : temperature_(temperature),
-      sigma_(sigma),
+      sigma_(num_spins),
       noise_(num_spins, 3)
   {}
 
@@ -25,14 +25,11 @@ class Thermostat {
   double temperature() const { return temperature_; }
   void set_temperature(const double T) { temperature_ = T; }
 
-  double sigma() const { return sigma_; }
-  void set_sigma(const double S) { sigma_ = S;  }
-
   virtual const double* noise() { return noise_.data(); }
-
- private:
+  virtual double field(int i, int j) { return noise_(i, j); }
+ protected:
   double                  temperature_;
-  double                  sigma_;
+  jblib::Array<double, 1> sigma_;
   jblib::Array<double, 2> noise_;
 };
 

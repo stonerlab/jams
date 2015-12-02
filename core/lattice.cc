@@ -334,6 +334,7 @@ void Lattice::init_lattice_positions(
 // initialize global arrays
 //-----------------------------------------------------------------------------
   globals::s.resize(globals::num_spins, 3);
+  globals::ds_dt.resize(globals::num_spins, 3);
 
   // default spin array to (0, 0, 1) which will be used if no other spin settings
   // are specified
@@ -353,14 +354,12 @@ void Lattice::init_lattice_positions(
   }
 
   globals::h.resize(globals::num_spins, 3);
-  globals::h_dipole.resize(globals::num_spins, 3);
   globals::alpha.resize(globals::num_spins);
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
   // globals::wij.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z, 3, 3);
 
   std::fill(globals::h.data(), globals::h.data()+globals::num_spins3, 0.0);
-  std::fill(globals::h_dipole.data(), globals::h_dipole.data()+globals::num_spins3, 0.0);
   // std::fill(globals::wij.data(), globals::wij.data()+kspace_size_.x*kspace_size_.y*kspace_size_.z*3*3, 0.0);
 
   material_count_.resize(num_materials(), 0);

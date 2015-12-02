@@ -121,6 +121,7 @@ void Hdf5Monitor::update(Solver * solver) {
     jblib::Vec3<double> out_field = solver->physics()->applied_field();
 
     DataSet spin_dataset = outfile.createDataSet("spins", float_pred_type, dataspace, plist);
+    DataSet ds_dt_dataset = outfile.createDataSet("ds_dt", float_pred_type, dataspace, plist);
 
     DataSpace attribute_dataspace(H5S_SCALAR);
     Attribute attribute = spin_dataset.createAttribute("iteration", PredType::STD_I32LE, attribute_dataspace);
@@ -146,6 +147,7 @@ void Hdf5Monitor::update(Solver * solver) {
         spin_dataset.write(spin_slice.data(), PredType::NATIVE_DOUBLE);
     } else {
         spin_dataset.write(s.data(), PredType::NATIVE_DOUBLE);
+        ds_dt_dataset.write(ds_dt.data(), PredType::NATIVE_DOUBLE);
     }
 
 
@@ -170,7 +172,7 @@ void Hdf5Monitor::update(Solver * solver) {
     fprintf(xdmf_file, "           %s_lattice.h5:/types\n", seedname.c_str());
                  fputs("         </DataItem>\n", xdmf_file);
                  fputs("       </Attribute>\n", xdmf_file);
-                 fputs("       <Attribute Name=\"Spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file);
+                 fputs("       <Attribute Name=\"spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file);
     if (float_pred_type == PredType::IEEE_F32LE) {
     fprintf(xdmf_file, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", dims[0]);
     } else {
@@ -179,7 +181,16 @@ void Hdf5Monitor::update(Solver * solver) {
     fprintf(xdmf_file, "           %s:/spins\n", filename.c_str());
                  fputs("         </DataItem>\n", xdmf_file);
                  fputs("       </Attribute>\n", xdmf_file);
-                 fputs("      </Grid>\n", xdmf_file);
+                  fputs("       <Attribute Name=\"ds_dt\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file);
+     if (float_pred_type == PredType::IEEE_F32LE) {
+     fprintf(xdmf_file, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", dims[0]);
+     } else {
+     fprintf(xdmf_file, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"8\" Format=\"HDF\">\n", dims[0]);
+     }
+     fprintf(xdmf_file, "           %s:/ds_dt\n", filename.c_str());
+                  fputs("         </DataItem>\n", xdmf_file);
+                  fputs("       </Attribute>\n", xdmf_file);
+     fputs("      </Grid>\n", xdmf_file);
 
                  // reprint the closing tags of the XML
                  fputs("    </Grid>\n", xdmf_file);

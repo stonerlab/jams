@@ -2,23 +2,25 @@
 
 #include <cublas.h>
 
-#include "core/globals.h"
-#include "core/solver.h"
 #include "core/cuda_solver.h"
 #include "core/cuda_solver_kernels.h"
 
-
 #include "core/consts.h"
-
-#include "core/utils.h"
-#include "core/hamiltonian.h"
 #include "core/cuda_defs.h"
-
+#include "core/cuda_sparsematrix.h"
+#include "core/globals.h"
+#include "core/hamiltonian.h"
+#include "core/solver.h"
+#include "core/thermostat.h"
+#include "core/utils.h"
 #include "solvers/cuda_heunllg.h"
 #include "solvers/heunllg.h"
 #include "solvers/metropolismc.h"
-#include "core/cuda_sparsematrix.h"
 
+void CudaSolver::sync_device_data() {
+  dev_s_.copy_to_host_array(globals::s);
+  dev_ds_dt_.copy_to_host_array(globals::ds_dt);
+}
 
 void CudaSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
@@ -30,6 +32,8 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
   ::output.write("  initialising CUDA streams\n");
 
   is_cuda_solver_ = true;
+
+  cudaStreamCreate(&dev_stream_);
 
   // if (cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS) {
   //   jams_error("CudaSolver: CUBLAS initialization failed");
@@ -105,31 +109,22 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 //-----------------------------------------------------------------------------
 
   ::output.write("  transfering array data to device\n");
+  jblib::Array<double, 2> zero(num_spins, 3, 0.0);
 
   // spin arrays
   dev_s_        = jblib::CudaArray<double, 1>(s);
-  dev_s_new_    = jblib::CudaArray<double, 1>(s);
+  dev_s_old_    = jblib::CudaArray<double, 1>(s);
+  dev_ds_dt_    = jblib::CudaArray<double, 1>(zero);
 
   // field array
-  jblib::Array<double, 2> zero(num_spins, 3, 0.0);
   dev_h_        = jblib::CudaArray<double, 1>(zero);
 
   // materials array
-  jblib::Array<double, 2> mat(num_spins, 4);
-  jblib::Array<double, 1> sigma(num_spins);
+  jblib::Array<double, 2> mat(num_spins, 3);
 
-  // sigma.resize(num_spins);
-  for(int i = 0; i < num_spins; ++i) {
-    sigma(i) = sqrt( (2.0*kBoltzmann*alpha(i)) / (time_step_*mus(i)*kBohrMagneton) );
-  }
+  dev_gyro_      = jblib::CudaArray<double, 1>(gyro);
+  dev_alpha_      = jblib::CudaArray<double, 1>(alpha);
 
-  for(int i = 0; i < num_spins; ++i){
-    mat(i, 0) = static_cast<double>(mus(i));
-    mat(i, 1) = static_cast<double>(gyro(i));
-    mat(i, 2) = static_cast<double>(alpha(i));
-    mat(i, 3) = static_cast<double>(sigma(i));
-  }
-  dev_mat_      = jblib::CudaArray<double, 1>(mat);
 
   ::output.write("\n");
 }
@@ -140,34 +135,12 @@ void CudaSolver::run() {
 void CudaSolver::compute_fields() {
   using namespace globals;
 
-  // zero the field array
-  cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double));
-
-  // if (optimize::use_fft) {
-  //   cuda_realspace_to_kspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_s_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_s3d_.data());
-
-  //   if (cufftExecD2Z(spin_fft_forward_transform, dev_s3d_.data(), dev_sq_.data()) != CUFFT_SUCCESS) {
-  //     jams_error("CUFFT failure executing spin_fft_forward_transform");
-  //   }
-
-  //   const int convolution_size = num_kpoints_.x*num_kpoints_.y*((num_kpoints_.z/2)+1);
-  //   const int real_size = num_kpoints_.x*num_kpoints_.y*num_kpoints_.z;
-
-  //   cuda_fft_convolution<<<(convolution_size+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>(convolution_size, real_size, dev_wq_.data(), dev_sq_.data(), dev_hq_.data());
-  //   if (cufftExecZ2D(field_fft_backward_transform, dev_hq_.data(), dev_h3d_.data()) != CUFFT_SUCCESS) {
-  //     jams_error("CUFFT failure executing field_fft_backward_transform");
-  //   }
-
-  //   cuda_kspace_to_realspace_mapping<<<(num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE>>>(dev_h3d_.data(), r_to_k_mapping_.data(), num_spins, num_kpoints_.x, num_kpoints_.y, num_kpoints_.z, dev_h_.data());
-  // }
-
-  // cudaStreamSynchronize(::cuda_streams[0]); // block until cudaMemsetAsync is finished
-
   for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
     (*it)->calculate_fields();
   }
 
-  cudaDeviceSynchronize();
+  // zero the field array
+  cuda_api_error_check(cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), dev_stream_));
 
   const double alpha = 1.0;
   for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
