@@ -243,7 +243,11 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
 
     move_acceptance_count_ = 0;
     for (n = 0; n < globals::num_spins; ++n) {
-      random_spin_number = rng.uniform_discrete(0, globals::num_spins - 1);
+
+      // 2015-12-10 (JB) striding uniformly is ~4x faster than random choice (clang OSX).
+      // Seems to be because of caching/predication in the exchange field calculation.
+      random_spin_number = n; //rng.uniform_discrete(0, globals::num_spins - 1);
+
       s_initial = mc_spin_as_vec(random_spin_number);
       s_final = mc_trial_step(s_initial);
 
