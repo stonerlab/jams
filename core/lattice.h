@@ -39,8 +39,15 @@ class Lattice {
     inline int material(const int i);                     ///< uid of material at lattice site i
     inline std::string material_name(const int uid) const;  ///< material string name from uid
 
+    // distance between two lattice sites in cartesian space taking into account the boundary conditions
+    double distance(const int i, const int j) const;
+    // squared distance between two lattice sites in cartesian space taking into account the boundary conditions
+    double distance_sq(const int i, const int j) const;
+
     inline jblib::Vec3<double> position(const int i) const;
     jblib::Vec3<double> minimum_image(const jblib::Vec3<double> ri, const jblib::Vec3<double> rj) const;
+    jblib::Vec3<double> minimum_image_fractional(const jblib::Vec3<double> ri, const jblib::Vec3<double> rj) const;
+
     inline jblib::Vec3<double> rmax() const;
     inline jblib::Vec3<double> rmin() const;
     jblib::Vec3<double> generate_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const;

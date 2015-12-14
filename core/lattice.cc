@@ -82,6 +82,10 @@ void Lattice::init_from_config(const libconfig::Config& pConfig) {
 
 jblib::Vec3<double> Lattice::minimum_image(const jblib::Vec3<double> ri, const jblib::Vec3<double> rj) const {
 
+  if(is_open_system()) {
+    return rj - ri;
+  }
+
   jblib::Vec3<double> dr = cartesian_to_fractional(rj - ri);
 
   for (int n = 0; n < 3; ++n) {
@@ -93,6 +97,32 @@ jblib::Vec3<double> Lattice::minimum_image(const jblib::Vec3<double> ri, const j
   return fractional_to_cartesian(dr);
 };
 
+jblib::Vec3<double> Lattice::minimum_image_fractional(const jblib::Vec3<double> fi, const jblib::Vec3<double> fj) const {
+  if(is_open_system()) {
+    return fj - fi;
+  }
+
+  jblib::Vec3<double> dr = fj - fi;
+
+  for (int n = 0; n < 3; ++n) {
+    if (is_periodic(n)) {
+      dr[n] = dr[n] - nint(dr[n] / lattice_size_[n]) * lattice_size_[n];
+    }
+  }
+  return dr;
+};
+
+double Lattice::distance(const int i, const int j) const {
+  return fractional_to_cartesian(
+    minimum_image_fractional(lattice_frac_positions_[i], lattice_frac_positions_[j])
+  ).norm();
+}
+
+double Lattice::distance_sq(const int i, const int j) const {
+  return fractional_to_cartesian(
+    minimum_image_fractional(lattice_frac_positions_[i], lattice_frac_positions_[j])
+  ).norm_sq();
+}
 
 void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   using namespace globals;
