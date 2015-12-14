@@ -123,6 +123,7 @@ class Lattice {
     void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void init_kspace();
+    void init_nearest_neighbour_list(const double r_cutoff, const bool prune = false);
     void calc_symmetry_operations();
 
     bool is_debugging_enabled_;

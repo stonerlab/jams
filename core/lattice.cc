@@ -35,6 +35,19 @@ extern "C"{
 using std::cout;
 using std::endl;
 
+struct Neighbour {
+    int    site;
+    double distance;
+};
+
+bool operator <(const Neighbour& x, const Neighbour& y) {
+    return x.distance < y.distance;
+}
+
+bool operator ==(const Neighbour& x, const Neighbour& y) {
+    return std::abs(x.distance - y.distance) < kEps;
+}
+
 Lattice::Lattice() {
 
 }
@@ -778,4 +791,49 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
     pos.z = pos3.z;
   }
   return is_within_lattice;
+}
+
+//
+// Calculate the nearest neighbours of every lattice point
+//
+// Arguments:
+//    r_cutoff: cut off neighbour radius in units of lattice constant (same as exchange)
+//    prune:    if true it will prune the neighbours within this radius to only those of
+//              with the shortest distance i.e. the nearest neighbours
+//
+void Lattice::init_nearest_neighbour_list(const double r_cutoff, const bool prune) {
+  double eps = kEps;
+  std::vector<std::vector<Neighbour>> neighbour_list(globals::num_spins);
+
+  const double r_cutoff_sq = r_cutoff * r_cutoff;
+
+  // loop over j > i and use r_ij == r_ji
+  for (int i = 0; i < globals::num_spins; ++i) {
+    for (int j = i+1; j < globals::num_spins; ++j) {
+      double r_sq = distance_sq(i, j);
+      if (r_sq < r_cutoff_sq) {
+        // std::cout << i << "\t" << j << "\t" << sqrt(r_sq) << "\n";
+        neighbour_list[i].push_back({j, sqrt(r_sq)});
+        neighbour_list[j].push_back({i, sqrt(r_sq)});
+      }
+    }
+  }
+
+  if (prune) {
+    for (int i = 0; i < globals::num_spins; ++i) {
+      double r_min = (*std::min_element(neighbour_list[i].begin(), neighbour_list[i].end())).distance;
+
+      auto nbr_end = std::remove_if(neighbour_list[i].begin(), neighbour_list[i].end(), [r_min, eps](const Neighbour& nbr) {
+        return std::abs(nbr.distance - r_min) > eps;
+      });
+
+      neighbour_list[i].erase(nbr_end, neighbour_list[i].end());
+    }
+  }
+
+  for (int i = 0; i < globals::num_spins; ++i) {
+    for (auto it = neighbour_list[i].begin(); it < neighbour_list[i].end(); ++it) {
+      std::cerr << i << "\t" << (*it).site << "\t" << (*it).distance << "\n";
+    }
+  }
 }
