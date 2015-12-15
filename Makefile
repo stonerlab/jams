@@ -144,6 +144,7 @@ HDR += core/thermostat.h
 HDR += core/utils.h
 HDR += core/slice.h
 HDR += core/hamiltonian.h
+HDR += core/neartree.h
 HDR += monitors/boltzmann.h
 HDR += monitors/energy.h
 HDR += monitors/spin_pumping.h
