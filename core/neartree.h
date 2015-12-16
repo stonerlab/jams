@@ -1,6 +1,8 @@
 #ifndef JAMS_CORE_NEARTREE_H
 #define JAMS_CORE_NEARTREE_H
 
+#include <stack>
+
 // based on http://www.drdobbs.com/cpp/a-template-for-the-nearest-neighbor-prob/184401449
 // also library seems to be available at: http://neartree.sourceforge.net/
 //==============================================================
@@ -8,16 +10,16 @@ template <typename T,
           typename FuncType>
 class NearTree
 {
-    T * left; // left object stored in this node
-    T * right;// right object stored in this node
-    double max_distance_left; //longest distance from the left object
-                       // to anything below it in the tree
-    double max_distance_right;// longest distance from the right object
-                       // to anything below it in the tree
-    NearTree * left_branch;  //tree descending from the left
-    NearTree * right_branch; //tree descending from the right
+    T * left;                  // left object stored in this node
+    T * right;                 // right object stored in this node
+    double max_distance_left;  // longest distance from the left object
+                               // to anything below it in the tree
+    double max_distance_right; // longest distance from the right object
+                               // to anything below it in the tree
+    NearTree * left_branch;    // tree descending from the left
+    NearTree * right_branch;   // tree descending from the right
 
-    FuncType distance_functor;
+    FuncType distance_functor; // functor to calculate distance
 
 public:
 
@@ -53,29 +55,25 @@ public:
    }  //  ~NearTree
 
 //==============================================================
-   void insert( const T& t )
+   void insert(const T& t)
    {
       // do a bit of precomputing if possible so that we can
       // reduce the number of calls to operator 'double' as much
       // as possible; 'double' might use square roots
       double tmp_distance_right =  0;
       double tmp_distance_left  =  0;
-      if ( right  != 0 )
-      {
-         tmp_distance_right  = fabs( distance_functor(t, *right));
-         tmp_distance_left   = fabs( distance_functor(t, *left));
+      if (right != 0) {
+         tmp_distance_right  = distance_functor(t, *right);
+         tmp_distance_left   = distance_functor(t, *left);
       }
-      if ( left == 0 )
-      {
-         left = new T( t );
+      if (left == 0) {
+         left = new T(t);
       }
-      else if ( right == 0 )
-      {
-         right   = new T( t );
+      else if (right == 0) {
+         right   = new T(t);
       }
-      else if ( tmp_distance_left > tmp_distance_right )
-      {
-         if (right_branch==0) {
+      else if (tmp_distance_left > tmp_distance_right) {
+         if (right_branch == 0) {
            right_branch = new NearTree(distance_functor);
          }
          // note that the next line assumes that max_distance_right
@@ -83,19 +81,18 @@ public:
          if (max_distance_right < tmp_distance_right) {
            max_distance_right = tmp_distance_right;
          }
-         right_branch->insert( t );
+         right_branch->insert(t);
       }
-      else
-      {
+      else {
          if (left_branch == 0) {
-           left_branch=new NearTree(distance_functor);
+           left_branch = new NearTree(distance_functor);
          }
          // note that the next line assumes that max_distance_left
          // is negative for a new node
          if (max_distance_left < tmp_distance_left) {
            max_distance_left = tmp_distance_left;
          }
-         left_branch->insert( t );
+         left_branch->insert(t);
       }
    }  //  insert
 
@@ -115,13 +112,13 @@ public:
    }  //  farthest_neighbour
 
 //==============================================================
-   long find_in_radius ( const double& radius,
+   void find_in_radius ( const double& radius,
                std::vector<T>& closest,   const T& t ) const
    {   // t is the probe point, closest is a vector of contacts
       // clear the contents of the return vector so that
       // things don't accidentally accumulate
       closest.clear( );
-      return ( in_radius( radius, closest, t ) );
+      in_radius( radius, closest, t );
    }  //  find_in_radius
 
 private:
@@ -134,15 +131,15 @@ private:
       bool  is_nearer = false;
       // first test each of the left and right positions to see
       // if one holds a point nearer than the nearest so far.
-      if (( left!=0 ) &&
-        ((tmp_radius = fabs(distance_functor(t, *left))) <= radius))
+      if (( left != 0 ) &&
+        ((tmp_radius = (distance_functor(t, *left))) <= radius))
       {
          radius  = tmp_radius;
          closest = *left;
          is_nearer     = true;
       }
       if ((right != 0) &&
-        (( tmp_radius = fabs(distance_functor(t, *right)))<=radius))
+        (( tmp_radius = (distance_functor(t, *right)))<=radius))
       {
          radius  = tmp_radius;
          closest = *right;
@@ -153,13 +150,13 @@ private:
       // rule is used to test whether it's even necessary to
       // descend.
       if (( left_branch  != 0 )  &&
-        ((radius + max_distance_left) >= fabs(distance_functor(t, *left))))
+        ((radius + max_distance_left) >= (distance_functor(t, *left))))
       {
          is_nearer |= left_branch->nearest(radius,closest,t);
       }
 
       if (( right_branch != 0 )  &&
-        ((radius + max_distance_right) >= fabs(distance_functor(t, *right))))
+        ((radius + max_distance_right) >= (distance_functor(t, *right))))
       {
          is_nearer |= right_branch->nearest(radius,closest,t);
       }
@@ -167,21 +164,19 @@ private:
    };   // nearest
 
 //==============================================================
-   long in_radius ( const double& radius,
+   void in_radius ( const double& radius,
                std::vector<T>& closest,   const T& t ) const
-   {   // t is the probe point, closest is a vector of contacts
-      long num_points = 0;
-      // first test each of the left and right positions to see
-      // if one holds a point nearer than the search radius.
-      if ((left!=0) && (fabs(distance_functor(t, *left))<=radius))
-      {
+   {
+      // t is the probe point, closest is a vector of contacts
+
+       // first test each of the left and right positions to see
+       // if one holds a point nearer than the search radius.
+
+      if ((left != 0) && (distance_functor(t, *left) <= radius)) {
          closest.push_back( *left ); // It's a keeper
-         num_points++ ;
       }
-      if ((right!=0)&&(fabs(distance_functor(t, *right))<=radius))
-      {
+      if ((right != 0) && (distance_functor(t, *right) <= radius)) {
          closest.push_back( *right ); // It's a keeper
-         num_points++ ;
       }
       //
       // Now we test to see if the branches below might hold an
@@ -189,30 +184,14 @@ private:
       // is used to test whether it's even necessary to descend.
       //
       if (( left_branch  != 0 )  &&
-         ((radius+max_distance_left) >= fabs(distance_functor(t, *left))))
-      {
-         num_points +=
-           left_branch->in_radius( radius, closest, t );
+         (radius + max_distance_left) >= distance_functor(t, *left)) {
+         left_branch->in_radius( radius, closest, t );
       }
       if (( right_branch != 0 )  &&
-         ((radius+max_distance_right) >= fabs(distance_functor(t, *right))))
-      {
-         num_points +=
-           right_branch->in_radius( radius, closest, t );
+         (radius + max_distance_right) >= distance_functor(t, *right)) {
+         right_branch->in_radius( radius, closest, t );
       }
-      return ( num_points );
    }  //  in_radius
-
-//==============================================================
-   bool find_farthest ( double& dRad,
-                        T& farthest,   const T& t ) const
-   {
-//   deleted from the journal listing since it is quite similar
-//   to nearest
-        return ( false );
-   };   // find_farthest
-
-
 };
 
 #endif  // JAMS_CORE_LATTICE_H
