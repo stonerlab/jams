@@ -802,33 +802,25 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
 //              with the shortest distance i.e. the nearest neighbours
 //
 void Lattice::init_nearest_neighbour_list(const double r_cutoff, const bool prune) {
-  double eps = kEps;
-  std::vector<std::vector<Neighbour>> neighbour_list(globals::num_spins);
+  using std::iota;
+  using std::vector;
+  using std::random_shuffle;
 
-  const double r_cutoff_sq = r_cutoff * r_cutoff;
+  DistanceMetric metric(this->lattice_size_, this->lattice_periodic_boundary_ ,this->unit_cell_);
 
-  // loop over j > i and use r_ij == r_ji
+  NearTree<Atom, DistanceMetric> neartree(metric);
+
+
+  // lookups are MUCH faster if locations are inserted randomly rather than
+  // in an ordered way
+
+  vector<int> insert_order(globals::num_spins);
+  iota(insert_order.begin(), insert_order.end(), 0);
+  random_shuffle(insert_order.begin(), insert_order.end());
+
   for (int i = 0; i < globals::num_spins; ++i) {
-    for (int j = i+1; j < globals::num_spins; ++j) {
-      double r_sq = distance_sq(i, j);
-      if (r_sq < r_cutoff_sq) {
-        // std::cout << i << "\t" << j << "\t" << sqrt(r_sq) << "\n";
-        neighbour_list[i].push_back({j, sqrt(r_sq)});
-        neighbour_list[j].push_back({i, sqrt(r_sq)});
-      }
-    }
-  }
-
-  if (prune) {
-    for (int i = 0; i < globals::num_spins; ++i) {
-      double r_min = (*std::min_element(neighbour_list[i].begin(), neighbour_list[i].end())).distance;
-
-      auto nbr_end = std::remove_if(neighbour_list[i].begin(), neighbour_list[i].end(), [r_min, eps](const Neighbour& nbr) {
-        return std::abs(nbr.distance - r_min) > eps;
-      });
-
-      neighbour_list[i].erase(nbr_end, neighbour_list[i].end());
-    }
+    int n = insert_order[i];
+    neartree.insert({n, lattice.material(n), lattice.position(n)});
   }
 
   for (int i = 0; i < globals::num_spins; ++i) {
