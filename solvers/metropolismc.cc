@@ -152,7 +152,7 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
             // calculate magnetization vector of each material
             for (i = 0; i < globals::num_spins; ++i) {
               for (j = 0; j < 3; ++j) {
-                mag[lattice.material(i)][j] += globals::s(i, j);
+                mag[lattice.atom_material(i)][j] += globals::s(i, j);
               }
             }
             // don't need to normalize magnetization because only the direction is important
@@ -166,7 +166,7 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
               for (j = 0; j < 3; ++j) {
                 s_new[j] = globals::s(i, j);
               }
-              s_new = rotation[lattice.material(i)] * s_new;
+              s_new = rotation[lattice.atom_material(i)] * s_new;
               for (j = 0; j < 3; ++j) {
                 globals::s(i, j) = s_new[j];
               }

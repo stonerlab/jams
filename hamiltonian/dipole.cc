@@ -132,11 +132,11 @@ void DipoleHamiltonian::output_energies_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << lattice.material(i);
+        outfile << lattice.atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile <<  lattice.parameter()*lattice.position(i)[j];
+            outfile <<  lattice.parameter()*lattice.atom_position(i)[j];
         }
 
         // energy
@@ -175,11 +175,11 @@ void DipoleHamiltonian::output_fields_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << std::setw(16) << lattice.material(i);
+        outfile << std::setw(16) << lattice.atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.position(i)[j];
+            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.atom_position(i)[j];
         }
 
         // fields

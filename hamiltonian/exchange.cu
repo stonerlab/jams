@@ -69,8 +69,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
       std::ofstream pos_file("debug_pos.dat");
       for (int n = 0; n < lattice.num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice.material(i) == n) {
-            pos_file << i << "\t" <<  lattice.position(i).x << "\t" <<  lattice.position(i).y << "\t" << lattice.position(i).z << "\n";
+          if (lattice.atom_material(i) == n) {
+            pos_file << i << "\t" <<  lattice.atom_position(i).x << "\t" <<  lattice.atom_position(i).y << "\t" << lattice.atom_position(i).z << "\n";
           }
         }
         pos_file << "\n\n";
@@ -192,12 +192,12 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
                 if (is_debug_enabled_) {
                   debug_file << local_site << "\t" << neighbour_site << "\t";
-                  debug_file << lattice.position(local_site).x << "\t";
-                  debug_file << lattice.position(local_site).y << "\t";
-                  debug_file << lattice.position(local_site).z << "\t";
-                  debug_file << lattice.position(neighbour_site).x << "\t";
-                  debug_file << lattice.position(neighbour_site).y << "\t";
-                  debug_file << lattice.position(neighbour_site).z << "\n";
+                  debug_file << lattice.atom_position(local_site).x << "\t";
+                  debug_file << lattice.atom_position(local_site).y << "\t";
+                  debug_file << lattice.atom_position(local_site).z << "\t";
+                  debug_file << lattice.atom_position(neighbour_site).x << "\t";
+                  debug_file << lattice.atom_position(neighbour_site).y << "\t";
+                  debug_file << lattice.atom_position(neighbour_site).z << "\n";
                 }
               } else {
                 is_all_inserts_successful = false;
@@ -885,11 +885,11 @@ void ExchangeHamiltonian::output_energies_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << lattice.material(i);
+        outfile << lattice.atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile <<  lattice.parameter()*lattice.position(i)[j];
+            outfile <<  lattice.parameter()*lattice.atom_position(i)[j];
         }
 
         // energy
@@ -928,11 +928,11 @@ void ExchangeHamiltonian::output_fields_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << std::setw(16) << lattice.material(i);
+        outfile << std::setw(16) << lattice.atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.position(i)[j];
+            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.atom_position(i)[j];
         }
 
         // fields

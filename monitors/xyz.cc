@@ -41,7 +41,7 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
     }
     // check which spins are inside the slice
     for (int i = 0; i < num_spins; ++i) {
-      jblib::Vec3<double> pos = lattice.position(i);
+      jblib::Vec3<double> pos = lattice.atom_position(i);
 
       // check if the current spin in inside the slice
       if (floats_are_greater_than_or_equal(pos.x, slice_origin.x) && floats_are_less_than_or_equal(pos.x, slice_origin.x + slice_size.x)
@@ -75,13 +75,13 @@ void XyzMonitor::update(Solver * solver) {
       for (int i = 0, iend = slice_spins.size(); i < iend; ++i) {
         const int n = slice_spins[i];
         xyz_state_file << std::setw(9) << n;
-        xyz_state_file << std::setw(16) << lattice.position(n)[0] << std::setw(16) << lattice.position(n)[1] << std::setw(16) << lattice.position(n)[2];
+        xyz_state_file << std::setw(16) << lattice.atom_position(n)[0] << std::setw(16) << lattice.atom_position(n)[1] << std::setw(16) << lattice.atom_position(n)[2];
         xyz_state_file << std::setw(16) << s(n,0) << std::setw(16) << s(n,1) << std::setw(16) <<  s(n, 2) << "\n";
       }
     } else {
       for (int n = 0; n < num_spins; ++n) {
         xyz_state_file << std::setw(9) << n;
-        xyz_state_file << std::setw(16) << lattice.position(n)[0] << std::setw(16) << lattice.position(n)[1] << std::setw(16) << lattice.position(n)[2];
+        xyz_state_file << std::setw(16) << lattice.atom_position(n)[0] << std::setw(16) << lattice.atom_position(n)[1] << std::setw(16) << lattice.atom_position(n)[2];
         xyz_state_file << std::setw(16) << s(n,0) << std::setw(16) << s(n,1) << std::setw(16) <<  s(n, 2) << "\n";
       }
     }

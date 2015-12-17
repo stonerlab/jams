@@ -41,7 +41,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   libconfig::Setting& material_settings = ::config.lookup("materials");
   for (int i = 0; i < num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
-      s_transform(i,n) = material_settings[::lattice.material(i)]["transform"][n];
+      s_transform(i,n) = material_settings[::lattice.atom_material(i)]["transform"][n];
     }
   }
 

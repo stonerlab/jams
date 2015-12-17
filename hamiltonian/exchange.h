@@ -42,6 +42,10 @@ class ExchangeHamiltonian : public Hamiltonian {
         void   output_energies(OutputFormat format);
         void   output_fields(OutputFormat format);
 
+        const std::vector<Interaction>& neighbours(const int i) const {
+            return neighbour_list_[i];
+        }
+
     private:
 
         void read_interactions(const std::string &filename,

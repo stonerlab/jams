@@ -64,7 +64,7 @@ void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h
     for (j = 0; j < globals::num_spins; ++j) {
         if (unlikely(j == i)) continue;
 
-        r_ij  = lattice.position(j) - lattice.position(i);
+        r_ij  = lattice.atom_position(j) - lattice.atom_position(i);
         r_abs = abs(r_ij);
 
         if (r_abs > r_cutoff_) continue;

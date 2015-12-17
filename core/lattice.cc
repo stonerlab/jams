@@ -20,6 +20,7 @@ extern "C"{
 #include <utility>
 #include <set>
 #include <cfloat>
+#include <functional>
 
 #include "H5Cpp.h"
 
@@ -28,24 +29,70 @@ extern "C"{
 #include "core/maths.h"
 #include "core/sparsematrix.h"
 #include "core/utils.h"
+#include "core/neartree.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
 
 using std::cout;
 using std::endl;
+using libconfig::Setting;
+using libconfig::Config;
 
-struct Neighbour {
-    int    site;
-    double distance;
-};
+//
+// struct Atom {
+//   int  index;
+//   vec3 r;
+//
+//   inline Atom operator-(const Atom &rhs) const{
+//     return Atom({index, r - rhs.r});
+//   }
+//
+//   inline operator double() {
+//     return std::sqrt(r.x * r.x + r.y * r.y + r.z * r.z);
+//   }
+// };
 
-bool operator <(const Neighbour& x, const Neighbour& y) {
-    return x.distance < y.distance;
-}
+void read_material_settings(Setting& cfg, Material &mat) {
+  mat.name   = cfg["name"].c_str();
+  mat.moment = double(cfg["moment"]);
+  mat.gyro   = double(cfg["gyro"]);
+  mat.alpha  = double(cfg["alpha"]);
 
-bool operator ==(const Neighbour& x, const Neighbour& y) {
-    return std::abs(x.distance - y.distance) < kEps;
+  if (cfg.exists("transform")) {
+    for (int i = 0; i < 3; ++i) {
+      mat.transform[i] = double(cfg["transform"][i]);
+    }
+  } else {
+    mat.transform = {1.0, 1.0, 1.0};
+  }
+
+  mat.randomize = false;
+
+  if (cfg["spin"].getType() == libconfig::Setting::TypeString) {
+    string spin_initializer = capitalize(cfg["spin"]);
+    if (spin_initializer == "RANDOM") {
+      mat.randomize = true;
+    } else {
+      jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
+    }
+  } else if (cfg["spin"].getType() == libconfig::Setting::TypeArray) {
+    if (cfg["spin"].getLength() == 3) {
+      for(int i = 0; i < 3; ++i) {
+        mat.spin[i] = double(cfg["spin"][i]);
+      }
+    } else if (cfg["spin"].getLength() == 2) {
+      // spin setting is spherical
+      double theta = deg_to_rad(cfg["spin"][0]);
+      double phi   = deg_to_rad(cfg["spin"][1]);
+      mat.spin[0] = sin(theta)*cos(phi);
+      mat.spin[1] = sin(theta)*sin(phi);
+      mat.spin[2] = cos(theta);
+    } else {
+      std::runtime_error("material spin array is not of a recognised size (2 or 3)");
+    }
+  }
+
 }
 
 Lattice::Lattice() {
@@ -58,32 +105,32 @@ Lattice::~Lattice() {
   }
 }
 
-jblib::Vec3<double> Lattice::generate_position(
-  const jblib::Vec3<double> unit_cell_frac_pos,
-  const jblib::Vec3<int> translation_vector) const
+Vec3 Lattice::generate_position(
+  const Vec3 unit_cell_frac_pos,
+  const Vec3i translation_vector) const
 {
-  return unit_cell_*generate_fractional_position(unit_cell_frac_pos, translation_vector);
+  return super_cell.unit_cell * generate_fractional_position(unit_cell_frac_pos, translation_vector);
 }
 
 // generate a position within a periodic image of the entire system
-jblib::Vec3<double> Lattice::generate_image_position(
-  const jblib::Vec3<double> unit_cell_cart_pos,
-  const jblib::Vec3<int> image_vector) const
+Vec3 Lattice::generate_image_position(
+  const Vec3 unit_cell_cart_pos,
+  const Vec3i image_vector) const
 {
-  jblib::Vec3<double> frac_pos = cartesian_to_fractional(unit_cell_cart_pos);
+  Vec3 frac_pos = cartesian_to_fractional(unit_cell_cart_pos);
   for (int n = 0; n < 3; ++n) {
     if (is_periodic(n)) {
-      frac_pos[n] = frac_pos[n] + image_vector[n]*lattice_size_[n];
+      frac_pos[n] = frac_pos[n] + image_vector[n] * super_cell.size[n];
     }
   }
   return fractional_to_cartesian(frac_pos);
 }
 
-jblib::Vec3<double> Lattice::generate_fractional_position(
-  const jblib::Vec3<double> unit_cell_frac_pos,
-  const jblib::Vec3<int> translation_vector) const
+Vec3 Lattice::generate_fractional_position(
+  const Vec3 unit_cell_frac_pos,
+  const Vec3i translation_vector) const
 {
-  return jblib::Vec3<double>(unit_cell_frac_pos.x + translation_vector.x,
+  return Vec3(unit_cell_frac_pos.x + translation_vector.x,
                              unit_cell_frac_pos.y + translation_vector.y,
                              unit_cell_frac_pos.z + translation_vector.z);
 }
@@ -93,52 +140,12 @@ void Lattice::init_from_config(const libconfig::Config& pConfig) {
   init_lattice_positions(pConfig.lookup("materials"), pConfig.lookup("lattice"));
 }
 
-jblib::Vec3<double> Lattice::minimum_image(const jblib::Vec3<double> ri, const jblib::Vec3<double> rj) const {
-
-  if(is_open_system()) {
-    return rj - ri;
-  }
-
-  jblib::Vec3<double> dr = cartesian_to_fractional(rj - ri);
-
-  for (int n = 0; n < 3; ++n) {
-    if (is_periodic(n)) {
-      dr[n] = dr[n] - nint(dr[n] / lattice_size_[n]) * lattice_size_[n];
-    }
-  }
-
-  return fractional_to_cartesian(dr);
-};
-
-jblib::Vec3<double> Lattice::minimum_image_fractional(const jblib::Vec3<double> fi, const jblib::Vec3<double> fj) const {
-  if(is_open_system()) {
-    return fj - fi;
-  }
-
-  jblib::Vec3<double> dr = fj - fi;
-
-  for (int n = 0; n < 3; ++n) {
-    if (is_periodic(n)) {
-      dr[n] = dr[n] - nint(dr[n] / lattice_size_[n]) * lattice_size_[n];
-    }
-  }
-  return dr;
-};
-
-double Lattice::distance(const int i, const int j) const {
-  return fractional_to_cartesian(
-    minimum_image_fractional(lattice_frac_positions_[i], lattice_frac_positions_[j])
-  ).norm();
-}
-
-double Lattice::distance_sq(const int i, const int j) const {
-  return fractional_to_cartesian(
-    minimum_image_fractional(lattice_frac_positions_[i], lattice_frac_positions_[j])
-  ).norm_sq();
-}
-
 void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   using namespace globals;
+  using std::string;
+  using std::pair;
+
+  int i, j;
 
 //-----------------------------------------------------------------------------
 // Read lattice vectors
@@ -150,43 +157,43 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   // | a1x a2x a2x |  | A |   | A.a1x + B.a2x + C.a3x |
   // | a1y a2y a3y |  | B | = | A.a1y + B.a2y + C.a3y |
   // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      unit_cell_[i][j] = lattice_settings["basis"][i][j];
+  for (i = 0; i < 3; ++i) {
+    for (j = 0; j < 3; ++j) {
+      super_cell.unit_cell[i][j] = lattice_settings["basis"][i][j];
     }
   }
   printf("\n----------------------------------------\n");
   printf("\nunit cell\n");
 
   printf("  lattice vectors\n");
-  for (int i = 0; i < 3; ++i) {
+  for (i = 0; i < 3; ++i) {
     printf("    % 3.6f % 3.6f % 3.6f\n",
-      unit_cell_[i][0], unit_cell_[i][1], unit_cell_[i][2]);
+      super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
   }
 
-  unit_cell_inverse_ = unit_cell_.inverse();
+  super_cell.unit_cell_inv = super_cell.unit_cell.inverse();
 
   printf("  inverse lattice vectors\n");
-  for (int i = 0; i < 3; ++i) {
+  for (i = 0; i < 3; ++i) {
     printf("    % 3.6f % 3.6f % 3.6f\n",
-      unit_cell_inverse_[i][0], unit_cell_inverse_[i][1], unit_cell_inverse_[i][2]);
+      super_cell.unit_cell_inv[i][0], super_cell.unit_cell_inv[i][1], super_cell.unit_cell_inv[i][2]);
   }
 
-  lattice_parameter_ = lattice_settings["parameter"];
-  printf("  lattice parameter (m):\n    %3.6e\n", lattice_parameter_);
+  super_cell.parameter = lattice_settings["parameter"];
+  printf("  lattice parameter (m):\n    %3.6e\n", super_cell.parameter);
 
-  if (lattice_parameter_ < 0.0) {
+  if (super_cell.parameter < 0.0) {
     throw std::runtime_error("config: lattice parameter cannot be negative");
   }
 
   printf("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
 
-  for (int i = 0; i < 3; ++i) {
-    lattice_size_[i] = lattice_settings["size"][i];
+  for (i = 0; i < 3; ++i) {
+    super_cell.size[i] = lattice_settings["size"][i];
   }
 
   printf("  lattice size\n    %d  %d  %d\n",
-    lattice_size_.x, lattice_size_.y, lattice_size_.z);
+    super_cell.size.x, super_cell.size.y, super_cell.size.z);
 
 //-----------------------------------------------------------------------------
 // Read boundary conditions
@@ -196,18 +203,20 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     // sane default
     printf(
       "\nASSUMPTION: no boundary conditions specified - assuming 3D periodic\n");
-    for (int i = 0; i < 3; ++i) {
-      lattice_periodic_boundary_[i] = true;
+    for (i = 0; i < 3; ++i) {
+      super_cell.periodic[i] = true;
     }
   } else {
-    for (int i = 0; i < 3; ++i) {
-      lattice_periodic_boundary_[i] = lattice_settings["periodic"][i];
+    for (i = 0; i < 3; ++i) {
+      super_cell.periodic[i] = lattice_settings["periodic"][i];
     }
   }
   printf("  boundary conditions\n    %s  %s  %s\n",
-    lattice_periodic_boundary_.x ? "periodic" : "open",
-    lattice_periodic_boundary_.y ? "periodic" : "open",
-    lattice_periodic_boundary_.z ? "periodic" : "open");
+    super_cell.periodic.x ? "periodic" : "open",
+    super_cell.periodic.y ? "periodic" : "open",
+    super_cell.periodic.z ? "periodic" : "open");
+
+  metric_ = new DistanceMetric(super_cell);
 
 //-----------------------------------------------------------------------------
 // Read materials
@@ -215,15 +224,15 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   printf("  materials\n");
 
-  int counter = 0;
-  for (int i = 0; i < material_settings.getLength(); ++i) {
-    std::string name = material_settings[i]["name"];
-    if (material_map_.insert( std::pair<std::string, int>(name, counter)).second == false) {
-      throw std::runtime_error("the material " + name + " is specified twice in the configuration");
+  Material material;
+  for (i = 0; i < material_settings.getLength(); ++i) {
+    material.id = i;
+    read_material_settings(material_settings[i], material);
+    if (material_name_map_.insert({material.name, material}).second == false) {
+      throw std::runtime_error("the material " + material.name + " is specified twice in the configuration");
     }
-    material_numbered_list_.push_back(name);
-    printf("    %-6d %s\n", counter, name.c_str());
-    counter++;
+    material_id_map_.insert({material.id, material});
+    printf("    %-6d %s\n", material.id, material.name.c_str());
   }
 
 //-----------------------------------------------------------------------------
@@ -241,29 +250,30 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   printf("  unit cell positions (%s)\n", position_filename.c_str());
 
-  counter = 0;
+  int counter = 0;
 
   std::string line;
 
   // read the motif into an array from the positions file
   while (getline(position_file, line)) {
     std::stringstream line_as_stream;
-    std::pair<std::string, jblib::Vec3<double> > atom;
+    string atom_name;
+    Atom atom;
 
     line_as_stream.str(line);
     // read atom type name
-    line_as_stream >> atom.first;
+    line_as_stream >> atom_name >> atom.pos.x >> atom.pos.y >> atom.pos.z;
 
     // check the material type is defined
-    if (material_map_.find(atom.first) == material_map_.end()) {
-      throw std::runtime_error("material " + atom.first + " in the motif is not defined in the configuration");
+    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
+      throw std::runtime_error("material " + atom_name + " in the motif is not defined in the configuration");
     }
 
-    // read atom coordinates
-    line_as_stream >> atom.second.x >> atom.second.y >> atom.second.z;
+    atom.material = material_name_map_[atom_name].id;
 
-    unit_cell_position_.push_back(atom);
-    printf("    %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, atom.first.c_str(), atom.second.x, atom.second.y, atom.second.z);
+    motif_.push_back(atom);
+
+    printf("    %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, atom_name.c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
     counter++;
   }
   position_file.close();
@@ -276,26 +286,26 @@ void Lattice::init_lattice_positions(
   const libconfig::Setting &lattice_settings)
 {
 
-  lattice_map_.resize(lattice_size_.x, lattice_size_.y, lattice_size_.z, unit_cell_position_.size());
+  lattice_map_.resize(super_cell.size.x, super_cell.size.y, super_cell.size.z, motif_.size());
 
-  jblib::Vec3<int> kmesh_size(kpoints_.x*lattice_size_.x, kpoints_.y*lattice_size_.y, kpoints_.z*lattice_size_.z);
-  if (!lattice_periodic_boundary_.x || !lattice_periodic_boundary_.y || !lattice_periodic_boundary_.z) {
+  Vec3i kmesh_size(kpoints_.x*super_cell.size.x, kpoints_.y*super_cell.size.y, kpoints_.z*super_cell.size.z);
+  if (!super_cell.periodic.x || !super_cell.periodic.y || !super_cell.periodic.z) {
     printf("\nzero padding non-periodic dimensions\n");
      // double any non-periodic dimensions for zero padding
     for (int i = 0; i < 3; ++i) {
-      if (!lattice_periodic_boundary_[i]) {
-        kmesh_size[i] = 2*kpoints_[i]*lattice_size_[i];
+      if (!super_cell.periodic[i]) {
+        kmesh_size[i] = 2*kpoints_[i]*super_cell.size[i];
       }
     }
     printf("\npadded kspace size\n  %d  %d  %d\n", kmesh_size.x, kmesh_size.y, kmesh_size.z);
   }
 
-  kspace_size_ = jblib::Vec3<int>(kmesh_size.x, kmesh_size.y, kmesh_size.z);
+  kspace_size_ = Vec3i(kmesh_size.x, kmesh_size.y, kmesh_size.z);
   kspace_map_.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z);
 
 // initialize everything to -1 so we can check for double assignment below
 
-  for (int i = 0, iend = product(lattice_size_)*unit_cell_position_.size(); i < iend; ++i) {
+  for (int i = 0, iend = product(super_cell.size)*motif_.size(); i < iend; ++i) {
     lattice_map_[i] = -1;
   }
 
@@ -308,27 +318,32 @@ void Lattice::init_lattice_positions(
 //-----------------------------------------------------------------------------
 
   int atom_counter = 0;
-  rmax_.x = -FLT_MAX; rmax_.y = -FLT_MAX; rmax_.z = -FLT_MAX;
-  rmin_.x = FLT_MAX; rmin_.y = FLT_MAX; rmin_.z = FLT_MAX;
+  rmax_.x = -DBL_MAX; rmax_.y = -DBL_MAX; rmax_.z = -DBL_MAX;
+  rmin_.x = DBL_MAX; rmin_.y = DBL_MAX; rmin_.z = DBL_MAX;
 
-  jblib::Vec3<int> translation_vector;
-  lattice_super_cell_pos_.resize(num_unit_cell_positions()*product(lattice_size_));
+  Vec3i translation_vector;
+  lattice_super_cell_pos_.resize(num_unit_cell_positions() * product(super_cell.size));
+
   // loop over the translation vectors for lattice size
-  for (int i = 0; i < lattice_size_.x; ++i) {
-    for (int j = 0; j < lattice_size_.y; ++j) {
-      for (int k = 0; k < lattice_size_.z; ++k) {
+  for (int i = 0; i < super_cell.size.x; ++i) {
+    for (int j = 0; j < super_cell.size.y; ++j) {
+      for (int k = 0; k < super_cell.size.z; ++k) {
+
+        translation_vector = {i, j, k};
+
         // loop over atoms in the motif
-        for (int m = 0, mend = unit_cell_position_.size(); m != mend; ++m) {
-          translation_vector = jblib::Vec3<int>(i, j, k);
+        for (int m = 0, mend = motif_.size(); m != mend; ++m) {
 
           // number the site in the fast integer lattice
           lattice_map_(i, j, k, m) = atom_counter;
 
           lattice_super_cell_pos_(atom_counter) = translation_vector;
-          lattice_positions_.push_back(generate_position(unit_cell_position_[m].second, translation_vector));
-          lattice_frac_positions_.push_back(generate_fractional_position(unit_cell_position_[m].second, translation_vector));
-          lattice_materials_.push_back(unit_cell_position_[m].first);
-          lattice_material_num_.push_back(material_map_[unit_cell_position_[m].first]);
+          lattice_positions_.push_back(generate_position(motif_[m].pos, translation_vector));
+          lattice_frac_positions_.push_back(generate_fractional_position(motif_[m].pos, translation_vector));
+          lattice_materials_.push_back(material_id_map_[motif_[m].material].name);
+          lattice_material_num_.push_back(motif_[m].material);
+
+          atoms_.push_back({atom_counter, motif_[m].material, generate_position(motif_[m].pos, translation_vector)});
 
           // store max coordinates
           for (int n = 0; n < 3; ++n) {
@@ -340,7 +355,6 @@ void Lattice::init_lattice_positions(
             }
           }
 
-
           atom_counter++;
         }
       }
@@ -350,6 +364,9 @@ void Lattice::init_lattice_positions(
   if (atom_counter == 0) {
     jams_error("the number of computed lattice sites was zero, check input");
   }
+
+  // populate the NearTree
+  neartree_ = new NearTree<Atom, DistanceMetric>(*metric_, atoms_);
 
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;
@@ -405,10 +422,10 @@ void Lattice::init_lattice_positions(
   std::fill(globals::h.data(), globals::h.data()+globals::num_spins3, 0.0);
   // std::fill(globals::wij.data(), globals::wij.data()+kspace_size_.x*kspace_size_.y*kspace_size_.z*3*3, 0.0);
 
-  material_count_.resize(num_materials(), 0);
+  num_of_material_.resize(num_materials(), 0);
   for (int i = 0; i < globals::num_spins; ++i) {
-    int material_number = material_map_[lattice_materials_[i]];
-    material_count_[material_number]++;
+    int material_number = material_name_map_[lattice_materials_[i]].id;
+    num_of_material_[material_number]++;
 
     libconfig::Setting& type_settings = material_settings[material_number];
 
@@ -472,7 +489,7 @@ void Lattice::init_kspace() {
   printf("\nreciprocal space\n");
 
   for (i = 0; i < 3; ++i) {
-    kspace_size_[i] = lattice_size_[i];
+    kspace_size_[i] = super_cell.size[i];
   }
 
   printf("  kspace size\n    %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
@@ -482,22 +499,22 @@ void Lattice::init_kspace() {
   double spg_lattice[3][3];
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_lattice[i][j] = unit_cell_[i][j];
+      spg_lattice[i][j] = super_cell.unit_cell[i][j];
     }
   }
 
-  double (*spg_positions)[3] = new double[unit_cell_position_.size()][3];
+  double (*spg_positions)[3] = new double[motif_.size()][3];
 
-  for (i = 0; i < unit_cell_position_.size(); ++i) {
+  for (i = 0; i < motif_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_positions[i][j] = unit_cell_position_[i].second[j];
+      spg_positions[i][j] = motif_[i].pos[j];
     }
   }
 
-  int (*spg_types) = new int[unit_cell_position_.size()];
+  int (*spg_types) = new int[motif_.size()];
 
-  for (i = 0; i < unit_cell_position_.size(); ++i) {
-    spg_types[i] = material_map_[unit_cell_position_[i].first];
+  for (i = 0; i < motif_.size(); ++i) {
+    spg_types[i] = motif_[i].material;
   }
 
 
@@ -516,7 +533,7 @@ void Lattice::init_kspace() {
                               spg_lattice,
                               spg_positions,
                               spg_types,
-                              unit_cell_position_.size(),
+                              motif_.size(),
                               1e-5);
 
   printf("  irreducible kpoints\n    %d\n", num_ibz_points);
@@ -581,10 +598,10 @@ void Lattice::init_kspace() {
   // find offset coordinates for unitcell
 
   double unitcell_offset[3] = {0.0, 0.0, 0.0};
-  for (i = 0; i < unit_cell_position_.size(); ++i) {
+  for (i = 0; i < motif_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
-      if (unit_cell_position_[i].second[j] < unitcell_offset[j]){
-        unitcell_offset[j] = unit_cell_position_[i].second[j];
+      if (motif_[i].pos[j] < unitcell_offset[j]){
+        unitcell_offset[j] = motif_[i].pos[j];
       }
     }
   }
@@ -595,7 +612,7 @@ void Lattice::init_kspace() {
   kspace_inv_map_.resize(globals::num_spins, 3);
 
   for (i = 0; i < lattice_frac_positions_.size(); ++i) {
-    jblib::Vec3<double> kvec;
+    Vec3 kvec;
     for (j = 0; j < 3; ++j) {
       kvec[j] = ((lattice_frac_positions_[i][j] - unitcell_offset[j])*kpoints_[j]);
     }
@@ -640,25 +657,25 @@ void Lattice::calc_symmetry_operations() {
   double spg_lattice[3][3];
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_lattice[i][j] = unit_cell_[i][j];
+      spg_lattice[i][j] = super_cell.unit_cell[i][j];
     }
   }
 
-  double (*spg_positions)[3] = new double[unit_cell_position_.size()][3];
+  double (*spg_positions)[3] = new double[motif_.size()][3];
 
-  for (i = 0; i < unit_cell_position_.size(); ++i) {
+  for (i = 0; i < motif_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_positions[i][j] = unit_cell_position_[i].second[j];
+      spg_positions[i][j] = motif_[i].pos[j];
     }
   }
 
-  int (*spg_types) = new int[unit_cell_position_.size()];
+  int (*spg_types) = new int[motif_.size()];
 
-  for (i = 0; i < unit_cell_position_.size(); ++i) {
-    spg_types[i] = material_map_[unit_cell_position_[i].first];
+  for (i = 0; i < motif_.size(); ++i) {
+    spg_types[i] = motif_[i].material;
   }
 
-  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, unit_cell_position_.size(), 1e-5);
+  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, motif_.size(), 1e-5);
 
   printf("  International\n    %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
   printf("  Hall symbol\n    %s\n", spglib_dataset_->hall_symbol );
@@ -702,10 +719,10 @@ void Lattice::calc_symmetry_operations() {
   }
 
   output.verbose("    positions\n");
-  for (int i = 0; i < unit_cell_position_.size(); ++i) {
+  for (int i = 0; i < motif_.size(); ++i) {
     double bij[3];
     matmul(spglib_dataset_->transformation_matrix, spg_positions[i], bij);
-    output.verbose("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_numbered_list_[spg_types[i]].c_str(),
+    output.verbose("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spg_types[i]].name.c_str(),
       bij[0], bij[1], bij[2]);
   }
 
@@ -718,7 +735,7 @@ void Lattice::calc_symmetry_operations() {
       spglib_dataset_->std_lattice[i][0], spglib_dataset_->std_lattice[i][1], spglib_dataset_->std_lattice[i][2]);
   }
 
-  int primitive_num_atoms = unit_cell_position_.size();
+  int primitive_num_atoms = motif_.size();
   double primitive_lattice[3][3];
 
   for (i = 0; i < 3; ++i) {
@@ -727,24 +744,24 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  double (*primitive_positions)[3] = new double[unit_cell_position_.size()][3];
+  double (*primitive_positions)[3] = new double[motif_.size()][3];
 
-  for (i = 0; i < unit_cell_position_.size(); ++i) {
+  for (i = 0; i < motif_.size(); ++i) {
     for (j = 0; j < 3; ++j) {
       primitive_positions[i][j] = spg_positions[i][j];
     }
   }
 
-  int (*primitive_types) = new int[unit_cell_position_.size()];
+  int (*primitive_types) = new int[motif_.size()];
 
-  for (i = 0; i < unit_cell_position_.size(); ++i) {
+  for (i = 0; i < motif_.size(); ++i) {
     primitive_types[i] = spg_types[i];
   }
 
-  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, unit_cell_position_.size(), 1e-5);
+  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, motif_.size(), 1e-5);
 
   // spg_find_primitive returns number of atoms in primitve cell
-  if (primitive_num_atoms != unit_cell_position_.size()) {
+  if (primitive_num_atoms != motif_.size()) {
     printf("\n");
     printf("unit cell is not a primitive cell\n");
     printf("\n");
@@ -759,7 +776,7 @@ void Lattice::calc_symmetry_operations() {
 
     int counter  = 0;
     for (int i = 0; i < primitive_num_atoms; ++i) {
-      printf("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, material_numbered_list_[primitive_types[i]].c_str(),
+      printf("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, material_id_map_[primitive_types[i]].name.c_str(),
         primitive_positions[i][0], primitive_positions[i][1], primitive_positions[i][2]);
       counter++;
     }
@@ -769,7 +786,7 @@ void Lattice::calc_symmetry_operations() {
 // reads an position in the fast integer space and applies the periodic boundaries
 // if there are not periodic boundaries and this position is outside of the finite
 // lattice then the function returns false
-bool Lattice::apply_boundary_conditions(jblib::Vec3<int>& pos) const {
+bool Lattice::apply_boundary_conditions(Vec3i& pos) const {
     for (int l = 0; l < 3; ++l) {
       if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= lattice.num_unit_cells(l))) {
         return false;
@@ -783,7 +800,7 @@ bool Lattice::apply_boundary_conditions(jblib::Vec3<int>& pos) const {
 // same as the Vec3 version but accepts a Vec4 where the last component is the motif
 // position difference
 bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
-  jblib::Vec3<int> pos3(pos.x, pos.y, pos.z);
+  Vec3i pos3(pos.x, pos.y, pos.z);
   bool is_within_lattice = apply_boundary_conditions(pos3);
   if (is_within_lattice) {
     pos.x = pos3.x;
@@ -793,39 +810,18 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
   return is_within_lattice;
 }
 
-//
-// Calculate the nearest neighbours of every lattice point
-//
-// Arguments:
-//    r_cutoff: cut off neighbour radius in units of lattice constant (same as exchange)
-//    prune:    if true it will prune the neighbours within this radius to only those of
-//              with the shortest distance i.e. the nearest neighbours
-//
-void Lattice::init_nearest_neighbour_list(const double r_cutoff, const bool prune) {
-  using std::iota;
-  using std::vector;
-  using std::random_shuffle;
 
-  DistanceMetric metric(this->lattice_size_, this->lattice_periodic_boundary_ ,this->unit_cell_);
+// void Lattice::atom_nearest_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) {
+//   const double eps = kEps;
 
-  NearTree<Atom, DistanceMetric> neartree(metric);
+//   neartree_.find_in_radius(r_cutoff, neighbours, {i, lattice.atom_material(i), lattice.atom_position(i)});
 
 
-  // lookups are MUCH faster if locations are inserted randomly rather than
-  // in an ordered way
+//   const double r_min = (*std::min_element(neighbours[i].begin(), neighbours[i].end()));
 
-  vector<int> insert_order(globals::num_spins);
-  iota(insert_order.begin(), insert_order.end(), 0);
-  random_shuffle(insert_order.begin(), insert_order.end());
+//     auto nbr_end = std::remove_if(neighbour_list[i].begin(), neighbour_list[i].end(), [r_min, eps](const Neighbour& nbr) {
+//       return std::abs(nbr.distance - r_min) > eps;
+//     });
 
-  for (int i = 0; i < globals::num_spins; ++i) {
-    int n = insert_order[i];
-    neartree.insert({n, lattice.material(n), lattice.position(n)});
-  }
-
-  for (int i = 0; i < globals::num_spins; ++i) {
-    for (auto it = neighbour_list[i].begin(); it < neighbour_list[i].end(); ++it) {
-      std::cerr << i << "\t" << (*it).site << "\t" << (*it).distance << "\n";
-    }
-  }
-}
+//     neighbour_list[i].erase(nbr_end, neighbour_list[i].end());
+// }
