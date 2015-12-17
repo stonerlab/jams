@@ -25,15 +25,36 @@ public:
 
 //==============================================================
 
-   NearTree(FuncType func) :
-   left(0),
-   right(0),
-   max_distance_left(DBL_MIN),
-   max_distance_right(DBL_MIN),
-   left_branch(0),
-   right_branch(0),
-   distance_functor(func) // constructor
+   NearTree(FuncType func)
+    : left(0),
+      right(0),
+      max_distance_left(DBL_MIN),
+      max_distance_right(DBL_MIN),
+      left_branch(0),
+      right_branch(0),
+      distance_functor(func) // constructor
    {}  //  NearTree constructor
+
+   NearTree(FuncType func, std::vector<T> items, bool randomize = true)
+    : left(0),
+      right(0),
+      max_distance_left(DBL_MIN),
+      max_distance_right(DBL_MIN),
+      left_branch(0),
+      right_branch(0),
+      distance_functor(func) // constructor
+   {
+      // Near tree lookups are MUCH more efficient (an order of magnitude)
+      // if the inserted positions are randomized, rather than regular in
+      // space. Therefore, by default we will randomize the insertions from
+      // a vector constructor.
+      if (randomize) {
+        std::random_shuffle(items.begin(), items.end());
+      }
+      for (auto it = items.begin(); it != items.end(); ++it) {
+        insert(*it);
+      }
+   }  //  NearTree constructor
 
 //==============================================================
    ~NearTree(void)  // destructor
