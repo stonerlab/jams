@@ -30,7 +30,6 @@ namespace {
 }
 
 void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value) {
-  int counter = 0;
   for (int m = 0; m < 3; ++m) {
     for (int n = 0; n < 3; ++n) {
       if(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
@@ -186,8 +185,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
               is_already_interacting[neighbour_site] = true;
 
               if (int_interaction_list[m][n].second.max_norm() > energy_cutoff_) {
-                neighbour_list_[local_site].push_back({neighbour_site, int_interaction_list[m][n].second});
-                neighbour_list_[neighbour_site].push_back({local_site, int_interaction_list[m][n].second});
+                neighbour_list_[local_site].insert({neighbour_site, int_interaction_list[m][n].second});
+                neighbour_list_[neighbour_site].insert({local_site, int_interaction_list[m][n].second});
                 counter += 2;
 
                 if (is_debug_enabled_) {
@@ -216,9 +215,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     }
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      for (auto it = neighbour_list_[i].begin(); it < neighbour_list_[i].end(); ++it) {
-        int j = (*it).index;
-        insert_interaction(i, j, (*it).tensor);
+      for (auto it = neighbour_list_[i].begin(); it != neighbour_list_[i].end(); ++it) {
+        insert_interaction(i, (*it).first, (*it).second);
       }
     }
 

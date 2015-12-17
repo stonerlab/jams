@@ -3,6 +3,8 @@
 #ifndef JAMS_HAMILTONIAN_EXCHANGE_H
 #define JAMS_HAMILTONIAN_EXCHANGE_H
 
+#include <unordered_map>
+
 #include <libconfig.h++>
 
 #ifdef CUDA
@@ -27,7 +29,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         ExchangeHamiltonian(const libconfig::Setting &settings);
         ~ExchangeHamiltonian() {};
 
-        typedef std::vector<std::vector<Interaction>> InteractionList;
+        typedef std::vector<std::unordered_map<int, Mat3>> InteractionList;
 
         std::string name() const { return "exchange"; }
 
@@ -42,7 +44,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         void   output_energies(OutputFormat format);
         void   output_fields(OutputFormat format);
 
-        const std::vector<Interaction>& neighbours(const int i) const {
+        const std::unordered_map<int, Mat3>& neighbours(const int i) const {
             return neighbour_list_[i];
         }
 
