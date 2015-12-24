@@ -240,3 +240,11 @@ void ZeemanHamiltonian::output_energies_text() {
 void ZeemanHamiltonian::output_fields_text() {
 
 }
+
+double ZeemanHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
+  if (i != j) {
+    return 0.0;
+    } else {
+  return calculate_one_spin_energy_difference(i, sj_initial, sj_final);
+    }
+}

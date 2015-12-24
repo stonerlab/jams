@@ -29,13 +29,18 @@ class ExchangeHamiltonian : public Hamiltonian {
         ExchangeHamiltonian(const libconfig::Setting &settings);
         ~ExchangeHamiltonian() {};
 
-        typedef std::vector<std::unordered_map<int, Mat3>> InteractionList;
+        typedef std::vector<std::map<int, Mat3>> InteractionList;
 
         std::string name() const { return "exchange"; }
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final);
+
+        // double calculate_bond_energy(const int i, const int j);
+        double calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final);
+
+
         void   calculate_energies();
 
         void   calculate_one_spin_field(const int i, double h[3]);
@@ -44,7 +49,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         void   output_energies(OutputFormat format);
         void   output_fields(OutputFormat format);
 
-        const std::unordered_map<int, Mat3>& neighbours(const int i) const {
+        const std::map<int, Mat3>& neighbours(const int i) const {
             return neighbour_list_[i];
         }
 

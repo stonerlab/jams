@@ -35,15 +35,15 @@ void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jbl
       if(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
         if(interaction_matrix_.getMatrixMode() == SPARSE_FILL_MODE_LOWER) {
           if (i >= j) {
-            interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]/kBohrMagneton);
+            interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
           }
         } else {
           if (i <= j) {
-            interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]/kBohrMagneton);
+            interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
           }
         }
       } else {
-        interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]/kBohrMagneton);
+        interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
       }
     }
   }}
@@ -375,6 +375,8 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
       jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
 
+    tensor = tensor * (2.0) / kBohrMagneton;
+
     ::output.verbose("exchange file line: %s\n", line.c_str());
 
     jblib::Vec3<double> r(interaction_vector.x, interaction_vector.y, interaction_vector.z);
@@ -546,6 +548,8 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
     } else {
       jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
+
+    tensor = tensor * (2.0) / kBohrMagneton;
 
     ::output.verbose("exchange file line: %s\n", line.c_str());
 
@@ -956,5 +960,28 @@ void ExchangeHamiltonian::set_sparse_matrix_format(std::string &format_name) {
     interaction_matrix_format_ = SPARSE_MATRIX_FORMAT_DIA;
   } else {
     jams_error("ExchangeHamiltonian::set_sparse_matrix_format: Unknown format requested %s", format_name.c_str());
+  }
+}
+
+double ExchangeHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
+  using namespace globals;
+
+  if (i == j) {
+    return 0.0;
+  } else {
+
+    // Mat3 J;
+
+    // J = neighbour_list_[i][j];
+
+    // try {
+    //   J = neighbour_list_[i].at(j);
+    // }
+    // catch(std::out_of_range) {
+    //   return 0.0;
+    // }
+
+    Vec3 Js =  neighbour_list_[i][j] * (sj_final - sj_initial);
+    return -(s(i, 0) * Js[0] + s(i, 1) * Js[1] + s(i, 2) * Js[2]);
   }
 }
