@@ -19,13 +19,17 @@ void MonteCarloWolffSolver::initialize(int argc, char **argv, double idt) {
   // initialize base class
   Solver::initialize(argc, argv, idt);
 
-  const double r_cutoff = 0.29;
+  r_cutoff_ = 1.0;
+
+  if (config.exists("sim.r_cutoff")) {
+      r_cutoff_ = config.lookup("sim.r_cutoff");
+  }
 
   neighbours_.resize(globals::num_spins);
 
   std::vector<Atom> nbr;
   for (int i = 0; i < globals::num_spins; ++i) {
-    lattice.atom_neighbours(i, r_cutoff, nbr);
+    lattice.atom_neighbours(i, r_cutoff_, nbr);
     for (auto it = nbr.begin(); it != nbr.end(); ++it) {
       neighbours_[i].push_back((*it).id);
     }

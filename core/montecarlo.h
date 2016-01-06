@@ -43,7 +43,7 @@ inline double mc_boltzmann_probability(const double &energy, const double &beta)
 }
 
 inline double mc_percolation_probability(const double &energy, const double &beta) {
-  return 1.0 - exp(std::min(0.0, 2.0 * energy * beta));
+  return 1.0 - exp(std::min(0.0, energy * beta));
 }
 
 #endif  // JAMS_CORE_MONTECARLO_H

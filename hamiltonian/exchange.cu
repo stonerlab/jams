@@ -180,14 +180,13 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
               // failsafe check that we only interact with any given site once through the input exchange file.
               if (is_already_interacting[neighbour_site]) {
-                // jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
+                jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
               }
               is_already_interacting[neighbour_site] = true;
 
               if (int_interaction_list[m][n].second.max_norm() > energy_cutoff_) {
                 neighbour_list_[local_site].insert({neighbour_site, int_interaction_list[m][n].second});
-                neighbour_list_[neighbour_site].insert({local_site, int_interaction_list[m][n].second});
-                counter += 2;
+                counter++;
 
                 if (is_debug_enabled_) {
                   debug_file << local_site << "\t" << neighbour_site << "\t";
@@ -731,7 +730,7 @@ double ExchangeHamiltonian::calculate_one_spin_energy(const int i) {
         jij_sj[m] = jij_sj[m] + x[ indx[j] ]*val[j];
       }
     }
-    return -(s(i,0)*jij_sj[0] + s(i,1)*jij_sj[1] + s(i,2)*jij_sj[2]);
+    return -0.5 * (s(i,0)*jij_sj[0] + s(i,1)*jij_sj[1] + s(i,2)*jij_sj[2]);
 }
 
 // --------------------------------------------------------------------------
@@ -743,8 +742,8 @@ double ExchangeHamiltonian::calculate_one_spin_energy_difference(const int i, co
 
     calculate_one_spin_field(i, local_field);
 
-    e_initial = -(spin_initial[0]*local_field[0] + spin_initial[1]*local_field[1] + spin_initial[2]*local_field[2]);
-    e_final = -(spin_final[0]*local_field[0] + spin_final[1]*local_field[1] + spin_final[2]*local_field[2]);
+    e_initial = -0.5*(spin_initial[0]*local_field[0] + spin_initial[1]*local_field[1] + spin_initial[2]*local_field[2]);
+    e_final = -0.5*(spin_final[0]*local_field[0] + spin_final[1]*local_field[1] + spin_final[2]*local_field[2]);
 
     return e_final - e_initial;
 }
@@ -981,7 +980,7 @@ double ExchangeHamiltonian::calculate_bond_energy_difference(const int i, const 
     //   return 0.0;
     // }
 
-    Vec3 Js =  neighbour_list_[i][j] * (sj_final - sj_initial);
-    return -(s(i, 0) * Js[0] + s(i, 1) * Js[1] + s(i, 2) * Js[2]);
+    Vec3 Js = neighbour_list_[i][j] * (sj_final - sj_initial);
+    return -0.5 * (s(i, 0) * Js[0] + s(i, 1) * Js[1] + s(i, 2) * Js[2]);
   }
 }
