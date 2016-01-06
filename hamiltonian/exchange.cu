@@ -374,7 +374,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
       jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
 
-    tensor = tensor * (2.0) / kBohrMagneton;
+    tensor = tensor / kBohrMagneton;
 
     ::output.verbose("exchange file line: %s\n", line.c_str());
 
@@ -775,7 +775,7 @@ void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_fie
       begin = ptrb[3*i+m]; end = ptre[3*i+m];
       for (j = begin; j < end; ++j) {
         // k = indx[j];
-        local_field[m] = local_field[m] + x[ indx[j] ]*val[j];
+        local_field[m] = local_field[m] + 0.5 * x[ indx[j] ]*val[j];
       }
     }
 }
@@ -788,7 +788,7 @@ void ExchangeHamiltonian::calculate_fields() {
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
       if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
-        const double one = 1.0;
+        const double half = 0.5;
         const double zero = 0.0;
         cusparseStatus_t stat =
         cusparseDcsrmv(cusparse_handle_,
@@ -796,7 +796,7 @@ void ExchangeHamiltonian::calculate_fields() {
           globals::num_spins3,
           globals::num_spins3,
           interaction_matrix_.nonZero(),
-          &one,
+          &half,
           cusparse_descra_,
           dev_csr_interaction_matrix_.val,
           dev_csr_interaction_matrix_.row,
@@ -807,7 +807,7 @@ void ExchangeHamiltonian::calculate_fields() {
         assert(stat == CUSPARSE_STATUS_SUCCESS);
       } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
         spmv_dia_kernel<<< dev_dia_interaction_matrix_.blocks, DIA_BLOCK_SIZE >>>
-            (globals::num_spins3, globals::num_spins3, interaction_matrix_.diags(), dev_dia_interaction_matrix_.pitch, 1.0, 0.0,
+            (globals::num_spins3, globals::num_spins3, interaction_matrix_.diags(), dev_dia_interaction_matrix_.pitch, 0.5, 0.0,
             dev_dia_interaction_matrix_.row, dev_dia_interaction_matrix_.val, solver->dev_ptr_spin(), dev_field_.data());
       }
 #endif  // CUDA
@@ -817,11 +817,11 @@ void ExchangeHamiltonian::calculate_fields() {
         char transa[1] = {'N'};
         char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
 #ifdef MKL
-        double one = 1.0;
-        mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
+        double half = 0.5;
+        mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &half, matdescra, interaction_matrix_.valPtr(),
           interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &zero, field_.data());
 #else
-        jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
+        jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 0.5, matdescra, interaction_matrix_.valPtr(),
           interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
 #endif
       } else {
@@ -829,11 +829,11 @@ void ExchangeHamiltonian::calculate_fields() {
         char transa[1] = {'N'};
         char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
 #ifdef MKL
-        double one = 1.0;
-        mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
+        double half = 0.5;
+        mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &half, matdescra, interaction_matrix_.valPtr(),
           interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &zero, field_.data());
 #else
-        jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
+        jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 0.5, matdescra, interaction_matrix_.valPtr(),
           interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
 #endif
       }
