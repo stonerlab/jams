@@ -32,7 +32,6 @@ public:
   inline Vec3 displacement(const Atom& a, const Atom& b) const {
     Vec3 dr(inverse_ * (a.pos - b.pos));
 
-    #pragma unroll
     for (int n = 0; n < 3; ++n) {
       if (super_cell_.periodic[n]) {
         dr[n] = dr[n] - nint(dr[n] * dsize_[n]) * super_cell_.size[n];

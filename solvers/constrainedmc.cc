@@ -118,14 +118,12 @@ void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const 
 }
 
 void ConstrainedMCSolver::set_spin(const int &i, const jblib::Vec3<double> &spin) {
-  #pragma unroll
   for (int n = 0; n < 3; ++n) {
     globals::s(i, n) = spin[n];
   }
 }
 
 void ConstrainedMCSolver::get_spin(const int &i, jblib::Vec3<double> &spin) {
-  #pragma unroll
   for (int n = 0; n < 3; ++n) {
     spin[n] = globals::s(i, n);
   }
