@@ -11,16 +11,12 @@
 #include "jblib/containers/cuda_array.h"
 #endif  // CUDA
 
+#include "core/types.h"
 #include "core/output.h"
 
 // forward declarations
 namespace libconfig {
   class Setting;
-};
-
-namespace jblib {
-  template <typename T>
-  class Vec3;
 };
 
 class Hamiltonian {
@@ -36,7 +32,10 @@ class Hamiltonian {
 
   virtual double calculate_total_energy() = 0;
   virtual double calculate_one_spin_energy(const int i) = 0;
-  virtual         double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) = 0;
+  virtual double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) = 0;
+
+  // virtual double calculate_bond_energy(const int i, const int j) = 0;
+  virtual double calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) = 0;
 
   virtual void   calculate_energies() = 0;
 

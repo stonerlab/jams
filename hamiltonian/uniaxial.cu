@@ -42,7 +42,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: K1 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            K1(i) = double(settings["K1"][lattice.material(i)])/kBohrMagneton;
+            K1(i) = double(settings["K1"][lattice.atom_material(i)])/kBohrMagneton;
         }
         has_d2z = true;
     }
@@ -53,7 +53,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: K2 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            K2(i) = double(settings["K2"][lattice.material(i)])/kBohrMagneton;
+            K2(i) = double(settings["K2"][lattice.atom_material(i)])/kBohrMagneton;
         }
         has_d2z = true;
         has_d4z = true;
@@ -64,7 +64,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
             jams_error("UniaxialHamiltonian: K3 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
-            K3(i) = double(settings["K3"][lattice.material(i)])/kBohrMagneton;
+            K3(i) = double(settings["K3"][lattice.atom_material(i)])/kBohrMagneton;
         }
         has_d2z = true;
         has_d4z = true;
@@ -108,7 +108,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
 
         jblib::Array<double, 1> mca(globals::num_spins, 0.0);
         for (int i = 0; i < globals::num_spins; ++i) {
-            mca(i) = double(settings["d2z"][lattice.material(i)])/kBohrMagneton;
+            mca(i) = double(settings["d2z"][lattice.atom_material(i)])/kBohrMagneton;
         }
         mca_value_.push_back(mca);
     }
@@ -122,7 +122,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         mca_order_.push_back(4);
         jblib::Array<double, 1> mca(globals::num_spins, 0.0);
         for (int i = 0; i < globals::num_spins; ++i) {
-            mca(i) = double(settings["d4z"][lattice.material(i)])/kBohrMagneton;
+            mca(i) = double(settings["d4z"][lattice.atom_material(i)])/kBohrMagneton;
         }
         mca_value_.push_back(mca);
     }
@@ -134,7 +134,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         mca_order_.push_back(6);
         jblib::Array<double, 1> mca(globals::num_spins, 0.0);
         for (int i = 0; i < globals::num_spins; ++i) {
-            mca(i) = double(settings["d6z"][lattice.material(i)])/kBohrMagneton;
+            mca(i) = double(settings["d6z"][lattice.atom_material(i)])/kBohrMagneton;
         }
         mca_value_.push_back(mca);
     }
@@ -290,4 +290,12 @@ void UniaxialHamiltonian::output_energies_text() {
 
 void UniaxialHamiltonian::output_fields_text() {
 
+}
+
+double UniaxialHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
+  if (i != j) {
+    return 0.0;
+    } else {
+  return calculate_one_spin_energy_difference(i, sj_initial, sj_final);
+    }
 }

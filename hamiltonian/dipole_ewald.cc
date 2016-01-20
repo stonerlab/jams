@@ -93,7 +93,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                     for (int Lz = -L_max[2]; Lz < L_max[2]+1; ++Lz) {
                         jblib::Vec3<int> image_vector(Lx, Ly, Lz);
 
-                        r_ij  = lattice.generate_image_position(lattice.position(j), image_vector) - lattice.position(i);
+                        r_ij  = lattice.generate_image_position(lattice.atom_position(j), image_vector) - lattice.atom_position(i);
 
                         r_abs = abs(r_ij);
 

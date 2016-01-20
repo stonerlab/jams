@@ -21,6 +21,10 @@ class UniaxialHamiltonian : public Hamiltonian {
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final);
+
+        double calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final);
+
+
         void   calculate_energies();
 
         void   calculate_one_spin_field(const int i, double h[3]);

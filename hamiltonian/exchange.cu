@@ -29,37 +29,24 @@ namespace {
 
 }
 
-bool ExchangeHamiltonian::insert_interaction(const int m, const int n, const jblib::Matrix<double, 3, 3> &value) {
-
-  int counter = 0;
-  for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      if (fabs(value[i][j]) > energy_cutoff_) {
-        counter++;
-        if(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-          if(interaction_matrix_.getMatrixMode() == SPARSE_FILL_MODE_LOWER) {
-            if(m >= n){
-              interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/kBohrMagneton);
-            }
-          }else{
-            if(m <= n){
-
-              interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/kBohrMagneton);
-            }
+void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value) {
+  for (int m = 0; m < 3; ++m) {
+    for (int n = 0; n < 3; ++n) {
+      if(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+        if(interaction_matrix_.getMatrixMode() == SPARSE_FILL_MODE_LOWER) {
+          if (i >= j) {
+            interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
           }
-        }else{
-          interaction_matrix_.insertValue(3*m+i, 3*n+j, value[i][j]/kBohrMagneton);
+        } else {
+          if (i <= j) {
+            interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
+          }
         }
+      } else {
+        interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
       }
     }
-  }
-
-  if (counter == 0) {
-    return false;
-  }
-
-  return true;
-}
+  }}
 
 ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
@@ -81,8 +68,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
       std::ofstream pos_file("debug_pos.dat");
       for (int n = 0; n < lattice.num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice.material(i) == n) {
-            pos_file << i << "\t" <<  lattice.position(i).x << "\t" <<  lattice.position(i).y << "\t" << lattice.position(i).z << "\n";
+          if (lattice.atom_material(i) == n) {
+            pos_file << i << "\t" <<  lattice.atom_position(i).x << "\t" <<  lattice.atom_position(i).y << "\t" << lattice.atom_position(i).z << "\n";
           }
         }
         pos_file << "\n\n";
@@ -135,6 +122,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
 
     std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > int_interaction_list(lattice.num_unit_cell_positions());
+
+    neighbour_list_.resize(globals::num_spins);
 
     bool use_symops = true;
     if (settings.exists("symops")) {
@@ -191,29 +180,23 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
               // failsafe check that we only interact with any given site once through the input exchange file.
               if (is_already_interacting[neighbour_site]) {
-                // jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
+                jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
               }
               is_already_interacting[neighbour_site] = true;
 
-              if (insert_interaction(local_site, neighbour_site, int_interaction_list[m][n].second)) {
+              if (int_interaction_list[m][n].second.max_norm() > energy_cutoff_) {
+                neighbour_list_[local_site].insert({neighbour_site, int_interaction_list[m][n].second});
+                counter++;
+
                 if (is_debug_enabled_) {
                   debug_file << local_site << "\t" << neighbour_site << "\t";
-                  debug_file << lattice.position(local_site).x << "\t";
-                  debug_file << lattice.position(local_site).y << "\t";
-                  debug_file << lattice.position(local_site).z << "\t";
-                  debug_file << lattice.position(neighbour_site).x << "\t";
-                  debug_file << lattice.position(neighbour_site).y << "\t";
-                  debug_file << lattice.position(neighbour_site).z << "\n";
+                  debug_file << lattice.atom_position(local_site).x << "\t";
+                  debug_file << lattice.atom_position(local_site).y << "\t";
+                  debug_file << lattice.atom_position(local_site).z << "\t";
+                  debug_file << lattice.atom_position(neighbour_site).x << "\t";
+                  debug_file << lattice.atom_position(neighbour_site).y << "\t";
+                  debug_file << lattice.atom_position(neighbour_site).z << "\n";
                 }
-                // if(local_site >= neighbour_site) {
-                //   std::cerr << local_site << "\t" << neighbour_site << "\t" << neighbour_site << "\t" << local_site << std::endl;
-                // }
-                counter++;
-              } else {
-                is_all_inserts_successful = false;
-              }
-              if (insert_interaction(neighbour_site, local_site, int_interaction_list[m][n].second)) {
-                counter++;
               } else {
                 is_all_inserts_successful = false;
               }
@@ -228,6 +211,12 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     if (is_debug_enabled_) {
       debug_file.close();
+    }
+
+    for (int i = 0; i < globals::num_spins; ++i) {
+      for (auto it = neighbour_list_[i].begin(); it != neighbour_list_[i].end(); ++it) {
+        insert_interaction(i, (*it).first, (*it).second);
+      }
     }
 
     if (!is_all_inserts_successful) {
@@ -384,6 +373,8 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
     } else {
       jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
+
+    tensor = tensor / kBohrMagneton;
 
     ::output.verbose("exchange file line: %s\n", line.c_str());
 
@@ -556,6 +547,8 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
     } else {
       jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
     }
+
+    tensor = tensor / kBohrMagneton;
 
     ::output.verbose("exchange file line: %s\n", line.c_str());
 
@@ -893,11 +886,11 @@ void ExchangeHamiltonian::output_energies_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << lattice.material(i);
+        outfile << lattice.atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile <<  lattice.parameter()*lattice.position(i)[j];
+            outfile <<  lattice.parameter()*lattice.atom_position(i)[j];
         }
 
         // energy
@@ -936,11 +929,11 @@ void ExchangeHamiltonian::output_fields_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << std::setw(16) << lattice.material(i);
+        outfile << std::setw(16) << lattice.atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.position(i)[j];
+            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.atom_position(i)[j];
         }
 
         // fields
@@ -966,5 +959,28 @@ void ExchangeHamiltonian::set_sparse_matrix_format(std::string &format_name) {
     interaction_matrix_format_ = SPARSE_MATRIX_FORMAT_DIA;
   } else {
     jams_error("ExchangeHamiltonian::set_sparse_matrix_format: Unknown format requested %s", format_name.c_str());
+  }
+}
+
+double ExchangeHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
+  using namespace globals;
+
+  if (i == j) {
+    return 0.0;
+  } else {
+
+    // Mat3 J;
+
+    // J = neighbour_list_[i][j];
+
+    // try {
+    //   J = neighbour_list_[i].at(j);
+    // }
+    // catch(std::out_of_range) {
+    //   return 0.0;
+    // }
+
+    Vec3 Js = neighbour_list_[i][j] * (sj_final - sj_initial);
+    return -(s(i, 0) * Js[0] + s(i, 1) * Js[1] + s(i, 2) * Js[2]);
   }
 }

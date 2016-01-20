@@ -14,8 +14,45 @@ extern "C"{
 #include <vector>
 #include <complex>
 
+#include "core/types.h"
+#include "core/maths.h"
+#include "core/neartree.h"
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
+
+class DistanceMetric {
+
+public:
+  DistanceMetric(SuperCell super_cell)
+    : super_cell_(super_cell),
+      dsize_(1.0 / super_cell.size.x, 1.0 / super_cell.size.y, 1.0 / super_cell.size.z),
+      inverse_(super_cell.unit_cell.inverse())
+  {}
+
+  inline Vec3 displacement(const Atom& a, const Atom& b) const {
+    Vec3 dr(inverse_ * (a.pos - b.pos));
+
+    #pragma unroll
+    for (int n = 0; n < 3; ++n) {
+      if (super_cell_.periodic[n]) {
+        dr[n] = dr[n] - nint(dr[n] * dsize_[n]) * super_cell_.size[n];
+      }
+    }
+
+    return (super_cell_.unit_cell * dr);
+  }
+
+  inline double operator()(const Atom& a, const Atom& b) const {
+    return displacement(a, b).norm();
+  }
+
+private:
+
+  const SuperCell super_cell_;
+  const Vec3      dsize_;
+  const Mat3      inverse_;
+};
+
 
 class Lattice {
   public:
@@ -24,35 +61,40 @@ class Lattice {
 
     void init_from_config(const libconfig::Config& pConfig);
 
-    inline double              parameter() const;      ///< lattice parameter (m)
-    inline double              volume() const;      ///< volume (m^3)
+    inline double  parameter() const;      ///< lattice parameter (m)
+    inline double  volume() const;      ///< volume (m^3)
 
-    inline int                 size(const int i) const;           ///< integer number of unitcell in each lattice vector
-    inline int                 num_unit_cells() const; ///< number of unit cells in the whole lattice
-    inline int                 num_unit_cell_positions() const;         ///< number atomic positions in the unit cell
-    inline jblib::Vec3<double> unit_cell_position(const int i) const;   ///< position i in fractional coordinates
-    inline int                 unit_cell_material_uid(const int i);     ///< uid of material at position i
-    inline std::string         unit_cell_material_name(const int i);     ///< uid of material at position i
+    inline int     size(const int i) const;           ///< integer number of unitcell in each lattice vector
+    inline int     num_unit_cells() const; ///< number of unit cells in the whole lattice
+    inline int     num_unit_cell_positions() const;         ///< number atomic positions in the unit cell
+    inline Vec3    unit_cell_position(const int i) const;   ///< position i in fractional coordinates
+    inline int     unit_cell_material_uid(const int i);     ///< uid of material at position i
+    inline string  unit_cell_material_name(const int i);     ///< uid of material at position i
 
-    inline int num_materials() const;                           ///< number of unique materials in lattice
-    inline int material_count(const int i) const;               ///< number of lattice sites of material i
-    inline int material(const int i);                     ///< uid of material at lattice site i
-    inline std::string material_name(const int uid) const;  ///< material string name from uid
+    inline int     num_materials() const;                           ///< number of unique materials in lattice
+    inline int     num_of_material(const int i) const;               ///< number of lattice sites of material i
+    inline string  material_name(const int uid);  ///< material string name from uid
 
-    inline jblib::Vec3<double> position(const int i) const;
-    jblib::Vec3<double> minimum_image(const jblib::Vec3<double> ri, const jblib::Vec3<double> rj) const;
-    inline jblib::Vec3<double> rmax() const;
-    inline jblib::Vec3<double> rmin() const;
-    jblib::Vec3<double> generate_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const;
-    jblib::Vec3<double> generate_image_position(const jblib::Vec3<double> unit_cell_cart_pos, const jblib::Vec3<int> image_vector) const;
-    jblib::Vec3<double> generate_fractional_position(const jblib::Vec3<double> unit_cell_frac_pos, const jblib::Vec3<int> translation_vector) const;
+    inline int     atom_material(const int i) const;  ///< uid of material at lattice site i
+    inline Vec3    atom_position(const int i) const;
+    inline void    atom_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) const;
+//           void    atom_nearest_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) const;
+
+    inline double  distance(const int i, const int j) const;
+    inline Vec3    displacement(const int i, const int j) const;
+
+    inline Vec3 rmax() const;
+    inline Vec3 rmin() const;
+    Vec3 generate_position(const Vec3 unit_cell_frac_pos, const Vec3i translation_vector) const;
+    Vec3 generate_image_position(const Vec3 unit_cell_cart_pos, const Vec3i image_vector) const;
+    Vec3 generate_fractional_position(const Vec3 unit_cell_frac_pos, const Vec3i translation_vector) const;
 
 
-    inline jblib::Vec3<double> cartesian_to_fractional(const jblib::Vec3<double>& r_cart) const;
-    inline jblib::Vec3<double> fractional_to_cartesian(const jblib::Vec3<double>& r_frac) const;
+    inline Vec3 cartesian_to_fractional(const Vec3& r_cart) const;
+    inline Vec3 fractional_to_cartesian(const Vec3& r_frac) const;
 
     inline int num_sym_ops() const;
-    inline jblib::Vec3<double> sym_rotation(const int i, const jblib::Vec3<double> r) const;
+    inline Vec3 sym_rotation(const int i, const Vec3 r) const;
 
 
 
@@ -66,7 +108,7 @@ class Lattice {
     // --------------------------------------------------------------------------
     inline int num_unit_cells(const int i) const {
         assert(i < 3);
-        return lattice_size_[i];
+        return super_cell.size[i];
     }
 
     // lookup the site index but unit cell integer coordinates and motif offset
@@ -84,29 +126,29 @@ class Lattice {
     }
 
     inline bool is_bulk_system() const {
-        return (lattice_periodic_boundary_.x && lattice_periodic_boundary_.y && lattice_periodic_boundary_.z);
+        return (super_cell.periodic.x && super_cell.periodic.y && super_cell.periodic.z);
     }
 
     inline bool is_open_system() const {
-        return (!lattice_periodic_boundary_.x && !lattice_periodic_boundary_.y && !lattice_periodic_boundary_.z);
+        return (!super_cell.periodic.x && !super_cell.periodic.y && !super_cell.periodic.z);
     }
 
     inline bool is_periodic(const int i) const {
         assert(i < 3);
-        return lattice_periodic_boundary_[i];
+        return super_cell.periodic[i];
     }
 
-    bool apply_boundary_conditions(jblib::Vec3<int>& pos) const;
+    bool apply_boundary_conditions(Vec3i& pos) const;
     bool apply_boundary_conditions(jblib::Vec4<int>& pos) const;
 
-    const jblib::Vec3<int>& super_cell_pos(const int i) const {
+    const Vec3i& super_cell_pos(const int i) const {
         return lattice_super_cell_pos_(i);
     }
 
     // --------------------------------------------------------------------------
     // kspace functions
     // --------------------------------------------------------------------------
-    const jblib::Vec3<int>& kspace_size() const {
+    const Vec3i& kspace_size() const {
         return kspace_size_;
     }
 
@@ -116,35 +158,36 @@ class Lattice {
     void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void init_kspace();
+    void init_nearest_neighbour_list(const double r_cutoff, const bool prune = false);
     void calc_symmetry_operations();
 
     bool is_debugging_enabled_;
 
-    jblib::Matrix<double, 3, 3> unit_cell_;
-    jblib::Matrix<double, 3, 3> unit_cell_inverse_;
+    SuperCell                       super_cell;
+    DistanceMetric*                 metric_;
+    NearTree<Atom, DistanceMetric>* neartree_;
 
-    std::vector< std::pair<std::string, jblib::Vec3<double> > > unit_cell_position_;
+    std::vector<Atom> motif_;
+    std::vector<Atom> atoms_;
 
-    std::vector<std::string>    material_numbered_list_;
-    std::vector<int>            material_count_;
-    std::map<std::string, int>  material_map_;
+    std::vector<int>            num_of_material_;
+    std::map<string, Material>  material_name_map_;
+    std::map<int, Material>     material_id_map_;
+
     std::vector<std::string>    lattice_materials_;
-    jblib::Vec3<bool>           lattice_periodic_boundary_;
-    jblib::Vec3<int>            lattice_size_;
-    jblib::Array<jblib::Vec3<int>, 1>        lattice_super_cell_pos_;
+    jblib::Array<Vec3i, 1>        lattice_super_cell_pos_;
     jblib::Array<int, 4>        lattice_map_;
 
     jblib::Array<int, 3>        kspace_map_;
-    jblib::Vec3<int>            unit_cell_kpoints_;
-    jblib::Vec3<int>            kpoints_;
-    jblib::Vec3<int>            kspace_size_;
+    Vec3i            unit_cell_kpoints_;
+    Vec3i            kpoints_;
+    Vec3i            kspace_size_;
     jblib::Array<int, 2>        kspace_inv_map_;
-    std::vector< jblib::Vec3<double> > lattice_positions_;
-    std::vector< jblib::Vec3<double> > lattice_frac_positions_;
-    double                      lattice_parameter_;
+    std::vector< Vec3 > lattice_positions_;
+    std::vector< Vec3 > lattice_frac_positions_;
     std::vector<int>            lattice_material_num_;
-    jblib::Vec3<double>         rmax_;
-    jblib::Vec3<double>         rmin_;
+    Vec3         rmax_;
+    Vec3         rmin_;
 
     // spglib
     SpglibDataset *spglib_dataset_;
@@ -153,82 +196,96 @@ class Lattice {
 
 inline double
 Lattice::parameter() const {
-    return lattice_parameter_;
+    return super_cell.parameter;
 }
 
 inline double
 Lattice::volume() const {
-    return std::abs(unit_cell_.determinant())*std::pow(lattice_parameter_, 3);
+    return std::abs(super_cell.unit_cell.determinant())*std::pow(super_cell.parameter, 3);
 }
 
 inline int
 Lattice::size(const int i) const {
-    return lattice_size_[i];
+    return super_cell.size[i];
 }
 
 inline int
 Lattice::num_unit_cells() const {
-    return product(lattice_size_);
+    return product(super_cell.size);
 }
 
 inline int
 Lattice::num_unit_cell_positions() const {
-    return unit_cell_position_.size();
+    return motif_.size();
 }
 
-inline jblib::Vec3<double>
+inline Vec3
 Lattice::unit_cell_position(const int i) const {
     assert(i < num_unit_cell_positions());
-    return unit_cell_position_[i].second;
+    return motif_[i].pos;
 }
 
 inline int
 Lattice::unit_cell_material_uid(const int i) {
     assert(i < unit_cell_position_.size());
-    return material_map_[unit_cell_position_[i].first];
+    return motif_[i].id;
 }
 
 inline std::string
 Lattice::unit_cell_material_name(const int i) {
     assert(i < unit_cell_position_.size());
-    return material_name(material_map_[unit_cell_position_[i].first]);
+    return material_id_map_[motif_[i].material].name;
 }
 
 inline int
 Lattice::num_materials() const {
-    return material_map_.size();
+    return material_name_map_.size();
 }
 
 inline int
-Lattice::material_count(const int i) const {
-    return material_count_[i];
-}
-
-inline int
-Lattice::material(const int i) {
-    assert(i < lattice_materials_.size());
-    return lattice_material_num_[i];
-    // return material_map_[lattice_materials_[i]];
+Lattice::num_of_material(const int i) const {
+    return num_of_material_[i];
 }
 
 inline std::string
-Lattice::material_name(const int uid) const {
-    return material_numbered_list_[uid];
+Lattice::material_name(const int uid) {
+    return material_id_map_[uid].name;
 }
 
-inline jblib::Vec3<double>
-Lattice::position(const int i) const {
-    return lattice_positions_[i];
+inline int
+Lattice::atom_material(const int i) const {
+    assert(i < lattice_materials_.size());
+    return atoms_[i].material;
 }
 
-inline jblib::Vec3<double>
-Lattice::cartesian_to_fractional(const jblib::Vec3<double>& r_cart) const {
-    return unit_cell_inverse_*r_cart;
+inline Vec3
+Lattice::atom_position(const int i) const {
+    return atoms_[i].pos;
 }
 
-inline jblib::Vec3<double>
-Lattice::fractional_to_cartesian(const jblib::Vec3<double>& r_frac) const {
-    return unit_cell_*r_frac;
+inline void
+Lattice::atom_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) const {
+    neartree_->find_in_radius(r_cutoff, neighbours, {i, atoms_[i].material, atoms_[i].pos});
+}
+
+inline double
+Lattice::distance(const int i, const int j) const {
+    return (*metric_)(atoms_[i], atoms_[j]);
+}
+
+inline Vec3
+Lattice::displacement(const int i, const int j) const {
+    return (*metric_).displacement(atoms_[i], atoms_[j]);
+}
+
+inline Vec3
+Lattice::cartesian_to_fractional(const Vec3& r_cart) const {
+    return super_cell.unit_cell_inv*r_cart;
+}
+
+inline Vec3
+Lattice::fractional_to_cartesian(const Vec3& r_frac) const {
+    return super_cell.unit_cell*r_frac;
 }
 
 inline int
@@ -236,21 +293,21 @@ Lattice::num_sym_ops() const {
     return spglib_dataset_->n_operations;
 }
 
-inline jblib::Vec3<double>
-Lattice::sym_rotation(const int i, const jblib::Vec3<double> vec) const {
-    return jblib::Vec3<double>(
+inline Vec3
+Lattice::sym_rotation(const int i, const Vec3 vec) const {
+    return Vec3(
     spglib_dataset_->rotations[i][0][0]*vec.x + spglib_dataset_->rotations[i][0][1]*vec.y + spglib_dataset_->rotations[i][0][2]*vec.z,
     spglib_dataset_->rotations[i][1][0]*vec.x + spglib_dataset_->rotations[i][1][1]*vec.y + spglib_dataset_->rotations[i][1][2]*vec.z,
     spglib_dataset_->rotations[i][2][0]*vec.x + spglib_dataset_->rotations[i][2][1]*vec.y + spglib_dataset_->rotations[i][2][2]*vec.z);
 }
 
-inline jblib::Vec3<double>
+inline Vec3
 Lattice::rmax() const {
     return rmax_;
 };
 
 
-inline jblib::Vec3<double>
+inline Vec3
 Lattice::rmin() const {
     return rmin_;
 };

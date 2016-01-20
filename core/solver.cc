@@ -20,6 +20,7 @@
 #include "solvers/heunllg.h"
 #include "solvers/metropolismc.h"
 #include "solvers/constrainedmc.h"
+#include "solvers/monte-carlo-wolff.h"
 #include "solvers/cuda_constrainedmc.h"
 
 #ifdef MKL
@@ -107,6 +108,10 @@ Solver* Solver::create(const std::string &solver_name) {
 
   if (capitalize(solver_name) == "CONSTRAINEDMC") {
     return new ConstrainedMCSolver;
+  }
+
+  if (capitalize(solver_name) == "MONTE-CARLO-WOLFF") {
+    return new MonteCarloWolffSolver;
   }
 
 #ifdef CUDA

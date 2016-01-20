@@ -60,7 +60,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
     radius = state_settings["radius"];
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      jblib::Vec3<double> pos = (lattice.position(i)-origin);
+      jblib::Vec3<double> pos = (lattice.atom_position(i)-origin);
 
       if (pos.x*pos.x + pos.y*pos.y < radius*radius) {
         globals::s(i,2) = -globals::s(i,2);

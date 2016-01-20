@@ -118,7 +118,7 @@ Because the data is stored in binary format this does not usually give a large r
         [ 0.0, 0.0, 1.0]);
 
 
-`lattice.positions` // string (file path) // REQUIRED //
+`lattice.atom_positions` // string (file path) // REQUIRED //
 : File path of the atomic positions file. File format is as follows where material is the string name and rx, ry, rz are the fractional coordinates in the lattice vectors.
 
 
@@ -133,7 +133,7 @@ Because the data is stored in binary format this does not usually give a large r
 ## materials
 
 `materials.[n].name` // string // REQUIRED //
-: Unique name for material to be referenced in the `lattice.positions` input file.
+: Unique name for material to be referenced in the `lattice.atom_positions` input file.
 
 `materials.[n].moment` // float (Bohr magnetons) // REQUIRED //
 : Magnetic moment

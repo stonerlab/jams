@@ -39,7 +39,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                dc_local_field_(i, j) = settings["dc_local_field"][lattice.material(i)][j];
+                dc_local_field_(i, j) = settings["dc_local_field"][lattice.atom_material(i)][j];
                 dc_local_field_(i, j) *= globals::mus(i);
             }
         }
@@ -67,13 +67,13 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                ac_local_field_(i, j) = settings["ac_local_field"][lattice.material(i)][j];
+                ac_local_field_(i, j) = settings["ac_local_field"][lattice.atom_material(i)][j];
                 ac_local_field_(i, j) *= globals::mus(i);
             }
         }
 
         for (int i = 0; i < globals::num_spins; ++i) {
-            ac_local_frequency_(i) = settings["ac_local_frequency"][lattice.material(i)];
+            ac_local_frequency_(i) = settings["ac_local_frequency"][lattice.atom_material(i)];
             ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i);
         }
     }
@@ -113,7 +113,7 @@ double ZeemanHamiltonian::calculate_one_spin_energy(const int i) {
 
     calculate_one_spin_field(i, one_spin_field);
 
-    return -(s(i, 0)*one_spin_field[0] + s(i, 1)*one_spin_field[1] + s(i, 2)*one_spin_field[2]);
+    return -kElectronGFactor * (s(i, 0)*one_spin_field[0] + s(i, 1)*one_spin_field[1] + s(i, 2)*one_spin_field[2]);
 }
 
 // --------------------------------------------------------------------------
@@ -136,7 +136,7 @@ double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, cons
         e_final += -spin_final[n]*h_local[n];
     }
 
-    return e_final - e_initial;
+    return kElectronGFactor * (e_final - e_initial);
 }
 
 // --------------------------------------------------------------------------
@@ -239,4 +239,12 @@ void ZeemanHamiltonian::output_energies_text() {
 
 void ZeemanHamiltonian::output_fields_text() {
 
+}
+
+double ZeemanHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
+  if (i != j) {
+    return 0.0;
+    } else {
+  return calculate_one_spin_energy_difference(i, sj_initial, sj_final);
+    }
 }

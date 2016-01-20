@@ -63,7 +63,7 @@ void MagnetisationRateMonitor::update(Solver * solver) {
     dm_dt.zero();
 
     for (i = 0; i < num_spins; ++i) {
-      int type = lattice.material(i);
+      int type = lattice.atom_material(i);
       for (j = 0; j < 3; ++j) {
         dm_dt(type, j) += ds_dt(i, j);
       }
@@ -71,7 +71,7 @@ void MagnetisationRateMonitor::update(Solver * solver) {
 
     for (i = 0; i < lattice.num_materials(); ++i) {
       for (j = 0; j < 3; ++j) {
-        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(lattice.material_count(i));
+        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(lattice.num_of_material(i));
       }
     }
 

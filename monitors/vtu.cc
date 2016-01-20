@@ -40,7 +40,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
 
         // check which spins are inside the slice
         for (int i = 0; i < num_spins; ++i) {
-            jblib::Vec3<double> pos = lattice.position(i);
+            jblib::Vec3<double> pos = lattice.atom_position(i);
 
             // check if the current spin in inside the slice
             if (floats_are_greater_than_or_equal(pos.x, slice_origin.x) && floats_are_less_than_or_equal(pos.x, slice_origin.x + slice_size.x)
@@ -57,9 +57,9 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         spins_binary_data.resize(num_slice_points, 3);
 
         for (int i = 0; i < num_slice_points; ++i) {
-            types_binary_data(i) = lattice.material(slice_spins[i]);
+            types_binary_data(i) = lattice.atom_material(slice_spins[i]);
             for (int j = 0; j < 3; ++j) {
-                points_binary_data(i, j) = lattice.parameter()*lattice.position(slice_spins[i])[j];
+                points_binary_data(i, j) = lattice.parameter()*lattice.atom_position(slice_spins[i])[j];
             }
         }
     } else {
@@ -68,9 +68,9 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         types_binary_data.resize(num_spins);
 
         for (int i = 0; i < num_spins; ++i) {
-            types_binary_data(i) = lattice.material(i);
+            types_binary_data(i) = lattice.atom_material(i);
             for (int j = 0; j < 3; ++j) {
-                points_binary_data(i, j) = lattice.parameter()*lattice.position(i)[j];
+                points_binary_data(i, j) = lattice.parameter()*lattice.atom_position(i)[j];
             }
         }
     }
