@@ -1,7 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_COTH_KERNEL_H
-#define JAMS_CUDA_THERMOSTAT_LANGEVIN_COTH_KERNEL_H
+#ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_KERNEL_H
+#define JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_KERNEL_H
 
 
 __device__ void linear_ode(const double A[4], const double eta[4], const double z[4], double f[4]) {
@@ -134,4 +134,4 @@ __global__ void coth_stochastic_process_cuda_kernel
     }
 }
 
-#endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_COTH_KERNEL_H
+#endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_KERNEL_H

@@ -3,8 +3,8 @@
 // This thermostat implementation is designed to reproduce a semiquantum thermostat
 // which has a coth(omega) frequency dependence.
 
-#ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_COTH_H
-#define JAMS_CUDA_THERMOSTAT_LANGEVIN_COTH_H
+#ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_H
+#define JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_H
 
 #ifdef CUDA
 
@@ -15,10 +15,10 @@
 
 #include "jblib/containers/cuda_array.h"
 
-class CudaLangevinCothThermostat : public Thermostat {
+class CudaLangevinBoseThermostat : public Thermostat {
  public:
-  CudaLangevinCothThermostat(const double &temperature, const double &sigma, const int num_spins);
-  ~CudaLangevinCothThermostat();
+  CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const int num_spins);
+  ~CudaLangevinBoseThermostat();
 
   void update();
 
@@ -38,4 +38,4 @@ class CudaLangevinCothThermostat : public Thermostat {
 };
 
 #endif  // CUDA
-#endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_COTH_H
+#endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_H
