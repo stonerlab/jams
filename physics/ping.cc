@@ -35,7 +35,7 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
   // find theta and phi of magnetisation
   for (int i = 0; i < globals::num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
-      mag[j] += globals::s(i, j);
+      mag[j] += globals::s(i, j) * globals::mus(i);
     }
   }
 
