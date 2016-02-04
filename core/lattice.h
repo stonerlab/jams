@@ -67,6 +67,7 @@ class Lattice {
     inline int     num_unit_cells() const; ///< number of unit cells in the whole lattice
     inline int     num_unit_cell_positions() const;         ///< number atomic positions in the unit cell
     inline Vec3    unit_cell_position(const int i) const;   ///< position i in fractional coordinates
+    inline Vec3    unit_cell_position_cart(const int i) const;   ///< position i in fractional coordinates
     inline int     unit_cell_material_uid(const int i);     ///< uid of material at position i
     inline string  unit_cell_material_name(const int i);     ///< uid of material at position i
 
@@ -222,6 +223,12 @@ inline Vec3
 Lattice::unit_cell_position(const int i) const {
     assert(i < num_unit_cell_positions());
     return motif_[i].pos;
+}
+
+inline Vec3
+Lattice::unit_cell_position_cart(const int i) const {
+    assert(i < num_unit_cell_positions());
+    return super_cell.unit_cell * motif_[i].pos;
 }
 
 inline int

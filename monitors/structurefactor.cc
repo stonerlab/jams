@@ -139,9 +139,6 @@ void StructureFactorMonitor::update(Solver * solver) {
   chi_xy[time_point_counter_][0] = 0.0;
   chi_xy[time_point_counter_][1] = 0.0;
 
-  std::cerr << solver->time() << "\t" << ((s(0, 0)*ds_dt(0, 1) - s(0, 1)*ds_dt(0, 0))) << std::endl;
-
-
   for (int unit_cell_atom = 0; unit_cell_atom < lattice.num_unit_cell_positions(); ++unit_cell_atom) {
     // zero the sq arrays
     for (int i = 0; i < sq_x.elements(); ++i) {
@@ -167,28 +164,33 @@ void StructureFactorMonitor::update(Solver * solver) {
 
     const double norm = 1.0/sqrt(product(lattice.kspace_size()));
 
+
     // super speed hack from CASTEP ewald.f90 for generating all of the phase factors on
     // the fly without calling lots of exp()
-    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position(unit_cell_atom).x;
+    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position_cart(unit_cell_atom).x;
     exp_phase_0 = exp(two_pi_i_dr);
-    exp_phase_x(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().x - 1)/2));
+    exp_phase_x(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().x - 1)));
     for (int i = 1; i < lattice.kspace_size().x; ++i) {
       exp_phase_x(i) = exp_phase_x(i-1)*exp_phase_0;
     }
 
-    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position(unit_cell_atom).y;
+    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position_cart(unit_cell_atom).y;
     exp_phase_0 = exp(two_pi_i_dr);
-    exp_phase_y(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().y - 1)/2));
+    exp_phase_y(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().y - 1)));
     for (int i = 1; i < lattice.kspace_size().y; ++i) {
       exp_phase_y(i) = exp_phase_y(i-1)*exp_phase_0;
     }
 
-    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position(unit_cell_atom).z;
+    two_pi_i_dr = kImagTwoPi* lattice.unit_cell_position_cart(unit_cell_atom).z;
     exp_phase_0 = exp(two_pi_i_dr);
-    exp_phase_z(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().z - 1)/2));
+    exp_phase_z(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().z - 1)));
     for (int i = 1; i < lattice.kspace_size().z; ++i) {
       exp_phase_z(i) = exp_phase_z(i-1)*exp_phase_0;
     }
+
+
+
+
 
     for (int i = 0; i < lattice.kspace_size().x; ++i) {
       for (int j = 0; j < lattice.kspace_size().y; ++j) {
@@ -217,15 +219,6 @@ void StructureFactorMonitor::update(Solver * solver) {
     chi_yx[time_point_counter_][0] = (sq_x(0,0,0)[0]*sq_y(0,0,0)[0]) + (sq_x(0,0,0)[1]*sq_y(0,0,0)[1]);
     chi_yx[time_point_counter_][1] = (sq_x(0,0,0)[0]*sq_y(0,0,0)[1]) - (sq_x(0,0,0)[1]*sq_y(0,0,0)[0]);
 
-    // for (int i = 0; i < lattice.kspace_size().x; ++i) {
-    //   for (int j = 0; j < lattice.kspace_size().y; ++j) {
-    //     for (int k = 0; k < lattice.kspace_size().z; ++k) {
-    //       chi_xy[time_point_counter_][0] = chi_xy[time_point_counter_][0] + 2 * (sq_x(i, j, k)[1]*sq_y(i, j, k)[0] - sq_x(i, j, k)[0]*sq_y(i, j, k)[1]);
-    //     }
-    //   }
-    // }
-
-
     // add the Sq to the timeseries
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
       jblib::Vec3<int> q = bz_points[i];
@@ -234,9 +227,6 @@ void StructureFactorMonitor::update(Solver * solver) {
       sqw_z(unit_cell_atom, time_point_counter_, i) = norm*complex<double>(sq_z(q.x, q.y, q.z)[0],sq_z(q.x, q.y, q.z)[1]);
     }
   }
-
-  // std::cerr << time_point_counter_ << "\t" <<  chi_xy[time_point_counter_][0]  << "\t" <<  chi_xy[time_point_counter_][1]  << "\t" << chi_yx[time_point_counter_][0] << "\t" << chi_yx[time_point_counter_][1] << "\n";
-
 
   time_point_counter_++;
 }
