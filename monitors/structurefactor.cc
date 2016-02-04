@@ -50,16 +50,19 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   double t_step = sim_settings["t_step"];
   double t_run = sim_settings["t_run"];
 
-  double t_sample = output_step_freq_*t_step;
-  int num_samples = int(t_run/t_sample);
+  double    t_sample = output_step_freq_*t_step;
+  int    num_samples = int(t_run/t_sample);
+  double freq_sample = num_samples / t_run;
+  double freq_max    = 1.0/(2.0*t_sample);
+         freq_delta  = 1.0 / t_sample;
 
-  double max_freq = 1.0/(2.0*t_sample);
-  delta_freq_ = max_freq/num_samples;
-
-  ::output.write("\n  sampling time (s):          %e\n", t_sample);
+  ::output.write("\n");
   ::output.write("  number of samples:          %d\n", num_samples);
-  ::output.write("  maximum frequency (THz):    %f\n", max_freq/kTHz);
-  ::output.write("  frequency resolution (THz): %f\n\n", delta_freq_/kTHz);
+  ::output.write("  sampling time (s):          %e\n", t_sample);
+  ::output.write("  acquisition time (s):       %e\n", t_sample * num_samples);
+  ::output.write("  frequency resolution (THz): %f\n", freq_delta/kTHz);
+  ::output.write("  maximum frequency (THz):    %f\n", freq_max/kTHz);
+  ::output.write("\n");
 
   // ------------------------------------------------------------------
   // construct Brillouin zone sample points from the nodes specified
@@ -325,7 +328,7 @@ void StructureFactorMonitor::fft_time() {
   for (int i = 0; i < (time_points/2) + 1; ++i) {
     double total_length = 0.0;
     for (int j = 0; j < space_points; ++j) {
-      dsffile << j << "\t" << total_length << "\t" << i*delta_freq_ << "\t";
+      dsffile << j << "\t" << total_length << "\t" << i*freq_delta << "\t";
       dsffile << total_mag_sqw_x(i,j) << "\t" << total_sqw_x(i,j)[0] << "\t" << total_sqw_x(i,j)[1] << "\t";
       dsffile << total_mag_sqw_y(i,j) << "\t" << total_sqw_y(i,j)[0] << "\t" << total_sqw_y(i,j)[1] << "\t";
       dsffile << total_mag_sqw_z(i,j) << "\t" << total_sqw_z(i,j)[0] << "\t" << total_sqw_z(i,j)[1] << "\n";
@@ -350,7 +353,7 @@ void StructureFactorMonitor::fft_time() {
   std::ofstream chifile(name.c_str());
 
   for (int i = 0; i < (time_points/2) + 1; ++i) {
-    chifile << i*delta_freq_ << "\t" << chi_xy[i][0] << "\t" << chi_xy[i][1] << "\t" << chi_yx[i][0] << "\t" << chi_yx[i][1] << "\n";
+    chifile << i*freq_delta << "\t" << chi_xy[i][0] << "\t" << chi_xy[i][1] << "\t" << chi_yx[i][0] << "\t" << chi_yx[i][1] << "\n";
   }
   chifile.close();
 }
