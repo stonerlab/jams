@@ -138,14 +138,14 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
 
-    // if (solver->is_cuda_solver()) {
-// #ifdef CUDA
-//       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-//       interaction_matrix_.setMatrixMode(SPARSE_FILL_MODE_LOWER);
-// #endif  //CUDA
-//     } else {
+    if (solver->is_cuda_solver()) {
+#ifdef CUDA
+      interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+      interaction_matrix_.setMatrixMode(SPARSE_FILL_MODE_LOWER);
+#endif  //CUDA
+    } else {
       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
-    // }
+    }
 
     ::output.write("\ncomputed interactions\n");
 
@@ -257,7 +257,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           if (status != CUSPARSE_STATUS_SUCCESS) {
             jams_error("CUSPARSE Matrix descriptor initialization failed");
           }
-          cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
+          cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_SYMMETRIC);
           cusparseSetMatIndexBase(cusparse_descra_,CUSPARSE_INDEX_BASE_ZERO);
 
           ::output.write("  allocating memory on device\n");
