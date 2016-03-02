@@ -32,18 +32,20 @@ namespace {
 void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value) {
   for (int m = 0; m < 3; ++m) {
     for (int n = 0; n < 3; ++n) {
-      if(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-        if(interaction_matrix_.getMatrixMode() == SPARSE_FILL_MODE_LOWER) {
-          if (i >= j) {
-            interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
+      if (std::abs(value[m][n]) > energy_cutoff_) {
+        if(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+          if(interaction_matrix_.getMatrixMode() == SPARSE_FILL_MODE_LOWER) {
+            if (i >= j) {
+              interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
+            }
+          } else {
+            if (i <= j) {
+              interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
+            }
           }
         } else {
-          if (i <= j) {
-            interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
-          }
+          interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
         }
-      } else {
-        interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
       }
     }
   }}
