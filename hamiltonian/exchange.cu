@@ -143,7 +143,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
-      interaction_matrix_.setMatrixMode(SPARSE_FILL_MODE_LOWER);
+      // interaction_matrix_.setMatrixMode(SPARSE_FILL_MODE_LOWER);
 #endif  //CUDA
     } else {
       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);

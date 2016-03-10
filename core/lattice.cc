@@ -726,14 +726,22 @@ void Lattice::calc_symmetry_operations() {
       bij[0], bij[1], bij[2]);
   }
 
-  printf("  Bravais lattice\n");
-  printf("    num atoms\n    %d\n", spglib_dataset_->n_std_atoms);
-  printf("    lattice vectors\n");
+  printf("  Standard lattice\n");
+  printf("    std lattice vectors\n");
 
   for (int i = 0; i < 3; ++i) {
     printf("  % 3.6f % 3.6f % 3.6f\n",
       spglib_dataset_->std_lattice[i][0], spglib_dataset_->std_lattice[i][1], spglib_dataset_->std_lattice[i][2]);
   }
+  printf("    num std atoms\n    %d\n", spglib_dataset_->n_std_atoms);
+
+  printf("    std_positions\n");
+  for (int i = 0; i < spglib_dataset_->n_std_atoms; ++i) {
+    double bij[3];
+    printf("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spglib_dataset_->std_types[i]].name.c_str(),
+      spglib_dataset_->std_positions[i][0], spglib_dataset_->std_positions[i][1], spglib_dataset_->std_positions[i][2]);
+  }
+
 
   int primitive_num_atoms = motif_.size();
   double primitive_lattice[3][3];
