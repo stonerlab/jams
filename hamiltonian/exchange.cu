@@ -142,7 +142,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
-      interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+      interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
       interaction_matrix_.setMatrixMode(SPARSE_FILL_MODE_LOWER);
 #endif  //CUDA
     } else {
@@ -259,7 +259,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           if (status != CUSPARSE_STATUS_SUCCESS) {
             jams_error("CUSPARSE Matrix descriptor initialization failed");
           }
-          cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_SYMMETRIC);
+          cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
           cusparseSetMatIndexBase(cusparse_descra_,CUSPARSE_INDEX_BASE_ZERO);
 
           ::output.write("  allocating memory on device\n");
