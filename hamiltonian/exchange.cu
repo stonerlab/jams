@@ -352,6 +352,9 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
 
   // read the unit_cell into an array from the positions file
   for (std::string line; getline(interaction_file, line); ) {
+    if(string_is_comment(line)) {
+      continue;
+    }
     std::stringstream is(line);
 
     std::string type_name_A, type_name_B;
@@ -525,6 +528,9 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
   // read the unit_cell into an array from the positions file
   for (std::string line; getline(interaction_file, line); ) {
+    if(string_is_comment(line)) {
+      continue;
+    }
     std::stringstream is(line);
 
     std::string type_name_A, type_name_B;

@@ -256,6 +256,9 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   // read the motif into an array from the positions file
   while (getline(position_file, line)) {
+    if(string_is_comment(line)) {
+      continue;
+    }
     std::stringstream line_as_stream;
     string atom_name;
     Atom atom;
