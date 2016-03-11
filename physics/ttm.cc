@@ -78,6 +78,8 @@ void TTMPhysics::update(const int &iterations, const double &time, const double 
   using namespace globals;
   using namespace jblib;
 
+double real_dt = dt/kGyromagneticRatio;
+
   for (int i = 0; i < 3; ++i) {
     applied_field_[i] = reversingField[i];
   }
@@ -93,9 +95,9 @@ void TTMPhysics::update(const int &iterations, const double &time, const double 
   }
 
   electronTemp = electronTemp
-    + ((-G*(electronTemp-phononTemp)+pumpTemp)*dt)/(Ce*electronTemp);
+    + ((-G*(electronTemp-phononTemp)+pumpTemp)*real_dt)/(Ce*electronTemp);
   phononTemp   = phononTemp
-    + ((G*(electronTemp-phononTemp)-Gsink*(phononTemp-sinkTemp))*dt)/(Cl);
+    + ((G*(electronTemp-phononTemp)-Gsink*(phononTemp-sinkTemp))*real_dt)/(Cl);
 
   temperature_ = electronTemp;
 
