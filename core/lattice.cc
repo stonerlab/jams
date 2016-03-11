@@ -740,7 +740,6 @@ void Lattice::calc_symmetry_operations() {
 
   printf("    std_positions\n");
   for (int i = 0; i < spglib_dataset_->n_std_atoms; ++i) {
-    double bij[3];
     printf("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spglib_dataset_->std_types[i]].name.c_str(),
       spglib_dataset_->std_positions[i][0], spglib_dataset_->std_positions[i][1], spglib_dataset_->std_positions[i][2]);
   }
