@@ -140,6 +140,69 @@ void Lattice::init_from_config(const libconfig::Config& pConfig) {
   init_lattice_positions(pConfig.lookup("materials"), pConfig.lookup("lattice"));
 }
 
+void Lattice::read_motif_from_config(const libconfig::Setting &positions) {
+  Atom atom;
+  string atom_name;
+
+  motif_.clear();
+
+  for (int i = 0; i < positions.getLength(); ++i) {
+
+    atom_name = positions[i][0].c_str();
+
+    // check the material type is defined
+    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
+      throw std::runtime_error("material " + atom_name + " in the motif is not defined in the configuration");
+    }
+    atom.material = material_name_map_[atom_name].id;
+
+    atom.pos.x = positions[i][1][0];
+    atom.pos.y = positions[i][1][1];
+    atom.pos.z = positions[i][1][2];
+
+    atom.id = motif_.size();
+
+    motif_.push_back(atom);
+  }
+}
+
+void Lattice::read_motif_from_file(const std::string &filename) {
+  std::string line;
+  std::ifstream position_file(filename.c_str());
+
+  if(position_file.fail()) {
+    throw std::runtime_error("failed to open position file " + filename);
+  }
+
+  motif_.clear();
+
+  // read the motif into an array from the positions file
+  while (getline(position_file, line)) {
+    if(string_is_comment(line)) {
+      continue;
+    }
+    std::stringstream line_as_stream;
+    string atom_name;
+    Atom atom;
+
+    line_as_stream.str(line);
+
+    // read atom type name
+    line_as_stream >> atom_name >> atom.pos.x >> atom.pos.y >> atom.pos.z;
+
+    // check the material type is defined
+    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
+      throw std::runtime_error("material " + atom_name + " in the motif is not defined in the configuration");
+    }
+    atom.material = material_name_map_[atom_name].id;
+    atom.id = motif_.size();
+
+    motif_.push_back(atom);
+  }
+  position_file.close();
+}
+
+
 void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
   using namespace globals;
   using std::string;
@@ -241,45 +304,21 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   // TODO - use libconfig to check if this is a string or a group to allow
   // positions to be defined in the config file directly
-  std::string position_filename = lattice_settings["positions"];
-  std::ifstream position_file(position_filename.c_str());
 
-  if(position_file.fail()) {
-    throw std::runtime_error("failed to open position file " + position_filename);
+  std::string position_filename;
+  if (lattice_settings["positions"].isList()) {
+    position_filename = seedname + ".cfg";
+    read_motif_from_config(lattice_settings["positions"]);
+  } else {
+     position_filename = lattice_settings["positions"].c_str();
+    read_motif_from_file(position_filename);
   }
 
-  printf("  unit cell positions (%s)\n", position_filename.c_str());
+  output.write("  unit cell positions (%s)\n", position_filename.c_str());
 
-  int counter = 0;
-
-  std::string line;
-
-  // read the motif into an array from the positions file
-  while (getline(position_file, line)) {
-    if(string_is_comment(line)) {
-      continue;
-    }
-    std::stringstream line_as_stream;
-    string atom_name;
-    Atom atom;
-
-    line_as_stream.str(line);
-    // read atom type name
-    line_as_stream >> atom_name >> atom.pos.x >> atom.pos.y >> atom.pos.z;
-
-    // check the material type is defined
-    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
-      throw std::runtime_error("material " + atom_name + " in the motif is not defined in the configuration");
-    }
-
-    atom.material = material_name_map_[atom_name].id;
-
-    motif_.push_back(atom);
-
-    printf("    %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, atom_name.c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
-    counter++;
+  for (const Atom &atom: motif_) {
+    output.write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
   }
-  position_file.close();
 
   calc_symmetry_operations();
 }

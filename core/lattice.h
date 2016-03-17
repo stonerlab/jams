@@ -155,6 +155,10 @@ class Lattice {
     void load_spin_state_from_hdf5(std::string &filename);
 
   private:
+    void read_motif_from_config(const libconfig::Setting &positions);
+    void read_motif_from_file(const std::string &filename);
+
+
     void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void init_kspace();
