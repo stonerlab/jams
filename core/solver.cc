@@ -98,28 +98,28 @@ void Solver::compute_fields() {
 
 Solver* Solver::create(const std::string &solver_name) {
 
-  if (capitalize(solver_name) == "HEUNLLG") {
+  if (capitalize(solver_name) == "LLG-HEUN-CPU" || capitalize(solver_name) == "HEUNLLG") {
     return new HeunLLGSolver;
   }
 
-  if (capitalize(solver_name) == "METROPOLISMC") {
+  if (capitalize(solver_name) == "MONTE-CARLO-METROPOLIS-CPU" || capitalize(solver_name) == "METROPOLISMC") {
     return new MetropolisMCSolver;
   }
 
-  if (capitalize(solver_name) == "CONSTRAINEDMC") {
+  if (capitalize(solver_name) == "MONTE-CARLO-CONSTRAINED-CPU" || capitalize(solver_name) == "CONSTRAINEDMC") {
     return new ConstrainedMCSolver;
   }
 
-  if (capitalize(solver_name) == "MONTE-CARLO-WOLFF") {
+  if (capitalize(solver_name) == "MONTE-CARLO-WOLFF-CPU") {
     return new MonteCarloWolffSolver;
   }
 
 #ifdef CUDA
-  if (capitalize(solver_name) == "CUDAHEUNLLG") {
+  if (capitalize(solver_name) == "LLG-HEUN-GPU" || capitalize(solver_name) == "CUDAHEUNLLG") {
     return new CUDAHeunLLGSolver;
   }
 
-  if (capitalize(solver_name) == "CUDACONSTRAINEDMC") {
+  if (capitalize(solver_name) == "MONTE-CARLO-CONSTRAINED-GPU" || capitalize(solver_name) == "CUDACONSTRAINEDMC") {
     return new CudaConstrainedMCSolver;
   }
 #endif
