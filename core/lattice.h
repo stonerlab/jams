@@ -159,7 +159,7 @@ class Lattice {
     void read_motif_from_file(const std::string &filename);
 
 
-    void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings);
     void init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void init_kspace();
     void init_nearest_neighbour_list(const double r_cutoff, const bool prune = false);

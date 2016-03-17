@@ -136,7 +136,7 @@ Vec3 Lattice::generate_fractional_position(
 }
 
 void Lattice::init_from_config(const libconfig::Config& pConfig) {
-  init_unit_cell(pConfig.lookup("materials"), pConfig.lookup("lattice"));
+  init_unit_cell(pConfig.lookup("materials"), pConfig.lookup("lattice"), pConfig.lookup("unitcell"));
   init_lattice_positions(pConfig.lookup("materials"), pConfig.lookup("lattice"));
 }
 
@@ -203,7 +203,7 @@ void Lattice::read_motif_from_file(const std::string &filename) {
 }
 
 
-void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
+void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings) {
   using namespace globals;
   using std::string;
   using std::pair;
@@ -222,7 +222,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      super_cell.unit_cell[i][j] = lattice_settings["basis"][i][j];
+      super_cell.unit_cell[i][j] = unitcell_settings["basis"][i][j];
     }
   }
   printf("\n----------------------------------------\n");
@@ -242,7 +242,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
       super_cell.unit_cell_inv[i][0], super_cell.unit_cell_inv[i][1], super_cell.unit_cell_inv[i][2]);
   }
 
-  super_cell.parameter = lattice_settings["parameter"];
+  super_cell.parameter = unitcell_settings["parameter"];
   printf("  lattice parameter (m):\n    %3.6e\n", super_cell.parameter);
 
   if (super_cell.parameter < 0.0) {
@@ -306,11 +306,11 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   // positions to be defined in the config file directly
 
   std::string position_filename;
-  if (lattice_settings["positions"].isList()) {
+  if (unitcell_settings["positions"].isList()) {
     position_filename = seedname + ".cfg";
-    read_motif_from_config(lattice_settings["positions"]);
+    read_motif_from_config(unitcell_settings["positions"]);
   } else {
-     position_filename = lattice_settings["positions"].c_str();
+     position_filename = unitcell_settings["positions"].c_str();
     read_motif_from_file(position_filename);
   }
 
