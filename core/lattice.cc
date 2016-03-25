@@ -321,6 +321,16 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   }
 
   calc_symmetry_operations();
+
+  int hall_number = -1;
+
+  if (unitcell_settings.lookupValue("spacegroup", hall_number)) {
+    output.write("  spacegroup FORCED in config\n");
+    output.write("    hall number %d\n", hall_number);
+  }
+
+  set_spacegroup(hall_number);
+
 }
 
 void Lattice::init_lattice_positions(
@@ -721,6 +731,7 @@ void Lattice::calc_symmetry_operations() {
 
   printf("  International\n    %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
   printf("  Hall symbol\n    %s\n", spglib_dataset_->hall_symbol );
+  printf("  Hall number\n    %d\n", spglib_dataset_->hall_number );
 
   char ptsymbol[6];
   int pt_trans_mat[3][3];
@@ -831,6 +842,44 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 }
+
+
+void Lattice::set_spacegroup(const int hall_number = -1) {
+  Mat3 rot;
+
+  if (hall_number == -1) {
+
+    for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
+      std::cout << i << "\t" << spglib_dataset_->translations[i][0] << "\t" << spglib_dataset_->translations[i][1] << "\t" << spglib_dataset_->translations[i][2] << std::endl;
+
+      for (int m = 0; m < 3; ++m) {
+        for (int n = 0; n < 3; ++n) {
+          rot[m][n] = spglib_dataset_->rotations[i][m][n];
+        }
+      }
+
+      rotations_.push_back(rot);
+    }
+  } else {
+    int spg_n_operations = 0;
+    int spg_rotations[192][3][3];
+    double spg_translations[192][3];
+    spg_n_operations = spg_get_symmetry_from_database(spg_rotations, spg_translations, hall_number);
+
+    for (int i = 0; i < spg_n_operations; ++i) {
+      std::cout << i << "\t" << spg_translations[i][0] << "\t" << spg_translations[i][1] << "\t" << spg_translations[i][2] << std::endl;
+
+      for (int m = 0; m < 3; ++m) {
+        for (int n = 0; n < 3; ++n) {
+          rot[m][n] = spg_rotations[i][m][n];
+        }
+      }
+
+      rotations_.push_back(rot);
+    }
+  }
+}
+
 
 // reads an position in the fast integer space and applies the periodic boundaries
 // if there are not periodic boundaries and this position is outside of the finite

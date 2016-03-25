@@ -164,6 +164,7 @@ class Lattice {
     void init_kspace();
     void init_nearest_neighbour_list(const double r_cutoff, const bool prune = false);
     void calc_symmetry_operations();
+    void set_spacegroup(const int hall_number);
 
     bool is_debugging_enabled_;
 
@@ -195,6 +196,7 @@ class Lattice {
 
     // spglib
     SpglibDataset *spglib_dataset_;
+    std::vector< Mat3 > rotations_;
 
 };
 
@@ -305,10 +307,7 @@ Lattice::num_sym_ops() const {
 
 inline Vec3
 Lattice::sym_rotation(const int i, const Vec3 vec) const {
-    return Vec3(
-    spglib_dataset_->rotations[i][0][0]*vec.x + spglib_dataset_->rotations[i][0][1]*vec.y + spglib_dataset_->rotations[i][0][2]*vec.z,
-    spglib_dataset_->rotations[i][1][0]*vec.x + spglib_dataset_->rotations[i][1][1]*vec.y + spglib_dataset_->rotations[i][1][2]*vec.z,
-    spglib_dataset_->rotations[i][2][0]*vec.x + spglib_dataset_->rotations[i][2][1]*vec.y + spglib_dataset_->rotations[i][2][2]*vec.z);
+    return  2.0 * rotations_[i] * super_cell.unit_cell * vec;
 }
 
 inline Vec3
