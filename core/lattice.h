@@ -23,22 +23,33 @@ extern "C"{
 class DistanceMetric {
 
 public:
-  DistanceMetric(SuperCell super_cell)
-    : super_cell_(super_cell),
-      dsize_(1.0 / super_cell.size.x, 1.0 / super_cell.size.y, 1.0 / super_cell.size.z),
-      inverse_(super_cell.unit_cell.inverse())
-  {}
+  DistanceMetric(const Mat3 unit_cell, const Vec3i cell_count, const Vec3b cell_pbc)
+  {
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            super_unit_cell_[i][j] = unit_cell[i][j] * cell_count[i];
+        }
+    }
+    // for (int i = 0; i < 3; ++i) {
+    //     std::cout << super_unit_cell_[i][0] << "\t" << super_unit_cell_[i][1] << "\t" << super_unit_cell_[i][2] << std::endl;
+    // }
+    super_unit_cell_inv_ = super_unit_cell_.inverse();
+
+    super_cell_pbc_ = cell_pbc;
+  }
 
   inline Vec3 displacement(const Atom& a, const Atom& b) const {
-    Vec3 dr(inverse_ * (a.pos - b.pos));
+
+    Vec3 dr(super_unit_cell_inv_ * (a.pos - b.pos));
 
     for (int n = 0; n < 3; ++n) {
-      if (super_cell_.periodic[n]) {
-        dr[n] = dr[n] - nint(dr[n] * dsize_[n]) * super_cell_.size[n];
+      if (super_cell_pbc_[n]) {
+        // W. Smith, CCP5 Information Quarterly for Computer Simulation of Condensed Phases (1989).
+        dr[n] = dr[n] - int(2.0 * dr[n] - 1.0) % 1;
       }
     }
 
-    return (super_cell_.unit_cell * dr);
+    return (super_unit_cell_ * dr);
   }
 
   inline double operator()(const Atom& a, const Atom& b) const {
@@ -46,10 +57,9 @@ public:
   }
 
 private:
-
-  const SuperCell super_cell_;
-  const Vec3      dsize_;
-  const Mat3      inverse_;
+    Vec3b super_cell_pbc_;
+    Mat3 super_unit_cell_;
+    Mat3 super_unit_cell_inv_;
 };
 
 
@@ -74,6 +84,7 @@ class Lattice {
     inline int     num_materials() const;                           ///< number of unique materials in lattice
     inline int     num_of_material(const int i) const;               ///< number of lattice sites of material i
     inline string  material_name(const int uid);  ///< material string name from uid
+    inline int     material_id(const string &name);  ///< material string name from uid
 
     inline int     atom_material(const int i) const;  ///< uid of material at lattice site i
     inline Vec3    atom_position(const int i) const;
@@ -261,7 +272,12 @@ Lattice::num_of_material(const int i) const {
 
 inline std::string
 Lattice::material_name(const int uid) {
-    return material_id_map_[uid].name;
+    return material_id_map_.at(uid).name;
+}
+
+inline int
+Lattice::material_id(const string &name) {
+    return material_name_map_.at(name).id;
 }
 
 inline int
@@ -307,7 +323,7 @@ Lattice::num_sym_ops() const {
 
 inline Vec3
 Lattice::sym_rotation(const int i, const Vec3 vec) const {
-    return  2.0 * rotations_[i] * super_cell.unit_cell * vec;
+    return rotations_[i] * vec;
 }
 
 inline Vec3

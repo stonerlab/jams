@@ -279,7 +279,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     super_cell.periodic.y ? "periodic" : "open",
     super_cell.periodic.z ? "periodic" : "open");
 
-  metric_ = new DistanceMetric(super_cell);
+  metric_ = new DistanceMetric(super_cell.unit_cell, super_cell.size, super_cell.periodic);
 
 //-----------------------------------------------------------------------------
 // Read materials
