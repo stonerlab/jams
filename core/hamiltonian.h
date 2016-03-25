@@ -47,7 +47,7 @@ class Hamiltonian {
 
   inline double energy(const int i) const {
     assert(i < energy_.elements());
-    return energy(i);
+    return energy_(i);
   }
 
   inline double field(const int i, const int j) const {
