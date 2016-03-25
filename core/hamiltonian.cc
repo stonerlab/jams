@@ -9,6 +9,7 @@
 #include "hamiltonian/dipole.h"
 #include "hamiltonian/uniaxial.h"
 #include "hamiltonian/exchange.h"
+#include "hamiltonian/exchange_neartree.h"
 #include "hamiltonian/zeeman.h"
 
 Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
@@ -17,6 +18,10 @@ Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
 
     if (capitalize(settings["module"]) == "EXCHANGE") {
         return new ExchangeHamiltonian(settings);
+    }
+
+    if (capitalize(settings["module"]) == "EXCHANGE_NEARTREE") {
+        return new ExchangeNeartreeHamiltonian(settings);
     }
 
     if (capitalize(settings["module"]) == "UNIAXIAL") {

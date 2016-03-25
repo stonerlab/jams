@@ -177,6 +177,7 @@ HDR += hamiltonian/dipole_ewald.h
 HDR += hamiltonian/dipole_fft.h
 HDR += hamiltonian/uniaxial.h
 HDR += hamiltonian/exchange.h
+HDR += hamiltonian/exchange_neartree.h
 HDR += hamiltonian/zeeman.h
 
 ifndef NO_CUDA
@@ -191,6 +192,7 @@ ifndef NO_CUDA
 	CUDA_OBJS += hamiltonian/uniaxial.o
 	CUDA_OBJS += hamiltonian/zeeman.o
 	CUDA_OBJS += hamiltonian/exchange.o
+	CUDA_OBJS += hamiltonian/exchange_neartree.o
 
 	CUDA_HDR += core/cuda_defs.h
 	CUDA_HDR += core/cuda_solver.h
