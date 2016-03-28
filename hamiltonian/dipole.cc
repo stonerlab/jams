@@ -44,6 +44,10 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
             return new DipoleHamiltonianFFT(settings);
         }
 
+        if (strategy_name == "BRUTEFORCE") {
+            return new DipoleHamiltonianBruteforce(settings);
+        }
+
         std::runtime_error("Unknown DipoleHamiltonian strategy '" + strategy_name + "' requested\n");
     }
     jams_warning("no dipole strategy selected, defaulting to TENSOR");

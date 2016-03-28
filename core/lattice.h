@@ -24,22 +24,18 @@ class DistanceMetric {
 
 public:
   DistanceMetric(const Mat3 unit_cell, const Vec3i cell_count, const Vec3b cell_pbc)
+  : super_cell_pbc_(cell_pbc)
   {
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
             super_unit_cell_[i][j] = unit_cell[i][j] * cell_count[i];
         }
     }
-    // for (int i = 0; i < 3; ++i) {
-    //     std::cout << super_unit_cell_[i][0] << "\t" << super_unit_cell_[i][1] << "\t" << super_unit_cell_[i][2] << std::endl;
-    // }
-    super_unit_cell_inv_ = super_unit_cell_.inverse();
 
-    super_cell_pbc_ = cell_pbc;
+    super_unit_cell_inv_ = super_unit_cell_.inverse();
   }
 
   inline Vec3 displacement(const Atom& a, const Atom& b) const {
-
     Vec3 dr(super_unit_cell_inv_ * (a.pos - b.pos));
 
     for (int n = 0; n < 3; ++n) {
@@ -57,7 +53,7 @@ public:
   }
 
 private:
-    Vec3b super_cell_pbc_;
+    const Vec3b super_cell_pbc_;
     Mat3 super_unit_cell_;
     Mat3 super_unit_cell_inv_;
 };

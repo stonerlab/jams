@@ -7,7 +7,17 @@
 
 DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Setting &settings)
 : HamiltonianStrategy(settings) {
-    r_cutoff_ = 1e10;
+    jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);
+
+    for (int n = 0; n < 3; ++n) {
+        super_cell_dim[n] = 0.5*double(lattice.size(n));
+    }
+
+    r_cutoff_ = *std::max_element(super_cell_dim.begin(), super_cell_dim.end());
+
+    settings.lookupValue("r_cutoff", r_cutoff_);
+    output.write("  r_cutoff: %e\n", r_cutoff_);
+
 }
 
 // --------------------------------------------------------------------------
@@ -26,7 +36,7 @@ double DipoleHamiltonianBruteforce::calculate_total_energy() {
 double DipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i, const jblib::Vec3<double> &s_i) {
     double h[3];
     calculate_one_spin_field(i, h);
-    return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2])*globals::mus(i);
+    return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2]);
 }
 
 // --------------------------------------------------------------------------
@@ -39,7 +49,11 @@ double DipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i) {
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianBruteforce::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
-    return calculate_one_spin_energy(i, spin_final) - calculate_one_spin_energy(i, spin_initial);
+    double h[3];
+    calculate_one_spin_field(i, h);
+    double e_initial = -(spin_initial[0]*h[0] + spin_initial[1]*h[1] + spin_initial[2]*h[2]);
+    double e_final = -(spin_final[0]*h[0] + spin_final[1]*h[1] + spin_final[2]*h[2]);
+    return e_final - e_initial;
 }
 // --------------------------------------------------------------------------
 
@@ -53,28 +67,31 @@ void DipoleHamiltonianBruteforce::calculate_energies(jblib::Array<double, 1>& en
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h[3]) {
-    using std::pow;
     int n,j;
-    double r_abs, sj_dot_rhat;
-    jblib::Vec3<double> r_ij, r_hat;
+    double r_abs, s_j_dot_rhat, w0;
+    jblib::Vec3<double> r_ij, r_hat, s_j;
 
-    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
+    const double prefactor = globals::mus(i)*kVacuumPermeadbility*kBohrMagneton
+                            /(4*kPi*::lattice.parameter() * ::lattice.parameter() * ::lattice.parameter());
 
     h[0] = 0.0; h[1] = 0.0; h[2] = 0.0;
+
     for (j = 0; j < globals::num_spins; ++j) {
         if (unlikely(j == i)) continue;
 
-        r_ij  = lattice.atom_position(j) - lattice.atom_position(i);
+        r_ij = lattice.displacement(i, j);
         r_abs = abs(r_ij);
 
         if (r_abs > r_cutoff_) continue;
 
         r_hat = r_ij / r_abs;
+        w0 = prefactor * globals::mus(j) / (r_abs * r_abs * r_abs);
 
-        sj_dot_rhat = globals::s(j, 0)*r_hat[0] + globals::s(j, 1)*r_hat[1] + globals::s(j, 2)*r_hat[2];
+        s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
+        s_j_dot_rhat = dot(s_j, r_hat);
 
         for (n = 0; n < 3; ++n) {
-            h[n] += ((prefactor*globals::mus(j))/pow(r_abs,3))*(3*r_hat[n]*sj_dot_rhat - globals::s(j, n));
+            h[n] += (3 * r_hat[n] * s_j_dot_rhat - s_j[n]) * w0;
         }
     }
 }
