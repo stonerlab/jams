@@ -826,6 +826,7 @@ void ExchangeHamiltonian::calculate_fields() {
         char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
 #ifdef MKL
         double one = 1.0;
+        double zero = 0.0;
         mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
           interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &zero, field_.data());
 #else
@@ -838,6 +839,7 @@ void ExchangeHamiltonian::calculate_fields() {
         char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
 #ifdef MKL
         double one = 1.0;
+        double zero = 0.0;
         mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
           interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &zero, field_.data());
 #else
