@@ -43,7 +43,7 @@ double DipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i, const
 
 double DipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i) {
     jblib::Vec3<double> s_i(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
-    return calculate_one_spin_energy(i, s_i);
+    return 0.5*calculate_one_spin_energy(i, s_i);
 }
 
 // --------------------------------------------------------------------------
@@ -53,7 +53,7 @@ double DipoleHamiltonianBruteforce::calculate_one_spin_energy_difference(const i
     calculate_one_spin_field(i, h);
     double e_initial = -(spin_initial[0]*h[0] + spin_initial[1]*h[1] + spin_initial[2]*h[2]);
     double e_final = -(spin_final[0]*h[0] + spin_final[1]*h[1] + spin_final[2]*h[2]);
-    return e_final - e_initial;
+    return 0.5*(e_final - e_initial);
 }
 // --------------------------------------------------------------------------
 
