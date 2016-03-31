@@ -39,6 +39,9 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
   ::output.write("\n");
 
   cudaStreamCreate(&dev_stream_);
+
+  cudaMemcpyToSymbol(dev_dt, &time_step_, sizeof(double));
+  cudaMemcpyToSymbol(dev_num_spins, &globals::num_spins, sizeof(unsigned int));
 }
 
 void CUDAHeunLLGSolver::run()
@@ -71,7 +74,7 @@ void CUDAHeunLLGSolver::run()
     cuda_heun_llg_kernelA<<<grid_size, block_size>>>
         (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
           dev_h_.data(), thermostat_->noise(),
-          dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
+          dev_gyro_.data(), dev_alpha_.data());
 
     cuda_kernel_error_check();
 
@@ -80,7 +83,7 @@ void CUDAHeunLLGSolver::run()
     cuda_heun_llg_kernelB<<<grid_size, block_size>>>
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
         dev_h_.data(), thermostat_->noise(),
-        dev_gyro_.data(), dev_alpha_.data(), num_spins, time_step_);
+        dev_gyro_.data(), dev_alpha_.data());
     cuda_kernel_error_check();
 
     iteration_++;

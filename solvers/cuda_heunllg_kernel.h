@@ -5,6 +5,9 @@
 
 #include "core/cuda_defs.h"
 
+__constant__ double dev_dt;
+__constant__ unsigned int dev_num_spins;
+
 __global__ void cuda_heun_llg_kernelA
 (
   double * s_dev,
@@ -13,9 +16,7 @@ __global__ void cuda_heun_llg_kernelA
   const double * h_dev,
   const double * noise_dev,
   const double * gyro_dev,
-  const double * alpha_dev,
-  const unsigned int num_spins,
-  const double dt
+  const double * alpha_dev
 )
 {
   __shared__ double s[85 * 3];
@@ -33,7 +34,7 @@ __global__ void cuda_heun_llg_kernelA
 
   const unsigned int gxy = 3 * idx + ty;
 
-  if (idx < num_spins && ty < 3) {
+  if (idx < dev_num_spins && ty < 3) {
     h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
     s[p0] = s_dev[gxy];
 
@@ -45,7 +46,7 @@ __global__ void cuda_heun_llg_kernelA
 
     ds_dt_dev[gxy] = 0.5 * rhs;
 
-    s[p0] = s[p0] + dt * rhs;
+    s[p0] = s[p0] + dev_dt * rhs;
 
     __syncthreads();
 
@@ -61,9 +62,7 @@ __global__ void cuda_heun_llg_kernelB
   const double * h_dev,
   const double * noise_dev,
   const double * gyro_dev,
-  const double * alpha_dev,
-  const unsigned int num_spins,
-  const double dt
+  const double * alpha_dev
 )
 {
   __shared__ double s[85 * 3];
@@ -81,7 +80,7 @@ __global__ void cuda_heun_llg_kernelB
 
   const unsigned int gxy = 3 * idx + ty;
 
-  if (idx < num_spins && ty < 3) {
+  if (idx < dev_num_spins && ty < 3) {
     h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
     s[p0] = s_dev[gxy];
 
@@ -94,7 +93,7 @@ __global__ void cuda_heun_llg_kernelB
 
     ds_dt_dev[gxy] = ds_dt_dev[gxy] + 0.5 * rhs;
 
-    s[p0] = s_old_dev[gxy] + dt * ds_dt_dev[gxy];
+    s[p0] = s_old_dev[gxy] + dev_dt * ds_dt_dev[gxy];
 
     __syncthreads();
     s_dev[gxy] = s[p0] * rsqrt(s[tx3] * s[tx3] + s[tx3 + 1] * s[tx3 + 1] + s[tx3 + 2] * s[tx3 + 2] );
