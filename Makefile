@@ -226,9 +226,10 @@ EXTLIBS += -lconfig++
 
 ifdef MKLROOT
 	CC = icpc
+	EXTRA_CPPFLAGS += -xHOST
 	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -D__INTEL_COMPILER -DMKL
 	BASIC_LDFLAGS += -L$(MKLROOT)/lib/intel64
-	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm -ldl
 else
 	EXTLIBS += -lfftw3
 endif
