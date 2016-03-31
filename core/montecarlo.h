@@ -33,6 +33,7 @@ inline jblib::Vec3<double> mc_spin_as_vec(const int i) {
 }
 
 inline void mc_set_spin_as_vec(const int i, const jblib::Vec3<double> spin) {
+    #pragma unroll
     for (int j = 0; j < 3; ++j) {
         globals::s(i, j) = spin[j];
     }
