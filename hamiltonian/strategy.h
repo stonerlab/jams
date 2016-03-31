@@ -1,6 +1,9 @@
 #ifndef JAMS_HAMILTONIAN_STRATEGY
 #define JAMS_HAMILTONIAN_STRATEGY
 
+#include "jblib/containers/cuda_array.h"
+
+
 // forward declarations
 namespace libconfig {
     class Setting;
@@ -26,6 +29,7 @@ class HamiltonianStrategy {
 
         virtual void   calculate_one_spin_field(const int i, double h[3]) = 0;
         virtual void   calculate_fields(jblib::Array<double, 2>& fields) = 0;
+        virtual void   calculate_fields(jblib::CudaArray<double, 1>& fields) {};
 };
 
 #endif  // JAMS_HAMILTONIAN_STRATEGY
