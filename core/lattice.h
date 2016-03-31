@@ -254,13 +254,13 @@ Lattice::unit_cell_position_cart(const int i) const {
 
 inline int
 Lattice::unit_cell_material_uid(const int i) {
-    assert(i < unit_cell_position_.size());
+    assert(i < motif_.size());
     return motif_[i].id;
 }
 
 inline std::string
 Lattice::unit_cell_material_name(const int i) {
-    assert(i < unit_cell_position_.size());
+    assert(i < motif_.size());
     return material_id_map_[motif_[i].material].name;
 }
 
