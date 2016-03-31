@@ -20,8 +20,16 @@ class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
 
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields(jblib::Array<double, 2>& fields);
+        void   calculate_fields(jblib::CudaArray<double, 1>& fields);
+
     private:
         double r_cutoff_;
+        double dipole_prefactor_;
+
+        cudaStream_t dev_stream_;
+        unsigned int dev_blocksize_;
+        jblib::CudaArray<float, 1> dev_r_;
+        jblib::CudaArray<double, 1> dev_mus_;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
