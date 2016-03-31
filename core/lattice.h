@@ -38,10 +38,11 @@ public:
   inline Vec3 displacement(const Atom& a, const Atom& b) const {
     Vec3 dr(super_unit_cell_inv_ * (a.pos - b.pos));
 
+    #pragma unroll
     for (int n = 0; n < 3; ++n) {
       if (super_cell_pbc_[n]) {
         // W. Smith, CCP5 Information Quarterly for Computer Simulation of Condensed Phases (1989).
-        dr[n] = dr[n] - int(2.0 * dr[n] - 1.0) % 1;
+        dr[n] = dr[n] - trunc(2.0 * dr[n]);
       }
     }
 
@@ -49,7 +50,7 @@ public:
   }
 
   inline double operator()(const Atom& a, const Atom& b) const {
-    return displacement(a, b).norm();
+    return abs(displacement(a, b));
   }
 
 private:
