@@ -121,7 +121,6 @@ OBJS += solvers/metropolismc.o
 OBJS += solvers/constrainedmc.o
 OBJS += solvers/monte-carlo-wolff.o
 OBJS += hamiltonian/dipole.o
-OBJS += hamiltonian/dipole_bruteforce.o
 OBJS += hamiltonian/dipole_tensor.o
 OBJS += hamiltonian/dipole_ewald.o
 OBJS += hamiltonian/dipole_fft.o
@@ -171,7 +170,6 @@ HDR += solvers/metropolismc.h
 HDR += solvers/constrainedmc.h
 HDR += solvers/monte-carlo-wolff.h
 HDR += hamiltonian/dipole.h
-HDR += hamiltonian/dipole_bruteforce.h
 HDR += hamiltonian/dipole_tensor.h
 HDR += hamiltonian/dipole_ewald.h
 HDR += hamiltonian/dipole_fft.h
@@ -193,7 +191,10 @@ ifndef NO_CUDA
 	CUDA_OBJS += hamiltonian/zeeman.o
 	CUDA_OBJS += hamiltonian/exchange.o
 	CUDA_OBJS += hamiltonian/exchange_neartree.o
+	CUDA_OBJS += hamiltonian/dipole_bruteforce.o
 
+	CUDA_HDR += hamiltonian/dipole_bruteforce.h
+	CUDA_HDR += hamiltonian/dipole_bruteforce_kernel.h
 	CUDA_HDR += core/cuda_defs.h
 	CUDA_HDR += core/cuda_solver.h
 	CUDA_HDR += core/cuda_sparsematrix.h
