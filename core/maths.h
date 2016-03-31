@@ -210,6 +210,7 @@ inline jblib::Vec3<double> spherical_to_cartesian_vector(const double r,
 }
 
 void matrix_invert(const double in[3][3], double out[3][3]);
+void matrix_invert(const float in[3][3], float out[3][3]);
 
 template <typename _Tp>
 void matmul(const _Tp a[3][3], const _Tp b[3][3], _Tp c[3][3]) {
