@@ -29,7 +29,7 @@ class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
         cudaStream_t dev_stream_;
         unsigned int dev_blocksize_;
         jblib::CudaArray<float, 1> dev_r_;
-        jblib::CudaArray<double, 1> dev_mus_;
+        jblib::CudaArray<float, 1> dev_mus_;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H

@@ -43,13 +43,20 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 
     float r_cutoff_float = r_cutoff_;
 
-    cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(double));
+    float f_dipole_prefactor = dipole_prefactor_;
+
+    cudaMemcpyToSymbol(dev_dipole_prefactor,    &f_dipole_prefactor,       sizeof(float));
     cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(float));
     cudaMemcpyToSymbol(dev_super_cell_pbc,      super_cell_pbc,      3 * sizeof(bool));
     cudaMemcpyToSymbol(dev_super_unit_cell,     super_unit_cell,     9 * sizeof(float));
     cudaMemcpyToSymbol(dev_super_unit_cell_inv, super_unit_cell_inv, 9 * sizeof(float));
 
-    dev_mus_ = jblib::CudaArray<double, 1>(globals::mus);
+    jblib::Array<float, 1> f_mus(globals::num_spins);
+    for (int i = 0; i < globals::num_spins; ++i) {
+      f_mus[i] = globals::mus[i];
+    }
+
+    dev_mus_ = jblib::CudaArray<float, 1>(f_mus);
 
     jblib::Array<float, 2> r(globals::num_spins, 3);
 
