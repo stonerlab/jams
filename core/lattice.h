@@ -176,6 +176,7 @@ class Lattice {
     void set_spacegroup(const int hall_number);
 
     bool is_debugging_enabled_;
+    bool symops_enabled_;
 
     SuperCell                       super_cell;
     DistanceMetric*                 metric_;

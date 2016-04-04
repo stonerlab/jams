@@ -136,6 +136,11 @@ Vec3 Lattice::generate_fractional_position(
 }
 
 void Lattice::init_from_config(const libconfig::Config& pConfig) {
+
+  symops_enabled_ = true;
+  pConfig.lookupValue("lattice.symops", symops_enabled_);
+  output.write("  symops: %s", symops_enabled_ ? "true" : "false")
+
   init_unit_cell(pConfig.lookup("materials"), pConfig.lookup("lattice"), pConfig.lookup("unitcell"));
   init_lattice_positions(pConfig.lookup("materials"), pConfig.lookup("lattice"));
 }
@@ -320,17 +325,9 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     output.write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
   }
 
-  calc_symmetry_operations();
-
-  int hall_number = -1;
-
-  if (unitcell_settings.lookupValue("spacegroup", hall_number)) {
-    output.write("  spacegroup FORCED in config\n");
-    output.write("    hall number %d\n", hall_number);
+  if (symops_enabled_) {
+    calc_symmetry_operations();
   }
-
-  set_spacegroup(hall_number);
-
 }
 
 void Lattice::init_lattice_positions(
