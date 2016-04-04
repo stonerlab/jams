@@ -6,7 +6,7 @@
 __constant__ float dev_super_unit_cell[3][3];
 __constant__ float dev_super_unit_cell_inv[3][3];
 __constant__ bool   dev_super_cell_pbc[3];
-__constant__ double dev_dipole_prefactor;
+__constant__ float dev_dipole_prefactor;
 __constant__ float dev_r_cutoff;
 
 
@@ -57,64 +57,75 @@ __global__ void dipole_bruteforce_kernel
 (
     const double * s_dev,
     const float * r_dev,
-    const double * mus_dev,
+    const float * mus_dev,
     const unsigned int num_spins,
     double * h_dev
 )
 {
     const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
-    int j, n;
+    const unsigned int tx = threadIdx.x;
+    unsigned int n, t, b;
+
+    __shared__ float rj[128][3];
+    // __shared__ double sj[128*3];
+    __shared__ float mus[128];
 
     double h[3] = {0.0, 0.0, 0.0};
-    double sj[3];
-    float ri[3], rj[3], r_ij[3], r_abs;
-    double sj_dot_rhat, w0;
+
+    float sj[3], ri[3], r_ij[3], r_abs, w0, sj_dot_rhat;
 
     if (idx < num_spins) {
         // constant is kB * mu_0 / 4 pi
-        const double pre = mus_dev[idx] * dev_dipole_prefactor;
+        const float pre = mus_dev[idx] * dev_dipole_prefactor;
 
         #pragma unroll
         for (n = 0; n < 3; ++n) {
             ri[n] = r_dev[3*idx + n];
         }
 
+        const unsigned int num_blocks = (num_spins + 128 - 1) / 128;
 
-        for (j = 0; j < num_spins; ++j) {
-            if (idx == j) continue;
+        for (b = 0; b < num_blocks; ++b) {
+          if ((tx + 128 * b) < num_spins) {
+            mus[tx] = mus_dev[tx + 128 * b];
 
-            #pragma unroll
-            for (n = 0; n < 3; ++n) {
-                rj[n] = r_dev[3*j + n];
-            }
-
-            displacement(ri, rj, r_ij);
-
-            r_abs = r_ij[0] * r_ij[0] + r_ij[1] * r_ij[1] + r_ij[2] * r_ij[2];
-
-            if (r_abs > dev_r_cutoff * dev_r_cutoff) continue;
-
-            // r_abs = 1.0 / sqrt(r_abs);
-
-            r_abs = rsqrtf(r_abs);
-
-            w0 = pre * mus_dev[j] * (r_abs * r_abs * r_abs);
 
             #pragma unroll
             for (n = 0; n < 3; ++n) {
-                sj[n] = s_dev[3*j + n];
+                rj[tx][n] = r_dev[3*(tx + 128 * b) + n];
             }
 
-            sj_dot_rhat = 3.0 * (sj[0] * r_ij[0] + sj[1] * r_ij[1] + sj[2] * r_ij[2]) * r_abs* r_abs;
+            __syncthreads();
+            for (t = 0; t < 128; ++t) {
+              #pragma unroll
+              for (n = 0; n < 3; ++n) {
+                  sj[n] = s_dev[128 * b + t];
+              }
 
-            // accumulate values
-            #pragma unroll
-            for (n = 0; n < 3; ++n) {
-                h[n] += (r_ij[n] * sj_dot_rhat  - sj[n]) * w0;
+              if (idx == (128 * b + t)) continue;
+
+              displacement(ri, rj[t], r_ij);
+
+              r_abs = r_ij[0] * r_ij[0] + r_ij[1] * r_ij[1] + r_ij[2] * r_ij[2];
+
+              if (r_abs > dev_r_cutoff * dev_r_cutoff) continue;
+
+              // r_abs = 1.0 / sqrt(r_abs);
+
+              r_abs = rsqrtf(r_abs);
+
+              w0 = pre * mus[t] * (r_abs * r_abs * r_abs);
+
+              sj_dot_rhat = 3.0f * (sj[0] * r_ij[0] + sj[1] * r_ij[1] + sj[2] * r_ij[2]) * r_abs * r_abs;
+
+              // accumulate values
+              #pragma unroll
+              for (n = 0; n < 3; ++n) {
+                  h[n] += (r_ij[n] * sj_dot_rhat  - sj[n]) * w0;
+              }
+              }
             }
-        }
-
-        __syncthreads();
+          }
         // write to global memory
         #pragma unroll
         for (n = 0; n < 3; ++n) {
