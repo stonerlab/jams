@@ -323,12 +323,20 @@ Lattice::fractional_to_cartesian(const Vec3& r_frac) const {
 
 inline int
 Lattice::num_sym_ops() const {
-    return spglib_dataset_->n_operations;
+    if (symops_enabled_) {
+        return spglib_dataset_->n_operations;
+    } else {
+        return 0;
+    }
 }
 
 inline Vec3
 Lattice::sym_rotation(const int i, const Vec3 vec) const {
-    return rotations_[i] * vec;
+    if (symops_enabled_) {
+        return rotations_[i] * vec;
+    } else {
+        return vec;
+    }
 }
 
 inline Vec3

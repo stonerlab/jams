@@ -10,6 +10,7 @@ extern "C"{
 #include <stdint.h>
 
 #include <algorithm>
+#include <stdexcept>
 #include <numeric>
 #include <cmath>
 #include <fstream>
@@ -26,6 +27,7 @@ extern "C"{
 
 #include "core/consts.h"
 #include "core/globals.h"
+#include "core/exception.h"
 #include "core/maths.h"
 #include "core/sparsematrix.h"
 #include "core/utils.h"
@@ -39,19 +41,25 @@ using std::endl;
 using libconfig::Setting;
 using libconfig::Config;
 
-//
-// struct Atom {
-//   int  index;
-//   vec3 r;
-//
-//   inline Atom operator-(const Atom &rhs) const{
-//     return Atom({index, r - rhs.r});
-//   }
-//
-//   inline operator double() {
-//     return std::sqrt(r.x * r.x + r.y * r.y + r.z * r.z);
-//   }
-// };
+void Lattice::init_from_config(const libconfig::Config& cfg) {
+
+  symops_enabled_ = true;
+  cfg.lookupValue("lattice.symops", symops_enabled_);
+  output.write("  symops: %s", symops_enabled_ ? "true" : "false");
+
+  init_unit_cell(cfg.lookup("materials"), cfg.lookup("lattice"), cfg.lookup("unitcell"));
+
+  if (symops_enabled_) {
+    calc_symmetry_operations();
+  }
+
+  init_lattice_positions(cfg.lookup("materials"), cfg.lookup("lattice"));
+
+  if (symops_enabled_) {
+    init_kspace();
+  }
+}
+
 
 void read_material_settings(Setting& cfg, Material &mat) {
   mat.name   = cfg["name"].c_str();
@@ -89,7 +97,7 @@ void read_material_settings(Setting& cfg, Material &mat) {
       mat.spin[1] = sin(theta)*sin(phi);
       mat.spin[2] = cos(theta);
     } else {
-      std::runtime_error("material spin array is not of a recognised size (2 or 3)");
+      throw general_exception("material spin array is not of a recognised size (2 or 3)", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
   }
 
@@ -135,16 +143,6 @@ Vec3 Lattice::generate_fractional_position(
                              unit_cell_frac_pos.z + translation_vector.z);
 }
 
-void Lattice::init_from_config(const libconfig::Config& pConfig) {
-
-  symops_enabled_ = true;
-  pConfig.lookupValue("lattice.symops", symops_enabled_);
-  output.write("  symops: %s", symops_enabled_ ? "true" : "false")
-
-  init_unit_cell(pConfig.lookup("materials"), pConfig.lookup("lattice"), pConfig.lookup("unitcell"));
-  init_lattice_positions(pConfig.lookup("materials"), pConfig.lookup("lattice"));
-}
-
 void Lattice::read_motif_from_config(const libconfig::Setting &positions) {
   Atom atom;
   string atom_name;
@@ -157,7 +155,7 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions) {
 
     // check the material type is defined
     if (material_name_map_.find(atom_name) == material_name_map_.end()) {
-      throw std::runtime_error("material " + atom_name + " in the motif is not defined in the configuration");
+      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     atom.material = material_name_map_[atom_name].id;
 
@@ -176,7 +174,7 @@ void Lattice::read_motif_from_file(const std::string &filename) {
   std::ifstream position_file(filename.c_str());
 
   if(position_file.fail()) {
-    throw std::runtime_error("failed to open position file " + filename);
+    throw general_exception("failed to open position file " + filename, __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
   motif_.clear();
@@ -197,7 +195,7 @@ void Lattice::read_motif_from_file(const std::string &filename) {
 
     // check the material type is defined
     if (material_name_map_.find(atom_name) == material_name_map_.end()) {
-      throw std::runtime_error("material " + atom_name + " in the motif is not defined in the configuration");
+      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     atom.material = material_name_map_[atom_name].id;
     atom.id = motif_.size();
@@ -214,6 +212,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   using std::pair;
 
   int i, j;
+
 
 //-----------------------------------------------------------------------------
 // Read lattice vectors
@@ -251,7 +250,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   printf("  lattice parameter (m):\n    %3.6e\n", super_cell.parameter);
 
   if (super_cell.parameter < 0.0) {
-    throw std::runtime_error("config: lattice parameter cannot be negative");
+    throw general_exception("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
   printf("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
@@ -323,10 +322,6 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   for (const Atom &atom: motif_) {
     output.write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
-  }
-
-  if (symops_enabled_) {
-    calc_symmetry_operations();
   }
 }
 
@@ -527,11 +522,13 @@ void Lattice::init_lattice_positions(
 
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
   }
-
-  init_kspace();
 }
 
 void Lattice::init_kspace() {
+
+  if (!symops_enabled_) {
+    throw general_exception("Lattice::init_kspace() was called with symops disabled ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
 
   int i, j;
   printf("\n----------------------------------------\n");
@@ -697,6 +694,11 @@ void Lattice::load_spin_state_from_hdf5(std::string &filename) {
 }
 
 void Lattice::calc_symmetry_operations() {
+
+  if (!symops_enabled_) {
+    throw general_exception("Lattice::calc_symmetry_operations() was called with symops disabled ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
   printf("\n----------------------------------------\n");
   printf("\nsymmetry analysis\n");
 
