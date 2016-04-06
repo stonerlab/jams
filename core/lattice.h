@@ -332,6 +332,8 @@ Lattice::num_sym_ops() const {
 
 inline Vec3
 Lattice::sym_rotation(const int i, const Vec3 vec) const {
+    assert(rotations_.size() == num_sym_ops());
+    assert(i < rotations_.size() && i >= 0);
     if (symops_enabled_) {
         return rotations_[i] * vec;
     } else {

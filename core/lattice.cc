@@ -840,42 +840,41 @@ void Lattice::calc_symmetry_operations() {
       counter++;
     }
   }
+
+  Mat3 rot;
+
+  for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
+    std::cout << i << "\t" << spglib_dataset_->translations[i][0] << "\t" << spglib_dataset_->translations[i][1] << "\t" << spglib_dataset_->translations[i][2] << std::endl;
+
+    for (int m = 0; m < 3; ++m) {
+      for (int n = 0; n < 3; ++n) {
+        rot[m][n] = spglib_dataset_->rotations[i][m][n];
+      }
+    }
+
+    rotations_.push_back(rot);
+  }
 }
 
 
-void Lattice::set_spacegroup(const int hall_number = -1) {
+void Lattice::set_spacegroup(const int hall_number) {
   Mat3 rot;
 
-  if (hall_number == -1) {
+  int spg_n_operations = 0;
+  int spg_rotations[192][3][3];
+  double spg_translations[192][3];
+  spg_n_operations = spg_get_symmetry_from_database(spg_rotations, spg_translations, hall_number);
 
-    for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
-      std::cout << i << "\t" << spglib_dataset_->translations[i][0] << "\t" << spglib_dataset_->translations[i][1] << "\t" << spglib_dataset_->translations[i][2] << std::endl;
+  for (int i = 0; i < spg_n_operations; ++i) {
+    std::cout << i << "\t" << spg_translations[i][0] << "\t" << spg_translations[i][1] << "\t" << spg_translations[i][2] << std::endl;
 
-      for (int m = 0; m < 3; ++m) {
-        for (int n = 0; n < 3; ++n) {
-          rot[m][n] = spglib_dataset_->rotations[i][m][n];
-        }
+    for (int m = 0; m < 3; ++m) {
+      for (int n = 0; n < 3; ++n) {
+        rot[m][n] = spg_rotations[i][m][n];
       }
-
-      rotations_.push_back(rot);
     }
-  } else {
-    int spg_n_operations = 0;
-    int spg_rotations[192][3][3];
-    double spg_translations[192][3];
-    spg_n_operations = spg_get_symmetry_from_database(spg_rotations, spg_translations, hall_number);
 
-    for (int i = 0; i < spg_n_operations; ++i) {
-      std::cout << i << "\t" << spg_translations[i][0] << "\t" << spg_translations[i][1] << "\t" << spg_translations[i][2] << std::endl;
-
-      for (int m = 0; m < 3; ++m) {
-        for (int n = 0; n < 3; ++n) {
-          rot[m][n] = spg_rotations[i][m][n];
-        }
-      }
-
-      rotations_.push_back(rot);
-    }
+    rotations_.push_back(rot);
   }
 }
 
