@@ -2,9 +2,6 @@
 #include "core/consts.h"
 #include "core/utils.h"
 
-#include <omp.h>
-
-
 #include "hamiltonian/dipole_bruteforce.h"
 #include "hamiltonian/dipole_bruteforce_kernel.h"
 
