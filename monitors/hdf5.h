@@ -23,12 +23,15 @@ class Hdf5Monitor : public Monitor {
   std::string name() const {return "hdf5";}
 
  private:
-  void output_lattice();
+  void open_new_xdmf_file(const std::string &xdmf_file_name);
+  void update_xdmf_file(const std::string &h5_file_name, const H5::PredType float_type);
+  void write_lattice_h5_file(const std::string &h5_file_name, const H5::PredType float_type);
+  void write_spin_h5_file(const std::string &h5_file_name, const H5::PredType float_type);
 
-  H5::PredType float_pred_type;
-  bool         is_compression_enabled;
-  Slice        slice;
-  FILE*        xdmf_file;
+  H5::PredType float_pred_type_;
+  bool         compression_enabled_;
+  Slice        slice_;
+  FILE*        xdmf_file_;
 };
 
 #endif  // JAMS_MONITOR_HDF5_H
