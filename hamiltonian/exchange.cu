@@ -1,5 +1,6 @@
 #include <set>
 
+#include "core/exception.h"
 #include "core/globals.h"
 #include "core/utils.h"
 #include "core/consts.h"
@@ -497,24 +498,30 @@ unfolded_interaction_file.close();
 void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &filename,
   std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
 
-  ::output.write("  reading interactions and applying symmetry operations\n");
+  int counter = 0;
+  int line_number = 0;
 
-  std::ifstream interaction_file(filename.c_str());
-
-
-  if(interaction_file.fail()) {
-    jams_error("failed to open interaction file %s", filename.c_str());
-  }
-
+  std::ifstream interaction_file;
   std::ofstream unfolded_interaction_file;
-  if (is_debug_enabled_) {
-    unfolded_interaction_file.open(std::string(seedname+"_unfolded_exc.dat").c_str());
-  }
 
   int_interaction_list.resize(lattice.num_unit_cell_positions());
 
-  int counter = 0;
-  int line_number = 0;
+
+  ::output.write("  reading interactions and applying symmetry operations\n");
+
+  interaction_file.open(filename.c_str());
+
+
+  if(interaction_file.fail()) {
+    throw general_exception("failed to open interaction file " + filename, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
+  if (is_debug_enabled_) {
+    unfolded_interaction_file.open(std::string(seedname+"_unfolded_exc.dat").c_str());
+    if(unfolded_interaction_file.fail()) {
+      throw general_exception("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+  }
 
   ::output.verbose("\ninteraction vectors (%s)\n", filename.c_str());
 
@@ -528,18 +535,29 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
   // read the unit_cell into an array from the positions file
   for (std::string line; getline(interaction_file, line); ) {
+
     if(string_is_comment(line)) {
       continue;
     }
-    std::stringstream is(line);
+    std::stringstream   is(line);
 
-    std::string type_name_A, type_name_B;
+    std::string         type_name_A;
+    std::string         type_name_B;
+    jblib::Vec3<double> interaction_vector;
+
 
     // read type names
     is >> type_name_A >> type_name_B;
 
-    jblib::Vec3<double> interaction_vector;
+    if (is.bad()) {
+      throw general_exception("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+
     is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
+
+    if (is.bad()) {
+      throw general_exception("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
 
     jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
     if (file_columns(line) == 6) {
@@ -553,7 +571,11 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
       is >> tensor[1][0] >> tensor[1][1] >> tensor[1][2];
       is >> tensor[2][0] >> tensor[2][1] >> tensor[2][2];
     } else {
-      jams_error("number of Jij values in exchange files must be 1 or 9, check your input on line %d", counter);
+      throw general_exception("number of Jij values in exchange files must be 1 or 9, check your input on line " + line_number, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+
+    if (is.bad()) {
+      throw general_exception("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
 
     tensor = tensor / kBohrMagneton;
