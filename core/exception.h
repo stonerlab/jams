@@ -2,6 +2,7 @@
 #define JAMS_CORE_EXCEPTION_H
 
 #include <stdexcept>
+#include <sstream>
 
 class general_exception : std::runtime_error {
     std::string msg;
