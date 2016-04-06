@@ -1,5 +1,7 @@
 #include "core/cuda_defs.h"
 
+#include <iostream>
+
 // y_ij <-- alpha_i * beta * x_ij
 
 __global__ void cuda_array_elementwise_scale_kernel_general_(
@@ -57,6 +59,36 @@ __global__ void cuda_array_elementwise_scale_kernel_noinc_self_(
     }
 }
 
+__global__ void cuda_array_elementwise_daxpy_kernel_general_(
+    const unsigned int n,            // n elements in i index
+    const double * alpha,   // scale factors array of length n
+    const double   beta,    // uniform scale factor
+    double * x,             // input array
+    const unsigned int incx,         // input increment
+    double * y,             // output array
+    const unsigned int incy)         // output increment
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < n) {
+        y[idx + incy] += alpha[idx] * beta * x[idx + incx];
+    }
+}
+
+__global__ void cuda_array_elementwise_daxpy_kernel_noinc_(
+    const unsigned int n,            // n elements in i index
+    const double * alpha,   // scale factors array of length n
+    const double   beta,    // uniform scale factor
+    double * x,             // input array
+    double * y)             // output array
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < n) {
+            y[idx] += alpha[idx] * beta * x[idx];
+    }
+}
+
 void cuda_array_elementwise_scale(
     const unsigned int n,            // n elements in i index
     const unsigned int m,            // m elements in j index
@@ -99,4 +131,27 @@ void cuda_array_elementwise_scale(
     return;
 }
 
+void cuda_array_elementwise_daxpy(
+    const unsigned int n,            // n elements in i index
+    const double * alpha,   // scale factors array of length n
+    const double   beta,    // uniform scale factor
+    double * x,             // input array
+    const unsigned int incx,         // input increment
+    double * y,             // output array
+    const unsigned int incy,         // output increment
+    cudaStream_t stream = 0    // cuda stream
+)
+{
+    unsigned int block_size = 1024;
+
+    if (incx == 1 && incy == 1) {
+        cuda_array_elementwise_daxpy_kernel_noinc_<<<(n + block_size - 1) / block_size, block_size, 0, stream>>>(n, alpha, beta, x, y);
+        cuda_kernel_error_check();
+        return;
+    }
+
+    cuda_array_elementwise_daxpy_kernel_general_<<<(n + block_size - 1) / block_size, block_size, 0, stream>>>(n, alpha, beta, x, incx, y, incy);
+    cuda_kernel_error_check();
+    return;
+}
 

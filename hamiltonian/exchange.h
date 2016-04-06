@@ -10,6 +10,7 @@
 #ifdef CUDA
 #include <cuda_runtime.h>
 #include <cusparse.h>
+#include <curand.h>
 #endif
 
 #include "core/output.h"
@@ -63,6 +64,8 @@ class ExchangeHamiltonian : public Hamiltonian {
 
         void insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
 
+        void generate_stochastic_exchange_values(const double width);
+
         void output_energies_text();
         // void output_energies_hdf5();
 
@@ -78,6 +81,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         double energy_cutoff_;
         double distance_tolerance_;
         bool is_debug_enabled_;
+        bool stochastic_enabled_;
 
 
 #ifdef CUDA
@@ -86,6 +90,13 @@ class ExchangeHamiltonian : public Hamiltonian {
         cusparseHandle_t   cusparse_handle_;
         cusparseMatDescr_t cusparse_descra_;
         cudaStream_t dev_stream_;
+
+        curandGenerator_t dev_stoch_rng_;
+
+        double   *dev_stoch_noise_;                 // normally distributed random values
+        double   *dev_stoch_sigma_;                 // element wise width of each gaussian
+        double   *dev_stoch_pure_exchange_values_;   // exchange values without any stochastic noise
+
 #endif  // CUDA
 
 };

@@ -15,4 +15,15 @@ void cuda_array_elementwise_scale(
     cudaStream_t stream     // cuda stream
 );
 
+void cuda_array_elementwise_daxpy(
+    const unsigned int n,            // n elements in i index
+    const double * alpha,   // scale factors array of length n
+    const double   beta,    // uniform scale factor
+    double * x,             // input array
+    const unsigned int incx,         // input increment
+    double * y,             // output array
+    const unsigned int incy,         // output increment
+    cudaStream_t stream     // cuda stream
+);
+
 #endif  // JAMS_CUDA_ARRAY_KERNELS_H

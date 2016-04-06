@@ -6,6 +6,7 @@
 #include "core/consts.h"
 #include "core/cuda_defs.h"
 #include "core/cuda_sparsematrix.h"
+#include "core/cuda_array_kernels.h"
 
 
 
@@ -60,6 +61,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     if (settings.exists("debug")) {
       is_debug_enabled_ = settings["debug"];
     }
+
+    stochastic_enabled_ = false;
+    settings.lookupValue("stochastic", stochastic_enabled_);
 
     // if (settings.exists("sparse_format")) {
     //   set_sparse_matrix_format(std::string(settings["sparse_format"]));
@@ -312,6 +316,54 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
               interaction_matrix_.diags(), cudaMemcpyHostToDevice));
 
           dev_dia_interaction_matrix_.pitch = dev_dia_interaction_matrix_.pitch/sizeof(double);
+        }
+
+
+        if (stochastic_enabled_) {
+          output.write("  stochastic exchange enabled\n");
+
+          output.write("    initialising CURAND\n");
+
+          // initialize and seed the CURAND generator on the device
+          if (curandCreateGenerator(&dev_stoch_rng_, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS) {
+            jams_error("Failed to create CURAND generator in Exchange");
+          }
+
+          const uint64_t dev_rng_seed = rng.uniform()*18446744073709551615ULL;
+
+          if (curandSetStream(dev_stoch_rng_, dev_stream_) != CURAND_STATUS_SUCCESS) {
+            jams_error("Failed to set CURAND stream in Exchange");
+          }
+
+          if (curandSetPseudoRandomGeneratorSeed(dev_stoch_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
+            jams_error("Failed to set CURAND seed in Exchange");
+          }
+
+          if (curandGenerateSeeds(dev_stoch_rng_) != CURAND_STATUS_SUCCESS) {
+            jams_error("Failed to generate CURAND seeds in Exchange");
+          }
+
+          double exc_sigma = 0.01;
+          settings.lookupValue("sigma", exc_sigma);
+
+          jblib::Array<double, 1> exchange_sigma(interaction_matrix_.nonZero());
+          for (int i = 0; i < interaction_matrix_.nonZero(); ++i) {
+            exchange_sigma[i] = exc_sigma * std::abs(interaction_matrix_.val(i));
+          }
+
+          cuda_api_error_check(
+            cudaMalloc((void**)&dev_stoch_pure_exchange_values_, (interaction_matrix_.nonZero())*sizeof(double)));
+          cuda_api_error_check(
+            cudaMalloc((void**)&dev_stoch_sigma_, (interaction_matrix_.nonZero())*sizeof(double)));
+          cuda_api_error_check(
+            cudaMalloc((void**)&dev_stoch_noise_, (interaction_matrix_.nonZero())*sizeof(double)));
+
+          cuda_api_error_check(cudaMemcpy(dev_stoch_pure_exchange_values_, interaction_matrix_.valPtr(),
+                (interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
+
+          cuda_api_error_check(cudaMemcpy(dev_stoch_sigma_, exchange_sigma.data(),
+                (interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
+
         }
 #endif
   }
@@ -817,6 +869,12 @@ void ExchangeHamiltonian::calculate_fields() {
 
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
+      if (stochastic_enabled_) {
+        if (solver->time() > 1e-12) {
+          generate_stochastic_exchange_values(1.0);
+        }
+      }
+
       if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
         const double one = 1.0;
         const double zero = 0.0;
@@ -1015,4 +1073,23 @@ double ExchangeHamiltonian::calculate_bond_energy_difference(const int i, const 
     Vec3 Js = neighbour_list_[i][j] * (sj_final - sj_initial);
     return -(s(i, 0) * Js[0] + s(i, 1) * Js[1] + s(i, 2) * Js[2]);
   }
+}
+
+void ExchangeHamiltonian::generate_stochastic_exchange_values(const double width) {
+
+  // curandGenerateNormalDouble(dev_stoch_rng_, dev_csr_interaction_matritx_.val, interaction_matrix_.nonZero(), 0.0, 100.0);
+
+  // // copy the pure values into the value array
+  // cuda_api_error_check(cudaMemcpyAsync(dev_csr_interaction_matrix_.val, dev_stoch_pure_exchange_values_,
+  //       interaction_matrix_.nonZero()*sizeof(double), cudaMemcpyDeviceToDevice, dev_stream_));
+
+  // copy the pure values into the value array
+  cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, dev_stoch_pure_exchange_values_,
+        interaction_matrix_.nonZero()*sizeof(double), cudaMemcpyDeviceToDevice));
+
+  // if (width > 1e-8) {
+    // cudaThreadSynchronize();
+    curandGenerateNormalDouble(dev_stoch_rng_, dev_stoch_noise_, interaction_matrix_.nonZero(), 0.0, 1.0);
+    cuda_array_elementwise_daxpy(interaction_matrix_.nonZero(), dev_stoch_sigma_, width, dev_stoch_noise_, 1, dev_csr_interaction_matrix_.val, 1, dev_stream_);
+  // }
 }
