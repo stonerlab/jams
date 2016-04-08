@@ -11,11 +11,11 @@
 
 SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  smr(::lattice.num_materials()),
   outfile()
 {
   using namespace globals;
   ::output.write("\ninitialising SMR monitor\n");
+  ::output.write("  assumes axes j->x, t->y, n->z");
 
   is_equilibration_monitor_ = true;
 
@@ -27,7 +27,9 @@ SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
   outfile << std::setw(12) << "time" << "\t";
 
   for (int i = 0; i < lattice.num_materials(); ++i) {
-    outfile << std::setw(12) << lattice.material_name(i) + ":smr" << "\t";
+    outfile << std::setw(12) << lattice.material_name(i) + ":mj" << "\t";
+    outfile << std::setw(12) << lattice.material_name(i) + ":mt" << "\t";
+    outfile << std::setw(12) << lattice.material_name(i) + ":mn" << "\t";
   }
 
   outfile << "\n";
@@ -36,32 +38,37 @@ SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
 void SMRMonitor::update(Solver * solver) {
   using namespace globals;
 
-  // We assume the field is along the z direction
-  // then the SMR is sin(theta)^2 - cos(theta)^2
-  // theta = acos(Sz)
-  // so SMR = sin(acos(x))^2 - cos(acos(x))^2
-  //        = 1 - 2 Sz^2
-    int i;
+  std::vector<double> mj(lattice.num_materials(), 0.0);
+  std::vector<double> mt(lattice.num_materials(), 0.0);
+  std::vector<double> mn(lattice.num_materials(), 0.0);
 
-    smr.zero();
+  for (int i = 0; i < num_spins; ++i) {
+    // Uses the WMI geometry from M. Althammer,Phys. Rev. B 87, 224401 (2013).
+    // assuming axes:
+    // j -> x
+    // t -> y
+    // n -> z
+    int type = lattice.atom_material(i);
+    mj[type] += s(i, 0);
+    mt[type] += s(i, 1);
+    mn[type] += s(i, 2);
+  }
 
-    for (i = 0; i < num_spins; ++i) {
-      int type = lattice.atom_material(i);
-      smr(type) += 1.0 - 2.0 * s(i, 2) * s(i, 2);
-    }
+  for (int i = 0; i < lattice.num_materials(); ++i) {
+      mj[i] = mj[i]/static_cast<double>(lattice.num_of_material(i));
+      mt[i] = mt[i]/static_cast<double>(lattice.num_of_material(i));
+      mn[i] = mn[i]/static_cast<double>(lattice.num_of_material(i));
+  }
 
-    for (i = 0; i < lattice.num_materials(); ++i) {
-        smr(i) = smr(i)/static_cast<double>(lattice.num_of_material(i));
-    }
+  outfile << std::setw(12) << std::scientific << solver->time() << "\t";
 
-    outfile << std::setw(12) << std::scientific << solver->time() << "\t";
+  for (int i = 0; i < lattice.num_materials(); ++i) {
+    outfile << std::setw(12) << mj[i] << "\t" << mt[i] << "\t" << mn[i] << "\t";
+  }
 
-    for (i = 0; i < lattice.num_materials(); ++i) {
-      outfile << std::setw(12) << smr(i) << "\t";
-    }
-
-    outfile << std::endl;
+  outfile << std::endl;
 }
+
 
 SMRMonitor::~SMRMonitor() {
   outfile.close();

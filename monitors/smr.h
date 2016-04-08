@@ -20,7 +20,6 @@ class SMRMonitor : public Monitor {
   std::string name() const {return "smr";}
 
  private:
-  jblib::Array<double, 1> smr;
   std::ofstream outfile;
 
 };
