@@ -1076,20 +1076,18 @@ double ExchangeHamiltonian::calculate_bond_energy_difference(const int i, const 
 }
 
 void ExchangeHamiltonian::generate_stochastic_exchange_values(const double width) {
+  static bool step_one = true;
 
-  // curandGenerateNormalDouble(dev_stoch_rng_, dev_csr_interaction_matritx_.val, interaction_matrix_.nonZero(), 0.0, 100.0);
+  if (step_one) {
+    // copy the pure values into the value array
+    cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, dev_stoch_pure_exchange_values_,
+          interaction_matrix_.nonZero()*sizeof(double), cudaMemcpyDeviceToDevice));
 
-  // // copy the pure values into the value array
-  // cuda_api_error_check(cudaMemcpyAsync(dev_csr_interaction_matrix_.val, dev_stoch_pure_exchange_values_,
-  //       interaction_matrix_.nonZero()*sizeof(double), cudaMemcpyDeviceToDevice, dev_stream_));
+    if (width > 1e-8) {
+      curandGenerateNormalDouble(dev_stoch_rng_, dev_stoch_noise_, interaction_matrix_.nonZero(), 0.0, 1.0);
+      cuda_array_elementwise_daxpy(interaction_matrix_.nonZero(), dev_stoch_sigma_, width, dev_stoch_noise_, 1, dev_csr_interaction_matrix_.val, 1, dev_stream_);
+    }
+  }
 
-  // copy the pure values into the value array
-  cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, dev_stoch_pure_exchange_values_,
-        interaction_matrix_.nonZero()*sizeof(double), cudaMemcpyDeviceToDevice));
-
-  // if (width > 1e-8) {
-    // cudaThreadSynchronize();
-    curandGenerateNormalDouble(dev_stoch_rng_, dev_stoch_noise_, interaction_matrix_.nonZero(), 0.0, 1.0);
-    cuda_array_elementwise_daxpy(interaction_matrix_.nonZero(), dev_stoch_sigma_, width, dev_stoch_noise_, 1, dev_csr_interaction_matrix_.val, 1, dev_stream_);
-  // }
+  !step_one;
 }
