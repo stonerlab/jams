@@ -28,6 +28,13 @@ typedef struct devCSR {
   int     blocks;
 } devCSR;
 
+typedef struct devCSRmap {
+  int     *row;
+  int     *col;
+  int     *val;
+  int     blocks;
+} devCSRmap;
+
 #ifdef DEBUG
 #define cuda_api_error_check(ans) { cuda_throw((ans), __FILE__, __LINE__); }
 #define cuda_kernel_error_check() { cuda_api_error_check(cudaPeekAtLastError()); cuda_api_error_check(cudaDeviceSynchronize()); }
