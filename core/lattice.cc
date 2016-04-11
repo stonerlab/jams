@@ -844,8 +844,6 @@ void Lattice::calc_symmetry_operations() {
   Mat3 rot;
 
   for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
-    std::cout << i << "\t" << spglib_dataset_->translations[i][0] << "\t" << spglib_dataset_->translations[i][1] << "\t" << spglib_dataset_->translations[i][2] << std::endl;
-
     for (int m = 0; m < 3; ++m) {
       for (int n = 0; n < 3; ++n) {
         rot[m][n] = spglib_dataset_->rotations[i][m][n];
@@ -866,7 +864,6 @@ void Lattice::set_spacegroup(const int hall_number) {
   spg_n_operations = spg_get_symmetry_from_database(spg_rotations, spg_translations, hall_number);
 
   for (int i = 0; i < spg_n_operations; ++i) {
-    std::cout << i << "\t" << spg_translations[i][0] << "\t" << spg_translations[i][1] << "\t" << spg_translations[i][2] << std::endl;
 
     for (int m = 0; m < 3; ++m) {
       for (int n = 0; n < 3; ++n) {
