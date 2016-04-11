@@ -89,6 +89,20 @@ __global__ void cuda_array_elementwise_daxpy_kernel_noinc_(
     }
 }
 
+__global__ void cuda_array_remapping_kernel_(
+    const unsigned int n,   // n elements in array
+    const int * map,          // remapping array
+    const double * x,
+          double * y)
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < n) {
+        y[idx] = x[map[idx]];
+    }
+}
+
+
 void cuda_array_elementwise_scale(
     const unsigned int n,            // n elements in i index
     const unsigned int m,            // m elements in j index
@@ -155,3 +169,13 @@ void cuda_array_elementwise_daxpy(
     return;
 }
 
+void cuda_array_remapping(
+    const unsigned int n,   // n elements in array
+    const int * map,          // remapping array
+    const double * x,
+          double * y,
+    cudaStream_t stream     // cuda stream
+) {
+    unsigned int block_size = 1024;
+    cuda_array_remapping_kernel_<<<(n + block_size - 1) / block_size, block_size, 0, stream>>>(n, map, x, y);
+}

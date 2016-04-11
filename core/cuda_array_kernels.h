@@ -26,4 +26,11 @@ void cuda_array_elementwise_daxpy(
     cudaStream_t stream     // cuda stream
 );
 
+void cuda_array_remapping(
+    const unsigned int n,   // n elements in array
+    const int * map,          // remapping array
+    const double * x,
+          double * y,
+    cudaStream_t stream     // cuda stream
+);
 #endif  // JAMS_CUDA_ARRAY_KERNELS_H
