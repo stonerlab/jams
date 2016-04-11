@@ -411,7 +411,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           cuda_api_error_check(
             cudaMalloc((void**)&dev_stoch_interaction_map_.col, (stoch_interaction_map_.nonZero())*sizeof(int)));
           cuda_api_error_check(
-            cudaMalloc((void**)&dev_stoch_interaction_map_.val, (stoch_interaction_map_.nonZero())*sizeof(double)));
+            cudaMalloc((void**)&dev_stoch_interaction_map_.val, (stoch_interaction_map_.nonZero())*sizeof(int)));
 
           cuda_api_error_check(cudaMemcpy(dev_stoch_interaction_map_.row, stoch_interaction_map_.rowPtr(),
                 (stoch_interaction_map_.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
@@ -420,7 +420,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
                 (stoch_interaction_map_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
 
           cuda_api_error_check(cudaMemcpy(dev_stoch_interaction_map_.val, stoch_interaction_map_.valPtr(),
-                (stoch_interaction_map_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
+                (stoch_interaction_map_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
 
 
           output.write("    initialising CURAND\n");
