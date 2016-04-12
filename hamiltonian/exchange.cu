@@ -452,7 +452,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
           jblib::Array<double, 1> exchange_sigma(stoch_interaction_matrix_.nonZero());
           for (int i = 0; i < stoch_interaction_matrix_.nonZero(); ++i) {
-            exchange_sigma[i] = exc_sigma * std::abs(stoch_interaction_matrix_.val(i)) / sqrt(solver->time_step());
+            exchange_sigma[i] = sqrt(2.0 * exc_sigma * std::abs(stoch_interaction_matrix_.val(i))) / sqrt(solver->time_step());
           }
 
           cuda_api_error_check(
