@@ -1,6 +1,7 @@
 #include <set>
 #include <cublas.h>
 
+#include "core/stats.h"
 #include "core/exception.h"
 #include "core/globals.h"
 #include "core/utils.h"
@@ -1225,6 +1226,28 @@ void ExchangeHamiltonian::generate_stochastic_exchange_values(const double width
     cuda_array_remapping(stoch_interaction_matrix_.nonZero(), dev_stoch_interaction_map_.val, dev_stoch_noise_, dev_stoch_matrix_, dev_stream_);
 
     cuda_array_elementwise_daxpy(stoch_interaction_matrix_.nonZero(), dev_stoch_sigma_, width, dev_stoch_matrix_, 1, dev_stoch_interaction_matrix_.val, 1, dev_stream_);
+
+    // ------------------------------------------------------
+    // below is the code to output the exchange distribution
+    // ------------------------------------------------------
+
+    // cuda_api_error_check(cudaMemcpy(stoch_interaction_matrix_.valPtr(), dev_stoch_interaction_matrix_.val,
+          // (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyDeviceToHost));
+
+    // Stats exc_stats;
+    // for(int i = 0; i < stoch_interaction_matrix_.nonZero(); ++i) {
+    //   exc_stats.add(stoch_interaction_matrix_.val(i));
+    // }
+
+    // std::vector<double> range, bin;
+    // exc_stats.histogram(range, bin);
+
+    // std::ofstream debug_file("stochastic_exchange.dat");
+    // for (int i = 0; i < bin.size(); ++i) {
+    //   debug_file << i << "\t" << range[i] << "\t" << bin[i] << "\n";
+    // }
+    // debug_file.close();
+    // exit(0);
   }
 
   step_one = !step_one;
