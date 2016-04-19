@@ -31,6 +31,23 @@ namespace {
     }
   };
 
+  __global__ void cuda_harmonic_oscillator_kernel_(
+      const size_t n,            // n elements in i index
+      const double * theta,  // array frequency
+      const double   phi,     // constant frequency
+      const double * sigma,
+      const double * j0,
+            double * y)
+  {
+      const size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+      const double two_pi = 2.0 * 3.14159265358979323846264338327950288;
+      if (idx < n) {
+        const double f = (1.0 / ( 1.0 + 4 * sigma[idx] * cos(two_pi * theta[idx] + phi) * cos(two_pi * theta[idx] + phi)));
+          y[idx] =  j0[idx] * f * f * f * f * f;
+      }
+  }
+
+
 }
 
 bool ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value, SparseMatrix<double> &matrix
@@ -482,10 +499,15 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           stoch_t_start_ = settings["t_start"];
           stoch_t_width_ = settings["t_width"];
 
+
           jblib::Array<double, 1> exchange_sigma(stoch_interaction_matrix_.nonZero());
           for (int i = 0; i < stoch_interaction_matrix_.nonZero(); ++i) {
             // exchange_sigma[i] = sqrt(2.0 * exc_sigma) / sqrt(solver->time_step());
-            exchange_sigma[i] = sqrt(2.0 * exc_sigma * std::abs(stoch_interaction_matrix_.val(i))) / sqrt(solver->time_step());
+            if (stochastic_enabled_) {
+              exchange_sigma[i] = sqrt(2.0 * exc_sigma * std::abs(stoch_interaction_matrix_.val(i))) / sqrt(solver->time_step());
+            } else {
+              exchange_sigma[i] = exc_sigma;
+            }
           }
 
           cuda_api_error_check(
@@ -495,11 +517,18 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           cuda_api_error_check(
             cudaMalloc((void**)&dev_stoch_noise_, (stoch_interaction_matrix_.nonZero() / 3)*sizeof(double)));
           cuda_api_error_check(
-            cudaMalloc((void**)&dev_stoch_phase_, (stoch_interaction_matrix_.nonZero() / 3)*sizeof(double)));
+            cudaMalloc((void**)&dev_stoch_phase_, (stoch_interaction_matrix_.nonZero())*sizeof(double)));
           cuda_api_error_check(
             cudaMalloc((void**)&dev_stoch_matrix_, (stoch_interaction_matrix_.nonZero())*sizeof(double)));
 
-          curandGenerateNormalDouble(dev_stoch_rng_, dev_stoch_phase_, stoch_interaction_matrix_.nonZero()/3, 0.0, kTwoPi);
+
+        double * tmp;
+        cuda_api_error_check(
+          cudaMalloc((void**)&tmp, (stoch_interaction_matrix_.nonZero() / 3)*sizeof(double)));
+
+          curandGenerateUniformDouble(dev_stoch_rng_, tmp, stoch_interaction_matrix_.nonZero()/3);
+
+          cuda_array_remapping(stoch_interaction_matrix_.nonZero(), dev_stoch_interaction_map_.val, tmp, dev_stoch_phase_, dev_stream_);
 
 
           cuda_api_error_check(cudaMemcpy(dev_stoch_pure_exchange_values_, stoch_interaction_matrix_.valPtr(),
@@ -1321,29 +1350,36 @@ void ExchangeHamiltonian::generate_stochastic_exchange_values(const double width
 }
 
 void ExchangeHamiltonian::generate_driven_exchange_values(const double width) {
-  static bool step_one = true;
+  unsigned int block_size = 64;
 
   // if (step_one) {
-    reset_stochastic_exchange_values();
+    // reset_stochastic_exchange_values();
 
-    if (coherent_enabled_) {
-      cuda_array_initialize(stoch_interaction_map_.nonZero()/3, dev_stoch_noise_, cos(kTwoPi * driven_frequency_ * (solver->time()-stoch_t_start_)), dev_stream_);
-    } else {
-      cuda_array_elementwise_cos(stoch_interaction_map_.nonZero()/3, dev_stoch_phase_, kTwoPi * driven_frequency_ * (solver->time()-stoch_t_start_), dev_stoch_noise_, dev_stream_);
-    }
-    cuda_array_initialize(stoch_interaction_matrix_.nonZero(), dev_stoch_matrix_, 0.0, dev_stream_);
+    // if (coherent_enabled_) {
+    //   cuda_array_initialize(stoch_interaction_map_.nonZero()/3, dev_stoch_noise_, cos(kTwoPi * driven_frequency_ * (solver->time()-stoch_t_start_)), dev_stream_);
+    // } else {
+    //   cuda_array_elementwise_cos(stoch_interaction_map_.nonZero()/3, dev_stoch_phase_, kTwoPi * driven_frequency_ * (solver->time()-stoch_t_start_), dev_stoch_noise_, dev_stream_);
+    // }
 
-    cuda_array_remapping(stoch_interaction_matrix_.nonZero(), dev_stoch_interaction_map_.val, dev_stoch_noise_, dev_stoch_matrix_, dev_stream_);
+    cuda_harmonic_oscillator_kernel_<<<(stoch_interaction_map_.nonZero() + block_size - 1) / block_size, block_size, 0, dev_stream_>>> (
+      stoch_interaction_map_.nonZero(),            // n elements in i index
+      dev_stoch_phase_,  // array frequency
+      kTwoPi * driven_frequency_ * (solver->time()-stoch_t_start_),     // constant frequency
+      dev_stoch_sigma_,
+      dev_stoch_pure_exchange_values_,
+      dev_stoch_interaction_matrix_.val);
 
-    cuda_array_elementwise_daxpy(
-      stoch_interaction_matrix_.nonZero(),          // number of elements
-      dev_stoch_sigma_,                             // beta
-      width,                                        // alpha
-      dev_stoch_matrix_,                            // x
-      1,                                            // inc x
-      dev_stoch_interaction_matrix_.val,            // y
-      1,                                            // inc y
-      dev_stream_);
+    // cuda_array_remapping(stoch_interaction_matrix_.nonZero(), dev_stoch_interaction_map_.val, dev_stoch_noise_, dev_stoch_matrix_, dev_stream_);
+
+    // cuda_array_elementwise_daxpy(
+    //   stoch_interaction_matrix_.nonZero(),          // number of elements
+    //   dev_stoch_sigma_,                             // beta
+    //   width,                                        // alpha
+    //   dev_stoch_matrix_,                            // x
+    //   1,                                            // inc x
+    //   dev_stoch_interaction_matrix_.val,            // y
+    //   1,                                            // inc y
+    //   dev_stream_);
 
     // ------------------------------------------------------
     // below is the code to output the exchange distribution
@@ -1351,29 +1387,29 @@ void ExchangeHamiltonian::generate_driven_exchange_values(const double width) {
 
     // std::vector<double> tmp(stoch_interaction_matrix_.nonZero(), 0.0);
 
-    // cuda_api_error_check(cudaMemcpy(stoch_interaction_matrix_.valPtr(), dev_stoch_interaction_matrix_.val,
-    //       (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyDeviceToHost));
+  //   cuda_api_error_check(cudaMemcpy(stoch_interaction_matrix_.valPtr(), dev_stoch_interaction_matrix_.val,
+  //         (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyDeviceToHost));
 
-    // // cuda_api_error_check(cudaMemcpy(&tmp[0], dev_stoch_matrix_,
-    // //       (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyDeviceToHost));
+  //   // cuda_api_error_check(cudaMemcpy(&tmp[0], dev_stoch_matrix_,
+  //   //       (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyDeviceToHost));
 
-    //  Stats exc_stats;
-    //  for(int i = 0; i < stoch_interaction_matrix_.nonZero(); ++i) {
-    //   // std::cerr << i << "\t" << stoch_interaction_matrix_.val(i)<< std::endl;
-    //   // std::cerr << i << "\t" << stoch_interaction_map_.val(i) << "\t" << stoch_interaction_matrix_.val(i)<< "\t" << tmp[i] << std::endl;
-    //    exc_stats.add(stoch_interaction_matrix_.val(i));
-    //  }
+  //    Stats exc_stats;
+  //    for(int i = 0; i < stoch_interaction_matrix_.nonZero(); ++i) {
+  //     std::cerr << i << "\t" << stoch_interaction_matrix_.val(i)<< std::endl;
+  //     // std::cerr << i << "\t" << stoch_interaction_map_.val(i) << "\t" << stoch_interaction_matrix_.val(i)<< "\t" << tmp[i] << std::endl;
+  //      exc_stats.add(stoch_interaction_matrix_.val(i));
+  //    }
 
-    //  std::vector<double> range, bin;
-    //  exc_stats.histogram(range, bin);
+  //    std::vector<double> range, bin;
+  //    exc_stats.histogram(range, bin);
 
-    //  std::ofstream debug_file("stochastic_exchange.dat");
-    //  for (int i = 0; i < bin.size(); ++i) {
-    //    debug_file << i << "\t" << range[i] << "\t" << bin[i] << "\n";
-    //  }
-    //  debug_file.close();
-    //  exit(0);
-  // }
+  //    std::ofstream debug_file("stochastic_exchange.dat");
+  //    for (int i = 0; i < bin.size(); ++i) {
+  //      debug_file << i << "\t" << range[i] << "\t" << bin[i] << "\n";
+  //    }
+  //    debug_file.close();
+  //    exit(0);
+  // // }
 
-  step_one = !step_one;
+  // step_one = !step_one;
 }
