@@ -33,4 +33,19 @@ void cuda_array_remapping(
           double * y,
     cudaStream_t stream     // cuda stream
 );
+
+void cuda_array_initialize(
+    const size_t n,   // n elements in array
+    double * x,
+    const double value,
+    cudaStream_t stream     // cuda stream
+);
+
+void cuda_array_elementwise_cos(
+    const size_t n,            // n elements in i index
+    const double * theta,  // array frequency
+    const double   phi,    // constant frequency
+          double * y,
+    cudaStream_t stream = 0    // cuda stream
+);
 #endif  // JAMS_CUDA_ARRAY_KERNELS_H

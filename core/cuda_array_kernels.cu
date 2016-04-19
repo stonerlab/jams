@@ -102,6 +102,34 @@ __global__ void cuda_array_remapping_kernel_(
     }
 }
 
+__global__ void cuda_array_initialize_kernel_(
+    const size_t n,   // n elements in array
+    double * x,
+    const double value)
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < n) {
+        x[idx] = value;
+    }
+}
+
+
+__global__ void cuda_array_elementwise_cos_kernel_(
+    const size_t n,            // n elements in i index
+    const double * theta,  // array frequency
+    const double   phi,     // constant frequency
+          double * y)
+{
+    const size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < n) {
+        y[idx] = cos(theta[idx] + phi);
+    }
+}
+
+
+
 
 void cuda_array_elementwise_scale(
     const unsigned int n,            // n elements in i index
@@ -169,6 +197,21 @@ void cuda_array_elementwise_daxpy(
     return;
 }
 
+
+void cuda_array_elementwise_cos(
+    const size_t n,            // n elements in i index
+    const double * theta,  // array frequency
+    const double   phi,    // constant frequency
+          double * y,
+    cudaStream_t stream = 0    // cuda stream
+)
+{
+    size_t block_size = 1024;
+
+    cuda_array_elementwise_cos_kernel_<<<(n + block_size - 1) / block_size, block_size, 0, stream>>>(n, theta, phi, y);
+    cuda_kernel_error_check();
+}
+
 void cuda_array_remapping(
     const unsigned int n,   // n elements in array
     const int * map,          // remapping array
@@ -178,4 +221,14 @@ void cuda_array_remapping(
 ) {
     unsigned int block_size = 1024;
     cuda_array_remapping_kernel_<<<(n + block_size - 1) / block_size, block_size, 0, stream>>>(n, map, x, y);
+}
+
+void cuda_array_initialize(
+    const size_t n,   // n elements in array
+    double * x,
+    const double value,
+    cudaStream_t stream     // cuda stream
+) {
+    size_t block_size = 1024;
+    cuda_array_initialize_kernel_<<<(n + block_size - 1) / block_size, block_size, 0, stream>>>(n, x, value);
 }

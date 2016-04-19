@@ -33,8 +33,9 @@ namespace {
 
 }
 
-void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value, SparseMatrix<double> &matrix
+bool ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value, SparseMatrix<double> &matrix
 ) {
+  bool inserted = false;
   for (int m = 0; m < 3; ++m) {
     for (int n = 0; n < 3; ++n) {
       if (std::abs(value[m][n]) > energy_cutoff_) {
@@ -42,21 +43,27 @@ void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jbl
           if(matrix.getMatrixMode() == SPARSE_FILL_MODE_LOWER) {
             if (i >= j) {
               matrix.insertValue(3*i+m, 3*j+n, value[m][n]);
+              inserted = true;
             }
           } else {
             if (i <= j) {
               matrix.insertValue(3*i+m, 3*j+n, value[m][n]);
+              inserted = true;
             }
           }
         } else {
           matrix.insertValue(3*i+m, 3*j+n, value[m][n]);
+          inserted = true;
         }
       }
     }
-  }}
+  }
+  return inserted;
+}
 
-void ExchangeHamiltonian::insert_interaction(const int i, const int j, const int count, const jblib::Matrix<double, 3, 3> &value, SparseMatrix<double> &matrix, SparseMatrix<int> &map
+bool ExchangeHamiltonian::insert_interaction(const int i, const int j, const int count, const jblib::Matrix<double, 3, 3> &value, SparseMatrix<double> &matrix, SparseMatrix<int> &map
 ) {
+  bool inserted = false;
   for (int m = 0; m < 3; ++m) {
     for (int n = 0; n < 3; ++n) {
       if (std::abs(value[m][n]) > energy_cutoff_) {
@@ -65,20 +72,25 @@ void ExchangeHamiltonian::insert_interaction(const int i, const int j, const int
             if (i >= j) {
               matrix.insertValue(3*i+m, 3*j+n, value[m][n]);
               map.insertValue(3*i+m, 3*j+n, count);
+              inserted = true;
             }
           } else {
             if (i <= j) {
               matrix.insertValue(3*i+m, 3*j+n, value[m][n]);
               map.insertValue(3*i+m, 3*j+n, count);
+              inserted = true;
             }
           }
         } else {
           matrix.insertValue(3*i+m, 3*j+n, value[m][n]);
           map.insertValue(3*i+m, 3*j+n, count);
+          inserted = true;
         }
       }
     }
-  }}
+  }
+  return inserted;
+}
 
 ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
@@ -91,11 +103,27 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     }
 
     stochastic_enabled_ = false;
-    settings.lookupValue("stochastic", stochastic_enabled_);
+    driven_enabled_ = false;
+    driven_frequency_ = 0.0;
 
-    if (stochastic_enabled_ && !solver->is_cuda_solver()) {
+    if (settings.exists("fluctuations")) {
+      if (capitalize(settings["fluctuations"]) == "STOCHASTIC") {
+        stochastic_enabled_ = true;
+      } else if (capitalize(settings["fluctuations"]) == "DRIVEN") {
+        driven_enabled_ = true;
+        driven_frequency_ = settings["driven_frequency"];
+        output.write("  driven exchange freq: %e", driven_frequency_);
+      }
+    }
+
+    if ((stochastic_enabled_ || driven_enabled_) && !solver->is_cuda_solver()) {
       throw unimplemented_exception( __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
+
+
+    coherent_enabled_ = false;
+    settings.lookupValue("coherent", coherent_enabled_);
+
 
     // if (settings.exists("sparse_format")) {
     //   set_sparse_matrix_format(std::string(settings["sparse_format"]));
@@ -258,6 +286,12 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
       }
     }
 
+    if (!is_all_inserts_successful) {
+      jams_warning("Some interactions were ignored due to the energy cutoff (%e)", energy_cutoff_);
+    }
+
+    ::output.write("  total unit cell interactions: %d\n", counter);
+
     if (is_debug_enabled_) {
       debug_file.close();
     }
@@ -266,16 +300,13 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     for (int i = 0; i < globals::num_spins; ++i) {
       for (auto it = neighbour_list_[i].begin(); it != neighbour_list_[i].end(); ++it) {
         insert_interaction(i, (*it).first, (*it).second, interaction_matrix_);
-        insert_interaction(i, (*it).first, counter, (*it).second, stoch_interaction_matrix_, stoch_interaction_map_);
-        counter++;
+        if (insert_interaction(i, (*it).first, counter, (*it).second, stoch_interaction_matrix_, stoch_interaction_map_)) {
+          counter++;
+        }
       }
     }
+    ::output.write("  map counter: %d\n", counter);
 
-    if (!is_all_inserts_successful) {
-      jams_warning("Some interactions were ignored due to the energy cutoff (%e)", energy_cutoff_);
-    }
-
-    ::output.write("  total unit cell interactions: %d\n", counter);
 
     // resize member arrays
     energy_.resize(globals::num_spins);
@@ -371,8 +402,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
         }
 
 
-        if (stochastic_enabled_) {
-          output.write("  stochastic exchange enabled\n");
+        if (stochastic_enabled_ || driven_enabled_) {
+          output.write("  fluctuating exchange enabled\n");
 
           ::output.write("  converting stochastic interaction matrix format from MAP to CSR\n");
           stoch_interaction_matrix_.convertMAP2CSR();
@@ -453,6 +484,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
           jblib::Array<double, 1> exchange_sigma(stoch_interaction_matrix_.nonZero());
           for (int i = 0; i < stoch_interaction_matrix_.nonZero(); ++i) {
+            // exchange_sigma[i] = sqrt(2.0 * exc_sigma) / sqrt(solver->time_step());
             exchange_sigma[i] = sqrt(2.0 * exc_sigma * std::abs(stoch_interaction_matrix_.val(i))) / sqrt(solver->time_step());
           }
 
@@ -463,7 +495,12 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           cuda_api_error_check(
             cudaMalloc((void**)&dev_stoch_noise_, (stoch_interaction_matrix_.nonZero() / 3)*sizeof(double)));
           cuda_api_error_check(
+            cudaMalloc((void**)&dev_stoch_phase_, (stoch_interaction_matrix_.nonZero() / 3)*sizeof(double)));
+          cuda_api_error_check(
             cudaMalloc((void**)&dev_stoch_matrix_, (stoch_interaction_matrix_.nonZero())*sizeof(double)));
+
+          curandGenerateNormalDouble(dev_stoch_rng_, dev_stoch_phase_, stoch_interaction_matrix_.nonZero()/3, 0.0, kTwoPi);
+
 
           cuda_api_error_check(cudaMemcpy(dev_stoch_pure_exchange_values_, stoch_interaction_matrix_.valPtr(),
                 (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
@@ -976,13 +1013,17 @@ void ExchangeHamiltonian::calculate_fields() {
 
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
-      if (stochastic_enabled_) {
         if (solver->time() > stoch_t_start_ && solver->time() < (stoch_t_width_ + stoch_t_start_)) {
-          calculate_cuda_stochastic_exchange();
+          if (stochastic_enabled_) {
+            calculate_cuda_stochastic_exchange();
+          } else if (driven_enabled_) {
+            calculate_cuda_driven_exchange();
+          } else {
+            calculate_cuda_exchange();
+          }
         } else {
           calculate_cuda_exchange();
         }
-      }
 
 
 #endif  // CUDA
@@ -1186,6 +1227,27 @@ void ExchangeHamiltonian::calculate_cuda_stochastic_exchange() {
   assert(stat == CUSPARSE_STATUS_SUCCESS);
 }
 
+void ExchangeHamiltonian::calculate_cuda_driven_exchange() {
+  generate_driven_exchange_values(1.0);
+  const double one = 1.0;
+  const double zero = 0.0;
+  cusparseStatus_t stat =
+  cusparseDcsrmv(cusparse_handle_,
+    CUSPARSE_OPERATION_NON_TRANSPOSE,
+    globals::num_spins3,
+    globals::num_spins3,
+    stoch_interaction_matrix_.nonZero(),
+    &one,
+    stoch_cusparse_descra_,
+    dev_stoch_interaction_matrix_.val,
+    dev_stoch_interaction_matrix_.row,
+    dev_stoch_interaction_matrix_.col,
+    solver->dev_ptr_spin(),
+    &zero,
+    dev_field_.data());
+  assert(stat == CUSPARSE_STATUS_SUCCESS);
+}
+
 double ExchangeHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
   using namespace globals;
 
@@ -1221,7 +1283,12 @@ void ExchangeHamiltonian::generate_stochastic_exchange_values(const double width
 
   if (step_one) {
     reset_stochastic_exchange_values();
-    curandGenerateNormalDouble(dev_stoch_rng_, dev_stoch_noise_, stoch_interaction_matrix_.nonZero()/3, 0.0, 1.0);
+
+    if (coherent_enabled_) {
+      cuda_array_initialize(stoch_interaction_matrix_.nonZero()/3, dev_stoch_noise_, rng.normal(), dev_stream_);
+    } else {
+      curandGenerateNormalDouble(dev_stoch_rng_, dev_stoch_noise_, stoch_interaction_matrix_.nonZero()/3, 0.0, 1.0);
+    }
 
     cuda_array_remapping(stoch_interaction_matrix_.nonZero(), dev_stoch_interaction_map_.val, dev_stoch_noise_, dev_stoch_matrix_, dev_stream_);
 
@@ -1232,7 +1299,7 @@ void ExchangeHamiltonian::generate_stochastic_exchange_values(const double width
     // ------------------------------------------------------
 
     // cuda_api_error_check(cudaMemcpy(stoch_interaction_matrix_.valPtr(), dev_stoch_interaction_matrix_.val,
-          // (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyDeviceToHost));
+    //       (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyDeviceToHost));
 
     // Stats exc_stats;
     // for(int i = 0; i < stoch_interaction_matrix_.nonZero(); ++i) {
@@ -1249,6 +1316,64 @@ void ExchangeHamiltonian::generate_stochastic_exchange_values(const double width
     // debug_file.close();
     // exit(0);
   }
+
+  step_one = !step_one;
+}
+
+void ExchangeHamiltonian::generate_driven_exchange_values(const double width) {
+  static bool step_one = true;
+
+  // if (step_one) {
+    reset_stochastic_exchange_values();
+
+    if (coherent_enabled_) {
+      cuda_array_initialize(stoch_interaction_map_.nonZero()/3, dev_stoch_noise_, cos(kTwoPi * driven_frequency_ * (solver->time()-stoch_t_start_)), dev_stream_);
+    } else {
+      cuda_array_elementwise_cos(stoch_interaction_map_.nonZero()/3, dev_stoch_phase_, kTwoPi * driven_frequency_ * (solver->time()-stoch_t_start_), dev_stoch_noise_, dev_stream_);
+    }
+    cuda_array_initialize(stoch_interaction_matrix_.nonZero(), dev_stoch_matrix_, 0.0, dev_stream_);
+
+    cuda_array_remapping(stoch_interaction_matrix_.nonZero(), dev_stoch_interaction_map_.val, dev_stoch_noise_, dev_stoch_matrix_, dev_stream_);
+
+    cuda_array_elementwise_daxpy(
+      stoch_interaction_matrix_.nonZero(),          // number of elements
+      dev_stoch_sigma_,                             // beta
+      width,                                        // alpha
+      dev_stoch_matrix_,                            // x
+      1,                                            // inc x
+      dev_stoch_interaction_matrix_.val,            // y
+      1,                                            // inc y
+      dev_stream_);
+
+    // ------------------------------------------------------
+    // below is the code to output the exchange distribution
+    // ------------------------------------------------------
+
+    // std::vector<double> tmp(stoch_interaction_matrix_.nonZero(), 0.0);
+
+    // cuda_api_error_check(cudaMemcpy(stoch_interaction_matrix_.valPtr(), dev_stoch_interaction_matrix_.val,
+    //       (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyDeviceToHost));
+
+    // // cuda_api_error_check(cudaMemcpy(&tmp[0], dev_stoch_matrix_,
+    // //       (stoch_interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyDeviceToHost));
+
+    //  Stats exc_stats;
+    //  for(int i = 0; i < stoch_interaction_matrix_.nonZero(); ++i) {
+    //   // std::cerr << i << "\t" << stoch_interaction_matrix_.val(i)<< std::endl;
+    //   // std::cerr << i << "\t" << stoch_interaction_map_.val(i) << "\t" << stoch_interaction_matrix_.val(i)<< "\t" << tmp[i] << std::endl;
+    //    exc_stats.add(stoch_interaction_matrix_.val(i));
+    //  }
+
+    //  std::vector<double> range, bin;
+    //  exc_stats.histogram(range, bin);
+
+    //  std::ofstream debug_file("stochastic_exchange.dat");
+    //  for (int i = 0; i < bin.size(); ++i) {
+    //    debug_file << i << "\t" << range[i] << "\t" << bin[i] << "\n";
+    //  }
+    //  debug_file.close();
+    //  exit(0);
+  // }
 
   step_one = !step_one;
 }

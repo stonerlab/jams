@@ -62,14 +62,17 @@ class ExchangeHamiltonian : public Hamiltonian {
         void read_interactions_with_symmetry(const std::string &filename,
           std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list);
 
-        void insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value, SparseMatrix<double> &matrix);
-        void insert_interaction(const int i, const int j, const int count, const jblib::Matrix<double, 3, 3> &value, SparseMatrix<double> &matrix, SparseMatrix<int> &map);
+        bool insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value, SparseMatrix<double> &matrix);
+        bool insert_interaction(const int i, const int j, const int count, const jblib::Matrix<double, 3, 3> &value, SparseMatrix<double> &matrix, SparseMatrix<int> &map);
 
         void calculate_cuda_exchange();
         void calculate_cuda_stochastic_exchange();
+        void calculate_cuda_driven_exchange();
+
 
         void reset_stochastic_exchange_values();
         void generate_stochastic_exchange_values(const double width);
+        void generate_driven_exchange_values(const double width);
 
         void output_energies_text();
         // void output_energies_hdf5();
@@ -86,7 +89,10 @@ class ExchangeHamiltonian : public Hamiltonian {
         double energy_cutoff_;
         double distance_tolerance_;
         bool is_debug_enabled_;
+        bool driven_enabled_;
         bool stochastic_enabled_;
+        bool coherent_enabled_;
+        double driven_frequency_;
 
 
 #ifdef CUDA
@@ -101,6 +107,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         double    stoch_t_start_;
         double    stoch_t_width_;
         double   *dev_stoch_noise_;                 // normally distributed random values
+        double   *dev_stoch_phase_;                 // normally distributed random values
         double   *dev_stoch_matrix_;                 // normally distributed random values
         double   *dev_stoch_sigma_;                 // element wise width of each gaussian
         double   *dev_stoch_pure_exchange_values_;   // exchange values without any stochastic noise
