@@ -500,9 +500,25 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           stoch_t_width_ = settings["t_width"];
 
 
+          double target_energy = 0.0;
+          bool target_energy_enabled = false;
+          if (settings.exists("target_energy")) {
+            target_energy_enabled = true;
+            target_energy = double(settings["target_energy"]) / kBohrMagneton;
+          }
+
+
           jblib::Array<double, 1> exchange_sigma(stoch_interaction_matrix_.nonZero());
+          exchange_sigma.zero();
+
           for (int i = 0; i < stoch_interaction_matrix_.nonZero(); ++i) {
             // exchange_sigma[i] = sqrt(2.0 * exc_sigma) / sqrt(solver->time_step());
+            if (target_energy_enabled) {
+              if (std::abs(stoch_interaction_matrix_.val(i) - target_energy) > 1e-3) {
+                // skip if not close to target energy
+                continue;
+              }
+            }
             if (stochastic_enabled_) {
               exchange_sigma[i] = sqrt(2.0 * exc_sigma * std::abs(stoch_interaction_matrix_.val(i))) / sqrt(solver->time_step());
             } else {
