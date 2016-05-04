@@ -73,19 +73,51 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
   // loop over node points - the last point is not included in the loop
   // because we move along lines of x_n -> x_n+1
-  libconfig::Setting &bz_nodes = settings["brillouin_zone"];
+  libconfig::Setting &cfg_nodes = settings["brillouin_zone"];
 
   int bz_point_counter = 0;
-  for (int n = 0, nend = bz_nodes.getLength()-1; n < nend; ++n) {
+
+  // read the bz-points from the config
+  for (int n = 0, nend = cfg_nodes.getLength(); n < nend; ++n) {
+
+    // transform into reciprocal lattice vectors
+    bz_cfg_points.push_back(
+      {double(cfg_nodes[n][0]),
+       double(cfg_nodes[n][1]),
+       double(cfg_nodes[n][2])});
+
+    jblib::Vec3<double> bz_vec;
+
+    for (int i = 0; i < 3; ++i) {
+      bz_vec = bz_vec + lattice.unit_cell_vector(i) * bz_cfg_points.back()[i];
+    }
+
+    std::cerr << bz_vec.x << "\t" << bz_vec.y << "\t" << bz_vec.z << std::endl;
+
+    bz_vec = lattice.cartesian_to_fractional(bz_vec);
+
+    std::cerr << bz_vec.x << "\t" << bz_vec.y << "\t" << bz_vec.z << std::endl;
+
+    for (int i = 0; i < 3; ++i) {
+      bz_vec[i] = bz_vec[i] * (lattice.kspace_size()[i]/2 + 1);
+    }
+    std::cerr << bz_vec.x << "\t" << bz_vec.y << "\t" << bz_vec.z << std::endl;
+
+    bz_nodes.push_back({int(bz_vec.x), int(bz_vec.y), int(bz_vec.z)});
+
+  }
+
+  for (int n = 0, nend = bz_nodes.size()-1; n < nend; ++n) {
     jblib::Vec3<int> bz_point, bz_line, bz_line_element;
+
 
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
       if (int(bz_nodes[n][i]) > (lattice.kspace_size()[i]/2 + 1)) {
-        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n][0]), int(bz_nodes[n][1]), int(bz_nodes[n][2]));
+        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(cfg_nodes[n][0]), int(cfg_nodes[n][1]), int(cfg_nodes[n][2]));
       }
       if (int(bz_nodes[n+1][i]) > (lattice.kspace_size()[i]/2 + 1)) {
-        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n+1][0]), int(bz_nodes[n+1][1]), int(bz_nodes[n+1][2]));
+        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(cfg_nodes[n+1][0]), int(cfg_nodes[n+1][1]), int(cfg_nodes[n+1][2]));
       }
     }
 
@@ -106,12 +138,23 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     // store the length element between these points
     for (int j = 0; j < bz_line_points; ++j) {
-      bz_lengths.push_back(abs(bz_line_element));
       for (int i = 0; i < 3; ++i) {
         bz_point[i] = int(bz_nodes[n][i]) + j*bz_line_element[i];
       }
+
+      // check if this is a continuous path and drop duplicate points at the join
+      if (bz_points.size() > 0) {
+        if(bz_point.x == bz_points.back().x
+          && bz_point.y == bz_points.back().y
+          && bz_point.z == bz_points.back().z) {
+          continue;
+        }
+      }
+
+      bz_lengths.push_back(abs(bz_line_element));
+
       bz_points.push_back(bz_point);
-      ::output.write("  bz point: %6d %6.6f [ %4d %4d %4d ]\n", bz_point_counter, bz_lengths.back(), bz_points.back().x, bz_points.back().y, bz_points.back().z);
+      ::output.verbose("  bz point: %6d %6.6f [ %4d %4d %4d ]\n", bz_point_counter, bz_lengths.back(), bz_points.back().x, bz_points.back().y, bz_points.back().z);
       bz_point_counter++;
     }
   }

@@ -37,6 +37,8 @@ class StructureFactorMonitor : public Monitor {
   jblib::Array<std::complex<double>, 3> sqw_z;
   jblib::Array<fftw_complex, 1> chi_xy;
   jblib::Array<fftw_complex, 1> chi_yx;
+  std::vector<jblib::Vec3<double> > bz_cfg_points;
+  std::vector<jblib::Vec3<int> > bz_nodes;
   std::vector<jblib::Vec3<int> > bz_points;
   std::vector<double> bz_lengths;
   double freq_delta;

@@ -238,7 +238,7 @@ Lattice::num_unit_cell_positions() const {
 inline Vec3
 Lattice::unit_cell_vector(const int i) const {
     assert(i < 3 && i >= 0);
-    return super_cell.unit_cell[i];
+    return Vec3(super_cell.unit_cell[0][i], super_cell.unit_cell[1][i], super_cell.unit_cell[2][i]);
 }
 
 inline Vec3
