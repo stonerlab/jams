@@ -54,7 +54,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   int    num_samples = int(t_run/t_sample);
   double freq_sample = num_samples / t_run;
   double freq_max    = 1.0/(2.0*t_sample);
-         freq_delta  = freq_max / num_samples;
+         freq_delta  = 1.0/t_sample;
 
   ::output.write("\n");
   ::output.write("  number of samples:          %d\n", num_samples);
