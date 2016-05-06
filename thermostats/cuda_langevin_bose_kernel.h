@@ -61,7 +61,7 @@ __device__ void rk4(void ode(const double[4], const double[4], const double[4], 
     }
 }
 
-__global__ void bose_stochastic_process_cuda_kernel
+__global__ void bose_coth_stochastic_process_cuda_kernel
 (
           double * noise,
           double * zeta,
@@ -99,15 +99,15 @@ __global__ void bose_stochastic_process_cuda_kernel
                        eta[6*x+2]*sqrt(2.0/lambda[2]),
                        eta[6*x+3]*sqrt(2.0/lambda[3])};
 
-        rk4(linear_ode, h*w_m, lambda, e, z);
+        // rk4(linear_ode, h*w_m, lambda, e, z);
 
-        for (i = 0; i < 4; ++i) {
-            zeta[8*x+i] = z[i];
-        }
+        // for (i = 0; i < 4; ++i) {
+        //     zeta[8*x+i] = z[i];
+        // }
 
-        for (i = 0; i < 4; ++i) {
-            s0 += c[i]*(e[i] - z[i]);
-        }
+        // for (i = 0; i < 4; ++i) {
+        //     s0 += c[i]*(e[i] - z[i]);
+        // }
         // ------------------------------------------------------
 
         // first two elements are gamma, second two are omega
@@ -130,7 +130,7 @@ __global__ void bose_stochastic_process_cuda_kernel
         // ------------------------------------------------------
 
         s1 = c[4]*z[0] + c[5]*z[2];
-        noise[x] = T*(s0 + s1);
+        noise[x] = T*(s1);
     }
 }
 

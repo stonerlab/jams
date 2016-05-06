@@ -22,6 +22,8 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   dev_noise_(3*num_spins) {
   ::output.write("\n  initialising CUDA Langevin semi-quantum noise thermostat\n");
 
+  debug_ = true;
+
   if (debug_) {
     ::output.write("    DEBUG ON\n");
     std::string name = seedname + "_noise.dat";
@@ -87,7 +89,9 @@ void CudaLangevinBoseThermostat::update() {
   // }
 
   const double w_m = (kHBar * w_max_) / (kBoltzmann * this->temperature());
-  const double reduced_temperature = sqrt(this->temperature());
+  // const double reduced_temperature = sqrt(this->temperature()) ;
+  const double reduced_temperature = sqrt(2.0*this->temperature())*sqrt( (2.0 * kBoltzmann * globals::alpha(0) * globals::mus(0)) / (solver->time_step() * kBohrMagneton) );
+
 
   curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, 1.0);
   bose_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), tau_ * this->temperature(), reduced_temperature, w_m, globals::num_spins3);
