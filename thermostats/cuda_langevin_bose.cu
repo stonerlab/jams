@@ -64,8 +64,8 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   }
 
   ::output.write("    allocating GPU memory\n");
-  dev_eta_.resize(6*globals::num_spins3);
-  dev_zeta_.resize(8*globals::num_spins3);
+  dev_eta_.resize(2*globals::num_spins3);
+  dev_zeta_.resize(4*globals::num_spins3);
 
   // initialize zeta and eta with random variables
   curandSetStream(dev_rng_, dev_stream_);
@@ -94,7 +94,7 @@ void CudaLangevinBoseThermostat::update() {
 
 
   curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, 1.0);
-  bose_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), tau_ * this->temperature(), reduced_temperature, w_m, globals::num_spins3);
+  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), tau_ * this->temperature(), reduced_temperature, w_m, globals::num_spins3);
 
   if (debug_) {
     jblib::Array<double, 1> dbg_noise(dev_noise_.size(), 0.0);
