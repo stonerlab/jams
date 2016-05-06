@@ -90,7 +90,7 @@ void CudaLangevinBoseThermostat::update() {
 
   const double w_m = (kHBar * w_max_) / (kBoltzmann * this->temperature());
   // const double reduced_temperature = sqrt(this->temperature()) ;
-  const double reduced_temperature = sqrt(2.0*this->temperature())*sqrt( (2.0 * kBoltzmann * globals::alpha(0) * globals::mus(0)) / (solver->time_step() * kBohrMagneton) );
+  const double reduced_temperature = this->temperature() * sqrt( (2.0 * kBoltzmann * globals::alpha(0) * globals::mus(0)) / (kBohrMagneton) );
 
 
   curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, 1.0);
