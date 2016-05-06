@@ -117,7 +117,7 @@ __global__ void bose_coth_stochastic_process_cuda_kernel
         }
 
         for (i = 0; i < 2; ++i) {
-            e[i] = eta[6*x+i+4]*sqrt(2.0*gamma_omega[i]);
+            e[i] = eta[2 * x + i]*sqrt(2.0*gamma_omega[i]/h);
         }
         e[2] = 0.0;
         e[3] = 0.0;
