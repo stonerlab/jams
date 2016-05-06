@@ -61,7 +61,7 @@ __device__ void rk4(void ode(const double[4], const double[4], const double[4], 
     }
 }
 
-__global__ void coth_stochastic_process_cuda_kernel
+__global__ void bose_stochastic_process_cuda_kernel
 (
           double * noise,
           double * zeta,

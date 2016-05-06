@@ -184,7 +184,7 @@ ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_array_kernels.o
 	CUDA_OBJS += solvers/cuda_heunllg.o
 	CUDA_OBJS += solvers/cuda_constrainedmc.o
-	CUDA_OBJS += thermostats/cuda_langevin_coth.o
+	CUDA_OBJS += thermostats/cuda_langevin_bose.o
 	OBJS += thermostats/cuda_langevin_white.o
 	CUDA_OBJS += hamiltonian/uniaxial.o
 	CUDA_OBJS += hamiltonian/zeeman.o
@@ -198,8 +198,8 @@ ifndef NO_CUDA
 	CUDA_HDR += solvers/cuda_heunllg.h
 	CUDA_HDR += solvers/cuda_heunllg_kernel.h
 	CUDA_HDR += solvers/cuda_constrainedmc.h
-	CUDA_HDR += thermostats/cuda_langevin_coth.h
-	CUDA_HDR += thermostats/cuda_langevin_coth_kernel.h
+	CUDA_HDR += thermostats/cuda_langevin_bose.h
+	CUDA_HDR += thermostats/cuda_langevin_bose_kernel.h
 	CUDA_HDR += thermostats/cuda_langevin_white.h
 
 endif
