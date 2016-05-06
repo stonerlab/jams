@@ -98,6 +98,7 @@ OBJS += core/sparsematrix.o
 OBJS += core/thermostat.o
 OBJS += core/hamiltonian.o
 OBJS += monitors/boltzmann.o
+OBJS += monitors/smr.o
 OBJS += monitors/energy.o
 OBJS += monitors/spin_pumping.o
 OBJS += monitors/magnetisation.o
@@ -120,7 +121,6 @@ OBJS += solvers/metropolismc.o
 OBJS += solvers/constrainedmc.o
 OBJS += solvers/monte-carlo-wolff.o
 OBJS += hamiltonian/dipole.o
-OBJS += hamiltonian/dipole_bruteforce.o
 OBJS += hamiltonian/dipole_tensor.o
 OBJS += hamiltonian/dipole_ewald.o
 OBJS += hamiltonian/dipole_fft.o
@@ -146,6 +146,7 @@ HDR += core/slice.h
 HDR += core/hamiltonian.h
 HDR += core/neartree.h
 HDR += monitors/boltzmann.h
+HDR += monitors/smr.h
 HDR += monitors/energy.h
 HDR += monitors/spin_pumping.h
 HDR += monitors/magnetisation.h
@@ -169,12 +170,12 @@ HDR += solvers/metropolismc.h
 HDR += solvers/constrainedmc.h
 HDR += solvers/monte-carlo-wolff.h
 HDR += hamiltonian/dipole.h
-HDR += hamiltonian/dipole_bruteforce.h
 HDR += hamiltonian/dipole_tensor.h
 HDR += hamiltonian/dipole_ewald.h
 HDR += hamiltonian/dipole_fft.h
 HDR += hamiltonian/uniaxial.h
 HDR += hamiltonian/exchange.h
+HDR += hamiltonian/exchange_neartree.h
 HDR += hamiltonian/zeeman.h
 
 ifndef NO_CUDA
@@ -189,7 +190,11 @@ ifndef NO_CUDA
 	CUDA_OBJS += hamiltonian/uniaxial.o
 	CUDA_OBJS += hamiltonian/zeeman.o
 	CUDA_OBJS += hamiltonian/exchange.o
+	CUDA_OBJS += hamiltonian/exchange_neartree.o
+	CUDA_OBJS += hamiltonian/dipole_bruteforce.o
 
+	CUDA_HDR += hamiltonian/dipole_bruteforce.h
+	CUDA_HDR += hamiltonian/dipole_bruteforce_kernel.h
 	CUDA_HDR += core/cuda_defs.h
 	CUDA_HDR += core/cuda_solver.h
 	CUDA_HDR += core/cuda_sparsematrix.h
@@ -222,9 +227,10 @@ EXTLIBS += -lconfig++
 
 ifdef MKLROOT
 	CC = icpc
+	EXTRA_CPPFLAGS += -xHOST
 	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -D__INTEL_COMPILER -DMKL
 	BASIC_LDFLAGS += -L$(MKLROOT)/lib/intel64
-	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm -ldl
 else
 	EXTLIBS += -lfftw3
 endif

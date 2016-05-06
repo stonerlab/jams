@@ -113,7 +113,7 @@ double ZeemanHamiltonian::calculate_one_spin_energy(const int i) {
 
     calculate_one_spin_field(i, one_spin_field);
 
-    return -kElectronGFactor * (s(i, 0)*one_spin_field[0] + s(i, 1)*one_spin_field[1] + s(i, 2)*one_spin_field[2]);
+    return -(s(i, 0)*one_spin_field[0] + s(i, 1)*one_spin_field[1] + s(i, 2)*one_spin_field[2]);
 }
 
 // --------------------------------------------------------------------------
@@ -136,7 +136,7 @@ double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, cons
         e_final += -spin_final[n]*h_local[n];
     }
 
-    return kElectronGFactor * (e_final - e_initial);
+    return (e_final - e_initial);
 }
 
 // --------------------------------------------------------------------------

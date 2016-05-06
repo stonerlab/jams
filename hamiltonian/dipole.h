@@ -47,12 +47,6 @@ class DipoleHamiltonian : public Hamiltonian {
         HamiltonianStrategy *dipole_strategy_;
 
         OutputFormat            outformat_;
-
-#ifdef CUDA
-        jblib::CudaArray<double, 1> dev_energy_;
-        jblib::CudaArray<double, 1> dev_field_;
-#endif  // CUDA
-
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_H

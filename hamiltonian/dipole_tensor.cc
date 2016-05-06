@@ -117,7 +117,11 @@ double DipoleHamiltonianTensor::calculate_one_spin_energy(const int i) {
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianTensor::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
-    return 0.5*(calculate_one_spin_energy(i, spin_final) - calculate_one_spin_energy(i, spin_initial));
+    double h[3];
+    calculate_one_spin_field(i, h);
+    double e_initial = -(spin_initial[0]*h[0] + spin_initial[1]*h[1] + spin_initial[2]*h[2]);
+    double e_final = -(spin_final[0]*h[0] + spin_final[1]*h[1] + spin_final[2]*h[2]);
+    return 0.5*(e_final - e_initial);
 }
 // --------------------------------------------------------------------------
 

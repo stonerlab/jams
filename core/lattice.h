@@ -23,33 +23,40 @@ extern "C"{
 class DistanceMetric {
 
 public:
-  DistanceMetric(SuperCell super_cell)
-    : super_cell_(super_cell),
-      dsize_(1.0 / super_cell.size.x, 1.0 / super_cell.size.y, 1.0 / super_cell.size.z),
-      inverse_(super_cell.unit_cell.inverse())
-  {}
+  DistanceMetric(const Mat3 unit_cell, const Vec3i cell_count, const Vec3b cell_pbc)
+  : super_cell_pbc_(cell_pbc)
+  {
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            super_unit_cell_[i][j] = unit_cell[i][j] * cell_count[i];
+        }
+    }
+
+    super_unit_cell_inv_ = super_unit_cell_.inverse();
+  }
 
   inline Vec3 displacement(const Atom& a, const Atom& b) const {
-    Vec3 dr(inverse_ * (a.pos - b.pos));
+    Vec3 dr(super_unit_cell_inv_ * (a.pos - b.pos));
 
+    #pragma unroll
     for (int n = 0; n < 3; ++n) {
-      if (super_cell_.periodic[n]) {
-        dr[n] = dr[n] - nint(dr[n] * dsize_[n]) * super_cell_.size[n];
+      if (super_cell_pbc_[n]) {
+        // W. Smith, CCP5 Information Quarterly for Computer Simulation of Condensed Phases (1989).
+        dr[n] = dr[n] - trunc(2.0 * dr[n]);
       }
     }
 
-    return (super_cell_.unit_cell * dr);
+    return (super_unit_cell_ * dr);
   }
 
   inline double operator()(const Atom& a, const Atom& b) const {
-    return displacement(a, b).norm();
+    return abs(displacement(a, b));
   }
 
 private:
-
-  const SuperCell super_cell_;
-  const Vec3      dsize_;
-  const Mat3      inverse_;
+    const Vec3b super_cell_pbc_;
+    Mat3 super_unit_cell_;
+    Mat3 super_unit_cell_inv_;
 };
 
 
@@ -66,13 +73,16 @@ class Lattice {
     inline int     size(const int i) const;           ///< integer number of unitcell in each lattice vector
     inline int     num_unit_cells() const; ///< number of unit cells in the whole lattice
     inline int     num_unit_cell_positions() const;         ///< number atomic positions in the unit cell
+    inline Vec3    unit_cell_vector(const int i) const;     ///< lattice vectors
     inline Vec3    unit_cell_position(const int i) const;   ///< position i in fractional coordinates
+    inline Vec3    unit_cell_position_cart(const int i) const;   ///< position i in fractional coordinates
     inline int     unit_cell_material_uid(const int i);     ///< uid of material at position i
     inline string  unit_cell_material_name(const int i);     ///< uid of material at position i
 
     inline int     num_materials() const;                           ///< number of unique materials in lattice
     inline int     num_of_material(const int i) const;               ///< number of lattice sites of material i
     inline string  material_name(const int uid);  ///< material string name from uid
+    inline int     material_id(const string &name);  ///< material string name from uid
 
     inline int     atom_material(const int i) const;  ///< uid of material at lattice site i
     inline Vec3    atom_position(const int i) const;
@@ -154,13 +164,19 @@ class Lattice {
     void load_spin_state_from_hdf5(std::string &filename);
 
   private:
-    void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void read_motif_from_config(const libconfig::Setting &positions);
+    void read_motif_from_file(const std::string &filename);
+
+
+    void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings);
     void init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
     void init_kspace();
     void init_nearest_neighbour_list(const double r_cutoff, const bool prune = false);
     void calc_symmetry_operations();
+    void set_spacegroup(const int hall_number);
 
     bool is_debugging_enabled_;
+    bool symops_enabled_;
 
     SuperCell                       super_cell;
     DistanceMetric*                 metric_;
@@ -190,6 +206,7 @@ class Lattice {
 
     // spglib
     SpglibDataset *spglib_dataset_;
+    std::vector< Mat3 > rotations_;
 
 };
 
@@ -219,20 +236,32 @@ Lattice::num_unit_cell_positions() const {
 }
 
 inline Vec3
+Lattice::unit_cell_vector(const int i) const {
+    assert(i < 3 && i >= 0);
+    return super_cell.unit_cell[i];
+}
+
+inline Vec3
 Lattice::unit_cell_position(const int i) const {
     assert(i < num_unit_cell_positions());
     return motif_[i].pos;
 }
 
+inline Vec3
+Lattice::unit_cell_position_cart(const int i) const {
+    assert(i < num_unit_cell_positions());
+    return super_cell.unit_cell * motif_[i].pos;
+}
+
 inline int
 Lattice::unit_cell_material_uid(const int i) {
-    assert(i < unit_cell_position_.size());
+    assert(i < motif_.size());
     return motif_[i].id;
 }
 
 inline std::string
 Lattice::unit_cell_material_name(const int i) {
-    assert(i < unit_cell_position_.size());
+    assert(i < motif_.size());
     return material_id_map_[motif_[i].material].name;
 }
 
@@ -248,7 +277,12 @@ Lattice::num_of_material(const int i) const {
 
 inline std::string
 Lattice::material_name(const int uid) {
-    return material_id_map_[uid].name;
+    return material_id_map_.at(uid).name;
+}
+
+inline int
+Lattice::material_id(const string &name) {
+    return material_name_map_.at(name).id;
 }
 
 inline int
@@ -289,15 +323,22 @@ Lattice::fractional_to_cartesian(const Vec3& r_frac) const {
 
 inline int
 Lattice::num_sym_ops() const {
-    return spglib_dataset_->n_operations;
+    if (symops_enabled_) {
+        return spglib_dataset_->n_operations;
+    } else {
+        return 0;
+    }
 }
 
 inline Vec3
 Lattice::sym_rotation(const int i, const Vec3 vec) const {
-    return Vec3(
-    spglib_dataset_->rotations[i][0][0]*vec.x + spglib_dataset_->rotations[i][0][1]*vec.y + spglib_dataset_->rotations[i][0][2]*vec.z,
-    spglib_dataset_->rotations[i][1][0]*vec.x + spglib_dataset_->rotations[i][1][1]*vec.y + spglib_dataset_->rotations[i][1][2]*vec.z,
-    spglib_dataset_->rotations[i][2][0]*vec.x + spglib_dataset_->rotations[i][2][1]*vec.y + spglib_dataset_->rotations[i][2][2]*vec.z);
+    assert(rotations_.size() == num_sym_ops());
+    assert(i < rotations_.size() && i >= 0);
+    if (symops_enabled_) {
+        return rotations_[i] * vec;
+    } else {
+        return vec;
+    }
 }
 
 inline Vec3

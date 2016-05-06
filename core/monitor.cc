@@ -11,6 +11,7 @@
 #include "monitors/energy.h"
 #include "monitors/spin_pumping.h"
 #include "monitors/boltzmann.h"
+#include "monitors/smr.h"
 #include "monitors/vtu.h"
 #include "monitors/hdf5.h"
 #include "monitors/xyz.h"
@@ -58,6 +59,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "BOLTZMANN") {
     return new BoltzmannMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "SMR") {
+    return new SMRMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "VTU") {

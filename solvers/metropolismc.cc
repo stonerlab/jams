@@ -34,7 +34,9 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     preconditioner_delta_phi_ = config.lookup("sim.preconditioner.[1]");
   }
 
-  outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
+  if (output.is_verbose()) {
+    outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
+  }
 }
 
   void MetropolisMCSolver::run() {
@@ -56,30 +58,22 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     }
 
     std::string trial_step_name;
-/*
-    if (iteration_ % 2 == 0) {
+
+    if ((iteration_ + 1) % 4 == 0) {
       MetropolisAlgorithm(mc_small_trial_step);
       trial_step_name = "STS";
+    } else if ((iteration_ + 1) % 5 == 0) {
+      MetropolisAlgorithm(mc_reflection_trial_step);
+      trial_step_name = "RTS";
     } else {
       MetropolisAlgorithm(mc_uniform_trial_step);
       trial_step_name = "UTS";
     }
-*/
-    if (iteration_ % 2 == 0) {
-      MetropolisAlgorithm(mc_uniform_trial_step);
-      trial_step_name = "UTS";
-    } else {
-      if ((iteration_ - 1) % 4 == 0) {
-        MetropolisAlgorithm(mc_reflection_trial_step);
-        trial_step_name = "RTS";
-      } else {
-        MetropolisAlgorithm(mc_small_trial_step);
-        trial_step_name = "STS";
-      }
+      
+    if (output.is_verbose()) {
+      move_acceptance_fraction_ = move_acceptance_count_/double(num_spins);
+      outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::fixed << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
     }
-
-    move_acceptance_fraction_ = move_acceptance_count_/double(num_spins);
-    outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::fixed << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
 
     iteration_++;
   }

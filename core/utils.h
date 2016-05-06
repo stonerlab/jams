@@ -44,6 +44,19 @@ inline std::string file_basename(std::string filepath) {
   return filepath.substr(slash+1, dot-slash-1);
 }
 
+inline bool string_is_comment(const std::string& s) {
+  std::stringstream ss(s);
+  char two_chars[2];
+
+  ss >> two_chars[0];
+  ss >> two_chars[1];
+  // accept '#' or '//' as a comment character
+  if ((!ss) || (two_chars[0] == '#') || (two_chars[0] == '/' && two_chars[1] == '/') ) {
+    return true;
+  }
+  return false;
+}
+
 // Lifted from http://www.cplusplus.com/forum/general/15952/
 inline std::string zero_pad_number(const int num) {
     std::ostringstream ss;

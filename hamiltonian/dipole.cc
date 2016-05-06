@@ -17,7 +17,7 @@ DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
     field_.resize(globals::num_spins, 3);
 
 #ifdef CUDA
-    if (globals::is_cuda_solver_used) {
+    if (solver->is_cuda_solver()) {
         dev_energy_.resize(globals::num_spins);
         dev_field_.resize(globals::num_spins3);
     }
@@ -42,6 +42,10 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
 
         if (strategy_name == "FFT") {
             return new DipoleHamiltonianFFT(settings);
+        }
+
+        if (strategy_name == "BRUTEFORCE") {
+            return new DipoleHamiltonianBruteforce(settings);
         }
 
         std::runtime_error("Unknown DipoleHamiltonian strategy '" + strategy_name + "' requested\n");
@@ -82,8 +86,11 @@ void DipoleHamiltonian::calculate_one_spin_field(const int i, double h[3]) {
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_fields() {
-
-    dipole_strategy_->calculate_fields(field_);
+    if (solver->is_cuda_solver()) {
+        dipole_strategy_->calculate_fields(dev_field_);
+    } else {
+        dipole_strategy_->calculate_fields(field_);
+    }
 }
 // --------------------------------------------------------------------------
 

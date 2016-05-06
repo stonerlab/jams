@@ -39,7 +39,7 @@ class StructureFactorMonitor : public Monitor {
   jblib::Array<fftw_complex, 1> chi_yx;
   std::vector<jblib::Vec3<int> > bz_points;
   std::vector<double> bz_lengths;
-  double delta_freq_;
+  double freq_delta;
   int time_point_counter_;
 };
 

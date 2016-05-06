@@ -162,6 +162,10 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
         }
         dev_mca_value_ = tmp_mca_value;
     }
+
+    cudaStreamCreate(&dev_stream_);
+
+    dev_blocksize_ = 128;
 #endif
 
 }
@@ -242,7 +246,7 @@ void UniaxialHamiltonian::calculate_fields() {
 
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
-        cuda_uniaxial_field_kernel<<<(globals::num_spins+BLOCKSIZE-1)/BLOCKSIZE, BLOCKSIZE >>>
+        cuda_uniaxial_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
             (globals::num_spins, mca_order_.size(), dev_mca_order_.data(), dev_mca_value_.data(), solver->dev_ptr_spin(), dev_field_.data());
 #endif  // CUDA
     } else {

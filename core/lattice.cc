@@ -10,6 +10,7 @@ extern "C"{
 #include <stdint.h>
 
 #include <algorithm>
+#include <stdexcept>
 #include <numeric>
 #include <cmath>
 #include <fstream>
@@ -26,6 +27,7 @@ extern "C"{
 
 #include "core/consts.h"
 #include "core/globals.h"
+#include "core/exception.h"
 #include "core/maths.h"
 #include "core/sparsematrix.h"
 #include "core/utils.h"
@@ -39,19 +41,25 @@ using std::endl;
 using libconfig::Setting;
 using libconfig::Config;
 
-//
-// struct Atom {
-//   int  index;
-//   vec3 r;
-//
-//   inline Atom operator-(const Atom &rhs) const{
-//     return Atom({index, r - rhs.r});
-//   }
-//
-//   inline operator double() {
-//     return std::sqrt(r.x * r.x + r.y * r.y + r.z * r.z);
-//   }
-// };
+void Lattice::init_from_config(const libconfig::Config& cfg) {
+
+  symops_enabled_ = true;
+  cfg.lookupValue("lattice.symops", symops_enabled_);
+  output.write("  symops: %s", symops_enabled_ ? "true" : "false");
+
+  init_unit_cell(cfg.lookup("materials"), cfg.lookup("lattice"), cfg.lookup("unitcell"));
+
+  if (symops_enabled_) {
+    calc_symmetry_operations();
+  }
+
+  init_lattice_positions(cfg.lookup("materials"), cfg.lookup("lattice"));
+
+  if (symops_enabled_) {
+    init_kspace();
+  }
+}
+
 
 void read_material_settings(Setting& cfg, Material &mat) {
   mat.name   = cfg["name"].c_str();
@@ -89,7 +97,7 @@ void read_material_settings(Setting& cfg, Material &mat) {
       mat.spin[1] = sin(theta)*sin(phi);
       mat.spin[2] = cos(theta);
     } else {
-      std::runtime_error("material spin array is not of a recognised size (2 or 3)");
+      throw general_exception("material spin array is not of a recognised size (2 or 3)", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
   }
 
@@ -135,17 +143,76 @@ Vec3 Lattice::generate_fractional_position(
                              unit_cell_frac_pos.z + translation_vector.z);
 }
 
-void Lattice::init_from_config(const libconfig::Config& pConfig) {
-  init_unit_cell(pConfig.lookup("materials"), pConfig.lookup("lattice"));
-  init_lattice_positions(pConfig.lookup("materials"), pConfig.lookup("lattice"));
+void Lattice::read_motif_from_config(const libconfig::Setting &positions) {
+  Atom atom;
+  string atom_name;
+
+  motif_.clear();
+
+  for (int i = 0; i < positions.getLength(); ++i) {
+
+    atom_name = positions[i][0].c_str();
+
+    // check the material type is defined
+    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
+      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+    atom.material = material_name_map_[atom_name].id;
+
+    atom.pos.x = positions[i][1][0];
+    atom.pos.y = positions[i][1][1];
+    atom.pos.z = positions[i][1][2];
+
+    atom.id = motif_.size();
+
+    motif_.push_back(atom);
+  }
 }
 
-void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings) {
+void Lattice::read_motif_from_file(const std::string &filename) {
+  std::string line;
+  std::ifstream position_file(filename.c_str());
+
+  if(position_file.fail()) {
+    throw general_exception("failed to open position file " + filename, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
+  motif_.clear();
+
+  // read the motif into an array from the positions file
+  while (getline(position_file, line)) {
+    if(string_is_comment(line)) {
+      continue;
+    }
+    std::stringstream line_as_stream;
+    string atom_name;
+    Atom atom;
+
+    line_as_stream.str(line);
+
+    // read atom type name
+    line_as_stream >> atom_name >> atom.pos.x >> atom.pos.y >> atom.pos.z;
+
+    // check the material type is defined
+    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
+      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+    atom.material = material_name_map_[atom_name].id;
+    atom.id = motif_.size();
+
+    motif_.push_back(atom);
+  }
+  position_file.close();
+}
+
+
+void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings) {
   using namespace globals;
   using std::string;
   using std::pair;
 
   int i, j;
+
 
 //-----------------------------------------------------------------------------
 // Read lattice vectors
@@ -159,40 +226,40 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      super_cell.unit_cell[i][j] = lattice_settings["basis"][i][j];
+      super_cell.unit_cell[i][j] = unitcell_settings["basis"][i][j];
     }
   }
-  printf("\n----------------------------------------\n");
-  printf("\nunit cell\n");
+  output.write("\n----------------------------------------\n");
+  output.write("\nunit cell\n");
 
-  printf("  lattice vectors\n");
+  output.write("  lattice vectors\n");
   for (i = 0; i < 3; ++i) {
-    printf("    % 3.6f % 3.6f % 3.6f\n",
+    output.write("    % 3.6f % 3.6f % 3.6f\n",
       super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
   }
 
   super_cell.unit_cell_inv = super_cell.unit_cell.inverse();
 
-  printf("  inverse lattice vectors\n");
+  output.write("  inverse lattice vectors\n");
   for (i = 0; i < 3; ++i) {
-    printf("    % 3.6f % 3.6f % 3.6f\n",
+    output.write("    % 3.6f % 3.6f % 3.6f\n",
       super_cell.unit_cell_inv[i][0], super_cell.unit_cell_inv[i][1], super_cell.unit_cell_inv[i][2]);
   }
 
-  super_cell.parameter = lattice_settings["parameter"];
-  printf("  lattice parameter (m):\n    %3.6e\n", super_cell.parameter);
+  super_cell.parameter = unitcell_settings["parameter"];
+  output.write("  lattice parameter (m):\n    %3.6e\n", super_cell.parameter);
 
   if (super_cell.parameter < 0.0) {
-    throw std::runtime_error("config: lattice parameter cannot be negative");
+    throw general_exception("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
-  printf("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
+  output.write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
 
   for (i = 0; i < 3; ++i) {
     super_cell.size[i] = lattice_settings["size"][i];
   }
 
-  printf("  lattice size\n    %d  %d  %d\n",
+  output.write("  lattice size\n    %d  %d  %d\n",
     super_cell.size.x, super_cell.size.y, super_cell.size.z);
 
 //-----------------------------------------------------------------------------
@@ -201,7 +268,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   if(!lattice_settings.exists("periodic")) {
     // sane default
-    printf(
+    output.write(
       "\nASSUMPTION: no boundary conditions specified - assuming 3D periodic\n");
     for (i = 0; i < 3; ++i) {
       super_cell.periodic[i] = true;
@@ -211,18 +278,18 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
       super_cell.periodic[i] = lattice_settings["periodic"][i];
     }
   }
-  printf("  boundary conditions\n    %s  %s  %s\n",
+  output.write("  boundary conditions\n    %s  %s  %s\n",
     super_cell.periodic.x ? "periodic" : "open",
     super_cell.periodic.y ? "periodic" : "open",
     super_cell.periodic.z ? "periodic" : "open");
 
-  metric_ = new DistanceMetric(super_cell);
+  metric_ = new DistanceMetric(super_cell.unit_cell, super_cell.size, super_cell.periodic);
 
 //-----------------------------------------------------------------------------
 // Read materials
 //-----------------------------------------------------------------------------
 
-  printf("  materials\n");
+  output.write("  materials\n");
 
   Material material;
   for (i = 0; i < material_settings.getLength(); ++i) {
@@ -232,7 +299,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
       throw std::runtime_error("the material " + material.name + " is specified twice in the configuration");
     }
     material_id_map_.insert({material.id, material});
-    printf("    %-6d %s\n", material.id, material.name.c_str());
+    output.write("    %-6d %s\n", material.id, material.name.c_str());
   }
 
 //-----------------------------------------------------------------------------
@@ -241,44 +308,21 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   // TODO - use libconfig to check if this is a string or a group to allow
   // positions to be defined in the config file directly
-  std::string position_filename = lattice_settings["positions"];
-  std::ifstream position_file(position_filename.c_str());
 
-  if(position_file.fail()) {
-    throw std::runtime_error("failed to open position file " + position_filename);
+  std::string position_filename;
+  if (unitcell_settings["positions"].isList()) {
+    position_filename = seedname + ".cfg";
+    read_motif_from_config(unitcell_settings["positions"]);
+  } else {
+     position_filename = unitcell_settings["positions"].c_str();
+    read_motif_from_file(position_filename);
   }
 
-  printf("  unit cell positions (%s)\n", position_filename.c_str());
+  output.write("  unit cell positions (%s)\n", position_filename.c_str());
 
-  int counter = 0;
-
-  std::string line;
-
-  // read the motif into an array from the positions file
-  while (getline(position_file, line)) {
-    std::stringstream line_as_stream;
-    string atom_name;
-    Atom atom;
-
-    line_as_stream.str(line);
-    // read atom type name
-    line_as_stream >> atom_name >> atom.pos.x >> atom.pos.y >> atom.pos.z;
-
-    // check the material type is defined
-    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
-      throw std::runtime_error("material " + atom_name + " in the motif is not defined in the configuration");
-    }
-
-    atom.material = material_name_map_[atom_name].id;
-
-    motif_.push_back(atom);
-
-    printf("    %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, atom_name.c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
-    counter++;
+  for (const Atom &atom: motif_) {
+    output.write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
   }
-  position_file.close();
-
-  calc_symmetry_operations();
 }
 
 void Lattice::init_lattice_positions(
@@ -290,14 +334,14 @@ void Lattice::init_lattice_positions(
 
   Vec3i kmesh_size(kpoints_.x*super_cell.size.x, kpoints_.y*super_cell.size.y, kpoints_.z*super_cell.size.z);
   if (!super_cell.periodic.x || !super_cell.periodic.y || !super_cell.periodic.z) {
-    printf("\nzero padding non-periodic dimensions\n");
+    output.write("\nzero padding non-periodic dimensions\n");
      // double any non-periodic dimensions for zero padding
     for (int i = 0; i < 3; ++i) {
       if (!super_cell.periodic[i]) {
         kmesh_size[i] = 2*kpoints_[i]*super_cell.size[i];
       }
     }
-    printf("\npadded kspace size\n  %d  %d  %d\n", kmesh_size.x, kmesh_size.y, kmesh_size.z);
+    output.write("\npadded kspace size\n  %d  %d  %d\n", kmesh_size.x, kmesh_size.y, kmesh_size.z);
   }
 
   kspace_size_ = Vec3i(kmesh_size.x, kmesh_size.y, kmesh_size.z);
@@ -371,22 +415,22 @@ void Lattice::init_lattice_positions(
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;
 
-  printf("\n----------------------------------------\n");
-  printf("\ncomputed lattice positions (%d)\n", atom_counter);
+  output.write("\n----------------------------------------\n");
+  output.write("\ncomputed lattice positions (%d)\n", atom_counter);
   if (::output.is_verbose()) {
     for (int i = 0, iend = lattice_positions_.size(); i != iend; ++i) {
-      printf("  %-6d %-6s % 3.6f % 3.6f % 3.6f %4d %4d %4d\n",
+      output.write("  %-6d %-6s % 3.6f % 3.6f % 3.6f %4d %4d %4d\n",
         i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z,
         lattice_super_cell_pos_(i).x, lattice_super_cell_pos_(i).y, lattice_super_cell_pos_(i).z);
     }
   } else {
     // avoid spamming the screen by default
     for (int i = 0; i < 8; ++i) {
-    printf("  %-6d %-6s %3.6f % 3.6f % 3.6f\n",
+    output.write("  %-6d %-6s %3.6f % 3.6f % 3.6f\n",
       i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
   }
     if (lattice_positions_.size() > 0) {
-      printf("  ... [use verbose output for details] ... \n");
+      output.write("  ... [use verbose output for details] ... \n");
     }
   }
 
@@ -408,7 +452,7 @@ void Lattice::init_lattice_positions(
   if (lattice_settings.exists("spins")) {
     std::string spin_filename = lattice_settings["spins"];
 
-    printf("  reading initial spin configuration from: %s\n", spin_filename.c_str());
+    output.write("  reading initial spin configuration from: %s\n", spin_filename.c_str());
 
     load_spin_state_from_hdf5(spin_filename);
   }
@@ -478,21 +522,23 @@ void Lattice::init_lattice_positions(
 
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
   }
-
-  init_kspace();
 }
 
 void Lattice::init_kspace() {
 
+  if (!symops_enabled_) {
+    throw general_exception("Lattice::init_kspace() was called with symops disabled ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
   int i, j;
-  printf("\n----------------------------------------\n");
-  printf("\nreciprocal space\n");
+  output.write("\n----------------------------------------\n");
+  output.write("\nreciprocal space\n");
 
   for (i = 0; i < 3; ++i) {
     kspace_size_[i] = super_cell.size[i];
   }
 
-  printf("  kspace size\n    %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
+  output.write("  kspace size\n    %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
 
   kspace_map_.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z);
 
@@ -536,7 +582,7 @@ void Lattice::init_kspace() {
                               motif_.size(),
                               1e-5);
 
-  printf("  irreducible kpoints\n    %d\n", num_ibz_points);
+  output.write("  irreducible kpoints\n    %d\n", num_ibz_points);
 
   jblib::Array<int,1> ibz_group;
   jblib::Array<int,1> ibz_index;
@@ -606,7 +652,7 @@ void Lattice::init_kspace() {
     }
   }
 
-  printf("  unitcell offset (fractional)\n  % 6.6f % 6.6f % 6.6f",
+  output.write("  unitcell offset (fractional)\n  % 6.6f % 6.6f % 6.6f",
     unitcell_offset[0], unitcell_offset[1], unitcell_offset[2]);
 
   kspace_inv_map_.resize(globals::num_spins, 3);
@@ -648,8 +694,13 @@ void Lattice::load_spin_state_from_hdf5(std::string &filename) {
 }
 
 void Lattice::calc_symmetry_operations() {
-  printf("\n----------------------------------------\n");
-  printf("\nsymmetry analysis\n");
+
+  if (!symops_enabled_) {
+    throw general_exception("Lattice::calc_symmetry_operations() was called with symops disabled ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
+  output.write("\n----------------------------------------\n");
+  output.write("\nsymmetry analysis\n");
 
   int i, j;
   const char *wl = "abcdefghijklmnopqrstuvwxyz";
@@ -677,8 +728,9 @@ void Lattice::calc_symmetry_operations() {
 
   spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, motif_.size(), 1e-5);
 
-  printf("  International\n    %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
-  printf("  Hall symbol\n    %s\n", spglib_dataset_->hall_symbol );
+  output.write("  International\n    %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
+  output.write("  Hall symbol\n    %s\n", spglib_dataset_->hall_symbol );
+  output.write("  Hall number\n    %d\n", spglib_dataset_->hall_number );
 
   char ptsymbol[6];
   int pt_trans_mat[3][3];
@@ -686,25 +738,25 @@ void Lattice::calc_symmetry_operations() {
            pt_trans_mat,
            spglib_dataset_->rotations,
            spglib_dataset_->n_operations);
-  printf("  point group\n    %s\n", ptsymbol);
-  printf("  transformation matrix\n");
+  output.write("  point group\n    %s\n", ptsymbol);
+  output.write("  transformation matrix\n");
   for ( i = 0; i < 3; i++ ) {
-      printf("    %f %f %f\n",
+      output.write("    %f %f %f\n",
       spglib_dataset_->transformation_matrix[i][0],
       spglib_dataset_->transformation_matrix[i][1],
       spglib_dataset_->transformation_matrix[i][2]);
   }
-  printf("  Wyckoff letters:\n");
+  output.write("  Wyckoff letters:\n");
   for ( i = 0; i < spglib_dataset_->n_atoms; i++ ) {
-      printf("    %c ", wl[spglib_dataset_->wyckoffs[i]]);
+      output.write("    %c ", wl[spglib_dataset_->wyckoffs[i]]);
   }
-  printf("\n");
+  output.write("\n");
 
-  printf("  equivalent atoms:\n");
+  output.write("  equivalent atoms:\n");
   for (i = 0; i < spglib_dataset_->n_atoms; i++) {
-      printf("    %d ", spglib_dataset_->equivalent_atoms[i]);
+      output.write("    %d ", spglib_dataset_->equivalent_atoms[i]);
   }
-  printf("\n");
+  output.write("\n");
 
   output.verbose("  shifted lattice\n");
   output.verbose("    origin\n      % 3.6f % 3.6f % 3.6f\n",
@@ -726,14 +778,21 @@ void Lattice::calc_symmetry_operations() {
       bij[0], bij[1], bij[2]);
   }
 
-  printf("  Bravais lattice\n");
-  printf("    num atoms\n    %d\n", spglib_dataset_->n_std_atoms);
-  printf("    lattice vectors\n");
+  output.write("  Standard lattice\n");
+  output.write("    std lattice vectors\n");
 
   for (int i = 0; i < 3; ++i) {
-    printf("  % 3.6f % 3.6f % 3.6f\n",
+    output.write("  % 3.6f % 3.6f % 3.6f\n",
       spglib_dataset_->std_lattice[i][0], spglib_dataset_->std_lattice[i][1], spglib_dataset_->std_lattice[i][2]);
   }
+  output.write("    num std atoms\n    %d\n", spglib_dataset_->n_std_atoms);
+
+  output.write("    std_positions\n");
+  for (int i = 0; i < spglib_dataset_->n_std_atoms; ++i) {
+    output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spglib_dataset_->std_types[i]].name.c_str(),
+      spglib_dataset_->std_positions[i][0], spglib_dataset_->std_positions[i][1], spglib_dataset_->std_positions[i][2]);
+  }
+
 
   int primitive_num_atoms = motif_.size();
   double primitive_lattice[3][3];
@@ -762,26 +821,63 @@ void Lattice::calc_symmetry_operations() {
 
   // spg_find_primitive returns number of atoms in primitve cell
   if (primitive_num_atoms != motif_.size()) {
-    printf("\n");
-    printf("unit cell is not a primitive cell\n");
-    printf("\n");
-    printf("  primitive lattice vectors:\n");
+    output.write("\n");
+    output.write("unit cell is not a primitive cell\n");
+    output.write("\n");
+    output.write("  primitive lattice vectors:\n");
 
     for (int i = 0; i < 3; ++i) {
-      printf("  % 3.6f % 3.6f % 3.6f\n",
+      output.write("  % 3.6f % 3.6f % 3.6f\n",
         primitive_lattice[i][0], primitive_lattice[i][1], primitive_lattice[i][2]);
     }
-    printf("\n");
-    printf("  primitive motif positions:\n");
+    output.write("\n");
+    output.write("  primitive motif positions:\n");
 
     int counter  = 0;
     for (int i = 0; i < primitive_num_atoms; ++i) {
-      printf("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, material_id_map_[primitive_types[i]].name.c_str(),
+      output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, material_id_map_[primitive_types[i]].name.c_str(),
         primitive_positions[i][0], primitive_positions[i][1], primitive_positions[i][2]);
       counter++;
     }
   }
+
+  Mat3 rot;
+
+  for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
+    std::cout << i << "\t" << spglib_dataset_->translations[i][0] << "\t" << spglib_dataset_->translations[i][1] << "\t" << spglib_dataset_->translations[i][2] << std::endl;
+
+    for (int m = 0; m < 3; ++m) {
+      for (int n = 0; n < 3; ++n) {
+        rot[m][n] = spglib_dataset_->rotations[i][m][n];
+      }
+    }
+
+    rotations_.push_back(rot);
+  }
 }
+
+
+void Lattice::set_spacegroup(const int hall_number) {
+  Mat3 rot;
+
+  int spg_n_operations = 0;
+  int spg_rotations[192][3][3];
+  double spg_translations[192][3];
+  spg_n_operations = spg_get_symmetry_from_database(spg_rotations, spg_translations, hall_number);
+
+  for (int i = 0; i < spg_n_operations; ++i) {
+    std::cout << i << "\t" << spg_translations[i][0] << "\t" << spg_translations[i][1] << "\t" << spg_translations[i][2] << std::endl;
+
+    for (int m = 0; m < 3; ++m) {
+      for (int n = 0; n < 3; ++n) {
+        rot[m][n] = spg_rotations[i][m][n];
+      }
+    }
+
+    rotations_.push_back(rot);
+  }
+}
+
 
 // reads an position in the fast integer space and applies the periodic boundaries
 // if there are not periodic boundaries and this position is outside of the finite
