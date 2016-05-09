@@ -54,7 +54,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   int    num_samples = int(t_run/t_sample);
   double freq_sample = num_samples / t_run;
   double freq_max    = 1.0/(2.0*t_sample);
-         freq_delta  = 1.0/t_sample;
+         freq_delta  = 1.0/(num_samples*t_sample);
 
   ::output.write("\n");
   ::output.write("  number of samples:          %d\n", num_samples);
@@ -230,7 +230,6 @@ void StructureFactorMonitor::update(Solver * solver) {
     for (int i = 1; i < lattice.kspace_size().z; ++i) {
       exp_phase_z(i) = exp_phase_z(i-1)*exp_phase_0;
     }
-
 
 
 
