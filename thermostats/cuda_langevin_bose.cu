@@ -22,7 +22,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   dev_noise_(3*num_spins) {
   ::output.write("\n  initialising CUDA Langevin semi-quantum noise thermostat\n");
 
-  debug_ = true;
+  debug_ = false;
 
   if (debug_) {
     ::output.write("    DEBUG ON\n");
