@@ -19,7 +19,11 @@
 CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),
   debug_(false),
-  dev_noise_(3*num_spins) {
+  dev_noise_(3 * num_spins),
+  dev_zeta_(4 * num_spins * 3),
+  dev_eta_(2 * num_spins * 3),
+  dev_sigma_(num_spins)
+ {
   ::output.write("\n  initialising CUDA Langevin semi-quantum noise thermostat\n");
 
   debug_ = false;
@@ -64,8 +68,6 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   }
 
   ::output.write("    allocating GPU memory\n");
-  dev_eta_.resize(2*globals::num_spins3);
-  dev_zeta_.resize(4*globals::num_spins3);
 
   // initialize zeta and eta with random variables
   curandSetStream(dev_rng_, dev_stream_);
@@ -78,6 +80,14 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
        != CURAND_STATUS_SUCCESS) {
     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
   }
+
+  sigma_.resize(num_spins);
+  for(int i = 0; i < num_spins; ++i) {
+    sigma_(i) = kBoltzmann * sqrt( (2.0 * globals::alpha(i) * globals::mus(i)) / ( kHBar * kGyromagneticRatio * kBohrMagneton) );
+  }
+
+  dev_sigma_ = jblib::CudaArray<double, 1>(sigma_);
+
 }
 
 void CudaLangevinBoseThermostat::update() {
@@ -90,11 +100,9 @@ void CudaLangevinBoseThermostat::update() {
 
   const double w_m = (kHBar * w_max_) / (kBoltzmann * this->temperature());
   // const double reduced_temperature = sqrt(this->temperature()) ;
-  const double reduced_temperature = kBoltzmann * this->temperature() * sqrt( (2.0 * globals::alpha(0) * globals::mus(0)) / (kHBar * kGyromagneticRatio * kBohrMagneton) );
-
 
   curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, 1.0);
-  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), tau_ * this->temperature(), reduced_temperature, w_m, globals::num_spins3);
+  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), dev_sigma_.data(), tau_ * this->temperature(), this->temperature(), w_m, globals::num_spins3);
 
   if (debug_) {
     jblib::Array<double, 1> dbg_noise(dev_noise_.size(), 0.0);

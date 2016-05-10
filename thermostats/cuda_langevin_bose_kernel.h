@@ -120,6 +120,7 @@ __global__ void bose_coth_stochastic_process_cuda_kernel
           double * noise,
           double * zeta,
     const double * eta,
+    const double * sigma,
     const double h,
     const double T,
     const double w_m,
@@ -150,7 +151,7 @@ __global__ void bose_coth_stochastic_process_cuda_kernel
         }
 
         // constants are 'c' values from Savin paper
-        noise[x] = T * (1.8315 * z[0] + 0.3429 * z[2]);
+        noise[x] = T * sigma[x] * (1.8315 * z[0] + 0.3429 * z[2]);
     }
 }
 
