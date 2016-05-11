@@ -14,10 +14,10 @@
 TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   outfile(),
-  torque_stats_(),
+  torque_stats_(solver->hamiltonians().size()),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
   convergence_tolerance_(1.0),            // 1 standard deviation from the mean
-  convergence_geweke_diagnostic_(100.0)   // number much larger than 1
+  convergence_geweke_diagnostic_(solver->hamiltonians().size(), 100.0)   // number much larger than 1
 {
   using namespace globals;
   ::output.write("\nInitialising Torque monitor...\n");
@@ -51,7 +51,9 @@ void TorqueMonitor::update(Solver * solver) {
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";
   outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
-  for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
+  auto stats_it = torque_stats_.begin();
+  auto geweke_it = convergence_geweke_diagnostic_.begin();
+  for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it, ++stats_it, ++geweke_it) {
     torque.x = 0; torque.y = 0; torque.z = 0;
 
     (*it)->calculate_fields();
@@ -66,16 +68,9 @@ void TorqueMonitor::update(Solver * solver) {
       outfile <<  std::setw(12) << std::scientific << torque[i] * norm << "\t";
     }
 
-    for (i = 0; i < 3; ++i) {
-      total_torque[i] += torque[i];
-    }
+    stats_it->add(torque[1]/static_cast<double>(num_spins));
+    *geweke_it = stats_it->geweke();
   }
-
-  torque_stats_.add(abs(total_torque)/static_cast<double>(num_spins));
-
-  convergence_geweke_diagnostic_ = torque_stats_.geweke();
-
-  outfile << std::setw(12) << convergence_geweke_diagnostic_ << "\t";
 
   outfile << std::endl;
 }
@@ -93,17 +88,24 @@ void TorqueMonitor::open_outfile() {
     outfile << std::setw(12) << (*it)->name()+":Tx" << "\t";
     outfile << std::setw(12) << (*it)->name()+":Ty" << "\t";
     outfile << std::setw(12) << (*it)->name()+":Tz" << "\t";
+    outfile << std::setw(12) << (*it)->name()+":geweke";
   }
-
-  if (convergence_is_on_) {
-    outfile << std::setw(12) << "geweke";
-  }
-
   outfile << "\n";
 }
 
 bool TorqueMonitor::is_converged() {
-  return ((std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
+
+  if (convergence_is_on_) {
+    for (auto it = convergence_geweke_diagnostic_.begin() ; it != convergence_geweke_diagnostic_.end(); ++it) {
+      if (std::abs(*it) > convergence_tolerance_) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  return false;
 }
 
 TorqueMonitor::~TorqueMonitor() {
