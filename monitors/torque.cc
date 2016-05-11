@@ -14,7 +14,7 @@
 TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   outfile(),
-  torque_stats_(solver->hamiltonians().size()),
+  torque_stats_(solver->hamiltonians().size(),Stats()),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
   convergence_tolerance_(1.0),            // 1 standard deviation from the mean
   convergence_geweke_diagnostic_(solver->hamiltonians().size(), 100.0)   // number much larger than 1
@@ -51,9 +51,8 @@ void TorqueMonitor::update(Solver * solver) {
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";
   outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
-  auto stats_it = torque_stats_.begin();
-  auto geweke_it = convergence_geweke_diagnostic_.begin();
-  for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it, ++stats_it, ++geweke_it) {
+  int count = 0;
+  for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin(); it != solver->hamiltonians().end(); ++it) {
     torque.x = 0; torque.y = 0; torque.z = 0;
 
     (*it)->calculate_fields();
@@ -68,8 +67,9 @@ void TorqueMonitor::update(Solver * solver) {
       outfile <<  std::setw(12) << std::scientific << torque[i] * norm << "\t";
     }
 
-    stats_it->add(torque[1]/static_cast<double>(num_spins));
-    *geweke_it = stats_it->geweke();
+    torque_stats_[count].add(torque[1]/static_cast<double>(num_spins));
+    convergence_geweke_diagnostic_[count] = torque_stats_[count].geweke();
+    count++;
   }
 
   outfile << std::endl;
