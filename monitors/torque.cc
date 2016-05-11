@@ -76,6 +76,9 @@ void TorqueMonitor::update(Solver * solver) {
 
     torque_stats_[count].add(torque[1]/static_cast<double>(num_spins));
     convergence_geweke_diagnostic_[count] = torque_stats_[count].geweke();
+
+    outfile << std::setw(12) << convergence_geweke_diagnostic_[count] << "\t";
+
     count++;
   }
 
