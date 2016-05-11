@@ -14,14 +14,13 @@
 TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   outfile(),
-  torque_stats_(solver->hamiltonians().size(),Stats()),
+  torque_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
   convergence_tolerance_(1.0),            // 1 standard deviation from the mean
-  convergence_geweke_diagnostic_(solver->hamiltonians().size(), 100.0)   // number much larger than 1
+  convergence_geweke_diagnostic_()   // number much larger than 1
 {
   using namespace globals;
   ::output.write("\nInitialising Torque monitor...\n");
-
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
@@ -50,6 +49,14 @@ void TorqueMonitor::update(Solver * solver) {
 
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";
   outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
+
+  if (torque_stats_.size() != solver->hamiltonians().size()){
+    torque_stats_.resize(solver->hamiltonians().size());
+  }
+
+  if (convergence_geweke_diagnostic_.size() != solver->hamiltonians().size()){
+    convergence_geweke_diagnostic_.resize(solver->hamiltonians().size());
+  }
 
   int count = 0;
   for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin(); it != solver->hamiltonians().end(); ++it) {
@@ -95,7 +102,7 @@ void TorqueMonitor::open_outfile() {
 
 bool TorqueMonitor::is_converged() {
 
-  if (convergence_is_on_) {
+  if (convergence_is_on_ && convergence_geweke_diagnostic_.size() > 0) {
     for (auto it = convergence_geweke_diagnostic_.begin() ; it != convergence_geweke_diagnostic_.end(); ++it) {
       if (std::abs(*it) > convergence_tolerance_) {
         return false;
