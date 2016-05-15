@@ -81,12 +81,14 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
   }
 
-  sigma_.resize(num_spins);
+  jblib::Array<double, 2> scale(num_spins, 3);
   for(int i = 0; i < num_spins; ++i) {
-    sigma_(i) = kBoltzmann * sqrt( (2.0 * globals::alpha(i) * globals::mus(i)) / ( kHBar * kGyromagneticRatio * kBohrMagneton) );
+    for(int j = 0; j < 3; ++j) {
+      scale(i, j) = kBoltzmann * sqrt( (2.0 * globals::alpha(i) * globals::mus(i)) / ( kHBar * kGyromagneticRatio * kBohrMagneton) );
+    }
   }
 
-  dev_sigma_ = jblib::CudaArray<double, 1>(sigma_);
+  dev_sigma_ = jblib::CudaArray<double, 1>(scale);
 
 }
 
