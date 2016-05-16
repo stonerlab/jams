@@ -346,7 +346,7 @@ void StructureFactorMonitor::fft_time() {
         unit_cell_dsf_file << j << "\t" << total_length << "\t" << i*freq_delta << "\t";
         unit_cell_dsf_file << norm*fft_sqw_x(i, j)[0] << "\t" << norm*fft_sqw_x(i, j)[1] << "\t";
         unit_cell_dsf_file << norm*fft_sqw_y(i, j)[0] << "\t" << norm*fft_sqw_y(i, j)[1] << "\t";
-        unit_cell_dsf_file << norm*fft_sqw_z(i, j)[0] << "\t" << norm*fft_sqw_z(i, j)[1] << "\t";
+        unit_cell_dsf_file << norm*fft_sqw_z(i, j)[0] << "\t" << norm*fft_sqw_z(i, j)[1] << "\n";
         total_length += bz_lengths[j];
       }
       unit_cell_dsf_file << std::endl;
