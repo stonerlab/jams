@@ -66,6 +66,7 @@ __global__ void bose_zero_point_stochastic_process_cuda_kernel
           double * noise,
           double * zeta,
     const double * eta,
+    const double * sigma,
     const double h,
     const double T,
     const double w_m,
@@ -74,11 +75,9 @@ __global__ void bose_zero_point_stochastic_process_cuda_kernel
     const double c[6] = {1.043576*w_m,
                          0.177222*w_m,
                          0.050319*w_m,
-                         0.010241*w_m,
-                         1.8315,
-                         0.3429};
+                         0.010241*w_m};
 
-    double s0 = 0.0, s1 = 0.0;
+    double s0 = 0.0;
 
     int i;
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -89,15 +88,15 @@ __global__ void bose_zero_point_stochastic_process_cuda_kernel
                                   0.103506*w_m,
                                   0.015873*w_m};
 
-        double z[4] = {zeta[8*x],
-                       zeta[8*x+1],
-                       zeta[8*x+2],
-                       zeta[8*x+3]};
+        double z[4] = {zeta[4*x],
+                       zeta[4*x+1],
+                       zeta[4*x+2],
+                       zeta[4*x+3]};
 
-        double e[4] = {eta[6*x]*sqrt(2.0/lambda[0]),
-                       eta[6*x+1]*sqrt(2.0/lambda[1]),
-                       eta[6*x+2]*sqrt(2.0/lambda[2]),
-                       eta[6*x+3]*sqrt(2.0/lambda[3])};
+        double e[4] = {eta[4*x]*sqrt(2.0/(lambda[0]*h)),
+                       eta[4*x+1]*sqrt(2.0/(lambda[1]*h)),
+                       eta[4*x+2]*sqrt(2.0/(lambda[2]*h)),
+                       eta[4*x+3]*sqrt(2.0/(lambda[3]*h))};
 
         rk4(linear_ode, h*w_m, lambda, e, z);
 
@@ -108,9 +107,8 @@ __global__ void bose_zero_point_stochastic_process_cuda_kernel
         for (i = 0; i < 4; ++i) {
             s0 += c[i]*(e[i] - z[i]);
         }
-        // ------------------------------------------------------
 
-        noise[x] = T*(s0);
+        noise[x] += T * sigma[x] * (s0);
     }
 }
 
@@ -151,7 +149,7 @@ __global__ void bose_coth_stochastic_process_cuda_kernel
         }
 
         // constants are 'c' values from Savin paper
-        noise[x] = T * sigma[x] * (1.8315 * z[0] + 0.3429 * z[2]);
+        noise[x] += T * sigma[x] * (1.8315 * z[0] + 0.3429 * z[2]);
     }
 }
 

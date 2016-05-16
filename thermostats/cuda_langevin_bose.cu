@@ -20,8 +20,10 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 : Thermostat(temperature, sigma, num_spins),
   debug_(false),
   dev_noise_(3 * num_spins),
-  dev_zeta_(4 * num_spins * 3),
-  dev_eta_(2 * num_spins * 3),
+  dev_zeta0_(4 * num_spins * 3),
+  dev_zeta1_(4 * num_spins * 3),
+  dev_eta0_(4 * num_spins * 3),
+  dev_eta1_(2 * num_spins * 3),
   dev_sigma_(num_spins)
  {
   ::output.write("\n  initialising CUDA Langevin semi-quantum noise thermostat\n");
@@ -71,15 +73,26 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
   // initialize zeta and eta with random variables
   curandSetStream(dev_rng_, dev_stream_);
-  if (curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, 1.0)
+  if (curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
   }
 
-  if (curandGenerateNormalDouble(dev_rng_, dev_zeta_.data(), dev_zeta_.size(), 0.0, 0.0)
+  if (curandGenerateNormalDouble(dev_rng_, dev_zeta0_.data(), dev_zeta0_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
   }
+
+  if (curandGenerateNormalDouble(dev_rng_, dev_eta1_.data(), dev_eta1_.size(), 0.0, 1.0)
+       != CURAND_STATUS_SUCCESS) {
+    jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
+  }
+
+  if (curandGenerateNormalDouble(dev_rng_, dev_zeta1_.data(), dev_zeta1_.size(), 0.0, 1.0)
+       != CURAND_STATUS_SUCCESS) {
+    jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
+  }
+
 
   jblib::Array<double, 2> scale(num_spins, 3);
   for(int i = 0; i < num_spins; ++i) {
@@ -96,15 +109,17 @@ void CudaLangevinBoseThermostat::update() {
   int block_size = 64;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
-  // if (curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, sqrt(this->temperature())) != CURAND_STATUS_SUCCESS) {
-  //   jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::update");
-  // }
+  // zero the noise array
+  cudaMemsetAsync(dev_noise_.data(), 0.0, globals::num_spins3*sizeof(double), dev_stream_);
 
   const double w_m = (kHBar * w_max_) / (kBoltzmann * this->temperature());
   // const double reduced_temperature = sqrt(this->temperature()) ;
 
-  curandGenerateNormalDouble(dev_rng_, dev_eta_.data(), dev_eta_.size(), 0.0, 1.0);
-  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta_.data(), dev_eta_.data(), dev_sigma_.data(), tau_ * this->temperature(), this->temperature(), w_m, globals::num_spins3);
+  // curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0);
+  // bose_zero_point_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta0_.data(), dev_eta0_.data(), dev_sigma_.data(), tau_ * this->temperature(), this->temperature(), w_m, globals::num_spins3);
+
+  curandGenerateNormalDouble(dev_rng_, dev_eta1_.data(), dev_eta1_.size(), 0.0, 1.0);
+  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta1_.data(), dev_eta1_.data(), dev_sigma_.data(), tau_ * this->temperature(), this->temperature(), w_m, globals::num_spins3);
 
   if (debug_) {
     jblib::Array<double, 1> dbg_noise(dev_noise_.size(), 0.0);
