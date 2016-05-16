@@ -335,6 +335,26 @@ void StructureFactorMonitor::fft_time() {
     fftw_execute(fft_plan_time_y);
     fftw_execute(fft_plan_time_z);
 
+    // output DSF for each position in the unit cell
+
+    std::string unit_cell_dsf_filename = seedname + "_dsf_" + std::to_string(unit_cell_atom) + ".tsv";
+    std::ofstream unit_cell_dsf_file(unit_cell_dsf_filename.c_str());
+
+    for (int i = 0; i < (time_points/2) + 1; ++i) {
+      double total_length = 0.0;
+      for (int j = 0; j < space_points; ++j) {
+        unit_cell_dsf_file << j << "\t" << total_length << "\t" << i*freq_delta << "\t";
+        unit_cell_dsf_file << norm*fft_sqw_x(i, j)[0] << "\t" << norm*fft_sqw_x(i, j)[1] << "\t";
+        unit_cell_dsf_file << norm*fft_sqw_y(i, j)[0] << "\t" << norm*fft_sqw_y(i, j)[1] << "\t";
+        unit_cell_dsf_file << norm*fft_sqw_z(i, j)[0] << "\t" << norm*fft_sqw_z(i, j)[1] << "\t";
+        total_length += bz_lengths[j];
+      }
+      unit_cell_dsf_file << std::endl;
+    }
+
+    unit_cell_dsf_file.close();
+
+
     for (int i = 0; i < time_points; ++i) {
       for (int j = 0; j < space_points; ++j) {
         total_sqw_x(i, j)[0] += norm*fft_sqw_x(i, j)[0];
@@ -354,7 +374,7 @@ void StructureFactorMonitor::fft_time() {
 
   }
 
-  std::string name = seedname + "_dsf.dat";
+  std::string name = seedname + "_dsf.tsv";
   std::ofstream dsffile(name.c_str());
 
   for (int i = 0; i < (time_points/2) + 1; ++i) {
