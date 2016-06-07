@@ -36,7 +36,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
     outfile_.open(name.c_str());
   }
 
-  w_max_ = 50*kTHz;
+  w_max_ = 100*kTHz;
 
   const double dt = ::config.lookup("sim.t_step");
   tau_ = (dt * kBoltzmann) / kHBar;
