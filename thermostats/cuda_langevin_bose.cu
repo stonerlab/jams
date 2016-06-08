@@ -99,7 +99,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   jblib::Array<double, 2> scale(num_spins, 3);
   for(int i = 0; i < num_spins; ++i) {
     for(int j = 0; j < 3; ++j) {
-      scale(i, j) = ( kElectronGFactor * kBoltzmann) * sqrt( (2.0 * globals::alpha(i)) / ( kHBar * kGyromagneticRatio * kBohrMagneton) );
+      scale(i, j) = (kBoltzmann) * sqrt( (2.0 * globals::alpha(i) * globals::mus(i)) / ( kHBar * kGyromagneticRatio * kBohrMagneton) );
     }
   }
 
