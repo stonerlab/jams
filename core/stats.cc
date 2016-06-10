@@ -7,43 +7,44 @@
 #include "core/maths.h"
 
 double Stats::geweke() {
-    int elements;
+    int pc50, pc10;
     double first_10_pc_mean, first_10_pc_var, first_10_pc_sq_sum;
     double last_50_pc_mean, last_50_pc_var, last_50_pc_sq_sum;
     std::vector<double> diff;
     std::vector<double>::const_iterator first_it;
     std::vector<double>::const_iterator last_it;
 
-    // starts for first 10 percent of data
-    elements = nint(0.1*data_.size());
-    first_it = data_.begin();
-    last_it = data_.begin() + elements;
+    // stats for first 10 percent of data
+    pc10 = nint(0.1*data_.size());
+    first_it = data_.begin() + pc10;    // throw away 10% of initial data
+    last_it = first_it + pc10;          // include data for the next 10%
 
-    first_10_pc_mean = std::accumulate(first_it, last_it, 0.0) / double(elements);
+    first_10_pc_mean = std::accumulate(first_it, last_it, 0.0) / double(pc10);
 
-    diff.resize(elements);
+    diff.resize(pc10);
     std::transform(first_it, last_it, diff.begin(),
                    std::bind2nd(std::minus<double>(), first_10_pc_mean));
 
     first_10_pc_sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
 
-    first_10_pc_var = (first_10_pc_sq_sum/double(elements-1));
+    first_10_pc_var = (first_10_pc_sq_sum/double(pc10-1));
 
 
-    // starts for first 10 percent of data
-    elements = nint(0.5*data_.size());
-    first_it = data_.end() - elements;
+    // starts for last 50 percent of data
+    pc50 = nint(0.5*data_.size());
+
     last_it = data_.end();
+    first_it = last_it - pc50;
 
-    last_50_pc_mean = std::accumulate(first_it, last_it, 0.0) / double(elements);
+    last_50_pc_mean = std::accumulate(first_it, last_it, 0.0) / double(pc50);
 
-    diff.resize(elements);
+    diff.resize(pc50);
     std::transform(first_it, last_it, diff.begin(),
                    std::bind2nd(std::minus<double>(), last_50_pc_mean));
 
     last_50_pc_sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
 
-    last_50_pc_var = (last_50_pc_sq_sum/double(elements-1));
+    last_50_pc_var = (last_50_pc_sq_sum/double(pc50-1));
 
     return (first_10_pc_mean - last_50_pc_mean) / std::sqrt(first_10_pc_var + last_50_pc_var);
 }
