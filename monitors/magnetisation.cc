@@ -129,7 +129,7 @@ void MagnetisationMonitor::update(Solver * solver) {
 
         convergence_geweke_m_diagnostic_.push_back(diagnostic);
 
-        outfile << std::setw(12) << diagnostic << "\t" << convergence_stderr_;
+        outfile << std::setw(12) << diagnostic << "\t" << convergence_stderr_ << "\t" << m_stats_.stddev(0.1*m_stats_.size(), m_stats_.size()) / sqrt(m_stats_.size()*0.9);
       } else {
         outfile << std::setw(12) << "--------";
       }
