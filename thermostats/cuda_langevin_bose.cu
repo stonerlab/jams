@@ -107,8 +107,6 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   dev_sigma_ = jblib::CudaArray<double, 1>(scale);
 
   const int num_warmup_steps = 1000000;
-  double min_alpha;
-  double min_
 
   ::output.write("    warming up thermostat (%8.2f ns @ %8.2f K)\n", ((dt *num_warmup_steps) / 1.0e-9), this->temperature());
 
