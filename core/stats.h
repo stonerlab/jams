@@ -54,7 +54,10 @@ class Stats {
   double median();
   double inter_quartile_range();
 
-  double geweke();
+  double spectral_density_zero();
+  double spectral_density_zero(const size_t t0, const size_t t1);
+
+  void geweke(double &diagnostic, double &num_std_err);
   void histogram(std::vector<double> &range, std::vector<double> &bin, double min_value = 0, double max_value = 0, int num_bins = 0);
 
  protected:
