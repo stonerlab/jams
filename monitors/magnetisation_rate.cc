@@ -101,7 +101,8 @@ void MagnetisationRateMonitor::update(Solver * solver) {
       }
 
       magnetisation_stats_.add(total_dm_dt);
-      convergence_geweke_diagnostic_ = magnetisation_stats_.geweke();
+      double nse = 0.0;
+      magnetisation_stats_.geweke(convergence_geweke_diagnostic_, nse);
       outfile << std::setw(12) << convergence_geweke_diagnostic_;
     }
 
