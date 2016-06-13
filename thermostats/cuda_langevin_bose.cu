@@ -23,8 +23,9 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   dev_zeta0_(4 * num_spins * 3),
   dev_zeta1_(4 * num_spins * 3),
   dev_eta0_(4 * num_spins * 3),
-  dev_eta1_(2 * num_spins * 3),
   dev_sigma_(num_spins)
+  dev_eta1a_(2 * num_spins * 3, 0.0),
+  dev_eta1b_(2 * num_spins * 3, 0.0),
  {
   ::output.write("\n  initialising CUDA Langevin semi-quantum noise thermostat\n");
 
@@ -53,6 +54,10 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
     jams_error("Failed to create CUDA stream in CudaLangevinBoseThermostat");
   }
 
+  if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess){
+    jams_error("Failed to create CURAND stream in CudaLangevinBoseThermostat");
+  }
+
   ::output.write("    initialising CURAND\n");
 
   // initialize and seed the CURAND generator on the device
@@ -60,6 +65,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
     jams_error("Failed to create CURAND generator in CudaLangevinBoseThermostat");
   }
 
+  curandSetStream(dev_rng_, dev_curand_stream_);
   const uint64_t dev_rng_seed = rng.uniform()*18446744073709551615ULL;
   ::output.write("    seeding CURAND (%" PRIu64 ")\n", dev_rng_seed);
 
@@ -74,7 +80,6 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   ::output.write("    allocating GPU memory\n");
 
   // initialize zeta and eta with random variables
-  curandSetStream(dev_rng_, dev_stream_);
   if (curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
