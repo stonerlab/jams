@@ -108,9 +108,8 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
   dev_sigma_ = jblib::CudaArray<double, 1>(scale);
 
-  const int num_warmup_steps = 10;
-  // const int num_warmup_steps = 1000000;
-
+  // const int num_warmup_steps = 10;
+  const int num_warmup_steps = 1000000;
 
   ::output.write("    warming up thermostat (%8.2f ns @ %8.2f K)\n", ((dt *num_warmup_steps) / 1.0e-9), this->temperature());
 
@@ -120,25 +119,25 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 }
 
 void CudaLangevinBoseThermostat::update() {
-  int block_size = 128;
+  int block_size = 96;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
-  // zero the noise array
-  // cudaMemsetAsync(dev_noise_.data(), 0.0, globals::num_spins3*sizeof(double), dev_stream_);
-
-  const double w_m = (kHBar * w_max_) / (kBoltzmann * this->temperature());
-  // const double reduced_temperature = sqrt(this->temperature()) ;
-
-
   swap(dev_eta1a_, dev_eta1b_);
-  curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0);
-  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta5_.data(), dev_zeta5p_.data(), dev_zeta6_.data(), dev_zeta6p_.data(), dev_eta1b_.data(), dev_sigma_.data(), tau_ * this->temperature(), this->temperature(), w_m, globals::num_spins3);
 
-  // if (debug_) {
-  //   jblib::Array<double, 1> dbg_noise(dev_noise_.size(), 0.0);
-  //   dev_noise_.copy_to_host_array(dbg_noise);
-  //   outfile_ << dbg_noise(0) << std::endl;
-  // }
+  curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0);
+
+  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (
+    dev_noise_.data(),
+    dev_zeta5_.data(),
+    dev_zeta5p_.data(),
+    dev_zeta6_.data(),
+    dev_zeta6p_.data(),
+    dev_eta1b_.data(),
+    dev_sigma_.data(),
+    tau_ * this->temperature(),
+    this->temperature(),
+    (kHBar * w_max_) / (kBoltzmann * this->temperature()),  // w_m
+    globals::num_spins3);
 }
 
 CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
