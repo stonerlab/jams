@@ -29,7 +29,11 @@ class CudaLangevinBoseThermostat : public Thermostat {
     bool debug_;
     jblib::CudaArray<double, 1> dev_noise_;
     jblib::CudaArray<double, 1> dev_zeta0_;
-    jblib::CudaArray<double, 1> dev_zeta1_;
+    jblib::CudaArray<double, 1> dev_zeta5_;
+    jblib::CudaArray<double, 1> dev_zeta5p_;
+    jblib::CudaArray<double, 1> dev_zeta6_;
+    jblib::CudaArray<double, 1> dev_zeta6p_;
+
     jblib::CudaArray<double, 1> dev_eta0_;
     jblib::CudaArray<double, 1> dev_eta1a_;
     jblib::CudaArray<double, 1> dev_eta1b_;

@@ -10,61 +10,57 @@ __device__ void linear_ode(const double A[4], const double eta[4], const double 
 }
 
 
-__device__ void bose_ode(const double A[4], const double eta[4], const double z[4], double f[4]) {
-    #pragma unroll
-    for (int i = 0; i < 2; ++i) {
-        int n = 2*i;
-        f[n] = z[n+1];
-        f[n+1] = eta[i] - A[i+2]*A[i+2]*z[n] - A[i]*z[n+1];
-    }
+__device__ void bose_ode(const double A[2], const double eta[2], const double z[2], double f[2]) {
+    f[0] = z[1];
+    f[1] = eta[0] - A[1]*A[1]*z[0] - A[0]*z[1];
 }
 
-__device__ void rk4(void ode(const double[4], const double[4], const double[4], double[4]), const double h, const double A[4], const double eta[4], double z[4]) {
+__device__ void rk4(void ode(const double[2], const double[2], const double[2], double[2]), const double h, const double A[2], const double eta[2], double z[2]) {
     int i;
-    double k1[4], k2[4], k3[4], k4[4], f[4];
-    double u[4] = {z[0], z[1], z[2], z[3]};
+    double k1[2], k2[2], k3[2], k4[2], f[2];
+    double u[2] = {z[0], z[1]};
 
     ode(A, eta, u, f);
 
     #pragma unroll
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 2; ++i) {
         k1[i] = h*f[i];
     }
 
     // K2
     #pragma unroll
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 2; ++i) {
         u[i] = z[i] + 0.5 * k1[i];
     }
     ode(A, eta, u, f);
     #pragma unroll
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 2; ++i) {
         k2[i] = h*f[i];
     }
 
     // K3
     #pragma unroll
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 2; ++i) {
         u[i] = z[i] + 0.5 * k2[i];
     }
     ode(A, eta, u, f);
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 2; ++i) {
         k3[i] = h*f[i];
     }
 
     // K4
     #pragma unroll
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 2; ++i) {
         u[i] = z[i] + k3[i];
     }
     ode(A, eta, u, f);
     #pragma unroll
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 2; ++i) {
         k4[i] = h*f[i];
     }
 
     #pragma unroll
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 2; ++i) {
         z[i] = z[i] + (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]) / 6.0;
     }
 }
@@ -124,7 +120,10 @@ __global__ void bose_zero_point_stochastic_process_cuda_kernel
 __global__ void bose_coth_stochastic_process_cuda_kernel
 (
           double * noise,
-          double * zeta,
+          double * zeta5,
+          double * zeta5p,
+          double * zeta6,
+          double * zeta6p,
     const double * eta,
     const double * sigma,
     const double h,
@@ -132,36 +131,48 @@ __global__ void bose_coth_stochastic_process_cuda_kernel
     const double w_m,
     const int    N
 ) {
-    int i;
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
-    const int x4 = 4 * x;
     if (x < N) {
-        // first two elements are gamma, second two are omega
-        const double gamma_omega[4] = {5.0142, 3.2974, 2.7189, 1.2223};
 
-        double e[4], z[4];
+        double s1 = 0.0;
+        double e[2], z[2], gamma_omega[2];
 
-        #pragma unroll
-        for (i = 0; i < 4; ++i) {
-            z[i] = zeta[x4 + i];
-        }
+        gamma_omega[0] = 5.0142;
+        gamma_omega[1] = 2.7189;
 
-        #pragma unroll
-        for (i = 0; i < 2; ++i) {
-            e[i] = eta[2 * x + i] * sqrt(2.0 * gamma_omega[i] / h);
-        }
-        e[2] = 0.0;
-        e[3] = 0.0;
+        e[0] = eta[x] * sqrt(2.0 * gamma_omega[0] / h);
+        e[1] = 0.0;
+
+        z[0] = zeta5[x];
+        z[1] = zeta5p[x];
 
         rk4(bose_ode, h, gamma_omega, e, z);
 
-        #pragma unroll
-        for (i = 0; i < 4; ++i) {
-            zeta[x4 + i] = z[i];
-        }
+        zeta5[x]  = z[0];
+        zeta5p[x] = z[1];
+
+        s1 += 1.8315 * z[0];
+
+        //-------------------------------------------------
+
+        gamma_omega[0] = 3.2974;
+        gamma_omega[1] = 1.2223;
+
+        e[0] = eta[N + x] * sqrt(2.0 * gamma_omega[0] / h);
+        e[1] = 0.0;
+
+        z[0] = zeta6[x];
+        z[1] = zeta6p[x];
+
+        rk4(bose_ode, h, gamma_omega, e, z);
+
+        zeta6[x]  = z[0];
+        zeta6p[x] = z[1];
+
+        s1 += 0.3429 * z[0];
 
         // constants are 'c' values from Savin paper
-        noise[x] = T * sigma[x] * (1.8315 * z[0] + 0.3429 * z[2]);
+        noise[x] = T * sigma[x] * s1;
     }
 }
 

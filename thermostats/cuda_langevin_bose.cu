@@ -21,8 +21,10 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 : Thermostat(temperature, sigma, num_spins),
   debug_(false),
   dev_noise_(3 * num_spins, 0.0),
-  dev_zeta0_(4 * num_spins * 3, 0.0),
-  dev_zeta1_(4 * num_spins * 3, 0.0),
+  dev_zeta5_(num_spins * 3, 0.0),
+  dev_zeta5p_(num_spins * 3, 0.0),
+  dev_zeta6_(num_spins * 3, 0.0),
+  dev_zeta6p_(num_spins * 3, 0.0),
   dev_eta0_(4 * num_spins * 3, 0.0),
   dev_eta1a_(2 * num_spins * 3, 0.0),
   dev_eta1b_(2 * num_spins * 3, 0.0),
@@ -106,7 +108,9 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
   dev_sigma_ = jblib::CudaArray<double, 1>(scale);
 
-  const int num_warmup_steps = 1000000;
+  const int num_warmup_steps = 10;
+  // const int num_warmup_steps = 1000000;
+
 
   ::output.write("    warming up thermostat (%8.2f ns @ %8.2f K)\n", ((dt *num_warmup_steps) / 1.0e-9), this->temperature());
 
@@ -125,13 +129,10 @@ void CudaLangevinBoseThermostat::update() {
   const double w_m = (kHBar * w_max_) / (kBoltzmann * this->temperature());
   // const double reduced_temperature = sqrt(this->temperature()) ;
 
-  // curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0);
-  // bose_zero_point_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta0_.data(), dev_eta0_.data(), dev_sigma_.data(), tau_ * this->temperature(), this->temperature(), w_m, globals::num_spins3);
 
   swap(dev_eta1a_, dev_eta1b_);
-
   curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0);
-  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta1_.data(), dev_eta1b_.data(), dev_sigma_.data(), tau_ * this->temperature(), this->temperature(), w_m, globals::num_spins3);
+  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (dev_noise_.data(), dev_zeta5_.data(), dev_zeta5p_.data(), dev_zeta6_.data(), dev_zeta6p_.data(), dev_eta1b_.data(), dev_sigma_.data(), tau_ * this->temperature(), this->temperature(), w_m, globals::num_spins3);
 
   // if (debug_) {
   //   jblib::Array<double, 1> dbg_noise(dev_noise_.size(), 0.0);
