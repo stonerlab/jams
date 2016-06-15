@@ -70,16 +70,16 @@ void Stats::geweke(double &diagnostic, double &num_std_err) {
 
     double meanA, meanB, s0A, s0B;
 
-    meanA = mean(nA, 2*nA);
+    meanA = mean(0, nA);
     meanB = mean(nB, nN);
 
-    s0A = spectral_density_zero(nA, 2*nA);
+    s0A = spectral_density_zero(0, nA);
     s0B = spectral_density_zero(nB, nN);
 
     // std::cerr << meanA << "\t" << meanB << "\t" << s0A << "\t" << s0B << "\t" << sqrt(s0B/double(nB)) << "\t" << stddev(nB, nN) / sqrt(double(nB)) << std::endl;
 
     diagnostic = (meanA - meanB) / sqrt(s0A / double(nA) + s0B / double(nB));
-    num_std_err =  sqrt(spectral_density_zero(2*nA, nN) / double(nN - 2*nA));   // based on 90% of data
+    num_std_err =  sqrt(spectral_density_zero(nA, nN) / double(nN - nA));   // based on 90% of data
 }
 
 double Stats::median() {

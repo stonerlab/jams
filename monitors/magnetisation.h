@@ -24,6 +24,8 @@ class MagnetisationMonitor : public Monitor {
   double binder_m2();
   double binder_cumulant();
 
+  double t_burn_;
+
   jblib::Array<double, 2> mag;
   jblib::Array<double, 2> s_transform_;
 
