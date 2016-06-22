@@ -34,7 +34,7 @@ void EnergyMonitor::update(Solver * solver) {
 
   if (solver->iteration()%output_step_freq_ == 0) {
     for (auto it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
-      outfile << std::setw(20) << std::scientific << (*it)->calculate_total_energy() / static_cast<double>(num_spins) << "\t";
+      outfile << std::setw(21) << std::scientific << std::setprecision(15) << (*it)->calculate_total_energy() / static_cast<double>(num_spins) << "\t";
     }
   }
 
