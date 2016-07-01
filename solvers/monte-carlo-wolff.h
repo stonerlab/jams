@@ -22,7 +22,6 @@ class MonteCarloWolffSolver : public Solver {
  private:
    double r_cutoff_;
    int attempted_moves_;
-   int cluster_size_;
    adjacency_list    neighbours_;
 };
 

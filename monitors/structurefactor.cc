@@ -50,9 +50,8 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   double t_step = sim_settings["t_step"];
   double t_run = sim_settings["t_run"];
 
-  double    t_sample = output_step_freq_*t_step;
+  double t_sample = output_step_freq_*t_step;
   int    num_samples = int(t_run/t_sample);
-  double freq_sample = num_samples / t_run;
   double freq_max    = 1.0/(2.0*t_sample);
          freq_delta  = 1.0/(num_samples*t_sample);
 

@@ -10,7 +10,6 @@
 
 MonteCarloWolffSolver::MonteCarloWolffSolver()
   : attempted_moves_(0),
-    cluster_size_(0),
     neighbours_(globals::num_spins)
 {
 }
