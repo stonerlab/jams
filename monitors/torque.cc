@@ -17,10 +17,11 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
   torque_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
   convergence_tolerance_(1.0),            // 1 standard deviation from the mean
-  convergence_geweke_diagnostic_()   // number much larger than 1
+  convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
   using namespace globals;
   ::output.write("\nInitialising Torque monitor...\n");
+
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
@@ -77,6 +78,7 @@ void TorqueMonitor::update(Solver * solver) {
     torque_stats_[count].add(torque[1]/static_cast<double>(num_spins));
     convergence_geweke_diagnostic_[count] = torque_stats_[count].geweke();
 
+  double nse = 0.0;
     outfile << std::setw(12) << convergence_geweke_diagnostic_[count] << "\t";
 
     count++;

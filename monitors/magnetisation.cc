@@ -11,15 +11,17 @@
 
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
+  t_burn_(0.0),
   mag(::lattice.num_materials(), 4),
   s_transform_(globals::num_spins, 3),
   outfile(),
+  m_stats_(),
   m2_stats_(),
   m4_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
-  convergence_tolerance_(1.0),            // 1 standard deviation from the mean
-  convergence_geweke_m2_diagnostic_(100.0),   // number much larger than 1
-  convergence_geweke_m4_diagnostic_(100.0)   // number much larger than 1
+  convergence_tolerance_(0.05),            // 1 standard deviation from the mean
+  convergence_stderr_(0.0),
+  convergence_geweke_m_diagnostic_()            // 1 standard deviation from the mean
 {
   using namespace globals;
   ::output.write("\ninitialising Magnetisation monitor\n");
@@ -28,6 +30,10 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
     convergence_is_on_ = true;
     convergence_tolerance_ = settings["convergence"];
     ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
+
+    config.lookupValue("sim.t_burn", t_burn_);
+    ::output.write("  t_burn: %e (s)\n", t_burn_);
+
   }
 
   is_equilibration_monitor_ = true;
@@ -111,20 +117,29 @@ void MagnetisationMonitor::update(Solver * solver) {
       outfile << std::setw(12) << mag(i, 3) << "\t";
     }
 
-    double m2 = binder_m2();
-    m2_stats_.add(m2);
-    m4_stats_.add(m2 * m2);
+    if (solver->time() > t_burn_) {
+      double m2 = binder_m2();
+      m_stats_.add(sqrt(m2));
+      m2_stats_.add(m2);
+      m4_stats_.add(m2 * m2);
 
 
-    outfile << std::setw(12) << m2 << "\t";
-    outfile << std::setw(12) << m2 * m2 << "\t";
-    outfile << std::setw(12) << binder_cumulant() << "\t";
+      outfile << std::setw(12) << m2 << "\t";
+      outfile << std::setw(12) << m2 * m2 << "\t";
+      outfile << std::setw(12) << binder_cumulant() << "\t";
 
-    if (convergence_is_on_) {
-      convergence_geweke_m2_diagnostic_ = m2_stats_.geweke();
-      convergence_geweke_m4_diagnostic_ = m4_stats_.geweke();
-      outfile << std::setw(12) << convergence_geweke_m2_diagnostic_;
-      outfile << std::setw(12) << convergence_geweke_m4_diagnostic_;
+      if (convergence_is_on_) {
+        if (m_stats_.size() > 1 && m_stats_.size() % 10 == 0) {
+          double diagnostic;
+          m_stats_.geweke(diagnostic, convergence_stderr_);
+
+          convergence_geweke_m_diagnostic_.push_back(diagnostic);
+
+          outfile << std::setw(12) << diagnostic << "\t" << convergence_stderr_ << "\t" << m_stats_.stddev(0.1*m_stats_.size(), m_stats_.size()) / sqrt(m_stats_.size()*0.9);
+        } else {
+          outfile << std::setw(12) << "--------";
+        }
+      }
     }
 
     outfile << std::endl;
@@ -149,7 +164,17 @@ double MagnetisationMonitor::binder_cumulant() {
 }
 
 bool MagnetisationMonitor::is_converged() {
-  return ((std::abs(convergence_geweke_m2_diagnostic_) < convergence_tolerance_) &&(std::abs(convergence_geweke_m4_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
+
+  if (convergence_geweke_m_diagnostic_.size() < 10) {
+    return false;
+  }
+
+  int z_count = std::count_if(
+    convergence_geweke_m_diagnostic_.begin() + 0.5 * convergence_geweke_m_diagnostic_.size(),
+    convergence_geweke_m_diagnostic_.end(),
+    [](double x) {return std::abs(x) < 1.96;});
+
+  return (z_count > (0.95 * 0.5 * convergence_geweke_m_diagnostic_.size())  && convergence_stderr_ < convergence_tolerance_) && convergence_is_on_;
 }
 
 MagnetisationMonitor::~MagnetisationMonitor() {

@@ -2,50 +2,84 @@
 #include <numeric>
 #include <vector>
 #include <iostream>
+#include <fftw3.h>
 
 #include "core/stats.h"
 #include "core/maths.h"
 
-double Stats::geweke() {
-    int elements;
-    double first_10_pc_mean, first_10_pc_var, first_10_pc_sq_sum;
-    double last_50_pc_mean, last_50_pc_var, last_50_pc_sq_sum;
-    std::vector<double> diff;
-    std::vector<double>::const_iterator first_it;
-    std::vector<double>::const_iterator last_it;
+double Stats::spectral_density_zero() {
+    return spectral_density_zero(0, data_.size());
+}
 
-    // starts for first 10 percent of data
-    elements = nint(0.1*data_.size());
-    first_it = data_.begin();
-    last_it = data_.begin() + elements;
+// Calculates the spectral density about zero, S(0), which can then be used to
+// obtain estimates for variance accounting for auto correlation.
+//
+// The code here is based on:
+//     Numerical Methods of Statistics by John F. Monahan
+//     http://www4.stat.ncsu.edu/~monahan/jun08/f13/mh1.f95
+//
+// Notes:
+//  - spectral windowing is the same as the above reference (the choice is arbitrary)
+//  - x[0] after fft is the mean (i.e. we did not subtract the mean before FFT)
 
-    first_10_pc_mean = std::accumulate(first_it, last_it, 0.0) / double(elements);
+double Stats::spectral_density_zero(const size_t t0, const size_t t1) {
+    using std::vector;
+    using std::complex;
 
-    diff.resize(elements);
-    std::transform(first_it, last_it, diff.begin(),
-                   std::bind2nd(std::minus<double>(), first_10_pc_mean));
+    assert(t0 >= 0 && t0 < data_.size()-1);
+    assert(t1 > 0  && t1 < data_.size());
 
-    first_10_pc_sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+    fftw_plan       p;                  // fftw planning handle
+    int num_samples = t1 - t0;          // number of data samples
+    int nd = ceil(sqrt(num_samples));   // size of spectral windowing
+    double s0 = 0.0;                    // spectral density at zero (output)
 
-    first_10_pc_var = (first_10_pc_sq_sum/double(elements-1));
+    vector<complex<double>> x(num_samples); // fft result array
 
 
-    // starts for first 10 percent of data
-    elements = nint(0.5*data_.size());
-    first_it = data_.end() - elements;
-    last_it = data_.end();
+    p = fftw_plan_dft_r2c_1d(
+        num_samples,                                // size of transform
+        &data_[t0],                                 // input
+        reinterpret_cast<fftw_complex*>(&x[0]),     // output
+        FFTW_ESTIMATE);                             // planner flags
 
-    last_50_pc_mean = std::accumulate(first_it, last_it, 0.0) / double(elements);
+    fftw_execute(p);
 
-    diff.resize(elements);
-    std::transform(first_it, last_it, diff.begin(),
-                   std::bind2nd(std::minus<double>(), last_50_pc_mean));
+    fftw_destroy_plan(p);
 
-    last_50_pc_sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+    // spectral windowing
+    s0 = 0.5 * norm(x[1]);
+    for (int k = 0; k < nd; ++k) {
+        // skip x[0] because x[0] = mean(x)
+        s0 = s0 + norm(x[k + 1]);
+    }
+    s0 = (2.0 / num_samples) * s0 / double(2 * nd +1);
 
-    last_50_pc_var = (last_50_pc_sq_sum/double(elements-1));
+    return s0;
+}
 
-    return (first_10_pc_mean - last_50_pc_mean) / std::sqrt(first_10_pc_var + last_50_pc_var);
+void Stats::geweke(double &diagnostic, double &num_std_err) {
+    size_t nN = data_.size();
+    size_t nA = 0.1 * nN;
+    size_t nB = 0.5 * nN;
+
+    if (nA < 10) {
+        diagnostic = std::numeric_limits<double>::infinity();
+        num_std_err = std::numeric_limits<double>::infinity();
+    }
+
+    double meanA, meanB, s0A, s0B;
+
+    meanA = mean(0, nA);
+    meanB = mean(nB, nN);
+
+    s0A = spectral_density_zero(0, nA);
+    s0B = spectral_density_zero(nB, nN);
+
+    // std::cerr << meanA << "\t" << meanB << "\t" << s0A << "\t" << s0B << "\t" << sqrt(s0B/double(nB)) << "\t" << stddev(nB, nN) / sqrt(double(nB)) << std::endl;
+
+    diagnostic = (meanA - meanB) / sqrt(s0A / double(nA) + s0B / double(nB));
+    num_std_err =  sqrt(spectral_density_zero(nA, nN) / double(nN - nA));   // based on 90% of data
 }
 
 double Stats::median() {

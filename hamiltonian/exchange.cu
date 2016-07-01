@@ -7,7 +7,7 @@
 #include "core/cuda_defs.h"
 #include "core/cuda_sparsematrix.h"
 
-
+#include "jblib/math/summations.h"
 
 #include "hamiltonian/exchange.h"
 // #include "hamiltonian/exchange_kernel.h"
@@ -734,11 +734,12 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 // --------------------------------------------------------------------------
 
 double ExchangeHamiltonian::calculate_total_energy() {
-    double e_total = 0.0;
+    jblib::KahanSum total_energy;
+
     for (int i = 0; i < globals::num_spins; ++i) {
-        e_total += calculate_one_spin_energy(i);
+        total_energy.add(calculate_one_spin_energy(i));
     }
-    return e_total;
+    return total_energy.value();
 }
 
 // --------------------------------------------------------------------------

@@ -24,17 +24,20 @@ class MagnetisationMonitor : public Monitor {
   double binder_m2();
   double binder_cumulant();
 
+  double t_burn_;
+
   jblib::Array<double, 2> mag;
   jblib::Array<double, 2> s_transform_;
 
   std::ofstream outfile;
 
+  Stats m_stats_;
   Stats m2_stats_;
   Stats m4_stats_;
   bool convergence_is_on_;
   double convergence_tolerance_;
-  double convergence_geweke_m2_diagnostic_;
-  double convergence_geweke_m4_diagnostic_;
+  double convergence_stderr_;
+  std::vector<double> convergence_geweke_m_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_H

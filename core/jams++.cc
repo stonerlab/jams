@@ -27,6 +27,7 @@
 namespace {
 
   double dt = 0.0;
+  int steps_min = 0;
   int steps_run = 0;
 }  // anon namespace
 
@@ -90,13 +91,15 @@ int jams_initialize(int argc, char **argv) {
       dt = config.lookup("sim.t_step");
       output.write("\ntimestep\n  %1.8e\n", dt);
 
-      double time_value = config.lookup("sim.t_eq");
-
-      time_value = config.lookup("sim.t_run");
+      double time_value = config.lookup("sim.t_run");
       steps_run = static_cast<int>(time_value/dt);
       output.write("\nruntime\n  %1.8e (%lu steps)\n",
         time_value, steps_run);
 
+      time_value = config.lookup("sim.t_min");
+      steps_min = static_cast<int>(time_value/dt);
+      output.write("\nminimum runtime\n  %1.8e (%lu steps)\n",
+        time_value, steps_min);
 
       lattice.init_from_config(::config);
 
@@ -160,7 +163,7 @@ void jams_run() {
   std::clock_t start = std::clock();
 
   for (int i = 0; i < steps_run; ++i) {
-    if (i > 1000 && solver->is_converged()) {
+    if (i > steps_min && solver->is_converged()) {
       break;
     }
     solver->update_physics_module();
