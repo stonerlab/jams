@@ -226,24 +226,26 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      super_cell.unit_cell[i][j] = unitcell_settings["basis"][i][j];
+      super_cell.unit_cell[i][j] = unitcell_settings["basis"][j][i];
     }
   }
   output.write("\n----------------------------------------\n");
   output.write("\nunit cell\n");
 
   output.write("  lattice vectors\n");
+  // output transposed so it is consistent with input
   for (i = 0; i < 3; ++i) {
     output.write("    % 3.6f % 3.6f % 3.6f\n",
-      super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
+      super_cell.unit_cell[0][i], super_cell.unit_cell[1][i], super_cell.unit_cell[2][i]);
   }
 
   super_cell.unit_cell_inv = super_cell.unit_cell.inverse();
 
   output.write("  inverse lattice vectors\n");
+  // output transposed so it is consistent with input
   for (i = 0; i < 3; ++i) {
     output.write("    % 3.6f % 3.6f % 3.6f\n",
-      super_cell.unit_cell_inv[i][0], super_cell.unit_cell_inv[i][1], super_cell.unit_cell_inv[i][2]);
+      super_cell.unit_cell_inv[0][i], super_cell.unit_cell_inv[1][i], super_cell.unit_cell_inv[2][i]);
   }
 
   super_cell.parameter = unitcell_settings["parameter"];
@@ -706,9 +708,11 @@ void Lattice::calc_symmetry_operations() {
   const char *wl = "abcdefghijklmnopqrstuvwxyz";
 
   double spg_lattice[3][3];
+  // unit cell vectors have to be transposed because spglib wants
+  // a set of 3 vectors rather than the unit cell matrix
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_lattice[i][j] = super_cell.unit_cell[i][j];
+      spg_lattice[i][j] = super_cell.unit_cell[j][i];
     }
   }
 
