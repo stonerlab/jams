@@ -841,10 +841,21 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
+  output.write("\n");
+  output.write("  Symmetry operations\n");
+  output.write("    num symops\n    %d\n", spglib_dataset_->n_operations);
+
   Mat3 rot;
+  Mat3 id(1, 0, 0, 0, 1, 0, 0, 0, 1);
 
   for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
-    std::cout << i << "\t" << spglib_dataset_->translations[i][0] << "\t" << spglib_dataset_->translations[i][1] << "\t" << spglib_dataset_->translations[i][2] << std::endl;
+
+    output.verbose("%d\n---\n", i);
+    output.verbose("%8d  %8d  %8d\n%8d  %8d  %8d\n%8d  %8d  %8d\n",
+      spglib_dataset_->rotations[i][0][0], spglib_dataset_->rotations[i][0][1], spglib_dataset_->rotations[i][0][2],
+      spglib_dataset_->rotations[i][1][0], spglib_dataset_->rotations[i][1][1], spglib_dataset_->rotations[i][1][2],
+      spglib_dataset_->rotations[i][2][0], spglib_dataset_->rotations[i][2][1], spglib_dataset_->rotations[i][2][2]);
+    // std::cout << i << "\t" << spglib_dataset_->translations[i][0] << "\t" << spglib_dataset_->translations[i][1] << "\t" << spglib_dataset_->translations[i][2] << std::endl;
 
     for (int m = 0; m < 3; ++m) {
       for (int n = 0; n < 3; ++n) {
