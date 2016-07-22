@@ -382,6 +382,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
 
     tensor = tensor / kBohrMagneton;
 
+    ::output.verbose("--------------------------------------\n");
     ::output.verbose("exchange file line: %s\n", line.c_str());
 
     jblib::Vec3<double> r(interaction_vector.x, interaction_vector.y, interaction_vector.z);
