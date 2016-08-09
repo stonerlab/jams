@@ -222,14 +222,14 @@ void StructureFactorMonitor::fft_time() {
   for (int unit_cell_atom = 0; unit_cell_atom < lattice.num_unit_cell_positions(); ++unit_cell_atom) {
     for (int i = 0; i < time_points; ++i) {
       for (int j = 0; j < space_points; ++j) {
-        fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j).real()*fft_window_blackman_4(i, time_points);
-        fft_sqw_x(i,j)[1] = sqw_x(unit_cell_atom, i, j).imag()*fft_window_blackman_4(i, time_points);
+        fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j).real()*fft_window_default(i, time_points);
+        fft_sqw_x(i,j)[1] = sqw_x(unit_cell_atom, i, j).imag()*fft_window_default(i, time_points);
 
-        fft_sqw_y(i,j)[0] = sqw_y(unit_cell_atom, i, j).real()*fft_window_blackman_4(i, time_points);
-        fft_sqw_y(i,j)[1] = sqw_y(unit_cell_atom, i, j).imag()*fft_window_blackman_4(i, time_points);
+        fft_sqw_y(i,j)[0] = sqw_y(unit_cell_atom, i, j).real()*fft_window_default(i, time_points);
+        fft_sqw_y(i,j)[1] = sqw_y(unit_cell_atom, i, j).imag()*fft_window_default(i, time_points);
 
-        fft_sqw_z(i,j)[0] = sqw_z(unit_cell_atom, i, j).real()*fft_window_blackman_4(i, time_points);
-        fft_sqw_z(i,j)[1] = sqw_z(unit_cell_atom, i, j).imag()*fft_window_blackman_4(i, time_points);
+        fft_sqw_z(i,j)[0] = sqw_z(unit_cell_atom, i, j).real()*fft_window_default(i, time_points);
+        fft_sqw_z(i,j)[1] = sqw_z(unit_cell_atom, i, j).imag()*fft_window_default(i, time_points);
       }
     }
 
@@ -255,7 +255,6 @@ void StructureFactorMonitor::fft_time() {
     }
 
     unit_cell_dsf_file.close();
-
 
     for (int i = 0; i < time_points; ++i) {
       for (int j = 0; j < space_points; ++j) {
