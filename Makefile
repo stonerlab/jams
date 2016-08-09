@@ -86,6 +86,7 @@ ifndef V
 endif
 
 OBJS += core/jams++.o
+OBJS += core/fft.o
 OBJS += core/lattice.o
 OBJS += core/maths.o
 OBJS += core/monitor.o
@@ -127,6 +128,7 @@ OBJS += hamiltonian/dipole_tensor.o
 OBJS += hamiltonian/dipole_ewald.o
 OBJS += hamiltonian/dipole_fft.o
 
+HDR += core/fft.h
 HDR += core/consts.h
 HDR += core/error.h
 HDR += core/geometry.h
