@@ -23,6 +23,14 @@ Monitor::Monitor(const libconfig::Setting &settings)
   output_step_freq_(100) {
   settings.lookupValue("eq_monitor", is_equilibration_monitor_);
   settings.lookupValue("output_steps", output_step_freq_);
+
+  if (settings.exists("output_steps")) {
+    output_step_freq_ = settings["output_steps"];
+    output.write("  output_steps: %d (s)\n", output_step_freq_);
+  } else {
+    ::output.write("  DEFAULT output_steps (100)\n");
+    output_step_freq_ = 100; // DEFAULT
+  }
 }
 
 bool Monitor::is_updating(const int &iteration) const {

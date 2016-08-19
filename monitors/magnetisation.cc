@@ -19,19 +19,26 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   m2_stats_(),
   m4_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
-  convergence_tolerance_(0.05),            // 1 standard deviation from the mean
+  convergence_tolerance_(0.001),            
   convergence_stderr_(0.0),
-  convergence_geweke_m_diagnostic_()            // 1 standard deviation from the mean
+  convergence_geweke_m_diagnostic_()
 {
   using namespace globals;
   ::output.write("\ninitialising Magnetisation monitor\n");
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
+
     convergence_tolerance_ = settings["convergence"];
     ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
 
-    config.lookupValue("sim.t_burn", t_burn_);
+    if (settings.exists("sim.t_burn")) {
+      t_burn_ = settings["sim.t_burn"];
+    } else {
+      ::output.write("  DEFAULT t_burn (0.001*t_sim)\n");
+      t_burn_ = 0.001 * double(settings["sim.t_sim"]);     // DEFAULT
+    }
+
     ::output.write("  t_burn: %e (s)\n", t_burn_);
 
   }
