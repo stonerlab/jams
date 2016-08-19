@@ -32,15 +32,14 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
     convergence_tolerance_ = settings["convergence"];
     ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
 
-    if (settings.exists("sim.t_burn")) {
-      t_burn_ = settings["sim.t_burn"];
+    if (config.exists("sim.t_burn")) {
+      t_burn_ = config.lookup("sim.t_burn");
     } else {
       ::output.write("  DEFAULT t_burn (0.001*t_sim)\n");
-      t_burn_ = 0.001 * double(settings["sim.t_sim"]);     // DEFAULT
+      t_burn_ = 0.001 * double(config.lookup("sim.t_sim"));     // DEFAULT
     }
 
     ::output.write("  t_burn: %e (s)\n", t_burn_);
-
   }
 
   is_equilibration_monitor_ = true;
