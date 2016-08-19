@@ -96,8 +96,13 @@ int jams_initialize(int argc, char **argv) {
       output.write("\nruntime\n  %1.8e (%lu steps)\n",
         time_value, steps_run);
 
-      time_value = config.lookup("sim.t_min");
-      steps_min = static_cast<int>(time_value/dt);
+      if (config.exists("sim.t_min")) {
+        time_value = config.lookup("sim.t_min");
+        steps_min = static_cast<int>(time_value/dt);
+      } else {
+        steps_min = 0;
+      }
+
       output.write("\nminimum runtime\n  %1.8e (%lu steps)\n",
         time_value, steps_min);
 
