@@ -1,11 +1,6 @@
 #include <cmath>
 
-#ifdef __APPLE__
-  #include <Accelerate/Accelerate.h>
-#else
-  #include <cblas.h>
-#endif
-
+#include <cblas.h>
 
 #include "core/globals.h"
 #include "core/consts.h"

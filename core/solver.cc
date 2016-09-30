@@ -1,11 +1,6 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#ifdef __APPLE__
-  #include <Accelerate/Accelerate.h>
-#else
-  #include <cblas.h>
-#endif
-
+#include <cblas.h>
 #include <fftw3.h>
 
 #include "core/solver.h"
