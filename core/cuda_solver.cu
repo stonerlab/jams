@@ -20,6 +20,7 @@
 
 void CudaSolver::sync_device_data() {
   dev_s_.copy_to_host_array(globals::s);
+  dev_h_.copy_to_host_array(globals::h);
   dev_ds_dt_.copy_to_host_array(globals::ds_dt);
 }
 
