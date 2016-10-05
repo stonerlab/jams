@@ -10,6 +10,7 @@
 #include "monitors/torque.h"
 #include "monitors/energy.h"
 #include "monitors/spin_pumping.h"
+#include "monitors/spin_temperature.h"
 #include "monitors/boltzmann.h"
 #include "monitors/smr.h"
 #include "monitors/vtu.h"
@@ -59,6 +60,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "ENERGY") {
     return new EnergyMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "SPIN_TEMPERATURE") {
+    return new SpinTemperatureMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "SPINPUMPING") {
