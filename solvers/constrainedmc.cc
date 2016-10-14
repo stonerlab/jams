@@ -107,6 +107,24 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     }
   }
 
+  // create spin transform arrays
+  s_transform_.resize(num_spins);
+
+  for (int i = 0; i < num_spins; ++i) {
+    for (int n = 0; n < 3; ++n) {
+      for (int m = 0; m < 3; ++m) {
+        s_transform_(i)[n][m] = 0.0;
+      }
+    }
+  }
+
+  libconfig::Setting& material_settings = ::config.lookup("materials");
+  for (int i = 0; i < num_spins; ++i) {
+    for (int n = 0; n < 3; ++n) {
+      s_transform_(i)[n][n] = material_settings[::lattice.atom_material(i)]["transform"][n];
+    }
+  }
+
   outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
 }
 
@@ -175,11 +193,14 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
   Vec3<double> s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
   Vec3<double> s2_initial, s2_final, s2_initial_rotated, s2_final_rotated;
 
+  jblib::Matrix<double, 3, 3> s1_transform, s1_transform_inv;
+  jblib::Matrix<double, 3, 3> s2_transform, s2_transform_inv;
+
   Vec3<double> m_other(0.0, 0.0, 0.0);
 
   for (int i = 0; i < globals::num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
-      m_other[n] += globals::s(i,n)*globals::mus(i);
+      m_other[n] += s_transform_(i)[n][n] * globals::s(i,n) * globals::mus(i);
     }
   }
 
@@ -210,22 +231,30 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
       rand_s2 = rng.uniform_discrete(0, globals::num_spins-1);
     }
 
+    s1_transform = s_transform_(rand_s1);
+    s2_transform = s_transform_(rand_s2);
+
     s1_initial = mc_spin_as_vec(rand_s1);
     s2_initial = mc_spin_as_vec(rand_s2);
+
+    s1_transform_inv = s1_transform.transpose();
+    s2_transform_inv = s2_transform.transpose();
+
     mu1 = globals::mus(rand_s1);
     mu2 = globals::mus(rand_s2);
 
     // rotate into reference frame of the constraint vector
-    s1_initial_rotated = rotation_matrix_*s1_initial;
-    s2_initial_rotated = rotation_matrix_*s2_initial;
+    s1_initial_rotated = s1_transform * rotation_matrix_*s1_initial;
+    s2_initial_rotated = s2_transform * rotation_matrix_*s2_initial;
 
     // Monte Carlo move
     s1_final = s1_initial;
     s1_final = mc_trial_step(s1_initial);
-    s1_final_rotated = rotation_matrix_*s1_final;
+    s1_final_rotated = s1_transform * rotation_matrix_*s1_final;
 
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
-    s2_final_rotated = (s1_initial_rotated - s1_final_rotated)*(mu1/mu2) + s2_initial_rotated;
+    s2_final_rotated = ((s1_initial_rotated - s1_final_rotated ) * (mu1/mu2) 
+                      + s2_initial_rotated);
 
     // zero out the z-component which will be calculated below
     s2_final_rotated.z = 0.0;
@@ -234,13 +263,16 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
       // the rotated spin does not fit on the unit sphere - revert s1 and reject move
       continue;
     }
+
     // calculate the z-component so that |s2| = 1
-    s2_final_rotated.z = copysign(1.0, s2_initial_rotated.z)*sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
+    s2_final_rotated.z = copysign(1.0, s2_initial_rotated.z) * sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
 
     // rotate s2 back into the cartesian reference frame
-    s2_final = inverse_rotation_matrix_*s2_final_rotated;
+    s2_final = s2_transform_inv*inverse_rotation_matrix_*s2_final_rotated;
 
-    mz_new = dot((m_other + s1_final*mu1 + s2_final*mu2 - s1_initial*mu1 - s2_initial*mu2), constraint_vector_);
+    mz_new = dot((m_other + 
+      s1_transform*s1_final*mu1 + s2_transform*s2_final*mu2 
+      - s1_transform*s1_initial*mu1 - s2_transform*s2_initial*mu2), constraint_vector_);
 
     // The new magnetization is in the opposite sense - revert s1, reject move
     if (unlikely(mz_new < 0.0)) {
@@ -250,7 +282,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     // change in energy with spin move
     delta_energy1 = 0.0;
 
-    for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+    for (auto it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
       delta_energy1 += (*it)->calculate_one_spin_energy_difference(rand_s1, s1_initial, s1_final);
     }
 
@@ -259,7 +291,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     mc_set_spin_as_vec(rand_s1, s1_final);
 
     delta_energy2 = 0.0;
-    for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
+    for (auto it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
       delta_energy2 += (*it)->calculate_one_spin_energy_difference(rand_s2, s2_initial, s2_final);
     }
 
@@ -278,7 +310,8 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     } else {
       // accept move
       mc_set_spin_as_vec(rand_s2, s2_final);
-      m_other += s1_final*mu1 + s2_final*mu2 - s1_initial*mu1 - s2_initial*mu2;
+      m_other += s1_transform*s1_final*mu1 + s2_transform*s2_final*mu2 
+      - s1_transform*s1_initial*mu1 - s2_transform*s2_initial*mu2;
       move_acceptance_count_++;
     }
   }

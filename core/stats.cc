@@ -66,6 +66,8 @@ void Stats::geweke(double &diagnostic, double &num_std_err) {
     if (nA < 10) {
         diagnostic = std::numeric_limits<double>::infinity();
         num_std_err = std::numeric_limits<double>::infinity();
+
+        return;
     }
 
     double meanA, meanB, s0A, s0B;
