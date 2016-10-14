@@ -22,6 +22,8 @@ class ConstrainedMCSolver : public Solver {
   jblib::Array<double, 2> snew;
   jblib::Array<double, 2> sigma;
   jblib::Array<double, 2> eng;
+  jblib::Array<double, 2> s_transform_;
+
 
   int    move_acceptance_count_;
   double move_acceptance_fraction_;
