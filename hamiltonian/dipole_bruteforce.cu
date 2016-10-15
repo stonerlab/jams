@@ -153,7 +153,15 @@ void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianBruteforce::calculate_fields(jblib::Array<double, 2>& fields) {
+    for (int i = 0; i < globals::num_spins; ++i) {
+        double h[3];
 
+        calculate_one_spin_field(i, h);
+
+        for (int n = 0; n < 3; ++n) {
+            fields(i, n) = h[n];
+        }
+    }
 }
 
 void DipoleHamiltonianBruteforce::calculate_fields(jblib::CudaArray<double, 1>& fields) {
