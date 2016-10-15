@@ -23,6 +23,7 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 
 
 #ifdef CUDA
+    if (solver->is_cuda_solver()) {
     bool super_cell_pbc[3];
     float super_unit_cell[3][3];
     float super_unit_cell_inv[3][3];
@@ -68,6 +69,7 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
     cudaStreamCreate(&dev_stream_);
 
     dev_blocksize_ = 128;
+    }
 #endif  // CUDA
 
 }
