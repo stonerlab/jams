@@ -134,20 +134,18 @@ void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h
 
         r_ij = lattice.displacement(i, j);
 
-        r_abs = r_ij.norm_sq();
+        r_abs = r_ij.norm();
 
-        if (r_abs > r_cutoff_ * r_cutoff_) continue;
+        if (r_abs > r_cutoff_) continue;
 
-        r_abs = 1.0 / sqrt(r_abs);
-
-        w0 = prefactor * globals::mus(j) * (r_abs * r_abs * r_abs);
+        w0 = prefactor * globals::mus(j);
 
         s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
-        s_j_dot_rhat = dot(s_j, r_ij) * r_abs;
+        s_j_dot_rhat = dot(s_j, r_ij);
 
         #pragma unroll
         for (n = 0; n < 3; ++n) {
-            h[n] += (3.0 * r_ij[n] * s_j_dot_rhat  * r_abs - s_j[n]) * w0;
+            h[n] += (3.0 * r_ij[n] * s_j_dot_rhat - r_abs * r_abs * s_j[n]) * w0 / (r_abs*r_abs*r_abs*r_abs*r_abs);
         }
     }
 }
