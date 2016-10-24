@@ -10,6 +10,8 @@
 #include "core/globals.h"
 #include "core/lattice.h"
 #include "core/consts.h"
+#include "core/field.h"
+#include "core/fft.h"
 
 #include "monitors/structurefactor.h"
 
@@ -24,16 +26,6 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
   is_equilibration_monitor_ = false;
   time_point_counter_ = 0;
-
-  // plan FFTW routines
-  sq_x.resize(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z);
-  fft_plan_sq_x = fftw_plan_dft_3d(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z, sq_x.data(),  sq_x.data(), FFTW_FORWARD, FFTW_ESTIMATE);
-
-  sq_y.resize(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z);
-  fft_plan_sq_y = fftw_plan_dft_3d(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z, sq_y.data(),  sq_y.data(), FFTW_FORWARD, FFTW_ESTIMATE);
-
-  sq_z.resize(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z);
-  fft_plan_sq_z = fftw_plan_dft_3d(lattice.kspace_size().x, lattice.kspace_size().y, lattice.kspace_size().z, sq_z.data(),  sq_z.data(), FFTW_FORWARD, FFTW_ESTIMATE);
 
   // create transform arrays for example to apply a Holstein Primakoff transform
   s_transform.resize(num_spins, 3);
@@ -91,19 +83,13 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
       bz_vec = bz_vec + lattice.unit_cell_vector(i) * bz_cfg_points.back()[i];
     }
 
-    std::cerr << bz_vec.x << "\t" << bz_vec.y << "\t" << bz_vec.z << std::endl;
-
     bz_vec = lattice.cartesian_to_fractional(bz_vec);
 
-    std::cerr << bz_vec.x << "\t" << bz_vec.y << "\t" << bz_vec.z << std::endl;
-
     for (int i = 0; i < 3; ++i) {
-      bz_vec[i] = bz_vec[i] * (lattice.kspace_size()[i]/2 + 1);
+      bz_vec[i] = bz_vec[i] * (lattice.kspace_size()[i]/2);
     }
-    std::cerr << bz_vec.x << "\t" << bz_vec.y << "\t" << bz_vec.z << std::endl;
 
     bz_nodes.push_back({int(bz_vec.x), int(bz_vec.y), int(bz_vec.z)});
-
   }
 
   for (int n = 0, nend = bz_nodes.size()-1; n < nend; ++n) {
@@ -112,10 +98,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
-      if (int(bz_nodes[n][i]) > (lattice.kspace_size()[i]/2 + 1)) {
+      if (int(bz_nodes[n][i]) > (lattice.kspace_size()[i]/2)) {
         jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(cfg_nodes[n][0]), int(cfg_nodes[n][1]), int(cfg_nodes[n][2]));
       }
-      if (int(bz_nodes[n+1][i]) > (lattice.kspace_size()[i]/2 + 1)) {
+      if (int(bz_nodes[n+1][i]) > (lattice.kspace_size()[i]/2)) {
         jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(cfg_nodes[n+1][0]), int(cfg_nodes[n+1][1]), int(cfg_nodes[n+1][2]));
       }
     }
@@ -132,7 +118,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     }
 
     // the number of points is the max dimension in line
-    const int bz_line_points = abs(*std::max_element(bz_line.begin(), bz_line.end(), [] (int a, int b) { return (abs(a) < abs(b)); }));
+    const int bz_line_points = 1+abs(*std::max_element(bz_line.begin(), bz_line.end(), [] (int a, int b) { return (abs(a) < abs(b)); }));
     ::output.verbose("  bz line points: %d\n", bz_line_points);
 
     // store the length element between these points
@@ -158,122 +144,39 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     }
   }
 
+
   sqw_x.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
   sqw_y.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
   sqw_z.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
-
-
-  chi_xy.resize(num_samples);
-  chi_yx.resize(num_samples);
-
 }
 
 void StructureFactorMonitor::update(Solver * solver) {
   using std::complex;
   using namespace globals;
 
-  complex<double> two_pi_i_dr;
-  complex<double> exp_phase_0;
-  jblib::Array<complex<double>, 1> exp_phase_x(lattice.kspace_size().x);
-  jblib::Array<complex<double>, 1> exp_phase_y(lattice.kspace_size().y);
-  jblib::Array<complex<double>, 1> exp_phase_z(lattice.kspace_size().z);
+  jblib::Array<complex<double>, 4> sq_x, sq_y, sq_z;
 
-  chi_xy[time_point_counter_][0] = 0.0;
-  chi_xy[time_point_counter_][1] = 0.0;
+  jblib::Array<double, 2> s_trans(num_spins, 3);
 
-  for (int unit_cell_atom = 0; unit_cell_atom < lattice.num_unit_cell_positions(); ++unit_cell_atom) {
-    // zero the sq arrays
-    for (int i = 0; i < sq_x.elements(); ++i) {
-      sq_x[i][0] = 0.0; sq_x[i][1] = 0.0;
-      sq_y[i][0] = 0.0; sq_y[i][1] = 0.0;
-      sq_z[i][0] = 0.0; sq_z[i][1] = 0.0;
+  for (int i = 0; i < num_spins; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      s_trans(i, j) = s(i, j) * s_transform(i, j);
     }
+  }
 
-    // remap spin data into kspace array
-    for (int i = 0; i < num_spins; ++i) {
-      if ((i+unit_cell_atom)%lattice.num_unit_cell_positions() == 0) {
-        jblib::Vec3<int> r = lattice.super_cell_pos(i);
-        sq_x(r.x, r.y, r.z)[0] = s(i,0)*s_transform(i,0);  sq_x(r.x, r.y, r.z)[1] = 0.0;
-        sq_y(r.x, r.y, r.z)[0] = s(i,1)*s_transform(i,1);  sq_y(r.x, r.y, r.z)[1] = 0.0;
-        sq_z(r.x, r.y, r.z)[0] = s(i,2)*s_transform(i,2);  sq_z(r.x, r.y, r.z)[1] = 0.0;
-      }
-    }
+  fft_vector_field(s_trans, sq_x, sq_y, sq_z);
 
-    // perform in place FFT
-    fftw_execute(fft_plan_sq_x);
-    fftw_execute(fft_plan_sq_y);
-    fftw_execute(fft_plan_sq_z);
-
-    const double norm = 1.0/sqrt(product(lattice.kspace_size()));
-
-
-    // super speed hack from CASTEP ewald.f90 for generating all of the phase factors on
-    // the fly without calling lots of exp()
-    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position_cart(unit_cell_atom).x;
-    exp_phase_0 = exp(two_pi_i_dr);
-    exp_phase_x(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().x - 1)));
-    for (int i = 1; i < lattice.kspace_size().x; ++i) {
-      exp_phase_x(i) = exp_phase_x(i-1)*exp_phase_0;
-    }
-
-    two_pi_i_dr = kImagTwoPi*lattice.unit_cell_position_cart(unit_cell_atom).y;
-    exp_phase_0 = exp(two_pi_i_dr);
-    exp_phase_y(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().y - 1)));
-    for (int i = 1; i < lattice.kspace_size().y; ++i) {
-      exp_phase_y(i) = exp_phase_y(i-1)*exp_phase_0;
-    }
-
-    two_pi_i_dr = kImagTwoPi* lattice.unit_cell_position_cart(unit_cell_atom).z;
-    exp_phase_0 = exp(two_pi_i_dr);
-    exp_phase_z(0) = exp(-two_pi_i_dr*double((lattice.kspace_size().z - 1)));
-    for (int i = 1; i < lattice.kspace_size().z; ++i) {
-      exp_phase_z(i) = exp_phase_z(i-1)*exp_phase_0;
-    }
-
-
-
-
-    for (int i = 0; i < lattice.kspace_size().x; ++i) {
-      for (int j = 0; j < lattice.kspace_size().y; ++j) {
-        for (int k = 0; k < lattice.kspace_size().z; ++k) {
-
-          complex<double> phased_sq_x(sq_x(i, j, k)[0], sq_x(i, j, k)[1]);
-          complex<double> phased_sq_y(sq_y(i, j, k)[0], sq_y(i, j, k)[1]);
-          complex<double> phased_sq_z(sq_z(i, j, k)[0], sq_z(i, j, k)[1]);
-
-          phased_sq_x = norm*phased_sq_x*exp_phase_x(i)*exp_phase_y(j)*exp_phase_z(k);
-          sq_x(i, j, k)[0] = phased_sq_x.real(); sq_x(i, j, k)[1] = phased_sq_x.imag();
-
-          phased_sq_y = norm*phased_sq_y*exp_phase_x(i)*exp_phase_y(j)*exp_phase_z(k);
-          sq_y(i, j, k)[0] = phased_sq_y.real(); sq_y(i, j, k)[1] = phased_sq_y.imag();
-
-          phased_sq_z = norm*phased_sq_z*exp_phase_x(i)*exp_phase_y(j)*exp_phase_z(k);
-          sq_z(i, j, k)[0] = phased_sq_z.real(); sq_z(i, j, k)[1] = phased_sq_z.imag();
-        }
-      }
-    }
-
-    chi_xy[time_point_counter_][0] = ((s(0, 0)*ds_dt(0, 1) - s(0, 1)*ds_dt(0, 0))); //(sq_x(0,0,0)[0]*sq_y(0,0,0)[0]) + (sq_x(0,0,0)[1]*sq_y(0,0,0)[1]);
-    chi_xy[time_point_counter_][1] = 0.0; //(sq_x(0,0,0)[1]*sq_y(0,0,0)[0]) - (sq_x(0,0,0)[0]*sq_y(0,0,0)[1]);
-
-
-    chi_yx[time_point_counter_][0] = (sq_x(0,0,0)[0]*sq_y(0,0,0)[0]) + (sq_x(0,0,0)[1]*sq_y(0,0,0)[1]);
-    chi_yx[time_point_counter_][1] = (sq_x(0,0,0)[0]*sq_y(0,0,0)[1]) - (sq_x(0,0,0)[1]*sq_y(0,0,0)[0]);
-
-    // add the Sq to the timeseries
+  // add the Sq to the timeseries
+  for (int n = 0; n < lattice.num_unit_cell_positions(); ++n) {
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
       jblib::Vec3<int> q = bz_points[i];
-      sqw_x(unit_cell_atom, time_point_counter_, i) = norm*complex<double>(sq_x(q.x, q.y, q.z)[0],sq_x(q.x, q.y, q.z)[1]);
-      sqw_y(unit_cell_atom, time_point_counter_, i) = norm*complex<double>(sq_y(q.x, q.y, q.z)[0],sq_y(q.x, q.y, q.z)[1]);
-      sqw_z(unit_cell_atom, time_point_counter_, i) = norm*complex<double>(sq_z(q.x, q.y, q.z)[0],sq_z(q.x, q.y, q.z)[1]);
+      sqw_x(n, time_point_counter_, i) = sq_x(q.x, q.y, q.z, n);
+      sqw_y(n, time_point_counter_, i) = sq_y(q.x, q.y, q.z, n);
+      sqw_z(n, time_point_counter_, i) = sq_z(q.x, q.y, q.z, n);
     }
   }
 
   time_point_counter_++;
-}
-
-double StructureFactorMonitor::fft_windowing(const int n, const int n_total) {
-  return 0.54 - 0.46*cos((kTwoPi*n)/double(n_total-1));
 }
 
 void StructureFactorMonitor::fft_time() {
@@ -319,14 +222,14 @@ void StructureFactorMonitor::fft_time() {
   for (int unit_cell_atom = 0; unit_cell_atom < lattice.num_unit_cell_positions(); ++unit_cell_atom) {
     for (int i = 0; i < time_points; ++i) {
       for (int j = 0; j < space_points; ++j) {
-        fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j).real()*fft_windowing(i, time_points);
-        fft_sqw_x(i,j)[1] = sqw_x(unit_cell_atom, i, j).imag()*fft_windowing(i, time_points);
+        fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j).real()*fft_window_blackman_4(i, time_points);
+        fft_sqw_x(i,j)[1] = sqw_x(unit_cell_atom, i, j).imag()*fft_window_blackman_4(i, time_points);
 
-        fft_sqw_y(i,j)[0] = sqw_y(unit_cell_atom, i, j).real()*fft_windowing(i, time_points);
-        fft_sqw_y(i,j)[1] = sqw_y(unit_cell_atom, i, j).imag()*fft_windowing(i, time_points);
+        fft_sqw_y(i,j)[0] = sqw_y(unit_cell_atom, i, j).real()*fft_window_blackman_4(i, time_points);
+        fft_sqw_y(i,j)[1] = sqw_y(unit_cell_atom, i, j).imag()*fft_window_blackman_4(i, time_points);
 
-        fft_sqw_z(i,j)[0] = sqw_z(unit_cell_atom, i, j).real()*fft_windowing(i, time_points);
-        fft_sqw_z(i,j)[1] = sqw_z(unit_cell_atom, i, j).imag()*fft_windowing(i, time_points);
+        fft_sqw_z(i,j)[0] = sqw_z(unit_cell_atom, i, j).real()*fft_window_blackman_4(i, time_points);
+        fft_sqw_z(i,j)[1] = sqw_z(unit_cell_atom, i, j).imag()*fft_window_blackman_4(i, time_points);
       }
     }
 
@@ -389,24 +292,6 @@ void StructureFactorMonitor::fft_time() {
   }
 
   dsffile.close();
-
-  // spin pumping
-  fftw_plan chi_xy_plan = fftw_plan_dft_1d(time_points, chi_xy.data(), chi_xy.data(), FFTW_FORWARD, FFTW_ESTIMATE);
-  fftw_execute(chi_xy_plan);
-
-  // spin pumping
-  fftw_plan chi_yx_plan = fftw_plan_dft_1d(time_points, chi_yx.data(), chi_yx.data(), FFTW_FORWARD, FFTW_ESTIMATE);
-  fftw_execute(chi_yx_plan);
-
-
-
-  name = seedname + "_chi.tsv";
-  std::ofstream chifile(name.c_str());
-
-  for (int i = 0; i < (time_points/2) + 1; ++i) {
-    chifile << i*freq_delta << "\t" << chi_xy[i][0] << "\t" << chi_xy[i][1] << "\t" << chi_yx[i][0] << "\t" << chi_yx[i][1] << "\n";
-  }
-  chifile.close();
 }
 
 StructureFactorMonitor::~StructureFactorMonitor() {
