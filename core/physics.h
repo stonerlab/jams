@@ -4,6 +4,7 @@
 #define JAMS_CORE_PHYSICS_H
 
 #include "jblib/containers/vec.h"
+#include "jblib/containers/array.h"
 
 #include <libconfig.h++>
 
@@ -20,6 +21,8 @@ class Physics {
   inline const jblib::Vec3<double>& applied_field() const { return applied_field_; }
   inline double applied_field(const int i) const { return applied_field_[i]; }
 
+  virtual const double* field() { return field_.data(); }
+
   inline void set_applied_field(const jblib::Vec3<double> &field) { applied_field_ = field; }
 
   static Physics* create(const libconfig::Setting &settings);
@@ -28,6 +31,8 @@ class Physics {
   double              temperature_;
   jblib::Vec3<double> applied_field_;
   int                 output_step_freq_;
+
+  jblib::Array<double,2> field_;  // per spin arbitrary fields
 };
 
 #endif  // JAMS_CORE_PHYSICS_H

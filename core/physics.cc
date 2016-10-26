@@ -20,7 +20,10 @@
 
 
 Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0),
-    applied_field_(0.0, 0.0, 0.0) {
+    applied_field_(0.0, 0.0, 0.0),
+    field_(globals::num_spins, 3) {
+
+  field_.zero();
 
   // initialise temperature
   temperature_ = 0.0;
