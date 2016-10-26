@@ -198,6 +198,7 @@ ifndef NO_CUDA
 	CUDA_OBJS += hamiltonian/exchange.o
 	CUDA_OBJS += hamiltonian/exchange_neartree.o
 	CUDA_OBJS += hamiltonian/dipole_bruteforce.o
+	CUDA_OBJS += physics/cuda_metadynamics.o
 
 	CUDA_HDR += hamiltonian/dipole_bruteforce.h
 	CUDA_HDR += hamiltonian/dipole_bruteforce_kernel.h
@@ -212,6 +213,8 @@ ifndef NO_CUDA
 	CUDA_HDR += thermostats/cuda_langevin_bose.h
 	CUDA_HDR += thermostats/cuda_langevin_bose_kernel.h
 	CUDA_HDR += thermostats/cuda_langevin_white.h
+	CUDA_HDR += physics/cuda_metadynamics.h
+
 
 endif
 
