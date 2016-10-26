@@ -75,7 +75,11 @@ void CudaSolver::compute_fields() {
   }
 
   // zero the field array
-  if (cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), dev_stream_) != cudaSuccess) {
+  //if (cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), dev_stream_) != cudaSuccess) {
+  //  throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  //}
+
+  if (cudaMemcpy(dev_h_.data(), physics_module_->field(), (size_t)(num_spins3*sizeof(double)), cudaMemcpyDeviceToDevice) != cudaSuccess) {
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
