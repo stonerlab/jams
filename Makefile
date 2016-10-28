@@ -119,6 +119,7 @@ OBJS += physics/mfpt.o
 OBJS += physics/square.o
 OBJS += physics/ttm.o
 OBJS += physics/ping.o
+OBJS += physics/metadynamics.o
 OBJS += solvers/heunllg.o
 OBJS += solvers/metropolismc.o
 OBJS += solvers/constrainedmc.o
@@ -171,6 +172,7 @@ HDR += physics/mfpt.h
 HDR += physics/square.h
 HDR += physics/ttm.h
 HDR += physics/ping.h
+HDR += physics/metadynamics.h
 HDR += solvers/heunllg.h
 HDR += solvers/metropolismc.h
 HDR += solvers/constrainedmc.h
@@ -183,6 +185,7 @@ HDR += hamiltonian/uniaxial.h
 HDR += hamiltonian/exchange.h
 HDR += hamiltonian/exchange_neartree.h
 HDR += hamiltonian/zeeman.h
+HDR += hamiltonian/metadynamics.h
 
 ifndef NO_CUDA
 	CUDA_OBJS += core/cuda_solver.o
@@ -198,6 +201,7 @@ ifndef NO_CUDA
 	CUDA_OBJS += hamiltonian/exchange.o
 	CUDA_OBJS += hamiltonian/exchange_neartree.o
 	CUDA_OBJS += hamiltonian/dipole_bruteforce.o
+	CUDA_OBJS += hamiltonian/metadynamics.o
 	CUDA_OBJS += physics/cuda_metadynamics.o
 
 	CUDA_HDR += hamiltonian/dipole_bruteforce.h

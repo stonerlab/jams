@@ -17,14 +17,17 @@
 #include "physics/square.h"
 #include "physics/ttm.h"
 #include "physics/ping.h"
+#include "physics/metadynamics.h"
 #include "physics/cuda_metadynamics.h"
 
 
 Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0),
     applied_field_(0.0, 0.0, 0.0),
-    field_(globals::num_spins, 3) {
+    field_(globals::num_spins, 3),
+    energy_(globals::num_spins) {
 
   field_.zero();
+  energy_.zero();
 
   // initialise temperature
   temperature_ = 0.0;
@@ -102,7 +105,9 @@ Physics* Physics::create(const libconfig::Setting &settings) {
   }
 
   if (capitalize(settings["module"]) == "METADYNAMICS") {
-    return new CudaMetadynamicsPhysics(settings);
+    return new MetadynamicsPhysics(settings);
+    // return new CudaMetadynamicsPhysics(settings);
+
   }
 
   if (capitalize(settings["module"]) == "EMPTY") {

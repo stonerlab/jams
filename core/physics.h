@@ -22,6 +22,7 @@ class Physics {
   inline double applied_field(const int i) const { return applied_field_[i]; }
 
   virtual const double* field() { return field_.data(); }
+  virtual const double* energy() { return energy_.data(); }
 
   inline void set_applied_field(const jblib::Vec3<double> &field) { applied_field_ = field; }
 
@@ -33,6 +34,8 @@ class Physics {
   int                 output_step_freq_;
 
   jblib::Array<double,2> field_;  // per spin arbitrary fields
+  jblib::Array<double,1> energy_;  // per spin arbitrary energies
+
 };
 
 #endif  // JAMS_CORE_PHYSICS_H

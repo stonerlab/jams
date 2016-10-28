@@ -250,6 +250,8 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
         deltaE += (*it)->calculate_one_spin_energy_difference(random_spin_number, s_initial, s_final);
       }
 
+      // std::cout << deltaE << std::endl;
+
       if (deltaE < 0.0) {
         mc_set_spin_as_vec(random_spin_number, s_final);
         move_acceptance_count_++;

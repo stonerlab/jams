@@ -9,30 +9,28 @@
 #include <array>
 
 #include "core/physics.h"
-#include "jblib/containers/cuda_array.h"
+#include "hamiltonian/metadynamics.h"
 
 
-class CudaMetadynamicsPhysics : public Physics {
+class MetadynamicsPhysics : public Physics {
  public:
-  CudaMetadynamicsPhysics(const libconfig::Setting &settings);
-  ~CudaMetadynamicsPhysics();
+  MetadynamicsPhysics(const libconfig::Setting &settings);
+  ~MetadynamicsPhysics();
   void update(const int &iterations, const double &time, const double &dt);
-
- // override the base class implementation
- const double* field() { return dev_field_.data(); }
 
 private:
 
 	void calculate_collective_variables();
 	void calculate_fields();
+  void calculate_potential();
+
 	void output_gaussians(std::ostream &out);
 	double gaussian(double x, double y);
 
    bool debug_;
 
-   cudaStream_t                dev_stream_;
-
-   jblib::CudaArray<double, 1> dev_field_;
+   // make shared pointer instead
+   MetadynamicsHamiltonian* meta_hamiltonian;
 
    double			   	   cv_theta;
    double			   	   cv_phi;
@@ -42,7 +40,7 @@ private:
    std::vector<std::array<double, 2>> gaussian_centers;   
    double 			   gaussian_width;
    double 			   gaussian_height;
-   int                 gaussian_placement_interval;
+   int             gaussian_placement_interval;
 };
 
 #endif  // JAMS_PHYSICS_METADYNAMICS_H

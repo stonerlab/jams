@@ -1,6 +1,6 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "physics/cuda_metadynamics.h"
+#include "physics/metadynamics.h"
 
 #include <libconfig.h++>
 
@@ -8,21 +8,20 @@
 #include "core/exception.h"
 
 
-CudaMetadynamicsPhysics::CudaMetadynamicsPhysics(const libconfig::Setting &settings)
+MetadynamicsPhysics::MetadynamicsPhysics(const libconfig::Setting &settings)
   : Physics(settings),
     debug_(false),
-    dev_stream_(),
-    dev_field_(globals::num_spins3),
+    meta_hamiltonian(nullptr),
     cv_theta(0),
     cv_phi(0),
     collective_variable_deriv(globals::num_spins, 3),
     gaussian_centers(),
-    gaussian_width(0.3),
-    gaussian_height(0.1),
+    gaussian_width(0.5),
+    gaussian_height(0.01),
     gaussian_placement_interval(100)
   {
 
-  output.write("  * CUDA metadynamics physics module\n");
+  output.write("  * metadynamics physics module\n");
 
   config.lookupValue("debug", debug_);
 
@@ -30,47 +29,40 @@ CudaMetadynamicsPhysics::CudaMetadynamicsPhysics(const libconfig::Setting &setti
     ::output.write("    DEBUG ON\n");  
   }
 
-  if (cudaStreamCreate(&dev_stream_) != cudaSuccess){
-    jams_error("Failed to create CUDA stream in CudaMetadynamicsPhysics");
-  }
-
-  // zero the field array
-  if (cudaMemsetAsync(dev_field_.data(), 0.0, globals::num_spins3*sizeof(double), dev_stream_) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
+  meta_hamiltonian = new MetadynamicsHamiltonian(settings);
 }
 
-CudaMetadynamicsPhysics::~CudaMetadynamicsPhysics() {
+MetadynamicsPhysics::~MetadynamicsPhysics() {
 }
 
-void CudaMetadynamicsPhysics::update(const int &iterations, const double &time, const double &dt) {
+void MetadynamicsPhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
 
-  // calculate collective variables
-  calculate_collective_variables();
-
-  if (iterations % gaussian_placement_interval == 0) {
-    gaussian_centers.push_back({cv_theta, cv_phi});
-    gaussian_centers.push_back({cv_theta, -cv_phi});
-
-    // if (cv_theta - 2.0*gaussian_width < 0.0) {
-    //   gaussian_centers.push_back(-cv_theta);
-    // } 
-
-    // if (cv_theta + 2.0*gaussian_width > kPi) {
-    //   gaussian_centers.push_back(kPi + (kPi - cv_theta) );
-    // }
-    
-    output_gaussians(std::cerr);
+  if (iterations == 0) {
+    solver->register_hamiltonian(meta_hamiltonian);
+  } else if (iterations % gaussian_placement_interval == 0) {
+    meta_hamiltonian->add_gaussian();
+    meta_hamiltonian->output_gaussians(std::cerr);
   }
-
-  calculate_fields();
-
-  dev_field_.copy_from_host_array(field_);
+   
 }
 
-void CudaMetadynamicsPhysics::calculate_collective_variables() {
+void MetadynamicsPhysics::calculate_potential() {
+  auto potential = 0.0;
+  for (auto it = gaussian_centers.begin(); it != gaussian_centers.end(); ++it){
+
+    auto x = (cv_theta - (*it)[0]);
+    auto y = (cv_phi - (*it)[1]) ;
+
+    potential += gaussian(x, y);
+  }
+
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    energy_[i] = -potential;
+  }
+}
+
+void MetadynamicsPhysics::calculate_collective_variables() {
 
   // DO THIS ON THE GPU EVENTUALLY
   Vec3 mag = {0.0, 0.0, 0.0};
@@ -114,7 +106,7 @@ void CudaMetadynamicsPhysics::calculate_collective_variables() {
   }
 }
 
-void CudaMetadynamicsPhysics::calculate_fields() {
+void MetadynamicsPhysics::calculate_fields() {
 
   auto potential_deriv = 0.0;
   for (auto it = gaussian_centers.begin(); it != gaussian_centers.end(); ++it){
@@ -141,12 +133,12 @@ void CudaMetadynamicsPhysics::calculate_fields() {
 }
 
 
-double CudaMetadynamicsPhysics::gaussian(double x, double y) {
+double MetadynamicsPhysics::gaussian(double x, double y) {
   return gaussian_height * exp(- ((0.5 * x * x / (gaussian_width * gaussian_width))
                                  +(0.5 * y * y / (gaussian_width * gaussian_width))));
 }
 
-void CudaMetadynamicsPhysics::output_gaussians(std::ostream &out) {
+void MetadynamicsPhysics::output_gaussians(std::ostream &out) {
   auto theta = 0.0;
   auto delta_theta = gaussian_width/5.0;
   auto delta_phi = gaussian_width/5.0;
