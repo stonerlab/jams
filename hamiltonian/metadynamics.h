@@ -50,8 +50,12 @@ class MetadynamicsHamiltonian : public Hamiltonian {
         void output_fields_text();
         // void output_fields_hdf5();
 
-        double                 cv_theta;
-        double                 cv_phi;
+        double                 cv_mag_x;
+        double                 cv_mag_y;
+        double                 cv_mag_z;
+
+        double                 cv_mag_t;
+        double                 cv_mag_p;
 
         jblib::Array<double, 2> collective_variable_deriv;
 
