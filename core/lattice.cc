@@ -263,6 +263,10 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     throw general_exception("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
+  if (super_cell.parameter > 1e-7) {
+    jams_warning("lattice parameter is unusually large - units should be meters");
+  }
+
   output.write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
 
   for (i = 0; i < 3; ++i) {
