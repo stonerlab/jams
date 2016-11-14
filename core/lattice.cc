@@ -218,34 +218,42 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 // Read lattice vectors
 //-----------------------------------------------------------------------------
 
-  // We transpose during the read because the unit cell matrix must have the
-  // lattice vectors as the columns but it is easiest to define each vector in
-  // the input
-  // | a1x a2x a2x |  | A |   | A.a1x + B.a2x + C.a3x |
-  // | a1y a2y a3y |  | B | = | A.a1y + B.a2y + C.a3y |
-  // | a1z a2z a3z |  | C |   | A.a1z + B.a2z + C.a3z |
+  // unit cell matrix is made of a,b,c lattice vectors as
+  //
+  // a_x  b_x  c_x
+  // a_y  b_y  c_y
+  // a_z  b_z  c_z
+  //
+  // this is consistent with the definition used by spglib
+
+
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      super_cell.unit_cell[i][j] = unitcell_settings["basis"][j][i];
+      super_cell.unit_cell[i][j] = unitcell_settings["basis"][i][j];
     }
   }
   output.write("\n----------------------------------------\n");
   output.write("\nunit cell\n");
 
   output.write("  lattice vectors\n");
-  // output transposed so it is consistent with input
+  output.write("    a = (%f, %f, %f)\n", super_cell.unit_cell[0][0], super_cell.unit_cell[1][0], super_cell.unit_cell[2][0]);
+  output.write("    b = (%f, %f, %f)\n", super_cell.unit_cell[0][1], super_cell.unit_cell[1][1], super_cell.unit_cell[2][1]);
+  output.write("    c = (%f, %f, %f)\n", super_cell.unit_cell[0][2], super_cell.unit_cell[1][2], super_cell.unit_cell[2][2]);
+  output.write("\n");
+
+  output.write("  lattice vectors (matrix form)\n");
+
   for (i = 0; i < 3; ++i) {
     output.write("    % 3.6f % 3.6f % 3.6f\n",
-      super_cell.unit_cell[0][i], super_cell.unit_cell[1][i], super_cell.unit_cell[2][i]);
+      super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
   }
 
   super_cell.unit_cell_inv = super_cell.unit_cell.inverse();
 
-  output.write("  inverse lattice vectors\n");
-  // output transposed so it is consistent with input
+  output.write("  inverse lattice vectors (matrix form)\n");
   for (i = 0; i < 3; ++i) {
     output.write("    % 3.6f % 3.6f % 3.6f\n",
-      super_cell.unit_cell_inv[0][i], super_cell.unit_cell_inv[1][i], super_cell.unit_cell_inv[2][i]);
+      super_cell.unit_cell_inv[i][0], super_cell.unit_cell_inv[i][1], super_cell.unit_cell_inv[i][2]);
   }
 
   super_cell.parameter = unitcell_settings["parameter"];
@@ -712,7 +720,7 @@ void Lattice::calc_symmetry_operations() {
   // a set of 3 vectors rather than the unit cell matrix
   for (i = 0; i < 3; ++i) {
     for (j = 0; j < 3; ++j) {
-      spg_lattice[i][j] = super_cell.unit_cell[j][i];
+      spg_lattice[i][j] = super_cell.unit_cell[i][j];
     }
   }
 
