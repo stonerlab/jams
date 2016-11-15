@@ -63,7 +63,7 @@ GITSHORT = $(shell git rev-parse --short HEAD)
 CPUTYPE = $(shell uname -m | sed "s/\\ /_/g")
 SYSTYPE = $(shell uname -s)
 
-CFLAGS =  -std=c++11 -march=native -O3 -g -funroll-loops -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
+CFLAGS =  -std=c++11 -O3 -g -Wall -DNDEBUG -DGITCOMMIT="$(GITCOMMIT)"
 CUFLAGS =
 LDFLAGS =
 ALL_CUFLAGS = $(CUFLAGS)
@@ -246,17 +246,18 @@ ifndef NO_CUDA
 	BASIC_CUFLAGS += -I$(CUDADIR)/include -DCUDA
 	ifeq ($(SYSTYPE),Darwin)
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib
-		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG -march=native -O3 -g -funroll-loops" -Xlinker
+		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG -march=native -O3 -g" -Xlinker
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
-		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -O3 -g -funroll-loops -DNDEBUG"
+		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -O3 -g -DNDEBUG"
 	endif
 	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
 		BASIC_CUFLAGS += -gencode=arch=compute_20,code=sm_20
 	endif
 	ifdef CUDA_BUILD_KEPLAR
-		BASIC_CUFLAGS += -gencode=arch=compute_30,code=sm_30
+		BASIC_CUFLAGS += -gencode=arch=compute_35,code=sm_35
+		BASIC_CUFLAGS += -gencode=arch=compute_37,code=sm_37
 	endif
 	ifdef CUDA_BUILD_MAXWELL
 		BASIC_CUFLAGS += -gencode=arch=compute_50,code=sm_50 \
