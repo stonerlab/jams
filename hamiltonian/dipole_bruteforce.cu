@@ -68,7 +68,7 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 
     cudaStreamCreate(&dev_stream_);
 
-    dev_blocksize_ = 128;
+    dev_blocksize_ = shared_size;
     }
 #endif  // CUDA
 
@@ -165,6 +165,9 @@ void DipoleHamiltonianBruteforce::calculate_fields(jblib::Array<double, 2>& fiel
 }
 
 void DipoleHamiltonianBruteforce::calculate_fields(jblib::CudaArray<double, 1>& fields) {
+    // dipole_bruteforce_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_ >>>
+    //     (solver->dev_ptr_spin(), rij_tex, dev_mus_.data(), globals::num_spins, fields.data());
+
     dipole_bruteforce_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_ >>>
         (solver->dev_ptr_spin(), dev_r_.data(), dev_mus_.data(), globals::num_spins, fields.data());
 }
