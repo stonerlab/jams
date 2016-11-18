@@ -4,6 +4,13 @@
 #include <stdexcept>
 #include <sstream>
 
+#ifdef CUDA
+#include <cublas.h>
+#include <cuda.h>
+#include <curand.h>
+#include <cusparse.h>
+#endif
+
 class general_exception : std::runtime_error {
     std::string msg;
 public:
@@ -35,6 +42,7 @@ class untested_exception : general_exception {
         : general_exception("untested", file, line, function) {}
 };
 
+#ifdef CUDA
 class cuda_api_exception : std::runtime_error {
     std::string msg;
 public:
@@ -55,4 +63,6 @@ public:
         return msg.c_str();
     }
 };
+#endif
+
 #endif  // JAMS_CORE_EXCEPTION_H
