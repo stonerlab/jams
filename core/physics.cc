@@ -17,6 +17,7 @@
 #include "physics/square.h"
 #include "physics/ttm.h"
 #include "physics/ping.h"
+#include "physics/flips.h"
 
 
 Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0),
@@ -95,6 +96,10 @@ Physics* Physics::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "PING") {
     return new PingPhysics(settings);
+  }
+
+  if (capitalize(settings["module"]) == "FLIPS") {
+    return new FlipsPhysics(settings);
   }
 
   if (capitalize(settings["module"]) == "EMPTY") {

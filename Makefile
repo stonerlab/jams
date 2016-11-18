@@ -119,6 +119,7 @@ OBJS += physics/mfpt.o
 OBJS += physics/square.o
 OBJS += physics/ttm.o
 OBJS += physics/ping.o
+OBJS += physics/flips.o
 OBJS += solvers/heunllg.o
 OBJS += solvers/metropolismc.o
 OBJS += solvers/constrainedmc.o
@@ -171,6 +172,7 @@ HDR += physics/mfpt.h
 HDR += physics/square.h
 HDR += physics/ttm.h
 HDR += physics/ping.h
+HDR += physics/flips.h
 HDR += solvers/heunllg.h
 HDR += solvers/metropolismc.h
 HDR += solvers/constrainedmc.h
@@ -256,8 +258,7 @@ ifndef NO_CUDA
 		BASIC_CUFLAGS += -gencode=arch=compute_20,code=sm_20
 	endif
 	ifdef CUDA_BUILD_KEPLAR
-		BASIC_CUFLAGS += -gencode=arch=compute_35,code=sm_35
-		BASIC_CUFLAGS += -gencode=arch=compute_37,code=sm_37
+		BASIC_CUFLAGS += -gencode=arch=compute_30,code=compute_30
 	endif
 	ifdef CUDA_BUILD_MAXWELL
 		BASIC_CUFLAGS += -gencode=arch=compute_50,code=sm_50 \
