@@ -28,6 +28,21 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
 
   ::output.write("\ninitializing CUDA Heun LLG solver\n");
 
+  ::output.write("  creating stream\n");
+  if(cudaStreamCreate(&dev_stream_) != cudaSuccess) {
+    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
+  ::output.write("  copy time_step to symbol\n");
+  if(cudaMemcpyToSymbol(dev_dt, &time_step_, sizeof(double)) != cudaSuccess) {
+    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
+  ::output.write("  copy num_spins to symbol\n");
+  if(cudaMemcpyToSymbol(dev_num_spins, &globals::num_spins, sizeof(unsigned int)) != cudaSuccess) {
+    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
   if (::config.exists("sim.thermostat")) {
     thermostat_ = Thermostat::create(::config.lookup("sim.thermostat"));
   } else {
@@ -37,19 +52,7 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
 
   nblocks = (num_spins+BLOCKSIZE-1)/BLOCKSIZE;
 
-  ::output.write("\n");
-
-  if(cudaStreamCreate(&dev_stream_) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
-  if(cudaMemcpyToSymbol(dev_dt, &time_step_, sizeof(double)) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
-  if(cudaMemcpyToSymbol(dev_num_spins, &globals::num_spins, sizeof(unsigned int)) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
+  ::output.write("done\n");
 }
 
 void CUDAHeunLLGSolver::run()
