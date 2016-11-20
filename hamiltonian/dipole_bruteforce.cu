@@ -122,8 +122,7 @@ void DipoleHamiltonianBruteforce::calculate_energies(jblib::Array<double, 1>& en
 
 void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h[3]) {
     int n,j;
-    double r_abs, s_j_dot_rhat, w0;
-    jblib::Vec3<double> r_ij, s_j, field;
+    jblib::Vec3<double> field;
 
     const double prefactor = globals::mus(i) * dipole_prefactor_;
 
@@ -132,22 +131,47 @@ void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h
     for (j = 0; j < globals::num_spins; ++j) {
         if (j == i) continue;
 
-        r_ij = lattice.displacement(i, j);
+        auto r_ij = lattice.displacement(i, j);
 
-        r_abs = r_ij.norm();
+        const auto r_abs_sq = r_ij.norm_sq();
 
-        if (r_abs > r_cutoff_) continue;
+        if (r_abs_sq > (r_cutoff_*r_cutoff_)) continue;
 
-        w0 = prefactor * globals::mus(j);
+        const auto r_abs = sqrt(r_abs_sq);
 
-        s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
-        s_j_dot_rhat = dot(s_j, r_ij);
+        const auto w0 = prefactor * globals::mus(j) / (r_abs_sq * r_abs_sq * r_abs);
+
+        const jblib::Vec3<double> s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
+        
+        const auto s_j_dot_rhat = 3.0 * dot(s_j, r_ij);
 
         #pragma unroll
         for (n = 0; n < 3; ++n) {
-            h[n] += (3.0 * r_ij[n] * s_j_dot_rhat - r_abs * r_abs * s_j[n]) * w0 / (r_abs*r_abs*r_abs*r_abs*r_abs);
+            h[n] += w0 * (r_ij[n] * s_j_dot_rhat - r_abs_sq * s_j[n]);
         }
     }
+
+    // for (j = 0; j < globals::num_spins; ++j) {
+    //     if (j == i) continue;
+
+    //     auto r_ij = lattice.displacement(i, j);
+
+    //     auto r_abs = r_ij.norm();
+
+    //     if (r_abs > r_cutoff_) continue;
+
+    //     auto w0 = prefactor * globals::mus(j);
+
+    //     const jblib::Vec3<double> s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
+    //     auto s_j_dot_rhat = dot(s_j, r_ij);
+
+    //     #pragma unroll
+    //     for (n = 0; n < 3; ++n) {
+    //         h[n] += (3.0 * r_ij[n] * s_j_dot_rhat - r_abs * r_abs * s_j[n]) * w0 / (r_abs*r_abs*r_abs*r_abs*r_abs);
+    //     }
+    // }
+
+
 }
 
 // --------------------------------------------------------------------------
