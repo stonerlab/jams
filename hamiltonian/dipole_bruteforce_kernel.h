@@ -69,7 +69,7 @@ __device__ void field_element(const float sj[3], const float r_ij[3], const floa
   h[2] = w0 * (r_ij[2] * sj_dot_rhat  - r_abs_sq * sj[2]);
 }
 
-/*
+
 __global__ void dipole_bruteforce_kernel
 (
     const double * s_dev,
@@ -125,120 +125,120 @@ __global__ void dipole_bruteforce_kernel
         }
     }
 }
-*/
 
-__global__ void dipole_bruteforce_kernel
-(
-    const double * __restrict__ s_dev,
-    const float * __restrict__ r_dev,
-    const float * __restrict__ mus_dev,
-    const unsigned int num_spins,
-    double * __restrict__ h_dev
-)
-{
-    const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
-    const unsigned int tx = threadIdx.x;
 
-    __shared__ float rj[shared_size][3];
-    __shared__ float sj[shared_size][3];
-    __shared__ float mus_pre[shared_size];
+// __global__ void dipole_bruteforce_kernel
+// (
+//     const double * __restrict__ s_dev,
+//     const float * __restrict__ r_dev,
+//     const float * __restrict__ mus_dev,
+//     const unsigned int num_spins,
+//     double * __restrict__ h_dev
+// )
+// {
+//     const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
+//     const unsigned int tx = threadIdx.x;
 
-    if (idx < num_spins) {
-        // constant is kB * mu_0 / 4 pi
-        const float pre = mus_dev[idx] * dev_dipole_prefactor;
+//     __shared__ float rj[shared_size][3];
+//     __shared__ float sj[shared_size][3];
+//     __shared__ float mus_pre[shared_size];
 
-        const float ri[3] = {r_dev[3*idx], r_dev[3*idx + 1], r_dev[3*idx + 2]};
+//     if (idx < num_spins) {
+//         // constant is kB * mu_0 / 4 pi
+//         const float pre = mus_dev[idx] * dev_dipole_prefactor;
 
-        const unsigned int num_blocks = (num_spins + shared_size - 1) / shared_size;
+//         const float ri[3] = {r_dev[3*idx], r_dev[3*idx + 1], r_dev[3*idx + 2]};
 
-        double h[3] = {0.0, 0.0, 0.0};
-        for (unsigned int b = 0; b < num_blocks; ++b) {
+//         const unsigned int num_blocks = (num_spins + shared_size - 1) / shared_size;
+
+//         double h[3] = {0.0, 0.0, 0.0};
+//         for (unsigned int b = 0; b < num_blocks; ++b) {
           
-          const unsigned int shared_idx = tx + shared_size * b;
+//           const unsigned int shared_idx = tx + shared_size * b;
 
-          if (shared_idx < num_spins) {
+//           if (shared_idx < num_spins) {
             
-            mus_pre[tx] = pre * mus_dev[shared_idx];
+//             mus_pre[tx] = pre * mus_dev[shared_idx];
 
-            #pragma unroll
-            for (unsigned int n = 0; n < 3; ++n) {
-                rj[tx][n] = r_dev[3*shared_idx + n];
-            }
+//             #pragma unroll
+//             for (unsigned int n = 0; n < 3; ++n) {
+//                 rj[tx][n] = r_dev[3*shared_idx + n];
+//             }
 
-            #pragma unroll
-            for (unsigned int n = 0; n < 3; ++n) {
-                sj[tx][n] = s_dev[3*shared_idx + n];
-            }
+//             #pragma unroll
+//             for (unsigned int n = 0; n < 3; ++n) {
+//                 sj[tx][n] = s_dev[3*shared_idx + n];
+//             }
 
-            __syncthreads();
+//             __syncthreads();
 
-            // TODO: catch cases where the system size is not a multiple of the block/4
+//             // TODO: catch cases where the system size is not a multiple of the block/4
 
-            for (unsigned int t = 0; t < shared_size/4; ++t) {
+//             for (unsigned int t = 0; t < shared_size/4; ++t) {
 
-              const int t1 = 4*t;
-              const int t2 = 4*t+1;
-              const int t3 = 4*t+2;
-              const int t4 = 4*t+3;
+//               const int t1 = 4*t;
+//               const int t2 = 4*t+1;
+//               const int t3 = 4*t+2;
+//               const int t4 = 4*t+3;
 
-              float r_ij1[3], r_ij2[3], r_ij3[3], r_ij4[3];
-
-
-              const float pre1 = mus_pre[t1];
-              const float pre2 = mus_pre[t2];
-              const float pre3 = mus_pre[t3];
-              const float pre4 = mus_pre[t4];
+//               float r_ij1[3], r_ij2[3], r_ij3[3], r_ij4[3];
 
 
-              displacement(ri, rj[t1], r_ij1);
-              const float r_abs1 = (r_ij1[0] * r_ij1[0] + r_ij1[1] * r_ij1[1] + r_ij1[2] * r_ij1[2]);
-
-              displacement(ri, rj[t2], r_ij2);
-              const float r_abs2 = (r_ij2[0] * r_ij2[0] + r_ij2[1] * r_ij2[1] + r_ij2[2] * r_ij2[2]);
-
-              displacement(ri, rj[t3], r_ij3);
-              const float r_abs3 = (r_ij3[0] * r_ij3[0] + r_ij3[1] * r_ij3[1] + r_ij3[2] * r_ij3[2]);
-
-              displacement(ri, rj[t4], r_ij4);
-              const float r_abs4 = (r_ij4[0] * r_ij4[0] + r_ij4[1] * r_ij4[1] + r_ij4[2] * r_ij4[2]);
+//               const float pre1 = mus_pre[t1];
+//               const float pre2 = mus_pre[t2];
+//               const float pre3 = mus_pre[t3];
+//               const float pre4 = mus_pre[t4];
 
 
-              float h1[3] = {0.0, 0.0, 0.0};
-              float h2[3] = {0.0, 0.0, 0.0};
-              float h3[3] = {0.0, 0.0, 0.0};
-              float h4[3] = {0.0, 0.0, 0.0};
+//               displacement(ri, rj[t1], r_ij1);
+//               const float r_abs1 = (r_ij1[0] * r_ij1[0] + r_ij1[1] * r_ij1[1] + r_ij1[2] * r_ij1[2]);
 
-              if (r_abs1 <= (dev_r_cutoff * dev_r_cutoff) && idx != (shared_size * b + t1)) {
-                field_element(sj[t1], r_ij1, pre1, r_abs1, h1);
-              }
+//               displacement(ri, rj[t2], r_ij2);
+//               const float r_abs2 = (r_ij2[0] * r_ij2[0] + r_ij2[1] * r_ij2[1] + r_ij2[2] * r_ij2[2]);
 
-              if (r_abs2 <= (dev_r_cutoff * dev_r_cutoff) && idx != (shared_size * b + t2)) {
-                field_element(sj[t2], r_ij2, pre2, r_abs2, h2);
-              }
+//               displacement(ri, rj[t3], r_ij3);
+//               const float r_abs3 = (r_ij3[0] * r_ij3[0] + r_ij3[1] * r_ij3[1] + r_ij3[2] * r_ij3[2]);
 
-              if (r_abs3 <= (dev_r_cutoff * dev_r_cutoff) && idx != (shared_size * b + t3)) {
-                field_element(sj[t3], r_ij3, pre3, r_abs3, h3);
-              }
-
-              if (r_abs4 <= (dev_r_cutoff * dev_r_cutoff) && idx != (shared_size * b + t4)) {
-                field_element(sj[t4], r_ij4, pre4, r_abs4, h4);
-              }
-
-              h[0] = h[0] + h1[0] + h2[0] + h3[0] + h4[0];
-              h[1] = h[1] + h1[1] + h2[1] + h3[1] + h4[1];
-              h[2] = h[2] + h1[2] + h2[2] + h3[2] + h4[2];
-            }
+//               displacement(ri, rj[t4], r_ij4);
+//               const float r_abs4 = (r_ij4[0] * r_ij4[0] + r_ij4[1] * r_ij4[1] + r_ij4[2] * r_ij4[2]);
 
 
-          }
-        }
-    // write to global memory
-    #pragma unroll
-    for (unsigned int n = 0; n < 3; ++n) {
-        h_dev[3*idx + n] = h[n];
-    }
-  } 
-}
+//               float h1[3] = {0.0, 0.0, 0.0};
+//               float h2[3] = {0.0, 0.0, 0.0};
+//               float h3[3] = {0.0, 0.0, 0.0};
+//               float h4[3] = {0.0, 0.0, 0.0};
+
+//               if (r_abs1 <= (dev_r_cutoff * dev_r_cutoff) && idx != (shared_size * b + t1)) {
+//                 field_element(sj[t1], r_ij1, pre1, r_abs1, h1);
+//               }
+
+//               if (r_abs2 <= (dev_r_cutoff * dev_r_cutoff) && idx != (shared_size * b + t2)) {
+//                 field_element(sj[t2], r_ij2, pre2, r_abs2, h2);
+//               }
+
+//               if (r_abs3 <= (dev_r_cutoff * dev_r_cutoff) && idx != (shared_size * b + t3)) {
+//                 field_element(sj[t3], r_ij3, pre3, r_abs3, h3);
+//               }
+
+//               if (r_abs4 <= (dev_r_cutoff * dev_r_cutoff) && idx != (shared_size * b + t4)) {
+//                 field_element(sj[t4], r_ij4, pre4, r_abs4, h4);
+//               }
+
+//               h[0] = h[0] + h1[0] + h2[0] + h3[0] + h4[0];
+//               h[1] = h[1] + h1[1] + h2[1] + h3[1] + h4[1];
+//               h[2] = h[2] + h1[2] + h2[2] + h3[2] + h4[2];
+//             }
+
+
+//           }
+//         }
+//     // write to global memory
+//     #pragma unroll
+//     for (unsigned int n = 0; n < 3; ++n) {
+//         h_dev[3*idx + n] = h[n];
+//     }
+//   } 
+// }
 
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_KERNEL_H
