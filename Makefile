@@ -2,7 +2,7 @@
 all::
 
 # Define V=1 for verbose output
-#V=1
+V=1
 # Define SHELL_PATH if sh is not in /bin/sh
 #
 # Define LIBCONFIGDIR if the libconfig header and library files are in
@@ -57,6 +57,8 @@ CUDA_BUILD_KEPLAR=1
 # GeForce GTX 750 Ti, GeForce GTX 750 , GeForce GTX 860M, GeForce GTX 850M,
 # GeForce 840M, GeForce 830M
 #CUDA_BUILD_MAXWELL=1
+
+CUDA_BUILD_PASCAL=1
 
 GITCOMMIT = $(shell git rev-parse HEAD)
 GITSHORT = $(shell git rev-parse --short HEAD)
@@ -263,6 +265,9 @@ ifndef NO_CUDA
 		BASIC_CUFLAGS += -gencode=arch=compute_50,code=sm_50 \
 						 -gencode=arch=compute_52,code=sm_52 \
 						 -gencode=arch=compute_53,code=sm_53
+	endif
+	ifdef CUDA_BUILD_PASCAL
+		BASIC_CUFLAGS += -gencode=arch=compute_60,code=sm_60
 	endif
 endif
 
