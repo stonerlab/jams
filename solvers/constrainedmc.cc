@@ -204,16 +204,16 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     }
   }
 
-  if (!floats_are_equal(rad_to_deg(azimuthal_angle(m_other)), constraint_theta_)) {
-    std::stringstream ss;
-    ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint violated (" << rad_to_deg(azimuthal_angle(m_other)) << " deg)";
-    throw std::runtime_error(ss.str());
-  }
+  // if (!floats_are_equal(rad_to_deg(azimuthal_angle(m_other)), constraint_theta_)) {
+  //   std::stringstream ss;
+  //   ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint violated (" << rad_to_deg(azimuthal_angle(m_other)) << " deg)";
+  //   throw std::runtime_error(ss.str());
+  // }
 
-  if (!floats_are_equal(rad_to_deg(polar_angle(m_other)), constraint_phi_)) {
-    std::stringstream ss;
-    ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint violated (" << rad_to_deg(polar_angle(m_other)) << " deg)";
-  }
+  // if (!floats_are_equal(rad_to_deg(polar_angle(m_other)), constraint_phi_)) {
+  //   std::stringstream ss;
+  //   ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint violated (" << rad_to_deg(polar_angle(m_other)) << " deg)";
+  // }
 
   move_acceptance_count_ = 0;
 
