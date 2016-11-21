@@ -24,7 +24,6 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   using namespace globals;
   ::output.write("\nInitialising Structure Factor monitor...\n");
 
-  is_equilibration_monitor_ = false;
   time_point_counter_ = 0;
 
   // create transform arrays for example to apply a Holstein Primakoff transform

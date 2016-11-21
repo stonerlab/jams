@@ -21,8 +21,6 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 
   ::output.write("\nInitialising Xyz monitor...\n");
 
-  is_equilibration_monitor_ = false;
-
   output_step_freq_ = settings["output_steps"];
 
   // settings for only outputting a slice

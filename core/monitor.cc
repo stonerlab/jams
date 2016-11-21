@@ -20,7 +20,6 @@
 #include "monitors/skyrmion.h"
 
 Monitor::Monitor(const libconfig::Setting &settings)
-: is_equilibration_monitor_(false),
   output_step_freq_(100) {
   settings.lookupValue("eq_monitor", is_equilibration_monitor_);
   settings.lookupValue("output_steps", output_step_freq_);

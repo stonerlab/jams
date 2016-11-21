@@ -75,7 +75,6 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         }
     }
 
-    is_equilibration_monitor_ = false;
     output_step_freq_ = settings["output_steps"];
 }
 

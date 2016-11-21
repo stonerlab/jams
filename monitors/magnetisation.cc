@@ -42,7 +42,6 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
     ::output.write("  t_burn: %e (s)\n", t_burn_);
   }
 
-  is_equilibration_monitor_ = true;
 
   // create transform arrays for example to apply a Holstein Primakoff transform
   s_transform_.resize(num_spins, 3);

@@ -16,8 +16,6 @@ SpinTemperatureMonitor::SpinTemperatureMonitor(const libconfig::Setting &setting
   using namespace globals;
   ::output.write("\ninitialising spin temperature monitor\n");
 
-  is_equilibration_monitor_ = true;
-
   std::string name = seedname + "_T.tsv";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);

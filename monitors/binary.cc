@@ -23,8 +23,6 @@ BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
 
   ::output.write("\nInitialising binary monitor...\n");
 
-  is_equilibration_monitor_ = false;
-
   is_file_overwrite_mode = false;
   settings.lookupValue("overwrite", is_file_overwrite_mode);
 

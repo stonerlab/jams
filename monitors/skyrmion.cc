@@ -17,8 +17,6 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
   using namespace globals;
   ::output.write("\nInitialising Skyrmion monitor...\n");
 
-  is_equilibration_monitor_ = true;
-
   type_norms.resize(lattice.num_materials(), 1.0);
 
   if (settings.exists("type_norms")) {

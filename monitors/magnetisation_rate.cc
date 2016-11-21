@@ -28,8 +28,6 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
     ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
   }
 
-  is_equilibration_monitor_ = true;
-
   std::string name = seedname + "_dm_dt.tsv";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);

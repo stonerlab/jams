@@ -23,7 +23,6 @@ class Monitor {
   virtual std::string name() const = 0;
 
   protected:
-    bool is_equilibration_monitor_;
     int  output_step_freq_;
 
 };

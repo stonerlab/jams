@@ -28,7 +28,6 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
     convergence_tolerance_ = settings["convergence"];
   }
 
-  is_equilibration_monitor_ = true;
 
 
 }

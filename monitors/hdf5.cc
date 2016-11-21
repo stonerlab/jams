@@ -33,7 +33,6 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 
     ::output.write("\nInitialising HDF5 monitor...\n");
 
-    is_equilibration_monitor_ = false;
     output_step_freq_ = settings["output_steps"];
 
     // it outsteps is 0 then use max int instead - output will only be generated in the

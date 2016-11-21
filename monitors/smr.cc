@@ -17,8 +17,6 @@ SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
   ::output.write("\ninitialising SMR monitor\n");
   ::output.write("  assumes axes j->x, t->y, n->z");
 
-  is_equilibration_monitor_ = true;
-
   std::string name = seedname + "_smr.tsv";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);
