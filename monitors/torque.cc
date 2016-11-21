@@ -15,21 +15,10 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   outfile(),
   torque_stats_(),
-  convergence_is_on_(false),              // do we want to use convergence in this monitor
-  convergence_tolerance_(1.0),            // 1 standard deviation from the mean
   convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
   using namespace globals;
   ::output.write("\nInitialising Torque monitor...\n");
-
-
-  if (settings.exists("convergence")) {
-    convergence_is_on_ = true;
-    convergence_tolerance_ = settings["convergence"];
-  }
-
-
-
 }
 
 void TorqueMonitor::update(Solver * solver) {

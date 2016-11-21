@@ -11,37 +11,15 @@
 
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  t_burn_(0.0),
   mag(::lattice.num_materials(), 4),
   s_transform_(globals::num_spins, 3),
   outfile(),
   m_stats_(),
   m2_stats_(),
-  m4_stats_(),
-  convergence_is_on_(false),              // do we want to use convergence in this monitor
-  convergence_tolerance_(0.001),            
-  convergence_stderr_(0.0),
-  convergence_geweke_m_diagnostic_()
+  m4_stats_()
 {
   using namespace globals;
   ::output.write("\ninitialising Magnetisation monitor\n");
-
-  if (settings.exists("convergence")) {
-    convergence_is_on_ = true;
-
-    convergence_tolerance_ = settings["convergence"];
-    ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
-
-    if (config.exists("sim.t_burn")) {
-      t_burn_ = config.lookup("sim.t_burn");
-    } else {
-      ::output.write("  DEFAULT t_burn (0.001*t_sim)\n");
-      t_burn_ = 0.001 * double(config.lookup("sim.t_sim"));     // DEFAULT
-    }
-
-    ::output.write("  t_burn: %e (s)\n", t_burn_);
-  }
-
 
   // create transform arrays for example to apply a Holstein Primakoff transform
   s_transform_.resize(num_spins, 3);
@@ -122,7 +100,7 @@ void MagnetisationMonitor::update(Solver * solver) {
       outfile << std::setw(12) << mag(i, 3) << "\t";
     }
 
-    if (solver->time() > t_burn_) {
+    if (solver->time() > convergence_burn_time_) {
       double m2 = binder_m2();
       m_stats_.add(sqrt(m2));
       m2_stats_.add(m2);

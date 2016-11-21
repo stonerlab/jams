@@ -20,8 +20,12 @@
 #include "monitors/skyrmion.h"
 
 Monitor::Monitor(const libconfig::Setting &settings)
-  output_step_freq_(100) {
-  settings.lookupValue("eq_monitor", is_equilibration_monitor_);
+: output_step_freq_(100),
+  convergence_is_on_(false),
+  convergence_tolerance_(0.001),
+  convergence_stderr_(0.0),
+  convergence_burn_time_(0.0)  // amount of time to discard before calculating convegence stats
+ {
   settings.lookupValue("output_steps", output_step_freq_);
 
   if (settings.exists("output_steps")) {
@@ -31,7 +35,28 @@ Monitor::Monitor(const libconfig::Setting &settings)
     ::output.write("  DEFAULT output_steps (100)\n");
     output_step_freq_ = 100; // DEFAULT
   }
+
+  if (settings.exists("convergence")) {
+    convergence_is_on_ = true;
+
+    convergence_tolerance_ = settings["convergence"];
+    ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
+
+    if (settings.exists("t_burn")) {
+      convergence_burn_time_ = settings["t_burn"];
+    } else {
+      ::output.write("  DEFAULT t_burn (0.001*t_sim)\n");
+      convergence_burn_time_ = 0.001 * double(config.lookup("sim.t_sim"));     // DEFAULT
+    }
+
+    ::output.write("  t_burn: %e (s)\n", convergence_burn_time_);
+  }
+
+
 }
+
+
+
 
 bool Monitor::is_updating(const int &iteration) const {
   if (iteration % output_step_freq_ == 0) {
