@@ -4,6 +4,7 @@
 #define JAMS_MONITOR_TORQUE_H
 
 #include <fstream>
+#include <array>
 
 #include "core/monitor.h"
 #include "core/stats.h"
@@ -24,8 +25,8 @@ class TorqueMonitor : public Monitor {
   void open_outfile();
 
   std::ofstream outfile;
-  std::vector<Stats> torque_stats_;
-  std::vector<double> convergence_geweke_diagnostic_;
+  std::array<Stats,3> torque_stats_;
+  std::array<double,3> convergence_geweke_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_TORQUE_H

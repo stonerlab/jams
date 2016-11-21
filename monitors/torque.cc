@@ -15,7 +15,7 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   outfile(),
   torque_stats_(),
-  convergence_geweke_diagnostic_(100.0)   // number much larger than 1
+  convergence_geweke_diagnostic_()
 {
   using namespace globals;
   ::output.write("\nInitialising Torque monitor...\n");
@@ -31,46 +31,48 @@ void TorqueMonitor::update(Solver * solver) {
     first_run = false;
   }
 
+  for (int n = 0; n < 3; ++n) {
+    convergence_geweke_diagnostic_[n] = 100.0; // number much larger than 1
+  }
+
   int i;
-  jblib::Vec3<double> torque;
-  jblib::Vec3<double> total_torque(0,0,0);
   const double norm = kBohrMagneton/static_cast<double>(num_spins);
 
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";
   outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
-  if (torque_stats_.size() != solver->hamiltonians().size()){
-    torque_stats_.resize(solver->hamiltonians().size());
-  }
-
-  if (convergence_geweke_diagnostic_.size() != solver->hamiltonians().size()){
-    convergence_geweke_diagnostic_.resize(solver->hamiltonians().size());
-  }
-
-  int count = 0;
+  jblib::Vec3<double> total_torque(0.0, 0.0, 0.0);
+  // output torque from each hamiltonian term
   for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin(); it != solver->hamiltonians().end(); ++it) {
-    torque.x = 0; torque.y = 0; torque.z = 0;
+    jblib::Vec3<double> this_torque(0.0, 0.0, 0.0);
 
     (*it)->calculate_fields();
 
     for (i = 0; i < num_spins; ++i) {
-      torque[0] += s(i,1)*(*it)->field(i,2) - s(i,2)*(*it)->field(i,1);
-      torque[1] += s(i,2)*(*it)->field(i,0) - s(i,0)*(*it)->field(i,2);
-      torque[2] += s(i,0)*(*it)->field(i,1) - s(i,1)*(*it)->field(i,0);
+      this_torque[0] += s(i,1)*(*it)->field(i,2) - s(i,2)*(*it)->field(i,1);
+      this_torque[1] += s(i,2)*(*it)->field(i,0) - s(i,0)*(*it)->field(i,2);
+      this_torque[2] += s(i,0)*(*it)->field(i,1) - s(i,1)*(*it)->field(i,0);
     }
+
+    total_torque = total_torque + this_torque * norm;
 
     for (i = 0; i < 3; ++i) {
-      outfile <<  std::setw(12) << std::scientific << torque[i] * norm << "\t";
+      outfile <<  std::setw(12) << std::scientific << this_torque[i] * norm << "\t";
     }
+  }
+  
+  // convergence stats
+  if (solver->time() > convergence_burn_time_) {
+    for (int n = 0; n < 3; ++n) {
+      torque_stats_[n].add(total_torque[n]);
+      torque_stats_[n].geweke(convergence_geweke_diagnostic_[n], convergence_stderr_);
 
-    double nse = 0.0;
-
-    torque_stats_[count].add(torque[1]/static_cast<double>(num_spins));
-    torque_stats_[count].geweke(convergence_geweke_diagnostic_[count], nse);
-
-    outfile << std::setw(12) << convergence_geweke_diagnostic_[count] << "\t";
-
-    count++;
+      if (torque_stats_[n].size() > 1 && torque_stats_[n].size() % 10 == 0) {
+        outfile << std::setw(12) << convergence_geweke_diagnostic_[n] << "\t";
+      } else {
+        outfile << std::setw(12) << "--------";
+      }
+    }
   }
 
   outfile << std::endl;
