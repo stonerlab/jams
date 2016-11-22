@@ -4,6 +4,7 @@
 #include <string>
 #include <iomanip>
 #include <algorithm>
+#include <numeric>
 
 #include <fftw3.h>
 
@@ -147,6 +148,9 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   sqw_x.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
   sqw_y.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
   sqw_z.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
+
+  k0.resize(num_samples);
+  kneq0.resize(num_samples);
 }
 
 void StructureFactorMonitor::update(Solver * solver) {
@@ -163,6 +167,10 @@ void StructureFactorMonitor::update(Solver * solver) {
     }
   }
 
+  for (int i = 0; i < num_spins; ++i) {
+      s_trans(i, 2) = 1.0 - s_trans(i, 2);
+  }
+
   fft_vector_field(s_trans, sq_x, sq_y, sq_z);
 
   // add the Sq to the timeseries
@@ -174,6 +182,20 @@ void StructureFactorMonitor::update(Solver * solver) {
       sqw_z(n, time_point_counter_, i) = sq_z(q.x, q.y, q.z, n);
     }
   }
+
+  jblib::Array<double, 3> nz(sq_z.size(0), sq_z.size(1), sq_z.size(2));
+
+  for (int i = 0; i < nz.size(0); ++i) {
+      for (int j = 0; j < nz.size(1); ++j) {
+          for (int k = 0; k < nz.size(2); ++k) {
+            nz(i, j, k) = norm(sq_z(i, j, k, 0));
+          }
+      }
+  }
+  k0(time_point_counter_) = nz(0, 0, 0);
+  kneq0(time_point_counter_) = std::accumulate(nz.data(), nz.data()+nz.elements(), 0.0);
+
+  std::cerr << time_point_counter_ << "\t" << k0(time_point_counter_) << "\t" << kneq0(time_point_counter_) << std::endl;
 
   time_point_counter_++;
 }

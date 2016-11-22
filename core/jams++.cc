@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "core/exception.h"
 #include "core/globals.h"
 #include "core/lattice.h"
 #include "core/monitor.h"
@@ -149,6 +150,11 @@ int jams_initialize(int argc, char **argv) {
     catch(const libconfig::SettingNotFoundException &nfex) {
       jams_error("Required config setting not found '%s'", nfex.getPath());
     }
+#ifdef CUDA
+    catch(const cuda_api_exception &cex) {
+      jams_error("CUDA api exception\n '%s'", cex.what());
+    }
+#endif
     catch (std::exception& e) {
       jams_error("Error: %s", e.what());
     }

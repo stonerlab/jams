@@ -33,15 +33,17 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   }
 
   const uint64_t dev_rng_seed = rng.uniform()*18446744073709551615ULL;
-  ::output.write("    seeding CURAND (%" PRIu64 ")", dev_rng_seed);
 
+  ::output.write("    creating stream\n");
   cudaStreamCreate(&dev_stream_);
   curandSetStream(dev_rng_, dev_stream_);
 
+  ::output.write("    seeding CURAND (%" PRIu64 ")\n", dev_rng_seed);
   if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to set CURAND seed in CudaLangevinWhiteThermostat");
   }
 
+  ::output.write("    generating seeds\n");
   if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to generate CURAND seeds in CudaLangevinWhiteThermostat");
   }
@@ -50,9 +52,12 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     sigma_(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kBohrMagneton) );
   }
 
+  ::output.write("    transfering sigma to device\n");
   dev_sigma_ = jblib::CudaArray<double, 1>(sigma_);
 
   is_synchronised_ = false;
+
+  ::output.write("  done\n\n");
 }
 
 void CudaLangevinWhiteThermostat::update() {
