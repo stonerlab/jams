@@ -177,6 +177,12 @@ void StructureFactorMonitor::update(Solver * solver) {
   for (int n = 0; n < lattice.num_unit_cell_positions(); ++n) {
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
       jblib::Vec3<int> q = bz_points[i];
+      for (int j = 0; j < 3; ++j) {
+        if (q[j] < 0) {
+          int nk = lattice.kspace_size()[j];
+          q[j] = (nk - q[j]) / nk;
+        }
+      }
       sqw_x(n, time_point_counter_, i) = sq_x(q.x, q.y, q.z, n);
       sqw_y(n, time_point_counter_, i) = sq_y(q.x, q.y, q.z, n);
       sqw_z(n, time_point_counter_, i) = sq_z(q.x, q.y, q.z, n);
