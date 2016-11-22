@@ -195,7 +195,7 @@ void StructureFactorMonitor::update(Solver * solver) {
   k0(time_point_counter_) = nz(0, 0, 0);
   kneq0(time_point_counter_) = std::accumulate(nz.data(), nz.data()+nz.elements(), 0.0);
 
-  std::cerr << time_point_counter_ << "\t" << k0(time_point_counter_) << "\t" << kneq0(time_point_counter_) << std::endl;
+  // std::cerr << time_point_counter_ << "\t" << k0(time_point_counter_) << "\t" << kneq0(time_point_counter_) << std::endl;
 
   time_point_counter_++;
 }
