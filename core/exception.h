@@ -3,6 +3,7 @@
 
 #include <stdexcept>
 #include <sstream>
+#include <cstring>
 
 #ifdef CUDA
 #include <cublas.h>
