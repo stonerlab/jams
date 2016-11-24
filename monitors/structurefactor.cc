@@ -180,7 +180,7 @@ void StructureFactorMonitor::update(Solver * solver) {
       for (int j = 0; j < 3; ++j) {
         if (q[j] < 0) {
           int nk = lattice.kspace_size()[j];
-          q[j] = (nk - q[j]) / nk;
+          q[j] = (nk + q[j]);
         }
       }
       sqw_x(n, time_point_counter_, i) = sq_x(q.x, q.y, q.z, n);
