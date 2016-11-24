@@ -147,6 +147,9 @@ int jams_initialize(int argc, char **argv) {
       jams_error("Error parsing %s:%i: %s", pex.getFile(),
         pex.getLine(), pex.getError());
     }
+    catch(const libconfig::SettingTypeException &stex) {
+      jams_error("Config setting type error '%s'", stex.getPath());
+    }
     catch(const libconfig::SettingNotFoundException &nfex) {
       jams_error("Required config setting not found '%s'", nfex.getPath());
     }
