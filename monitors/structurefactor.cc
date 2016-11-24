@@ -91,7 +91,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     bz_nodes.push_back({int(bz_vec.x), int(bz_vec.y), int(bz_vec.z)});
   }
-
+  
   for (int n = 0, nend = bz_nodes.size()-1; n < nend; ++n) {
     jblib::Vec3<int> bz_point, bz_line, bz_line_element;
 
@@ -99,10 +99,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
       if (int(bz_nodes[n][i]) > (lattice.kspace_size()[i]/2)) {
-        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(cfg_nodes[n][0]), int(cfg_nodes[n][1]), int(cfg_nodes[n][2]));
+        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n][0]), int(bz_nodes[n][1]), int(bz_nodes[n][2]));
       }
       if (int(bz_nodes[n+1][i]) > (lattice.kspace_size()[i]/2)) {
-        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(cfg_nodes[n+1][0]), int(cfg_nodes[n+1][1]), int(cfg_nodes[n+1][2]));
+        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n+1][0]), int(bz_nodes[n+1][1]), int(bz_nodes[n+1][2]));
       }
     }
 
@@ -177,6 +177,12 @@ void StructureFactorMonitor::update(Solver * solver) {
   for (int n = 0; n < lattice.num_unit_cell_positions(); ++n) {
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
       jblib::Vec3<int> q = bz_points[i];
+      for (int j = 0; j < 3; ++j) {
+        if (q[j] < 0) {
+          int nk = lattice.kspace_size()[j];
+          q[j] = (nk + q[j]);
+        }
+      }
       sqw_x(n, time_point_counter_, i) = sq_x(q.x, q.y, q.z, n);
       sqw_y(n, time_point_counter_, i) = sq_y(q.x, q.y, q.z, n);
       sqw_z(n, time_point_counter_, i) = sq_z(q.x, q.y, q.z, n);
