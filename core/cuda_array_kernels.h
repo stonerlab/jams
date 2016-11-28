@@ -15,4 +15,18 @@ void cuda_array_elementwise_scale(
     cudaStream_t stream     // cuda stream
 );
 
+void cuda_array_double_to_float(
+	const unsigned int n,            // n elements in i index
+	const double * in,
+	float * out,  
+	cudaStream_t stream     // cuda stream
+);
+
+void cuda_array_float_to_double(
+	const unsigned int n,            // n elements in i index
+	const float * in,
+	double * out,  
+	cudaStream_t stream     // cuda stream
+);
+
 #endif  // JAMS_CUDA_ARRAY_KERNELS_H
