@@ -12,7 +12,13 @@ void cuda_array_elementwise_scale(
     const unsigned int incx,         // input increment
     double * y,             // output array
     const unsigned int incy,         // output increment
-    cudaStream_t stream     // cuda stream
+    cudaStream_t stream = 0    // cuda stream
 );
+
+double cuda_array_sum(
+    const unsigned int n,
+    const double * x,
+    const unsigned int incx,
+    cudaStream_t stream = 0);
 
 #endif  // JAMS_CUDA_ARRAY_KERNELS_H
