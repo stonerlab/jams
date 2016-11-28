@@ -7,6 +7,7 @@
 #include "core/hamiltonian.h"
 
 #include "hamiltonian/dipole.h"
+#include "hamiltonian/demag.h"
 #include "hamiltonian/uniaxial.h"
 #include "hamiltonian/exchange.h"
 #include "hamiltonian/exchange_neartree.h"
@@ -30,6 +31,10 @@ Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
 
     if (capitalize(settings["module"]) == "DIPOLE") {
         return new DipoleHamiltonian(settings);
+    }
+
+    if (capitalize(settings["module"]) == "DEMAG") {
+        return new DemagHamiltonian(settings);
     }
 
     if (capitalize(settings["module"]) == "ZEEMAN") {
