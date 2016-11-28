@@ -201,10 +201,12 @@ ifndef NO_CUDA
 	CUDA_OBJS += hamiltonian/zeeman.o
 	CUDA_OBJS += hamiltonian/exchange.o
 	CUDA_OBJS += hamiltonian/exchange_neartree.o
+	CUDA_OBJS += hamiltonian/demag.o
 	CUDA_OBJS += hamiltonian/dipole_bruteforce.o
 
 	CUDA_HDR += hamiltonian/dipole_bruteforce.h
 	CUDA_HDR += hamiltonian/dipole_bruteforce_kernel.h
+	CUDA_HDR += hamiltonian/demag_kernel.h
 	CUDA_HDR += core/cuda_defs.h
 	CUDA_HDR += core/cuda_solver.h
 	CUDA_HDR += core/cuda_sparsematrix.h
