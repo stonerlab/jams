@@ -57,6 +57,11 @@ bool kv_pair_less(const std::pair<_Tp1, _Tp2>&x, const std::pair<_Tp1, _Tp2>&y){
   return x.first < y.first;
 }
 
+template< class _Tp1, class _Tp2>
+bool kv_pair_greater(const std::pair<_Tp1, _Tp2>&x, const std::pair<_Tp1, _Tp2>&y){
+  return x.first > y.first;
+}
+
 
 ///
 /// @class SparseMatrix
@@ -279,24 +284,26 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
 template <typename _Tp>
 void SparseMatrix<_Tp>::convertMAP2CSR()
 {
-  typename coo_mmp::const_iterator nz;
-
   int64_t current_row, current_col, index;
   int64_t previous_index = -1, previous_row = 0;
 
   nnz = 0;
   row_.resize(nrows+1);
-  col_.resize(nnz_unmerged);
-  val_.resize(nnz_unmerged);
 
-  std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_less<int64_t, _Tp>);
+  std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_greater<int64_t, _Tp>);
 
   if (nnz_unmerged > 0) {
     previous_index = -1;  // ensure first index is different;
     previous_row = 0;
     row_[0] = 0;
-    for (nz = matrixMap.begin(); nz != matrixMap.end(); ++nz) {  // iterate matrix map elements
-      index = nz->first;  // first part contains row major index
+
+    int pop_counter = 0;
+    while (!matrixMap.empty()) {
+      auto nz = matrixMap.back();
+      matrixMap.pop_back();
+      pop_counter++;
+
+      index = nz.first;  // first part contains row major index
       if (index < 0) {
         jams_error("Negative sparse array index");
       }
@@ -304,7 +311,7 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
       current_col = index - ((current_row)*ncols);
       if (index == previous_index) {
         // index is the same as the last, add values
-        val_[nnz-1] += nz->second;
+        val_[nnz-1] += nz.second;
       } else {
         if (current_row != previous_row) {
           // fill in row array including any missing entries where there were
@@ -313,10 +320,9 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
             row_[i] = nnz;
           }
         }
-        col_[nnz] = current_col;
-        val_[nnz] = nz->second;
+        col_.push_back(current_col);
+        val_.push_back(nz.second);
         nnz++;
-
       }
       previous_row = current_row;
       previous_index = index;  // update last index
