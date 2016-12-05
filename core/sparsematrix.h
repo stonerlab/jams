@@ -323,8 +323,9 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
     }
   }
 
-  matrixMap.clear();
-
+  // clear matrixMap and reduce memory to zero
+  coo_mmp().swap(matrixMap);
+ 
   col_.resize(nnz);
   val_.resize(nnz);
 
@@ -379,7 +380,9 @@ void SparseMatrix<_Tp>::convertMAP2COO()
       }
     }
   }
-  matrixMap.clear();
+  // clear matrixMap and reduce memory to zero
+  coo_mmp().swap(matrixMap);
+
   row_.resize(nnz);
   col_.resize(nnz);
   val_.resize(nnz);
@@ -456,7 +459,8 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
     }
   }
 
-  matrixMap.clear();
+  // clear matrixMap and reduce memory to zero
+  coo_mmp().swap(matrixMap);
 
   matrixFormat = SPARSE_MATRIX_FORMAT_DIA;
 }
