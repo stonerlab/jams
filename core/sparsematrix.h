@@ -483,4 +483,9 @@ void jams_dcsrmv(const char trans[1], const int m, const int k,
     const int *indx, const int *ptrb, const int *ptre, const double *x,
     const double beta, double * y);
 
+void jams_scsrmv(const char trans[1], const int m, const int k,
+    const double alpha, const char descra[6], const float *val,
+    const int *indx, const int *ptrb, const int *ptre, const double *x,
+    const double beta, double * y);
+
 #endif // JAMS_CORE_SPARSEMATRIX_H
