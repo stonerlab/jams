@@ -58,34 +58,31 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
 
 
     for (int i = 0; i < globals::num_spins; ++i) {
-        for (int j = 0; j < i; ++j) {
+        for (int j = 0; j < globals::num_spins; ++j) {
 
             if (j == i) continue;
 
             auto r_ij = lattice.displacement(i, j);
 
+            r_abs = abs(r_ij);
+
+            // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
+            // so detect based on r_abs rather than i == j
+            if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
+
+            r_hat = r_ij / r_abs;
+
+
             const auto r_abs_sq = r_ij.norm_sq();
 
             if (r_abs_sq > (r_cutoff_*r_cutoff_)) continue;
 
-        const auto r_abs = sqrt(r_abs_sq);
-
-        const auto w0 = prefactor * globals::mus(j) / (r_abs_sq * r_abs_sq * r_abs);
-
-        const jblib::Vec3<double> s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
-        
-        const auto s_j_dot_rhat = 3.0 * dot(s_j, r_ij);
-	
-        r_hat = r_ij / r_abs;
-
-        for (int m = 0; m < 3; ++m) {
-            for (int n = 0; n < 3; ++n) {
-                // if (3 * i + m >= 3 * j + n) {
-                    double value = (3*r_hat[m]*r_hat[n] - Id[m][n])*prefactor*globals::mus(j)/(r_abs * r_abs * r_abs);
-                                    interaction_matrix_.insertValue(3 * i + m, 3 * j + n, float(value));
-              	// }
+            for (int m = 0; m < 3; ++m) {
+                for (int n = 0; n < 3; ++n) {
+                    double value = (3*r_hat[m]*r_hat[n] - Id[m][n])*prefactor*globals::mus(i)*globals::mus(j)/(r_abs * r_abs * r_abs);
+                    interaction_matrix_.insertValue(3 * i + m, 3 * j + n, float(value));
+                }
             }
-        }
       }
 
     }
@@ -202,7 +199,7 @@ double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy_difference(c
     e_initial = -(spin_initial[0]*local_field[0] + spin_initial[1]*local_field[1] + spin_initial[2]*local_field[2]);
     e_final = -(spin_final[0]*local_field[0] + spin_final[1]*local_field[1] + spin_final[2]*local_field[2]);
 
-    return globals::mus(i)*(e_final - e_initial);
+    return 0.5 * (e_final - e_initial);
 }
 // --------------------------------------------------------------------------
 
@@ -234,7 +231,11 @@ void DipoleHamiltonianCUDASparseTensor::calculate_one_spin_field(const int i, do
         // k = indx[j];
         local_field[m] = local_field[m] + x[ indx[j] ]*val[j];
       }
+
+      local_field[m] = local_field[m]*globals::mus(i);
     }
+
+
 }
 
 
