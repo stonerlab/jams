@@ -47,18 +47,28 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
 
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
 
-    interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
-    // interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
-    // interaction_matrix_.setMatrixMode(SPARSE_FILL_MODE_LOWER);
+    if (solver->is_cuda_solver()) {
+      interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_SYMMETRIC);
+      interaction_matrix_.setMatrixMode(SPARSE_FILL_MODE_LOWER);
+    } else {
+      interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
+    }
     
     const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
 
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
 
+
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
+
+            if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+              if (j > i) {
+                continue;
+              }
+            }
 
             if (j == i) continue;
 
@@ -84,8 +94,8 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
                 }
             }
       }
-
     }
+
 
     ::output.write("    dipole matrix memory (MAP): %f MB\n", interaction_matrix_.calculateMemory());
     ::output.write("    converting interaction matrix format from MAP to CSR\n");
@@ -95,7 +105,6 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
     // set up things on the device
     if (solver->is_cuda_solver()) { 
         cudaStreamCreate(&dev_stream_);
-
 
         cusparseStatus_t cusparse_return_status;
 
@@ -113,7 +122,13 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
           jams_error("CUSPARSE Matrix descriptor initialization failed");
         }
 
-        cusparseSetMatType(cusparse_descra_, CUSPARSE_MATRIX_TYPE_SYMMETRIC);
+        if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
+          cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
+        } else if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+          cusparseSetMatType(cusparse_descra_, CUSPARSE_MATRIX_TYPE_SYMMETRIC);
+        } else {
+          jams_error("unknown sparse matrix type in dipole_cuda_sparse_tensor");
+        }
         cusparseSetMatIndexBase(cusparse_descra_, CUSPARSE_INDEX_BASE_ZERO);
 
         // row
@@ -242,11 +257,20 @@ void DipoleHamiltonianCUDASparseTensor::calculate_one_spin_field(const int i, do
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianCUDASparseTensor::calculate_fields(jblib::Array<double, 2>& fields) {
-    char transa[1] = {'N'};
-    char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
+  if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
+    // general matrix (i.e. Monte Carlo Solvers)
+      char transa[1] = {'N'};
+      char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
 
-    jams_scsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
-      interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, fields.data());
+      jams_scsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
+        interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, fields.data());
+    } else {
+      // symmetric matrix (i.e. Heun Solvers)
+      char transa[1] = {'N'};
+      char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
+      jams_scsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
+        interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, fields.data());
+    }
 }
 
 void DipoleHamiltonianCUDASparseTensor::calculate_fields(jblib::CudaArray<double, 1>& fields) {
