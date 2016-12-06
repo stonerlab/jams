@@ -252,27 +252,27 @@ void DipoleHamiltonianCUDASparseTensor::calculate_fields(jblib::Array<double, 2>
 void DipoleHamiltonianCUDASparseTensor::calculate_fields(jblib::CudaArray<double, 1>& fields) {
 
     // cast spin array to floats
-    // cuda_array_double_to_float(globals::num_spins3, solver->dev_ptr_spin(), dev_float_spins_.data(), dev_stream_);
+    cuda_array_double_to_float(globals::num_spins3, solver->dev_ptr_spin(), dev_float_spins_.data(), dev_stream_);
 
-    // const float one = 1.0;
-    // const float zero = 0.0;
-    // cusparseStatus_t stat =
-    // cusparseScsrmv(cusparse_handle_,
-    //   CUSPARSE_OPERATION_NON_TRANSPOSE,
-    //   globals::num_spins3,
-    //   globals::num_spins3,
-    //   interaction_matrix_.nonZero(),
-    //   &one,
-    //   cusparse_descra_,
-    //   dev_csr_interaction_matrix_.val,
-    //   dev_csr_interaction_matrix_.row,
-    //   dev_csr_interaction_matrix_.col,
-    //   dev_float_spins_.data(),
-    //   &zero,
-    //   dev_float_fields_.data());
-    // assert(stat == CUSPARSE_STATUS_SUCCESS);
+    const float one = 1.0;
+    const float zero = 0.0;
+    cusparseStatus_t stat =
+    cusparseScsrmv(cusparse_handle_,
+      CUSPARSE_OPERATION_NON_TRANSPOSE,
+      globals::num_spins3,
+      globals::num_spins3,
+      interaction_matrix_.nonZero(),
+      &one,
+      cusparse_descra_,
+      dev_csr_interaction_matrix_.val,
+      dev_csr_interaction_matrix_.row,
+      dev_csr_interaction_matrix_.col,
+      dev_float_spins_.data(),
+      &zero,
+      dev_float_fields_.data());
+    assert(stat == CUSPARSE_STATUS_SUCCESS);
 
-    // cuda_array_float_to_double(globals::num_spins3, dev_float_fields_.data(), fields.data(), dev_stream_);
+    cuda_array_float_to_double(globals::num_spins3, dev_float_fields_.data(), fields.data(), dev_stream_);
 }
 
 // --------------------------------------------------------------------------
