@@ -4,6 +4,7 @@
 #include "hamiltonian/dipole.h"
 #include "hamiltonian/dipole_bruteforce.h"
 #include "hamiltonian/dipole_tensor.h"
+#include "hamiltonian/dipole_cuda_sparse_tensor.h"
 #include "hamiltonian/dipole_ewald.h"
 #include "hamiltonian/dipole_fft.h"
 
@@ -34,6 +35,10 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
 
         if (strategy_name == "TENSOR") {
             return new DipoleHamiltonianTensor(settings);
+        }
+
+        if (strategy_name == "CUDA_SPARSE_TENSOR") {
+            return new DipoleHamiltonianCUDASparseTensor(settings);
         }
 
         if (strategy_name == "EWALD") {

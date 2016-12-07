@@ -99,4 +99,62 @@ void cuda_array_elementwise_scale(
     return;
 }
 
+__global__ void cuda_array_double_to_float_kernel(
+    const unsigned int n,            // n elements in i index
+    const double * in,
+    float * out
+)
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < n) {
+        out[idx] = float(in[idx]);
+    }
+}
+
+__global__ void cuda_array_float_to_double_kernel(
+    const unsigned int n,            // n elements in i index
+    const float * in,
+    double * out
+) 
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < n) {
+        out[idx] = double(in[idx]);
+    }
+}
+
+void cuda_array_double_to_float(
+    const unsigned int n,            // n elements in i index
+    const double * in,
+    float * out,  
+    cudaStream_t stream     // cuda stream
+)
+{
+    dim3 block_size;
+    block_size.x = 128;
+
+    dim3 grid_size;
+    grid_size.x = (n + block_size.x - 1) / block_size.x;
+
+    cuda_array_double_to_float_kernel<<<grid_size, block_size, 0, stream>>>(n, in, out);
+}
+
+void cuda_array_float_to_double(
+    const unsigned int n,            // n elements in i index
+    const float * in,
+    double * out,  
+    cudaStream_t stream     // cuda stream
+) 
+{
+    dim3 block_size;
+    block_size.x = 128;
+
+    dim3 grid_size;
+    grid_size.x = (n + block_size.x - 1) / block_size.x;
+
+    cuda_array_float_to_double_kernel<<<grid_size, block_size, 0, stream>>>(n, in, out);
+}
+
 
