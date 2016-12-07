@@ -72,7 +72,8 @@ template <typename _Tp>
 class SparseMatrix {
 
   public:
-    typedef int size_type;
+    typedef int      size_type;
+    typedef uint64_t hash_type;
 
     SparseMatrix()
       : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
@@ -103,11 +104,19 @@ class SparseMatrix {
         col_(0),
         dia_offsets(0),
         num_diagonals(0)
-    {}
+    {
+      if(hash_type(m)*hash_type(n) > std::numeric_limits<hash_type>::max()) {
+        throw std::runtime_error("sparsematrix.h:  maximum hash size is not large enough for the requested matrix size");
+      }
+    }
 
     // resize clears all data in matrix and prepares for insertion
     // again
     void resize(const size_type m, const size_type n) {
+      if(hash_type(m)*hash_type(n) > std::numeric_limits<hash_type>::max()) {
+        throw std::runtime_error("sparsematrix.h:  maximum hash size is not large enough for the requested matrix size");
+      }
+
       matrixFormat = SPARSE_MATRIX_FORMAT_MAP;
       nrows = m;
       ncols = n;
@@ -154,13 +163,14 @@ class SparseMatrix {
     inline size_type* RESTRICT ptrB() { return &(row_[0]); }
     inline size_type* RESTRICT ptrE() { return &(row_[1]); }
 
+    void reserveMemory(size_type n);
     double calculateMemory();
     //void printCSR();
 
   private:
 
-//    typedef std::multimap <int64_t, _Tp, std::less<int64_t> > coo_mmp;
-    typedef std::vector< std::pair<int64_t, _Tp> > coo_mmp;
+//    typedef std::multimap <hash_type, _Tp, std::less<hash_type> > coo_mmp;
+    typedef std::vector< std::pair<hash_type, _Tp> > coo_mmp;
 
     sparse_matrix_format_t  matrixFormat;
     sparse_matrix_type_t    matrixType;
@@ -180,6 +190,8 @@ class SparseMatrix {
     std::vector<size_type> dia_offsets;
     //Array2D<_Tp>           dia_values;
     size_type              num_diagonals;
+    hash_type             max_hash_;
+    hash_type             max_index_;
 
 };
 
@@ -205,7 +217,7 @@ template <typename _Tp>
 double SparseMatrix<_Tp>::calculateMemory() {
   const double mb = (1024.0*1024.0);
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
-    return ((matrixMap.size())*(sizeof(int64_t)+sizeof(_Tp)))/mb;
+    return ((matrixMap.size())*(sizeof(hash_type)+sizeof(_Tp)))/mb;
   }else if(matrixFormat == SPARSE_MATRIX_FORMAT_DIA){
     return (dia_offsets.size()*sizeof(size_type)+(nrows*num_diagonals)*sizeof(_Tp))/mb;
   } else {
@@ -214,7 +226,18 @@ double SparseMatrix<_Tp>::calculateMemory() {
 }
 
 template <typename _Tp>
+void SparseMatrix<_Tp>::reserveMemory(size_type n) {
+  if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP) {
+    matrixMap.reserve(n);
+  }
+}
+
+template <typename _Tp>
 void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
+
+  if (nnz_unmerged == std::numeric_limits<size_type>::max() - 1) {
+    throw std::runtime_error("sparsematrix.h: number of non zero elements is too large for the size_type");
+  }
 
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP) { // can only insert elements into map formatted matrix
 
@@ -236,10 +259,10 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
     }
 
     // static casts to force 64bit arithmetic
-//    const int64_t index = (static_cast<int64_t>(i)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(j);
-    const int64_t index = (static_cast<int64_t>(i)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(j);
+//    const hash_type index = (static_cast<hash_type>(i)*static_cast<hash_type>(ncols)) + static_cast<hash_type>(j);
+    const hash_type index = (static_cast<hash_type>(i)*static_cast<hash_type>(ncols)) + static_cast<hash_type>(j);
 //    matrixMap.insert(typename coo_mmp::value_type(index, value));
-    matrixMap.push_back( std::pair<int64_t, _Tp>(index, value) );
+    matrixMap.push_back( std::pair<hash_type, _Tp>(index, value) );
 
     nnz_unmerged++;
   } else {
@@ -252,7 +275,7 @@ template <typename _Tp>
 void SparseMatrix<_Tp>::convertSymmetric2General() {
 
 
-  int64_t ival, jval, index, index_new;
+  hash_type ival, jval, index, index_new;
   _Tp value;
 
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
@@ -265,12 +288,12 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
             value = matrixMap[i].second;
 
             // opposite relationship
-            jval = index/static_cast<int64_t>(ncols);
+            jval = index/static_cast<hash_type>(ncols);
             ival = index - ((jval)*ncols);
 
             if(ival != jval){
-                index_new = (static_cast<int64_t>(ival)*static_cast<int64_t>(ncols)) + static_cast<int64_t>(jval);
-                matrixMap.push_back(std::pair<int64_t, _Tp>(index_new, value));
+                index_new = (static_cast<hash_type>(ival)*static_cast<hash_type>(ncols)) + static_cast<hash_type>(jval);
+                matrixMap.push_back(std::pair<hash_type, _Tp>(index_new, value));
                 nnz_unmerged++;
             }
         }
@@ -284,16 +307,15 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
 template <typename _Tp>
 void SparseMatrix<_Tp>::convertMAP2CSR()
 {
-  int64_t current_row, current_col, index;
-  int64_t previous_index = -1, previous_row = 0;
+  hash_type current_row, current_col, index;
+  hash_type previous_index = 0, previous_row = 0;
 
   nnz = 0;
   row_.resize(nrows+1);
 
-  std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_greater<int64_t, _Tp>);
+  std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_greater<hash_type, _Tp>);
 
   if (nnz_unmerged > 0) {
-    previous_index = -1;  // ensure first index is different;
     previous_row = 0;
     row_[0] = 0;
 
@@ -304,12 +326,14 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
       pop_counter++;
 
       index = nz.first;  // first part contains row major index
-      if (index < 0) {
-        jams_error("Negative sparse array index");
-      }
-      current_row = index/static_cast<int64_t>(ncols);
+
+      // if (index < 0) {
+      //   jams_error("Negative sparse array index");
+      // }
+
+      current_row = index/static_cast<hash_type>(ncols);
       current_col = index - ((current_row)*ncols);
-      if (index == previous_index) {
+      if (nnz != 0 && index == previous_index) { // first value has no previous value
         // index is the same as the last, add values
         val_[nnz-1] += nz.second;
       } else {
@@ -347,7 +371,7 @@ template <typename _Tp>
 void SparseMatrix<_Tp>::convertMAP2COO()
 {
 
-  int64_t index_last, ival, jval, index;
+  hash_type index_last, ival, jval, index;
 
   nnz = 0;
   row_.resize(nrows+1);
@@ -356,23 +380,21 @@ void SparseMatrix<_Tp>::convertMAP2COO()
 
   if(nnz_unmerged > 0){
 
-    index_last = -1; // ensure first index is different;
-
     row_[0] = 0;
 
     typename coo_mmp::const_iterator elem;
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
 
-      if(index < 0){
-        jams_error("Negative sparse array index");
-      }
+      // if(index < 0){
+      //   jams_error("Negative sparse array index");
+      // }
 
-      ival = index/static_cast<int64_t>(ncols);
+      ival = index/static_cast<hash_type>(ncols);
 
       jval = index - ((ival)*ncols);
 
-      if(index != index_last){
+      if(nnz != 0 && index != index_last){
         index_last = index; // update last index
         nnz++;
 
@@ -400,13 +422,13 @@ template <typename _Tp>
 void SparseMatrix<_Tp>::convertMAP2DIA()
 {
 
-  int64_t ival, jval, index;
+  hash_type ival, jval, index;
 
   nnz = 0;
 
   if(nnz_unmerged > 0){
 
-//    std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_less<int64_t, _Tp>);
+//    std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_less<hash_type, _Tp>);
 
     num_diagonals = 0;
     std::vector<int> diag_map(nrows+ncols, 0);
@@ -415,11 +437,11 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
 
-      if(index < 0){
-        jams_error("Negative sparse array index");
-      }
+      // if(index < 0){
+      //   jams_error("Negative sparse array index");
+      // }
 
-      ival = index/static_cast<int64_t>(ncols);
+      ival = index/static_cast<hash_type>(ncols);
 
       jval = index - ((ival)*ncols);
 
@@ -454,7 +476,7 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
 
-      ival = index/static_cast<int64_t>(ncols);
+      ival = index/static_cast<hash_type>(ncols);
       jval = index - ((ival)*ncols);
       int map_index = (nrows - ival) + jval;
       int diag = diag_map[map_index];
