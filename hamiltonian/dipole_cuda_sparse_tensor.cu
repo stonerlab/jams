@@ -42,9 +42,6 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
 
     printf("  image vector max extent (fractional):\n    %d %d %d\n", L_max[0], L_max[1], L_max[2]);
 
-    dev_float_spins_.resize(globals::num_spins3);
-    dev_float_fields_.resize(globals::num_spins3);
-
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
 
 
@@ -157,6 +154,9 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
         ::output.write("    memcpy csr val to device\n");
         cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
               (interaction_matrix_.nonZero())*sizeof(float), cudaMemcpyHostToDevice));
+
+        dev_float_spins_.resize(globals::num_spins3);
+        dev_float_fields_.resize(globals::num_spins3);
 
     }
 }
