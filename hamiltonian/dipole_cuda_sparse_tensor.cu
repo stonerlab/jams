@@ -18,29 +18,9 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
     double r_abs;
     jblib::Vec3<double> r_ij, r_hat, s_j;
 
-    jblib::Vec3<int> L_max(0, 0, 0);
-    jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);
+    output.write("  strategy: cuda_sparse_tensor\n");
 
-    for (int n = 0; n < 3; ++n) {
-        super_cell_dim[n] = 0.5*double(lattice.size(n));
-    }
-
-    r_cutoff_ = *std::max_element(super_cell_dim.begin(), super_cell_dim.end());
-
-    if (settings.exists("r_cutoff")) {
-        r_cutoff_ = settings["r_cutoff"];
-    }
-
-
-    // printf("  super cell max extent (cartesian):\n    %f %f %f\n", super_cell_dim[0], super_cell_dim[1], super_cell_dim[2]);
-
-    for (int n = 0; n < 3; ++n) {
-        if (lattice.is_periodic(n)) {
-            L_max[n] = ceil(r_cutoff_/super_cell_dim[n]);
-        }
-    }
-
-    printf("  image vector max extent (fractional):\n    %d %d %d\n", L_max[0], L_max[1], L_max[2]);
+    r_cutoff_ = settings["r_cutoff"];
 
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
 
@@ -56,8 +36,37 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
 
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
+    output.write("    precalculating number of interactions\n");
+    unsigned int interaction_count = 0;
+    for (int i = 0; i < globals::num_spins; ++i) {
+        for (int j = 0; j < globals::num_spins; ++j) {
 
+            if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+              if (j > i) {
+                continue;
+              }
+            }
 
+            if (j == i) continue;
+
+            auto r_ij = lattice.displacement(i, j);
+
+            r_abs = abs(r_ij);
+
+            // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
+            // so detect based on r_abs rather than i == j
+            if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
+
+            interaction_count++;
+      }
+    }
+
+    output.write("    interaction count: %d\n", interaction_count);
+
+    output.write("    reserving memory for sparse matrix: %f MB\n", 9*interaction_count*(sizeof(uint64_t)+sizeof(float))/(1024.0*1024.0));
+    interaction_matrix_.reserveMemory(9*interaction_count); // 9 elements in tensor
+
+    output.write("    inserting tensor elements\n");
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
 
@@ -78,11 +87,6 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
             if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
 
             r_hat = r_ij / r_abs;
-
-
-            const auto r_abs_sq = r_ij.norm_sq();
-
-            if (r_abs_sq > (r_cutoff_*r_cutoff_)) continue;
 
             for (int m = 0; m < 3; ++m) {
                 for (int n = 0; n < 3; ++n) {
