@@ -244,7 +244,7 @@ ifdef MKLROOT
 	BASIC_LDFLAGS += -L$(MKLROOT)/lib/intel64
 	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm -ldl
 else
-	EXTLIBS += -lfftw3
+	EXTLIBS += -lfftw3 -lblas
 endif
 
 ifndef NO_CUDA
@@ -255,7 +255,7 @@ ifndef NO_CUDA
 		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG -march=native -O3 -g" -Xlinker
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
-		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/g++ -Xcompiler "-fno-finite-math-only -O3 -g -DNDEBUG"
+		BASIC_CUFLAGS += -std=c++11 -Xcompiler "-DNDEBUG"
 	endif
 	EXTLIBS += -lcudart -lcurand -lcublas -lcusparse -lcufft
 	ifdef CUDA_BUILD_FERMI
@@ -278,7 +278,7 @@ ifdef H5DIR
 	BASIC_CFLAGS += -I$(H5DIR)/include
 	BASIC_LDFLAGS += -L$(H5DIR)/lib
 endif
-EXTLIBS += -lhdf5 -lhdf5_cpp -lsymspg -lblas
+EXTLIBS += -lhdf5 -lhdf5_cpp -lsymspg
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
 ALL_CUFLAGS += $(BASIC_CFLAGS) $(BASIC_CUFLAGS)

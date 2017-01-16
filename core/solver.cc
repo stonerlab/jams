@@ -1,8 +1,8 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <cblas.h>
 #include <fftw3.h>
 
+#include "core/blas.h"
 #include "core/solver.h"
 #include "core/hamiltonian.h"
 #include "core/monitor.h"

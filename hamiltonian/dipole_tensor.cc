@@ -1,7 +1,6 @@
 #include <cmath>
 
-#include <cblas.h>
-
+#include "core/blas.h"
 #include "core/globals.h"
 #include "core/consts.h"
 #include "core/utils.h"

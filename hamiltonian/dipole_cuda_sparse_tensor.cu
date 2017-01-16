@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include <cblas.h>
+#include "core/blas.h"
 #include "core/cuda_defs.h"
 #include "core/cuda_array_kernels.h"
 

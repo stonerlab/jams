@@ -1,12 +1,12 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <cblas.h>
 
 #include "monitors/spin_pumping.h"
 
 #include <string>
 #include <iomanip>
 
+#include "core/blas.h"
 #include "core/globals.h"
 #include "core/maths.h"
 #include "core/stats.h"
