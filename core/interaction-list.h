@@ -29,6 +29,9 @@ class InteractionList {
 
   	const_reference interactions(size_type i) const;
 
+  	      reference operator[] (const size_type i);
+  	const_reference operator[] (const size_type i) const;
+
   private:
 
   	std::vector<value_type> list;
@@ -54,11 +57,28 @@ InteractionList<T>::resize(size_type size) {
 	list.resize(size);
 }
 
+//---------------------------------------------------------------------
+
 template <class T>
 typename InteractionList<T>::const_reference
 InteractionList<T>::interactions(size_type i) const {
 	return list[i];
 }
 
+//---------------------------------------------------------------------
+
+template <class T>
+typename InteractionList<T>::const_reference
+InteractionList<T>::operator[](const size_type i) const {
+	return list[i];
+}
+
+//---------------------------------------------------------------------
+
+template <class T>
+typename InteractionList<T>::reference
+InteractionList<T>::operator[](const size_type i) {
+	return list[i];
+}
 
 #endif // JAMS_CORE_INTERATION_LIST_H
