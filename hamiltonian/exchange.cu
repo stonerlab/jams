@@ -112,9 +112,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
 
-    InteractionList<inode_pair_t> tmp(lattice.num_unit_cell_positions());
+    InteractionList<inode_pair_t> unitcell_interactions(lattice.num_unit_cell_positions());
 
-    std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > unitcell_interaction_list(lattice.num_unit_cell_positions());
+    // std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > unitcell_interactions(lattice.num_unit_cell_positions());
 
     neighbour_list_.resize(globals::num_spins);
 
@@ -124,9 +124,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     }
 
     if (use_symops) {
-      read_interactions_with_symmetry(interaction_filename, unitcell_interaction_list);
+      read_interactions_with_symmetry(interaction_filename, unitcell_interactions);
     } else {
-      read_interactions(interaction_filename, unitcell_interaction_list);
+      read_interactions(interaction_filename, unitcell_interactions);
     }
 
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
@@ -156,13 +156,13 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
             is_already_interacting[local_site] = true;  // don't allow self interaction
 
             // loop over all possible interaction vectors
-            for (int n = 0, nend = unitcell_interaction_list[m].size(); n < nend; ++n) {
+            for (int n = 0, nend = unitcell_interactions[m].size(); n < nend; ++n) {
 
               inode_t node = 
-              {(lattice.num_unit_cell_positions() + m + unitcell_interaction_list[m][n].first.k)%lattice.num_unit_cell_positions(),
-                i + unitcell_interaction_list[m][n].first.a,
-                j + unitcell_interaction_list[m][n].first.b,
-                k + unitcell_interaction_list[m][n].first.c};
+              {(lattice.num_unit_cell_positions() + m + unitcell_interactions[m][n].node.k)%lattice.num_unit_cell_positions(),
+                i + unitcell_interactions[m][n].node.a,
+                j + unitcell_interactions[m][n].node.b,
+                k + unitcell_interactions[m][n].node.c};
 
               if (lattice.apply_boundary_conditions(node.a, node.b, node.c) == false) {
                 continue;
@@ -176,8 +176,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
               }
               is_already_interacting[neighbour_site] = true;
 
-              if (unitcell_interaction_list[m][n].second.max_norm() > energy_cutoff_) {
-                neighbour_list_.insert(local_site, neighbour_site, unitcell_interaction_list[m][n].second);
+              if (unitcell_interactions[m][n].value.max_norm() > energy_cutoff_) {
+                neighbour_list_.insert(local_site, neighbour_site, unitcell_interactions[m][n].value);
                 counter++;
 
                 if (is_debug_enabled_) {
@@ -308,7 +308,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 }
 
 void ExchangeHamiltonian::read_interactions(const std::string &filename,
-  std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > &unitcell_interaction_list) {
+  InteractionList<inode_pair_t> &unitcell_interactions) {
 
   ::output.write("  reading interactions (no symops)\n");
 
@@ -324,7 +324,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
     unfolded_interaction_file.open(std::string(seedname+"_unfolded_exc.dat").c_str());
   }
 
-  unitcell_interaction_list.resize(lattice.num_unit_cell_positions());
+  unitcell_interactions.resize(lattice.num_unit_cell_positions());
 
 
   int counter = 0;
@@ -393,6 +393,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
     ::output.verbose("unit cell interactions\n");
     for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
       std::set<inode_t> interaction_set;
+      unsigned int insertion_counter = 0;
       // only process for interactions belonging to this material
       if (lattice.unit_cell_material_name(i) == type_name_A) {
         // unit_cell position in basis vector space
@@ -453,7 +454,8 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
         inode_t interaction_node = { unit_cell_partner - i, int(uij[0]), int(uij[1]), int(uij[2])};
 
         ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), interaction_node.k + i, lattice.unit_cell_material_name(interaction_node.k + i).c_str(), interaction_node.a, interaction_node.b, interaction_node.c);
-        unitcell_interaction_list[i].push_back(std::pair<inode_t, jblib::Matrix<double, 3, 3> >(interaction_node, tensor));
+        unitcell_interactions.insert(i, insertion_counter, {interaction_node, tensor});
+        insertion_counter++;
 
         if (is_debug_enabled_) {
           unfolded_interaction_file << std::setw(12) << type_name_A << "\t";
@@ -482,7 +484,7 @@ unfolded_interaction_file.close();
 }
 
 void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &filename,
-  std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > &unitcell_interaction_list) {
+  InteractionList<inode_pair_t> &unitcell_interactions) {
 
   int counter = 0;
   int line_number = 0;
@@ -490,7 +492,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
   std::ifstream interaction_file;
   std::ofstream unfolded_interaction_file;
 
-  unitcell_interaction_list.resize(lattice.num_unit_cell_positions());
+  unitcell_interactions.resize(lattice.num_unit_cell_positions());
 
 
   ::output.write("  reading interactions and applying symmetry operations\n");
@@ -601,6 +603,8 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
     ::output.verbose("unit cell interactions\n");
     for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
       std::set<inode_t> interaction_set;
+
+      unsigned int insertion_counter = 0;
       // only process for interactions belonging to this material
       if (lattice.unit_cell_material_name(i) == type_name_A) {
 
@@ -658,7 +662,6 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
           //   r0[0], r0[1], r0[2], unit_cell_offset[0], unit_cell_offset[1], unit_cell_offset[2], real_rij[0], real_rij[1], real_rij[2], real_offset[0], real_offset[1], real_offset[2]);
 
           if (unit_cell_partner != -1) {
-            // fast_integer_vector[3] = unit_cell_partner - i;
             // check the unit_cell partner is of the type that was specified in the exchange input file
             if (lattice.unit_cell_material_name(unit_cell_partner) != type_name_B) {
               ::output.verbose("wrong type \n");
@@ -674,7 +677,8 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
             if (ret.second == true) {
               ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), interaction_node.k + i, lattice.unit_cell_material_name(interaction_node.k + i).c_str(), interaction_node.a, interaction_node.b, interaction_node.b);
-              unitcell_interaction_list[i].push_back({interaction_node, tensor});
+              unitcell_interactions.insert(i, insertion_counter, {interaction_node, tensor});
+              insertion_counter++;
 
               if (is_debug_enabled_) {
                 unfolded_interaction_file << std::setw(12) << type_name_A << "\t";

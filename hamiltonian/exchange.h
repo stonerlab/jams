@@ -67,10 +67,10 @@ class ExchangeHamiltonian : public Hamiltonian {
     private:
 
         void read_interactions(const std::string &filename,
-          std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > &int_interaction_list);
+          InteractionList<inode_pair_t> &int_interaction_list);
 
         void read_interactions_with_symmetry(const std::string &filename,
-          std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > &int_interaction_list);
+          InteractionList<inode_pair_t> &int_interaction_list);
 
         void insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
 
