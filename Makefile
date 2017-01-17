@@ -221,13 +221,7 @@ ifndef NO_CUDA
 
 endif
 
-ifeq ($(SYSTYPE),Darwin)
-	CC = clang++
-	CFLAGS += -fslp-vectorize
-	BASIC_LDFLAGS += -framework Accelerate -Wl -rpath /usr/local/cuda/lib
-else
-	BASIC_LDFLAGS +=
-endif
+
 
 
 ifdef LIBCONFIGDIR
@@ -241,9 +235,16 @@ ifdef MKLROOT
 	CC = icpc
 	EXTRA_CPPFLAGS += -xHOST
 	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -D__INTEL_COMPILER -DMKL
-	BASIC_LDFLAGS += -L$(MKLROOT)/lib/intel64
 	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm -ldl
 else
+	ifeq ($(SYSTYPE),Darwin)
+		CC = clang++
+		CFLAGS += -fslp-vectorize
+		BASIC_LDFLAGS += -framework Accelerate -Wl -rpath /usr/local/cuda/lib
+	else
+		BASIC_LDFLAGS +=
+	endif
+
 	EXTLIBS += -lfftw3 -lblas
 endif
 
