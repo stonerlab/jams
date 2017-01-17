@@ -148,6 +148,7 @@ class Lattice {
     }
 
     bool apply_boundary_conditions(Vec3i& pos) const;
+    bool apply_boundary_conditions(int &a, int &b, int &c) const;
     bool apply_boundary_conditions(jblib::Vec4<int>& pos) const;
 
     const Vec3i& super_cell_pos(const int i) const {

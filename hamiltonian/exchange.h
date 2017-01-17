@@ -15,6 +15,7 @@
 #include "core/output.h"
 #include "core/hamiltonian.h"
 #include "core/cuda_defs.h"
+#include "core/interaction-list.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/cuda_array.h"
@@ -24,12 +25,22 @@ struct Interaction {
     jblib::Matrix<double, 3, 3> tensor;
 };
 
+typedef struct {
+  int k;
+  int a;
+  int b;
+  int c;
+} inode_t;
+
+typedef struct {
+  inode_t node;
+  Mat3    value;
+} inode_pair_t;
+
 class ExchangeHamiltonian : public Hamiltonian {
     public:
         ExchangeHamiltonian(const libconfig::Setting &settings);
         ~ExchangeHamiltonian() {};
-
-        typedef std::vector<std::map<int, Mat3>> InteractionList;
 
         std::string name() const { return "exchange"; }
 
@@ -49,17 +60,17 @@ class ExchangeHamiltonian : public Hamiltonian {
         void   output_energies(OutputFormat format);
         void   output_fields(OutputFormat format);
 
-        const std::map<int, Mat3>& neighbours(const int i) const {
-            return neighbour_list_[i];
+        InteractionList<Mat3>::const_reference neighbours(const int i) const {
+            return neighbour_list_.interactions(i);
         }
 
     private:
 
         void read_interactions(const std::string &filename,
-          std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list);
+          std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > &int_interaction_list);
 
         void read_interactions_with_symmetry(const std::string &filename,
-          std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list);
+          std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > &int_interaction_list);
 
         void insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
 
@@ -72,7 +83,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         sparse_matrix_format_t sparse_matrix_format();
         void set_sparse_matrix_format(std::string &format_name);
 
-        InteractionList neighbour_list_;
+        InteractionList<Mat3> neighbour_list_;
         SparseMatrix<double> interaction_matrix_;
         sparse_matrix_format_t interaction_matrix_format_;
         double energy_cutoff_;

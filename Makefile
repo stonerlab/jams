@@ -153,6 +153,7 @@ HDR += core/utils.h
 HDR += core/slice.h
 HDR += core/hamiltonian.h
 HDR += core/neartree.h
+HDR += core/interaction-list.h
 HDR += monitors/boltzmann.h
 HDR += monitors/smr.h
 HDR += monitors/energy.h
@@ -224,19 +225,14 @@ endif
 
 
 
-ifdef LIBCONFIGDIR
-	BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
-	BASIC_LDFLAGS += -L$(LIBCONFIGDIR)/lib
-endif
 
-EXTLIBS += -lconfig++
 
-ifdef MKLROOT
-	CC = icpc
-	EXTRA_CPPFLAGS += -xHOST
-	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -D__INTEL_COMPILER -DMKL
-	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm -ldl
-else
+# ifdef MKLROOT
+# 	CC = icpc
+# 	EXTRA_CPPFLAGS += -xHOST
+# 	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -D__INTEL_COMPILER -DMKL
+# 	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm -ldl
+# else
 	ifeq ($(SYSTYPE),Darwin)
 		CC = clang++
 		CFLAGS += -fslp-vectorize
@@ -246,14 +242,15 @@ else
 	endif
 
 	EXTLIBS += -lfftw3 -lblas
-endif
+# endif
 
 ifndef NO_CUDA
 	BASIC_CFLAGS += -I$(CUDADIR)/include -DCUDA
 	BASIC_CUFLAGS += -I$(CUDADIR)/include -DCUDA
 	ifeq ($(SYSTYPE),Darwin)
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib
-		BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG -march=native -O3 -g" -Xlinker
+		BASIC_CUFLAGS += -std=c++11 -Xcompiler "-DNDEBUG"
+		# BASIC_CUFLAGS += -std=c++11 -ccbin=/usr/bin/clang++ -Xcompiler "-DNDEBUG -march=native -O3 -g" -Xlinker
 	else
 		BASIC_LDFLAGS += -L$(CUDADIR)/lib64
 		BASIC_CUFLAGS += -std=c++11 -Xcompiler "-DNDEBUG"
@@ -274,6 +271,13 @@ ifndef NO_CUDA
 		BASIC_CUFLAGS += -gencode=arch=compute_60,code=sm_60
 	endif
 endif
+
+ifdef LIBCONFIGDIR
+	BASIC_CFLAGS += -I$(LIBCONFIGDIR)/include
+	BASIC_LDFLAGS += -L$(LIBCONFIGDIR)/lib
+endif
+
+EXTLIBS += -lconfig++
 
 ifdef H5DIR
 	BASIC_CFLAGS += -I$(H5DIR)/include

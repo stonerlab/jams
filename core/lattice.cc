@@ -920,6 +920,28 @@ bool Lattice::apply_boundary_conditions(Vec3i& pos) const {
     return true;
 }
 
+bool Lattice::apply_boundary_conditions(int &a, int &b, int &c) const {
+    if (!is_periodic(0) && (a < 0 || a >= lattice.num_unit_cells(0))) {
+      return false;
+    } else {
+      a = (a + lattice.num_unit_cells(0))%lattice.num_unit_cells(0);
+    }
+
+    if (!is_periodic(1) && (b < 0 || b >= lattice.num_unit_cells(1))) {
+      return false;
+    } else {
+      b = (b + lattice.num_unit_cells(1))%lattice.num_unit_cells(1);
+    }
+
+    if (!is_periodic(2) && (c < 0 || c >= lattice.num_unit_cells(2))) {
+      return false;
+    } else {
+      c = (c + lattice.num_unit_cells(2))%lattice.num_unit_cells(2);
+    }
+
+    return true;
+}
+
 // same as the Vec3 version but accepts a Vec4 where the last component is the motif
 // position difference
 bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {

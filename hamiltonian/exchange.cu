@@ -1,4 +1,5 @@
 #include <set>
+#include <tuple>
 
 #include "core/exception.h"
 #include "core/globals.h"
@@ -6,28 +7,15 @@
 #include "core/consts.h"
 #include "core/cuda_defs.h"
 #include "core/cuda_sparsematrix.h"
+#include "core/interaction-list.h"
 
 #include "jblib/math/summations.h"
 
 #include "hamiltonian/exchange.h"
-// #include "hamiltonian/exchange_kernel.h"
 
-namespace {
-  struct vec4_compare {
-    bool operator() (const jblib::Vec4<int>& lhs, const jblib::Vec4<int>& rhs) const {
-      if (lhs.x < rhs.x) {
-        return true;
-      } else if (lhs.x == rhs.x && lhs.y < rhs.y) {
-        return true;
-      } else if (lhs.x == rhs.x && lhs.y == rhs.y && lhs.z < rhs.z) {
-        return true;
-      } else if (lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z && lhs.w < rhs.w) {
-        return true;
-      }
-      return false;
-    }
-  };
 
+bool operator <(const inode_t& x, const inode_t& y) {
+    return std::tie(x.k, x.a, x.b, x.c) < std::tie(y.k, y.a, y.b, y.c);
 }
 
 void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value) {
@@ -124,7 +112,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
 
-    std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > int_interaction_list(lattice.num_unit_cell_positions());
+    InteractionList<inode_pair_t> tmp(lattice.num_unit_cell_positions());
+
+    std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > unitcell_interaction_list(lattice.num_unit_cell_positions());
 
     neighbour_list_.resize(globals::num_spins);
 
@@ -134,9 +124,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     }
 
     if (use_symops) {
-      read_interactions_with_symmetry(interaction_filename, int_interaction_list);
+      read_interactions_with_symmetry(interaction_filename, unitcell_interaction_list);
     } else {
-      read_interactions(interaction_filename, int_interaction_list);
+      read_interactions(interaction_filename, unitcell_interaction_list);
     }
 
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
@@ -166,29 +156,28 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
             is_already_interacting[local_site] = true;  // don't allow self interaction
 
             // loop over all possible interaction vectors
-            for (int n = 0, nend = int_interaction_list[m].size(); n < nend; ++n) {
+            for (int n = 0, nend = unitcell_interaction_list[m].size(); n < nend; ++n) {
 
-              jblib::Vec4<int> int_lookup_vec(
-                i + int_interaction_list[m][n].first.x,
-                j + int_interaction_list[m][n].first.y,
-                k + int_interaction_list[m][n].first.z,
-                (lattice.num_unit_cell_positions() + m + int_interaction_list[m][n].first.w)%lattice.num_unit_cell_positions());
+              inode_t node = 
+              {(lattice.num_unit_cell_positions() + m + unitcell_interaction_list[m][n].first.k)%lattice.num_unit_cell_positions(),
+                i + unitcell_interaction_list[m][n].first.a,
+                j + unitcell_interaction_list[m][n].first.b,
+                k + unitcell_interaction_list[m][n].first.c};
 
-              if (lattice.apply_boundary_conditions(int_lookup_vec) == false) {
+              if (lattice.apply_boundary_conditions(node.a, node.b, node.c) == false) {
                 continue;
               }
 
-              int neighbour_site = lattice.site_index_by_unit_cell(
-                int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
+              int neighbour_site = lattice.site_index_by_unit_cell(node.a, node.b, node.c, node.k);
 
               // failsafe check that we only interact with any given site once through the input exchange file.
               if (is_already_interacting[neighbour_site]) {
-                jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, int_lookup_vec.x, int_lookup_vec.y, int_lookup_vec.z, int_lookup_vec.w);
+                jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, node.a, node.b, node.c, node.k);
               }
               is_already_interacting[neighbour_site] = true;
 
-              if (int_interaction_list[m][n].second.max_norm() > energy_cutoff_) {
-                neighbour_list_[local_site].insert({neighbour_site, int_interaction_list[m][n].second});
+              if (unitcell_interaction_list[m][n].second.max_norm() > energy_cutoff_) {
+                neighbour_list_.insert(local_site, neighbour_site, unitcell_interaction_list[m][n].second);
                 counter++;
 
                 if (is_debug_enabled_) {
@@ -217,7 +206,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     }
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      for (auto it = neighbour_list_[i].begin(); it != neighbour_list_[i].end(); ++it) {
+      for (auto it = neighbour_list_.interactions(i).begin(); it != neighbour_list_.interactions(i).end(); ++it) {
         insert_interaction(i, (*it).first, (*it).second);
       }
     }
@@ -319,7 +308,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 }
 
 void ExchangeHamiltonian::read_interactions(const std::string &filename,
-  std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
+  std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > &unitcell_interaction_list) {
 
   ::output.write("  reading interactions (no symops)\n");
 
@@ -335,7 +324,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
     unfolded_interaction_file.open(std::string(seedname+"_unfolded_exc.dat").c_str());
   }
 
-  int_interaction_list.resize(lattice.num_unit_cell_positions());
+  unitcell_interaction_list.resize(lattice.num_unit_cell_positions());
 
 
   int counter = 0;
@@ -403,7 +392,7 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
 
     ::output.verbose("unit cell interactions\n");
     for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
-      std::set<jblib::Vec4<int>, vec4_compare> interaction_set;
+      std::set<inode_t> interaction_set;
       // only process for interactions belonging to this material
       if (lattice.unit_cell_material_name(i) == type_name_A) {
         // unit_cell position in basis vector space
@@ -426,12 +415,6 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
             // of the interaction vectors is not so good.
             uij[k] = floor(uij[k] + distance_tolerance_);
           }
-        }
-        // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
-        // component is the atoms number within the unit_cell
-        jblib::Vec4<int> fast_integer_vector;
-        for (int k = 0; k < 3; ++k) {
-          fast_integer_vector[k] = uij[k];
         }
 
         // now calculate the unit_cell offset
@@ -466,9 +449,11 @@ void ExchangeHamiltonian::read_interactions(const std::string &filename,
           ::output.verbose("wrong type \n");
           continue;
         }
-        jblib::Vec4<int> fast_integer_vector(uij[0], uij[1], uij[2], unit_cell_partner - i);
-        ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), fast_integer_vector[3] + i, lattice.unit_cell_material_name(fast_integer_vector[3] + i).c_str(), fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2]);
-        int_interaction_list[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
+
+        inode_t interaction_node = { unit_cell_partner - i, int(uij[0]), int(uij[1]), int(uij[2])};
+
+        ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), interaction_node.k + i, lattice.unit_cell_material_name(interaction_node.k + i).c_str(), interaction_node.a, interaction_node.b, interaction_node.c);
+        unitcell_interaction_list[i].push_back(std::pair<inode_t, jblib::Matrix<double, 3, 3> >(interaction_node, tensor));
 
         if (is_debug_enabled_) {
           unfolded_interaction_file << std::setw(12) << type_name_A << "\t";
@@ -497,7 +482,7 @@ unfolded_interaction_file.close();
 }
 
 void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &filename,
-  std::vector< std::vector< std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> > > > &int_interaction_list) {
+  std::vector< std::vector< std::pair<inode_t, jblib::Matrix<double, 3, 3> > > > &unitcell_interaction_list) {
 
   int counter = 0;
   int line_number = 0;
@@ -505,7 +490,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
   std::ifstream interaction_file;
   std::ofstream unfolded_interaction_file;
 
-  int_interaction_list.resize(lattice.num_unit_cell_positions());
+  unitcell_interaction_list.resize(lattice.num_unit_cell_positions());
 
 
   ::output.write("  reading interactions and applying symmetry operations\n");
@@ -615,7 +600,7 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
 
     ::output.verbose("unit cell interactions\n");
     for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
-      std::set<jblib::Vec4<int>, vec4_compare> interaction_set;
+      std::set<inode_t> interaction_set;
       // only process for interactions belonging to this material
       if (lattice.unit_cell_material_name(i) == type_name_A) {
 
@@ -641,13 +626,6 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
               // of the interaction vectors is not so good.
               uij[k] = floor(uij[k] + distance_tolerance_);
             }
-          }
-
-          // this 4-vector specifies the integer number of lattice vectors to the unit cell and the fourth
-          // component is the atoms number within the unit_cell
-          jblib::Vec4<int> fast_integer_vector;
-          for (int k = 0; k < 3; ++k) {
-            fast_integer_vector[k] = uij[k];
           }
 
           // now calculate the unit_cell offset
@@ -686,16 +664,17 @@ void ExchangeHamiltonian::read_interactions_with_symmetry(const std::string &fil
               ::output.verbose("wrong type \n");
               continue;
             }
-            jblib::Vec4<int> fast_integer_vector(uij[0], uij[1], uij[2], unit_cell_partner - i);
-            // ::output.write("%d %d %d %d %d % 3.6f % 3.6f % 3.6f\n", i, unit_cell_partner, fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2], unit_cell_offset[0], unit_cell_offset[1], unit_cell_offset[2]);
 
-            std::pair<std::set<jblib::Vec4<int> >::iterator,bool> ret;
+            inode_t interaction_node = 
+              { unit_cell_partner - i, int(uij[0]), int(uij[1]), int(uij[2])};
 
-            ret = interaction_set.insert(fast_integer_vector);
+            std::pair<std::set<inode_t >::iterator,bool> ret;
+
+            ret = interaction_set.insert(interaction_node);
 
             if (ret.second == true) {
-              ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), fast_integer_vector[3] + i, lattice.unit_cell_material_name(fast_integer_vector[3] + i).c_str(), fast_integer_vector[0], fast_integer_vector[1], fast_integer_vector[2]);
-              int_interaction_list[i].push_back(std::pair<jblib::Vec4<int>, jblib::Matrix<double, 3, 3> >(fast_integer_vector, tensor));
+              ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), interaction_node.k + i, lattice.unit_cell_material_name(interaction_node.k + i).c_str(), interaction_node.a, interaction_node.b, interaction_node.b);
+              unitcell_interaction_list[i].push_back({interaction_node, tensor});
 
               if (is_debug_enabled_) {
                 unfolded_interaction_file << std::setw(12) << type_name_A << "\t";
@@ -999,22 +978,23 @@ void ExchangeHamiltonian::set_sparse_matrix_format(std::string &format_name) {
 double ExchangeHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
   using namespace globals;
 
-  if (i == j) {
-    return 0.0;
-  } else {
+  return 0.0;
+  // if (i == j) {
+  //   return 0.0;
+  // } else {
 
-    // Mat3 J;
+  //   // Mat3 J;
 
-    // J = neighbour_list_[i][j];
+  //   // J = neighbour_list_[i][j];
 
-    // try {
-    //   J = neighbour_list_[i].at(j);
-    // }
-    // catch(std::out_of_range) {
-    //   return 0.0;
-    // }
+  //   // try {
+  //   //   J = neighbour_list_[i].at(j);
+  //   // }
+  //   // catch(std::out_of_range) {
+  //   //   return 0.0;
+  //   // }
 
-    Vec3 Js = neighbour_list_[i][j] * (sj_final - sj_initial);
-    return -(s(i, 0) * Js[0] + s(i, 1) * Js[1] + s(i, 2) * Js[2]);
-  }
+  //   Vec3 Js = neighbour_list_.interactions(i)[j] * (sj_final - sj_initial);
+  //   return -(s(i, 0) * Js[0] + s(i, 1) * Js[1] + s(i, 2) * Js[2]);
+  // }
 }
