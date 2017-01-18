@@ -15,6 +15,8 @@ class InteractionList {
   	typedef const value_type&   				const_reference;
   	typedef value_type*         				pointer;
   	typedef const value_type*					const_pointer;
+  	typedef pointer                             iterator;
+  	typedef const_pointer                       const_iterator;
 
   	InteractionList()
   		: list() {};
@@ -24,7 +26,9 @@ class InteractionList {
 
   	~InteractionList() {};
 
-  	void insert(size_type i, size_type j, const T &value);
+  	std::pair<typename value_type::iterator,bool>
+	insert(size_type i, size_type j, const T &value);
+  	
   	void resize(size_type size);
 
   	const_reference interactions(size_type i) const;
@@ -40,13 +44,13 @@ class InteractionList {
 //---------------------------------------------------------------------
 
 template <class T>
-void
+std::pair<typename InteractionList<T>::value_type::iterator,bool>
 InteractionList<T>::insert(size_type i, size_type j, const T &value) {
 	if (i >= list.size()) {
 		list.resize(i+1);
 	}
 
-	list[i].insert({j, value});
+	return list[i].insert({j, value});
 }
 
 //---------------------------------------------------------------------
