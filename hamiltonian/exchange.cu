@@ -13,6 +13,72 @@
 
 #include "hamiltonian/exchange.h"
 
+namespace {
+  int find_motif_index(const Vec3 &offset, const double tolerance = 1e-5) {
+    // find which unit_cell position this offset corresponds to
+    // it is possible that it does not correspond to a position in which case the
+    // -1 is returned
+    for (int k = 0; k < lattice.num_unit_cell_positions(); ++k) {
+      Vec3 pos = lattice.unit_cell_position(k);
+      if ( std::abs(pos.x - offset.x) < tolerance
+        && std::abs(pos.y - offset.y) < tolerance
+        && std::abs(pos.z - offset.z) < tolerance ) {
+        return k;
+      }
+    }
+    return -1;
+  }
+
+  Vec3 round_to_integer_lattice(const Vec3 &q_ij, const bool is_centered_lattice = false, const double tolerance = 1e-5) {
+    Vec3 u_ij;
+    if (is_centered_lattice) {
+      // usually nint is floor(x+0.5) but it depends on how the cell is defined :(
+      // it seems using ceil is better supported with spglib
+      for (int k = 0; k < 3; ++k) {
+        u_ij[k] = ceil(q_ij[k]-0.5);
+      }
+    } else {
+        // adding the distance_tolerance_ allows us to still floor properly when the precision
+        // of the interaction vectors is not so good.
+      for (int k = 0; k < 3; ++k) {
+        u_ij[k] = floor(q_ij[k] + tolerance);
+      }
+    }
+    return u_ij;
+  }
+
+  bool generate_inode(const int motif_index, const interaction_t &interaction, bool is_centered_lattice, inode_t &node) {
+
+    node = {-1, -1, -1, -1};
+
+    // only process for interactions belonging to this type
+    if (lattice.unit_cell_material_name(motif_index) != interaction.type_i) {
+      return false;
+    }
+
+    Vec3 p_ij_frac = lattice.unit_cell_position(motif_index);
+    Vec3 r_ij_frac = lattice.cartesian_to_fractional(interaction.r_ij);
+
+    Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
+    Vec3 u_ij = round_to_integer_lattice(q_ij, is_centered_lattice);
+    int nbr_motif_index = find_motif_index(q_ij - u_ij);
+
+    // does an atom exist at the motif position
+    if (nbr_motif_index == -1) {
+      return false;
+    }
+
+    // is the nbr atom of the type specified
+    if (lattice.unit_cell_material_name(nbr_motif_index) != interaction.type_j) {
+      return false;
+    }
+
+    node = {nbr_motif_index - motif_index, int(u_ij[0]), int(u_ij[1]), int(u_ij[2])};
+
+    return true;
+  }
+}
+
 
 bool operator <(const inode_t& x, const inode_t& y) {
     return std::tie(x.k, x.a, x.b, x.c) < std::tie(y.k, y.a, y.b, y.c);
@@ -124,6 +190,21 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     }
 
     read_interactions(interaction_file, unitcell_interactions, use_symops);
+
+
+    // bool print_exc_template = false;
+    // settings.lookupValue("print", print_exc_template);
+
+    // if (print_exc_template || is_debug_enabled_) {
+    //   std::ofstream exc_template_file(std::string(seedname+"_unfolded_exc.dat").c_str());
+
+    //   if(exc_template_file.fail()) {
+    //     throw general_exception("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    //   }
+
+    //   print_interactions(exc_template_file, unitcell_interactions);
+    // }
+
    
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
 
@@ -306,17 +387,80 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
 }
 
+void ExchangeHamiltonian::read_interaction_file(std::ifstream &file, std::vector<interaction_t> &interaction_data) {
+  int line_number = 0;
+
+  // read the unit_cell into an array from the positions file
+  for (std::string line; getline(file, line); ) {
+    if(string_is_comment(line)) {
+      continue;
+    }
+
+    std::stringstream   is(line);
+    interaction_t interaction;
+
+    is >> interaction.type_i >> interaction.type_j;
+
+    if (is.bad()) {
+      throw general_exception("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+
+    is >> interaction.r_ij.x >> interaction.r_ij.y >> interaction.r_ij.z;
+
+    if (is.bad()) {
+      throw general_exception("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+
+    const int num_info_cols = 5;
+
+    if (file_columns(line) - num_info_cols == 1) {
+      // one Jij component given - diagonal
+      double J;
+      is >> J;
+      interaction.J_ij[0][0] =   J;  interaction.J_ij[0][1] = 0.0; interaction.J_ij[0][2] = 0.0;
+      interaction.J_ij[1][0] = 0.0;  interaction.J_ij[1][1] =   J; interaction.J_ij[1][2] = 0.0;
+      interaction.J_ij[2][0] = 0.0;  interaction.J_ij[2][1] = 0.0; interaction.J_ij[2][2] =   J;
+    } else if (file_columns(line) - num_info_cols == 9) {
+      // nine Jij components given - full tensor
+      is >> interaction.J_ij[0][0] >> interaction.J_ij[0][1] >> interaction.J_ij[0][2];
+      is >> interaction.J_ij[1][0] >> interaction.J_ij[1][1] >> interaction.J_ij[1][2];
+      is >> interaction.J_ij[2][0] >> interaction.J_ij[2][1] >> interaction.J_ij[2][2];
+    } else {
+      throw general_exception("number of Jij values in exchange files must be 1 or 9, check your input on line " + line_number, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+
+    if (is.bad()) {
+      throw general_exception("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+
+    interaction.J_ij = interaction.J_ij / kBohrMagneton;
+
+    interaction_data.push_back(interaction);
+
+    line_number++;
+  }
+}
+
+void ExchangeHamiltonian::generate_symmetric_interactions(std::vector<interaction_t> &interaction_data) {
+  std::vector<interaction_t> new_interaction_data;
+
+  for (auto const & interaction : interaction_data) {
+    interaction_t new_interaction = interaction;
+    Vec3 r_ij_frac = lattice.cartesian_to_fractional(interaction.r_ij); // interaction vector in fractional coordinates
+
+    // calculate symmetric vectors based on crystal symmetry
+    for (int i = 0; i < lattice.num_sym_ops(); i++) {
+      new_interaction.r_ij = lattice.fractional_to_cartesian(lattice.sym_rotation(i, r_ij_frac));
+      new_interaction_data.push_back(new_interaction);
+    }
+  }
+
+  std::swap(interaction_data, new_interaction_data);
+}
+
 void ExchangeHamiltonian::read_interactions(std::ifstream &interaction_file,
   InteractionList<inode_pair_t> &interactions, bool use_symops) {
 
-  std::ofstream unfolded_interaction_file;
-
-  if (is_debug_enabled_) {
-    unfolded_interaction_file.open(std::string(seedname+"_unfolded_exc.dat").c_str());
-    if(unfolded_interaction_file.fail()) {
-      throw general_exception("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-  }
   ::output.write("  reading interactions and applying symmetry operations\n");
 
   if (::output.is_verbose()) {
@@ -327,184 +471,90 @@ void ExchangeHamiltonian::read_interactions(std::ifstream &interaction_file,
     }
   }
 
-  int counter = 0;
-  int line_number = 0;
-
-  // read the unit_cell into an array from the positions file
-  for (std::string line; getline(interaction_file, line); ) {
-
-    if(string_is_comment(line)) {
-      continue;
+  // if the origin of the unit cell is in the center of the lattice vectors with other
+  // atoms positioned around it (+ve and -ve) then we have to use nint later instead of
+  // floor to work out which unit cell offset to use.
+  //
+  // currently only unit cells with origins at the corner or the center are supported
+  bool is_centered_lattice = false;
+  for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
+    if (lattice.unit_cell_position(i).x < 0.0 || lattice.unit_cell_position(i).y < 0.0 || lattice.unit_cell_position(i).z < 0.0) {
+      is_centered_lattice = true;
+      jams_warning("Centered lattice is detected. Make sure you know what you are doing!");
+      break;
     }
+  }
 
-    std::stringstream   is(line);
+  std::vector<interaction_t> interaction_data;
+  std::vector<interaction_t> unfolded_interaction_data;
 
-    std::string type_name_A, type_name_B;
-    is >> type_name_A >> type_name_B;
+  read_interaction_file(interaction_file, interaction_data);
 
-    if (is.bad()) {
-      throw general_exception("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-
-    Vec3 interaction_vector;
-    is >> interaction_vector.x >> interaction_vector.y >> interaction_vector.z;
-
-    if (is.bad()) {
-      throw general_exception("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-
-    Mat3 tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
-    if (file_columns(line) == 6) {
-      // one Jij component given - diagonal
-      is >> tensor[0][0];
-      tensor[1][1] = tensor[0][0];
-      tensor[2][2] = tensor[0][0];
-    } else if (file_columns(line) == 14) {
-      // nine Jij components given - full tensor
-      is >> tensor[0][0] >> tensor[0][1] >> tensor[0][2];
-      is >> tensor[1][0] >> tensor[1][1] >> tensor[1][2];
-      is >> tensor[2][0] >> tensor[2][1] >> tensor[2][2];
-    } else {
-      throw general_exception("number of Jij values in exchange files must be 1 or 9, check your input on line " + line_number, __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-
-    if (is.bad()) {
-      throw general_exception("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-
-    tensor = tensor / kBohrMagneton;
-
-    ::output.verbose("exchange file line: %s\n", line.c_str());
-
-    std::vector<Vec3> symmetric_vectors;
+  int interaction_counter = 0;
+  for (auto const & interaction : interaction_data) {
+    std::vector<interaction_t> symops_interaction_data;
 
     if (use_symops) {
+      interaction_t symops_interaction = interaction;
+      Vec3 r_ij_frac = lattice.cartesian_to_fractional(symops_interaction.r_ij); // interaction vector in fractional coordinates
+      // calculate symmetric vectors based on crystal symmetry
       for (int i = 0; i < lattice.num_sym_ops(); i++) {
-        Vec3 rij = lattice.cartesian_to_fractional(interaction_vector);
-        symmetric_vectors.push_back(lattice.sym_rotation(i, rij));
+        symops_interaction.r_ij = lattice.fractional_to_cartesian(lattice.sym_rotation(i, r_ij_frac));
+        symops_interaction_data.push_back(symops_interaction);
       }
     } else {
-      symmetric_vectors.push_back(lattice.cartesian_to_fractional(interaction_vector));
+      symops_interaction_data.push_back(interaction);
     }
 
-    // if the origin of the unit cell is in the center of the lattice vectors with other
-    // atoms positioned around it (+ve and -ve) then we have to use nint later instead of
-    // floor to work out which unit cell offset to use.
-    //
-    // currently only unit cells with origins at the corner or the center are supported
-    bool is_centered_lattice = false;
     for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
-      if (lattice.unit_cell_position(i).x < 0.0 || lattice.unit_cell_position(i).y < 0.0 || lattice.unit_cell_position(i).z < 0.0) {
-        is_centered_lattice = true;
-        jams_warning("Centered lattice is detected. Make sure you know what you are doing!");
-        break;
-      }
-    }
+      // calculate all unique inode vectors for (symmetric) interactions based on the current line
+      std::set<inode_t> unique_interactions;
+      for(auto const& symops_interaction: symops_interaction_data) {
+        inode_t new_node;
 
-    ::output.verbose("unit cell interactions\n");
-    for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
-      std::set<inode_t> interaction_set;
-
-      // only process for interactions belonging to this material
-      if (lattice.unit_cell_material_name(i) == type_name_A) {
-
-        // unit_cell position in basis vector space
-        Vec3 pij = lattice.unit_cell_position(i);
-        ::output.verbose("unit_cell position %d [%s] (% 3.6f % 3.6f % 3.6f)\n", i, lattice.unit_cell_material_name(i).c_str(), pij.x, pij.y, pij.z);
-        ::output.verbose("interaction vector %d [%s] (% 3.6f % 3.6f % 3.6f)\n", line_number, type_name_B.c_str(), interaction_vector.x, interaction_vector.y, interaction_vector.z);
-
-        for(auto const& rij: symmetric_vectors) {
-
-          // this gives the integer unit cell of the interaction
-          Vec3 uij = rij + pij;
-
-          for (int k = 0; k < 3; ++k) {
-            if (is_centered_lattice) {
-              // usually nint is floor(x+0.5) but it depends on how the cell is defined :(
-              // it seems using ceil is better supported with spglib
-              uij[k] = ceil(uij[k]-0.5);
-            } else {
-              // adding the distance_tolerance_ allows us to still floor properly when the precision
-              // of the interaction vectors is not so good.
-              uij[k] = floor(uij[k] + distance_tolerance_);
-            }
-          }
-
-          // now calculate the unit_cell offset
-          Vec3 unit_cell_offset = rij + pij - uij;
-
-          Vec3 rij_cart = lattice.fractional_to_cartesian(rij);
-
-          ::output.verbose("% 3.6f % 3.6f % 3.6f | % 3.6f % 3.6f % 3.6f | % 6d % 6d % 6d | % 3.6f % 3.6f % 3.6f\n",
-            rij.x ,rij.y, rij.z, rij_cart.x ,rij_cart.y, rij_cart.z, int(uij.x), int(uij.y), int(uij.z),
-            unit_cell_offset.x, unit_cell_offset.y, unit_cell_offset.z);
-
-
-          // find which unit_cell position this offset corresponds to
-          // it is possible that it does not correspond to a position in which case the
-          // "cell_nbr" is -1
-          int cell_nbr = -1;
-          for (int k = 0; k < lattice.num_unit_cell_positions(); ++k) {
-            Vec3 pos = lattice.unit_cell_position(k);
-            if ( fabs(pos.x - unit_cell_offset.x) < distance_tolerance_
-              && fabs(pos.y - unit_cell_offset.y) < distance_tolerance_
-              && fabs(pos.z - unit_cell_offset.z) < distance_tolerance_ ) {
-              cell_nbr = k;
-              break;
-            }
-          }
-
-          if (cell_nbr != -1) {
-            // check the unit_cell partner is of the type that was specified in the exchange input file
-            if (lattice.unit_cell_material_name(cell_nbr) != type_name_B) {
-              ::output.verbose("wrong type \n");
-              continue;
-            }
-
-            inode_t interaction_node = {cell_nbr - i, int(uij[0]), int(uij[1]), int(uij[2])};
-
-            std::pair<std::set<inode_t>::iterator,bool> ret;
-
-            ret = interaction_set.insert(interaction_node);
-
-            if (ret.second == true) {
-              ::output.verbose("*** % 8d [%s] % 8d [%s] :: % 8d % 8d % 8d\n", i, lattice.unit_cell_material_name(i).c_str(), interaction_node.k + i, lattice.unit_cell_material_name(interaction_node.k + i).c_str(), interaction_node.a, interaction_node.b, interaction_node.b);
-              interactions.insert(i, counter, {interaction_node, tensor});
-
-              if (is_debug_enabled_) {
-                unfolded_interaction_file << std::setw(12) << type_name_A << "\t";
-                unfolded_interaction_file << std::setw(12) << type_name_B << "\t";
-                unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.x << "\t";
-                unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.y << "\t";
-                unfolded_interaction_file << std::setw(12) << std::fixed << rij_cart.z << "\t";
-                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[0][0] << "\t";
-                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[0][1] << "\t";
-                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[0][2] << "\t";
-                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[1][0] << "\t";
-                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[1][1] << "\t";
-                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[1][2] << "\t";
-                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[2][0] << "\t";
-                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[2][1] << "\t";
-                unfolded_interaction_file << std::setw(12) << std::scientific << tensor[2][2] << std::endl;
-              }
-
-              counter++;
-            }
-          }
+        // try to generate an inode
+        if (!generate_inode(i, symops_interaction, is_centered_lattice, new_node)) {
+          continue;
         }
-        // for (std::set<jblib::Vec4<int> >::iterator it = interaction_set.begin(); it != interaction_set.end(); ++it) {
 
-
-
-        // }
+        // check if the new (unique) by insertion into std::set
+        if (unique_interactions.insert(new_node).second == true) {
+          // it is new (unique)
+          unfolded_interaction_data.push_back(symops_interaction);
+          interactions.insert(i, interaction_counter, {new_node, interaction.J_ij});
+          interaction_counter++;
+        }
       }
-    }
-    line_number++;
-  }
-  ::output.write("  total unit cell interactions: %d\n", counter);
+    } // for unit cell positions
+  } // for interactions
+  ::output.write("  total unique interactions for unitcell: %d\n", interaction_counter);
 
-  unfolded_interaction_file.close();
+  std::cerr << "Unfolded interactions" << std::endl;
+  print_interaction_data(std::cerr, unfolded_interaction_data);
 }
+
+//---------------------------------------------------------------------
+
+void ExchangeHamiltonian::print_interaction_data(std::ostream &output, std::vector<interaction_t> data) {
+
+  for (auto const & interaction : data) {
+    output << std::setw(12) << interaction.type_i << "\t";
+    output << std::setw(12) << interaction.type_j << "\t";
+    output << std::setw(12) << std::fixed << interaction.r_ij.x << "\t";
+    output << std::setw(12) << std::fixed << interaction.r_ij.y << "\t";
+    output << std::setw(12) << std::fixed << interaction.r_ij.z << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][0] * kBohrMagneton << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][1] * kBohrMagneton << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][2] * kBohrMagneton << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][0] * kBohrMagneton << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][1] * kBohrMagneton << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][2] * kBohrMagneton << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][0] * kBohrMagneton << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][1] * kBohrMagneton << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][2] * kBohrMagneton << std::endl;
+  }
+}
+
 
 // --------------------------------------------------------------------------
 

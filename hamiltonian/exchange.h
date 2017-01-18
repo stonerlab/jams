@@ -26,6 +26,14 @@ struct Interaction {
 };
 
 typedef struct {
+  std::string type_i;
+  std::string type_j;
+  Vec3        r_ij;
+  Mat3        J_ij;
+} interaction_t;
+
+
+typedef struct {
   int k;
   int a;
   int b;
@@ -66,6 +74,10 @@ class ExchangeHamiltonian : public Hamiltonian {
 
     private:
 
+        void read_interaction_file(std::ifstream &file, std::vector<interaction_t> &interaction_data);
+        void generate_symmetric_interactions(std::vector<interaction_t> &interaction_data);
+
+        void print_interaction_data(std::ostream &output, std::vector<interaction_t> data);
 
         void read_interactions(std::ifstream &file, InteractionList<inode_pair_t> &list, bool use_symops);
 
