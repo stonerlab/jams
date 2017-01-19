@@ -29,6 +29,22 @@ namespace {
     return -1;
   }
 
+  int find_neighbour_index(const inode_t &node_i, const inode_t &node_j) {
+
+    int n = lattice.num_unit_cell_positions();
+
+    inode_t ivec = {(n + node_i.k + node_j.k)%n,
+                         node_i.a + node_j.a,
+                         node_i.b + node_j.b,
+                         node_i.c + node_j.c};
+
+    if (lattice.apply_boundary_conditions(ivec.a, ivec.b, ivec.c) == false) {
+      return -1;
+    }
+
+    return lattice.site_index_by_unit_cell(ivec.a, ivec.b, ivec.c, ivec.k);
+  }
+
   Vec3 round_to_integer_lattice(const Vec3 &q_ij, const bool is_centered_lattice = false, const double tolerance = 1e-5) {
     Vec3 u_ij;
     if (is_centered_lattice) {
@@ -77,12 +93,27 @@ namespace {
 
     return true;
   }
+
+  void safety_check_distance_tolerance(const double &tolerance) {
+    // check that no atoms in the unit cell are closer together than the tolerance
+    for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
+      for (int j = i+1; j < lattice.num_unit_cell_positions(); ++j) {
+        if( abs(lattice.unit_cell_position(i) - lattice.unit_cell_position(j)) < tolerance ) {
+          jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
+                     "Check position file or relax distance_tolerance for exchange module",
+                      i, j, abs(lattice.unit_cell_position(i) - lattice.unit_cell_position(j)), tolerance);
+        }
+      }
+    }
+  }
 }
 
 
 bool operator <(const inode_t& x, const inode_t& y) {
     return std::tie(x.k, x.a, x.b, x.c) < std::tie(y.k, y.a, y.b, y.c);
 }
+
+//---------------------------------------------------------------------
 
 void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value) {
   for (int m = 0; m < 3; ++m) {
@@ -103,25 +134,45 @@ void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jbl
         }
       }
     }
-  }}
+  }
+}
+
+//---------------------------------------------------------------------
 
 ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
 
+  //---------------------------------------------------------------------
+  // read settings
+  //---------------------------------------------------------------------
+
     is_debug_enabled_ = false;
-    std::ofstream debug_file;
+    settings.lookupValue("debug", is_debug_enabled_);
 
-    if (settings.exists("debug")) {
-      is_debug_enabled_ = settings["debug"];
+    std::string interaction_filename = settings.lookup("exc_file").c_str();
+    std::ifstream interaction_file(interaction_filename.c_str());
+    if (interaction_file.fail()) {
+      jams_error("failed to open interaction file %s", interaction_filename.c_str());
     }
+    ::output.write("\ninteraction filename (%s)\n", interaction_filename.c_str());
 
-    // if (settings.exists("sparse_format")) {
-    //   set_sparse_matrix_format(std::string(settings["sparse_format"]));
-    // }
+    bool use_symops = true;
+    settings.lookupValue("symops", use_symops);
+
+    bool print_unfolded = false;
+    settings.lookupValue("print_unfolded", print_unfolded);
+
+    energy_cutoff_ = 1E-26;  // Joules
+    settings.lookupValue("energy_cutoff", energy_cutoff_);
+    ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
+
+    distance_tolerance_ = 1e-3; // fractional coordinate units
+    settings.lookupValue("distance_tolerance", distance_tolerance_);
+    ::output.write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
+    
+    safety_check_distance_tolerance(distance_tolerance_);
 
     if (is_debug_enabled_) {
-      debug_file.open("debug_exchange.dat");
-
       std::ofstream pos_file("debug_pos.dat");
       for (int n = 0; n < lattice.num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
@@ -137,74 +188,41 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     // output in default format for now
     outformat_ = TEXT;
 
-    if (!settings.exists("exc_file")) {
-        jams_error("ExchangeHamiltonian: an exchange file must be specified");
-    }
 
-    std::string interaction_filename = settings["exc_file"];
+    //---------------------------------------------------------------------
+    // generate interaction list
+    //---------------------------------------------------------------------
 
-    ::output.verbose("\ninteraction filename (%s)\n", interaction_filename.c_str());
+    std::vector<interaction_t> interaction_data, unfolded_interaction_data;
 
-    // read in typeA typeB rx ry rz Jij
-    std::ifstream interaction_file(interaction_filename.c_str());
+    InteractionList<inode_pair_t> interaction_template;
 
-    if (interaction_file.fail()) {
-      jams_error("failed to open interaction file %s", interaction_filename.c_str());
-    }
+    read_interaction_data(interaction_file, interaction_data);
 
-    energy_cutoff_ = 1E-26;  // Joules
-    if (settings.exists("energy_cutoff")) {
-        energy_cutoff_ = settings["energy_cutoff"];
-    }
-    ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
+    generate_interaction_templates(interaction_data, unfolded_interaction_data, interaction_template, use_symops);
 
-    distance_tolerance_ = 1e-3; // fractional coordinate units
-    if (settings.exists("distance_tolerance")) {
-        distance_tolerance_ = settings["distance_tolerance"];
-    }
 
-    ::output.write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
+    if (print_unfolded || is_debug_enabled_) {
+      std::ofstream unfolded_interaction_file(std::string(seedname+"_unfolded_exc.tsv").c_str());
 
-    // --- SAFETY ---
-    // check that no atoms in the unit cell are closer together than the distance_tolerance_
-    for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
-      for (int j = i+1; j < lattice.num_unit_cell_positions(); ++j) {
-        if( abs(lattice.unit_cell_position(i) - lattice.unit_cell_position(j)) < distance_tolerance_ ) {
-          jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
-                     "Check position file or relax distance_tolerance for exchange module",
-                      i, j, abs(lattice.unit_cell_position(i) - lattice.unit_cell_position(j)), distance_tolerance_);
-        }
+      if(unfolded_interaction_file.fail()) {
+        throw general_exception("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
-    }
-    // --------------
 
-    ::output.write("\ninteraction vectors (%s)\n", interaction_filename.c_str());
-
-    InteractionList<inode_pair_t> unitcell_interactions(lattice.num_unit_cell_positions());
-
-    neighbour_list_.resize(globals::num_spins);
-
-    bool use_symops = true;
-    if (settings.exists("symops")) {
-      use_symops = settings["symops"];
+      write_interaction_data(unfolded_interaction_file, unfolded_interaction_data);
     }
 
-    read_interactions(interaction_file, unitcell_interactions, use_symops);
+    generate_neighbour_list(interaction_template, neighbour_list_);
 
+    if (is_debug_enabled_) {
+      std::ofstream debug_file("DEBUG_exchange_nbr_list.tsv");
+      write_neighbour_list(debug_file, neighbour_list_);
+      debug_file.close();
+    }
 
-    // bool print_exc_template = false;
-    // settings.lookupValue("print", print_exc_template);
-
-    // if (print_exc_template || is_debug_enabled_) {
-    //   std::ofstream exc_template_file(std::string(seedname+"_unfolded_exc.dat").c_str());
-
-    //   if(exc_template_file.fail()) {
-    //     throw general_exception("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    //   }
-
-    //   print_interactions(exc_template_file, unitcell_interactions);
-    // }
-
+    //---------------------------------------------------------------------
+    // create sparse matrix
+    //---------------------------------------------------------------------
    
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
 
@@ -219,83 +237,11 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     ::output.write("\ncomputed interactions\n");
 
-    bool is_all_inserts_successful = true;
-    int counter = 0;
-    // loop over the translation vectors for lattice size
-    for (int i = 0; i < lattice.num_unit_cells(0); ++i) {
-      for (int j = 0; j < lattice.num_unit_cells(1); ++j) {
-        for (int k = 0; k < lattice.num_unit_cells(2); ++k) {
-          // loop over atoms in the unit_cell
-          for (int m = 0; m < lattice.num_unit_cell_positions(); ++m) {
-            int local_site = lattice.site_index_by_unit_cell(i, j, k, m);
-
-            std::vector<bool> is_already_interacting(globals::num_spins, false);
-            is_already_interacting[local_site] = true;  // don't allow self interaction
-
-            // loop over all possible interaction vectors
-            for (auto const &pair: unitcell_interactions[m]) {
-
-              const inode_t inode = pair.second.node;
-              const Mat3 tensor   = pair.second.value;
-
-              inode_t ivec = 
-              {(lattice.num_unit_cell_positions() + m + inode.k)%lattice.num_unit_cell_positions(),
-                i + inode.a,
-                j + inode.b,
-                k + inode.c};
-
-              if (lattice.apply_boundary_conditions(ivec.a, ivec.b, ivec.c) == false) {
-                continue;
-              }
-
-              int neighbour_site = lattice.site_index_by_unit_cell(ivec.a, ivec.b, ivec.c, ivec.k);
-
-              // failsafe check that we only interact with any given site once through the input exchange file.
-              if (is_already_interacting[neighbour_site]) {
-                jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_site, ivec.a, ivec.b, ivec.c, ivec.k);
-              }
-              is_already_interacting[neighbour_site] = true;
-
-              if (tensor.max_norm() > energy_cutoff_) {
-                neighbour_list_.insert(local_site, neighbour_site, tensor);
-                counter++;
-
-                if (is_debug_enabled_) {
-                  debug_file << local_site << "\t" << neighbour_site << "\t";
-                  debug_file << lattice.atom_position(local_site).x << "\t";
-                  debug_file << lattice.atom_position(local_site).y << "\t";
-                  debug_file << lattice.atom_position(local_site).z << "\t";
-                  debug_file << lattice.atom_position(neighbour_site).x << "\t";
-                  debug_file << lattice.atom_position(neighbour_site).y << "\t";
-                  debug_file << lattice.atom_position(neighbour_site).z << "\n";
-                }
-              } else {
-                is_all_inserts_successful = false;
-              }
-            }
-            if (is_debug_enabled_) {
-              debug_file << "\n\n";
-            }
-          }
-        }
-      }
-    }
-
-    if (is_debug_enabled_) {
-      debug_file.close();
-    }
-
-    for (int i = 0; i < globals::num_spins; ++i) {
+    for (int i = 0; i < neighbour_list_.size(); ++i) {
       for (auto const &j: neighbour_list_[i]) {
         insert_interaction(i, j.first, j.second);
       }
     }
-
-    if (!is_all_inserts_successful) {
-      jams_warning("Some interactions were ignored due to the energy cutoff (%e)", energy_cutoff_);
-    }
-
-    ::output.write("  total unit cell interactions: %d\n", counter);
 
     // resize member arrays
     energy_.resize(globals::num_spins);
@@ -387,7 +333,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
 }
 
-void ExchangeHamiltonian::read_interaction_file(std::ifstream &file, std::vector<interaction_t> &interaction_data) {
+//---------------------------------------------------------------------
+
+void ExchangeHamiltonian::read_interaction_data(std::ifstream &file, std::vector<interaction_t> &interaction_data) {
   int line_number = 0;
 
   // read the unit_cell into an array from the positions file
@@ -441,25 +389,64 @@ void ExchangeHamiltonian::read_interaction_file(std::ifstream &file, std::vector
   }
 }
 
-void ExchangeHamiltonian::generate_symmetric_interactions(std::vector<interaction_t> &interaction_data) {
-  std::vector<interaction_t> new_interaction_data;
+//---------------------------------------------------------------------
 
-  for (auto const & interaction : interaction_data) {
-    interaction_t new_interaction = interaction;
-    Vec3 r_ij_frac = lattice.cartesian_to_fractional(interaction.r_ij); // interaction vector in fractional coordinates
+void ExchangeHamiltonian::generate_neighbour_list(const InteractionList<inode_pair_t> &interaction_template, InteractionList<Mat3> &nbr_list) {
+bool is_all_inserts_successful = true;
+  int counter = 0;
+  // loop over the translation vectors for lattice size
+  for (int i = 0; i < lattice.num_unit_cells(0); ++i) {
+    for (int j = 0; j < lattice.num_unit_cells(1); ++j) {
+      for (int k = 0; k < lattice.num_unit_cells(2); ++k) {
+        // loop over atoms in the unit_cell
+        for (int m = 0; m < lattice.num_unit_cell_positions(); ++m) {
+          int local_site = lattice.site_index_by_unit_cell(i, j, k, m);
 
-    // calculate symmetric vectors based on crystal symmetry
-    for (int i = 0; i < lattice.num_sym_ops(); i++) {
-      new_interaction.r_ij = lattice.fractional_to_cartesian(lattice.sym_rotation(i, r_ij_frac));
-      new_interaction_data.push_back(new_interaction);
+          inode_t node_i = {m, i, j, k};
+
+          std::vector<bool> is_already_interacting(globals::num_spins, false);
+          is_already_interacting[local_site] = true;  // don't allow self interaction
+
+          // loop over all possible interaction vectors
+          for (auto const &pair: interaction_template[m]) {
+
+            const inode_t node_j = pair.second.node;
+            const Mat3 tensor   = pair.second.value;
+
+            int neighbour_index = find_neighbour_index(node_i, node_j);
+
+            // failsafe check that we only interact with any given site once through the input exchange file.
+            if (is_already_interacting[neighbour_index]) {
+              // jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_index, ivec.a, ivec.b, ivec.c, ivec.k);
+              jams_error("Multiple interactions between spins %d and %d\n", local_site, neighbour_index);
+            }
+
+            is_already_interacting[neighbour_index] = true;
+
+            if (tensor.max_norm() > energy_cutoff_) {
+              nbr_list.insert(local_site, neighbour_index, tensor);
+              counter++;
+            } else {
+              is_all_inserts_successful = false;
+            }
+          }
+        }
+      }
     }
   }
-
-  std::swap(interaction_data, new_interaction_data);
+  if (!is_all_inserts_successful) {
+    jams_warning("Some interactions were ignored due to the energy cutoff (%e)", energy_cutoff_);
+  }
+  ::output.write("  total unit cell interactions: %d\n", counter);
 }
 
-void ExchangeHamiltonian::read_interactions(std::ifstream &interaction_file,
-  InteractionList<inode_pair_t> &interactions, bool use_symops) {
+
+//---------------------------------------------------------------------
+
+void ExchangeHamiltonian::generate_interaction_templates(
+  const std::vector<interaction_t> &interaction_data,
+        std::vector<interaction_t> &unfolded_interaction_data,
+     InteractionList<inode_pair_t> &interactions, bool use_symops) {
 
   ::output.write("  reading interactions and applying symmetry operations\n");
 
@@ -485,10 +472,7 @@ void ExchangeHamiltonian::read_interactions(std::ifstream &interaction_file,
     }
   }
 
-  std::vector<interaction_t> interaction_data;
-  std::vector<interaction_t> unfolded_interaction_data;
-
-  read_interaction_file(interaction_file, interaction_data);
+  unfolded_interaction_data.clear();
 
   int interaction_counter = 0;
   for (auto const & interaction : interaction_data) {
@@ -528,15 +512,11 @@ void ExchangeHamiltonian::read_interactions(std::ifstream &interaction_file,
     } // for unit cell positions
   } // for interactions
   ::output.write("  total unique interactions for unitcell: %d\n", interaction_counter);
-
-  std::cerr << "Unfolded interactions" << std::endl;
-  print_interaction_data(std::cerr, unfolded_interaction_data);
 }
 
 //---------------------------------------------------------------------
 
-void ExchangeHamiltonian::print_interaction_data(std::ostream &output, std::vector<interaction_t> data) {
-
+void ExchangeHamiltonian::write_interaction_data(std::ostream &output, const std::vector<interaction_t> &data) {
   for (auto const & interaction : data) {
     output << std::setw(12) << interaction.type_i << "\t";
     output << std::setw(12) << interaction.type_j << "\t";
@@ -555,6 +535,33 @@ void ExchangeHamiltonian::print_interaction_data(std::ostream &output, std::vect
   }
 }
 
+//---------------------------------------------------------------------
+
+void ExchangeHamiltonian::write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &list) {
+  for (int i = 0; i < list.size(); ++i) {
+    for (auto const & nbr : list[i]) {
+      int j = nbr.first;
+      output << std::setw(12) << i << "\t";
+      output << std::setw(12) << j << "\t";
+      output << lattice.atom_position(i).x << "\t";
+      output << lattice.atom_position(i).y << "\t";
+      output << lattice.atom_position(i).z << "\t";
+      output << lattice.atom_position(j).x << "\t";
+      output << lattice.atom_position(j).y << "\t";
+      output << lattice.atom_position(j).z << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[0][0] * kBohrMagneton << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[0][1] * kBohrMagneton << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[0][2] * kBohrMagneton << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[1][0] * kBohrMagneton << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[1][1] * kBohrMagneton << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[1][2] * kBohrMagneton << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[2][0] * kBohrMagneton << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[2][1] * kBohrMagneton << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[2][2] * kBohrMagneton << "\n";
+    }
+    output << "\n" << std::endl;
+  }
+}
 
 // --------------------------------------------------------------------------
 
@@ -807,6 +814,8 @@ sparse_matrix_format_t ExchangeHamiltonian::sparse_matrix_format() {
   return interaction_matrix_format_;
 }
 
+//---------------------------------------------------------------------
+
 void ExchangeHamiltonian::set_sparse_matrix_format(std::string &format_name) {
   if (capitalize(format_name) == "CSR") {
     interaction_matrix_format_ = SPARSE_MATRIX_FORMAT_CSR;
@@ -819,6 +828,8 @@ void ExchangeHamiltonian::set_sparse_matrix_format(std::string &format_name) {
     jams_error("ExchangeHamiltonian::set_sparse_matrix_format: Unknown format requested %s", format_name.c_str());
   }
 }
+
+//---------------------------------------------------------------------
 
 double ExchangeHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
   using namespace globals;

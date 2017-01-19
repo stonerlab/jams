@@ -73,13 +73,19 @@ class ExchangeHamiltonian : public Hamiltonian {
         }
 
     private:
+        void read_interaction_data(std::ifstream &file, std::vector<interaction_t> &data);
+        void write_interaction_data(std::ostream &output, const std::vector<interaction_t> &data);
 
-        void read_interaction_file(std::ifstream &file, std::vector<interaction_t> &interaction_data);
-        void generate_symmetric_interactions(std::vector<interaction_t> &interaction_data);
+        void write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &list);
 
-        void print_interaction_data(std::ostream &output, std::vector<interaction_t> data);
+        void generate_interaction_templates(
+            const std::vector<interaction_t> &interaction_data,
+                  std::vector<interaction_t> &unfolded_interaction_data,
+               InteractionList<inode_pair_t> &interactions, bool use_symops);
 
-        void read_interactions(std::ifstream &file, InteractionList<inode_pair_t> &list, bool use_symops);
+        void generate_neighbour_list(const InteractionList<inode_pair_t> &interactions, InteractionList<Mat3> &nbr_list);
+
+        void generate_neighbour_list_from_template();
 
         void insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
 

@@ -31,6 +31,8 @@ class InteractionList {
   	
   	void resize(size_type size);
 
+    size_type size() const;
+
   	const_reference interactions(size_type i) const;
 
   	      reference operator[] (const size_type i);
@@ -59,6 +61,14 @@ template <class T>
 void 
 InteractionList<T>::resize(size_type size) {
 	list.resize(size);
+}
+
+//---------------------------------------------------------------------
+
+template <class T>
+typename InteractionList<T>::size_type
+InteractionList<T>::size() const{
+  return list.size();
 }
 
 //---------------------------------------------------------------------
