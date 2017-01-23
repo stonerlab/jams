@@ -15,35 +15,10 @@
 #include "core/output.h"
 #include "core/hamiltonian.h"
 #include "core/cuda_defs.h"
-#include "core/interaction-list.h"
+#include "core/interactions.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/cuda_array.h"
-
-struct Interaction {
-    int index;
-    jblib::Matrix<double, 3, 3> tensor;
-};
-
-typedef struct {
-  std::string type_i;
-  std::string type_j;
-  Vec3        r_ij;
-  Mat3        J_ij;
-} interaction_t;
-
-
-typedef struct {
-  int k;
-  int a;
-  int b;
-  int c;
-} inode_t;
-
-typedef struct {
-  inode_t node;
-  Mat3    value;
-} inode_pair_t;
 
 class ExchangeHamiltonian : public Hamiltonian {
     public:
@@ -73,20 +48,6 @@ class ExchangeHamiltonian : public Hamiltonian {
         }
 
     private:
-        void read_interaction_data(std::ifstream &file, std::vector<interaction_t> &data);
-        void write_interaction_data(std::ostream &output, const std::vector<interaction_t> &data);
-
-        void write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &list);
-
-        void generate_interaction_templates(
-            const std::vector<interaction_t> &interaction_data,
-                  std::vector<interaction_t> &unfolded_interaction_data,
-               InteractionList<inode_pair_t> &interactions, bool use_symops);
-
-        void generate_neighbour_list(const InteractionList<inode_pair_t> &interactions, InteractionList<Mat3> &nbr_list);
-
-        void generate_neighbour_list_from_template();
-
         void insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
 
         void output_energies_text();
