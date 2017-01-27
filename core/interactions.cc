@@ -241,6 +241,11 @@ namespace { //anon
 
               int neighbour_index = find_neighbour_index(node_i, node_j);
 
+              if (neighbour_index == -1) {
+                // no neighbour found
+                continue;
+              }
+
               // failsafe check that we only interact with any given site once through the input exchange file.
               if (is_already_interacting[neighbour_index]) {
                 // jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_index, ivec.a, ivec.b, ivec.c, ivec.k);
