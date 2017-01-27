@@ -74,7 +74,7 @@ inline double Stats::min() {
 }
 
 inline double Stats::min(const size_t t0, const size_t t1) {
-  assert(t0 >= 0 && t0 < data_.size()-1);
+  assert(t0 < data_.size()-1);
   assert(t1 > 0  && t1 < data_.size());
 
   if (data_.size() == 0) {
@@ -88,7 +88,7 @@ inline double Stats::max() {
 }
 
 inline double Stats::max(const size_t t0, const size_t t1) {
-  assert(t0 >= 0 && t0 < data_.size()-1);
+  assert(t0 < data_.size()-1);
   assert(t1 > 0  && t1 < data_.size());
 
   if (data_.size() == 0) {
@@ -106,7 +106,7 @@ inline double Stats::sum() {
 }
 
 inline double Stats::sum(const size_t t0, const size_t t1) {
-  assert(t0 >= 0 && t0 < data_.size()-1);
+  assert(t0 < data_.size()-1);
   assert(t1 > 0  && t1 < data_.size());
 
   return std::accumulate(data_.begin() + t0, data_.begin() + t1, 0.0);
@@ -118,7 +118,7 @@ inline double Stats::sqsum() {
 
 
 inline double Stats::sqsum(const size_t t0, const size_t t1) {
-  assert(t0 >= 0 && t0 < data_.size()-1);
+  assert(t0 < data_.size()-1);
   assert(t1 > 0  && t1 < data_.size());
 
   return std::inner_product(data_.begin() + t0, data_.begin() + t1, data_.begin() + t0, 0.0);
@@ -129,7 +129,7 @@ inline double Stats::mean() {
 }
 
 inline double Stats::mean(const size_t t0, const size_t t1) {
-  assert(t0 >= 0 && t0 < data_.size()-1);
+  assert(t0 < data_.size()-1);
   assert(t1 > 0  && t1 < data_.size());
 
   return this->sum(t0, t1)/static_cast<double>(t1 - t0);
