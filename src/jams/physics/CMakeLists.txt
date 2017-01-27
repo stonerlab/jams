@@ -1,0 +1,9 @@
+add_sources(
+	fieldcool.cc
+	flips.cc
+	fmr.cc
+	mfpt.cc
+	ping.cc
+	square.cc
+	ttm.cc
+)

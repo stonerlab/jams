@@ -244,7 +244,7 @@ JAMS++ is designed in a modular fashion. The primary module is a _solver_ module
 
     #include <libconfig.h++>
 
-    #include "core/physics.h"
+    #include "jams/core/physics.h"
 
     class MyPackagePhysics : public Physics {
 
