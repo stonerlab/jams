@@ -256,133 +256,178 @@ __global__ void dipole_bruteforce_pipeline4_kernel
   }
 }
 
-// __global__ void dipole_bruteforce_pipeline4_kernel
-// (
-//     const double * __restrict__ s_dev,
-//     const float * __restrict__ r_dev,
-//     const float * __restrict__ mus_dev,
-//     const unsigned int num_spins,
-//     double * __restrict__ h_dev
-// )
-// {
-//     const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
-//     const unsigned int tx = threadIdx.x; 
+__global__ void dipole_bruteforce_pipeline8_kernel
+(
+    const double * __restrict__ s_dev,
+    const float * __restrict__ r_dev,
+    const float * __restrict__ mus_dev,
+    const unsigned int num_spins,
+    double * __restrict__ h_dev
+)
+{
+    const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
+    const unsigned int tx = threadIdx.x; 
 
-//     __shared__ float rj[block_size][3];
-//     __shared__ float sj[block_size][3];
-//     __shared__ float mus_pre[block_size];
+    __shared__ float rj[block_size][3];
+    __shared__ float sj[block_size][3];
+    __shared__ float mus_pre[block_size];
 
-//     float pre, ri[3];
+    float pre, ri[3];
 
-//     if (idx < num_spins) {
-//       // constant is kB * mu_0 / 4 pi
-//       pre = mus_dev[idx] * dev_dipole_prefactor;
+    if (idx < num_spins) {
+      // constant is kB * mu_0 / 4 pi
+      pre = mus_dev[idx] * dev_dipole_prefactor;
 
-//       for (int n = 0; n < 3; ++n) {
-//           ri[n] = r_dev[3*idx + n];
-//       }
-//     }
+      for (int n = 0; n < 3; ++n) {
+          ri[n] = r_dev[3*idx + n];
+      }
+    }
 
-//     const unsigned int num_blocks = (num_spins + block_size - 1) / block_size;
+    const unsigned int num_blocks = (num_spins + block_size - 1) / block_size;
 
-//     double h[3] = {0.0, 0.0, 0.0};
-//     for (unsigned int b = 0; b < num_blocks; ++b) {
+    double h[3] = {0.0, 0.0, 0.0};
+    for (unsigned int b = 0; b < num_blocks; ++b) {
 
-//       // for every block load up the shared memory with data
+      // for every block load up the shared memory with data
       
-//       const unsigned int shared_idx = tx + block_size * b;
+      const unsigned int shared_idx = tx + block_size * b;
       
-//       // sync to make sure we aren't using a dirty cache by other threads
-//       __syncthreads();
+      // sync to make sure we aren't using a dirty cache by other threads
+      __syncthreads();
 
-//       // only load data which exists
-//       if (shared_idx < num_spins) {
-//         mus_pre[tx] = pre * mus_dev[shared_idx];
+      // only load data which exists
+      if (shared_idx < num_spins) {
+        mus_pre[tx] = pre * mus_dev[shared_idx];
 
-//         for (unsigned int n = 0; n < 3; ++n) {
-//             rj[tx][n] = r_dev[3*shared_idx + n];
-//         }
+        for (unsigned int n = 0; n < 3; ++n) {
+            rj[tx][n] = r_dev[3*shared_idx + n];
+        }
 
-//         for (unsigned int n = 0; n < 3; ++n) {
-//             sj[tx][n] = s_dev[3*shared_idx + n];
-//         }
-//       }
-//       // sync to make sure the shared data is filled from all block threads
-//       __syncthreads();
+        for (unsigned int n = 0; n < 3; ++n) {
+            sj[tx][n] = s_dev[3*shared_idx + n];
+        }
+      }
+      // sync to make sure the shared data is filled from all block threads
+      __syncthreads();
 
-//       if (idx < num_spins) {
+      if (idx < num_spins) {
 
-//           //now process the loaded data with a 4x software pipeline
-//           for (unsigned int t = 0; t < block_size/4; ++t) {
+          //now process the loaded data with a 4x software pipeline
+          // AKA - do shit loads of maths to hide memory latency
+          for (unsigned int t = 0; t < block_size/8; ++t) {
 
-//             const int t1 = 4*t;
-//             const int t2 = 4*t+1;
-//             const int t3 = 4*t+2;
-//             const int t4 = 4*t+3;
+            const int t1 = 8*t;
+            const int t2 = 8*t+1;
+            const int t3 = 8*t+2;
+            const int t4 = 8*t+3;
+            const int t5 = 8*t+4;
+            const int t6 = 8*t+5;
+            const int t7 = 8*t+6;
+            const int t8 = 8*t+7;
 
-//             const int j1 = (block_size * b + t1);
-//             const int j2 = (block_size * b + t2);
-//             const int j3 = (block_size * b + t3);
-//             const int j4 = (block_size * b + t4);
+            const int j1 = (block_size * b + t1);
+            const int j2 = (block_size * b + t2);
+            const int j3 = (block_size * b + t3);
+            const int j4 = (block_size * b + t4);
+            const int j5 = (block_size * b + t5);
+            const int j6 = (block_size * b + t6);
+            const int j7 = (block_size * b + t7);
+            const int j8 = (block_size * b + t8);
 
-//             float r_ij1[3], r_ij2[3], r_ij3[3], r_ij4[3];
-
-
-//             const float pre1 = mus_pre[t1];
-//             const float pre2 = mus_pre[t2];
-//             const float pre3 = mus_pre[t3];
-//             const float pre4 = mus_pre[t4];
-
-
-//             displacement(ri, rj[t1], r_ij1);
-//             const float r_abs1 = (r_ij1[0] * r_ij1[0] + r_ij1[1] * r_ij1[1] + r_ij1[2] * r_ij1[2]);
-
-//             displacement(ri, rj[t2], r_ij2);
-//             const float r_abs2 = (r_ij2[0] * r_ij2[0] + r_ij2[1] * r_ij2[1] + r_ij2[2] * r_ij2[2]);
-
-//             displacement(ri, rj[t3], r_ij3);
-//             const float r_abs3 = (r_ij3[0] * r_ij3[0] + r_ij3[1] * r_ij3[1] + r_ij3[2] * r_ij3[2]);
-
-//             displacement(ri, rj[t4], r_ij4);
-//             const float r_abs4 = (r_ij4[0] * r_ij4[0] + r_ij4[1] * r_ij4[1] + r_ij4[2] * r_ij4[2]);
+            float r_ij1[3], r_ij2[3], r_ij3[3], r_ij4[3], r_ij5[3], r_ij6[3], r_ij7[3], r_ij8[3];
 
 
-//             float h1[3] = {0.0, 0.0, 0.0};
-//             float h2[3] = {0.0, 0.0, 0.0};
-//             float h3[3] = {0.0, 0.0, 0.0};
-//             float h4[3] = {0.0, 0.0, 0.0};
+            const float pre1 = mus_pre[t1];
+            const float pre2 = mus_pre[t2];
+            const float pre3 = mus_pre[t3];
+            const float pre4 = mus_pre[t4];
+            const float pre5 = mus_pre[t5];
+            const float pre6 = mus_pre[t6];
+            const float pre7 = mus_pre[t7];
+            const float pre8 = mus_pre[t8];
 
-//             if (r_abs1 <= (dev_r_cutoff * dev_r_cutoff) && idx != j1 && j1 < num_spins) {
-//               field_element(sj[t1], r_ij1, pre1, r_abs1, h1);
-//             }
 
-//             if (r_abs2 <= (dev_r_cutoff * dev_r_cutoff) && idx != j2 && j2 < num_spins) {
-//               field_element(sj[t2], r_ij2, pre2, r_abs2, h2);
-//             }
+            displacement(ri, rj[t1], r_ij1);
+            const float r_abs1 = (r_ij1[0] * r_ij1[0] + r_ij1[1] * r_ij1[1] + r_ij1[2] * r_ij1[2]);
 
-//             if (r_abs3 <= (dev_r_cutoff * dev_r_cutoff) && idx != j3 && j3 < num_spins) {
-//               field_element(sj[t3], r_ij3, pre3, r_abs3, h3);
-//             }
+            displacement(ri, rj[t2], r_ij2);
+            const float r_abs2 = (r_ij2[0] * r_ij2[0] + r_ij2[1] * r_ij2[1] + r_ij2[2] * r_ij2[2]);
 
-//             if (r_abs4 <= (dev_r_cutoff * dev_r_cutoff) && idx != j4 && j4 < num_spins) {
-//               field_element(sj[t4], r_ij4, pre4, r_abs4, h4);
-//             }
+            displacement(ri, rj[t3], r_ij3);
+            const float r_abs3 = (r_ij3[0] * r_ij3[0] + r_ij3[1] * r_ij3[1] + r_ij3[2] * r_ij3[2]);
 
-//             h[0] = h[0] + h1[0] + h2[0] + h3[0] + h4[0];
-//             h[1] = h[1] + h1[1] + h2[1] + h3[1] + h4[1];
-//             h[2] = h[2] + h1[2] + h2[2] + h3[2] + h4[2];
-//           }
-//         }
-//       } // block loop
+            displacement(ri, rj[t4], r_ij4);
+            const float r_abs4 = (r_ij4[0] * r_ij4[0] + r_ij4[1] * r_ij4[1] + r_ij4[2] * r_ij4[2]);
 
-//   if (idx < num_spins) {
-//     // write to global memory
-//     #pragma unroll
-//     for (unsigned int n = 0; n < 3; ++n) {
-//         h_dev[3*idx + n] = h[n];
-//     }
-//   }
-// }
+            displacement(ri, rj[t5], r_ij5);
+            const float r_abs5 = (r_ij5[0] * r_ij5[0] + r_ij5[1] * r_ij5[1] + r_ij5[2] * r_ij5[2]);
+
+            displacement(ri, rj[t6], r_ij6);
+            const float r_abs6 = (r_ij6[0] * r_ij6[0] + r_ij6[1] * r_ij6[1] + r_ij6[2] * r_ij6[2]);
+
+            displacement(ri, rj[t7], r_ij7);
+            const float r_abs7 = (r_ij7[0] * r_ij7[0] + r_ij7[1] * r_ij7[1] + r_ij7[2] * r_ij7[2]);
+
+            displacement(ri, rj[t8], r_ij8);
+            const float r_abs8 = (r_ij8[0] * r_ij8[0] + r_ij8[1] * r_ij8[1] + r_ij8[2] * r_ij8[2]);
+
+
+            float h1[3] = {0.0, 0.0, 0.0};
+            float h2[3] = {0.0, 0.0, 0.0};
+            float h3[3] = {0.0, 0.0, 0.0};
+            float h4[3] = {0.0, 0.0, 0.0};
+            float h5[3] = {0.0, 0.0, 0.0};
+            float h6[3] = {0.0, 0.0, 0.0};
+            float h7[3] = {0.0, 0.0, 0.0};
+            float h8[3] = {0.0, 0.0, 0.0};
+
+            if (r_abs1 <= (dev_r_cutoff * dev_r_cutoff) && idx != j1 && j1 < num_spins) {
+              field_element(sj[t1], r_ij1, pre1, r_abs1, h1);
+            }
+
+            if (r_abs2 <= (dev_r_cutoff * dev_r_cutoff) && idx != j2 && j2 < num_spins) {
+              field_element(sj[t2], r_ij2, pre2, r_abs2, h2);
+            }
+
+            if (r_abs3 <= (dev_r_cutoff * dev_r_cutoff) && idx != j3 && j3 < num_spins) {
+              field_element(sj[t3], r_ij3, pre3, r_abs3, h3);
+            }
+
+            if (r_abs4 <= (dev_r_cutoff * dev_r_cutoff) && idx != j4 && j4 < num_spins) {
+              field_element(sj[t4], r_ij4, pre4, r_abs4, h4);
+            }
+
+            if (r_abs5 <= (dev_r_cutoff * dev_r_cutoff) && idx != j5 && j5 < num_spins) {
+              field_element(sj[t5], r_ij5, pre5, r_abs5, h5);
+            }
+
+            if (r_abs6 <= (dev_r_cutoff * dev_r_cutoff) && idx != j6 && j6 < num_spins) {
+              field_element(sj[t6], r_ij6, pre6, r_abs6, h6);
+            }
+
+            if (r_abs7 <= (dev_r_cutoff * dev_r_cutoff) && idx != j7 && j7 < num_spins) {
+              field_element(sj[t7], r_ij7, pre7, r_abs7, h7);
+            }
+
+            if (r_abs8 <= (dev_r_cutoff * dev_r_cutoff) && idx != j8 && j8 < num_spins) {
+              field_element(sj[t8], r_ij8, pre8, r_abs8, h8);
+            }
+
+            h[0] = h[0] + h1[0] + h2[0] + h3[0] + h4[0] + h5[0] + h6[0] + h7[0] + h8[0];
+            h[1] = h[1] + h1[1] + h2[1] + h3[1] + h4[1] + h5[1] + h6[1] + h7[1] + h8[1];
+            h[2] = h[2] + h1[2] + h2[2] + h3[2] + h4[2] + h5[2] + h6[2] + h7[2] + h8[2];
+          }
+        }
+      } // block loop
+
+  if (idx < num_spins) {
+    // write to global memory
+    #pragma unroll
+    for (unsigned int n = 0; n < 3; ++n) {
+        h_dev[3*idx + n] = h[n];
+    }
+  }
+}
 
 __global__ void dipole_bruteforce_sharemem_kernel
 (
