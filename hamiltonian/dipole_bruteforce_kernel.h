@@ -2,6 +2,7 @@
 #define JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_KERNEL_H
 
 #include "core/cuda_defs.h"
+#include "core/cuda_vector_ops.h"
 
 __constant__ float dev_super_unit_cell[3][3];
 __constant__ float dev_super_unit_cell_inv[3][3];
@@ -11,64 +12,68 @@ __constant__ float dev_r_cutoff;
 
 constexpr int block_size = 128;
 
-__device__ inline void displacement(
-    const float ri[3],
-    const float rj[3],
-    float dr[3]
-) {
-    float dr_frac[3];
-    const float rij[3] 
-      = {ri[0] - rj[0], ri[1] - rj[1], ri[2] - rj[2]};
-
-    // transform into fractional coordinates
-    dr_frac[0] = dev_super_unit_cell_inv[0][0] * (rij[0])
-               + dev_super_unit_cell_inv[0][1] * (rij[1])
-               + dev_super_unit_cell_inv[0][2] * (rij[2]);
-
-    dr_frac[1] = dev_super_unit_cell_inv[1][0] * (rij[0])
-               + dev_super_unit_cell_inv[1][1] * (rij[1])
-               + dev_super_unit_cell_inv[1][2] * (rij[2]);
-
-    dr_frac[2] = dev_super_unit_cell_inv[2][0] * (rij[0])
-               + dev_super_unit_cell_inv[2][1] * (rij[1])
-               + dev_super_unit_cell_inv[2][2] * (rij[2]);
-
-    // apply boundary conditions
-    #pragma unroll
-    for (int n = 0; n < 3; ++n) {
-      if (dev_super_cell_pbc[n]) {
-        // W. Smith, CCP5 Information Quarterly for Computer Simulation of Condensed Phases (1989).
-        dr_frac[n] = dr_frac[n] - trunc(2.0 * dr_frac[n]);
-      }
+//-----------------------------------------------------------------------------
+// Apply the minimum image convetion on a displacement vector in the fractional 
+// coordinate space
+//
+// Note: displacement vector must be in fractional coordinates
+//
+// ref: W. Smith, CCP5 Information Quarterly for Computer Simulation of 
+//      Condensed Phases (1989).
+//-----------------------------------------------------------------------------
+__device__ 
+inline void ApplyMinimumImageConvention(const bool pbc[3], 
+    float displacement[3]) {
+  #pragma unroll
+  for (unsigned int n = 0; n < 3; ++n) {
+    if (pbc[n]) { 
+      displacement[n] = 
+          displacement[n] - trunc(2.0 * displacement[n]);
     }
-
-    // transform back to cartesian space
-    dr[0] = dev_super_unit_cell[0][0] * dr_frac[0]
-          + dev_super_unit_cell[0][1] * dr_frac[1]
-          + dev_super_unit_cell[0][2] * dr_frac[2];
-
-    dr[1] = dev_super_unit_cell[1][0] * dr_frac[0]
-          + dev_super_unit_cell[1][1] * dr_frac[1]
-          + dev_super_unit_cell[1][2] * dr_frac[2];
-
-    dr[2] = dev_super_unit_cell[2][0] * dr_frac[0]
-          + dev_super_unit_cell[2][1] * dr_frac[1]
-          + dev_super_unit_cell[2][2] * dr_frac[2];
+  }
 }
 
-__device__ void field_element(const float sj[3], const float r_ij[3], const float pre, const float r_abs_sq, float h[3]) {
+//-----------------------------------------------------------------------------
+// Calculate the diplacement vector between position r_i and r_j in cartesian
+// space accounting for any periodic boundary conditions
+//-----------------------------------------------------------------------------
+__device__ 
+inline void CalculateDisplacementVector(const float r_i_cartesian[3],
+    const float rj_cartesian[3], float dr_cartesian[3]) {
+  float dr_fractional[3];
 
+  #pragma unroll
+  for (unsigned int n = 0; n < 3; ++n) {
+    dr_cartesian[n] = r_i_cartesian[n] - rj_cartesian[n];
+  }
+  dr_cartesian[0] = r_i_cartesian[0] - rj_cartesian[0];
+  dr_cartesian[1] = r_i_cartesian[1] - rj_cartesian[1];
+  dr_cartesian[2] = r_i_cartesian[2] - rj_cartesian[2];
+
+  // transform cartesian vector into fractional space
+  matmul(dev_super_unit_cell_inv, dr_cartesian, dr_fractional);
+
+  ApplyMinimumImageConvention(dev_super_cell_pbc, dr_fractional);
+
+  // transform fractional vector back to cartesian space
+  matmul(dev_super_unit_cell, dr_fractional, dr_cartesian);
+}
+
+//-----------------------------------------------------------------------------
+// Calculate the field contribution from spin j with displacement vector r_ij
+//-----------------------------------------------------------------------------
+__device__ 
+inline void CalculateFieldElement(const float s_j[3], const float r_ij[3], 
+    const float prefactor, const float r_abs_sq, float h[3]) {
   const float d_r_abs = rsqrtf(r_abs_sq);
+  const float s_j_dot_rhat = dot(s_j, r_ij);
+  const float w0 = prefactor * d_r_abs * d_r_abs * d_r_abs * d_r_abs * d_r_abs;
 
-  const float sj_dot_rhat = 3.0f * (sj[0] * r_ij[0] + sj[1] * r_ij[1] + sj[2] * r_ij[2]);
-
-  const float w0 = pre * d_r_abs * d_r_abs * d_r_abs * d_r_abs * d_r_abs;
-
-  h[0] = w0 * (r_ij[0] * sj_dot_rhat  - r_abs_sq * sj[0]);
-  h[1] = w0 * (r_ij[1] * sj_dot_rhat  - r_abs_sq * sj[1]);
-  h[2] = w0 * (r_ij[2] * sj_dot_rhat  - r_abs_sq * sj[2]);
+  #pragma unroll
+  for (unsigned int n = 0; n < 3; ++n) {
+    h[n] = w0 * (3.0f * r_ij[n] * s_j_dot_rhat  - r_abs_sq * s_j[n]);
+  }
 }
-
 
 __global__ void dipole_bruteforce_kernel
 (
@@ -104,7 +109,7 @@ __global__ void dipole_bruteforce_kernel
               sj[n] = s_dev[3*j + n];
           }
 
-          displacement(ri, rj, r_ij);
+          CalculateDisplacementVector(ri, rj, r_ij);
 
           r_abs = sqrtf(r_ij[0] * r_ij[0] + r_ij[1] * r_ij[1] + r_ij[2] * r_ij[2]);
 
@@ -126,308 +131,143 @@ __global__ void dipole_bruteforce_kernel
     }
 }
 
-
-__global__ void dipole_bruteforce_pipeline4_kernel
-(
+//-----------------------------------------------------------------------------
+// Calculate dipole fields for all spins using a bruteforce algorithm
+//
+// Notes: This implementation uses a shared memory cache so that each thread
+//        block can access a common pool of spins and positions. The calculation
+//        loop is then unrolled 4x by hand giving a big perfomance boost because
+//        we avoid warp divergence in the if statements until later in the
+//        calculation and also give the processors lots of maths to do while
+//        waiting for memory loads. 
+//
+//        This kernel is using mixed precision to avoid externally converting 
+//        the spin array into floats, but using floats internally for faster
+//        maths.
+//-----------------------------------------------------------------------------
+__global__ 
+void DipoleBruteforceKernel(
     const double * __restrict__ s_dev,
     const float * __restrict__ r_dev,
     const float * __restrict__ mus_dev,
     const unsigned int num_spins,
-    double * __restrict__ h_dev
-)
+          double * __restrict__ h_dev)
 {
-    const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
-    const unsigned int tx = threadIdx.x; 
+    const unsigned int i = blockIdx.x*blockDim.x+threadIdx.x;
+    const unsigned int thread_idx = threadIdx.x;
 
-    __shared__ float rj[block_size][3];
-    __shared__ float sj[block_size][3];
+    const float r_cutoff_sq = dev_r_cutoff * dev_r_cutoff; 
+
+    __shared__ float r_j[block_size][3];
+    __shared__ float s_j[block_size][3];
     __shared__ float mus_pre[block_size];
 
-    float pre, ri[3];
+    float prefactor, r_i[3];
 
-    if (idx < num_spins) {
+    if (i < num_spins) {
       // constant is kB * mu_0 / 4 pi
-      pre = mus_dev[idx] * dev_dipole_prefactor;
+      prefactor = mus_dev[i] * dev_dipole_prefactor;
 
-      for (int n = 0; n < 3; ++n) {
-          ri[n] = r_dev[3*idx + n];
+      for (unsigned int n = 0; n < 3; ++n) {
+          r_i[n] = r_dev[3*i + n];
       }
     }
 
     const unsigned int num_blocks = (num_spins + block_size - 1) / block_size;
 
     double h[3] = {0.0, 0.0, 0.0};
-    for (unsigned int b = 0; b < num_blocks; ++b) {
-
+    for (unsigned int block_idx = 0; block_idx < num_blocks; ++block_idx) {
+      //------------------------------------------------------------------------
       // for every block load up the shared memory with data
-      
-      const unsigned int shared_idx = tx + block_size * b;
-      
-      // sync to make sure we aren't using a dirty cache by other threads
+      //------------------------------------------------------------------------
+      const unsigned int shared_idx = thread_idx + block_size * block_idx;
+      // sync to make sure we aren't using a dirty cache when the warp diverges
       __syncthreads();
-
       // only load data which exists
       if (shared_idx < num_spins) {
-        mus_pre[tx] = pre * mus_dev[shared_idx];
-
+        mus_pre[thread_idx] = prefactor * mus_dev[shared_idx];
+        #pragma unroll
         for (unsigned int n = 0; n < 3; ++n) {
-            rj[tx][n] = r_dev[3*shared_idx + n];
+            r_j[thread_idx][n] = r_dev[3*shared_idx + n];
         }
-
+        #pragma unroll
         for (unsigned int n = 0; n < 3; ++n) {
-            sj[tx][n] = s_dev[3*shared_idx + n];
+            s_j[thread_idx][n] = s_dev[3*shared_idx + n];
         }
       }
       // sync to make sure the shared data is filled from all block threads
       __syncthreads();
+      //------------------------------------------------------------------------
 
-      if (idx < num_spins) {
 
-          //now process the loaded data with a 4x software pipeline
-          // AKA - do shit loads of maths to hide memory latency
+      if (i < num_spins) {
+          // do lots of maths on the pool of spins and positions to hide memory 
+          // transfer latency
           for (unsigned int t = 0; t < block_size/4; ++t) {
 
+            // shared memory indices
             const int t1 = 4*t;
             const int t2 = 4*t+1;
             const int t3 = 4*t+2;
             const int t4 = 4*t+3;
 
-            const int j1 = (block_size * b + t1);
-            const int j2 = (block_size * b + t2);
-            const int j3 = (block_size * b + t3);
-            const int j4 = (block_size * b + t4);
+            // spin indices
+            const int j1 = (block_size * block_idx + t1);
+            const int j2 = (block_size * block_idx + t2);
+            const int j3 = (block_size * block_idx + t3);
+            const int j4 = (block_size * block_idx + t4);
+
+            const float pre1 = mus_pre[t1];
+            const float pre2 = mus_pre[t2];
+            const float pre3 = mus_pre[t3];
+            const float pre4 = mus_pre[t4];
 
             float r_ij1[3], r_ij2[3], r_ij3[3], r_ij4[3];
 
-
-            const float pre1 = mus_pre[t1];
-            const float pre2 = mus_pre[t2];
-            const float pre3 = mus_pre[t3];
-            const float pre4 = mus_pre[t4];
-
-
-            displacement(ri, rj[t1], r_ij1);
-            const float r_abs1 = (r_ij1[0] * r_ij1[0] + r_ij1[1] * r_ij1[1] + r_ij1[2] * r_ij1[2]);
-
-            displacement(ri, rj[t2], r_ij2);
-            const float r_abs2 = (r_ij2[0] * r_ij2[0] + r_ij2[1] * r_ij2[1] + r_ij2[2] * r_ij2[2]);
-
-            displacement(ri, rj[t3], r_ij3);
-            const float r_abs3 = (r_ij3[0] * r_ij3[0] + r_ij3[1] * r_ij3[1] + r_ij3[2] * r_ij3[2]);
-
-            displacement(ri, rj[t4], r_ij4);
-            const float r_abs4 = (r_ij4[0] * r_ij4[0] + r_ij4[1] * r_ij4[1] + r_ij4[2] * r_ij4[2]);
-
+            CalculateDisplacementVector(r_i, r_j[t1], r_ij1);
+            const float r_abs1 = abs(r_ij1);
+            CalculateDisplacementVector(r_i, r_j[t2], r_ij2);
+            const float r_abs2 = abs(r_ij2);
+            CalculateDisplacementVector(r_i, r_j[t3], r_ij3);
+            const float r_abs3 = abs(r_ij3);
+            CalculateDisplacementVector(r_i, r_j[t4], r_ij4);
+            const float r_abs4 = abs(r_ij4);
 
             float h1[3] = {0.0, 0.0, 0.0};
             float h2[3] = {0.0, 0.0, 0.0};
             float h3[3] = {0.0, 0.0, 0.0};
             float h4[3] = {0.0, 0.0, 0.0};
 
-            if (r_abs1 <= (dev_r_cutoff * dev_r_cutoff) && idx != j1 && j1 < num_spins) {
-              field_element(sj[t1], r_ij1, pre1, r_abs1, h1);
+            if (r_abs1 <= r_cutoff_sq && i != j1 && j1 < num_spins) {
+              CalculateFieldElement(s_j[t1], r_ij1, pre1, r_abs1, h1);
+            }
+            if (r_abs2 <= r_cutoff_sq && i != j2 && j2 < num_spins) {
+              CalculateFieldElement(s_j[t2], r_ij2, pre2, r_abs2, h2);
+            }
+            if (r_abs3 <= r_cutoff_sq && i != j3 && j3 < num_spins) {
+              CalculateFieldElement(s_j[t3], r_ij3, pre3, r_abs3, h3);
+            }
+            if (r_abs4 <= r_cutoff_sq && i != j4 && j4 < num_spins) {
+              CalculateFieldElement(s_j[t4], r_ij4, pre4, r_abs4, h4);
             }
 
-            if (r_abs2 <= (dev_r_cutoff * dev_r_cutoff) && idx != j2 && j2 < num_spins) {
-              field_element(sj[t2], r_ij2, pre2, r_abs2, h2);
+            #pragma unroll
+            for (unsigned int n = 0; n < 3; ++n) {
+              h[n] = h[n] + h1[n] + h2[n] + h3[n] + h4[n];
             }
-
-            if (r_abs3 <= (dev_r_cutoff * dev_r_cutoff) && idx != j3 && j3 < num_spins) {
-              field_element(sj[t3], r_ij3, pre3, r_abs3, h3);
-            }
-
-            if (r_abs4 <= (dev_r_cutoff * dev_r_cutoff) && idx != j4 && j4 < num_spins) {
-              field_element(sj[t4], r_ij4, pre4, r_abs4, h4);
-            }
-
-            h[0] = h[0] + h1[0] + h2[0] + h3[0] + h4[0];
-            h[1] = h[1] + h1[1] + h2[1] + h3[1] + h4[1];
-            h[2] = h[2] + h1[2] + h2[2] + h3[2] + h4[2];
           }
         }
-      } // block loop
+      } // end block loop
 
-  if (idx < num_spins) {
+  if (i < num_spins) {
     // write to global memory
     #pragma unroll
     for (unsigned int n = 0; n < 3; ++n) {
-        h_dev[3*idx + n] = h[n];
+        h_dev[3*i + n] = h[n];
     }
   }
 }
 
-__global__ void dipole_bruteforce_pipeline8_kernel
-(
-    const double * __restrict__ s_dev,
-    const float * __restrict__ r_dev,
-    const float * __restrict__ mus_dev,
-    const unsigned int num_spins,
-    double * __restrict__ h_dev
-)
-{
-    const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
-    const unsigned int tx = threadIdx.x; 
-
-    __shared__ float rj[block_size][3];
-    __shared__ float sj[block_size][3];
-    __shared__ float mus_pre[block_size];
-
-    float pre, ri[3];
-
-    if (idx < num_spins) {
-      // constant is kB * mu_0 / 4 pi
-      pre = mus_dev[idx] * dev_dipole_prefactor;
-
-      for (int n = 0; n < 3; ++n) {
-          ri[n] = r_dev[3*idx + n];
-      }
-    }
-
-    const unsigned int num_blocks = (num_spins + block_size - 1) / block_size;
-
-    double h[3] = {0.0, 0.0, 0.0};
-    for (unsigned int b = 0; b < num_blocks; ++b) {
-
-      // for every block load up the shared memory with data
-      
-      const unsigned int shared_idx = tx + block_size * b;
-      
-      // sync to make sure we aren't using a dirty cache by other threads
-      __syncthreads();
-
-      // only load data which exists
-      if (shared_idx < num_spins) {
-        mus_pre[tx] = pre * mus_dev[shared_idx];
-
-        for (unsigned int n = 0; n < 3; ++n) {
-            rj[tx][n] = r_dev[3*shared_idx + n];
-        }
-
-        for (unsigned int n = 0; n < 3; ++n) {
-            sj[tx][n] = s_dev[3*shared_idx + n];
-        }
-      }
-      // sync to make sure the shared data is filled from all block threads
-      __syncthreads();
-
-      if (idx < num_spins) {
-
-          //now process the loaded data with a 4x software pipeline
-          // AKA - do shit loads of maths to hide memory latency
-          for (unsigned int t = 0; t < block_size/8; ++t) {
-
-            const int t1 = 8*t;
-            const int t2 = 8*t+1;
-            const int t3 = 8*t+2;
-            const int t4 = 8*t+3;
-            const int t5 = 8*t+4;
-            const int t6 = 8*t+5;
-            const int t7 = 8*t+6;
-            const int t8 = 8*t+7;
-
-            const int j1 = (block_size * b + t1);
-            const int j2 = (block_size * b + t2);
-            const int j3 = (block_size * b + t3);
-            const int j4 = (block_size * b + t4);
-            const int j5 = (block_size * b + t5);
-            const int j6 = (block_size * b + t6);
-            const int j7 = (block_size * b + t7);
-            const int j8 = (block_size * b + t8);
-
-            float r_ij1[3], r_ij2[3], r_ij3[3], r_ij4[3], r_ij5[3], r_ij6[3], r_ij7[3], r_ij8[3];
-
-
-            const float pre1 = mus_pre[t1];
-            const float pre2 = mus_pre[t2];
-            const float pre3 = mus_pre[t3];
-            const float pre4 = mus_pre[t4];
-            const float pre5 = mus_pre[t5];
-            const float pre6 = mus_pre[t6];
-            const float pre7 = mus_pre[t7];
-            const float pre8 = mus_pre[t8];
-
-
-            displacement(ri, rj[t1], r_ij1);
-            const float r_abs1 = (r_ij1[0] * r_ij1[0] + r_ij1[1] * r_ij1[1] + r_ij1[2] * r_ij1[2]);
-
-            displacement(ri, rj[t2], r_ij2);
-            const float r_abs2 = (r_ij2[0] * r_ij2[0] + r_ij2[1] * r_ij2[1] + r_ij2[2] * r_ij2[2]);
-
-            displacement(ri, rj[t3], r_ij3);
-            const float r_abs3 = (r_ij3[0] * r_ij3[0] + r_ij3[1] * r_ij3[1] + r_ij3[2] * r_ij3[2]);
-
-            displacement(ri, rj[t4], r_ij4);
-            const float r_abs4 = (r_ij4[0] * r_ij4[0] + r_ij4[1] * r_ij4[1] + r_ij4[2] * r_ij4[2]);
-
-            displacement(ri, rj[t5], r_ij5);
-            const float r_abs5 = (r_ij5[0] * r_ij5[0] + r_ij5[1] * r_ij5[1] + r_ij5[2] * r_ij5[2]);
-
-            displacement(ri, rj[t6], r_ij6);
-            const float r_abs6 = (r_ij6[0] * r_ij6[0] + r_ij6[1] * r_ij6[1] + r_ij6[2] * r_ij6[2]);
-
-            displacement(ri, rj[t7], r_ij7);
-            const float r_abs7 = (r_ij7[0] * r_ij7[0] + r_ij7[1] * r_ij7[1] + r_ij7[2] * r_ij7[2]);
-
-            displacement(ri, rj[t8], r_ij8);
-            const float r_abs8 = (r_ij8[0] * r_ij8[0] + r_ij8[1] * r_ij8[1] + r_ij8[2] * r_ij8[2]);
-
-
-            float h1[3] = {0.0, 0.0, 0.0};
-            float h2[3] = {0.0, 0.0, 0.0};
-            float h3[3] = {0.0, 0.0, 0.0};
-            float h4[3] = {0.0, 0.0, 0.0};
-            float h5[3] = {0.0, 0.0, 0.0};
-            float h6[3] = {0.0, 0.0, 0.0};
-            float h7[3] = {0.0, 0.0, 0.0};
-            float h8[3] = {0.0, 0.0, 0.0};
-
-            if (r_abs1 <= (dev_r_cutoff * dev_r_cutoff) && idx != j1 && j1 < num_spins) {
-              field_element(sj[t1], r_ij1, pre1, r_abs1, h1);
-            }
-
-            if (r_abs2 <= (dev_r_cutoff * dev_r_cutoff) && idx != j2 && j2 < num_spins) {
-              field_element(sj[t2], r_ij2, pre2, r_abs2, h2);
-            }
-
-            if (r_abs3 <= (dev_r_cutoff * dev_r_cutoff) && idx != j3 && j3 < num_spins) {
-              field_element(sj[t3], r_ij3, pre3, r_abs3, h3);
-            }
-
-            if (r_abs4 <= (dev_r_cutoff * dev_r_cutoff) && idx != j4 && j4 < num_spins) {
-              field_element(sj[t4], r_ij4, pre4, r_abs4, h4);
-            }
-
-            if (r_abs5 <= (dev_r_cutoff * dev_r_cutoff) && idx != j5 && j5 < num_spins) {
-              field_element(sj[t5], r_ij5, pre5, r_abs5, h5);
-            }
-
-            if (r_abs6 <= (dev_r_cutoff * dev_r_cutoff) && idx != j6 && j6 < num_spins) {
-              field_element(sj[t6], r_ij6, pre6, r_abs6, h6);
-            }
-
-            if (r_abs7 <= (dev_r_cutoff * dev_r_cutoff) && idx != j7 && j7 < num_spins) {
-              field_element(sj[t7], r_ij7, pre7, r_abs7, h7);
-            }
-
-            if (r_abs8 <= (dev_r_cutoff * dev_r_cutoff) && idx != j8 && j8 < num_spins) {
-              field_element(sj[t8], r_ij8, pre8, r_abs8, h8);
-            }
-
-            h[0] = h[0] + h1[0] + h2[0] + h3[0] + h4[0] + h5[0] + h6[0] + h7[0] + h8[0];
-            h[1] = h[1] + h1[1] + h2[1] + h3[1] + h4[1] + h5[1] + h6[1] + h7[1] + h8[1];
-            h[2] = h[2] + h1[2] + h2[2] + h3[2] + h4[2] + h5[2] + h6[2] + h7[2] + h8[2];
-          }
-        }
-      } // block loop
-
-  if (idx < num_spins) {
-    // write to global memory
-    #pragma unroll
-    for (unsigned int n = 0; n < 3; ++n) {
-        h_dev[3*idx + n] = h[n];
-    }
-  }
-}
 
 __global__ void dipole_bruteforce_sharemem_kernel
 (
@@ -492,7 +332,7 @@ __global__ void dipole_bruteforce_sharemem_kernel
 
             float r_ij[3];
 
-            displacement(ri, rj[t], r_ij);
+            CalculateDisplacementVector(ri, rj[t], r_ij);
 
             const float r_abs = sqrtf(r_ij[0] * r_ij[0] + r_ij[1] * r_ij[1] + r_ij[2] * r_ij[2]);
 
