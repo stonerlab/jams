@@ -189,13 +189,8 @@ void DipoleHamiltonianBruteforce::calculate_fields(jblib::Array<double, 2>& fiel
 }
 
 void DipoleHamiltonianBruteforce::calculate_fields(jblib::CudaArray<double, 1>& fields) {
-    // if (globals::num_spins % 4 == 0) {
-        dipole_bruteforce_pipeline4_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_ >>>
-            (solver->dev_ptr_spin(), dev_r_.data(), dev_mus_.data(), globals::num_spins, fields.data()); 
-    // } else {
-        // dipole_bruteforce_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_ >>>
-            // (solver->dev_ptr_spin(), dev_r_.data(), dev_mus_.data(), globals::num_spins, fields.data());
-    // }
+	DipoleBruteforceKernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_ >>>
+	    (solver->dev_ptr_spin(), dev_r_.data(), dev_mus_.data(), globals::num_spins, fields.data()); 
 }
 
 // --------------------------------------------------------------------------

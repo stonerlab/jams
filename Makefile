@@ -228,12 +228,12 @@ endif
 
 
 
-# ifdef MKLROOT
-# 	CC = icpc
-# 	EXTRA_CPPFLAGS += -xHOST
-# 	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -D__INTEL_COMPILER -DMKL
-# 	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm -ldl
-# else
+ifdef MKLROOT
+ 	CC = icpc
+ 	EXTRA_CPPFLAGS += -xHOST
+ 	BASIC_CFLAGS += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw -D__INTEL_COMPILER -DMKL
+ 	EXTLIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm -ldl
+else
 	ifeq ($(SYSTYPE),Darwin)
 		CC = clang++
 		CFLAGS += -fslp-vectorize
@@ -243,7 +243,7 @@ endif
 	endif
 
 	EXTLIBS += -lfftw3 -lblas
-# endif
+endif
 
 ifndef NO_CUDA
 	BASIC_CFLAGS += -I$(CUDADIR)/include -DCUDA
