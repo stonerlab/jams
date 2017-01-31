@@ -216,12 +216,29 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 // --------------------------------------------------------------------------
 
 double ExchangeHamiltonian::calculate_total_energy() {
-    jblib::KahanSum total_energy;
+  double total_energy;
+
+#ifdef CUDA
+  if (solver->is_cuda_solver()) {
+    calculate_fields();
+    dev_field_.copy_to_host_array(field_);
+    for (int i = 0; i < globals::num_spins; ++i) {
+        total_energy += -(  globals::s(i,0)*field_(i,0) 
+                     + globals::s(i,1)*field_(i,1)
+                     + globals::s(i,2)*field_(i,2) );
+    }
+  } else {
+#endif // CUDA
 
     for (int i = 0; i < globals::num_spins; ++i) {
-        total_energy.add(calculate_one_spin_energy(i));
+        total_energy += calculate_one_spin_energy(i);
     }
-    return total_energy.value();
+
+#ifdef CUDA
+    }
+#endif // CUDA
+
+    return total_energy;
 }
 
 // --------------------------------------------------------------------------

@@ -77,10 +77,29 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianBruteforce::calculate_total_energy() {
-   double e_total = 0.0;
-   for (int i = 0; i < globals::num_spins; ++i) {
-       e_total += calculate_one_spin_energy(i);
-   }
+    double e_total = 0.0;
+
+#ifdef CUDA
+    static jblib::CudaArray<double, 1> dev_dipole_fields(globals::num_spins*3);
+    static jblib::Array<double, 2> host_dipole_fields(globals::num_spins, 3);
+
+   if (solver->is_cuda_solver()) {
+        calculate_fields(dev_dipole_fields);
+        dev_dipole_fields.copy_to_host_array(host_dipole_fields);
+        for (int i = 0; i < globals::num_spins; ++i) {
+            e_total += -(  globals::s(i,0)*host_dipole_fields(i,0) 
+                         + globals::s(i,1)*host_dipole_fields(i,1)
+                         + globals::s(i,2)*host_dipole_fields(i,2) );
+        }
+   } else { 
+#endif // CUDA
+       for (int i = 0; i < globals::num_spins; ++i) {
+           e_total += calculate_one_spin_energy(i);
+       }
+#ifdef CUDA
+    }
+#endif // CUDA
+
     return e_total;
 }
 
