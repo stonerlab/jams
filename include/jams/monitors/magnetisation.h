@@ -4,11 +4,17 @@
 #define JAMS_MONITOR_MAGNETISATION_H
 
 #include <fstream>
+#include <vector>
 
+#include <libconfig.h++>
+
+#include "jams/core/types.h"
 #include "jams/core/monitor.h"
 #include "jams/core/stats.h"
 
 #include "jblib/containers/array.h"
+
+class Solver;
 
 class MagnetisationMonitor : public Monitor {
  public:

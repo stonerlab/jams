@@ -1,11 +1,13 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <cmath>
 #include <string>
 #include <iomanip>
+#include <vector>
 
+#include "jams/core/output.h"
+#include "jams/core/physics.h"
+#include "jams/core/solver.h"
 #include "jams/core/globals.h"
-#include "jams/core/lattice.h"
 #include "jams/core/hamiltonian.h"
 
 #include "jams/monitors/energy.h"
@@ -13,7 +15,7 @@
 EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  ::output.write("\nInitialising Energy monitor...\n");
+  ::output->write("\nInitialising Energy monitor...\n");
 
   std::string name = "_eng.tsv";
   name = seedname+name;

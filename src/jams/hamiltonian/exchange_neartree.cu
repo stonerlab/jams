@@ -5,8 +5,8 @@
 #include "jams/core/consts.h"
 #include "jams/core/cuda_defs.h"
 #include "jams/core/cuda_sparsematrix.h"
-
-
+#include "jams/core/solver.h"
+#include "jams/core/lattice.h"
 
 #include "jams/hamiltonian/exchange_neartree.h"
 
@@ -49,10 +49,10 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       debug_file.open("debug_exchange.dat");
 
       std::ofstream pos_file("debug_pos.dat");
-      for (int n = 0; n < lattice.num_materials(); ++n) {
+      for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice.atom_material(i) == n) {
-            pos_file << i << "\t" <<  lattice.atom_position(i).x << "\t" <<  lattice.atom_position(i).y << "\t" << lattice.atom_position(i).z << "\n";
+          if (lattice->atom_material(i) == n) {
+            pos_file << i << "\t" <<  lattice->atom_position(i).x << "\t" <<  lattice->atom_position(i).y << "\t" << lattice->atom_position(i).z << "\n";
           }
         }
         pos_file << "\n\n";
@@ -67,23 +67,23 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     if (settings.exists("energy_cutoff")) {
         energy_cutoff_ = settings["energy_cutoff"];
     }
-    ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
+    ::output->write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
 
     distance_tolerance_ = 1e-3; // fractional coordinate units
     if (settings.exists("distance_tolerance")) {
         distance_tolerance_ = settings["distance_tolerance"];
     }
 
-    ::output.write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
+    ::output->write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
 
     // --- SAFETY ---
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
-    for (int i = 0; i < lattice.num_unit_cell_positions(); ++i) {
-      for (int j = i+1; j < lattice.num_unit_cell_positions(); ++j) {
-        if( abs(lattice.unit_cell_position(i) - lattice.unit_cell_position(j)) < distance_tolerance_ ) {
+    for (int i = 0; i < lattice->num_unit_cell_positions(); ++i) {
+      for (int j = i+1; j < lattice->num_unit_cell_positions(); ++j) {
+        if( abs(lattice->unit_cell_position(i) - lattice->unit_cell_position(j)) < distance_tolerance_ ) {
           jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
                      "Check position file or relax distance_tolerance for exchange module",
-                      i, j, abs(lattice.unit_cell_position(i) - lattice.unit_cell_position(j)), distance_tolerance_);
+                      i, j, abs(lattice->unit_cell_position(i) - lattice->unit_cell_position(j)), distance_tolerance_);
         }
       }
     }
@@ -101,7 +101,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     std::string type_name_A, type_name_B;
     double jij_radius, jij_value;
 
-    interaction_list_.resize(lattice.num_materials());
+    interaction_list_.resize(lattice->num_materials());
 
     for (int i = 0; i < settings["interactions"].getLength(); ++i) {
 
@@ -113,8 +113,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
       // std::cout << type_name_A << "\t" << type_name_B << "\t" << jij_radius << "\t" << jij_value << std::endl;
 
-      type_id_A = lattice.material_id(type_name_A);
-      type_id_B = lattice.material_id(type_name_B);
+      type_id_A = lattice->material_id(type_name_A);
+      type_id_B = lattice->material_id(type_name_B);
 
       // std::cout << type_id_A << "\t" << type_id_B << "\t" << jij_radius << "\t" << jij_value << std::endl;
 
@@ -130,20 +130,20 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
     interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
-    ::output.write("\ncomputed interactions\n");
+    ::output->write("\ncomputed interactions\n");
 
     int counter = 0;
     for (int i = 0; i < globals::num_spins; ++i) {
       std::vector<bool> is_already_interacting(globals::num_spins, false);
 
-      int type = lattice.atom_material(i);
+      int type = lattice->atom_material(i);
 
       for (int j = 0; j < interaction_list_[type].size(); ++j) {
         std::vector<Atom> nbr_lower;
         std::vector<Atom> nbr_upper;
 
-        lattice.atom_neighbours(i, interaction_list_[type][j].radius - distance_tolerance_, nbr_lower);
-        lattice.atom_neighbours(i, interaction_list_[type][j].radius + distance_tolerance_, nbr_upper);
+        lattice->atom_neighbours(i, interaction_list_[type][j].radius - distance_tolerance_, nbr_lower);
+        lattice->atom_neighbours(i, interaction_list_[type][j].radius + distance_tolerance_, nbr_upper);
 
 
         std::vector<Atom> nbr(std::max(nbr_lower.size(), nbr_upper.size()));
@@ -179,12 +179,12 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
             if (is_debug_enabled_) {
               debug_file << i << "\t" << n.id << "\t";
-              debug_file << lattice.atom_position(i).x << "\t";
-              debug_file << lattice.atom_position(i).y << "\t";
-              debug_file << lattice.atom_position(i).z << "\t";
-              debug_file << lattice.atom_position(n.id).x << "\t";
-              debug_file << lattice.atom_position(n.id).y << "\t";
-              debug_file << lattice.atom_position(n.id).z << "\n";
+              debug_file << lattice->atom_position(i).x << "\t";
+              debug_file << lattice->atom_position(i).y << "\t";
+              debug_file << lattice->atom_position(i).z << "\t";
+              debug_file << lattice->atom_position(n.id).x << "\t";
+              debug_file << lattice->atom_position(n.id).y << "\t";
+              debug_file << lattice->atom_position(n.id).z << "\n";
             }
           }
         }
@@ -198,15 +198,15 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       debug_file.close();
     }
 
-    ::output.write("  total interactions: %d\n", counter);
+    ::output->write("  total interactions: %d\n", counter);
 
     // resize member arrays
     energy_.resize(globals::num_spins);
     field_.resize(globals::num_spins, 3);
 
-    ::output.write("  converting interaction matrix format from MAP to CSR\n");
+    ::output->write("  converting interaction matrix format from MAP to CSR\n");
     interaction_matrix_.convertMAP2CSR();
-    ::output.write("  exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
+    ::output->write("  exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
 
     //---------------------------------------------------------------------
     // initialize CUDA arrays
@@ -221,7 +221,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         dev_field_ = jblib::CudaArray<double, 1>(field_);
 
         if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
-          ::output.write("  * Initialising CUSPARSE...\n");
+          ::output->write("  * Initialising CUSPARSE...\n");
           cusparseStatus_t status;
           status = cusparseCreate(&cusparse_handle_);
           if (status != CUSPARSE_STATUS_SUCCESS) {
@@ -238,7 +238,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
           cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
           cusparseSetMatIndexBase(cusparse_descra_,CUSPARSE_INDEX_BASE_ZERO);
 
-          ::output.write("  allocating memory on device\n");
+          ::output->write("  allocating memory on device\n");
           cuda_api_error_check(
             cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
           cuda_api_error_check(
@@ -256,11 +256,11 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
                 (interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
 
         } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
-          // ::output.write("  converting interaction matrix format from map to dia");
+          // ::output->write("  converting interaction matrix format from map to dia");
           // interaction_matrix_.convertMAP2DIA();
-          ::output.write("  estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
+          ::output->write("  estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
           dev_dia_interaction_matrix_.blocks = std::min<int>(DIA_BLOCK_SIZE, (globals::num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-          ::output.write("  allocating memory on device\n");
+          ::output->write("  allocating memory on device\n");
 
           // allocate rows
           cuda_api_error_check(
@@ -480,11 +480,11 @@ void ExchangeNeartreeHamiltonian::output_energies_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << lattice.atom_material(i);
+        outfile << lattice->atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile <<  lattice.parameter()*lattice.atom_position(i)[j];
+            outfile <<  lattice->parameter()*lattice->atom_position(i)[j];
         }
 
         // energy
@@ -523,11 +523,11 @@ void ExchangeNeartreeHamiltonian::output_fields_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << std::setw(16) << lattice.atom_material(i);
+        outfile << std::setw(16) << lattice->atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.atom_position(i)[j];
+            outfile << std::setw(16) << std::fixed << lattice->parameter()*lattice->atom_position(i)[j];
         }
 
         // fields

@@ -5,11 +5,13 @@
 #include <libconfig.h++>
 
 #include <cmath>
-#include <string>
 
+#include "jams/core/output.h"
 #include "jams/core/maths.h"
 #include "jams/core/globals.h"
 #include "jblib/containers/vec.h"
+#include "jblib/containers/array.h"
+#include "jblib/containers/matrix.h"
 
 
 PingPhysics::PingPhysics(const libconfig::Setting &settings)
@@ -42,8 +44,8 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
   init_theta = rad_to_deg(acos(mag.z / abs(mag)));
   init_phi = rad_to_deg(atan2(mag.y, mag.x));
 
-  ::output.write("  initial angles (theta, phi): %f, %f\n", init_theta, init_phi);
-  ::output.write("  final angles (theta, phi): %f, %f\n", final_theta, final_phi);
+  ::output->write("  initial angles (theta, phi): %f, %f\n", init_theta, init_phi);
+  ::output->write("  final angles (theta, phi): %f, %f\n", final_theta, final_phi);
 
 
   if (theta_rotation_specified) {
@@ -54,7 +56,7 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
     delta_phi = final_phi - init_phi;
   }
 
-  ::output.write("  delta angles (theta, phi): %f, %f\n", delta_theta, delta_phi);
+  ::output->write("  delta angles (theta, phi): %f, %f\n", delta_theta, delta_phi);
 
   const double c_t = cos(deg_to_rad(delta_theta));
   const double c_p = cos(deg_to_rad(delta_phi));

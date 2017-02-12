@@ -3,9 +3,13 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_FFT_H
 #define JAMS_HAMILTONIAN_DIPOLE_FFT_H
 
+#include <fftw3.h>
+#include <libconfig.h++>
+
+#include "jblib/containers/array.h"
+#include "jblib/containers/vec.h"
+
 #include "jams/hamiltonian/strategy.h"
-#include "jams/core/consts.h"
-#include "jams/core/maths.h"
 
 
 class DipoleHamiltonianFFT : public HamiltonianStrategy {

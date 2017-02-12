@@ -3,6 +3,8 @@
 #ifndef JAMS_HAMILTONIAN_UNIAXIAL_H
 #define JAMS_HAMILTONIAN_UNIAXIAL_H
 
+#include <vector>
+
 #include <libconfig.h++>
 
 #include "jams/core/output.h"

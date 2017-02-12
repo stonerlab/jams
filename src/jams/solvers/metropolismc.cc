@@ -1,4 +1,5 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
+#include <libconfig.h++>
 
 #include "jams/solvers/metropolismc.h"
 
@@ -7,6 +8,8 @@
 #include "jams/core/globals.h"
 #include "jams/core/montecarlo.h"
 #include "jams/core/hamiltonian.h"
+#include "jams/core/lattice.h"
+#include "jams/core/physics.h"
 #include "jams/core/permutations.h"
 
 #include <iomanip>
@@ -23,18 +26,18 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
   // initialize base class
   Solver::initialize(argc, argv, idt);
 
-  output.write("Initialising Metropolis Monte-Carlo solver\n");
+  output->write("Initialising Metropolis Monte-Carlo solver\n");
 
   is_preconditioner_enabled_ = false;
   preconditioner_delta_theta_ = 5.0;
   preconditioner_delta_phi_ = 5.0;
-  if (config.exists("sim.preconditioner")) {
+  if (config->exists("sim.preconditioner")) {
     is_preconditioner_enabled_ = true;
-    preconditioner_delta_theta_ = config.lookup("sim.preconditioner.[0]");
-    preconditioner_delta_phi_ = config.lookup("sim.preconditioner.[1]");
+    preconditioner_delta_theta_ = config->lookup("sim.preconditioner.[0]");
+    preconditioner_delta_phi_ = config->lookup("sim.preconditioner.[1]");
   }
 
-  if (output.is_verbose()) {
+  if (output->is_verbose()) {
     outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
   }
 }
@@ -43,18 +46,18 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     using namespace globals;
 
     if (is_preconditioner_enabled_ && iteration_ == 0) {
-      output.write("preconditioning\n");
+      output->write("preconditioning\n");
 
-      output.write("  thermalizing\n");
+      output->write("  thermalizing\n");
       // do a short thermalization
       for (int i = 0; i < 500; ++i) {
         MetropolisAlgorithm(mc_uniform_trial_step);
       }
 
       // now try systematic rotations
-      output.write("  magnetization rotations\n");
+      output->write("  magnetization rotations\n");
       SystematicPreconditioner(preconditioner_delta_theta_, preconditioner_delta_phi_);
-      output.write("done\n");
+      output->write("done\n");
     }
 
     std::string trial_step_name;
@@ -70,7 +73,7 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
       trial_step_name = "UTS";
     }
       
-    if (output.is_verbose()) {
+    if (output->is_verbose()) {
       move_acceptance_fraction_ = move_acceptance_count_/double(num_spins);
       outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::fixed << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
     }
@@ -133,10 +136,10 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
             int i, j;
             double energy;
             Vec3<double> s_new;
-            vector<Matrix<double, 3, 3>> rotation(lattice.num_materials());
-            vector<Vec3<double>> mag(lattice.num_materials());
+            vector<Matrix<double, 3, 3>> rotation(::lattice->num_materials());
+            vector<Vec3<double>> mag(::lattice->num_materials());
 
-            if (last - first != lattice.num_materials()) {
+            if (last - first != ::lattice->num_materials()) {
               throw std::runtime_error("number of angles in preconditioner does not match the number of materials");
             }
 
@@ -146,12 +149,12 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
             // calculate magnetization vector of each material
             for (i = 0; i < globals::num_spins; ++i) {
               for (j = 0; j < 3; ++j) {
-                mag[lattice.atom_material(i)][j] += globals::s(i, j);
+                mag[::lattice->atom_material(i)][j] += globals::s(i, j);
               }
             }
             // don't need to normalize magnetization because only the direction is important
             // calculate rotation matrix between magnetization and desired direction
-            for (i = 0; i < lattice.num_materials(); ++i) {
+            for (i = 0; i < ::lattice->num_materials(); ++i) {
               rotation[i] = rotation_matrix_between_vectors(mag[i], spherical_to_cartesian_vector(1.0, *first, 0.0));
               ++first;
             }
@@ -160,7 +163,7 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
               for (j = 0; j < 3; ++j) {
                 s_new[j] = globals::s(i, j);
               }
-              s_new = rotation[lattice.atom_material(i)] * s_new;
+              s_new = rotation[::lattice->atom_material(i)] * s_new;
               for (j = 0; j < 3; ++j) {
                 globals::s(i, j) = s_new[j];
               }
@@ -205,19 +208,19 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
 
     MagnetizationRotationMinimizer minimizer(hamiltonians_);
 
-    output.write("    delta theta (deg)\n");
-    output.write("      %f\n", delta_theta);
+    output->write("    delta theta (deg)\n");
+    output->write("      %f\n", delta_theta);
 
-    output.write("    num_theta\n");
-    output.write("      %d\n", num_theta);
+    output->write("    num_theta\n");
+    output->write("      %d\n", num_theta);
 
     std::uint64_t count = for_each_permutation(theta.begin(),
                                                    theta.begin() + 3,
                                                    theta.end(),
                                                    minimizer);
 
-    output.write("    permutations\n");
-    output.write("      %d\n", count);
+    output->write("    permutations\n");
+    output->write("      %d\n", count);
 
     std::ofstream preconditioner_file;
     preconditioner_file.open(std::string(::seedname+"_mc_pre.dat").c_str());
@@ -240,7 +243,7 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
 
       // 2015-12-10 (JB) striding uniformly is ~4x faster than random choice (clang OSX).
       // Seems to be because of caching/predication in the exchange field calculation.
-      random_spin_number = n; //rng.uniform_discrete(0, globals::num_spins - 1);
+      random_spin_number = n; //rng->uniform_discrete(0, globals::num_spins - 1);
 
       s_initial = mc_spin_as_vec(random_spin_number);
       s_final = mc_trial_step(s_initial);
@@ -256,7 +259,7 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
         continue;
       }
 
-      if (rng.uniform() < exp(-deltaE*beta)) {
+      if (rng->uniform() < exp(-deltaE*beta)) {
         move_acceptance_count_++;
         mc_set_spin_as_vec(random_spin_number, s_final);
       }

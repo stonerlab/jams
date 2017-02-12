@@ -5,16 +5,7 @@
 
 #include <string>
 
-#include "jams/core/error.h"
-#include "jams/core/lattice.h"
-#include "jams/core/output.h"
-#include "jams/core/rand.h"
-#include "jams/core/sparsematrix.h"
-#include "jams/core/solver.h"
-#include "jams/core/physics.h"
-
 #include "jblib/containers/array.h"
-#include "jblib/containers/sparsematrix.h"
 
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
@@ -26,12 +17,21 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #endif
-GLOBAL Solver *solver;
+
+class Solver;
+class Physics;
+class Lattice;
+class Output;
+class Random;
+namespace libconfig { class Config; }
+
+
+GLOBAL Solver  *solver;
 GLOBAL Physics *physics_module;
-GLOBAL Lattice lattice;
-GLOBAL libconfig::Config config;  ///< Config object
-GLOBAL Output output;
-GLOBAL Random rng;
+GLOBAL Lattice *lattice;
+GLOBAL libconfig::Config *config;  ///< Config object
+GLOBAL Output  *output;
+GLOBAL Random  *rng;
 GLOBAL std::string seedname;
 
 namespace globals {

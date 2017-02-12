@@ -1,3 +1,12 @@
+#include <cassert>
+#include <cstdio>
+#include <algorithm>
+#include <complex>
+
+#include "jams/core/error.h"
+#include "jams/core/lattice.h"
+#include "jams/core/maths.h"
+#include "jblib/containers/matrix.h"
 #include "jams/core/globals.h"
 #include "jams/core/consts.h"
 #include "jams/core/utils.h"
@@ -24,13 +33,13 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
     printf("  Ewald Method\n");
 
-    if (::lattice.num_materials() > 1) {
+    if (::lattice->num_materials() > 1) {
         jams_error("DipoleHamiltonianEwald only supports single species calculations at the moment");
     }
     local_interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
     for (int n = 0; n < 3; ++n) {
-        super_cell_dim[n] = 0.5*double(lattice.size(n));
+        super_cell_dim[n] = 0.5*double(lattice->size(n));
     }
 
     delta_error_ = 1e-4;
@@ -60,7 +69,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     // printf("  super cell max extent (cartesian):\n    %f %f %f\n", super_cell_dim[0], super_cell_dim[1], super_cell_dim[2]);
 
     for (int n = 0; n < 3; ++n) {
-        if (lattice.is_periodic(n)) {
+        if (lattice->is_periodic(n)) {
             L_max[n] = ceil(r_cutoff_/super_cell_dim[n]);
         }
     }
@@ -71,7 +80,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
     local_interaction_matrix_.resize(globals::num_spins*3, globals::num_spins*3);
 
-    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
+    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice->parameter(),3));
 
     printf("  real space prefactor: %e\n", prefactor);
 
@@ -93,7 +102,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                     for (int Lz = -L_max[2]; Lz < L_max[2]+1; ++Lz) {
                         jblib::Vec3<int> image_vector(Lx, Ly, Lz);
 
-                        r_ij  = lattice.generate_image_position(lattice.atom_position(j), image_vector) - lattice.atom_position(i);
+                        r_ij  = lattice->generate_image_position(lattice->atom_position(j), image_vector) - lattice->atom_position(i);
 
                         r_abs = abs(r_ij);
 
@@ -139,14 +148,14 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
 
     for (int n = 0; n < 3; ++n) {
-        kspace_size_[n] = ::lattice.num_unit_cells(n);
+        kspace_size_[n] = ::lattice->num_unit_cells(n);
     }
 
     kspace_padded_size_ = kspace_size_;
 
     for (int n = 0; n < 3; ++n) {
-        if (!::lattice.is_periodic(n)) {
-            kspace_padded_size_[n] = 2*::lattice.num_unit_cells(n);
+        if (!::lattice->is_periodic(n)) {
+            kspace_padded_size_[n] = 2*::lattice->num_unit_cells(n);
         }
     }
 
@@ -203,7 +212,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                                  FFTW_PATIENT);
 
     // divide by product(kspace_padded_size_) instead or normalizing the FFT result later
-    const double recip_factor = kVacuumPermeadbility*kBohrMagneton/(::lattice.volume()*product(kspace_padded_size_));
+    const double recip_factor = kVacuumPermeadbility*kBohrMagneton/(::lattice->volume()*product(kspace_padded_size_));
     printf("  reciprocal space prefactor: %e\n", recip_factor);
 
     jblib::Vec3<double> kvec;
@@ -223,7 +232,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                 kvec = jblib::Vec3<double>(pos.x, pos.y, pos.z);
 
                 // hack to multiply by inverse lattice vectors
-                kvec = lattice.cartesian_to_fractional(kvec);
+                kvec = lattice->cartesian_to_fractional(kvec);
 
                 k_abs = abs(kvec);
 
@@ -256,7 +265,7 @@ double DipoleHamiltonianEwald::calculate_total_energy() {
 
     calculate_nonlocal_ewald_field();
     for (int i = 0; i < globals::num_spins; ++i) {
-        pos = ::lattice.super_cell_pos(i);
+        pos = ::lattice->super_cell_pos(i);
        e_nonlocal += -(globals::s(i,0)*h_nonlocal_(pos.x, pos.y, pos.z, 0)
                      + globals::s(i,1)*h_nonlocal_(pos.x, pos.y, pos.z, 1)
                      + globals::s(i,2)*h_nonlocal_(pos.x, pos.y, pos.z, 2))*globals::mus(i);
@@ -310,7 +319,7 @@ double DipoleHamiltonianEwald::calculate_one_spin_energy_difference(
 
     calculate_nonlocal_ewald_field();
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice.super_cell_pos(i);
+        pos = ::lattice->super_cell_pos(i);
         h[m] += h_nonlocal_(pos.x, pos.y, pos.z, m);
     }
 
@@ -339,7 +348,7 @@ void DipoleHamiltonianEwald::calculate_one_spin_field(const int i, double h[3]) 
 
     calculate_nonlocal_ewald_field();
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice.super_cell_pos(i);
+        pos = ::lattice->super_cell_pos(i);
         h[m] += h_nonlocal_(pos.x, pos.y, pos.z, m);
     }
     // std::cerr << h[0] << "\t" << h[1] << "\t" << h[2] << "\t" << std::endl;
@@ -369,7 +378,7 @@ void DipoleHamiltonianEwald::calculate_fields(jblib::Array<double, 2>& fields) {
 
     calculate_nonlocal_ewald_field();
     for (int i = 0; i < globals::num_spins; ++i) {
-        pos = ::lattice.super_cell_pos(i);
+        pos = ::lattice->super_cell_pos(i);
         for (int j = 0; j < 3; ++j) {
             fields(i, j) += h_nonlocal_(pos.x, pos.y, pos.z, j);
         }
@@ -412,7 +421,7 @@ void DipoleHamiltonianEwald::calculate_surface_ewald_field(const int i, double h
         h[m] = 0.0;
     }
 
-    const double factor = (kBohrMagneton*kBohrMagneton*kTwoPi)/((2.0*surf_elec_ + 1.0)*lattice.volume());
+    const double factor = (kBohrMagneton*kBohrMagneton*kTwoPi)/((2.0*surf_elec_ + 1.0)*lattice->volume());
     for (int j = 0; j < globals::num_spins; ++j) {
         for (int n = 0; n < 3; ++n) {
             h[n] += factor*globals::s(j, n)*globals::mus(j);
@@ -456,7 +465,7 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
     // }
 
     for (int i = 0; i < globals::num_spins; ++i) {
-         pos = ::lattice.super_cell_pos(i);
+         pos = ::lattice->super_cell_pos(i);
          for (int m = 0; m < 3; ++m) {
             s_nonlocal_(pos.x, pos.y, pos.z, m) = globals::s(i, m);
         }

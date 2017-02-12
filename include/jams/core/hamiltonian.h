@@ -3,11 +3,13 @@
 #ifndef JAMS_CORE_HAMILTONIAN_H
 #define JAMS_CORE_HAMILTONIAN_H
 
-#include <string>
+#include <iosfwd>
+#include <cassert>
 
 #include "jblib/containers/array.h"
 
 #ifdef CUDA
+#include <cuda_runtime_api.h>
 #include "jblib/containers/cuda_array.h"
 #endif  // CUDA
 

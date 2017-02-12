@@ -3,6 +3,7 @@
 #ifndef JAMS_CORE_STATS_H
 #define JAMS_CORE_STATS_H
 
+#include <cstddef>
 #include <cmath>
 #include <cassert>
 #include <algorithm>

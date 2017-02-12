@@ -3,8 +3,11 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_H
 #define JAMS_HAMILTONIAN_DIPOLE_H
 
+#include <iosfwd>
+
 #include <libconfig.h++>
 
+#include "jams/core/types.h"
 #include "jams/core/output.h"
 #include "jams/core/hamiltonian.h"
 

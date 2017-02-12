@@ -1,15 +1,19 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#include <cstddef>
+#include <string>
+
+#include <libconfig.h++>
+
 #include "jams/core/physics.h"
 
 #include "jblib/containers/vec.h"
 
-#include <libconfig.h++>
 
 #include "jams/core/globals.h"
-#include "jams/core/monitor.h"
 #include "jams/core/utils.h"
-
+#include "jams/core/error.h"
+#include "jams/core/lattice.h"
 #include "jams/physics/empty.h"
 #include "jams/physics/fieldcool.h"
 #include "jams/physics/fmr.h"
@@ -61,7 +65,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
     radius = state_settings["radius"];
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      jblib::Vec3<double> pos = (lattice.atom_position(i)-origin);
+      jblib::Vec3<double> pos = (lattice->atom_position(i)-origin);
 
       if (pos.x*pos.x + pos.y*pos.y < radius*radius) {
         globals::s(i,2) = -globals::s(i,2);

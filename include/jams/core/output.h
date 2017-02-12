@@ -6,8 +6,6 @@ class Output;
 #define JAMS_CORE_OUTPUT_H
 
 #include <fstream>
-#include <iostream>
-#include <string>
 
 enum OutputFormat {TEXT, HDF5};
 

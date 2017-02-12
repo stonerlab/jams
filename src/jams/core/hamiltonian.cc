@@ -2,6 +2,9 @@
 
 #include <string>
 
+#include <libconfig.h++>
+
+#include "jams/core/error.h"
 #include "jams/core/globals.h"
 #include "jams/core/utils.h"
 #include "jams/core/hamiltonian.h"
@@ -14,7 +17,7 @@
 
 Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
     // debugging output
-    ::output.write("\ncreating '%s' hamiltonian\n", settings["module"].c_str());
+    ::output->write("\ncreating '%s' hamiltonian\n", settings["module"].c_str());
 
     if (capitalize(settings["module"]) == "EXCHANGE") {
         return new ExchangeHamiltonian(settings);
@@ -38,5 +41,5 @@ Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
 
     // throw error if the hamiltonian name is no known
     jams_error("Unknown hamiltonian name specified '%s'", settings["module"].c_str());
-    return NULL;
+    return nullptr;
 }

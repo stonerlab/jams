@@ -1,20 +1,25 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#include <cstdlib>
 #include <cmath>
 #include <string>
-#include <iomanip>
 #include <algorithm>
 #include <numeric>
 
 #include <fftw3.h>
 
+#include "jams/core/error.h"
+#include "jams/core/output.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/consts.h"
 #include "jams/core/field.h"
 #include "jams/core/fft.h"
-
 #include "jams/monitors/structurefactor.h"
+
+#include "jblib/containers/array.h"
+
+class Solver;
 
 // We can't guarenttee that FFT methods are being used by the integrator, so we implement all of the FFT
 // with the monitor. This may mean performing the FFT twice, but presumably the structure factor is being
@@ -23,21 +28,21 @@
 StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  ::output.write("\nInitialising Structure Factor monitor...\n");
+  ::output->write("\nInitialising Structure Factor monitor...\n");
 
   time_point_counter_ = 0;
 
   // create transform arrays for example to apply a Holstein Primakoff transform
   s_transform.resize(num_spins, 3);
 
-  libconfig::Setting& material_settings = ::config.lookup("materials");
+  libconfig::Setting& material_settings = ::config->lookup("materials");
   for (int i = 0; i < num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
-      s_transform(i,n) = material_settings[::lattice.atom_material(i)]["transform"][n];
+      s_transform(i,n) = material_settings[::lattice->atom_material(i)]["transform"][n];
     }
   }
 
-  libconfig::Setting& sim_settings = ::config.lookup("sim");
+  libconfig::Setting& sim_settings = ::config->lookup("sim");
 
   double t_step = sim_settings["t_step"];
   double t_run = sim_settings["t_run"];
@@ -47,13 +52,13 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   double freq_max    = 1.0/(2.0*t_sample);
          freq_delta  = 1.0/(num_samples*t_sample);
 
-  ::output.write("\n");
-  ::output.write("  number of samples:          %d\n", num_samples);
-  ::output.write("  sampling time (s):          %e\n", t_sample);
-  ::output.write("  acquisition time (s):       %e\n", t_sample * num_samples);
-  ::output.write("  frequency resolution (THz): %f\n", freq_delta/kTHz);
-  ::output.write("  maximum frequency (THz):    %f\n", freq_max/kTHz);
-  ::output.write("\n");
+  ::output->write("\n");
+  ::output->write("  number of samples:          %d\n", num_samples);
+  ::output->write("  sampling time (s):          %e\n", t_sample);
+  ::output->write("  acquisition time (s):       %e\n", t_sample * num_samples);
+  ::output->write("  frequency resolution (THz): %f\n", freq_delta/kTHz);
+  ::output->write("  maximum frequency (THz):    %f\n", freq_max/kTHz);
+  ::output->write("\n");
 
   // ------------------------------------------------------------------
   // construct Brillouin zone sample points from the nodes specified
@@ -80,13 +85,13 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     jblib::Vec3<double> bz_vec;
 
     for (int i = 0; i < 3; ++i) {
-      bz_vec = bz_vec + lattice.unit_cell_vector(i) * bz_cfg_points.back()[i];
+      bz_vec = bz_vec + ::lattice->unit_cell_vector(i) * bz_cfg_points.back()[i];
     }
 
-    bz_vec = lattice.cartesian_to_fractional(bz_vec);
+    bz_vec = ::lattice->cartesian_to_fractional(bz_vec);
 
     for (int i = 0; i < 3; ++i) {
-      bz_vec[i] = bz_vec[i] * (lattice.kspace_size()[i]/2);
+      bz_vec[i] = bz_vec[i] * (::lattice->kspace_size()[i]/2);
     }
 
     bz_nodes.push_back({int(bz_vec.x), int(bz_vec.y), int(bz_vec.z)});
@@ -98,10 +103,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
-      if (int(bz_nodes[n][i]) > (lattice.kspace_size()[i]/2)) {
+      if (int(bz_nodes[n][i]) > (::lattice->kspace_size()[i]/2)) {
         jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n][0]), int(bz_nodes[n][1]), int(bz_nodes[n][2]));
       }
-      if (int(bz_nodes[n+1][i]) > (lattice.kspace_size()[i]/2)) {
+      if (int(bz_nodes[n+1][i]) > (::lattice->kspace_size()[i]/2)) {
         jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n+1][0]), int(bz_nodes[n+1][1]), int(bz_nodes[n+1][2]));
       }
     }
@@ -110,7 +115,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     for (int i = 0; i < 3; ++i) {
       bz_line[i] = int(bz_nodes[n+1][i]) - int(bz_nodes[n][i]);
     }
-    ::output.verbose("  bz line: [ %4d %4d %4d ]\n", bz_line.x, bz_line.y, bz_line.z);
+    ::output->verbose("  bz line: [ %4d %4d %4d ]\n", bz_line.x, bz_line.y, bz_line.z);
 
     // normalised vector
     for (int i = 0; i < 3; ++i) {
@@ -119,7 +124,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     // the number of points is the max dimension in line
     const int bz_line_points = 1+abs(*std::max_element(bz_line.begin(), bz_line.end(), [] (int a, int b) { return (abs(a) < abs(b)); }));
-    ::output.verbose("  bz line points: %d\n", bz_line_points);
+    ::output->verbose("  bz line points: %d\n", bz_line_points);
 
     // store the length element between these points
     for (int j = 0; j < bz_line_points; ++j) {
@@ -139,15 +144,15 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
       bz_lengths.push_back(abs(bz_line_element));
 
       bz_points.push_back(bz_point);
-      ::output.verbose("  bz point: %6d %6.6f [ %4d %4d %4d ]\n", bz_point_counter, bz_lengths.back(), bz_points.back().x, bz_points.back().y, bz_points.back().z);
+      ::output->verbose("  bz point: %6d %6.6f [ %4d %4d %4d ]\n", bz_point_counter, bz_lengths.back(), bz_points.back().x, bz_points.back().y, bz_points.back().z);
       bz_point_counter++;
     }
   }
 
 
-  sqw_x.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
-  sqw_y.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
-  sqw_z.resize(lattice.num_unit_cell_positions(), num_samples, bz_points.size());
+  sqw_x.resize(::lattice->num_unit_cell_positions(), num_samples, bz_points.size());
+  sqw_y.resize(::lattice->num_unit_cell_positions(), num_samples, bz_points.size());
+  sqw_z.resize(::lattice->num_unit_cell_positions(), num_samples, bz_points.size());
 
   k0.resize(num_samples);
   kneq0.resize(num_samples);
@@ -174,12 +179,12 @@ void StructureFactorMonitor::update(Solver * solver) {
   fft_vector_field(s_trans, sq_x, sq_y, sq_z);
 
   // add the Sq to the timeseries
-  for (int n = 0; n < lattice.num_unit_cell_positions(); ++n) {
+  for (int n = 0; n < ::lattice->num_unit_cell_positions(); ++n) {
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
       jblib::Vec3<int> q = bz_points[i];
       for (int j = 0; j < 3; ++j) {
         if (q[j] < 0) {
-          int nk = lattice.kspace_size()[j];
+          int nk = ::lattice->kspace_size()[j];
           q[j] = (nk + q[j]);
         }
       }
@@ -246,7 +251,7 @@ void StructureFactorMonitor::fft_time() {
   fftw_plan fft_plan_time_y = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_y.data(),inembed,istride,idist,fft_sqw_y.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
   fftw_plan fft_plan_time_z = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_z.data(),inembed,istride,idist,fft_sqw_z.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
 
-  for (int unit_cell_atom = 0; unit_cell_atom < lattice.num_unit_cell_positions(); ++unit_cell_atom) {
+  for (int unit_cell_atom = 0; unit_cell_atom < ::lattice->num_unit_cell_positions(); ++unit_cell_atom) {
     for (int i = 0; i < time_points; ++i) {
       for (int j = 0; j < space_points; ++j) {
         fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j).real()*fft_window_default(i, time_points);

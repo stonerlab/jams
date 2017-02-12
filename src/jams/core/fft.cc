@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "jams/core/fft.h"
 #include "jams/core/consts.h"
 

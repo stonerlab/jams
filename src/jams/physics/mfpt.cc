@@ -4,10 +4,11 @@
 
 #include <libconfig.h++>
 
-#include <cmath>
 #include <string>
 
 #include "jams/core/globals.h"
+#include "jams/core/output.h"
+#include "jams/core/types.h"
 
 MFPTPhysics::MFPTPhysics(const libconfig::Setting &settings)
   : Physics(settings),
@@ -15,7 +16,7 @@ MFPTPhysics::MFPTPhysics(const libconfig::Setting &settings)
   MFPTFile() {
   using namespace globals;
 
-  output.write("  * MFPT physics module\n");
+  output->write("  * MFPT physics module\n");
 
   std::string fileName = "_mfpt.dat";
   fileName = seedname+fileName;

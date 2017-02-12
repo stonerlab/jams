@@ -5,12 +5,7 @@
 
 #include <libconfig.h++>
 
-#include <fstream>
-#include <vector>
-
 #include "jams/core/physics.h"
-
-#include "jblib/containers/array.h"
 
 class FlipsPhysics : public Physics {
  public:

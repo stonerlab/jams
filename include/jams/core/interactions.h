@@ -1,8 +1,10 @@
 #ifndef JAMS_CORE_INTERACTIONS_H
 #define JAMS_CORE_INTERACTIONS_H
 
-#include <string>
+#include <iosfwd>
 #include <vector>
+#include <tuple>
+#include <utility>
 #include <map>
 
 #include "jams/core/types.h"

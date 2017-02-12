@@ -1,6 +1,17 @@
+#include <cassert>
+#include <cstdio>
+#include <algorithm>
+#include <cmath>
+#include <complex>
+
+#include "jams/core/error.h"
+#include "jams/core/lattice.h"
 #include "jams/core/globals.h"
 #include "jams/core/consts.h"
 #include "jams/core/utils.h"
+
+#include "jblib/containers/array.h"
+#include "jblib/containers/matrix.h"
 
 #include "jams/hamiltonian/dipole_fft.h"
 
@@ -13,7 +24,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings)
   s_old_(globals::s) {
     printf("  FFT Method\n");
 
-    if (::lattice.num_materials() > 1) {
+    if (::lattice->num_materials() > 1) {
         jams_error("DipoleHamiltonianFFT only supports single species calculations at the moment");
     }
 
@@ -27,7 +38,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings)
     jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);
 
     for (int n = 0; n < 3; ++n) {
-        super_cell_dim[n] = 0.5*double(lattice.size(n));
+        super_cell_dim[n] = 0.5*double(lattice->size(n));
     }
 
     r_cutoff_ = *std::max_element(super_cell_dim.begin(), super_cell_dim.end());
@@ -42,17 +53,17 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings)
     }
     printf("    k_cutoff: %d\n", k_cutoff_);
 
-    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
+    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice->parameter(),3));
 
     for (int n = 0; n < 3; ++n) {
-        kspace_size_[n] = ::lattice.num_unit_cells(n);
+        kspace_size_[n] = ::lattice->num_unit_cells(n);
     }
 
     kspace_padded_size_ = kspace_size_;
 
     for (int n = 0; n < 3; ++n) {
-        if (!::lattice.is_periodic(n)) {
-            kspace_padded_size_[n] = 2*::lattice.num_unit_cells(n);
+        if (!::lattice->is_periodic(n)) {
+            kspace_padded_size_[n] = 2*::lattice->num_unit_cells(n);
         }
     }
 
@@ -77,9 +88,9 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings)
                     }
                 }
                 r_ij = jblib::Vec3<double>(pos.x, pos.y, pos.z);
-                r_ij  = ::lattice.fractional_to_cartesian(r_ij);
+                r_ij  = ::lattice->fractional_to_cartesian(r_ij);
 
-                // r_ij = lattice.minimum_image(jblib::Vec3<double>(0, 0, 0), lattice.fractional_to_cartesian(pos));
+                // r_ij = ::lattice->minimum_image(jblib::Vec3<double>(0, 0, 0), ::lattice->fractional_to_cartesian(pos));
                 r_abs = abs(r_ij);
 
                 if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
@@ -160,7 +171,7 @@ double DipoleHamiltonianFFT::calculate_total_energy() {
 
     calculate_nonlocal_field();
     for (int i = 0; i < globals::num_spins; ++i) {
-        pos = ::lattice.super_cell_pos(i);
+        pos = ::lattice->super_cell_pos(i);
        e_total += -(globals::s(i,0)*h_nonlocal_(pos.x, pos.y, pos.z, 0)
                      + globals::s(i,1)*h_nonlocal_(pos.x, pos.y, pos.z, 1)
                      + globals::s(i,2)*h_nonlocal_(pos.x, pos.y, pos.z, 2))*globals::mus(i);
@@ -196,7 +207,7 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
 
     calculate_nonlocal_field();
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice.super_cell_pos(i);
+        pos = ::lattice->super_cell_pos(i);
         h[m] += h_nonlocal_(pos.x, pos.y, pos.z, m);
     }
 
@@ -223,7 +234,7 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
 
     calculate_nonlocal_field();
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice.super_cell_pos(i);
+        pos = ::lattice->super_cell_pos(i);
         h[m] += h_nonlocal_(pos.x, pos.y, pos.z, m);
     }
 }
@@ -252,7 +263,7 @@ void DipoleHamiltonianFFT::calculate_nonlocal_field() {
     }
 
     for (int i = 0; i < globals::num_spins; ++i) {
-         pos = ::lattice.super_cell_pos(i);
+         pos = ::lattice->super_cell_pos(i);
          for (int m = 0; m < 3; ++m) {
             s_nonlocal_(pos.x, pos.y, pos.z, m) = globals::s(i, m);
         }

@@ -4,11 +4,15 @@
 #define JAMS_MONITOR_SKYRMION_H
 
 #include <fstream>
+#include <vector>
 
+#include <libconfig.h++>
+
+#include "jams/core/types.h"
 #include "jams/core/monitor.h"
-#include "jams/core/runningstat.h"
 
 #include "jblib/containers/array.h"
+#include "jblib/containers/vec.h"
 
 class SkyrmionMonitor : public Monitor {
  public:

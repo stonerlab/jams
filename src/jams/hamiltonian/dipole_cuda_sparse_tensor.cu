@@ -1,12 +1,16 @@
 #include <cmath>
 
+#include <libconfig.h++>
+
 #include "jams/core/blas.h"
 #include "jams/core/cuda_defs.h"
 #include "jams/core/cuda_array_kernels.h"
-
+#include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/consts.h"
 #include "jams/core/utils.h"
+#include "jams/core/output.h"
+#include "jams/core/lattice.h"
 
 #include "jams/hamiltonian/dipole_cuda_sparse_tensor.h"
 
@@ -18,7 +22,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
     double r_abs;
     jblib::Vec3<double> r_ij, r_hat, s_j;
 
-    output.write("  strategy: cuda_sparse_tensor\n");
+    output->write("  strategy: cuda_sparse_tensor\n");
 
     r_cutoff_ = settings["r_cutoff"];
 
@@ -32,11 +36,11 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
     }
     
-    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
+    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice->parameter(),3));
 
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
-    output.write("    precalculating number of interactions\n");
+    output->write("    precalculating number of interactions\n");
     unsigned int interaction_count = 0;
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
@@ -49,7 +53,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
 
             if (j == i) continue;
 
-            auto r_ij = lattice.displacement(i, j);
+            auto r_ij = lattice->displacement(i, j);
 
             r_abs = abs(r_ij);
 
@@ -61,12 +65,12 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
       }
     }
 
-    output.write("    interaction count: %d\n", interaction_count);
+    output->write("    interaction count: %d\n", interaction_count);
 
-    output.write("    reserving memory for sparse matrix: %f MB\n", 9*interaction_count*(sizeof(uint64_t)+sizeof(float))/(1024.0*1024.0));
+    output->write("    reserving memory for sparse matrix: %f MB\n", 9*interaction_count*(sizeof(uint64_t)+sizeof(float))/(1024.0*1024.0));
     interaction_matrix_.reserveMemory(9*interaction_count); // 9 elements in tensor
 
-    output.write("    inserting tensor elements\n");
+    output->write("    inserting tensor elements\n");
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
 
@@ -78,7 +82,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
 
             if (j == i) continue;
 
-            auto r_ij = lattice.displacement(i, j);
+            auto r_ij = lattice->displacement(i, j);
 
             r_abs = abs(r_ij);
 
@@ -98,10 +102,10 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
     }
 
 
-    ::output.write("    dipole matrix memory (MAP): %f MB\n", interaction_matrix_.calculateMemory());
-    ::output.write("    converting interaction matrix format from MAP to CSR\n");
+    ::output->write("    dipole matrix memory (MAP): %f MB\n", interaction_matrix_.calculateMemory());
+    ::output->write("    converting interaction matrix format from MAP to CSR\n");
     interaction_matrix_.convertMAP2CSR();
-    ::output.write("    dipole matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
+    ::output->write("    dipole matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
 
     // set up things on the device
     if (solver->is_cuda_solver()) { 
@@ -110,7 +114,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
         cusparseStatus_t cusparse_return_status;
 
 
-        ::output.write("    initialising CUSPARSE\n");
+        ::output->write("    initialising CUSPARSE\n");
         cusparse_return_status = cusparseCreate(&cusparse_handle_);
         if (cusparse_return_status != CUSPARSE_STATUS_SUCCESS) {
           jams_error("CUSPARSE Library initialization failed");
@@ -133,29 +137,29 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
         cusparseSetMatIndexBase(cusparse_descra_, CUSPARSE_INDEX_BASE_ZERO);
 
         // row
-        ::output.write("    allocating csr row on device\n");
+        ::output->write("    allocating csr row on device\n");
         cuda_api_error_check(
           cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
         
-        ::output.write("    memcpy csr row to device\n");
+        ::output->write("    memcpy csr row to device\n");
         cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.row, interaction_matrix_.rowPtr(),
               (interaction_matrix_.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
 
         // col
-        ::output.write("    allocating csr col on device\n");
+        ::output->write("    allocating csr col on device\n");
         cuda_api_error_check(
           cudaMalloc((void**)&dev_csr_interaction_matrix_.col, (interaction_matrix_.nonZero())*sizeof(int)));
 
-        ::output.write("    memcpy csr col to device\n");
+        ::output->write("    memcpy csr col to device\n");
         cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.col, interaction_matrix_.colPtr(),
               (interaction_matrix_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
 
         // val
-        ::output.write("    allocating csr val on device\n");
+        ::output->write("    allocating csr val on device\n");
         cuda_api_error_check(
           cudaMalloc((void**)&dev_csr_interaction_matrix_.val, (interaction_matrix_.nonZero())*sizeof(float)));
 
-        ::output.write("    memcpy csr val to device\n");
+        ::output->write("    memcpy csr val to device\n");
         cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
               (interaction_matrix_.nonZero())*sizeof(float), cudaMemcpyHostToDevice));
 

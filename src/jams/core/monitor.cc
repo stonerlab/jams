@@ -2,8 +2,8 @@
 
 #include "jams/core/monitor.h"
 #include "jams/core/utils.h"
+#include "jams/core/error.h"
 #include "jams/core/globals.h"
-#include "jams/core/solver.h"
 #include "jams/monitors/magnetisation.h"
 #include "jams/monitors/magnetisation_rate.h"
 #include "jams/monitors/structurefactor.h"
@@ -30,9 +30,9 @@ Monitor::Monitor(const libconfig::Setting &settings)
 
   if (settings.exists("output_steps")) {
     output_step_freq_ = settings["output_steps"];
-    output.write("  output_steps: %d (s)\n", output_step_freq_);
+    output->write("  output_steps: %d (s)\n", output_step_freq_);
   } else {
-    ::output.write("  DEFAULT output_steps (100)\n");
+    ::output->write("  DEFAULT output_steps (100)\n");
     output_step_freq_ = 100; // DEFAULT
   }
 
@@ -40,16 +40,16 @@ Monitor::Monitor(const libconfig::Setting &settings)
     convergence_is_on_ = true;
 
     convergence_tolerance_ = settings["convergence"];
-    ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
+    ::output->write("  convergence tolerance: %f\n", convergence_tolerance_);
 
     if (settings.exists("t_burn")) {
       convergence_burn_time_ = settings["t_burn"];
     } else {
-      ::output.write("  DEFAULT t_burn (0.001*t_sim)\n");
-      convergence_burn_time_ = 0.001 * double(config.lookup("sim.t_sim"));     // DEFAULT
+      ::output->write("  DEFAULT t_burn (0.001*t_sim)\n");
+      convergence_burn_time_ = 0.001 * double(config->lookup("sim.t_sim"));     // DEFAULT
     }
 
-    ::output.write("  t_burn: %e (s)\n", convergence_burn_time_);
+    ::output->write("  t_burn: %e (s)\n", convergence_burn_time_);
   }
 
 

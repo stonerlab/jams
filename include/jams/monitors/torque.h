@@ -6,10 +6,13 @@
 #include <fstream>
 #include <array>
 
-#include "jams/core/monitor.h"
-#include "jams/core/stats.h"
+#include <libconfig.h++>
 
-#include "jblib/containers/vec.h"
+#include "jams/core/monitor.h"
+#include "jams/core/types.h"
+
+class Solver;
+class Stats;
 
 class TorqueMonitor : public Monitor {
  public:

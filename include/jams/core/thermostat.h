@@ -3,8 +3,9 @@
 #ifndef JAMS_CORE_THERMOSTAT_H
 #define JAMS_CORE_THERMOSTAT_H
 
-#include <string>
+#include <iosfwd>
 
+#include "jams/core/types.h"
 #include "jblib/containers/array.h"
 
 class Thermostat {

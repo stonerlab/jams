@@ -4,7 +4,7 @@
 #define JAMS_CORE_MONITOR_H
 
 #include <libconfig.h++>
-#include <string>
+#include <iosfwd>
 
 // forward declarations
 class Solver;

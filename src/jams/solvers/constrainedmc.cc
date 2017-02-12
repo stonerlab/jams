@@ -1,4 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
+#include <iomanip>
+
+#include <libconfig.h++>
 
 #include "jams/solvers/constrainedmc.h"
 
@@ -8,8 +11,9 @@
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/core/montecarlo.h"
+#include "jams/core/lattice.h"
+#include "jams/core/physics.h"
 
-#include <iomanip>
 
 ConstrainedMCSolver::~ConstrainedMCSolver() {
   if (outfile.is_open()) {
@@ -27,22 +31,22 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   move_acceptance_fraction_ = 0.234;
   move_sigma_ = 0.05;
 
-  output.write("\n----------------------------------------\n");
-  output.write("\nConstrained Monte-Carlo solver\n");
+  output->write("\n----------------------------------------\n");
+  output->write("\nConstrained Monte-Carlo solver\n");
 
-  libconfig::Setting &solver_settings = ::config.lookup("sim");
+  libconfig::Setting &solver_settings = ::config->lookup("sim");
 
   if (solver_settings.exists("sigma")) {
     move_sigma_ = solver_settings["sigma"];
   }
 
-  ::output.write("  move sigma\n    % 8.8f\n", move_sigma_);
+  ::output->write("  move sigma\n    % 8.8f\n", move_sigma_);
 
   constraint_theta_ = solver_settings["cmc_constraint_theta"];
   constraint_phi_   = solver_settings["cmc_constraint_phi"];
 
-  ::output.write("  constraint angle theta (deg)\n    % 8.8f\n", constraint_theta_);
-  ::output.write("  constraint angle phi (deg)\n    % 8.8f\n", constraint_phi_);
+  ::output->write("  constraint angle theta (deg)\n    % 8.8f\n", constraint_theta_);
+  ::output->write("  constraint angle phi (deg)\n    % 8.8f\n", constraint_phi_);
 
   const double c_t = cos(deg_to_rad(constraint_theta_));
   const double c_p = cos(deg_to_rad(constraint_phi_));
@@ -53,7 +57,7 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   constraint_vector_.y = s_t*s_p;
   constraint_vector_.z = c_t;
 
-  ::output.write("  constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
+  ::output->write("  constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
 
   // calculate rotation matrix for rotating m -> mz
   jblib::Matrix<double, 3, 3> r_y;
@@ -71,25 +75,25 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   inverse_rotation_matrix_ = r_y*r_z;
   rotation_matrix_ = inverse_rotation_matrix_.transpose();
 
-  ::output.verbose("  Rot_y matrix\n");
-  ::output.verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_y[0][0], r_y[0][1], r_y[0][2]);
-  ::output.verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_y[1][0], r_y[1][1], r_y[1][2]);
-  ::output.verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_y[2][0], r_y[2][1], r_y[2][2]);
+  ::output->verbose("  Rot_y matrix\n");
+  ::output->verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_y[0][0], r_y[0][1], r_y[0][2]);
+  ::output->verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_y[1][0], r_y[1][1], r_y[1][2]);
+  ::output->verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_y[2][0], r_y[2][1], r_y[2][2]);
 
-  ::output.verbose("  Rot_z matrix\n");
-  ::output.verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_z[0][0], r_z[0][1], r_z[0][2]);
-  ::output.verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_z[1][0], r_z[1][1], r_z[1][2]);
-  ::output.verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_z[2][0], r_z[2][1], r_z[2][2]);
+  ::output->verbose("  Rot_z matrix\n");
+  ::output->verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_z[0][0], r_z[0][1], r_z[0][2]);
+  ::output->verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_z[1][0], r_z[1][1], r_z[1][2]);
+  ::output->verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_z[2][0], r_z[2][1], r_z[2][2]);
 
-  ::output.write("  rotation matrix m -> mz\n");
-  ::output.write("    % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[0][0], rotation_matrix_[0][1], rotation_matrix_[0][2]);
-  ::output.write("    % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[1][0], rotation_matrix_[1][1], rotation_matrix_[1][2]);
-  ::output.write("    % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[2][0], rotation_matrix_[2][1], rotation_matrix_[2][2]);
+  ::output->write("  rotation matrix m -> mz\n");
+  ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[0][0], rotation_matrix_[0][1], rotation_matrix_[0][2]);
+  ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[1][0], rotation_matrix_[1][1], rotation_matrix_[1][2]);
+  ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[2][0], rotation_matrix_[2][1], rotation_matrix_[2][2]);
 
-  ::output.write("  inverse rotation matrix mz -> m\n");
-  ::output.write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[0][0], inverse_rotation_matrix_[0][1], inverse_rotation_matrix_[0][2]);
-  ::output.write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
-  ::output.write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
+  ::output->write("  inverse rotation matrix mz -> m\n");
+  ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[0][0], inverse_rotation_matrix_[0][1], inverse_rotation_matrix_[0][2]);
+  ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
+  ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
 
 
   // --- sanity check
@@ -97,9 +101,9 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   jblib::Vec3<double> test_forward_vec = rotation_matrix_*test_unit_vec;
   jblib::Vec3<double> test_back_vec    = inverse_rotation_matrix_*test_forward_vec;
 
-  ::output.verbose("  rotation sanity check\n");
-  ::output.verbose("    rotate\n      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
-  ::output.verbose("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
+  ::output->verbose("  rotation sanity check\n");
+  ::output->verbose("    rotate\n      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
+  ::output->verbose("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
 
   for (int n = 0; n < 3; ++n) {
     if (!floats_are_equal(test_unit_vec[n], test_back_vec[n])) {
@@ -118,10 +122,10 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     }
   }
 
-  libconfig::Setting& material_settings = ::config.lookup("materials");
+  libconfig::Setting& material_settings = ::config->lookup("materials");
   for (int i = 0; i < num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
-      s_transform_(i)[n][n] = material_settings[::lattice.atom_material(i)]["transform"][n];
+      s_transform_(i)[n][n] = material_settings[::lattice->atom_material(i)]["transform"][n];
     }
   }
 
@@ -130,7 +134,7 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
 void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
   jblib::Vec3<double> rvec;
-  rng.sphere(rvec.x, rvec.y, rvec.z);
+  rng->sphere(rvec.x, rvec.y, rvec.z);
   spin += rvec*move_sigma;
   spin /= abs(spin);
 }
@@ -225,10 +229,10 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
   for (int i = 0; i < globals::num_spins/2; ++i) {
 
     // randomly get two spins s1 != s2
-    rand_s1 = rng.uniform_discrete(0, globals::num_spins-1);
+    rand_s1 = rng->uniform_discrete(0, globals::num_spins-1);
     rand_s2 = rand_s1;
     while (rand_s2 == rand_s1) {
-      rand_s2 = rng.uniform_discrete(0, globals::num_spins-1);
+      rand_s2 = rng->uniform_discrete(0, globals::num_spins-1);
     }
 
     s1_transform = s_transform_(rand_s1);
@@ -303,7 +307,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
     probability = exp(-delta_energy21*beta)*(pow(mz_new/mz_old, 2))*abs(s2_initial_rotated.z/s2_final_rotated.z);
 
-    if (probability < rng.uniform()) {
+    if (probability < rng->uniform()) {
       // move fails to overcome Boltzmann factor - revert s1, reject move
       mc_set_spin_as_vec(rand_s1, s1_initial);
       continue;

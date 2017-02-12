@@ -3,9 +3,16 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_EWALD_H
 #define JAMS_HAMILTONIAN_DIPOLE_EWALD_H
 
-#include "jams/hamiltonian/strategy.h"
+#include <cmath>
+
+#include <fftw3.h>
+#include <libconfig.h++>
+
 #include "jams/core/consts.h"
-#include "jams/core/maths.h"
+#include "jams/core/sparsematrix.h"
+#include "jams/hamiltonian/strategy.h"
+#include "jblib/containers/array.h"
+#include "jblib/containers/vec.h"
 
 
 class DipoleHamiltonianEwald : public HamiltonianStrategy {

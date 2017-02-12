@@ -2,6 +2,8 @@
 #define JAMS_CORE_MONTECARLO_H
 
 #include "jams/core/consts.h"
+#include "jams/core/rand.h"
+#include "jblib/containers/vec.h"
 
 // Trial steps as defined in Hinzke Comput. Phys. Commun. 1999
 // RTS
@@ -11,7 +13,7 @@ inline jblib::Vec3<double> mc_reflection_trial_step(jblib::Vec3<double> spin) {
 
 // UTS
 inline jblib::Vec3<double> mc_uniform_trial_step(jblib::Vec3<double> spin) {
-    rng.sphere(spin.x, spin.y, spin.z);
+    rng->sphere(spin.x, spin.y, spin.z);
     return spin;
 }
 
@@ -23,7 +25,7 @@ inline jblib::Vec3<double> mc_small_trial_step(jblib::Vec3<double> spin) {
 
 // 90deg rotation with random inplane angle PTS
 inline jblib::Vec3<double> mc_perpendicular_trial_step(jblib::Vec3<double> spin) {
-    const double phi = rng.uniform()*kTwoPi;
+    const double phi = rng->uniform()*kTwoPi;
     return jblib::Vec3<double>(spin.z, sin(phi)*spin.x + cos(phi)*spin.y, -cos(phi)*spin.x + sin(phi)*spin.y);
 }
 

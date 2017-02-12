@@ -3,6 +3,9 @@
 #include "jams/core/maths.h"
 #include "jams/core/consts.h"
 #include "jams/core/cuda_defs.h"
+#include "jams/core/solver.h"
+#include "jams/core/lattice.h"
+#include "jams/core/error.h"
 
 #include "jams/hamiltonian/zeeman.h"
 #include "jams/hamiltonian/zeeman_kernel.h"
@@ -10,7 +13,7 @@
 ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings)
 {
-    ::output.write("initialising Zeeman Hamiltonian\n");
+    ::output->write("initialising Zeeman Hamiltonian\n");
     // output in default format for now
     outformat_ = TEXT;
 
@@ -32,21 +35,21 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 
 
     if(settings.exists("dc_local_field")) {
-        if (settings["dc_local_field"].getLength() != lattice.num_materials()) {
+        if (settings["dc_local_field"].getLength() != lattice->num_materials()) {
             jams_error("ZeemanHamiltonian: dc_local_field must be specified for every material");
         }
 
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                dc_local_field_(i, j) = settings["dc_local_field"][lattice.atom_material(i)][j];
+                dc_local_field_(i, j) = settings["dc_local_field"][lattice->atom_material(i)][j];
                 dc_local_field_(i, j) *= globals::mus(i);
             }
         }
     }
 
     if(settings.exists("ac_local")) {
-        if (settings["ac_local"].getLength() != lattice.num_materials()) {
+        if (settings["ac_local"].getLength() != lattice->num_materials()) {
             jams_error("ZeemanHamiltonian: ac_local must be specified for every material");
         }
     }
@@ -56,10 +59,10 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
         if(!(settings.exists("ac_local_field") && settings.exists("ac_local_frequency"))) {
             jams_error("ZeemanHamiltonian: ac_local must have a field and a frequency");
         }
-        if (settings["ac_local_frequency"].getLength() != lattice.num_materials()) {
+        if (settings["ac_local_frequency"].getLength() != lattice->num_materials()) {
             jams_error("ZeemanHamiltonian: ac_local_frequency must be specified for every material");
         }
-        if (settings["ac_local_field"].getLength() != lattice.num_materials()) {
+        if (settings["ac_local_field"].getLength() != lattice->num_materials()) {
             jams_error("ZeemanHamiltonian: ac_local_field must be specified for every material");
         }
 
@@ -67,13 +70,13 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                ac_local_field_(i, j) = settings["ac_local_field"][lattice.atom_material(i)][j];
+                ac_local_field_(i, j) = settings["ac_local_field"][lattice->atom_material(i)][j];
                 ac_local_field_(i, j) *= globals::mus(i);
             }
         }
 
         for (int i = 0; i < globals::num_spins; ++i) {
-            ac_local_frequency_(i) = settings["ac_local_frequency"][lattice.atom_material(i)];
+            ac_local_frequency_(i) = settings["ac_local_frequency"][lattice->atom_material(i)];
             ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i);
         }
     }

@@ -7,6 +7,9 @@
 #include "jams/core/consts.h"
 
 #include "jams/core/globals.h"
+#include "jams/core/output.h"
+#include "jams/core/physics.h"
+#include "jams/core/rand.h"
 
 #ifdef MKL
 #include <mkl_spblas.h>
@@ -19,9 +22,9 @@ void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
   // initialize base class
   Solver::initialize(argc, argv, idt);
 
-  ::output.write("Initialising Heun LLG solver (CPU)\n");
+  ::output->write("Initialising Heun LLG solver (CPU)\n");
 
-  ::output.write("\ninitialising base solver class\n");
+  ::output->write("\ninitialising base solver class\n");
 
   snew.resize(num_spins, 3);
   sigma.resize(num_spins);
@@ -46,7 +49,7 @@ void HeunLLGSolver::run() {
     const double stmp = sqrt(physics_module_->temperature());
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
-        w(i, j) = (rng.normal())*sigma(i)*stmp*mus(i)*gyro(i); // MOVE THESE INTO SIGMA
+        w(i, j) = (rng->normal())*sigma(i)*stmp*mus(i)*gyro(i); // MOVE THESE INTO SIGMA
       }
     }
   }

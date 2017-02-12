@@ -1,5 +1,12 @@
+#include <cassert>
 #include <cmath>
+#include <cstdio>
+#include <algorithm>
 
+#include "jams/core/lattice.h"
+#include "jams/core/output.h"
+#include "jblib/containers/matrix.h"
+#include "jblib/containers/vec.h"
 #include "jams/core/blas.h"
 #include "jams/core/globals.h"
 #include "jams/core/consts.h"
@@ -18,7 +25,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
     jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);
 
     for (int n = 0; n < 3; ++n) {
-        super_cell_dim[n] = 0.5*double(lattice.size(n));
+        super_cell_dim[n] = 0.5*double(lattice->size(n));
     }
 
     r_cutoff_ = *std::max_element(super_cell_dim.begin(), super_cell_dim.end());
@@ -31,19 +38,19 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
     // printf("  super cell max extent (cartesian):\n    %f %f %f\n", super_cell_dim[0], super_cell_dim[1], super_cell_dim[2]);
 
     for (int n = 0; n < 3; ++n) {
-        if (lattice.is_periodic(n)) {
+        if (lattice->is_periodic(n)) {
             L_max[n] = ceil(r_cutoff_/super_cell_dim[n]);
         }
     }
 
     printf("  image vector max extent (fractional):\n    %d %d %d\n", L_max[0], L_max[1], L_max[2]);
 
-    output.write("  dipole tensor memory estimate (MB):\n    %f\n", std::pow(double(globals::num_spins*3), 2)*8/double(1024*1024) );
+    output->write("  dipole tensor memory estimate (MB):\n    %f\n", std::pow(double(globals::num_spins*3), 2)*8/double(1024*1024) );
 
     dipole_tensor_ = jblib::Array<double,2>(globals::num_spins3, globals::num_spins3);
     dipole_tensor_.zero();
 
-    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
+    const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice->parameter(),3));
 
 
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
@@ -60,7 +67,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
                     for (int Lz = -L_max[2]; Lz < L_max[2]+1; ++Lz) {
                         jblib::Vec3<int> image_vector(Lx, Ly, Lz);
 
-                        r_ij  = lattice.generate_image_position(lattice.atom_position(j), image_vector) - lattice.atom_position(i);
+                        r_ij  = lattice->generate_image_position(lattice->atom_position(j), image_vector) - lattice->atom_position(i);
 
                         r_abs = abs(r_ij);
 

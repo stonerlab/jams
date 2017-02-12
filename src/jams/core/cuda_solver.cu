@@ -29,9 +29,9 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 
   Solver::initialize(argc, argv, idt);
 
-  ::output.write("\ninitializing CUDA base solver\n");
+  ::output->write("\ninitializing CUDA base solver\n");
 
-  ::output.write("  initialising CUDA streams\n");
+  ::output->write("  initialising CUDA streams\n");
 
   is_cuda_solver_ = true;
 
@@ -43,7 +43,7 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
 // Transfer the the other arrays to the device
 //-----------------------------------------------------------------------------
 
-  ::output.write("  transfering array data to device\n");
+  ::output->write("  transfering array data to device\n");
   jblib::Array<double, 2> zero(num_spins, 3, 0.0);
 
   // spin arrays
@@ -61,7 +61,7 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
   dev_alpha_     = jblib::CudaArray<double, 1>(alpha);
 
 
-  ::output.write("\n");
+  ::output->write("\n");
 }
 
 void CudaSolver::run() {

@@ -5,10 +5,12 @@
 
 #include <fstream>
 
-#include "jams/core/monitor.h"
-#include "jams/core/stats.h"
+#include <libconfig.h++>
 
-#include "jblib/containers/array.h"
+#include "jams/core/monitor.h"
+#include "jams/core/types.h"
+
+class Solver;
 
 class SMRMonitor : public Monitor {
  public:

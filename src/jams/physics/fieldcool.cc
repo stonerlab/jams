@@ -4,10 +4,9 @@
 
 #include <libconfig.h++>
 
-#include <cmath>
-#include <iomanip>
-
 #include "jams/core/globals.h"
+#include "jams/core/output.h"
+#include "jblib/containers/vec.h"
 
 FieldCoolPhysics::FieldCoolPhysics(const libconfig::Setting &settings)
   : Physics(settings),
@@ -26,12 +25,12 @@ FieldCoolPhysics::FieldCoolPhysics(const libconfig::Setting &settings)
   initialized(false) {
   using namespace globals;
 
-  output.write("  * Field cooled physics module\n");
+  output->write("  * Field cooled physics module\n");
 
   initTemp = settings["InitialTemperature"];
   finalTemp = settings["FinalTemperature"];
 
-  integration_time_step_ = ::config.lookup("sim.t_step");
+  integration_time_step_ = ::config->lookup("sim.t_step");
 
   for (int i = 0; i < 3; ++i) {
     initField[i] = settings["InitialField"][i];
@@ -51,7 +50,7 @@ FieldCoolPhysics::FieldCoolPhysics(const libconfig::Setting &settings)
         deltaH[i] = (initField[i]-finalField[i])/TSteps;
     }
     t_step = coolTime/TSteps;
-    t_eq = config.lookup("sim.t_eq");
+    t_eq = config->lookup("sim.t_eq");
     stepToggle = true;
   } else {
     stepToggle = false;

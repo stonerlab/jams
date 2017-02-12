@@ -5,6 +5,9 @@
 
 #include <fstream>
 
+#include <libconfig.h++>
+
+#include "jams/core/types.h"
 #include "jams/core/monitor.h"
 #include "jams/core/stats.h"
 

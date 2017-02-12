@@ -3,15 +3,22 @@
 #include <cmath>
 #include <string>
 #include <iomanip>
+#include <algorithm>
 
+#include "jams/core/output.h"
+#include "jams/core/physics.h"
+#include "jams/core/solver.h"
+#include "jams/core/maths.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 
 #include "jams/monitors/magnetisation.h"
 
+#include "jblib/containers/vec.h"
+
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  mag(::lattice.num_materials(), 4),
+  mag(::lattice->num_materials(), 4),
   s_transform_(globals::num_spins, 3),
   outfile(),
   m_stats_(),
@@ -19,15 +26,15 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   m4_stats_()
 {
   using namespace globals;
-  ::output.write("\ninitialising Magnetisation monitor\n");
+  ::output->write("\ninitialising Magnetisation monitor\n");
 
   // create transform arrays for example to apply a Holstein Primakoff transform
   s_transform_.resize(num_spins, 3);
 
-  libconfig::Setting& material_settings = ::config.lookup("materials");
+  libconfig::Setting& material_settings = ::config->lookup("materials");
   for (int i = 0; i < num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
-      s_transform_(i,n) = material_settings[::lattice.atom_material(i)]["transform"][n];
+      s_transform_(i,n) = material_settings[::lattice->atom_material(i)]["transform"][n];
     }
   }
 
@@ -42,11 +49,11 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   outfile << std::setw(12) << "Hy" << "\t";
   outfile << std::setw(12) << "Hz" << "\t";
 
-  for (int i = 0; i < lattice.num_materials(); ++i) {
-    outfile << std::setw(12) << lattice.material_name(i) + ":mx" << "\t";
-    outfile << std::setw(12) << lattice.material_name(i) + ":my" << "\t";
-    outfile << std::setw(12) << lattice.material_name(i) + ":mz" << "\t";
-    outfile << std::setw(12) << lattice.material_name(i) + ":m" << "\t";
+  for (int i = 0; i < lattice->num_materials(); ++i) {
+    outfile << std::setw(12) << lattice->material_name(i) + ":mx" << "\t";
+    outfile << std::setw(12) << lattice->material_name(i) + ":my" << "\t";
+    outfile << std::setw(12) << lattice->material_name(i) + ":mz" << "\t";
+    outfile << std::setw(12) << lattice->material_name(i) + ":m" << "\t";
   }
 
   outfile << std::setw(12) << "m2" << "\t";
@@ -69,19 +76,19 @@ void MagnetisationMonitor::update(Solver * solver) {
     mag.zero();
 
     for (i = 0; i < num_spins; ++i) {
-      int type = lattice.atom_material(i);
+      int type = lattice->atom_material(i);
       for (j = 0; j < 3; ++j) {
         mag(type, j) += s(i, j);
       }
     }
 
-    for (i = 0; i < lattice.num_materials(); ++i) {
+    for (i = 0; i < lattice->num_materials(); ++i) {
       for (j = 0; j < 3; ++j) {
-        mag(i, j) = mag(i, j)/static_cast<double>(lattice.num_of_material(i));
+        mag(i, j) = mag(i, j)/static_cast<double>(lattice->num_of_material(i));
       }
     }
 
-    for (i = 0; i < lattice.num_materials(); ++i) {
+    for (i = 0; i < lattice->num_materials(); ++i) {
       mag(i, 3) = sqrt(mag(i, 0)*mag(i, 0) + mag(i, 1)*mag(i, 1)
         + mag(i, 2)*mag(i, 2));
     }
@@ -93,7 +100,7 @@ void MagnetisationMonitor::update(Solver * solver) {
       outfile <<  std::setw(12) << solver->physics()->applied_field(i) << "\t";
     }
 
-    for (i = 0; i < lattice.num_materials(); ++i) {
+    for (i = 0; i < lattice->num_materials(); ++i) {
       outfile << std::setw(12) << mag(i, 0) << "\t";
       outfile << std::setw(12) << mag(i, 1) << "\t";
       outfile << std::setw(12) << mag(i, 2) << "\t";

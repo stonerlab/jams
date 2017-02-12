@@ -5,9 +5,12 @@
 
 #include <fstream>
 
+#include <libconfig.h++>
+
 #include "jams/core/stats.h"
 #include "jams/core/monitor.h"
-#include "jblib/containers/array.h"
+
+class Solver;
 
 class SpinPumpingMonitor : public Monitor{
  public:

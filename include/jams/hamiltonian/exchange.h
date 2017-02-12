@@ -16,6 +16,7 @@
 #include "jams/core/hamiltonian.h"
 #include "jams/core/cuda_defs.h"
 #include "jams/core/interactions.h"
+#include "jams/core/sparsematrix.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/cuda_array.h"

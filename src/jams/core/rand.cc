@@ -2,14 +2,15 @@
 
 #include "jams/core/rand.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <cassert>
 #include <cmath>
+#include <ctime>
 #include <limits>
 
 #include "jams/core/globals.h"
 #include "jams/core/utils.h"
+#include "jams/core/error.h"
 
 void Random::seed(const uint32_t &x) {
   if (x > ul_limit) {

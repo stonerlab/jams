@@ -3,15 +3,18 @@
 #ifndef JAMS_MONITOR_HDF5_H
 #define JAMS_MONITOR_HDF5_H
 
-#include <vector>
+#include <cstdio>
+#include <iosfwd>
+
+#include <libconfig.h++>
 
 #include "H5Cpp.h"  // NOLINT
 
+#include "jams/core/types.h"
 #include "jams/core/monitor.h"
-#include "jams/core/runningstat.h"
 #include "jams/core/slice.h"
 
-#include "jblib/containers/array.h"
+class Solver;
 
 class Hdf5Monitor : public Monitor {
  public:

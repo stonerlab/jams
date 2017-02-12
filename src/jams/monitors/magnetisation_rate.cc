@@ -7,12 +7,15 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
+#include "jams/core/output.h"
+#include "jams/core/physics.h"
+#include "jams/core/solver.h"
 
 #include "jams/monitors/magnetisation_rate.h"
 
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  dm_dt(::lattice.num_materials(), 4),
+  dm_dt(::lattice->num_materials(), 4),
   outfile(),
   magnetisation_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
@@ -20,12 +23,12 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
   convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
   using namespace globals;
-  ::output.write("\ninitialising MagnetisationRate monitor\n");
+  ::output->write("\ninitialising MagnetisationRate monitor\n");
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
     convergence_tolerance_ = settings["convergence"];
-    ::output.write("  convergence tolerance: %f\n", convergence_tolerance_);
+    ::output->write("  convergence tolerance: %f\n", convergence_tolerance_);
   }
 
   std::string name = seedname + "_dm_dt.tsv";
@@ -39,11 +42,11 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
   outfile << std::setw(12) << "Hy" << "\t";
   outfile << std::setw(12) << "Hz" << "\t";
 
-  for (int i = 0; i < lattice.num_materials(); ++i) {
-    outfile << std::setw(12) << lattice.material_name(i) + ":mx" << "\t";
-    outfile << std::setw(12) << lattice.material_name(i) + ":my" << "\t";
-    outfile << std::setw(12) << lattice.material_name(i) + ":mz" << "\t";
-    outfile << std::setw(12) << lattice.material_name(i) + ":m" << "\t";
+  for (int i = 0; i < lattice->num_materials(); ++i) {
+    outfile << std::setw(12) << lattice->material_name(i) + ":mx" << "\t";
+    outfile << std::setw(12) << lattice->material_name(i) + ":my" << "\t";
+    outfile << std::setw(12) << lattice->material_name(i) + ":mz" << "\t";
+    outfile << std::setw(12) << lattice->material_name(i) + ":m" << "\t";
   }
 
   if (convergence_is_on_) {
@@ -61,19 +64,19 @@ void MagnetisationRateMonitor::update(Solver * solver) {
     dm_dt.zero();
 
     for (i = 0; i < num_spins; ++i) {
-      int type = lattice.atom_material(i);
+      int type = lattice->atom_material(i);
       for (j = 0; j < 3; ++j) {
         dm_dt(type, j) += ds_dt(i, j);
       }
     }
 
-    for (i = 0; i < lattice.num_materials(); ++i) {
+    for (i = 0; i < lattice->num_materials(); ++i) {
       for (j = 0; j < 3; ++j) {
-        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(lattice.num_of_material(i));
+        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(lattice->num_of_material(i));
       }
     }
 
-    for (i = 0; i < lattice.num_materials(); ++i) {
+    for (i = 0; i < lattice->num_materials(); ++i) {
       dm_dt(i, 3) = sqrt(dm_dt(i, 0)*dm_dt(i, 0) + dm_dt(i, 1)*dm_dt(i, 1)
         + dm_dt(i, 2)*dm_dt(i, 2));
     }
@@ -85,7 +88,7 @@ void MagnetisationRateMonitor::update(Solver * solver) {
       outfile <<  std::setw(12) << solver->physics()->applied_field(i) << "\t";
     }
 
-    for (i = 0; i < lattice.num_materials(); ++i) {
+    for (i = 0; i < lattice->num_materials(); ++i) {
       outfile << std::setw(12) << std::scientific << dm_dt(i, 0)*kGyromagneticRatio << "\t";
       outfile << std::setw(12) << std::scientific << dm_dt(i, 1)*kGyromagneticRatio << "\t";
       outfile << std::setw(12) << std::scientific << dm_dt(i, 2)*kGyromagneticRatio << "\t";
@@ -94,7 +97,7 @@ void MagnetisationRateMonitor::update(Solver * solver) {
 
     if (convergence_is_on_) {
       double total_dm_dt = 0.0;
-      for (i = 0; i < lattice.num_materials(); ++i) {
+      for (i = 0; i < lattice->num_materials(); ++i) {
         total_dm_dt += dm_dt(i, 3);
       }
 

@@ -1,25 +1,27 @@
 #include "jams/core/globals.h"
 #include "jams/core/consts.h"
 #include "jams/core/utils.h"
+#include "jams/core/solver.h"
+#include "jams/core/lattice.h"
+#include "jams/core/output.h"
 
 #include "jams/hamiltonian/dipole_bruteforce.h"
 #include "jams/hamiltonian/dipole_bruteforce_kernel.h"
-
 
 DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Setting &settings)
 : HamiltonianStrategy(settings) {
     jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);
 
     for (int n = 0; n < 3; ++n) {
-        super_cell_dim[n] = 0.5*double(lattice.size(n));
+        super_cell_dim[n] = 0.5*double(lattice->size(n));
     }
 
     r_cutoff_ = *std::max_element(super_cell_dim.begin(), super_cell_dim.end());
 
     settings.lookupValue("r_cutoff", r_cutoff_);
-    output.write("  r_cutoff: %e\n", r_cutoff_);
+    output->write("  r_cutoff: %e\n", r_cutoff_);
 
-    dipole_prefactor_ = kVacuumPermeadbility*kBohrMagneton /(4*kPi*::lattice.parameter() * ::lattice.parameter() * ::lattice.parameter());
+    dipole_prefactor_ = kVacuumPermeadbility*kBohrMagneton /(4*kPi*::lattice->parameter() * ::lattice->parameter() * ::lattice->parameter());
 
 
 #ifdef CUDA
@@ -29,12 +31,12 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
     float super_unit_cell_inv[3][3];
 
     for (int i = 0; i < 3; ++i) {
-        super_cell_pbc[i] = ::lattice.is_periodic(i);
+        super_cell_pbc[i] = ::lattice->is_periodic(i);
     }
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            super_unit_cell[i][j] = ::lattice.unit_cell_vector(i)[j] * ::lattice.size(j);
+            super_unit_cell[i][j] = ::lattice->unit_cell_vector(i)[j] * ::lattice->size(j);
         }
     }
     matrix_invert(super_unit_cell, super_unit_cell_inv);
@@ -60,7 +62,7 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < 3; ++j) {
-            r(i, j) = lattice.atom_position(i)[j];
+            r(i, j) = lattice->atom_position(i)[j];
         }
     }
 
@@ -131,7 +133,7 @@ void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h
     for (j = 0; j < globals::num_spins; ++j) {
         if (j == i) continue;
 
-        auto r_ij = lattice.displacement(i, j);
+        auto r_ij = lattice->displacement(i, j);
 
         const auto r_abs_sq = r_ij.norm_sq();
 
@@ -154,7 +156,7 @@ void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h
     // for (j = 0; j < globals::num_spins; ++j) {
     //     if (j == i) continue;
 
-    //     auto r_ij = lattice.displacement(i, j);
+    //     auto r_ij = lattice->displacement(i, j);
 
     //     auto r_abs = r_ij.norm();
 

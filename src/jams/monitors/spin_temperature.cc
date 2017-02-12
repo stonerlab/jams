@@ -1,20 +1,22 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <cmath>
 #include <string>
 #include <iomanip>
 
 #include "jams/core/consts.h"
 #include "jams/core/globals.h"
-#include "jams/core/lattice.h"
-
+#include "jams/core/output.h"
+#include "jams/core/physics.h"
+#include "jams/core/solver.h"
 #include "jams/monitors/spin_temperature.h"
+
+#include "jblib/containers/array.h"
 
 SpinTemperatureMonitor::SpinTemperatureMonitor(const libconfig::Setting &settings)
 : Monitor(settings)
 {
   using namespace globals;
-  ::output.write("\ninitialising spin temperature monitor\n");
+  ::output->write("\ninitialising spin temperature monitor\n");
 
   std::string name = seedname + "_T.tsv";
   outfile.open(name.c_str());

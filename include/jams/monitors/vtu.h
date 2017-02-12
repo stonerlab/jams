@@ -6,10 +6,15 @@
 #include <fstream>
 #include <vector>
 
-#include "jams/core/monitor.h"
-#include "jams/core/runningstat.h"
+#include <libconfig.h++>
 
+#include "jams/core/types.h"
+#include "jams/core/monitor.h"
+
+#include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"
+
+class Solver;
 
 class VtuMonitor : public Monitor {
  public:

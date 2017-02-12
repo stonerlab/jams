@@ -1,27 +1,23 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <cmath>
 #include <string>
-#include <iostream>
 #include <fstream>
 
-
+#include "jams/core/output.h"
+#include "jams/core/solver.h"
 #include "jams/core/globals.h"
-#include "jams/core/lattice.h"
 #include "jams/core/utils.h"
 
 #include "jams/monitors/binary.h"
 
 #include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
-#include "jblib/math/equalities.h"
 
 BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
   using namespace jblib;
 
-  ::output.write("\nInitialising binary monitor...\n");
+  ::output->write("\nInitialising binary monitor...\n");
 
   is_file_overwrite_mode = false;
   settings.lookupValue("overwrite", is_file_overwrite_mode);

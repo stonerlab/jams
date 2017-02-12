@@ -13,6 +13,8 @@ list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=compute_30")
 	cuda_add_executable(jams ${srcs})
 	target_link_libraries(jams ${JAMS_LINKER_LIBS})
 	jams_use_cxx11(jams)
+	#set_property(TARGET jams PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${iwyu_path})
+
 
 
 #endif()

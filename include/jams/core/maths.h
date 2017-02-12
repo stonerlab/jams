@@ -3,9 +3,9 @@
 #ifndef JAMS_CORE_MATHS_H
 #define JAMS_CORE_MATHS_H
 
+#include <complex>
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 
 #include "jams/core/consts.h"
 

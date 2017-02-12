@@ -1,4 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
+
+#include <libconfig.h++>
+
 #include "jams/core/cuda_solver_kernels.h"
 
 #include "jams/solvers/cuda_constrainedmc.h"
@@ -6,6 +9,8 @@
 #include "jams/core/consts.h"
 #include "jams/core/maths.h"
 #include "jams/core/globals.h"
+#include "jams/core/output.h"
+#include "jams/core/rand.h"
 
 #include <iomanip>
 
@@ -19,15 +24,15 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   move_acceptance_fraction_ = 0.234;
   move_sigma_ = 0.001;
 
-  ::output.write("Initialising Constrained Monte-Carlo solver\n");
+  ::output->write("Initialising Constrained Monte-Carlo solver\n");
 
-  libconfig::Setting &solver_settings = ::config.lookup("sim");
+  libconfig::Setting &solver_settings = ::config->lookup("sim");
 
   constraint_theta_ = solver_settings["cmc_constraint_theta"];
   constraint_phi_   = solver_settings["cmc_constraint_phi"];
 
-  ::output.write("\nconstraint angle theta (deg): % 8.8f\n", constraint_theta_);
-  ::output.write("\nconstraint angle phi (deg): % 8.8f\n", constraint_phi_);
+  ::output->write("\nconstraint angle theta (deg): % 8.8f\n", constraint_theta_);
+  ::output->write("\nconstraint angle phi (deg): % 8.8f\n", constraint_phi_);
 
   const double c_t = cos(deg_to_rad(constraint_theta_));
   const double c_p = cos(deg_to_rad(constraint_phi_));
@@ -38,7 +43,7 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   constraint_vector_.y = s_t*s_p;
   constraint_vector_.z = c_t;
 
-  ::output.write("\nconstraint vector: % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
+  ::output->write("\nconstraint vector: % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
 
   // calculate rotation matrix for rotating m -> mz
 
@@ -58,35 +63,35 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   inverse_rotation_matrix_ = r_y*r_z;
   rotation_matrix_ = inverse_rotation_matrix_.transpose();
 
-  ::output.write("\nRy\n");
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[0][0], r_y[0][1], r_y[0][2]);
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[1][0], r_y[1][1], r_y[1][2]);
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[2][0], r_y[2][1], r_y[2][2]);
+  ::output->write("\nRy\n");
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[0][0], r_y[0][1], r_y[0][2]);
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[1][0], r_y[1][1], r_y[1][2]);
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", r_y[2][0], r_y[2][1], r_y[2][2]);
 
-  ::output.write("\nRz\n");
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[0][0], r_z[0][1], r_z[0][2]);
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[1][0], r_z[1][1], r_z[1][2]);
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[2][0], r_z[2][1], r_z[2][2]);
+  ::output->write("\nRz\n");
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[0][0], r_z[0][1], r_z[0][2]);
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[1][0], r_z[1][1], r_z[1][2]);
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", r_z[2][0], r_z[2][1], r_z[2][2]);
 
-  ::output.write("\nrotation matrix m -> mz\n");
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[0][0], rotation_matrix_[0][1], rotation_matrix_[0][2]);
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[1][0], rotation_matrix_[1][1], rotation_matrix_[1][2]);
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[2][0], rotation_matrix_[2][1], rotation_matrix_[2][2]);
+  ::output->write("\nrotation matrix m -> mz\n");
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[0][0], rotation_matrix_[0][1], rotation_matrix_[0][2]);
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[1][0], rotation_matrix_[1][1], rotation_matrix_[1][2]);
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[2][0], rotation_matrix_[2][1], rotation_matrix_[2][2]);
 
-  ::output.write("\ninverse rotation matrix mz -> m\n");
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[0][0], inverse_rotation_matrix_[0][1], inverse_rotation_matrix_[0][2]);
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
-  ::output.write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
+  ::output->write("\ninverse rotation matrix mz -> m\n");
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[0][0], inverse_rotation_matrix_[0][1], inverse_rotation_matrix_[0][2]);
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
+  ::output->write("  % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
 
   //if (verbose_output_is_set) {
     jblib::Vec3<double> test_unit_vec(0.0, 0.0, 1.0);
     jblib::Vec3<double> test_forward_vec = rotation_matrix_*test_unit_vec;
     jblib::Vec3<double> test_back_vec    = inverse_rotation_matrix_*test_forward_vec;
 
-    ::output.write("\nsanity check\n");
+    ::output->write("\nsanity check\n");
 
-    ::output.write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
-    ::output.write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
+    ::output->write("  rotate      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
+    ::output->write("  back rotate %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
   //}
 
     std::string name = seedname + "_mc.dat";
@@ -101,7 +106,7 @@ void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
 void CudaConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
   double x,y,z;
-  rng.sphere(x,y,z);
+  rng->sphere(x,y,z);
   spin.x += move_sigma*x; spin.y += move_sigma*y; spin.z += move_sigma*z;
   spin /= abs(spin);
 }
@@ -195,10 +200,10 @@ void CudaConstrainedMCSolver::run() {
     for (int i = 0; i < num_spins/2; ++i) {
 
       // randomly get two spins s1 != s2
-      rand_s1 = rng.uniform_discrete(0, num_spins-1);
+      rand_s1 = rng->uniform_discrete(0, num_spins-1);
       rand_s2 = rand_s1;
       while (rand_s2 == rand_s1) {
-        rand_s2 = rng.uniform_discrete(0, num_spins-1);
+        rand_s2 = rng->uniform_discrete(0, num_spins-1);
       }
       get_spin(rand_s1, s1_initial);
       get_spin(rand_s2, s2_initial);
@@ -256,7 +261,7 @@ void CudaConstrainedMCSolver::run() {
       // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
       probability = exp(-delta_energy21*inv_kbT_bohr)*((mz_new/mz_old)*(mz_new/mz_old))*std::fabs(s2_initial_rotated.z/s2_final_rotated.z);
 
-      if (probability < rng.uniform()) {
+      if (probability < rng->uniform()) {
         // move fails to overcome Boltzmann factor - revert s1, reject move
         set_spin(rand_s1, s1_initial);
         continue;

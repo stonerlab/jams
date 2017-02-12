@@ -5,11 +5,17 @@
 
 #include <fstream>
 #include <complex>
+#include <vector>
 
+#include <libconfig.h++>
+
+#include "jams/core/types.h"
 #include "jams/core/monitor.h"
-#include "jams/core/runningstat.h"
 
+#include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"
+
+class Solver;
 
 class StructureFactorMonitor : public Monitor {
  public:

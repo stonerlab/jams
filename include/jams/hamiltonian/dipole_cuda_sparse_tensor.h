@@ -9,6 +9,7 @@
 #endif
 
 #include "jams/hamiltonian/strategy.h"
+#include "jams/core/sparsematrix.h"
 
 typedef struct devFloatCSR {
   int     *row;

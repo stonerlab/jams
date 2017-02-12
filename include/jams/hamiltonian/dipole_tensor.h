@@ -3,6 +3,10 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_TENSOR_H
 #define JAMS_HAMILTONIAN_DIPOLE_TENSOR_H
 
+#include <libconfig.h++>
+
+#include "jblib/containers/array.h"
+
 #include "jams/hamiltonian/strategy.h"
 
 

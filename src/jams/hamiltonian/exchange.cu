@@ -8,6 +8,8 @@
 #include "jams/core/cuda_sparsematrix.h"
 #include "jams/core/interactions.h"
 #include "jams/core/utils.h"
+#include "jams/core/solver.h"
+#include "jams/core/lattice.h"
 
 #include "jblib/math/summations.h"
 
@@ -54,7 +56,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     if (interaction_file.fail()) {
       jams_error("failed to open interaction file %s", interaction_filename.c_str());
     }
-    ::output.write("\ninteraction filename (%s)\n", interaction_filename.c_str());
+    ::output->write("\ninteraction filename (%s)\n", interaction_filename.c_str());
 
     bool use_symops = true;
     settings.lookupValue("symops", use_symops);
@@ -64,20 +66,20 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 
     energy_cutoff_ = 1E-26;  // Joules
     settings.lookupValue("energy_cutoff", energy_cutoff_);
-    ::output.write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
+    ::output->write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
 
     distance_tolerance_ = 1e-3; // fractional coordinate units
     settings.lookupValue("distance_tolerance", distance_tolerance_);
-    ::output.write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
+    ::output->write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
     
     safety_check_distance_tolerance(distance_tolerance_);
 
     if (is_debug_enabled_) {
       std::ofstream pos_file("debug_pos.dat");
-      for (int n = 0; n < lattice.num_materials(); ++n) {
+      for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice.atom_material(i) == n) {
-            pos_file << i << "\t" <<  lattice.atom_position(i).x << "\t" <<  lattice.atom_position(i).y << "\t" << lattice.atom_position(i).z << "\n";
+          if (lattice->atom_material(i) == n) {
+            pos_file << i << "\t" <<  lattice->atom_position(i).x << "\t" <<  lattice->atom_position(i).y << "\t" << lattice->atom_position(i).z << "\n";
           }
         }
         pos_file << "\n\n";
@@ -115,7 +117,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
     }
 
-    ::output.write("\ncomputed interactions\n");
+    ::output->write("\ncomputed interactions\n");
 
     for (int i = 0; i < neighbour_list_.size(); ++i) {
       for (auto const &j: neighbour_list_[i]) {
@@ -127,9 +129,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     energy_.resize(globals::num_spins);
     field_.resize(globals::num_spins, 3);
 
-    ::output.write("  converting interaction matrix format from MAP to CSR\n");
+    ::output->write("  converting interaction matrix format from MAP to CSR\n");
     interaction_matrix_.convertMAP2CSR();
-    ::output.write("  exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
+    ::output->write("  exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
 
     // transfer arrays to cuda device if needed
     if (solver->is_cuda_solver()) {
@@ -141,7 +143,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
         dev_field_  = jblib::CudaArray<double, 1>(field_);
 
         if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
-          ::output.write("  * Initialising CUSPARSE...\n");
+          ::output->write("  * Initialising CUSPARSE...\n");
           cusparseStatus_t status;
           status = cusparseCreate(&cusparse_handle_);
           if (status != CUSPARSE_STATUS_SUCCESS) {
@@ -158,7 +160,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
           cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
           cusparseSetMatIndexBase(cusparse_descra_,CUSPARSE_INDEX_BASE_ZERO);
 
-          ::output.write("  allocating memory on device\n");
+          ::output->write("  allocating memory on device\n");
           cuda_api_error_check(
             cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
           cuda_api_error_check(
@@ -176,11 +178,11 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
                 (interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
 
         } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
-          // ::output.write("  converting interaction matrix format from map to dia");
+          // ::output->write("  converting interaction matrix format from map to dia");
           // interaction_matrix_.convertMAP2DIA();
-          ::output.write("  estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
+          ::output->write("  estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
           dev_dia_interaction_matrix_.blocks = std::min<int>(DIA_BLOCK_SIZE, (globals::num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-          ::output.write("  allocating memory on device\n");
+          ::output->write("  allocating memory on device\n");
 
           // allocate rows
           cuda_api_error_check(
@@ -401,11 +403,11 @@ void ExchangeHamiltonian::output_energies_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << lattice.atom_material(i);
+        outfile << lattice->atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile <<  lattice.parameter()*lattice.atom_position(i)[j];
+            outfile <<  lattice->parameter()*lattice->atom_position(i)[j];
         }
 
         // energy
@@ -444,11 +446,11 @@ void ExchangeHamiltonian::output_fields_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << std::setw(16) << lattice.atom_material(i);
+        outfile << std::setw(16) << lattice->atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.atom_position(i)[j];
+            outfile << std::setw(16) << std::fixed << lattice->parameter()*lattice->atom_position(i)[j];
         }
 
         // fields

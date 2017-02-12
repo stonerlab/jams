@@ -7,15 +7,18 @@ extern "C"{
     #include "spglib/spglib.h"
 }
 
-#include <libconfig.h++>
 
 #include <map>
 #include <string>
 #include <vector>
-#include <complex>
+#include <iosfwd>
+#include <cmath>
+#include <cassert>
+
+#include <libconfig.h++>
+
 
 #include "jams/core/types.h"
-#include "jams/core/maths.h"
 #include "jams/core/neartree.h"
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"

@@ -9,6 +9,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/utils.h"
+#include "jams/core/output.h"
 
 #include "jblib/containers/array.h"
 
@@ -33,14 +34,14 @@ class Slice {
     for (int i = 0; i < 3; ++i) {
       slice_origin[i] = settings["origin"][i];
     }
-    ::output.write("  slice origin: %f %f %f\n", slice_origin[0], slice_origin[1], slice_origin[2]);
+    ::output->write("  slice origin: %f %f %f\n", slice_origin[0], slice_origin[1], slice_origin[2]);
     for (int i = 0; i < 3; ++i) {
       slice_size[i] = settings["size"][i];
     }
-    ::output.write("  slice size: %f %f %f\n", slice_size[0], slice_size[1], slice_size[2]);
+    ::output->write("  slice size: %f %f %f\n", slice_size[0], slice_size[1], slice_size[2]);
 
     for (int i = 0; i < num_spins; ++i) {
-      jblib::Vec3<double> pos = lattice.atom_position(i);
+      jblib::Vec3<double> pos = lattice->atom_position(i);
 
             // check if the current spin in inside the slice
       if (floats_are_greater_than_or_equal(pos.x, slice_origin.x) && floats_are_less_than_or_equal(pos.x, slice_origin.x + slice_size.x)
@@ -69,11 +70,11 @@ class Slice {
   }
 
   double position(const int i, const int j) {
-    return lattice.parameter()*lattice.atom_position(slice_map[i])[j];
+    return lattice->parameter()*lattice->atom_position(slice_map[i])[j];
   }
 
   int type(const int i) {
-    return lattice.atom_material(slice_map[i]);
+    return lattice->atom_material(slice_map[i]);
   }
 
  private:

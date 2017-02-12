@@ -124,15 +124,15 @@ class SparseMatrix4D {
 //
 //   if(format==CSR) {
 //     for(int i = 0; i<nrows+1; ++i) {
-//       output.write("%i\n", row[i]);
+//       output->write("%i\n", row[i]);
 //     }
-//     output.write("\n\n");
+//     output->write("\n\n");
 //     for(int i = 0; i<nnz; ++i) {
-//       output.write("%i\n", col[i]);
+//       output->write("%i\n", col[i]);
 //     }
-//     output.write("\n\n");
+//     output->write("\n\n");
 //     for(int i = 0; i<nnz; ++i) {
-//       output.write("%e\n", val[i]);
+//       output->write("%e\n", val[i]);
 //     }
 //   }
 // }

@@ -5,11 +5,15 @@
 
 #ifdef CUDA
 
+#include <fstream>
+
 #include <curand.h>
 
 #include "jams/core/cuda_solver.h"
 
 #include "jblib/containers/array.h"
+#include "jblib/containers/matrix.h"
+#include "jblib/containers/vec.h"
 
 class CudaConstrainedMCSolver : public CudaSolver {
  public:

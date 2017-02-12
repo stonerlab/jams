@@ -3,13 +3,19 @@
 #include <cmath>
 #include <string>
 #include <iomanip>
+#include <vector>
 
+#include "jams/core/output.h"
+#include "jams/core/physics.h"
+#include "jams/core/solver.h"
+#include "jams/core/stats.h"
 #include "jams/core/consts.h"
 #include "jams/core/globals.h"
-#include "jams/core/lattice.h"
 #include "jams/core/hamiltonian.h"
-
 #include "jams/monitors/torque.h"
+
+#include "jblib/containers/array.h"
+#include "jblib/containers/vec.h"
 
 TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
@@ -18,7 +24,7 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
   convergence_geweke_diagnostic_()
 {
   using namespace globals;
-  ::output.write("\nInitialising Torque monitor...\n");
+  ::output->write("\nInitialising Torque monitor...\n");
 }
 
 void TorqueMonitor::update(Solver * solver) {

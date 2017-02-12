@@ -5,7 +5,6 @@
 
 #include <libconfig.h++>
 
-#include <fstream>
 #include <vector>
 
 #include "jams/core/physics.h"

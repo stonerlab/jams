@@ -9,6 +9,8 @@
 #include <string>
 
 #include "jams/core/globals.h"
+#include "jams/core/output.h"
+#include "jams/core/consts.h"
 
 #include "jblib/math/functions.h"
 
@@ -29,7 +31,7 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   TTMFile() {
   using namespace globals;
 
-  output.write("  * Two temperature model physics module\n");
+  output->write("  * Two temperature model physics module\n");
 
   phononTemp = settings["InitialTemperature"];
   electronTemp = phononTemp;
@@ -37,7 +39,7 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   sinkTemp = phononTemp;
 
   const libconfig::Setting& laserPulseConfig =
-    ::config.lookup("physics.laserPulses");
+    ::config->lookup("physics.laserPulses");
 
   const int nLaserPulses = laserPulseConfig.getLength();
 

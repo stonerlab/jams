@@ -7,31 +7,28 @@ extern "C"{
 #include "jams/core/lattice.h"
 
 #include <libconfig.h++>
-#include <stdint.h>
+#include <cstddef>
 
 #include <algorithm>
 #include <stdexcept>
-#include <numeric>
 #include <cmath>
-#include <fstream>
 #include <iostream>
 #include <map>
-#include <sstream>
 #include <string>
 #include <utility>
-#include <set>
 #include <cfloat>
-#include <functional>
 
 #include "H5Cpp.h"
 
-#include "jams/core/consts.h"
+#include "jams/core/error.h"
+#include "jams/core/output.h"
+#include "jams/core/rand.h"
 #include "jams/core/globals.h"
 #include "jams/core/exception.h"
 #include "jams/core/maths.h"
-#include "jams/core/sparsematrix.h"
 #include "jams/core/utils.h"
 #include "jams/core/neartree.h"
+#include "jblib/containers/vec.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
@@ -44,8 +41,8 @@ using libconfig::Config;
 void Lattice::init_from_config(const libconfig::Config& cfg) {
 
   symops_enabled_ = true;
-  cfg.lookupValue("lattice.symops", symops_enabled_);
-  output.write("  symops: %s", symops_enabled_ ? "true" : "false");
+  cfg.lookupValue("::lattice->symops", symops_enabled_);
+  output->write("  symops: %s", symops_enabled_ ? "true" : "false");
 
   init_unit_cell(cfg.lookup("materials"), cfg.lookup("lattice"), cfg.lookup("unitcell"));
 
@@ -232,32 +229,32 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
       super_cell.unit_cell[i][j] = unitcell_settings["basis"][i][j];
     }
   }
-  output.write("\n----------------------------------------\n");
-  output.write("\nunit cell\n");
+  output->write("\n----------------------------------------\n");
+  output->write("\nunit cell\n");
 
-  output.write("  lattice vectors\n");
-  output.write("    a = (%f, %f, %f)\n", super_cell.unit_cell[0][0], super_cell.unit_cell[1][0], super_cell.unit_cell[2][0]);
-  output.write("    b = (%f, %f, %f)\n", super_cell.unit_cell[0][1], super_cell.unit_cell[1][1], super_cell.unit_cell[2][1]);
-  output.write("    c = (%f, %f, %f)\n", super_cell.unit_cell[0][2], super_cell.unit_cell[1][2], super_cell.unit_cell[2][2]);
-  output.write("\n");
+  output->write("  lattice vectors\n");
+  output->write("    a = (%f, %f, %f)\n", super_cell.unit_cell[0][0], super_cell.unit_cell[1][0], super_cell.unit_cell[2][0]);
+  output->write("    b = (%f, %f, %f)\n", super_cell.unit_cell[0][1], super_cell.unit_cell[1][1], super_cell.unit_cell[2][1]);
+  output->write("    c = (%f, %f, %f)\n", super_cell.unit_cell[0][2], super_cell.unit_cell[1][2], super_cell.unit_cell[2][2]);
+  output->write("\n");
 
-  output.write("  lattice vectors (matrix form)\n");
+  output->write("  lattice vectors (matrix form)\n");
 
   for (i = 0; i < 3; ++i) {
-    output.write("    % 3.6f % 3.6f % 3.6f\n",
+    output->write("    % 3.6f % 3.6f % 3.6f\n",
       super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
   }
 
   super_cell.unit_cell_inv = super_cell.unit_cell.inverse();
 
-  output.write("  inverse lattice vectors (matrix form)\n");
+  output->write("  inverse lattice vectors (matrix form)\n");
   for (i = 0; i < 3; ++i) {
-    output.write("    % 3.6f % 3.6f % 3.6f\n",
+    output->write("    % 3.6f % 3.6f % 3.6f\n",
       super_cell.unit_cell_inv[i][0], super_cell.unit_cell_inv[i][1], super_cell.unit_cell_inv[i][2]);
   }
 
   super_cell.parameter = unitcell_settings["parameter"];
-  output.write("  lattice parameter (m):\n    %3.6e\n", super_cell.parameter);
+  output->write("  lattice parameter (m):\n    %3.6e\n", super_cell.parameter);
 
   if (super_cell.parameter < 0.0) {
     throw general_exception("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -267,13 +264,13 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     jams_warning("lattice parameter is unusually large - units should be meters");
   }
 
-  output.write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
+  output->write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
 
   for (i = 0; i < 3; ++i) {
     super_cell.size[i] = lattice_settings["size"][i];
   }
 
-  output.write("  lattice size\n    %d  %d  %d\n",
+  output->write("  lattice size\n    %d  %d  %d\n",
     super_cell.size.x, super_cell.size.y, super_cell.size.z);
 
 //-----------------------------------------------------------------------------
@@ -282,7 +279,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   if(!lattice_settings.exists("periodic")) {
     // sane default
-    output.write(
+    output->write(
       "\nASSUMPTION: no boundary conditions specified - assuming 3D periodic\n");
     for (i = 0; i < 3; ++i) {
       super_cell.periodic[i] = true;
@@ -292,7 +289,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
       super_cell.periodic[i] = lattice_settings["periodic"][i];
     }
   }
-  output.write("  boundary conditions\n    %s  %s  %s\n",
+  output->write("  boundary conditions\n    %s  %s  %s\n",
     super_cell.periodic.x ? "periodic" : "open",
     super_cell.periodic.y ? "periodic" : "open",
     super_cell.periodic.z ? "periodic" : "open");
@@ -303,7 +300,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 // Read materials
 //-----------------------------------------------------------------------------
 
-  output.write("  materials\n");
+  output->write("  materials\n");
 
   Material material;
   for (i = 0; i < material_settings.getLength(); ++i) {
@@ -313,7 +310,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
       throw std::runtime_error("the material " + material.name + " is specified twice in the configuration");
     }
     material_id_map_.insert({material.id, material});
-    output.write("    %-6d %s\n", material.id, material.name.c_str());
+    output->write("    %-6d %s\n", material.id, material.name.c_str());
   }
 
 //-----------------------------------------------------------------------------
@@ -332,10 +329,10 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     read_motif_from_file(position_filename);
   }
 
-  output.write("  unit cell positions (%s)\n", position_filename.c_str());
+  output->write("  unit cell positions (%s)\n", position_filename.c_str());
 
   for (const Atom &atom: motif_) {
-    output.write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
+    output->write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
   }
 }
 
@@ -348,14 +345,14 @@ void Lattice::init_lattice_positions(
 
   Vec3i kmesh_size(kpoints_.x*super_cell.size.x, kpoints_.y*super_cell.size.y, kpoints_.z*super_cell.size.z);
   if (!super_cell.periodic.x || !super_cell.periodic.y || !super_cell.periodic.z) {
-    output.write("\nzero padding non-periodic dimensions\n");
+    output->write("\nzero padding non-periodic dimensions\n");
      // double any non-periodic dimensions for zero padding
     for (int i = 0; i < 3; ++i) {
       if (!super_cell.periodic[i]) {
         kmesh_size[i] = 2*kpoints_[i]*super_cell.size[i];
       }
     }
-    output.write("\npadded kspace size\n  %d  %d  %d\n", kmesh_size.x, kmesh_size.y, kmesh_size.z);
+    output->write("\npadded kspace size\n  %d  %d  %d\n", kmesh_size.x, kmesh_size.y, kmesh_size.z);
   }
 
   kspace_size_ = Vec3i(kmesh_size.x, kmesh_size.y, kmesh_size.z);
@@ -429,22 +426,22 @@ void Lattice::init_lattice_positions(
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;
 
-  output.write("\n----------------------------------------\n");
-  output.write("\ncomputed lattice positions (%d)\n", atom_counter);
-  if (::output.is_verbose()) {
+  output->write("\n----------------------------------------\n");
+  output->write("\ncomputed lattice positions (%d)\n", atom_counter);
+  if (::output->is_verbose()) {
     for (int i = 0, iend = lattice_positions_.size(); i != iend; ++i) {
-      output.write("  %-6d %-6s % 3.6f % 3.6f % 3.6f %4d %4d %4d\n",
+      output->write("  %-6d %-6s % 3.6f % 3.6f % 3.6f %4d %4d %4d\n",
         i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z,
         lattice_super_cell_pos_(i).x, lattice_super_cell_pos_(i).y, lattice_super_cell_pos_(i).z);
     }
   } else {
     // avoid spamming the screen by default
     for (int i = 0; i < 8; ++i) {
-    output.write("  %-6d %-6s %3.6f % 3.6f % 3.6f\n",
+    output->write("  %-6d %-6s %3.6f % 3.6f % 3.6f\n",
       i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
   }
     if (lattice_positions_.size() > 0) {
-      output.write("  ... [use verbose output for details] ... \n");
+      output->write("  ... [use verbose output for details] ... \n");
     }
   }
 
@@ -466,7 +463,7 @@ void Lattice::init_lattice_positions(
   if (lattice_settings.exists("spins")) {
     std::string spin_filename = lattice_settings["spins"];
 
-    output.write("  reading initial spin configuration from: %s\n", spin_filename.c_str());
+    output->write("  reading initial spin configuration from: %s\n", spin_filename.c_str());
 
     load_spin_state_from_hdf5(spin_filename);
   }
@@ -493,7 +490,7 @@ void Lattice::init_lattice_positions(
         // spin setting is a string
         std::string spin_initializer = capitalize(type_settings["spin"]);
         if (spin_initializer == "RANDOM") {
-          rng.sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
+          rng->sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
         } else {
           jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
         }
@@ -545,14 +542,14 @@ void Lattice::init_kspace() {
   }
 
   int i, j;
-  output.write("\n----------------------------------------\n");
-  output.write("\nreciprocal space\n");
+  output->write("\n----------------------------------------\n");
+  output->write("\nreciprocal space\n");
 
   for (i = 0; i < 3; ++i) {
     kspace_size_[i] = super_cell.size[i];
   }
 
-  output.write("  kspace size\n    %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
+  output->write("  kspace size\n    %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
 
   kspace_map_.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z);
 
@@ -596,7 +593,7 @@ void Lattice::init_kspace() {
                               motif_.size(),
                               1e-5);
 
-  output.write("  irreducible kpoints\n    %d\n", num_ibz_points);
+  output->write("  irreducible kpoints\n    %d\n", num_ibz_points);
 
   jblib::Array<int,1> ibz_group;
   jblib::Array<int,1> ibz_index;
@@ -666,7 +663,7 @@ void Lattice::init_kspace() {
     }
   }
 
-  output.write("  unitcell offset (fractional)\n  % 6.6f % 6.6f % 6.6f",
+  output->write("  unitcell offset (fractional)\n  % 6.6f % 6.6f % 6.6f",
     unitcell_offset[0], unitcell_offset[1], unitcell_offset[2]);
 
   kspace_inv_map_.resize(globals::num_spins, 3);
@@ -676,7 +673,7 @@ void Lattice::init_kspace() {
     for (j = 0; j < 3; ++j) {
       kvec[j] = ((lattice_frac_positions_[i][j] - unitcell_offset[j])*kpoints_[j]);
     }
-    // ::output.verbose("  kvec: % 3.6f % 3.6f % 3.6f\n", kvec.x, kvec.y, kvec.z);
+    // ::output->verbose("  kvec: % 3.6f % 3.6f % 3.6f\n", kvec.x, kvec.y, kvec.z);
 
     // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
     //if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
@@ -713,8 +710,8 @@ void Lattice::calc_symmetry_operations() {
     throw general_exception("Lattice::calc_symmetry_operations() was called with symops disabled ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
-  output.write("\n----------------------------------------\n");
-  output.write("\nsymmetry analysis\n");
+  output->write("\n----------------------------------------\n");
+  output->write("\nsymmetry analysis\n");
 
   int i, j;
   const char *wl = "abcdefghijklmnopqrstuvwxyz";
@@ -744,9 +741,9 @@ void Lattice::calc_symmetry_operations() {
 
   spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, motif_.size(), 1e-5);
 
-  output.write("  International\n    %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
-  output.write("  Hall symbol\n    %s\n", spglib_dataset_->hall_symbol );
-  output.write("  Hall number\n    %d\n", spglib_dataset_->hall_number );
+  output->write("  International\n    %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
+  output->write("  Hall symbol\n    %s\n", spglib_dataset_->hall_symbol );
+  output->write("  Hall number\n    %d\n", spglib_dataset_->hall_number );
 
   char ptsymbol[6];
   int pt_trans_mat[3][3];
@@ -754,58 +751,58 @@ void Lattice::calc_symmetry_operations() {
            pt_trans_mat,
            spglib_dataset_->rotations,
            spglib_dataset_->n_operations);
-  output.write("  point group\n    %s\n", ptsymbol);
-  output.write("  transformation matrix\n");
+  output->write("  point group\n    %s\n", ptsymbol);
+  output->write("  transformation matrix\n");
   for ( i = 0; i < 3; i++ ) {
-      output.write("    %f %f %f\n",
+      output->write("    %f %f %f\n",
       spglib_dataset_->transformation_matrix[i][0],
       spglib_dataset_->transformation_matrix[i][1],
       spglib_dataset_->transformation_matrix[i][2]);
   }
-  output.write("  Wyckoff letters:\n");
+  output->write("  Wyckoff letters:\n");
   for ( i = 0; i < spglib_dataset_->n_atoms; i++ ) {
-      output.write("    %c ", wl[spglib_dataset_->wyckoffs[i]]);
+      output->write("    %c ", wl[spglib_dataset_->wyckoffs[i]]);
   }
-  output.write("\n");
+  output->write("\n");
 
-  output.write("  equivalent atoms:\n");
+  output->write("  equivalent atoms:\n");
   for (i = 0; i < spglib_dataset_->n_atoms; i++) {
-      output.write("    %d ", spglib_dataset_->equivalent_atoms[i]);
+      output->write("    %d ", spglib_dataset_->equivalent_atoms[i]);
   }
-  output.write("\n");
+  output->write("\n");
 
-  output.verbose("  shifted lattice\n");
-  output.verbose("    origin\n      % 3.6f % 3.6f % 3.6f\n",
+  output->verbose("  shifted lattice\n");
+  output->verbose("    origin\n      % 3.6f % 3.6f % 3.6f\n",
     spglib_dataset_->origin_shift[0], spglib_dataset_->origin_shift[1], spglib_dataset_->origin_shift[2]);
 
-  output.verbose("    lattice vectors\n");
+  output->verbose("    lattice vectors\n");
   for (int i = 0; i < 3; ++i) {
-    output.verbose("      % 3.6f % 3.6f % 3.6f\n",
+    output->verbose("      % 3.6f % 3.6f % 3.6f\n",
       spglib_dataset_->transformation_matrix[i][0],
       spglib_dataset_->transformation_matrix[i][1],
       spglib_dataset_->transformation_matrix[i][2]);
   }
 
-  output.verbose("    positions\n");
+  output->verbose("    positions\n");
   for (int i = 0; i < motif_.size(); ++i) {
     double bij[3];
     matmul(spglib_dataset_->transformation_matrix, spg_positions[i], bij);
-    output.verbose("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spg_types[i]].name.c_str(),
+    output->verbose("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spg_types[i]].name.c_str(),
       bij[0], bij[1], bij[2]);
   }
 
-  output.write("  Standard lattice\n");
-  output.write("    std lattice vectors\n");
+  output->write("  Standard lattice\n");
+  output->write("    std lattice vectors\n");
 
   for (int i = 0; i < 3; ++i) {
-    output.write("  % 3.6f % 3.6f % 3.6f\n",
+    output->write("  % 3.6f % 3.6f % 3.6f\n",
       spglib_dataset_->std_lattice[i][0], spglib_dataset_->std_lattice[i][1], spglib_dataset_->std_lattice[i][2]);
   }
-  output.write("    num std atoms\n    %d\n", spglib_dataset_->n_std_atoms);
+  output->write("    num std atoms\n    %d\n", spglib_dataset_->n_std_atoms);
 
-  output.write("    std_positions\n");
+  output->write("    std_positions\n");
   for (int i = 0; i < spglib_dataset_->n_std_atoms; ++i) {
-    output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spglib_dataset_->std_types[i]].name.c_str(),
+    output->write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spglib_dataset_->std_types[i]].name.c_str(),
       spglib_dataset_->std_positions[i][0], spglib_dataset_->std_positions[i][1], spglib_dataset_->std_positions[i][2]);
   }
 
@@ -837,37 +834,37 @@ void Lattice::calc_symmetry_operations() {
 
   // spg_find_primitive returns number of atoms in primitve cell
   if (primitive_num_atoms != motif_.size()) {
-    output.write("\n");
-    output.write("unit cell is not a primitive cell\n");
-    output.write("\n");
-    output.write("  primitive lattice vectors:\n");
+    output->write("\n");
+    output->write("unit cell is not a primitive cell\n");
+    output->write("\n");
+    output->write("  primitive lattice vectors:\n");
 
     for (int i = 0; i < 3; ++i) {
-      output.write("  % 3.6f % 3.6f % 3.6f\n",
+      output->write("  % 3.6f % 3.6f % 3.6f\n",
         primitive_lattice[i][0], primitive_lattice[i][1], primitive_lattice[i][2]);
     }
-    output.write("\n");
-    output.write("  primitive motif positions:\n");
+    output->write("\n");
+    output->write("  primitive motif positions:\n");
 
     int counter  = 0;
     for (int i = 0; i < primitive_num_atoms; ++i) {
-      output.write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, material_id_map_[primitive_types[i]].name.c_str(),
+      output->write("  %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, material_id_map_[primitive_types[i]].name.c_str(),
         primitive_positions[i][0], primitive_positions[i][1], primitive_positions[i][2]);
       counter++;
     }
   }
 
-  output.write("\n");
-  output.write("  Symmetry operations\n");
-  output.write("    num symops\n    %d\n", spglib_dataset_->n_operations);
+  output->write("\n");
+  output->write("  Symmetry operations\n");
+  output->write("    num symops\n    %d\n", spglib_dataset_->n_operations);
 
   Mat3 rot;
   Mat3 id(1, 0, 0, 0, 1, 0, 0, 0, 1);
 
   for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
 
-    output.verbose("%d\n---\n", i);
-    output.verbose("%8d  %8d  %8d\n%8d  %8d  %8d\n%8d  %8d  %8d\n",
+    output->verbose("%d\n---\n", i);
+    output->verbose("%8d  %8d  %8d\n%8d  %8d  %8d\n%8d  %8d  %8d\n",
       spglib_dataset_->rotations[i][0][0], spglib_dataset_->rotations[i][0][1], spglib_dataset_->rotations[i][0][2],
       spglib_dataset_->rotations[i][1][0], spglib_dataset_->rotations[i][1][1], spglib_dataset_->rotations[i][1][2],
       spglib_dataset_->rotations[i][2][0], spglib_dataset_->rotations[i][2][1], spglib_dataset_->rotations[i][2][2]);
@@ -911,32 +908,32 @@ void Lattice::set_spacegroup(const int hall_number) {
 // lattice then the function returns false
 bool Lattice::apply_boundary_conditions(Vec3i& pos) const {
     for (int l = 0; l < 3; ++l) {
-      if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= lattice.num_unit_cells(l))) {
+      if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= lattice->num_unit_cells(l))) {
         return false;
       } else {
-        pos[l] = (pos[l] + lattice.num_unit_cells(l))%lattice.num_unit_cells(l);
+        pos[l] = (pos[l] + lattice->num_unit_cells(l))%lattice->num_unit_cells(l);
       }
     }
     return true;
 }
 
 bool Lattice::apply_boundary_conditions(int &a, int &b, int &c) const {
-    if (!is_periodic(0) && (a < 0 || a >= lattice.num_unit_cells(0))) {
+    if (!is_periodic(0) && (a < 0 || a >= lattice->num_unit_cells(0))) {
       return false;
     } else {
-      a = (a + lattice.num_unit_cells(0))%lattice.num_unit_cells(0);
+      a = (a + lattice->num_unit_cells(0))%lattice->num_unit_cells(0);
     }
 
-    if (!is_periodic(1) && (b < 0 || b >= lattice.num_unit_cells(1))) {
+    if (!is_periodic(1) && (b < 0 || b >= lattice->num_unit_cells(1))) {
       return false;
     } else {
-      b = (b + lattice.num_unit_cells(1))%lattice.num_unit_cells(1);
+      b = (b + lattice->num_unit_cells(1))%lattice->num_unit_cells(1);
     }
 
-    if (!is_periodic(2) && (c < 0 || c >= lattice.num_unit_cells(2))) {
+    if (!is_periodic(2) && (c < 0 || c >= lattice->num_unit_cells(2))) {
       return false;
     } else {
-      c = (c + lattice.num_unit_cells(2))%lattice.num_unit_cells(2);
+      c = (c + lattice->num_unit_cells(2))%lattice->num_unit_cells(2);
     }
 
     return true;
@@ -959,7 +956,7 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
 // void Lattice::atom_nearest_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) {
 //   const double eps = kEps;
 
-//   neartree_.find_in_radius(r_cutoff, neighbours, {i, lattice.atom_material(i), lattice.atom_position(i)});
+//   neartree_.find_in_radius(r_cutoff, neighbours, {i, lattice->atom_material(i), lattice->atom_position(i)});
 
 
 //   const double r_min = (*std::min_element(neighbours[i].begin(), neighbours[i].end()));

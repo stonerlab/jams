@@ -1,7 +1,12 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include <fftw3.h>
+#include <algorithm>
+#include <string>
 
+#include "jams/core/error.h"
+#include "jams/core/physics.h"
+#include "jams/core/types.h"
+#include "jblib/containers/array.h"
 #include "jams/core/blas.h"
 #include "jams/core/solver.h"
 #include "jams/core/hamiltonian.h"
@@ -15,7 +20,6 @@
 #include "jams/solvers/heunllg.h"
 #include "jams/solvers/metropolismc.h"
 #include "jams/solvers/constrainedmc.h"
-#include "jams/solvers/monte-carlo-wolff.h"
 #include "jams/solvers/cuda_constrainedmc.h"
 
 #ifdef MKL
@@ -51,16 +55,16 @@ void Solver::initialize(int argc, char **argv, double idt) {
 
   // const int kspace_dimensions[3] = {globals::wij.size(0), globals::wij.size(1), globals::wij.size(2)};
 
-  // ::output.write("kspace dimensions: %d %d %d", globals::wij.size(0), globals::wij.size(1), globals::wij.size(2));
+  // ::output->write("kspace dimensions: %d %d %d", globals::wij.size(0), globals::wij.size(1), globals::wij.size(2));
 
-  // ::output.write("\nFFT planning\n");
+  // ::output->write("\nFFT planning\n");
 
 
   // spin_fft_forward_transform   = fftw_plan_many_dft_r2c(3, kspace_dimensions, 3, s.data(),  NULL, 3, 1, sq.data(), NULL, 3, 1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
   // field_fft_backward_transform = fftw_plan_many_dft_c2r(3, kspace_dimensions, 3, hq.data(), NULL, 3, 1, h_dipole.data(),  NULL, 3, 1, FFTW_ESTIMATE);
   // interaction_fft_transform    = fftw_plan_many_dft_r2c(3, kspace_dimensions, 9, wij.data(),  NULL, 9, 1, wq.data(), NULL, 9, 1, FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
 
-  // ::output.write("\nFFT transform interaction matrix\n");
+  // ::output->write("\nFFT transform interaction matrix\n");
 
   // fftw_execute(interaction_fft_transform);
 
@@ -104,11 +108,6 @@ Solver* Solver::create(const std::string &solver_name) {
   if (capitalize(solver_name) == "MONTE-CARLO-CONSTRAINED-CPU" || capitalize(solver_name) == "CONSTRAINEDMC") {
     return new ConstrainedMCSolver;
   }
-
-  if (capitalize(solver_name) == "MONTE-CARLO-WOLFF-CPU") {
-    return new MonteCarloWolffSolver;
-  }
-
 #ifdef CUDA
   if (capitalize(solver_name) == "LLG-HEUN-GPU" || capitalize(solver_name) == "CUDAHEUNLLG") {
     return new CUDAHeunLLGSolver;

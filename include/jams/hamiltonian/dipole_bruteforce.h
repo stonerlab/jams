@@ -3,6 +3,7 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
 #define JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
 
+#include "jams/core/maths.h"
 #include "jams/hamiltonian/strategy.h"
 
 

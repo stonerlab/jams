@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "jams/core/globals.h"
+#include "jams/core/output.h"
 
 SquarePhysics::SquarePhysics(const libconfig::Setting &settings)
   : Physics(settings),
@@ -16,7 +17,7 @@ SquarePhysics::SquarePhysics(const libconfig::Setting &settings)
   FieldStrength(3, 0) {
   using namespace globals;
 
-  output.write("  * Square physics module\n");
+  output->write("  * Square physics module\n");
 
   PulseDuration = settings["PulseDuration"];
   PulseTotal    = settings["PulseTotal"];
@@ -33,7 +34,7 @@ SquarePhysics::~SquarePhysics() {
 void SquarePhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
 
-  double eqtime = config.lookup("sim.t_eq");
+  double eqtime = config->lookup("sim.t_eq");
 
   if ((time > eqtime) && ((time-eqtime) > (PulseDuration*PulseCount))) {
     PulseCount++;

@@ -1,12 +1,25 @@
+#include <iomanip>
+#include <ostream>
+#include <stdexcept>
+#include <string>
+
+#include <cuda_runtime_api.h>
+
 #include "jams/core/globals.h"
 #include "jams/core/utils.h"
+#include "jams/core/error.h"
+#include "jams/core/lattice.h"
+#include "jams/core/solver.h"
 
+#include "jams/hamiltonian/strategy.h"
 #include "jams/hamiltonian/dipole.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
 #include "jams/hamiltonian/dipole_tensor.h"
 #include "jams/hamiltonian/dipole_cuda_sparse_tensor.h"
 #include "jams/hamiltonian/dipole_ewald.h"
 #include "jams/hamiltonian/dipole_fft.h"
+
+#include "jblib/containers/array.h"
 
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
@@ -144,11 +157,11 @@ void DipoleHamiltonian::output_energies_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << lattice.atom_material(i);
+        outfile << lattice->atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile <<  lattice.parameter()*lattice.atom_position(i)[j];
+            outfile <<  lattice->parameter()*lattice->atom_position(i)[j];
         }
 
         // energy
@@ -187,11 +200,11 @@ void DipoleHamiltonian::output_fields_text() {
 
     for (int i = 0; i < globals::num_spins; ++i) {
         // spin type
-        outfile << std::setw(16) << lattice.atom_material(i);
+        outfile << std::setw(16) << lattice->atom_material(i);
 
         // real position
         for (int j = 0; j < 3; ++j) {
-            outfile << std::setw(16) << std::fixed << lattice.parameter()*lattice.atom_position(i)[j];
+            outfile << std::setw(16) << std::fixed << lattice->parameter()*lattice->atom_position(i)[j];
         }
 
         // fields
