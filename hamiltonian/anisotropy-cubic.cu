@@ -9,7 +9,8 @@
 
 AnisotropyCubicHamiltonian::AnisotropyCubicHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings),
-  mca_value_()
+  K1_value_(),
+  K2_value_()
 {
     ::output.write("initialising cubic anisotropy Hamiltonian\n");
     // output in default format for now
@@ -20,13 +21,24 @@ AnisotropyCubicHamiltonian::AnisotropyCubicHamiltonian(const libconfig::Setting 
     field_.resize(globals::num_spins, 3);
     field_.zero();
 
-    mca_value_.resize(globals::num_spins);
+    K1_value_.resize(globals::num_spins);
+    K2_value_.resize(globals::num_spins);
+
+    K1_value_.zero();
+    K2_value_.zero();
 
     if (settings["K1"].getLength() != lattice.num_materials()) {
         jams_error("AnisotropyCubicHamiltonian: K1 must be specified for every material");
     }
     for (int i = 0; i < globals::num_spins; ++i) {
-        mca_value_(i) = double(settings["K1"][lattice.atom_material(i)])/kBohrMagneton;
+        K1_value_(i) = double(settings["K1"][lattice.atom_material(i)])/kBohrMagneton;
+    }
+
+    if (settings["K2"].getLength() != lattice.num_materials()) {
+        jams_error("AnisotropyCubicHamiltonian: K2 must be specified for every material");
+    }
+    for (int i = 0; i < globals::num_spins; ++i) {
+        K2_value_(i) = double(settings["K2"][lattice.atom_material(i)])/kBohrMagneton;
     }
 
     // transfer arrays to cuda device if needed
@@ -34,7 +46,8 @@ AnisotropyCubicHamiltonian::AnisotropyCubicHamiltonian(const libconfig::Setting 
     if (solver->is_cuda_solver()) {
         dev_energy_ = jblib::CudaArray<double, 1>(energy_);
         dev_field_ = jblib::CudaArray<double, 1>(field_);
-        dev_mca_value_ = jblib::CudaArray<double, 1>(mca_value_);
+        dev_K1_value_ = jblib::CudaArray<double, 1>(K1_value_);
+        dev_K2_value_ = jblib::CudaArray<double, 1>(K2_value_);
     }
 
     cudaStreamCreate(&dev_stream_);
@@ -68,7 +81,7 @@ double AnisotropyCubicHamiltonian::calculate_total_energy() {
 double AnisotropyCubicHamiltonian::calculate_one_spin_energy(const int i) {
     using namespace globals;
 
-    return mca_value_(i) * s(i, 0) * s(i, 0) * s(i, 1) * s(i, 1) * s(i, 2) * s(i, 2);
+    return cubic_K1_K2_anisotropy_energy(K1_value_(i), K2_value_(i), s(i, 0), s(i, 1), s(i, 2));
 }
 
 // --------------------------------------------------------------------------
@@ -76,9 +89,9 @@ double AnisotropyCubicHamiltonian::calculate_one_spin_energy(const int i) {
 double AnisotropyCubicHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
     using std::pow;
 
-    const double e_initial = mca_value_(i) * spin_initial.x * spin_initial.x * spin_initial.y * spin_initial.y * spin_initial.z * spin_initial.z;
+    const double e_initial = cubic_K1_K2_anisotropy_energy(K1_value_(i), K2_value_(i), spin_initial.x, spin_initial.y, spin_initial.z);
 
-    const double e_final = mca_value_(i) * spin_final.x * spin_final.x * spin_final.y * spin_final.y * spin_final.z * spin_final.z;
+    const double e_final = cubic_K1_K2_anisotropy_energy(K1_value_(i), K2_value_(i), spin_final.x, spin_final.y, spin_final.z);
 
     return e_final - e_initial;
 }
@@ -89,7 +102,7 @@ void AnisotropyCubicHamiltonian::calculate_energies() {
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
          cuda_anisotropy_cubic_energy_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
-            (globals::num_spins, dev_mca_value_.data(), solver->dev_ptr_spin(), dev_energy_.data());
+            (globals::num_spins, dev_K1_value_.data(), dev_K2_value_.data(), solver->dev_ptr_spin(), dev_energy_.data());
 #endif  // CUDA   
     } else {
         for (int i = 0; i < globals::num_spins; ++i) {
@@ -103,12 +116,10 @@ void AnisotropyCubicHamiltonian::calculate_energies() {
 void AnisotropyCubicHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
     using namespace globals;
     using std::pow;
-    local_field[0] = -mca_value_(i) * s(i, 0) * s(i, 1) * s(i, 1) * s(i, 2) * s(i, 2);
-    local_field[1] = -mca_value_(i) * s(i, 0) * s(i, 0) * s(i, 1) * s(i, 2) * s(i, 2);
-    local_field[2] = -mca_value_(i) * s(i, 0) * s(i, 0) * s(i, 1) * s(i, 1) * s(i, 2);
+    local_field[0] = cubic_K1_K2_anisotropy_field_x(K1_value_(i), K2_value_(i), s(i, 0), s(i, 1), s(i, 2));
+    local_field[1] = cubic_K1_K2_anisotropy_field_y(K1_value_(i), K2_value_(i), s(i, 0), s(i, 1), s(i, 2));
+    local_field[2] = cubic_K1_K2_anisotropy_field_z(K1_value_(i), K2_value_(i), s(i, 0), s(i, 1), s(i, 2));
 }
-
-
 
 // --------------------------------------------------------------------------
 
@@ -120,14 +131,14 @@ void AnisotropyCubicHamiltonian::calculate_fields() {
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
         cuda_anisotropy_cubic_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
-            (globals::num_spins, dev_mca_value_.data(), solver->dev_ptr_spin(), dev_field_.data());
+            (globals::num_spins, dev_K1_value_.data(), dev_K2_value_.data(), solver->dev_ptr_spin(), dev_field_.data());
 #endif  // CUDA
     } else {
         field_.zero();
         for (int i = 0; i < globals::num_spins; ++i) {
-            field_(i, 0) = -mca_value_(i) * s(i, 0) * s(i, 1) * s(i, 1) * s(i, 2) * s(i, 2);
-            field_(i, 1) = -mca_value_(i) * s(i, 0) * s(i, 0) * s(i, 1) * s(i, 2) * s(i, 2);
-            field_(i, 2) = -mca_value_(i) * s(i, 0) * s(i, 0) * s(i, 1) * s(i, 1) * s(i, 2);
+            field_(i, 0) = cubic_K1_K2_anisotropy_field_x(K1_value_(i), K2_value_(i), s(i, 0), s(i, 1), s(i, 2));
+            field_(i, 1) = cubic_K1_K2_anisotropy_field_y(K1_value_(i), K2_value_(i), s(i, 0), s(i, 1), s(i, 2));
+            field_(i, 2) = cubic_K1_K2_anisotropy_field_z(K1_value_(i), K2_value_(i), s(i, 0), s(i, 1), s(i, 2));
         }
     }
 }

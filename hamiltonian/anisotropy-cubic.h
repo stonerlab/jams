@@ -41,12 +41,15 @@ class AnisotropyCubicHamiltonian : public Hamiltonian {
         void output_fields_text();
         // void output_fields_hdf5();
 
-        jblib::Array<double, 1> mca_value_;
+        jblib::Array<double, 1> K1_value_;
+        jblib::Array<double, 1> K2_value_;
+
 
 #ifdef CUDA
         cudaStream_t dev_stream_;
         unsigned int dev_blocksize_;
-        jblib::CudaArray<double, 1> dev_mca_value_;
+        jblib::CudaArray<double, 1> dev_K1_value_;
+        jblib::CudaArray<double, 1> dev_K2_value_;
 #endif  // CUDA
 
 };

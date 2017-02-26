@@ -8,6 +8,7 @@
 
 #include "hamiltonian/dipole.h"
 #include "hamiltonian/uniaxial.h"
+#include "hamiltonian/anisotropy-cubic.h"
 #include "hamiltonian/exchange.h"
 #include "hamiltonian/exchange_neartree.h"
 #include "hamiltonian/zeeman.h"
@@ -25,6 +26,10 @@ Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
     }
 
     if (capitalize(settings["module"]) == "UNIAXIAL") {
+        return new UniaxialHamiltonian(settings);
+    }
+
+    if (capitalize(settings["module"]) == "CUBIC" || capitalize(settings["module"]) == "ANISOTROPY-CUBIC" ) {
         return new UniaxialHamiltonian(settings);
     }
 
