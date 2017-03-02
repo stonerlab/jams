@@ -45,7 +45,6 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
     const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice.parameter(),3));
 
-
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
 
@@ -72,7 +71,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
                         for (int m = 0; m < 3; ++m) {
                             for (int n = 0; n < 3; ++n) {
-                                dipole_tensor_(3*i + m, 3*j + n) += (3*r_hat[m]*r_hat[n] - Id[m][n])*prefactor*globals::mus(i)*globals::mus(j)/pow(r_abs,3);
+                                dipole_tensor_(3*i + m, 3*j + n) += (3*r_hat[m]*r_hat[n] - Id[m][n])*prefactor*globals::mus(i)*globals::mus(j)/std::pow(r_abs,3);
                             }
                         }
                     }
@@ -177,7 +176,7 @@ void DipoleHamiltonianTensor::calculate_fields(jblib::Array<double, 2>& fields) 
         CblasNoTrans,           // transpose?
         globals::num_spins3,    // m rows
         globals::num_spins3,    // n cols
-        1.0,                    // alpha
+        0.5,                    // alpha
         dipole_tensor_.data(),   // A matrix
         globals::num_spins3,    // first dimension of A
         globals::s.data(),       // x vector
