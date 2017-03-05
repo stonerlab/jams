@@ -49,7 +49,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
     is_debug_enabled_ = false;
     settings.lookupValue("debug", is_debug_enabled_);
 
-    std::string interaction_filename = settings.lookup("exc_file").c_str();
+    std::string interaction_filename = settings["exc_file"].c_str();
     std::ifstream interaction_file(interaction_filename.c_str());
     if (interaction_file.fail()) {
       jams_error("failed to open interaction file %s", interaction_filename.c_str());
