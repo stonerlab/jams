@@ -10,8 +10,8 @@
 #include "jams/hamiltonian/uniaxial.h"
 #include "jams/hamiltonian/uniaxial_kernel.h"
 
-UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int size)
-: Hamiltonian(settings, size),
+UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int num_spins)
+: Hamiltonian(settings, num_spins),
   mca_order_(),
   mca_value_()
 {
@@ -29,9 +29,9 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
     }
 
     // deal with magnetic anisotropy constants
-    jblib::Array<double, 1> K1(globals::num_spins, 0.0);
-    jblib::Array<double, 1> K2(globals::num_spins, 0.0);
-    jblib::Array<double, 1> K3(globals::num_spins, 0.0);
+    jblib::Array<double, 1> K1(num_spins, 0.0);
+    jblib::Array<double, 1> K2(num_spins, 0.0);
+    jblib::Array<double, 1> K3(num_spins, 0.0);
 
     if(settings.exists("K1")) {
         if (settings["K1"].getLength() != lattice->num_materials()) {
@@ -48,7 +48,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
         if (settings["K2"].getLength() != lattice->num_materials()) {
             jams_error("UniaxialHamiltonian: K2 must be specified for every material");
         }
-        for (int i = 0; i < globals::num_spins; ++i) {
+        for (int i = 0; i < num_spins; ++i) {
             K2(i) = double(settings["K2"][lattice->atom_material(i)])/kBohrMagneton;
         }
         has_d2z = true;
@@ -59,7 +59,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
         if (settings["K3"].getLength() != lattice->num_materials()) {
             jams_error("UniaxialHamiltonian: K3 must be specified for every material");
         }
-        for (int i = 0; i < globals::num_spins; ++i) {
+        for (int i = 0; i < num_spins; ++i) {
             K3(i) = double(settings["K3"][lattice->atom_material(i)])/kBohrMagneton;
         }
         has_d2z = true;
@@ -69,8 +69,8 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
     if (has_d2z) {
         mca_order_.push_back(2);
-        jblib::Array<double, 1> mca(globals::num_spins, 0.0);
-        for (int i = 0; i < globals::num_spins; ++i) {
+        jblib::Array<double, 1> mca(num_spins, 0.0);
+        for (int i = 0; i < num_spins; ++i) {
             mca(i) = -(2.0/3.0)*(K1(i) + (8.0/7.0)*K2(i) + (8.0/7.0)*K3(i));
         }
         mca_value_.push_back(mca);
@@ -79,16 +79,16 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
     if (has_d4z) {
         mca_order_.push_back(4);
-        jblib::Array<double, 1> mca(globals::num_spins, 0.0);
-        for (int i = 0; i < globals::num_spins; ++i) {
+        jblib::Array<double, 1> mca(num_spins, 0.0);
+        for (int i = 0; i < num_spins; ++i) {
             mca(i) = ((8.0/35.0)*K2(i) + (144.0/385.0)*K3(i));
         }
         mca_value_.push_back(mca);
     }
     if (has_d6z) {
         mca_order_.push_back(6);
-        jblib::Array<double, 1> mca(globals::num_spins, 0.0);
-        for (int i = 0; i < globals::num_spins; ++i) {
+        jblib::Array<double, 1> mca(num_spins, 0.0);
+        for (int i = 0; i < num_spins; ++i) {
             mca(i) = -((16.0/231.0)*K3(i));
         }
         mca_value_.push_back(mca);
@@ -102,8 +102,8 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
         }
         mca_order_.push_back(2);
 
-        jblib::Array<double, 1> mca(globals::num_spins, 0.0);
-        for (int i = 0; i < globals::num_spins; ++i) {
+        jblib::Array<double, 1> mca(num_spins, 0.0);
+        for (int i = 0; i < num_spins; ++i) {
             mca(i) = double(settings["d2z"][lattice->atom_material(i)])/kBohrMagneton;
         }
         mca_value_.push_back(mca);
@@ -116,8 +116,8 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
             jams_error("UniaxialHamiltonian: d4z must be specified for every material");
         }
         mca_order_.push_back(4);
-        jblib::Array<double, 1> mca(globals::num_spins, 0.0);
-        for (int i = 0; i < globals::num_spins; ++i) {
+        jblib::Array<double, 1> mca(num_spins, 0.0);
+        for (int i = 0; i < num_spins; ++i) {
             mca(i) = double(settings["d4z"][lattice->atom_material(i)])/kBohrMagneton;
         }
         mca_value_.push_back(mca);
@@ -128,8 +128,8 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
             jams_error("UniaxialHamiltonian: d6z must be specified for every material");
         }
         mca_order_.push_back(6);
-        jblib::Array<double, 1> mca(globals::num_spins, 0.0);
-        for (int i = 0; i < globals::num_spins; ++i) {
+        jblib::Array<double, 1> mca(num_spins, 0.0);
+        for (int i = 0; i < num_spins; ++i) {
             mca(i) = double(settings["d6z"][lattice->atom_material(i)])/kBohrMagneton;
         }
         mca_value_.push_back(mca);
@@ -149,9 +149,9 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
         dev_mca_order_ = jblib::CudaArray<int, 1>(tmp_mca_order);
 
-        jblib::Array<double, 1> tmp_mca_value(mca_order_.size() * globals::num_spins);
+        jblib::Array<double, 1> tmp_mca_value(mca_order_.size() * num_spins);
 
-        for (int i = 0; i < globals::num_spins; ++i) {
+        for (int i = 0; i < num_spins; ++i) {
             for (int j = 0; j < mca_order_.size(); ++j) {
                 tmp_mca_value[ mca_order_.size() * i + j] = mca_value_[j](i);
             }
@@ -170,7 +170,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
 double UniaxialHamiltonian::calculate_total_energy() {
     double e_total = 0.0;
-    for (int i = 0; i < globals::num_spins; ++i) {
+    for (int i = 0; i < energy_.size(); ++i) {
         e_total += calculate_one_spin_energy(i);
     }
      return e_total;
@@ -179,11 +179,10 @@ double UniaxialHamiltonian::calculate_total_energy() {
 // --------------------------------------------------------------------------
 
 double UniaxialHamiltonian::calculate_one_spin_energy(const int i) {
-    using namespace globals;
     double energy = 0.0;
 
     for (int n = 0; n < mca_order_.size(); ++n) {
-        energy += mca_value_[n](i) * legendre_poly(s(i, 2), mca_order_[n]);
+        energy += mca_value_[n](i) * legendre_poly(globals::s(i, 2), mca_order_[n]);
     }
 
     return energy;
@@ -192,8 +191,6 @@ double UniaxialHamiltonian::calculate_one_spin_energy(const int i) {
 // --------------------------------------------------------------------------
 
 double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
-    using std::pow;
-
     double e_initial = 0.0;
     double e_final = 0.0;
 
@@ -211,7 +208,7 @@ double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, co
 // --------------------------------------------------------------------------
 
 void UniaxialHamiltonian::calculate_energies() {
-    for (int i = 0; i < globals::num_spins; ++i) {
+    for (int i = 0; i < energy_.size(); ++i) {
         energy_[i] = calculate_one_spin_energy(i);
     }
 }
@@ -219,9 +216,7 @@ void UniaxialHamiltonian::calculate_energies() {
 // --------------------------------------------------------------------------
 
 void UniaxialHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
-    using namespace globals;
-    using std::pow;
-    const double sz = s(i, 2);
+    const double sz = globals::s(i, 2);
     local_field[0] = 0.0;
     local_field[1] = 0.0;
     local_field[2] = 0.0;
@@ -229,17 +224,11 @@ void UniaxialHamiltonian::calculate_one_spin_field(const int i, double local_fie
     for (int n = 0; n < mca_order_.size(); ++n) {
         local_field[2] += -mca_value_[n](i) * legendre_dpoly(sz, mca_order_[n]);
     }
-
 }
-
-
 
 // --------------------------------------------------------------------------
 
 void UniaxialHamiltonian::calculate_fields() {
-
-    // dev_s needs to be found from the solver
-
     if (solver->is_cuda_solver()) {
 #ifdef CUDA
         cuda_uniaxial_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
@@ -248,7 +237,7 @@ void UniaxialHamiltonian::calculate_fields() {
     } else {
         field_.zero();
         for (int n = 0; n < mca_order_.size(); ++n) {
-            for (int i = 0; i < globals::num_spins; ++i) {
+            for (int i = 0; i < field_.size(0); ++i) {
                 field_(i, 2) += -mca_value_[n](i) * legendre_dpoly(globals::s(i, 2), mca_order_[n]);
             }
         }
