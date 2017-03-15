@@ -8,8 +8,8 @@
 #include "jams/hamiltonian/dipole_bruteforce.h"
 #include "jams/hamiltonian/dipole_bruteforce_kernel.h"
 
-DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Setting &settings)
-: HamiltonianStrategy(settings) {
+DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size)
+: HamiltonianStrategy(settings, size) {
     jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);
 
     for (int n = 0; n < 3; ++n) {

@@ -20,7 +20,7 @@ typedef struct devFloatCSR {
 
 class DipoleHamiltonianCUDASparseTensor : public HamiltonianStrategy {
     public:
-        DipoleHamiltonianCUDASparseTensor(const libconfig::Setting &settings);
+        DipoleHamiltonianCUDASparseTensor(const libconfig::Setting &settings, const unsigned int size);
 
         ~DipoleHamiltonianCUDASparseTensor() {};
 

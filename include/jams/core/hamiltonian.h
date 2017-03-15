@@ -23,12 +23,15 @@ namespace libconfig {
 
 class Hamiltonian {
  public:
-  Hamiltonian(const libconfig::Setting &settings) {}
+  Hamiltonian(const libconfig::Setting &settings, const unsigned int size) 
+  : energy_(size, 0.0),
+    field_(size, 3, 0.0)
+  {}
 
   virtual ~Hamiltonian() {}
 
   // factory
-  static Hamiltonian* create(const libconfig::Setting &settings);
+  static Hamiltonian* create(const libconfig::Setting &settings, const unsigned int size);
 
   virtual std::string name() const = 0;
 

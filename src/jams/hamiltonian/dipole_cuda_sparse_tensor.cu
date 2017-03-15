@@ -14,8 +14,8 @@
 
 #include "jams/hamiltonian/dipole_cuda_sparse_tensor.h"
 
-DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libconfig::Setting &settings)
-: HamiltonianStrategy(settings),
+DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libconfig::Setting &settings, const unsigned int size)
+: HamiltonianStrategy(settings, size),
     use_double_precision(false)   // default to float precision
  {
     using std::pow;

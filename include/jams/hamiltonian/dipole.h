@@ -19,7 +19,7 @@
 
 class DipoleHamiltonian : public Hamiltonian {
     public:
-        DipoleHamiltonian(const libconfig::Setting &settings);
+        DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size);
         ~DipoleHamiltonian() {};
 
         std::string name() const { return "dipole"; }
@@ -34,7 +34,7 @@ class DipoleHamiltonian : public Hamiltonian {
         void   calculate_fields();
 
     private:
-        HamiltonianStrategy * select_strategy(const libconfig::Setting &settings);
+        HamiltonianStrategy * select_strategy(const libconfig::Setting &settings, const unsigned int size);
         HamiltonianStrategy *dipole_strategy_;
 };
 

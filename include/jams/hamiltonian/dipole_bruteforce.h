@@ -9,7 +9,7 @@
 
 class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
     public:
-        DipoleHamiltonianBruteforce(const libconfig::Setting &settings);
+        DipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size);
 
         ~DipoleHamiltonianBruteforce() {};
 

@@ -10,16 +10,10 @@
 #include "jams/hamiltonian/zeeman.h"
 #include "jams/hamiltonian/zeeman_kernel.h"
 
-ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
-: Hamiltonian(settings)
+ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size)
+: Hamiltonian(settings, size)
 {
   ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
-
-    // resize member arrays
-    energy_.resize(globals::num_spins);
-    energy_.zero();
-    field_.resize(globals::num_spins, 3);
-    field_.zero();
 
     dc_local_field_.resize(globals::num_spins, 3);
     dc_local_field_.zero();

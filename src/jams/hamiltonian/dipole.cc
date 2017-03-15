@@ -21,12 +21,9 @@
 
 #include "jblib/containers/array.h"
 
-DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
-: Hamiltonian(settings) {
+DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size)
+: Hamiltonian(settings, size) {
   ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
-
-    energy_.resize(globals::num_spins);
-    field_.resize(globals::num_spins, 3);
 
 #ifdef CUDA
     if (solver->is_cuda_solver()) {
@@ -35,39 +32,39 @@ DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
     }
 #endif
 
-    dipole_strategy_ = select_strategy(settings);
+    dipole_strategy_ = select_strategy(settings, size);
 }
 
 // --------------------------------------------------------------------------
 
-HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Setting &settings) {
+HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Setting &settings, const unsigned int size) {
     if (settings.exists("strategy")) {
         std::string strategy_name(capitalize(settings["strategy"]));
 
         if (strategy_name == "TENSOR") {
-            return new DipoleHamiltonianTensor(settings);
+            return new DipoleHamiltonianTensor(settings, size);
         }
 
         if (strategy_name == "CUDA_SPARSE_TENSOR") {
-            return new DipoleHamiltonianCUDASparseTensor(settings);
+            return new DipoleHamiltonianCUDASparseTensor(settings, size);
         }
 
         if (strategy_name == "EWALD") {
-            return new DipoleHamiltonianEwald(settings);
+            return new DipoleHamiltonianEwald(settings, size);
         }
 
         if (strategy_name == "FFT") {
-            return new DipoleHamiltonianFFT(settings);
+            return new DipoleHamiltonianFFT(settings, size);
         }
 
         if (strategy_name == "BRUTEFORCE") {
-            return new DipoleHamiltonianBruteforce(settings);
+            return new DipoleHamiltonianBruteforce(settings, size);
         }
 
         std::runtime_error("Unknown DipoleHamiltonian strategy '" + strategy_name + "' requested\n");
     }
     jams_warning("no dipole strategy selected, defaulting to TENSOR");
-    return new DipoleHamiltonianTensor(settings);
+    return new DipoleHamiltonianTensor(settings, size);
 }
 
 // --------------------------------------------------------------------------

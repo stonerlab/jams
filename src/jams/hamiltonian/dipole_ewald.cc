@@ -17,8 +17,8 @@ using std::pow;
 using std::abs;
 using std::min;
 
-DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &settings)
-: HamiltonianStrategy(settings),
+DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &settings, const unsigned int size)
+: HamiltonianStrategy(settings, size),
   s_old_1_(globals::s), s_old_2_(globals::s) {
 
     double r_abs;

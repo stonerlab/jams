@@ -10,17 +10,12 @@
 #include "jams/hamiltonian/uniaxial.h"
 #include "jams/hamiltonian/uniaxial_kernel.h"
 
-UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
-: Hamiltonian(settings),
+UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int size)
+: Hamiltonian(settings, size),
   mca_order_(),
   mca_value_()
 {
   ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
-
-    // resize member arrays
-    energy_.resize(globals::num_spins);
-    field_.resize(globals::num_spins, 3);
-    field_.zero();
 
     bool has_d2z = false;
     bool has_d4z = false;

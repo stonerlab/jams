@@ -19,7 +19,7 @@ namespace jblib {
 
 class HamiltonianStrategy {
     public:
-        inline HamiltonianStrategy(const libconfig::Setting &settings) {};
+        inline HamiltonianStrategy(const libconfig::Setting &settings, const unsigned int size) {};
         inline virtual ~HamiltonianStrategy() {};
 
         virtual double calculate_total_energy() = 0;

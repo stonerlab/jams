@@ -23,7 +23,7 @@
 
 class ExchangeHamiltonian : public Hamiltonian {
     public:
-        ExchangeHamiltonian(const libconfig::Setting &settings);
+        ExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
         ~ExchangeHamiltonian() {};
 
         std::string name() const { return "exchange"; }

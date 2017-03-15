@@ -15,7 +15,7 @@
 
 class UniaxialHamiltonian : public Hamiltonian {
     public:
-        UniaxialHamiltonian(const libconfig::Setting &settings);
+        UniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int size);
         ~UniaxialHamiltonian() {};
 
         std::string name() const { return "uniaxial"; }

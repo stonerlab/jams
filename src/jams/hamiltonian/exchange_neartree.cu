@@ -31,8 +31,8 @@ void ExchangeNeartreeHamiltonian::insert_interaction(const int i, const int j, c
     }
   }}
 
-ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Setting &settings)
-: Hamiltonian(settings) {
+ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
+: Hamiltonian(settings, size) {
 
     is_debug_enabled_ = false;
     std::ofstream debug_file;
@@ -196,10 +196,6 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     }
 
     ::output->write("  total interactions: %d\n", counter);
-
-    // resize member arrays
-    energy_.resize(globals::num_spins);
-    field_.resize(globals::num_spins, 3);
 
     ::output->write("  converting interaction matrix format from MAP to CSR\n");
     interaction_matrix_.convertMAP2CSR();

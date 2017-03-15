@@ -12,7 +12,7 @@
 
 class DipoleHamiltonianTensor : public HamiltonianStrategy {
     public:
-        DipoleHamiltonianTensor(const libconfig::Setting &settings);
+        DipoleHamiltonianTensor(const libconfig::Setting &settings, const unsigned int size);
 
         ~DipoleHamiltonianTensor() {};
 

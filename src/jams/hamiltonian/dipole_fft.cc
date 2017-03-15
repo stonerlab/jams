@@ -19,8 +19,8 @@ using std::pow;
 using std::abs;
 using std::min;
 
-DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings)
-: HamiltonianStrategy(settings),
+DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size)
+: HamiltonianStrategy(settings, size),
   s_old_(globals::s) {
     printf("  FFT Method\n");
 

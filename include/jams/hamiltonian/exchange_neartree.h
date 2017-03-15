@@ -27,7 +27,7 @@ struct InteractionNT {
 
 class ExchangeNeartreeHamiltonian : public Hamiltonian {
     public:
-        ExchangeNeartreeHamiltonian(const libconfig::Setting &settings);
+        ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
         ~ExchangeNeartreeHamiltonian() {};
 
         typedef std::vector<std::vector<InteractionNT>> InteractionList;

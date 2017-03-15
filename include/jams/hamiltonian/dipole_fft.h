@@ -14,7 +14,7 @@
 
 class DipoleHamiltonianFFT : public HamiltonianStrategy {
     public:
-        DipoleHamiltonianFFT(const libconfig::Setting &settings);
+        DipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size);
 
         ~DipoleHamiltonianFFT() {};
 

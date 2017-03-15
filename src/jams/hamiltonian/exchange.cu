@@ -41,8 +41,8 @@ void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jbl
 
 //---------------------------------------------------------------------
 
-ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
-: Hamiltonian(settings) {
+ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
+: Hamiltonian(settings, size) {
   ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
 
   //---------------------------------------------------------------------
@@ -121,10 +121,6 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
         insert_interaction(i, j.first, j.second);
       }
     }
-
-    // resize member arrays
-    energy_.resize(globals::num_spins);
-    field_.resize(globals::num_spins, 3);
 
     ::output->write("  converting interaction matrix format from MAP to CSR\n");
     interaction_matrix_.convertMAP2CSR();

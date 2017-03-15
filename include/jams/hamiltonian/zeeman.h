@@ -13,7 +13,7 @@
 
 class ZeemanHamiltonian : public Hamiltonian {
     public:
-        ZeemanHamiltonian(const libconfig::Setting &settings);
+        ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size);
         ~ZeemanHamiltonian() {};
 
         std::string name() const { return "zeeman"; }

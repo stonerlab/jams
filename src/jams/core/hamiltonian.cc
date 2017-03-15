@@ -15,28 +15,28 @@
 #include "jams/hamiltonian/exchange_neartree.h"
 #include "jams/hamiltonian/zeeman.h"
 
-Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings) {
+Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings, const unsigned int size) {
     // debugging output
     ::output->write("\ncreating '%s' hamiltonian\n", settings["module"].c_str());
 
     if (capitalize(settings["module"]) == "EXCHANGE") {
-        return new ExchangeHamiltonian(settings);
+        return new ExchangeHamiltonian(settings, size);
     }
 
     if (capitalize(settings["module"]) == "EXCHANGE_NEARTREE") {
-        return new ExchangeNeartreeHamiltonian(settings);
+        return new ExchangeNeartreeHamiltonian(settings, size);
     }
 
     if (capitalize(settings["module"]) == "UNIAXIAL") {
-        return new UniaxialHamiltonian(settings);
+        return new UniaxialHamiltonian(settings, size);
     }
 
     if (capitalize(settings["module"]) == "DIPOLE") {
-        return new DipoleHamiltonian(settings);
+        return new DipoleHamiltonian(settings, size);
     }
 
     if (capitalize(settings["module"]) == "ZEEMAN") {
-        return new ZeemanHamiltonian(settings);
+        return new ZeemanHamiltonian(settings, size);
     }
 
     // throw error if the hamiltonian name is no known

@@ -17,7 +17,7 @@
 
 class DipoleHamiltonianEwald : public HamiltonianStrategy {
     public:
-        DipoleHamiltonianEwald(const libconfig::Setting &settings);
+        DipoleHamiltonianEwald(const libconfig::Setting &settings, const unsigned int size);
 
         ~DipoleHamiltonianEwald() {};
 

@@ -15,8 +15,8 @@
 #include "jams/hamiltonian/dipole_tensor.h"
 
 
-DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &settings)
-: HamiltonianStrategy(settings) {
+DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &settings, const unsigned int size)
+: HamiltonianStrategy(settings, size) {
     using std::pow;
     double r_abs;
     jblib::Vec3<double> r_ij, r_hat, s_j;

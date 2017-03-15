@@ -144,7 +144,7 @@ int jams_initialize(int argc, char **argv) {
         // loop over hamiltonian groups and register
         const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
         for (int i = 0; i != hamiltonian_settings.getLength(); ++i) {
-          solver->register_hamiltonian(Hamiltonian::create(hamiltonian_settings[i]));
+          solver->register_hamiltonian(Hamiltonian::create(hamiltonian_settings[i], globals::num_spins));
         }
       }
 
