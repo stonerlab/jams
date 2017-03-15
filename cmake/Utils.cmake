@@ -13,11 +13,19 @@ endmacro()
 
 ################################################################################################
 # http://stackoverflow.com/questions/10851247/how-to-activate-c-11-in-cmake
+# http://stackoverflow.com/questions/37621342/cmake-will-not-compile-to-c-11-standard
 macro(jams_use_cxx11 arg)
   if (CMAKE_VERSION VERSION_LESS "3.1")
-  	target_compile_features(${arg} PRIVATE cxx_range_for)
+   	include(CheckCXXCompilerFlag)
+  	CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+	if(COMPILER_SUPPORTS_CXX11)
+		add_compile_options(-std=c++11)
+	else(COMPILER_SUPPORTS_CXX11)
+	    message(FATAL_ERROR "${COMPILER_SUPPORTS_CXX11}")
+	endif(COMPILER_SUPPORTS_CXX11)
   else ()
   	set_property(TARGET ${arg} PROPERTY CXX_STANDARD 11)
+	set_property(TARGET ${arg} PROPERTY CXX_STANDARD_REQUIRED ON)
   endif ()
 endmacro()
 
