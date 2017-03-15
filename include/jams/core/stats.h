@@ -126,12 +126,21 @@ inline double Stats::sqsum(const size_t t0, const size_t t1) {
 }
 
 inline double Stats::mean() {
-  return mean(0, data_.size());
+  return mean(0, data_.size()-1);
 }
 
 inline double Stats::mean(const size_t t0, const size_t t1) {
+  if (data_.size() == 0) {
+    return 0.0;
+  }
+
+  if (data_.size() == 1) {
+    return data_[0];
+  }
+  
   assert(t0 < data_.size()-1);
-  assert(t1 > 0  && t1 < data_.size());
+  assert(t1 > 0);
+  assert(t1 < data_.size());
 
   return this->sum(t0, t1)/static_cast<double>(t1 - t0);
 }
