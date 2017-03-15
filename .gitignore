@@ -23,3 +23,5 @@ cout
 .clang_complete
 .tags
 .tags1
+
+/build
