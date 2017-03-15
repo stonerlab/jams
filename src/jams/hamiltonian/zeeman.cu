@@ -13,7 +13,7 @@
 ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings)
 {
-    ::output->write("initialising Zeeman Hamiltonian\n");
+  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
 
     // resize member arrays
     energy_.resize(globals::num_spins);

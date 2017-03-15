@@ -23,6 +23,7 @@
 
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
+  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
 
     energy_.resize(globals::num_spins);
     field_.resize(globals::num_spins, 3);

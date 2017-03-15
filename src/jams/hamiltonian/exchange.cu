@@ -43,6 +43,7 @@ void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jbl
 
 ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings) {
+  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
 
   //---------------------------------------------------------------------
   // read settings

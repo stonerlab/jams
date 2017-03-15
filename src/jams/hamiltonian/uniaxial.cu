@@ -15,7 +15,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
   mca_order_(),
   mca_value_()
 {
-    ::output->write("initialising Uniaxial Hamiltonian\n");
+  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
 
     // resize member arrays
     energy_.resize(globals::num_spins);
