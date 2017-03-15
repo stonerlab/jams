@@ -20,3 +20,8 @@ cout
 
 /jams.sublime-project
 /jams.sublime-workspace
+.clang_complete
+.tags
+.tags1
+
+/build
