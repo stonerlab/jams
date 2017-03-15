@@ -2,7 +2,7 @@
 #define JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_KERNEL_H
 
 #include "jams/core/cuda_defs.h"
-#include "core/cuda_vector_ops.h"
+#include "jams/core/cuda_vector_ops.h"
 
 __constant__ float dev_super_unit_cell[3][3];
 __constant__ float dev_super_unit_cell_inv[3][3];
