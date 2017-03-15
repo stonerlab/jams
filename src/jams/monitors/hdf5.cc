@@ -73,7 +73,7 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 
     open_new_xdmf_file(seedname + ".xdmf");
 
-    write_lattice_h5_file(seedname + "_::lattice->h5", PredType::IEEE_F64LE);
+    write_lattice_h5_file(seedname + "_lattice.h5", PredType::IEEE_F64LE);
 }
 
 Hdf5Monitor::~Hdf5Monitor() {
@@ -275,12 +275,12 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const H5::Pr
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", data_dimension);
                fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s_::lattice->h5:/positions\n", seedname.c_str());
+  fprintf(xdmf_file_, "           %s_lattice.h5:/positions\n", seedname.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Geometry>\n", xdmf_file_);
                fputs("       <Attribute Name=\"Type\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", data_dimension);
-  fprintf(xdmf_file_, "           %s_::lattice->h5:/types\n", seedname.c_str());
+  fprintf(xdmf_file_, "           %s_lattice.h5:/types\n", seedname.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
                fputs("       <Attribute Name=\"spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
