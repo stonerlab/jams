@@ -1,5 +1,5 @@
 # -- Google-test
-include("cmake/External/gtest.cmake")
+#include("cmake/External/gtest.cmake")
 
 # -- Libconfig++
 find_package(CONFIG++ REQUIRED)
