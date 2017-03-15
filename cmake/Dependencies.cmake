@@ -11,7 +11,6 @@ find_package(SYMSPG REQUIRED)
 include_directories(SYSTEM ${SYMSPG_INCLUDE_DIR})
 list(APPEND JAMS_LINKER_LIBS ${SYMSPG_LIBRARY})
 
-
 # -- HDF5
 find_package(HDF5 COMPONENTS CXX REQUIRED)
 include_directories(SYSTEM ${HDF5_INCLUDE_DIRS} ${HDF5_CXX_INCLUDE_DIR})
@@ -26,33 +25,20 @@ list(APPEND JAMS_LINKER_LIBS ${CUDA_CUBLAS_LIBRARIES})
 list(APPEND JAMS_LINKER_LIBS ${CUDA_curand_LIBRARY})
 list(APPEND JAMS_LINKER_LIBS ${CUDA_cusparse_LIBRARY})
 
-# -- BLAS
-#if(NOT APPLE)
-#  set(BLAS "Atlas" CACHE STRING "Selected BLAS library")
-#  set_property(CACHE BLAS PROPERTY STRINGS "Atlas;Open;MKL")
-#
-#  if(BLAS STREQUAL "Atlas" OR BLAS STREQUAL "atlas")
-#    find_package(Atlas REQUIRED)
-#    include_directories(SYSTEM ${Atlas_INCLUDE_DIR})
-#    list(APPEND JAMS_LINKER_LIBS ${Atlas_LIBRARIES})
-#  elseif(BLAS STREQUAL "Open" OR BLAS STREQUAL "open")
-#    find_package(OpenBLAS REQUIRED)
-#    include_directories(SYSTEM ${OpenBLAS_INCLUDE_DIR})
-#    list(APPEND JAMS_LINKER_LIBS ${OpenBLAS_LIB})
-#  elseif(BLAS STREQUAL "MKL" OR BLAS STREQUAL "mkl")
-    find_package(MKL REQUIRED)
-    include_directories(SYSTEM ${MKL_INCLUDE_DIR})
-    list(APPEND JAMS_LINKER_LIBS ${MKL_LIBRARIES})
-    add_definitions(-DUSE_MKL)
- # endif()
-#elseif(APPLE)
-#  find_package(vecLib REQUIRED)
-#  include_directories(SYSTEM ${vecLib_INCLUDE_DIR})
-#  list(APPEND JAMS_LINKER_LIBS ${vecLib_LINKER_LIBS})
-#
-#  if(VECLIB_FOUND)
-#    if(NOT vecLib_INCLUDE_DIR MATCHES "^/System/Library/Frameworks/vecLib.framework.*")
-#      add_definitions(-DUSE_ACCELERATE)
-#    endif()
-#  endif()
-#endif()
+# -- MKL (BLAS and FFTW3)
+find_package(MKL)
+if(MKL_FOUND)
+	include_directories(SYSTEM ${MKL_INCLUDE_DIR})
+	include_directories(SYSTEM ${FFTW3_INCLUDE_DIR})
+	list(APPEND JAMS_LINKER_LIBS ${MKL_LIBRARIES})
+	add_definitions(-DUSE_MKL)
+endif(MKL_FOUND)
+
+# -- fftw3
+
+if(NOT MKL_FOUND)
+	find_package(FFTW3 REQUIRED)
+	include_directories(SYSTEM ${FFTW3_INCLUDE_DIR})
+	list(APPEND JAMS_LINKER_LIBS ${FFTW3_LIBRARY})
+endif(NOT MKL_FOUND)
+
