@@ -26,18 +26,8 @@ class ZeemanHamiltonian : public Hamiltonian {
 
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
-
-        void   output_energies(OutputFormat format);
-        void   output_fields(OutputFormat format);
-
+    
     private:
-
-        void output_energies_text();
-        // void output_energies_hdf5();
-
-        void output_fields_text();
-        // void output_fields_hdf5();
-
         jblib::Array<double, 2> dc_local_field_;
         jblib::Array<double, 2> ac_local_field_;
         jblib::Array<double, 1> ac_local_frequency_;

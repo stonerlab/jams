@@ -16,8 +16,6 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings)
   mca_value_()
 {
     ::output->write("initialising Uniaxial Hamiltonian\n");
-    // output in default format for now
-    outformat_ = TEXT;
 
     // resize member arrays
     energy_.resize(globals::num_spins);
@@ -261,41 +259,3 @@ void UniaxialHamiltonian::calculate_fields() {
         }
     }
 }
-// --------------------------------------------------------------------------
-
-void UniaxialHamiltonian::output_energies(OutputFormat format) {
-    switch(format) {
-        case TEXT:
-            output_energies_text();
-        case HDF5:
-            jams_error("Uniaxial energy output: HDF5 not yet implemented");
-        default:
-            jams_error("Uniaxial energy output: unknown format");
-    }
-}
-
-// --------------------------------------------------------------------------
-
-void UniaxialHamiltonian::output_fields(OutputFormat format) {
-    switch(format) {
-        case TEXT:
-            output_fields_text();
-        case HDF5:
-            jams_error("Uniaxial energy output: HDF5 not yet implemented");
-        default:
-            jams_error("Uniaxial energy output: unknown format");
-    }
-}
-
-// --------------------------------------------------------------------------
-
-void UniaxialHamiltonian::output_energies_text() {
-
-}
-
-// --------------------------------------------------------------------------
-
-void UniaxialHamiltonian::output_fields_text() {
-
-}
-

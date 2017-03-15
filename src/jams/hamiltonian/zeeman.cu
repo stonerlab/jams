@@ -14,8 +14,6 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 : Hamiltonian(settings)
 {
     ::output->write("initialising Zeeman Hamiltonian\n");
-    // output in default format for now
-    outformat_ = TEXT;
 
     // resize member arrays
     energy_.resize(globals::num_spins);
@@ -205,41 +203,4 @@ void ZeemanHamiltonian::calculate_fields() {
             }
         }
     }
-}
-// --------------------------------------------------------------------------
-
-void ZeemanHamiltonian::output_energies(OutputFormat format) {
-    switch(format) {
-        case TEXT:
-            output_energies_text();
-        case HDF5:
-            jams_error("Zeeman energy output: HDF5 not yet implemented");
-        default:
-            jams_error("Zeeman energy output: unknown format");
-    }
-}
-
-// --------------------------------------------------------------------------
-
-void ZeemanHamiltonian::output_fields(OutputFormat format) {
-    switch(format) {
-        case TEXT:
-            output_fields_text();
-        case HDF5:
-            jams_error("Zeeman energy output: HDF5 not yet implemented");
-        default:
-            jams_error("Zeeman energy output: unknown format");
-    }
-}
-
-// --------------------------------------------------------------------------
-
-void ZeemanHamiltonian::output_energies_text() {
-
-}
-
-// --------------------------------------------------------------------------
-
-void ZeemanHamiltonian::output_fields_text() {
-
 }

@@ -28,18 +28,7 @@ class UniaxialHamiltonian : public Hamiltonian {
 
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
-
-        void   output_energies(OutputFormat format);
-        void   output_fields(OutputFormat format);
-
     private:
-
-        void output_energies_text();
-        // void output_energies_hdf5();
-
-        void output_fields_text();
-        // void output_fields_hdf5();
-
         std::vector<int> mca_order_;   // MCA expressed as a Legendre polynomial
         std::vector< jblib::Array<double, 1> > mca_value_;
 

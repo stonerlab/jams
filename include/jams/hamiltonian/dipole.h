@@ -33,21 +33,9 @@ class DipoleHamiltonian : public Hamiltonian {
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
 
-        void   output_energies(OutputFormat format);
-        void   output_fields(OutputFormat format);
-
     private:
-
         HamiltonianStrategy * select_strategy(const libconfig::Setting &settings);
-        void output_energies_text();
-        // void output_energies_hdf5();
-
-        void output_fields_text();
-        // void output_fields_hdf5();
-
         HamiltonianStrategy *dipole_strategy_;
-
-        OutputFormat            outformat_;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_H

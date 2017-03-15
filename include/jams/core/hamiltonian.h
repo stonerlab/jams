@@ -41,9 +41,6 @@ class Hamiltonian {
   virtual void   calculate_one_spin_field(const int i, double h[3]) = 0;
   virtual void   calculate_fields() = 0;
 
-  virtual void   output_energies(OutputFormat format) = 0;
-  virtual void   output_fields(OutputFormat format) = 0;
-
   inline double energy(const int i) const {
     assert(i < energy_.elements());
     return energy_(i);
@@ -82,15 +79,6 @@ class Hamiltonian {
   }
 
  protected:
-
-  virtual void output_energies_text() = 0;
-  // virtual void output_energies_hdf5() = 0;
-
-  virtual void output_fields_text() = 0;
-  // virtual void output_fields_hdf5() = 0;
-
-
-  OutputFormat            outformat_;
   jblib::Array<double, 1> energy_;
   jblib::Array<double, 2> field_;
 

@@ -37,21 +37,12 @@ class ExchangeHamiltonian : public Hamiltonian {
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
 
-        void   output_energies(OutputFormat format);
-        void   output_fields(OutputFormat format);
-
         InteractionList<Mat3>::const_reference neighbours(const int i) const {
             return neighbour_list_.interactions(i);
         }
 
     private:
         void insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
-
-        void output_energies_text();
-        // void output_energies_hdf5();
-
-        void output_fields_text();
-        // void output_fields_hdf5();
 
         sparse_matrix_format_t sparse_matrix_format();
         void set_sparse_matrix_format(std::string &format_name);
