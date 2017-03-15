@@ -29,6 +29,9 @@ find_path(MKL_ROOT include/mkl.h PATHS $ENV{MKLROOT} ${INTEL_ROOT}/mkl
 find_path(MKL_INCLUDE_DIR mkl.h PATHS ${MKL_ROOT} PATH_SUFFIXES include)
 set(__looked_for MKL_INCLUDE_DIR)
 
+# ---[ Find fftw3 include dir
+find_path(FFTW3_INCLUDE_DIR fftw3.h PATHS ${MKL_ROOT} PATH_SUFFIXES include/fftw)
+
 # ---[ Find libraries
 if(CMAKE_SIZEOF_VOID_P EQUAL 4)
   set(__path_suffixes lib lib/ia32)
@@ -108,3 +111,9 @@ find_package_handle_standard_args(MKL DEFAULT_MSG ${__looked_for})
 if(MKL_FOUND)
   message(STATUS "Found MKL (include: ${MKL_INCLUDE_DIR}, lib: ${MKL_LIBRARIES}")
 endif()
+
+IF (FFTW3_INCLUDE_DIR AND MKL_FOUND)
+  SET(FFTW3_FOUND TRUE)
+  message(STATUS "Found FFTW3 (MKL) (include: ${FFTW3_INCLUDE_DIR}, lib: ${MKL_LIBRARIES}")
+ENDIF ()
+
