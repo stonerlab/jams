@@ -555,13 +555,3 @@ void ExchangeNeartreeHamiltonian::set_sparse_matrix_format(std::string &format_n
     jams_error("ExchangeNeartreeHamiltonian::set_sparse_matrix_format: Unknown format requested %s", format_name.c_str());
   }
 }
-
-double ExchangeNeartreeHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
-  using namespace globals;
-
-  if (i == j) {
-    return 0.0;
-  } else {
-    return 0.0;
-  }
-}

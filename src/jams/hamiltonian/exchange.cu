@@ -498,28 +498,3 @@ void ExchangeHamiltonian::set_sparse_matrix_format(std::string &format_name) {
   }
 }
 
-//---------------------------------------------------------------------
-
-double ExchangeHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
-  using namespace globals;
-
-  return 0.0;
-  // if (i == j) {
-  //   return 0.0;
-  // } else {
-
-  //   // Mat3 J;
-
-  //   // J = neighbour_list_[i][j];
-
-  //   // try {
-  //   //   J = neighbour_list_[i].at(j);
-  //   // }
-  //   // catch(std::out_of_range) {
-  //   //   return 0.0;
-  //   // }
-
-  //   Vec3 Js = neighbour_list_.interactions(i)[j] * (sj_final - sj_initial);
-  //   return -(s(i, 0) * Js[0] + s(i, 1) * Js[1] + s(i, 2) * Js[2]);
-  // }
-}

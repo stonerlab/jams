@@ -36,9 +36,6 @@ class Hamiltonian {
   virtual double calculate_one_spin_energy(const int i) = 0;
   virtual double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) = 0;
 
-  // virtual double calculate_bond_energy(const int i, const int j) = 0;
-  virtual double calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) = 0;
-
   virtual void   calculate_energies() = 0;
 
   virtual void   calculate_one_spin_field(const int i, double h[3]) = 0;
