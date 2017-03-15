@@ -35,6 +35,11 @@ namespace {
 }  // anon namespace
 
 int jams_initialize(int argc, char **argv) {
+  output  = new Output();
+  config  = new libconfig::Config();
+  rng     = new Random();
+  lattice = new Lattice();
+
   std::string config_filename;
 
   if (argc == 1) {
@@ -48,7 +53,6 @@ int jams_initialize(int argc, char **argv) {
   seedname = file_basename(config_filename);
   trim(seedname);
 
-  output = new Output();
   output->open("%s.out", seedname.c_str());
 
   output->write("\nJAMS++\n");
@@ -73,7 +77,9 @@ int jams_initialize(int argc, char **argv) {
 
   {
     try {
+
       config->readFile(config_filename.c_str());
+      output->write("OK\n");
 
       if (config->exists("sim.verbose")) {
         if (config->lookup("sim.verbose")) {
@@ -110,7 +116,6 @@ int jams_initialize(int argc, char **argv) {
       output->write("\nminimum runtime\n  %1.8e (%lu steps)\n",
         time_value, steps_min);
 
-      lattice = new Lattice();
       lattice->init_from_config(*::config);
 
       output->write("\nInitialising physics module...\n");
