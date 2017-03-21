@@ -89,9 +89,9 @@ double DipoleHamiltonianBruteforce::calculate_total_energy() {
         calculate_fields(dev_dipole_fields);
         dev_dipole_fields.copy_to_host_array(host_dipole_fields);
         for (int i = 0; i < globals::num_spins; ++i) {
-            e_total += -(  globals::s(i,0)*host_dipole_fields(i,0) 
-                         + globals::s(i,1)*host_dipole_fields(i,1)
-                         + globals::s(i,2)*host_dipole_fields(i,2) );
+            e_total += -0.5 * (  globals::s(i,0)*host_dipole_fields(i,0) 
+                               + globals::s(i,1)*host_dipole_fields(i,1)
+                               + globals::s(i,2)*host_dipole_fields(i,2) );
         }
    } else { 
 #endif // CUDA
@@ -111,14 +111,14 @@ double DipoleHamiltonianBruteforce::calculate_total_energy() {
 double DipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i, const jblib::Vec3<double> &s_i) {
     double h[3];
     calculate_one_spin_field(i, h);
-    return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2]);
+    return -0.5 * (s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2]);
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i) {
     jblib::Vec3<double> s_i(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
-    return 0.5*calculate_one_spin_energy(i, s_i);
+    return calculate_one_spin_energy(i, s_i);
 }
 
 // --------------------------------------------------------------------------
