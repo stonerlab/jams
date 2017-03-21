@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "jams/core/output.h"
+#include "jams/core/consts.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
@@ -36,7 +37,7 @@ void EnergyMonitor::update(Solver * solver) {
 
   if (solver->iteration()%output_step_freq_ == 0) {
     for (auto it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
-      outfile << std::setw(21) << std::scientific << std::setprecision(15) << (*it)->calculate_total_energy() / static_cast<double>(num_spins) << "\t";
+      outfile << std::setw(21) << std::scientific << std::setprecision(15) << kBohrMagneton * (*it)->calculate_total_energy() / static_cast<double>(num_spins) << "\t";
     }
   }
 
