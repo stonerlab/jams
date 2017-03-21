@@ -204,15 +204,6 @@ void jams_finish() {
   if (physics_module != NULL) { delete physics_module; }
 }
 
-int main(int argc, char **argv) {
-  jams_initialize(argc, argv);
-
-  jams_run();
-
-  jams_finish();
-  return EXIT_SUCCESS;
-}
-
 void jams_error(const char *string, ...) {
   va_list args;
   char buffer[1024];

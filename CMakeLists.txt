@@ -22,7 +22,6 @@ include(cmake/Targets.cmake)
 
 jams_ensure_out_of_source_build()
 
-
 #-----------------------------------------------------------
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
