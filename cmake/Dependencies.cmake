@@ -1,5 +1,5 @@
 # -- Google-test
-#include("cmake/External/gtest.cmake")
+include("cmake/External/gtest.cmake")
 
 # -- Libconfig++
 find_package(CONFIG++ REQUIRED)
@@ -41,4 +41,3 @@ if(NOT MKL_FOUND)
 	include_directories(SYSTEM ${FFTW3_INCLUDE_DIR})
 	list(APPEND JAMS_LINKER_LIBS ${FFTW3_LIBRARY})
 endif(NOT MKL_FOUND)
-
