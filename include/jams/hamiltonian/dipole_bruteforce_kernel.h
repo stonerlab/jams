@@ -80,22 +80,21 @@ __global__ void dipole_bruteforce_kernel
     double * h_dev
 )
 {
-    const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
+    const unsigned int i = blockIdx.x*blockDim.x+threadIdx.x;
     unsigned int n;
+    const float r_cutoff_sq = dev_r_cutoff * dev_r_cutoff; 
 
     double h[3] = {0.0, 0.0, 0.0};
 
-    float sj[3], ri[3], rj[3], r_ij[3], r_abs, sj_dot_rhat;
+    float sj[3], ri[3], rj[3], r_ij[3], r_abs;
 
-    if (idx < num_spins) {
-        // constant is kB * mu_0 / 4 pi
-        const float pre = mus_dev[idx] * dev_dipole_prefactor;
-
+    if (i < num_spins) {
         for (n = 0; n < 3; ++n) {
-            ri[n] = r_dev[3*idx + n];
+            ri[n] = r_dev[3*i + n];
         }
 
         for (int j = 0; j < num_spins; ++j) {
+          float h_tmp[3] = {0.0, 0.0, 0.0};
 
           for (n = 0; n < 3; ++n) {
               rj[n] = r_dev[3*j + n];
@@ -107,22 +106,23 @@ __global__ void dipole_bruteforce_kernel
 
           CalculateDisplacementVector(ri, rj, r_ij);
 
-          r_abs = sqrtf(r_ij[0] * r_ij[0] + r_ij[1] * r_ij[1] + r_ij[2] * r_ij[2]);
+          r_abs = abs(r_ij);
 
-          if (j == idx || r_abs > dev_r_cutoff) continue;
-
-          sj_dot_rhat = (sj[0] * r_ij[0] + sj[1] * r_ij[1] + sj[2] * r_ij[2]);
+          if (r_abs <= r_cutoff_sq && i != j) {
+            CalculateFieldElement(sj, r_ij, mus_dev[j], r_abs, h_tmp);
+          }
 
           // accumulate values
           for (n = 0; n < 3; ++n) {
-              h[n] += pre * mus_dev[j] * (3.0f * r_ij[n] * sj_dot_rhat  - r_abs * r_abs * sj[n]) / (r_abs * r_abs * r_abs * r_abs * r_abs);
+            h[n] += h_tmp[n];
           }
         }
 
         // write to global memory
         #pragma unroll
         for (n = 0; n < 3; ++n) {
-            h_dev[3*idx + n] = h[n];
+          // constant is kB * mu_0 / 4 pi
+            h_dev[3*i + n] = mus_dev[i] * dev_dipole_prefactor * h[n];
         }
     }
 }
@@ -149,63 +149,60 @@ void DipoleBruteforceKernel(
     const unsigned int num_spins,
           double * __restrict__ h_dev)
 {
-    const unsigned int i = blockIdx.x*blockDim.x+threadIdx.x;
+    const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     const unsigned int thread_idx = threadIdx.x;
 
     const float r_cutoff_sq = dev_r_cutoff * dev_r_cutoff; 
+    float r_i[3];
+    double h[3] = {0.0, 0.0, 0.0};
 
     __shared__ float r_j[block_size][3];
     __shared__ float s_j[block_size][3];
-    __shared__ float mus_pre[block_size];
+    __shared__ float mus[block_size];
 
-    float prefactor, r_i[3];
 
     if (i < num_spins) {
-      // constant is kB * mu_0 / 4 pi
-      prefactor = mus_dev[i] * dev_dipole_prefactor;
-
       for (unsigned int n = 0; n < 3; ++n) {
-          r_i[n] = r_dev[3*i + n];
+          r_i[n] = r_dev[3 * i + n];
       }
     }
 
     const unsigned int num_blocks = (num_spins + block_size - 1) / block_size;
 
-    double h[3] = {0.0, 0.0, 0.0};
     for (unsigned int block_idx = 0; block_idx < num_blocks; ++block_idx) {
+      // sync to make sure we aren't using a dirty cache when the warp diverges
+      __syncthreads();
+
       //------------------------------------------------------------------------
       // for every block load up the shared memory with data
       //------------------------------------------------------------------------
       const unsigned int shared_idx = thread_idx + block_size * block_idx;
-      // sync to make sure we aren't using a dirty cache when the warp diverges
-      __syncthreads();
+
       // only load data which exists
       if (shared_idx < num_spins) {
-        mus_pre[thread_idx] = prefactor * mus_dev[shared_idx];
+        mus[thread_idx] = mus_dev[shared_idx];
         #pragma unroll
         for (unsigned int n = 0; n < 3; ++n) {
-            r_j[thread_idx][n] = r_dev[3*shared_idx + n];
+            r_j[thread_idx][n] = r_dev[3 * shared_idx + n];
         }
         #pragma unroll
         for (unsigned int n = 0; n < 3; ++n) {
-            s_j[thread_idx][n] = s_dev[3*shared_idx + n];
+            s_j[thread_idx][n] = s_dev[3 * shared_idx + n];
         }
       }
       // sync to make sure the shared data is filled from all block threads
       __syncthreads();
       //------------------------------------------------------------------------
 
-
-      if (i < num_spins) {
           // do lots of maths on the pool of spins and positions to hide memory 
           // transfer latency
+          static_assert(block_size % 4 == 0, "block_size must be a multiple of four");
           for (unsigned int t = 0; t < block_size/4; ++t) {
-
             // shared memory indices
-            const int t1 = 4*t;
-            const int t2 = 4*t+1;
-            const int t3 = 4*t+2;
-            const int t4 = 4*t+3;
+            const int t1 = 4 * t;
+            const int t2 = 4 * t + 1;
+            const int t3 = 4 * t + 2;
+            const int t4 = 4 * t + 3;
 
             // spin indices
             const int j1 = (block_size * block_idx + t1);
@@ -213,38 +210,40 @@ void DipoleBruteforceKernel(
             const int j3 = (block_size * block_idx + t3);
             const int j4 = (block_size * block_idx + t4);
 
-            const float pre1 = mus_pre[t1];
-            const float pre2 = mus_pre[t2];
-            const float pre3 = mus_pre[t3];
-            const float pre4 = mus_pre[t4];
-
-            float r_ij1[3], r_ij2[3], r_ij3[3], r_ij4[3];
-
+            float r_ij1[3];
             CalculateDisplacementVector(r_i, r_j[t1], r_ij1);
             const float r_abs1 = abs(r_ij1);
+
+            float r_ij2[3];
             CalculateDisplacementVector(r_i, r_j[t2], r_ij2);
             const float r_abs2 = abs(r_ij2);
+
+            float r_ij3[3];
             CalculateDisplacementVector(r_i, r_j[t3], r_ij3);
             const float r_abs3 = abs(r_ij3);
+
+            float r_ij4[3];
             CalculateDisplacementVector(r_i, r_j[t4], r_ij4);
             const float r_abs4 = abs(r_ij4);
 
             float h1[3] = {0.0, 0.0, 0.0};
-            float h2[3] = {0.0, 0.0, 0.0};
-            float h3[3] = {0.0, 0.0, 0.0};
-            float h4[3] = {0.0, 0.0, 0.0};
+            if ( (i < num_spins) && (r_abs1 <= r_cutoff_sq) && (i != j1) && (j1 < num_spins) ) {
+              CalculateFieldElement(s_j[t1], r_ij1, mus[t1], r_abs1, h1);
+            }
 
-            if (r_abs1 <= r_cutoff_sq && i != j1 && j1 < num_spins) {
-              CalculateFieldElement(s_j[t1], r_ij1, pre1, r_abs1, h1);
+            float h2[3] = {0.0, 0.0, 0.0};
+            if ( (i < num_spins) && (r_abs2 <= r_cutoff_sq) && (i != j2) && (j2 < num_spins) ) {
+              CalculateFieldElement(s_j[t2], r_ij2, mus[t2], r_abs2, h2);
             }
-            if (r_abs2 <= r_cutoff_sq && i != j2 && j2 < num_spins) {
-              CalculateFieldElement(s_j[t2], r_ij2, pre2, r_abs2, h2);
+
+            float h3[3] = {0.0, 0.0, 0.0};
+            if ( (i < num_spins) && (r_abs3 <= r_cutoff_sq) && (i != j3) && (j3 < num_spins) ) {
+              CalculateFieldElement(s_j[t3], r_ij3, mus[t3], r_abs3, h3);
             }
-            if (r_abs3 <= r_cutoff_sq && i != j3 && j3 < num_spins) {
-              CalculateFieldElement(s_j[t3], r_ij3, pre3, r_abs3, h3);
-            }
-            if (r_abs4 <= r_cutoff_sq && i != j4 && j4 < num_spins) {
-              CalculateFieldElement(s_j[t4], r_ij4, pre4, r_abs4, h4);
+
+            float h4[3] = {0.0, 0.0, 0.0};
+            if ( (i < num_spins) && (r_abs4 <= r_cutoff_sq) && (i != j4) && (j4 < num_spins) ) {
+              CalculateFieldElement(s_j[t4], r_ij4, mus[t4], r_abs4, h4);
             }
 
             #pragma unroll
@@ -252,14 +251,13 @@ void DipoleBruteforceKernel(
               h[n] = h[n] + h1[n] + h2[n] + h3[n] + h4[n];
             }
           }
-        }
       } // end block loop
 
   if (i < num_spins) {
     // write to global memory
     #pragma unroll
     for (unsigned int n = 0; n < 3; ++n) {
-        h_dev[3*i + n] = h[n];
+        h_dev[3 * i + n] = mus_dev[i] * dev_dipole_prefactor * h[n];
     }
   }
 }
@@ -274,81 +272,72 @@ __global__ void dipole_bruteforce_sharemem_kernel
     double * __restrict__ h_dev
 )
 {
-    const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
-    const unsigned int tx = threadIdx.x; 
+  const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+  const float r_cutoff_sq = dev_r_cutoff * dev_r_cutoff; 
+  double h[3] = {0.0, 0.0, 0.0};
 
-    __shared__ float rj[block_size][3];
-    __shared__ float sj[block_size][3];
-    __shared__ float mus_pre[block_size];
+  const unsigned int thread_idx = threadIdx.x; 
+  const unsigned int num_blocks = (num_spins + block_size - 1) / block_size;
 
-    float pre, ri[3];
+  // assert(blockDim.x == block_size);
 
-    if (idx < num_spins) {
-      // constant is kB * mu_0 / 4 pi
-      pre = mus_dev[idx] * dev_dipole_prefactor;
+  __shared__ float rj[block_size][3];
+  __shared__ float sj[block_size][3];
+  __shared__ float mus[block_size];
 
-      for (int n = 0; n < 3; ++n) {
-          ri[n] = r_dev[3*idx + n];
+  float r_abs, ri[3], r_ij[3];
+
+  if (i < num_spins) {
+    for (int n = 0; n < 3; ++n) {
+        ri[n] = r_dev[3*i + n];
+    }
+  }
+
+  for (unsigned int b = 0; b < num_blocks; ++b) {
+    // sync to make sure we aren't using a dirty cache by other threads
+    __syncthreads();
+
+    // for every block load up the shared memory with data
+    const unsigned int shared_idx = thread_idx + block_size * b;
+    
+    // only load data which exists
+    if (shared_idx < num_spins) {
+      mus[thread_idx] = mus_dev[shared_idx];
+
+      for (unsigned int n = 0; n < 3; ++n) {
+          rj[thread_idx][n] = r_dev[3*shared_idx + n];
+      }
+
+      for (unsigned int n = 0; n < 3; ++n) {
+          sj[thread_idx][n] = s_dev[3*shared_idx + n];
       }
     }
+    // sync to make sure the shared data is filled from all block threads
+    __syncthreads();
 
-    const unsigned int num_blocks = (num_spins + block_size - 1) / block_size;
+    for (unsigned int t = 0; t < block_size; ++t) {
+      float h_tmp[3] = {0.0, 0.0, 0.0};
+      unsigned int j = t + block_size * b;
 
-    double h[3] = {0.0, 0.0, 0.0};
-    for (unsigned int b = 0; b < num_blocks; ++b) {
+      CalculateDisplacementVector(ri, rj[t], r_ij);
+      r_abs = abs(r_ij);
 
-      // for every block load up the shared memory with data
-      
-      const unsigned int shared_idx = tx + block_size * b;
-      
-      // sync to make sure we aren't using a dirty cache by other threads
-      __syncthreads();
-
-      // only load data which exists
-      if (shared_idx < num_spins) {
-        mus_pre[tx] = pre * mus_dev[shared_idx];
-
-        for (unsigned int n = 0; n < 3; ++n) {
-            rj[tx][n] = r_dev[3*shared_idx + n];
-        }
-
-        for (unsigned int n = 0; n < 3; ++n) {
-            sj[tx][n] = s_dev[3*shared_idx + n];
-        }
+      if (r_abs <= r_cutoff_sq && i != j && j < num_spins && i < num_spins) {
+        CalculateFieldElement(sj[t], r_ij, mus[t], r_abs, h_tmp);
       }
-      // sync to make sure the shared data is filled from all block threads
-      __syncthreads();
 
-      if (idx < num_spins) {
-
-        for (unsigned int t = 0; t < block_size; ++t) {
-          unsigned int jdx = t + block_size * b;
-
-          if (jdx < num_spins && jdx != idx) {
-
-            float r_ij[3];
-
-            CalculateDisplacementVector(ri, rj[t], r_ij);
-
-            const float r_abs = sqrtf(r_ij[0] * r_ij[0] + r_ij[1] * r_ij[1] + r_ij[2] * r_ij[2]);
-
-            if (r_abs > dev_r_cutoff) continue;
-
-            float sj_dot_rhat = (sj[t][0] * r_ij[0] + sj[t][1] * r_ij[1] + sj[t][2] * r_ij[2]);
-
-            for (int n = 0; n < 3; ++n) {
-                h[n] += pre * mus_pre[t] * (3.0f * r_ij[n] * sj_dot_rhat  - r_abs * r_abs * sj[t][n]) / (r_abs * r_abs * r_abs * r_abs * r_abs);
-            }
-          }
-        }
+      for (int n = 0; n < 3; ++n) {
+          h[n] += h_tmp[n];
       }
-    } 
+    }
+  }
 
-  if (idx < num_spins) {
+  if (i < num_spins) {
     // write to global memory
     #pragma unroll
     for (unsigned int n = 0; n < 3; ++n) {
-        h_dev[3*idx + n] = h[n];
+      // constant is kB * mu_0 / 4 pi
+      h_dev[3*i + n] = mus_dev[i] * dev_dipole_prefactor * h[n];
     }
   }
 }
