@@ -46,10 +46,6 @@ inline void CalculateDisplacementVector(const float r_i_cartesian[3],
   for (unsigned int n = 0; n < 3; ++n) {
     dr_cartesian[n] = r_i_cartesian[n] - rj_cartesian[n];
   }
-  dr_cartesian[0] = r_i_cartesian[0] - rj_cartesian[0];
-  dr_cartesian[1] = r_i_cartesian[1] - rj_cartesian[1];
-  dr_cartesian[2] = r_i_cartesian[2] - rj_cartesian[2];
-
   // transform cartesian vector into fractional space
   matmul(dev_super_unit_cell_inv, dr_cartesian, dr_fractional);
 
