@@ -30,6 +30,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include_directories(include)
 
+# TODO: make an xcode module to choose the include path automatically
+include_directories(/Applications/Xcode-7.3.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include)
+
 add_subdirectory(src/jams)
 
 add_subdirectory(test/jams)
