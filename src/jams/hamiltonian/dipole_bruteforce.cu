@@ -43,9 +43,7 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 
     float r_cutoff_float = r_cutoff_;
 
-    float f_dipole_prefactor = dipole_prefactor_;
-
-    cudaMemcpyToSymbol(dev_dipole_prefactor,    &f_dipole_prefactor,       sizeof(float));
+    cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(double));
     cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(float));
     cudaMemcpyToSymbol(dev_super_cell_pbc,      super_cell_pbc,      3 * sizeof(bool));
     cudaMemcpyToSymbol(dev_super_unit_cell,     super_unit_cell,     9 * sizeof(float));

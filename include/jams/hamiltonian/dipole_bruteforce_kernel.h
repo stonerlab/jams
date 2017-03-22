@@ -7,7 +7,7 @@
 __constant__ float dev_super_unit_cell[3][3];
 __constant__ float dev_super_unit_cell_inv[3][3];
 __constant__ bool   dev_super_cell_pbc[3];
-__constant__ float dev_dipole_prefactor;
+__constant__ double dev_dipole_prefactor;
 __constant__ float dev_r_cutoff;
 
 constexpr unsigned int block_size = 128;
