@@ -86,5 +86,7 @@ void CudaSolver::compute_fields() {
 }
 
 CudaSolver::~CudaSolver() {
-  cudaStreamDestroy(dev_stream_);
+  if (dev_stream_ != nullptr) {
+    cudaStreamDestroy(dev_stream_);
+  }
 }

@@ -15,6 +15,12 @@
 
 #include "jams/hamiltonian/exchange.h"
 
+ExchangeHamiltonian::~ExchangeHamiltonian() {
+  if (dev_stream_ != nullptr) {
+    cudaStreamDestroy(dev_stream_);
+  }
+}
+
 //---------------------------------------------------------------------
 
 void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value) {

@@ -144,9 +144,18 @@ void CudaLangevinBoseThermostat::update() {
 }
 
 CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
-  curandDestroyGenerator(dev_rng_);
-  cudaStreamDestroy(dev_stream_);
-  cudaStreamDestroy(dev_curand_stream_);
+  if (dev_rng_ != nullptr) {
+    curandDestroyGenerator(dev_rng_);
+  }
+
+  if (dev_stream_ != nullptr) {
+    cudaStreamDestroy(dev_stream_);
+  }
+
+  if (dev_curand_stream_ != nullptr) {
+    cudaStreamDestroy(dev_curand_stream_);
+  }
+  
   if (debug_) {
     outfile_.close();
   }

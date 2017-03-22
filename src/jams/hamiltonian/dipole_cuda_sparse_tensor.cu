@@ -14,6 +14,12 @@
 
 #include "jams/hamiltonian/dipole_cuda_sparse_tensor.h"
 
+DipoleHamiltonianCUDASparseTensor::~DipoleHamiltonianCUDASparseTensor() {
+  if (dev_stream_ != nullptr) {
+    cudaStreamDestroy(dev_stream_);
+  }
+}
+
 DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libconfig::Setting &settings, const unsigned int size)
 : HamiltonianStrategy(settings, size),
     use_double_precision(false)   // default to float precision

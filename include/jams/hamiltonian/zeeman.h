@@ -14,7 +14,7 @@
 class ZeemanHamiltonian : public Hamiltonian {
     public:
         ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-        ~ZeemanHamiltonian() {};
+        ~ZeemanHamiltonian();
 
         std::string name() const { return "zeeman"; }
 
@@ -35,7 +35,7 @@ class ZeemanHamiltonian : public Hamiltonian {
         bool has_ac_local_field_;
 
 #ifdef CUDA
-        cudaStream_t dev_stream_;
+        cudaStream_t dev_stream_ = nullptr;
         jblib::CudaArray<double, 1> dev_dc_local_field_;
         jblib::CudaArray<double, 1> dev_ac_local_field_;
         jblib::CudaArray<double, 1> dev_ac_local_frequency_;

@@ -21,7 +21,7 @@ class CUDAHeunLLGSolver : public CudaSolver {
     void run();
 
   private:
-    cudaStream_t dev_stream_;
+    cudaStream_t dev_stream_ = nullptr;
     jblib::CudaArray<CudaFastFloat, 1>  e_dev;
     jblib::Array<CudaFastFloat, 2> eng;
     int nblocks;

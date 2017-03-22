@@ -10,6 +10,12 @@
 #include "jams/hamiltonian/zeeman.h"
 #include "jams/hamiltonian/zeeman_kernel.h"
 
+ZeemanHamiltonian::~ZeemanHamiltonian() {
+    if (dev_stream_ != nullptr) {
+      cudaStreamDestroy(dev_stream_);
+    }
+}
+
 ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size)
 {

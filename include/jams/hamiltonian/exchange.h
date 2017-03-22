@@ -24,7 +24,7 @@
 class ExchangeHamiltonian : public Hamiltonian {
     public:
         ExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-        ~ExchangeHamiltonian() {};
+        ~ExchangeHamiltonian();
 
         std::string name() const { return "exchange"; }
 
@@ -60,7 +60,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         devCSR dev_csr_interaction_matrix_;
         cusparseHandle_t   cusparse_handle_;
         cusparseMatDescr_t cusparse_descra_;
-        cudaStream_t dev_stream_;
+        cudaStream_t dev_stream_ = nullptr;
 #endif  // CUDA
 
 };

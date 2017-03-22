@@ -25,8 +25,8 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   is_synchronised_(false),
   dev_noise_((3*num_spins+((3*num_spins)%2))),
   dev_sigma_(num_spins),
-  dev_rng_(),
-  dev_stream_() {
+  dev_rng_(nullptr),
+  dev_stream_(nullptr) {
   ::output->write("\n  initialising CUDA Langevin white noise thermostat\n");
 
   ::output->write("    initialising CURAND\n");
@@ -72,4 +72,7 @@ void CudaLangevinWhiteThermostat::update() {
 
 CudaLangevinWhiteThermostat::~CudaLangevinWhiteThermostat() {
   curandDestroyGenerator(dev_rng_);
+  if (dev_stream_ != nullptr) {
+    cudaStreamDestroy(dev_stream_);
+  }
 }

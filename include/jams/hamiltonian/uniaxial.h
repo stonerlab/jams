@@ -33,7 +33,7 @@ class UniaxialHamiltonian : public Hamiltonian {
         std::vector< jblib::Array<double, 1> > mca_value_;
 
 #ifdef CUDA
-        cudaStream_t dev_stream_;
+        cudaStream_t dev_stream_ = nullptr;
         unsigned int dev_blocksize_;
         jblib::CudaArray<int, 1> dev_mca_order_;
         jblib::CudaArray<double, 1> dev_mca_value_;

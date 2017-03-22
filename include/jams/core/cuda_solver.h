@@ -64,7 +64,7 @@ class CudaSolver : public Solver {
     cufftHandle spin_fft_forward_transform;
     cufftHandle field_fft_backward_transform;
 
-    cudaStream_t dev_stream_;
+    cudaStream_t dev_stream_ = nullptr;
 };
 
 #endif  // JAMS_CORE_CUDASOLVER_H

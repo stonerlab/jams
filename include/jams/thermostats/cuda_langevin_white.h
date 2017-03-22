@@ -39,8 +39,8 @@ class CudaLangevinWhiteThermostat : public Thermostat {
     bool is_synchronised_;
     jblib::CudaArray<double, 1> dev_noise_;
     jblib::CudaArray<double, 1> dev_sigma_;
-    curandGenerator_t           dev_rng_;  // device random generator
-    cudaStream_t                dev_stream_;
+    curandGenerator_t           dev_rng_ = nullptr;  // device random generator
+    cudaStream_t                dev_stream_ = nullptr;
 };
 
 #endif  // CUDA

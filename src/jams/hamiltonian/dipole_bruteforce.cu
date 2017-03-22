@@ -8,6 +8,12 @@
 #include "jams/hamiltonian/dipole_bruteforce.h"
 #include "jams/hamiltonian/dipole_bruteforce_kernel.h"
 
+DipoleHamiltonianBruteforce::~DipoleHamiltonianBruteforce() {
+    if (dev_stream_ != nullptr) {
+        cudaStreamDestroy(dev_stream_);
+    }
+}
+
 DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size)
 : HamiltonianStrategy(settings, size) {
     jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);

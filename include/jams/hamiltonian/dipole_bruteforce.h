@@ -11,7 +11,7 @@ class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
     public:
         DipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size);
 
-        ~DipoleHamiltonianBruteforce() {};
+        ~DipoleHamiltonianBruteforce();
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
@@ -27,7 +27,7 @@ class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
         double r_cutoff_;
         double dipole_prefactor_;
 
-        cudaStream_t dev_stream_;
+        cudaStream_t dev_stream_ = nullptr;
         jblib::CudaArray<float, 1> dev_r_;
         jblib::CudaArray<float, 1> dev_mus_;
         jblib::CudaArray<double, 1> dev_dipole_fields;

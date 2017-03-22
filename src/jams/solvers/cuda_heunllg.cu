@@ -118,5 +118,8 @@ void CUDAHeunLLGSolver::run()
 
 CUDAHeunLLGSolver::~CUDAHeunLLGSolver()
 {
+  if (dev_stream_ != nullptr) {
+    cudaStreamDestroy(dev_stream_);
+  }
 }
 

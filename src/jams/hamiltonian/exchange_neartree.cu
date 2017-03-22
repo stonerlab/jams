@@ -10,6 +10,12 @@
 
 #include "jams/hamiltonian/exchange_neartree.h"
 
+ExchangeNeartreeHamiltonian::~ExchangeNeartreeHamiltonian() {
+  if (dev_stream_ != nullptr) {
+    cudaStreamDestroy(dev_stream_);
+  }
+}
+
 void ExchangeNeartreeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value) {
   for (int m = 0; m < 3; ++m) {
     for (int n = 0; n < 3; ++n) {
