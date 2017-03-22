@@ -141,7 +141,7 @@ class DipoleHamiltonianBruteforceTest : public ::testing::Test {
 
   DipoleHamiltonianBruteforceTest() {
     // You can do set-up work for each test here.
-
+    cudaDeviceReset();
     ::lattice = new Lattice();
     ::output = new Output();
     ::config = new libconfig::Config();
@@ -163,7 +163,7 @@ class DipoleHamiltonianBruteforceTest : public ::testing::Test {
     ::rng->seed(time(NULL));
     ::config->readString(config_string);
     ::lattice->init_from_config(*::config);
-    physics_module = Physics::create(config->lookup("physics"));
+    ::physics_module = Physics::create(config->lookup("physics"));
     ::solver = Solver::create(config->lookup("sim.solver"));
     int argc = 0; char **argv; double dt = 0.1;
     ::solver->initialize(argc, argv, dt);
@@ -173,9 +173,30 @@ class DipoleHamiltonianBruteforceTest : public ::testing::Test {
   virtual void TearDown() {
     // Code here will be called immediately after each test (right
     // before the destructor).
-    delete ::lattice;
-    delete ::output;
-    delete ::config;
+    if (::physics_module != nullptr) {
+      delete ::physics_module;
+      ::physics_module = nullptr;
+    }
+    if (::solver != nullptr) {
+      delete ::solver;
+      ::solver = nullptr;
+    }
+    if (::lattice != nullptr) {
+      delete ::lattice;
+      ::lattice = nullptr;
+    }
+    if (::output != nullptr) {
+      delete ::output;
+      ::output = nullptr;
+    }
+    if (::config != nullptr) {
+      delete ::config;
+      ::config = nullptr;
+    }
+    if (::rng != nullptr) {
+      delete ::rng;
+      ::rng = nullptr;
+    }
   }
 
   // Objects declared here can be used by all tests in the test case for Foo.
