@@ -10,7 +10,7 @@ __constant__ bool   dev_super_cell_pbc[3];
 __constant__ float dev_dipole_prefactor;
 __constant__ float dev_r_cutoff;
 
-constexpr int block_size = 128;
+constexpr unsigned int block_size = 128;
 
 //-----------------------------------------------------------------------------
 // Apply the minimum image convetion on a displacement vector in the fractional 
