@@ -19,8 +19,6 @@ include_directories(${PROJECT_SOURCE_DIR}/test)
 
 file(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/test/jams/*.cc)
 
-MESSAGE(STATUS "DEBUG:::::::: ${srcs}")
-
 cuda_add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES} ${srcs})
 
 add_dependencies(${PROJECT_TEST_NAME} ${PROJECT_NAME} gtest)
