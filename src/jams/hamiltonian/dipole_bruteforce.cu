@@ -9,9 +9,6 @@
 #include "jams/hamiltonian/dipole_bruteforce_kernel.h"
 
 DipoleHamiltonianBruteforce::~DipoleHamiltonianBruteforce() {
-    if (dev_stream_ != nullptr) {
-        cudaStreamDestroy(dev_stream_);
-    }
 }
 
 DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size)
@@ -74,8 +71,6 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 
     host_dipole_fields.resize(globals::num_spins, 3);
     dev_dipole_fields.resize(3.0 * globals::num_spins);
-
-    cudaStreamCreate(&dev_stream_);
     }
 #endif  // CUDA
 
@@ -212,7 +207,9 @@ void DipoleHamiltonianBruteforce::calculate_fields(jblib::Array<double, 2>& fiel
 }
 
 void DipoleHamiltonianBruteforce::calculate_fields(jblib::CudaArray<double, 1>& fields) {
-    DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, dev_stream_ >>>
+    CudaStream stream;
+
+    DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, stream.get() >>>
         (solver->dev_ptr_spin(), dev_r_.data(), dev_mus_.data(), globals::num_spins, fields.data()); 
 
 	// dipole_bruteforce_sharemem_kernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, dev_stream_ >>>

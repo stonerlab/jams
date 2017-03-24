@@ -18,6 +18,8 @@
 #include "jams/solvers/heunllg.h"
 #include "jams/solvers/metropolismc.h"
 
+#include "jams/cuda/wrappers/stream.h"
+
 void CudaSolver::sync_device_data() {
   dev_s_.copy_to_host_array(globals::s);
   dev_h_.copy_to_host_array(globals::h);
@@ -34,10 +36,6 @@ void CudaSolver::initialize(int argc, char **argv, double idt) {
   ::output->write("  initialising CUDA streams\n");
 
   is_cuda_solver_ = true;
-
-  if(cudaStreamCreate(&dev_stream_) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
 
 //-----------------------------------------------------------------------------
 // Transfer the the other arrays to the device
@@ -70,12 +68,14 @@ void CudaSolver::run() {
 void CudaSolver::compute_fields() {
   using namespace globals;
 
+  CudaStream stream;
+
   for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
     (*it)->calculate_fields();
   }
 
   // zero the field array
-  if (cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), dev_stream_) != cudaSuccess) {
+  if (cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), stream.get()) != cudaSuccess) {
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
@@ -86,7 +86,4 @@ void CudaSolver::compute_fields() {
 }
 
 CudaSolver::~CudaSolver() {
-  if (dev_stream_ != nullptr) {
-    cudaStreamDestroy(dev_stream_);
-  }
 }

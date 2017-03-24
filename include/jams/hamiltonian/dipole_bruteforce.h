@@ -5,6 +5,7 @@
 
 #include "jams/core/maths.h"
 #include "jams/hamiltonian/strategy.h"
+#include "jams/cuda/wrappers/stream.h"
 
 
 class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
@@ -27,7 +28,6 @@ class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
         double r_cutoff_;
         double dipole_prefactor_;
 
-        cudaStream_t dev_stream_ = nullptr;
         jblib::CudaArray<float, 1> dev_r_;
         jblib::CudaArray<float, 1> dev_mus_;
         jblib::CudaArray<double, 1> dev_dipole_fields;
