@@ -214,7 +214,7 @@ const double numeric_prefactor = kBohrMagneton / (0.3e-9 * 0.3e-9 * 0.3e-9);
 TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
   SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D);
 
-  auto h = DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
  
   // S = (1, 0, 0) FM
 
@@ -222,7 +222,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
   double eigenvalue = 4.808228;
 
   double analytic = analytic_prefactor * eigenvalue;
-  double numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+  double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
   ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -237,7 +237,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
 
   eigenvalue = -2.404114;
   analytic = analytic_prefactor * eigenvalue;
-  numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+  numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
   ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -252,7 +252,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
 
   eigenvalue = -2.404114;
   analytic = analytic_prefactor * eigenvalue;
-  numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+  numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
   ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -263,7 +263,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
   TEST_F(DipoleHamiltonianBruteforceTest, DISABLED_calculate_total_energy_CPU_2D_FM_SLOW) {
     SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_2D);
 
-    auto h = DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (0, 0, 1) FM
 
@@ -276,7 +276,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
     // Fit function from 2016-Johnston-PhysRevB.93.014421 Fig. 17(a)
     double eigenvalue = -9.033622 + 6.28356 * (1.0 / 128.0);
     double analytic = analytic_prefactor * eigenvalue;
-    double numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+    double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-5);
@@ -287,7 +287,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_AFM) {
     SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D);
 
-    auto h = DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (1, 0, 0) AFM
 
@@ -303,7 +303,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
 
     double eigenvalue = -3.60617;
     double analytic = analytic_prefactor * eigenvalue;
-    double numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+    double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -322,7 +322,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
 
     eigenvalue = 1.803085;
     analytic = analytic_prefactor * eigenvalue;
-    numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+    numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -333,12 +333,12 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_2D_AFM_SLOW) {
     SetUp(  config_basic_cpu + config_unitcell_sc_AFM + config_lattice_2D);
 
-    auto h = DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // 2016-Johnston-PhysRevB.93.014421 Fig. 18(a)
     double eigenvalue = 2.6458865;
     double analytic = analytic_prefactor * eigenvalue;
-    double numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+    double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-5);
@@ -351,7 +351,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
 TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
   SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_1D);
 
-  auto h = DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
  
   // S = (1, 0, 0) FM
 
@@ -368,7 +368,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
   double eigenvalue = 4.808228;
 
   double analytic = analytic_prefactor * eigenvalue;
-  double numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+  double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
   ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -387,7 +387,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
 
   eigenvalue = -2.404114;
   analytic = analytic_prefactor * eigenvalue;
-  numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+  numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
   ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -405,7 +405,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
 
   eigenvalue = -2.404114;
   analytic = analytic_prefactor * eigenvalue;
-  numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+  numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
   ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -416,7 +416,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_2D_FM_SLOW) {
     SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_2D);
 
-    auto h = DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (0, 0, 1) FM
 
@@ -432,7 +432,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
     // Fit function from 2016-Johnston-PhysRevB.93.014421 Fig. 17(a)
     double eigenvalue = -9.033622 + 6.28356 * (1.0 / 128.0);
     double analytic = analytic_prefactor * eigenvalue;
-    double numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+    double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-5);
@@ -443,7 +443,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_AFM) {
     SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_1D);
 
-    auto h = DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (1, 0, 0) AFM
 
@@ -462,7 +462,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
 
     double eigenvalue = -3.60617;
     double analytic = analytic_prefactor * eigenvalue;
-    double numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+    double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -484,7 +484,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
 
     eigenvalue = 1.803085;
     analytic = analytic_prefactor * eigenvalue;
-    numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+    numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
@@ -495,12 +495,12 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_2D_AFM_SLOW) {
     SetUp(  config_basic_gpu + config_unitcell_sc_AFM + config_lattice_2D);
 
-    auto h = DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // 2016-Johnston-PhysRevB.93.014421 Fig. 18(a)
     double eigenvalue = 2.6458865;
     double analytic = analytic_prefactor * eigenvalue;
-    double numeric =  numeric_prefactor * h.calculate_total_energy() / double(globals::num_spins) ;
+    double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-5);
