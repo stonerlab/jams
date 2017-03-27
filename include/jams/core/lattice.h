@@ -243,7 +243,8 @@ inline Vec3
 Lattice::unit_cell_vector(const int i) const {
     assert(i < 3 && i >= 0);
     // vectors are columns of the unit cell matrix
-    return Vec3(super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
+    return Vec3(super_cell.unit_cell[0][i], super_cell.unit_cell[1][i], super_cell.unit_cell[2][i]);
+}
 }
 
 inline Vec3
