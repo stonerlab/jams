@@ -85,10 +85,8 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     jblib::Vec3<double> bz_vec;
 
     for (int i = 0; i < 3; ++i) {
-      bz_vec = bz_vec + ::lattice->unit_cell_vector(i) * bz_cfg_points.back()[i];
+      bz_vec = bz_vec + ::lattice->inv_unit_cell_vector(i) * bz_cfg_points.back()[i];
     }
-
-    bz_vec = ::lattice->cartesian_to_fractional(bz_vec);
 
     for (int i = 0; i < 3; ++i) {
       bz_vec[i] = bz_vec[i] * (::lattice->kspace_size()[i]/2);
