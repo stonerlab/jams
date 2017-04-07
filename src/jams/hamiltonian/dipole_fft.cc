@@ -53,9 +53,9 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     kspace_padded_size_ = kspace_size_;
 
     for (int n = 0; n < 3; ++n) {
-        // if (!::lattice->is_periodic(n)) {
-            kspace_padded_size_[n] = 2*::lattice->num_unit_cells(n);
-        // }
+        if (!::lattice->is_periodic(n)) {
+            kspace_padded_size_[n] = kspace_size_[n] * 2;
+        }
     }
 
     jblib::Array<double, 5> wij(kspace_padded_size_[0],
@@ -85,14 +85,6 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
             const auto w0 = prefactor / (r_abs_sq * r_abs_sq * r_abs * product(kspace_padded_size_));
             
             auto pos = ::lattice->super_cell_pos(j);
-
-            for (int n = 0; n < 3; ++n) {
-                if (pos[n] > kspace_size_[n]/2) {
-                    pos[n] = (kspace_size_[n] + pos[n]);
-                }
-            }
-
-            // std::cerr << pos.x << "\t" << pos.y << "\t" << pos.z << "\t" <<r_ij[0] << "\t" << r_ij[1] << "\t" << r_ij[2] << "\n";
 
             assert(pos[0] < kspace_padded_size_[0]);
             assert(pos[1] < kspace_padded_size_[1]);
