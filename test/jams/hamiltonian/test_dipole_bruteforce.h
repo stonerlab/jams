@@ -9,130 +9,10 @@
 #include "jams/core/globals.h"
 #include "jams/core/rand.h"
 
+#include "jams/hamiltonian/test_dipole_input.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
 
 namespace {
-
-  const std::string config_basic_cpu(R"(
-    sim : {
-      solver = "LLG-HEUN-CPU";
-      t_step = 1.0e-16;
-      t_burn = 0.0;
-      t_min  = 1.0e-16;
-      t_run  = 1.0e-16;
-    };
-
-    physics : {
-      module = "empty";
-      temperature = 1.0;
-    };
-    )");
-
-  const std::string config_basic_gpu(R"(
-    sim : {
-      solver = "LLG-HEUN-GPU";
-      t_step = 1.0e-16;
-      t_burn = 0.0;
-      t_min  = 1.0e-16;
-      t_run  = 1.0e-16;
-    };
-
-    physics : {
-      module = "empty";
-      temperature = 1.0;
-    };
-    )");
-
-  const std::string config_unitcell_sc(R"(
-    materials = (
-      { name      = "Fe";
-        moment    = 2.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;             
-        spin      = [1.0, 0.0, 0.0];
-        transform = [ 1.0, 1.0, 1.0];
-      }
-    );
-
-    unitcell : {
-      parameter = 0.3e-9; 
-
-      basis = (
-        [ 1.0, 0.0, 0.0],
-        [ 0.0, 1.0, 0.0],
-        [ 0.0, 0.0, 1.0]);
-      positions = (
-        ("Fe", [0.0, 0.0, 0.0])
-        );
-    };
-    )");
-
-
-  const std::string config_unitcell_sc_AFM(R"(
-    materials = (
-      { name      = "FeA";
-        moment    = 2.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;             
-        spin      = [0.0, 0.0, 1.0];
-        transform = [ 1.0, 1.0, 1.0];
-      },
-      { name      = "FeB";
-        moment    = 2.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;             
-        spin      = [0.0, 0.0, -1.0];
-        transform = [ 1.0, 1.0, 1.0];
-      }
-    );
-
-    unitcell : {
-      parameter = 0.3e-9; 
-
-      basis = (
-        [ 2.0, 0.0, 0.0],
-        [ 0.0, 2.0, 0.0],
-        [ 0.0, 0.0, 1.0]);
-      positions = (
-        ("FeA", [0.0, 0.0, 0.0]),
-        ("FeA", [0.5, 0.5, 0.0]),
-        ("FeB", [0.5, 0.0, 0.0]),
-        ("FeB", [0.0, 0.5, 0.0])
-        );
-    };
-    )");
-
-const std::string config_lattice_1D(R"(
-  lattice : {
-    size     = [2000, 1, 1];
-    periodic = [true, false, false];
-  };
-
-  hamiltonians = (
-    {
-      module = "dipole";
-      strategy = "bruteforce";
-      r_cutoff = 1000.0;
-    }
-  );
-)");
-
-const std::string config_lattice_2D(R"(
-
-  lattice : {
-    size     = [256, 256, 1];
-    periodic = [true, true, false];
-  };
-
-  hamiltonians = (
-    {
-      module = "dipole";
-      strategy = "bruteforce";
-      r_cutoff = 128.0;
-    }
-  );
-)");
-
 // The fixture for testing class Foo.
 class DipoleHamiltonianBruteforceTest : public ::testing::Test {
  protected:
@@ -202,17 +82,12 @@ class DipoleHamiltonianBruteforceTest : public ::testing::Test {
   // Objects declared here can be used by all tests in the test case for Foo.
 };
 
-// -(0.5 * mu0 / (4 pi)) * (mus / a^3)^2
-// mus = 2.0 muB; a = 0.3 nm
-const double analytic_prefactor  = -23595.95647978379; // J/m^3
-const double numeric_prefactor = kBohrMagneton / (0.3e-9 * 0.3e-9 * 0.3e-9);
-
 //---------------------------------------------------------------------
 // CPU
 //---------------------------------------------------------------------
 
 TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
-  SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D);
+  SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
   auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
  
@@ -261,7 +136,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
 //---------------------------------------------------------------------
 
   TEST_F(DipoleHamiltonianBruteforceTest, DISABLED_calculate_total_energy_CPU_2D_FM_SLOW) {
-    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_2D);
+    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_2D + config_dipole_bruteforce_128);
 
     auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
@@ -285,7 +160,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
   //---------------------------------------------------------------------
 
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_AFM) {
-    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D);
+    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
     auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
@@ -331,7 +206,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
 //---------------------------------------------------------------------
 
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_2D_AFM_SLOW) {
-    SetUp(  config_basic_cpu + config_unitcell_sc_AFM + config_lattice_2D);
+    SetUp(  config_basic_cpu + config_unitcell_sc_AFM + config_lattice_2D + config_dipole_bruteforce_128);
 
     auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
@@ -349,7 +224,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
 //---------------------------------------------------------------------
 
 TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
-  SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_1D);
+  SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
   auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
  
@@ -414,7 +289,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
 //---------------------------------------------------------------------
 
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_2D_FM_SLOW) {
-    SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_2D);
+    SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_2D + config_dipole_bruteforce_128);
 
     auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
@@ -441,7 +316,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
   //---------------------------------------------------------------------
 
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_AFM) {
-    SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_1D);
+    SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
     auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
@@ -493,7 +368,7 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
 //---------------------------------------------------------------------
 
   TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_2D_AFM_SLOW) {
-    SetUp(  config_basic_gpu + config_unitcell_sc_AFM + config_lattice_2D);
+    SetUp(  config_basic_gpu + config_unitcell_sc_AFM + config_lattice_2D + config_dipole_bruteforce_128);
 
     auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
