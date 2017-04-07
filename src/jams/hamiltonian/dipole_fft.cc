@@ -41,10 +41,8 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
         super_cell_dim[n] = 0.5*double(lattice->size(n));
     }
 
-    r_cutoff_ = *std::max_element(super_cell_dim.begin(), super_cell_dim.end());
-    if (settings.exists("r_cutoff")) {
-        r_cutoff_ = settings["r_cutoff"];
-    }
+    r_cutoff_ = settings["r_cutoff"];
+
     printf("    r_cutoff: %f\n", r_cutoff_);
 
     k_cutoff_ = 100000;
