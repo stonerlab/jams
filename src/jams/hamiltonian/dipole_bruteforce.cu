@@ -19,8 +19,6 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
         super_cell_dim[n] = 0.5*double(lattice->size(n));
     }
 
-    r_cutoff_ = *std::max_element(super_cell_dim.begin(), super_cell_dim.end());
-
     settings.lookupValue("r_cutoff", r_cutoff_);
     output->write("  r_cutoff: %e\n", r_cutoff_);
 
