@@ -40,20 +40,20 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 : HamiltonianStrategy(settings, size),
   r_cutoff_(0),
   k_cutoff_(0),
+  h_(globals::num_spins, 3),
   rspace_s_(),
   rspace_h_(),
   kspace_size_(0, 0, 0),
   kspace_padded_size_(0, 0, 0),
   kspace_s_(),
   kspace_h_(),
-  kspace_dipole_tensor_(),
+  kspace_tensors_(),
   fft_s_rspace_to_kspace(nullptr),
   fft_h_kspace_to_rspace(nullptr)
 {
-
-    if (::lattice->num_materials() > 1) {
-        jams_error("DipoleHamiltonianFFT only supports single species calculations at the moment");
-    }
+    // if (::lattice->num_materials() > 1) {
+    //     jams_error("DipoleHamiltonianFFT only supports single species calculations at the moment");
+    // }
 
     jblib::Vec3<int> L_max(0, 0, 0);
 
@@ -79,62 +79,11 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     }
 
     //---------------------------------------------------------------------
-    // setup realspace dipole tensor
-    //---------------------------------------------------------------------
-
-    jblib::Array<double, 5> dipole_tensor(
-        kspace_padded_size_[0],
-        kspace_padded_size_[1],
-        kspace_padded_size_[2],
-        3, 3);
-
-    dipole_tensor.zero();
-
-    const double dipole_prefactor = 
-        kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * std::pow(::lattice->parameter(),3));
-
-    const double fft_normalization_factor = 1.0 / product(kspace_padded_size_);
-
-    const int i = 0;
-    for (int j = 0; j < globals::num_spins; ++j) {
-        if (j == i) continue;
-
-        auto r_ij = lattice->displacement(i, j);
-
-        const auto r_abs_sq = r_ij.norm_sq();
-
-        if (r_abs_sq > (r_cutoff_*r_cutoff_)) continue;
-        
-        const auto r_abs = sqrt(r_abs_sq);
-
-        // divide by product(kspace_padded_size_) instead or normalizing the FFT result later
-        const auto w0 = globals::mus(i) * dipole_prefactor / std::pow(r_abs, 5);
-        
-        auto p = ::lattice->super_cell_pos(j);
-
-        assert(p[0] < kspace_padded_size_[0]);
-        assert(p[1] < kspace_padded_size_[1]);
-        assert(p[2] < kspace_padded_size_[2]);
-
-        for (int m = 0; m < 3; ++m) {
-            for (int n = 0; n < 3; ++n) {
-                dipole_tensor(p[0], p[1], p[2], m, n) 
-                    += w0 * (3.0 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) * fft_normalization_factor;
-            }
-        }
-    }
-    //---------------------------------------------------------------------
 
     rspace_s_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
     rspace_h_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
     kspace_s_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
     kspace_h_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
-    kspace_dipole_tensor_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3, 3);
-
-    for (int i = 0, iend = kspace_h_.elements(); i < iend; ++i) {
-        kspace_h_[i][0] = 0.0;
-        kspace_h_[i][1] = 0.0;
-    }
 
     output->write("    kspace size: %d %d %d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
     output->write("    kspace padded size: %d %d %d\n", kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]);
@@ -161,7 +110,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
             nembed,                     // number of embedded dimensions
             stride,                     // memory stride between elements of one fft dataset 
             dist,                       // memory distance between fft datasets
-            FFTW_PATIENT|FFTW_PRESERVE_INPUT);
+            FFTW_PATIENT);
 
     fft_h_kspace_to_rspace
         = fftw_plan_many_dft_c2r(
@@ -178,29 +127,13 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
             dist,                       // memory distance between fft datasets
             FFTW_PATIENT);
 
-    rank            = 3;
-    stride          = 9;
-    dist            = 1;
-    num_transforms  = 9;
+    kspace_tensors_.resize(lattice->num_unit_cell_positions());
 
-    fftw_plan fft_dipole_tensor_rspace_to_kspace
-        = fftw_plan_many_dft_r2c(
-            rank,                       // dimensionality
-            &kspace_padded_size_[0],    // array of sizes of each dimension
-            num_transforms,             // number of transforms
-            dipole_tensor.data(),                 // input: real data
-            nembed,                     // number of embedded dimensions
-            stride,                     // memory stride between elements of one fft dataset
-            dist,                       // memory distance between fft datasets
-            kspace_dipole_tensor_.data(),            // output: real dat
-            nembed,                     // number of embedded dimensions
-            stride,                     // memory stride between elements of one fft dataset
-            dist,                       // memory distance between fft datasets
-            FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
-
-    fftw_execute(fft_dipole_tensor_rspace_to_kspace);
-
-    fftw_destroy_plan(fft_dipole_tensor_rspace_to_kspace);
+    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
+        for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
+            kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j));
+        }
+    }
 }
 
 // --------------------------------------------------------------------------
@@ -210,10 +143,9 @@ double DipoleHamiltonianFFT::calculate_total_energy() {
 
     calculate_nonlocal_field();
     for (int i = 0; i < globals::num_spins; ++i) {
-        auto p = ::lattice->super_cell_pos(i);
-        e_total += (   globals::s(i,0)*rspace_h_(p.x, p.y, p.z, 0)
-                    + globals::s(i,1)*rspace_h_(p.x, p.y, p.z, 1)
-                    + globals::s(i,2)*rspace_h_(p.x, p.y, p.z, 2))*globals::mus(i);
+        e_total += (   globals::s(i,0)*h_(i, 0)
+                    + globals::s(i,1)*h_(i, 1)
+                    + globals::s(i,2)*h_(i, 2))*globals::mus(i);
     }
 
     return -0.5*e_total;
@@ -284,43 +216,168 @@ void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2>& energies) {
 
 }
 
+//---------------------------------------------------------------------
+jblib::Array<fftw_complex, 5> 
+DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
+    using std::pow;
+
+    const Vec3 r_frac_i = lattice->unit_cell_position(pos_i);
+    const Vec3 r_frac_j = lattice->unit_cell_position(pos_j);
+
+    const Vec3 r_cart_i = lattice->unit_cell_position_cart(pos_i);
+    const Vec3 r_cart_j = lattice->unit_cell_position_cart(pos_j);
+
+    jblib::Array<double, 5> rspace_tensor(
+        kspace_padded_size_[0],
+        kspace_padded_size_[1],
+        kspace_padded_size_[2],
+        3, 3);
+
+    jblib::Array<fftw_complex, 5> kspace_tensor(
+        kspace_padded_size_[0],
+        kspace_padded_size_[1],
+        kspace_padded_size_[2],
+        3, 3);
+
+
+    rspace_tensor.zero();
+    kspace_tensor.zero();
+
+    const double fft_normalization_factor = 1.0 / product(kspace_padded_size_);
+    const double v = pow(lattice->parameter(), 3);
+    const double w0 = fft_normalization_factor * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
+
+
+    for (int kx = 0; kx < kspace_size_[0]; ++kx) {
+        for (int ky = 0; ky < kspace_size_[1]; ++ky) {
+            for (int kz = 0; kz < kspace_size_[2]; ++kz) {
+
+                if (kx == 0 && ky == 0 && kz == 0 && pos_i == pos_j) {
+                    // self interaction on the same sublattice
+                    continue;
+                } 
+
+                const Vec3 r_ij = 
+                    lattice->minimum_image(r_cart_j, 
+                        lattice->generate_position(r_frac_i, {kx, ky, kz})); // generate_position requires FRACTIONAL coordinate
+
+                const auto r_abs_sq = r_ij.norm_sq();
+
+                if (r_abs_sq > pow(r_cutoff_, 2)) {
+                    // outside of cutoff radius
+                    continue;
+                }
+
+                for (int m = 0; m < 3; ++m) {
+                    for (int n = 0; n < 3; ++n) {
+                        rspace_tensor(kx, ky, kz, m, n) 
+                            = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
+                    }
+                }
+            }
+        }
+    }
+
+    int rank            = 3;
+    int stride          = 9;
+    int dist            = 1;
+    int num_transforms  = 9;
+    int * nembed        = NULL;
+
+    fftw_plan fft_dipole_tensor_rspace_to_kspace
+        = fftw_plan_many_dft_r2c(
+            rank,                       // dimensionality
+            &kspace_padded_size_[0],    // array of sizes of each dimension
+            num_transforms,             // number of transforms
+            rspace_tensor.data(),       // input: real data
+            nembed,                     // number of embedded dimensions
+            stride,                     // memory stride between elements of one fft dataset
+            dist,                       // memory distance between fft datasets
+            kspace_tensor.data(),       // output: real dat
+            nembed,                     // number of embedded dimensions
+            stride,                     // memory stride between elements of one fft dataset
+            dist,                       // memory distance between fft datasets
+            FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
+
+    fftw_execute(fft_dipole_tensor_rspace_to_kspace);
+    fftw_destroy_plan(fft_dipole_tensor_rspace_to_kspace);
+
+    return kspace_tensor;
+}
+//---------------------------------------------------------------------
+
 void DipoleHamiltonianFFT::calculate_nonlocal_field() {
     using std::min;
+    using std::pow;
 
-    int i, iend, j, jend, k, kend, m;
-    jblib::Vec3<int> pos;
+    h_.zero();
 
-    rspace_s_.zero();
+    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
 
-    for (int i = 0; i < globals::num_spins; ++i) {
-         pos = ::lattice->super_cell_pos(i);
-         for (int m = 0; m < 3; ++m) {
-            rspace_s_(pos.x, pos.y, pos.z, m) = globals::s(i, m);
+        kspace_h_.zero();
+
+        for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
+
+            const double mus_j = lattice->unit_cell_material(pos_j).moment;
+
+            rspace_s_.zero();
+
+            for (int kx = 0; kx < kspace_size_[0]; ++kx) {
+                for (int ky = 0; ky < kspace_size_[1]; ++ky) {
+                    for (int kz = 0; kz < kspace_size_[2]; ++kz) {
+                        const int index = lattice->site_index_by_unit_cell(kx, ky, kz, pos_j);
+                        for (int m = 0; m < 3; ++m) {
+                            rspace_s_(kx, ky, kz, m) = globals::s(index, m);
+                        }
+                    }
+                }
+            }
+
+            fftw_execute(fft_s_rspace_to_kspace);
+
+            // perform convolution as multiplication in fourier space
+            for (int i = 0; i < kspace_padded_size_[0]; ++i) {
+              for (int j = 0; j < kspace_padded_size_[1]; ++j) {
+                for (int k = 0; k < (kspace_padded_size_[2]/2)+1; ++k) {
+                const Vec3 q(i,j,k);
+
+                  for (int m = 0; m < 3; ++m) {
+                    for (int n = 0; n < 3; ++n) {
+                        std::complex<double> wq(
+                            kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[0], 
+                            kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[1]);
+
+                        std::complex<double> sq(kspace_s_(i,j,k,n)[0], kspace_s_(i,j,k,n)[1]);
+
+                        std::complex<double> hq = wq * sq;
+
+                        kspace_h_(i,j,k,m)[0] += mus_j * hq.real();
+                        kspace_h_(i,j,k,m)[1] += mus_j * hq.imag(); 
+                    }   
+                  }
+                }
+              }
+            }
+
+
+        }  // unit cell pos 2
+
+        rspace_h_.zero();
+        fftw_execute(fft_h_kspace_to_rspace);
+
+        for (int i = 0; i < kspace_size_[0]; ++i) {
+            for (int j = 0; j < kspace_size_[1]; ++j) {
+                for (int k = 0; k < kspace_size_[2]; ++k) {
+                    const int index = lattice->site_index_by_unit_cell(i, j, k, pos_i);
+                    for (int m = 0; m < 3; ++ m) {
+                        h_(index, m) += rspace_h_(i, j, k, m);
+                    }   
+                }
+            }
         }
-    }
+    
+    }  // unit cell pos_i
 
-    for (int i = 0, iend = kspace_h_.elements(); i < iend; ++i) {
-        kspace_h_[i][0] = 0.0;
-        kspace_h_[i][1] = 0.0;
-    }
-
-    fftw_execute(fft_s_rspace_to_kspace);
-
-    // perform convolution as multiplication in fourier space
-    for (i = 0; i < kspace_padded_size_[0]; ++i) {
-      for (j = 0; j < kspace_padded_size_[1]; ++j) {
-        for (k = 0; k < (kspace_padded_size_[2]/2)+1; ++k) {
-          for (int m = 0; m < 3; ++ m) {
-            for (int n = 0; n < 3; ++ n) {
-              kspace_h_(i,j,k,m)[0] += kspace_dipole_tensor_(i,j,k,m,n)[0]*kspace_s_(i,j,k,n)[0]-kspace_dipole_tensor_(i,j,k,m,n)[1]*kspace_s_(i,j,k,n)[1];
-              kspace_h_(i,j,k,m)[1] += kspace_dipole_tensor_(i,j,k,m,n)[0]*kspace_s_(i,j,k,n)[1]+kspace_dipole_tensor_(i,j,k,m,n)[1]*kspace_s_(i,j,k,n)[0];
-            }   
-          }
-        }
-      }
-    }
-
-    fftw_execute(fft_h_kspace_to_rspace);
 }
 
 // --------------------------------------------------------------------------

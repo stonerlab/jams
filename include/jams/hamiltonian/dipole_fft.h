@@ -30,17 +30,21 @@ class DipoleHamiltonianFFT : public HamiltonianStrategy {
 
         void calculate_nonlocal_field();
 
+        jblib::Array<fftw_complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
+
         double                          r_cutoff_;
         int                             k_cutoff_;
 
         jblib::Array<double, 4>         rspace_s_;
         jblib::Array<double, 4>         rspace_h_;
+        jblib::Array<double, 2>         h_;
 
         jblib::Vec3<int>                kspace_size_;
         jblib::Vec3<int>                kspace_padded_size_;
         jblib::Array<fftw_complex, 4>   kspace_s_;
         jblib::Array<fftw_complex, 4>   kspace_h_;
-        jblib::Array<fftw_complex, 5>   kspace_dipole_tensor_;
+
+        std::vector<std::vector<jblib::Array<fftw_complex, 5>>> kspace_tensors_;
 
         fftw_plan                       fft_s_rspace_to_kspace;
         fftw_plan                       fft_h_kspace_to_rspace;
