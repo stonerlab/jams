@@ -40,7 +40,6 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 : HamiltonianStrategy(settings, size),
   r_cutoff_(0),
   k_cutoff_(0),
-  cached_s_(globals::s),
   rspace_s_(),
   rspace_h_(),
   kspace_size_(0, 0, 0),
@@ -287,16 +286,9 @@ void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2>& energies) {
 
 void DipoleHamiltonianFFT::calculate_nonlocal_field() {
     using std::min;
-    static bool first_run = true;
 
     int i, iend, j, jend, k, kend, m;
     jblib::Vec3<int> pos;
-
-    if (std::equal(&cached_s_[0], &cached_s_[0]+globals::num_spins3, &globals::s[0]) && !first_run) {
-        return;
-    } else {
-        cached_s_ = globals::s;
-    }
 
     rspace_s_.zero();
 
@@ -329,8 +321,6 @@ void DipoleHamiltonianFFT::calculate_nonlocal_field() {
     }
 
     fftw_execute(fft_h_kspace_to_rspace);
-
-    first_run = false;
 }
 
 // --------------------------------------------------------------------------
