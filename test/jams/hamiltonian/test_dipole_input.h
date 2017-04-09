@@ -60,6 +60,73 @@ namespace {
     };
     )");
 
+    const std::string config_unitcell_sc_2_atom(R"(
+    materials = (
+      { name      = "FeA";
+        moment    = 2.0;             
+        gyro      = 1.0;
+        alpha     = 0.1;             
+        // spin      = [1.0, 0.0, 0.0];
+        spin      = [45.0, 0.0];
+        transform = [ 1.0, 1.0, 1.0];
+      },
+      { name      = "FeB";
+        moment    = 1.0;             
+        gyro      = 1.0;
+        alpha     = 0.1;   
+        // spin      = [1.0, 0.0, 0.0]; 
+        spin      = [15.0, 0.0];      
+        transform = [ 1.0, 1.0, 1.0];
+      }
+    );
+
+    unitcell : {
+      parameter = 0.3e-9; 
+
+      basis = (
+        [ 2.0, 0.0, 0.0],
+        [ 0.0, 1.0, 0.0],
+        [ 0.0, 0.0, 1.0]);
+      positions = (
+        ("FeA", [0.0, 0.0, 0.0]),
+        ("FeB", [0.5, 0.0, 0.0])
+        );
+    };
+    )");
+
+    const std::string config_unitcell_bcc_2_atom(R"(
+    materials = (
+      { name      = "FeA";
+        moment    = 2.0;             
+        gyro      = 1.0;
+        alpha     = 0.1;             
+        // spin      = [1.0, 0.0, 0.0];
+        spin      = [45.0, 0.0];
+        transform = [ 1.0, 1.0, 1.0];
+      },
+      { name      = "FeB";
+        moment    = 1.0;             
+        gyro      = 1.0;
+        alpha     = 0.1;   
+        // spin      = [1.0, 0.0, 0.0]; 
+        spin      = [-45.0, 0.0];      
+        transform = [ 1.0, 1.0, 1.0];
+      }
+    );
+
+    unitcell : {
+      parameter = 0.3e-9; 
+
+      basis = (
+        [ 1.0, 0.0, 0.0],
+        [ 0.0, 1.0, 0.0],
+        [ 0.0, 0.0, 1.0]);
+      positions = (
+        ("FeA", [0.0, 0.0, 0.0]),
+        ("FeB", [0.5, 0.5, 0.0])
+        );
+    };
+    )");
 
   const std::string config_unitcell_sc_AFM(R"(
     materials = (
@@ -108,6 +175,24 @@ const std::string config_lattice_2D(R"(
     size     = [256, 256, 1];
     periodic = [true, true, false];
   };
+)");
+
+const std::string config_lattice_2D_128(R"(
+
+  lattice : {
+    size     = [128, 128, 1];
+    periodic = [true, true, false];
+  };
+)");
+
+const std::string config_dipole_bruteforce_64(R"(
+  hamiltonians = (
+    {
+      module = "dipole";
+      strategy = "bruteforce";
+      r_cutoff = 64.0;
+    }
+  );
 )");
 
 const std::string config_dipole_bruteforce_128(R"(

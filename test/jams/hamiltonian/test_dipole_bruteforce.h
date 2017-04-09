@@ -220,6 +220,29 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_CPU_1D_FM) {
   }
 
 //---------------------------------------------------------------------
+
+TEST_F(DipoleHamiltonianBruteforceTest, bruteforce_2_atom_CPU_1D_FM) {
+  SetUp(  config_basic_cpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
+
+  auto h = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+
+  // 1D FM spin chain with spins aligned along chain axis
+  double eigenvalue = 4.808228;
+
+  double analytic = analytic_prefactor * eigenvalue;
+  double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
+
+  ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
+  ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
+
+  std::cout << "bruteforce: " << numeric << "\n";
+  std::cout << "analytic:   " << analytic << "\n";
+
+  ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
+  ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
+}
+
+//---------------------------------------------------------------------
 // GPU
 //---------------------------------------------------------------------
 
