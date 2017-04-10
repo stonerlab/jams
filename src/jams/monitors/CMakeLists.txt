@@ -5,6 +5,7 @@ add_sources(
 	hdf5.cc
 	magnetisation_rate.cc
 	magnetisation.cc
+	unitcell-magnetisation.cc
 	skyrmion.cc
 	smr.cc
 	spin_pumping.cc

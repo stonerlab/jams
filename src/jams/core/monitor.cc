@@ -5,6 +5,7 @@
 #include "jams/core/error.h"
 #include "jams/core/globals.h"
 #include "jams/monitors/magnetisation.h"
+#include "jams/monitors/unitcell-magnetisation.h"
 #include "jams/monitors/magnetisation_rate.h"
 #include "jams/monitors/structurefactor.h"
 #include "jams/monitors/torque.h"
@@ -68,6 +69,10 @@ bool Monitor::is_updating(const int &iteration) const {
 Monitor* Monitor::create(const libconfig::Setting &settings) {
   if (capitalize(settings["module"]) == "MAGNETISATION") {
     return new MagnetisationMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "UNITCELL-MAGNETISATION") {
+    return new UnitcellMagnetisationMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "MAGNETISATION_RATE") {
