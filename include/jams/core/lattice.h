@@ -38,8 +38,8 @@ public:
     super_unit_cell_inv_ = super_unit_cell_.inverse();
   }
 
-  inline Vec3 displacement(const Atom& a, const Atom& b) const {
-    Vec3 dr(super_unit_cell_inv_ * (a.pos - b.pos));
+  inline Vec3 minimum_image(const Vec3& r_i, const Vec3& r_j) const {
+    Vec3 dr(super_unit_cell_inv_ * (r_i - r_j));
 
     #pragma unroll
     for (int n = 0; n < 3; ++n) {
@@ -50,6 +50,10 @@ public:
     }
 
     return (super_unit_cell_ * dr);
+  }
+
+  inline Vec3 displacement(const Atom& a, const Atom& b) const {
+    return minimum_image(a.pos, b.pos);
   }
 
   inline double operator()(const Atom& a, const Atom& b) const {
@@ -80,6 +84,7 @@ class Lattice {
     inline Vec3    inv_unit_cell_vector(const int i) const;     ///< lattice vectors
     inline Vec3    unit_cell_position(const int i) const;   ///< position i in fractional coordinates
     inline Vec3    unit_cell_position_cart(const int i) const;   ///< position i in fractional coordinates
+    inline Material     unit_cell_material(const int i) ;     ///< uid of material at position i
     inline int     unit_cell_material_uid(const int i);     ///< uid of material at position i
     inline string  unit_cell_material_name(const int i);     ///< uid of material at position i
 
@@ -95,7 +100,7 @@ class Lattice {
 
     inline double  distance(const int i, const int j) const;
     inline Vec3    displacement(const int i, const int j) const;
-
+    inline Vec3    minimum_image(const Vec3& r_i, const Vec3& r_j) const;
     inline Vec3 rmax() const;
     inline Vec3 rmin() const;
     Vec3 generate_position(const Vec3 unit_cell_frac_pos, const Vec3i translation_vector) const;
@@ -266,10 +271,17 @@ Lattice::unit_cell_position_cart(const int i) const {
     return super_cell.unit_cell * motif_[i].pos;
 }
 
+inline Material
+Lattice::unit_cell_material(const int i) {
+    assert(i < motif_.size());
+    return material_id_map_[motif_[i].material];
+}
+
+
 inline int
 Lattice::unit_cell_material_uid(const int i) {
     assert(i < motif_.size());
-    return motif_[i].id;
+    return motif_[i].material;
 }
 
 inline std::string
@@ -323,6 +335,12 @@ inline Vec3
 Lattice::displacement(const int i, const int j) const {
     return (*metric_).displacement(atoms_[i], atoms_[j]);
 }
+
+inline Vec3
+Lattice::minimum_image(const Vec3& r_i, const Vec3& r_j) const {
+    return (*metric_).minimum_image(r_i, r_j);
+}
+
 
 inline Vec3
 Lattice::cartesian_to_fractional(const Vec3& r_cart) const {

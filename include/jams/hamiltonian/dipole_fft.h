@@ -16,7 +16,7 @@ class DipoleHamiltonianFFT : public HamiltonianStrategy {
     public:
         DipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size);
 
-        ~DipoleHamiltonianFFT() {};
+        ~DipoleHamiltonianFFT();
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
@@ -30,23 +30,24 @@ class DipoleHamiltonianFFT : public HamiltonianStrategy {
 
         void calculate_nonlocal_field();
 
-        double r_cutoff_;
-        int k_cutoff_;
+        jblib::Array<fftw_complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
 
-        jblib::Vec3<int> kspace_size_;
-        jblib::Vec3<int> kspace_padded_size_;
+        double                          r_cutoff_;
+        int                             k_cutoff_;
 
-        jblib::Array<double, 4> h_nonlocal_;
-        jblib::Array<double, 4> s_nonlocal_;
-        jblib::Array<double, 2> s_old_;
+        jblib::Array<double, 4>         rspace_s_;
+        jblib::Array<double, 4>         rspace_h_;
+        jblib::Array<double, 2>         h_;
 
-        jblib::Array<fftw_complex, 4> s_recip_;
-        jblib::Array<fftw_complex, 4> h_recip_;
-        jblib::Array<fftw_complex, 5> w_recip_;
+        jblib::Vec3<int>                kspace_size_;
+        jblib::Vec3<int>                kspace_padded_size_;
+        jblib::Array<fftw_complex, 4>   kspace_s_;
+        jblib::Array<fftw_complex, 4>   kspace_h_;
 
-        fftw_plan spin_fft_forward_transform_;
-        fftw_plan field_fft_backward_transform_;
-        fftw_plan interaction_fft_transform_;
+        std::vector<std::vector<jblib::Array<fftw_complex, 5>>> kspace_tensors_;
+
+        fftw_plan                       fft_s_rspace_to_kspace;
+        fftw_plan                       fft_h_kspace_to_rspace;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_FFT_H

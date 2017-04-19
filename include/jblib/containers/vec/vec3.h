@@ -44,9 +44,6 @@ namespace jblib {
         Vec3<type> &	operator/=( const double a );
         Vec3<type> &	operator*=( const double a );
 
-        inline type* begin() { return &x; }
-        inline type* end() { return &x + 3; }
-
         inline type norm() const {
           return sqrt(x * x + y * y + z * z);
         }
@@ -54,7 +51,6 @@ namespace jblib {
         inline type norm_sq() const {
           return (x * x + y * y + z * z);
         }
-
 
         template< typename ftype >
           friend void swap( const Vec3<ftype> &a, const Vec3<ftype> &b);
@@ -86,12 +82,30 @@ namespace jblib {
 
   template< typename type >
     inline type Vec3<type>::operator[]( const int32 i ) const{
-      return (&x)[i];
+      switch(i) {
+        case(0):
+          return x;
+        case(1):
+          return y;
+        case(2):
+          return z;
+        default:
+          throw std::runtime_error("invalid Vec3 index");
+      }
     }
 
   template< typename type >
     inline type & Vec3<type>::operator[]( const int32 i ){
-      return (&x)[i];
+      switch(i) {
+        case(0):
+          return x;
+        case(1):
+          return y;
+        case(2):
+          return z;
+        default:
+          throw std::runtime_error("invalid Vec3 index");
+      }
     }
 
   template< typename type >
@@ -149,16 +163,6 @@ namespace jblib {
       x *= a; y *= a; z *= a;
       return *this;
     }
-
-
-
-
-
-  //template< typename type >
-  //inline Vec3<type>& Vec3<type>::operator=(Vec3<type> rhs){
-  //swap(*this, rhs);
-  //return *this;
-  //}
 
   // Friends
   template< typename type >

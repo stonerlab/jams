@@ -28,12 +28,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
         super_cell_dim[n] = 0.5*double(lattice->size(n));
     }
 
-    r_cutoff_ = *std::max_element(super_cell_dim.begin(), super_cell_dim.end());
-
-    if (settings.exists("r_cutoff")) {
-        r_cutoff_ = settings["r_cutoff"];
-    }
-
+    r_cutoff_ = settings["r_cutoff"];
 
     // printf("  super cell max extent (cartesian):\n    %f %f %f\n", super_cell_dim[0], super_cell_dim[1], super_cell_dim[2]);
 
