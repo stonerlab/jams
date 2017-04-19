@@ -37,7 +37,7 @@ namespace jblib {
                    const size_type size3,
                    const size_type size4);
 
-    explicit Array(const Array<fftw_complex, 5, Idx_>& other);
+    Array(const Array<fftw_complex, 5, Idx_>& other);
 
     Array(const size_type size0,
           const size_type size1,
@@ -117,7 +117,7 @@ namespace jblib {
     size3_(other.size3_), size4_(other.size4_),
     data_(size0_*size1_*size2_*size3_*size4_ ? reinterpret_cast<pointer>
       (fftw_malloc(size0_*size1_*size2_*size3_*size4_*sizeof(fftw_complex))): NULL) {
-      std::copy(other.data_, (other.data_ + elements()), data_);
+      std::memcpy(data_, other.data_, elements() * sizeof(fftw_complex));
   }
 
   template <typename Idx_>
