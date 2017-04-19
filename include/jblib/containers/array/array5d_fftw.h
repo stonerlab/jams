@@ -66,6 +66,8 @@ namespace jblib {
 
     void resize(const size_type size0, const size_type size1,
       const size_type size2, const size_type size3, const size_type size4);
+    void zero();
+
 
     bool is_allocated() const;
 
@@ -263,6 +265,15 @@ namespace jblib {
       }
     }
     swap(*this, newArray);
+  }
+
+  template <typename Idx_>
+  void
+  Array<fftw_complex, 5, Idx_>::
+  zero() {
+    for (size_type i = 0; i < elements(); ++i) {
+      data_[i][0] = 0.0; data_[i][1] = 0.0;
+    }
   }
 
   template <typename Idx_>
