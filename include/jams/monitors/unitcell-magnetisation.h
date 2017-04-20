@@ -33,7 +33,9 @@ class UnitcellMagnetisationMonitor : public Monitor {
   void new_xdmf_file(const std::string &xdmf_file_name);
   void update_xdmf_file(const std::string &h5_file_name, const H5::PredType float_type);
 
-  jblib::Array<double, 4> mag;
+  jblib::Array<float, 4> mag;
+  jblib::Array<float, 4> dm_dt;
+
   FILE*        xdmf_file_;
 };
 

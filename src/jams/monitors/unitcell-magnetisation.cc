@@ -20,7 +20,8 @@
 
 UnitcellMagnetisationMonitor::UnitcellMagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  mag(lattice->size(0), lattice->size(1), lattice->size(2), 3)
+  mag(lattice->size(0), lattice->size(1), lattice->size(2), 3),
+  dm_dt(lattice->size(0), lattice->size(1), lattice->size(2), 3)
 {
   using namespace globals;
   ::output->write("\ninitialising Unitcell Magnetisation monitor\n");
@@ -42,6 +43,7 @@ void UnitcellMagnetisationMonitor::update(Solver * solver) {
             const int index = lattice->site_index_by_unit_cell(i, j, k, n);
             for (int dim = 0; dim < 3; ++dim) {
               mag(i, j, k, dim) += globals::s(index, dim) * globals::mus(index);
+              dm_dt(i, j, k, dim) += globals::ds_dt(index, dim) * globals::mus(index);
             }
           }
         }
@@ -52,8 +54,8 @@ void UnitcellMagnetisationMonitor::update(Solver * solver) {
 
     const std::string h5_file_name(seedname + "_unitcell_" + zero_pad_number(outcount) + ".h5");
 
-    write_h5_file(h5_file_name, PredType::NATIVE_DOUBLE);
-    update_xdmf_file(h5_file_name, PredType::NATIVE_DOUBLE);
+    write_h5_file(h5_file_name, PredType::NATIVE_FLOAT);
+    update_xdmf_file(h5_file_name, PredType::NATIVE_FLOAT);
   }
 }
 
@@ -80,6 +82,7 @@ void UnitcellMagnetisationMonitor::write_h5_file(const std::string &h5_file_name
   jblib::Vec3<double> out_field = solver->physics()->applied_field();
 
   DataSet mag_dataset = outfile.createDataSet("magnetisation", float_type, dataspace, plist);
+  DataSet dm_dt_dataset = outfile.createDataSet("dm_dt", float_type, dataspace, plist);
 
   DataSpace attribute_dataspace(H5S_SCALAR);
   Attribute attribute = mag_dataset.createAttribute("iteration", PredType::STD_I32LE, attribute_dataspace);
@@ -95,7 +98,8 @@ void UnitcellMagnetisationMonitor::write_h5_file(const std::string &h5_file_name
   attribute = mag_dataset.createAttribute("hz", PredType::IEEE_F64LE, attribute_dataspace);
   attribute.write(PredType::NATIVE_DOUBLE, &out_field.z);
 
-  mag_dataset.write(mag.data(), PredType::NATIVE_DOUBLE);
+  mag_dataset.write(mag.data(), PredType::NATIVE_FLOAT);
+  dm_dt_dataset.write(dm_dt.data(), PredType::NATIVE_FLOAT);
 
   outfile.close();
 }
@@ -123,7 +127,7 @@ void UnitcellMagnetisationMonitor::update_xdmf_file(const std::string &h5_file_n
   using namespace H5;
 
   hsize_t      data_dimension  = 0;
-  unsigned int float_precision = 8;
+  unsigned int float_precision = 4;
 
   
                // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
@@ -144,6 +148,9 @@ void UnitcellMagnetisationMonitor::update_xdmf_file(const std::string &h5_file_n
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu %llu %llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", lattice->size(0), lattice->size(1), lattice->size(2), float_precision);
   fprintf(xdmf_file_, "           %s:/magnetisation\n", h5_file_name.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
+ fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu %llu %llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", lattice->size(0), lattice->size(1), lattice->size(2), float_precision);
+ fprintf(xdmf_file_, "           %s:/dm_dt\n", h5_file_name.c_str());
+              fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
                fputs("      </Grid>\n", xdmf_file_);
 
