@@ -235,7 +235,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
     jblib::Array<fftw_complex, 5> kspace_tensor(
         kspace_padded_size_[0],
         kspace_padded_size_[1],
-        kspace_padded_size_[2],
+        kspace_padded_size_[2]/2 + 1,
         3, 3);
 
 

@@ -1,4 +1,5 @@
 add_sources(
+	cuda_dipole_fft.cu
 	dipole_bruteforce.cu
 	dipole_cuda_sparse_tensor.cu
 	dipole_ewald.cc

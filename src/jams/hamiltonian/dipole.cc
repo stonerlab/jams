@@ -12,6 +12,8 @@
 #include "jams/core/solver.h"
 
 #include "jams/hamiltonian/strategy.h"
+
+#include "jams/hamiltonian/cuda_dipole_fft.h"
 #include "jams/hamiltonian/dipole.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
 #include "jams/hamiltonian/dipole_tensor.h"
@@ -54,6 +56,9 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
         }
 
         if (strategy_name == "FFT") {
+            if (solver->is_cuda_solver()) {
+                return new CudaDipoleHamiltonianFFT(settings, size);
+            }
             return new DipoleHamiltonianFFT(settings, size);
         }
 
