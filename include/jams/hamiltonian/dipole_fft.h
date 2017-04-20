@@ -28,8 +28,6 @@ class DipoleHamiltonianFFT : public HamiltonianStrategy {
         void   calculate_fields(jblib::Array<double, 2>& fields);
     private:
 
-        void calculate_nonlocal_field();
-
         jblib::Array<fftw_complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
 
         double                          r_cutoff_;
