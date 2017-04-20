@@ -139,7 +139,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 double DipoleHamiltonianFFT::calculate_total_energy() {
     double e_total = 0.0;
 
-    calculate_nonlocal_field();
+    calculate_fields(h_);
     for (int i = 0; i < globals::num_spins; ++i) {
         e_total += (  globals::s(i,0)*h_(i, 0)
                     + globals::s(i,1)*h_(i, 1)
@@ -171,16 +171,10 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
 {
     jblib::Vec3<int> pos;
 
-    double h[3] = {0, 0, 0};
+    calculate_fields(h_);
 
-    calculate_nonlocal_field();
-    for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->super_cell_pos(i);
-        h[m] += rspace_h_(pos.x, pos.y, pos.z, m);
-    }
-
-    return -( (spin_final[0] * h[0] + spin_final[1] * h[1] + spin_final[2] * h[2])
-          - (spin_initial[0] * h[0] + spin_initial[1] * h[1] + spin_initial[2] * h[2])) * globals::mus(i);
+    return -( (spin_final[0] * h_(i,0) + spin_final[1] * h_(i,1) + spin_final[2] * h_(i,2))
+          - (spin_initial[0] * h_(i,0) + spin_initial[1] * h_(i,1) + spin_initial[2] * h_(i,2))) * globals::mus(i);
 }
 
 //---------------------------------------------------------------------
@@ -195,23 +189,84 @@ void DipoleHamiltonianFFT::calculate_energies(jblib::Array<double, 1>& energies)
 //---------------------------------------------------------------------
 
 void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
-    jblib::Vec3<int> pos;
+    calculate_fields(h_);
 
     for (int m = 0; m < 3; ++m) {
-        h[m] = 0.0;
-    }
-
-    calculate_nonlocal_field();
-    for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->super_cell_pos(i);
-        h[m] += rspace_h_(pos.x, pos.y, pos.z, m);
+        h[m] = h_(i, m);
     }
 }
 
 //---------------------------------------------------------------------
 
-void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2>& energies) {
+void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2>& fields) {
+    using std::min;
+    using std::pow;
 
+    fields.zero();
+
+    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
+
+        kspace_h_.zero();
+
+        for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
+
+            const double mus_j = lattice->unit_cell_material(pos_j).moment;
+
+            rspace_s_.zero();
+
+            for (int kx = 0; kx < kspace_size_[0]; ++kx) {
+                for (int ky = 0; ky < kspace_size_[1]; ++ky) {
+                    for (int kz = 0; kz < kspace_size_[2]; ++kz) {
+                        const int index = lattice->site_index_by_unit_cell(kx, ky, kz, pos_j);
+                        for (int m = 0; m < 3; ++m) {
+                            rspace_s_(kx, ky, kz, m) = globals::s(index, m);
+                        }
+                    }
+                }
+            }
+
+            fftw_execute(fft_s_rspace_to_kspace);
+
+            // perform convolution as multiplication in fourier space
+            for (int i = 0; i < kspace_padded_size_[0]; ++i) {
+                for (int j = 0; j < kspace_padded_size_[1]; ++j) {
+                    for (int k = 0; k < (kspace_padded_size_[2]/2)+1; ++k) {
+                    const Vec3 q(i,j,k);
+
+                        for (int m = 0; m < 3; ++m) {
+                            for (int n = 0; n < 3; ++n) {
+                                std::complex<double> wq(
+                                    kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[0], 
+                                    kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[1]);
+
+                                std::complex<double> sq(kspace_s_(i,j,k,n)[0], kspace_s_(i,j,k,n)[1]);
+
+                                std::complex<double> hq = wq * sq;
+
+                                kspace_h_(i,j,k,m)[0] += mus_j * hq.real();
+                                kspace_h_(i,j,k,m)[1] += mus_j * hq.imag(); 
+                            }   
+                        }
+                    }
+                }
+            }
+        }  // unit cell pos_j
+
+        rspace_h_.zero();
+        fftw_execute(fft_h_kspace_to_rspace);
+
+        for (int i = 0; i < kspace_size_[0]; ++i) {
+            for (int j = 0; j < kspace_size_[1]; ++j) {
+                for (int k = 0; k < kspace_size_[2]; ++k) {
+                    const int index = lattice->site_index_by_unit_cell(i, j, k, pos_i);
+                    for (int m = 0; m < 3; ++ m) {
+                        fields(index, m) += rspace_h_(i, j, k, m);
+                    }   
+                }
+            }
+        }
+    
+    }  // unit cell pos_i
 }
 
 //---------------------------------------------------------------------
@@ -305,75 +360,3 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
 }
 
 //---------------------------------------------------------------------
-
-void DipoleHamiltonianFFT::calculate_nonlocal_field() {
-    using std::min;
-    using std::pow;
-
-    h_.zero();
-
-    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
-
-        kspace_h_.zero();
-
-        for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
-
-            const double mus_j = lattice->unit_cell_material(pos_j).moment;
-
-            rspace_s_.zero();
-
-            for (int kx = 0; kx < kspace_size_[0]; ++kx) {
-                for (int ky = 0; ky < kspace_size_[1]; ++ky) {
-                    for (int kz = 0; kz < kspace_size_[2]; ++kz) {
-                        const int index = lattice->site_index_by_unit_cell(kx, ky, kz, pos_j);
-                        for (int m = 0; m < 3; ++m) {
-                            rspace_s_(kx, ky, kz, m) = globals::s(index, m);
-                        }
-                    }
-                }
-            }
-
-            fftw_execute(fft_s_rspace_to_kspace);
-
-            // perform convolution as multiplication in fourier space
-            for (int i = 0; i < kspace_padded_size_[0]; ++i) {
-                for (int j = 0; j < kspace_padded_size_[1]; ++j) {
-                    for (int k = 0; k < (kspace_padded_size_[2]/2)+1; ++k) {
-                    const Vec3 q(i,j,k);
-
-                        for (int m = 0; m < 3; ++m) {
-                            for (int n = 0; n < 3; ++n) {
-                                std::complex<double> wq(
-                                    kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[0], 
-                                    kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[1]);
-
-                                std::complex<double> sq(kspace_s_(i,j,k,n)[0], kspace_s_(i,j,k,n)[1]);
-
-                                std::complex<double> hq = wq * sq;
-
-                                kspace_h_(i,j,k,m)[0] += mus_j * hq.real();
-                                kspace_h_(i,j,k,m)[1] += mus_j * hq.imag(); 
-                            }   
-                        }
-                    }
-                }
-            }
-        }  // unit cell pos_j
-
-        rspace_h_.zero();
-        fftw_execute(fft_h_kspace_to_rspace);
-
-        for (int i = 0; i < kspace_size_[0]; ++i) {
-            for (int j = 0; j < kspace_size_[1]; ++j) {
-                for (int k = 0; k < kspace_size_[2]; ++k) {
-                    const int index = lattice->site_index_by_unit_cell(i, j, k, pos_i);
-                    for (int m = 0; m < 3; ++ m) {
-                        h_(index, m) += rspace_h_(i, j, k, m);
-                    }   
-                }
-            }
-        }
-    
-    }  // unit cell pos_i
-}
-
