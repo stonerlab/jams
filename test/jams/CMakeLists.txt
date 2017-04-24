@@ -20,19 +20,19 @@ include_directories(${PROJECT_SOURCE_DIR}/test)
 file(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/test/jams/*.cc)
 
 cuda_add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES} ${srcs})
+jams_use_cxx11(jams_test)
 
 add_dependencies(${PROJECT_TEST_NAME} ${PROJECT_NAME} gtest)
-
-target_link_libraries(${PROJECT_TEST_NAME}
-    ${gtest_BINARY_DIR}/libgtest.a
-    ${gtest_BINARY_DIR}/libgtest_main.a
-    )
 
 include_directories("${gtest_SOURCE_DIR}/include"
                     "${gmock_SOURCE_DIR}/include")
 
-target_link_libraries(${PROJECT_TEST_NAME} ${JAMS_LINKER_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${PROJECT_TEST_NAME}
+  -lpthread
+  ${JAMS_LINKER_LIBS} 
+  ${gtest_BINARY_DIR}/libgtest.a 
+  ${gtest_BINARY_DIR}/libgtest_main.a
+  ${CMAKE_THREAD_LIBS_INIT})
 
-jams_use_cxx11(jams_test)
 
 add_test(test1 ${PROJECT_TEST_NAME})
