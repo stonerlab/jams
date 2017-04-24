@@ -14,25 +14,14 @@ endmacro()
 ################################################################################################
 # http://stackoverflow.com/questions/10851247/how-to-activate-c-11-in-cmake
 # http://stackoverflow.com/questions/37621342/cmake-will-not-compile-to-c-11-standard
-macro(jams_use_cxx11 arg)
-  if (CMAKE_VERSION VERSION_LESS "3.1")
-   	include(CheckCXXCompilerFlag)
-  	CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-	if(COMPILER_SUPPORTS_CXX11)
-	    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-		# use gnu incase we have an older version of gcc
-	      	set (CMAKE_CXX_FLAGS "--std=gnu++11 ${CMAKE_CXX_FLAGS}")
-	    else()
-		set (CMAKE_CXX_FLAGS "--std=c++11 ${CMAKE_CXX_FLAGS}")
-	    endif()
-		#add_compile_options(-std=c++11)
-	else(COMPILER_SUPPORTS_CXX11)
-	    message(FATAL_ERROR "${COMPILER_SUPPORTS_CXX11}")
-	endif(COMPILER_SUPPORTS_CXX11)
-  else ()
-  	set_property(TARGET ${arg} PROPERTY CXX_STANDARD 11)
-	set_property(TARGET ${arg} PROPERTY CXX_STANDARD_REQUIRED ON)
-  endif ()
+macro(jams_use_cxx11 target)
+    include(CheckCXXCompilerFlag)
+    CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+    if(COMPILER_SUPPORTS_CXX11)
+      set (CMAKE_CXX_FLAGS "--std=c++11 ${CMAKE_CXX_FLAGS}")
+    else()
+      message(FATAL_ERROR "${COMPILER_SUPPORTS_CXX11}")
+    endif(COMPILER_SUPPORTS_CXX11)
 endmacro()
 
 ################################################################################################
