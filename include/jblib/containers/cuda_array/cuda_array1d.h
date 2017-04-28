@@ -51,6 +51,7 @@ namespace jblib {
 
     void resize(const size_type size0);
     void zero();
+    void zero(cudaStream_t &stream);
 
     bool is_allocated() const;
 
@@ -197,9 +198,26 @@ namespace jblib {
   template <typename Tp_, typename Idx_>
   void CudaArray<Tp_, 1, Idx_>::zero(){
     if (size_ != 0) {
+#ifdef NDEBUG
+      cudaMemset(data_, 0, size_*sizeof(Tp_));
+#else
       if (cudaMemset(data_, 0, size_*sizeof(Tp_)) != cudaSuccess) {
         throw std::runtime_error("zero fail - cudaMemset failure.");
       }
+#endif
+    }
+  }
+
+  template <typename Tp_, typename Idx_>
+  void CudaArray<Tp_, 1, Idx_>::zero(cudaStream_t &stream){
+    if (size_ != 0) {
+#ifdef NDEBUG
+      cudaMemsetAsync(data_, 0, size_*sizeof(Tp_), stream);
+#else
+      if (cudaMemsetAsync(data_, 0, size_*sizeof(Tp_), stream) != cudaSuccess) {
+        throw std::runtime_error("zero fail - cudaMemset failure.");
+      }
+#endif
     }
   }
 
