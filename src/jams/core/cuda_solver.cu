@@ -68,14 +68,12 @@ void CudaSolver::run() {
 void CudaSolver::compute_fields() {
   using namespace globals;
 
-  CudaStream stream;
-
   for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
     (*it)->calculate_fields();
   }
 
   // zero the field array
-  if (cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), stream.get()) != cudaSuccess) {
+  if (cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), dev_stream_.get()) != cudaSuccess) {
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
