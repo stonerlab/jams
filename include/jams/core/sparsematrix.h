@@ -128,11 +128,11 @@ class SparseMatrix {
       matrixMap.clear();
     }
 
-    inline sparse_matrix_format_t getMatrixFormat(){ return matrixFormat; }
+    inline sparse_matrix_format_t getMatrixFormat() const { return matrixFormat; }
     inline void setMatrixType(sparse_matrix_type_t type){ matrixType = type; }
-    inline sparse_matrix_type_t getMatrixType(){ return matrixType; }
+    inline sparse_matrix_type_t getMatrixType() const { return matrixType; }
     inline void setMatrixMode(sparse_fill_mode_t mode){ matrixMode = mode; }
-    inline sparse_fill_mode_t getMatrixMode(){ return matrixMode; }
+    inline sparse_fill_mode_t getMatrixMode() const { return matrixMode; }
 
     void insertValue(size_type i, size_type j, _Tp value);
 
@@ -150,18 +150,25 @@ class SparseMatrix {
     inline _Tp*       valPtr() { return &(val_[0]); } ///< @brief Pointer to values array
     inline size_type* rowPtr() { return &(row_[0]); } ///< @brief Pointer to rows array
     inline size_type* colPtr() { return &(col_[0]); } ///< @breif Pointer to columns array
-
     inline size_type* dia_offPtr() { return &(dia_offsets[0]); }
 
-    inline size_type  nonZero() { return nnz; }      ///< @brief Number of non zero entries in matrix
-    inline size_type  rows()    { return nrows; }    ///< @brief Number of rows in matrix
-    inline size_type  cols()    { return ncols; }    ///< @brief Number of columns in matrix
-    inline size_type  diags()    { return num_diagonals; }
+    inline const _Tp*       valPtr() const { return &(val_[0]); } ///< @brief Pointer to values array
+    inline const size_type* rowPtr() const { return &(row_[0]); } ///< @brief Pointer to rows array
+    inline const size_type* colPtr() const { return &(col_[0]); } ///< @breif Pointer to columns array
+    inline const size_type* dia_offPtr() const { return &(dia_offsets[0]); }
+
+    inline size_type  nonZero() const { return nnz; }      ///< @brief Number of non zero entries in matrix
+    inline size_type  rows()    const { return nrows; }    ///< @brief Number of rows in matrix
+    inline size_type  cols()    const { return ncols; }    ///< @brief Number of columns in matrix
+    inline size_type  diags()    const { return num_diagonals; }
 
 
     // NIST style CSR storage pointers
     inline size_type* RESTRICT ptrB() { return &(row_[0]); }
     inline size_type* RESTRICT ptrE() { return &(row_[1]); }
+
+    inline const size_type* RESTRICT ptrB() const { return &(row_[0]); }
+    inline const size_type* RESTRICT ptrE() const { return &(row_[1]); }
 
     void reserveMemory(size_type n);
     double calculateMemory();
