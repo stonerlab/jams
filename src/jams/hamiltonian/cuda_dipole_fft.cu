@@ -217,7 +217,7 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2>& fields)
 void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu_h) {
   cufftResult result;
 
-  kspace_h_.zero();
+  kspace_h_.zero(dev_stream_.get());
 
   // TODO: change these to macros to avoid blocking in production code
   result = cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(solver->dev_ptr_spin()), kspace_s_.data());
