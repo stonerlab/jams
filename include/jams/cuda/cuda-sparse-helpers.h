@@ -11,15 +11,15 @@
 
 template<typename T>
 struct CudaSparseMatrixCSR {
-  int     *row;
-  int     *col;
-  T       *val;
-  cusparseMatDescr_t  descr;
+  int     *row = nullptr;
+  int     *col = nullptr;
+  T       *val = nullptr;
+  cusparseMatDescr_t  descr = nullptr;
 };
 
 template<typename T>
 void sparsematrix_copy_host_csr_to_cuda_csr(const SparseMatrix<T>& host_matrix, CudaSparseMatrixCSR<T>& cuda_matrix) {
-  assert(interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR);
+  assert(host_matrix.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR);
 
   if (!cuda_matrix.descr) {
     cusparseStatus_t status = cusparseCreateMatDescr(&cuda_matrix.descr);
