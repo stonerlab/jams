@@ -28,12 +28,12 @@ typedef struct devCSR {
   int     blocks;
 } devCSR;
 
-#ifdef DEBUG
-#define cuda_api_error_check(ans) { cuda_throw((ans), __FILE__, __LINE__); }
-#define cuda_kernel_error_check() { cuda_api_error_check(cudaPeekAtLastError()); cuda_api_error_check(cudaDeviceSynchronize()); }
-#else
+#ifdef NDEBUG
 #define cuda_api_error_check(ans) { (ans); }
 #define cuda_kernel_error_check() {  }
+#else
+#define cuda_api_error_check(ans) { cuda_throw((ans), __FILE__, __LINE__); }
+#define cuda_kernel_error_check() { cuda_api_error_check(cudaPeekAtLastError()); cuda_api_error_check(cudaDeviceSynchronize()); }
 #endif
 
 inline void cuda_throw(cudaError_t return_code, const char *file, int line) {
@@ -44,24 +44,20 @@ inline void cuda_throw(cudaError_t return_code, const char *file, int line) {
   }
 }
 
-#ifdef DEBUG
+#ifdef NDEBUG
+#define CUDA_CALL(x) x
+#else
 #define CUDA_CALL(x) do { if ((x) != cudaSuccess) { \
   printf("Error at %s:%d\n", __FILE__, __LINE__);\
     exit(EXIT_FAILURE); }} while (0)
-#else
-#define CUDA_CALL(x) x
 #endif
 
-#ifdef DEBUG
+#ifdef NDEBUG
+#define CURAND_CALL(x) x
+#else
 #define CURAND_CALL(x) do { if ((x) != CURAND_STATUS_SUCCESS) { \
   printf("Error at %s:%d\n", __FILE__, __LINE__);\
   exit(EXIT_FAILURE); }} while (0)
-#else
-#define CURAND_CALL(x) x
-#endif
-
-#if defined(__CUDACC__) && defined(CUDA_NO_SM_13_DOUBLE_INTRINSICS)
-    #error "-arch sm_13 nvcc flag is required to compile"
 #endif
 
 #endif  // JAMS_CORE_CUDA_DEFS_H
