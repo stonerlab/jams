@@ -121,7 +121,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     }
 
     // the number of points is the max dimension in line
-    const int bz_line_points = 1+abs(std::max(std::max(bz_line.x, bz_line.y),bz_line.z));
+    const int bz_line_points = 1 + std::max(std::max(std::abs(bz_line.x), std::abs(bz_line.y)), std::abs(bz_line.z));
 
     ::output->verbose("  bz line points: %d\n", bz_line_points);
 
