@@ -13,38 +13,7 @@
 #include "jams/core/solver.h"
 
 #include "jams/hamiltonian/cuda_dipole_fft.h"
-#include "jams/cuda/wrappers/stream.h"
-
-
-__host__ __device__
-inline cufftDoubleComplex operator*(const cufftDoubleComplex& v1, const cufftDoubleComplex& v2)
-{
-    return make_cuDoubleComplex(
-      v1.x * v2.x - v1.y * v2.y,
-      v1.x * v2.y + v1.y * v2.x
-    );
-}
-
-__host__ __device__
-inline cufftDoubleComplex &operator+=(cufftDoubleComplex& v1, const cufftDoubleComplex& v2)
-{
-  v1.x += v2.x;
-  v1.y += v2.y;
-  return v1;
-}
-
-__host__ __device__
-inline cufftDoubleComplex operator+(const cufftDoubleComplex& v1, const cufftDoubleComplex& v2)
-{
-  return make_cuDoubleComplex(v1.x + v2.x, v1.y + v2.y);
-}
-
-__host__ __device__
-inline cufftDoubleComplex operator*(const double& a, const cufftDoubleComplex& v1)
-{
-  return make_cuDoubleComplex(a * v1.x, a * v1.y);
-}
-
+#include "jams/cuda/cuda-complex-operators.h"
 
 __global__ void cuda_dipole_convolution(
   const unsigned int size,
