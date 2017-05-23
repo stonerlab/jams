@@ -952,6 +952,16 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
   return is_within_lattice;
 }
 
+double Lattice::maximum_interaction_radius() const {
+  double max_radius = std::numeric_limits<double>::max();
+  for (int n = 0; n < 3; ++n) {
+    auto L = unit_cell_vector(n) * num_unit_cells(n);
+    std::cout << L << std::endl;
+    max_radius = std::min(max_radius, L.norm()/2.0);
+  }
+  return max_radius;
+}
+
 
 // void Lattice::atom_nearest_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) {
 //   const double eps = kEps;

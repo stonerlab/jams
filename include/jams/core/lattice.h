@@ -101,6 +101,7 @@ class Lattice {
     inline double  distance(const int i, const int j) const;
     inline Vec3    displacement(const int i, const int j) const;
     inline Vec3    minimum_image(const Vec3& r_i, const Vec3& r_j) const;
+           double  maximum_interaction_radius() const; ///< the maximum radius which can be used that avoids self interaction
     inline Vec3 rmax() const;
     inline Vec3 rmin() const;
     Vec3 generate_position(const Vec3 unit_cell_frac_pos, const Vec3i translation_vector) const;
@@ -113,8 +114,6 @@ class Lattice {
 
     inline int num_sym_ops() const;
     inline Vec3 sym_rotation(const int i, const Vec3 r) const;
-
-
 
     // --------------------------------------------------------------------------
     // lattice vector functions
@@ -371,6 +370,7 @@ Lattice::sym_rotation(const int i, const Vec3 vec) const {
         return vec;
     }
 }
+
 
 inline Vec3
 Lattice::rmax() const {

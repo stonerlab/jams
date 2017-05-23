@@ -4,7 +4,7 @@
 #include <cmath>
 #include <complex>
 
-#include "jams/core/error.h"
+#include "jams/core/exception.h"
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
 #include "jams/core/consts.h"
@@ -60,11 +60,9 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     r_cutoff_ = double(settings["r_cutoff"]);
     output->write("  r_cutoff: %e\n", r_cutoff_);
 
-    k_cutoff_ = 100000;
-    if (settings.exists("k_cutoff")) {
-        k_cutoff_ = settings["k_cutoff"];
+    if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
+        throw std::runtime_error("dipole r_cutoff is too large for the lattice size");
     }
-    output->write("  k_cutoff: %e\n", r_cutoff_);
 
     for (int n = 0; n < 3; ++n) {
         kspace_size_[n] = ::lattice->num_unit_cells(n);
