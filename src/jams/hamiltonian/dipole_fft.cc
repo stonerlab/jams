@@ -90,13 +90,14 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     int stride          = 3;
     int dist            = 1;
     int num_transforms  = 3;
+    int transform_size[3]  = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
     int * nembed = NULL;
 
     fft_s_rspace_to_kspace
         = fftw_plan_many_dft_r2c(
             rank,                    // dimensionality
-            &kspace_padded_size_[0], // array of sizes of each dimension
+            transform_size, // array of sizes of each dimension
             num_transforms,          // number of transforms
             rspace_s_.data(),        // input: real data
             nembed,                  // number of embedded dimensions 
@@ -111,7 +112,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     fft_h_kspace_to_rspace
         = fftw_plan_many_dft_c2r(
             rank,                    // dimensionality
-            &kspace_padded_size_[0], // array of sizes of each dimension
+            transform_size, // array of sizes of each dimension
             num_transforms,          // number of transforms
             kspace_h_.data(),        // input: complex data
             nembed,                  // number of embedded dimensions
@@ -280,11 +281,12 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
     int dist            = 1;
     int num_transforms  = 9;
     int * nembed        = NULL;
+    int transform_size[3]  = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
     fftw_plan fft_dipole_tensor_rspace_to_kspace
         = fftw_plan_many_dft_r2c(
             rank,                       // dimensionality
-            &kspace_padded_size_[0],    // array of sizes of each dimension
+            transform_size,    // array of sizes of each dimension
             num_transforms,             // number of transforms
             rspace_tensor.data(),       // input: real data
             nembed,                     // number of embedded dimensions
@@ -337,8 +339,6 @@ void DipoleHamiltonianFFT::calculate_nonlocal_field() {
             for (int i = 0; i < kspace_padded_size_[0]; ++i) {
                 for (int j = 0; j < kspace_padded_size_[1]; ++j) {
                     for (int k = 0; k < (kspace_padded_size_[2]/2)+1; ++k) {
-                    const Vec3 q(i,j,k);
-
                         for (int m = 0; m < 3; ++m) {
                             for (int n = 0; n < 3; ++n) {
                                 std::complex<double> wq(
