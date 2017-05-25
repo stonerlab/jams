@@ -112,8 +112,8 @@ class Lattice {
     inline Vec3 cartesian_to_fractional(const Vec3& r_cart) const;
     inline Vec3 fractional_to_cartesian(const Vec3& r_frac) const;
 
-    inline int num_sym_ops() const;
-    inline Vec3 sym_rotation(const int i, const Vec3 r) const;
+    inline int      num_sym_ops() const;
+          Vec3      sym_rotation(const int i, const Vec3 r_frac) const;
 
     // --------------------------------------------------------------------------
     // lattice vector functions
@@ -359,18 +359,6 @@ Lattice::num_sym_ops() const {
         return 0;
     }
 }
-
-inline Vec3
-Lattice::sym_rotation(const int i, const Vec3 vec) const {
-    assert(rotations_.size() == num_sym_ops());
-    assert(i < rotations_.size() && i >= 0);
-    if (symops_enabled_) {
-        return rotations_[i] * vec;
-    } else {
-        return vec;
-    }
-}
-
 
 inline Vec3
 Lattice::rmax() const {

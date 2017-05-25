@@ -902,6 +902,16 @@ void Lattice::set_spacegroup(const int hall_number) {
   }
 }
 
+Vec3 Lattice::sym_rotation(const int i, const Vec3 r_frac) const {
+  assert(rotations_.size() == num_sym_ops());
+  assert(i < rotations_.size() && i >= 0);
+  if (symops_enabled_) {
+    return rotations_[i] * r_frac;
+  } else {
+    return r_frac;
+  }
+}
+
 
 // reads an position in the fast integer space and applies the periodic boundaries
 // if there are not periodic boundaries and this position is outside of the finite
