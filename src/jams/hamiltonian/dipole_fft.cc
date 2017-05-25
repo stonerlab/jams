@@ -4,15 +4,11 @@
 #include <cmath>
 #include <complex>
 
-#include "jams/core/exception.h"
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
 #include "jams/core/consts.h"
 #include "jams/core/utils.h"
 #include "jams/core/output.h"
-
-#include "jblib/containers/array.h"
-#include "jblib/containers/matrix.h"
 
 #include "jams/hamiltonian/dipole_fft.h"
 
@@ -43,7 +39,6 @@ DipoleHamiltonianFFT::~DipoleHamiltonianFFT() {
 DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size)
 : HamiltonianStrategy(settings, size),
   r_cutoff_(0),
-  k_cutoff_(0),
   distance_tolerance_(1e-6),
   h_(globals::num_spins, 3),
   rspace_s_(),
@@ -56,13 +51,12 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
   fft_s_rspace_to_kspace(nullptr),
   fft_h_kspace_to_rspace(nullptr)
 {
-    jblib::Vec3<int> L_max(0, 0, 0);
-
     r_cutoff_ = double(settings["r_cutoff"]);
     output->write("  r_cutoff: %e\n", r_cutoff_);
 
     if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
-        throw std::runtime_error("dipole r_cutoff is too large for the lattice size");
+        throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
+        "The cutoff must be less than half of the shortest supercell lattice vector.");
     }
 
     settings.lookupValue("distance_tolerance", distance_tolerance_);
