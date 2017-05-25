@@ -972,6 +972,34 @@ double Lattice::maximum_interaction_radius() const {
   return max_radius;
 }
 
+bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points) const {
+  const double distance_tolerance = 1e-5;
+  for (auto r : points) {
+    for (auto rotation_matrix : rotations_) {
+
+      auto r_sym = fractional_to_cartesian(rotation_matrix * cartesian_to_fractional(r));
+
+      bool symmetric_point_found = false;
+
+      for (auto r_check : points) {
+        auto dr = r_sym - r_check;
+        if (std::abs(dr.x) < distance_tolerance
+            && std::abs(dr.y) < distance_tolerance
+            && std::abs(dr.z) < distance_tolerance) {
+          symmetric_point_found = true;
+          break;
+        }
+      }
+      if (!symmetric_point_found) {
+        std::cerr << r << "\t" << r_sym << "\t" << std::endl;
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+
 
 // void Lattice::atom_nearest_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) {
 //   const double eps = kEps;

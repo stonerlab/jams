@@ -114,6 +114,7 @@ class Lattice {
 
     inline int      num_sym_ops() const;
           Vec3      sym_rotation(const int i, const Vec3 r_frac) const;
+          bool      is_a_symmetry_complete_set(const std::vector<Vec3>& points) const;
 
     // --------------------------------------------------------------------------
     // lattice vector functions
