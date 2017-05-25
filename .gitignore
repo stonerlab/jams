@@ -21,5 +21,7 @@ cout
 .clang_complete
 .tags
 .tags1
+.idea
 
 /build
+/cmake-build*
