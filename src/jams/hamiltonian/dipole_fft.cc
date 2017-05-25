@@ -44,6 +44,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 : HamiltonianStrategy(settings, size),
   r_cutoff_(0),
   k_cutoff_(0),
+  distance_tolerance_(1e-6),
   h_(globals::num_spins, 3),
   rspace_s_(),
   rspace_h_(),
@@ -63,6 +64,9 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
         throw std::runtime_error("dipole r_cutoff is too large for the lattice size");
     }
+
+    settings.lookupValue("distance_tolerance", distance_tolerance_);
+    output->write("  distance_tolerance: %e\n", distance_tolerance_);
 
     for (int n = 0; n < 3; ++n) {
         kspace_size_[n] = ::lattice->num_unit_cells(n);

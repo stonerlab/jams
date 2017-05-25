@@ -34,6 +34,7 @@ class DipoleHamiltonianFFT : public HamiltonianStrategy {
 
         double                          r_cutoff_;
         int                             k_cutoff_;
+        double                          distance_tolerance_;
 
         jblib::Array<double, 4>         rspace_s_;
         jblib::Array<double, 4>         rspace_h_;
