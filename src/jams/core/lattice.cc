@@ -972,46 +972,34 @@ double Lattice::maximum_interaction_radius() const {
   return max_radius;
 }
 
-bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points) const {
-  const double distance_tolerance = 1e-5;
-  for (auto r : points) {
-    for (auto rotation_matrix : rotations_) {
+namespace {
+    bool vec_are_equal();
+}
 
-      auto r_sym = fractional_to_cartesian(rotation_matrix * cartesian_to_fractional(r));
+std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3& r_cart, const double tolerance = 1e-6) const {
 
-      bool symmetric_point_found = false;
+  const auto r_frac = cartesian_to_fractional(r_cart);
+  std::vector<Vec3> symmetric_points;
 
-      for (auto r_check : points) {
-        auto dr = r_sym - r_check;
-        if (std::abs(dr.x) < distance_tolerance
-            && std::abs(dr.y) < distance_tolerance
-            && std::abs(dr.z) < distance_tolerance) {
-          symmetric_point_found = true;
-          break;
-        }
-      }
-      if (!symmetric_point_found) {
-        std::cerr << r << "\t" << r_sym << "\t" << std::endl;
+  symmetric_points.push_back(r_cart);
+  for (const auto rotation_matrix : rotations_) {
+    const auto r_sym = fractional_to_cartesian(rotation_matrix * r_frac);
+
+    if (!vec_exists_in_container(symmetric_points, r_sym, tolerance)) {
+      symmetric_points.push_back(r_sym);
+    }
+  }
+
+  return symmetric_points;
+}
+
+bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double tolerance = 1e-6) const {
+  for (const auto r : points) {
+    for (const auto r_sym : generate_symmetric_points(r, tolerance)) {
+      if (!vec_exists_in_container(points, r_sym, tolerance)) {
         return false;
       }
     }
   }
   return true;
 }
-
-
-
-// void Lattice::atom_nearest_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) {
-//   const double eps = kEps;
-
-//   neartree_.find_in_radius(r_cutoff, neighbours, {i, lattice->atom_material(i), lattice->atom_position(i)});
-
-
-//   const double r_min = (*std::min_element(neighbours[i].begin(), neighbours[i].end()));
-
-//     auto nbr_end = std::remove_if(neighbour_list[i].begin(), neighbour_list[i].end(), [r_min, eps](const Neighbour& nbr) {
-//       return std::abs(nbr.distance - r_min) > eps;
-//     });
-
-//     neighbour_list[i].erase(nbr_end, neighbour_list[i].end());
-// }
