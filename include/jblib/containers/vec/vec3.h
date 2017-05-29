@@ -27,7 +27,7 @@ namespace jblib {
         // default constructors
         Vec3() : x(0), y(0), z(0) {}
         Vec3(const type ix, const type iy, const type iz) : x(ix), y(iy), z(iz) {}
-        Vec3( const Vec3<type> &other ) : x(other.x), y(other.y), z(other.z) {}
+        //Vec3( const Vec3<type> &other ) : x(other.x), y(other.y), z(other.z) {}
 
         void set(const type ix, const type iy, const type iz);
 
@@ -216,7 +216,6 @@ namespace jblib {
     {
       return os << vec.x << "\t" << vec.y << "\t" << vec.z;
     }
-
 }
 
 #endif  // JBLIB_CONTAINERS_VEC3_H
