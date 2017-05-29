@@ -36,6 +36,7 @@ class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
         CudaStream dev_stream_;
 
         double                          r_cutoff_;
+        double                          distance_tolerance_;
 
         jblib::CudaArray<double, 1>     h_;
 
