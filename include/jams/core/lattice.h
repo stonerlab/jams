@@ -31,7 +31,7 @@ public:
   {
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            super_unit_cell_[i][j] = unit_cell[i][j] * cell_count[i];
+            super_unit_cell_[i][j] = unit_cell[i][j] * cell_count[j];
         }
     }
 
