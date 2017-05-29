@@ -74,6 +74,14 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   r_cutoff_ = double(settings["r_cutoff"]);
   output->write("  r_cutoff: %e\n", r_cutoff_);
 
+  if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
+    throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
+                                     "The cutoff must be less than half of the shortest supercell lattice vector.");
+  }
+
+  settings.lookupValue("distance_tolerance", distance_tolerance_);
+  output->write("  distance_tolerance: %e\n", distance_tolerance_);
+
   for (int n = 0; n < 3; ++n) {
       kspace_size_[n] = ::lattice->num_unit_cells(n);
   }
@@ -250,6 +258,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
     const double v = pow(lattice->parameter(), 3);
     const double w0 = fft_normalization_factor * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
 
+    std::vector<Vec3> positions;
 
     for (int kx = 0; kx < kspace_size_[0]; ++kx) {
         for (int ky = 0; ky < kspace_size_[1]; ++ky) {
@@ -271,7 +280,10 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
                     continue;
                 }
 
-                for (int m = 0; m < 3; ++m) {
+              positions.push_back(r_ij);
+
+
+              for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
                         rspace_tensor(kx, ky, kz, m, n) 
                             = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
@@ -279,6 +291,12 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
                 }
             }
         }
+    }
+
+    if(lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
+        throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
+                                       "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
+                                       "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
     }
 
     int rank            = 3;

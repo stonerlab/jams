@@ -265,7 +265,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
                     continue;
                 }
 
-              positions.push_back(r_ij);
+                positions.push_back(r_ij);
 
                 for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
@@ -277,7 +277,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
         }
     }
 
-    if(lattice->is_a_symmetry_complete_set(positions) == false) {
+    if(lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
       throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
                                "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
                                "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
