@@ -902,6 +902,16 @@ void Lattice::set_spacegroup(const int hall_number) {
   }
 }
 
+Vec3 Lattice::sym_rotation(const int i, const Vec3 r_frac) const {
+  assert(rotations_.size() == num_sym_ops());
+  assert(i < rotations_.size() && i >= 0);
+  if (symops_enabled_) {
+    return rotations_[i] * r_frac;
+  } else {
+    return r_frac;
+  }
+}
+
 
 // reads an position in the fast integer space and applies the periodic boundaries
 // if there are not periodic boundaries and this position is outside of the finite
@@ -952,18 +962,44 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
   return is_within_lattice;
 }
 
+double Lattice::maximum_interaction_radius() const {
+  double max_radius = std::numeric_limits<double>::max();
+  for (int n = 0; n < 3; ++n) {
+    auto L = unit_cell_vector(n) * num_unit_cells(n);
+    std::cout << L << std::endl;
+    max_radius = std::min(max_radius, L.norm()/2.0);
+  }
+  return max_radius;
+}
 
-// void Lattice::atom_nearest_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) {
-//   const double eps = kEps;
+namespace {
+    bool vec_are_equal();
+}
 
-//   neartree_.find_in_radius(r_cutoff, neighbours, {i, lattice->atom_material(i), lattice->atom_position(i)});
+std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3& r_cart, const double tolerance = 1e-6) const {
 
+  const auto r_frac = cartesian_to_fractional(r_cart);
+  std::vector<Vec3> symmetric_points;
 
-//   const double r_min = (*std::min_element(neighbours[i].begin(), neighbours[i].end()));
+  symmetric_points.push_back(r_cart);
+  for (const auto rotation_matrix : rotations_) {
+    const auto r_sym = fractional_to_cartesian(rotation_matrix * r_frac);
 
-//     auto nbr_end = std::remove_if(neighbour_list[i].begin(), neighbour_list[i].end(), [r_min, eps](const Neighbour& nbr) {
-//       return std::abs(nbr.distance - r_min) > eps;
-//     });
+    if (!vec_exists_in_container(symmetric_points, r_sym, tolerance)) {
+      symmetric_points.push_back(r_sym);
+    }
+  }
 
-//     neighbour_list[i].erase(nbr_end, neighbour_list[i].end());
-// }
+  return symmetric_points;
+}
+
+bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double tolerance = 1e-6) const {
+  for (const auto r : points) {
+    for (const auto r_sym : generate_symmetric_points(r, tolerance)) {
+      if (!vec_exists_in_container(points, r_sym, tolerance)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}

@@ -150,31 +150,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
           }
           cusparseSetStream(cusparse_handle_, dev_stream_);
 
-
-          // create matrix descriptor
-          status = cusparseCreateMatDescr(&cusparse_descra_);
-          if (status != CUSPARSE_STATUS_SUCCESS) {
-            jams_error("CUSPARSE Matrix descriptor initialization failed");
-          }
-          cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
-          cusparseSetMatIndexBase(cusparse_descra_,CUSPARSE_INDEX_BASE_ZERO);
-
-          ::output->write("  allocating memory on device\n");
-          cuda_api_error_check(
-            cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
-          cuda_api_error_check(
-            cudaMalloc((void**)&dev_csr_interaction_matrix_.col, (interaction_matrix_.nonZero())*sizeof(int)));
-          cuda_api_error_check(
-            cudaMalloc((void**)&dev_csr_interaction_matrix_.val, (interaction_matrix_.nonZero())*sizeof(double)));
-
-          cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.row, interaction_matrix_.rowPtr(),
-                (interaction_matrix_.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
-
-          cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.col, interaction_matrix_.colPtr(),
-                (interaction_matrix_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
-
-          cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
-                (interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
+          sparsematrix_copy_host_csr_to_cuda_csr(interaction_matrix_, dev_csr_interaction_matrix_);
 
         } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
           // ::output->write("  converting interaction matrix format from map to dia");
@@ -328,7 +304,7 @@ void ExchangeHamiltonian::calculate_fields() {
           globals::num_spins3,
           interaction_matrix_.nonZero(),
           &one,
-          cusparse_descra_,
+          dev_csr_interaction_matrix_.descr,
           dev_csr_interaction_matrix_.val,
           dev_csr_interaction_matrix_.row,
           dev_csr_interaction_matrix_.col,

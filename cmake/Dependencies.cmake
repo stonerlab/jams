@@ -1,6 +1,3 @@
-# -- Google-test
-include("cmake/External/gtest.cmake")
-
 # -- Libconfig++
 find_package(CONFIG++ REQUIRED)
 include_directories(SYSTEM ${CONFIG++_INCLUDE_DIR})

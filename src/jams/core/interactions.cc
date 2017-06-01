@@ -3,6 +3,7 @@
 #include <istream>
 #include <string>
 #include <set>
+#include <jams/core/interactions.h>
 
 #include "jams/core/consts.h"
 #include "jams/core/error.h"
@@ -134,11 +135,10 @@ namespace { //anon
       std::vector<interaction_t> symops_interaction_data;
 
       if (use_symops) {
-        interaction_t symops_interaction = interaction;
-        Vec3 r_ij_frac = lattice->cartesian_to_fractional(symops_interaction.r_ij); // interaction vector in fractional coordinates
-        // calculate symmetric vectors based on crystal symmetry
-        for (int i = 0; i < lattice->num_sym_ops(); i++) {
-          symops_interaction.r_ij = lattice->fractional_to_cartesian(lattice->sym_rotation(i, r_ij_frac));
+        auto symops_interaction = interaction;
+        auto symmetric_points = lattice->generate_symmetric_points(symops_interaction.r_ij, 1e-6);
+        for (const auto p : symmetric_points) {
+          symops_interaction.r_ij = p;
           symops_interaction_data.push_back(symops_interaction);
         }
       } else {

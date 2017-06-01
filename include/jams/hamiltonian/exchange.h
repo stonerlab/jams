@@ -17,6 +17,7 @@
 #include "jams/core/cuda_defs.h"
 #include "jams/core/interactions.h"
 #include "jams/core/sparsematrix.h"
+#include "jams/cuda/cuda-sparse-helpers.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/cuda_array.h"
@@ -57,9 +58,8 @@ class ExchangeHamiltonian : public Hamiltonian {
 
 #ifdef CUDA
         devDIA dev_dia_interaction_matrix_;
-        devCSR dev_csr_interaction_matrix_;
+        CudaSparseMatrixCSR<double> dev_csr_interaction_matrix_;
         cusparseHandle_t   cusparse_handle_;
-        cusparseMatDescr_t cusparse_descra_;
         cudaStream_t dev_stream_ = nullptr;
 #endif  // CUDA
 

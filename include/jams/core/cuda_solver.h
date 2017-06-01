@@ -12,10 +12,14 @@
 #include "jams/core/monitor.h"
 #include "jblib/containers/cuda_array.h"
 #include "jblib/containers/vec.h"
+#include "jams/cuda/wrappers/stream.h"
+
 
 class CudaSolver : public Solver {
  public:
-  CudaSolver() {};
+  CudaSolver() :
+   dev_stream_()
+   {};
   ~CudaSolver();
 
   void initialize(int argc, char **argv, double dt);
@@ -63,6 +67,9 @@ class CudaSolver : public Solver {
 
     cufftHandle spin_fft_forward_transform;
     cufftHandle field_fft_backward_transform;
+
+  private:
+    CudaStream dev_stream_;
 };
 
 #endif  // JAMS_CORE_CUDASOLVER_H

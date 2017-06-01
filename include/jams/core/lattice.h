@@ -31,7 +31,7 @@ public:
   {
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            super_unit_cell_[i][j] = unit_cell[i][j] * cell_count[i];
+            super_unit_cell_[i][j] = unit_cell[i][j] * cell_count[j];
         }
     }
 
@@ -101,20 +101,20 @@ class Lattice {
     inline double  distance(const int i, const int j) const;
     inline Vec3    displacement(const int i, const int j) const;
     inline Vec3    minimum_image(const Vec3& r_i, const Vec3& r_j) const;
+           double  maximum_interaction_radius() const; ///< the maximum radius which can be used that avoids self interaction
     inline Vec3 rmax() const;
     inline Vec3 rmin() const;
     Vec3 generate_position(const Vec3 unit_cell_frac_pos, const Vec3i translation_vector) const;
     Vec3 generate_image_position(const Vec3 unit_cell_cart_pos, const Vec3i image_vector) const;
     Vec3 generate_fractional_position(const Vec3 unit_cell_frac_pos, const Vec3i translation_vector) const;
-
+    std::vector<Vec3> generate_symmetric_points(const Vec3& r, const double tolerance) const;
 
     inline Vec3 cartesian_to_fractional(const Vec3& r_cart) const;
     inline Vec3 fractional_to_cartesian(const Vec3& r_frac) const;
 
-    inline int num_sym_ops() const;
-    inline Vec3 sym_rotation(const int i, const Vec3 r) const;
-
-
+    inline int      num_sym_ops() const;
+          Vec3      sym_rotation(const int i, const Vec3 r_frac) const;
+          bool      is_a_symmetry_complete_set(const std::vector<Vec3>& points, const double tolerance) const;
 
     // --------------------------------------------------------------------------
     // lattice vector functions
@@ -358,17 +358,6 @@ Lattice::num_sym_ops() const {
         return spglib_dataset_->n_operations;
     } else {
         return 0;
-    }
-}
-
-inline Vec3
-Lattice::sym_rotation(const int i, const Vec3 vec) const {
-    assert(rotations_.size() == num_sym_ops());
-    assert(i < rotations_.size() && i >= 0);
-    if (symops_enabled_) {
-        return rotations_[i] * vec;
-    } else {
-        return vec;
     }
 }
 
