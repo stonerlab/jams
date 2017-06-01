@@ -1,4 +1,8 @@
 enable_testing()
+
+# -- Google-test
+include("${PROJECT_SOURCE_DIR}/cmake/External/gtest.cmake")
+
 set(PROJECT_TEST_NAME ${CMAKE_PROJECT_NAME}_test)
 
 # put source files into 'srcs' and 'cuda'
