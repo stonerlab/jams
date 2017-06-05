@@ -30,6 +30,7 @@ class StructureFactorMonitor : public Monitor {
 
   void   fft_time();
 
+    bool output_sublattice_enabled_ = false;
   jblib::Array<double, 2> s_transform;
   jblib::Array<double, 1> k0;
   jblib::Array<double, 1> kneq0;

@@ -5,6 +5,7 @@
 #include <string>
 #include <algorithm>
 #include <numeric>
+#include <iomanip>
 
 #include <fftw3.h>
 
@@ -29,6 +30,8 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 : Monitor(settings) {
   using namespace globals;
   ::output->write("\nInitialising Structure Factor monitor...\n");
+
+  settings.lookupValue("output_sublattice", output_sublattice_enabled_);
 
   time_point_counter_ = 0;
 
@@ -205,8 +208,6 @@ void StructureFactorMonitor::update(Solver * solver) {
   k0(time_point_counter_) = nz(0, 0, 0);
   kneq0(time_point_counter_) = std::accumulate(nz.data(), nz.data()+nz.elements(), 0.0);
 
-  // std::cerr << time_point_counter_ << "\t" << k0(time_point_counter_) << "\t" << kneq0(time_point_counter_) << std::endl;
-
   time_point_counter_++;
 }
 
@@ -270,22 +271,45 @@ void StructureFactorMonitor::fft_time() {
 
     // output DSF for each position in the unit cell
 
-    std::string unit_cell_dsf_filename = seedname + "_dsf_" + std::to_string(unit_cell_atom) + ".tsv";
-    std::ofstream unit_cell_dsf_file(unit_cell_dsf_filename.c_str());
+    if (output_sublattice_enabled_) {
+      std::string unit_cell_sqw_filename = seedname + "_sqw_" + std::to_string(unit_cell_atom) + ".tsv";
+      std::ofstream unit_cell_sqw_file(unit_cell_sqw_filename.c_str());
 
-    for (int i = 0; i < (time_points/2) + 1; ++i) {
-      double total_length = 0.0;
-      for (int j = 0; j < space_points; ++j) {
-        unit_cell_dsf_file << j << "\t" << total_length << "\t" << i*freq_delta << "\t";
-        unit_cell_dsf_file << norm*fft_sqw_x(i, j)[0] << "\t" << norm*fft_sqw_x(i, j)[1] << "\t";
-        unit_cell_dsf_file << norm*fft_sqw_y(i, j)[0] << "\t" << norm*fft_sqw_y(i, j)[1] << "\t";
-        unit_cell_dsf_file << norm*fft_sqw_z(i, j)[0] << "\t" << norm*fft_sqw_z(i, j)[1] << "\n";
-        total_length += bz_lengths[j];
+      unit_cell_sqw_file << "# k_index   |\t";
+      unit_cell_sqw_file << " total      |\t";
+      unit_cell_sqw_file << " ky         |\t";
+      unit_cell_sqw_file << " kz         |\t";
+      unit_cell_sqw_file << " kx         |\t";
+      unit_cell_sqw_file << " freq (THz) |\t";
+      unit_cell_sqw_file << "abs(Sx(q,w))|\t";
+      unit_cell_sqw_file <<  "Re(Sx(q,w))|\t";
+      unit_cell_sqw_file << "Im(Sx(q,w)) |\t";
+      unit_cell_sqw_file << "abs(Sy(q,w))|\t";
+      unit_cell_sqw_file << "Re(Sy(q,w)) |\t";
+      unit_cell_sqw_file << "Im(Sy(q,w)) |\t";
+      unit_cell_sqw_file << "abs(Sz(q,w))|\t";
+      unit_cell_sqw_file << "Re(Sz(q,w)) |\t";
+      unit_cell_sqw_file << "Im(Sz(q,w))\n";
+
+      for (int i = 0; i < (time_points / 2) + 1; ++i) {
+        double total_length = 0.0;
+        for (int j = 0; j < space_points; ++j) {
+          unit_cell_sqw_file << std::setw(5) << std::fixed << j << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << total_length << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].x / double(::lattice->kspace_size()[0])  << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].y / double(::lattice->kspace_size()[1])  << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].z / double(::lattice->kspace_size()[2])  << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << i * freq_delta / 1e12 << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_x(i, j)[0] << "\t" << norm * fft_sqw_x(i, j)[1] << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_y(i, j)[0] << "\t" << norm * fft_sqw_y(i, j)[1] << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_z(i, j)[0] << "\t" << norm * fft_sqw_z(i, j)[1] << "\n";
+          total_length += bz_lengths[j];
+        }
+        unit_cell_sqw_file << std::endl;
       }
-      unit_cell_dsf_file << std::endl;
-    }
 
-    unit_cell_dsf_file.close();
+      unit_cell_sqw_file.close();
+    }
 
     for (int i = 0; i < time_points; ++i) {
       for (int j = 0; j < space_points; ++j) {
@@ -303,25 +327,51 @@ void StructureFactorMonitor::fft_time() {
 
       }
     }
-
   }
 
-  std::string name = seedname + "_dsf.tsv";
-  std::ofstream dsffile(name.c_str());
+  std::string name = seedname + "_sqw.tsv";
+  std::ofstream sqwfile(name.c_str());
+
+  sqwfile << "# k_index   |\t";
+  sqwfile << " total      |\t";
+  sqwfile << " kx         |\t";
+  sqwfile << " ky         |\t";
+  sqwfile << " kz         |\t";
+  sqwfile << " freq (THz) |\t";
+  sqwfile << "abs(Sx(q,w))|\t";
+  sqwfile <<  "Re(Sx(q,w))|\t";
+  sqwfile << "Im(Sx(q,w)) |\t";
+  sqwfile << "abs(Sy(q,w))|\t";
+  sqwfile << "Re(Sy(q,w)) |\t";
+  sqwfile << "Im(Sy(q,w)) |\t";
+  sqwfile << "abs(Sz(q,w))|\t";
+  sqwfile << "Re(Sz(q,w)) |\t";
+  sqwfile << "Im(Sz(q,w))\n";
 
   for (int i = 0; i < (time_points/2) + 1; ++i) {
     double total_length = 0.0;
     for (int j = 0; j < space_points; ++j) {
-      dsffile << j << "\t" << total_length << "\t" << i*freq_delta << "\t";
-      dsffile << total_mag_sqw_x(i,j) << "\t" << total_sqw_x(i,j)[0] << "\t" << total_sqw_x(i,j)[1] << "\t";
-      dsffile << total_mag_sqw_y(i,j) << "\t" << total_sqw_y(i,j)[0] << "\t" << total_sqw_y(i,j)[1] << "\t";
-      dsffile << total_mag_sqw_z(i,j) << "\t" << total_sqw_z(i,j)[0] << "\t" << total_sqw_z(i,j)[1] << "\n";
+      sqwfile << std::setw(5) << std::fixed << j << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_length << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].x / double(::lattice->kspace_size()[0]) << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].y / double(::lattice->kspace_size()[1]) << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].z / double(::lattice->kspace_size()[2]) << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << i*freq_delta / 1e12 << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_x(i,j) << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[0] << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[1] << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_y(i,j) << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_y(i,j)[0] << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_y(i,j)[1] << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_z(i,j) << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_z(i,j)[0] << "\t";
+      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_z(i,j)[1] << "\n";
       total_length += bz_lengths[j];
     }
-    dsffile << std::endl;
+    sqwfile << std::endl;
   }
 
-  dsffile.close();
+  sqwfile.close();
 }
 
 StructureFactorMonitor::~StructureFactorMonitor() {

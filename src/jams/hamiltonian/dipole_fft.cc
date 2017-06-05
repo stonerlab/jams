@@ -136,7 +136,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 double DipoleHamiltonianFFT::calculate_total_energy() {
     double e_total = 0.0;
 
-    calculate_nonlocal_field();
+    calculate_fields(h_);
     for (int i = 0; i < globals::num_spins; ++i) {
         e_total += (  globals::s(i,0)*h_(i, 0)
                     + globals::s(i,1)*h_(i, 1)
@@ -170,7 +170,7 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
 
     double h[3] = {0, 0, 0};
 
-    calculate_nonlocal_field();
+    calculate_fields(h_);
     for (int m = 0; m < 3; ++m) {
         pos = ::lattice->super_cell_pos(i);
         h[m] += rspace_h_(pos.x, pos.y, pos.z, m);
@@ -198,7 +198,7 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
         h[m] = 0.0;
     }
 
-    calculate_nonlocal_field();
+    calculate_fields(h_);
     for (int m = 0; m < 3; ++m) {
         pos = ::lattice->super_cell_pos(i);
         h[m] += rspace_h_(pos.x, pos.y, pos.z, m);
@@ -206,10 +206,6 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
 }
 
 //---------------------------------------------------------------------
-
-void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2>& energies) {
-
-}
 
 //---------------------------------------------------------------------
 
@@ -313,7 +309,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
 
 //---------------------------------------------------------------------
 
-void DipoleHamiltonianFFT::calculate_nonlocal_field() {
+void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2> &fields) {
     using std::min;
     using std::pow;
 
@@ -373,7 +369,7 @@ void DipoleHamiltonianFFT::calculate_nonlocal_field() {
                 for (int k = 0; k < kspace_size_[2]; ++k) {
                     const int index = lattice->site_index_by_unit_cell(i, j, k, pos_i);
                     for (int m = 0; m < 3; ++ m) {
-                        h_(index, m) += rspace_h_(i, j, k, m);
+                        fields(index, m) += rspace_h_(i, j, k, m);
                     }   
                 }
             }
