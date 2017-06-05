@@ -143,8 +143,8 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
       }
   }
 
-  cufftSetStream(cuda_fft_s_rspace_to_kspace, dev_stream_.get());
-  cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_.get());
+  cufftSetStream(cuda_fft_s_rspace_to_kspace, dev_stream_[0].get());
+  cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_[0].get());
 
 
 }
@@ -195,13 +195,15 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2>& fields)
 void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu_h) {
   cufftResult result;
 
-  kspace_h_.zero(dev_stream_.get());
+  kspace_h_.zero(dev_stream_[0].get());
 
   // TODO: change these to macros to avoid blocking in production code
   result = cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(solver->dev_ptr_spin()), kspace_s_.data());
   if (result != CUFFT_SUCCESS) {
     throw std::runtime_error("CUFFT failure");
   }
+
+  cudaDeviceSynchronize();
 
   for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
 
@@ -216,10 +218,11 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu
       dim3 grid_size;
       grid_size.x = (fft_size + block_size.x - 1) / block_size.x;
 
-      cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_.get()>>>(fft_size, pos_i, pos_j, lattice->num_unit_cell_positions(), mus_j, kspace_s_.data(),  kspace_tensors_[pos_i][pos_j].data(), kspace_h_.data());
+      cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, lattice->num_unit_cell_positions(), mus_j, kspace_s_.data(),  kspace_tensors_[pos_i][pos_j].data(), kspace_h_.data());
     }
+    cudaDeviceSynchronize();
   }
-  
+
   result = cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.data(), reinterpret_cast<cufftDoubleReal*>(gpu_h.data()));
   
   if (result != CUFFT_SUCCESS) {
