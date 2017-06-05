@@ -255,38 +255,37 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
     rspace_tensor.zero();
     kspace_tensor.zero();
 
-    const double fft_normalization_factor = 1.0 / product(kspace_size_);
+    const double fft_normalization_factor = 1.0 / product(kspace_padded_size_);
     const double v = pow(lattice->parameter(), 3);
     const double w0 = fft_normalization_factor * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
 
     std::vector<Vec3> positions;
 
-    for (int kx = 0; kx < kspace_size_[0]; ++kx) {
-        for (int ky = 0; ky < kspace_size_[1]; ++ky) {
-            for (int kz = 0; kz < kspace_size_[2]; ++kz) {
+    for (int nx = 0; nx < kspace_size_[0]; ++nx) {
+        for (int ny = 0; ny < kspace_size_[1]; ++ny) {
+            for (int nz = 0; nz < kspace_size_[2]; ++nz) {
 
-                if (kx == 0 && ky == 0 && kz == 0 && pos_i == pos_j) {
+                if (nx == 0 && ny == 0 && nz == 0 && pos_i == pos_j) {
                     // self interaction on the same sublattice
                     continue;
                 } 
 
                 const Vec3 r_ij = 
-                    lattice->minimum_image(r_cart_j, 
-                        lattice->generate_position(r_frac_i, {kx, ky, kz})); // generate_position requires FRACTIONAL coordinate
+                    lattice->minimum_image(r_cart_j,
+                        lattice->generate_position(r_frac_i, {nx, ny, nz})); // generate_position requires FRACTIONAL coordinate
 
                 const auto r_abs_sq = r_ij.norm_sq();
 
-                if (r_abs_sq > pow(r_cutoff_, 2)) {
+                if (r_abs_sq > pow(r_cutoff_ + distance_tolerance_, 2)) {
                     // outside of cutoff radius
                     continue;
                 }
 
-              positions.push_back(r_ij);
+                positions.push_back(r_ij);
 
-
-              for (int m = 0; m < 3; ++m) {
+                for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
-                        rspace_tensor(kx, ky, kz, m, n) 
+                        rspace_tensor(nx, ny, nz, m, n)
                             = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
                     }
                 }
@@ -295,9 +294,9 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
     }
 
     if(lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
-        throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
-                                       "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
-                                       "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+      throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
+                               "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
+                               "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
     }
 
     int rank            = 3;
@@ -305,11 +304,12 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
     int dist            = 1;
     int num_transforms  = 9;
     int * nembed        = NULL;
+    int transform_size[3]  = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
     fftw_plan fft_dipole_tensor_rspace_to_kspace
         = fftw_plan_many_dft_r2c(
             rank,                       // dimensionality
-            &kspace_padded_size_[0],    // array of sizes of each dimension
+            transform_size,    // array of sizes of each dimension
             num_transforms,             // number of transforms
             rspace_tensor.data(),       // input: real data
             nembed,                     // number of embedded dimensions
@@ -326,3 +326,4 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
 
     return kspace_tensor;
 }
+
