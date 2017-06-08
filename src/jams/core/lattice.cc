@@ -965,8 +965,10 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
 double Lattice::maximum_interaction_radius() const {
   double max_radius = std::numeric_limits<double>::max();
   for (int n = 0; n < 3; ++n) {
+    if (!is_periodic(n)) {
+      continue;
+    }
     auto L = unit_cell_vector(n) * num_unit_cells(n);
-    std::cout << L << std::endl;
     max_radius = std::min(max_radius, L.norm()/2.0);
   }
   return max_radius;
