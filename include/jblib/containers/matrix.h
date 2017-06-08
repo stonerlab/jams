@@ -26,7 +26,7 @@ namespace jblib {
       public:
         Matrix<type,3,3>(){};
         Matrix<type,3,3>( const Vec3<type> &a, const Vec3<type> &b, const Vec3<type> &c );
-        Matrix<type,3,3>( const double xx, const double xy, const double xz, const double yx, const double yy, const double yz, const double zx, const double zy, const double zz );
+        Matrix<type,3,3>( const type xx, const type xy, const type xz, const type yx, const type yy, const type yz, const type zx, const type zy, const type zz );
 
 
         const Vec3<type>& operator[](const int32 index) const;
@@ -66,7 +66,7 @@ namespace jblib {
     }
 
   template < typename type >
-    inline Matrix<type,3,3>::Matrix( const double xx, const double xy, const double xz, const double yx, const double yy, const double yz, const double zx, const double zy, const double zz ){
+    inline Matrix<type,3,3>::Matrix( const type xx, const type xy, const type xz, const type yx, const type yy, const type yz, const type zx, const type zy, const type zz ){
       data_[0].x = xx; data_[0].y = xy; data_[0].z = xz;
       data_[1].x = yx; data_[1].y = yy; data_[1].z = yz;
       data_[2].x = zx; data_[2].y = zy; data_[2].z = zz;
