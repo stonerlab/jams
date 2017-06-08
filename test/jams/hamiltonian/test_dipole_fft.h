@@ -114,8 +114,8 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM) {
   analytic = analytic_prefactor * eigenvalue;
   numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
-  ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
+      ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
 
   // S = (0, 0, 1) FM
 
@@ -237,7 +237,7 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM_RAND) {
   double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
   ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
-  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-6);
+  ASSERT_NEAR(result_fft/result_bruteforce, 1.0, 1e-6);
 }
 
 //---------------------------------------------------------------------
@@ -252,7 +252,7 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_two_atom_CPU_1D_FM) {
   double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
   ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
-  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-6);
+  ASSERT_NEAR(result_fft/result_bruteforce, 1.0, 1e-6);
 }
 
 //---------------------------------------------------------------------
@@ -267,7 +267,7 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_two_atom_CPU_2D_FM_SLOW) {
   double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
   ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
-  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-6);
+  ASSERT_NEAR(result_fft/result_bruteforce, 1.0, 1e-6);
 }
 
 //---------------------------------------------------------------------
@@ -286,5 +286,5 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_two_atom_CPU_1D_FM_RAND) {
   double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
   ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
-  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-6);
+  ASSERT_NEAR(result_fft/result_bruteforce, 1.0, 1e-6);
 }
