@@ -996,6 +996,9 @@ std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3& r_cart, const d
 }
 
 bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double tolerance = 1e-6) const {
+  if (!is_bulk_system()) {
+    return true;
+  }
   for (const auto r : points) {
     for (const auto r_sym : generate_symmetric_points(r, tolerance)) {
       if (!vec_exists_in_container(points, r_sym, tolerance)) {
