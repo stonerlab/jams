@@ -41,8 +41,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
   r_cutoff_(0),
   distance_tolerance_(1e-6),
   h_(globals::num_spins, 3),
-  rspace_s_(),
-  rspace_h_(),
+  fftw_h_(globals::num_spins, 3),
   kspace_size_(0, 0, 0),
   kspace_padded_size_(0, 0, 0),
   kspace_s_(),
@@ -74,53 +73,60 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
         }
     }
 
-    rspace_s_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
-    rspace_h_.resize(kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2], 3);
-    kspace_s_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
-    kspace_h_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
+    unsigned int kspace_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2]/2 + 1) * lattice->num_unit_cell_positions() * 3;
+
+    std::cerr << kspace_size_ << "\t" << kspace_padded_size_ << std::endl;
+
+    kspace_s_.resize(kspace_size);
+    kspace_h_.resize(kspace_size);
+
+    kspace_s_.zero();
+    kspace_h_.zero();
+    h_.zero();
+    fftw_h_.zero();
 
     output->write("    kspace size: %d %d %d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
     output->write("    kspace padded size: %d %d %d\n", kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]);
 
     output->write("    planning FFTs\n");
 
-    int rank            = 3;           
-    int stride          = 3;
+    int rank            = 3;
+    int stride          = 3 * lattice->num_unit_cell_positions();
     int dist            = 1;
-    int num_transforms  = 3;
-    int transform_size[3]  = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
-
-    int * nembed = NULL;
+    int num_transforms  = 3 * lattice->num_unit_cell_positions();
+    int rspace_embed[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
+    int kspace_embed[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]/2 + 1};
+    int fft_size[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
 
     fft_s_rspace_to_kspace
         = fftw_plan_many_dft_r2c(
             rank,                    // dimensionality
-            transform_size, // array of sizes of each dimension
+            fft_size,                // array of sizes of each dimension
             num_transforms,          // number of transforms
-            rspace_s_.data(),        // input: real data
-            nembed,                  // number of embedded dimensions 
+            globals::s.data(),        // input: real data
+            rspace_embed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset 
             dist,                    // memory distance between fft datasets
             kspace_s_.data(),        // output: complex data
-            nembed,                  // number of embedded dimensions
+            kspace_embed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset 
             dist,                    // memory distance between fft datasets
-            FFTW_PATIENT);
+            FFTW_PATIENT|FFTW_PRESERVE_INPUT);
 
     fft_h_kspace_to_rspace
         = fftw_plan_many_dft_c2r(
             rank,                    // dimensionality
-            transform_size, // array of sizes of each dimension
+            fft_size, // array of sizes of each dimension
             num_transforms,          // number of transforms
             kspace_h_.data(),        // input: complex data
-            nembed,                  // number of embedded dimensions
+            kspace_embed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset 
             dist,                    // memory distance between fft datasets
-            rspace_h_.data(),        // output: real data
-            nembed,                  // number of embedded dimensions
+            fftw_h_.data(),        // output: real data
+            rspace_embed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset
             dist,                    // memory distance between fft datasets
-            FFTW_PATIENT);
+            FFTW_PATIENT|FFTW_PRESERVE_INPUT);
 
     kspace_tensors_.resize(lattice->num_unit_cell_positions());
 
@@ -171,13 +177,9 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
     double h[3] = {0, 0, 0};
 
     calculate_fields(h_);
-    for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->super_cell_pos(i);
-        h[m] += rspace_h_(pos.x, pos.y, pos.z, m);
-    }
 
-    return -( (spin_final[0] * h[0] + spin_final[1] * h[1] + spin_final[2] * h[2])
-          - (spin_initial[0] * h[0] + spin_initial[1] * h[1] + spin_initial[2] * h[2])) * globals::mus(i);
+    return -( (spin_final[0] * h_(i,0) + spin_final[1] * h_(i,1) + spin_final[2] * h_(i,2))
+          - (spin_initial[0] * h_(i,0) + spin_initial[1] * h_(i,1) + spin_initial[2] * h_(i,2))) * globals::mus(i);
 }
 
 //---------------------------------------------------------------------
@@ -200,8 +202,7 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
 
     calculate_fields(h_);
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->super_cell_pos(i);
-        h[m] += rspace_h_(pos.x, pos.y, pos.z, m);
+        h[m] += h_(i,m);
     }
 }
 
@@ -235,9 +236,9 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
     rspace_tensor.zero();
     kspace_tensor.zero();
 
-    const double fft_normalization_factor = 1.0 / product(kspace_padded_size_);
+    const double fft_normalization_factor = 1.0 / product(kspace_size_);
     const double v = pow(lattice->parameter(), 3);
-    const double w0 = fft_normalization_factor * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
+    double w0 = fft_normalization_factor * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
 
     std::vector<Vec3> positions;
 
@@ -310,71 +311,59 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
 //---------------------------------------------------------------------
 
 void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2> &fields) {
+    // The copy-swap idiom in the array classes makes it dangerous to use the pointer from h_ for FFTW when passing h_
+    // as the fields argument. Therefore fftw_h_ is the only one which should be used.
     using std::min;
     using std::pow;
 
-    h_.zero();
+//    kspace_s_.zero();
+    fftw_execute(fft_s_rspace_to_kspace);
 
-    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
+    unsigned num_pos = lattice->num_unit_cell_positions();
+    unsigned int fft_size =
+            kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
+    kspace_h_.zero();
 
-        kspace_h_.zero();
+    for (unsigned i = 0; i < fft_size; ++i) {
 
-        for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
+        for (int pos_i = 0; pos_i < num_pos; ++pos_i) {
+            for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
 
-            const double mus_j = lattice->unit_cell_material(pos_j).moment;
+                const double mus_j = lattice->unit_cell_material(pos_j).moment;
+                
+                jblib::Vec3<std::complex<double>> sq = {
+                        {kspace_s_[3 * (num_pos * i + pos_j) + 0][0], kspace_s_[3 * (num_pos * i + pos_j) + 0][1]},
+                        {kspace_s_[3 * (num_pos * i + pos_j) + 1][0], kspace_s_[3 * (num_pos * i + pos_j) + 1][1]},
+                        {kspace_s_[3 * (num_pos * i + pos_j) + 2][0], kspace_s_[3 * (num_pos * i + pos_j) + 2][1]}};
 
-            rspace_s_.zero();
+                jblib::Matrix<std::complex<double>, 3, 3> wq(
+                        {kspace_tensors_[pos_i][pos_j][9 * i + 0][0], kspace_tensors_[pos_i][pos_j][9 * i + 0][1]},
+                        {kspace_tensors_[pos_i][pos_j][9 * i + 1][0], kspace_tensors_[pos_i][pos_j][9 * i + 1][1]},
+                        {kspace_tensors_[pos_i][pos_j][9 * i + 2][0], kspace_tensors_[pos_i][pos_j][9 * i + 2][1]},
+                        {kspace_tensors_[pos_i][pos_j][9 * i + 3][0], kspace_tensors_[pos_i][pos_j][9 * i + 3][1]},
+                        {kspace_tensors_[pos_i][pos_j][9 * i + 4][0], kspace_tensors_[pos_i][pos_j][9 * i + 4][1]},
+                        {kspace_tensors_[pos_i][pos_j][9 * i + 5][0], kspace_tensors_[pos_i][pos_j][9 * i + 5][1]},
+                        {kspace_tensors_[pos_i][pos_j][9 * i + 6][0], kspace_tensors_[pos_i][pos_j][9 * i + 6][1]},
+                        {kspace_tensors_[pos_i][pos_j][9 * i + 7][0], kspace_tensors_[pos_i][pos_j][9 * i + 7][1]},
+                        {kspace_tensors_[pos_i][pos_j][9 * i + 8][0], kspace_tensors_[pos_i][pos_j][9 * i + 8][1]}
+                );
 
-            for (int kx = 0; kx < kspace_size_[0]; ++kx) {
-                for (int ky = 0; ky < kspace_size_[1]; ++ky) {
-                    for (int kz = 0; kz < kspace_size_[2]; ++kz) {
-                        const int index = lattice->site_index_by_unit_cell(kx, ky, kz, pos_j);
-                        for (int m = 0; m < 3; ++m) {
-                            rspace_s_(kx, ky, kz, m) = globals::s(index, m);
-                        }
-                    }
-                }
-            }
+                jblib::Vec3<std::complex<double>> hq = wq * sq;
 
-            fftw_execute(fft_s_rspace_to_kspace);
-
-            // perform convolution as multiplication in fourier space
-            for (int i = 0; i < kspace_padded_size_[0]; ++i) {
-                for (int j = 0; j < kspace_padded_size_[1]; ++j) {
-                    for (int k = 0; k < (kspace_padded_size_[2]/2)+1; ++k) {
-                        for (int m = 0; m < 3; ++m) {
-                            for (int n = 0; n < 3; ++n) {
-                                std::complex<double> wq(
-                                    kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[0], 
-                                    kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[1]);
-
-                                std::complex<double> sq(kspace_s_(i,j,k,n)[0], kspace_s_(i,j,k,n)[1]);
-
-                                std::complex<double> hq = wq * sq;
-
-                                kspace_h_(i,j,k,m)[0] += mus_j * hq.real();
-                                kspace_h_(i,j,k,m)[1] += mus_j * hq.imag(); 
-                            }   
-                        }
-                    }
-                }
-            }
-        }  // unit cell pos_j
-
-        rspace_h_.zero();
-        fftw_execute(fft_h_kspace_to_rspace);
-
-        for (int i = 0; i < kspace_size_[0]; ++i) {
-            for (int j = 0; j < kspace_size_[1]; ++j) {
-                for (int k = 0; k < kspace_size_[2]; ++k) {
-                    const int index = lattice->site_index_by_unit_cell(i, j, k, pos_i);
-                    for (int m = 0; m < 3; ++ m) {
-                        fields(index, m) += rspace_h_(i, j, k, m);
-                    }   
+                for (int n = 0; n < 3; ++n) {
+                    kspace_h_[3 * (num_pos * i + pos_i) + n][0] += mus_j * hq[n].real();
+                    kspace_h_[3 * (num_pos * i + pos_i) + n][1] += mus_j * hq[n].imag();
                 }
             }
         }
-    
-    }  // unit cell pos_i
+    }
+
+//    h_.zero();
+    fftw_execute(fft_h_kspace_to_rspace);
+
+    fields = fftw_h_;
+//    for (int i = 0; i < h_.elements(); ++i) {
+//        fields[i] = fftw_h_[i];
+//    }
 }
 

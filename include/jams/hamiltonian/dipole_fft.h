@@ -33,14 +33,13 @@ class DipoleHamiltonianFFT : public HamiltonianStrategy {
         double                          r_cutoff_;
         double                          distance_tolerance_;
 
-        jblib::Array<double, 4>         rspace_s_;
-        jblib::Array<double, 4>         rspace_h_;
         jblib::Array<double, 2>         h_;
+        jblib::Array<double, 2>         fftw_h_;
 
         jblib::Vec3<int>                kspace_size_;
         jblib::Vec3<int>                kspace_padded_size_;
-        jblib::Array<fftw_complex, 4>   kspace_s_;
-        jblib::Array<fftw_complex, 4>   kspace_h_;
+        jblib::Array<fftw_complex, 1>   kspace_s_;
+        jblib::Array<fftw_complex, 1>   kspace_h_;
 
         std::vector<std::vector<jblib::Array<fftw_complex, 5>>> kspace_tensors_;
 
