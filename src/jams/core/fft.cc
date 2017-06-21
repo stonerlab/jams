@@ -17,3 +17,11 @@ double fft_window_blackman_4(const int n, const int n_total) {
   const double x = (kTwoPi * n)/double(n_total);
   return a0 - a1 * cos(x) + a2 * cos(2 * x) - a3 * cos(3 * x);
 }
+
+int fft_k_index(const int i, const int size) {
+  return ((i + (size/2 - 1)) % (size))-(size/2 - 1);
+}
+
+double fft_k_point(const int i, const int size) {
+  return (((i + (size/2 - 1)) % (size))-(size/2 - 1)) / double(size);
+}

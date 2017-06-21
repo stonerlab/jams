@@ -36,6 +36,7 @@ class DipoleHamiltonianFFT : public HamiltonianStrategy {
         jblib::Array<double, 2>         h_;
         jblib::Array<double, 2>         fftw_h_;
 
+        jblib::Array<double, 2>         k_points_;
         jblib::Vec3<int>                kspace_size_;
         jblib::Vec3<int>                kspace_padded_size_;
         jblib::Array<fftw_complex, 1>   kspace_s_;

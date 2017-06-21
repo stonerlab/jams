@@ -7,6 +7,7 @@
 #include <cufft.h>
 
 #include <libconfig.h++>
+#include <array>
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/vec.h"
@@ -33,7 +34,7 @@ class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
     private:
 
         jblib::Array<fftw_complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
-        std::array<CudaStream, 4> dev_stream_;
+        std::array<CudaStream, 8> dev_stream_;
 
         double                          r_cutoff_;
         double                          distance_tolerance_;

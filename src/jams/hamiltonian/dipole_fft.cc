@@ -73,12 +73,31 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
         }
     }
 
+
+
     unsigned int kspace_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2]/2 + 1) * lattice->num_unit_cell_positions() * 3;
 
     std::cerr << kspace_size_ << "\t" << kspace_padded_size_ << std::endl;
 
     kspace_s_.resize(kspace_size);
     kspace_h_.resize(kspace_size);
+
+    k_points_.resize(kspace_size);
+
+    int counter = 0;
+    for (int kx = 0; kx < kspace_padded_size_[0]; ++kx) {
+        for (int ky = 0; kx < kspace_padded_size_[1]; ++ky) {
+            for (int kz = 0; kx < kspace_padded_size_[2] / 2 + 1; ++kz) {
+                Vec3 kpoint = {
+                        kx / kspace_padded_size_[0],
+                        ky / kspace_padded_size_[1],
+                        kz / kspace_padded_size_[2]};
+
+                std::cout << counter << "\t" << kx << "\t" <<
+
+            }
+        }
+    }
 
     kspace_s_.zero();
     kspace_h_.zero();
@@ -324,46 +343,107 @@ void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2> &fields) {
             kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
     kspace_h_.zero();
 
-    for (unsigned i = 0; i < fft_size; ++i) {
+    unsigned k = 0;
 
-        for (int pos_i = 0; pos_i < num_pos; ++pos_i) {
-            for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
+    for (int pos_i = 0; pos_i < num_pos; ++pos_i) {
+        for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
 
+            const double mus_j = lattice->unit_cell_material(pos_j).moment;
+
+            jblib::Vec3<std::complex<double>> sq = {
+                    {kspace_s_[3 * (num_pos * k + pos_j) + 0][0], kspace_s_[3 * (num_pos * k + pos_j) + 0][1]},
+                    {kspace_s_[3 * (num_pos * k + pos_j) + 1][0], kspace_s_[3 * (num_pos * k + pos_j) + 1][1]},
+                    {kspace_s_[3 * (num_pos * k + pos_j) + 2][0], kspace_s_[3 * (num_pos * k + pos_j) + 2][1]}};
+
+            jblib::Matrix<std::complex<double>, 3, 3> wq(
+                    {kspace_tensors_[pos_i][pos_j][9 * k + 0][0], kspace_tensors_[pos_i][pos_j][9 * k + 0][1]},
+                    {kspace_tensors_[pos_i][pos_j][9 * k + 1][0], kspace_tensors_[pos_i][pos_j][9 * k + 1][1]},
+                    {kspace_tensors_[pos_i][pos_j][9 * k + 2][0], kspace_tensors_[pos_i][pos_j][9 * k + 2][1]},
+                    {kspace_tensors_[pos_i][pos_j][9 * k + 3][0], kspace_tensors_[pos_i][pos_j][9 * k + 3][1]},
+                    {kspace_tensors_[pos_i][pos_j][9 * k + 4][0], kspace_tensors_[pos_i][pos_j][9 * k + 4][1]},
+                    {kspace_tensors_[pos_i][pos_j][9 * k + 5][0], kspace_tensors_[pos_i][pos_j][9 * k + 5][1]},
+                    {kspace_tensors_[pos_i][pos_j][9 * k + 6][0], kspace_tensors_[pos_i][pos_j][9 * k + 6][1]},
+                    {kspace_tensors_[pos_i][pos_j][9 * k + 7][0], kspace_tensors_[pos_i][pos_j][9 * k + 7][1]},
+                    {kspace_tensors_[pos_i][pos_j][9 * k + 8][0], kspace_tensors_[pos_i][pos_j][9 * k + 8][1]}
+            );
+
+            jblib::Vec3<std::complex<double>> hq = wq * sq;
+
+            for (int n = 0; n < 3; ++n) {
+                kspace_h_[3 * (num_pos * k + pos_i) + n][0] += mus_j * hq[n].real();
+                kspace_h_[3 * (num_pos * k + pos_i) + n][1] += mus_j * hq[n].imag();
+            }
+
+        }
+    }
+
+
+
+    for (int pos_i = 0; pos_i < num_pos; ++pos_i) {
+        for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
+            std::complex<double> two_pi_i_dr;
+            std::complex<double> exp_phase_0;
+            jblib::Array<std::complex<double>, 1> exp_phase_x(lattice->kspace_size().x);
+            jblib::Array<std::complex<double>, 1> exp_phase_y(lattice->kspace_size().y);
+            jblib::Array<std::complex<double>, 1> exp_phase_z(lattice->kspace_size().z);
+
+            two_pi_i_dr = kImagTwoPi * lattice->unit_cell_position_cart(pos_i).x -
+                          lattice->unit_cell_position_cart(pos_j).x;
+            exp_phase_0 = exp(two_pi_i_dr);
+            exp_phase_x(0) = exp(-two_pi_i_dr * double((lattice->kspace_size().x - 1)));
+            for (int i = 1; i < lattice->kspace_size().x; ++i) {
+                exp_phase_x(i) = exp_phase_x(i - 1) * exp_phase_0;
+            }
+
+            two_pi_i_dr = kImagTwoPi * lattice->unit_cell_position_cart(pos_i).y -
+                          lattice->unit_cell_position_cart(pos_j).y;
+            exp_phase_0 = exp(two_pi_i_dr);
+            exp_phase_y(0) = exp(-two_pi_i_dr * double((lattice->kspace_size().y - 1)));
+            for (int i = 1; i < lattice->kspace_size().y; ++i) {
+                exp_phase_y(i) = exp_phase_y(i - 1) * exp_phase_0;
+            }
+
+            two_pi_i_dr = kImagTwoPi * lattice->unit_cell_position_cart(pos_i).z -
+                          lattice->unit_cell_position_cart(pos_j).z;
+            exp_phase_0 = exp(two_pi_i_dr);
+            exp_phase_z(0) = exp(-two_pi_i_dr * double((lattice->kspace_size().z - 1)));
+            for (int i = 1; i < lattice->kspace_size().z; ++i) {
+                exp_phase_z(i) = exp_phase_z(i - 1) * exp_phase_0;
+            }
+
+            for (k = 1; k < fft_size; ++k) {
                 const double mus_j = lattice->unit_cell_material(pos_j).moment;
-                
+
                 jblib::Vec3<std::complex<double>> sq = {
-                        {kspace_s_[3 * (num_pos * i + pos_j) + 0][0], kspace_s_[3 * (num_pos * i + pos_j) + 0][1]},
-                        {kspace_s_[3 * (num_pos * i + pos_j) + 1][0], kspace_s_[3 * (num_pos * i + pos_j) + 1][1]},
-                        {kspace_s_[3 * (num_pos * i + pos_j) + 2][0], kspace_s_[3 * (num_pos * i + pos_j) + 2][1]}};
+                        {kspace_s_[3 * (num_pos * k + pos_j) + 0][0], kspace_s_[3 * (num_pos * k + pos_j) + 0][1]},
+                        {kspace_s_[3 * (num_pos * k + pos_j) + 1][0], kspace_s_[3 * (num_pos * k + pos_j) + 1][1]},
+                        {kspace_s_[3 * (num_pos * k + pos_j) + 2][0], kspace_s_[3 * (num_pos * k + pos_j) + 2][1]}};
 
                 jblib::Matrix<std::complex<double>, 3, 3> wq(
-                        {kspace_tensors_[pos_i][pos_j][9 * i + 0][0], kspace_tensors_[pos_i][pos_j][9 * i + 0][1]},
-                        {kspace_tensors_[pos_i][pos_j][9 * i + 1][0], kspace_tensors_[pos_i][pos_j][9 * i + 1][1]},
-                        {kspace_tensors_[pos_i][pos_j][9 * i + 2][0], kspace_tensors_[pos_i][pos_j][9 * i + 2][1]},
-                        {kspace_tensors_[pos_i][pos_j][9 * i + 3][0], kspace_tensors_[pos_i][pos_j][9 * i + 3][1]},
-                        {kspace_tensors_[pos_i][pos_j][9 * i + 4][0], kspace_tensors_[pos_i][pos_j][9 * i + 4][1]},
-                        {kspace_tensors_[pos_i][pos_j][9 * i + 5][0], kspace_tensors_[pos_i][pos_j][9 * i + 5][1]},
-                        {kspace_tensors_[pos_i][pos_j][9 * i + 6][0], kspace_tensors_[pos_i][pos_j][9 * i + 6][1]},
-                        {kspace_tensors_[pos_i][pos_j][9 * i + 7][0], kspace_tensors_[pos_i][pos_j][9 * i + 7][1]},
-                        {kspace_tensors_[pos_i][pos_j][9 * i + 8][0], kspace_tensors_[pos_i][pos_j][9 * i + 8][1]}
+                        {kspace_tensors_[0][0][9 * k + 0][0], kspace_tensors_[0][0][9 * k + 0][1]},
+                        {kspace_tensors_[0][0][9 * k + 1][0], kspace_tensors_[0][0][9 * k + 1][1]},
+                        {kspace_tensors_[0][0][9 * k + 2][0], kspace_tensors_[0][0][9 * k + 2][1]},
+                        {kspace_tensors_[0][0][9 * k + 3][0], kspace_tensors_[0][0][9 * k + 3][1]},
+                        {kspace_tensors_[0][0][9 * k + 4][0], kspace_tensors_[0][0][9 * k + 4][1]},
+                        {kspace_tensors_[0][0][9 * k + 5][0], kspace_tensors_[0][0][9 * k + 5][1]},
+                        {kspace_tensors_[0][0][9 * k + 6][0], kspace_tensors_[0][0][9 * k + 6][1]},
+                        {kspace_tensors_[0][0][9 * k + 7][0], kspace_tensors_[0][0][9 * k + 7][1]},
+                        {kspace_tensors_[0][0][9 * k + 8][0], kspace_tensors_[0][0][9 * k + 8][1]}
                 );
 
-                jblib::Vec3<std::complex<double>> hq = wq * sq;
+                jblib::Vec3<std::complex<double>> hq = (wq * sq);// * exp_phase_x(i) * exp_phase_y(j) * exp_phase_z(k);
 
                 for (int n = 0; n < 3; ++n) {
-                    kspace_h_[3 * (num_pos * i + pos_i) + n][0] += mus_j * hq[n].real();
-                    kspace_h_[3 * (num_pos * i + pos_i) + n][1] += mus_j * hq[n].imag();
+                    kspace_h_[3 * (num_pos * k + pos_i) + n][0] += mus_j * hq[n].real();
+                    kspace_h_[3 * (num_pos * k + pos_i) + n][1] += mus_j * hq[n].imag();
                 }
             }
         }
     }
 
-//    h_.zero();
+
     fftw_execute(fft_h_kspace_to_rspace);
 
     fields = fftw_h_;
-//    for (int i = 0; i < h_.elements(); ++i) {
-//        fields[i] = fftw_h_[i];
-//    }
 }
 
