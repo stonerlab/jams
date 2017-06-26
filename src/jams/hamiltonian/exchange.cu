@@ -1,5 +1,6 @@
 #include <set>
 #include <tuple>
+#include <stdexcept>
 
 #include "jams/core/exception.h"
 #include "jams/core/globals.h"
@@ -14,6 +15,20 @@
 #include "jblib/math/summations.h"
 
 #include "jams/hamiltonian/exchange.h"
+
+namespace {
+    InteractionFileFormat exchange_file_format_from_string(std::string s) {
+      if (capitalize(s) == "JAMS") {
+        return InteractionFileFormat::JAMS;
+      }
+
+      if (capitalize(s) == "KKR") {
+        return InteractionFileFormat::KKR;
+      }
+
+      throw std::runtime_error("Unknown exchange file format");
+    }
+}
 
 ExchangeHamiltonian::~ExchangeHamiltonian() {
   if (dev_stream_ != nullptr) {
@@ -65,6 +80,10 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     }
     ::output->write("\ninteraction filename (%s)\n", interaction_filename.c_str());
 
+    std::string exchange_file_format_name = "JAMS";
+    settings.lookupValue("format", exchange_file_format_name);
+    exchange_file_format_ = exchange_file_format_from_string(exchange_file_format_name);
+
     bool use_symops = true;
     settings.lookupValue("symops", use_symops);
 
@@ -97,7 +116,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     //---------------------------------------------------------------------
     // generate interaction list
     //---------------------------------------------------------------------
-    generate_neighbour_list_from_file(interaction_file, energy_cutoff_, use_symops, print_unfolded || is_debug_enabled_, neighbour_list_);
+    generate_neighbour_list_from_file(interaction_file, exchange_file_format_, energy_cutoff_, use_symops, print_unfolded || is_debug_enabled_, neighbour_list_);
 
     if (is_debug_enabled_) {
       std::ofstream debug_file("DEBUG_exchange_nbr_list.tsv");

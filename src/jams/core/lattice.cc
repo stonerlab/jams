@@ -38,6 +38,26 @@ using std::endl;
 using libconfig::Setting;
 using libconfig::Config;
 
+namespace {
+    Vec3 shift_fractional_coordinate_to_zero_one(Vec3 r) {
+      for (auto n = 0; n < 3; ++n) {
+        if (r[n] < 0.0) {
+          r[n] = r[n] + 1.0;
+        }
+      }
+      return r;
+    }
+
+    bool is_fractional_coordinate_valid(const Vec3 &r) {
+      for (auto n = 0; n < 3; ++n) {
+        if (r[n] < 0.0 || r[n] > 1.0) {
+          return false;
+        }
+      }
+      return true;
+    }
+}
+
 void Lattice::init_from_config(const libconfig::Config& cfg) {
 
   symops_enabled_ = true;
@@ -163,6 +183,13 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions, Coordi
     if (coordinate_format == CoordinateFormat::Cartesian) {
       atom.pos = cartesian_to_fractional(atom.pos);
     }
+
+    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
+
+    if (!is_fractional_coordinate_valid(atom.pos)) {
+      throw std::runtime_error("atom position " + std::to_string(i) + " is not a valid fractional coordinate");
+    }
+
     atom.id = motif_.size();
 
     motif_.push_back(atom);
@@ -195,6 +222,12 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
 
     if (coordinate_format == CoordinateFormat::Cartesian) {
       atom.pos = cartesian_to_fractional(atom.pos);
+    }
+
+    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
+
+    if (!is_fractional_coordinate_valid(atom.pos)) {
+      throw std::runtime_error("atom position " + std::to_string(motif_.size()) + " is not a valid fractional coordinate");
     }
     // check the material type is defined
     if (material_name_map_.find(atom_name) == material_name_map_.end()) {
