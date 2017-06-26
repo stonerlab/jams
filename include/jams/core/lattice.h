@@ -174,8 +174,8 @@ class Lattice {
     void load_spin_state_from_hdf5(std::string &filename);
 
   private:
-    void read_motif_from_config(const libconfig::Setting &positions);
-    void read_motif_from_file(const std::string &filename);
+    void read_motif_from_config(const libconfig::Setting &positions, CoordinateFormat coordinate_format);
+    void read_motif_from_file(const std::string &filename, CoordinateFormat coordinate_format);
 
 
     void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings);
