@@ -71,26 +71,23 @@ namespace { //anon
 
       int nbr_motif_index = find_motif_index(dr);
 
-      // does an atom exist at the motif position
       if (nbr_motif_index == -1) {
-        return false;
+        throw std::runtime_error("Inconsistency in interaction template (no motif position found): "
+                                 + std::to_string(interaction.pos_i) + " "
+                                 + std::to_string(interaction.pos_j) + " "
+                                 + std::to_string(interaction.r_ij[0])  + " " + std::to_string(interaction.r_ij[1]) + " " + std::to_string(interaction.r_ij[2]));
       }
 
-      node = {nbr_motif_index - interaction.pos_i, int(u_ij[0]), int(u_ij[1]), int(u_ij[2])};
+      if (nbr_motif_index != interaction.pos_j) {
+        throw std::runtime_error("Inconsistency in interaction template (incorrect motif position: " + std::to_string(nbr_motif_index) + ")"
+                                 + std::to_string(interaction.pos_i) + " "
+                                 + std::to_string(interaction.pos_j) + " "
+                                 + std::to_string(interaction.r_ij[0])  + " " + std::to_string(interaction.r_ij[1]) + " " + std::to_string(interaction.r_ij[2]));
+      }
+
+      node = {interaction.pos_j - interaction.pos_i, int(u_ij[0]), int(u_ij[1]), int(u_ij[2])};
 
       return true;
-
-//      node = {-1, -1, -1, -1};
-//
-//      Vec3 p_ij_frac = lattice->unit_cell_position(interaction.pos_i);
-//      Vec3 r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
-//
-//      Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
-//      Vec3 u_ij = round_to_integer_lattice(q_ij, is_centered_lattice);
-//
-//      node = {interaction.pos_j - interaction.pos_i, int(u_ij[0]), int(u_ij[1]), int(u_ij[2])};
-//
-//      return true;
     }
 
   bool generate_inode(const int motif_index, const typename_interaction_t &interaction, inode_t &node) {
