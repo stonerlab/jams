@@ -3,6 +3,8 @@
 #ifndef JAMS_HAMILTONIAN_CUDA_DIPOLE_FFT_H
 #define JAMS_HAMILTONIAN_CUDA_DIPOLE_FFT_H
 
+#include <array>
+
 #include <cublas_v2.h>
 #include <cufft.h>
 

@@ -38,6 +38,26 @@ using std::endl;
 using libconfig::Setting;
 using libconfig::Config;
 
+namespace {
+    Vec3 shift_fractional_coordinate_to_zero_one(Vec3 r) {
+      for (auto n = 0; n < 3; ++n) {
+        if (r[n] < 0.0) {
+          r[n] = r[n] + 1.0;
+        }
+      }
+      return r;
+    }
+
+    bool is_fractional_coordinate_valid(const Vec3 &r) {
+      for (auto n = 0; n < 3; ++n) {
+        if (r[n] < 0.0 || r[n] > 1.0) {
+          return false;
+        }
+      }
+      return true;
+    }
+}
+
 void Lattice::init_from_config(const libconfig::Config& cfg) {
 
   symops_enabled_ = true;
@@ -140,7 +160,7 @@ Vec3 Lattice::generate_fractional_position(
                              unit_cell_frac_pos.z + translation_vector.z);
 }
 
-void Lattice::read_motif_from_config(const libconfig::Setting &positions) {
+void Lattice::read_motif_from_config(const libconfig::Setting &positions, CoordinateFormat coordinate_format) {
   Atom atom;
   string atom_name;
 
@@ -160,13 +180,23 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions) {
     atom.pos.y = positions[i][1][1];
     atom.pos.z = positions[i][1][2];
 
+    if (coordinate_format == CoordinateFormat::Cartesian) {
+      atom.pos = cartesian_to_fractional(atom.pos);
+    }
+
+    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
+
+    if (!is_fractional_coordinate_valid(atom.pos)) {
+      throw std::runtime_error("atom position " + std::to_string(i) + " is not a valid fractional coordinate");
+    }
+
     atom.id = motif_.size();
 
     motif_.push_back(atom);
   }
 }
 
-void Lattice::read_motif_from_file(const std::string &filename) {
+void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat coordinate_format) {
   std::string line;
   std::ifstream position_file(filename.c_str());
 
@@ -190,6 +220,15 @@ void Lattice::read_motif_from_file(const std::string &filename) {
     // read atom type name
     line_as_stream >> atom_name >> atom.pos.x >> atom.pos.y >> atom.pos.z;
 
+    if (coordinate_format == CoordinateFormat::Cartesian) {
+      atom.pos = cartesian_to_fractional(atom.pos);
+    }
+
+    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
+
+    if (!is_fractional_coordinate_valid(atom.pos)) {
+      throw std::runtime_error("atom position " + std::to_string(motif_.size()) + " is not a valid fractional coordinate");
+    }
     // check the material type is defined
     if (material_name_map_.find(atom_name) == material_name_map_.end()) {
       throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -320,20 +359,36 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   // TODO - use libconfig to check if this is a string or a group to allow
   // positions to be defined in the config file directly
 
+  CoordinateFormat cfg_coordinate_format = CoordinateFormat::Fractional;
+
+  std::string cfg_coordinate_format_name = "FRACTIONAL";
+  unitcell_settings.lookupValue("format", cfg_coordinate_format_name);
+
+  if (capitalize(cfg_coordinate_format_name) == "FRACTIONAL") {
+    cfg_coordinate_format = CoordinateFormat::Fractional;
+  } else if (capitalize(cfg_coordinate_format_name) == "CARTESIAN") {
+    cfg_coordinate_format = CoordinateFormat::Cartesian;
+  } else {
+    throw std::runtime_error("Unknown coordinate format for atom positions in unit cell");
+  }
+
   std::string position_filename;
   if (unitcell_settings["positions"].isList()) {
     position_filename = seedname + ".cfg";
-    read_motif_from_config(unitcell_settings["positions"]);
+    read_motif_from_config(unitcell_settings["positions"], cfg_coordinate_format);
   } else {
      position_filename = unitcell_settings["positions"].c_str();
-    read_motif_from_file(position_filename);
+    read_motif_from_file(position_filename, cfg_coordinate_format);
   }
 
   output->write("  unit cell positions (%s)\n", position_filename.c_str());
 
+  output->write("  format: \n", cfg_coordinate_format_name.c_str());
+
   for (const Atom &atom: motif_) {
     output->write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
   }
+
 }
 
 void Lattice::init_lattice_positions(

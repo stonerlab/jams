@@ -162,13 +162,15 @@ int jams_initialize(int argc, char **argv) {
     catch(const libconfig::SettingNotFoundException &nfex) {
       jams_error("Required config setting not found '%s'", nfex.getPath());
     }
+    catch(const general_exception &gex) {
+      jams_error("%s", gex.what());
+    }
 #ifdef CUDA
     catch(const cuda_api_exception &cex) {
       jams_error("CUDA api exception\n '%s'", cex.what());
     }
 #endif
     catch (std::exception& e) {
-      jams_error("Error: %s", e.what());
     }
     catch(...) {
       jams_error("Caught an unknown exception");
