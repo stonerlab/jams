@@ -94,6 +94,10 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     settings.lookupValue("energy_cutoff", energy_cutoff_);
     ::output->write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
 
+    radius_cutoff_ = 100.0;  // lattice parameters
+    settings.lookupValue("radius_cutoff", radius_cutoff_);
+    ::output->write("\ninteraction radius cutoff\n  %e\n", radius_cutoff_);
+
     distance_tolerance_ = 1e-3; // fractional coordinate units
     settings.lookupValue("distance_tolerance", distance_tolerance_);
     ::output->write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
@@ -116,7 +120,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     //---------------------------------------------------------------------
     // generate interaction list
     //---------------------------------------------------------------------
-    generate_neighbour_list_from_file(interaction_file, exchange_file_format_, energy_cutoff_, use_symops, print_unfolded || is_debug_enabled_, neighbour_list_);
+  generate_neighbour_list_from_file(interaction_file, exchange_file_format_, energy_cutoff_, 0, use_symops,
+                                    print_unfolded || is_debug_enabled_, neighbour_list_);
 
     if (is_debug_enabled_) {
       std::ofstream debug_file("DEBUG_exchange_nbr_list.tsv");

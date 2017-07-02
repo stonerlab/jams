@@ -53,7 +53,9 @@ typedef struct {
 } inode_pair_t;
 
 void safety_check_distance_tolerance(const double &tolerance);
-void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat format, double energy_cutoff, bool use_symops, bool print_unfolded, InteractionList<Mat3>& neighbour_list);
+void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat format, double energy_cutoff,
+                                       double radius_cutoff, bool use_symops, bool print_unfolded,
+                                       InteractionList<Mat3> &neighbour_list);
 void write_interaction_data(std::ostream &output, const std::vector<typename_interaction_t> &data);
 void write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &list);
 

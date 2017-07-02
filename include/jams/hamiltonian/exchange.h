@@ -52,6 +52,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         SparseMatrix<double> interaction_matrix_;
         sparse_matrix_format_t interaction_matrix_format_;
         double energy_cutoff_;
+        double radius_cutoff_;
         double distance_tolerance_;
         bool is_debug_enabled_;
         InteractionFileFormat exchange_file_format_;

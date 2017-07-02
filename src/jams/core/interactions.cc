@@ -336,9 +336,10 @@ namespace { //anon
     }
 
   //---------------------------------------------------------------------
-  void generate_neighbour_list(const InteractionList<inode_pair_t> &interaction_template, InteractionList<Mat3> &nbr_list, double energy_cutoff) {
-  bool is_all_inserts_successful = true;
-    int counter = 0;
+  void generate_neighbour_list(const InteractionList<inode_pair_t> &interaction_template, InteractionList<Mat3> &nbr_list, double energy_cutoff, double radius_cutoff) {
+    unsigned interaction_counter = 0;
+    unsigned energy_cutoff_counter = 0;
+    unsigned radius_cutoff_counter = 0;
     // loop over the translation vectors for lattice size
     for (int i = 0; i < lattice->num_unit_cells(0); ++i) {
       for (int j = 0; j < lattice->num_unit_cells(1); ++j) {
@@ -361,7 +362,7 @@ namespace { //anon
             for (auto const pair: interaction_template[m]) {
 
               const inode_t node_j = pair.second.node;
-              const Mat3 tensor   = pair.second.value;
+              const Mat3 tensor = pair.second.value;
 
               int neighbour_index = find_neighbour_index(node_i, node_j);
 
@@ -378,21 +379,32 @@ namespace { //anon
 
               is_already_interacting[neighbour_index] = true;
 
-              if (tensor.max_norm() > energy_cutoff) {
-                nbr_list.insert(local_site, neighbour_index, tensor);
-                counter++;
-              } else {
-                is_all_inserts_successful = false;
+              if (lattice->distance(local_site, neighbour_index) > (radius_cutoff + 1e-5)) {
+                radius_cutoff_counter++;
+                continue;
               }
+
+              if (tensor.max_norm() < energy_cutoff) {
+                energy_cutoff_counter++;
+                continue;
+              }
+
+              nbr_list.insert(local_site, neighbour_index, tensor);
+              interaction_counter++;
             }
           }
         }
       }
     }
-    if (!is_all_inserts_successful) {
-      jams_warning("Some interactions were ignored due to the energy cutoff (%e)", energy_cutoff);
+
+    if (energy_cutoff_counter != 0) {
+      jams_warning("%u interactions were ignored due to the energy cutoff (%e)", energy_cutoff_counter, energy_cutoff);
     }
-    ::output->write("  total unit cell interactions: %d\n", counter);
+
+    if (radius_cutoff_counter != 0) {
+      jams_warning("%u interactions were ignored due to the energy cutoff (%e)", radius_cutoff_counter, energy_cutoff);
+    }
+    ::output->write("  total unit cell interactions: %d\n", interaction_counter);
   }
 
 
@@ -413,7 +425,9 @@ void safety_check_distance_tolerance(const double &tolerance) {
   }
 }
 
-void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat format, double energy_cutoff, bool use_symops, bool print_unfolded, InteractionList<Mat3>& neighbour_list) {
+void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat format, double energy_cutoff,
+                                       double radius_cutoff, bool use_symops, bool print_unfolded,
+                                       InteractionList<Mat3> &neighbour_list) {
   std::vector<typename_interaction_t> interaction_data, unfolded_interaction_data;
 
   InteractionList<inode_pair_t> interaction_template;
@@ -435,7 +449,7 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
     read_kkr_format_interaction_data(file, interaction_template);
   }
 
-  generate_neighbour_list(interaction_template, neighbour_list, energy_cutoff);
+  generate_neighbour_list(interaction_template, neighbour_list, energy_cutoff, radius_cutoff);
 }
 
 //---------------------------------------------------------------------
