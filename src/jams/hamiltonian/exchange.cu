@@ -120,7 +120,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     //---------------------------------------------------------------------
     // generate interaction list
     //---------------------------------------------------------------------
-  generate_neighbour_list_from_file(interaction_file, exchange_file_format_, energy_cutoff_, 0, use_symops,
+  generate_neighbour_list_from_file(interaction_file, exchange_file_format_, energy_cutoff_, radius_cutoff_, use_symops,
                                     print_unfolded || is_debug_enabled_, neighbour_list_);
 
     if (is_debug_enabled_) {

@@ -397,13 +397,14 @@ namespace { //anon
       }
     }
 
+    if (radius_cutoff_counter != 0) {
+      jams_warning("%u interactions were ignored due to the radius cutoff (%e)", radius_cutoff_counter, radius_cutoff);
+    }
+
     if (energy_cutoff_counter != 0) {
       jams_warning("%u interactions were ignored due to the energy cutoff (%e)", energy_cutoff_counter, energy_cutoff);
     }
 
-    if (radius_cutoff_counter != 0) {
-      jams_warning("%u interactions were ignored due to the energy cutoff (%e)", radius_cutoff_counter, energy_cutoff);
-    }
     ::output->write("  total unit cell interactions: %d\n", interaction_counter);
   }
 
