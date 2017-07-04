@@ -86,6 +86,9 @@ class InteractionList {
 
     size_type size() const;
 
+    size_type num_interactions() const;
+    size_type num_interactions(const int i) const;
+
     const_reference interactions(size_type i) const;
 
           reference operator[] (const size_type i);
@@ -122,6 +125,23 @@ template <class T>
 typename InteractionList<T>::size_type
 InteractionList<T>::size() const{
   return list.size();
+}
+
+template <class T>
+typename InteractionList<T>::size_type
+InteractionList<T>::num_interactions(const int i) const{
+  return list[i].size();
+}
+
+template <class T>
+typename InteractionList<T>::size_type
+InteractionList<T>::num_interactions() const{
+  size_type total = 0;
+
+  for (auto map : list) {
+    total += map.size();
+  }
+  return total;
 }
 
 //---------------------------------------------------------------------

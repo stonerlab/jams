@@ -179,8 +179,11 @@ namespace { //anon
   }
 
   //---------------------------------------------------------------------
-    void read_jams_format_interaction_data(std::ifstream &file, std::vector<typename_interaction_t> &interaction_data) {
+    void read_jams_format_interaction_data(std::ifstream &file, std::vector<typename_interaction_t> &interaction_data, double energy_cutoff, double radius_cutoff) {
     int line_number = 0;
+
+    unsigned energy_cutoff_counter = 0;
+    unsigned radius_cutoff_counter = 0;
 
     // read the unit_cell into an array from the positions file
     for (std::string line; getline(file, line); ) {
@@ -240,15 +243,37 @@ namespace { //anon
 
       interaction.J_ij = interaction.J_ij / kBohrMagneton;
 
+      if (interaction.J_ij.max_norm() < energy_cutoff) {
+        energy_cutoff_counter++;
+        continue;
+      }
+
+      if (interaction.r_ij.norm() > (radius_cutoff + 1e-5)) {
+        radius_cutoff_counter++;
+        continue;
+      }
+
       interaction_data.push_back(interaction);
 
       line_number++;
     }
+
+    if (radius_cutoff_counter != 0) {
+      jams_warning("%u interactions were ignored due to the radius cutoff (%e)", radius_cutoff_counter, radius_cutoff);
+    }
+
+    if (energy_cutoff_counter != 0) {
+      jams_warning("%u interactions were ignored due to the energy cutoff (%e)", energy_cutoff_counter, energy_cutoff);
+    }
+
   }
 
-    void read_kkr_format_interaction_data(std::ifstream &file, InteractionList<inode_pair_t> &interactions) {
+    void read_kkr_format_interaction_data(std::ifstream &file, InteractionList<inode_pair_t> &interactions, double energy_cutoff, double radius_cutoff) {
       int line_number = 0;
       int interaction_counter = 0;
+
+      unsigned energy_cutoff_counter = 0;
+      unsigned radius_cutoff_counter = 0;
 
       bool is_centered_lattice = false;
       for (int i = 0; i < lattice->num_unit_cell_positions(); ++i) {
@@ -321,7 +346,18 @@ namespace { //anon
           throw general_exception("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
         }
 
+        if (interaction.J_ij.max_norm() < energy_cutoff) {
+          energy_cutoff_counter++;
+          continue;
+        }
+
+        if (interaction.r_ij.norm() > (radius_cutoff + 1e-5)) {
+          radius_cutoff_counter++;
+          continue;
+        }
+
         interaction.J_ij = interaction.J_ij / kBohrMagneton;
+
 
         if (!generate_inode(interaction, inode)) {
 //          continue;
@@ -333,13 +369,20 @@ namespace { //anon
         interaction_counter++;
         line_number++;
       }
+
+      if (radius_cutoff_counter != 0) {
+        jams_warning("%u interactions were ignored due to the radius cutoff (%e)", radius_cutoff_counter, radius_cutoff);
+      }
+
+      if (energy_cutoff_counter != 0) {
+        jams_warning("%u interactions were ignored due to the energy cutoff (%e)", energy_cutoff_counter, energy_cutoff);
+      }
     }
 
   //---------------------------------------------------------------------
-  void generate_neighbour_list(const InteractionList<inode_pair_t> &interaction_template, InteractionList<Mat3> &nbr_list, double energy_cutoff, double radius_cutoff) {
+  void
+  generate_neighbour_list(const InteractionList<inode_pair_t> &interaction_template, InteractionList<Mat3> &nbr_list) {
     unsigned interaction_counter = 0;
-    unsigned energy_cutoff_counter = 0;
-    unsigned radius_cutoff_counter = 0;
     // loop over the translation vectors for lattice size
     for (int i = 0; i < lattice->num_unit_cells(0); ++i) {
       for (int j = 0; j < lattice->num_unit_cells(1); ++j) {
@@ -364,6 +407,7 @@ namespace { //anon
               const inode_t node_j = pair.second.node;
               const Mat3 tensor = pair.second.value;
 
+
               int neighbour_index = find_neighbour_index(node_i, node_j);
 
               if (neighbour_index == -1) {
@@ -379,16 +423,6 @@ namespace { //anon
 
               is_already_interacting[neighbour_index] = true;
 
-              if (lattice->distance(local_site, neighbour_index) > (radius_cutoff + 1e-5)) {
-                radius_cutoff_counter++;
-                continue;
-              }
-
-              if (tensor.max_norm() < energy_cutoff) {
-                energy_cutoff_counter++;
-                continue;
-              }
-
               nbr_list.insert(local_site, neighbour_index, tensor);
               interaction_counter++;
             }
@@ -397,15 +431,7 @@ namespace { //anon
       }
     }
 
-    if (radius_cutoff_counter != 0) {
-      jams_warning("%u interactions were ignored due to the radius cutoff (%e)", radius_cutoff_counter, radius_cutoff);
-    }
-
-    if (energy_cutoff_counter != 0) {
-      jams_warning("%u interactions were ignored due to the energy cutoff (%e)", energy_cutoff_counter, energy_cutoff);
-    }
-
-    ::output->write("  total unit cell interactions: %d\n", interaction_counter);
+    ::output->write("  total system interactions: %d\n", interaction_counter);
   }
 
 
@@ -434,7 +460,7 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
   InteractionList<inode_pair_t> interaction_template;
 
   if (format == InteractionFileFormat::JAMS) {
-    read_jams_format_interaction_data(file, interaction_data);
+    read_jams_format_interaction_data(file, interaction_data, energy_cutoff, radius_cutoff);
     generate_interaction_templates(interaction_data, unfolded_interaction_data, interaction_template, use_symops);
 
     if (print_unfolded) {
@@ -447,10 +473,16 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
       write_interaction_data(unfolded_interaction_file, unfolded_interaction_data);
     }
   } else if (format == InteractionFileFormat::KKR) {
-    read_kkr_format_interaction_data(file, interaction_template);
+    read_kkr_format_interaction_data(file, interaction_template, energy_cutoff, radius_cutoff);
   }
 
-  generate_neighbour_list(interaction_template, neighbour_list, energy_cutoff, radius_cutoff);
+
+  ::output->write("  num unit cell interactions per position:\n");
+  for (auto i = 0; i < interaction_template.size(); ++i) {
+    ::output->write("    %d: %u\n", i, interaction_template.num_interactions(i));
+  }
+
+  generate_neighbour_list(interaction_template, neighbour_list);
 }
 
 //---------------------------------------------------------------------
