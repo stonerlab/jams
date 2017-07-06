@@ -18,6 +18,26 @@ inline double square(const double &x) {
   return x*x;
 }
 
+constexpr double pow2(const double &x) {
+  return x * x;
+}
+
+constexpr double pow3(const double &x) {
+  return x * x * x;
+}
+
+constexpr double pow4(const double &x) {
+  return x * x * x * x;
+}
+
+constexpr double pow5(const double &x) {
+  return x * x * x * x * x;
+}
+
+constexpr double pow6(const double &x) {
+  return x * x * x * x * x * x;
+}
+
 inline int nint(const double &x) {
   return floor(x+0.5);
 }
