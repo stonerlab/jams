@@ -40,6 +40,7 @@ class StructureFactorMonitor : public Monitor {
   std::vector<jblib::Vec3<double> > bz_cfg_points;
   std::vector<jblib::Vec3<int> > bz_nodes;
   std::vector<jblib::Vec3<int> > bz_points;
+  std::vector<int> bz_points_path_count;
   std::vector<double> bz_lengths;
   double freq_delta;
   int time_point_counter_;

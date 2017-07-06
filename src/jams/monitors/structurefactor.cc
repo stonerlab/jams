@@ -97,7 +97,8 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     bz_nodes.push_back({int(bz_vec.x), int(bz_vec.y), int(bz_vec.z)});
   }
-  
+
+  bz_points_path_count.push_back(0);
   for (int n = 0, nend = bz_nodes.size()-1; n < nend; ++n) {
     jblib::Vec3<int> bz_point, bz_line, bz_line_element;
 
@@ -149,6 +150,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
       ::output->verbose("  bz point: %6d %6.6f [ %4d %4d %4d ]\n", bz_point_counter, bz_lengths.back(), bz_points.back().x, bz_points.back().y, bz_points.back().z);
       bz_point_counter++;
     }
+    bz_points_path_count.push_back(bz_points.size());
   }
 
 
@@ -348,27 +350,33 @@ void StructureFactorMonitor::fft_time() {
   sqwfile << "Re(Sz(q,w)) |\t";
   sqwfile << "Im(Sz(q,w))\n";
 
-  for (int i = 0; i < (time_points/2) + 1; ++i) {
-    double total_length = 0.0;
-    for (int j = 0; j < space_points; ++j) {
-      sqwfile << std::setw(5) << std::fixed << j << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_length << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].x / double(::lattice->kspace_size()[0]) << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].y / double(::lattice->kspace_size()[1]) << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].z / double(::lattice->kspace_size()[2]) << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << i*freq_delta / 1e12 << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_x(i,j) << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[0] << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[1] << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_y(i,j) << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_y(i,j)[0] << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_y(i,j)[1] << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_z(i,j) << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_z(i,j)[0] << "\t";
-      sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_z(i,j)[1] << "\n";
-      total_length += bz_lengths[j];
+  double total_length = 0.0;
+  double region_length = 0.0;
+  for (int bz_region = 0; bz_region < bz_points_path_count.size() - 1; ++bz_region) {
+    for (int i = 0; i < (time_points/2) + 1; ++i) {
+      region_length = 0.0;
+      for (int j = bz_points_path_count[bz_region]; j < bz_points_path_count[bz_region+1]; ++j) {
+        sqwfile << std::setw(5) << std::fixed << j << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << region_length + total_length + 0.5 * bz_lengths[j] << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].x / double(::lattice->kspace_size()[0]) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].y / double(::lattice->kspace_size()[1]) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].z / double(::lattice->kspace_size()[2]) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << i*freq_delta / 1e12 << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_x(i,j) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[0] << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[1] << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_y(i,j) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_y(i,j)[0] << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_y(i,j)[1] << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_z(i,j) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_z(i,j)[0] << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_z(i,j)[1] << "\n";
+        region_length += bz_lengths[j];
+      }
+      sqwfile << std::endl;
     }
     sqwfile << std::endl;
+    total_length += region_length;
   }
 
   sqwfile.close();
