@@ -275,7 +275,7 @@ inline void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
 }
 
 jblib::Matrix<double, 3, 3> rotation_matrix_yz(const double theta, const double phi);
-jblib::Matrix<double, 3, 3> rotation_matrix_between_vectors(const jblib::Vec3<double> &x, const jblib::Vec3<double> &y, const double eps = 1e-8);
+jblib::Matrix<double, 3, 3> rotation_matrix_between_vectors(const jblib::Vec3<double> &x, const jblib::Vec3<double> &y);
 
 
 // Legendre polynomials
