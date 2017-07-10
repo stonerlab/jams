@@ -49,10 +49,10 @@ namespace { //anon
     return lattice->site_index_by_unit_cell(ivec.a, ivec.b, ivec.c, ivec.k);
   }
 
-  Vec3 round_to_integer_lattice(const Vec3 &q_ij, const double tolerance) {
+  Vec3 round_to_integer_lattice(const Vec3 &q_ij, const double tolerance=1e-6) {
     Vec3 u_ij;
       for (int k = 0; k < 3; ++k) {
-        u_ij[k] = floor(q_ij[k]);
+        u_ij[k] = floor(q_ij[k] + tolerance);
       }
     return u_ij;
   }
@@ -65,7 +65,7 @@ namespace { //anon
       Vec3 r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
 
       Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
-      Vec3 u_ij = round_to_integer_lattice(q_ij, 0);
+      Vec3 u_ij = round_to_integer_lattice(q_ij);
 
       Vec3 dr = q_ij - u_ij;
 
@@ -103,7 +103,7 @@ namespace { //anon
     Vec3 r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
 
     Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
-    Vec3 u_ij = round_to_integer_lattice(q_ij, 0);
+    Vec3 u_ij = round_to_integer_lattice(q_ij);
     int nbr_motif_index = find_motif_index(q_ij - u_ij);
 
     // does an atom exist at the motif position
