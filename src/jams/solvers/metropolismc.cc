@@ -63,7 +63,7 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     std::string trial_step_name;
 
     if ((iteration_ + 1) % 4 == 0) {
-      MetropolisAlgorithm(mc_small_trial_step);
+      MetropolisAlgorithm(mc_angle_trial_step);
       trial_step_name = "STS";
     } else if ((iteration_ + 1) % 5 == 0) {
       MetropolisAlgorithm(mc_reflection_trial_step);

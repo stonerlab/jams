@@ -159,7 +159,7 @@ void ConstrainedMCSolver::run() {
 
   std::string trial_step_name;
   // if (iteration_ % 2 == 0) {
-  //   AsselinAlgorithm(mc_small_trial_step);
+  //   AsselinAlgorithm(mc_angle_trial_step);
   //   trial_step_name = "STS";
   // } else {
     AsselinAlgorithm(mc_uniform_trial_step);
@@ -173,7 +173,7 @@ void ConstrainedMCSolver::run() {
   //     AsselinAlgorithm(mc_reflection_trial_step);
   //     trial_step_name = "RTS";
   //   } else {
-  //     AsselinAlgorithm(mc_small_trial_step);
+  //     AsselinAlgorithm(mc_angle_trial_step);
   //     trial_step_name = "STS";
   //   }
   // }

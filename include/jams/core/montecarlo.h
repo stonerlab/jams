@@ -5,6 +5,12 @@
 #include "jams/core/rand.h"
 #include "jblib/containers/vec.h"
 
+enum class MonteCarloMoveType {
+    REFLECTION,
+    UNIFORM,
+    ANGLE
+};
+
 // Trial steps as defined in Hinzke Comput. Phys. Commun. 1999
 // RTS
 inline jblib::Vec3<double> mc_reflection_trial_step(jblib::Vec3<double> spin) {
@@ -18,7 +24,7 @@ inline jblib::Vec3<double> mc_uniform_trial_step(jblib::Vec3<double> spin) {
 }
 
 // STS
-inline jblib::Vec3<double> mc_small_trial_step(jblib::Vec3<double> spin) {
+inline jblib::Vec3<double> mc_angle_trial_step(jblib::Vec3<double> spin) {
     spin = spin + mc_uniform_trial_step(spin)*0.5;
     return spin / abs(spin);
 }
