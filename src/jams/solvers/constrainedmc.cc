@@ -2,6 +2,7 @@
 #include <iomanip>
 
 #include <libconfig.h++>
+#include <jams/core/jams++.h>
 
 #include "jams/solvers/constrainedmc.h"
 
@@ -14,6 +15,15 @@
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 
+namespace {
+    double division_or_zero(const double nominator, const double denominator) {
+      if (denominator == 0.0) {
+        return 0.0;
+      } else {
+        return nominator / denominator;
+      }
+    }
+}
 
 ConstrainedMCSolver::~ConstrainedMCSolver() {
   if (outfile.is_open()) {
@@ -27,20 +37,18 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     // initialize base class
   Solver::initialize(argc, argv, idt);
 
-  move_acceptance_count_ = 0;
-  move_acceptance_fraction_ = 0.234;
-  move_sigma_ = 0.05;
-
   output->write("\n----------------------------------------\n");
   output->write("\nConstrained Monte-Carlo solver\n");
 
-  libconfig::Setting &solver_settings = ::config->lookup("sim");
+  libconfig::Setting &solver_settings = ::config->lookup("solver");
 
-  if (solver_settings.exists("sigma")) {
-    move_sigma_ = solver_settings["sigma"];
-  }
+  configure_move_types(solver_settings);
 
-  ::output->write("  move sigma\n    % 8.8f\n", move_sigma_);
+  ::output->write("move_fraction_uniform:     % 8.4f\n", move_fraction_uniform_);
+  ::output->write("move_fraction_angle:       % 8.4f\n", move_fraction_angle_);
+  ::output->write("move_fraction_reflection:  % 8.4f\n", move_fraction_reflection_);
+  ::output->write("\n");
+  ::output->write("move_angle_sigma:          % 8.4f\n", move_angle_sigma_);
 
   constraint_theta_ = solver_settings["cmc_constraint_theta"];
   constraint_phi_   = solver_settings["cmc_constraint_phi"];
@@ -132,6 +140,35 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
 }
 
+void ConstrainedMCSolver::configure_move_types(const libconfig::Setting& config) {
+
+  if (config.exists("move_fraction_uniform") || config.exists("move_fraction_angle")
+     || config.exists("move_fraction_reflection_")) {
+    move_fraction_uniform_    = 0.0;
+    move_fraction_angle_      = 0.0;
+    move_fraction_reflection_ = 0.0;
+
+    config.lookupValue("move_fraction_uniform",    move_fraction_uniform_);
+    config.lookupValue("move_fraction_angle",      move_fraction_angle_);
+    config.lookupValue("move_fraction_reflection", move_fraction_reflection_);
+  }
+
+  const double move_fraction_sum = move_fraction_uniform_ + move_fraction_angle_ + move_fraction_reflection_;
+
+  move_fraction_uniform_     /= move_fraction_sum;
+  move_fraction_angle_       /= move_fraction_sum;
+  move_fraction_reflection_  /= move_fraction_sum;
+
+  if (floats_are_equal(move_fraction_reflection_, 1.0)) {
+    jams_warning("Only reflection moves have been configured. This breaks ergodicity.");
+  }
+
+  if (config.exists("move_angle_sigma")) {
+    config.lookupValue("move_angle_sigma", move_angle_sigma_);
+  }
+
+}
+
 void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
   jblib::Vec3<double> rvec;
   rng->sphere(rvec.x, rvec.y, rvec.z);
@@ -158,33 +195,61 @@ void ConstrainedMCSolver::run() {
   using namespace globals;
 
   std::string trial_step_name;
-  // if (iteration_ % 2 == 0) {
-  //   AsselinAlgorithm(mc_angle_trial_step);
-  //   trial_step_name = "STS";
-  // } else {
-    AsselinAlgorithm(mc_uniform_trial_step);
-    trial_step_name = "UTS";
-  // }
-  // if (iteration_ % 2 == 0) {
-  //   AsselinAlgorithm(mc_uniform_trial_step);
-  //   trial_step_name = "UTS";
-  // } else {
-  //   if ((iteration_ - 1) % 4 == 0) {
-  //     AsselinAlgorithm(mc_reflection_trial_step);
-  //     trial_step_name = "RTS";
-  //   } else {
-  //     AsselinAlgorithm(mc_angle_trial_step);
-  //     trial_step_name = "STS";
-  //   }
-  // }
 
-  move_acceptance_fraction_ = move_acceptance_count_/(0.5*num_spins);
-  outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::fixed << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
+  MonteCarloUniformMove uniform_move;
+  MonteCarloAngleMove angle_move(move_angle_sigma_);
+  MonteCarloReflectionMove reflection_move;
+
+  const double uniform_random_number = rng->uniform();
+  if (uniform_random_number < move_fraction_uniform_) {
+    move_running_acceptance_count_uniform_ += AsselinAlgorithm(uniform_move);
+    run_count_uniform++;
+  } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
+    move_running_acceptance_count_angle_ += AsselinAlgorithm(angle_move);
+    run_count_angle++;
+  } else {
+    move_running_acceptance_count_reflection_ += AsselinAlgorithm(reflection_move);
+    run_count_reflection++;
+  }
 
   iteration_++;
+
+  if (iteration_ % output_write_steps == 0) {
+    move_total_count_uniform_    += run_count_uniform;
+    move_total_count_angle_      += run_count_angle;
+    move_total_count_reflection_ += run_count_reflection;
+
+    move_total_acceptance_count_uniform_ += move_running_acceptance_count_uniform_;
+    move_total_acceptance_count_angle_ += move_running_acceptance_count_angle_;
+    move_total_acceptance_count_reflection_ += move_running_acceptance_count_reflection_;
+
+    ::output->write("\n");
+    ::output->write("iteration: %d\n", iteration_);
+    ::output->write("move_acceptance_fraction\n");
+
+    ::output->write("  uniform:    %4.4f (%4.4f)\n",
+                    division_or_zero(move_running_acceptance_count_uniform_, (0.5 * num_spins * run_count_uniform)),
+                    division_or_zero(move_total_acceptance_count_uniform_, (0.5 * num_spins * move_total_count_uniform_)));
+
+    ::output->write("  angle:      %4.4f (%4.4f)\n",
+                    division_or_zero(move_running_acceptance_count_angle_, (0.5 * num_spins * run_count_angle)),
+                    division_or_zero(move_total_acceptance_count_angle_, (0.5 * num_spins * move_total_count_angle_)));
+
+    ::output->write("  reflection: %4.4f (%4.4f)\n",
+                    division_or_zero(move_running_acceptance_count_reflection_, (0.5 * num_spins * run_count_reflection)),
+                    division_or_zero(move_total_acceptance_count_reflection_, (0.5 * num_spins * move_total_count_reflection_)));
+
+    move_running_acceptance_count_uniform_    = 0;
+    move_running_acceptance_count_angle_      = 0;
+    move_running_acceptance_count_reflection_ = 0;
+
+    run_count_uniform    = 0;
+    run_count_angle      = 0;
+    run_count_reflection = 0;
+  }
 }
 
-void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>)) {
+unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) {
   using std::pow;
   using std::abs;
   using jblib::Vec3;
@@ -219,7 +284,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
   //   ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint violated (" << rad_to_deg(polar_angle(m_other)) << " deg)";
   // }
 
-  move_acceptance_count_ = 0;
+  unsigned moves_accepted = 0;
 
   // In this 'for' loop I've tried to bail and continue at the earliest possible point
   // in all cases to try and avoid extra unneccesary calculations when the move will be
@@ -253,7 +318,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
 
     // Monte Carlo move
     s1_final = s1_initial;
-    s1_final = mc_trial_step(s1_initial);
+    s1_final = move(s1_initial);
     s1_final_rotated = s1_transform * rotation_matrix_*s1_final;
 
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
@@ -316,7 +381,9 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
       mc_set_spin_as_vec(rand_s2, s2_final);
       m_other += s1_transform*s1_final*mu1 + s2_transform*s2_final*mu2 
       - s1_transform*s1_initial*mu1 - s2_transform*s2_initial*mu2;
-      move_acceptance_count_++;
+      moves_accepted++;
     }
   }
+
+  return moves_accepted;
 }

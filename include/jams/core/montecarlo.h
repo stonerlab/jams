@@ -1,6 +1,7 @@
 #ifndef JAMS_CORE_MONTECARLO_H
 #define JAMS_CORE_MONTECARLO_H
 
+#include "jams/core/globals.h"
 #include "jams/core/consts.h"
 #include "jams/core/rand.h"
 #include "jblib/containers/vec.h"
@@ -9,6 +10,42 @@ enum class MonteCarloMoveType {
     REFLECTION,
     UNIFORM,
     ANGLE
+};
+
+class MonteCarloMove {
+public:
+    virtual jblib::Vec3<double> operator()(jblib::Vec3<double> spin) = 0;
+};
+
+class MonteCarloReflectionMove : public MonteCarloMove {
+public:
+    jblib::Vec3<double> operator()(jblib::Vec3<double> spin) {
+      return -spin;
+    }
+};
+
+class MonteCarloUniformMove : public MonteCarloMove {
+public:
+    jblib::Vec3<double> operator()(jblib::Vec3<double> spin) {
+      rng->sphere(spin.x, spin.y, spin.z);
+      return spin;
+    }
+};
+
+class MonteCarloAngleMove : public MonteCarloMove {
+public:
+    MonteCarloAngleMove(const double sigma) :
+            sigma_(sigma){}
+
+    jblib::Vec3<double> operator()(jblib::Vec3<double> spin) {
+      jblib::Vec3<double> spin_rand;
+      rng->sphere(spin_rand.x, spin_rand.y, spin_rand.z);
+      spin = spin + spin_rand * sigma_;
+      return spin / abs(spin);
+    }
+
+  private:
+    double sigma_ = 0.5;
 };
 
 // Trial steps as defined in Hinzke Comput. Phys. Commun. 1999
