@@ -107,7 +107,7 @@ void MagnetisationMonitor::update(Solver * solver) {
       outfile << std::setw(12) << mag(i, 3) << "\t";
     }
 
-    if (solver->time() > convergence_burn_time_) {
+    if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
       double m2 = binder_m2();
       m_stats_.add(sqrt(m2));
       m2_stats_.add(m2);

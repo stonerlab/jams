@@ -68,7 +68,8 @@ void TorqueMonitor::update(Solver * solver) {
   }
   
   // convergence stats
-  if (solver->time() > convergence_burn_time_) {
+
+  if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
     for (int n = 0; n < 3; ++n) {
       torque_stats_[n].add(total_torque[n]);
       torque_stats_[n].geweke(convergence_geweke_diagnostic_[n], convergence_stderr_);
