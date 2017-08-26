@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <vector>
+#include <jblib/math/equalities.h>
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
@@ -18,14 +19,14 @@ class Slice {
 
   Slice()
     : num_slice_points(0),
-      slice_origin(0.0, 0.0, 0.0),
-      slice_size(0.0, 0.0, 0.0),
+      slice_origin{0.0, 0.0, 0.0},
+      slice_size{0.0, 0.0, 0.0},
       slice_map() {}
 
   explicit Slice(const libconfig::Setting &settings)
     : num_slice_points(0),
-      slice_origin(0.0, 0.0, 0.0),
-      slice_size(0.0, 0.0, 0.0),
+      slice_origin{0.0, 0.0, 0.0},
+      slice_size{0.0, 0.0, 0.0},
       slice_map() {
     using namespace globals;
     using jblib::floats_are_greater_than_or_equal;
@@ -41,12 +42,12 @@ class Slice {
     ::output->write("  slice size: %f %f %f\n", slice_size[0], slice_size[1], slice_size[2]);
 
     for (int i = 0; i < num_spins; ++i) {
-      jblib::Vec3<double> pos = lattice->atom_position(i);
+      Vec3 pos = lattice->atom_position(i);
 
             // check if the current spin in inside the slice
-      if (floats_are_greater_than_or_equal(pos.x, slice_origin.x) && floats_are_less_than_or_equal(pos.x, slice_origin.x + slice_size.x)
-        &&  floats_are_greater_than_or_equal(pos.y, slice_origin.y) && floats_are_less_than_or_equal(pos.y, slice_origin.y + slice_size.y)
-        &&  floats_are_greater_than_or_equal(pos.z, slice_origin.z) && floats_are_less_than_or_equal(pos.z, slice_origin.z + slice_size.z)) {
+      if (floats_are_greater_than_or_equal(pos[0], slice_origin[0]) && floats_are_less_than_or_equal(pos[0], slice_origin[0] + slice_size[0])
+        &&  floats_are_greater_than_or_equal(pos[1], slice_origin[1]) && floats_are_less_than_or_equal(pos[1], slice_origin[1] + slice_size[1])
+        &&  floats_are_greater_than_or_equal(pos[2], slice_origin[2]) && floats_are_less_than_or_equal(pos[2], slice_origin[2] + slice_size[2])) {
         slice_map.push_back(i);
       }
     }
@@ -79,8 +80,8 @@ class Slice {
 
  private:
     int                 num_slice_points;
-    jblib::Vec3<double> slice_origin;
-    jblib::Vec3<double> slice_size;
+    Vec3 slice_origin;
+    Vec3 slice_size;
     std::vector<int>    slice_map;
 };
 

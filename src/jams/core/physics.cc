@@ -25,7 +25,7 @@
 
 
 Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0),
-    applied_field_(0.0, 0.0, 0.0) {
+    applied_field_{0.0, 0.0, 0.0} {
 
   // initialise temperature
   temperature_ = 0.0;
@@ -34,7 +34,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
   }
 
   // initialise applied field
-  jblib::Vec3<double> field(0.0, 0.0, 0.0);
+  Vec3 field = {0.0, 0.0, 0.0};
   if (physics_settings.exists("applied_field")) {
     if (!physics_settings["applied_field"].isArray() || !(physics_settings["applied_field"].getLength() == 3)) {
       jams_error("Setting 'applied_field' must be an array of length 3.");
@@ -52,7 +52,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
     output_step_freq_ = 100;
   }
 
-  jblib::Vec3<double> origin;
+  Vec3 origin;
   double radius;
   if (physics_settings.exists("initial_state")) {
     libconfig::Setting& state_settings = physics_settings["initial_state"];
@@ -65,9 +65,9 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
     radius = state_settings["radius"];
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      jblib::Vec3<double> pos = (lattice->atom_position(i)-origin);
+      Vec3 pos = (lattice->atom_position(i)-origin);
 
-      if (pos.x*pos.x + pos.y*pos.y < radius*radius) {
+      if (pos[0]*pos[0] + pos[1]*pos[1] < radius*radius) {
         globals::s(i,2) = -globals::s(i,2);
       }
     }

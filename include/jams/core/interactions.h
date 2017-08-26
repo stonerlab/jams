@@ -17,7 +17,7 @@ enum class InteractionFileFormat {JAMS, KKR};
 
 typedef struct {
     int index;
-    jblib::Matrix<double, 3, 3> tensor;
+    Mat3 tensor;
 } Interaction;
 
 typedef struct {

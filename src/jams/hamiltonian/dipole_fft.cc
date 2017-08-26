@@ -17,7 +17,7 @@ using std::abs;
 using std::min;
 
 namespace {
-    const jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
+    const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 }
 
 //---------------------------------------------------------------------
@@ -148,7 +148,7 @@ double DipoleHamiltonianFFT::calculate_total_energy() {
 
 //---------------------------------------------------------------------
 
-double DipoleHamiltonianFFT::calculate_one_spin_energy(const int i, const jblib::Vec3<double> &s_i) {
+double DipoleHamiltonianFFT::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
     double h[3];
     calculate_one_spin_field(i, h);
     return -(s_i[0] * h[0] + s_i[1] * h[1] + s_i[2] * h[2]) * globals::mus(i);
@@ -157,23 +157,22 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy(const int i, const jblib:
 //---------------------------------------------------------------------
 
 double DipoleHamiltonianFFT::calculate_one_spin_energy(const int i) {
-    jblib::Vec3<double> s_i(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
-    return calculate_one_spin_energy(i, s_i);
+    return calculate_one_spin_energy(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
 }
 
 //---------------------------------------------------------------------
 
 double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
-    const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final)
+    const int i, const Vec3 &spin_initial, const Vec3 &spin_final)
 {
-    jblib::Vec3<int> pos;
+    Vec3i pos;
 
     double h[3] = {0, 0, 0};
 
     calculate_fields(h_);
     for (int m = 0; m < 3; ++m) {
         pos = ::lattice->super_cell_pos(i);
-        h[m] += rspace_h_(pos.x, pos.y, pos.z, m);
+        h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
 
     return -( (spin_final[0] * h[0] + spin_final[1] * h[1] + spin_final[2] * h[2])
@@ -192,7 +191,7 @@ void DipoleHamiltonianFFT::calculate_energies(jblib::Array<double, 1>& energies)
 //---------------------------------------------------------------------
 
 void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
-    jblib::Vec3<int> pos;
+    Vec3i pos;
 
     for (int m = 0; m < 3; ++m) {
         h[m] = 0.0;
@@ -201,7 +200,7 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
     calculate_fields(h_);
     for (int m = 0; m < 3; ++m) {
         pos = ::lattice->super_cell_pos(i);
-        h[m] += rspace_h_(pos.x, pos.y, pos.z, m);
+        h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
 }
 
@@ -254,7 +253,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
                     lattice->minimum_image(r_cart_j,
                         lattice->generate_position(r_frac_i, {nx, ny, nz})); // generate_position requires FRACTIONAL coordinate
 
-                const auto r_abs_sq = r_ij.norm_sq();
+                const auto r_abs_sq = abs_sq(r_ij);
 
                 if (r_abs_sq > pow(r_cutoff_ + distance_tolerance_, 2)) {
                     // outside of cutoff radius

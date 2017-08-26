@@ -22,12 +22,12 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
   s_old_1_(globals::s), s_old_2_(globals::s) {
 
     double r_abs;
-    jblib::Vec3<double> r_ij, r_hat, s_j;
+    Vec3 r_ij, r_hat, s_j;
     jblib::Vec3<int> pos;
     jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
     jblib::Vec3<int> L_max(0, 0, 0);
-    jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);
+    Vec3 super_cell_dim = {0.0, 0.0, 0.0};
 
     surf_elec_ = 1.0;
 
@@ -98,7 +98,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
             for (int Lx = -L_max[0]; Lx < L_max[0]+1; ++Lx) {
                 for (int Ly = -L_max[1]; Ly < L_max[1]+1; ++Ly) {
                     for (int Lz = -L_max[2]; Lz < L_max[2]+1; ++Lz) {
-                        jblib::Vec3<int> image_vector(Lx, Ly, Lz);
+                        Vec3i image_vector = {Lx, Ly, Lz};
 
                         r_ij  = lattice->generate_image_position(lattice->atom_position(j), image_vector) - lattice->atom_position(i);
 
@@ -213,12 +213,12 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     const double recip_factor = kVacuumPermeadbility*kBohrMagneton/(::lattice->volume()*product(kspace_padded_size_));
     printf("  reciprocal space prefactor: %e\n", recip_factor);
 
-    jblib::Vec3<double> kvec;
+    Vec3 kvec;
     double k_abs;
     for (int i = 0; i < kspace_padded_size_[0]; ++i) {
         for (int j = 0; j < kspace_padded_size_[1]; ++j) {
             for (int k = 0; k < (kspace_padded_size_[2]/2) + 1; ++k) {
-                pos = jblib::Vec3<int>(i, j, k);
+                pos = {i, j, k};
 
                 // convert to +/- r
                 for (int n = 0; n < 3; ++n) {
@@ -227,7 +227,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                     }
                 }
 
-                kvec = jblib::Vec3<double>(pos.x, pos.y, pos.z);
+                kvec = {double(pos.x), double(pos.y), double(pos.z)};
 
                 // hack to multiply by inverse lattice vectors
                 kvec = lattice->cartesian_to_fractional(kvec);
@@ -259,14 +259,14 @@ double DipoleHamiltonianEwald::calculate_total_energy() {
     double e_self = 0.0;
 
     double h[3];
-    jblib::Vec3<int> pos;
+    Vec3i pos;
 
     calculate_nonlocal_ewald_field();
     for (int i = 0; i < globals::num_spins; ++i) {
         pos = ::lattice->super_cell_pos(i);
-       e_nonlocal += -(globals::s(i,0)*h_nonlocal_(pos.x, pos.y, pos.z, 0)
-                     + globals::s(i,1)*h_nonlocal_(pos.x, pos.y, pos.z, 1)
-                     + globals::s(i,2)*h_nonlocal_(pos.x, pos.y, pos.z, 2))*globals::mus(i);
+       e_nonlocal += -(globals::s(i,0)*h_nonlocal_(pos[0], pos[1], pos[2], 0)
+                     + globals::s(i,1)*h_nonlocal_(pos[0], pos[1], pos[2], 1)
+                     + globals::s(i,2)*h_nonlocal_(pos[0], pos[1], pos[2], 2))*globals::mus(i);
     }
 
     for (int i = 0; i < globals::num_spins; ++i) {
@@ -292,7 +292,7 @@ double DipoleHamiltonianEwald::calculate_total_energy() {
 // --------------------------------------------------------------------------
 
 
-double DipoleHamiltonianEwald::calculate_one_spin_energy(const int i, const jblib::Vec3<double> &s_i) {
+double DipoleHamiltonianEwald::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
     double h[3];
     calculate_one_spin_field(i, h);
     return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2])*globals::mus(i);
@@ -301,16 +301,15 @@ double DipoleHamiltonianEwald::calculate_one_spin_energy(const int i, const jbli
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianEwald::calculate_one_spin_energy(const int i) {
-    jblib::Vec3<double> s_i(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
-    return calculate_one_spin_energy(i, s_i);
+    return calculate_one_spin_energy(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
 }
 
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianEwald::calculate_one_spin_energy_difference(
-    const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final)
+    const int i, const Vec3 &spin_initial, const Vec3 &spin_final)
 {
-    jblib::Vec3<int> pos;
+    Vec3i pos;
     double h[3] = {0.0, 0.0, 0.0};
 
     calculate_local_ewald_field(i, h);
@@ -318,7 +317,7 @@ double DipoleHamiltonianEwald::calculate_one_spin_energy_difference(
     calculate_nonlocal_ewald_field();
     for (int m = 0; m < 3; ++m) {
         pos = ::lattice->super_cell_pos(i);
-        h[m] += h_nonlocal_(pos.x, pos.y, pos.z, m);
+        h[m] += h_nonlocal_(pos[0], pos[1], pos[2], m);
     }
 
     return (-(spin_final[0]*h[0] + spin_final[1]*h[1] + spin_final[2]*h[2])
@@ -336,7 +335,7 @@ void DipoleHamiltonianEwald::calculate_energies(jblib::Array<double, 1>& energie
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianEwald::calculate_one_spin_field(const int i, double h[3]) {
-    jblib::Vec3<int> pos;
+    Vec3i pos;
 
     for (int m = 0; m < 3; ++m) {
         h[m] = 0.0;
@@ -347,7 +346,7 @@ void DipoleHamiltonianEwald::calculate_one_spin_field(const int i, double h[3]) 
     calculate_nonlocal_ewald_field();
     for (int m = 0; m < 3; ++m) {
         pos = ::lattice->super_cell_pos(i);
-        h[m] += h_nonlocal_(pos.x, pos.y, pos.z, m);
+        h[m] += h_nonlocal_(pos[0], pos[1], pos[2], m);
     }
     // std::cerr << h[0] << "\t" << h[1] << "\t" << h[2] << "\t" << std::endl;
 }
@@ -356,7 +355,7 @@ void DipoleHamiltonianEwald::calculate_one_spin_field(const int i, double h[3]) 
 
 void DipoleHamiltonianEwald::calculate_fields(jblib::Array<double, 2>& fields) {
     double h[3];
-    jblib::Vec3<int> pos;
+    Vec3i pos;
 
     fields.zero();
 
@@ -378,7 +377,7 @@ void DipoleHamiltonianEwald::calculate_fields(jblib::Array<double, 2>& fields) {
     for (int i = 0; i < globals::num_spins; ++i) {
         pos = ::lattice->super_cell_pos(i);
         for (int j = 0; j < 3; ++j) {
-            fields(i, j) += h_nonlocal_(pos.x, pos.y, pos.z, j);
+            fields(i, j) += h_nonlocal_(pos[0], pos[1], pos[2], j);
         }
     }
 
@@ -433,7 +432,7 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
     static bool first_run = true;
 
     int i, iend, j, jend, k, kend, m;
-    jblib::Vec3<int> pos;
+    Vec3i pos;
 
     // if (std::equal(&s_old_1_[0], &s_old_1_[0]+globals::num_spins3, &globals::s[0]) && !first_run) {
     //     return; // spins have not changed from last call
@@ -465,7 +464,7 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
     for (int i = 0; i < globals::num_spins; ++i) {
          pos = ::lattice->super_cell_pos(i);
          for (int m = 0; m < 3; ++m) {
-            s_nonlocal_(pos.x, pos.y, pos.z, m) = globals::s(i, m);
+            s_nonlocal_(pos[0], pos[1], pos[2], m) = globals::s(i, m);
         }
     }
 

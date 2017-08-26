@@ -38,7 +38,7 @@ ExchangeHamiltonian::~ExchangeHamiltonian() {
 
 //---------------------------------------------------------------------
 
-void ExchangeHamiltonian::insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value) {
+void ExchangeHamiltonian::insert_interaction(const int i, const int j, const Mat3 &value) {
   for (int m = 0; m < 3; ++m) {
     for (int n = 0; n < 3; ++n) {
       if (std::abs(value[m][n]) > energy_cutoff_) {
@@ -109,7 +109,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
           if (lattice->atom_material(i) == n) {
-            pos_file << i << "\t" <<  lattice->atom_position(i).x << "\t" <<  lattice->atom_position(i).y << "\t" << lattice->atom_position(i).z << "\n";
+            pos_file << i << "\t" <<  lattice->atom_position(i)[0] << "\t" <<  lattice->atom_position(i)[1] << "\t" << lattice->atom_position(i)[2] << "\n";
           }
         }
         pos_file << "\n\n";
@@ -266,7 +266,7 @@ double ExchangeHamiltonian::calculate_one_spin_energy(const int i) {
 
 // --------------------------------------------------------------------------
 
-double ExchangeHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+double ExchangeHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
 
     double local_field[3], e_initial, e_final;

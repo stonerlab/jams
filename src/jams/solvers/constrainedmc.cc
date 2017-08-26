@@ -61,15 +61,15 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   const double s_t = sin(deg_to_rad(constraint_theta_));
   const double s_p = sin(deg_to_rad(constraint_phi_));
 
-  constraint_vector_.x = s_t*c_p;
-  constraint_vector_.y = s_t*s_p;
-  constraint_vector_.z = c_t;
+  constraint_vector_[0] = s_t * c_p;
+  constraint_vector_[1] = s_t * s_p;
+  constraint_vector_[2] = c_t;
 
-  ::output->write("  constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
+  ::output->write("  constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_[0], constraint_vector_[1], constraint_vector_[2]);
 
   // calculate rotation matrix for rotating m -> mz
-  jblib::Matrix<double, 3, 3> r_y;
-  jblib::Matrix<double, 3, 3> r_z;
+  Mat3 r_y;
+  Mat3 r_z;
 
   // first index is row second index is col
   r_y[0][0] =  c_t;  r_y[0][1] =  0.0; r_y[0][2] =  s_t;
@@ -80,8 +80,8 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   r_z[1][0] =  s_p;  r_z[1][1] =  c_p;  r_z[1][2] =  0.0;
   r_z[2][0] =  0.0;  r_z[2][1] =  0.0;  r_z[2][2] =  1.0;
 
-  inverse_rotation_matrix_ = r_y*r_z;
-  rotation_matrix_ = inverse_rotation_matrix_.transpose();
+  inverse_rotation_matrix_ = r_y * r_z;
+  rotation_matrix_ = transpose(inverse_rotation_matrix_);
 
   ::output->verbose("  Rot_y matrix\n");
   ::output->verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_y[0][0], r_y[0][1], r_y[0][2]);
@@ -105,13 +105,13 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
 
   // --- sanity check
-  jblib::Vec3<double> test_unit_vec(0.0, 0.0, 1.0);
-  jblib::Vec3<double> test_forward_vec = rotation_matrix_*test_unit_vec;
-  jblib::Vec3<double> test_back_vec    = inverse_rotation_matrix_*test_forward_vec;
+  Vec3 test_unit_vec = {0.0, 0.0, 1.0};
+  Vec3 test_forward_vec = rotation_matrix_ * test_unit_vec;
+  Vec3 test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
 
   ::output->verbose("  rotation sanity check\n");
-  ::output->verbose("    rotate\n      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
-  ::output->verbose("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
+  ::output->verbose("    rotate\n      %f  %f  %f -> %f  %f  %f\n", test_unit_vec[0], test_unit_vec[1], test_unit_vec[2], test_forward_vec[0], test_forward_vec[1], test_forward_vec[2]);
+  ::output->verbose("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec[0], test_forward_vec[1], test_forward_vec[2], test_back_vec[0], test_back_vec[1], test_back_vec[2]);
 
   for (int n = 0; n < 3; ++n) {
     if (!floats_are_equal(test_unit_vec[n], test_back_vec[n])) {
@@ -169,20 +169,18 @@ void ConstrainedMCSolver::configure_move_types(const libconfig::Setting& config)
 
 }
 
-void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
-  jblib::Vec3<double> rvec;
-  rng->sphere(rvec.x, rvec.y, rvec.z);
-  spin += rvec*move_sigma;
+void ConstrainedMCSolver::calculate_trial_move(Vec3 &spin, const double move_sigma = 0.05) {
+  spin += rng->sphere() * move_sigma;
   spin /= abs(spin);
 }
 
-void ConstrainedMCSolver::set_spin(const int &i, const jblib::Vec3<double> &spin) {
+void ConstrainedMCSolver::set_spin(const int &i, const Vec3 &spin) {
   for (int n = 0; n < 3; ++n) {
     globals::s(i, n) = spin[n];
   }
 }
 
-void ConstrainedMCSolver::get_spin(const int &i, jblib::Vec3<double> &spin) {
+void ConstrainedMCSolver::get_spin(const int &i, Vec3 &spin) {
   for (int n = 0; n < 3; ++n) {
     spin[n] = globals::s(i, n);
   }
@@ -252,20 +250,19 @@ void ConstrainedMCSolver::run() {
 unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) {
   using std::pow;
   using std::abs;
-  using jblib::Vec3;
 
   int rand_s1, rand_s2;
   double delta_energy1, delta_energy2, delta_energy21;
   double mu1, mu2, mz_old, mz_new, probability;
   const double beta = kBohrMagneton/(physics_module_->temperature()*kBoltzmann);
 
-  Vec3<double> s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
-  Vec3<double> s2_initial, s2_final, s2_initial_rotated, s2_final_rotated;
+  Vec3 s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
+  Vec3 s2_initial, s2_final, s2_initial_rotated, s2_final_rotated;
 
-  jblib::Matrix<double, 3, 3> s1_transform, s1_transform_inv;
-  jblib::Matrix<double, 3, 3> s2_transform, s2_transform_inv;
+  Mat3 s1_transform, s1_transform_inv;
+  Mat3 s2_transform, s2_transform_inv;
 
-  Vec3<double> m_other(0.0, 0.0, 0.0);
+  Vec3 m_other = {0.0, 0.0, 0.0};
 
   for (int i = 0; i < globals::num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
@@ -306,15 +303,15 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
     s1_initial = mc_spin_as_vec(rand_s1);
     s2_initial = mc_spin_as_vec(rand_s2);
 
-    s1_transform_inv = s1_transform.transpose();
-    s2_transform_inv = s2_transform.transpose();
+    s1_transform_inv = transpose(s1_transform);
+    s2_transform_inv = transpose(s2_transform);
 
     mu1 = globals::mus(rand_s1);
     mu2 = globals::mus(rand_s2);
 
     // rotate into reference frame of the constraint vector
-    s1_initial_rotated = s1_transform * rotation_matrix_*s1_initial;
-    s2_initial_rotated = s2_transform * rotation_matrix_*s2_initial;
+    s1_initial_rotated = s1_transform * rotation_matrix_ * s1_initial;
+    s2_initial_rotated = s2_transform * rotation_matrix_ * s2_initial;
 
     // Monte Carlo move
     s1_final = s1_initial;
@@ -326,7 +323,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
                       + s2_initial_rotated);
 
     // zero out the z-component which will be calculated below
-    s2_final_rotated.z = 0.0;
+    s2_final_rotated[2] = 0.0;
 
     if (unlikely(dot(s2_final_rotated, s2_final_rotated) > 1.0)) {
       // the rotated spin does not fit on the unit sphere - revert s1 and reject move
@@ -334,7 +331,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
     }
 
     // calculate the z-component so that |s2| = 1
-    s2_final_rotated.z = copysign(1.0, s2_initial_rotated.z) * sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
+    s2_final_rotated[2] = copysign(1.0, s2_initial_rotated[2]) * sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
 
     // rotate s2 back into the cartesian reference frame
     s2_final = s2_transform_inv*inverse_rotation_matrix_*s2_final_rotated;
@@ -370,7 +367,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
     mz_old = dot(m_other, constraint_vector_);
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-    probability = exp(-delta_energy21*beta)*(pow(mz_new/mz_old, 2))*abs(s2_initial_rotated.z/s2_final_rotated.z);
+    probability = exp(-delta_energy21*beta)*(pow(mz_new/mz_old, 2))*abs(s2_initial_rotated[2]/s2_final_rotated[2]);
 
     if (probability < rng->uniform()) {
       // move fails to overcome Boltzmann factor - revert s1, reject move

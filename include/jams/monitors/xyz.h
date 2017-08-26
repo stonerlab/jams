@@ -12,7 +12,6 @@
 #include "jams/core/monitor.h"
 
 #include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
 
 class Solver;
 
@@ -27,8 +26,8 @@ class XyzMonitor : public Monitor {
 
 
  private:
-    jblib::Vec3<double> slice_origin;
-    jblib::Vec3<double> slice_size;
+    Vec3 slice_origin;
+    Vec3 slice_size;
     std::vector<int>    slice_spins;
 };
 

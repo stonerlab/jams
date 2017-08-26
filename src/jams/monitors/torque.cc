@@ -47,10 +47,10 @@ void TorqueMonitor::update(Solver * solver) {
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";
   outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
-  jblib::Vec3<double> total_torque(0.0, 0.0, 0.0);
+  Vec3 total_torque = {0.0, 0.0, 0.0};
   // output torque from each hamiltonian term
   for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin(); it != solver->hamiltonians().end(); ++it) {
-    jblib::Vec3<double> this_torque(0.0, 0.0, 0.0);
+    Vec3 this_torque = {0.0, 0.0, 0.0};
 
     (*it)->calculate_fields();
 

@@ -155,9 +155,9 @@ Vec3 Lattice::generate_fractional_position(
   const Vec3 unit_cell_frac_pos,
   const Vec3i translation_vector) const
 {
-  return Vec3(unit_cell_frac_pos.x + translation_vector.x,
-                             unit_cell_frac_pos.y + translation_vector.y,
-                             unit_cell_frac_pos.z + translation_vector.z);
+  return {unit_cell_frac_pos[0] + translation_vector[0],
+                             unit_cell_frac_pos[1] + translation_vector[1],
+                             unit_cell_frac_pos[2] + translation_vector[2]};
 }
 
 void Lattice::read_motif_from_config(const libconfig::Setting &positions, CoordinateFormat coordinate_format) {
@@ -176,9 +176,9 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions, Coordi
     }
     atom.material = material_name_map_[atom_name].id;
 
-    atom.pos.x = positions[i][1][0];
-    atom.pos.y = positions[i][1][1];
-    atom.pos.z = positions[i][1][2];
+    atom.pos[0] = positions[i][1][0];
+    atom.pos[1] = positions[i][1][1];
+    atom.pos[2] = positions[i][1][2];
 
     if (coordinate_format == CoordinateFormat::Cartesian) {
       atom.pos = cartesian_to_fractional(atom.pos);
@@ -218,7 +218,7 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
     line_as_stream.str(line);
 
     // read atom type name
-    line_as_stream >> atom_name >> atom.pos.x >> atom.pos.y >> atom.pos.z;
+    line_as_stream >> atom_name >> atom.pos[0] >> atom.pos[1] >> atom.pos[2];
 
     if (coordinate_format == CoordinateFormat::Cartesian) {
       atom.pos = cartesian_to_fractional(atom.pos);
@@ -284,7 +284,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
       super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
   }
 
-  super_cell.unit_cell_inv = super_cell.unit_cell.inverse();
+  super_cell.unit_cell_inv = inverse(super_cell.unit_cell);
 
   output->write("  inverse lattice vectors (matrix form)\n");
   for (i = 0; i < 3; ++i) {
@@ -310,7 +310,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   }
 
   output->write("  lattice size\n    %d  %d  %d\n",
-    super_cell.size.x, super_cell.size.y, super_cell.size.z);
+    super_cell.size[0], super_cell.size[1], super_cell.size[2]);
 
 //-----------------------------------------------------------------------------
 // Read boundary conditions
@@ -329,9 +329,9 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     }
   }
   output->write("  boundary conditions\n    %s  %s  %s\n",
-    super_cell.periodic.x ? "periodic" : "open",
-    super_cell.periodic.y ? "periodic" : "open",
-    super_cell.periodic.z ? "periodic" : "open");
+    super_cell.periodic[0] ? "periodic" : "open",
+    super_cell.periodic[1] ? "periodic" : "open",
+    super_cell.periodic[2] ? "periodic" : "open");
 
   metric_ = new DistanceMetric(super_cell.unit_cell, super_cell.size, super_cell.periodic);
 
@@ -386,7 +386,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   output->write("  format: \n", cfg_coordinate_format_name.c_str());
 
   for (const Atom &atom: motif_) {
-    output->write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos.x, atom.pos.y, atom.pos.z);
+    output->write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos[0], atom.pos[1], atom.pos[2]);
   }
 
 }
@@ -396,10 +396,10 @@ void Lattice::init_lattice_positions(
   const libconfig::Setting &lattice_settings)
 {
 
-  lattice_map_.resize(super_cell.size.x, super_cell.size.y, super_cell.size.z, motif_.size());
+  lattice_map_.resize(super_cell.size[0], super_cell.size[1], super_cell.size[2], motif_.size());
 
-  Vec3i kmesh_size(kpoints_.x*super_cell.size.x, kpoints_.y*super_cell.size.y, kpoints_.z*super_cell.size.z);
-  if (!super_cell.periodic.x || !super_cell.periodic.y || !super_cell.periodic.z) {
+  Vec3i kmesh_size = {kpoints_[0]*super_cell.size[0], kpoints_[1]*super_cell.size[1], kpoints_[2]*super_cell.size[2]};
+  if (!super_cell.periodic[0] || !super_cell.periodic[1] || !super_cell.periodic[2]) {
     output->write("\nzero padding non-periodic dimensions\n");
      // double any non-periodic dimensions for zero padding
     for (int i = 0; i < 3; ++i) {
@@ -407,11 +407,11 @@ void Lattice::init_lattice_positions(
         kmesh_size[i] = 2*kpoints_[i]*super_cell.size[i];
       }
     }
-    output->write("\npadded kspace size\n  %d  %d  %d\n", kmesh_size.x, kmesh_size.y, kmesh_size.z);
+    output->write("\npadded kspace size\n  %d  %d  %d\n", kmesh_size[0], kmesh_size[1], kmesh_size[2]);
   }
 
-  kspace_size_ = Vec3i(kmesh_size.x, kmesh_size.y, kmesh_size.z);
-  kspace_map_.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z);
+  kspace_size_ = {kmesh_size[0], kmesh_size[1], kmesh_size[2]};
+  kspace_map_.resize(kspace_size_[0], kspace_size_[1], kspace_size_[2]);
 
 // initialize everything to -1 so we can check for double assignment below
 
@@ -419,7 +419,7 @@ void Lattice::init_lattice_positions(
     lattice_map_[i] = -1;
   }
 
-  for (int i = 0, iend = kspace_size_.x*kspace_size_.y*kspace_size_.z; i < iend; ++i) {
+  for (int i = 0, iend = kspace_size_[0]*kspace_size_[1]*kspace_size_[2]; i < iend; ++i) {
     kspace_map_[i] = -1;
   }
 
@@ -428,16 +428,16 @@ void Lattice::init_lattice_positions(
 //-----------------------------------------------------------------------------
 
   int atom_counter = 0;
-  rmax_.x = -DBL_MAX; rmax_.y = -DBL_MAX; rmax_.z = -DBL_MAX;
-  rmin_.x = DBL_MAX; rmin_.y = DBL_MAX; rmin_.z = DBL_MAX;
+  rmax_[0] = -DBL_MAX; rmax_[1] = -DBL_MAX; rmax_[2] = -DBL_MAX;
+  rmin_[0] = DBL_MAX; rmin_[1] = DBL_MAX; rmin_[2] = DBL_MAX;
 
   Vec3i translation_vector;
   lattice_super_cell_pos_.resize(num_unit_cell_positions() * product(super_cell.size));
 
   // loop over the translation vectors for lattice size
-  for (int i = 0; i < super_cell.size.x; ++i) {
-    for (int j = 0; j < super_cell.size.y; ++j) {
-      for (int k = 0; k < super_cell.size.z; ++k) {
+  for (int i = 0; i < super_cell.size[0]; ++i) {
+    for (int j = 0; j < super_cell.size[1]; ++j) {
+      for (int k = 0; k < super_cell.size[2]; ++k) {
 
         translation_vector = {i, j, k};
 
@@ -486,14 +486,14 @@ void Lattice::init_lattice_positions(
   if (::output->is_verbose()) {
     for (int i = 0, iend = lattice_positions_.size(); i != iend; ++i) {
       output->write("  %-6d %-6s % 3.6f % 3.6f % 3.6f %4d %4d %4d\n",
-        i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z,
-        lattice_super_cell_pos_(i).x, lattice_super_cell_pos_(i).y, lattice_super_cell_pos_(i).z);
+        i, lattice_materials_[i].c_str(), lattice_positions_[i][0], lattice_positions_[i][1], lattice_positions_[i][2],
+        lattice_super_cell_pos_(i)[0], lattice_super_cell_pos_(i)[1], lattice_super_cell_pos_(i)[2]);
     }
   } else {
     // avoid spamming the screen by default
     for (int i = 0; i < 8; ++i) {
     output->write("  %-6d %-6s %3.6f % 3.6f % 3.6f\n",
-      i, lattice_materials_[i].c_str(), lattice_positions_[i].x, lattice_positions_[i].y, lattice_positions_[i].z);
+      i, lattice_materials_[i].c_str(), lattice_positions_[i][0], lattice_positions_[i][1], lattice_positions_[i][2]);
   }
     if (lattice_positions_.size() > 0) {
       output->write("  ... [use verbose output for details] ... \n");
@@ -527,10 +527,10 @@ void Lattice::init_lattice_positions(
   globals::alpha.resize(globals::num_spins);
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
-  // globals::wij.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z, 3, 3);
+  // globals::wij.resize(kspace_size_[0], kspace_size_[1], kspace_size_[2], 3, 3);
 
   std::fill(globals::h.data(), globals::h.data()+globals::num_spins3, 0.0);
-  // std::fill(globals::wij.data(), globals::wij.data()+kspace_size_.x*kspace_size_.y*kspace_size_.z*3*3, 0.0);
+  // std::fill(globals::wij.data(), globals::wij.data()+kspace_size_[0]*kspace_size_[1]*kspace_size_[2]*3*3, 0.0);
 
   num_of_material_.resize(num_materials(), 0);
   for (int i = 0; i < globals::num_spins; ++i) {
@@ -545,7 +545,10 @@ void Lattice::init_lattice_positions(
         // spin setting is a string
         std::string spin_initializer = capitalize(type_settings["spin"]);
         if (spin_initializer == "RANDOM") {
-          rng->sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
+          Vec3 s_init = rng->sphere();
+          for (auto n = 0; n < 3; ++n) {
+            globals::s(i, n) = s_init[n];
+          }
         } else {
           jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
         }
@@ -606,7 +609,7 @@ void Lattice::init_kspace() {
 
   output->write("  kspace size\n    %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
 
-  kspace_map_.resize(kspace_size_.x, kspace_size_.y, kspace_size_.z);
+  kspace_map_.resize(kspace_size_[0], kspace_size_[1], kspace_size_[2]);
 
   double spg_lattice[3][3];
   for (i = 0; i < 3; ++i) {
@@ -630,11 +633,11 @@ void Lattice::init_kspace() {
   }
 
 
-  int num_mesh_points = kspace_size_.x*kspace_size_.y*kspace_size_.z;
+  int num_mesh_points = kspace_size_[0]*kspace_size_[1]*kspace_size_[2];
   int (*grid_address)[3] = new int[num_mesh_points][3];
   int (*weights) = new int[num_mesh_points];
 
-  int mesh[3] = {kspace_size_.x, kspace_size_.y, kspace_size_.z};
+  int mesh[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
   int is_shift[] = {0, 0, 0};
 
   int num_ibz_points = spg_get_ir_reciprocal_mesh(grid_address,
@@ -728,13 +731,13 @@ void Lattice::init_kspace() {
     for (j = 0; j < 3; ++j) {
       kvec[j] = ((lattice_frac_positions_[i][j] - unitcell_offset[j])*kpoints_[j]);
     }
-    // ::output->verbose("  kvec: % 3.6f % 3.6f % 3.6f\n", kvec.x, kvec.y, kvec.z);
+    // ::output->verbose("  kvec: % 3.6f % 3.6f % 3.6f\n", kvec[0], kvec[1], kvec[2]);
 
     // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
-    //if (fabs(nint(kvec.x)-kvec.x) > 0.01 || fabs(nint(kvec.y)-kvec.y) > 0.01 || fabs(nint(kvec.z)-kvec.z) > 0.01) {
+    //if (fabs(nint(kvec[0])-kvec[0]) > 0.01 || fabs(nint(kvec[1])-kvec[1]) > 0.01 || fabs(nint(kvec[2])-kvec[2]) > 0.01) {
     //  jams_error("kpoint mesh does not map to the unit cell");
     //}
-    // if (kspace_map_(nint(kvec.x), nint(kvec.y), nint(kvec.z)) != -1) {
+    // if (kspace_map_(nint(kvec[0]), nint(kvec[1]), nint(kvec[2])) != -1) {
     //   jams_error("attempted to assign multiple spins to the same point in the kspace map");
     // }
     for (j = 0; j < 3; ++j) {
@@ -914,7 +917,7 @@ void Lattice::calc_symmetry_operations() {
   output->write("    num symops\n    %d\n", spglib_dataset_->n_operations);
 
   Mat3 rot;
-  Mat3 id(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  Mat3 id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 
   for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
 
@@ -1006,13 +1009,13 @@ bool Lattice::apply_boundary_conditions(int &a, int &b, int &c) const {
 
 // same as the Vec3 version but accepts a Vec4 where the last component is the motif
 // position difference
-bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
-  Vec3i pos3(pos.x, pos.y, pos.z);
+bool Lattice::apply_boundary_conditions(Vec4i& pos) const {
+  Vec3i pos3 = {pos[0], pos[1], pos[2]};
   bool is_within_lattice = apply_boundary_conditions(pos3);
   if (is_within_lattice) {
-    pos.x = pos3.x;
-    pos.y = pos3.y;
-    pos.z = pos3.z;
+    pos[0] = pos3[0];
+    pos[1] = pos3[1];
+    pos[2] = pos3[2];
   }
   return is_within_lattice;
 }
@@ -1020,9 +1023,9 @@ bool Lattice::apply_boundary_conditions(jblib::Vec4<int>& pos) const {
 double Lattice::maximum_interaction_radius() const {
   double max_radius = std::numeric_limits<double>::max();
   for (int n = 0; n < 3; ++n) {
-    auto L = unit_cell_vector(n) * num_unit_cells(n);
+    auto L = unit_cell_vector(n) * double(num_unit_cells(n));
     std::cout << L << std::endl;
-    max_radius = std::min(max_radius, L.norm()/2.0);
+    max_radius = std::min(max_radius, abs(L)/2.0);
   }
   return max_radius;
 }

@@ -139,7 +139,7 @@ double Random::normal() {
   return s * x;
 }
 
-void Random::sphere(double &x, double &y, double &z) {
+std::array<double, 3> Random::sphere() {
     assert(initialized == true);
     double v1, v2, s, ss;
 
@@ -151,7 +151,9 @@ void Random::sphere(double &x, double &y, double &z) {
 
     ss = sqrt(1.0 - s);
 
-    x = 2.0 * v1 * ss;
-    y = 2.0 * v2 * ss;
-    z = 1.0 - 2.0 * s;
+  return {
+          2.0 * v1 * ss,
+          2.0 * v2 * ss,
+          1.0 - 2.0 * s
+  };
 }

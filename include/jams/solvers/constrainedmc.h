@@ -60,14 +60,14 @@ class ConstrainedMCSolver : public Solver {
   jblib::Array<double, 2> snew;
   jblib::Array<double, 2> sigma;
   jblib::Array<double, 2> eng;
-  jblib::Array<jblib::Matrix<double, 3, 3>, 1> s_transform_;
+  jblib::Array<Mat3, 1> s_transform_;
 
 
 
 
-  jblib::Vec3<double> constraint_vector_;
-  jblib::Matrix<double, 3, 3> rotation_matrix_;
-  jblib::Matrix<double, 3, 3> inverse_rotation_matrix_;
+  Vec3 constraint_vector_;
+  Mat3 rotation_matrix_;
+  Mat3 inverse_rotation_matrix_;
   std::ofstream outfile;
 
 

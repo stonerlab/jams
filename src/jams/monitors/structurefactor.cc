@@ -85,7 +85,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
        double(cfg_nodes[n][1]),
        double(cfg_nodes[n][2])});
 
-    jblib::Vec3<double> bz_vec;
+    Vec3 bz_vec;
 
     for (int i = 0; i < 3; ++i) {
       bz_vec = bz_vec + ::lattice->inv_unit_cell_vector(i) * bz_cfg_points.back()[i];
@@ -95,7 +95,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
       bz_vec[i] = bz_vec[i] * (::lattice->kspace_size()[i]/2);
     }
 
-    bz_nodes.push_back({int(bz_vec.x), int(bz_vec.y), int(bz_vec.z)});
+    bz_nodes.push_back({int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2])});
   }
 
   bz_points_path_count.push_back(0);
@@ -117,7 +117,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     for (int i = 0; i < 3; ++i) {
       bz_line[i] = int(bz_nodes[n+1][i]) - int(bz_nodes[n][i]);
     }
-    ::output->verbose("  bz line: [ %4d %4d %4d ]\n", bz_line.x, bz_line.y, bz_line.z);
+    ::output->verbose("  bz line: [ %4d %4d %4d ]\n", bz_line[0], bz_line[1], bz_line[2]);
 
     // normalised vector
     for (int i = 0; i < 3; ++i) {
@@ -125,7 +125,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     }
 
     // the number of points is the max dimension in line
-    const int bz_line_points = 1 + std::max(std::max(std::abs(bz_line.x), std::abs(bz_line.y)), std::abs(bz_line.z));
+    const int bz_line_points = 1 + std::max(std::max(std::abs(bz_line[0]), std::abs(bz_line[1])), std::abs(bz_line[2]));
 
     ::output->verbose("  bz line points: %d\n", bz_line_points);
 
@@ -137,9 +137,9 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
       // check if this is a continuous path and drop duplicate points at the join
       if (bz_points.size() > 0) {
-        if(bz_point.x == bz_points.back().x
-          && bz_point.y == bz_points.back().y
-          && bz_point.z == bz_points.back().z) {
+        if(bz_point[0] == bz_points.back()[0]
+          && bz_point[1] == bz_points.back()[1]
+          && bz_point[2] == bz_points.back()[2]) {
           continue;
         }
       }
@@ -147,7 +147,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
       bz_lengths.push_back(abs(bz_line_element));
 
       bz_points.push_back(bz_point);
-      ::output->verbose("  bz point: %6d %6.6f [ %4d %4d %4d ]\n", bz_point_counter, bz_lengths.back(), bz_points.back().x, bz_points.back().y, bz_points.back().z);
+      ::output->verbose("  bz point: %6d %6.6f [ %4d %4d %4d ]\n", bz_point_counter, bz_lengths.back(), bz_points.back()[0], bz_points.back()[1], bz_points.back()[2]);
       bz_point_counter++;
     }
     bz_points_path_count.push_back(bz_points.size());
@@ -192,9 +192,9 @@ void StructureFactorMonitor::update(Solver * solver) {
           q[j] = (nk + q[j]);
         }
       }
-      sqw_x(n, time_point_counter_, i) = sq_x(q.x, q.y, q.z, n);
-      sqw_y(n, time_point_counter_, i) = sq_y(q.x, q.y, q.z, n);
-      sqw_z(n, time_point_counter_, i) = sq_z(q.x, q.y, q.z, n);
+      sqw_x(n, time_point_counter_, i) = sq_x(q[0], q[1], q[2], n);
+      sqw_y(n, time_point_counter_, i) = sq_y(q[0], q[1], q[2], n);
+      sqw_z(n, time_point_counter_, i) = sq_z(q[0], q[1], q[2], n);
     }
   }
 
@@ -298,9 +298,9 @@ void StructureFactorMonitor::fft_time() {
         for (int j = 0; j < space_points; ++j) {
           unit_cell_sqw_file << std::setw(5) << std::fixed << j << "\t";
           unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << total_length << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].x / double(::lattice->kspace_size()[0])  << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].y / double(::lattice->kspace_size()[1])  << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].z / double(::lattice->kspace_size()[2])  << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][0] / double(::lattice->kspace_size()[0])  << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][1] / double(::lattice->kspace_size()[1])  << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][2] / double(::lattice->kspace_size()[2])  << "\t";
           unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << i * freq_delta / 1e12 << "\t";
           unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_x(i, j)[0] << "\t" << norm * fft_sqw_x(i, j)[1] << "\t";
           unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_y(i, j)[0] << "\t" << norm * fft_sqw_y(i, j)[1] << "\t";
@@ -358,9 +358,9 @@ void StructureFactorMonitor::fft_time() {
       for (int j = bz_points_path_count[bz_region]; j < bz_points_path_count[bz_region+1]; ++j) {
         sqwfile << std::setw(5) << std::fixed << j << "\t";
         sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << region_length + total_length + 0.5 * bz_lengths[j] << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].x / double(::lattice->kspace_size()[0]) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].y / double(::lattice->kspace_size()[1]) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j].z / double(::lattice->kspace_size()[2]) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][0] / double(::lattice->kspace_size()[0]) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][1] / double(::lattice->kspace_size()[1]) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][2] / double(::lattice->kspace_size()[2]) << "\t";
         sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << i*freq_delta / 1e12 << "\t";
         sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_x(i,j) << "\t";
         sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[0] << "\t";

@@ -138,7 +138,7 @@ void MagnetisationMonitor::update(Solver * solver) {
 double MagnetisationMonitor::binder_m2() {
   using namespace globals;
 
-  jblib::Vec3<double> m;
+  Vec3 m;
 
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
@@ -146,7 +146,7 @@ double MagnetisationMonitor::binder_m2() {
     }
   }
 
-  return m.norm_sq() / square(static_cast<double>(num_spins));
+  return abs_sq(m) / square(static_cast<double>(num_spins));
 }
 
 double MagnetisationMonitor::binder_cumulant() {

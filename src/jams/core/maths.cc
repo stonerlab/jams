@@ -182,42 +182,38 @@ double legendre_dpoly(const double x, const int n) {
   return (x * legendre_poly(x, n) - legendre_poly(x, n - 1)) / static_cast<double>(2 * n + 1);
 }
 
-jblib::Matrix<double, 3, 3> rotation_matrix_yz(const double theta, const double phi) {
+Mat3 rotation_matrix_yz(const double theta, const double phi) {
   const double c_t = cos(theta);
   const double c_p = cos(phi);
   const double s_t = sin(theta);
   const double s_p = sin(phi);
 
-  return jblib::Matrix<double, 3, 3> (c_t*c_p, -c_t*s_p, s_t, s_p, c_p, 0, -c_p*s_t, s_t*s_p, c_t);
+  return Mat3 {c_t*c_p, -c_t*s_p, s_t, s_p, c_p, 0, -c_p*s_t, s_t*s_p, c_t};
 }
 
-jblib::Matrix<double, 3, 3> rotation_matrix_between_vectors(const jblib::Vec3<double> &x, const jblib::Vec3<double> &y) {
+Mat3 rotation_matrix_between_vectors(const Vec3 &x, const Vec3 &y) {
   // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
-  using std::abs;
-  using jblib::Vec3;
-  using jblib::Matrix;
-
   double c, f;
-  Vec3<double> a, b, v;
+  Vec3 a, b, v;
 
   // normalise
-  a = x/abs(x);
-  b = y/abs(y);
+  a = x / abs(x);
+  b = y / abs(y);
 
   v = cross(a, b);
   c = dot(a, b);    // consine of angle
 
   f = 1.0 / (1.0 + c);
 
-  return Matrix<double, 3, 3>(
-    f * (1.0 - v.y * v.y - v.z * v.z),
-    f * (-v.z + v.x * v.y),
-    f * ( v.y + v.x * v.z),
-    f * ( v.z + v.x * v.y),
-    f * (1.0 - v.x * v.x - v.z * v.z),
-    f * (-v.x + v.y * v.z),
-    f * (-v.y + v.x * v.z),
-    f * ( v.x + v.y * v.z),
-    f * (1.0 - v.x * v.x - v.y * v.y)
-  );
+  return {
+    f * (1.0 - v[1] * v[1] - v[2] * v[2]),
+    f * (-v[2] + v[0] * v[1]),
+    f * ( v[1] + v[0] * v[2]),
+    f * ( v[2] + v[0] * v[1]),
+    f * (1.0 - v[0] * v[0] - v[2] * v[2]),
+    f * (-v[0] + v[1] * v[2]),
+    f * (-v[1] + v[0] * v[2]),
+    f * ( v[0] + v[1] * v[2]),
+    f * (1.0 - v[0] * v[0] - v[1] * v[1])
+  };
 }

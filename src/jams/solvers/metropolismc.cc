@@ -81,10 +81,10 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     iteration_++;
   }
 
-  void MetropolisMCSolver::MetropolisPreconditioner(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>)) {
+  void MetropolisMCSolver::MetropolisPreconditioner(Vec3 (*mc_trial_step)(const Vec3)) {
     int n;
     double e_initial, e_final;
-    jblib::Vec3<double> s_initial, s_final;
+    Vec3 s_initial, s_final;
 
     s_initial = mc_spin_as_vec(0);
     s_final = mc_trial_step(s_initial);
@@ -129,15 +129,13 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
           bool operator()(It first, It last)  // called for each permutation
           {
             using std::vector;
-            using jblib::Vec3;
             using jblib::Array;
-            using jblib::Matrix;
 
             int i, j;
             double energy;
-            Vec3<double> s_new;
-            vector<Matrix<double, 3, 3>> rotation(::lattice->num_materials());
-            vector<Vec3<double>> mag(::lattice->num_materials());
+            Vec3 s_new;
+            vector<Mat3> rotation(::lattice->num_materials());
+            vector<Vec3> mag(::lattice->num_materials());
 
             if (last - first != ::lattice->num_materials()) {
               throw std::runtime_error("number of angles in preconditioner does not match the number of materials");
@@ -191,7 +189,7 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     int num_theta;
     // double e_min, e_final, phi;
 
-    jblib::Vec3<double> s_new;
+    Vec3 s_new;
 
     jblib::Array<double, 2> s_init(globals::s);
     jblib::Array<double, 2> s_min(globals::s);
@@ -232,11 +230,11 @@ void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
     globals::s = minimizer.s();
   }
 
-  void MetropolisMCSolver::MetropolisAlgorithm(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>)) {
+  void MetropolisMCSolver::MetropolisAlgorithm(Vec3 (*mc_trial_step)(const Vec3)) {
     const double beta = kBohrMagneton/(kBoltzmann*physics_module_->temperature());
     int n, random_spin_number;
     double deltaE = 0.0;
-    jblib::Vec3<double> s_initial, s_final;
+    Vec3 s_initial, s_final;
 
     move_acceptance_count_ = 0;
     for (n = 0; n < globals::num_spins; ++n) {

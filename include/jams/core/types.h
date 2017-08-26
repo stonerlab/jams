@@ -3,8 +3,8 @@
 #ifndef JAMS_CORE_TYPES_H
 #define JAMS_CORE_TYPES_H
 
-#include "jblib/containers/vec.h"
-#include "jblib/containers/matrix.h"
+#include "jams/containers/vec3.h"
+#include "jams/containers/mat3.h"
 
 using std::string;
 
@@ -18,11 +18,14 @@ enum class CoordinateFormat {Cartesian, Fractional};
 // typedefs
 //-----------------------------------------------------------------------------
 
-typedef jblib::Vec3<double>          Vec3;
-typedef jblib::Vec3<bool>            Vec3b;
-typedef jblib::Vec3<int>             Vec3i;
+using Mat3  = std::array<std::array<double, 3>, 3>;
 
-typedef jblib::Matrix<double, 3, 3>  Mat3;
+using Vec3  = std::array<double, 3>;
+using Vec3b = std::array<bool, 3>;
+using Vec3i = std::array<int, 3>;
+
+using Vec4  = std::array<double, 4>;
+using Vec4i = std::array<int, 4>;
 
 //-----------------------------------------------------------------------------
 // structs

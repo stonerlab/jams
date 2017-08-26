@@ -19,10 +19,10 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 : HamiltonianStrategy(settings, size) {
     using std::pow;
     double r_abs;
-    jblib::Vec3<double> r_ij, r_hat, s_j;
+    Vec3 r_ij, r_hat, s_j;
 
-    jblib::Vec3<int> L_max(0, 0, 0);
-    jblib::Vec3<double> super_cell_dim(0.0, 0.0, 0.0);
+    Vec3i L_max = {0, 0, 0};
+    Vec3 super_cell_dim = {0.0, 0.0, 0.0};
 
     for (int n = 0; n < 3; ++n) {
         super_cell_dim[n] = 0.5*double(lattice->size(n));
@@ -60,7 +60,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
             for (int Lx = -L_max[0]; Lx < L_max[0]+1; ++Lx) {
                 for (int Ly = -L_max[1]; Ly < L_max[1]+1; ++Ly) {
                     for (int Lz = -L_max[2]; Lz < L_max[2]+1; ++Lz) {
-                        jblib::Vec3<int> image_vector(Lx, Ly, Lz);
+                        Vec3i image_vector = {Lx, Ly, Lz};
 
                         r_ij  = lattice->generate_image_position(lattice->atom_position(j), image_vector) - lattice->atom_position(i);
 
@@ -97,7 +97,7 @@ double DipoleHamiltonianTensor::calculate_total_energy() {
 // --------------------------------------------------------------------------
 
 
-double DipoleHamiltonianTensor::calculate_one_spin_energy(const int i, const jblib::Vec3<double> &s_i) {
+double DipoleHamiltonianTensor::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
     double h[3];
     calculate_one_spin_field(i, h);
     return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2]);
@@ -106,13 +106,12 @@ double DipoleHamiltonianTensor::calculate_one_spin_energy(const int i, const jbl
 // --------------------------------------------------------------------------
 
 double DipoleHamiltonianTensor::calculate_one_spin_energy(const int i) {
-    jblib::Vec3<double> s_i(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
-    return calculate_one_spin_energy(i, s_i);
+    return calculate_one_spin_energy(i, {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
 }
 
 // --------------------------------------------------------------------------
 
-double DipoleHamiltonianTensor::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+double DipoleHamiltonianTensor::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     double h[3];
     calculate_one_spin_field(i, h);
     double e_initial = -(spin_initial[0]*h[0] + spin_initial[1]*h[1] + spin_initial[2]*h[2]);

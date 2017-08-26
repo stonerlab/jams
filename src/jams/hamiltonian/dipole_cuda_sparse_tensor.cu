@@ -26,7 +26,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
  {
     using std::pow;
     double r_abs;
-    jblib::Vec3<double> r_ij, r_hat, s_j;
+    Vec3 r_hat;
 
     output->write("  strategy: cuda_sparse_tensor\n");
 
@@ -44,7 +44,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
     
     const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice->parameter(),3));
 
-    jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
+    Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 
     output->write("    precalculating number of interactions\n");
     unsigned int interaction_count = 0;
@@ -188,7 +188,7 @@ double DipoleHamiltonianCUDASparseTensor::calculate_total_energy() {
 // --------------------------------------------------------------------------
 
 
-double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy(const int i, const jblib::Vec3<double> &s_i) {
+double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
     double h[3];
     calculate_one_spin_field(i, h);
     return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2]);
@@ -218,7 +218,7 @@ double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy(const int i)
 
 // --------------------------------------------------------------------------
 
-double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
 
     double local_field[3], e_initial, e_final;
