@@ -40,6 +40,14 @@ inline double rad_to_deg(const double &angle) {
   return angle*(180.0/kPi);
 }
 
+inline Vec3 cartesian_from_spherical(const double &r, const double &theta, const double &phi) {
+  return {
+          sin(theta) * cos(phi),
+          sin(theta) * sin(phi),
+          cos(theta)
+  };
+}
+
 inline double azimuthal_angle(const Vec3 a) {
   return acos(a[2]/abs(a));
 }
@@ -213,6 +221,22 @@ inline void spherical_to_cartesian(const double r,
 inline Vec3 spherical_to_cartesian_vector(const double r,
     const double theta, const double phi) {
   return {r*cos(theta)*cos(phi), r*cos(theta)*sin(phi), r*sin(theta)};
+}
+
+inline Mat3 create_rotation_matrix_y(const double& theta) {
+  return {
+    cos(theta),  0.0, sin(theta),
+    0.0,         1.0,        0.0,
+    -sin(theta), 0.0, cos(theta)
+  };
+}
+
+inline Mat3 create_rotation_matrix_z(const double& phi) {
+  return {
+    cos(phi),  -sin(phi), 0.0,
+    sin(phi),   cos(phi), 0.0,
+    0.0,        0.0,      1.0
+  };
 }
 
 void matrix_invert(const double in[3][3], double out[3][3]);

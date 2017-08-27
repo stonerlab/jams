@@ -42,6 +42,8 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
   libconfig::Setting &solver_settings = ::config->lookup("solver");
 
+  solver_settings.lookupValue("output_write_steps", output_write_steps_);
+
   configure_move_types(solver_settings);
 
   ::output->write("move_fraction_uniform:     % 8.4f\n", move_fraction_uniform_);
@@ -52,33 +54,15 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
   constraint_theta_ = solver_settings["cmc_constraint_theta"];
   constraint_phi_   = solver_settings["cmc_constraint_phi"];
+  constraint_vector_ = cartesian_from_spherical(1.0, constraint_theta_, constraint_phi_);
 
   ::output->write("  constraint angle theta (deg)\n    % 8.8f\n", constraint_theta_);
   ::output->write("  constraint angle phi (deg)\n    % 8.8f\n", constraint_phi_);
-
-  const double c_t = cos(deg_to_rad(constraint_theta_));
-  const double c_p = cos(deg_to_rad(constraint_phi_));
-  const double s_t = sin(deg_to_rad(constraint_theta_));
-  const double s_p = sin(deg_to_rad(constraint_phi_));
-
-  constraint_vector_[0] = s_t * c_p;
-  constraint_vector_[1] = s_t * s_p;
-  constraint_vector_[2] = c_t;
-
   ::output->write("  constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_[0], constraint_vector_[1], constraint_vector_[2]);
 
   // calculate rotation matrix for rotating m -> mz
-  Mat3 r_y;
-  Mat3 r_z;
-
-  // first index is row second index is col
-  r_y[0][0] =  c_t;  r_y[0][1] =  0.0; r_y[0][2] =  s_t;
-  r_y[1][0] =  0.0;  r_y[1][1] =  1.0; r_y[1][2] =  0.0;
-  r_y[2][0] = -s_t;  r_y[2][1] =  0.0; r_y[2][2] =  c_t;
-
-  r_z[0][0] =  c_p;  r_z[0][1] = -s_p;  r_z[0][2] =  0.0;
-  r_z[1][0] =  s_p;  r_z[1][1] =  c_p;  r_z[1][2] =  0.0;
-  r_z[2][0] =  0.0;  r_z[2][1] =  0.0;  r_z[2][2] =  1.0;
+  Mat3 r_y = create_rotation_matrix_y(constraint_theta_);
+  Mat3 r_z = create_rotation_matrix_z(constraint_phi_);
 
   inverse_rotation_matrix_ = r_y * r_z;
   rotation_matrix_ = transpose(inverse_rotation_matrix_);
@@ -102,7 +86,6 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[0][0], inverse_rotation_matrix_[0][1], inverse_rotation_matrix_[0][2]);
   ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
   ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
-
 
   // --- sanity check
   Vec3 test_unit_vec = {0.0, 0.0, 1.0};
@@ -169,36 +152,19 @@ void ConstrainedMCSolver::configure_move_types(const libconfig::Setting& config)
 
 }
 
-void ConstrainedMCSolver::calculate_trial_move(Vec3 &spin, const double move_sigma = 0.05) {
-  spin += rng->sphere() * move_sigma;
-  spin /= abs(spin);
-}
-
-void ConstrainedMCSolver::set_spin(const int &i, const Vec3 &spin) {
-  for (int n = 0; n < 3; ++n) {
-    globals::s(i, n) = spin[n];
-  }
-}
-
-void ConstrainedMCSolver::get_spin(const int &i, Vec3 &spin) {
-  for (int n = 0; n < 3; ++n) {
-    spin[n] = globals::s(i, n);
-  }
-}
-
 void ConstrainedMCSolver::run() {
   // Chooses nspins random spin pairs from the spin system and attempts a
   // Constrained Monte Carlo move on each pair, accepting for either lower
   // energy or with a Boltzmann thermal weighting.
   using namespace globals;
 
-  std::string trial_step_name;
+  std::uniform_real_distribution<> uniform_distribution;
 
   MonteCarloUniformMove<pcg32> uniform_move(&random_generator_);
   MonteCarloAngleMove<pcg32> angle_move(&random_generator_, move_angle_sigma_);
   MonteCarloReflectionMove reflection_move;
 
-  const double uniform_random_number = random_uniform_real_distribution_(random_generator_);
+  const double uniform_random_number = uniform_distribution(random_generator_);
   if (uniform_random_number < move_fraction_uniform_) {
     move_running_acceptance_count_uniform_ += AsselinAlgorithm(uniform_move);
     run_count_uniform++;
@@ -212,7 +178,7 @@ void ConstrainedMCSolver::run() {
 
   iteration_++;
 
-  if (iteration_ % output_write_steps == 0) {
+  if (iteration_ % output_write_steps_ == 0) {
     move_total_count_uniform_    += run_count_uniform;
     move_total_count_angle_      += run_count_angle;
     move_total_count_reflection_ += run_count_reflection;
@@ -248,6 +214,9 @@ void ConstrainedMCSolver::run() {
 }
 
 unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) {
+  std::uniform_real_distribution<> uniform_distribution;
+  std::uniform_int_distribution<> uniform_int_distribution(0, globals::num_spins-1);
+
   int rand_s1, rand_s2;
   double delta_energy1, delta_energy2, delta_energy21;
   double mu1, mu2, mz_old, mz_new, probability;
@@ -288,10 +257,10 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
   for (int i = 0; i < globals::num_spins/2; ++i) {
 
     // randomly get two spins s1 != s2
-    rand_s1 = random_uniform_int_distribution_(random_generator_);
+    rand_s1 = uniform_int_distribution(random_generator_);
     rand_s2 = rand_s1;
     while (rand_s2 == rand_s1) {
-      rand_s2 = random_uniform_int_distribution_(random_generator_);
+      rand_s2 = uniform_int_distribution(random_generator_);
     }
 
     s1_transform = s_transform_(rand_s1);
@@ -328,7 +297,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
     }
 
     // calculate the z-component so that |s2| = 1
-    s2_final_rotated[2] = copysign(1.0, s2_initial_rotated[2]) * sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
+    s2_final_rotated[2] = std::copysign(1.0, s2_initial_rotated[2]) * sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
 
     // rotate s2 back into the cartesian reference frame
     s2_final = s2_transform_inv*inverse_rotation_matrix_*s2_final_rotated;
@@ -366,7 +335,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
     probability = exp(-delta_energy21*beta)*(pow2(mz_new/mz_old))*std::abs(s2_initial_rotated[2]/s2_final_rotated[2]);
 
-    if (probability < random_uniform_real_distribution_(random_generator_)) {
+    if (probability < uniform_distribution(random_generator_)) {
       // move fails to overcome Boltzmann factor - revert s1, reject move
       mc_set_spin_as_vec(rand_s1, s1_initial);
       continue;
