@@ -2,6 +2,7 @@
 #include <iomanip>
 
 #include <libconfig.h++>
+#include <jams/core/jams++.h>
 
 #include "jams/solvers/constrainedmc.h"
 
@@ -14,6 +15,15 @@
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 
+namespace {
+    double division_or_zero(const double nominator, const double denominator) {
+      if (denominator == 0.0) {
+        return 0.0;
+      } else {
+        return nominator / denominator;
+      }
+    }
+}
 
 ConstrainedMCSolver::~ConstrainedMCSolver() {
   if (outfile.is_open()) {
@@ -27,53 +37,35 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     // initialize base class
   Solver::initialize(argc, argv, idt);
 
-  move_acceptance_count_ = 0;
-  move_acceptance_fraction_ = 0.234;
-  move_sigma_ = 0.05;
-
   output->write("\n----------------------------------------\n");
   output->write("\nConstrained Monte-Carlo solver\n");
 
-  libconfig::Setting &solver_settings = ::config->lookup("sim");
+  libconfig::Setting &solver_settings = ::config->lookup("solver");
 
-  if (solver_settings.exists("sigma")) {
-    move_sigma_ = solver_settings["sigma"];
-  }
+  solver_settings.lookupValue("output_write_steps", output_write_steps_);
 
-  ::output->write("  move sigma\n    % 8.8f\n", move_sigma_);
+  configure_move_types(solver_settings);
+
+  ::output->write("move_fraction_uniform:     % 8.4f\n", move_fraction_uniform_);
+  ::output->write("move_fraction_angle:       % 8.4f\n", move_fraction_angle_);
+  ::output->write("move_fraction_reflection:  % 8.4f\n", move_fraction_reflection_);
+  ::output->write("\n");
+  ::output->write("move_angle_sigma:          % 8.4f\n", move_angle_sigma_);
 
   constraint_theta_ = solver_settings["cmc_constraint_theta"];
   constraint_phi_   = solver_settings["cmc_constraint_phi"];
+  constraint_vector_ = cartesian_from_spherical(1.0, constraint_theta_, constraint_phi_);
 
   ::output->write("  constraint angle theta (deg)\n    % 8.8f\n", constraint_theta_);
   ::output->write("  constraint angle phi (deg)\n    % 8.8f\n", constraint_phi_);
-
-  const double c_t = cos(deg_to_rad(constraint_theta_));
-  const double c_p = cos(deg_to_rad(constraint_phi_));
-  const double s_t = sin(deg_to_rad(constraint_theta_));
-  const double s_p = sin(deg_to_rad(constraint_phi_));
-
-  constraint_vector_.x = s_t*c_p;
-  constraint_vector_.y = s_t*s_p;
-  constraint_vector_.z = c_t;
-
-  ::output->write("  constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_.x, constraint_vector_.y, constraint_vector_.z);
+  ::output->write("  constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_[0], constraint_vector_[1], constraint_vector_[2]);
 
   // calculate rotation matrix for rotating m -> mz
-  jblib::Matrix<double, 3, 3> r_y;
-  jblib::Matrix<double, 3, 3> r_z;
+  Mat3 r_y = create_rotation_matrix_y(constraint_theta_);
+  Mat3 r_z = create_rotation_matrix_z(constraint_phi_);
 
-  // first index is row second index is col
-  r_y[0][0] =  c_t;  r_y[0][1] =  0.0; r_y[0][2] =  s_t;
-  r_y[1][0] =  0.0;  r_y[1][1] =  1.0; r_y[1][2] =  0.0;
-  r_y[2][0] = -s_t;  r_y[2][1] =  0.0; r_y[2][2] =  c_t;
-
-  r_z[0][0] =  c_p;  r_z[0][1] = -s_p;  r_z[0][2] =  0.0;
-  r_z[1][0] =  s_p;  r_z[1][1] =  c_p;  r_z[1][2] =  0.0;
-  r_z[2][0] =  0.0;  r_z[2][1] =  0.0;  r_z[2][2] =  1.0;
-
-  inverse_rotation_matrix_ = r_y*r_z;
-  rotation_matrix_ = inverse_rotation_matrix_.transpose();
+  inverse_rotation_matrix_ = r_y * r_z;
+  rotation_matrix_ = transpose(inverse_rotation_matrix_);
 
   ::output->verbose("  Rot_y matrix\n");
   ::output->verbose("    % 8.8f  % 8.8f  % 8.8f\n", r_y[0][0], r_y[0][1], r_y[0][2]);
@@ -95,15 +87,14 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
   ::output->write("    % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
 
-
   // --- sanity check
-  jblib::Vec3<double> test_unit_vec(0.0, 0.0, 1.0);
-  jblib::Vec3<double> test_forward_vec = rotation_matrix_*test_unit_vec;
-  jblib::Vec3<double> test_back_vec    = inverse_rotation_matrix_*test_forward_vec;
+  Vec3 test_unit_vec = {0.0, 0.0, 1.0};
+  Vec3 test_forward_vec = rotation_matrix_ * test_unit_vec;
+  Vec3 test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
 
   ::output->verbose("  rotation sanity check\n");
-  ::output->verbose("    rotate\n      %f  %f  %f -> %f  %f  %f\n", test_unit_vec.x, test_unit_vec.y, test_unit_vec.z, test_forward_vec.x, test_forward_vec.y, test_forward_vec.z);
-  ::output->verbose("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec.x, test_forward_vec.y, test_forward_vec.z, test_back_vec.x, test_back_vec.y, test_back_vec.z);
+  ::output->verbose("    rotate\n      %f  %f  %f -> %f  %f  %f\n", test_unit_vec[0], test_unit_vec[1], test_unit_vec[2], test_forward_vec[0], test_forward_vec[1], test_forward_vec[2]);
+  ::output->verbose("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec[0], test_forward_vec[1], test_forward_vec[2], test_back_vec[0], test_back_vec[1], test_back_vec[2]);
 
   for (int n = 0; n < 3; ++n) {
     if (!floats_are_equal(test_unit_vec[n], test_back_vec[n])) {
@@ -132,23 +123,33 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
 }
 
-void ConstrainedMCSolver::calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma = 0.05) {
-  jblib::Vec3<double> rvec;
-  rng->sphere(rvec.x, rvec.y, rvec.z);
-  spin += rvec*move_sigma;
-  spin /= abs(spin);
-}
+void ConstrainedMCSolver::configure_move_types(const libconfig::Setting& config) {
 
-void ConstrainedMCSolver::set_spin(const int &i, const jblib::Vec3<double> &spin) {
-  for (int n = 0; n < 3; ++n) {
-    globals::s(i, n) = spin[n];
-  }
-}
+  if (config.exists("move_fraction_uniform") || config.exists("move_fraction_angle")
+     || config.exists("move_fraction_reflection_")) {
+    move_fraction_uniform_    = 0.0;
+    move_fraction_angle_      = 0.0;
+    move_fraction_reflection_ = 0.0;
 
-void ConstrainedMCSolver::get_spin(const int &i, jblib::Vec3<double> &spin) {
-  for (int n = 0; n < 3; ++n) {
-    spin[n] = globals::s(i, n);
+    config.lookupValue("move_fraction_uniform",    move_fraction_uniform_);
+    config.lookupValue("move_fraction_angle",      move_fraction_angle_);
+    config.lookupValue("move_fraction_reflection", move_fraction_reflection_);
   }
+
+  const double move_fraction_sum = move_fraction_uniform_ + move_fraction_angle_ + move_fraction_reflection_;
+
+  move_fraction_uniform_     /= move_fraction_sum;
+  move_fraction_angle_       /= move_fraction_sum;
+  move_fraction_reflection_  /= move_fraction_sum;
+
+  if (floats_are_equal(move_fraction_reflection_, 1.0)) {
+    jams_warning("Only reflection moves have been configured. This breaks ergodicity.");
+  }
+
+  if (config.exists("move_angle_sigma")) {
+    config.lookupValue("move_angle_sigma", move_angle_sigma_);
+  }
+
 }
 
 void ConstrainedMCSolver::run() {
@@ -157,50 +158,77 @@ void ConstrainedMCSolver::run() {
   // energy or with a Boltzmann thermal weighting.
   using namespace globals;
 
-  std::string trial_step_name;
-  // if (iteration_ % 2 == 0) {
-  //   AsselinAlgorithm(mc_small_trial_step);
-  //   trial_step_name = "STS";
-  // } else {
-    AsselinAlgorithm(mc_uniform_trial_step);
-    trial_step_name = "UTS";
-  // }
-  // if (iteration_ % 2 == 0) {
-  //   AsselinAlgorithm(mc_uniform_trial_step);
-  //   trial_step_name = "UTS";
-  // } else {
-  //   if ((iteration_ - 1) % 4 == 0) {
-  //     AsselinAlgorithm(mc_reflection_trial_step);
-  //     trial_step_name = "RTS";
-  //   } else {
-  //     AsselinAlgorithm(mc_small_trial_step);
-  //     trial_step_name = "STS";
-  //   }
-  // }
+  std::uniform_real_distribution<> uniform_distribution;
 
-  move_acceptance_fraction_ = move_acceptance_count_/(0.5*num_spins);
-  outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::fixed << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
+  MonteCarloUniformMove<pcg32> uniform_move(&random_generator_);
+  MonteCarloAngleMove<pcg32> angle_move(&random_generator_, move_angle_sigma_);
+  MonteCarloReflectionMove reflection_move;
+
+  const double uniform_random_number = uniform_distribution(random_generator_);
+  if (uniform_random_number < move_fraction_uniform_) {
+    move_running_acceptance_count_uniform_ += AsselinAlgorithm(uniform_move);
+    run_count_uniform++;
+  } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
+    move_running_acceptance_count_angle_ += AsselinAlgorithm(angle_move);
+    run_count_angle++;
+  } else {
+    move_running_acceptance_count_reflection_ += AsselinAlgorithm(reflection_move);
+    run_count_reflection++;
+  }
 
   iteration_++;
+
+  if (iteration_ % output_write_steps_ == 0) {
+    move_total_count_uniform_    += run_count_uniform;
+    move_total_count_angle_      += run_count_angle;
+    move_total_count_reflection_ += run_count_reflection;
+
+    move_total_acceptance_count_uniform_ += move_running_acceptance_count_uniform_;
+    move_total_acceptance_count_angle_ += move_running_acceptance_count_angle_;
+    move_total_acceptance_count_reflection_ += move_running_acceptance_count_reflection_;
+
+    ::output->write("\n");
+    ::output->write("iteration: %d\n", iteration_);
+    ::output->write("move_acceptance_fraction\n");
+
+    ::output->write("  uniform:    %4.4f (%4.4f)\n",
+                    division_or_zero(move_running_acceptance_count_uniform_, (0.5 * num_spins * run_count_uniform)),
+                    division_or_zero(move_total_acceptance_count_uniform_, (0.5 * num_spins * move_total_count_uniform_)));
+
+    ::output->write("  angle:      %4.4f (%4.4f)\n",
+                    division_or_zero(move_running_acceptance_count_angle_, (0.5 * num_spins * run_count_angle)),
+                    division_or_zero(move_total_acceptance_count_angle_, (0.5 * num_spins * move_total_count_angle_)));
+
+    ::output->write("  reflection: %4.4f (%4.4f)\n",
+                    division_or_zero(move_running_acceptance_count_reflection_, (0.5 * num_spins * run_count_reflection)),
+                    division_or_zero(move_total_acceptance_count_reflection_, (0.5 * num_spins * move_total_count_reflection_)));
+
+    move_running_acceptance_count_uniform_    = 0;
+    move_running_acceptance_count_angle_      = 0;
+    move_running_acceptance_count_reflection_ = 0;
+
+    run_count_uniform    = 0;
+    run_count_angle      = 0;
+    run_count_reflection = 0;
+  }
 }
 
-void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>)) {
-  using std::pow;
-  using std::abs;
-  using jblib::Vec3;
+unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) {
+  std::uniform_real_distribution<> uniform_distribution;
+  std::uniform_int_distribution<> uniform_int_distribution(0, globals::num_spins-1);
 
   int rand_s1, rand_s2;
   double delta_energy1, delta_energy2, delta_energy21;
   double mu1, mu2, mz_old, mz_new, probability;
   const double beta = kBohrMagneton/(physics_module_->temperature()*kBoltzmann);
 
-  Vec3<double> s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
-  Vec3<double> s2_initial, s2_final, s2_initial_rotated, s2_final_rotated;
+  Vec3 s1_initial, s1_final, s1_initial_rotated, s1_final_rotated;
+  Vec3 s2_initial, s2_final, s2_initial_rotated, s2_final_rotated;
 
-  jblib::Matrix<double, 3, 3> s1_transform, s1_transform_inv;
-  jblib::Matrix<double, 3, 3> s2_transform, s2_transform_inv;
+  Mat3 s1_transform, s1_transform_inv;
+  Mat3 s2_transform, s2_transform_inv;
 
-  Vec3<double> m_other(0.0, 0.0, 0.0);
+  Vec3 m_other = {0.0, 0.0, 0.0};
 
   for (int i = 0; i < globals::num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
@@ -219,7 +247,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
   //   ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint violated (" << rad_to_deg(polar_angle(m_other)) << " deg)";
   // }
 
-  move_acceptance_count_ = 0;
+  unsigned moves_accepted = 0;
 
   // In this 'for' loop I've tried to bail and continue at the earliest possible point
   // in all cases to try and avoid extra unneccesary calculations when the move will be
@@ -229,10 +257,10 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
   for (int i = 0; i < globals::num_spins/2; ++i) {
 
     // randomly get two spins s1 != s2
-    rand_s1 = rng->uniform_discrete(0, globals::num_spins-1);
+    rand_s1 = uniform_int_distribution(random_generator_);
     rand_s2 = rand_s1;
     while (rand_s2 == rand_s1) {
-      rand_s2 = rng->uniform_discrete(0, globals::num_spins-1);
+      rand_s2 = uniform_int_distribution(random_generator_);
     }
 
     s1_transform = s_transform_(rand_s1);
@@ -241,19 +269,19 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     s1_initial = mc_spin_as_vec(rand_s1);
     s2_initial = mc_spin_as_vec(rand_s2);
 
-    s1_transform_inv = s1_transform.transpose();
-    s2_transform_inv = s2_transform.transpose();
+    s1_transform_inv = transpose(s1_transform);
+    s2_transform_inv = transpose(s2_transform);
 
     mu1 = globals::mus(rand_s1);
     mu2 = globals::mus(rand_s2);
 
     // rotate into reference frame of the constraint vector
-    s1_initial_rotated = s1_transform * rotation_matrix_*s1_initial;
-    s2_initial_rotated = s2_transform * rotation_matrix_*s2_initial;
+    s1_initial_rotated = s1_transform * rotation_matrix_ * s1_initial;
+    s2_initial_rotated = s2_transform * rotation_matrix_ * s2_initial;
 
     // Monte Carlo move
     s1_final = s1_initial;
-    s1_final = mc_trial_step(s1_initial);
+    s1_final = move(s1_final);
     s1_final_rotated = s1_transform * rotation_matrix_*s1_final;
 
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
@@ -261,7 +289,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
                       + s2_initial_rotated);
 
     // zero out the z-component which will be calculated below
-    s2_final_rotated.z = 0.0;
+    s2_final_rotated[2] = 0.0;
 
     if (unlikely(dot(s2_final_rotated, s2_final_rotated) > 1.0)) {
       // the rotated spin does not fit on the unit sphere - revert s1 and reject move
@@ -269,7 +297,7 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     }
 
     // calculate the z-component so that |s2| = 1
-    s2_final_rotated.z = copysign(1.0, s2_initial_rotated.z) * sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
+    s2_final_rotated[2] = std::copysign(1.0, s2_initial_rotated[2]) * sqrt(1.0 - dot(s2_final_rotated, s2_final_rotated));
 
     // rotate s2 back into the cartesian reference frame
     s2_final = s2_transform_inv*inverse_rotation_matrix_*s2_final_rotated;
@@ -305,9 +333,9 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
     mz_old = dot(m_other, constraint_vector_);
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-    probability = exp(-delta_energy21*beta)*(pow(mz_new/mz_old, 2))*abs(s2_initial_rotated.z/s2_final_rotated.z);
+    probability = exp(-delta_energy21*beta)*(pow2(mz_new/mz_old))*std::abs(s2_initial_rotated[2]/s2_final_rotated[2]);
 
-    if (probability < rng->uniform()) {
+    if (probability < uniform_distribution(random_generator_)) {
       // move fails to overcome Boltzmann factor - revert s1, reject move
       mc_set_spin_as_vec(rand_s1, s1_initial);
       continue;
@@ -316,7 +344,9 @@ void ConstrainedMCSolver::AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(
       mc_set_spin_as_vec(rand_s2, s2_final);
       m_other += s1_transform*s1_final*mu1 + s2_transform*s2_final*mu2 
       - s1_transform*s1_initial*mu1 - s2_transform*s2_initial*mu2;
-      move_acceptance_count_++;
+      moves_accepted++;
     }
   }
+
+  return moves_accepted;
 }

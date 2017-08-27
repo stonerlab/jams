@@ -82,30 +82,32 @@ namespace jblib {
 
   template< typename type >
     inline type Vec3<type>::operator[]( const int32 i ) const{
-      switch(i) {
-        case(0):
-          return x;
-        case(1):
-          return y;
-        case(2):
-          return z;
-        default:
-          throw std::runtime_error("invalid Vec3 index");
-      }
+    return (&x)[i];
+//      switch(i) {
+//        case(0):
+//          return x;
+//        case(1):
+//          return y;
+//        case(2):
+//          return z;
+//        default:
+//          throw std::runtime_error("invalid Vec3 index");
+//      }
     }
 
   template< typename type >
     inline type & Vec3<type>::operator[]( const int32 i ){
-      switch(i) {
-        case(0):
-          return x;
-        case(1):
-          return y;
-        case(2):
-          return z;
-        default:
-          throw std::runtime_error("invalid Vec3 index");
-      }
+    return (&x)[i];
+//      switch(i) {
+//        case(0):
+//          return x;
+//        case(1):
+//          return y;
+//        case(2):
+//          return z;
+//        default:
+//          throw std::runtime_error("invalid Vec3 index");
+//      }
     }
 
   template< typename type >

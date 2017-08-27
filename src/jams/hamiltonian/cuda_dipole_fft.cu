@@ -45,7 +45,7 @@ __global__ void cuda_dipole_convolution(
 
 
 namespace {
-    const jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
+    const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 }
 
 CudaDipoleHamiltonianFFT::~CudaDipoleHamiltonianFFT() {
@@ -166,7 +166,7 @@ double CudaDipoleHamiltonianFFT::calculate_total_energy() {
   return -0.5*e_total;
 }
 
-double CudaDipoleHamiltonianFFT::calculate_one_spin_energy(const int i, const jblib::Vec3<double> &s_i) {
+double CudaDipoleHamiltonianFFT::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
     return 0.0;
 }
 
@@ -175,7 +175,7 @@ double CudaDipoleHamiltonianFFT::calculate_one_spin_energy(const int i) {
 }
 
 double CudaDipoleHamiltonianFFT::calculate_one_spin_energy_difference(
-    const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+    const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
 
     return 0.0;
 }
@@ -277,7 +277,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
                     lattice->minimum_image(r_cart_j,
                         lattice->generate_position(r_frac_i, {nx, ny, nz})); // generate_position requires FRACTIONAL coordinate
 
-                const auto r_abs_sq = r_ij.norm_sq();
+                const auto r_abs_sq = abs_sq(r_ij);
 
                 if (r_abs_sq > pow(r_cutoff_ + distance_tolerance_, 2)) {
                     // outside of cutoff radius

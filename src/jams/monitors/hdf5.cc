@@ -132,7 +132,7 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name, const H5::
   double out_iteration = solver->iteration();
   double out_time = solver->time();
   double out_temperature = solver->physics()->temperature();
-  jblib::Vec3<double> out_field = solver->physics()->applied_field();
+  Vec3 out_field = solver->physics()->applied_field();
 
   DataSet spin_dataset = outfile.createDataSet("spins", float_type, dataspace, plist);
   DataSet ds_dt_dataset = outfile.createDataSet("ds_dt", float_type, dataspace, plist);
@@ -145,11 +145,11 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name, const H5::
   attribute = spin_dataset.createAttribute("temperature", PredType::IEEE_F64LE, attribute_dataspace);
   attribute.write(PredType::NATIVE_DOUBLE, &out_temperature);
   attribute = spin_dataset.createAttribute("hx", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field.x);
+  attribute.write(PredType::NATIVE_DOUBLE, &out_field[0]);
   attribute = spin_dataset.createAttribute("hy", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field.y);
+  attribute.write(PredType::NATIVE_DOUBLE, &out_field[1]);
   attribute = spin_dataset.createAttribute("hz", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field.z);
+  attribute.write(PredType::NATIVE_DOUBLE, &out_field[2]);
 
   if (slice_.num_points() != 0) {
       jblib::Array<double, 2> spin_slice(slice_.num_points(), 3);

@@ -21,7 +21,6 @@ extern "C"{
 #include "jams/core/types.h"
 #include "jams/core/neartree.h"
 #include "jblib/containers/array.h"
-#include "jblib/containers/matrix.h"
 
 class DistanceMetric {
 
@@ -35,7 +34,7 @@ public:
         }
     }
 
-    super_unit_cell_inv_ = super_unit_cell_.inverse();
+    super_unit_cell_inv_ = inverse(super_unit_cell_);
   }
 
   inline Vec3 minimum_image(const Vec3& r_i, const Vec3& r_j) const {
@@ -144,11 +143,11 @@ class Lattice {
     }
 
     inline bool is_bulk_system() const {
-        return (super_cell.periodic.x && super_cell.periodic.y && super_cell.periodic.z);
+        return (super_cell.periodic[0] && super_cell.periodic[1] && super_cell.periodic[2]);
     }
 
     inline bool is_open_system() const {
-        return (!super_cell.periodic.x && !super_cell.periodic.y && !super_cell.periodic.z);
+        return (!super_cell.periodic[0] && !super_cell.periodic[1] && !super_cell.periodic[2]);
     }
 
     inline bool is_periodic(const int i) const {
@@ -158,7 +157,7 @@ class Lattice {
 
     bool apply_boundary_conditions(Vec3i& pos) const;
     bool apply_boundary_conditions(int &a, int &b, int &c) const;
-    bool apply_boundary_conditions(jblib::Vec4<int>& pos) const;
+    bool apply_boundary_conditions(Vec4i& pos) const;
 
     const Vec3i& super_cell_pos(const int i) const {
         return lattice_super_cell_pos_(i);
@@ -227,7 +226,7 @@ Lattice::parameter() const {
 
 inline double
 Lattice::volume() const {
-    return std::abs(super_cell.unit_cell.determinant())*std::pow(super_cell.parameter, 3);
+    return std::abs(determinant(super_cell.unit_cell))*std::pow(super_cell.parameter, 3);
 }
 
 inline int
@@ -249,14 +248,14 @@ inline Vec3
 Lattice::unit_cell_vector(const int i) const {
     assert(i < 3 && i >= 0);
     // vectors are columns of the unit cell matrix
-    return Vec3(super_cell.unit_cell[0][i], super_cell.unit_cell[1][i], super_cell.unit_cell[2][i]);
+    return {super_cell.unit_cell[0][i], super_cell.unit_cell[1][i], super_cell.unit_cell[2][i]};
 }
 
 inline Vec3
 Lattice::inv_unit_cell_vector(const int i) const {
     assert(i < 3 && i >= 0);
     // vectors are columns of the unit cell matrix
-    return Vec3(super_cell.unit_cell_inv[0][i], super_cell.unit_cell_inv[1][i], super_cell.unit_cell_inv[2][i]);
+    return {super_cell.unit_cell_inv[0][i], super_cell.unit_cell_inv[1][i], super_cell.unit_cell_inv[2][i]};
 }
 
 inline Vec3

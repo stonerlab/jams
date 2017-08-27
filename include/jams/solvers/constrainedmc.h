@@ -3,43 +3,81 @@
 #ifndef JAMS_SOLVER_CONSTRAINEDMC_H
 #define JAMS_SOLVER_CONSTRAINEDMC_H
 
+#include <random>
 #include <fstream>
+#include <jams/core/types.h>
 
 #include "jams/core/solver.h"
+#include "jams/core/montecarlo.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
 
+#include "pcg/pcg_random.hpp"
+
 class ConstrainedMCSolver : public Solver {
  public:
-  ConstrainedMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0), move_acceptance_count_(0), move_acceptance_fraction_(1.0), move_sigma_(0.05) {}
+  ConstrainedMCSolver() :
+          snew(0, 0),
+          sigma(0, 0),
+          eng(0, 0),
+          move_acceptance_fraction_(1.0),
+    random_generator_(pcg_extras::seed_seq_from<std::random_device>())
+
+    {}
   ~ConstrainedMCSolver();
   void initialize(int argc, char **argv, double dt);
   void run();
   bool is_converged();
 
  private:
-  jblib::Array<double, 2> snew;
-  jblib::Array<double, 2> sigma;
-  jblib::Array<double, 2> eng;
-  jblib::Array<jblib::Matrix<double, 3, 3>, 1> s_transform_;
+    unsigned AsselinAlgorithm(std::function<Vec3(Vec3)>  move);
+
+    void configure_move_types(const libconfig::Setting& config);
+
+    unsigned output_write_steps_ = 100;
+
+    double move_fraction_uniform_     = 1.0; // default is guaranteed erogodic
+    double move_fraction_angle_       = 0.0;
+    double move_fraction_reflection_  = 0.0;
+
+    double move_angle_sigma_ = 0.1;
+
+    unsigned run_count_uniform    = 0;
+    unsigned run_count_angle      = 0;
+    unsigned run_count_reflection = 0;
+
+    unsigned long long move_total_count_uniform_ = 0;
+    unsigned long long move_total_count_angle_ = 0;
+    unsigned long long move_total_count_reflection_ = 0;
+
+    unsigned long long move_total_acceptance_count_uniform_ = 0;
+    unsigned long long move_total_acceptance_count_angle_ = 0;
+    unsigned long long move_total_acceptance_count_reflection_ = 0;
+
+    unsigned long long move_running_acceptance_count_uniform_ = 0;
+    unsigned long long move_running_acceptance_count_angle_ = 0;
+    unsigned long long move_running_acceptance_count_reflection_ = 0;
+
+    double move_acceptance_fraction_ = 0.0;
+
+    double constraint_theta_ = 0.0;
+    double constraint_phi_ = 0.0;
+
+    jblib::Array<double, 2> snew;
+    jblib::Array<double, 2> sigma;
+    jblib::Array<double, 2> eng;
+    jblib::Array<Mat3, 1> s_transform_;
 
 
-  int    move_acceptance_count_;
-  double move_acceptance_fraction_;
-  double move_sigma_;
+    pcg32 random_generator_;
 
-  double constraint_theta_;
-  double constraint_phi_;
-  jblib::Vec3<double> constraint_vector_;
-  jblib::Matrix<double, 3, 3> rotation_matrix_;
-  jblib::Matrix<double, 3, 3> inverse_rotation_matrix_;
-  std::ofstream outfile;
+    Vec3 constraint_vector_;
+    Mat3 rotation_matrix_;
+    Mat3 inverse_rotation_matrix_;
+    std::ofstream outfile;
 
-  void AsselinAlgorithm(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>));
-  void calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma);
-  void set_spin(const int &i, const jblib::Vec3<double> &spin);
-  void get_spin(const int &i, jblib::Vec3<double> &spin);
+
 };
 
 #endif  // JAMS_SOLVER_CONSTRAINEDMC_H

@@ -24,9 +24,9 @@ namespace { //anon
     // -1 is returned
     for (int k = 0; k < lattice->num_unit_cell_positions(); ++k) {
       Vec3 pos = lattice->unit_cell_position(k);
-      if ( std::abs(pos.x - offset.x) < tolerance
-        && std::abs(pos.y - offset.y) < tolerance
-        && std::abs(pos.z - offset.z) < tolerance ) {
+      if ( std::abs(pos[0] - offset[0]) < tolerance
+        && std::abs(pos[1] - offset[1]) < tolerance
+        && std::abs(pos[2] - offset[2]) < tolerance ) {
         return k;
       }
     }
@@ -132,7 +132,7 @@ namespace { //anon
     if (::output->is_verbose()) {
       ::output->verbose("unit cell realspace\n");
       for (int i = 0; i < lattice->num_unit_cell_positions(); ++i) {
-        jblib::Vec3<double> rij = lattice->unit_cell_position(i);
+        Vec3 rij = lattice->unit_cell_position(i);
         ::output->verbose("%8d % 6.6f % 6.6f % 6.6f\n", i, rij[0], rij[1], rij[2]);
       }
     }
@@ -204,7 +204,7 @@ namespace { //anon
         throw general_exception("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
-      is >> interaction.r_ij.x >> interaction.r_ij.y >> interaction.r_ij.z;
+      is >> interaction.r_ij[0] >> interaction.r_ij[1] >> interaction.r_ij[2];
 
       if (is.bad()) {
         throw general_exception("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -243,12 +243,12 @@ namespace { //anon
 
       interaction.J_ij = interaction.J_ij / kBohrMagneton;
 
-      if (interaction.J_ij.max_norm() < energy_cutoff) {
+      if (max_norm(interaction.J_ij) < energy_cutoff) {
         energy_cutoff_counter++;
         continue;
       }
 
-      if (interaction.r_ij.norm() > (radius_cutoff + 1e-5)) {
+      if (abs(interaction.r_ij) > (radius_cutoff + 1e-5)) {
         radius_cutoff_counter++;
         continue;
       }
@@ -277,7 +277,7 @@ namespace { //anon
 
       bool is_centered_lattice = false;
       for (int i = 0; i < lattice->num_unit_cell_positions(); ++i) {
-        if (lattice->unit_cell_position(i).x < 0.0 || lattice->unit_cell_position(i).y < 0.0 || lattice->unit_cell_position(i).z < 0.0) {
+        if (lattice->unit_cell_position(i)[0] < 0.0 || lattice->unit_cell_position(i)[1] < 0.0 || lattice->unit_cell_position(i)[2] < 0.0) {
           is_centered_lattice = true;
           jams_warning("Centered lattice is detected. Make sure you know what you are doing!");
           break;
@@ -309,7 +309,7 @@ namespace { //anon
           throw general_exception("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
         }
 
-        is >> interaction.r_ij.x >> interaction.r_ij.y >> interaction.r_ij.z;
+        is >> interaction.r_ij[0] >> interaction.r_ij[1] >> interaction.r_ij[2];
 
         if (is.bad()) {
           throw general_exception("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -346,12 +346,12 @@ namespace { //anon
           throw general_exception("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
         }
 
-        if (interaction.J_ij.max_norm() < energy_cutoff) {
+        if (max_norm(interaction.J_ij) < energy_cutoff) {
           energy_cutoff_counter++;
           continue;
         }
 
-        if (interaction.r_ij.norm() > (radius_cutoff + 1e-5)) {
+        if (abs(interaction.r_ij) > (radius_cutoff + 1e-5)) {
           radius_cutoff_counter++;
           continue;
         }
@@ -491,9 +491,9 @@ void write_interaction_data(std::ostream &output, const std::vector<typename_int
   for (auto const & interaction : data) {
     output << std::setw(12) << interaction.type_i << "\t";
     output << std::setw(12) << interaction.type_j << "\t";
-    output << std::setw(12) << std::fixed << interaction.r_ij.x << "\t";
-    output << std::setw(12) << std::fixed << interaction.r_ij.y << "\t";
-    output << std::setw(12) << std::fixed << interaction.r_ij.z << "\t";
+    output << std::setw(12) << std::fixed << interaction.r_ij[0] << "\t";
+    output << std::setw(12) << std::fixed << interaction.r_ij[1] << "\t";
+    output << std::setw(12) << std::fixed << interaction.r_ij[2] << "\t";
     output << std::setw(12) << std::scientific << interaction.J_ij[0][0] * kBohrMagneton << "\t";
     output << std::setw(12) << std::scientific << interaction.J_ij[0][1] * kBohrMagneton << "\t";
     output << std::setw(12) << std::scientific << interaction.J_ij[0][2] * kBohrMagneton << "\t";
@@ -514,12 +514,12 @@ void write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &lis
       int j = nbr.first;
       output << std::setw(12) << i << "\t";
       output << std::setw(12) << j << "\t";
-      output << lattice->atom_position(i).x << "\t";
-      output << lattice->atom_position(i).y << "\t";
-      output << lattice->atom_position(i).z << "\t";
-      output << lattice->atom_position(j).x << "\t";
-      output << lattice->atom_position(j).y << "\t";
-      output << lattice->atom_position(j).z << "\t";
+      output << lattice->atom_position(i)[0] << "\t";
+      output << lattice->atom_position(i)[1] << "\t";
+      output << lattice->atom_position(i)[2] << "\t";
+      output << lattice->atom_position(j)[0] << "\t";
+      output << lattice->atom_position(j)[1] << "\t";
+      output << lattice->atom_position(j)[2] << "\t";
       output << std::setw(12) << std::scientific << nbr.second[0][0] * kBohrMagneton << "\t";
       output << std::setw(12) << std::scientific << nbr.second[0][1] * kBohrMagneton << "\t";
       output << std::setw(12) << std::scientific << nbr.second[0][2] * kBohrMagneton << "\t";

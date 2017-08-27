@@ -31,7 +31,7 @@ class ExchangeHamiltonian : public Hamiltonian {
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
-        double calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final);
+        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final);
 
         void   calculate_energies();
 
@@ -43,7 +43,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         }
 
     private:
-        void insert_interaction(const int i, const int j, const jblib::Matrix<double, 3, 3> &value);
+        void insert_interaction(const int i, const int j, const Mat3 &value);
 
         sparse_matrix_format_t sparse_matrix_format();
         void set_sparse_matrix_format(std::string &format_name);

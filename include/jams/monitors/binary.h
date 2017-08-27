@@ -24,8 +24,8 @@ class BinaryMonitor : public Monitor {
   std::string name() const {return "binary";}
 
  private:
-    jblib::Vec3<double> slice_origin;
-    jblib::Vec3<double> slice_size;
+    Vec3 slice_origin;
+    Vec3 slice_size;
     std::vector<int>    slice_spins;
     bool is_file_overwrite_mode;
 };

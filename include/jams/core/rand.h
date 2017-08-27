@@ -32,7 +32,7 @@ class Random {
   inline double uniform_closed();
   int    uniform_discrete(const int m, const int n);
   double normal();
-  void   sphere(double &x, double &y, double &z);
+  std::array<double, 3> sphere();
  private:
   bool initialized;
   uint32_t init_seed;

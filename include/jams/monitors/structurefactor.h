@@ -37,7 +37,7 @@ class StructureFactorMonitor : public Monitor {
   jblib::Array<std::complex<double>, 3> sqw_x;
   jblib::Array<std::complex<double>, 3> sqw_y;
   jblib::Array<std::complex<double>, 3> sqw_z;
-  std::vector<jblib::Vec3<double> > bz_cfg_points;
+  std::vector<Vec3 > bz_cfg_points;
   std::vector<jblib::Vec3<int> > bz_nodes;
   std::vector<jblib::Vec3<int> > bz_points;
   std::vector<int> bz_points_path_count;

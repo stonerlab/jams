@@ -9,13 +9,19 @@
 
 #include "jams/core/consts.h"
 
-#include "jblib/containers/vec.h"
-#include "jblib/containers/matrix.h"
+#include "jams/containers/vec3.h"
+#include "jams/containers/mat3.h"
+#include "jams/core/types.h"
 
 using std::pow;
 
 inline double square(const double &x) {
   return x*x;
+}
+
+template <typename T>
+inline constexpr T pow2(const T&x) {
+  return x * x;
 }
 
 inline int nint(const double &x) {
@@ -34,12 +40,20 @@ inline double rad_to_deg(const double &angle) {
   return angle*(180.0/kPi);
 }
 
-inline double azimuthal_angle(const jblib::Vec3<double> a) {
-  return acos(a.z/abs(a));
+inline Vec3 cartesian_from_spherical(const double &r, const double &theta, const double &phi) {
+  return {
+          sin(theta) * cos(phi),
+          sin(theta) * sin(phi),
+          cos(theta)
+  };
 }
 
-inline double polar_angle(const jblib::Vec3<double> a) {
-  return atan2(a.y, a.x);
+inline double azimuthal_angle(const Vec3 a) {
+  return acos(a[2]/abs(a));
+}
+
+inline double polar_angle(const Vec3 a) {
+  return atan2(a[2], a[0]);
 }
 
 inline double azimuthal_angle(const double a[3]) {
@@ -204,9 +218,25 @@ inline void spherical_to_cartesian(const double r,
   (*z) = r*sin(theta);
 }
 
-inline jblib::Vec3<double> spherical_to_cartesian_vector(const double r,
+inline Vec3 spherical_to_cartesian_vector(const double r,
     const double theta, const double phi) {
-  return jblib::Vec3<double>(r*cos(theta)*cos(phi), r*cos(theta)*sin(phi), r*sin(theta));
+  return {r*cos(theta)*cos(phi), r*cos(theta)*sin(phi), r*sin(theta)};
+}
+
+inline Mat3 create_rotation_matrix_y(const double& theta) {
+  return {
+    cos(theta),  0.0, sin(theta),
+    0.0,         1.0,        0.0,
+    -sin(theta), 0.0, cos(theta)
+  };
+}
+
+inline Mat3 create_rotation_matrix_z(const double& phi) {
+  return {
+    cos(phi),  -sin(phi), 0.0,
+    sin(phi),   cos(phi), 0.0,
+    0.0,        0.0,      1.0
+  };
 }
 
 void matrix_invert(const double in[3][3], double out[3][3]);
@@ -274,8 +304,8 @@ inline void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
   out[2] = a[0]*b[1] - a[1]*b[0];
 }
 
-jblib::Matrix<double, 3, 3> rotation_matrix_yz(const double theta, const double phi);
-jblib::Matrix<double, 3, 3> rotation_matrix_between_vectors(const jblib::Vec3<double> &x, const jblib::Vec3<double> &y);
+Mat3 rotation_matrix_yz(const double theta, const double phi);
+Mat3 rotation_matrix_between_vectors(const Vec3 &x, const Vec3 &y);
 
 
 // Legendre polynomials

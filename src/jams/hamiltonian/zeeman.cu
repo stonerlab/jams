@@ -119,7 +119,7 @@ double ZeemanHamiltonian::calculate_one_spin_energy(const int i) {
 
 // --------------------------------------------------------------------------
 
-double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     using std::pow;
 
     double e_initial = 0.0;

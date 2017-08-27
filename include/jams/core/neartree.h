@@ -2,6 +2,7 @@
 #define JAMS_CORE_NEARTREE_H
 
 #include <stack>
+#include <cfloat>
 
 // based on http://www.drdobbs.com/cpp/a-template-for-the-nearest-neighbor-prob/184401449
 // also library seems to be available at: http://neartree.sourceforge.net/

@@ -190,16 +190,16 @@ double UniaxialHamiltonian::calculate_one_spin_energy(const int i) {
 
 // --------------------------------------------------------------------------
 
-double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     double e_initial = 0.0;
     double e_final = 0.0;
 
     for (int n = 0; n < mca_order_.size(); ++n) {
-        e_initial += mca_value_[n](i) * legendre_poly(spin_initial.z, mca_order_[n]);
+        e_initial += mca_value_[n](i) * legendre_poly(spin_initial[2], mca_order_[n]);
     }
 
     for (int n = 0; n < mca_order_.size(); ++n) {
-        e_final += mca_value_[n](i) * legendre_poly(spin_final.z, mca_order_[n]);
+        e_final += mca_value_[n](i) * legendre_poly(spin_final[2], mca_order_[n]);
     }
 
     return e_final - e_initial;

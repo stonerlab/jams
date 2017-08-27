@@ -27,8 +27,8 @@ class VtuMonitor : public Monitor {
 
  private:
     int num_slice_points;
-    jblib::Vec3<double> slice_origin;
-    jblib::Vec3<double> slice_size;
+    Vec3 slice_origin;
+    Vec3 slice_size;
     std::vector<int>        slice_spins;
     jblib::Array<int, 1>    types_binary_data;
     jblib::Array<float, 2>  points_binary_data;

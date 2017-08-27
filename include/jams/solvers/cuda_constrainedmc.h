@@ -35,15 +35,15 @@ class CudaConstrainedMCSolver : public CudaSolver {
 
   double constraint_theta_;
   double constraint_phi_;
-  jblib::Vec3<double> constraint_vector_;
-  jblib::Matrix<double, 3, 3> rotation_matrix_;
-  jblib::Matrix<double, 3, 3> inverse_rotation_matrix_;
+  Vec3 constraint_vector_;
+  Mat3 rotation_matrix_;
+  Mat3 inverse_rotation_matrix_;
   std::ofstream outfile;
 
-  double compute_one_spin_energy(const jblib::Vec3<double> &s_final, const int &ii);
-  void calculate_trial_move(jblib::Vec3<double> &spin, const double move_sigma);
-  void set_spin(const int &i, jblib::Vec3<double> &spin);
-  void get_spin(const int &i, jblib::Vec3<double> &spin);
+  double compute_one_spin_energy(const Vec3 &s_final, const int &ii);
+  void calculate_trial_move(Vec3 &spin, const double move_sigma);
+  void set_spin(const int &i, Vec3 &spin);
+  void get_spin(const int &i, Vec3 &spin);
 };
 
 #endif  // CUDA

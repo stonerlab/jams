@@ -9,6 +9,7 @@
 #include "jblib/containers/array.h"
 
 #include <fstream>
+#include <jams/core/types.h>
 
 class MetropolisMCSolver : public Solver {
  public:
@@ -21,8 +22,8 @@ class MetropolisMCSolver : public Solver {
 
   class MagnetizationRotationMinimizer;
 
-  void MetropolisAlgorithm(jblib::Vec3<double> (*mc_move)(const jblib::Vec3<double>));
-  void MetropolisPreconditioner(jblib::Vec3<double> (*mc_trial_step)(const jblib::Vec3<double>));
+  void MetropolisAlgorithm(Vec3 (*mc_move)(const Vec3));
+  void MetropolisPreconditioner(Vec3 (*mc_trial_step)(const Vec3));
   void SystematicPreconditioner(const double delta_theta, const double delta_phi);
 
   jblib::Array<double, 2> snew;
