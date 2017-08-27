@@ -19,6 +19,11 @@ inline double square(const double &x) {
   return x*x;
 }
 
+template <typename T>
+inline constexpr T pow2(const T&x) {
+  return x * x;
+}
+
 inline int nint(const double &x) {
   return floor(x+0.5);
 }
