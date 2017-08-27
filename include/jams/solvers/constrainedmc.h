@@ -3,6 +3,7 @@
 #ifndef JAMS_SOLVER_CONSTRAINEDMC_H
 #define JAMS_SOLVER_CONSTRAINEDMC_H
 
+#include <random>
 #include <fstream>
 #include <jams/core/types.h>
 
@@ -12,9 +13,20 @@
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
 
+#include "pcg/pcg_random.hpp"
+
 class ConstrainedMCSolver : public Solver {
  public:
-  ConstrainedMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0), move_acceptance_fraction_(1.0) {}
+  ConstrainedMCSolver() :
+          snew(0, 0),
+          sigma(0, 0),
+          eng(0, 0),
+          move_acceptance_fraction_(1.0),
+    random_generator_(pcg_extras::seed_seq_from<std::random_device>()),
+    random_uniform_int_distribution_(0, globals::num_spins-1),
+    random_uniform_real_distribution_(0, 1.0)
+
+    {}
   ~ConstrainedMCSolver();
   void initialize(int argc, char **argv, double dt);
   void run();
@@ -57,13 +69,15 @@ class ConstrainedMCSolver : public Solver {
     double constraint_theta_ = 0.0;
     double constraint_phi_ = 0.0;
 
-  jblib::Array<double, 2> snew;
-  jblib::Array<double, 2> sigma;
-  jblib::Array<double, 2> eng;
-  jblib::Array<Mat3, 1> s_transform_;
+    jblib::Array<double, 2> snew;
+    jblib::Array<double, 2> sigma;
+    jblib::Array<double, 2> eng;
+    jblib::Array<Mat3, 1> s_transform_;
 
 
-
+    pcg32 random_generator_;
+    std::uniform_int_distribution<> random_uniform_int_distribution_;
+    std::uniform_real_distribution<> random_uniform_real_distribution_;
 
   Vec3 constraint_vector_;
   Mat3 rotation_matrix_;

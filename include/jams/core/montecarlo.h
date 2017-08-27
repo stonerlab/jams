@@ -1,10 +1,35 @@
 #ifndef JAMS_CORE_MONTECARLO_H
 #define JAMS_CORE_MONTECARLO_H
 
+#include <random>
+
 #include "jams/core/globals.h"
 #include "jams/core/consts.h"
 #include "jams/core/rand.h"
 #include "jblib/containers/vec.h"
+
+namespace {
+
+    template <class RNG>
+    Vec3 random_uniform_sphere(RNG &gen) {
+      std::uniform_real_distribution<> dist;
+      double v1, v2, s, ss;
+
+      do {
+        v1 = -1.0 + 2.0 * dist(gen);
+        v2 = -1.0 + 2.0 * dist(gen);
+        s = (v1 * v1) + (v2 * v2);
+      } while (s > 1.0);
+
+      ss = sqrt(1.0 - s);
+
+      return {
+              2.0 * v1 * ss,
+              2.0 * v2 * ss,
+              1.0 - 2.0 * s
+      };
+    }
+}
 
 enum class MonteCarloMoveType {
     REFLECTION,
@@ -24,26 +49,36 @@ public:
     }
 };
 
+template <class RNG>
 class MonteCarloUniformMove : public MonteCarloMove {
 public:
+    explicit MonteCarloUniformMove(RNG * gen) :
+            gen_(gen)
+            {}
+
     Vec3 operator()(Vec3 spin) {
-      return rng->sphere();
+      return random_uniform_sphere(*gen_);
     }
+private:
+    RNG * gen_;
 };
 
+template <class RNG>
 class MonteCarloAngleMove : public MonteCarloMove {
 public:
-    MonteCarloAngleMove(const double sigma) :
+    MonteCarloAngleMove(RNG * gen, const double sigma) :
+            gen_(gen),
             sigma_(sigma){}
 
     Vec3 operator()(Vec3 spin) {
-      spin = spin + rng->sphere() * sigma_;
+      spin = spin + random_uniform_sphere(*gen_) * sigma_;
       return spin / abs(spin);
     }
 
   private:
     double sigma_ = 0.5;
-};
+    RNG * gen_;
+  };
 
 // Trial steps as defined in Hinzke Comput. Phys. Commun. 1999
 // RTS

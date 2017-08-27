@@ -194,11 +194,11 @@ void ConstrainedMCSolver::run() {
 
   std::string trial_step_name;
 
-  MonteCarloUniformMove uniform_move;
-  MonteCarloAngleMove angle_move(move_angle_sigma_);
+  MonteCarloUniformMove<pcg32> uniform_move(&random_generator_);
+  MonteCarloAngleMove<pcg32> angle_move(&random_generator_, move_angle_sigma_);
   MonteCarloReflectionMove reflection_move;
 
-  const double uniform_random_number = rng->uniform();
+  const double uniform_random_number = random_uniform_real_distribution_(random_generator_);
   if (uniform_random_number < move_fraction_uniform_) {
     move_running_acceptance_count_uniform_ += AsselinAlgorithm(uniform_move);
     run_count_uniform++;
@@ -248,9 +248,6 @@ void ConstrainedMCSolver::run() {
 }
 
 unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) {
-  using std::pow;
-  using std::abs;
-
   int rand_s1, rand_s2;
   double delta_energy1, delta_energy2, delta_energy21;
   double mu1, mu2, mz_old, mz_new, probability;
@@ -291,10 +288,10 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
   for (int i = 0; i < globals::num_spins/2; ++i) {
 
     // randomly get two spins s1 != s2
-    rand_s1 = rng->uniform_discrete(0, globals::num_spins-1);
+    rand_s1 = random_uniform_int_distribution_(random_generator_);
     rand_s2 = rand_s1;
     while (rand_s2 == rand_s1) {
-      rand_s2 = rng->uniform_discrete(0, globals::num_spins-1);
+      rand_s2 = random_uniform_int_distribution_(random_generator_);
     }
 
     s1_transform = s_transform_(rand_s1);
@@ -315,7 +312,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
 
     // Monte Carlo move
     s1_final = s1_initial;
-    s1_final = move(s1_initial);
+    s1_final = move(s1_final);
     s1_final_rotated = s1_transform * rotation_matrix_*s1_final;
 
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
@@ -367,9 +364,9 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
     mz_old = dot(m_other, constraint_vector_);
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-    probability = exp(-delta_energy21*beta)*(pow(mz_new/mz_old, 2))*abs(s2_initial_rotated[2]/s2_final_rotated[2]);
+    probability = exp(-delta_energy21*beta)*(pow2(mz_new/mz_old))*std::abs(s2_initial_rotated[2]/s2_final_rotated[2]);
 
-    if (probability < rng->uniform()) {
+    if (probability < random_uniform_real_distribution_(random_generator_)) {
       // move fails to overcome Boltzmann factor - revert s1, reject move
       mc_set_spin_as_vec(rand_s1, s1_initial);
       continue;
