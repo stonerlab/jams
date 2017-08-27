@@ -10,6 +10,7 @@ class Random;
 
 #include <limits>
 #include <vector>
+#include <array>
 
 class Random {
  public:

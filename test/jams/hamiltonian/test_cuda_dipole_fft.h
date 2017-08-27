@@ -242,7 +242,10 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM_RAND) {
   SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
-    rng->sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
+    Vec3 spin = rng->sphere();
+    globals::s(i, 0) = spin[0];
+    globals::s(i, 1) = spin[1];
+    globals::s(i, 2) = spin[2];
   }
 
   cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
@@ -294,7 +297,10 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM_RAND) {
   SetUp(  config_basic_gpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
-    rng->sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
+    Vec3 spin = rng->sphere();
+    globals::s(i, 0) = spin[0];
+    globals::s(i, 1) = spin[1];
+    globals::s(i, 2) = spin[2];
   }
 
   cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),

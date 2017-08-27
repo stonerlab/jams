@@ -3,6 +3,7 @@
 
 #include <stack>
 #include <cfloat>
+#include <algorithm>
 
 // based on http://www.drdobbs.com/cpp/a-template-for-the-nearest-neighbor-prob/184401449
 // also library seems to be available at: http://neartree.sourceforge.net/

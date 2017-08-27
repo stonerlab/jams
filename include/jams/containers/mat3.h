@@ -6,6 +6,7 @@
 #define JAMS_MAT3_H
 
 #include <array>
+#include <limits>
 
 template <typename T, std::size_t M, std::size_t N>
 using Mat = std::array<std::array<T, N>, M>;

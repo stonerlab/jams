@@ -227,7 +227,10 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM_RAND) {
   SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
-    rng->sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
+    Vec3 spin = rng->sphere();
+    globals::s(i, 0) = spin[0];
+    globals::s(i, 1) = spin[1];
+    globals::s(i, 2) = spin[2];
   }
 
   auto h_bruteforce = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
@@ -276,7 +279,10 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_two_atom_CPU_1D_FM_RAND) {
   SetUp(  config_basic_cpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
-    rng->sphere(globals::s(i, 0), globals::s(i, 1), globals::s(i, 2));
+    Vec3 spin = rng->sphere();
+    globals::s(i, 0) = spin[0];
+    globals::s(i, 1) = spin[1];
+    globals::s(i, 2) = spin[2];
   }
 
   auto h_bruteforce = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
