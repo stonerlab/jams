@@ -160,8 +160,8 @@ void ConstrainedMCSolver::run() {
 
   std::uniform_real_distribution<> uniform_distribution;
 
-  MonteCarloUniformMove<pcg32> uniform_move(&random_generator_);
-  MonteCarloAngleMove<pcg32> angle_move(&random_generator_, move_angle_sigma_);
+  MonteCarloUniformMove<pcg64_k1024> uniform_move(&random_generator_);
+  MonteCarloAngleMove<pcg64_k1024> angle_move(&random_generator_, move_angle_sigma_);
   MonteCarloReflectionMove reflection_move;
 
   const double uniform_random_number = uniform_distribution(random_generator_);

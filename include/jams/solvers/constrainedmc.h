@@ -70,7 +70,7 @@ class ConstrainedMCSolver : public Solver {
     jblib::Array<Mat3, 1> s_transform_;
 
 
-    pcg32 random_generator_;
+    pcg64_k1024 random_generator_;
 
     Vec3 constraint_vector_;
     Mat3 rotation_matrix_;
