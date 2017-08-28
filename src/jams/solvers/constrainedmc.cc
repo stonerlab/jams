@@ -54,15 +54,15 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
 
   constraint_theta_ = solver_settings["cmc_constraint_theta"];
   constraint_phi_   = solver_settings["cmc_constraint_phi"];
-  constraint_vector_ = cartesian_from_spherical(1.0, constraint_theta_, constraint_phi_);
+  constraint_vector_ = cartesian_from_spherical(1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
 
   ::output->write("  constraint angle theta (deg)\n    % 8.8f\n", constraint_theta_);
   ::output->write("  constraint angle phi (deg)\n    % 8.8f\n", constraint_phi_);
   ::output->write("  constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_[0], constraint_vector_[1], constraint_vector_[2]);
 
   // calculate rotation matrix for rotating m -> mz
-  Mat3 r_y = create_rotation_matrix_y(constraint_theta_);
-  Mat3 r_z = create_rotation_matrix_z(constraint_phi_);
+  Mat3 r_y = create_rotation_matrix_y(deg_to_rad(constraint_theta_));
+  Mat3 r_z = create_rotation_matrix_z(deg_to_rad(constraint_phi_));
 
   inverse_rotation_matrix_ = r_y * r_z;
   rotation_matrix_ = transpose(inverse_rotation_matrix_);
