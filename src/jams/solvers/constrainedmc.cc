@@ -160,8 +160,8 @@ void ConstrainedMCSolver::run() {
 
   std::uniform_real_distribution<> uniform_distribution;
 
-  MonteCarloUniformMove<pcg32> uniform_move(&random_generator_);
-  MonteCarloAngleMove<pcg32> angle_move(&random_generator_, move_angle_sigma_);
+  MonteCarloUniformMove<pcg64_k1024> uniform_move(&random_generator_);
+  MonteCarloAngleMove<pcg64_k1024> angle_move(&random_generator_, move_angle_sigma_);
   MonteCarloReflectionMove reflection_move;
 
   const double uniform_random_number = uniform_distribution(random_generator_);
@@ -215,7 +215,6 @@ void ConstrainedMCSolver::run() {
 
 unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) {
   std::uniform_real_distribution<> uniform_distribution;
-  std::uniform_int_distribution<> uniform_int_distribution(0, globals::num_spins-1);
 
   int rand_s1, rand_s2;
   double delta_energy1, delta_energy2, delta_energy21;
@@ -257,10 +256,10 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  move) 
   for (int i = 0; i < globals::num_spins/2; ++i) {
 
     // randomly get two spins s1 != s2
-    rand_s1 = uniform_int_distribution(random_generator_);
+    rand_s1 = random_generator_(globals::num_spins);
     rand_s2 = rand_s1;
     while (rand_s2 == rand_s1) {
-      rand_s2 = uniform_int_distribution(random_generator_);
+      rand_s2 = random_generator_(globals::num_spins);
     }
 
     s1_transform = s_transform_(rand_s1);
