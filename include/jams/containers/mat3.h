@@ -11,6 +11,8 @@
 template <typename T, std::size_t M, std::size_t N>
 using Mat = std::array<std::array<T, N>, M>;
 
+const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+
 #include "vec3.h"
 
 template <typename T>

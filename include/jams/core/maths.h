@@ -223,7 +223,7 @@ inline Vec3 spherical_to_cartesian_vector(const double r,
   return {r*cos(theta)*cos(phi), r*cos(theta)*sin(phi), r*sin(theta)};
 }
 
-inline Mat3 create_rotation_matrix_y(const double& theta) {
+inline Mat3 rotation_matrix_y(const double& theta) {
   return {
     cos(theta),  0.0, sin(theta),
     0.0,         1.0,        0.0,
@@ -231,7 +231,7 @@ inline Mat3 create_rotation_matrix_y(const double& theta) {
   };
 }
 
-inline Mat3 create_rotation_matrix_z(const double& phi) {
+inline Mat3 rotation_matrix_z(const double& phi) {
   return {
     cos(phi),  -sin(phi), 0.0,
     sin(phi),   cos(phi), 0.0,
