@@ -31,9 +31,14 @@ class ConstrainedMCSolver : public Solver {
   bool is_converged();
 
  private:
-    unsigned AsselinAlgorithm(std::function<Vec3(Vec3)>  move);
+    unsigned AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_spin_move);
 
     void configure_move_types(const libconfig::Setting& config);
+    double energy_difference(unsigned rand_s1, const Vec3 &s1_initial, const Vec3 &s1_final, unsigned rand_s2, const Vec3 &s2_initial, const Vec3 &s2_final) const;
+    Vec3 magnetization_difference(unsigned rand_s1, const Vec3 &s1_initial, const Vec3 &s1_final, unsigned rand_s2, const Vec3 &s2_initial, const Vec3 &s2_final) const;
+
+    Vec3 total_transformed_magnetization() const;
+    void validate_constraint() const;
 
     unsigned output_write_steps_ = 100;
 
