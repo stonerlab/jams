@@ -11,6 +11,8 @@
 template <typename T, std::size_t M, std::size_t N>
 using Mat = std::array<std::array<T, N>, M>;
 
+const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+
 #include "vec3.h"
 
 template <typename T>
@@ -67,7 +69,7 @@ inline Vec<T,3> operator*(const Mat<T,3,3>& lhs, const Vec<T,3>& rhs) {
 }
 
 template <typename T>
-inline Vec<T,3> operator*(const T& lhs, const Mat<T,3,3>& rhs) {
+inline Mat<T,3,3> operator*(const T& lhs, const Mat<T,3,3>& rhs) {
   return { lhs * rhs[0][0], lhs * rhs[0][1], lhs * rhs[0][2],
            lhs * rhs[1][0], lhs * rhs[1][1], lhs * rhs[1][2],
            lhs * rhs[2][0], lhs * rhs[2][1], lhs * rhs[2][2]
