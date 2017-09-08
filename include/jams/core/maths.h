@@ -305,7 +305,7 @@ inline void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
 }
 
 Mat3 rotation_matrix_yz(const double theta, const double phi);
-Mat3 rotation_matrix_between_vectors(const Vec3 &x, const Vec3 &y);
+Mat3 rotation_matrix_between_vectors(Vec3 a, Vec3 b);
 
 
 // Legendre polynomials
