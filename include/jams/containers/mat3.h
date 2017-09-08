@@ -23,6 +23,12 @@ Mat<T,3,3> compose_matrix(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& 
 }
 
 template <typename T>
+Mat<T,3,3> ssc(const Vec<T,3> &v) {
+  // skew symmetric cross product matrix
+  return {0, -v[2], v[1], v[2], 0, -v[0], -v[1], v[0], 0};
+}
+
+template <typename T>
 T determinant(const Mat<T,3,3>& a) {
   return a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1])
          +a[0][1]*(a[1][2]*a[2][0]-a[1][0]*a[2][2])
