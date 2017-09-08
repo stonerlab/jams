@@ -98,6 +98,10 @@ inline Vec<T,3> operator/=(Vec<T,3>& lhs, const T& rhs) {
   return {lhs[0] /= rhs, lhs[1] /= rhs, lhs[2] /= rhs};
 }
 
+template <typename T>
+inline Vec<T,3> normalize(const Vec<T,3>& a) {
+  return a / abs(a);
+}
 
 //template <typename T>
 //inline Vec<T,3> operator*(const Mat3<T>& lhs, const Vec<T,3>& rhs) {
