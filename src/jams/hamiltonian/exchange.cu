@@ -28,6 +28,19 @@ namespace {
 
       throw std::runtime_error("Unknown exchange file format");
     }
+
+    inline CoordinateFormat coordinate_format_from_string(std::string s) {
+      if (capitalize(s) == "CART" || capitalize(s) == "CARTESIAN") {
+        return CoordinateFormat::Cartesian;
+      }
+
+      if (capitalize(s) == "FRAC" || capitalize(s) == "FRACTIONAL") {
+        return CoordinateFormat::Fractional;
+      }
+
+      throw std::runtime_error("Unknown coordinate format");
+    }
+
 }
 
 ExchangeHamiltonian::~ExchangeHamiltonian() {
@@ -84,6 +97,10 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     settings.lookupValue("format", exchange_file_format_name);
     exchange_file_format_ = exchange_file_format_from_string(exchange_file_format_name);
 
+    std::string coordinate_format_name = "CARTESIAN";
+    settings.lookupValue("coordinate_format", coordinate_format_name);
+    CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
+
     bool use_symops = true;
     settings.lookupValue("symops", use_symops);
 
@@ -109,7 +126,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
           if (lattice->atom_material(i) == n) {
-            pos_file << i << "\t" <<  lattice->atom_position(i)[0] << "\t" <<  lattice->atom_position(i)[1] << "\t" << lattice->atom_position(i)[2] << "\n";
+            pos_file << i << "\t" <<  lattice->atom_position(i) << " | " << lattice->cartesian_to_fractional(lattice->atom_position(i)) << "\n";
           }
         }
         pos_file << "\n\n";
@@ -120,7 +137,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     //---------------------------------------------------------------------
     // generate interaction list
     //---------------------------------------------------------------------
-  generate_neighbour_list_from_file(interaction_file, exchange_file_format_, energy_cutoff_, radius_cutoff_, use_symops,
+  generate_neighbour_list_from_file(interaction_file, exchange_file_format_, coord_format, energy_cutoff_, radius_cutoff_, use_symops,
                                     print_unfolded || is_debug_enabled_, neighbour_list_);
 
     if (is_debug_enabled_) {
