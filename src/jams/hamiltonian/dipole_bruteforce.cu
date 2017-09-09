@@ -28,8 +28,8 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 #ifdef CUDA
     if (solver->is_cuda_solver()) {
     bool super_cell_pbc[3];
-    float super_unit_cell[3][3];
-    float super_unit_cell_inv[3][3];
+    Mat<float,3,3> super_unit_cell;
+    Mat<float,3,3> super_unit_cell_inv;
 
     for (int i = 0; i < 3; ++i) {
         super_cell_pbc[i] = ::lattice->is_periodic(i);
@@ -40,15 +40,16 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
             super_unit_cell[j][i] = ::lattice->unit_cell_vector(i)[j] * ::lattice->size(i);
         }
     }
-    matrix_invert(super_unit_cell, super_unit_cell_inv);
+
+      super_unit_cell_inv = inverse(super_unit_cell);
 
     float r_cutoff_float = r_cutoff_;
 
     cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(double));
     cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(float));
     cudaMemcpyToSymbol(dev_super_cell_pbc,      super_cell_pbc,      3 * sizeof(bool));
-    cudaMemcpyToSymbol(dev_super_unit_cell,     super_unit_cell,     9 * sizeof(float));
-    cudaMemcpyToSymbol(dev_super_unit_cell_inv, super_unit_cell_inv, 9 * sizeof(float));
+    cudaMemcpyToSymbol(dev_super_unit_cell,     &super_unit_cell[0][0],     9 * sizeof(float));
+    cudaMemcpyToSymbol(dev_super_unit_cell_inv, &super_unit_cell_inv[0][0], 9 * sizeof(float));
 
     jblib::Array<float, 1> f_mus(globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
