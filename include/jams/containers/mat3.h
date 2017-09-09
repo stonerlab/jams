@@ -16,10 +16,13 @@ const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
 #include "vec3.h"
 
 template <typename T>
-Mat<T,3,3> compose_matrix(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
-  return {{ {a[0], a[1], a[2]},
-                  {b[0], b[1], b[2]},
-                  {c[0], c[1], c[2]} }};
+Mat<T,3,3> matrix_from_rows(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
+  return {a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]};
+}
+
+template <typename T>
+Mat<T,3,3> matrix_from_cols(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
+  return {a[0], b[0], c[0], a[1], b[1], c[1], a[2], b[2], c[2]};
 }
 
 template <typename T>
