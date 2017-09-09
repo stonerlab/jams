@@ -1030,10 +1030,6 @@ double Lattice::maximum_interaction_radius() const {
   return max_radius;
 }
 
-namespace {
-    bool vec_are_equal();
-}
-
 std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3& r_cart, const double tolerance = 1e-6) const {
 
   const auto r_frac = cartesian_to_fractional(r_cart);

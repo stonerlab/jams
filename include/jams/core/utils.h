@@ -85,13 +85,10 @@ inline int periodic_shift(const int x, const int dimx) {
 
 std::string word_wrap(const char *text, size_t line_length);
 
-bool vec_are_equal(const Vec3& a, const Vec3&b, const double tolerance);
-
-
 template <typename T>
 bool vec_exists_in_container(const T& container, const Vec3& v1, const double tolerance = 1e-6) {
   auto it = std::find_if(container.begin(),container.end(), [&](const Vec3& v2) {
-      return vec_are_equal(v1, v2, tolerance);
+      return equal(v1, v2, tolerance);
   });
 
   if (it == container.end()) {
