@@ -151,29 +151,16 @@ Mat3 rotation_matrix_yz(const double theta, const double phi) {
   return Mat3 {c_t*c_p, -c_t*s_p, s_t, s_p, c_p, 0, -c_p*s_t, s_t*s_p, c_t};
 }
 
-Mat3 rotation_matrix_between_vectors(const Vec3 &x, const Vec3 &y) {
+
+
+Mat3 rotation_matrix_between_vectors(Vec3 a, Vec3 b) {
   // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
-  double c, f;
-  Vec3 a, b, v;
 
   // normalise
-  a = x / abs(x);
-  b = y / abs(y);
+  a = normalize(a);
+  b = normalize(b);
 
-  v = cross(a, b);
-  c = dot(a, b);    // consine of angle
+  Vec3 v = cross(a, b);
 
-  f = 1.0 / (1.0 + c);
-
-  return {
-    f * (1.0 - v[1] * v[1] - v[2] * v[2]),
-    f * (-v[2] + v[0] * v[1]),
-    f * ( v[1] + v[0] * v[2]),
-    f * ( v[2] + v[0] * v[1]),
-    f * (1.0 - v[0] * v[0] - v[2] * v[2]),
-    f * (-v[0] + v[1] * v[2]),
-    f * (-v[1] + v[0] * v[2]),
-    f * ( v[0] + v[1] * v[2]),
-    f * (1.0 - v[0] * v[0] - v[1] * v[1])
-  };
+  return kIdentityMat3 + ssc(v) + ((ssc(v) * ssc(v)) / (1.0 + dot(a, b)));
 }
