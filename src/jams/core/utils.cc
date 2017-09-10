@@ -30,13 +30,3 @@ std::string word_wrap(const char *text, size_t line_length = 72) {
   }
   return wrapped.str();
 }
-
-bool vec_are_equal(const Vec3& a, const Vec3&b, const double tolerance = 1e-6) {
-  const auto& c = a - b;
-  for (auto n = 0; n < 3; ++n) {
-    if (std::abs(c[n]) > tolerance) {
-      return false;
-    }
-  }
-  return true;
-}

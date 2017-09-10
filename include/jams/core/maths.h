@@ -239,9 +239,6 @@ inline Mat3 rotation_matrix_z(const double& phi) {
   };
 }
 
-void matrix_invert(const double in[3][3], double out[3][3]);
-void matrix_invert(const float in[3][3], float out[3][3]);
-
 template <typename _Tp>
 void matmul(const _Tp a[3][3], const _Tp b[3][3], _Tp c[3][3]) {
   for (int i = 0; i < 3; ++i) {
@@ -305,7 +302,7 @@ inline void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
 }
 
 Mat3 rotation_matrix_yz(const double theta, const double phi);
-Mat3 rotation_matrix_between_vectors(const Vec3 &x, const Vec3 &y);
+Mat3 rotation_matrix_between_vectors(Vec3 a, Vec3 b);
 
 
 // Legendre polynomials

@@ -179,7 +179,7 @@ namespace { //anon
   }
 
   //---------------------------------------------------------------------
-    void read_jams_format_interaction_data(std::ifstream &file, std::vector<typename_interaction_t> &interaction_data, double energy_cutoff, double radius_cutoff) {
+    void read_jams_format_interaction_data(std::ifstream &file, std::vector<typename_interaction_t> &interaction_data, CoordinateFormat coord_format, double energy_cutoff, double radius_cutoff) {
     int line_number = 0;
 
     unsigned energy_cutoff_counter = 0;
@@ -205,6 +205,10 @@ namespace { //anon
       }
 
       is >> interaction.r_ij[0] >> interaction.r_ij[1] >> interaction.r_ij[2];
+
+      if (coord_format == CoordinateFormat::Fractional) {
+        interaction.r_ij = ::lattice->fractional_to_cartesian(interaction.r_ij);
+      }
 
       if (is.bad()) {
         throw general_exception("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -268,7 +272,7 @@ namespace { //anon
 
   }
 
-    void read_kkr_format_interaction_data(std::ifstream &file, InteractionList<inode_pair_t> &interactions, double energy_cutoff, double radius_cutoff) {
+    void read_kkr_format_interaction_data(std::ifstream &file, InteractionList<inode_pair_t> &interactions, CoordinateFormat coord_format, double energy_cutoff, double radius_cutoff) {
       int line_number = 0;
       int interaction_counter = 0;
 
@@ -310,6 +314,10 @@ namespace { //anon
         }
 
         is >> interaction.r_ij[0] >> interaction.r_ij[1] >> interaction.r_ij[2];
+
+        if (coord_format == CoordinateFormat::Fractional) {
+          interaction.r_ij = ::lattice->fractional_to_cartesian(interaction.r_ij);
+        }
 
         if (is.bad()) {
           throw general_exception("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -387,8 +395,10 @@ namespace { //anon
     for (int i = 0; i < lattice->num_unit_cells(0); ++i) {
       for (int j = 0; j < lattice->num_unit_cells(1); ++j) {
         for (int k = 0; k < lattice->num_unit_cells(2); ++k) {
-          // loop over atoms in the unit_cell
-          for (int m = 0; m < lattice->num_unit_cell_positions(); ++m) {
+          // loop over atoms in the interaction template
+          // we use interaction_template.size() because if some atoms have no interaction then this can be smaller than
+          // the number of atoms in the unit cell
+          for (int m = 0; m < interaction_template.size(); ++m) {
 
             if (interaction_template[m].size() == 0) {
               continue;
@@ -452,15 +462,15 @@ void safety_check_distance_tolerance(const double &tolerance) {
   }
 }
 
-void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat format, double energy_cutoff,
+void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format, double energy_cutoff,
                                        double radius_cutoff, bool use_symops, bool print_unfolded,
                                        InteractionList<Mat3> &neighbour_list) {
   std::vector<typename_interaction_t> interaction_data, unfolded_interaction_data;
 
   InteractionList<inode_pair_t> interaction_template;
 
-  if (format == InteractionFileFormat::JAMS) {
-    read_jams_format_interaction_data(file, interaction_data, energy_cutoff, radius_cutoff);
+  if (file_format == InteractionFileFormat::JAMS) {
+    read_jams_format_interaction_data(file, interaction_data, coord_format, energy_cutoff, radius_cutoff);
     generate_interaction_templates(interaction_data, unfolded_interaction_data, interaction_template, use_symops);
 
     if (print_unfolded) {
@@ -472,8 +482,8 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
 
       write_interaction_data(unfolded_interaction_file, unfolded_interaction_data);
     }
-  } else if (format == InteractionFileFormat::KKR) {
-    read_kkr_format_interaction_data(file, interaction_template, energy_cutoff, radius_cutoff);
+  } else if (file_format == InteractionFileFormat::KKR) {
+    read_kkr_format_interaction_data(file, interaction_template, coord_format, energy_cutoff, radius_cutoff);
   }
 
 

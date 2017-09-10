@@ -35,7 +35,6 @@ target_link_libraries(${PROJECT_TEST_NAME}
   -lpthread
   ${JAMS_LINKER_LIBS} 
   ${gtest_BINARY_DIR}/libgtest.a 
-  ${gtest_BINARY_DIR}/libgtest_main.a
   ${CMAKE_THREAD_LIBS_INIT})
 
 

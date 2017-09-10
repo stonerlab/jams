@@ -7,19 +7,27 @@
 
 #include <array>
 #include <limits>
+#include "vec3.h"
 
 template <typename T, std::size_t M, std::size_t N>
-using Mat = std::array<std::array<T, N>, M>;
+using Mat = std::array<std::array<T, M>, N>;
 
 const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 
-#include "vec3.h"
+template <typename T>
+Mat<T,3,3> matrix_from_rows(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
+  return {a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]};
+}
 
 template <typename T>
-Mat<T,3,3> compose_matrix(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
-  return {{ {a[0], a[1], a[2]},
-                  {b[0], b[1], b[2]},
-                  {c[0], c[1], c[2]} }};
+Mat<T,3,3> matrix_from_cols(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
+  return {a[0], b[0], c[0], a[1], b[1], c[1], a[2], b[2], c[2]};
+}
+
+template <typename T>
+Mat<T,3,3> ssc(const Vec<T,3> &v) {
+  // skew symmetric cross product matrix
+  return {0, -v[2], v[1], v[2], 0, -v[0], -v[1], v[0], 0};
 }
 
 template <typename T>
@@ -35,15 +43,15 @@ Mat<T,3,3> inverse(const Mat<T,3,3>& a) {
 
   Mat<T,3,3> out;
   out[0][0] = det*(a[1][1]*a[2][2]-a[1][2]*a[2][1]);
-  out[1][0] = det*(a[0][2]*a[1][2]-a[1][0]*a[2][2]);
-  out[2][0] = det*(a[1][0]*a[2][1]-a[2][0]*a[1][1]);
-
   out[0][1] = det*(a[2][1]*a[0][2]-a[0][1]*a[2][2]);
-  out[1][1] = det*(a[0][0]*a[2][2]-a[0][2]*a[2][0]);
-  out[2][1] = det*(a[2][0]*a[0][1]-a[0][0]*a[2][1]);
-
   out[0][2] = det*(a[0][1]*a[1][2]-a[1][1]*a[0][2]);
-  out[1][2] = det*(a[1][0]*a[0][2]-a[0][0]*a[1][2]);
+
+  out[1][0] = det*(a[1][2]*a[2][0]-a[1][0]*a[2][2]);
+  out[1][1] = det*(a[0][0]*a[2][2]-a[0][2]*a[2][0]);
+  out[1][2] = det*(a[0][2]*a[1][0]-a[0][0]*a[1][2]);
+
+  out[2][0] = det*(a[1][0]*a[2][1]-a[2][0]*a[1][1]);
+  out[2][1] = det*(a[2][0]*a[0][1]-a[0][0]*a[2][1]);
   out[2][2] = det*(a[0][0]*a[1][1]-a[1][0]*a[0][1]);
 
   return out;

@@ -3,46 +3,6 @@
 #include "jams/core/maths.h"
 #include "jams/core/utils.h"
 
-void matrix_invert(const double in[3][3], double out[3][3]) {
-  double det = in[0][0]*(in[1][1]*in[2][2]-in[1][2]*in[2][1])
-             +in[0][1]*(in[1][2]*in[2][0]-in[1][0]*in[2][2])
-             +in[0][2]*(in[1][0]*in[2][1]-in[1][1]*in[2][0]);
-
-  det = 1.0/det;
-
-  out[0][0] = det*(in[1][1]*in[2][2]-in[1][2]*in[2][1]);
-  out[1][0] = det*(in[0][2]*in[1][2]-in[1][0]*in[2][2]);
-  out[2][0] = det*(in[1][0]*in[2][1]-in[2][0]*in[1][1]);
-
-  out[0][1] = det*(in[2][1]*in[0][2]-in[0][1]*in[2][2]);
-  out[1][1] = det*(in[0][0]*in[2][2]-in[0][2]*in[2][0]);
-  out[2][1] = det*(in[2][0]*in[0][1]-in[0][0]*in[2][1]);
-
-  out[0][2] = det*(in[0][1]*in[1][2]-in[1][1]*in[0][2]);
-  out[1][2] = det*(in[1][0]*in[0][2]-in[0][0]*in[1][2]);
-  out[2][2] = det*(in[0][0]*in[1][1]-in[1][0]*in[0][1]);
-}
-
-void matrix_invert(const float in[3][3], float out[3][3]) {
-  float det = in[0][0]*(in[1][1]*in[2][2]-in[1][2]*in[2][1])
-             +in[0][1]*(in[1][2]*in[2][0]-in[1][0]*in[2][2])
-             +in[0][2]*(in[1][0]*in[2][1]-in[1][1]*in[2][0]);
-
-  det = 1.0/det;
-
-  out[0][0] = det*(in[1][1]*in[2][2]-in[1][2]*in[2][1]);
-  out[1][0] = det*(in[0][2]*in[1][2]-in[1][0]*in[2][2]);
-  out[2][0] = det*(in[1][0]*in[2][1]-in[2][0]*in[1][1]);
-
-  out[0][1] = det*(in[2][1]*in[0][2]-in[0][1]*in[2][2]);
-  out[1][1] = det*(in[0][0]*in[2][2]-in[0][2]*in[2][0]);
-  out[2][1] = det*(in[2][0]*in[0][1]-in[0][0]*in[2][1]);
-
-  out[0][2] = det*(in[0][1]*in[1][2]-in[1][1]*in[0][2]);
-  out[1][2] = det*(in[1][0]*in[0][2]-in[0][0]*in[1][2]);
-  out[2][2] = det*(in[0][0]*in[1][1]-in[1][0]*in[0][1]);
-}
-
 // greatest common divisor
 // https://stackoverflow.com/questions/4229870/c-algorithm-to-calculate-least-common-multiple-for-multiple-numbers
 long gcd(long a, long b) {
@@ -191,29 +151,16 @@ Mat3 rotation_matrix_yz(const double theta, const double phi) {
   return Mat3 {c_t*c_p, -c_t*s_p, s_t, s_p, c_p, 0, -c_p*s_t, s_t*s_p, c_t};
 }
 
-Mat3 rotation_matrix_between_vectors(const Vec3 &x, const Vec3 &y) {
+
+
+Mat3 rotation_matrix_between_vectors(Vec3 a, Vec3 b) {
   // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
-  double c, f;
-  Vec3 a, b, v;
 
   // normalise
-  a = x / abs(x);
-  b = y / abs(y);
+  a = normalize(a);
+  b = normalize(b);
 
-  v = cross(a, b);
-  c = dot(a, b);    // consine of angle
+  Vec3 v = cross(a, b);
 
-  f = 1.0 / (1.0 + c);
-
-  return {
-    f * (1.0 - v[1] * v[1] - v[2] * v[2]),
-    f * (-v[2] + v[0] * v[1]),
-    f * ( v[1] + v[0] * v[2]),
-    f * ( v[2] + v[0] * v[1]),
-    f * (1.0 - v[0] * v[0] - v[2] * v[2]),
-    f * (-v[0] + v[1] * v[2]),
-    f * (-v[1] + v[0] * v[2]),
-    f * ( v[0] + v[1] * v[2]),
-    f * (1.0 - v[0] * v[0] - v[1] * v[1])
-  };
+  return kIdentityMat3 + ssc(v) + ((ssc(v) * ssc(v)) / (1.0 + dot(a, b)));
 }
