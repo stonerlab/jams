@@ -305,12 +305,107 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   output->write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
 
+  const double original_volume = std::abs(determinant(super_cell.unit_cell));
+
   for (i = 0; i < 3; ++i) {
     super_cell.size[i] = lattice_settings["size"][i];
   }
 
   output->write("  lattice size\n    %d  %d  %d\n",
-    super_cell.size[0], super_cell.size[1], super_cell.size[2]);
+                super_cell.size[0], super_cell.size[1], super_cell.size[2]);
+
+  if (lattice_settings.exists("global_rotation") && lattice_settings.exists("orientation_axis")) {
+    jams_warning("Orientation and global rotation are both in config. Orientation will be applied first and then global rotation.");
+  }
+
+
+  if (lattice_settings.exists("orientation_axis")) {
+    Vec3 orientation_axis = {0, 0, 1};
+    Vec3 orientation_lattice_vector = {0, 0, 1};
+
+    for (auto n = 0; n < 3; ++n) {
+      orientation_axis[n] = lattice_settings["orientation_axis"][n];
+    }
+
+    for (auto n = 0; n < 3; ++n) {
+      orientation_lattice_vector[n] = lattice_settings["orientation_lattice_vector"][n];
+    }
+
+    Vec3 orientation_cartesian_vector = normalize(super_cell.unit_cell * orientation_lattice_vector);
+
+    output->write("  orientation_axis\n");
+    output->write("    % 3.6f % 3.6f % 3.6f\n", orientation_axis[0], orientation_axis[1], orientation_axis[2]);
+
+    output->write("  orientation_lattice_vector\n");
+    output->write("    % 3.6f % 3.6f % 3.6f\n", orientation_lattice_vector[0], orientation_lattice_vector[1], orientation_lattice_vector[2]);
+
+    output->write("  orientation_cartesian_vector\n");
+    output->write("    % 3.6f % 3.6f % 3.6f\n", orientation_cartesian_vector[0], orientation_cartesian_vector[1], orientation_cartesian_vector[2]);
+
+    Mat3 orientation_matrix = rotation_matrix_between_vectors(orientation_cartesian_vector, orientation_axis);
+
+    output->write("  orientation rotation matrix\n");
+    output->write("    % 8.8f, % 8.8f, % 8.8f\n", orientation_matrix[0][0], orientation_matrix[0][1], orientation_matrix[0][2]);
+    output->write("    % 8.8f, % 8.8f, % 8.8f\n", orientation_matrix[1][0], orientation_matrix[1][1], orientation_matrix[1][2]);
+    output->write("    % 8.8f, % 8.8f, % 8.8f\n", orientation_matrix[2][0], orientation_matrix[2][1], orientation_matrix[2][2]);
+    output->write("\n");
+
+    Vec3 rotated_orientation_vector = orientation_matrix * orientation_cartesian_vector;
+
+    output->verbose("  rotated_orientation_vector\n");
+    output->verbose("    % 3.6f % 3.6f % 3.6f\n", rotated_orientation_vector[0], rotated_orientation_vector[1], rotated_orientation_vector[2]);
+
+    Vec3 orient_a = orientation_matrix * Vec3{super_cell.unit_cell[0][0], super_cell.unit_cell[1][0], super_cell.unit_cell[2][0]};
+    Vec3 orient_b = orientation_matrix * Vec3{super_cell.unit_cell[0][1], super_cell.unit_cell[1][1], super_cell.unit_cell[2][1]};
+    Vec3 orient_c = orientation_matrix * Vec3{super_cell.unit_cell[0][2], super_cell.unit_cell[1][2], super_cell.unit_cell[2][2]};
+
+    output->write("  oriented lattice vectors\n");
+    output->write("    a = (%f, %f, %f)\n", orient_a[0], orient_a[1], orient_a[2]);
+    output->write("    b = (%f, %f, %f)\n", orient_b[0], orient_b[1], orient_b[2]);
+    output->write("    c = (%f, %f, %f)\n", orient_c[0], orient_c[1], orient_c[2]);
+    output->write("\n");
+
+    super_cell.unit_cell = matrix_from_cols(orient_a, orient_b, orient_c);
+    super_cell.unit_cell_inv = inverse(super_cell.unit_cell);
+
+    output->write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
+
+    const double rotated_volume = std::abs(determinant(super_cell.unit_cell));
+    if (std::abs(rotated_volume - original_volume) > 1e-8) {
+      jams_error("Volume has changed after rotation of the unit cell");
+    }
+  }
+
+
+
+  if (lattice_settings.exists("global_rotation")) {
+    Mat3 global_rotation_matrix = kIdentityMat3;
+    for (i = 0; i < 3; ++i) {
+      for (j = 0; j < 3; ++j) {
+        global_rotation_matrix[i][j] = lattice_settings["global_rotation"][i][j];
+      }
+    }
+
+    Vec3 orient_a = global_rotation_matrix * Vec3{super_cell.unit_cell[0][0], super_cell.unit_cell[1][0], super_cell.unit_cell[2][0]};
+    Vec3 orient_b = global_rotation_matrix * Vec3{super_cell.unit_cell[0][1], super_cell.unit_cell[1][1], super_cell.unit_cell[2][1]};
+    Vec3 orient_c = global_rotation_matrix * Vec3{super_cell.unit_cell[0][2], super_cell.unit_cell[1][2], super_cell.unit_cell[2][2]};
+
+    output->write("  global rotated lattice vectors\n");
+    output->write("    a = (%f, %f, %f)\n", orient_a[0], orient_a[1], orient_a[2]);
+    output->write("    b = (%f, %f, %f)\n", orient_b[0], orient_b[1], orient_b[2]);
+    output->write("    c = (%f, %f, %f)\n", orient_c[0], orient_c[1], orient_c[2]);
+    output->write("\n");
+
+    super_cell.unit_cell = matrix_from_cols(orient_a, orient_b, orient_c);
+    super_cell.unit_cell_inv = inverse(super_cell.unit_cell);
+
+    output->write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
+
+    const double rotated_volume = std::abs(determinant(super_cell.unit_cell));
+    if (std::abs(rotated_volume - original_volume) > 1e-8) {
+      jams_error("Volume has changed after rotation of the unit cell");
+    }
+  }
 
 //-----------------------------------------------------------------------------
 // Read boundary conditions
@@ -483,22 +578,18 @@ void Lattice::init_lattice_positions(
 
   output->write("\n----------------------------------------\n");
   output->write("\ncomputed lattice positions (%d)\n", atom_counter);
-  if (::output->is_verbose()) {
-    for (int i = 0, iend = lattice_positions_.size(); i != iend; ++i) {
-      output->write("  %-6d %-6s % 3.6f % 3.6f % 3.6f %4d %4d %4d\n",
-        i, lattice_materials_[i].c_str(), lattice_positions_[i][0], lattice_positions_[i][1], lattice_positions_[i][2],
-        lattice_super_cell_pos_(i)[0], lattice_super_cell_pos_(i)[1], lattice_super_cell_pos_(i)[2]);
-    }
-  } else {
-    // avoid spamming the screen by default
-    for (int i = 0; i < 8; ++i) {
-    output->write("  %-6d %-6s %3.6f % 3.6f % 3.6f\n",
-      i, lattice_materials_[i].c_str(), lattice_positions_[i][0], lattice_positions_[i][1], lattice_positions_[i][2]);
-  }
-    if (lattice_positions_.size() > 0) {
+  for (auto i = 0; i < lattice_positions_.size(); ++i) {
+    output->write("  %-6d %-6s % 3.6f % 3.6f % 3.6f | % 3.6f % 3.6f % 3.6f | %4d %4d %4d\n",
+      i, lattice_materials_[i].c_str(), lattice_positions_[i][0], lattice_positions_[i][1], lattice_positions_[i][2],
+                  lattice_frac_positions_[i][0], lattice_frac_positions_[i][1], lattice_frac_positions_[i][2],
+      lattice_super_cell_pos_(i)[0], lattice_super_cell_pos_(i)[1], lattice_super_cell_pos_(i)[2]);
+
+    if(!::output->is_verbose() && i > 7) {
       output->write("  ... [use verbose output for details] ... \n");
+      break;
     }
   }
+
 
 //-----------------------------------------------------------------------------
 // initialize global arrays
