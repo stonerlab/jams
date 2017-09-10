@@ -7,13 +7,12 @@
 
 #include <array>
 #include <limits>
+#include "vec3.h"
 
 template <typename T, std::size_t M, std::size_t N>
-using Mat = std::array<std::array<T, N>, M>;
+using Mat = std::array<std::array<T, M>, N>;
 
 const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-
-#include "vec3.h"
 
 template <typename T>
 Mat<T,3,3> matrix_from_rows(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
