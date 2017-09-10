@@ -71,10 +71,6 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
   }
 
   init_lattice_positions(cfg.lookup("materials"), cfg.lookup("lattice"));
-
-  if (symops_enabled_) {
-    init_kspace();
-  }
 }
 
 
@@ -493,13 +489,13 @@ void Lattice::init_lattice_positions(
 
   lattice_map_.resize(super_cell.size[0], super_cell.size[1], super_cell.size[2], motif_.size());
 
-  Vec3i kmesh_size = {kpoints_[0]*super_cell.size[0], kpoints_[1]*super_cell.size[1], kpoints_[2]*super_cell.size[2]};
+  Vec3i kmesh_size = {super_cell.size[0], super_cell.size[1], super_cell.size[2]};
   if (!super_cell.periodic[0] || !super_cell.periodic[1] || !super_cell.periodic[2]) {
     output->write("\nzero padding non-periodic dimensions\n");
      // double any non-periodic dimensions for zero padding
     for (int i = 0; i < 3; ++i) {
       if (!super_cell.periodic[i]) {
-        kmesh_size[i] = 2*kpoints_[i]*super_cell.size[i];
+        kmesh_size[i] = 2*super_cell.size[i];
       }
     }
     output->write("\npadded kspace size\n  %d  %d  %d\n", kmesh_size[0], kmesh_size[1], kmesh_size[2]);
@@ -683,160 +679,6 @@ void Lattice::init_lattice_positions(
     globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
   }
 }
-
-void Lattice::init_kspace() {
-
-  if (!symops_enabled_) {
-    throw general_exception("Lattice::init_kspace() was called with symops disabled ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
-  int i, j;
-  output->write("\n----------------------------------------\n");
-  output->write("\nreciprocal space\n");
-
-  for (i = 0; i < 3; ++i) {
-    kspace_size_[i] = super_cell.size[i];
-  }
-
-  output->write("  kspace size\n    %4d %4d %4d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
-
-  kspace_map_.resize(kspace_size_[0], kspace_size_[1], kspace_size_[2]);
-
-  double spg_lattice[3][3];
-  for (i = 0; i < 3; ++i) {
-    for (j = 0; j < 3; ++j) {
-      spg_lattice[i][j] = super_cell.unit_cell[i][j];
-    }
-  }
-
-  double (*spg_positions)[3] = new double[motif_.size()][3];
-
-  for (i = 0; i < motif_.size(); ++i) {
-    for (j = 0; j < 3; ++j) {
-      spg_positions[i][j] = motif_[i].pos[j];
-    }
-  }
-
-  int (*spg_types) = new int[motif_.size()];
-
-  for (i = 0; i < motif_.size(); ++i) {
-    spg_types[i] = motif_[i].material;
-  }
-
-
-  int num_mesh_points = kspace_size_[0]*kspace_size_[1]*kspace_size_[2];
-  int (*grid_address)[3] = new int[num_mesh_points][3];
-  int (*weights) = new int[num_mesh_points];
-
-  int mesh[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
-  int is_shift[] = {0, 0, 0};
-
-  int num_ibz_points = spg_get_ir_reciprocal_mesh(grid_address,
-                              kspace_map_.data(),
-                              mesh,
-                              is_shift,
-                              1,
-                              spg_lattice,
-                              spg_positions,
-                              spg_types,
-                              motif_.size(),
-                              1e-5);
-
-  output->write("  irreducible kpoints\n    %d\n", num_ibz_points);
-
-  jblib::Array<int,1> ibz_group;
-  jblib::Array<int,1> ibz_index;
-  jblib::Array<int,1> ibz_weight;
-
-  // ibz_group maps from an ibz index to the grid index
-  ibz_group.resize(num_ibz_points);
-
-  // ibz_weight is the degeneracy of a point in the ibz
-  ibz_weight.resize(num_ibz_points);
-
-  // ibz_indez is the ibz_index from a grid index
-  ibz_index.resize(num_mesh_points);
-
-  // zero the weights array
-  for (i = 0; i < num_mesh_points; ++i) {
-      weights[i] = 0;
-  }
-
-  // calculate the weights
-  for (i = 0; i < num_mesh_points; ++i) {
-      weights[kspace_map_[i]]++;
-  }
-
-  // if weights[i] == 0 then it is not part of the irreducible group
-  // so calculate the irreducible group of kpoints
-  int counter = 0;
-  for (i = 0; i < num_mesh_points; ++i) {
-      if (weights[i] != 0) {
-          ibz_group[counter] = i;
-          ibz_weight[counter] = weights[i];
-          ibz_index[i] = counter;
-          counter++;
-      } else {
-          ibz_index[i] = ibz_index[kspace_map_[i]];
-      }
-  }
-
-  if (is_debugging_enabled_) {
-    std::ofstream ibz_file("debug_ibz.dat");
-    for (int i = 0; i < num_mesh_points; ++i) {
-      if (weights[i] != 0) {
-        ibz_file << i << "\t" << grid_address[i][0] << "\t" << grid_address[i][1] << "\t" << grid_address[i][2] << std::endl;
-      }
-    }
-    ibz_file.close();
-  }
-
-  if (is_debugging_enabled_) {
-    std::ofstream kspace_file("kspace.dat");
-    for (int i = 0; i < num_mesh_points; ++i) {
-      // if (weights[i] != 0) {
-        kspace_file << i << "\t" << grid_address[i][0] << "\t" << grid_address[i][1] << "\t" << grid_address[i][2] << std::endl;
-      // }
-    }
-    kspace_file.close();
-  }
-
-  // find offset coordinates for unitcell
-
-  double unitcell_offset[3] = {0.0, 0.0, 0.0};
-  for (i = 0; i < motif_.size(); ++i) {
-    for (j = 0; j < 3; ++j) {
-      if (motif_[i].pos[j] < unitcell_offset[j]){
-        unitcell_offset[j] = motif_[i].pos[j];
-      }
-    }
-  }
-
-  output->write("  unitcell offset (fractional)\n  % 6.6f % 6.6f % 6.6f",
-    unitcell_offset[0], unitcell_offset[1], unitcell_offset[2]);
-
-  kspace_inv_map_.resize(globals::num_spins, 3);
-
-  for (i = 0; i < lattice_frac_positions_.size(); ++i) {
-    Vec3 kvec;
-    for (j = 0; j < 3; ++j) {
-      kvec[j] = ((lattice_frac_positions_[i][j] - unitcell_offset[j])*kpoints_[j]);
-    }
-    // ::output->verbose("  kvec: % 3.6f % 3.6f % 3.6f\n", kvec[0], kvec[1], kvec[2]);
-
-    // check that the motif*kpoints is comsurate (within a tolerance) to the integer kspace_lattice
-    //if (fabs(nint(kvec[0])-kvec[0]) > 0.01 || fabs(nint(kvec[1])-kvec[1]) > 0.01 || fabs(nint(kvec[2])-kvec[2]) > 0.01) {
-    //  jams_error("kpoint mesh does not map to the unit cell");
-    //}
-    // if (kspace_map_(nint(kvec[0]), nint(kvec[1]), nint(kvec[2])) != -1) {
-    //   jams_error("attempted to assign multiple spins to the same point in the kspace map");
-    // }
-    for (j = 0; j < 3; ++j) {
-      kspace_inv_map_(i, j) = nint(kvec[j]);
-    }
-  }
-}
-
 
 void Lattice::load_spin_state_from_hdf5(std::string &filename) {
   using namespace H5;
@@ -1114,9 +956,10 @@ bool Lattice::apply_boundary_conditions(Vec4i& pos) const {
 double Lattice::maximum_interaction_radius() const {
   double max_radius = std::numeric_limits<double>::max();
   for (int n = 0; n < 3; ++n) {
-    auto L = unit_cell_vector(n) * double(num_unit_cells(n));
-    std::cout << L << std::endl;
-    max_radius = std::min(max_radius, abs(L)/2.0);
+    if (is_periodic(n)) {
+      auto L = unit_cell_vector(n) * double(num_unit_cells(n));
+      max_radius = std::min(max_radius, abs(L) / 2.0);
+    }
   }
   return max_radius;
 }
