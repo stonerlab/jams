@@ -23,22 +23,18 @@ EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
   outfile.open(name.c_str());
 
   outfile << "time\t";
-  for (auto it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
-    outfile << (*it)->name() << "\t";
+  for (auto &hh : solver->hamiltonians()) {
+    outfile << hh->name() << "\t";
   }
   outfile << std::endl;
 }
 
 void EnergyMonitor::update(Solver * solver) {
-  using namespace globals;
-
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";
   outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
-  if (solver->iteration()%output_step_freq_ == 0) {
-    for (auto it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
-      outfile << std::setw(21) << std::scientific << std::setprecision(15) << kBohrMagneton * (*it)->calculate_total_energy() / static_cast<double>(num_spins) << "\t";
-    }
+  for (auto &hh : solver->hamiltonians()) {
+    outfile << std::setw(21) << std::scientific << std::setprecision(15) << kBohrMagneton * hh->calculate_total_energy() / static_cast<double>(globals::num_spins) << "\t";
   }
 
   outfile << std::endl;
