@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <jams/core/maths.h>
 
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
@@ -51,12 +52,20 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
   fft_s_rspace_to_kspace(nullptr),
   fft_h_kspace_to_rspace(nullptr)
 {
-    r_cutoff_ = double(settings["r_cutoff"]);
-    output->write("  r_cutoff: %e\n", r_cutoff_);
+  settings.lookupValue("debug", debug_);
+  settings.lookupValue("check_radius", check_radius_);
+  settings.lookupValue("check_symmetry", check_symmetry_);
 
-    if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
+    r_cutoff_ = double(settings["r_cutoff"]);
+    output->write("  r_cutoff:     %8.8f\n", r_cutoff_);
+
+    if (check_radius_) {
+      output->write("  r_cutoff_max: %8.8f\n", ::lattice->maximum_interaction_radius());
+
+      if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
         throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
-        "The cutoff must be less than half of the shortest supercell lattice vector.");
+                                         "The cutoff must be less than half of the shortest supercell lattice vector.");
+      }
     }
 
     settings.lookupValue("distance_tolerance", distance_tolerance_);
@@ -82,6 +91,16 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     output->write("    kspace size: %d %d %d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
     output->write("    kspace padded size: %d %d %d\n", kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]);
 
+    output->write("    generating tensors\n");
+
+  kspace_tensors_.resize(lattice->num_unit_cell_positions());
+
+    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
+      for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
+        kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j));
+      }
+    }
+
     output->write("    planning FFTs\n");
 
     int rank            = 3;           
@@ -90,7 +109,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     int num_transforms  = 3;
     int transform_size[3]  = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
-    int * nembed = NULL;
+    int * nembed = nullptr;
 
     fft_s_rspace_to_kspace
         = fftw_plan_many_dft_r2c(
@@ -105,7 +124,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
             nembed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset 
             dist,                    // memory distance between fft datasets
-            FFTW_PATIENT);
+            FFTW_PATIENT | FFTW_PRESERVE_INPUT);
 
     fft_h_kspace_to_rspace
         = fftw_plan_many_dft_c2r(
@@ -120,15 +139,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
             nembed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset
             dist,                    // memory distance between fft datasets
-            FFTW_PATIENT);
-
-    kspace_tensors_.resize(lattice->num_unit_cell_positions());
-
-    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
-        for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
-            kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j));
-        }
-    }
+            FFTW_PATIENT | FFTW_PRESERVE_INPUT);
 }
 
 //---------------------------------------------------------------------
@@ -165,13 +176,11 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy(const int i) {
 double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
     const int i, const Vec3 &spin_initial, const Vec3 &spin_final)
 {
-    Vec3i pos;
-
     double h[3] = {0, 0, 0};
 
     calculate_fields(h_);
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->super_cell_pos(i);
+        Vec3i pos = ::lattice->super_cell_pos(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
 
@@ -191,15 +200,13 @@ void DipoleHamiltonianFFT::calculate_energies(jblib::Array<double, 1>& energies)
 //---------------------------------------------------------------------
 
 void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
-    Vec3i pos;
-
     for (int m = 0; m < 3; ++m) {
         h[m] = 0.0;
     }
 
     calculate_fields(h_);
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->super_cell_pos(i);
+        Vec3i pos = ::lattice->super_cell_pos(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
 }
@@ -255,7 +262,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
 
                 const auto r_abs_sq = abs_sq(r_ij);
 
-                if (r_abs_sq > pow(r_cutoff_ + distance_tolerance_, 2)) {
+                if (r_abs_sq > pow2(r_cutoff_ + distance_tolerance_)) {
                     // outside of cutoff radius
                     continue;
                 }
@@ -265,24 +272,34 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
                 for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
                         rspace_tensor(nx, ny, nz, m, n)
-                            = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
+                            = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow5(sqrt(r_abs_sq));
                     }
                 }
             }
         }
     }
 
-    if(lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
-      throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
-                               "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
-                               "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+    if (debug_) {
+      std::string filename = "debug_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv";
+      std::ofstream debugfile(filename);
+
+      for (const auto& r : positions) {
+        debugfile << r << "\n";
+      }
     }
 
+  if (check_symmetry_) {
+    if (lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
+      throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
+                                       "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
+                                       "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+    }
+  }
     int rank            = 3;
     int stride          = 9;
     int dist            = 1;
     int num_transforms  = 9;
-    int * nembed        = NULL;
+    int * nembed        = nullptr;
     int transform_size[3]  = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
     fftw_plan fft_dipole_tensor_rspace_to_kspace
