@@ -24,6 +24,22 @@ inline constexpr T pow2(const T&x) {
   return x * x;
 }
 
+template <typename T>
+inline constexpr T pow3(const T&x) {
+  return x * x * x;
+}
+
+template <typename T>
+inline constexpr T pow4(const T&x) {
+  return x * x * x * x;
+}
+
+template <typename T>
+inline constexpr T pow5(const T&x) {
+  return x * x * x * x * x;
+}
+
+
 inline int nint(const double &x) {
   return floor(x+0.5);
 }
