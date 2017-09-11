@@ -170,8 +170,6 @@ int jams_initialize(int argc, char **argv) {
       jams_error("CUDA api exception\n '%s'", cex.what());
     }
 #endif
-    catch (std::exception& e) {
-    }
     catch(...) {
       jams_error("Caught an unknown exception");
     }
