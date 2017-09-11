@@ -56,6 +56,14 @@ namespace {
       }
       return true;
     }
+
+    double rhombus_inradius(const Vec3& v1, const Vec3& v2) {
+      return abs(cross(v1, v2)) / (2.0 * abs(v2));
+    }
+
+    double rhombohedron_inradius(const Vec3& v1, const Vec3& v2, const Vec3& v3) {
+      return std::min(rhombus_inradius(v1, v2), std::min(rhombus_inradius(v3, v1), rhombus_inradius(v2, v3)));
+    }
 }
 
 void Lattice::init_from_config(const libconfig::Config& cfg) {
@@ -112,6 +120,10 @@ void read_material_settings(Setting& cfg, Material &mat) {
     } else {
       throw general_exception("material spin array is not of a recognised size (2 or 3)", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
+  }
+
+  if (!equal(abs(mat.spin), 1.0)) {
+    throw general_exception("material spin is not of unit length", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
 }
@@ -954,14 +966,14 @@ bool Lattice::apply_boundary_conditions(Vec4i& pos) const {
 }
 
 double Lattice::maximum_interaction_radius() const {
-  double max_radius = std::numeric_limits<double>::max();
-  for (int n = 0; n < 3; ++n) {
-    if (is_periodic(n)) {
-      auto L = unit_cell_vector(n) * double(num_unit_cells(n));
-      max_radius = std::min(max_radius, abs(L) / 2.0);
-    }
+  if (is_bulk_system()) {
+    return rhombohedron_inradius(
+            unit_cell_vector(0) * double(num_unit_cells(0)),
+            unit_cell_vector(1) * double(num_unit_cells(1)),
+            unit_cell_vector(2) * double(num_unit_cells(2))
+    ) - 1;
   }
-  return max_radius;
+
 }
 
 std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3& r_cart, const double tolerance = 1e-6) const {
