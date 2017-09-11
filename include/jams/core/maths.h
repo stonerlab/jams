@@ -116,7 +116,7 @@ inline bool same_sign(const _Tp1 x, const _Tp2 y) {
   return (x >= 0) ^ (y < 0);
 }
 
-inline bool floats_are_equal(const double x, const double y, const double tolerance = 1e-8) {
+inline bool equal(const double x, const double y, const double tolerance = 1e-8) {
   using std::abs;
   return same_sign(x, y) && (abs(x - y) < tolerance);
 }

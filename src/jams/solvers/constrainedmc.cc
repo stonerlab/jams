@@ -96,7 +96,7 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output->write("      % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
 
   // do some basic checks
-  if (floats_are_equal(move_fraction_reflection_, 1.0)) {
+  if (equal(move_fraction_reflection_, 1.0)) {
     jams_warning("Only reflection moves have been configured. This breaks ergodicity.");
   }
 
@@ -109,7 +109,7 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
   ::output->verbose("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec[0], test_forward_vec[1], test_forward_vec[2], test_back_vec[0], test_back_vec[1], test_back_vec[2]);
 
   for (int n = 0; n < 3; ++n) {
-    if (!floats_are_equal(test_unit_vec[n], test_back_vec[n])) {
+    if (!equal(test_unit_vec[n], test_back_vec[n])) {
       throw std::runtime_error("ConstrainedMCSolver :: rotation sanity check failed");
     }
   }
@@ -288,13 +288,13 @@ Vec3 ConstrainedMCSolver::total_transformed_magnetization() const {
 void ConstrainedMCSolver::validate_constraint() const {
     Vec3 m_total = total_transformed_magnetization();
 
-   if (!floats_are_equal(rad_to_deg(azimuthal_angle(m_total)), constraint_theta_)) {
+   if (!equal(rad_to_deg(azimuthal_angle(m_total)), constraint_theta_)) {
      std::stringstream ss;
      ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint violated (" << rad_to_deg(azimuthal_angle(m_total)) << " deg)";
      throw std::runtime_error(ss.str());
    }
 
-   if (!floats_are_equal(rad_to_deg(polar_angle(m_total)), constraint_phi_)) {
+   if (!equal(rad_to_deg(polar_angle(m_total)), constraint_phi_)) {
      std::stringstream ss;
      ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint violated (" << rad_to_deg(polar_angle(m_total)) << " deg)";
    }
