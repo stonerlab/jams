@@ -58,13 +58,12 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 
     r_cutoff_ = double(settings["r_cutoff"]);
     output->write("  r_cutoff:     %8.8f\n", r_cutoff_);
+    output->write("  r_cutoff_max: %8.8f\n", ::lattice->maximum_interaction_radius());
 
     if (check_radius_) {
-      output->write("  r_cutoff_max: %8.8f\n", ::lattice->maximum_interaction_radius());
-
       if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
         throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
-                                         "The cutoff must be less than half of the shortest supercell lattice vector.");
+                                         "The cutoff must be less than the inradius of the lattice.");
       }
     }
 

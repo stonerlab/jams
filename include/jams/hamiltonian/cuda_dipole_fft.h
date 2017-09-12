@@ -33,6 +33,9 @@ class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
         void   calculate_fields(jblib::Array<double, 2>& fields);
         void   calculate_fields(jblib::CudaArray<double, 1>& fields);
     private:
+        bool debug_ = false;
+        bool check_radius_   = true;
+        bool check_symmetry_ = true;
 
         jblib::Array<fftw_complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
         std::array<CudaStream, 4> dev_stream_;

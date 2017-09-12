@@ -71,13 +71,19 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   cuda_fft_s_rspace_to_kspace(),
   cuda_fft_h_kspace_to_rspace()
 {
+  settings.lookupValue("debug", debug_);
+  settings.lookupValue("check_radius", check_radius_);
+  settings.lookupValue("check_symmetry", check_symmetry_);
 
   r_cutoff_ = double(settings["r_cutoff"]);
-  output->write("  r_cutoff: %e\n", r_cutoff_);
+  output->write("  r_cutoff:     %8.8f\n", r_cutoff_);
+  output->write("  r_cutoff_max: %8.8f\n", ::lattice->maximum_interaction_radius());
 
-  if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
-    throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
-                                     "The cutoff must be less than half of the shortest supercell lattice vector.");
+  if (check_radius_) {
+    if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
+      throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
+                                       "The cutoff must be less than the inradius of the lattice.");
+    }
   }
 
   settings.lookupValue("distance_tolerance", distance_tolerance_);
@@ -295,18 +301,28 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
             }
         }
     }
+  
+    if (debug_) {
+      std::string filename = "debug_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv";
+      std::ofstream debugfile(filename);
 
-    if(lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
-      throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
-                               "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
-                               "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+      for (const auto& r : positions) {
+        debugfile << r << "\n";
+      }
     }
 
+    if (check_symmetry_) {
+      if (lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
+        throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
+                                         "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
+                                         "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+      }
+    }
     int rank            = 3;
     int stride          = 9;
     int dist            = 1;
     int num_transforms  = 9;
-    int * nembed        = NULL;
+    int * nembed        = nullptr;
     int transform_size[3]  = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
     fftw_plan fft_dipole_tensor_rspace_to_kspace
