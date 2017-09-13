@@ -80,20 +80,15 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   for (int n = 0, nend = cfg_nodes.getLength(); n < nend; ++n) {
 
     // transform into reciprocal lattice vectors
-    bz_cfg_points.push_back(
-      {double(cfg_nodes[n][0]),
-       double(cfg_nodes[n][1]),
-       double(cfg_nodes[n][2])});
-
-    Vec3 bz_vec;
+    Vec3 bz_vec = {double(cfg_nodes[n][0]),
+                   double(cfg_nodes[n][1]),
+                   double(cfg_nodes[n][2])};
 
     for (int i = 0; i < 3; ++i) {
-      bz_vec = bz_vec + ::lattice->inv_unit_cell_vector(i) * bz_cfg_points.back()[i];
+      bz_vec[i] = bz_vec[i] * ::lattice->kspace_size()[i];
     }
 
-    for (int i = 0; i < 3; ++i) {
-      bz_vec[i] = bz_vec[i] * (::lattice->kspace_size()[i]/2);
-    }
+    ::output->verbose("  bz node: int[ %4d %4d %4d ] float[ %6.6f %6.6f %6.6f ]\n", int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2]), bz_vec[0], bz_vec[1], bz_vec[2]);
 
     bz_nodes.push_back({int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2])});
   }
@@ -105,10 +100,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
-      if (int(bz_nodes[n][i]) > (::lattice->kspace_size()[i]/2)) {
+      if (int(bz_nodes[n][i]) > ::lattice->kspace_size()[i]) {
         jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n][0]), int(bz_nodes[n][1]), int(bz_nodes[n][2]));
       }
-      if (int(bz_nodes[n+1][i]) > (::lattice->kspace_size()[i]/2)) {
+      if (int(bz_nodes[n+1][i]) > ::lattice->kspace_size()[i]) {
         jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n+1][0]), int(bz_nodes[n+1][1]), int(bz_nodes[n+1][2]));
       }
     }
