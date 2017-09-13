@@ -18,57 +18,57 @@ inline Vec<T,3> operator-(const Vec<T,3>& rhs) {
 }
 
 template <typename T>
-inline Vec<T,3> operator*(const T& lhs, const Vec<T,3>& rhs) {
+inline auto operator*(const T& lhs, const Vec<T,3>& rhs) -> Vec<decltype(lhs * rhs[0]), 3> {
   return {lhs * rhs[0], lhs * rhs[1], lhs * rhs[2]};
 }
 
 template <typename T>
-inline Vec<T,3> operator*(const Vec<T,3>& lhs, const T& rhs) {
-  return {rhs * lhs[0], rhs * lhs[1], rhs * lhs[2]};
+inline auto operator*(const Vec<T,3>& lhs, const T& rhs) -> Vec<decltype(lhs[0] * rhs), 3> {
+  return {lhs[0] * rhs, lhs[1] * rhs, lhs[2] * rhs};
 }
 
 template <typename T>
-inline Vec<T,3> operator/(const Vec<T,3>& lhs, const T& rhs) {
+inline auto operator/(const Vec<T,3>& lhs, const T& rhs) -> Vec<decltype(lhs[0] / rhs), 3> {
   return {lhs[0] / rhs, lhs[1] / rhs, lhs[2] / rhs};
 }
 
 template <typename T>
-inline Vec<T,3> operator+(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
+inline auto operator+(const Vec<T,3>& lhs, const Vec<T,3>& rhs) -> Vec<decltype(lhs[0] + rhs[0]), 3> {
   return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
 }
 
 template <typename T>
-inline Vec<T,3> operator-(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
+inline auto operator-(const Vec<T,3>& lhs, const Vec<T,3>& rhs) -> Vec<decltype(lhs[0] - rhs[0]), 3> {
   return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
 }
 
 template <typename T>
-inline Vec<T,3> operator+=(Vec<T,3>& lhs, const T& rhs) {
+inline auto operator+=(Vec<T,3>& lhs, const T& rhs) -> Vec<decltype(lhs[0] + rhs), 3> {
   return {lhs[0] += rhs, lhs[1] += rhs, lhs[2] += rhs};
 }
 
 template <typename T>
-inline Vec<T,3> operator+=(Vec<T,3>& lhs, const Vec<T,3>& rhs) {
+inline auto operator+=(Vec<T,3>& lhs, const Vec<T,3>& rhs) -> Vec<decltype(lhs[0] + rhs[0]), 3> {
   return {lhs[0] += rhs[0], lhs[1] += rhs[1], lhs[2] += rhs[2]};
 }
 
 template <typename T>
-inline Vec<T,3> operator-=(Vec<T,3>& lhs, const T& rhs) {
+inline auto operator-=(Vec<T,3>& lhs, const T& rhs) -> Vec<decltype(lhs[0] - rhs), 3> {
   return {lhs[0] -= rhs, lhs[1] -= rhs, lhs[2] -= rhs};
 }
 
 template <typename T>
-inline Vec<T,3> operator-=(Vec<T,3>& lhs, const Vec<T,3>& rhs) {
+inline auto operator-=(Vec<T,3>& lhs, const Vec<T,3>& rhs) -> Vec<decltype(lhs[0] - rhs[0]), 3> {
   return {lhs[0] -= rhs[0], lhs[1] -= rhs[1], lhs[2] -= rhs[2]};
 }
 
 template <typename T>
-inline Vec<T,3> operator*=(Vec<T,3>& lhs, const T& rhs) {
+inline auto operator*=(Vec<T,3>& lhs, const T& rhs) -> Vec<decltype(lhs[0] * rhs), 3> {
   return {lhs[0] *= rhs, lhs[1] *= rhs, lhs[2] *= rhs};
 }
 
 template <typename T>
-inline Vec<T,3> operator/=(Vec<T,3>& lhs, const T& rhs) {
+inline auto operator/=(Vec<T,3>& lhs, const T& rhs) -> Vec<decltype(lhs[0] / rhs), 3> {
   return {lhs[0] /= rhs, lhs[1] /= rhs, lhs[2] /= rhs};
 }
 
@@ -98,15 +98,20 @@ inline bool operator!=(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
 }
 
 template <typename T>
-inline T dot(const Vec<T,3>& a, const Vec<T,3>& b) {
+inline auto dot(const Vec<T,3>& a, const Vec<T,3>& b) -> decltype(a[0] * b[0]) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 template <typename T>
-inline Vec<T,3> cross(const Vec<T,3>& a, const Vec<T,3>& b) {
+inline auto cross(const Vec<T,3>& a, const Vec<T,3>& b) -> Vec<decltype(a[0] * b[0]), 3> {
   return {a[1]*b[2] - a[2]*b[1],
           a[2]*b[0] - a[0]*b[2],
           a[0]*b[1] - a[1]*b[0]};
+}
+
+template <typename T1, typename T2>
+inline auto scale(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[0] * b[0]), 3> {
+  return {a[0] * b[0], a[1] * b[1], a[2] * b[2]};
 }
 
 template <typename T>
@@ -125,11 +130,6 @@ inline Vec<T,3> normalize(const Vec<T,3>& a) {
 }
 
 template <typename T>
-inline Vec<T,3> scale(const Vec<T,3>& a, const Vec<T,3>& b) {
-  return {a[0] * b[0], a[1] * b[1], a[2] * b[2]};
-}
-
-template <typename T>
 inline T sum(const Vec<T,3>& a) {
   return a[0] + a[1] + a[2];
 }
@@ -142,6 +142,15 @@ inline T product(const Vec<T,3>& a) {
 template <typename T>
 inline Vec<T,3> trunc(const Vec<T,3>& a) {
   return {std::trunc(a[0]), std::trunc(a[1]), std::trunc(a[2])};
+}
+
+template <typename T>
+inline Vec<double,3> to_double(const Vec<T,3>& a) {
+  return {
+    static_cast<double>(std::trunc(a[0])),
+    static_cast<double>(std::trunc(a[1])),
+    static_cast<double>(std::trunc(a[2]))
+  };
 }
 
 template <typename T>
