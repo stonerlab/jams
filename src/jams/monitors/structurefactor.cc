@@ -84,8 +84,6 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
                    double(cfg_nodes[n][1]),
                    double(cfg_nodes[n][2])};
 
-    bz_cfg_points.push_back(bz_vec);
-
     for (int i = 0; i < 3; ++i) {
       bz_vec[i] = bz_vec[i] * ::lattice->kspace_size()[i];
     }
