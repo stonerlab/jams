@@ -22,6 +22,11 @@ extern "C"{
 #include "jams/core/neartree.h"
 #include "jblib/containers/array.h"
 
+namespace jams {
+    Mat3 unit_cell_matrix(const Vec3& a1, const Vec3& a2,  const Vec3& a3);
+    Mat3 inverse_unit_cell_matrix(const Mat3& unit_cell_matrix);
+}
+
 class DistanceMetric {
 
 public:
@@ -34,7 +39,7 @@ public:
         }
     }
 
-    super_unit_cell_inv_ = inverse(super_unit_cell_);
+    super_unit_cell_inv_ = jams::inverse_unit_cell_matrix(super_unit_cell_);
   }
 
   inline Vec3 minimum_image(const Vec3& r_i, const Vec3& r_j) const {

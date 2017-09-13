@@ -66,6 +66,15 @@ namespace {
     }
 }
 
+namespace jams {
+    Mat3 unit_cell_matrix(const Vec3& a1, const Vec3& a2,  const Vec3& a3) {
+      return {a1[0], a2[0], a3[0], a1[1], a2[1], a3[1], a1[2], a2[2], a3[2]};
+    }
+    Mat3 inverse_unit_cell_matrix(const Mat3& unit_cell_matrix) {
+      return transpose(inverse(unit_cell_matrix));
+    }
+}
+
 void Lattice::init_from_config(const libconfig::Config& cfg) {
 
   symops_enabled_ = true;
@@ -292,7 +301,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
       super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
   }
 
-  super_cell.unit_cell_inv = inverse(super_cell.unit_cell);
+  super_cell.unit_cell_inv = jams::inverse_unit_cell_matrix(super_cell.unit_cell);
 
   output->write("  inverse lattice vectors (matrix form)\n");
   for (i = 0; i < 3; ++i) {
@@ -374,7 +383,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     output->write("\n");
 
     super_cell.unit_cell = matrix_from_cols(orient_a, orient_b, orient_c);
-    super_cell.unit_cell_inv = inverse(super_cell.unit_cell);
+    super_cell.unit_cell_inv = jams::inverse_unit_cell_matrix(super_cell.unit_cell);
 
     output->write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
 
@@ -404,8 +413,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     output->write("    c = (%f, %f, %f)\n", orient_c[0], orient_c[1], orient_c[2]);
     output->write("\n");
 
-    super_cell.unit_cell = matrix_from_cols(orient_a, orient_b, orient_c);
-    super_cell.unit_cell_inv = inverse(super_cell.unit_cell);
+    super_cell.unit_cell = jams::unit_cell_matrix(orient_a, orient_b, orient_c);
+    super_cell.unit_cell_inv = jams::inverse_unit_cell_matrix(super_cell.unit_cell);
 
     output->write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
 
