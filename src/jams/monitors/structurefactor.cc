@@ -80,17 +80,17 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   for (int n = 0, nend = cfg_nodes.getLength(); n < nend; ++n) {
 
     // transform into reciprocal lattice vectors
-    bz_cfg_points.push_back(
-      {double(cfg_nodes[n][0]),
-       double(cfg_nodes[n][1]),
-       double(cfg_nodes[n][2])});
+    Vec3 bz_vec = {double(cfg_nodes[n][0]),
+                   double(cfg_nodes[n][1]),
+                   double(cfg_nodes[n][2])};
 
-    Vec3 bz_vec;
+    bz_cfg_points.push_back(bz_vec);
 
     for (int i = 0; i < 3; ++i) {
-      bz_vec = bz_vec + ::lattice->inv_unit_cell_vector(i) * bz_cfg_points.back()[i];
+      bz_vec[i] = bz_vec[i] * ::lattice->kspace_size()[i];
     }
 
+    ::output->verbose("  bz node: int[ %4d %4d %4d ] float[ %6.6f %6.6f %6.6f ]\n", int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2]), bz_vec[0], bz_vec[1], bz_vec[2]);
 
     bz_nodes.push_back({int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2])});
   }
