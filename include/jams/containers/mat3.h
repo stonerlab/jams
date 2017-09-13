@@ -68,7 +68,7 @@ Mat<T,3,3> transpose(const Mat<T,3,3>& a) {
 
 
 template <typename T>
-inline Vec<T,3> operator*(const Mat<T,3,3>& lhs, const Vec<T,3>& rhs) {
+inline auto operator*(const Mat<T,3,3>& lhs, const Vec<T,3>& rhs) ->Vec<decltype(lhs[0][0] * rhs[0]),3> {
   return {
           lhs[0][0] * rhs[0] + lhs[0][1] * rhs[1] + lhs[0][2] * rhs[2],
           lhs[1][0] * rhs[0] + lhs[1][1] * rhs[1] + lhs[1][2] * rhs[2],
@@ -77,7 +77,7 @@ inline Vec<T,3> operator*(const Mat<T,3,3>& lhs, const Vec<T,3>& rhs) {
 }
 
 template <typename T>
-inline Mat<T,3,3> operator*(const T& lhs, const Mat<T,3,3>& rhs) {
+inline auto operator*(const T& lhs, const Mat<T,3,3>& rhs) ->Mat<decltype(lhs * rhs[0][0]),3,3> {
   return { lhs * rhs[0][0], lhs * rhs[0][1], lhs * rhs[0][2],
            lhs * rhs[1][0], lhs * rhs[1][1], lhs * rhs[1][2],
            lhs * rhs[2][0], lhs * rhs[2][1], lhs * rhs[2][2]
@@ -85,11 +85,32 @@ inline Mat<T,3,3> operator*(const T& lhs, const Mat<T,3,3>& rhs) {
 }
 
 template <typename T>
-inline Mat<T,3,3> operator/(const Mat<T,3,3>& lhs, const T& rhs) {
+inline auto operator/(const Mat<T,3,3>& lhs, const T& rhs) ->Mat<decltype(lhs[0][0] / rhs),3,3> {
   return {lhs[0][0] / rhs, lhs[0][1] / rhs, lhs[0][2] / rhs,
           lhs[1][0] / rhs, lhs[1][1] / rhs, lhs[1][2] / rhs,
           lhs[2][0] / rhs, lhs[2][1] / rhs, lhs[2][2] / rhs
   };
+}
+
+template <typename T>
+inline auto operator+(const Mat<T,3,3>& lhs, const Mat<T,3,3>& rhs) ->Mat<decltype(lhs[0][0] + rhs[0][0]),3,3> {
+  return {lhs[0][0] + rhs[0][0], lhs[0][1] + rhs[0][1], lhs[0][2] + rhs[0][2],
+          lhs[1][0] + rhs[1][0], lhs[1][1] + rhs[1][1], lhs[1][2] + rhs[1][2],
+          lhs[2][0] + rhs[2][0], lhs[2][1] + rhs[2][1], lhs[2][2] + rhs[2][2]};
+};
+
+template <typename T>
+inline auto operator-(const Mat<T,3,3>& lhs, const Mat<T,3,3>& rhs) ->Mat<decltype(lhs[0][0] - rhs[0][0]),3,3> {
+  return {lhs[0][0] - rhs[0][0], lhs[0][1] - rhs[0][1], lhs[0][2] - rhs[0][2],
+          lhs[1][0] - rhs[1][0], lhs[1][1] - rhs[1][1], lhs[1][2] - rhs[1][2],
+          lhs[2][0] - rhs[2][0], lhs[2][1] - rhs[2][1], lhs[2][2] - rhs[2][2]};
+};
+
+template <typename T>
+inline Mat<T,3,3> operator-(const Mat<T,3,3>& a) {
+  return { -a[0][0], -a[0][1], -a[0][2],
+           -a[1][0], -a[1][1], -a[1][2],
+           -a[2][0], -a[2][1], -a[2][2] };
 }
 
 template <typename T>
