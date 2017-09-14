@@ -14,6 +14,8 @@
 
 #include <libconfig.h++>
 
+#include "jams/core/jams++.h"
+#include "jams/core/load.h"
 #include "jams/core/output.h"
 #include "jams/core/rand.h"
 #include "jams/core/types.h"
@@ -148,6 +150,10 @@ int jams_initialize(int argc, char **argv) {
         }
       }
 
+      if(::config->exists("initializer")) {
+        jams_global_initializer(::config->lookup("initializer"));
+      }
+
     }
     catch(const libconfig::FileIOException &fioex) {
       jams_error("I/O error while reading '%s'", config_filename.c_str());
@@ -234,4 +240,30 @@ void jams_warning(const char *string, ...) {
   output->write("\n********************************************************************************\n\n");
   output->write("WARNING: %s\n\n", buffer);
   output->write("********************************************************************************\n\n");
+}
+
+void jams_global_initializer(const libconfig::Setting &settings) {
+  if (settings.exists("spins")) {
+    std::string file_name = settings["spins"];
+    ::output->write("\nReading spin data from file: %s\n", file_name.c_str());
+    load_array_from_file(file_name, "/spins", globals::s);
+  }
+
+  if (settings.exists("alpha")) {
+    std::string file_name = settings["alpha"];
+    ::output->write("\nReading alpha data from file: %s\n", file_name.c_str());
+    load_array_from_file(file_name, "/alpha", globals::alpha);
+  }
+
+  if (settings.exists("mus")) {
+    std::string file_name = settings["mus"];
+    ::output->write("\nReading initial mus data from file: %s\n", file_name.c_str());
+    load_array_from_file(file_name, "/mus", globals::mus);
+  }
+
+  if (settings.exists("gyro")) {
+    std::string file_name = settings["gyro"];
+    ::output->write("\nReading initial gyro data from file: %s\n", file_name.c_str());
+    load_array_from_file(file_name, "/gyro", globals::gyro);
+  }
 }
