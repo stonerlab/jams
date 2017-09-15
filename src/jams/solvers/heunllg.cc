@@ -32,7 +32,7 @@ void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
   w.resize(num_spins, 3);
 
   for (int i = 0; i < num_spins; ++i) {
-    sigma(i) = sqrt((2.0*kBoltzmann*alpha(i))/(time_step_*mus(i)*kBohrMagneton));
+    sigma(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kBohrMagneton) );
   }
 
   initialized_ = true;
@@ -49,7 +49,7 @@ void HeunLLGSolver::run() {
     const double stmp = sqrt(physics_module_->temperature());
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
-        w(i, j) = (rng->normal())*sigma(i)*stmp*mus(i)*gyro(i); // MOVE THESE INTO SIGMA
+        w(i, j) = (rng->normal())*sigma(i) * stmp; // MOVE THESE INTO SIGMA
       }
     }
   }
@@ -60,7 +60,7 @@ void HeunLLGSolver::run() {
   if (physics_module_->temperature() > 0.0) {
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
-        h(i, j) = w(i,j) + (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
+        h(i, j) = (w(i,j) + h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
       }
     }
   } else {
@@ -100,7 +100,7 @@ void HeunLLGSolver::run() {
   if (physics_module_->temperature() > 0.0) {
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
-        h(i, j) = w(i,j) + (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
+        h(i, j) = (w(i,j) + h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
       }
     }
   } else {
