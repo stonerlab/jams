@@ -256,7 +256,7 @@ double ExchangeHamiltonian::calculate_total_energy() {
     }
 #endif // CUDA
 
-    return total_energy;
+    return 0.5*total_energy;
 }
 
 // --------------------------------------------------------------------------
