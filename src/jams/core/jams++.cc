@@ -12,8 +12,7 @@
 #include <ctime>
 #include <exception>
 
-#include <libconfig.h++>
-
+#include "jams/core/config.h"
 #include "jams/core/jams++.h"
 #include "jams/core/load.h"
 #include "jams/core/output.h"
@@ -81,6 +80,8 @@ int jams_initialize(int argc, char **argv) {
     try {
 
       config->readFile(config_filename.c_str());
+      jams_read_config_args(argc, argv);
+
       output->write("OK\n");
 
       if (config->exists("sim.verbose")) {
@@ -89,6 +90,8 @@ int jams_initialize(int argc, char **argv) {
           output->write("verbose output is ON\n");
         }
       }
+
+//      jams_read_config_args(argc, argv, config);
 
       unsigned int random_seed = time(NULL);
       if (config->lookupValue("sim.seed", random_seed)) {
@@ -266,4 +269,15 @@ void jams_global_initializer(const libconfig::Setting &settings) {
     ::output->write("\nReading initial gyro data from file: %s\n", file_name.c_str());
     load_array_from_file(file_name, "/gyro", globals::gyro);
   }
+}
+
+void jams_read_config_args(int argc, char **argv) {
+  libconfig::Config additions;
+
+  additions.readFile("additional.cfg");
+
+  replace_settings(::config->getRoot(), additions.getRoot(), true);
+  ::config->setFloatPrecision(6);
+  ::config->writeFile("combined.cfg");
+
 }
