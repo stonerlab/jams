@@ -61,6 +61,12 @@ int jams_initialize(int argc, char **argv) {
   output->write("Version %s\n", JAMS_VERSION);
   output->write("Commit %s\n", QUOTEME(GITCOMMIT));
   output->write("Compiled %s, %s\n", __DATE__, __TIME__);
+#ifdef USE_OPENMP
+  output->write("  OpenMP Enabled\n");
+#endif
+#ifdef USE_MKL
+  output->write("  MKL Enabled\n");
+#endif
   output->write("----------------------------------------\n");
 
   time_t rawtime;

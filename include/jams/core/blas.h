@@ -3,6 +3,7 @@
 
 #if defined(USE_MKL)
 #include <mkl_cblas.h>
+#include <mkl_spblas.h>
 #elif defined(__APPLE__)
 #include <Accelerate/Accelerate.h>
 #else

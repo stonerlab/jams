@@ -11,11 +11,6 @@
 #include "jams/core/physics.h"
 #include "jams/core/rand.h"
 
-#ifdef MKL
-#include <mkl_spblas.h>
-#endif
-
-
 void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
   using namespace globals;
 

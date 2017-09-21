@@ -22,10 +22,6 @@
 #include "jams/solvers/constrainedmc.h"
 #include "jams/solvers/cuda_constrainedmc.h"
 
-#ifdef MKL
-#include <mkl_spblas.h>
-#endif
-
 Solver::~Solver() {
   for (int i = 0, iend = monitors_.size(); i < iend; ++i) {
     delete monitors_[i];

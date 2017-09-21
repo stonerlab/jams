@@ -364,7 +364,7 @@ void ExchangeHamiltonian::calculate_fields() {
         // general matrix (i.e. Monte Carlo Solvers)
         char transa[1] = {'N'};
         char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
-#ifdef MKL
+#ifdef USE_MKL
         double one = 1.0;
         double zero = 0.0;
         mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
@@ -377,7 +377,7 @@ void ExchangeHamiltonian::calculate_fields() {
         // symmetric matrix (i.e. Heun Solvers)
         char transa[1] = {'N'};
         char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
-#ifdef MKL
+#ifdef USE_MKL
         double one = 1.0;
         double zero = 0.0;
         mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
