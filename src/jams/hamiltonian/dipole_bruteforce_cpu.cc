@@ -1,4 +1,3 @@
-#include <omp.h>
 #include "jams/core/globals.h"
 #include "jams/core/consts.h"
 #include "jams/core/utils.h"
@@ -22,7 +21,9 @@ DipoleHamiltonianBruteforceCPU::DipoleHamiltonianBruteforceCPU(const libconfig::
     settings.lookupValue("r_cutoff", r_cutoff_);
     output->write("  r_cutoff: %e\n", r_cutoff_);
 
-    dipole_prefactor_ = kVacuumPermeadbility*kBohrMagneton /(4*kPi*::lattice->parameter() * ::lattice->parameter() * ::lattice->parameter());
+    h_dipole_.resize(globals::num_spins, 3);
+
+    dipole_prefactor_ = kVacuumPermeadbility * kBohrMagneton / (4 * kPi * pow3(lattice->parameter()));
 }
 
 // --------------------------------------------------------------------------
@@ -34,8 +35,8 @@ double DipoleHamiltonianBruteforceCPU::calculate_total_energy() {
        for (int i = 0; i < globals::num_spins; ++i) {
            e_total += calculate_one_spin_energy(i);
        }
-
     return e_total;
+
 }
 
 // --------------------------------------------------------------------------
@@ -81,45 +82,44 @@ void DipoleHamiltonianBruteforceCPU::calculate_one_spin_field(const int i, doubl
     h[0] = 0.0; h[1] = 0.0; h[2] = 0.0;
 
 #pragma omp parallel shared(h)
-  {
-    Vec3 h_sum = {0.0, 0.0, 0.0};
-    #pragma omp for
-    for (auto j = 0; j < globals::num_spins; ++j) {
-      if (j == i) continue;
+    {
+      Vec3 h_sum = {0.0, 0.0, 0.0};
+#pragma omp for
+      for (auto j = 0; j < globals::num_spins; ++j) {
+        if (j == i) continue;
 
-      const auto r_ij = lattice->displacement(i, j);
-      
-      if (abs_sq(r_ij) > pow2(r_cutoff_)) continue;
+        const auto r_ij = lattice->displacement(i, j);
 
-      const Vec3 s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
+        if (abs_sq(r_ij) > pow2(r_cutoff_)) continue;
 
-      h_sum += w_i * globals::mus(j) * (3.0 * r_ij * dot(s_j, r_ij) - abs_sq(r_ij) * s_j) / pow5(abs(r_ij));
-    }
+        const Vec3 s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
+
+        h_sum += w_i * globals::mus(j) * (3.0 * r_ij * dot(s_j, r_ij) - abs_sq(r_ij) * s_j) / pow5(abs(r_ij));
+      }
 
 #pragma omp barrier
 #pragma omp critical
-    {
-      h[0] += h_sum[0];
-      h[1] += h_sum[1];
-      h[2] += h_sum[2];
+      {
+        h[0] += h_sum[0];
+        h[1] += h_sum[1];
+        h[2] += h_sum[2];
+      }
     }
-  }
-
 }
 
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianBruteforceCPU::calculate_fields(jblib::Array<double, 2>& fields) {
-    for (int i = 0; i < globals::num_spins; ++i) {
-        double h[3];
 
-        calculate_one_spin_field(i, h);
-
-        for (int n = 0; n < 3; ++n) {
-            fields(i, n) = h[n];
-        }
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    double h[3];
+    calculate_one_spin_field(i, h);
+    for (auto n = 0; n < 3; ++n) {
+      fields(i, n) = h[n];
     }
+  }
 }
+
 
 void DipoleHamiltonianBruteforceCPU::calculate_fields(jblib::CudaArray<double, 1>& fields) {
 

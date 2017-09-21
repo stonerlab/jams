@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include "jams/hamiltonian/test_dipole_cpu_bruteforce.h"
 #include "jams/hamiltonian/test_dipole_bruteforce.h"
 #include "jams/hamiltonian/test_dipole_fft.h"
 #include "jams/hamiltonian/test_cuda_dipole_fft.h"

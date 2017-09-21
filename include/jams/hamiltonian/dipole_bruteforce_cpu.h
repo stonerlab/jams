@@ -27,7 +27,7 @@ class DipoleHamiltonianBruteforceCPU : public HamiltonianStrategy {
         double r_cutoff_;
         double dipole_prefactor_;
 
-        jblib::Array<double, 2> host_dipole_fields;
+        jblib::Array<double, 2> h_dipole_;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_CPU_H
