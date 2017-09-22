@@ -21,4 +21,5 @@ add_sources(
         stats.cc
         thermostat.cc
         utils.cc
+        config.cc
 )
