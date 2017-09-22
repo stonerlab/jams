@@ -8,164 +8,139 @@
 
 using namespace libconfig;
 
-Setting&  add_settings(Setting& original, const Setting& replace, const bool& allow_type_change);
-void replace_settings(Setting& original, const Setting& replace, const bool& allow_type_change);
+void config_patch_simple(Setting& orig, const Setting& patch);
+void config_patch_element(Setting& orig, const Setting& patch);
+void config_patch_aggregate(Setting& orig, const Setting& patch);
 
-Setting& add_float(Setting& original, const Setting& addition) {
-  if (addition.getName() == NULL) {
-    return original.add(addition.getType()) = double(addition);
+void config_patch_simple(Setting& orig, const Setting& patch) {
+  if (patch.isAggregate()) {
+    config_patch_aggregate(orig, patch);
   } else {
-    return original.add(addition.getName(), addition.getType()) = double(addition);
-  }
-}
-
-Setting& add_int(Setting& original, const Setting& addition) {
-  if (addition.getName() == NULL) {
-    return original.add(addition.getType()) = int(addition);
-  } else {
-    return original.add(addition.getName(), addition.getType()) = int(addition);
-  }
-}
-
-Setting& add_int64(Setting& original, const Setting& addition) {
-  if (addition.getName() == NULL) {
-    return original.add(addition.getType()) = int64_t(addition);
-  } else {
-    return original.add(addition.getName(), addition.getType()) = int64_t(addition);
-  }
-}
-
-Setting& add_string(Setting& original, const Setting& addition) {
-  if (addition.getName() == NULL) {
-    return original.add(addition.getType()) = addition.c_str();
-  } else {
-    return original.add(addition.getName(), addition.getType()) = addition.c_str();
-  }
-}
-
-Setting& add_boolean(Setting& original, const Setting& addition) {
-  if (addition.getName() == NULL) {
-    return original.add(addition.getType()) = bool(addition);
-  } else {
-    return original.add(addition.getName(), addition.getType()) = bool(addition);
-  }
-}
-
-Setting& add_array(Setting& original, const Setting& addition, const bool& allow_type_change) {
-  std::cerr << "-array-" << std::endl;
-  if (addition.getName() == NULL) {
-    Setting &new_setting = original.add(Setting::Type::TypeArray);
-    for (auto i = 0; i < addition.getLength(); ++i) {
-      add_settings(original, addition[i], allow_type_change);
+    if (orig.exists(patch.getName())) {
+      orig.remove(patch.getName());
     }
-    return new_setting;
-  } else {
-    Setting &new_setting = original.add(addition.getName(), Setting::Type::TypeArray);
-    for (auto i = 0; i < addition.getLength(); ++i) {
-      add_settings(original, addition[i], allow_type_change);
+
+    if (patch.getType() == Setting::Type::TypeInt) {
+      orig.add(patch.getName(), patch.getType()) = static_cast<int>(patch);
+      orig.setFormat(patch.getFormat());
+      return;
+    }
+
+    if (patch.getType() == Setting::Type::TypeInt64) {
+      orig.add(patch.getName(), patch.getType()) = static_cast<int64_t>(patch);
+      orig.setFormat(patch.getFormat());
+      return;
+    }
+
+    if (patch.getType() == Setting::Type::TypeFloat) {
+      orig.add(patch.getName(), patch.getType()) = static_cast<double>(patch);
+      return;
+    }
+
+    if (patch.getType() == Setting::Type::TypeString) {
+      orig.add(patch.getName(), patch.getType()) = patch.c_str();
+      return;
+    }
+
+    if (patch.getType() == Setting::Type::TypeBoolean) {
+      orig.add(patch.getName(), patch.getType()) = bool(patch);
+      return;
+    }
+
+    throw std::runtime_error("Unknown config setting type");
+  }
+}
+
+Setting& config_patch_add_or_merge_aggregate(Setting &orig, const Setting &patch) {
+
+  // root
+  if (patch.getPath().empty()) {
+    return orig.lookup(patch.getPath());
+  }
+
+  if (orig.exists(patch.getName())) {
+    return orig.lookup(patch.getName());
+  }
+
+  if (orig.isList() || orig.isArray()) {
+    return orig[patch.getIndex()];
+  }
+
+  if (patch.getName() == nullptr) {
+    return orig.add(patch.getType());
+  }
+
+  return orig.add(patch.getName(), patch.getType());
+}
+
+
+
+void config_patch_aggregate(Setting& orig, const Setting& patch) {
+
+  Setting& aggregate = config_patch_add_or_merge_aggregate(orig, patch);
+
+  const auto length = patch.getLength();
+  for (auto i = 0; i < length; ++i) {
+    if (patch.isGroup()) {
+      config_patch_simple(aggregate, patch[i]);
+    } else {
+      config_patch_element(aggregate, patch[i]);
     }
   }
 }
 
-Setting& add_list(Setting& original, const Setting& addition, const bool& allow_type_change) {
-  std::cerr << "-list-" << std::endl;
-  auto name = addition.getName();
-  if (name == nullptr) {
-    Setting& new_setting = original.add(Setting::Type::TypeList);
-    for (auto i = 0; i < addition.getLength(); ++i) {
-      replace_settings(original, addition[i], allow_type_change);
-    }
-    return new_setting;
+void config_patch_element(Setting& orig, const Setting& patch) {
+
+  if (patch.isAggregate()) {
+    config_patch_aggregate(orig, patch);
+    return;
+  }
+
+  Setting *setting = nullptr;
+
+  if (orig.getLength() > patch.getIndex()) {
+    setting = &orig[patch.getIndex()];
   } else {
-    Setting& new_setting = original.add(addition.getName(), Setting::Type::TypeList);
-    for (auto i = 0; i < addition.getLength(); ++i) {
-      replace_settings(original, addition[i], allow_type_change);
-    }
-    return new_setting;
-  }
-}
-
-Setting& add_group(Setting& original, const Setting& addition, const bool& allow_type_change) {
-  std::cerr << "-group-" << std::endl;
-  auto name = addition.getName();
-  if (name == nullptr) {
-    Setting& new_setting = original.add(Setting::Type::TypeGroup);
-    for (auto i = 0; i < addition.getLength(); ++i) {
-      replace_settings(original, addition[i], allow_type_change);
-    }
-    return new_setting;
-  } else {
-    Setting& new_setting = original.add(addition.getName(), Setting::Type::TypeGroup);
-    for (auto i = 0; i < addition.getLength(); ++i) {
-      replace_settings(original, addition[i], allow_type_change);
-    }
-    return new_setting;
-  }
-}
-
-Setting& add_settings(Setting& original, const Setting& replace, const bool& allow_type_change) {
-  auto type = replace.getType();
-
-  if (type == Setting::Type::TypeFloat) {
-    return add_float(original, replace);
+    setting = &orig.add(patch.getType());
+    setting->setFormat(patch.getFormat());
   }
 
-  if (type == Setting::Type::TypeInt) {
-    return add_int(original, replace);
+  if (patch.getType() == Setting::Type::TypeInt) {
+    *setting = int(patch);
+    return;
   }
 
-  if (type == Setting::Type::TypeInt64) {
-    return add_int64(original, replace);
+  if (patch.getType() == Setting::Type::TypeInt64) {
+    *setting = int64_t(patch);
+    return;
   }
 
-  if (type == Setting::Type::TypeString) {
-    return add_string(original, replace);
+  if (patch.getType() == Setting::Type::TypeFloat) {
+    *setting = double(patch);
+    return;
   }
 
-  if (type == Setting::Type::TypeBoolean) {
-    return add_boolean(original, replace);
+  if (patch.getType() == Setting::Type::TypeString) {
+    *setting = patch.c_str();
+    return;
   }
 
-  if (type == Setting::Type::TypeGroup) {
-    return add_group(original, replace, allow_type_change);
-  }
-
-  if (type == Setting::Type::TypeList) {
-    return add_list(original, replace, allow_type_change);
-  }
-
-  if (type == Setting::Type::TypeArray) {
-    return add_array(original, replace, allow_type_change);
+  if (patch.getType() == Setting::Type::TypeBoolean) {
+    *setting = bool(patch);
+    return;
   }
 
   throw std::runtime_error("unknown setting type");
 }
 
-void replace_settings(Setting& original, const Setting& replace, const bool& allow_type_change) {
-  auto num_settings = replace.getLength();
+void config_patch(Setting& orig, const Setting& patch) {
+  if(!orig.isGroup() && !orig.isList()) {
+    return;
+  }
 
-  for (auto i = 0; i < num_settings; ++i) {
-    Setting& sub_setting = replace[i];
-    auto name = sub_setting.getName();
-    auto path = sub_setting.getPath();
-    auto type = sub_setting.getType();
-
-    if (sub_setting.isGroup() || sub_setting.isList()) {
-      if (original.exists(path)) {
-        replace_settings(original, sub_setting, allow_type_change);
-      } else {
-        add_settings(original, sub_setting, allow_type_change);
-      }
-    } else {
-      std::cout << path << "\t" << original.exists(path) << std::endl;
-      if (original.exists(path)) {
-        if (!allow_type_change && type != original.lookup(path).getType()) {
-          throw SettingTypeException(replace[i]);
-        }
-        Setting& parent = original.lookup(path).getParent();
-        parent.remove(name);
-        add_settings(parent, sub_setting, allow_type_change);
-      }
-    }
+  if (patch.isAggregate()) {
+    config_patch_aggregate(orig, patch);
+  } else {
+    config_patch_simple(orig, patch);
   }
 }

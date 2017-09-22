@@ -6,7 +6,7 @@
 #include <libconfig.h++>
 
 int jams_initialize(int argc, char **argv);
-void jams_read_config_args(int argc, char **argv);
+void jams_patch_config(const std::string &patch_string);
 void jams_run();
 void jams_finish();
 void jams_error(const char *string, ...);

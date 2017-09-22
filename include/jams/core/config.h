@@ -7,6 +7,6 @@
 
 #include <libconfig.h++>
 
-void replace_settings(libconfig::Setting& original, const libconfig::Setting& additions, const bool& allow_type_change);
+void config_patch(libconfig::Setting& orig, const libconfig::Setting& patch);
 
 #endif //JAMS_CONFIG_H

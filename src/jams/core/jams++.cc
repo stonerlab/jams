@@ -42,14 +42,19 @@ int jams_initialize(int argc, char **argv) {
   lattice = new Lattice();
 
   std::string config_filename;
+  std::string config_patch_string;
 
   if (argc == 1) {
     jams_error("No config file specified");
-  } else {
-    // config file is the only argument
-    config_filename = std::string(argv[1]);
-    trim(config_filename);
   }
+
+  config_filename = std::string(argv[1]);
+  trim(config_filename);
+
+  if (argc == 3) {
+    config_patch_string = std::string(argv[2]);
+  }
+
 
   seedname = file_basename(config_filename);
   trim(seedname);
@@ -80,9 +85,11 @@ int jams_initialize(int argc, char **argv) {
     try {
 
       config->readFile(config_filename.c_str());
-      jams_read_config_args(argc, argv);
 
-      output->write("OK\n");
+      if (!config_patch_string.empty()) {
+        jams_patch_config(config_patch_string);
+
+      }
 
       if (config->exists("sim.verbose")) {
         if (config->lookup("sim.verbose")) {
@@ -91,7 +98,7 @@ int jams_initialize(int argc, char **argv) {
         }
       }
 
-//      jams_read_config_args(argc, argv, config);
+//      jams_patch_config(argc, argv, config);
 
       unsigned int random_seed = time(NULL);
       if (config->lookupValue("sim.seed", random_seed)) {
@@ -271,13 +278,28 @@ void jams_global_initializer(const libconfig::Setting &settings) {
   }
 }
 
-void jams_read_config_args(int argc, char **argv) {
-  libconfig::Config additions;
+void jams_patch_config(const std::string &patch_string) {
+  libconfig::Config cfg_patch;
 
-  additions.readFile("additional.cfg");
+  try {
+    cfg_patch.readFile(patch_string.c_str());
+    ::output->write("patching form file\n  %s\n", patch_string.c_str());
+  }
+  catch(libconfig::FileIOException &fex) {
+    cfg_patch.readString(patch_string);
+    ::output->write("patching from string\n", patch_string.c_str());
+    ::output->verbose("  %s\n", patch_string.c_str());
+  }
 
-  replace_settings(::config->getRoot(), additions.getRoot(), true);
-  ::config->setFloatPrecision(6);
-  ::config->writeFile("combined.cfg");
+  config_patch(::config->getRoot(), cfg_patch.getRoot());
 
+  bool do_write_patched_config = true;
+
+  config->lookupValue("sim.write_patched_config", do_write_patched_config);
+
+  if (do_write_patched_config) {
+    std::string patched_config_filename = seedname + "_patched.cfg";
+    ::config->setFloatPrecision(8);
+    ::config->writeFile(patched_config_filename.c_str());
+  }
 }
