@@ -299,7 +299,13 @@ void jams_patch_config(const std::string &patch_string) {
 
   if (do_write_patched_config) {
     std::string patched_config_filename = seedname + "_patched.cfg";
+
+#if (((LIBCONFIG_VER_MAJOR == 1) && (LIBCONFIG_VER_MINOR >= 6)) \
+     || (LIBCONFIG_VER_MAJOR > 1))
     ::config->setFloatPrecision(8);
+#endif
+
+
     ::config->writeFile(patched_config_filename.c_str());
   }
 }
