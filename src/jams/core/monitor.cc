@@ -46,7 +46,7 @@ Monitor::Monitor(const libconfig::Setting &settings)
       convergence_burn_time_ = settings["t_burn"];
     } else {
       ::output->write("  DEFAULT t_burn (0.001*t_sim)\n");
-      convergence_burn_time_ = 0.001 * double(config->lookup("sim.t_sim"));     // DEFAULT
+      convergence_burn_time_ = 0.001 * double(config->lookup("sim.t_run"));     // DEFAULT
     }
 
     ::output->write("  t_burn: %e (s)\n", convergence_burn_time_);
