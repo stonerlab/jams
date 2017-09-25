@@ -2,9 +2,11 @@
 // Created by Joe Barker on 2017/09/15.
 //
 
-#include "jams/core/config.h"
 #include <iostream>
 #include <cassert>
+#include <stdexcept>
+
+#include "jams/core/config.h"
 
 using namespace libconfig;
 
