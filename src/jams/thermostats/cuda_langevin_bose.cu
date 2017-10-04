@@ -6,6 +6,8 @@
 #include <cmath>
 #include <string>
 #include <iomanip>
+#include <random>
+#include <jams/core/utils.h>
 #include "jams/core/cuda_array_kernels.h"
 
 #include "jams/thermostats/cuda_langevin_bose.h"
@@ -33,93 +35,104 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   dev_eta1b_(2 * num_spins * 3, 0.0),
   dev_sigma_(num_spins, 0.0)
  {
-  ::output->write("\n  initialising CUDA Langevin semi-quantum noise thermostat\n");
+   ::output->write("\n  initialising CUDA Langevin semi-quantum noise thermostat\n");
 
-  debug_ = false;
+   debug_ = false;
 
-  if (debug_) {
-    ::output->write("    DEBUG ON\n");
-    std::string name = seedname + "_noise.dat";
-    outfile_.open(name.c_str());
-  }
+   if (debug_) {
+     ::output->write("    DEBUG ON\n");
+     std::string name = seedname + "_noise.dat";
+     outfile_.open(name.c_str());
+   }
 
-  w_max_ = 100*kTHz;
+   double t_warmup = 1e-10; // 0.1 ns
+   config->lookupValue("thermostat.warmup_time", t_warmup);
 
-  config->lookupValue("sim.w_max", w_max_);
+   omega_max_ = 100 * kTHz;
+   config->lookupValue("thermostat.w_max", omega_max_);
 
-  const double dt = ::config->lookup("sim.t_step");
-  tau_ = (dt * kBoltzmann) / kHBar;
+   double dt_thermostat = ::config->lookup("sim.t_step");
+   delta_tau_ = (dt_thermostat * kBoltzmann) / kHBar;
 
-  ::output->write("    omega_max = %6.6f (THz)\n", w_max_ / kTHz);
-  ::output->write("    hbar*w/kB = %4.4e\n", (kHBar * w_max_) / (kBoltzmann));
-  ::output->write("    delta tau = %4.4e * T\n", tau_);
+   std::random_device rdev;
+   uint64_t dev_rng_seed = concatenate_32_bit(rdev(), rdev());
+   config->lookupValue("thermostat.seed", dev_rng_seed);
 
-  ::output->write("    initialising CUDA streams\n");
+   // check the seed populates msw and lsw of the 64bit number
+   if (dev_rng_seed < std::numeric_limits<uint32_t>::max()) {
+     jams_warning("Random seed does not fill 64 bits. Try making the seed larger");
+   }
 
-  if (cudaStreamCreate(&dev_stream_) != cudaSuccess){
-    jams_error("Failed to create CUDA stream in CudaLangevinBoseThermostat");
-  }
+   ::output->write("    seed      = % " PRIu64 "\n", dev_rng_seed);
+   ::output->write("    omega_max = %6.6f (THz)\n", omega_max_ / kTHz);
+   ::output->write("    hbar*w/kB = %4.4e\n", (kHBar * omega_max_) / (kBoltzmann));
+   ::output->write("    t_step = %4.4e * T\n", dt_thermostat);
+   ::output->write("    delta tau = %4.4e * T\n", delta_tau_);
 
-  if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess){
-    jams_error("Failed to create CURAND stream in CudaLangevinBoseThermostat");
-  }
+   ::output->write("    initialising CUDA streams\n");
 
-  ::output->write("    initialising CURAND\n");
+   if (cudaStreamCreate(&dev_stream_) != cudaSuccess) {
+     jams_error("Failed to create CUDA stream in CudaLangevinBoseThermostat");
+   }
 
-  // initialize and seed the CURAND generator on the device
-  if (curandCreateGenerator(&dev_rng_, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS) {
-    jams_error("Failed to create CURAND generator in CudaLangevinBoseThermostat");
-  }
+   if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess) {
+     jams_error("Failed to create CURAND stream in CudaLangevinBoseThermostat");
+   }
 
-  // initialize zeta and eta with random variables
-  curandSetStream(dev_rng_, dev_curand_stream_);
+   ::output->write("    initialising CURAND\n");
 
-  const uint64_t dev_rng_seed = rng->uniform()*18446744073709551615ULL;
-  ::output->write("    seeding CURAND (%" PRIu64 ")\n", dev_rng_seed);
+   // initialize and seed the CURAND generator on the device
+   if (curandCreateGenerator(&dev_rng_, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS) {
+     jams_error("Failed to create CURAND generator in CudaLangevinBoseThermostat");
+   }
 
-  if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
-    jams_error("Failed to set CURAND seed in CudaLangevinBoseThermostat");
-  }
+   // initialize zeta and eta with random variables
+   curandSetStream(dev_rng_, dev_curand_stream_);
 
-  if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
-    jams_error("Failed to generate CURAND seeds in CudaLangevinBoseThermostat");
-  }
+   ::output->write("    seeding CURAND (%" PRIu64 ")\n", dev_rng_seed);
 
-  ::output->write("    allocating GPU memory\n");
+   if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
+     jams_error("Failed to set CURAND seed in CudaLangevinBoseThermostat");
+   }
 
-  if (curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0)
+   if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
+     jams_error("Failed to generate CURAND seeds in CudaLangevinBoseThermostat");
+   }
+
+   ::output->write("    allocating GPU memory\n");
+
+   if (curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
-    jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
-  }
+     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
+   }
 
-  if (curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0)
+   if (curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
-    jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
-  }
+     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
+   }
 
-  if (curandGenerateNormalDouble(dev_rng_, dev_eta1b_.data(), dev_eta1b_.size(), 0.0, 1.0)
+   if (curandGenerateNormalDouble(dev_rng_, dev_eta1b_.data(), dev_eta1b_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
-    jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
-  }
+     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
+   }
 
-  jblib::Array<double, 2> scale(num_spins, 3);
-  for(int i = 0; i < num_spins; ++i) {
-    for(int j = 0; j < 3; ++j) {
-      scale(i, j) = (kBoltzmann) * sqrt( (2.0 * globals::alpha(i) * globals::mus(i)) / ( kHBar * kGyromagneticRatio * kBohrMagneton) );
-    }
-  }
+   jblib::Array<double, 2> scale(num_spins, 3);
+   for (int i = 0; i < num_spins; ++i) {
+     for (int j = 0; j < 3; ++j) {
+       scale(i, j) = (kBoltzmann) *
+                     sqrt((2.0 * globals::alpha(i) * globals::mus(i)) / (kHBar * kGyromagneticRatio * kBohrMagneton));
+     }
+   }
 
-  dev_sigma_ = jblib::CudaArray<double, 1>(scale);
+   dev_sigma_ = jblib::CudaArray<double, 1>(scale);
 
-  // const int num_warmup_steps = 10;
-  const int num_warmup_steps = 1000000;
+   ::output->write("    warming up thermostat (%8.2f ns @ %8.2f K)\n", (t_warmup / 1.0e-9), this->temperature());
 
-  ::output->write("    warming up thermostat (%8.2f ns @ %8.2f K)\n", ((dt *num_warmup_steps) / 1.0e-9), this->temperature());
-
-  for (int i = 0; i < num_warmup_steps; ++i) {
-    update();
-  }
-}
+   const unsigned num_warmup_steps = static_cast<unsigned>(t_warmup / dt_thermostat);
+   for (auto i = 0; i < num_warmup_steps; ++i) {
+     update();
+   }
+ }
 
 void CudaLangevinBoseThermostat::update() {
   int block_size = 96;
@@ -137,9 +150,9 @@ void CudaLangevinBoseThermostat::update() {
     dev_zeta6p_.data(),
     dev_eta1b_.data(),
     dev_sigma_.data(),
-    tau_ * this->temperature(),
+    delta_tau_ * this->temperature(),
     this->temperature(),
-    (kHBar * w_max_) / (kBoltzmann * this->temperature()),  // w_m
+    (kHBar * omega_max_) / (kBoltzmann * this->temperature()),  // w_m
     globals::num_spins3);
 }
 
