@@ -41,8 +41,8 @@ class CudaLangevinBoseThermostat : public Thermostat {
     curandGenerator_t           dev_rng_ = nullptr;  // device random generator
     cudaStream_t                dev_stream_ = nullptr;
     cudaStream_t                dev_curand_stream_ = nullptr;
-    double                      tau_;
-    double                      w_max_;
+    double                      delta_tau_;
+    double                      omega_max_;
     std::ofstream               outfile_;
 };
 
