@@ -98,4 +98,8 @@ bool vec_exists_in_container(const T& container, const Vec3& v1, const double to
   return true;
 }
 
+inline uint64_t concatenate_32_bit(uint32_t msw, uint32_t lsw) {
+  return (uint64_t(msw) << 32) | lsw;
+}
+
 #endif  // JAMS_CORE_UTILS_H
