@@ -753,6 +753,12 @@ void Lattice::calc_symmetry_operations() {
 
   spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, motif_.size(), 1e-5);
 
+  if (spglib_dataset_ == nullptr) {
+    symops_enabled_ = false;
+    jams_warning("spglib symmetry search failed, disabling symops");
+    return;
+  }
+
   output->write("  International\n    %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
   output->write("  Hall symbol\n    %s\n", spglib_dataset_->hall_symbol );
   output->write("  Hall number\n    %d\n", spglib_dataset_->hall_number );
