@@ -57,11 +57,11 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    std::random_device rdev;
    uint64_t dev_rng_seed = concatenate_32_bit(rdev(), rdev());
 
-   int64_t cfg_seed = 0;
+   unsigned long long cfg_seed = 0;
    config->lookupValue("thermostat.seed", cfg_seed);
 
    if (cfg_seed != 0) {
-     dev_rng_seed = std::abs(cfg_seed);
+     dev_rng_seed = cfg_seed;
    }
 
    // check the seed populates msw and lsw of the 64bit number
