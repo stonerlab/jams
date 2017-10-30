@@ -78,7 +78,7 @@ namespace jams {
 void Lattice::init_from_config(const libconfig::Config& cfg) {
 
   symops_enabled_ = true;
-  cfg.lookupValue("::lattice->symops", symops_enabled_);
+  cfg.lookupValue("lattice.symops", symops_enabled_);
   output->write("  symops: %s", symops_enabled_ ? "true" : "false");
 
   init_unit_cell(cfg.lookup("materials"), cfg.lookup("lattice"), cfg.lookup("unitcell"));
