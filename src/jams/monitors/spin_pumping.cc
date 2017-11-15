@@ -1,7 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 
-#include "jams/monitors/spin_pumping.h"
+#include "spin_pumping.h"
 
 #include <string>
 #include <iomanip>
@@ -9,13 +9,13 @@
 #include <complex>
 #include <vector>
 
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/lattice.h"
 #include "jams/core/output.h"
 #include "jams/core/solver.h"
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
-#include "jams/core/stats.h"
+#include "jams/helpers/stats.h"
 #include "jblib/containers/array.h"
 
 SpinPumpingMonitor::SpinPumpingMonitor(const libconfig::Setting &settings)

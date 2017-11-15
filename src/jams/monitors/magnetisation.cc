@@ -8,11 +8,11 @@
 #include "jams/core/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
-#include "jams/core/maths.h"
+#include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 
-#include "jams/monitors/magnetisation.h"
+#include "magnetisation.h"
 
 #include "jblib/containers/vec.h"
 

@@ -7,18 +7,18 @@
 #include <string>
 #include <iomanip>
 
-#include "jams/thermostats/cuda_langevin_white.h"
+#include "cuda_langevin_white.h"
 
-#include "jams/core/cuda_array_kernels.h"
-#include "jams/core/consts.h"
+#include "jams/cuda/cuda_array_kernels.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/output.h"
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 #include "jams/core/rand.h"
 #include "jams/core/solver.h"
 
-#include "jams/monitors/magnetisation.h"
+#include "../monitors/magnetisation.h"
 
 CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),

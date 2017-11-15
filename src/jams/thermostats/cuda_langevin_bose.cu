@@ -7,20 +7,20 @@
 #include <string>
 #include <iomanip>
 #include <random>
-#include <jams/core/utils.h>
-#include "jams/core/cuda_array_kernels.h"
+#include "jams/helpers/utils.h"
+#include "jams/cuda/cuda_array_kernels.h"
 
-#include "jams/thermostats/cuda_langevin_bose.h"
-#include "jams/thermostats/cuda_langevin_bose_kernel.h"
+#include "cuda_langevin_bose.h"
+#include "cuda_langevin_bose_kernel.h"
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/output.h"
 #include "jams/core/rand.h"
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 
-#include "jams/monitors/magnetisation.h"
+#include "../monitors/magnetisation.h"
 
 CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),

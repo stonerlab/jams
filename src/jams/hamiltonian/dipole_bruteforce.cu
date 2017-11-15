@@ -1,12 +1,12 @@
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 #include "jams/core/output.h"
 
-#include "jams/hamiltonian/dipole_bruteforce.h"
-#include "jams/hamiltonian/dipole_bruteforce_kernel.h"
+#include "dipole_bruteforce.h"
+#include "dipole_bruteforce_kernel.h"
 
 DipoleHamiltonianBruteforce::~DipoleHamiltonianBruteforce() {
 }

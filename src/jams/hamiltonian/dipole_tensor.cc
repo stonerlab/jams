@@ -7,12 +7,12 @@
 #include "jams/core/output.h"
 #include "jblib/containers/matrix.h"
 #include "jblib/containers/vec.h"
-#include "jams/core/blas.h"
+#include "jams/interface/blas.h"
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/utils.h"
 
-#include "jams/hamiltonian/dipole_tensor.h"
+#include "dipole_tensor.h"
 
 
 DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &settings, const unsigned int size)

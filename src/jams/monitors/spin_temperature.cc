@@ -3,12 +3,12 @@
 #include <string>
 #include <iomanip>
 
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
 #include "jams/core/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
-#include "jams/monitors/spin_temperature.h"
+#include "spin_temperature.h"
 
 #include "jblib/containers/array.h"
 

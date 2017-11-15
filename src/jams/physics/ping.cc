@@ -1,13 +1,13 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "jams/physics/ping.h"
+#include "ping.h"
 
 #include <libconfig.h++>
 
 #include <cmath>
 
 #include "jams/core/output.h"
-#include "jams/core/maths.h"
+#include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
 #include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"

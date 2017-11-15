@@ -9,8 +9,8 @@
 #include <limits>
 
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/error.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/error.h"
 
 void Random::seed(const uint32_t &x) {
   if (x > ul_limit) {

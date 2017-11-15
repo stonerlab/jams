@@ -12,21 +12,21 @@
 #include <cstdlib>
 #include <exception>
 
-#include "jams/core/config.h"
+#include "jams/interface/config.h"
 #include "jams/core/jams++.h"
-#include "jams/core/load.h"
+#include "jams/helpers/load.h"
 #include "jams/core/output.h"
 #include "jams/core/rand.h"
 #include "jams/core/types.h"
-#include "jams/core/exception.h"
-#include "jams/core/error.h"
+#include "jams/helpers/exception.h"
+#include "jams/helpers/error.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/monitor.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
-#include "jams/core/utils.h"
-#include "jams/core/hamiltonian.h"
+#include "jams/helpers/utils.h"
+#include "hamiltonian.h"
 
 namespace jams {
 
@@ -44,6 +44,24 @@ namespace jams {
       delete rng;
       delete config;
       delete output;
+    }
+
+    void process_command_line_args(int argc, char **argv,
+                                   std::string &config_filename,
+                                   std::string &config_patch_string) {
+      if (argc == 1) {
+        jams_error("No config file specified");
+      }
+
+      config_filename = std::string(argv[1]);
+      trim(config_filename);
+
+      if (argc == 3) {
+        config_patch_string = std::string(argv[2]);
+      }
+
+      seedname = file_basename(config_filename);
+      trim(seedname);
     }
 
     void output_program_header() {
@@ -68,19 +86,7 @@ int jams_initialize(int argc, char **argv) {
   std::string config_filename;
   std::string config_patch_string;
 
-  if (argc == 1) {
-    jams_error("No config file specified");
-  }
-
-  config_filename = std::string(argv[1]);
-  trim(config_filename);
-
-  if (argc == 3) {
-    config_patch_string = std::string(argv[2]);
-  }
-
-  seedname = file_basename(config_filename);
-  trim(seedname);
+  jams::process_command_line_args(argc, argv, config_filename, config_patch_string);
 
   output->open("%s.out", seedname.c_str());
 
@@ -95,24 +101,15 @@ int jams_initialize(int argc, char **argv) {
         jams_patch_config(config_patch_string);
       }
 
-
-
-      const libconfig::Setting& cfg_sim = config->lookup("sim");
-
-      auto verbose_output = jams::config_optional<bool>(cfg_sim, "verbose", jams::default_sim_verbose_output);
+      auto verbose_output = jams::config_optional<bool>(config->lookup("sim"), "verbose", jams::default_sim_verbose_output);
       if (verbose_output) {
         output->enableVerbose();
         output->write("verbose output is ON\n");
       }
 
-      unsigned int random_seed = time(NULL);
-      if (cfg_sim.lookupValue("seed", random_seed)) {
-        output->write("\nrandom seed in config file\n");
-      } else {
-        output->write("\nrandom seed from time\n");
-      }
-      output->write("  %u\n", random_seed);
-      rng->seed(random_seed);
+      auto random_seed = jams::config_optional<int>(config->lookup("sim"), "seed", time(nullptr));
+      output->write("  %d\n", random_seed);
+      rng->seed(static_cast<const uint32_t>(random_seed));
 
       lattice->init_from_config(*::config);
 
@@ -204,35 +201,6 @@ void jams_finish() {
   jams::delete_global_classes();
 }
 
-void jams_error(const char *string, ...) {
-  va_list args;
-  char buffer[1024];
-
-  va_start(args, string);
-  vsprintf(buffer, string, args);
-  va_end(args);
-
-  output->write("\n********************************************************************************\n\n");
-  output->write("ERROR: %s\n\n", buffer);
-  output->write("********************************************************************************\n\n");
-
-  jams_finish();
-  exit(EXIT_FAILURE);
-}
-
-void jams_warning(const char *string, ...) {
-  va_list args;
-  char buffer[1024];
-
-  va_start(args, string);
-  vsprintf(buffer, string, args);
-  va_end(args);
-
-  output->write("\n********************************************************************************\n\n");
-  output->write("WARNING: %s\n\n", buffer);
-  output->write("********************************************************************************\n\n");
-}
-
 void jams_global_initializer(const libconfig::Setting &settings) {
   if (settings.exists("spins")) {
     std::string file_name = settings["spins"];
@@ -285,7 +253,6 @@ void jams_patch_config(const std::string &patch_string) {
      || (LIBCONFIG_VER_MAJOR > 1))
     ::config->setFloatPrecision(8);
 #endif
-
 
     ::config->writeFile(patched_config_filename.c_str());
   }

@@ -2,19 +2,19 @@
 #include <tuple>
 #include <stdexcept>
 
-#include "jams/core/exception.h"
+#include "jams/helpers/exception.h"
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
-#include "jams/core/cuda_defs.h"
-#include "jams/core/cuda_sparsematrix.h"
+#include "jams/helpers/consts.h"
+#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_sparsematrix.h"
 #include "jams/core/interactions.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 
 #include "jblib/math/summations.h"
 
-#include "jams/hamiltonian/exchange.h"
+#include "exchange.h"
 
 namespace {
     InteractionFileFormat exchange_file_format_from_string(std::string s) {

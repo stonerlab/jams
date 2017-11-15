@@ -10,7 +10,7 @@
 #include "jams/core/rand.h"
 
 #include "jams/hamiltonian/test_dipole_input.h"
-#include "jams/hamiltonian/cuda_dipole_fft.h"
+#include "../../../src/jams/hamiltonian/cuda_dipole_fft.h"
 
 namespace {
 // The fixture for testing class Foo.

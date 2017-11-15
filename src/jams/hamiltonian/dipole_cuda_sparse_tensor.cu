@@ -2,17 +2,17 @@
 
 #include <libconfig.h++>
 
-#include "jams/core/blas.h"
-#include "jams/core/cuda_defs.h"
-#include "jams/core/cuda_array_kernels.h"
+#include "jams/interface/blas.h"
+#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_array_kernels.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/utils.h"
 #include "jams/core/output.h"
 #include "jams/core/lattice.h"
 
-#include "jams/hamiltonian/dipole_cuda_sparse_tensor.h"
+#include "dipole_cuda_sparse_tensor.h"
 
 DipoleHamiltonianCUDASparseTensor::~DipoleHamiltonianCUDASparseTensor() {
   if (dev_stream_ != nullptr) {

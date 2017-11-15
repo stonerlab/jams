@@ -31,6 +31,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 #-----------------------------------------------------------
 
+include_directories(src)
 include_directories(include)
 
 # TODO: make an xcode module to choose the include path automatically

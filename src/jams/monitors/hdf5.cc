@@ -8,16 +8,16 @@
 
 #include "H5Cpp.h"
 
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 #include "jams/core/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/utils.h"
-#include "jams/core/slice.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/slice.h"
 
-#include "jams/monitors/hdf5.h"
+#include "hdf5.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/vec.h"

@@ -6,9 +6,9 @@
 #include "jams/core/output.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/utils.h"
 
-#include "jams/monitors/binary.h"
+#include "binary.h"
 
 #include "jblib/containers/array.h"
 

@@ -1,14 +1,14 @@
 #include <set>
 
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/consts.h"
-#include "jams/core/cuda_defs.h"
-#include "jams/core/cuda_sparsematrix.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/consts.h"
+#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_sparsematrix.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 
-#include "jams/hamiltonian/exchange_neartree.h"
+#include "exchange_neartree.h"
 
 ExchangeNeartreeHamiltonian::~ExchangeNeartreeHamiltonian() {
   if (dev_stream_ != nullptr) {

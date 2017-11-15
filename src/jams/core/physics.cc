@@ -4,7 +4,7 @@
 #include <string>
 
 #include <libconfig.h++>
-#include <jams/core/defaults.h>
+#include <jams/helpers/defaults.h>
 
 #include "jams/core/physics.h"
 
@@ -12,17 +12,17 @@
 
 
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/error.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
-#include "jams/physics/empty.h"
-#include "jams/physics/fieldcool.h"
-#include "jams/physics/fmr.h"
-#include "jams/physics/mfpt.h"
-#include "jams/physics/square.h"
-#include "jams/physics/ttm.h"
-#include "jams/physics/ping.h"
-#include "jams/physics/flips.h"
+#include "../physics/empty.h"
+#include "jams/physics/field_cool.h"
+#include "../physics/fmr.h"
+#include "jams/physics/mean_first_passage_time.h"
+#include "jams/physics/square_field_pulse.h"
+#include "jams/physics/two_temperature_model.h"
+#include "../physics/ping.h"
+#include "../physics/flips.h"
 
 
 Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0),
@@ -91,19 +91,19 @@ Physics* Physics::create(const libconfig::Setting &settings) {
     return new FMRPhysics(settings);
   }
 
-  if (module_name == "mfpt") {
+  if (module_name == "mean-first-passage-time") {
     return new MFPTPhysics(settings);
   }
 
-  if (module_name == "ttm") {
+  if (module_name == "two-temperature-model") {
     return new TTMPhysics(settings);
   }
 
-  if (module_name == "square") {
+  if (module_name == "square-field-pulse") {
     return new SquarePhysics(settings);
   }
 
-  if (module_name == "fieldcool") {
+  if (module_name == "field-cool") {
     return new FieldCoolPhysics(settings);
   }
 

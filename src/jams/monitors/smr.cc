@@ -8,7 +8,7 @@
 #include "jams/core/lattice.h"
 #include "jams/core/output.h"
 #include "jams/core/solver.h"
-#include "jams/monitors/smr.h"
+#include "smr.h"
 
 #include "jblib/containers/array.h"
 

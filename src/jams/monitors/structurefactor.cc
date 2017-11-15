@@ -9,14 +9,14 @@
 
 #include <fftw3.h>
 
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 #include "jams/core/output.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/consts.h"
-#include "jams/core/field.h"
-#include "jams/core/fft.h"
-#include "jams/monitors/structurefactor.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/field.h"
+#include "jams/helpers/fft.h"
+#include "structurefactor.h"
 
 #include "jblib/containers/array.h"
 

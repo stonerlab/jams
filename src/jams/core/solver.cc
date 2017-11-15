@@ -2,26 +2,25 @@
 
 #include <algorithm>
 #include <string>
-#include <jams/core/config.h>
+#include <jams/interface/config.h>
 
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 #include "jams/core/physics.h"
 #include "jblib/containers/array.h"
-#include "jams/core/blas.h"
+#include "jams/interface/blas.h"
 #include "jams/core/solver.h"
-#include "jams/core/hamiltonian.h"
+#include "hamiltonian.h"
 #include "jams/core/monitor.h"
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 
-#include "jams/core/utils.h"
+#include "jams/helpers/utils.h"
 #include "jams/core/globals.h"
-#include "jams/core/defaults.h"
+#include "jams/helpers/defaults.h"
 
-#include "jams/solvers/cuda_heunllg.h"
-#include "jams/solvers/heunllg.h"
-#include "jams/solvers/metropolismc.h"
-#include "jams/solvers/constrainedmc.h"
-#include "jams/solvers/cuda_constrainedmc.h"
+#include "jams/solvers/cuda_llg_heun.h"
+#include "jams/solvers/cpu_llg_heun.h"
+#include "jams/solvers/cpu_monte_carlo_metropolis.h"
+#include "jams/solvers/cpu_monte_carlo_constrained.h"
 
 Solver::~Solver() {
   for (auto& m : monitors_) {
@@ -77,10 +76,6 @@ Solver* Solver::create(const libconfig::Setting &settings) {
 #ifdef CUDA
   if (module_name == "llg-heun-gpu") {
     return new CUDAHeunLLGSolver;
-  }
-
-  if (module_name == "monte-carlo-constrained-gpu") {
-    return new CudaConstrainedMCSolver;
   }
 #endif
 

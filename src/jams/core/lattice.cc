@@ -21,16 +21,16 @@ extern "C"{
 
 #include "H5Cpp.h"
 
-#include "jams/core/defaults.h"
-#include "jams/core/material.h"
-#include "jams/core/error.h"
+#include "jams/helpers/defaults.h"
+#include "jams/containers/material.h"
+#include "jams/helpers/error.h"
 #include "jams/core/output.h"
 #include "jams/core/rand.h"
 #include "jams/core/globals.h"
-#include "jams/core/exception.h"
-#include "jams/core/maths.h"
-#include "jams/core/utils.h"
-#include "jams/core/neartree.h"
+#include "jams/helpers/exception.h"
+#include "jams/helpers/maths.h"
+#include "jams/helpers/utils.h"
+#include "jams/containers/neartree.h"
 #include "jblib/containers/vec.h"
 
 #include "jblib/containers/array.h"

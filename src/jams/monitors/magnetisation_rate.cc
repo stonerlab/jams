@@ -3,7 +3,7 @@
 #include <cmath>
 #include <string>
 #include <iomanip>
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
@@ -11,7 +11,7 @@
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 
-#include "jams/monitors/magnetisation_rate.h"
+#include "magnetisation_rate.h"
 
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),

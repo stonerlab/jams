@@ -1,6 +1,6 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "jams/physics/fmr.h"
+#include "fmr.h"
 
 
 #include <libconfig.h++>
@@ -11,7 +11,7 @@
 #include "jams/core/output.h"
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 
 #include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"

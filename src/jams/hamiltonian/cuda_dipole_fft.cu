@@ -6,14 +6,14 @@
 #include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"
 
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
 #include "jams/core/output.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
 
-#include "jams/hamiltonian/cuda_dipole_fft.h"
-#include "jams/cuda/cuda-complex-operators.h"
+#include "cuda_dipole_fft.h"
+#include "../cuda/cuda-complex-operators.h"
 
 __global__ void cuda_dipole_convolution(
   const unsigned int size,

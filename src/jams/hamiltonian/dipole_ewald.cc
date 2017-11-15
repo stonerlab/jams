@@ -3,15 +3,15 @@
 #include <algorithm>
 #include <complex>
 
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
-#include "jams/core/maths.h"
+#include "jams/helpers/maths.h"
 #include "jblib/containers/matrix.h"
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/utils.h"
 
-#include "jams/hamiltonian/dipole_ewald.h"
+#include "dipole_ewald.h"
 
 using std::pow;
 using std::abs;

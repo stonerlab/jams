@@ -6,14 +6,14 @@
 #include <vector>
 #include <cassert>
 
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/maths.h"
-#include "jams/monitors/skyrmion.h"
+#include "jams/helpers/maths.h"
+#include "skyrmion.h"
 
 #include "jblib/containers/array.h"
 

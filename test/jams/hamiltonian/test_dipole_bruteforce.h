@@ -10,7 +10,7 @@
 #include "jams/core/rand.h"
 
 #include "jams/hamiltonian/test_dipole_input.h"
-#include "jams/hamiltonian/dipole_bruteforce.h"
+#include "../../../src/jams/hamiltonian/dipole_bruteforce.h"
 
 namespace {
 // The fixture for testing class Foo.

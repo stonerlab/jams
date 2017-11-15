@@ -4,13 +4,13 @@
 
 #include <libconfig.h++>
 
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/hamiltonian.h"
+#include "jams/helpers/utils.h"
+#include "hamiltonian.h"
 
 #include "jams/hamiltonian/dipole.h"
-#include "jams/hamiltonian/uniaxial.h"
+#include "jams/hamiltonian/anisotropy_uniaxial.h"
 #include "jams/hamiltonian/exchange.h"
 #include "jams/hamiltonian/exchange_neartree.h"
 #include "jams/hamiltonian/zeeman.h"

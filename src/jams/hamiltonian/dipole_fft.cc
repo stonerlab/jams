@@ -3,15 +3,15 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
-#include <jams/core/maths.h>
+#include <jams/helpers/maths.h>
 
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/utils.h"
 #include "jams/core/output.h"
 
-#include "jams/hamiltonian/dipole_fft.h"
+#include "dipole_fft.h"
 
 using std::pow;
 using std::abs;

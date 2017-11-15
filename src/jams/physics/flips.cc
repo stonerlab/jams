@@ -1,6 +1,6 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "jams/physics/flips.h"
+#include "flips.h"
 
 #include <libconfig.h++>
 

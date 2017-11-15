@@ -6,20 +6,20 @@
 #include <cuda_runtime_api.h>
 
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/error.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
 
-#include "jams/hamiltonian/strategy.h"
+#include "strategy.h"
 
-#include "jams/hamiltonian/cuda_dipole_fft.h"
-#include "jams/hamiltonian/dipole.h"
-#include "jams/hamiltonian/dipole_bruteforce.h"
-#include "jams/hamiltonian/dipole_tensor.h"
-#include "jams/hamiltonian/dipole_cuda_sparse_tensor.h"
-#include "jams/hamiltonian/dipole_ewald.h"
-#include "jams/hamiltonian/dipole_fft.h"
+#include "cuda_dipole_fft.h"
+#include "dipole.h"
+#include "dipole_bruteforce.h"
+#include "dipole_tensor.h"
+#include "dipole_cuda_sparse_tensor.h"
+#include "dipole_ewald.h"
+#include "dipole_fft.h"
 
 #include "jblib/containers/array.h"
 

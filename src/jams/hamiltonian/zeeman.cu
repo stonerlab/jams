@@ -1,14 +1,14 @@
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/maths.h"
-#include "jams/core/consts.h"
-#include "jams/core/cuda_defs.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/maths.h"
+#include "jams/helpers/consts.h"
+#include "jams/cuda/cuda_defs.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 
-#include "jams/hamiltonian/zeeman.h"
-#include "jams/hamiltonian/zeeman_kernel.h"
+#include "zeeman.h"
+#include "zeeman_kernel.h"
 
 ZeemanHamiltonian::~ZeemanHamiltonian() {
     if (dev_stream_ != nullptr) {

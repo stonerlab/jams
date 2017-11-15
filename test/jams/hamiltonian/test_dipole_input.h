@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 
 namespace {
 
