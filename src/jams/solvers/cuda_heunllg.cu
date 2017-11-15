@@ -9,6 +9,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <jams/core/config.h>
+#include <jams/core/defaults.h>
 
 #include "jams/core/consts.h"
 #include "jams/core/exception.h"
@@ -44,12 +46,10 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
-  if (::config->exists("sim.thermostat")) {
-    thermostat_ = Thermostat::create(::config->lookup("sim.thermostat"));
-  } else {
-    ::output->write("  DEFAULT thermostat\n");
-    thermostat_ = Thermostat::create("CUDA_LANGEVIN_WHITE");
-  }
+  std::string thermostat_name = jams::config_optional<string>(config->lookup("sim"), "thermostat", jams::default_gpu_thermostat);
+  thermostat_ = Thermostat::create(thermostat_name);
+
+  ::output->write("  thermostat: %s\n", thermostat_name.c_str());
 
   nblocks = (num_spins+BLOCKSIZE-1)/BLOCKSIZE;
 
