@@ -17,6 +17,7 @@ extern "C"{
 #include <string>
 #include <utility>
 #include <cfloat>
+#include <jams/core/defaults.h>
 
 #include "H5Cpp.h"
 
@@ -94,7 +95,12 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
 void read_material_settings(Setting& cfg, Material &mat) {
   mat.name   = cfg["name"].c_str();
   mat.moment = double(cfg["moment"]);
-  mat.gyro   = double(cfg["gyro"]);
+
+  mat.gyro = jams::default_gyro;
+  if (cfg.exists("gyro")) {
+    mat.gyro   = double(cfg["gyro"]);
+  }
+
   mat.alpha  = double(cfg["alpha"]);
 
   if (cfg.exists("transform")) {
