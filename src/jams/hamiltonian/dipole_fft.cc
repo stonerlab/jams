@@ -58,10 +58,10 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 
     r_cutoff_ = double(settings["r_cutoff"]);
     output->write("  r_cutoff:     %8.8f\n", r_cutoff_);
-    output->write("  r_cutoff_max: %8.8f\n", ::lattice->maximum_interaction_radius());
+    output->write("  r_cutoff_max: %8.8f\n", ::lattice->max_interaction_radius());
 
     if (check_radius_) {
-      if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
+      if (r_cutoff_ > ::lattice->max_interaction_radius()) {
         throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
                                          "The cutoff must be less than the inradius of the lattice.");
       }
@@ -71,7 +71,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     output->write("  distance_tolerance: %e\n", distance_tolerance_);
 
     for (int n = 0; n < 3; ++n) {
-        kspace_size_[n] = ::lattice->num_unit_cells(n);
+        kspace_size_[n] = ::lattice->size(n);
     }
 
     kspace_padded_size_ = kspace_size_;
@@ -92,10 +92,10 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 
     output->write("    generating tensors\n");
 
-  kspace_tensors_.resize(lattice->num_unit_cell_positions());
+  kspace_tensors_.resize(lattice->num_motif_positions());
 
-    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
-      for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
+    for (int pos_i = 0; pos_i < lattice->num_motif_positions(); ++pos_i) {
+      for (int pos_j = 0; pos_j < lattice->num_motif_positions(); ++pos_j) {
         kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j));
       }
     }
@@ -218,11 +218,11 @@ jblib::Array<fftw_complex, 5>
 DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
     using std::pow;
 
-    const Vec3 r_frac_i = lattice->unit_cell_position(pos_i);
-    const Vec3 r_frac_j = lattice->unit_cell_position(pos_j);
+    const Vec3 r_frac_i = lattice->motif_position_frac(pos_i);
+    const Vec3 r_frac_j = lattice->motif_position_frac(pos_j);
 
-    const Vec3 r_cart_i = lattice->unit_cell_position_cart(pos_i);
-    const Vec3 r_cart_j = lattice->unit_cell_position_cart(pos_j);
+    const Vec3 r_cart_i = lattice->motif_position_cart(pos_i);
+    const Vec3 r_cart_j = lattice->motif_position_cart(pos_j);
 
     jblib::Array<double, 5> rspace_tensor(
         kspace_padded_size_[0],
@@ -256,7 +256,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
                 } 
 
                 const Vec3 r_ij = 
-                    lattice->minimum_image(r_cart_j,
+                    lattice->displacement(r_cart_j,
                         lattice->generate_position(r_frac_i, {nx, ny, nz})); // generate_position requires FRACTIONAL coordinate
 
                 const auto r_abs_sq = abs_sq(r_ij);
@@ -330,13 +330,13 @@ void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2> &fields) {
 
     h_.zero();
 
-    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
+    for (int pos_i = 0; pos_i < lattice->num_motif_positions(); ++pos_i) {
 
         kspace_h_.zero();
 
-        for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
+        for (int pos_j = 0; pos_j < lattice->num_motif_positions(); ++pos_j) {
 
-            const double mus_j = lattice->unit_cell_material(pos_j).moment;
+            const double mus_j = lattice->motif_material(pos_j).moment;
 
             rspace_s_.zero();
 

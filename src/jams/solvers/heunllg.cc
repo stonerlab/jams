@@ -3,6 +3,7 @@
 #include "jams/solvers/heunllg.h"
 
 #include <cmath>
+#include <jams/core/config.h>
 
 #include "jams/core/consts.h"
 
@@ -16,11 +17,25 @@
 #endif
 
 
-void HeunLLGSolver::initialize(int argc, char **argv, double idt) {
+void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
   // initialize base class
-  Solver::initialize(argc, argv, idt);
+  Solver::initialize(settings);
+
+  time_step_ = jams::config_required<double>(settings, "t_step");
+  dt = time_step_ * kGyromagneticRatio;
+
+  auto t_max = jams::config_required<double>(settings, "t_max");
+  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0);
+
+  max_steps_ = static_cast<int>(t_max / time_step_);
+  min_steps_ = static_cast<int>(t_min / time_step_);
+
+  output->write("\ntimestep\n  %1.8e\n", dt);
+  output->write("\nt_max\n  %1.8e (%lu steps)\n", t_max, max_steps_);
+  output->write("\nt_min\n  %1.8e (%lu steps)\n", t_min, min_steps_);
+
 
   ::output->write("Initialising Heun LLG solver (CPU)\n");
 
@@ -81,11 +96,11 @@ void HeunLLGSolver::run() {
     rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
 
     for (j = 0; j < 3; ++j) {
-      snew(i, j) = s(i, j) + 0.5*time_step_*rhs[j];
+      snew(i, j) = s(i, j) + 0.5*dt*rhs[j];
     }
 
     for (j = 0; j < 3; ++j) {
-      s(i, j) = s(i, j) + time_step_*rhs[j];
+      s(i, j) = s(i, j) + dt*rhs[j];
     }
 
     norm = 1.0/sqrt(s(i, 0)*s(i, 0) + s(i, 1)*s(i, 1) + s(i, 2)*s(i, 2));
@@ -121,7 +136,7 @@ void HeunLLGSolver::run() {
     rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
 
     for (j = 0; j < 3; ++j) {
-      s(i, j) = snew(i, j) + 0.5*time_step_*rhs[j];
+      s(i, j) = snew(i, j) + 0.5*dt*rhs[j];
     }
 
     norm = 1.0/sqrt(s(i, 0)*s(i, 0) + s(i, 1)*s(i, 1) + s(i, 2)*s(i, 2));
@@ -132,9 +147,4 @@ void HeunLLGSolver::run() {
   }
 
   iteration_++;
-}
-
-void HeunLLGSolver::compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t, double &e4_s) {
-  using namespace globals;
-
 }

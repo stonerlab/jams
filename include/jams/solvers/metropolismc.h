@@ -15,7 +15,7 @@ class MetropolisMCSolver : public Solver {
  public:
   MetropolisMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0) {}
   ~MetropolisMCSolver();
-  void initialize(int argc, char **argv, double dt);
+  void initialize(const libconfig::Setting& settings);
   void run();
 
  private:

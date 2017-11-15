@@ -23,11 +23,24 @@
 
 #include "jblib/containers/array.h"
 
-void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
+void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
 {
   using namespace globals;
 
-  CudaSolver::initialize(argc, argv, idt);
+  CudaSolver::initialize(settings);
+
+  time_step_ = jams::config_required<double>(settings, "t_step");
+  double dt = time_step_ * kGyromagneticRatio;
+
+  auto t_max = jams::config_required<double>(settings, "t_max");
+  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0);
+
+  max_steps_ = static_cast<int>(t_max / time_step_);
+  min_steps_ = static_cast<int>(t_min / time_step_);
+
+  output->write("\ntimestep\n  %1.8e\n", dt);
+  output->write("\nt_max\n  %1.8e (%lu steps)\n", t_max, max_steps_);
+  output->write("\nt_min\n  %1.8e (%lu steps)\n", t_min, min_steps_);
 
   ::output->write("\ninitializing CUDA Heun LLG solver\n");
 
@@ -46,7 +59,7 @@ void CUDAHeunLLGSolver::initialize(int argc, char **argv, double idt)
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
-  std::string thermostat_name = jams::config_optional<string>(config->lookup("sim"), "thermostat", jams::default_gpu_thermostat);
+  std::string thermostat_name = jams::config_optional<string>(config->lookup("sim"), "thermostat", jams::default_solver_gpu_thermostat);
   thermostat_ = Thermostat::create(thermostat_name);
 
   ::output->write("  thermostat: %s\n", thermostat_name.c_str());

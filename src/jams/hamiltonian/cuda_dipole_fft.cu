@@ -77,10 +77,10 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
 
   r_cutoff_ = double(settings["r_cutoff"]);
   output->write("  r_cutoff:     %8.8f\n", r_cutoff_);
-  output->write("  r_cutoff_max: %8.8f\n", ::lattice->maximum_interaction_radius());
+  output->write("  r_cutoff_max: %8.8f\n", ::lattice->max_interaction_radius());
 
   if (check_radius_) {
-    if (r_cutoff_ > ::lattice->maximum_interaction_radius()) {
+    if (r_cutoff_ > ::lattice->max_interaction_radius()) {
       throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
                                        "The cutoff must be less than the inradius of the lattice.");
     }
@@ -90,7 +90,7 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   output->write("  distance_tolerance: %e\n", distance_tolerance_);
 
   for (int n = 0; n < 3; ++n) {
-      kspace_size_[n] = ::lattice->num_unit_cells(n);
+      kspace_size_[n] = ::lattice->size(n);
   }
 
   kspace_padded_size_ = kspace_size_;
@@ -101,7 +101,8 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
       }
   }
 
-  unsigned int kspace_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2]/2 + 1) * lattice->num_unit_cell_positions() * 3;
+  unsigned int kspace_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2]/2 + 1) *
+          lattice->num_motif_positions() * 3;
 
   kspace_s_.resize(kspace_size);
   kspace_h_.resize(kspace_size);
@@ -114,9 +115,9 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   output->write("    kspace padded size: %d %d %d\n", kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]);
 
   int rank            = 3;           
-  int stride          = 3 * lattice->num_unit_cell_positions();
+  int stride          = 3 * lattice->num_motif_positions();
   int dist            = 1;
-  int num_transforms  = 3 * lattice->num_unit_cell_positions();
+  int num_transforms  = 3 * lattice->num_motif_positions();
   int rspace_embed[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
   int kspace_embed[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]/2 + 1};
 
@@ -137,9 +138,9 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
     throw std::runtime_error("CUFFT failure");
   }
 
-  kspace_tensors_.resize(lattice->num_unit_cell_positions());
-  for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
-      for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
+  kspace_tensors_.resize(lattice->num_motif_positions());
+  for (int pos_i = 0; pos_i < lattice->num_motif_positions(); ++pos_i) {
+      for (int pos_j = 0; pos_j < lattice->num_motif_positions(); ++pos_j) {
         auto wq = generate_kspace_dipole_tensor(pos_i, pos_j);
 
         jblib::CudaArray<cufftDoubleComplex, 1> gpu_wq(wq.elements());
@@ -211,10 +212,10 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu
 
   cudaDeviceSynchronize();
 
-  for (int pos_j = 0; pos_j < lattice->num_unit_cell_positions(); ++pos_j) {
+  for (int pos_j = 0; pos_j < lattice->num_motif_positions(); ++pos_j) {
 
-    for (int pos_i = 0; pos_i < lattice->num_unit_cell_positions(); ++pos_i) {
-      const double mus_j = lattice->unit_cell_material(pos_j).moment;
+    for (int pos_i = 0; pos_i < lattice->num_motif_positions(); ++pos_i) {
+      const double mus_j = lattice->motif_material(pos_j).moment;
 
       const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
 
@@ -224,7 +225,7 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu
       dim3 grid_size;
       grid_size.x = (fft_size + block_size.x - 1) / block_size.x;
 
-      cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, lattice->num_unit_cell_positions(), mus_j, kspace_s_.data(),  kspace_tensors_[pos_i][pos_j].data(), kspace_h_.data());
+      cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, lattice->num_motif_positions(), mus_j, kspace_s_.data(),  kspace_tensors_[pos_i][pos_j].data(), kspace_h_.data());
     }
     cudaDeviceSynchronize();
   }
@@ -242,11 +243,11 @@ jblib::Array<fftw_complex, 5>
 CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
     using std::pow;
 
-    const Vec3 r_frac_i = lattice->unit_cell_position(pos_i);
-    const Vec3 r_frac_j = lattice->unit_cell_position(pos_j);
+    const Vec3 r_frac_i = lattice->motif_position_frac(pos_i);
+    const Vec3 r_frac_j = lattice->motif_position_frac(pos_j);
 
-    const Vec3 r_cart_i = lattice->unit_cell_position_cart(pos_i);
-    const Vec3 r_cart_j = lattice->unit_cell_position_cart(pos_j);
+    const Vec3 r_cart_i = lattice->motif_position_cart(pos_i);
+    const Vec3 r_cart_j = lattice->motif_position_cart(pos_j);
 
     jblib::Array<double, 5> rspace_tensor(
         kspace_padded_size_[0],
@@ -280,7 +281,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
                 } 
 
                 const Vec3 r_ij = 
-                    lattice->minimum_image(r_cart_j,
+                    lattice->displacement(r_cart_j,
                         lattice->generate_position(r_frac_i, {nx, ny, nz})); // generate_position requires FRACTIONAL coordinate
 
                 const auto r_abs_sq = abs_sq(r_ij);

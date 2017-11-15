@@ -146,14 +146,14 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
 
     for (int n = 0; n < 3; ++n) {
-        kspace_size_[n] = ::lattice->num_unit_cells(n);
+        kspace_size_[n] = ::lattice->size(n);
     }
 
     kspace_padded_size_ = kspace_size_;
 
     for (int n = 0; n < 3; ++n) {
         if (!::lattice->is_periodic(n)) {
-            kspace_padded_size_[n] = 2*::lattice->num_unit_cells(n);
+            kspace_padded_size_[n] = 2*::lattice->size(n);
         }
     }
 

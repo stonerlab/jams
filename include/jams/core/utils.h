@@ -15,6 +15,18 @@
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
+inline std::string get_date_string(std::chrono::time_point<std::chrono::system_clock> t) {
+  // https://stackoverflow.com/questions/34963738/c11-get-current-date-and-time-as-string
+  auto as_time_t = std::chrono::system_clock::to_time_t(t);
+  struct tm tm;
+  if (::gmtime_r(&as_time_t, &tm)) {
+    char timebuffer[80];
+    if (std::strftime(timebuffer, sizeof(timebuffer), "%F", &tm)) {
+      return std::string{timebuffer};
+    }
+  }
+  throw std::runtime_error("Failed to get current date as string");
+}
 inline std::string& left_trim(std::string &s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(),
     std::not1(std::ptr_fun<int, int>(std::isspace))));

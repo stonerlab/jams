@@ -22,7 +22,7 @@ class CudaSolver : public Solver {
    {};
   ~CudaSolver();
 
-  void initialize(int argc, char **argv, double dt);
+  void initialize(const libconfig::Setting& settings);
   void run();
 
   inline void notify_monitors() {
@@ -43,13 +43,9 @@ class CudaSolver : public Solver {
   }
 
   void compute_fields();
-  void compute_energy();
 
  protected:
     void sync_device_data();
-
-    jblib::Vec3<int> num_kpoints_;
-    jblib::CudaArray<int, 1> r_to_k_mapping_;
 
     jblib::CudaArray<double, 1>  dev_h_;
     jblib::CudaArray<double, 1>  dev_gyro_;
@@ -57,16 +53,6 @@ class CudaSolver : public Solver {
     jblib::CudaArray<double, 1>  dev_s_;
     jblib::CudaArray<double, 1>  dev_s_old_;
     jblib::CudaArray<double, 1>  dev_ds_dt_;
-
-    jblib::CudaArray<double, 1> dev_s3d_;
-    jblib::CudaArray<double, 1> dev_h3d_;
-
-    jblib::CudaArray<cufftDoubleComplex, 1> dev_sq_;
-    jblib::CudaArray<cufftDoubleComplex, 1> dev_hq_;
-    jblib::CudaArray<cufftDoubleComplex, 1> dev_wq_;
-
-    cufftHandle spin_fft_forward_transform;
-    cufftHandle field_fft_backward_transform;
 
   private:
     CudaStream dev_stream_;

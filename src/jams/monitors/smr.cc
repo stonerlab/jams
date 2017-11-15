@@ -50,6 +50,7 @@ void SMRMonitor::update(Solver * solver) {
   std::vector<double> mjmt_perp(lattice->num_materials(), 0.0);
 
   std::vector<double> mn(lattice->num_materials(), 0.0);
+  std::vector<int> material_count(lattice->num_materials(), 0);
 
   for (int i = 0; i < num_spins; ++i) {
     // Uses the WMI geometry from M. Althammer,Phys. Rev. B 87, 224401 (2013).
@@ -64,16 +65,17 @@ void SMRMonitor::update(Solver * solver) {
     mjmt_perp[type] += -s(i, 0) * s(i, 1);
 
     mn[type]   += s(i, 2);
+    material_count[type]++;
   }
 
   for (int i = 0; i < lattice->num_materials(); ++i) {
-      mtsq_para[i] = mtsq_para[i]/static_cast<double>(lattice->num_of_material(i));
-      mtsq_perp[i] = mtsq_perp[i]/static_cast<double>(lattice->num_of_material(i));
+      mtsq_para[i] = mtsq_para[i]/static_cast<double>(material_count[i]);
+      mtsq_perp[i] = mtsq_perp[i]/static_cast<double>(material_count[i]);
 
-      mjmt_para[i] = mjmt_para[i]/static_cast<double>(lattice->num_of_material(i));
-      mjmt_perp[i] = mjmt_perp[i]/static_cast<double>(lattice->num_of_material(i));
+      mjmt_para[i] = mjmt_para[i]/static_cast<double>(material_count[i]);
+      mjmt_perp[i] = mjmt_perp[i]/static_cast<double>(material_count[i]);
 
-      mn[i] = mn[i]/static_cast<double>(lattice->num_of_material(i));
+      mn[i] = mn[i]/static_cast<double>(material_count[i]);
   }
 
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";

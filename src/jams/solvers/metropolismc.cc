@@ -20,22 +20,21 @@ MetropolisMCSolver::~MetropolisMCSolver() {
   }
 }
 
-void MetropolisMCSolver::initialize(int argc, char **argv, double idt) {
+void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
   // initialize base class
-  Solver::initialize(argc, argv, idt);
+  Solver::initialize(settings);
 
   output->write("Initialising Metropolis Monte-Carlo solver\n");
 
-  is_preconditioner_enabled_ = false;
-  preconditioner_delta_theta_ = 5.0;
-  preconditioner_delta_phi_ = 5.0;
-  if (config->exists("sim.preconditioner")) {
-    is_preconditioner_enabled_ = true;
-    preconditioner_delta_theta_ = config->lookup("sim.preconditioner.[0]");
-    preconditioner_delta_phi_ = config->lookup("sim.preconditioner.[1]");
-  }
+  max_steps_ = jams::config_required<int>(settings, "max_steps");
+  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::default_solver_min_steps);
+
+  is_preconditioner_enabled_ = settings.exists("preconditioner_theta") || settings.exists("preconditioner_phi");
+  preconditioner_delta_theta_ = jams::config_optional<double>(settings, "preconditioner_theta", 5.0);
+  preconditioner_delta_phi_ = jams::config_optional<double>(settings, "preconditioner_phi", 5.0);
+
 
   if (output->is_verbose()) {
     outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());

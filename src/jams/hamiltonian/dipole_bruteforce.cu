@@ -35,15 +35,21 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
         super_cell_pbc[i] = ::lattice->is_periodic(i);
     }
 
+    auto A = ::lattice->a() * double(::lattice->size(0));
+    auto B = ::lattice->b() * double(::lattice->size(1));
+    auto C = ::lattice->c() * double(::lattice->size(2));
+
+    auto matrix_double = matrix_from_cols(A, B, C);
+
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            super_unit_cell[j][i] = ::lattice->unit_cell_vector(i)[j] * ::lattice->size(i);
+            super_unit_cell[i][j] = static_cast<float>(matrix_double[i][j]);
         }
     }
 
       super_unit_cell_inv = inverse(super_unit_cell);
 
-    float r_cutoff_float = r_cutoff_;
+    float r_cutoff_float = static_cast<float>(r_cutoff_);
 
     cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(double));
     cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(float));

@@ -7,6 +7,7 @@
 #include <cassert>
 #include <iosfwd>
 #include <vector>
+#include <libconfig.h++>
 
 #include <fftw3.h>
 
@@ -18,21 +19,15 @@ class Thermostat;
 
 class Solver {
  public:
-  Solver()
-  : initialized_(false),
-    is_cuda_solver_(false),
-    iteration_(0),
-    time_step_(0.0),
-    real_time_step_(0.0),
-    physics_module_()
-  {}
+  Solver() = default;
 
   virtual ~Solver();
 
-  virtual void initialize(int argc, char **argv, double dt) = 0;
+  virtual void initialize(const libconfig::Setting& settings) = 0;
   virtual void run() = 0;
 
   bool is_converged();
+  bool is_running();
 
   inline bool is_cuda_solver() const {
     return is_cuda_solver_;
@@ -43,7 +38,7 @@ class Solver {
   }
 
   inline double time() const {
-    return iteration_*real_time_step_;
+    return iteration_ * time_step_;
   }
 
   inline double time_step() const {
@@ -51,7 +46,7 @@ class Solver {
   }
 
   inline double real_time_step() const {
-    return real_time_step_;
+    return time_step_;
   }
 
   inline const Physics * physics() const {
@@ -71,34 +66,31 @@ class Solver {
   virtual void notify_monitors();
 
   void compute_fields();
-  void compute_energy();
 
   virtual inline double * dev_ptr_spin() {
     assert(is_cuda_solver_);
-    return NULL;
+    return nullptr;
   }
 
   std::vector<Hamiltonian*>& hamiltonians() {
     return hamiltonians_;
   }
 
-  static Solver* create(const std::string &solver_name);
+  static Solver* create(const libconfig::Setting &setting);
  protected:
-  bool initialized_;
-  bool is_cuda_solver_;
+    bool initialized_ = false;
+    bool is_cuda_solver_ = false;
 
-  int    iteration_;
-  double time_step_;
-  double real_time_step_;
+    int iteration_ = 0;
+    int max_steps_ = 0;
+    int min_steps_ = 0;
+
+    double time_step_ = 1.0;
 
   Physics*                  physics_module_;
   Thermostat*               thermostat_;
   std::vector<Monitor*>     monitors_;
   std::vector<Hamiltonian*> hamiltonians_;
-
-  fftw_plan spin_fft_forward_transform;
-  fftw_plan field_fft_backward_transform;
-  fftw_plan interaction_fft_transform;
 };
 
 #endif  // JAMS_CORE_SOLVER_H

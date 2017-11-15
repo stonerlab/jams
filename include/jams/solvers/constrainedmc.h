@@ -17,8 +17,9 @@ class ConstrainedMCSolver : public Solver {
   ConstrainedMCSolver()  = default;
   ~ConstrainedMCSolver() override = default;
 
-  void initialize(int argc, char **argv, double dt) override;
+  void initialize(const libconfig::Setting& settings) override;
   void run() override;
+    bool is_running();
 
  private:
     unsigned AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_spin_move);
@@ -43,7 +44,9 @@ class ConstrainedMCSolver : public Solver {
 
     std::vector<Mat3> spin_transformations_;
 
-    unsigned output_write_steps_ = 100;
+    int max_run_steps_ = 1;
+
+    int output_write_steps_ = 100;
 
     double move_fraction_uniform_     = 1.0; // default is guaranteed erogodic
     double move_fraction_angle_       = 0.0;

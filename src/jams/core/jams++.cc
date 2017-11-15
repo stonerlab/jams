@@ -7,9 +7,9 @@
 
 #include <cstdarg>
 #include <fstream>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <ctime>
 #include <exception>
 
 #include "jams/core/config.h"
@@ -28,18 +28,42 @@
 #include "jams/core/utils.h"
 #include "jams/core/hamiltonian.h"
 
-namespace {
+namespace jams {
 
-  double dt = 0.0;
-  int steps_min = 0;
-  int steps_run = 0;
-}  // anon namespace
+    void new_global_classes() {
+      output  = new Output();
+      config  = new libconfig::Config();
+      rng     = new Random();
+      lattice = new Lattice();
+    }
+
+    void delete_global_classes() {
+      delete solver;
+      delete physics_module;
+      delete lattice;
+      delete rng;
+      delete config;
+      delete output;
+    }
+
+    void output_program_header() {
+      output->write("\nJAMS++\n");
+      output->write("Version %s\n", JAMS_VERSION);
+      output->write("Commit %s\n", QUOTEME(GITCOMMIT));
+      output->write("Compiled %s, %s\n", __DATE__, __TIME__);
+      output->write("----------------------------------------\n");
+      output->write("Run time %s\n", get_date_string(std::chrono::system_clock::now()).c_str());
+      output->write("----------------------------------------\n");
+#ifdef DEBUG
+      output->write("\nDEBUG Build\n");
+#endif
+    }
+}
 
 int jams_initialize(int argc, char **argv) {
-  output  = new Output();
-  config  = new libconfig::Config();
-  rng     = new Random();
-  lattice = new Lattice();
+
+  jams::new_global_classes();
+  jams::output_program_header();
 
   std::string config_filename;
   std::string config_patch_string;
@@ -60,24 +84,6 @@ int jams_initialize(int argc, char **argv) {
 
   output->open("%s.out", seedname.c_str());
 
-  output->write("\nJAMS++\n");
-  output->write("Version %s\n", JAMS_VERSION);
-  output->write("Commit %s\n", QUOTEME(GITCOMMIT));
-  output->write("Compiled %s, %s\n", __DATE__, __TIME__);
-  output->write("----------------------------------------\n");
-
-  time_t rawtime;
-  struct tm * timeinfo;
-  char timebuffer[80];
-  time(&rawtime);
-  timeinfo = localtime(&rawtime); // NOLINT
-  strftime(timebuffer, 80, "%b %d %Y, %X", timeinfo);
-  output->write("Run time %s\n", timebuffer);
-  output->write("----------------------------------------\n");
-
-#ifdef DEBUG
-  output->write("\nDEBUG Build\n");
-#endif
   output->write("\nconfig file\n  %s\n", config_filename.c_str());
 
   {
@@ -89,9 +95,11 @@ int jams_initialize(int argc, char **argv) {
         jams_patch_config(config_patch_string);
       }
 
+
+
       const libconfig::Setting& cfg_sim = config->lookup("sim");
 
-      bool verbose_output = jams::config_optional<bool>(cfg_sim, "verbose", jams::default_verbose_output);
+      auto verbose_output = jams::config_optional<bool>(cfg_sim, "verbose", jams::default_sim_verbose_output);
       if (verbose_output) {
         output->enableVerbose();
         output->write("verbose output is ON\n");
@@ -106,50 +114,30 @@ int jams_initialize(int argc, char **argv) {
       output->write("  %u\n", random_seed);
       rng->seed(random_seed);
 
-      dt = jams::config_required<double>(cfg_sim, "t_step");
-
-      output->write("\ntimestep\n  %1.8e\n", dt);
-
-      double time_value = jams::config_required<double>(cfg_sim, "t_run");
-
-      steps_run = static_cast<int>(time_value/dt);
-      output->write("\nruntime\n  %1.8e (%lu steps)\n",
-        time_value, steps_run);
-
-      auto t_min = jams::config_required<double>(cfg_sim, "t_min");
-      steps_min = static_cast<int>(t_min/dt);
-
-      output->write("\nminimum runtime\n  %1.8e (%lu steps)\n",
-        time_value, steps_min);
-
       lattice->init_from_config(*::config);
 
       output->write("\nInitialising physics module...\n");
       physics_module = Physics::create(config->lookup("physics"));
 
       output->write("\nInitialising solver...\n");
-      solver = Solver::create(capitalize(config->lookup("sim.solver")));
-      solver->initialize(argc, argv, dt);
+      solver = Solver::create(config->lookup("solver"));
+      solver->initialize(config->lookup("solver"));
       solver->register_physics_module(physics_module);
 
       if (!::config->exists("monitors")) {
-        // no monitors were found in the config file - hopefully the physics module
-        // produces the output!
-        jams_warning("No monitors selected");
+        jams_warning("No monitors in config");
       } else {
-        // loop over monitor groups and register
         const libconfig::Setting &monitor_settings = ::config->lookup("monitors");
-        for (int i = 0; i != monitor_settings.getLength(); ++i) {
+        for (int i = 0; i < monitor_settings.getLength(); ++i) {
           solver->register_monitor(Monitor::create(monitor_settings[i]));
         }
       }
 
       if (!::config->exists("hamiltonians")) {
-        jams_error("No hamiltonian terms selected");
+        jams_error("No hamiltonians in config");
       } else {
-        // loop over hamiltonian groups and register
         const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
-        for (int i = 0; i != hamiltonian_settings.getLength(); ++i) {
+        for (int i = 0; i < hamiltonian_settings.getLength(); ++i) {
           solver->register_hamiltonian(Hamiltonian::create(hamiltonian_settings[i], globals::num_spins));
         }
       }
@@ -195,25 +183,25 @@ void jams_run() {
 
   output->write("\n----Data Run----\n");
   output->write("Running solver\n");
-  std::clock_t start = std::clock();
 
-  for (int i = 0; i < steps_run; ++i) {
-    if (i > steps_min && solver->is_converged()) {
+  auto start_time = std::clock();
+
+  while (solver->is_running()) {
+    if (solver->is_converged()) {
       break;
     }
+
     solver->update_physics_module();
     solver->notify_monitors();
     solver->run();
   }
 
-  double elapsed = static_cast<double>(std::clock()-start);
-  elapsed /= CLOCKS_PER_SEC;
-  output->write("Solving time: %f\n", elapsed);
+  auto end_time = std::clock();
+  output->write("Solving time: %f\n", static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC);
 }
 
 void jams_finish() {
-  if (solver != NULL) { delete solver; }
-  if (physics_module != NULL) { delete physics_module; }
+  jams::delete_global_classes();
 }
 
 void jams_error(const char *string, ...) {

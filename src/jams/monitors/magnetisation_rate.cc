@@ -61,18 +61,22 @@ void MagnetisationRateMonitor::update(Solver * solver) {
 
     int i, j;
 
-    dm_dt.zero();
+  std::vector<int> material_count(lattice->num_materials(), 0);
+
+
+  dm_dt.zero();
 
     for (i = 0; i < num_spins; ++i) {
       int type = lattice->atom_material(i);
       for (j = 0; j < 3; ++j) {
         dm_dt(type, j) += ds_dt(i, j);
       }
+      material_count[type]++;
     }
 
     for (i = 0; i < lattice->num_materials(); ++i) {
       for (j = 0; j < 3; ++j) {
-        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(lattice->num_of_material(i));
+        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(material_count[i]);
       }
     }
 

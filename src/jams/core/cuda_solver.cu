@@ -26,10 +26,10 @@ void CudaSolver::sync_device_data() {
   dev_ds_dt_.copy_to_host_array(globals::ds_dt);
 }
 
-void CudaSolver::initialize(int argc, char **argv, double idt) {
+void CudaSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
-  Solver::initialize(argc, argv, idt);
+  Solver::initialize(settings);
 
   ::output->write("\ninitializing CUDA base solver\n");
 

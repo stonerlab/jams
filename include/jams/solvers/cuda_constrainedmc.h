@@ -19,7 +19,7 @@ class CudaConstrainedMCSolver : public CudaSolver {
  public:
   CudaConstrainedMCSolver() : snew(0, 0), sigma(0, 0), eng(0, 0), move_acceptance_count_(0), move_acceptance_fraction_(1.0), move_sigma_(0.05) {}
   ~CudaConstrainedMCSolver() {}
-  void initialize(int argc, char **argv, double dt);
+  void initialize(const libconfig::Setting& settings);
   void run();
   void compute_total_energy(double &e1_s, double &e1_t, double &e2_s, double &e2_t,
     double &e4_s);

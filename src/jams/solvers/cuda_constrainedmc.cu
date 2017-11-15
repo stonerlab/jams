@@ -15,11 +15,11 @@
 
 #include <iomanip>
 
-void CudaConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
+void CudaConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
     // initialize base class
-  CudaSolver::initialize(argc, argv, idt);
+  CudaSolver::initialize(settings);
 
   move_acceptance_count_ = 0;
   move_acceptance_fraction_ = 0.234;

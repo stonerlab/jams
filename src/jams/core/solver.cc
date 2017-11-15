@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <string>
+#include <jams/core/config.h>
 
 #include "jams/core/error.h"
 #include "jams/core/physics.h"
@@ -14,6 +15,7 @@
 
 #include "jams/core/utils.h"
 #include "jams/core/globals.h"
+#include "jams/core/defaults.h"
 
 #include "jams/solvers/cuda_heunllg.h"
 #include "jams/solvers/heunllg.h"
@@ -31,10 +33,9 @@ Solver::~Solver() {
 }
 
 
-void Solver::initialize(int argc, char **argv, double idt) {
+void Solver::initialize(const libconfig::Setting& settings) {
   assert(!initialized_);
-  real_time_step_ = idt;
-  time_step_ = idt * kGyromagneticRatio;
+
   initialized_ = true;
 }
 
@@ -57,29 +58,33 @@ void Solver::compute_fields() {
 }
 
 
-Solver* Solver::create(const std::string &solver_name) {
-  if (capitalize(solver_name) == "LLG-HEUN-CPU" || capitalize(solver_name) == "HEUNLLG") {
+Solver* Solver::create(const libconfig::Setting &settings) {
+  std::string module_name = jams::default_physics_module;
+  settings.lookupValue("module", module_name);
+  module_name = lowercase(module_name);
+
+  if (module_name == "llg-heun-cpu") {
     return new HeunLLGSolver;
   }
 
-  if (capitalize(solver_name) == "MONTE-CARLO-METROPOLIS-CPU" || capitalize(solver_name) == "METROPOLISMC") {
+  if (module_name == "monte-carlo-metropolis-cpu") {
     return new MetropolisMCSolver;
   }
 
-  if (capitalize(solver_name) == "MONTE-CARLO-CONSTRAINED-CPU" || capitalize(solver_name) == "CONSTRAINEDMC") {
+  if (module_name == "monte-carlo-constrained-cpu") {
     return new ConstrainedMCSolver;
   }
 #ifdef CUDA
-  if (capitalize(solver_name) == "LLG-HEUN-GPU" || capitalize(solver_name) == "CUDAHEUNLLG") {
+  if (module_name == "llg-heun-gpu") {
     return new CUDAHeunLLGSolver;
   }
 
-  if (capitalize(solver_name) == "MONTE-CARLO-CONSTRAINED-GPU" || capitalize(solver_name) == "CUDACONSTRAINEDMC") {
+  if (module_name == "monte-carlo-constrained-gpu") {
     return new CudaConstrainedMCSolver;
   }
 #endif
 
-  jams_error("Unknown solver '%s' selected.", solver_name.c_str());
+  jams_error("Unknown solver '%s' selected.", module_name.c_str());
   return nullptr;
 }
 
@@ -112,8 +117,15 @@ void Solver::notify_monitors() {
   }
 }
 
+bool Solver::is_running() {
+  return iteration_ < max_steps_;
+}
 
 bool Solver::is_converged() {
+  if (iteration_ < min_steps_) {
+    return false;
+  }
+
   for (auto& m : monitors_) {
     if (m->is_converged()) {
       return true;

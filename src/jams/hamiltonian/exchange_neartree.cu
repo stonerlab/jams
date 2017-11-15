@@ -81,12 +81,12 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     // --- SAFETY ---
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
-    for (int i = 0; i < lattice->num_unit_cell_positions(); ++i) {
-      for (int j = i+1; j < lattice->num_unit_cell_positions(); ++j) {
-        if( abs(lattice->unit_cell_position(i) - lattice->unit_cell_position(j)) < distance_tolerance_ ) {
+    for (int i = 0; i < lattice->num_motif_positions(); ++i) {
+      for (int j = i+1; j < lattice->num_motif_positions(); ++j) {
+        if( abs(lattice->motif_position_frac(i) - lattice->motif_position_frac(j)) < distance_tolerance_ ) {
           jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
                      "Check position file or relax distance_tolerance for exchange module",
-                      i, j, abs(lattice->unit_cell_position(i) - lattice->unit_cell_position(j)), distance_tolerance_);
+                      i, j, abs(lattice->motif_position_frac(i) - lattice->motif_position_frac(j)), distance_tolerance_);
         }
       }
     }

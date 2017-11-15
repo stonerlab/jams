@@ -25,26 +25,26 @@ namespace {
     }
 }
 
-void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
+void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   // initialize base class
-  Solver::initialize(argc, argv, idt);
+  Solver::initialize(settings);
 
-  libconfig::Setting &cfg = ::config->lookup("solver");
+  max_steps_ = jams::config_required<int>(settings, "max_steps");
+  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::default_solver_min_steps);
 
-  constraint_theta_        = cfg["cmc_constraint_theta"];
-  constraint_phi_          = cfg["cmc_constraint_phi"];
+  constraint_theta_        = jams::config_required<double>(settings, "cmc_constraint_theta");
+  constraint_phi_          = jams::config_required<double>(settings, "cmc_constraint_phi");
+  move_angle_sigma_        = jams::config_optional<double>(settings, "move_angle_sigma", jams::default_solver_monte_carlo_move_sigma);
+  output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::default_monitor_output_steps);
+
   constraint_vector_       = cartesian_from_spherical(1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
   inverse_rotation_matrix_ = rotation_matrix_y(deg_to_rad(constraint_theta_)) * rotation_matrix_z(deg_to_rad(constraint_phi_));
   rotation_matrix_         = transpose(inverse_rotation_matrix_);
 
-  if (cfg.exists("move_fraction_uniform") || cfg.exists("move_fraction_angle") || cfg.exists("move_fraction_reflection")) {
-    move_fraction_uniform_    = 0.0;
-    move_fraction_angle_      = 0.0;
-    move_fraction_reflection_ = 0.0;
-
-    cfg.lookupValue("move_fraction_uniform",    move_fraction_uniform_);
-    cfg.lookupValue("move_fraction_angle",      move_fraction_angle_);
-    cfg.lookupValue("move_fraction_reflection", move_fraction_reflection_);
+  if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
+    move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
+    move_fraction_angle_      = jams::config_optional<double>(settings, "move_fraction_angle", 0.0);
+    move_fraction_reflection_ = jams::config_optional<double>(settings, "move_fraction_reflection", 0.0);
 
     double move_fraction_sum = move_fraction_uniform_ + move_fraction_angle_ + move_fraction_reflection_;
 
@@ -53,23 +53,11 @@ void ConstrainedMCSolver::initialize(int argc, char **argv, double idt) {
     move_fraction_reflection_  /= move_fraction_sum;
   }
 
-  cfg.lookupValue("move_angle_sigma",   move_angle_sigma_);
-  cfg.lookupValue("output_write_steps", output_write_steps_);
-
-  // create spin transform arrays
   spin_transformations_.resize(globals::num_spins);
-
   libconfig::Setting& material_settings = ::config->lookup("materials");
   for (auto i = 0; i < globals::num_spins; ++i) {
-    for (auto m = 0; m < 3; ++m) {
-      for (auto n = 0; n < 3; ++n) {
-        if (m == n) {
-          spin_transformations_[i][m][n] = material_settings[::lattice->atom_material(i)]["transform"][n];
-        } else {
-          spin_transformations_[i][m][n] = 0.0;
-        }
-      }
-    }
+    Vec3 t = jams::config_optional<Vec3>(material_settings[::lattice->atom_material(i)], "tranform", jams::default_material_spin_transform);
+    spin_transformations_[i] = {t[0], 0, 0, 0, t[1], 0, 0, 0, t[2]};
   }
 
   ::output->write("\n----------------------------------------\n");

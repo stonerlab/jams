@@ -9,13 +9,13 @@
 // also library seems to be available at: http://neartree.sourceforge.net/
 
 template<typename T,
-        typename FuncType>
+        class FuncType>
 class NearTree {
 public:
 
-    explicit NearTree(FuncType &func);
+    explicit NearTree(FuncType func);
 
-    NearTree(FuncType &func, std::vector<T> items, bool randomize = true);
+    NearTree(FuncType func, std::vector<T> items, bool randomize = true);
 
     ~NearTree();
 
@@ -42,12 +42,12 @@ private:
 
 template<typename T,
         typename FuncType>
-NearTree<T,FuncType>::NearTree(FuncType &func)
+NearTree<T,FuncType>::NearTree(FuncType func)
         : distance_functor(func) {}
 
 template<typename T,
         typename FuncType>
-NearTree<T,FuncType>::NearTree(FuncType &func, std::vector<T> items, bool randomize)
+NearTree<T,FuncType>::NearTree(FuncType func, std::vector<T> items, bool randomize)
         : distance_functor(func) {
   // Near tree lookups are MUCH more efficient (an order of magnitude)
   // if the inserted positions are randomized, rather than regular in

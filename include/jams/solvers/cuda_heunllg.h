@@ -17,7 +17,7 @@ class CUDAHeunLLGSolver : public CudaSolver {
   public:
     CUDAHeunLLGSolver() {};
     ~CUDAHeunLLGSolver();
-    void initialize(int argc, char **argv, double dt);
+    void initialize(const libconfig::Setting& settings);
     void run();
 
   private:

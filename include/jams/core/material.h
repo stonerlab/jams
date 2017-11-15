@@ -21,9 +21,9 @@ public:
     int           id = 0;
     std::string name = "";
     double    moment = 0.0;
-    double     gyro  = jams::default_gyro;
-    double     alpha = jams::default_alpha;
-    Vec3       spin  = jams::default_spin;
+    double     gyro  = jams::default_material_gyro;
+    double     alpha = jams::default_material_alpha;
+    Vec3       spin  = jams::default_material_spin;
     Vec3   transform = {1.0, 1.0, 1.0};
     bool   randomize = false;
 
@@ -33,9 +33,9 @@ public:
             id       (0),
             name     (jams::config_required<string>(cfg, "name")),
             moment   (jams::config_required<double>(cfg, "moment")),
-            gyro     (jams::config_optional<double>(cfg, "gyro", jams::default_gyro)),
-            alpha    (jams::config_optional<double>(cfg, "alpha", jams::default_alpha)),
-            transform(jams::config_optional<Vec3>(cfg, "transform", jams::default_spin_transform)) {
+            gyro     (jams::config_optional<double>(cfg, "gyro", jams::default_material_gyro)),
+            alpha    (jams::config_optional<double>(cfg, "alpha", jams::default_material_alpha)),
+            transform(jams::config_optional<Vec3>(cfg, "transform", jams::default_material_spin_transform)) {
 
       if (cfg.exists("spin")) {
         bool is_array = (cfg["spin"].getType() == libconfig::Setting::TypeArray);
