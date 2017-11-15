@@ -183,7 +183,7 @@ class Lattice {
 
 
     void init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings);
-    void init_lattice_positions(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings);
+    void init_lattice_positions(const libconfig::Setting &lattice_settings);
     void init_nearest_neighbour_list(const double r_cutoff, const bool prune = false);
     void calc_symmetry_operations();
     void set_spacegroup(const int hall_number);

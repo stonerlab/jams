@@ -68,12 +68,81 @@ namespace {
 }
 
 namespace jams {
+
+    double llg_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
+      return -gyro /((1.0 + pow2(alpha)) * mus);
+    }
+
     Mat3 unit_cell_matrix(const Vec3& a1, const Vec3& a2,  const Vec3& a3) {
       return {a1[0], a2[0], a3[0], a1[1], a2[1], a3[1], a1[2], a2[2], a3[2]};
     }
     Mat3 inverse_unit_cell_matrix(const Mat3& unit_cell_matrix) {
       return inverse(unit_cell_matrix);
     }
+
+    Material read_material_settings(Setting& cfg) {
+      Material material;
+      material.name      = cfg["name"].c_str();
+      material.moment    = double(cfg["moment"]);
+      material.gyro      = jams::default_gyro;
+      material.alpha     = jams::default_alpha;
+      material.spin      = jams::default_spin;
+      material.transform = jams::default_spin_transform;
+      material.randomize = false;
+
+      cfg.lookupValue("gyro", material.gyro);
+      cfg.lookupValue("alpha", material.alpha);
+
+      if (cfg.exists("transform")) {
+        for (auto i = 0; i < 3; ++i) {
+          material.transform[i] = double(cfg["transform"][i]);
+        }
+      }
+
+
+      if (cfg.exists("spin")) {
+        if (cfg["spin"].getType() == libconfig::Setting::TypeString) {
+          string spin_initializer = capitalize(cfg["spin"]);
+          if (spin_initializer == "RANDOM") {
+            material.randomize = true;
+          } else {
+            jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
+          }
+        } else if (cfg["spin"].getType() == libconfig::Setting::TypeArray) {
+          if (cfg["spin"].getLength() == 3) {
+            for (int i = 0; i < 3; ++i) {
+              material.spin[i] = double(cfg["spin"][i]);
+            }
+          } else if (cfg["spin"].getLength() == 2) {
+            // spin setting is spherical
+            double theta = deg_to_rad(cfg["spin"][0]);
+            double phi = deg_to_rad(cfg["spin"][1]);
+            material.spin[0] = sin(theta) * cos(phi);
+            material.spin[1] = sin(theta) * sin(phi);
+            material.spin[2] = cos(theta);
+          } else {
+            throw general_exception("material spin array is not of a recognised size (2 or 3)", __FILE__, __LINE__,
+                                    __PRETTY_FUNCTION__);
+          }
+        }
+      }
+
+      if (!equal(abs(material.spin), 1.0)) {
+        throw general_exception("material spin is not of unit length", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+      }
+
+      return material;
+    }
+}
+
+Lattice::Lattice() {
+
+}
+
+Lattice::~Lattice() {
+  if (spglib_dataset_ != NULL) {
+    spg_free_dataset(spglib_dataset_);
+  }
 }
 
 void Lattice::init_from_config(const libconfig::Config& cfg) {
@@ -88,183 +157,8 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
     calc_symmetry_operations();
   }
 
-  init_lattice_positions(cfg.lookup("materials"), cfg.lookup("lattice"));
+  init_lattice_positions(cfg.lookup("lattice"));
 }
-
-
-void read_material_settings(Setting& cfg, Material &mat) {
-  mat.name      = cfg["name"].c_str();
-  mat.moment    = double(cfg["moment"]);
-  mat.gyro      = jams::default_gyro;
-  mat.alpha     = jams::default_alpha;
-  mat.spin      = jams::default_spin;
-  mat.transform = jams::default_spin_transform;
-  mat.randomize = false;
-
-  cfg.lookupValue("gyro", mat.gyro);
-  cfg.lookupValue("alpha", mat.alpha);
-
-  if (cfg.exists("transform")) {
-    for (auto i = 0; i < 3; ++i) {
-      mat.transform[i] = double(cfg["transform"][i]);
-    }
-  }
-
-
-  if (cfg.exists("spin")) {
-    if (cfg["spin"].getType() == libconfig::Setting::TypeString) {
-      string spin_initializer = capitalize(cfg["spin"]);
-      if (spin_initializer == "RANDOM") {
-        mat.randomize = true;
-      } else {
-        jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
-      }
-    } else if (cfg["spin"].getType() == libconfig::Setting::TypeArray) {
-      if (cfg["spin"].getLength() == 3) {
-        for (int i = 0; i < 3; ++i) {
-          mat.spin[i] = double(cfg["spin"][i]);
-        }
-      } else if (cfg["spin"].getLength() == 2) {
-        // spin setting is spherical
-        double theta = deg_to_rad(cfg["spin"][0]);
-        double phi = deg_to_rad(cfg["spin"][1]);
-        mat.spin[0] = sin(theta) * cos(phi);
-        mat.spin[1] = sin(theta) * sin(phi);
-        mat.spin[2] = cos(theta);
-      } else {
-        throw general_exception("material spin array is not of a recognised size (2 or 3)", __FILE__, __LINE__,
-                                __PRETTY_FUNCTION__);
-      }
-    }
-  }
-
-  if (!equal(abs(mat.spin), 1.0)) {
-    throw general_exception("material spin is not of unit length", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
-}
-
-Lattice::Lattice() {
-
-}
-
-Lattice::~Lattice() {
-  if (spglib_dataset_ != NULL) {
-    spg_free_dataset(spglib_dataset_);
-  }
-}
-
-Vec3 Lattice::generate_position(
-  const Vec3 unit_cell_frac_pos,
-  const Vec3i translation_vector) const
-{
-  return super_cell.unit_cell * generate_fractional_position(unit_cell_frac_pos, translation_vector);
-}
-
-// generate a position within a periodic image of the entire system
-Vec3 Lattice::generate_image_position(
-  const Vec3 unit_cell_cart_pos,
-  const Vec3i image_vector) const
-{
-  Vec3 frac_pos = cartesian_to_fractional(unit_cell_cart_pos);
-  for (int n = 0; n < 3; ++n) {
-    if (is_periodic(n)) {
-      frac_pos[n] = frac_pos[n] + image_vector[n] * super_cell.size[n];
-    }
-  }
-  return fractional_to_cartesian(frac_pos);
-}
-
-Vec3 Lattice::generate_fractional_position(
-  const Vec3 unit_cell_frac_pos,
-  const Vec3i translation_vector) const
-{
-  return {unit_cell_frac_pos[0] + translation_vector[0],
-                             unit_cell_frac_pos[1] + translation_vector[1],
-                             unit_cell_frac_pos[2] + translation_vector[2]};
-}
-
-void Lattice::read_motif_from_config(const libconfig::Setting &positions, CoordinateFormat coordinate_format) {
-  Atom atom;
-  string atom_name;
-
-  motif_.clear();
-
-  for (int i = 0; i < positions.getLength(); ++i) {
-
-    atom_name = positions[i][0].c_str();
-
-    // check the material type is defined
-    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
-      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-    atom.material = material_name_map_[atom_name].id;
-
-    atom.pos[0] = positions[i][1][0];
-    atom.pos[1] = positions[i][1][1];
-    atom.pos[2] = positions[i][1][2];
-
-    if (coordinate_format == CoordinateFormat::Cartesian) {
-      atom.pos = cartesian_to_fractional(atom.pos);
-    }
-
-    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
-
-    if (!is_fractional_coordinate_valid(atom.pos)) {
-      throw std::runtime_error("atom position " + std::to_string(i) + " is not a valid fractional coordinate");
-    }
-
-    atom.id = motif_.size();
-
-    motif_.push_back(atom);
-  }
-}
-
-void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat coordinate_format) {
-  std::string line;
-  std::ifstream position_file(filename.c_str());
-
-  if(position_file.fail()) {
-    throw general_exception("failed to open position file " + filename, __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
-  motif_.clear();
-
-  // read the motif into an array from the positions file
-  while (getline(position_file, line)) {
-    if(string_is_comment(line)) {
-      continue;
-    }
-    std::stringstream line_as_stream;
-    string atom_name;
-    Atom atom;
-
-    line_as_stream.str(line);
-
-    // read atom type name
-    line_as_stream >> atom_name >> atom.pos[0] >> atom.pos[1] >> atom.pos[2];
-
-    if (coordinate_format == CoordinateFormat::Cartesian) {
-      atom.pos = cartesian_to_fractional(atom.pos);
-    }
-
-    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
-
-    if (!is_fractional_coordinate_valid(atom.pos)) {
-      throw std::runtime_error("atom position " + std::to_string(motif_.size()) + " is not a valid fractional coordinate");
-    }
-    // check the material type is defined
-    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
-      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-    atom.material = material_name_map_[atom_name].id;
-    atom.id = motif_.size();
-
-    motif_.push_back(atom);
-  }
-  position_file.close();
-}
-
 
 void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings) {
   using namespace globals;
@@ -305,7 +199,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   for (i = 0; i < 3; ++i) {
     output->write("    % 3.6f % 3.6f % 3.6f\n",
-      super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
+                  super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
   }
 
   super_cell.unit_cell_inv = jams::inverse_unit_cell_matrix(super_cell.unit_cell);
@@ -313,7 +207,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   output->write("  inverse lattice vectors (matrix form)\n");
   for (i = 0; i < 3; ++i) {
     output->write("    % 3.6f % 3.6f % 3.6f\n",
-      super_cell.unit_cell_inv[i][0], super_cell.unit_cell_inv[i][1], super_cell.unit_cell_inv[i][2]);
+                  super_cell.unit_cell_inv[i][0], super_cell.unit_cell_inv[i][1], super_cell.unit_cell_inv[i][2]);
   }
 
   super_cell.parameter = unitcell_settings["parameter"];
@@ -442,9 +336,9 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     }
   }
   output->write("  boundary conditions\n    %s  %s  %s\n",
-    super_cell.periodic[0] ? "periodic" : "open",
-    super_cell.periodic[1] ? "periodic" : "open",
-    super_cell.periodic[2] ? "periodic" : "open");
+                super_cell.periodic[0] ? "periodic" : "open",
+                super_cell.periodic[1] ? "periodic" : "open",
+                super_cell.periodic[2] ? "periodic" : "open");
 
   metric_ = new DistanceMetric(super_cell.unit_cell, super_cell.size, super_cell.periodic);
 
@@ -454,10 +348,9 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   output->write("  materials\n");
 
-  Material material;
   for (i = 0; i < material_settings.getLength(); ++i) {
+    Material material = jams::read_material_settings(material_settings[i]);
     material.id = i;
-    read_material_settings(material_settings[i], material);
     if (material_name_map_.insert({material.name, material}).second == false) {
       throw std::runtime_error("the material " + material.name + " is specified twice in the configuration");
     }
@@ -490,7 +383,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     position_filename = seedname + ".cfg";
     read_motif_from_config(unitcell_settings["positions"], cfg_coordinate_format);
   } else {
-     position_filename = unitcell_settings["positions"].c_str();
+    position_filename = unitcell_settings["positions"].c_str();
     read_motif_from_file(position_filename, cfg_coordinate_format);
   }
 
@@ -504,9 +397,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
 }
 
-void Lattice::init_lattice_positions(
-  const libconfig::Setting &material_settings,
-  const libconfig::Setting &lattice_settings)
+void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 {
 
   lattice_map_.resize(super_cell.size[0], super_cell.size[1], super_cell.size[2], motif_.size());
@@ -514,7 +405,7 @@ void Lattice::init_lattice_positions(
   Vec3i kmesh_size = {super_cell.size[0], super_cell.size[1], super_cell.size[2]};
   if (!super_cell.periodic[0] || !super_cell.periodic[1] || !super_cell.periodic[2]) {
     output->write("\nzero padding non-periodic dimensions\n");
-     // double any non-periodic dimensions for zero padding
+    // double any non-periodic dimensions for zero padding
     for (int i = 0; i < 3; ++i) {
       if (!super_cell.periodic[i]) {
         kmesh_size[i] = 2*super_cell.size[i];
@@ -598,9 +489,9 @@ void Lattice::init_lattice_positions(
   output->write("\ncomputed lattice positions (%d)\n", atom_counter);
   for (auto i = 0; i < lattice_positions_.size(); ++i) {
     output->write("  %-6d %-6s % 3.6f % 3.6f % 3.6f | % 3.6f % 3.6f % 3.6f | %4d %4d %4d\n",
-      i, lattice_materials_[i].c_str(), lattice_positions_[i][0], lattice_positions_[i][1], lattice_positions_[i][2],
+                  i, lattice_materials_[i].c_str(), lattice_positions_[i][0], lattice_positions_[i][1], lattice_positions_[i][2],
                   lattice_frac_positions_[i][0], lattice_frac_positions_[i][1], lattice_frac_positions_[i][2],
-      lattice_super_cell_pos_(i)[0], lattice_super_cell_pos_(i)[1], lattice_super_cell_pos_(i)[2]);
+                  lattice_super_cell_pos_(i)[0], lattice_super_cell_pos_(i)[1], lattice_super_cell_pos_(i)[2]);
 
     if(!::output->is_verbose() && i > 7) {
       output->write("  ... [use verbose output for details] ... \n");
@@ -614,92 +505,130 @@ void Lattice::init_lattice_positions(
 //-----------------------------------------------------------------------------
   globals::s.resize(globals::num_spins, 3);
   globals::ds_dt.resize(globals::num_spins, 3);
+  globals::h.resize(globals::num_spins, 3);
+  globals::alpha.resize(globals::num_spins);
+  globals::mus.resize(globals::num_spins);
+  globals::gyro.resize(globals::num_spins);
 
-  // default spin array to (0, 0, 1) which will be used if no other spin settings
-  // are specified
-  for (int i = 0; i < globals::num_spins; ++i) {
-    globals::s(i, 0) = 0.0;
-    globals::s(i, 1) = 0.0;
-    globals::s(i, 2) = 1.0;
+  globals::h.zero();
+
+  num_of_material_.resize(num_materials(), 0);
+
+  for (auto i = 0; i < globals::num_spins; ++i) {
+
+    const auto material = material_name_map_[lattice_materials_[i]];
+    const auto material_id = material.id;
+
+    num_of_material_[material_id]++;
+
+    globals::mus(i)   = material.moment;
+    globals::alpha(i) = material.alpha;
+    globals::gyro(i)  = jams::llg_gyro_prefactor(material.gyro, material.alpha, material.moment);
+
+    for (auto n = 0; n < 3; ++n) {
+      globals::s(i, n) = material.spin[n];
+    }
+
+    if (material.randomize) {
+      Vec3 s_init = rng->sphere();
+      for (auto n = 0; n < 3; ++n) {
+        globals::s(i, n) = s_init[n];
+      }
+    }
   }
 
-  // read initial spin config if specified
-  if (lattice_settings.exists("spins")) {
+  bool initial_spin_state_is_a_file = lattice_settings.exists("spins");
+
+  if (initial_spin_state_is_a_file) {
     std::string spin_filename = lattice_settings["spins"];
 
     output->write("  reading initial spin configuration from: %s\n", spin_filename.c_str());
 
     load_spin_state_from_hdf5(spin_filename);
   }
+}
 
-  globals::h.resize(globals::num_spins, 3);
-  globals::alpha.resize(globals::num_spins);
-  globals::mus.resize(globals::num_spins);
-  globals::gyro.resize(globals::num_spins);
-  // globals::wij.resize(kspace_size_[0], kspace_size_[1], kspace_size_[2], 3, 3);
 
-  std::fill(globals::h.data(), globals::h.data()+globals::num_spins3, 0.0);
-  // std::fill(globals::wij.data(), globals::wij.data()+kspace_size_[0]*kspace_size_[1]*kspace_size_[2]*3*3, 0.0);
 
-  num_of_material_.resize(num_materials(), 0);
-  for (int i = 0; i < globals::num_spins; ++i) {
-    int material_number = material_name_map_[lattice_materials_[i]].id;
-    num_of_material_[material_number]++;
+void Lattice::read_motif_from_config(const libconfig::Setting &positions, CoordinateFormat coordinate_format) {
+  Atom atom;
+  string atom_name;
 
-    libconfig::Setting& type_settings = material_settings[material_number];
+  motif_.clear();
 
-    // Setup the initial spin configuration if we haven't already read in a spin state
-    if (!lattice_settings.exists("spins")) {
-      if (type_settings["spin"].getType() == libconfig::Setting::TypeString) {
-        // spin setting is a string
-        std::string spin_initializer = capitalize(type_settings["spin"]);
-        if (spin_initializer == "RANDOM") {
-          Vec3 s_init = rng->sphere();
-          for (auto n = 0; n < 3; ++n) {
-            globals::s(i, n) = s_init[n];
-          }
-        } else {
-          jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
-        }
-      } else if (type_settings["spin"].getType() == libconfig::Setting::TypeArray) {
-        if (type_settings["spin"].getLength() == 3) {
-          // spin setting is cartesian
-          for(int j = 0; j < 3;++j) {
-            globals::s(i, j) = type_settings["spin"][j];
-          }
-        } else if (type_settings["spin"].getLength() == 2) {
-          // spin setting is spherical
-          double theta = deg_to_rad(type_settings["spin"][0]);
-          double phi   = deg_to_rad(type_settings["spin"][1]);
+  for (int i = 0; i < positions.getLength(); ++i) {
 
-          globals::s(i, 0) = sin(theta)*cos(phi);
-          globals::s(i, 1) = sin(theta)*sin(phi);
-          globals::s(i, 2) = cos(theta);
-        } else {
-          jams_error("Spin initializer array must be 2 (spherical) or 3 (cartesian) components");
-        }
-      }
+    atom_name = positions[i][0].c_str();
+
+    // check the material type is defined
+    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
+      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+    atom.material = material_name_map_[atom_name].id;
+
+    atom.pos[0] = positions[i][1][0];
+    atom.pos[1] = positions[i][1][1];
+    atom.pos[2] = positions[i][1][2];
+
+    if (coordinate_format == CoordinateFormat::Cartesian) {
+      atom.pos = cartesian_to_fractional(atom.pos);
     }
 
-    // normalise all spins
-    double norm = sqrt(globals::s(i, 0)*globals::s(i, 0) + globals::s(i, 1)*globals::s(i, 1) + globals::s(i, 2)*globals::s(i, 2));
-    for(int j = 0; j < 3;++j){
-      globals::s(i, j) = globals::s(i, j)/norm;
+    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
+
+    if (!is_fractional_coordinate_valid(atom.pos)) {
+      throw std::runtime_error("atom position " + std::to_string(i) + " is not a valid fractional coordinate");
     }
 
-    // read material properties
-    globals::mus(i) = type_settings["moment"];
-    globals::alpha(i) = type_settings["alpha"];
+    atom.id = motif_.size();
 
-    if (type_settings.exists("gyro")) {
-      globals::gyro(i) = type_settings["gyro"];
-    } else {
-      // default
-      globals::gyro(i) = 1.0;
-    }
-
-    globals::gyro(i) = -globals::gyro(i)/((1.0+globals::alpha(i)*globals::alpha(i))*globals::mus(i));
+    motif_.push_back(atom);
   }
+}
+
+void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat coordinate_format) {
+  std::string line;
+  std::ifstream position_file(filename.c_str());
+
+  if(position_file.fail()) {
+    throw general_exception("failed to open position file " + filename, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
+  motif_.clear();
+
+  // read the motif into an array from the positions file
+  while (getline(position_file, line)) {
+    if(string_is_comment(line)) {
+      continue;
+    }
+    std::stringstream line_as_stream;
+    string atom_name;
+    Atom atom;
+
+    line_as_stream.str(line);
+
+    // read atom type name
+    line_as_stream >> atom_name >> atom.pos[0] >> atom.pos[1] >> atom.pos[2];
+
+    if (coordinate_format == CoordinateFormat::Cartesian) {
+      atom.pos = cartesian_to_fractional(atom.pos);
+    }
+
+    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
+
+    if (!is_fractional_coordinate_valid(atom.pos)) {
+      throw std::runtime_error("atom position " + std::to_string(motif_.size()) + " is not a valid fractional coordinate");
+    }
+    // check the material type is defined
+    if (material_name_map_.find(atom_name) == material_name_map_.end()) {
+      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+    atom.material = material_name_map_[atom_name].id;
+    atom.id = motif_.size();
+
+    motif_.push_back(atom);
+  }
+  position_file.close();
 }
 
 void Lattice::load_spin_state_from_hdf5(std::string &filename) {
@@ -715,6 +644,36 @@ void Lattice::load_spin_state_from_hdf5(std::string &filename) {
   }
 
   dataset.read(globals::s.data(), PredType::NATIVE_DOUBLE);
+}
+
+Vec3 Lattice::generate_position(
+        const Vec3 unit_cell_frac_pos,
+        const Vec3i translation_vector) const
+{
+  return super_cell.unit_cell * generate_fractional_position(unit_cell_frac_pos, translation_vector);
+}
+
+// generate a position within a periodic image of the entire system
+Vec3 Lattice::generate_image_position(
+        const Vec3 unit_cell_cart_pos,
+        const Vec3i image_vector) const
+{
+  Vec3 frac_pos = cartesian_to_fractional(unit_cell_cart_pos);
+  for (int n = 0; n < 3; ++n) {
+    if (is_periodic(n)) {
+      frac_pos[n] = frac_pos[n] + image_vector[n] * super_cell.size[n];
+    }
+  }
+  return fractional_to_cartesian(frac_pos);
+}
+
+Vec3 Lattice::generate_fractional_position(
+        const Vec3 unit_cell_frac_pos,
+        const Vec3i translation_vector) const
+{
+  return {unit_cell_frac_pos[0] + translation_vector[0],
+          unit_cell_frac_pos[1] + translation_vector[1],
+          unit_cell_frac_pos[2] + translation_vector[2]};
 }
 
 void Lattice::calc_symmetry_operations() {
