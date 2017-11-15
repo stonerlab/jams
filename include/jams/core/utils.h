@@ -39,6 +39,12 @@ inline std::string capitalize(std::string s) {
   return s;
 }
 
+// capitalize a string
+inline std::string lowercase(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(), tolower);
+  return s;
+}
+
 inline std::string file_basename(std::string filepath) {
   int dot = filepath.find_last_of(".");
   int slash = filepath.find_last_of("/\\");

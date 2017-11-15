@@ -4,6 +4,7 @@
 #include <string>
 
 #include <libconfig.h++>
+#include <jams/core/defaults.h>
 
 #include "jams/core/physics.h"
 
@@ -78,36 +79,40 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
 
 Physics* Physics::create(const libconfig::Setting &settings) {
 
-  if (capitalize(settings["module"]) == "FMR") {
+  std::string module_name = jams::default_physics_module;
+  settings.lookupValue("module", module_name);
+  module_name = lowercase(module_name);
+
+  if (module_name == "empty") {
+    return new EmptyPhysics(settings);
+  }
+
+  if (module_name == "fmr") {
     return new FMRPhysics(settings);
   }
 
-  if (capitalize(settings["module"]) == "MFPT") {
+  if (module_name == "mfpt") {
     return new MFPTPhysics(settings);
   }
 
-  if (capitalize(settings["module"]) == "TTM") {
+  if (module_name == "ttm") {
     return new TTMPhysics(settings);
   }
 
-  if (capitalize(settings["module"]) == "SQUARE") {
+  if (module_name == "square") {
     return new SquarePhysics(settings);
   }
 
-  if (capitalize(settings["module"]) == "FIELDCOOL") {
+  if (module_name == "fieldcool") {
     return new FieldCoolPhysics(settings);
   }
 
-  if (capitalize(settings["module"]) == "PING") {
+  if (module_name == "ping") {
     return new PingPhysics(settings);
   }
 
-  if (capitalize(settings["module"]) == "FLIPS") {
+  if (module_name == "flip") {
     return new FlipsPhysics(settings);
-  }
-
-  if (capitalize(settings["module"]) == "EMPTY") {
-    return new EmptyPhysics(settings);
   }
 
   jams_error("Unknown physics package selected.");
