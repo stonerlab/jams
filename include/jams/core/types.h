@@ -37,13 +37,5 @@ struct Atom {
     Vec3 pos;
 };
 
-struct SuperCell {
-    Vec3i  size;
-    Vec3b  periodic;
-    Mat3   unit_cell;
-    Mat3   unit_cell_inv;
-    double parameter;
-};
-
 
 #endif  // JAMS_CORE_TYPES_H
