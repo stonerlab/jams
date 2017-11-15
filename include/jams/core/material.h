@@ -29,16 +29,13 @@ public:
 
     inline Material() = default;
 
-    inline explicit Material(const libconfig::Setting& cfg) {
-      name = cfg["name"].c_str();
-      moment = double(cfg["moment"]);
-
-      cfg.lookupValue("gyro", gyro);
-      cfg.lookupValue("alpha", alpha);
-
-      if (cfg.exists("transform")) {
-        transform = config_vec3(cfg["transform"]);
-      }
+    inline explicit Material(const libconfig::Setting& cfg) :
+            id       (0),
+            name     (jams::config_required<string>(cfg, "name")),
+            moment   (jams::config_required<double>(cfg, "moment")),
+            gyro     (jams::config_optional<double>(cfg, "gyro", jams::default_gyro)),
+            alpha    (jams::config_optional<double>(cfg, "alpha", jams::default_alpha)),
+            transform(jams::config_optional<Vec3>(cfg, "transform", jams::default_spin_transform)) {
 
       if (cfg.exists("spin")) {
         bool is_array = (cfg["spin"].getType() == libconfig::Setting::TypeArray);
@@ -51,7 +48,7 @@ public:
         if (is_array) {
           auto length = cfg["spin"].getLength();
           if (length == 3) {
-            spin = config_vec3(cfg["spin"]);
+            spin = jams::config_required<Vec3>(cfg, "spin");
           } else if (length == 2) {
             spin = spherical_to_cartesian_vector(1.0, deg_to_rad(double(cfg["spin"][0])), deg_to_rad(double(cfg["spin"][1])));
           } else {

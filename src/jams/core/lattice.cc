@@ -94,8 +94,8 @@ Lattice::~Lattice() {
 
 void Lattice::init_from_config(const libconfig::Config& cfg) {
 
-  symops_enabled_ = true;
-  cfg.lookupValue("lattice.symops", symops_enabled_);
+  symops_enabled_ = jams::config_optional<bool>(cfg.lookup("lattice"), "symops", jams::default_lattice_symops);
+
   output->write("  symops: %s", symops_enabled_ ? "true" : "false");
 
   init_unit_cell(cfg.lookup("materials"), cfg.lookup("lattice"), cfg.lookup("unitcell"));
@@ -112,9 +112,6 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   using std::string;
   using std::pair;
 
-  int i, j;
-
-
 //-----------------------------------------------------------------------------
 // Read lattice vectors
 //-----------------------------------------------------------------------------
@@ -127,12 +124,20 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   //
   // this is consistent with the definition used by spglib
 
+  super_cell.unit_cell     = jams::config_required<Mat3>(unitcell_settings, "basis");
+  super_cell.unit_cell_inv = jams::inverse_unit_cell_matrix(super_cell.unit_cell);
+  super_cell.parameter     = jams::config_required<double>(unitcell_settings, "parameter");
+  super_cell.size          = jams::config_required<Vec3i>(lattice_settings, "size");
 
-  for (i = 0; i < 3; ++i) {
-    for (j = 0; j < 3; ++j) {
-      super_cell.unit_cell[i][j] = unitcell_settings["basis"][i][j];
-    }
+
+  if (super_cell.parameter < 0.0) {
+    throw general_exception("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
+
+  if (super_cell.parameter > 1e-7) {
+    jams_warning("lattice parameter is unusually large - units should be meters");
+  }
+
   output->write("\n----------------------------------------\n");
   output->write("\nunit cell\n");
 
@@ -144,37 +149,21 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   output->write("  lattice vectors (matrix form)\n");
 
-  for (i = 0; i < 3; ++i) {
+  for (auto i = 0; i < 3; ++i) {
     output->write("    % 3.6f % 3.6f % 3.6f\n",
                   super_cell.unit_cell[i][0], super_cell.unit_cell[i][1], super_cell.unit_cell[i][2]);
   }
 
-  super_cell.unit_cell_inv = jams::inverse_unit_cell_matrix(super_cell.unit_cell);
-
   output->write("  inverse lattice vectors (matrix form)\n");
-  for (i = 0; i < 3; ++i) {
+  for (auto i = 0; i < 3; ++i) {
     output->write("    % 3.6f % 3.6f % 3.6f\n",
                   super_cell.unit_cell_inv[i][0], super_cell.unit_cell_inv[i][1], super_cell.unit_cell_inv[i][2]);
   }
 
-  super_cell.parameter = unitcell_settings["parameter"];
   output->write("  lattice parameter (m):\n    %3.6e\n", super_cell.parameter);
-
-  if (super_cell.parameter < 0.0) {
-    throw general_exception("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
-  if (super_cell.parameter > 1e-7) {
-    jams_warning("lattice parameter is unusually large - units should be meters");
-  }
-
   output->write("  unitcell volume (m^3):\n    %3.6e\n", this->volume());
 
-  const double original_volume = std::abs(determinant(super_cell.unit_cell));
 
-  for (i = 0; i < 3; ++i) {
-    super_cell.size[i] = lattice_settings["size"][i];
-  }
 
   output->write("  lattice size\n    %d  %d  %d\n",
                 super_cell.size[0], super_cell.size[1], super_cell.size[2]);
@@ -183,18 +172,12 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
     jams_warning("Orientation and global rotation are both in config. Orientation will be applied first and then global rotation.");
   }
 
+  const double original_volume = std::abs(determinant(super_cell.unit_cell));
 
   if (lattice_settings.exists("orientation_axis")) {
-    Vec3 orientation_axis = {0, 0, 1};
-    Vec3 orientation_lattice_vector = {0, 0, 1};
+    auto orientation_axis = jams::config_required<Vec3>(lattice_settings, "orientation_axis");
+    auto orientation_lattice_vector = jams::config_required<Vec3>(lattice_settings, "orientation_lattice_vector");
 
-    for (auto n = 0; n < 3; ++n) {
-      orientation_axis[n] = lattice_settings["orientation_axis"][n];
-    }
-
-    for (auto n = 0; n < 3; ++n) {
-      orientation_lattice_vector[n] = lattice_settings["orientation_lattice_vector"][n];
-    }
 
     Vec3 orientation_cartesian_vector = normalize(super_cell.unit_cell * orientation_lattice_vector);
 
@@ -242,14 +225,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   }
 
 
-
   if (lattice_settings.exists("global_rotation")) {
-    Mat3 global_rotation_matrix = kIdentityMat3;
-    for (i = 0; i < 3; ++i) {
-      for (j = 0; j < 3; ++j) {
-        global_rotation_matrix[i][j] = lattice_settings["global_rotation"][i][j];
-      }
-    }
+    Mat3 global_rotation_matrix = jams::config_optional(lattice_settings, "global_rotation", kIdentityMat3);
 
     Vec3 orient_a = global_rotation_matrix * Vec3{super_cell.unit_cell[0][0], super_cell.unit_cell[1][0], super_cell.unit_cell[2][0]};
     Vec3 orient_b = global_rotation_matrix * Vec3{super_cell.unit_cell[0][1], super_cell.unit_cell[1][1], super_cell.unit_cell[2][1]};
@@ -276,12 +253,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 // Read boundary conditions
 //-----------------------------------------------------------------------------
 
-  super_cell.periodic = jams::default_lattice_periodic_boundaries;
-  if(lattice_settings.exists("periodic")) {
-    for (i = 0; i < 3; ++i) {
-      super_cell.periodic[i] = lattice_settings["periodic"][i];
-    }
-  }
+  super_cell.periodic = jams::config_optional<Vec3b>(lattice_settings, "periodic", jams::default_lattice_periodic_boundaries);
+
   output->write("  boundary conditions\n    %s  %s  %s\n",
                 super_cell.periodic[0] ? "periodic" : "open",
                 super_cell.periodic[1] ? "periodic" : "open",
@@ -295,7 +268,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   output->write("  materials\n");
 
-  for (i = 0; i < material_settings.getLength(); ++i) {
+  for (auto i = 0; i < material_settings.getLength(); ++i) {
     Material material(material_settings[i]);
     material.id = i;
     if (material_name_map_.insert({material.name, material}).second == false) {
@@ -314,8 +287,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 
   CoordinateFormat cfg_coordinate_format = CoordinateFormat::Fractional;
 
-  std::string cfg_coordinate_format_name = "FRACTIONAL";
-  unitcell_settings.lookupValue("format", cfg_coordinate_format_name);
+  std::string cfg_coordinate_format_name = jams::config_optional<string>(unitcell_settings, "format", "FRACTIONAL");
 
   if (capitalize(cfg_coordinate_format_name) == "FRACTIONAL") {
     cfg_coordinate_format = CoordinateFormat::Fractional;
@@ -347,6 +319,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 {
 
+  lattice_map_.resize(super_cell.size[0], super_cell.size[1], super_cell.size[2], motif_.size());
   lattice_map_.resize(super_cell.size[0], super_cell.size[1], super_cell.size[2], motif_.size());
 
   Vec3i kmesh_size = {super_cell.size[0], super_cell.size[1], super_cell.size[2]};

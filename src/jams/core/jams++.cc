@@ -55,7 +55,6 @@ int jams_initialize(int argc, char **argv) {
     config_patch_string = std::string(argv[2]);
   }
 
-
   seedname = file_basename(config_filename);
   trim(seedname);
 
@@ -88,20 +87,18 @@ int jams_initialize(int argc, char **argv) {
 
       if (!config_patch_string.empty()) {
         jams_patch_config(config_patch_string);
-
       }
 
-      if (config->exists("sim.verbose")) {
-        if (config->lookup("sim.verbose")) {
-          output->enableVerbose();
-          output->write("verbose output is ON\n");
-        }
-      }
+      const libconfig::Setting& cfg_sim = config->lookup("sim");
 
-//      jams_patch_config(argc, argv, config);
+      bool verbose_output = jams::config_optional<bool>(cfg_sim, "verbose", jams::default_verbose_output);
+      if (verbose_output) {
+        output->enableVerbose();
+        output->write("verbose output is ON\n");
+      }
 
       unsigned int random_seed = time(NULL);
-      if (config->lookupValue("sim.seed", random_seed)) {
+      if (cfg_sim.lookupValue("seed", random_seed)) {
         output->write("\nrandom seed in config file\n");
       } else {
         output->write("\nrandom seed from time\n");
@@ -109,21 +106,18 @@ int jams_initialize(int argc, char **argv) {
       output->write("  %u\n", random_seed);
       rng->seed(random_seed);
 
+      dt = jams::config_required<double>(cfg_sim, "t_step");
 
-      dt = config->lookup("sim.t_step");
       output->write("\ntimestep\n  %1.8e\n", dt);
 
-      double time_value = config->lookup("sim.t_run");
+      double time_value = jams::config_required<double>(cfg_sim, "t_run");
+
       steps_run = static_cast<int>(time_value/dt);
       output->write("\nruntime\n  %1.8e (%lu steps)\n",
         time_value, steps_run);
 
-      if (config->exists("sim.t_min")) {
-        time_value = config->lookup("sim.t_min");
-        steps_min = static_cast<int>(time_value/dt);
-      } else {
-        steps_min = 0;
-      }
+      auto t_min = jams::config_required<double>(cfg_sim, "t_min");
+      steps_min = static_cast<int>(t_min/dt);
 
       output->write("\nminimum runtime\n  %1.8e (%lu steps)\n",
         time_value, steps_min);
@@ -163,7 +157,6 @@ int jams_initialize(int argc, char **argv) {
       if(::config->exists("initializer")) {
         jams_global_initializer(::config->lookup("initializer"));
       }
-
     }
     catch(const libconfig::FileIOException &fioex) {
       jams_error("I/O error while reading '%s'", config_filename.c_str());

@@ -8,6 +8,12 @@
 #include "jams/core/types.h"
 
 namespace jams {
+    // simulation
+    constexpr bool   default_verbose_output = false;
+
+    // monitors
+    constexpr int    default_monitor_output_steps = 100;
+    constexpr double default_monitor_convergence_tolerance = 0.01;
 
     // materials
     constexpr double default_gyro = 1.0;
@@ -17,6 +23,8 @@ namespace jams {
 
     // lattice
     constexpr Vec3b  default_lattice_periodic_boundaries = {true, true, true};
+    constexpr bool   default_lattice_symops = true;
+
     // modules
     constexpr auto default_physics_module = "empty";
 }

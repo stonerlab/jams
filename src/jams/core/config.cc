@@ -146,7 +146,3 @@ void config_patch(Setting& orig, const Setting& patch) {
     config_patch_simple(orig, patch);
   }
 }
-
-Vec3 config_vec3(libconfig::Setting& v) {
-  return {v[0], v[1], v[2]};
-}
