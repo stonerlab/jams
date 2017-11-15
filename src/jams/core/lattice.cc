@@ -95,8 +95,10 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
 void read_material_settings(Setting& cfg, Material &mat) {
   mat.name   = cfg["name"].c_str();
   mat.moment = double(cfg["moment"]);
-
   mat.gyro = jams::default_gyro;
+  mat.spin = jams::default_spin;
+  mat.randomize = false;
+
   if (cfg.exists("gyro")) {
     mat.gyro   = double(cfg["gyro"]);
   }
@@ -111,29 +113,31 @@ void read_material_settings(Setting& cfg, Material &mat) {
     mat.transform = {1.0, 1.0, 1.0};
   }
 
-  mat.randomize = false;
 
-  if (cfg["spin"].getType() == libconfig::Setting::TypeString) {
-    string spin_initializer = capitalize(cfg["spin"]);
-    if (spin_initializer == "RANDOM") {
-      mat.randomize = true;
-    } else {
-      jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
-    }
-  } else if (cfg["spin"].getType() == libconfig::Setting::TypeArray) {
-    if (cfg["spin"].getLength() == 3) {
-      for(int i = 0; i < 3; ++i) {
-        mat.spin[i] = double(cfg["spin"][i]);
+  if (cfg.exists("spin")) {
+    if (cfg["spin"].getType() == libconfig::Setting::TypeString) {
+      string spin_initializer = capitalize(cfg["spin"]);
+      if (spin_initializer == "RANDOM") {
+        mat.randomize = true;
+      } else {
+        jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
       }
-    } else if (cfg["spin"].getLength() == 2) {
-      // spin setting is spherical
-      double theta = deg_to_rad(cfg["spin"][0]);
-      double phi   = deg_to_rad(cfg["spin"][1]);
-      mat.spin[0] = sin(theta)*cos(phi);
-      mat.spin[1] = sin(theta)*sin(phi);
-      mat.spin[2] = cos(theta);
-    } else {
-      throw general_exception("material spin array is not of a recognised size (2 or 3)", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    } else if (cfg["spin"].getType() == libconfig::Setting::TypeArray) {
+      if (cfg["spin"].getLength() == 3) {
+        for (int i = 0; i < 3; ++i) {
+          mat.spin[i] = double(cfg["spin"][i]);
+        }
+      } else if (cfg["spin"].getLength() == 2) {
+        // spin setting is spherical
+        double theta = deg_to_rad(cfg["spin"][0]);
+        double phi = deg_to_rad(cfg["spin"][1]);
+        mat.spin[0] = sin(theta) * cos(phi);
+        mat.spin[1] = sin(theta) * sin(phi);
+        mat.spin[2] = cos(theta);
+      } else {
+        throw general_exception("material spin array is not of a recognised size (2 or 3)", __FILE__, __LINE__,
+                                __PRETTY_FUNCTION__);
+      }
     }
   }
 
