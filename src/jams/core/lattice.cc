@@ -435,14 +435,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
 // Read boundary conditions
 //-----------------------------------------------------------------------------
 
-  if(!lattice_settings.exists("periodic")) {
-    // sane default
-    output->write(
-      "\nASSUMPTION: no boundary conditions specified - assuming 3D periodic\n");
-    for (i = 0; i < 3; ++i) {
-      super_cell.periodic[i] = true;
-    }
-  } else {
+  super_cell.periodic = jams::default_lattice_periodic_boundaries;
+  if(lattice_settings.exists("periodic")) {
     for (i = 0; i < 3; ++i) {
       super_cell.periodic[i] = lattice_settings["periodic"][i];
     }
