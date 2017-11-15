@@ -17,10 +17,11 @@ extern "C"{
 #include <string>
 #include <utility>
 #include <cfloat>
-#include <jams/core/defaults.h>
 
 #include "H5Cpp.h"
 
+#include "jams/core/defaults.h"
+#include "jams/core/material.h"
 #include "jams/core/error.h"
 #include "jams/core/output.h"
 #include "jams/core/rand.h"
@@ -78,60 +79,6 @@ namespace jams {
     }
     Mat3 inverse_unit_cell_matrix(const Mat3& unit_cell_matrix) {
       return inverse(unit_cell_matrix);
-    }
-
-    Material read_material_settings(Setting& cfg) {
-      Material material;
-      material.name      = cfg["name"].c_str();
-      material.moment    = double(cfg["moment"]);
-      material.gyro      = jams::default_gyro;
-      material.alpha     = jams::default_alpha;
-      material.spin      = jams::default_spin;
-      material.transform = jams::default_spin_transform;
-      material.randomize = false;
-
-      cfg.lookupValue("gyro", material.gyro);
-      cfg.lookupValue("alpha", material.alpha);
-
-      if (cfg.exists("transform")) {
-        for (auto i = 0; i < 3; ++i) {
-          material.transform[i] = double(cfg["transform"][i]);
-        }
-      }
-
-
-      if (cfg.exists("spin")) {
-        if (cfg["spin"].getType() == libconfig::Setting::TypeString) {
-          string spin_initializer = capitalize(cfg["spin"]);
-          if (spin_initializer == "RANDOM") {
-            material.randomize = true;
-          } else {
-            jams_error("Unknown spin initializer %s selected", spin_initializer.c_str());
-          }
-        } else if (cfg["spin"].getType() == libconfig::Setting::TypeArray) {
-          if (cfg["spin"].getLength() == 3) {
-            for (int i = 0; i < 3; ++i) {
-              material.spin[i] = double(cfg["spin"][i]);
-            }
-          } else if (cfg["spin"].getLength() == 2) {
-            // spin setting is spherical
-            double theta = deg_to_rad(cfg["spin"][0]);
-            double phi = deg_to_rad(cfg["spin"][1]);
-            material.spin[0] = sin(theta) * cos(phi);
-            material.spin[1] = sin(theta) * sin(phi);
-            material.spin[2] = cos(theta);
-          } else {
-            throw general_exception("material spin array is not of a recognised size (2 or 3)", __FILE__, __LINE__,
-                                    __PRETTY_FUNCTION__);
-          }
-        }
-      }
-
-      if (!equal(abs(material.spin), 1.0)) {
-        throw general_exception("material spin is not of unit length", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-      }
-
-      return material;
     }
 }
 
@@ -349,7 +296,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &material_settings, const 
   output->write("  materials\n");
 
   for (i = 0; i < material_settings.getLength(); ++i) {
-    Material material = jams::read_material_settings(material_settings[i]);
+    Material material(material_settings[i]);
     material.id = i;
     if (material_name_map_.insert({material.name, material}).second == false) {
       throw std::runtime_error("the material " + material.name + " is specified twice in the configuration");
@@ -515,11 +462,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   num_of_material_.resize(num_materials(), 0);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-
     const auto material = material_name_map_[lattice_materials_[i]];
-    const auto material_id = material.id;
-
-    num_of_material_[material_id]++;
 
     globals::mus(i)   = material.moment;
     globals::alpha(i) = material.alpha;
@@ -535,6 +478,8 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
         globals::s(i, n) = s_init[n];
       }
     }
+
+    num_of_material_[material.id]++;
   }
 
   bool initial_spin_state_is_a_file = lattice_settings.exists("spins");

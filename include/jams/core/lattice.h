@@ -21,6 +21,7 @@ extern "C"{
 #include "jams/core/types.h"
 #include "jams/core/neartree.h"
 #include "jblib/containers/array.h"
+#include "jams/core/material.h"
 
 namespace jams {
     Mat3 unit_cell_matrix(const Vec3& a1, const Vec3& a2,  const Vec3& a3);

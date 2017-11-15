@@ -45,16 +45,5 @@ struct SuperCell {
     double parameter;
 };
 
-struct Material {
-    int    id;
-    string name;
-    double moment;
-    double gyro;
-    double alpha;
-    Vec3   spin;
-    Vec3   transform;
-    bool   randomize;
-};
-
 
 #endif  // JAMS_CORE_TYPES_H
