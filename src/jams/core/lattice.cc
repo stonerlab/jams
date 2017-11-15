@@ -93,22 +93,21 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
 
 
 void read_material_settings(Setting& cfg, Material &mat) {
-  mat.name   = cfg["name"].c_str();
-  mat.moment = double(cfg["moment"]);
-  mat.gyro   = jams::default_gyro;
-  mat.alpha  = jams::default_alpha;
-  mat.spin   = jams::default_spin;
+  mat.name      = cfg["name"].c_str();
+  mat.moment    = double(cfg["moment"]);
+  mat.gyro      = jams::default_gyro;
+  mat.alpha     = jams::default_alpha;
+  mat.spin      = jams::default_spin;
+  mat.transform = jams::default_spin_transform;
   mat.randomize = false;
 
   cfg.lookupValue("gyro", mat.gyro);
   cfg.lookupValue("alpha", mat.alpha);
 
   if (cfg.exists("transform")) {
-    for (int i = 0; i < 3; ++i) {
+    for (auto i = 0; i < 3; ++i) {
       mat.transform[i] = double(cfg["transform"][i]);
     }
-  } else {
-    mat.transform = {1.0, 1.0, 1.0};
   }
 
 
