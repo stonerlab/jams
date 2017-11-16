@@ -34,6 +34,9 @@ Solver::~Solver() {
 
 void Solver::initialize(const libconfig::Setting& settings) {
   assert(!initialized_);
+  name_ = settings["module"].c_str();
+
+  output->write("  %s solver\n", name_.c_str());
 
   initialized_ = true;
 }

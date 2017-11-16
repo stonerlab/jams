@@ -19,8 +19,6 @@ class SMRMonitor : public Monitor {
 
   void update(Solver * solver);
   bool is_converged() {return false;};
-  std::string name() const {return "smr";}
-
  private:
   std::ofstream outfile;
 

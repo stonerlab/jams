@@ -21,12 +21,13 @@ inline std::string get_date_string(std::chrono::time_point<std::chrono::system_c
   struct tm tm;
   if (::gmtime_r(&as_time_t, &tm)) {
     char timebuffer[80];
-    if (std::strftime(timebuffer, sizeof(timebuffer), "%F", &tm)) {
+    if (std::strftime(timebuffer, sizeof(timebuffer), "%Y-%m-%d %H:%M:%S", &tm)) {
       return std::string{timebuffer};
     }
   }
   throw std::runtime_error("Failed to get current date as string");
 }
+
 inline std::string& left_trim(std::string &s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(),
     std::not1(std::ptr_fun<int, int>(std::isspace))));

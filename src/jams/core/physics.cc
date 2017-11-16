@@ -15,18 +15,22 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
-#include "../physics/empty.h"
+#include "jams/physics/empty.h"
 #include "jams/physics/field_cool.h"
-#include "../physics/fmr.h"
+#include "jams/physics/fmr.h"
 #include "jams/physics/mean_first_passage_time.h"
 #include "jams/physics/square_field_pulse.h"
 #include "jams/physics/two_temperature_model.h"
-#include "../physics/ping.h"
-#include "../physics/flips.h"
+#include "jams/physics/ping.h"
+#include "jams/physics/flips.h"
+#include "jams/core/output.h"
 
 
 Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0),
-    applied_field_{0.0, 0.0, 0.0} {
+    applied_field_{0.0, 0.0, 0.0},
+    name_(jams::config_optional<string>(physics_settings, "module", "empty")){
+
+  output->write("  %s physics\n", name_.c_str());
 
   // initialise temperature
   temperature_ = 0.0;
@@ -46,12 +50,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
   }
   applied_field_ = field;
 
-  if (physics_settings.exists("output_steps")) {
-    output_step_freq_ = physics_settings["output_steps"];
-  } else {
-    jams_warning("No physics output_steps chosen - using default of 100");
-    output_step_freq_ = 100;
-  }
+  output_step_freq_ = jams::config_optional<int>(physics_settings, "output_steps", jams::default_monitor_output_steps);
 
   Vec3 origin;
   double radius;

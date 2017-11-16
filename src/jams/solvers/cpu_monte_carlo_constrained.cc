@@ -61,8 +61,6 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
     spin_transformations_[i] = {t[0], 0, 0, 0, t[1], 0, 0, 0, t[2]};
   }
 
-  ::output->write("\n----------------------------------------\n");
-  ::output->write("\nConstrained Monte-Carlo solver\n");
   ::output->write("    constraint angle theta (deg)\n    % 4.4f\n", constraint_theta_);
   ::output->write("    constraint angle phi (deg)\n    % 4.4f\n", constraint_phi_);
   ::output->write("    constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_[0], constraint_vector_[1], constraint_vector_[2]);

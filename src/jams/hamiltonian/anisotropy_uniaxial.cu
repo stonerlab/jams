@@ -15,8 +15,6 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
   mca_order_(),
   mca_value_()
 {
-  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
-
     bool has_d2z = false;
     bool has_d4z = false;
     bool has_d6z = false;

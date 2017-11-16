@@ -1,5 +1,38 @@
+set(VERSION_MAJOR "2" )
+set(VERSION_MINOR "0" )
+set(VERSION_PATCH "0" )
+set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+
+execute_process(
+        COMMAND git rev-parse --abbrev-ref HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_BRANCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# Get the latest abbreviated commit hash of the working branch
+execute_process(
+        COMMAND git log -1 --format=%h
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_COMMIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+string(TIMESTAMP BUILD_TIME "%Y-%m-%d %H:%M:%S")
+
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/jams/version.h.in
+        ${CMAKE_BINARY_DIR}/generated/version.h
+)
+
+include_directories(${CMAKE_BINARY_DIR}/generated)
+
 # put source files into 'srcs' and 'cuda'
 jams_pickup_jams_sources(${PROJECT_SOURCE_DIR})
+
+#add_definitions("-DVERSION=${VERSION}")
+#add_definitions("-DGIT_COMMIT_HASH=${GIT_COMMIT_HASH}")
+#add_definitions("-DGIT_BRANCH=${GIT_BRANCH}")
 
 add_definitions(-DCUDA)
 

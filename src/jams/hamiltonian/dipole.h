@@ -22,8 +22,6 @@ class DipoleHamiltonian : public Hamiltonian {
         DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size);
         ~DipoleHamiltonian() {};
 
-        std::string name() const { return "dipole"; }
-
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final);

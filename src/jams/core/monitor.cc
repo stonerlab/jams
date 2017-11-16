@@ -24,12 +24,14 @@ Monitor::Monitor(const libconfig::Setting &settings)
   convergence_is_on_(settings.exists("convergence")),
   convergence_tolerance_(jams::config_optional<double>(settings, "convergence", jams::default_monitor_convergence_tolerance)),
   convergence_stderr_(0.0),
-  convergence_burn_time_(jams::config_optional<double>(settings, "t_burn", 0.0))  // amount of time to discard before calculating convegence stats
- {
-   output->write("  output_steps: %d (s)\n", output_step_freq_);
+  convergence_burn_time_(jams::config_optional<double>(settings, "t_burn", 0.0)),  // amount of time to discard before calculating convegence stats
+  name_(settings["module"].c_str())
+{
+   output->write("  %s monitor\n", name_.c_str());
+   output->write("    output_steps: %d\n", output_step_freq_);
    if (convergence_is_on_) {
-     ::output->write("  convergence tolerance: %f\n", convergence_tolerance_);
-     ::output->write("  t_burn: %e (s)\n", convergence_burn_time_);
+     ::output->write("    convergence tolerance: %f\n", convergence_tolerance_);
+     ::output->write("    t_burn: %e (s)\n", convergence_burn_time_);
    }
 }
 

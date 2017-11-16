@@ -47,10 +47,6 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       is_debug_enabled_ = settings["debug"];
     }
 
-    // if (settings.exists("sparse_format")) {
-    //   set_sparse_matrix_format(std::string(settings["sparse_format"]));
-    // }
-
     if (is_debug_enabled_) {
       debug_file.open("debug_exchange.dat");
 

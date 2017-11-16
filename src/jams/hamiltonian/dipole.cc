@@ -25,7 +25,6 @@
 
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
-  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
 
 #ifdef CUDA
     if (solver->is_cuda_solver()) {

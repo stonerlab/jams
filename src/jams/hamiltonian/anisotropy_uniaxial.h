@@ -18,8 +18,6 @@ class UniaxialHamiltonian : public Hamiltonian {
         UniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int size);
         ~UniaxialHamiltonian() {};
 
-        std::string name() const { return "uniaxial"; }
-
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final);

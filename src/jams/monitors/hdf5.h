@@ -23,7 +23,6 @@ class Hdf5Monitor : public Monitor {
 
   void update(Solver * solver);
   bool is_converged() { return false; }
-  std::string name() const {return "hdf5";}
 
  private:
   void open_new_xdmf_file(const std::string &xdmf_file_name);

@@ -19,8 +19,6 @@ class SpinTemperatureMonitor : public Monitor {
 
   void update(Solver * solver);
   bool is_converged();
-  std::string name() const {return "spin_temperature";}
-
 
  private:
   std::ofstream outfile;

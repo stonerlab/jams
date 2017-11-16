@@ -77,7 +77,6 @@ void ExchangeHamiltonian::insert_interaction(const int i, const int j, const Mat
 
 ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
-  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
 
   //---------------------------------------------------------------------
   // read settings
@@ -91,7 +90,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     if (interaction_file.fail()) {
       jams_error("failed to open interaction file %s", interaction_filename.c_str());
     }
-    ::output->write("\ninteraction filename (%s)\n", interaction_filename.c_str());
+    ::output->write("    interaction file name %s\n", interaction_filename.c_str());
 
     std::string exchange_file_format_name = "JAMS";
     settings.lookupValue("format", exchange_file_format_name);
@@ -109,15 +108,15 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
     energy_cutoff_ = 1E-26;  // Joules
     settings.lookupValue("energy_cutoff", energy_cutoff_);
-    ::output->write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
+    ::output->write("    interaction energy cutoff %e\n", energy_cutoff_);
 
     radius_cutoff_ = 100.0;  // lattice parameters
     settings.lookupValue("radius_cutoff", radius_cutoff_);
-    ::output->write("\ninteraction radius cutoff\n  %e\n", radius_cutoff_);
+    ::output->write("    interaction radius cutoff %e\n", radius_cutoff_);
 
     distance_tolerance_ = 1e-3; // fractional coordinate units
     settings.lookupValue("distance_tolerance", distance_tolerance_);
-    ::output->write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
+    ::output->write("    distance_tolerance %e\n", distance_tolerance_);
     
     safety_check_distance_tolerance(distance_tolerance_);
 
@@ -161,7 +160,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
     }
 
-    ::output->write("\ncomputed interactions\n");
+    ::output->write("    computed interactions\n");
 
     for (int i = 0; i < neighbour_list_.size(); ++i) {
       for (auto const &j: neighbour_list_[i]) {
@@ -169,9 +168,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       }
     }
 
-    ::output->write("  converting interaction matrix format from MAP to CSR\n");
+    ::output->write("    converting interaction matrix format from MAP to CSR\n");
     interaction_matrix_.convertMAP2CSR();
-    ::output->write("  exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
+    ::output->write("    exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
 
     // transfer arrays to cuda device if needed
     if (solver->is_cuda_solver()) {
@@ -183,22 +182,20 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
         dev_field_  = jblib::CudaArray<double, 1>(field_);
 
         if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
-          ::output->write("  * Initialising CUSPARSE...\n");
+          ::output->write("    init cusparse\n");
           cusparseStatus_t status;
           status = cusparseCreate(&cusparse_handle_);
           if (status != CUSPARSE_STATUS_SUCCESS) {
-            jams_error("CUSPARSE Library initialization failed");
+            jams_error("cusparse Library initialization failed");
           }
           cusparseSetStream(cusparse_handle_, dev_stream_);
 
           sparsematrix_copy_host_csr_to_cuda_csr(interaction_matrix_, dev_csr_interaction_matrix_);
 
         } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
-          // ::output->write("  converting interaction matrix format from map to dia");
-          // interaction_matrix_.convertMAP2DIA();
-          ::output->write("  estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
+          ::output->write("    estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
           dev_dia_interaction_matrix_.blocks = std::min<int>(DIA_BLOCK_SIZE, (globals::num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-          ::output->write("  allocating memory on device\n");
+          ::output->write("    allocating memory on device\n");
 
           // allocate rows
           cuda_api_error_check(

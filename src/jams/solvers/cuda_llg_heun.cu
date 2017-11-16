@@ -42,8 +42,6 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   output->write("\nt_max\n  %1.8e (%lu steps)\n", t_max, max_steps_);
   output->write("\nt_min\n  %1.8e (%lu steps)\n", t_min, min_steps_);
 
-  ::output->write("\ninitializing CUDA Heun LLG solver\n");
-
   ::output->write("  creating stream\n");
   if(cudaStreamCreate(&dev_stream_) != cudaSuccess) {
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);

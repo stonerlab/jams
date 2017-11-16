@@ -23,7 +23,6 @@ class MagnetisationMonitor : public Monitor {
 
   void update(Solver * solver);
   bool is_converged();
-  std::string name() const {return "magnetisation";}
 
 
  private:

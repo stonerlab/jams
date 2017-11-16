@@ -16,9 +16,6 @@
 #include "jams/hamiltonian/zeeman.h"
 
 Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings, const unsigned int size) {
-    // debugging output
-    ::output->write("\ncreating '%s' hamiltonian\n", settings["module"].c_str());
-
     if (capitalize(settings["module"]) == "EXCHANGE") {
         return new ExchangeHamiltonian(settings, size);
     }

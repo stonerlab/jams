@@ -19,8 +19,6 @@ ZeemanHamiltonian::~ZeemanHamiltonian() {
 ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size)
 {
-  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
-
     dc_local_field_.resize(globals::num_spins, 3);
     dc_local_field_.zero();
 

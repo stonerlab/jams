@@ -15,6 +15,7 @@
 
 #include "jams/core/types.h"
 #include "jams/core/output.h"
+#include "jams/core/globals.h"
 
 // forward declarations
 namespace libconfig {
@@ -25,15 +26,18 @@ class Hamiltonian {
  public:
   Hamiltonian(const libconfig::Setting &settings, const unsigned int size) 
   : energy_(size, 0.0),
-    field_(size, 3, 0.0)
-  {}
+    field_(size, 3, 0.0),
+    name_(settings["module"].c_str())
+  {
+    output->write("  %s hamiltonian\n", name_.c_str());
+  }
 
   virtual ~Hamiltonian() {}
 
   // factory
   static Hamiltonian* create(const libconfig::Setting &settings, const unsigned int size);
 
-  virtual std::string name() const = 0;
+  std::string name() const { return name_; }
 
   virtual double calculate_total_energy() = 0;
   virtual double calculate_one_spin_energy(const int i) = 0;
@@ -82,6 +86,7 @@ class Hamiltonian {
   }
 
  protected:
+    std::string name_;
   jblib::Array<double, 1> energy_;
   jblib::Array<double, 2> field_;
 

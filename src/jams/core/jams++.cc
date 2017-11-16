@@ -1,9 +1,6 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #define GLOBALORIGIN
-#define JAMS_VERSION "1.5.0"
-#define QUOTEME_(x) #x
-#define QUOTEME(x) QUOTEME_(x)
 
 #include <cstdarg>
 #include <fstream>
@@ -12,6 +9,7 @@
 #include <cstdlib>
 #include <exception>
 
+#include "version.h"
 #include "jams/interface/config.h"
 #include "jams/core/jams++.h"
 #include "jams/helpers/load.h"
@@ -26,6 +24,7 @@
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/utils.h"
+#include "jams/helpers/duration.h"
 #include "hamiltonian.h"
 
 namespace jams {
@@ -46,80 +45,81 @@ namespace jams {
       delete output;
     }
 
-    void process_command_line_args(int argc, char **argv,
-                                   std::string &config_filename,
-                                   std::string &config_patch_string) {
+    void process_command_line_args(int argc, char **argv, jams::Simulation& sim) {
       if (argc == 1) {
         jams_error("No config file specified");
       }
 
-      config_filename = std::string(argv[1]);
-      trim(config_filename);
+      sim.config_file_name = std::string(argv[1]);
+      trim(sim.config_file_name);
 
       if (argc == 3) {
-        config_patch_string = std::string(argv[2]);
+        sim.config_patch_string = std::string(argv[2]);
       }
 
-      seedname = file_basename(config_filename);
-      trim(seedname);
-    }
+      sim.name = file_basename(sim.config_file_name);
+      trim(sim.name);
 
-    void output_program_header() {
-      output->write("\nJAMS++\n");
-      output->write("Version %s\n", JAMS_VERSION);
-      output->write("Commit %s\n", QUOTEME(GITCOMMIT));
-      output->write("Compiled %s, %s\n", __DATE__, __TIME__);
-      output->write("----------------------------------------\n");
-      output->write("Run time %s\n", get_date_string(std::chrono::system_clock::now()).c_str());
-      output->write("----------------------------------------\n");
-#ifdef DEBUG
-      output->write("\nDEBUG Build\n");
-#endif
+      sim.log_file_name = sim.name + ".log";
     }
 }
 
 int jams_initialize(int argc, char **argv) {
 
+  jams::Simulation simulation;
+
   jams::new_global_classes();
-  jams::output_program_header();
 
-  std::string config_filename;
-  std::string config_patch_string;
+  output->write("\nJAMS++ %s\n\n", VERSION);
+  output->write("build   %s %s %s %s\n", BUILD_TIME, BUILD_TYPE, GIT_COMMIT_HASH, GIT_BRANCH);
+  output->write("run     %s\n", get_date_string(std::chrono::system_clock::now()).c_str());
 
-  jams::process_command_line_args(argc, argv, config_filename, config_patch_string);
+  jams::process_command_line_args(argc, argv, simulation);
+  seedname = simulation.name;
 
-  output->open("%s.out", seedname.c_str());
-
-  output->write("\nconfig file\n  %s\n", config_filename.c_str());
+  output->open("%s", simulation.log_file_name.c_str());
+  output->write("log     %s\n", simulation.log_file_name.c_str());
+  output->write("config  %s\n", simulation.config_file_name.c_str());
 
   {
     try {
 
-      config->readFile(config_filename.c_str());
+      config->readFile(simulation.config_file_name.c_str());
 
-      if (!config_patch_string.empty()) {
-        jams_patch_config(config_patch_string);
+      if (!simulation.config_patch_string.empty()) {
+        jams_patch_config(simulation.config_patch_string);
       }
 
-      auto verbose_output = jams::config_optional<bool>(config->lookup("sim"), "verbose", jams::default_sim_verbose_output);
-      if (verbose_output) {
-        output->enableVerbose();
-        output->write("verbose output is ON\n");
+      if (config->exists("sim")) {
+        if (config->lookup("sim")) {
+          simulation.verbose = true;
+          output->enableVerbose();
+        }
+
+        simulation.random_seed = jams::config_optional<int>(config->lookup("sim"), "seed", simulation.random_seed);
       }
 
-      auto random_seed = jams::config_optional<int>(config->lookup("sim"), "seed", time(nullptr));
-      output->write("  %d\n", random_seed);
-      rng->seed(static_cast<const uint32_t>(random_seed));
+
+      output->write("verbose %s\n", simulation.verbose ? "true" : "false");
+      output->write("seed    %d\n", simulation.random_seed);
+
+      rng->seed(static_cast<const uint32_t>(simulation.random_seed));
+
+      output->write("\ninit lattice -------------------------------------------------------------------\n\n");
 
       lattice->init_from_config(*::config);
 
-      output->write("\nInitialising physics module...\n");
+      output->write("\ninit physics -------------------------------------------------------------------\n\n");
+
       physics_module = Physics::create(config->lookup("physics"));
 
-      output->write("\nInitialising solver...\n");
+      output->write("\ninit solver --------------------------------------------------------------------\n\n");
+
       solver = Solver::create(config->lookup("solver"));
       solver->initialize(config->lookup("solver"));
       solver->register_physics_module(physics_module);
+
+      output->write("\ninit monitors ------------------------------------------------------------------\n\n");
 
       if (!::config->exists("monitors")) {
         jams_warning("No monitors in config");
@@ -129,6 +129,8 @@ int jams_initialize(int argc, char **argv) {
           solver->register_monitor(Monitor::create(monitor_settings[i]));
         }
       }
+
+      output->write("\ninit hamiltonians --------------------------------------------------------------\n\n");
 
       if (!::config->exists("hamiltonians")) {
         jams_error("No hamiltonians in config");
@@ -144,7 +146,7 @@ int jams_initialize(int argc, char **argv) {
       }
     }
     catch(const libconfig::FileIOException &fioex) {
-      jams_error("I/O error while reading '%s'", config_filename.c_str());
+      jams_error("I/O error while reading '%s'", simulation.config_file_name.c_str());
     }
     catch(const libconfig::ParseException &pex) {
       jams_error("Error parsing %s:%i: %s", pex.getFile(),
@@ -177,11 +179,12 @@ int jams_initialize(int argc, char **argv) {
 
 void jams_run() {
   using namespace globals;
+  using namespace std::chrono;
 
-  output->write("\n----Data Run----\n");
-  output->write("Running solver\n");
+  output->write("\nrunning solver -----------------------------------------------------------------\n\n");
+  output->write("start   %s\n\n", get_date_string(system_clock::now()).c_str());
 
-  auto start_time = std::clock();
+  auto start_time = time_point_cast<milliseconds>(system_clock::now());
 
   while (solver->is_running()) {
     if (solver->is_converged()) {
@@ -193,8 +196,10 @@ void jams_run() {
     solver->run();
   }
 
-  auto end_time = std::clock();
-  output->write("Solving time: %f\n", static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC);
+  output->write("finish  %s\n\n", get_date_string(system_clock::now()).c_str());
+
+  auto end_time = time_point_cast<milliseconds>(system_clock::now());
+  output->write("runtime %s\n", duration_string(end_time - start_time).c_str());
 }
 
 void jams_finish() {

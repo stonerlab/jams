@@ -26,7 +26,6 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   m4_stats_()
 {
   using namespace globals;
-  ::output->write("\ninitialising Magnetisation monitor\n");
 
   // create transform arrays for example to apply a Holstein Primakoff transform
   s_transform_.resize(num_spins, 3);

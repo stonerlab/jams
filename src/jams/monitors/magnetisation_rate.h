@@ -20,8 +20,6 @@ class MagnetisationRateMonitor : public Monitor {
 
   void update(Solver * solver);
   bool is_converged();
-  std::string name() const {return "magnetisation_rate";}
-
 
  private:
   jblib::Array<double, 2> dm_dt;

@@ -20,9 +20,11 @@ class Monitor {
 
   static Monitor* create(const libconfig::Setting &settings);
 
-  virtual std::string name() const = 0;
+  std::string name() const {return name_; }
 
   protected:
+    std::string name_;
+
     int     output_step_freq_;
 
     // variables for convergence testing in monitor

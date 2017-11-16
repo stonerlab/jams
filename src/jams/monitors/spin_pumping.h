@@ -19,8 +19,6 @@ class SpinPumpingMonitor : public Monitor{
 
 void update(Solver * solver);
 bool is_converged();
-std::string name() const {return "boltzmann";}
-
 
  private:
   std::ofstream w_dist_file;

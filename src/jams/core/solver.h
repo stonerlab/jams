@@ -25,6 +25,7 @@ class Solver {
 
   virtual void initialize(const libconfig::Setting& settings) = 0;
   virtual void run() = 0;
+  std::string name() const {return name_; }
 
   bool is_converged();
   bool is_running();
@@ -78,6 +79,7 @@ class Solver {
 
   static Solver* create(const libconfig::Setting &setting);
  protected:
+    std::string name_;
     bool initialized_ = false;
     bool is_cuda_solver_ = false;
 

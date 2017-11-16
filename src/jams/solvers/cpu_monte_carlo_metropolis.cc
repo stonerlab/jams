@@ -26,8 +26,6 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   // initialize base class
   Solver::initialize(settings);
 
-  output->write("Initialising Metropolis Monte-Carlo solver\n");
-
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::default_solver_min_steps);
 
@@ -35,9 +33,21 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   preconditioner_delta_theta_ = jams::config_optional<double>(settings, "preconditioner_theta", 5.0);
   preconditioner_delta_phi_ = jams::config_optional<double>(settings, "preconditioner_phi", 5.0);
 
-
   if (output->is_verbose()) {
     outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
+  }
+
+  output->write("    max_steps %d\n", max_steps_);
+  output->write("    min_steps %d\n", min_steps_);
+  output->write("    preconditioner %s\n", is_preconditioner_enabled_ ? "true" : "false");
+
+  if (is_preconditioner_enabled_) {
+    output->write("    preconditioner_theta %d\n", preconditioner_delta_theta_);
+    output->write("    preconditioner_phi   %d\n", preconditioner_delta_phi_);
+  }
+
+  if (output->is_verbose()) {
+    output->write("    statsfile %s\n", std::string(::seedname + "_mc_stats.dat").c_str());
   }
 }
 

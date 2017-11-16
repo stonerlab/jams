@@ -36,11 +36,6 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   output->write("\nt_max\n  %1.8e (%lu steps)\n", t_max, max_steps_);
   output->write("\nt_min\n  %1.8e (%lu steps)\n", t_min, min_steps_);
 
-
-  ::output->write("Initialising Heun LLG solver (CPU)\n");
-
-  ::output->write("\ninitialising base solver class\n");
-
   snew.resize(num_spins, 3);
   sigma.resize(num_spins);
   eng.resize(num_spins, 3);

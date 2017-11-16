@@ -32,8 +32,6 @@ class ExchangeNeartreeHamiltonian : public Hamiltonian {
 
         typedef std::vector<std::vector<InteractionNT>> InteractionList;
 
-        std::string name() const { return "exchange"; }
-
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final);
