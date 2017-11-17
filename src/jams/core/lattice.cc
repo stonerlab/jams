@@ -289,7 +289,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   CoordinateFormat cfg_coordinate_format = CoordinateFormat::Fractional;
 
-  std::string cfg_coordinate_format_name = jams::config_optional<string>(unitcell_settings, "format", "FRACTIONAL");
+  std::string cfg_coordinate_format_name = jams::config_optional<string>(unitcell_settings, "coordinate_format", "FRACTIONAL");
 
   if (capitalize(cfg_coordinate_format_name) == "FRACTIONAL") {
     cfg_coordinate_format = CoordinateFormat::Fractional;
