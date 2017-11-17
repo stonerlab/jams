@@ -71,6 +71,7 @@ int jams_initialize(int argc, char **argv) {
   jams::new_global_classes();
 
   output->write("\nJAMS++ %s\n\n", VERSION);
+
   output->write("build   %s %s %s %s\n", BUILD_TIME, BUILD_TYPE, GIT_COMMIT_HASH, GIT_BRANCH);
   output->write("run     %s\n", get_date_string(std::chrono::system_clock::now()).c_str());
 

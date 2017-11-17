@@ -6,7 +6,7 @@
 
 Vec3 minimum_image(const Cell& cell, const Vec3& r_i, const Vec3& r_j) {
   // W. Smith, CCP5 Information Quarterly for Computer Simulation of Condensed Phases (1989).
-  Vec3 dr = cell.inverse_matrix() * (r_j - r_i);
+  Vec3 dr = cell.inverse_matrix() * (r_i - r_j);
   for (auto n = 0; n < 3; ++n) {
     if (cell.periodic(n)) {
       dr[n] = dr[n] - trunc(2.0 * dr[n]);
@@ -23,7 +23,7 @@ Cell scale(const Cell &cell, const Vec3i& size) {
   Vec3 new_a = cell.a() * double(size[0]);
   Vec3 new_b = cell.b() * double(size[1]);
   Vec3 new_c = cell.c() * double(size[2]);
-  return Cell(cell.a(), cell.b(), cell.c(), cell.periodic());
+  return Cell(new_a, new_b, new_c, cell.periodic());
 }
 
 Cell rotate(const Cell &cell, const Mat3& rotation_matrix) {

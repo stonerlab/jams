@@ -20,7 +20,7 @@ Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings, const unsig
         return new ExchangeHamiltonian(settings, size);
     }
 
-    if (capitalize(settings["module"]) == "EXCHANGE_NEARTREE") {
+    if (capitalize(settings["module"]) == "EXCHANGE-NEARTREE") {
         return new ExchangeNeartreeHamiltonian(settings, size);
     }
 

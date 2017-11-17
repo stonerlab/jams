@@ -540,7 +540,7 @@ Vec3 Lattice::generate_position(
         const Vec3 unit_cell_frac_pos,
         const Vec3i translation_vector) const
 {
-  return supercell.matrix() * generate_fractional_position(unit_cell_frac_pos, translation_vector);
+  return unitcell.matrix() * generate_fractional_position(unit_cell_frac_pos, translation_vector);
 }
 
 // generate a position within a periodic image of the entire system

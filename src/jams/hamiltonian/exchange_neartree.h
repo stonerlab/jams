@@ -21,7 +21,8 @@
 
 struct InteractionNT {
     int material[2];
-    double radius;
+    double inner_radius;
+    double outer_radius;
     double value;
 };
 

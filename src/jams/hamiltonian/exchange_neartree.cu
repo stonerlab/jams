@@ -68,7 +68,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     }
     ::output->write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
 
-    distance_tolerance_ = 1e-3; // fractional coordinate units
+    distance_tolerance_ = 1e-6; // fractional coordinate units
     if (settings.exists("distance_tolerance")) {
         distance_tolerance_ = settings["distance_tolerance"];
     }
@@ -96,28 +96,22 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       jams_error("No interactions defined in ExchangeNeartree hamiltonian");
     }
 
-    int type_id_A, type_id_B;
-    std::string type_name_A, type_name_B;
-    double jij_radius, jij_value;
-
     interaction_list_.resize(lattice->num_materials());
 
     for (int i = 0; i < settings["interactions"].getLength(); ++i) {
 
-      type_name_A = settings["interactions"][i][0].c_str();
-      type_name_B = settings["interactions"][i][1].c_str();
+      std::string type_name_A = settings["interactions"][i][0].c_str();
+      std::string type_name_B = settings["interactions"][i][1].c_str();
 
-      jij_radius = settings["interactions"][i][2];
-      jij_value = double(settings["interactions"][i][3]) / kBohrMagneton;
+      double inner_radius = settings["interactions"][i][2];
+      double outer_radius = settings["interactions"][i][3];
 
-      // std::cout << type_name_A << "\t" << type_name_B << "\t" << jij_radius << "\t" << jij_value << std::endl;
+      double jij_value = double(settings["interactions"][i][4]) / kBohrMagneton;
 
-      type_id_A = lattice->material_id(type_name_A);
-      type_id_B = lattice->material_id(type_name_B);
+      auto type_id_A = lattice->material_id(type_name_A);
+      auto type_id_B = lattice->material_id(type_name_B);
 
-      // std::cout << type_id_A << "\t" << type_id_B << "\t" << jij_radius << "\t" << jij_value << std::endl;
-
-      InteractionNT jij = {type_id_A, type_id_B, jij_radius, jij_value};
+      InteractionNT jij = {type_id_A, type_id_B, inner_radius, outer_radius, jij_value};
 
       interaction_list_[type_id_A].push_back(jij);
     }
@@ -141,9 +135,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         std::vector<Atom> nbr_lower;
         std::vector<Atom> nbr_upper;
 
-        lattice->atom_neighbours(i, interaction_list_[type][j].radius - distance_tolerance_, nbr_lower);
-        lattice->atom_neighbours(i, interaction_list_[type][j].radius + distance_tolerance_, nbr_upper);
-
+        lattice->atom_neighbours(i, interaction_list_[type][j].inner_radius, nbr_lower);
+        lattice->atom_neighbours(i, interaction_list_[type][j].outer_radius + distance_tolerance_, nbr_upper);
 
         std::vector<Atom> nbr(std::max(nbr_lower.size(), nbr_upper.size()));
 

@@ -16,8 +16,8 @@ Cell   rotate(const Cell& cell, const Mat3& rotation_matrix);
 class Cell {
 public:
     inline Cell() = default;
-    inline Cell(const Mat3 &basis, const Vec3b pbc = {true});
-    inline Cell(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b pbc = {true});
+    inline Cell(const Mat3 &basis, const Vec3b pbc = {true, true, true});
+    inline Cell(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b pbc = {true, true, true});
 
     inline Vec3 a() const;
     inline Vec3 b() const;
@@ -32,7 +32,7 @@ public:
 protected:
     Mat3  matrix_ = kIdentityMat3;
     Mat3  inverse_matrix_= kIdentityMat3;
-    Vec3b periodic_ = {true};
+    Vec3b periodic_ = {true, true, true};
 };
 
 inline Cell::Cell(const Mat3 &basis, Vec3b pbc)
