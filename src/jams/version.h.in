@@ -1,0 +1,14 @@
+//
+// Created by Joe Barker on 2017/11/16.
+//
+
+#ifndef JAMS_VERSION_H
+#define JAMS_VERSION_H
+
+#define VERSION          "@VERSION@"
+#define BUILD_TYPE       "@CMAKE_BUILD_TYPE@"
+#define BUILD_TIME       "@BUILD_TIME@"
+#define GIT_BRANCH       "@GIT_BRANCH@"
+#define GIT_COMMIT_HASH  "@GIT_COMMIT_HASH@"
+
+#endif //JAMS_VERSION_H
