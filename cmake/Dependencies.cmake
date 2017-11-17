@@ -1,3 +1,6 @@
+# -- Threads
+find_package(Threads)
+
 # -- Libconfig++
 find_package(CONFIG++ REQUIRED)
 include_directories(SYSTEM ${CONFIG++_INCLUDE_DIR})
