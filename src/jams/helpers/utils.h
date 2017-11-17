@@ -10,6 +10,7 @@
 #include <locale>
 #include <sstream>
 #include <string>
+#include <chrono>
 #include "jams/core/types.h"
 
 #define likely(x)      __builtin_expect(!!(x), 1)
