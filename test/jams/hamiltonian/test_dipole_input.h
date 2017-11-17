@@ -7,12 +7,11 @@
 namespace {
 
   const std::string config_basic_cpu(R"(
-    sim : {
-      solver = "LLG-HEUN-CPU";
+    solver : {
+      module = "llg-heun-cpu";
       t_step = 1.0e-16;
-      t_burn = 0.0;
       t_min  = 1.0e-16;
-      t_run  = 1.0e-16;
+      t_max  = 1.0e-16;
     };
 
     physics : {
@@ -22,12 +21,11 @@ namespace {
     )");
 
   const std::string config_basic_gpu(R"(
-    sim : {
-      solver = "LLG-HEUN-GPU";
+    solver : {
+      module = "llg-heun-gpu";
       t_step = 1.0e-16;
-      t_burn = 0.0;
       t_min  = 1.0e-16;
-      t_run  = 1.0e-16;
+      t_max  = 1.0e-16;
     };
 
     physics : {

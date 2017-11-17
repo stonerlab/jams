@@ -44,9 +44,9 @@ class DipoleHamiltonianBruteforceTest : public ::testing::Test {
     ::config->readString(config_string);
     ::lattice->init_from_config(*::config);
     ::physics_module = Physics::create(config->lookup("physics"));
-    ::solver = Solver::create(config->lookup("sim.solver"));
+    ::solver = Solver::create(config->lookup("solver"));
     int argc = 0; char **argv; double dt = 0.1;
-    ::solver->initialize(argc, argv, dt);
+    ::solver->initialize(config->lookup("solver"));
     ::solver->register_physics_module(physics_module);
   }
 

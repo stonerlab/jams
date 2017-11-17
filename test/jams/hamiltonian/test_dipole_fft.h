@@ -46,7 +46,7 @@ class DipoleHamiltonianFFTTest : public ::testing::Test {
     ::physics_module = Physics::create(config->lookup("physics"));
     ::solver = Solver::create(config->lookup("sim.solver"));
     int argc = 0; char **argv; double dt = 0.1;
-    ::solver->initialize(argc, argv, dt);
+    ::solver->initialize(config->lookup("sim.solver"));
     ::solver->register_physics_module(physics_module);
   }
 

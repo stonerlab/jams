@@ -31,6 +31,13 @@ add_dependencies(${PROJECT_TEST_NAME} ${PROJECT_NAME} gtest)
 include_directories("${gtest_SOURCE_DIR}/include"
                     "${gmock_SOURCE_DIR}/include")
 
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/jams/version.h.in
+        ${CMAKE_BINARY_DIR}/generated/version.h
+)
+
+include_directories(${CMAKE_BINARY_DIR}/generated)
+
 target_link_libraries(${PROJECT_TEST_NAME}
   -lpthread
   ${JAMS_LINKER_LIBS} 
