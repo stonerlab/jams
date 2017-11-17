@@ -2,7 +2,6 @@ jams++
 tmtags
 tmtagsHistory
 *.un~
-*.in
 *.out
 *.err
 *.dat
