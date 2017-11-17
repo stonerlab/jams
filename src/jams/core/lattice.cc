@@ -91,6 +91,10 @@ Lattice::~Lattice() {
 
 void Lattice::init_from_config(const libconfig::Config& cfg) {
 
+  set_name("lattice");
+  set_verbose(jams::config_optional<bool>(cfg.lookup("lattice"), "verbose", false));
+  set_debug(jams::config_optional<bool>(cfg.lookup("lattice"), "debug", false));
+
   symops_enabled_ = jams::config_optional<bool>(cfg.lookup("lattice"), "symops", jams::default_lattice_symops);
 
   output->write("  symops %s\n", symops_enabled_ ? "true" : "false");
@@ -363,9 +367,11 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
 
   Vec3 rotated_orientation_vector = orientation_matrix * orientation_cartesian_vector;
 
-  output->verbose("  rotated_orientation_vector\n");
-  output->verbose("    % 3.6f % 3.6f % 3.6f\n", rotated_orientation_vector[0], rotated_orientation_vector[1],
-                  rotated_orientation_vector[2]);
+  if (verbose_is_enabled()) {
+    output->write("  rotated_orientation_vector\n");
+    output->write("    % 3.6f % 3.6f % 3.6f\n", rotated_orientation_vector[0], rotated_orientation_vector[1],
+            rotated_orientation_vector[2]);
+  }
 
   auto volume_before = ::volume(unitcell);
   rotate(unitcell, orientation_matrix);
@@ -469,7 +475,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
                   lattice_positions_[i][0], lattice_positions_[i][1], lattice_positions_[i][2],
                   lattice_super_cell_pos_(i)[0], lattice_super_cell_pos_(i)[1], lattice_super_cell_pos_(i)[2]);
 
-    if(!::output->is_verbose() && i > 7) {
+    if(!verbose_is_enabled() && i > 7) {
       output->write("    ... [use verbose output for details] ... \n");
       break;
     }
@@ -638,24 +644,26 @@ void Lattice::calc_symmetry_operations() {
   }
   output->write("\n");
 
-  output->verbose("    shifted lattice\n");
-  output->verbose("    origin % 3.6f % 3.6f % 3.6f\n",
-    spglib_dataset_->origin_shift[0], spglib_dataset_->origin_shift[1], spglib_dataset_->origin_shift[2]);
+  if (verbose_is_enabled()) {
+    output->verbose("    shifted lattice\n");
+    output->verbose("    origin % 3.6f % 3.6f % 3.6f\n",
+            spglib_dataset_->origin_shift[0], spglib_dataset_->origin_shift[1], spglib_dataset_->origin_shift[2]);
 
-  output->verbose("    lattice vectors\n");
-  for (int i = 0; i < 3; ++i) {
-    output->verbose("      % 3.6f % 3.6f % 3.6f\n",
-      spglib_dataset_->transformation_matrix[i][0],
-      spglib_dataset_->transformation_matrix[i][1],
-      spglib_dataset_->transformation_matrix[i][2]);
-  }
+    output->verbose("    lattice vectors\n");
+    for (int i = 0; i < 3; ++i) {
+      output->verbose("      % 3.6f % 3.6f % 3.6f\n",
+              spglib_dataset_->transformation_matrix[i][0],
+              spglib_dataset_->transformation_matrix[i][1],
+              spglib_dataset_->transformation_matrix[i][2]);
+    }
 
-  output->verbose("    positions\n");
-  for (int i = 0; i < motif_.size(); ++i) {
-    double bij[3];
-    matmul(spglib_dataset_->transformation_matrix, spg_positions[i], bij);
-    output->verbose("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spg_types[i]].name.c_str(),
-      bij[0], bij[1], bij[2]);
+    output->verbose("    positions\n");
+    for (int i = 0; i < motif_.size(); ++i) {
+      double bij[3];
+      matmul(spglib_dataset_->transformation_matrix, spg_positions[i], bij);
+      output->verbose("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spg_types[i]].name.c_str(),
+              bij[0], bij[1], bij[2]);
+    }
   }
 
   output->write("    standard lattice\n");
@@ -728,12 +736,16 @@ void Lattice::calc_symmetry_operations() {
 
   for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
 
-    output->verbose("    %d\n---\n", i);
-    output->verbose("    %8d  %8d  %8d\n%8d  %8d  %8d\n%8d  %8d  %8d\n",
-      spglib_dataset_->rotations[i][0][0], spglib_dataset_->rotations[i][0][1], spglib_dataset_->rotations[i][0][2],
-      spglib_dataset_->rotations[i][1][0], spglib_dataset_->rotations[i][1][1], spglib_dataset_->rotations[i][1][2],
-      spglib_dataset_->rotations[i][2][0], spglib_dataset_->rotations[i][2][1], spglib_dataset_->rotations[i][2][2]);
-    // std::cout << i << "\t" << spglib_dataset_->translations[i][0] << "\t" << spglib_dataset_->translations[i][1] << "\t" << spglib_dataset_->translations[i][2] << std::endl;
+    if (verbose_is_enabled()) {
+      output->verbose("    %d\n---\n", i);
+      output->verbose("    %8d  %8d  %8d\n%8d  %8d  %8d\n%8d  %8d  %8d\n",
+              spglib_dataset_->rotations[i][0][0], spglib_dataset_->rotations[i][0][1],
+              spglib_dataset_->rotations[i][0][2],
+              spglib_dataset_->rotations[i][1][0], spglib_dataset_->rotations[i][1][1],
+              spglib_dataset_->rotations[i][1][2],
+              spglib_dataset_->rotations[i][2][0], spglib_dataset_->rotations[i][2][1],
+              spglib_dataset_->rotations[i][2][2]);
+    }
 
     for (int m = 0; m < 3; ++m) {
       for (int n = 0; n < 3; ++n) {

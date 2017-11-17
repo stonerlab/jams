@@ -13,6 +13,7 @@
 #include "jams/core/monitor.h"
 #include "jams/helpers/consts.h"
 
+#include "jams/core/base.h"
 #include "jams/helpers/utils.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/defaults.h"
@@ -34,9 +35,11 @@ Solver::~Solver() {
 
 void Solver::initialize(const libconfig::Setting& settings) {
   assert(!initialized_);
-  name_ = settings["module"].c_str();
+  set_name(jams::config_required<string>(settings, "module"));
+  set_verbose(jams::config_optional<bool>(settings, "verbose", false));
+  set_debug(jams::config_optional<bool>(settings, "debug", false));
 
-  output->write("  %s solver\n", name_.c_str());
+  output->write("  %s solver\n", name().c_str());
 
   initialized_ = true;
 }

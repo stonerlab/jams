@@ -26,11 +26,13 @@
 #include "jams/core/output.h"
 
 
-Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0),
-    applied_field_{0.0, 0.0, 0.0},
-    name_(jams::config_optional<string>(physics_settings, "module", "empty")){
+Physics::Physics(const libconfig::Setting &physics_settings) :
+    Base(physics_settings),
+    temperature_(0.0),
+    applied_field_{0.0, 0.0, 0.0}
+{
 
-  output->write("  %s physics\n", name_.c_str());
+  output->write("  %s physics\n", name().c_str());
 
   // initialise temperature
   temperature_ = 0.0;

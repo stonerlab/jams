@@ -20,14 +20,14 @@
 #include "../monitors/skyrmion.h"
 
 Monitor::Monitor(const libconfig::Setting &settings)
-: output_step_freq_(jams::config_optional<int>(settings, "output_steps", jams::default_monitor_output_steps)),
+: Base(settings),
+  output_step_freq_(jams::config_optional<int>(settings, "output_steps", jams::default_monitor_output_steps)),
   convergence_is_on_(settings.exists("convergence")),
   convergence_tolerance_(jams::config_optional<double>(settings, "convergence", jams::default_monitor_convergence_tolerance)),
   convergence_stderr_(0.0),
-  convergence_burn_time_(jams::config_optional<double>(settings, "t_burn", 0.0)),  // amount of time to discard before calculating convegence stats
-  name_(settings["module"].c_str())
+  convergence_burn_time_(jams::config_optional<double>(settings, "t_burn", 0.0))  // amount of time to discard before calculating convegence stats
 {
-   output->write("  %s monitor\n", name_.c_str());
+   output->write("  %s monitor\n", name().c_str());
    output->write("    output_steps: %d\n", output_step_freq_);
    if (convergence_is_on_) {
      ::output->write("    convergence tolerance: %f\n", convergence_tolerance_);
@@ -100,5 +100,5 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
   }
 
   jams_error("Unknown monitor specified '%s'", settings["module"].c_str());
-  return NULL;
+  return nullptr;
 }

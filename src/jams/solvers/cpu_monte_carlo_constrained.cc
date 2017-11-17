@@ -91,9 +91,13 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   Vec3 test_forward_vec = rotation_matrix_ * test_unit_vec;
   Vec3 test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
 
-  ::output->verbose("  rotation sanity check\n");
-  ::output->verbose("    rotate\n      %f  %f  %f -> %f  %f  %f\n", test_unit_vec[0], test_unit_vec[1], test_unit_vec[2], test_forward_vec[0], test_forward_vec[1], test_forward_vec[2]);
-  ::output->verbose("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec[0], test_forward_vec[1], test_forward_vec[2], test_back_vec[0], test_back_vec[1], test_back_vec[2]);
+  if (verbose_is_enabled()) {
+    ::output->write("  rotation sanity check\n");
+    ::output->write("    rotate\n      %f  %f  %f -> %f  %f  %f\n", test_unit_vec[0], test_unit_vec[1],
+            test_unit_vec[2], test_forward_vec[0], test_forward_vec[1], test_forward_vec[2]);
+    ::output->write("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec[0], test_forward_vec[1],
+            test_forward_vec[2], test_back_vec[0], test_back_vec[1], test_back_vec[2]);
+  }
 
   for (int n = 0; n < 3; ++n) {
     if (!equal(test_unit_vec[n], test_back_vec[n])) {

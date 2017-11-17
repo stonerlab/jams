@@ -6,25 +6,23 @@
 #include <libconfig.h++>
 #include <iosfwd>
 
+#include "jams/core/base.h"
+
 // forward declarations
 class Solver;
 
-class Monitor {
+class Monitor : public Base {
  public:
-  Monitor(const libconfig::Setting &settings);
+  explicit Monitor(const libconfig::Setting &settings);
+  virtual ~Monitor() = default;
 
-  virtual ~Monitor() {}
   virtual void update(Solver * solver) = 0;
   virtual bool is_converged() = 0;
   bool is_updating (const int &iteration) const;
 
   static Monitor* create(const libconfig::Setting &settings);
 
-  std::string name() const {return name_; }
-
   protected:
-    std::string name_;
-
     int     output_step_freq_;
 
     // variables for convergence testing in monitor

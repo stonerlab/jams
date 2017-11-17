@@ -17,12 +17,13 @@ extern "C" {
 #include <libconfig.h++>
 
 #include "jams/core/types.h"
+#include "jams/core/base.h"
 #include "jams/containers/neartree.h"
 #include "jblib/containers/array.h"
 #include "jams/containers/material.h"
 #include "jams/containers/cell.h"
 
-class Lattice {
+class Lattice : public Base {
 public:
     Lattice() = default;
 

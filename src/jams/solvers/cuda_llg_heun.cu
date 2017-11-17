@@ -85,11 +85,11 @@ void CUDAHeunLLGSolver::run()
                cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
                dev_stream_);                   // device stream
 
-#ifdef DEBUG
-  if (cudaPeekAtLastError() != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  if (debug_is_enabled()) {
+    if (cudaPeekAtLastError() != cudaSuccess) {
+     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
   }
-#endif
 
 
 
@@ -103,11 +103,11 @@ void CUDAHeunLLGSolver::run()
           dev_h_.data(), thermostat_->noise(),
           dev_gyro_.data(), dev_alpha_.data());
 
-#ifdef DEBUG
+  if (debug_is_enabled()) {
     if (cudaPeekAtLastError() != cudaSuccess) {
       throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
-#endif
+  }
 
     compute_fields();
 
@@ -116,11 +116,11 @@ void CUDAHeunLLGSolver::run()
         dev_h_.data(), thermostat_->noise(),
         dev_gyro_.data(), dev_alpha_.data());
 
-#ifdef DEBUG
+  if (debug_is_enabled()) {
     if (cudaPeekAtLastError() != cudaSuccess) {
       throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
-#endif
+  }
 
 
     iteration_++;

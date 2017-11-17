@@ -33,7 +33,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   preconditioner_delta_theta_ = jams::config_optional<double>(settings, "preconditioner_theta", 5.0);
   preconditioner_delta_phi_ = jams::config_optional<double>(settings, "preconditioner_phi", 5.0);
 
-  if (output->is_verbose()) {
+  if (verbose_is_enabled()) {
     outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
   }
 
@@ -46,7 +46,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     output->write("    preconditioner_phi   %d\n", preconditioner_delta_phi_);
   }
 
-  if (output->is_verbose()) {
+  if (verbose_is_enabled()) {
     output->write("    statsfile %s\n", std::string(::seedname + "_mc_stats.dat").c_str());
   }
 }
@@ -82,7 +82,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       trial_step_name = "UTS";
     }
       
-    if (output->is_verbose()) {
+    if (verbose_is_enabled()) {
       move_acceptance_fraction_ = move_acceptance_count_/double(num_spins);
       outfile << std::setw(8) << iteration_ << std::setw(8) << trial_step_name << std::fixed << std::setw(12) << move_acceptance_fraction_ << std::setw(12) << std::endl;
     }

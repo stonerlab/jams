@@ -6,8 +6,9 @@
 #include <libconfig.h++>
 
 #include "jams/core/types.h"
+#include "jams/core/base.h"
 
-class Physics {
+class Physics : public Base {
  public:
   Physics(const libconfig::Setting &settings);
   virtual ~Physics() {}
@@ -25,7 +26,6 @@ class Physics {
   static Physics* create(const libconfig::Setting &settings);
 
  protected:
-    std::string name_;
   double              temperature_;
   Vec3 applied_field_;
   int                 output_step_freq_;
