@@ -4,6 +4,7 @@
 
 #include "unitcell.h"
 
-double volume(const UnitCell &u) {
+template <class Type>
+double volume(const UnitCell<Type> &u) {
   return scalar_triple_product(u.a(), u.b(), u.c());
 }

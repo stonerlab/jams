@@ -11,9 +11,6 @@
 
 #include "jams/core/types.h"
 
-class UnitCell;
-
-double volume(const UnitCell& unitcell);
 
 template <class Type>
 class UnitCell {
@@ -46,6 +43,9 @@ protected:
     std::vector<Vec3> positions_;
     std::vector<Type> types_;
 };
+
+template <class Type>
+double volume(const UnitCell<Type>& unitcell);
 
 
 template<class Type>
