@@ -6,6 +6,7 @@
 #define JAMS_CONFIG_H
 
 #include <libconfig.h++>
+#include <jams/helpers/utils.h>
 #include "jams/core/types.h"
 
 void config_patch(libconfig::Setting& orig, const libconfig::Setting& patch);
@@ -65,6 +66,17 @@ namespace jams {
               setting[name][1][0], setting[name][1][1], setting[name][1][2],
               setting[name][2][0], setting[name][2][1], setting[name][2][2]};
       }
+
+    inline CoordinateFormat config_required(const libconfig::Setting &setting, const std::string &name) {
+      auto format = jams::config_required<string>(setting, "coordinate_format");
+      if (lowercase(format) == "fractional") {
+        return CoordinateFormat::Fractional;
+      } else if (lowercase(format) == "fractional") {
+        return CoordinateFormat::Cartesian;
+      } else {
+        throw std::runtime_error("Unknown coordinate format");
+      }
+    }
 
 }
 
