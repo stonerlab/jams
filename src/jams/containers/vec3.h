@@ -109,6 +109,16 @@ inline auto cross(const Vec<T,3>& a, const Vec<T,3>& b) -> Vec<decltype(a[0] * b
           a[0]*b[1] - a[1]*b[0]};
 }
 
+template <typename T>
+inline auto scalar_triple_product(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) -> decltype(a[0] * b[0]) {
+  return dot(a, cross(b, c));
+}
+
+template <typename T>
+inline auto vector_triple_product(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) -> Vec<decltype(a[0] * b[0]), 3> {
+  return cross(a, cross(b, c));
+}
+
 template <typename T1, typename T2>
 inline auto scale(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[0] * b[0]), 3> {
   return {a[0] * b[0], a[1] * b[1], a[2] * b[2]};
