@@ -31,6 +31,7 @@ class MagnetisationMonitor : public Monitor {
 
   jblib::Array<double, 2> mag;
   jblib::Array<double, 2> s_transform_;
+  std::vector<int> material_count_;
 
   std::ofstream outfile;
 

@@ -18,16 +18,6 @@
 
 using namespace std;
 
-namespace {
-    double division_or_zero(const double nominator, const double denominator) {
-      if (denominator == 0.0) {
-        return 0.0;
-      } else {
-        return nominator / denominator;
-      }
-    }
-}
-
 void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   // initialize base class
   Solver::initialize(settings);

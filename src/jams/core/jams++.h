@@ -3,8 +3,8 @@
 #ifndef JAMS_CORE_JAMS_H
 #define JAMS_CORE_JAMS_H
 
-#include <ctime>
 #include <string>
+#include <ctime>
 
 #include <libconfig.h++>
 
@@ -23,7 +23,7 @@ namespace jams {
     };
 }
 
-int jams_initialize(int argc, char **argv);
+void jams_initialize(int argc, char **argv);
 void jams_patch_config(const std::string &patch_string);
 void jams_run();
 void jams_finish();

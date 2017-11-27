@@ -16,6 +16,14 @@
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
+inline double division_or_zero(const double nominator, const double denominator) {
+  if (denominator == 0.0) {
+    return 0.0;
+  } else {
+    return nominator / denominator;
+  }
+}
+
 inline std::string get_date_string(std::chrono::time_point<std::chrono::system_clock> t) {
   // https://stackoverflow.com/questions/34963738/c11-get-current-date-and-time-as-string
   auto as_time_t = std::chrono::system_clock::to_time_t(t);

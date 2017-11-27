@@ -38,6 +38,12 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
     }
   }
 
+  material_count_.resize(lattice->num_materials(), 0);
+
+  for (auto i = 0; i < num_spins; ++i) {
+    material_count_[lattice->atom_material(i)]++;
+  }
+
   std::string name = seedname + "_mag.tsv";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);
@@ -71,27 +77,22 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 void MagnetisationMonitor::update(Solver * solver) {
   using namespace globals;
 
-    int i, j;
-
-  std::vector<int> material_count(lattice->num_materials(), 0);
-
     mag.zero();
 
-    for (i = 0; i < num_spins; ++i) {
+    for (auto i = 0; i < num_spins; ++i) {
       int type = lattice->atom_material(i);
-      for (j = 0; j < 3; ++j) {
+      for (auto j = 0; j < 3; ++j) {
         mag(type, j) += s(i, j);
       }
-      material_count[type]++;
     }
 
-    for (i = 0; i < lattice->num_materials(); ++i) {
-      for (j = 0; j < 3; ++j) {
-        mag(i, j) = mag(i, j)/static_cast<double>(material_count[i]);
+    for (auto i = 0; i < lattice->num_materials(); ++i) {
+      for (auto j = 0; j < 3; ++j) {
+        mag(i, j) = mag(i, j)/static_cast<double>(material_count_[i]);
       }
     }
 
-    for (i = 0; i < lattice->num_materials(); ++i) {
+    for (auto i = 0; i < lattice->num_materials(); ++i) {
       mag(i, 3) = sqrt(mag(i, 0)*mag(i, 0) + mag(i, 1)*mag(i, 1)
         + mag(i, 2)*mag(i, 2));
     }
@@ -99,11 +100,11 @@ void MagnetisationMonitor::update(Solver * solver) {
     outfile << std::setw(12) << std::scientific << solver->time() << "\t";
     outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
-    for (i = 0; i < 3; ++i) {
+    for (auto i = 0; i < 3; ++i) {
       outfile <<  std::setw(12) << solver->physics()->applied_field(i) << "\t";
     }
 
-    for (i = 0; i < lattice->num_materials(); ++i) {
+    for (auto i = 0; i < lattice->num_materials(); ++i) {
       outfile << std::setw(12) << mag(i, 0) << "\t";
       outfile << std::setw(12) << mag(i, 1) << "\t";
       outfile << std::setw(12) << mag(i, 2) << "\t";

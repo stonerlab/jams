@@ -14,9 +14,6 @@
 #include "jams/core/solver.h"
 #include "jams/core/thermostat.h"
 #include "jams/helpers/utils.h"
-#include "jams/solvers/cuda_llg_heun.h"
-#include "jams/solvers/cpu_llg_heun.h"
-#include "jams/solvers/cpu_monte_carlo_metropolis.h"
 
 #include "jams/cuda/wrappers/stream.h"
 

@@ -61,7 +61,7 @@ namespace jams {
     }
 }
 
-int jams_initialize(int argc, char **argv) {
+void jams_initialize(int argc, char **argv) {
   std::cin.tie(nullptr);
   ios_base::sync_with_stdio(false);
 
@@ -71,137 +71,122 @@ int jams_initialize(int argc, char **argv) {
 
   cout << "\nJAMS++ " << jams::build::version << "\n\n";
   cout << "build   ";
-    cout << jams::build::time << " ";
-    cout << jams::build::type << " ";
-    cout << jams::build::hash << " ";
-    cout << jams::build::branch << "\n";
+  cout << jams::build::time << " ";
+  cout << jams::build::type << " ";
+  cout << jams::build::hash << " ";
+  cout << jams::build::branch << "\n";
   cout << "run     ";
-    cout << get_date_string(std::chrono::system_clock::now()) << "\n";
+  cout << get_date_string(std::chrono::system_clock::now()) << "\n";
 
   jams::process_command_line_args(argc, argv, simulation);
   seedname = simulation.name;
 
   // TODO: tee cout also to a log file
-
   cout << "config  " << simulation.config_file_name << "\n";
 
-  {
-    try {
+  try {
 
-      config->readFile(simulation.config_file_name.c_str());
+    config->readFile(simulation.config_file_name.c_str());
 
-      if (!simulation.config_patch_string.empty()) {
-        jams_patch_config(simulation.config_patch_string);
-      }
+    if (!simulation.config_patch_string.empty()) {
+      jams_patch_config(simulation.config_patch_string);
+    }
 
-      if (config->exists("sim")) {
-        if (config->lookup("sim")) {
-          simulation.verbose = true;
-        }
+    if (config->exists("sim")) {
+      simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
+      simulation.random_seed = jams::config_optional<int>(config->lookup("sim"), "seed", simulation.random_seed);
+    }
 
-        simulation.random_seed = jams::config_optional<int>(config->lookup("sim"), "seed", simulation.random_seed);
-      }
+    cout << "verbose " << simulation.verbose << "\n";
+    cout << "seed    " << simulation.random_seed << "\n";
 
-      cout << "verbose " << simulation.verbose << "\n";
-      cout << "seed    " << simulation.random_seed << "\n";
+    rng->seed(static_cast<const uint32_t>(simulation.random_seed));
 
-      rng->seed(static_cast<const uint32_t>(simulation.random_seed));
+    cout << jams::section("init lattice");
 
-      cout << jams::section("init lattice");
+    lattice->init_from_config(*::config);
 
-      lattice->init_from_config(*::config);
+    cout << jams::section("init solver");
 
-      cout << jams::section("init physics");
+    solver = Solver::create(config->lookup("solver"));
+    solver->initialize(config->lookup("solver"));
+    // todo: fix this memory leak
+    solver->register_physics_module(Physics::create(config->lookup("physics")));
 
+    cout << jams::section("init monitors");
 
-      cout << jams::section("init solver");
-
-      solver = Solver::create(config->lookup("solver"));
-      solver->initialize(config->lookup("solver"));
-
-      // todo: fix this memory leak
-      ::solver->register_physics_module(Physics::create(config->lookup("physics")));
-
-      cout << jams::section("init monitors");
-
-      if (!::config->exists("monitors")) {
-        jams_warning("No monitors in config");
-      } else {
-        const libconfig::Setting &monitor_settings = ::config->lookup("monitors");
-        for (int i = 0; i < monitor_settings.getLength(); ++i) {
-          solver->register_monitor(Monitor::create(monitor_settings[i]));
-        }
-      }
-
-      cout << jams::section("init hamiltonians");
-
-      if (!::config->exists("hamiltonians")) {
-        jams_error("No hamiltonians in config");
-      } else {
-        const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
-        for (int i = 0; i < hamiltonian_settings.getLength(); ++i) {
-          solver->register_hamiltonian(Hamiltonian::create(hamiltonian_settings[i], globals::num_spins));
-        }
-      }
-
-      if(::config->exists("initializer")) {
-        jams_global_initializer(::config->lookup("initializer"));
+    if (!::config->exists("monitors")) {
+      jams_warning("No monitors in config");
+    } else {
+      const libconfig::Setting &monitor_settings = ::config->lookup("monitors");
+      for (auto i = 0; i < monitor_settings.getLength(); ++i) {
+        solver->register_monitor(Monitor::create(monitor_settings[i]));
       }
     }
-    catch(const libconfig::FileIOException &fioex) {
-      jams_error("I/O error while reading '%s'", simulation.config_file_name.c_str());
+
+    cout << jams::section("init hamiltonians");
+
+    if (!::config->exists("hamiltonians")) {
+      jams_error("No hamiltonians in config");
+    } else {
+      const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
+      for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
+        solver->register_hamiltonian(Hamiltonian::create(hamiltonian_settings[i], globals::num_spins));
+      }
     }
-    catch(const libconfig::ParseException &pex) {
-      jams_error("Error parsing %s:%i: %s", pex.getFile(),
-        pex.getLine(), pex.getError());
-    }
-    catch(const libconfig::SettingTypeException &stex) {
-      jams_error("Config setting type error '%s'", stex.getPath());
-    }
-    catch(const libconfig::SettingNotFoundException &nfex) {
-      jams_error("Required config setting not found '%s'", nfex.getPath());
-    }
-    catch(const general_exception &gex) {
-      jams_error("%s", gex.what());
-    }
-#ifdef CUDA
-    catch(const cuda_api_exception &cex) {
-      jams_error("CUDA api exception\n '%s'", cex.what());
-    }
-#endif
-    catch (std::exception& e) {
-      jams_error("exception: %s", e.what());
-    }
-    catch(...) {
-      jams_error("Caught an unknown exception");
+
+    if(::config->exists("initializer")) {
+      jams_global_initializer(::config->lookup("initializer"));
     }
   }
-
-  return 0;
+  catch(const libconfig::FileIOException &fioex) {
+    jams_error("I/O error while reading '%s'", simulation.config_file_name.c_str());
+  }
+  catch(const libconfig::ParseException &pex) {
+    jams_error("Error parsing %s:%i: %s", pex.getFile(),
+      pex.getLine(), pex.getError());
+  }
+  catch(const libconfig::SettingTypeException &stex) {
+    jams_error("Config setting type error '%s'", stex.getPath());
+  }
+  catch(const libconfig::SettingNotFoundException &nfex) {
+    jams_error("Required config setting not found '%s'", nfex.getPath());
+  }
+  catch(const general_exception &gex) {
+    jams_error("%s", gex.what());
+  }
+#ifdef CUDA
+  catch(const cuda_api_exception &cex) {
+    jams_error("CUDA api exception\n '%s'", cex.what());
+  }
+#endif
+  catch (std::exception& e) {
+    jams_error("exception: %s", e.what());
+  }
+  catch(...) {
+    jams_error("Caught an unknown exception");
+  }
 }
 
 void jams_run() {
-  using namespace globals;
   using namespace std::chrono;
 
   cout << jams::section("running solver");
-  cout << "start   " << get_date_string(system_clock::now()) << "\n\n";
-
   auto start_time = time_point_cast<milliseconds>(system_clock::now());
+  cout << "start   " << get_date_string(start_time) << "\n\n";
 
-  while (solver->is_running()) {
-    if (solver->is_converged()) {
+  while (::solver->is_running()) {
+    if (::solver->is_converged()) {
       break;
     }
 
-    solver->update_physics_module();
-    solver->notify_monitors();
-    solver->run();
+    ::solver->update_physics_module();
+    ::solver->notify_monitors();
+    ::solver->run();
   }
-  cout << "finish  " << get_date_string(system_clock::now()) << "\n\n";
 
   auto end_time = time_point_cast<milliseconds>(system_clock::now());
-
+  cout << "finish  " << get_date_string(end_time) << "\n\n";
   cout << "runtime " << duration_string(end_time - start_time) << "\n";
 }
 
