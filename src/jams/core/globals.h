@@ -21,7 +21,6 @@
 class Solver;
 class Physics;
 class Lattice;
-class Output;
 class Random;
 namespace libconfig { class Config; }
 
@@ -30,7 +29,6 @@ GLOBAL Solver  *solver;
 GLOBAL Physics *physics_module;
 GLOBAL Lattice *lattice;
 GLOBAL libconfig::Config *config;  ///< Config object
-GLOBAL Output  *output;
 GLOBAL Random  *rng;
 GLOBAL std::string seedname;
 

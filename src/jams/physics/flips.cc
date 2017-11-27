@@ -12,8 +12,6 @@
 FlipsPhysics::FlipsPhysics(const libconfig::Setting &settings)
 : Physics(settings) {
 
-  ::output->write("\nInitialising Flips Physics module...\n");
-
   int count = 0;
   for (int i = 0; i < globals::num_spins; ++i) {
 
@@ -24,8 +22,7 @@ FlipsPhysics::FlipsPhysics(const libconfig::Setting &settings)
       count++;
     }
   }
-  ::output->write("  %d spins flipped\n", count);
-
+  std::cout << "  spins flipped " << count << "\n";
 
   initialized = true;
 }

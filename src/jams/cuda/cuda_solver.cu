@@ -20,6 +20,8 @@
 
 #include "jams/cuda/wrappers/stream.h"
 
+using namespace std;
+
 void CudaSolver::sync_device_data() {
   dev_s_.copy_to_host_array(globals::s);
   dev_h_.copy_to_host_array(globals::h);
@@ -31,9 +33,8 @@ void CudaSolver::initialize(const libconfig::Setting& settings) {
 
   Solver::initialize(settings);
 
-  ::output->write("\ninitializing CUDA base solver\n");
-
-  ::output->write("  initialising CUDA streams\n");
+  cout << "\ninitializing CUDA base solver\n";
+  cout << "  initialising CUDA streams\n";
 
   is_cuda_solver_ = true;
 
@@ -41,7 +42,7 @@ void CudaSolver::initialize(const libconfig::Setting& settings) {
 // Transfer the the other arrays to the device
 //-----------------------------------------------------------------------------
 
-  ::output->write("  transfering array data to device\n");
+  cout << "  transfering array data to device\n";
   jblib::Array<double, 2> zero(num_spins, 3, 0.0);
 
   // spin arrays
@@ -59,7 +60,7 @@ void CudaSolver::initialize(const libconfig::Setting& settings) {
   dev_alpha_     = jblib::CudaArray<double, 1>(alpha);
 
 
-  ::output->write("\n");
+  cout << "\n";
 }
 
 void CudaSolver::run() {

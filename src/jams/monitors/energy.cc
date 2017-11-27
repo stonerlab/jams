@@ -16,8 +16,6 @@
 EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  ::output->write("\nInitialising Energy monitor...\n");
-
   std::string name = "_eng.tsv";
   name = seedname+name;
   outfile.open(name.c_str());

@@ -18,8 +18,6 @@ BoltzmannMonitor::BoltzmannMonitor(const libconfig::Setting &settings)
 bins(0),
 total(0),
 outfile() {
-  ::output->write("Initialising Boltzmann monitor\n");
-
   std::string name = "_blt.dat";
   name = seedname+name;
   outfile.open(name.c_str());

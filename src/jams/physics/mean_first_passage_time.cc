@@ -16,8 +16,6 @@ MFPTPhysics::MFPTPhysics(const libconfig::Setting &settings)
   MFPTFile() {
   using namespace globals;
 
-  output->write("  * MFPT physics module\n");
-
   std::string fileName = "_mfpt.dat";
   fileName = seedname+fileName;
   MFPTFile.open(fileName.c_str());

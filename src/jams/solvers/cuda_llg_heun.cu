@@ -23,6 +23,8 @@
 
 #include "jblib/containers/array.h"
 
+using namespace std;
+
 void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
 {
   using namespace globals;
@@ -38,21 +40,21 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   max_steps_ = static_cast<int>(t_max / time_step_);
   min_steps_ = static_cast<int>(t_min / time_step_);
 
-  output->write("\ntimestep\n  %1.8e\n", dt);
-  output->write("\nt_max\n  %1.8e (%lu steps)\n", t_max, max_steps_);
-  output->write("\nt_min\n  %1.8e (%lu steps)\n", t_min, min_steps_);
+  cout << "timestep " << dt << "\n";
+  cout << "t_max " << t_max << " steps (" <<  max_steps_ << ")\n";
+  cout << "t_min " << t_min << " steps (" << min_steps_ << ")\n";
 
-  ::output->write("  creating stream\n");
+  cout << "  creating stream\n";
   if(cudaStreamCreate(&dev_stream_) != cudaSuccess) {
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
-  ::output->write("  copy time_step to symbol\n");
+  cout << "  copy time_step to symbol\n";
   if(cudaMemcpyToSymbol(dev_dt, &time_step_, sizeof(double)) != cudaSuccess) {
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
-  ::output->write("  copy num_spins to symbol\n");
+  cout << "  copy num_spins to symbol\n";
   if(cudaMemcpyToSymbol(dev_num_spins, &globals::num_spins, sizeof(unsigned int)) != cudaSuccess) {
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
@@ -60,11 +62,11 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   std::string thermostat_name = jams::config_optional<string>(config->lookup("sim"), "thermostat", jams::default_solver_gpu_thermostat);
   thermostat_ = Thermostat::create(thermostat_name);
 
-  ::output->write("  thermostat: %s\n", thermostat_name.c_str());
+  cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
   nblocks = (num_spins+BLOCKSIZE-1)/BLOCKSIZE;
 
-  ::output->write("done\n");
+  cout << "done\n";
 }
 
 void CUDAHeunLLGSolver::run()

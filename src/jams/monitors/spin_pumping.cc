@@ -20,13 +20,12 @@
 
 SpinPumpingMonitor::SpinPumpingMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  ::output->write("Initialising Energy Distribution monitor\n");
 
   convergence_is_on_ = false;
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
     convergence_tolerance_ = settings["convergence"];
-    ::output->write("  convergence tolerance: %f\n", convergence_tolerance_);
+    std::cout << "  convergence tolerance " << convergence_tolerance_ << "\n";
   }
 
   // std::string name = "_iz_dist.tsv";

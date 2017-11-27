@@ -31,8 +31,6 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   TTMFile() {
   using namespace globals;
 
-  output->write("  * Two temperature model physics module\n");
-
   phononTemp = settings["InitialTemperature"];
   electronTemp = phononTemp;
 

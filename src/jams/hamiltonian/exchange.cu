@@ -16,6 +16,8 @@
 
 #include "exchange.h"
 
+using namespace std;
+
 namespace {
     InteractionFileFormat exchange_file_format_from_string(std::string s) {
       if (capitalize(s) == "JAMS") {
@@ -90,7 +92,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     if (interaction_file.fail()) {
       jams_error("failed to open interaction file %s", interaction_filename.c_str());
     }
-    ::output->write("    interaction file name %s\n", interaction_filename.c_str());
+    cout << "    interaction file name " << interaction_filename << "\n";
 
     std::string exchange_file_format_name = "JAMS";
     settings.lookupValue("format", exchange_file_format_name);
@@ -108,15 +110,15 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
     energy_cutoff_ = 1E-26;  // Joules
     settings.lookupValue("energy_cutoff", energy_cutoff_);
-    ::output->write("    interaction energy cutoff %e\n", energy_cutoff_);
+    cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
 
     radius_cutoff_ = 100.0;  // lattice parameters
     settings.lookupValue("radius_cutoff", radius_cutoff_);
-    ::output->write("    interaction radius cutoff %e\n", radius_cutoff_);
+    cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
 
     distance_tolerance_ = 1e-3; // fractional coordinate units
     settings.lookupValue("distance_tolerance", distance_tolerance_);
-    ::output->write("    distance_tolerance %e\n", distance_tolerance_);
+    cout << "    distance_tolerance " << distance_tolerance_ << "\n";
     
     safety_check_distance_tolerance(distance_tolerance_);
 
@@ -160,7 +162,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
     }
 
-    ::output->write("    computed interactions\n");
+    cout << "    computed interactions\n";
 
     for (int i = 0; i < neighbour_list_.size(); ++i) {
       for (auto const &j: neighbour_list_[i]) {
@@ -168,9 +170,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       }
     }
 
-    ::output->write("    converting interaction matrix format from MAP to CSR\n");
+    cout << "    converting interaction matrix format from MAP to CSR\n";
     interaction_matrix_.convertMAP2CSR();
-    ::output->write("    exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
+    cout << "    exchange matrix memory (CSR): " << interaction_matrix_.calculateMemory() << " (MB)\n";
 
     // transfer arrays to cuda device if needed
     if (solver->is_cuda_solver()) {
@@ -182,7 +184,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
         dev_field_  = jblib::CudaArray<double, 1>(field_);
 
         if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
-          ::output->write("    init cusparse\n");
+          cout << "    init cusparse\n";
           cusparseStatus_t status;
           status = cusparseCreate(&cusparse_handle_);
           if (status != CUSPARSE_STATUS_SUCCESS) {
@@ -193,9 +195,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
           sparsematrix_copy_host_csr_to_cuda_csr(interaction_matrix_, dev_csr_interaction_matrix_);
 
         } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
-          ::output->write("    estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
+          cout << "    estimated memory usage (DIA): " << interaction_matrix_.calculateMemory() << " (MB)\n";
           dev_dia_interaction_matrix_.blocks = std::min<int>(DIA_BLOCK_SIZE, (globals::num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-          ::output->write("    allocating memory on device\n");
+          cout << "    allocating memory on device\n";
 
           // allocate rows
           cuda_api_error_check(

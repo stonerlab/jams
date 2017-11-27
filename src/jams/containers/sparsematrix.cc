@@ -47,7 +47,7 @@ void jams_dcsrmv(const char trans[1], const int m, const int n,
         }
       }
     } else if (descra[1] == 'U') {  // lower matrix
-      output->write("WARNING: dcsrmv with 'S' and 'U' is untested.\n");
+      std::cerr << "WARNING: dcsrmv with 'S' and 'U' is untested.\n";
       for (i = 0; i < m; ++i) {  // iterate rows
         y[i] = beta * y[i];
         begin = ptrb[i]; end = ptre[i];
@@ -135,7 +135,7 @@ void jams_scsrmv(const char trans[1], const int m, const int n,
         }
       }
     } else if (descra[1] == 'U') {  // lower matrix
-      output->write("WARNING: dcsrmv with 'S' and 'U' is untested.\n");
+      std::cerr << "WARNING: dcsrmv with 'S' and 'U' is untested.\n";
       for (i = 0; i < m; ++i) {  // iterate rows
         y[i] = beta * y[i];
         begin = ptrb[i]; end = ptre[i];

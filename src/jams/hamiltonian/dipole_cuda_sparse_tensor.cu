@@ -14,6 +14,8 @@
 
 #include "dipole_cuda_sparse_tensor.h"
 
+using namespace std;
+
 DipoleHamiltonianCUDASparseTensor::~DipoleHamiltonianCUDASparseTensor() {
   if (dev_stream_ != nullptr) {
     cudaStreamDestroy(dev_stream_);
@@ -28,7 +30,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
     double r_abs;
     Vec3 r_hat;
 
-    output->write("  strategy: cuda_sparse_tensor\n");
+    cout << "  strategy: cuda_sparse_tensor\n";
 
     r_cutoff_ = settings["r_cutoff"];
 
@@ -46,7 +48,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
 
     Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 
-    output->write("    precalculating number of interactions\n");
+    cout << "    precalculating number of interactions\n";
     unsigned int interaction_count = 0;
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
@@ -71,12 +73,12 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
       }
     }
 
-    output->write("    interaction count: %d\n", interaction_count);
+    cout << "    interaction count " << interaction_count << "\n";
 
-    output->write("    reserving memory for sparse matrix: %f MB\n", 9*interaction_count*(sizeof(uint64_t)+sizeof(float))/(1024.0*1024.0));
+    cout << "    reserving memory for sparse matrix " << 9*interaction_count*(sizeof(uint64_t)+sizeof(float))/(1024.0*1024.0) << "(MB)\n";
     interaction_matrix_.reserveMemory(9*interaction_count); // 9 elements in tensor
 
-    output->write("    inserting tensor elements\n");
+    cout << "    inserting tensor elements\n";
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
 
@@ -108,10 +110,10 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
     }
 
 
-    ::output->write("    dipole matrix memory (MAP): %f MB\n", interaction_matrix_.calculateMemory());
-    ::output->write("    converting interaction matrix format from MAP to CSR\n");
+    cout << "    dipole matrix memory (MAP) " << interaction_matrix_.calculateMemory() << "(MB)\n";
+    cout << "    converting interaction matrix format from MAP to CSR\n";
     interaction_matrix_.convertMAP2CSR();
-    ::output->write("    dipole matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
+    cout << "    dipole matrix memory (CSR) " << interaction_matrix_.calculateMemory() << " (MB)\n";
 
     // set up things on the device
     if (solver->is_cuda_solver()) { 
@@ -120,7 +122,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
         cusparseStatus_t cusparse_return_status;
 
 
-        ::output->write("    initialising CUSPARSE\n");
+        cout << "    initialising CUSPARSE\n";
         cusparse_return_status = cusparseCreate(&cusparse_handle_);
         if (cusparse_return_status != CUSPARSE_STATUS_SUCCESS) {
           jams_error("CUSPARSE Library initialization failed");
@@ -143,29 +145,29 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
         cusparseSetMatIndexBase(cusparse_descra_, CUSPARSE_INDEX_BASE_ZERO);
 
         // row
-        ::output->write("    allocating csr row on device\n");
+        cout << "    allocating csr row on device\n";
         cuda_api_error_check(
           cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
         
-        ::output->write("    memcpy csr row to device\n");
+        cout << "    memcpy csr row to device\n";
         cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.row, interaction_matrix_.rowPtr(),
               (interaction_matrix_.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
 
         // col
-        ::output->write("    allocating csr col on device\n");
+        cout << "    allocating csr col on device\n";
         cuda_api_error_check(
           cudaMalloc((void**)&dev_csr_interaction_matrix_.col, (interaction_matrix_.nonZero())*sizeof(int)));
 
-        ::output->write("    memcpy csr col to device\n");
+        cout << "    memcpy csr col to device\n";
         cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.col, interaction_matrix_.colPtr(),
               (interaction_matrix_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
 
         // val
-        ::output->write("    allocating csr val on device\n");
+        cout << "    allocating csr val on device\n";
         cuda_api_error_check(
           cudaMalloc((void**)&dev_csr_interaction_matrix_.val, (interaction_matrix_.nonZero())*sizeof(float)));
 
-        ::output->write("    memcpy csr val to device\n");
+        cout << "    memcpy csr val to device\n";
         cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
               (interaction_matrix_.nonZero())*sizeof(float), cudaMemcpyHostToDevice));
 

@@ -14,8 +14,9 @@
 #include "../thermostats/cuda_langevin_white.h"
 #include "../thermostats/cuda_langevin_bose.h"
 
+using namespace std;
 Thermostat* Thermostat::create(const std::string &thermostat_name) {
-    ::output->write("\ncreating '%s' thermostat\n", thermostat_name.c_str());
+  cout << thermostat_name << " thermostat\n";
 
     // create the selected thermostat
     #ifdef CUDA
@@ -28,6 +29,5 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
     #endif
 
     // throw error if the thermostat name is no known
-    jams_error("Unknown thermostat requested '%s'", thermostat_name.c_str());
-    return NULL;
+  throw std::runtime_error("unknown thermostat " + thermostat_name);
 }

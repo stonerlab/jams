@@ -16,6 +16,8 @@
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 
+using namespace std;
+
 namespace {
     double division_or_zero(const double nominator, const double denominator) {
       if (denominator == 0.0) {
@@ -61,26 +63,30 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
     spin_transformations_[i] = {t[0], 0, 0, 0, t[1], 0, 0, 0, t[2]};
   }
 
-  ::output->write("    constraint angle theta (deg)\n    % 4.4f\n", constraint_theta_);
-  ::output->write("    constraint angle phi (deg)\n    % 4.4f\n", constraint_phi_);
-  ::output->write("    constraint vector\n    % 8.8f, % 8.8f, % 8.8f\n", constraint_vector_[0], constraint_vector_[1], constraint_vector_[2]);
-  ::output->write("\n");
-  ::output->write("    move_fraction_uniform:     % 8.4f\n", move_fraction_uniform_);
-  ::output->write("    move_fraction_angle:       % 8.4f\n", move_fraction_angle_);
-  ::output->write("    move_fraction_reflection:  % 8.4f\n", move_fraction_reflection_);
-  ::output->write("    move_angle_sigma:          % 8.4f\n", move_angle_sigma_);
-  ::output->write("\n");
-  ::output->write("    output_write_steps:          % 8d\n", output_write_steps_);
-  ::output->write("\n");
-  ::output->write("    rotation matrix m -> mz\n");
-  ::output->write("      % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[0][0], rotation_matrix_[0][1], rotation_matrix_[0][2]);
-  ::output->write("      % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[1][0], rotation_matrix_[1][1], rotation_matrix_[1][2]);
-  ::output->write("      % 8.8f  % 8.8f  % 8.8f\n", rotation_matrix_[2][0], rotation_matrix_[2][1], rotation_matrix_[2][2]);
-
-  ::output->write("    inverse rotation matrix mz -> m\n");
-  ::output->write("      % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[0][0], inverse_rotation_matrix_[0][1], inverse_rotation_matrix_[0][2]);
-  ::output->write("      % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[1][0], inverse_rotation_matrix_[1][1], inverse_rotation_matrix_[1][2]);
-  ::output->write("      % 8.8f  % 8.8f  % 8.8f\n", inverse_rotation_matrix_[2][0], inverse_rotation_matrix_[2][1], inverse_rotation_matrix_[2][2]);
+  cout << "    constraint angle theta (deg) " << constraint_theta_ << "\n";
+  cout << "    constraint angle phi (deg) " << constraint_phi_ << "\n";
+  cout << "    constraint vector " << constraint_vector_[0] << " " << constraint_vector_[1] << " " << constraint_vector_[2] << "\n";
+  cout << "    move_fraction_uniform " << move_fraction_uniform_ << "\n";
+  cout << "    move_fraction_angle " << move_fraction_angle_ << "\n";
+  cout << "    move_fraction_reflection " << move_fraction_reflection_ << "\n";
+  cout << "    move_angle_sigma " << move_angle_sigma_ << "\n";
+  cout << "    output_write_steps " << output_write_steps_ << "\n";
+  cout << "    rotation matrix m -> mz\n";
+  for (auto i = 0; i < 3; ++i) {
+    cout << "      ";
+    for (auto j = 0; j < 3; ++j) {
+      cout << rotation_matrix_[i][j] << " ";
+    }
+    cout << "\n";
+  }
+  cout << "    inverse rotation matrix mz -> m\n";
+  for (auto i = 0; i < 3; ++i) {
+    cout << "      ";
+    for (auto j = 0; j < 3; ++j) {
+      cout << inverse_rotation_matrix_[i][j] << " ";
+    }
+    cout << "\n";
+  }
 
   // do some basic checks
   if (equal(move_fraction_reflection_, 1.0)) {
@@ -92,11 +98,11 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   Vec3 test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
 
   if (verbose_is_enabled()) {
-    ::output->write("  rotation sanity check\n");
-    ::output->write("    rotate\n      %f  %f  %f -> %f  %f  %f\n", test_unit_vec[0], test_unit_vec[1],
-            test_unit_vec[2], test_forward_vec[0], test_forward_vec[1], test_forward_vec[2]);
-    ::output->write("    back rotate\n      %f  %f  %f -> %f  %f  %f\n", test_forward_vec[0], test_forward_vec[1],
-            test_forward_vec[2], test_back_vec[0], test_back_vec[1], test_back_vec[2]);
+    cout << "  rotation sanity check\n";
+    cout << "    rotate\n";
+    cout << "      " << test_unit_vec << " -> " << test_forward_vec << "\n";
+    cout << "    back rotate\n";
+    cout << "      " << test_forward_vec << " -> " << test_back_vec << "\n";
   }
 
   for (int n = 0; n < 3; ++n) {
@@ -142,24 +148,24 @@ void ConstrainedMCSolver::run() {
     move_total_acceptance_count_angle_      += move_running_acceptance_count_angle_;
     move_total_acceptance_count_reflection_ += move_running_acceptance_count_reflection_;
 
-    ::output->write("\n");
-    ::output->write("iteration: %d\n", iteration_);
-    ::output->write("move_acceptance_fraction\n");
+    cout << "\n";
+    cout << "iteration" << iteration_ << "\n";
+    cout << "move_acceptance_fraction\n";
 
     double half_num_spins = 0.5 * globals::num_spins;
 
-    ::output->write("  uniform:    %4.4f (%4.4f)\n",
-                    division_or_zero(move_running_acceptance_count_uniform_, half_num_spins * run_count_uniform),
-                    division_or_zero(move_total_acceptance_count_uniform_,   half_num_spins * move_total_count_uniform_));
+    cout << "  uniform ";
+    cout << division_or_zero(move_running_acceptance_count_uniform_, half_num_spins * run_count_uniform) << " (";
+    cout << division_or_zero(move_total_acceptance_count_uniform_,   half_num_spins * move_total_count_uniform_) << ") \n";
 
-    ::output->write("  angle:      %4.4f (%4.4f)\n",
-                    division_or_zero(move_running_acceptance_count_angle_, half_num_spins * run_count_angle),
-                    division_or_zero(move_total_acceptance_count_angle_,   half_num_spins * move_total_count_angle_));
+    cout << "  angle ";
+    cout << division_or_zero(move_running_acceptance_count_angle_, half_num_spins * run_count_angle) << " (";
+    cout << division_or_zero(move_total_acceptance_count_angle_,   half_num_spins * move_total_count_angle_) << ") \n";
 
-    ::output->write("  reflection: %4.4f (%4.4f)\n",
-                    division_or_zero(move_running_acceptance_count_reflection_, half_num_spins * run_count_reflection),
-                    division_or_zero(move_total_acceptance_count_reflection_,   half_num_spins * move_total_count_reflection_));
-
+    cout << "  reflection ";
+    cout << division_or_zero(move_running_acceptance_count_reflection_, half_num_spins * run_count_reflection) << " (";
+    cout << division_or_zero(move_total_acceptance_count_reflection_,   half_num_spins * move_total_count_reflection_) << ") \n";
+    
     move_running_acceptance_count_uniform_    = 0;
     move_running_acceptance_count_angle_      = 0;
     move_running_acceptance_count_reflection_ = 0;

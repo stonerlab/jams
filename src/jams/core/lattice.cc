@@ -13,6 +13,7 @@ extern "C"{
 #include <stdexcept>
 #include <cmath>
 #include <iostream>
+#include <iomanip>
 #include <map>
 #include <string>
 #include <utility>
@@ -69,9 +70,9 @@ namespace {
     }
 
     void output_unitcell_vectors(const Cell& cell) {
-      output->write("    a = (%f, %f, %f)\n", cell.a()[0], cell.a()[1], cell.a()[2]);
-      output->write("    b = (%f, %f, %f)\n", cell.b()[0], cell.b()[1], cell.b()[2]);
-      output->write("    c = (%f, %f, %f)\n", cell.c()[0], cell.c()[1], cell.c()[2]);
+      cout << "    a = " << cell.a();
+      cout << "    b = " << cell.b();
+      cout << "    c = " << cell.c();
     }
 }
 
@@ -97,7 +98,7 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
 
   symops_enabled_ = jams::config_optional<bool>(cfg.lookup("lattice"), "symops", jams::default_lattice_symops);
 
-  output->write("  symops %s\n", symops_enabled_ ? "true" : "false");
+  cout << "  symops " << symops_enabled_ << "\n";
 
   read_materials_from_config(cfg.lookup("materials"));
   read_unitcell_from_config(cfg.lookup("unitcell"));
@@ -194,7 +195,7 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
 }
 
 void Lattice::read_materials_from_config(const libconfig::Setting &settings) {
-  output->write("  materials\n");
+  cout << "  materials\n";
 
   for (auto i = 0; i < settings.getLength(); ++i) {
     Material material(settings[i]);
@@ -203,10 +204,10 @@ void Lattice::read_materials_from_config(const libconfig::Setting &settings) {
       throw std::runtime_error("the material " + material.name + " is specified twice in the configuration");
     }
     material_id_map_.insert({material.id, material});
-    output->write("    %-6d %s\n", material.id, material.name.c_str());
+    cout << "    " << material.id << " " << material.name << "\n";
   }
 
-  output->write("\n");
+  cout << "\n";
 
 }
 
@@ -231,43 +232,37 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
     jams_warning("lattice parameter is unusually large - units should be meters");
   }
 
-  output->write("  unit cell\n");
-  output->write("    parameter %3.6e\n", lattice_parameter);
-  output->write("    volume %3.6e\n", this->volume());
-  output->write("\n");
+  cout << "  unit cell\n";
+  cout << "    parameter " << lattice_parameter << "\n";
+  cout << "    volume " << this->volume() << "\n";
+  cout << "\n";
 
-  output->write("    unit cell vectors\n");
+  cout << "    unit cell vectors\n";
   output_unitcell_vectors(unitcell);
-  output->write("\n");
+  cout << "\n";
 
-  output->write("    unit cell (matrix form)\n");
+  cout << "    unit cell (matrix form)\n";
 
   for (auto i = 0; i < 3; ++i) {
-    output->write("    % 3.6f % 3.6f % 3.6f\n",
-                  unitcell.matrix()[i][0], unitcell.matrix()[i][1], unitcell.matrix()[i][2]);
+    cout << "    " << unitcell.matrix()[i] << "\n";
   }
-  output->write("\n");
+  cout << "\n";
 
-  output->write("    inverse unit cell (matrix form)\n");
+  cout << "    inverse unit cell (matrix form)\n";
   for (auto i = 0; i < 3; ++i) {
-    output->write("    % 3.6f % 3.6f % 3.6f\n",
-                  unitcell.inverse_matrix()[i][0], unitcell.inverse_matrix()[i][1], unitcell.inverse_matrix()[i][2]);
+    cout << "    " << unitcell.inverse_matrix()[i] << "\n";
   }
-  output->write("\n");
+  cout << "\n";
 }
 
 void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
   lattice_periodic = jams::config_optional<Vec3b>(settings, "periodic", jams::default_lattice_periodic_boundaries);
   lattice_dimensions = jams::config_required<Vec3i>(settings, "size");
 
-  output->write("  lattice\n");
-  output->write("    size %d  %d  %d\n",
-                lattice_dimensions[0],lattice_dimensions[1], lattice_dimensions[2]);
-  output->write("    periodic %s  %s  %s\n",
-                lattice_periodic[0] ? "true" : "false",
-                lattice_periodic[1] ? "true" : "false",
-                lattice_periodic[2] ? "true" : "false");
-  output->write("\n");
+  cout << "  lattice\n";
+  cout << "    size " << lattice_dimensions << "\n";
+  cout << "    periodic " << lattice_periodic << "\n";
+  cout << "\n";
 }
 
 void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings) {
@@ -312,14 +307,13 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
     read_motif_from_file(position_filename, cfg_coordinate_format);
   }
 
-  output->write("  motif positions (%s)\n", position_filename.c_str());
-
-  output->write("  format \n", cfg_coordinate_format_name.c_str());
+  cout << "  motif positions " << position_filename << "\n";
+  cout << "  format " << cfg_coordinate_format_name << "\n";
 
   for (const Atom &atom: motif_) {
-    output->write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", atom.id, material_name(atom.material).c_str(), atom.pos[0], atom.pos[1], atom.pos[2]);
+    cout << "    " << atom.id << " " <<  material_name(atom.material) << " " << atom.pos << "\n";
   }
-  output->write("\n");
+  cout << "\n";
 
 }
 
@@ -335,42 +329,32 @@ void Lattice::global_rotation(const Mat3& rotation_matrix) {
     jams_error("unitcell volume has changed after rotation");
   }
 
-  output->write("  global rotated lattice vectors\n");
+  cout << "  global rotated lattice vectors\n";
   output_unitcell_vectors(unitcell);
-  output->write("\n");
+  cout << "\n";
 }
 
 void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
 
   Vec3 orientation_cartesian_vector = normalize(unitcell.matrix() * vector);
 
-  output->write("  orientation_axis\n");
-  output->write("    % 3.6f % 3.6f % 3.6f\n", reference[0], reference[1], reference[2]);
-
-  output->write("  orientation_lattice_vector\n");
-  output->write("    % 3.6f % 3.6f % 3.6f\n", vector[0], vector[1], vector[2]);
-
-  output->write("  orientation_cartesian_vector\n");
-  output->write("    % 3.6f % 3.6f % 3.6f\n", orientation_cartesian_vector[0], orientation_cartesian_vector[1],
-                orientation_cartesian_vector[2]);
+  cout << "  orientation_axis " << reference << "\n";
+  cout << "  orientation_lattice_vector " << vector << "\n";
+  cout << "  orientation_cartesian_vector " << orientation_cartesian_vector << "\n";
 
   Mat3 orientation_matrix = rotation_matrix_between_vectors(orientation_cartesian_vector, reference);
 
-  output->write("  orientation rotation matrix\n");
-  output->write("    % 8.8f, % 8.8f, % 8.8f\n", orientation_matrix[0][0], orientation_matrix[0][1],
-                orientation_matrix[0][2]);
-  output->write("    % 8.8f, % 8.8f, % 8.8f\n", orientation_matrix[1][0], orientation_matrix[1][1],
-                orientation_matrix[1][2]);
-  output->write("    % 8.8f, % 8.8f, % 8.8f\n", orientation_matrix[2][0], orientation_matrix[2][1],
-                orientation_matrix[2][2]);
-  output->write("\n");
+  cout << "  orientation rotation matrix \n";
+  cout << "    " << orientation_matrix[0] << "\n";
+  cout << "    " << orientation_matrix[1] << "\n";
+  cout << "    " << orientation_matrix[2] << "\n";
+  cout << "\n";
 
   Vec3 rotated_orientation_vector = orientation_matrix * orientation_cartesian_vector;
 
   if (verbose_is_enabled()) {
-    output->write("  rotated_orientation_vector\n");
-    output->write("    % 3.6f % 3.6f % 3.6f\n", rotated_orientation_vector[0], rotated_orientation_vector[1],
-            rotated_orientation_vector[2]);
+    cout << "  rotated_orientation_vector\n";
+    cout << "    " << rotated_orientation_vector << "\n";
   }
 
   auto volume_before = ::volume(unitcell);
@@ -382,9 +366,9 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
     jams_error("unitcell volume has changed after rotation");
   }
 
-  output->write("  oriented lattice vectors\n");
+  cout << "  oriented lattice vectors\n";
   output_unitcell_vectors(unitcell);
-  output->write("\n");
+  cout << "\n";
 }
 
 
@@ -395,14 +379,14 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 
   Vec3i kmesh_size = {lattice_dimensions[0], lattice_dimensions[1], lattice_dimensions[2]};
   if (!lattice_periodic[0] || !lattice_periodic[1] || !lattice_periodic[2]) {
-    output->write("\nzero padding non-periodic dimensions\n");
+    cout << "\nzero padding non-periodic dimensions\n";
     // double any non-periodic dimensions for zero padding
     for (int i = 0; i < 3; ++i) {
       if (!lattice_periodic[i]) {
         kmesh_size[i] = 2*lattice_dimensions[i];
       }
     }
-    output->write("\npadded kspace size\n  %d  %d  %d\n", kmesh_size[0], kmesh_size[1], kmesh_size[2]);
+    cout << "\npadded kspace size " << kmesh_size << "\n";
   }
 
   kspace_size_ = {kmesh_size[0], kmesh_size[1], kmesh_size[2]};
@@ -468,15 +452,11 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;
 
-  output->write("  computed lattice positions %d\n", atom_counter);
+  cout << "  computed lattice positions " << atom_counter << "\n";
   for (auto i = 0; i < lattice_positions_.size(); ++i) {
-    output->write("    %-6d %-6s % 3.6f % 3.6f % 3.6f | %4d %4d %4d\n",
-                  i, lattice_materials_[i].c_str(),
-                  lattice_positions_[i][0], lattice_positions_[i][1], lattice_positions_[i][2],
-                  lattice_super_cell_pos_(i)[0], lattice_super_cell_pos_(i)[1], lattice_super_cell_pos_(i)[2]);
-
+    cout << i << " " << lattice_materials_[i] << " " << lattice_positions_[i] << " " << lattice_super_cell_pos_(i) << "\n";
     if(!verbose_is_enabled() && i > 7) {
-      output->write("    ... [use verbose output for details] ... \n");
+      cout << "    ... [use verbose output for details] ... \n";
       break;
     }
   }
@@ -520,7 +500,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   if (initial_spin_state_is_a_file) {
     std::string spin_filename = lattice_settings["spins"];
 
-    output->write("  reading initial spin configuration from: %s\n", spin_filename.c_str());
+    cout << "  reading initial spin configuration from " << spin_filename << "\n";
 
     load_spin_state_from_hdf5(spin_filename);
   }
@@ -578,31 +558,30 @@ void Lattice::calc_symmetry_operations() {
     throw general_exception("Lattice::calc_symmetry_operations() was called with symops disabled ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
-  output->write("  symmetry analysis\n");
+  cout << "  symmetry analysis\n";
 
-  int i, j;
   const char *wl = "abcdefghijklmnopqrstuvwxyz";
 
   double spg_lattice[3][3];
   // unit cell vectors have to be transposed because spglib wants
   // a set of 3 vectors rather than the unit cell matrix
-  for (i = 0; i < 3; ++i) {
-    for (j = 0; j < 3; ++j) {
+  for (auto i = 0; i < 3; ++i) {
+    for (auto j = 0; j < 3; ++j) {
       spg_lattice[i][j] = unitcell.matrix()[i][j];
     }
   }
 
   double (*spg_positions)[3] = new double[motif_.size()][3];
 
-  for (i = 0; i < motif_.size(); ++i) {
-    for (j = 0; j < 3; ++j) {
+  for (auto i = 0; i < motif_.size(); ++i) {
+    for (auto j = 0; j < 3; ++j) {
       spg_positions[i][j] = motif_[i].pos[j];
     }
   }
 
   int (*spg_types) = new int[motif_.size()];
 
-  for (i = 0; i < motif_.size(); ++i) {
+  for (auto i = 0; i < motif_.size(); ++i) {
     spg_types[i] = motif_[i].material;
   }
 
@@ -614,9 +593,9 @@ void Lattice::calc_symmetry_operations() {
     return;
   }
 
-  output->write("    International %s (%d)\n", spglib_dataset_->international_symbol, spglib_dataset_->spacegroup_number );
-  output->write("    Hall symbol %s\n", spglib_dataset_->hall_symbol );
-  output->write("    Hall number %d\n", spglib_dataset_->hall_number );
+  cout << "    International " << spglib_dataset_->international_symbol << " (" <<  spglib_dataset_->spacegroup_number << ")\n";
+  cout << "    Hall symbol " << spglib_dataset_->hall_symbol << "\n";
+  cout << "    Hall number " << spglib_dataset_->hall_number << "\n";
 
   char ptsymbol[6];
   int pt_trans_mat[3][3];
@@ -624,84 +603,90 @@ void Lattice::calc_symmetry_operations() {
            pt_trans_mat,
            spglib_dataset_->rotations,
            spglib_dataset_->n_operations);
-  output->write("    point group  %s\n", ptsymbol);
-  output->write("    transformation matrix\n");
-  for ( i = 0; i < 3; i++ ) {
-      output->write("    %f %f %f\n",
-      spglib_dataset_->transformation_matrix[i][0],
-      spglib_dataset_->transformation_matrix[i][1],
-      spglib_dataset_->transformation_matrix[i][2]);
+  cout << "    point group  " << ptsymbol << "\n";
+  cout << "    transformation matrix\n";
+  for (auto i = 0; i < 3; i++ ) {
+    cout << "    ";
+    cout << spglib_dataset_->transformation_matrix[i][0] << " ";
+    cout << spglib_dataset_->transformation_matrix[i][1] << " ";
+    cout << spglib_dataset_->transformation_matrix[i][2] << "\n";
   }
-  output->write("    Wyckoff letters ");
-  for ( i = 0; i < spglib_dataset_->n_atoms; i++ ) {
-      output->write("%c ", wl[spglib_dataset_->wyckoffs[i]]);
+  cout << "    Wyckoff letters ";
+  for (auto i = 0; i < spglib_dataset_->n_atoms; i++ ) {
+      cout << wl[spglib_dataset_->wyckoffs[i]] << " ";
   }
-  output->write("\n");
+  cout << "\n";
 
-  output->write("    equivalent atoms ");
-  for (i = 0; i < spglib_dataset_->n_atoms; i++) {
-      output->write("%d ", spglib_dataset_->equivalent_atoms[i]);
+  cout << "    equivalent atoms ";
+  for (auto i = 0; i < spglib_dataset_->n_atoms; i++) {
+    cout << spglib_dataset_->equivalent_atoms[i] << " ";
   }
-  output->write("\n");
+  cout << "\n";
 
   if (verbose_is_enabled()) {
-    output->verbose("    shifted lattice\n");
-    output->verbose("    origin % 3.6f % 3.6f % 3.6f\n",
-            spglib_dataset_->origin_shift[0], spglib_dataset_->origin_shift[1], spglib_dataset_->origin_shift[2]);
+    cout << "    shifted lattice\n";
+    cout << "    origin ";
+    cout << spglib_dataset_->origin_shift[0] << " ";
+    cout << spglib_dataset_->origin_shift[1] << " ";
+    cout << spglib_dataset_->origin_shift[2] << "\n";
 
-    output->verbose("    lattice vectors\n");
-    for (int i = 0; i < 3; ++i) {
-      output->verbose("      % 3.6f % 3.6f % 3.6f\n",
-              spglib_dataset_->transformation_matrix[i][0],
-              spglib_dataset_->transformation_matrix[i][1],
-              spglib_dataset_->transformation_matrix[i][2]);
+    cout << "    lattice vectors\n";
+    for (auto i = 0; i < 3; ++i) {
+      cout << "      ";
+      for (auto j = 0; j < 3; ++j) {
+        cout << spglib_dataset_->transformation_matrix[i][j] << " ";
+      }
+      cout << "\n";
     }
 
-    output->verbose("    positions\n");
+    cout << "    positions\n";
     for (int i = 0; i < motif_.size(); ++i) {
       double bij[3];
       matmul(spglib_dataset_->transformation_matrix, spg_positions[i], bij);
-      output->verbose("  %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spg_types[i]].name.c_str(),
-              bij[0], bij[1], bij[2]);
+      cout << std::setw(12) << " ";
+      cout << i << " ";
+      cout << material_id_map_[spg_types[i]].name << " ";
+      cout << bij[0] << " " << bij[1] << " " << bij[2] << "\n";
     }
   }
 
-  output->write("    standard lattice\n");
-  output->write("    std lattice vectors\n");
+  cout << "    standard lattice\n";
+  cout << "    std lattice vectors\n";
 
   for (int i = 0; i < 3; ++i) {
-    output->write("    % 3.6f % 3.6f % 3.6f\n",
-      spglib_dataset_->std_lattice[i][0], spglib_dataset_->std_lattice[i][1], spglib_dataset_->std_lattice[i][2]);
+    cout << "    ";
+    cout << spglib_dataset_->std_lattice[i][0] << " ";
+    cout << spglib_dataset_->std_lattice[i][1] << " ";
+    cout << spglib_dataset_->std_lattice[i][2] << "\n";
   }
-  output->write("    num std atoms %d\n", spglib_dataset_->n_std_atoms);
+  cout << "    num std atoms " << spglib_dataset_->n_std_atoms << "\n";
 
-  output->write("    std_positions\n");
+  cout << "    std_positions\n";
   for (int i = 0; i < spglib_dataset_->n_std_atoms; ++i) {
-    output->write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", i, material_id_map_[spglib_dataset_->std_types[i]].name.c_str(),
-      spglib_dataset_->std_positions[i][0], spglib_dataset_->std_positions[i][1], spglib_dataset_->std_positions[i][2]);
+    cout << "    " << i << " " << material_id_map_[spglib_dataset_->std_types[i]].name << " ";
+    cout << spglib_dataset_->std_positions[i][0] << " " << spglib_dataset_->std_positions[i][1] << " " << spglib_dataset_->std_positions[i][2] << "\n";
   }
-
-
+  
   int primitive_num_atoms = motif_.size();
   double primitive_lattice[3][3];
 
-  for (i = 0; i < 3; ++i) {
-    for (j = 0; j < 3; ++j) {
+  for (auto i = 0; i < 3; ++i) {
+    for (auto j = 0; j < 3; ++j) {
       primitive_lattice[i][j] = spg_lattice[i][j];
     }
   }
 
   double (*primitive_positions)[3] = new double[motif_.size()][3];
 
-  for (i = 0; i < motif_.size(); ++i) {
-    for (j = 0; j < 3; ++j) {
+  for (auto i = 0; i < motif_.size(); ++i) {
+    for (auto j = 0; j < 3; ++j) {
       primitive_positions[i][j] = spg_positions[i][j];
     }
   }
 
   int (*primitive_types) = new int[motif_.size()];
 
-  for (i = 0; i < motif_.size(); ++i) {
+  for (auto i = 0; i < motif_.size(); ++i) {
     primitive_types[i] = spg_types[i];
   }
 
@@ -709,53 +694,55 @@ void Lattice::calc_symmetry_operations() {
 
   // spg_find_primitive returns number of atoms in primitve cell
   if (primitive_num_atoms != motif_.size()) {
-    output->write("\n");
-    output->write("    !!! unit cell is not a primitive cell !!!\n");
-    output->write("\n");
-    output->write("    primitive lattice vectors:\n");
+    cout << "\n";
+    cout << "    !!! unit cell is not a primitive cell !!!\n";
+    cout << "\n";
+    cout << "    primitive lattice vectors:\n";
 
     for (int i = 0; i < 3; ++i) {
-      output->write("    % 3.6f % 3.6f % 3.6f\n",
-        primitive_lattice[i][0], primitive_lattice[i][1], primitive_lattice[i][2]);
+      cout << "    ";
+      cout << primitive_lattice[i][0] << " ";
+      cout << primitive_lattice[i][1] << " ";
+      cout << primitive_lattice[i][2] << "\n";
     }
-    output->write("\n");
-    output->write("    primitive motif positions:\n");
+    cout << "\n";
+    cout << "    primitive motif positions:\n";
 
     int counter  = 0;
     for (int i = 0; i < primitive_num_atoms; ++i) {
-      output->write("    %-6d %s % 3.6f % 3.6f % 3.6f\n", counter, material_id_map_[primitive_types[i]].name.c_str(),
-        primitive_positions[i][0], primitive_positions[i][1], primitive_positions[i][2]);
+      cout << "    " << counter << " " <<  material_id_map_[primitive_types[i]].name << " ";
+      cout << primitive_positions[i][0] << " " << primitive_positions[i][1] << " " << primitive_positions[i][2] << "\n";
       counter++;
     }
   }
-  output->write("\n");
-  output->write("    num symops %d\n", spglib_dataset_->n_operations);
+  cout << "\n";
+  cout << "    num symops " << spglib_dataset_->n_operations << "\n";
 
   Mat3 rot;
   Mat3 id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 
-  for (int i = 0; i < spglib_dataset_->n_operations; ++i) {
+  for (auto n = 0; n < spglib_dataset_->n_operations; ++n) {
 
     if (verbose_is_enabled()) {
-      output->verbose("    %d\n---\n", i);
-      output->verbose("    %8d  %8d  %8d\n%8d  %8d  %8d\n%8d  %8d  %8d\n",
-              spglib_dataset_->rotations[i][0][0], spglib_dataset_->rotations[i][0][1],
-              spglib_dataset_->rotations[i][0][2],
-              spglib_dataset_->rotations[i][1][0], spglib_dataset_->rotations[i][1][1],
-              spglib_dataset_->rotations[i][1][2],
-              spglib_dataset_->rotations[i][2][0], spglib_dataset_->rotations[i][2][1],
-              spglib_dataset_->rotations[i][2][2]);
+      cout << "    " << n << "\n---\n";
+      for (auto i = 0; i < 3; ++i) {
+        cout << "      ";
+        for (auto j = 0; j < 3; ++j) {
+          cout << spglib_dataset_->rotations[n][i][j] << " ";
+        }
+        cout << "\n";
+      }
     }
 
-    for (int m = 0; m < 3; ++m) {
-      for (int n = 0; n < 3; ++n) {
-        rot[m][n] = spglib_dataset_->rotations[i][m][n];
+    for (auto i = 0; i < 3; ++i) {
+      for (auto j = 0; j < 3; ++j) {
+        rot[i][j] = spglib_dataset_->rotations[n][i][j];
       }
     }
 
     rotations_.push_back(rot);
   }
-  output->write("\n");
+  cout << "\n";
 
 }
 

@@ -25,6 +25,7 @@
 #include "jams/physics/flips.h"
 #include "jams/core/output.h"
 
+using namespace std;
 
 Physics::Physics(const libconfig::Setting &physics_settings) :
     Base(physics_settings),
@@ -32,7 +33,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
     applied_field_{0.0, 0.0, 0.0}
 {
 
-  output->write("  %s physics\n", name().c_str());
+  cout << "  " << name() << " physics\n";
 
   // initialise temperature
   temperature_ = 0.0;
@@ -116,6 +117,5 @@ Physics* Physics::create(const libconfig::Setting &settings) {
     return new FlipsPhysics(settings);
   }
 
-  jams_error("Unknown physics package selected.");
-  return NULL;
+  throw std::runtime_error("unknown physics " + module_name);
 }

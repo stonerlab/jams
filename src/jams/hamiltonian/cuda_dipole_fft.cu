@@ -15,6 +15,8 @@
 #include "cuda_dipole_fft.h"
 #include "../cuda/cuda-complex-operators.h"
 
+using namespace std;
+
 __global__ void cuda_dipole_convolution(
   const unsigned int size,
   const unsigned int pos_i, 
@@ -76,8 +78,8 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   settings.lookupValue("check_symmetry", check_symmetry_);
 
   r_cutoff_ = double(settings["r_cutoff"]);
-  output->write("  r_cutoff:     %8.8f\n", r_cutoff_);
-  output->write("  r_cutoff_max: %8.8f\n", ::lattice->max_interaction_radius());
+  cout << "  r_cutoff " << r_cutoff_ << "\n";
+  cout << "  r_cutoff_max " << ::lattice->max_interaction_radius() << "\n";
 
   if (check_radius_) {
     if (r_cutoff_ > ::lattice->max_interaction_radius()) {
@@ -87,7 +89,7 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   }
 
   settings.lookupValue("distance_tolerance", distance_tolerance_);
-  output->write("  distance_tolerance: %e\n", distance_tolerance_);
+  cout << "  distance_tolerance " << distance_tolerance_ << "\n";
 
   for (int n = 0; n < 3; ++n) {
       kspace_size_[n] = ::lattice->size(n);
@@ -111,8 +113,8 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   kspace_h_.zero();
   h_.zero();
 
-  output->write("    kspace size: %d %d %d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
-  output->write("    kspace padded size: %d %d %d\n", kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]);
+  cout << "    kspace size " << kspace_size_ << "\n";
+  cout << "    kspace padded size " << kspace_padded_size_ << "\n";
 
   int rank            = 3;           
   int stride          = 3 * lattice->num_motif_positions();

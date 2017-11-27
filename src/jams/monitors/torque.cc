@@ -24,7 +24,6 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
   convergence_geweke_diagnostic_()
 {
   using namespace globals;
-  ::output->write("\nInitialising Torque monitor...\n");
 }
 
 void TorqueMonitor::update(Solver * solver) {

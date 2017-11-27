@@ -10,6 +10,8 @@
 
 #include "exchange_neartree.h"
 
+using namespace std;
+
 ExchangeNeartreeHamiltonian::~ExchangeNeartreeHamiltonian() {
   if (dev_stream_ != nullptr) {
     cudaStreamDestroy(dev_stream_);
@@ -66,14 +68,14 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     if (settings.exists("energy_cutoff")) {
         energy_cutoff_ = settings["energy_cutoff"];
     }
-    ::output->write("\ninteraction energy cutoff\n  %e\n", energy_cutoff_);
+    cout << "interaction energy cutoff" << energy_cutoff_ << "\n";
 
     distance_tolerance_ = 1e-6; // fractional coordinate units
     if (settings.exists("distance_tolerance")) {
         distance_tolerance_ = settings["distance_tolerance"];
     }
 
-    ::output->write("\ndistance_tolerance\n  %e\n", distance_tolerance_);
+    cout << "distance_tolerance " << distance_tolerance_ << "\n";
 
     // --- SAFETY ---
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
@@ -123,7 +125,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
     interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
-    ::output->write("\ncomputed interactions\n");
+    cout << "\ncomputed interactions\n";
 
     int counter = 0;
     for (int i = 0; i < globals::num_spins; ++i) {
@@ -190,11 +192,11 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       debug_file.close();
     }
 
-    ::output->write("  total interactions: %d\n", counter);
+    cout << "  total interactions " << counter << "\n";
 
-    ::output->write("  converting interaction matrix format from MAP to CSR\n");
+    cout << "  converting interaction matrix format from MAP to CSR\n";
     interaction_matrix_.convertMAP2CSR();
-    ::output->write("  exchange matrix memory (CSR): %f MB\n", interaction_matrix_.calculateMemory());
+    cout << "  exchange matrix memory (CSR): " << interaction_matrix_.calculateMemory() << " (MB)\n";
 
     //---------------------------------------------------------------------
     // initialize CUDA arrays
@@ -209,7 +211,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         dev_field_ = jblib::CudaArray<double, 1>(field_);
 
         if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
-          ::output->write("  * Initialising CUSPARSE...\n");
+          cout << "  * Initialising CUSPARSE...\n";
           cusparseStatus_t status;
           status = cusparseCreate(&cusparse_handle_);
           if (status != CUSPARSE_STATUS_SUCCESS) {
@@ -226,7 +228,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
           cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
           cusparseSetMatIndexBase(cusparse_descra_,CUSPARSE_INDEX_BASE_ZERO);
 
-          ::output->write("  allocating memory on device\n");
+          cout << "  allocating memory on device\n";
           cuda_api_error_check(
             cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
           cuda_api_error_check(
@@ -246,9 +248,9 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
           // ::output->write("  converting interaction matrix format from map to dia");
           // interaction_matrix_.convertMAP2DIA();
-          ::output->write("  estimated memory usage (DIA): %f MB\n", interaction_matrix_.calculateMemory());
+          cout << "  estimated memory usage (DIA): " << interaction_matrix_.calculateMemory() << " (MB)\n";
           dev_dia_interaction_matrix_.blocks = std::min<int>(DIA_BLOCK_SIZE, (globals::num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-          ::output->write("  allocating memory on device\n");
+          cout << "  allocating memory on device\n";
 
           // allocate rows
           cuda_api_error_check(

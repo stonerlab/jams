@@ -26,8 +26,6 @@ FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
   PSDIntegral(0) {
   using namespace globals;
 
-  output->write("  * FMR physics module\n");
-
   ACFieldFrequency = settings["ACFieldFrequency"];
   ACFieldFrequency = 2.0*M_PI*ACFieldFrequency;
 

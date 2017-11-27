@@ -35,11 +35,12 @@ class Slice {
     for (int i = 0; i < 3; ++i) {
       slice_origin[i] = settings["origin"][i];
     }
-    ::output->write("  slice origin: %f %f %f\n", slice_origin[0], slice_origin[1], slice_origin[2]);
+    std::cout << "  slice origin: " << slice_origin[0] << " " << slice_origin[1] << " " << slice_origin[2] << "\n";
+
     for (int i = 0; i < 3; ++i) {
       slice_size[i] = settings["size"][i];
     }
-    ::output->write("  slice size: %f %f %f\n", slice_size[0], slice_size[1], slice_size[2]);
+    std::cout << "  slice size: " << slice_size[0] << " " << slice_size[1] << " " << slice_size[2] << "\n";
 
     for (int i = 0; i < num_spins; ++i) {
       Vec3 pos = lattice->atom_position(i);

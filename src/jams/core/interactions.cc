@@ -17,6 +17,8 @@
 #include "jblib/containers/vec.h"
 #include "jblib/containers/matrix.h"
 
+using namespace std;
+
 namespace { //anon
   int find_motif_index(const Vec3 &offset, const double tolerance = 1e-5) {
     // find which unit_cell position this offset corresponds to
@@ -127,15 +129,7 @@ namespace { //anon
           std::vector<typename_interaction_t> &unfolded_interaction_data,
        InteractionList<inode_pair_t> &interactions, bool use_symops) {
 
-    ::output->write("  reading interactions and applying symmetry operations\n");
-
-    if (::output->is_verbose()) {
-      ::output->verbose("unit cell realspace\n");
-      for (int i = 0; i < lattice->num_motif_positions(); ++i) {
-        Vec3 rij = lattice->motif_position_frac(i);
-        ::output->verbose("%8d % 6.6f % 6.6f % 6.6f\n", i, rij[0], rij[1], rij[2]);
-      }
-    }
+    cout << "  reading interactions and applying symmetry operations\n";
 
     unfolded_interaction_data.clear();
 
@@ -175,7 +169,7 @@ namespace { //anon
         }
       } // for unit cell positions
     } // for interactions
-    ::output->write("  total unique interactions for unitcell: %d\n", interaction_counter);
+    cout << "  total unique interactions for unitcell " << interaction_counter << "\n";
   }
 
   //---------------------------------------------------------------------
@@ -442,7 +436,7 @@ namespace { //anon
       }
     }
 
-    ::output->write("  total system interactions: %d\n", interaction_counter);
+    cout << "  total system interactions: interaction_counter\n";
   }
 
 
@@ -488,9 +482,9 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
   }
 
 
-  ::output->write("  num unit cell interactions per position:\n");
+  cout << "  num unit cell interactions per position:\n";
   for (auto i = 0; i < interaction_template.size(); ++i) {
-    ::output->write("    %d: %u\n", i, interaction_template.num_interactions(i));
+    cout << "    " << i << ": " << interaction_template.num_interactions(i) << "\n";
   }
 
   generate_neighbour_list(interaction_template, neighbour_list);

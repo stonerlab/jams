@@ -24,13 +24,7 @@ namespace libconfig {
 
 class Hamiltonian {
  public:
-  Hamiltonian(const libconfig::Setting &settings, const unsigned int size) 
-  : energy_(size, 0.0),
-    field_(size, 3, 0.0),
-    name_(settings["module"].c_str())
-  {
-    output->write("  %s hamiltonian\n", name_.c_str());
-  }
+  Hamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
   virtual ~Hamiltonian() {}
 

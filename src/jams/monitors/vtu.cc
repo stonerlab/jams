@@ -23,8 +23,6 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
     using jblib::floats_are_greater_than_or_equal;
     using jblib::floats_are_less_than_or_equal;
 
-    ::output->write("\nInitialising Vtu monitor...\n");
-
     // settings for only outputting a slice
     if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
         jams_error("Xyz monitor requires both slice_origin and slice_size to be specificed;");
@@ -33,15 +31,15 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
     num_slice_points = 0;
 
     if (settings.exists("slice_origin")) {
-        ::output->write("  slice output enabled\n");
+        std::cout << "  slice output enabled\n";
         for (int i = 0; i < 3; ++i) {
             slice_origin[i] = settings["slice_origin"][i];
         }
-        ::output->write("  slice origin: %f %f %f\n", slice_origin[0], slice_origin[1], slice_origin[2]);
+        std::cout << "  slice origin " << slice_origin[0] << " " << slice_origin[1] << " " << slice_origin[2] << "\n";
         for (int i = 0; i < 3; ++i) {
             slice_size[i] = settings["slice_size"][i];
         }
-        ::output->write("  slice size: %f %f %f\n", slice_size[0], slice_size[1], slice_size[2]);
+      std::cout << "  slice size " << slice_size[0] << " " << slice_size[1] << " " << slice_size[2] << "\n";
 
         // check which spins are inside the slice
         for (int i = 0; i < num_spins; ++i) {

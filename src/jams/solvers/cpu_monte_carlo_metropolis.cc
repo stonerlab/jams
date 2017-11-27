@@ -14,6 +14,8 @@
 
 #include <iomanip>
 
+using namespace std;
+
 MetropolisMCSolver::~MetropolisMCSolver() {
   if (outfile.is_open()) {
     outfile.close();
@@ -37,17 +39,17 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     outfile.open(std::string(::seedname + "_mc_stats.dat").c_str());
   }
 
-  output->write("    max_steps %d\n", max_steps_);
-  output->write("    min_steps %d\n", min_steps_);
-  output->write("    preconditioner %s\n", is_preconditioner_enabled_ ? "true" : "false");
+  cout << "    max_steps " << max_steps_ << "\n";
+  cout << "    min_steps " << min_steps_ << "\n";
+  cout << "    preconditioner " << is_preconditioner_enabled_ << "\n";
 
   if (is_preconditioner_enabled_) {
-    output->write("    preconditioner_theta %d\n", preconditioner_delta_theta_);
-    output->write("    preconditioner_phi   %d\n", preconditioner_delta_phi_);
+    cout << "    preconditioner_theta " << preconditioner_delta_theta_ << "\n";
+    cout << "    preconditioner_phi   " << preconditioner_delta_phi_ << "\n";
   }
 
   if (verbose_is_enabled()) {
-    output->write("    statsfile %s\n", std::string(::seedname + "_mc_stats.dat").c_str());
+    cout << "    statsfile " << std::string(::seedname + "_mc_stats.dat") << "\n";
   }
 }
 
@@ -55,18 +57,18 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     using namespace globals;
 
     if (is_preconditioner_enabled_ && iteration_ == 0) {
-      output->write("preconditioning\n");
+      cout << "preconditioning\n";
 
-      output->write("  thermalizing\n");
+      cout << "  thermalizing\n";
       // do a short thermalization
       for (int i = 0; i < 500; ++i) {
         MetropolisAlgorithm(mc_uniform_trial_step);
       }
 
       // now try systematic rotations
-      output->write("  magnetization rotations\n");
+      cout << "  magnetization rotations\n";
       SystematicPreconditioner(preconditioner_delta_theta_, preconditioner_delta_phi_);
-      output->write("done\n");
+      cout << "done\n";
     }
 
     std::string trial_step_name;
@@ -215,19 +217,16 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
     MagnetizationRotationMinimizer minimizer(hamiltonians_);
 
-    output->write("    delta theta (deg)\n");
-    output->write("      %f\n", delta_theta);
+    cout << "    delta theta (deg) " << delta_theta << "\n";
 
-    output->write("    num_theta\n");
-    output->write("      %d\n", num_theta);
+    cout << "    num_theta " << num_theta << "\n";
 
     std::uint64_t count = for_each_permutation(theta.begin(),
                                                    theta.begin() + 3,
                                                    theta.end(),
                                                    minimizer);
 
-    output->write("    permutations\n");
-    output->write("      %d\n", count);
+    cout << "    permutations " << count << "\n";
 
     std::ofstream preconditioner_file;
     preconditioner_file.open(std::string(::seedname+"_mc_pre.dat").c_str());

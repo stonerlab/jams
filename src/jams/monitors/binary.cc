@@ -17,8 +17,6 @@ BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
   using namespace globals;
   using namespace jblib;
 
-  ::output->write("\nInitialising binary monitor...\n");
-
   is_file_overwrite_mode = false;
   settings.lookupValue("overwrite", is_file_overwrite_mode);
 

@@ -8,6 +8,8 @@
 #include "jams/core/globals.h"
 #include "jams/core/output.h"
 
+using namespace std;
+
 void jams_error(const char *string, ...) {
   va_list args;
   char buffer[1024];
@@ -16,9 +18,9 @@ void jams_error(const char *string, ...) {
   vsprintf(buffer, string, args);
   va_end(args);
 
-  output->write("\n********************************************************************************\n\n");
-  output->write("ERROR: %s\n\n", buffer);
-  output->write("********************************************************************************\n\n");
+  cerr << "\n********************************************************************************\n\n";
+  cerr << "ERROR: " << buffer << "\n\n";
+  cerr << "********************************************************************************\n\n";
 
   jams_finish();
   exit(EXIT_FAILURE);
@@ -32,7 +34,7 @@ void jams_warning(const char *string, ...) {
   vsprintf(buffer, string, args);
   va_end(args);
 
-  output->write("\n********************************************************************************\n\n");
-  output->write("WARNING: %s\n\n", buffer);
-  output->write("********************************************************************************\n\n");
+  cerr << "\n********************************************************************************\n\n";
+  cerr << "WARNING: " << buffer << "\n\n";
+  cerr << "********************************************************************************\n\n";
 }

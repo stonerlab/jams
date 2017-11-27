@@ -44,9 +44,8 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
   init_theta = rad_to_deg(acos(mag[2] / abs(mag)));
   init_phi = rad_to_deg(atan2(mag[1], mag[0]));
 
-  ::output->write("  initial angles (theta, phi): %f, %f\n", init_theta, init_phi);
-  ::output->write("  final angles (theta, phi): %f, %f\n", final_theta, final_phi);
-
+  std::cout << "  initial angles (theta, phi) " << init_theta << " " << init_phi << "\n";
+  std::cout << "  final angles (theta, phi) " << final_theta << " " << final_phi << "\n";
 
   if (theta_rotation_specified) {
     delta_theta = final_theta - init_theta;
@@ -56,7 +55,7 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
     delta_phi = final_phi - init_phi;
   }
 
-  ::output->write("  delta angles (theta, phi): %f, %f\n", delta_theta, delta_phi);
+  std::cout << "  delta angles (theta, phi) " << delta_theta << " " << delta_phi << "\n";
 
   const double c_t = cos(deg_to_rad(delta_theta));
   const double c_p = cos(deg_to_rad(delta_phi));

@@ -16,6 +16,7 @@
 #include <mkl_spblas.h>
 #endif
 
+using namespace std;
 
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
@@ -32,9 +33,9 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   max_steps_ = static_cast<int>(t_max / time_step_);
   min_steps_ = static_cast<int>(t_min / time_step_);
 
-  output->write("\ntimestep\n  %1.8e\n", dt);
-  output->write("\nt_max\n  %1.8e (%lu steps)\n", t_max, max_steps_);
-  output->write("\nt_min\n  %1.8e (%lu steps)\n", t_min, min_steps_);
+  cout << "\ntimestep " << dt << "\n";
+  cout << "\nt_max " << t_max << " steps " << max_steps_ << "\n";
+  cout << "\nt_min " << t_min << " steps " << min_steps_ << "\n";
 
   snew.resize(num_spins, 3);
   sigma.resize(num_spins);

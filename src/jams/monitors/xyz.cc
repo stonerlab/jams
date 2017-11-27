@@ -21,8 +21,6 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
   using namespace globals;
   using namespace jblib;
 
-  ::output->write("\nInitialising Xyz monitor...\n");
-
   output_step_freq_ = settings["output_steps"];
 
   // settings for only outputting a slice

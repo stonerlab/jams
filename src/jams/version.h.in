@@ -5,10 +5,15 @@
 #ifndef JAMS_VERSION_H
 #define JAMS_VERSION_H
 
-#define VERSION          "@VERSION@"
-#define BUILD_TYPE       "@CMAKE_BUILD_TYPE@"
-#define BUILD_TIME       "@BUILD_TIME@"
-#define GIT_BRANCH       "@GIT_BRANCH@"
-#define GIT_COMMIT_HASH  "@GIT_COMMIT_HASH@"
+#include <string>
 
+namespace jams {
+    namespace build {
+        constexpr auto version = "@VERSION@";
+        constexpr auto type = "@CMAKE_BUILD_TYPE@";
+        constexpr auto time = "@BUILD_TIME@";
+        constexpr auto branch = "@GIT_BRANCH@";
+        constexpr auto hash = "@GIT_COMMIT_HASH@";
+    }
+}
 #endif //JAMS_VERSION_H

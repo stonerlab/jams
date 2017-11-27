@@ -12,6 +12,7 @@
 #include "jams/core/solver.h"
 
 #include "magnetisation_rate.h"
+using namespace std;
 
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
@@ -23,12 +24,11 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
   convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
   using namespace globals;
-  ::output->write("\ninitialising MagnetisationRate monitor\n");
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
     convergence_tolerance_ = settings["convergence"];
-    ::output->write("  convergence tolerance: %f\n", convergence_tolerance_);
+    cout << "  convergence tolerance " << convergence_tolerance_ << "\n";
   }
 
   std::string name = seedname + "_dm_dt.tsv";

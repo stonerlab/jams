@@ -23,6 +23,8 @@
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 #include "jams/solvers/cpu_monte_carlo_constrained.h"
 
+using namespace std;
+
 Solver::~Solver() {
   for (auto& m : monitors_) {
     if (m) {
@@ -39,7 +41,7 @@ void Solver::initialize(const libconfig::Setting& settings) {
   set_verbose(jams::config_optional<bool>(settings, "verbose", false));
   set_debug(jams::config_optional<bool>(settings, "debug", false));
 
-  output->write("  %s solver\n", name().c_str());
+  cout << "  " << name() << " solver\n";
 
   initialized_ = true;
 }
@@ -85,8 +87,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
   }
 #endif
 
-  jams_error("Unknown solver '%s' selected.", module_name.c_str());
-  return nullptr;
+  throw std::runtime_error("unknown solver " + module_name);
 }
 
 

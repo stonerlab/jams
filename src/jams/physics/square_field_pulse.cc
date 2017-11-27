@@ -17,8 +17,6 @@ SquarePhysics::SquarePhysics(const libconfig::Setting &settings)
   FieldStrength(3, 0) {
   using namespace globals;
 
-  output->write("  * Square physics module\n");
-
   PulseDuration = settings["PulseDuration"];
   PulseTotal    = settings["PulseTotal"];
   PulseCount = 1;

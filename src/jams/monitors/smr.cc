@@ -17,8 +17,8 @@ SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
   outfile()
 {
   using namespace globals;
-  ::output->write("\ninitialising SMR monitor\n");
-  ::output->write("  assumes axes j->x, t->y, n->z");
+  std::cout << "\ninitialising SMR monitor\n";
+  std::cout << "  assumes axes j->x, t->y, n->z\n";
 
   std::string name = seedname + "_smr.tsv";
   outfile.open(name.c_str());

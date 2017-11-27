@@ -20,7 +20,6 @@
 SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  ::output->write("\nInitialising Skyrmion monitor...\n");
 
   type_norms.resize(lattice->num_materials(), 1.0);
 
@@ -38,9 +37,9 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
     thresholds.push_back(0.0);
   }
 
-  ::output->write("  Sz thresholds:\n");
+  std::cout << "  Sz thresholds:\n";
   for (int n = 0; n < thresholds.size(); ++n) {
-    ::output->write("    %f\n", thresholds[n]);
+    std::cout << "    " << thresholds[n] << "\n";
   }
 
   std::string name = seedname + "_sky.dat";

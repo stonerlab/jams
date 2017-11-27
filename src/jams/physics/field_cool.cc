@@ -25,8 +25,6 @@ FieldCoolPhysics::FieldCoolPhysics(const libconfig::Setting &settings)
   initialized(false) {
   using namespace globals;
 
-  output->write("  * Field cooled physics module\n");
-
   initTemp = settings["InitialTemperature"];
   finalTemp = settings["FinalTemperature"];
 

@@ -95,7 +95,6 @@ class InteractionList {
     const_reference operator[] (const size_type i) const;
 
   private:
-
     std::vector<value_type> list;
 };
 

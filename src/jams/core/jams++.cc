@@ -27,12 +27,13 @@
 #include "jams/helpers/duration.h"
 #include "hamiltonian.h"
 
+using namespace std;
+
 namespace jams {
 
     void new_global_classes() {
-      output  = new Output();
-      config  = new libconfig::Config();
-      rng     = new Random();
+      config = new libconfig::Config();
+      rng = new Random();
       lattice = new Lattice();
     }
 
@@ -42,10 +43,9 @@ namespace jams {
       delete lattice;
       delete rng;
       delete config;
-      delete output;
     }
 
-    void process_command_line_args(int argc, char **argv, jams::Simulation& sim) {
+    void process_command_line_args(int argc, char **argv, jams::Simulation &sim) {
       if (argc == 1) {
         jams_error("No config file specified");
       }
@@ -62,25 +62,36 @@ namespace jams {
 
       sim.log_file_name = sim.name + ".log";
     }
+
+    std::string section(const std::string& name) {
+      std::string line = "\n--------------------------------------------------------------------------------\n\n";
+      return line.replace(1, name.size() + 1, name + " ");
+    }
 }
 
 int jams_initialize(int argc, char **argv) {
+  std::cin.tie(nullptr);
+  ios_base::sync_with_stdio(false);
 
   jams::Simulation simulation;
 
   jams::new_global_classes();
 
-  output->write("\nJAMS++ %s\n\n", VERSION);
-
-  output->write("build   %s %s %s %s\n", BUILD_TIME, BUILD_TYPE, GIT_COMMIT_HASH, GIT_BRANCH);
-  output->write("run     %s\n", get_date_string(std::chrono::system_clock::now()).c_str());
+  cout << "\nJAMS++ " << jams::build::version << "\n\n";
+  cout << "build   ";
+    cout << jams::build::time << " ";
+    cout << jams::build::type << " ";
+    cout << jams::build::hash << " ";
+    cout << jams::build::branch << "\n";
+  cout << "run     ";
+    cout << get_date_string(std::chrono::system_clock::now()) << "\n";
 
   jams::process_command_line_args(argc, argv, simulation);
   seedname = simulation.name;
 
-  output->open("%s", simulation.log_file_name.c_str());
-  output->write("log     %s\n", simulation.log_file_name.c_str());
-  output->write("config  %s\n", simulation.config_file_name.c_str());
+  // TODO: tee cout also to a log file
+
+  cout << "config  " << simulation.config_file_name << "\n";
 
   {
     try {
@@ -94,33 +105,31 @@ int jams_initialize(int argc, char **argv) {
       if (config->exists("sim")) {
         if (config->lookup("sim")) {
           simulation.verbose = true;
-          output->enableVerbose();
         }
 
         simulation.random_seed = jams::config_optional<int>(config->lookup("sim"), "seed", simulation.random_seed);
       }
 
-
-      output->write("verbose %s\n", simulation.verbose ? "true" : "false");
-      output->write("seed    %d\n", simulation.random_seed);
+      cout << "verbose " << simulation.verbose << "\n";
+      cout << "seed    " << simulation.random_seed << "\n";
 
       rng->seed(static_cast<const uint32_t>(simulation.random_seed));
 
-      output->write("\ninit lattice -------------------------------------------------------------------\n\n");
+      cout << jams::section("init lattice");
 
       lattice->init_from_config(*::config);
 
-      output->write("\ninit physics -------------------------------------------------------------------\n\n");
+      cout << jams::section("init physics");
 
       physics_module = Physics::create(config->lookup("physics"));
 
-      output->write("\ninit solver --------------------------------------------------------------------\n\n");
+      cout << jams::section("init solver");
 
       solver = Solver::create(config->lookup("solver"));
       solver->initialize(config->lookup("solver"));
       solver->register_physics_module(physics_module);
 
-      output->write("\ninit monitors ------------------------------------------------------------------\n\n");
+      cout << jams::section("init monitors");
 
       if (!::config->exists("monitors")) {
         jams_warning("No monitors in config");
@@ -131,7 +140,7 @@ int jams_initialize(int argc, char **argv) {
         }
       }
 
-      output->write("\ninit hamiltonians --------------------------------------------------------------\n\n");
+      cout << jams::section("init hamiltonians");
 
       if (!::config->exists("hamiltonians")) {
         jams_error("No hamiltonians in config");
@@ -182,8 +191,8 @@ void jams_run() {
   using namespace globals;
   using namespace std::chrono;
 
-  output->write("\nrunning solver -----------------------------------------------------------------\n\n");
-  output->write("start   %s\n\n", get_date_string(system_clock::now()).c_str());
+  cout << jams::section("running solver");
+  cout << "start   " << get_date_string(system_clock::now()) << "\n\n";
 
   auto start_time = time_point_cast<milliseconds>(system_clock::now());
 
@@ -196,11 +205,11 @@ void jams_run() {
     solver->notify_monitors();
     solver->run();
   }
-
-  output->write("finish  %s\n\n", get_date_string(system_clock::now()).c_str());
+  cout << "finish  " << get_date_string(system_clock::now()) << "\n\n";
 
   auto end_time = time_point_cast<milliseconds>(system_clock::now());
-  output->write("runtime %s\n", duration_string(end_time - start_time).c_str());
+
+  cout << "runtime " << duration_string(end_time - start_time) << "\n";
 }
 
 void jams_finish() {
@@ -210,25 +219,25 @@ void jams_finish() {
 void jams_global_initializer(const libconfig::Setting &settings) {
   if (settings.exists("spins")) {
     std::string file_name = settings["spins"];
-    ::output->write("\nReading spin data from file: %s\n", file_name.c_str());
+    cout << "reading spin data from file " << file_name << "\n";
     load_array_from_file(file_name, "/spins", globals::s);
   }
 
   if (settings.exists("alpha")) {
     std::string file_name = settings["alpha"];
-    ::output->write("\nReading alpha data from file: %s\n", file_name.c_str());
+    cout << "reading alpha data from file " << file_name << "\n";
     load_array_from_file(file_name, "/alpha", globals::alpha);
   }
 
   if (settings.exists("mus")) {
     std::string file_name = settings["mus"];
-    ::output->write("\nReading initial mus data from file: %s\n", file_name.c_str());
+    cout << "reading mus data from file " << file_name << "\n";
     load_array_from_file(file_name, "/mus", globals::mus);
   }
 
   if (settings.exists("gyro")) {
     std::string file_name = settings["gyro"];
-    ::output->write("\nReading initial gyro data from file: %s\n", file_name.c_str());
+    cout << "reading gyro data from file " << file_name << "\n";
     load_array_from_file(file_name, "/gyro", globals::gyro);
   }
 }
@@ -238,12 +247,11 @@ void jams_patch_config(const std::string &patch_string) {
 
   try {
     cfg_patch.readFile(patch_string.c_str());
-    ::output->write("patching form file\n  %s\n", patch_string.c_str());
+    cout << "patching form file " << patch_string << "\n";
   }
   catch(libconfig::FileIOException &fex) {
     cfg_patch.readString(patch_string);
-    ::output->write("patching from string\n", patch_string.c_str());
-    ::output->verbose("  %s\n", patch_string.c_str());
+    cout << "patching from string " << patch_string << "\n";
   }
 
   config_patch(::config->getRoot(), cfg_patch.getRoot());

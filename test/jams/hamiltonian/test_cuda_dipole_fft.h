@@ -23,11 +23,8 @@ class CudaDipoleHamiltonianFFTTest : public ::testing::Test {
     // You can do set-up work for each test here.
     cudaDeviceReset();
     ::lattice = new Lattice();
-    ::output = new Output();
     ::config = new libconfig::Config();
     ::rng = new Random();
-
-    ::output->disableConsole();
   }
 
   virtual ~CudaDipoleHamiltonianFFTTest() {
@@ -64,10 +61,6 @@ class CudaDipoleHamiltonianFFTTest : public ::testing::Test {
     if (::lattice != nullptr) {
       delete ::lattice;
       ::lattice = nullptr;
-    }
-    if (::output != nullptr) {
-      delete ::output;
-      ::output = nullptr;
     }
     if (::config != nullptr) {
       delete ::config;

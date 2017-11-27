@@ -19,6 +19,8 @@
 #include "../monitors/binary.h"
 #include "../monitors/skyrmion.h"
 
+using namespace std;
+
 Monitor::Monitor(const libconfig::Setting &settings)
 : Base(settings),
   output_step_freq_(jams::config_optional<int>(settings, "output_steps", jams::default_monitor_output_steps)),
@@ -27,11 +29,12 @@ Monitor::Monitor(const libconfig::Setting &settings)
   convergence_stderr_(0.0),
   convergence_burn_time_(jams::config_optional<double>(settings, "t_burn", 0.0))  // amount of time to discard before calculating convegence stats
 {
-   output->write("  %s monitor\n", name().c_str());
-   output->write("    output_steps: %d\n", output_step_freq_);
+  cout << "  " << name() << " monitor\n";
+  cout << "    output_steps" << output_step_freq_ << "\n";
+
    if (convergence_is_on_) {
-     ::output->write("    convergence tolerance: %f\n", convergence_tolerance_);
-     ::output->write("    t_burn: %e (s)\n", convergence_burn_time_);
+     cout << "    convergence tolerance" << convergence_tolerance_ << "\n";
+     cout << "    t_burn" << convergence_burn_time_ << "\n";
    }
 }
 
@@ -99,6 +102,5 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
     return new SkyrmionMonitor(settings);
   }
 
-  jams_error("Unknown monitor specified '%s'", settings["module"].c_str());
-  return nullptr;
+  throw std::runtime_error("unknown monitor " + std::string(settings["module"].c_str()));
 }

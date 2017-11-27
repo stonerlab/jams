@@ -16,6 +16,7 @@
 using std::pow;
 using std::abs;
 using std::min;
+using namespace std;
 
 namespace {
     const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
@@ -57,8 +58,8 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
   settings.lookupValue("check_symmetry", check_symmetry_);
 
     r_cutoff_ = double(settings["r_cutoff"]);
-    output->write("  r_cutoff:     %8.8f\n", r_cutoff_);
-    output->write("  r_cutoff_max: %8.8f\n", ::lattice->max_interaction_radius());
+    cout << "  r_cutoff " << r_cutoff_ << "\n";
+    cout << "  r_cutoff_max " << ::lattice->max_interaction_radius() << "\n";
 
     if (check_radius_) {
       if (r_cutoff_ > ::lattice->max_interaction_radius()) {
@@ -68,7 +69,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     }
 
     settings.lookupValue("distance_tolerance", distance_tolerance_);
-    output->write("  distance_tolerance: %e\n", distance_tolerance_);
+    cout << "  distance_tolerance " << distance_tolerance_ << "\n";
 
     for (int n = 0; n < 3; ++n) {
         kspace_size_[n] = ::lattice->size(n);
@@ -87,10 +88,9 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     kspace_s_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
     kspace_h_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
 
-    output->write("    kspace size: %d %d %d\n", kspace_size_[0], kspace_size_[1], kspace_size_[2]);
-    output->write("    kspace padded size: %d %d %d\n", kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]);
-
-    output->write("    generating tensors\n");
+    cout << "    kspace size " << kspace_size_ << "\n";
+    cout << "    kspace padded size " << kspace_padded_size_ << "\n";
+    cout << "    generating tensors\n";
 
   kspace_tensors_.resize(lattice->num_motif_positions());
 
@@ -100,7 +100,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
       }
     }
 
-    output->write("    planning FFTs\n");
+    cout << "    planning FFTs\n";
 
     int rank            = 3;           
     int stride          = 3;

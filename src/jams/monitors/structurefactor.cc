@@ -20,6 +20,8 @@
 
 #include "jblib/containers/array.h"
 
+using namespace std;
+
 class Solver;
 
 // We can't guarenttee that FFT methods are being used by the integrator, so we implement all of the FFT
@@ -29,7 +31,6 @@ class Solver;
 StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  ::output->write("\nInitialising Structure Factor monitor...\n");
 
   settings.lookupValue("output_sublattice", output_sublattice_enabled_);
 
@@ -55,13 +56,13 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   double freq_max    = 1.0/(2.0*t_sample);
          freq_delta  = 1.0/(num_samples*t_sample);
 
-  ::output->write("\n");
-  ::output->write("  number of samples:          %d\n", num_samples);
-  ::output->write("  sampling time (s):          %e\n", t_sample);
-  ::output->write("  acquisition time (s):       %e\n", t_sample * num_samples);
-  ::output->write("  frequency resolution (THz): %f\n", freq_delta/kTHz);
-  ::output->write("  maximum frequency (THz):    %f\n", freq_max/kTHz);
-  ::output->write("\n");
+  cout << "\n";
+  cout << "  number of samples " << num_samples << "\n";
+  cout << "  sampling time (s) " << t_sample << "\n";
+  cout << "  acquisition time (s) " << t_sample * num_samples << "\n";
+  cout << "  frequency resolution (THz) " << freq_delta/kTHz << "\n";
+  cout << "  maximum frequency (THz) " << freq_max/kTHz << "\n";
+  cout << "\n";
 
   // ------------------------------------------------------------------
   // construct Brillouin zone sample points from the nodes specified
@@ -86,7 +87,18 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
     Vec3 bz_vec = scale(cfg_vec, ::lattice->kspace_size());
 
-    ::output->verbose("  bz node: int[ %4d %4d %4d ] float[ %6.6f %6.6f %6.6f ]\n", int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2]), bz_vec[0], bz_vec[1], bz_vec[2]);
+    if (verbose_is_enabled()) {
+      cout << "  bz node: ";
+      cout << "int[ ";
+      for (auto i = 0; i < 3; ++i) {
+        cout << int(bz_vec[i]) << " ";
+      }
+      cout << "] float [ ";
+      for (auto i = 0; i < 3; ++i) {
+        cout << bz_vec[i] << " ";
+      }
+      cout << "\n";
+    }
 
     bz_nodes.push_back({int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2])});
   }
@@ -110,7 +122,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     for (int i = 0; i < 3; ++i) {
       bz_line[i] = int(bz_nodes[n+1][i]) - int(bz_nodes[n][i]);
     }
-    ::output->verbose("  bz line: [ %4d %4d %4d ]\n", bz_line[0], bz_line[1], bz_line[2]);
+
+    if(verbose_is_enabled()) {
+      cout << "  bz line: [ " << bz_line[0] << " " << bz_line[1] << " " << bz_line[2] << "\n";
+    }
 
     // normalised vector
     for (int i = 0; i < 3; ++i) {
@@ -120,7 +135,9 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     // the number of points is the max dimension in line
     const int bz_line_points = 1 + std::max(std::max(std::abs(bz_line[0]), std::abs(bz_line[1])), std::abs(bz_line[2]));
 
-    ::output->verbose("  bz line points: %d\n", bz_line_points);
+    if (verbose_is_enabled()) {
+      cout << "  bz line points  " << bz_line_points << "\n";
+    }
 
     // store the length element between these points
     for (int j = 0; j < bz_line_points; ++j) {
@@ -140,7 +157,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
       bz_lengths.push_back(abs(bz_line_element));
 
       bz_points.push_back(bz_point);
-      ::output->verbose("  bz point: %6d %6.6f [ %4d %4d %4d ]\n", bz_point_counter, bz_lengths.back(), bz_points.back()[0], bz_points.back()[1], bz_points.back()[2]);
+      if (verbose_is_enabled()) {
+        cout << "  bz point " << bz_point_counter << " " << bz_lengths.back() << " " << bz_points.back()[0] << " "
+             << bz_points.back()[1] << " " << bz_points.back()[2] << "\n";
+      }
       bz_point_counter++;
     }
     bz_points_path_count.push_back(bz_points.size());
