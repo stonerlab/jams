@@ -13,20 +13,12 @@
 #define GLOBAL
 #endif
 
-#ifdef CUDA
-#include <cuda.h>
-#include <cuda_runtime.h>
-#endif
-
 class Solver;
-class Physics;
 class Lattice;
 class Random;
 namespace libconfig { class Config; }
 
-
 GLOBAL Solver  *solver;
-GLOBAL Physics *physics_module;
 GLOBAL Lattice *lattice;
 GLOBAL libconfig::Config *config;  ///< Config object
 GLOBAL Random  *rng;

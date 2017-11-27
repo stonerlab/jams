@@ -1,3 +1,5 @@
+#include <cstdlib>
+
 #include "jams/core/jams++.h"
 
 int main(int argc, char **argv) {

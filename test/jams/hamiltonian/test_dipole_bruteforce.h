@@ -40,20 +40,15 @@ class DipoleHamiltonianBruteforceTest : public ::testing::Test {
     ::rng->seed(time(NULL));
     ::config->readString(config_string);
     ::lattice->init_from_config(*::config);
-    ::physics_module = Physics::create(config->lookup("physics"));
     ::solver = Solver::create(config->lookup("solver"));
     int argc = 0; char **argv; double dt = 0.1;
     ::solver->initialize(config->lookup("solver"));
-    ::solver->register_physics_module(physics_module);
+    ::solver->register_physics_module(Physics::create(config->lookup("physics")));
   }
 
   virtual void TearDown() {
     // Code here will be called immediately after each test (right
     // before the destructor).
-    if (::physics_module != nullptr) {
-      delete ::physics_module;
-      ::physics_module = nullptr;
-    }
     if (::solver != nullptr) {
       delete ::solver;
       ::solver = nullptr;

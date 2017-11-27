@@ -7,6 +7,7 @@
 
 #include <string>
 #include <libconfig.h++>
+
 #include "jams/interface/config.h"
 
 class Base {

@@ -1,31 +1,24 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #define GLOBALORIGIN
+#include "version.h"
 
 #include <cstdarg>
 #include <fstream>
-#include <chrono>
-#include <cstdio>
-#include <cstdlib>
-#include <exception>
 
-#include "version.h"
-#include "jams/interface/config.h"
-#include "jams/core/jams++.h"
-#include "jams/helpers/load.h"
-#include "jams/core/output.h"
-#include "jams/core/rand.h"
-#include "jams/core/types.h"
-#include "jams/helpers/exception.h"
-#include "jams/helpers/error.h"
 #include "jams/core/globals.h"
+#include "jams/core/hamiltonian.h"
+#include "jams/core/jams++.h"
 #include "jams/core/lattice.h"
 #include "jams/core/monitor.h"
 #include "jams/core/physics.h"
+#include "jams/core/rand.h"
 #include "jams/core/solver.h"
-#include "jams/helpers/utils.h"
 #include "jams/helpers/duration.h"
-#include "hamiltonian.h"
+#include "jams/helpers/error.h"
+#include "jams/helpers/exception.h"
+#include "jams/helpers/load.h"
+#include "jams/interface/config.h"
 
 using namespace std;
 
@@ -39,7 +32,6 @@ namespace jams {
 
     void delete_global_classes() {
       delete solver;
-      delete physics_module;
       delete lattice;
       delete rng;
       delete config;
@@ -121,13 +113,14 @@ int jams_initialize(int argc, char **argv) {
 
       cout << jams::section("init physics");
 
-      physics_module = Physics::create(config->lookup("physics"));
 
       cout << jams::section("init solver");
 
       solver = Solver::create(config->lookup("solver"));
       solver->initialize(config->lookup("solver"));
-      solver->register_physics_module(physics_module);
+
+      // todo: fix this memory leak
+      ::solver->register_physics_module(Physics::create(config->lookup("physics")));
 
       cout << jams::section("init monitors");
 

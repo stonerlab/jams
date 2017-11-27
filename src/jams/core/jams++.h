@@ -2,8 +2,12 @@
 
 #ifndef JAMS_CORE_JAMS_H
 #define JAMS_CORE_JAMS_H
-#include <cstdlib>
+
+#include <ctime>
+#include <string>
+
 #include <libconfig.h++>
+
 #include "jams/helpers/defaults.h"
 
 namespace jams {
