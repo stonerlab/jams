@@ -11,8 +11,6 @@
 
 #include "jams/interface/config.h"
 
-using namespace std;
-
 class Base {
 public:
     inline Base() = default;
@@ -64,11 +62,11 @@ verbose_(verbose),
 debug_(debug)
 {
   if (debug_is_enabled()) {
-    cout << "  DEBUG\n";
+    std::cout << "  DEBUG\n";
   }
 
   if (verbose_is_enabled()) {
-    cout << "  VERBOSE\n";
+    std::cout << "  VERBOSE\n";
   }
 }
 
@@ -78,11 +76,11 @@ inline Base::Base(const libconfig::Setting &settings) :
   debug_(jams::config_optional<bool>(settings, "debug", false))
 {
   if (debug_is_enabled()) {
-    cout << "  DEBUG\n";
+    std::cout << "  DEBUG\n";
   }
 
   if (verbose_is_enabled()) {
-    cout << "  VERBOSE\n";
+    std::cout << "  VERBOSE\n";
   }
 }
 
