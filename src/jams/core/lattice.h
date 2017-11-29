@@ -189,7 +189,7 @@ Lattice::motif_position_cart(int i) const {
 inline Material
 Lattice::motif_material(int i) const {
   assert(i < motif_.size());
-  return material_id_map_.at(i);
+  return material_id_map_.at(motif_[i].material);
 }
 
 inline int
