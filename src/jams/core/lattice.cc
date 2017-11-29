@@ -70,9 +70,9 @@ namespace {
     }
 
     void output_unitcell_vectors(const Cell& cell) {
-      cout << "    a = " << cell.a();
-      cout << "    b = " << cell.b();
-      cout << "    c = " << cell.c();
+      cout << "    a = " << cell.a() << "\n";
+      cout << "    b = " << cell.b() << "\n";
+      cout << "    c = " << cell.c() << "\n";
     }
 }
 
