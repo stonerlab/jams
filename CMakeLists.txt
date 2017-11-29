@@ -24,6 +24,8 @@ include(cmake/Utils.cmake)
 include(cmake/Dependencies.cmake)
 include(cmake/Targets.cmake)
 
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+
 
 jams_ensure_out_of_source_build()
 
