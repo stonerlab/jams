@@ -24,7 +24,7 @@ public:
     double     gyro  = jams::default_material_gyro;
     double     alpha = jams::default_material_alpha;
     Vec3       spin  = jams::default_material_spin;
-    Vec3   transform = {1.0, 1.0, 1.0};
+    Vec3   transform = {{1.0, 1.0, 1.0}};
     bool   randomize = false;
 
     inline Material() = default;

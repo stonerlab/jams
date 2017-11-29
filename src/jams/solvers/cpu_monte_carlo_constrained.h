@@ -37,7 +37,7 @@ class ConstrainedMCSolver : public Solver {
 
     double constraint_theta_   = 0.0;
     double constraint_phi_     = 0.0;
-    Vec3   constraint_vector_  = {0.0, 0.0, 1.0};
+    Vec3   constraint_vector_  = {{0.0, 0.0, 1.0}};
 
     Mat3 rotation_matrix_         = kIdentityMat3;
     Mat3 inverse_rotation_matrix_ = kIdentityMat3;
