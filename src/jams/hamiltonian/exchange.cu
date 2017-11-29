@@ -84,9 +84,6 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   // read settings
   //---------------------------------------------------------------------
 
-    is_debug_enabled_ = false;
-    settings.lookupValue("debug", is_debug_enabled_);
-
     std::string interaction_filename = settings["exc_file"].c_str();
     std::ifstream interaction_file(interaction_filename.c_str());
     if (interaction_file.fail()) {
@@ -108,6 +105,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     bool print_unfolded = false;
     settings.lookupValue("print_unfolded", print_unfolded);
 
+    print_unfolded = print_unfolded || verbose_is_enabled() || debug_is_enabled();
+
     energy_cutoff_ = 1E-26;  // Joules
     settings.lookupValue("energy_cutoff", energy_cutoff_);
     cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
@@ -122,7 +121,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     
     safety_check_distance_tolerance(distance_tolerance_);
 
-    if (is_debug_enabled_) {
+    if (debug_is_enabled()) {
       std::ofstream pos_file("debug_pos.dat");
       for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
@@ -139,9 +138,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     // generate interaction list
     //---------------------------------------------------------------------
   generate_neighbour_list_from_file(interaction_file, exchange_file_format_, coord_format, energy_cutoff_, radius_cutoff_, use_symops,
-                                    print_unfolded || is_debug_enabled_, neighbour_list_);
+                                    print_unfolded || debug_is_enabled(), neighbour_list_);
 
-    if (is_debug_enabled_) {
+    if (debug_is_enabled()) {
       std::ofstream debug_file("DEBUG_exchange_nbr_list.tsv");
       write_neighbour_list(debug_file, neighbour_list_);
       debug_file.close();

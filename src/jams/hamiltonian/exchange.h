@@ -52,7 +52,6 @@ class ExchangeHamiltonian : public Hamiltonian {
         double energy_cutoff_;
         double radius_cutoff_;
         double distance_tolerance_;
-        bool is_debug_enabled_;
         InteractionFileFormat exchange_file_format_;
 
 

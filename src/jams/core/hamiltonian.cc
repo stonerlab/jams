@@ -42,7 +42,8 @@ Hamiltonian* Hamiltonian::create(const libconfig::Setting &settings, const unsig
 }
 
 Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int size)
-        : energy_(size, 0.0),
+        : Base(settings),
+          energy_(size, 0.0),
           field_(size, 3, 0.0),
           name_(settings["module"].c_str())
 {

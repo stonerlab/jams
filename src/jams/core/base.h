@@ -6,9 +6,12 @@
 #define JAMS_BASE_H
 
 #include <string>
+#include <iostream>
 #include <libconfig.h++>
 
 #include "jams/interface/config.h"
+
+using namespace std;
 
 class Base {
 public:
@@ -59,13 +62,29 @@ inline Base::Base(const std::string& name, bool verbose, bool debug) :
 name_(name),
 verbose_(verbose),
 debug_(debug)
-{}
+{
+  if (debug_is_enabled()) {
+    cout << "  DEBUG\n";
+  }
+
+  if (verbose_is_enabled()) {
+    cout << "  VERBOSE\n";
+  }
+}
 
 inline Base::Base(const libconfig::Setting &settings) :
   name_(jams::config_optional<string>(settings, "module", "")),
   verbose_(jams::config_optional<bool>(settings, "verbose", false)),
   debug_(jams::config_optional<bool>(settings, "debug", false))
-{}
+{
+  if (debug_is_enabled()) {
+    cout << "  DEBUG\n";
+  }
+
+  if (verbose_is_enabled()) {
+    cout << "  VERBOSE\n";
+  }
+}
 
 
 #endif //JAMS_BASE_H
