@@ -94,7 +94,7 @@ void jams_initialize(int argc, char **argv) {
 
     if (config->exists("sim")) {
       simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
-      simulation.random_seed = jams::config_optional<int>(config->lookup("sim"), "seed", simulation.random_seed);
+      simulation.random_seed = jams::config_optional<long>(config->lookup("sim"), "seed", simulation.random_seed);
     }
 
     cout << "verbose " << simulation.verbose << "\n";

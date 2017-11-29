@@ -19,7 +19,7 @@ namespace jams {
         std::string config_file_name;
         std::string config_patch_string;
 
-        int random_seed = time(nullptr);
+        int64_t random_seed = time(nullptr);
     };
 }
 
