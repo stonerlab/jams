@@ -37,7 +37,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     jams_error("Failed to create CURAND generator in CudaLangevinWhiteThermostat");
   }
 
-  const uint64_t dev_rng_seed = rng->uniform()*18446744073709551615ULL;
+  auto dev_rng_seed = static_cast<uint64_t>(rng->uniform() * 18446744073709551615ULL);
 
   cout << "    creating stream\n";
   cudaStreamCreate(&dev_stream_);
@@ -54,7 +54,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   }
   // sigma.resize(num_spins);
   for(int i = 0; i < num_spins; ++i) {
-    sigma_(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kBohrMagneton) );
+    sigma_(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton) );
   }
 
   cout << "    transfering sigma to device\n";

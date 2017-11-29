@@ -50,7 +50,7 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   }
 
   cout << "  copy time_step to symbol\n";
-  if(cudaMemcpyToSymbol(dev_dt, &time_step_, sizeof(double)) != cudaSuccess) {
+  if(cudaMemcpyToSymbol(dev_dt, &dt, sizeof(double)) != cudaSuccess) {
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
