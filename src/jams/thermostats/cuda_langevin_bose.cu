@@ -1,8 +1,5 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
-
 #include <cmath>
 #include <string>
 #include <iomanip>
@@ -20,7 +17,7 @@
 #include "jams/core/rand.h"
 #include "jams/helpers/error.h"
 
-#include "../monitors/magnetisation.h"
+#include "jams/monitors/magnetisation.h"
 
 using namespace std;
 

@@ -5,7 +5,7 @@ class Random;
 #ifndef JAMS_CORE_RAND_H
 #define JAMS_CORE_RAND_H
 
-#include <stdint.h>
+#include <cstdint>
 #include <cassert>
 
 #include <limits>
