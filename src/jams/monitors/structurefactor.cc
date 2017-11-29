@@ -46,10 +46,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     }
   }
 
-  libconfig::Setting& sim_settings = ::config->lookup("sim");
+  libconfig::Setting& solver_settings = ::config->lookup("solver");
 
-  double t_step = sim_settings["t_step"];
-  double t_run = sim_settings["t_run"];
+  double t_step = solver_settings["t_step"];
+  double t_run = solver_settings["t_max"];
 
   double t_sample = output_step_freq_*t_step;
   int    num_samples = int(t_run/t_sample);
