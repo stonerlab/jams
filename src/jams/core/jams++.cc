@@ -77,6 +77,7 @@ void jams_initialize(int argc, char **argv) {
   cout << jams::build::branch << "\n";
   cout << "run     ";
   cout << get_date_string(std::chrono::system_clock::now()) << "\n";
+  cout.flush();
 
   jams::process_command_line_args(argc, argv, simulation);
   seedname = simulation.name;
@@ -102,10 +103,12 @@ void jams_initialize(int argc, char **argv) {
 
     rng->seed(static_cast<const uint32_t>(simulation.random_seed));
 
+    cout.flush();
     cout << jams::section("init lattice");
 
     lattice->init_from_config(*::config);
 
+    cout.flush();
     cout << jams::section("init solver");
 
     solver = Solver::create(config->lookup("solver"));
@@ -113,6 +116,7 @@ void jams_initialize(int argc, char **argv) {
     // todo: fix this memory leak
     solver->register_physics_module(Physics::create(config->lookup("physics")));
 
+    cout.flush();
     cout << jams::section("init monitors");
 
     if (!::config->exists("monitors")) {
@@ -124,6 +128,7 @@ void jams_initialize(int argc, char **argv) {
       }
     }
 
+    cout.flush();
     cout << jams::section("init hamiltonians");
 
     if (!::config->exists("hamiltonians")) {
@@ -172,8 +177,10 @@ void jams_run() {
   using namespace std::chrono;
 
   cout << jams::section("running solver");
+  cout.flush();
   auto start_time = time_point_cast<milliseconds>(system_clock::now());
   cout << "start   " << get_date_string(start_time) << "\n\n";
+  cout.flush();
 
   while (::solver->is_running()) {
     if (::solver->is_converged()) {
@@ -188,6 +195,8 @@ void jams_run() {
   auto end_time = time_point_cast<milliseconds>(system_clock::now());
   cout << "finish  " << get_date_string(end_time) << "\n\n";
   cout << "runtime " << duration_string(end_time - start_time) << "\n";
+  cout.flush();
+
 }
 
 void jams_finish() {
