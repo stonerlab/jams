@@ -24,8 +24,8 @@ list(APPEND JAMS_LINKER_LIBS ${CUDA_CUFFT_LIBRARIES})
 list(APPEND JAMS_LINKER_LIBS ${CUDA_CUBLAS_LIBRARIES})
 list(APPEND JAMS_LINKER_LIBS ${CUDA_curand_LIBRARY})
 list(APPEND JAMS_LINKER_LIBS ${CUDA_cusparse_LIBRARY})
+add_definitions(-DCUDA)
 
-# -- MKL (BLAS and FFTW3)
 find_package(MKL)
 if(MKL_FOUND)
 	include_directories(SYSTEM ${MKL_INCLUDE_DIR})
@@ -33,8 +33,6 @@ if(MKL_FOUND)
 	list(APPEND JAMS_LINKER_LIBS ${MKL_LIBRARIES})
 	add_definitions(-DUSE_MKL)
 endif(MKL_FOUND)
-
-# -- fftw3
 
 if(NOT MKL_FOUND)
 	find_package(FFTW3 REQUIRED)
