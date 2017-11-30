@@ -3,7 +3,6 @@
 #include <string>
 #include <fstream>
 
-#include "jams/core/output.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"

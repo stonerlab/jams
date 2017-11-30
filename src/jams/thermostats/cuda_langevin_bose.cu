@@ -13,7 +13,6 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/consts.h"
-#include "jams/core/output.h"
 #include "jams/core/rand.h"
 #include "jams/helpers/error.h"
 

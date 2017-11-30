@@ -23,7 +23,6 @@
 #include "jams/physics/two_temperature_model.h"
 #include "jams/physics/ping.h"
 #include "jams/physics/flips.h"
-#include "jams/core/output.h"
 
 using namespace std;
 

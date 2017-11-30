@@ -20,11 +20,11 @@
 __global__ void cuda_anisotropy_kernel
 (
   const int num_spins,
-  const CudaFastFloat * dev_d2z_,
-  const CudaFastFloat * dev_d4z_,
-  const CudaFastFloat * dev_d6z_,
-  const CudaFastFloat * dev_sf_,
-  CudaFastFloat * dev_h_
+  const double * dev_d2z_,
+  const double * dev_d4z_,
+  const double * dev_d6z_,
+  const double * dev_sf_,
+  double * dev_h_
 ) {
 
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
@@ -79,12 +79,12 @@ __global__ void spmv_dia_kernel
  const int ncols,
  const int ndiag,
  const size_t pitch,
- const CudaFastFloat alpha,
- const CudaFastFloat beta,
+ const double alpha,
+ const double beta,
  const int * dia_offsets,
- const CudaFastFloat * dia_values,
- const CudaFastFloat * x,
- CudaFastFloat * y)
+ const double * dia_values,
+ const double * x,
+ double * y)
 {
 
 /*
@@ -134,7 +134,7 @@ __global__ void spmv_dia_kernel
         // process chunk
         for(int row = thread_id; row < nrows; row += grid_size)
         {
-            CudaFastFloat sum;
+            double sum;
             if(base == 0){
               // NOTE: floating point comparison avoids reading h_dev[] for
               // special case
@@ -156,11 +156,11 @@ __global__ void spmv_dia_kernel
                 const int colLow = row - offsets[n];
 
                 if(colLow >= row && colLow < ncols) {
-                  const CudaFastFloat A_ij = alpha*dia_values[pitch*(base+n)+colLow];
+                  const double A_ij = alpha*dia_values[pitch*(base+n)+colLow];
                   sum += A_ij*x[colLow];
                 }
                 if(colUp >= 0 && colUp < row) {
-                  const CudaFastFloat A_ij = alpha*dia_values[idxUp];
+                  const double A_ij = alpha*dia_values[idxUp];
                   sum += A_ij*x[colUp];
                 }
                 idxUp += pitch;

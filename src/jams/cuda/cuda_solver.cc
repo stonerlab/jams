@@ -1,21 +1,12 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
+#include "jams/cuda/cuda_solver.h"
+
 #include <cublas.h>
 
-#include "cuda_solver.h"
-#include "cuda_solver_kernels.h"
-
-#include "jams/helpers/consts.h"
-#include "cuda_defs.h"
-#include "cuda_sparsematrix.h"
-#include "jams/helpers/exception.h"
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
-#include "jams/core/solver.h"
-#include "jams/core/thermostat.h"
-#include "jams/helpers/utils.h"
-
-#include "jams/cuda/wrappers/stream.h"
+#include "jams/core/monitor.h"
 
 using namespace std;
 
@@ -60,26 +51,32 @@ void CudaSolver::initialize(const libconfig::Setting& settings) {
   cout << "\n";
 }
 
-void CudaSolver::run() {
-}
-
 void CudaSolver::compute_fields() {
   using namespace globals;
 
-  for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-    (*it)->calculate_fields();
+  for (auto& ham : hamiltonians_) {
+    ham->calculate_fields();
   }
 
-  // zero the field array
-  if (cudaMemsetAsync(dev_h_.data(), 0.0, num_spins3*sizeof(double), dev_stream_.get()) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
-  const double alpha = 1.0;
-  for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-    cublasDaxpy(globals::num_spins3, alpha, (*it)->dev_ptr_field(), 1, dev_h_.data(), 1);
+  dev_h_.zero();
+  for (auto& ham : hamiltonians_) {
+    cublasDaxpy(dev_h_.elements(), 1.0, ham->dev_ptr_field(), 1, dev_h_.data(), 1);
   }
 }
 
-CudaSolver::~CudaSolver() {
+void CudaSolver::notify_monitors() {
+  bool is_device_synchonised = false;
+  for (auto& mon : monitors_) {
+    if(mon->is_updating(iteration_)){
+      if (!is_device_synchonised) {
+        sync_device_data();
+        is_device_synchonised = true;
+      }
+      mon->update(this);
+    }
+  }
+}
+
+double *CudaSolver::dev_ptr_spin() {
+  return dev_s_.data();
 }

@@ -6,7 +6,6 @@
 #include <libconfig.h++>
 
 #include "jams/helpers/error.h"
-#include "jams/core/output.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
 #include "jams/core/thermostat.h"

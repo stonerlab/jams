@@ -8,7 +8,6 @@
 #include <libconfig.h++>
 
 #include "jams/core/types.h"
-#include "jams/core/output.h"
 #include "jams/core/hamiltonian.h"
 
 #include "strategy.h"

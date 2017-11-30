@@ -1,6 +1,5 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 #include <cstring>
-#include "jams/core/output.h"
 #include "jams/core/globals.h"
 
 void jams_dcsrmv(const char trans[1], const int m, const int n,

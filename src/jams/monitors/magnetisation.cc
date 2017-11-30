@@ -3,18 +3,14 @@
 #include <cmath>
 #include <string>
 #include <iomanip>
-#include <algorithm>
 
-#include "jams/core/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 
-#include "magnetisation.h"
-
-#include "jblib/containers/vec.h"
+#include "jams/monitors/magnetisation.h"
 
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),

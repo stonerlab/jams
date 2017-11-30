@@ -8,21 +8,21 @@
 
 class CudaStream {
   public:
-    CudaStream();
-    CudaStream(std::nullptr_t);
+    inline CudaStream();
+    inline CudaStream(std::nullptr_t);
 
-    ~CudaStream();
+    inline ~CudaStream();
 
     CudaStream(CudaStream&&) = default;
     CudaStream& operator=(CudaStream&&) = default;
     CudaStream(const CudaStream&) = delete;
     CudaStream& operator=(const CudaStream&) = delete;
 
-    explicit operator bool() const;
+    inline explicit operator bool() const;
 
-    void synchronize();
+    inline void synchronize();
 
-    cudaStream_t& get();
+    inline cudaStream_t& get();
 
   private:
     cudaStream_t stream_ = nullptr;

@@ -25,8 +25,8 @@ GLOBAL Random  *rng;
 GLOBAL std::string seedname;
 
 namespace globals {
-  GLOBAL int num_spins;
-  GLOBAL int num_spins3;
+  GLOBAL unsigned int num_spins;
+  GLOBAL unsigned int num_spins3;
 
   GLOBAL jblib::Array<double, 2> s;
   GLOBAL jblib::Array<double, 2> h;

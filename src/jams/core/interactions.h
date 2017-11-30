@@ -14,6 +14,9 @@ class InteractionList;
 
 enum class InteractionFileFormat {JAMS, KKR};
 
+InteractionFileFormat exchange_file_format_from_string(std::string s);
+CoordinateFormat coordinate_format_from_string(std::string s);
+
 
 typedef struct {
     int index;
@@ -97,6 +100,8 @@ class InteractionList {
   private:
     std::vector<value_type> list;
 };
+
+
 
 //---------------------------------------------------------------------
 

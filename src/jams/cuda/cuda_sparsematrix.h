@@ -20,11 +20,11 @@ __global__ void cuda_fft_convolution
 __global__ void cuda_anisotropy_kernel
 (
   const int num_spins,
-  const CudaFastFloat * dev_d2z_,
-  const CudaFastFloat * dev_d4z_,
-  const CudaFastFloat * dev_d6z_,
-  const CudaFastFloat * dev_sf_,
-  CudaFastFloat * dev_h_
+  const double * dev_d2z_,
+  const double * dev_d4z_,
+  const double * dev_d6z_,
+  const double * dev_sf_,
+  double * dev_h_
 );
 
 __global__ void spmv_dia_kernel
@@ -32,11 +32,11 @@ __global__ void spmv_dia_kernel
  const int ncols,
  const int ndiag,
  const size_t pitch,
- const CudaFastFloat alpha,
- const CudaFastFloat beta,
+ const double alpha,
+ const double beta,
  const int * dia_offsets,
- const CudaFastFloat * dia_values,
- const CudaFastFloat * x,
- CudaFastFloat * y);
+ const double * dia_values,
+ const double * x,
+ double * y);
 
 #endif

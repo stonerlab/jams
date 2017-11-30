@@ -9,7 +9,6 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
-#include "jams/core/output.h"
 #include "jams/core/lattice.h"
 
 #include "dipole_cuda_sparse_tensor.h"

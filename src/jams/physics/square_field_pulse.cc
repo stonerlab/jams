@@ -7,7 +7,6 @@
 #include <cmath>
 
 #include "jams/core/globals.h"
-#include "jams/core/output.h"
 
 SquarePhysics::SquarePhysics(const libconfig::Setting &settings)
   : Physics(settings),

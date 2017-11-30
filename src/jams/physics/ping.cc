@@ -6,7 +6,6 @@
 
 #include <cmath>
 
-#include "jams/core/output.h"
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
 #include "jblib/containers/vec.h"

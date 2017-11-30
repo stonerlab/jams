@@ -13,6 +13,7 @@ using std::string;
 //-----------------------------------------------------------------------------
 
 enum class CoordinateFormat {Cartesian, Fractional};
+enum OutputFormat {TEXT, HDF5};
 
 //-----------------------------------------------------------------------------
 // typedefs
@@ -36,6 +37,5 @@ struct Atom {
     int  material;
     Vec3 pos;
 };
-
 
 #endif  // JAMS_CORE_TYPES_H

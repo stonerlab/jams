@@ -9,7 +9,6 @@
 #include <string>
 
 #include "jams/core/globals.h"
-#include "jams/core/output.h"
 #include "jams/helpers/consts.h"
 
 #include "jblib/math/functions.h"

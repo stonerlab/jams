@@ -5,7 +5,6 @@
 #include <libconfig.h++>
 
 #include "jams/core/globals.h"
-#include "jams/core/output.h"
 #include "jblib/containers/vec.h"
 
 FieldCoolPhysics::FieldCoolPhysics(const libconfig::Setting &settings)

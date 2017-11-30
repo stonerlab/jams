@@ -8,7 +8,6 @@
 #include <cmath>
 #include <string>
 
-#include "jams/core/output.h"
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"

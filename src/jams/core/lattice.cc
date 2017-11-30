@@ -13,6 +13,7 @@ extern "C"{
 #include <stdexcept>
 #include <cmath>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <map>
 #include <string>
@@ -25,7 +26,6 @@ extern "C"{
 #include "jams/helpers/defaults.h"
 #include "jams/containers/material.h"
 #include "jams/helpers/error.h"
-#include "jams/core/output.h"
 #include "jams/core/rand.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/exception.h"

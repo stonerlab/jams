@@ -10,7 +10,6 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "utils.h"
-#include "jams/core/output.h"
 
 #include "jblib/containers/array.h"
 

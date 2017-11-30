@@ -12,9 +12,9 @@
 #include <cusparse.h>
 #endif
 
-#include "jams/core/output.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda-sparse-helpers.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/cuda_array.h"
@@ -45,22 +45,15 @@ class ExchangeNeartreeHamiltonian : public Hamiltonian {
 
         void insert_interaction(const int i, const int j, const Mat3 &value);
 
-        sparse_matrix_format_t sparse_matrix_format();
-        void set_sparse_matrix_format(std::string &format_name);
-
         InteractionList interaction_list_;
         SparseMatrix<double> interaction_matrix_;
-        sparse_matrix_format_t interaction_matrix_format_;
         double energy_cutoff_;
         double distance_tolerance_;
-        bool is_debug_enabled_;
 
 
 #ifdef CUDA
-        devDIA dev_dia_interaction_matrix_;
-        devCSR dev_csr_interaction_matrix_;
+        CudaSparseMatrixCSR<double> dev_csr_interaction_matrix_;
         cusparseHandle_t   cusparse_handle_;
-        cusparseMatDescr_t cusparse_descra_;
         cudaStream_t dev_stream_ = nullptr;
 #endif  // CUDA
 

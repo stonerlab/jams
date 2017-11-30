@@ -10,7 +10,6 @@
 #include <fftw3.h>
 
 #include "jams/helpers/error.h"
-#include "jams/core/output.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/consts.h"

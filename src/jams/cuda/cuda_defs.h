@@ -8,15 +8,14 @@
 #include <cstddef>
 #include <map>
 
-typedef double CudaFastFloat;
-
-#define BLOCKSIZE 16
 #define DIA_BLOCK_SIZE 256
+
+dim3 cuda_grid_size(const dim3& block_size, const dim3& grid_size);
 
 typedef struct devDIA {
   int     *row;
   int     *col;
-  CudaFastFloat   *val;
+  double   *val;
   size_t     pitch;
   int     blocks;
 } devDIA;
@@ -24,7 +23,7 @@ typedef struct devDIA {
 typedef struct devCSR {
   int     *row;
   int     *col;
-  CudaFastFloat   *val;
+  double   *val;
   int     blocks;
 } devCSR;
 

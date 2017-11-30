@@ -1,14 +1,14 @@
 #include <cmath> 
 #include <iomanip>
-#include <istream>
+#include <fstream>
 #include <string>
+#include <sstream>
 #include <set>
 #include <jams/core/interactions.h>
 
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 #include "jams/core/globals.h"
 #include "jams/core/interactions.h"
 #include "jams/helpers/utils.h"
@@ -18,6 +18,31 @@
 #include "jblib/containers/matrix.h"
 
 using namespace std;
+
+InteractionFileFormat exchange_file_format_from_string(std::string s) {
+  if (capitalize(s) == "JAMS") {
+    return InteractionFileFormat::JAMS;
+  }
+
+  if (capitalize(s) == "KKR") {
+    return InteractionFileFormat::KKR;
+  }
+
+  throw std::runtime_error("Unknown exchange file format");
+}
+
+CoordinateFormat coordinate_format_from_string(std::string s) {
+  if (capitalize(s) == "CART" || capitalize(s) == "CARTESIAN") {
+    return CoordinateFormat::Cartesian;
+  }
+
+  if (capitalize(s) == "FRAC" || capitalize(s) == "FRACTIONAL") {
+    return CoordinateFormat::Fractional;
+  }
+
+  throw std::runtime_error("Unknown coordinate format");
+}
+
 
 namespace { //anon
   int find_motif_index(const Vec3 &offset, const double tolerance = 1e-5) {

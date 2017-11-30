@@ -4,7 +4,6 @@
 #include <algorithm>
 
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 #include "jblib/containers/matrix.h"
 #include "jblib/containers/vec.h"
 #include "jams/interface/blas.h"

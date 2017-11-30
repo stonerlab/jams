@@ -1,4 +1,5 @@
 #include <set>
+#include <fstream>
 
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
@@ -42,14 +43,9 @@ void ExchangeNeartreeHamiltonian::insert_interaction(const int i, const int j, c
 ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
 
-    is_debug_enabled_ = false;
     std::ofstream debug_file;
 
-    if (settings.exists("debug")) {
-      is_debug_enabled_ = settings["debug"];
-    }
-
-    if (is_debug_enabled_) {
+    if (debug_is_enabled()) {
       debug_file.open("debug_exchange.dat");
 
       std::ofstream pos_file("debug_pos.dat");
@@ -171,7 +167,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
             insert_interaction(i, n.id, {jij, 0.0, 0.0, 0.0, jij, 0.0, 0.0, 0.0, jij});
             counter++;
 
-            if (is_debug_enabled_) {
+            if (debug_is_enabled()) {
               debug_file << i << "\t" << n.id << "\t";
               debug_file << lattice->atom_position(i)[0] << "\t";
               debug_file << lattice->atom_position(i)[1] << "\t";
@@ -183,101 +179,38 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
           }
         }
       }
-      if (is_debug_enabled_) {
+      if (debug_is_enabled()) {
         debug_file << "\n\n";
       }
     }
 
-    if (is_debug_enabled_) {
+  if (debug_is_enabled()) {
       debug_file.close();
     }
 
     cout << "  total interactions " << counter << "\n";
 
-    cout << "  converting interaction matrix format from MAP to CSR\n";
-    interaction_matrix_.convertMAP2CSR();
-    cout << "  exchange matrix memory (CSR): " << interaction_matrix_.calculateMemory() << " (MB)\n";
+  cout << "    converting interaction matrix format from MAP to CSR\n";
+  interaction_matrix_.convertMAP2CSR();
+  cout << "    exchange matrix memory (CSR): " << interaction_matrix_.calculateMemory() << " (MB)\n";
 
-    //---------------------------------------------------------------------
-    // initialize CUDA arrays
-    //---------------------------------------------------------------------
-
-    if (solver->is_cuda_solver()) {
+  // transfer arrays to cuda device if needed
+  if (solver->is_cuda_solver()) {
 #ifdef CUDA
+    cudaStreamCreate(&dev_stream_);
 
-        cudaStreamCreate(&dev_stream_);
+    dev_energy_ = jblib::CudaArray<double, 1>(energy_);
+    dev_field_  = jblib::CudaArray<double, 1>(field_);
 
-        dev_energy_ = jblib::CudaArray<double, 1>(energy_);
-        dev_field_ = jblib::CudaArray<double, 1>(field_);
+    cout << "    init cusparse\n";
+    cusparseStatus_t status;
+    status = cusparseCreate(&cusparse_handle_);
+    if (status != CUSPARSE_STATUS_SUCCESS) {
+      jams_error("cusparse Library initialization failed");
+    }
+    cusparseSetStream(cusparse_handle_, dev_stream_);
 
-        if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
-          cout << "  * Initialising CUSPARSE...\n";
-          cusparseStatus_t status;
-          status = cusparseCreate(&cusparse_handle_);
-          if (status != CUSPARSE_STATUS_SUCCESS) {
-            jams_error("CUSPARSE Library initialization failed");
-          }
-          cusparseSetStream(cusparse_handle_, dev_stream_);
-
-
-          // create matrix descriptor
-          status = cusparseCreateMatDescr(&cusparse_descra_);
-          if (status != CUSPARSE_STATUS_SUCCESS) {
-            jams_error("CUSPARSE Matrix descriptor initialization failed");
-          }
-          cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
-          cusparseSetMatIndexBase(cusparse_descra_,CUSPARSE_INDEX_BASE_ZERO);
-
-          cout << "  allocating memory on device\n";
-          cuda_api_error_check(
-            cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
-          cuda_api_error_check(
-            cudaMalloc((void**)&dev_csr_interaction_matrix_.col, (interaction_matrix_.nonZero())*sizeof(int)));
-          cuda_api_error_check(
-            cudaMalloc((void**)&dev_csr_interaction_matrix_.val, (interaction_matrix_.nonZero())*sizeof(double)));
-
-          cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.row, interaction_matrix_.rowPtr(),
-                (interaction_matrix_.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
-
-          cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.col, interaction_matrix_.colPtr(),
-                (interaction_matrix_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
-
-          cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
-                (interaction_matrix_.nonZero())*sizeof(double), cudaMemcpyHostToDevice));
-
-        } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
-          // ::output->write("  converting interaction matrix format from map to dia");
-          // interaction_matrix_.convertMAP2DIA();
-          cout << "  estimated memory usage (DIA): " << interaction_matrix_.calculateMemory() << " (MB)\n";
-          dev_dia_interaction_matrix_.blocks = std::min<int>(DIA_BLOCK_SIZE, (globals::num_spins3+DIA_BLOCK_SIZE-1)/DIA_BLOCK_SIZE);
-          cout << "  allocating memory on device\n";
-
-          // allocate rows
-          cuda_api_error_check(
-            cudaMalloc((void**)&dev_dia_interaction_matrix_.row, (interaction_matrix_.diags())*sizeof(int)));
-          // allocate values
-          cuda_api_error_check(
-            cudaMallocPitch((void**)&dev_dia_interaction_matrix_.val, &dev_dia_interaction_matrix_.pitch,
-              (interaction_matrix_.rows())*sizeof(double), interaction_matrix_.diags()));
-          // copy rows
-          cuda_api_error_check(
-            cudaMemcpy(dev_dia_interaction_matrix_.row, interaction_matrix_.dia_offPtr(),
-              (size_t)((interaction_matrix_.diags())*(sizeof(int))), cudaMemcpyHostToDevice));
-          // convert val array into double which may be float or double
-          std::vector<double> float_values(interaction_matrix_.rows()*interaction_matrix_.diags(), 0.0);
-
-          for (int i = 0; i < interaction_matrix_.rows()*interaction_matrix_.diags(); ++i) {
-            float_values[i] = static_cast<double>(interaction_matrix_.val(i));
-          }
-
-          // copy values
-          cuda_api_error_check(
-            cudaMemcpy2D(dev_dia_interaction_matrix_.val, dev_dia_interaction_matrix_.pitch, &float_values[0],
-              interaction_matrix_.rows()*sizeof(double), interaction_matrix_.rows()*sizeof(double),
-              interaction_matrix_.diags(), cudaMemcpyHostToDevice));
-
-          dev_dia_interaction_matrix_.pitch = dev_dia_interaction_matrix_.pitch/sizeof(double);
-        }
+    sparsematrix_copy_host_csr_to_cuda_csr(interaction_matrix_, dev_csr_interaction_matrix_);
 #endif
   }
 
@@ -365,81 +298,47 @@ void ExchangeNeartreeHamiltonian::calculate_one_spin_field(const int i, double l
 // --------------------------------------------------------------------------
 
 void ExchangeNeartreeHamiltonian::calculate_fields() {
-    // dev_s needs to be found from the solver
+  assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
+  double one = 1.0;
+  double zero = 0.0;
+  const char transa[1] = {'N'};
+  const char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
+  const int num_rows = globals::num_spins3;
+  const int num_cols = globals::num_spins3;
 
-    if (solver->is_cuda_solver()) {
+  if (solver->is_cuda_solver()) {
 #ifdef CUDA
-      if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR) {
-        const double one = 1.0;
-        const double zero = 0.0;
-        cusparseStatus_t stat =
-        cusparseDcsrmv(cusparse_handle_,
-          CUSPARSE_OPERATION_NON_TRANSPOSE,
-          globals::num_spins3,
-          globals::num_spins3,
-          interaction_matrix_.nonZero(),
-          &one,
-          cusparse_descra_,
-          dev_csr_interaction_matrix_.val,
-          dev_csr_interaction_matrix_.row,
-          dev_csr_interaction_matrix_.col,
-          solver->dev_ptr_spin(),
-          &zero,
-          dev_field_.data());
-        assert(stat == CUSPARSE_STATUS_SUCCESS);
-      } else if (interaction_matrix_.getMatrixFormat() == SPARSE_MATRIX_FORMAT_DIA) {
-        spmv_dia_kernel<<< dev_dia_interaction_matrix_.blocks, DIA_BLOCK_SIZE >>>
-            (globals::num_spins3, globals::num_spins3, interaction_matrix_.diags(), dev_dia_interaction_matrix_.pitch, 1.0, 0.0,
-            dev_dia_interaction_matrix_.row, dev_dia_interaction_matrix_.val, solver->dev_ptr_spin(), dev_field_.data());
+    cusparseStatus_t stat =
+            cusparseDcsrmv(cusparse_handle_,
+                    CUSPARSE_OPERATION_NON_TRANSPOSE,
+                    num_rows,
+                    num_cols,
+                    interaction_matrix_.nonZero(),
+                    &one,
+                    dev_csr_interaction_matrix_.descr,
+                    dev_csr_interaction_matrix_.val,
+                    dev_csr_interaction_matrix_.row,
+                    dev_csr_interaction_matrix_.col,
+                    solver->dev_ptr_spin(),
+                    &zero,
+                    dev_field_.data());
+
+    if (debug_is_enabled()) {
+      if (stat != CUSPARSE_STATUS_SUCCESS) {
+        throw cuda_api_exception("cusparse failure", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
+      assert(stat == CUSPARSE_STATUS_SUCCESS);
+    }
 #endif  // CUDA
-    } else {
-      if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
-        // general matrix (i.e. Monte Carlo Solvers)
-        char transa[1] = {'N'};
-        char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
-#ifdef MKL
-        double one = 1.0;
-        double zero = 0.0;
-        mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
-          interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &zero, field_.data());
-#else
-        jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
-          interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
-#endif
-      } else {
-        // symmetric matrix (i.e. Heun Solvers)
-        char transa[1] = {'N'};
-        char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
-#ifdef MKL
-        double one = 1.0;
-        double zero = 0.0;
-        mkl_dcsrmv(transa, &globals::num_spins3, &globals::num_spins3, &one, matdescra, interaction_matrix_.valPtr(),
-          interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), &zero, field_.data());
-#else
-        jams_dcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
-          interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
-#endif
-      }
-    }
-}
-
-
-// --------------------------------------------------------------------------
-
-sparse_matrix_format_t ExchangeNeartreeHamiltonian::sparse_matrix_format() {
-  return interaction_matrix_format_;
-}
-
-void ExchangeNeartreeHamiltonian::set_sparse_matrix_format(std::string &format_name) {
-  if (capitalize(format_name) == "CSR") {
-    interaction_matrix_format_ = SPARSE_MATRIX_FORMAT_CSR;
-  } else if (capitalize(format_name) == "DIA") {
-    if (solver->is_cuda_solver() != true) {
-      jams_error("ExchangeNeartreeHamiltonian::set_sparse_matrix_format: DIA format is only supported for CUDA");
-    }
-    interaction_matrix_format_ = SPARSE_MATRIX_FORMAT_DIA;
   } else {
-    jams_error("ExchangeNeartreeHamiltonian::set_sparse_matrix_format: Unknown format requested %s", format_name.c_str());
+#ifdef USE_MKL
+
+    mkl_dcsrmv(transa, &num_rows, &num_cols, &one, matdescra, interaction_matrix_.valPtr(),
+            interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),
+            &zero, field_.data());
+#else
+    jams_dcsrmv(transa, num_rows, num_cols, 1.0, matdescra, interaction_matrix_.valPtr(),
+      interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
+#endif
   }
 }

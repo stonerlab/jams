@@ -6,7 +6,6 @@
 #include <cstdio>
 #include "jams/core/jams++.h"
 #include "jams/core/globals.h"
-#include "jams/core/output.h"
 
 using namespace std;
 

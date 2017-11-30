@@ -1,6 +1,6 @@
 
 #include <cufft.h>
-
+#include <fstream>
 #include <libconfig.h++>
 
 #include "jblib/containers/vec.h"
@@ -8,7 +8,6 @@
 
 #include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
-#include "jams/core/output.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
 

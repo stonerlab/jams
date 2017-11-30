@@ -5,7 +5,6 @@
 #include <string>
 #include <cmath>
 
-#include "jams/core/output.h"
 #include "jams/core/solver.h"
 #include "jams/core/types.h"
 #include "jams/core/globals.h"

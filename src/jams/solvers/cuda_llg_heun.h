@@ -5,9 +5,7 @@
 
 #ifdef CUDA
 
-#include <curand.h>
-#include <cusparse.h>
-
+#include "jams/cuda/wrappers/stream.h"
 #include "jams/cuda/cuda_solver.h"
 
 #include "jblib/containers/array.h"
@@ -15,17 +13,13 @@
 
 class CUDAHeunLLGSolver : public CudaSolver {
   public:
-    CUDAHeunLLGSolver() {};
-    ~CUDAHeunLLGSolver();
+    CUDAHeunLLGSolver() = default;
+    ~CUDAHeunLLGSolver() = default;
     void initialize(const libconfig::Setting& settings);
     void run();
 
   private:
-    cudaStream_t dev_stream_ = nullptr;
-    jblib::CudaArray<CudaFastFloat, 1>  e_dev;
-    jblib::Array<CudaFastFloat, 2> eng;
-    int nblocks;
-    int spmvblocksize;
+    CudaStream dev_stream_;
 };
 
 #endif

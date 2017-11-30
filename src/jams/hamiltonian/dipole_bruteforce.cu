@@ -3,7 +3,6 @@
 #include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 
 #include "dipole_bruteforce.h"
 #include "dipole_bruteforce_kernel.h"

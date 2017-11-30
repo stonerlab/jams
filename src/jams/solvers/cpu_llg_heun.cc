@@ -4,17 +4,11 @@
 
 #include <cmath>
 #include <jams/interface/config.h>
-
 #include "jams/helpers/consts.h"
 
 #include "jams/core/globals.h"
-#include "jams/core/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/rand.h"
-
-#ifdef MKL
-#include <mkl_spblas.h>
-#endif
 
 using namespace std;
 

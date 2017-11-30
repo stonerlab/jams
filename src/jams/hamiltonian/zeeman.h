@@ -5,7 +5,6 @@
 
 #include <libconfig.h++>
 
-#include "jams/core/output.h"
 #include "jams/core/hamiltonian.h"
 
 #include "jblib/containers/array.h"

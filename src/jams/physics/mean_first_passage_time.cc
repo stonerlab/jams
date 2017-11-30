@@ -7,7 +7,6 @@
 #include <string>
 
 #include "jams/core/globals.h"
-#include "jams/core/output.h"
 #include "jams/core/types.h"
 
 MFPTPhysics::MFPTPhysics(const libconfig::Setting &settings)

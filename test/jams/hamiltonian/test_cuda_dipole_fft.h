@@ -3,7 +3,6 @@
 #include <libconfig.h++>
 
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 #include "jams/core/solver.h"
 #include "jams/core/physics.h"
 #include "jams/core/globals.h"
