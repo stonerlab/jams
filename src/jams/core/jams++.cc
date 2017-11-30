@@ -12,7 +12,7 @@
 #include "jams/core/lattice.h"
 #include "jams/core/monitor.h"
 #include "jams/core/physics.h"
-#include "jams/core/rand.h"
+#include "jams/helpers/random.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/duration.h"
 #include "jams/helpers/error.h"
@@ -26,14 +26,12 @@ namespace jams {
 
     void new_global_classes() {
       config = new libconfig::Config();
-      rng = new Random();
       lattice = new Lattice();
     }
 
     void delete_global_classes() {
       delete solver;
       delete lattice;
-      delete rng;
       delete config;
     }
 
@@ -93,15 +91,22 @@ void jams_initialize(int argc, char **argv) {
       jams_patch_config(simulation.config_patch_string);
     }
 
-    if (config->exists("sim")) {
+    if (config->exists("sim.verbose")) {
       simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
-      simulation.random_seed = jams::config_optional<long>(config->lookup("sim"), "seed", simulation.random_seed);
+    }
+    cout << "verbose " << simulation.verbose << "\n";
+
+    if (config->exists("sim.seed")) {
+      simulation.random_seed = jams::config_optional<unsigned>(config->lookup("sim"), "seed", simulation.random_seed);
+      jams::random_generator().seed(simulation.random_seed);
+      cout << "seed    " << simulation.random_seed << "\n";
     }
 
-    cout << "verbose " << simulation.verbose << "\n";
-    cout << "seed    " << simulation.random_seed << "\n";
-
-    rng->seed(static_cast<const uint32_t>(simulation.random_seed));
+    if (config->exists("sim.rng_state")) {
+      auto state = jams::config_required<string>(config->lookup("sim"), "rng_state");
+      istringstream(state) >> jams::random_generator();
+    }
+    cout << "rng state " <<  jams::random_generator() << "\n";
 
     cout.flush();
     cout << jams::section("init lattice");

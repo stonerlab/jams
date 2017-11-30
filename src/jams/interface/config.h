@@ -46,6 +46,11 @@ namespace jams {
     }
 
     template<>
+    inline unsigned config_required(const libconfig::Setting &setting, const std::string &name) {
+      return unsigned(setting[name]);
+    }
+
+    template<>
     inline double config_required(const libconfig::Setting &setting, const std::string &name) {
       return double(setting[name]);
     }

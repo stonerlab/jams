@@ -6,7 +6,7 @@
 #include "jams/core/solver.h"
 #include "jams/core/physics.h"
 #include "jams/core/globals.h"
-#include "jams/core/rand.h"
+#include "jams/helpers/random.h"
 
 #include "jams/hamiltonian/test_dipole_input.h"
 #include "../../../src/jams/hamiltonian/dipole_bruteforce.h"
@@ -23,7 +23,6 @@ class DipoleHamiltonianBruteforceTest : public ::testing::Test {
     cudaDeviceReset();
     ::lattice = new Lattice();
     ::config = new libconfig::Config();
-    ::rng = new Random();
   }
 
   virtual ~DipoleHamiltonianBruteforceTest() {
@@ -36,7 +35,6 @@ class DipoleHamiltonianBruteforceTest : public ::testing::Test {
   void SetUp(const std::string &config_string) {
     // Code here will be called immediately after the constructor (right
     // before each test).
-    ::rng->seed(time(NULL));
     ::config->readString(config_string);
     ::lattice->init_from_config(*::config);
     ::solver = Solver::create(config->lookup("solver"));
@@ -59,10 +57,6 @@ class DipoleHamiltonianBruteforceTest : public ::testing::Test {
     if (::config != nullptr) {
       delete ::config;
       ::config = nullptr;
-    }
-    if (::rng != nullptr) {
-      delete ::rng;
-      ::rng = nullptr;
     }
   }
 

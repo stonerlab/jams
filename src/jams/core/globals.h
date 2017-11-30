@@ -15,13 +15,11 @@
 
 class Solver;
 class Lattice;
-class Random;
 namespace libconfig { class Config; }
 
 GLOBAL Solver  *solver;
 GLOBAL Lattice *lattice;
 GLOBAL libconfig::Config *config;  ///< Config object
-GLOBAL Random  *rng;
 GLOBAL std::string seedname;
 
 namespace globals {

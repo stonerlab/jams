@@ -12,6 +12,7 @@
 #include <jams/core/types.h>
 #include <pcg/pcg_random.hpp>
 #include <random>
+#include "jams/helpers/random.h"
 
 class MetropolisMCSolver : public Solver {
  public:
@@ -27,7 +28,7 @@ class MetropolisMCSolver : public Solver {
   void MetropolisPreconditioner(std::function<Vec3(Vec3)>  trial_spin_move);
   void SystematicPreconditioner(const double delta_theta, const double delta_phi);
 
-  pcg64_k1024 random_generator_ = pcg_extras::seed_seq_from<std::random_device>();
+  pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
 
   bool is_preconditioner_enabled_ = false;
   double preconditioner_delta_theta_ = 5.0;

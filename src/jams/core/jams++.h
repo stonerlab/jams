@@ -4,9 +4,8 @@
 #define JAMS_CORE_JAMS_H
 
 #include <string>
-#include <ctime>
-
 #include <libconfig.h++>
+#include <random>
 
 #include "jams/helpers/defaults.h"
 
@@ -19,7 +18,7 @@ namespace jams {
         std::string config_file_name;
         std::string config_patch_string;
 
-        int64_t random_seed = time(nullptr);
+        unsigned random_seed;
     };
 }
 

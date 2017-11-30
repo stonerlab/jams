@@ -33,7 +33,7 @@ class ConstrainedMCSolver : public Solver {
 
     void     validate_constraint() const;
 
-    pcg64_k1024 random_generator_ = pcg_extras::seed_seq_from<std::random_device>();
+    pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<std::random_device>();
 
     double constraint_theta_   = 0.0;
     double constraint_phi_     = 0.0;

@@ -6,7 +6,7 @@
 #include "jams/core/solver.h"
 #include "jams/core/physics.h"
 #include "jams/core/globals.h"
-#include "jams/core/rand.h"
+#include "jams/helpers/random.h"
 
 #include "jams/hamiltonian/test_dipole_input.h"
 #include "../../../src/jams/hamiltonian/cuda_dipole_fft.h"
@@ -23,7 +23,6 @@ class CudaDipoleHamiltonianFFTTest : public ::testing::Test {
     cudaDeviceReset();
     ::lattice = new Lattice();
     ::config = new libconfig::Config();
-    ::rng = new Random();
   }
 
   virtual ~CudaDipoleHamiltonianFFTTest() {
@@ -36,7 +35,6 @@ class CudaDipoleHamiltonianFFTTest : public ::testing::Test {
   void SetUp(const std::string &config_string) {
     // Code here will be called immediately after the constructor (right
     // before each test).
-    ::rng->seed(time(NULL));
     ::config->readString(config_string);
     ::lattice->init_from_config(*::config);
     ::solver = Solver::create(config->lookup("sim.solver"));
@@ -59,10 +57,6 @@ class CudaDipoleHamiltonianFFTTest : public ::testing::Test {
     if (::config != nullptr) {
       delete ::config;
       ::config = nullptr;
-    }
-    if (::rng != nullptr) {
-      delete ::rng;
-      ::rng = nullptr;
     }
   }
 
@@ -228,8 +222,9 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
 TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM_RAND) {
   SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
+  pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
-    Vec3 spin = rng->sphere();
+    Vec3 spin = uniform_random_sphere(rng);
     globals::s(i, 0) = spin[0];
     globals::s(i, 1) = spin[1];
     globals::s(i, 2) = spin[2];
@@ -283,8 +278,9 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_2D_FM_SLOW) {
 TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM_RAND) {
   SetUp(  config_basic_gpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
+  pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
-    Vec3 spin = rng->sphere();
+    Vec3 spin = uniform_random_sphere(rng);
     globals::s(i, 0) = spin[0];
     globals::s(i, 1) = spin[1];
     globals::s(i, 2) = spin[2];

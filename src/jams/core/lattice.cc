@@ -20,13 +20,14 @@ extern "C"{
 #include <utility>
 #include <functional>
 #include <cfloat>
+#include <pcg/pcg_random.hpp>
 
 #include "H5Cpp.h"
 
 #include "jams/helpers/defaults.h"
 #include "jams/containers/material.h"
 #include "jams/helpers/error.h"
-#include "jams/core/rand.h"
+#include "jams/helpers/random.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/exception.h"
 #include "jams/helpers/maths.h"
@@ -474,6 +475,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 
   num_of_material_.resize(num_materials(), 0);
 
+  pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto material = material_name_map_[lattice_materials_[i]];
 
@@ -486,7 +488,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
     }
 
     if (material.randomize) {
-      Vec3 s_init = rng->sphere();
+      Vec3 s_init = uniform_random_sphere(rng);
       for (auto n = 0; n < 3; ++n) {
         globals::s(i, n) = s_init[n];
       }

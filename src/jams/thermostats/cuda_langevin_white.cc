@@ -1,7 +1,6 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
+#include <cinttypes>
 
 #include <cmath>
 #include <string>
@@ -14,10 +13,10 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/error.h"
-#include "jams/core/rand.h"
+#include "jams/helpers/random.h"
 #include "jams/core/solver.h"
 
-#include "../monitors/magnetisation.h"
+#include "jams/monitors/magnetisation.h"
 
 using namespace std;
 
@@ -36,7 +35,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     jams_error("Failed to create CURAND generator in CudaLangevinWhiteThermostat");
   }
 
-  auto dev_rng_seed = static_cast<uint64_t>(rng->uniform() * 18446744073709551615ULL);
+  auto dev_rng_seed = static_cast<uint64_t>(std::random_device()());
 
   cout << "    creating stream\n";
   cudaStreamCreate(&dev_stream_);

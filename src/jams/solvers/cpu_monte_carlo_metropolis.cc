@@ -59,8 +59,8 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     using namespace globals;
     std::uniform_real_distribution<> uniform_distribution;
 
-    MonteCarloUniformMove<pcg64_k1024> uniform_move(&random_generator_);
-    MonteCarloAngleMove<pcg64_k1024>   angle_move(&random_generator_, move_angle_sigma_);
+    MonteCarloUniformMove<pcg32_k1024> uniform_move(&random_generator_);
+    MonteCarloAngleMove<pcg32_k1024>   angle_move(&random_generator_, move_angle_sigma_);
     MonteCarloReflectionMove           reflection_move;
 
     if (is_preconditioner_enabled_ && iteration_ == 0) {

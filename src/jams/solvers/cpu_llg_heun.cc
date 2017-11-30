@@ -8,7 +8,7 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/physics.h"
-#include "jams/core/rand.h"
+#include "jams/helpers/random.h"
 
 using namespace std;
 
@@ -33,7 +33,6 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
 
   snew.resize(num_spins, 3);
   sigma.resize(num_spins);
-  eng.resize(num_spins, 3);
   w.resize(num_spins, 3);
 
   for (int i = 0; i < num_spins; ++i) {
@@ -46,6 +45,9 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
 void HeunLLGSolver::run() {
   using namespace globals;
 
+  std::normal_distribution<> normal_distribution;
+
+
   int i, j;
   double sxh[3], rhs[3];
   double norm;
@@ -54,7 +56,7 @@ void HeunLLGSolver::run() {
     const double stmp = sqrt(physics_module_->temperature());
     for (i = 0; i < num_spins; ++i) {
       for (j = 0; j < 3; ++j) {
-        w(i, j) = (rng->normal())*sigma(i) * stmp; // MOVE THESE INTO SIGMA
+        w(i, j) = normal_distribution(random_generator_)*sigma(i) * stmp;
       }
     }
   }

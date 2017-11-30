@@ -5,30 +5,8 @@
 
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
-#include "jams/core/rand.h"
+#include "random.h"
 #include "jblib/containers/vec.h"
-
-namespace {
-    template <class RNG>
-    Vec3 random_uniform_sphere(RNG &gen) {
-      std::uniform_real_distribution<> dist;
-      double v1, v2, s, ss;
-
-      do {
-        v1 = -1.0 + 2.0 * dist(gen);
-        v2 = -1.0 + 2.0 * dist(gen);
-        s = (v1 * v1) + (v2 * v2);
-      } while (s > 1.0);
-
-      ss = sqrt(1.0 - s);
-
-      return {
-              2.0 * v1 * ss,
-              2.0 * v2 * ss,
-              1.0 - 2.0 * s
-      };
-    }
-}
 
 enum class MonteCarloMoveType {
     REFLECTION,
@@ -56,7 +34,7 @@ public:
             {}
 
     inline Vec3 operator()(Vec3 spin) {
-      return random_uniform_sphere(*gen_);
+      return uniform_random_sphere(*gen_);
     }
 private:
     RNG * gen_;
@@ -70,7 +48,7 @@ public:
             sigma_(sigma){}
 
     inline Vec3 operator()(Vec3 spin) {
-      return normalize(spin + random_uniform_sphere(*gen_) * sigma_);
+      return normalize(spin + uniform_random_sphere(*gen_) * sigma_);
     }
 
   private:

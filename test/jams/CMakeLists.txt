@@ -9,7 +9,6 @@ set(PROJECT_TEST_NAME ${CMAKE_PROJECT_NAME}_test)
 jams_pickup_jams_sources(${PROJECT_SOURCE_DIR})
 list(REMOVE_ITEM srcs ${PROJECT_SOURCE_DIR}/src/jams/main.cc)
 
-
 add_definitions(-DCUDA)
 
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -O3 -g -std=c++11)
@@ -28,16 +27,14 @@ jams_use_cxx11(jams_test)
 
 add_dependencies(${PROJECT_TEST_NAME} ${PROJECT_NAME} gtest)
 
-include_directories("${gtest_SOURCE_DIR}/include"
-                    "${gmock_SOURCE_DIR}/include")
+include_directories("${gtest_SOURCE_DIR}/include" "${gmock_SOURCE_DIR}/include")
 
 include_directories(${CMAKE_BINARY_DIR}/generated)
 
 target_link_libraries(${PROJECT_TEST_NAME}
   -lpthread
   ${JAMS_LINKER_LIBS} 
-  ${gtest_BINARY_DIR}/libgtest.a 
+  ${gtest_BINARY_DIR}/libgtestd.a
   ${CMAKE_THREAD_LIBS_INIT})
-
 
 add_test(test1 ${PROJECT_TEST_NAME})
