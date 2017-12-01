@@ -8,6 +8,10 @@
 #include <cstddef>
 #include <map>
 
+#ifdef CUDA
+#include <cuda_runtime.h>
+#endif
+
 #define DIA_BLOCK_SIZE 256
 
 dim3 cuda_grid_size(const dim3& block_size, const dim3& grid_size);
