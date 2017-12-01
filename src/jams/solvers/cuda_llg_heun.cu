@@ -36,7 +36,7 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   max_steps_ = static_cast<int>(t_max / time_step_);
   min_steps_ = static_cast<int>(t_min / time_step_);
 
-  cout << "timestep " << dt << "\n";
+  cout << "timestep " << time_step_ << "\n";
   cout << "t_max " << t_max << " steps (" <<  max_steps_ << ")\n";
   cout << "t_min " << t_min << " steps (" << min_steps_ << ")\n";
 
@@ -50,7 +50,7 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
-  std::string thermostat_name = jams::config_optional<string>(config->lookup("sim"), "thermostat", jams::default_solver_gpu_thermostat);
+  std::string thermostat_name = jams::config_optional<string>(config->lookup("solver"), "thermostat", jams::default_solver_gpu_thermostat);
   thermostat_ = Thermostat::create(thermostat_name);
 
   cout << "  thermostat " << thermostat_name.c_str() << "\n";
