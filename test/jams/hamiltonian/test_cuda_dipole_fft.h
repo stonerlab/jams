@@ -1,3 +1,5 @@
+#include "gtest/gtest.h"
+
 #include <ctime>
 
 #include <libconfig.h++>
@@ -37,9 +39,9 @@ class CudaDipoleHamiltonianFFTTest : public ::testing::Test {
     // before each test).
     ::config->readString(config_string);
     ::lattice->init_from_config(*::config);
-    ::solver = Solver::create(config->lookup("sim.solver"));
+    ::solver = Solver::create(config->lookup("solver"));
     int argc = 0; char **argv; double dt = 0.1;
-    ::solver->initialize(config->lookup("sim.solver"));
+    ::solver->initialize(config->lookup("solver"));
     ::solver->register_physics_module(Physics::create(config->lookup("physics")));
   }
 
