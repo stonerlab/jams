@@ -214,17 +214,13 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu
   cudaDeviceSynchronize();
 
   for (int pos_j = 0; pos_j < lattice->num_motif_positions(); ++pos_j) {
-
     for (int pos_i = 0; pos_i < lattice->num_motif_positions(); ++pos_i) {
       const double mus_j = lattice->motif_material(pos_j).moment;
 
       const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
 
-      dim3 block_size;
-      block_size.x = 128;
-
-      dim3 grid_size;
-      grid_size.x = (fft_size + block_size.x - 1) / block_size.x;
+      dim3 block_size = {128, 1, 1};
+      dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
 
       cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, lattice->num_motif_positions(), mus_j, kspace_s_.data(),  kspace_tensors_[pos_i][pos_j].data(), kspace_h_.data());
     }
@@ -236,6 +232,8 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu
   if (result != CUFFT_SUCCESS) {
     throw std::runtime_error("CUFFT failure");
   }
+
+
 
 
 }
