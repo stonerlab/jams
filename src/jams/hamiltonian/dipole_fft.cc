@@ -287,11 +287,11 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
       }
     }
 
-  if (check_symmetry_) {
+  if (check_symmetry_ && (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2))) {
     if (lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
       throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
-                                       "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
-                                       "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+              "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
+              "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
     }
   }
     int rank            = 3;
