@@ -181,7 +181,7 @@ Lattice::motif_position_frac(int i) const {
 inline Vec3
 Lattice::motif_position_cart(int i) const {
   assert(i < num_motif_positions());
-  return supercell.matrix() * motif_[i].pos;
+  return unitcell.matrix() * motif_[i].pos;
 }
 
 inline Material
