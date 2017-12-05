@@ -793,6 +793,35 @@ double Lattice::max_interaction_radius() const {
   if (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2)) {
     return rhombohedron_inradius(supercell.a(), supercell.b(), supercell.c()) - 1;
   }
+
+  if (!lattice->is_periodic(0) && !lattice->is_periodic(1) && !lattice->is_periodic(2)) {
+    return std::min(abs(supercell.a()), std::min(abs(supercell.b()), abs(supercell.c()))) / 2.0;
+  }
+
+  if (lattice->is_periodic(0) && lattice->is_periodic(1) &&  !lattice->is_periodic(2)) {
+    return rhombus_inradius(supercell.a(), supercell.b());
+  }
+
+  if (lattice->is_periodic(0) && !lattice->is_periodic(1) &&  lattice->is_periodic(2)) {
+    return rhombus_inradius(supercell.a(), supercell.c());
+  }
+
+  if (!lattice->is_periodic(0) && lattice->is_periodic(1) &&  lattice->is_periodic(2)) {
+    return rhombus_inradius(supercell.a(), supercell.c());
+  }
+
+  if (!lattice->is_periodic(0) && !lattice->is_periodic(1) &&  lattice->is_periodic(2)) {
+    return abs(supercell.c()) / 2.0;
+  }
+
+  if (!lattice->is_periodic(0) && lattice->is_periodic(1) &&  !lattice->is_periodic(2)) {
+    return abs(supercell.b()) / 2.0;
+  }
+
+  if (lattice->is_periodic(0) && !lattice->is_periodic(1) &&  !lattice->is_periodic(2)) {
+    return abs(supercell.a()) / 2.0;
+  }
+
   return 0.0;
 }
 
