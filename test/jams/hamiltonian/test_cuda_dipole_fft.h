@@ -283,7 +283,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM_RAND) {
   SetUp(  config_basic_gpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
-  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+  for (auto i = 0; i < globals::num_spins; ++i) {
     Vec3 spin = uniform_random_sphere(rng);
     globals::s(i, 0) = spin[0];
     globals::s(i, 1) = spin[1];
