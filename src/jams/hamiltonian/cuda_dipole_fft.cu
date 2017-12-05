@@ -273,20 +273,22 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
     for (int nx = 0; nx < kspace_size_[0]; ++nx) {
         for (int ny = 0; ny < kspace_size_[1]; ++ny) {
             for (int nz = 0; nz < kspace_size_[2]; ++nz) {
-
                 if (nx == 0 && ny == 0 && nz == 0 && pos_i == pos_j) {
                     // self interaction on the same sublattice
                     continue;
                 } 
 
-                const Vec3 r_ij = 
+                auto r_ij =
                     lattice->displacement(r_cart_j,
                         lattice->generate_position(r_frac_i, {nx, ny, nz})); // generate_position requires FRACTIONAL coordinate
 
                 const auto r_abs_sq = abs_sq(r_ij);
 
-                if (r_abs_sq > pow(r_cutoff_ + distance_tolerance_, 2)) {
-                    // outside of cutoff radius
+                if (!isnormal(r_abs_sq)) {
+                  throw runtime_error("fatal error in CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor: r_abs_sq is not normal");
+                }
+
+                if (r_abs_sq > pow2(r_cutoff_ + distance_tolerance_)) {
                     continue;
                 }
 
@@ -294,8 +296,11 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
 
                 for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
-                        rspace_tensor(nx, ny, nz, m, n)
-                            = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
+                        auto value = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
+                        if (!isfinite(value)) {
+                          throw runtime_error("fatal error in CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor: tensor value is not finite");
+                        }
+                        rspace_tensor(nx, ny, nz, m, n) = value;
                     }
                 }
             }
@@ -311,7 +316,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
       }
     }
 
-    if (check_symmetry_) {
+    if (check_symmetry_ && (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2))) {
       if (lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
         throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
                                          "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
