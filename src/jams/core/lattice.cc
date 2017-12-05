@@ -223,7 +223,7 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
   auto basis = jams::config_required<Mat3>(settings, "basis");
   lattice_parameter  = jams::config_required<double>(settings, "parameter");
 
-  Cell unitcell(basis);
+  unitcell = Cell(basis);
 
   if (lattice_parameter < 0.0) {
     throw general_exception("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
