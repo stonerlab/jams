@@ -528,7 +528,7 @@ Vec3 Lattice::generate_position(
         const Vec3 unit_cell_frac_pos,
         const Vec3i translation_vector) const
 {
-  return unitcell.matrix() * generate_fractional_position(unit_cell_frac_pos, translation_vector);
+  return unitcell.matrix() * (unit_cell_frac_pos + translation_vector);
 }
 
 // generate a position within a periodic image of the entire system
@@ -543,15 +543,6 @@ Vec3 Lattice::generate_image_position(
     }
   }
   return fractional_to_cartesian(frac_pos);
-}
-
-Vec3 Lattice::generate_fractional_position(
-        const Vec3 unit_cell_frac_pos,
-        const Vec3i translation_vector) const
-{
-  return {unit_cell_frac_pos[0] + translation_vector[0],
-          unit_cell_frac_pos[1] + translation_vector[1],
-          unit_cell_frac_pos[2] + translation_vector[2]};
 }
 
 void Lattice::calc_symmetry_operations() {

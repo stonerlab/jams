@@ -66,8 +66,6 @@ public:
 
     Vec3 generate_image_position(const Vec3 unit_cell_cart_pos, const Vec3i image_vector) const;
 
-    Vec3 generate_fractional_position(const Vec3 unit_cell_frac_pos, const Vec3i translation_vector) const;
-
     std::vector<Vec3> generate_symmetric_points(const Vec3 &r, const double tolerance) const;
 
     inline Vec3 cartesian_to_fractional(const Vec3 &r_cart) const;
