@@ -382,6 +382,6 @@ TEST_F(DipoleHamiltonianBruteforceTest, calculate_total_energy_GPU_1D_FM) {
     double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
-    ASSERT_NEAR(numeric/analytic, 1.0, 1e-5);
+    ASSERT_NEAR(numeric/analytic, 1.0, 1e-4);
   }
 }
