@@ -31,7 +31,7 @@ void fft_scalar_field(
 	Array<complex<double>, 3> remapped_field(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2]);
 
 	output.resize(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2],
-                lattice->num_motif_positions());
+          lattice->motif_size());
 	output.zero();
 
 	fftw_plan plan = fftw_plan_dft_3d(
@@ -43,11 +43,11 @@ void fft_scalar_field(
 		FFTW_FORWARD, 
 		FFTW_ESTIMATE);
 	
-	for (int n = 0; n < lattice->num_motif_positions(); ++n) {
+	for (int n = 0; n < lattice->motif_size(); ++n) {
 		remapped_field.zero();
 
 		for (int i = 0; i < num_spins; ++i) {
-		  if ((i+n)% lattice->num_motif_positions() == 0) {
+		  if ((i+n)% lattice->motif_size() == 0) {
 		    Vec3i r = lattice->supercell_index(i);
 		    remapped_field(r[0], r[1], r[2]) = {field(i), 0.0};
 		  }
@@ -59,21 +59,23 @@ void fft_scalar_field(
 
 		// super speed hack from CASTEP ewald.f90 for generating all of the phase factors on
 		// the fly without calling lots of exp()
-		two_pi_i_dr = kImagTwoPi* lattice->motif_position_cart(n)[0];
+    auto r_cart = lattice->fractional_to_cartesian(lattice->motif_atom(n).pos);
+
+		two_pi_i_dr = kImagTwoPi*r_cart[0];
 		exp_phase_0 = exp(two_pi_i_dr);
 		exp_phase_x(0) = exp(-two_pi_i_dr*double((lattice->kspace_size()[0] - 1)));
 		for (int i = 1; i < lattice->kspace_size()[0]; ++i) {
 		  exp_phase_x(i) = exp_phase_x(i-1)*exp_phase_0;
 		}
 
-		two_pi_i_dr = kImagTwoPi* lattice->motif_position_cart(n)[1];
+		two_pi_i_dr = kImagTwoPi* r_cart[1];
 		exp_phase_0 = exp(two_pi_i_dr);
 		exp_phase_y(0) = exp(-two_pi_i_dr*double((lattice->kspace_size()[1] - 1)));
 		for (int i = 1; i < lattice->kspace_size()[1]; ++i) {
 		  exp_phase_y(i) = exp_phase_y(i-1)*exp_phase_0;
 		}
 
-		two_pi_i_dr = kImagTwoPi* lattice->motif_position_cart(n)[2];
+		two_pi_i_dr = kImagTwoPi* r_cart[2];
 		exp_phase_0 = exp(two_pi_i_dr);
 		exp_phase_z(0) = exp(-two_pi_i_dr*double((lattice->kspace_size()[2] - 1)));
 		for (int i = 1; i < lattice->kspace_size()[2]; ++i) {
@@ -116,11 +118,11 @@ void fft_vector_field(
 	Array<complex<double>, 3> remapped_z(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2]);
 
 	out_x.resize(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2],
-               lattice->num_motif_positions());
+          lattice->motif_size());
 	out_y.resize(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2],
-               lattice->num_motif_positions());
+          lattice->motif_size());
 	out_z.resize(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2],
-               lattice->num_motif_positions());
+          lattice->motif_size());
 
 	out_x.zero();
 	out_y.zero();
@@ -153,13 +155,13 @@ void fft_vector_field(
 		FFTW_FORWARD, 
 		FFTW_ESTIMATE);
 	
-	for (int n = 0; n < lattice->num_motif_positions(); ++n) {
+	for (int n = 0; n < lattice->motif_size(); ++n) {
 		remapped_x.zero();
 		remapped_y.zero();
 		remapped_z.zero();
 
 		for (int i = 0; i < num_spins; ++i) {
-		  if ((i+n)% lattice->num_motif_positions() == 0) {
+		  if ((i+n)% lattice->motif_size() == 0) {
 		    Vec3i r = lattice->supercell_index(i);
 		    remapped_x(r[0], r[1], r[2]) = {field(i, 0), 0.0};
 		    remapped_y(r[0], r[1], r[2]) = {field(i, 1), 0.0};
@@ -175,21 +177,23 @@ void fft_vector_field(
 
 		// super speed hack from CASTEP ewald.f90 for generating all of the phase factors on
 		// the fly without calling lots of exp()
-		two_pi_i_dr = kImagTwoPi* lattice->motif_position_cart(n)[0];
+    auto r_cart = lattice->fractional_to_cartesian(lattice->motif_atom(n).pos);
+
+    two_pi_i_dr = kImagTwoPi* r_cart[0];
 		exp_phase_0 = exp(two_pi_i_dr);
 		exp_phase_x(0) = exp(-two_pi_i_dr*double((lattice->kspace_size()[0] - 1)));
 		for (int i = 1; i < lattice->kspace_size()[0]; ++i) {
 		  exp_phase_x(i) = exp_phase_x(i-1)*exp_phase_0;
 		}
 
-		two_pi_i_dr = kImagTwoPi* lattice->motif_position_cart(n)[1];
+		two_pi_i_dr = kImagTwoPi* r_cart[1];
 		exp_phase_0 = exp(two_pi_i_dr);
 		exp_phase_y(0) = exp(-two_pi_i_dr*double((lattice->kspace_size()[1] - 1)));
 		for (int i = 1; i < lattice->kspace_size()[1]; ++i) {
 		  exp_phase_y(i) = exp_phase_y(i-1)*exp_phase_0;
 		}
 
-		two_pi_i_dr = kImagTwoPi* lattice->motif_position_cart(n)[2];
+		two_pi_i_dr = kImagTwoPi* r_cart[2];
 		exp_phase_0 = exp(two_pi_i_dr);
 		exp_phase_z(0) = exp(-two_pi_i_dr*double((lattice->kspace_size()[2] - 1)));
 		for (int i = 1; i < lattice->kspace_size()[2]; ++i) {

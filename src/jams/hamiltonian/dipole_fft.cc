@@ -92,10 +92,10 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     cout << "    kspace padded size " << kspace_padded_size_ << "\n";
     cout << "    generating tensors\n";
 
-  kspace_tensors_.resize(lattice->num_motif_positions());
+  kspace_tensors_.resize(lattice->motif_size());
 
-    for (int pos_i = 0; pos_i < lattice->num_motif_positions(); ++pos_i) {
-      for (int pos_j = 0; pos_j < lattice->num_motif_positions(); ++pos_j) {
+    for (int pos_i = 0; pos_i < lattice->motif_size(); ++pos_i) {
+      for (int pos_j = 0; pos_j < lattice->motif_size(); ++pos_j) {
         kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j));
       }
     }
@@ -218,11 +218,11 @@ jblib::Array<fftw_complex, 5>
 DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
     using std::pow;
 
-    const Vec3 r_frac_i = lattice->motif_position_frac(pos_i);
-    const Vec3 r_frac_j = lattice->motif_position_frac(pos_j);
+  const Vec3 r_frac_i = lattice->motif_atom(pos_i).pos;
+  const Vec3 r_frac_j = lattice->motif_atom(pos_j).pos;
 
-    const Vec3 r_cart_i = lattice->motif_position_cart(pos_i);
-    const Vec3 r_cart_j = lattice->motif_position_cart(pos_j);
+  const Vec3 r_cart_i = lattice->fractional_to_cartesian(r_frac_i);
+  const Vec3 r_cart_j = lattice->fractional_to_cartesian(r_frac_j);
 
     jblib::Array<double, 5> rspace_tensor(
         kspace_padded_size_[0],
@@ -330,13 +330,12 @@ void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2> &fields) {
 
     h_.zero();
 
-    for (int pos_i = 0; pos_i < lattice->num_motif_positions(); ++pos_i) {
+    for (int pos_i = 0; pos_i < lattice->motif_size(); ++pos_i) {
 
         kspace_h_.zero();
 
-        for (int pos_j = 0; pos_j < lattice->num_motif_positions(); ++pos_j) {
-
-            const double mus_j = lattice->motif_material(pos_j).moment;
+        for (int pos_j = 0; pos_j < lattice->motif_size(); ++pos_j) {
+            const double mus_j = lattice->material(lattice->motif_atom(pos_j).material).moment;
 
             rspace_s_.zero();
 

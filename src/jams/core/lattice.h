@@ -46,12 +46,11 @@ public:
 
     bool is_periodic(int i) const;
 
-    int num_motif_positions() const;
-    Vec3 motif_position_frac(int i) const;
-    Vec3 motif_position_cart(int i) const;
-    Material motif_material(int i) const;
+    const Atom& motif_atom(const int &i) const;
+    int motif_size() const;
 
     int num_materials() const;
+    const Material &material(const int &i) const;
     string material_name(int uid);
     int material_id(const string &name);
 

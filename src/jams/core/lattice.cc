@@ -104,7 +104,7 @@ int Lattice::size(int i) const {
   return lattice_dimensions[i];
 }
 
-int Lattice::num_motif_positions() const {
+int Lattice::motif_size() const {
   return motif_.size();
 }
 
@@ -118,24 +118,6 @@ Vec3 Lattice::b() const {
 
 Vec3 Lattice::c() const {
   return unitcell.c();
-}
-
-Vec3
-Lattice::motif_position_frac(int i) const {
-  assert(i < num_motif_positions());
-  return motif_[i].pos;
-}
-
-Vec3
-Lattice::motif_position_cart(int i) const {
-  assert(i < num_motif_positions());
-  return unitcell.matrix() * motif_[i].pos;
-}
-
-Material
-Lattice::motif_material(int i) const {
-  assert(i < motif_.size());
-  return materials_[motif_[i].material];
 }
 
 int
@@ -196,7 +178,7 @@ int Lattice::site_index_by_unit_cell(const int &i, const int &j, const int &k, c
   assert(j >= 0);
   assert(k < lattice_dimensions[2]);
   assert(k >= 0);
-  assert(m < num_motif_positions());
+  assert(m < motif_size());
   assert(m >= 0);
 
   return lattice_map_(i, j, k, m);
@@ -522,9 +504,9 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   }
 
 
-  const auto expected_num_atoms = num_motif_positions() * product(lattice_dimensions);
+  const auto expected_num_atoms = motif_size() * product(lattice_dimensions);
 
-  lattice_map_.resize(this->size(0), this->size(1), this->size(2), this->num_motif_positions());
+  lattice_map_.resize(this->size(0), this->size(1), this->size(2), this->motif_size());
   for (auto i = 0; i < expected_num_atoms; ++i) {
     // initialize everything to -1 so we can check for double assignment below
     lattice_map_[i] = -1;
@@ -974,6 +956,14 @@ bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const 
     }
   }
   return true;
+}
+
+const Atom &Lattice::motif_atom(const int &i) const {
+  return motif_[i];
+}
+
+const Material &Lattice::material(const int &i) const {
+  return materials_[i];
 }
 
 
