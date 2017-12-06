@@ -226,7 +226,6 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions, Coordi
   motif_.clear();
 
   for (int i = 0; i < positions.getLength(); ++i) {
-
     atom_name = positions[i][0].c_str();
 
     // check the material type is defined

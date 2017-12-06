@@ -134,6 +134,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         std::vector<Atom> nbr_lower;
         std::vector<Atom> nbr_upper;
 
+        // TODO: move neartree out of lattice class
         lattice->atom_neighbours(i, interaction_list_[type][j].inner_radius, nbr_lower);
         lattice->atom_neighbours(i, interaction_list_[type][j].outer_radius + distance_tolerance_, nbr_upper);
 
