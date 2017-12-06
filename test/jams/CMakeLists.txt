@@ -11,7 +11,7 @@ list(REMOVE_ITEM srcs ${PROJECT_SOURCE_DIR}/src/jams/main.cc)
 
 add_definitions(-DCUDA)
 
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -O3 -g -std=c++11)
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -g -std=c++11)
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=sm_30") # Kepler K20/K40/K80
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_60,code=sm_60") # Pascal (P100)
 list(APPEND srcs ${cuda})
@@ -32,9 +32,10 @@ include_directories("${gtest_SOURCE_DIR}/include" "${gmock_SOURCE_DIR}/include")
 include_directories(${CMAKE_BINARY_DIR}/generated)
 
 target_link_libraries(${PROJECT_TEST_NAME}
-  -lpthread
-  ${JAMS_LINKER_LIBS} 
-  ${gtest_BINARY_DIR}/libgtestd.a
-  ${CMAKE_THREAD_LIBS_INIT})
+#        -lpthread
+        gmock_main
+        ${JAMS_LINKER_LIBS}
+        ${CMAKE_THREAD_LIBS_INIT}
+        )
 
 add_test(test1 ${PROJECT_TEST_NAME})

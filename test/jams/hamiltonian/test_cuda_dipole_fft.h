@@ -1,3 +1,5 @@
+#include "gtest/gtest.h"
+
 #include <ctime>
 
 #include <libconfig.h++>
@@ -37,9 +39,9 @@ class CudaDipoleHamiltonianFFTTest : public ::testing::Test {
     // before each test).
     ::config->readString(config_string);
     ::lattice->init_from_config(*::config);
-    ::solver = Solver::create(config->lookup("sim.solver"));
+    ::solver = Solver::create(config->lookup("solver"));
     int argc = 0; char **argv; double dt = 0.1;
-    ::solver->initialize(config->lookup("sim.solver"));
+    ::solver->initialize(config->lookup("solver"));
     ::solver->register_physics_module(Physics::create(config->lookup("physics")));
   }
 
@@ -211,7 +213,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
     double analytic = analytic_prefactor * eigenvalue;
     double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
-    ASSERT_NEAR(numeric/analytic, 1.0, 1e-5);
+    ASSERT_NEAR(numeric/analytic, 1.0, 1e-4);
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   }
 
@@ -239,7 +241,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM_RAND) {
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
   double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
-  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-5);
+  ASSERT_NEAR(result_fft/result_bruteforce, 1.0, 1.0e-4);
   ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
 }
 
@@ -254,7 +256,9 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM) {
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
   double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
-  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-5);
+  ASSERT_NEAR(result_fft, result_bruteforce, 1.0);
+
+  ASSERT_NEAR(result_fft/result_bruteforce, 1.0, 1e-5);
   ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
 }
 
@@ -279,7 +283,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM_RAND) {
   SetUp(  config_basic_gpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
-  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+  for (auto i = 0; i < globals::num_spins; ++i) {
     Vec3 spin = uniform_random_sphere(rng);
     globals::s(i, 0) = spin[0];
     globals::s(i, 1) = spin[1];
@@ -295,6 +299,6 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM_RAND) {
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
   double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
-  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-5);
+  ASSERT_NEAR(result_fft/result_bruteforce, 1.0, 1e-5);
   ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
 }

@@ -6,7 +6,7 @@
 
 Vec3 minimum_image(const Cell& cell, const Vec3& r_i, const Vec3& r_j) {
   // W. Smith, CCP5 Information Quarterly for Computer Simulation of Condensed Phases (1989).
-  Vec3 dr = cell.inverse_matrix() * (r_i - r_j);
+  Vec3 dr = cell.inverse_matrix() * (r_j - r_i);
   for (auto n = 0; n < 3; ++n) {
     if (cell.periodic(n)) {
       dr[n] = dr[n] - trunc(2.0 * dr[n]);

@@ -49,7 +49,7 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   spin_transformations_.resize(globals::num_spins);
   libconfig::Setting& material_settings = ::config->lookup("materials");
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 t = jams::config_optional<Vec3>(material_settings[::lattice->atom_material(i)], "tranform", jams::default_material_spin_transform);
+    Vec3 t = jams::config_optional<Vec3>(material_settings[::lattice->atom_material_id(i)], "tranform", jams::default_material_spin_transform);
     spin_transformations_[i] = {t[0], 0, 0, 0, t[1], 0, 0, 0, t[2]};
   }
 

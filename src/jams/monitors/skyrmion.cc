@@ -88,7 +88,7 @@ void SkyrmionMonitor::update(Solver * solver) {
       }
 
       for (i = 0; i < num_spins; ++i) {
-        type = lattice->atom_material(i);
+        type = lattice->atom_material_id(i);
         if (s(i, 2)*type_norms[type] > thresholds[t]) {
           x = lattice->atom_position(i)[0] - r_com[type][0];
           x = x - nint(x / x_size) * x_size;  // min image convention
@@ -180,7 +180,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
   }
 
   for (i = 0; i < num_spins; ++i) {
-    type = lattice->atom_material(i);
+    type = lattice->atom_material_id(i);
     if (s(i, 2)*type_norms[type] > threshold) {
       tube_x_com[type] += tube_x[i];
       tube_y_com[type] += tube_y[i];

@@ -57,7 +57,7 @@ void SMRMonitor::update(Solver * solver) {
     // j -> x
     // t -> y
     // n -> z
-    int type = lattice->atom_material(i);
+    int type = lattice->atom_material_id(i);
     mtsq_para[type] +=  s(i, 1) * s(i, 1);
     mtsq_perp[type] +=  s(i, 0) * s(i, 0);
     mjmt_para[type] +=  s(i, 0) * s(i, 1);

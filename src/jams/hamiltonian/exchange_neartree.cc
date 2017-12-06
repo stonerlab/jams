@@ -51,7 +51,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       std::ofstream pos_file("debug_pos.dat");
       for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice->atom_material(i) == n) {
+          if (lattice->atom_material_id(i) == n) {
             pos_file << i << "\t" <<  lattice->atom_position(i)[0] << "\t" <<  lattice->atom_position(i)[1] << "\t" << lattice->atom_position(i)[2] << "\n";
           }
         }
@@ -75,15 +75,16 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     // --- SAFETY ---
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
-    for (int i = 0; i < lattice->num_motif_positions(); ++i) {
-      for (int j = i+1; j < lattice->num_motif_positions(); ++j) {
-        if( abs(lattice->motif_position_frac(i) - lattice->motif_position_frac(j)) < distance_tolerance_ ) {
-          jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
-                     "Check position file or relax distance_tolerance for exchange module",
-                      i, j, abs(lattice->motif_position_frac(i) - lattice->motif_position_frac(j)), distance_tolerance_);
-        }
+  for (auto i = 0; i < lattice->motif_size(); ++i) {
+    for (auto j = i+1; j < lattice->motif_size(); ++j) {
+      const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
+      if(distance < distance_tolerance_) {
+        jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
+                        "Check position file or relax distance_tolerance for exchange module",
+                i, j, distance, distance_tolerance_);
       }
     }
+  }
     // --------------
 
     //---------------------------------------------------------------------
@@ -127,12 +128,13 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     for (int i = 0; i < globals::num_spins; ++i) {
       std::vector<bool> is_already_interacting(globals::num_spins, false);
 
-      int type = lattice->atom_material(i);
+      int type = lattice->atom_material_id(i);
 
       for (int j = 0; j < interaction_list_[type].size(); ++j) {
         std::vector<Atom> nbr_lower;
         std::vector<Atom> nbr_upper;
 
+        // TODO: move neartree out of lattice class
         lattice->atom_neighbours(i, interaction_list_[type][j].inner_radius, nbr_lower);
         lattice->atom_neighbours(i, interaction_list_[type][j].outer_radius + distance_tolerance_, nbr_upper);
 

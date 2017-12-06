@@ -41,7 +41,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   libconfig::Setting& material_settings = ::config->lookup("materials");
   for (int i = 0; i < num_spins; ++i) {
     for (int n = 0; n < 3; ++n) {
-      s_transform(i,n) = material_settings[::lattice->atom_material(i)]["transform"][n];
+      s_transform(i,n) = material_settings[::lattice->atom_material_id(i)]["transform"][n];
     }
   }
 
@@ -166,9 +166,9 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   }
 
 
-  sqw_x.resize(::lattice->num_motif_positions(), num_samples, bz_points.size());
-  sqw_y.resize(::lattice->num_motif_positions(), num_samples, bz_points.size());
-  sqw_z.resize(::lattice->num_motif_positions(), num_samples, bz_points.size());
+  sqw_x.resize(::lattice->motif_size(), num_samples, bz_points.size());
+  sqw_y.resize(::lattice->motif_size(), num_samples, bz_points.size());
+  sqw_z.resize(::lattice->motif_size(), num_samples, bz_points.size());
 
   k0.resize(num_samples);
   kneq0.resize(num_samples);
@@ -195,7 +195,7 @@ void StructureFactorMonitor::update(Solver * solver) {
   fft_vector_field(s_trans, sq_x, sq_y, sq_z);
 
   // add the Sq to the timeseries
-  for (int n = 0; n < ::lattice->num_motif_positions(); ++n) {
+  for (int n = 0; n < ::lattice->motif_size(); ++n) {
     for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
       jblib::Vec3<int> q = bz_points[i];
       for (int j = 0; j < 3; ++j) {
@@ -265,7 +265,7 @@ void StructureFactorMonitor::fft_time() {
   fftw_plan fft_plan_time_y = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_y.data(),inembed,istride,idist,fft_sqw_y.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
   fftw_plan fft_plan_time_z = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_z.data(),inembed,istride,idist,fft_sqw_z.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
 
-  for (int unit_cell_atom = 0; unit_cell_atom < ::lattice->num_motif_positions(); ++unit_cell_atom) {
+  for (int unit_cell_atom = 0; unit_cell_atom < ::lattice->motif_size(); ++unit_cell_atom) {
     for (int i = 0; i < time_points; ++i) {
       for (int j = 0; j < space_points; ++j) {
         fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j).real()*fft_window_default(i, time_points);

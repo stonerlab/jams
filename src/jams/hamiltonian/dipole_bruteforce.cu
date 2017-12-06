@@ -21,7 +21,8 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
     settings.lookupValue("r_cutoff", r_cutoff_);
     std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
-    dipole_prefactor_ = kVacuumPermeadbility*kBohrMagneton /(4*kPi*::lattice->parameter() * ::lattice->parameter() * ::lattice->parameter());
+    auto v = pow3(lattice->parameter());
+    dipole_prefactor_ = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
 
 
 #ifdef CUDA
@@ -143,56 +144,27 @@ void DipoleHamiltonianBruteforce::calculate_energies(jblib::Array<double, 1>& en
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h[3]) {
-    int n,j;
-
-    const double prefactor = globals::mus(i) * dipole_prefactor_;
 
     h[0] = 0.0; h[1] = 0.0; h[2] = 0.0;
 
-    for (j = 0; j < globals::num_spins; ++j) {
+    for (auto j = 0; j < globals::num_spins; ++j) {
         if (j == i) continue;
 
-        auto r_ij = lattice->displacement(i, j);
-
+        auto r_ij = lattice->displacement(lattice->atom_position(i), lattice->atom_position(j));
         const auto r_abs_sq = abs_sq(r_ij);
 
         if (r_abs_sq > (r_cutoff_*r_cutoff_)) continue;
 
         const auto r_abs = sqrt(r_abs_sq);
-
-        const auto w0 = prefactor * globals::mus(j) / (r_abs_sq * r_abs_sq * r_abs);
-
+        const auto w0 = dipole_prefactor_ * globals::mus(i) * globals::mus(j) / pow5(r_abs);
         const Vec3 s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
-        
         const auto s_j_dot_rhat = 3.0 * dot(s_j, r_ij);
 
         #pragma unroll
-        for (n = 0; n < 3; ++n) {
+        for (auto n = 0; n < 3; ++n) {
             h[n] += w0 * (r_ij[n] * s_j_dot_rhat - r_abs_sq * s_j[n]);
         }
     }
-
-    // for (j = 0; j < globals::num_spins; ++j) {
-    //     if (j == i) continue;
-
-    //     auto r_ij = lattice->displacement(i, j);
-
-    //     auto r_abs = r_ij.norm();
-
-    //     if (r_abs > r_cutoff_) continue;
-
-    //     auto w0 = prefactor * globals::mus(j);
-
-    //     const Vec3 s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
-    //     auto s_j_dot_rhat = dot(s_j, r_ij);
-
-    //     #pragma unroll
-    //     for (n = 0; n < 3; ++n) {
-    //         h[n] += (3.0 * r_ij[n] * s_j_dot_rhat - r_abs * r_abs * s_j[n]) * w0 / (r_abs*r_abs*r_abs*r_abs*r_abs);
-    //     }
-    // }
-
-
 }
 
 // --------------------------------------------------------------------------

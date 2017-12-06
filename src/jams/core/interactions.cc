@@ -49,8 +49,8 @@ namespace { //anon
     // find which unit_cell position this offset corresponds to
     // it is possible that it does not correspond to a position in which case the
     // -1 is returned
-    for (int k = 0; k < lattice->num_motif_positions(); ++k) {
-      Vec3 pos = lattice->motif_position_frac(k);
+    for (int k = 0; k < lattice->motif_size(); ++k) {
+      auto pos = lattice->motif_atom(k).pos;
       if ( std::abs(pos[0] - offset[0]) < tolerance
         && std::abs(pos[1] - offset[1]) < tolerance
         && std::abs(pos[2] - offset[2]) < tolerance ) {
@@ -62,7 +62,7 @@ namespace { //anon
 
   int find_neighbour_index(const inode_t &node_i, const inode_t &node_j) {
 
-    int n = lattice->num_motif_positions();
+    int n = lattice->motif_size();
 
     inode_t ivec = {(n + node_i.k + node_j.k)%n,
                          node_i.a + node_j.a,
@@ -88,7 +88,7 @@ namespace { //anon
 
       node = {-1, -1, -1, -1};
 
-      Vec3 p_ij_frac = lattice->motif_position_frac(interaction.pos_i);
+      Vec3 p_ij_frac = lattice->motif_atom(interaction.pos_i).pos;
       Vec3 r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
 
       Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
@@ -121,12 +121,13 @@ namespace { //anon
 
     node = {-1, -1, -1, -1};
 
+    const auto index_material_id = lattice->motif_atom(motif_index).material;
     // only process for interactions belonging to this type
-    if (lattice->motif_material(motif_index).name != interaction.type_i) {
+    if (lattice->material(index_material_id).name != interaction.type_i) {
       return false;
     }
 
-    Vec3 p_ij_frac = lattice->motif_position_frac(motif_index);
+    Vec3 p_ij_frac = lattice->motif_atom(motif_index).pos;
     Vec3 r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
 
     Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
@@ -138,8 +139,9 @@ namespace { //anon
       return false;
     }
 
+    const auto nbr_material_id = lattice->motif_atom(nbr_motif_index).material;
     // is the nbr atom of the type specified
-    if (lattice->motif_material(nbr_motif_index).name != interaction.type_j) {
+    if (lattice->material(nbr_material_id).name != interaction.type_j) {
       return false;
     }
 
@@ -173,7 +175,7 @@ namespace { //anon
         symops_interaction_data.push_back(interaction);
       }
 
-      for (int i = 0; i < lattice->num_motif_positions(); ++i) {
+      for (int i = 0; i < lattice->motif_size(); ++i) {
         // calculate all unique inode vectors for (symmetric) interactions based on the current line
         std::set<inode_t> unique_interactions;
         for(auto const& symops_interaction: symops_interaction_data) {
@@ -299,9 +301,10 @@ namespace { //anon
       unsigned radius_cutoff_counter = 0;
 
       bool is_centered_lattice = false;
-      for (int i = 0; i < lattice->num_motif_positions(); ++i) {
-        if (lattice->motif_position_frac(i)[0] < 0.0 || lattice->motif_position_frac(i)[1] < 0.0 ||
-                lattice->motif_position_frac(i)[2] < 0.0) {
+
+      for (auto i = 0; i < lattice->motif_size(); ++i) {
+        const auto& atom = lattice->motif_atom(i);
+        if (atom.pos[0] < 0.0 || atom.pos[1] < 0.0 || atom.pos[2] < 0.0) {
           is_centered_lattice = true;
           jams_warning("Centered lattice is detected. Make sure you know what you are doing!");
           break;
@@ -471,12 +474,14 @@ namespace { //anon
 
 void safety_check_distance_tolerance(const double &tolerance) {
   // check that no atoms in the unit cell are closer together than the tolerance
-  for (int i = 0; i < lattice->num_motif_positions(); ++i) {
-    for (int j = i+1; j < lattice->num_motif_positions(); ++j) {
-      if( abs(lattice->motif_position_frac(i) - lattice->motif_position_frac(j)) < tolerance ) {
+
+  for (auto i = 0; i < lattice->motif_size(); ++i) {
+    for (auto j = i+1; j < lattice->motif_size(); ++j) {
+      const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
+      if(distance < tolerance) {
         jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
                    "Check position file or relax distance_tolerance for exchange module",
-                    i, j, abs(lattice->motif_position_frac(i) - lattice->motif_position_frac(j)), tolerance);
+                    i, j, distance, tolerance);
       }
     }
   }

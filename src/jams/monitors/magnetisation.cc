@@ -28,7 +28,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 
   libconfig::Setting& material_settings = ::config->lookup("materials");
   for (int i = 0; i < num_spins; ++i) {
-    auto transform = jams::config_optional<Vec3>(material_settings[::lattice->atom_material(i)], "transform", jams::default_material_spin_transform);
+    auto transform = jams::config_optional<Vec3>(material_settings[::lattice->atom_material_id(i)], "transform", jams::default_material_spin_transform);
     for (auto n = 0; n < 3; ++n) {
       s_transform_(i,n) = transform[n];
     }
@@ -37,7 +37,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   material_count_.resize(lattice->num_materials(), 0);
 
   for (auto i = 0; i < num_spins; ++i) {
-    material_count_[lattice->atom_material(i)]++;
+    material_count_[lattice->atom_material_id(i)]++;
   }
 
   std::string name = seedname + "_mag.tsv";
@@ -76,7 +76,7 @@ void MagnetisationMonitor::update(Solver * solver) {
     mag.zero();
 
     for (auto i = 0; i < num_spins; ++i) {
-      int type = lattice->atom_material(i);
+      int type = lattice->atom_material_id(i);
       for (auto j = 0; j < 3; ++j) {
         mag(type, j) += s(i, j);
       }

@@ -21,6 +21,9 @@ public:
     const B& left(const A& a) const;
     const A& right(const B& b) const;
 
+    bool left_contains(const A& a) const;
+    bool right_contains(const B& b) const;
+
     std::size_t size() const;
     void clear();
 
@@ -59,5 +62,16 @@ void Bimap<A, B>::clear() {
   mapA.clear();
   mapB.clear();
 }
+
+template<typename A, typename B>
+bool Bimap<A, B>::left_contains(const A &a) const {
+  const auto search = mapB.find(std::hash<A>()(a));
+  return search != mapB.end();
+}
+
+template<typename A, typename B>
+bool Bimap<A, B>::right_contains(const B &b) const {
+  const auto search = mapA.find(std::hash<B>()(b));
+  return search != mapA.end();}
 
 #endif //JAMS_BIMAP_H
