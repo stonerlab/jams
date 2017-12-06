@@ -75,7 +75,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       std::ofstream pos_file("debug_pos.dat");
       for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice->atom_material(i) == n) {
+          if (lattice->atom_material_id(i) == n) {
             pos_file << i << "\t" <<  lattice->atom_position(i) << " | " << lattice->cartesian_to_fractional(lattice->atom_position(i)) << "\n";
           }
         }

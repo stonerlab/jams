@@ -179,7 +179,7 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
 
     calculate_fields(h_);
     for (int m = 0; m < 3; ++m) {
-        Vec3i pos = ::lattice->super_cell_pos(i);
+        Vec3i pos = ::lattice->supercell_index(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
 
@@ -205,7 +205,7 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
 
     calculate_fields(h_);
     for (int m = 0; m < 3; ++m) {
-        Vec3i pos = ::lattice->super_cell_pos(i);
+        Vec3i pos = ::lattice->supercell_index(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
 }

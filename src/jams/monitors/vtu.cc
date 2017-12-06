@@ -59,7 +59,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         spins_binary_data.resize(num_slice_points, 3);
 
         for (int i = 0; i < num_slice_points; ++i) {
-            types_binary_data(i) = ::lattice->atom_material(slice_spins[i]);
+            types_binary_data(i) = ::lattice->atom_material_id(slice_spins[i]);
             for (int j = 0; j < 3; ++j) {
                 points_binary_data(i, j) = ::lattice->parameter()*::lattice->atom_position(slice_spins[i])[j];
             }
@@ -70,7 +70,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         types_binary_data.resize(num_spins);
 
         for (int i = 0; i < num_spins; ++i) {
-            types_binary_data(i) = ::lattice->atom_material(i);
+            types_binary_data(i) = ::lattice->atom_material_id(i);
             for (int j = 0; j < 3; ++j) {
                 points_binary_data(i, j) = ::lattice->parameter()*::lattice->atom_position(i)[j];
             }

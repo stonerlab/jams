@@ -201,7 +201,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name, const H
         types.resize(num_spins);
 
         for (int i = 0; i < type_dims[0]; ++i) {
-            types(i) = lattice->atom_material(i);
+            types(i) = lattice->atom_material_id(i);
         }
 
         positions.resize(num_spins, 3);

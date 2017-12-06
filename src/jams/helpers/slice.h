@@ -75,7 +75,7 @@ class Slice {
   }
 
   int type(const int i) {
-    return lattice->atom_material(slice_map[i]);
+    return lattice->atom_material_id(slice_map[i]);
   }
 
  private:

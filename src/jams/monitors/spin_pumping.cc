@@ -67,8 +67,8 @@ void SpinPumpingMonitor::update(Solver * solver) {
     std::vector<Stats> spin_pumping_im(::lattice->num_materials());
 
     for (int i = 0; i < num_spins; ++i) {
-      spin_pumping_re[::lattice->atom_material(i)].add((s(i, 0)*ds_dt(i, 1) - s(i, 1)*ds_dt(i, 0)));
-      spin_pumping_im[::lattice->atom_material(i)].add(ds_dt(i, 2));
+      spin_pumping_re[::lattice->atom_material_id(i)].add((s(i, 0)*ds_dt(i, 1) - s(i, 1)*ds_dt(i, 0)));
+      spin_pumping_im[::lattice->atom_material_id(i)].add(ds_dt(i, 2));
     }
 
     // output in rad / s^-1 T^-1

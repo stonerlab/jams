@@ -48,7 +48,7 @@ void fft_scalar_field(
 
 		for (int i = 0; i < num_spins; ++i) {
 		  if ((i+n)% lattice->num_motif_positions() == 0) {
-		    Vec3i r = lattice->super_cell_pos(i);
+		    Vec3i r = lattice->supercell_index(i);
 		    remapped_field(r[0], r[1], r[2]) = {field(i), 0.0};
 		  }
 		}
@@ -160,7 +160,7 @@ void fft_vector_field(
 
 		for (int i = 0; i < num_spins; ++i) {
 		  if ((i+n)% lattice->num_motif_positions() == 0) {
-		    Vec3i r = lattice->super_cell_pos(i);
+		    Vec3i r = lattice->supercell_index(i);
 		    remapped_x(r[0], r[1], r[2]) = {field(i, 0), 0.0};
 		    remapped_y(r[0], r[1], r[2]) = {field(i, 1), 0.0};
 		    remapped_z(r[0], r[1], r[2]) = {field(i, 2), 0.0};

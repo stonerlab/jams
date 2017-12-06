@@ -51,7 +51,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       std::ofstream pos_file("debug_pos.dat");
       for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice->atom_material(i) == n) {
+          if (lattice->atom_material_id(i) == n) {
             pos_file << i << "\t" <<  lattice->atom_position(i)[0] << "\t" <<  lattice->atom_position(i)[1] << "\t" << lattice->atom_position(i)[2] << "\n";
           }
         }
@@ -127,7 +127,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     for (int i = 0; i < globals::num_spins; ++i) {
       std::vector<bool> is_already_interacting(globals::num_spins, false);
 
-      int type = lattice->atom_material(i);
+      int type = lattice->atom_material_id(i);
 
       for (int j = 0; j < interaction_list_[type].size(); ++j) {
         std::vector<Atom> nbr_lower;

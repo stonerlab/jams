@@ -53,7 +53,7 @@ public:
     inline string material_name(int uid);
     inline int material_id(const string &name);
 
-    inline int atom_material(const int i) const;
+    inline int atom_material_id(const int i) const;
     inline Vec3 atom_position(const int i) const;
     inline void atom_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) const;
 
@@ -83,7 +83,7 @@ public:
 
     bool apply_boundary_conditions(Vec4i &pos) const;
 
-    const Vec3i &super_cell_pos(const int i) const;
+    const Vec3i &supercell_index(const int i) const;
 
     const Vec3i &kspace_size() const;
 
@@ -126,17 +126,14 @@ private:
     std::vector<Atom> motif_;
     std::vector<Atom> atoms_;
 
-    std::vector<int> num_of_material_;
-    std::map<string, Material> material_name_map_;
-    std::map<int, Material> material_id_map_;
+    std::map<string, Material> material_names_;
+    std::map<int, Material> material_ids_;
 
-    std::vector<std::string> lattice_materials_;
-    jblib::Array<Vec3i, 1> lattice_super_cell_pos_;
+    std::vector<Vec3i> supercell_indicies_;
     jblib::Array<int, 4> lattice_map_;
 
     jblib::Array<int, 3> kspace_map_;
     Vec3i kspace_size_;
-    std::vector<Vec3> lattice_positions_;
     Vec3 rmax_;
 
     SpglibDataset *spglib_dataset_ = nullptr;
@@ -187,27 +184,27 @@ Lattice::motif_position_cart(int i) const {
 inline Material
 Lattice::motif_material(int i) const {
   assert(i < motif_.size());
-  return material_id_map_.at(motif_[i].material);
+  return material_ids_.at(motif_[i].material);
 }
 
 inline int
 Lattice::num_materials() const {
-  return material_name_map_.size();
+  return material_names_.size();
 }
 
 inline std::string
 Lattice::material_name(int uid) {
-  return material_id_map_.at(uid).name;
+  return material_ids_.at(uid).name;
 }
 
 inline int
 Lattice::material_id(const string &name) {
-  return material_name_map_.at(name).id;
+  return material_names_.at(name).id;
 }
 
 inline int
-Lattice::atom_material(const int i) const {
-  assert(i < lattice_materials_.size());
+Lattice::atom_material_id(const int i) const {
+  assert(i < atoms_.size());
   return atoms_[i].material;
 }
 
@@ -263,8 +260,8 @@ inline bool Lattice::is_periodic(int i) const {
   return lattice_periodic[i];
 }
 
-inline const Vec3i &Lattice::super_cell_pos(const int i) const {
-  return lattice_super_cell_pos_(i);
+inline const Vec3i &Lattice::supercell_index(const int i) const {
+  return supercell_indicies_[i];
 }
 
 inline const Vec3i &Lattice::kspace_size() const {
