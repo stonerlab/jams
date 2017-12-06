@@ -150,7 +150,7 @@ void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h
     for (auto j = 0; j < globals::num_spins; ++j) {
         if (j == i) continue;
 
-        auto r_ij = lattice->displacement(i, j);
+        auto r_ij = lattice->displacement(lattice->atom_position(i), lattice->atom_position(j));
         const auto r_abs_sq = abs_sq(r_ij);
 
         if (r_abs_sq > (r_cutoff_*r_cutoff_)) continue;

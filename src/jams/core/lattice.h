@@ -39,7 +39,6 @@ public:
     inline Vec3 b() const;
     inline Vec3 c() const;
 
-    inline Vec3 displacement(const int i, const int j) const;
     inline Vec3 displacement(const Vec3 &r_i, const Vec3 &r_j) const;
 
     inline bool is_periodic(int i) const;
@@ -216,11 +215,6 @@ Lattice::atom_position(const int i) const {
 inline void
 Lattice::atom_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) const {
   neartree_->find_in_radius(r_cutoff, neighbours, {i, atoms_[i].material, atoms_[i].pos});
-}
-
-inline Vec3
-Lattice::displacement(const int i, const int j) const {
-  return minimum_image(supercell, atom_position(i), atom_position(j));
 }
 
 inline Vec3
