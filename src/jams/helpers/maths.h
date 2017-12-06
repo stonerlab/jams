@@ -229,14 +229,14 @@ inline void cartesian_to_spherical(const double x,
 
 inline void spherical_to_cartesian(const double r,
     const double theta, const double phi, double* x, double* y, double* z) {
-  (*x) = r*cos(theta)*cos(phi);
-  (*y) = r*cos(theta)*sin(phi);
-  (*z) = r*sin(theta);
+  (*x) = r*sin(theta)*cos(phi);
+  (*y) = r*sin(theta)*sin(phi);
+  (*z) = r*cos(theta);
 }
 
 inline Vec3 spherical_to_cartesian_vector(const double r,
     const double theta, const double phi) {
-  return {r*cos(theta)*cos(phi), r*cos(theta)*sin(phi), r*sin(theta)};
+  return {r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), r*cos(theta)};
 }
 
 inline Mat3 rotation_matrix_y(const double& theta) {
