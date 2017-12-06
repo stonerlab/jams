@@ -284,7 +284,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
 
                 const auto r_abs_sq = abs_sq(r_ij);
 
-                if (!isnormal(r_abs_sq)) {
+                if (!std::isnormal(r_abs_sq)) {
                   throw runtime_error("fatal error in CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor: r_abs_sq is not normal");
                 }
 
@@ -297,7 +297,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
                 for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
                         auto value = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
-                        if (!isfinite(value)) {
+                        if (!std::isfinite(value)) {
                           throw runtime_error("fatal error in CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor: tensor value is not finite");
                         }
                         rspace_tensor(nx, ny, nz, m, n) = value;
