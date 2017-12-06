@@ -52,29 +52,29 @@ public:
     inline string material_name(int uid);
     inline int material_id(const string &name);
 
-    inline int atom_material_id(const int i) const;
-    inline Vec3 atom_position(const int i) const;
-    inline void atom_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) const;
+    inline int atom_material_id(const int &i) const;
+    inline Vec3 atom_position(const int &i) const;
+    inline void atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom> &neighbours) const;
 
     double max_interaction_radius() const;
 
     // TODO: remove rmax
     inline Vec3 rmax() const;
 
-    Vec3 generate_position(const Vec3 unit_cell_frac_pos, const Vec3i translation_vector) const;
+    Vec3 generate_position(const Vec3 &unit_cell_frac_pos, const Vec3i &translation_vector) const;
 
-    Vec3 generate_image_position(const Vec3 unit_cell_cart_pos, const Vec3i image_vector) const;
+    Vec3 generate_image_position(const Vec3 &unit_cell_cart_pos, const Vec3i &image_vector) const;
 
-    std::vector<Vec3> generate_symmetric_points(const Vec3 &r, const double tolerance) const;
+    std::vector<Vec3> generate_symmetric_points(const Vec3 &r, const double &tolerance) const;
 
     inline Vec3 cartesian_to_fractional(const Vec3 &r_cart) const;
 
     inline Vec3 fractional_to_cartesian(const Vec3 &r_frac) const;
 
-    bool is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double tolerance) const;
+    bool is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double &tolerance) const;
 
     // lookup the site index but unit cell integer coordinates and motif offset
-    inline int site_index_by_unit_cell(const int i, const int j, const int k, const int m) const;
+    inline int site_index_by_unit_cell(const int &i, const int &j, const int &k, const int &m) const;
 
     bool apply_boundary_conditions(Vec3i &pos) const;
 
@@ -82,7 +82,7 @@ public:
 
     bool apply_boundary_conditions(Vec4i &pos) const;
 
-    const Vec3i &supercell_index(const int i) const;
+    const Vec3i &supercell_index(const int &i) const;
 
     const Vec3i &kspace_size() const;
 
@@ -202,18 +202,18 @@ Lattice::material_id(const string &name) {
 }
 
 inline int
-Lattice::atom_material_id(const int i) const {
+Lattice::atom_material_id(const int &i) const {
   assert(i < atoms_.size());
   return atoms_[i].material;
 }
 
 inline Vec3
-Lattice::atom_position(const int i) const {
+Lattice::atom_position(const int &i) const {
   return atoms_[i].pos;
 }
 
 inline void
-Lattice::atom_neighbours(const int i, const double r_cutoff, std::vector<Atom> &neighbours) const {
+Lattice::atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom> &neighbours) const {
   neartree_->find_in_radius(r_cutoff, neighbours, {i, atoms_[i].material, atoms_[i].pos});
 }
 
@@ -237,7 +237,7 @@ Lattice::rmax() const {
   return rmax_;
 };
 
-inline int Lattice::site_index_by_unit_cell(const int i, const int j, const int k, const int m) const {
+inline int Lattice::site_index_by_unit_cell(const int &i, const int &j, const int &k, const int &m) const {
   assert(i < lattice_dimensions[0]);
   assert(i >= 0);
   assert(j < lattice_dimensions[1]);
@@ -254,7 +254,7 @@ inline bool Lattice::is_periodic(int i) const {
   return lattice_periodic[i];
 }
 
-inline const Vec3i &Lattice::supercell_index(const int i) const {
+inline const Vec3i &Lattice::supercell_index(const int &i) const {
   return supercell_indicies_[i];
 }
 

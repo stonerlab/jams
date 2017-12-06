@@ -525,16 +525,16 @@ void Lattice::load_spin_state_from_hdf5(std::string &filename) {
 }
 
 Vec3 Lattice::generate_position(
-        const Vec3 unit_cell_frac_pos,
-        const Vec3i translation_vector) const
+        const Vec3 &unit_cell_frac_pos,
+        const Vec3i &translation_vector) const
 {
   return unitcell.matrix() * (unit_cell_frac_pos + translation_vector);
 }
 
 // generate a position within a periodic image of the entire system
 Vec3 Lattice::generate_image_position(
-        const Vec3 unit_cell_cart_pos,
-        const Vec3i image_vector) const
+        const Vec3 &unit_cell_cart_pos,
+        const Vec3i &image_vector) const
 {
   Vec3 frac_pos = cartesian_to_fractional(unit_cell_cart_pos);
   for (int n = 0; n < 3; ++n) {
@@ -825,7 +825,7 @@ double Lattice::max_interaction_radius() const {
   return 0.0;
 }
 
-std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3& r_cart, const double tolerance = 1e-6) const {
+std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3 &r_cart, const double &tolerance = 1e-6) const {
 
   const auto r_frac = cartesian_to_fractional(r_cart);
   std::vector<Vec3> symmetric_points;
@@ -842,7 +842,7 @@ std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3& r_cart, const d
   return symmetric_points;
 }
 
-bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double tolerance = 1e-6) const {
+bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double &tolerance = 1e-6) const {
   for (const auto r : points) {
     for (const auto r_sym : generate_symmetric_points(r, tolerance)) {
       if (!vec_exists_in_container(points, r_sym, tolerance)) {
