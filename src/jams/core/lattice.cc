@@ -335,6 +335,14 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
     throw general_exception("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
+  if (lattice_parameter == 0.0) {
+    throw general_exception("lattice parameter cannot be zero", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
+
+  if (lattice_parameter < 1e-10) {
+    jams_warning("lattice parameter is unusually small - units should be meters");
+  }
+
   if (lattice_parameter > 1e-7) {
     jams_warning("lattice parameter is unusually large - units should be meters");
   }
