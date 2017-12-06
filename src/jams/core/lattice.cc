@@ -91,6 +91,129 @@ Lattice::~Lattice() {
   delete neartree_;
 }
 
+
+double Lattice::parameter() const {
+  return lattice_parameter;
+}
+
+double Lattice::volume() const {
+  return ::volume(supercell) * pow3(lattice_parameter);
+}
+
+int Lattice::size(int i) const {
+  return lattice_dimensions[i];
+}
+
+int Lattice::num_motif_positions() const {
+  return motif_.size();
+}
+
+Vec3 Lattice::a() const {
+  return unitcell.a();
+}
+
+Vec3 Lattice::b() const {
+  return unitcell.b();
+}
+
+Vec3 Lattice::c() const {
+  return unitcell.c();
+}
+
+Vec3
+Lattice::motif_position_frac(int i) const {
+  assert(i < num_motif_positions());
+  return motif_[i].pos;
+}
+
+Vec3
+Lattice::motif_position_cart(int i) const {
+  assert(i < num_motif_positions());
+  return unitcell.matrix() * motif_[i].pos;
+}
+
+Material
+Lattice::motif_material(int i) const {
+  assert(i < motif_.size());
+  return materials_[motif_[i].material];
+}
+
+int
+Lattice::num_materials() const {
+  return materials_.size();
+}
+
+std::string
+Lattice::material_name(int uid) {
+  return materials_.name(uid);
+}
+
+int
+Lattice::material_id(const string &name) {
+  return materials_.id(name);
+}
+
+int
+Lattice::atom_material_id(const int &i) const {
+  assert(i < atoms_.size());
+  return atoms_[i].material;
+}
+
+Vec3
+Lattice::atom_position(const int &i) const {
+  return atoms_[i].pos;
+}
+
+void
+Lattice::atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom> &neighbours) const {
+  neartree_->find_in_radius(r_cutoff, neighbours, {i, atoms_[i].material, atoms_[i].pos});
+}
+
+Vec3
+Lattice::displacement(const Vec3 &r_i, const Vec3 &r_j) const {
+  return minimum_image(supercell, r_i, r_j);
+}
+
+Vec3
+Lattice::cartesian_to_fractional(const Vec3 &r_cart) const {
+  return unitcell.inverse_matrix() * r_cart;
+}
+
+Vec3
+Lattice::fractional_to_cartesian(const Vec3 &r_frac) const {
+  return unitcell.matrix() * r_frac;
+}
+
+Vec3
+Lattice::rmax() const {
+  return rmax_;
+};
+
+int Lattice::site_index_by_unit_cell(const int &i, const int &j, const int &k, const int &m) const {
+  assert(i < lattice_dimensions[0]);
+  assert(i >= 0);
+  assert(j < lattice_dimensions[1]);
+  assert(j >= 0);
+  assert(k < lattice_dimensions[2]);
+  assert(k >= 0);
+  assert(m < num_motif_positions());
+  assert(m >= 0);
+
+  return lattice_map_(i, j, k, m);
+}
+
+bool Lattice::is_periodic(int i) const {
+  return lattice_periodic[i];
+}
+
+const Vec3i &Lattice::supercell_index(const int &i) const {
+  return supercell_indicies_[i];
+}
+
+const Vec3i &Lattice::kspace_size() const {
+  return kspace_size_;
+}
+
 void Lattice::init_from_config(const libconfig::Config& cfg) {
 
   set_name("lattice");
@@ -125,10 +248,10 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions, Coordi
     atom_name = positions[i][0].c_str();
 
     // check the material type is defined
-    if (material_names_.find(atom_name) == material_names_.end()) {
+    if (!materials_.contains(atom_name)) {
       throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
-    atom.material = material_names_[atom_name].id;
+    atom.material = materials_.id(atom_name);
 
     atom.pos[0] = positions[i][1][0];
     atom.pos[1] = positions[i][1][1];
@@ -184,10 +307,10 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
       throw std::runtime_error("atom position " + std::to_string(motif_.size()) + " is not a valid fractional coordinate");
     }
     // check the material type is defined
-    if (material_names_.find(atom_name) == material_names_.end()) {
+    if (!materials_.contains(atom_name)) {
       throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
-    atom.material = material_names_[atom_name].id;
+    atom.material = materials_.id(atom_name);
     atom.id = motif_.size();
 
     motif_.push_back(atom);
@@ -200,11 +323,13 @@ void Lattice::read_materials_from_config(const libconfig::Setting &settings) {
 
   for (auto i = 0; i < settings.getLength(); ++i) {
     Material material(settings[i]);
-    material.id = i;
-    if (material_names_.insert({material.name, material}).second == false) {
+
+    if (materials_.contains(material.name)) {
       throw std::runtime_error("the material " + material.name + " is specified twice in the configuration");
     }
-    material_ids_.insert({material.id, material});
+
+    materials_.insert(material.name, material);
+
     cout << "    " << material.id << " " << material.name << "\n";
   }
 
@@ -312,7 +437,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   cout << "  format " << cfg_coordinate_format_name << "\n";
 
   for (const Atom &atom: motif_) {
-    cout << "    " << atom.id << " " <<  material_name(atom.material) << " " << atom.pos << "\n";
+    cout << "    " << atom.id << " " <<  materials_.name(atom.material) << " " << atom.pos << "\n";
   }
   cout << "\n";
 
@@ -375,8 +500,6 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
 
 void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 {
-
-
   Vec3i kmesh_size = {lattice_dimensions[0], lattice_dimensions[1], lattice_dimensions[2]};
 
   if (!lattice_periodic[0] || !lattice_periodic[1] || !lattice_periodic[2]) {
@@ -459,7 +582,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 
   cout << "  computed lattice positions " << atom_counter << "\n";
   for (auto i = 0; i < atoms_.size(); ++i) {
-    cout << i << " " << material_name(atoms_[i].material)  << " " << atoms_[i].pos << " " << supercell_index(i) << "\n";
+    cout << i << " " << materials_.name(atoms_[i].material)  << " " << atoms_[i].pos << " " << supercell_index(i) << "\n";
     if(!verbose_is_enabled() && i > 7) {
       cout << "    ... [use verbose output for details] ... \n";
       break;
@@ -479,7 +602,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
   for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto material = material_ids_[atom_material_id(i)];
+    const auto material = materials_[atom_material_id(i)];
 
     globals::mus(i)   = material.moment;
     globals::alpha(i) = material.alpha;
@@ -638,7 +761,7 @@ void Lattice::calc_symmetry_operations() {
       matmul(spglib_dataset_->transformation_matrix, spg_positions[i], bij);
       cout << std::setw(12) << " ";
       cout << i << " ";
-      cout << material_ids_[spg_types[i]].name << " ";
+      cout << materials_.name(spg_types[i]) << " ";
       cout << bij[0] << " " << bij[1] << " " << bij[2] << "\n";
     }
   }
@@ -656,7 +779,7 @@ void Lattice::calc_symmetry_operations() {
 
   cout << "    std_positions\n";
   for (int i = 0; i < spglib_dataset_->n_std_atoms; ++i) {
-    cout << "    " << i << " " << material_ids_[spglib_dataset_->std_types[i]].name << " ";
+    cout << "    " << i << " " << materials_.name(spglib_dataset_->std_types[i]) << " ";
     cout << spglib_dataset_->std_positions[i][0] << " " << spglib_dataset_->std_positions[i][1] << " " << spglib_dataset_->std_positions[i][2] << "\n";
   }
   
@@ -703,7 +826,7 @@ void Lattice::calc_symmetry_operations() {
 
     int counter  = 0;
     for (int i = 0; i < primitive_num_atoms; ++i) {
-      cout << "    " << counter << " " <<  material_ids_[primitive_types[i]].name << " ";
+      cout << "    " << counter << " " <<  materials_.name(primitive_types[i]) << " ";
       cout << primitive_positions[i][0] << " " << primitive_positions[i][1] << " " << primitive_positions[i][2] << "\n";
       counter++;
     }
