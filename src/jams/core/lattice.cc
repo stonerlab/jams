@@ -473,8 +473,8 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
   }
 
   auto volume_before = ::volume(unitcell);
-  rotate(unitcell, orientation_matrix);
-  rotate(supercell, orientation_matrix);
+  unitcell = rotate(unitcell, orientation_matrix);
+  supercell = rotate(supercell, orientation_matrix);
   auto volume_after = ::volume(unitcell);
 
   if (std::abs(volume_before - volume_after) > 1e-6) {
