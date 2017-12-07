@@ -97,11 +97,11 @@ void fft_scalar_field(
 
 //---------------------------------------------------------------------
 
-void fft_vector_field(
-	const jblib::Array<double, 2>& field, 
-	jblib::Array<complex<double>, 4>& out_x,
-	jblib::Array<complex<double>, 4>& out_y,
-	jblib::Array<complex<double>, 4>& out_z)
+void fft_remapped_vector_field(
+        const jblib::Array<double, 2> &field,
+        jblib::Array<complex<double>, 4> &out_x,
+        jblib::Array<complex<double>, 4> &out_y,
+        jblib::Array<complex<double>, 4> &out_z)
 {
 	using namespace globals;
 

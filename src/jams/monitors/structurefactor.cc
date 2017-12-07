@@ -192,7 +192,7 @@ void StructureFactorMonitor::update(Solver * solver) {
       s_trans(i, 2) = 1.0 - s_trans(i, 2);
   }
 
-  fft_vector_field(s_trans, sq_x, sq_y, sq_z);
+  fft_remapped_vector_field(s_trans, sq_x, sq_y, sq_z);
 
   // add the Sq to the timeseries
   for (int n = 0; n < ::lattice->motif_size(); ++n) {
