@@ -88,8 +88,8 @@ class Solver : public Base {
 
     double time_step_ = 1.0;
 
-  Physics*                  physics_module_;
-  Thermostat*               thermostat_;
+  Physics*                  physics_module_ = nullptr;
+  Thermostat*               thermostat_ = nullptr;
   std::vector<Monitor*>     monitors_;
   std::vector<Hamiltonian*> hamiltonians_;
 };
