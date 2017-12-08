@@ -13,8 +13,12 @@
 #include "jams/hamiltonian/test_dipole_input.h"
 #include "../../../src/jams/hamiltonian/cuda_dipole_fft.h"
 
-namespace {
-// The fixture for testing class Foo.
+//---------------------------------------------------------------------
+// NOTE: The liberal use of #pragma nounroll_and_jam is to avoid a bug
+//       in the Intel 2016.2 compiler which mangles these loops when
+//       unrolling
+//---------------------------------------------------------------------
+
 class CudaDipoleHamiltonianFFTTest : public ::testing::Test {
  protected:
   // You can remove any or all of the following functions if its body
@@ -86,7 +90,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
   ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
 
   // S = (0, 1, 0) FM
-
+#pragma nounroll_and_jam
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
     globals::s(i, 0) = 0.0;
     globals::s(i, 1) = 1.0;
@@ -104,7 +108,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
   ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
 
   // S = (0, 0, 1) FM
-
+#pragma nounroll_and_jam
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
     globals::s(i, 0) = 0.0;
     globals::s(i, 1) = 0.0;
@@ -130,7 +134,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
     auto h = new CudaDipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (0, 0, 1) FM
-
+#pragma nounroll_and_jam
     for (unsigned int i = 0; i < globals::num_spins; ++i) {
       globals::s(i, 0) = 0.0;
       globals::s(i, 1) = 0.0;
@@ -157,7 +161,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
     auto h = new CudaDipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (1, 0, 0) AFM
-
+#pragma nounroll_and_jam
     for (unsigned int i = 0; i < globals::num_spins; ++i) {
       if (i % 2 == 0) {
         globals::s(i, 0) = -1.0;
@@ -179,7 +183,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
 
     // S = (0, 1, 0) AFM
-
+#pragma nounroll_and_jam
     for (unsigned int i = 0; i < globals::num_spins; ++i) {
       globals::s(i, 0) = 0.0;
       if (i % 2 == 0) {
@@ -217,14 +221,13 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
     ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   }
 
-}
-
 //---------------------------------------------------------------------
 
 TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM_RAND) {
   SetUp(  config_basic_gpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
+#pragma nounroll_and_jam
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
     Vec3 spin = uniform_random_sphere(rng);
     globals::s(i, 0) = spin[0];
@@ -283,6 +286,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM_RAND) {
   SetUp(  config_basic_gpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
+#pragma nounroll_and_jam
   for (auto i = 0; i < globals::num_spins; ++i) {
     Vec3 spin = uniform_random_sphere(rng);
     globals::s(i, 0) = spin[0];

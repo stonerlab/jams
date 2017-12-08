@@ -15,7 +15,6 @@ namespace {
     };
 
     physics : {
-      module = "empty";
       temperature = 1.0;
     };
     )");
@@ -29,7 +28,6 @@ namespace {
     };
 
     physics : {
-      module = "empty";
       temperature = 1.0;
     };
     )");
