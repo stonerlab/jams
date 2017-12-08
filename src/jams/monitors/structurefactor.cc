@@ -104,7 +104,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
   bz_points_path_count.push_back(0);
   for (int n = 0, nend = bz_nodes.size()-1; n < nend; ++n) {
-    jblib::Vec3<int> bz_point, bz_line, bz_line_element;
+    Vec3i bz_point, bz_line, bz_line_element;
 
 
     // validate the nodes
