@@ -26,8 +26,13 @@ class StructureFactorMonitor : public Monitor {
   bool is_converged() { return false; }
 
  private:
+    void   fft_space();
+    void   fft_time();
+    void   store_bz_path_data();
 
-  void   fft_time();
+    fftw_plan fft_plan_s_rspace_to_kspace = nullptr;
+
+    jblib::Array<std::complex<double>, 5> s_kspace;
 
     bool output_sublattice_enabled_ = false;
   jblib::Array<double, 2> s_transform;
