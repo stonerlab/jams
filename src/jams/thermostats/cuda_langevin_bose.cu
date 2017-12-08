@@ -49,7 +49,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    omega_max_ = 100 * kTHz;
    config->lookupValue("thermostat.w_max", omega_max_);
 
-   double dt_thermostat = ::config->lookup("sim.t_step");
+   double dt_thermostat = ::config->lookup("solver.t_step");
    delta_tau_ = (dt_thermostat * kBoltzmann) / kHBar;
 
    std::random_device rdev;
@@ -130,7 +130,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
    dev_sigma_ = jblib::CudaArray<double, 1>(scale);
 
-   cout << "    warming up thermostat " << (t_warmup / 1.0e-9) << " ns @ " << this->temperature() << "\n";
+   cout << "    warming up thermostat " << (t_warmup / 1.0e-9) << " ns @ " << this->temperature() << "K\n";
 
    const unsigned num_warmup_steps = static_cast<unsigned>(t_warmup / dt_thermostat);
    for (auto i = 0; i < num_warmup_steps; ++i) {
