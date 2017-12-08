@@ -1,3 +1,7 @@
+#ifdef USE_OMP
+#include <omp.h>
+#endif
+
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
@@ -87,8 +91,10 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
   const auto r_cut_squared = pow2(r_cutoff_);
   const auto w0 = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
 
-  bool is_bulk = lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2);
+  const bool is_bulk = lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2);
 
+  double hx = 0, hy = 0, hz = 0;
+#pragma omp parallel for reduction(+:hx, hy, hz)
   for (auto j = 0; j < globals::num_spins; ++j) {
     if (unlikely(j == i)) continue;
 
@@ -111,10 +117,12 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 
     auto sj_dot_r = s(j, 0) * r_ij[0] + s(j, 1) * r_ij[1] + s(j, 2) * r_ij[2];
 
-    for (auto n = 0; n < 3; ++n) {
-        h[n] += w0 * mus(i) * mus(j) * (3 * r_ij[n] * sj_dot_r - r_abs_sq * s(j, n)) / pow(r_abs_sq, 2.5);
-    }
+    hx += w0 * mus(i) * mus(j) * (3 * r_ij[0] * sj_dot_r - r_abs_sq * s(j, 0)) / pow(r_abs_sq, 2.5);
+    hy += w0 * mus(i) * mus(j) * (3 * r_ij[1] * sj_dot_r - r_abs_sq * s(j, 1)) / pow(r_abs_sq, 2.5);
+    hz += w0 * mus(i) * mus(j) * (3 * r_ij[2] * sj_dot_r - r_abs_sq * s(j, 2)) / pow(r_abs_sq, 2.5);
   }
+
+  h[0] = hx; h[1] = hy; h[2] = hz;
 }
 
 // --------------------------------------------------------------------------
