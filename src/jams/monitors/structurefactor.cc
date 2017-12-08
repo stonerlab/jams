@@ -169,9 +169,6 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   sqw_x.resize(::lattice->motif_size(), num_samples, bz_points.size());
   sqw_y.resize(::lattice->motif_size(), num_samples, bz_points.size());
   sqw_z.resize(::lattice->motif_size(), num_samples, bz_points.size());
-
-  k0.resize(num_samples);
-  kneq0.resize(num_samples);
 }
 
 void StructureFactorMonitor::update(Solver * solver) {
@@ -219,8 +216,6 @@ void StructureFactorMonitor::update(Solver * solver) {
           }
       }
   }
-  k0(time_point_counter_) = nz(0, 0, 0);
-  kneq0(time_point_counter_) = std::accumulate(nz.data(), nz.data()+nz.elements(), 0.0);
 
   time_point_counter_++;
 }

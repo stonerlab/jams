@@ -31,8 +31,6 @@ class StructureFactorMonitor : public Monitor {
 
     bool output_sublattice_enabled_ = false;
   jblib::Array<double, 2> s_transform;
-  jblib::Array<double, 1> k0;
-  jblib::Array<double, 1> kneq0;
   jblib::Array<std::complex<double>, 3> sqw_x;
   jblib::Array<std::complex<double>, 3> sqw_y;
   jblib::Array<std::complex<double>, 3> sqw_z;
