@@ -42,6 +42,8 @@ public:
     Vec3 b() const;
     Vec3 c() const;
 
+    const Cell& get_supercell();
+
     Vec3 displacement(const Vec3 &r_i, const Vec3 &r_j) const;
 
     bool is_periodic(int i) const;

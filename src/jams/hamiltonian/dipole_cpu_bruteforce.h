@@ -1,18 +1,18 @@
 // Copyright 2015 Joseph Barker. All rights reserved.
 
-#ifndef JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
-#define JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
+#ifndef JAMS_HAMILTONIAN_DIPOLE_CPU_BRUTEFORCE_H
+#define JAMS_HAMILTONIAN_DIPOLE_CPU_BRUTEFORCE_H
 
 #include "jams/helpers/maths.h"
 #include "strategy.h"
 #include "jams/cuda/wrappers/stream.h"
 
 
-class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
+class DipoleHamiltonianCpuBruteforce : public HamiltonianStrategy {
     public:
-        DipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size);
+        DipoleHamiltonianCpuBruteforce(const libconfig::Setting &settings, const unsigned int size);
 
-        ~DipoleHamiltonianBruteforce();
+        ~DipoleHamiltonianCpuBruteforce();
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
@@ -25,13 +25,9 @@ class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
         void   calculate_fields(jblib::CudaArray<double, 1>& fields);
 
     private:
+        std::vector<Vec3>   frac_positions_;
+        Mat3 supercell_matrix_;
         double r_cutoff_;
-        double dipole_prefactor_;
-
-        jblib::CudaArray<float, 1> dev_r_;
-        jblib::CudaArray<float, 1> dev_mus_;
-        jblib::CudaArray<double, 1> dev_dipole_fields;
-        jblib::Array<double, 2> host_dipole_fields;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H

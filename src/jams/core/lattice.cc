@@ -509,6 +509,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   for (auto i = 0; i < product(kspace_size_); ++i) {
     kspace_map_[i] = -1;
   }
+  cout << "\nkspace size " << kmesh_size << "\n";
 
 
   const auto expected_num_atoms = motif_size() * product(lattice_dimensions);
@@ -971,6 +972,10 @@ const Atom &Lattice::motif_atom(const int &i) const {
 
 const Material &Lattice::material(const int &i) const {
   return materials_[i];
+}
+
+const Cell &Lattice::get_supercell() {
+  return supercell;
 }
 
 
