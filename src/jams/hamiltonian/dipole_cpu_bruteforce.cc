@@ -15,22 +15,17 @@ DipoleHamiltonianCpuBruteforce::~DipoleHamiltonianCpuBruteforce() {
 
 DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::Setting &settings, const unsigned int size)
 : HamiltonianStrategy(settings, size) {
-    Vec3 super_cell_dim = {0.0, 0.0, 0.0};
-
-    for (int n = 0; n < 3; ++n) {
-        super_cell_dim[n] = 0.5*double(lattice->size(n));
-    }
 
     settings.lookupValue("r_cutoff", r_cutoff_);
     std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
-    frac_positions_.resize(globals::num_spins);
+  supercell_matrix_ = lattice->get_supercell().matrix();
+
+  frac_positions_.resize(globals::num_spins);
 
     for (auto i = 0; i < globals::num_spins; ++i) {
-      frac_positions_[i] = lattice->cartesian_to_fractional(lattice->atom_position(i));
+      frac_positions_[i] = lattice->get_supercell().inverse_matrix()*lattice->atom_position(i);
     }
-
-    supercell_matrix_ = lattice->get_supercell().matrix();
 
   }
 
@@ -38,7 +33,6 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
 
 double DipoleHamiltonianCpuBruteforce::calculate_total_energy() {
     double e_total = 0.0;
-
 
        for (int i = 0; i < globals::num_spins; ++i) {
            e_total += calculate_one_spin_energy(i);
@@ -86,29 +80,29 @@ __attribute__((hot))
 void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, double h[3])
 {
   using namespace globals;
-  h[0] = 0; h[1] = 0; h[2] = 0;
 
   const auto r_cut_squared = pow2(r_cutoff_);
   const auto w0 = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
 
   const bool is_bulk = lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2);
+  const bool is_open = !lattice->is_periodic(0) && !lattice->is_periodic(1) && !lattice->is_periodic(2);
 
   double hx = 0, hy = 0, hz = 0;
 #pragma omp parallel for reduction(+:hx, hy, hz)
   for (auto j = 0; j < globals::num_spins; ++j) {
-    if (unlikely(j == i)) continue;
+    if (j == i) continue;
 
     Vec3 r_ij = frac_positions_[j] - frac_positions_[i];
 
     if (likely(is_bulk)) {
       r_ij = supercell_matrix_ * (r_ij - trunc(2 * r_ij));
-    } else {
+    } else if (!is_open) {
       for (auto n = 0; n < 3; ++n) {
         if (lattice->is_periodic(n)) {
           r_ij[n] = r_ij[n] - trunc(2.0 * r_ij[n]);
         }
-        r_ij = supercell_matrix_ * r_ij;
       }
+      r_ij = supercell_matrix_ * r_ij;
     }
 
     auto r_abs_sq = abs_sq(r_ij);
