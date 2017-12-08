@@ -16,6 +16,7 @@
 #include "cuda_dipole_fft.h"
 #include "dipole.h"
 #include "dipole_bruteforce.h"
+#include "dipole_cpu_bruteforce.h"
 #include "dipole_tensor.h"
 #include "dipole_cuda_sparse_tensor.h"
 #include "dipole_ewald.h"
@@ -62,7 +63,10 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
         }
 
         if (strategy_name == "BRUTEFORCE") {
+          if (solver->is_cuda_solver()) {
             return new DipoleHamiltonianBruteforce(settings, size);
+          }
+          return new DipoleHamiltonianCpuBruteforce(settings, size);
         }
 
         std::runtime_error("Unknown DipoleHamiltonian strategy '" + strategy_name + "' requested\n");

@@ -26,18 +26,21 @@ class StructureFactorMonitor : public Monitor {
   bool is_converged() { return false; }
 
  private:
+    void   fft_space();
+    void   fft_time();
+    void   store_bz_path_data();
 
-  void   fft_time();
+    fftw_plan fft_plan_s_rspace_to_kspace = nullptr;
+
+    jblib::Array<std::complex<double>, 5> s_kspace;
 
     bool output_sublattice_enabled_ = false;
   jblib::Array<double, 2> s_transform;
-  jblib::Array<double, 1> k0;
-  jblib::Array<double, 1> kneq0;
   jblib::Array<std::complex<double>, 3> sqw_x;
   jblib::Array<std::complex<double>, 3> sqw_y;
   jblib::Array<std::complex<double>, 3> sqw_z;
-  std::vector<jblib::Vec3<int> > bz_nodes;
-  std::vector<jblib::Vec3<int> > bz_points;
+  std::vector<Vec3i> bz_nodes;
+  std::vector<Vec3i> bz_points;
   std::vector<int> bz_points_path_count;
   std::vector<double> bz_lengths;
   double freq_delta;

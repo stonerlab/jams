@@ -13,7 +13,6 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/consts.h"
-#include "jams/helpers/field.h"
 #include "jams/helpers/fft.h"
 #include "structurefactor.h"
 
@@ -64,6 +63,17 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   cout << "\n";
 
   // ------------------------------------------------------------------
+  // the spin array is a flat 2D array, but is constructed in the lattice
+  // class in the order:
+  // [Nx, Ny, Nz, M], [Sx, Sy, Sz]
+  // where Nx, Ny, Nz are the supercell positions and M is the motif position
+  // We can use that to reinterpet the output from the fft as a 5D array
+  // ------------------------------------------------------------------
+  s_kspace.resize(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2] / 2 + 1, lattice->motif_size(), 3);
+
+  fft_plan_s_rspace_to_kspace = fft_plan_rspace_to_kspace(globals::s.data(), s_kspace.data(), lattice->kspace_size(), lattice->motif_size());
+
+  // ------------------------------------------------------------------
   // construct Brillouin zone sample points from the nodes specified
   // in the config file
   // ------------------------------------------------------------------
@@ -104,7 +114,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 
   bz_points_path_count.push_back(0);
   for (int n = 0, nend = bz_nodes.size()-1; n < nend; ++n) {
-    jblib::Vec3<int> bz_point, bz_line, bz_line_element;
+    Vec3i bz_point, bz_line, bz_line_element;
 
 
     // validate the nodes
@@ -169,58 +179,14 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   sqw_x.resize(::lattice->motif_size(), num_samples, bz_points.size());
   sqw_y.resize(::lattice->motif_size(), num_samples, bz_points.size());
   sqw_z.resize(::lattice->motif_size(), num_samples, bz_points.size());
-
-  k0.resize(num_samples);
-  kneq0.resize(num_samples);
 }
 
 void StructureFactorMonitor::update(Solver * solver) {
   using std::complex;
   using namespace globals;
 
-  jblib::Array<complex<double>, 4> sq_x, sq_y, sq_z;
-
-  jblib::Array<double, 2> s_trans(num_spins, 3);
-
-  for (int i = 0; i < num_spins; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      s_trans(i, j) = s(i, j) * s_transform(i, j);
-    }
-  }
-
-  for (int i = 0; i < num_spins; ++i) {
-      s_trans(i, 2) = 1.0 - s_trans(i, 2);
-  }
-
-  fft_vector_field(s_trans, sq_x, sq_y, sq_z);
-
-  // add the Sq to the timeseries
-  for (int n = 0; n < ::lattice->motif_size(); ++n) {
-    for (int i = 0, iend = bz_points.size(); i < iend; ++i) {
-      jblib::Vec3<int> q = bz_points[i];
-      for (int j = 0; j < 3; ++j) {
-        if (q[j] < 0) {
-          int nk = ::lattice->kspace_size()[j];
-          q[j] = (nk + q[j]);
-        }
-      }
-      sqw_x(n, time_point_counter_, i) = sq_x(q[0], q[1], q[2], n);
-      sqw_y(n, time_point_counter_, i) = sq_y(q[0], q[1], q[2], n);
-      sqw_z(n, time_point_counter_, i) = sq_z(q[0], q[1], q[2], n);
-    }
-  }
-
-  jblib::Array<double, 3> nz(sq_z.size(0), sq_z.size(1), sq_z.size(2));
-
-  for (int i = 0; i < nz.size(0); ++i) {
-      for (int j = 0; j < nz.size(1); ++j) {
-          for (int k = 0; k < nz.size(2); ++k) {
-            nz(i, j, k) = norm(sq_z(i, j, k, 0));
-          }
-      }
-  }
-  k0(time_point_counter_) = nz(0, 0, 0);
-  kneq0(time_point_counter_) = std::accumulate(nz.data(), nz.data()+nz.elements(), 0.0);
+  fft_space();
+  store_bz_path_data();
 
   time_point_counter_++;
 }
@@ -396,4 +362,51 @@ void StructureFactorMonitor::fft_time() {
 
 StructureFactorMonitor::~StructureFactorMonitor() {
   fft_time();
+  if (fft_plan_s_rspace_to_kspace) {
+    fftw_free(fft_plan_s_rspace_to_kspace);
+  }
+}
+
+void StructureFactorMonitor::fft_space() {
+  assert(fft_plan_s_rspace_to_kspace != nullptr);
+  assert(s_kspace.is_allocated());
+
+//  jblib::Array<double, 2> s_trans(num_spins, 3);
+//
+//  for (auto i = 0; i < num_spins; ++i) {
+//    for (auto j = 0; j < 3; ++j) {
+//      s_trans(i, j) = s(i, j) * s_transform(i, j);
+//    }
+//  }
+
+  fftw_execute(fft_plan_s_rspace_to_kspace);
+
+  const double norm = 1.0 / sqrt(product(lattice->kspace_size()));
+  for (auto i = 0; i < s_kspace.elements(); ++i) {
+    s_kspace[i] *= norm;
+  }
+
+  apply_kspace_phase_factors(s_kspace);
+}
+
+void StructureFactorMonitor::store_bz_path_data() {
+  for (auto m = 0; m < ::lattice->motif_size(); ++m) {
+    for (auto i = 0; i < bz_points.size(); ++i) {
+      auto q = bz_points[i];
+      for (auto j = 0; j < 2; ++j) {
+        if (q[j] < 0) {
+          q[j] = (s_kspace.size(j) + q[j]);
+        }
+      }
+      if (q[2] >= 0) {
+        sqw_x(m, time_point_counter_, i) = s_kspace(q[0], q[1], q[2], m, 0);
+        sqw_y(m, time_point_counter_, i) = s_kspace(q[0], q[1], q[2], m, 1);
+        sqw_z(m, time_point_counter_, i) = s_kspace(q[0], q[1], q[2], m, 2);
+      } else {
+        sqw_x(m, time_point_counter_, i) = conj(s_kspace(q[0], q[1], std::abs(q[2]), m, 0));
+        sqw_y(m, time_point_counter_, i) = conj(s_kspace(q[0], q[1], std::abs(q[2]), m, 1));
+        sqw_z(m, time_point_counter_, i) = conj(s_kspace(q[0], q[1], std::abs(q[2]), m, 2));
+      }
+    }
+  }
 }

@@ -1,5 +1,6 @@
 # -- Threads
 find_package(Threads)
+find_package(OpenMP)
 
 # -- Libconfig++
 find_package(CONFIG++ REQUIRED)
