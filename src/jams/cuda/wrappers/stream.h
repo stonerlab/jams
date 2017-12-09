@@ -29,11 +29,6 @@ class CudaStream {
 };
 
 inline CudaStream::CudaStream() {
-  cudaError_t result = cudaStreamCreate(&stream_);
-  if (result != cudaSuccess) {
-    stream_ = nullptr;
-    cuda_throw(result, __FILE__, __LINE__);
-  }
 }
 
 inline CudaStream::CudaStream(std::nullptr_t) {
@@ -47,6 +42,13 @@ inline CudaStream::~CudaStream() {
 
 inline cudaStream_t& CudaStream::get() {
   assert(stream_);
+  if (!stream_) {
+    cudaError_t result = cudaStreamCreate(&stream_);
+    if (result != cudaSuccess) {
+      stream_ = nullptr;
+      cuda_throw(result, __FILE__, __LINE__);
+    }
+  }
   return stream_;
 }
 
