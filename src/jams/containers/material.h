@@ -24,7 +24,7 @@ public:
     double     gyro  = jams::default_material_gyro;
     double     alpha = jams::default_material_alpha;
     Vec3       spin  = jams::default_material_spin;
-    Vec3   transform = {{1.0, 1.0, 1.0}};
+    Mat3   transform = jams::default_material_spin_transform;
     bool   randomize = false;
 
     inline Material() = default;
@@ -35,7 +35,7 @@ public:
             moment   (jams::config_required<double>(cfg, "moment")),
             gyro     (jams::config_optional<double>(cfg, "gyro", jams::default_material_gyro)),
             alpha    (jams::config_optional<double>(cfg, "alpha", jams::default_material_alpha)),
-            transform(jams::config_optional<Vec3>(cfg, "transform", jams::default_material_spin_transform)) {
+            transform(jams::config_optional<Mat3>(cfg, "transform", jams::default_material_spin_transform)) {
 
       if (cfg.exists("spin")) {
         bool is_array = (cfg["spin"].getType() == libconfig::Setting::TypeArray);

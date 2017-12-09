@@ -22,7 +22,7 @@ namespace jams {
     constexpr double default_material_gyro = 1.0;
     constexpr double default_material_alpha = 0.01;
     constexpr Vec3   default_material_spin = {0.0, 0.0, 1.0};
-    constexpr Vec3   default_material_spin_transform = {1.0, 1.0, 1.0};
+    constexpr Mat3   default_material_spin_transform = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 
     constexpr bool   default_lattice_symops = true;
     constexpr Vec3b  default_lattice_periodic_boundaries = {true, true, true};

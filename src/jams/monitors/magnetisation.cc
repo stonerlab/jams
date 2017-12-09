@@ -15,7 +15,7 @@
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   mag(::lattice->num_materials(), 4),
-  s_transform_(globals::num_spins, 3),
+  s_transform_(globals::num_spins),
   outfile(),
   m_stats_(),
   m2_stats_(),
@@ -24,18 +24,13 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   using namespace globals;
 
   // create transform arrays for example to apply a Holstein Primakoff transform
-  s_transform_.resize(num_spins, 3);
 
-  libconfig::Setting& material_settings = ::config->lookup("materials");
+  s_transform_.resize(num_spins);
   for (int i = 0; i < num_spins; ++i) {
-    auto transform = jams::config_optional<Vec3>(material_settings[::lattice->atom_material_id(i)], "transform", jams::default_material_spin_transform);
-    for (auto n = 0; n < 3; ++n) {
-      s_transform_(i,n) = transform[n];
-    }
+    s_transform_[i] = lattice->material(lattice->atom_material_id(i)).transform;
   }
 
   material_count_.resize(lattice->num_materials(), 0);
-
   for (auto i = 0; i < num_spins; ++i) {
     material_count_[lattice->atom_material_id(i)]++;
   }
@@ -138,15 +133,17 @@ void MagnetisationMonitor::update(Solver * solver) {
 double MagnetisationMonitor::binder_m2() {
   using namespace globals;
 
-  Vec3 m;
+  Vec3 mag;
 
   for (int i = 0; i < num_spins; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      m[j] = m[j] + s_transform_(i, j) * s(i, j);
+    for (int m = 0; m < 3; ++m) {
+      for (int n = 0; n < 3; ++n) {
+        mag[m] = mag[m] + s_transform_[i][m][n] * s(i, n);
+      }
     }
   }
 
-  return abs_sq(m) / square(static_cast<double>(num_spins));
+  return abs_sq(mag) / square(static_cast<double>(num_spins));
 }
 
 double MagnetisationMonitor::binder_cumulant() {
