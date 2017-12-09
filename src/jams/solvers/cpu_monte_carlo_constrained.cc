@@ -46,11 +46,10 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
     move_fraction_reflection_  /= move_fraction_sum;
   }
 
+
   spin_transformations_.resize(globals::num_spins);
-  libconfig::Setting& material_settings = ::config->lookup("materials");
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 t = jams::config_optional<Vec3>(material_settings[::lattice->atom_material_id(i)], "tranform", jams::default_material_spin_transform);
-    spin_transformations_[i] = {t[0], 0, 0, 0, t[1], 0, 0, 0, t[2]};
+  for (int i = 0; i < globals::num_spins; ++i) {
+    spin_transformations_[i] = lattice->material(lattice->atom_material_id(i)).transform;
   }
 
   cout << "    constraint angle theta (deg) " << constraint_theta_ << "\n";
