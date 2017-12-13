@@ -254,9 +254,9 @@ void StructureFactorMonitor::fft_time() {
 
       unit_cell_sqw_file << "# k_index   |\t";
       unit_cell_sqw_file << " total      |\t";
-      unit_cell_sqw_file << " ky         |\t";
-      unit_cell_sqw_file << " kz         |\t";
-      unit_cell_sqw_file << " kx         |\t";
+      unit_cell_sqw_file << " u          |\t";
+      unit_cell_sqw_file << " v          |\t";
+      unit_cell_sqw_file << " w          |\t";
       unit_cell_sqw_file << " freq (THz) |\t";
       unit_cell_sqw_file << "abs(Sx(q,w))|\t";
       unit_cell_sqw_file <<  "Re(Sx(q,w))|\t";
@@ -311,9 +311,9 @@ void StructureFactorMonitor::fft_time() {
 
   sqwfile << "# k_index   |\t";
   sqwfile << " total      |\t";
-  sqwfile << " kx         |\t";
-  sqwfile << " ky         |\t";
-  sqwfile << " kz         |\t";
+  sqwfile << " u          |\t";
+  sqwfile << " v          |\t";
+  sqwfile << " w          |\t";
   sqwfile << " freq (THz) |\t";
   sqwfile << "abs(Sx(q,w))|\t";
   sqwfile <<  "Re(Sx(q,w))|\t";
@@ -389,20 +389,20 @@ void StructureFactorMonitor::fft_space() {
 void StructureFactorMonitor::store_bz_path_data() {
   for (auto m = 0; m < ::lattice->motif_size(); ++m) {
     for (auto i = 0; i < bz_points.size(); ++i) {
-      auto q = bz_points[i];
+      auto uvw = bz_points[i];
       for (auto j = 0; j < 2; ++j) {
-        if (q[j] < 0) {
-          q[j] = (s_kspace.size(j) + q[j]);
+        if (uvw[j] < 0) {
+          uvw[j] = (s_kspace.size(j) + uvw[j]);
         }
       }
-      if (q[2] >= 0) {
-        sqw_x(m, time_point_counter_, i) = s_kspace(q[0], q[1], q[2], m, 0);
-        sqw_y(m, time_point_counter_, i) = s_kspace(q[0], q[1], q[2], m, 1);
-        sqw_z(m, time_point_counter_, i) = s_kspace(q[0], q[1], q[2], m, 2);
+      if (uvw[2] >= 0) {
+        sqw_x(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 0);
+        sqw_y(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 1);
+        sqw_z(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 2);
       } else {
-        sqw_x(m, time_point_counter_, i) = conj(s_kspace(q[0], q[1], std::abs(q[2]), m, 0));
-        sqw_y(m, time_point_counter_, i) = conj(s_kspace(q[0], q[1], std::abs(q[2]), m, 1));
-        sqw_z(m, time_point_counter_, i) = conj(s_kspace(q[0], q[1], std::abs(q[2]), m, 2));
+        sqw_x(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], std::abs(uvw[2]), m, 0));
+        sqw_y(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], std::abs(uvw[2]), m, 1));
+        sqw_z(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], std::abs(uvw[2]), m, 2));
       }
     }
   }
