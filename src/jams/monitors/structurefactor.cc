@@ -35,13 +35,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   time_point_counter_ = 0;
 
   // create transform arrays for example to apply a Holstein Primakoff transform
-  s_transform.resize(num_spins, 3);
+  s_transform.resize(num_spins);
 
-  libconfig::Setting& material_settings = ::config->lookup("materials");
   for (int i = 0; i < num_spins; ++i) {
-    for (int n = 0; n < 3; ++n) {
-      s_transform(i,n) = material_settings[::lattice->atom_material_id(i)]["transform"][n];
-    }
+    s_transform[i] = lattice->material(lattice->atom_material_id(i)).transform;
   }
 
   libconfig::Setting& solver_settings = ::config->lookup("solver");
