@@ -505,7 +505,7 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
         throw general_exception("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
-      write_interaction_data(unfolded_interaction_file, unfolded_interaction_data);
+      write_interaction_data(unfolded_interaction_file, unfolded_interaction_data, coord_format);
     }
   } else if (file_format == InteractionFileFormat::KKR) {
     read_kkr_format_interaction_data(file, interaction_template, coord_format, energy_cutoff, radius_cutoff);
@@ -522,13 +522,21 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
 
 //---------------------------------------------------------------------
 
-void write_interaction_data(std::ostream &output, const std::vector<typename_interaction_t> &data) {
+void write_interaction_data(std::ostream &output, const std::vector<typename_interaction_t> &data,
+                            CoordinateFormat coord_format) {
   for (auto const & interaction : data) {
     output << std::setw(12) << interaction.type_i << "\t";
     output << std::setw(12) << interaction.type_j << "\t";
-    output << std::setw(12) << std::fixed << interaction.r_ij[0] << "\t";
-    output << std::setw(12) << std::fixed << interaction.r_ij[1] << "\t";
-    output << std::setw(12) << std::fixed << interaction.r_ij[2] << "\t";
+    if (coord_format == CoordinateFormat::Cartesian) {
+      output << std::setw(12) << std::fixed << interaction.r_ij[0] << "\t";
+      output << std::setw(12) << std::fixed << interaction.r_ij[1] << "\t";
+      output << std::setw(12) << std::fixed << interaction.r_ij[2] << "\t";
+    } else {
+      auto r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
+      output << std::setw(12) << std::fixed << r_ij_frac[0] << "\t";
+      output << std::setw(12) << std::fixed << r_ij_frac[1] << "\t";
+      output << std::setw(12) << std::fixed << r_ij_frac[2] << "\t";
+    }
     output << std::setw(12) << std::scientific << interaction.J_ij[0][0] * kBohrMagneton << "\t";
     output << std::setw(12) << std::scientific << interaction.J_ij[0][1] * kBohrMagneton << "\t";
     output << std::setw(12) << std::scientific << interaction.J_ij[0][2] * kBohrMagneton << "\t";
