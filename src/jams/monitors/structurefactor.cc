@@ -84,6 +84,10 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   int bz_point_counter = 0;
 
   // read the bz-points from the config
+
+  auto b_to_k_matrix = lattice->get_unitcell().inverse_matrix();
+  auto k_to_b_matrix = lattice->get_unitcell().matrix();
+
   for (int n = 0, nend = cfg_nodes.getLength(); n < nend; ++n) {
 
     // transform into reciprocal lattice vectors
@@ -91,7 +95,13 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
                      double(cfg_nodes[n][1]),
                      double(cfg_nodes[n][2]) };
 
-    Vec3 bz_vec = scale(cfg_vec, ::lattice->kspace_size());
+    if (debug_is_enabled()) {
+      cout << "cfg_vec: " << cfg_vec << "\n";
+    }
+
+    cfg_vec = scale(cfg_vec, ::lattice->kspace_size());
+
+    auto bz_vec = cfg_vec;
 
     if (verbose_is_enabled()) {
       cout << "  bz node: ";
@@ -103,30 +113,32 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
       for (auto i = 0; i < 3; ++i) {
         cout << bz_vec[i] << " ";
       }
-      cout << "\n";
+      cout << "]\n";
     }
 
-    bz_nodes.push_back({int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2])});
+    b_uvw_nodes.push_back({int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2])});
   }
 
+  cout << "\n";
+
   bz_points_path_count.push_back(0);
-  for (int n = 0, nend = bz_nodes.size()-1; n < nend; ++n) {
+  for (int n = 0, nend = b_uvw_nodes.size()-1; n < nend; ++n) {
     Vec3i bz_point, bz_line, bz_line_element;
 
 
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
-      if (int(bz_nodes[n][i]) > ::lattice->kspace_size()[i]) {
-        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n][0]), int(bz_nodes[n][1]), int(bz_nodes[n][2]));
+      if (int(b_uvw_nodes[n][i]) > ::lattice->kspace_size()[i]) {
+        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n][0]), int(b_uvw_nodes[n][1]), int(b_uvw_nodes[n][2]));
       }
-      if (int(bz_nodes[n+1][i]) > ::lattice->kspace_size()[i]) {
-        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(bz_nodes[n+1][0]), int(bz_nodes[n+1][1]), int(bz_nodes[n+1][2]));
+      if (int(b_uvw_nodes[n+1][i]) > ::lattice->kspace_size()[i]) {
+        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n+1][0]), int(b_uvw_nodes[n+1][1]), int(b_uvw_nodes[n+1][2]));
       }
     }
 
     // vector between the nodes
     for (int i = 0; i < 3; ++i) {
-      bz_line[i] = int(bz_nodes[n+1][i]) - int(bz_nodes[n][i]);
+      bz_line[i] = int(b_uvw_nodes[n+1][i]) - int(b_uvw_nodes[n][i]);
     }
 
     if(verbose_is_enabled()) {
@@ -148,34 +160,40 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     // store the length element between these points
     for (int j = 0; j < bz_line_points; ++j) {
       for (int i = 0; i < 3; ++i) {
-        bz_point[i] = int(bz_nodes[n][i]) + j*bz_line_element[i];
+        bz_point[i] = int(b_uvw_nodes[n][i]) + j*bz_line_element[i];
       }
 
       // check if this is a continuous path and drop duplicate points at the join
-      if (bz_points.size() > 0) {
-        if(bz_point[0] == bz_points.back()[0]
-          && bz_point[1] == bz_points.back()[1]
-          && bz_point[2] == bz_points.back()[2]) {
+      if (b_uvw_points.size() > 0) {
+        if(bz_point[0] == b_uvw_points.back()[0]
+          && bz_point[1] == b_uvw_points.back()[1]
+          && bz_point[2] == b_uvw_points.back()[2]) {
           continue;
         }
       }
 
       bz_lengths.push_back(abs(bz_line_element));
 
-      bz_points.push_back(bz_point);
+      b_uvw_points.push_back(bz_point);
       if (verbose_is_enabled()) {
-        cout << "  bz point " << bz_point_counter << " " << bz_lengths.back() << " " << bz_points.back()[0] << " "
-             << bz_points.back()[1] << " " << bz_points.back()[2] << "\n";
+        auto uvw = b_uvw_points.back();
+        cout << fixed << setprecision(8);
+        cout << "  bz point ";
+        cout << setw(4) << bz_point_counter << " ";
+        cout << setw(8) << bz_lengths.back() << " ";
+        cout << uvw << " ";
+        cout << b_to_k_matrix * uvw << "\n";
+        cout << defaultfloat;
       }
       bz_point_counter++;
     }
-    bz_points_path_count.push_back(bz_points.size());
+    bz_points_path_count.push_back(b_uvw_points.size());
   }
 
 
-  sqw_x.resize(::lattice->motif_size(), num_samples, bz_points.size());
-  sqw_y.resize(::lattice->motif_size(), num_samples, bz_points.size());
-  sqw_z.resize(::lattice->motif_size(), num_samples, bz_points.size());
+  sqw_x.resize(::lattice->motif_size(), num_samples, b_uvw_points.size());
+  sqw_y.resize(::lattice->motif_size(), num_samples, b_uvw_points.size());
+  sqw_z.resize(::lattice->motif_size(), num_samples, b_uvw_points.size());
 }
 
 void StructureFactorMonitor::update(Solver * solver) {
@@ -273,9 +291,9 @@ void StructureFactorMonitor::fft_time() {
         for (int j = 0; j < space_points; ++j) {
           unit_cell_sqw_file << std::setw(5) << std::fixed << j << "\t";
           unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << total_length << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][0] / double(::lattice->kspace_size()[0])  << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][1] / double(::lattice->kspace_size()[1])  << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][2] / double(::lattice->kspace_size()[2])  << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][0] / double(::lattice->kspace_size()[0])  << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][1] / double(::lattice->kspace_size()[1])  << "\t";
+          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][2] / double(::lattice->kspace_size()[2])  << "\t";
           unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << i * freq_delta / 1e12 << "\t";
           unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_x(i, j)[0] << "\t" << norm * fft_sqw_x(i, j)[1] << "\t";
           unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_y(i, j)[0] << "\t" << norm * fft_sqw_y(i, j)[1] << "\t";
@@ -333,9 +351,9 @@ void StructureFactorMonitor::fft_time() {
       for (int j = bz_points_path_count[bz_region]; j < bz_points_path_count[bz_region+1]; ++j) {
         sqwfile << std::setw(5) << std::fixed << j << "\t";
         sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << region_length + total_length + 0.5 * bz_lengths[j] << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][0] / double(::lattice->kspace_size()[0]) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][1] / double(::lattice->kspace_size()[1]) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << bz_points[j][2] / double(::lattice->kspace_size()[2]) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][0] / double(::lattice->kspace_size()[0]) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][1] / double(::lattice->kspace_size()[1]) << "\t";
+        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][2] / double(::lattice->kspace_size()[2]) << "\t";
         sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << i*freq_delta / 1e12 << "\t";
         sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_x(i,j) << "\t";
         sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[0] << "\t";
@@ -387,22 +405,38 @@ void StructureFactorMonitor::fft_space() {
 }
 
 void StructureFactorMonitor::store_bz_path_data() {
+  Vec3i size = lattice->kspace_size();
+
   for (auto m = 0; m < ::lattice->motif_size(); ++m) {
-    for (auto i = 0; i < bz_points.size(); ++i) {
-      auto uvw = bz_points[i];
-      for (auto j = 0; j < 2; ++j) {
-        if (uvw[j] < 0) {
-          uvw[j] = (s_kspace.size(j) + uvw[j]);
-        }
+    for (auto i = 0; i < b_uvw_points.size(); ++i) {
+      auto uvw = b_uvw_points[i];
+      bool negative = uvw[2] < 0;
+      uvw[2] = std::abs(uvw[2]);
+
+      uvw[0] = (size[0] + uvw[0]) % size[0];
+      uvw[1] = (size[1] + uvw[1]) % size[1];
+
+      if ( even(uvw[2]/ (size[2]/2 + 1)) ) {
+        uvw[2] = ((size[2]/2 + 1) + uvw[2]) % (size[2]/2 + 1);
+      } else {
+        uvw[2] = (size[2]/2 - 1) + ((size[2]/2 + 1) - uvw[2]) % (size[2]/2 + 1);
       }
-      if (uvw[2] >= 0) {
+
+
+      assert(uvw[0] >= 0 && uvw[0] < s_kspace.size(0));
+      assert(uvw[1] >= 0 && uvw[1] < s_kspace.size(1));
+      assert(uvw[2] >= 0 && uvw[2] < s_kspace.size(2));
+
+//      cout << b_uvw_points[i] << " | " << uvw << "\n";
+
+      if (negative) {
+        sqw_x(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], uvw[2], m, 0));
+        sqw_y(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], uvw[2], m, 1));
+        sqw_z(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], uvw[2], m, 2));
+      } else {
         sqw_x(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 0);
         sqw_y(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 1);
         sqw_z(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 2);
-      } else {
-        sqw_x(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], std::abs(uvw[2]), m, 0));
-        sqw_y(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], std::abs(uvw[2]), m, 1));
-        sqw_z(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], std::abs(uvw[2]), m, 2));
       }
     }
   }
