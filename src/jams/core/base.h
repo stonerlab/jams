@@ -41,7 +41,7 @@ inline void Base::set_debug(bool value) {
 }
 
 inline bool Base::verbose_is_enabled() const {
-  return verbose_;
+  return verbose_ || debug_;
 }
 
 inline void Base::set_verbose(bool value) {
