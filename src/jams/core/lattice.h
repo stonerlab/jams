@@ -43,6 +43,8 @@ public:
     Vec3 c() const;
 
     const Cell& get_supercell();
+    const Cell& get_unitcell();
+    const Mat3& get_global_rotation_matrix();
 
     Vec3 displacement(const Vec3 &r_i, const Vec3 &r_j) const;
 
@@ -118,6 +120,8 @@ private:
 
 
     bool symops_enabled_;
+
+    Mat3 global_orientation_matrix_ = kIdentityMat3;
 
     Cell unitcell;
     Cell supercell;
