@@ -8,6 +8,7 @@
 #include <array>
 #include <cmath>
 #include <iosfwd>
+#include <iomanip>
 
 template <typename T, std::size_t N>
 using Vec = std::array<T, N>;
@@ -95,6 +96,11 @@ inline bool operator==(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
 template <typename T>
 inline bool operator!=(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
   return !equal(lhs, rhs);
+}
+
+template <typename T>
+inline auto operator%(const Vec<T,3>& lhs, const Vec<T,3>& rhs) -> Vec<decltype(lhs[0] % rhs[0]), 3> {
+  return {lhs[0] % rhs[0], lhs[1] % rhs[1], lhs[2] % rhs[2]};
 }
 
 template <typename T1, typename T2>
