@@ -457,15 +457,15 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
   cout << "  orientation_lattice_vector " << vector << "\n";
   cout << "  orientation_cartesian_vector " << orientation_cartesian_vector << "\n";
 
-  Mat3 orientation_matrix = rotation_matrix_between_vectors(orientation_cartesian_vector, reference);
+  global_orientation_matrix_ = rotation_matrix_between_vectors(orientation_cartesian_vector, reference);
 
   cout << "  orientation rotation matrix \n";
-  cout << "    " << orientation_matrix[0] << "\n";
-  cout << "    " << orientation_matrix[1] << "\n";
-  cout << "    " << orientation_matrix[2] << "\n";
+  cout << "    " << global_orientation_matrix_[0] << "\n";
+  cout << "    " << global_orientation_matrix_[1] << "\n";
+  cout << "    " << global_orientation_matrix_[2] << "\n";
   cout << "\n";
 
-  Vec3 rotated_orientation_vector = orientation_matrix * orientation_cartesian_vector;
+  Vec3 rotated_orientation_vector = global_orientation_matrix_ * orientation_cartesian_vector;
 
   if (verbose_is_enabled()) {
     cout << "  rotated_orientation_vector\n";
@@ -473,8 +473,8 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
   }
 
   auto volume_before = ::volume(unitcell);
-  unitcell = rotate(unitcell, orientation_matrix);
-  supercell = rotate(supercell, orientation_matrix);
+  unitcell = rotate(unitcell, global_orientation_matrix_);
+  supercell = rotate(supercell, global_orientation_matrix_);
   auto volume_after = ::volume(unitcell);
 
   if (std::abs(volume_before - volume_after) > 1e-6) {
@@ -976,6 +976,14 @@ const Material &Lattice::material(const int &i) const {
 
 const Cell &Lattice::get_supercell() {
   return supercell;
+}
+
+const Cell &Lattice::get_unitcell() {
+  return unitcell;
+}
+
+const Mat3 &Lattice::get_global_rotation_matrix() {
+  return global_orientation_matrix_;
 }
 
 

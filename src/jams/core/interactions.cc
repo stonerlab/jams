@@ -464,7 +464,7 @@ namespace { //anon
       }
     }
 
-    cout << "  total system interactions: interaction_counter\n";
+    cout << "  total system interactions: " <<  interaction_counter << "\n";
   }
 
 

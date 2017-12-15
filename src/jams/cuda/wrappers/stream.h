@@ -41,7 +41,6 @@ inline CudaStream::~CudaStream() {
 }
 
 inline cudaStream_t& CudaStream::get() {
-  assert(stream_);
   if (!stream_) {
     cudaError_t result = cudaStreamCreate(&stream_);
     if (result != cudaSuccess) {
@@ -49,6 +48,7 @@ inline cudaStream_t& CudaStream::get() {
       cuda_throw(result, __FILE__, __LINE__);
     }
   }
+  assert(stream_);
   return stream_;
 }
 

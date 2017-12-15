@@ -67,8 +67,8 @@ Mat<T,3,3> transpose(const Mat<T,3,3>& a) {
 }
 
 
-template <typename T>
-inline auto operator*(const Mat<T,3,3>& lhs, const Vec<T,3>& rhs) ->Vec<decltype(lhs[0][0] * rhs[0]),3> {
+template <typename T1, typename T2>
+inline auto operator*(const Mat<T1,3,3>& lhs, const Vec<T2,3>& rhs) ->Vec<decltype(lhs[0][0] * rhs[0]),3> {
   return {
           lhs[0][0] * rhs[0] + lhs[0][1] * rhs[1] + lhs[0][2] * rhs[2],
           lhs[1][0] * rhs[0] + lhs[1][1] * rhs[1] + lhs[1][2] * rhs[2],
