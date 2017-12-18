@@ -38,6 +38,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   std::string name = seedname + "_mag.tsv";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);
+  outfile.precision(8);
 
   // header for the magnetisation file
   outfile << std::setw(12) << "time" << "\t";
