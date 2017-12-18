@@ -164,7 +164,7 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
       outfile << std::setw(12) << js[r_m][n] << "\t";
     }
   }
-  outfile << std::endl;
+  outfile << "\n";
 }
 
 bool CudaSpinCurrentMonitor::is_converged() {

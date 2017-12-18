@@ -128,7 +128,7 @@ void MagnetisationMonitor::update(Solver * solver) {
       }
     }
 
-    outfile << std::endl;
+    outfile << "\n";
 }
 
 double MagnetisationMonitor::binder_m2() {
