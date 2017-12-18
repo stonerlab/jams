@@ -35,18 +35,18 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     jams_error("Failed to create CURAND generator in CudaLangevinWhiteThermostat");
   }
 
-  auto dev_rng_seed = static_cast<uint64_t>(std::random_device()());
 
   cout << "    creating stream\n";
   cudaStreamCreate(&dev_stream_);
   curandSetStream(dev_rng_, dev_stream_);
 
-  cout << "    seeding CURAND " << dev_rng_seed << "\n";
-  if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
+  auto seed = jams::random_generator()();
+  cout << "    seeding CURAND: " << seed << "\n";
+  if (curandSetPseudoRandomGeneratorSeed(dev_rng_, seed) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to set CURAND seed in CudaLangevinWhiteThermostat");
   }
 
-  cout << "    generating seeds\n";
+  cout << "    generating device seeds\n";
   if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to generate CURAND seeds in CudaLangevinWhiteThermostat");
   }
