@@ -7,6 +7,7 @@
 
 #include <libconfig.h++>
 #include <jams/helpers/utils.h>
+#include <jams/core/interactions.h>
 #include "jams/core/types.h"
 
 void config_patch(libconfig::Setting& orig, const libconfig::Setting& patch);
@@ -79,13 +80,25 @@ namespace jams {
 
     template<>
     inline CoordinateFormat config_required(const libconfig::Setting &setting, const std::string &name) {
-      auto format = jams::config_required<string>(setting, "coordinate_format");
+      auto format = jams::config_required<string>(setting, name);
       if (lowercase(format) == "fractional") {
         return CoordinateFormat::Fractional;
       } else if (lowercase(format) == "cartesian") {
         return CoordinateFormat::Cartesian;
       } else {
         throw std::runtime_error("Unknown coordinate format");
+      }
+    }
+
+    template<>
+    inline InteractionFileFormat config_required(const libconfig::Setting &setting, const std::string &name) {
+      auto format = jams::config_required<string>(setting, name);
+      if (lowercase(format) == "jams") {
+        return InteractionFileFormat::JAMS;
+      } else if (lowercase(format) == "kkr") {
+        return InteractionFileFormat::KKR;
+      } else {
+        throw std::runtime_error("Unknown interaction file format");
       }
     }
 

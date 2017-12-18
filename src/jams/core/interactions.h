@@ -6,6 +6,7 @@
 #include <tuple>
 #include <utility>
 #include <map>
+#include <libconfig.h++>
 
 #include "jams/core/types.h"
 
@@ -56,9 +57,7 @@ typedef struct {
 } inode_pair_t;
 
 void safety_check_distance_tolerance(const double &tolerance);
-void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format, double energy_cutoff,
-                                       double radius_cutoff, bool use_symops, bool print_unfolded,
-                                       InteractionList<Mat3> &neighbour_list);
+InteractionList<Mat3> generate_neighbour_list_from_file(const libconfig::Setting& settings, std::ifstream &file);
 void write_interaction_data(std::ostream &output, const std::vector<typename_interaction_t> &data,
                             CoordinateFormat coord_format);
 void write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &list);

@@ -487,15 +487,33 @@ void safety_check_distance_tolerance(const double &tolerance) {
   }
 }
 
-void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format, double energy_cutoff,
-                                       double radius_cutoff, bool use_symops, bool print_unfolded,
-                                       InteractionList<Mat3> &neighbour_list) {
+InteractionList<Mat3> generate_neighbour_list_from_file(const libconfig::Setting& settings, std::ifstream &file) {
+
+//  void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format, double energy_cutoff,
+//                                         double radius_cutoff, bool use_symops, bool print_unfolded,
+//                                         InteractionList<Mat3> &neighbour_list) {
+
+  InteractionList<Mat3> neighbour_list;
+
+  auto file_format        = jams::config_optional<InteractionFileFormat>(settings, "coordinate_format", InteractionFileFormat::JAMS);
+  auto coordinate_format  = jams::config_optional<CoordinateFormat>(settings, "coordinate_format", CoordinateFormat::Cartesian);
+  auto use_symops         = jams::config_optional<bool>(settings, "symops", true);
+  auto print_unfolded     = jams::config_optional<bool>(settings, "print_unfolded", false);
+
+  auto energy_cutoff      = jams::config_optional<double>(settings, "energy_cutoff", 1e-26); // joules
+  auto radius_cutoff      = jams::config_optional<double>(settings, "radius_cutoff", 100.0); // lattice parameters
+  auto distance_tolerance = jams::config_optional<double>(settings, "distance_tolerance", 1e-3); // fractional coordinate units
+
+  cout << "  interaction energy cutoff: " << energy_cutoff << "\n";
+  cout << "  interaction radius cutoff: " << radius_cutoff << "\n";
+  cout << "  interaction distance tolerance: " << distance_tolerance << "\n";
+
   std::vector<typename_interaction_t> interaction_data, unfolded_interaction_data;
 
   InteractionList<inode_pair_t> interaction_template;
 
   if (file_format == InteractionFileFormat::JAMS) {
-    read_jams_format_interaction_data(file, interaction_data, coord_format, energy_cutoff, radius_cutoff);
+    read_jams_format_interaction_data(file, interaction_data, coordinate_format, energy_cutoff, radius_cutoff);
     generate_interaction_templates(interaction_data, unfolded_interaction_data, interaction_template, use_symops);
 
     if (print_unfolded) {
@@ -505,10 +523,10 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
         throw general_exception("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
-      write_interaction_data(unfolded_interaction_file, unfolded_interaction_data, coord_format);
+      write_interaction_data(unfolded_interaction_file, unfolded_interaction_data, coordinate_format);
     }
   } else if (file_format == InteractionFileFormat::KKR) {
-    read_kkr_format_interaction_data(file, interaction_template, coord_format, energy_cutoff, radius_cutoff);
+    read_kkr_format_interaction_data(file, interaction_template, coordinate_format, energy_cutoff, radius_cutoff);
   }
 
 
@@ -518,6 +536,8 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
   }
 
   generate_neighbour_list(interaction_template, neighbour_list);
+
+  return neighbour_list;
 }
 
 //---------------------------------------------------------------------
