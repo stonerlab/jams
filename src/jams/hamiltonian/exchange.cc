@@ -17,10 +17,10 @@
 
 using namespace std;
 
-void ExchangeHamiltonian::insert_interaction(const int i, const int j, const Mat3 &value) {
+void ExchangeHamiltonian::insert_interaction(const int i, const int j, const Mat3 &value, const double& energy_cutoff) {
   for (auto m = 0; m < 3; ++m) {
     for (auto n = 0; n < 3; ++n) {
-      if (std::abs(value[m][n]) > energy_cutoff_) {
+      if (std::abs(value[m][n]) > energy_cutoff) {
         interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
       }
     }
@@ -33,6 +33,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   //---------------------------------------------------------------------
   // read settings
   //---------------------------------------------------------------------
+  auto energy_cutoff      = jams::config_optional<double>(settings, "energy_cutoff", 1e-26); // joules
+  auto distance_tolerance = jams::config_optional<double>(settings, "distance_tolerance", 1e-3); // fractional coordinate units
 
     std::string interaction_filename = settings["exc_file"].c_str();
     std::ifstream interaction_file(interaction_filename.c_str());
@@ -41,7 +43,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     }
     cout << "    interaction file name " << interaction_filename << "\n";
 
-    safety_check_distance_tolerance(distance_tolerance_);
+    safety_check_distance_tolerance(distance_tolerance);
 
     if (debug_is_enabled()) {
       std::ofstream pos_file("debug_pos.dat");
@@ -59,7 +61,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     //---------------------------------------------------------------------
     // generate interaction list
     //---------------------------------------------------------------------
-  neighbour_list_ = generate_neighbour_list_from_file(settings, interaction_file);
+    auto neighbour_list_ = generate_neighbour_list_from_file(settings, interaction_file);
 
     if (debug_is_enabled()) {
       std::ofstream debug_file("DEBUG_exchange_nbr_list.tsv");
@@ -78,7 +80,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
     for (int i = 0; i < neighbour_list_.size(); ++i) {
       for (auto const &j: neighbour_list_[i]) {
-        insert_interaction(i, j.first, j.second);
+        insert_interaction(i, j.first, j.second, energy_cutoff);
       }
     }
 

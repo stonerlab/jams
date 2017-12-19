@@ -36,14 +36,9 @@ class ExchangeHamiltonian : public Hamiltonian {
         void   calculate_fields();
 
     private:
-        void insert_interaction(const int i, const int j, const Mat3 &value);
+        void insert_interaction(const int i, const int j, const Mat3 &value, const double& energy_cutoff);
 
-        InteractionList<Mat3> neighbour_list_;
         SparseMatrix<double> interaction_matrix_;
-        double energy_cutoff_;
-        double radius_cutoff_;
-        double distance_tolerance_;
-        InteractionFileFormat exchange_file_format_;
 
 #ifdef CUDA
         CudaSparseMatrixCSR<double> dev_csr_interaction_matrix_;
