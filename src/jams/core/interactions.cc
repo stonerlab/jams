@@ -411,8 +411,9 @@ namespace { //anon
     }
 
   //---------------------------------------------------------------------
-  void
-  generate_neighbour_list(const InteractionList<inode_pair_t> &interaction_template, InteractionList<Mat3> &nbr_list) {
+  InteractionList<Mat3>
+  generate_neighbour_list(const InteractionList<inode_pair_t> &interaction_template) {
+    InteractionList<Mat3> nbr_list;
     unsigned interaction_counter = 0;
     // loop over the translation vectors for lattice size
     for (int i = 0; i < lattice->size(0); ++i) {
@@ -465,6 +466,8 @@ namespace { //anon
     }
 
     cout << "  total system interactions: " <<  interaction_counter << "\n";
+
+    return nbr_list;
   }
 
 
@@ -492,8 +495,6 @@ InteractionList<Mat3> generate_neighbour_list_from_file(const libconfig::Setting
 //  void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format, double energy_cutoff,
 //                                         double radius_cutoff, bool use_symops, bool print_unfolded,
 //                                         InteractionList<Mat3> &neighbour_list) {
-
-  InteractionList<Mat3> neighbour_list;
 
   auto file_format        = jams::config_optional<InteractionFileFormat>(settings, "coordinate_format", InteractionFileFormat::JAMS);
   auto coordinate_format  = jams::config_optional<CoordinateFormat>(settings, "coordinate_format", CoordinateFormat::Cartesian);
@@ -529,15 +530,12 @@ InteractionList<Mat3> generate_neighbour_list_from_file(const libconfig::Setting
     read_kkr_format_interaction_data(file, interaction_template, coordinate_format, energy_cutoff, radius_cutoff);
   }
 
-
   cout << "  num unit cell interactions per position:\n";
   for (auto i = 0; i < interaction_template.size(); ++i) {
     cout << "    " << i << ": " << interaction_template.num_interactions(i) << "\n";
   }
 
-  generate_neighbour_list(interaction_template, neighbour_list);
-
-  return neighbour_list;
+  return generate_neighbour_list(interaction_template);
 }
 
 //---------------------------------------------------------------------

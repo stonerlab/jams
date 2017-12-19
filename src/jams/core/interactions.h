@@ -2,6 +2,7 @@
 #define JAMS_CORE_INTERACTIONS_H
 
 #include <iosfwd>
+#include <iostream>
 #include <vector>
 #include <tuple>
 #include <utility>
@@ -77,13 +78,13 @@ class InteractionList {
     InteractionList()
       : list() {};
 
-    InteractionList(size_type n)
+    explicit InteractionList(size_type n)
       : list(n) {};
 
-    ~InteractionList() {};
+    ~InteractionList() = default;
 
     std::pair<typename value_type::iterator,bool>
-  insert(size_type i, size_type j, const T &value);
+    insert(size_type i, size_type j, const T &value);
     
     void resize(size_type size);
 
