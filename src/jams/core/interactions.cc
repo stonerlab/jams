@@ -496,7 +496,7 @@ InteractionList<Mat3> generate_neighbour_list_from_file(const libconfig::Setting
 //                                         double radius_cutoff, bool use_symops, bool print_unfolded,
 //                                         InteractionList<Mat3> &neighbour_list) {
 
-  auto file_format        = jams::config_optional<InteractionFileFormat>(settings, "coordinate_format", InteractionFileFormat::JAMS);
+  auto file_format        = jams::config_optional<InteractionFileFormat>(settings, "format", InteractionFileFormat::JAMS);
   auto coordinate_format  = jams::config_optional<CoordinateFormat>(settings, "coordinate_format", CoordinateFormat::Cartesian);
   auto use_symops         = jams::config_optional<bool>(settings, "symops", true);
   auto print_unfolded     = jams::config_optional<bool>(settings, "print_unfolded", false);
