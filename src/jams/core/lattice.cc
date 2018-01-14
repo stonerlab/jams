@@ -202,7 +202,7 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
   set_verbose(jams::config_optional<bool>(cfg.lookup("lattice"), "verbose", false));
   set_debug(jams::config_optional<bool>(cfg.lookup("lattice"), "debug", false));
 
-  symops_enabled_ = jams::config_optional<bool>(cfg.lookup("lattice"), "symops", jams::default_lattice_symops);
+  symops_enabled_ = jams::config_optional<bool>(cfg.lookup("unitcell"), "symops", jams::default_unitcell_symops);
 
   cout << "  symops " << symops_enabled_ << "\n";
 
