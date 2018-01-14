@@ -28,6 +28,8 @@ namespace jams {
 
     constexpr Vec3b  default_lattice_periodic_boundaries = {true, true, true};
 
+    constexpr int    warning_unitcell_symops_size = 100;
+
 }
 
 #endif //JAMS_DEFAULTS_H

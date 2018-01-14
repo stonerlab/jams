@@ -213,6 +213,11 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
   init_unit_cell(cfg.lookup("lattice"), cfg.lookup("unitcell"));
 
   if (symops_enabled_) {
+
+    if (motif_.size() > jams::warning_unitcell_symops_size) {
+      jams_warning("symmetry calculation may be slow as unit cell has more than %d atoms and symops is turned on", jams::warning_unitcell_symops_size);
+    }
+
     calc_symmetry_operations();
   }
 
