@@ -102,6 +102,14 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       std::string type_name_A = settings["interactions"][i][0].c_str();
       std::string type_name_B = settings["interactions"][i][1].c_str();
 
+      if (!lattice->material_exists(type_name_A)) {
+        throw std::runtime_error("exchange neartree interaction " +  std::to_string(i) + ": material " + type_name_A + " does not exist in the config");
+      }
+
+      if (!lattice->material_exists(type_name_B)) {
+        throw std::runtime_error("exchange neartree interaction " +  std::to_string(i) + ": material " + type_name_A + " does not exist in the config");
+      }
+
       double inner_radius = settings["interactions"][i][2];
       double outer_radius = settings["interactions"][i][3];
 

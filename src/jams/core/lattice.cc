@@ -986,4 +986,8 @@ const Mat3 &Lattice::get_global_rotation_matrix() {
   return global_orientation_matrix_;
 }
 
+bool Lattice::material_exists(const string &name) {
+  return materials_.contains(name);
+}
+
 
