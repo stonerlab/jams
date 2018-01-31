@@ -206,7 +206,7 @@ void StructureFactorMonitor::update(Solver * solver) {
   for (auto n = 0; n < globals::num_spins; ++n) {
     for (auto i = 0; i < 3; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        transformed_spins(n, i) = spin_transformations[n][i][j] * globals::s(n, j);
+        transformed_spins(n, i) += spin_transformations[n][i][j] * globals::s(n, j);
       }
     }
   }
