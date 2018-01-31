@@ -184,7 +184,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
         cout << setw(8) << bz_lengths.back() << " ";
         cout << uvw << " ";
         cout << b_to_k_matrix * uvw << "\n";
-        cout << defaultfloat;
+        cout.unsetf(ios_base::floatfield);
       }
       bz_point_counter++;
     }
