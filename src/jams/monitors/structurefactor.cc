@@ -201,16 +201,6 @@ void StructureFactorMonitor::update(Solver * solver) {
   using std::complex;
   using namespace globals;
 
-
-  transformed_spins.zero();
-  for (auto n = 0; n < globals::num_spins; ++n) {
-    for (auto i = 0; i < 3; ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        transformed_spins(n, i) += spin_transformations[n][i][j] * globals::s(n, j);
-      }
-    }
-  }
-
   fft_space();
   store_bz_path_data();
 
@@ -397,13 +387,14 @@ void StructureFactorMonitor::fft_space() {
   assert(fft_plan_s_rspace_to_kspace != nullptr);
   assert(s_kspace.is_allocated());
 
-//  jblib::Array<double, 2> s_trans(num_spins, 3);
-//
-//  for (auto i = 0; i < num_spins; ++i) {
-//    for (auto j = 0; j < 3; ++j) {
-//      s_trans(i, j) = s(i, j) * spin_transformations(i, j);
-//    }
-//  }
+  transformed_spins.zero();
+  for (auto n = 0; n < globals::num_spins; ++n) {
+    for (auto i = 0; i < 3; ++i) {
+      for (auto j = 0; j < 3; ++j) {
+        transformed_spins(n, i) += spin_transformations[n][i][j] * globals::s(n, j);
+      }
+    }
+  }
 
   fftw_execute(fft_plan_s_rspace_to_kspace);
 
