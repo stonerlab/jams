@@ -35,10 +35,11 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   time_point_counter_ = 0;
 
   // create transform arrays for example to apply a Holstein Primakoff transform
-  s_transform.resize(num_spins);
+  spin_transformations.resize(num_spins);
+  transformed_spins.resize(num_spins, 3);
 
   for (int i = 0; i < num_spins; ++i) {
-    s_transform[i] = lattice->material(lattice->atom_material_id(i)).transform;
+    spin_transformations[i] = lattice->material(lattice->atom_material_id(i)).transform;
   }
 
   libconfig::Setting& solver_settings = ::config->lookup("solver");
@@ -68,7 +69,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   // ------------------------------------------------------------------
   s_kspace.resize(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2] / 2 + 1, lattice->motif_size(), 3);
 
-  fft_plan_s_rspace_to_kspace = fft_plan_rspace_to_kspace(globals::s.data(), s_kspace.data(), lattice->kspace_size(), lattice->motif_size());
+  fft_plan_s_rspace_to_kspace = fft_plan_rspace_to_kspace(transformed_spins.data(), s_kspace.data(), lattice->kspace_size(), lattice->motif_size());
 
   // ------------------------------------------------------------------
   // construct Brillouin zone sample points from the nodes specified
@@ -199,6 +200,16 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
 void StructureFactorMonitor::update(Solver * solver) {
   using std::complex;
   using namespace globals;
+
+
+  transformed_spins.zero();
+  for (auto n = 0; n < globals::num_spins; ++n) {
+    for (auto i = 0; i < 3; ++i) {
+      for (auto j = 0; j < 3; ++j) {
+        transformed_spins(n, i) = spin_transformations[n][i][j] * globals::s(n, j);
+      }
+    }
+  }
 
   fft_space();
   store_bz_path_data();
@@ -390,7 +401,7 @@ void StructureFactorMonitor::fft_space() {
 //
 //  for (auto i = 0; i < num_spins; ++i) {
 //    for (auto j = 0; j < 3; ++j) {
-//      s_trans(i, j) = s(i, j) * s_transform(i, j);
+//      s_trans(i, j) = s(i, j) * spin_transformations(i, j);
 //    }
 //  }
 

@@ -35,16 +35,17 @@ class StructureFactorMonitor : public Monitor {
     jblib::Array<std::complex<double>, 5> s_kspace;
 
     bool output_sublattice_enabled_ = false;
-    std::vector<Mat3> s_transform;
-  jblib::Array<std::complex<double>, 3> sqw_x;
-  jblib::Array<std::complex<double>, 3> sqw_y;
-  jblib::Array<std::complex<double>, 3> sqw_z;
-  std::vector<Vec3i> b_uvw_nodes;
-  std::vector<Vec3i> b_uvw_points;
-  std::vector<int> bz_points_path_count;
-  std::vector<double> bz_lengths;
-  double freq_delta;
-  int time_point_counter_;
+    std::vector<Mat3> spin_transformations;
+    jblib::Array<double, 2> transformed_spins;
+    jblib::Array<std::complex<double>, 3> sqw_x;
+    jblib::Array<std::complex<double>, 3> sqw_y;
+    jblib::Array<std::complex<double>, 3> sqw_z;
+    std::vector<Vec3i> b_uvw_nodes;
+    std::vector<Vec3i> b_uvw_points;
+    std::vector<int> bz_points_path_count;
+    std::vector<double> bz_lengths;
+    double freq_delta;
+    int time_point_counter_;
 };
 
 #endif  // JAMS_MONITOR_STRUCTUREFACTOR_H
