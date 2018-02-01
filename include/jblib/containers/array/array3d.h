@@ -250,8 +250,7 @@ namespace jblib {
   void
   Array<Tp_, 3, Idx_>::
   zero() {
-    // std::fill(data_, data_ + (size0_ * size1_), Tp_(0));
-    memset(data_, 0.0, (size0_ * size1_ * size2_)*sizeof(Tp_));
+     std::fill(data_, data_ + (size0_ * size1_ * size2_), Tp_(0));
   }
 
   template <typename Tp_, typename Idx_>
