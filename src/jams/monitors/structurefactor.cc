@@ -26,6 +26,13 @@ class Solver;
 // with the monitor. This may mean performing the FFT twice, but presumably the structure factor is being
 // calculated much less frequently than every integration step.
 
+namespace {
+    ostream& float_format(ostream& out)
+    {
+      return out << std::setprecision(8) << std::setw(12) << std::fixed;
+    }
+}
+
 StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
@@ -217,24 +224,13 @@ void StructureFactorMonitor::fft_time() {
   jblib::Array<fftw_complex,2> fft_sqw_y(time_points, space_points);
   jblib::Array<fftw_complex,2> fft_sqw_z(time_points, space_points);
 
-  jblib::Array<fftw_complex,2> total_sqw_x(time_points, space_points);
-  jblib::Array<fftw_complex,2> total_sqw_y(time_points, space_points);
-  jblib::Array<fftw_complex,2> total_sqw_z(time_points, space_points);
+  jblib::Array<double,2> total_sqw_x(time_points, space_points);
+  jblib::Array<double,2> total_sqw_y(time_points, space_points);
+  jblib::Array<double,2> total_sqw_z(time_points, space_points);
 
-  jblib::Array<double,2> total_mag_sqw_x(time_points, space_points);
-  jblib::Array<double,2> total_mag_sqw_y(time_points, space_points);
-  jblib::Array<double,2> total_mag_sqw_z(time_points, space_points);
-
-  for (int i = 0; i < time_points; ++i) {
-    for (int j = 0; j < space_points; ++j) {
-      total_sqw_x(i, j)[0] = 0.0; total_sqw_x(i, j)[1] = 0.0;
-      total_sqw_y(i, j)[0] = 0.0; total_sqw_y(i, j)[1] = 0.0;
-      total_sqw_z(i, j)[0] = 0.0; total_sqw_z(i, j)[1] = 0.0;
-      total_mag_sqw_x(i, j) = 0.0;
-      total_mag_sqw_y(i, j) = 0.0;
-      total_mag_sqw_z(i, j) = 0.0;
-    }
-  }
+  total_sqw_x.zero();
+  total_sqw_y.zero();
+  total_sqw_z.zero();
 
   int rank       = 1;
   int sizeN[]   = {time_points};
@@ -247,9 +243,9 @@ void StructureFactorMonitor::fft_time() {
   fftw_plan fft_plan_time_y = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_y.data(),inembed,istride,idist,fft_sqw_y.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
   fftw_plan fft_plan_time_z = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_z.data(),inembed,istride,idist,fft_sqw_z.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
 
-  for (int unit_cell_atom = 0; unit_cell_atom < ::lattice->motif_size(); ++unit_cell_atom) {
-    for (int i = 0; i < time_points; ++i) {
-      for (int j = 0; j < space_points; ++j) {
+  for (auto unit_cell_atom = 0; unit_cell_atom < ::lattice->motif_size(); ++unit_cell_atom) {
+    for (auto i = 0; i < time_points; ++i) {
+      for (auto j = 0; j < space_points; ++j) {
         fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j).real()*fft_window_default(i, time_points);
         fft_sqw_x(i,j)[1] = sqw_x(unit_cell_atom, i, j).imag()*fft_window_default(i, time_points);
 
@@ -277,28 +273,25 @@ void StructureFactorMonitor::fft_time() {
       unit_cell_sqw_file << " v          |\t";
       unit_cell_sqw_file << " w          |\t";
       unit_cell_sqw_file << " freq (THz) |\t";
-      unit_cell_sqw_file << "abs(Sx(q,w))|\t";
       unit_cell_sqw_file <<  "Re(Sx(q,w))|\t";
       unit_cell_sqw_file << "Im(Sx(q,w)) |\t";
-      unit_cell_sqw_file << "abs(Sy(q,w))|\t";
       unit_cell_sqw_file << "Re(Sy(q,w)) |\t";
       unit_cell_sqw_file << "Im(Sy(q,w)) |\t";
-      unit_cell_sqw_file << "abs(Sz(q,w))|\t";
       unit_cell_sqw_file << "Re(Sz(q,w)) |\t";
       unit_cell_sqw_file << "Im(Sz(q,w))\n";
 
-      for (int i = 0; i < (time_points / 2) + 1; ++i) {
+      for (auto i = 0; i < (time_points / 2) + 1; ++i) {
         double total_length = 0.0;
-        for (int j = 0; j < space_points; ++j) {
+        for (auto j = 0; j < space_points; ++j) {
           unit_cell_sqw_file << std::setw(5) << std::fixed << j << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << total_length << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][0] / double(::lattice->kspace_size()[0])  << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][1] / double(::lattice->kspace_size()[1])  << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][2] / double(::lattice->kspace_size()[2])  << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << i * freq_delta / 1e12 << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_x(i, j)[0] << "\t" << norm * fft_sqw_x(i, j)[1] << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_y(i, j)[0] << "\t" << norm * fft_sqw_y(i, j)[1] << "\t";
-          unit_cell_sqw_file << std::setprecision(8) << std::setw(12) << std::fixed << norm * fft_sqw_z(i, j)[0] << "\t" << norm * fft_sqw_z(i, j)[1] << "\n";
+          unit_cell_sqw_file << float_format << total_length << "\t";
+          unit_cell_sqw_file << float_format << b_uvw_points[j][0] / double(::lattice->kspace_size()[0])  << "\t";
+          unit_cell_sqw_file << float_format << b_uvw_points[j][1] / double(::lattice->kspace_size()[1])  << "\t";
+          unit_cell_sqw_file << float_format << b_uvw_points[j][2] / double(::lattice->kspace_size()[2])  << "\t";
+          unit_cell_sqw_file << float_format << i * freq_delta / 1e12 << "\t";
+          unit_cell_sqw_file << float_format << norm * fft_sqw_x(i, j)[0] << "\t" << norm * fft_sqw_x(i, j)[1] << "\t";
+          unit_cell_sqw_file << float_format << norm * fft_sqw_y(i, j)[0] << "\t" << norm * fft_sqw_y(i, j)[1] << "\t";
+          unit_cell_sqw_file << float_format << norm * fft_sqw_z(i, j)[0] << "\t" << norm * fft_sqw_z(i, j)[1] << "\n";
           total_length += bz_lengths[j];
         }
         unit_cell_sqw_file << std::endl;
@@ -307,20 +300,11 @@ void StructureFactorMonitor::fft_time() {
       unit_cell_sqw_file.close();
     }
 
-    for (int i = 0; i < time_points; ++i) {
-      for (int j = 0; j < space_points; ++j) {
-        total_sqw_x(i, j)[0] += norm*fft_sqw_x(i, j)[0];
-        total_sqw_x(i, j)[1] += norm*fft_sqw_x(i, j)[1];
-        total_mag_sqw_x(i, j) += norm*sqrt(fft_sqw_x(i, j)[0]*fft_sqw_x(i, j)[0] + fft_sqw_x(i, j)[1]*fft_sqw_x(i, j)[1]);
-
-        total_sqw_y(i, j)[0] += norm*fft_sqw_y(i, j)[0];
-        total_sqw_y(i, j)[1] += norm*fft_sqw_y(i, j)[1];
-        total_mag_sqw_y(i, j) += norm*sqrt(fft_sqw_y(i, j)[0]*fft_sqw_y(i, j)[0] + fft_sqw_y(i, j)[1]*fft_sqw_y(i, j)[1]);
-
-        total_sqw_z(i, j)[0] += norm*fft_sqw_z(i, j)[0];
-        total_sqw_z(i, j)[1] += norm*fft_sqw_z(i, j)[1];
-        total_mag_sqw_z(i, j) += norm*sqrt(fft_sqw_z(i, j)[0]*fft_sqw_z(i, j)[0] + fft_sqw_z(i, j)[1]*fft_sqw_z(i, j)[1]);
-
+    for (auto i = 0; i < time_points; ++i) {
+      for (auto j = 0; j < space_points; ++j) {
+        total_sqw_x(i, j) += norm*(pow2(fft_sqw_x(i, j)[0]) + pow2(fft_sqw_x(i, j)[1]));
+        total_sqw_y(i, j) += norm*(pow2(fft_sqw_y(i, j)[0]) + pow2(fft_sqw_y(i, j)[1]));
+        total_sqw_z(i, j) += norm*(pow2(fft_sqw_z(i, j)[0]) + pow2(fft_sqw_z(i, j)[1]));
       }
     }
   }
@@ -334,37 +318,25 @@ void StructureFactorMonitor::fft_time() {
   sqwfile << " v          |\t";
   sqwfile << " w          |\t";
   sqwfile << " freq (THz) |\t";
-  sqwfile << "abs(Sx(q,w))|\t";
-  sqwfile <<  "Re(Sx(q,w))|\t";
-  sqwfile << "Im(Sx(q,w)) |\t";
-  sqwfile << "abs(Sy(q,w))|\t";
-  sqwfile << "Re(Sy(q,w)) |\t";
-  sqwfile << "Im(Sy(q,w)) |\t";
-  sqwfile << "abs(Sz(q,w))|\t";
-  sqwfile << "Re(Sz(q,w)) |\t";
-  sqwfile << "Im(Sz(q,w))\n";
+  sqwfile << "Abs(Sx(q,w))|\t";
+  sqwfile << "Abs(Sy(q,w))|\t";
+  sqwfile << "Abs(Sz(q,w))\n";
 
   double total_length = 0.0;
   double region_length = 0.0;
-  for (int bz_region = 0; bz_region < bz_points_path_count.size() - 1; ++bz_region) {
-    for (int i = 0; i < (time_points/2) + 1; ++i) {
+  for (auto bz_region = 0; bz_region < bz_points_path_count.size() - 1; ++bz_region) {
+    for (auto i = 0; i < (time_points/2) + 1; ++i) {
       region_length = 0.0;
-      for (int j = bz_points_path_count[bz_region]; j < bz_points_path_count[bz_region+1]; ++j) {
+      for (auto j = bz_points_path_count[bz_region]; j < bz_points_path_count[bz_region+1]; ++j) {
         sqwfile << std::setw(5) << std::fixed << j << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << region_length + total_length + 0.5 * bz_lengths[j] << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][0] / double(::lattice->kspace_size()[0]) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][1] / double(::lattice->kspace_size()[1]) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << b_uvw_points[j][2] / double(::lattice->kspace_size()[2]) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << i*freq_delta / 1e12 << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_x(i,j) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[0] << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_x(i,j)[1] << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_y(i,j) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_y(i,j)[0] << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_y(i,j)[1] << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_mag_sqw_z(i,j) << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_z(i,j)[0] << "\t";
-        sqwfile << std::setprecision(8) << std::setw(12) << std::fixed << total_sqw_z(i,j)[1] << "\n";
+        sqwfile << float_format << region_length + total_length + 0.5 * bz_lengths[j] << "\t";
+        sqwfile << float_format << b_uvw_points[j][0] / double(::lattice->kspace_size()[0]) << "\t";
+        sqwfile << float_format << b_uvw_points[j][1] / double(::lattice->kspace_size()[1]) << "\t";
+        sqwfile << float_format << b_uvw_points[j][2] / double(::lattice->kspace_size()[2]) << "\t";
+        sqwfile << float_format << i*freq_delta / 1e12 << "\t";
+        sqwfile << float_format << sqrt(total_sqw_x(i,j)) << "\t";
+        sqwfile << float_format << sqrt(total_sqw_y(i,j)) << "\t";
+        sqwfile << float_format << sqrt(total_sqw_z(i,j)) << "\n";
         region_length += bz_lengths[j];
       }
       sqwfile << std::endl;
