@@ -67,7 +67,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   // where Nx, Ny, Nz are the supercell positions and M is the motif position
   // We can use that to reinterpet the output from the fft as a 5D array
   // ------------------------------------------------------------------
-  s_kspace.resize(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2] / 2 + 1, lattice->motif_size(), 3);
+  s_kspace.resize(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2], lattice->motif_size(), 3);
 
   fft_plan_s_rspace_to_kspace = fft_plan_rspace_to_kspace(transformed_spins.data(), s_kspace.data(), lattice->kspace_size(), lattice->motif_size());
 
@@ -388,10 +388,11 @@ void StructureFactorMonitor::fft_space() {
   assert(s_kspace.is_allocated());
 
   transformed_spins.zero();
+
   for (auto n = 0; n < globals::num_spins; ++n) {
     for (auto i = 0; i < 3; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        transformed_spins(n, i) += spin_transformations[n][i][j] * globals::s(n, j);
+        transformed_spins(n, i) += std::complex<double>(spin_transformations[n][i][j] * globals::s(n, j), 0.0);
       }
     }
   }
@@ -412,34 +413,17 @@ void StructureFactorMonitor::store_bz_path_data() {
   for (auto m = 0; m < ::lattice->motif_size(); ++m) {
     for (auto i = 0; i < b_uvw_points.size(); ++i) {
       auto uvw = b_uvw_points[i];
-      bool negative = uvw[2] < 0;
-      uvw[2] = std::abs(uvw[2]);
 
-      uvw[0] = (size[0] + uvw[0]) % size[0];
-      uvw[1] = (size[1] + uvw[1]) % size[1];
-
-      if ( even(uvw[2]/ (size[2]/2 + 1)) ) {
-        uvw[2] = ((size[2]/2 + 1) + uvw[2]) % (size[2]/2 + 1);
-      } else {
-        uvw[2] = (size[2]/2 - 1) + ((size[2]/2 + 1) - uvw[2]) % (size[2]/2 + 1);
-      }
-
+      uvw = (size + uvw) % size;
 
       assert(uvw[0] >= 0 && uvw[0] < s_kspace.size(0));
       assert(uvw[1] >= 0 && uvw[1] < s_kspace.size(1));
       assert(uvw[2] >= 0 && uvw[2] < s_kspace.size(2));
 
-//      cout << b_uvw_points[i] << " | " << uvw << "\n";
+      sqw_x(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 0);
+      sqw_y(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 1);
+      sqw_z(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 2);
 
-      if (negative) {
-        sqw_x(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], uvw[2], m, 0));
-        sqw_y(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], uvw[2], m, 1));
-        sqw_z(m, time_point_counter_, i) = conj(s_kspace(uvw[0], uvw[1], uvw[2], m, 2));
-      } else {
-        sqw_x(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 0);
-        sqw_y(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 1);
-        sqw_z(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 2);
-      }
     }
   }
 }
