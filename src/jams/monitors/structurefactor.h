@@ -36,7 +36,7 @@ class StructureFactorMonitor : public Monitor {
 
     bool output_sublattice_enabled_ = false;
     std::vector<Mat3> spin_transformations;
-    jblib::Array<double, 2> transformed_spins;
+    jblib::Array<std::complex<double>, 2> transformed_spins;
     jblib::Array<std::complex<double>, 3> sqw_x;
     jblib::Array<std::complex<double>, 3> sqw_y;
     jblib::Array<std::complex<double>, 3> sqw_z;

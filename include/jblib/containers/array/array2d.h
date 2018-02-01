@@ -205,7 +205,13 @@ namespace jblib {
   Array<Tp_, 2, Idx_>::
   size(const size_type i) const {
     assert((i < 2) && !(i < 0));
-    return (&size0_)[i];
+    switch(i) {
+      case 0 :
+        return size0_;
+      case 1 :
+        return size1_;
+    }
+    throw std::out_of_range("size(i) must have i < 2");
   }
 
   template <typename Tp_, typename Idx_>
@@ -240,8 +246,7 @@ namespace jblib {
   void
   Array<Tp_, 2, Idx_>::
   zero() {
-    // std::fill(data_, data_ + (size0_ * size1_), Tp_(0));
-    memset(data_, 0.0, (size0_ * size1_)*sizeof(Tp_));
+     std::fill(data_, data_ + (size0_ * size1_), Tp_(0));
   }
 
   template <typename Tp_, typename Idx_>
