@@ -12,9 +12,9 @@ else()
 endif()
 
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=sm_30") # Kepler K20/K40/K80
-list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_60,code=sm_60") # Pascal (P100)
 list(APPEND srcs ${cuda})
 
 cuda_add_executable(jams ${srcs})
 target_link_libraries(jams ${JAMS_LINKER_LIBS})
+target_link_libraries(jams pcg hdf5)
 jams_use_cxx11(jams)

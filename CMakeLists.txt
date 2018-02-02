@@ -12,7 +12,19 @@ include(cmake/Utils.cmake)
 include(cmake/Dependencies.cmake)
 include(cmake/Targets.cmake)
 
+# -- hdf5
+find_package(HDF5 COMPONENTS CXX REQUIRED)
+add_library(hdf5 INTERFACE IMPORTED)
+set_property(TARGET hdf5 PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS} ${HDF5_CXX_INCLUDE_DIR})
+set_property(TARGET hdf5 PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES})
+
 jams_ensure_out_of_source_build()
+
+add_library(pcg INTERFACE)
+target_include_directories(pcg INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+        $<INSTALL_INTERFACE:include/pcg>
+        )
 
 include_directories(src)
 include_directories(include)
