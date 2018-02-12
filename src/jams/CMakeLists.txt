@@ -8,10 +8,10 @@ target_compile_definitions(jams PRIVATE HAS_CUDA=1)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
-if (OpenMP_CXX_FOUND)
-    target_link_libraries(jams OpenMP::OpenMP_CXX)
-    target_compile_definitions(jams PRIVATE HAS_OMP=1)
-endif()
+#if (OpenMP_CXX_FOUND)
+#    target_link_libraries(jams OpenMP::OpenMP_CXX)
+#    target_compile_definitions(jams PRIVATE HAS_OMP=1)
+#endif()
 
 target_link_libraries(jams fftw3 cblas jblib pcg symspg config++ hdf5 cuda)
 
