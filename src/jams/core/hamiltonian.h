@@ -8,7 +8,7 @@
 
 #include "jblib/containers/array.h"
 
-#ifdef CUDA
+#if HAS_CUDA
 #include <cuda_runtime_api.h>
 #include "jblib/containers/cuda_array.h"
 #endif  // CUDA
@@ -54,7 +54,7 @@ class Hamiltonian : public Base {
   }
 
   double* dev_ptr_energy() {
-    #ifdef CUDA
+    #if HAS_CUDA
     assert(dev_energy_.is_allocated());
     return dev_energy_.data();
     #else
@@ -67,7 +67,7 @@ class Hamiltonian : public Base {
   }
 
   double* dev_ptr_field() {
-    #ifdef CUDA
+    #if HAS_CUDA
     assert(dev_field_.is_allocated());
     return dev_field_.data();
     #else
@@ -84,7 +84,7 @@ class Hamiltonian : public Base {
   jblib::Array<double, 1> energy_;
   jblib::Array<double, 2> field_;
 
-#ifdef CUDA
+#if HAS_CUDA
   jblib::CudaArray<double, 1> dev_energy_;
   jblib::CudaArray<double, 1> dev_field_;
 #endif  // CUDA

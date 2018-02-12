@@ -135,7 +135,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
 
     // transfer arrays to cuda device if needed
-#ifdef CUDA
+#if HAS_CUDA
     if (solver->is_cuda_solver()) {
         dev_energy_ = jblib::CudaArray<double, 1>(energy_);
         dev_field_ = jblib::CudaArray<double, 1>(field_);
@@ -228,7 +228,7 @@ void UniaxialHamiltonian::calculate_one_spin_field(const int i, double local_fie
 
 void UniaxialHamiltonian::calculate_fields() {
     if (solver->is_cuda_solver()) {
-#ifdef CUDA
+#if HAS_CUDA
         cuda_uniaxial_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
             (globals::num_spins, mca_order_.size(), dev_mca_order_.data(), dev_mca_value_.data(), solver->dev_ptr_spin(), dev_field_.data());
 #endif  // CUDA

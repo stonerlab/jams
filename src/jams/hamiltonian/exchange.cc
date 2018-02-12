@@ -117,7 +117,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
     // transfer arrays to cuda device if needed
     if (solver->is_cuda_solver()) {
-#ifdef CUDA
+#if HAS_CUDA
       dev_energy_ = jblib::CudaArray<double, 1>(energy_);
       dev_field_  = jblib::CudaArray<double, 1>(field_);
 
@@ -139,7 +139,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 double ExchangeHamiltonian::calculate_total_energy() {
   double total_energy = 0.0;
 
-#ifdef CUDA
+#if HAS_CUDA
   if (solver->is_cuda_solver()) {
     calculate_fields();
     dev_field_.copy_to_host_array(field_);
@@ -155,7 +155,7 @@ double ExchangeHamiltonian::calculate_total_energy() {
         total_energy += calculate_one_spin_energy(i);
     }
 
-#ifdef CUDA
+#if HAS_CUDA
     }
 #endif // CUDA
 
@@ -242,7 +242,7 @@ void ExchangeHamiltonian::calculate_fields() {
   const int num_cols = globals::num_spins3;
 
   if (solver->is_cuda_solver()) {
-#ifdef CUDA
+#if HAS_CUDA
     cusparseStatus_t stat =
             cusparseDcsrmv(cusparse_handle_,
                     CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -265,7 +265,7 @@ void ExchangeHamiltonian::calculate_fields() {
     }
 #endif  // CUDA
   } else {
-#ifdef USE_MKL
+#ifdef HAS_MKL
     mkl_dcsrmv(transa, &num_rows, &num_cols, &one, matdescra, interaction_matrix_.valPtr(),
             interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),
             &zero, field_.data());

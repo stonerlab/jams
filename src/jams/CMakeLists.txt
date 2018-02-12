@@ -1,13 +1,13 @@
-add_definitions(-DCUDA)
+add_definitions(-DHAS_CUDA=1)
 
 list(APPEND srcs ${cuda})
 
 add_executable(jams "")
 target_compile_features(jams PRIVATE cxx_std_11)
-target_compile_definitions(jams PRIVATE -DCUDA)
+target_compile_definitions(jams PRIVATE HAS_CUDA=1)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
-target_link_libraries(jams openmp jblib pcg symspg config++ hdf5 cuda ${JAMS_LINKER_LIBS})
+target_link_libraries(jams fftw3 cblas openmp jblib pcg symspg config++ hdf5 cuda)
 
 if(APPLE)
     # We need to add the path to the driver (libcuda.dylib) as an rpath,

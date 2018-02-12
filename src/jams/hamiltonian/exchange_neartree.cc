@@ -206,7 +206,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
   // transfer arrays to cuda device if needed
   if (solver->is_cuda_solver()) {
-#ifdef CUDA
+#if HAS_CUDA
     cudaStreamCreate(&dev_stream_);
 
     dev_energy_ = jblib::CudaArray<double, 1>(energy_);
@@ -317,7 +317,7 @@ void ExchangeNeartreeHamiltonian::calculate_fields() {
   const int num_cols = globals::num_spins3;
 
   if (solver->is_cuda_solver()) {
-#ifdef CUDA
+#if HAS_CUDA
     cusparseStatus_t stat =
             cusparseDcsrmv(cusparse_handle_,
                     CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -341,7 +341,7 @@ void ExchangeNeartreeHamiltonian::calculate_fields() {
     }
 #endif  // CUDA
   } else {
-#ifdef USE_MKL
+#ifdef HAS_MKL
 
     mkl_dcsrmv(transa, &num_rows, &num_cols, &one, matdescra, interaction_matrix_.valPtr(),
             interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),

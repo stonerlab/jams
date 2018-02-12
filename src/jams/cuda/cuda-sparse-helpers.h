@@ -1,7 +1,7 @@
 #ifndef JAMS_CUDA_SPARSE_HELPERS_H
 #define JAMS_CUDA_SPARSE_HELPERS_H
 
-#ifdef CUDA
+#if HAS_CUDA
 #include <cuda_runtime.h>
 #include <cusparse.h>
 #endif
