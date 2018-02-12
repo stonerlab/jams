@@ -2,9 +2,6 @@
 find_package(Threads QUIET)
 
 find_package(OpenMP)
-if (OpenMP_CXX_FOUND)
-    target_compile_definitions(OpenMP::OpenMP_CXX PUBLIC HAS_OMP=1)
-endif()
 
 add_library(pcg INTERFACE)
 target_include_directories(pcg INTERFACE
