@@ -1,10 +1,9 @@
 # -- Threads
 find_package(Threads QUIET)
-find_package(OpenMP QUIET)
-add_library(openmp INTERFACE IMPORTED)
-if (OPENMP_FOUND)
-    set_target_properties(openmp PROPERTIES COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
-    target_compile_definitions(openmp PUBLIC HAS_OMP=1)
+
+find_package(OpenMP)
+if (OpenMP_CXX_FOUND)
+    target_compile_definitions(OpenMP::OpenMP_CXX PUBLIC HAS_OMP=1)
 endif()
 
 add_library(pcg INTERFACE)
