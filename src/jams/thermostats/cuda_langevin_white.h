@@ -3,7 +3,7 @@
 #ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_WHITE_H
 #define JAMS_CUDA_THERMOSTAT_LANGEVIN_WHITE_H
 
-#ifdef CUDA
+#if HAS_CUDA
 
 #include <curand.h>
 

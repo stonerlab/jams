@@ -18,7 +18,7 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
   cout << thermostat_name << " thermostat\n";
 
     // create the selected thermostat
-    #ifdef CUDA
+    #if HAS_CUDA
     if (capitalize(thermostat_name) == "LANGEVIN-WHITE-GPU" || capitalize(thermostat_name) == "CUDA_LANGEVIN_WHITE") {
         return new CudaLangevinWhiteThermostat(config->lookup("physics.temperature"), 0.0, globals::num_spins);
     }

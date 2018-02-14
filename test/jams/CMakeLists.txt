@@ -9,7 +9,7 @@ set(PROJECT_TEST_NAME ${CMAKE_PROJECT_NAME}_test)
 jams_pickup_jams_sources(${PROJECT_SOURCE_DIR})
 list(REMOVE_ITEM srcs ${PROJECT_SOURCE_DIR}/src/jams/main.cc)
 
-add_definitions(-DCUDA)
+add_definitions(-DHAS_CUDA=1)
 
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -g -std=c++11)
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=sm_30") # Kepler K20/K40/K80

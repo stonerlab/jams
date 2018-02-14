@@ -165,7 +165,7 @@ void jams_initialize(int argc, char **argv) {
   catch(const general_exception &gex) {
     jams_error("%s", gex.what());
   }
-#ifdef CUDA
+#if HAS_CUDA
   catch(const cuda_api_exception &cex) {
     jams_error("CUDA api exception\n '%s'", cex.what());
   }

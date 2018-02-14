@@ -5,7 +5,7 @@
 #include <sstream>
 #include <cstring>
 
-#ifdef CUDA
+#if HAS_CUDA
 #include <cublas.h>
 #include <cuda.h>
 #include <curand.h>
@@ -43,7 +43,7 @@ class untested_exception : general_exception {
         : general_exception("untested", file, line, function) {}
 };
 
-#ifdef CUDA
+#if HAS_CUDA
 class cuda_api_exception : std::runtime_error {
     std::string msg;
 public:

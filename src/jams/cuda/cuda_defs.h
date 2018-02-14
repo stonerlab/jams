@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <map>
 
-#ifdef CUDA
+#if HAS_CUDA
 #include <cuda_runtime.h>
 #endif
 

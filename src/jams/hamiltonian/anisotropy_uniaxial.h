@@ -29,7 +29,7 @@ class UniaxialHamiltonian : public Hamiltonian {
         std::vector<int> mca_order_;   // MCA expressed as a Legendre polynomial
         std::vector< jblib::Array<double, 1> > mca_value_;
 
-#ifdef CUDA
+#if HAS_CUDA
         cudaStream_t dev_stream_ = nullptr;
         unsigned int dev_blocksize_;
         jblib::CudaArray<int, 1> dev_mca_order_;

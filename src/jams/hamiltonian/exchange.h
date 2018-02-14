@@ -7,7 +7,7 @@
 
 #include <libconfig.h++>
 
-#ifdef CUDA
+#if HAS_CUDA
 #include <cuda_runtime.h>
 #include <cusparse.h>
 #include "jams/cuda/wrappers/stream.h"
@@ -45,7 +45,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         double distance_tolerance_;
         InteractionFileFormat exchange_file_format_;
 
-#ifdef CUDA
+#if HAS_CUDA
         CudaSparseMatrixCSR<double> dev_csr_interaction_matrix_;
         cusparseHandle_t   cusparse_handle_;
         CudaStream dev_stream_;
