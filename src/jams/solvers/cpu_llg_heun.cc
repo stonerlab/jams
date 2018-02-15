@@ -36,7 +36,7 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   w.resize(num_spins, 3);
 
   for (int i = 0; i < num_spins; ++i) {
-    sigma(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kBohrMagneton) );
+    sigma(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton) );
   }
 
   initialized_ = true;
