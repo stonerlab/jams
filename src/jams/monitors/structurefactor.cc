@@ -347,15 +347,15 @@ void StructureFactorMonitor::fft_time() {
 
   sqwfile.close();
 
-  fftw_free(fft_plan_time_x);
-  fftw_free(fft_plan_time_y);
-  fftw_free(fft_plan_time_z);
+  fftw_destroy_plan(fft_plan_time_x);
+  fftw_destroy_plan(fft_plan_time_y);
+  fftw_destroy_plan(fft_plan_time_z);
 }
 
 StructureFactorMonitor::~StructureFactorMonitor() {
   fft_time();
-  if (fft_plan_s_rspace_to_kspace != nullptr) {
-    fftw_free(fft_plan_s_rspace_to_kspace);
+  if (fft_plan_s_rspace_to_kspace) {
+    fftw_destroy_plan(fft_plan_s_rspace_to_kspace);
   }
 }
 
