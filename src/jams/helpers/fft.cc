@@ -27,34 +27,6 @@ double fft_window_blackman_4(const int n, const int n_total) {
   return a0 - a1 * cos(x) + a2 * cos(2 * x) - a3 * cos(3 * x);
 }
 
-fftw_plan fft_plan_rspace_to_kspace(double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & motif_size) {
-  assert(rspace != nullptr);
-  assert(kspace != nullptr);
-  assert(sum(kspace_size) > 0);
-
-  int rank            = 3;
-  int stride          = 3 * motif_size;
-  int dist            = 1;
-  int num_transforms  = 3 * motif_size;
-  int transform_size[3]  = {kspace_size[0], kspace_size[1], kspace_size[2]};
-
-  int * nembed = nullptr;
-
-  return fftw_plan_many_dft_r2c(
-          rank,                    // dimensionality
-          transform_size, // array of sizes of each dimension
-          num_transforms,          // number of transforms
-          rspace,        // input: real data
-          nembed,                  // number of embedded dimensions
-          stride,                  // memory stride between elements of one fft dataset
-          dist,                    // memory distance between fft datasets
-          reinterpret_cast<fftw_complex*>(kspace),        // output: complex data
-          nembed,                  // number of embedded dimensions
-          stride,                  // memory stride between elements of one fft dataset
-          dist,                    // memory distance between fft datasets
-          FFTW_PATIENT | FFTW_PRESERVE_INPUT);
-}
-
 // Precalculates the phase factors within the brilluoin zone and returns then as array
 void precalculate_kspace_phase_factors(
         const Vec3i &kspace_size,
@@ -92,12 +64,12 @@ void precalculate_kspace_phase_factors(
   }
 }
 
-void apply_kspace_phase_factors(jblib::Array<std::complex<double>, 5> &kspace) {
+void apply_kspace_phase_factors(jblib::Array<fftw_complex, 5> &kspace) {
   using namespace globals;
 
-  vector<complex<double>> exp_phase_x(lattice->kspace_size()[0]);
-  vector<complex<double>> exp_phase_y(lattice->kspace_size()[1]);
-  vector<complex<double>> exp_phase_z(lattice->kspace_size()[2]);
+  std::vector<complex<double>> exp_phase_x(lattice->kspace_size()[0]);
+  std::vector<complex<double>> exp_phase_y(lattice->kspace_size()[1]);
+  std::vector<complex<double>> exp_phase_z(lattice->kspace_size()[2]);
 
   for (auto m = 0; m < lattice->motif_size(); ++m) {
     auto r_cart = lattice->fractional_to_cartesian(lattice->motif_atom(m).pos);
@@ -107,8 +79,12 @@ void apply_kspace_phase_factors(jblib::Array<std::complex<double>, 5> &kspace) {
     for (auto i = 0; i < kspace.size(0); ++i) {
       for (auto j = 0; j < kspace.size(1); ++j) {
         for (auto k = 0; k < kspace.size(2); ++k) {
+          std::complex<double> phase = exp_phase_x[i] * exp_phase_y[j] * exp_phase_z[k];
           for (auto n = 0; n < 3; ++n) {
-            kspace(i, j, k, m, n) = kspace(i, j, k, m, n) * exp_phase_x[i] * exp_phase_y[j] * exp_phase_z[k];
+            std::complex<double> kpoint = {kspace(i, j, k, m, n)[0], kspace(i, j, k, m, n)[1]};
+            auto result = kpoint * phase;
+            kspace(i, j, k, m, n)[0] = result.real();
+            kspace(i, j, k, m, n)[1] = result.imag();
           }
         }
       }
@@ -116,8 +92,7 @@ void apply_kspace_phase_factors(jblib::Array<std::complex<double>, 5> &kspace) {
   }
 }
 
-
-fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & motif_size) {
+fftw_plan fft_plan_rspace_to_kspace(fftw_complex * rspace, fftw_complex * kspace, const Vec3i& kspace_size, const int & motif_size) {
   assert(rspace != nullptr);
   assert(kspace != nullptr);
   assert(sum(kspace_size) > 0);
@@ -134,11 +109,11 @@ fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<
           rank,                    // dimensionality
           transform_size, // array of sizes of each dimension
           num_transforms,          // number of transforms
-          reinterpret_cast<fftw_complex*>(rspace),        // input: real data
+          rspace,        // input: real data
           nembed,                  // number of embedded dimensions
           stride,                  // memory stride between elements of one fft dataset
           dist,                    // memory distance between fft datasets
-          reinterpret_cast<fftw_complex*>(kspace),        // output: complex data
+          kspace,        // output: complex data
           nembed,                  // number of embedded dimensions
           stride,                  // memory stride between elements of one fft dataset
           dist,                    // memory distance between fft datasets

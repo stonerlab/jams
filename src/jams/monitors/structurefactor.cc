@@ -246,14 +246,14 @@ void StructureFactorMonitor::fft_time() {
   for (auto unit_cell_atom = 0; unit_cell_atom < ::lattice->motif_size(); ++unit_cell_atom) {
     for (auto i = 0; i < time_points; ++i) {
       for (auto j = 0; j < space_points; ++j) {
-        fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j).real()*fft_window_default(i, time_points);
-        fft_sqw_x(i,j)[1] = sqw_x(unit_cell_atom, i, j).imag()*fft_window_default(i, time_points);
+        fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j)[0]*fft_window_default(i, time_points);
+        fft_sqw_x(i,j)[1] = sqw_x(unit_cell_atom, i, j)[1]*fft_window_default(i, time_points);
 
-        fft_sqw_y(i,j)[0] = sqw_y(unit_cell_atom, i, j).real()*fft_window_default(i, time_points);
-        fft_sqw_y(i,j)[1] = sqw_y(unit_cell_atom, i, j).imag()*fft_window_default(i, time_points);
+        fft_sqw_y(i,j)[0] = sqw_y(unit_cell_atom, i, j)[0]*fft_window_default(i, time_points);
+        fft_sqw_y(i,j)[1] = sqw_y(unit_cell_atom, i, j)[1]*fft_window_default(i, time_points);
 
-        fft_sqw_z(i,j)[0] = sqw_z(unit_cell_atom, i, j).real()*fft_window_default(i, time_points);
-        fft_sqw_z(i,j)[1] = sqw_z(unit_cell_atom, i, j).imag()*fft_window_default(i, time_points);
+        fft_sqw_z(i,j)[0] = sqw_z(unit_cell_atom, i, j)[0]*fft_window_default(i, time_points);
+        fft_sqw_z(i,j)[1] = sqw_z(unit_cell_atom, i, j)[1]*fft_window_default(i, time_points);
       }
     }
 
@@ -353,10 +353,11 @@ void StructureFactorMonitor::fft_time() {
 }
 
 StructureFactorMonitor::~StructureFactorMonitor() {
-  fft_time();
   if (fft_plan_s_rspace_to_kspace) {
     fftw_destroy_plan(fft_plan_s_rspace_to_kspace);
+    fft_plan_s_rspace_to_kspace = nullptr;
   }
+  fft_time();
 }
 
 void StructureFactorMonitor::fft_space() {
@@ -368,8 +369,9 @@ void StructureFactorMonitor::fft_space() {
   for (auto n = 0; n < globals::num_spins; ++n) {
     for (auto i = 0; i < 3; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        transformed_spins(n, i) += std::complex<double>(spin_transformations[n][i][j] * globals::s(n, j), 0.0);
+        transformed_spins(n, i)[0] += spin_transformations[n][i][j] * globals::s(n, j);
       }
+      transformed_spins(n, i)[1] = 0.0; // imag
     }
   }
 
@@ -377,7 +379,8 @@ void StructureFactorMonitor::fft_space() {
 
   const double norm = 1.0 / sqrt(product(lattice->kspace_size()));
   for (auto i = 0; i < s_kspace.elements(); ++i) {
-    s_kspace[i] *= norm;
+    s_kspace[i][0] *= norm;
+    s_kspace[i][1] *= norm;
   }
 
   apply_kspace_phase_factors(s_kspace);
@@ -396,10 +399,14 @@ void StructureFactorMonitor::store_bz_path_data() {
       assert(uvw[1] >= 0 && uvw[1] < s_kspace.size(1));
       assert(uvw[2] >= 0 && uvw[2] < s_kspace.size(2));
 
-      sqw_x(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 0);
-      sqw_y(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 1);
-      sqw_z(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 2);
+      sqw_x(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 0)[0];
+      sqw_x(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 0)[1];
 
+      sqw_y(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 1)[0];
+      sqw_y(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 1)[1];
+
+      sqw_z(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 2)[0];
+      sqw_z(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 2)[1];
     }
   }
 }
