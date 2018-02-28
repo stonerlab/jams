@@ -260,10 +260,6 @@ void StructureFactorMonitor::fft_time() {
     fftw_execute(fft_plan_time_x);
     fftw_execute(fft_plan_time_y);
     fftw_execute(fft_plan_time_z);
-    
-    fftw_free(fft_plan_time_x);
-    fftw_free(fft_plan_time_y);
-    fftw_free(fft_plan_time_z);
 
     // output DSF for each position in the unit cell
 
@@ -350,6 +346,10 @@ void StructureFactorMonitor::fft_time() {
   }
 
   sqwfile.close();
+
+  fftw_free(fft_plan_time_x);
+  fftw_free(fft_plan_time_y);
+  fftw_free(fft_plan_time_z);
 }
 
 StructureFactorMonitor::~StructureFactorMonitor() {
