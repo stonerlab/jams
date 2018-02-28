@@ -207,7 +207,13 @@ namespace jblib {
   Array<fftw_complex, 2, Idx_>::
   size(const size_type i) const {
     assert((i < 2) && !(i < 0));
-    return (&size0_)[i];
+    switch(i) {
+      case 0 :
+        return size0_;
+      case 1 :
+        return size1_;
+    }
+    throw std::out_of_range("size(i) must have i < 2");
   }
 
   template <typename Idx_>
