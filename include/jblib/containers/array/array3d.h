@@ -235,7 +235,6 @@ namespace jblib {
   Array<Tp_, 3, Idx_>::
   resize(const size_type new_size0, const size_type new_size1,
     const size_type new_size2) {
-    using std::swap;
 
     // don't resize if already the same size
     if ((new_size0 == size0_) && (new_size1 == size1_) && (new_size2 == size2_)) {

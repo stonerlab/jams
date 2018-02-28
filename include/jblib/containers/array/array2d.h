@@ -204,7 +204,7 @@ namespace jblib {
   inline const typename Array<Tp_, 2, Idx_>::size_type&
   Array<Tp_, 2, Idx_>::
   size(const size_type i) const {
-    assert((i < 2) && !(i < 0));
+    assert((i < 2));
     switch(i) {
       case 0 :
         return size0_;
