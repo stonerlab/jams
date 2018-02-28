@@ -55,7 +55,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   double t_run = solver_settings["t_max"];
 
   double t_sample = output_step_freq_*t_step;
-  int    num_samples = int(t_run/t_sample);
+  int    num_samples = ceil(t_run/t_sample);
   double freq_max    = 1.0/(2.0*t_sample);
          freq_delta  = 1.0/(num_samples*t_sample);
 
@@ -216,8 +216,8 @@ void StructureFactorMonitor::update(Solver * solver) {
 
 void StructureFactorMonitor::fft_time() {
 
-  const int time_points = sqw_x.size(1);
-  const int space_points = sqw_x.size(2);
+  const auto time_points = sqw_x.size(1);
+  const auto space_points = sqw_x.size(2);
   const double norm = 1.0/sqrt(time_points);
 
   jblib::Array<fftw_complex,2> fft_sqw_x(time_points, space_points);
@@ -233,10 +233,10 @@ void StructureFactorMonitor::fft_time() {
   total_sqw_z.zero();
 
   int rank       = 1;
-  int sizeN[]   = {time_points};
-  int howmany    = space_points;
-  int inembed[] = {time_points}; int onembed[] = {time_points};
-  int istride    = space_points; int ostride    = space_points;
+  int sizeN[]   = {static_cast<int>(time_points)};
+  int howmany    = static_cast<int>(space_points);
+  int inembed[] = {static_cast<int>(time_points)}; int onembed[] = {static_cast<int>(time_points)};
+  int istride    = static_cast<int>(space_points); int ostride    = static_cast<int>(space_points);
   int idist      = 1;            int odist      = 1;
 
   fftw_plan fft_plan_time_x = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_x.data(),inembed,istride,idist,fft_sqw_x.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
@@ -389,24 +389,31 @@ void StructureFactorMonitor::fft_space() {
 void StructureFactorMonitor::store_bz_path_data() {
   Vec3i size = lattice->kspace_size();
 
-  for (auto m = 0; m < ::lattice->motif_size(); ++m) {
-    for (auto i = 0; i < b_uvw_points.size(); ++i) {
-      auto uvw = b_uvw_points[i];
+  // extra safety in case there is an extra one time point due to floating point maths
+  if (time_point_counter_ < sqw_x.size(1)) {
+    for (auto m = 0; m < ::lattice->motif_size(); ++m) {
+      for (auto i = 0; i < b_uvw_points.size(); ++i) {
+        auto uvw = b_uvw_points[i];
 
-      uvw = (size + uvw) % size;
+        uvw = (size + uvw) % size;
 
-      assert(uvw[0] >= 0 && uvw[0] < s_kspace.size(0));
-      assert(uvw[1] >= 0 && uvw[1] < s_kspace.size(1));
-      assert(uvw[2] >= 0 && uvw[2] < s_kspace.size(2));
+        assert(uvw[0] >= 0 && uvw[0] < s_kspace.size(0));
+        assert(uvw[1] >= 0 && uvw[1] < s_kspace.size(1));
+        assert(uvw[2] >= 0 && uvw[2] < s_kspace.size(2));
 
-      sqw_x(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 0)[0];
-      sqw_x(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 0)[1];
+        assert(m < sqw_x.size(0));
+        assert(time_point_counter_ < sqw_x.size(1));
+        assert(i < sqw_x.size(2));
 
-      sqw_y(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 1)[0];
-      sqw_y(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 1)[1];
+        sqw_x(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 0)[0];
+        sqw_x(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 0)[1];
 
-      sqw_z(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 2)[0];
-      sqw_z(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 2)[1];
+        sqw_y(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 1)[0];
+        sqw_y(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 1)[1];
+
+        sqw_z(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 2)[0];
+        sqw_z(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 2)[1];
+      }
     }
   }
 }
