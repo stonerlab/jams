@@ -13,43 +13,42 @@
 
 
 class DipoleHamiltonianFFT : public HamiltonianStrategy {
-    public:
-        DipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size);
+public:
+    DipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size);
+    ~DipoleHamiltonianFFT();
 
-        ~DipoleHamiltonianFFT();
+    double calculate_total_energy();
+    double calculate_one_spin_energy(const int i);
+    double calculate_one_spin_energy(const int i, const Vec3 &s_i);
+    double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
+    void   calculate_energies(jblib::Array<double, 1>& energies);
+    void   calculate_one_spin_field(const int i, double h[3]);
+    void   calculate_fields(jblib::Array<double, 2>& fields);
 
-        double calculate_total_energy();
-        double calculate_one_spin_energy(const int i);
-        double calculate_one_spin_energy(const int i, const Vec3 &s_i);
-        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
-        void   calculate_energies(jblib::Array<double, 1>& energies);
+private:
 
-        void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields(jblib::Array<double, 2>& fields);
-    private:
+    jblib::Array<fftw_complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
 
-        bool debug_ = false;
-        bool check_radius_   = true;
-        bool check_symmetry_ = true;
+    bool debug_ = false;
+    bool check_radius_   = true;
+    bool check_symmetry_ = true;
 
-        jblib::Array<fftw_complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
+    double r_cutoff_ = 0.0;
+    double r_distance_tolerance_ = 1e-6;
 
-        double                          r_cutoff_;
-        double                          distance_tolerance_;
+    jblib::Array<double, 4> rspace_s_;
+    jblib::Array<double, 4> rspace_h_;
+    jblib::Array<double, 2> h_;
 
-        jblib::Array<double, 4>         rspace_s_;
-        jblib::Array<double, 4>         rspace_h_;
-        jblib::Array<double, 2>         h_;
+    jblib::Vec3<unsigned>           kspace_size_ = {0, 0, 0};
+    jblib::Vec3<unsigned>           kspace_padded_size_ = {0, 0, 0};
+    jblib::Array<fftw_complex, 4>   kspace_s_;
+    jblib::Array<fftw_complex, 4>   kspace_h_;
 
-        jblib::Vec3<int>                kspace_size_;
-        jblib::Vec3<int>                kspace_padded_size_;
-        jblib::Array<fftw_complex, 4>   kspace_s_;
-        jblib::Array<fftw_complex, 4>   kspace_h_;
+    std::vector<std::vector<jblib::Array<fftw_complex, 5>>> kspace_tensors_;
 
-        std::vector<std::vector<jblib::Array<fftw_complex, 5>>> kspace_tensors_;
-
-        fftw_plan                       fft_s_rspace_to_kspace;
-        fftw_plan                       fft_h_kspace_to_rspace;
+    fftw_plan fft_s_rspace_to_kspace = nullptr;
+    fftw_plan fft_h_kspace_to_rspace = nullptr;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_FFT_H
