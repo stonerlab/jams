@@ -79,12 +79,14 @@ void jams_initialize(int argc, char **argv) {
   cout << jams::build::branch << "\n";
   cout << "run     ";
   cout << get_date_string(std::chrono::system_clock::now()) << "\n";
+#if HAS_OMP
   #pragma omp parallel 
   {
     if (omp_get_thread_num() == 0) {
       cout << "threads " << omp_get_num_threads() << "\n";
     }
   }
+#endif
   cout.flush();
 
   jams::process_command_line_args(argc, argv, simulation);
