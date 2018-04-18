@@ -1,15 +1,14 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "jams/monitors/boltzmann.h"
+#include "boltzmann.h"
 
 #include <string>
 #include <cmath>
 
-#include "jams/core/output.h"
 #include "jams/core/solver.h"
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
-#include "jams/core/maths.h"
+#include "jams/helpers/maths.h"
 
 #include "jblib/containers/array.h"
 
@@ -18,8 +17,6 @@ BoltzmannMonitor::BoltzmannMonitor(const libconfig::Setting &settings)
 bins(0),
 total(0),
 outfile() {
-  ::output->write("Initialising Boltzmann monitor\n");
-
   std::string name = "_blt.dat";
   name = seedname+name;
   outfile.open(name.c_str());

@@ -1,7 +1,5 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-class Random;
-
 #ifndef JBLIB_MATH_RAND_H
 #define JBLIB_MATH_RAND_H
 

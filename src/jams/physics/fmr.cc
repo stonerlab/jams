@@ -1,6 +1,6 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "jams/physics/fmr.h"
+#include "fmr.h"
 
 
 #include <libconfig.h++>
@@ -8,10 +8,9 @@
 #include <cmath>
 #include <string>
 
-#include "jams/core/output.h"
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 
 #include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"
@@ -25,8 +24,6 @@ FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
   PSDFile(),
   PSDIntegral(0) {
   using namespace globals;
-
-  output->write("  * FMR physics module\n");
 
   ACFieldFrequency = settings["ACFieldFrequency"];
   ACFieldFrequency = 2.0*M_PI*ACFieldFrequency;

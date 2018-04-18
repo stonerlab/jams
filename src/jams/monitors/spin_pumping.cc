@@ -1,7 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 
-#include "jams/monitors/spin_pumping.h"
+#include "spin_pumping.h"
 
 #include <string>
 #include <iomanip>
@@ -9,24 +9,22 @@
 #include <complex>
 #include <vector>
 
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 #include "jams/core/solver.h"
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
-#include "jams/core/stats.h"
+#include "jams/helpers/stats.h"
 #include "jblib/containers/array.h"
 
 SpinPumpingMonitor::SpinPumpingMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  ::output->write("Initialising Energy Distribution monitor\n");
 
   convergence_is_on_ = false;
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
     convergence_tolerance_ = settings["convergence"];
-    ::output->write("  convergence tolerance: %f\n", convergence_tolerance_);
+    std::cout << "  convergence tolerance " << convergence_tolerance_ << "\n";
   }
 
   // std::string name = "_iz_dist.tsv";
@@ -69,8 +67,8 @@ void SpinPumpingMonitor::update(Solver * solver) {
     std::vector<Stats> spin_pumping_im(::lattice->num_materials());
 
     for (int i = 0; i < num_spins; ++i) {
-      spin_pumping_re[::lattice->atom_material(i)].add((s(i, 0)*ds_dt(i, 1) - s(i, 1)*ds_dt(i, 0)));
-      spin_pumping_im[::lattice->atom_material(i)].add(ds_dt(i, 2));
+      spin_pumping_re[::lattice->atom_material_id(i)].add((s(i, 0)*ds_dt(i, 1) - s(i, 1)*ds_dt(i, 0)));
+      spin_pumping_im[::lattice->atom_material_id(i)].add(ds_dt(i, 2));
     }
 
     // output in rad / s^-1 T^-1

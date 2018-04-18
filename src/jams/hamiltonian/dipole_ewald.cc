@@ -3,15 +3,15 @@
 #include <algorithm>
 #include <complex>
 
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
-#include "jams/core/maths.h"
+#include "jams/helpers/maths.h"
 #include "jblib/containers/matrix.h"
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/utils.h"
 
-#include "jams/hamiltonian/dipole_ewald.h"
+#include "dipole_ewald.h"
 
 using std::pow;
 using std::abs;
@@ -146,14 +146,14 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
 
     for (int n = 0; n < 3; ++n) {
-        kspace_size_[n] = ::lattice->num_unit_cells(n);
+        kspace_size_[n] = ::lattice->size(n);
     }
 
     kspace_padded_size_ = kspace_size_;
 
     for (int n = 0; n < 3; ++n) {
         if (!::lattice->is_periodic(n)) {
-            kspace_padded_size_[n] = 2*::lattice->num_unit_cells(n);
+            kspace_padded_size_[n] = 2*::lattice->size(n);
         }
     }
 
@@ -263,7 +263,7 @@ double DipoleHamiltonianEwald::calculate_total_energy() {
 
     calculate_nonlocal_ewald_field();
     for (int i = 0; i < globals::num_spins; ++i) {
-        pos = ::lattice->super_cell_pos(i);
+        pos = ::lattice->supercell_index(i);
        e_nonlocal += -(globals::s(i,0)*h_nonlocal_(pos[0], pos[1], pos[2], 0)
                      + globals::s(i,1)*h_nonlocal_(pos[0], pos[1], pos[2], 1)
                      + globals::s(i,2)*h_nonlocal_(pos[0], pos[1], pos[2], 2))*globals::mus(i);
@@ -316,7 +316,7 @@ double DipoleHamiltonianEwald::calculate_one_spin_energy_difference(
 
     calculate_nonlocal_ewald_field();
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->super_cell_pos(i);
+        pos = ::lattice->supercell_index(i);
         h[m] += h_nonlocal_(pos[0], pos[1], pos[2], m);
     }
 
@@ -345,7 +345,7 @@ void DipoleHamiltonianEwald::calculate_one_spin_field(const int i, double h[3]) 
 
     calculate_nonlocal_ewald_field();
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->super_cell_pos(i);
+        pos = ::lattice->supercell_index(i);
         h[m] += h_nonlocal_(pos[0], pos[1], pos[2], m);
     }
     // std::cerr << h[0] << "\t" << h[1] << "\t" << h[2] << "\t" << std::endl;
@@ -375,7 +375,7 @@ void DipoleHamiltonianEwald::calculate_fields(jblib::Array<double, 2>& fields) {
 
     calculate_nonlocal_ewald_field();
     for (int i = 0; i < globals::num_spins; ++i) {
-        pos = ::lattice->super_cell_pos(i);
+        pos = ::lattice->supercell_index(i);
         for (int j = 0; j < 3; ++j) {
             fields(i, j) += h_nonlocal_(pos[0], pos[1], pos[2], j);
         }
@@ -462,7 +462,7 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
     // }
 
     for (int i = 0; i < globals::num_spins; ++i) {
-         pos = ::lattice->super_cell_pos(i);
+         pos = ::lattice->supercell_index(i);
          for (int m = 0; m < 3; ++m) {
             s_nonlocal_(pos[0], pos[1], pos[2], m) = globals::s(i, m);
         }

@@ -6,21 +6,19 @@
 #include <vector>
 #include <cassert>
 
-#include "jams/core/consts.h"
-#include "jams/core/output.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/maths.h"
-#include "jams/monitors/skyrmion.h"
+#include "jams/helpers/maths.h"
+#include "skyrmion.h"
 
 #include "jblib/containers/array.h"
 
 SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  ::output->write("\nInitialising Skyrmion monitor...\n");
 
   type_norms.resize(lattice->num_materials(), 1.0);
 
@@ -38,9 +36,9 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
     thresholds.push_back(0.0);
   }
 
-  ::output->write("  Sz thresholds:\n");
+  std::cout << "  Sz thresholds:\n";
   for (int n = 0; n < thresholds.size(); ++n) {
-    ::output->write("    %f\n", thresholds[n]);
+    std::cout << "    " << thresholds[n] << "\n";
   }
 
   std::string name = seedname + "_sky.dat";
@@ -90,7 +88,7 @@ void SkyrmionMonitor::update(Solver * solver) {
       }
 
       for (i = 0; i < num_spins; ++i) {
-        type = lattice->atom_material(i);
+        type = lattice->atom_material_id(i);
         if (s(i, 2)*type_norms[type] > thresholds[t]) {
           x = lattice->atom_position(i)[0] - r_com[type][0];
           x = x - nint(x / x_size) * x_size;  // min image convention
@@ -182,7 +180,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
   }
 
   for (i = 0; i < num_spins; ++i) {
-    type = lattice->atom_material(i);
+    type = lattice->atom_material_id(i);
     if (s(i, 2)*type_norms[type] > threshold) {
       tube_x_com[type] += tube_x[i];
       tube_y_com[type] += tube_y[i];

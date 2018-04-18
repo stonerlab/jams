@@ -1,14 +1,14 @@
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/maths.h"
-#include "jams/core/consts.h"
-#include "jams/core/cuda_defs.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/maths.h"
+#include "jams/helpers/consts.h"
+#include "jams/cuda/cuda_defs.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 
-#include "jams/hamiltonian/zeeman.h"
-#include "jams/hamiltonian/zeeman_kernel.h"
+#include "zeeman.h"
+#include "zeeman_kernel.h"
 
 ZeemanHamiltonian::~ZeemanHamiltonian() {
     if (dev_stream_ != nullptr) {
@@ -19,8 +19,6 @@ ZeemanHamiltonian::~ZeemanHamiltonian() {
 ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size)
 {
-  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
-
     dc_local_field_.resize(globals::num_spins, 3);
     dc_local_field_.zero();
 
@@ -40,7 +38,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                dc_local_field_(i, j) = settings["dc_local_field"][lattice->atom_material(i)][j];
+                dc_local_field_(i, j) = settings["dc_local_field"][lattice->atom_material_id(i)][j];
                 dc_local_field_(i, j) *= globals::mus(i);
             }
         }
@@ -68,19 +66,19 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                ac_local_field_(i, j) = settings["ac_local_field"][lattice->atom_material(i)][j];
+                ac_local_field_(i, j) = settings["ac_local_field"][lattice->atom_material_id(i)][j];
                 ac_local_field_(i, j) *= globals::mus(i);
             }
         }
 
         for (int i = 0; i < globals::num_spins; ++i) {
-            ac_local_frequency_(i) = settings["ac_local_frequency"][lattice->atom_material(i)];
+            ac_local_frequency_(i) = settings["ac_local_frequency"][lattice->atom_material_id(i)];
             ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i);
         }
     }
 
     // transfer arrays to cuda device if needed
-#ifdef CUDA
+#if HAS_CUDA
     if (solver->is_cuda_solver()) {
         cudaStreamCreate(&dev_stream_);
 
@@ -171,7 +169,7 @@ void ZeemanHamiltonian::calculate_one_spin_field(const int i, double local_field
 
 void ZeemanHamiltonian::calculate_fields() {
     if (solver->is_cuda_solver()) {
-#ifdef CUDA
+#if HAS_CUDA
         dim3 block_size;
         block_size.x = 32;
         block_size.y = 4;

@@ -2,36 +2,32 @@
 
 #include <string>
 
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 
 namespace {
 
   const std::string config_basic_cpu(R"(
-    sim : {
-      solver = "LLG-HEUN-CPU";
+    solver : {
+      module = "llg-heun-cpu";
       t_step = 1.0e-16;
-      t_burn = 0.0;
       t_min  = 1.0e-16;
-      t_run  = 1.0e-16;
+      t_max  = 1.0e-16;
     };
 
     physics : {
-      module = "empty";
       temperature = 1.0;
     };
     )");
 
   const std::string config_basic_gpu(R"(
-    sim : {
-      solver = "LLG-HEUN-GPU";
+    solver : {
+      module = "llg-heun-gpu";
       t_step = 1.0e-16;
-      t_burn = 0.0;
       t_min  = 1.0e-16;
-      t_run  = 1.0e-16;
+      t_max  = 1.0e-16;
     };
 
     physics : {
-      module = "empty";
       temperature = 1.0;
     };
     )");
@@ -39,11 +35,8 @@ namespace {
   const std::string config_unitcell_sc(R"(
     materials = (
       { name      = "Fe";
-        moment    = 2.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;             
+        moment    = 2.0;
         spin      = [1.0, 0.0, 0.0];
-        transform = [ 1.0, 1.0, 1.0];
       }
     );
 
@@ -63,20 +56,12 @@ namespace {
     const std::string config_unitcell_sc_2_atom(R"(
     materials = (
       { name      = "FeA";
-        moment    = 2.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;             
-        // spin      = [1.0, 0.0, 0.0];
-        spin      = [45.0, 0.0];
-        transform = [ 1.0, 1.0, 1.0];
+        moment    = 2.0;
+        spin      = [1.0, 0.0, 0.0];
       },
       { name      = "FeB";
-        moment    = 1.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;   
-        // spin      = [1.0, 0.0, 0.0]; 
-        spin      = [15.0, 0.0];      
-        transform = [ 1.0, 1.0, 1.0];
+        moment    = 2.0;
+        spin      = [1.0, 0.0, 0.0];
       }
     );
 
@@ -97,20 +82,12 @@ namespace {
     const std::string config_unitcell_bcc_2_atom(R"(
     materials = (
       { name      = "FeA";
-        moment    = 2.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;             
-        // spin      = [1.0, 0.0, 0.0];
-        spin      = [45.0, 0.0];
-        transform = [ 1.0, 1.0, 1.0];
+        moment    = 2.0;
+        spin      = [1.0, 0.0, 0.0];
       },
       { name      = "FeB";
-        moment    = 1.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;   
-        // spin      = [1.0, 0.0, 0.0]; 
-        spin      = [-45.0, 0.0];      
-        transform = [ 1.0, 1.0, 1.0];
+        moment    = 1.0;
+        spin      = [1.0, 0.0, 0.0];
       }
     );
 
@@ -131,18 +108,14 @@ namespace {
   const std::string config_unitcell_sc_AFM(R"(
     materials = (
       { name      = "FeA";
-        moment    = 2.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;             
+        moment    = 2.0;
         spin      = [0.0, 0.0, 1.0];
         transform = [ 1.0, 1.0, 1.0];
       },
       { name      = "FeB";
-        moment    = 2.0;             
-        gyro      = 1.0;
-        alpha     = 0.1;             
+        moment    = 2.0;
         spin      = [0.0, 0.0, -1.0];
-        transform = [ 1.0, 1.0, 1.0];
+        transform = [-1.0,-1.0,-1.0];
       }
     );
 

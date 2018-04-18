@@ -2,138 +2,134 @@
 
 #include <algorithm>
 #include <string>
+#include <jams/interface/config.h>
 
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 #include "jams/core/physics.h"
-#include "jams/core/types.h"
 #include "jblib/containers/array.h"
-#include "jams/core/blas.h"
+#include "jams/interface/blas.h"
 #include "jams/core/solver.h"
-#include "jams/core/hamiltonian.h"
+#include "hamiltonian.h"
 #include "jams/core/monitor.h"
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 
-#include "jams/core/utils.h"
+#include "jams/core/base.h"
+#include "jams/helpers/utils.h"
 #include "jams/core/globals.h"
+#include "jams/helpers/defaults.h"
 
-#include "jams/solvers/cuda_heunllg.h"
-#include "jams/solvers/heunllg.h"
-#include "jams/solvers/metropolismc.h"
-#include "jams/solvers/constrainedmc.h"
-#include "jams/solvers/cuda_constrainedmc.h"
+#include "jams/solvers/cuda_llg_heun.h"
+#include "jams/solvers/cpu_llg_heun.h"
+#include "jams/solvers/cpu_monte_carlo_metropolis.h"
+#include "jams/solvers/cpu_monte_carlo_constrained.h"
 
-#ifdef MKL
-#include <mkl_spblas.h>
-#endif
+using namespace std;
 
 Solver::~Solver() {
-  for (int i = 0, iend = monitors_.size(); i < iend; ++i) {
-    delete monitors_[i];
+  for (auto& m : monitors_) {
+    if (m) {
+      delete m;
+      m = nullptr;
+    }
   }
 }
 
-//---------------------------------------------------------------------
 
-void Solver::initialize(int argc, char **argv, double idt) {
-  using namespace globals;
-  if (initialized_ == true) {
-    jams_error("Solver is already initialized");
-  }
+void Solver::initialize(const libconfig::Setting& settings) {
+  assert(!initialized_);
+  set_name(jams::config_required<string>(settings, "module"));
+  set_verbose(jams::config_optional<bool>(settings, "verbose", false));
+  set_debug(jams::config_optional<bool>(settings, "debug", false));
 
-  real_time_step_ = idt;
-  time_step_ = idt*kGyromagneticRatio;
+  cout << "  " << name() << " solver\n";
 
   initialized_ = true;
 }
 
-//---------------------------------------------------------------------
 
 void Solver::run() {
 }
 
-//---------------------------------------------------------------------
 
 void Solver::compute_fields() {
-  using namespace globals;
+  globals::h.zero();
 
-  // zero the effective field array
-  std::fill(h.data(), h.data()+num_spins3, 0.0);
-
-  // calculate each hamiltonian term's fields
-  for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-    (*it)->calculate_fields();
+  for (auto& hh : hamiltonians_) {
+    hh->calculate_fields();
   }
 
   // sum hamiltonian field contributions into effective field
-  for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-    cblas_daxpy(num_spins3, 1.0, (*it)->ptr_field(), 1, h.data(), 1);
+  for (auto& hh : hamiltonians_) {
+    cblas_daxpy(globals::num_spins3, 1.0, hh->ptr_field(), 1, globals::h.data(), 1);
   }
 }
 
-Solver* Solver::create(const std::string &solver_name) {
 
-  if (capitalize(solver_name) == "LLG-HEUN-CPU" || capitalize(solver_name) == "HEUNLLG") {
+Solver* Solver::create(const libconfig::Setting &settings) {
+  std::string module_name = jams::default_physics_module;
+  settings.lookupValue("module", module_name);
+  module_name = lowercase(module_name);
+
+  if (module_name == "llg-heun-cpu") {
     return new HeunLLGSolver;
   }
 
-  if (capitalize(solver_name) == "MONTE-CARLO-METROPOLIS-CPU" || capitalize(solver_name) == "METROPOLISMC") {
+  if (module_name == "monte-carlo-metropolis-cpu") {
     return new MetropolisMCSolver;
   }
 
-  if (capitalize(solver_name) == "MONTE-CARLO-CONSTRAINED-CPU" || capitalize(solver_name) == "CONSTRAINEDMC") {
+  if (module_name == "monte-carlo-constrained-cpu") {
     return new ConstrainedMCSolver;
   }
-#ifdef CUDA
-  if (capitalize(solver_name) == "LLG-HEUN-GPU" || capitalize(solver_name) == "CUDAHEUNLLG") {
+#if HAS_CUDA
+  if (module_name == "llg-heun-gpu") {
     return new CUDAHeunLLGSolver;
-  }
-
-  if (capitalize(solver_name) == "MONTE-CARLO-CONSTRAINED-GPU" || capitalize(solver_name) == "CUDACONSTRAINEDMC") {
-    return new CudaConstrainedMCSolver;
   }
 #endif
 
-  jams_error("Unknown solver '%s' selected.", solver_name.c_str());
-  return NULL;
+  throw std::runtime_error("unknown solver " + module_name);
 }
 
-//---------------------------------------------------------------------
 
 void Solver::register_physics_module(Physics* package) {
     physics_module_ = package;
 }
 
-//---------------------------------------------------------------------
 
 void Solver::update_physics_module() {
     physics_module_->update(iteration_, time(), time_step_);
 }
 
-//---------------------------------------------------------------------
 
 void Solver::register_monitor(Monitor* monitor) {
   monitors_.push_back(monitor);
 }
 
-//---------------------------------------------------------------------
 
 void Solver::register_hamiltonian(Hamiltonian* hamiltonian) {
   hamiltonians_.push_back(hamiltonian);
 }
 
-//---------------------------------------------------------------------
 
 void Solver::notify_monitors() {
-  for (std::vector<Monitor*>::iterator it = monitors_.begin() ; it != monitors_.end(); ++it) {
-    if((*it)->is_updating(iteration_)){
-      (*it)->update(this);
+  for (auto& m : monitors_) {
+    if (m->is_updating(iteration_)) {
+      m->update(this);
     }
   }
 }
 
+bool Solver::is_running() {
+  return iteration_ < max_steps_;
+}
+
 bool Solver::is_converged() {
-  for (std::vector<Monitor*>::iterator it = monitors_.begin() ; it != monitors_.end(); ++it) {
-    if((*it)->is_converged()){
+  if (iteration_ < min_steps_) {
+    return false;
+  }
+
+  for (auto& m : monitors_) {
+    if (m->is_converged()) {
       return true;
     }
   }

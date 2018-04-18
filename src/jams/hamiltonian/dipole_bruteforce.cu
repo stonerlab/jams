@@ -1,12 +1,11 @@
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 
-#include "jams/hamiltonian/dipole_bruteforce.h"
-#include "jams/hamiltonian/dipole_bruteforce_kernel.h"
+#include "dipole_bruteforce.h"
+#include "dipole_bruteforce_kernel.h"
 
 DipoleHamiltonianBruteforce::~DipoleHamiltonianBruteforce() {
 }
@@ -20,12 +19,13 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
     }
 
     settings.lookupValue("r_cutoff", r_cutoff_);
-    output->write("  r_cutoff: %e\n", r_cutoff_);
+    std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
-    dipole_prefactor_ = kVacuumPermeadbility*kBohrMagneton /(4*kPi*::lattice->parameter() * ::lattice->parameter() * ::lattice->parameter());
+    auto v = pow3(lattice->parameter());
+    dipole_prefactor_ = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
 
 
-#ifdef CUDA
+#if HAS_CUDA
     if (solver->is_cuda_solver()) {
     bool super_cell_pbc[3];
     Mat<float,3,3> super_unit_cell;
@@ -35,15 +35,21 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
         super_cell_pbc[i] = ::lattice->is_periodic(i);
     }
 
+    auto A = ::lattice->a() * double(::lattice->size(0));
+    auto B = ::lattice->b() * double(::lattice->size(1));
+    auto C = ::lattice->c() * double(::lattice->size(2));
+
+    auto matrix_double = matrix_from_cols(A, B, C);
+
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            super_unit_cell[j][i] = ::lattice->unit_cell_vector(i)[j] * ::lattice->size(i);
+            super_unit_cell[i][j] = static_cast<float>(matrix_double[i][j]);
         }
     }
 
       super_unit_cell_inv = inverse(super_unit_cell);
 
-    float r_cutoff_float = r_cutoff_;
+    float r_cutoff_float = static_cast<float>(r_cutoff_);
 
     cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(double));
     cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(float));
@@ -80,7 +86,7 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 double DipoleHamiltonianBruteforce::calculate_total_energy() {
     double e_total = 0.0;
 
-#ifdef CUDA
+#if HAS_CUDA
    if (solver->is_cuda_solver()) {
         calculate_fields(dev_dipole_fields);
         dev_dipole_fields.copy_to_host_array(host_dipole_fields);
@@ -94,7 +100,7 @@ double DipoleHamiltonianBruteforce::calculate_total_energy() {
        for (int i = 0; i < globals::num_spins; ++i) {
            e_total += calculate_one_spin_energy(i);
        }
-#ifdef CUDA
+#if HAS_CUDA
     }
 #endif // CUDA
 
@@ -138,56 +144,27 @@ void DipoleHamiltonianBruteforce::calculate_energies(jblib::Array<double, 1>& en
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h[3]) {
-    int n,j;
-
-    const double prefactor = globals::mus(i) * dipole_prefactor_;
 
     h[0] = 0.0; h[1] = 0.0; h[2] = 0.0;
 
-    for (j = 0; j < globals::num_spins; ++j) {
+    for (auto j = 0; j < globals::num_spins; ++j) {
         if (j == i) continue;
 
-        auto r_ij = lattice->displacement(i, j);
-
+        auto r_ij = lattice->displacement(lattice->atom_position(i), lattice->atom_position(j));
         const auto r_abs_sq = abs_sq(r_ij);
 
         if (r_abs_sq > (r_cutoff_*r_cutoff_)) continue;
 
         const auto r_abs = sqrt(r_abs_sq);
-
-        const auto w0 = prefactor * globals::mus(j) / (r_abs_sq * r_abs_sq * r_abs);
-
+        const auto w0 = dipole_prefactor_ * globals::mus(i) * globals::mus(j) / pow5(r_abs);
         const Vec3 s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
-        
         const auto s_j_dot_rhat = 3.0 * dot(s_j, r_ij);
 
         #pragma unroll
-        for (n = 0; n < 3; ++n) {
+        for (auto n = 0; n < 3; ++n) {
             h[n] += w0 * (r_ij[n] * s_j_dot_rhat - r_abs_sq * s_j[n]);
         }
     }
-
-    // for (j = 0; j < globals::num_spins; ++j) {
-    //     if (j == i) continue;
-
-    //     auto r_ij = lattice->displacement(i, j);
-
-    //     auto r_abs = r_ij.norm();
-
-    //     if (r_abs > r_cutoff_) continue;
-
-    //     auto w0 = prefactor * globals::mus(j);
-
-    //     const Vec3 s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
-    //     auto s_j_dot_rhat = dot(s_j, r_ij);
-
-    //     #pragma unroll
-    //     for (n = 0; n < 3; ++n) {
-    //         h[n] += (3.0 * r_ij[n] * s_j_dot_rhat - r_abs * r_abs * s_j[n]) * w0 / (r_abs*r_abs*r_abs*r_abs*r_abs);
-    //     }
-    // }
-
-
 }
 
 // --------------------------------------------------------------------------

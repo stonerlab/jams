@@ -3,16 +3,20 @@
 #include <libconfig.h++>
 
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 #include "jams/core/solver.h"
 #include "jams/core/physics.h"
 #include "jams/core/globals.h"
-#include "jams/core/rand.h"
+#include "jams/helpers/random.h"
 
 #include "jams/hamiltonian/test_dipole_input.h"
-#include "jams/hamiltonian/dipole_fft.h"
+#include "../../../src/jams/hamiltonian/dipole_fft.h"
 
-namespace {
+//---------------------------------------------------------------------
+// NOTE: The liberal use of #pragma nounroll_and_jam is to avoid a bug
+//       in the Intel 2016.2 compiler which mangles these loops when
+//       unrolling
+//---------------------------------------------------------------------
+
 // The fixture for testing class Foo.
 class DipoleHamiltonianFFTTest : public ::testing::Test {
  protected:
@@ -23,11 +27,7 @@ class DipoleHamiltonianFFTTest : public ::testing::Test {
     // You can do set-up work for each test here.
     cudaDeviceReset();
     ::lattice = new Lattice();
-    ::output = new Output();
     ::config = new libconfig::Config();
-    ::rng = new Random();
-
-    ::output->disableConsole();
   }
 
   virtual ~DipoleHamiltonianFFTTest() {
@@ -40,23 +40,17 @@ class DipoleHamiltonianFFTTest : public ::testing::Test {
   void SetUp(const std::string &config_string) {
     // Code here will be called immediately after the constructor (right
     // before each test).
-    ::rng->seed(time(NULL));
     ::config->readString(config_string);
     ::lattice->init_from_config(*::config);
-    ::physics_module = Physics::create(config->lookup("physics"));
-    ::solver = Solver::create(config->lookup("sim.solver"));
+    ::solver = Solver::create(config->lookup("solver"));
     int argc = 0; char **argv; double dt = 0.1;
-    ::solver->initialize(argc, argv, dt);
-    ::solver->register_physics_module(physics_module);
+    ::solver->initialize(config->lookup("solver"));
+    ::solver->register_physics_module(Physics::create(config->lookup("physics")));
   }
 
   virtual void TearDown() {
     // Code here will be called immediately after each test (right
     // before the destructor).
-    if (::physics_module != nullptr) {
-      delete ::physics_module;
-      ::physics_module = nullptr;
-    }
     if (::solver != nullptr) {
       delete ::solver;
       ::solver = nullptr;
@@ -65,17 +59,9 @@ class DipoleHamiltonianFFTTest : public ::testing::Test {
       delete ::lattice;
       ::lattice = nullptr;
     }
-    if (::output != nullptr) {
-      delete ::output;
-      ::output = nullptr;
-    }
     if (::config != nullptr) {
       delete ::config;
       ::config = nullptr;
-    }
-    if (::rng != nullptr) {
-      delete ::rng;
-      ::rng = nullptr;
     }
   }
 
@@ -99,11 +85,13 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM) {
   double analytic = analytic_prefactor * eigenvalue;
   double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
+  std::cout << "expected: " << analytic << " actual: " <<  numeric << std::endl;
+
   ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
 
   // S = (0, 1, 0) FM
-
+#pragma nounroll_and_jam
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
     globals::s(i, 0) = 0.0;
     globals::s(i, 1) = 1.0;
@@ -114,11 +102,13 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM) {
   analytic = analytic_prefactor * eigenvalue;
   numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
 
-  ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
+  std::cout << "expected: " << analytic << " actual: " <<  numeric << std::endl;
+
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
+  ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
 
   // S = (0, 0, 1) FM
-
+#pragma nounroll_and_jam
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
     globals::s(i, 0) = 0.0;
     globals::s(i, 1) = 0.0;
@@ -141,7 +131,7 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM) {
     auto h = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (0, 0, 1) FM
-
+#pragma nounroll_and_jam
     for (unsigned int i = 0; i < globals::num_spins; ++i) {
       globals::s(i, 0) = 0.0;
       globals::s(i, 1) = 0.0;
@@ -165,7 +155,7 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM) {
     auto h = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (1, 0, 0) AFM
-
+#pragma nounroll_and_jam
     for (unsigned int i = 0; i < globals::num_spins; ++i) {
       if (i % 2 == 0) {
         globals::s(i, 0) = -1.0;
@@ -184,7 +174,7 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM) {
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
 
     // S = (0, 1, 0) AFM
-
+#pragma nounroll_and_jam
     for (unsigned int i = 0; i < globals::num_spins; ++i) {
       globals::s(i, 0) = 0.0;
       if (i % 2 == 0) {
@@ -219,15 +209,14 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM) {
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-5);
   }
 
-}
-
 //---------------------------------------------------------------------
 
 TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM_RAND) {
   SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
+  pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
-    Vec3 spin = rng->sphere();
+    Vec3 spin = uniform_random_sphere(rng);
     globals::s(i, 0) = spin[0];
     globals::s(i, 1) = spin[1];
     globals::s(i, 2) = spin[2];
@@ -278,8 +267,10 @@ TEST_F(DipoleHamiltonianFFTTest, total_energy_two_atom_CPU_2D_FM_SLOW) {
 TEST_F(DipoleHamiltonianFFTTest, total_energy_two_atom_CPU_1D_FM_RAND) {
   SetUp(  config_basic_cpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
+  pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
+#pragma nounroll_and_jam
   for (unsigned int i = 0; i < globals::num_spins; ++i) {
-    Vec3 spin = rng->sphere();
+    Vec3 spin = uniform_random_sphere(rng);
     globals::s(i, 0) = spin[0];
     globals::s(i, 1) = spin[1];
     globals::s(i, 2) = spin[2];

@@ -5,7 +5,7 @@
 
 #include "jblib/sys/types.h"
 namespace jblib {
-  template <typename Tp_, int Dim_, typename Idx_ = int>
+  template <typename Tp_, int Dim_, typename Idx_ = std::size_t>
   class CudaArray {
    public:
     CudaArray();

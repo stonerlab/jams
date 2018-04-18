@@ -207,7 +207,13 @@ namespace jblib {
   Array<fftw_complex, 2, Idx_>::
   size(const size_type i) const {
     assert((i < 2) && !(i < 0));
-    return (&size0_)[i];
+    switch(i) {
+      case 0 :
+        return size0_;
+      case 1 :
+        return size1_;
+    }
+    throw std::out_of_range("size(i) must have i < 2");
   }
 
   template <typename Idx_>
@@ -265,7 +271,7 @@ namespace jblib {
   template <typename Idx_>
   inline bool
   Array<fftw_complex, 2, Idx_>::
-  is_range_valid(const size_type i, const size_type j, const size_type k) const {
+  is_range_valid(const size_type i, const size_type j) const {
     return (((i < size0_) && !(i < 0)) && ((j < size1_) && !(j < 0)) );
   }
 #endif
@@ -287,7 +293,7 @@ namespace jblib {
   template <typename Idx_>
   inline std::string
   Array<fftw_complex, 2, Idx_>::
-  range_error_message(const size_type i, const size_type j, const size_type k) const {
+  range_error_message(const size_type i, const size_type j) const {
     std::ostringstream message;
     message << "Array<2>::operator() ";
     message << "subscript: ( " << i << " , " << j << " ) ";

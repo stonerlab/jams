@@ -1,29 +1,56 @@
 #include <cmath> 
 #include <iomanip>
-#include <istream>
+#include <fstream>
 #include <string>
+#include <sstream>
 #include <set>
 #include <jams/core/interactions.h>
 
-#include "jams/core/consts.h"
-#include "jams/core/error.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 #include "jams/core/globals.h"
 #include "jams/core/interactions.h"
-#include "jams/core/utils.h"
-#include "jams/core/exception.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/exception.h"
 
 #include "jblib/containers/vec.h"
 #include "jblib/containers/matrix.h"
+
+using namespace std;
+
+InteractionFileFormat exchange_file_format_from_string(std::string s) {
+  if (capitalize(s) == "JAMS") {
+    return InteractionFileFormat::JAMS;
+  }
+
+  if (capitalize(s) == "KKR") {
+    return InteractionFileFormat::KKR;
+  }
+
+  throw std::runtime_error("Unknown exchange file format");
+}
+
+CoordinateFormat coordinate_format_from_string(std::string s) {
+  if (capitalize(s) == "CART" || capitalize(s) == "CARTESIAN") {
+    return CoordinateFormat::Cartesian;
+  }
+
+  if (capitalize(s) == "FRAC" || capitalize(s) == "FRACTIONAL") {
+    return CoordinateFormat::Fractional;
+  }
+
+  throw std::runtime_error("Unknown coordinate format");
+}
+
 
 namespace { //anon
   int find_motif_index(const Vec3 &offset, const double tolerance = 1e-5) {
     // find which unit_cell position this offset corresponds to
     // it is possible that it does not correspond to a position in which case the
     // -1 is returned
-    for (int k = 0; k < lattice->num_unit_cell_positions(); ++k) {
-      Vec3 pos = lattice->unit_cell_position(k);
+    for (int k = 0; k < lattice->motif_size(); ++k) {
+      auto pos = lattice->motif_atom(k).pos;
       if ( std::abs(pos[0] - offset[0]) < tolerance
         && std::abs(pos[1] - offset[1]) < tolerance
         && std::abs(pos[2] - offset[2]) < tolerance ) {
@@ -35,7 +62,7 @@ namespace { //anon
 
   int find_neighbour_index(const inode_t &node_i, const inode_t &node_j) {
 
-    int n = lattice->num_unit_cell_positions();
+    int n = lattice->motif_size();
 
     inode_t ivec = {(n + node_i.k + node_j.k)%n,
                          node_i.a + node_j.a,
@@ -61,7 +88,7 @@ namespace { //anon
 
       node = {-1, -1, -1, -1};
 
-      Vec3 p_ij_frac = lattice->unit_cell_position(interaction.pos_i);
+      Vec3 p_ij_frac = lattice->motif_atom(interaction.pos_i).pos;
       Vec3 r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
 
       Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
@@ -94,12 +121,13 @@ namespace { //anon
 
     node = {-1, -1, -1, -1};
 
+    const auto index_material_id = lattice->motif_atom(motif_index).material;
     // only process for interactions belonging to this type
-    if (lattice->unit_cell_material_name(motif_index) != interaction.type_i) {
+    if (lattice->material(index_material_id).name != interaction.type_i) {
       return false;
     }
 
-    Vec3 p_ij_frac = lattice->unit_cell_position(motif_index);
+    Vec3 p_ij_frac = lattice->motif_atom(motif_index).pos;
     Vec3 r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
 
     Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
@@ -111,8 +139,9 @@ namespace { //anon
       return false;
     }
 
+    const auto nbr_material_id = lattice->motif_atom(nbr_motif_index).material;
     // is the nbr atom of the type specified
-    if (lattice->unit_cell_material_name(nbr_motif_index) != interaction.type_j) {
+    if (lattice->material(nbr_material_id).name != interaction.type_j) {
       return false;
     }
 
@@ -127,15 +156,7 @@ namespace { //anon
           std::vector<typename_interaction_t> &unfolded_interaction_data,
        InteractionList<inode_pair_t> &interactions, bool use_symops) {
 
-    ::output->write("  reading interactions and applying symmetry operations\n");
-
-    if (::output->is_verbose()) {
-      ::output->verbose("unit cell realspace\n");
-      for (int i = 0; i < lattice->num_unit_cell_positions(); ++i) {
-        Vec3 rij = lattice->unit_cell_position(i);
-        ::output->verbose("%8d % 6.6f % 6.6f % 6.6f\n", i, rij[0], rij[1], rij[2]);
-      }
-    }
+    cout << "  reading interactions and applying symmetry operations\n";
 
     unfolded_interaction_data.clear();
 
@@ -154,7 +175,7 @@ namespace { //anon
         symops_interaction_data.push_back(interaction);
       }
 
-      for (int i = 0; i < lattice->num_unit_cell_positions(); ++i) {
+      for (int i = 0; i < lattice->motif_size(); ++i) {
         // calculate all unique inode vectors for (symmetric) interactions based on the current line
         std::set<inode_t> unique_interactions;
         for(auto const& symops_interaction: symops_interaction_data) {
@@ -175,7 +196,7 @@ namespace { //anon
         }
       } // for unit cell positions
     } // for interactions
-    ::output->write("  total unique interactions for unitcell: %d\n", interaction_counter);
+    cout << "  total unique interactions for unitcell " << interaction_counter << "\n";
   }
 
   //---------------------------------------------------------------------
@@ -280,8 +301,10 @@ namespace { //anon
       unsigned radius_cutoff_counter = 0;
 
       bool is_centered_lattice = false;
-      for (int i = 0; i < lattice->num_unit_cell_positions(); ++i) {
-        if (lattice->unit_cell_position(i)[0] < 0.0 || lattice->unit_cell_position(i)[1] < 0.0 || lattice->unit_cell_position(i)[2] < 0.0) {
+
+      for (auto i = 0; i < lattice->motif_size(); ++i) {
+        const auto& atom = lattice->motif_atom(i);
+        if (atom.pos[0] < 0.0 || atom.pos[1] < 0.0 || atom.pos[2] < 0.0) {
           is_centered_lattice = true;
           jams_warning("Centered lattice is detected. Make sure you know what you are doing!");
           break;
@@ -392,9 +415,9 @@ namespace { //anon
   generate_neighbour_list(const InteractionList<inode_pair_t> &interaction_template, InteractionList<Mat3> &nbr_list) {
     unsigned interaction_counter = 0;
     // loop over the translation vectors for lattice size
-    for (int i = 0; i < lattice->num_unit_cells(0); ++i) {
-      for (int j = 0; j < lattice->num_unit_cells(1); ++j) {
-        for (int k = 0; k < lattice->num_unit_cells(2); ++k) {
+    for (int i = 0; i < lattice->size(0); ++i) {
+      for (int j = 0; j < lattice->size(1); ++j) {
+        for (int k = 0; k < lattice->size(2); ++k) {
           // loop over atoms in the interaction template
           // we use interaction_template.size() because if some atoms have no interaction then this can be smaller than
           // the number of atoms in the unit cell
@@ -441,7 +464,7 @@ namespace { //anon
       }
     }
 
-    ::output->write("  total system interactions: %d\n", interaction_counter);
+    cout << "  total system interactions: " <<  interaction_counter << "\n";
   }
 
 
@@ -451,12 +474,14 @@ namespace { //anon
 
 void safety_check_distance_tolerance(const double &tolerance) {
   // check that no atoms in the unit cell are closer together than the tolerance
-  for (int i = 0; i < lattice->num_unit_cell_positions(); ++i) {
-    for (int j = i+1; j < lattice->num_unit_cell_positions(); ++j) {
-      if( abs(lattice->unit_cell_position(i) - lattice->unit_cell_position(j)) < tolerance ) {
+
+  for (auto i = 0; i < lattice->motif_size(); ++i) {
+    for (auto j = i+1; j < lattice->motif_size(); ++j) {
+      const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
+      if(distance < tolerance) {
         jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
                    "Check position file or relax distance_tolerance for exchange module",
-                    i, j, abs(lattice->unit_cell_position(i) - lattice->unit_cell_position(j)), tolerance);
+                    i, j, distance, tolerance);
       }
     }
   }
@@ -480,16 +505,16 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
         throw general_exception("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
-      write_interaction_data(unfolded_interaction_file, unfolded_interaction_data);
+      write_interaction_data(unfolded_interaction_file, unfolded_interaction_data, coord_format);
     }
   } else if (file_format == InteractionFileFormat::KKR) {
     read_kkr_format_interaction_data(file, interaction_template, coord_format, energy_cutoff, radius_cutoff);
   }
 
 
-  ::output->write("  num unit cell interactions per position:\n");
+  cout << "  num unit cell interactions per position:\n";
   for (auto i = 0; i < interaction_template.size(); ++i) {
-    ::output->write("    %d: %u\n", i, interaction_template.num_interactions(i));
+    cout << "    " << i << ": " << interaction_template.num_interactions(i) << "\n";
   }
 
   generate_neighbour_list(interaction_template, neighbour_list);
@@ -497,13 +522,21 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
 
 //---------------------------------------------------------------------
 
-void write_interaction_data(std::ostream &output, const std::vector<typename_interaction_t> &data) {
+void write_interaction_data(std::ostream &output, const std::vector<typename_interaction_t> &data,
+                            CoordinateFormat coord_format) {
   for (auto const & interaction : data) {
     output << std::setw(12) << interaction.type_i << "\t";
     output << std::setw(12) << interaction.type_j << "\t";
-    output << std::setw(12) << std::fixed << interaction.r_ij[0] << "\t";
-    output << std::setw(12) << std::fixed << interaction.r_ij[1] << "\t";
-    output << std::setw(12) << std::fixed << interaction.r_ij[2] << "\t";
+    if (coord_format == CoordinateFormat::Cartesian) {
+      output << std::setw(12) << std::fixed << interaction.r_ij[0] << "\t";
+      output << std::setw(12) << std::fixed << interaction.r_ij[1] << "\t";
+      output << std::setw(12) << std::fixed << interaction.r_ij[2] << "\t";
+    } else {
+      auto r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
+      output << std::setw(12) << std::fixed << r_ij_frac[0] << "\t";
+      output << std::setw(12) << std::fixed << r_ij_frac[1] << "\t";
+      output << std::setw(12) << std::fixed << r_ij_frac[2] << "\t";
+    }
     output << std::setw(12) << std::scientific << interaction.J_ij[0][0] * kBohrMagneton << "\t";
     output << std::setw(12) << std::scientific << interaction.J_ij[0][1] * kBohrMagneton << "\t";
     output << std::setw(12) << std::scientific << interaction.J_ij[0][2] * kBohrMagneton << "\t";

@@ -3,39 +3,36 @@
 #include <cmath>
 #include <string>
 #include <iomanip>
-#include <algorithm>
 
-#include "jams/core/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
-#include "jams/core/maths.h"
+#include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 
 #include "jams/monitors/magnetisation.h"
 
-#include "jblib/containers/vec.h"
-
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   mag(::lattice->num_materials(), 4),
-  s_transform_(globals::num_spins, 3),
+  s_transform_(globals::num_spins),
   outfile(),
   m_stats_(),
   m2_stats_(),
   m4_stats_()
 {
   using namespace globals;
-  ::output->write("\ninitialising Magnetisation monitor\n");
 
   // create transform arrays for example to apply a Holstein Primakoff transform
-  s_transform_.resize(num_spins, 3);
 
-  libconfig::Setting& material_settings = ::config->lookup("materials");
+  s_transform_.resize(num_spins);
   for (int i = 0; i < num_spins; ++i) {
-    for (int n = 0; n < 3; ++n) {
-      s_transform_(i,n) = material_settings[::lattice->atom_material(i)]["transform"][n];
-    }
+    s_transform_[i] = lattice->material(lattice->atom_material_id(i)).transform;
+  }
+
+  material_count_.resize(lattice->num_materials(), 0);
+  for (auto i = 0; i < num_spins; ++i) {
+    material_count_[lattice->atom_material_id(i)]++;
   }
 
   std::string name = seedname + "_mag.tsv";
@@ -71,24 +68,22 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 void MagnetisationMonitor::update(Solver * solver) {
   using namespace globals;
 
-    int i, j;
-
     mag.zero();
 
-    for (i = 0; i < num_spins; ++i) {
-      int type = lattice->atom_material(i);
-      for (j = 0; j < 3; ++j) {
+    for (auto i = 0; i < num_spins; ++i) {
+      int type = lattice->atom_material_id(i);
+      for (auto j = 0; j < 3; ++j) {
         mag(type, j) += s(i, j);
       }
     }
 
-    for (i = 0; i < lattice->num_materials(); ++i) {
-      for (j = 0; j < 3; ++j) {
-        mag(i, j) = mag(i, j)/static_cast<double>(lattice->num_of_material(i));
+    for (auto i = 0; i < lattice->num_materials(); ++i) {
+      for (auto j = 0; j < 3; ++j) {
+        mag(i, j) = mag(i, j)/static_cast<double>(material_count_[i]);
       }
     }
 
-    for (i = 0; i < lattice->num_materials(); ++i) {
+    for (auto i = 0; i < lattice->num_materials(); ++i) {
       mag(i, 3) = sqrt(mag(i, 0)*mag(i, 0) + mag(i, 1)*mag(i, 1)
         + mag(i, 2)*mag(i, 2));
     }
@@ -96,11 +91,11 @@ void MagnetisationMonitor::update(Solver * solver) {
     outfile << std::setw(12) << std::scientific << solver->time() << "\t";
     outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
-    for (i = 0; i < 3; ++i) {
+    for (auto i = 0; i < 3; ++i) {
       outfile <<  std::setw(12) << solver->physics()->applied_field(i) << "\t";
     }
 
-    for (i = 0; i < lattice->num_materials(); ++i) {
+    for (auto i = 0; i < lattice->num_materials(); ++i) {
       outfile << std::setw(12) << mag(i, 0) << "\t";
       outfile << std::setw(12) << mag(i, 1) << "\t";
       outfile << std::setw(12) << mag(i, 2) << "\t";
@@ -138,15 +133,17 @@ void MagnetisationMonitor::update(Solver * solver) {
 double MagnetisationMonitor::binder_m2() {
   using namespace globals;
 
-  Vec3 m;
+  Vec3 mag;
 
   for (int i = 0; i < num_spins; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      m[j] = m[j] + s_transform_(i, j) * s(i, j);
+    for (int m = 0; m < 3; ++m) {
+      for (int n = 0; n < 3; ++n) {
+        mag[m] = mag[m] + s_transform_[i][m][n] * s(i, n);
+      }
     }
   }
 
-  return abs_sq(m) / square(static_cast<double>(num_spins));
+  return abs_sq(mag) / square(static_cast<double>(num_spins));
 }
 
 double MagnetisationMonitor::binder_cumulant() {

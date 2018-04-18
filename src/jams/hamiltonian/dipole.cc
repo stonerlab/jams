@@ -6,28 +6,28 @@
 #include <cuda_runtime_api.h>
 
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/error.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
 
-#include "jams/hamiltonian/strategy.h"
+#include "strategy.h"
 
-#include "jams/hamiltonian/cuda_dipole_fft.h"
-#include "jams/hamiltonian/dipole.h"
-#include "jams/hamiltonian/dipole_bruteforce.h"
-#include "jams/hamiltonian/dipole_tensor.h"
-#include "jams/hamiltonian/dipole_cuda_sparse_tensor.h"
-#include "jams/hamiltonian/dipole_ewald.h"
-#include "jams/hamiltonian/dipole_fft.h"
+#include "cuda_dipole_fft.h"
+#include "dipole.h"
+#include "dipole_bruteforce.h"
+#include "dipole_cpu_bruteforce.h"
+#include "dipole_tensor.h"
+#include "dipole_cuda_sparse_tensor.h"
+#include "dipole_ewald.h"
+#include "dipole_fft.h"
 
 #include "jblib/containers/array.h"
 
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
-  ::output->write("initialising Hamiltonian: %s\n", this->name().c_str());
 
-#ifdef CUDA
+#if HAS_CUDA
     if (solver->is_cuda_solver()) {
         dev_energy_.resize(globals::num_spins);
         dev_field_.resize(globals::num_spins3);
@@ -63,7 +63,10 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
         }
 
         if (strategy_name == "BRUTEFORCE") {
+          if (solver->is_cuda_solver()) {
             return new DipoleHamiltonianBruteforce(settings, size);
+          }
+          return new DipoleHamiltonianCpuBruteforce(settings, size);
         }
 
         std::runtime_error("Unknown DipoleHamiltonian strategy '" + strategy_name + "' requested\n");

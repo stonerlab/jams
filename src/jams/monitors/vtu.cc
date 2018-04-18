@@ -3,14 +3,13 @@
 #include <cstdint>
 #include <string>
 
-#include "jams/core/error.h"
-#include "jams/core/output.h"
+#include "jams/helpers/error.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/utils.h"
-#include "jams/monitors/vtu.h"
+#include "jams/helpers/utils.h"
+#include "vtu.h"
 
 #include "jblib/math/equalities.h"
 
@@ -23,8 +22,6 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
     using jblib::floats_are_greater_than_or_equal;
     using jblib::floats_are_less_than_or_equal;
 
-    ::output->write("\nInitialising Vtu monitor...\n");
-
     // settings for only outputting a slice
     if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
         jams_error("Xyz monitor requires both slice_origin and slice_size to be specificed;");
@@ -33,15 +30,15 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
     num_slice_points = 0;
 
     if (settings.exists("slice_origin")) {
-        ::output->write("  slice output enabled\n");
+        std::cout << "  slice output enabled\n";
         for (int i = 0; i < 3; ++i) {
             slice_origin[i] = settings["slice_origin"][i];
         }
-        ::output->write("  slice origin: %f %f %f\n", slice_origin[0], slice_origin[1], slice_origin[2]);
+        std::cout << "  slice origin " << slice_origin[0] << " " << slice_origin[1] << " " << slice_origin[2] << "\n";
         for (int i = 0; i < 3; ++i) {
             slice_size[i] = settings["slice_size"][i];
         }
-        ::output->write("  slice size: %f %f %f\n", slice_size[0], slice_size[1], slice_size[2]);
+      std::cout << "  slice size " << slice_size[0] << " " << slice_size[1] << " " << slice_size[2] << "\n";
 
         // check which spins are inside the slice
         for (int i = 0; i < num_spins; ++i) {
@@ -62,7 +59,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         spins_binary_data.resize(num_slice_points, 3);
 
         for (int i = 0; i < num_slice_points; ++i) {
-            types_binary_data(i) = ::lattice->atom_material(slice_spins[i]);
+            types_binary_data(i) = ::lattice->atom_material_id(slice_spins[i]);
             for (int j = 0; j < 3; ++j) {
                 points_binary_data(i, j) = ::lattice->parameter()*::lattice->atom_position(slice_spins[i])[j];
             }
@@ -73,7 +70,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         types_binary_data.resize(num_spins);
 
         for (int i = 0; i < num_spins; ++i) {
-            types_binary_data(i) = ::lattice->atom_material(i);
+            types_binary_data(i) = ::lattice->atom_material_id(i);
             for (int j = 0; j < 3; ++j) {
                 points_binary_data(i, j) = ::lattice->parameter()*::lattice->atom_position(i)[j];
             }

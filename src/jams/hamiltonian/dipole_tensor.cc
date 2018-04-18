@@ -4,15 +4,14 @@
 #include <algorithm>
 
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 #include "jblib/containers/matrix.h"
 #include "jblib/containers/vec.h"
-#include "jams/core/blas.h"
+#include "jams/interface/blas.h"
 #include "jams/core/globals.h"
-#include "jams/core/consts.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/consts.h"
+#include "jams/helpers/utils.h"
 
-#include "jams/hamiltonian/dipole_tensor.h"
+#include "dipole_tensor.h"
 
 
 DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &settings, const unsigned int size)
@@ -38,9 +37,9 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
         }
     }
 
-    printf("  image vector max extent (fractional):\n    %d %d %d\n", L_max[0], L_max[1], L_max[2]);
+    std::cout << "  image vector max extent (fractional) " << L_max[0] << " " << L_max[1] << " " << L_max[2] << "\n";
 
-    output->write("  dipole tensor memory estimate (MB):\n    %f\n", std::pow(double(globals::num_spins*3), 2)*8/double(1024*1024) );
+    std::cout << "  dipole tensor memory estimate " << std::pow(double(globals::num_spins*3), 2)*8/double(1024*1024) << "(MB)\n";
 
     dipole_tensor_ = jblib::Array<double,2>(globals::num_spins3, globals::num_spins3);
     dipole_tensor_.zero();

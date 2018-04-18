@@ -3,14 +3,13 @@
 #include <string>
 #include <iomanip>
 
-#include "jams/core/error.h"
-#include "jams/core/output.h"
+#include "jams/helpers/error.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/utils.h"
 
-#include "jams/monitors/xyz.h"
+#include "xyz.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/math/equalities.h"
@@ -20,8 +19,6 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
   using namespace jblib;
-
-  ::output->write("\nInitialising Xyz monitor...\n");
 
   output_step_freq_ = settings["output_steps"];
 
