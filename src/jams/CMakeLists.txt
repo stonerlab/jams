@@ -1,29 +1,38 @@
-add_executable(jams "")
+add_library(jams_object_lib OBJECT EXCLUDE_FROM_ALL "")
+target_compile_features(jams_object_lib PRIVATE cxx_std_11)
+target_compile_definitions(jams_object_lib PRIVATE HAS_CUDA=1)
+target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
+target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
+
+# object libraries cannot use target_link_libraries to pull in include and compile definitions
+# this hack allows us to pull them in manually
+foreach(TGT fftw3 cblas jblib pcg symspg config++ hdf5 cusparse curand cublas cufft)
+    target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
+endforeach()
+
+add_executable(jams "main.cc" $<TARGET_OBJECTS:jams_object_lib>)
+target_link_libraries(jams fftw3 cblas jblib pcg symspg config++ hdf5 cusparse curand cublas cufft)
 target_compile_features(jams PRIVATE cxx_std_11)
 target_compile_definitions(jams PRIVATE HAS_CUDA=1)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
-if (OpenMP_CXX_FOUND)
-   # target_link_libraries(jams OpenMP::OpenMP_CXX)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-   target_link_libraries(jams ${OpenMP_CXX_LIB_NAMES})
-   target_compile_definitions(jams PRIVATE HAS_OMP=1)
-endif()
 
-target_link_libraries(jams fftw3 cblas jblib pcg symspg config++ hdf5 cusparse curand cublas cufft)
+#if (OpenMP_CXX_FOUND)
+#    target_link_libraries(jams OpenMP::OpenMP_CXX)
+#    target_compile_definitions(jams PRIVATE HAS_OMP=1)
+#endif()
 
 if(APPLE)
     # We need to add the path to the driver (libcuda.dylib) as an rpath,
     # so that the static cuda runtime can find it at runtime.
-    set_property(TARGET jams
+    set_property(TARGET jams_object_lib
             PROPERTY
             BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 endif()
-
-target_sources(jams
+target_sources(jams_object_lib
         PRIVATE
-        main.cc
         containers/bimap.h
         containers/cell.cc
         containers/cell.h

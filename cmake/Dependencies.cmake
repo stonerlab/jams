@@ -3,15 +3,11 @@ find_package(Threads QUIET)
 
 find_package(OpenMP)
 
-add_library(pcg INTERFACE)
-target_include_directories(pcg INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        )
+add_library(pcg INTERFACE IMPORTED)
+set_property(TARGET pcg PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_library(jblib INTERFACE)
-target_include_directories(jblib INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        )
+add_library(jblib INTERFACE IMPORTED)
+set_property(TARGET jblib PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # -- Libconfig++
 find_package(CONFIG++ QUIET REQUIRED)
@@ -34,17 +30,10 @@ set_property(TARGET hdf5 PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES} ${H
 # -- CUDA
 find_package(CUDALibs REQUIRED)
 
-add_library(cusparse INTERFACE IMPORTED)
-set_property(TARGET cusparse PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_cusparse_LIBRARY})
-
-add_library(curand INTERFACE IMPORTED)
-set_property(TARGET curand PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_curand_LIBRARY})
-
-add_library(cublas INTERFACE IMPORTED)
-set_property(TARGET cublas PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_cublas_LIBRARY})
-
-add_library(cufft INTERFACE IMPORTED)
-set_property(TARGET cufft PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_cufft_LIBRARY})
+foreach(LIB cusparse curand cublas cufft)
+    add_library(${LIB} INTERFACE IMPORTED)
+    set_property(TARGET ${LIB} PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_${LIB}_LIBRARY})
+endforeach()
 
 find_package(MKL QUIET)
 
@@ -67,7 +56,8 @@ if(MKL_FOUND)
     set_property(TARGET cblas PROPERTY INTERFACE_LINK_LIBRARIES ${MKL_LIBRARIES})
     target_compile_definitions(cblas INTERFACE HAS_MKL=1)
 else()
-    find_package(BLAS QUIET REQUIRED)
+    set(BLA_VENDOR "OpenBLAS")
+    find_package(BLAS REQUIRED)
     set_property(TARGET cblas PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${BLAS_INCLUDE_DIR})
     set_property(TARGET cblas PROPERTY INTERFACE_LINK_LIBRARIES ${BLAS_LIBRARIES})
 endif(MKL_FOUND)

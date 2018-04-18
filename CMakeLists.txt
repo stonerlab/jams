@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
+option(jams_build_tests "Build all of JAMS's unit tests." OFF)
+
 project(jams LANGUAGES C CXX CUDA)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
@@ -14,8 +16,8 @@ include(cmake/Dependencies.cmake)
 
 ensure_out_of_source_build()
 
-#include_directories(include)
-
-enable_testing()
 add_subdirectory(src/jams)
-#add_subdirectory(test/jams)
+
+if (jams_build_tests)
+    add_subdirectory(test/jams)
+endif()
