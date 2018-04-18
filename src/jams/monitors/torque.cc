@@ -5,14 +5,13 @@
 #include <iomanip>
 #include <vector>
 
-#include "jams/core/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
-#include "jams/core/stats.h"
-#include "jams/core/consts.h"
+#include "jams/helpers/stats.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
-#include "jams/monitors/torque.h"
+#include "torque.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/vec.h"
@@ -24,7 +23,6 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
   convergence_geweke_diagnostic_()
 {
   using namespace globals;
-  ::output->write("\nInitialising Torque monitor...\n");
 }
 
 void TorqueMonitor::update(Solver * solver) {
@@ -47,10 +45,10 @@ void TorqueMonitor::update(Solver * solver) {
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";
   outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
 
-  jblib::Vec3<double> total_torque(0.0, 0.0, 0.0);
+  Vec3 total_torque = {0.0, 0.0, 0.0};
   // output torque from each hamiltonian term
   for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin(); it != solver->hamiltonians().end(); ++it) {
-    jblib::Vec3<double> this_torque(0.0, 0.0, 0.0);
+    Vec3 this_torque = {0.0, 0.0, 0.0};
 
     (*it)->calculate_fields();
 
@@ -68,7 +66,8 @@ void TorqueMonitor::update(Solver * solver) {
   }
   
   // convergence stats
-  if (solver->time() > convergence_burn_time_) {
+
+  if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
     for (int n = 0; n < 3; ++n) {
       torque_stats_[n].add(total_torque[n]);
       torque_stats_[n].geweke(convergence_geweke_diagnostic_[n], convergence_stderr_);

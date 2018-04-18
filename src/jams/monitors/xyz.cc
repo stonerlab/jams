@@ -3,14 +3,13 @@
 #include <string>
 #include <iomanip>
 
-#include "jams/core/error.h"
-#include "jams/core/output.h"
+#include "jams/helpers/error.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/utils.h"
 
-#include "jams/monitors/xyz.h"
+#include "xyz.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/math/equalities.h"
@@ -20,8 +19,6 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
   using namespace jblib;
-
-  ::output->write("\nInitialising Xyz monitor...\n");
 
   output_step_freq_ = settings["output_steps"];
 
@@ -41,12 +38,12 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
     }
     // check which spins are inside the slice
     for (int i = 0; i < num_spins; ++i) {
-      jblib::Vec3<double> pos = ::lattice->atom_position(i);
+      Vec3 pos = ::lattice->atom_position(i);
 
       // check if the current spin in inside the slice
-      if (floats_are_greater_than_or_equal(pos.x, slice_origin.x) && floats_are_less_than_or_equal(pos.x, slice_origin.x + slice_size.x)
-      &&  floats_are_greater_than_or_equal(pos.y, slice_origin.y) && floats_are_less_than_or_equal(pos.y, slice_origin.y + slice_size.y)
-      &&  floats_are_greater_than_or_equal(pos.z, slice_origin.z) && floats_are_less_than_or_equal(pos.z, slice_origin.z + slice_size.z)) {
+      if (floats_are_greater_than_or_equal(pos[0], slice_origin[0]) && floats_are_less_than_or_equal(pos[0], slice_origin[0] + slice_size[0])
+      &&  floats_are_greater_than_or_equal(pos[1], slice_origin[1]) && floats_are_less_than_or_equal(pos[1], slice_origin[1] + slice_size[1])
+      &&  floats_are_greater_than_or_equal(pos[2], slice_origin[2]) && floats_are_less_than_or_equal(pos[2], slice_origin[2] + slice_size[2])) {
         slice_spins.push_back(i);
       }
     }
@@ -59,7 +56,7 @@ void XyzMonitor::update(Solver * solver) {
   if (solver->iteration()%output_step_freq_ == 0) {
     int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
-    std::ofstream xyz_state_file(std::string(seedname+"_"+zero_pad_number(outcount)+".xyz").c_str());
+    std::ofstream xyz_state_file(std::string(seedname+"_"+zero_pad_number(outcount)+"[0]yz").c_str());
 
     // file header
     xyz_state_file << "#";

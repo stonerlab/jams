@@ -1,58 +1,63 @@
-# -- Google-test
-#include("cmake/External/gtest.cmake")
+# -- Threads
+find_package(Threads QUIET)
+
+find_package(OpenMP)
+
+add_library(pcg INTERFACE IMPORTED)
+set_property(TARGET pcg PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+add_library(jblib INTERFACE IMPORTED)
+set_property(TARGET jblib PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # -- Libconfig++
-find_package(CONFIG++ REQUIRED)
-include_directories(SYSTEM ${CONFIG++_INCLUDE_DIR})
-list(APPEND JAMS_LINKER_LIBS ${CONFIG++_LIBRARY})
+find_package(CONFIG++ QUIET REQUIRED)
+add_library(config++ INTERFACE IMPORTED)
+set_property(TARGET config++ PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CONFIG++_INCLUDE_DIR})
+set_property(TARGET config++ PROPERTY INTERFACE_LINK_LIBRARIES ${CONFIG++_LIBRARY})
 
 # -- symspg
-find_package(SYMSPG REQUIRED)
-include_directories(SYSTEM ${SYMSPG_INCLUDE_DIR})
-list(APPEND JAMS_LINKER_LIBS ${SYMSPG_LIBRARY})
+find_package(SYMSPG QUIET REQUIRED)
+add_library(symspg INTERFACE IMPORTED)
+set_property(TARGET symspg PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${SYMSPG_INCLUDE_DIR})
+set_property(TARGET symspg PROPERTY INTERFACE_LINK_LIBRARIES ${SYMSPG_LIBRARY})
 
-
-# -- HDF5
-find_package(HDF5 COMPONENTS CXX REQUIRED)
-include_directories(SYSTEM ${HDF5_INCLUDE_DIRS} ${HDF5_CXX_INCLUDE_DIR})
-list(APPEND JAMS_LINKER_LIBS ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES})
+# -- hdf5
+find_package(HDF5 COMPONENTS CXX QUIET REQUIRED)
+add_library(hdf5 INTERFACE IMPORTED)
+set_property(TARGET hdf5 PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS} ${HDF5_CXX_INCLUDE_DIR})
+set_property(TARGET hdf5 PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES})
 
 # -- CUDA
-find_package(CUDA QUIET REQUIRED)
-include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
-list(APPEND JAMS_LINKER_LIBS ${CUDA_LIBRARIES})
-list(APPEND JAMS_LINKER_LIBS ${CUDA_CUFFT_LIBRARIES})
-list(APPEND JAMS_LINKER_LIBS ${CUDA_CUBLAS_LIBRARIES})
-list(APPEND JAMS_LINKER_LIBS ${CUDA_curand_LIBRARY})
-list(APPEND JAMS_LINKER_LIBS ${CUDA_cusparse_LIBRARY})
+find_package(CUDALibs REQUIRED)
+
+foreach(LIB cusparse curand cublas cufft)
+    add_library(${LIB} INTERFACE IMPORTED)
+    set_property(TARGET ${LIB} PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_${LIB}_LIBRARY})
+endforeach()
+
+find_package(MKL QUIET)
+
+# -- FFTW
+add_library(fftw3 INTERFACE)
+if(MKL_FOUND)
+    set_property(TARGET fftw3 PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCLUDE_DIR})
+    set_property(TARGET fftw3 PROPERTY INTERFACE_LINK_LIBRARIES ${MKL_LIBRARIES})
+    target_compile_definitions(fftw3 INTERFACE HAS_MKL=1)
+else()
+    find_package(FFTW3 QUIET REQUIRED)
+    set_property(TARGET fftw3 PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCLUDE_DIR})
+    set_property(TARGET fftw3 PROPERTY INTERFACE_LINK_LIBRARIES ${FFTW3_LIBRARY})
+endif(MKL_FOUND)
 
 # -- BLAS
-#if(NOT APPLE)
-#  set(BLAS "Atlas" CACHE STRING "Selected BLAS library")
-#  set_property(CACHE BLAS PROPERTY STRINGS "Atlas;Open;MKL")
-#
-#  if(BLAS STREQUAL "Atlas" OR BLAS STREQUAL "atlas")
-#    find_package(Atlas REQUIRED)
-#    include_directories(SYSTEM ${Atlas_INCLUDE_DIR})
-#    list(APPEND JAMS_LINKER_LIBS ${Atlas_LIBRARIES})
-#  elseif(BLAS STREQUAL "Open" OR BLAS STREQUAL "open")
-#    find_package(OpenBLAS REQUIRED)
-#    include_directories(SYSTEM ${OpenBLAS_INCLUDE_DIR})
-#    list(APPEND JAMS_LINKER_LIBS ${OpenBLAS_LIB})
-#  elseif(BLAS STREQUAL "MKL" OR BLAS STREQUAL "mkl")
-    find_package(MKL REQUIRED)
-    include_directories(SYSTEM ${MKL_INCLUDE_DIR})
-    list(APPEND JAMS_LINKER_LIBS ${MKL_LIBRARIES})
-    add_definitions(-DUSE_MKL)
- # endif()
-#elseif(APPLE)
-#  find_package(vecLib REQUIRED)
-#  include_directories(SYSTEM ${vecLib_INCLUDE_DIR})
-#  list(APPEND JAMS_LINKER_LIBS ${vecLib_LINKER_LIBS})
-#
-#  if(VECLIB_FOUND)
-#    if(NOT vecLib_INCLUDE_DIR MATCHES "^/System/Library/Frameworks/vecLib.framework.*")
-#      add_definitions(-DUSE_ACCELERATE)
-#    endif()
-#  endif()
-#endif()
+add_library(cblas INTERFACE)
+if(MKL_FOUND)
+    set_property(TARGET cblas PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${MKL_INCLUDE_DIR})
+    set_property(TARGET cblas PROPERTY INTERFACE_LINK_LIBRARIES ${MKL_LIBRARIES})
+    target_compile_definitions(cblas INTERFACE HAS_MKL=1)
+else()
+    set(BLA_VENDOR "OpenBLAS")
+    find_package(BLAS REQUIRED)
+    set_property(TARGET cblas PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${BLAS_INCLUDE_DIR})
+    set_property(TARGET cblas PROPERTY INTERFACE_LINK_LIBRARIES ${BLAS_LIBRARIES})
+endif(MKL_FOUND)

@@ -5,20 +5,20 @@
 
 #include <libconfig.h++>
 
-#include "jams/core/error.h"
-#include "jams/core/output.h"
+#include "jams/helpers/error.h"
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/utils.h"
 #include "jams/core/thermostat.h"
 
-#include "jams/thermostats/cuda_langevin_white.h"
-#include "jams/thermostats/cuda_langevin_bose.h"
+#include "../thermostats/cuda_langevin_white.h"
+#include "../thermostats/cuda_langevin_bose.h"
 
+using namespace std;
 Thermostat* Thermostat::create(const std::string &thermostat_name) {
-    ::output->write("\ncreating '%s' thermostat\n", thermostat_name.c_str());
+  cout << thermostat_name << " thermostat\n";
 
     // create the selected thermostat
-    #ifdef CUDA
+    #if HAS_CUDA
     if (capitalize(thermostat_name) == "LANGEVIN-WHITE-GPU" || capitalize(thermostat_name) == "CUDA_LANGEVIN_WHITE") {
         return new CudaLangevinWhiteThermostat(config->lookup("physics.temperature"), 0.0, globals::num_spins);
     }
@@ -28,6 +28,5 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
     #endif
 
     // throw error if the thermostat name is no known
-    jams_error("Unknown thermostat requested '%s'", thermostat_name.c_str());
-    return NULL;
+  throw std::runtime_error("unknown thermostat " + thermostat_name);
 }

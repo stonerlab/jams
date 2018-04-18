@@ -3,15 +3,15 @@
 #include <cmath>
 #include <string>
 #include <iomanip>
-#include "jams/core/consts.h"
+#include "jams/helpers/consts.h"
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/output.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 
-#include "jams/monitors/magnetisation_rate.h"
+#include "magnetisation_rate.h"
+using namespace std;
 
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
@@ -23,12 +23,11 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
   convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
   using namespace globals;
-  ::output->write("\ninitialising MagnetisationRate monitor\n");
 
   if (settings.exists("convergence")) {
     convergence_is_on_ = true;
     convergence_tolerance_ = settings["convergence"];
-    ::output->write("  convergence tolerance: %f\n", convergence_tolerance_);
+    cout << "  convergence tolerance " << convergence_tolerance_ << "\n";
   }
 
   std::string name = seedname + "_dm_dt.tsv";
@@ -61,18 +60,22 @@ void MagnetisationRateMonitor::update(Solver * solver) {
 
     int i, j;
 
-    dm_dt.zero();
+  std::vector<int> material_count(lattice->num_materials(), 0);
+
+
+  dm_dt.zero();
 
     for (i = 0; i < num_spins; ++i) {
-      int type = lattice->atom_material(i);
+      int type = lattice->atom_material_id(i);
       for (j = 0; j < 3; ++j) {
         dm_dt(type, j) += ds_dt(i, j);
       }
+      material_count[type]++;
     }
 
     for (i = 0; i < lattice->num_materials(); ++i) {
       for (j = 0; j < 3; ++j) {
-        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(lattice->num_of_material(i));
+        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(material_count[i]);
       }
     }
 

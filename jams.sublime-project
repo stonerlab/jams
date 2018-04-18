@@ -1,0 +1,40 @@
+{
+	"folders":
+	[
+  {
+   "follow_symlinks": true,
+   "path": ".",
+   "folder_exclude_patterns": ["build"]
+ }
+ ],
+  "SublimeLinter":
+  {
+    "lint_mode": "background",
+    "linters":
+    {
+      "cpplint": {
+        "@disable": false,
+        "filter": ["-whitespace/line_length"]
+      }
+    }
+  },
+  "build_systems":
+  [
+      {
+          "name": "CMake - make",
+          "working_dir": "${project_path:${folder}}/build",
+          "cmd": ["make", "-j4"],
+          "selector": "source.h, source.cpp, source.cu",
+          // regex includes nvcc and icpc output
+          "file_regex": "^([\\/,~][^,:(]+)[(:]([0-9]+)[):]?([0-9]+)?:? (.*)$" 
+      },
+      {
+          "name": "CMake - ninja",
+          "working_dir": "${project_path:${folder}}/build",
+          "cmd": ["ninja"],
+          "selector": "source.h, source.cpp, source.cu",
+          // regex includes nvcc and icpc output
+          "file_regex": "^([\\/,~][^,:(]+)[(:]([0-9]+)[):]?([0-9]+)?:? (.*)$" 
+      }
+  ]
+}

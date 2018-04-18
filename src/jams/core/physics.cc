@@ -4,6 +4,7 @@
 #include <string>
 
 #include <libconfig.h++>
+#include <jams/helpers/defaults.h>
 
 #include "jams/core/physics.h"
 
@@ -11,21 +12,27 @@
 
 
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/error.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
 #include "jams/physics/empty.h"
-#include "jams/physics/fieldcool.h"
+#include "jams/physics/field_cool.h"
 #include "jams/physics/fmr.h"
-#include "jams/physics/mfpt.h"
-#include "jams/physics/square.h"
-#include "jams/physics/ttm.h"
+#include "jams/physics/mean_first_passage_time.h"
+#include "jams/physics/square_field_pulse.h"
+#include "jams/physics/two_temperature_model.h"
 #include "jams/physics/ping.h"
 #include "jams/physics/flips.h"
 
+using namespace std;
 
-Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0),
-    applied_field_(0.0, 0.0, 0.0) {
+Physics::Physics(const libconfig::Setting &physics_settings) :
+    Base(physics_settings),
+    temperature_(0.0),
+    applied_field_{0.0, 0.0, 0.0}
+{
+
+  cout << "  " << name() << " physics\n";
 
   // initialise temperature
   temperature_ = 0.0;
@@ -34,7 +41,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
   }
 
   // initialise applied field
-  jblib::Vec3<double> field(0.0, 0.0, 0.0);
+  Vec3 field = {0.0, 0.0, 0.0};
   if (physics_settings.exists("applied_field")) {
     if (!physics_settings["applied_field"].isArray() || !(physics_settings["applied_field"].getLength() == 3)) {
       jams_error("Setting 'applied_field' must be an array of length 3.");
@@ -45,14 +52,9 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
   }
   applied_field_ = field;
 
-  if (physics_settings.exists("output_steps")) {
-    output_step_freq_ = physics_settings["output_steps"];
-  } else {
-    jams_warning("No physics output_steps chosen - using default of 100");
-    output_step_freq_ = 100;
-  }
+  output_step_freq_ = jams::config_optional<int>(physics_settings, "output_steps", jams::default_monitor_output_steps);
 
-  jblib::Vec3<double> origin;
+  Vec3 origin;
   double radius;
   if (physics_settings.exists("initial_state")) {
     libconfig::Setting& state_settings = physics_settings["initial_state"];
@@ -65,9 +67,9 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
     radius = state_settings["radius"];
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      jblib::Vec3<double> pos = (lattice->atom_position(i)-origin);
+      Vec3 pos = (lattice->atom_position(i)-origin);
 
-      if (pos.x*pos.x + pos.y*pos.y < radius*radius) {
+      if (pos[0]*pos[0] + pos[1]*pos[1] < radius*radius) {
         globals::s(i,2) = -globals::s(i,2);
       }
     }
@@ -78,38 +80,41 @@ Physics::Physics(const libconfig::Setting &physics_settings) : temperature_(0.0)
 
 Physics* Physics::create(const libconfig::Setting &settings) {
 
-  if (capitalize(settings["module"]) == "FMR") {
-    return new FMRPhysics(settings);
-  }
+  std::string module_name = jams::default_physics_module;
+  settings.lookupValue("module", module_name);
+  module_name = lowercase(module_name);
 
-  if (capitalize(settings["module"]) == "MFPT") {
-    return new MFPTPhysics(settings);
-  }
-
-  if (capitalize(settings["module"]) == "TTM") {
-    return new TTMPhysics(settings);
-  }
-
-  if (capitalize(settings["module"]) == "SQUARE") {
-    return new SquarePhysics(settings);
-  }
-
-  if (capitalize(settings["module"]) == "FIELDCOOL") {
-    return new FieldCoolPhysics(settings);
-  }
-
-  if (capitalize(settings["module"]) == "PING") {
-    return new PingPhysics(settings);
-  }
-
-  if (capitalize(settings["module"]) == "FLIPS") {
-    return new FlipsPhysics(settings);
-  }
-
-  if (capitalize(settings["module"]) == "EMPTY") {
+  if (module_name == "empty") {
     return new EmptyPhysics(settings);
   }
 
-  jams_error("Unknown physics package selected.");
-  return NULL;
+  if (module_name == "fmr") {
+    return new FMRPhysics(settings);
+  }
+
+  if (module_name == "mean-first-passage-time") {
+    return new MFPTPhysics(settings);
+  }
+
+  if (module_name == "two-temperature-model") {
+    return new TTMPhysics(settings);
+  }
+
+  if (module_name == "square-field-pulse") {
+    return new SquarePhysics(settings);
+  }
+
+  if (module_name == "field-cool") {
+    return new FieldCoolPhysics(settings);
+  }
+
+  if (module_name == "ping") {
+    return new PingPhysics(settings);
+  }
+
+  if (module_name == "flip") {
+    return new FlipsPhysics(settings);
+  }
+
+  throw std::runtime_error("unknown physics " + module_name);
 }

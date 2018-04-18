@@ -1,28 +1,24 @@
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
-#include "jams/core/maths.h"
-#include "jams/core/consts.h"
-#include "jams/core/cuda_defs.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/maths.h"
+#include "jams/helpers/consts.h"
+#include "jams/cuda/cuda_defs.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
-#include "jams/core/error.h"
+#include "jams/helpers/error.h"
 
-#include "jams/hamiltonian/zeeman.h"
-#include "jams/hamiltonian/zeeman_kernel.h"
+#include "zeeman.h"
+#include "zeeman_kernel.h"
 
-ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
-: Hamiltonian(settings)
+ZeemanHamiltonian::~ZeemanHamiltonian() {
+    if (dev_stream_ != nullptr) {
+      cudaStreamDestroy(dev_stream_);
+    }
+}
+
+ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size)
+: Hamiltonian(settings, size)
 {
-    ::output->write("initialising Zeeman Hamiltonian\n");
-    // output in default format for now
-    outformat_ = TEXT;
-
-    // resize member arrays
-    energy_.resize(globals::num_spins);
-    energy_.zero();
-    field_.resize(globals::num_spins, 3);
-    field_.zero();
-
     dc_local_field_.resize(globals::num_spins, 3);
     dc_local_field_.zero();
 
@@ -42,7 +38,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                dc_local_field_(i, j) = settings["dc_local_field"][lattice->atom_material(i)][j];
+                dc_local_field_(i, j) = settings["dc_local_field"][lattice->atom_material_id(i)][j];
                 dc_local_field_(i, j) *= globals::mus(i);
             }
         }
@@ -70,19 +66,19 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings)
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                ac_local_field_(i, j) = settings["ac_local_field"][lattice->atom_material(i)][j];
+                ac_local_field_(i, j) = settings["ac_local_field"][lattice->atom_material_id(i)][j];
                 ac_local_field_(i, j) *= globals::mus(i);
             }
         }
 
         for (int i = 0; i < globals::num_spins; ++i) {
-            ac_local_frequency_(i) = settings["ac_local_frequency"][lattice->atom_material(i)];
+            ac_local_frequency_(i) = settings["ac_local_frequency"][lattice->atom_material_id(i)];
             ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i);
         }
     }
 
     // transfer arrays to cuda device if needed
-#ifdef CUDA
+#if HAS_CUDA
     if (solver->is_cuda_solver()) {
         cudaStreamCreate(&dev_stream_);
 
@@ -121,7 +117,7 @@ double ZeemanHamiltonian::calculate_one_spin_energy(const int i) {
 
 // --------------------------------------------------------------------------
 
-double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, const jblib::Vec3<double> &spin_initial, const jblib::Vec3<double> &spin_final) {
+double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     using std::pow;
 
     double e_initial = 0.0;
@@ -173,7 +169,7 @@ void ZeemanHamiltonian::calculate_one_spin_field(const int i, double local_field
 
 void ZeemanHamiltonian::calculate_fields() {
     if (solver->is_cuda_solver()) {
-#ifdef CUDA
+#if HAS_CUDA
         dim3 block_size;
         block_size.x = 32;
         block_size.y = 4;
@@ -204,50 +200,5 @@ void ZeemanHamiltonian::calculate_fields() {
                 field_(i, j) = dc_local_field_(i, j) + ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
             }
         }
-    }
-}
-// --------------------------------------------------------------------------
-
-void ZeemanHamiltonian::output_energies(OutputFormat format) {
-    switch(format) {
-        case TEXT:
-            output_energies_text();
-        case HDF5:
-            jams_error("Zeeman energy output: HDF5 not yet implemented");
-        default:
-            jams_error("Zeeman energy output: unknown format");
-    }
-}
-
-// --------------------------------------------------------------------------
-
-void ZeemanHamiltonian::output_fields(OutputFormat format) {
-    switch(format) {
-        case TEXT:
-            output_fields_text();
-        case HDF5:
-            jams_error("Zeeman energy output: HDF5 not yet implemented");
-        default:
-            jams_error("Zeeman energy output: unknown format");
-    }
-}
-
-// --------------------------------------------------------------------------
-
-void ZeemanHamiltonian::output_energies_text() {
-
-}
-
-// --------------------------------------------------------------------------
-
-void ZeemanHamiltonian::output_fields_text() {
-
-}
-
-double ZeemanHamiltonian::calculate_bond_energy_difference(const int i, const int j, const Vec3 &sj_initial, const Vec3 &sj_final) {
-  if (i != j) {
-    return 0.0;
-    } else {
-  return calculate_one_spin_energy_difference(i, sj_initial, sj_final);
     }
 }

@@ -56,6 +56,8 @@ namespace jblib {
 
     void resize(const size_type size0, const size_type size1,
       const size_type size2, const size_type size3);
+    void zero();
+
 
     bool is_allocated() const;
 
@@ -221,7 +223,17 @@ namespace jblib {
   Array<fftw_complex, 4, Idx_>::
   size(const size_type i) const {
     assert((i < 4) && !(i < 0));
-    return (&size0_)[i];
+    switch(i) {
+      case 0 :
+        return size0_;
+      case 1 :
+        return size1_;
+      case 2 :
+        return size2_;
+      case 3:
+        return size3_;
+    }
+    throw std::out_of_range("size(i) must have i < 4");
   }
 
   template <typename Idx_>
@@ -252,6 +264,15 @@ namespace jblib {
       }
     }
     swap(*this, newArray);
+  }
+
+  template <typename Idx_>
+  void
+  Array<fftw_complex, 4, Idx_>::
+  zero() {
+    for (size_type i = 0; i < elements(); ++i) {
+      data_[i][0] = 0.0; data_[i][1] = 0.0;
+    }
   }
 
   template <typename Idx_>

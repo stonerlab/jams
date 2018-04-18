@@ -3,12 +3,11 @@
 #include <string>
 #include <fstream>
 
-#include "jams/core/output.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
-#include "jams/core/utils.h"
+#include "jams/helpers/utils.h"
 
-#include "jams/monitors/binary.h"
+#include "binary.h"
 
 #include "jblib/containers/array.h"
 
@@ -16,8 +15,6 @@ BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
   using namespace jblib;
-
-  ::output->write("\nInitialising binary monitor...\n");
 
   is_file_overwrite_mode = false;
   settings.lookupValue("overwrite", is_file_overwrite_mode);

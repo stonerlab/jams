@@ -6,24 +6,23 @@
 #include <algorithm>
 #include <vector>
 
+#include "version.h"
 #include "H5Cpp.h"
 
-#include "jams/core/error.h"
-#include "jams/core/output.h"
+#include "jams/helpers/error.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/utils.h"
-#include "jams/core/slice.h"
+#include "jams/helpers/utils.h"
+#include "jams/helpers/slice.h"
 
-#include "jams/monitors/hdf5.h"
+#include "hdf5.h"
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/vec.h"
 
-#define QUOTEME_(x) #x
-#define QUOTEME(x) QUOTEME_(x)
+using namespace std;
 
 namespace {
     const hsize_t h5_compression_chunk_size = 256;
@@ -38,8 +37,6 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
     using namespace globals;
     using namespace H5;
 
-    ::output->write("\nInitialising HDF5 monitor...\n");
-
     output_step_freq_ = settings["output_steps"];
 
     // it outsteps is 0 then use max int instead - output will only be generated in the
@@ -52,20 +49,20 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
     if (settings.exists("float_type")) {
         if (capitalize(settings["float_type"]) == "FLOAT") {
             float_pred_type_ = PredType::IEEE_F32LE;
-            ::output->write("  float data stored as float (IEEE_F32LE)\n");
+            cout << "  float data stored as float (IEEE_F32LE)\n";
         } else if (capitalize(settings["float_type"]) == "DOUBLE") {
             float_pred_type_ = PredType::IEEE_F64LE;
-            ::output->write("  float data stored as double (IEEE_F64LE)\n");
+            cout << "  float data stored as double (IEEE_F64LE)\n";
         } else {
             jams_error("Unknown float_type selected for HDF5 monitor.\nOptions: float or double");
         }
     } else {
-        ::output->write("  float data stored as double (IEEE_F64LE)\n");
+        cout << "  float data stored as double (IEEE_F64LE)\n";
     }
 
     // compression options
     settings.lookupValue("compressed", compression_enabled_);
-    ::output->write("  compressed: %s\n", compression_enabled_ ? "enabled": "disabled");
+    cout << "  compressed " << compression_enabled_ << "\n";
 
     if (settings.exists("slice")) {
         slice_ = Slice(settings["slice"]);
@@ -73,7 +70,7 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 
     open_new_xdmf_file(seedname + ".xdmf");
 
-    write_lattice_h5_file(seedname + "_::lattice->h5", PredType::IEEE_F64LE);
+    write_lattice_h5_file(seedname + "_lattice.h5", PredType::IEEE_F64LE);
 }
 
 Hdf5Monitor::~Hdf5Monitor() {
@@ -132,7 +129,7 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name, const H5::
   double out_iteration = solver->iteration();
   double out_time = solver->time();
   double out_temperature = solver->physics()->temperature();
-  jblib::Vec3<double> out_field = solver->physics()->applied_field();
+  Vec3 out_field = solver->physics()->applied_field();
 
   DataSet spin_dataset = outfile.createDataSet("spins", float_type, dataspace, plist);
   DataSet ds_dt_dataset = outfile.createDataSet("ds_dt", float_type, dataspace, plist);
@@ -145,11 +142,11 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name, const H5::
   attribute = spin_dataset.createAttribute("temperature", PredType::IEEE_F64LE, attribute_dataspace);
   attribute.write(PredType::NATIVE_DOUBLE, &out_temperature);
   attribute = spin_dataset.createAttribute("hx", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field.x);
+  attribute.write(PredType::NATIVE_DOUBLE, &out_field[0]);
   attribute = spin_dataset.createAttribute("hy", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field.y);
+  attribute.write(PredType::NATIVE_DOUBLE, &out_field[1]);
   attribute = spin_dataset.createAttribute("hz", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field.z);
+  attribute.write(PredType::NATIVE_DOUBLE, &out_field[2]);
 
   if (slice_.num_points() != 0) {
       jblib::Array<double, 2> spin_slice(slice_.num_points(), 3);
@@ -204,7 +201,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name, const H
         types.resize(num_spins);
 
         for (int i = 0; i < type_dims[0]; ++i) {
-            types(i) = lattice->atom_material(i);
+            types(i) = lattice->atom_material_id(i);
         }
 
         positions.resize(num_spins, 3);
@@ -237,7 +234,7 @@ void Hdf5Monitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
                fputs("<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\"[]>\n", xdmf_file_);
                fputs("<Xdmf xmlns:xi=\"http://www.w3.org/2003/XInclude\" Version=\"2.2\">\n", xdmf_file_);
                fputs("  <Domain Name=\"JAMS\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "    <Information Name=\"Commit\" Value=\"%s\" />\n", QUOTEME(GITCOMMIT));
+  fprintf(xdmf_file_, "    <Information Name=\"Commit\" Value=\"%s\" />\n", jams::build::hash);
   fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", seedname.c_str());
                fputs("    <Grid Name=\"Time\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file_);
                fputs("    </Grid>\n", xdmf_file_);
@@ -275,12 +272,12 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const H5::Pr
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", data_dimension);
                fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s_::lattice->h5:/positions\n", seedname.c_str());
+  fprintf(xdmf_file_, "           %s_lattice.h5:/positions\n", seedname.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Geometry>\n", xdmf_file_);
                fputs("       <Attribute Name=\"Type\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", data_dimension);
-  fprintf(xdmf_file_, "           %s_::lattice->h5:/types\n", seedname.c_str());
+  fprintf(xdmf_file_, "           %s_lattice.h5:/types\n", seedname.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
                fputs("       <Attribute Name=\"spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);

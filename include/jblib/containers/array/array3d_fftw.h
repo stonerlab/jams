@@ -56,6 +56,8 @@ namespace jblib {
 
     void resize(const size_type size0, const size_type size1,
       const size_type size2);
+    void zero();
+
 
     bool is_allocated() const;
 
@@ -85,7 +87,7 @@ namespace jblib {
   template <typename Idx_>
   Array<fftw_complex, 3, Idx_>::
   Array()
-  : size0_(0), size1_(0), size2_(0), data_(NULL)
+  : size0_(0), size1_(0), size2_(0), data_(nullptr)
   {}
 
   template <typename Idx_>
@@ -93,7 +95,7 @@ namespace jblib {
   Array(const size_type size0, const size_type size1, const size_type size2)
   : size0_(size0), size1_(size1), size2_(size2),
     data_(size0_*size1_*size2_ ? reinterpret_cast<pointer>
-      (fftw_malloc(size0_*size1_*size2_*sizeof(fftw_complex))): NULL)
+      (fftw_malloc(size0_*size1_*size2_*sizeof(fftw_complex))): nullptr)
   {
   }
 
@@ -102,7 +104,7 @@ namespace jblib {
   Array(const Array<fftw_complex, 3, Idx_ >& other)
   : size0_(other.size0_), size1_(other.size1_), size2_(other.size2_),
     data_(size0_*size1_*size2_ ? reinterpret_cast<pointer>
-      (fftw_malloc(size0_*size1_*size2_*sizeof(fftw_complex))): NULL) {
+      (fftw_malloc(size0_*size1_*size2_*sizeof(fftw_complex))): nullptr) {
       std::copy(other.data_, (other.data_ + elements()), data_);
   }
 
@@ -112,7 +114,7 @@ namespace jblib {
     const value_type initial_value)
     : size0_(size0), size1_(size1), size2_(size2),
     data_(size0_*size1_*size2_ ? reinterpret_cast<pointer>
-      (fftw_malloc(size0_*size1_*size2_*sizeof(data_))): NULL) {
+      (fftw_malloc(size0_*size1_*size2_*sizeof(data_))): nullptr) {
     for (size_type i = 0, iend = elements(); i != iend; ++i) {
       data_[i] = initial_value;
     }
@@ -127,7 +129,7 @@ namespace jblib {
   ~Array() {
     if (is_allocated()) {
       fftw_free(data_);
-      data_ = NULL;
+      data_ = nullptr;
     }
   }
 
@@ -216,7 +218,15 @@ namespace jblib {
   Array<fftw_complex, 3, Idx_>::
   size(const size_type i) const {
     assert((i < 3) && !(i < 0));
-    return (&size0_)[i];
+    switch(i) {
+      case 0 :
+        return size0_;
+      case 1 :
+        return size1_;
+      case 2 :
+        return size2_;
+    }
+    throw std::out_of_range("size(i) must have i < 3");
   }
 
   template <typename Idx_>
@@ -231,7 +241,6 @@ namespace jblib {
   Array<fftw_complex, 3, Idx_>::
   resize(const size_type new_size0, const size_type new_size1,
     const size_type new_size2) {
-    using std::swap;
     Array< fftw_complex, 3, Idx_> newArray(new_size0, new_size1, new_size2);
       // copy the smaller array dimensions
     if (is_allocated()) {
@@ -248,11 +257,19 @@ namespace jblib {
   }
 
   template <typename Idx_>
+  void
+  Array<fftw_complex, 3, Idx_>::
+  zero() {
+    for (size_type i = 0; i < elements(); ++i) {
+      data_[i][0] = 0.0; data_[i][1] = 0.0;
+    }
+  }
+
+  template <typename Idx_>
   inline bool
   Array<fftw_complex, 3, Idx_>::
   is_allocated() const {
-    if(data_ != NULL) { return true; }
-    return false;
+    return data_;
   }
 
 #ifdef BOUNDSCHECK

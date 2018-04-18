@@ -1,6 +1,6 @@
-FIND_PATH(SYMSPG_INCLUDE_DIR spglib.h   PATHS /usr/include /usr/local/include PATH_SUFFIXES spglib)
+FIND_PATH(SYMSPG_INCLUDE_DIR spglib/spglib.h  PATHS ENV CPATH /usr/include /usr/local/include PATH_SUFFIXES spglib)
 
-FIND_LIBRARY(SYMSPG_LIBRARY NAMES symspg PATH /usr/lib /usr/local/lib)
+FIND_LIBRARY(SYMSPG_LIBRARY NAMES symspg PATHS ENV LD_LIBRARY_PATH  /usr/lib /usr/local/lib PATH_SUFFIXES)
 
 IF (SYMSPG_INCLUDE_DIR AND SYMSPG_LIBRARY)
     SET(SYMSPG_FOUND TRUE)

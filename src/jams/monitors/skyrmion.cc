@@ -6,21 +6,19 @@
 #include <vector>
 #include <cassert>
 
-#include "jams/core/consts.h"
-#include "jams/core/output.h"
+#include "jams/helpers/consts.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/core/maths.h"
-#include "jams/monitors/skyrmion.h"
+#include "jams/helpers/maths.h"
+#include "skyrmion.h"
 
 #include "jblib/containers/array.h"
 
 SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  ::output->write("\nInitialising Skyrmion monitor...\n");
 
   type_norms.resize(lattice->num_materials(), 1.0);
 
@@ -38,9 +36,9 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
     thresholds.push_back(0.0);
   }
 
-  ::output->write("  Sz thresholds:\n");
+  std::cout << "  Sz thresholds:\n";
   for (int n = 0; n < thresholds.size(); ++n) {
-    ::output->write("    %f\n", thresholds[n]);
+    std::cout << "    " << thresholds[n] << "\n";
   }
 
   std::string name = seedname + "_sky.dat";
@@ -70,15 +68,15 @@ void SkyrmionMonitor::update(Solver * solver) {
     int i, n, type;
     double x, y;
 
-    const double x_size = lattice->rmax().x;
-    const double y_size = lattice->rmax().y;
+    const double x_size = lattice->rmax()[0];
+    const double y_size = lattice->rmax()[1];
 
     outfile << std::setw(12) << std::scientific << solver->time();
     outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
 
     for (int t = 0; t < thresholds.size(); ++t) {
 
-      std::vector<jblib::Vec3<double> > r_com(lattice->num_materials(), jblib::Vec3<double>(0.0, 0.0, 0.0));
+      std::vector<Vec3 > r_com(lattice->num_materials(), {0.0, 0.0, 0.0});
       calc_center_of_mass(r_com, thresholds[t]);
 
       int r_count[lattice->num_materials()];
@@ -90,11 +88,11 @@ void SkyrmionMonitor::update(Solver * solver) {
       }
 
       for (i = 0; i < num_spins; ++i) {
-        type = lattice->atom_material(i);
+        type = lattice->atom_material_id(i);
         if (s(i, 2)*type_norms[type] > thresholds[t]) {
-          x = lattice->atom_position(i).x - r_com[type].x;
+          x = lattice->atom_position(i)[0] - r_com[type][0];
           x = x - nint(x / x_size) * x_size;  // min image convention
-          y = lattice->atom_position(i).y - r_com[type].y;
+          y = lattice->atom_position(i)[1] - r_com[type][1];
           y = y - nint(y / y_size) * y_size;  // min image convention
           radius_gyration[type] += x*x + y*y;
           r_count[type]++;
@@ -130,17 +128,17 @@ void SkyrmionMonitor::create_center_of_mass_mapping() {
   // in a periodic system
   // (see L. Bai and D. Breen, Journal of Graphics, GPU, and Game Tools 13, 53 (2008))
 
-  tube_x.resize(num_spins, jblib::Vec3<double>(0.0, 0.0, 0.0));
-  tube_y.resize(num_spins, jblib::Vec3<double>(0.0, 0.0, 0.0));
+  tube_x.resize(num_spins, {0.0, 0.0, 0.0});
+  tube_y.resize(num_spins, {0.0, 0.0, 0.0});
 
   for (int n = 0; n < num_spins; ++n) {
     double i, j, i_max, j_max, r_i, r_j, theta_i, theta_j, x, y, z;
 
-    i = lattice->atom_position(n).x;
-    j = lattice->atom_position(n).y;
+    i = lattice->atom_position(n)[0];
+    j = lattice->atom_position(n)[1];
 
-    i_max = lattice->rmax().x;
-    j_max = lattice->rmax().y;
+    i_max = lattice->rmax()[0];
+    j_max = lattice->rmax()[1];
 
     r_i = i_max / (kTwoPi);
     r_j = j_max / (kTwoPi);
@@ -152,17 +150,17 @@ void SkyrmionMonitor::create_center_of_mass_mapping() {
     y = j;
     z = r_i * sin(theta_i);
 
-    tube_x[n] = jblib::Vec3<double>(x, y, z);
+    tube_x[n] = {x, y, z};
 
     x = i;
     y = r_j * cos(theta_j);
     z = r_j * sin(theta_j);
 
-    tube_y[n] = jblib::Vec3<double>(x, y, z);
+    tube_y[n] = {x, y, z};
   }
 }
 
-void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_com, const double &threshold) {
+void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const double &threshold) {
   using namespace globals;
   // TODO: make the x and y PBC individually optional
 
@@ -173,8 +171,8 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_c
   int i, type;
   double theta_i, theta_j;
 
-  std::vector<jblib::Vec3<double> > tube_x_com(num_types, jblib::Vec3<double>(0.0, 0.0, 0.0));
-  std::vector<jblib::Vec3<double> > tube_y_com(num_types, jblib::Vec3<double>(0.0, 0.0, 0.0));
+  std::vector<Vec3 > tube_x_com(num_types, {0.0, 0.0, 0.0});
+  std::vector<Vec3 > tube_y_com(num_types, {0.0, 0.0, 0.0});
   int r_count[num_types];
 
   for (type = 0; type < num_types; ++type) {
@@ -182,7 +180,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_c
   }
 
   for (i = 0; i < num_spins; ++i) {
-    type = lattice->atom_material(i);
+    type = lattice->atom_material_id(i);
     if (s(i, 2)*type_norms[type] > threshold) {
       tube_x_com[type] += tube_x[i];
       tube_y_com[type] += tube_y[i];
@@ -195,12 +193,12 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<jblib::Vec3<double> > &r_c
   }
 
   for (type = 0; type < num_types; ++type) {
-    theta_i = atan2(-tube_x_com[type].z, -tube_x_com[type].x) + kPi;
-    theta_j = atan2(-tube_y_com[type].z, -tube_y_com[type].y) + kPi;
+    theta_i = atan2(-tube_x_com[type][2], -tube_x_com[type][0]) + kPi;
+    theta_j = atan2(-tube_y_com[type][2], -tube_y_com[type][1]) + kPi;
 
-    r_com[type].x = (theta_i*lattice->rmax().x/(kTwoPi));
-    r_com[type].y = (theta_j*lattice->rmax().y/(kTwoPi));
-    r_com[type].z = 0.0;
+    r_com[type][0] = (theta_i*lattice->rmax()[0]/(kTwoPi));
+    r_com[type][1] = (theta_j*lattice->rmax()[1]/(kTwoPi));
+    r_com[type][2] = 0.0;
   }
 
   // for (type = 0; type < num_types; ++type) {

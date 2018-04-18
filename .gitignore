@@ -2,7 +2,6 @@ jams++
 tmtags
 tmtagsHistory
 *.un~
-*.in
 *.out
 *.err
 *.dat
@@ -17,11 +16,11 @@ tmtagsHistory
 cerr
 cout
 .DS_Store
-
-/jams.sublime-project
 /jams.sublime-workspace
 .clang_complete
 .tags
 .tags1
+.idea
 
 /build
+/cmake-build*
