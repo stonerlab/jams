@@ -18,11 +18,12 @@ target_compile_definitions(jams PRIVATE HAS_CUDA=1)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
-
-#if (OpenMP_CXX_FOUND)
-#    target_link_libraries(jams OpenMP::OpenMP_CXX)
-#    target_compile_definitions(jams PRIVATE HAS_OMP=1)
-#endif()
+if (OpenMP_CXX_FOUND)
+    # target_link_libraries(jams OpenMP::OpenMP_CXX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    target_link_libraries(jams ${OpenMP_CXX_LIB_NAMES})
+    target_compile_definitions(jams PRIVATE HAS_OMP=1)
+endif()
 
 if(APPLE)
     # We need to add the path to the driver (libcuda.dylib) as an rpath,
