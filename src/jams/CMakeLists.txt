@@ -6,13 +6,13 @@ target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${PROJECT_S
 
 # object libraries cannot use target_link_libraries to pull in include and compile definitions
 # this hack allows us to pull them in manually
-foreach(TGT fftw3 cblas jblib pcg symspg config++ hdf5 cusparse curand cublas cufft)
+foreach(TGT fftw3 cblas jblib pcg symspg config++ hdf5 cuda cusparse curand cublas cufft)
     target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
 endforeach()
 
 add_executable(jams "main.cc" $<TARGET_OBJECTS:jams_object_lib>)
-target_link_libraries(jams fftw3 cblas jblib pcg symspg config++ hdf5 cusparse curand cublas cufft)
+target_link_libraries(jams fftw3 cblas jblib pcg symspg config++ hdf5 cuda cusparse curand cublas cufft)
 target_compile_features(jams PRIVATE cxx_std_11)
 target_compile_definitions(jams PRIVATE HAS_CUDA=1)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
