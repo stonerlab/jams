@@ -136,6 +136,9 @@ target_sources(jams_object_lib
         monitors/binary.h
         monitors/boltzmann.cc
         monitors/boltzmann.h
+        monitors/cuda-spin-current.cc
+        monitors/cuda-spin-current.h
+        monitors/cuda-spin-current-kernel.cu
         monitors/energy.cc
         monitors/energy.h
         monitors/hdf5.cc
