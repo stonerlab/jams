@@ -29,4 +29,6 @@ void cuda_array_float_to_double(
 	cudaStream_t stream     // cuda stream
 );
 
+double cuda_array_sum(double * array, const unsigned size);
+
 #endif  // JAMS_CUDA_ARRAY_KERNELS_H

@@ -1,6 +1,5 @@
 #include <cuda.h>
-#include <thrust/device_ptr.h>
-#include <thrust/reduce.h>
+#include <jams/cuda/cuda_array_kernels.h>
 
 #include "jams/core/types.h"
 #include "jams/cuda/cuda_vector_ops.h"
@@ -104,27 +103,18 @@ Mat3 execute_cuda_spin_current_kernel(
                   dev_spin_current_rz_y,
                   dev_spin_current_rz_z);
 
-  double j_rx_x = thrust::reduce(thrust::device_ptr<double>(dev_spin_current_rx_x),
-          thrust::device_ptr<double>(dev_spin_current_rx_x) + num_spins);
-  double j_rx_y = thrust::reduce(thrust::device_ptr<double>(dev_spin_current_rx_y),
-          thrust::device_ptr<double>(dev_spin_current_rx_y) + num_spins);
-  double j_rx_z = thrust::reduce(thrust::device_ptr<double>(dev_spin_current_rx_z),
-          thrust::device_ptr<double>(dev_spin_current_rx_z) + num_spins);
+  double j_rx_x = cuda_array_sum(dev_spin_current_rx_x, num_spins);
+  double j_rx_y = cuda_array_sum(dev_spin_current_rx_y, num_spins);
+  double j_rx_z = cuda_array_sum(dev_spin_current_rx_z, num_spins);
 
-  double j_ry_x = thrust::reduce(thrust::device_ptr<double>(dev_spin_current_ry_x),
-          thrust::device_ptr<double>(dev_spin_current_ry_x) + num_spins);
-  double j_ry_y = thrust::reduce(thrust::device_ptr<double>(dev_spin_current_ry_y),
-          thrust::device_ptr<double>(dev_spin_current_ry_y) + num_spins);
-  double j_ry_z = thrust::reduce(thrust::device_ptr<double>(dev_spin_current_ry_z),
-          thrust::device_ptr<double>(dev_spin_current_ry_z) + num_spins);
+  double j_ry_x = cuda_array_sum(dev_spin_current_ry_x, num_spins);
+  double j_ry_y = cuda_array_sum(dev_spin_current_ry_y, num_spins);
+  double j_ry_z = cuda_array_sum(dev_spin_current_ry_z, num_spins);
 
-  double j_rz_x = thrust::reduce(thrust::device_ptr<double>(dev_spin_current_rz_x),
-          thrust::device_ptr<double>(dev_spin_current_rz_x) + num_spins);
-  double j_rz_y = thrust::reduce(thrust::device_ptr<double>(dev_spin_current_rz_y),
-          thrust::device_ptr<double>(dev_spin_current_rz_y) + num_spins);
-  double j_rz_z = thrust::reduce(thrust::device_ptr<double>(dev_spin_current_rz_z),
-          thrust::device_ptr<double>(dev_spin_current_rz_z) + num_spins);
-
+  double j_rz_x = cuda_array_sum(dev_spin_current_rz_x, num_spins);
+  double j_rz_y = cuda_array_sum(dev_spin_current_rz_y, num_spins);
+  double j_rz_z = cuda_array_sum(dev_spin_current_rz_z, num_spins);
+  
   return {j_rx_x, j_rx_y, j_rx_z,
           j_ry_x, j_ry_y, j_ry_z,
           j_rz_x, j_rz_y, j_rz_z};
