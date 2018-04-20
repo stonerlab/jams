@@ -3,7 +3,7 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_CUDA_SPARSE_TENSOR_H
 #define JAMS_HAMILTONIAN_DIPOLE_CUDA_SPARSE_TENSOR_H
 
-#ifdef CUDA
+#if HAS_CUDA
 #include <cuda_runtime.h>
 #include <cusparse.h>
 #endif

@@ -25,7 +25,7 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
     dipole_prefactor_ = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
 
 
-#ifdef CUDA
+#if HAS_CUDA
     if (solver->is_cuda_solver()) {
     bool super_cell_pbc[3];
     Mat<float,3,3> super_unit_cell;
@@ -86,7 +86,7 @@ DipoleHamiltonianBruteforce::DipoleHamiltonianBruteforce(const libconfig::Settin
 double DipoleHamiltonianBruteforce::calculate_total_energy() {
     double e_total = 0.0;
 
-#ifdef CUDA
+#if HAS_CUDA
    if (solver->is_cuda_solver()) {
         calculate_fields(dev_dipole_fields);
         dev_dipole_fields.copy_to_host_array(host_dipole_fields);
@@ -100,7 +100,7 @@ double DipoleHamiltonianBruteforce::calculate_total_energy() {
        for (int i = 0; i < globals::num_spins; ++i) {
            e_total += calculate_one_spin_energy(i);
        }
-#ifdef CUDA
+#if HAS_CUDA
     }
 #endif // CUDA
 

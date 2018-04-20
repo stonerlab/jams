@@ -78,7 +78,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
     }
 
     // transfer arrays to cuda device if needed
-#ifdef CUDA
+#if HAS_CUDA
     if (solver->is_cuda_solver()) {
         cudaStreamCreate(&dev_stream_);
 
@@ -169,7 +169,7 @@ void ZeemanHamiltonian::calculate_one_spin_field(const int i, double local_field
 
 void ZeemanHamiltonian::calculate_fields() {
     if (solver->is_cuda_solver()) {
-#ifdef CUDA
+#if HAS_CUDA
         dim3 block_size;
         block_size.x = 32;
         block_size.y = 4;

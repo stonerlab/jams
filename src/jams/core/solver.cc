@@ -80,7 +80,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
   if (module_name == "monte-carlo-constrained-cpu") {
     return new ConstrainedMCSolver;
   }
-#ifdef CUDA
+#if HAS_CUDA
   if (module_name == "llg-heun-gpu") {
     return new CUDAHeunLLGSolver;
   }

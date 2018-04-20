@@ -27,7 +27,7 @@
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
 
-#ifdef CUDA
+#if HAS_CUDA
     if (solver->is_cuda_solver()) {
         dev_energy_.resize(globals::num_spins);
         dev_field_.resize(globals::num_spins3);

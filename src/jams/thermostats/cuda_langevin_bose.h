@@ -6,7 +6,7 @@
 #ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_H
 #define JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_H
 
-#ifdef CUDA
+#if HAS_CUDA
 
 #include <curand.h>
 #include <fstream>

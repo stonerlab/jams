@@ -26,7 +26,7 @@ typedef enum
 } sparse_matrix_format_t;
 
 // these definition mirror those in mkl_spblas.h
-#ifndef USE_MKL
+#ifndef HAS_MKL
 
 typedef enum
 {

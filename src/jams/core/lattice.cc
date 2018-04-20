@@ -202,7 +202,7 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
   set_verbose(jams::config_optional<bool>(cfg.lookup("lattice"), "verbose", false));
   set_debug(jams::config_optional<bool>(cfg.lookup("lattice"), "debug", false));
 
-  symops_enabled_ = jams::config_optional<bool>(cfg.lookup("lattice"), "symops", jams::default_lattice_symops);
+  symops_enabled_ = jams::config_optional<bool>(cfg.lookup("unitcell"), "symops", jams::default_unitcell_symops);
 
   cout << "  symops " << symops_enabled_ << "\n";
 
@@ -213,6 +213,11 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
   init_unit_cell(cfg.lookup("lattice"), cfg.lookup("unitcell"));
 
   if (symops_enabled_) {
+
+    if (motif_.size() > jams::warning_unitcell_symops_size) {
+      jams_warning("symmetry calculation may be slow as unit cell has more than %d atoms and symops is turned on", jams::warning_unitcell_symops_size);
+    }
+
     calc_symmetry_operations();
   }
 
@@ -391,10 +396,17 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   }
 
   if (lattice_settings.exists("orientation_axis")) {
+    if (lattice_settings.exists("orientation_lattice_vector") && lattice_settings.exists("orientation_cartesian_vector")) {
+      jams_error("Only one of 'orientation_lattice_vector' or 'orientation_cartesian_vector' can be defined");
+    }
     auto reference_axis = jams::config_required<Vec3>(lattice_settings, "orientation_axis");
-    auto lattice_vector = jams::config_required<Vec3>(lattice_settings, "orientation_lattice_vector");
-
-    global_reorientation(reference_axis, lattice_vector);
+    if (lattice_settings.exists("orientation_lattice_vector")) {
+      auto lattice_vector = jams::config_required<Vec3>(lattice_settings, "orientation_lattice_vector");
+      global_reorientation(reference_axis, lattice_vector);
+    } else if (lattice_settings.exists("orientation_cartesian_vector")) {
+      auto lattice_vector = jams::config_required<Vec3>(lattice_settings, "orientation_cartesian_vector");
+      global_reorientation(reference_axis, cartesian_to_fractional(lattice_vector));
+    }
   }
 
   if (lattice_settings.exists("global_rotation")) {
@@ -984,6 +996,10 @@ const Cell &Lattice::get_unitcell() {
 
 const Mat3 &Lattice::get_global_rotation_matrix() {
   return global_orientation_matrix_;
+}
+
+bool Lattice::material_exists(const string &name) {
+  return materials_.contains(name);
 }
 
 

@@ -3,7 +3,7 @@
 #ifndef JAMS_SOLVER_CUDA_HEUNLLG_H
 #define JAMS_SOLVER_CUDA_HEUNLLG_H
 
-#ifdef CUDA
+#if HAS_CUDA
 
 #include "jams/cuda/wrappers/stream.h"
 #include "jams/cuda/cuda_solver.h"

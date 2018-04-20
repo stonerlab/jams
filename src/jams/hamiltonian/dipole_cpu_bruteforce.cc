@@ -1,4 +1,4 @@
-#ifdef USE_OMP
+#ifdef HAS_OMP
 #include <omp.h>
 #endif
 
