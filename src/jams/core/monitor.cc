@@ -11,6 +11,7 @@
 #include "jams/monitors/skyrmion.h"
 #include "jams/monitors/smr.h"
 #include "jams/monitors/cuda-spin-current.h"
+#include "jams/monitors/cuda-thermal-current.h"
 #include "jams/monitors/spin_pumping.h"
 #include "jams/monitors/spin_temperature.h"
 #include "jams/monitors/structurefactor.h"
@@ -71,6 +72,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "SPIN-CURRENT") {
     return new CudaSpinCurrentMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "THERMAL-CURRENT") {
+    return new CudaThermalCurrentMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "SPINPUMPING") {

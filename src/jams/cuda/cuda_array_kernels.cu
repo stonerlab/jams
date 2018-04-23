@@ -1,9 +1,5 @@
 #include "cuda_defs.h"
 
-#include <thrust/device_ptr.h>
-#include <thrust/reduce.h>
-
-
 // y_ij <-- alpha_i * beta * x_ij
 
 __global__ void cuda_array_elementwise_scale_kernel_general_(
@@ -159,8 +155,4 @@ void cuda_array_float_to_double(
     grid_size.x = (n + block_size.x - 1) / block_size.x;
 
     cuda_array_float_to_double_kernel<<<grid_size, block_size, 0, stream>>>(n, in, out);
-}
-
-double cuda_array_sum(double * array, const unsigned size) {
-  return thrust::reduce(thrust::device_ptr<double>(array), thrust::device_ptr<double>(array) + size);
 }

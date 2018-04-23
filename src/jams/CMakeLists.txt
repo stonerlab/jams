@@ -139,6 +139,9 @@ target_sources(jams_object_lib
         monitors/cuda-spin-current.cc
         monitors/cuda-spin-current.h
         monitors/cuda-spin-current-kernel.cu
+        monitors/cuda-thermal-current.cc
+        monitors/cuda-thermal-current.h
+        monitors/cuda-thermal-current-kernel.cu
         monitors/energy.cc
         monitors/energy.h
         monitors/hdf5.cc

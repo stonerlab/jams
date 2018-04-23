@@ -104,5 +104,6 @@ namespace jams {
 
 }
 
+libconfig::Setting& config_find_setting_by_key_value_pair(const libconfig::Setting& settings, const std::string& key, const std::string& value);
 
 #endif //JAMS_CONFIG_H

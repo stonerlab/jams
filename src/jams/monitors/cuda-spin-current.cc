@@ -23,29 +23,21 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 //    throw std::runtime_error("CUDA spin current monitor is only for CUDA solvers");
 //  }
 
+  jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian in the config");
   jams_warning("This monitor currently assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
 
-  std::string exchange_file_name;
+  const auto& exchange_settings = config_find_setting_by_key_value_pair(config->lookup("hamiltonians"), "module", "exchange");
 
-  // search for exchange hamiltonian
-  InteractionList<Mat3> neighbour_list;
+  const std::string exchange_file_name = exchange_settings["exc_file"];
+  std::ifstream interaction_file(exchange_file_name);
 
-  const libconfig::Setting& hamiltonian_settings = config->lookup("hamiltonians");
-  for (int i = 0; i < hamiltonian_settings.getLength(); ++i) {
-    std::string module_name = hamiltonian_settings[i]["module"].c_str();
-    if (module_name == "exchange") {
-      exchange_file_name = hamiltonian_settings[i]["exc_file"].c_str();
-
-      std::ifstream interaction_file(exchange_file_name.c_str());
-      if (interaction_file.fail()) {
-        throw std::runtime_error("failed to open interaction file:" + exchange_file_name);
-      }
-
-      neighbour_list = generate_neighbour_list_from_file(hamiltonian_settings[i], interaction_file);
-
-      break;
-    }
+  if (interaction_file.fail()) {
+    throw std::runtime_error("failed to open interaction file:" + exchange_file_name);
   }
+
+  cout << "    interaction file name: " << exchange_file_name << endl;
+
+  const auto neighbour_list = generate_neighbour_list_from_file(exchange_settings, interaction_file);
 
   if (exchange_file_name.empty()) {
     throw std::runtime_error("no exchange hamiltonian found");
