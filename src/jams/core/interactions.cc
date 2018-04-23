@@ -383,8 +383,8 @@ namespace { //anon
           throw std::runtime_error("Inconsistency in the KKR exchange templates");
         }
 
-        auto material_i = lattice->material(interaction.pos_i).name;
-        auto material_j = lattice->material(interaction.pos_j).name;
+        auto material_i = lattice->material_name(lattice->motif_atom(interaction.pos_i).material);
+        auto material_j = lattice->material_name(lattice->motif_atom(interaction.pos_j).material);
 
         interactions.insert(interaction.pos_i, interaction_counter, {inode, material_i, material_j, interaction.J_ij});
 
@@ -442,11 +442,11 @@ namespace { //anon
               }
 
               // catch if the site has a different material (presumably an impurity site)
-              if (lattice->material(local_site).name != material_i) {
+              if (lattice->material_name(lattice->atom_material_id(local_site)) != material_i) {
                 continue;
               }
 
-              if (lattice->material(neighbour_index).name != material_j) {
+              if (lattice->material_name(lattice->atom_material_id(neighbour_index)) != material_j) {
                 continue;
               }
 
