@@ -20,6 +20,7 @@ class CUDAHeunLLGSolver : public CudaSolver {
 
   private:
     CudaStream dev_stream_;
+    bool zero_safe_kernels_required_;
 };
 
 #endif

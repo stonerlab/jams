@@ -56,6 +56,15 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
   cout << "done\n";
+
+  // check if we need to use zero safe versions of the kernels (for |S| = 0)
+  zero_safe_kernels_required_ = false;
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    if (globals::s(i, 0) == 0.0 && globals::s(i, 1) == 0.0 && globals::s(i, 2) == 0.0) {
+      zero_safe_kernels_required_ = true;
+      break;
+    }
+  }
 }
 
 void CUDAHeunLLGSolver::run()
@@ -65,11 +74,11 @@ void CUDAHeunLLGSolver::run()
   const dim3 block_size = {84, 3, 1};
   auto grid_size = cuda_grid_size(block_size, {globals::num_spins, 3, 1});
 
-    cudaMemcpyAsync(dev_s_old_.data(),           // void *               dst
-               dev_s_.data(),               // const void *         src
-               num_spins3*sizeof(double),   // size_t               count
-               cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-               dev_stream_.get());                   // device stream
+  cudaMemcpyAsync(dev_s_old_.data(),           // void *               dst
+             dev_s_.data(),               // const void *         src
+             num_spins3*sizeof(double),   // size_t               count
+             cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
+             dev_stream_.get());                   // device stream
 
   if (debug_is_enabled()) {
     if (cudaPeekAtLastError() != cudaSuccess) {
@@ -77,28 +86,22 @@ void CUDAHeunLLGSolver::run()
     }
   }
 
-    thermostat_->set_temperature(physics_module_->temperature());
-    thermostat_->update();
+  thermostat_->set_temperature(physics_module_->temperature());
+  thermostat_->update();
 
-    compute_fields();
+  compute_fields();
 
-    cuda_heun_llg_kernelA<<<grid_size, block_size>>>
-        (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
-          dev_h_.data(), thermostat_->noise(),
-          dev_gyro_.data(), dev_alpha_.data());
-
-  if (debug_is_enabled()) {
-    if (cudaPeekAtLastError() != cudaSuccess) {
-      throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-  }
-
-    compute_fields();
-
-    cuda_heun_llg_kernelB<<<grid_size, block_size>>>
+  if (zero_safe_kernels_required_) {
+    cuda_zero_safe_heun_llg_kernelA<<<grid_size, block_size>>>
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
-        dev_h_.data(), thermostat_->noise(),
-        dev_gyro_.data(), dev_alpha_.data());
+       dev_h_.data(), thermostat_->noise(),
+       dev_gyro_.data(), dev_alpha_.data());
+  } else {
+    cuda_heun_llg_kernelA<<<grid_size, block_size>>>
+      (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
+       dev_h_.data(), thermostat_->noise(),
+       dev_gyro_.data(), dev_alpha_.data());
+  }
 
   if (debug_is_enabled()) {
     if (cudaPeekAtLastError() != cudaSuccess) {
@@ -106,7 +109,26 @@ void CUDAHeunLLGSolver::run()
     }
   }
 
+  compute_fields();
 
-    iteration_++;
+  if (zero_safe_kernels_required_) {
+    cuda_zero_safe_heun_llg_kernelA<<<grid_size, block_size>>>
+      (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
+       dev_h_.data(), thermostat_->noise(),
+       dev_gyro_.data(), dev_alpha_.data());
+  } else {
+    cuda_heun_llg_kernelA<<<grid_size, block_size>>>
+      (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
+       dev_h_.data(), thermostat_->noise(),
+       dev_gyro_.data(), dev_alpha_.data());
+  }
+
+  if (debug_is_enabled()) {
+    if (cudaPeekAtLastError() != cudaSuccess) {
+      throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+  }
+
+  iteration_++;
 }
 

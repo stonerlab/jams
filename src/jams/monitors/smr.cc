@@ -68,13 +68,15 @@ void SMRMonitor::update(Solver * solver) {
   }
 
   for (int i = 0; i < lattice->num_materials(); ++i) {
-      mtsq_para[i] = mtsq_para[i]/static_cast<double>(material_count[i]);
-      mtsq_perp[i] = mtsq_perp[i]/static_cast<double>(material_count[i]);
+    if (material_count[i] > 0) {
+      mtsq_para[i] = mtsq_para[i] / static_cast<double>(material_count[i]);
+      mtsq_perp[i] = mtsq_perp[i] / static_cast<double>(material_count[i]);
 
-      mjmt_para[i] = mjmt_para[i]/static_cast<double>(material_count[i]);
-      mjmt_perp[i] = mjmt_perp[i]/static_cast<double>(material_count[i]);
+      mjmt_para[i] = mjmt_para[i] / static_cast<double>(material_count[i]);
+      mjmt_perp[i] = mjmt_perp[i] / static_cast<double>(material_count[i]);
 
-      mn[i] = mn[i]/static_cast<double>(material_count[i]);
+      mn[i] = mn[i] / static_cast<double>(material_count[i]);
+    }
   }
 
   outfile << std::setw(12) << std::scientific << solver->time() << "\t";
