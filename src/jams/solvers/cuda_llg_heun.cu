@@ -14,6 +14,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/thermostat.h"
 #include "jams/core/physics.h"
+#include "jams/helpers/error.h"
 
 #include "cuda_llg_heun_kernel.h"
 
@@ -65,6 +66,10 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
       break;
     }
   }
+
+  if (zero_safe_kernels_required_) {
+    jams_warning("Some spins have zero length so zero safe kernels will be used.");
+  }
 }
 
 void CUDAHeunLLGSolver::run()
@@ -112,12 +117,12 @@ void CUDAHeunLLGSolver::run()
   compute_fields();
 
   if (zero_safe_kernels_required_) {
-    cuda_zero_safe_heun_llg_kernelA<<<grid_size, block_size>>>
+    cuda_zero_safe_heun_llg_kernelB<<<grid_size, block_size>>>
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
        dev_h_.data(), thermostat_->noise(),
        dev_gyro_.data(), dev_alpha_.data());
   } else {
-    cuda_heun_llg_kernelA<<<grid_size, block_size>>>
+    cuda_heun_llg_kernelB<<<grid_size, block_size>>>
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
        dev_h_.data(), thermostat_->noise(),
        dev_gyro_.data(), dev_alpha_.data());
