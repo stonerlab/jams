@@ -35,12 +35,15 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     jams_error("Failed to create CURAND generator in CudaLangevinWhiteThermostat");
   }
 
-  auto dev_rng_seed = static_cast<uint64_t>(std::random_device()());
+  bool use_llg_denominator = true;
+  config->lookupValue("thermostat.llg_denominator", use_llg_denominator);
+  cout << "    llg denominator " << use_llg_denominator << "\n";
 
   cout << "    creating stream\n";
   cudaStreamCreate(&dev_stream_);
   curandSetStream(dev_rng_, dev_stream_);
-
+  
+  auto dev_rng_seed = static_cast<uint64_t>(std::random_device()());
   cout << "    seeding CURAND " << dev_rng_seed << "\n";
   if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to set CURAND seed in CudaLangevinWhiteThermostat");
@@ -50,9 +53,13 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
     jams_error("Failed to generate CURAND seeds in CudaLangevinWhiteThermostat");
   }
-  // sigma.resize(num_spins);
+
   for(int i = 0; i < num_spins; ++i) {
-    sigma_(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton) );
+    double denominator = 1.0;
+    if (use_llg_denominator) {
+      denominator = 1.0 + pow2(globals::alpha(i));
+    }
+    sigma_(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton * denominator) );
   }
 
   cout << "    transfering sigma to device\n";
