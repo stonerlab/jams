@@ -136,11 +136,9 @@ void CudaThermalCurrentMonitor::update(Solver *solver) {
           dev_thermal_current_rz.data()
   );
 
-  const double units = lattice->parameter() * kGyromagneticRatio * pow2(kBohrMagneton);
-
   outfile << std::setw(4) << std::scientific << solver->time() << "\t";
   for (auto n = 0; n < 3; ++ n) {
-    outfile << std::setw(12) << js[n] * units << "\t";
+    outfile << std::setw(12) << js[n] << "\t";
   }
   outfile << std::endl;
 }
