@@ -78,8 +78,11 @@ namespace {
 }
 
 namespace jams {
+    double landau_lifshitz_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
+      return -gyro / mus;
+    }
 
-    double llg_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
+    double gilbert_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
       return -gyro /((1.0 + pow2(alpha)) * mus);
     }
 }
@@ -602,13 +605,20 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 
   globals::h.zero();
 
+  bool use_gilbert_prefactor = jams::config_optional<bool>(config->lookup("solver"), "gilbert_prefactor", false);
+
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto material = materials_[atom_material_id(i)];
 
     globals::mus(i)   = material.moment;
     globals::alpha(i) = material.alpha;
-    globals::gyro(i)  = jams::llg_gyro_prefactor(material.gyro, material.alpha, material.moment);
+
+    if (use_gilbert_prefactor) {
+      globals::gyro(i)  = jams::gilbert_gyro_prefactor(material.gyro, material.alpha, material.moment);
+    } else {
+      globals::gyro(i) = jams::landau_lifshitz_gyro_prefactor(material.gyro, material.alpha, material.moment);
+    }
 
     for (auto n = 0; n < 3; ++n) {
       globals::s(i, n) = material.spin[n];
