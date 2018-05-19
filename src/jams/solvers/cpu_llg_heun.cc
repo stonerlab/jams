@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <jams/interface/config.h>
+#include <jams/helpers/maths.h>
 #include "jams/helpers/consts.h"
 
 #include "jams/core/globals.h"
@@ -35,8 +36,15 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   sigma.resize(num_spins);
   w.resize(num_spins, 3);
 
-  for (int i = 0; i < num_spins; ++i) {
-    sigma(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton) );
+  bool use_gilbert_prefactor = jams::config_optional<bool>(config->lookup("solver"), "gilbert_prefactor", false);
+  cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
+
+  for(int i = 0; i < num_spins; ++i) {
+    double denominator = 1.0;
+    if (use_gilbert_prefactor) {
+      denominator = 1.0 + pow2(globals::alpha(i));
+    }
+    sigma(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton * denominator) );
   }
 
   initialized_ = true;

@@ -35,10 +35,6 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     jams_error("Failed to create CURAND generator in CudaLangevinWhiteThermostat");
   }
 
-  bool use_llg_denominator = true;
-  config->lookupValue("thermostat.llg_denominator", use_llg_denominator);
-  cout << "    llg denominator " << use_llg_denominator << "\n";
-
   cout << "    creating stream\n";
   cudaStreamCreate(&dev_stream_);
   curandSetStream(dev_rng_, dev_stream_);
@@ -54,9 +50,13 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     jams_error("Failed to generate CURAND seeds in CudaLangevinWhiteThermostat");
   }
 
+  bool use_gilbert_prefactor = jams::config_optional<bool>(config->lookup("solver"), "gilbert_prefactor", false);
+  cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
+
+
   for(int i = 0; i < num_spins; ++i) {
     double denominator = 1.0;
-    if (use_llg_denominator) {
+    if (use_gilbert_prefactor) {
       denominator = 1.0 + pow2(globals::alpha(i));
     }
     sigma_(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton * denominator) );
