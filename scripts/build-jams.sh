@@ -78,7 +78,7 @@ clone_git_repo() {
 checkout_git_commit() {
   local commit=$1
   local workdir=$2
-  (cd ${workdir} && git checkout ${commit} .)
+  (cd ${workdir} && git checkout -q ${commit})
 }
 
 build_branch() {
