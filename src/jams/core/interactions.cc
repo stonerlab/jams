@@ -222,7 +222,7 @@ namespace { //anon
       }
 
       if (is.bad()) {
-        throw general_exception("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+        throw jams::runtime_error("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
       is >> interaction.r_ij[0] >> interaction.r_ij[1] >> interaction.r_ij[2];
@@ -232,7 +232,7 @@ namespace { //anon
       }
 
       if (is.bad()) {
-        throw general_exception("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+        throw jams::runtime_error("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
       const int num_info_cols = 5;
@@ -259,11 +259,11 @@ namespace { //anon
           throw std::runtime_error("Interaction file Jij format is incorrect for JAMS format");
         }
       } else {
-        throw general_exception("number of Jij values in exchange files must be 1 or 9, check your input on line " + std::to_string(line_number), __FILE__, __LINE__, __PRETTY_FUNCTION__);
+        throw jams::runtime_error("number of Jij values in exchange files must be 1 or 9, check your input on line " + std::to_string(line_number), __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
       if (is.bad()) {
-        throw general_exception("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+        throw jams::runtime_error("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
       interaction.J_ij = interaction.J_ij / kBohrMagneton;
@@ -333,7 +333,7 @@ namespace { //anon
         interaction.pos_j--;
 
         if (is.bad()) {
-          throw general_exception("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+          throw jams::runtime_error("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
         }
 
         is >> interaction.r_ij[0] >> interaction.r_ij[1] >> interaction.r_ij[2];
@@ -343,7 +343,7 @@ namespace { //anon
         }
 
         if (is.bad()) {
-          throw general_exception("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+          throw jams::runtime_error("failed to read interaction vector in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
         }
 
         const int num_info_cols = 5;
@@ -370,11 +370,11 @@ namespace { //anon
             throw std::runtime_error("Interaction file Jij format is incorrect for KKR format");
           }
         } else {
-          throw general_exception("number of Jij values in exchange files must be 1 or 9, check your input on line " + std::to_string(line_number), __FILE__, __LINE__, __PRETTY_FUNCTION__);
+          throw jams::runtime_error("number of Jij values in exchange files must be 1 or 9, check your input on line " + std::to_string(line_number), __FILE__, __LINE__, __PRETTY_FUNCTION__);
         }
 
         if (is.bad()) {
-          throw general_exception("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+          throw jams::runtime_error("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
         }
 
         if (max_norm(interaction.J_ij) < energy_cutoff) {
@@ -502,7 +502,7 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
       std::ofstream unfolded_interaction_file(std::string(seedname+"_unfolded_exc.tsv").c_str());
 
       if(unfolded_interaction_file.fail()) {
-        throw general_exception("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+        throw jams::runtime_error("failed to open unfolded interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
       write_interaction_data(unfolded_interaction_file, unfolded_interaction_data, coord_format);

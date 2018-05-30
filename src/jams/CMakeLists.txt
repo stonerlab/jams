@@ -105,6 +105,11 @@ target_sources(jams_object_lib
         hamiltonian/exchange_neartree.cc
         hamiltonian/exchange_neartree.h
         hamiltonian/strategy.h
+        hamiltonian/random_anisotropy.cc
+        hamiltonian/random_anisotropy.h
+        hamiltonian/random_anisotropy_cuda.cu
+        hamiltonian/random_anisotropy_cuda.h
+        hamiltonian/random_anisotropy_cuda_kernel.h
         hamiltonian/zeeman.cu
         hamiltonian/zeeman.h
         hamiltonian/zeeman_kernel.h

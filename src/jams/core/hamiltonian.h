@@ -29,7 +29,7 @@ class Hamiltonian : public Base {
   virtual ~Hamiltonian() {}
 
   // factory
-  static Hamiltonian* create(const libconfig::Setting &settings, const unsigned int size);
+  static Hamiltonian *create(const libconfig::Setting &settings, const unsigned int size, bool is_cuda_solver);
 
   std::string name() const { return name_; }
 

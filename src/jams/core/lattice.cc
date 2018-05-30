@@ -238,7 +238,7 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions, Coordi
 
     // check the material type is defined
     if (!materials_.contains(atom_name)) {
-      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+      throw jams::runtime_error("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     atom.material = materials_.id(atom_name);
 
@@ -267,7 +267,7 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
   std::ifstream position_file(filename.c_str());
 
   if(position_file.fail()) {
-    throw general_exception("failed to open position file " + filename, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    throw jams::runtime_error("failed to open position file " + filename, __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
   motif_.clear();
@@ -297,7 +297,7 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
     }
     // check the material type is defined
     if (!materials_.contains(atom_name)) {
-      throw general_exception("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+      throw jams::runtime_error("material " + atom_name + " in the motif is not defined in the configuration", __FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     atom.material = materials_.id(atom_name);
     atom.id = motif_.size();
@@ -340,11 +340,11 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
   unitcell = Cell(basis);
 
   if (lattice_parameter < 0.0) {
-    throw general_exception("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    throw jams::runtime_error("lattice parameter cannot be negative", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
   if (lattice_parameter == 0.0) {
-    throw general_exception("lattice parameter cannot be zero", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    throw jams::runtime_error("lattice parameter cannot be zero", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
   if (lattice_parameter < 1e-10) {
@@ -683,7 +683,7 @@ Vec3 Lattice::generate_image_position(
 void Lattice::calc_symmetry_operations() {
 
   if (!symops_enabled_) {
-    throw general_exception("Lattice::calc_symmetry_operations() was called with symops disabled ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    throw jams::runtime_error("Lattice::calc_symmetry_operations() was called with symops disabled ", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 
   cout << "  symmetry analysis\n";

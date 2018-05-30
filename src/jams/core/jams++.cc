@@ -153,7 +153,7 @@ void jams_initialize(int argc, char **argv) {
     } else {
       const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
       for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
-        solver->register_hamiltonian(Hamiltonian::create(hamiltonian_settings[i], globals::num_spins));
+        solver->register_hamiltonian(Hamiltonian::create(hamiltonian_settings[i], globals::num_spins, solver->is_cuda_solver()));
       }
     }
 
@@ -174,7 +174,7 @@ void jams_initialize(int argc, char **argv) {
   catch(const libconfig::SettingNotFoundException &nfex) {
     jams_error("Required config setting not found '%s'", nfex.getPath());
   }
-  catch(const general_exception &gex) {
+  catch(const jams::runtime_error &gex) {
     jams_error("%s", gex.what());
   }
 #if HAS_CUDA

@@ -4,13 +4,16 @@
 #define JAMS_CORE_UTILS_H
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <iomanip>
 #include <locale>
+#include <memory>
 #include <sstream>
 #include <string>
-#include <chrono>
+#include <vector>
+
 #include "jams/core/types.h"
 
 #define likely(x)      __builtin_expect(!!(x), 1)
@@ -128,6 +131,14 @@ bool vec_exists_in_container(const T& container, const Vec3& v1, const double to
 
 inline uint64_t concatenate_32_bit(uint32_t msw, uint32_t lsw) {
   return (uint64_t(msw) << 32) | lsw;
+}
+
+template <class T2, class A2 = std::allocator<T2>>
+auto flatten_vector(const std::vector<T2, A2> &input) -> std::vector<typename T2::value_type> {
+  std::vector<typename T2::value_type> result;
+  for (const auto & v : input)
+    result.insert(result.end(), v.begin(), v.end());
+  return result;
 }
 
 #endif  // JAMS_CORE_UTILS_H
