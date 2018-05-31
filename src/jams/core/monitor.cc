@@ -13,6 +13,7 @@
 #include "jams/monitors/spin_pumping.h"
 #include "jams/monitors/spin_temperature.h"
 #include "jams/monitors/structurefactor.h"
+#include "jams/monitors/scattering_function.h"
 #include "jams/monitors/torque.h"
 #include "jams/monitors/vtu.h"
 #include "jams/monitors/xyz.h"
@@ -98,6 +99,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "SKYRMION") {
     return new SkyrmionMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "SCATTERING-FUNCTION") {
+    return new ScatteringFunctionMonitor(settings);
   }
 
   throw std::runtime_error("unknown monitor " + std::string(settings["module"].c_str()));

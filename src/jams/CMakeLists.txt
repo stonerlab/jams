@@ -153,6 +153,8 @@ target_sources(jams_object_lib
         monitors/skyrmion.h
         monitors/smr.cc
         monitors/smr.h
+        monitors/scattering_function.cc
+        monitors/scattering_function.h
         monitors/spin_pumping.cc
         monitors/spin_pumping.h
         monitors/spin_temperature.cc
