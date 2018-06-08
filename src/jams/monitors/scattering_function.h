@@ -24,9 +24,6 @@ private:
     unsigned num_samples_;
     double t_sample_;
 
-    std::vector<std::complex<double>> fx_t;
-    std::vector<std::complex<double>> fy_t;
-
     std::vector<std::vector<double>> sx_;
     std::vector<std::vector<double>> sy_;
     std::vector<std::vector<double>> sz_;

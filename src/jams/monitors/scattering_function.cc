@@ -11,6 +11,8 @@
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
 #include <jams/helpers/fft.h>
+#include <jams/helpers/stats.h>
+#include <pcg/pcg_random.hpp>
 #include "jams/core/lattice.h"
 
 ScatteringFunctionMonitor::ScatteringFunctionMonitor(const libconfig::Setting &settings) : Monitor(settings) {
@@ -19,50 +21,25 @@ ScatteringFunctionMonitor::ScatteringFunctionMonitor(const libconfig::Setting &s
 
   libconfig::Setting& solver_settings = ::config->lookup("solver");
 
-  num_kpoints_ = 17;
-
-  double t_step = solver_settings["t_step"];
-  double t_run = solver_settings["t_max"];
-
-  t_sample_ = output_step_freq_*t_step;
-  num_samples_ = ceil(t_run/t_sample_);
-  double freq_max    = 1.0/(2.0*t_sample_);
-  double freq_delta  = 1.0/(num_samples_*t_sample_);
 }
 
 void ScatteringFunctionMonitor::update(Solver *solver) {
   using namespace globals;
   using namespace std;
 
-  const double kmax = 0.5;
-  vector<complex<double>> fx_k(num_kpoints_, {0.0, 0.0});
-  vector<complex<double>> fy_k(num_kpoints_, {0.0, 0.0});
+  std::vector<double> sxt(num_spins);
+  std::vector<double> syt(num_spins);
+  std::vector<double> szt(num_spins);
 
-  vector<double> kvec(num_kpoints_, 0.0);
-  for (auto i = 0; i < num_kpoints_; ++i) {
-    kvec[i] = i * kmax/double(num_kpoints_);
+  for (auto i = 0; i < num_spins; ++i) {
+    sxt[i] = s(i, 0);
+    syt[i] = s(i, 1);
+    szt[i] = s(i, 2);
   }
 
-  for (auto k = 0; k < num_kpoints_; ++k) {
-    Vec3 kz = {0, 0, kvec[k]};
-
-    for (auto j = 0; j < num_spins; ++j) {
-      const Vec3 r_j = lattice->atom_position(j);
-      const Vec3 s_j = {s(j, 0), s(j, 1), s(j, 2)};
-
-        fx_k[k] += s_j[0] * exp(-kImagTwoPi * dot(kz, r_j));
-        fy_k[k] += s_j[1] * exp(-kImagTwoPi * dot(kz, r_j));
-      }
-  }
-
-  for (auto k = 0; k < num_kpoints_; ++k) {
-    fx_k[k] /= sqrt(num_spins);
-    fy_k[k] /= sqrt(num_spins);
-  }
-
-  fx_t.insert(fx_t.end(), fx_k.begin(), fx_k.end());
-  fy_t.insert(fy_t.end(), fy_k.begin(), fy_k.end());
-
+  sx_.push_back(sxt);
+  sy_.push_back(syt);
+  sz_.push_back(szt);
 }
 
 bool ScatteringFunctionMonitor::is_converged() {
@@ -72,45 +49,80 @@ bool ScatteringFunctionMonitor::is_converged() {
 ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   using namespace globals;
 
-  const int kpoints = num_kpoints_;
-  const int time_points = static_cast<int>(fx_t.size() / kpoints);
+  std::ofstream cfile(seedname + "_corr.tsv");
 
-  for (auto i = 0; i < time_points; ++i) {
-    for (auto j = 0; j < kpoints; ++j) {
-      fx_t[kpoints * i + j] *= fft_window_default(i, time_points);
-      fy_t[kpoints * i + j] *= fft_window_default(i, time_points);
-    }
-  }
-  
-  auto fx_w = fx_t;
-  auto fy_w = fy_t;
+  double min_radius = 0.0;
+  double max_radius = 8.0;
+  unsigned num_samples = 5000;
+  unsigned num_sub_samples = 200;
+  unsigned num_bins = 16;
+  const double delta = (max_radius - min_radius) / static_cast<double>(num_bins);
 
-  int rank       = 1;
-  int sizeN[]   = {time_points};
-  int howmany    = kpoints;
-  int inembed[] = {time_points}; int onembed[] = {time_points};
-  int istride    = kpoints; int ostride    = kpoints;
-  int idist      = 1;            int odist      = 1;
+  const unsigned num_qvec = 8;
+  const Vec3 qmax = {0.0, 0.0, 0.5};
+  std::vector<Vec3> qvecs(num_qvec, {0.0, 0.0, 0.0});
 
-
-  fftw_plan fft_plan_time_x = fftw_plan_many_dft(rank,sizeN,howmany,
-          reinterpret_cast<fftw_complex*>(fx_w.data()),inembed,istride,idist,
-          reinterpret_cast<fftw_complex*>(fx_w.data()),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
-  fftw_plan fft_plan_time_y = fftw_plan_many_dft(rank,sizeN,howmany,
-          reinterpret_cast<fftw_complex*>(fy_w.data()),inembed,istride,idist,
-          reinterpret_cast<fftw_complex*>(fy_w.data()),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
-
-
-  fftw_execute(fft_plan_time_x);
-  fftw_execute(fft_plan_time_y);
-
-  std::ofstream freqfile("dsf.tsv");
-
-  for (auto i = 0; i < (time_points / 2) + 1; ++i) {
-    for (auto j = 0; j < kpoints; ++j) {
-      freqfile << j << " " << i << " " << fx_w[kpoints * i + j].real() << " " << fx_w[kpoints * i + j].imag() << " " << fy_w[kpoints * i + j].real() << " " << fy_w[kpoints * i + j].imag() << "\n";
-    }
-    freqfile << std::endl;
+  for (auto i = 0; i < num_qvec; ++i){
+    qvecs[i] = qmax * (i / double(num_qvec));
   }
 
+  pcg32 rng;
+  std::vector<unsigned> random_spins(20);
+  for (auto ii = 0; ii < random_spins.size(); ++ii) {
+    random_spins[ii] = rng(num_spins);
+  }
+
+    std::vector<Vec3> r(num_spins);
+  for (auto i = 0; i < num_spins; ++i) {
+    r[i] = lattice->atom_position(i);
+  }
+
+
+
+  for (auto t = 0; t < num_sub_samples; ++t) {
+    std::vector<double> crx(num_bins + 1, 0.0);
+    std::vector<double> cry(num_bins + 1, 0.0);
+    std::vector<unsigned> count(num_bins + 1, 0);
+    std::vector<std::complex<double>> Sq(num_qvec, 0.0);
+
+
+    for (auto t0 = 0; t0 < (num_samples-num_sub_samples); t0+=num_sub_samples/2) {
+      for (auto ii = 0; ii < random_spins.size(); ++ii) {
+        unsigned i = random_spins[ii];
+        for (auto j = 0; j < num_spins; ++j) {
+          const auto rij = lattice->displacement(r[i], r[j]);
+//          const auto R = abs(lattice->displacement(r[i], r[j]));
+
+//          if (R > max_radius) continue;
+
+//          unsigned bin = floor(R / delta);
+
+          for (auto n = 0; n < num_qvec; ++n){
+            const auto Q = qvecs[n];
+            std::complex<double> s_plus_i(sx_[t0+t][i], sy_[t0+t][i]);
+            std::complex<double> s_minus_j(sx_[t0][j], -sy_[t0][j]);
+
+            Sq[n] += (s_plus_i * s_minus_j) * exp(-kImagTwoPi * dot(Q, rij));
+          }
+
+//          crx[bin] += sx_[t0][i] * sx_[t0 + t][j];
+//          cry[bin] += sy_[t0][i] * sy_[t0 + t][j];
+//          count[bin]++;
+        }
+      }
+    }
+//    for (auto n = 0; n < crx.size(); ++n) {
+//      if (count[n] == 0) continue;
+//      crx[n] /= static_cast<double>(count[n]);
+//      cry[n] /= static_cast<double>(count[n]);
+//    }
+//    for (auto n = 0; n < crx.size(); ++n) {
+//      cfile << t << " " << n*delta << " " << crx[n] << " " << cry[n] << " " << count[n] << "\n";
+//    }
+    for (auto n = 0; n < num_qvec; ++n){
+      const auto Q = qvecs[n];
+      cfile << t << " " << Q[2] << " " << Sq[n].real() << " " << Sq[n].imag() << " " << "\n";
+    }
+    cfile << "\n" << std::endl;
+  }
 }
