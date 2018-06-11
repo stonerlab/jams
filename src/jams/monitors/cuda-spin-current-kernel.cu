@@ -103,17 +103,18 @@ Mat3 execute_cuda_spin_current_kernel(
                   dev_spin_current_rz_y,
                   dev_spin_current_rz_z);
 
-  double j_rx_x = cuda_reduce_array(dev_spin_current_rx_x, num_spins);
-  double j_rx_y = cuda_reduce_array(dev_spin_current_rx_y, num_spins);
-  double j_rx_z = cuda_reduce_array(dev_spin_current_rx_z, num_spins);
+  // factor of 1/2 is because we double count (sum i,j and j,i)
+  double j_rx_x = 0.5*cuda_reduce_array(dev_spin_current_rx_x, num_spins);
+  double j_rx_y = 0.5*cuda_reduce_array(dev_spin_current_rx_y, num_spins);
+  double j_rx_z = 0.5*cuda_reduce_array(dev_spin_current_rx_z, num_spins);
 
-  double j_ry_x = cuda_reduce_array(dev_spin_current_ry_x, num_spins);
-  double j_ry_y = cuda_reduce_array(dev_spin_current_ry_y, num_spins);
-  double j_ry_z = cuda_reduce_array(dev_spin_current_ry_z, num_spins);
+  double j_ry_x = 0.5*cuda_reduce_array(dev_spin_current_ry_x, num_spins);
+  double j_ry_y = 0.5*cuda_reduce_array(dev_spin_current_ry_y, num_spins);
+  double j_ry_z = 0.5*cuda_reduce_array(dev_spin_current_ry_z, num_spins);
 
-  double j_rz_x = cuda_reduce_array(dev_spin_current_rz_x, num_spins);
-  double j_rz_y = cuda_reduce_array(dev_spin_current_rz_y, num_spins);
-  double j_rz_z = cuda_reduce_array(dev_spin_current_rz_z, num_spins);
+  double j_rz_x = 0.5*cuda_reduce_array(dev_spin_current_rz_x, num_spins);
+  double j_rz_y = 0.5*cuda_reduce_array(dev_spin_current_rz_y, num_spins);
+  double j_rz_z = 0.5*cuda_reduce_array(dev_spin_current_rz_z, num_spins);
   
   return {j_rx_x, j_rx_y, j_rx_z,
           j_ry_x, j_ry_y, j_ry_z,
