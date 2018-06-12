@@ -28,6 +28,7 @@ private:
     std::vector<std::vector<double>> sy_;
     std::vector<std::vector<double>> sz_;
 
+    std::vector<double> time_correlation(unsigned int i, unsigned int j, unsigned subsample);
 };
 
 #endif //JAMS_SCATTERING_FUNCTION_H
