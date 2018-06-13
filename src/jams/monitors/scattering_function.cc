@@ -81,7 +81,7 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
     qvecs[i] = qmax * (i / double(num_qvec));
   }
 
-  vector<double> wpoints(50, 0.0);
+  vector<double> wpoints(40, 0.0);
   for (auto i = 0; i < wpoints.size(); ++i) {
     wpoints[i] = i * 1.0;
   }
@@ -90,8 +90,8 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
 
   pcg32 rng;
   vector<unsigned> random_spins(10);
-  for (auto ii = 0; ii < random_spins.size(); ++ii) {
-    random_spins[ii] = rng(num_spins);
+  for (unsigned int &random_spin : random_spins) {
+    random_spin = rng(num_spins);
   }
 
   vector<Vec3> r(num_spins);
@@ -102,21 +102,20 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   vector<Complex> result(num_sub_samples + num_samples - 1, 0.0);
 
   vector<vector<Complex>> SQw(qvecs.size());
-  for (auto i = 0; i < SQw.size(); ++i) {
-    SQw[i] = std::vector<Complex>(wpoints.size(), {0.0, 0.0});
+  for (auto &i : SQw) {
+    i = std::vector<Complex>(wpoints.size(), {0.0, 0.0});
   }
-//  jblib::Array<Complex, 2> SQw(qvecs.size(), wpoints.size());
-//  SQw.zero();
 
   const double delta_t = 1e-15 / 1e-12; // ps
+  const double lambda = 0.1;
 
   for (const auto i : random_spins) {
 #pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r, std::cout)
-    for (auto j = 0; j < globals::num_spins; ++j) {
+    for (unsigned j = 0; j < globals::num_spins; ++j) {
       std::cout << i << " " << j << std::endl;
 
       const auto R = lattice->displacement(r[i], r[j]);
-      const auto correlation = time_correlation(i, j, 200);
+      const auto correlation = time_correlation(i, j, 300);
 
       // spatial fourier transform
       unsigned nq = 0;
@@ -126,7 +125,7 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
           Complex sum = 0.0;
           for (auto n = 0; n < correlation.size(); ++n) {
             const double t = n * delta_t;
-            sum += - kImagOne * correlation[n] * exp(kImagTwoPi * dot(Q, R)) * exp(kImagTwoPi * w * t);
+            sum += - kImagOne * correlation[n] * exp(kImagTwoPi * (dot(Q, R) + w * t) - lambda * t);
           }
 #pragma omp critical
           {
