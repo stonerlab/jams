@@ -43,7 +43,15 @@ public:
     bool is_converged();
 
 private:
+    void write_spin_current_h5_file(const std::string &h5_file_name);
+    void open_new_xdmf_file(const std::string &xdmf_file_name);
+    void update_xdmf_file(const std::string &h5_file_name);
+
     CudaStream stream;
+
+    bool do_h5_output;
+    unsigned h5_output_steps;
+    FILE*        xdmf_file_;
 
     std::ofstream outfile;
 

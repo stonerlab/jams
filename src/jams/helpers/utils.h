@@ -87,12 +87,12 @@ inline bool string_is_comment(const std::string& s) {
 }
 
 // Lifted from http://www.cplusplus.com/forum/general/15952/
-inline std::string zero_pad_number(const int num) {
+inline std::string zero_pad_number(const int num, const int width = 7) {
     std::ostringstream ss;
-    ss << std::setw(7) << std::setfill('0') << num;
+    ss << std::setw(width) << std::setfill('0') << num;
     std::string result = ss.str();
-    if (result.length() > 7) {
-        result.erase(0, result.length() - 7);
+    if (result.length() > width) {
+        result.erase(0, result.length() - width);
     }
     return result;
 }
