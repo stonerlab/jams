@@ -127,15 +127,19 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
       unsigned nq = 0;
       for (const auto &Q : qvecs) {
         unsigned nw = 0;
+        const auto exp_QR = exp(kImagTwoPi * dot(Q, R));
         for (const auto &w : wpoints) {
-          Complex sum = 0.0;
-          for (auto n = 0; n < correlation.size(); ++n) {
-            const double t = n * delta_t;
-            sum += - kImagOne * correlation[n] * exp(kImagTwoPi * (dot(Q, R) + w * t) - lambda * t);
+          // n = 0
+          Complex sum = correlation[0] * exp_QR;
+
+          auto exp_wt = exp(kImagTwoPi * w * delta_t);
+          for (auto n = 1; n < correlation.size(); ++n) {
+             sum += correlation[n] * exp_QR * exp_wt;
+             exp_wt *= exp_wt;
           }
 #pragma omp critical
           {
-            SQw[nq][nw] += sum;
+            SQw[nq][nw] += -kImagOne * sum;
           };
           nw++;
         }
