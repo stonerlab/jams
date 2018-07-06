@@ -14,6 +14,7 @@
 #include <jams/helpers/fft.h>
 #include <jams/helpers/stats.h>
 #include "jams/helpers/duration.h"
+#include "jams/helpers/random.h"
 #include <pcg/pcg_random.hpp>
 #include "jams/core/lattice.h"
 
@@ -50,17 +51,18 @@ bool ScatteringFunctionMonitor::is_converged() {
 }
 
 std::vector<double> ScatteringFunctionMonitor::time_correlation(unsigned i, unsigned j, unsigned subsample){
-  unsigned n_a = sx_.size();
-  unsigned n_b = subsample;
+  const unsigned n_a = sx_.size();
+  const unsigned n_b = subsample;
 
   std::vector<double> out(n_a + n_b - 1, 0.0);
 
   for (auto m = 0; m < n_a + n_b - 1; ++m) {
-    double sum = 0.0;
     for (auto n = 0; n < n_b; ++n) {
-      sum += ((n < n_a) && (m + n < n_b)) ? sx_[n][i]*sx_[m + n][j] + sy_[n][i]*sy_[m + n][j] : 0.0;
+      if ((n > n_a) || (m + n > n_b)) {
+        continue;
+      }
+      out[m] += sx_[n][i] * sx_[m + n][j] + sy_[n][i] * sy_[m + n][j];
     }
-    out[m] = sum;
   }
   return out;
 }
@@ -69,6 +71,7 @@ std::vector<double> ScatteringFunctionMonitor::time_correlation(unsigned i, unsi
 ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   using namespace std;
   using namespace std::chrono;
+  using namespace std::placeholders;
   using namespace globals;
   using Complex = std::complex<double>;
 
@@ -86,18 +89,17 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
 
   vector<Vec3> qvecs(num_qvec, {0.0, 0.0, 0.0});
   for (auto i = 0; i < num_qvec; ++i){
-    qvecs[i] = qmax * (i / double(num_qvec));
+    qvecs[i] = qmax * (i / double(num_qvec-1));
   }
 
-  vector<double> wpoints(40, 0.0);
+  vector<double> wpoints(100, 0.0);
   for (auto i = 0; i < wpoints.size(); ++i) {
     wpoints[i] = i * 1.0;
   }
 
-  pcg32 rng;
-  vector<unsigned> random_spins(10);
+  vector<unsigned> random_spins(512);
   for (unsigned int &random_spin : random_spins) {
-    random_spin = rng(num_spins);
+    random_spin = jams::random_generator()(num_spins);
   }
 
   vector<Vec3> r(num_spins);
@@ -112,38 +114,33 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
     i = std::vector<Complex>(wpoints.size(), {0.0, 0.0});
   }
 
-  const double delta_t = 1e-15 / 1e-12; // ps
-  const double lambda = 0.1;
+  const double delta_t = 50 * 1e-16 / 1e-12; // ps
+  const double lambda = 0.01;
 
-  for (const auto i : random_spins) {
-#pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r)
+//  for (const auto i : random_spins) {
+  for (unsigned i = 0; i < globals::num_spins; ++i) {
+#pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r, qvecs, wpoints,i)
     for (unsigned j = 0; j < globals::num_spins; ++j) {
-//      std::cout << i << " " << j << std::endl;
-
       const auto R = lattice->displacement(r[i], r[j]);
       const auto correlation = time_correlation(i, j, 300);
 
-      // spatial fourier transform
-      unsigned nq = 0;
-      for (const auto &Q : qvecs) {
-        unsigned nw = 0;
-        const auto exp_QR = exp(kImagTwoPi * dot(Q, R));
-        for (const auto &w : wpoints) {
-          // n = 0
-          Complex sum = correlation[0] * exp_QR;
+      for (auto q = 0; q < qvecs.size(); ++q) {
+        const auto exp_QR = exp(kImagTwoPi * dot(qvecs[q], R));
 
-          auto exp_wt = exp(kImagTwoPi * w * delta_t);
+        for (auto w = 0; w < wpoints.size(); ++w) {
+          const Complex exp_wt = std::exp((kImagTwoPi * wpoints[w] - lambda) * delta_t);
+          Complex exp_wt_n = exp_wt;
+
+          Complex sum = correlation[0];
           for (auto n = 1; n < correlation.size(); ++n) {
-             sum += correlation[n] * exp_QR * exp_wt;
-             exp_wt *= exp_wt;
+            sum += correlation[n] * exp_wt_n;
+            exp_wt_n *= exp_wt;
           }
 #pragma omp critical
           {
-            SQw[nq][nw] += -kImagOne * sum;
+            SQw[q][w] += -kImagOne * sum * exp_QR;
           };
-          nw++;
         }
-        nq++;
       }
     }
   }
@@ -159,7 +156,7 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   for (const auto Q : qvecs) {
     unsigned nw = 0;
     for (const auto w : wpoints) {
-        cfile << Q[2] << " " << w << " " << real(SQw[nq][nw]) << " " << imag(SQw[nq][nw]) << std::endl;
+        cfile << Q[2] << " " << w << " " << real(SQw[nq][nw])/globals::num_spins << " " << imag(SQw[nq][nw])/globals::num_spins << std::endl;
       nw++;
     }
     nq++;
