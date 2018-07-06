@@ -4,8 +4,8 @@
 #include <string>
 #include <sstream>
 #include <set>
-#include <jams/core/interactions.h>
 
+#include "jams/core/interactions.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
@@ -121,12 +121,6 @@ namespace { //anon
 
     node = {-1, -1, -1, -1};
 
-    const auto index_material_id = lattice->motif_atom(motif_index).material;
-    // only process for interactions belonging to this type
-    if (lattice->material(index_material_id).name != interaction.type_i) {
-      return false;
-    }
-
     Vec3 p_ij_frac = lattice->motif_atom(motif_index).pos;
     Vec3 r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
 
@@ -136,12 +130,6 @@ namespace { //anon
 
     // does an atom exist at the motif position
     if (nbr_motif_index == -1) {
-      return false;
-    }
-
-    const auto nbr_material_id = lattice->motif_atom(nbr_motif_index).material;
-    // is the nbr atom of the type specified
-    if (lattice->material(nbr_material_id).name != interaction.type_j) {
       return false;
     }
 
@@ -190,7 +178,7 @@ namespace { //anon
           if (unique_interactions.insert(new_node).second == true) {
             // it is new (unique)
             unfolded_interaction_data.push_back(symops_interaction);
-            interactions.insert(i, interaction_counter, {new_node, interaction.J_ij});
+            interactions.insert(i, interaction_counter, {new_node, interaction.type_i, interaction.type_j, interaction.J_ij});
             interaction_counter++;
           }
         }
@@ -395,7 +383,10 @@ namespace { //anon
           throw std::runtime_error("Inconsistency in the KKR exchange templates");
         }
 
-        interactions.insert(interaction.pos_i, interaction_counter, {inode, interaction.J_ij});
+        auto material_i = lattice->material_name(lattice->motif_atom(interaction.pos_i).material);
+        auto material_j = lattice->material_name(lattice->motif_atom(interaction.pos_j).material);
+
+        interactions.insert(interaction.pos_i, interaction_counter, {inode, material_i, material_j, interaction.J_ij});
 
         interaction_counter++;
         line_number++;
@@ -438,6 +429,8 @@ namespace { //anon
             for (auto const pair: interaction_template[m]) {
 
               const inode_t node_j = pair.second.node;
+              const auto material_i = pair.second.type_i;
+              const auto material_j = pair.second.type_j;
               const Mat3 tensor = pair.second.value;
 
 
@@ -445,6 +438,15 @@ namespace { //anon
 
               if (neighbour_index == -1) {
                 // no neighbour found
+                continue;
+              }
+
+              // catch if the site has a different material (presumably an impurity site)
+              if (lattice->material_name(lattice->atom_material_id(local_site)) != material_i) {
+                continue;
+              }
+
+              if (lattice->material_name(lattice->atom_material_id(neighbour_index)) != material_j) {
                 continue;
               }
 
