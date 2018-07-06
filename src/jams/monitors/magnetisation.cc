@@ -78,8 +78,10 @@ void MagnetisationMonitor::update(Solver * solver) {
     }
 
     for (auto i = 0; i < lattice->num_materials(); ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        mag(i, j) = mag(i, j)/static_cast<double>(material_count_[i]);
+      if (material_count_[i] > 0) {
+        for (auto j = 0; j < 3; ++j) {
+          mag(i, j) = mag(i, j) / static_cast<double>(material_count_[i]);
+        }
       }
     }
 

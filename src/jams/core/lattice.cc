@@ -386,6 +386,12 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
   cout << "    size " << lattice_dimensions << "\n";
   cout << "    periodic " << lattice_periodic << "\n";
   cout << "\n";
+
+  if(settings.exists("impurities")) {
+    impurity_map_ = read_impurities_from_config(settings["impurities"]);
+    impurity_seed_ = jams::config_optional<unsigned>(settings, "impurities_seed", jams::random_generator()());
+    cout << "  impurity seed " << impurity_seed_ << "\n";
+  }
 }
 
 void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings) {
@@ -538,8 +544,12 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   supercell_indicies_.reserve(expected_num_atoms);
   atoms_.reserve(expected_num_atoms);
 
+  auto impurity_rand = std::bind(std::uniform_real_distribution<>(), pcg32(impurity_seed_));
+
   // loop over the translation vectors for lattice size
   int atom_counter = 0;
+  std::vector<size_t> type_counter(materials_.size(), 0);
+
   for (auto i = 0; i < lattice_dimensions[0]; ++i) {
     for (auto j = 0; j < lattice_dimensions[1]; ++j) {
       for (auto k = 0; k < lattice_dimensions[2]; ++k) {
@@ -548,6 +558,11 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
           auto translation = Vec3i{{i, j, k}};
           auto position    = generate_position(motif_[m].pos, translation);
           auto material    = motif_[m].material;
+          auto impurity    = impurity_map_[material];
+
+          if (impurity_rand() < impurity.fraction) {
+            material = impurity.material;
+          }
 
           atoms_.push_back({atom_counter, material, position});
           supercell_indicies_.push_back(translation);
@@ -555,10 +570,20 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
           // number the site in the fast integer lattice
           lattice_map_(i, j, k, m) = atom_counter;
 
+          type_counter[material]++;
           atom_counter++;
         }
       }
     }
+  }
+
+  if (atom_counter == 0) {
+    jams_error("the number of computed lattice sites was zero, check input");
+  }
+
+  cout << "    lattice material count\n";
+  for (auto n = 0; n < type_counter.size(); ++n) {
+    cout << "      " << materials_.name(n) << ": " << type_counter[n] << "\n";
   }
 
   // store max coordinates
@@ -628,6 +653,14 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
       Vec3 s_init = uniform_random_sphere(rng);
       for (auto n = 0; n < 3; ++n) {
         globals::s(i, n) = s_init[n];
+      }
+    }
+
+    // lattice vacancies
+    if (material.moment == 0.0 || material.spin == Vec3{0.0, 0.0, 0.0}) {
+      globals::mus(i) = 0.0;
+      for (auto n = 0; n < 3; ++n) {
+        globals::s(i, n) = 0.0;
       }
     }
   }
@@ -1010,6 +1043,40 @@ const Mat3 &Lattice::get_global_rotation_matrix() {
 
 bool Lattice::material_exists(const string &name) {
   return materials_.contains(name);
+}
+
+Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setting &settings) {
+  Lattice::ImpurityMap impurities;
+
+  size_t materialA, materialB;
+  for (auto n = 0; n < settings.getLength(); ++n) {
+    try {
+      materialA = materials_.id(settings[n][0].c_str());
+    }
+    catch(std::out_of_range &e) {
+      jams_error("impurity %d materialA (%s) does not exist", n, settings[n][0].c_str());
+    }
+
+    try {
+      materialB = materials_.id(settings[n][1].c_str());
+    }
+    catch(std::out_of_range &e) {
+      jams_error("impurity %d materialB (%s) does not exist", n, settings[n][1].c_str());
+    }
+
+    auto fraction  = double(settings[n][2]);
+
+    if (fraction < 0.0 || fraction >= 1.0) {
+      jams_error("impurity %d fraction must be 0 =< x < 1", n);
+    }
+
+    Impurity imp = {materialB, fraction};
+
+    if(impurities.emplace(materialA, imp).second == false) {
+      jams_error("impurity %d defined redefines a previous impurity", n);
+    }
+  }
+  return impurities;
 }
 
 

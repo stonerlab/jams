@@ -52,6 +52,8 @@ inline bool operator <(const inode_t& x, const inode_t& y) {
 
 typedef struct {
   inode_t node;
+  std::string type_i;
+  std::string type_j;
   Mat3    value;
 } inode_pair_t;
 

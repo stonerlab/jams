@@ -103,7 +103,7 @@ void HeunLLGSolver::run() {
       s(i, j) = s(i, j) + dt*rhs[j];
     }
 
-    norm = 1.0/sqrt(s(i, 0)*s(i, 0) + s(i, 1)*s(i, 1) + s(i, 2)*s(i, 2));
+    norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
 
     for (j = 0; j < 3; ++j) {
       s(i, j) = s(i, j)*norm;
@@ -139,7 +139,7 @@ void HeunLLGSolver::run() {
       s(i, j) = snew(i, j) + 0.5*dt*rhs[j];
     }
 
-    norm = 1.0/sqrt(s(i, 0)*s(i, 0) + s(i, 1)*s(i, 1) + s(i, 2)*s(i, 2));
+    norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
 
     for (j = 0; j < 3; ++j) {
       s(i, j) = s(i, j)*norm;

@@ -15,6 +15,14 @@
 
 using std::pow;
 
+inline double zero_safe_recip_norm(double x, double y, double z) {
+  if (x == 0.0 && y == 0.0 && z == 0.0) {
+    return 0.0;
+  }
+
+  return 1.0 / sqrt(x*x + y*y + z*z);
+}
+
 inline double square(const double &x) {
   return x*x;
 }

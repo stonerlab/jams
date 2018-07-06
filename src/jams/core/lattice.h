@@ -24,9 +24,15 @@ extern "C" {
 #include "jams/containers/material.h"
 #include "jams/containers/cell.h"
 
+struct Impurity {
+    size_t   material;
+    double   fraction;
+};
+
 class Lattice : public Base {
 public:
     using MaterialMap = NameIdMap<Material>;
+    using ImpurityMap = std::map<size_t, Impurity>;
 
     Lattice() = default;
 
@@ -97,6 +103,7 @@ public:
 
 private:
     void read_materials_from_config(const libconfig::Setting &settings);
+    ImpurityMap read_impurities_from_config(const libconfig::Setting &settings);
 
     void read_unitcell_from_config(const libconfig::Setting &settings);
 
@@ -134,7 +141,8 @@ private:
     std::vector<Atom> motif_;
     std::vector<Atom> atoms_;
     MaterialMap       materials_;
-
+    unsigned          impurity_seed_;
+    ImpurityMap       impurity_map_;
     std::vector<Vec3i> supercell_indicies_;
     jblib::Array<int, 4> lattice_map_;
 

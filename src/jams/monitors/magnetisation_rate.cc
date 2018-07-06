@@ -74,8 +74,10 @@ void MagnetisationRateMonitor::update(Solver * solver) {
     }
 
     for (i = 0; i < lattice->num_materials(); ++i) {
-      for (j = 0; j < 3; ++j) {
-        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(material_count[i]);
+      if (material_count[i] > 0) {
+        for (j = 0; j < 3; ++j) {
+          dm_dt(i, j) = dm_dt(i, j) / static_cast<double>(material_count[i]);
+        }
       }
     }
 
