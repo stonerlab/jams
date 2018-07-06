@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <complex>
+#include <chrono>
 
 #include "jams/monitors/scattering_function.h"
 
@@ -12,6 +13,7 @@
 #include <jams/core/globals.h>
 #include <jams/helpers/fft.h>
 #include <jams/helpers/stats.h>
+#include "jams/helpers/duration.h"
 #include <pcg/pcg_random.hpp>
 #include "jams/core/lattice.h"
 
@@ -66,8 +68,14 @@ std::vector<double> ScatteringFunctionMonitor::time_correlation(unsigned i, unsi
 
 ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   using namespace std;
+  using namespace std::chrono;
   using namespace globals;
   using Complex = std::complex<double>;
+
+  cout << "calculating correlation function" << std::endl;
+  auto start_time = time_point_cast<milliseconds>(system_clock::now());
+  cout << "start   " << get_date_string(start_time) << "\n\n";
+  cout.flush();
 
 
   unsigned num_samples = sx_.size();
@@ -85,8 +93,6 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   for (auto i = 0; i < wpoints.size(); ++i) {
     wpoints[i] = i * 1.0;
   }
-
-
 
   pcg32 rng;
   vector<unsigned> random_spins(10);
@@ -110,9 +116,9 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   const double lambda = 0.1;
 
   for (const auto i : random_spins) {
-#pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r, std::cout)
+#pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r)
     for (unsigned j = 0; j < globals::num_spins; ++j) {
-      std::cout << i << " " << j << std::endl;
+//      std::cout << i << " " << j << std::endl;
 
       const auto R = lattice->displacement(r[i], r[j]);
       const auto correlation = time_correlation(i, j, 300);
@@ -137,6 +143,11 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
       }
     }
   }
+
+  auto end_time = time_point_cast<milliseconds>(system_clock::now());
+  cout << "finish  " << get_date_string(end_time) << "\n\n";
+  cout << "runtime " << duration_string(end_time - start_time) << "\n";
+  cout.flush();
 
   std::ofstream cfile(seedname + "_corr.tsv");
 

@@ -19,7 +19,7 @@ void tuple_for_each(const Container& c, Fun fun)
     fun(std::get<0>(e), std::get<1>(e), std::get<2>(e));
 }
 
-std::string duration_string(std::chrono::milliseconds time)
+inline std::string duration_string(std::chrono::milliseconds time)
 {
   using namespace std::chrono;
 
