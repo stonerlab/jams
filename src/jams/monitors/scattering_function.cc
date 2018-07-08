@@ -5,6 +5,7 @@
 #include <vector>
 #include <complex>
 #include <chrono>
+#include <cmath>
 
 #include "jams/monitors/scattering_function.h"
 
@@ -17,6 +18,17 @@
 #include "jams/helpers/random.h"
 #include <pcg/pcg_random.hpp>
 #include "jams/core/lattice.h"
+
+namespace {
+    template <typename T>
+    T polynomial_sum(T x, const std::vector<double> &coeffs) {
+      // Horner's method
+      auto lambda = [&](T sum, double element){
+        return sum * x + element;
+      };
+      return std::accumulate(coeffs.rbegin(), coeffs.rend(), T{0.0}, lambda);
+    }
+}
 
 
 ScatteringFunctionMonitor::ScatteringFunctionMonitor(const libconfig::Setting &settings) : Monitor(settings) {
@@ -122,31 +134,26 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
 
   for (unsigned i = 0; i < globals::num_spins; ++i) {
     if (is_vacancy[i]) continue;
+
     std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " " << i << std::endl;
-    #pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r, qvecs, wpoints,i,is_vacancy)
+
+    #pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r, qvecs, wpoints,i,is_vacancy,std::cout)
     for (unsigned j = i; j < globals::num_spins; ++j) {
       if (is_vacancy[j]) continue;
+
       const auto R = lattice->displacement(r[i], r[j]);
       const auto correlation = time_correlation(i, j, num_sub_samples);
-
-      // precalculate qfactors
 
       vector<double> qfactors(qvecs.size());
       for (auto q = 0; q < qvecs.size(); ++q) {
         // cosine transform because we use R_ji = -R_ij
-        // TODO factorize cos(n theta) with chebyshev polynomial
         qfactors[q] = 2.0 * cos(kTwoPi * dot(qvecs[q], R));
       }
 
+      // TODO refactor w look and polynomial sum into FFT
       for (auto w = 0; w < wpoints.size(); ++w) {
         const Complex exp_wt = std::exp((kImagTwoPi * wpoints[w] - lambda) * delta_t);
-        Complex exp_wt_n = exp_wt;
-
-        Complex sum = correlation[0];
-        for (auto n = 1; n < correlation.size(); ++n) {
-          sum += correlation[n] * exp_wt_n;
-          exp_wt_n *= exp_wt;
-        }
+        const auto sum = polynomial_sum(exp_wt, correlation);
         for (auto q = 0; q < qfactors.size(); ++q) {
 #pragma omp critical
           {
