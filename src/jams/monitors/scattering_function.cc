@@ -81,25 +81,23 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   cout.flush();
 
 
-  unsigned num_samples = sx_.size();
-  unsigned num_sub_samples = 200;
+  const unsigned num_samples = sx_.size();
+  const unsigned num_sub_samples = 200;
 
-  const unsigned num_qvec = 5;
-  const Vec3 qmax = {0.0, 0.0, 0.5};
+  const unsigned num_qvec = 129;
+  const Vec3 qmax = {0.0, 0.0, 50.0};
+
+  const unsigned num_w = 100;
+  const double wmax = 100.0;
 
   vector<Vec3> qvecs(num_qvec, {0.0, 0.0, 0.0});
   for (auto i = 0; i < num_qvec; ++i){
     qvecs[i] = qmax * (i / double(num_qvec-1));
   }
 
-  vector<double> wpoints(100, 0.0);
-  for (auto i = 0; i < wpoints.size(); ++i) {
-    wpoints[i] = i * 1.0;
-  }
-
-  vector<unsigned> random_spins(512);
-  for (unsigned int &random_spin : random_spins) {
-    random_spin = jams::random_generator()(num_spins);
+  vector<double> wpoints(num_w, 0.0);
+  for (auto i = 0; i < num_w; ++i) {
+    wpoints[i] = wmax * (i / double(num_w-1));
   }
 
   vector<Vec3> r(num_spins);
@@ -107,7 +105,6 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
     r[i] = lattice->atom_position(i);
   }
 
-  vector<Complex> result(num_sub_samples + num_samples - 1, 0.0);
   vector<bool> is_vacancy(num_spins, false);
   for (auto i = 0; i < num_spins; ++i) {
     if (s(i, 0) == 0.0 && s(i, 1) == 0.0 && s(i, 2) == 0.0) {
@@ -120,56 +117,58 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
     i = std::vector<Complex>(wpoints.size(), {0.0, 0.0});
   }
 
-  const double delta_t = 50 * 1e-16 / 1e-12; // ps
+  const double delta_t = output_step_freq_ * solver->real_time_step() / 1e-12; // ps
   const double lambda = 0.01;
 
-//  for (const auto i : random_spins) {
   for (unsigned i = 0; i < globals::num_spins; ++i) {
-#pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r, qvecs, wpoints,i)
-    for (unsigned j = 0; j < globals::num_spins; ++j) {
     if (is_vacancy[i]) continue;
+    std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " " << i << std::endl;
     #pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r, qvecs, wpoints,i,is_vacancy)
+    for (unsigned j = i; j < globals::num_spins; ++j) {
       if (is_vacancy[j]) continue;
       const auto R = lattice->displacement(r[i], r[j]);
-      const auto correlation = time_correlation(i, j, 300);
+      const auto correlation = time_correlation(i, j, num_sub_samples);
 
+      // precalculate qfactors
+
+      vector<double> qfactors(qvecs.size());
       for (auto q = 0; q < qvecs.size(); ++q) {
-        const auto exp_QR = exp(kImagTwoPi * dot(qvecs[q], R));
+        // cosine transform because we use R_ji = -R_ij
+        // TODO factorize cos(n theta) with chebyshev polynomial
+        qfactors[q] = 2.0 * cos(kTwoPi * dot(qvecs[q], R));
+      }
 
-        for (auto w = 0; w < wpoints.size(); ++w) {
-          const Complex exp_wt = std::exp((kImagTwoPi * wpoints[w] - lambda) * delta_t);
-          Complex exp_wt_n = exp_wt;
+      for (auto w = 0; w < wpoints.size(); ++w) {
+        const Complex exp_wt = std::exp((kImagTwoPi * wpoints[w] - lambda) * delta_t);
+        Complex exp_wt_n = exp_wt;
 
-          Complex sum = correlation[0];
-          for (auto n = 1; n < correlation.size(); ++n) {
-            sum += correlation[n] * exp_wt_n;
-            exp_wt_n *= exp_wt;
-          }
+        Complex sum = correlation[0];
+        for (auto n = 1; n < correlation.size(); ++n) {
+          sum += correlation[n] * exp_wt_n;
+          exp_wt_n *= exp_wt;
+        }
+        for (auto q = 0; q < qfactors.size(); ++q) {
 #pragma omp critical
           {
-            SQw[q][w] += -kImagOne * sum * exp_QR;
+            SQw[q][w] += -kImagOne * sum * qfactors[q];
           };
         }
       }
     }
+
+    std::ofstream cfile(seedname + "_corr.tsv");
+    for (auto q = 0; q < qvecs.size(); ++q) {
+      for (auto w = 0; w < wpoints.size(); ++w) {
+        cfile << qvecs[q][0] << " " << qvecs[q][1] << " " << qvecs[q][2] << " " << wpoints[w] << " " << real(SQw[q][w])/(i+1) << " " << imag(SQw[q][w])/(i+1) << "\n";
+      }
+    }
+    cfile.flush();
+    cfile.close();
   }
 
   auto end_time = time_point_cast<milliseconds>(system_clock::now());
   cout << "finish  " << get_date_string(end_time) << "\n\n";
   cout << "runtime " << duration_string(end_time - start_time) << "\n";
   cout.flush();
-
-  std::ofstream cfile(seedname + "_corr.tsv");
-
-  unsigned nq = 0;
-  for (const auto Q : qvecs) {
-    unsigned nw = 0;
-    for (const auto w : wpoints) {
-        cfile << Q[2] << " " << w << " " << real(SQw[nq][nw])/globals::num_spins << " " << imag(SQw[nq][nw])/globals::num_spins << std::endl;
-      nw++;
-    }
-    nq++;
-  }
-
 
 }
