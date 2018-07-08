@@ -68,8 +68,8 @@ ScatteringFunctionMonitor::ScatteringFunctionMonitor(const libconfig::Setting &s
   cout << "\n";
 
 
-  spin_data_.resize(num_samples, globals::num_spins);
-
+  spin_data_.resize(globals::num_spins, num_samples);
+  spin_data_.zero();
 }
 
 void ScatteringFunctionMonitor::update(Solver *solver) {
@@ -77,7 +77,7 @@ void ScatteringFunctionMonitor::update(Solver *solver) {
   using namespace std;
 
   for (auto i = 0; i < num_spins; ++i) {
-    spin_data_(time_point_counter_, i) = {s(i,0), s(i,1)};
+    spin_data_(i, time_point_counter_) = {s(i,0), s(i,1)};
   }
 
   time_point_counter_++;
@@ -135,9 +135,9 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   //---------------------------------------------------------------------
   int rank            = 1;
   int stride          = 1;
-  int dist            = (int) spin_data_.size(0); // num_samples
-  int num_transforms  = (int) spin_data_.size(1); // num_spins
-  int transform_size[1]  = {(int) spin_data_.size(0)};
+  int dist            = (int) spin_data_.size(1); // num_samples
+  int num_transforms  = (int) spin_data_.size(0); // num_spins
+  int transform_size[1]  = {(int) spin_data_.size(1)};
 
   int * nembed = nullptr;
 
@@ -155,7 +155,7 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
           nembed,                  // number of embedded dimensions
           stride,                  // memory stride between elements of one fft dataset
           dist,                    // memory distance between fft datasets
-          FFTW_BACKWARD,
+          FFTW_FORWARD,
           FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
 
   std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " done" << std::endl;
@@ -170,7 +170,7 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   //---------------------------------------------------------------------
 
 
-  const unsigned num_samples = (unsigned) spin_data_.size(0);
+  const unsigned num_samples = (unsigned) spin_data_.size(1);
   const unsigned num_sub_samples = 200;
 
   const unsigned num_qvec = 65;
@@ -215,22 +215,19 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
     for (unsigned j = i; j < globals::num_spins; ++j) {
       if (is_vacancy[j]) continue;
 
-      const auto R = lattice->displacement(r[i], r[j]);
-      const auto qfactors = generate_expQR(qvecs, R);
+      const auto qfactors = generate_expQR(qvecs, lattice->displacement(r[i], r[j]));
 
       #pragma omp parallel for default(none) shared(SQw, wpoints,i,j)
       for (unsigned w = 0; w < num_samples / 2 + 1; ++w) {
         for (unsigned q = 0; q < qfactors.size(); ++q) {
-          {
-            SQw(q,w) +=  fast_multiply({0.0, -qfactors[q]}, fast_multiply(spin_data_(w,i) , spin_data_(w,j)));
-          };
+          SQw(q,w) += -kImagOne * qfactors[q] * spin_data_(i,w) * spin_data_(j,w);
         }
       }
     }
 
     std::ofstream cfile(seedname + "_corr.tsv");
-    for (auto q = 0; q < qvecs.size(); ++q) {
-      for (auto w = 0; w <  num_samples / 2 + 1; ++w) {
+    for (unsigned q = 0; q < qvecs.size(); ++q) {
+      for (unsigned w = 0; w <  num_samples / 2 + 1; ++w) {
         cfile << qvecs[q][0] << " " << qvecs[q][1] << " " << qvecs[q][2] << " " << w*freq_delta_ << " " << real(SQw(q,w))/(i+1) << " " << imag(SQw(q,w))/(i+1) << "\n";
       }
     }
