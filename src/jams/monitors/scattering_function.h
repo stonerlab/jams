@@ -10,6 +10,8 @@
 #include <vector>
 #include <complex>
 
+#include "jblib/containers/array.h"
+
 class ScatteringFunctionMonitor : public Monitor {
 public:
     ScatteringFunctionMonitor(const libconfig::Setting &settings);
@@ -23,6 +25,10 @@ private:
     unsigned num_kpoints_;
     unsigned num_samples_;
     double t_sample_;
+    double freq_delta_;
+    unsigned time_point_counter_ = 0;
+
+    jblib::Array<std::complex<double>, 2> spin_data_;
 
     std::vector<std::vector<double>> sx_;
     std::vector<std::vector<double>> sy_;
