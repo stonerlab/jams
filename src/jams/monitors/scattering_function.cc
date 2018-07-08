@@ -108,6 +108,12 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   }
 
   vector<Complex> result(num_sub_samples + num_samples - 1, 0.0);
+  vector<bool> is_vacancy(num_spins, false);
+  for (auto i = 0; i < num_spins; ++i) {
+    if (s(i, 0) == 0.0 && s(i, 1) == 0.0 && s(i, 2) == 0.0) {
+      is_vacancy[i] = true;
+    }
+  }
 
   vector<vector<Complex>> SQw(qvecs.size());
   for (auto &i : SQw) {
@@ -121,6 +127,9 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   for (unsigned i = 0; i < globals::num_spins; ++i) {
 #pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r, qvecs, wpoints,i)
     for (unsigned j = 0; j < globals::num_spins; ++j) {
+    if (is_vacancy[i]) continue;
+    #pragma omp parallel for default(none) shared(SQw, globals::num_spins, lattice, r, qvecs, wpoints,i,is_vacancy)
+      if (is_vacancy[j]) continue;
       const auto R = lattice->displacement(r[i], r[j]);
       const auto correlation = time_correlation(i, j, 300);
 
