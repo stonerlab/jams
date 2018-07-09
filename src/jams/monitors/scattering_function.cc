@@ -19,18 +19,20 @@
 #include <pcg/pcg_random.hpp>
 #include "jams/core/lattice.h"
 
+using Complex = std::complex<double>;
+
 namespace {
-    using Complex = std::complex<double>;
 
     inline Complex fast_multiply(const Complex &x, const Complex &y) {
       return {x.real() * y.real() - x.imag() * y.imag(),
         x.real()*y.imag() + x.imag() * y.real()};
     }
 
-    inline Complex fast_multiply_conj(const Complex &x, const Complex &y) {
-      return {x.real() * y.real() + x.imag() * y.imag(),
-              -x.real()*y.imag() + x.imag() * y.real()};
+    inline Complex fast_multiply(const fftw_complex &x, const fftw_complex &y) {
+      return {x[0] * y[0] - x[1] * y[1],
+              x[0] * y[1] + x[1] * y[0]};
     }
+
     std::vector<double> generate_expQR(const std::vector<Vec3> &qvecs, const Vec3& R) {
       std::vector<double> result(qvecs.size());
       for (auto q = 0; q < result.size(); ++q) {
@@ -55,20 +57,23 @@ ScatteringFunctionMonitor::ScatteringFunctionMonitor(const libconfig::Setting &s
   double t_run = solver_settings["t_max"];
 
   double t_sample = output_step_freq_*t_step;
-  int    num_samples = ceil(t_run/t_sample);
+  num_samples_ = ceil(t_run/t_sample);
   double freq_max    = 1.0/(2.0*t_sample);
-  freq_delta_  = 1.0/(num_samples*t_sample);
+  freq_delta_  = 1.0/(num_samples_*t_sample);
 
   cout << "\n";
-  cout << "  number of samples " << num_samples << "\n";
+  cout << "  number of samples " << num_samples_ << "\n";
   cout << "  sampling time (s) " << t_sample << "\n";
-  cout << "  acquisition time (s) " << t_sample * num_samples << "\n";
+  cout << "  acquisition time (s) " << t_sample * num_samples_ << "\n";
   cout << "  frequency resolution (THz) " << freq_delta_/kTHz << "\n";
   cout << "  maximum frequency (THz) " << freq_max/kTHz << "\n";
   cout << "\n";
 
 
-  spin_data_.resize(globals::num_spins, num_samples);
+  num_q_ = jams::config_required<unsigned>(settings, "num_q");
+  qmax_      = jams::config_required<Vec3>(settings, "qmax");
+
+  spin_data_.resize(globals::num_spins, num_samples_);
   spin_data_.zero();
 }
 
@@ -76,26 +81,14 @@ void ScatteringFunctionMonitor::update(Solver *solver) {
   using namespace globals;
   using namespace std;
 
-  for (auto i = 0; i < num_spins; ++i) {
-    spin_data_(i, time_point_counter_) = {s(i,0), s(i,1)};
+  if (time_point_counter_ < num_samples_) {
+    for (auto i = 0; i < num_spins; ++i) {
+      spin_data_(i, time_point_counter_)[0] = s(i, 0) * fft_window_default(time_point_counter_, num_samples_);
+      spin_data_(i, time_point_counter_)[1] = s(i, 1) * fft_window_default(time_point_counter_, num_samples_);
+    }
   }
 
   time_point_counter_++;
-
-
-//  std::vector<double> sxt(num_spins);
-//  std::vector<double> syt(num_spins);
-//  std::vector<double> szt(num_spins);
-//
-//  for (auto i = 0; i < num_spins; ++i) {
-//    sxt[i] = s(i, 0);
-//    syt[i] = s(i, 1);
-//    szt[i] = s(i, 2);
-//  }
-//
-//  sx_.push_back(sxt);
-//  sy_.push_back(syt);
-//  sz_.push_back(szt);
 }
 
 bool ScatteringFunctionMonitor::is_converged() {
@@ -125,7 +118,6 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   using namespace std::chrono;
   using namespace std::placeholders;
   using namespace globals;
-  using Complex = std::complex<double>;
 
   cout << "calculating correlation function" << std::endl;
   auto start_time = time_point_cast<milliseconds>(system_clock::now());
@@ -135,9 +127,9 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
   //---------------------------------------------------------------------
   int rank            = 1;
   int stride          = 1;
-  int dist            = (int) spin_data_.size(1); // num_samples
-  int num_transforms  = (int) spin_data_.size(0); // num_spins
-  int transform_size[1]  = {(int) spin_data_.size(1)};
+  int dist            = (int) num_samples_; // num_samples
+  int num_transforms  = (int) globals::num_spins; // num_spins
+  int transform_size[1]  = {(int) num_samples_};
 
   int * nembed = nullptr;
 
@@ -147,11 +139,11 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
           rank,                    // dimensionality
           transform_size, // array of sizes of each dimension
           num_transforms,          // number of transforms
-          reinterpret_cast<fftw_complex *>(spin_data_.data()),        // input: real data
+          spin_data_.data(),        // input: real data
           nembed,                  // number of embedded dimensions
           stride,                  // memory stride between elements of one fft dataset
           dist,                    // memory distance between fft datasets
-          reinterpret_cast<fftw_complex *>(spin_data_.data()),        // output: complex data
+          spin_data_.data(),        // output: complex data
           nembed,                  // number of embedded dimensions
           stride,                  // memory stride between elements of one fft dataset
           dist,                    // memory distance between fft datasets
@@ -169,24 +161,9 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
 
   //---------------------------------------------------------------------
 
-
-  const unsigned num_samples = (unsigned) spin_data_.size(1);
-  const unsigned num_sub_samples = 200;
-
-  const unsigned num_qvec = 65;
-  const Vec3 qmax = {0.0, 0.0, 50.0};
-
-  const unsigned num_w = 100;
-  const double wmax = 100.0;
-
-  vector<Vec3> qvecs(num_qvec, {0.0, 0.0, 0.0});
-  for (auto i = 0; i < num_qvec; ++i){
-    qvecs[i] = qmax * (i / double(num_qvec-1));
-  }
-
-  vector<double> wpoints(num_w, 0.0);
-  for (auto i = 0; i < num_w; ++i) {
-    wpoints[i] = wmax * (i / double(num_w-1));
+  vector<Vec3> qvecs(num_q_, {0.0, 0.0, 0.0});
+  for (auto i = 0; i < num_q_; ++i){
+    qvecs[i] = qmax_ * (i / double(num_q_-1));
   }
 
   vector<Vec3> r(num_spins);
@@ -201,38 +178,38 @@ ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
     }
   }
 
-  jblib::Array<Complex, 2> SQw(qvecs.size(), num_samples / 2 + 1);
+  jblib::Array<Complex, 2> SQw(qvecs.size(), num_samples_ / 2 + 1);
   SQw.zero();
-
-  const double delta_t = output_step_freq_ * solver->real_time_step() / 1e-12; // ps
-  const double lambda = 0.01;
 
   for (unsigned i = 0; i < globals::num_spins; ++i) {
     if (is_vacancy[i]) continue;
-
     std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " " << i << std::endl;
-
     for (unsigned j = i; j < globals::num_spins; ++j) {
       if (is_vacancy[j]) continue;
 
       const auto qfactors = generate_expQR(qvecs, lattice->displacement(r[i], r[j]));
 
-      #pragma omp parallel for default(none) shared(SQw, wpoints,i,j)
-      for (unsigned w = 0; w < num_samples / 2 + 1; ++w) {
+      #pragma omp parallel for default(none) shared(SQw,i,j)
+      for (unsigned w = 0; w < num_samples_ / 2 + 1; ++w) {
+        const Complex correlation = fast_multiply(spin_data_(i,w), spin_data_(j,w));
         for (unsigned q = 0; q < qfactors.size(); ++q) {
-          SQw(q,w) += -kImagOne * qfactors[q] * spin_data_(i,w) * spin_data_(j,w);
+          SQw(q,w) += -kImagOne * qfactors[q] * correlation;
         }
       }
     }
 
-    std::ofstream cfile(seedname + "_corr.tsv");
-    for (unsigned q = 0; q < qvecs.size(); ++q) {
-      for (unsigned w = 0; w <  num_samples / 2 + 1; ++w) {
-        cfile << qvecs[q][0] << " " << qvecs[q][1] << " " << qvecs[q][2] << " " << w*freq_delta_ << " " << real(SQw(q,w))/(i+1) << " " << imag(SQw(q,w))/(i+1) << "\n";
+    if (i%10 == 0) {
+      std::ofstream cfile(seedname + "_corr.tsv");
+      for (unsigned q = 0; q < qvecs.size(); ++q) {
+        for (unsigned w = 0; w < num_samples_ / 2 + 1; ++w) {
+          cfile << qvecs[q][0] << " " << qvecs[q][1] << " " << qvecs[q][2] << " " << w * freq_delta_ << " "
+                << real(SQw(q, w)) / (i + 1) << " " << imag(SQw(q, w)) / (i + 1) << "\n";
+        }
       }
+      cfile.flush();
+      cfile.close();
     }
-    cfile.flush();
-    cfile.close();
+
   }
 
   auto end_time = time_point_cast<milliseconds>(system_clock::now());

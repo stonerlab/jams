@@ -28,7 +28,10 @@ private:
     double freq_delta_;
     unsigned time_point_counter_ = 0;
 
-    jblib::Array<std::complex<double>, 2> spin_data_;
+    unsigned num_q_ = 1;
+    Vec3     qmax_  = {0.0, 0.0, 0.0};
+
+    jblib::Array<fftw_complex, 2> spin_data_;
 
     std::vector<std::vector<double>> sx_;
     std::vector<std::vector<double>> sy_;
