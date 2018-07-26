@@ -14,7 +14,7 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/fft.h"
-#include "structurefactor.h"
+#include "spectrum_fourier.h"
 
 #include "jblib/containers/array.h"
 
@@ -33,7 +33,7 @@ namespace {
     }
 }
 
-StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &settings)
+SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
 
@@ -204,7 +204,7 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
   sqw_z.resize(::lattice->motif_size(), num_samples, b_uvw_points.size());
 }
 
-void StructureFactorMonitor::update(Solver * solver) {
+void SpectrumFourierMonitor::update(Solver * solver) {
   using std::complex;
   using namespace globals;
 
@@ -214,7 +214,7 @@ void StructureFactorMonitor::update(Solver * solver) {
   time_point_counter_++;
 }
 
-void StructureFactorMonitor::fft_time() {
+void SpectrumFourierMonitor::fft_time() {
 
   const auto time_points = sqw_x.size(1);
   const auto space_points = sqw_x.size(2);
@@ -352,7 +352,7 @@ void StructureFactorMonitor::fft_time() {
   fftw_destroy_plan(fft_plan_time_z);
 }
 
-StructureFactorMonitor::~StructureFactorMonitor() {
+SpectrumFourierMonitor::~SpectrumFourierMonitor() {
   if (fft_plan_s_rspace_to_kspace) {
     fftw_destroy_plan(fft_plan_s_rspace_to_kspace);
     fft_plan_s_rspace_to_kspace = nullptr;
@@ -360,7 +360,7 @@ StructureFactorMonitor::~StructureFactorMonitor() {
   fft_time();
 }
 
-void StructureFactorMonitor::fft_space() {
+void SpectrumFourierMonitor::fft_space() {
   assert(fft_plan_s_rspace_to_kspace != nullptr);
   assert(s_kspace.is_allocated());
 
@@ -386,7 +386,7 @@ void StructureFactorMonitor::fft_space() {
   apply_kspace_phase_factors(s_kspace);
 }
 
-void StructureFactorMonitor::store_bz_path_data() {
+void SpectrumFourierMonitor::store_bz_path_data() {
   Vec3i size = lattice->kspace_size();
 
   // extra safety in case there is an extra one time point due to floating point maths

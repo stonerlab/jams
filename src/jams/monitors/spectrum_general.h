@@ -2,8 +2,8 @@
 // Created by Joe Barker on 2018/05/31.
 //
 
-#ifndef JAMS_SCATTERING_FUNCTION_H
-#define JAMS_SCATTERING_FUNCTION_H
+#ifndef JAMS_SPECTRUM_GENERAL_H
+#define JAMS_SPECTRUM_GENERAL_H
 
 #include "jams/core/monitor.h"
 #include <fstream>
@@ -12,10 +12,10 @@
 
 #include "jblib/containers/array.h"
 
-class ScatteringFunctionMonitor : public Monitor {
+class SpectrumGeneralMonitor : public Monitor {
 public:
-    ScatteringFunctionMonitor(const libconfig::Setting &settings);
-    ~ScatteringFunctionMonitor();
+    SpectrumGeneralMonitor(const libconfig::Setting &settings);
+    ~SpectrumGeneralMonitor();
 
     void update(Solver * solver);
     bool is_converged();
@@ -41,4 +41,4 @@ private:
     std::vector<double> time_correlation(unsigned int i, unsigned int j, unsigned subsample);
 };
 
-#endif //JAMS_SCATTERING_FUNCTION_H
+#endif //JAMS_SPECTRUM_GENERAL_H

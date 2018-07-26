@@ -17,10 +17,10 @@
 
 class Solver;
 
-class StructureFactorMonitor : public Monitor {
+class SpectrumFourierMonitor : public Monitor {
  public:
-  StructureFactorMonitor(const libconfig::Setting &settings);
-  ~StructureFactorMonitor();
+  SpectrumFourierMonitor(const libconfig::Setting &settings);
+  ~SpectrumFourierMonitor();
 
   void update(Solver * solver);
   bool is_converged() { return false; }

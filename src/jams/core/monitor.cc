@@ -12,8 +12,8 @@
 #include "jams/monitors/smr.h"
 #include "jams/monitors/spin_pumping.h"
 #include "jams/monitors/spin_temperature.h"
-#include "jams/monitors/structurefactor.h"
-#include "jams/monitors/scattering_function.h"
+#include "jams/monitors/spectrum_fourier.h"
+#include "jams/monitors/spectrum_general.h"
 #include "jams/monitors/torque.h"
 #include "jams/monitors/vtu.h"
 #include "jams/monitors/xyz.h"
@@ -53,8 +53,9 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
     return new MagnetisationRateMonitor(settings);
   }
 
-  if (capitalize(settings["module"]) == "STRUCTUREFACTOR") {
-    return new StructureFactorMonitor(settings);
+  if (capitalize(settings["module"]) == "STRUCTUREFACTOR"
+  || capitalize(settings["module"]) == "SPECTRUM_FOURIER") {
+    return new SpectrumFourierMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "TORQUE") {
@@ -101,8 +102,9 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
     return new SkyrmionMonitor(settings);
   }
 
-  if (capitalize(settings["module"]) == "SCATTERING-FUNCTION") {
-    return new ScatteringFunctionMonitor(settings);
+  if (capitalize(settings["module"]) == "SCATTERING-FUNCTION"
+  || capitalize(settings["module"]) == "SPECTRUM_GENERAL") {
+    return new SpectrumGeneralMonitor(settings);
   }
 
   throw std::runtime_error("unknown monitor " + std::string(settings["module"].c_str()));

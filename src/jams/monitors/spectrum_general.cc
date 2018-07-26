@@ -7,7 +7,7 @@
 #include <chrono>
 #include <cmath>
 
-#include "jams/monitors/scattering_function.h"
+#include "jams/monitors/spectrum_general.h"
 
 #include <libconfig.h++>
 #include <jams/core/solver.h>
@@ -51,7 +51,7 @@ namespace {
 
 
 
-ScatteringFunctionMonitor::ScatteringFunctionMonitor(const libconfig::Setting &settings) : Monitor(settings) {
+SpectrumGeneralMonitor::SpectrumGeneralMonitor(const libconfig::Setting &settings) : Monitor(settings) {
   using namespace std;
 
   std::string name = seedname + "_fk.tsv";
@@ -84,7 +84,7 @@ ScatteringFunctionMonitor::ScatteringFunctionMonitor(const libconfig::Setting &s
   spin_data_.zero();
 }
 
-void ScatteringFunctionMonitor::update(Solver *solver) {
+void SpectrumGeneralMonitor::update(Solver *solver) {
   using namespace globals;
   using namespace std;
 
@@ -97,12 +97,12 @@ void ScatteringFunctionMonitor::update(Solver *solver) {
   time_point_counter_++;
 }
 
-bool ScatteringFunctionMonitor::is_converged() {
+bool SpectrumGeneralMonitor::is_converged() {
   return false;
 }
 
 
-ScatteringFunctionMonitor::~ScatteringFunctionMonitor() {
+SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   using namespace std;
   using namespace std::chrono;
   using namespace std::placeholders;
