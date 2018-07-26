@@ -14,11 +14,11 @@
 
 class SpectrumGeneralMonitor : public Monitor {
 public:
-    SpectrumGeneralMonitor(const libconfig::Setting &settings);
-    ~SpectrumGeneralMonitor();
+    explicit SpectrumGeneralMonitor(const libconfig::Setting &settings);
+    ~SpectrumGeneralMonitor() override;
 
-    void update(Solver * solver);
-    bool is_converged();
+    void update(Solver * solver) override;
+    bool is_converged() override;
 private:
     std::ofstream outfile;
 

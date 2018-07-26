@@ -18,6 +18,8 @@
 #include "jams/helpers/random.h"
 #include <pcg/pcg_random.hpp>
 #include "jams/core/lattice.h"
+#include "spectrum_general.h"
+
 
 using Complex = std::complex<double>;
 
@@ -76,7 +78,6 @@ SpectrumGeneralMonitor::SpectrumGeneralMonitor(const libconfig::Setting &setting
   cout << "  maximum frequency (THz) " << freq_max/kTHz << "\n";
   cout << "\n";
 
-
   num_q_ = jams::config_required<unsigned>(settings, "num_q");
   qmax_      = jams::config_required<Vec3>(settings, "qmax");
 
@@ -90,7 +91,7 @@ void SpectrumGeneralMonitor::update(Solver *solver) {
 
   if (time_point_counter_ < num_samples_) {
     for (auto i = 0; i < num_spins; ++i) {
-      spin_data_(i, time_point_counter_) = Complex{s(i, 0), s(i, 1)} * fft_window_exponential(time_point_counter_, num_samples_);
+      spin_data_(i, time_point_counter_) = Complex{s(i, 0), s(i, 1)};
     }
   }
 
@@ -113,6 +114,14 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   cout << "start   " << get_date_string(start_time) << "\n\n";
   cout.flush();
 
+  // perform windowing
+
+  for (auto i = 0; i < num_spins; ++i) {
+    for (auto n = 0; n < num_samples_; ++n) {
+      spin_data_(i, n) *= fft_window_exponential(n, num_samples_);
+    }
+  }
+
   //---------------------------------------------------------------------
   int rank            = 1;
   int stride          = 1;
@@ -124,6 +133,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
 
   std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " planning fft" << std::endl;
 
+  // FFTW_BACKWARD is used so the sign convention is consistent with Alben AIP Conf. Proc. 29 136 (1976)
   auto plan = fftw_plan_many_dft(
           rank,                    // dimensionality
           transform_size, // array of sizes of each dimension
