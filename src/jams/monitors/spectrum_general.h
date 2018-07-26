@@ -22,10 +22,8 @@ public:
 private:
     std::ofstream outfile;
 
-    unsigned num_kpoints_;
     unsigned num_samples_;
     unsigned padded_size_;
-    double t_sample_;
     double freq_delta_;
     unsigned time_point_counter_ = 0;
 
@@ -33,12 +31,6 @@ private:
     Vec3     qmax_  = {0.0, 0.0, 0.0};
 
     jblib::Array<std::complex<double>, 2> spin_data_;
-
-    std::vector<std::vector<double>> sx_;
-    std::vector<std::vector<double>> sy_;
-    std::vector<std::vector<double>> sz_;
-
-    std::vector<double> time_correlation(unsigned int i, unsigned int j, unsigned subsample);
 };
 
 #endif //JAMS_SPECTRUM_GENERAL_H
