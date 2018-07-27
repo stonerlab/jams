@@ -32,6 +32,20 @@ if(APPLE)
             PROPERTY
             BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 endif()
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    set(MY_RELEASE_OPTIONS -Ofast -ffast-math)
+    target_compile_options(jams_object_lib PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${MY_RELEASE_OPTIONS}>)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    set(MY_RELEASE_OPTIONS -ffast-math)
+    target_compile_options(jams_object_lib PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${MY_RELEASE_OPTIONS}>)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+    set(MY_RELEASE_OPTIONS -ftz -msse3 -no-prec-div -fast -fp-model fast=2)
+    target_compile_options(jams_object_lib PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${MY_RELEASE_OPTIONS}>)
+#    set_source_files_properties(monitors/spectrum_general.cc PROPERTIES COMPILE_FLAGS "-ftz -msse3 -no-prec-div -fast -fp-model fast=2")
+endif()
+
+
 target_sources(jams_object_lib
         PRIVATE
         containers/bimap.h
