@@ -124,14 +124,14 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
         cout << "    initialising CUSPARSE\n";
         cusparse_return_status = cusparseCreate(&cusparse_handle_);
         if (cusparse_return_status != CUSPARSE_STATUS_SUCCESS) {
-          jams_error("CUSPARSE Library initialization failed");
+          die("CUSPARSE Library initialization failed");
         }
         cusparseSetStream(cusparse_handle_, dev_stream_);
 
 
         cusparse_return_status = cusparseCreateMatDescr(&cusparse_descra_);
         if (cusparse_return_status != CUSPARSE_STATUS_SUCCESS) {
-          jams_error("CUSPARSE Matrix descriptor initialization failed");
+          die("CUSPARSE Matrix descriptor initialization failed");
         }
 
         if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
@@ -139,7 +139,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
         } else if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
           cusparseSetMatType(cusparse_descra_, CUSPARSE_MATRIX_TYPE_SYMMETRIC);
         } else {
-          jams_error("unknown sparse matrix type in dipole_cuda_sparse_tensor");
+          die("unknown sparse matrix type in dipole_cuda_sparse_tensor");
         }
         cusparseSetMatIndexBase(cusparse_descra_, CUSPARSE_INDEX_BASE_ZERO);
 

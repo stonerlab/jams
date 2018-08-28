@@ -24,7 +24,7 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 
   // settings for only outputting a slice
   if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
-    jams_error("Xyz monitor requires both slice_origin and slice_size to be specificed;");
+    die("Xyz monitor requires both slice_origin and slice_size to be specificed;");
   }
 
   slice_spins.resize(0);

@@ -42,7 +42,7 @@ namespace jams {
 
     void process_command_line_args(int argc, char **argv, jams::Simulation &sim) {
       if (argc == 1) {
-        jams_error("No config file specified");
+        die("No config file specified");
       }
 
       sim.config_file_name = std::string(argv[1]);
@@ -154,7 +154,7 @@ void jams_initialize(int argc, char **argv) {
     cout << jams::section("init hamiltonians");
 
     if (!::config->exists("hamiltonians")) {
-      jams_error("No hamiltonians in config");
+      die("No hamiltonians in config");
     } else {
       const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
       for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
@@ -167,31 +167,31 @@ void jams_initialize(int argc, char **argv) {
     }
   }
   catch(const libconfig::FileIOException &fioex) {
-    jams_error("I/O error while reading '%s'", simulation.config_file_name.c_str());
+    die("I/O error while reading '%s'", simulation.config_file_name.c_str());
   }
   catch(const libconfig::ParseException &pex) {
-    jams_error("Error parsing %s:%i: %s", pex.getFile(),
-      pex.getLine(), pex.getError());
+    die("Error parsing %s:%i: %s", pex.getFile(),
+            pex.getLine(), pex.getError());
   }
   catch(const libconfig::SettingTypeException &stex) {
-    jams_error("Config setting type error '%s'", stex.getPath());
+    die("Config setting type error '%s'", stex.getPath());
   }
   catch(const libconfig::SettingNotFoundException &nfex) {
-    jams_error("Required config setting not found '%s'", nfex.getPath());
+    die("Required config setting not found '%s'", nfex.getPath());
   }
   catch(const jams::runtime_error &gex) {
-    jams_error("%s", gex.what());
+    die("%s", gex.what());
   }
 #if HAS_CUDA
   catch(const cuda_api_exception &cex) {
-    jams_error("CUDA api exception\n '%s'", cex.what());
+    die("CUDA api exception\n '%s'", cex.what());
   }
 #endif
   catch (std::exception& e) {
-    jams_error("exception: %s", e.what());
+    die("exception: %s", e.what());
   }
   catch(...) {
-    jams_error("Caught an unknown exception");
+    die("Caught an unknown exception");
   }
 }
 
