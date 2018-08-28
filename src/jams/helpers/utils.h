@@ -54,7 +54,7 @@ inline std::string& right_trim(std::string &s) {
 }
 
 // trim from both ends
-inline std::string& trim(std::string &s) {
+inline std::string trim(std::string s) {
   return left_trim(right_trim(s));
 }
 
