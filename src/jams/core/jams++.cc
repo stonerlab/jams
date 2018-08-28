@@ -22,6 +22,7 @@
 #include "jams/helpers/error.h"
 #include "jams/helpers/exception.h"
 #include "jams/helpers/load.h"
+#include "jams/helpers/output.h"
 #include "jams/interface/config.h"
 
 using namespace std;
@@ -61,32 +62,39 @@ namespace jams {
       std::string line = "\n--------------------------------------------------------------------------------\n\n";
       return line.replace(1, name.size() + 1, name + " ");
     }
+
+    string header() {
+      stringstream ss;
+      ss << "\nJAMS++ " << jams::build::version << "\n\n";
+      ss << "build   ";
+      ss << jams::build::time << " ";
+      ss << jams::build::type << " ";
+      ss << jams::build::hash << " ";
+      ss << jams::build::branch << "\n";
+      ss << "run     ";
+      ss << get_date_string(std::chrono::system_clock::now()) << "\n";
+      #if HAS_OMP
+      #pragma omp parallel
+      {
+        if (omp_get_thread_num() == 0) {
+          cout << "threads " << omp_get_num_threads() << "\n";
+        }
+      }
+      #endif
+      return ss.str();
+    }
 }
 
 void jams_initialize(int argc, char **argv) {
-  std::cin.tie(nullptr);
-  ios_base::sync_with_stdio(false);
+  jams::desync_io();
+
+  cout << jams::header();
 
   jams::Simulation simulation;
-
   jams::new_global_classes();
 
-  cout << "\nJAMS++ " << jams::build::version << "\n\n";
-  cout << "build   ";
-  cout << jams::build::time << " ";
-  cout << jams::build::type << " ";
-  cout << jams::build::hash << " ";
-  cout << jams::build::branch << "\n";
-  cout << "run     ";
-  cout << get_date_string(std::chrono::system_clock::now()) << "\n";
-#if HAS_OMP
-  #pragma omp parallel 
-  {
-    if (omp_get_thread_num() == 0) {
-      cout << "threads " << omp_get_num_threads() << "\n";
-    }
-  }
-#endif
+
+
   cout.flush();
 
   jams::process_command_line_args(argc, argv, simulation);
