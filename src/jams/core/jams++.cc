@@ -101,9 +101,8 @@ void jams_initialize(int argc, char **argv) {
 
     jams_patch_config(simulation.config_patch_string);
 
-    if (config->exists("sim.verbose")) {
-      simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
-    }
+    simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
+
     cout << "verbose " << simulation.verbose << "\n";
 
     if (config->exists("sim.seed")) {
