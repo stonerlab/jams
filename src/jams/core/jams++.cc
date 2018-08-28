@@ -47,7 +47,6 @@ namespace jams {
       sim.config_file_name    = trim(string(argv[1]));
       sim.config_patch_string = (argc == 3 ? string(argv[2]) : "");
       sim.name                = trim(file_basename(sim.config_file_name));
-      sim.log_file_name       = sim.name + ".log";
     }
 
     void parse_config(jams::Simulation &sim) {

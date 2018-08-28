@@ -14,7 +14,6 @@ namespace jams {
         std::string name;
         bool verbose = jams::default_sim_verbose_output;
 
-        std::string log_file_name;
         std::string config_file_name;
         std::string config_patch_string;
 
