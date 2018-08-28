@@ -99,9 +99,7 @@ void jams_initialize(int argc, char **argv) {
 
     config->readFile(simulation.config_file_name.c_str());
 
-    if (!simulation.config_patch_string.empty()) {
-      jams_patch_config(simulation.config_patch_string);
-    }
+    jams_patch_config(simulation.config_patch_string);
 
     if (config->exists("sim.verbose")) {
       simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
@@ -248,6 +246,8 @@ void jams_global_initializer(const libconfig::Setting &settings) {
 
 void jams_patch_config(const std::string &patch_string) {
   libconfig::Config cfg_patch;
+
+  if (patch_string.empty()) return;
 
   try {
     cfg_patch.readFile(patch_string.c_str());
