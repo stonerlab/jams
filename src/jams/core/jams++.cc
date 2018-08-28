@@ -24,6 +24,7 @@
 #include "jams/helpers/load.h"
 #include "jams/helpers/output.h"
 #include "jams/interface/config.h"
+#include "jams/helpers/timer.h"
 
 using namespace std;
 
@@ -40,7 +41,7 @@ namespace jams {
       delete config;
     }
 
-    void process_command_line_args(int argc, char **argv, jams::Simulation &sim) {
+    void parse_args(int argc, char **argv, jams::Simulation &sim) {
       if (argc == 1) die("No config file specified");
 
       sim.config_file_name    = trim(string(argv[1]));
@@ -49,8 +50,23 @@ namespace jams {
       sim.log_file_name       = sim.name + ".log";
     }
 
+    void parse_config(jams::Simulation &sim) {
+      try {
+        config->readFile(sim.config_file_name.c_str());
+      }
+      catch(const libconfig::FileIOException &fioex) {
+        die("I/O error while reading '%s'", sim.config_file_name.c_str());
+      }
+      catch(const libconfig::ParseException &pex) {
+        die("Error parsing %s:%i: %s", pex.getFile(),
+                pex.getLine(), pex.getError());
+      }
+
+      jams_patch_config(sim.config_patch_string);
+    }
+
     std::string section(const std::string& name) {
-      std::string line = "\n--------------------------------------------------------------------------------\n\n";
+      std::string line = "\n--------------------------------------------------------------------------------\n";
       return line.replace(1, name.size() + 1, name + " ");
     }
 
@@ -78,59 +94,42 @@ namespace jams {
 
 void jams_initialize(int argc, char **argv) {
   jams::desync_io();
-
   cout << jams::header();
 
   jams::Simulation simulation;
   jams::new_global_classes();
-
-
-
-  cout.flush();
-
-  jams::process_command_line_args(argc, argv, simulation);
+  jams::parse_args(argc, argv, simulation);
   seedname = simulation.name;
+  cout << "config  " << simulation.config_file_name << "\n";   // TODO: tee cout also to a log file
 
-  // TODO: tee cout also to a log file
-  cout << "config  " << simulation.config_file_name << "\n";
+  jams::parse_config(simulation);
 
   try {
-
-    config->readFile(simulation.config_file_name.c_str());
-
-    jams_patch_config(simulation.config_patch_string);
-
     simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
-
     cout << "verbose " << simulation.verbose << "\n";
 
-    if (config->exists("sim.seed")) {
-      simulation.random_seed = jams::config_optional<unsigned>(config->lookup("sim"), "seed", simulation.random_seed);
-      jams::random_generator().seed(simulation.random_seed);
-      cout << "seed    " << simulation.random_seed << "\n";
-    }
+    simulation.random_seed = jams::config_optional<unsigned>(config->lookup("sim"), "seed", simulation.random_seed);
+    jams::random_generator().seed(simulation.random_seed);
 
     if (config->exists("sim.rng_state")) {
       auto state = jams::config_required<string>(config->lookup("sim"), "rng_state");
       istringstream(state) >> jams::random_generator();
     }
+
+    cout << "seed    "   << simulation.random_seed << "\n";
     cout << "rng state " <<  jams::random_generator() << "\n";
 
-    cout.flush();
-    cout << jams::section("init lattice");
+    cout << jams::section("init lattice") << std::endl;
 
     lattice->init_from_config(*::config);
 
-    cout.flush();
-    cout << jams::section("init solver");
+    cout << jams::section("init solver") << std::endl;
 
     solver = Solver::create(config->lookup("solver"));
     solver->initialize(config->lookup("solver"));
-    // todo: fix this memory leak
-    solver->register_physics_module(Physics::create(config->lookup("physics")));
+    solver->register_physics_module(Physics::create(config->lookup("physics")));     // todo: fix this memory leak
 
-    cout.flush();
-    cout << jams::section("init monitors");
+    cout << jams::section("init monitors") << std::endl;
 
     if (!::config->exists("monitors")) {
       jams_warning("No monitors in config");
@@ -141,8 +140,7 @@ void jams_initialize(int argc, char **argv) {
       }
     }
 
-    cout.flush();
-    cout << jams::section("init hamiltonians");
+    cout << jams::section("init hamiltonians") << std::endl;
 
     if (!::config->exists("hamiltonians")) {
       die("No hamiltonians in config");
@@ -156,13 +154,6 @@ void jams_initialize(int argc, char **argv) {
     if(::config->exists("initializer")) {
       jams_global_initializer(::config->lookup("initializer"));
     }
-  }
-  catch(const libconfig::FileIOException &fioex) {
-    die("I/O error while reading '%s'", simulation.config_file_name.c_str());
-  }
-  catch(const libconfig::ParseException &pex) {
-    die("Error parsing %s:%i: %s", pex.getFile(),
-            pex.getLine(), pex.getError());
   }
   catch(const libconfig::SettingTypeException &stex) {
     die("Config setting type error '%s'", stex.getPath());
@@ -187,14 +178,10 @@ void jams_initialize(int argc, char **argv) {
 }
 
 void jams_run() {
-  using namespace std::chrono;
+  cout << jams::section("running solver") << std::endl;
+  cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
 
-  cout << jams::section("running solver");
-  cout.flush();
-  auto start_time = time_point_cast<milliseconds>(system_clock::now());
-  cout << "start   " << get_date_string(start_time) << "\n\n";
-  cout.flush();
-
+  Timer<> timer;
   while (::solver->is_running()) {
     if (::solver->is_converged()) {
       break;
@@ -204,12 +191,8 @@ void jams_run() {
     ::solver->notify_monitors();
     ::solver->run();
   }
-
-  auto end_time = time_point_cast<milliseconds>(system_clock::now());
-  cout << "finish  " << get_date_string(end_time) << "\n\n";
-  cout << "runtime " << duration_string(end_time - start_time) << "\n";
-  cout.flush();
-
+  cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
+  cout << "runtime " << timer.elapsed_time() << std::endl;
 }
 
 void jams_finish() {
@@ -254,6 +237,10 @@ void jams_patch_config(const std::string &patch_string) {
   catch(libconfig::FileIOException &fex) {
     cfg_patch.readString(patch_string);
     cout << "patching from string " << patch_string << "\n";
+  }
+  catch(const libconfig::ParseException &pex) {
+    die("Error parsing %s:%i: %s", pex.getFile(),
+            pex.getLine(), pex.getError());
   }
 
   config_patch(::config->getRoot(), cfg_patch.getRoot());
