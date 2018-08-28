@@ -41,21 +41,12 @@ namespace jams {
     }
 
     void process_command_line_args(int argc, char **argv, jams::Simulation &sim) {
-      if (argc == 1) {
-        die("No config file specified");
-      }
+      if (argc == 1) die("No config file specified");
 
-      sim.config_file_name = std::string(argv[1]);
-      trim(sim.config_file_name);
-
-      if (argc == 3) {
-        sim.config_patch_string = std::string(argv[2]);
-      }
-
-      sim.name = file_basename(sim.config_file_name);
-      trim(sim.name);
-
-      sim.log_file_name = sim.name + ".log";
+      sim.config_file_name    = trim(string(argv[1]));
+      sim.config_patch_string = (argc == 3 ? string(argv[2]) : "");
+      sim.name                = trim(file_basename(sim.config_file_name));
+      sim.log_file_name       = sim.name + ".log";
     }
 
     std::string section(const std::string& name) {
