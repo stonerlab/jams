@@ -24,28 +24,10 @@
 using Complex = std::complex<double>;
 
 namespace {
-
-    inline Complex fast_multiply(const Complex &x, const Complex &y) {
-      return {x.real() * y.real() - x.imag() * y.imag(),
-        x.real()*y.imag() + x.imag() * y.real()};
-    }
-
-    inline Complex fast_multiply(const fftw_complex &x, const fftw_complex &y) {
-      return {x[0] * y[0] - x[1] * y[1],
-              x[0] * y[1] + x[1] * y[0]};
-    }
-
-    inline Complex fast_multiply_conj(const fftw_complex &x, const fftw_complex &y) {
-      return {x[0] * y[0] + x[1] * y[1],
-              -x[0] * y[1] + x[1] * y[0]};
-    }
-
     std::vector<Complex> generate_expQR(const std::vector<Vec3> &qvecs, const Vec3& R) {
       std::vector<Complex> result(qvecs.size());
       for (auto q = 0; q < result.size(); ++q) {
         result[q] = exp(kImagTwoPi * dot(qvecs[q], R));
-        // cosine transform because we use R_ji = -R_ij
-//        result[q] = 2.0 * cos(kTwoPi * dot(qvecs[q], R));
       }
       return result;
     }
@@ -114,7 +96,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   cout << "start   " << get_date_string(start_time) << "\n\n";
   cout.flush();
 
-  // perform windowing
+  // perform windowing in real time
 
   for (auto i = 0; i < num_spins; ++i) {
     for (auto n = 0; n < num_samples_; ++n) {
@@ -122,7 +104,8 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     }
   }
 
-  //---------------------------------------------------------------------
+  // Fourier transform each spin's time series
+  // we go from S_i(t) -> S_i(w)
   int rank            = 1;
   int stride          = 1;
   int dist            = (int) padded_size_; // num_samples
@@ -157,9 +140,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
 
   std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " done" << std::endl;
 
-
-  //---------------------------------------------------------------------
-
+  // precalculate a few quantities we need
   vector<Vec3> qvecs(num_q_, {0.0, 0.0, 0.0});
   for (auto i = 0; i < num_q_; ++i){
     qvecs[i] = qmax_ * (i / double(num_q_-1));
@@ -170,6 +151,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     r[i] = lattice->atom_position(i);
   }
 
+  // support for lattice vacancies (we will skip these in the spectrum loop)
   vector<bool> is_vacancy(num_spins, false);
   for (auto i = 0; i < num_spins; ++i) {
     if (s(i, 0) == 0.0 && s(i, 1) == 0.0 && s(i, 2) == 0.0) {
@@ -180,18 +162,22 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   jblib::Array<Complex, 2> SQw(qvecs.size(), padded_size_/2+1);
   SQw.zero();
 
+  // generate spectrum looping over all i,j
   for (unsigned i = 0; i < globals::num_spins; ++i) {
     if (is_vacancy[i]) continue;
     std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " " << i << std::endl;
     for (unsigned j = 0; j < globals::num_spins; ++j) {
       if (is_vacancy[j]) continue;
 
+      // precalculate the exponential factors for the spatial fourier transform
       const auto qfactors = generate_expQR(qvecs, lattice->displacement(r[j], r[i]));
 
       #pragma omp parallel for default(none) shared(SQw,i,j)
       for (unsigned w = 0; w < padded_size_/2+1; ++w) {
         for (unsigned q = 0; q < qfactors.size(); ++q) {
-          SQw(q,w) += -kImagOne * qfactors[q] * spin_data_(i,w) * spin_data_(j, (padded_size_ - w) % padded_size_) ;
+          // the spin_data_ multiplication uses convolution theory to avoid first calculating the time correlation
+          // (padded_size_ - w) % padded_size_ gives the -w data
+          SQw(q,w) += -kImagOne * qfactors[q] * spin_data_(i,w) * spin_data_(j, (padded_size_ - w) % padded_size_);
         }
       }
     }
@@ -213,5 +199,4 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   cout << "finish  " << get_date_string(end_time) << "\n\n";
   cout << "runtime " << duration_string(end_time - start_time) << "\n";
   cout.flush();
-
 }
