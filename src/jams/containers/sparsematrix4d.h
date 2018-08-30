@@ -156,7 +156,7 @@ void SparseMatrix4D<_Tp>::insertValue(size_type i, size_type j, size_type k, siz
 
         if(  !( ((i < dim[0]) && (i >= 0)) && ((j < dim[1]) && (j >= 0))
                     && ((k < dim[2]) && (k >= 0)) && ((l < dim[3]) && (l >= 0)) ) ) { // element must be inside matrix boundaries
-            jams_error("Attempted to insert matrix element outside of matrix size");
+          die("Attempted to insert matrix element outside of matrix size");
         }
 
         i_idx.push_back(i);
@@ -168,7 +168,7 @@ void SparseMatrix4D<_Tp>::insertValue(size_type i, size_type j, size_type k, siz
 
         nnz_unmerged++;
     } else {
-        jams_error("Can only insert into MAP format sparse matrix");
+      die("Can only insert into MAP format sparse matrix");
     }
 
 }

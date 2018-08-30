@@ -54,7 +54,7 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
             float_pred_type_ = PredType::IEEE_F64LE;
             cout << "  float data stored as double (IEEE_F64LE)\n";
         } else {
-            jams_error("Unknown float_type selected for HDF5 monitor.\nOptions: float or double");
+          die("Unknown float_type selected for HDF5 monitor.\nOptions: float or double");
         }
     } else {
         cout << "  float data stored as double (IEEE_F64LE)\n";

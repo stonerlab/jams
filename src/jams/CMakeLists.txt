@@ -125,6 +125,8 @@ target_sources(jams_object_lib
         helpers/maths.cc
         helpers/maths.h
         helpers/montecarlo.h
+        helpers/output.cc
+        helpers/output.h
         helpers/permutations.h
         helpers/random.h
         helpers/runningstat.h

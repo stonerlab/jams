@@ -137,10 +137,12 @@ StructureFactorMonitor::StructureFactorMonitor(const libconfig::Setting &setting
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
       if (int(b_uvw_nodes[n][i]) > ::lattice->kspace_size()[i]) {
-        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n][0]), int(b_uvw_nodes[n][1]), int(b_uvw_nodes[n][2]));
+        die("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n][0]), int(b_uvw_nodes[n][1]),
+                int(b_uvw_nodes[n][2]));
       }
       if (int(b_uvw_nodes[n+1][i]) > ::lattice->kspace_size()[i]) {
-        jams_error("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n+1][0]), int(b_uvw_nodes[n+1][1]), int(b_uvw_nodes[n+1][2]));
+        die("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n + 1][0]),
+                int(b_uvw_nodes[n + 1][1]), int(b_uvw_nodes[n + 1][2]));
       }
     }
 

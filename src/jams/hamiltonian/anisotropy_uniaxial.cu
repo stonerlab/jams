@@ -23,7 +23,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
     // don't allow mixed specification of anisotropy
     if ( (settings.exists("K1") || settings.exists("K2") || settings.exists("K3")) &&
          (settings.exists("d2z") || settings.exists("d4z") || settings.exists("d6z")) ) {
-      jams_error("UniaxialHamiltonian: anisotropy should only be specified in terms of K1, K2, K3 or d2z, d4z, d6z in the config file");
+      die("UniaxialHamiltonian: anisotropy should only be specified in terms of K1, K2, K3 or d2z, d4z, d6z in the config file");
     }
 
     // deal with magnetic anisotropy constants
@@ -33,7 +33,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
     if(settings.exists("K1")) {
         if (settings["K1"].getLength() != lattice->num_materials()) {
-            jams_error("UniaxialHamiltonian: K1 must be specified for every material");
+          die("UniaxialHamiltonian: K1 must be specified for every material");
         }
         for (int i = 0; i < globals::num_spins; ++i) {
             K1(i) = double(settings["K1"][lattice->atom_material_id(i)])/kBohrMagneton;
@@ -44,7 +44,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
     if(settings.exists("K2")) {
         if (settings["K2"].getLength() != lattice->num_materials()) {
-            jams_error("UniaxialHamiltonian: K2 must be specified for every material");
+          die("UniaxialHamiltonian: K2 must be specified for every material");
         }
         for (int i = 0; i < num_spins; ++i) {
             K2(i) = double(settings["K2"][lattice->atom_material_id(i)])/kBohrMagneton;
@@ -55,7 +55,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
     if(settings.exists("K3")) {
         if (settings["K3"].getLength() != lattice->num_materials()) {
-            jams_error("UniaxialHamiltonian: K3 must be specified for every material");
+          die("UniaxialHamiltonian: K3 must be specified for every material");
         }
         for (int i = 0; i < num_spins; ++i) {
             K3(i) = double(settings["K3"][lattice->atom_material_id(i)])/kBohrMagneton;
@@ -96,7 +96,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
     // deal with magnetocrystalline anisotropy coefficients
     if(settings.exists("d2z")) {
         if (settings["d2z"].getLength() != lattice->num_materials()) {
-            jams_error("UniaxialHamiltonian: d2z must be specified for every material");
+          die("UniaxialHamiltonian: d2z must be specified for every material");
         }
         mca_order_.push_back(2);
 
@@ -111,7 +111,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
     if(settings.exists("d4z")) {
         if (settings["d4z"].getLength() != lattice->num_materials()) {
-            jams_error("UniaxialHamiltonian: d4z must be specified for every material");
+          die("UniaxialHamiltonian: d4z must be specified for every material");
         }
         mca_order_.push_back(4);
         jblib::Array<double, 1> mca(num_spins, 0.0);
@@ -123,7 +123,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
 
     if(settings.exists("d6z")) {
         if (settings["d6z"].getLength() != lattice->num_materials()) {
-            jams_error("UniaxialHamiltonian: d6z must be specified for every material");
+          die("UniaxialHamiltonian: d6z must be specified for every material");
         }
         mca_order_.push_back(6);
         jblib::Array<double, 1> mca(num_spins, 0.0);

@@ -76,18 +76,18 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    cout << "    initialising CUDA streams\n";
 
    if (cudaStreamCreate(&dev_stream_) != cudaSuccess) {
-     jams_error("Failed to create CUDA stream in CudaLangevinBoseThermostat");
+     die("Failed to create CUDA stream in CudaLangevinBoseThermostat");
    }
 
    if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess) {
-     jams_error("Failed to create CURAND stream in CudaLangevinBoseThermostat");
+     die("Failed to create CURAND stream in CudaLangevinBoseThermostat");
    }
 
    cout << "    initialising CURAND\n";
 
    // initialize and seed the CURAND generator on the device
    if (curandCreateGenerator(&dev_rng_, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS) {
-     jams_error("Failed to create CURAND generator in CudaLangevinBoseThermostat");
+     die("Failed to create CURAND generator in CudaLangevinBoseThermostat");
    }
 
    // initialize zeta and eta with random variables
@@ -96,28 +96,28 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    cout << "    seeding CURAND " << dev_rng_seed << "\n";
 
    if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
-     jams_error("Failed to set CURAND seed in CudaLangevinBoseThermostat");
+     die("Failed to set CURAND seed in CudaLangevinBoseThermostat");
    }
 
    if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
-     jams_error("Failed to generate CURAND seeds in CudaLangevinBoseThermostat");
+     die("Failed to generate CURAND seeds in CudaLangevinBoseThermostat");
    }
 
    cout << "    allocating GPU memory\n";
 
    if (curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
-     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
+     die("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
    }
 
    if (curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
-     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
+     die("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
    }
 
    if (curandGenerateNormalDouble(dev_rng_, dev_eta1b_.data(), dev_eta1b_.size(), 0.0, 1.0)
        != CURAND_STATUS_SUCCESS) {
-     jams_error("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
+     die("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
    }
 
    jblib::Array<double, 2> scale(num_spins, 3);

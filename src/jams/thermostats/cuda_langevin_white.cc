@@ -32,7 +32,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
 
   // initialize and seed the CURAND generator on the device
   if (curandCreateGenerator(&dev_rng_, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS) {
-    jams_error("Failed to create CURAND generator in CudaLangevinWhiteThermostat");
+    die("Failed to create CURAND generator in CudaLangevinWhiteThermostat");
   }
 
   cout << "    creating stream\n";
@@ -42,12 +42,12 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   auto dev_rng_seed = static_cast<uint64_t>(std::random_device()());
   cout << "    seeding CURAND " << dev_rng_seed << "\n";
   if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
-    jams_error("Failed to set CURAND seed in CudaLangevinWhiteThermostat");
+    die("Failed to set CURAND seed in CudaLangevinWhiteThermostat");
   }
 
   cout << "    generating seeds\n";
   if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
-    jams_error("Failed to generate CURAND seeds in CudaLangevinWhiteThermostat");
+    die("Failed to generate CURAND seeds in CudaLangevinWhiteThermostat");
   }
 
   bool use_gilbert_prefactor = jams::config_optional<bool>(config->lookup("solver"), "gilbert_prefactor", false);

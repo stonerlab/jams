@@ -79,8 +79,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     for (auto j = i+1; j < lattice->motif_size(); ++j) {
       const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
       if(distance < distance_tolerance_) {
-        jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
-                        "Check position file or relax distance_tolerance for exchange module",
+        die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
+            "Check position file or relax distance_tolerance for exchange module",
                 i, j, distance, distance_tolerance_);
       }
     }
@@ -92,7 +92,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     //---------------------------------------------------------------------
 
     if (!settings.exists("interactions")) {
-      jams_error("No interactions defined in ExchangeNeartree hamiltonian");
+      die("No interactions defined in ExchangeNeartree hamiltonian");
     }
 
     interaction_list_.resize(lattice->num_materials());
@@ -166,7 +166,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
             // don't allow self interaction
             if (is_already_interacting[n.id]) {
-              jams_error("Multiple interactions between spins %d and %d.\n", i, n.id);
+              die("Multiple interactions between spins %d and %d.\n", i, n.id);
             }
             is_already_interacting[n.id] = true;
 
@@ -216,7 +216,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     cusparseStatus_t status;
     status = cusparseCreate(&cusparse_handle_);
     if (status != CUSPARSE_STATUS_SUCCESS) {
-      jams_error("cusparse Library initialization failed");
+      die("cusparse Library initialization failed");
     }
     cusparseSetStream(cusparse_handle_, dev_stream_);
 

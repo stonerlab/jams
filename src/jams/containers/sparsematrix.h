@@ -253,16 +253,16 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
       if(matrixType == SPARSE_MATRIX_TYPE_SYMMETRIC) {
         if(matrixMode == SPARSE_FILL_MODE_UPPER) {
           if( i > j ) {
-            jams_error("Attempted to insert lower matrix element in symmetric upper sparse matrix");
+            die("Attempted to insert lower matrix element in symmetric upper sparse matrix");
           }
         } else {
           if( i < j ) {
-            jams_error("Attempted to insert upper matrix element in symmetric lower sparse matrix");
+            die("Attempted to insert upper matrix element in symmetric lower sparse matrix");
           }
         }
       }
     } else {
-      jams_error("Attempted to insert matrix element (%d, %d) outside of matrix size (%d, %d)", i, j, nrows, ncols);
+      die("Attempted to insert matrix element (%d, %d) outside of matrix size (%d, %d)", i, j, nrows, ncols);
     }
 
     // static casts to force 64bit arithmetic
@@ -273,7 +273,7 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
 
     nnz_unmerged++;
   } else {
-    jams_error("Can only insert into MAP format sparse matrix");
+    die("Can only insert into MAP format sparse matrix");
   }
 
 }
@@ -305,7 +305,7 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
             }
         }
   }else{
-      jams_error("Only a MAP matrix can be generalised");
+    die("Only a MAP matrix can be generalised");
   }
 
 }
@@ -335,7 +335,7 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
       index = nz.first;  // first part contains row major index
 
       // if (index < 0) {
-      //   jams_error("Negative sparse array index");
+      //   die("Negative sparse array index");
       // }
 
       current_row = index/static_cast<hash_type>(ncols);
@@ -394,7 +394,7 @@ void SparseMatrix<_Tp>::convertMAP2COO()
       index = elem->first;
 
       // if(index < 0){
-      //   jams_error("Negative sparse array index");
+      //   die("Negative sparse array index");
       // }
 
       ival = index/static_cast<hash_type>(ncols);
@@ -445,7 +445,7 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
       index = elem->first;
 
       // if(index < 0){
-      //   jams_error("Negative sparse array index");
+      //   die("Negative sparse array index");
       // }
 
       ival = index/static_cast<hash_type>(ncols);

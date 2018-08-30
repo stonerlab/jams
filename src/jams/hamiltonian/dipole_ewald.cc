@@ -34,7 +34,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     printf("  Ewald Method\n");
 
     if (::lattice->num_materials() > 1) {
-        jams_error("DipoleHamiltonianEwald only supports single species calculations at the moment");
+      die("DipoleHamiltonianEwald only supports single species calculations at the moment");
     }
     local_interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 

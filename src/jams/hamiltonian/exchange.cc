@@ -37,7 +37,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     std::string interaction_filename = settings["exc_file"].c_str();
     std::ifstream interaction_file(interaction_filename.c_str());
     if (interaction_file.fail()) {
-      jams_error("failed to open interaction file %s", interaction_filename.c_str());
+      die("failed to open interaction file %s", interaction_filename.c_str());
     }
     cout << "    interaction file name " << interaction_filename << "\n";
 
@@ -124,7 +124,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       cout << "    init cusparse\n";
       cusparseStatus_t status = cusparseCreate(&cusparse_handle_);
       if (status != CUSPARSE_STATUS_SUCCESS) {
-        jams_error("cusparse Library initialization failed");
+        die("cusparse Library initialization failed");
       }
       cusparseSetStream(cusparse_handle_, dev_stream_.get());
 

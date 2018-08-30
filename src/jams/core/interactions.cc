@@ -452,8 +452,8 @@ namespace { //anon
 
               // failsafe check that we only interact with any given site once through the input exchange file.
               if (is_already_interacting[neighbour_index]) {
-                // jams_error("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_index, ivec.a, ivec.b, ivec.c, ivec.k);
-                jams_error("Multiple interactions between spins %d and %d\n", local_site, neighbour_index);
+                // die("Multiple interactions between spins %d and %d.\nInteger vectors %d  %d  %d  %d\nCheck the exchange file.", local_site, neighbour_index, ivec.a, ivec.b, ivec.c, ivec.k);
+                die("Multiple interactions between spins %d and %d\n", local_site, neighbour_index);
               }
 
               is_already_interacting[neighbour_index] = true;
@@ -481,9 +481,9 @@ void safety_check_distance_tolerance(const double &tolerance) {
     for (auto j = i+1; j < lattice->motif_size(); ++j) {
       const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
       if(distance < tolerance) {
-        jams_error("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
-                   "Check position file or relax distance_tolerance for exchange module",
-                    i, j, distance, tolerance);
+        die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
+            "Check position file or relax distance_tolerance for exchange module",
+                i, j, distance, tolerance);
       }
     }
   }

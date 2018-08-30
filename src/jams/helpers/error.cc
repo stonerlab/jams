@@ -9,7 +9,7 @@
 
 using namespace std;
 
-void jams_error(const char *string, ...) {
+void die(const char *string, ...) {
   va_list args;
   char buffer[1024];
 
