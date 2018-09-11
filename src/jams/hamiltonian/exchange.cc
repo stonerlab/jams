@@ -21,7 +21,7 @@ void ExchangeHamiltonian::insert_interaction(const int i, const int j, const Mat
   for (auto m = 0; m < 3; ++m) {
     for (auto n = 0; n < 3; ++n) {
       if (std::abs(value[m][n]) > energy_cutoff_) {
-        interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
+        interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n] * input_unit_conversion_);
       }
     }
   }
@@ -87,8 +87,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     //---------------------------------------------------------------------
     // generate interaction list
     //---------------------------------------------------------------------
-  generate_neighbour_list_from_file(interaction_file, exchange_file_format_, coord_format, energy_cutoff_, radius_cutoff_, use_symops,
-                                    print_unfolded || debug_is_enabled(), neighbour_list_);
+  generate_neighbour_list_from_file(interaction_file, exchange_file_format_, coord_format, energy_cutoff_,
+          radius_cutoff_, use_symops,
+          print_unfolded || debug_is_enabled(), neighbour_list_);
 
     if (debug_is_enabled()) {
       std::ofstream debug_file("DEBUG_exchange_nbr_list.tsv");

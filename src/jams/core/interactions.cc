@@ -254,8 +254,6 @@ namespace { //anon
         throw jams::runtime_error("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
 
-      interaction.J_ij = interaction.J_ij / kBohrMagneton;
-
       if (max_norm(interaction.J_ij) < energy_cutoff) {
         energy_cutoff_counter++;
         continue;
@@ -375,9 +373,6 @@ namespace { //anon
           continue;
         }
 
-        interaction.J_ij = interaction.J_ij / kBohrMagneton;
-
-
         if (!generate_inode(interaction, inode)) {
 //          continue;
           throw std::runtime_error("Inconsistency in the KKR exchange templates");
@@ -489,8 +484,8 @@ void safety_check_distance_tolerance(const double &tolerance) {
   }
 }
 
-void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format, double energy_cutoff,
-                                       double radius_cutoff, bool use_symops, bool print_unfolded,
+void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format,
+                                       double energy_cutoff, double radius_cutoff, bool use_symops, bool print_unfolded,
                                        InteractionList<Mat3> &neighbour_list) {
   std::vector<typename_interaction_t> interaction_data, unfolded_interaction_data;
 
@@ -539,15 +534,15 @@ void write_interaction_data(std::ostream &output, const std::vector<typename_int
       output << std::setw(12) << std::fixed << r_ij_frac[1] << "\t";
       output << std::setw(12) << std::fixed << r_ij_frac[2] << "\t";
     }
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][0] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][1] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][2] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][0] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][1] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][2] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][0] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][1] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][2] * kBohrMagneton << std::endl;
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][2] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][2] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][2] << std::endl;
   }
 }
 
@@ -565,15 +560,15 @@ void write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &lis
       output << lattice->atom_position(j)[0] << "\t";
       output << lattice->atom_position(j)[1] << "\t";
       output << lattice->atom_position(j)[2] << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[0][0] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[0][1] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[0][2] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[1][0] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[1][1] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[1][2] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[2][0] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[2][1] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[2][2] * kBohrMagneton << "\n";
+      output << std::setw(12) << std::scientific << nbr.second[0][0] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[0][1] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[0][2] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[1][0]  << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[1][1] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[1][2] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[2][0] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[2][1] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[2][2] << "\n";
     }
     output << "\n" << std::endl;
   }

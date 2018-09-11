@@ -113,7 +113,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       double inner_radius = settings["interactions"][i][2];
       double outer_radius = settings["interactions"][i][3];
 
-      double jij_value = double(settings["interactions"][i][4]) / kBohrMagneton;
+      double jij_value = double(settings["interactions"][i][4]) * input_unit_conversion_;
 
       auto type_id_A = lattice->material_id(type_name_A);
       auto type_id_B = lattice->material_id(type_name_B);
