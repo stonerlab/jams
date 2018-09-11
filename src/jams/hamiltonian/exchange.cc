@@ -20,7 +20,7 @@ using namespace std;
 void ExchangeHamiltonian::insert_interaction(const int i, const int j, const Mat3 &value) {
   for (auto m = 0; m < 3; ++m) {
     for (auto n = 0; n < 3; ++n) {
-      if (std::abs(value[m][n]) > energy_cutoff_) {
+      if (std::abs(value[m][n]) * input_unit_conversion_ > energy_cutoff_ / kBohrMagneton) {
         interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n] * input_unit_conversion_);
       }
     }
