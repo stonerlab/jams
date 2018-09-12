@@ -4,6 +4,8 @@
 #include <string>
 #include <iomanip>
 #include <random>
+#include <mutex>
+
 #include "jams/helpers/utils.h"
 #include "jams/cuda/cuda_array_kernels.h"
 
@@ -130,15 +132,12 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
    dev_sigma_ = jblib::CudaArray<double, 1>(scale);
 
-   cout << "    warming up thermostat " << (t_warmup / 1.0e-9) << " ns @ " << this->temperature() << "K\n";
-
-   const unsigned num_warmup_steps = static_cast<unsigned>(t_warmup / dt_thermostat);
-   for (auto i = 0; i < num_warmup_steps; ++i) {
-     update();
-   }
+   num_warm_up_steps_ = static_cast<unsigned>(t_warmup / dt_thermostat);
  }
 
 void CudaLangevinBoseThermostat::update() {
+  std::call_once(is_warmed_up_, [&]{ warmup(num_warm_up_steps_);});
+
   int block_size = 96;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
@@ -175,5 +174,13 @@ CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
   
   if (debug_) {
     outfile_.close();
+  }
+}
+
+void CudaLangevinBoseThermostat::warmup(const unsigned steps) {
+  cout << "    warming up thermostat " << steps << " steps @ " << this->temperature() << "K" << std::endl;
+
+  for (auto i = 0; i < steps; ++i) {
+    update();
   }
 }
