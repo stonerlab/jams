@@ -155,9 +155,7 @@ namespace { //anon
       if (use_symops) {
         auto symops_interaction = interaction;
         auto symmetric_points = lattice->generate_symmetric_points(symops_interaction.r_ij, 1e-5);
-        std::cout << "initial vector: " << symops_interaction.r_ij << "\n";
         for (const auto p : symmetric_points) {
-          std::cout << "symmetric vector: " << p << "\n";
           symops_interaction.r_ij = p;
           symops_interaction_data.push_back(symops_interaction);
         }

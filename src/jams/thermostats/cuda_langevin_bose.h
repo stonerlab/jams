@@ -10,6 +10,7 @@
 
 #include <curand.h>
 #include <fstream>
+#include <mutex>
 
 #include "jams/core/thermostat.h"
 
@@ -26,7 +27,13 @@ class CudaLangevinBoseThermostat : public Thermostat {
   const double* noise() { return dev_noise_.data(); }
 
  private:
+
+    void warmup(const unsigned steps);
+
     bool debug_;
+    std::once_flag is_warmed_up_;
+    unsigned num_warm_up_steps_ = 0;
+
     jblib::CudaArray<double, 1> dev_noise_;
     jblib::CudaArray<double, 1> dev_zeta0_;
     jblib::CudaArray<double, 1> dev_zeta5_;
