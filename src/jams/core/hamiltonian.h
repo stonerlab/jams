@@ -81,6 +81,9 @@ class Hamiltonian : public Base {
 
  protected:
     std::string name_;
+    std::string input_unit_name_;
+    double      input_unit_conversion_ = 1.0;
+
   jblib::Array<double, 1> energy_;
   jblib::Array<double, 2> field_;
 

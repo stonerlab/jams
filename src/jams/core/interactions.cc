@@ -84,11 +84,11 @@ namespace { //anon
     return u_ij;
   }
 
-    bool generate_inode(const unitcell_interaction_t &interaction, inode_t &node) {
+    bool generate_inode(const InteractionData &interaction, inode_t &node) {
 
       node = {-1, -1, -1, -1};
 
-      Vec3 p_ij_frac = lattice->motif_atom(interaction.pos_i).pos;
+      Vec3 p_ij_frac = lattice->motif_atom(interaction.unit_cell_pos_i).pos;
       Vec3 r_ij_frac = lattice->cartesian_to_fractional(interaction.r_ij);
 
       Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
@@ -100,24 +100,24 @@ namespace { //anon
 
       if (nbr_motif_index == -1) {
         throw std::runtime_error("Inconsistency in interaction template (no motif position found): "
-                                 + std::to_string(interaction.pos_i) + " "
-                                 + std::to_string(interaction.pos_j) + " "
+                                 + std::to_string(interaction.unit_cell_pos_i) + " "
+                                 + std::to_string(interaction.unit_cell_pos_j) + " "
                                  + std::to_string(interaction.r_ij[0])  + " " + std::to_string(interaction.r_ij[1]) + " " + std::to_string(interaction.r_ij[2]));
       }
 
-      if (nbr_motif_index != interaction.pos_j) {
+      if (nbr_motif_index != interaction.unit_cell_pos_j) {
         throw std::runtime_error("Inconsistency in interaction template (incorrect motif position: " + std::to_string(nbr_motif_index) + ")"
-                                 + std::to_string(interaction.pos_i) + " "
-                                 + std::to_string(interaction.pos_j) + " "
+                                 + std::to_string(interaction.unit_cell_pos_i) + " "
+                                 + std::to_string(interaction.unit_cell_pos_j) + " "
                                  + std::to_string(interaction.r_ij[0])  + " " + std::to_string(interaction.r_ij[1]) + " " + std::to_string(interaction.r_ij[2]));
       }
 
-      node = {interaction.pos_j - interaction.pos_i, int(u_ij[0]), int(u_ij[1]), int(u_ij[2])};
+      node = {interaction.unit_cell_pos_j - interaction.unit_cell_pos_i, int(u_ij[0]), int(u_ij[1]), int(u_ij[2])};
 
       return true;
     }
 
-  bool generate_inode(const int motif_index, const typename_interaction_t &interaction, inode_t &node) {
+  bool generate_inode(const int motif_index, const InteractionData &interaction, inode_t &node) {
 
     node = {-1, -1, -1, -1};
 
@@ -140,8 +140,8 @@ namespace { //anon
 
   //---------------------------------------------------------------------
   void generate_interaction_templates(
-    const std::vector<typename_interaction_t> &interaction_data,
-          std::vector<typename_interaction_t> &unfolded_interaction_data,
+    const std::vector<InteractionData> &interaction_data,
+          std::vector<InteractionData> &unfolded_interaction_data,
        InteractionList<inode_pair_t> &interactions, bool use_symops) {
 
     cout << "  reading interactions and applying symmetry operations\n";
@@ -150,12 +150,14 @@ namespace { //anon
 
     int interaction_counter = 0;
     for (auto const & interaction : interaction_data) {
-      std::vector<typename_interaction_t> symops_interaction_data;
+      std::vector<InteractionData> symops_interaction_data;
 
       if (use_symops) {
         auto symops_interaction = interaction;
-        auto symmetric_points = lattice->generate_symmetric_points(symops_interaction.r_ij, 1e-6);
+        auto symmetric_points = lattice->generate_symmetric_points(symops_interaction.r_ij, 1e-5);
+        std::cout << "initial vector: " << symops_interaction.r_ij << "\n";
         for (const auto p : symmetric_points) {
+          std::cout << "symmetric vector: " << p << "\n";
           symops_interaction.r_ij = p;
           symops_interaction_data.push_back(symops_interaction);
         }
@@ -166,8 +168,20 @@ namespace { //anon
       for (int i = 0; i < lattice->motif_size(); ++i) {
         // calculate all unique inode vectors for (symmetric) interactions based on the current line
         std::set<inode_t> unique_interactions;
-        for(auto const& symops_interaction: symops_interaction_data) {
+        for(auto & symops_interaction: symops_interaction_data) {
           inode_t new_node;
+
+          symops_interaction.unit_cell_pos_i = i;
+
+          Vec3 p_ij_frac = lattice->motif_atom(symops_interaction.unit_cell_pos_i).pos;
+          Vec3 r_ij_frac = lattice->cartesian_to_fractional(symops_interaction.r_ij);
+
+          Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
+          Vec3 u_ij = round_to_integer_lattice(q_ij);
+
+          Vec3 dr = q_ij - u_ij;
+
+          symops_interaction.unit_cell_pos_j = find_motif_index(dr);
 
           // try to generate an inode
           if (!generate_inode(i, symops_interaction, new_node)) {
@@ -188,7 +202,7 @@ namespace { //anon
   }
 
   //---------------------------------------------------------------------
-    void read_jams_format_interaction_data(std::ifstream &file, std::vector<typename_interaction_t> &interaction_data, CoordinateFormat coord_format, double energy_cutoff, double radius_cutoff) {
+    void read_jams_format_interaction_data(std::ifstream &file, std::vector<InteractionData> &interaction_data, CoordinateFormat coord_format, double energy_cutoff, double radius_cutoff) {
     int line_number = 0;
 
     unsigned energy_cutoff_counter = 0;
@@ -201,7 +215,7 @@ namespace { //anon
       }
 
       std::stringstream   is(line);
-      typename_interaction_t interaction;
+      InteractionData interaction;
 
       is >> interaction.type_i >> interaction.type_j;
 
@@ -253,8 +267,6 @@ namespace { //anon
       if (is.bad()) {
         throw jams::runtime_error("failed to read exchange tensor in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
       }
-
-      interaction.J_ij = interaction.J_ij / kBohrMagneton;
 
       if (max_norm(interaction.J_ij) < energy_cutoff) {
         energy_cutoff_counter++;
@@ -308,17 +320,17 @@ namespace { //anon
         inode_t inode;
 
         std::stringstream   is(line);
-        unitcell_interaction_t interaction;
+        InteractionData interaction;
 
-        is >> interaction.pos_i >> interaction.pos_j;
+        is >> interaction.unit_cell_pos_i >> interaction.unit_cell_pos_j;
 
         if(is.fail()) {
           throw std::runtime_error("Interaction file unitcell number format is incorrect for KKR format");
         }
 
         // use zero based indexing
-        interaction.pos_i--;
-        interaction.pos_j--;
+        interaction.unit_cell_pos_i--;
+        interaction.unit_cell_pos_j--;
 
         if (is.bad()) {
           throw jams::runtime_error("failed to read types in line " + std::to_string(line_number) + " of interaction file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -375,18 +387,15 @@ namespace { //anon
           continue;
         }
 
-        interaction.J_ij = interaction.J_ij / kBohrMagneton;
-
-
         if (!generate_inode(interaction, inode)) {
 //          continue;
           throw std::runtime_error("Inconsistency in the KKR exchange templates");
         }
 
-        auto material_i = lattice->material_name(lattice->motif_atom(interaction.pos_i).material);
-        auto material_j = lattice->material_name(lattice->motif_atom(interaction.pos_j).material);
+        interaction.type_i = lattice->material_name(lattice->motif_atom(interaction.unit_cell_pos_i).material);
+        interaction.type_j = lattice->material_name(lattice->motif_atom(interaction.unit_cell_pos_j).material);
 
-        interactions.insert(interaction.pos_i, interaction_counter, {inode, material_i, material_j, interaction.J_ij});
+        interactions.insert(interaction.unit_cell_pos_i, interaction_counter, {inode, interaction.type_i, interaction.type_j, interaction.J_ij});
 
         interaction_counter++;
         line_number++;
@@ -489,10 +498,10 @@ void safety_check_distance_tolerance(const double &tolerance) {
   }
 }
 
-void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format, double energy_cutoff,
-                                       double radius_cutoff, bool use_symops, bool print_unfolded,
+void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format,
+                                       double energy_cutoff, double radius_cutoff, bool use_symops, bool print_unfolded,
                                        InteractionList<Mat3> &neighbour_list) {
-  std::vector<typename_interaction_t> interaction_data, unfolded_interaction_data;
+  std::vector<InteractionData> interaction_data, unfolded_interaction_data;
 
   InteractionList<inode_pair_t> interaction_template;
 
@@ -524,11 +533,14 @@ void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileForma
 
 //---------------------------------------------------------------------
 
-void write_interaction_data(std::ostream &output, const std::vector<typename_interaction_t> &data,
+void write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data,
                             CoordinateFormat coord_format) {
   for (auto const & interaction : data) {
+    output << std::setw(12) << interaction.unit_cell_pos_i << "\t";
+    output << std::setw(12) << interaction.unit_cell_pos_j << "\t";
     output << std::setw(12) << interaction.type_i << "\t";
     output << std::setw(12) << interaction.type_j << "\t";
+    output << std::setw(12) << std::fixed << abs(interaction.r_ij) << "\t";
     if (coord_format == CoordinateFormat::Cartesian) {
       output << std::setw(12) << std::fixed << interaction.r_ij[0] << "\t";
       output << std::setw(12) << std::fixed << interaction.r_ij[1] << "\t";
@@ -539,15 +551,15 @@ void write_interaction_data(std::ostream &output, const std::vector<typename_int
       output << std::setw(12) << std::fixed << r_ij_frac[1] << "\t";
       output << std::setw(12) << std::fixed << r_ij_frac[2] << "\t";
     }
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][0] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][1] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][2] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][0] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][1] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][2] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][0] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][1] * kBohrMagneton << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][2] * kBohrMagneton << std::endl;
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][2] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][2] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][2] << std::endl;
   }
 }
 
@@ -565,15 +577,15 @@ void write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &lis
       output << lattice->atom_position(j)[0] << "\t";
       output << lattice->atom_position(j)[1] << "\t";
       output << lattice->atom_position(j)[2] << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[0][0] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[0][1] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[0][2] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[1][0] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[1][1] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[1][2] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[2][0] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[2][1] * kBohrMagneton << "\t";
-      output << std::setw(12) << std::scientific << nbr.second[2][2] * kBohrMagneton << "\n";
+      output << std::setw(12) << std::scientific << nbr.second[0][0] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[0][1] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[0][2] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[1][0]  << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[1][1] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[1][2] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[2][0] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[2][1] << "\t";
+      output << std::setw(12) << std::scientific << nbr.second[2][2] << "\n";
     }
     output << "\n" << std::endl;
   }

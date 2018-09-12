@@ -68,6 +68,7 @@ target_sources(jams_object_lib
         core/thermostat.cc
         core/thermostat.h
         core/types.h
+        core/units.h
         cuda/cuda-complex-operators.h
         cuda/cuda-sparse-helpers.h
         cuda/cuda_array_kernels.cu

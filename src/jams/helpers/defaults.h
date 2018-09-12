@@ -12,6 +12,8 @@ namespace jams {
 
     constexpr auto default_physics_module = "empty";
 
+    constexpr auto   default_energy_unit_name = "joules";
+
     constexpr int    default_monitor_output_steps = 100;
     constexpr double default_monitor_convergence_tolerance = 0.01;
 

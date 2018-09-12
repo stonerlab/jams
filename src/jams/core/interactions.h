@@ -23,19 +23,21 @@ typedef struct {
     Mat3 tensor;
 } Interaction;
 
-typedef struct {
+struct InteractionData {
   std::string type_i;
   std::string type_j;
+  int         unit_cell_pos_i = -1;
+  int         unit_cell_pos_j = -1;
   Vec3        r_ij;
   Mat3        J_ij;
-} typename_interaction_t;
+};
 
-typedef struct {
-    int    pos_i;
-    int    pos_j;
-    Vec3        r_ij;
-    Mat3        J_ij;
-} unitcell_interaction_t;
+//typedef struct {
+//    int    pos_i;
+//    int    pos_j;
+//    Vec3        r_ij;
+//    Mat3        J_ij;
+//} unitcell_interaction_t;
 
 typedef struct {
   int k;
@@ -58,10 +60,10 @@ typedef struct {
 } inode_pair_t;
 
 void safety_check_distance_tolerance(const double &tolerance);
-void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format, double energy_cutoff,
-                                       double radius_cutoff, bool use_symops, bool print_unfolded,
+void generate_neighbour_list_from_file(std::ifstream &file, InteractionFileFormat file_format, CoordinateFormat coord_format,
+                                       double energy_cutoff, double radius_cutoff, bool use_symops, bool print_unfolded,
                                        InteractionList<Mat3> &neighbour_list);
-void write_interaction_data(std::ostream &output, const std::vector<typename_interaction_t> &data,
+void write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data,
                             CoordinateFormat coord_format);
 void write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &list);
 

@@ -55,15 +55,10 @@ void HeunLLGSolver::run() {
 
   std::normal_distribution<> normal_distribution;
 
-
-  int i, j;
-  double sxh[3], rhs[3];
-  double norm;
-
   if (physics_module_->temperature() > 0.0) {
     const double stmp = sqrt(physics_module_->temperature());
-    for (i = 0; i < num_spins; ++i) {
-      for (j = 0; j < 3; ++j) {
+    for (auto i = 0; i < num_spins; ++i) {
+      for (auto j = 0; j < 3; ++j) {
         w(i, j) = normal_distribution(random_generator_)*sigma(i) * stmp;
       }
     }
@@ -73,20 +68,26 @@ void HeunLLGSolver::run() {
   Solver::compute_fields();
 
   if (physics_module_->temperature() > 0.0) {
-    for (i = 0; i < num_spins; ++i) {
-      for (j = 0; j < 3; ++j) {
+#pragma omp parallel for default(none) shared(num_spins, mus, gyro, h)
+    for (auto i = 0; i < num_spins; ++i) {
+      for (auto j = 0; j < 3; ++j) {
         h(i, j) = (w(i,j) + h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
       }
     }
   } else {
-    for (i = 0; i < num_spins; ++i) {
-      for (j = 0; j < 3; ++j) {
+#pragma omp parallel for default(none) shared(num_spins, mus, gyro, h)
+    for (auto i = 0; i < num_spins; ++i) {
+      for (auto j = 0; j < 3; ++j) {
         h(i, j) = (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
       }
     }
   }
 
-  for (i = 0; i < num_spins; ++i) {
+#pragma omp parallel for default(none) shared(num_spins, alpha, gyro, s, h)
+ for (auto i = 0; i < num_spins; ++i) {
+   double sxh[3], rhs[3];
+   double norm;
+
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
     sxh[1] = s(i, 2)*h(i, 0) - s(i, 0)*h(i, 2);
     sxh[2] = s(i, 0)*h(i, 1) - s(i, 1)*h(i, 0);
@@ -95,17 +96,17 @@ void HeunLLGSolver::run() {
     rhs[1] = sxh[1] + alpha(i) * (s(i, 2)*sxh[0] - s(i, 0)*sxh[2]);
     rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
 
-    for (j = 0; j < 3; ++j) {
+    for (auto j = 0; j < 3; ++j) {
       snew(i, j) = s(i, j) + 0.5*dt*rhs[j];
     }
 
-    for (j = 0; j < 3; ++j) {
+    for (auto j = 0; j < 3; ++j) {
       s(i, j) = s(i, j) + dt*rhs[j];
     }
 
     norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
 
-    for (j = 0; j < 3; ++j) {
+    for (auto j = 0; j < 3; ++j) {
       s(i, j) = s(i, j)*norm;
     }
   }
@@ -113,20 +114,26 @@ void HeunLLGSolver::run() {
   Solver::compute_fields();
 
   if (physics_module_->temperature() > 0.0) {
-    for (i = 0; i < num_spins; ++i) {
-      for (j = 0; j < 3; ++j) {
+#pragma omp parallel for default(none) shared(num_spins, mus, gyro, h)
+    for (auto i = 0; i < num_spins; ++i) {
+      for (auto j = 0; j < 3; ++j) {
         h(i, j) = (w(i,j) + h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
       }
     }
   } else {
-    for (i = 0; i < num_spins; ++i) {
-      for (j = 0; j < 3; ++j) {
+#pragma omp parallel for default(none) shared(num_spins, mus, gyro, h)
+    for (auto i = 0; i < num_spins; ++i) {
+      for (auto j = 0; j < 3; ++j) {
         h(i, j) = (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
       }
     }
   }
 
-  for (i = 0; i < num_spins; ++i) {
+#pragma omp parallel for default(none) shared(num_spins, alpha, gyro, s, h)
+  for (auto i = 0; i < num_spins; ++i) {
+    double sxh[3], rhs[3];
+    double norm;
+
     sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
     sxh[1] = s(i, 2)*h(i, 0) - s(i, 0)*h(i, 2);
     sxh[2] = s(i, 0)*h(i, 1) - s(i, 1)*h(i, 0);
@@ -135,13 +142,13 @@ void HeunLLGSolver::run() {
     rhs[1] = sxh[1] + alpha(i) * (s(i, 2)*sxh[0] - s(i, 0)*sxh[2]);
     rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
 
-    for (j = 0; j < 3; ++j) {
+    for (auto j = 0; j < 3; ++j) {
       s(i, j) = snew(i, j) + 0.5*dt*rhs[j];
     }
 
     norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
 
-    for (j = 0; j < 3; ++j) {
+    for (auto j = 0; j < 3; ++j) {
       s(i, j) = s(i, j)*norm;
     }
   }
