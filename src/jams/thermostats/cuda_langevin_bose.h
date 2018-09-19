@@ -31,7 +31,7 @@ class CudaLangevinBoseThermostat : public Thermostat {
     void warmup(const unsigned steps);
 
     bool debug_;
-    std::once_flag is_warmed_up_;
+    bool is_warmed_up_ = false;
     unsigned num_warm_up_steps_ = 0;
 
     jblib::CudaArray<double, 1> dev_noise_;

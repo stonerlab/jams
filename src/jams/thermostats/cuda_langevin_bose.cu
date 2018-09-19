@@ -136,7 +136,10 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
  }
 
 void CudaLangevinBoseThermostat::update() {
-  std::call_once(is_warmed_up_, [&]{ warmup(num_warm_up_steps_);});
+  if (!is_warmed_up_) {
+    is_warmed_up_ = true;
+    warmup(num_warm_up_steps_);
+  }
 
   int block_size = 96;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
@@ -178,7 +181,7 @@ CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
 }
 
 void CudaLangevinBoseThermostat::warmup(const unsigned steps) {
-  cout << "    warming up thermostat " << steps << " steps @ " << this->temperature() << "K" << std::endl;
+  cout << "warming up thermostat " << steps << " steps @ " << this->temperature() << "K" << std::endl;
 
   for (auto i = 0; i < steps; ++i) {
     update();
