@@ -206,7 +206,10 @@ void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_fi
   using namespace globals;
   using namespace H5;
 
-  hsize_t dims[2], chunk_dims[2];
+  hsize_t dims[2];
+
+  dims[0] = static_cast<hsize_t>(num_spins);
+  dims[1] = 3;
 
   H5File outfile(h5_file_name.c_str(), H5F_ACC_TRUNC);
 
