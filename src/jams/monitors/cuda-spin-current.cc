@@ -270,7 +270,7 @@ void CudaSpinCurrentMonitor::update_xdmf_file(const std::string &h5_file_name) {
   using namespace globals;
   using namespace H5;
 
-  hsize_t      data_dimension  = 0;
+  hsize_t      data_dimension  = static_cast<hsize_t>(num_spins);
   unsigned int float_precision = 8;
 
   // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
