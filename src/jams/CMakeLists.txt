@@ -1,6 +1,13 @@
 add_library(jams_object_lib OBJECT EXCLUDE_FROM_ALL "")
 target_compile_features(jams_object_lib PRIVATE cxx_std_11)
 target_compile_definitions(jams_object_lib PRIVATE HAS_CUDA=1)
+
+
+if (OpenMP_CXX_FOUND)
+target_compile_definitions(jams_object_lib PRIVATE HAS_OMP=1)
+target_compile_options(jams_object_lib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
+endif()
+
 target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
 target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
