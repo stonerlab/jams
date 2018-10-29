@@ -13,14 +13,19 @@
 class Solver;
 
 class SMRMonitor : public Monitor {
- public:
-  SMRMonitor(const libconfig::Setting &settings);
-  ~SMRMonitor();
+public:
+    explicit SMRMonitor(const libconfig::Setting &settings);
 
-  void update(Solver * solver);
-  bool is_converged() {return false;};
- private:
-  std::ofstream outfile;
+    ~SMRMonitor() override = default;
+
+    void update(Solver *solver) override;
+
+    bool is_converged() override { return false; }
+
+private:
+    std::ofstream tsv_file;
+
+    std::string tsv_header();
 
 };
 

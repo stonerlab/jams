@@ -12,15 +12,19 @@
 #include "jams/core/monitor.h"
 
 class EnergyMonitor : public Monitor {
- public:
-  EnergyMonitor(const libconfig::Setting &settings);
+public:
+    explicit EnergyMonitor(const libconfig::Setting &settings);
 
-  ~EnergyMonitor();
-  void update(Solver * solver);
-  bool is_converged() { return false; }
+    ~EnergyMonitor() override = default;
 
- private:
-  std::ofstream outfile;
+    void update(Solver *solver) override;
+
+    bool is_converged() override { return false; }
+
+private:
+    std::ofstream tsv_file;
+    std::string   tsv_header();
+
 };
 
 #endif  // JAMS_MONITOR_ENERGY_H

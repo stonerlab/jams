@@ -12,23 +12,25 @@
 #include "jams/core/types.h"
 
 class Solver;
+
 class Stats;
 
 class TorqueMonitor : public Monitor {
- public:
-  TorqueMonitor(const libconfig::Setting &settings);
-  ~TorqueMonitor();
+public:
+    explicit TorqueMonitor(const libconfig::Setting &settings);
 
-  void update(Solver * solver);
-  bool is_converged();
+    ~TorqueMonitor() = default;
 
- private:
+    void update(Solver *solver) override;
 
-  void open_outfile();
+    bool is_converged() override;
 
-  std::ofstream outfile;
-  std::array<Stats,3> torque_stats_;
-  std::array<double,3> convergence_geweke_diagnostic_;
+private:
+    std::ofstream tsv_file;
+    std::string   tsv_header();
+
+    std::array<Stats, 3> torque_stats_;
+    Vec3 convergence_geweke_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_TORQUE_H

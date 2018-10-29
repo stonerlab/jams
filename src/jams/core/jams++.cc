@@ -128,17 +128,6 @@ void jams_initialize(int argc, char **argv) {
     solver->initialize(config->lookup("solver"));
     solver->register_physics_module(Physics::create(config->lookup("physics")));     // todo: fix this memory leak
 
-    cout << jams::section("init monitors") << std::endl;
-
-    if (!::config->exists("monitors")) {
-      jams_warning("No monitors in config");
-    } else {
-      const libconfig::Setting &monitor_settings = ::config->lookup("monitors");
-      for (auto i = 0; i < monitor_settings.getLength(); ++i) {
-        solver->register_monitor(Monitor::create(monitor_settings[i]));
-      }
-    }
-
     cout << jams::section("init hamiltonians") << std::endl;
 
     if (!::config->exists("hamiltonians")) {
@@ -147,6 +136,17 @@ void jams_initialize(int argc, char **argv) {
       const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
       for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
         solver->register_hamiltonian(Hamiltonian::create(hamiltonian_settings[i], globals::num_spins, solver->is_cuda_solver()));
+      }
+    }
+
+    cout << jams::section("init monitors") << std::endl;
+
+    if (!::config->exists("monitors")) {
+      jams_warning("No monitors in config");
+    } else {
+      const libconfig::Setting &monitor_settings = ::config->lookup("monitors");
+      for (auto i = 0; i < monitor_settings.getLength(); ++i) {
+        solver->register_monitor(Monitor::create(monitor_settings[i]));
       }
     }
 

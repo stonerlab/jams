@@ -195,7 +195,7 @@ void ZeemanHamiltonian::calculate_fields() {
         }
 #endif  // CUDA
     } else {
-        for (int i = 0; i < globals::num_spins; ++i) {
+      for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
                 field_(i, j) = dc_local_field_(i, j) + ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
             }
