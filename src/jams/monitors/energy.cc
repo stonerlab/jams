@@ -14,29 +14,34 @@
 
 EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  using namespace globals;
-  std::string name = "_eng.tsv";
-  name = seedname+name;
-  outfile.open(name.c_str());
-
-  outfile << "time\t";
-  for (auto &hh : solver->hamiltonians()) {
-    outfile << hh->name() << "\t";
-  }
-  outfile << std::endl;
+  tsv_file.open(seedname + "_eng.tsv");
+  tsv_file.setf(std::ios::right);
+  tsv_file << tsv_header();
 }
 
 void EnergyMonitor::update(Solver * solver) {
-  outfile << std::setw(12) << std::scientific << solver->time() << "\t";
-  outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
+  tsv_file.width(12);
 
-  for (auto &hh : solver->hamiltonians()) {
-    outfile << std::setw(21) << std::scientific << std::setprecision(15) << kBohrMagneton * hh->calculate_total_energy() / static_cast<double>(globals::num_spins) << "\t";
+  tsv_file << std::scientific << solver->time() << "\t";
+
+  for (auto &hamiltonian : solver->hamiltonians()) {
+    auto energy = kBohrMagneton * hamiltonian->calculate_total_energy() / static_cast<double>(globals::num_spins);
+    tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
   }
 
-  outfile << std::endl;
+  tsv_file << std::endl;
 }
 
-EnergyMonitor::~EnergyMonitor() {
-  outfile.close();
+std::string EnergyMonitor::tsv_header() {
+  std::stringstream ss;
+  ss.width(12);
+
+  ss << "time\t";
+  for (auto &hamiltonian : solver->hamiltonians()) {
+    ss << hamiltonian->name() << "_e\t";
+  }
+
+  ss << std::endl;
+
+  return ss.str();
 }

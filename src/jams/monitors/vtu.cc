@@ -163,6 +163,3 @@ void VtuMonitor::update(Solver * solver) {
     vtkfile.close();
   }
 }
-
-VtuMonitor::~VtuMonitor() {
-}

@@ -18,17 +18,21 @@
 class Solver;
 
 class StructureFactorMonitor : public Monitor {
- public:
-  StructureFactorMonitor(const libconfig::Setting &settings);
-  ~StructureFactorMonitor();
+public:
+    explicit StructureFactorMonitor(const libconfig::Setting &settings);
 
-  void update(Solver * solver);
-  bool is_converged() { return false; }
+    ~StructureFactorMonitor() override;
 
- private:
-    void   fft_space();
-    void   fft_time();
-    void   store_bz_path_data();
+    void update(Solver *solver) override;
+
+    bool is_converged() override { return false; }
+
+private:
+    void fft_space();
+
+    void fft_time();
+
+    void store_bz_path_data();
 
     fftw_plan fft_plan_s_rspace_to_kspace = nullptr;
 

@@ -13,30 +13,14 @@
 
 SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  outfile()
+  tsv_file()
 {
-  using namespace globals;
   std::cout << "\ninitialising SMR monitor\n";
   std::cout << "  assumes axes j->x, t->y, n->z\n";
 
-  std::string name = seedname + "_smr.tsv";
-  outfile.open(name.c_str());
-  outfile.setf(std::ios::right);
-
-  // header for the magnetisation file
-  outfile << std::setw(12) << "time" << "\t";
-
-  for (int i = 0; i < lattice->num_materials(); ++i) {
-    outfile << std::setw(12) << lattice->material_name(i) + ":mtsq_para" << "\t";
-    outfile << std::setw(12) << lattice->material_name(i) + ":mtsq_perp" << "\t";
-
-    outfile << std::setw(12) << lattice->material_name(i) + ":mjmt_para" << "\t";
-    outfile << std::setw(12) << lattice->material_name(i) + ":mjmt_perp" << "\t";
-
-    outfile << std::setw(12) << lattice->material_name(i) + ":mn" << "\t";
-  }
-
-  outfile << "\n";
+  tsv_file.open(seedname + "_smr.tsv");
+  tsv_file.setf(std::ios::right);
+  tsv_file << tsv_header();
 }
 
 void SMRMonitor::update(Solver * solver) {
@@ -51,7 +35,7 @@ void SMRMonitor::update(Solver * solver) {
   std::vector<double> mn(lattice->num_materials(), 0.0);
   std::vector<int> material_count(lattice->num_materials(), 0);
 
-  for (int i = 0; i < num_spins; ++i) {
+  for (auto i = 0; i < num_spins; ++i) {
     // Uses the WMI geometry from M. Althammer,Phys. Rev. B 87, 224401 (2013).
     // assuming axes:
     // j -> x
@@ -79,18 +63,32 @@ void SMRMonitor::update(Solver * solver) {
     }
   }
 
-  outfile << std::setw(12) << std::scientific << solver->time() << "\t";
+  tsv_file << std::setw(12) << std::scientific << solver->time() << "\t";
 
   for (int i = 0; i < lattice->num_materials(); ++i) {
-    outfile << std::setw(12) << mtsq_para[i] << "\t" << mtsq_perp[i] << "\t";
-    outfile << std::setw(12) << mjmt_para[i] << "\t" << mjmt_perp[i] << "\t";
-    outfile << std::setw(12) << mn[i] << "\t";
+    tsv_file << std::setw(12) << mtsq_para[i] << "\t" << mtsq_perp[i] << "\t";
+    tsv_file << std::setw(12) << mjmt_para[i] << "\t" << mjmt_perp[i] << "\t";
+    tsv_file << std::setw(12) << mn[i] << "\t";
   }
 
-  outfile << std::endl;
+  tsv_file << std::endl;
 }
 
+std::string SMRMonitor::tsv_header() {
+  std::stringstream ss;
+  ss.width(12);
 
-SMRMonitor::~SMRMonitor() {
-  outfile.close();
+  ss << "time\t";
+  for (auto i = 0; i < lattice->num_materials(); ++i) {
+    auto name = lattice->material_name(i);
+    tsv_file << name + "_mtsq_para" << "\t";
+    tsv_file << name + "_mtsq_perp" << "\t";
+    tsv_file << name + "_mjmt_para" << "\t";
+    tsv_file << name + "_mjmt_perp" << "\t";
+    tsv_file << name + "_mn" << "\t";
+  }
+
+  ss << std::endl;
+
+  return ss.str();
 }

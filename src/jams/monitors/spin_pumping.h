@@ -12,23 +12,19 @@
 
 class Solver;
 
-class SpinPumpingMonitor : public Monitor{
- public:
-  SpinPumpingMonitor(const libconfig::Setting &settings);
-  ~SpinPumpingMonitor();
+class SpinPumpingMonitor : public Monitor {
+public:
+    explicit SpinPumpingMonitor(const libconfig::Setting &settings);
 
-void update(Solver * solver);
-bool is_converged();
+    ~SpinPumpingMonitor() override = default;
 
- private:
-  std::ofstream w_dist_file;
-  std::ofstream iz_dist_file;
-  std::ofstream iz_mean_file;
+    void update(Solver *solver) override;
 
-  Stats convergence_stats_;
-  bool convergence_is_on_;
-  double convergence_tolerance_;
-  double convergence_geweke_diagnostic_;
+    bool is_converged() override {return false;}
+
+private:
+    std::ofstream tsv_file;
+    std::string   tsv_header();
 };
 
 #endif  // JAMS_MONITOR_SPIN_PUMPING_H

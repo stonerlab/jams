@@ -23,6 +23,8 @@ class SkyrmionMonitor : public Monitor {
   bool is_converged() { return false; }
 
  private:
+    std::string tsv_header();
+
     void create_center_of_mass_mapping();
     void calc_center_of_mass(std::vector<Vec3 > &r_com, const double &threshold);
 

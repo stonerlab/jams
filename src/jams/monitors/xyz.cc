@@ -68,9 +68,8 @@ void XyzMonitor::update(Solver * solver) {
     xyz_state_file << std::setw(16) << "sy";
     xyz_state_file << std::setw(16) << "sz" << std::endl;
 
-    if (slice_spins.size() > 0) {
-      for (int i = 0, iend = slice_spins.size(); i < iend; ++i) {
-        const int n = slice_spins[i];
+    if (!slice_spins.empty()) {
+      for (const auto n : slice_spins) {
         xyz_state_file << std::setw(9) << n;
         xyz_state_file << std::setw(16) << ::lattice->atom_position(n)[0] << std::setw(16) << ::lattice->atom_position(n)[1] << std::setw(16) << ::lattice->atom_position(n)[2];
         xyz_state_file << std::setw(16) << s(n,0) << std::setw(16) << s(n,1) << std::setw(16) <<  s(n, 2) << "\n";
@@ -84,7 +83,4 @@ void XyzMonitor::update(Solver * solver) {
     }
     xyz_state_file.close();
   }
-}
-
-XyzMonitor::~XyzMonitor() {
 }

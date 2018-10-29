@@ -22,7 +22,7 @@ using namespace std;
 
 class Solver;
 
-// We can't guarenttee that FFT methods are being used by the integrator, so we implement all of the FFT
+// We can't guarantee that FFT methods are being used by the integrator, so we implement all of the FFT
 // with the monitor. This may mean performing the FFT twice, but presumably the structure factor is being
 // calculated much less frequently than every integration step.
 
@@ -266,21 +266,20 @@ void StructureFactorMonitor::fft_time() {
     // output DSF for each position in the unit cell
 
     if (output_sublattice_enabled_) {
-      std::string unit_cell_sqw_filename = seedname + "_sqw_" + std::to_string(unit_cell_atom) + ".tsv";
-      std::ofstream unit_cell_sqw_file(unit_cell_sqw_filename.c_str());
-
-      unit_cell_sqw_file << "# k_index   |\t";
-      unit_cell_sqw_file << " total      |\t";
-      unit_cell_sqw_file << " u          |\t";
-      unit_cell_sqw_file << " v          |\t";
-      unit_cell_sqw_file << " w          |\t";
-      unit_cell_sqw_file << " freq (THz) |\t";
-      unit_cell_sqw_file <<  "Re(Sx(q,w))|\t";
-      unit_cell_sqw_file << "Im(Sx(q,w)) |\t";
-      unit_cell_sqw_file << "Re(Sy(q,w)) |\t";
-      unit_cell_sqw_file << "Im(Sy(q,w)) |\t";
-      unit_cell_sqw_file << "Re(Sz(q,w)) |\t";
-      unit_cell_sqw_file << "Im(Sz(q,w))\n";
+      std::ofstream unit_cell_sqw_file(seedname + "_sqw_" + std::to_string(unit_cell_atom) + ".tsv");
+      unit_cell_sqw_file.width(12);
+      unit_cell_sqw_file << "k_index\t";
+      unit_cell_sqw_file << "k_total\t";
+      unit_cell_sqw_file << "u\t";
+      unit_cell_sqw_file << "v\t";
+      unit_cell_sqw_file << "w\t";
+      unit_cell_sqw_file << "freq\t";
+      unit_cell_sqw_file << "re_sx\t";
+      unit_cell_sqw_file << "im_sx\t";
+      unit_cell_sqw_file << "re_sy\t";
+      unit_cell_sqw_file << "im_sy\t";
+      unit_cell_sqw_file << "re_sz\t";
+      unit_cell_sqw_file << "im_sz\n";
 
       for (auto i = 0; i < (time_points / 2) + 1; ++i) {
         double total_length = 0.0;
@@ -311,18 +310,18 @@ void StructureFactorMonitor::fft_time() {
     }
   }
 
-  std::string name = seedname + "_sqw.tsv";
-  std::ofstream sqwfile(name.c_str());
+  std::ofstream sqwfile(seedname + "_sqw.tsv");
 
-  sqwfile << "# k_index   |\t";
-  sqwfile << " total      |\t";
-  sqwfile << " u          |\t";
-  sqwfile << " v          |\t";
-  sqwfile << " w          |\t";
-  sqwfile << " freq (THz) |\t";
-  sqwfile << "Abs(Sx(q,w))|\t";
-  sqwfile << "Abs(Sy(q,w))|\t";
-  sqwfile << "Abs(Sz(q,w))\n";
+  sqwfile.width(12);
+  sqwfile << "k_index\t";
+  sqwfile << "k_total\t";
+  sqwfile << "u\t";
+  sqwfile << "v\t";
+  sqwfile << "w\t";
+  sqwfile << "freq\t";
+  sqwfile << "abs_sx\t";
+  sqwfile << "abs_sy\t";
+  sqwfile << "abs_sz\n";
 
   double total_length = 0.0;
   double region_length = 0.0;

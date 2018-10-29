@@ -152,6 +152,7 @@ double ExchangeHamiltonian::calculate_total_energy() {
   } else {
 #endif // CUDA
 
+#pragma omp parallel for reduction(+:total_energy)
     for (int i = 0; i < globals::num_spins; ++i) {
         total_energy += calculate_one_spin_energy(i);
     }

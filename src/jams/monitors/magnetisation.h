@@ -17,28 +17,30 @@
 class Solver;
 
 class MagnetisationMonitor : public Monitor {
- public:
-  MagnetisationMonitor(const libconfig::Setting &settings);
-  ~MagnetisationMonitor();
+public:
+    explicit MagnetisationMonitor(const libconfig::Setting &settings);
 
-  void update(Solver * solver);
-  bool is_converged();
+    ~MagnetisationMonitor() override = default;
 
+    void update(Solver *solver) override;
 
- private:
-  double binder_m2();
-  double binder_cumulant();
+    bool is_converged() override;
 
-  jblib::Array<double, 2> mag;
+private:
+    std::ofstream tsv_file;
+    std::string   tsv_header();
+
+    double binder_m2();
+
+    double binder_cumulant();
+
     std::vector<Mat3> s_transform_;
-  std::vector<int> material_count_;
+    std::vector<int> material_count_;
 
-  std::ofstream outfile;
-
-  Stats m_stats_;
-  Stats m2_stats_;
-  Stats m4_stats_;
-  std::vector<double> convergence_geweke_m_diagnostic_;
+    Stats m_stats_;
+    Stats m2_stats_;
+    Stats m4_stats_;
+    std::vector<double> convergence_geweke_m_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_H

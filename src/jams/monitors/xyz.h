@@ -16,18 +16,20 @@
 class Solver;
 
 class XyzMonitor : public Monitor {
- public:
-  XyzMonitor(const libconfig::Setting &settings);
-  ~XyzMonitor();
+public:
+    explicit XyzMonitor(const libconfig::Setting &settings);
 
-  void update(Solver * solver);
-  bool is_converged() { return false; }
+    ~XyzMonitor() override = default;
+
+    void update(Solver *solver) override;
+
+    bool is_converged() override { return false; }
 
 
- private:
+private:
     Vec3 slice_origin;
     Vec3 slice_size;
-    std::vector<int>    slice_spins;
+    std::vector<int> slice_spins;
 };
 
 #endif  // JAMS_MONITOR_XYZ_H
