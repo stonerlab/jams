@@ -132,7 +132,3 @@ void DipoleHamiltonianCpuBruteforce::calculate_fields(jblib::Array<double, 2>& f
         }
     }
 }
-
-void DipoleHamiltonianCpuBruteforce::calculate_fields(jblib::CudaArray<double, 1>& fields) {
-}
-

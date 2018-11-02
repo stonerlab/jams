@@ -16,16 +16,12 @@ download_project(PROJ                googletest
 # when building with Visual Studio
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
+add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR} EXCLUDE_FROM_ALL)
 
 # When using CMake 2.8.11 or later, header path dependencies
 # are automatically added to the gtest and gmock targets.
 # For earlier CMake versions, we have to explicitly add the
 # required directories to the header search path ourselves.
 if (CMAKE_VERSION VERSION_LESS 2.8.11)
-    include_directories(BEFORE SYSTEM
-            "${gtest_SOURCE_DIR}/include" "${gmock_SOURCE_DIR}/include")
-else()
-    target_include_directories(gmock_main SYSTEM BEFORE INTERFACE
-            "${gtest_SOURCE_DIR}/include" "${gmock_SOURCE_DIR}/include")
+    include_directories("${gtest_SOURCE_DIR}/include" "${gmock_SOURCE_DIR}/include")
 endif()

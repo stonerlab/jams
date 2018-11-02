@@ -7,8 +7,8 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/error.h"
 
-#include "anisotropy_uniaxial.h"
-#include "anisotropy_uniaxial_kernel.h"
+#include "uniaxial_anisotropy.h"
+#include "cuda_uniaxial_anisotropy_kernel.h"
 
 UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int num_spins)
 : Hamiltonian(settings, num_spins),
@@ -132,36 +132,6 @@ UniaxialHamiltonian::UniaxialHamiltonian(const libconfig::Setting &settings, con
         }
         mca_value_.push_back(mca);
     }
-
-
-    // transfer arrays to cuda device if needed
-#if HAS_CUDA
-    if (solver->is_cuda_solver()) {
-        dev_energy_ = jblib::CudaArray<double, 1>(energy_);
-        dev_field_ = jblib::CudaArray<double, 1>(field_);
-
-        jblib::Array<int, 1> tmp_mca_order(mca_order_.size());
-        for (int i = 0; i < mca_order_.size(); ++i) {
-            tmp_mca_order[i] = mca_order_[i];
-        }
-
-        dev_mca_order_ = jblib::CudaArray<int, 1>(tmp_mca_order);
-
-        jblib::Array<double, 1> tmp_mca_value(mca_order_.size() * num_spins);
-
-        for (int i = 0; i < num_spins; ++i) {
-            for (int j = 0; j < mca_order_.size(); ++j) {
-                tmp_mca_value[ mca_order_.size() * i + j] = mca_value_[j](i);
-            }
-        }
-        dev_mca_value_ = tmp_mca_value;
-    }
-
-    cudaStreamCreate(&dev_stream_);
-
-    dev_blocksize_ = 128;
-#endif
-
 }
 
 // --------------------------------------------------------------------------
@@ -227,17 +197,10 @@ void UniaxialHamiltonian::calculate_one_spin_field(const int i, double local_fie
 // --------------------------------------------------------------------------
 
 void UniaxialHamiltonian::calculate_fields() {
-    if (solver->is_cuda_solver()) {
-#if HAS_CUDA
-        cuda_uniaxial_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
-            (globals::num_spins, mca_order_.size(), dev_mca_order_.data(), dev_mca_value_.data(), solver->dev_ptr_spin(), dev_field_.data());
-#endif  // CUDA
-    } else {
-        field_.zero();
-        for (int n = 0; n < mca_order_.size(); ++n) {
-            for (int i = 0; i < field_.size(0); ++i) {
-                field_(i, 2) += -mca_value_[n](i) * legendre_dpoly(globals::s(i, 2), mca_order_[n]);
-            }
-        }
-    }
+  field_.zero();
+  for (int n = 0; n < mca_order_.size(); ++n) {
+      for (int i = 0; i < field_.size(0); ++i) {
+          field_(i, 2) += -mca_value_[n](i) * legendre_dpoly(globals::s(i, 2), mca_order_[n]);
+      }
+  }
 }

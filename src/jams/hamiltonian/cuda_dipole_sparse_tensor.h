@@ -18,6 +18,7 @@ typedef struct devFloatCSR {
   int     blocks;
 } devFloatCSR;
 
+#if HAS_CUDA
 class DipoleHamiltonianCUDASparseTensor : public HamiltonianStrategy {
     public:
         DipoleHamiltonianCUDASparseTensor(const libconfig::Setting &settings, const unsigned int size);
@@ -49,5 +50,6 @@ class DipoleHamiltonianCUDASparseTensor : public HamiltonianStrategy {
         cusparseHandle_t   cusparse_handle_;
         cusparseMatDescr_t cusparse_descra_;
 };
+#endif
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_CUDA_SPARSE_TENSOR_H
