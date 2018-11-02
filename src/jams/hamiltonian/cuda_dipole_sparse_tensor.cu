@@ -10,18 +10,18 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
 #include "jams/core/lattice.h"
-
-#include "dipole_cuda_sparse_tensor.h"
+#include "jams/cuda/cuda_array_kernels.h"
+#include "jams/hamiltonian/cuda_dipole_sparse_tensor.h"
 
 using namespace std;
 
-DipoleHamiltonianCUDASparseTensor::~DipoleHamiltonianCUDASparseTensor() {
+CudaDipoleHamiltonianSparseTensor::~CudaDipoleHamiltonianSparseTensor() {
   if (dev_stream_ != nullptr) {
     cudaStreamDestroy(dev_stream_);
   }
 }
 
-DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libconfig::Setting &settings, const unsigned int size)
+CudaDipoleHamiltonianSparseTensor::CudaDipoleHamiltonianSparseTensor(const libconfig::Setting &settings, const unsigned int size)
 : HamiltonianStrategy(settings, size),
     use_double_precision(false)   // default to float precision
  {
@@ -178,7 +178,7 @@ DipoleHamiltonianCUDASparseTensor::DipoleHamiltonianCUDASparseTensor(const libco
 
 // --------------------------------------------------------------------------
 
-double DipoleHamiltonianCUDASparseTensor::calculate_total_energy() {
+double CudaDipoleHamiltonianSparseTensor::calculate_total_energy() {
    double e_total = 0.0;
    for (int i = 0; i < globals::num_spins; ++i) {
        e_total += calculate_one_spin_energy(i);
@@ -189,7 +189,7 @@ double DipoleHamiltonianCUDASparseTensor::calculate_total_energy() {
 // --------------------------------------------------------------------------
 
 
-double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
+double CudaDipoleHamiltonianSparseTensor::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
     double h[3];
     calculate_one_spin_field(i, h);
     return -(s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2]);
@@ -197,7 +197,7 @@ double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy(const int i,
 
 // --------------------------------------------------------------------------
 
-double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy(const int i) {
+double CudaDipoleHamiltonianSparseTensor::calculate_one_spin_energy(const int i) {
     using namespace globals;
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
 
@@ -219,7 +219,7 @@ double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy(const int i)
 
 // --------------------------------------------------------------------------
 
-double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+double CudaDipoleHamiltonianSparseTensor::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
 
     double local_field[3], e_initial, e_final;
@@ -233,7 +233,7 @@ double DipoleHamiltonianCUDASparseTensor::calculate_one_spin_energy_difference(c
 }
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianCUDASparseTensor::calculate_energies(jblib::Array<double, 1>& energies) {
+void CudaDipoleHamiltonianSparseTensor::calculate_energies(jblib::Array<double, 1>& energies) {
     assert(energies.size() == globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
         energies[i] = calculate_one_spin_energy(i);
@@ -242,7 +242,7 @@ void DipoleHamiltonianCUDASparseTensor::calculate_energies(jblib::Array<double, 
 
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianCUDASparseTensor::calculate_one_spin_field(const int i, double local_field[3]) {
+void CudaDipoleHamiltonianSparseTensor::calculate_one_spin_field(const int i, double local_field[3]) {
     using namespace globals;
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
 
@@ -271,7 +271,7 @@ void DipoleHamiltonianCUDASparseTensor::calculate_one_spin_field(const int i, do
 
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianCUDASparseTensor::calculate_fields(jblib::Array<double, 2>& fields) {
+void CudaDipoleHamiltonianSparseTensor::calculate_fields(jblib::Array<double, 2>& fields) {
   if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
     // general matrix (i.e. Monte Carlo Solvers)
       char transa[1] = {'N'};
@@ -288,7 +288,7 @@ void DipoleHamiltonianCUDASparseTensor::calculate_fields(jblib::Array<double, 2>
     }
 }
 
-void DipoleHamiltonianCUDASparseTensor::calculate_fields(jblib::CudaArray<double, 1>& fields) {
+void CudaDipoleHamiltonianSparseTensor::calculate_fields(jblib::CudaArray<double, 1>& fields) {
 
     // cast spin array to floats
     cuda_array_double_to_float(globals::num_spins3, solver->dev_ptr_spin(), dev_float_spins_.data(), dev_stream_);

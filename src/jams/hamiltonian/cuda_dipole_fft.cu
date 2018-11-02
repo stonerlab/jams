@@ -1,18 +1,15 @@
-
-#include <cufft.h>
 #include <fstream>
+
 #include <libconfig.h++>
+#include <cufft.h>
 
-#include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"
-
 #include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
-
-#include "cuda_dipole_fft.h"
-#include "../cuda/cuda-complex-operators.h"
+#include "jams/cuda/cuda_device_complex_ops.h"
+#include "jams/hamiltonian/cuda_dipole_fft.h"
 
 using namespace std;
 
@@ -65,8 +62,8 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   r_cutoff_(0),
   distance_tolerance_(1e-6),
   h_(3*globals::num_spins),
-  kspace_size_(0, 0, 0),
-  kspace_padded_size_(0, 0, 0),
+  kspace_size_({0, 0, 0}),
+  kspace_padded_size_({0, 0, 0}),
   kspace_s_(),
   kspace_h_(),
   cuda_fft_s_rspace_to_kspace(),

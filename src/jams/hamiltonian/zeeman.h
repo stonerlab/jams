@@ -4,16 +4,13 @@
 #define JAMS_HAMILTONIAN_ZEEMAN_H
 
 #include <libconfig.h++>
-
 #include "jams/core/hamiltonian.h"
-
 #include "jblib/containers/array.h"
-#include "jblib/containers/cuda_array.h"
 
 class ZeemanHamiltonian : public Hamiltonian {
+    friend class CudaZeemanHamiltonian;
     public:
         ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-        ~ZeemanHamiltonian();
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
@@ -30,14 +27,6 @@ class ZeemanHamiltonian : public Hamiltonian {
         jblib::Array<double, 1> ac_local_frequency_;
 
         bool has_ac_local_field_;
-
-#if HAS_CUDA
-        cudaStream_t dev_stream_ = nullptr;
-        jblib::CudaArray<double, 1> dev_dc_local_field_;
-        jblib::CudaArray<double, 1> dev_ac_local_field_;
-        jblib::CudaArray<double, 1> dev_ac_local_frequency_;
-#endif  // CUDA
-
 };
 
 #endif  // JAMS_HAMILTONIAN_ZEEMAN_H

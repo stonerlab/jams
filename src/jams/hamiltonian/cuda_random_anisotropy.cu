@@ -1,24 +1,19 @@
 //
 // Created by Joe Barker on 2018/05/28.
 //
-#include <fstream>
-#include <random>
-#include <vector>
-
 #include <libconfig.h++>
-#include <pcg/pcg_random.hpp>
 
 #include "jams/core/hamiltonian.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
-#include "jams/hamiltonian/random_anisotropy_cuda.h"
-#include "jams/hamiltonian/random_anisotropy_cuda_kernel.h"
+#include "jams/hamiltonian/cuda_random_anisotropy.h"
+#include "jams/hamiltonian/cuda_random_anisotropy_kernel.cuh"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/helpers/random.h"
 #include "jams/helpers/utils.h"
 
-RandomAnisotropyCudaHamiltonian::RandomAnisotropyCudaHamiltonian(const libconfig::Setting &settings,
+CudaRandomAnisotropyHamiltonian::CudaRandomAnisotropyHamiltonian(const libconfig::Setting &settings,
                                                                  const unsigned int size)
         : RandomAnisotropyHamiltonian(settings, size)
 {
@@ -28,7 +23,7 @@ RandomAnisotropyCudaHamiltonian::RandomAnisotropyCudaHamiltonian(const libconfig
   dev_field_     = jblib::CudaArray<double, 1>(field_);
 }
 
-void RandomAnisotropyCudaHamiltonian::calculate_fields() {
+void CudaRandomAnisotropyHamiltonian::calculate_fields() {
   const unsigned num_blocks = (globals::num_spins+dev_blocksize_-1)/dev_blocksize_;
   random_anisotropy_cuda_field_kernel<<<num_blocks, dev_blocksize_, 0, dev_stream_.get()>>>(
           globals::num_spins,
@@ -39,7 +34,7 @@ void RandomAnisotropyCudaHamiltonian::calculate_fields() {
           );
 }
 
-void RandomAnisotropyCudaHamiltonian::calculate_energies() {
+void CudaRandomAnisotropyHamiltonian::calculate_energies() {
   const unsigned num_blocks = (globals::num_spins+dev_blocksize_-1)/dev_blocksize_;
   random_anisotropy_cuda_energy_kernel<<<num_blocks, dev_blocksize_, 0, dev_stream_.get()>>>(
           globals::num_spins,
@@ -50,7 +45,7 @@ void RandomAnisotropyCudaHamiltonian::calculate_energies() {
   );
 }
 
-double RandomAnisotropyCudaHamiltonian::calculate_total_energy() {
+double CudaRandomAnisotropyHamiltonian::calculate_total_energy() {
   calculate_energies();
   return thrust::reduce(dev_energy_.data(), dev_energy_.data()+dev_energy_.elements());
 }

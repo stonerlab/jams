@@ -4,7 +4,7 @@
 #ifndef JAMS_RANDOM_ANISOTROPY_CUDA_KERNEL_H
 #define JAMS_RANDOM_ANISOTROPY_CUDA_KERNEL_H
 
-#include "jams/cuda/cuda_vector_ops.h"
+#include "jams/cuda/cuda_device_vector_ops.h"
 
 __global__
 void random_anisotropy_cuda_field_kernel(

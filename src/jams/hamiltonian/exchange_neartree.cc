@@ -4,19 +4,24 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/consts.h"
-#include "jams/cuda/cuda_defs.h"
-#include "jams/cuda/cuda_sparsematrix.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
+
+#if HAS_CUDA
+#include "jams/cuda/cuda_defs.h"
+#include "jams/helpers/cuda_exception.h"
+#endif
 
 #include "exchange_neartree.h"
 
 using namespace std;
 
 ExchangeNeartreeHamiltonian::~ExchangeNeartreeHamiltonian() {
+#if HAS_CUDA
   if (dev_stream_ != nullptr) {
     cudaStreamDestroy(dev_stream_);
   }
+#endif
 }
 
 void ExchangeNeartreeHamiltonian::insert_interaction(const int i, const int j, const Mat3 &value) {

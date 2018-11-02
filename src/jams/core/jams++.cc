@@ -10,6 +10,10 @@
   #include <omp.h>
 #endif
 
+#if HAS_CUDA
+  #include "jams/helpers/cuda_exception.h"
+#endif
+
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/core/jams++.h"
@@ -72,11 +76,8 @@ namespace jams {
     string header() {
       stringstream ss;
       ss << "\nJAMS++ " << jams::build::version << "\n\n";
-      ss << "build   ";
-      ss << jams::build::time << " ";
-      ss << jams::build::type << " ";
-      ss << jams::build::hash << " ";
-      ss << jams::build::branch << "\n";
+      ss << "build   "  << jams::build::type << " (" << "cuda:" << jams::build::option_cuda << " omp:" << jams::build::option_omp << ")\n" ;
+      ss << "git     "  << jams::build::branch << " (" << jams::build::hash << ")\n" ;
       ss << "run     ";
       ss << get_date_string(std::chrono::system_clock::now()) << "\n";
       #if HAS_OMP

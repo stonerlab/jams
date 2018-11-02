@@ -85,9 +85,10 @@ build_branch() {
   local branch="$1"
   local build_type=$2
   local generator=$3
+  local cmake_extra_args="$4"
 
   local build_name=$(tr '[:upper:]' '[:lower:]' <<< "jams-${branch}-${build_type}")
-  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type}"
+  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} $cmake_extra_args"
 
   local workdir="${build_name}"
 
@@ -95,59 +96,60 @@ build_branch() {
 
   clean ${workdir}
   message "==> Cloning git repository..."
-  clone_git_repo_shallow ${URL} ${branch} ${workdir}
+  clone_git_repo_shallow "${URL}" "${branch}" "${workdir}"
   message "==> Running CMake..."
-  cmake_generate "${workdir}/build" ${cmake_args} ${generator}
+  cmake_generate "${workdir}/build" "${generator}" "${cmake_args}" 
   message "==> Compiling source..."
-  build "${workdir}/build" ${generator}
+  build "${workdir}/build" "${generator}"
   message "==> Creating binary..."
-  copy_binary "${workdir}" ${build_name}
+  copy_binary "${workdir}" "${build_name}"
 }
 
 build_commit() {
   local commit="$1"
   local build_type=$2
   local generator=$3
+  local cmake_extra_args="$4"
 
   local build_name=$(tr '[:upper:]' '[:lower:]' <<< "jams-${commit}-${build_type}")
-  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type}"
+  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} $cmake_extra_args"
 
   local workdir="${build_name}"
 
   message "Building ${workdir} from '${URL}'..."
 
-  clean ${workdir}
+  clean "${workdir}"
   message "==> Cloning git repository..."
-  clone_git_repo ${URL} ${workdir}
-  checkout_git_commit ${commit} ${workdir}
+  clone_git_repo "${URL}" "${workdir}"
+  checkout_git_commit "${commit}" "${workdir}"
   message "==> Running CMake..."
-  cmake_generate "${workdir}/build" ${cmake_args} ${generator}
+  cmake_generate "${workdir}/build" "${generator}" "${cmake_args}" 
   message "==> Compiling source..."
-  build "${workdir}/build" ${generator}
+  build "${workdir}/build" "${generator}"
   message "==> Creating binary..."
-  copy_binary "${workdir}" ${build_name}
+  copy_binary "${workdir}" "${build_name}"
 }
 
 cmake_generate() {
   local cmake_build_dir="$1"
-  local cmake_args="$2"
-  local cmake_generator="$3"
+  local cmake_generator="$2"
+  local cmake_args="$3"
 
   mkdir -p "${cmake_build_dir}"
 
-  (cd -- "${cmake_build_dir}" && cmake .. -G "${cmake_generator}" ${cmake_args} >> ${LOG} 2>&1)
+  (cd -- "${cmake_build_dir}" && cmake -G "${cmake_generator}" ${cmake_args} .. >> ${LOG} 2>&1)
 }
 
 build() {
   local build_dir="$1"
   local build_system="$2"
 
-  case ${build_system} in
+  case "${build_system}" in
     "Ninja")
-	(cd -- "${build_dir}" && ninja jams >> ${LOG} 2>&1)
+	(cd -- "${build_dir}" && ninja jams >> "${LOG}" 2>&1)
 	;;
     "Unix Makefiles")
-	(cd -- "${build_dir}" && make ${MAKEFLAGS} >> ${LOG} 2>&1)
+	(cd -- "${build_dir}" && make "${MAKEFLAGS}" >> "${LOG}" 2>&1)
 	;;
     /?)
 	echo "Unknown build system: ${build_system}"
@@ -161,23 +163,27 @@ main() {
   local commit=""
   local build_type="Release"
   local generator="Ninja"
+  local extra_args=""
 
-  while getopts ":b:c:dt:h:" opt; do
+  while getopts ":b:c:dt:D:h:" opt; do
     case $opt in
       b )
-        branch=$OPTARG
+        branch="$OPTARG"
         ;;
       c )
-        commit=$OPTARG
+        commit="$OPTARG"
         ;;
       d )
         build_type="Debug"
         ;;
       t )
-        build_type=$OPTARG
+        build_type="$OPTARG"
         ;;
       g )
-        generator=$OPTARG
+        generator="$OPTARG"
+        ;;
+      D )
+        extra_args="-D$OPTARG $extra_args"
         ;;
       \?)
         echo "Invalid option: -$OPTARG"
@@ -189,9 +195,9 @@ main() {
   cd $TMP_DIR
 
   if [ ! -z "${commit}" ]; then
-    build_commit "$commit" "$build_type" "$generator"
+    build_commit "$commit" "$build_type" "$generator" "$extra_args"
   else
-    build_branch "$branch" "$build_type" "$generator"
+    build_branch "$branch" "$build_type" "$generator" "$extra_args"
   fi
 }
  

@@ -5,17 +5,15 @@
 
 #include <array>
 
+#include <libconfig.h++>
 #include <cublas_v2.h>
 #include <cufft.h>
 
-#include <libconfig.h++>
-
 #include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
-
-#include "strategy.h"
-
-#include "jams/cuda/wrappers/stream.h"
+#include "jblib/containers/cuda_array.h"
+#include "jams/core/types.h"
+#include "jams/hamiltonian/strategy.h"
+#include "jams/cuda/cuda_stream.h"
 
 class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
     public:
@@ -38,19 +36,21 @@ class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
         bool check_symmetry_ = true;
 
         jblib::Array<fftw_complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
-        std::array<CudaStream, 4> dev_stream_;
 
         double                          r_cutoff_;
         double                          distance_tolerance_;
 
-        jblib::CudaArray<double, 1>     h_;
 
-        jblib::Vec3<int>                    kspace_size_;
-        jblib::Vec3<int>                    kspace_padded_size_;
+        Vec3i                    kspace_size_;
+        Vec3i                    kspace_padded_size_;
         jblib::CudaArray<cufftDoubleComplex, 1>   kspace_s_;
         jblib::CudaArray<cufftDoubleComplex, 1>   kspace_h_;
 
-        std::vector<std::vector<jblib::CudaArray<cufftDoubleComplex, 1>>> kspace_tensors_;
+    std::array<CudaStream, 4> dev_stream_;
+    jblib::CudaArray<double, 1>     h_;
+
+
+    std::vector<std::vector<jblib::CudaArray<cufftDoubleComplex, 1>>> kspace_tensors_;
 
         cufftHandle                     cuda_fft_s_rspace_to_kspace;
         cufftHandle                     cuda_fft_h_kspace_to_rspace;

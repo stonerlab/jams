@@ -10,13 +10,13 @@
 #include <jams/helpers/defaults.h>
 
 #include "jams/helpers/consts.h"
-#include "jams/helpers/exception.h"
+#include "jams/helpers/cuda_exception.h"
 #include "jams/core/globals.h"
 #include "jams/core/thermostat.h"
 #include "jams/core/physics.h"
 #include "jams/helpers/error.h"
 
-#include "cuda_llg_heun_kernel.h"
+#include "cuda_llg_heun_kernel.cuh"
 
 #include "jblib/containers/array.h"
 
