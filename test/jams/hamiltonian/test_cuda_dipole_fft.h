@@ -11,7 +11,8 @@
 #include "jams/helpers/random.h"
 
 #include "jams/hamiltonian/test_dipole_input.h"
-#include "../../../src/jams/hamiltonian/cuda_dipole_fft.h"
+#include "jams/hamiltonian/cuda_dipole_fft.h"
+#include "jams/hamiltonian/cuda_dipole_bruteforce.h"
 
 //---------------------------------------------------------------------
 // NOTE: The liberal use of #pragma nounroll_and_jam is to avoid a bug
@@ -238,7 +239,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM_RAND) {
   cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
         cudaMemcpyHostToDevice);
 
-  auto h_bruteforce = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new CudaDipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
   auto h_fft = new CudaDipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
@@ -253,7 +254,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM_RAND) {
 TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM) {
   SetUp(  config_basic_gpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
-  auto h_bruteforce = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new CudaDipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
   auto h_fft = new CudaDipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
@@ -270,7 +271,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM) {
 TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_2D_FM_SLOW) {
   SetUp(  config_basic_gpu + config_unitcell_bcc_2_atom + config_lattice_2D_128 + config_dipole_bruteforce_64);
 
-  auto h_bruteforce = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new CudaDipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
   auto h_fft = new CudaDipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
@@ -297,7 +298,7 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM_RAND) {
   cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
         cudaMemcpyHostToDevice);
 
-  auto h_bruteforce = new DipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new CudaDipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
   auto h_fft = new CudaDipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;

@@ -10,9 +10,9 @@
 
 #include "jams/core/hamiltonian.h"
 #include "jblib/containers/array.h"
-#include "jblib/containers/cuda_array.h"
 
 class RandomAnisotropyHamiltonian : public Hamiltonian {
+    friend class CudaRandomAnisotropyHamiltonian;
     public:
     RandomAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
         ~RandomAnisotropyHamiltonian() override = default;
@@ -25,7 +25,7 @@ class RandomAnisotropyHamiltonian : public Hamiltonian {
 
         void   calculate_one_spin_field(const int i, double h[3]) override;
         void   calculate_fields() override;
-    protected:
+    private:
         void output_anisotropy_axes(std::ofstream &outfile);
 
         std::vector<double> magnitude_;

@@ -3,18 +3,17 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
 #define JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
 
+#include "jblib/containers/cuda_array.h"
 #include "jams/helpers/maths.h"
-#include "strategy.h"
+#include "jams/hamiltonian/strategy.h"
 
-#if HAS_CUDA
-#include "jams/cuda/wrappers/stream.h"
-#endif
+#include "jams/cuda/cuda_stream.h"
 
-class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
+class CudaDipoleHamiltonianBruteforce : public HamiltonianStrategy {
     public:
-        DipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size);
+        CudaDipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size);
 
-        ~DipoleHamiltonianBruteforce();
+        ~CudaDipoleHamiltonianBruteforce();
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
@@ -25,19 +24,15 @@ class DipoleHamiltonianBruteforce : public HamiltonianStrategy {
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields(jblib::Array<double, 2>& fields);
 
-#if HAS_CUDA
         void   calculate_fields(jblib::CudaArray<double, 1>& fields);
-#endif
 
     private:
         double r_cutoff_;
         double dipole_prefactor_;
 
-#if HAS_CUDA
         jblib::CudaArray<float, 1> dev_r_;
         jblib::CudaArray<float, 1> dev_mus_;
         jblib::CudaArray<double, 1> dev_dipole_fields;
-#endif
         jblib::Array<double, 2> host_dipole_fields;
 };
 

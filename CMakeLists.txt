@@ -1,8 +1,16 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_policy(SET CMP0074 NEW) # ``find_package()`` uses ``<PackageName>_ROOT`` variables.
 
-option(jams_build_tests "Build all of JAMS's unit tests." OFF)
+option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" ON)
+option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" ON)
+option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
 
-project(jams LANGUAGES C CXX CUDA)
+if (JAMS_BUILD_CUDA)
+    project(jams LANGUAGES C CXX CUDA)
+else()
+    project(jams LANGUAGES C CXX)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
 set(VERSION_MAJOR "2" )
@@ -18,6 +26,6 @@ ensure_out_of_source_build()
 
 add_subdirectory(src/jams)
 
-if (jams_build_tests)
+if (JAMS_BUILD_TESTS)
     add_subdirectory(test/jams)
 endif()

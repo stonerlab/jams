@@ -7,17 +7,17 @@
 
 #include <libconfig.h++>
 
+#include "jblib/containers/array.h"
+#include "jams/containers/sparsematrix.h"
+#include "jams/core/hamiltonian.h"
+
 #if HAS_CUDA
 #include <cuda_runtime.h>
 #include <cusparse.h>
-#endif
-
-#include "jams/core/hamiltonian.h"
 #include "jams/cuda/cuda_defs.h"
-#include "jams/cuda/cuda-sparse-helpers.h"
-
-#include "jblib/containers/array.h"
+#include "jams/cuda/cuda_sparsematrix.h"
 #include "jblib/containers/cuda_array.h"
+#endif
 
 struct InteractionNT {
     int material[2];

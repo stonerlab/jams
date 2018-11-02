@@ -2,19 +2,11 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/maths.h"
 #include "jams/helpers/consts.h"
-#include "jams/cuda/cuda_defs.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/error.h"
 
-#include "zeeman.h"
-#include "zeeman_kernel.h"
-
-ZeemanHamiltonian::~ZeemanHamiltonian() {
-    if (dev_stream_ != nullptr) {
-      cudaStreamDestroy(dev_stream_);
-    }
-}
+#include "jams/hamiltonian/zeeman.h"
 
 ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size)
@@ -76,25 +68,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
             ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i);
         }
     }
-
-    // transfer arrays to cuda device if needed
-#if HAS_CUDA
-    if (solver->is_cuda_solver()) {
-        cudaStreamCreate(&dev_stream_);
-
-        dev_energy_ = jblib::CudaArray<double, 1>(energy_);
-        dev_field_  = jblib::CudaArray<double, 1>(field_);
-
-        dev_dc_local_field_ = jblib::CudaArray<double, 1>(dc_local_field_);
-
-        dev_ac_local_field_ = jblib::CudaArray<double, 1>(ac_local_field_);
-        dev_ac_local_frequency_ = jblib::CudaArray<double, 1>(ac_local_frequency_);
-    }
-#endif
-
 }
-
-// --------------------------------------------------------------------------
 
 double ZeemanHamiltonian::calculate_total_energy() {
     double e_total = 0.0;
@@ -104,8 +78,6 @@ double ZeemanHamiltonian::calculate_total_energy() {
      return e_total;
 }
 
-// --------------------------------------------------------------------------
-
 double ZeemanHamiltonian::calculate_one_spin_energy(const int i) {
     using namespace globals;
     double one_spin_field[3];
@@ -114,8 +86,6 @@ double ZeemanHamiltonian::calculate_one_spin_energy(const int i) {
 
     return -(s(i, 0)*one_spin_field[0] + s(i, 1)*one_spin_field[1] + s(i, 2)*one_spin_field[2]);
 }
-
-// --------------------------------------------------------------------------
 
 double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     using std::pow;
@@ -138,15 +108,11 @@ double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, cons
     return (e_final - e_initial);
 }
 
-// --------------------------------------------------------------------------
-
 void ZeemanHamiltonian::calculate_energies() {
     for (int i = 0; i < globals::num_spins; ++i) {
         energy_[i] = calculate_one_spin_energy(i);
     }
 }
-
-// --------------------------------------------------------------------------
 
 void ZeemanHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
     using namespace globals;
@@ -163,42 +129,10 @@ void ZeemanHamiltonian::calculate_one_spin_field(const int i, double local_field
     }
 }
 
-
-
-// --------------------------------------------------------------------------
-
 void ZeemanHamiltonian::calculate_fields() {
-    if (solver->is_cuda_solver()) {
-#if HAS_CUDA
-        dim3 block_size;
-        block_size.x = 32;
-        block_size.y = 4;
-
-        dim3 grid_size;
-        grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
-        grid_size.y = (3 + block_size.y - 1) / block_size.y;
-
-        cuda_api_error_check(
-          cudaMemcpyAsync(dev_field_.data(),           // void *               dst
-                     dev_dc_local_field_.data(),               // const void *         src
-                     globals::num_spins3*sizeof(double),   // size_t               count
-                     cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-                     dev_stream_)                   // device stream
-        );
-
-        if (has_ac_local_field_) {
-            cuda_zeeman_ac_field_kernel<<<grid_size, block_size, 0, dev_stream_>>>
-                (globals::num_spins, solver->time(),
-                    dev_ac_local_field_.data(), dev_ac_local_frequency_.data(),
-                    solver->dev_ptr_spin(), dev_field_.data());
-            cuda_kernel_error_check();
-        }
-#endif  // CUDA
-    } else {
-      for (int i = 0; i < globals::num_spins; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                field_(i, j) = dc_local_field_(i, j) + ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
-            }
-        }
+  for (int i = 0; i < globals::num_spins; ++i) {
+      for (int j = 0; j < 3; ++j) {
+          field_(i, j) = dc_local_field_(i, j) + ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
+      }
     }
 }

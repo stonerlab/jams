@@ -5,7 +5,7 @@
 
 #if HAS_CUDA
 
-#include "jams/cuda/wrappers/stream.h"
+#include "jams/cuda/cuda_stream.h"
 #include "jams/cuda/cuda_solver.h"
 
 #include "jblib/containers/array.h"

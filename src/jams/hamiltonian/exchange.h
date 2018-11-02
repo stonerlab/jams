@@ -7,23 +7,14 @@
 
 #include <libconfig.h++>
 
-#if HAS_CUDA
-#include <cuda_runtime.h>
-#include <cusparse.h>
-#include "jams/cuda/wrappers/stream.h"
-
-#endif
-
 #include "jams/core/hamiltonian.h"
-#include "jams/cuda/cuda_defs.h"
 #include "jams/core/interactions.h"
 #include "jams/containers/sparsematrix.h"
-#include "jams/cuda/cuda-sparse-helpers.h"
 
 #include "jblib/containers/array.h"
-#include "jblib/containers/cuda_array.h"
 
 class ExchangeHamiltonian : public Hamiltonian {
+    friend class CudaExchangeHamiltonian;
     public:
         ExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
         ~ExchangeHamiltonian() = default;
@@ -44,12 +35,6 @@ class ExchangeHamiltonian : public Hamiltonian {
         double radius_cutoff_;
         double distance_tolerance_;
         InteractionFileFormat exchange_file_format_;
-
-#if HAS_CUDA
-        CudaSparseMatrixCSR<double> dev_csr_interaction_matrix_;
-        cusparseHandle_t   cusparse_handle_;
-        CudaStream dev_stream_;
-#endif  // CUDA
 };
 
 #endif  // JAMS_HAMILTONIAN_EXCHANGE_H

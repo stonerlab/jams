@@ -1,44 +1,59 @@
 add_library(jams_object_lib OBJECT EXCLUDE_FROM_ALL "")
+
 target_compile_features(jams_object_lib PRIVATE cxx_std_11)
-target_compile_definitions(jams_object_lib PRIVATE HAS_CUDA=1)
-
-
-if (OpenMP_CXX_FOUND)
-target_compile_definitions(jams_object_lib PRIVATE HAS_OMP=1)
-target_compile_options(jams_object_lib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
-endif()
 
 target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
 target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
 # object libraries cannot use target_link_libraries to pull in include and compile definitions
 # this hack allows us to pull them in manually
-foreach(TGT fftw3 cblas jblib pcg symspg config++ hdf5 cuda cusparse curand cublas cufft)
+foreach(TGT fftw3 cblas jblib pcg symspg config++ hdf5)
     target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
 endforeach()
 
+if(JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
+    target_compile_definitions(jams_object_lib PRIVATE HAS_OMP=1)
+    target_link_libraries(jams_object_lib OpenMP::OpenMP_CXX)
+    target_compile_options(jams_object_lib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
+endif()
+
+if(JAMS_BUILD_CUDA)
+    target_compile_definitions(jams_object_lib PRIVATE HAS_CUDA=1)
+    foreach(TGT cusparse curand cublas cufft)
+        target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
+        target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
+    endforeach()
+
+    if(APPLE)
+        # We need to add the path to the driver (libcuda.dylib) as an rpath,
+        # so that the static cuda runtime can find it at runtime.
+        set_property(TARGET jams_object_lib
+                     PROPERTY
+                     BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+    endif()
+endif()
+
 add_executable(jams "main.cc" $<TARGET_OBJECTS:jams_object_lib>)
-target_link_libraries(jams fftw3 cblas jblib pcg symspg config++ hdf5 cuda cusparse curand cublas cufft)
+
 target_compile_features(jams PRIVATE cxx_std_11)
-target_compile_definitions(jams PRIVATE HAS_CUDA=1)
+
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
-if (OpenMP_CXX_FOUND)
-    # target_link_libraries(jams OpenMP::OpenMP_CXX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    target_link_libraries(jams ${OpenMP_CXX_LIB_NAMES})
+target_link_libraries(jams fftw3 cblas jblib pcg symspg config++ hdf5)
+
+if (JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
     target_compile_definitions(jams PRIVATE HAS_OMP=1)
+    target_link_libraries(jams OpenMP::OpenMP_CXX)
+    target_compile_options(jams PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
 endif()
 
-if(APPLE)
-    # We need to add the path to the driver (libcuda.dylib) as an rpath,
-    # so that the static cuda runtime can find it at runtime.
-    set_property(TARGET jams_object_lib
-            PROPERTY
-            BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+if(JAMS_BUILD_CUDA)
+    target_compile_definitions(jams PRIVATE HAS_CUDA=1)
+    target_link_libraries(jams cusparse curand cublas cufft)
 endif()
+
 target_sources(jams_object_lib
         PRIVATE
         containers/bimap.h
@@ -76,32 +91,10 @@ target_sources(jams_object_lib
         core/thermostat.h
         core/types.h
         core/units.h
-        cuda/cuda-complex-operators.h
-        cuda/cuda-sparse-helpers.h
-        cuda/cuda_array_kernels.cu
-        cuda/cuda_array_kernels.h
-        cuda/cuda_defs.cc
-        cuda/cuda_defs.h
-        cuda/cuda_solver.cc
-        cuda/cuda_solver.h
-        cuda/cuda_sparsematrix.cu
-        cuda/cuda_sparsematrix.h
-        cuda/cuda_vector_ops.h
-        cuda/wrappers/stream.h
-        hamiltonian/anisotropy_uniaxial.cu
-        hamiltonian/anisotropy_uniaxial.h
-        hamiltonian/anisotropy_uniaxial_kernel.h
-        hamiltonian/cuda_dipole_fft.cu
-        hamiltonian/cuda_dipole_fft.h
         hamiltonian/dipole.cc
         hamiltonian/dipole.h
-        hamiltonian/dipole_bruteforce.cu
+        hamiltonian/dipole_bruteforce.cc
         hamiltonian/dipole_bruteforce.h
-        hamiltonian/dipole_bruteforce_kernel.h
-        hamiltonian/dipole_cpu_bruteforce.cc
-        hamiltonian/dipole_cpu_bruteforce.h
-        hamiltonian/dipole_cuda_sparse_tensor.cu
-        hamiltonian/dipole_cuda_sparse_tensor.h
         hamiltonian/dipole_ewald.cc
         hamiltonian/dipole_ewald.h
         hamiltonian/dipole_fft.cc
@@ -113,14 +106,12 @@ target_sources(jams_object_lib
         hamiltonian/exchange_neartree.cc
         hamiltonian/exchange_neartree.h
         hamiltonian/strategy.h
+        hamiltonian/uniaxial_anisotropy.cc
+        hamiltonian/uniaxial_anisotropy.h
         hamiltonian/random_anisotropy.cc
         hamiltonian/random_anisotropy.h
-        hamiltonian/random_anisotropy_cuda.cu
-        hamiltonian/random_anisotropy_cuda.h
-        hamiltonian/random_anisotropy_cuda_kernel.h
-        hamiltonian/zeeman.cu
+        hamiltonian/zeeman.cc
         hamiltonian/zeeman.h
-        hamiltonian/zeeman_kernel.h
         helpers/consts.h
         helpers/defaults.h
         helpers/duration.h
@@ -196,12 +187,45 @@ target_sources(jams_object_lib
         solvers/cpu_monte_carlo_constrained.h
         solvers/cpu_monte_carlo_metropolis.cc
         solvers/cpu_monte_carlo_metropolis.h
-        solvers/cuda_llg_heun.cu
-        solvers/cuda_llg_heun.h
-        solvers/cuda_llg_heun_kernel.h
-        thermostats/cuda_langevin_bose.cu
-        thermostats/cuda_langevin_bose.h
-        thermostats/cuda_langevin_bose_kernel.h
-        thermostats/cuda_langevin_white.cc
-        thermostats/cuda_langevin_white.h
         )
+
+if(JAMS_BUILD_CUDA)
+    target_sources(jams_object_lib
+            PRIVATE
+            cuda/cuda_device_complex_ops.h
+            cuda/cuda_sparsematrix.h
+            cuda/cuda_array_kernels.cu
+            cuda/cuda_array_kernels.h
+            cuda/cuda_defs.h
+            cuda/cuda_solver.cc
+            cuda/cuda_solver.h
+            cuda/cuda_device_vector_ops.h
+            cuda/cuda_stream.h
+            hamiltonian/cuda_uniaxial_anisotropy.cu
+            hamiltonian/cuda_uniaxial_anisotropy.h
+            hamiltonian/cuda_uniaxial_anisotropy_kernel.cuh
+            hamiltonian/cuda_dipole_fft.cu
+            hamiltonian/cuda_dipole_fft.h
+            hamiltonian/cuda_exchange.cu
+            hamiltonian/cuda_exchange.h
+            hamiltonian/cuda_random_anisotropy.cu
+            hamiltonian/cuda_random_anisotropy.h
+            hamiltonian/cuda_random_anisotropy_kernel.cuh
+            hamiltonian/cuda_zeeman.cu
+            hamiltonian/cuda_zeeman.h
+            hamiltonian/cuda_zeeman_kernel.cuh
+            hamiltonian/cuda_dipole_bruteforce.cu
+            hamiltonian/cuda_dipole_bruteforce.h
+            hamiltonian/cuda_dipole_bruteforce_kernel.cuh
+            hamiltonian/cuda_dipole_sparse_tensor.cu
+            hamiltonian/cuda_dipole_sparse_tensor.h
+            solvers/cuda_llg_heun.cu
+            solvers/cuda_llg_heun.h
+            solvers/cuda_llg_heun_kernel.cuh
+            thermostats/cuda_langevin_bose.cu
+            thermostats/cuda_langevin_bose.h
+            thermostats/cuda_langevin_bose_kernel.h
+            thermostats/cuda_langevin_white.cc
+            thermostats/cuda_langevin_white.h
+            )
+endif()

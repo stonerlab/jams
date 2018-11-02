@@ -7,20 +7,21 @@
 #include <vector>
 
 #include <libconfig.h++>
-#include <thrust/device_vector.h>
 
 #include "jams/core/hamiltonian.h"
-#include "jams/cuda/wrappers/stream.h"
 #include "jams/hamiltonian/random_anisotropy.h"
 #include "jams/helpers/exception.h"
 #include "jblib/containers/array.h"
-#include "jblib/containers/cuda_array.h"
+#include "jams/cuda/cuda_stream.h"
+
+#include <thrust/device_vector.h>
+#include "jams/cuda/cuda_stream.h"
 #include "jblib/containers/cuda_array.h"
 
-class RandomAnisotropyCudaHamiltonian : public RandomAnisotropyHamiltonian {
+class CudaRandomAnisotropyHamiltonian : public RandomAnisotropyHamiltonian {
     public:
-      RandomAnisotropyCudaHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-      ~RandomAnisotropyCudaHamiltonian() override = default;
+      CudaRandomAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
+      ~CudaRandomAnisotropyHamiltonian() override = default;
 
       void   calculate_energies() override;
       void   calculate_fields() override;
@@ -35,6 +36,7 @@ class RandomAnisotropyCudaHamiltonian : public RandomAnisotropyHamiltonian {
 
     private:
       unsigned   dev_blocksize_ = 128;
+
       CudaStream dev_stream_;
       thrust::device_vector<double> dev_magnitude_;
       thrust::device_vector<double> dev_direction_;

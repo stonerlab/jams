@@ -8,7 +8,7 @@
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 
-#include "dipole_cpu_bruteforce.h"
+#include "dipole_bruteforce.h"
 
 DipoleHamiltonianCpuBruteforce::~DipoleHamiltonianCpuBruteforce() {
 }

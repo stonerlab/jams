@@ -19,11 +19,11 @@ typedef struct devFloatCSR {
 } devFloatCSR;
 
 #if HAS_CUDA
-class DipoleHamiltonianCUDASparseTensor : public HamiltonianStrategy {
+class CudaDipoleHamiltonianSparseTensor : public HamiltonianStrategy {
     public:
-        DipoleHamiltonianCUDASparseTensor(const libconfig::Setting &settings, const unsigned int size);
+        CudaDipoleHamiltonianSparseTensor(const libconfig::Setting &settings, const unsigned int size);
 
-        ~DipoleHamiltonianCUDASparseTensor();
+        ~CudaDipoleHamiltonianSparseTensor();
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);

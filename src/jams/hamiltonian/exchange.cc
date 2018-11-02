@@ -4,16 +4,12 @@
 #include "jams/helpers/exception.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
-#include "jams/cuda/cuda_defs.h"
-#include "jams/cuda/cuda_sparsematrix.h"
 #include "jams/core/interactions.h"
 #include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 
-#include "jblib/math/summations.h"
-
-#include "exchange.h"
+#include "jams/hamiltonian/exchange.h"
 
 using namespace std;
 
@@ -115,24 +111,6 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     cout << "    converting interaction matrix format from MAP to CSR\n";
     interaction_matrix_.convertMAP2CSR();
     cout << "    exchange matrix memory (CSR): " << interaction_matrix_.calculateMemory() << " (MB)\n";
-
-    // transfer arrays to cuda device if needed
-    if (solver->is_cuda_solver()) {
-#if HAS_CUDA
-      dev_energy_ = jblib::CudaArray<double, 1>(energy_);
-      dev_field_  = jblib::CudaArray<double, 1>(field_);
-
-      cout << "    init cusparse\n";
-      cusparseStatus_t status = cusparseCreate(&cusparse_handle_);
-      if (status != CUSPARSE_STATUS_SUCCESS) {
-        die("cusparse Library initialization failed");
-      }
-      cusparseSetStream(cusparse_handle_, dev_stream_.get());
-
-      sparsematrix_copy_host_csr_to_cuda_csr(interaction_matrix_, dev_csr_interaction_matrix_);
-#endif
-  }
-
 }
 
 // --------------------------------------------------------------------------
@@ -140,26 +118,10 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 double ExchangeHamiltonian::calculate_total_energy() {
   double total_energy = 0.0;
 
-#if HAS_CUDA
-  if (solver->is_cuda_solver()) {
-    calculate_fields();
-    dev_field_.copy_to_host_array(field_);
-    for (auto i = 0; i < globals::num_spins; ++i) {
-        total_energy += -(  globals::s(i,0)*field_(i,0) 
-                     + globals::s(i,1)*field_(i,1)
-                     + globals::s(i,2)*field_(i,2) );
-    }
-  } else {
-#endif // CUDA
-
 #pragma omp parallel for reduction(+:total_energy)
     for (int i = 0; i < globals::num_spins; ++i) {
         total_energy += calculate_one_spin_energy(i);
     }
-
-#if HAS_CUDA
-    }
-#endif // CUDA
 
     return 0.5*total_energy;
 }
@@ -186,8 +148,6 @@ double ExchangeHamiltonian::calculate_one_spin_energy(const int i) {
     return -(globals::s(i,0)*jij_sj[0] + globals::s(i,1)*jij_sj[1] + globals::s(i,2)*jij_sj[2]);
 }
 
-// --------------------------------------------------------------------------
-
 double ExchangeHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
 
@@ -201,15 +161,11 @@ double ExchangeHamiltonian::calculate_one_spin_energy_difference(const int i, co
     return e_final - e_initial;
 }
 
-// --------------------------------------------------------------------------
-
 void ExchangeHamiltonian::calculate_energies() {
     for (int i = 0; i < globals::num_spins; ++i) {
         energy_[i] = calculate_one_spin_energy(i);
     }
 }
-
-// --------------------------------------------------------------------------
 
 void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
@@ -232,8 +188,6 @@ void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_fie
     }
 }
 
-// --------------------------------------------------------------------------
-
 void ExchangeHamiltonian::calculate_fields() {
   assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
   double one = 1.0;
@@ -243,30 +197,6 @@ void ExchangeHamiltonian::calculate_fields() {
   const int num_rows = globals::num_spins3;
   const int num_cols = globals::num_spins3;
 
-  if (solver->is_cuda_solver()) {
-#if HAS_CUDA
-    cusparseStatus_t stat =
-            cusparseDcsrmv(cusparse_handle_,
-                    CUSPARSE_OPERATION_NON_TRANSPOSE,
-                    num_rows,
-                    num_cols,
-                    interaction_matrix_.nonZero(),
-                    &one,
-                    dev_csr_interaction_matrix_.descr,
-                    dev_csr_interaction_matrix_.val,
-                    dev_csr_interaction_matrix_.row,
-                    dev_csr_interaction_matrix_.col,
-                    solver->dev_ptr_spin(),
-                    &zero,
-                    dev_field_.data());
-
-    if (debug_is_enabled()) {
-      if (stat != CUSPARSE_STATUS_SUCCESS) {
-        throw cuda_api_exception("cusparse failure", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-      }
-    }
-#endif  // CUDA
-  } else {
 #ifdef HAS_MKL
     mkl_dcsrmv(transa, &num_rows, &num_cols, &one, matdescra, interaction_matrix_.valPtr(),
             interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),
@@ -275,5 +205,4 @@ void ExchangeHamiltonian::calculate_fields() {
     jams_dcsrmv(transa, num_rows, num_cols, 1.0, matdescra, interaction_matrix_.valPtr(),
       interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
 #endif
-  }
 }

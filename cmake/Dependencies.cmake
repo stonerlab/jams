@@ -1,7 +1,9 @@
 # -- Threads
 find_package(Threads QUIET)
 
+if(JAMS_BUILD_OMP)
 find_package(OpenMP)
+endif()
 
 add_library(pcg INTERFACE IMPORTED)
 set_property(TARGET pcg PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -28,17 +30,20 @@ add_library(hdf5 INTERFACE IMPORTED)
 set_property(TARGET hdf5 PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS})
 set_property(TARGET hdf5 PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES})
 
+if (JAMS_BUILD_CUDA)
 # -- CUDA
-find_package(CUDA REQUIRED)
+    find_package(CUDA REQUIRED)
+    add_library(cuda INTERFACE IMPORTED)
+    set_property(TARGET cuda PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CUDA_INCLUDE_DIRS})
 
-add_library(cuda INTERFACE IMPORTED)
-set_property(TARGET cuda PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CUDA_INCLUDE_DIRS})
+    foreach(LIB cusparse curand cublas cufft)
+        add_library(${LIB} INTERFACE IMPORTED)
+        set_property(TARGET ${LIB} PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CUDA_INCLUDE_DIRS})
+        set_property(TARGET ${LIB} PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_${LIB}_LIBRARY})
+    endforeach()
 
-foreach(LIB cusparse curand cublas cufft)
-    add_library(${LIB} INTERFACE IMPORTED)
-    set_property(TARGET ${LIB} PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CUDA_INCLUDE_DIRS})
-    set_property(TARGET ${LIB} PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_${LIB}_LIBRARY})
-endforeach()
+endif()
+
 
 find_package(MKL QUIET)
 
