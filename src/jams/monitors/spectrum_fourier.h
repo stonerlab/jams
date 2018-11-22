@@ -17,11 +17,10 @@
 
 class Solver;
 
-class StructureFactorMonitor : public Monitor {
-public:
-    explicit StructureFactorMonitor(const libconfig::Setting &settings);
-
-    ~StructureFactorMonitor() override;
+class SpectrumFourierMonitor : public Monitor {
+ public:
+  SpectrumFourierMonitor(const libconfig::Setting &settings);
+  ~SpectrumFourierMonitor() override;
 
     void update(Solver *solver) override;
 

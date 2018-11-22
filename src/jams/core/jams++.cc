@@ -76,7 +76,10 @@ namespace jams {
     string header() {
       stringstream ss;
       ss << "\nJAMS++ " << jams::build::version << "\n\n";
-      ss << "build   "  << jams::build::type << " (" << "cuda:" << jams::build::option_cuda << " omp:" << jams::build::option_omp << ")\n" ;
+      ss << "build   "  << jams::build::type << " (";
+        ss << "cuda:" << jams::build::option_cuda;
+        ss << " omp:" << jams::build::option_omp;
+        ss << " fastmath:" << jams::build::option_fastmath << ")\n" ;
       ss << "git     "  << jams::build::branch << " (" << jams::build::hash << ")\n" ;
       ss << "run     ";
       ss << get_date_string(std::chrono::system_clock::now()) << "\n";

@@ -27,6 +27,11 @@ double fft_window_blackman_4(const int n, const int n_total) {
   return a0 - a1 * cos(x) + a2 * cos(2 * x) - a3 * cos(3 * x);
 }
 
+double fft_window_exponential(const int n, const int n_total) {
+  const double tau = 0.5 * n_total * (8.69  / 30.0);
+  return exp(-abs(n - 0.5 * (n_total-1)) / tau);
+}
+
 // Precalculates the phase factors within the brilluoin zone and returns then as array
 void precalculate_kspace_phase_factors(
         const Vec3i &kspace_size,

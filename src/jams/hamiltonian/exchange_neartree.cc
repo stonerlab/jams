@@ -203,7 +203,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       debug_file.close();
     }
 
-    cout << "  total interactions " << counter << "\n";
+  cout << "  total interactions " << counter << "\n";
+  cout << "  average interactions per spin " << counter / double(globals::num_spins) << "\n";
 
   cout << "    converting interaction matrix format from MAP to CSR\n";
   interaction_matrix_.convertMAP2CSR();

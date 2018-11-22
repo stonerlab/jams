@@ -3,6 +3,7 @@ cmake_policy(SET CMP0074 NEW) # ``find_package()`` uses ``<PackageName>_ROOT`` v
 
 option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" ON)
 option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" ON)
+option(JAMS_BUILD_FASTMATH "Build JAMS with fast math flags" OFF)
 option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
 
 if (JAMS_BUILD_CUDA)
