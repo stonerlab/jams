@@ -234,6 +234,9 @@ if(JAMS_BUILD_CUDA)
             hamiltonian/cuda_dipole_bruteforce_kernel.cuh
             hamiltonian/cuda_dipole_sparse_tensor.cu
             hamiltonian/cuda_dipole_sparse_tensor.h
+            monitors/cuda_spectrum_general.h
+            monitors/cuda_spectrum_general.cu
+            monitors/cuda_spectrum_general_kernel.cuh
             solvers/cuda_llg_heun.cu
             solvers/cuda_llg_heun.h
             solvers/cuda_llg_heun_kernel.cuh

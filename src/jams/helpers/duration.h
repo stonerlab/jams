@@ -39,4 +39,12 @@ inline std::string duration_string(std::chrono::milliseconds time)
   });
   return o.str();
 }
+
+template <class T1, class T2>
+inline std::string duration_string(T1 start_time, T2 end_time) {
+  using namespace std::chrono;
+  return duration_string(time_point_cast<milliseconds>(end_time) - time_point_cast<milliseconds>(start_time));
+}
+
+
 #endif //JAMS_DURATION_H

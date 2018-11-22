@@ -80,25 +80,10 @@ void SpectrumGeneralMonitor::update(Solver *solver) {
   time_point_counter_++;
 }
 
-bool SpectrumGeneralMonitor::is_converged() {
-  return false;
-}
+void SpectrumGeneralMonitor::apply_time_fourier_transform() {
 
-
-SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
-  using namespace std;
-  using namespace std::chrono;
-  using namespace std::placeholders;
-  using namespace globals;
-
-  cout << "calculating correlation function" << std::endl;
-  auto start_time = time_point_cast<milliseconds>(system_clock::now());
-  cout << "start   " << get_date_string(start_time) << "\n\n";
-  cout.flush();
-
-  // perform windowing in real time
-
-  for (auto i = 0; i < num_spins; ++i) {
+  // window the data in time space
+  for (auto i = 0; i < spin_data_.size(0); ++i) {
     for (auto n = 0; n < num_samples_; ++n) {
       spin_data_(i, n) *= fft_window_exponential(n, num_samples_);
     }
@@ -109,12 +94,10 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   int rank            = 1;
   int stride          = 1;
   int dist            = (int) padded_size_; // num_samples
-  int num_transforms  = (int) globals::num_spins; // num_spins
+  int num_transforms  = (int) spin_data_.size(0); // num_spins
   int transform_size[1]  = {(int) padded_size_};
 
   int * nembed = nullptr;
-
-  std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " planning fft" << std::endl;
 
   // FFTW_BACKWARD is used so the sign convention is consistent with Alben AIP Conf. Proc. 29 136 (1976)
   auto plan = fftw_plan_many_dft(
@@ -132,13 +115,28 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
           FFTW_BACKWARD,
           FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
 
-  std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " done" << std::endl;
-
-  std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " executing fft" << std::endl;
-
   fftw_execute(plan);
 
-  std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " done" << std::endl;
+  fftw_destroy_plan(plan);
+}
+
+SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
+  using namespace std;
+  using namespace std::chrono;
+  using namespace std::placeholders;
+  using namespace globals;
+
+  cout << "calculating correlation function" << std::endl;
+  auto start_time = time_point_cast<milliseconds>(system_clock::now());
+  cout << "start   " << get_date_string(start_time) << "\n\n";
+  cout.flush();
+
+  std::cout << duration_string(start_time, system_clock::now()) << " calculating fft time => frequency" << std::endl;
+
+  apply_time_fourier_transform();
+
+  std::cout << duration_string(start_time, system_clock::now()) << " done" << std::endl;
+
 
   // precalculate a few quantities we need
   vector<Vec3> qvecs(num_q_, {0.0, 0.0, 0.0});
@@ -197,6 +195,6 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
 
   auto end_time = time_point_cast<milliseconds>(system_clock::now());
   cout << "finish  " << get_date_string(end_time) << "\n\n";
-  cout << "runtime " << duration_string(end_time - start_time) << "\n";
+  cout << "runtime " << duration_string(start_time, end_time) << "\n";
   cout.flush();
 }
