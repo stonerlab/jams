@@ -112,11 +112,10 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
                                       qfactors.size() * sizeof(cuFloatComplex), cudaMemcpyHostToDevice));
 
 
-      CudaSpectrumGeneralKernel<<<grid_size, block_size>>>(i, j, padded_size_ / 2 +
-                                                                       1, qfactors.size(), dev_qfactors, dev_spin_data.data(), dev_SQw.data());
+      CudaSpectrumGeneralKernel<<<grid_size, block_size>>>(i, j, num_w_points, qfactors.size(), padded_size_, dev_qfactors, dev_spin_data.data(), dev_SQw.data());
     }
 
-    if (i%10 == 0) {
+    if (i%100 == 0) {
       dev_SQw.copy_to_host_array(SQw);
       std::ofstream cfile(seedname + "_corr.tsv");
       for (unsigned q = 0; q < qvecs.size(); ++q) {
