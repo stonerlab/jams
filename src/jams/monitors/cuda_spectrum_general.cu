@@ -12,6 +12,7 @@
 #include "jams/core/lattice.h"
 #include "jams/cuda/cuda_defs.h"
 #include "jams/helpers/duration.h"
+#include "jams/helpers/random.h"
 
 #include "jams/monitors/spectrum_general.h"
 #include "jams/monitors/cuda_spectrum_general.h"
@@ -60,11 +61,18 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
   jblib::CudaArray<cuFloatComplex, 1> dev_spin_data(hst_spin_data);
 
 
-// precalculate a few quantities we need
-  vector<Vec3> qvecs(num_q_, {0.0, 0.0, 0.0});
-  for (auto i = 0; i < num_q_; ++i){
-    qvecs[i] = qmax_ * (i / double(num_q_-1));
+
+  vector<vector<Vec3>> qvecs(num_qvectors_);
+  for (auto n = 0; n < num_qvectors_; ++n) {
+    auto qvec_rand = qmax_ * uniform_random_sphere(jams::random_generator());
+    std::cout << "qvec " << n << ": " << qvec_rand << std::endl;
+    vector<Vec3> qpoints(num_qpoints_);
+    for (auto i = 0; i < num_qpoints_; ++i){
+      qpoints[i] = qvec_rand * (i / double(num_qpoints_-1));
+    }
+    qvecs.push_back(qpoints);
   }
+
 
   vector<Vec3> r(num_spins);
   for (auto i = 0; i < num_spins; ++i) {
@@ -81,7 +89,7 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
 
 
 
-  jblib::Array<cuFloatComplex, 2> SQw(qvecs.size(), padded_size_/2+1);
+  jblib::Array<cuFloatComplex, 2> SQw(num_qpoints_, padded_size_/2+1);
   for (auto i = 0; i < SQw.elements(); ++i) {
     SQw[i].x = 0.0;
     SQw[i].y = 0.0;
@@ -92,10 +100,10 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
   const auto num_w_points = padded_size_/2+1;
 
   cuFloatComplex *dev_qfactors = nullptr;
-  cuda_api_error_check(cudaMalloc((void**)&dev_qfactors, (qvecs.size())*sizeof(cuFloatComplex)));
+  cuda_api_error_check(cudaMalloc((void**)&dev_qfactors, (num_qpoints_)*sizeof(cuFloatComplex)));
 
   const dim3 block_size = {64, 8, 1};
-  auto grid_size = cuda_grid_size(block_size, {num_w_points, qvecs.size(), 1});
+  auto grid_size = cuda_grid_size(block_size, {num_w_points, num_qpoints_, 1});
 
   // generate spectrum looping over all i,j
   for (unsigned i = 0; i < globals::num_spins; ++i) {
@@ -104,23 +112,30 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
     for (unsigned j = 0; j < globals::num_spins; ++j) {
       if (is_vacancy[j]) continue;
 
+      for (unsigned n = 0; n < qvecs.size(); ++n) {
 //       precalculate the exponential factors for the spatial fourier transform
-      const auto qfactors = generate_expQR_float(qvecs, lattice->displacement(r[j], r[i]));
+        const auto qfactors = generate_expQR_float(qvecs[n], lattice->displacement(r[j], r[i]));
 
 
-      cuda_api_error_check(cudaMemcpy(dev_qfactors, qfactors.data(),
-                                      qfactors.size() * sizeof(cuFloatComplex), cudaMemcpyHostToDevice));
+        cuda_api_error_check(cudaMemcpy(dev_qfactors, qfactors.data(),
+                                        qfactors.size() * sizeof(cuFloatComplex), cudaMemcpyHostToDevice));
 
 
-      CudaSpectrumGeneralKernel<<<grid_size, block_size>>>(i, j, num_w_points, qfactors.size(), padded_size_, dev_qfactors, dev_spin_data.data(), dev_SQw.data());
+        CudaSpectrumGeneralKernel <<< grid_size, block_size >> >
+                                                  (i, j, num_w_points, qfactors.size(), padded_size_, dev_qfactors, dev_spin_data.data(), dev_SQw.data());
+      }
     }
 
-    if (i%100 == 0) {
+    if (i%10 == 0) {
       dev_SQw.copy_to_host_array(SQw);
       std::ofstream cfile(seedname + "_corr.tsv");
-      for (unsigned q = 0; q < qvecs.size(); ++q) {
+      cfile << "q\tfrequency\tRe_SQw\tIm_SQw\n";
+      for (unsigned q = 0; q < num_qpoints_; ++q) {
         for (unsigned w = 0; w < padded_size_/2+1; ++w) {
-          cfile << qvecs[q][0] << " " << qvecs[q][1] << " " << qvecs[q][2] << " " << 0.5*w * freq_delta_ << " " << -SQw(q, w).y / (i + 1)/ static_cast<double>(padded_size_) << "\n";
+          cfile << qmax_ * (q / double(num_qpoints_-1)) << "\t";
+          cfile << 0.5*w * freq_delta_ << "\t";
+          cfile << SQw(q, w).x / static_cast<double>(padded_size_*(i + 1)*num_qvectors_) << "\t";
+          cfile << SQw(q, w).y / static_cast<double>(padded_size_*(i + 1)*num_qvectors_) << "\n";
         }
       }
       cfile.flush();
