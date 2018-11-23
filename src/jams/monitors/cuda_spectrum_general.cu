@@ -19,13 +19,18 @@
 #include "jams/monitors/cuda_spectrum_general_kernel.cuh"
 
 namespace {
-    std::vector<cuFloatComplex> generate_expQR_float(const std::vector<Vec3> &qvecs, const Vec3& R) {
-      std::vector<cuFloatComplex> result(qvecs.size());
+    std::vector<cuFloatComplex> generate_expQR_float(const std::vector<std::vector<Vec3>> &qvecs, const Vec3& R) {
 
-      for (auto q = 0; q < result.size(); ++q) {
-        const auto val = exp(kImagTwoPi * dot(qvecs[q], R));
-        result[q].x = val.real();
-        result[q].y = val.imag();
+      const auto num_qvectors = qvecs.size();
+      const auto num_qpoints = qvecs[0].size();
+
+      std::vector<cuFloatComplex> result(num_qvectors * num_qpoints);
+
+      for (auto q = 0; q < num_qpoints; ++q) {
+        for (auto n = 0; n < num_qvectors; ++n) {
+          const auto val = exp(kImagTwoPi * dot(qvecs[n][q], R));
+          result[num_qvectors * q + n] = {val.real(), val.imag()};
+        }
       }
       return result;
     }
@@ -62,15 +67,15 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
 
 
 
-  vector<vector<Vec3>> qvecs(num_qvectors_);
+  std::vector<std::vector<Vec3>> qvecs(num_qvectors_);
   for (auto n = 0; n < num_qvectors_; ++n) {
     auto qvec_rand = qmax_ * uniform_random_sphere(jams::random_generator());
     std::cout << "qvec " << n << ": " << qvec_rand << std::endl;
-    vector<Vec3> qpoints(num_qpoints_);
+    std::vector<Vec3> qpoints(num_qpoints_);
     for (auto i = 0; i < num_qpoints_; ++i){
       qpoints[i] = qvec_rand * (i / double(num_qpoints_-1));
     }
-    qvecs.push_back(qpoints);
+    qvecs[n] = qpoints;
   }
 
 
@@ -100,7 +105,7 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
   const auto num_w_points = padded_size_/2+1;
 
   cuFloatComplex *dev_qfactors = nullptr;
-  cuda_api_error_check(cudaMalloc((void**)&dev_qfactors, (num_qpoints_)*sizeof(cuFloatComplex)));
+  cuda_api_error_check(cudaMalloc((void**)&dev_qfactors, (num_qpoints_ * num_qvectors_)*sizeof(cuFloatComplex)));
 
   const dim3 block_size = {64, 8, 1};
   auto grid_size = cuda_grid_size(block_size, {num_w_points, num_qpoints_, 1});
@@ -112,18 +117,18 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
     for (unsigned j = 0; j < globals::num_spins; ++j) {
       if (is_vacancy[j]) continue;
 
-      for (unsigned n = 0; n < qvecs.size(); ++n) {
+//      for (unsigned n = 0; n < qvecs.size(); ++n) {
 //       precalculate the exponential factors for the spatial fourier transform
-        const auto qfactors = generate_expQR_float(qvecs[n], lattice->displacement(r[j], r[i]));
+        const auto qfactors = generate_expQR_float(qvecs, lattice->displacement(r[j], r[i]));
 
 
         cuda_api_error_check(cudaMemcpy(dev_qfactors, qfactors.data(),
-                                        qfactors.size() * sizeof(cuFloatComplex), cudaMemcpyHostToDevice));
+                                        num_qpoints_ * num_qvectors_ * sizeof(cuFloatComplex), cudaMemcpyHostToDevice));
 
 
         CudaSpectrumGeneralKernel <<< grid_size, block_size >> >
-                                                  (i, j, num_w_points, qfactors.size(), padded_size_, dev_qfactors, dev_spin_data.data(), dev_SQw.data());
-      }
+                                                  (i, j, num_w_points, num_qpoints_, num_qvectors_, padded_size_, dev_qfactors, dev_spin_data.data(), dev_SQw.data());
+//      }
     }
 
     if (i%10 == 0) {
