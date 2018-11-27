@@ -17,6 +17,7 @@
 #include "jams/monitors/spectrum_general.h"
 #include "jams/monitors/cuda_spectrum_general.h"
 #include "jams/monitors/cuda_spectrum_general_kernel.cuh"
+#include "jams/helpers/consts.h"
 
 namespace {
     std::vector<cuFloatComplex> generate_expQR_float(const std::vector<std::vector<Vec3>> &qvecs, const Vec3& R) {
@@ -26,9 +27,10 @@ namespace {
 
       std::vector<cuFloatComplex> result(num_qvectors * num_qpoints);
 
+      std::complex<float> ImagTwoPi_f = {0.0f, static_cast<float>(2.0*kTwoPi)};
       for (auto q = 0; q < num_qpoints; ++q) {
         for (auto n = 0; n < num_qvectors; ++n) {
-          const auto val = exp(kImagTwoPi * dot(qvecs[n][q], R));
+          const std::complex<float> val = exp(ImagTwoPi_f * static_cast<float>(dot(qvecs[n][q], R)));
           result[num_qvectors * q + n] = {val.real(), val.imag()};
         }
       }
