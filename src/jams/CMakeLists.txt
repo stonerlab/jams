@@ -14,7 +14,6 @@ endforeach()
 
 if(JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
     target_compile_definitions(jams_object_lib PRIVATE HAS_OMP=1)
-    target_link_libraries(jams_object_lib ${OpenMP_CXX_LIB_NAMES})
     target_compile_options(jams_object_lib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
 endif()
 
@@ -45,8 +44,8 @@ target_link_libraries(jams fftw3 cblas jblib pcg symspg config++ hdf5)
 
 if (JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
     target_compile_definitions(jams PRIVATE HAS_OMP=1)
-    target_link_libraries(jams_object_lib ${OpenMP_CXX_LIB_NAMES})
     target_compile_options(jams PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
+    target_link_libraries(jams OpenMP::OpenMP_CXX)
 endif()
 
 if(JAMS_BUILD_CUDA)
