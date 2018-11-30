@@ -25,7 +25,7 @@ __global__ void CudaSpectrumGeneralKernel(
   if (w < num_w_points && q < num_q_points) {
     cuFloatComplex SQw = spectrum[num_w_points * q + w];
     const auto spin_i = spin_data[padded_size * i + w];
-    const auto spin_j = spin_data[padded_size * j + (padded_size - w) % padded_size];
+    const auto spin_j = cuConjf(spin_data[padded_size * j + (padded_size - w) % padded_size]);
     for (auto n = 0; n < num_q_vectors; ++n) {
       const auto expQR = qfactors[num_q_vectors * q + n];
 
