@@ -14,6 +14,7 @@
 #include "jams/monitors/spin_temperature.h"
 #include "jams/monitors/spectrum_fourier.h"
 #include "jams/monitors/spectrum_general.h"
+#include "jams/monitors/cuda_spectrum_general.h"
 #include "jams/monitors/torque.h"
 #include "jams/monitors/vtu.h"
 #include "jams/monitors/xyz.h"
@@ -104,6 +105,9 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "SCATTERING-FUNCTION"
   || capitalize(settings["module"]) == "SPECTRUM_GENERAL") {
+    if (solver->is_cuda_solver()) {
+      return new CudaSpectrumGeneralMonitor(settings);
+    }
     return new SpectrumGeneralMonitor(settings);
   }
 

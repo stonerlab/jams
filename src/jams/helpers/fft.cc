@@ -28,7 +28,7 @@ double fft_window_blackman_4(const int n, const int n_total) {
 }
 
 double fft_window_exponential(const int n, const int n_total) {
-  const double tau = 0.5 * n_total * (8.69  / 30.0);
+  const double tau = 0.5 * n_total * (8.69  / 60.0);
   return exp(-abs(n - 0.5 * (n_total-1)) / tau);
 }
 

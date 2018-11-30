@@ -35,7 +35,36 @@ inline cuDoubleComplex &operator+=(cuDoubleComplex& v1, const cuDoubleComplex& v
   return v1;
 }
 
+//
 
+__host__ __device__
+inline cuFloatComplex operator*(const cuFloatComplex& v1, const cuFloatComplex& v2)
+{
+  return {v1.x * v2.x - v1.y * v2.y,
+          v1.x * v2.y + v1.y * v2.x};
+}
+
+__host__ __device__
+inline cuFloatComplex operator+(const cuFloatComplex& v1, const cuFloatComplex& v2)
+{
+  return {v1.x + v2.x,
+          v1.y + v2.y};
+}
+
+__host__ __device__
+inline cuFloatComplex operator*(const float& a, const cuFloatComplex& v1)
+{
+  return {a * v1.x,
+          a * v1.y};
+}
+
+__host__ __device__
+inline cuFloatComplex &operator+=(cuFloatComplex& v1, const cuFloatComplex& v2)
+{
+  v1.x += v2.x;
+  v1.y += v2.y;
+  return v1;
+}
 
 
 #endif //JAMS_CUDA_COMPLEX_OPERATORS_H

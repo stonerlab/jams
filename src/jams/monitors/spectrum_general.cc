@@ -60,8 +60,9 @@ SpectrumGeneralMonitor::SpectrumGeneralMonitor(const libconfig::Setting &setting
   cout << "  maximum frequency (THz) " << freq_max/kTHz << "\n";
   cout << "\n";
 
-  num_q_ = jams::config_required<unsigned>(settings, "num_q");
-  qmax_      = jams::config_required<Vec3>(settings, "qmax");
+  num_qvectors_ = jams::config_required<unsigned>(settings, "num_qvectors");
+  num_qpoints_ = jams::config_required<unsigned>(settings, "num_qpoints");
+  qmax_      = jams::config_required<double>(settings, "qmax");
 
   spin_data_.resize(globals::num_spins, padded_size_);
   spin_data_.zero();
@@ -80,25 +81,10 @@ void SpectrumGeneralMonitor::update(Solver *solver) {
   time_point_counter_++;
 }
 
-bool SpectrumGeneralMonitor::is_converged() {
-  return false;
-}
+void SpectrumGeneralMonitor::apply_time_fourier_transform() {
 
-
-SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
-  using namespace std;
-  using namespace std::chrono;
-  using namespace std::placeholders;
-  using namespace globals;
-
-  cout << "calculating correlation function" << std::endl;
-  auto start_time = time_point_cast<milliseconds>(system_clock::now());
-  cout << "start   " << get_date_string(start_time) << "\n\n";
-  cout.flush();
-
-  // perform windowing in real time
-
-  for (auto i = 0; i < num_spins; ++i) {
+  // window the data in time space
+  for (auto i = 0; i < spin_data_.size(0); ++i) {
     for (auto n = 0; n < num_samples_; ++n) {
       spin_data_(i, n) *= fft_window_exponential(n, num_samples_);
     }
@@ -109,12 +95,10 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   int rank            = 1;
   int stride          = 1;
   int dist            = (int) padded_size_; // num_samples
-  int num_transforms  = (int) globals::num_spins; // num_spins
+  int num_transforms  = (int) spin_data_.size(0); // num_spins
   int transform_size[1]  = {(int) padded_size_};
 
   int * nembed = nullptr;
-
-  std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " planning fft" << std::endl;
 
   // FFTW_BACKWARD is used so the sign convention is consistent with Alben AIP Conf. Proc. 29 136 (1976)
   auto plan = fftw_plan_many_dft(
@@ -132,18 +116,37 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
           FFTW_BACKWARD,
           FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
 
-  std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " done" << std::endl;
-
-  std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " executing fft" << std::endl;
-
   fftw_execute(plan);
 
-  std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " done" << std::endl;
+  fftw_destroy_plan(plan);
+}
 
-  // precalculate a few quantities we need
-  vector<Vec3> qvecs(num_q_, {0.0, 0.0, 0.0});
-  for (auto i = 0; i < num_q_; ++i){
-    qvecs[i] = qmax_ * (i / double(num_q_-1));
+SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
+  using namespace std;
+  using namespace std::chrono;
+  using namespace std::placeholders;
+  using namespace globals;
+
+  cout << "calculating correlation function" << std::endl;
+  auto start_time = time_point_cast<milliseconds>(system_clock::now());
+  cout << "start   " << get_date_string(start_time) << "\n\n";
+  cout.flush();
+
+  std::cout << duration_string(start_time, system_clock::now()) << " calculating fft time => frequency" << std::endl;
+
+  apply_time_fourier_transform();
+
+  std::cout << duration_string(start_time, system_clock::now()) << " done" << std::endl;
+
+
+  vector<vector<Vec3>> qvecs(num_qpoints_);
+  for (auto n = 0; n < num_qvectors_; ++n) {
+    auto qvec_rand = qmax_ * uniform_random_sphere(jams::random_generator());
+    vector<Vec3> qpoints(num_qvectors_);
+    for (auto i = 0; i < num_qpoints_; ++i){
+      qpoints[i] = qvec_rand * (i / double(num_qpoints_-1));
+    }
+    qvecs.push_back(qpoints);
   }
 
   vector<Vec3> r(num_spins);
@@ -168,16 +171,17 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     std::cout << duration_string(time_point_cast<milliseconds>(system_clock::now()) - start_time) << " " << i << std::endl;
     for (unsigned j = 0; j < globals::num_spins; ++j) {
       if (is_vacancy[j]) continue;
+      for (unsigned n = 0; n < qvecs.size(); ++n) {
+        // precalculate the exponential factors for the spatial fourier transform
+        const auto qfactors = generate_expQR(qvecs[n], lattice->displacement(r[j], r[i]));
 
-      // precalculate the exponential factors for the spatial fourier transform
-      const auto qfactors = generate_expQR(qvecs, lattice->displacement(r[j], r[i]));
-
-      #pragma omp parallel for default(none) shared(SQw,i,j)
-      for (unsigned w = 0; w < padded_size_/2+1; ++w) {
-        for (unsigned q = 0; q < qfactors.size(); ++q) {
-          // the spin_data_ multiplication uses convolution theory to avoid first calculating the time correlation
-          // (padded_size_ - w) % padded_size_ gives the -w data
-          SQw(q,w) += -kImagOne * qfactors[q] * spin_data_(i,w) * spin_data_(j, (padded_size_ - w) % padded_size_);
+#pragma omp parallel for default(none) shared(SQw, i, j)
+        for (unsigned w = 0; w < padded_size_ / 2 + 1; ++w) {
+          for (unsigned q = 0; q < qfactors.size(); ++q) {
+            // the spin_data_ multiplication uses convolution theory to avoid first calculating the time correlation
+            // (padded_size_ - w) % padded_size_ gives the -w data
+            SQw(q, w) += -kImagOne * qfactors[q] * spin_data_(i, w) * spin_data_(j, (padded_size_ - w) % padded_size_);
+          }
         }
       }
     }
@@ -186,7 +190,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
       std::ofstream cfile(seedname + "_corr.tsv");
       for (unsigned q = 0; q < qvecs.size(); ++q) {
         for (unsigned w = 0; w < padded_size_/2+1; ++w) {
-          cfile << qvecs[q][0] << " " << qvecs[q][1] << " " << qvecs[q][2] << " " << 0.5*w * freq_delta_ << " " << -imag(SQw(q, w)) / (i + 1)/ static_cast<double>(padded_size_) << "\n";
+          cfile << qmax_ * (q / double(num_qpoints_-1)) << " " << 0.5*w * freq_delta_ << " " << -SQw(q, w).imag() / (i + 1)/ static_cast<double>(padded_size_) << "\n";
         }
       }
       cfile.flush();
@@ -197,6 +201,6 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
 
   auto end_time = time_point_cast<milliseconds>(system_clock::now());
   cout << "finish  " << get_date_string(end_time) << "\n\n";
-  cout << "runtime " << duration_string(end_time - start_time) << "\n";
+  cout << "runtime " << duration_string(start_time, end_time) << "\n";
   cout.flush();
 }
