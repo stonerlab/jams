@@ -106,19 +106,19 @@ void jams_initialize(int argc, char **argv) {
   cout << "config  " << simulation.config_file_name << "\n";   // TODO: tee cout also to a log file
 
   jams::parse_config(simulation);
+  jams::random_generator().seed(simulation.random_seed);
 
   try {
-    simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
-    cout << "verbose " << simulation.verbose << "\n";
-
-    simulation.random_seed = jams::config_optional<unsigned>(config->lookup("sim"), "seed", simulation.random_seed);
-    jams::random_generator().seed(simulation.random_seed);
-
-    if (config->exists("sim.rng_state")) {
-      auto state = jams::config_required<string>(config->lookup("sim"), "rng_state");
-      istringstream(state) >> jams::random_generator();
+    if (::config->exists("sim")) {
+      simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
+      simulation.random_seed = jams::config_optional<unsigned>(config->lookup("sim"), "seed", simulation.random_seed);
+      if (config->exists("sim.rng_state")) {
+        auto state = jams::config_required<string>(config->lookup("sim"), "rng_state");
+        istringstream(state) >> jams::random_generator();
+      }
     }
 
+    cout << "verbose " << simulation.verbose << "\n";
     cout << "seed    "   << simulation.random_seed << "\n";
     cout << "rng state " <<  jams::random_generator() << "\n";
 
