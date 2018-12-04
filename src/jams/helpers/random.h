@@ -7,6 +7,10 @@
 #include <array>
 #include <pcg/pcg_random.hpp>
 
+namespace jams {
+    pcg32& random_generator();
+}
+
 template <class RNG>
 std::array<double, 3> uniform_random_sphere(RNG &gen) {
   std::uniform_real_distribution<> dist;
@@ -24,7 +28,7 @@ std::array<double, 3> uniform_random_sphere(RNG &gen) {
 }
 
 namespace jams {
-    pcg32& random_generator();
+
 }
 
 #endif // JAMS_CORE_RAND_H
