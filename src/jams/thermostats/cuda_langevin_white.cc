@@ -38,8 +38,9 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   cout << "    creating stream\n";
   cudaStreamCreate(&dev_stream_);
   curandSetStream(dev_rng_, dev_stream_);
-  
-  auto dev_rng_seed = static_cast<uint64_t>(std::random_device()());
+
+  uint64_t dev_rng_seed = jams::random_generator()();
+
   cout << "    seeding CURAND " << dev_rng_seed << "\n";
   if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
     die("Failed to set CURAND seed in CudaLangevinWhiteThermostat");

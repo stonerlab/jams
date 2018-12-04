@@ -54,20 +54,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    double dt_thermostat = ::config->lookup("solver.t_step");
    delta_tau_ = (dt_thermostat * kBoltzmann) / kHBar;
 
-   std::random_device rdev;
-   uint64_t dev_rng_seed = concatenate_32_bit(rdev(), rdev());
-
-   unsigned long long cfg_seed = 0;
-   config->lookupValue("thermostat.seed", cfg_seed);
-
-   if (cfg_seed != 0) {
-     dev_rng_seed = cfg_seed;
-   }
-
-   // check the seed populates msw and lsw of the 64bit number
-   if (dev_rng_seed < std::numeric_limits<uint32_t>::max()) {
-     jams_warning("Random seed does not fill 64 bits. Try making the seed larger");
-   }
+   uint64_t dev_rng_seed = jams::random_generator()();
 
    cout << "    seed " << dev_rng_seed << "\n";
    cout << "    omega_max (THz) " << omega_max_ / kTHz << "\n";
