@@ -10,13 +10,13 @@ __constant__ unsigned int dev_num_spins;
 
 __global__ void cuda_heun_llg_kernelA
 (
-  double * __restrict__ s_dev,
-  double * __restrict__ ds_dt_dev,
-  const double * __restrict__ s_old_dev,
-  const double * __restrict__ h_dev,
-  const double * __restrict__ noise_dev,
-  const double * __restrict__ gyro_dev,
-  const double * __restrict__ alpha_dev
+  double * s_dev,
+  double * ds_dt_dev,
+  const double * s_old_dev,
+  const double * h_dev,
+  const double * noise_dev,
+  const double * gyro_dev,
+  const double * alpha_dev
 )
 {
   __shared__ double s[85 * 3];
@@ -56,13 +56,13 @@ __global__ void cuda_heun_llg_kernelA
 
 __global__ void cuda_heun_llg_kernelB
 (
-  double * __restrict__ s_dev,
-  double * __restrict__ ds_dt_dev,
-  const double * __restrict__ s_old_dev,
-  const double * __restrict__ h_dev,
-  const double * __restrict__ noise_dev,
-  const double * __restrict__ gyro_dev,
-  const double * __restrict__ alpha_dev
+  double * s_dev,
+  double * ds_dt_dev,
+  const double * s_old_dev,
+  const double * h_dev,
+  const double * noise_dev,
+  const double * gyro_dev,
+  const double * alpha_dev
 )
 {
   __shared__ double s[85 * 3];
@@ -112,13 +112,13 @@ inline double cuda_zero_safe_recip_norm_cuda(double x, double y, double z) {
 
 __global__ void cuda_zero_safe_heun_llg_kernelA
         (
-                double * __restrict__ s_dev,
-                double * __restrict__ ds_dt_dev,
-                const double * __restrict__ s_old_dev,
-                const double * __restrict__ h_dev,
-                const double * __restrict__ noise_dev,
-                const double * __restrict__ gyro_dev,
-                const double * __restrict__ alpha_dev
+                double * s_dev,
+                double * ds_dt_dev,
+                const double * s_old_dev,
+                const double * h_dev,
+                const double * noise_dev,
+                const double * gyro_dev,
+                const double * alpha_dev
         )
 {
   __shared__ double s[85 * 3];
@@ -158,13 +158,13 @@ __global__ void cuda_zero_safe_heun_llg_kernelA
 
 __global__ void cuda_zero_safe_heun_llg_kernelB
         (
-                double * __restrict__ s_dev,
-                double * __restrict__ ds_dt_dev,
-                const double * __restrict__ s_old_dev,
-                const double * __restrict__ h_dev,
-                const double * __restrict__ noise_dev,
-                const double * __restrict__ gyro_dev,
-                const double * __restrict__ alpha_dev
+                double * s_dev,
+                double * ds_dt_dev,
+                const double * s_old_dev,
+                const double * h_dev,
+                const double * noise_dev,
+                const double * gyro_dev,
+                const double * alpha_dev
         )
 {
   __shared__ double s[85 * 3];

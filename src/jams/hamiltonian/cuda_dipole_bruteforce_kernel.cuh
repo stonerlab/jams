@@ -143,11 +143,11 @@ __global__ void dipole_bruteforce_kernel
 //-----------------------------------------------------------------------------
 __global__ 
 void DipoleBruteforceKernel(
-    const double * __restrict__ s_dev,
-    const float * __restrict__ r_dev,
-    const float * __restrict__ mus_dev,
+    const double * s_dev,
+    const float * r_dev,
+    const float * mus_dev,
     const unsigned int num_spins,
-          double * __restrict__ h_dev)
+          double * h_dev)
 {
     const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     const unsigned int thread_idx = threadIdx.x;
@@ -265,11 +265,11 @@ void DipoleBruteforceKernel(
 
 __global__ void dipole_bruteforce_sharemem_kernel
 (
-    const double * __restrict__ s_dev,
-    const float * __restrict__ r_dev,
-    const float * __restrict__ mus_dev,
+    const double * s_dev,
+    const float * r_dev,
+    const float * mus_dev,
     const unsigned int num_spins,
-    double * __restrict__ h_dev
+    double * h_dev
 )
 {
   const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
