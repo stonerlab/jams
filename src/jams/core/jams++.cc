@@ -29,6 +29,7 @@
 #include "jams/helpers/output.h"
 #include "jams/interface/config.h"
 #include "jams/helpers/timer.h"
+#include "jams/helpers/progress_bar.h"
 
 using namespace std;
 
@@ -185,6 +186,8 @@ void jams_run() {
   cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
 
   Timer<> timer;
+  ProgressBar progress;
+
   while (::solver->is_running()) {
     if (::solver->is_converged()) {
       break;
@@ -193,7 +196,14 @@ void jams_run() {
     ::solver->update_physics_module();
     ::solver->notify_monitors();
     ::solver->run();
+
+    progress.set(double(::solver->iteration()) / double(::solver->max_steps()));
+    if (::solver->iteration() % 1000 == 0) {
+      cout << progress;
+    }
   }
+  cout << "\n" << std::endl;
+
   cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
   cout << "runtime " << timer.elapsed_time() << std::endl;
 }

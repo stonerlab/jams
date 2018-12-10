@@ -46,8 +46,8 @@ class Solver : public Base {
     return time_step_;
   }
 
-  inline double real_time_step() const {
-    return time_step_;
+  inline int max_steps() const {
+    return max_steps_;
   }
 
   inline const Physics * physics() const {
