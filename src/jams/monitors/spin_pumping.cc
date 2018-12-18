@@ -19,34 +19,48 @@
 
 SpinPumpingMonitor::SpinPumpingMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  tsv_file.open(seedname + "_iz_mean.tsv");
-  tsv_file.setf(std::ios::right);
-  tsv_file << tsv_header();
+  tsv_file_.open(seedname + "_jsp.tsv");
+  tsv_file_.setf(std::ios::right);
+  tsv_file_ << tsv_header();
+
+  material_count_.resize(lattice->num_materials(), 0);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    material_count_[lattice->atom_material_id(i)]++;
+  }
 }
 
 void SpinPumpingMonitor::update(Solver * solver) {
   using namespace globals;
-  using std::abs;
 
-  tsv_file.width(12);
+  tsv_file_.width(12);
 
-  std::vector<Stats> spin_pumping_re(::lattice->num_materials());
-  std::vector<Stats> spin_pumping_im(::lattice->num_materials());
+  std::vector<Vec3> spin_pumping_real(material_count_.size());
+  std::vector<Vec3> spin_pumping_imag(material_count_.size());
 
-  for (int i = 0; i < num_spins; ++i) {
-    spin_pumping_re[::lattice->atom_material_id(i)].add((s(i, 0)*ds_dt(i, 1) - s(i, 1)*ds_dt(i, 0)));
-    spin_pumping_im[::lattice->atom_material_id(i)].add(ds_dt(i, 2));
+  for (auto i = 0; i < num_spins; ++i) {
+    const auto type = lattice->atom_material_id(i);
+
+    Vec3 s_i = {s(i,0), s(i, 1), s(i,2)};
+    Vec3 ds_dt_i = {ds_dt(i,0), ds_dt(i, 1), ds_dt(i,2)};
+
+    spin_pumping_real[type] += cross(s_i, ds_dt_i);
+    spin_pumping_imag[type] += ds_dt_i;
   }
 
   // output in rad / s^-1 T^-1
-  tsv_file << std::scientific << solver->time() << "\t";
+  tsv_file_ << std::scientific << solver->time() << "\t";
 
-  for (int n = 0; n < ::lattice->num_materials(); ++n) {
-    tsv_file << std::scientific << spin_pumping_re[n].mean() * kGyromagneticRatio << "\t";
-    tsv_file << std::scientific << spin_pumping_im[n].mean() * kGyromagneticRatio << "\t";
+  for (auto type = 0; type < material_count_.size(); ++type) {
+    auto norm = kGyromagneticRatio / static_cast<double>(material_count_[type]);
+    for (auto j = 0; j < 3; ++j) {
+      tsv_file_ << std::scientific << spin_pumping_real[type][j] * norm  << "\t";
+    }
+    for (auto j = 0; j < 3; ++j) {
+      tsv_file_ << std::scientific << spin_pumping_imag[type][j] * norm << "\t";
+    }
   }
 
-  tsv_file << std::endl;
+  tsv_file_ << std::endl;
 }
 
 std::string SpinPumpingMonitor::tsv_header() {
@@ -54,9 +68,15 @@ std::string SpinPumpingMonitor::tsv_header() {
   ss.width(12);
 
   ss << "time\t";
-  ss << "Iz_g_real\t";
-  ss << "Iz_g_imag\t";
-
+  for (auto i = 0; i < lattice->num_materials(); ++i) {
+    auto name = lattice->material_name(i);
+    ss << name + "_Re_J_x\t";
+    ss << name + "_Re_J_y\t";
+    ss << name + "_Re_J_z\t";
+    ss << name + "_Im_J_x\t";
+    ss << name + "_Im_J_y\t";
+    ss << name + "_Im_J_z\t";
+  }
   ss << std::endl;
 
   return ss.str();

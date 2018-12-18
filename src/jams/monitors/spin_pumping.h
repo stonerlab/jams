@@ -23,8 +23,10 @@ public:
     bool is_converged() override {return false;}
 
 private:
-    std::ofstream tsv_file;
-    std::string   tsv_header();
+    std::string      tsv_header();
+
+    std::ofstream    tsv_file_;
+    std::vector<int> material_count_;
 };
 
 #endif  // JAMS_MONITOR_SPIN_PUMPING_H
