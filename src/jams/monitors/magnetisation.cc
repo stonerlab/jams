@@ -96,7 +96,6 @@ void MagnetisationMonitor::update(Solver * solver) {
       }
     }
   }
-
   tsv_file << std::endl;
 }
 

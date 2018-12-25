@@ -10,6 +10,8 @@
 #include "jams/monitors/magnetisation_rate.h"
 #include "jams/monitors/skyrmion.h"
 #include "jams/monitors/smr.h"
+#include "jams/monitors/cuda_spin_current.h"
+#include "jams/monitors/cuda_thermal_current.h"
 #include "jams/monitors/spin_pumping.h"
 #include "jams/monitors/spin_temperature.h"
 #include "jams/monitors/spectrum_fourier.h"
@@ -69,6 +71,14 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "SPIN_TEMPERATURE") {
     return new SpinTemperatureMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "SPIN-CURRENT") {
+    return new CudaSpinCurrentMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "THERMAL-CURRENT") {
+    return new CudaThermalCurrentMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "SPINPUMPING") {

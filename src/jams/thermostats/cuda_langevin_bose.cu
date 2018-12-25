@@ -14,11 +14,15 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
+#include "jams/core/solver.h"
+#include "jams/cuda/cuda_array_kernels.h"
 #include "jams/helpers/consts.h"
-#include "jams/helpers/random.h"
 #include "jams/helpers/error.h"
-
+#include "jams/helpers/random.h"
+#include "jams/helpers/utils.h"
 #include "jams/monitors/magnetisation.h"
+#include "jams/thermostats/cuda_langevin_bose.h"
+#include "jams/thermostats/cuda_langevin_bose_kernel.h"
 
 using namespace std;
 
@@ -56,7 +60,6 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
    uint64_t dev_rng_seed = jams::random_generator()();
 
-   cout << "    seed " << dev_rng_seed << "\n";
    cout << "    omega_max (THz) " << omega_max_ / kTHz << "\n";
    cout << "    hbar*w/kB " << (kHBar * omega_max_) / (kBoltzmann) << "\n";
    cout << "    t_step " << dt_thermostat << "\n";
@@ -82,7 +85,10 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    // initialize zeta and eta with random variables
    curandSetStream(dev_rng_, dev_curand_stream_);
 
-   cout << "    seeding CURAND " << dev_rng_seed << "\n";
+   auto seed = jams::random_generator()();
+   config->lookupValue("thermostat.seed", seed);
+
+   cout << "    seeding CURAND: " << seed << "\n";
 
    if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
      die("Failed to set CURAND seed in CudaLangevinBoseThermostat");

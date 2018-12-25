@@ -38,4 +38,12 @@ struct Atom {
     Vec3 pos;
 };
 
+template <typename T, typename Idx = int>
+struct Triad {
+    Idx i;
+    Idx j;
+    Idx k;
+    T   value;
+};
+
 #endif  // JAMS_CORE_TYPES_H

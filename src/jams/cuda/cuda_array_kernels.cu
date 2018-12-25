@@ -156,5 +156,3 @@ void cuda_array_float_to_double(
 
     cuda_array_float_to_double_kernel<<<grid_size, block_size, 0, stream>>>(n, in, out);
 }
-
-

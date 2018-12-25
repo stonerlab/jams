@@ -46,7 +46,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     die("Failed to set CURAND seed in CudaLangevinWhiteThermostat");
   }
 
-  cout << "    generating seeds\n";
+  cout << "    generating device seeds\n";
   if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
     die("Failed to generate CURAND seeds in CudaLangevinWhiteThermostat");
   }

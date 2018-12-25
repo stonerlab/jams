@@ -27,7 +27,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         void   calculate_fields();
 
     private:
-        void insert_interaction(const int i, const int j, const Mat3 &value);
+        void insert_interaction(const int i, const int j, const Mat3 &value, const double& energy_cutoff);
 
         InteractionList<Mat3> neighbour_list_;
         SparseMatrix<double> interaction_matrix_;
