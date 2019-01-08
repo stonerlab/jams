@@ -102,6 +102,7 @@ target_sources(jams_object_lib
         monitors/boltzmann.cc
         monitors/energy.cc
         monitors/hdf5.cc
+        monitors/field.cc
         monitors/magnetisation.cc
         monitors/magnetisation_rate.cc
         monitors/skyrmion.cc

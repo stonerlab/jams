@@ -6,6 +6,7 @@
 #include "jams/monitors/boltzmann.h"
 #include "jams/monitors/energy.h"
 #include "jams/monitors/hdf5.h"
+#include "jams/monitors/field.h"
 #include "jams/monitors/magnetisation.h"
 #include "jams/monitors/magnetisation_rate.h"
 #include "jams/monitors/skyrmion.h"
@@ -65,6 +66,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "ENERGY") {
     return new EnergyMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "FIELD") {
+    return new FieldMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "SPIN_TEMPERATURE") {
