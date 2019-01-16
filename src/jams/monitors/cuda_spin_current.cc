@@ -18,15 +18,12 @@
 #include "cuda_spin_current.h"
 #include "jblib/containers/array.h"
 
-
 using namespace std;
 
 CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
 
-//  if (!solver->is_cuda_solver()) {
-//    throw std::runtime_error("CUDA spin current monitor is only for CUDA solvers");
-//  }
+  assert(solver->is_cuda_solver());
 
   jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian in the config");
   jams_warning("This monitor currently assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
@@ -41,6 +38,11 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   const auto& exchange_settings = config_find_setting_by_key_value_pair(config->lookup("hamiltonians"), "module", "exchange");
 
   const std::string exchange_file_name = exchange_settings["exc_file"];
+
+  if (exchange_file_name.empty()) {
+    throw std::runtime_error("no exchange hamiltonian found");
+  }
+
   std::ifstream interaction_file(exchange_file_name);
 
   if (interaction_file.fail()) {
@@ -51,9 +53,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 
   const auto neighbour_list = generate_neighbour_list_from_file(exchange_settings, interaction_file);
 
-  if (exchange_file_name.empty()) {
-    throw std::runtime_error("no exchange hamiltonian found");
-  }
+
 
   SparseMatrix<Vec3> interaction_matrix;
 
@@ -125,20 +125,14 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   dev_spin_current_rz_y.zero();
   dev_spin_current_rz_z.zero();
 
-  std::string name = seedname + "_js.tsv";
-  outfile.open(name.c_str());
-  outfile.setf(std::ios::right);
+  outfile.open(seedname + "_js.tsv");
 
-  outfile << std::setw(12) << "time" << "\t";
-  outfile << std::setw(12) << "js_rx_x" << "\t";
-  outfile << std::setw(12) << "js_rx_y" << "\t";
-  outfile << std::setw(12) << "js_rx_z" << "\t";
-  outfile << std::setw(12) << "js_ry_x" << "\t";
-  outfile << std::setw(12) << "js_ry_y" << "\t";
-  outfile << std::setw(12) << "js_ry_z" << "\t";
-  outfile << std::setw(12) << "js_rz_x" << "\t";
-  outfile << std::setw(12) << "js_rz_y" << "\t";
-  outfile << std::setw(12) << "js_rz_z" << std::endl;
+  outfile << "time\t";
+  outfile << "js_rx_x\tjs_rx_y\tjs_rx_z" << "\t";
+  outfile << "js_ry_x\tjs_ry_y\tjs_yx_z" << "\t";
+  outfile << "js_rz_x\tjs_rz_y\tjs_zx_z" << std::endl;
+
+  outfile.setf(std::ios::right);
 }
 
 void CudaSpinCurrentMonitor::update(Solver *solver) {
@@ -164,8 +158,8 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
 
   outfile << std::setw(4) << std::scientific << solver->time() << "\t";
   for (auto r_m = 0; r_m < 3; ++r_m) {
-    for (auto n = 0; n < 3; ++ n) {
-      outfile << std::setw(12) << js[r_m][n] << "\t";
+    for (auto s_n = 0; s_n < 3; ++ s_n) {
+      outfile << std::setw(12) << js[r_m][s_n] << "\t";
     }
   }
   outfile << "\n";
