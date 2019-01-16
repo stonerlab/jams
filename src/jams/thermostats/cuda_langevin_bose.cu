@@ -12,6 +12,7 @@
 #include "cuda_langevin_bose.h"
 #include "cuda_langevin_bose_kernel.h"
 
+#include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/consts.h"
@@ -26,6 +27,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 : Thermostat(temperature, sigma, num_spins),
   debug_(false),
   dev_noise_(3 * num_spins, 0.0),
+  dev_zeta0_(4 * num_spins * 3, 0.0),
   dev_zeta5_(num_spins * 3, 0.0),
   dev_zeta5p_(num_spins * 3, 0.0),
   dev_zeta6_(num_spins * 3, 0.0),
@@ -39,16 +41,17 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
    debug_ = false;
 
-   if (debug_) {
-     cout << "    DEBUG ON\n";
-     std::string name = seedname + "_noise.dat";
-     outfile_.open(name.c_str());
+   if(debug_) {
+     debug_noise_outfile_.open(seedname + "_qnoise.tsv");
+     debug_noise_outfile_ << "time\tnoise0\tnoise1\tnoise2\tnoise3\tnoise4\tnoise5\tnoise6\tnoise7\tnoise8\tnoise9\n";
    }
+
+   config->lookupValue("thermostat.zero_point", do_zero_point_);
 
    double t_warmup = 1e-10; // 0.1 ns
    config->lookupValue("thermostat.warmup_time", t_warmup);
 
-   omega_max_ = 100 * kTHz;
+   omega_max_ = 25.0 * kTwoPi * kTHz;
    config->lookupValue("thermostat.w_max", omega_max_);
 
    double dt_thermostat = ::config->lookup("solver.t_step");
@@ -57,7 +60,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    uint64_t dev_rng_seed = jams::random_generator()();
 
    cout << "    seed " << dev_rng_seed << "\n";
-   cout << "    omega_max (THz) " << omega_max_ / kTHz << "\n";
+   cout << "    omega_max (THz) " << omega_max_ / (kTwoPi * kTHz) << "\n";
    cout << "    hbar*w/kB " << (kHBar * omega_max_) / (kBoltzmann) << "\n";
    cout << "    t_step " << dt_thermostat << "\n";
    cout << "    delta tau " << delta_tau_ << "\n";
@@ -132,7 +135,6 @@ void CudaLangevinBoseThermostat::update() {
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
   swap(dev_eta1a_, dev_eta1b_);
-
   curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0);
 
   bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (
@@ -147,6 +149,29 @@ void CudaLangevinBoseThermostat::update() {
     this->temperature(),
     (kHBar * omega_max_) / (kBoltzmann * this->temperature()),  // w_m
     globals::num_spins3);
+
+  if (do_zero_point_) {
+    curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0);
+
+    bose_zero_point_stochastic_process_cuda_kernel << < grid_size, block_size, 0, dev_stream_ >> > (
+            dev_noise_.data(),
+                    dev_zeta0_.data(),
+                    dev_eta0_.data(),
+                    dev_sigma_.data(),
+                    delta_tau_ * this->temperature(),
+                    this->temperature(),
+                    (kHBar * omega_max_) / (kBoltzmann * this->temperature()),  // w_m
+                    globals::num_spins3);
+  }
+
+  if (debug_ && is_warmed_up_) {
+    dev_noise_.copy_to_host_array(noise_);
+    debug_noise_outfile_ << solver->time() << "\t";
+    for (auto i = 0; i < 10; ++i) {
+      debug_noise_outfile_ << noise_[i] << "\t";
+    }
+    debug_noise_outfile_ << std::endl;
+  }
 }
 
 CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
@@ -160,10 +185,6 @@ CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
 
   if (dev_curand_stream_ != nullptr) {
     cudaStreamDestroy(dev_curand_stream_);
-  }
-  
-  if (debug_) {
-    outfile_.close();
   }
 }
 
