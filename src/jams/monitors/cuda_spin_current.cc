@@ -53,17 +53,12 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 
   const auto neighbour_list = generate_neighbour_list_from_file(exchange_settings, interaction_file);
 
+  SparseMatrix<Vec3> interaction_matrix(globals::num_spins, globals::num_spins);
 
-
-  SparseMatrix<Vec3> interaction_matrix;
-
-  interaction_matrix.resize(globals::num_spins, globals::num_spins);
-  interaction_matrix.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
-
-  for (unsigned i = 0; i < neighbour_list.size(); ++i) {
+  for (auto i = 0; i < neighbour_list.size(); ++i) {
     for (auto const &nbr: neighbour_list[i]) {
-      unsigned j = nbr.first;
-      double Jij = nbr.second[0][0];
+      auto j = nbr.first;
+      auto Jij = nbr.second[0][0];
       if (i > j) continue;
       auto r_i = lattice->atom_position(i);
       auto r_j = lattice->atom_position(j);
@@ -75,17 +70,8 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   interaction_matrix.convertMAP2CSR();
   cout << "  exchange matrix memory (CSR): " << interaction_matrix.calculateMemory() << " MB\n";
 
-  cuda_api_error_check(
-          cudaMalloc((void**)&dev_csr_matrix_.row, (interaction_matrix.rows()+1)*sizeof(int)));
-  cuda_api_error_check(
-          cudaMalloc((void**)&dev_csr_matrix_.col, (interaction_matrix.nonZero())*sizeof(int)));
-
-
-  cuda_api_error_check(cudaMemcpy(dev_csr_matrix_.row, interaction_matrix.rowPtr(),
-                                  (interaction_matrix.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
-
-  cuda_api_error_check(cudaMemcpy(dev_csr_matrix_.col, interaction_matrix.colPtr(),
-                                  (interaction_matrix.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
+  cuda_malloc_and_copy_to_device(dev_csr_matrix_.row, interaction_matrix.rowPtr(), interaction_matrix.rows()+1);
+  cuda_malloc_and_copy_to_device(dev_csr_matrix_.col, interaction_matrix.colPtr(), interaction_matrix.nonZero());
 
   // not sure how Vec3 will copy so lets be safe
   jblib::Array<double, 2> val(interaction_matrix.nonZero(), 3);
@@ -95,11 +81,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
     }
   }
 
-  cuda_api_error_check(
-          cudaMalloc((void**)&dev_csr_matrix_.val, val.elements()*sizeof(double)));
-
-  cuda_api_error_check(cudaMemcpy(dev_csr_matrix_.val, val.data(),
-                                  val.elements()*sizeof(double), cudaMemcpyHostToDevice));
+  cuda_malloc_and_copy_to_device(dev_csr_matrix_.val, val.data(), val.elements());
 
   dev_spin_current_rx_x.resize(globals::num_spins);
   dev_spin_current_rx_y.resize(globals::num_spins);
@@ -112,18 +94,6 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   dev_spin_current_rz_x.resize(globals::num_spins);
   dev_spin_current_rz_y.resize(globals::num_spins);
   dev_spin_current_rz_z.resize(globals::num_spins);
-
-  dev_spin_current_rx_x.zero();
-  dev_spin_current_rx_y.zero();
-  dev_spin_current_rx_z.zero();
-
-  dev_spin_current_ry_x.zero();
-  dev_spin_current_ry_y.zero();
-  dev_spin_current_ry_z.zero();
-
-  dev_spin_current_rz_x.zero();
-  dev_spin_current_rz_y.zero();
-  dev_spin_current_rz_z.zero();
 
   outfile.open(seedname + "_js.tsv");
 
