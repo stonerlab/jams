@@ -65,4 +65,10 @@ inline void cuda_throw(cudaError_t return_code, const char *file, int line) {
   exit(EXIT_FAILURE); }} while (0)
 #endif
 
+template <typename T>
+inline void cuda_malloc_and_copy_to_device(T* dev_ptr, const T* hst_ptr, unsigned array_size) {
+  cuda_api_error_check(cudaMalloc((void**)&dev_ptr, array_size*sizeof(T)));
+  cuda_api_error_check(cudaMemcpy(dev_ptr, hst_ptr, array_size*sizeof(T), cudaMemcpyHostToDevice));
+}
+
 #endif  // JAMS_CORE_CUDA_DEFS_H
