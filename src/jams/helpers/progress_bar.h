@@ -54,6 +54,7 @@ inline std::ostream& operator<<(std::ostream& os, const ProgressBar &p) {
   }
   os << "] ";
   os << std::setw(3) << static_cast<unsigned>(p.progress() * 100.0) << " %" << std::flush;
+  return os;
 }
 
 #endif //JAMS_PROGRESS_BAR_H
