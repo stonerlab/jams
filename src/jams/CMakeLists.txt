@@ -88,6 +88,7 @@ target_sources(jams_object_lib
         hamiltonian/exchange.cc
         hamiltonian/exchange_neartree.cc
         hamiltonian/uniaxial_anisotropy.cc
+        hamiltonian/uniaxial_microscopic_anisotropy.cc
         hamiltonian/random_anisotropy.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
@@ -132,6 +133,7 @@ if(JAMS_BUILD_CUDA)
             cuda/cuda_array_kernels.cu
             cuda/cuda_solver.cc
             hamiltonian/cuda_uniaxial_anisotropy.cu
+            hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
             hamiltonian/cuda_dipole_fft.cu
             hamiltonian/cuda_exchange.cu
             hamiltonian/cuda_random_anisotropy.cu

@@ -111,15 +111,15 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
     return new SkyrmionMonitor(settings);
   }
 
-#ifdef HAS_CUDA
   if (capitalize(settings["module"]) == "SCATTERING-FUNCTION"
   || capitalize(settings["module"]) == "SPECTRUM_GENERAL") {
+#ifdef HAS_CUDA
     if (solver->is_cuda_solver()) {
       return new CudaSpectrumGeneralMonitor(settings);
     }
+#endif
     return new SpectrumGeneralMonitor(settings);
   }
-#endif
 
   throw std::runtime_error("unknown monitor " + std::string(settings["module"].c_str()));
 }

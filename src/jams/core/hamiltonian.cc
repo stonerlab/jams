@@ -16,12 +16,14 @@
 #include "jams/hamiltonian/exchange_neartree.h"
 #include "jams/hamiltonian/random_anisotropy.h"
 #include "jams/hamiltonian/uniaxial_anisotropy.h"
+#include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
 #include "jams/hamiltonian/zeeman.h"
 
 #if HAS_CUDA
   #include "jams/hamiltonian/cuda_exchange.h"
   #include "jams/hamiltonian/cuda_random_anisotropy.h"
   #include "jams/hamiltonian/cuda_uniaxial_anisotropy.h"
+  #include "jams/hamiltonian/cuda_uniaxial_microscopic_anisotropy.h"
   #include "jams/hamiltonian/cuda_zeeman.h"
 #endif
 
@@ -49,6 +51,15 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
       #endif
         return new UniaxialHamiltonian(settings, size);
     }
+
+    if (capitalize(settings["module"]) == "UNIAXIAL-MICRO") {
+    #if HAS_CUDA
+        if (is_cuda_solver) {
+          return new CudaUniaxialMicroscopicHamiltonian(settings, size);
+        }
+    #endif
+        return new UniaxialMicroscopicHamiltonian(settings, size);
+      }
 
     if (capitalize(settings["module"]) == "DIPOLE") {
         return new DipoleHamiltonian(settings, size);
