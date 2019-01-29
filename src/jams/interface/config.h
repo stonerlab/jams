@@ -79,11 +79,11 @@ namespace jams {
 
     template<>
     inline CoordinateFormat config_required(const libconfig::Setting &setting, const std::string &name) {
-      auto format = jams::config_required<string>(setting, "coordinate_format");
+      auto format = jams::config_required<std::string>(setting, "coordinate_format");
       if (lowercase(format) == "fractional") {
-        return CoordinateFormat::Fractional;
+        return CoordinateFormat::FRACTIONAL;
       } else if (lowercase(format) == "cartesian") {
-        return CoordinateFormat::Cartesian;
+        return CoordinateFormat::CARTESIAN;
       } else {
         throw std::runtime_error("Unknown coordinate format");
       }
