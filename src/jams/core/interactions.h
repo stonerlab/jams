@@ -26,7 +26,7 @@ class InteractionList;
 //
 enum class InteractionFileFormat {UNDEFINED, JAMS, KKR};
 
-inline InteractionFileFormat interaction_file_format_from_string(std::string &s) {
+inline InteractionFileFormat interaction_file_format_from_string(const std::string s) {
   if (capitalize(s) == "JAMS") return InteractionFileFormat::JAMS;
   if (capitalize(s) == "KKR") return InteractionFileFormat::KKR;
   throw std::runtime_error("Unknown exchange file format");

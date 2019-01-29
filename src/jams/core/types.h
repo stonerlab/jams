@@ -13,7 +13,7 @@
 
 enum class CoordinateFormat {CARTESIAN, FRACTIONAL};
 
-inline CoordinateFormat coordinate_format_from_string(std::string &s) {
+inline CoordinateFormat coordinate_format_from_string(const std::string s) {
   if (capitalize(s) == "CART" || capitalize(s) == "CARTESIAN") return CoordinateFormat::CARTESIAN;
   if (capitalize(s) == "FRAC" || capitalize(s) == "FRACTIONAL") return CoordinateFormat::FRACTIONAL;
   throw std::runtime_error("Unknown coordinate format");
