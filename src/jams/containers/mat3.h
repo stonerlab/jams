@@ -27,6 +27,11 @@ Mat<T,3,3> matrix_from_cols(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>
 }
 
 template <typename T>
+Mat<T,3,3> diagonal_matrix(const T& a) {
+  return {a, 0, 0, 0, a, 0, 0, 0, a};
+}
+
+template <typename T>
 Mat<T,3,3> ssc(const Vec<T,3> &v) {
   // skew symmetric cross product matrix
   return {0, -v[2], v[1], v[2], 0, -v[0], -v[1], v[0], 0};
