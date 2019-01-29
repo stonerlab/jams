@@ -146,4 +146,15 @@ auto flatten_vector(const std::vector<T2, A2> &input) -> std::vector<typename T2
   return result;
 }
 
+// helper functions to make syntax shorter when apply lambda functions
+template <class T, class F>
+void apply_transform(std::vector<T> &x,  F func) {
+  std::transform(x.begin(), x.end(), x.begin(), func);
+}
+
+template <class T, class UnaryPredicate>
+void apply_predicate(std::vector<T> &x,  UnaryPredicate func) {
+  x.erase(std::remove_if(x.begin(), x.end(), func), x.end());
+}
+
 #endif  // JAMS_CORE_UTILS_H
