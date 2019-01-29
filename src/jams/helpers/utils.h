@@ -14,7 +14,8 @@
 #include <string>
 #include <vector>
 
-#include "jams/core/types.h"
+#include "jams/containers/vec3.h"
+#include "jams/containers/mat3.h"
 
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
