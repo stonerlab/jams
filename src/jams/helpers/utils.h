@@ -111,8 +111,8 @@ inline int file_columns(std::string &line) {
   return count;
 }
 
-inline bool string_is_int(const string s){
-  return s.find_first_not_of( "0123456789" ) == string::npos;
+inline bool string_is_int(const std::string s){
+  return s.find_first_not_of( "0123456789" ) == std::string::npos;
 }
 
 inline int periodic_shift(const int x, const int dimx) {
