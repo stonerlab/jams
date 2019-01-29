@@ -30,62 +30,68 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   // read settings
   //---------------------------------------------------------------------
 
-    std::string interaction_filename = settings["exc_file"].c_str();
-    std::ifstream interaction_file(interaction_filename.c_str());
-    if (interaction_file.fail()) {
-      die("failed to open interaction file %s", interaction_filename.c_str());
-    }
-    cout << "    interaction file name " << interaction_filename << "\n";
+  std::string exchange_file_format_name = "JAMS";
+  settings.lookupValue("format", exchange_file_format_name);
+  exchange_file_format_ = interaction_file_format_from_string(exchange_file_format_name);
 
-    std::string exchange_file_format_name = "JAMS";
-    settings.lookupValue("format", exchange_file_format_name);
-    exchange_file_format_ = exchange_file_format_from_string(exchange_file_format_name);
+  std::string coordinate_format_name = "CARTESIAN";
+  settings.lookupValue("coordinate_format", coordinate_format_name);
+  CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
 
-    std::string coordinate_format_name = "CARTESIAN";
-    settings.lookupValue("coordinate_format", coordinate_format_name);
-    CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
+  bool use_symops = true;
+  settings.lookupValue("symops", use_symops);
 
-    bool use_symops = true;
-    settings.lookupValue("symops", use_symops);
+  bool print_unfolded = false;
+  settings.lookupValue("print_unfolded", print_unfolded);
 
-    bool print_unfolded = false;
-    settings.lookupValue("print_unfolded", print_unfolded);
+  print_unfolded = print_unfolded || verbose_is_enabled() || debug_is_enabled();
 
-    print_unfolded = print_unfolded || verbose_is_enabled() || debug_is_enabled();
+  energy_cutoff_ = 1E-26;  // Joules
+  settings.lookupValue("energy_cutoff", energy_cutoff_);
+  cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
 
-    energy_cutoff_ = 1E-26;  // Joules
-    settings.lookupValue("energy_cutoff", energy_cutoff_);
-    cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
+  radius_cutoff_ = 100.0;  // lattice parameters
+  settings.lookupValue("radius_cutoff", radius_cutoff_);
+  cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
 
-    radius_cutoff_ = 100.0;  // lattice parameters
-    settings.lookupValue("radius_cutoff", radius_cutoff_);
-    cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
+  distance_tolerance_ = 1e-3; // fractional coordinate units
+  settings.lookupValue("distance_tolerance", distance_tolerance_);
+  cout << "    distance_tolerance " << distance_tolerance_ << "\n";
 
-    distance_tolerance_ = 1e-3; // fractional coordinate units
-    settings.lookupValue("distance_tolerance", distance_tolerance_);
-    cout << "    distance_tolerance " << distance_tolerance_ << "\n";
-    
-    safety_check_distance_tolerance(distance_tolerance_);
+  safety_check_distance_tolerance(distance_tolerance_);
 
-    if (debug_is_enabled()) {
-      std::ofstream pos_file("debug_pos.dat");
-      for (int n = 0; n < lattice->num_materials(); ++n) {
-        for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice->atom_material_id(i) == n) {
-            pos_file << i << "\t" <<  lattice->atom_position(i) << " | " << lattice->cartesian_to_fractional(lattice->atom_position(i)) << "\n";
-          }
+  if (debug_is_enabled()) {
+    std::ofstream pos_file("debug_pos.dat");
+    for (int n = 0; n < lattice->num_materials(); ++n) {
+      for (int i = 0; i < globals::num_spins; ++i) {
+        if (lattice->atom_material_id(i) == n) {
+          pos_file << i << "\t" << lattice->atom_position(i) << " | "
+                   << lattice->cartesian_to_fractional(lattice->atom_position(i)) << "\n";
         }
-        pos_file << "\n\n";
       }
-      pos_file.close();
+      pos_file << "\n\n";
     }
+    pos_file.close();
+  }
 
-    //---------------------------------------------------------------------
-    // generate interaction list
-    //---------------------------------------------------------------------
-  generate_neighbour_list_from_file(interaction_file, exchange_file_format_, coord_format, energy_cutoff_,
-          radius_cutoff_, use_symops,
-          print_unfolded || debug_is_enabled(), neighbour_list_);
+  //---------------------------------------------------------------------
+  // generate interaction list
+  //---------------------------------------------------------------------
+
+    // exc_file is to maintain backwards compatibility
+    if (settings.exists("exc_file")) {
+      cout << "    interaction file name " << settings["exc_file"].c_str() << "\n";
+
+      std::ifstream interaction_file(settings["exc_file"].c_str());
+      if (interaction_file.fail()) {
+        die("failed to open interaction file");
+      }
+
+      neighbour_list_ = generate_neighbour_list(interaction_file, coord_format, use_symops, energy_cutoff_,
+                                                radius_cutoff_);
+    } else if (settings.exists("interactions")) {
+      neighbour_list_ = generate_neighbour_list(settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_);
+    }
 
     if (debug_is_enabled()) {
       std::ofstream debug_file("DEBUG_exchange_nbr_list.tsv");
@@ -100,7 +106,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
     interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
-    cout << "    computed interactions\n";
+    cout << "    computed interactions: "<< neighbour_list_.num_interactions() << "\n";
 
     for (int i = 0; i < neighbour_list_.size(); ++i) {
       for (auto const &j: neighbour_list_[i]) {

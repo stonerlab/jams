@@ -134,7 +134,7 @@ Lattice::material_name(int uid) {
 }
 
 int
-Lattice::material_id(const string &name) {
+Lattice::material_id(const std::string &name) {
   return materials_.id(name);
 }
 
@@ -229,7 +229,7 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
 
 void Lattice::read_motif_from_config(const libconfig::Setting &positions, CoordinateFormat coordinate_format) {
   Atom atom;
-  string atom_name;
+  std::string atom_name;
 
   motif_.clear();
 
@@ -246,7 +246,7 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions, Coordi
     atom.pos[1] = positions[i][1][1];
     atom.pos[2] = positions[i][1][2];
 
-    if (coordinate_format == CoordinateFormat::Cartesian) {
+    if (coordinate_format == CoordinateFormat::CARTESIAN) {
       atom.pos = cartesian_to_fractional(atom.pos);
     }
 
@@ -278,7 +278,7 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
       continue;
     }
     std::stringstream line_as_stream;
-    string atom_name;
+    std::string atom_name;
     Atom atom;
 
     line_as_stream.str(line);
@@ -286,7 +286,7 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
     // read atom type name
     line_as_stream >> atom_name >> atom.pos[0] >> atom.pos[1] >> atom.pos[2];
 
-    if (coordinate_format == CoordinateFormat::Cartesian) {
+    if (coordinate_format == CoordinateFormat::CARTESIAN) {
       atom.pos = cartesian_to_fractional(atom.pos);
     }
 
@@ -422,14 +422,14 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
     global_rotation(jams::config_optional(lattice_settings, "global_rotation", kIdentityMat3));
   }
 
-  CoordinateFormat cfg_coordinate_format = CoordinateFormat::Fractional;
+  CoordinateFormat cfg_coordinate_format = CoordinateFormat::FRACTIONAL;
 
   std::string cfg_coordinate_format_name = jams::config_optional<string>(unitcell_settings, "coordinate_format", "FRACTIONAL");
 
   if (capitalize(cfg_coordinate_format_name) == "FRACTIONAL") {
-    cfg_coordinate_format = CoordinateFormat::Fractional;
+    cfg_coordinate_format = CoordinateFormat::FRACTIONAL;
   } else if (capitalize(cfg_coordinate_format_name) == "CARTESIAN") {
-    cfg_coordinate_format = CoordinateFormat::Cartesian;
+    cfg_coordinate_format = CoordinateFormat::CARTESIAN;
   } else {
     throw std::runtime_error("Unknown coordinate format for atom positions in unit cell");
   }
@@ -1041,7 +1041,7 @@ const Mat3 &Lattice::get_global_rotation_matrix() {
   return global_orientation_matrix_;
 }
 
-bool Lattice::material_exists(const string &name) {
+bool Lattice::material_exists(const std::string &name) {
   return materials_.contains(name);
 }
 
