@@ -52,8 +52,8 @@ struct InteractionFileDescription {
 struct InteractionData {
     int         unit_cell_pos_i = -1;
     int         unit_cell_pos_j = -1;
-    Vec3        r_ij = {0.0, 0.0, 0.0}; // interaction vector (cartesian)
-    Mat3        J_ij = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    Vec3        r_ij = {{0.0, 0.0, 0.0}}; // interaction vector (cartesian)
+    Mat3        J_ij = kZeroMat3;
     std::string type_i = "NOTYPE";
     std::string type_j = "NOTYPE";
 };
@@ -61,8 +61,8 @@ struct InteractionData {
 struct IntegerInteractionData {
     int         unit_cell_pos_i = -1;
     int         unit_cell_pos_j = -1;
-    Vec3i       u_ij = {0, 0, 0};   // offset in unitcells
-    Mat3        J_ij = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    Vec3i       u_ij = {{0, 0, 0}};   // offset in unitcells
+    Mat3        J_ij = kZeroMat3;
     std::string type_i = "NOTYPE";
     std::string type_j = "NOTYPE";
 };
