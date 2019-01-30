@@ -205,7 +205,7 @@ void jams_run() {
   cout << "\n" << std::endl;
 
   cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
-  cout << "runtime " << timer.elapsed_time() << std::endl;
+  cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
 }
 
 void jams_finish() {
