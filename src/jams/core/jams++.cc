@@ -185,9 +185,8 @@ void jams_run() {
   cout << jams::section("running solver") << std::endl;
   cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
 
-  Timer<> timer;
   ProgressBar progress;
-
+  Timer<> timer;
   while (::solver->is_running()) {
     if (::solver->is_converged()) {
       break;
@@ -202,10 +201,10 @@ void jams_run() {
       cout << progress;
     }
   }
-  cout << "\n" << std::endl;
-
-  cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
+  cout << "\n\n";
   cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
+  
+  cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
 }
 
 void jams_finish() {
