@@ -15,8 +15,9 @@ struct CudaSparseMatrixCSR {
   cusparseMatDescr_t  descr = nullptr;
 };
 
-template<typename T>
-void sparsematrix_copy_host_csr_to_cuda_csr(const SparseMatrix<T>& host_matrix, CudaSparseMatrixCSR<T>& cuda_matrix) {
+// This function supports mixed precision by converting the host matrix type
+template<typename THst, typename TDev>
+void sparsematrix_copy_host_csr_to_cuda_csr(const SparseMatrix<THst>& host_matrix, CudaSparseMatrixCSR<TDev>& cuda_matrix) {
   assert(host_matrix.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR);
 
   if (!cuda_matrix.descr) {
@@ -46,20 +47,32 @@ void sparsematrix_copy_host_csr_to_cuda_csr(const SparseMatrix<T>& host_matrix, 
   cusparseSetMatIndexBase(cuda_matrix.descr, CUSPARSE_INDEX_BASE_ZERO);
 
   cuda_api_error_check(
-    cudaMalloc((void**)&cuda_matrix.row, (host_matrix.rows()+1)*sizeof(int)));
+          cudaMalloc((void**)&cuda_matrix.row, (host_matrix.rows()+1)*sizeof(int)));
   cuda_api_error_check(
-    cudaMalloc((void**)&cuda_matrix.col, (host_matrix.nonZero())*sizeof(int)));
-  cuda_api_error_check(
-    cudaMalloc((void**)&cuda_matrix.val, (host_matrix.nonZero())*sizeof(T)));
+          cudaMalloc((void**)&cuda_matrix.col, (host_matrix.nonZero())*sizeof(int)));
 
   cuda_api_error_check(cudaMemcpy(cuda_matrix.row, host_matrix.rowPtr(),
-        (host_matrix.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
+                                  (host_matrix.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
 
   cuda_api_error_check(cudaMemcpy(cuda_matrix.col, host_matrix.colPtr(),
-        (host_matrix.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
+                                  (host_matrix.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
 
-  cuda_api_error_check(cudaMemcpy(cuda_matrix.val, host_matrix.valPtr(),
-        (host_matrix.nonZero())*sizeof(T), cudaMemcpyHostToDevice));
+  cuda_api_error_check(
+          cudaMalloc((void**)&cuda_matrix.val, (host_matrix.nonZero())*sizeof(TDev)));
+
+  if (sizeof(THst) == sizeof(TDev)) {
+    cuda_api_error_check(cudaMemcpy(cuda_matrix.val, host_matrix.valPtr(),
+                                    (host_matrix.nonZero())*sizeof(TDev), cudaMemcpyHostToDevice));
+  } else {
+    // convert types
+    std::vector<TDev> converted_values(host_matrix.nonZero());
+    for (auto i = 0; i < host_matrix.nonZero(); ++i) {
+      converted_values[i] = host_matrix.val(i);
+    }
+
+    cuda_api_error_check(cudaMemcpy(cuda_matrix.val, converted_values.data(),
+                                    (converted_values.size())*sizeof(TDev), cudaMemcpyHostToDevice));
+  }
 }
 
 #endif
