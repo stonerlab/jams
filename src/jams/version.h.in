@@ -17,6 +17,7 @@ namespace jams {
         constexpr auto option_cuda = "@JAMS_BUILD_CUDA@";
         constexpr auto option_omp = "@JAMS_BUILD_OMP@";
         constexpr auto option_fastmath = "@JAMS_BUILD_FASTMATH@";
+        constexpr auto option_mixed_prec = "@JAMS_BUILD_MIXED_PREC@";
     }
 }
 #endif //JAMS_VERSION_H

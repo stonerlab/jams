@@ -80,7 +80,8 @@ namespace jams {
       ss << "build   "  << jams::build::type << " (";
         ss << "cuda:" << jams::build::option_cuda;
         ss << " omp:" << jams::build::option_omp;
-        ss << " fastmath:" << jams::build::option_fastmath << ")\n" ;
+        ss << " fastmath:" << jams::build::option_fastmath ;
+        ss << " mixed_prec:" << jams::build::option_mixed_prec << ")\n";
       ss << "git     "  << jams::build::branch << " (" << jams::build::hash << ")\n" ;
       ss << "run     ";
       ss << get_date_string(std::chrono::system_clock::now()) << "\n";

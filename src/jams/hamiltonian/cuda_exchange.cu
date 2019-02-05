@@ -18,6 +18,33 @@ CudaExchangeHamiltonian::CudaExchangeHamiltonian(const libconfig::Setting &setti
     cusparseSetStream(cusparse_handle_, dev_stream_.get());
 
     sparsematrix_copy_host_csr_to_cuda_csr(interaction_matrix_, dev_csr_interaction_matrix_);
+
+#if HAS_CUSPARSE_MIXED_PREC
+  float one = 1.0;
+  float zero = 0.0;
+  const int num_rows = globals::num_spins3;
+  const int num_cols = globals::num_spins3;
+  cusparseCsrmvEx_bufferSize(
+          cusparse_handle_,
+          CUSPARSE_ALG_NAIVE,
+          CUSPARSE_OPERATION_NON_TRANSPOSE,
+          num_rows,
+          num_cols,
+          interaction_matrix_.nonZero(),
+          &one, CUDA_R_32F,
+          dev_csr_interaction_matrix_.descr,
+          dev_csr_interaction_matrix_.val, CUDA_R_32F,
+          dev_csr_interaction_matrix_.row,
+          dev_csr_interaction_matrix_.col,
+          solver->dev_ptr_spin(), CUDA_R_64F,
+          &zero, CUDA_R_32F,
+          dev_field_.data(), CUDA_R_64F,
+          CUDA_R_32F, // execution type
+          &dev_csr_buffer_size_);
+
+  cuda_api_error_check(
+          cudaMalloc((void**)&dev_csr_buffer_, dev_csr_buffer_size_));
+#endif
 }
 
 double CudaExchangeHamiltonian::calculate_total_energy() {
@@ -34,25 +61,50 @@ double CudaExchangeHamiltonian::calculate_total_energy() {
 
 void CudaExchangeHamiltonian::calculate_fields() {
   assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
-  double one = 1.0;
-  double zero = 0.0;
+
   const int num_rows = globals::num_spins3;
   const int num_cols = globals::num_spins3;
 
+#if HAS_CUSPARSE_MIXED_PREC
+  float one = 1.0;
+  float zero = 0.0;
+
+  cusparseStatus_t stat = cusparseCsrmvEx(
+          cusparse_handle_,
+          CUSPARSE_ALG_NAIVE,
+          CUSPARSE_OPERATION_NON_TRANSPOSE,
+          num_rows,
+          num_cols,
+          interaction_matrix_.nonZero(),
+          &one, CUDA_R_32F,
+          dev_csr_interaction_matrix_.descr,
+          dev_csr_interaction_matrix_.val, CUDA_R_32F,
+          dev_csr_interaction_matrix_.row,
+          dev_csr_interaction_matrix_.col,
+          solver->dev_ptr_spin(), CUDA_R_64F,
+          &zero, CUDA_R_32F,
+          dev_field_.data(), CUDA_R_64F,
+          CUDA_R_32F, // execution type
+          dev_csr_buffer_);
+#else
+  double one = 1.0;
+  double zero = 0.0;
+
   cusparseStatus_t stat =
           cusparseDcsrmv(cusparse_handle_,
-                  CUSPARSE_OPERATION_NON_TRANSPOSE,
-                  num_rows,
-                  num_cols,
-                  interaction_matrix_.nonZero(),
-                  &one,
-                  dev_csr_interaction_matrix_.descr,
-                  dev_csr_interaction_matrix_.val,
-                  dev_csr_interaction_matrix_.row,
-                  dev_csr_interaction_matrix_.col,
-                  solver->dev_ptr_spin(),
-                  &zero,
-                  dev_field_.data());
+                         CUSPARSE_OPERATION_NON_TRANSPOSE,
+                         num_rows,
+                         num_cols,
+                         interaction_matrix_.nonZero(),
+                         &one,
+                         dev_csr_interaction_matrix_.descr,
+                         dev_csr_interaction_matrix_.val,
+                         dev_csr_interaction_matrix_.row,
+                         dev_csr_interaction_matrix_.col,
+                         solver->dev_ptr_spin(),
+                         &zero,
+                         dev_field_.data());
+#endif
 
   if (debug_is_enabled()) {
     if (stat != CUSPARSE_STATUS_SUCCESS) {

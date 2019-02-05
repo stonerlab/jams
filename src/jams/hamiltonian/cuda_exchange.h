@@ -20,7 +20,14 @@ public:
     void calculate_fields();
 
 private:
-    CudaSparseMatrixCSR<double> dev_csr_interaction_matrix_;
+
+#if HAS_CUSPARSE_MIXED_PREC
+  CudaSparseMatrixCSR<float> dev_csr_interaction_matrix_;
+  size_t dev_csr_buffer_size_;
+  void*  dev_csr_buffer_;
+#else
+  CudaSparseMatrixCSR<double> dev_csr_interaction_matrix_;
+#endif
     cusparseHandle_t   cusparse_handle_;
     CudaStream dev_stream_;
 };
