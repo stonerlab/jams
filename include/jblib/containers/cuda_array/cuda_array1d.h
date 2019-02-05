@@ -129,11 +129,7 @@ namespace jblib {
   template <typename Tp_, typename Idx_>
   CudaArray<Tp_, 1, Idx_>::
   ~CudaArray() {
-    if (is_allocated()) {
-      if (cudaFree(data_) != cudaSuccess) {
-        throw std::runtime_error("cudaFree fail");
-      }
-    }
+    cudaFree(data_);
   }
 
 //-----------------------------------------------------------------------------
