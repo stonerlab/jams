@@ -1,8 +1,22 @@
 #include <iosfwd>
 
+#include <cuda_runtime_api.h>
+
 #include "jams/core/solver.h"
 #include "jams/helpers/cuda_exception.h"
 #include "jams/hamiltonian/cuda_exchange.h"
+
+namespace {
+#if HAS_CUSPARSE_MIXED_PREC
+    // alg is a required argument even from CUDA 9, but the types are not implemented until CUDA 10
+#if __CUDACC_VER_MAJOR__ >= 10
+    cusparseAlgMode_t alg = CUSPARSE_ALG_NAIVE;
+#else
+    cusparseAlgMode_t alg;
+#endif
+#endif
+}
+
 
 CudaExchangeHamiltonian::CudaExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : ExchangeHamiltonian(settings, size)
@@ -20,13 +34,14 @@ CudaExchangeHamiltonian::CudaExchangeHamiltonian(const libconfig::Setting &setti
     sparsematrix_copy_host_csr_to_cuda_csr(interaction_matrix_, dev_csr_interaction_matrix_);
 
 #if HAS_CUSPARSE_MIXED_PREC
+
   float one = 1.0;
   float zero = 0.0;
   const int num_rows = globals::num_spins3;
   const int num_cols = globals::num_spins3;
   cusparseCsrmvEx_bufferSize(
           cusparse_handle_,
-          CUSPARSE_ALG_NAIVE,
+          alg,
           CUSPARSE_OPERATION_NON_TRANSPOSE,
           num_rows,
           num_cols,
@@ -71,7 +86,7 @@ void CudaExchangeHamiltonian::calculate_fields() {
 
   cusparseStatus_t stat = cusparseCsrmvEx(
           cusparse_handle_,
-          CUSPARSE_ALG_NAIVE,
+          alg,
           CUSPARSE_OPERATION_NON_TRANSPOSE,
           num_rows,
           num_cols,
