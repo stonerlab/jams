@@ -1,7 +1,7 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_KERNEL_H
 #define JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_KERNEL_H
 
-#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_common.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
 
 __constant__ float dev_super_unit_cell[3][3];

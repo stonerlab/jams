@@ -1,6 +1,7 @@
-#include <cuda_runtime_api.h>
+#include <cuda.h>
 
 #include "jams/core/solver.h"
+#include "jams/cuda/cuda_common.h"
 
 #include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
 #include "jams/hamiltonian/cuda_uniaxial_microscopic_anisotropy.h"
@@ -28,7 +29,7 @@ CudaUniaxialMicroscopicHamiltonian::CudaUniaxialMicroscopicHamiltonian(const lib
   }
   dev_mca_value_ = tmp_mca_value;
 
-  cudaStreamCreate(&dev_stream_);
+  CHECK_CUDA_STATUS(cudaStreamCreate(&dev_stream_));
 
   dev_blocksize_ = 128;
 }
@@ -36,4 +37,5 @@ CudaUniaxialMicroscopicHamiltonian::CudaUniaxialMicroscopicHamiltonian(const lib
 void CudaUniaxialMicroscopicHamiltonian::calculate_fields() {
   cuda_uniaxial_microscopic_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
             (globals::num_spins, mca_order_.size(), dev_mca_order_.data(), dev_mca_value_.data(), solver->dev_ptr_spin(), dev_field_.data());
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

@@ -18,6 +18,7 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/random.h"
 #include "jams/helpers/error.h"
+#include "jams/cuda/cuda_common.h"
 
 #include "jams/monitors/magnetisation.h"
 
@@ -68,49 +69,22 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    cout << "    initialising CUDA streams\n";
 
    if (cudaStreamCreate(&dev_stream_) != cudaSuccess) {
-     die("Failed to create CUDA stream in CudaLangevinBoseThermostat");
+     jams_die("Failed to create CUDA stream in CudaLangevinBoseThermostat");
    }
 
    if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess) {
-     die("Failed to create CURAND stream in CudaLangevinBoseThermostat");
+     jams_die("Failed to create CURAND stream in CudaLangevinBoseThermostat");
    }
 
    cout << "    initialising CURAND\n";
 
-   // initialize and seed the CURAND generator on the device
-   if (curandCreateGenerator(&dev_rng_, CURAND_RNG_PSEUDO_DEFAULT) != CURAND_STATUS_SUCCESS) {
-     die("Failed to create CURAND generator in CudaLangevinBoseThermostat");
-   }
-
-   // initialize zeta and eta with random variables
-   curandSetStream(dev_rng_, dev_curand_stream_);
-
-   cout << "    seeding CURAND " << dev_rng_seed << "\n";
-
-   if (curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed) != CURAND_STATUS_SUCCESS) {
-     die("Failed to set CURAND seed in CudaLangevinBoseThermostat");
-   }
-
-   if (curandGenerateSeeds(dev_rng_) != CURAND_STATUS_SUCCESS) {
-     die("Failed to generate CURAND seeds in CudaLangevinBoseThermostat");
-   }
-
-   cout << "    allocating GPU memory\n";
-
-   if (curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0)
-       != CURAND_STATUS_SUCCESS) {
-     die("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
-   }
-
-   if (curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0)
-       != CURAND_STATUS_SUCCESS) {
-     die("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
-   }
-
-   if (curandGenerateNormalDouble(dev_rng_, dev_eta1b_.data(), dev_eta1b_.size(), 0.0, 1.0)
-       != CURAND_STATUS_SUCCESS) {
-     die("curandGenerateNormalDouble failure in CudaLangevinBoseThermostat::constructor");
-   }
+   CHECK_CURAND_STATUS(curandCreateGenerator(&dev_rng_, CURAND_RNG_PSEUDO_DEFAULT));
+   CHECK_CURAND_STATUS(curandSetStream(dev_rng_, dev_curand_stream_));
+   CHECK_CURAND_STATUS(curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed));
+   CHECK_CURAND_STATUS(curandGenerateSeeds(dev_rng_));
+   CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta1b_.data(), dev_eta1b_.size(), 0.0, 1.0));
 
    jblib::Array<double, 2> scale(num_spins, 3);
    for (int i = 0; i < num_spins; ++i) {
@@ -135,7 +109,7 @@ void CudaLangevinBoseThermostat::update() {
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
   swap(dev_eta1a_, dev_eta1b_);
-  curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0);
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0));
 
   bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (
     dev_noise_.data(),
@@ -149,9 +123,10 @@ void CudaLangevinBoseThermostat::update() {
     this->temperature(),
     (kHBar * omega_max_) / (kBoltzmann * this->temperature()),  // w_m
     globals::num_spins3);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   if (do_zero_point_) {
-    curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0);
+    CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0));
 
     bose_zero_point_stochastic_process_cuda_kernel << < grid_size, block_size, 0, dev_stream_ >> > (
             dev_noise_.data(),
@@ -162,6 +137,7 @@ void CudaLangevinBoseThermostat::update() {
                     this->temperature(),
                     (kHBar * omega_max_) / (kBoltzmann * this->temperature()),  // w_m
                     globals::num_spins3);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS;
   }
 
   if (debug_ && is_warmed_up_) {
@@ -176,15 +152,15 @@ void CudaLangevinBoseThermostat::update() {
 
 CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
   if (dev_rng_ != nullptr) {
-    curandDestroyGenerator(dev_rng_);
+    CHECK_CURAND_STATUS(curandDestroyGenerator(dev_rng_))
   }
 
   if (dev_stream_ != nullptr) {
-    cudaStreamDestroy(dev_stream_);
+    CHECK_CUDA_STATUS(cudaStreamDestroy(dev_stream_));
   }
 
   if (dev_curand_stream_ != nullptr) {
-    cudaStreamDestroy(dev_curand_stream_);
+    CHECK_CUDA_STATUS(cudaStreamDestroy(dev_curand_stream_));
   }
 }
 

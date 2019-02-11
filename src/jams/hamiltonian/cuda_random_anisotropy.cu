@@ -32,6 +32,7 @@ void CudaRandomAnisotropyHamiltonian::calculate_fields() {
           dev_magnitude_.data().get(),
           dev_field_.data()
           );
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
 void CudaRandomAnisotropyHamiltonian::calculate_energies() {
@@ -43,6 +44,7 @@ void CudaRandomAnisotropyHamiltonian::calculate_energies() {
                   dev_magnitude_.data().get(),
                   dev_energy_.data()
   );
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
 double CudaRandomAnisotropyHamiltonian::calculate_total_energy() {

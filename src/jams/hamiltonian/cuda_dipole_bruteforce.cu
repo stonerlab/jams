@@ -48,11 +48,11 @@ CudaDipoleHamiltonianBruteforce::CudaDipoleHamiltonianBruteforce(const libconfig
 
     float r_cutoff_float = static_cast<float>(r_cutoff_);
 
-    cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(double));
-    cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(float));
-    cudaMemcpyToSymbol(dev_super_cell_pbc,      super_cell_pbc,      3 * sizeof(bool));
-    cudaMemcpyToSymbol(dev_super_unit_cell,     &super_unit_cell[0][0],     9 * sizeof(float));
-    cudaMemcpyToSymbol(dev_super_unit_cell_inv, &super_unit_cell_inv[0][0], 9 * sizeof(float));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(double)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(float)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_cell_pbc,      super_cell_pbc,      3 * sizeof(bool)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell,     &super_unit_cell[0][0],     9 * sizeof(float)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell_inv, &super_unit_cell_inv[0][0], 9 * sizeof(float)));
 
     jblib::Array<float, 1> f_mus(globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
@@ -158,4 +158,5 @@ void CudaDipoleHamiltonianBruteforce::calculate_fields(jblib::CudaArray<double, 
 
     DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, stream.get() >>>
         (solver->dev_ptr_spin(), dev_r_.data(), dev_mus_.data(), globals::num_spins, fields.data());
+    DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
