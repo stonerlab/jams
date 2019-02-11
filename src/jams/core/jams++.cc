@@ -10,10 +10,6 @@
   #include <omp.h>
 #endif
 
-#if HAS_CUDA
-  #include "jams/helpers/cuda_exception.h"
-#endif
-
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/core/jams++.h"
@@ -47,7 +43,7 @@ namespace jams {
     }
 
     void parse_args(int argc, char **argv, jams::Simulation &sim) {
-      if (argc == 1) die("No config file specified");
+      if (argc == 1) jams_die("No config file specified");
 
       sim.config_file_name    = trim(string(argv[1]));
       sim.config_patch_string = (argc == 3 ? string(argv[2]) : "");
@@ -59,11 +55,11 @@ namespace jams {
         config->readFile(sim.config_file_name.c_str());
       }
       catch(const libconfig::FileIOException &fioex) {
-        die("I/O error while reading '%s'", sim.config_file_name.c_str());
+        jams_die("I/O error while reading '%s'", sim.config_file_name.c_str());
       }
       catch(const libconfig::ParseException &pex) {
-        die("Error parsing %s:%i: %s", pex.getFile(),
-                pex.getLine(), pex.getError());
+        jams_die("Error parsing %s:%i: %s", pex.getFile(),
+                 pex.getLine(), pex.getError());
       }
 
       jams_patch_config(sim.config_patch_string);
@@ -137,7 +133,7 @@ void jams_initialize(int argc, char **argv) {
     cout << jams::section("init hamiltonians") << std::endl;
 
     if (!::config->exists("hamiltonians")) {
-      die("No hamiltonians in config");
+      jams_die("No hamiltonians in config");
     } else {
       const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
       for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
@@ -161,51 +157,57 @@ void jams_initialize(int argc, char **argv) {
     }
   }
   catch(const libconfig::SettingTypeException &stex) {
-    die("Config setting type error '%s'", stex.getPath());
+    jams_die("Config setting type error '%s'", stex.getPath());
   }
   catch(const libconfig::SettingNotFoundException &nfex) {
-    die("Required config setting not found '%s'", nfex.getPath());
+    jams_die("Required config setting not found '%s'", nfex.getPath());
   }
   catch(const jams::runtime_error &gex) {
-    die("%s", gex.what());
+    jams_die("%s", gex.what());
   }
-#if HAS_CUDA
-  catch(const cuda_api_exception &cex) {
-    die("CUDA api exception\n '%s'", cex.what());
-  }
-#endif
   catch (std::exception& e) {
-    die("exception: %s", e.what());
+    jams_die("exception: %s", e.what());
   }
   catch(...) {
-    die("Caught an unknown exception");
+    jams_die("Caught an unknown exception");
   }
 }
 
 void jams_run() {
-  cout << jams::section("running solver") << std::endl;
-  cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
+  try {
+    cout << jams::section("running solver") << std::endl;
+    cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
 
-  ProgressBar progress;
-  Timer<> timer;
-  while (::solver->is_running()) {
-    if (::solver->is_converged()) {
-      break;
+    ProgressBar progress;
+    Timer<> timer;
+    while (::solver->is_running()) {
+      if (::solver->is_converged()) {
+        break;
+      }
+
+      ::solver->update_physics_module();
+      ::solver->notify_monitors();
+      ::solver->run();
+
+      progress.set(double(::solver->iteration()) / double(::solver->max_steps()));
+      if (::solver->iteration() % 1000 == 0) {
+        cout << progress;
+      }
     }
+    cout << "\n\n";
+    cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
 
-    ::solver->update_physics_module();
-    ::solver->notify_monitors();
-    ::solver->run();
-
-    progress.set(double(::solver->iteration()) / double(::solver->max_steps()));
-    if (::solver->iteration() % 1000 == 0) {
-      cout << progress;
-    }
+    cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
   }
-  cout << "\n\n";
-  cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
-  
-  cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
+  catch(const jams::runtime_error &gex) {
+    jams_die("%s", gex.what());
+  }
+  catch (std::exception& e) {
+    jams_die("exception: %s", e.what());
+  }
+  catch(...) {
+    jams_die("Caught an unknown exception");
+  }
 }
 
 void jams_finish() {
@@ -252,8 +254,8 @@ void jams_patch_config(const std::string &patch_string) {
     cout << "patching from string " << patch_string << "\n";
   }
   catch(const libconfig::ParseException &pex) {
-    die("Error parsing %s:%i: %s", pex.getFile(),
-            pex.getLine(), pex.getError());
+    jams_die("Error parsing %s:%i: %s", pex.getFile(),
+             pex.getLine(), pex.getError());
   }
 
   config_patch(::config->getRoot(), cfg_patch.getRoot());

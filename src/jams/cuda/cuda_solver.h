@@ -3,6 +3,8 @@
 #ifndef JAMS_CORE_CUDASOLVER_H
 #define JAMS_CORE_CUDASOLVER_H
 
+#include <cublas_v2.h>
+
 #include "jams/core/solver.h"
 #include "jblib/containers/cuda_array.h"
 
@@ -22,6 +24,8 @@ class CudaSolver : public Solver {
 
  protected:
     void sync_device_data();
+
+    cublasHandle_t cublas_handle_;
 
     jblib::CudaArray<double, 1>  dev_h_;
     jblib::CudaArray<double, 1>  dev_gyro_;

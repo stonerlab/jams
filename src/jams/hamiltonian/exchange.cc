@@ -84,7 +84,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
       std::ifstream interaction_file(settings["exc_file"].c_str());
       if (interaction_file.fail()) {
-        die("failed to open interaction file");
+        jams_die("failed to open interaction file");
       }
 
       neighbour_list_ = generate_neighbour_list(interaction_file, coord_format, use_symops, energy_cutoff_,

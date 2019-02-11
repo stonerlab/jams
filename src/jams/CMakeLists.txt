@@ -138,10 +138,12 @@ if(JAMS_BUILD_CUDA)
             PRIVATE
             cuda/cuda_array_kernels.cu
             cuda/cuda_solver.cc
+            cuda/cuda_common.cu
             hamiltonian/cuda_uniaxial_anisotropy.cu
             hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
             hamiltonian/cuda_dipole_fft.cu
             hamiltonian/cuda_exchange.cu
+            hamiltonian/cuda_exchange_neartree.cu
             hamiltonian/cuda_random_anisotropy.cu
             hamiltonian/cuda_zeeman.cu
             hamiltonian/cuda_dipole_bruteforce.cu

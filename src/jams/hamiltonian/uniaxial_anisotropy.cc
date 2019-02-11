@@ -70,7 +70,8 @@ UniaxialHamiltonian::UniaxialHamiltonian(const Setting &settings, const unsigned
 
   // check if the old format is being used
   if ((settings.exists("d2z") || settings.exists("d4z") || settings.exists("d6z"))) {
-    die("UniaxialHamiltonian: anisotropy should only be specified in terms of K1, K2, K3 maybe you want UniaxialCoefficientHamiltonian?");
+    jams_die(
+            "UniaxialHamiltonian: anisotropy should only be specified in terms of K1, K2, K3 maybe you want UniaxialCoefficientHamiltonian?");
   }
 
   auto anisotropies = read_all_anisotropy_settings(settings);

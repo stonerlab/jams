@@ -10,11 +10,11 @@
 #include <jams/helpers/defaults.h>
 
 #include "jams/helpers/consts.h"
-#include "jams/helpers/cuda_exception.h"
 #include "jams/core/globals.h"
 #include "jams/core/thermostat.h"
 #include "jams/core/physics.h"
 #include "jams/helpers/error.h"
+#include "jams/cuda/cuda_common.h"
 
 #include "cuda_llg_heun_kernel.cuh"
 
@@ -42,14 +42,10 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   cout << "t_min " << t_min << " steps (" << min_steps_ << ")\n";
 
   cout << "  copy time_step to symbol\n";
-  if(cudaMemcpyToSymbol(dev_dt, &dt, sizeof(double)) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
+  CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_dt, &dt, sizeof(double)));
 
   cout << "  copy num_spins to symbol\n";
-  if(cudaMemcpyToSymbol(dev_num_spins, &globals::num_spins, sizeof(unsigned int)) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
+  CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_num_spins, &globals::num_spins, sizeof(unsigned int)));
 
   std::string thermostat_name = jams::config_optional<string>(config->lookup("solver"), "thermostat", jams::default_solver_gpu_thermostat);
   thermostat_ = Thermostat::create(thermostat_name);
@@ -85,11 +81,7 @@ void CUDAHeunLLGSolver::run()
              cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
              dev_stream_.get());                   // device stream
 
-  if (debug_is_enabled()) {
-    if (cudaPeekAtLastError() != cudaSuccess) {
-     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-  }
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   thermostat_->set_temperature(physics_module_->temperature());
   thermostat_->update();
@@ -101,17 +93,13 @@ void CUDAHeunLLGSolver::run()
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
        dev_h_.data(), thermostat_->noise(),
        dev_gyro_.data(), dev_alpha_.data());
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
   } else {
     cuda_heun_llg_kernelA<<<grid_size, block_size>>>
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
        dev_h_.data(), thermostat_->noise(),
        dev_gyro_.data(), dev_alpha_.data());
-  }
-
-  if (debug_is_enabled()) {
-    if (cudaPeekAtLastError() != cudaSuccess) {
-      throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
   compute_fields();
@@ -121,17 +109,13 @@ void CUDAHeunLLGSolver::run()
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
        dev_h_.data(), thermostat_->noise(),
        dev_gyro_.data(), dev_alpha_.data());
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
   } else {
     cuda_heun_llg_kernelB<<<grid_size, block_size>>>
       (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
        dev_h_.data(), thermostat_->noise(),
        dev_gyro_.data(), dev_alpha_.data());
-  }
-
-  if (debug_is_enabled()) {
-    if (cudaPeekAtLastError() != cudaSuccess) {
-      throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
   iteration_++;

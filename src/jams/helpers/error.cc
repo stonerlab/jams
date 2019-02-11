@@ -9,12 +9,12 @@
 
 using namespace std;
 
-void die(const char *string, ...) {
+void jams_die(const char *message, ...) {
   va_list args;
   char buffer[1024];
 
-  va_start(args, string);
-  vsprintf(buffer, string, args);
+  va_start(args, message);
+  vsprintf(buffer, message, args);
   va_end(args);
 
   cerr << "\n********************************************************************************\n\n";

@@ -5,11 +5,9 @@
 #ifndef JAMS_CUDA_EXCHANGE_H
 #define JAMS_CUDA_EXCHANGE_H
 
-#include <cusparse.h>
-
 #include "jams/cuda/cuda_stream.h"
-#include "jams/cuda/cuda_defs.h"
-#include "jams/cuda/cuda_sparsematrix.h"
+#include "jams/cuda/cuda_common.h"
+#include "jams/cuda/cuda_sparse_interaction_matrix.h"
 #include "jams/hamiltonian/exchange.h"
 
 class CudaExchangeHamiltonian : public ExchangeHamiltonian {
@@ -21,14 +19,7 @@ public:
 
 private:
 
-#if HAS_CUSPARSE_MIXED_PREC
-  CudaSparseMatrixCSR<float> dev_csr_interaction_matrix_;
-  size_t dev_csr_buffer_size_;
-  void*  dev_csr_buffer_;
-#else
-  CudaSparseMatrixCSR<double> dev_csr_interaction_matrix_;
-#endif
-    cusparseHandle_t   cusparse_handle_;
+    CudaSparseInteractionMatrix<double> dev_interaction_matrix_;
     CudaStream dev_stream_;
 };
 

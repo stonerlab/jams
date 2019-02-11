@@ -24,7 +24,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
 
     // settings for only outputting a slice
     if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
-      die("Xyz monitor requires both slice_origin and slice_size to be specificed;");
+      jams_die("Xyz monitor requires both slice_origin and slice_size to be specificed;");
     }
 
     num_slice_points = 0;

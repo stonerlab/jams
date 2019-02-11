@@ -406,7 +406,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   if (lattice_settings.exists("orientation_axis")) {
     if (lattice_settings.exists("orientation_lattice_vector") && lattice_settings.exists("orientation_cartesian_vector")) {
-      die("Only one of 'orientation_lattice_vector' or 'orientation_cartesian_vector' can be defined");
+      jams_die("Only one of 'orientation_lattice_vector' or 'orientation_cartesian_vector' can be defined");
     }
     auto reference_axis = jams::config_required<Vec3>(lattice_settings, "orientation_axis");
     if (lattice_settings.exists("orientation_lattice_vector")) {
@@ -462,7 +462,7 @@ void Lattice::global_rotation(const Mat3& rotation_matrix) {
   auto volume_after = ::volume(unitcell);
 
   if (std::abs(volume_before - volume_after) > 1e-6) {
-    die("unitcell volume has changed after rotation");
+    jams_die("unitcell volume has changed after rotation");
   }
 
   cout << "  global rotated lattice vectors\n";
@@ -499,7 +499,7 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
   auto volume_after = ::volume(unitcell);
 
   if (std::abs(volume_before - volume_after) > 1e-6) {
-    die("unitcell volume has changed after rotation");
+    jams_die("unitcell volume has changed after rotation");
   }
 
   cout << "  oriented lattice vectors\n";
@@ -578,7 +578,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   }
 
   if (atom_counter == 0) {
-    die("the number of computed lattice sites was zero, check input");
+    jams_die("the number of computed lattice sites was zero, check input");
   }
 
   cout << "    lattice material count\n";
@@ -597,7 +597,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   }
 
   if (atom_counter == 0) {
-    die("the number of computed lattice sites was zero, check input");
+    jams_die("the number of computed lattice sites was zero, check input");
   }
 
   Cell neartree_cell = supercell;
@@ -685,8 +685,8 @@ void Lattice::load_spin_state_from_hdf5(std::string &filename) {
   DataSpace dataspace = dataset.getSpace();
 
   if (dataspace.getSimpleExtentNpoints() != static_cast<hssize_t>(globals::num_spins3)){
-    die("Spin state file '%s' has %llu spins but your simulation has %d spins.",
-            filename.c_str(), dataspace.getSimpleExtentNpoints() / 3, globals::num_spins);
+    jams_die("Spin state file '%s' has %llu spins but your simulation has %d spins.",
+             filename.c_str(), dataspace.getSimpleExtentNpoints() / 3, globals::num_spins);
   }
 
   dataset.read(globals::s.data(), PredType::NATIVE_DOUBLE);
@@ -1054,26 +1054,26 @@ Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setti
       materialA = materials_.id(settings[n][0].c_str());
     }
     catch(std::out_of_range &e) {
-      die("impurity %d materialA (%s) does not exist", n, settings[n][0].c_str());
+      jams_die("impurity %d materialA (%s) does not exist", n, settings[n][0].c_str());
     }
 
     try {
       materialB = materials_.id(settings[n][1].c_str());
     }
     catch(std::out_of_range &e) {
-      die("impurity %d materialB (%s) does not exist", n, settings[n][1].c_str());
+      jams_die("impurity %d materialB (%s) does not exist", n, settings[n][1].c_str());
     }
 
     auto fraction  = double(settings[n][2]);
 
     if (fraction < 0.0 || fraction >= 1.0) {
-      die("impurity %d fraction must be 0 =< x < 1", n);
+      jams_die("impurity %d fraction must be 0 =< x < 1", n);
     }
 
     Impurity imp = {materialB, fraction};
 
     if(impurities.emplace(materialA, imp).second == false) {
-      die("impurity %d defined redefines a previous impurity", n);
+      jams_die("impurity %d defined redefines a previous impurity", n);
     }
   }
   return impurities;

@@ -24,12 +24,12 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
 
   // validate settings
   if (settings["magnitude"].getLength() != lattice->num_materials()) {
-    die("RandomAnisotropyHamiltonian: magnitude must be specified for every material");
+    jams_die("RandomAnisotropyHamiltonian: magnitude must be specified for every material");
   }
 
   if (settings.exists("sigma")) {
     if (settings["sigma"].getLength() != lattice->num_materials()) {
-      die("RandomAnisotropyHamiltonian: sigma must be specified for every material");
+      jams_die("RandomAnisotropyHamiltonian: sigma must be specified for every material");
     }
   }
 

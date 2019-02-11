@@ -3,7 +3,7 @@
 #include <libconfig.h++>
 
 #include "jams/interface/blas.h"
-#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_common.h"
 #include "jams/cuda/cuda_array_kernels.h"
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
@@ -115,63 +115,53 @@ CudaDipoleHamiltonianSparseTensor::CudaDipoleHamiltonianSparseTensor(const libco
     cout << "    dipole matrix memory (CSR) " << interaction_matrix_.calculateMemory() << " (MB)\n";
 
     // set up things on the device
-    if (solver->is_cuda_solver()) { 
-        cudaStreamCreate(&dev_stream_);
-
-        cusparseStatus_t cusparse_return_status;
+    if (solver->is_cuda_solver()) {
+      cudaStreamCreate(&dev_stream_);
 
 
-        cout << "    initialising CUSPARSE\n";
-        cusparse_return_status = cusparseCreate(&cusparse_handle_);
-        if (cusparse_return_status != CUSPARSE_STATUS_SUCCESS) {
-          die("CUSPARSE Library initialization failed");
-        }
-        cusparseSetStream(cusparse_handle_, dev_stream_);
 
+      cout << "    initialising CUSPARSE\n";
+      CHECK_CUSPARSE_STATUS(cusparseCreate(&cusparse_handle_));
+      CHECK_CUSPARSE_STATUS(cusparseSetStream(cusparse_handle_, dev_stream_));
+      CHECK_CUSPARSE_STATUS(cusparseCreateMatDescr(&cusparse_descra_));
 
-        cusparse_return_status = cusparseCreateMatDescr(&cusparse_descra_);
-        if (cusparse_return_status != CUSPARSE_STATUS_SUCCESS) {
-          die("CUSPARSE Matrix descriptor initialization failed");
-        }
+      if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
+        CHECK_CUSPARSE_STATUS(cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL));
+      } else if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
+        CHECK_CUSPARSE_STATUS(cusparseSetMatType(cusparse_descra_, CUSPARSE_MATRIX_TYPE_SYMMETRIC));
+      } else {
+        jams_die("unknown sparse matrix type in dipole_cuda_sparse_tensor");
+      }
+      CHECK_CUSPARSE_STATUS(cusparseSetMatIndexBase(cusparse_descra_, CUSPARSE_INDEX_BASE_ZERO));
 
-        if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
-          cusparseSetMatType(cusparse_descra_,CUSPARSE_MATRIX_TYPE_GENERAL);
-        } else if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-          cusparseSetMatType(cusparse_descra_, CUSPARSE_MATRIX_TYPE_SYMMETRIC);
-        } else {
-          die("unknown sparse matrix type in dipole_cuda_sparse_tensor");
-        }
-        cusparseSetMatIndexBase(cusparse_descra_, CUSPARSE_INDEX_BASE_ZERO);
+      // row
+      cout << "    allocating csr row on device\n";
+      CHECK_CUDA_STATUS(cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
 
-        // row
-        cout << "    allocating csr row on device\n";
-        cuda_api_error_check(
-          cudaMalloc((void**)&dev_csr_interaction_matrix_.row, (interaction_matrix_.rows()+1)*sizeof(int)));
-        
-        cout << "    memcpy csr row to device\n";
-        cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.row, interaction_matrix_.rowPtr(),
-              (interaction_matrix_.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
+      cout << "    memcpy csr row to device\n";
+      CHECK_CUDA_STATUS(cudaMemcpy(dev_csr_interaction_matrix_.row, interaction_matrix_.rowPtr(),
+            (interaction_matrix_.rows()+1)*sizeof(int), cudaMemcpyHostToDevice));
 
-        // col
-        cout << "    allocating csr col on device\n";
-        cuda_api_error_check(
-          cudaMalloc((void**)&dev_csr_interaction_matrix_.col, (interaction_matrix_.nonZero())*sizeof(int)));
+      // col
+      cout << "    allocating csr col on device\n";
+      CHECK_CUDA_STATUS(
+        cudaMalloc((void**)&dev_csr_interaction_matrix_.col, (interaction_matrix_.nonZero())*sizeof(int)));
 
-        cout << "    memcpy csr col to device\n";
-        cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.col, interaction_matrix_.colPtr(),
-              (interaction_matrix_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
+      cout << "    memcpy csr col to device\n";
+      CHECK_CUDA_STATUS(cudaMemcpy(dev_csr_interaction_matrix_.col, interaction_matrix_.colPtr(),
+            (interaction_matrix_.nonZero())*sizeof(int), cudaMemcpyHostToDevice));
 
-        // val
-        cout << "    allocating csr val on device\n";
-        cuda_api_error_check(
-          cudaMalloc((void**)&dev_csr_interaction_matrix_.val, (interaction_matrix_.nonZero())*sizeof(float)));
+      // val
+      cout << "    allocating csr val on device\n";
+      CHECK_CUDA_STATUS(
+        cudaMalloc((void**)&dev_csr_interaction_matrix_.val, (interaction_matrix_.nonZero())*sizeof(float)));
 
-        cout << "    memcpy csr val to device\n";
-        cuda_api_error_check(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
-              (interaction_matrix_.nonZero())*sizeof(float), cudaMemcpyHostToDevice));
+      cout << "    memcpy csr val to device\n";
+      CHECK_CUDA_STATUS(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
+            (interaction_matrix_.nonZero())*sizeof(float), cudaMemcpyHostToDevice));
 
-        dev_float_spins_.resize(globals::num_spins3);
-        dev_float_fields_.resize(globals::num_spins3);
+      dev_float_spins_.resize(globals::num_spins3);
+      dev_float_fields_.resize(globals::num_spins3);
 
     }
 }
@@ -295,8 +285,7 @@ void CudaDipoleHamiltonianSparseTensor::calculate_fields(jblib::CudaArray<double
 
     const float one = 1.0;
     const float zero = 0.0;
-    cusparseStatus_t stat =
-    cusparseScsrmv(cusparse_handle_,
+    CHECK_CUSPARSE_STATUS(cusparseScsrmv(cusparse_handle_,
       CUSPARSE_OPERATION_NON_TRANSPOSE,
       globals::num_spins3,
       globals::num_spins3,
@@ -308,8 +297,7 @@ void CudaDipoleHamiltonianSparseTensor::calculate_fields(jblib::CudaArray<double
       dev_csr_interaction_matrix_.col,
       dev_float_spins_.data(),
       &zero,
-      dev_float_fields_.data());
-    assert(stat == CUSPARSE_STATUS_SUCCESS);
+      dev_float_fields_.data()));
 
     cuda_array_float_to_double(globals::num_spins3, dev_float_fields_.data(), fields.data(), dev_stream_);
 }

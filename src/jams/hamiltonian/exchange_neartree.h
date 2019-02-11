@@ -11,14 +11,6 @@
 #include "jams/containers/sparsematrix.h"
 #include "jams/core/hamiltonian.h"
 
-#if HAS_CUDA
-#include <cuda_runtime.h>
-#include <cusparse.h>
-#include "jams/cuda/cuda_defs.h"
-#include "jams/cuda/cuda_sparsematrix.h"
-#include "jblib/containers/cuda_array.h"
-#endif
-
 struct InteractionNT {
     int material[2];
     double inner_radius;
@@ -27,9 +19,11 @@ struct InteractionNT {
 };
 
 class ExchangeNeartreeHamiltonian : public Hamiltonian {
+    friend class CudaExchangeNeartreeHamiltonian;
+
     public:
         ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-        ~ExchangeNeartreeHamiltonian();
+        ~ExchangeNeartreeHamiltonian() = default;
 
         typedef std::vector<std::vector<InteractionNT>> InteractionList;
 
@@ -49,14 +43,6 @@ class ExchangeNeartreeHamiltonian : public Hamiltonian {
         SparseMatrix<double> interaction_matrix_;
         double energy_cutoff_;
         double distance_tolerance_;
-
-
-#if HAS_CUDA
-        CudaSparseMatrixCSR<double> dev_csr_interaction_matrix_;
-        cusparseHandle_t   cusparse_handle_;
-        cudaStream_t dev_stream_ = nullptr;
-#endif  // CUDA
-
 };
 
 #endif  // JAMS_HAMILTONIAN_EXCHANGE_DISTANCE_H

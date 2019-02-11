@@ -1,6 +1,7 @@
 #include <cuda_runtime_api.h>
 
 #include "jams/core/solver.h"
+#include "jams/cuda/cuda_common.h"
 
 #include "jams/hamiltonian/uniaxial_anisotropy.h"
 #include "jams/hamiltonian/cuda_uniaxial_anisotropy.h"
@@ -23,7 +24,7 @@ CudaUniaxialHamiltonian::CudaUniaxialHamiltonian(const libconfig::Setting &setti
 
   dev_axis_ = jblib::CudaArray<double3, 1>(tmp_axis);
 
-  cudaStreamCreate(&dev_stream_);
+  CHECK_CUDA_STATUS(cudaStreamCreate(&dev_stream_));
 
   dev_blocksize_ = 128;
 }
@@ -31,4 +32,5 @@ CudaUniaxialHamiltonian::CudaUniaxialHamiltonian(const libconfig::Setting &setti
 void CudaUniaxialHamiltonian::calculate_fields() {
   cuda_uniaxial_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
             (globals::num_spins, num_coefficients_, dev_power_.data(), dev_magnitude_.data(), dev_axis_.data(), solver->dev_ptr_spin(), dev_field_.data());
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

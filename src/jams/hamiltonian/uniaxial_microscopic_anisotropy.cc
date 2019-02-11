@@ -14,13 +14,14 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
 
   // don't allow mixed specification of anisotropy
   if ((settings.exists("K1") || settings.exists("K2") || settings.exists("K3"))) {
-    die("UniaxialMicroscopicHamiltonian: anisotropy should only be specified in terms of d2z, d4z, d6z maybe you want UniaxialHamiltonian?");
+    jams_die(
+            "UniaxialMicroscopicHamiltonian: anisotropy should only be specified in terms of d2z, d4z, d6z maybe you want UniaxialHamiltonian?");
   }
 
   // deal with magnetocrystalline anisotropy coefficients
   if (settings.exists("d2z")) {
     if (settings["d2z"].getLength() != lattice->num_materials()) {
-      die("UniaxialHamiltonian: d2z must be specified for every material");
+      jams_die("UniaxialHamiltonian: d2z must be specified for every material");
     }
     mca_order_.push_back(2);
 
@@ -33,7 +34,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
 
   if (settings.exists("d4z")) {
     if (settings["d4z"].getLength() != lattice->num_materials()) {
-      die("UniaxialHamiltonian: d4z must be specified for every material");
+      jams_die("UniaxialHamiltonian: d4z must be specified for every material");
     }
     mca_order_.push_back(4);
     jblib::Array<double, 1> mca(num_spins, 0.0);
@@ -45,7 +46,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
 
   if (settings.exists("d6z")) {
     if (settings["d6z"].getLength() != lattice->num_materials()) {
-      die("UniaxialHamiltonian: d6z must be specified for every material");
+      jams_die("UniaxialHamiltonian: d6z must be specified for every material");
     }
     mca_order_.push_back(6);
     jblib::Array<double, 1> mca(num_spins, 0.0);
