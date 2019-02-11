@@ -6,23 +6,9 @@
 #include "jams/helpers/consts.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
-
-#if HAS_CUDA
-#include "jams/cuda/cuda_defs.h"
-#include "jams/helpers/cuda_exception.h"
-#endif
-
 #include "exchange_neartree.h"
 
 using namespace std;
-
-ExchangeNeartreeHamiltonian::~ExchangeNeartreeHamiltonian() {
-#if HAS_CUDA
-  if (dev_stream_ != nullptr) {
-    cudaStreamDestroy(dev_stream_);
-  }
-#endif
-}
 
 void ExchangeNeartreeHamiltonian::insert_interaction(const int i, const int j, const Mat3 &value) {
   for (int m = 0; m < 3; ++m) {
@@ -84,9 +70,9 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     for (auto j = i+1; j < lattice->motif_size(); ++j) {
       const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
       if(distance < distance_tolerance_) {
-        die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
-            "Check position file or relax distance_tolerance for exchange module",
-                i, j, distance, distance_tolerance_);
+        jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
+                 "Check position file or relax distance_tolerance for exchange module",
+                 i, j, distance, distance_tolerance_);
       }
     }
   }
@@ -97,7 +83,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     //---------------------------------------------------------------------
 
     if (!settings.exists("interactions")) {
-      die("No interactions defined in ExchangeNeartree hamiltonian");
+      jams_die("No interactions defined in ExchangeNeartree hamiltonian");
     }
 
     interaction_list_.resize(lattice->num_materials());
@@ -171,7 +157,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
             // don't allow self interaction
             if (is_already_interacting[n.id]) {
-              die("Multiple interactions between spins %d and %d.\n", i, n.id);
+              jams_die("Multiple interactions between spins %d and %d.\n", i, n.id);
             }
             is_already_interacting[n.id] = true;
 
@@ -209,27 +195,6 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
   cout << "    converting interaction matrix format from MAP to CSR\n";
   interaction_matrix_.convertMAP2CSR();
   cout << "    exchange matrix memory (CSR): " << interaction_matrix_.calculateMemory() << " (MB)\n";
-
-  // transfer arrays to cuda device if needed
-  if (solver->is_cuda_solver()) {
-#if HAS_CUDA
-    cudaStreamCreate(&dev_stream_);
-
-    dev_energy_ = jblib::CudaArray<double, 1>(energy_);
-    dev_field_  = jblib::CudaArray<double, 1>(field_);
-
-    cout << "    init cusparse\n";
-    cusparseStatus_t status;
-    status = cusparseCreate(&cusparse_handle_);
-    if (status != CUSPARSE_STATUS_SUCCESS) {
-      die("cusparse Library initialization failed");
-    }
-    cusparseSetStream(cusparse_handle_, dev_stream_);
-
-    sparsematrix_copy_host_csr_to_cuda_csr(interaction_matrix_, dev_csr_interaction_matrix_);
-#endif
-  }
-
 }
 
 // --------------------------------------------------------------------------
@@ -322,33 +287,7 @@ void ExchangeNeartreeHamiltonian::calculate_fields() {
   const int num_rows = globals::num_spins3;
   const int num_cols = globals::num_spins3;
 
-  if (solver->is_cuda_solver()) {
-#if HAS_CUDA
-    cusparseStatus_t stat =
-            cusparseDcsrmv(cusparse_handle_,
-                    CUSPARSE_OPERATION_NON_TRANSPOSE,
-                    num_rows,
-                    num_cols,
-                    interaction_matrix_.nonZero(),
-                    &one,
-                    dev_csr_interaction_matrix_.descr,
-                    dev_csr_interaction_matrix_.val,
-                    dev_csr_interaction_matrix_.row,
-                    dev_csr_interaction_matrix_.col,
-                    solver->dev_ptr_spin(),
-                    &zero,
-                    dev_field_.data());
-
-    if (debug_is_enabled()) {
-      if (stat != CUSPARSE_STATUS_SUCCESS) {
-        throw cuda_api_exception("cusparse failure", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-      }
-      assert(stat == CUSPARSE_STATUS_SUCCESS);
-    }
-#endif  // CUDA
-  } else {
 #ifdef HAS_MKL
-
     mkl_dcsrmv(transa, &num_rows, &num_cols, &one, matdescra, interaction_matrix_.valPtr(),
             interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),
             &zero, field_.data());
@@ -356,5 +295,4 @@ void ExchangeNeartreeHamiltonian::calculate_fields() {
     jams_dcsrmv(transa, num_rows, num_cols, 1.0, matdescra, interaction_matrix_.valPtr(),
       interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
 #endif
-  }
 }

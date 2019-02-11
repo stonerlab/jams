@@ -25,11 +25,13 @@ class MetropolisMCSolver : public Solver {
   class MagnetizationRotationMinimizer;
 
   int MetropolisAlgorithm(std::function<Vec3(Vec3)> trial_spin_move);
-  void MetropolisPreconditioner(std::function<Vec3(Vec3)>  trial_spin_move);
+    int MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)> trial_spin_move);
+    void MetropolisPreconditioner(std::function<Vec3(Vec3)>  trial_spin_move);
   void SystematicPreconditioner(const double delta_theta, const double delta_phi);
 
   pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
 
+  bool use_total_energy_ = false;
   bool is_preconditioner_enabled_ = false;
   double preconditioner_delta_theta_ = 5.0;
   double preconditioner_delta_phi_ = 5.0;

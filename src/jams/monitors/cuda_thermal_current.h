@@ -5,10 +5,10 @@
 #ifndef JAMS_CUDA_THERMAL_CURRENT_H
 #define JAMS_CUDA_THERMAL_CURRENT_H
 #include <fstream>
-#include <jams/core/monitor.h>
-#include <jams/cuda/cuda-sparse-helpers.h>
-#include <jblib/containers/cuda_array.h>
-#include <jams/cuda/wrappers/stream.h>
+#include "jams/core/monitor.h"
+#include "jams/cuda/cuda_stream.h"
+#include "jams/cuda/cuda_sparse_interaction_matrix.h"
+#include "jblib/containers/cuda_array.h"
 #include "jams/core/interactions.h"
 #include "jams/core/types.h"
 

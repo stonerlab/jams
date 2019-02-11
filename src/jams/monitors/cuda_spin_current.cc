@@ -10,23 +10,42 @@
 #include "jams/core/interactions.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
-#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_common.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/helpers/exception.h"
+#include "jams/core/hamiltonian.h"
 #include "jams/monitors/cuda_spin_current.h"
 #include "cuda_spin_current.h"
 #include "jblib/containers/array.h"
+#include "jams/hamiltonian/exchange.h"
 
 using namespace std;
+
+namespace {
+    const ExchangeHamiltonian* find_exchange_hamiltonian(const std::vector<Hamiltonian*>&hamiltonians) {
+      const ExchangeHamiltonian* exchange_hamiltonian = nullptr;
+      for (const Hamiltonian* ham : hamiltonians) {
+        try {
+          exchange_hamiltonian = dynamic_cast<const ExchangeHamiltonian*>(ham);
+          if (exchange_hamiltonian != nullptr) {
+            return exchange_hamiltonian;
+          }
+        }
+        catch (std::bad_cast &e) {
+          continue;
+        }
+      }
+    }
+}
 
 CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
 
   assert(solver->is_cuda_solver());
 
-  jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian in the config");
-  jams_warning("This monitor currently assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
+  jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian\n"
+               "in the config and assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
 
   do_h5_output = jams::config_optional<bool>(settings, "h5", false);
   h5_output_steps = jams::config_optional<unsigned>(settings, "h5_output_steps", output_step_freq_);
@@ -35,28 +54,13 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
     open_new_xdmf_file(seedname + "_js.xdmf");
   }
 
-  const auto& exchange_settings = config_find_setting_by_key_value_pair(config->lookup("hamiltonians"), "module", "exchange");
-
-  const std::string exchange_file_name = exchange_settings["exc_file"];
-
-  if (exchange_file_name.empty()) {
-    throw std::runtime_error("no exchange hamiltonian found");
-  }
-
-  std::ifstream interaction_file(exchange_file_name);
-
-  if (interaction_file.fail()) {
-    throw std::runtime_error("failed to open interaction file:" + exchange_file_name);
-  }
-
-  cout << "    interaction file name: " << exchange_file_name << endl;
-
-  const auto neighbour_list = generate_neighbour_list_from_file(exchange_settings, interaction_file);
+  const ExchangeHamiltonian* exchange_hamiltonian = find_exchange_hamiltonian(::solver->hamiltonians());
+  assert (exchange_hamiltonian != nullptr);
 
   SparseMatrix<Vec3> interaction_matrix(globals::num_spins, globals::num_spins);
 
-  for (auto i = 0; i < neighbour_list.size(); ++i) {
-    for (auto const &nbr: neighbour_list[i]) {
+  for (auto i = 0; i < exchange_hamiltonian->neighbour_list().size(); ++i) {
+    for (auto const &nbr: exchange_hamiltonian->neighbour_list()[i]) {
       auto j = nbr.first;
       auto Jij = nbr.second[0][0];
       if (i > j) continue;
@@ -70,8 +74,8 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   interaction_matrix.convertMAP2CSR();
   cout << "  exchange matrix memory (CSR): " << interaction_matrix.calculateMemory() << " MB\n";
 
-  cuda_malloc_and_copy_to_device(dev_csr_matrix_.row, interaction_matrix.rowPtr(), interaction_matrix.rows()+1);
-  cuda_malloc_and_copy_to_device(dev_csr_matrix_.col, interaction_matrix.colPtr(), interaction_matrix.nonZero());
+  dev_csr_matrix_.row = cuda_malloc_and_copy_to_device(interaction_matrix.rowPtr(), interaction_matrix.rows()+1);
+  dev_csr_matrix_.col = cuda_malloc_and_copy_to_device(interaction_matrix.colPtr(), interaction_matrix.nonZero());
 
   // not sure how Vec3 will copy so lets be safe
   jblib::Array<double, 2> val(interaction_matrix.nonZero(), 3);
@@ -81,7 +85,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
     }
   }
 
-  cuda_malloc_and_copy_to_device(dev_csr_matrix_.val, val.data(), val.elements());
+  dev_csr_matrix_.val = cuda_malloc_and_copy_to_device(val.data(), val.elements());
 
   dev_spin_current_rx_x.resize(globals::num_spins);
   dev_spin_current_rx_y.resize(globals::num_spins);
@@ -148,19 +152,23 @@ bool CudaSpinCurrentMonitor::is_converged() {
 
 CudaSpinCurrentMonitor::~CudaSpinCurrentMonitor() {
   outfile.close();
-  fclose(xdmf_file_);
 
-  if (dev_csr_matrix_.row) {
+  if (xdmf_file_ != nullptr) {
+    fclose(xdmf_file_);
+    xdmf_file_ = nullptr;
+  }
+
+  if (dev_csr_matrix_.row != nullptr) {
     cudaFree(dev_csr_matrix_.row);
     dev_csr_matrix_.row = nullptr;
   }
 
-  if (dev_csr_matrix_.col) {
+  if (dev_csr_matrix_.col != nullptr) {
     cudaFree(dev_csr_matrix_.col);
     dev_csr_matrix_.col = nullptr;
   }
 
-  if (dev_csr_matrix_.val) {
+  if (dev_csr_matrix_.val != nullptr) {
     cudaFree(dev_csr_matrix_.val);
     dev_csr_matrix_.val = nullptr;
   }

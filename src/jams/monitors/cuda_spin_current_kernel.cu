@@ -2,8 +2,8 @@
 #include <jams/cuda/cuda_array_kernels.h>
 
 #include "jams/core/types.h"
-#include "jams/cuda/cuda_vector_ops.h"
-#include "jams/cuda/wrappers/stream.h"
+#include "jams/cuda/cuda_device_vector_ops.h"
+#include "jams/cuda/cuda_stream.h"
 
 __global__ void spin_current_kernel
         (const int num_spins,
@@ -102,6 +102,7 @@ Mat3 execute_cuda_spin_current_kernel(
                   dev_spin_current_rz_x,
                   dev_spin_current_rz_y,
                   dev_spin_current_rz_z);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   double j_rx_x = cuda_reduce_array(dev_spin_current_rx_x, num_spins);
   double j_rx_y = cuda_reduce_array(dev_spin_current_rx_y, num_spins);

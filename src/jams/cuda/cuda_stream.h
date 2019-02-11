@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cuda_runtime.h>
 
-#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_common.h"
 
 class CudaStream {
   public:
@@ -54,7 +54,7 @@ inline cudaStream_t& CudaStream::get() {
 
 inline void CudaStream::synchronize() {
   if(stream_) {
-    cuda_api_error_check(cudaStreamSynchronize(stream_));
+    CHECK_CUDA_STATUS(cudaStreamSynchronize(stream_));
   }
 }
 

@@ -1,10 +1,10 @@
 #include <cuda.h>
 #include <jams/core/types.h>
-#include <jams/cuda/cuda_vector_ops.h>
+#include "jams/cuda/cuda_device_vector_ops.h"
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
 #include <jams/cuda/cuda_array_kernels.h>
-#include <jams/cuda/wrappers/stream.h>
+#include <jams/cuda/cuda_stream.h>
 #include <jams/cuda/cuda_array_kernels.h>
 
 
@@ -81,6 +81,7 @@ Vec3 execute_cuda_thermal_current_kernel(
                   dev_thermal_current_rx,
                   dev_thermal_current_ry,
                   dev_thermal_current_rz);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   double j_rx = 0.5 * cuda_reduce_array(dev_thermal_current_rx, num_spins);
   double j_ry = 0.5 * cuda_reduce_array(dev_thermal_current_ry, num_spins);

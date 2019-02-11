@@ -10,7 +10,7 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_common.h"
 #include "jams/helpers/duration.h"
 #include "jams/helpers/random.h"
 
@@ -18,6 +18,7 @@
 #include "jams/monitors/cuda_spectrum_general.h"
 #include "jams/monitors/cuda_spectrum_general_kernel.cuh"
 #include "jams/helpers/consts.h"
+#include "jams/cuda/cuda_common.h"
 
 namespace {
     std::vector<cuFloatComplex> generate_expQR_float(const std::vector<std::vector<Vec3>> &qvecs, const Vec3& R) {
@@ -107,7 +108,7 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
   const auto num_w_points = padded_size_/2+1;
 
   cuFloatComplex *dev_qfactors = nullptr;
-  cuda_api_error_check(cudaMalloc((void**)&dev_qfactors, (num_qpoints_ * num_qvectors_)*sizeof(cuFloatComplex)));
+  CHECK_CUDA_STATUS(cudaMalloc((void**)&dev_qfactors, (num_qpoints_ * num_qvectors_)*sizeof(cuFloatComplex)));
 
   const dim3 block_size = {64, 8, 1};
   auto grid_size = cuda_grid_size(block_size, {num_w_points, num_qpoints_, 1});
@@ -124,12 +125,13 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
         const auto qfactors = generate_expQR_float(qvecs, lattice->displacement(r[j], r[i]));
 
 
-        cuda_api_error_check(cudaMemcpy(dev_qfactors, qfactors.data(),
+      CHECK_CUDA_STATUS(cudaMemcpy(dev_qfactors, qfactors.data(),
                                         num_qpoints_ * num_qvectors_ * sizeof(cuFloatComplex), cudaMemcpyHostToDevice));
 
 
         CudaSpectrumGeneralKernel <<< grid_size, block_size >> >
                                                   (i, j, num_w_points, num_qpoints_, num_qvectors_, padded_size_, dev_qfactors, dev_spin_data.data(), dev_SQw.data());
+        DEBUG_CHECK_CUDA_ASYNC_STATUS;
 //      }
     }
 

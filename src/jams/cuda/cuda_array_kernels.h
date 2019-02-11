@@ -3,12 +3,12 @@
 #ifndef JAMS_CUDA_ARRAY_KERNELS_H
 #define JAMS_CUDA_ARRAY_KERNELS_H
 
-#include <cuda_runtime.h>
+#include <cuda.h>
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
 #include <jblib/containers/array.h>
 
-#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_common.h"
 
 void cuda_array_elementwise_scale(
     const unsigned int n,            // n elements in i index
@@ -40,8 +40,8 @@ template <typename T, int N>
 inline void cuda_copy_array_to_device_pointer(const jblib::Array<T, N> &array, T **dev_ptr) {
   assert(array.is_allocated());
   size_t size_in_bytes = array.elements() * sizeof(T);
-  cuda_api_error_check(cudaMalloc((void**)dev_ptr, size_in_bytes));
-  cuda_api_error_check(cudaMemcpy(*dev_ptr, array.data(), size_in_bytes, cudaMemcpyHostToDevice));
+  CHECK_CUDA_STATUS(cudaMalloc((void**)dev_ptr, size_in_bytes));
+	CHECK_CUDA_STATUS(cudaMemcpy(*dev_ptr, array.data(), size_in_bytes, cudaMemcpyHostToDevice));
 }
 
 template <typename T>

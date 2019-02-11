@@ -18,6 +18,9 @@ if(JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
 endif()
 
 if(JAMS_BUILD_CUDA)
+    if (JAMS_BUILD_MIXED_PREC)
+        target_compile_definitions(jams_object_lib PRIVATE HAS_CUSPARSE_MIXED_PREC=1)
+    endif()
     target_compile_definitions(jams_object_lib PRIVATE HAS_CUDA=1)
     foreach(TGT cusparse curand cublas cufft)
         target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
@@ -49,6 +52,9 @@ if (JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
 endif()
 
 if(JAMS_BUILD_CUDA)
+    if (JAMS_BUILD_MIXED_PREC)
+        target_compile_definitions(jams PRIVATE HAS_CUSPARSE_MIXED_PREC=1)
+    endif()
     target_compile_definitions(jams PRIVATE HAS_CUDA=1)
     target_link_libraries(jams cusparse curand cublas cufft)
 endif()
@@ -88,6 +94,7 @@ target_sources(jams_object_lib
         hamiltonian/exchange.cc
         hamiltonian/exchange_neartree.cc
         hamiltonian/uniaxial_anisotropy.cc
+        hamiltonian/uniaxial_microscopic_anisotropy.cc
         hamiltonian/random_anisotropy.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
@@ -102,6 +109,7 @@ target_sources(jams_object_lib
         monitors/boltzmann.cc
         monitors/energy.cc
         monitors/hdf5.cc
+        monitors/field.cc
         monitors/magnetisation.cc
         monitors/magnetisation_rate.cc
         monitors/skyrmion.cc
@@ -130,9 +138,12 @@ if(JAMS_BUILD_CUDA)
             PRIVATE
             cuda/cuda_array_kernels.cu
             cuda/cuda_solver.cc
+            cuda/cuda_common.cu
             hamiltonian/cuda_uniaxial_anisotropy.cu
+            hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
             hamiltonian/cuda_dipole_fft.cu
             hamiltonian/cuda_exchange.cu
+            hamiltonian/cuda_exchange_neartree.cu
             hamiltonian/cuda_random_anisotropy.cu
             hamiltonian/cuda_zeeman.cu
             hamiltonian/cuda_dipole_bruteforce.cu

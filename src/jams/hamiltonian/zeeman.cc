@@ -24,7 +24,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
     if(settings.exists("dc_local_field")) {
         if (settings["dc_local_field"].getLength() != lattice->num_materials()) {
-          die("ZeemanHamiltonian: dc_local_field must be specified for every material");
+          jams_die("ZeemanHamiltonian: dc_local_field must be specified for every material");
         }
 
 
@@ -38,20 +38,20 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
     if(settings.exists("ac_local")) {
         if (settings["ac_local"].getLength() != lattice->num_materials()) {
-          die("ZeemanHamiltonian: ac_local must be specified for every material");
+          jams_die("ZeemanHamiltonian: ac_local must be specified for every material");
         }
     }
 
     has_ac_local_field_ = false;
     if(settings.exists("ac_local_field") || settings.exists("ac_local_frequency")) {
         if(!(settings.exists("ac_local_field") && settings.exists("ac_local_frequency"))) {
-          die("ZeemanHamiltonian: ac_local must have a field and a frequency");
+          jams_die("ZeemanHamiltonian: ac_local must have a field and a frequency");
         }
         if (settings["ac_local_frequency"].getLength() != lattice->num_materials()) {
-          die("ZeemanHamiltonian: ac_local_frequency must be specified for every material");
+          jams_die("ZeemanHamiltonian: ac_local_frequency must be specified for every material");
         }
         if (settings["ac_local_field"].getLength() != lattice->num_materials()) {
-          die("ZeemanHamiltonian: ac_local_field must be specified for every material");
+          jams_die("ZeemanHamiltonian: ac_local_field must be specified for every material");
         }
 
         has_ac_local_field_ = true;

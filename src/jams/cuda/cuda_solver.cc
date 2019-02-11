@@ -2,11 +2,12 @@
 
 #include "jams/cuda/cuda_solver.h"
 
-#include <cublas.h>
+#include <cublas_v2.h>
 
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/core/monitor.h"
+#include "jams/cuda/cuda_common.h"
 
 using namespace std;
 
@@ -14,6 +15,7 @@ void CudaSolver::sync_device_data() {
   dev_s_.copy_to_host_array(globals::s);
   dev_h_.copy_to_host_array(globals::h);
   dev_ds_dt_.copy_to_host_array(globals::ds_dt);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
 void CudaSolver::initialize(const libconfig::Setting& settings) {
@@ -26,9 +28,7 @@ void CudaSolver::initialize(const libconfig::Setting& settings) {
 
   is_cuda_solver_ = true;
 
-//-----------------------------------------------------------------------------
-// Transfer the the other arrays to the device
-//-----------------------------------------------------------------------------
+  CHECK_CUBLAS_STATUS(cublasCreate(&cublas_handle_));
 
   cout << "  transfering array data to device\n";
   jblib::Array<double, 2> zero(num_spins, 3, 0.0);
@@ -60,7 +60,8 @@ void CudaSolver::compute_fields() {
 
   dev_h_.zero();
   for (auto& ham : hamiltonians_) {
-    cublasDaxpy(dev_h_.elements(), 1.0, ham->dev_ptr_field(), 1, dev_h_.data(), 1);
+    const double alpha = 1.0;
+    CHECK_CUBLAS_STATUS(cublasDaxpy(cublas_handle_,dev_h_.elements(), &alpha, ham->dev_ptr_field(), 1, dev_h_.data(), 1));
   }
 }
 

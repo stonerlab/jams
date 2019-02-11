@@ -10,6 +10,7 @@
 #include "jams/core/solver.h"
 #include "jams/cuda/cuda_device_complex_ops.h"
 #include "jams/hamiltonian/cuda_dipole_fft.h"
+#include "jams/cuda/cuda_common.h"
 
 using namespace std;
 
@@ -48,11 +49,11 @@ namespace {
 
 CudaDipoleHamiltonianFFT::~CudaDipoleHamiltonianFFT() {
   if (cuda_fft_s_rspace_to_kspace) {
-      cufftDestroy(cuda_fft_s_rspace_to_kspace);
+      CHECK_CUFFT_STATUS(cufftDestroy(cuda_fft_s_rspace_to_kspace));
   }
 
   if (cuda_fft_h_kspace_to_rspace) {
-      cufftDestroy(cuda_fft_h_kspace_to_rspace);
+    CHECK_CUFFT_STATUS(cufftDestroy(cuda_fft_h_kspace_to_rspace));
   }
 }
 
@@ -122,19 +123,11 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   int fft_size[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
   int fft_padded_size[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
-  cufftResult ret = cufftPlanMany(&cuda_fft_s_rspace_to_kspace, rank, fft_size, rspace_embed, stride, dist, 
-          kspace_embed, stride, dist, CUFFT_D2Z, num_transforms);
+  CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_s_rspace_to_kspace, rank, fft_size, rspace_embed, stride, dist,
+          kspace_embed, stride, dist, CUFFT_D2Z, num_transforms));
 
-  if (ret != CUFFT_SUCCESS) {
-    throw std::runtime_error("CUFFT failure");
-  }
-
-  ret = cufftPlanMany(&cuda_fft_h_kspace_to_rspace, rank, fft_size, kspace_embed, stride, dist, 
-          rspace_embed, stride, dist, CUFFT_Z2D, num_transforms);
-
-  if (ret != CUFFT_SUCCESS) {
-    throw std::runtime_error("CUFFT failure");
-  }
+  CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_h_kspace_to_rspace, rank, fft_size, kspace_embed, stride, dist,
+          rspace_embed, stride, dist, CUFFT_Z2D, num_transforms));
 
   kspace_tensors_.resize(lattice->motif_size());
   for (int pos_i = 0; pos_i < lattice->motif_size(); ++pos_i) {
@@ -143,15 +136,14 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
 
         jblib::CudaArray<cufftDoubleComplex, 1> gpu_wq(wq.elements());
         kspace_tensors_[pos_i].push_back(gpu_wq);
-          cudaMemcpy(kspace_tensors_[pos_i].back().data(), wq.data(), wq.elements() * sizeof(cufftDoubleComplex), cudaMemcpyHostToDevice);
+
+        CHECK_CUDA_STATUS(cudaMemcpy(kspace_tensors_[pos_i].back().data(), wq.data(), wq.elements() * sizeof(cufftDoubleComplex), cudaMemcpyHostToDevice));
           
       }
   }
 
-  cufftSetStream(cuda_fft_s_rspace_to_kspace, dev_stream_[0].get());
-  cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_[0].get());
-
-
+  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_s_rspace_to_kspace, dev_stream_[0].get()));
+  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_[0].get()));
 }
 
 double CudaDipoleHamiltonianFFT::calculate_total_energy() {
@@ -198,15 +190,10 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2>& fields)
 }
 
 void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu_h) {
-  cufftResult result;
 
   kspace_h_.zero(dev_stream_[0].get());
 
-  // TODO: change these to macros to avoid blocking in production code
-  result = cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(solver->dev_ptr_spin()), kspace_s_.data());
-  if (result != CUFFT_SUCCESS) {
-    throw std::runtime_error("CUFFT failure");
-  }
+  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(solver->dev_ptr_spin()), kspace_s_.data()));
 
   cudaDeviceSynchronize();
 
@@ -220,19 +207,12 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu
       dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
 
       cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, lattice->motif_size(), mus_j, kspace_s_.data(),  kspace_tensors_[pos_i][pos_j].data(), kspace_h_.data());
+      DEBUG_CHECK_CUDA_ASYNC_STATUS;
     }
     cudaDeviceSynchronize();
   }
 
-  result = cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.data(), reinterpret_cast<cufftDoubleReal*>(gpu_h.data()));
-  
-  if (result != CUFFT_SUCCESS) {
-    throw std::runtime_error("CUFFT failure");
-  }
-
-
-
-
+  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.data(), reinterpret_cast<cufftDoubleReal*>(gpu_h.data())));
 }
 
 jblib::Array<fftw_complex, 5> 

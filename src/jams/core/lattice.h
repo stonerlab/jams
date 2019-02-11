@@ -61,9 +61,9 @@ public:
 
     int num_materials() const;
     const Material &material(const int &i) const;
-    string material_name(int uid);
-    int material_id(const string &name);
-    bool material_exists(const string &name);
+    std::string material_name(int uid);
+    int material_id(const std::string &name);
+    bool material_exists(const std::string &name);
 
     int atom_material_id(const int &i) const;
     Vec3 atom_position(const int &i) const;

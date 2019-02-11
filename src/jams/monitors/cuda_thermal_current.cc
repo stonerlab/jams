@@ -16,10 +16,27 @@
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 #include "jams/monitors/cuda_thermal_current.h"
-#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_common.h"
 #include "jams/containers/csr.h"
+#include "jams/hamiltonian/exchange.h"
 
 namespace {
+
+    const ExchangeHamiltonian* find_exchange_hamiltonian(const std::vector<Hamiltonian*>&hamiltonians) {
+      const ExchangeHamiltonian* exchange_hamiltonian = nullptr;
+      for (const Hamiltonian* ham : hamiltonians) {
+        try {
+          exchange_hamiltonian = dynamic_cast<const ExchangeHamiltonian*>(ham);
+          if (exchange_hamiltonian != nullptr) {
+            return exchange_hamiltonian;
+          }
+        }
+        catch (std::bad_cast &e) {
+          continue;
+        }
+      }
+    }
+
     // convert a list of triads into a CSR like 3D sparse matrix
     using TriadList = std::vector<Triad<Vec3>>;
 
@@ -86,22 +103,13 @@ namespace {
 CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
   using namespace std;
-  jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian in the config");
-  jams_warning("This monitor currently assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
+  jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian\n"
+               "in the config and assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
 
-  const auto& exchange_settings = config_find_setting_by_key_value_pair(config->lookup("hamiltonians"), "module", "exchange");
+  const ExchangeHamiltonian* exchange_hamiltonian = find_exchange_hamiltonian(::solver->hamiltonians());
+  assert (exchange_hamiltonian != nullptr);
 
-  const std::string exchange_file_name = exchange_settings["exc_file"];
-  std::ifstream interaction_file(exchange_file_name);
-
-  if (interaction_file.fail()) {
-    throw std::runtime_error("failed to open interaction file:" + exchange_file_name);
-  }
-
-  cout << "    interaction file name: " << exchange_file_name << endl;
-
-  const auto neighbour_list = generate_neighbour_list_from_file(exchange_settings, interaction_file);
-  const auto triad_list = generate_triads_from_neighbour_list(neighbour_list);
+  const auto triad_list = generate_triads_from_neighbour_list(exchange_hamiltonian->neighbour_list());
 
   cout << "    total ijk triads: " << triad_list.size() << endl;
 

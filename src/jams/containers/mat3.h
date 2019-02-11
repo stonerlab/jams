@@ -12,7 +12,10 @@
 template <typename T, std::size_t M, std::size_t N>
 using Mat = std::array<std::array<T, M>, N>;
 
+using Mat3  = std::array<std::array<double, 3>, 3>;
+
 const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+const Mat<double, 3, 3> kZeroMat3 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 template <typename T>
 Mat<T,3,3> matrix_from_rows(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
@@ -22,6 +25,11 @@ Mat<T,3,3> matrix_from_rows(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>
 template <typename T>
 Mat<T,3,3> matrix_from_cols(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
   return {a[0], b[0], c[0], a[1], b[1], c[1], a[2], b[2], c[2]};
+}
+
+template <typename T>
+Mat<T,3,3> diagonal_matrix(const T& a) {
+  return {a, 0, 0, 0, a, 0, 0, 0, a};
 }
 
 template <typename T>

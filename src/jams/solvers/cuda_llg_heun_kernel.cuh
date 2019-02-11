@@ -3,7 +3,7 @@
 #ifndef JAMS_SOLVER_CUDA_HEUNLLG_KERNEL_H
 #define JAMS_SOLVER_CUDA_HEUNLLG_KERNEL_H
 
-#include "jams/cuda/cuda_defs.h"
+#include "jams/cuda/cuda_common.h"
 
 __constant__ double dev_dt;
 __constant__ unsigned int dev_num_spins;

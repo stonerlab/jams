@@ -31,6 +31,7 @@ class CudaLangevinBoseThermostat : public Thermostat {
     void warmup(const unsigned steps);
 
     bool debug_;
+    bool do_zero_point_ = false;
     bool is_warmed_up_ = false;
     unsigned num_warm_up_steps_ = 0;
 
@@ -50,7 +51,7 @@ class CudaLangevinBoseThermostat : public Thermostat {
     cudaStream_t                dev_curand_stream_ = nullptr;
     double                      delta_tau_;
     double                      omega_max_;
-    std::ofstream               outfile_;
+    std::ofstream               debug_noise_outfile_;
 };
 
 #endif  // CUDA

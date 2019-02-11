@@ -18,8 +18,9 @@ public:
 private:
     cudaStream_t dev_stream_ = nullptr;
     unsigned int dev_blocksize_;
-    jblib::CudaArray<int, 1> dev_mca_order_;
-    jblib::CudaArray<double, 1> dev_mca_value_;
+    jblib::CudaArray<unsigned, 1> dev_power_;
+    jblib::CudaArray<double, 1> dev_magnitude_;
+    jblib::CudaArray<double3, 1> dev_axis_;
 };
 
 #endif //JAMS_CUDA_UNIAXIAL_ANISOTROPY_H

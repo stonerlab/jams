@@ -1,7 +1,7 @@
 // Copyright 2015 Joseph Barker. All rights reserved.
 
-#ifndef JAMS_HAMILTONIAN_UNIAXIAL_H
-#define JAMS_HAMILTONIAN_UNIAXIAL_H
+#ifndef JAMS_HAMILTONIAN_UNIAXIAL_MICROSCOPIC_H
+#define JAMS_HAMILTONIAN_UNIAXIAL_MICROSCOPIC_H
 
 #include <vector>
 
@@ -10,11 +10,11 @@
 #include "jams/core/hamiltonian.h"
 #include "jblib/containers/array.h"
 
-class UniaxialHamiltonian : public Hamiltonian {
-    friend class CudaUniaxialHamiltonian;
+class UniaxialMicroscopicHamiltonian : public Hamiltonian {
+    friend class CudaUniaxialMicroscopicHamiltonian;
     public:
-        UniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-        ~UniaxialHamiltonian() {};
+    UniaxialMicroscopicHamiltonian(const libconfig::Setting &settings, const unsigned int size);
+        ~UniaxialMicroscopicHamiltonian() {};
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
@@ -25,10 +25,8 @@ class UniaxialHamiltonian : public Hamiltonian {
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
     private:
-        unsigned num_coefficients_ = 0;
-        jblib::Array<unsigned, 2> power_;
-        jblib::Array<Vec3, 2>     axis_;
-        jblib::Array<double, 2>   magnitude_;
+        std::vector<int> mca_order_;   // MCA expressed as a Legendre polynomial
+        std::vector< jblib::Array<double, 1> > mca_value_;
 };
 
-#endif  // JAMS_HAMILTONIAN_UNIAXIAL_H
+#endif  // JAMS_HAMILTONIAN_UNIAXIAL_MICROSCOPIC_H

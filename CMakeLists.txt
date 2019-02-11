@@ -4,10 +4,11 @@ if(${CMAKE_VERSION} VERSION_GREATER "3.12.0")
     cmake_policy(SET CMP0074 NEW) # ``find_package()`` uses ``<PackageName>_ROOT`` variables.
 endif()
 
-option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" ON)
+option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" OFF)
 option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" ON)
 option(JAMS_BUILD_FASTMATH "Build JAMS with fast math flags" OFF)
 option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
+option(JAMS_BUILD_MIXED_PREC "Build parts of JAMS using mixed precision." ON)
 
 if (JAMS_BUILD_CUDA)
     project(jams LANGUAGES C CXX CUDA)

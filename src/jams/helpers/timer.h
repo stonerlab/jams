@@ -16,7 +16,7 @@ public:
             start_time(Clock::now())
     {}
 
-    template <typename Rep = typename Clock::duration::rep, typename Units = typename Clock::duration>
+    template <typename Rep = double, typename Units = std::chrono::duration<double>>
     Rep elapsed_time() const {
       auto counted_time = std::chrono::duration_cast<Units>(Clock::now() - start_time).count();
       return static_cast<Rep>(counted_time);

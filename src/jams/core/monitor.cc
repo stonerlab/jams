@@ -6,20 +6,24 @@
 #include "jams/monitors/boltzmann.h"
 #include "jams/monitors/energy.h"
 #include "jams/monitors/hdf5.h"
+#include "jams/monitors/field.h"
 #include "jams/monitors/magnetisation.h"
 #include "jams/monitors/magnetisation_rate.h"
 #include "jams/monitors/skyrmion.h"
 #include "jams/monitors/smr.h"
-#include "jams/monitors/cuda_spin_current.h"
-#include "jams/monitors/cuda_thermal_current.h"
 #include "jams/monitors/spin_pumping.h"
 #include "jams/monitors/spin_temperature.h"
 #include "jams/monitors/spectrum_fourier.h"
 #include "jams/monitors/spectrum_general.h"
-#include "jams/monitors/cuda_spectrum_general.h"
 #include "jams/monitors/torque.h"
 #include "jams/monitors/vtu.h"
 #include "jams/monitors/xyz.h"
+
+#ifdef HAS_CUDA
+  #include "jams/monitors/cuda_spectrum_general.h"
+  #include "jams/monitors/cuda_spin_current.h"
+  #include "jams/monitors/cuda_thermal_current.h"
+#endif
 
 using namespace std;
 
@@ -69,6 +73,10 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
     return new EnergyMonitor(settings);
   }
 
+  if (capitalize(settings["module"]) == "FIELD") {
+    return new FieldMonitor(settings);
+  }
+
   if (capitalize(settings["module"]) == "SPIN_TEMPERATURE") {
     return new SpinTemperatureMonitor(settings);
   }
@@ -115,9 +123,11 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "SCATTERING-FUNCTION"
   || capitalize(settings["module"]) == "SPECTRUM_GENERAL") {
+#ifdef HAS_CUDA
     if (solver->is_cuda_solver()) {
       return new CudaSpectrumGeneralMonitor(settings);
     }
+#endif
     return new SpectrumGeneralMonitor(settings);
   }
 

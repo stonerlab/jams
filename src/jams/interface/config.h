@@ -80,11 +80,11 @@ namespace jams {
 
     template<>
     inline CoordinateFormat config_required(const libconfig::Setting &setting, const std::string &name) {
-      auto format = jams::config_required<string>(setting, name);
+      auto format = jams::config_required<std::string>(setting, "coordinate_format");
       if (lowercase(format) == "fractional") {
-        return CoordinateFormat::Fractional;
+        return CoordinateFormat::FRACTIONAL;
       } else if (lowercase(format) == "cartesian") {
-        return CoordinateFormat::Cartesian;
+        return CoordinateFormat::CARTESIAN;
       } else {
         throw std::runtime_error("Unknown coordinate format");
       }
@@ -92,7 +92,7 @@ namespace jams {
 
     template<>
     inline InteractionFileFormat config_required(const libconfig::Setting &setting, const std::string &name) {
-      auto format = jams::config_required<string>(setting, name);
+      auto format = jams::config_required<std::string>(setting, name);
       if (lowercase(format) == "jams") {
         return InteractionFileFormat::JAMS;
       } else if (lowercase(format) == "kkr") {

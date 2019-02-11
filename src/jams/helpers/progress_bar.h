@@ -42,7 +42,6 @@ private:
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ProgressBar &p) {
-
   auto pos = static_cast<unsigned>(p.width() * p.progress());
   os << "\r[";
   for (auto i = 0; i < p.width(); ++i) {
@@ -54,6 +53,7 @@ inline std::ostream& operator<<(std::ostream& os, const ProgressBar &p) {
   }
   os << "] ";
   os << std::setw(3) << static_cast<unsigned>(p.progress() * 100.0) << " %" << std::flush;
+  return os;
 }
 
 #endif //JAMS_PROGRESS_BAR_H

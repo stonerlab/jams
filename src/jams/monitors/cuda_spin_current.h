@@ -8,11 +8,11 @@
 #include <fstream>
 #include <libconfig.h++>
 
+#include "jams/cuda/cuda_stream.h"
+#include "jams/cuda/cuda_sparse_interaction_matrix.h"
 #include "jams/containers/sparsematrix.h"
 #include "jams/core/monitor.h"
 #include "jams/core/types.h"
-#include "jams/cuda/cuda-sparse-helpers.h"
-#include "jams/cuda/wrappers/stream.h"
 #include "jblib/containers/cuda_array.h"
 
 class Solver;
@@ -51,7 +51,7 @@ private:
 
     bool do_h5_output;
     unsigned h5_output_steps;
-    FILE*        xdmf_file_;
+    FILE*        xdmf_file_ = nullptr;
 
     std::ofstream outfile;
 
