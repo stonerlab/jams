@@ -15,12 +15,16 @@
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
+#include "jams/core/solver.h"
+#include "jams/cuda/cuda_array_kernels.h"
 #include "jams/helpers/consts.h"
-#include "jams/helpers/random.h"
 #include "jams/helpers/error.h"
+#include "jams/helpers/random.h"
+#include "jams/helpers/utils.h"
 #include "jams/cuda/cuda_common.h"
-
 #include "jams/monitors/magnetisation.h"
+#include "jams/thermostats/cuda_langevin_bose.h"
+#include "jams/thermostats/cuda_langevin_bose_kernel.h"
 
 using namespace std;
 
@@ -59,6 +63,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    delta_tau_ = (dt_thermostat * kBoltzmann) / kHBar;
 
    uint64_t dev_rng_seed = jams::random_generator()();
+
 
    cout << "    seed " << dev_rng_seed << "\n";
    cout << "    omega_max (THz) " << omega_max_ / (kTwoPi * kTHz) << "\n";

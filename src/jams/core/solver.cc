@@ -66,8 +66,7 @@ void Solver::compute_fields() {
 
 
 Solver* Solver::create(const libconfig::Setting &settings) {
-  std::string module_name = jams::default_physics_module;
-  settings.lookupValue("module", module_name);
+  auto module_name = jams::config_required<string>(settings, "module");
   module_name = lowercase(module_name);
 
   if (module_name == "llg-heun-cpu") {

@@ -146,3 +146,16 @@ void config_patch(Setting& orig, const Setting& patch) {
     config_patch_simple(orig, patch);
   }
 }
+
+
+libconfig::Setting& config_find_setting_by_key_value_pair(const libconfig::Setting& settings, const std::string& key, const std::string& value) {
+  for (auto i = 0; i < settings.getLength(); ++i) {
+    std::string module_name = settings[i][key].c_str();
+    if (module_name == value) {
+      return settings[i];
+    }
+  }
+
+  const std::string error_string = key + "=" + value;
+  throw libconfig::SettingNotFoundException(settings, error_string.c_str());
+}

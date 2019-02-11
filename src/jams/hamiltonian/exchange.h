@@ -25,6 +25,7 @@ class ExchangeHamiltonian : public Hamiltonian {
         void   calculate_energies();
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
+        const InteractionList<Mat3>& neighbour_list() const;
 
     private:
         void insert_interaction(const int i, const int j, const Mat3 &value);

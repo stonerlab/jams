@@ -10,6 +10,8 @@
 #include "jams/core/lattice.h"
 
 #include "jams/hamiltonian/exchange.h"
+#include "exchange.h"
+
 
 using namespace std;
 
@@ -211,4 +213,8 @@ void ExchangeHamiltonian::calculate_fields() {
     jams_dcsrmv(transa, num_rows, num_cols, 1.0, matdescra, interaction_matrix_.valPtr(),
       interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
 #endif
+}
+
+const InteractionList<Mat3> &ExchangeHamiltonian::neighbour_list() const {
+  return neighbour_list_;
 }

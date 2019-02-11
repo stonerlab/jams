@@ -12,6 +12,7 @@
 #include <curand.h>
 #include <cusparse.h>
 #include <cufft.h>
+#include <cassert>
 
 #include "jams/helpers/error.h"
 
@@ -80,6 +81,14 @@ const char* cufftGetStatusString(cufftResult_t status);
   CHECK_CUDA_STATUS(cudaDeviceSynchronize()); \
 }
 #endif
+
+template <typename T>
+inline T* cuda_malloc_and_copy_to_device(const T* hst_ptr, unsigned array_size) {
+  void* p;
+  CHECK_CUDA_STATUS(cudaMalloc(&p, array_size*sizeof(T)));
+  CHECK_CUDA_STATUS(cudaMemcpy(p, hst_ptr, array_size*sizeof(T), cudaMemcpyHostToDevice));
+  return static_cast<T*>(p);
+}
 
 inline dim3 cuda_grid_size(const dim3 &block_size, const dim3 &grid_size) {
   return {(grid_size.x + block_size.x - 1) / block_size.x,

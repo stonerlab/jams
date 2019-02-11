@@ -49,4 +49,34 @@ __device__ inline void matmul(const double mat[3][3], const double v_in[3], doub
 	         + mat[2][2] * (v_in[2]);
 }
 
+__host__ __device__
+inline double cross_product_x(const double a[3], const double b[3]) {
+  return a[1] * b[2] - a[2] * b[1];
+}
+
+__host__ __device__
+inline double cross_product_y(const double a[3], const double b[3]) {
+  return a[2] * b[0] - a[0] * b[2];
+}
+
+__host__ __device__
+inline double cross_product_z(const double a[3], const double b[3]) {
+  return a[0] * b[1] - a[1] * b[0];
+}
+
+__host__ __device__
+inline void cross_product(const double a[3], const double b[3], double c[3]) {
+  c[0] = cross_product_x(a, b);
+  c[1] = cross_product_y(a, b);
+  c[2] = cross_product_z(a, b);
+}
+
+// a.(b x c)
+__host__ __device__
+inline double scalar_triple_product(const double a[3], const double b[3], const double c[3]) {
+  return a[0] * cross_product_x(b, c)
+         + a[1]* cross_product_y(b, c)
+         + a[2]* cross_product_z(b, c);
+}
+
 #endif // JAMS_CORE_CUDA_VECTOR_OPS_H

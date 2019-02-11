@@ -21,6 +21,8 @@
 
 #ifdef HAS_CUDA
   #include "jams/monitors/cuda_spectrum_general.h"
+  #include "jams/monitors/cuda_spin_current.h"
+  #include "jams/monitors/cuda_thermal_current.h"
 #endif
 
 using namespace std;
@@ -77,6 +79,14 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
 
   if (capitalize(settings["module"]) == "SPIN_TEMPERATURE") {
     return new SpinTemperatureMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "SPIN-CURRENT") {
+    return new CudaSpinCurrentMonitor(settings);
+  }
+
+  if (capitalize(settings["module"]) == "THERMAL-CURRENT") {
+    return new CudaThermalCurrentMonitor(settings);
   }
 
   if (capitalize(settings["module"]) == "SPINPUMPING") {

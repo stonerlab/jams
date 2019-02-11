@@ -149,6 +149,10 @@ if(JAMS_BUILD_CUDA)
             hamiltonian/cuda_dipole_bruteforce.cu
             hamiltonian/cuda_dipole_sparse_tensor.cu
             monitors/cuda_spectrum_general.cu
+            monitors/cuda_spin_current.cc
+            monitors/cuda_spin_current_kernel.cu
+            monitors/cuda_thermal_current.cc
+            monitors/cuda_thermal_current_kernel.cu
             solvers/cuda_llg_heun.cu
             thermostats/cuda_langevin_bose.cu
             thermostats/cuda_langevin_white.cc
