@@ -6,6 +6,7 @@
 #define JAMS_CUDA_ERROR_H
 
 #include <iostream>
+#include <stdexcept>
 
 #include <cuda.h>
 #include <cublas_v2.h>
