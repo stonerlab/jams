@@ -72,8 +72,8 @@ inline std::string lowercase(std::string s) {
 }
 
 inline std::string file_basename(std::string filepath) {
-  int dot = filepath.find_last_of(".");
-  int slash = filepath.find_last_of("/\\");
+  auto dot = filepath.find_last_of('.');
+  auto slash = filepath.find_last_of("/\\");
   return filepath.substr(slash+1, dot-slash-1);
 }
 
@@ -156,5 +156,25 @@ template <class T, class UnaryPredicate>
 void apply_predicate(std::vector<T> &x,  UnaryPredicate func) {
   x.erase(std::remove_if(x.begin(), x.end(), func), x.end());
 }
+
+// Tests if it is possible to dynamically cast from T2 to T1.
+// This is mostly useful for checking if we can up or down
+// cast between derived types.
+template <typename T1, typename T2>
+bool is_castable(const T2 x) {
+  try {
+    // https://en.cppreference.com/w/cpp/language/dynamic_cast
+    auto y = dynamic_cast<T1>(x);
+    if (std::is_pointer<T1>::value) {
+      // for pointers dynamic_cast returns nullptr on failure
+      if (y == nullptr) return false;
+    }
+  }
+  catch (std::bad_cast &e) {
+    // for references dynamic_cast throws an exception on failure
+    return false;
+  }
+  return true;
+};
 
 #endif  // JAMS_CORE_UTILS_H

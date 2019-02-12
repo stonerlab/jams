@@ -22,23 +22,6 @@
 
 using namespace std;
 
-namespace {
-    const ExchangeHamiltonian* find_exchange_hamiltonian(const std::vector<Hamiltonian*>&hamiltonians) {
-      const ExchangeHamiltonian* exchange_hamiltonian = nullptr;
-      for (const Hamiltonian* ham : hamiltonians) {
-        try {
-          exchange_hamiltonian = dynamic_cast<const ExchangeHamiltonian*>(ham);
-          if (exchange_hamiltonian != nullptr) {
-            return exchange_hamiltonian;
-          }
-        }
-        catch (std::bad_cast &e) {
-          continue;
-        }
-      }
-    }
-}
-
 CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
 
@@ -54,7 +37,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
     open_new_xdmf_file(seedname + "_js.xdmf");
   }
 
-  const ExchangeHamiltonian* exchange_hamiltonian = find_exchange_hamiltonian(::solver->hamiltonians());
+  const auto exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
   assert (exchange_hamiltonian != nullptr);
 
   SparseMatrix<Vec3> interaction_matrix(globals::num_spins, globals::num_spins);
@@ -63,7 +46,6 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
     for (auto const &nbr: exchange_hamiltonian->neighbour_list()[i]) {
       auto j = nbr.first;
       auto Jij = nbr.second[0][0];
-      if (i > j) continue;
       auto r_i = lattice->atom_position(i);
       auto r_j = lattice->atom_position(j);
       interaction_matrix.insertValue(i, j, lattice->displacement(r_i, r_j) * Jij);
@@ -128,7 +110,7 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
           dev_spin_current_rz_z.data()
   );
 
-//  const double units = (lattice->parameter() * 1e-9) * kBohrMagneton * kGyromagneticRatio;
+//  const double units = lattice->parameter() * kBohrMagneton * kGyromagneticRatio;
 
   outfile << std::setw(4) << std::scientific << solver->time() << "\t";
   for (auto r_m = 0; r_m < 3; ++r_m) {

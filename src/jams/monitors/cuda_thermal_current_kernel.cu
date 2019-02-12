@@ -83,9 +83,10 @@ Vec3 execute_cuda_thermal_current_kernel(
                   dev_thermal_current_rz);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
-  double j_rx = 0.5 * cuda_reduce_array(dev_thermal_current_rx, num_spins);
-  double j_ry = 0.5 * cuda_reduce_array(dev_thermal_current_ry, num_spins);
-  double j_rz = 0.5 * cuda_reduce_array(dev_thermal_current_rz, num_spins);
+  // triple counting in the sum
+  double j_rx = 0.125 * cuda_reduce_array(dev_thermal_current_rx, num_spins);
+  double j_ry = 0.125 * cuda_reduce_array(dev_thermal_current_ry, num_spins);
+  double j_rz = 0.125 * cuda_reduce_array(dev_thermal_current_rz, num_spins);
 
   return {j_rx, j_ry, j_rz};
 }

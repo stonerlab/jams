@@ -22,21 +22,6 @@
 
 namespace {
 
-    const ExchangeHamiltonian* find_exchange_hamiltonian(const std::vector<Hamiltonian*>&hamiltonians) {
-      const ExchangeHamiltonian* exchange_hamiltonian = nullptr;
-      for (const Hamiltonian* ham : hamiltonians) {
-        try {
-          exchange_hamiltonian = dynamic_cast<const ExchangeHamiltonian*>(ham);
-          if (exchange_hamiltonian != nullptr) {
-            return exchange_hamiltonian;
-          }
-        }
-        catch (std::bad_cast &e) {
-          continue;
-        }
-      }
-    }
-
     // convert a list of triads into a CSR like 3D sparse matrix
     using TriadList = std::vector<Triad<Vec3>>;
 
@@ -48,19 +33,13 @@ namespace {
 
     void sort_triad_list(TriadList& triads) {
       std::stable_sort(triads.begin(), triads.end(),
-              [](const Triad<Vec3> &a, const Triad<Vec3> &b) -> bool {
-                  return a.k < b.k;
-              });
+              [](const Triad<Vec3> &a, const Triad<Vec3> &b) -> bool { return a.k < b.k; });
 
       std::stable_sort(triads.begin(), triads.end(),
-              [](const Triad<Vec3> &a, const Triad<Vec3> &b) -> bool {
-                  return a.j < b.j;
-              });
+              [](const Triad<Vec3> &a, const Triad<Vec3> &b) -> bool { return a.j < b.j; });
 
       std::stable_sort(triads.begin(), triads.end(),
-              [](const Triad<Vec3> &a, const Triad<Vec3> &b) -> bool {
-                  return a.i < b.i;
-              });
+              [](const Triad<Vec3> &a, const Triad<Vec3> &b) -> bool { return a.i < b.i; });
     }
 
     void convert_triad_list_to_csr_format(TriadList triads, const int num_rows,
@@ -106,7 +85,7 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian\n"
                "in the config and assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
 
-  const ExchangeHamiltonian* exchange_hamiltonian = find_exchange_hamiltonian(::solver->hamiltonians());
+  const auto exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
   assert (exchange_hamiltonian != nullptr);
 
   const auto triad_list = generate_triads_from_neighbour_list(exchange_hamiltonian->neighbour_list());
@@ -188,7 +167,6 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
         const int k = nbr_k.first;
         const auto Jjk = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
-        if (i > j || j > k || i > k) continue;
         auto r_i = lattice->atom_position(i);
         auto r_j = lattice->atom_position(j);
         auto r_k = lattice->atom_position(k);
@@ -208,7 +186,6 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
         const int k = nbr_k.first;
         const auto Jik = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
-        if (i > j || j > k || i > k) continue;
         auto r_i = lattice->atom_position(i);
         auto r_j = lattice->atom_position(j);
         auto r_k = lattice->atom_position(k);
@@ -228,7 +205,6 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
         const int  j = nbr_j.first;
         const auto Jjk = nbr_j.second[0][0];
         if (i == j || j == k || i == k) continue;
-        if (i > j || j > k || i > k) continue;
         auto r_i = lattice->atom_position(i);
         auto r_j = lattice->atom_position(j);
         auto r_k = lattice->atom_position(k);
@@ -247,20 +223,6 @@ void CudaThermalCurrentMonitor::initialize_device_data(const TriadList &triads) 
   jblib::Array<double, 2> value_data;
 
   convert_triad_list_to_csr_format(triads, globals::num_spins, index_pointers, index_data, value_data);
-
-//
-//  for (auto i = 0; i < globals::num_spins; ++i) {
-//
-//    const int begin = index_pointers[i];
-//    const int end = index_pointers[i + 1];
-//
-//    for (int n = begin; n < end; ++n) {
-//      const int j = index_data[2 * n];
-//      const int k = index_data[2 * n + 1];
-//
-//      std::cerr << begin << "\t" << end << "\t" <<  i << "\t" << j << "\t" << k << "\t" << value_data[3*n + 0] << "\t" << value_data[3*n + 1] << "\t" << value_data[3*n + 2] << std::endl;
-//    }
-//  }
 
   cuda_copy_array_to_device_pointer(index_pointers, &dev_csr_matrix_.row);
   cuda_copy_array_to_device_pointer(index_data, &dev_csr_matrix_.col);
