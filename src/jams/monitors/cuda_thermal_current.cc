@@ -167,6 +167,7 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
         const int k = nbr_k.first;
         const auto Jjk = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
+        if (i > j || j > k || i > k) continue;
         auto r_i = lattice->atom_position(i);
         auto r_j = lattice->atom_position(j);
         auto r_k = lattice->atom_position(k);
@@ -186,6 +187,7 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
         const int k = nbr_k.first;
         const auto Jik = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
+        if (i > j || j > k || i > k) continue;
         auto r_i = lattice->atom_position(i);
         auto r_j = lattice->atom_position(j);
         auto r_k = lattice->atom_position(k);
@@ -205,6 +207,7 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
         const int  j = nbr_j.first;
         const auto Jjk = nbr_j.second[0][0];
         if (i == j || j == k || i == k) continue;
+        if (i > j || j > k || i > k) continue;
         auto r_i = lattice->atom_position(i);
         auto r_j = lattice->atom_position(j);
         auto r_k = lattice->atom_position(k);
