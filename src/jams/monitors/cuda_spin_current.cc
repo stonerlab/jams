@@ -85,8 +85,8 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 
   outfile << "time\t";
   outfile << "js_rx_x\tjs_rx_y\tjs_rx_z" << "\t";
-  outfile << "js_ry_x\tjs_ry_y\tjs_yx_z" << "\t";
-  outfile << "js_rz_x\tjs_rz_y\tjs_zx_z" << std::endl;
+  outfile << "js_ry_x\tjs_ry_y\tjs_ry_z" << "\t";
+  outfile << "js_rz_x\tjs_rz_y\tjs_rz_z" << std::endl;
 
   outfile.setf(std::ios::right);
 }
