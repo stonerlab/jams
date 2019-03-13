@@ -5,16 +5,17 @@
 #include "jams/monitors/binary.h"
 #include "jams/monitors/boltzmann.h"
 #include "jams/monitors/energy.h"
-#include "jams/monitors/hdf5.h"
 #include "jams/monitors/field.h"
+#include "jams/monitors/hdf5.h"
 #include "jams/monitors/magnetisation.h"
 #include "jams/monitors/magnetisation_rate.h"
 #include "jams/monitors/skyrmion.h"
 #include "jams/monitors/smr.h"
-#include "jams/monitors/spin_pumping.h"
-#include "jams/monitors/spin_temperature.h"
 #include "jams/monitors/spectrum_fourier.h"
 #include "jams/monitors/spectrum_general.h"
+#include "jams/monitors/spin_correlation.h"
+#include "jams/monitors/spin_pumping.h"
+#include "jams/monitors/spin_temperature.h"
 #include "jams/monitors/torque.h"
 #include "jams/monitors/vtu.h"
 #include "jams/monitors/xyz.h"
@@ -26,17 +27,30 @@
 #endif
 
 using namespace std;
+using namespace libconfig;
+using jams::config_optional;
 
-Monitor::Monitor(const libconfig::Setting &settings)
+#define DEFINED_MONITOR(name, type, settings) \
+{ \
+  if (lowercase(settings["module"]) == name) { \
+    return new type(settings); \
+  } \
+}
+
+Monitor::Monitor(const Setting &settings)
 : Base(settings),
-  output_step_freq_(jams::config_optional<int>(settings, "output_steps", jams::default_monitor_output_steps)),
-  convergence_is_on_(settings.exists("convergence")),
-  convergence_tolerance_(jams::config_optional<double>(settings, "convergence", jams::default_monitor_convergence_tolerance)),
-  convergence_stderr_(0.0),
-  convergence_burn_time_(jams::config_optional<double>(settings, "t_burn", 0.0))  // amount of time to discard before calculating convegence stats
+  output_step_freq_(
+          config_optional<int>(settings, "output_steps", jams::default_monitor_output_steps)),
+  convergence_is_on_(
+          settings.exists("convergence")),
+  convergence_tolerance_(
+          config_optional<double>(settings, "convergence", jams::default_monitor_convergence_tolerance)),
+  convergence_stderr_(
+          0.0),
+  convergence_burn_time_(config_optional<double>(settings, "t_burn", 0.0))
 {
   cout << "  " << name() << " monitor\n";
-  cout << "    output_steps" << output_step_freq_ << "\n";
+  cout << "    output_steps " << output_step_freq_ << "\n";
 
    if (convergence_is_on_) {
      cout << "    convergence tolerance" << convergence_tolerance_ << "\n";
@@ -51,85 +65,30 @@ bool Monitor::is_updating(const int &iteration) const {
   return false;
 }
 
-Monitor* Monitor::create(const libconfig::Setting &settings) {
-  if (capitalize(settings["module"]) == "MAGNETISATION") {
-    return new MagnetisationMonitor(settings);
-  }
+Monitor* Monitor::create(const Setting &settings) {
+  DEFINED_MONITOR("binary", BinaryMonitor, settings);
+  DEFINED_MONITOR("boltzmann", BoltzmannMonitor, settings);
+  DEFINED_MONITOR("energy", EnergyMonitor, settings);
+  DEFINED_MONITOR("field", FieldMonitor, settings);
+  DEFINED_MONITOR("hdf5", Hdf5Monitor, settings);
+  DEFINED_MONITOR("magnetisation", MagnetisationMonitor, settings);
+  DEFINED_MONITOR("magnetisation-rate", MagnetisationRateMonitor, settings);
+  DEFINED_MONITOR("skyrmion", SkyrmionMonitor, settings);
+  DEFINED_MONITOR("smr", SMRMonitor, settings);
+  DEFINED_MONITOR("spectrum-fourier", SpectrumFourierMonitor, settings);
+  DEFINED_MONITOR("spectrum-general-cpu", SpectrumGeneralMonitor, settings);
+  DEFINED_MONITOR("spin-correlation", SpinCorrelationMonitor, settings);
+  DEFINED_MONITOR("spin-pumping", SpinPumpingMonitor, settings);
+  DEFINED_MONITOR("spin-temperature", SpinTemperatureMonitor, settings);
+  DEFINED_MONITOR("torque", TorqueMonitor, settings);
+  DEFINED_MONITOR("vtu", VtuMonitor, settings);
+  DEFINED_MONITOR("xyz", XyzMonitor, settings);
 
-  if (capitalize(settings["module"]) == "MAGNETISATION_RATE") {
-    return new MagnetisationRateMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "STRUCTUREFACTOR"
-  || capitalize(settings["module"]) == "SPECTRUM_FOURIER") {
-    return new SpectrumFourierMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "TORQUE") {
-    return new TorqueMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "ENERGY") {
-    return new EnergyMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "FIELD") {
-    return new FieldMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "SPIN_TEMPERATURE") {
-    return new SpinTemperatureMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "SPIN-CURRENT") {
-    return new CudaSpinCurrentMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "THERMAL-CURRENT") {
-    return new CudaThermalCurrentMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "SPINPUMPING") {
-    return new SpinPumpingMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "BOLTZMANN") {
-    return new BoltzmannMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "SMR") {
-    return new SMRMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "VTU") {
-    return new VtuMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "HDF5") {
-    return new Hdf5Monitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "XYZ") {
-    return new XyzMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "BINARY") {
-    return new BinaryMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "SKYRMION") {
-    return new SkyrmionMonitor(settings);
-  }
-
-  if (capitalize(settings["module"]) == "SCATTERING-FUNCTION"
-  || capitalize(settings["module"]) == "SPECTRUM_GENERAL") {
 #ifdef HAS_CUDA
-    if (solver->is_cuda_solver()) {
-      return new CudaSpectrumGeneralMonitor(settings);
-    }
+  DEFINED_MONITOR("spectrum-general", CudaSpectrumGeneralMonitor, settings);
+  DEFINED_MONITOR("spin-current", CudaSpinCurrentMonitor, settings);
+  DEFINED_MONITOR("thermal-current", CudaThermalCurrentMonitor, settings);
 #endif
-    return new SpectrumGeneralMonitor(settings);
-  }
 
   throw std::runtime_error("unknown monitor " + std::string(settings["module"].c_str()));
 }
