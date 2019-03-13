@@ -77,6 +77,10 @@ class Solver : public Base {
     return hamiltonians_;
   }
 
+  std::vector<Monitor*>& monitors() {
+    return monitors_;
+  }
+
   static Solver* create(const libconfig::Setting &setting);
  protected:
     bool initialized_ = false;

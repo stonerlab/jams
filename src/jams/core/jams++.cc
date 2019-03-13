@@ -177,27 +177,42 @@ void jams_run() {
   try {
     cout << jams::section("running solver") << std::endl;
     cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
+    {
+      ProgressBar progress;
+      Timer<> timer;
+      while (::solver->is_running()) {
+        if (::solver->is_converged()) {
+          break;
+        }
 
-    ProgressBar progress;
-    Timer<> timer;
-    while (::solver->is_running()) {
-      if (::solver->is_converged()) {
-        break;
+        ::solver->update_physics_module();
+        ::solver->notify_monitors();
+        ::solver->run();
+
+        progress.set(double(::solver->iteration()) / double(::solver->max_steps()));
+        if (::solver->iteration() % 1000 == 0) {
+          cout << progress;
+        }
       }
+      cout << "\n\n";
+      cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
 
-      ::solver->update_physics_module();
-      ::solver->notify_monitors();
-      ::solver->run();
-
-      progress.set(double(::solver->iteration()) / double(::solver->max_steps()));
-      if (::solver->iteration() % 1000 == 0) {
-        cout << progress;
-      }
+      cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
     }
-    cout << "\n\n";
-    cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
 
-    cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
+    {
+      cout << jams::section("running post process") << std::endl;
+      cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
+
+      Timer<> timer;
+
+      for (auto m : solver->monitors()) {
+        m->post_process();
+      }
+      cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
+      cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
+    }
+
   }
   catch(const jams::runtime_error &gex) {
     jams_die("%s", gex.what());
