@@ -82,10 +82,10 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
     cout << "    kspace padded size " << kspace_padded_size_ << "\n";
     cout << "    generating tensors\n";
 
-  kspace_tensors_.resize(lattice->motif_size());
+  kspace_tensors_.resize(lattice->num_motif_atoms());
 
-    for (auto pos_i = 0; pos_i < lattice->motif_size(); ++pos_i) {
-      for (auto pos_j = 0; pos_j < lattice->motif_size(); ++pos_j) {
+    for (auto pos_i = 0; pos_i < lattice->num_motif_atoms(); ++pos_i) {
+      for (auto pos_j = 0; pos_j < lattice->num_motif_atoms(); ++pos_j) {
         kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j));
       }
     }
@@ -326,9 +326,9 @@ void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2> &fields) {
 
   h_.zero();
 
-  for (auto pos_i = 0; pos_i < ::lattice->motif_size(); ++pos_i) {
+  for (auto pos_i = 0; pos_i < ::lattice->num_motif_atoms(); ++pos_i) {
     kspace_h_.zero();
-    for (auto pos_j = 0; pos_j < ::lattice->motif_size(); ++pos_j) {
+    for (auto pos_j = 0; pos_j < ::lattice->num_motif_atoms(); ++pos_j) {
       rspace_s_.zero();
       for (auto kx = 0; kx < kspace_size_[0]; ++kx) {
         for (auto ky = 0; ky < kspace_size_[1]; ++ky) {

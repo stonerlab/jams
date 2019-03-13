@@ -37,6 +37,8 @@ extern "C"{
 
 #include "jblib/containers/array.h"
 #include "jblib/containers/matrix.h"
+#include "lattice.h"
+
 
 using std::cout;
 using std::endl;
@@ -107,7 +109,11 @@ int Lattice::size(int i) const {
   return lattice_dimensions[i];
 }
 
-int Lattice::motif_size() const {
+Vec3i Lattice::size() const {
+  return lattice_dimensions;
+}
+
+int Lattice::num_motif_atoms() const {
   return motif_.size();
 }
 
@@ -151,7 +157,7 @@ Lattice::atom_position(const int &i) const {
 
 void
 Lattice::atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom> &neighbours) const {
-  neartree_->find_in_radius(r_cutoff, neighbours, {i, atoms_[i].material, atoms_[i].pos});
+  neartree_->find_in_radius(r_cutoff, neighbours, {i, atoms_[i].material, atoms_[i].motif_position, atoms_[i].pos});
 }
 
 Vec3
@@ -181,7 +187,7 @@ int Lattice::site_index_by_unit_cell(const int &i, const int &j, const int &k, c
   assert(j >= 0);
   assert(k < lattice_dimensions[2]);
   assert(k >= 0);
-  assert(m < motif_size());
+  assert(m < num_motif_atoms());
   assert(m >= 0);
 
   return lattice_map_(i, j, k, m);
@@ -189,6 +195,10 @@ int Lattice::site_index_by_unit_cell(const int &i, const int &j, const int &k, c
 
 bool Lattice::is_periodic(int i) const {
   return lattice_periodic[i];
+}
+
+Vec3b Lattice::periodic_boundaries() const {
+  return lattice_periodic;
 }
 
 const Vec3i &Lattice::supercell_index(const int &i) const {
@@ -533,9 +543,9 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   cout << "\nkspace size " << kmesh_size << "\n";
 
 
-  const auto expected_num_atoms = motif_size() * product(lattice_dimensions);
+  const auto expected_num_atoms = num_motif_atoms() * product(lattice_dimensions);
 
-  lattice_map_.resize(this->size(0), this->size(1), this->size(2), this->motif_size());
+  lattice_map_.resize(this->size(0), this->size(1), this->size(2), this->num_motif_atoms());
   for (auto i = 0; i < expected_num_atoms; ++i) {
     // initialize everything to -1 so we can check for double assignment below
     lattice_map_[i] = -1;
@@ -564,7 +574,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
             material = impurity.material;
           }
 
-          atoms_.push_back({atom_counter, material, position});
+          atoms_.push_back({atom_counter, material, m, position});
           supercell_indicies_.push_back(translation);
 
           // number the site in the fast integer lattice
@@ -1077,6 +1087,10 @@ Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setti
     }
   }
   return impurities;
+}
+
+unsigned Lattice::atom_motif_position(const int &i) const {
+  return atoms_[i].motif_position;
 }
 
 

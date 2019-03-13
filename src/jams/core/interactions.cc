@@ -48,7 +48,7 @@ namespace { //anon
       // find which unit_cell position this offset corresponds to
       // it is possible that it does not correspond to a position in which case the
       // -1 is returned
-      for (int k = 0; k < lattice->motif_size(); ++k) {
+      for (int k = 0; k < lattice->num_motif_atoms(); ++k) {
         auto pos = lattice->motif_atom(k).pos;
         if (   abs(pos[0] - offset[0]) < tolerance
             && abs(pos[1] - offset[1]) < tolerance
@@ -96,7 +96,7 @@ namespace { //anon
       new_data.reserve(interactions.size());
 
       for (const auto& J : interactions) {
-        for (int i = 0; i < lattice->motif_size(); ++i) {
+        for (int i = 0; i < lattice->num_motif_atoms(); ++i) {
           auto new_J = J;
           // check i has the same type
           if (get_motif_material_name(i) != J.type_i) continue;
@@ -428,8 +428,8 @@ void
 safety_check_distance_tolerance(const double &tolerance) {
   // check that no atoms in the unit cell are closer together than the tolerance
 
-  for (auto i = 0; i < lattice->motif_size(); ++i) {
-    for (auto j = i + 1; j < lattice->motif_size(); ++j) {
+  for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+    for (auto j = i + 1; j < lattice->num_motif_atoms(); ++j) {
       const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
       if (distance < tolerance) {
         jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"

@@ -14,6 +14,7 @@ template <typename T, std::size_t N>
 using Vec = std::array<T, N>;
 
 using Vec3  = std::array<double, 3>;
+using Vec3f = std::array<float, 3>;
 using Vec3b = std::array<bool, 3>;
 using Vec3i = std::array<int, 3>;
 

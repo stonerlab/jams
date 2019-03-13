@@ -28,6 +28,7 @@ enum OutputFormat {TEXT, HDF5};
 struct Atom {
     int  id;
     int  material;
+    int  motif_position;
     Vec3 pos;
 };
 
