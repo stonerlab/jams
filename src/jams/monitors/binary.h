@@ -17,9 +17,10 @@
 class BinaryMonitor : public Monitor {
  public:
   explicit BinaryMonitor(const libconfig::Setting &settings);
-  ~BinaryMonitor() override = default;
+    ~BinaryMonitor() override = default;
 
   void update(Solver * solver) override;
+  void post_process() override {};
   bool is_converged() override { return false; }
 
  private:

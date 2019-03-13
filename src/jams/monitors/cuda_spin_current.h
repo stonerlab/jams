@@ -40,6 +40,8 @@ public:
     ~CudaSpinCurrentMonitor();
 
     void update(Solver * solver);
+    void post_process() override {};
+
     bool is_converged();
 
 private:

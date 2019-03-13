@@ -23,6 +23,7 @@ public:
     ~VtuMonitor() override = default;
 
     void update(Solver *solver) override;
+    void post_process() override {};
 
     bool is_converged() override { return false; }
 

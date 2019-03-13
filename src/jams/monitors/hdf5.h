@@ -19,8 +19,10 @@ class Hdf5Monitor : public Monitor {
   explicit Hdf5Monitor(const libconfig::Setting &settings);
   ~Hdf5Monitor();
 
-  void update(Solver * solver);
-  bool is_converged() { return false; }
+  void update(Solver * solver) override;
+    void post_process() override {};
+
+    bool is_converged() override { return false; }
 
  private:
   void open_new_xdmf_file(const std::string &xdmf_file_name);

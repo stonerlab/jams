@@ -19,8 +19,10 @@ class SkyrmionMonitor : public Monitor {
   SkyrmionMonitor(const libconfig::Setting &settings);
   ~SkyrmionMonitor();
 
-  void update(Solver * solver);
-  bool is_converged() { return false; }
+  void update(Solver * solver) override;
+    void post_process() override {};
+
+    bool is_converged() override { return false; }
 
  private:
     std::string tsv_header();

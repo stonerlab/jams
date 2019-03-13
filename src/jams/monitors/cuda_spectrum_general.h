@@ -15,6 +15,7 @@ class CudaSpectrumGeneralMonitor : public SpectrumGeneralMonitor {
 public:
     explicit CudaSpectrumGeneralMonitor(const libconfig::Setting &settings);
     using SpectrumGeneralMonitor::update;
+    void post_process() override {};
 
     ~CudaSpectrumGeneralMonitor() override;
 private:
