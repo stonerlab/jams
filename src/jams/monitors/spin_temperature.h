@@ -18,7 +18,9 @@ class SpinTemperatureMonitor : public Monitor {
   ~SpinTemperatureMonitor() override = default;
 
   void update(Solver * solver) override;
-  bool is_converged() override { return false; }
+    void post_process() override {};
+
+    bool is_converged() override { return false; }
 
  private:
   std::ofstream tsv_file;

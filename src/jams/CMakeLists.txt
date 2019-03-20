@@ -115,6 +115,7 @@ target_sources(jams_object_lib
         monitors/skyrmion.cc
         monitors/smr.cc
         monitors/spectrum_general.cc
+        monitors/spin_correlation.cc
         monitors/spin_pumping.cc
         monitors/spin_temperature.cc
         monitors/spectrum_fourier.cc

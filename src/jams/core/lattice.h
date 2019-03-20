@@ -41,6 +41,8 @@ public:
     void init_from_config(const libconfig::Config &pConfig);
 
     int size(int i) const;      // number of unitcell in each dimension
+    Vec3i size() const;
+
     double parameter() const;   // [m]
     double volume() const;      // [m^3]
 
@@ -55,9 +57,10 @@ public:
     Vec3 displacement(const Vec3 &r_i, const Vec3 &r_j) const;
 
     bool is_periodic(int i) const;
+    Vec3b periodic_boundaries() const;
 
     const Atom& motif_atom(const int &i) const;
-    int motif_size() const;
+    int num_motif_atoms() const;
 
     int num_materials() const;
     const Material &material(const int &i) const;
@@ -67,6 +70,7 @@ public:
 
     int atom_material_id(const int &i) const;
     Vec3 atom_position(const int &i) const;
+    unsigned atom_motif_position(const int &i) const;
     void atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom> &neighbours) const;
 
     double max_interaction_radius() const;

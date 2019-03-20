@@ -76,7 +76,7 @@ void apply_kspace_phase_factors(jblib::Array<fftw_complex, 5> &kspace) {
   std::vector<complex<double>> exp_phase_y(lattice->kspace_size()[1]);
   std::vector<complex<double>> exp_phase_z(lattice->kspace_size()[2]);
 
-  for (auto m = 0; m < lattice->motif_size(); ++m) {
+  for (auto m = 0; m < lattice->num_motif_atoms(); ++m) {
     auto r_cart = lattice->fractional_to_cartesian(lattice->motif_atom(m).pos);
 
     precalculate_kspace_phase_factors(lattice->kspace_size(), r_cart, exp_phase_x, exp_phase_y, exp_phase_z);

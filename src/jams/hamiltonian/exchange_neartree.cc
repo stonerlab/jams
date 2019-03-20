@@ -29,7 +29,8 @@ void ExchangeNeartreeHamiltonian::insert_interaction(const int i, const int j, c
         }
       }
     }
-  }}
+  }
+}
 
 ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
@@ -66,8 +67,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     // --- SAFETY ---
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
-  for (auto i = 0; i < lattice->motif_size(); ++i) {
-    for (auto j = i+1; j < lattice->motif_size(); ++j) {
+  for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+    for (auto j = i+1; j < lattice->num_motif_atoms(); ++j) {
       const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
       if(distance < distance_tolerance_) {
         jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
