@@ -15,6 +15,10 @@
 
 using std::pow;
 
+inline bool floats_are_equal(const double& x , const double& y, const double eps = 1e-8) {
+  return std::abs(x - y) < eps;
+}
+
 inline double zero_safe_recip_norm(double x, double y, double z) {
   if (x == 0.0 && y == 0.0 && z == 0.0) {
     return 0.0;
