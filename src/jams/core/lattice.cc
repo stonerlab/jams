@@ -1096,4 +1096,8 @@ unsigned Lattice::atom_motif_position(const int &i) const {
   return atoms_[i].motif_position;
 }
 
+bool Lattice::has_impurities() const {
+    return !impurity_map_.empty();
+}
+
 

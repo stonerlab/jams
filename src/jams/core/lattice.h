@@ -75,6 +75,8 @@ public:
 
     double max_interaction_radius() const;
 
+    bool has_impurities() const;
+
     // TODO: remove rmax
     Vec3 rmax() const;
 
