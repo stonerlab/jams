@@ -568,10 +568,13 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
           auto translation = Vec3i{{i, j, k}};
           auto position    = generate_position(motif_[m].pos, translation);
           auto material    = motif_[m].material;
-          auto impurity    = impurity_map_[material];
 
-          if (impurity_rand() < impurity.fraction) {
-            material = impurity.material;
+          if (impurity_map_.count(material)) {
+            auto impurity    = impurity_map_[material];
+
+            if (impurity_rand() < impurity.fraction) {
+              material = impurity.material;
+            }
           }
 
           atoms_.push_back({atom_counter, material, m, position});
