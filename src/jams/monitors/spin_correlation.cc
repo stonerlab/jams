@@ -101,6 +101,7 @@ void SpinCorrelationMonitor::post_process() {
 
   {
     ofstream of(seedname + "_corr_outplane.tsv");
+    of << "delta_r\tCzz\tCzz_std_err\tC_plus_minus_re\tC_plus_minus_im\n";
     for (auto x : out_of_plane_sz_corr_histogram_) {
       auto delta_r = sqrt(x.first);
       auto Czz = (x.second.Szz / double(x.second.count));
@@ -114,6 +115,7 @@ void SpinCorrelationMonitor::post_process() {
 
   {
     ofstream of(seedname + "_corr_inplane.tsv");
+    of << "delta_r\tCzz\tCzz_std_err\tC_plus_minus_re\tC_plus_minus_im\n";
     for (auto x : in_plane_sz_corr_histogram_) {
       auto delta_r = sqrt(x.first);
       auto Czz = (x.second.Szz / double(x.second.count));
