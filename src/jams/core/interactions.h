@@ -10,6 +10,7 @@
 #include <libconfig.h++>
 
 #include "jams/core/types.h"
+#include "jams/containers/mat3.h"
 #include "jams/helpers/utils.h"
 
 
@@ -109,6 +110,7 @@ class InteractionList {
     typedef const value_type*         const_pointer;
     typedef pointer                             iterator;
     typedef const_pointer                       const_iterator;
+    typedef typename std::map<size_type, T>::value_type pair_type;
 
     InteractionList()
       : list() {};
@@ -119,7 +121,9 @@ class InteractionList {
     ~InteractionList() {};
 
     std::pair<typename value_type::iterator,bool>
-  insert(size_type i, size_type j, const T &value);
+    insert(size_type i, size_type j, const T &value);
+
+    bool exists(size_type i, size_type j);
     
     void resize(size_type size);
 
@@ -192,6 +196,11 @@ template <class T>
 typename InteractionList<T>::reference
 InteractionList<T>::operator[](const size_type i) {
   return list[i];
+}
+
+template<class T>
+bool InteractionList<T>::exists(InteractionList::size_type i, InteractionList::size_type j) {
+  return list[i].find(j) != list[i].end();
 }
 
 #endif // JAMS_CORE_INTERACTIONS_H

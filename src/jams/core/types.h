@@ -19,6 +19,16 @@ inline CoordinateFormat coordinate_format_from_string(const std::string s) {
   throw std::runtime_error("Unknown coordinate format");
 }
 
+inline std::string to_string(CoordinateFormat f) {
+  switch (f) {
+    case CoordinateFormat::CARTESIAN:
+      return "CARTESIAN";
+    case CoordinateFormat::FRACTIONAL:
+      return "FRACTIONAL";
+  }
+  throw std::invalid_argument("unknown CoordinateFormat");
+}
+
 enum OutputFormat {TEXT, HDF5};
 
 //-----------------------------------------------------------------------------

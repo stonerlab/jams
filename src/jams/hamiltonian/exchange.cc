@@ -32,13 +32,6 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   // read settings
   //---------------------------------------------------------------------
 
-  std::string exchange_file_format_name = "JAMS";
-  settings.lookupValue("format", exchange_file_format_name);
-  exchange_file_format_ = interaction_file_format_from_string(exchange_file_format_name);
-
-  std::string coordinate_format_name = "CARTESIAN";
-  settings.lookupValue("coordinate_format", coordinate_format_name);
-  CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
 
   bool use_symops = true;
   settings.lookupValue("symops", use_symops);
@@ -79,7 +72,11 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   //---------------------------------------------------------------------
   // generate interaction list
   //---------------------------------------------------------------------
+    std::string coordinate_format_name = "CARTESIAN";
+    settings.lookupValue("coordinate_format", coordinate_format_name);
+    CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
 
+    cout << "    coordinate format: " << to_string(coord_format) << "\n";
     // exc_file is to maintain backwards compatibility
     if (settings.exists("exc_file")) {
       cout << "    interaction file name " << settings["exc_file"].c_str() << "\n";
@@ -109,6 +106,14 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
     cout << "    computed interactions: "<< neighbour_list_.num_interactions() << "\n";
+
+
+    cout << "    interactions per motif position: "<< neighbour_list_.num_interactions() << "\n";
+    if (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2) && !lattice->has_impurities()) {
+        for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+            cout << "      " << i << ": " << neighbour_list_.num_interactions(i) <<"\n";
+        }
+    }
 
     for (int i = 0; i < neighbour_list_.size(); ++i) {
       for (auto const &j: neighbour_list_[i]) {
