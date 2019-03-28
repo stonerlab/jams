@@ -107,14 +107,12 @@ private:
     void*  dev_csr_buffer_             = nullptr;
     size_t dev_csr_buffer_size_        = 0;
 
-#if HAS_CUSPARSE_MIXED_PREC
     // alg is a required argument even from CUDA 9, but the types are not implemented until CUDA 10
   #if __CUDACC_VER_MAJOR__ >= 10
       cusparseAlgMode_t cusparse_alg_ = CUSPARSE_ALG_NAIVE;
   #else
       cusparseAlgMode_t cusparse_alg_;
   #endif
-#endif
 };
 
 template <typename T>
