@@ -25,9 +25,9 @@ private:
         unsigned count = 0;
     };
 
-    struct float_compare{
+    struct float_compare {
         bool operator()(const double &x, const double &y) const {
-          return (x < y) && abs( x - y ) > 1e-5;
+          return (x < y) && std::abs( x - y ) > 1e-5;
         };
     };
 
