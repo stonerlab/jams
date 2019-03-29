@@ -52,15 +52,19 @@ void Solver::run() {
 
 
 void Solver::compute_fields() {
-  globals::h.zero();
-
   for (auto& hh : hamiltonians_) {
     hh->calculate_fields();
   }
 
-  // sum hamiltonian field contributions into effective field
-  for (auto& hh : hamiltonians_) {
-    cblas_daxpy(globals::num_spins3, 1.0, hh->ptr_field(), 1, globals::h.data(), 1);
+  if (hamiltonians_.size() == 1) {
+      std::copy(hamiltonians_[0]->ptr_field(), hamiltonians_[0]->ptr_field()+globals::num_spins3, globals::h.data());
+  } else {
+      // sum hamiltonian field contributions into effective field
+      globals::h.zero();
+
+      for (auto& hh : hamiltonians_) {
+        cblas_daxpy(globals::num_spins3, 1.0, hh->ptr_field(), 1, globals::h.data(), 1);
+      }
   }
 }
 
