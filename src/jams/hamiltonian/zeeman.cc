@@ -130,9 +130,14 @@ void ZeemanHamiltonian::calculate_one_spin_field(const int i, double local_field
 }
 
 void ZeemanHamiltonian::calculate_fields() {
-  for (int i = 0; i < globals::num_spins; ++i) {
-      for (int j = 0; j < 3; ++j) {
-          field_(i, j) = dc_local_field_(i, j) + ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
-      }
+    for (int i = 0; i < globals::num_spins; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            field_(i, j) = dc_local_field_(i, j);
+        }
+        if (has_ac_local_field_) {
+            for (int j = 0; j < 3; ++j) {
+                field_(i, j) += ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
+            }
+        }
     }
 }
