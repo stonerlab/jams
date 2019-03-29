@@ -18,10 +18,9 @@ public:
     void post_process() override;
     bool is_converged() override {return false;}
 private:
-    struct histo {
-        double   Szz = 0.0;
-        double   Szz_sq = 0.0;
-        std::complex<double>  S_plus_minus = {0.0, 0.0};
+    template <typename T>
+    struct Datum {
+        T        total = 0.0;
         unsigned count = 0;
     };
 
@@ -35,7 +34,7 @@ private:
     unsigned num_samples_;
     unsigned time_point_counter_ = 0;
 
-    jblib::Array<Vec3f, 2> spin_data_;   // index is spin, time. This order gives a large speedup
+    jblib::Array<double, 2> sz_data_;   // index is spin, time. This order gives a large speedup
 };
 
 #endif //JAMS_SPIN_CORRELATION_H
