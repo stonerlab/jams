@@ -267,13 +267,13 @@ void CudaDipoleHamiltonianSparseTensor::calculate_fields(jblib::Array<double, 2>
       char transa[1] = {'N'};
       char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
 
-      jams_scsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
+      jams::Xcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
         interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, fields.data());
     } else {
       // symmetric matrix (i.e. Heun Solvers)
       char transa[1] = {'N'};
       char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
-      jams_scsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
+      jams::Xcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
         interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, fields.data());
     }
 }

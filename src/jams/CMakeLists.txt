@@ -75,7 +75,6 @@ endif()
 target_sources(jams_object_lib
         PRIVATE
         containers/cell.cc
-        containers/sparsematrix.cc
         containers/unitcell.cc
         core/hamiltonian.cc
         core/interactions.cc

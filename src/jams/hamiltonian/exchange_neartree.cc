@@ -7,6 +7,8 @@
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 #include "exchange_neartree.h"
+#include "jams/helpers/error.h"
+
 
 using namespace std;
 
@@ -293,7 +295,7 @@ void ExchangeNeartreeHamiltonian::calculate_fields() {
             interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),
             &zero, field_.data());
 #else
-    jams_dcsrmv(transa, num_rows, num_cols, 1.0, matdescra, interaction_matrix_.valPtr(),
+    jams::Xcsrmv(transa, num_rows, num_cols, 1.0, matdescra, interaction_matrix_.valPtr(),
       interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
 #endif
 }

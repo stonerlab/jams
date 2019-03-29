@@ -1,10 +1,8 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
-
 #ifndef JAMS_CORE_SPARSEMATRIX_H
 #define JAMS_CORE_SPARSEMATRIX_H
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -13,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-#include "jams/helpers/error.h"
+#include "jams/helpers/exception.h"
 
 #define RESTRICT __restrict__
 
@@ -51,23 +49,6 @@ typedef enum
 
 #endif
 
-// taken from CUSP
-template< class _Tp1, class _Tp2>
-bool kv_pair_less(const std::pair<_Tp1, _Tp2>&x, const std::pair<_Tp1, _Tp2>&y){
-  return x.first < y.first;
-}
-
-template< class _Tp1, class _Tp2>
-bool kv_pair_greater(const std::pair<_Tp1, _Tp2>&x, const std::pair<_Tp1, _Tp2>&y){
-  return x.first > y.first;
-}
-
-
-///
-/// @class SparseMatrix
-/// @brief Storage class for sparse matrices.
-///
-///
 template <typename _Tp>
 class SparseMatrix {
 
@@ -175,8 +156,6 @@ class SparseMatrix {
     //void printCSR();
 
   private:
-
-//    typedef std::multimap <hash_type, _Tp, std::less<hash_type> > coo_mmp;
     typedef std::vector< std::pair<hash_type, _Tp> > coo_mmp;
 
     sparse_matrix_format_t  matrixFormat;
@@ -187,48 +166,24 @@ class SparseMatrix {
     size_type             nnz_unmerged;
     size_type             nnz;
 
-//    coo_mmp               matrixMap;
-
     coo_mmp matrixMap;
 
     std::vector<_Tp>       val_;
     std::vector<size_type> row_;
     std::vector<size_type> col_;
     std::vector<size_type> dia_offsets;
-    //Array2D<_Tp>           dia_values;
     size_type              num_diagonals;
-    hash_type             max_hash_;
-    hash_type             max_index_;
-
 };
-
-// template <typename _Tp>
-// void SparseMatrix<_Tp>::printCSR() {
-//
-//   if(format==CSR) {
-//     for(int i = 0; i<nrows+1; ++i) {
-//       output->write("%i\n", row[i]);
-//     }
-//     output->write("\n\n");
-//     for(int i = 0; i<nnz; ++i) {
-//       output->write("%i\n", col[i]);
-//     }
-//     output->write("\n\n");
-//     for(int i = 0; i<nnz; ++i) {
-//       output->write("%e\n", val[i]);
-//     }
-//   }
-// }
 
 template <typename _Tp>
 double SparseMatrix<_Tp>::calculateMemory() {
-  const double mb = (1024.0*1024.0);
+  constexpr double megabyte = 1048576;
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
-    return ((matrixMap.size())*(sizeof(hash_type)+sizeof(_Tp)))/mb;
+    return ((matrixMap.size())*(sizeof(hash_type)+sizeof(_Tp)))/megabyte;
   }else if(matrixFormat == SPARSE_MATRIX_FORMAT_DIA){
-    return (dia_offsets.size()*sizeof(size_type)+(nrows*num_diagonals)*sizeof(_Tp))/mb;
+    return (dia_offsets.size()*sizeof(size_type)+(nrows*num_diagonals)*sizeof(_Tp))/megabyte;
   } else {
-    return (((row_.size()+col_.size())*sizeof(size_type))+(val_.size()*sizeof(_Tp)))/mb;
+    return (((row_.size()+col_.size())*sizeof(size_type))+(val_.size()*sizeof(_Tp)))/megabyte;
   }
 }
 
@@ -253,40 +208,35 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
       if(matrixType == SPARSE_MATRIX_TYPE_SYMMETRIC) {
         if(matrixMode == SPARSE_FILL_MODE_UPPER) {
           if( i > j ) {
-            jams_die("Attempted to insert lower matrix element in symmetric upper sparse matrix");
+            throw std::runtime_error("Attempted to insert lower matrix element in symmetric upper sparse matrix");
           }
         } else {
           if( i < j ) {
-            jams_die("Attempted to insert upper matrix element in symmetric lower sparse matrix");
+              throw std::runtime_error("Attempted to insert upper matrix element in symmetric lower sparse matrix");
           }
         }
       }
     } else {
-      jams_die("Attempted to insert matrix element (%d, %d) outside of matrix size (%d, %d)", i, j, nrows, ncols);
+      std::runtime_error("Attempted to insert matrix element outside of matrix size");
     }
 
     // static casts to force 64bit arithmetic
-//    const hash_type index = (static_cast<hash_type>(i)*static_cast<hash_type>(ncols)) + static_cast<hash_type>(j);
     const hash_type index = (static_cast<hash_type>(i)*static_cast<hash_type>(ncols)) + static_cast<hash_type>(j);
-//    matrixMap.insert(typename coo_mmp::value_type(index, value));
     matrixMap.push_back( std::pair<hash_type, _Tp>(index, value) );
 
     nnz_unmerged++;
   } else {
-    jams_die("Can only insert into MAP format sparse matrix");
+    std::runtime_error("Can only insert into MAP format sparse matrix");
   }
 
 }
 
 template <typename _Tp>
 void SparseMatrix<_Tp>::convertSymmetric2General() {
-
-
   hash_type ival, jval, index, index_new;
   _Tp value;
 
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
-    //if(matrixType == SPARSE_MATRIX_TYPE_SYMMETRIC){
         matrixType = SPARSE_MATRIX_TYPE_GENERAL;
         const int nitems = matrixMap.size();
         matrixMap.reserve(2*nitems);
@@ -305,7 +255,7 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
             }
         }
   }else{
-    jams_die("Only a MAP matrix can be generalised");
+    std::runtime_error("Only a MAP matrix can be generalised");
   }
 
 }
@@ -320,7 +270,10 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
   nnz = 0;
   row_.resize(nrows+1);
 
-  std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_greater<hash_type, _Tp>);
+  std::sort(matrixMap.begin(), matrixMap.end(),
+          [](const typename coo_mmp::value_type &x, const typename coo_mmp::value_type& y) -> bool {
+      return x.first > y.first;
+  });
 
   if (nnz_unmerged > 0) {
     previous_row = 0;
@@ -333,10 +286,6 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
       pop_counter++;
 
       index = nz.first;  // first part contains row major index
-
-      // if (index < 0) {
-      //   die("Negative sparse array index");
-      // }
 
       current_row = index/static_cast<hash_type>(ncols);
       current_col = index - ((current_row)*ncols);
@@ -393,10 +342,6 @@ void SparseMatrix<_Tp>::convertMAP2COO()
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
 
-      // if(index < 0){
-      //   die("Negative sparse array index");
-      // }
-
       ival = index/static_cast<hash_type>(ncols);
 
       jval = index - ((ival)*ncols);
@@ -435,18 +380,12 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
 
   if(nnz_unmerged > 0){
 
-//    std::sort(matrixMap.begin(), matrixMap.end(), kv_pair_less<hash_type, _Tp>);
-
     num_diagonals = 0;
     std::vector<int> diag_map(nrows+ncols, 0);
 
     typename coo_mmp::const_iterator elem;
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
-
-      // if(index < 0){
-      //   die("Negative sparse array index");
-      // }
 
       ival = index/static_cast<hash_type>(ncols);
 
@@ -470,16 +409,6 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
       }
     }
 
-//    for(int i = 0; i<num_diagonals; ++i){
-//      std::cout<<dia_offsets[i]<<std::endl;
-//    }
-//    std::cout<<"\n\n";
-//    for(int i = 0; i<nrows; ++i){
-//      for(int j = 0; j<num_diagonals; ++j){
-//        dia_values[nrows*j+i] = 0.0;
-//      }
-//    }
-
     for(elem = matrixMap.begin(); elem != matrixMap.end(); ++elem){
       index = elem->first;
 
@@ -488,8 +417,6 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
       int map_index = (nrows - ival) + jval;
       int diag = diag_map[map_index];
       val_[nrows*diag+ival] += elem->second;
-
-//      std::cout<<ival<<" , "<<jval<<" , "<<diag<<" , "<<val[nrows*diag+ival]<<std::endl;
       nnz++;
     }
   }
@@ -501,20 +428,62 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
 }
 
 
-void jams_dcsrmv(const char trans[1], const int m, const int k,
-    const double alpha, const char descra[6], const double *val,
-    const int *indx, const int *ptrb, const int *ptre, const double *x,
-    const double beta, double * y);
 
-// TEMPORARY HACK FOR CUDA COMPAT
-void jams_dcsrmv(const char trans[1], const int m, const int k,
-    const double alpha, const char descra[6], const float *val,
-    const int *indx, const int *ptrb, const int *ptre, const double *x,
-    const double beta, double * y);
+namespace jams {
+    namespace impl {
 
-void jams_scsrmv(const char trans[1], const int m, const int k,
-    const double alpha, const char descra[6], const float *val,
-    const int *indx, const int *ptrb, const int *ptre, const double *x,
-    const double beta, double * y);
+        template <typename MatType, typename VecType>
+        __attribute__((hot))
+        void __Xcsrmv_alpha_beta_trivial(const int& m, const MatType * const val, const int * const indx, const int * const ptrb, const int * const ptre, const VecType * const x,
+                                         VecType * y) {
+#if HAS_OMP
+#pragma omp parallel for default(none) shared(m, y) schedule(static, 8)
+#endif // HAS_OMP
+            for (auto i = 0; i < m; ++i) {  // iterate rows
+                auto sum = 0.0;
+                for (auto j = ptrb[i]; j < ptre[i]; ++j) {
+                    sum += x[indx[j]] * val[j];
+                }
+                y[i] = sum;
+            }
+        }
+
+        template <typename MatType, typename VecType>
+        __attribute__((hot))
+        void __Xcsrmv_alpha_beta_general(const VecType& alpha, const VecType& beta, const int& m, const MatType * const val, const int * const indx, const int * const ptrb, const int * const ptre, const VecType * const x,
+                                         double * y) {
+#if HAS_OMP
+#pragma omp parallel for default(none) shared(y, m, alpha, beta)
+#endif // HAS_OMP
+            for (auto i = 0; i < m; ++i) {  // iterate rows
+                auto sum = 0.0;
+                for (auto j = ptrb[i]; j < ptre[i]; ++j) {
+                    sum += x[indx[j]]*val[j];
+                }
+                y[i] = beta * y[i] + alpha * sum;
+            }
+        }
+    }
+
+    template <typename MatType, typename VecType>
+    void Xcsrmv(const char trans[1], const int m, const int n,
+                     const VecType alpha, const char descra[6], const MatType * const val,
+                     const int * const indx, const int * const ptrb, const int * const ptre, const VecType * const x,
+                     const VecType beta, VecType * y) {
+
+        if(descra[0] == 'G') {
+            // general matrix
+            if (alpha == 1.0 && beta == 0.0) {
+                jams::impl::__Xcsrmv_alpha_beta_trivial(m, val, indx, ptrb, ptre, x, y);
+            } else {
+                jams::impl::__Xcsrmv_alpha_beta_general(alpha, beta, m, val, indx, ptrb, ptre, x, y);
+            }
+        } else {
+            throw jams::unimplemented_error("symmetric jams_dcsrmv is unimplemented");
+        }
+    }
+}
+
+
 
 #endif // JAMS_CORE_SPARSEMATRIX_H
