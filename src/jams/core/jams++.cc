@@ -82,12 +82,7 @@ namespace jams {
       ss << "run     ";
       ss << get_date_string(std::chrono::system_clock::now()) << "\n";
       #if HAS_OMP
-      #pragma omp parallel
-      {
-        if (omp_get_thread_num() == 0) {
-          cout << "threads " << omp_get_num_threads() << "\n";
-        }
-      }
+      ss << "threads " << omp_get_max_threads() << "\n";
       #endif
       return ss.str();
     }
