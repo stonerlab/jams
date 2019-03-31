@@ -5,17 +5,12 @@
 #ifndef JAMS_OPENMP_H
 #define JAMS_OPENMP_H
 
-#define DO_PRAGMA(x) _Pragma (#x)
+#define DO_PRAGMA_(x) _Pragma(#x)
+#define DO_PRAGMA(x) DO_PRAGMA_(x)
 
 #if HAS_OMP
-  #define OMP(x) \
-    DO_PRAGMA("omp" x)
-
-  #define OMP_PARALLEL_FOR \
-    DO_PRAGMA("omp parallel for schedule(static)")
+  #define OMP_PARALLEL_FOR _Pragma("omp parallel for")
 #else
-  #define OMP(x)
-
   #define OMP_PARALLEL_FOR
 #endif
 
