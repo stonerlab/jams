@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "jams/helpers/exception.h"
+#include "jams/interface/openmp.h"
 
 #define RESTRICT __restrict__
 
@@ -439,7 +440,7 @@ namespace jams {
         const VecType *x,
         VecType *y) {
 
-      #pragma omp parallel for schedule(static)
+      OMP_PARALLEL_FOR
       for (auto i = 0; i < m; ++i) {  // iterate rows
         auto sum = 0.0;
         for (auto j = ptrb[i]; j < ptrb[i + 1]; ++j) {
@@ -462,7 +463,7 @@ namespace jams {
         const VecType *x,
         double *y) {
 
-      #pragma omp parallel for schedule(static)
+      OMP_PARALLEL_FOR
       for (auto i = 0; i < m; ++i) {  // iterate rows
         auto sum = 0.0;
         for (auto j = ptrb[i]; j < ptre[i]; ++j) {
