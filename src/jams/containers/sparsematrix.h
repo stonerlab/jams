@@ -17,30 +17,30 @@
 
 typedef enum
 {
-  SPARSE_MATRIX_FORMAT_MAP = 0,
-  SPARSE_MATRIX_FORMAT_COO = 1,
-  SPARSE_MATRIX_FORMAT_CSR = 2,
-  SPARSE_MATRIX_FORMAT_DIA = 3,
+    SPARSE_MATRIX_FORMAT_MAP = 0,
+    SPARSE_MATRIX_FORMAT_COO = 1,
+    SPARSE_MATRIX_FORMAT_CSR = 2,
+    SPARSE_MATRIX_FORMAT_DIA = 3,
 } sparse_matrix_format_t;
 
-// these definition mirror those in mkl_spblas.h
+// these definitions mirror those in mkl_spblas.h
 #ifndef HAS_MKL
 
 typedef enum
 {
-  SPARSE_MATRIX_TYPE_GENERAL            = 20,
-  SPARSE_MATRIX_TYPE_SYMMETRIC          = 21,
-  SPARSE_MATRIX_TYPE_HERMITIAN          = 22,
-  SPARSE_MATRIX_TYPE_TRIANGULAR         = 23,
-  SPARSE_MATRIX_TYPE_DIAGONAL           = 24,
-  SPARSE_MATRIX_TYPE_BLOCK_TRIANGULAR   = 25,
-  SPARSE_MATRIX_TYPE_BLOCK_DIAGONAL     = 26
+    SPARSE_MATRIX_TYPE_GENERAL            = 20,
+    SPARSE_MATRIX_TYPE_SYMMETRIC          = 21,
+    SPARSE_MATRIX_TYPE_HERMITIAN          = 22,
+    SPARSE_MATRIX_TYPE_TRIANGULAR         = 23,
+    SPARSE_MATRIX_TYPE_DIAGONAL           = 24,
+    SPARSE_MATRIX_TYPE_BLOCK_TRIANGULAR   = 25,
+    SPARSE_MATRIX_TYPE_BLOCK_DIAGONAL     = 26
 } sparse_matrix_type_t;
 
 typedef enum
 {
-  SPARSE_FILL_MODE_LOWER = 40,
-  SPARSE_FILL_MODE_UPPER = 41
+    SPARSE_FILL_MODE_LOWER = 40,
+    SPARSE_FILL_MODE_UPPER = 41
 } sparse_fill_mode_t;
 
 #else
@@ -52,39 +52,39 @@ typedef enum
 template <typename _Tp>
 class SparseMatrix {
 
-  public:
+public:
     typedef int      size_type;
     typedef uint64_t hash_type;
 
     SparseMatrix()
-      : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
-        matrixType(SPARSE_MATRIX_TYPE_GENERAL),
-        matrixMode(SPARSE_FILL_MODE_UPPER),
-        nrows(0),
-        ncols(0),
-        nnz_unmerged(0),
-        nnz(0),
-        val_(0),
-        row_(0),
-        col_(0),
-        dia_offsets(0),
-        num_diagonals(0)
+        : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
+          matrixType(SPARSE_MATRIX_TYPE_GENERAL),
+          matrixMode(SPARSE_FILL_MODE_UPPER),
+          nrows(0),
+          ncols(0),
+          nnz_unmerged(0),
+          nnz(0),
+          val_(0),
+          row_(0),
+          col_(0),
+          dia_offsets(0),
+          num_diagonals(0)
     {}
 
 
     SparseMatrix(size_type m, size_type n)
-      : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
-        matrixType(SPARSE_MATRIX_TYPE_GENERAL),
-        matrixMode(SPARSE_FILL_MODE_UPPER),
-        nrows(m),
-        ncols(n),
-        nnz_unmerged(0),
-        nnz(0),
-        val_(0),
-        row_(0),
-        col_(0),
-        dia_offsets(0),
-        num_diagonals(0)
+        : matrixFormat(SPARSE_MATRIX_FORMAT_MAP),
+          matrixType(SPARSE_MATRIX_TYPE_GENERAL),
+          matrixMode(SPARSE_FILL_MODE_UPPER),
+          nrows(m),
+          ncols(n),
+          nnz_unmerged(0),
+          nnz(0),
+          val_(0),
+          row_(0),
+          col_(0),
+          dia_offsets(0),
+          num_diagonals(0)
     {
       if(hash_type(m)*hash_type(n) > std::numeric_limits<hash_type>::max()) {
         throw std::runtime_error("sparsematrix.h:  maximum hash size is not large enough for the requested matrix size");
@@ -153,9 +153,8 @@ class SparseMatrix {
 
     void reserveMemory(size_type n);
     double calculateMemory();
-    //void printCSR();
 
-  private:
+private:
     typedef std::vector< std::pair<hash_type, _Tp> > coo_mmp;
 
     sparse_matrix_format_t  matrixFormat;
@@ -212,7 +211,7 @@ void SparseMatrix<_Tp>::insertValue(size_type i, size_type j, _Tp value) {
           }
         } else {
           if( i < j ) {
-              throw std::runtime_error("Attempted to insert upper matrix element in symmetric lower sparse matrix");
+            throw std::runtime_error("Attempted to insert upper matrix element in symmetric lower sparse matrix");
           }
         }
       }
@@ -237,23 +236,23 @@ void SparseMatrix<_Tp>::convertSymmetric2General() {
   _Tp value;
 
   if(matrixFormat == SPARSE_MATRIX_FORMAT_MAP){
-        matrixType = SPARSE_MATRIX_TYPE_GENERAL;
-        const int nitems = matrixMap.size();
-        matrixMap.reserve(2*nitems);
-        for(int i = 0; i<nitems; ++i){
-            index = matrixMap[i].first;
-            value = matrixMap[i].second;
+    matrixType = SPARSE_MATRIX_TYPE_GENERAL;
+    const int nitems = matrixMap.size();
+    matrixMap.reserve(2*nitems);
+    for(int i = 0; i<nitems; ++i){
+      index = matrixMap[i].first;
+      value = matrixMap[i].second;
 
-            // opposite relationship
-            jval = index/static_cast<hash_type>(ncols);
-            ival = index - ((jval)*ncols);
+      // opposite relationship
+      jval = index/static_cast<hash_type>(ncols);
+      ival = index - ((jval)*ncols);
 
-            if(ival != jval){
-                index_new = (static_cast<hash_type>(ival)*static_cast<hash_type>(ncols)) + static_cast<hash_type>(jval);
-                matrixMap.push_back(std::pair<hash_type, _Tp>(index_new, value));
-                nnz_unmerged++;
-            }
-        }
+      if(ival != jval){
+        index_new = (static_cast<hash_type>(ival)*static_cast<hash_type>(ncols)) + static_cast<hash_type>(jval);
+        matrixMap.push_back(std::pair<hash_type, _Tp>(index_new, value));
+        nnz_unmerged++;
+      }
+    }
   }else{
     std::runtime_error("Only a MAP matrix can be generalised");
   }
@@ -271,9 +270,9 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
   row_.resize(nrows+1);
 
   std::sort(matrixMap.begin(), matrixMap.end(),
-          [](const typename coo_mmp::value_type &x, const typename coo_mmp::value_type& y) -> bool {
-      return x.first > y.first;
-  });
+            [](const typename coo_mmp::value_type &x, const typename coo_mmp::value_type& y) -> bool {
+                return x.first > y.first;
+            });
 
   if (nnz_unmerged > 0) {
     previous_row = 0;
@@ -311,7 +310,7 @@ void SparseMatrix<_Tp>::convertMAP2CSR()
 
   // clear matrixMap and reduce memory to zero
   coo_mmp().swap(matrixMap);
- 
+
   col_.resize(nnz);
   val_.resize(nnz);
 
@@ -427,61 +426,71 @@ void SparseMatrix<_Tp>::convertMAP2DIA()
   matrixFormat = SPARSE_MATRIX_FORMAT_DIA;
 }
 
-
-
 namespace jams {
-    namespace impl {
+  namespace impl {
 
-        template <typename MatType, typename VecType>
-        __attribute__((hot))
-        void __Xcsrmv_alpha_beta_trivial(const int& m, const MatType * const val, const int * const indx, const int * const ptrb, const int * const ptre, const VecType * const x,
-                                         VecType * y) {
-#if HAS_OMP
-#pragma omp parallel for default(none) shared(m, y) schedule(static, 8)
-#endif // HAS_OMP
-            for (auto i = 0; i < m; ++i) {  // iterate rows
-                auto sum = 0.0;
-                for (auto j = ptrb[i]; j < ptre[i]; ++j) {
-                    sum += x[indx[j]] * val[j];
-                }
-                y[i] = sum;
-            }
-        }
+    template<typename MatType, typename VecType>
+    __attribute__((hot))
+    void Xcsrmv_general_alpha_one_beta_zero(
+        const int &m,
+        const MatType *val,
+        const int *indx,
+        const int *ptrb,
+        const VecType *x,
+        VecType *y) {
 
-        template <typename MatType, typename VecType>
-        __attribute__((hot))
-        void __Xcsrmv_alpha_beta_general(const VecType& alpha, const VecType& beta, const int& m, const MatType * const val, const int * const indx, const int * const ptrb, const int * const ptre, const VecType * const x,
-                                         double * y) {
-#if HAS_OMP
-#pragma omp parallel for default(none) shared(y, m, alpha, beta)
-#endif // HAS_OMP
-            for (auto i = 0; i < m; ++i) {  // iterate rows
-                auto sum = 0.0;
-                for (auto j = ptrb[i]; j < ptre[i]; ++j) {
-                    sum += x[indx[j]]*val[j];
-                }
-                y[i] = beta * y[i] + alpha * sum;
-            }
+      #pragma omp parallel for schedule(static)
+      for (auto i = 0; i < m; ++i) {  // iterate rows
+        auto sum = 0.0;
+        for (auto j = ptrb[i]; j < ptrb[i + 1]; ++j) {
+          sum += x[indx[j]] * val[j];
         }
+        y[i] = sum;
+      }
     }
 
-    template <typename MatType, typename VecType>
-    void Xcsrmv(const char trans[1], const int m, const int n,
-                     const VecType alpha, const char descra[6], const MatType * const val,
-                     const int * const indx, const int * const ptrb, const int * const ptre, const VecType * const x,
-                     const VecType beta, VecType * y) {
+    template<typename MatType, typename VecType>
+    __attribute__((hot))
+    void Xcsrmv_general(
+        const VecType &alpha,
+        const VecType &beta,
+        const int &m,
+        const MatType *val,
+        const int *indx,
+        const int *ptrb,
+        const int *ptre,
+        const VecType *x,
+        double *y) {
 
-        if(descra[0] == 'G') {
-            // general matrix
-            if (alpha == 1.0 && beta == 0.0) {
-                jams::impl::__Xcsrmv_alpha_beta_trivial(m, val, indx, ptrb, ptre, x, y);
-            } else {
-                jams::impl::__Xcsrmv_alpha_beta_general(alpha, beta, m, val, indx, ptrb, ptre, x, y);
-            }
-        } else {
-            throw jams::unimplemented_error("symmetric jams_dcsrmv is unimplemented");
+      #pragma omp parallel for schedule(static)
+      for (auto i = 0; i < m; ++i) {  // iterate rows
+        auto sum = 0.0;
+        for (auto j = ptrb[i]; j < ptre[i]; ++j) {
+          sum += x[indx[j]] * val[j];
         }
+        y[i] = beta * y[i] + alpha * sum;
+      }
     }
+  }
+
+  template <typename MatType, typename VecType>
+  void Xcsrmv(const char trans[1], const int m, const int n,
+              const VecType alpha, const char descra[6], const MatType * const val,
+              const int * const indx, const int * const ptrb, const int * const ptre, const VecType * const x,
+              const VecType beta, VecType * y) {
+
+    // general matrix
+    if(descra[0] == 'G') {
+      if (alpha == 1.0 && beta == 0.0 && *ptre == *(ptrb + 1)) {
+        // for most CSR matrices ptrb and ptre are elements of the same array
+        jams::impl::Xcsrmv_general_alpha_one_beta_zero(m, val, indx, ptrb, x, y);
+      } else {
+        jams::impl::Xcsrmv_general(alpha, beta, m, val, indx, ptrb, ptre, x, y);
+      }
+    } else {
+      throw jams::unimplemented_error("symmetric jams_dcsrmv is unimplemented");
+    }
+  }
 }
 
 
