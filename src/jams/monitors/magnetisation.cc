@@ -44,19 +44,20 @@ void MagnetisationMonitor::update(Solver * solver) {
 
   std::vector<Vec3> magnetisation(::lattice->num_materials(), {0.0, 0.0, 0.0});
 
-  for (auto i = 0; i < num_spins; ++i) {
-    const auto type = lattice->atom_material_id(i);
-    for (auto j = 0; j < 3; ++j) {
-      magnetisation[type][j] += s(i, j);
-    }
-  }
-
-  for (auto type = 0; type < lattice->num_materials(); ++type) {
-    if (material_count_[type] == 0) continue;
-    for (auto j = 0; j < 3; ++j) {
-      magnetisation[type][j] /= static_cast<double>(material_count_[type]);
-    }
-  }
+#pragma omp parallel for default(none) shared(num_spins, magnetisation, lattice, s) schedule(static)
+        for (auto i = 0; i < num_spins; ++i) {
+            const auto type = lattice->atom_material_id(i);
+            for (auto j = 0; j < 3; ++j) {
+                magnetisation[type][j] += s(i, j);
+            }
+        }
+#pragma omp parallel for default(none) shared(num_spins, magnetisation, lattice, s) schedule(static)
+        for (auto type = 0; type < lattice->num_materials(); ++type) {
+            if (material_count_[type] == 0) continue;
+            for (auto j = 0; j < 3; ++j) {
+                magnetisation[type][j] /= static_cast<double>(material_count_[type]);
+            }
+        }
 
   tsv_file.width(12);
   tsv_file << std::scientific << solver->time() << "\t";
