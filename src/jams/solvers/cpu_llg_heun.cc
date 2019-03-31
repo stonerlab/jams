@@ -71,14 +71,14 @@ void HeunLLGSolver::run() {
 {
 
   if (physics_module_->temperature() > 0.0) {
-#pragma omp for
-    for (auto i = 0; i < num_spins; ++i) {
+#pragma omp for schedule(static)
+      for (auto i = 0; i < num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
         h(i, j) = (w(i,j) + h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
       }
     }
   } else {
-#pragma omp for
+#pragma omp for schedule(static)
     for (auto i = 0; i < num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
         h(i, j) = (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
@@ -86,7 +86,7 @@ void HeunLLGSolver::run() {
     }
   }
 
-#pragma omp for
+#pragma omp for schedule(static)
  for (auto i = 0; i < num_spins; ++i) {
    double sxh[3], rhs[3];
    double norm;
@@ -99,16 +99,18 @@ void HeunLLGSolver::run() {
     rhs[1] = sxh[1] + alpha(i) * (s(i, 2)*sxh[0] - s(i, 0)*sxh[2]);
     rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
 
-    for (auto j = 0; j < 3; ++j) {
+#pragma omp simd
+     for (auto j = 0; j < 3; ++j) {
       snew(i, j) = s(i, j) + 0.5*dt*rhs[j];
     }
 
-    for (auto j = 0; j < 3; ++j) {
+#pragma omp simd
+     for (auto j = 0; j < 3; ++j) {
       s(i, j) = s(i, j) + dt*rhs[j];
     }
 
     norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
-
+#pragma omp simd
     for (auto j = 0; j < 3; ++j) {
       s(i, j) = s(i, j)*norm;
     }
@@ -121,14 +123,14 @@ void HeunLLGSolver::run() {
     {
 
         if (physics_module_->temperature() > 0.0) {
-#pragma omp for
+#pragma omp for schedule(static)
             for (auto i = 0; i < num_spins; ++i) {
                 for (auto j = 0; j < 3; ++j) {
                     h(i, j) = (w(i, j) + h(i, j) + (physics_module_->applied_field(j)) * mus(i)) * gyro(i);
                 }
             }
         } else {
-#pragma omp for
+#pragma omp for schedule(static)
             for (auto i = 0; i < num_spins; ++i) {
                 for (auto j = 0; j < 3; ++j) {
                     h(i, j) = (h(i, j) + (physics_module_->applied_field(j)) * mus(i)) * gyro(i);
@@ -136,7 +138,7 @@ void HeunLLGSolver::run() {
             }
         }
 
-#pragma omp for
+#pragma omp for schedule(static)
         for (auto i = 0; i < num_spins; ++i) {
             double sxh[3], rhs[3];
             double norm;
@@ -149,12 +151,14 @@ void HeunLLGSolver::run() {
             rhs[1] = sxh[1] + alpha(i) * (s(i, 2) * sxh[0] - s(i, 0) * sxh[2]);
             rhs[2] = sxh[2] + alpha(i) * (s(i, 0) * sxh[1] - s(i, 1) * sxh[0]);
 
+#pragma omp simd
             for (auto j = 0; j < 3; ++j) {
                 s(i, j) = snew(i, j) + 0.5 * dt * rhs[j];
             }
 
             norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
 
+#pragma omp simd
             for (auto j = 0; j < 3; ++j) {
                 s(i, j) = s(i, j) * norm;
             }
