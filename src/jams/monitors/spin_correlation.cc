@@ -4,6 +4,7 @@
 #include "jams/core/globals.h"
 #include "spin_correlation.h"
 #include "jams/core/lattice.h"
+#include "jams/interface/openmp.h"
 
 using namespace std;
 
@@ -60,33 +61,44 @@ void SpinCorrelationMonitor::post_process() {
   }
 
   // calculate correlation function
+  const double eps = 1e-8;
 
-  using histo_map = std::map<double, Datum<double>, float_compare>;
-  histo_map out_of_plane_sz_corr_histogram_;
-  histo_map in_plane_sz_corr_histogram_;
+  auto comparison = [eps](const double& a, const double& b) { return definately_less_than(a, b, eps); };
+  using histo_map = std::map<double, Datum<double>, decltype(comparison)>;
 
-  const double eps = 1e-5;
+  histo_map out_of_plane_sz_corr_histogram_(comparison);
+  histo_map in_plane_sz_corr_histogram_(comparison);
+
   for (auto i = 0; i < globals::num_spins; ++i) {
 
-      const auto r_i = lattice->atom_position(i);
+    const auto r_i = lattice->atom_position(i);
 
     for (auto j = i + 1; j < globals::num_spins; ++j) {
-//      if (i == j) continue;
       const auto r_ij = lattice->displacement(r_i, lattice->atom_position(j));
 
-      // in the same column
-      if (abs(r_ij[0]) < eps && abs(r_ij[1]) < eps) {
-        for (auto t = 0; t < num_samples_; ++t) {
-          out_of_plane_sz_corr_histogram_[abs_sq(r_ij)].count++;
-          out_of_plane_sz_corr_histogram_[abs_sq(r_ij)].total += sz_data_(i, t) * sz_data_(j, t);
-        }
-      }
+      const auto do_out_of_plane = (approximately_zero(r_ij[0], eps) && approximately_zero(r_ij[1], eps));
+      const auto do_in_plane = (approximately_zero(r_ij[2], eps));
 
-      // in the same plane
-      if (abs(r_ij[2]) < eps) {
+      if (do_in_plane || do_out_of_plane) {
+
+        auto sum = 0.0;
+        #if HAS_OMP
+        #pragma parallel for reduction(+:sum)
+        #endif
         for (auto t = 0; t < num_samples_; ++t) {
-          in_plane_sz_corr_histogram_[abs_sq(r_ij)].count++;
-          in_plane_sz_corr_histogram_[abs_sq(r_ij)].total += sz_data_(i, t) * sz_data_(j, t);
+          sum += sz_data_(i, t) * sz_data_(j, t);
+        }
+
+        const auto r_ij_sq = abs_sq(r_ij);
+
+        if (do_in_plane) {
+          in_plane_sz_corr_histogram_[r_ij_sq].count += num_samples_;
+          in_plane_sz_corr_histogram_[r_ij_sq].total += sum;
+        }
+
+        if (do_out_of_plane) {
+          out_of_plane_sz_corr_histogram_[r_ij_sq].count += num_samples_;
+          out_of_plane_sz_corr_histogram_[r_ij_sq].total += sum;
         }
       }
     }
@@ -98,7 +110,7 @@ void SpinCorrelationMonitor::post_process() {
     for (auto x : out_of_plane_sz_corr_histogram_) {
       auto delta_r = sqrt(x.first);
       auto Czz = (x.second.total / double(x.second.count));
-      of << delta_r << "\t" << Czz << "\n";
+      of << std::fixed << delta_r << "\t" << std::scientific << Czz << "\n";
     }
   }
 
@@ -108,7 +120,7 @@ void SpinCorrelationMonitor::post_process() {
     for (auto x : in_plane_sz_corr_histogram_) {
         auto delta_r = sqrt(x.first);
         auto Czz = (x.second.total / double(x.second.count));
-        of << delta_r << "\t" << Czz << "\n";
+        of << std::fixed << delta_r << "\t" << std::scientific << Czz << "\n";
     }
   }
 }

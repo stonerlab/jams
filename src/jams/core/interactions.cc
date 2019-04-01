@@ -475,9 +475,9 @@ void neighbour_list_strict_checks(const InteractionList<Mat3>& list) {
 
             Mat3 J0 = std::accumulate(list[i].begin(), list[i].end(), kZeroMat3, lambda);
 
-            if ( !floats_are_equal(J0[0][0], motif_position_total_exchange[pos][0][0])
-              || !floats_are_equal(J0[1][1], motif_position_total_exchange[pos][1][1])
-              || !floats_are_equal(J0[2][2], motif_position_total_exchange[pos][2][2])) {
+            if ( !approximately_equal(J0[0][0], motif_position_total_exchange[pos][0][0])
+              || !approximately_equal(J0[1][1], motif_position_total_exchange[pos][1][1])
+              || !approximately_equal(J0[2][2], motif_position_total_exchange[pos][2][2])) {
               throw runtime_error("inconsistent neighbour list: J0");
             }
           }

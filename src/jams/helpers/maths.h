@@ -6,6 +6,7 @@
 #include <complex>
 #include <algorithm>
 #include <cmath>
+#include <cfloat>
 
 #include "consts.h"
 
@@ -13,22 +14,38 @@
 #include "jams/containers/mat3.h"
 #include "jams/core/types.h"
 
-using std::pow;
+// for these floating point comparisons we always compare the difference with the larger
+// of the two numbers to
+template <typename T>
+inline bool approximately_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  return std::abs(a - b) <= (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
 
-inline bool floats_are_equal(const double& x , const double& y, const double eps = 1e-8) {
-  return std::abs(x - y) < eps;
+template <typename T>
+inline bool approximately_zero(const T& a, const T& epsilon = FLT_EPSILON) {
+  return std::abs(a) <= epsilon;
+}
+
+template <typename T>
+inline bool definately_greater_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  return (a - b) > (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
+template <typename T>
+inline bool definately_less_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  return (b - a) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 inline double zero_safe_recip_norm(double x, double y, double z) {
-  if (x == 0.0 && y == 0.0 && z == 0.0) {
+  if (approximately_zero(x) && approximately_zero(y) && approximately_zero(z)) {
     return 0.0;
   }
 
-  return 1.0 / sqrt(x*x + y*y + z*z);
+  return 1.0 / sqrt(x * x + y * y + z * z);
 }
 
 inline double square(const double &x) {
-  return x*x;
+  return x * x;
 }
 
 template <typename T>
@@ -150,11 +167,6 @@ inline _Tp1 sign(const _Tp1 &x, const _Tp2 &y) {
 template <typename _Tp1, typename _Tp2>
 inline bool same_sign(const _Tp1 x, const _Tp2 y) {
   return (x >= 0) ^ (y < 0);
-}
-
-inline bool equal(const double x, const double y, const double tolerance = 1e-8) {
-  using std::abs;
-  return same_sign(x, y) && (abs(x - y) < tolerance);
 }
 
 ///

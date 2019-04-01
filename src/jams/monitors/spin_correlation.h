@@ -24,13 +24,6 @@ private:
         unsigned count = 0;
     };
 
-    struct float_compare {
-        bool operator()(const double &x, const double &y) const {
-          return (x < y) && std::abs( x - y ) > 1e-5;
-        };
-    };
-
-
     unsigned num_samples_;
     unsigned time_point_counter_ = 0;
 
