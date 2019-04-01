@@ -48,7 +48,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
       auto Jij = nbr.second[0][0];
       auto r_i = lattice->atom_position(i);
       auto r_j = lattice->atom_position(j);
-      interaction_matrix.insertValue(i, j, lattice->displacement(r_i, r_j) * Jij);
+      interaction_matrix.insertValue(i, j, lattice->displacement(i, j) * Jij);
     }
   }
 

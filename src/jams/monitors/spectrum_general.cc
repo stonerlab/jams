@@ -174,7 +174,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
       if (is_vacancy[j]) continue;
       for (unsigned n = 0; n < qvecs.size(); ++n) {
         // precalculate the exponential factors for the spatial fourier transform
-        const auto qfactors = generate_expQR(qvecs[n], lattice->displacement(r[j], r[i]));
+        const auto qfactors = generate_expQR(qvecs[n], lattice->displacement(j, i));
 
         OMP_PARALLEL_FOR
         for (unsigned w = 0; w < padded_size_ / 2 + 1; ++w) {

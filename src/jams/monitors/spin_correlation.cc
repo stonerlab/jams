@@ -70,11 +70,8 @@ void SpinCorrelationMonitor::post_process() {
   histo_map in_plane_sz_corr_histogram_(comparison);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-
-    const auto r_i = lattice->atom_position(i);
-
     for (auto j = i + 1; j < globals::num_spins; ++j) {
-      const auto r_ij = lattice->displacement(r_i, lattice->atom_position(j));
+      const auto r_ij = lattice->displacement(i, j);
 
       const auto do_out_of_plane = (approximately_zero(r_ij[0], eps) && approximately_zero(r_ij[1], eps));
       const auto do_in_plane = (approximately_zero(r_ij[2], eps));

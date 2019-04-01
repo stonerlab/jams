@@ -122,7 +122,7 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
 
 //      for (unsigned n = 0; n < qvecs.size(); ++n) {
 //       precalculate the exponential factors for the spatial fourier transform
-        const auto qfactors = generate_expQR_float(qvecs, lattice->displacement(r[j], r[i]));
+        const auto qfactors = generate_expQR_float(qvecs, lattice->displacement(j, i));
 
 
       CHECK_CUDA_STATUS(cudaMemcpy(dev_qfactors, qfactors.data(),

@@ -19,7 +19,7 @@ extern "C"{
 #include <string>
 #include <utility>
 #include <functional>
-#include <cfloat>
+#include <cmath>
 #include <pcg/pcg_random.hpp>
 
 #include "H5Cpp.h"
@@ -162,7 +162,11 @@ Lattice::atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom>
 
 Vec3
 Lattice::displacement(const Vec3 &r_i, const Vec3 &r_j) const {
-  return minimum_image(supercell, r_i, r_j);
+  return displacement_calculator(r_i, r_j);
+}
+
+Vec3 Lattice::displacement(const unsigned &i, const unsigned &j) const {
+  return displacement_calculator(i, j);
 }
 
 Vec3
@@ -588,6 +592,12 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
         }
       }
     }
+  }
+
+  displacement_calculator = DisplacementCalculator(supercell);
+
+  for (const auto& a : atoms_) {
+    displacement_calculator.insert(a.pos);
   }
 
   if (atom_counter == 0) {
@@ -1099,5 +1109,4 @@ unsigned Lattice::atom_motif_position(const int &i) const {
 bool Lattice::has_impurities() const {
     return !impurity_map_.empty();
 }
-
 

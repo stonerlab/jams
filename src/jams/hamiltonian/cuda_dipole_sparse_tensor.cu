@@ -60,7 +60,7 @@ CudaDipoleHamiltonianSparseTensor::CudaDipoleHamiltonianSparseTensor(const libco
 
             if (j == i) continue;
 
-            auto r_ij = lattice->displacement(lattice->atom_position(i), lattice->atom_position(j));
+            auto r_ij = lattice->displacement(i, j);
 
             r_abs = abs(r_ij);
 
@@ -89,7 +89,7 @@ CudaDipoleHamiltonianSparseTensor::CudaDipoleHamiltonianSparseTensor(const libco
 
             if (j == i) continue;
 
-          auto r_ij = lattice->displacement(lattice->atom_position(i), lattice->atom_position(j));
+          auto r_ij = lattice->displacement(i, j);
 
             r_abs = abs(r_ij);
 

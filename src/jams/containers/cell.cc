@@ -4,12 +4,13 @@
 
 #include "cell.h"
 
-Vec3 minimum_image(const Cell& cell, const Vec3& r_i, const Vec3& r_j) {
+__attribute__((hot))
+Vec3 minimum_image(const Cell& cell, const Vec3& r_cart_i, const Vec3& r_cart_j) {
   // W. Smith, CCP5 Information Quarterly for Computer Simulation of Condensed Phases (1989).
-  Vec3 dr = cell.inverse_matrix() * (r_j - r_i);
+  Vec3 dr = cell.inverse_matrix() * (r_cart_j - r_cart_i);
   for (auto n = 0; n < 3; ++n) {
     if (cell.periodic(n)) {
-      dr[n] = dr[n] - trunc(2.0 * dr[n]);
+      dr[n] = dr[n] - std::trunc(2.0 * dr[n]);
     }
   }
   return cell.matrix() * dr;

@@ -168,10 +168,7 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
         const auto Jjk = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
         if (i > j || j > k || i > k) continue;
-        auto r_i = lattice->atom_position(i);
-        auto r_j = lattice->atom_position(j);
-        auto r_k = lattice->atom_position(k);
-        triads.push_back({i, j , k, Jij * Jjk * lattice->displacement(r_i, r_k)});
+        triads.push_back({i, j , k, Jij * Jjk * lattice->displacement(i, k)});
       }
     }
   }
@@ -188,10 +185,7 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
         const auto Jik = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
         if (i > j || j > k || i > k) continue;
-        auto r_i = lattice->atom_position(i);
-        auto r_j = lattice->atom_position(j);
-        auto r_k = lattice->atom_position(k);
-        triads.push_back({i, j , k, Jij * Jik * lattice->displacement(r_j, r_i)});
+        triads.push_back({i, j , k, Jij * Jik * lattice->displacement(j, i)});
       }
     }
   }
@@ -208,10 +202,7 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
         const auto Jjk = nbr_j.second[0][0];
         if (i == j || j == k || i == k) continue;
         if (i > j || j > k || i > k) continue;
-        auto r_i = lattice->atom_position(i);
-        auto r_j = lattice->atom_position(j);
-        auto r_k = lattice->atom_position(k);
-        triads.push_back({i, j , k, Jik * Jjk * lattice->displacement(r_k, r_j)});
+        triads.push_back({i, j , k, Jik * Jjk * lattice->displacement(k, j)});
       }
     }
   }
