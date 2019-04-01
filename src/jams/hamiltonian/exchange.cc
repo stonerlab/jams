@@ -132,7 +132,9 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 double ExchangeHamiltonian::calculate_total_energy() {
   double total_energy = 0.0;
 
-#pragma omp parallel for reduction(+:total_energy)
+  #if HAS_OMP
+  #pragma omp parallel for reduction(+:total_energy)
+  #endif
     for (int i = 0; i < globals::num_spins; ++i) {
         total_energy += calculate_one_spin_energy(i);
     }

@@ -88,7 +88,9 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
   const bool is_open = !lattice->is_periodic(0) && !lattice->is_periodic(1) && !lattice->is_periodic(2);
 
   double hx = 0, hy = 0, hz = 0;
-#pragma omp parallel for reduction(+:hx, hy, hz)
+  #if HAS_OMP
+  #pragma omp parallel for reduction(+:hx, hy, hz)
+  #endif
   for (auto j = 0; j < globals::num_spins; ++j) {
     if (j == i) continue;
 

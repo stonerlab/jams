@@ -26,7 +26,9 @@ void SpinTemperatureMonitor::update(Solver * solver) {
   double sum_s_dot_h = 0.0;
   double sum_s_cross_h = 0.0;
 
-#pragma omp parallel for reduction(+:sum_s_cross_h, sum_s_dot_h)
+  #if HAS_OMP
+  #pragma omp parallel for reduction(+:sum_s_cross_h, sum_s_dot_h)
+  #endif
   for (auto i = 0; i < num_spins; ++i) {
     const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
     const Vec3 field = {h(i,0), h(i,1), h(i,2)};
