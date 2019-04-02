@@ -33,6 +33,11 @@ Mat<T,3,3> diagonal_matrix(const T& a) {
 }
 
 template <typename T>
+Vec<T,3> diag(const Mat<T,3,3>& a) {
+  return {a[0][0], a[1][1], a[2][2]};
+}
+
+template <typename T>
 Mat<T,3,3> ssc(const Vec<T,3> &v) {
   // skew symmetric cross product matrix
   return {0, -v[2], v[1], v[2], 0, -v[0], -v[1], v[0], 0};
