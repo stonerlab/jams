@@ -12,7 +12,7 @@
 namespace jams {
     struct Simulation {
         std::string name;
-        bool verbose = jams::default_sim_verbose_output;
+        bool verbose = jams::defaults::sim_verbose_output;
 
         std::string config_file_name;
         std::string config_patch_string;

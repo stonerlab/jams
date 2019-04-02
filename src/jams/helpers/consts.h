@@ -5,7 +5,6 @@
 
 #include <complex>
 
-const double kEps                   = 1e-5; // small number for comparing floats
 const double kZero                  = 0.0;
 const double kOne                   = 1.0;
 const double kTwo                   = 2.0;

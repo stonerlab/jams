@@ -23,7 +23,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   Solver::initialize(settings);
 
   max_steps_ = jams::config_required<int>(settings, "max_steps");
-  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::default_solver_min_steps);
+  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
 
   use_total_energy_ = jams::config_optional<bool>(settings, "use_total_energy", false);
   is_preconditioner_enabled_ = settings.exists("preconditioner_theta") || settings.exists("preconditioner_phi");

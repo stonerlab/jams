@@ -52,7 +52,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
   }
   applied_field_ = field;
 
-  output_step_freq_ = jams::config_optional<int>(physics_settings, "output_steps", jams::default_monitor_output_steps);
+  output_step_freq_ = jams::config_optional<int>(physics_settings, "output_steps", jams::defaults::monitor_output_steps);
 
   Vec3 origin;
   double radius;
@@ -80,7 +80,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 
 Physics* Physics::create(const libconfig::Setting &settings) {
 
-  std::string module_name = jams::default_physics_module;
+  std::string module_name = jams::defaults::physics_module;
   settings.lookupValue("module", module_name);
   module_name = lowercase(module_name);
 

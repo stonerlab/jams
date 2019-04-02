@@ -60,7 +60,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     }
     cout << "interaction energy cutoff" << energy_cutoff_ << "\n";
 
-    distance_tolerance_ = 1e-6; // fractional coordinate units
+    distance_tolerance_ = jams::defaults::lattice_tolerance; // fractional coordinate units
     if (settings.exists("distance_tolerance")) {
         distance_tolerance_ = settings["distance_tolerance"];
     }

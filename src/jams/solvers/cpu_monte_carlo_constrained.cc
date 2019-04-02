@@ -23,12 +23,12 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   Solver::initialize(settings);
 
   max_steps_ = jams::config_required<int>(settings, "max_steps");
-  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::default_solver_min_steps);
+  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
 
   constraint_theta_        = jams::config_required<double>(settings, "cmc_constraint_theta");
   constraint_phi_          = jams::config_required<double>(settings, "cmc_constraint_phi");
-  move_angle_sigma_        = jams::config_optional<double>(settings, "move_angle_sigma", jams::default_solver_monte_carlo_move_sigma);
-  output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::default_monitor_output_steps);
+  move_angle_sigma_        = jams::config_optional<double>(settings, "move_angle_sigma", jams::defaults::solver_monte_carlo_move_sigma);
+  output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::defaults::monitor_output_steps);
 
   constraint_vector_       = cartesian_from_spherical(1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
   inverse_rotation_matrix_ = rotation_matrix_y(deg_to_rad(constraint_theta_)) * rotation_matrix_z(deg_to_rad(constraint_phi_));
@@ -95,7 +95,7 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   }
 
   for (int n = 0; n < 3; ++n) {
-    if (!approximately_equal(test_unit_vec[n], test_back_vec[n], 1e-8)) {
+    if (!approximately_equal(test_unit_vec[n], test_back_vec[n], jams::defaults::solver_monte_carlo_constraint_tolerance)) {
       throw std::runtime_error("ConstrainedMCSolver :: rotation sanity check failed");
     }
   }
@@ -274,13 +274,13 @@ Vec3 ConstrainedMCSolver::total_transformed_magnetization() const {
 void ConstrainedMCSolver::validate_constraint() const {
     Vec3 m_total = total_transformed_magnetization();
 
-   if (!approximately_equal(rad_to_deg(azimuthal_angle(m_total)), constraint_theta_, 1e-8)) {
+   if (!approximately_equal(rad_to_deg(azimuthal_angle(m_total)), constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
      std::stringstream ss;
      ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint violated (" << rad_to_deg(azimuthal_angle(m_total)) << " deg)";
      throw std::runtime_error(ss.str());
    }
 
-   if (!approximately_equal(rad_to_deg(polar_angle(m_total)), constraint_phi_, 1e-8)) {
+   if (!approximately_equal(rad_to_deg(polar_angle(m_total)), constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
      std::stringstream ss;
      ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint violated (" << rad_to_deg(polar_angle(m_total)) << " deg)";
    }

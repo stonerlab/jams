@@ -47,7 +47,7 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   cout << "  copy num_spins to symbol\n";
   CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_num_spins, &globals::num_spins, sizeof(unsigned int)));
 
-  std::string thermostat_name = jams::config_optional<string>(config->lookup("solver"), "thermostat", jams::default_solver_gpu_thermostat);
+  std::string thermostat_name = jams::config_optional<string>(config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
   thermostat_ = Thermostat::create(thermostat_name);
 
   cout << "  thermostat " << thermostat_name.c_str() << "\n";

@@ -61,7 +61,7 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
 : HamiltonianStrategy(settings, size),
   dev_stream_(),
   r_cutoff_(0),
-  distance_tolerance_(1e-6),
+  distance_tolerance_(jams::defaults::lattice_tolerance),
   h_(3*globals::num_spins),
   kspace_size_({0, 0, 0}),
   kspace_padded_size_({0, 0, 0}),

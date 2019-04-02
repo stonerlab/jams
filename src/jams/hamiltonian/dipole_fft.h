@@ -34,7 +34,7 @@ private:
     bool check_symmetry_ = true;
 
     double r_cutoff_ = 0.0;
-    double r_distance_tolerance_ = 1e-6;
+    double r_distance_tolerance_ = jams::defaults::lattice_tolerance;
 
     jblib::Array<double, 4> rspace_s_;
     jblib::Array<double, 4> rspace_h_;

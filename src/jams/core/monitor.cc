@@ -40,11 +40,11 @@ using jams::config_optional;
 Monitor::Monitor(const Setting &settings)
 : Base(settings),
   output_step_freq_(
-          config_optional<int>(settings, "output_steps", jams::default_monitor_output_steps)),
+          config_optional<int>(settings, "output_steps", jams::defaults::monitor_output_steps)),
   convergence_is_on_(
           settings.exists("convergence")),
   convergence_tolerance_(
-          config_optional<double>(settings, "convergence", jams::default_monitor_convergence_tolerance)),
+          config_optional<double>(settings, "convergence", jams::defaults::monitor_convergence_tolerance)),
   convergence_stderr_(
           0.0),
   convergence_burn_time_(config_optional<double>(settings, "t_burn", 0.0))
