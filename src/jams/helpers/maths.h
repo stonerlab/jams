@@ -12,13 +12,28 @@
 
 #include "jams/containers/vec3.h"
 #include "jams/containers/mat3.h"
-#include "jams/core/types.h"
 
 // for these floating point comparisons we always compare the difference with the larger
 // of the two numbers to
 template <typename T>
 inline bool approximately_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  // check if a - b is close to zero (in which case the relative difference doesn't work
+  if (std::abs(a - b) <= epsilon) return true;
+
+  // do relative size comparison
   return std::abs(a - b) <= (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
+// Vec3 specialization
+template <typename T>
+inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& epsilon = FLT_EPSILON) {
+//  return approximately_equal(a[0], b[0], epsilon) && approximately_equal(a[1], b[1], epsilon) && approximately_equal(a[2], b[2], epsilon);
+  for (auto n = 0; n < 3; ++n) {
+    if (!approximately_equal(a[n], b[n], epsilon)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 template <typename T>
