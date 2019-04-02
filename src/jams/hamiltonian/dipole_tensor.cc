@@ -67,7 +67,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
                         // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
                         // so detect based on r_abs rather than i == j
-                        if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
+                      if (definately_greater_than(r_abs, r_cutoff_, jams::defaults::lattice_tolerance) || unlikely(approximately_zero(r_abs, jams::defaults::lattice_tolerance))) continue;
 
                         r_hat = r_ij / r_abs;
 

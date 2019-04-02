@@ -50,7 +50,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   settings.lookupValue("radius_cutoff", radius_cutoff_);
   cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
 
-  distance_tolerance_ = 1e-3; // fractional coordinate units
+  distance_tolerance_ = jams::defaults::lattice_tolerance; // fractional coordinate units
   settings.lookupValue("distance_tolerance", distance_tolerance_);
   cout << "    distance_tolerance " << distance_tolerance_ << "\n";
 

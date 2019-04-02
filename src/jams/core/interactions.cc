@@ -29,7 +29,7 @@ namespace { //anon
 
       for (auto const &J : interactions) {
         auto new_J = J;
-        auto symmetric_points = lattice->generate_symmetric_points(new_J.r_ij, 1e-5);
+        auto symmetric_points = lattice->generate_symmetric_points(new_J.r_ij, jams::defaults::lattice_tolerance);
         for (const auto p : symmetric_points) {
           new_J.r_ij = p;
           symops_interaction_data.push_back(new_J);
@@ -47,22 +47,20 @@ namespace { //anon
       return lattice->material_name(lattice->atom_material_id(spin_index));
     }
 
-    int find_motif_index(const Vec3 &offset, const double tolerance = 1e-5) {
+    int find_motif_index(const Vec3 &offset, const double tolerance = jams::defaults::lattice_tolerance) {
       // find which unit_cell position this offset corresponds to
       // it is possible that it does not correspond to a position in which case the
       // -1 is returned
       for (int k = 0; k < lattice->num_motif_atoms(); ++k) {
         auto pos = lattice->motif_atom(k).pos;
-        if (   abs(pos[0] - offset[0]) < tolerance
-            && abs(pos[1] - offset[1]) < tolerance
-            && abs(pos[2] - offset[2]) < tolerance) {
+        if (approximately_equal(pos, offset, tolerance)) {
           return k;
         }
       }
       return -1;
     }
 
-    Vec3 round_to_integer_lattice(const Vec3 &q_ij, const double tolerance = 1e-6) {
+    Vec3 round_to_integer_lattice(const Vec3 &q_ij, const double tolerance = jams::defaults::lattice_tolerance) {
       Vec3 u_ij;
       for (int k = 0; k < 3; ++k) {
         u_ij[k] = floor(q_ij[k] + tolerance);
@@ -307,11 +305,13 @@ post_process_interactions(vector<InteractionData> &interactions, const Interacti
 
   // apply any predicates
   if (energy_cutoff > 0.0) {
-    apply_predicate(interactions, [&](InteractionData J) -> bool {return max_norm(J.J_ij) < energy_cutoff;});
+    apply_predicate(interactions, [&](InteractionData J) -> bool {
+      return definately_less_than(max_norm(J.J_ij), energy_cutoff);});
   }
 
   if (energy_cutoff > 0.0) {
-    apply_predicate(interactions, [&](InteractionData J) -> bool {return abs(J.r_ij) > (radius_cutoff + 1e-5);});
+    apply_predicate(interactions, [&](InteractionData J) -> bool {
+      return definately_greater_than(abs(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
   }
 
   // complete any missing data (i.e. type names or unit cell positions
@@ -475,9 +475,7 @@ void neighbour_list_strict_checks(const InteractionList<Mat3>& list) {
 
             Mat3 J0 = std::accumulate(list[i].begin(), list[i].end(), kZeroMat3, lambda);
 
-            if ( !approximately_equal(J0[0][0], motif_position_total_exchange[pos][0][0])
-              || !approximately_equal(J0[1][1], motif_position_total_exchange[pos][1][1])
-              || !approximately_equal(J0[2][2], motif_position_total_exchange[pos][2][2])) {
+            if (!approximately_equal(diag(J0), diag(motif_position_total_exchange[pos]), 1e-6)){
               throw runtime_error("inconsistent neighbour list: J0");
             }
           }

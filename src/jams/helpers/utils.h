@@ -16,6 +16,7 @@
 
 #include "jams/containers/vec3.h"
 #include "jams/containers/mat3.h"
+#include "jams/helpers/maths.h"
 
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
@@ -122,9 +123,9 @@ inline int periodic_shift(const int x, const int dimx) {
 std::string word_wrap(const char *text, size_t line_length);
 
 template <typename T>
-bool vec_exists_in_container(const T& container, const Vec3& v1, const double tolerance = 1e-6) {
+bool vec_exists_in_container(const T& container, const Vec3& v1, const double tolerance = FLT_EPSILON) {
   auto it = std::find_if(container.begin(),container.end(), [&](const Vec3& v2) {
-      return equal(v1, v2, tolerance);
+      return approximately_equal(v1, v2, tolerance);
   });
 
   if (it == container.end()) {

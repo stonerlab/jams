@@ -87,16 +87,6 @@ inline bool equal(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
 }
 
 template <typename T>
-inline bool equal(const Vec<T,3>& lhs, const Vec<T,3>& rhs, const double eps) {
-  for (auto n = 0; n < 3; ++n) {
-    if (std::abs(lhs[n] - rhs[n]) > eps) {
-      return false;
-    }
-  }
-  return true;
-}
-
-template <typename T>
 inline bool operator==(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
   return equal(lhs, rhs);
 }

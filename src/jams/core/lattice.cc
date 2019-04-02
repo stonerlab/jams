@@ -219,7 +219,7 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
   set_verbose(jams::config_optional<bool>(cfg.lookup("lattice"), "verbose", false));
   set_debug(jams::config_optional<bool>(cfg.lookup("lattice"), "debug", false));
 
-  symops_enabled_ = jams::config_optional<bool>(cfg.lookup("unitcell"), "symops", jams::default_unitcell_symops);
+  symops_enabled_ = jams::config_optional<bool>(cfg.lookup("unitcell"), "symops", jams::defaults::unitcell_symops);
 
   cout << "  symops " << symops_enabled_ << "\n";
 
@@ -231,8 +231,8 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
 
   if (symops_enabled_) {
 
-    if (motif_.size() > jams::warning_unitcell_symops_size) {
-      jams_warning("symmetry calculation may be slow as unit cell has more than %d atoms and symops is turned on", jams::warning_unitcell_symops_size);
+    if (motif_.size() > jams::defaults::warning_unitcell_symops_size) {
+      jams_warning("symmetry calculation may be slow as unit cell has more than %d atoms and symops is turned on", jams::defaults::warning_unitcell_symops_size);
     }
 
     calc_symmetry_operations();
@@ -393,7 +393,7 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
 }
 
 void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
-  lattice_periodic = jams::config_optional<Vec3b>(settings, "periodic", jams::default_lattice_periodic_boundaries);
+  lattice_periodic = jams::config_optional<Vec3b>(settings, "periodic", jams::defaults::lattice_periodic_boundaries);
   lattice_dimensions = jams::config_required<Vec3i>(settings, "size");
 
   cout << "  lattice\n";
@@ -460,10 +460,22 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   cout << "  motif positions " << position_filename << "\n";
   cout << "  format " << cfg_coordinate_format_name << "\n";
 
+  DisplacementCalculator calc(unitcell);
   for (const Atom &atom: motif_) {
     cout << "    " << atom.id << " " <<  materials_.name(atom.material) << " " << atom.pos << "\n";
+    calc.insert(atom.pos);
   }
   cout << "\n";
+
+
+
+  for (auto i = 0; i < motif_.size(); ++i) {
+    for (auto j = i + 1; j < motif_.size(); ++j) {
+      if(!definately_greater_than(abs(calc(i, j)), jams::defaults::lattice_tolerance)) {
+        throw std::runtime_error("motif positions " + std::to_string(i) + " and " + std::to_string(j) + " are closer than the default lattice tolerance");
+      }
+    }
+  }
 
 }
 
@@ -475,7 +487,7 @@ void Lattice::global_rotation(const Mat3& rotation_matrix) {
 
   auto volume_after = ::volume(unitcell);
 
-  if (std::abs(volume_before - volume_after) > 1e-6) {
+  if (!approximately_equal(volume_before, volume_after, pow3(jams::defaults::lattice_tolerance))) {
     jams_die("unitcell volume has changed after rotation");
   }
 
@@ -512,7 +524,7 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
   supercell = rotate(supercell, global_orientation_matrix_);
   auto volume_after = ::volume(unitcell);
 
-  if (std::abs(volume_before - volume_after) > 1e-6) {
+  if (!approximately_equal(volume_before, volume_after, pow3(jams::defaults::lattice_tolerance))) {
     jams_die("unitcell volume has changed after rotation");
   }
 
@@ -769,7 +781,7 @@ void Lattice::calc_symmetry_operations() {
     spg_types[i] = motif_[i].material;
   }
 
-  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, motif_.size(), 1e-5);
+  spglib_dataset_ = spg_get_dataset(spg_lattice, spg_positions, spg_types, motif_.size(), jams::defaults::lattice_tolerance);
 
   if (spglib_dataset_ == nullptr) {
     symops_enabled_ = false;
@@ -874,7 +886,7 @@ void Lattice::calc_symmetry_operations() {
     primitive_types[i] = spg_types[i];
   }
 
-  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, motif_.size(), 1e-5);
+  primitive_num_atoms = spg_find_primitive(primitive_lattice, primitive_positions, primitive_types, motif_.size(), jams::defaults::lattice_tolerance);
 
   // spg_find_primitive returns number of atoms in primitve cell
   if (primitive_num_atoms != motif_.size()) {
@@ -1016,7 +1028,7 @@ double Lattice::max_interaction_radius() const {
   return 0.0;
 }
 
-std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3 &r_cart, const double &tolerance = 1e-6) const {
+std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3 &r_cart, const double &tolerance = jams::defaults::lattice_tolerance) const {
 
   const auto r_frac = cartesian_to_fractional(r_cart);
   std::vector<Vec3> symmetric_points;
@@ -1033,7 +1045,7 @@ std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3 &r_cart, const d
   return symmetric_points;
 }
 
-bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double &tolerance = 1e-6) const {
+bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double &tolerance = jams::defaults::lattice_tolerance) const {
   for (const auto r : points) {
     for (const auto r_sym : generate_symmetric_points(r, tolerance)) {
       if (!vec_exists_in_container(points, r_sym, tolerance)) {
