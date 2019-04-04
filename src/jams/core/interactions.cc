@@ -15,9 +15,6 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/exception.h"
 
-#include "jblib/containers/vec.h"
-#include "jblib/containers/matrix.h"
-
 void neighbour_list_strict_checks(const InteractionList<Mat3>& list);
 
 using namespace std;

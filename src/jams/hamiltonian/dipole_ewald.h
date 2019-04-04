@@ -12,7 +12,6 @@
 #include "jams/containers/sparsematrix.h"
 #include "strategy.h"
 #include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
 
 
 class DipoleHamiltonianEwald : public HamiltonianStrategy {
@@ -46,8 +45,8 @@ class DipoleHamiltonianEwald : public HamiltonianStrategy {
 
         SparseMatrix<double>          local_interaction_matrix_;
 
-        jblib::Vec3<int> kspace_size_;
-        jblib::Vec3<int> kspace_padded_size_;
+        Vec3i kspace_size_;
+        Vec3i kspace_padded_size_;
 
         jblib::Array<double, 4> h_nonlocal_;
         jblib::Array<double, 4> s_nonlocal_;

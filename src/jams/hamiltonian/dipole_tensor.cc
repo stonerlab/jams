@@ -4,8 +4,6 @@
 #include <algorithm>
 
 #include "jams/core/lattice.h"
-#include "jblib/containers/matrix.h"
-#include "jblib/containers/vec.h"
 #include "jams/interface/blas.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
@@ -47,9 +45,6 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
     const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice->parameter(),3));
 
 
-    jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
-
-
     for (int i = 0; i < globals::num_spins; ++i) {
 
         for (int j = 0; j < globals::num_spins; ++j) {
@@ -73,7 +68,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
                         for (int m = 0; m < 3; ++m) {
                             for (int n = 0; n < 3; ++n) {
-                                dipole_tensor_(3*i + m, 3*j + n) += (3*r_hat[m]*r_hat[n] - Id[m][n])*prefactor*globals::mus(i)*globals::mus(j)/pow(r_abs,3);
+                                dipole_tensor_(3*i + m, 3*j + n) += (3*r_hat[m]*r_hat[n] - kIdentityMat3[m][n])*prefactor*globals::mus(i)*globals::mus(j)/pow(r_abs,3);
                             }
                         }
                     }

@@ -5,7 +5,6 @@
 
 #include "jams/core/solver.h"
 
-#include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"
 
 #include <fstream>

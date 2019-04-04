@@ -12,7 +12,6 @@
 #include "jams/core/monitor.h"
 
 #include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
 
 class SkyrmionMonitor : public Monitor {
  public:

@@ -33,10 +33,8 @@ extern "C"{
 #include "jams/helpers/maths.h"
 #include "jams/helpers/utils.h"
 #include "jams/containers/neartree.h"
-#include "jblib/containers/vec.h"
 
 #include "jblib/containers/array.h"
-#include "jblib/containers/matrix.h"
 #include "lattice.h"
 
 

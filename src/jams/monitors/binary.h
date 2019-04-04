@@ -12,7 +12,6 @@
 #include "jams/core/types.h"
 
 #include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
 
 class BinaryMonitor : public Monitor {
  public:

@@ -7,7 +7,6 @@
 #include <libconfig.h++>
 
 #include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
 
 #include "strategy.h"
 
@@ -40,8 +39,8 @@ private:
     jblib::Array<double, 4> rspace_h_;
     jblib::Array<double, 2> h_;
 
-    jblib::Vec3<unsigned>           kspace_size_ = {0, 0, 0};
-    jblib::Vec3<unsigned>           kspace_padded_size_ = {0, 0, 0};
+    std::array<unsigned,3>           kspace_size_ = {0, 0, 0};
+    std::array<unsigned,3>           kspace_padded_size_ = {0, 0, 0};
     jblib::Array<fftw_complex, 4>   kspace_s_;
     jblib::Array<fftw_complex, 4>   kspace_h_;
 

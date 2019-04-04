@@ -12,7 +12,6 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 
-#include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"
 
 

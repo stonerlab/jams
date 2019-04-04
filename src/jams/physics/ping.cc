@@ -8,9 +8,7 @@
 
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
-#include "jblib/containers/vec.h"
 #include "jblib/containers/array.h"
-#include "jblib/containers/matrix.h"
 
 
 PingPhysics::PingPhysics(const libconfig::Setting &settings)

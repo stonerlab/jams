@@ -5,7 +5,6 @@
 
 #include <fstream>
 #include <vector>
-#include <jblib/math/equalities.h>
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
@@ -28,8 +27,6 @@ class Slice {
       slice_size{0.0, 0.0, 0.0},
       slice_map() {
     using namespace globals;
-    using jblib::floats_are_greater_than_or_equal;
-    using jblib::floats_are_less_than_or_equal;
 
     for (int i = 0; i < 3; ++i) {
       slice_origin[i] = settings["origin"][i];
@@ -45,9 +42,9 @@ class Slice {
       Vec3 pos = lattice->atom_position(i);
 
             // check if the current spin in inside the slice
-      if (floats_are_greater_than_or_equal(pos[0], slice_origin[0]) && floats_are_less_than_or_equal(pos[0], slice_origin[0] + slice_size[0])
-        &&  floats_are_greater_than_or_equal(pos[1], slice_origin[1]) && floats_are_less_than_or_equal(pos[1], slice_origin[1] + slice_size[1])
-        &&  floats_are_greater_than_or_equal(pos[2], slice_origin[2]) && floats_are_less_than_or_equal(pos[2], slice_origin[2] + slice_size[2])) {
+      if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)
+        &&  definately_greater_than(pos[1], slice_origin[1], jams::defaults::lattice_tolerance) && definately_less_than(pos[1], slice_origin[1] + slice_size[1], jams::defaults::lattice_tolerance)
+        &&  definately_greater_than(pos[2], slice_origin[2], jams::defaults::lattice_tolerance) && definately_less_than(pos[2], slice_origin[2] + slice_size[2], jams::defaults::lattice_tolerance)) {
         slice_map.push_back(i);
       }
     }

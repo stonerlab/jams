@@ -6,7 +6,6 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "random.h"
-#include "jblib/containers/vec.h"
 
 enum class MonteCarloMoveType {
     REFLECTION,

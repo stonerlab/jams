@@ -6,7 +6,6 @@
 #include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/maths.h"
-#include "jblib/containers/matrix.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
@@ -23,10 +22,9 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
     double r_abs;
     Vec3 r_ij, r_hat, s_j;
-    jblib::Vec3<int> pos;
-    jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
+    Vec3i pos;
 
-    jblib::Vec3<int> L_max(0, 0, 0);
+    Vec3i L_max = {0, 0, 0};
     Vec3 super_cell_dim = {0.0, 0.0, 0.0};
 
     surf_elec_ = 1.0;
@@ -90,7 +88,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     bool is_interacting = false;
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < globals::num_spins; ++j) {
-            jblib::Matrix<double, 3, 3> tensor(0, 0, 0, 0, 0, 0, 0, 0, 0);
+            Mat3 tensor = {0, 0, 0, 0, 0, 0, 0, 0, 0};
             is_interacting = false;
 
             // loop over periodic images of the simulation lattice
@@ -113,7 +111,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
                         for (int m = 0; m < 3; ++m) {
                             for (int n = 0; n < 3; ++n) {
-                                tensor[m][n] = ((3*r_hat[m]*r_hat[n] - Id[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)))
+                                tensor[m][n] = ((3*r_hat[m]*r_hat[n] - kIdentityMat3[m][n])*fG(r_abs, sigma_)/(pow(r_abs, 3)))
                                              - (r_hat[m]*r_hat[n]*pG(r_abs, sigma_));
                             }
                         }
@@ -227,7 +225,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                     }
                 }
 
-                kvec = {double(pos.x), double(pos.y), double(pos.z)};
+                kvec = {double(pos[0]), double(pos[1]), double(pos[2])};
 
                 // hack to multiply by inverse lattice vectors
                 kvec = lattice->cartesian_to_fractional(kvec);

@@ -20,7 +20,6 @@
 #include "hdf5.h"
 
 #include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
 
 using namespace std;
 

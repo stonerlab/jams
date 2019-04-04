@@ -11,8 +11,6 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 
-#include "jblib/math/functions.h"
-
 TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   : Physics(settings),
   pulseWidth(0),
