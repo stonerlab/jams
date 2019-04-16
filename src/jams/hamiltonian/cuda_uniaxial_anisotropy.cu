@@ -16,21 +16,19 @@ CudaUniaxialHamiltonian::CudaUniaxialHamiltonian(const libconfig::Setting &setti
   dev_power_ = jblib::CudaArray<unsigned, 1>(power_);
   dev_magnitude_ = jblib::CudaArray<double, 1>(magnitude_);
 
-  jblib::Array<double3, 1> tmp_axis(axis_.elements());
+  jblib::Array<double, 2> tmp_axis(axis_.elements(), 3);
 
   for (auto i = 0; i < axis_.elements(); ++i) {
-    tmp_axis[i] = {axis_[i][0], axis_[i][1], axis_[i][2]};
+    for (auto j = 0; j < 3; ++j) {
+      tmp_axis(i,j) = axis_[i][j];
+    }
   }
 
-  dev_axis_ = jblib::CudaArray<double3, 1>(tmp_axis);
-
-  CHECK_CUDA_STATUS(cudaStreamCreate(&dev_stream_));
-
-  dev_blocksize_ = 128;
+  dev_axis_ = jblib::CudaArray<double, 1>(tmp_axis);
 }
 
 void CudaUniaxialHamiltonian::calculate_fields() {
-  cuda_uniaxial_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
+  cuda_uniaxial_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_.get()>>>
             (globals::num_spins, num_coefficients_, dev_power_.data(), dev_magnitude_.data(), dev_axis_.data(), solver->dev_ptr_spin(), dev_field_.data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
