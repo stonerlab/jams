@@ -76,6 +76,13 @@ UniaxialHamiltonian::UniaxialHamiltonian(const Setting &settings, const unsigned
 
   auto anisotropies = read_all_anisotropy_settings(settings);
 
+  for (auto type = 0; type < lattice->num_materials(); ++type) {
+    std::cout << "  " << lattice->material_name(type) << ":\n";
+    for (const auto& ani : anisotropies[type]) {
+      std::cout << "    " << ani.axis << "  " << ani.power << "  " << ani.energy << "\n";
+    }
+  }
+
   num_coefficients_ = anisotropies[0].size();
 
   power_.resize(num_spins, anisotropies[0].size());
