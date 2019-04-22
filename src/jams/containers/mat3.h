@@ -7,7 +7,7 @@
 
 #include <array>
 #include <limits>
-#include "vec3.h"
+#include "jams/containers/vec3.h"
 
 template <typename T, std::size_t M, std::size_t N>
 using Mat = std::array<std::array<T, M>, N>;
