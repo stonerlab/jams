@@ -117,10 +117,7 @@ namespace jams {
     template<class T>
     void SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) {
       #if HAS_CUDA
-      if (size == 0) {
-        device_ptr_ = nullptr;
-        return;
-      }
+      if (size == 0) return;
 
       if (size > max_size_device()) {
         throw std::bad_alloc();
@@ -140,10 +137,7 @@ namespace jams {
 
     template<class T>
     void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
-      if (size == 0) {
-        host_ptr_ = nullptr;
-        return;
-      }
+      if (size == 0) return;
       #if HAS_CUDA
       if (cudaMallocHost(reinterpret_cast<void**>(&host_ptr_), size_ * sizeof(T)) != cudaSuccess) {
         throw std::bad_alloc();
