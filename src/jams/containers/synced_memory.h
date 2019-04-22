@@ -229,8 +229,8 @@ namespace jams {
 
     template<class T>
     inline void SyncedMemory<T>::zero_device() noexcept {
-      #if HAS_CUDA
       if (size_ == 0) return;
+      #if HAS_CUDA
       assert(device_ptr_);
       #if PRINT_MEMSET
         std::cout << "INFO(SyncedMemory): device zero" << std::endl;
@@ -242,6 +242,7 @@ namespace jams {
 
     template<class T>
     inline void SyncedMemory<T>::zero_host() noexcept {
+      if (size_ == 0) return;
       assert(host_ptr_);
       #if PRINT_MEMSET
         std::cout << "INFO(SyncedMemory): host zero" << std::endl;
