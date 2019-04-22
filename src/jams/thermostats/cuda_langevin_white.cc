@@ -23,9 +23,6 @@ using namespace std;
 
 CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),
-  is_synchronised_(false),
-  dev_noise_((3*num_spins+((3*num_spins)%2))),
-  dev_sigma_(num_spins),
   dev_rng_(nullptr),
   dev_stream_(nullptr) {
   cout << "\n  initialising CUDA Langevin white noise thermostat\n";
@@ -51,18 +48,12 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
     sigma_(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton * denominator) );
   }
 
-  cout << "    transfering sigma to device\n";
-  dev_sigma_ = jblib::CudaArray<double, 1>(sigma_);
-
-  is_synchronised_ = false;
-
   cout << "  done\n\n";
 }
 
 void CudaLangevinWhiteThermostat::update() {
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_noise_.data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
-  cuda_array_elementwise_scale(globals::num_spins, 3, dev_sigma_.data(), sqrt(this->temperature()), dev_noise_.data(), 1, dev_noise_.data(), 1, dev_stream_);
-  is_synchronised_ = false;
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, noise_.device_data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
+  cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), sqrt(this->temperature()), noise_.device_data(), 1, noise_.device_data(), 1, dev_stream_);
 }
 
 CudaLangevinWhiteThermostat::~CudaLangevinWhiteThermostat() {

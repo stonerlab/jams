@@ -26,6 +26,7 @@
 #include "jams/interface/config.h"
 #include "jams/helpers/timer.h"
 #include "jams/helpers/progress_bar.h"
+#include "jams/containers/multiarray.h"
 
 using namespace std;
 

@@ -68,10 +68,10 @@ double DipoleHamiltonianCpuBruteforce::calculate_one_spin_energy_difference(cons
 }
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianCpuBruteforce::calculate_energies(jblib::Array<double, 1>& energies) {
+void DipoleHamiltonianCpuBruteforce::calculate_energies(jams::MultiArray<double, 1>& energies) {
     assert(energies.size() == globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
-        energies[i] = calculate_one_spin_energy(i);
+        energies(i) = calculate_one_spin_energy(i);
     }
 }
 
@@ -123,7 +123,7 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianCpuBruteforce::calculate_fields(jblib::Array<double, 2>& fields) {
+void DipoleHamiltonianCpuBruteforce::calculate_fields(jams::MultiArray<double, 2>& fields) {
     for (int i = 0; i < globals::num_spins; ++i) {
         double h[3];
 

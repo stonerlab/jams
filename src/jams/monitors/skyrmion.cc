@@ -14,8 +14,6 @@
 #include "jams/helpers/maths.h"
 #include "skyrmion.h"
 
-#include "jblib/containers/array.h"
-
 SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;

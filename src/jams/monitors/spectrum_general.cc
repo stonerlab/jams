@@ -163,7 +163,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     }
   }
 
-  jblib::Array<Complex, 2> SQw(qvecs.size(), padded_size_/2+1);
+  jams::MultiArray<Complex, 2> SQw(qvecs.size(), padded_size_/2+1);
   SQw.zero();
 
   // generate spectrum looping over all i,j

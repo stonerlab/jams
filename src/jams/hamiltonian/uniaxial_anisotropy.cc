@@ -131,7 +131,7 @@ double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, co
 
 void UniaxialHamiltonian::calculate_energies() {
   for (int i = 0; i < energy_.size(); ++i) {
-    energy_[i] = calculate_one_spin_energy(i);
+    energy_(i) = calculate_one_spin_energy(i);
   }
 }
 

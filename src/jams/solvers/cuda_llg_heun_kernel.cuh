@@ -5,9 +5,6 @@
 
 #include "jams/cuda/cuda_common.h"
 
-__constant__ double dev_dt;
-__constant__ unsigned int dev_num_spins;
-
 __global__ void cuda_heun_llg_kernelA
 (
   double * s_dev,
@@ -16,7 +13,9 @@ __global__ void cuda_heun_llg_kernelA
   const double * h_dev,
   const double * noise_dev,
   const double * gyro_dev,
-  const double * alpha_dev
+  const double * alpha_dev,
+  const double dev_dt,
+  const unsigned dev_num_spins
 )
 {
   __shared__ double s[85 * 3];
@@ -32,7 +31,7 @@ __global__ void cuda_heun_llg_kernelA
   const unsigned int p1 = tx3 + ((ty + 1) % 3);
   const unsigned int p2 = tx3 + ((ty + 2) % 3);
 
-  const unsigned int gxy = 3 * idx + ty;
+  const unsigned int gxy = IDX2D(idx, ty, 85, 3);
 
   if (idx < dev_num_spins && ty < 3) {
     h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
@@ -62,7 +61,9 @@ __global__ void cuda_heun_llg_kernelB
   const double * h_dev,
   const double * noise_dev,
   const double * gyro_dev,
-  const double * alpha_dev
+  const double * alpha_dev,
+  const double dev_dt,
+  const unsigned dev_num_spins
 )
 {
   __shared__ double s[85 * 3];
@@ -78,7 +79,7 @@ __global__ void cuda_heun_llg_kernelB
   const unsigned int p1 = tx3 + ((ty + 1) % 3);
   const unsigned int p2 = tx3 + ((ty + 2) % 3);
 
-  const unsigned int gxy = 3 * idx + ty;
+  const unsigned int gxy = IDX2D(idx, ty, 85, 3);
 
   if (idx < dev_num_spins && ty < 3) {
     h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
@@ -111,14 +112,16 @@ inline double cuda_zero_safe_recip_norm_cuda(double x, double y, double z) {
 }
 
 __global__ void cuda_zero_safe_heun_llg_kernelA
-        (
+      (
                 double * s_dev,
                 double * ds_dt_dev,
                 const double * s_old_dev,
                 const double * h_dev,
                 const double * noise_dev,
                 const double * gyro_dev,
-                const double * alpha_dev
+                const double * alpha_dev,
+                const double dev_dt,
+                const unsigned dev_num_spins
         )
 {
   __shared__ double s[85 * 3];
@@ -164,7 +167,9 @@ __global__ void cuda_zero_safe_heun_llg_kernelB
                 const double * h_dev,
                 const double * noise_dev,
                 const double * gyro_dev,
-                const double * alpha_dev
+                const double * alpha_dev,
+                const double dev_dt,
+                const unsigned dev_num_spins
         )
 {
   __shared__ double s[85 * 3];

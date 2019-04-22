@@ -9,8 +9,7 @@
 #include <fstream>
 #include <vector>
 #include <complex>
-
-#include "jblib/containers/array.h"
+#include <jams/containers/multiarray.h>
 
 class SpectrumGeneralMonitor : public Monitor {
     friend class CudaSpectrumGeneralMonitor;
@@ -38,7 +37,7 @@ private:
     unsigned num_qpoints_ = 1;
     double   qmax_ = 0.0;
 
-    jblib::Array<std::complex<double>, 2> spin_data_;
+    jams::MultiArray<std::complex<double>, 2> spin_data_;
 };
 
 #endif //JAMS_SPECTRUM_GENERAL_H

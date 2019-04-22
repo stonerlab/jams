@@ -5,8 +5,6 @@
 
 #include "jams/core/solver.h"
 
-#include "jblib/containers/array.h"
-
 #include <fstream>
 #include <jams/core/types.h>
 #include <pcg/pcg_random.hpp>

@@ -16,8 +16,5 @@ public:
 
 private:
     cudaStream_t dev_stream_ = nullptr;
-        jblib::CudaArray<double, 1> dev_dc_local_field_;
-        jblib::CudaArray<double, 1> dev_ac_local_field_;
-        jblib::CudaArray<double, 1> dev_ac_local_frequency_;
 };
 #endif //JAMS_CUDA_ZEEMAN_H

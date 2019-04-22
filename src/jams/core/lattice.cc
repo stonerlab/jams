@@ -33,8 +33,6 @@ extern "C"{
 #include "jams/helpers/maths.h"
 #include "jams/helpers/utils.h"
 #include "jams/containers/neartree.h"
-
-#include "jblib/containers/array.h"
 #include "lattice.h"
 
 
@@ -549,21 +547,17 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 
   kspace_size_ = {kmesh_size[0], kmesh_size[1], kmesh_size[2]};
   kspace_map_.resize(kspace_size_[0], kspace_size_[1], kspace_size_[2]);
+  kspace_map_.fill(-1);
 
-
-  for (auto i = 0; i < product(kspace_size_); ++i) {
-    kspace_map_[i] = -1;
-  }
   cout << "\nkspace size " << kmesh_size << "\n";
 
 
   const auto expected_num_atoms = num_motif_atoms() * product(lattice_dimensions);
 
   lattice_map_.resize(this->size(0), this->size(1), this->size(2), this->num_motif_atoms());
-  for (auto i = 0; i < expected_num_atoms; ++i) {
-    // initialize everything to -1 so we can check for double assignment below
-    lattice_map_[i] = -1;
-  }
+  // initialize everything to -1 so we can check for double assignment below
+  lattice_map_.fill(-1);
+
 
   supercell_indicies_.reserve(expected_num_atoms);
   atoms_.reserve(expected_num_atoms);
@@ -660,8 +654,6 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   globals::alpha.resize(globals::num_spins);
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
-
-  globals::h.zero();
 
   bool use_gilbert_prefactor = jams::config_optional<bool>(config->lookup("solver"), "gilbert_prefactor", false);
 

@@ -14,6 +14,14 @@
 
 using namespace std;
 
+namespace jams {
+    namespace impl {
+        Vec3 normalized_spin(const Vec3& v) {
+          return v * zero_safe_recip_norm(v);
+        }
+    }
+}
+
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
@@ -58,8 +66,7 @@ void HeunLLGSolver::run() {
 
   if (physics_module_->temperature() > 0.0) {
 
-    std::generate(w.data(), w.data()+w.elements(),
-        [&](){return normal_distribution(random_generator_);});
+    std::generate(w.begin(), w.end(), [&](){return normal_distribution(random_generator_);});
 
     const auto sqrt_temperature = sqrt(physics_module_->temperature());
     OMP_PARALLEL_FOR
@@ -90,30 +97,46 @@ void HeunLLGSolver::run() {
   }
 
   OMP_PARALLEL_FOR
+//  for (auto i = 0; i < num_spins; ++i) {
+//   double sxh[3], rhs[3];
+//
+//    sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
+//    sxh[1] = s(i, 2)*h(i, 0) - s(i, 0)*h(i, 2);
+//    sxh[2] = s(i, 0)*h(i, 1) - s(i, 1)*h(i, 0);
+//
+//    rhs[0] = sxh[0] + alpha(i) * (s(i, 1)*sxh[2] - s(i, 2)*sxh[1]);
+//    rhs[1] = sxh[1] + alpha(i) * (s(i, 2)*sxh[0] - s(i, 0)*sxh[2]);
+//    rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
+//
+//     for (auto j = 0; j < 3; ++j) {
+//       snew(i, j) = s(i, j) + 0.5*dt*rhs[j];
+//    }
+//
+//     for (auto j = 0; j < 3; ++j) {
+//      s(i, j) = s(i, j) + dt*rhs[j];
+//    }
+//
+//    const auto norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
+//
+//    for (auto j = 0; j < 3; ++j) {
+//      s(i, j) = s(i, j)*norm;
+//    }
+//  }
+  OMP_PARALLEL_FOR
   for (auto i = 0; i < num_spins; ++i) {
-   double sxh[3], rhs[3];
+    const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
+    const Vec3 field = {h(i,0), h(i,1), h(i,2)};
 
-    sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
-    sxh[1] = s(i, 2)*h(i, 0) - s(i, 0)*h(i, 2);
-    sxh[2] = s(i, 0)*h(i, 1) - s(i, 1)*h(i, 0);
-
-    rhs[0] = sxh[0] + alpha(i) * (s(i, 1)*sxh[2] - s(i, 2)*sxh[1]);
-    rhs[1] = sxh[1] + alpha(i) * (s(i, 2)*sxh[0] - s(i, 0)*sxh[2]);
-    rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
-
-     for (auto j = 0; j < 3; ++j) {
-      snew(i, j) = s(i, j) + 0.5*dt*rhs[j];
-    }
-
-     for (auto j = 0; j < 3; ++j) {
-      s(i, j) = s(i, j) + dt*rhs[j];
-    }
-
-    const auto norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
+    const Vec3 rhs = cross(spin, field) + alpha(i) * cross(spin, (cross(spin, field)));
 
     for (auto j = 0; j < 3; ++j) {
-      s(i, j) = s(i, j)*norm;
+       snew(i, j) = spin[j] + 0.5*dt*rhs[j];
     }
+
+     for (auto j = 0; j < 3; ++j) {
+      s(i, j) = jams::impl::normalized_spin(spin + dt * rhs)[j];
+    }
+
   }
 
   Solver::compute_fields();
@@ -134,27 +157,40 @@ void HeunLLGSolver::run() {
     }
   }
 
+//  OMP_PARALLEL_FOR
+//  for (auto i = 0; i < num_spins; ++i) {
+//    double sxh[3], rhs[3];
+//
+//    sxh[0] = s(i, 1) * h(i, 2) - s(i, 2) * h(i, 1);
+//    sxh[1] = s(i, 2) * h(i, 0) - s(i, 0) * h(i, 2);
+//    sxh[2] = s(i, 0) * h(i, 1) - s(i, 1) * h(i, 0);
+//
+//    rhs[0] = sxh[0] + alpha(i) * (s(i, 1) * sxh[2] - s(i, 2) * sxh[1]);
+//    rhs[1] = sxh[1] + alpha(i) * (s(i, 2) * sxh[0] - s(i, 0) * sxh[2]);
+//    rhs[2] = sxh[2] + alpha(i) * (s(i, 0) * sxh[1] - s(i, 1) * sxh[0]);
+//
+//    for (auto j = 0; j < 3; ++j) {
+//      s(i, j) = snew(i, j) + 0.5 * dt * rhs[j];
+//    }
+//
+//    const auto norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
+//
+//    for (auto j = 0; j < 3; ++j) {
+//      s(i, j) = s(i, j) * norm;
+//    }
+//  }
+
   OMP_PARALLEL_FOR
   for (auto i = 0; i < num_spins; ++i) {
-    double sxh[3], rhs[3];
-
-    sxh[0] = s(i, 1) * h(i, 2) - s(i, 2) * h(i, 1);
-    sxh[1] = s(i, 2) * h(i, 0) - s(i, 0) * h(i, 2);
-    sxh[2] = s(i, 0) * h(i, 1) - s(i, 1) * h(i, 0);
-
-    rhs[0] = sxh[0] + alpha(i) * (s(i, 1) * sxh[2] - s(i, 2) * sxh[1]);
-    rhs[1] = sxh[1] + alpha(i) * (s(i, 2) * sxh[0] - s(i, 0) * sxh[2]);
-    rhs[2] = sxh[2] + alpha(i) * (s(i, 0) * sxh[1] - s(i, 1) * sxh[0]);
+    const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
+    const Vec3 spin_new = {snew(i,0), snew(i,1), snew(i,2)};
+    const Vec3 field = {h(i,0), h(i,1), h(i,2)};
+    const Vec3 rhs = cross(spin, field) + alpha(i) * cross(spin, (cross(spin, field)));
 
     for (auto j = 0; j < 3; ++j) {
-      s(i, j) = snew(i, j) + 0.5 * dt * rhs[j];
+      s(i, j) = jams::impl::normalized_spin(spin_new + 0.5 * dt * rhs)[j];
     }
 
-    const auto norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
-
-    for (auto j = 0; j < 3; ++j) {
-      s(i, j) = s(i, j) * norm;
-    }
   }
 
   iteration_++;

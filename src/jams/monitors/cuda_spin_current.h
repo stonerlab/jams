@@ -13,7 +13,6 @@
 #include "jams/containers/sparsematrix.h"
 #include "jams/core/monitor.h"
 #include "jams/core/types.h"
-#include "jblib/containers/cuda_array.h"
 
 class Solver;
 
@@ -59,17 +58,17 @@ private:
 
     CudaSparseMatrixCSR<double> dev_csr_matrix_;
 
-    jblib::CudaArray<double, 1> dev_spin_current_rx_x;
-    jblib::CudaArray<double, 1> dev_spin_current_rx_y;
-    jblib::CudaArray<double, 1> dev_spin_current_rx_z;
+    jams::MultiArray<double, 1> spin_current_rx_x;
+    jams::MultiArray<double, 1> spin_current_rx_y;
+    jams::MultiArray<double, 1> spin_current_rx_z;
 
-    jblib::CudaArray<double, 1> dev_spin_current_ry_x;
-    jblib::CudaArray<double, 1> dev_spin_current_ry_y;
-    jblib::CudaArray<double, 1> dev_spin_current_ry_z;
+    jams::MultiArray<double, 1> spin_current_ry_x;
+    jams::MultiArray<double, 1> spin_current_ry_y;
+    jams::MultiArray<double, 1> spin_current_ry_z;
 
-    jblib::CudaArray<double, 1> dev_spin_current_rz_x;
-    jblib::CudaArray<double, 1> dev_spin_current_rz_y;
-    jblib::CudaArray<double, 1> dev_spin_current_rz_z;
+    jams::MultiArray<double, 1> spin_current_rz_x;
+    jams::MultiArray<double, 1> spin_current_rz_y;
+    jams::MultiArray<double, 1> spin_current_rz_z;
 
 };
 

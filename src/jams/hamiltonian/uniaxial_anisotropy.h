@@ -26,9 +26,9 @@ class UniaxialHamiltonian : public Hamiltonian {
         void   calculate_fields();
     private:
         unsigned num_coefficients_ = 0;
-        jblib::Array<unsigned, 2> power_;
-        jblib::Array<Vec3, 2>     axis_;
-        jblib::Array<double, 2>   magnitude_;
+        jams::MultiArray<unsigned, 2> power_;
+        jams::MultiArray<Vec3, 2>     axis_;
+        jams::MultiArray<double, 2>   magnitude_;
 };
 
 #endif  // JAMS_HAMILTONIAN_UNIAXIAL_H

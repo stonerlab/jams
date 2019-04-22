@@ -19,8 +19,6 @@
 
 #include "hdf5.h"
 
-#include "jblib/containers/array.h"
-
 using namespace std;
 
 namespace {
@@ -148,7 +146,7 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name, const H5::
   attribute.write(PredType::NATIVE_DOUBLE, &out_field[2]);
 
   if (slice_.num_points() != 0) {
-      jblib::Array<double, 2> spin_slice(slice_.num_points(), 3);
+      jams::MultiArray<double, 2> spin_slice(slice_.num_points(), 3);
       for (int i = 0; i < slice_.num_points(); ++i) {
           for (int j = 0; j < 3; ++j) {
               spin_slice(i,j) = slice_.spin(i, j);
@@ -169,8 +167,8 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name, const H
 
     hsize_t type_dims[1], pos_dims[2];
 
-    jblib::Array<int, 1>    types;
-    jblib::Array<double, 2> positions;
+    jams::MultiArray<int, 1>    types;
+    jams::MultiArray<double, 2> positions;
 
     H5File outfile(h5_file_name.c_str(), H5F_ACC_TRUNC);
 

@@ -31,33 +31,33 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 
   s_transform_.resize(num_spins);
   for (int i = 0; i < num_spins; ++i) {
-    s_transform_[i] = lattice->material(lattice->atom_material_id(i)).transform;
+    s_transform_(i) = lattice->material(lattice->atom_material_id(i)).transform;
   }
 
   material_count_.resize(lattice->num_materials(), 0);
   for (auto i = 0; i < num_spins; ++i) {
-    material_count_[lattice->atom_material_id(i)]++;
+    material_count_(lattice->atom_material_id(i))++;
   }
 }
 
 void MagnetisationMonitor::update(Solver * solver) {
   using namespace globals;
 
-  std::vector<Vec3> magnetisation(::lattice->num_materials(), {0.0, 0.0, 0.0});
+  jams::MultiArray<Vec3, 1> magnetisation(::lattice->num_materials(), {0.0, 0.0, 0.0});
 
   OMP_PARALLEL_FOR
   for (auto i = 0; i < num_spins; ++i) {
     const auto type = lattice->atom_material_id(i);
     for (auto j = 0; j < 3; ++j) {
-      magnetisation[type][j] += s(i, j);
+      magnetisation(type)[j] += s(i, j);
     }
   }
 
   OMP_PARALLEL_FOR
   for (auto type = 0; type < lattice->num_materials(); ++type) {
-    if (material_count_[type] == 0) continue;
+    if (material_count_(type) == 0) continue;
     for (auto j = 0; j < 3; ++j) {
-      magnetisation[type][j] /= static_cast<double>(material_count_[type]);
+      magnetisation(type)[j] /= static_cast<double>(material_count_(type));
     }
   }
 
@@ -71,9 +71,9 @@ void MagnetisationMonitor::update(Solver * solver) {
 
   for (auto type = 0; type < lattice->num_materials(); ++type) {
     for (auto j = 0; j < 3; ++j) {
-      tsv_file << magnetisation[type][j] << "\t";
+      tsv_file << magnetisation(type)[j] << "\t";
     }
-    tsv_file << abs(magnetisation[type]) << "\t";
+    tsv_file << abs(magnetisation(type)) << "\t";
   }
 
   if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
@@ -110,7 +110,7 @@ double MagnetisationMonitor::binder_m2() {
   for (int i = 0; i < num_spins; ++i) {
     for (int m = 0; m < 3; ++m) {
       for (int n = 0; n < 3; ++n) {
-        mag[m] = mag[m] + s_transform_[i][m][n] * s(i, n);
+        mag[m] = mag[m] + s_transform_(i)[m][n] * s(i, n);
       }
     }
   }

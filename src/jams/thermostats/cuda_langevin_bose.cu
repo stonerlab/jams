@@ -91,15 +91,12 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0));
    CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta1b_.data(), dev_eta1b_.size(), 0.0, 1.0));
 
-   jblib::Array<double, 2> scale(num_spins, 3);
    for (int i = 0; i < num_spins; ++i) {
      for (int j = 0; j < 3; ++j) {
-       scale(i, j) = (kBoltzmann) *
+       sigma_(i) = (kBoltzmann) *
                      sqrt((2.0 * globals::alpha(i) * globals::mus(i)) / (kHBar * kGyromagneticRatio * kBohrMagneton));
      }
    }
-
-   dev_sigma_ = jblib::CudaArray<double, 1>(scale);
 
    num_warm_up_steps_ = static_cast<unsigned>(t_warmup / dt_thermostat);
  }
@@ -123,7 +120,7 @@ void CudaLangevinBoseThermostat::update() {
     dev_zeta6_.data(),
     dev_zeta6p_.data(),
     dev_eta1b_.data(),
-    dev_sigma_.data(),
+    sigma_.device_data(),
     delta_tau_ * this->temperature(),
     this->temperature(),
     (kHBar * omega_max_) / (kBoltzmann * this->temperature()),  // w_m
@@ -146,10 +143,9 @@ void CudaLangevinBoseThermostat::update() {
   }
 
   if (debug_ && is_warmed_up_) {
-    dev_noise_.copy_to_host_array(noise_);
     debug_noise_outfile_ << solver->time() << "\t";
     for (auto i = 0; i < 10; ++i) {
-      debug_noise_outfile_ << noise_[i] << "\t";
+      debug_noise_outfile_ << noise_(i, 0) << "\t";
     }
     debug_noise_outfile_ << std::endl;
   }

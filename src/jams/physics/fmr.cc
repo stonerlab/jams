@@ -12,9 +12,6 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 
-#include "jblib/containers/array.h"
-
-
 FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
 : Physics(settings),
   ACFieldFrequency(0),

@@ -251,7 +251,7 @@ double ExchangeNeartreeHamiltonian::calculate_one_spin_energy_difference(const i
 
 void ExchangeNeartreeHamiltonian::calculate_energies() {
     for (int i = 0; i < globals::num_spins; ++i) {
-        energy_[i] = calculate_one_spin_energy(i);
+        energy_(i) = calculate_one_spin_energy(i);
     }
 }
 

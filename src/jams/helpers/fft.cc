@@ -69,7 +69,7 @@ void precalculate_kspace_phase_factors(
   }
 }
 
-void apply_kspace_phase_factors(jblib::Array<fftw_complex, 5> &kspace) {
+void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspace) {
   using namespace globals;
 
   std::vector<complex<double>> exp_phase_x(lattice->kspace_size()[0]);
@@ -86,10 +86,7 @@ void apply_kspace_phase_factors(jblib::Array<fftw_complex, 5> &kspace) {
         for (auto k = 0; k < kspace.size(2); ++k) {
           std::complex<double> phase = exp_phase_x[i] * exp_phase_y[j] * exp_phase_z[k];
           for (auto n = 0; n < 3; ++n) {
-            std::complex<double> kpoint = {kspace(i, j, k, m, n)[0], kspace(i, j, k, m, n)[1]};
-            auto result = kpoint * phase;
-            kspace(i, j, k, m, n)[0] = result.real();
-            kspace(i, j, k, m, n)[1] = result.imag();
+            kspace(i, j, k, m, n) = kspace(i, j, k, m, n) * phase;
           }
         }
       }
@@ -97,7 +94,7 @@ void apply_kspace_phase_factors(jblib::Array<fftw_complex, 5> &kspace) {
   }
 }
 
-fftw_plan fft_plan_rspace_to_kspace(fftw_complex * rspace, fftw_complex * kspace, const Vec3i& kspace_size, const int & motif_size) {
+fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & motif_size) {
   assert(rspace != nullptr);
   assert(kspace != nullptr);
   assert(sum(kspace_size) > 0);
@@ -114,11 +111,11 @@ fftw_plan fft_plan_rspace_to_kspace(fftw_complex * rspace, fftw_complex * kspace
           rank,                    // dimensionality
           transform_size, // array of sizes of each dimension
           num_transforms,          // number of transforms
-          rspace,        // input: real data
+          reinterpret_cast<fftw_complex*>(rspace),        // input: real data
           nembed,                  // number of embedded dimensions
           stride,                  // memory stride between elements of one fft dataset
           dist,                    // memory distance between fft datasets
-          kspace,        // output: complex data
+          reinterpret_cast<fftw_complex*>(kspace),        // output: complex data
           nembed,                  // number of embedded dimensions
           stride,                  // memory stride between elements of one fft dataset
           dist,                    // memory distance between fft datasets

@@ -183,10 +183,10 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
 
 //---------------------------------------------------------------------
 
-void DipoleHamiltonianFFT::calculate_energies(jblib::Array<double, 1>& energies) {
+void DipoleHamiltonianFFT::calculate_energies(jams::MultiArray<double, 1>& energies) {
     assert(energies.elements() == globals::num_spins);
     for (auto i = 0; i < globals::num_spins; ++i) {
-        energies[i] = calculate_one_spin_energy(i);
+        energies(i) = calculate_one_spin_energy(i);
     }
 }
 
@@ -320,7 +320,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
 
 //---------------------------------------------------------------------
 
-void DipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2> &fields) {
+void DipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2> &fields) {
   using std::min;
   using std::pow;
 

@@ -186,12 +186,12 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
       std::uint64_t count;
       double e_min;
-      jblib::Array<double, 2> s_min;
+      jams::MultiArray<double,2> s_min;
   public:
       explicit MagnetizationRotationMinimizer(std::vector<Hamiltonian*> & hamiltonians_ ) :
         hamiltonians_(&hamiltonians_), count(0), e_min(1e10), s_min(globals::s) {}
 
-      jblib::Array<double, 2> s() {
+      jams::MultiArray<double,2> s() {
         return s_min;
       }
 
@@ -199,7 +199,6 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
           bool operator()(It first, It last)  // called for each permutation
           {
             using std::vector;
-            using jblib::Array;
 
             int i, j;
             double energy;
@@ -245,7 +244,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
             if ( energy < e_min ) {
               // this configuration is the new minimum
               e_min = energy;
-              s_min = globals::s;
+              std::copy(globals::s.begin(), globals::s.end(), s_min.begin());
             }
             return false;
           }
@@ -261,8 +260,8 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
     Vec3 s_new;
 
-    jblib::Array<double, 2> s_init(globals::s);
-    jblib::Array<double, 2> s_min(globals::s);
+    jams::MultiArray<double,2> s_init(globals::s);
+    jams::MultiArray<double,2> s_min(globals::s);
 
     num_theta = (180.0 / delta_theta) + 1;
 
@@ -294,7 +293,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     preconditioner_file.close();
 
     // use the minimum configuration
-    globals::s = minimizer.s();
+    std::copy(minimizer.s().begin(),  minimizer.s().end(), globals::s.begin());
   }
 
   int MetropolisMCSolver::MetropolisAlgorithm(std::function<Vec3(Vec3)> trial_spin_move) {

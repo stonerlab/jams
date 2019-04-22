@@ -8,8 +8,6 @@
 
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
-#include "jblib/containers/array.h"
-
 
 PingPhysics::PingPhysics(const libconfig::Setting &settings)
 : Physics(settings) {

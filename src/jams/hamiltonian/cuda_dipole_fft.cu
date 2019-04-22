@@ -177,7 +177,7 @@ double CudaDipoleHamiltonianFFT::calculate_one_spin_energy_difference(
     return 0.0;
 }
 
-void CudaDipoleHamiltonianFFT::calculate_energies(jblib::Array<double, 1>& energies) {
+void CudaDipoleHamiltonianFFT::calculate_energies(jams::MultiArray<double, 1>& energies) {
 
 }
 
@@ -185,7 +185,7 @@ void CudaDipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]
 
 }
 
-void CudaDipoleHamiltonianFFT::calculate_fields(jblib::Array<double, 2>& fields) {
+void CudaDipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2>& fields) {
 
 }
 
@@ -193,7 +193,7 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jblib::CudaArray<double, 1>& gpu
 
   kspace_h_.zero(dev_stream_[0].get());
 
-  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(solver->dev_ptr_spin()), kspace_s_.data()));
+  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.data()));
 
   cudaDeviceSynchronize();
 

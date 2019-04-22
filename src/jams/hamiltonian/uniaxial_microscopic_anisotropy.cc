@@ -93,7 +93,7 @@ double UniaxialMicroscopicHamiltonian::calculate_one_spin_energy_difference(cons
 
 void UniaxialMicroscopicHamiltonian::calculate_energies() {
   for (int i = 0; i < energy_.size(); ++i) {
-    energy_[i] = calculate_one_spin_energy(i);
+    energy_(i) = calculate_one_spin_energy(i);
   }
 }
 

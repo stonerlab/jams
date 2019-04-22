@@ -2,7 +2,7 @@
 
 #include <string>
 #include <cstddef>
-
+#include <iostream>
 #include <libconfig.h++>
 
 #include "jams/helpers/error.h"

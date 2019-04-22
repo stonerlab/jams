@@ -6,8 +6,7 @@
 #define JAMS_SPIN_CORRELATION_H
 
 #include <complex>
-
-#include "jblib/containers/array.h"
+#include <jams/containers/multiarray.h>
 #include "jams/core/monitor.h"
 
 class SpinCorrelationMonitor : public Monitor {
@@ -27,7 +26,7 @@ private:
     unsigned num_samples_;
     unsigned time_point_counter_ = 0;
 
-    jblib::Array<double, 2> sz_data_;   // index is spin, time. This order gives a large speedup
+    jams::MultiArray<double, 2> sz_data_;   // index is spin, time. This order gives a large speedup
 };
 
 #endif //JAMS_SPIN_CORRELATION_H

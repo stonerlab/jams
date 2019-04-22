@@ -10,8 +10,6 @@
 #include "jams/core/lattice.h"
 #include "utils.h"
 
-#include "jblib/containers/array.h"
-
 class Slice {
  public:
 

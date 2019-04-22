@@ -16,11 +16,11 @@ extern "C" {
 #include <cassert>
 #include <libconfig.h++>
 #include "jams/containers/name_id_map.h"
+#include "jams/containers/multiarray.h"
 
 #include "jams/core/types.h"
 #include "jams/core/base.h"
 #include "jams/containers/neartree.h"
-#include "jblib/containers/array.h"
 #include "jams/containers/material.h"
 #include "jams/containers/cell.h"
 
@@ -207,9 +207,9 @@ private:
     unsigned          impurity_seed_;
     ImpurityMap       impurity_map_;
     std::vector<Vec3i> supercell_indicies_;
-    jblib::Array<int, 4> lattice_map_;
+    jams::MultiArray<int, 4> lattice_map_;
 
-    jblib::Array<int, 3> kspace_map_;
+    jams::MultiArray<int, 3> kspace_map_;
     Vec3i kspace_size_;
     Vec3 rmax_;
 

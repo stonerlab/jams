@@ -73,7 +73,6 @@ TTMPhysics::~TTMPhysics() {
 
 void TTMPhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
-  using namespace jblib;
 
 double real_dt = dt/kGyromagneticRatio;
 

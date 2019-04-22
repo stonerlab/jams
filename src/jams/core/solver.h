@@ -68,11 +68,6 @@ class Solver : public Base {
 
   void compute_fields();
 
-  virtual inline double * dev_ptr_spin() {
-    assert(is_cuda_solver_);
-    return nullptr;
-  }
-
   std::vector<Hamiltonian*>& hamiltonians() {
     return hamiltonians_;
   }

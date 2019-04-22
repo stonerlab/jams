@@ -19,18 +19,16 @@ CudaRandomAnisotropyHamiltonian::CudaRandomAnisotropyHamiltonian(const libconfig
 {
   dev_magnitude_ = magnitude_;
   dev_direction_ = flatten_vector(direction_);
-  dev_energy_    = jblib::CudaArray<double, 1>(energy_);
-  dev_field_     = jblib::CudaArray<double, 1>(field_);
 }
 
 void CudaRandomAnisotropyHamiltonian::calculate_fields() {
   const unsigned num_blocks = (globals::num_spins+dev_blocksize_-1)/dev_blocksize_;
   random_anisotropy_cuda_field_kernel<<<num_blocks, dev_blocksize_, 0, dev_stream_.get()>>>(
           globals::num_spins,
-          solver->dev_ptr_spin(),
+              globals::s.device_data(),
           dev_direction_.data().get(),
           dev_magnitude_.data().get(),
-          dev_field_.data()
+          field_.device_data()
           );
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
@@ -39,15 +37,15 @@ void CudaRandomAnisotropyHamiltonian::calculate_energies() {
   const unsigned num_blocks = (globals::num_spins+dev_blocksize_-1)/dev_blocksize_;
   random_anisotropy_cuda_energy_kernel<<<num_blocks, dev_blocksize_, 0, dev_stream_.get()>>>(
           globals::num_spins,
-                  solver->dev_ptr_spin(),
+              globals::s.device_data(),
                   dev_direction_.data().get(),
                   dev_magnitude_.data().get(),
-                  dev_energy_.data()
+                  energy_.device_data()
   );
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
 double CudaRandomAnisotropyHamiltonian::calculate_total_energy() {
   calculate_energies();
-  return thrust::reduce(dev_energy_.data(), dev_energy_.data()+dev_energy_.elements());
+  return thrust::reduce(energy_.device_data(), energy_.device_data()+energy_.size());
 }

@@ -13,7 +13,7 @@
 #include "strategy.h"
 #include "jblib/containers/array.h"
 
-
+/*
 class DipoleHamiltonianEwald : public HamiltonianStrategy {
     public:
         DipoleHamiltonianEwald(const libconfig::Setting &settings, const unsigned int size);
@@ -50,8 +50,8 @@ class DipoleHamiltonianEwald : public HamiltonianStrategy {
 
         jblib::Array<double, 4> h_nonlocal_;
         jblib::Array<double, 4> s_nonlocal_;
-        jblib::Array<double, 2> s_old_1_;
-        jblib::Array<double, 2> s_old_2_;
+        jams::SyncedMultiArray<double, 2> s_old_1_;
+        jams::SyncedMultiArray<double, 2> s_old_2_;
         jblib::Array<double, 4> h_nonlocal_2_;
 
 
@@ -73,5 +73,6 @@ inline double DipoleHamiltonianEwald::pG(const double r, const double a) {
     using std::pow;
     return sqrt(2.0/kPi)*exp(-0.5*pow(r/a, 2))/(pow(r, 2)*pow(a, 3));
 }
+ */
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_EWALD_H

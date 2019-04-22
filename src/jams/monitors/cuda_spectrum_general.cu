@@ -62,9 +62,14 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
   std::cout << duration_string(start_time, system_clock::now()) << " done" << std::endl;
 
   jblib::Array<cuFloatComplex, 1> hst_spin_data(spin_data_.elements());
-  for (auto i = 0; i < spin_data_.elements(); ++i) {
-    hst_spin_data[i].x = static_cast<float>(spin_data_[i].real());
-    hst_spin_data[i].y = static_cast<float>(spin_data_[i].imag());
+
+  auto count = 0;
+  for (auto i = 0; i < spin_data_.size(0); ++i) {
+    for (auto j = 0; j < spin_data_.size(1); ++j) {
+      hst_spin_data[count].x = static_cast<float>(spin_data_(i,j).real());
+      hst_spin_data[count].y = static_cast<float>(spin_data_(i,j).imag());
+      count++;
+    }
   }
   jblib::CudaArray<cuFloatComplex, 1> dev_spin_data(hst_spin_data);
 

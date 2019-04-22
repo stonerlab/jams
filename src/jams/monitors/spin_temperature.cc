@@ -10,8 +10,6 @@
 #include "jams/containers/vec3.h"
 #include "spin_temperature.h"
 
-#include "jblib/containers/array.h"
-
 SpinTemperatureMonitor::SpinTemperatureMonitor(const libconfig::Setting &settings)
 : Monitor(settings)
 {

@@ -1,3 +1,4 @@
+/*
 #include <cassert>
 #include <cstdio>
 #include <algorithm>
@@ -491,3 +492,5 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
 }
 
 // --------------------------------------------------------------------------
+
+ */

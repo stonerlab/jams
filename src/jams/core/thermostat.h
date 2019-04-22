@@ -6,7 +6,7 @@
 #include <iosfwd>
 
 #include "jams/core/types.h"
-#include "jblib/containers/array.h"
+#include "jams/containers/multiarray.h"
 
 class Thermostat {
  public:
@@ -30,8 +30,8 @@ class Thermostat {
   virtual double field(int i, int j) { return noise_(i, j); }
  protected:
   double                  temperature_;
-  jblib::Array<double, 1> sigma_;
-  jblib::Array<double, 2> noise_;
+  jams::MultiArray<double, 1> sigma_;
+  jams::MultiArray<double, 2> noise_;
 };
 
 #endif  // JAMS_CORE_THERMOSTAT_H

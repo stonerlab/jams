@@ -223,10 +223,10 @@ double CudaDipoleHamiltonianSparseTensor::calculate_one_spin_energy_difference(c
 }
 // --------------------------------------------------------------------------
 
-void CudaDipoleHamiltonianSparseTensor::calculate_energies(jblib::Array<double, 1>& energies) {
+void CudaDipoleHamiltonianSparseTensor::calculate_energies(jams::MultiArray<double, 1>& energies) {
     assert(energies.size() == globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
-        energies[i] = calculate_one_spin_energy(i);
+        energies(i) = calculate_one_spin_energy(i);
     }
 }
 
@@ -261,7 +261,7 @@ void CudaDipoleHamiltonianSparseTensor::calculate_one_spin_field(const int i, do
 
 // --------------------------------------------------------------------------
 
-void CudaDipoleHamiltonianSparseTensor::calculate_fields(jblib::Array<double, 2>& fields) {
+void CudaDipoleHamiltonianSparseTensor::calculate_fields(jams::MultiArray<double, 2>& fields) {
   if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
     // general matrix (i.e. Monte Carlo Solvers)
       char transa[1] = {'N'};
@@ -281,7 +281,7 @@ void CudaDipoleHamiltonianSparseTensor::calculate_fields(jblib::Array<double, 2>
 void CudaDipoleHamiltonianSparseTensor::calculate_fields(jblib::CudaArray<double, 1>& fields) {
 
     // cast spin array to floats
-    cuda_array_double_to_float(globals::num_spins3, solver->dev_ptr_spin(), dev_float_spins_.data(), dev_stream_);
+    cuda_array_double_to_float(globals::num_spins3, globals::s.device_data(), dev_float_spins_.data(), dev_stream_);
 
     const float one = 1.0;
     const float zero = 0.0;

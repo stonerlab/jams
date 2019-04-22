@@ -7,7 +7,6 @@
 
 #include <libconfig.h++>
 
-#include "jblib/containers/array.h"
 #include "jams/containers/sparsematrix.h"
 #include "jams/core/hamiltonian.h"
 

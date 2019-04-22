@@ -10,8 +10,6 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/maths.h"
 
-#include "jblib/containers/array.h"
-
 BoltzmannMonitor::BoltzmannMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
 bins_(36, 0.0),

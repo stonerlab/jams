@@ -15,7 +15,6 @@
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/stats.h"
-#include "jblib/containers/array.h"
 
 SpinPumpingMonitor::SpinPumpingMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {

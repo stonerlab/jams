@@ -42,6 +42,16 @@ inline bool approximately_zero(const T& a, const T& epsilon = FLT_EPSILON) {
 }
 
 template <typename T>
+inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon = FLT_EPSILON) {
+  for (auto n = 0; n < 3; ++n) {
+    if (!approximately_zero(a[n], epsilon)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template <typename T>
 inline bool definately_greater_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
   return (a - b) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
@@ -57,6 +67,14 @@ inline double zero_safe_recip_norm(double x, double y, double z) {
   }
 
   return 1.0 / sqrt(x * x + y * y + z * z);
+}
+
+inline double zero_safe_recip_norm(Vec3 v) {
+  if (approximately_zero(v)) {
+    return 0.0;
+  }
+
+  return 1.0 / abs(v);
 }
 
 inline double square(const double &x) {

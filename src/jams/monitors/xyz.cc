@@ -11,13 +11,9 @@
 
 #include "xyz.h"
 
-#include "jblib/containers/array.h"
-
-
 XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  using namespace jblib;
 
   output_step_freq_ = settings["output_steps"];
 

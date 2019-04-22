@@ -56,7 +56,7 @@ CudaDipoleHamiltonianBruteforce::CudaDipoleHamiltonianBruteforce(const libconfig
 
     jblib::Array<float, 1> f_mus(globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
-      f_mus[i] = globals::mus[i];
+      f_mus[i] = globals::mus(i);
     }
 
     dev_mus_ = jblib::CudaArray<float, 1>(f_mus);
@@ -110,10 +110,10 @@ double CudaDipoleHamiltonianBruteforce::calculate_one_spin_energy_difference(con
     return 0.5*(e_final - e_initial);
 }
 
-void CudaDipoleHamiltonianBruteforce::calculate_energies(jblib::Array<double, 1>& energies) {
+void CudaDipoleHamiltonianBruteforce::calculate_energies(jams::MultiArray<double, 1>& energies) {
     assert(energies.size() == globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
-        energies[i] = calculate_one_spin_energy(i);
+        energies(i) = calculate_one_spin_energy(i);
     }
 }
 
@@ -141,7 +141,7 @@ void CudaDipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, doub
     }
 }
 
-void CudaDipoleHamiltonianBruteforce::calculate_fields(jblib::Array<double, 2>& fields) {
+void CudaDipoleHamiltonianBruteforce::calculate_fields(jams::MultiArray<double, 2>& fields) {
     for (int i = 0; i < globals::num_spins; ++i) {
         double h[3];
 
@@ -157,6 +157,6 @@ void CudaDipoleHamiltonianBruteforce::calculate_fields(jblib::CudaArray<double, 
     CudaStream stream;
 
     DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, stream.get() >>>
-        (solver->dev_ptr_spin(), dev_r_.data(), dev_mus_.data(), globals::num_spins, fields.data());
+        (globals::s.device_data(), dev_r_.data(), dev_mus_.data(), globals::num_spins, fields.data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

@@ -11,8 +11,6 @@
 #include "jams/core/monitor.h"
 #include "jams/core/types.h"
 
-#include "jblib/containers/array.h"
-
 class BinaryMonitor : public Monitor {
  public:
   explicit BinaryMonitor(const libconfig::Setting &settings);

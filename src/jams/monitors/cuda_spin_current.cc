@@ -17,8 +17,8 @@
 #include "jams/core/hamiltonian.h"
 #include "jams/monitors/cuda_spin_current.h"
 #include "cuda_spin_current.h"
-#include "jblib/containers/array.h"
 #include "jams/hamiltonian/exchange.h"
+#include "jblib/containers/array.h"
 
 using namespace std;
 
@@ -69,17 +69,17 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
 
   dev_csr_matrix_.val = cuda_malloc_and_copy_to_device(val.data(), val.elements());
 
-  dev_spin_current_rx_x.resize(globals::num_spins);
-  dev_spin_current_rx_y.resize(globals::num_spins);
-  dev_spin_current_rx_z.resize(globals::num_spins);
+  spin_current_rx_x.resize(globals::num_spins);
+  spin_current_rx_y.resize(globals::num_spins);
+  spin_current_rx_z.resize(globals::num_spins);
 
-  dev_spin_current_ry_x.resize(globals::num_spins);
-  dev_spin_current_ry_y.resize(globals::num_spins);
-  dev_spin_current_ry_z.resize(globals::num_spins);
+  spin_current_ry_x.resize(globals::num_spins);
+  spin_current_ry_y.resize(globals::num_spins);
+  spin_current_ry_z.resize(globals::num_spins);
 
-  dev_spin_current_rz_x.resize(globals::num_spins);
-  dev_spin_current_rz_y.resize(globals::num_spins);
-  dev_spin_current_rz_z.resize(globals::num_spins);
+  spin_current_rz_x.resize(globals::num_spins);
+  spin_current_rz_y.resize(globals::num_spins);
+  spin_current_rz_z.resize(globals::num_spins);
 
   outfile.open(seedname + "_js.tsv");
 
@@ -95,19 +95,19 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
   Mat3 js = execute_cuda_spin_current_kernel(
           stream,
           globals::num_spins,
-          solver->dev_ptr_spin(),
+          globals::s.device_data(),
           dev_csr_matrix_.val,
           dev_csr_matrix_.row,
           dev_csr_matrix_.col,
-          dev_spin_current_rx_x.data(),
-          dev_spin_current_rx_y.data(),
-          dev_spin_current_rx_z.data(),
-          dev_spin_current_ry_x.data(),
-          dev_spin_current_ry_y.data(),
-          dev_spin_current_ry_z.data(),
-          dev_spin_current_rz_x.data(),
-          dev_spin_current_rz_y.data(),
-          dev_spin_current_rz_z.data()
+          spin_current_rx_x.device_data(),
+          spin_current_rx_y.device_data(),
+          spin_current_rx_z.device_data(),
+          spin_current_ry_x.device_data(),
+          spin_current_ry_y.device_data(),
+          spin_current_ry_z.device_data(),
+          spin_current_rz_x.device_data(),
+          spin_current_rz_y.device_data(),
+          spin_current_rz_z.device_data()
   );
 
 //  const double units = lattice->parameter() * kBohrMagneton * kGyromagneticRatio;
@@ -182,20 +182,12 @@ void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_fi
   attribute = spin_dataset.createAttribute("time", PredType::IEEE_F64LE, attribute_dataspace);
   attribute.write(PredType::NATIVE_DOUBLE, &out_time);
 
-  jblib::Array<double, 1> js_rx_z(num_spins);
-  jblib::Array<double, 1> js_ry_z(num_spins);
-  jblib::Array<double, 1> js_rz_z(num_spins);
-
-  dev_spin_current_rx_z.copy_to_host_array(js_rx_z);
-  dev_spin_current_ry_z.copy_to_host_array(js_ry_z);
-  dev_spin_current_rz_z.copy_to_host_array(js_rz_z);
-
-  jblib::Array<double, 2> js(num_spins, 3);
+  jams::MultiArray<double, 2> js(num_spins, 3);
 
   for (auto i = 0; i < num_spins; ++i) {
-    js(i,0) = js_rx_z(i);
-    js(i,1) = js_ry_z(i);
-    js(i,2) = js_rz_z(i);
+    js(i,0) = spin_current_rx_z(i);
+    js(i,1) = spin_current_ry_z(i);
+    js(i,2) = spin_current_rz_z(i);
   }
 
   spin_dataset.write(js.data(), PredType::NATIVE_DOUBLE);

@@ -106,4 +106,13 @@ inline void cuda_throw(cudaError_t return_code, const char *file, int line) {
   }
 }
 
+#define IDX2D(i, j, size0, size1) \
+  (i*size1+j)
+
+#define IDX3D(i, j, k, size0, size1, size2) \
+  ((i*size1+j)*size2+k)
+
+#define IDX4D(i, j, k, l, size0, size1, size2, size3) \
+  ((i*size1+j)*size2+k)*size3+l)
+
 #endif //JAMS_CUDA_ERROR_H

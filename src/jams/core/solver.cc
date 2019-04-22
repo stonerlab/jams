@@ -6,7 +6,6 @@
 
 #include "jams/helpers/error.h"
 #include "jams/core/physics.h"
-#include "jblib/containers/array.h"
 #include "jams/interface/blas.h"
 #include "jams/core/solver.h"
 #include "hamiltonian.h"

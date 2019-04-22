@@ -114,7 +114,7 @@ void CudaThermalCurrentMonitor::update(Solver *solver) {
   Vec3 js = execute_cuda_thermal_current_kernel(
           stream,
           globals::num_spins,
-          solver->dev_ptr_spin(),
+          globals::s.device_data(),
           dev_csr_matrix_.row,
           dev_csr_matrix_.col,
           dev_csr_matrix_.val,
