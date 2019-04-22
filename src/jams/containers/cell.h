@@ -4,7 +4,9 @@
 
 #ifndef JAMS_CELL_H
 #define JAMS_CELL_H
-#include "jams/core/types.h"
+
+#include "jams/containers/vec3.h"
+#include "jams/containers/mat3.h"
 
 class Cell;
 

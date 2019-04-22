@@ -2,7 +2,7 @@
 // Created by Joe Barker on 2017/11/15.
 //
 
-#include "cell.h"
+#include "jams/containers/cell.h"
 
 __attribute__((hot))
 Vec3 minimum_image(const Cell& cell, const Vec3& r_cart_i, const Vec3& r_cart_j) {
