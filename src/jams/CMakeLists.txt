@@ -7,7 +7,7 @@ target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${PROJECT_S
 
 # object libraries cannot use target_link_libraries to pull in include and compile definitions
 # this hack allows us to pull them in manually
-foreach(TGT fftw3 cblas jblib pcg symspg config++ hdf5)
+foreach(TGT fftw3 cblas jblib pcg symspg config++ hdf5 HighFive)
     target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
 endforeach()
