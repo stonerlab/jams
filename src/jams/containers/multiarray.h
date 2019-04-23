@@ -137,6 +137,10 @@ namespace jams {
           return size_[n];
         }
 
+        inline const size_container_type& shape() const noexcept {
+          return size_;
+        }
+
         inline constexpr size_type memory() const noexcept {
           return data_.memory();
         }
@@ -338,6 +342,10 @@ namespace jams {
 
         inline constexpr size_type size(const size_type n) const noexcept {
           return data_.size();
+        }
+
+        inline const size_container_type& shape() const noexcept {
+          return size_container_type{data_.size()};
         }
 
         inline constexpr size_type elements() const noexcept {
