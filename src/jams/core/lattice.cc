@@ -22,8 +22,6 @@ extern "C"{
 #include <cmath>
 #include <pcg/pcg_random.hpp>
 
-#include "H5Cpp.h"
-
 #include "jams/helpers/defaults.h"
 #include "jams/containers/material.h"
 #include "jams/helpers/error.h"
@@ -33,6 +31,7 @@ extern "C"{
 #include "jams/helpers/maths.h"
 #include "jams/helpers/utils.h"
 #include "jams/containers/neartree.h"
+#include "jams/interface/h5.h"
 #include "lattice.h"
 
 
@@ -703,18 +702,12 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 
 
 void Lattice::load_spin_state_from_hdf5(std::string &filename) {
-  using namespace H5;
+  using namespace HighFive;
 
-  H5File file(filename.c_str(), H5F_ACC_RDONLY);
-  DataSet dataset = file.openDataSet("/spins");
-  DataSpace dataspace = dataset.getSpace();
+  File file(filename, File::ReadOnly);
 
-  if (dataspace.getSimpleExtentNpoints() != static_cast<hssize_t>(globals::num_spins3)){
-    jams_die("Spin state file '%s' has %llu spins but your simulation has %d spins.",
-             filename.c_str(), dataspace.getSimpleExtentNpoints() / 3, globals::num_spins);
-  }
-
-  dataset.read(globals::s.data(), PredType::NATIVE_DOUBLE);
+  auto dataset = file.getDataSet("/spins");
+  dataset.read(globals::s);
 }
 
 Vec3 Lattice::generate_position(
