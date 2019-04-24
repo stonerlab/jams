@@ -11,8 +11,10 @@
 #include <utility>
 #include <vector>
 
+#include "jams/containers/multiarray.h"
 #include "jams/helpers/exception.h"
 #include "jams/interface/openmp.h"
+#include "jams/helpers/sort.h"
 
 #define RESTRICT __restrict__
 
@@ -49,6 +51,43 @@ typedef enum
 #include <mkl_spblas.h>
 
 #endif
+
+enum class SparseMatrixFormat {
+    COO,
+    CSR
+};
+
+
+template <class T, SparseMatrixFormat Format>
+class SparseMatrix {};
+
+template <class T>
+class SparseMatrix<T, SparseMatrixFormat::COO> {
+public:
+    typedef int      size_type;
+
+    void insert(size_type& i, size_type& j, T& value);
+
+
+private:
+    size_type num_rows_;
+    size_type num_cols_;
+    size_type num_non_zero_;
+
+    jams::MultiArray<T,1>         val_;
+    jams::MultiArray<size_type,1> row_;
+    jams::MultiArray<size_type,1> col_;
+};
+
+template <class T>
+void SparseMatrix<T, SparseMatrixFormat::COO>::insert(int &i, int &j, T &value) {
+  if (i < 0 || i >= num_rows_ || j < 0 || j >= num_cols_) {
+    throw std::runtime_error("SparseMatrix insert is out of bounds");
+  }
+
+  val_
+
+}
 
 template <typename _Tp>
 class SparseMatrix {
