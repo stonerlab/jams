@@ -6,26 +6,16 @@
 #define JAMS_LOAD_H
 
 #include <vector>
-#include <jblib/containers/array.h>
+#include "jams/containers/multiarray.h"
+#include "jams/interface/h5.h"
 #include "H5Cpp.h"
-#include "utils.h"
 
 template <std::size_t N>
-void load_array_from_h5_file(const std::string& file_name, const std::string& data_set_path, jams::MultiArray<double, N>& array) {
-  using namespace H5;
-
-  H5File file(file_name.c_str(), H5F_ACC_RDONLY);
-  DataSet dataset = file.openDataSet(data_set_path);
-  DataSpace dataspace = dataset.getSpace();
-
-  if (dataspace.getSimpleExtentNpoints() != static_cast<hssize_t>(array.elements())) {
-    throw std::runtime_error(
-        "loading array from file: '" + file_name + "' expected size: " + std::to_string(array.elements()) +
-        " actual size: " + std::to_string(dataspace.getSimpleExtentNpoints())
-    );
-  }
-
-  dataset.read(array.data(), PredType::NATIVE_DOUBLE);
+void load_array_from_h5_file(const std::string& filename, const std::string& data_set_path, jams::MultiArray<double, N>& array) {
+  using namespace HighFive;
+  File file(filename, File::ReadOnly);
+  auto dataset = file.getDataSet(data_set_path);
+  dataset.read(array);
 }
 
 template <std::size_t N>

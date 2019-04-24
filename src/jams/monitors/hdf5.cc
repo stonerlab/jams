@@ -16,20 +16,20 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/slice.h"
+#include "jams/interface/h5.h"
 
 #include "hdf5.h"
 
 using namespace std;
 
 namespace {
-    const hsize_t h5_compression_chunk_size = 256;
-    const hsize_t h5_compression_factor = 6;
+    const unsigned h5_compression_chunk_size = 4095;
+    const unsigned h5_compression_factor = 6;
 }
 
 Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 : Monitor(settings),
   float_pred_type_(H5::PredType::IEEE_F64LE),
-  compression_enabled_(false),
   slice_() {
     using namespace globals;
     using namespace H5;
@@ -96,67 +96,29 @@ void Hdf5Monitor::update(Solver * solver) {
 
 void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name, const H5::PredType float_type) {
   using namespace globals;
-  using namespace H5;
+  using namespace HighFive;
 
-  hsize_t dims[2], chunk_dims[2];
 
-  H5File outfile(h5_file_name.c_str(), H5F_ACC_TRUNC);
+  File file(h5_file_name, File::ReadWrite | File::Create | File::Truncate);
 
-  if (slice_.num_points() != 0) {
-      dims[0] = static_cast<hsize_t>(slice_.num_points());
-      dims[1] = 3;
-      chunk_dims[0] = std::min(h5_compression_chunk_size, static_cast<hsize_t>(slice_.num_points()));
-      chunk_dims[1] = 3;
-  } else {
-      dims[0] = static_cast<hsize_t>(num_spins);
-      dims[1] = 3;
-      chunk_dims[0] = std::min(h5_compression_chunk_size, static_cast<hsize_t>(num_spins));
-      chunk_dims[1] = 3;
-  }
-
-  DataSpace dataspace(2, dims);
-
-  DSetCreatPropList plist;
+  DataSetCreateProps props;
 
   if (compression_enabled_) {
-      plist.setChunk(2, chunk_dims);
-      plist.setDeflate(h5_compression_factor);
+    props.add(Chunking({std::min(h5_compression_chunk_size, num_spins), 1}));
+    props.add(Shuffle());
+    props.add(Deflate(h5_compression_factor));
   }
 
-  double out_iteration = solver->iteration();
-  double out_time = solver->time();
-  double out_temperature = solver->physics()->temperature();
-  Vec3 out_field = solver->physics()->applied_field();
+  auto dataset = file.createDataSet<double>("/spins",  DataSpace({num_spins, 3}), props);
 
-  DataSet spin_dataset = outfile.createDataSet("spins", float_type, dataspace, plist);
-  DataSet ds_dt_dataset = outfile.createDataSet("ds_dt", float_type, dataspace, plist);
+  dataset.createAttribute("iteration", solver->iteration());
+  dataset.createAttribute("time", solver->time());
+  dataset.createAttribute("temperature", solver->physics()->temperature());
+  dataset.createAttribute("hx", solver->physics()->applied_field()[0]);
+  dataset.createAttribute("hy", solver->physics()->applied_field()[1]);
+  dataset.createAttribute("hz", solver->physics()->applied_field()[2]);
 
-  DataSpace attribute_dataspace(H5S_SCALAR);
-  Attribute attribute = spin_dataset.createAttribute("iteration", PredType::STD_I32LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_INT32, &out_iteration);
-  attribute = spin_dataset.createAttribute("time", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_time);
-  attribute = spin_dataset.createAttribute("temperature", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_temperature);
-  attribute = spin_dataset.createAttribute("hx", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field[0]);
-  attribute = spin_dataset.createAttribute("hy", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field[1]);
-  attribute = spin_dataset.createAttribute("hz", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field[2]);
-
-  if (slice_.num_points() != 0) {
-      jams::MultiArray<double, 2> spin_slice(slice_.num_points(), 3);
-      for (int i = 0; i < slice_.num_points(); ++i) {
-          for (int j = 0; j < 3; ++j) {
-              spin_slice(i,j) = slice_.spin(i, j);
-          }
-      }
-      spin_dataset.write(spin_slice.data(), PredType::NATIVE_DOUBLE);
-  } else {
-      spin_dataset.write(s.data(), PredType::NATIVE_DOUBLE);
-      ds_dt_dataset.write(ds_dt.data(), PredType::NATIVE_DOUBLE);
-  }
+  dataset.write(s);
 }
 
 //---------------------------------------------------------------------

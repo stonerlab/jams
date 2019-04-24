@@ -32,6 +32,7 @@ extern "C"{
 #include "jams/helpers/utils.h"
 #include "jams/containers/neartree.h"
 #include "jams/interface/h5.h"
+#include "jams/helpers/load.h"
 #include "lattice.h"
 
 
@@ -696,18 +697,8 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 
     cout << "  reading initial spin configuration from " << spin_filename << "\n";
 
-    load_spin_state_from_hdf5(spin_filename);
+    load_array_from_file(spin_filename, "/spins", globals::s);
   }
-}
-
-
-void Lattice::load_spin_state_from_hdf5(std::string &filename) {
-  using namespace HighFive;
-
-  File file(filename, File::ReadOnly);
-
-  auto dataset = file.getDataSet("/spins");
-  dataset.read(globals::s);
 }
 
 Vec3 Lattice::generate_position(

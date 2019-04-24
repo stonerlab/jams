@@ -36,7 +36,7 @@ inline data_converter(MultiArray&, DataSpace& space)
 
 inline typename type_of_array<Tp_>::type* transform_read(MultiArray& array) {
   if (std::equal(_dims.begin(), _dims.end(), std::begin(array.shape())) == false) {
-    typename jams::MultiArray<Tp_, Dim_, Idx_>::size_container_type ext;
+    std::array<Idx_, Dim_> ext;
     std::copy(_dims.begin(), _dims.end(), ext.begin());
     array.resize(ext);
   }
