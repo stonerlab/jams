@@ -102,12 +102,13 @@ namespace jams {
 //        using const_reverse_iterator = typename data_container_type::const_reverse_iterator;
 
         MultiArray() = default;
+        ~MultiArray() = default;
+
         MultiArray(const MultiArray& other):
           size_(other.size_), data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(other.size_)){
           std::copy(other.begin(), other.end(), this->begin());
         }
 
-        ~MultiArray() = default;
 
         // construct using dimensions as arguments
         template<typename... Args>
@@ -230,30 +231,6 @@ namespace jams {
           return data_.const_host_data() + data_.size();
         }
 
-//        inline reverse_iterator rbegin() noexcept {
-//          return data_.rbegin();
-//        }
-//
-//        inline const_reverse_iterator rbegin() const noexcept {
-//          return data_.rbegin();
-//        }
-//
-//        inline const_reverse_iterator crbegin() const noexcept {
-//          return data_.crbegin();
-//        }
-//
-//        inline reverse_iterator rend() noexcept {
-//          return data_.rend();
-//        }
-//
-//        inline reverse_iterator rend() const noexcept {
-//          return data_.rend();
-//        }
-//
-//        inline const_reverse_iterator crend() const noexcept {
-//          return data_.crend();
-//        }
-
         // Modifiers
         inline void clear() noexcept {
           size_.fill(0);
@@ -313,23 +290,26 @@ namespace jams {
         MultiArray() = default;
         ~MultiArray() = default;
 
-        inline explicit MultiArray(size_type size):
-        data_(size) {}
-
-        inline explicit MultiArray(size_type size, const Tp_& x):
-        data_(size) { fill(x); }
-
-        inline explicit MultiArray(const std::array<size_type, 1> &v) :
-            data_(std::get<0>(v)) {}
-
-        inline explicit MultiArray(const std::array<size_type, 1> &v, const Tp_& x) :
-            data_(std::get<0>(v)) { fill(x); }
-
         MultiArray(const MultiArray& other):
-          data_(std::get<0>(other.size_)){
+            size_(other.size_), data_(std::get<0>(other.size_)){
           std::copy(other.begin(), other.end(), this->begin());
         }
 
+        inline explicit MultiArray(size_type size):
+            size_({size}),
+            data_(size) {}
+
+        inline explicit MultiArray(size_type size, const Tp_& x):
+            size_({size}),
+            data_(size) { fill(x); }
+
+        inline explicit MultiArray(const std::array<size_type, 1> &v) :
+            size_(v),
+            data_(std::get<0>(v)) {}
+
+        inline explicit MultiArray(const std::array<size_type, 1> &v, const Tp_& x) :
+            size_(v),
+            data_(std::get<0>(v)) { fill(x); }
 
         // capacity
         inline constexpr bool empty() const noexcept {
@@ -337,15 +317,19 @@ namespace jams {
         }
 
         inline constexpr size_type size() const noexcept {
-          return data_.size();
+          return std::get<0>(size_);
         }
 
         inline constexpr size_type size(const size_type n) const noexcept {
-          return data_.size();
+          return std::get<0>(size_);
         }
 
         inline const size_container_type& shape() const noexcept {
-          return size_container_type{data_.size()};
+          return size_;
+        }
+
+        inline constexpr size_type memory() const noexcept {
+          return data_.memory();
         }
 
         inline constexpr size_type elements() const noexcept {
@@ -366,12 +350,12 @@ namespace jams {
         }
 
         // element access
-        inline reference operator()(size_type x) {
+        inline reference operator()(const size_type & x) {
           assert(!empty() && x < data_.size());
           return data_.mutable_host_data()[x];
         }
 
-        inline const_reference operator()(size_type x) const {
+        inline const_reference operator()(const size_type & x) const {
           assert(!empty() && x < data_.size());
           return data_.const_host_data()[x];
         }
@@ -427,32 +411,9 @@ namespace jams {
           return data_.const_host_data() + data_.size();
         }
 
-//        inline reverse_iterator rbegin() noexcept {
-//          return data_.rbegin();
-//        }
-//
-//        inline const_reverse_iterator rbegin() const noexcept {
-//          return data_.rbegin();
-//        }
-//
-//        inline const_reverse_iterator crbegin() const noexcept {
-//          return data_.crbegin();
-//        }
-//
-//        inline reverse_iterator rend() noexcept {
-//          return data_.rend();
-//        }
-//
-//        inline reverse_iterator rend() const noexcept {
-//          return data_.rend();
-//        }
-//
-//        inline const_reverse_iterator crend() const noexcept {
-//          return data_.crend();
-//        }
-
         // Modifiers
         inline void clear() noexcept {
+          size_.fill(0);
           data_.clear();
         }
 
@@ -461,15 +422,29 @@ namespace jams {
         }
 
         inline void resize( size_type count ) {
+          std::get<0>(size_) = count;
           data_.resize(count);
         }
 
         inline void resize( size_type count, const value_type& value ) {
+          std::get<0>(size_) = count;
           data_.resize(count);
           fill(value);
         }
 
+        inline void resize(const std::array<size_type, 1> &v) {
+          size_ = v;
+          data_.resize(std::get<0>(v));
+        }
+
+        // construct using dimensions in array and initial value
+        inline void resize(const std::array<size_type, 1> &v, const Tp_ &x) {
+          size_ = v;
+          data_.resize(std::get<0>(v), x);
+        }
+
     private:
+        size_container_type size_ = {0};
         mutable SyncedMemory<Tp_> data_;
     };
 
