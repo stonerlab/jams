@@ -27,6 +27,7 @@ declare -r MAKEFLAGS="-j$NUMPROC"
 #declare -r URL=http://joebarker87@bitbucket.org/joebarker87/jams.git
 declare -r URL=git@bitbucket.org:joebarker87/jams.git
 declare -r EXE_PATH='build/src/jams/jams'
+declare -r NVCC_PATH="$(which nvcc)"
 
 function usage {
 	echo "usage: $0 [-b <branch>] [-c <commit>] [-t <build_type>] [-g <generator>] [-d | Debug]"
@@ -178,6 +179,11 @@ main() {
   local build_options=""
   local generator="Unix Makefiles"
 
+  if [[ -z "${NVCC_PATH}" ]]; then
+    message "\e[1m==> Disabling CUDA in build...\e[0m"
+    build_options="-DJAMS_BUILD_CUDA=OFF"
+  fi
+
   while getopts ":b:c:dt:o:g:h" opt; do
     case $opt in
       b )
@@ -193,7 +199,7 @@ main() {
         build_type=$OPTARG
         ;;
       o )
-        build_options=$OPTARG
+        build_options="${build_options} $OPTARG"
         ;;
       g )
         generator=$OPTARG
@@ -212,7 +218,7 @@ main() {
 
   cd "$TMP_DIR"
 
-  if [ -n "${commit}" ]; then
+  if [[ -n "${commit}" ]]; then
     build_commit "$commit" "$build_type" "$build_options" "$generator"
   else
     build_branch "$branch" "$build_type" "$build_options" "$generator"
