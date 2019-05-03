@@ -96,7 +96,7 @@ void HeunLLGSolver::run() {
     }
   }
 
-  OMP_PARALLEL_FOR
+//  OMP_PARALLEL_FOR
 //  for (auto i = 0; i < num_spins; ++i) {
 //   double sxh[3], rhs[3];
 //
