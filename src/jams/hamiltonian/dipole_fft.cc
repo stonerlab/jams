@@ -173,7 +173,7 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
 
     calculate_fields(h_);
     for (auto m = 0; m < 3; ++m) {
-        Vec3i pos = ::lattice->supercell_index(i);
+        Vec3i pos = ::lattice->cell_offset(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
 
@@ -199,7 +199,7 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
 
     calculate_fields(h_);
     for (auto m = 0; m < 3; ++m) {
-        Vec3i pos = ::lattice->supercell_index(i);
+        Vec3i pos = ::lattice->cell_offset(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
 }
@@ -249,7 +249,10 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
           continue;
         }
 
-        const auto r_ij = lattice->displacement(r_cart_j, lattice->generate_position(r_frac_i, {nx, ny, nz}));
+        const auto r_ij = lattice->displacement(r_cart_j,
+                                                lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
+                                                                                                             {nx, ny,
+                                                                                                              nz}));
         const auto r_abs_sq = abs_sq(r_ij);
 
         if (r_abs_sq > pow2(r_cutoff_ + r_distance_tolerance_)) {

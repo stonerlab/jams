@@ -21,15 +21,15 @@ public:
     inline Cell(const Mat3 &basis, const Vec3b pbc = {{true, true, true}});
     inline Cell(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b pbc = {{true, true, true}});
 
-    inline Vec3 a() const;
-    inline Vec3 b() const;
-    inline Vec3 c() const;
+    inline constexpr Vec3 a() const;
+    inline constexpr Vec3 b() const;
+    inline constexpr Vec3 c() const;
 
-    inline Vec3b periodic() const;
-    inline bool periodic(int n) const;
+    inline constexpr Vec3b periodic() const;
+    inline constexpr bool periodic(int n) const;
 
-    inline Mat3 matrix() const;
-    inline Mat3 inverse_matrix() const;
+    inline constexpr Mat3 matrix() const;
+    inline constexpr Mat3 inverse_matrix() const;
 
 protected:
     Mat3  matrix_ = kIdentityMat3;
@@ -49,31 +49,31 @@ inline Cell::Cell(const Vec3 &a, const Vec3 &b, const Vec3 &c, Vec3b pbc)
           periodic_(pbc)
 {}
 
-inline Vec3 Cell::a() const {
+inline constexpr Vec3 Cell::a() const {
   return {matrix_[0][0], matrix_[1][0], matrix_[2][0]};
 }
 
-inline Vec3 Cell::b() const {
+inline constexpr Vec3 Cell::b() const {
   return {matrix_[0][1], matrix_[1][1], matrix_[2][1]};
 }
 
-inline Vec3 Cell::c() const {
+inline constexpr Vec3 Cell::c() const {
   return {matrix_[0][2], matrix_[1][2], matrix_[2][2]};
 }
 
-inline bool Cell::periodic(const int n) const {
+inline constexpr bool Cell::periodic(const int n) const {
   return periodic_[n];
 }
 
-inline Mat3 Cell::matrix() const {
+inline constexpr Mat3 Cell::matrix() const {
   return matrix_;
 }
 
-inline Mat3 Cell::inverse_matrix() const {
+inline constexpr Mat3 Cell::inverse_matrix() const {
   return inverse_matrix_;
 }
 
-Vec3b Cell::periodic() const {
+Vec3b constexpr Cell::periodic() const {
   return periodic_;
 }
 

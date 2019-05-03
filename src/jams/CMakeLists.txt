@@ -118,6 +118,7 @@ target_sources(jams_object_lib
         monitors/spin_temperature.cc
         monitors/spectrum_fourier.cc
         monitors/torque.cc
+        monitors/unitcell_average.cc
         monitors/vtu.cc
         monitors/xyz.cc
         physics/field_cool.cc

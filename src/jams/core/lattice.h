@@ -126,6 +126,27 @@ public:
     Vec3 atom_position(const int &i) const;
     unsigned atom_motif_position(const int &i) const;
     void atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom> &neighbours) const;
+    constexpr int atom_unitcell(const int &i) const;
+
+
+    // supercell
+
+    constexpr unsigned num_cells() const {
+      return cell_offsets_.size();
+    }
+
+    const Vec3i& cell_offset(const int &i) const {
+      return cell_offsets_[atom_to_cell_lookup_[i]];
+    }
+
+    const int& cell_containing_atom(const int &i) const {
+      return atom_to_cell_lookup_[i];
+    }
+
+    const Vec3& cell_center(const int &i) const {
+      return cell_centers_[i];
+    }
+
 
     double max_interaction_radius() const;
 
@@ -134,7 +155,8 @@ public:
     // TODO: remove rmax
     Vec3 rmax() const;
 
-    Vec3 generate_position(const Vec3 &unit_cell_frac_pos, const Vec3i &translation_vector) const;
+    Vec3 generate_cartesian_lattice_position_from_fractional(const Vec3 &unit_cell_frac_pos,
+                                                             const Vec3i &translation_vector) const;
 
     Vec3 generate_image_position(const Vec3 &unit_cell_cart_pos, const Vec3i &image_vector) const;
 
@@ -155,7 +177,6 @@ public:
 
     bool apply_boundary_conditions(Vec4i &pos) const;
 
-    const Vec3i &supercell_index(const int &i) const;
 
     const Vec3i &kspace_size() const;
 
@@ -173,7 +194,7 @@ private:
 
     void init_unit_cell(const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings);
 
-    void init_lattice_positions(const libconfig::Setting &lattice_settings);
+    void generate_supercell(const libconfig::Setting &lattice_settings);
 
     void global_rotation(const Mat3 &rotation_matrix);
 
@@ -199,12 +220,15 @@ private:
     std::vector<Atom> motif_;
     std::vector<Atom> atoms_;
 
+    std::vector<int>   atom_to_cell_lookup_;     // index is a spin and the data is the unit cell that spin belongs to
+    std::vector<Vec3>  cell_centers_;
+    std::vector<Vec3i> cell_offsets_;
+
     DisplacementCalculator displacement_calculator;
 
     MaterialMap       materials_;
     unsigned          impurity_seed_;
     ImpurityMap       impurity_map_;
-    std::vector<Vec3i> supercell_indicies_;
     jams::MultiArray<int, 4> lattice_map_;
 
     jams::MultiArray<int, 3> kspace_map_;

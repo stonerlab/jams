@@ -257,7 +257,8 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
 
                 auto r_ij =
                     lattice->displacement(r_cart_j,
-                        lattice->generate_position(r_frac_i, {nx, ny, nz})); // generate_position requires FRACTIONAL coordinate
+                                          lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
+                                                                                                       {nx, ny, nz})); // generate_cartesian_lattice_position_from_fractional requires FRACTIONAL coordinate
 
                 const auto r_abs_sq = abs_sq(r_ij);
 

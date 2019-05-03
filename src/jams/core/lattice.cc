@@ -201,10 +201,6 @@ Vec3b Lattice::periodic_boundaries() const {
   return lattice_periodic;
 }
 
-const Vec3i &Lattice::supercell_index(const int &i) const {
-  return supercell_indicies_[i];
-}
-
 const Vec3i &Lattice::kspace_size() const {
   return kspace_size_;
 }
@@ -234,7 +230,7 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
     calc_symmetry_operations();
   }
 
-  init_lattice_positions(cfg.lookup("lattice"));
+  generate_supercell(cfg.lookup("lattice"));
 }
 
 void Lattice::read_motif_from_config(const libconfig::Setting &positions, CoordinateFormat coordinate_format) {
@@ -530,7 +526,7 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
 }
 
 
-void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
+void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 {
   Vec3i kmesh_size = {lattice_dimensions[0], lattice_dimensions[1], lattice_dimensions[2]};
 
@@ -549,18 +545,23 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   kspace_map_.resize(kspace_size_[0], kspace_size_[1], kspace_size_[2]);
   kspace_map_.fill(-1);
 
+
+
   cout << "\nkspace size " << kmesh_size << "\n";
 
 
-  const auto expected_num_atoms = num_motif_atoms() * product(lattice_dimensions);
 
   lattice_map_.resize(this->size(0), this->size(1), this->size(2), this->num_motif_atoms());
   // initialize everything to -1 so we can check for double assignment below
   lattice_map_.fill(-1);
 
+  const auto num_cells = product(lattice_dimensions);
+  const auto expected_num_atoms = num_motif_atoms() * num_cells;
 
-  supercell_indicies_.reserve(expected_num_atoms);
+  cell_centers_.reserve(num_cells);
+  cell_offsets_.reserve(num_cells);
   atoms_.reserve(expected_num_atoms);
+  atom_to_cell_lookup_.reserve(expected_num_atoms);
 
   auto impurity_rand = std::bind(std::uniform_real_distribution<>(), pcg32(impurity_seed_));
 
@@ -568,13 +569,17 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   int atom_counter = 0;
   std::vector<size_t> type_counter(materials_.size(), 0);
 
+
+  unsigned cell_counter = 0;
   for (auto i = 0; i < lattice_dimensions[0]; ++i) {
     for (auto j = 0; j < lattice_dimensions[1]; ++j) {
       for (auto k = 0; k < lattice_dimensions[2]; ++k) {
-        for (auto m = 0; m < motif_.size(); ++m) {
+        auto cell_offset = Vec3i{{i, j, k}};
+        cell_offsets_.push_back(cell_offset);
+        cell_centers_.push_back(generate_cartesian_lattice_position_from_fractional(Vec3{0.5,0.5,0.5}, cell_offset));
 
-          auto translation = Vec3i{{i, j, k}};
-          auto position    = generate_position(motif_[m].pos, translation);
+        for (auto m = 0; m < motif_.size(); ++m) {
+          auto position    = generate_cartesian_lattice_position_from_fractional(motif_[m].pos, cell_offset);
           auto material    = motif_[m].material;
 
           if (impurity_map_.count(material)) {
@@ -586,7 +591,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
           }
 
           atoms_.push_back({atom_counter, material, m, position});
-          supercell_indicies_.push_back(translation);
+          atom_to_cell_lookup_.push_back(cell_counter);
 
           // number the site in the fast integer lattice
           lattice_map_(i, j, k, m) = atom_counter;
@@ -594,6 +599,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
           type_counter[material]++;
           atom_counter++;
         }
+        cell_counter++;
       }
     }
   }
@@ -639,7 +645,7 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
 
   cout << "  computed lattice positions " << atom_counter << "\n";
   for (auto i = 0; i < atoms_.size(); ++i) {
-    cout << i << " " << materials_.name(atoms_[i].material)  << " " << atoms_[i].pos << " " << supercell_index(i) << "\n";
+    cout << i << " " << materials_.name(atoms_[i].material)  << " " << atoms_[i].pos << " " << cell_offset(i) << "\n";
     if(!verbose_is_enabled() && i > 7) {
       cout << "    ... [use verbose output for details] ... \n";
       break;
@@ -701,9 +707,9 @@ void Lattice::init_lattice_positions(const libconfig::Setting &lattice_settings)
   }
 }
 
-Vec3 Lattice::generate_position(
-        const Vec3 &unit_cell_frac_pos,
-        const Vec3i &translation_vector) const
+Vec3 Lattice::generate_cartesian_lattice_position_from_fractional(
+    const Vec3 &unit_cell_frac_pos,
+    const Vec3i &translation_vector) const
 {
   return unitcell.matrix() * (unit_cell_frac_pos + translation_vector);
 }

@@ -461,7 +461,7 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
     // }
 
     for (int i = 0; i < globals::num_spins; ++i) {
-         pos = ::lattice->supercell_index(i);
+         pos = ::lattice->cell_offset(i);
          for (int m = 0; m < 3; ++m) {
             s_nonlocal_(pos[0], pos[1], pos[2], m) = globals::s(i, m);
         }

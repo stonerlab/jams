@@ -84,9 +84,6 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
   const auto r_cut_squared = pow2(r_cutoff_);
   const auto w0 = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
 
-  const bool is_bulk = lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2);
-  const bool is_open = !lattice->is_periodic(0) && !lattice->is_periodic(1) && !lattice->is_periodic(2);
-
   double hx = 0, hy = 0, hz = 0;
   #if HAS_OMP
   #pragma omp parallel for reduction(+:hx, hy, hz)
@@ -94,24 +91,13 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
   for (auto j = 0; j < globals::num_spins; ++j) {
     if (j == i) continue;
 
-    Vec3 r_ij = frac_positions_[j] - frac_positions_[i];
+    Vec3 r_ij = lattice->displacement(i, j);
 
-    if (likely(is_bulk)) {
-      r_ij = supercell_matrix_ * (r_ij - trunc(2 * r_ij));
-    } else if (!is_open) {
-      for (auto n = 0; n < 3; ++n) {
-        if (lattice->is_periodic(n)) {
-          r_ij[n] = r_ij[n] - trunc(2.0 * r_ij[n]);
-        }
-      }
-      r_ij = supercell_matrix_ * r_ij;
-    }
-
-    auto r_abs_sq = abs_sq(r_ij);
+    const auto r_abs_sq = abs_sq(r_ij);
 
     if (r_abs_sq > r_cut_squared) continue;
 
-    auto sj_dot_r = s(j, 0) * r_ij[0] + s(j, 1) * r_ij[1] + s(j, 2) * r_ij[2];
+    const auto sj_dot_r = s(j, 0) * r_ij[0] + s(j, 1) * r_ij[1] + s(j, 2) * r_ij[2];
 
     hx += w0 * mus(i) * mus(j) * (3 * r_ij[0] * sj_dot_r - r_abs_sq * s(j, 0)) / pow(r_abs_sq, 2.5);
     hy += w0 * mus(i) * mus(j) * (3 * r_ij[1] * sj_dot_r - r_abs_sq * s(j, 1)) / pow(r_abs_sq, 2.5);
