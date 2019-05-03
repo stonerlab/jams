@@ -6,6 +6,7 @@
 #define JAMS_SYNCED_MEMORY_H
 
 #include <limits>
+#include <iostream>
 
 #if HAS_CUDA
 #include <cuda_runtime.h>
