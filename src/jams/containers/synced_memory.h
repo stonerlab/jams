@@ -247,7 +247,7 @@ namespace jams {
       #if PRINT_MEMSET
         std::cout << "INFO(SyncedMemory): host zero" << std::endl;
       #endif
-      memset(host_ptr_, 0, size_);
+      memset(host_ptr_, 0, size_ * sizeof(T));
     }
 
     template<class T>
