@@ -33,6 +33,8 @@
 // enough memory available to allocate the requested size
 #define DO_FREE_MEMORY_CHECKING 1
 
+#define DO_ZERO_ON_ALLOCATION 0
+
 namespace jams {
     template <class T>
     class SyncedMemory {
@@ -183,7 +185,9 @@ namespace jams {
       switch(sync_status_) {
         case SyncStatus::UNINITIALIZED:
           allocate_device_memory(size_);
+          #ifdef DO_ZERO_ON_ALLOCATION
           zero_device();
+          #endif
           sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
           break;
         case SyncStatus::HOST_IS_MUTATED:
@@ -208,7 +212,9 @@ namespace jams {
       switch(sync_status_) {
         case SyncStatus::UNINITIALIZED:
           allocate_host_memory(size_);
+        #ifdef DO_ZERO_ON_ALLOCATION
           zero_host();
+        #endif
           sync_status_ = SyncStatus::HOST_IS_MUTATED;
           break;
         case SyncStatus::DEVICE_IS_MUTATED:
