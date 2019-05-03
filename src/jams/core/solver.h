@@ -28,7 +28,7 @@ class Solver : public Base {
   virtual void run() = 0;
 
   bool is_converged();
-  bool is_running();
+  virtual bool is_running();
 
   inline bool is_cuda_solver() const {
     return is_cuda_solver_;

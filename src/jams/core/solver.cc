@@ -20,6 +20,7 @@
 
 #include "jams/solvers/cuda_llg_heun.h"
 #include "jams/solvers/cpu_llg_heun.h"
+#include "jams/solvers/cpu_rotations.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 #include "jams/solvers/cpu_monte_carlo_constrained.h"
 
@@ -72,6 +73,10 @@ void Solver::compute_fields() {
 Solver* Solver::create(const libconfig::Setting &settings) {
   auto module_name = jams::config_required<string>(settings, "module");
   module_name = lowercase(module_name);
+
+  if (module_name == "rotations-cpu") {
+    return new RotationSolver;
+  }
 
   if (module_name == "llg-heun-cpu") {
     return new HeunLLGSolver;

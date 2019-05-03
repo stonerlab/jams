@@ -19,7 +19,6 @@ class ConstrainedMCSolver : public Solver {
 
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
-    bool is_running();
 
  private:
     unsigned AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_spin_move);

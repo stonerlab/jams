@@ -129,6 +129,7 @@ target_sources(jams_object_lib
         physics/square_field_pulse.cc
         physics/two_temperature_model.cc
         solvers/cpu_llg_heun.cc
+        solvers/cpu_rotations.cc
         solvers/cpu_monte_carlo_constrained.cc
         solvers/cpu_monte_carlo_metropolis.cc
         )
