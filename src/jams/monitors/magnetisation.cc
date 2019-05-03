@@ -45,7 +45,6 @@ void MagnetisationMonitor::update(Solver * solver) {
 
   jams::MultiArray<Vec3, 1> magnetisation(::lattice->num_materials(), {0.0, 0.0, 0.0});
 
-  OMP_PARALLEL_FOR
   for (auto i = 0; i < num_spins; ++i) {
     const auto type = lattice->atom_material_id(i);
     for (auto j = 0; j < 3; ++j) {
@@ -53,7 +52,6 @@ void MagnetisationMonitor::update(Solver * solver) {
     }
   }
 
-  OMP_PARALLEL_FOR
   for (auto type = 0; type < lattice->num_materials(); ++type) {
     if (material_count_(type) == 0) continue;
     for (auto j = 0; j < 3; ++j) {
