@@ -17,7 +17,7 @@ namespace jams {
         std::string config_file_name;
         std::string config_patch_string;
 
-        unsigned random_seed;
+        unsigned long random_seed;
     };
 }
 
