@@ -52,6 +52,11 @@ namespace jams {
     }
 
     template<>
+    inline unsigned long config_required(const libconfig::Setting &setting, const std::string &name) {
+      return static_cast<unsigned long>(setting[name]);
+    }
+
+    template<>
     inline double config_required(const libconfig::Setting &setting, const std::string &name) {
       return double(setting[name]);
     }
