@@ -53,7 +53,7 @@ namespace jams {
 
     template<>
     inline unsigned long config_required(const libconfig::Setting &setting, const std::string &name) {
-      return static_cast<unsigned long>(setting[name]);
+      return (unsigned long)(setting[name]);
     }
 
     template<>
