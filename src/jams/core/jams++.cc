@@ -102,6 +102,7 @@ void jams_initialize(int argc, char **argv) {
   jams::random_generator().seed(simulation.random_seed);
 
   try {
+    ::config->setAutoConvert(true);
     if (::config->exists("sim")) {
       simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
       simulation.random_seed = jams::config_optional<unsigned long>(config->lookup("sim"), "seed", simulation.random_seed);
