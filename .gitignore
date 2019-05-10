@@ -24,3 +24,5 @@ cout
 
 /build
 /cmake-build*
+/.clion.source.upload.marker
+/examples
