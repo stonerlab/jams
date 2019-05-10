@@ -1,7 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 extern "C"{
-    #include "spglib.h"
+    #include <spglib.h>
 }
 
 #include "jams/core/lattice.h"
