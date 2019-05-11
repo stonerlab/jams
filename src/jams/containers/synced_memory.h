@@ -8,6 +8,8 @@
 #include <limits>
 #include <iostream>
 
+#include "jams/helpers/utils.h"
+
 #if HAS_CUDA
 #include <cuda_runtime.h>
 #include "jams/cuda/cuda_common.h"
@@ -124,10 +126,10 @@ private:
     inline void free_host_memory();
     inline void free_device_memory();
 
+    SyncStatus sync_status_ = SyncStatus::UNINITIALIZED;
     size_type size_         = 0;
     pointer host_ptr_       = nullptr;
     pointer device_ptr_     = nullptr;
-    SyncStatus sync_status_ = SyncStatus::UNINITIALIZED;
 };
 
 template<class T>
@@ -167,33 +169,44 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
 }
 
 template<class T>
+__attribute__((hot))
 inline typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_host_data() {
-  copy_to_host();
+  if (unlikely(sync_status_ == SyncStatus::UNINITIALIZED || sync_status_ == SyncStatus::DEVICE_IS_MUTATED)) {
+    copy_to_host();
+  }
   return host_ptr_;
 }
 
 template<class T>
+__attribute__((hot))
 inline typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_device_data() {
-  copy_to_device();
-  return device_ptr_;
-}
-
-template<class T>
-inline typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_host_data() {
-  copy_to_host();
-  sync_status_ = SyncStatus::HOST_IS_MUTATED;
-  return host_ptr_;
-}
-
-template<class T>
-inline typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_device_data() {
-  copy_to_device();
-  sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
+  if (unlikely(sync_status_ == SyncStatus::UNINITIALIZED || sync_status_ == SyncStatus::HOST_IS_MUTATED)) {
+    copy_to_device();
+  }
   return device_ptr_;
 }
 
 template<class T>
 __attribute__((hot))
+inline typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_host_data() {
+  if (unlikely(sync_status_ == SyncStatus::UNINITIALIZED || sync_status_ == SyncStatus::DEVICE_IS_MUTATED)) {
+    copy_to_host();
+  }
+  sync_status_ = SyncStatus::HOST_IS_MUTATED;
+  return host_ptr_;
+}
+
+template<class T>
+__attribute__((hot))
+inline typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_device_data() {
+  if (unlikely(sync_status_ == SyncStatus::UNINITIALIZED || sync_status_ == SyncStatus::HOST_IS_MUTATED)) {
+    copy_to_device();
+  }
+  sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
+  return device_ptr_;
+}
+
+template<class T>
 void SyncedMemory<T>::copy_to_device() {
   #if HAS_CUDA
   switch(sync_status_) {
@@ -221,31 +234,30 @@ void SyncedMemory<T>::copy_to_device() {
 }
 
 template<class T>
-__attribute__((hot))
 void SyncedMemory<T>::copy_to_host() {
   switch(sync_status_) {
-    case SyncStatus::UNINITIALIZED:
-      allocate_host_memory(size_);
-      #ifdef SYNCEDMEMORY_ZERO_ON_ALLOCATION
-      zero_host();
-      #endif
-      sync_status_ = SyncStatus::HOST_IS_MUTATED;
-      break;
-    case SyncStatus::DEVICE_IS_MUTATED:
-      #if HAS_CUDA
-      if (host_ptr_ == nullptr) allocate_host_memory(size_);
-      #if SYNCEDMEMORY_PRINT_MEMCPY
-        std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
-      #endif
-      assert(device_ptr_ && host_ptr_);
-      CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToHost));
-      sync_status_ = SyncStatus::SYNCHRONIZED;
-      break;
-      #endif
-    case SyncStatus::HOST_IS_MUTATED:
-    case SyncStatus::SYNCHRONIZED:
-      break;
-    }
+  case SyncStatus::UNINITIALIZED:
+    allocate_host_memory(size_);
+    #ifdef SYNCEDMEMORY_ZERO_ON_ALLOCATION
+    zero_host();
+    #endif
+    sync_status_ = SyncStatus::HOST_IS_MUTATED;
+    break;
+  case SyncStatus::DEVICE_IS_MUTATED:
+    #if HAS_CUDA
+    if (host_ptr_ == nullptr) allocate_host_memory(size_);
+    #if SYNCEDMEMORY_PRINT_MEMCPY
+      std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
+    #endif
+    assert(device_ptr_ && host_ptr_);
+    CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToHost));
+    sync_status_ = SyncStatus::SYNCHRONIZED;
+    break;
+    #endif
+  case SyncStatus::HOST_IS_MUTATED:
+  case SyncStatus::SYNCHRONIZED:
+    break;
+  }
 }
 
 template<class T>
