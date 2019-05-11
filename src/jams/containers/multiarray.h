@@ -6,11 +6,31 @@
 #define JAMS_MULTIARRAY_H
 
 #include <array>
+#include <cassert>
+#include <cstring>
 
 #include "jams/containers/synced_memory.h"
 
 namespace jams {
     namespace detail {
+        template <std::size_t... Is>
+        struct indices {};
+        template <std::size_t N, std::size_t... Is>
+        struct build_indices: build_indices<N-1, N-1, Is...> {};
+        template <std::size_t... Is>
+        struct build_indices<0, Is...>: indices<Is...> {};
+
+        template<typename T, typename U, size_t i, size_t... Is>
+        constexpr std::array<T, i> array_cast_helper(const std::array<U, i> &a, indices<Is...>) {
+          return {{static_cast<T>(std::get<Is>(a))...}};
+        }
+
+        template<typename T, typename U, size_t i>
+        constexpr auto array_cast(const std::array<U, i> &a) -> std::array<T, i> {
+          // tag dispatch to helper with array indices
+          return array_cast_helper<T>(a, build_indices<i>());
+        }
+
         // partial specialization of templates is not possible, so we use structs
 
         // recursive method to multiply the last N elements of array
@@ -98,8 +118,6 @@ namespace jams {
         using const_pointer = const value_type *;
         using iterator = pointer;
         using const_iterator = const_pointer;
-//        using reverse_iterator = typename data_container_type::reverse_iterator;
-//        using const_reverse_iterator = typename data_container_type::const_reverse_iterator;
 
         MultiArray() = default;
         ~MultiArray() = default;
@@ -120,13 +138,15 @@ namespace jams {
         }
 
         // construct using dimensions in array
-        inline explicit MultiArray(const std::array<size_type, Dim_> &v) :
-            size_(v),
+        template <typename U>
+        inline explicit MultiArray(const std::array<U, Dim_> &v) :
+            size_(detail::array_cast<size_type>(v)),
             data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(v)) {}
 
         // construct using dimensions in array and initial value
-        inline explicit MultiArray(const std::array<size_type, Dim_> &v, const Tp_ &x) :
-            size_(v),
+        template <typename U>
+        inline explicit MultiArray(const std::array<U, Dim_> &v, const Tp_ &x) :
+            size_(detail::array_cast<size_type>(v)),
             data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(v), x) {}
 
         // capacity
@@ -303,12 +323,14 @@ namespace jams {
             size_({size}),
             data_(size) { fill(x); }
 
-        inline explicit MultiArray(const std::array<size_type, 1> &v) :
-            size_(v),
+        template <typename U>
+        inline explicit MultiArray(const std::array<U, 1> &v) :
+            size_(detail::array_cast<size_type>(v)),
             data_(std::get<0>(v)) {}
 
-        inline explicit MultiArray(const std::array<size_type, 1> &v, const Tp_& x) :
-            size_(v),
+        template <typename U>
+        inline explicit MultiArray(const std::array<U, 1> &v, const Tp_& x) :
+            size_(detail::array_cast<size_type>(v)),
             data_(std::get<0>(v)) { fill(x); }
 
         // capacity
