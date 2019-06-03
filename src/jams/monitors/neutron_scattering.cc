@@ -177,48 +177,31 @@ void NeutronScatteringMonitor::update(Solver * solver) {
   assert(fft_plan_s_to_reciprocal_space_ != nullptr);
   assert(s_reciprocal_space_.elements() > 0);
 
-  bool brute_force_fourier_transform = false;
+  transformed_spins_.zero();
 
-  if (brute_force_fourier_transform) {
-    if (time_point_counter_ < sqw_x_.size(1)) {
-      for (auto i = 0; i < q_vectors_.size(); ++i) {
-        for (auto n = 0; n < num_spins; ++n) {
-          const auto m = lattice->atom_motif_position(n);
-          const auto coeff = exp(-kImagTwoPi * dot(lattice->atom_cell_position(n), q_vectors_[i]));
-          sqw_x_(m, time_point_counter_, i) += s(n, 0) * coeff;
-          sqw_y_(m, time_point_counter_, i) += s(n, 1) * coeff;
-          sqw_z_(m, time_point_counter_, i) += s(n, 2) * coeff;
-        }
-      }
+  for (auto n = 0; n < globals::num_spins; ++n) {
+    for (auto i = 0; i < 3; ++i) {
+      transformed_spins_(n, i) = Complex{globals::s(n, i), 0.0};
     }
-  } else {
+  }
 
-    transformed_spins_.zero();
+  fftw_execute(fft_plan_s_to_reciprocal_space_);
 
-    for (auto n = 0; n < globals::num_spins; ++n) {
-      for (auto i = 0; i < 3; ++i) {
-        transformed_spins_(n, i) = Complex{globals::s(n, i), 0.0};
-      }
-    }
-
-    fftw_execute(fft_plan_s_to_reciprocal_space_);
-
-    const double norm = 1.0 / sqrt(product(lattice->kspace_size()));
-    std::transform(s_reciprocal_space_.begin(), s_reciprocal_space_.end(), s_reciprocal_space_.begin(),
-                   [norm](const Complex &a) { return a * norm; });
+  const double norm = 1.0 / sqrt(product(lattice->kspace_size()));
+  std::transform(s_reciprocal_space_.begin(), s_reciprocal_space_.end(), s_reciprocal_space_.begin(),
+                 [norm](const Complex &a) { return a * norm; });
 
 
-    // store data just on the path of interest
+  // store data just on the path of interest
 
-    // extra safety in case there is an extra one time point due to floating point maths
-    if (time_point_counter_ < sqw_x_.size(1)) {
-      for (auto m = 0; m < ::lattice->num_motif_atoms(); ++m) {
-        for (auto i = 0; i < brillouin_zone_mapping_.size(); ++i) {
-          auto hkl = brillouin_zone_mapping_[i];
-          sqw_x_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 0);
-          sqw_y_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 1);
-          sqw_z_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 2);
-        }
+  // extra safety in case there is an extra one time point due to floating point maths
+  if (time_point_counter_ < sqw_x_.size(1)) {
+    for (auto m = 0; m < ::lattice->num_motif_atoms(); ++m) {
+      for (auto i = 0; i < brillouin_zone_mapping_.size(); ++i) {
+        auto hkl = brillouin_zone_mapping_[i];
+        sqw_x_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 0);
+        sqw_y_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 1);
+        sqw_z_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 2);
       }
     }
   }
@@ -347,14 +330,12 @@ void NeutronScatteringMonitor::post_process() {
   for (auto i = 0; i < (time_points/2) + 1; ++i) {
     for (auto j = 0; j < hkl_indicies_.size(); ++j) {
       sqwfile << std::setw(5) << std::fixed << j << "\t";
-//        sqwfile << float_format << region_length + total_length + 0.5 * bz_lengths[j] << "\t";
       sqwfile << float_format << hkl_indicies_[j] << "\t";
       sqwfile << float_format << q_vectors_[j] << "\t";
       sqwfile << float_format << (i*freq_delta_ / 1e12) << "\t"; // THz
       sqwfile << float_format << (i*freq_delta_ / 1e12) * 4.135668 << "\t"; // meV
-      sqwfile << float_format << total_cross_section(i,j).real() << "\t";
-      sqwfile << float_format << total_cross_section(i,j).imag() << "\n";
-//        region_length += bz_lengths[j];
+      sqwfile << std::scientific << total_cross_section(i,j).real() << "\t";
+      sqwfile << std::scientific << total_cross_section(i,j).imag() << "\n";
     }
     sqwfile << std::endl;
   }
