@@ -26,7 +26,23 @@ inline bool operator==(const Qpoint& a, const Qpoint& b) {
   return approximately_equal(a.hkl, b.hkl);
 }
 
-
+/**
+ * Monitor for calculating neutron scattering cross-sections
+ *
+ * Neutron scattering cross-sections contain several factors which we don't
+ * want in a 'pure' spin wave spectrum. For example:
+ *
+ *  - the magnetic structure factor which causes forbidden reflections depending
+ * on the Brillouin zone
+ *  - the polarization factor where only components perpendicular to Q can be
+ * measured
+ *  - extended zone scheme so we are not limited to the first Brillouin zone /
+ * reduced zone scheme
+ *
+ * This monitor includes all of these effects allowing a direct
+ * comparison to neutron scattering measurments.
+ *
+ */
 class NeutronScatteringMonitor : public Monitor {
  public:
     using Complex = std::complex<double>;

@@ -15,6 +15,7 @@
 #include "neutron_scattering.h"
 
 using namespace std;
+using namespace jams;
 using Complex = std::complex<double>;
 
 class Solver;
@@ -34,27 +35,36 @@ namespace {
       return kronecker_delta(alpha, beta) - k[components[alpha]]*k[components[beta]];
     }
 
-    jams::MultiArray<Complex, 2> partial_cross_section(const char alpha, const char beta, const unsigned site_a, const unsigned site_b, const jams::MultiArray<Complex, 2>& sqw_a, const jams::MultiArray<Complex, 2>& sqw_b, const vector<Vec3>& qpoints) {
+/**
+ * Compute the alpha, beta components of the scattiner cross section.
+ *
+ * @param alpha cartesian component {x,y,z}
+ * @param beta  cartesian component {x,y,z}
+ * @param site_a unit cell site index
+ * @param site_b unit cell site index
+ * @param sqw_a spin data for site a in reciprocal space and frequency space
+ * @param sqw_b spin data for site b in reciprocal space and frequency space
+ * @param hkl_indicies list of reciprocal space hkl indicies
+ * @return
+ */
+    MultiArray<Complex, 2> partial_cross_section(const char alpha, const char beta, const unsigned site_a, const unsigned site_b, const MultiArray<Complex, 2>& sqw_a, const MultiArray<Complex, 2>& sqw_b, const vector<Vec3>& hkl_indicies) {
+
       const auto num_freqencies = sqw_a.size(0);
       const auto num_reciprocal_points = sqw_a.size(1);
 
-      jams::MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
+      MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
 
       // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
-      std::transform(sqw_a.begin(), sqw_a.end(), sqw_b.begin(), convolved.begin(),
+      transform(sqw_a.begin(), sqw_a.end(), sqw_b.begin(), convolved.begin(),
           [](const Complex &a, const Complex &b) { return conj(a) * b; });
 
-      // we do the phasing here because r_ij needs to change sign for a->b, b->a
 
-      // THIS IS A FRACTIONAL POSITION
-      // TODO: does this need to be periodic across the unit cell boundary?
-      Vec3 r = lattice->motif_atom(site_b).pos - lattice->motif_atom(site_a).pos;
-      const auto r_cart = lattice->fractional_to_cartesian(r);
+      Vec3 r_frac = lattice->motif_atom(site_b).pos - lattice->motif_atom(site_a).pos;
 
       for (auto j = 0; j < num_reciprocal_points; ++j) {
-        const auto q = qpoints[j];
+        const auto q = hkl_indicies[j];
         const auto q_cart = lattice->get_unitcell().inverse_matrix()*q;
-        const auto phase = exp(-kImagTwoPi * dot(q_cart, r_cart));
+        const auto phase = exp(-kImagTwoPi * dot(q, r_frac));
 
 
         const auto factor = polarization_factor(alpha, beta, q_cart);
@@ -69,45 +79,60 @@ namespace {
 
 }
 
-vector<Qpoint> generate_kspace_path(const vector<Vec3>& kspace_nodes, const Vec3i& kspace_size) {
-  vector<Vec3i> hkl_nodes;
-  Vec3 deltaQ = 1.0 / to_double(kspace_size);
+// Applies periodic boundary conditions to indicies for FFTW ordered arrays, including
+// negative indicies
+template <typename T>
+inline T fftw_periodic_index(const T &indicies, const T &fft_size) {
+  return (indicies % fft_size + fft_size) % fft_size;
+}
 
-  for (auto node : kspace_nodes) {
-    hkl_nodes.push_back(to_int(scale(node, kspace_size)));
+/**
+ * Generate a path between nodes in reciprocal space sampling the kspace discretely.
+ *
+ * @param hkl_nodes
+ * @param reciprocal_space_size
+ * @return
+ */
+vector<Qpoint> generate_hkl_reciprocal_space_path(const vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size) {
+
+
+  Vec3 deltaQ = 1.0 / to_double(reciprocal_space_size);
+
+  vector<Vec3i> hkl_nodes_scaled;
+  for (auto node : hkl_nodes) {
+    hkl_nodes_scaled.push_back(to_int(scale(node, reciprocal_space_size)));
   }
 
-  vector<Vec3i> supercell_Qpoints;
-  vector<Qpoint> qpoints;
+  vector<Qpoint> hkl_path;
 
-  for (auto n = 0; n < hkl_nodes.size()-1; ++n) {
-    const auto origin = hkl_nodes[n];
-    const auto path   = hkl_nodes[n+1] - origin;
+  for (auto n = 0; n < hkl_nodes_scaled.size()-1; ++n) {
+
+    const auto hkl_origin = hkl_nodes_scaled[n];
+    const auto hkl_displacement = hkl_nodes_scaled[n+1] - hkl_origin;
 
     // normalised direction vector
-    const auto coordinate_delta = normalize_components(path);
+    const auto hkl_delta = normalize_components(hkl_displacement);
 
-    // use +1 to include the last point on the path
-    const auto num_coordinates = abs_max(path) + 1;
+    // use +1 to include the last point on the hkl_displacement
+    const auto num_hkl_coordinates = abs_max(hkl_displacement) + 1;
 
-    auto coordinate = origin;
-    for (auto i = 0; i < num_coordinates; ++i) {
-      // map an arbitrary coordinate into the limited k indicies of the reduced brillouin zone
-      // this is in FFTW ordering so negative indicies wrap around
-      auto reduced_coordinate = (coordinate % kspace_size + kspace_size) % kspace_size;
-      auto hkl = scale(coordinate, deltaQ);
+    auto hkl_coordinate = hkl_origin;
+    for (auto i = 0; i < num_hkl_coordinates; ++i) {
+
+      // map an arbitrary hkl_coordinate into the limited k indicies of the reduced brillouin zone
+      auto hkl_remapped_index = fftw_periodic_index(hkl_coordinate, reciprocal_space_size);
+      auto hkl = scale(hkl_coordinate, deltaQ);
       auto q = lattice->get_unitcell().inverse_matrix() * hkl;
-      qpoints.push_back({hkl, q, reduced_coordinate});
-      coordinate += coordinate_delta;
+      hkl_path.push_back({hkl, q, hkl_remapped_index});
+      hkl_coordinate += hkl_delta;
     }
   }
 
-  // remove duplicates in the path (vertices)
-  qpoints.erase(std::unique(qpoints.begin(), qpoints.end()), qpoints.end());
+  // remove duplicates in the path where start and end indicies are the same at nodes
+  hkl_path.erase(std::unique(hkl_path.begin(), hkl_path.end()), hkl_path.end());
 
-  return qpoints;
+  return hkl_path;
 }
-
 
 NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
@@ -155,7 +180,7 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
         Vec3{cfg_nodes[i][0], cfg_nodes[i][1], cfg_nodes[i][2]});
   }
 
-  auto qpoint_data = generate_kspace_path(brillouin_zone_nodes_, lattice->kspace_size());
+  auto qpoint_data = generate_hkl_reciprocal_space_path(brillouin_zone_nodes_, lattice->kspace_size());
 
   for (const auto& p : qpoint_data) {
     hkl_indicies_.push_back(p.hkl);
