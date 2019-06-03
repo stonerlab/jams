@@ -14,14 +14,6 @@
 
 using namespace std;
 
-namespace jams {
-    namespace impl {
-        Vec3 normalized_spin(const Vec3& v) {
-          return v * zero_safe_recip_norm(v);
-        }
-    }
-}
-
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
@@ -134,7 +126,7 @@ void HeunLLGSolver::run() {
     }
 
      for (auto j = 0; j < 3; ++j) {
-      s(i, j) = jams::impl::normalized_spin(spin + dt * rhs)[j];
+      s(i, j) = zero_safe_normalize(spin + dt * rhs)[j];
     }
 
   }
@@ -188,7 +180,7 @@ void HeunLLGSolver::run() {
     const Vec3 rhs = cross(spin, field) + alpha(i) * cross(spin, (cross(spin, field)));
 
     for (auto j = 0; j < 3; ++j) {
-      s(i, j) = jams::impl::normalized_spin(spin_new + 0.5 * dt * rhs)[j];
+      s(i, j) = zero_safe_normalize(spin_new + 0.5 * dt * rhs)[j];
     }
 
   }
