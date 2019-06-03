@@ -10,8 +10,6 @@
 
 #include "consts.h"
 
-#include "jams/containers/vec3.h"
-#include "jams/containers/mat3.h"
 
 // for these floating point comparisons we always compare the difference with the larger
 // of the two numbers to
@@ -24,31 +22,9 @@ inline bool approximately_equal(const T& a, const T& b, const T& epsilon = FLT_E
   return std::abs(a - b) <= (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
-// Vec3 specialization
-template <typename T>
-inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& epsilon = FLT_EPSILON) {
-//  return approximately_equal(a[0], b[0], epsilon) && approximately_equal(a[1], b[1], epsilon) && approximately_equal(a[2], b[2], epsilon);
-  for (auto n = 0; n < 3; ++n) {
-    if (!approximately_equal(a[n], b[n], epsilon)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 template <typename T>
 inline bool approximately_zero(const T& a, const T& epsilon = FLT_EPSILON) {
   return std::abs(a) <= epsilon;
-}
-
-template <typename T>
-inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon = FLT_EPSILON) {
-  for (auto n = 0; n < 3; ++n) {
-    if (!approximately_zero(a[n], epsilon)) {
-      return false;
-    }
-  }
-  return true;
 }
 
 template <typename T>
@@ -67,14 +43,6 @@ inline double zero_safe_recip_norm(double x, double y, double z) {
   }
 
   return 1.0 / sqrt(x * x + y * y + z * z);
-}
-
-inline double zero_safe_recip_norm(Vec3 v) {
-  if (approximately_zero(v)) {
-    return 0.0;
-  }
-
-  return 1.0 / abs(v);
 }
 
 inline double square(const double &x) {
@@ -114,6 +82,12 @@ inline bool odd(const int x) {
   return x % 2 != 0;
 }
 
+template <typename T>
+inline double kronecker_delta(const T& alpha, const T& beta) {
+  if (alpha == beta) return 1.0;
+  return 0.0;
+}
+
 inline double gaussian(const double x, const double sigma, const double mean = 0.0) {
   return kOne_SqrtTwoPi*exp(-0.5*std::pow((x - mean) / sigma, 2))/sigma;
 }
@@ -124,22 +98,6 @@ inline double deg_to_rad(const double &angle) {
 
 inline double rad_to_deg(const double &angle) {
   return angle*(180.0/kPi);
-}
-
-inline Vec3 cartesian_from_spherical(const double &r, const double &theta, const double &phi) {
-  return {
-          sin(theta) * cos(phi),
-          sin(theta) * sin(phi),
-          cos(theta)
-  };
-}
-
-inline double azimuthal_angle(const Vec3 a) {
-  return acos(a[2]/abs(a));
-}
-
-inline double polar_angle(const Vec3 a) {
-  return atan2(a[2], a[0]);
 }
 
 inline double azimuthal_angle(const double a[3]) {
@@ -299,27 +257,6 @@ inline void spherical_to_cartesian(const double r,
   (*z) = r*cos(theta);
 }
 
-inline Vec3 spherical_to_cartesian_vector(const double r,
-    const double theta, const double phi) {
-  return {r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), r*cos(theta)};
-}
-
-inline Mat3 rotation_matrix_y(const double& theta) {
-  return {
-    cos(theta),  0.0, sin(theta),
-    0.0,         1.0,        0.0,
-    -sin(theta), 0.0, cos(theta)
-  };
-}
-
-inline Mat3 rotation_matrix_z(const double& phi) {
-  return {
-    cos(phi),  -sin(phi), 0.0,
-    sin(phi),   cos(phi), 0.0,
-    0.0,        0.0,      1.0
-  };
-}
-
 template <typename _Tp>
 void matmul(const _Tp a[3][3], const _Tp b[3][3], _Tp c[3][3]) {
   for (int i = 0; i < 3; ++i) {
@@ -381,10 +318,6 @@ inline void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
   out[1] = a[2]*b[0] - a[0]*b[2];
   out[2] = a[0]*b[1] - a[1]*b[0];
 }
-
-Mat3 rotation_matrix_yz(const double theta, const double phi);
-Mat3 rotation_matrix_between_vectors(Vec3 a, Vec3 b);
-
 
 // Legendre polynomials
 double legendre_poly(const double x, const int n);

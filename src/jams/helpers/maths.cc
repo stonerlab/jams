@@ -142,25 +142,3 @@ double legendre_dpoly(const double x, const int n) {
   return (x * legendre_poly(x, n) - legendre_poly(x, n - 1)) / static_cast<double>(2 * n + 1);
 }
 
-Mat3 rotation_matrix_yz(const double theta, const double phi) {
-  const double c_t = cos(theta);
-  const double c_p = cos(phi);
-  const double s_t = sin(theta);
-  const double s_p = sin(phi);
-
-  return Mat3 {c_t*c_p, -c_t*s_p, s_t, s_p, c_p, 0, -c_p*s_t, s_t*s_p, c_t};
-}
-
-
-
-Mat3 rotation_matrix_between_vectors(Vec3 a, Vec3 b) {
-  // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
-
-  // normalise
-  a = normalize(a);
-  b = normalize(b);
-
-  Vec3 v = cross(a, b);
-
-  return kIdentityMat3 + ssc(v) + ((ssc(v) * ssc(v)) / (1.0 + dot(a, b)));
-}

@@ -9,6 +9,8 @@
 #include <cmath>
 #include <iosfwd>
 #include <iomanip>
+#include <algorithm>
+#include "jams/helpers/maths.h"
 
 template <typename T, std::size_t N>
 using Vec = std::array<T, N>;
@@ -39,6 +41,11 @@ inline auto operator*(const Vec<T1,3>& lhs, const T2& rhs) -> Vec<decltype(lhs[0
 template <typename T1, typename T2>
 inline auto operator/(const Vec<T1,3>& lhs, const T2& rhs) -> Vec<decltype(lhs[0] / rhs), 3> {
   return {lhs[0] / rhs, lhs[1] / rhs, lhs[2] / rhs};
+}
+
+template <typename T1, typename T2>
+inline auto operator/(const T1& lhs, const Vec<T2,3>& rhs) -> Vec<decltype(lhs / rhs[0]), 3> {
+  return {lhs / rhs[0], lhs / rhs[1], lhs / rhs[2]};
 }
 
 template <typename T1, typename T2>
@@ -138,8 +145,59 @@ inline T abs_sq(const Vec<T,3>& a) {
   return dot(a, a);
 }
 
+inline Vec3 spherical_to_cartesian_vector(const double r, const double theta, const double phi) {
+  return {r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), r*cos(theta)};
+}
+
+inline Vec<double,3> cartesian_from_spherical(const double &r, const double &theta, const double &phi) {
+  return {
+      sin(theta) * cos(phi),
+      sin(theta) * sin(phi),
+      cos(theta)
+  };
+}
+
+inline double azimuthal_angle(const Vec<double,3> a) {
+  return acos(a[2]/abs(a));
+}
+
+inline double polar_angle(const Vec<double,3> a) {
+  return atan2(a[2], a[0]);
+}
+
 template <typename T>
 inline auto normalize(const Vec<T,3>& a) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
+  return a / abs(a);
+}
+
+template <typename T>
+inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon = FLT_EPSILON) {
+  for (auto n = 0; n < 3; ++n) {
+    if (!approximately_zero(a[n], epsilon)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Vec3 specialization
+template <typename T>
+inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& epsilon = FLT_EPSILON) {
+//  return approximately_equal(a[0], b[0], epsilon) && approximately_equal(a[1], b[1], epsilon) && approximately_equal(a[2], b[2], epsilon);
+  for (auto n = 0; n < 3; ++n) {
+    if (!approximately_equal(a[n], b[n], epsilon)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template <typename T>
+inline auto zero_safe_normalize(const Vec<T,3>& a) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
+  if (approximately_zero(a)) {
+    return a;
+  }
+
   return a / abs(a);
 }
 
@@ -165,6 +223,31 @@ inline Vec<double,3> to_double(const Vec<T,3>& a) {
     static_cast<double>(std::trunc(a[1])),
     static_cast<double>(std::trunc(a[2]))
   };
+}
+
+template <typename T>
+inline Vec<int,3> to_int(const Vec<T,3>& a) {
+  return {
+      static_cast<int>(a[0]),
+      static_cast<int>(a[1]),
+      static_cast<int>(a[2])
+  };
+}
+
+template <typename T, std::size_t N>
+T abs_max(const std::array<T,N>& x) {
+  return std::abs(*std::max_element(x.begin(), x.end(),
+                           [](const T& a, const T& b) {
+                               return std::abs(a) < std::abs(b); }));
+}
+
+template <typename T, std::size_t N>
+Vec<T, N> normalize_components(const Vec<T, N>& x) {
+  Vec<T, N> result;
+  for (auto i = 0; i < N; ++i) {
+    x[i] != 0 ? result[i] = x[i]/abs(x[i]) : result[i] = 0;
+  }
+  return result;
 }
 
 
