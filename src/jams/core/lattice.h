@@ -122,9 +122,9 @@ public:
     int material_id(const std::string &name);
     bool material_exists(const std::string &name);
 
-    int atom_material_id(const int &i) const;
-    Vec3 atom_position(const int &i) const;
-    unsigned atom_motif_position(const int &i) const;
+    int atom_material_id(const int &i) const;           // integer index of the material
+    Vec3 atom_position(const int &i) const;             // cartesian position in the supercell
+    unsigned atom_motif_position(const int &i) const;   // integer index within the motif
     void atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom> &neighbours) const;
     constexpr int atom_unitcell(const int &i) const;
 
