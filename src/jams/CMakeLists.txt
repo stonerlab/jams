@@ -110,13 +110,14 @@ target_sources(jams_object_lib
         monitors/field.cc
         monitors/magnetisation.cc
         monitors/magnetisation_rate.cc
+        monitors/neutron_scattering.cc
         monitors/skyrmion.cc
         monitors/smr.cc
+        monitors/spectrum_fourier.cc
         monitors/spectrum_general.cc
         monitors/spin_correlation.cc
         monitors/spin_pumping.cc
         monitors/spin_temperature.cc
-        monitors/spectrum_fourier.cc
         monitors/torque.cc
         monitors/unitcell_average.cc
         monitors/vtu.cc
