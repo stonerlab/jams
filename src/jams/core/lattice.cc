@@ -591,6 +591,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
           }
 
           atoms_.push_back({atom_counter, material, m, position});
+          atom_to_cell_lookup_.push_back(cell_counter);
 
           // number the site in the fast integer lattice
           lattice_map_(i, j, k, m) = atom_counter;
