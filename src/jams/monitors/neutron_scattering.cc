@@ -34,7 +34,7 @@ class Solver;
  * @param N logical dimensions of the fft
  * @return pair {T: remapped index, bool: do conjugate}
  */
-inline HKLIndex fftw_remap_index_real_to_complex(Vec<int,3> k, const Vec<int,3> &N) {
+HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec<int,3> k, const Vec<int,3> &N) {
   Vec3 hkl = scale(k, 1.0/to_double(N));
   Vec3 xyz = lattice->get_unitcell().inverse_matrix() * hkl;
 
@@ -62,22 +62,22 @@ inline HKLIndex fftw_remap_index_real_to_complex(Vec<int,3> k, const Vec<int,3> 
  * @param hkl_indicies list of reciprocal space hkl indicies
  * @return
  */
-MultiArray<Complex, 2> partial_cross_section(const int alpha, const int beta, const unsigned site_a, const unsigned site_b, const MultiArray<Complex, 4>& sqw, const vector<HKLIndex>& hkl_indicies) {
-  const auto num_freqencies = sqw.size(0);
-  const auto num_reciprocal_points = sqw.size(1);
+MultiArray<Complex, 2> NeutronScatteringMonitor::partial_cross_section(const int alpha, const int beta, const unsigned site_a, const unsigned site_b) {
+  const auto num_freqencies = sqw_.size(0);
+  const auto num_reciprocal_points = sqw_.size(1);
   const Vec3 r_frac = lattice->motif_atom(site_b).pos - lattice->motif_atom(site_a).pos;
 
   // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
   MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
 
   for (auto k = 0; k < num_reciprocal_points; ++k) {
-    const auto q_frac = hkl_indicies[k].hkl;
-    const auto Q = zero_safe_normalize(hkl_indicies[k].xyz);
+    const auto q_frac = path_[k].hkl;
+    const auto Q = zero_safe_normalize(path_[k].xyz);
     const auto phase = exp(-kImagTwoPi * dot(q_frac, r_frac));
 
     for (auto f = 0; f < num_freqencies; ++f) {
       convolved(f, k) = (kronecker_delta(alpha, beta) - Q[alpha]*Q[beta])
-                        * phase * conj(sqw(f, k, site_a, alpha)) * sqw(f, k, site_b, beta);
+                        * phase * conj(sqw_(f, k, site_a, alpha)) * sqw_(f, k, site_b, beta);
     }
   }
 
@@ -91,7 +91,7 @@ MultiArray<Complex, 2> partial_cross_section(const int alpha, const int beta, co
  * @param reciprocal_space_size
  * @return
  */
-vector<HKLIndex> generate_hkl_reciprocal_space_path(const vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size) {
+vector<HKLIndex> NeutronScatteringMonitor::generate_hkl_reciprocal_space_path(const vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size) {
   vector<HKLIndex> hkl_path;
   for (auto n = 0; n < hkl_nodes.size()-1; ++n) {
     Vec3i origin = to_int(scale(hkl_nodes[n], reciprocal_space_size));
@@ -233,18 +233,18 @@ fftw_plan NeutronScatteringMonitor::fft_plan_transform_to_reciprocal_space(doubl
       FFTW_MEASURE);
 }
 
-void NeutronScatteringMonitor::fft_to_frequency(jams::MultiArray<Complex, 4> &sqw) {
+void NeutronScatteringMonitor::fft_to_frequency() {
 
-  const int num_time_samples = sqw.size(0);
-  const int num_space_samples = sqw.size(1);
-  const int num_sites = sqw.size(2);
+  const int num_time_samples = sqw_.size(0);
+  const int num_space_samples = sqw_.size(1);
+  const int num_sites = sqw_.size(2);
 
   // window the data and normalize
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_space_samples; ++j) {
       for (auto m = 0; m < num_sites; ++m) {
         for (auto n = 0; n < 3; ++n) {
-          sqw(i,j,m,n) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
+          sqw_(i,j,m,n) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
         }
       }
     }
@@ -259,8 +259,8 @@ void NeutronScatteringMonitor::fft_to_frequency(jams::MultiArray<Complex, 4> &sq
 
   fftw_plan fft_plan = fftw_plan_many_dft(
       rank,transform_size,num_transforms,
-      FFTWCAST(sqw.data()),nembed,stride,dist,
-      FFTWCAST(sqw.data()),nembed,stride,dist,
+      FFTWCAST(sqw_.data()),nembed,stride,dist,
+      FFTWCAST(sqw_.data()),nembed,stride,dist,
       FFTW_BACKWARD, FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
 
   fftw_execute(fft_plan);
@@ -274,14 +274,14 @@ void NeutronScatteringMonitor::post_process() {
   jams::MultiArray<Complex,2> total_cross_section(time_points, space_points);
   total_cross_section.zero();
 
-  fft_to_frequency(sqw_);
+  fft_to_frequency();
 
   for (auto site_a = 0; site_a < ::lattice->num_motif_atoms(); ++site_a) {
     for (auto site_b = 0; site_b < ::lattice->num_motif_atoms(); ++site_b) {
       // loop xx, xy, ... yz zz
       for (auto i = 0; i < 3; ++i) {
         for (auto j = 0; j < 3; ++j) {
-          auto cross_section = partial_cross_section(i, j, site_a, site_b, sqw_, path_);
+          auto cross_section = partial_cross_section(i, j, site_a, site_b);
           std::transform(total_cross_section.begin(), total_cross_section.end(),
                          cross_section.begin(), total_cross_section.begin(), std::plus<Complex>());
         }

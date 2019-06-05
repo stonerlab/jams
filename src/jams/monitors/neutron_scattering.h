@@ -52,13 +52,22 @@ class NeutronScatteringMonitor : public Monitor {
 
     void update(Solver *solver) override;
     void post_process() override;
-
     bool is_converged() override { return false; }
 
 private:
 
-    fftw_plan fft_plan_transform_to_reciprocal_space(double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & num_sites);
-    void fft_to_frequency(jams::MultiArray<Complex, 4> &sqw);
+    HKLIndex fftw_remap_index_real_to_complex(Vec<int,3> k, const Vec<int,3> &N);
+
+    std::vector<HKLIndex> generate_hkl_reciprocal_space_path(
+        const std::vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size);
+
+    jams::MultiArray<Complex, 2> partial_cross_section(
+        const int alpha, const int beta, const unsigned site_a, const unsigned site_b);
+
+    fftw_plan fft_plan_transform_to_reciprocal_space(
+        double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & num_sites);
+
+    void fft_to_frequency();
 
     fftw_plan fft_plan_to_qspace_ = nullptr;
 
