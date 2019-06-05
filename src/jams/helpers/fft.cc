@@ -13,7 +13,7 @@ using std::complex;
 using std::vector;
 
 double fft_window_default(const int n, const int n_total) {
-  return fft_window_blackman_4(n, n_total);
+  return fft_window_hanning(n, n_total);
 } 
 
 double fft_window_hanning(const int n, const int n_total) {
