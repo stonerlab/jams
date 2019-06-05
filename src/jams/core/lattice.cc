@@ -61,7 +61,7 @@ namespace {
     }
 
     double rhombus_inradius(const Vec3& v1, const Vec3& v2) {
-      return abs(cross(v1, v2)) / (2.0 * abs(v2));
+      return norm(cross(v1, v2)) / (2.0 * norm(v2));
     }
 
     double rhombohedron_inradius(const Vec3& v1, const Vec3& v2, const Vec3& v3) {
@@ -463,7 +463,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   for (auto i = 0; i < motif_.size(); ++i) {
     for (auto j = i + 1; j < motif_.size(); ++j) {
-      if(!definately_greater_than(abs(calc(i, j)), jams::defaults::lattice_tolerance)) {
+      if(!definately_greater_than(norm(calc(i, j)), jams::defaults::lattice_tolerance)) {
         throw std::runtime_error("motif positions " + std::to_string(i) + " and " + std::to_string(j) + " are closer than the default lattice tolerance");
       }
     }
@@ -635,7 +635,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
   Cell neartree_cell = supercell;
   auto distance_metric = [neartree_cell](const Atom& a, const Atom& b)->double {
-      return abs(::minimum_image(neartree_cell, a.pos, b.pos));
+      return norm(::minimum_image(neartree_cell, a.pos, b.pos));
   };
 
   neartree_ = new NearTree<Atom, NeartreeFunctorType>(distance_metric, atoms_);
@@ -978,7 +978,7 @@ double Lattice::max_interaction_radius() const {
   }
 
   if (!lattice->is_periodic(0) && !lattice->is_periodic(1) && !lattice->is_periodic(2)) {
-    return std::min(abs(supercell.a()), std::min(abs(supercell.b()), abs(supercell.c()))) / 2.0;
+    return std::min(norm(supercell.a()), std::min(norm(supercell.b()), norm(supercell.c()))) / 2.0;
   }
 
   if (lattice->is_periodic(0) && lattice->is_periodic(1) &&  !lattice->is_periodic(2)) {
@@ -994,15 +994,15 @@ double Lattice::max_interaction_radius() const {
   }
 
   if (!lattice->is_periodic(0) && !lattice->is_periodic(1) &&  lattice->is_periodic(2)) {
-    return abs(supercell.c()) / 2.0;
+    return norm(supercell.c()) / 2.0;
   }
 
   if (!lattice->is_periodic(0) && lattice->is_periodic(1) &&  !lattice->is_periodic(2)) {
-    return abs(supercell.b()) / 2.0;
+    return  norm(supercell.b()) / 2.0;
   }
 
   if (lattice->is_periodic(0) && !lattice->is_periodic(1) &&  !lattice->is_periodic(2)) {
-    return abs(supercell.a()) / 2.0;
+    return  norm(supercell.a()) / 2.0;
   }
 
   return 0.0;

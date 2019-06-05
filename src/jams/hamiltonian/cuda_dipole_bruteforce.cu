@@ -125,7 +125,7 @@ void CudaDipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, doub
         if (j == i) continue;
 
         auto r_ij = lattice->displacement(i, j);
-        const auto r_abs_sq = abs_sq(r_ij);
+        const auto r_abs_sq = norm_sq(r_ij);
 
         if (r_abs_sq > (r_cutoff_*r_cutoff_)) continue;
 

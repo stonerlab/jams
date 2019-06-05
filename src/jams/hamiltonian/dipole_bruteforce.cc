@@ -93,7 +93,7 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 
     Vec3 r_ij = lattice->displacement(i, j);
 
-    const auto r_abs_sq = abs_sq(r_ij);
+    const auto r_abs_sq = norm_sq(r_ij);
 
     if (r_abs_sq > r_cut_squared) continue;
 

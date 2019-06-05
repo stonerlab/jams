@@ -113,6 +113,11 @@ inline auto dot(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0])
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+template <typename T1>
+inline auto abs(const Vec<T1,3>& a) -> Vec<decltype(std::abs(a[0])), 3> {
+  return {std::abs(a[0]), std::abs(a[1]), std::abs(a[2])};
+}
+
 template <typename T1, typename T2>
 inline auto cross(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[0] * b[0]), 3> {
   return {a[1]*b[2] - a[2]*b[1],
@@ -135,13 +140,15 @@ inline auto scale(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[0] *
   return {a[0] * b[0], a[1] * b[1], a[2] * b[2]};
 }
 
+
+
 template <typename T>
-inline auto abs(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
+inline auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
   return std::sqrt(dot(a, a));
 }
 
 template <typename T>
-inline T abs_sq(const Vec<T,3>& a) {
+inline T norm_sq(const Vec<T,3>& a) {
   return dot(a, a);
 }
 
@@ -158,7 +165,7 @@ inline Vec<double,3> cartesian_from_spherical(const double &r, const double &the
 }
 
 inline double azimuthal_angle(const Vec<double,3> a) {
-  return acos(a[2]/abs(a));
+  return acos(a[2]/norm(a));
 }
 
 inline double polar_angle(const Vec<double,3> a) {
@@ -167,7 +174,7 @@ inline double polar_angle(const Vec<double,3> a) {
 
 template <typename T>
 inline auto normalize(const Vec<T,3>& a) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
-  return a / abs(a);
+  return a / norm(a);
 }
 
 template <typename T>
@@ -198,7 +205,7 @@ inline auto zero_safe_normalize(const Vec<T,3>& a) -> Vec<decltype(a[0] / std::a
     return a;
   }
 
-  return a / abs(a);
+  return a / norm(a);
 }
 
 template <typename T>

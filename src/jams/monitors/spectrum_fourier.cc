@@ -181,7 +181,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
         }
       }
 
-      bz_lengths.push_back(abs(bz_line_element));
+      bz_lengths.push_back(norm(bz_line_element));
 
       b_uvw_points.push_back(bz_point);
       if (verbose_is_enabled()) {

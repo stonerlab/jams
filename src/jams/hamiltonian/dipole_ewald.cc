@@ -231,7 +231,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
                 // hack to multiply by inverse lattice vectors
                 kvec = lattice->cartesian_to_fractional(kvec);
 
-                k_abs = abs(kvec);
+                k_abs = norm(kvec);
 
               if (definately_greater_than(k_abs, double(k_cutoff_), jams::defaults::lattice_tolerance) || unlikely(approximately_zero(k_abs, jams::defaults::lattice_tolerance))) continue;
 

@@ -58,7 +58,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
                         r_ij  = lattice->generate_image_position(lattice->atom_position(j), image_vector) - lattice->atom_position(i);
 
-                        r_abs = abs(r_ij);
+                        r_abs = norm(r_ij);
 
                         // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
                         // so detect based on r_abs rather than i == j

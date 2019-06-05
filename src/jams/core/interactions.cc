@@ -308,7 +308,7 @@ post_process_interactions(vector<InteractionData> &interactions, const Interacti
 
   if (energy_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return definately_greater_than(abs(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
+      return definately_greater_than(norm(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
   }
 
   // complete any missing data (i.e. type names or unit cell positions
@@ -486,7 +486,7 @@ safety_check_distance_tolerance(const double &tolerance) {
 
   for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
     for (auto j = i + 1; j < lattice->num_motif_atoms(); ++j) {
-      const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
+      const auto distance = norm(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
       if (distance < tolerance) {
         jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
                  "Check position file or relax distance_tolerance for exchange module",

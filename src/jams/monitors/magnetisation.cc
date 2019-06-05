@@ -71,7 +71,7 @@ void MagnetisationMonitor::update(Solver * solver) {
     for (auto j = 0; j < 3; ++j) {
       tsv_file << magnetisation(type)[j] << "\t";
     }
-    tsv_file << abs(magnetisation(type)) << "\t";
+    tsv_file << norm(magnetisation(type)) << "\t";
   }
 
   if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
@@ -113,7 +113,7 @@ double MagnetisationMonitor::binder_m2() {
     }
   }
 
-  return abs_sq(mag) / square(static_cast<double>(num_spins));
+  return norm_sq(mag) / square(static_cast<double>(num_spins));
 }
 
 double MagnetisationMonitor::binder_cumulant() {

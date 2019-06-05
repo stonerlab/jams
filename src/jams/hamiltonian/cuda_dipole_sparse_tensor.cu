@@ -62,7 +62,7 @@ CudaDipoleHamiltonianSparseTensor::CudaDipoleHamiltonianSparseTensor(const libco
 
             auto r_ij = lattice->displacement(i, j);
 
-            r_abs = abs(r_ij);
+            r_abs = norm(r_ij);
 
             // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
             // so detect based on r_abs rather than i == j
@@ -91,7 +91,7 @@ CudaDipoleHamiltonianSparseTensor::CudaDipoleHamiltonianSparseTensor(const libco
 
           auto r_ij = lattice->displacement(i, j);
 
-            r_abs = abs(r_ij);
+            r_abs = norm(r_ij);
 
             // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
             // so detect based on r_abs rather than i == j

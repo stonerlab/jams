@@ -253,7 +253,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
                                                 lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
                                                                                                              {nx, ny,
                                                                                                               nz}));
-        const auto r_abs_sq = abs_sq(r_ij);
+        const auto r_abs_sq = norm_sq(r_ij);
 
         if (r_abs_sq > pow2(r_cutoff_ + r_distance_tolerance_)) {
           continue;

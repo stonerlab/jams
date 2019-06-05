@@ -36,7 +36,7 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
     }
   }
 
-  init_theta = rad_to_deg(acos(mag[2] / abs(mag)));
+  init_theta = rad_to_deg(acos(mag[2] / norm(mag)));
   init_phi = rad_to_deg(atan2(mag[1], mag[0]));
 
   std::cout << "  initial angles (theta, phi) " << init_theta << " " << init_phi << "\n";
