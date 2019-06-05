@@ -15,15 +15,14 @@
 
 class Solver;
 
-
-struct Qpoint {
-    Vec3 hkl;
-    Vec3 q;
-    Vec3i index;
-    bool hermitian;
+struct HKLIndex {
+    Vec<double,3> hkl;        /**< reciprocal lattice point in fractional units */
+    Vec<double,3> xyz;        /**< reciprocal lattice point in cartesian units */
+    Vec<int,3>    index;      /**< array lookup index */
+    bool          conjugate;  /**< does the value need conjugating on lookup, e.g. for r2c symmetry */
 };
 
-inline bool operator==(const Qpoint& a, const Qpoint& b) {
+inline bool operator==(const HKLIndex& a, const HKLIndex& b) {
   return approximately_equal(a.hkl, b.hkl);
 }
 
@@ -58,20 +57,14 @@ class NeutronScatteringMonitor : public Monitor {
 
 private:
 
-    jams::MultiArray<std::complex<double>,2> fft_time_to_frequency(unsigned site, const jams::MultiArray<Complex, 3>& s_time);
+    fftw_plan fft_plan_transform_to_reciprocal_space(double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & num_sites);
+    void fft_to_frequency(jams::MultiArray<Complex, 4> &sqw);
 
-    fftw_plan fft_plan_s_to_reciprocal_space_ = nullptr;
+    fftw_plan fft_plan_to_qspace_ = nullptr;
 
-    jams::MultiArray<Complex, 5> s_reciprocal_space_;
-
-    jams::MultiArray<Complex, 3> sqw_x_;
-    jams::MultiArray<Complex, 3> sqw_y_;
-    jams::MultiArray<Complex, 3> sqw_z_;
-    std::vector<Vec3> brillouin_zone_nodes_;
-    std::vector<Vec3i> brillouin_zone_mapping_;
-    std::vector<Vec3> hkl_indicies_;
-    std::vector<Vec3> q_vectors_;
-    std::vector<bool> conjugation_;
+    jams::MultiArray<Complex, 5> sq_;
+    jams::MultiArray<Complex, 4> sqw_;
+    std::vector<HKLIndex> path_;
     double freq_delta_;
     int time_point_counter_;
 };

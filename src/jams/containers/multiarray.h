@@ -127,7 +127,6 @@ namespace jams {
           std::copy(other.begin(), other.end(), this->begin());
         }
 
-
         // construct using dimensions as arguments
         template<typename... Args>
         inline explicit MultiArray(const Args... args):
@@ -208,6 +207,15 @@ namespace jams {
         inline const_reference operator()(const std::array<size_type, Dim_> &v) const {
           assert(!empty());
           return data_.const_host_data()[detail::row_major_index(size_, v)];
+        }
+
+        inline MultiArray& operator=(const MultiArray& other) {
+          if (this != &other) {
+            size_ = other.size_;
+            data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(other.size_));
+            std::copy(other.begin(), other.end(), this->begin());
+          }
+          return *this;
         }
 
         inline pointer data() noexcept {
@@ -392,6 +400,15 @@ namespace jams {
           return data_.const_host_data()[std::get<0>(v)];
         }
 
+        inline MultiArray& operator=(const MultiArray& other) {
+          if (this != &other) {
+            size_ = other.size_;
+            data_.resize(std::get<0>(other.size_));
+            std::copy(other.begin(), other.end(), this->begin());
+          }
+          return *this;
+        }
+
         inline pointer data() noexcept {
           return data_.mutable_host_data();
         }
@@ -469,6 +486,14 @@ namespace jams {
         size_container_type size_ = {0};
         mutable SyncedMemory<Tp_> data_;
     };
+
+    /**
+    * Force a MultiArray to synchronise CPU and GPU data
+    */
+    template <typename T, std::size_t N>
+    inline void force_multiarray_sync(MultiArray<T,N> & x) {
+      volatile auto sync_data = x.data();
+    }
 
 } // namespace jams
 
