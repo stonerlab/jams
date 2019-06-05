@@ -25,6 +25,12 @@ class Solver;
 // calculated much less frequently than every integration step.
 
 namespace {
+
+    template <typename T, std::size_t N>
+    inline void force_multiarray_sync(MultiArray<T,N> & x) {
+      volatile auto sync_data = x.data();
+    }
+
     ostream& float_format(ostream& out) {
       return out << std::setprecision(8) << std::setw(12) << std::fixed;
     }
@@ -79,11 +85,32 @@ namespace {
 
 }
 
-// Applies periodic boundary conditions to indicies for FFTW ordered arrays, including
-// negative indicies
-template <typename T>
-inline T fftw_periodic_index(const T &indicies, const T &fft_size) {
-  return (indicies % fft_size + fft_size) % fft_size;
+/**
+ * Maps an index for an FFTW ordered array into the correct location and conjugation
+ *
+ * FFTW real to complex (r2c) transforms only give N/2+1 outputs in the last dimensions
+ * as all other values can be calculated by Hermitian symmetry. This function maps
+ * the 3D array position of a set of general indicies (positive, negative, larger than
+ * the fft_size) to the correct location and sets a bool as to whether the value must
+ * be conjugated
+ *
+ * @tparam T
+ * @param k general 3D indicies (positive, negative, larger than fft_size)
+ * @param N logical dimensions of the fft
+ * @return pair {T: remapped index, bool: do conjugate}
+ */
+template <std::size_t Dim>
+inline pair<Vec<int,Dim>, bool> fftw_remap_index_real_to_complex(Vec<int,Dim> k, const Vec<int,Dim> &N) {
+  auto array_index = (k % N + N) % N;
+
+  if (array_index.back() < N.back()/2+1) {
+    // return normal index
+    return {array_index, false};
+  } else {
+    // return Hermitian conjugate
+    array_index = (-k % N + N) % N;
+    return {array_index, true};
+  }
 }
 
 /**
@@ -94,7 +121,6 @@ inline T fftw_periodic_index(const T &indicies, const T &fft_size) {
  * @return
  */
 vector<Qpoint> generate_hkl_reciprocal_space_path(const vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size) {
-
 
   Vec3 deltaQ = 1.0 / to_double(reciprocal_space_size);
 
@@ -120,10 +146,13 @@ vector<Qpoint> generate_hkl_reciprocal_space_path(const vector<Vec3> &hkl_nodes,
     for (auto i = 0; i < num_hkl_coordinates; ++i) {
 
       // map an arbitrary hkl_coordinate into the limited k indicies of the reduced brillouin zone
-      auto hkl_remapped_index = fftw_periodic_index(hkl_coordinate, reciprocal_space_size);
+      auto hkl_remapped_index = fftw_remap_index_real_to_complex(hkl_coordinate, reciprocal_space_size);
+
+      cout << hkl_coordinate << "\t" << hkl_remapped_index.first << "\t" << hkl_remapped_index.second << endl;
+
       auto hkl = scale(hkl_coordinate, deltaQ);
       auto q = lattice->get_unitcell().inverse_matrix() * hkl;
-      hkl_path.push_back({hkl, q, hkl_remapped_index});
+      hkl_path.push_back({hkl, q, hkl_remapped_index.first, hkl_remapped_index.second});
       hkl_coordinate += hkl_delta;
     }
   }
@@ -134,13 +163,43 @@ vector<Qpoint> generate_hkl_reciprocal_space_path(const vector<Vec3> &hkl_nodes,
   return hkl_path;
 }
 
+
+fftw_plan fft_plan_transform_to_reciprocal_space(double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & motif_size) {
+  assert(rspace != nullptr);
+  assert(kspace != nullptr);
+  assert(sum(kspace_size) > 0);
+
+  int rank            = 3;
+  int stride          = 3 * motif_size;
+  int dist            = 1;
+  int num_transforms  = 3 * motif_size;
+  int transform_size[3]  = {kspace_size[0], kspace_size[1], kspace_size[2]};
+
+  int * nembed = nullptr;
+
+  // NOTE: FFTW_PRESERVE_INPUT is not supported for r2c arrays
+  // http://www.fftw.org/doc/One_002dDimensional-DFTs-of-Real-Data.html
+
+  return fftw_plan_many_dft_r2c(
+      rank,                    // dimensionality
+      transform_size, // array of sizes of each dimension
+      num_transforms,          // number of transforms
+      rspace,        // input: real data
+      nembed,                  // number of embedded dimensions
+      stride,                  // memory stride between elements of one fft dataset
+      dist,                    // memory distance between fft datasets
+      reinterpret_cast<fftw_complex*>(kspace),        // output: complex data
+      nembed,                  // number of embedded dimensions
+      stride,                  // memory stride between elements of one fft dataset
+      dist,                    // memory distance between fft datasets
+      FFTW_MEASURE);
+}
+
 NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
 
   time_point_counter_ = 0;
-
-  transformed_spins_.resize(num_spins, 3);
 
   libconfig::Setting& solver_settings = ::config->lookup("solver");
 
@@ -168,11 +227,34 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
   // We can use that to reinterpet the output from the fft as a 5D array
   // ------------------------------------------------------------------
   s_reciprocal_space_.resize(
-      lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2],lattice->num_motif_atoms(), 3);
+      lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2]/2 + 1,lattice->num_motif_atoms(), 3);
+  cout << s(0,0) << "\t" << s(0,1) << "\t" << s(0,2) << endl;
+
+
+
+  /**
+   * @warning FFTW_PRESERVE_INPUT is not supported for r2c arrays
+   * http://www.fftw.org/doc/One_002dDimensional-DFTs-of-Real-Data.html
+   */
+  // backup input data
+  MultiArray<double,2> s_backup(num_spins, 3);
+  for (auto i = 0; i < num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      s_backup(i, j) = globals::s(i, j);
+    }
+  }
 
   fft_plan_s_to_reciprocal_space_ =
-      fft_plan_rspace_to_kspace(transformed_spins_.data(), s_reciprocal_space_.data(), lattice->kspace_size(), lattice->num_motif_atoms());
+      fft_plan_transform_to_reciprocal_space(globals::s.data(), s_reciprocal_space_.data(), lattice->kspace_size(), lattice->num_motif_atoms());
 
+  // restore data
+  for (auto i = 0; i < num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      globals::s(i, j) = s_backup(i, j);
+    }
+  }
+
+  cout << s(0,0) << "\t" << s(0,1) << "\t" << s(0,2) << endl;
   libconfig::Setting &cfg_nodes = settings["hkl_path"];
 
   for (auto i = 0; i < cfg_nodes.getLength(); ++i) {
@@ -186,6 +268,7 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
     hkl_indicies_.push_back(p.hkl);
     q_vectors_.push_back(p.q);
     brillouin_zone_mapping_.push_back(p.index);
+    conjugation_.push_back(p.hermitian);
   }
 
   sqw_x_.resize(::lattice->num_motif_atoms(), num_samples, brillouin_zone_mapping_.size());
@@ -202,14 +285,11 @@ void NeutronScatteringMonitor::update(Solver * solver) {
   assert(fft_plan_s_to_reciprocal_space_ != nullptr);
   assert(s_reciprocal_space_.elements() > 0);
 
-  transformed_spins_.zero();
-
-  for (auto n = 0; n < globals::num_spins; ++n) {
-    for (auto i = 0; i < 3; ++i) {
-      transformed_spins_(n, i) = Complex{globals::s(n, i), 0.0};
-    }
-  }
-
+  /**
+   * @warning fftw_execute doesn't call s.data() so the CPU and GPU memory don't sync
+   * we must force them to sync manually
+   */
+  force_multiarray_sync(globals::s);
   fftw_execute(fft_plan_s_to_reciprocal_space_);
 
   const double norm = 1.0 / sqrt(product(lattice->kspace_size()));
@@ -224,9 +304,15 @@ void NeutronScatteringMonitor::update(Solver * solver) {
     for (auto m = 0; m < ::lattice->num_motif_atoms(); ++m) {
       for (auto i = 0; i < brillouin_zone_mapping_.size(); ++i) {
         auto hkl = brillouin_zone_mapping_[i];
-        sqw_x_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 0);
-        sqw_y_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 1);
-        sqw_z_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 2);
+        if (conjugation_[i]) {
+          sqw_x_(m, time_point_counter_, i) = conj(s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 0));
+          sqw_y_(m, time_point_counter_, i) = conj(s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 1));
+          sqw_z_(m, time_point_counter_, i) = conj(s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 2));
+        } else {
+          sqw_x_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 0);
+          sqw_y_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 1);
+          sqw_z_(m, time_point_counter_, i) = s_reciprocal_space_(hkl[0], hkl[1], hkl[2], m, 2);
+        }
       }
     }
   }

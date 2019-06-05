@@ -20,6 +20,7 @@ struct Qpoint {
     Vec3 hkl;
     Vec3 q;
     Vec3i index;
+    bool hermitian;
 };
 
 inline bool operator==(const Qpoint& a, const Qpoint& b) {
@@ -63,7 +64,6 @@ private:
 
     jams::MultiArray<Complex, 5> s_reciprocal_space_;
 
-    jams::MultiArray<Complex, 2> transformed_spins_;
     jams::MultiArray<Complex, 3> sqw_x_;
     jams::MultiArray<Complex, 3> sqw_y_;
     jams::MultiArray<Complex, 3> sqw_z_;
@@ -71,6 +71,7 @@ private:
     std::vector<Vec3i> brillouin_zone_mapping_;
     std::vector<Vec3> hkl_indicies_;
     std::vector<Vec3> q_vectors_;
+    std::vector<bool> conjugation_;
     double freq_delta_;
     int time_point_counter_;
 };
