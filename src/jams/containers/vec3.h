@@ -200,7 +200,7 @@ inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& e
 }
 
 template <typename T>
-inline auto zero_safe_normalize(const Vec<T,3>& a) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
+inline auto unit_vector(const Vec<T, 3> &a) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
   if (approximately_zero(a)) {
     return a;
   }

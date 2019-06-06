@@ -72,7 +72,7 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::partial_cross_section(const int
 
   for (auto k = 0; k < num_reciprocal_points; ++k) {
     const auto q_frac = path_[k].hkl;
-    const auto Q = zero_safe_normalize(path_[k].xyz);
+    const auto Q = unit_vector(path_[k].xyz);
     const auto phase = exp(-kImagTwoPi * dot(q_frac, r_frac));
 
     for (auto f = 0; f < num_freqencies; ++f) {
