@@ -370,7 +370,7 @@ namespace jams {
           return 1;
         }
 
-        inline size_type max_size() const noexcept {
+        inline constexpr size_type max_size() const noexcept {
           return data_.max_size();
         }
 

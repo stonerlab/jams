@@ -82,7 +82,7 @@ public:
     inline constexpr size_type memory() const noexcept { return size_ * sizeof(value_type); }
 
     // get maximum theoretical size of data
-    inline size_type max_size() const noexcept;
+    inline constexpr size_type max_size() const noexcept;
 
     // accessors
     inline const_pointer const_host_data();
@@ -317,7 +317,7 @@ void SyncedMemory<T>::free_device_memory() {
 }
 
 template<class T>
-typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size() const noexcept {
+constexpr typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size() const noexcept {
   #if HAS_CUDA
   return std::min(max_size_host(), max_size_device());
   #else

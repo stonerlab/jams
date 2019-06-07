@@ -23,17 +23,17 @@ inline bool approximately_equal(const T& a, const T& b, const T& epsilon = FLT_E
 }
 
 template <typename T>
-inline bool approximately_zero(const T& a, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool approximately_zero(const T& a, const T& epsilon = FLT_EPSILON) {
   return std::abs(a) <= epsilon;
 }
 
 template <typename T>
-inline bool definately_greater_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool definately_greater_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
   return (a - b) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 template <typename T>
-inline bool definately_less_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool definately_less_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
   return (b - a) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
@@ -45,7 +45,7 @@ inline double zero_safe_recip_norm(double x, double y, double z) {
   return 1.0 / sqrt(x * x + y * y + z * z);
 }
 
-inline double square(const double &x) {
+inline constexpr double square(const double &x) {
   return x * x;
 }
 
@@ -74,29 +74,28 @@ inline int nint(const double &x) {
   return floor(x+0.5);
 }
 
-inline bool even(const int x) {
+inline constexpr bool even(const int x) {
   return x % 2 == 0;
 }
 
-inline bool odd(const int x) {
+inline constexpr bool odd(const int x) {
   return x % 2 != 0;
 }
 
-template <typename T>
-inline double kronecker_delta(const T& alpha, const T& beta) {
-  if (alpha == beta) return 1.0;
-  return 0.0;
+inline constexpr double kronecker_delta(const int& alpha, const int& beta) {
+  // cast bool to double so that this works as a constexpr in C++11 which only supports 1 return statement
+  return static_cast<double>(alpha == beta);
 }
 
 inline double gaussian(const double x, const double sigma, const double mean = 0.0) {
   return kOne_SqrtTwoPi*exp(-0.5*std::pow((x - mean) / sigma, 2))/sigma;
 }
 
-inline double deg_to_rad(const double &angle) {
+inline constexpr double deg_to_rad(const double &angle) {
   return angle*(kPi/180.0);
 }
 
-inline double rad_to_deg(const double &angle) {
+inline constexpr double rad_to_deg(const double &angle) {
   return angle*(180.0/kPi);
 }
 
@@ -156,7 +155,7 @@ inline _Tp1 sign(const _Tp1 &x, const _Tp2 &y) {
 }
 
 template <typename _Tp1, typename _Tp2>
-inline bool same_sign(const _Tp1 x, const _Tp2 y) {
+inline constexpr bool same_sign(const _Tp1 x, const _Tp2 y) {
   return (x >= 0) ^ (y < 0);
 }
 
@@ -170,7 +169,7 @@ inline bool same_sign(const _Tp1 x, const _Tp2 y) {
 /// @return -1, 0, 1 depending on sign
 ///
 template <typename _Tp>
-inline int sgn(_Tp x) {
+inline constexpr int sgn(_Tp x) {
     return (_Tp(0) < x) - (x < _Tp(0));
 }
 
@@ -330,64 +329,64 @@ double legendre_dpoly(const double x, const int n);
 // uniaxial anisotropy is an expansion in legendre polynomials so lets define upto n = 6
 // so we have some fast intrinsics
 
-inline double legendre_poly_0(const double x) {
+inline constexpr double legendre_poly_0(const double x) {
   return 1.0;
 }
 
-inline double legendre_poly_1(const double x) {
+inline constexpr double legendre_poly_1(const double x) {
   return x;
 }
 
-inline double legendre_poly_2(const double x) {
+inline constexpr double legendre_poly_2(const double x) {
   // (3x^2 - 1)/2
   return (1.5 * x * x - 0.5);
 }
 
-inline double legendre_poly_3(const double x) {
+inline constexpr double legendre_poly_3(const double x) {
   // (5x^3 - 3x)/2
   return (2.5 * x * x * x - 1.5 * x);
 }
 
-inline double legendre_poly_4(const double x) {
+inline constexpr double legendre_poly_4(const double x) {
   // (35x^4 - 30x^2 + 3)/8
   return (4.375 * x * x * x * x - 3.75 * x * x + 0.375);
 }
 
-inline double legendre_poly_5(const double x) {
+inline constexpr double legendre_poly_5(const double x) {
   // (63x^5 - 70x^3 + 15x)/8
   return (7.875 * x * x * x * x * x - 8.75 * x * x * x + 1.875 * x);
 }
 
-inline double legendre_poly_6(const double x) {
+inline constexpr double legendre_poly_6(const double x) {
   // (231x^6 - 315x^4 + 105x^2 - 5)/16
   return (14.4375 * x * x * x * x * x * x - 19.6875 * x * x * x * x + 6.5625 * x * x - 0.3125);
 }
 
-inline double legendre_dpoly_0(const double x) {
+inline constexpr double legendre_dpoly_0(const double x) {
   return 0.0;
 }
 
-inline double legendre_dpoly_1(const double x) {
+inline constexpr double legendre_dpoly_1(const double x) {
   return 1.0;
 }
 
-inline double legendre_dpoly_2(const double x) {
+inline constexpr double legendre_dpoly_2(const double x) {
   return 3.0 * x;
 }
 
-inline double legendre_dpoly_3(const double x) {
+inline constexpr double legendre_dpoly_3(const double x) {
   return (7.5 * x * x - 1.5);
 }
 
-inline double legendre_dpoly_4(const double x) {
+inline constexpr double legendre_dpoly_4(const double x) {
   return (17.5 * x * x * x - 7.5 * x);
 }
 
-inline double legendre_dpoly_5(const double x) {
+inline constexpr double legendre_dpoly_5(const double x) {
   return (39.375 * x * x * x * x - 26.25 * x * x + 1.875);
 }
 
-inline double legendre_dpoly_6(const double x) {
+inline constexpr double legendre_dpoly_6(const double x) {
   return (86.625 * x * x * x * x * x - 78.75 * x * x * x + 13.125 * x);
 }
 
