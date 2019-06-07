@@ -62,7 +62,7 @@ HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec<int,3> k
  * @param hkl_indicies list of reciprocal space hkl indicies
  * @return
  */
-MultiArray<Complex, 2> NeutronScatteringMonitor::unpolarized_partial_cross_section() {
+MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_section() {
   const auto num_freqencies = sqw_.size(0);
   const auto num_reciprocal_points = sqw_.size(1);
 
@@ -79,10 +79,10 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::unpolarized_partial_cross_secti
         // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
         for (auto f = 0; f < num_freqencies; ++f) {
           // loop xx, xy, ... yz zz
-          for (auto alpha = 0; alpha < 3; ++alpha) {
-            for (auto beta = 0; beta < 3; ++beta) {
-              convolved(f, k) += (kronecker_delta(alpha, beta) - Q[alpha] * Q[beta])
-                                 * phase * conj(sqw_(f, k, site_a, alpha)) * sqw_(f, k, site_b, beta);
+          for (auto i = 0; i < 3; ++i) {
+            for (auto j = 0; j < 3; ++j) {
+              convolved(f, k) += (kronecker_delta(i, j) - Q[i] * Q[j])
+                                 * phase * conj(sqw_(f, k, site_a, i)) * sqw_(f, k, site_b, j);
             }
           }
         }
@@ -93,6 +93,59 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::unpolarized_partial_cross_secti
 
   return convolved;
 }
+
+MultiArray<Complex, 2> NeutronScatteringMonitor::compute_polarized_cross_section(const Vec3& P) {
+  const auto num_freqencies = sqw_.size(0);
+  const auto num_reciprocal_points = sqw_.size(1);
+
+  MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
+  convolved.zero();
+
+  for (auto site_a = 0; site_a < ::lattice->num_motif_atoms(); ++site_a) {
+    for (auto site_b = 0; site_b < ::lattice->num_motif_atoms(); ++site_b) {
+      const Vec3 r_frac = lattice->motif_atom(site_b).pos - lattice->motif_atom(site_a).pos;
+      for (auto k = 0; k < num_reciprocal_points; ++k) {
+        const auto q_frac = path_[k].hkl;
+        const auto Q = unit_vector(path_[k].xyz);
+        const auto phase = exp(-kImagTwoPi * dot(q_frac, r_frac));
+        // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
+        for (auto f = 0; f < num_freqencies; ++f) {
+          Vec<Complex,3> sxs = {Complex{0.0, 0.0}, Complex{0.0, 0.0}, Complex{0.0, 0.0}};
+
+          // yz - zy
+          sxs[0] += conj(sqw_(f, k, site_a, 1)) * sqw_(f, k, site_b, 2)
+                  - conj(sqw_(f, k, site_a, 2)) * sqw_(f, k, site_b, 1);
+
+          // zx - xz
+          sxs[1] += conj(sqw_(f, k, site_a, 2)) * sqw_(f, k, site_b, 0)
+                  - conj(sqw_(f, k, site_a, 0)) * sqw_(f, k, site_b, 2);
+
+          // xy - yx
+          sxs[2] += conj(sqw_(f, k, site_a, 0)) * sqw_(f, k, site_b, 1)
+                  - conj(sqw_(f, k, site_a, 1)) * sqw_(f, k, site_b, 0);
+
+          convolved(f, k) += kImagOne * dot(P, phase * sxs);
+
+          for (auto i = 0; i < 3; ++i) {
+            for (auto j = 0; j < 3; ++j) {
+              convolved(f, k) += kImagOne * phase * cross(P,Q)[i] * Q[j] * (
+                  conj(sqw_(f, k, site_a, i)) * sqw_(f, k, site_b, j)
+                  - conj(sqw_(f, k, site_a, j)) * sqw_(f, k, site_b, i)
+                  );
+
+            }
+          }
+
+        }
+
+      }
+    }
+  }
+
+
+  return convolved;
+}
+
 
 /**
  * Generate a path between nodes in reciprocal space sampling the kspace discretely.
@@ -161,6 +214,8 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
   }
 
   path_ = generate_hkl_reciprocal_space_path(hkl_path_nodes, kspace_size);
+
+  polarizations_ = {Vec3{0,0,1}, Vec3{0,0,-1}};
 
   sq_.resize(kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_sites, 3);
   sqw_.resize(num_samples, path_.size(), num_sites, 3);
@@ -283,7 +338,12 @@ void NeutronScatteringMonitor::post_process() {
 
   fft_to_frequency();
 
-  auto unpolarized_cross_section = unpolarized_partial_cross_section();
+  auto unpolarized_cross_section = compute_unpolarized_cross_section();
+
+  vector<MultiArray<Complex,2>> polarized_cross_sections;
+  for (const auto& P : polarizations_) {
+    polarized_cross_sections.emplace_back(compute_polarized_cross_section(P));
+  }
 
 
   std::ofstream sqwfile(seedname + "_sqw.tsv");
@@ -309,6 +369,10 @@ void NeutronScatteringMonitor::post_process() {
   auto format_sci = [](ostream& os) -> ostream& {
       return os << std::setprecision(8) << std::setw(12) << std::scientific; };
 
+  // ((gamma/2) * e^2 / m_e c^2) * (1/(2*pi*hbar))
+  double prefactor = (1.0 / (kTwoPi * kHBar))
+      * (0.5*kNeutronGFactor * pow2(kElementaryCharge))/(kElectronMass * pow2(kSpeedOfLight));
+
   for (auto i = 0; i < (time_points/2) + 1; ++i) {
     for (auto j = 0; j < path_.size(); ++j) {
       sqwfile << format_int << j << "\t";
@@ -316,8 +380,13 @@ void NeutronScatteringMonitor::post_process() {
       sqwfile << format_fix << path_[j].xyz << "\t";
       sqwfile << format_fix << (i*freq_delta_ / 1e12) << "\t"; // THz
       sqwfile << format_fix << (i*freq_delta_ / 1e12) * 4.135668 << "\t"; // meV
-      sqwfile << format_sci << unpolarized_cross_section(i,j).real() << "\t";
-      sqwfile << format_sci << unpolarized_cross_section(i,j).imag() << "\n";
+      sqwfile << format_sci << prefactor*unpolarized_cross_section(i,j).real() << "\t";
+      sqwfile << format_sci << prefactor*unpolarized_cross_section(i,j).imag() << "\t";
+      for (auto k = 0; k < polarized_cross_sections.size(); ++k) {
+        sqwfile << format_sci << prefactor*polarized_cross_sections[k](i,j).real() << "\t";
+        sqwfile << format_sci << prefactor*polarized_cross_sections[k](i,j).imag() << "\t";
+      }
+      sqwfile << "\n";
     }
     sqwfile << std::endl;
   }

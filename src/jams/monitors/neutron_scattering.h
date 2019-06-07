@@ -61,7 +61,8 @@ private:
     std::vector<HKLIndex> generate_hkl_reciprocal_space_path(
         const std::vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size);
 
-    jams::MultiArray<Complex, 2> unpolarized_partial_cross_section();
+    jams::MultiArray<Complex, 2> compute_unpolarized_cross_section();
+    jams::MultiArray<Complex, 2> compute_polarized_cross_section(const Vec3& P);
 
     fftw_plan fft_plan_transform_to_reciprocal_space(
         double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & num_sites);
@@ -73,6 +74,7 @@ private:
     jams::MultiArray<Complex, 5> sq_;
     jams::MultiArray<Complex, 4> sqw_;
     std::vector<HKLIndex> path_;
+    std::vector<Vec3> polarizations_;
     double freq_delta_;
     int time_point_counter_;
 };
