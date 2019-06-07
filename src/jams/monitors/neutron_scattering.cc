@@ -20,6 +20,60 @@ using Complex = std::complex<double>;
 
 class Solver;
 
+struct FormFactorParams {
+    double A, a, B, b, C, c, D; };
+
+struct FormFactorG {
+    double g0, g2, g4, g6; };
+
+struct FormFactorJ {
+    FormFactorParams j0, j2, j4, j6; };
+
+namespace jams {
+    template<>
+    inline FormFactorParams config_required(const libconfig::Setting &setting, const std::string &name) {
+      return {double(setting[name][0]),
+              double(setting[name][1]),
+              double(setting[name][2]),
+              double(setting[name][3]),
+              double(setting[name][4]),
+              double(setting[name][5]),
+              double(setting[name][6])};
+    }
+
+    template<>
+    inline FormFactorG config_required(const libconfig::Setting &setting, const std::string &name) {
+      return {double(setting[name][0]),
+              double(setting[name][1]),
+              double(setting[name][2]),
+              double(setting[name][3])};
+    }
+}
+
+double form_factor_jl(const unsigned& l, const double& s, const FormFactorParams& f) {
+  if (f.A == 0.0 && f.B == 0.0 && f.C == 0.0 && f.D == 0.0) return 0.0;
+
+  double s2 = s * s;
+  double p;
+  (l == 0) ? p = 1.0 : p = s2;
+
+  return f.A * p * exp(-f.a * s2) + f.B * p * exp(-f.b * s2) + f.C * p * exp(-f.c * s2) + f.D * p;
+}
+
+double form_factor_s(const double& s, const FormFactorG& g, const FormFactorJ& j) {
+  double total = 0.0;
+  return  0.5 * ( g.g0 * form_factor_jl(0, s, j.j0)
+         + g.g2 * form_factor_jl(2, s, j.j2)
+         + g.g4 * form_factor_jl(4, s, j.j4)
+         + g.g6 * form_factor_jl(6, s, j.j6) );
+}
+
+double form_factor_q(const Vec3& q, const FormFactorG& g, const FormFactorJ& j) {
+  // crystal tables assume s is in Angstroms^-1 so we convert lattice parameter into Angstroms
+  auto s = norm(q) * (1.0/(1e10*lattice->parameter())) / (4.0*kPi);
+  return form_factor_s(s, g, j);
+}
+
 /**
  * Maps an index for an FFTW ordered array into the correct location and conjugation
  *
@@ -50,6 +104,7 @@ HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec<int,3> k
   }
 }
 
+
 /**
  * Compute the alpha, beta components of the scattiner cross section.
  *
@@ -75,7 +130,7 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_secti
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         const auto q_frac = path_[k].hkl;
         const auto Q = unit_vector(path_[k].xyz);
-        const auto phase = exp(-kImagTwoPi * dot(q_frac, r_frac));
+        const auto phase = exp(-kImagTwoPi * dot(q_frac, r_frac)) * form_factors_(k, site_a) * form_factors_(k, site_b);
         // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
         for (auto f = 0; f < num_freqencies; ++f) {
           // loop xx, xy, ... yz zz
@@ -197,6 +252,7 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
 
   auto kspace_size = lattice->kspace_size();
   auto num_sites = lattice->num_motif_atoms();
+  auto num_materials = lattice->num_materials();
 
   cout << "\n";
   cout << "  number of samples " << num_samples << "\n";
@@ -221,10 +277,36 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
   sqw_.resize(num_samples, path_.size(), num_sites, 3);
   sqw_.zero();
 
-  /**
-   * @warning FFTW_PRESERVE_INPUT is not supported for r2c arrays
-   * http://www.fftw.org/doc/One_002dDimensional-DFTs-of-Real-Data.html
-   */
+  auto& cfg_form_factors = settings["form_factor"];
+  if (cfg_form_factors.getLength() != num_materials) {
+    jams_die("In NeutronScatteringMonitor there must be one form factor per material");
+  }
+
+  vector<FormFactorG> g_params(num_materials);
+  vector<FormFactorJ> j_params(num_materials);
+
+  for (auto i = 0; i < cfg_form_factors.getLength(); ++i) {
+    j_params[i].j0 = config_optional<FormFactorParams>(cfg_form_factors[i], "j0", j_params[i].j0);
+    j_params[i].j2 = config_optional<FormFactorParams>(cfg_form_factors[i], "j1", j_params[i].j2);
+    j_params[i].j4 = config_optional<FormFactorParams>(cfg_form_factors[i], "j2", j_params[i].j4);
+    j_params[i].j6 = config_optional<FormFactorParams>(cfg_form_factors[i], "j3", j_params[i].j6);
+    g_params[i] = config_required<FormFactorG>(cfg_form_factors[i], "g");
+  }
+
+  form_factors_.resize(path_.size(), num_sites);
+
+  for (auto i = 0; i < path_.size(); ++i) {
+    Vec3 q = path_[i].xyz;
+    for (auto j = 0; j < num_sites; ++j) {
+      auto material = lattice->motif_atom(j).material;
+      form_factors_(i, j) = form_factor_q(q, g_params[material], j_params[material]);
+    }
+  }
+
+    /**
+     * @warning FFTW_PRESERVE_INPUT is not supported for r2c arrays
+     * http://www.fftw.org/doc/One_002dDimensional-DFTs-of-Real-Data.html
+     */
   {
     auto s_backup = globals::s;
 

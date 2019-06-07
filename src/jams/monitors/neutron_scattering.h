@@ -22,6 +22,7 @@ struct HKLIndex {
     bool          conjugate;  /**< does the value need conjugating on lookup, e.g. for r2c symmetry */
 };
 
+
 inline bool operator==(const HKLIndex& a, const HKLIndex& b) {
   return approximately_equal(a.hkl, b.hkl);
 }
@@ -73,6 +74,7 @@ private:
 
     jams::MultiArray<Complex, 5> sq_;
     jams::MultiArray<Complex, 4> sqw_;
+    jams::MultiArray<double, 2> form_factors_;
     std::vector<HKLIndex> path_;
     std::vector<Vec3> polarizations_;
     double freq_delta_;
