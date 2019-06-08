@@ -31,47 +31,31 @@ struct FormFactorJ {
 
 namespace jams {
     template<>
-    inline FormFactorParams config_required(const libconfig::Setting &setting, const std::string &name) {
-      return {double(setting[name][0]),
-              double(setting[name][1]),
-              double(setting[name][2]),
-              double(setting[name][3]),
-              double(setting[name][4]),
-              double(setting[name][5]),
-              double(setting[name][6])};
+    inline FormFactorParams config_required(const libconfig::Setting &s, const std::string &name) {
+      return {double{s[name][0]}, double{s[name][1]}, double{s[name][2]}, double{s[name][3]},
+              double{s[name][4]}, double{s[name][5]}, double{s[name][6]}};
     }
 
     template<>
-    inline FormFactorG config_required(const libconfig::Setting &setting, const std::string &name) {
-      return {double(setting[name][0]),
-              double(setting[name][1]),
-              double(setting[name][2]),
-              double(setting[name][3])};
+    inline FormFactorG config_required(const libconfig::Setting &s, const std::string &name) {
+      return {double{s[name][0]}, double{s[name][1]}, double{s[name][2]}, double{s[name][3]}};
     }
 }
 
-double form_factor_jl(const unsigned& l, const double& s, const FormFactorParams& f) {
+double form_factor_jl(const int& l, const double& s, const FormFactorParams& f) {
   if (f.A == 0.0 && f.B == 0.0 && f.C == 0.0 && f.D == 0.0) return 0.0;
 
-  double s2 = s * s;
-  double p;
+  double p, s2 = s * s;
   (l == 0) ? p = 1.0 : p = s2;
 
   return f.A * p * exp(-f.a * s2) + f.B * p * exp(-f.b * s2) + f.C * p * exp(-f.c * s2) + f.D * p;
 }
 
-double form_factor_s(const double& s, const FormFactorG& g, const FormFactorJ& j) {
-  double total = 0.0;
-  return  0.5 * ( g.g0 * form_factor_jl(0, s, j.j0)
-         + g.g2 * form_factor_jl(2, s, j.j2)
-         + g.g4 * form_factor_jl(4, s, j.j4)
-         + g.g6 * form_factor_jl(6, s, j.j6) );
-}
-
 double form_factor_q(const Vec3& q, const FormFactorG& g, const FormFactorJ& j) {
-  // crystal tables assume s is in Angstroms^-1 so we convert lattice parameter into Angstroms
-  auto s = norm(q) * (1.0/(1e10*lattice->parameter())) / (4.0*kPi);
-  return form_factor_s(s, g, j);
+  auto s = norm(q) / (4.0 * kPi * kMeterToAngstroms * lattice->parameter());
+
+  return  0.5 * ( g.g0 * form_factor_jl(0, s, j.j0) + g.g2 * form_factor_jl(2, s, j.j2)
+                + g.g4 * form_factor_jl(4, s, j.j4) + g.g6 * form_factor_jl(6, s, j.j6) );
 }
 
 /**
@@ -88,7 +72,7 @@ double form_factor_q(const Vec3& q, const FormFactorG& g, const FormFactorJ& j) 
  * @param N logical dimensions of the fft
  * @return pair {T: remapped index, bool: do conjugate}
  */
-HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec<int,3> k, const Vec<int,3> &N) {
+HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec3i k, const Vec3i &N) {
   Vec3 hkl = scale(k, 1.0/to_double(N));
   Vec3 xyz = lattice->get_unitcell().inverse_matrix() * hkl;
 
@@ -103,7 +87,6 @@ HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec<int,3> k
     return HKLIndex{hkl, xyz, index, true};
   }
 }
-
 
 /**
  * Compute the alpha, beta components of the scattiner cross section.
@@ -120,74 +103,62 @@ HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec<int,3> k
 MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_section() {
   const auto num_freqencies = sqw_.size(0);
   const auto num_reciprocal_points = sqw_.size(1);
+  const auto num_sites = ::lattice->num_motif_atoms();
 
   MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
   convolved.zero();
-
-  for (auto site_a = 0; site_a < ::lattice->num_motif_atoms(); ++site_a) {
-    for (auto site_b = 0; site_b < ::lattice->num_motif_atoms(); ++site_b) {
-      const Vec3 r_frac = lattice->motif_atom(site_b).pos - lattice->motif_atom(site_a).pos;
+  for (auto a = 0; a < num_sites; ++a) {
+    for (auto b = 0; b < num_sites; ++b) {
+      Vec3 r = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
-        const auto q_frac = path_[k].hkl;
-        const auto Q = unit_vector(path_[k].xyz);
-        const auto phase = exp(-kImagTwoPi * dot(q_frac, r_frac)) * form_factors_(k, site_a) * form_factors_(k, site_b);
-        // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
+        auto q = path_[k].hkl;
+        auto Q = unit_vector(path_[k].xyz);
+        auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(k, a) * form_factors_(k, b);
         for (auto f = 0; f < num_freqencies; ++f) {
-          // loop xx, xy, ... yz zz
-          for (auto i = 0; i < 3; ++i) {
-            for (auto j = 0; j < 3; ++j) {
-              convolved(f, k) += (kronecker_delta(i, j) - Q[i] * Q[j])
-                                 * phase * conj(sqw_(f, k, site_a, i)) * sqw_(f, k, site_b, j);
+          for (auto i : {0,1,2}) {
+            for (auto j : {0,1,2}) {
+              convolved(f, k) += prefactor * (kronecker_delta(i, j) - Q[i] * Q[j]) * conj(sqw_(f, k, a, i)) * sqw_(f, k, b, j);
             }
           }
         }
       }
     }
   }
-
-
   return convolved;
 }
 
 MultiArray<Complex, 2> NeutronScatteringMonitor::compute_polarized_cross_section(const Vec3& P) {
   const auto num_freqencies = sqw_.size(0);
   const auto num_reciprocal_points = sqw_.size(1);
+  const auto num_sites = ::lattice->num_motif_atoms();
 
   MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
   convolved.zero();
 
-  for (auto site_a = 0; site_a < ::lattice->num_motif_atoms(); ++site_a) {
-    for (auto site_b = 0; site_b < ::lattice->num_motif_atoms(); ++site_b) {
-      const Vec3 r_frac = lattice->motif_atom(site_b).pos - lattice->motif_atom(site_a).pos;
+  for (auto a = 0; a < num_sites; ++a) {
+    for (auto b = 0; b < num_sites; ++b) {
+      const Vec3 r = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
-        const auto q_frac = path_[k].hkl;
+        const auto q = path_[k].hkl;
         const auto Q = unit_vector(path_[k].xyz);
-        const auto phase = exp(-kImagTwoPi * dot(q_frac, r_frac));
+        const auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(k, a) * form_factors_(k, b);
         // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
         for (auto f = 0; f < num_freqencies; ++f) {
-          Vec<Complex,3> sxs = {Complex{0.0, 0.0}, Complex{0.0, 0.0}, Complex{0.0, 0.0}};
+          Vec<Complex,3> sxs = {kCmplxZero, kCmplxZero, kCmplxZero};
 
           // yz - zy
-          sxs[0] += conj(sqw_(f, k, site_a, 1)) * sqw_(f, k, site_b, 2)
-                  - conj(sqw_(f, k, site_a, 2)) * sqw_(f, k, site_b, 1);
-
+          sxs[0] += conj(sqw_(f, k, a, 1)) * sqw_(f, k, b, 2) - conj(sqw_(f, k, a, 2)) * sqw_(f, k, b, 1);
           // zx - xz
-          sxs[1] += conj(sqw_(f, k, site_a, 2)) * sqw_(f, k, site_b, 0)
-                  - conj(sqw_(f, k, site_a, 0)) * sqw_(f, k, site_b, 2);
-
+          sxs[1] += conj(sqw_(f, k, a, 2)) * sqw_(f, k, b, 0) - conj(sqw_(f, k, a, 0)) * sqw_(f, k, b, 2);
           // xy - yx
-          sxs[2] += conj(sqw_(f, k, site_a, 0)) * sqw_(f, k, site_b, 1)
-                  - conj(sqw_(f, k, site_a, 1)) * sqw_(f, k, site_b, 0);
+          sxs[2] += conj(sqw_(f, k, a, 0)) * sqw_(f, k, b, 1) - conj(sqw_(f, k, a, 1)) * sqw_(f, k, b, 0);
 
-          convolved(f, k) += kImagOne * dot(P, phase * sxs);
+          convolved(f, k) += kImagOne * dot(P, prefactor * sxs);
 
-          for (auto i = 0; i < 3; ++i) {
-            for (auto j = 0; j < 3; ++j) {
-              convolved(f, k) += kImagOne * phase * cross(P,Q)[i] * Q[j] * (
-                  conj(sqw_(f, k, site_a, i)) * sqw_(f, k, site_b, j)
-                  - conj(sqw_(f, k, site_a, j)) * sqw_(f, k, site_b, i)
-                  );
-
+          for (auto i : {0,1,2}) {
+            for (auto j : {0,1,2}) {
+              convolved(f, k) += kImagOne * prefactor * cross(P,Q)[i] * Q[j] * (
+                  conj(sqw_(f, k, a, i)) * sqw_(f, k, b, j) - conj(sqw_(f, k, a, j)) * sqw_(f, k, b, i) );
             }
           }
 
@@ -343,7 +314,7 @@ void NeutronScatteringMonitor::update(Solver * solver) {
     for (auto k = 0; k < path_.size(); ++k) {
       auto idx = path_[k].index;
       for (auto site = 0; site < num_sites; ++site) {
-        for (auto n = 0; n < 3; ++n) {
+        for (auto n : {0, 1, 2}) {
           if (path_[k].conjugate) {
             sqw_(time_point_counter_, k, site, n) = conj(sq_(idx[0], idx[1], idx[2], site, n));
           } else {
@@ -390,7 +361,7 @@ void NeutronScatteringMonitor::fft_to_frequency() {
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_space_samples; ++j) {
       for (auto m = 0; m < num_sites; ++m) {
-        for (auto n = 0; n < 3; ++n) {
+        for (auto n : {0,1,2}) {
           sqw_(i,j,m,n) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
         }
       }

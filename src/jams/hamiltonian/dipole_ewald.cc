@@ -23,7 +23,7 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
 
     double r_abs;
     Vec3 r_ij, r_hat, s_j;
-    Vec3i pos;
+    Vec3i fractional_pos;
 
     Vec3i L_max = {0, 0, 0};
     Vec3 super_cell_dim = {0.0, 0.0, 0.0};
@@ -217,16 +217,16 @@ DipoleHamiltonianEwald::DipoleHamiltonianEwald(const libconfig::Setting &setting
     for (int i = 0; i < kspace_padded_size_[0]; ++i) {
         for (int j = 0; j < kspace_padded_size_[1]; ++j) {
             for (int k = 0; k < (kspace_padded_size_[2]/2) + 1; ++k) {
-                pos = {i, j, k};
+                fractional_pos = {i, j, k};
 
                 // convert to +/- r
                 for (int n = 0; n < 3; ++n) {
-                    if (pos[n] > kspace_padded_size_[n]/2) {
-                        pos[n] = periodic_shift(pos[n], kspace_padded_size_[n]/2) - kspace_padded_size_[n]/2;
+                    if (fractional_pos[n] > kspace_padded_size_[n]/2) {
+                        fractional_pos[n] = periodic_shift(fractional_pos[n], kspace_padded_size_[n]/2) - kspace_padded_size_[n]/2;
                     }
                 }
 
-                kvec = {double(pos[0]), double(pos[1]), double(pos[2])};
+                kvec = {double(fractional_pos[0]), double(fractional_pos[1]), double(fractional_pos[2])};
 
                 // hack to multiply by inverse lattice vectors
                 kvec = lattice->cartesian_to_fractional(kvec);
@@ -258,14 +258,14 @@ double DipoleHamiltonianEwald::calculate_total_energy() {
     double e_self = 0.0;
 
     double h[3];
-    Vec3i pos;
+    Vec3i fractional_pos;
 
     calculate_nonlocal_ewald_field();
     for (int i = 0; i < globals::num_spins; ++i) {
-        pos = ::lattice->supercell_index(i);
-       e_nonlocal += -(globals::s(i,0)*h_nonlocal_(pos[0], pos[1], pos[2], 0)
-                     + globals::s(i,1)*h_nonlocal_(pos[0], pos[1], pos[2], 1)
-                     + globals::s(i,2)*h_nonlocal_(pos[0], pos[1], pos[2], 2))*globals::mus(i);
+        fractional_pos = ::lattice->supercell_index(i);
+       e_nonlocal += -(globals::s(i,0)*h_nonlocal_(fractional_pos[0], fractional_pos[1], fractional_pos[2], 0)
+                     + globals::s(i,1)*h_nonlocal_(fractional_pos[0], fractional_pos[1], fractional_pos[2], 1)
+                     + globals::s(i,2)*h_nonlocal_(fractional_pos[0], fractional_pos[1], fractional_pos[2], 2))*globals::mus(i);
     }
 
     for (int i = 0; i < globals::num_spins; ++i) {
@@ -308,15 +308,15 @@ double DipoleHamiltonianEwald::calculate_one_spin_energy(const int i) {
 double DipoleHamiltonianEwald::calculate_one_spin_energy_difference(
     const int i, const Vec3 &spin_initial, const Vec3 &spin_final)
 {
-    Vec3i pos;
+    Vec3i fractional_pos;
     double h[3] = {0.0, 0.0, 0.0};
 
     calculate_local_ewald_field(i, h);
 
     calculate_nonlocal_ewald_field();
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->supercell_index(i);
-        h[m] += h_nonlocal_(pos[0], pos[1], pos[2], m);
+        fractional_pos = ::lattice->supercell_index(i);
+        h[m] += h_nonlocal_(fractional_pos[0], fractional_pos[1], fractional_pos[2], m);
     }
 
     return (-(spin_final[0]*h[0] + spin_final[1]*h[1] + spin_final[2]*h[2])
@@ -334,7 +334,7 @@ void DipoleHamiltonianEwald::calculate_energies(jblib::Array<double, 1>& energie
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonianEwald::calculate_one_spin_field(const int i, double h[3]) {
-    Vec3i pos;
+    Vec3i fractional_pos;
 
     for (int m = 0; m < 3; ++m) {
         h[m] = 0.0;
@@ -344,8 +344,8 @@ void DipoleHamiltonianEwald::calculate_one_spin_field(const int i, double h[3]) 
 
     calculate_nonlocal_ewald_field();
     for (int m = 0; m < 3; ++m) {
-        pos = ::lattice->supercell_index(i);
-        h[m] += h_nonlocal_(pos[0], pos[1], pos[2], m);
+        fractional_pos = ::lattice->supercell_index(i);
+        h[m] += h_nonlocal_(fractional_pos[0], fractional_pos[1], fractional_pos[2], m);
     }
     // std::cerr << h[0] << "\t" << h[1] << "\t" << h[2] << "\t" << std::endl;
 }
@@ -354,7 +354,7 @@ void DipoleHamiltonianEwald::calculate_one_spin_field(const int i, double h[3]) 
 
 void DipoleHamiltonianEwald::calculate_fields(jblib::Array<double, 2>& fields) {
     double h[3];
-    Vec3i pos;
+    Vec3i fractional_pos;
 
     fields.zero();
 
@@ -374,9 +374,9 @@ void DipoleHamiltonianEwald::calculate_fields(jblib::Array<double, 2>& fields) {
 
     calculate_nonlocal_ewald_field();
     for (int i = 0; i < globals::num_spins; ++i) {
-        pos = ::lattice->supercell_index(i);
+        fractional_pos = ::lattice->supercell_index(i);
         for (int j = 0; j < 3; ++j) {
-            fields(i, j) += h_nonlocal_(pos[0], pos[1], pos[2], j);
+            fields(i, j) += h_nonlocal_(fractional_pos[0], fractional_pos[1], fractional_pos[2], j);
         }
     }
 
@@ -431,7 +431,7 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
     static bool first_run = true;
 
     int i, iend, j, jend, k, kend, m;
-    Vec3i pos;
+    Vec3i fractional_pos;
 
     // if (std::equal(&s_old_1_[0], &s_old_1_[0]+globals::num_spins3, &globals::s[0]) && !first_run) {
     //     return; // spins have not changed from last call
@@ -461,9 +461,9 @@ void DipoleHamiltonianEwald::calculate_nonlocal_ewald_field() {
     // }
 
     for (int i = 0; i < globals::num_spins; ++i) {
-         pos = ::lattice->cell_offset(i);
+         fractional_pos = ::lattice->cell_offset(i);
          for (int m = 0; m < 3; ++m) {
-            s_nonlocal_(pos[0], pos[1], pos[2], m) = globals::s(i, m);
+            s_nonlocal_(fractional_pos[0], fractional_pos[1], fractional_pos[2], m) = globals::s(i, m);
         }
     }
 

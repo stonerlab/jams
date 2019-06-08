@@ -15,7 +15,7 @@ void config_patch(libconfig::Setting& orig, const libconfig::Setting& patch);
 namespace jams {
 
     template<typename T>
-    inline T config_required(const libconfig::Setting &setting, const std::string &name);
+    inline T config_required(const libconfig::Setting &s, const std::string &name);
 
     template<typename T>
     inline T config_optional(const libconfig::Setting &setting, const std::string &name, const T& def) {

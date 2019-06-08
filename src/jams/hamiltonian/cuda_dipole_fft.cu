@@ -219,8 +219,8 @@ jblib::Array<fftw_complex, 5>
 CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
     using std::pow;
 
-    const Vec3 r_frac_i = lattice->motif_atom(pos_i).pos;
-    const Vec3 r_frac_j = lattice->motif_atom(pos_j).pos;
+    const Vec3 r_frac_i = lattice->motif_atom(pos_i).fractional_pos;
+    const Vec3 r_frac_j = lattice->motif_atom(pos_j).fractional_pos;
 
     const Vec3 r_cart_i = lattice->fractional_to_cartesian(r_frac_i);
     const Vec3 r_cart_j = lattice->fractional_to_cartesian(r_frac_j);

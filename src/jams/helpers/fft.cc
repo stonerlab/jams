@@ -77,7 +77,7 @@ void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspac
   std::vector<complex<double>> exp_phase_z(lattice->kspace_size()[2]);
 
   for (auto m = 0; m < lattice->num_motif_atoms(); ++m) {
-    auto r_cart = lattice->fractional_to_cartesian(lattice->motif_atom(m).pos);
+    auto r_cart = lattice->fractional_to_cartesian(lattice->motif_atom(m).fractional_pos);
 
     precalculate_kspace_phase_factors(lattice->kspace_size(), r_cart, exp_phase_x, exp_phase_y, exp_phase_z);
 

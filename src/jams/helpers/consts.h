@@ -28,6 +28,8 @@ constexpr double kNanometer             = 1E-9;
 constexpr double kHBar                  = 1.054571800e-34;  // J s     || NIST 2014 CODATA
 constexpr double kTHz                   = 1E12;
 
+constexpr double kMeterToAngstroms      = 1e10;
+
 constexpr std::complex<double> kCmplxZero = {0.0, 0.0};
 constexpr std::complex<double> kImagOne = {0.0, 1.0};
 constexpr std::complex<double> kImagTwoPi = {0.0, kTwoPi};

@@ -148,12 +148,12 @@ Lattice::atom_material_id(const int &i) const {
 
 Vec3
 Lattice::atom_position(const int &i) const {
-  return atoms_[i].pos;
+  return atoms_[i].fractional_pos;
 }
 
 void
 Lattice::atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom> &neighbours) const {
-  neartree_->find_in_radius(r_cutoff, neighbours, {i, atoms_[i].material, atoms_[i].motif_position, atoms_[i].pos});
+  neartree_->find_in_radius(r_cutoff, neighbours, {i, atoms_[i].material, atoms_[i].motif_position, atoms_[i].fractional_pos});
 }
 
 Vec3
@@ -248,17 +248,17 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions, Coordi
     }
     atom.material = materials_.id(atom_name);
 
-    atom.pos[0] = positions[i][1][0];
-    atom.pos[1] = positions[i][1][1];
-    atom.pos[2] = positions[i][1][2];
+    atom.fractional_pos[0] = positions[i][1][0];
+    atom.fractional_pos[1] = positions[i][1][1];
+    atom.fractional_pos[2] = positions[i][1][2];
 
     if (coordinate_format == CoordinateFormat::CARTESIAN) {
-      atom.pos = cartesian_to_fractional(atom.pos);
+      atom.fractional_pos = cartesian_to_fractional(atom.fractional_pos);
     }
 
-    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
+    atom.fractional_pos = shift_fractional_coordinate_to_zero_one(atom.fractional_pos);
 
-    if (!is_fractional_coordinate_valid(atom.pos)) {
+    if (!is_fractional_coordinate_valid(atom.fractional_pos)) {
       throw std::runtime_error("atom position " + std::to_string(i) + " is not a valid fractional coordinate");
     }
 
@@ -290,15 +290,15 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
     line_as_stream.str(line);
 
     // read atom type name
-    line_as_stream >> atom_name >> atom.pos[0] >> atom.pos[1] >> atom.pos[2];
+    line_as_stream >> atom_name >> atom.fractional_pos[0] >> atom.fractional_pos[1] >> atom.fractional_pos[2];
 
     if (coordinate_format == CoordinateFormat::CARTESIAN) {
-      atom.pos = cartesian_to_fractional(atom.pos);
+      atom.fractional_pos = cartesian_to_fractional(atom.fractional_pos);
     }
 
-    atom.pos = shift_fractional_coordinate_to_zero_one(atom.pos);
+    atom.fractional_pos = shift_fractional_coordinate_to_zero_one(atom.fractional_pos);
 
-    if (!is_fractional_coordinate_valid(atom.pos)) {
+    if (!is_fractional_coordinate_valid(atom.fractional_pos)) {
       throw std::runtime_error("atom position " + std::to_string(motif_.size()) + " is not a valid fractional coordinate");
     }
     // check the material type is defined
@@ -454,8 +454,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   DisplacementCalculator calc(unitcell);
   for (const Atom &atom: motif_) {
-    cout << "    " << atom.id << " " <<  materials_.name(atom.material) << " " << atom.pos << "\n";
-    calc.insert(atom.pos);
+    cout << "    " << atom.id << " " <<  materials_.name(atom.material) << " " << atom.fractional_pos << "\n";
+    calc.insert(atom.fractional_pos);
   }
   cout << "\n";
 
@@ -579,7 +579,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
         cell_centers_.push_back(generate_cartesian_lattice_position_from_fractional(Vec3{0.5,0.5,0.5}, cell_offset));
 
         for (auto m = 0; m < motif_.size(); ++m) {
-          auto position    = generate_cartesian_lattice_position_from_fractional(motif_[m].pos, cell_offset);
+          auto position    = generate_cartesian_lattice_position_from_fractional(motif_[m].fractional_pos, cell_offset);
           auto material    = motif_[m].material;
 
           if (impurity_map_.count(material)) {
@@ -607,7 +607,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   displacement_calculator = DisplacementCalculator(supercell);
 
   for (const auto& a : atoms_) {
-    displacement_calculator.insert(a.pos);
+    displacement_calculator.insert(a.fractional_pos);
   }
 
   if (atom_counter == 0) {
@@ -623,8 +623,8 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   rmax_[0] = -DBL_MAX; rmax_[1] = -DBL_MAX; rmax_[2] = -DBL_MAX;
   for (const auto& a : atoms_) {
     for (auto n = 0; n < 3; ++n) {
-      if (a.pos[n] > rmax_[n]) {
-        rmax_[n] = a.pos[n];
+      if (a.fractional_pos[n] > rmax_[n]) {
+        rmax_[n] = a.fractional_pos[n];
       }
     }
   }
@@ -635,7 +635,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
   Cell neartree_cell = supercell;
   auto distance_metric = [neartree_cell](const Atom& a, const Atom& b)->double {
-      return norm(::minimum_image(neartree_cell, a.pos, b.pos));
+      return norm(::minimum_image(neartree_cell, a.fractional_pos, b.fractional_pos));
   };
 
   neartree_ = new NearTree<Atom, NeartreeFunctorType>(distance_metric, atoms_);
@@ -645,7 +645,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
   cout << "  computed lattice positions " << atom_counter << "\n";
   for (auto i = 0; i < atoms_.size(); ++i) {
-    cout << i << " " << materials_.name(atoms_[i].material)  << " " << atoms_[i].pos << " " << cell_offset(i) << "\n";
+    cout << i << " " << materials_.name(atoms_[i].material)  << " " << atoms_[i].fractional_pos << " " << cell_offset(i) << "\n";
     if(!verbose_is_enabled() && i > 7) {
       cout << "    ... [use verbose output for details] ... \n";
       break;
@@ -751,7 +751,7 @@ void Lattice::calc_symmetry_operations() {
 
   for (auto i = 0; i < motif_.size(); ++i) {
     for (auto j = 0; j < 3; ++j) {
-      spg_positions[i][j] = motif_[i].pos[j];
+      spg_positions[i][j] = motif_[i].fractional_pos[j];
     }
   }
 
