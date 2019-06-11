@@ -219,6 +219,11 @@ inline constexpr T product(const Vec<T,3>& a) {
 }
 
 template <typename T>
+inline constexpr Vec<std::complex<T>,3> conj(const Vec<std::complex<T>,3>& a) {
+  return {std::conj(a[0]), std::conj(a[1]), std::conj(a[2])};
+}
+
+template <typename T>
 inline constexpr Vec<T,3> trunc(const Vec<T,3>& a) {
   return {std::trunc(a[0]), std::trunc(a[1]), std::trunc(a[2])};
 }
