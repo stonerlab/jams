@@ -72,8 +72,8 @@ private:
 
     fftw_plan fft_plan_to_qspace_ = nullptr;
 
-    jams::MultiArray<Complex, 5> sq_;
-    jams::MultiArray<Complex, 4> sqw_;
+    jams::MultiArray<Vec<Complex,3>, 4> sq_;
+    jams::MultiArray<Vec<Complex,3>, 3> sqw_;
     jams::MultiArray<double, 2> form_factors_;
     std::vector<HKLIndex> path_;
     std::vector<Vec3> polarizations_;

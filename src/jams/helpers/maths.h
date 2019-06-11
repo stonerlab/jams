@@ -82,9 +82,9 @@ inline constexpr bool odd(const int x) {
   return x % 2 != 0;
 }
 
-inline constexpr double kronecker_delta(const int& alpha, const int& beta) {
+inline constexpr double kronecker_delta(const int alpha, const int beta) {
   // cast bool to double so that this works as a constexpr in C++11 which only supports 1 return statement
-  return static_cast<double>(alpha == beta);
+  return alpha == beta;
 }
 
 inline double gaussian(const double x, const double sigma, const double mean = 0.0) {

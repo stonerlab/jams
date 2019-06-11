@@ -117,7 +117,7 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_secti
         for (auto f = 0; f < num_freqencies; ++f) {
           for (auto i : {0,1,2}) {
             for (auto j : {0,1,2}) {
-              convolved(f, k) += prefactor * (kronecker_delta(i, j) - Q[i] * Q[j]) * conj(sqw_(f, k, a, i)) * sqw_(f, k, b, j);
+              convolved(f, k) += prefactor * (kronecker_delta(i, j) - Q[i] * Q[j]) * conj(sqw_(f, k, a)[i]) * sqw_(f, k, b)[j];
             }
           }
         }
@@ -144,21 +144,13 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::compute_polarized_cross_section
         const auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(k, a) * form_factors_(k, b);
         // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
         for (auto f = 0; f < num_freqencies; ++f) {
-          Vec<Complex,3> sxs = {kCmplxZero, kCmplxZero, kCmplxZero};
 
-          // yz - zy
-          sxs[0] += conj(sqw_(f, k, a, 1)) * sqw_(f, k, b, 2) - conj(sqw_(f, k, a, 2)) * sqw_(f, k, b, 1);
-          // zx - xz
-          sxs[1] += conj(sqw_(f, k, a, 2)) * sqw_(f, k, b, 0) - conj(sqw_(f, k, a, 0)) * sqw_(f, k, b, 2);
-          // xy - yx
-          sxs[2] += conj(sqw_(f, k, a, 0)) * sqw_(f, k, b, 1) - conj(sqw_(f, k, a, 1)) * sqw_(f, k, b, 0);
-
-          convolved(f, k) += kImagOne * dot(P, prefactor * sxs);
+          convolved(f, k) += prefactor * kImagOne * dot(P, cross(conj(sqw_(f, k, a)), sqw_(f, k, b)));
 
           for (auto i : {0,1,2}) {
             for (auto j : {0,1,2}) {
               convolved(f, k) += kImagOne * prefactor * cross(P,Q)[i] * Q[j] * (
-                  conj(sqw_(f, k, a, i)) * sqw_(f, k, b, j) - conj(sqw_(f, k, a, j)) * sqw_(f, k, b, i) );
+                  conj(sqw_(f, k, a)[i]) * sqw_(f, k, b)[j] - conj(sqw_(f, k, a)[j]) * sqw_(f, k, b)[i] );
             }
           }
 
@@ -244,8 +236,8 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
 
   polarizations_ = {Vec3{0,0,1}, Vec3{0,0,-1}};
 
-  sq_.resize(kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_sites, 3);
-  sqw_.resize(num_samples, path_.size(), num_sites, 3);
+  sq_.resize(kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_sites);
+  sqw_.resize(num_samples, path_.size(), num_sites);
   sqw_.zero();
 
   auto& cfg_form_factors = settings["form_factor"];
@@ -282,7 +274,7 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
     auto s_backup = globals::s;
 
     fft_plan_to_qspace_ =
-        fft_plan_transform_to_reciprocal_space(globals::s.data(), sq_.data(), kspace_size, num_sites);
+        fft_plan_transform_to_reciprocal_space(globals::s.data(), &sq_(0,0,0,0)[0], kspace_size, num_sites);
 
     globals::s = s_backup;
   }
@@ -292,6 +284,10 @@ void NeutronScatteringMonitor::update(Solver * solver) {
   using namespace globals;
   assert(fft_plan_to_qspace_ != nullptr);
   assert(sq_.elements() > 0);
+
+  // store data just on the path of interest
+  // extra safety in case there is an extra one time point due to floating point maths
+  if (time_point_counter_ >= sqw_.size(0)) return;
 
   const auto kspace_size = lattice->kspace_size();
   const auto num_sites = ::lattice->num_motif_atoms();
@@ -305,25 +301,20 @@ void NeutronScatteringMonitor::update(Solver * solver) {
   fftw_execute(fft_plan_to_qspace_);
 
   std::transform(sq_.begin(), sq_.end(), sq_.begin(),
-      [kspace_size](const Complex &a) { return a / sqrt(product(kspace_size)); });
+      [kspace_size](const Vec<Complex,3> &a) { return a / sqrt(product(kspace_size)); });
 
 
-  // store data just on the path of interest
-  // extra safety in case there is an extra one time point due to floating point maths
-  if (time_point_counter_ < sqw_.size(0)) {
-    for (auto k = 0; k < path_.size(); ++k) {
-      auto idx = path_[k].index;
-      for (auto site = 0; site < num_sites; ++site) {
-        for (auto n : {0, 1, 2}) {
-          if (path_[k].conjugate) {
-            sqw_(time_point_counter_, k, site, n) = conj(sq_(idx[0], idx[1], idx[2], site, n));
-          } else {
-            sqw_(time_point_counter_, k, site, n) = sq_(idx[0], idx[1], idx[2], site, n);
-          }
-        }
+  for (auto k = 0; k < path_.size(); ++k) {
+    auto idx = path_[k].index;
+    for (auto a = 0; a < num_sites; ++a) {
+      if (path_[k].conjugate) {
+        sqw_(time_point_counter_, k, a) = conj(sq_(idx[0], idx[1], idx[2], a));
+      } else {
+        sqw_(time_point_counter_, k, a) = sq_(idx[0], idx[1], idx[2], a);
       }
     }
   }
+
 
   time_point_counter_++;
 }
@@ -361,9 +352,7 @@ void NeutronScatteringMonitor::fft_to_frequency() {
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_space_samples; ++j) {
       for (auto m = 0; m < num_sites; ++m) {
-        for (auto n : {0,1,2}) {
-          sqw_(i,j,m,n) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
-        }
+        sqw_(i,j,m) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
       }
     }
   }
