@@ -21,15 +21,15 @@ public:
     inline Cell(const Mat3 &basis, const Vec3b pbc = {{true, true, true}});
     inline Cell(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b pbc = {{true, true, true}});
 
-    inline constexpr Vec3 a() const;
-    inline constexpr Vec3 b() const;
-    inline constexpr Vec3 c() const;
+    inline Vec3 a() const;
+    inline Vec3 b() const;
+    inline Vec3 c() const;
 
-    inline constexpr Vec3b periodic() const;
-    inline constexpr bool periodic(int n) const;
+    inline Vec3b periodic() const;
+    inline bool periodic(int n) const;
 
-    inline constexpr Mat3 matrix() const;
-    inline constexpr Mat3 inverse_matrix() const;
+    inline Mat3 matrix() const;
+    inline Mat3 inverse_matrix() const;
 
 protected:
     Mat3  matrix_ = kIdentityMat3;
