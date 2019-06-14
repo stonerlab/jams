@@ -388,7 +388,7 @@ void NeutronScatteringMonitor::post_process() {
   }
 
 
-  std::ofstream sqwfile(seedname + "_sqw.tsv");
+  std::ofstream sqwfile(seedname + "_neutron_scattering.tsv");
 
   sqwfile << "index\t";
   sqwfile << "h\t";
@@ -399,10 +399,16 @@ void NeutronScatteringMonitor::post_process() {
   sqwfile << "qz\t";
   sqwfile << "freq_THz\t";
   sqwfile << "energy_meV\t";
-  sqwfile << "sigma_re\t";
-  sqwfile << "sigma_im\n";
+  sqwfile << "sigma_unpol_re\t";
+  sqwfile << "sigma_unpol_im\t";
+  for (auto k = 0; k < polarized_cross_sections.size(); ++k) {
+    sqwfile << "sigma_pol" << to_string(k) << "_re\t";
+    sqwfile << "sigma_pol" << to_string(k) << "_im\t";
+  }
+  sqwfile << "\n";
 
-  auto format_int = [](ostream& os) -> ostream& {
+
+    auto format_int = [](ostream& os) -> ostream& {
       return os << std::fixed; };
 
   auto format_fix = [](ostream& os) -> ostream& {
