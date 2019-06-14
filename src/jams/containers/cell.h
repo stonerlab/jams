@@ -49,31 +49,31 @@ inline Cell::Cell(const Vec3 &a, const Vec3 &b, const Vec3 &c, Vec3b pbc)
           periodic_(pbc)
 {}
 
-inline constexpr Vec3 Cell::a() const {
+inline Vec3 Cell::a() const {
   return {matrix_[0][0], matrix_[1][0], matrix_[2][0]};
 }
 
-inline constexpr Vec3 Cell::b() const {
+inline Vec3 Cell::b() const {
   return {matrix_[0][1], matrix_[1][1], matrix_[2][1]};
 }
 
-inline constexpr Vec3 Cell::c() const {
+inline Vec3 Cell::c() const {
   return {matrix_[0][2], matrix_[1][2], matrix_[2][2]};
 }
 
-inline constexpr bool Cell::periodic(const int n) const {
+inline bool Cell::periodic(const int n) const {
   return periodic_[n];
 }
 
-inline constexpr Mat3 Cell::matrix() const {
+inline Mat3 Cell::matrix() const {
   return matrix_;
 }
 
-inline constexpr Mat3 Cell::inverse_matrix() const {
+inline Mat3 Cell::inverse_matrix() const {
   return inverse_matrix_;
 }
 
-Vec3b constexpr Cell::periodic() const {
+Vec3b Cell::periodic() const {
   return periodic_;
 }
 
