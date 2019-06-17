@@ -497,8 +497,9 @@ namespace jams {
     * Force a MultiArray to synchronise CPU and GPU data
     */
     template <typename T, std::size_t N>
-    inline void force_multiarray_sync(MultiArray<T,N> & x) {
-      volatile auto sync_data = x.data();
+    inline void force_multiarray_sync(const MultiArray<T,N> & x) {
+      volatile const auto sync_data = x.data();
+    }
 
     template<class FTp_, std::size_t FDim_, class FIdx_>
     void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs) {
