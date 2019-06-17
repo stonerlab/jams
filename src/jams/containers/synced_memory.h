@@ -44,6 +44,9 @@ namespace jams {
 template <class T>
 class SyncedMemory {
 public:
+    template<class F>
+    friend void swap(SyncedMemory<F>& lhs, SyncedMemory<F>& rhs);
+
     using value_type      = T;
     using reference       = value_type&;
     using const_reference = const value_type&;
@@ -383,6 +386,16 @@ template<class T>
 constexpr typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size_host() const noexcept {
   return std::numeric_limits<size_type>::max();
 }
+
+template<class T>
+void swap(SyncedMemory<T>& lhs, SyncedMemory<T>& rhs) {
+  using std::swap;
+  swap(lhs.sync_status_, rhs.sync_status_);
+  swap(lhs.size_, rhs.size_);
+  swap(lhs.host_ptr_, rhs.host_ptr_);
+  swap(lhs.device_ptr_, rhs.device_ptr_);
+}
+
 
 } // namespace jams
 

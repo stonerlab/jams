@@ -107,6 +107,9 @@ namespace jams {
     template<class Tp_, std::size_t Dim_, class Idx_ = std::size_t>
     class MultiArray {
     public:
+        template<class FTp_, std::size_t FDim_, class FIdx_>
+        friend void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs);
+
         using value_type = Tp_;
         using size_type  = Idx_;
         using dim_type   = std::size_t;
@@ -315,6 +318,9 @@ namespace jams {
         using iterator = pointer;
         using const_iterator = const_pointer;
 
+        template<class FTp_, std::size_t FDim_, class FIdx_>
+        friend void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs);
+
         MultiArray() = default;
         ~MultiArray() = default;
 
@@ -493,6 +499,12 @@ namespace jams {
     template <typename T, std::size_t N>
     inline void force_multiarray_sync(MultiArray<T,N> & x) {
       volatile auto sync_data = x.data();
+
+    template<class FTp_, std::size_t FDim_, class FIdx_>
+    void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs) {
+      using std::swap;
+      swap(lhs.size_, rhs.size_);
+      swap(lhs.data_, rhs.data_);
     }
 
 } // namespace jams
