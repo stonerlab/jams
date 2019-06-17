@@ -29,14 +29,19 @@ void CudaSolver::initialize(const libconfig::Setting& settings) {
 void CudaSolver::compute_fields() {
   using namespace globals;
 
-  for (auto& ham : hamiltonians_) {
-    ham->calculate_fields();
+  if (hamiltonians_.empty()) return;
+
+  for (auto& hh : hamiltonians_) {
+    hh->calculate_fields();
   }
 
-  globals::h.zero();
-  for (auto& ham : hamiltonians_) {
-    const double alpha = 1.0;
-    CHECK_CUBLAS_STATUS(cublasDaxpy(cublas_handle_,globals::h.elements(), &alpha, ham->dev_ptr_field(), 1, globals::h.device_data(), 1));
+  cudaMemcpy(globals::h.device_data(),hamiltonians_[0]->dev_ptr_field(), globals::num_spins3*sizeof(double) ,cudaMemcpyDeviceToDevice);
+
+  if (hamiltonians_.size() == 1) return;
+
+  for (auto i = 1; i < hamiltonians_.size(); ++i) {
+    CHECK_CUBLAS_STATUS(cublasDaxpy(cublas_handle_,globals::h.elements(), &kOne, hamiltonians_[i]->dev_ptr_field(), 1, globals::h.device_data(), 1));
   }
+
 }
 
