@@ -90,13 +90,13 @@ void CUDAHeunLLGSolver::run()
   if (zero_safe_kernels_required_) {
     cuda_zero_safe_heun_llg_kernelA<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
-       h.device_data(), thermostat_->noise(),
+       h.device_data(), thermostat_->device_data(),
        gyro.device_data(), alpha.device_data(), dt_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   } else {
     cuda_heun_llg_kernelA<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
-        h.device_data(), thermostat_->noise(),
+        h.device_data(), thermostat_->device_data(),
           gyro.device_data(), alpha.device_data(), dt_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
@@ -106,13 +106,13 @@ void CUDAHeunLLGSolver::run()
   if (zero_safe_kernels_required_) {
     cuda_zero_safe_heun_llg_kernelB<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
-          h.device_data(), thermostat_->noise(),
+          h.device_data(), thermostat_->device_data(),
           gyro.device_data(), alpha.device_data(), dt_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   } else {
     cuda_heun_llg_kernelB<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
-          h.device_data(), thermostat_->noise(),
+          h.device_data(), thermostat_->device_data(),
           gyro.device_data(), alpha.device_data(), dt_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }

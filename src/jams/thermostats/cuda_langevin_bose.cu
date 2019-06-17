@@ -30,26 +30,9 @@ using namespace std;
 
 CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),
-  debug_(false),
-  dev_noise_(3 * num_spins, 0.0),
-  dev_zeta0_(4 * num_spins * 3, 0.0),
-  dev_zeta5_(num_spins * 3, 0.0),
-  dev_zeta5p_(num_spins * 3, 0.0),
-  dev_zeta6_(num_spins * 3, 0.0),
-  dev_zeta6p_(num_spins * 3, 0.0),
-  dev_eta0_(4 * num_spins * 3, 0.0),
-  dev_eta1a_(2 * num_spins * 3, 0.0),
-  dev_eta1b_(2 * num_spins * 3, 0.0),
-  dev_sigma_(num_spins, 0.0)
- {
+  debug_(false)
+  {
    cout << "\n  initialising CUDA Langevin semi-quantum noise thermostat\n";
-
-   debug_ = false;
-
-   if(debug_) {
-     debug_noise_outfile_.open(seedname + "_qnoise.tsv");
-     debug_noise_outfile_ << "time\tnoise0\tnoise1\tnoise2\tnoise3\tnoise4\tnoise5\tnoise6\tnoise7\tnoise8\tnoise9\n";
-   }
 
    config->lookupValue("thermostat.zero_point", do_zero_point_);
 
@@ -83,23 +66,36 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
    cout << "    initialising CURAND\n";
 
-   CHECK_CURAND_STATUS(curandCreateGenerator(&dev_rng_, CURAND_RNG_PSEUDO_DEFAULT));
-   CHECK_CURAND_STATUS(curandSetStream(dev_rng_, dev_curand_stream_));
-   CHECK_CURAND_STATUS(curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed));
-   CHECK_CURAND_STATUS(curandGenerateSeeds(dev_rng_));
-   CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0));
-   CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0));
-   CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta1b_.data(), dev_eta1b_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandCreateGenerator(&thermostat_rng_, CURAND_RNG_PSEUDO_DEFAULT));
+   CHECK_CURAND_STATUS(curandSetStream(thermostat_rng_, dev_curand_stream_));
+   CHECK_CURAND_STATUS(curandSetPseudoRandomGeneratorSeed(thermostat_rng_, dev_rng_seed));
+   CHECK_CURAND_STATUS(curandGenerateSeeds(thermostat_rng_));
+   CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta1b_.device_data(), eta1b_.size(), 0.0, 1.0));
 
    for (int i = 0; i < num_spins; ++i) {
      for (int j = 0; j < 3; ++j) {
-       sigma_(i) = (kBoltzmann) *
-                     sqrt((2.0 * globals::alpha(i) * globals::mus(i)) / (kHBar * kGyromagneticRatio * kBohrMagneton));
+        sigma_(i,j) = (kBoltzmann) *
+            sqrt((2.0 * globals::alpha(i) * globals::mus(i)) / (kHBar * kGyromagneticRatio * kBohrMagneton));
      }
    }
 
    num_warm_up_steps_ = static_cast<unsigned>(t_warmup / dt_thermostat);
- }
+
+
+  zeta5_.resize(num_spins * 3, 0.0);
+  zeta5p_.resize(num_spins * 3, 0.0);
+  zeta6_.resize(num_spins * 3, 0.0);
+  zeta6p_.resize(num_spins * 3, 0.0);
+  eta1a_.resize(2 * num_spins * 3, 0.0);
+  eta1b_.resize(2 * num_spins * 3, 0.0);
+
+  if (do_zero_point_) {
+    zeta0_.resize(4 * num_spins * 3, 0.0);
+    eta0_.resize(4 * num_spins * 3, 0.0);
+  }
+}
 
 void CudaLangevinBoseThermostat::update() {
   if (!is_warmed_up_) {
@@ -110,50 +106,31 @@ void CudaLangevinBoseThermostat::update() {
   int block_size = 96;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
-  swap(dev_eta1a_, dev_eta1b_);
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta1a_.data(), dev_eta1a_.size(), 0.0, 1.0));
+  const double reduced_omega_max = (kHBar * omega_max_) / (kBoltzmann * this->temperature());
+  const double reduced_delta_tau = delta_tau_ * this->temperature();
+  const double temperature = this->temperature();
+
+  swap(eta1a_, eta1b_);
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
 
   bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (
-    dev_noise_.data(),
-    dev_zeta5_.data(),
-    dev_zeta5p_.data(),
-    dev_zeta6_.data(),
-    dev_zeta6p_.data(),
-    dev_eta1b_.data(),
-    sigma_.device_data(),
-    delta_tau_ * this->temperature(),
-    this->temperature(),
-    (kHBar * omega_max_) / (kBoltzmann * this->temperature()),  // w_m
-    globals::num_spins3);
+    noise_.device_data(), zeta5_.device_data(), zeta5p_.device_data(), zeta6_.device_data(), zeta6p_.device_data(),
+    eta1b_.device_data(), sigma_.device_data(), reduced_delta_tau, temperature, reduced_omega_max, globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   if (do_zero_point_) {
-    CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, dev_eta0_.data(), dev_eta0_.size(), 0.0, 1.0));
+    CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta0_.device_data(), eta0_.size(), 0.0, 1.0));
 
-    bose_zero_point_stochastic_process_cuda_kernel << < grid_size, block_size, 0, dev_stream_ >> > (
-            dev_noise_.data(),
-                    dev_zeta0_.data(),
-                    dev_eta0_.data(),
-                    dev_sigma_.data(),
-                    delta_tau_ * this->temperature(),
-                    this->temperature(),
-                    (kHBar * omega_max_) / (kBoltzmann * this->temperature()),  // w_m
-                    globals::num_spins3);
+    bose_zero_point_stochastic_process_cuda_kernel <<< grid_size, block_size, 0, dev_stream_ >>> (
+        noise_.device_data(), zeta0_.device_data(), eta0_.device_data(), sigma_.device_data(), reduced_delta_tau,
+        temperature, reduced_omega_max, globals::num_spins3);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
-  }
-
-  if (debug_ && is_warmed_up_) {
-    debug_noise_outfile_ << solver->time() << "\t";
-    for (auto i = 0; i < 10; ++i) {
-      debug_noise_outfile_ << noise_(i, 0) << "\t";
-    }
-    debug_noise_outfile_ << std::endl;
   }
 }
 
 CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
-  if (dev_rng_ != nullptr) {
-    CHECK_CURAND_STATUS(curandDestroyGenerator(dev_rng_))
+  if (thermostat_rng_ != nullptr) {
+    CHECK_CURAND_STATUS(curandDestroyGenerator(thermostat_rng_))
   }
 
   if (dev_stream_ != nullptr) {

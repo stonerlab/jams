@@ -16,7 +16,7 @@ class CudaLangevinWhiteThermostat : public Thermostat {
 
   void update();
 
-  const double* noise() override { return noise_.device_data(); }
+  const double* device_data() override { return noise_.device_data(); }
 
 
   double field(int i, int j) {

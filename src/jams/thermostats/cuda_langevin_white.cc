@@ -41,13 +41,15 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
 
 
   for(int i = 0; i < num_spins; ++i) {
-    double denominator = 1.0;
-    if (use_gilbert_prefactor) {
-      denominator = 1.0 + pow2(globals::alpha(i));
+    for (int j = 0; j < 3; ++j) {
+      double denominator = 1.0;
+      if (use_gilbert_prefactor) {
+        denominator = 1.0 + pow2(globals::alpha(i));
+      }
+      sigma_(i, j) = sqrt((2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) /
+                          (solver->time_step() * kGyromagneticRatio * kBohrMagneton * denominator));
     }
-    sigma_(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton * denominator) );
   }
-
   cout << "  done\n\n";
 }
 
