@@ -382,6 +382,10 @@ namespace jams {
 
         // operations
         inline void fill(const value_type &value) {
+          if (value == value_type{0}) {
+            data_.zero();
+            return;
+          }
           std::fill(data_.mutable_host_data(), data_.mutable_host_data() + data_.size(), value);
         }
 
