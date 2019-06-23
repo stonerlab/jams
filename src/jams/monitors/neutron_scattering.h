@@ -75,7 +75,10 @@ private:
     jams::MultiArray<Vec<Complex,3>, 4> sq_;
     jams::MultiArray<Vec<Complex,3>, 3> sqw_;
     jams::MultiArray<double, 2> form_factors_;
-    std::vector<HKLIndex> path_;
+    std::vector<HKLIndex> paths_;
+    std::vector<int> continuous_path_ranges_;
+    int num_t_samples_ = 0;
+    double t_sample_ = 0.0;
     std::vector<Vec3> polarizations_;
     double freq_delta_;
     int time_point_counter_;
