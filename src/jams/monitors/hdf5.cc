@@ -167,7 +167,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name, const H
 
         for (int i = 0; i < pos_dims[0]; ++i) {
             for (int j = 0; j < 3; ++j) {
-               positions(i, j) = lattice->parameter()*lattice->atom_position(i)[j];
+               positions(i, j) = lattice->parameter()*lattice->atom_position(i)[j]/1e-9;
             }
         }
     }
@@ -190,12 +190,12 @@ void Hdf5Monitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
   xdmf_file_ = fopen(xdmf_file_name.c_str(), "w");
 
                fputs("<?xml version=\"1.0\"?>\n", xdmf_file_);
-               fputs("<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\"[]>\n", xdmf_file_);
-               fputs("<Xdmf xmlns:xi=\"http://www.w3.org/2003/XInclude\" Version=\"2.2\">\n", xdmf_file_);
+               fputs("<!DOCTYPE Xdmf SYSTEM \"https://gitlab.kitware.com/xdmf/xdmf/raw/master/Xdmf.dtd\"[]>\n", xdmf_file_);
+               fputs("<Xdmf Version=\"3.0\" xmlns:xi=\"http://www.w3.org/2003/XInclude\">\n", xdmf_file_);
                fputs("  <Domain Name=\"JAMS\">\n", xdmf_file_);
   fprintf(xdmf_file_, "    <Information Name=\"Commit\" Value=\"%s\" />\n", jams::build::hash);
   fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", seedname.c_str());
-               fputs("    <Grid Name=\"Time\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file_);
+               fputs("    <Grid Name=\"TimeSeries\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file_);
                fputs("    </Grid>\n", xdmf_file_);
                fputs("  </Domain>\n", xdmf_file_);
                fputs("</Xdmf>", xdmf_file_);
@@ -226,8 +226,8 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const H5::Pr
                // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
                fseek(xdmf_file_, -31, SEEK_CUR);
 
-               fputs("      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", solver->time()/1e-12);
+  fprintf(xdmf_file_, "      <Grid Name=\"Lattice %d\" GridType=\"Uniform\">\n", solver->iteration());
+  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", solver->time());
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", data_dimension);
                fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
@@ -244,11 +244,6 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const H5::Pr
   fprintf(xdmf_file_, "           %s:/spins\n", h5_file_name.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
-                fputs("       <Attribute Name=\"ds_dt\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
-   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-   fprintf(xdmf_file_, "           %s:/ds_dt\n", h5_file_name.c_str());
-                fputs("         </DataItem>\n", xdmf_file_);
-                fputs("       </Attribute>\n", xdmf_file_);
    fputs("      </Grid>\n", xdmf_file_);
 
                // reprint the closing tags of the XML
