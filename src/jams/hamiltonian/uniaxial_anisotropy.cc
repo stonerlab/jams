@@ -39,10 +39,10 @@ unsigned anisotropy_power_from_name(const string name) {
 AnisotropySetting read_anisotropy_setting(Setting &setting) {
   if (setting.isList()) {
     Vec3 axis = {setting[1][0], setting[1][1], setting[1][2]};
-    return {anisotropy_power_from_name(setting.getParent().getName()), setting[0], normalize(axis)};
+    return AnisotropySetting{anisotropy_power_from_name(setting.getParent().getName()), setting[0], normalize(axis)};
   }
   if (setting.isScalar()) {
-    return {anisotropy_power_from_name(setting.getParent().getName()), setting, {0.0, 0.0, 1.0}};
+    return AnisotropySetting{anisotropy_power_from_name(setting.getParent().getName()), setting, {0.0, 0.0, 1.0}};
   }
   throw runtime_error("Incorrectly formatted anisotropy setting");
 }
