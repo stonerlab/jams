@@ -79,15 +79,17 @@ UniaxialHamiltonian::UniaxialHamiltonian(const Setting &settings, const unsigned
   num_coefficients_ = anisotropies[0].size();
 
   power_.resize(num_spins, anisotropies[0].size());
-  axis_.resize(num_spins, anisotropies[0].size());
+  axis_.resize(num_spins, anisotropies[0].size(), 3);
   magnitude_.resize(num_spins, anisotropies[0].size());
 
   for (int i = 0; i < globals::num_spins; ++i) {
     auto type = lattice->atom_material_id(i);
     for (auto j = 0; j < anisotropies[type].size(); ++j) {
       power_(i, j) = anisotropies[type][j].power;
-      axis_(i, j) = anisotropies[type][j].axis;
       magnitude_(i, j) = anisotropies[type][j].energy * input_unit_conversion_;
+      for (auto k : {0,1,2}) {
+        axis_(i, j, k) = anisotropies[type][j].axis[k];
+      }
     }
   }
 }
@@ -106,7 +108,7 @@ double UniaxialHamiltonian::calculate_one_spin_energy(const int i) {
   double energy = 0.0;
 
   for (auto n = 0; n < num_coefficients_; ++n) {
-    auto dot = (axis_(i,n)[0] * s(i,0) + axis_(i,n)[1] * s(i,1) + axis_(i,n)[2] * s(i,2));
+    auto dot = (axis_(i,n,0) * s(i,0) + axis_(i,n,1) * s(i,1) + axis_(i,n,2) * s(i,2));
     energy += (-magnitude_(i,n) * pow(dot, power_(i,n)));
   }
 
@@ -119,11 +121,13 @@ double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, co
   double e_final = 0.0;
 
   for (auto n = 0; n < num_coefficients_; ++n) {
-    e_initial += (-magnitude_(i,n) * pow(dot(spin_initial, axis_(i,n)), power_(i,n)));
+    auto s_dot_a = spin_initial[0] * axis_(i,n,0) + spin_initial[1] * axis_(i,n,1) + spin_initial[2] * axis_(i,n,2);
+    e_initial += (-magnitude_(i,n) * pow(s_dot_a, power_(i,n)));
   }
 
   for (auto n = 0; n < num_coefficients_; ++n) {
-    e_final += (-magnitude_(i,n) * pow(dot(spin_final, axis_(i,n)), power_(i,n)));
+    auto s_dot_a = spin_final[0] * axis_(i,n,0) + spin_final[1] * axis_(i,n,1) + spin_final[2] * axis_(i,n,2);
+    e_final += (-magnitude_(i,n) * pow(s_dot_a, power_(i,n)));
   }
 
   return e_final - e_initial;
@@ -142,9 +146,9 @@ void UniaxialHamiltonian::calculate_one_spin_field(const int i, double local_fie
   local_field[2] = 0.0;
 
   for (auto n = 0; n < num_coefficients_; ++n) {
-    auto dot = (axis_(i,n)[0] * s(i,0) + axis_(i,n)[1] * s(i,1) + axis_(i,n)[2] * s(i,2));
+    auto dot = (axis_(i,n,0) * s(i,0) + axis_(i,n,1) * s(i,1) + axis_(i,n,2) * s(i,2));
     for (auto j = 0; j < 3; ++j) {
-      local_field[j] += magnitude_(i,n) * power_(i,n) * pow(dot, power_(i,n) - 1) * axis_(i, n)[j];
+      local_field[j] += magnitude_(i,n) * power_(i,n) * pow(dot, power_(i,n) - 1) * axis_(i, n,j);
     }
   }
 }
@@ -155,9 +159,9 @@ void UniaxialHamiltonian::calculate_fields() {
 
   for (auto i = 0; i < num_spins; ++i) {
     for (auto n = 0; n < num_coefficients_; ++n) {
-      auto dot = (axis_(i, n)[0] * s(i, 0) + axis_(i, n)[1] * s(i, 1) + axis_(i, n)[2] * s(i, 2));
+      auto dot = (axis_(i, n, 0) * s(i, 0) + axis_(i, n, 1) * s(i, 1) + axis_(i, n, 2) * s(i, 2));
       for (auto j = 0; j < 3; ++j) {
-        field_(i,j) += magnitude_(i, n) * power_(i, n) * pow(dot, power_(i, n) - 1) * axis_(i, n)[j];
+        field_(i,j) += magnitude_(i, n) * power_(i, n) * pow(dot, power_(i, n) - 1) * axis_(i, n, j);
       }
     }
   }

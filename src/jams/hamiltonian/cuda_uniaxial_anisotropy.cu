@@ -17,6 +17,6 @@ CudaUniaxialHamiltonian::CudaUniaxialHamiltonian(const libconfig::Setting &setti
 
 void CudaUniaxialHamiltonian::calculate_fields() {
   cuda_uniaxial_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
-            (globals::num_spins, num_coefficients_, power_.device_data(), magnitude_.device_data(), reinterpret_cast<const double *>(axis_.device_data()), globals::s.device_data(), field_.device_data());
+            (globals::num_spins, num_coefficients_, power_.device_data(), magnitude_.device_data(), axis_.device_data(), globals::s.device_data(), field_.device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }

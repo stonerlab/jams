@@ -27,7 +27,7 @@ class UniaxialHamiltonian : public Hamiltonian {
     private:
         unsigned num_coefficients_ = 0;
         jams::MultiArray<unsigned, 2> power_;
-        jams::MultiArray<Vec3, 2>     axis_;
+        jams::MultiArray<double, 3>     axis_;
         jams::MultiArray<double, 2>   magnitude_;
 };
 
