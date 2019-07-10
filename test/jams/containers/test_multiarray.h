@@ -57,33 +57,33 @@ TYPED_TEST(MultiArrayTest, ctor) {
   using namespace jams;
 
   MultiArray<TypeParam, 1> x1;
-  ASSERT_EQ(x1.extent(), 0);
+  ASSERT_EQ(x1.size(), 0);
 
   MultiArray<TypeParam, 2> x2;
-  ASSERT_EQ(x2.extent(0), 0);
-  ASSERT_EQ(x2.extent(1), 0);
+  ASSERT_EQ(x2.size(0), 0);
+  ASSERT_EQ(x2.size(1), 0);
 
   MultiArray<TypeParam, 1> y1(10);
-  ASSERT_EQ(y1.extent(), 10);
+  ASSERT_EQ(y1.size(), 10);
 
   MultiArray<TypeParam, 2> y2(10,3);
-  ASSERT_EQ(y2.extent(0), 10);
-  ASSERT_EQ(y2.extent(1), 3);
+  ASSERT_EQ(y2.size(0), 10);
+  ASSERT_EQ(y2.size(1), 3);
 
   MultiArray<TypeParam, 1> z1(std::array<typename MultiArray<TypeParam, 1>::size_type,1>{10});
-  ASSERT_EQ(z1.extent(), 10);
+  ASSERT_EQ(z1.size(), 10);
 
   MultiArray<TypeParam, 2> z2(std::array<typename MultiArray<TypeParam, 1>::size_type,2>{10,3});
-  ASSERT_EQ(z2.extent(0), 10);
-  ASSERT_EQ(z2.extent(1), 3);
+  ASSERT_EQ(z2.size(0), 10);
+  ASSERT_EQ(z2.size(1), 3);
 
   // check the arrays convert from other int types to size_type
   MultiArray<TypeParam, 1> a1(std::array<int,1>{10});
-  ASSERT_EQ(a1.extent(), 10);
+  ASSERT_EQ(a1.size(), 10);
 
   MultiArray<TypeParam, 2> a2(std::array<int,2>{10,3});
-  ASSERT_EQ(a2.extent(0), 10);
-  ASSERT_EQ(a2.extent(1), 3);
+  ASSERT_EQ(a2.size(0), 10);
+  ASSERT_EQ(a2.size(1), 3);
 
 
 
