@@ -118,7 +118,8 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
             nembed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset 
             dist,                    // memory distance between fft datasets
-            FFTW_PATIENT | FFTW_PRESERVE_INPUT);
+            FFTW_PATIENT);
+    assert(fft_s_rspace_to_kspace != NULL);
 
     fft_h_kspace_to_rspace
         = fftw_plan_many_dft_c2r(
@@ -133,7 +134,9 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
             nembed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset
             dist,                    // memory distance between fft datasets
-            FFTW_PATIENT | FFTW_PRESERVE_INPUT);
+            FFTW_PATIENT);
+    assert(fft_h_kspace_to_rspace != NULL);
+
 }
 
 //---------------------------------------------------------------------
@@ -328,7 +331,7 @@ void DipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2> &fields)
   using std::min;
   using std::pow;
 
-  h_.zero();
+  fields.zero();
 
   for (auto pos_i = 0; pos_i < ::lattice->num_motif_atoms(); ++pos_i) {
     kspace_h_.zero();
