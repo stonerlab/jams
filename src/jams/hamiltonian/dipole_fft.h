@@ -5,11 +5,9 @@
 
 #include <fftw3.h>
 #include <libconfig.h++>
+
 #include "jams/types.h"
-
-#include "jblib/containers/array.h"
-
-#include "strategy.h"
+#include "jams/hamiltonian/strategy.h"
 
 
 class DipoleHamiltonianFFT : public HamiltonianStrategy {
@@ -27,7 +25,7 @@ public:
 
 private:
 
-    jblib::Array<Complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
+    jams::MultiArray<Complex, 5> generate_kspace_dipole_tensor(const int pos_i, const int pos_j);
 
     bool debug_ = false;
     bool check_radius_   = true;
@@ -45,7 +43,7 @@ private:
     jams::MultiArray<Complex, 4>   kspace_s_;
     jams::MultiArray<Complex, 4>   kspace_h_;
 
-    std::vector<std::vector<jblib::Array<Complex, 5>>> kspace_tensors_;
+    std::vector<std::vector<jams::MultiArray<Complex, 5>>> kspace_tensors_;
 
     fftw_plan fft_s_rspace_to_kspace = nullptr;
     fftw_plan fft_h_kspace_to_rspace = nullptr;

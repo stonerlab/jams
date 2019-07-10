@@ -212,7 +212,7 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
 
 //---------------------------------------------------------------------
 
-jblib::Array<Complex, 5>
+jams::MultiArray<Complex, 5>
 DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
   using std::pow;
 
@@ -222,13 +222,13 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
   const Vec3 r_cart_i = lattice->fractional_to_cartesian(r_frac_i);
   const Vec3 r_cart_j = lattice->fractional_to_cartesian(r_frac_j);
 
-  jblib::Array<double, 5> rspace_tensor(
+  jams::MultiArray<double, 5> rspace_tensor(
         kspace_padded_size_[0],
         kspace_padded_size_[1],
         kspace_padded_size_[2],
         3, 3);
 
-  jblib::Array<Complex, 5> kspace_tensor(
+  jams::MultiArray<Complex, 5> kspace_tensor(
         kspace_padded_size_[0],
         kspace_padded_size_[1],
         kspace_padded_size_[2]/2 + 1,
