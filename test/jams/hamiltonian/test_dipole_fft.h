@@ -9,7 +9,9 @@
 #include "jams/helpers/random.h"
 
 #include "jams/hamiltonian/test_dipole_input.h"
-#include "../../../src/jams/hamiltonian/dipole_fft.h"
+#include "jams/hamiltonian/dipole_fft.h"
+#include "jams/hamiltonian/dipole_bruteforce.h"
+
 
 //---------------------------------------------------------------------
 // NOTE: The liberal use of #pragma nounroll_and_jam is to avoid a bug
