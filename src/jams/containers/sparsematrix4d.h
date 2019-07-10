@@ -9,8 +9,6 @@
 #include "jams/helpers/error.h"
 #include "sparsematrix.h"
 
-#include "jblib/containers/array.h"
-
 #define RESTRICT __restrict__
 
 ///

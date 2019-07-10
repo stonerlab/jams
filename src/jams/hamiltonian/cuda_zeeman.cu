@@ -1,7 +1,6 @@
 #include "jams/hamiltonian/cuda_zeeman.h"
 #include "jams/hamiltonian/cuda_zeeman_kernel.cuh"
 
-#include "jblib/containers/cuda_array.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/maths.h"

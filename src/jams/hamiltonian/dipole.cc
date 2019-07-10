@@ -24,8 +24,6 @@
 #include "jams/hamiltonian/cuda_dipole_bruteforce.h"
 #endif
 
-#include "jblib/containers/array.h"
-
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
 

@@ -11,12 +11,10 @@
 #include "jams/core/hamiltonian.h"
 #include "jams/hamiltonian/random_anisotropy.h"
 #include "jams/helpers/exception.h"
-#include "jblib/containers/array.h"
 #include "jams/cuda/cuda_stream.h"
 
 #include <thrust/device_vector.h>
 #include "jams/cuda/cuda_stream.h"
-#include "jblib/containers/cuda_array.h"
 
 class CudaRandomAnisotropyHamiltonian : public RandomAnisotropyHamiltonian {
     public:

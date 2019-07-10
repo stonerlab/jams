@@ -14,8 +14,6 @@
 
 #include "jams/core/thermostat.h"
 
-#include "jblib/containers/cuda_array.h"
-
 class CudaLangevinBoseThermostat : public Thermostat {
  public:
   CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const int num_spins);

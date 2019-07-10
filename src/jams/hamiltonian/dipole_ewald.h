@@ -11,7 +11,6 @@
 #include "jams/helpers/consts.h"
 #include "jams/containers/sparsematrix.h"
 #include "strategy.h"
-#include "jblib/containers/array.h"
 
 /*
 class DipoleHamiltonianEwald : public HamiltonianStrategy {
