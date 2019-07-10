@@ -242,18 +242,18 @@ void SpectrumFourierMonitor::fft_time() {
 
   fftw_plan fft_plan_time_x = fftw_plan_many_dft(
       rank,sizeN,howmany,
-      FFTWCAST(fft_sqw_x.data()),inembed,istride,idist,
-      FFTWCAST(fft_sqw_x.data()),onembed,ostride,odist,
+      FFTW_COMPLEX_CAST(fft_sqw_x.data()),inembed,istride,idist,
+      FFTW_COMPLEX_CAST(fft_sqw_x.data()),onembed,ostride,odist,
       FFTW_FORWARD,FFTW_ESTIMATE);
   fftw_plan fft_plan_time_y = fftw_plan_many_dft(
       rank,sizeN,howmany,
-      FFTWCAST(fft_sqw_y.data()),inembed,istride,idist,
-      FFTWCAST(fft_sqw_y.data()),onembed,ostride,odist,
+      FFTW_COMPLEX_CAST(fft_sqw_y.data()),inembed,istride,idist,
+      FFTW_COMPLEX_CAST(fft_sqw_y.data()),onembed,ostride,odist,
       FFTW_FORWARD,FFTW_ESTIMATE);
   fftw_plan fft_plan_time_z = fftw_plan_many_dft(
       rank,sizeN,howmany,
-      FFTWCAST(fft_sqw_z.data()),inembed,istride,idist,
-      FFTWCAST(fft_sqw_z.data()),onembed,ostride,odist,
+      FFTW_COMPLEX_CAST(fft_sqw_z.data()),inembed,istride,idist,
+      FFTW_COMPLEX_CAST(fft_sqw_z.data()),onembed,ostride,odist,
       FFTW_FORWARD,FFTW_ESTIMATE);
 
   for (auto unit_cell_atom = 0; unit_cell_atom < ::lattice->num_motif_atoms(); ++unit_cell_atom) {

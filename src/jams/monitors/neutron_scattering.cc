@@ -365,7 +365,7 @@ fftw_plan NeutronScatteringMonitor::fft_plan_transform_to_reciprocal_space(doubl
   return fftw_plan_many_dft_r2c(
       rank, transform_size, num_transforms,
       rspace, nembed, stride, dist,
-      FFTWCAST(kspace), nembed, stride, dist,
+      FFTW_COMPLEX_CAST(kspace), nembed, stride, dist,
       FFTW_MEASURE);
 }
 
@@ -393,8 +393,8 @@ void NeutronScatteringMonitor::fft_to_frequency() {
 
   fftw_plan fft_plan = fftw_plan_many_dft(
       rank,transform_size,num_transforms,
-      FFTWCAST(sqw_.data()),nembed,stride,dist,
-      FFTWCAST(sqw_.data()),nembed,stride,dist,
+      FFTW_COMPLEX_CAST(sqw_.data()),nembed,stride,dist,
+      FFTW_COMPLEX_CAST(sqw_.data()),nembed,stride,dist,
       FFTW_BACKWARD, FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
 
   fftw_execute(fft_plan);

@@ -10,8 +10,9 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
+#include "jams/helpers/fft.h"
 
-#include "dipole_fft.h"
+#include "jams/hamiltonian/dipole_fft.h"
 
 using std::pow;
 using std::abs;
@@ -113,7 +114,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
             nembed,                  // number of embedded dimensions 
             stride,                  // memory stride between elements of one fft dataset 
             dist,                    // memory distance between fft datasets
-            kspace_s_.data(),        // output: complex data
+            FFTW_COMPLEX_CAST(kspace_s_.data()),        // output: complex data
             nembed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset 
             dist,                    // memory distance between fft datasets
@@ -124,7 +125,7 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
             rank,                    // dimensionality
             transform_size,          // array of sizes of each dimension
             num_transforms,          // number of transforms
-            kspace_h_.data(),        // input: complex data
+            FFTW_COMPLEX_CAST(kspace_h_.data()),        // input: complex data
             nembed,                  // number of embedded dimensions
             stride,                  // memory stride between elements of one fft dataset 
             dist,                    // memory distance between fft datasets
@@ -208,7 +209,7 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
 
 //---------------------------------------------------------------------
 
-jblib::Array<fftw_complex, 5> 
+jblib::Array<Complex, 5>
 DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
   using std::pow;
 
@@ -224,7 +225,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
         kspace_padded_size_[2],
         3, 3);
 
-  jblib::Array<fftw_complex, 5> kspace_tensor(
+  jblib::Array<Complex, 5> kspace_tensor(
         kspace_padded_size_[0],
         kspace_padded_size_[1],
         kspace_padded_size_[2]/2 + 1,
@@ -308,7 +309,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
                     nembed,                     // number of embedded dimensions
                     stride,                     // memory stride between elements of one fft dataset
                     dist,                       // memory distance between fft datasets
-                    kspace_tensor.data(),       // output: real dat
+                    FFTW_COMPLEX_CAST(kspace_tensor.data()),       // output: real dat
                     nembed,                     // number of embedded dimensions
                     stride,                     // memory stride between elements of one fft dataset
                     dist,                       // memory distance between fft datasets
@@ -354,16 +355,7 @@ void DipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2> &fields)
           for (auto k = 0; k < (kspace_padded_size_[2]/2)+1; ++k) {
             for (auto m = 0; m < 3; ++m) {
               for (auto n = 0; n < 3; ++n) {
-                std::complex<double> wq(
-                        kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[0],
-                        kspace_tensors_[pos_i][pos_j](i,j,k,m,n)[1]);
-
-                std::complex<double> sq(kspace_s_(i,j,k,n)[0], kspace_s_(i,j,k,n)[1]);
-
-                std::complex<double> hq = wq * sq;
-
-                kspace_h_(i,j,k,m)[0] += mus_j * hq.real();
-                kspace_h_(i,j,k,m)[1] += mus_j * hq.imag();
+                kspace_h_(i,j,k,m) += mus_j * kspace_tensors_[pos_i][pos_j](i,j,k,m,n) * kspace_s_(i,j,k,n);
               }
             }
           }
