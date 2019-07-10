@@ -143,13 +143,13 @@ namespace jams {
         template <typename U>
         inline explicit MultiArray(const std::array<U, Dim_> &v) :
             size_(detail::array_cast<size_type>(v)),
-            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(v)) {}
+            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v))) {}
 
         // construct using dimensions in array and initial value
         template <typename U>
         inline explicit MultiArray(const std::array<U, Dim_> &v, const Tp_ &x) :
             size_(detail::array_cast<size_type>(v)),
-            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(v), x) {}
+            data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v)), x) {}
 
         // capacity
         inline constexpr bool empty() const noexcept {
