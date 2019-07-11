@@ -5,9 +5,9 @@
 
 #include <libconfig.h++>
 
-#include "jblib/containers/array.h"
 
-#include "strategy.h"
+#include "jams/hamiltonian/strategy.h"
+#include "jams/containers/multiarray.h"
 
 
 class DipoleHamiltonianTensor : public HamiltonianStrategy {
@@ -26,7 +26,7 @@ class DipoleHamiltonianTensor : public HamiltonianStrategy {
         void   calculate_fields(jams::MultiArray<double, 2>& fields);
     private:
         double r_cutoff_;
-        jblib::Array<double, 2> dipole_tensor_;
+        jams::MultiArray<double, 2> dipole_tensor_;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_TENSOR_H

@@ -208,6 +208,26 @@ const std::string config_dipole_fft_1000(R"(
   );
 )");
 
+const std::string config_dipole_tensor_128(R"(
+  hamiltonians = (
+    {
+      module = "dipole";
+      strategy = "fft";
+      r_cutoff = 128.0;
+    }
+  );
+)");
+
+const std::string config_dipole_tensor_1000(R"(
+  hamiltonians = (
+    {
+      module = "dipole";
+      strategy = "fft";
+      r_cutoff = 1000.0;
+    }
+  );
+)");
+
 // -(0.5 * mu0 / (4 pi)) * (mus / a^3)^2
 // mus = 2.0 muB; a = 0.3 nm
 const double analytic_prefactor  = -23595.95647978379; // J/m^3
