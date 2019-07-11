@@ -8,7 +8,6 @@
 #include <libconfig.h++>
 
 #include "jams/core/hamiltonian.h"
-#include "jblib/containers/array.h"
 
 class UniaxialMicroscopicHamiltonian : public Hamiltonian {
     friend class CudaUniaxialMicroscopicHamiltonian;
@@ -25,8 +24,8 @@ class UniaxialMicroscopicHamiltonian : public Hamiltonian {
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
     private:
-        std::vector<int> mca_order_;   // MCA expressed as a Legendre polynomial
-        std::vector< jblib::Array<double, 1> > mca_value_;
+        jams::MultiArray<int, 1> mca_order_; // MCA expressed as a Legendre polynomial
+        jams::MultiArray<double, 2> mca_value_; // first index in mca order and second is spin index
 };
 
 #endif  // JAMS_HAMILTONIAN_UNIAXIAL_MICROSCOPIC_H

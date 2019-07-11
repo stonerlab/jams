@@ -128,7 +128,7 @@ __global__ void cuda_uniaxial_microscopic_energy_kernel(const int num_spins, con
     const double sz = dev_s[3*idx+2];
     double energy = 0.0;
     for (int n = 0; n < num_mca; ++n) {
-      energy += mca_value[num_mca * idx + n] * cuda_legendre_poly(sz, mca_order[n]);
+      energy += mca_value[num_spins * n + idx] * cuda_legendre_poly(sz, mca_order[n]);
     }
     dev_e[idx] =  energy;
   }
@@ -141,7 +141,7 @@ __global__ void cuda_uniaxial_microscopic_field_kernel(const int num_spins, cons
     const double sz = dev_s[3*idx+2];
     double hz = 0.0;
     for (int n = 0; n < num_mca; ++n) {
-      hz += -mca_value[num_mca * idx + n] * cuda_legendre_dpoly(sz, mca_order[n]);
+      hz += -mca_value[num_spins * n + idx] * cuda_legendre_dpoly(sz, mca_order[n]);
     }
     dev_h[3 * idx + 2] =  hz;
   }
