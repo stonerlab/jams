@@ -17,9 +17,10 @@ struct SparseMatrixCSR {
     int num_rows = 0;
     int num_cols = 0;
     int num_nonzero = 0;
-    int *row = nullptr;
-    int *col = nullptr;
-    T *val = nullptr;
+    jams::MultiArray<int,1> row{};
+    jams::MultiArray<int,1> col{};
+    jams::MultiArray<T,1>   val{};
+    cusparseMatDescr_t descr = nullptr;
 };
 
 template<typename T>

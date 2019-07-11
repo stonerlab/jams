@@ -43,9 +43,9 @@ namespace {
     }
 
     void convert_triad_list_to_csr_format(TriadList triads, const int num_rows,
-                                          jblib::Array<int, 1> &index_pointers,
-                                          jblib::Array<int, 2> &index_data,
-                                          jblib::Array<double, 2> &value_data)
+                                          jams::MultiArray<int, 1> &index_pointers,
+                                          jams::MultiArray<int, 2> &index_data,
+                                          jams::MultiArray<double, 2> &value_data)
     {
       index_pointers.resize(num_rows + 1);
       index_data.resize(triads.size(), 2);
@@ -57,10 +57,10 @@ namespace {
 
       sort_triad_list(triads);
 
-      index_pointers[0] = 0;
+      index_pointers(0) = 0;
       unsigned index_counter = 0;
       for (auto i = 0; i < num_rows; ++i) {
-        for (auto n = index_pointers[i]; n < triads.size(); ++n) {
+        for (auto n = index_pointers(i); n < triads.size(); ++n) {
           if (triads[n].i != i) {
             break;
           }
@@ -73,9 +73,9 @@ namespace {
           }
           index_counter++;
         }
-        index_pointers[i+1] = index_counter;
+        index_pointers(i+1) = index_counter;
       }
-      index_pointers[num_rows] = triads.size();
+      index_pointers(num_rows) = triads.size();
     }
 };
 
@@ -115,9 +115,9 @@ void CudaThermalCurrentMonitor::update(Solver *solver) {
           stream,
           globals::num_spins,
           globals::s.device_data(),
-          dev_csr_matrix_.row,
-          dev_csr_matrix_.col,
-          dev_csr_matrix_.val,
+          dev_csr_matrix_.row.device_data(),
+          dev_csr_matrix_.col.device_data(),
+          dev_csr_matrix_.val.device_data(),
           thermal_current_rx_.device_data(),
           thermal_current_ry_.device_data(),
           thermal_current_rz_.device_data()
@@ -136,21 +136,6 @@ bool CudaThermalCurrentMonitor::is_converged() {
 
 CudaThermalCurrentMonitor::~CudaThermalCurrentMonitor() {
   outfile.close();
-
-  if (dev_csr_matrix_.row) {
-    cudaFree(dev_csr_matrix_.row);
-    dev_csr_matrix_.row = nullptr;
-  }
-
-  if (dev_csr_matrix_.col) {
-    cudaFree(dev_csr_matrix_.col);
-    dev_csr_matrix_.col = nullptr;
-  }
-
-  if (dev_csr_matrix_.val) {
-    cudaFree(dev_csr_matrix_.val);
-    dev_csr_matrix_.val = nullptr;
-  }
 }
 
 CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_from_neighbour_list(const InteractionList<Mat3>& nbr_list) {
@@ -211,16 +196,21 @@ CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_
 }
 
 void CudaThermalCurrentMonitor::initialize_device_data(const TriadList &triads) {
+  using std::swap;
 
-  jblib::Array<int, 1>    index_pointers;
-  jblib::Array<int, 2>    index_data;
-  jblib::Array<double, 2> value_data;
+  jams::MultiArray<int, 1>    index_pointers;
+  jams::MultiArray<int, 2>    index_data;
+  jams::MultiArray<double, 2> value_data;
 
   convert_triad_list_to_csr_format(triads, globals::num_spins, index_pointers, index_data, value_data);
 
-  cuda_copy_array_to_device_pointer(index_pointers, &dev_csr_matrix_.row);
-  cuda_copy_array_to_device_pointer(index_data, &dev_csr_matrix_.col);
-  cuda_copy_array_to_device_pointer(value_data, &dev_csr_matrix_.val);
+  swap(dev_csr_matrix_.row, index_pointers);
+
+  dev_csr_matrix_.col.resize(index_data.elements());
+  std::copy(index_data.begin(), index_data.end(), dev_csr_matrix_.col.begin());
+
+  dev_csr_matrix_.val.resize(value_data.elements());
+  std::copy(value_data.begin(), value_data.end(), dev_csr_matrix_.val.begin());
 
   thermal_current_rx_.resize(globals::num_spins);
   thermal_current_ry_.resize(globals::num_spins);

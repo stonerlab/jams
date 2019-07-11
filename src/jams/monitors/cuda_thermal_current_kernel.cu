@@ -32,6 +32,8 @@ __global__ void thermal_current_kernel
     for (int n = begin; n < end; ++n) {
       const int j = index_data[2*n];
       const int k = index_data[2*n + 1];
+      assert(j < num_spins);
+      assert(k < num_spins);
 
       const double s_j[3] = {spins[3*j + 0], spins[3*j + 1], spins[3*j + 2]};
       const double s_k[3] = {spins[3*k + 0], spins[3*k + 1], spins[3*k + 2]};
