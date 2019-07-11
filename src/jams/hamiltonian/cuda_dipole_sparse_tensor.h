@@ -6,7 +6,6 @@
 #if HAS_CUDA
 #include <cuda_runtime.h>
 #include <cusparse.h>
-#include "jblib/containers/cuda_array.h"
 #endif
 
 #include "strategy.h"
@@ -42,8 +41,8 @@ class CudaDipoleHamiltonianSparseTensor : public HamiltonianStrategy {
 
         SparseMatrix<float> interaction_matrix_;
 
-        jblib::CudaArray<float, 1> dev_float_spins_;
-        jblib::CudaArray<float, 1> dev_float_fields_;
+        jams::MultiArray<float, 2> float_spins_;
+        jams::MultiArray<float, 2> float_fields_;
 
         cudaStream_t       dev_stream_ = nullptr;
         devFloatCSR        dev_csr_interaction_matrix_;

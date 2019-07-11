@@ -160,8 +160,8 @@ CudaDipoleHamiltonianSparseTensor::CudaDipoleHamiltonianSparseTensor(const libco
       CHECK_CUDA_STATUS(cudaMemcpy(dev_csr_interaction_matrix_.val, interaction_matrix_.valPtr(),
             (interaction_matrix_.nonZero())*sizeof(float), cudaMemcpyHostToDevice));
 
-      dev_float_spins_.resize(globals::num_spins3);
-      dev_float_fields_.resize(globals::num_spins3);
+      float_spins_.resize(globals::num_spins, 3);
+      float_fields_.resize(globals::num_spins, 3);
 
     }
 }
@@ -262,44 +262,26 @@ void CudaDipoleHamiltonianSparseTensor::calculate_one_spin_field(const int i, do
 // --------------------------------------------------------------------------
 
 void CudaDipoleHamiltonianSparseTensor::calculate_fields(jams::MultiArray<double, 2>& fields) {
-  if (interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL) {
-    // general matrix (i.e. Monte Carlo Solvers)
-      char transa[1] = {'N'};
-      char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
+    // cast spin array to floats
+    cuda_array_double_to_float(globals::num_spins3, globals::s.device_data(), float_spins_.device_data(), dev_stream_);
 
-      jams::Xcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
-        interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, fields.data());
-    } else {
-      // symmetric matrix (i.e. Heun Solvers)
-      char transa[1] = {'N'};
-      char matdescra[6] = {'S', 'L', 'N', 'C', 'N', 'N'};
-      jams::Xcsrmv(transa, globals::num_spins3, globals::num_spins3, 1.0, matdescra, interaction_matrix_.valPtr(),
-        interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, fields.data());
-    }
+    const float one = 1.0;
+    const float zero = 0.0;
+    CHECK_CUSPARSE_STATUS(cusparseScsrmv(cusparse_handle_,
+      CUSPARSE_OPERATION_NON_TRANSPOSE,
+      globals::num_spins3,
+      globals::num_spins3,
+      interaction_matrix_.nonZero(),
+      &one,
+      cusparse_descra_,
+      dev_csr_interaction_matrix_.val,
+      dev_csr_interaction_matrix_.row,
+      dev_csr_interaction_matrix_.col,
+      float_spins_.device_data(),
+      &zero,
+      float_fields_.device_data()));
+
+    cuda_array_float_to_double(globals::num_spins3, float_fields_.device_data(), fields.device_data(), dev_stream_);
 }
-
-//void CudaDipoleHamiltonianSparseTensor::calculate_fields(jblib::CudaArray<double, 1>& fields) {
-//
-//    // cast spin array to floats
-//    cuda_array_double_to_float(globals::num_spins3, globals::s.device_data(), dev_float_spins_.data(), dev_stream_);
-//
-//    const float one = 1.0;
-//    const float zero = 0.0;
-//    CHECK_CUSPARSE_STATUS(cusparseScsrmv(cusparse_handle_,
-//      CUSPARSE_OPERATION_NON_TRANSPOSE,
-//      globals::num_spins3,
-//      globals::num_spins3,
-//      interaction_matrix_.nonZero(),
-//      &one,
-//      cusparse_descra_,
-//      dev_csr_interaction_matrix_.val,
-//      dev_csr_interaction_matrix_.row,
-//      dev_csr_interaction_matrix_.col,
-//      dev_float_spins_.data(),
-//      &zero,
-//      dev_float_fields_.data()));
-//
-//    cuda_array_float_to_double(globals::num_spins3, dev_float_fields_.data(), fields.data(), dev_stream_);
-//}
 
 // --------------------------------------------------------------------------
