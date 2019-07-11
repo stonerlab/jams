@@ -280,21 +280,9 @@ namespace jams {
           data_.resize(detail::product(static_cast<size_type>(args)...));
         }
 
-        // construct using dimensions in array and initial value
         inline void resize(const std::array<size_type, Dim_> &v) {
           size_ = v;
           data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(v));
-        }
-
-        // construct using dimensions in array and initial value
-        inline void resize(const std::array<size_type, Dim_> &v, const Tp_ &x) {
-          size_ = v;
-          data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(v), x);
-        }
-
-        inline void resize(size_type count, const value_type &value) {
-          data_.resize(count);
-          fill(value);
         }
 
     private:
@@ -484,12 +472,6 @@ namespace jams {
         inline void resize(const std::array<size_type, 1> &v) {
           size_ = v;
           data_.resize(std::get<0>(v));
-        }
-
-        // construct using dimensions in array and initial value
-        inline void resize(const std::array<size_type, 1> &v, const Tp_ &x) {
-          size_ = v;
-          data_.resize(std::get<0>(v), x);
         }
 
     private:
