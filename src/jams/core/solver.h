@@ -9,7 +9,7 @@
 #include <vector>
 #include <libconfig.h++>
 
-#include <fftw3.h>
+#include "jams/interface/fft.h"
 #include "jams/core/base.h"
 
 // forward declarations

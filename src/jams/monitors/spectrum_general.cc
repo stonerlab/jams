@@ -12,7 +12,7 @@
 #include <libconfig.h++>
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
-#include <jams/helpers/fft.h>
+#include <jams/interface/fft.h>
 #include <jams/helpers/stats.h>
 #include "jams/helpers/duration.h"
 #include "jams/helpers/random.h"

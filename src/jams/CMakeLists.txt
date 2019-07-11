@@ -96,7 +96,7 @@ target_sources(jams_object_lib
         hamiltonian/random_anisotropy.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
-        helpers/fft.cc
+        interface/fft.cc
         helpers/maths.cc
         helpers/output.cc
         helpers/slice.cc

@@ -2,7 +2,7 @@
 
 #include <libconfig.h++>
 #include <cufft.h>
-#include <jams/helpers/fft.h>
+#include <jams/interface/fft.h>
 
 #include "jams/helpers/consts.h"
 #include "jams/core/globals.h"

@@ -1,11 +1,21 @@
 // Copyright 2016 Joseph Barker. All rights reserved.
 
+// Always include this file for FFT/FFTW usage. Do not include fftw3.h directly into any other file.
+
 #ifndef JAMS_MONITOR_FFT_H
 #define JAMS_MONITOR_FFT_H
 
+// This hack avoids an incompatibility between CUDA and versions of fftw and mkl which do not detect __CUDACC__ as the
+// compiler, resulting in an compile error that __float128 is not defined. We never use the quad precision routines
+// in JAMS, so by undefining __GNUC__, the FFTW header will ignore the quad routines.
+#define ORIG_GNUC __GNUC__
+#undef __GNUC__
+#include <fftw3.h>
+#define __GNUC__ ORIG_GNUC
+
+
 #include <complex>
 #include <array>
-#include <fftw3.h>
 
 #include "jams/containers/multiarray.h"
 

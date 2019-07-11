@@ -11,7 +11,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/consts.h"
-#include "jams/helpers/fft.h"
+#include "jams/interface/fft.h"
 #include "spectrum_fourier.h"
 
 using namespace std;

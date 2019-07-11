@@ -3,12 +3,11 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_FFT_H
 #define JAMS_HAMILTONIAN_DIPOLE_FFT_H
 
-#include <fftw3.h>
 #include <libconfig.h++>
 
 #include "jams/types.h"
 #include "jams/hamiltonian/strategy.h"
-
+#include "jams/interface/fft.h"
 
 class DipoleHamiltonianFFT : public HamiltonianStrategy {
 public:

@@ -5,7 +5,6 @@
 
 #include <cmath>
 
-#include <fftw3.h>
 #include <libconfig.h++>
 
 #include "jams/helpers/consts.h"

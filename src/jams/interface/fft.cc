@@ -1,13 +1,12 @@
 #include <cmath>
 #include <cassert>
 
-#include <fftw3.h>
-
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/helpers/fft.h"
+#include "jams/interface/fft.h"
 #include "jams/helpers/consts.h"
+#include "jams/interface/fft.h"
 
 using std::complex;
 using std::vector;
