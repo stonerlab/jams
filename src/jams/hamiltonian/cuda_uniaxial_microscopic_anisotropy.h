@@ -6,7 +6,6 @@
 #define JAMS_CUDA_UNIAXIAL_MICROSCOPIC_ANISOTROPY_H
 
 #include <cuda_runtime_api.h>
-#include "jblib/containers/cuda_array.h"
 #include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
 
 class CudaUniaxialMicroscopicHamiltonian : public UniaxialMicroscopicHamiltonian {

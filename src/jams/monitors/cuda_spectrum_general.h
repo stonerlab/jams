@@ -7,8 +7,6 @@
 
 #include <thrust/complex.h>
 #include <thrust/device_vector.h>
-
-#include <jblib/containers/cuda_array/cuda_array_template.h>
 #include "jams/monitors/spectrum_general.h"
 
 class CudaSpectrumGeneralMonitor : public SpectrumGeneralMonitor {
