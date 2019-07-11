@@ -118,9 +118,9 @@ void CudaThermalCurrentMonitor::update(Solver *solver) {
           dev_csr_matrix_.row,
           dev_csr_matrix_.col,
           dev_csr_matrix_.val,
-          dev_thermal_current_rx.data(),
-          dev_thermal_current_ry.data(),
-          dev_thermal_current_rz.data()
+          thermal_current_rx_.device_data(),
+          thermal_current_ry_.device_data(),
+          thermal_current_rz_.device_data()
   );
 
   outfile << std::setw(4) << std::scientific << solver->time() << "\t";
@@ -222,11 +222,11 @@ void CudaThermalCurrentMonitor::initialize_device_data(const TriadList &triads) 
   cuda_copy_array_to_device_pointer(index_data, &dev_csr_matrix_.col);
   cuda_copy_array_to_device_pointer(value_data, &dev_csr_matrix_.val);
 
-  dev_thermal_current_rx.resize(globals::num_spins);
-  dev_thermal_current_ry.resize(globals::num_spins);
-  dev_thermal_current_rz.resize(globals::num_spins);
+  thermal_current_rx_.resize(globals::num_spins);
+  thermal_current_ry_.resize(globals::num_spins);
+  thermal_current_rz_.resize(globals::num_spins);
 
-  dev_thermal_current_rx.zero();
-  dev_thermal_current_ry.zero();
-  dev_thermal_current_rz.zero();
+  thermal_current_rx_.zero();
+  thermal_current_ry_.zero();
+  thermal_current_rz_.zero();
 }

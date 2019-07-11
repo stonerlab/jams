@@ -8,7 +8,6 @@
 #include "jams/core/monitor.h"
 #include "jams/cuda/cuda_stream.h"
 #include "jams/cuda/cuda_sparse_interaction_matrix.h"
-#include "jblib/containers/cuda_array.h"
 #include "jams/core/interactions.h"
 #include "jams/core/types.h"
 
@@ -48,11 +47,11 @@ private:
 
     std::ofstream outfile;
 
-    CudaSparseMatrixCSR<double> dev_csr_matrix_;
+    SparseMatrixCSR<double> dev_csr_matrix_;
 
-    jblib::CudaArray<double, 1> dev_thermal_current_rx;
-    jblib::CudaArray<double, 1> dev_thermal_current_ry;
-    jblib::CudaArray<double, 1> dev_thermal_current_rz;
+    jams::MultiArray<double, 1> thermal_current_rx_;
+    jams::MultiArray<double, 1> thermal_current_ry_;
+    jams::MultiArray<double, 1> thermal_current_rz_;
 };
 
 #endif //JAMS_CUDA_THERMAL_CURRENT_H

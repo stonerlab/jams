@@ -56,7 +56,7 @@ private:
 
     std::ofstream outfile;
 
-    CudaSparseMatrixCSR<double> dev_csr_matrix_;
+    SparseMatrixCSR<double> dev_csr_matrix_;
 
     jams::MultiArray<double, 1> spin_current_rx_x;
     jams::MultiArray<double, 1> spin_current_rx_y;
