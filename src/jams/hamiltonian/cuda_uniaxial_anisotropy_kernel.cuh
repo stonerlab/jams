@@ -29,7 +29,7 @@ __global__ void cuda_uniaxial_field_kernel(const int num_spins, const int num_co
 
     for (auto n = 0; n < num_coefficients; ++n) {
       double a[3] = {axis[3*(num_coefficients * idx + n)], axis[3*(num_coefficients * idx + n)+1], axis[3*(num_coefficients * idx + n)+2]};
-                              dev_axis[3 * (num_coefficients * idx + n) + 2]};
+
       auto p = power[num_coefficients * idx + n];
       auto s_dot_a = s[0] * a[0] + s[1] * a[1] + s[2] * a[2];
       auto pre = magnitude[num_coefficients * idx + n] * p * pow(s_dot_a, p-1);
