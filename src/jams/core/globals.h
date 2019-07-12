@@ -5,7 +5,7 @@
 
 #include <string>
 
-#include "jblib/containers/array.h"
+#include "jams/containers/multiarray.h"
 
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
@@ -26,13 +26,13 @@ namespace globals {
   GLOBAL unsigned int num_spins;
   GLOBAL unsigned int num_spins3;
 
-  GLOBAL jblib::Array<double, 2> s;
-  GLOBAL jblib::Array<double, 2> h;
-  GLOBAL jblib::Array<double, 2> ds_dt;
+  GLOBAL jams::MultiArray<double, 2> s;
+  GLOBAL jams::MultiArray<double, 2> h;
+  GLOBAL jams::MultiArray<double, 2> ds_dt;
 
-  GLOBAL jblib::Array<double, 1> alpha;
-  GLOBAL jblib::Array<double, 1> mus;
-  GLOBAL jblib::Array<double, 1> gyro;
+  GLOBAL jams::MultiArray<double, 1> alpha;
+  GLOBAL jams::MultiArray<double, 1> mus;
+  GLOBAL jams::MultiArray<double, 1> gyro;
 }  // namespace globals
 #undef GLOBAL
 #endif  // JAMS_CORE_GLOBALS_H

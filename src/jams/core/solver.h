@@ -9,7 +9,7 @@
 #include <vector>
 #include <libconfig.h++>
 
-#include <fftw3.h>
+#include "jams/interface/fft.h"
 #include "jams/core/base.h"
 
 // forward declarations
@@ -67,11 +67,6 @@ class Solver : public Base {
   virtual void notify_monitors();
 
   void compute_fields();
-
-  virtual inline double * dev_ptr_spin() {
-    assert(is_cuda_solver_);
-    return nullptr;
-  }
 
   std::vector<Hamiltonian*>& hamiltonians() {
     return hamiltonians_;

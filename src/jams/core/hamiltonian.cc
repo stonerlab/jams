@@ -94,8 +94,8 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
 Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int size)
         : Base(settings),
-          energy_(size, 0.0),
-          field_(size, 3, 0.0),
+          energy_(size),
+          field_(size, 3),
           name_(settings["module"].c_str()),
           input_unit_name_(jams::config_optional<string>(settings, "unit_name", jams::defaults::energy_unit_name))
 {

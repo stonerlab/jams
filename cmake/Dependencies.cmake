@@ -44,6 +44,18 @@ add_library(hdf5 INTERFACE IMPORTED)
 set_property(TARGET hdf5 PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS})
 set_property(TARGET hdf5 PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES})
 
+# -- HighFive (H5)
+include("${PROJECT_SOURCE_DIR}/cmake/External/HighFive.cmake")
+
+
+#find_package(HighFive 2.0 QUIET)
+#target_include_directories(
+#        bar
+#        PUBLIC $<TARGET_PROPERTY:HighFive,INTERFACE_INCLUDE_DIRECTORIES>)
+#target_link_libraries(
+#        bar
+#        PUBLIC $<TARGET_PROPERTY:HighFive,INTERFACE_LINK_LIBRARIES>)
+
 if (JAMS_BUILD_CUDA)
 # -- CUDA
     find_package(CUDA REQUIRED)

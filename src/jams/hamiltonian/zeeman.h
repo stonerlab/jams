@@ -5,7 +5,6 @@
 
 #include <libconfig.h++>
 #include "jams/core/hamiltonian.h"
-#include "jblib/containers/array.h"
 
 class ZeemanHamiltonian : public Hamiltonian {
     friend class CudaZeemanHamiltonian;
@@ -22,9 +21,9 @@ class ZeemanHamiltonian : public Hamiltonian {
         void   calculate_fields();
     
     private:
-        jblib::Array<double, 2> dc_local_field_;
-        jblib::Array<double, 2> ac_local_field_;
-        jblib::Array<double, 1> ac_local_frequency_;
+    jams::MultiArray<double, 2> dc_local_field_;
+    jams::MultiArray<double, 2> ac_local_field_;
+    jams::MultiArray<double, 1> ac_local_frequency_;
 
         bool has_ac_local_field_;
 };

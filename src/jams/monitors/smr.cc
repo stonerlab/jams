@@ -9,8 +9,6 @@
 #include "jams/core/solver.h"
 #include "smr.h"
 
-#include "jblib/containers/array.h"
-
 SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   tsv_file()

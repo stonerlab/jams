@@ -6,8 +6,6 @@
 #define JAMS_BIMAP_H
 
 #include <map>
-#include <functional>
-#include <cassert>
 
 // based on https://stackoverflow.com/questions/21760343/is-there-a-more-efficient-implementation-for-a-bidirectional-map
 

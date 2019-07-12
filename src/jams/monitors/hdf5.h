@@ -11,6 +11,7 @@
 
 #include "jams/core/monitor.h"
 #include "jams/helpers/slice.h"
+#include "jams/interface/h5.h"
 
 class Solver;
 
@@ -31,7 +32,7 @@ class Hdf5Monitor : public Monitor {
   void write_spin_h5_file(const std::string &h5_file_name, const H5::PredType float_type);
 
   H5::PredType float_pred_type_;
-  bool         compression_enabled_;
+  bool         compression_enabled_ = true;
   Slice        slice_;
   FILE*        xdmf_file_;
 };

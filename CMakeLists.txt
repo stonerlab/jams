@@ -10,11 +10,19 @@ option(JAMS_BUILD_FASTMATH "Build JAMS with fast math flags" OFF)
 option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
 option(JAMS_BUILD_MIXED_PREC "Build parts of JAMS using mixed precision." OFF)
 
+option(USE_BOOST "Build HighFive with Boost support" OFF)
+option(HIGHFIVE_EXAMPLES "Build HighFive examples" OFF)
+option(HIGHFIVE_UNIT_TESTS "Build HighFive unit tests" OFF)
+
 if (JAMS_BUILD_CUDA)
     project(jams LANGUAGES C CXX CUDA)
 else()
     project(jams LANGUAGES C CXX)
 endif()
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 

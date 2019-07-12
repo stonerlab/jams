@@ -7,10 +7,9 @@
 
 #include <fstream>
 #include <vector>
+#include <jams/containers/multiarray.h>
 
 #include "jams/core/physics.h"
-
-#include "jblib/containers/array.h"
 
 class FMRPhysics : public Physics {
  public:
@@ -23,7 +22,7 @@ class FMRPhysics : public Physics {
   std::vector<double> ACFieldStrength;
   std::vector<double> DCFieldStrength;
   std::ofstream PSDFile;
-  jblib::Array<double, 1> PSDIntegral;
+  jams::MultiArray<double, 1> PSDIntegral;
 };
 
 #endif  // JAMS_PHYSICS_FMR_H

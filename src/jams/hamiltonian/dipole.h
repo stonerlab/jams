@@ -12,8 +12,6 @@
 
 #include "strategy.h"
 
-#include "jblib/containers/array.h"
-
 class DipoleHamiltonian : public Hamiltonian {
     public:
         DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size);

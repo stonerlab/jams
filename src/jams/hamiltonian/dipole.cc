@@ -24,17 +24,8 @@
 #include "jams/hamiltonian/cuda_dipole_bruteforce.h"
 #endif
 
-#include "jblib/containers/array.h"
-
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
-
-#if HAS_CUDA
-    if (solver->is_cuda_solver()) {
-        dev_energy_.resize(globals::num_spins);
-        dev_field_.resize(globals::num_spins3);
-    }
-#endif
 
     dipole_strategy_ = select_strategy(settings, size);
 }
@@ -57,9 +48,9 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
         }
 
 
-        if (strategy_name == "EWALD") {
-            return new DipoleHamiltonianEwald(settings, size);
-        }
+//        if (strategy_name == "EWALD") {
+//            return new DipoleHamiltonianEwald(settings, size);
+//        }
 
         if (strategy_name == "FFT") {
 #if HAS_CUDA
@@ -119,7 +110,7 @@ void DipoleHamiltonian::calculate_one_spin_field(const int i, double h[3]) {
 void DipoleHamiltonian::calculate_fields() {
 #if HAS_CUDA
     if (solver->is_cuda_solver()) {
-        dipole_strategy_->calculate_fields(dev_field_);
+        dipole_strategy_->calculate_fields(field_);
         return;
     }
 #endif

@@ -6,7 +6,6 @@
 #include <cuda.h>
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
-#include <jblib/containers/array.h>
 
 #include "jams/cuda/cuda_common.h"
 
@@ -35,14 +34,6 @@ void cuda_array_float_to_double(
 	double * out,  
 	cudaStream_t stream     // cuda stream
 );
-
-template <typename T, int N>
-inline void cuda_copy_array_to_device_pointer(const jblib::Array<T, N> &array, T **dev_ptr) {
-  assert(array.is_allocated());
-  size_t size_in_bytes = array.elements() * sizeof(T);
-  CHECK_CUDA_STATUS(cudaMalloc((void**)dev_ptr, size_in_bytes));
-	CHECK_CUDA_STATUS(cudaMemcpy(*dev_ptr, array.data(), size_in_bytes, cudaMemcpyHostToDevice));
-}
 
 template <typename T>
 inline T cuda_reduce_array(T* dev_ptr, const size_t size) {

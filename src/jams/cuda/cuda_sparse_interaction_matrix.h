@@ -13,19 +13,30 @@
 #include "jams/containers/sparsematrix.h"
 
 template<typename T>
-struct CudaSparseMatrixCSR {
+struct SparseMatrixCSR {
     int num_rows = 0;
     int num_cols = 0;
     int num_nonzero = 0;
-    int *row = nullptr;
-    int *col = nullptr;
-    T   *val = nullptr;
+    jams::MultiArray<int,1> row{};
+    jams::MultiArray<int,1> col{};
+    jams::MultiArray<T,1>   val{};
+    cusparseMatDescr_t descr = nullptr;
+};
+
+template<typename T>
+struct SparseMatrixCSRPtr {
+    int num_rows = 0;
+    int num_cols = 0;
+    int num_nonzero = 0;
+    int* row = nullptr;
+    int* col = nullptr;
+    T*   val = nullptr;
     cusparseMatDescr_t descr = nullptr;
 };
 
 // This function supports mixed precision by converting the host matrix type
 template<typename THst, typename TDev>
-void sparsematrix_copy_host_csr_to_cuda_csr(const SparseMatrix<THst>& host_matrix, CudaSparseMatrixCSR<TDev>& cuda_matrix) {
+void sparsematrix_copy_host_csr_to_cuda_csr(const SparseMatrix<THst>& host_matrix, SparseMatrixCSRPtr<TDev>& cuda_matrix) {
   assert(host_matrix.getMatrixFormat() == SPARSE_MATRIX_FORMAT_CSR);
 
   if (!cuda_matrix.descr) {
@@ -102,7 +113,7 @@ public:
 private:
     void allocate_buffer(const double * spins, double * fields);
 
-    CudaSparseMatrixCSR<T> dev_csr_matrix_;
+    SparseMatrixCSRPtr<T> dev_csr_matrix_;
     cusparseHandle_t  cusparse_handle_ = nullptr;
     void*  dev_csr_buffer_             = nullptr;
     size_t dev_csr_buffer_size_        = 0;

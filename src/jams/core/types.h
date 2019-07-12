@@ -3,9 +3,13 @@
 #ifndef JAMS_CORE_TYPES_H
 #define JAMS_CORE_TYPES_H
 
+#include <complex>
+
 #include "jams/containers/vec3.h"
 #include "jams/containers/mat3.h"
 #include "jams/helpers/utils.h"
+
+using Complex = std::complex<double>;
 
 //-----------------------------------------------------------------------------
 // enums
@@ -39,7 +43,7 @@ struct Atom {
     int  id;
     int  material;
     int  motif_position;
-    Vec3 pos;
+    Vec3 fractional_pos;
 };
 
 template <typename T, typename Idx = int>

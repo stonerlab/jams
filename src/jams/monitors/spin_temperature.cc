@@ -10,8 +10,6 @@
 #include "jams/containers/vec3.h"
 #include "spin_temperature.h"
 
-#include "jblib/containers/array.h"
-
 SpinTemperatureMonitor::SpinTemperatureMonitor(const libconfig::Setting &settings)
 : Monitor(settings)
 {
@@ -33,7 +31,7 @@ void SpinTemperatureMonitor::update(Solver * solver) {
     const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
     const Vec3 field = {h(i,0), h(i,1), h(i,2)};
 
-    sum_s_cross_h += abs_sq(cross(spin, field));
+    sum_s_cross_h += norm_sq(cross(spin, field));
     sum_s_dot_h += dot(spin, field);
   }
 

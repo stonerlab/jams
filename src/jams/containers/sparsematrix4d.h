@@ -9,8 +9,6 @@
 #include "jams/helpers/error.h"
 #include "sparsematrix.h"
 
-#include "jblib/containers/array.h"
-
 #define RESTRICT __restrict__
 
 ///
@@ -113,8 +111,8 @@ class SparseMatrix4D {
         std::vector<size_type> k_idx;
         std::vector<size_type> l_idx;
 
-        jblib::Array<size_type, 1>     pointers;
-        jblib::Array<size_type, 2>     coords;
+        jams::MultiArray<size_type, 1>     pointers;
+        jams::MultiArray<size_type, 2>     coords;
         std::vector<_Tp>       val;
 
 };

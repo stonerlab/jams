@@ -12,8 +12,6 @@
 #include "jams/core/monitor.h"
 #include "jams/helpers/stats.h"
 
-#include "jblib/containers/array.h"
-
 class Solver;
 
 class MagnetisationMonitor : public Monitor {
@@ -35,8 +33,8 @@ private:
 
     double binder_cumulant();
 
-    std::vector<Mat3> s_transform_;
-    std::vector<int> material_count_;
+    jams::MultiArray<Mat3, 1> s_transform_;
+    jams::MultiArray<unsigned, 1> material_count_;
 
     Stats m_stats_;
     Stats m2_stats_;

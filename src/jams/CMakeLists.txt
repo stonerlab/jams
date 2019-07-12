@@ -7,7 +7,7 @@ target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${PROJECT_S
 
 # object libraries cannot use target_link_libraries to pull in include and compile definitions
 # this hack allows us to pull them in manually
-foreach(TGT fftw3 cblas jblib pcg symspg config++ hdf5)
+foreach(TGT fftw3 cblas pcg symspg config++ hdf5 HighFive)
     target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
 endforeach()
@@ -43,7 +43,7 @@ target_compile_features(jams PRIVATE cxx_std_11)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
-target_link_libraries(jams fftw3 cblas jblib pcg symspg config++ hdf5)
+target_link_libraries(jams fftw3 cblas pcg symspg config++ hdf5)
 
 if (JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
     target_compile_definitions(jams PRIVATE HAS_OMP=1)
@@ -75,7 +75,6 @@ endif()
 target_sources(jams_object_lib
         PRIVATE
         containers/cell.cc
-        containers/unitcell.cc
         core/hamiltonian.cc
         core/interactions.cc
         core/jams++.cc
@@ -97,7 +96,7 @@ target_sources(jams_object_lib
         hamiltonian/random_anisotropy.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
-        helpers/fft.cc
+        interface/fft.cc
         helpers/maths.cc
         helpers/output.cc
         helpers/slice.cc
@@ -111,14 +110,16 @@ target_sources(jams_object_lib
         monitors/field.cc
         monitors/magnetisation.cc
         monitors/magnetisation_rate.cc
+        monitors/neutron_scattering.cc
         monitors/skyrmion.cc
         monitors/smr.cc
+        monitors/spectrum_fourier.cc
         monitors/spectrum_general.cc
         monitors/spin_correlation.cc
         monitors/spin_pumping.cc
         monitors/spin_temperature.cc
-        monitors/spectrum_fourier.cc
         monitors/torque.cc
+        monitors/unitcell_average.cc
         monitors/vtu.cc
         monitors/xyz.cc
         physics/field_cool.cc

@@ -9,7 +9,6 @@
 #include <libconfig.h++>
 
 #include "jams/core/hamiltonian.h"
-#include "jblib/containers/array.h"
 
 class RandomAnisotropyHamiltonian : public Hamiltonian {
     friend class CudaRandomAnisotropyHamiltonian;

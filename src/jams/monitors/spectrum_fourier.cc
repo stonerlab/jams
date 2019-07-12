@@ -7,16 +7,12 @@
 #include <numeric>
 #include <iomanip>
 
-#include <fftw3.h>
-
 #include "jams/helpers/error.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/consts.h"
-#include "jams/helpers/fft.h"
+#include "jams/interface/fft.h"
 #include "spectrum_fourier.h"
-
-#include "jblib/containers/array.h"
 
 using namespace std;
 
@@ -185,7 +181,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
         }
       }
 
-      bz_lengths.push_back(abs(bz_line_element));
+      bz_lengths.push_back(norm(bz_line_element));
 
       b_uvw_points.push_back(bz_point);
       if (verbose_is_enabled()) {
@@ -225,13 +221,13 @@ void SpectrumFourierMonitor::fft_time() {
   const auto space_points = sqw_x.size(2);
   const double norm = 1.0/sqrt(time_points);
 
-  jblib::Array<fftw_complex,2> fft_sqw_x(time_points, space_points);
-  jblib::Array<fftw_complex,2> fft_sqw_y(time_points, space_points);
-  jblib::Array<fftw_complex,2> fft_sqw_z(time_points, space_points);
+  jams::MultiArray<std::complex<double>,2> fft_sqw_x(time_points, space_points);
+  jams::MultiArray<std::complex<double>,2> fft_sqw_y(time_points, space_points);
+  jams::MultiArray<std::complex<double>,2> fft_sqw_z(time_points, space_points);
 
-  jblib::Array<double,2> total_sqw_x(time_points, space_points);
-  jblib::Array<double,2> total_sqw_y(time_points, space_points);
-  jblib::Array<double,2> total_sqw_z(time_points, space_points);
+  jams::MultiArray<double,2> total_sqw_x(time_points, space_points);
+  jams::MultiArray<double,2> total_sqw_y(time_points, space_points);
+  jams::MultiArray<double,2> total_sqw_z(time_points, space_points);
 
   total_sqw_x.zero();
   total_sqw_y.zero();
@@ -244,21 +240,28 @@ void SpectrumFourierMonitor::fft_time() {
   int istride    = static_cast<int>(space_points); int ostride    = static_cast<int>(space_points);
   int idist      = 1;            int odist      = 1;
 
-  fftw_plan fft_plan_time_x = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_x.data(),inembed,istride,idist,fft_sqw_x.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
-  fftw_plan fft_plan_time_y = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_y.data(),inembed,istride,idist,fft_sqw_y.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
-  fftw_plan fft_plan_time_z = fftw_plan_many_dft(rank,sizeN,howmany,fft_sqw_z.data(),inembed,istride,idist,fft_sqw_z.data(),onembed,ostride,odist,FFTW_FORWARD,FFTW_ESTIMATE);
+  fftw_plan fft_plan_time_x = fftw_plan_many_dft(
+      rank,sizeN,howmany,
+      FFTW_COMPLEX_CAST(fft_sqw_x.data()),inembed,istride,idist,
+      FFTW_COMPLEX_CAST(fft_sqw_x.data()),onembed,ostride,odist,
+      FFTW_FORWARD,FFTW_ESTIMATE);
+  fftw_plan fft_plan_time_y = fftw_plan_many_dft(
+      rank,sizeN,howmany,
+      FFTW_COMPLEX_CAST(fft_sqw_y.data()),inembed,istride,idist,
+      FFTW_COMPLEX_CAST(fft_sqw_y.data()),onembed,ostride,odist,
+      FFTW_FORWARD,FFTW_ESTIMATE);
+  fftw_plan fft_plan_time_z = fftw_plan_many_dft(
+      rank,sizeN,howmany,
+      FFTW_COMPLEX_CAST(fft_sqw_z.data()),inembed,istride,idist,
+      FFTW_COMPLEX_CAST(fft_sqw_z.data()),onembed,ostride,odist,
+      FFTW_FORWARD,FFTW_ESTIMATE);
 
   for (auto unit_cell_atom = 0; unit_cell_atom < ::lattice->num_motif_atoms(); ++unit_cell_atom) {
     for (auto i = 0; i < time_points; ++i) {
       for (auto j = 0; j < space_points; ++j) {
-        fft_sqw_x(i,j)[0] = sqw_x(unit_cell_atom, i, j)[0]*fft_window_default(i, time_points);
-        fft_sqw_x(i,j)[1] = sqw_x(unit_cell_atom, i, j)[1]*fft_window_default(i, time_points);
-
-        fft_sqw_y(i,j)[0] = sqw_y(unit_cell_atom, i, j)[0]*fft_window_default(i, time_points);
-        fft_sqw_y(i,j)[1] = sqw_y(unit_cell_atom, i, j)[1]*fft_window_default(i, time_points);
-
-        fft_sqw_z(i,j)[0] = sqw_z(unit_cell_atom, i, j)[0]*fft_window_default(i, time_points);
-        fft_sqw_z(i,j)[1] = sqw_z(unit_cell_atom, i, j)[1]*fft_window_default(i, time_points);
+        fft_sqw_x(i,j) = sqw_x(unit_cell_atom, i, j)*fft_window_default(i, time_points);
+        fft_sqw_y(i,j) = sqw_y(unit_cell_atom, i, j)*fft_window_default(i, time_points);
+        fft_sqw_z(i,j) = sqw_z(unit_cell_atom, i, j)*fft_window_default(i, time_points);
       }
     }
 
@@ -293,9 +296,9 @@ void SpectrumFourierMonitor::fft_time() {
           unit_cell_sqw_file << float_format << b_uvw_points[j][1] / double(::lattice->kspace_size()[1])  << "\t";
           unit_cell_sqw_file << float_format << b_uvw_points[j][2] / double(::lattice->kspace_size()[2])  << "\t";
           unit_cell_sqw_file << float_format << i * freq_delta / 1e12 << "\t";
-          unit_cell_sqw_file << float_format << norm * fft_sqw_x(i, j)[0] << "\t" << norm * fft_sqw_x(i, j)[1] << "\t";
-          unit_cell_sqw_file << float_format << norm * fft_sqw_y(i, j)[0] << "\t" << norm * fft_sqw_y(i, j)[1] << "\t";
-          unit_cell_sqw_file << float_format << norm * fft_sqw_z(i, j)[0] << "\t" << norm * fft_sqw_z(i, j)[1] << "\n";
+          unit_cell_sqw_file << float_format << norm * fft_sqw_x(i, j).real() << "\t" << norm * fft_sqw_x(i, j).imag() << "\t";
+          unit_cell_sqw_file << float_format << norm * fft_sqw_y(i, j).real() << "\t" << norm * fft_sqw_y(i, j).imag() << "\t";
+          unit_cell_sqw_file << float_format << norm * fft_sqw_z(i, j).real() << "\t" << norm * fft_sqw_z(i, j).imag() << "\n";
           total_length += bz_lengths[j];
         }
         unit_cell_sqw_file << std::endl;
@@ -306,9 +309,9 @@ void SpectrumFourierMonitor::fft_time() {
 
     for (auto i = 0; i < time_points; ++i) {
       for (auto j = 0; j < space_points; ++j) {
-        total_sqw_x(i, j) += norm*(pow2(fft_sqw_x(i, j)[0]) + pow2(fft_sqw_x(i, j)[1]));
-        total_sqw_y(i, j) += norm*(pow2(fft_sqw_y(i, j)[0]) + pow2(fft_sqw_y(i, j)[1]));
-        total_sqw_z(i, j) += norm*(pow2(fft_sqw_z(i, j)[0]) + pow2(fft_sqw_z(i, j)[1]));
+        total_sqw_x(i, j) += norm * std::abs(fft_sqw_x(i, j));
+        total_sqw_y(i, j) += norm * std::abs(fft_sqw_y(i, j));
+        total_sqw_z(i, j) += norm * std::abs(fft_sqw_z(i, j));
       }
     }
   }
@@ -366,26 +369,23 @@ SpectrumFourierMonitor::~SpectrumFourierMonitor() {
 
 void SpectrumFourierMonitor::fft_space() {
   assert(fft_plan_s_rspace_to_kspace != nullptr);
-  assert(s_kspace.is_allocated());
+  assert(s_kspace.elements() > 0);
 
   transformed_spins.zero();
 
   for (auto n = 0; n < globals::num_spins; ++n) {
     for (auto i = 0; i < 3; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        transformed_spins(n, i)[0] += spin_transformations[n][i][j] * globals::s(n, j);
+        transformed_spins(n, i) += complex<double>{spin_transformations[n][i][j] * globals::s(n, j), 0.0};
       }
-      transformed_spins(n, i)[1] = 0.0; // imag
     }
   }
 
   fftw_execute(fft_plan_s_rspace_to_kspace);
 
   const double norm = 1.0 / sqrt(product(lattice->kspace_size()));
-  for (auto i = 0; i < s_kspace.elements(); ++i) {
-    s_kspace[i][0] *= norm;
-    s_kspace[i][1] *= norm;
-  }
+  std::transform(s_kspace.begin(), s_kspace.end(), s_kspace.begin(),
+      [norm](const std::complex<double> &a)->std::complex<double> {return a * norm;});
 
   apply_kspace_phase_factors(s_kspace);
 }
@@ -409,14 +409,9 @@ void SpectrumFourierMonitor::store_bz_path_data() {
         assert(time_point_counter_ < sqw_x.size(1));
         assert(i < sqw_x.size(2));
 
-        sqw_x(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 0)[0];
-        sqw_x(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 0)[1];
-
-        sqw_y(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 1)[0];
-        sqw_y(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 1)[1];
-
-        sqw_z(m, time_point_counter_, i)[0] = s_kspace(uvw[0], uvw[1], uvw[2], m, 2)[0];
-        sqw_z(m, time_point_counter_, i)[1] = s_kspace(uvw[0], uvw[1], uvw[2], m, 2)[1];
+        sqw_x(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 0);
+        sqw_y(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 1);
+        sqw_z(m, time_point_counter_, i) = s_kspace(uvw[0], uvw[1], uvw[2], m, 2);
       }
     }
   }

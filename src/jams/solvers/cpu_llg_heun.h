@@ -10,7 +10,7 @@
 
 #include "jams/core/solver.h"
 #include "jams/helpers/random.h"
-#include "jblib/containers/array.h"
+#include "jams/containers/multiarray.h"
 
 class HeunLLGSolver : public Solver {
  public:
@@ -23,9 +23,9 @@ class HeunLLGSolver : public Solver {
  private:
     double dt = 0.0;
 
-    jblib::Array<double, 2> snew;
-    jblib::Array<double, 1> sigma;
-    jblib::Array<double, 2> w;
+    jams::MultiArray<double, 2> snew;
+    jams::MultiArray<double, 1> sigma;
+    jams::MultiArray<double, 2> w;
 
     pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
 };

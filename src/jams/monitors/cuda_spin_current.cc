@@ -17,7 +17,6 @@
 #include "jams/core/hamiltonian.h"
 #include "jams/monitors/cuda_spin_current.h"
 #include "cuda_spin_current.h"
-#include "jblib/containers/array.h"
 #include "jams/hamiltonian/exchange.h"
 
 using namespace std;
@@ -56,30 +55,34 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   interaction_matrix.convertMAP2CSR();
   cout << "  exchange matrix memory (CSR): " << interaction_matrix.calculateMemory() << " MB\n";
 
-  dev_csr_matrix_.row = cuda_malloc_and_copy_to_device(interaction_matrix.rowPtr(), interaction_matrix.rows()+1);
-  dev_csr_matrix_.col = cuda_malloc_and_copy_to_device(interaction_matrix.colPtr(), interaction_matrix.nonZero());
+  dev_csr_matrix_.row.resize(interaction_matrix.rows()+1);
+  std::copy(interaction_matrix.rowPtr(), interaction_matrix.rowPtr()+interaction_matrix.rows()+1, dev_csr_matrix_.row.data());
+
+  dev_csr_matrix_.col.resize(interaction_matrix.nonZero());
+  std::copy(interaction_matrix.colPtr(), interaction_matrix.colPtr()+interaction_matrix.nonZero(), dev_csr_matrix_.col.data());
+
 
   // not sure how Vec3 will copy so lets be safe
-  jblib::Array<double, 2> val(interaction_matrix.nonZero(), 3);
+  dev_csr_matrix_.val.resize(3*interaction_matrix.nonZero());
+  int count = 0;
   for (unsigned i = 0; i < interaction_matrix.nonZero(); ++i) {
     for (unsigned j = 0; j < 3; ++j) {
-      val(i, j) = interaction_matrix.val(i)[j];
+      dev_csr_matrix_.val(count) = interaction_matrix.val(i)[j];
+      count++;
     }
   }
 
-  dev_csr_matrix_.val = cuda_malloc_and_copy_to_device(val.data(), val.elements());
+  spin_current_rx_x.resize(globals::num_spins);
+  spin_current_rx_y.resize(globals::num_spins);
+  spin_current_rx_z.resize(globals::num_spins);
 
-  dev_spin_current_rx_x.resize(globals::num_spins);
-  dev_spin_current_rx_y.resize(globals::num_spins);
-  dev_spin_current_rx_z.resize(globals::num_spins);
+  spin_current_ry_x.resize(globals::num_spins);
+  spin_current_ry_y.resize(globals::num_spins);
+  spin_current_ry_z.resize(globals::num_spins);
 
-  dev_spin_current_ry_x.resize(globals::num_spins);
-  dev_spin_current_ry_y.resize(globals::num_spins);
-  dev_spin_current_ry_z.resize(globals::num_spins);
-
-  dev_spin_current_rz_x.resize(globals::num_spins);
-  dev_spin_current_rz_y.resize(globals::num_spins);
-  dev_spin_current_rz_z.resize(globals::num_spins);
+  spin_current_rz_x.resize(globals::num_spins);
+  spin_current_rz_y.resize(globals::num_spins);
+  spin_current_rz_z.resize(globals::num_spins);
 
   outfile.open(seedname + "_js.tsv");
 
@@ -95,19 +98,19 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
   Mat3 js = execute_cuda_spin_current_kernel(
           stream,
           globals::num_spins,
-          solver->dev_ptr_spin(),
-          dev_csr_matrix_.val,
-          dev_csr_matrix_.row,
-          dev_csr_matrix_.col,
-          dev_spin_current_rx_x.data(),
-          dev_spin_current_rx_y.data(),
-          dev_spin_current_rx_z.data(),
-          dev_spin_current_ry_x.data(),
-          dev_spin_current_ry_y.data(),
-          dev_spin_current_ry_z.data(),
-          dev_spin_current_rz_x.data(),
-          dev_spin_current_rz_y.data(),
-          dev_spin_current_rz_z.data()
+          globals::s.device_data(),
+          dev_csr_matrix_.val.device_data(),
+          dev_csr_matrix_.row.device_data(),
+          dev_csr_matrix_.col.device_data(),
+          spin_current_rx_x.device_data(),
+          spin_current_rx_y.device_data(),
+          spin_current_rx_z.device_data(),
+          spin_current_ry_x.device_data(),
+          spin_current_ry_y.device_data(),
+          spin_current_ry_z.device_data(),
+          spin_current_rz_x.device_data(),
+          spin_current_rz_y.device_data(),
+          spin_current_rz_z.device_data()
   );
 
 //  const double units = lattice->parameter() * kBohrMagneton * kGyromagneticRatio;
@@ -139,21 +142,6 @@ CudaSpinCurrentMonitor::~CudaSpinCurrentMonitor() {
     fclose(xdmf_file_);
     xdmf_file_ = nullptr;
   }
-
-  if (dev_csr_matrix_.row != nullptr) {
-    cudaFree(dev_csr_matrix_.row);
-    dev_csr_matrix_.row = nullptr;
-  }
-
-  if (dev_csr_matrix_.col != nullptr) {
-    cudaFree(dev_csr_matrix_.col);
-    dev_csr_matrix_.col = nullptr;
-  }
-
-  if (dev_csr_matrix_.val != nullptr) {
-    cudaFree(dev_csr_matrix_.val);
-    dev_csr_matrix_.val = nullptr;
-  }
 }
 
 void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_file_name) {
@@ -182,20 +170,12 @@ void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_fi
   attribute = spin_dataset.createAttribute("time", PredType::IEEE_F64LE, attribute_dataspace);
   attribute.write(PredType::NATIVE_DOUBLE, &out_time);
 
-  jblib::Array<double, 1> js_rx_z(num_spins);
-  jblib::Array<double, 1> js_ry_z(num_spins);
-  jblib::Array<double, 1> js_rz_z(num_spins);
-
-  dev_spin_current_rx_z.copy_to_host_array(js_rx_z);
-  dev_spin_current_ry_z.copy_to_host_array(js_ry_z);
-  dev_spin_current_rz_z.copy_to_host_array(js_rz_z);
-
-  jblib::Array<double, 2> js(num_spins, 3);
+  jams::MultiArray<double, 2> js(num_spins, 3);
 
   for (auto i = 0; i < num_spins; ++i) {
-    js(i,0) = js_rx_z(i);
-    js(i,1) = js_ry_z(i);
-    js(i,2) = js_rz_z(i);
+    js(i,0) = spin_current_rx_z(i);
+    js(i,1) = spin_current_ry_z(i);
+    js(i,2) = spin_current_rz_z(i);
   }
 
   spin_dataset.write(js.data(), PredType::NATIVE_DOUBLE);

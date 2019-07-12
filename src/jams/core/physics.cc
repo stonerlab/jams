@@ -8,9 +8,6 @@
 
 #include "jams/core/physics.h"
 
-#include "jblib/containers/vec.h"
-
-
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/error.h"

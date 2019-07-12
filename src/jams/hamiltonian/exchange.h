@@ -11,8 +11,6 @@
 #include "jams/core/interactions.h"
 #include "jams/containers/sparsematrix.h"
 
-#include "jblib/containers/array.h"
-
 class ExchangeHamiltonian : public Hamiltonian {
     friend class CudaExchangeHamiltonian;
     public:

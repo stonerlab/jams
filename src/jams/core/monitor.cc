@@ -11,12 +11,14 @@
 #include "jams/monitors/magnetisation_rate.h"
 #include "jams/monitors/skyrmion.h"
 #include "jams/monitors/smr.h"
+#include "jams/monitors/neutron_scattering.h"
 #include "jams/monitors/spectrum_fourier.h"
 #include "jams/monitors/spectrum_general.h"
 #include "jams/monitors/spin_correlation.h"
 #include "jams/monitors/spin_pumping.h"
 #include "jams/monitors/spin_temperature.h"
 #include "jams/monitors/torque.h"
+#include "jams/monitors/unitcell_average.h"
 #include "jams/monitors/vtu.h"
 #include "jams/monitors/xyz.h"
 
@@ -75,12 +77,14 @@ Monitor* Monitor::create(const Setting &settings) {
   DEFINED_MONITOR("magnetisation-rate", MagnetisationRateMonitor, settings);
   DEFINED_MONITOR("skyrmion", SkyrmionMonitor, settings);
   DEFINED_MONITOR("smr", SMRMonitor, settings);
+  DEFINED_MONITOR("neutron-scattering", NeutronScatteringMonitor, settings);
   DEFINED_MONITOR("spectrum-fourier", SpectrumFourierMonitor, settings);
   DEFINED_MONITOR("spectrum-general-cpu", SpectrumGeneralMonitor, settings);
   DEFINED_MONITOR("spin-correlation", SpinCorrelationMonitor, settings);
   DEFINED_MONITOR("spin-pumping", SpinPumpingMonitor, settings);
   DEFINED_MONITOR("spin-temperature", SpinTemperatureMonitor, settings);
   DEFINED_MONITOR("torque", TorqueMonitor, settings);
+  DEFINED_MONITOR("unitcell-average", UnitcellAverageMonitor, settings);
   DEFINED_MONITOR("vtu", VtuMonitor, settings);
   DEFINED_MONITOR("xyz", XyzMonitor, settings);
 

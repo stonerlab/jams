@@ -65,6 +65,14 @@ class CudaDipoleHamiltonianFFTTest : public ::testing::Test {
       delete ::config;
       ::config = nullptr;
     }
+
+    globals::s.clear();
+    globals::h.clear();
+    globals::ds_dt.clear();
+
+    globals::alpha.clear();
+    globals::mus.clear();
+    globals::gyro.clear();
   }
 
   // Objects declared here can be used by all tests in the test case for Foo.
@@ -98,9 +106,6 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
     globals::s(i, 2) = 0.0;
   }
 
-  cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
-        cudaMemcpyHostToDevice);
-
   eigenvalue = -2.404114;
   analytic = analytic_prefactor * eigenvalue;
   numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
@@ -115,9 +120,6 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
     globals::s(i, 1) = 0.0;
     globals::s(i, 2) = 1.0;
   }
-
-  cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
-        cudaMemcpyHostToDevice);
 
   eigenvalue = -2.404114;
   analytic = analytic_prefactor * eigenvalue;
@@ -141,9 +143,6 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
       globals::s(i, 1) = 0.0;
       globals::s(i, 2) = 1.0;
     }
-
-    cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
-          cudaMemcpyHostToDevice);
 
     // Fit function from 2016-Johnston-PhysRevB.93.014421 Fig. 17(a)
     double eigenvalue = -9.033622 + 6.28356 * (1.0 / 128.0);
@@ -173,9 +172,6 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
       globals::s(i, 2) = 0.0;
     }
 
-    cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
-          cudaMemcpyHostToDevice);
-
     double eigenvalue = -3.60617;
     double analytic = analytic_prefactor * eigenvalue;
     double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
@@ -194,9 +190,6 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM) {
       }
       globals::s(i, 2) = 0.0;
     }
-
-    cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
-          cudaMemcpyHostToDevice);
 
     eigenvalue = 1.803085;
     analytic = analytic_prefactor * eigenvalue;
@@ -235,9 +228,6 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_GPU_1D_FM_RAND) {
     globals::s(i, 1) = spin[1];
     globals::s(i, 2) = spin[2];
   }
-
-  cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
-        cudaMemcpyHostToDevice);
 
   auto h_bruteforce = new CudaDipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
   auto h_fft = new CudaDipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
@@ -294,9 +284,6 @@ TEST_F(CudaDipoleHamiltonianFFTTest, total_energy_two_atom_GPU_1D_FM_RAND) {
     globals::s(i, 1) = spin[1];
     globals::s(i, 2) = spin[2];
   }
-
-  cudaMemcpy(::solver->dev_ptr_spin(), globals::s.data(), (size_t)(globals::num_spins*3*sizeof(double)),
-        cudaMemcpyHostToDevice);
 
   auto h_bruteforce = new CudaDipoleHamiltonianBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
   auto h_fft = new CudaDipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);

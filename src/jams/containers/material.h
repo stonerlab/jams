@@ -8,13 +8,10 @@
 #include <string>
 #include <libconfig.h++>
 
-#include "jams/helpers/defaults.h"
 #include "jams/core/types.h"
-#include "jams/helpers/maths.h"
+#include "jams/helpers/defaults.h"
 #include "jams/helpers/utils.h"
 #include "jams/interface/config.h"
-
-#include "jams/helpers/exception.h"
 
 class Material {
 public:

@@ -5,9 +5,6 @@
 #include <cuda.h>
 #include <cuComplex.h>
 
-#include "jblib/containers/array.h"
-#include "jblib/containers/cuda_array.h"
-
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/cuda/cuda_common.h"
@@ -61,14 +58,16 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
 
   std::cout << duration_string(start_time, system_clock::now()) << " done" << std::endl;
 
-  jblib::Array<cuFloatComplex, 1> hst_spin_data(spin_data_.elements());
-  for (auto i = 0; i < spin_data_.elements(); ++i) {
-    hst_spin_data[i].x = static_cast<float>(spin_data_[i].real());
-    hst_spin_data[i].y = static_cast<float>(spin_data_[i].imag());
+  jams::MultiArray<cuFloatComplex, 1> spin_data_float_(spin_data_.elements());
+
+  auto count = 0;
+  for (auto i = 0; i < spin_data_.size(0); ++i) {
+    for (auto j = 0; j < spin_data_.size(1); ++j) {
+      spin_data_float_(count).x = static_cast<float>(spin_data_(i,j).real());
+      spin_data_float_(count).y = static_cast<float>(spin_data_(i,j).imag());
+      count++;
+    }
   }
-  jblib::CudaArray<cuFloatComplex, 1> dev_spin_data(hst_spin_data);
-
-
 
   std::vector<std::vector<Vec3>> qvecs(num_qvectors_);
   for (auto n = 0; n < num_qvectors_; ++n) {
@@ -97,13 +96,8 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
 
 
 
-  jblib::Array<cuFloatComplex, 2> SQw(num_qpoints_, padded_size_/2+1);
-  for (auto i = 0; i < SQw.elements(); ++i) {
-    SQw[i].x = 0.0;
-    SQw[i].y = 0.0;
-  }
-
-  jblib::CudaArray<cuFloatComplex, 1> dev_SQw(SQw);
+  jams::MultiArray<cuFloatComplex, 2> SQw(num_qpoints_, padded_size_/2+1);
+  SQw.zero();
 
   const auto num_w_points = padded_size_/2+1;
 
@@ -130,13 +124,12 @@ CudaSpectrumGeneralMonitor::~CudaSpectrumGeneralMonitor() {
 
 
         CudaSpectrumGeneralKernel <<< grid_size, block_size >> >
-                                                  (i, j, num_w_points, num_qpoints_, num_qvectors_, padded_size_, dev_qfactors, dev_spin_data.data(), dev_SQw.data());
+                                                  (i, j, num_w_points, num_qpoints_, num_qvectors_, padded_size_, dev_qfactors, spin_data_float_.device_data(), SQw.device_data());
         DEBUG_CHECK_CUDA_ASYNC_STATUS;
 //      }
     }
 
     if (i%10 == 0) {
-      dev_SQw.copy_to_host_array(SQw);
       std::ofstream cfile(seedname + "_corr.tsv");
       cfile << "q\tfrequency\tRe_SQw\tIm_SQw\n";
       for (unsigned q = 0; q < num_qpoints_; ++q) {

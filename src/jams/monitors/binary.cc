@@ -9,8 +9,6 @@
 
 #include "binary.h"
 
-#include "jblib/containers/array.h"
-
 BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;

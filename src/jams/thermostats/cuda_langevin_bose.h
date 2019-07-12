@@ -14,8 +14,6 @@
 
 #include "jams/core/thermostat.h"
 
-#include "jblib/containers/cuda_array.h"
-
 class CudaLangevinBoseThermostat : public Thermostat {
  public:
   CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const int num_spins);
@@ -24,7 +22,7 @@ class CudaLangevinBoseThermostat : public Thermostat {
   void update();
 
   // override the base class implementation
-  const double* noise() { return dev_noise_.data(); }
+  const double* device_data() { return noise_.device_data(); }
 
  private:
 
@@ -35,23 +33,19 @@ class CudaLangevinBoseThermostat : public Thermostat {
     bool is_warmed_up_ = false;
     unsigned num_warm_up_steps_ = 0;
 
-    jblib::CudaArray<double, 1> dev_noise_;
-    jblib::CudaArray<double, 1> dev_zeta0_;
-    jblib::CudaArray<double, 1> dev_zeta5_;
-    jblib::CudaArray<double, 1> dev_zeta5p_;
-    jblib::CudaArray<double, 1> dev_zeta6_;
-    jblib::CudaArray<double, 1> dev_zeta6p_;
-
-    jblib::CudaArray<double, 1> dev_eta0_;
-    jblib::CudaArray<double, 1> dev_eta1a_;
-    jblib::CudaArray<double, 1> dev_eta1b_;
-    jblib::CudaArray<double, 1> dev_sigma_;
-    curandGenerator_t           dev_rng_ = nullptr;  // device random generator
+    jams::MultiArray<double, 1> zeta0_;
+    jams::MultiArray<double, 1> zeta5_;
+    jams::MultiArray<double, 1> zeta5p_;
+    jams::MultiArray<double, 1> zeta6_;
+    jams::MultiArray<double, 1> zeta6p_;
+    jams::MultiArray<double, 1> eta0_;
+    jams::MultiArray<double, 1> eta1a_;
+    jams::MultiArray<double, 1> eta1b_;
+    curandGenerator_t           thermostat_rng_ = nullptr;  // device random generator
     cudaStream_t                dev_stream_ = nullptr;
     cudaStream_t                dev_curand_stream_ = nullptr;
     double                      delta_tau_;
     double                      omega_max_;
-    std::ofstream               debug_noise_outfile_;
 };
 
 #endif  // CUDA

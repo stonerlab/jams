@@ -11,8 +11,10 @@
 #include <utility>
 #include <vector>
 
+#include "jams/containers/multiarray.h"
 #include "jams/helpers/exception.h"
 #include "jams/interface/openmp.h"
+#include "jams/helpers/sort.h"
 
 #define RESTRICT __restrict__
 
@@ -49,6 +51,7 @@ typedef enum
 #include <mkl_spblas.h>
 
 #endif
+
 
 template <typename _Tp>
 class SparseMatrix {

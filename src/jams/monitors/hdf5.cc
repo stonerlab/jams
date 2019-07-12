@@ -16,23 +16,20 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/slice.h"
+#include "jams/interface/h5.h"
 
 #include "hdf5.h"
-
-#include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
 
 using namespace std;
 
 namespace {
-    const hsize_t h5_compression_chunk_size = 256;
-    const hsize_t h5_compression_factor = 6;
+    const unsigned h5_compression_chunk_size = 4095;
+    const unsigned h5_compression_factor = 6;
 }
 
 Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 : Monitor(settings),
   float_pred_type_(H5::PredType::IEEE_F64LE),
-  compression_enabled_(false),
   slice_() {
     using namespace globals;
     using namespace H5;
@@ -99,67 +96,29 @@ void Hdf5Monitor::update(Solver * solver) {
 
 void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name, const H5::PredType float_type) {
   using namespace globals;
-  using namespace H5;
+  using namespace HighFive;
 
-  hsize_t dims[2], chunk_dims[2];
 
-  H5File outfile(h5_file_name.c_str(), H5F_ACC_TRUNC);
+  File file(h5_file_name, File::ReadWrite | File::Create | File::Truncate);
 
-  if (slice_.num_points() != 0) {
-      dims[0] = static_cast<hsize_t>(slice_.num_points());
-      dims[1] = 3;
-      chunk_dims[0] = std::min(h5_compression_chunk_size, static_cast<hsize_t>(slice_.num_points()));
-      chunk_dims[1] = 3;
-  } else {
-      dims[0] = static_cast<hsize_t>(num_spins);
-      dims[1] = 3;
-      chunk_dims[0] = std::min(h5_compression_chunk_size, static_cast<hsize_t>(num_spins));
-      chunk_dims[1] = 3;
-  }
-
-  DataSpace dataspace(2, dims);
-
-  DSetCreatPropList plist;
+  DataSetCreateProps props;
 
   if (compression_enabled_) {
-      plist.setChunk(2, chunk_dims);
-      plist.setDeflate(h5_compression_factor);
+    props.add(Chunking({std::min(h5_compression_chunk_size, num_spins), 1}));
+    props.add(Shuffle());
+    props.add(Deflate(h5_compression_factor));
   }
 
-  double out_iteration = solver->iteration();
-  double out_time = solver->time();
-  double out_temperature = solver->physics()->temperature();
-  Vec3 out_field = solver->physics()->applied_field();
+  auto dataset = file.createDataSet<double>("/spins",  DataSpace({num_spins, 3}), props);
 
-  DataSet spin_dataset = outfile.createDataSet("spins", float_type, dataspace, plist);
-  DataSet ds_dt_dataset = outfile.createDataSet("ds_dt", float_type, dataspace, plist);
+  dataset.createAttribute("iteration", solver->iteration());
+  dataset.createAttribute("time", solver->time());
+  dataset.createAttribute("temperature", solver->physics()->temperature());
+  dataset.createAttribute("hx", solver->physics()->applied_field()[0]);
+  dataset.createAttribute("hy", solver->physics()->applied_field()[1]);
+  dataset.createAttribute("hz", solver->physics()->applied_field()[2]);
 
-  DataSpace attribute_dataspace(H5S_SCALAR);
-  Attribute attribute = spin_dataset.createAttribute("iteration", PredType::STD_I32LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_INT32, &out_iteration);
-  attribute = spin_dataset.createAttribute("time", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_time);
-  attribute = spin_dataset.createAttribute("temperature", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_temperature);
-  attribute = spin_dataset.createAttribute("hx", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field[0]);
-  attribute = spin_dataset.createAttribute("hy", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field[1]);
-  attribute = spin_dataset.createAttribute("hz", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_field[2]);
-
-  if (slice_.num_points() != 0) {
-      jblib::Array<double, 2> spin_slice(slice_.num_points(), 3);
-      for (int i = 0; i < slice_.num_points(); ++i) {
-          for (int j = 0; j < 3; ++j) {
-              spin_slice(i,j) = slice_.spin(i, j);
-          }
-      }
-      spin_dataset.write(spin_slice.data(), PredType::NATIVE_DOUBLE);
-  } else {
-      spin_dataset.write(s.data(), PredType::NATIVE_DOUBLE);
-      ds_dt_dataset.write(ds_dt.data(), PredType::NATIVE_DOUBLE);
-  }
+  dataset.write(s);
 }
 
 //---------------------------------------------------------------------
@@ -170,8 +129,8 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name, const H
 
     hsize_t type_dims[1], pos_dims[2];
 
-    jblib::Array<int, 1>    types;
-    jblib::Array<double, 2> positions;
+    jams::MultiArray<int, 1>    types;
+    jams::MultiArray<double, 2> positions;
 
     H5File outfile(h5_file_name.c_str(), H5F_ACC_TRUNC);
 
@@ -208,7 +167,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name, const H
 
         for (int i = 0; i < pos_dims[0]; ++i) {
             for (int j = 0; j < 3; ++j) {
-               positions(i, j) = lattice->parameter()*lattice->atom_position(i)[j];
+               positions(i, j) = lattice->parameter()*lattice->atom_position(i)[j]/1e-9;
             }
         }
     }
@@ -231,12 +190,12 @@ void Hdf5Monitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
   xdmf_file_ = fopen(xdmf_file_name.c_str(), "w");
 
                fputs("<?xml version=\"1.0\"?>\n", xdmf_file_);
-               fputs("<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\"[]>\n", xdmf_file_);
-               fputs("<Xdmf xmlns:xi=\"http://www.w3.org/2003/XInclude\" Version=\"2.2\">\n", xdmf_file_);
+               fputs("<!DOCTYPE Xdmf SYSTEM \"https://gitlab.kitware.com/xdmf/xdmf/raw/master/Xdmf.dtd\"[]>\n", xdmf_file_);
+               fputs("<Xdmf Version=\"3.0\" xmlns:xi=\"http://www.w3.org/2003/XInclude\">\n", xdmf_file_);
                fputs("  <Domain Name=\"JAMS\">\n", xdmf_file_);
   fprintf(xdmf_file_, "    <Information Name=\"Commit\" Value=\"%s\" />\n", jams::build::hash);
   fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", seedname.c_str());
-               fputs("    <Grid Name=\"Time\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file_);
+               fputs("    <Grid Name=\"TimeSeries\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file_);
                fputs("    </Grid>\n", xdmf_file_);
                fputs("  </Domain>\n", xdmf_file_);
                fputs("</Xdmf>", xdmf_file_);
@@ -267,8 +226,8 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const H5::Pr
                // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
                fseek(xdmf_file_, -31, SEEK_CUR);
 
-               fputs("      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", solver->time()/1e-12);
+  fprintf(xdmf_file_, "      <Grid Name=\"Lattice %d\" GridType=\"Uniform\">\n", solver->iteration());
+  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", solver->time());
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", data_dimension);
                fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
@@ -285,11 +244,6 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const H5::Pr
   fprintf(xdmf_file_, "           %s:/spins\n", h5_file_name.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
-                fputs("       <Attribute Name=\"ds_dt\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
-   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-   fprintf(xdmf_file_, "           %s:/ds_dt\n", h5_file_name.c_str());
-                fputs("         </DataItem>\n", xdmf_file_);
-                fputs("       </Attribute>\n", xdmf_file_);
    fputs("      </Grid>\n", xdmf_file_);
 
                // reprint the closing tags of the XML

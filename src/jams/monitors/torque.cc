@@ -14,9 +14,6 @@
 #include "jams/monitors/torque.h"
 #include "jams/containers/vec3.h"
 
-#include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
-
 TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   tsv_file(),

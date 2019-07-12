@@ -11,14 +11,9 @@
 
 #include "xyz.h"
 
-#include "jblib/containers/array.h"
-#include "jblib/math/equalities.h"
-
-
 XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  using namespace jblib;
 
   output_step_freq_ = settings["output_steps"];
 
@@ -41,9 +36,9 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
       Vec3 pos = ::lattice->atom_position(i);
 
       // check if the current spin in inside the slice
-      if (floats_are_greater_than_or_equal(pos[0], slice_origin[0]) && floats_are_less_than_or_equal(pos[0], slice_origin[0] + slice_size[0])
-      &&  floats_are_greater_than_or_equal(pos[1], slice_origin[1]) && floats_are_less_than_or_equal(pos[1], slice_origin[1] + slice_size[1])
-      &&  floats_are_greater_than_or_equal(pos[2], slice_origin[2]) && floats_are_less_than_or_equal(pos[2], slice_origin[2] + slice_size[2])) {
+      if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)
+          &&  definately_greater_than(pos[1], slice_origin[1], jams::defaults::lattice_tolerance) && definately_less_than(pos[1], slice_origin[1] + slice_size[1], jams::defaults::lattice_tolerance)
+          &&  definately_greater_than(pos[2], slice_origin[2], jams::defaults::lattice_tolerance) && definately_less_than(pos[2], slice_origin[2] + slice_size[2], jams::defaults::lattice_tolerance)) {
         slice_spins.push_back(i);
       }
     }

@@ -15,9 +15,6 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/exception.h"
 
-#include "jblib/containers/vec.h"
-#include "jblib/containers/matrix.h"
-
 void neighbour_list_strict_checks(const InteractionList<Mat3>& list);
 
 using namespace std;
@@ -52,7 +49,7 @@ namespace { //anon
       // it is possible that it does not correspond to a position in which case the
       // -1 is returned
       for (int k = 0; k < lattice->num_motif_atoms(); ++k) {
-        auto pos = lattice->motif_atom(k).pos;
+        auto pos = lattice->motif_atom(k).fractional_pos;
         if (approximately_equal(pos, offset, tolerance)) {
           return k;
         }
@@ -71,7 +68,7 @@ namespace { //anon
     int find_unitcell_partner(int i, Vec3 r_ij) {
       // returns -1 if no partner is found
 
-      Vec3 p_ij_frac = lattice->motif_atom(i).pos;
+      Vec3 p_ij_frac = lattice->motif_atom(i).fractional_pos;
       Vec3 r_ij_frac = lattice->cartesian_to_fractional(r_ij);
       // fractional interaction vector shifted by motif position
       Vec3 q_ij = r_ij_frac + p_ij_frac;
@@ -311,7 +308,7 @@ post_process_interactions(vector<InteractionData> &interactions, const Interacti
 
   if (energy_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return definately_greater_than(abs(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
+      return definately_greater_than(norm(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
   }
 
   // complete any missing data (i.e. type names or unit cell positions
@@ -329,7 +326,7 @@ post_process_interactions(vector<InteractionData> &interactions, const Interacti
 
 IntegerInteractionData
 integer_interaction_from_data(const InteractionData& J) {
-  Vec3 p_ij_frac = lattice->motif_atom(J.unit_cell_pos_i).pos;
+  Vec3 p_ij_frac = lattice->motif_atom(J.unit_cell_pos_i).fractional_pos;
   Vec3 r_ij_frac = lattice->cartesian_to_fractional(J.r_ij);
   Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
   Vec3 u_ij = round_to_integer_lattice(q_ij);
@@ -489,7 +486,7 @@ safety_check_distance_tolerance(const double &tolerance) {
 
   for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
     for (auto j = i + 1; j < lattice->num_motif_atoms(); ++j) {
-      const auto distance = abs(lattice->motif_atom(i).pos - lattice->motif_atom(j).pos);
+      const auto distance = norm(lattice->motif_atom(i).fractional_pos - lattice->motif_atom(j).fractional_pos);
       if (distance < tolerance) {
         jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
                  "Check position file or relax distance_tolerance for exchange module",

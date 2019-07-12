@@ -29,11 +29,10 @@ class CudaDipoleHamiltonianSparseTensor : public HamiltonianStrategy {
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy(const int i, const Vec3 &s_i);
         double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
-        void   calculate_energies(jblib::Array<double, 1>& energies);
+        void   calculate_energies(jams::MultiArray<double, 1>& energies);
 
         void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields(jblib::Array<double, 2>& fields);
-        void   calculate_fields(jblib::CudaArray<double, 1>& fields);
+        void   calculate_fields(jams::MultiArray<double, 2>& fields);
 
     private:
         bool               use_double_precision;
@@ -42,8 +41,8 @@ class CudaDipoleHamiltonianSparseTensor : public HamiltonianStrategy {
 
         SparseMatrix<float> interaction_matrix_;
 
-        jblib::CudaArray<float, 1> dev_float_spins_;
-        jblib::CudaArray<float, 1> dev_float_fields_;
+        jams::MultiArray<float, 2> float_spins_;
+        jams::MultiArray<float, 2> float_fields_;
 
         cudaStream_t       dev_stream_ = nullptr;
         devFloatCSR        dev_csr_interaction_matrix_;

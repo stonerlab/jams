@@ -11,8 +11,6 @@
 #include "jams/core/monitor.h"
 #include "jams/helpers/stats.h"
 
-#include "jblib/containers/array.h"
-
 class MagnetisationRateMonitor : public Monitor {
 public:
     explicit MagnetisationRateMonitor(const libconfig::Setting &settings);

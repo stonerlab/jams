@@ -11,9 +11,6 @@
 #include "jams/core/types.h"
 #include "jams/core/monitor.h"
 
-#include "jblib/containers/vec.h"
-#include "jblib/containers/array.h"
-
 class Solver;
 
 class VtuMonitor : public Monitor {
@@ -32,9 +29,9 @@ private:
     Vec3 slice_origin;
     Vec3 slice_size;
     std::vector<int> slice_spins;
-    jblib::Array<int, 1> types_binary_data;
-    jblib::Array<float, 2> points_binary_data;
-    jblib::Array<double, 2> spins_binary_data;
+    jams::MultiArray<int, 1> types_binary_data;
+    jams::MultiArray<float, 2> points_binary_data;
+    jams::MultiArray<double, 2> spins_binary_data;
 };
 
 #endif  // JAMS_MONITOR_VTU_H

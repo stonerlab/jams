@@ -8,10 +8,6 @@
 
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
-#include "jblib/containers/vec.h"
-#include "jblib/containers/array.h"
-#include "jblib/containers/matrix.h"
-
 
 PingPhysics::PingPhysics(const libconfig::Setting &settings)
 : Physics(settings) {
@@ -40,7 +36,7 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
     }
   }
 
-  init_theta = rad_to_deg(acos(mag[2] / abs(mag)));
+  init_theta = rad_to_deg(acos(mag[2] / norm(mag)));
   init_phi = rad_to_deg(atan2(mag[1], mag[0]));
 
   std::cout << "  initial angles (theta, phi) " << init_theta << " " << init_phi << "\n";

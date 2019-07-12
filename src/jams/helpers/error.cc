@@ -4,6 +4,7 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <iostream>
 #include "jams/core/jams++.h"
 #include "jams/core/globals.h"
 
