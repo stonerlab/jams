@@ -31,12 +31,6 @@ add_library(config++ INTERFACE IMPORTED)
 set_property(TARGET config++ PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CONFIG++_INCLUDE_DIR})
 set_property(TARGET config++ PROPERTY INTERFACE_LINK_LIBRARIES ${CONFIG++_LIBRARY})
 
-# -- symspg
-find_package(SYMSPG QUIET REQUIRED)
-add_library(symspg INTERFACE IMPORTED)
-set_property(TARGET symspg PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${SYMSPG_INCLUDE_DIR})
-set_property(TARGET symspg PROPERTY INTERFACE_LINK_LIBRARIES ${SYMSPG_LIBRARY})
-
 # -- hdf5
 find_package(HDF5 COMPONENTS CXX QUIET REQUIRED)
 add_library(hdf5 INTERFACE IMPORTED)
@@ -47,14 +41,8 @@ set_property(TARGET hdf5 PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES} ${H
 # -- HighFive (H5)
 include("${PROJECT_SOURCE_DIR}/cmake/External/HighFive.cmake")
 
-
-#find_package(HighFive 2.0 QUIET)
-#target_include_directories(
-#        bar
-#        PUBLIC $<TARGET_PROPERTY:HighFive,INTERFACE_INCLUDE_DIRECTORIES>)
-#target_link_libraries(
-#        bar
-#        PUBLIC $<TARGET_PROPERTY:HighFive,INTERFACE_LINK_LIBRARIES>)
+# -- symspg
+include("${PROJECT_SOURCE_DIR}/cmake/External/spglib.cmake")
 
 if (JAMS_BUILD_CUDA)
 # -- CUDA
