@@ -20,7 +20,7 @@ extern "C"{
 #include <utility>
 #include <functional>
 #include <cmath>
-#include <pcg/pcg_random.hpp>
+#include <pcg_random.hpp>
 
 #include "jams/helpers/defaults.h"
 #include "jams/containers/material.h"

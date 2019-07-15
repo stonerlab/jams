@@ -4,7 +4,7 @@
 #define JAMS_PHYSICS_FLIPS_H
 
 #include <libconfig.h++>
-#include <pcg/pcg_random.hpp>
+#include <pcg_random.hpp>
 #include <random>
 #include "jams/helpers/random.h"
 

@@ -10,7 +10,7 @@
 #include "jams/core/solver.h"
 #include "jams/helpers/montecarlo.h"
 
-#include "pcg/pcg_random.hpp"
+#include "pcg_random.hpp"
 
 class ConstrainedMCSolver : public Solver {
  public:

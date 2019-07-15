@@ -19,9 +19,6 @@ if(JAMS_BUILD_OMP)
     endif()
 endif()
 
-add_library(pcg INTERFACE IMPORTED)
-set_property(TARGET pcg PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
 # -- Libconfig++
 find_package(CONFIG++ QUIET REQUIRED)
 add_library(config++ INTERFACE IMPORTED)
@@ -35,11 +32,9 @@ add_library(hdf5 INTERFACE IMPORTED)
 set_property(TARGET hdf5 PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS})
 set_property(TARGET hdf5 PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES} ${HDF5_CXX_LIBRARIES})
 
-# -- HighFive (H5)
 include("${PROJECT_SOURCE_DIR}/cmake/External/HighFive.cmake")
-
-# -- symspg
 include("${PROJECT_SOURCE_DIR}/cmake/External/spglib.cmake")
+include("${PROJECT_SOURCE_DIR}/cmake/External/pcg.cmake")
 
 if (JAMS_BUILD_CUDA)
 # -- CUDA

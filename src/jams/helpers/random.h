@@ -5,7 +5,7 @@
 
 #include <random>
 #include <array>
-#include <pcg/pcg_random.hpp>
+#include <pcg_random.hpp>
 #include <sstream>
 #include "jams/helpers/utils.h"
 

@@ -16,7 +16,7 @@
 #include <jams/helpers/stats.h>
 #include "jams/helpers/duration.h"
 #include "jams/helpers/random.h"
-#include <pcg/pcg_random.hpp>
+#include <pcg_random.hpp>
 #include "jams/core/lattice.h"
 #include "spectrum_general.h"
 #include "jams/interface/openmp.h"

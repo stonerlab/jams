@@ -6,7 +6,7 @@
 #include <vector>
 
 #include <libconfig.h++>
-#include <pcg/pcg_random.hpp>
+#include <pcg_random.hpp>
 
 #include "jams/core/hamiltonian.h"
 #include "jams/core/lattice.h"
