@@ -22,9 +22,6 @@ endif()
 add_library(pcg INTERFACE IMPORTED)
 set_property(TARGET pcg PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_library(jblib INTERFACE IMPORTED)
-set_property(TARGET jblib PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
 # -- Libconfig++
 find_package(CONFIG++ QUIET REQUIRED)
 add_library(config++ INTERFACE IMPORTED)
