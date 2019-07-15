@@ -7,7 +7,7 @@ target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${PROJECT_S
 
 # object libraries cannot use target_link_libraries to pull in include and compile definitions
 # this hack allows us to pull them in manually
-foreach(TGT fftw3 cblas pcg symspg config++ hdf5 HighFive)
+foreach(TGT fftw3 cblas pcg symspg_static config++ hdf5 HighFive)
     target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
 endforeach()
@@ -43,7 +43,7 @@ target_compile_features(jams PRIVATE cxx_std_11)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
 target_include_directories(jams PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
-target_link_libraries(jams fftw3 cblas pcg symspg config++ hdf5)
+target_link_libraries(jams fftw3 cblas pcg symspg_static config++ hdf5)
 
 if (JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
     target_compile_definitions(jams PRIVATE HAS_OMP=1)

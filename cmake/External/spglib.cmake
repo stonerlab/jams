@@ -1,4 +1,5 @@
-# https://github.com/Crascit/DownloadProject/blob/master/CMakeLists.txt
+set(SPGLIB_VERSION 1.10.4)
+
 if (CMAKE_VERSION VERSION_LESS 3.2)
     set(UPDATE_DISCONNECTED_IF_AVAILABLE "")
 else()
@@ -8,7 +9,7 @@ endif()
 include(${PROJECT_SOURCE_DIR}/cmake/DownloadProject/DownloadProject.cmake)
 download_project(PROJ                spglib
         GIT_REPOSITORY      https://github.com/atztogo/spglib.git
-        GIT_TAG             v1.12.2
+        GIT_TAG             v${SPGLIB_VERSION}
         ${UPDATE_DISCONNECTED_IF_AVAILABLE}
         )
 

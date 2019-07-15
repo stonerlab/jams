@@ -12,7 +12,7 @@ add_executable(jams_unit_tests "jams_test.cc" $<TARGET_OBJECTS:jams_object_lib>)
 
 target_compile_features(jams_unit_tests PRIVATE cxx_std_11)
 
-target_link_libraries(jams_unit_tests gtest gmock fftw3 cblas jblib pcg symspg config++ hdf5)
+target_link_libraries(jams_unit_tests gtest gmock fftw3 cblas jblib pcg symspg_static config++ hdf5)
 
 if(JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
     target_compile_definitions(jams_unit_tests PRIVATE HAS_OMP=1)
