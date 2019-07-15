@@ -14,3 +14,6 @@ download_project(PROJ                spglib
         )
 
 add_subdirectory(${spglib_SOURCE_DIR} ${spglib_BINARY_DIR} EXCLUDE_FROM_ALL)
+
+target_include_directories(symspg INTERFACE ${spglib_SOURCE_DIR}/src)
+target_include_directories(symspg_static INTERFACE ${spglib_SOURCE_DIR}/src)
