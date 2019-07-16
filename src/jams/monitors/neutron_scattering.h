@@ -21,6 +21,10 @@ struct HKLIndex {
     bool          conjugate;  /**< does the value need conjugating on lookup, e.g. for r2c symmetry */
 };
 
+struct WelchParameters {
+    int segment_size = {1024};
+    int overlap      = {512};
+};
 
 inline bool operator==(const HKLIndex& a, const HKLIndex& b) {
   return approximately_equal(a.hkl, b.hkl);
@@ -50,8 +54,8 @@ class NeutronScatteringMonitor : public Monitor {
     explicit NeutronScatteringMonitor(const libconfig::Setting &settings);
     ~NeutronScatteringMonitor() override;
 
+    void post_process() override {};
     void update(Solver *solver) override;
-    void post_process() override;
     bool is_converged() override { return false; }
 
 private:
@@ -61,18 +65,22 @@ private:
     std::vector<HKLIndex> generate_hkl_reciprocal_space_path(
         const std::vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size);
 
-    jams::MultiArray<Complex, 2> compute_unpolarized_cross_section();
-    jams::MultiArray<Complex, 2> compute_polarized_cross_section(const Vec3& P);
+    void output_cross_section();
+    jams::MultiArray<Complex, 2> compute_unpolarized_cross_section(const jams::MultiArray<Vec<Complex,3>, 3>& spectrum);
+    jams::MultiArray<Complex, 3> compute_polarized_cross_sections(const jams::MultiArray<Vec<Complex,3>, 3>& spectrum, const std::vector<Vec3>& polarizations);
 
     fftw_plan fft_plan_transform_to_reciprocal_space(
         double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & num_sites);
 
-    void fft_to_frequency();
+    jams::MultiArray<Vec<Complex,3>,3> periodogram();
 
     fftw_plan fft_plan_to_qspace_ = nullptr;
 
     jams::MultiArray<Vec<Complex,3>, 4> sq_;
     jams::MultiArray<Vec<Complex,3>, 3> sqw_;
+    jams::MultiArray<Complex, 2> total_unpolarized_cross_section_;
+    jams::MultiArray<Complex,3> total_polarized_cross_sections_;
+
     jams::MultiArray<double, 2> form_factors_;
     std::vector<HKLIndex> paths_;
     std::vector<int> continuous_path_ranges_;
@@ -80,7 +88,9 @@ private:
     double t_sample_ = 0.0;
     std::vector<Vec3> polarizations_;
     double freq_delta_;
-    int time_point_counter_;
+    int periodogram_index_counter_;
+    int periodogram_counter_;
+    WelchParameters welch_params_;
 };
 
 #endif  // JAMS_MONITOR_NEUTRON_SCATTERING_H

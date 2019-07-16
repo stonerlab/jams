@@ -100,9 +100,9 @@ HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec3i k, con
  * @param hkl_indicies list of reciprocal space hkl indicies
  * @return
  */
-MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_section() {
-  const auto num_freqencies = sqw_.size(0);
-  const auto num_reciprocal_points = sqw_.size(1);
+MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_section(const jams::MultiArray<Vec<Complex,3>, 3>& spectrum) {
+  const auto num_freqencies = spectrum.size(0);
+  const auto num_reciprocal_points = spectrum.size(1);
   const auto num_sites = ::lattice->num_motif_atoms();
 
   MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
@@ -117,7 +117,7 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_secti
         for (auto f = 0; f < num_freqencies; ++f) {
           for (auto i : {0,1,2}) {
             for (auto j : {0,1,2}) {
-              convolved(f, k) += prefactor * (kronecker_delta(i, j) - Q[i] * Q[j]) * conj(sqw_(f, k, a)[i]) * sqw_(f, k, b)[j];
+              convolved(f, k) += prefactor * (kronecker_delta(i, j) - Q[i] * Q[j]) * conj(spectrum(f, k, a)[i]) * spectrum(f, k, b)[j];
             }
           }
         }
@@ -127,35 +127,39 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_secti
   return convolved;
 }
 
-MultiArray<Complex, 2> NeutronScatteringMonitor::compute_polarized_cross_section(const Vec3& P) {
-  const auto num_freqencies = sqw_.size(0);
-  const auto num_reciprocal_points = sqw_.size(1);
+jams::MultiArray<Complex, 3> NeutronScatteringMonitor::compute_polarized_cross_sections(const jams::MultiArray<Vec<Complex,3>, 3>& spectrum, const std::vector<Vec3>& polarizations) {
+  const auto num_freqencies = spectrum.size(0);
+  const auto num_reciprocal_points = spectrum.size(1);
   const auto num_sites = ::lattice->num_motif_atoms();
 
-  MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
+  MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
 
-  for (auto a = 0; a < num_sites; ++a) {
-    for (auto b = 0; b < num_sites; ++b) {
-      const Vec3 r = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
-      for (auto k = 0; k < num_reciprocal_points; ++k) {
-        const auto q = paths_[k].hkl;
-        const auto Q = unit_vector(paths_[k].xyz);
-        const auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(k, a) * form_factors_(k, b);
-        // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
-        for (auto f = 0; f < num_freqencies; ++f) {
+  for (auto p = 0; p < polarizations.size(); ++p) {
+    const Vec3 P = polarizations[p];
+    for (auto a = 0; a < num_sites; ++a) {
+      for (auto b = 0; b < num_sites; ++b) {
+        const Vec3 r = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
+        for (auto k = 0; k < num_reciprocal_points; ++k) {
+          const auto q = paths_[k].hkl;
+          const auto Q = unit_vector(paths_[k].xyz);
+          const auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(k, a) * form_factors_(k, b);
+          // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
+          for (auto f = 0; f < num_freqencies; ++f) {
 
-          convolved(f, k) += prefactor * kImagOne * dot(P, cross(conj(sqw_(f, k, a)), sqw_(f, k, b)));
+            convolved(p, f, k) += prefactor * kImagOne * dot(P, cross(conj(spectrum(f, k, a)), spectrum(f, k, b)));
 
-          for (auto i : {0,1,2}) {
-            for (auto j : {0,1,2}) {
-              convolved(f, k) += kImagOne * prefactor * cross(P,Q)[i] * Q[j] * (
-                  conj(sqw_(f, k, a)[i]) * sqw_(f, k, b)[j] - conj(sqw_(f, k, a)[j]) * sqw_(f, k, b)[i] );
+            for (auto i : {0, 1, 2}) {
+              for (auto j : {0, 1, 2}) {
+                convolved(p, f, k) += kImagOne * prefactor * cross(P, Q)[i] * Q[j] * (
+                    conj(spectrum(f, k, a)[i]) * spectrum(f, k, b)[j] -
+                    conj(spectrum(f, k, a)[j]) * spectrum(f, k, b)[i]);
+              }
             }
+
           }
 
         }
-
       }
     }
   }
@@ -201,7 +205,8 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
 : Monitor(settings) {
   using namespace globals;
 
-  time_point_counter_ = 0;
+  periodogram_index_counter_ = 0;
+  periodogram_counter_ = 0;
 
   libconfig::Setting &solver_settings = ::config->lookup("solver");
 
@@ -209,7 +214,7 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
   double t_run = solver_settings["t_max"];
 
   t_sample_ = output_step_freq_ * t_step;
-  num_t_samples_ = ceil(t_run / t_sample_);
+  num_t_samples_ = welch_params_.segment_size;
   double freq_max = 1.0 / (2.0 * t_sample_);
   freq_delta_ = 1.0 / (num_t_samples_ * t_sample_);
 
@@ -264,8 +269,14 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
   polarizations_ = {Vec3{0,0,1}, Vec3{0,0,-1}};
 
   sq_.resize(kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_sites);
-  sqw_.resize(num_t_samples_, paths_.size(), num_sites);
+  sqw_.resize(welch_params_.segment_size, paths_.size(), num_sites);
   sqw_.zero();
+
+  total_polarized_cross_sections_.resize(polarizations_.size(), welch_params_.segment_size, paths_.size());
+  total_polarized_cross_sections_.zero();
+
+  total_unpolarized_cross_section_.resize(welch_params_.segment_size, paths_.size());
+  total_unpolarized_cross_section_.zero();
 
   auto& cfg_form_factors = settings["form_factor"];
   if (cfg_form_factors.getLength() != num_materials) {
@@ -298,10 +309,10 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
      * http://www.fftw.org/doc/One_002dDimensional-DFTs-of-Real-Data.html
      */
   {
-    auto s_backup = globals::s;
+    auto s_backup(globals::s);
 
     fft_plan_to_qspace_ =
-        fft_plan_transform_to_reciprocal_space(globals::s.data(), &sq_(0,0,0,0)[0], kspace_size, num_sites);
+        fft_plan_transform_to_reciprocal_space(globals::s.data(), reinterpret_cast<Complex*>(sq_.data()), kspace_size, num_sites);
 
     globals::s = s_backup;
   }
@@ -311,10 +322,6 @@ void NeutronScatteringMonitor::update(Solver * solver) {
   using namespace globals;
   assert(fft_plan_to_qspace_ != nullptr);
   assert(sq_.elements() > 0);
-
-  // store data just on the path of interest
-  // extra safety in case there is an extra one time point due to floating point maths
-  if (time_point_counter_ >= sqw_.size(0)) return;
 
   const auto kspace_size = lattice->kspace_size();
   const auto num_sites = ::lattice->num_motif_atoms();
@@ -331,19 +338,52 @@ void NeutronScatteringMonitor::update(Solver * solver) {
       [kspace_size](const Vec<Complex,3> &a) { return a / sqrt(product(kspace_size)); });
 
 
+  const int welch_segment_index = periodogram_index_counter_;
+
   for (auto k = 0; k < paths_.size(); ++k) {
     auto idx = paths_[k].index;
     for (auto a = 0; a < num_sites; ++a) {
       if (paths_[k].conjugate) {
-        sqw_(time_point_counter_, k, a) = conj(sq_(idx[0], idx[1], idx[2], a));
+        sqw_(welch_segment_index, k, a) = conj(sq_(idx[0], idx[1], idx[2], a));
       } else {
-        sqw_(time_point_counter_, k, a) = sq_(idx[0], idx[1], idx[2], a);
+        sqw_(welch_segment_index, k, a) = sq_(idx[0], idx[1], idx[2], a);
       }
     }
   }
 
+  periodogram_index_counter_++;
 
-  time_point_counter_++;
+  if (periodogram_index_counter_ % welch_params_.segment_size == 0) {
+    // calculate periodogram
+    auto spectrum = periodogram();
+    periodogram_counter_++;
+
+    auto unpolarized_cross_section = compute_unpolarized_cross_section(spectrum);
+
+    std::transform(unpolarized_cross_section.begin(), unpolarized_cross_section.end(),
+        total_unpolarized_cross_section_.begin(), total_unpolarized_cross_section_.begin(),
+                   [](const Complex&x, const Complex &y) -> Complex { return x + y; });
+
+    auto polarized_cross_sections = compute_polarized_cross_sections(spectrum, polarizations_);
+
+    std::transform(polarized_cross_sections.begin(), polarized_cross_sections.end(),
+                   total_polarized_cross_sections_.begin(), total_polarized_cross_sections_.begin(),
+                   [](const Complex&x, const Complex &y) -> Complex { return x + y; });
+
+    output_cross_section();
+
+    // shift overlap data to the start of the range
+    for (auto i = 0; i < welch_params_.overlap; ++i) {
+      for (auto j = 0; j < paths_.size(); ++j) {
+        for (auto m = 0; m < num_sites; ++m) {
+          sqw_(i, j, m) = sqw_(sqw_.size(0) - welch_params_.overlap + i, j, m);
+        }
+      }
+    }
+
+    // put the pointer to the overlap position
+    periodogram_index_counter_ = welch_params_.overlap;
+  }
 }
 
 fftw_plan NeutronScatteringMonitor::fft_plan_transform_to_reciprocal_space(double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & num_sites) {
@@ -362,27 +402,25 @@ fftw_plan NeutronScatteringMonitor::fft_plan_transform_to_reciprocal_space(doubl
    * @warning FFTW_PRESERVE_INPUT is not supported for r2c arrays
    * http://www.fftw.org/doc/One_002dDimensional-DFTs-of-Real-Data.html
    */
-  return fftw_plan_many_dft_r2c(
+  auto plan = fftw_plan_many_dft_r2c(
       rank, transform_size, num_transforms,
       rspace, nembed, stride, dist,
       FFTW_COMPLEX_CAST(kspace), nembed, stride, dist,
       FFTW_MEASURE);
+
+  if (plan == NULL) {
+    throw std::runtime_error("FFTW plan failed for NeutronScatteringMonitor");
+  }
+
+  return plan;
 }
 
-void NeutronScatteringMonitor::fft_to_frequency() {
+jams::MultiArray<Vec<Complex,3>,3> NeutronScatteringMonitor::periodogram() {
+  jams::MultiArray<Vec<Complex,3>,3> spectrum(sqw_.shape());
 
-  const int num_time_samples = sqw_.size(0);
-  const int num_space_samples = sqw_.size(1);
-  const int num_sites = sqw_.size(2);
-
-  // window the data and normalize
-  for (auto i = 0; i < num_time_samples; ++i) {
-    for (auto j = 0; j < num_space_samples; ++j) {
-      for (auto m = 0; m < num_sites; ++m) {
-        sqw_(i,j,m) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
-      }
-    }
-  }
+  const int num_time_samples  = spectrum.size(0);
+  const int num_space_samples = spectrum.size(1);
+  const int num_sites         = spectrum.size(2);
 
   int rank              = 1;
   int transform_size[1] = {num_time_samples};
@@ -393,26 +431,29 @@ void NeutronScatteringMonitor::fft_to_frequency() {
 
   fftw_plan fft_plan = fftw_plan_many_dft(
       rank,transform_size,num_transforms,
-      FFTW_COMPLEX_CAST(sqw_.data()),nembed,stride,dist,
-      FFTW_COMPLEX_CAST(sqw_.data()),nembed,stride,dist,
-      FFTW_BACKWARD, FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
+      FFTW_COMPLEX_CAST(spectrum.data()),nembed,stride,dist,
+      FFTW_COMPLEX_CAST(spectrum.data()),nembed,stride,dist,
+      FFTW_BACKWARD, FFTW_ESTIMATE);
+
+  spectrum = sqw_;
+
+  // window the data and normalize
+  for (auto i = 0; i < num_time_samples; ++i) {
+    for (auto j = 0; j < num_space_samples; ++j) {
+      for (auto m = 0; m < num_sites; ++m) {
+        spectrum(i,j,m) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
+      }
+    }
+  }
 
   fftw_execute(fft_plan);
   fftw_destroy_plan(fft_plan);
+
+  return spectrum;
 }
 
-void NeutronScatteringMonitor::post_process() {
-  const auto time_points = sqw_.size(0);
-
-  fft_to_frequency();
-
-  auto unpolarized_cross_section = compute_unpolarized_cross_section();
-
-  vector<MultiArray<Complex,2>> polarized_cross_sections;
-  for (const auto& P : polarizations_) {
-    polarized_cross_sections.emplace_back(compute_polarized_cross_section(P));
-  }
-
+void NeutronScatteringMonitor::output_cross_section() {
+  const auto time_points = total_unpolarized_cross_section_.size(0);
 
   for (auto n = 0; n < continuous_path_ranges_.size()-1; ++n) {
 
@@ -432,7 +473,7 @@ void NeutronScatteringMonitor::post_process() {
     sqwfile << "energy_meV\t";
     sqwfile << "sigma_unpol_re\t";
     sqwfile << "sigma_unpol_im\t";
-    for (auto k = 0; k < polarized_cross_sections.size(); ++k) {
+    for (auto k = 0; k < total_polarized_cross_sections_.size(0); ++k) {
       sqwfile << "sigma_pol" << to_string(k) << "_re\t";
       sqwfile << "sigma_pol" << to_string(k) << "_im\t";
     }
@@ -466,11 +507,11 @@ void NeutronScatteringMonitor::post_process() {
         sqwfile << format_fix << paths_[j].xyz << "\t";
         sqwfile << format_fix << (i * freq_delta_ / 1e12) << "\t"; // THz
         sqwfile << format_fix << (i * freq_delta_ / 1e12) * 4.135668 << "\t"; // meV
-        sqwfile << format_sci << barns_unitcell * unpolarized_cross_section(i, j).real() << "\t";
-        sqwfile << format_sci << barns_unitcell * unpolarized_cross_section(i, j).imag() << "\t";
-        for (auto k = 0; k < polarized_cross_sections.size(); ++k) {
-          sqwfile << format_sci << barns_unitcell * polarized_cross_sections[k](i, j).real() << "\t";
-          sqwfile << format_sci << barns_unitcell * polarized_cross_sections[k](i, j).imag() << "\t";
+        sqwfile << format_sci << barns_unitcell * total_unpolarized_cross_section_(i, j).real() / double(periodogram_counter_) << "\t";
+        sqwfile << format_sci << barns_unitcell * total_unpolarized_cross_section_(i, j).imag() / double(periodogram_counter_) << "\t";
+        for (auto k = 0; k < total_polarized_cross_sections_.size(0); ++k) {
+          sqwfile << format_sci << barns_unitcell * total_polarized_cross_sections_(k, i, j).real() / double(periodogram_counter_) << "\t";
+          sqwfile << format_sci << barns_unitcell * total_polarized_cross_sections_(k, i, j).imag() / double(periodogram_counter_) << "\t";
         }
         sqwfile << "\n";
       }
