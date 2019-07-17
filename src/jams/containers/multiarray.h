@@ -127,7 +127,7 @@ namespace jams {
 
         MultiArray(const MultiArray& other):
           size_(other.size_), data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(other.size_)){
-          std::copy(other.begin(), other.end(), this->begin());
+          data_.copy_from(other.data_);
         }
 
         // construct using dimensions as arguments
@@ -220,7 +220,7 @@ namespace jams {
             data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(other.size_));
           }
 
-          std::copy(other.begin(), other.end(), this->begin());
+          data_.copy_from(other.data_);
 
           return *this;
         }
@@ -318,7 +318,7 @@ namespace jams {
 
         MultiArray(const MultiArray& other):
             size_(other.size_), data_(std::get<0>(other.size_)){
-          std::copy(other.begin(), other.end(), this->begin());
+          data_.copy_from(other.data_);
         }
 
         inline explicit MultiArray(size_type size):
@@ -410,7 +410,7 @@ namespace jams {
             data_.resize(detail::vec<std::size_t, 1, 1>::last_n_product(other.size_));
           }
 
-          std::copy(other.begin(), other.end(), this->begin());
+          data_.copy_from(other.data_);
 
           return *this;
         }
