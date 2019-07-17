@@ -213,11 +213,15 @@ namespace jams {
         }
 
         inline MultiArray& operator=(const MultiArray& other) {
-          if (this != &other) {
+          if (this == &other) return *this;
+
+          if (size_ != other.size_) {
             size_ = other.size_;
             data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(other.size_));
-            std::copy(other.begin(), other.end(), this->begin());
           }
+
+          std::copy(other.begin(), other.end(), this->begin());
+
           return *this;
         }
 
@@ -399,11 +403,15 @@ namespace jams {
         }
 
         inline MultiArray& operator=(const MultiArray& other) {
-          if (this != &other) {
+          if (this == &other) return *this;
+
+          if (size_ != other.size_) {
             size_ = other.size_;
-            data_.resize(std::get<0>(other.size_));
-            std::copy(other.begin(), other.end(), this->begin());
+            data_.resize(detail::vec<std::size_t, 1, 1>::last_n_product(other.size_));
           }
+
+          std::copy(other.begin(), other.end(), this->begin());
+
           return *this;
         }
 
@@ -493,6 +501,31 @@ namespace jams {
       swap(lhs.size_, rhs.size_);
       swap(lhs.data_, rhs.data_);
     }
+
+    template<class FTp_, std::size_t FDim_, class FIdx_>
+    typename MultiArray<FTp_, FDim_, FIdx_>::iterator
+    inline begin(MultiArray<FTp_, FDim_, FIdx_>& x) {
+      return x.begin();
+    }
+
+    template<class FTp_, std::size_t FDim_, class FIdx_>
+    typename MultiArray<FTp_, FDim_, FIdx_>::const_iterator
+    inline begin(const MultiArray<FTp_, FDim_, FIdx_>& x) {
+      return x.begin();
+    }
+
+    template<class FTp_, std::size_t FDim_, class FIdx_>
+    typename MultiArray<FTp_, FDim_, FIdx_>::iterator
+    inline end(MultiArray<FTp_, FDim_, FIdx_>& x) {
+      return x.end();
+    }
+
+    template<class FTp_, std::size_t FDim_, class FIdx_>
+    typename MultiArray<FTp_, FDim_, FIdx_>::const_iterator
+    inline end(const MultiArray<FTp_, FDim_, FIdx_>& x) {
+      return x.end();
+    }
+
 
 } // namespace jams
 
