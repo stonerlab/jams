@@ -101,7 +101,10 @@ public:
     inline void zero();
 
     // resize the data (destructive, reallocates)
-    inline void resize(size_type size);
+    inline void resize(size_type new_size);
+
+    // copy another SyncedMemory including state and only the GPU or CPU allocated memory
+    inline void copy_from(const SyncedMemory&);
 
 private:
     // copy host data to the device
@@ -350,8 +353,10 @@ constexpr typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size() const 
 }
 
 template<class T>
-void SyncedMemory<T>::resize(SyncedMemory::size_type size) {
-  size_ = size;
+void SyncedMemory<T>::resize(SyncedMemory::size_type new_size) {
+  if (size_ == new_size) return;
+
+  size_ = new_size;
   free_host_memory();
   free_device_memory();
   sync_status_ = SyncStatus::UNINITIALIZED;
@@ -398,6 +403,39 @@ void swap(SyncedMemory<T>& lhs, SyncedMemory<T>& rhs) {
   swap(lhs.size_, rhs.size_);
   swap(lhs.host_ptr_, rhs.host_ptr_);
   swap(lhs.device_ptr_, rhs.device_ptr_);
+}
+
+// creates a true copy of another SyncedMemory by only copying the allocated memory spaces
+template<class T>
+void SyncedMemory<T>::copy_from(const SyncedMemory<T>& other) {
+  if (this == &other) return;
+
+  if (size_ != other.size_) {
+    resize(other.size_);
+  }
+
+  // we use mutable_*_data() for 'this' to ensure allocation
+  // we use other.*_ptr_ for 'other' so we don't change the value of other.sync_status_
+
+  if (other.host_ptr_) {
+    #if HAS_CUDA
+    #if SYNCEDMEMORY_PRINT_MEMCPY
+    std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
+    #endif
+    CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), other.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+    #else
+    memcpy(mutable_host_data(), other.const_host_data(), size_ * sizeof(T));
+    #endif
+  }
+
+  if (other.device_ptr_) {
+    #if SYNCEDMEMORY_PRINT_MEMCPY
+    std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+    #endif
+    CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), other.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
+  }
+
+  sync_status_ = other.sync_status_;
 }
 
 
