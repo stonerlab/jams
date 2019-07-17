@@ -135,17 +135,18 @@ jams::MultiArray<Complex, 3> NeutronScatteringMonitor::compute_polarized_cross_s
   MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
 
-  for (auto p = 0; p < polarizations.size(); ++p) {
-    const Vec3 P = polarizations[p];
-    for (auto a = 0; a < num_sites; ++a) {
-      for (auto b = 0; b < num_sites; ++b) {
-        const Vec3 r = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
-        for (auto k = 0; k < num_reciprocal_points; ++k) {
-          const auto q = paths_[k].hkl;
-          const auto Q = unit_vector(paths_[k].xyz);
-          const auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(k, a) * form_factors_(k, b);
-          // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
-          for (auto f = 0; f < num_freqencies; ++f) {
+
+  for (auto a = 0; a < num_sites; ++a) {
+    for (auto b = 0; b < num_sites; ++b) {
+      const Vec3 r = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
+      for (auto k = 0; k < num_reciprocal_points; ++k) {
+        const auto q = paths_[k].hkl;
+        const auto Q = unit_vector(paths_[k].xyz);
+        const auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(k, a) * form_factors_(k, b);
+        // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
+        for (auto f = 0; f < num_freqencies; ++f) {
+          for (auto p = 0; p < polarizations.size(); ++p) {
+            const Vec3 P = polarizations[p];
 
             convolved(p, f, k) += prefactor * kImagOne * dot(P, cross(conj(spectrum(f, k, a)), spectrum(f, k, b)));
 
@@ -156,9 +157,7 @@ jams::MultiArray<Complex, 3> NeutronScatteringMonitor::compute_polarized_cross_s
                     conj(spectrum(f, k, a)[j]) * spectrum(f, k, b)[i]);
               }
             }
-
           }
-
         }
       }
     }
