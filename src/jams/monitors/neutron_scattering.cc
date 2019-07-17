@@ -100,10 +100,10 @@ HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec3i k, con
  * @param hkl_indicies list of reciprocal space hkl indicies
  * @return
  */
-MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_section(const jams::MultiArray<Vec<Complex,3>, 3>& spectrum) {
-  const auto num_freqencies = spectrum.size(0);
-  const auto num_reciprocal_points = spectrum.size(1);
-  const auto num_sites = ::lattice->num_motif_atoms();
+MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum) {
+  const auto num_sites = spectrum.size(0);
+  const auto num_freqencies = spectrum.size(1);
+  const auto num_reciprocal_points = spectrum.size(2);
 
   MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
   convolved.zero();
@@ -113,11 +113,12 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_secti
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto q = paths_[k].hkl;
         auto Q = unit_vector(paths_[k].xyz);
-        auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(k, a) * form_factors_(k, b);
+        auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(a, k) * form_factors_(b, k);
+
         for (auto f = 0; f < num_freqencies; ++f) {
           for (auto i : {0,1,2}) {
             for (auto j : {0,1,2}) {
-              convolved(f, k) += prefactor * (kronecker_delta(i, j) - Q[i] * Q[j]) * conj(spectrum(f, k, a)[i]) * spectrum(f, k, b)[j];
+              convolved(f, k) += prefactor * (kronecker_delta(i, j) - Q[i] * Q[j]) * conj(spectrum(a, f, k)[i]) * spectrum(b, f, k)[j];
             }
           }
         }
@@ -127,10 +128,10 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_secti
   return convolved;
 }
 
-jams::MultiArray<Complex, 3> NeutronScatteringMonitor::compute_polarized_cross_sections(const jams::MultiArray<Vec<Complex,3>, 3>& spectrum, const std::vector<Vec3>& polarizations) {
-  const auto num_freqencies = spectrum.size(0);
-  const auto num_reciprocal_points = spectrum.size(1);
-  const auto num_sites = ::lattice->num_motif_atoms();
+jams::MultiArray<Complex, 3> NeutronScatteringMonitor::compute_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations) {
+  const auto num_sites = spectrum.size(0);
+  const auto num_freqencies = spectrum.size(1);
+  const auto num_reciprocal_points = spectrum.size(2);
 
   MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
@@ -142,19 +143,19 @@ jams::MultiArray<Complex, 3> NeutronScatteringMonitor::compute_polarized_cross_s
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         const auto q = paths_[k].hkl;
         const auto Q = unit_vector(paths_[k].xyz);
-        const auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(k, a) * form_factors_(k, b);
+        const auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(a, k) * form_factors_(b, k);
         // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
         for (auto f = 0; f < num_freqencies; ++f) {
           for (auto p = 0; p < polarizations.size(); ++p) {
             const Vec3 P = polarizations[p];
 
-            convolved(p, f, k) += prefactor * kImagOne * dot(P, cross(conj(spectrum(f, k, a)), spectrum(f, k, b)));
+            convolved(p, f, k) += prefactor * kImagOne * dot(P, cross(conj(spectrum(a, f, k)), spectrum(b, f, k)));
 
             for (auto i : {0, 1, 2}) {
               for (auto j : {0, 1, 2}) {
                 convolved(p, f, k) += kImagOne * prefactor * cross(P, Q)[i] * Q[j] * (
-                    conj(spectrum(f, k, a)[i]) * spectrum(f, k, b)[j] -
-                    conj(spectrum(f, k, a)[j]) * spectrum(f, k, b)[i]);
+                    conj(spectrum(a, f, k)[i]) * spectrum(b, f, k)[j] -
+                    conj(spectrum(a, f, k)[j]) * spectrum(b, f, k)[i]);
               }
             }
           }
@@ -268,7 +269,7 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
   polarizations_ = {Vec3{0,0,1}, Vec3{0,0,-1}};
 
   sq_.resize(kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_sites);
-  sqw_.resize(welch_params_.segment_size, paths_.size(), num_sites);
+  sqw_.resize(num_sites, welch_params_.segment_size, paths_.size());
   sqw_.zero();
 
   total_polarized_cross_sections_.resize(polarizations_.size(), welch_params_.segment_size, paths_.size());
@@ -293,13 +294,13 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
     g_params[i] = config_required<FormFactorG>(cfg_form_factors[i], "g");
   }
 
-  form_factors_.resize(paths_.size(), num_sites);
+  form_factors_.resize(num_sites, paths_.size());
 
-  for (auto i = 0; i < paths_.size(); ++i) {
+  for (auto a = 0; a < num_sites; ++a) {
+    auto material = lattice->motif_atom(a).material;
+    for (auto i = 0; i < paths_.size(); ++i) {
     Vec3 q = paths_[i].xyz;
-    for (auto j = 0; j < num_sites; ++j) {
-      auto material = lattice->motif_atom(j).material;
-      form_factors_(i, j) = form_factor_q(q, g_params[material], j_params[material]);
+      form_factors_(a, i) = form_factor_q(q, g_params[material], j_params[material]);
     }
   }
 
@@ -334,18 +335,19 @@ void NeutronScatteringMonitor::update(Solver * solver) {
   fftw_execute(fft_plan_to_qspace_);
 
   std::transform(sq_.begin(), sq_.end(), sq_.begin(),
-      [kspace_size](const Vec<Complex,3> &a) { return a / sqrt(product(kspace_size)); });
+      [kspace_size](const Vec3cx &a) { return a / sqrt(product(kspace_size)); });
 
 
   const int welch_segment_index = periodogram_index_counter_;
 
-  for (auto k = 0; k < paths_.size(); ++k) {
+  for (auto a = 0; a < num_sites; ++a) {
+
+    for (auto k = 0; k < paths_.size(); ++k) {
     auto idx = paths_[k].index;
-    for (auto a = 0; a < num_sites; ++a) {
       if (paths_[k].conjugate) {
-        sqw_(welch_segment_index, k, a) = conj(sq_(idx[0], idx[1], idx[2], a));
+        sqw_(a,welch_segment_index, k) = conj(sq_(idx[0], idx[1], idx[2], a));
       } else {
-        sqw_(welch_segment_index, k, a) = sq_(idx[0], idx[1], idx[2], a);
+        sqw_(a,welch_segment_index, k) = sq_(idx[0], idx[1], idx[2], a);
       }
     }
   }
@@ -372,10 +374,10 @@ void NeutronScatteringMonitor::update(Solver * solver) {
     output_cross_section();
 
     // shift overlap data to the start of the range
-    for (auto i = 0; i < welch_params_.overlap; ++i) {
-      for (auto j = 0; j < paths_.size(); ++j) {
-        for (auto m = 0; m < num_sites; ++m) {
-          sqw_(i, j, m) = sqw_(sqw_.size(0) - welch_params_.overlap + i, j, m);
+    for (auto a = 0; a < num_sites; ++a) {
+      for (auto i = 0; i < welch_params_.overlap; ++i) {
+        for (auto j = 0; j < paths_.size(); ++j) {
+          sqw_(a, i, j) = sqw_(a, sqw_.size(1) - welch_params_.overlap + i, j);
         }
       }
     }
@@ -414,40 +416,42 @@ fftw_plan NeutronScatteringMonitor::fft_plan_transform_to_reciprocal_space(doubl
   return plan;
 }
 
-jams::MultiArray<Vec<Complex,3>,3> NeutronScatteringMonitor::periodogram() {
-  jams::MultiArray<Vec<Complex,3>,3> spectrum(sqw_.shape());
+jams::MultiArray<Vec3cx,3> NeutronScatteringMonitor::periodogram() {
+  jams::MultiArray<Vec3cx,3> spectrum(sqw_);
 
-  const int num_time_samples  = spectrum.size(0);
-  const int num_space_samples = spectrum.size(1);
-  const int num_sites         = spectrum.size(2);
+  const int num_sites         = spectrum.size(0);
+  const int num_time_samples  = spectrum.size(1);
+  const int num_space_samples = spectrum.size(2);
 
-  int rank              = 1;
-  int transform_size[1] = {num_time_samples};
-  int num_transforms    = num_space_samples * num_sites * 3;
-  int nembed[]          = {num_time_samples};
-  int stride            = num_space_samples * num_sites * 3;
-  int dist              = 1;
+  // spectrum(sites, time, space, 3)
 
-  fftw_plan fft_plan = fftw_plan_many_dft(
-      rank,transform_size,num_transforms,
-      FFTW_COMPLEX_CAST(spectrum.data()),nembed,stride,dist,
-      FFTW_COMPLEX_CAST(spectrum.data()),nembed,stride,dist,
-      FFTW_BACKWARD, FFTW_ESTIMATE);
+  for (auto a = 0; a < num_sites; ++a) {
 
-  spectrum = sqw_;
+    int rank = 1;
+    int transform_size[1] = {num_time_samples};
+    int num_transforms = num_space_samples * 3;
+    int nembed[] = {num_time_samples};
+    int stride = num_space_samples * 3;
+    int dist = 1;
 
-  // window the data and normalize
-  for (auto i = 0; i < num_time_samples; ++i) {
-    for (auto j = 0; j < num_space_samples; ++j) {
-      for (auto m = 0; m < num_sites; ++m) {
-        spectrum(i,j,m) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
+    fftw_plan fft_plan = fftw_plan_many_dft(
+        rank, transform_size, num_transforms,
+        FFTW_COMPLEX_CAST(&spectrum(a,0,0)[0]), nembed, stride, dist,
+        FFTW_COMPLEX_CAST(&spectrum(a,0,0)[0]), nembed, stride, dist,
+        FFTW_BACKWARD, FFTW_ESTIMATE);
+
+    assert(fft_plan);
+
+    // window the data and normalize
+    for (auto i = 0; i < num_time_samples; ++i) {
+      for (auto j = 0; j < num_space_samples; ++j) {
+        spectrum(a, i, j) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
       }
     }
+
+    fftw_execute(fft_plan);
+    fftw_destroy_plan(fft_plan);
   }
-
-  fftw_execute(fft_plan);
-  fftw_destroy_plan(fft_plan);
-
   return spectrum;
 }
 

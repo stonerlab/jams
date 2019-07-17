@@ -10,6 +10,7 @@
 #include <iosfwd>
 #include <iomanip>
 #include <algorithm>
+#include <complex>
 #include "jams/helpers/maths.h"
 
 template <typename T, std::size_t N>
@@ -19,6 +20,7 @@ using Vec3  = std::array<double, 3>;
 using Vec3f = std::array<float, 3>;
 using Vec3b = std::array<bool, 3>;
 using Vec3i = std::array<int, 3>;
+using Vec3cx  = std::array<std::complex<double>, 3>;
 
 using Vec4  = std::array<double, 4>;
 using Vec4i = std::array<int, 4>;

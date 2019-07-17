@@ -22,8 +22,8 @@ struct HKLIndex {
 };
 
 struct WelchParameters {
-    int segment_size = {1024};
-    int overlap      = {512};
+    int segment_size = {1000};
+    int overlap      = {500};
 };
 
 inline bool operator==(const HKLIndex& a, const HKLIndex& b) {
@@ -66,18 +66,18 @@ private:
         const std::vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size);
 
     void output_cross_section();
-    jams::MultiArray<Complex, 2> compute_unpolarized_cross_section(const jams::MultiArray<Vec<Complex,3>, 3>& spectrum);
-    jams::MultiArray<Complex, 3> compute_polarized_cross_sections(const jams::MultiArray<Vec<Complex,3>, 3>& spectrum, const std::vector<Vec3>& polarizations);
+    jams::MultiArray<Complex, 2> compute_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum);
+    jams::MultiArray<Complex, 3> compute_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations);
 
     fftw_plan fft_plan_transform_to_reciprocal_space(
         double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & num_sites);
 
-    jams::MultiArray<Vec<Complex,3>,3> periodogram();
+    jams::MultiArray<Vec3cx,3> periodogram();
 
     fftw_plan fft_plan_to_qspace_ = nullptr;
 
-    jams::MultiArray<Vec<Complex,3>, 4> sq_;
-    jams::MultiArray<Vec<Complex,3>, 3> sqw_;
+    jams::MultiArray<Vec3cx, 4> sq_;
+    jams::MultiArray<Vec3cx, 3> sqw_;
     jams::MultiArray<Complex, 2> total_unpolarized_cross_section_;
     jams::MultiArray<Complex,3> total_polarized_cross_sections_;
 
