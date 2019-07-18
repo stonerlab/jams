@@ -46,6 +46,11 @@ template <typename T, typename U, typename... Others>
 inline bool constexpr all_equal(const T &t, const U &u, Others const &... args) {
   return (t == u) && all_equal(u, args...);
 }
+
+inline bool constexpr is_multiple_of(const int& x, const int& y) {
+  return x % y == 0;
+}
+
 inline double zero_safe_recip_norm(double x, double y, double z) {
   if (approximately_zero(x) && approximately_zero(y) && approximately_zero(z)) {
     return 0.0;
