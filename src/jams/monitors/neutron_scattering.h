@@ -14,20 +14,24 @@
 
 class Solver;
 
-struct HKLIndex {
-    Vec<double,3> hkl;        /**< reciprocal lattice point in fractional units */
-    Vec<double,3> xyz;        /**< reciprocal lattice point in cartesian units */
-    Vec<int,3>    index;      /**< array lookup index */
-    bool          conjugate;  /**< does the value need conjugating on lookup, e.g. for r2c symmetry */
-};
+namespace jams {
+    struct HKLIndex {
+        Vec<double, 3> hkl; // reciprocal lattice point in fractional units
+        Vec<double, 3> xyz; // reciprocal lattice point in cartesian units
+        FFTWHermitianIndex<3> index;
+    };
 
-struct WelchParameters {
-    int segment_size = {1000};
-    int overlap      = {500};
-};
+    inline bool operator==(const HKLIndex &a, const HKLIndex &b) {
+      return approximately_equal(a.hkl, b.hkl);
+    }
 
-inline bool operator==(const HKLIndex& a, const HKLIndex& b) {
-  return approximately_equal(a.hkl, b.hkl);
+    struct PeriodogramProps {
+        int length    = 1000;
+        int overlap    = 500;
+        double sample_time  = 1.0;
+        double sample_frequency() {return 1.0 / (length * sample_time);}
+        double max_frequency() {return 1.0 / (2.0 * sample_time);}
+    };
 }
 
 /**
@@ -52,7 +56,7 @@ class NeutronScatteringMonitor : public Monitor {
     using Complex = std::complex<double>;
 
     explicit NeutronScatteringMonitor(const libconfig::Setting &settings);
-    ~NeutronScatteringMonitor() override;
+    ~NeutronScatteringMonitor() override = default;
 
     void post_process() override {};
     void update(Solver *solver) override;
@@ -60,37 +64,42 @@ class NeutronScatteringMonitor : public Monitor {
 
 private:
 
-    HKLIndex fftw_remap_index_real_to_complex(Vec<int,3> k, const Vec<int,3> &N);
+    void print_info();
 
-    std::vector<HKLIndex> generate_hkl_reciprocal_space_path(
-        const std::vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size);
+    void configure_kspace_paths(libconfig::Setting& settings);
+    void configure_form_factors(libconfig::Setting& settings);
 
-    void output_cross_section();
-    jams::MultiArray<Complex, 2> compute_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum);
-    jams::MultiArray<Complex, 3> compute_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations);
+    void store_kspace_data_on_path();
 
-    fftw_plan fft_plan_transform_to_reciprocal_space(
-        double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & num_sites);
-
+    void shift_periodogram_overlap();
     jams::MultiArray<Vec3cx,3> periodogram();
+    void output_neutron_cross_section();
 
-    fftw_plan fft_plan_to_qspace_ = nullptr;
+    std::vector<jams::HKLIndex> generate_hkl_kspace_path(
+        const std::vector<Vec3> &hkl_nodes, const Vec3i &kspace_size);
 
-    jams::MultiArray<Vec3cx, 4> sq_;
-    jams::MultiArray<Vec3cx, 3> sqw_;
-    jams::MultiArray<Complex, 2> total_unpolarized_cross_section_;
-    jams::MultiArray<Complex,3> total_polarized_cross_sections_;
+    jams::MultiArray<Complex, 2> calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum);
+    jams::MultiArray<Complex, 3> calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations);
 
-    jams::MultiArray<double, 2> form_factors_;
-    std::vector<HKLIndex> paths_;
-    std::vector<int> continuous_path_ranges_;
+    std::vector<jams::HKLIndex> kspace_paths_;
+    std::vector<int>            kspace_continuous_path_ranges_;
+    jams::MultiArray<Vec3cx,4>  kspace_spins_;
+    jams::MultiArray<Vec3cx,3>  kspace_spins_timeseries_;
+
+
+    jams::MultiArray<double, 2> neutron_form_factors_;
+    std::vector<Vec3>           neutron_polarizations_;
+    jams::MultiArray<Complex,2> total_unpolarized_neutron_cross_section_;
+    jams::MultiArray<Complex,3> total_polarized_neutron_cross_sections_;
+
     int num_t_samples_ = 0;
     double t_sample_ = 0.0;
-    std::vector<Vec3> polarizations_;
     double freq_delta_;
-    int periodogram_index_counter_;
-    int periodogram_counter_;
-    WelchParameters welch_params_;
+
+    jams::PeriodogramProps periodogram_props_;
+    int periodogram_index_ = 0;
+    int total_periods_ = 0;
+
 };
 
 #endif  // JAMS_MONITOR_NEUTRON_SCATTERING_H

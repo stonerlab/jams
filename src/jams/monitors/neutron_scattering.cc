@@ -7,6 +7,7 @@
 #include <numeric>
 #include <iomanip>
 
+#include "jams/core/solver.h"
 #include "jams/helpers/error.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
@@ -16,76 +17,286 @@
 
 using namespace std;
 using namespace jams;
+using libconfig::Setting;
 using Complex = std::complex<double>;
 
-class Solver;
-
-struct FormFactorParams {
-    double A, a, B, b, C, c, D; };
-
-struct FormFactorG {
-    double g0, g2, g4, g6; };
-
-struct FormFactorJ {
-    FormFactorParams j0, j2, j4, j6; };
-
 namespace jams {
+    struct FormFactorCoeff { double A, a, B, b, C, c, D; };
+    struct FormFactorG { double g0, g2, g4, g6; };
+    struct FormFactorJ { FormFactorCoeff j0, j2, j4, j6; };
+
     template<>
-    inline FormFactorParams config_required(const libconfig::Setting &s, const std::string &name) {
-      return {double{s[name][0]}, double{s[name][1]}, double{s[name][2]}, double{s[name][3]},
-              double{s[name][4]}, double{s[name][5]}, double{s[name][6]}};
+    inline FormFactorCoeff config_required(const Setting &s, const string &name) {
+      return FormFactorCoeff{double{s[name][0]}, double{s[name][1]}, double{s[name][2]}, double{s[name][3]},
+                             double{s[name][4]}, double{s[name][5]}, double{s[name][6]}};
     }
 
     template<>
-    inline FormFactorG config_required(const libconfig::Setting &s, const std::string &name) {
-      return {double{s[name][0]}, double{s[name][1]}, double{s[name][2]}, double{s[name][3]}};
+    inline FormFactorG config_required(const Setting &s, const string &name) {
+      return FormFactorG{double{s[name][0]}, double{s[name][1]}, double{s[name][2]}, double{s[name][3]}};
+    }
+
+    // Calculates the approximate neutron form factor at |q|
+    double form_factor(const Vec3 &q, const FormFactorG &g, const FormFactorJ &j) {
+      auto a = kMeterToAngstroms * lattice->parameter();
+      auto s = norm(q) / (4.0 * kPi * a);
+
+      // Approximation and constants from International Tables for Crystallography: Vol. C (pp. 454–461).
+      auto jls = [](const int &l, const double &s, const FormFactorCoeff &f) {
+          double p = (l == 0) ? 1.0 : s * s;
+          return p * (f.A * exp(-f.a * s * s) + f.B * exp(-f.b * s * s) + f.C * exp(-f.c * s * s) + f.D);
+      };
+
+      return 0.5 * (g.g0 * jls(0, s, j.j0) + g.g2 * jls(2, s, j.j2)
+                  + g.g4 * jls(4, s, j.j4) + g.g6 * jls(6, s, j.j6));
     }
 }
 
-double form_factor_jl(const int& l, const double& s, const FormFactorParams& f) {
-  if (f.A == 0.0 && f.B == 0.0 && f.C == 0.0 && f.D == 0.0) return 0.0;
+NeutronScatteringMonitor::NeutronScatteringMonitor(const Setting &settings)
+: Monitor(settings) {
 
-  double p, s2 = s * s;
-  (l == 0) ? p = 1.0 : p = s2;
+  periodogram_props_.sample_time = output_step_freq_ * solver->time_step();
+  t_sample_ = output_step_freq_ * solver->time_step();
+  num_t_samples_ = periodogram_props_.length;
+  freq_delta_ = 1.0 / (num_t_samples_ * periodogram_props_.sample_time);
 
-  return f.A * p * exp(-f.a * s2) + f.B * p * exp(-f.b * s2) + f.C * p * exp(-f.c * s2) + f.D * p;
+  auto kspace_size   = lattice->kspace_size();
+  auto num_sites     = lattice->num_motif_atoms();
+
+  configure_kspace_paths(settings["hkl_path"]);
+  configure_form_factors(settings["form_factor"]);
+
+  neutron_polarizations_ = {Vec3{0, 0, 1}, Vec3{0, 0, -1}};
+
+  zero(kspace_spins_.resize(kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_sites));
+  zero(kspace_spins_timeseries_.resize(num_sites, periodogram_props_.length, kspace_paths_.size()));
+  zero(total_polarized_neutron_cross_sections_.resize(neutron_polarizations_.size(),periodogram_props_.length, kspace_paths_.size()));
+  zero(total_unpolarized_neutron_cross_section_.resize(periodogram_props_.length, kspace_paths_.size()));
+
+  print_info();
 }
 
-double form_factor_q(const Vec3& q, const FormFactorG& g, const FormFactorJ& j) {
-  auto s = norm(q) / (4.0 * kPi * kMeterToAngstroms * lattice->parameter());
+void NeutronScatteringMonitor::update(Solver * solver) {
+  const auto num_sites = ::lattice->num_motif_atoms();
 
-  return  0.5 * ( g.g0 * form_factor_jl(0, s, j.j0) + g.g2 * form_factor_jl(2, s, j.j2)
-                + g.g4 * form_factor_jl(4, s, j.j4) + g.g6 * form_factor_jl(6, s, j.j6) );
+  fft_supercell_vector_field_to_kspace(globals::s, kspace_spins_, lattice->kspace_size(), num_sites);
+  store_kspace_data_on_path();
+  periodogram_index_++;
+
+  if (is_multiple_of(periodogram_index_, periodogram_props_.length)) {
+    // calculate periodogram
+    auto spectrum = periodogram();
+    shift_periodogram_overlap();
+    total_periods_++;
+
+    element_sum(total_unpolarized_neutron_cross_section_,
+                calculate_unpolarized_cross_section(spectrum));
+
+    if (!neutron_polarizations_.empty()) {
+      element_sum(total_polarized_neutron_cross_sections_,
+                  calculate_polarized_cross_sections(spectrum, neutron_polarizations_));
+    }
+
+    output_neutron_cross_section();
+  }
 }
+
+MultiArray<Vec3cx,3> NeutronScatteringMonitor::periodogram() {
+  MultiArray<Vec3cx,3> spectrum(kspace_spins_timeseries_);
+
+  const int num_sites         = spectrum.size(0);
+  const int num_time_samples  = spectrum.size(1);
+  const int num_space_samples = spectrum.size(2);
+
+  int rank = 1;
+  int transform_size[1] = {num_time_samples};
+  int num_transforms = num_space_samples * 3;
+  int nembed[1] = {num_time_samples};
+  int stride = num_space_samples * 3;
+  int dist = 1;
+
+  for (auto a = 0; a < num_sites; ++a) {
+    fftw_plan fft_plan = fftw_plan_many_dft(
+        rank, transform_size, num_transforms,
+        FFTW_COMPLEX_CAST(&spectrum(a,0,0)), nembed, stride, dist,
+        FFTW_COMPLEX_CAST(&spectrum(a,0,0)), nembed, stride, dist,
+        FFTW_BACKWARD, FFTW_ESTIMATE);
+
+    assert(fft_plan);
+
+    for (auto i = 0; i < num_time_samples; ++i) {
+      for (auto j = 0; j < num_space_samples; ++j) {
+        spectrum(a, i, j) *= fft_window_default(i, num_time_samples);
+      }
+    }
+
+    fftw_execute(fft_plan);
+    fftw_destroy_plan(fft_plan);
+  }
+
+  element_scale(spectrum, 1.0 / double(num_time_samples));
+
+  return spectrum;
+}
+
+void NeutronScatteringMonitor::output_neutron_cross_section() {
+  for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
+    std::ofstream ofs(seedname + "_neutron_scattering_path_" + to_string(n) + ".tsv");
+
+    ofs << "index\t" << "h\t" << "k\t" << "l\t" << "qx\t" << "qy\t" << "qz\t";
+    ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
+    for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
+      ofs << "sigma_pol" << to_string(k) << "_re\t";
+      ofs << "sigma_pol" << to_string(k) << "_im\t";
+    }
+    ofs << "\n";
+
+    auto format_int = [](ostream &os) -> ostream & { return os << fixed; };
+    auto format_fix = [](ostream &os) -> ostream & { return os << setprecision(8) << setw(12) << fixed;};
+    auto format_sci = [](ostream &os) -> ostream & { return os << setprecision(8) << setw(12) << scientific;};
+
+    // sample time is here because the fourier transform in time is not an integral
+    // but a discrete sum
+    double prefactor = t_sample_ * (1.0 / (kTwoPi * kHBar))
+                       * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
+
+    double barns_unitcell = prefactor / (1e-28 * lattice->num_cells());
+    const auto time_points = total_unpolarized_neutron_cross_section_.size(0);
+
+    auto path_begin = kspace_continuous_path_ranges_[n];
+    auto path_end = kspace_continuous_path_ranges_[n + 1];
+
+    // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
+    for (auto i = 0; i < (time_points / 2) + 1; ++i) {
+      for (auto j = path_begin; j < path_end; ++j) {
+        ofs << format_int << j << "\t";
+        ofs << format_fix << kspace_paths_[j].hkl << "\t";
+        ofs << format_fix << kspace_paths_[j].xyz << "\t";
+        ofs << format_fix << (i * freq_delta_ / 1e12) << "\t"; // THz
+        ofs << format_fix << (i * freq_delta_ / 1e12) * 4.135668 << "\t"; // meV
+        ofs << format_sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() / double(total_periods_) << "\t";
+        ofs << format_sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() / double(total_periods_) << "\t";
+        for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
+          ofs << format_sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() / double(total_periods_) << "\t";
+          ofs << format_sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() / double(total_periods_) << "\t";
+        }
+        ofs << "\n";
+      }
+      ofs << endl;
+    }
+
+    ofs.close();
+  }
+}
+
+void NeutronScatteringMonitor::configure_kspace_paths(Setting& settings) {
+  // hkl_path can be a simple list of nodes e.g.
+  //     hkl_path = ( [3.0, 3.0,-3.0], [ 5.0, 5.0,-5.0] );
+  // or a list of discontinuous paths e.g.
+  //    hkl_path = ( ([3.0, 3.0,-3.0], [ 5.0, 5.0,-5.0]),
+  //                 ([3.0, 3.0,-2.0], [ 5.0, 5.0,-4.0]));
+
+  if (!(settings[0].isList() || settings[0].isArray())) {
+    jams_die("hkl_nodes in neutron-scattering monitor must be a list or a group");
+  }
+
+  bool has_discontinuous_paths = settings[0].isList();
+
+  kspace_continuous_path_ranges_.push_back(0);
+
+  if (has_discontinuous_paths) {
+    for (auto n = 0; n < settings.getLength(); ++n) {
+      vector<Vec3> hkl_path_nodes(settings[n].getLength());
+      for (auto i = 0; i < settings[n].getLength(); ++i) {
+        hkl_path_nodes[i] = Vec3{settings[n][i][0], settings[n][i][1], settings[n][i][2]};
+      }
+
+      auto new_path = generate_hkl_kspace_path(hkl_path_nodes, lattice->kspace_size());
+      kspace_paths_.insert(end(kspace_paths_), begin(new_path), end(new_path));
+      kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + new_path.size());
+    }
+  } else {
+    vector<Vec3> hkl_path_nodes(settings.getLength());
+    for (auto i = 0; i < settings.getLength(); ++i) {
+      hkl_path_nodes[i] = Vec3{settings[i][0], settings[i][1], settings[i][2]};
+    }
+
+    kspace_paths_ = generate_hkl_kspace_path(hkl_path_nodes, lattice->kspace_size());
+    kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + kspace_paths_.size());
+  }
+}
+
+void NeutronScatteringMonitor::configure_form_factors(Setting &settings) {
+  auto num_sites     = lattice->num_motif_atoms();
+  auto num_materials = lattice->num_materials();
+
+  if (settings.getLength() != num_materials) {
+    jams_die("In NeutronScatteringMonitor there must be one form factor per material");
+  }
+
+  vector<FormFactorG> g_params(num_materials);
+  vector<FormFactorJ> j_params(num_materials);
+
+  for (auto i = 0; i < settings.getLength(); ++i) {
+    j_params[i].j0 = config_optional<FormFactorCoeff>(settings[i], "j0", j_params[i].j0);
+    j_params[i].j2 = config_optional<FormFactorCoeff>(settings[i], "j1", j_params[i].j2);
+    j_params[i].j4 = config_optional<FormFactorCoeff>(settings[i], "j2", j_params[i].j4);
+    j_params[i].j6 = config_optional<FormFactorCoeff>(settings[i], "j3", j_params[i].j6);
+    g_params[i] = config_required<FormFactorG>(settings[i], "g");
+  }
+
+  neutron_form_factors_.resize(num_sites, kspace_paths_.size());
+  for (auto a = 0; a < num_sites; ++a) {
+    for (auto i = 0; i < kspace_paths_.size(); ++i) {
+      auto m = lattice->motif_atom(a).material;
+      auto q = kspace_paths_[i].xyz;
+      neutron_form_factors_(a, i) = form_factor(q, g_params[m], j_params[m]);
+    }
+  }
+}
+
+void NeutronScatteringMonitor::print_info() {
+  cout << "\n";
+  cout << "  number of samples "          << periodogram_props_.length << "\n";
+  cout << "  sampling time (s) "          << output_step_freq_ * solver->time_step() << "\n";
+  cout << "  acquisition time (s) "       << periodogram_props_.sample_time * periodogram_props_.length << "\n";
+  cout << "  frequency resolution (THz) " << (1.0 / (num_t_samples_ * periodogram_props_.sample_time)) / kTHz << "\n";
+  cout << "  maximum frequency (THz) "    << (1.0 / (2.0 * periodogram_props_.sample_time)) / kTHz << "\n";
+  cout << "\n";
+}
+
 
 /**
- * Maps an index for an FFTW ordered array into the correct location and conjugation
+ * Generate a path between nodes in reciprocal space sampling the kspace discretely.
  *
- * FFTW real to complex (r2c) transforms only give N/2+1 outputs in the last dimensions
- * as all other values can be calculated by Hermitian symmetry. This function maps
- * the 3D array position of a set of general indicies (positive, negative, larger than
- * the fft_size) to the correct location and sets a bool as to whether the value must
- * be conjugated
- *
- * @tparam T
- * @param k general 3D indicies (positive, negative, larger than fft_size)
- * @param N logical dimensions of the fft
- * @return pair {T: remapped index, bool: do conjugate}
+ * @param hkl_nodes
+ * @param kspace_size
+ * @return
  */
-HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec3i k, const Vec3i &N) {
-  Vec3 hkl = scale(k, 1.0/to_double(N));
-  Vec3 xyz = lattice->get_unitcell().inverse_matrix() * hkl;
+vector<HKLIndex> NeutronScatteringMonitor::generate_hkl_kspace_path(const vector<Vec3> &hkl_nodes, const Vec3i &kspace_size) {
+  vector<HKLIndex> hkl_path;
+  for (auto n = 0; n < hkl_nodes.size()-1; ++n) {
+    Vec3i origin = to_int(scale(hkl_nodes[n], kspace_size));
+    Vec3i displacement = to_int(scale(hkl_nodes[n+1], kspace_size)) - origin;
+    Vec3i delta = normalize_components(displacement);
 
-  auto index = (k % N + N) % N;
+    // use +1 to include the last point on the displacement
+    const auto num_coordinates = abs_max(displacement) + 1;
 
-  if (index.back() < N.back()/2+1) {
-    // return normal index
-    return HKLIndex{hkl, xyz, index, false};
-  } else {
-    // return Hermitian conjugate
-    index = (-k % N + N) % N;
-    return HKLIndex{hkl, xyz, index, true};
+    Vec3i coordinate = origin;
+    for (auto i = 0; i < num_coordinates; ++i) {
+      // map an arbitrary coordinate into the limited k indicies of the reduced brillouin zone
+      Vec3 hkl = scale(coordinate, 1.0/to_double(kspace_size));
+      Vec3 xyz = lattice->get_unitcell().inverse_matrix() * hkl;
+      hkl_path.push_back(HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
+
+      coordinate += delta;
+    }
   }
+  // remove duplicates in the path where start and end indicies are the same at nodes
+  hkl_path.erase(unique(hkl_path.begin(), hkl_path.end()), hkl_path.end());
+
+  return hkl_path;
 }
 
 /**
@@ -100,35 +311,43 @@ HKLIndex NeutronScatteringMonitor::fftw_remap_index_real_to_complex(Vec3i k, con
  * @param hkl_indicies list of reciprocal space hkl indicies
  * @return
  */
-MultiArray<Complex, 2> NeutronScatteringMonitor::compute_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum) {
+
+MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_section(const MultiArray<Vec3cx, 3>& spectrum) {
   const auto num_sites = spectrum.size(0);
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
 
-  MultiArray<Complex, 2> convolved(num_freqencies, num_reciprocal_points);
-  convolved.zero();
+  MultiArray<Complex, 2> cross_section(num_freqencies, num_reciprocal_points);
+  cross_section.zero();
+
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      Vec3 r = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
+      Vec3 r_ab = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
+
       for (auto k = 0; k < num_reciprocal_points; ++k) {
-        auto q = paths_[k].hkl;
-        auto Q = unit_vector(paths_[k].xyz);
-        auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(a, k) * form_factors_(b, k);
+        auto kpoint = kspace_paths_[k];
+        auto Q = unit_vector(kpoint.xyz);
+        auto q = kpoint.hkl;
+        auto ff = neutron_form_factors_(a, k) * neutron_form_factors_(b, k);
+        // structure factor: note that q and r are in fractional coordinates (hkl, abc)
+        auto sf = exp(-kImagTwoPi * dot(q, r_ab));
 
         for (auto f = 0; f < num_freqencies; ++f) {
-          for (auto i : {0,1,2}) {
-            for (auto j : {0,1,2}) {
-              convolved(f, k) += prefactor * (kronecker_delta(i, j) - Q[i] * Q[j]) * conj(spectrum(a, f, k)[i]) * spectrum(b, f, k)[j];
+          auto s_a = conj(spectrum(a, f, k));
+          auto s_b = spectrum(b, f, k);
+          for (auto i : {0, 1, 2}) {
+            for (auto j : {0, 1, 2}) {
+              cross_section(f, k) += sf * ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * s_a[i] * s_b[j];
             }
           }
         }
       }
     }
   }
-  return convolved;
+  return cross_section;
 }
 
-jams::MultiArray<Complex, 3> NeutronScatteringMonitor::compute_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations) {
+MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const MultiArray<Vec3cx, 3>& spectrum, const vector<Vec3>& polarizations) {
   const auto num_sites = spectrum.size(0);
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
@@ -136,26 +355,29 @@ jams::MultiArray<Complex, 3> NeutronScatteringMonitor::compute_polarized_cross_s
   MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
 
-
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      const Vec3 r = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
+      const Vec3 r_ab = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
-        const auto q = paths_[k].hkl;
-        const auto Q = unit_vector(paths_[k].xyz);
-        const auto prefactor = exp(-kImagTwoPi * dot(q, r)) * form_factors_(a, k) * form_factors_(b, k);
-        // do convolution a[-w] * b[w] == conj(a[w]) * b[w]
-        for (auto f = 0; f < num_freqencies; ++f) {
-          for (auto p = 0; p < polarizations.size(); ++p) {
-            const Vec3 P = polarizations[p];
+        auto kpoint = kspace_paths_[k];
+        auto Q = unit_vector(kpoint.xyz);
+        auto q = kpoint.hkl;
+        auto ff = neutron_form_factors_(a, k) * neutron_form_factors_(b, k);
+        // structure factor: note that q and r are in fractional coordinates (hkl, abc)
+        auto sf = exp(-kImagTwoPi * dot(q, r_ab));
 
-            convolved(p, f, k) += prefactor * kImagOne * dot(P, cross(conj(spectrum(a, f, k)), spectrum(b, f, k)));
+        for (auto f = 0; f < num_freqencies; ++f) {
+          auto s_a = conj(spectrum(a, f, k));
+          auto s_b = spectrum(b, f, k);
+          for (auto p = 0; p < polarizations.size(); ++p) {
+            auto P = polarizations[p];
+            auto PxQ = cross(P, Q);
+
+            convolved(p, f, k) += sf * ff * kImagOne * dot(P, cross(s_a, s_b));
 
             for (auto i : {0, 1, 2}) {
               for (auto j : {0, 1, 2}) {
-                convolved(p, f, k) += kImagOne * prefactor * cross(P, Q)[i] * Q[j] * (
-                    conj(spectrum(a, f, k)[i]) * spectrum(b, f, k)[j] -
-                    conj(spectrum(a, f, k)[j]) * spectrum(b, f, k)[i]);
+                convolved(p, f, k) += kImagOne * sf * ff * PxQ[i] * Q[j] * ( s_a[i] * s_b[j] - s_a[j] * s_b[i]);
               }
             }
           }
@@ -164,370 +386,33 @@ jams::MultiArray<Complex, 3> NeutronScatteringMonitor::compute_polarized_cross_s
     }
   }
 
-
   return convolved;
 }
 
-
-/**
- * Generate a path between nodes in reciprocal space sampling the kspace discretely.
- *
- * @param hkl_nodes
- * @param reciprocal_space_size
- * @return
- */
-vector<HKLIndex> NeutronScatteringMonitor::generate_hkl_reciprocal_space_path(const vector<Vec3> &hkl_nodes, const Vec3i &reciprocal_space_size) {
-  vector<HKLIndex> hkl_path;
-  for (auto n = 0; n < hkl_nodes.size()-1; ++n) {
-    Vec3i origin = to_int(scale(hkl_nodes[n], reciprocal_space_size));
-    Vec3i displacement = to_int(scale(hkl_nodes[n+1], reciprocal_space_size)) - origin;
-    Vec3i delta = normalize_components(displacement);
-
-    // use +1 to include the last point on the displacement
-    const auto num_coordinates = abs_max(displacement) + 1;
-
-    Vec3i coordinate = origin;
-    for (auto i = 0; i < num_coordinates; ++i) {
-      // map an arbitrary coordinate into the limited k indicies of the reduced brillouin zone
-      hkl_path.push_back(
-          fftw_remap_index_real_to_complex(coordinate, reciprocal_space_size));
-
-      coordinate += delta;
-    }
-  }
-  // remove duplicates in the path where start and end indicies are the same at nodes
-  hkl_path.erase(std::unique(hkl_path.begin(), hkl_path.end()), hkl_path.end());
-
-  return hkl_path;
-}
-
-NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &settings)
-: Monitor(settings) {
-  using namespace globals;
-
-  periodogram_index_counter_ = 0;
-  periodogram_counter_ = 0;
-
-  libconfig::Setting &solver_settings = ::config->lookup("solver");
-
-  double t_step = solver_settings["t_step"];
-  double t_run = solver_settings["t_max"];
-
-  t_sample_ = output_step_freq_ * t_step;
-  num_t_samples_ = welch_params_.segment_size;
-  double freq_max = 1.0 / (2.0 * t_sample_);
-  freq_delta_ = 1.0 / (num_t_samples_ * t_sample_);
-
-  auto kspace_size = lattice->kspace_size();
-  auto num_sites = lattice->num_motif_atoms();
-  auto num_materials = lattice->num_materials();
-
-  cout << "\n";
-  cout << "  number of samples " << num_t_samples_ << "\n";
-  cout << "  sampling time (s) " << t_sample_ << "\n";
-  cout << "  acquisition time (s) " << t_sample_ * num_t_samples_ << "\n";
-  cout << "  frequency resolution (THz) " << freq_delta_ / kTHz << "\n";
-  cout << "  maximum frequency (THz) " << freq_max / kTHz << "\n";
-  cout << "\n";
-
-  // hkl_path can be a simple list of nodes e.g.
-  //     hkl_path = ( [3.0, 3.0,-3.0], [ 5.0, 5.0,-5.0] );
-  // or a list of discontinuous paths e.g.
-  //    hkl_path = ( ([3.0, 3.0,-3.0], [ 5.0, 5.0,-5.0]),
-  //                 ([3.0, 3.0,-2.0], [ 5.0, 5.0,-4.0]));
-
-  auto& cfg_nodes = settings["hkl_path"];
-
-  continuous_path_ranges_.push_back(0);
-  if (cfg_nodes[0].isArray()) {
-    vector<Vec3> hkl_path_nodes(cfg_nodes.getLength());
-    for (auto i = 0; i < cfg_nodes.getLength(); ++i) {
-      hkl_path_nodes[i] = Vec3{cfg_nodes[i][0], cfg_nodes[i][1], cfg_nodes[i][2]};
-    }
-
-    paths_ = generate_hkl_reciprocal_space_path(hkl_path_nodes, kspace_size);
-    continuous_path_ranges_.push_back(continuous_path_ranges_.back() + paths_.size());
-  }
-  else if (cfg_nodes[0].isList()) {
-    for (auto n = 0; n < cfg_nodes.getLength(); ++n) {
-      vector<Vec3> hkl_path_nodes(cfg_nodes[n].getLength());
-      for (auto i = 0; i < cfg_nodes.getLength(); ++i) {
-        hkl_path_nodes[i] = Vec3{cfg_nodes[n][i][0], cfg_nodes[n][i][1], cfg_nodes[n][i][2]};
+void NeutronScatteringMonitor::shift_periodogram_overlap() {
+  // shift overlap data to the start of the range
+  for (auto a = 0; a < kspace_spins_timeseries_.size(0); ++a) {
+    for (auto i = 0; i < periodogram_props_.overlap; ++i) {
+      for (auto j = 0; j < kspace_spins_timeseries_.size(2); ++j) {
+        kspace_spins_timeseries_(a, i, j) = kspace_spins_timeseries_(a, kspace_spins_timeseries_.size(1) - periodogram_props_.overlap + i, j);
       }
-
-      auto new_path = generate_hkl_reciprocal_space_path(hkl_path_nodes, kspace_size);
-
-      continuous_path_ranges_.push_back(continuous_path_ranges_.back() + new_path.size());
-
-      paths_.insert(end(paths_), begin(new_path), end(new_path));
     }
   }
-  else {
-    jams_die("hkl_nodes in neutron-scattering monitor must be a list or a group");
-  }
-
-  polarizations_ = {Vec3{0,0,1}, Vec3{0,0,-1}};
-
-  sq_.resize(kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_sites);
-  sqw_.resize(num_sites, welch_params_.segment_size, paths_.size());
-  sqw_.zero();
-
-  total_polarized_cross_sections_.resize(polarizations_.size(), welch_params_.segment_size, paths_.size());
-  total_polarized_cross_sections_.zero();
-
-  total_unpolarized_cross_section_.resize(welch_params_.segment_size, paths_.size());
-  total_unpolarized_cross_section_.zero();
-
-  auto& cfg_form_factors = settings["form_factor"];
-  if (cfg_form_factors.getLength() != num_materials) {
-    jams_die("In NeutronScatteringMonitor there must be one form factor per material");
-  }
-
-  vector<FormFactorG> g_params(num_materials);
-  vector<FormFactorJ> j_params(num_materials);
-
-  for (auto i = 0; i < cfg_form_factors.getLength(); ++i) {
-    j_params[i].j0 = config_optional<FormFactorParams>(cfg_form_factors[i], "j0", j_params[i].j0);
-    j_params[i].j2 = config_optional<FormFactorParams>(cfg_form_factors[i], "j1", j_params[i].j2);
-    j_params[i].j4 = config_optional<FormFactorParams>(cfg_form_factors[i], "j2", j_params[i].j4);
-    j_params[i].j6 = config_optional<FormFactorParams>(cfg_form_factors[i], "j3", j_params[i].j6);
-    g_params[i] = config_required<FormFactorG>(cfg_form_factors[i], "g");
-  }
-
-  form_factors_.resize(num_sites, paths_.size());
-
-  for (auto a = 0; a < num_sites; ++a) {
-    auto material = lattice->motif_atom(a).material;
-    for (auto i = 0; i < paths_.size(); ++i) {
-    Vec3 q = paths_[i].xyz;
-      form_factors_(a, i) = form_factor_q(q, g_params[material], j_params[material]);
-    }
-  }
-
-    /**
-     * @warning FFTW_PRESERVE_INPUT is not supported for r2c arrays
-     * http://www.fftw.org/doc/One_002dDimensional-DFTs-of-Real-Data.html
-     */
-  {
-    auto s_backup(globals::s);
-
-    fft_plan_to_qspace_ =
-        fft_plan_transform_to_reciprocal_space(globals::s.data(), reinterpret_cast<Complex*>(sq_.data()), kspace_size, num_sites);
-
-    globals::s = s_backup;
-  }
+  // put the pointer to the overlap position
+  periodogram_index_ = periodogram_props_.overlap;
 }
 
-void NeutronScatteringMonitor::update(Solver * solver) {
-  using namespace globals;
-  assert(fft_plan_to_qspace_ != nullptr);
-  assert(sq_.elements() > 0);
-
-  const auto kspace_size = lattice->kspace_size();
-  const auto num_sites = ::lattice->num_motif_atoms();
-
-  /**
-   * @warning fftw_execute doesn't call s.data() so the CPU and GPU memory don't sync
-   * we must force them to sync manually
-   */
-  force_multiarray_sync(globals::s);
-
-  fftw_execute(fft_plan_to_qspace_);
-
-  std::transform(sq_.begin(), sq_.end(), sq_.begin(),
-      [kspace_size](const Vec3cx &a) { return a / sqrt(product(kspace_size)); });
-
-
-  const int welch_segment_index = periodogram_index_counter_;
-
-  for (auto a = 0; a < num_sites; ++a) {
-
-    for (auto k = 0; k < paths_.size(); ++k) {
-    auto idx = paths_[k].index;
-      if (paths_[k].conjugate) {
-        sqw_(a,welch_segment_index, k) = conj(sq_(idx[0], idx[1], idx[2], a));
+void NeutronScatteringMonitor::store_kspace_data_on_path() {
+  for (auto a = 0; a < kspace_spins_.size(3); ++a) {
+    for (auto k = 0; k < kspace_paths_.size(); ++k) {
+      auto kindex = kspace_paths_[k].index;
+      auto i = periodogram_index_;
+      auto idx = kindex.offset;
+      if (kindex.conj) {
+        kspace_spins_timeseries_(a, i, k) = conj(kspace_spins_(idx[0], idx[1], idx[2], a));
       } else {
-        sqw_(a,welch_segment_index, k) = sq_(idx[0], idx[1], idx[2], a);
+        kspace_spins_timeseries_(a, i, k) = kspace_spins_(idx[0], idx[1], idx[2], a);
       }
     }
-  }
-
-  periodogram_index_counter_++;
-
-  if (periodogram_index_counter_ % welch_params_.segment_size == 0) {
-    // calculate periodogram
-    auto spectrum = periodogram();
-    periodogram_counter_++;
-
-    auto unpolarized_cross_section = compute_unpolarized_cross_section(spectrum);
-
-    std::transform(unpolarized_cross_section.begin(), unpolarized_cross_section.end(),
-        total_unpolarized_cross_section_.begin(), total_unpolarized_cross_section_.begin(),
-                   [](const Complex&x, const Complex &y) -> Complex { return x + y; });
-
-    auto polarized_cross_sections = compute_polarized_cross_sections(spectrum, polarizations_);
-
-    std::transform(polarized_cross_sections.begin(), polarized_cross_sections.end(),
-                   total_polarized_cross_sections_.begin(), total_polarized_cross_sections_.begin(),
-                   [](const Complex&x, const Complex &y) -> Complex { return x + y; });
-
-    output_cross_section();
-
-    // shift overlap data to the start of the range
-    for (auto a = 0; a < num_sites; ++a) {
-      for (auto i = 0; i < welch_params_.overlap; ++i) {
-        for (auto j = 0; j < paths_.size(); ++j) {
-          sqw_(a, i, j) = sqw_(a, sqw_.size(1) - welch_params_.overlap + i, j);
-        }
-      }
-    }
-
-    // put the pointer to the overlap position
-    periodogram_index_counter_ = welch_params_.overlap;
-  }
-}
-
-fftw_plan NeutronScatteringMonitor::fft_plan_transform_to_reciprocal_space(double * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & num_sites) {
-  assert(rspace != nullptr);
-  assert(kspace != nullptr);
-  assert(sum(kspace_size) > 0);
-
-  int rank              = 3;
-  int transform_size[3] = {kspace_size[0], kspace_size[1], kspace_size[2]};
-  int num_transforms    = 3 * num_sites;
-  int *nembed           = nullptr;
-  int stride            = 3 * num_sites;
-  int dist              = 1;
-
-  /**
-   * @warning FFTW_PRESERVE_INPUT is not supported for r2c arrays
-   * http://www.fftw.org/doc/One_002dDimensional-DFTs-of-Real-Data.html
-   */
-  auto plan = fftw_plan_many_dft_r2c(
-      rank, transform_size, num_transforms,
-      rspace, nembed, stride, dist,
-      FFTW_COMPLEX_CAST(kspace), nembed, stride, dist,
-      FFTW_MEASURE);
-
-  if (plan == NULL) {
-    throw std::runtime_error("FFTW plan failed for NeutronScatteringMonitor");
-  }
-
-  return plan;
-}
-
-jams::MultiArray<Vec3cx,3> NeutronScatteringMonitor::periodogram() {
-  jams::MultiArray<Vec3cx,3> spectrum(sqw_);
-
-  const int num_sites         = spectrum.size(0);
-  const int num_time_samples  = spectrum.size(1);
-  const int num_space_samples = spectrum.size(2);
-
-  // spectrum(sites, time, space, 3)
-
-  for (auto a = 0; a < num_sites; ++a) {
-
-    int rank = 1;
-    int transform_size[1] = {num_time_samples};
-    int num_transforms = num_space_samples * 3;
-    int nembed[] = {num_time_samples};
-    int stride = num_space_samples * 3;
-    int dist = 1;
-
-    fftw_plan fft_plan = fftw_plan_many_dft(
-        rank, transform_size, num_transforms,
-        FFTW_COMPLEX_CAST(&spectrum(a,0,0)[0]), nembed, stride, dist,
-        FFTW_COMPLEX_CAST(&spectrum(a,0,0)[0]), nembed, stride, dist,
-        FFTW_BACKWARD, FFTW_ESTIMATE);
-
-    assert(fft_plan);
-
-    // window the data and normalize
-    for (auto i = 0; i < num_time_samples; ++i) {
-      for (auto j = 0; j < num_space_samples; ++j) {
-        spectrum(a, i, j) *= fft_window_default(i, num_time_samples) / double(num_time_samples);
-      }
-    }
-
-    fftw_execute(fft_plan);
-    fftw_destroy_plan(fft_plan);
-  }
-  return spectrum;
-}
-
-void NeutronScatteringMonitor::output_cross_section() {
-  const auto time_points = total_unpolarized_cross_section_.size(0);
-
-  for (auto n = 0; n < continuous_path_ranges_.size()-1; ++n) {
-
-    auto path_begin_idx = continuous_path_ranges_[n];
-    auto path_end_idx = continuous_path_ranges_[n+1];
-
-    std::ofstream sqwfile(seedname + "_neutron_scattering_path_" + to_string(n) + ".tsv");
-
-    sqwfile << "index\t";
-    sqwfile << "h\t";
-    sqwfile << "k\t";
-    sqwfile << "l\t";
-    sqwfile << "qx\t";
-    sqwfile << "qy\t";
-    sqwfile << "qz\t";
-    sqwfile << "freq_THz\t";
-    sqwfile << "energy_meV\t";
-    sqwfile << "sigma_unpol_re\t";
-    sqwfile << "sigma_unpol_im\t";
-    for (auto k = 0; k < total_polarized_cross_sections_.size(0); ++k) {
-      sqwfile << "sigma_pol" << to_string(k) << "_re\t";
-      sqwfile << "sigma_pol" << to_string(k) << "_im\t";
-    }
-    sqwfile << "\n";
-
-
-    auto format_int = [](ostream &os) -> ostream & {
-        return os << std::fixed;
-    };
-
-    auto format_fix = [](ostream &os) -> ostream & {
-        return os << std::setprecision(8) << std::setw(12) << std::fixed;
-    };
-
-    auto format_sci = [](ostream &os) -> ostream & {
-        return os << std::setprecision(8) << std::setw(12) << std::scientific;
-    };
-
-    // sample time is here because the fourier transform in time is not an integral
-    // but a discrete sum
-    double si_prefactor = t_sample_ * (1.0 / (kTwoPi * kHBar))
-                       * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
-
-    double barns_unitcell = si_prefactor / (1e-28 * lattice->num_cells());
-
-    // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-    for (auto i = 0; i < (time_points / 2) + 1; ++i) {
-      for (auto j = path_begin_idx; j < path_end_idx; ++j) {
-        sqwfile << format_int << j << "\t";
-        sqwfile << format_fix << paths_[j].hkl << "\t";
-        sqwfile << format_fix << paths_[j].xyz << "\t";
-        sqwfile << format_fix << (i * freq_delta_ / 1e12) << "\t"; // THz
-        sqwfile << format_fix << (i * freq_delta_ / 1e12) * 4.135668 << "\t"; // meV
-        sqwfile << format_sci << barns_unitcell * total_unpolarized_cross_section_(i, j).real() / double(periodogram_counter_) << "\t";
-        sqwfile << format_sci << barns_unitcell * total_unpolarized_cross_section_(i, j).imag() / double(periodogram_counter_) << "\t";
-        for (auto k = 0; k < total_polarized_cross_sections_.size(0); ++k) {
-          sqwfile << format_sci << barns_unitcell * total_polarized_cross_sections_(k, i, j).real() / double(periodogram_counter_) << "\t";
-          sqwfile << format_sci << barns_unitcell * total_polarized_cross_sections_(k, i, j).imag() / double(periodogram_counter_) << "\t";
-        }
-        sqwfile << "\n";
-      }
-      sqwfile << std::endl;
-    }
-
-    sqwfile.close();
-  }
-}
-
-NeutronScatteringMonitor::~NeutronScatteringMonitor() {
-  if (fft_plan_to_qspace_) {
-    fftw_destroy_plan(fft_plan_to_qspace_);
-    fft_plan_to_qspace_ = nullptr;
   }
 }
