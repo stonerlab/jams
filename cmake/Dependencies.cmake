@@ -50,15 +50,13 @@ if (JAMS_BUILD_CUDA)
 
 endif()
 
-
 find_package(MKL QUIET)
 
 # -- FFTW
-add_library(fftw3 INTERFACE)
+add_library(fftw3 INTERFACE IMPORTED)
 if(MKL_FOUND)
     set_property(TARGET fftw3 PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCLUDE_DIR})
     set_property(TARGET fftw3 PROPERTY INTERFACE_LINK_LIBRARIES ${MKL_LIBRARIES})
-    target_compile_definitions(fftw3 INTERFACE HAS_MKL=1)
 else()
     find_package(FFTW3 QUIET REQUIRED)
     set_property(TARGET fftw3 PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCLUDE_DIR})
@@ -66,11 +64,10 @@ else()
 endif(MKL_FOUND)
 
 # -- BLAS
-add_library(cblas INTERFACE)
+add_library(cblas INTERFACE IMPORTED)
 if(MKL_FOUND)
     set_property(TARGET cblas PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${MKL_INCLUDE_DIR})
     set_property(TARGET cblas PROPERTY INTERFACE_LINK_LIBRARIES ${MKL_LIBRARIES})
-    target_compile_definitions(cblas INTERFACE HAS_MKL=1)
 else()
     find_package(BLAS REQUIRED)
     set_property(TARGET cblas PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${BLAS_INCLUDE_DIR})
