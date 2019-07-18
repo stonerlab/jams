@@ -54,8 +54,7 @@ public:
     using const_pointer   = const value_type*;
     using size_type       = std::size_t;
 
-    enum class SyncStatus {
-        UNINITIALIZED, SYNCHRONIZED, DEVICE_IS_MUTATED, HOST_IS_MUTATED };
+    enum class SyncStatus { UNINITIALIZED, SYNCHRONIZED, DEVICE_IS_MUTATED, HOST_IS_MUTATED };
 
     SyncedMemory() = default;
 
@@ -64,18 +63,46 @@ public:
       free_device_memory();
     }
 
-    // disallow copy constructor
-    SyncedMemory(const SyncedMemory&) = delete;
+    SyncedMemory(const SyncedMemory& other) {
+      copy_from(other);
+    }
 
-    // disallow assignment operator
-    SyncedMemory& operator=(const SyncedMemory&) = delete;
+    SyncedMemory(SyncedMemory&& other) noexcept
+    : sync_status_(std::move(other.sync_status_)),
+      size_(std::move(other.size_)),
+      host_ptr_(std::move(other.host_ptr_)),
+      device_ptr_(std::move(other.device_ptr_)) {}
+
+    SyncedMemory& operator=(const SyncedMemory& other) {
+      if (this == &other) return *this;
+      copy_from(other);
+      return *this;
+    }
+
+    SyncedMemory& operator=(SyncedMemory&& other) noexcept {
+      sync_status_ = std::move(other.sync_status_);
+      size_ = std::move(other.size_);
+      host_ptr_ = std::move(other.host_ptr_);
+      device_ptr_ = std::move(other.device_ptr_);
+      return *this;
+    }
+
+//    // disallow copy constructor
+//    SyncedMemory(const SyncedMemory&) = delete;
+//
+//    // disallow assignment operator
+//    SyncedMemory& operator=(const SyncedMemory&) = delete;
 
     // construct for a given size
     inline explicit SyncedMemory(size_type size) : size_(size) {}
 
     // construct for a given size and initial value
     inline SyncedMemory(size_type size, const T& x) : size_(size) {
-      std::fill(mutable_host_data(), mutable_host_data() + size_, x);
+      if (x == T{0}) {
+        zero();
+      } else {
+        std::fill(mutable_host_data(), mutable_host_data() + size_, x);
+      }
     }
 
     // get size of data

@@ -34,7 +34,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
     s_transform_(i) = lattice->material(lattice->atom_material_id(i)).transform;
   }
 
-  material_count_.resize(lattice->num_materials(), 0);
+  zero(material_count_.resize(lattice->num_materials()));
   for (auto i = 0; i < num_spins; ++i) {
     material_count_(lattice->atom_material_id(i))++;
   }

@@ -84,16 +84,16 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    num_warm_up_steps_ = static_cast<unsigned>(t_warmup / dt_thermostat);
 
 
-  zeta5_.resize(num_spins * 3, 0.0);
-  zeta5p_.resize(num_spins * 3, 0.0);
-  zeta6_.resize(num_spins * 3, 0.0);
-  zeta6p_.resize(num_spins * 3, 0.0);
-  eta1a_.resize(2 * num_spins * 3, 0.0);
-  eta1b_.resize(2 * num_spins * 3, 0.0);
+  zero(zeta5_.resize(num_spins * 3));
+  zero(zeta5p_.resize(num_spins * 3));
+  zero(zeta6_.resize(num_spins * 3));
+  zero(zeta6p_.resize(num_spins * 3));
+  zero(eta1a_.resize(2 * num_spins * 3));
+  zero(eta1b_.resize(2 * num_spins * 3));
 
   if (do_zero_point_) {
-    zeta0_.resize(4 * num_spins * 3, 0.0);
-    eta0_.resize(4 * num_spins * 3, 0.0);
+    zero(zeta0_.resize(4 * num_spins * 3));
+    zero(eta0_.resize(4 * num_spins * 3));
   }
 }
 

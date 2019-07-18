@@ -61,7 +61,8 @@ namespace jams {
 
         template<std::size_t N>
         struct arg_indices<N, 1> {
-            static constexpr std::size_t row_major(const std::array<std::size_t, N> &dims, const std::size_t &v) {
+            static constexpr std::size_t
+            row_major(const std::array<std::size_t, N> &dims, const std::size_t &v) {
               return v;
             }
         };
@@ -83,7 +84,8 @@ namespace jams {
         };
 
         template<std::size_t N, typename... Args>
-        constexpr std::size_t row_major_index(const std::array<std::size_t, N> &dims, const Args &... args) {
+        constexpr std::size_t
+        row_major_index(const std::array<std::size_t, N> &dims, const Args &... args) {
           return arg_indices<N, N>::row_major(dims, args...);
         }
 
@@ -130,11 +132,28 @@ namespace jams {
           data_.copy_from(other.data_);
         }
 
+        MultiArray(MultiArray&& other) noexcept
+        : size_(std::move(other.size_)), data_(std::move(other.data_)) {}
+
+        MultiArray& operator=(MultiArray&& other) noexcept {
+          size_ = std::move(other.size_);
+          data_ = std::move(other.data_);
+          return *this;
+        }
+
         // construct using dimensions as arguments
         template<typename... Args>
         inline explicit MultiArray(const Args... args):
             size_({static_cast<size_type>(args)...}),
             data_(detail::product(static_cast<size_type>(args)...)) {
+          static_assert(sizeof...(args) == Dim_,
+                        "number of MultiArray indicies in constructor does not match the MultiArray dimension");
+        }
+
+        template<typename... Args>
+        inline explicit MultiArray(const Args... args, const value_type& x):
+            size_({static_cast<size_type>(args)...}),
+            data_(detail::product(static_cast<size_type>(args)...), x) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
@@ -145,9 +164,8 @@ namespace jams {
             size_(detail::array_cast<size_type>(v)),
             data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v))) {}
 
-        // construct using dimensions in array and initial value
         template <typename U>
-        inline explicit MultiArray(const std::array<U, Dim_> &v, const Tp_ &x) :
+        inline explicit MultiArray(const std::array<U, Dim_> &v, const value_type& x) :
             size_(detail::array_cast<size_type>(v)),
             data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v)), x) {}
 
@@ -182,6 +200,10 @@ namespace jams {
 
         // operations
         inline void fill(const value_type &value) {
+          if (value == Tp_(0)) {
+            zero();
+            return;
+          }
           std::fill(data_.mutable_host_data(), data_.mutable_host_data() + data_.size(), value);
         }
 
@@ -277,16 +299,18 @@ namespace jams {
         }
 
         template<typename... Args>
-        inline void resize(const Args &... args) {
+        inline MultiArray& resize(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in resize does not match the MultiArray dimension");
           size_ = {static_cast<size_type>(args)...},
           data_.resize(detail::product(static_cast<size_type>(args)...));
+          return *this;
         }
 
-        inline void resize(const std::array<size_type, Dim_> &v) {
+        inline MultiArray& resize(const std::array<size_type, Dim_> &v) {
           size_ = v;
           data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(v));
+          return *this;
         }
 
     private:
@@ -321,13 +345,22 @@ namespace jams {
           data_.copy_from(other.data_);
         }
 
+        MultiArray(MultiArray&& other) noexcept
+            : size_(std::move(other.size_)), data_(std::move(other.data_)) {}
+
+        MultiArray& operator=(MultiArray&& other) noexcept {
+          size_ = std::move(other.size_);
+          data_ = std::move(other.data_);
+          return *this;
+        }
+
         inline explicit MultiArray(size_type size):
             size_({size}),
             data_(size) {}
 
         inline explicit MultiArray(size_type size, const Tp_& x):
             size_({size}),
-            data_(size) { fill(x); }
+            data_(size, x) {}
 
         template <typename U>
         inline explicit MultiArray(const std::array<U, 1> &v) :
@@ -337,7 +370,7 @@ namespace jams {
         template <typename U>
         inline explicit MultiArray(const std::array<U, 1> &v, const Tp_& x) :
             size_(detail::array_cast<size_type>(v)),
-            data_(std::get<0>(v)) { fill(x); }
+            data_(std::get<0>(v), x) {}
 
         // capacity
         inline constexpr bool empty() const noexcept {
@@ -466,20 +499,16 @@ namespace jams {
           data_.zero();
         }
 
-        inline void resize( size_type count ) {
+        inline MultiArray& resize( size_type count ) {
           std::get<0>(size_) = count;
           data_.resize(count);
+          return *this;
         }
 
-        inline void resize( size_type count, const value_type& value ) {
-          std::get<0>(size_) = count;
-          data_.resize(count);
-          fill(value);
-        }
-
-        inline void resize(const std::array<size_type, 1> &v) {
+        inline MultiArray& resize(const std::array<size_type, 1> &v) {
           size_ = v;
           data_.resize(std::get<0>(v));
+          return *this;
         }
 
     private:
@@ -493,6 +522,17 @@ namespace jams {
     template <typename T, std::size_t N>
     inline void force_multiarray_sync(const MultiArray<T,N> & x) {
       volatile const auto sync_data = x.data();
+    }
+
+    // allows simple zero(x.resize(a,b,c))
+    template<class FTp_, std::size_t FDim_, class FIdx_>
+    void zero(MultiArray<FTp_, FDim_, FIdx_>& x) {
+      x.zero();
+    }
+
+    template<class FTp_, std::size_t FDim_, class FIdx_>
+    void fill(MultiArray<FTp_, FDim_, FIdx_>& x, const FTp_& y) {
+      x.fill(y);
     }
 
     template<class FTp_, std::size_t FDim_, class FIdx_>
