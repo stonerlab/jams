@@ -29,8 +29,6 @@ namespace jams {
         int length    = 1000;
         int overlap    = 500;
         double sample_time  = 1.0;
-        double sample_frequency() {return 1.0 / (length * sample_time);}
-        double max_frequency() {return 1.0 / (2.0 * sample_time);}
     };
 }
 
@@ -68,6 +66,8 @@ private:
 
     void configure_kspace_paths(libconfig::Setting& settings);
     void configure_form_factors(libconfig::Setting& settings);
+    void configure_polarizations(libconfig::Setting& settings);
+    void configure_periodogram(libconfig::Setting& settings);
 
     void store_kspace_data_on_path();
 
@@ -86,15 +86,10 @@ private:
     jams::MultiArray<Vec3cx,4>  kspace_spins_;
     jams::MultiArray<Vec3cx,3>  kspace_spins_timeseries_;
 
-
     jams::MultiArray<double, 2> neutron_form_factors_;
     std::vector<Vec3>           neutron_polarizations_;
     jams::MultiArray<Complex,2> total_unpolarized_neutron_cross_section_;
     jams::MultiArray<Complex,3> total_polarized_neutron_cross_sections_;
-
-    int num_t_samples_ = 0;
-    double t_sample_ = 0.0;
-    double freq_delta_;
 
     jams::PeriodogramProps periodogram_props_;
     int periodogram_index_ = 0;

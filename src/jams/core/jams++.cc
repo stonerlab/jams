@@ -169,7 +169,7 @@ void jams_initialize(int argc, char **argv) {
     jams_die("%s", gex.what());
   }
   catch (std::exception& e) {
-    jams_die("exception: %s", e.what());
+    jams_die("%s", e.what());
   }
   catch(...) {
     jams_die("Caught an unknown exception");
@@ -221,7 +221,7 @@ void jams_run() {
     jams_die("%s", gex.what());
   }
   catch (std::exception& e) {
-    jams_die("exception: %s", e.what());
+    jams_die("%s", e.what());
   }
   catch(...) {
     jams_die("Caught an unknown exception");
