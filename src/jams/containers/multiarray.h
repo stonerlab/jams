@@ -135,6 +135,13 @@ namespace jams {
         MultiArray(MultiArray&& other) noexcept
         : size_(std::move(other.size_)), data_(std::move(other.data_)) {}
 
+        MultiArray& operator=(const MultiArray& other) {
+          if (this == &other) return *this;
+          size_ = other.size_;
+          data_.copy_from(other.data_);
+          return *this;
+        }
+
         MultiArray& operator=(MultiArray&& other) noexcept {
           size_ = std::move(other.size_);
           data_ = std::move(other.data_);
@@ -225,19 +232,6 @@ namespace jams {
         inline const_reference operator()(const std::array<size_type, Dim_> &v) const {
           assert(!empty());
           return data_.const_host_data()[detail::row_major_index(size_, v)];
-        }
-
-        inline MultiArray& operator=(const MultiArray& other) {
-          if (this == &other) return *this;
-
-          if (size_ != other.size_) {
-            size_ = other.size_;
-            data_.resize(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(other.size_));
-          }
-
-          data_.copy_from(other.data_);
-
-          return *this;
         }
 
         inline pointer data() noexcept {
@@ -349,6 +343,13 @@ namespace jams {
         MultiArray(MultiArray&& other) noexcept
             : size_(std::move(other.size_)), data_(std::move(other.data_)) {}
 
+        MultiArray& operator=(const MultiArray& other) {
+          if (this == &other) return *this;
+          size_ = other.size_;
+          data_.copy_from(other.data_);
+          return *this;
+        }
+
         MultiArray& operator=(MultiArray&& other) noexcept {
           size_ = std::move(other.size_);
           data_ = std::move(other.data_);
@@ -427,19 +428,6 @@ namespace jams {
         inline const_reference operator()(const std::array<size_type, 1> &v) const {
           assert(!empty() && std::get<0>(v) < data_.size());
           return data_.const_host_data()[std::get<0>(v)];
-        }
-
-        inline MultiArray& operator=(const MultiArray& other) {
-          if (this == &other) return *this;
-
-          if (size_ != other.size_) {
-            size_ = other.size_;
-            data_.resize(detail::vec<std::size_t, 1, 1>::last_n_product(other.size_));
-          }
-
-          data_.copy_from(other.data_);
-
-          return *this;
         }
 
         inline pointer data() noexcept {
