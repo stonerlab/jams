@@ -67,31 +67,38 @@ public:
       copy_from(other);
     }
 
+    // move constructor
     SyncedMemory(SyncedMemory&& other) noexcept
     : sync_status_(std::move(other.sync_status_)),
       size_(std::move(other.size_)),
       host_ptr_(std::move(other.host_ptr_)),
-      device_ptr_(std::move(other.device_ptr_)) {}
+      device_ptr_(std::move(other.device_ptr_)) {
+      other.sync_status_ = SyncStatus::UNINITIALIZED;
+      other.size_ = 0;
+      other.host_ptr_ = nullptr;
+      other.device_ptr_ = nullptr;
+    }
 
+    // copy assign
     SyncedMemory& operator=(const SyncedMemory& other) {
       if (this == &other) return *this;
       copy_from(other);
       return *this;
     }
 
+    // move assign
     SyncedMemory& operator=(SyncedMemory&& other) noexcept {
       sync_status_ = std::move(other.sync_status_);
+      other.sync_status_ = SyncStatus::UNINITIALIZED;
       size_ = std::move(other.size_);
+      other.size_ = 0;
       host_ptr_ = std::move(other.host_ptr_);
+      other.host_ptr_ = nullptr;
       device_ptr_ = std::move(other.device_ptr_);
+      other.device_ptr_ = nullptr;
+
       return *this;
     }
-
-//    // disallow copy constructor
-//    SyncedMemory(const SyncedMemory&) = delete;
-//
-//    // disallow assignment operator
-//    SyncedMemory& operator=(const SyncedMemory&) = delete;
 
     // construct for a given size
     inline explicit SyncedMemory(size_type size) : size_(size) {}
