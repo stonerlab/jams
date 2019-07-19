@@ -54,8 +54,7 @@ public:
     using const_pointer   = const value_type*;
     using size_type       = std::size_t;
 
-    enum class SyncStatus {
-        UNINITIALIZED, SYNCHRONIZED, DEVICE_IS_MUTATED, HOST_IS_MUTATED };
+    enum class SyncStatus { UNINITIALIZED, SYNCHRONIZED, DEVICE_IS_MUTATED, HOST_IS_MUTATED };
 
     SyncedMemory() = default;
 
@@ -64,18 +63,53 @@ public:
       free_device_memory();
     }
 
-    // disallow copy constructor
-    SyncedMemory(const SyncedMemory&) = delete;
+    SyncedMemory(const SyncedMemory& other) {
+      copy_from(other);
+    }
 
-    // disallow assignment operator
-    SyncedMemory& operator=(const SyncedMemory&) = delete;
+    // move constructor
+    SyncedMemory(SyncedMemory&& other) noexcept
+    : sync_status_(std::move(other.sync_status_)),
+      size_(std::move(other.size_)),
+      host_ptr_(std::move(other.host_ptr_)),
+      device_ptr_(std::move(other.device_ptr_)) {
+      other.sync_status_ = SyncStatus::UNINITIALIZED;
+      other.size_ = 0;
+      other.host_ptr_ = nullptr;
+      other.device_ptr_ = nullptr;
+    }
+
+    // copy assign
+    SyncedMemory& operator=(const SyncedMemory& other) {
+      if (this == &other) return *this;
+      copy_from(other);
+      return *this;
+    }
+
+    // move assign
+    SyncedMemory& operator=(SyncedMemory&& other) noexcept {
+      sync_status_ = std::move(other.sync_status_);
+      other.sync_status_ = SyncStatus::UNINITIALIZED;
+      size_ = std::move(other.size_);
+      other.size_ = 0;
+      host_ptr_ = std::move(other.host_ptr_);
+      other.host_ptr_ = nullptr;
+      device_ptr_ = std::move(other.device_ptr_);
+      other.device_ptr_ = nullptr;
+
+      return *this;
+    }
 
     // construct for a given size
     inline explicit SyncedMemory(size_type size) : size_(size) {}
 
     // construct for a given size and initial value
     inline SyncedMemory(size_type size, const T& x) : size_(size) {
-      std::fill(mutable_host_data(), mutable_host_data() + size_, x);
+      if (x == T{0}) {
+        zero();
+      } else {
+        std::fill(mutable_host_data(), mutable_host_data() + size_, x);
+      }
     }
 
     // get size of data
@@ -121,7 +155,6 @@ private:
 
     // set device data to zero
     inline void zero_device();
-
     // set host data to zero
     inline void zero_host();
 
@@ -296,6 +329,9 @@ inline void SyncedMemory<T>::zero_host() {
 
 template<class T>
 void SyncedMemory<T>::zero() {
+  if (!host_ptr_ && !device_ptr_) {
+    allocate_host_memory(size_);
+  }
   if (host_ptr_) {
     zero_host();
     sync_status_ = SyncStatus::HOST_IS_MUTATED;
@@ -437,7 +473,6 @@ void SyncedMemory<T>::copy_from(const SyncedMemory<T>& other) {
 
   sync_status_ = other.sync_status_;
 }
-
 
 } // namespace jams
 

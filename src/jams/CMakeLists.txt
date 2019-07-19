@@ -12,6 +12,10 @@ foreach(TGT fftw3 cblas pcg symspg_static config++ hdf5 HighFive)
     target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
 endforeach()
 
+if (MKL_FOUND)
+    target_compile_definitions(jams_object_lib PRIVATE HAS_MKL=1)
+endif()
+
 if(JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
     target_compile_definitions(jams_object_lib PRIVATE HAS_OMP=1)
     target_compile_options(jams_object_lib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)

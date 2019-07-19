@@ -121,3 +121,56 @@ fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<
           FFTW_FORWARD,
           FFTW_PATIENT | FFTW_PRESERVE_INPUT);
 }
+
+void fft_supercell_vector_field_to_kspace(jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
+  assert(rspace_data.elements() == 3 * num_sites * product(kspace_size));
+
+  kspace_data.resize(kspace_size[0], kspace_size[1], kspace_size[2]/2 + 1, num_sites);
+
+  int rank              = 3;
+  int transform_size[3] = {kspace_size[0], kspace_size[1], kspace_size[2]};
+  int num_transforms    = 3 * num_sites;
+  int *nembed           = nullptr;
+  int stride            = 3 * num_sites;
+  int dist              = 1;
+
+  // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
+  auto plan = fftw_plan_many_dft_r2c(
+      rank, transform_size, num_transforms,
+      rspace_data.begin(), nembed, stride, dist,
+      FFTW_COMPLEX_CAST(kspace_data.begin()), nembed, stride, dist,
+      FFTW_ESTIMATE);
+
+  assert(plan);
+  fftw_execute(plan);
+  fftw_destroy_plan(plan);
+
+  element_scale(kspace_data, 1.0/sqrt(product(lattice->kspace_size())));
+}
+
+void fft_supercell_scalar_field_to_kspace(jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
+  assert(rspace_data.elements() == product(kspace_size));
+
+  // assuming this is not a costly operation because .resize() already checks if it is the same size
+  kspace_data.resize(kspace_size[0], kspace_size[1], kspace_size[2]/2 + 1, num_sites);
+
+  int rank              = 3;
+  int transform_size[3] = {kspace_size[0], kspace_size[1], kspace_size[2]};
+  int num_transforms    = num_sites;
+  int *nembed           = nullptr;
+  int stride            = num_sites;
+  int dist              = 1;
+
+  // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
+  auto plan = fftw_plan_many_dft_r2c(
+      rank, transform_size, num_transforms,
+      rspace_data.begin(), nembed, stride, dist,
+      FFTW_COMPLEX_CAST(kspace_data.begin()), nembed, stride, dist,
+      FFTW_ESTIMATE);
+
+  assert(plan);
+  fftw_execute(plan);
+  fftw_destroy_plan(plan);
+
+  element_scale(kspace_data, 1.0/sqrt(product(lattice->kspace_size())));
+}
