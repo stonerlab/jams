@@ -148,7 +148,6 @@ private:
 
     // set device data to zero
     inline void zero_device();
-
     // set host data to zero
     inline void zero_host();
 
@@ -323,6 +322,9 @@ inline void SyncedMemory<T>::zero_host() {
 
 template<class T>
 void SyncedMemory<T>::zero() {
+  if (!host_ptr_ && !device_ptr_) {
+    allocate_host_memory(size_);
+  }
   if (host_ptr_) {
     zero_host();
     sync_status_ = SyncStatus::HOST_IS_MUTATED;
@@ -464,7 +466,6 @@ void SyncedMemory<T>::copy_from(const SyncedMemory<T>& other) {
 
   sync_status_ = other.sync_status_;
 }
-
 
 } // namespace jams
 

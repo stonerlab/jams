@@ -199,13 +199,6 @@ namespace jams {
         }
 
         // operations
-        inline void fill(const value_type &value) {
-          if (value == Tp_(0)) {
-            zero();
-            return;
-          }
-          std::fill(data_.mutable_host_data(), data_.mutable_host_data() + data_.size(), value);
-        }
 
         // element access
         template<typename... Args>
@@ -295,7 +288,15 @@ namespace jams {
         }
 
         inline void zero() noexcept {
-          data_.zero();
+          memset(data_.mutable_host_data(), 0, data_.memory());
+        }
+
+        inline void fill(const value_type &value) {
+          if (value == Tp_{0}) {
+            zero();
+            return;
+          }
+          std::fill(data_.mutable_host_data(), data_.mutable_host_data() + data_.size(), value);
         }
 
         template<typename... Args>
@@ -406,13 +407,6 @@ namespace jams {
         }
 
         // operations
-        inline void fill(const value_type &value) {
-          if (value == value_type{0}) {
-            data_.zero();
-            return;
-          }
-          std::fill(data_.mutable_host_data(), data_.mutable_host_data() + data_.size(), value);
-        }
 
         // element access
         inline reference operator()(const size_type & x) {
@@ -496,7 +490,15 @@ namespace jams {
         }
 
         inline void zero() noexcept {
-          data_.zero();
+          memset(data_.mutable_host_data(), 0, data_.memory());
+        }
+
+        inline void fill(const value_type &value) {
+          if (value == Tp_{0}) {
+            zero();
+            return;
+          }
+          std::fill(data_.mutable_host_data(), data_.mutable_host_data() + data_.size(), value);
         }
 
         inline MultiArray& resize( size_type count ) {
