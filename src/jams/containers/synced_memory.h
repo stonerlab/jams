@@ -204,39 +204,27 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
 }
 
 template<class T>
-__attribute__((hot))
 inline typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_host_data() {
-  if (unlikely(sync_status_ == SyncStatus::UNINITIALIZED || sync_status_ == SyncStatus::DEVICE_IS_MUTATED)) {
-    copy_to_host();
-  }
+  copy_to_host();
   return host_ptr_;
 }
 
 template<class T>
-__attribute__((hot))
 inline typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_device_data() {
-  if (unlikely(sync_status_ == SyncStatus::UNINITIALIZED || sync_status_ == SyncStatus::HOST_IS_MUTATED)) {
-    copy_to_device();
-  }
+  copy_to_device();
   return device_ptr_;
 }
 
 template<class T>
-__attribute__((hot))
 inline typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_host_data() {
-  if (unlikely(sync_status_ == SyncStatus::UNINITIALIZED || sync_status_ == SyncStatus::DEVICE_IS_MUTATED)) {
-    copy_to_host();
-  }
+  copy_to_host();
   sync_status_ = SyncStatus::HOST_IS_MUTATED;
   return host_ptr_;
 }
 
 template<class T>
-__attribute__((hot))
 inline typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_device_data() {
-  if (unlikely(sync_status_ == SyncStatus::UNINITIALIZED || sync_status_ == SyncStatus::HOST_IS_MUTATED)) {
-    copy_to_device();
-  }
+  copy_to_device();
   sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
   return device_ptr_;
 }
