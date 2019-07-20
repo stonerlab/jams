@@ -63,40 +63,31 @@ public:
       free_device_memory();
     }
 
-    SyncedMemory(const SyncedMemory& other) {
-      copy_from(other);
+    SyncedMemory(const SyncedMemory& rhs) {
+      copy_from(rhs);
     }
 
     // move constructor
-    SyncedMemory(SyncedMemory&& other) noexcept
-    : sync_status_(std::move(other.sync_status_)),
-      size_(std::move(other.size_)),
-      host_ptr_(std::move(other.host_ptr_)),
-      device_ptr_(std::move(other.device_ptr_)) {
-      other.sync_status_ = SyncStatus::UNINITIALIZED;
-      other.size_ = 0;
-      other.host_ptr_ = nullptr;
-      other.device_ptr_ = nullptr;
+    SyncedMemory(SyncedMemory&& rhs) noexcept
+    : size_(std::move(rhs.size_)),
+      host_ptr_(std::move(rhs.host_ptr_)),
+      device_ptr_(std::move(rhs.device_ptr_)),
+      sync_status_(std::move(rhs.sync_status_)) {
+      rhs.sync_status_ = SyncStatus::UNINITIALIZED;
+      rhs.size_ = 0;
+      rhs.host_ptr_ = nullptr;
+      rhs.device_ptr_ = nullptr;
     }
 
     // copy assign
-    SyncedMemory& operator=(const SyncedMemory& other) {
-      if (this == &other) return *this;
-      copy_from(other);
+    SyncedMemory& operator=(SyncedMemory rhs) & {
+      swap(*this, rhs);
       return *this;
     }
 
-    // move assign
-    SyncedMemory& operator=(SyncedMemory&& other) noexcept {
-      sync_status_ = std::move(other.sync_status_);
-      other.sync_status_ = SyncStatus::UNINITIALIZED;
-      size_ = std::move(other.size_);
-      other.size_ = 0;
-      host_ptr_ = std::move(other.host_ptr_);
-      other.host_ptr_ = nullptr;
-      device_ptr_ = std::move(other.device_ptr_);
-      other.device_ptr_ = nullptr;
-
+    SyncedMemory& operator=(SyncedMemory&& rhs) & noexcept {
+      SyncedMemory tmp(std::move(rhs));
+      swap(*this, tmp);
       return *this;
     }
 
@@ -165,10 +156,11 @@ private:
     inline void free_host_memory();
     inline void free_device_memory();
 
-    SyncStatus sync_status_ = SyncStatus::UNINITIALIZED;
     size_type size_         = 0;
     pointer host_ptr_       = nullptr;
     pointer device_ptr_     = nullptr;
+    SyncStatus sync_status_ = SyncStatus::UNINITIALIZED;
+
 };
 
 template<class T>
@@ -261,7 +253,9 @@ void SyncedMemory<T>::copy_to_device() {
       sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
       break;
     case SyncStatus::HOST_IS_MUTATED:
-      if (!device_ptr_ ) allocate_device_memory(size_);
+      if (!device_ptr_ ) {
+        allocate_device_memory(size_);
+      }
       #if SYNCEDMEMORY_PRINT_MEMCPY
         std::cout << "INFO(SyncedMemory): cudaMemcpyHostToDevice" << std::endl;
       #endif
@@ -288,7 +282,9 @@ void SyncedMemory<T>::copy_to_host() {
     break;
   case SyncStatus::DEVICE_IS_MUTATED:
     #if HAS_CUDA
-    if (!host_ptr_) allocate_host_memory(size_);
+    if (!host_ptr_) {
+      allocate_host_memory(size_);
+    }
     #if SYNCEDMEMORY_PRINT_MEMCPY
       std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
     #endif
@@ -443,35 +439,37 @@ void swap(SyncedMemory<T>& lhs, SyncedMemory<T>& rhs) {
 
 // creates a true copy of another SyncedMemory by only copying the allocated memory spaces
 template<class T>
-void SyncedMemory<T>::copy_from(const SyncedMemory<T>& other) {
-  if (this == &other) return;
+void SyncedMemory<T>::copy_from(const SyncedMemory<T>& rhs) {
+  if (this == &rhs) {
+    return;
+  }
 
-  if (size_ != other.size_) {
-    resize(other.size_);
+  if (size_ != rhs.size_) {
+    resize(rhs.size_);
   }
 
   // we use mutable_*_data() for 'this' to ensure allocation
-  // we use other.*_ptr_ for 'other' so we don't change the value of other.sync_status_
+  // we use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
 
-  if (other.host_ptr_) {
+  if (rhs.host_ptr_) {
     #if HAS_CUDA
     #if SYNCEDMEMORY_PRINT_MEMCPY
     std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
     #endif
-    CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), other.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+    CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
     #else
-    memcpy(mutable_host_data(), other.const_host_data(), size_ * sizeof(T));
+    memcpy(mutable_host_data(), rhs.const_host_data(), size_ * sizeof(T));
     #endif
   }
 
-  if (other.device_ptr_) {
+  if (rhs.device_ptr_) {
     #if SYNCEDMEMORY_PRINT_MEMCPY
     std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
     #endif
-    CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), other.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
+    CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
   }
 
-  sync_status_ = other.sync_status_;
+  sync_status_ = rhs.sync_status_;
 }
 
 } // namespace jams

@@ -127,24 +127,21 @@ namespace jams {
         MultiArray() = default;
         ~MultiArray() = default;
 
-        MultiArray(const MultiArray& other):
-          size_(other.size_), data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(other.size_)){
-          data_.copy_from(other.data_);
-        }
+        MultiArray(const MultiArray& rhs)
+        : size_(rhs.size_), data_(rhs.data_) {}
 
-        MultiArray(MultiArray&& other) noexcept
-        : size_(std::move(other.size_)), data_(std::move(other.data_)) {}
+        MultiArray(MultiArray&& rhs) noexcept
+        : size_(std::move(rhs.size_)),
+          data_(std::move(rhs.data_)) {}
 
-        MultiArray& operator=(const MultiArray& other) {
-          if (this == &other) return *this;
-          size_ = other.size_;
-          data_.copy_from(other.data_);
+        MultiArray& operator=(MultiArray rhs) & {
+          swap(*this, rhs);
           return *this;
         }
 
-        MultiArray& operator=(MultiArray&& other) noexcept {
-          size_ = std::move(other.size_);
-          data_ = std::move(other.data_);
+        MultiArray& operator=(MultiArray&& rhs) & noexcept {
+          MultiArray tmp(std::move(rhs));
+          swap(*this, tmp);
           return *this;
         }
 
@@ -286,10 +283,6 @@ namespace jams {
         }
 
         inline void fill(const value_type &value) {
-          if (value == Tp_{0}) {
-            zero();
-            return;
-          }
           std::fill(data_.mutable_host_data(), data_.mutable_host_data() + data_.size(), value);
         }
 
@@ -335,24 +328,20 @@ namespace jams {
         MultiArray() = default;
         ~MultiArray() = default;
 
-        MultiArray(const MultiArray& other):
-            size_(other.size_), data_(std::get<0>(other.size_)){
-          data_.copy_from(other.data_);
-        }
+        MultiArray(const MultiArray& rhs)
+        : size_(rhs.size_), data_(rhs.data_){}
 
-        MultiArray(MultiArray&& other) noexcept
-            : size_(std::move(other.size_)), data_(std::move(other.data_)) {}
+        MultiArray(MultiArray&& rhs) noexcept
+        : size_(std::move(rhs.size_)), data_(std::move(rhs.data_)) {}
 
-        MultiArray& operator=(const MultiArray& other) {
-          if (this == &other) return *this;
-          size_ = other.size_;
-          data_.copy_from(other.data_);
+        MultiArray& operator=(MultiArray rhs) & {
+          swap(*this, rhs);
           return *this;
         }
 
-        MultiArray& operator=(MultiArray&& other) noexcept {
-          size_ = std::move(other.size_);
-          data_ = std::move(other.data_);
+        MultiArray& operator=(MultiArray&& rhs) & noexcept {
+          MultiArray tmp(std::move(rhs));
+          swap(*this, tmp);
           return *this;
         }
 

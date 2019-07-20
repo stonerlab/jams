@@ -39,8 +39,7 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
     std::cout << "  dipole tensor memory estimate " << std::pow(double(globals::num_spins*3), 2)*8/double(1024*1024) << "(MB)\n";
 
-    dipole_tensor_ = jams::MultiArray<double,2>(globals::num_spins3, globals::num_spins3);
-    dipole_tensor_.zero();
+    zero(dipole_tensor_.resize(globals::num_spins3, globals::num_spins3));
 
     const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice->parameter(),3));
 
