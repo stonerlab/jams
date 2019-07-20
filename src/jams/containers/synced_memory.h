@@ -63,8 +63,33 @@ public:
       free_device_memory();
     }
 
-    SyncedMemory(const SyncedMemory& rhs) {
-      copy_from(rhs);
+    SyncedMemory(const SyncedMemory& rhs)
+    : sync_status_(rhs.sync_status_)
+    {
+      if (size_ != rhs.size_) {
+        resize(rhs.size_);
+      }
+
+      // we use mutable_*_data() for 'this' to ensure allocation
+      // we use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
+
+      if (rhs.host_ptr_) {
+        #if HAS_CUDA
+        #if SYNCEDMEMORY_PRINT_MEMCPY
+        std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
+        #endif
+        CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+        #else
+        memcpy(mutable_host_data(), rhs.const_host_data(), size_ * sizeof(T));
+        #endif
+      }
+
+      if (rhs.device_ptr_) {
+        #if SYNCEDMEMORY_PRINT_MEMCPY
+        std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+        #endif
+        CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
+      }
     }
 
     // move constructor
@@ -115,7 +140,6 @@ public:
     // accessors
     inline const_pointer const_host_data();
     inline const_pointer const_device_data();
-
     inline pointer mutable_host_data();
     inline pointer mutable_device_data();
 
@@ -423,41 +447,6 @@ void swap(SyncedMemory<T>& lhs, SyncedMemory<T>& rhs) {
   swap(lhs.size_, rhs.size_);
   swap(lhs.host_ptr_, rhs.host_ptr_);
   swap(lhs.device_ptr_, rhs.device_ptr_);
-}
-
-// creates a true copy of another SyncedMemory by only copying the allocated memory spaces
-template<class T>
-void SyncedMemory<T>::copy_from(const SyncedMemory<T>& rhs) {
-  if (this == &rhs) {
-    return;
-  }
-
-  if (size_ != rhs.size_) {
-    resize(rhs.size_);
-  }
-
-  // we use mutable_*_data() for 'this' to ensure allocation
-  // we use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
-
-  if (rhs.host_ptr_) {
-    #if HAS_CUDA
-    #if SYNCEDMEMORY_PRINT_MEMCPY
-    std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
-    #endif
-    CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
-    #else
-    memcpy(mutable_host_data(), rhs.const_host_data(), size_ * sizeof(T));
-    #endif
-  }
-
-  if (rhs.device_ptr_) {
-    #if SYNCEDMEMORY_PRINT_MEMCPY
-    std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
-    #endif
-    CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
-  }
-
-  sync_status_ = rhs.sync_status_;
 }
 
 } // namespace jams
