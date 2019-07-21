@@ -152,9 +152,6 @@ public:
     // resize the data (destructive, reallocates)
     inline void resize(size_type new_size);
 
-    // copy another SyncedMemory including state and only the GPU or CPU allocated memory
-    inline void copy_from(const SyncedMemory&);
-
 private:
     // copy host data to the device
     void copy_to_device();
@@ -184,7 +181,6 @@ private:
     pointer host_ptr_       = nullptr;
     pointer device_ptr_     = nullptr;
     SyncStatus sync_status_ = SyncStatus::UNINITIALIZED;
-
 };
 
 template<class T>
