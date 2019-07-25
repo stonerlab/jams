@@ -15,43 +15,12 @@
 #include "jams/helpers/consts.h"
 #include "jams/interface/fft.h"
 #include "neutron_scattering.h"
+#include "jams/helpers/neutrons.h"
 
 using namespace std;
 using namespace jams;
 using libconfig::Setting;
 using Complex = std::complex<double>;
-
-namespace jams {
-    struct FormFactorCoeff { double A, a, B, b, C, c, D; };
-    using FormFactorG = map<int, double>;
-    using FormFactorJ = map<int, FormFactorCoeff>;
-
-    template<>
-    inline FormFactorCoeff config_required(const Setting &s, const string &name) {
-      return FormFactorCoeff{double{s[name][0]}, double{s[name][1]}, double{s[name][2]}, double{s[name][3]},
-                             double{s[name][4]}, double{s[name][5]}, double{s[name][6]}};
-    }
-
-    template<>
-    inline FormFactorG config_required(const Setting &s, const string &name) {
-      FormFactorG g;
-      for (auto l : {0,2,4,6}) { g[l] = double{s[name][l/2]}; }
-      return g;
-    }
-
-    // Calculates the approximate neutron form factor at |q|
-    // Approximation and constants from International Tables for Crystallography: Vol. C (pp. 454–461).
-    double form_factor(const Vec3 &q, FormFactorG &g, FormFactorJ &j) {
-      auto a = kMeterToAngstroms * lattice->parameter();
-      auto s_sq = pow2(norm(q) / (4.0 * kPi * a));
-      auto ffq = 0.0;
-      for (auto l : {0,2,4,6}) {
-        double p = (l == 0) ? 1.0 : s_sq;
-        ffq += g[l] * p * (j[l].A * exp(-j[l].a * s_sq) + j[l].B * exp(-j[l].b * s_sq) + j[l].C * exp(-j[l].c * s_sq) + j[l].D);
-      }
-      return 0.5 * ffq;
-    }
-}
 
 NeutronScatteringMonitor::NeutronScatteringMonitor(const Setting &settings)
 : Monitor(settings) {
@@ -245,7 +214,7 @@ void NeutronScatteringMonitor::configure_form_factors(Setting &settings) {
     for (auto i = 0; i < kspace_paths_.size(); ++i) {
       auto m = lattice->motif_atom(a).material;
       auto q = kspace_paths_[i].xyz;
-      neutron_form_factors_(a, i) = form_factor(q, g_params[m], j_params[m]);
+      neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * lattice->parameter(), g_params[m], j_params[m]);
     }
   }
 }
