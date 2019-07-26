@@ -192,29 +192,15 @@ void NeutronScatteringMonitor::configure_kspace_paths(Setting& settings) {
 }
 
 void NeutronScatteringMonitor::configure_form_factors(Setting &settings) {
+  auto gj = read_form_factor_settings(settings);
+
   auto num_sites     = lattice->num_motif_atoms();
-  auto num_materials = lattice->num_materials();
-
-  if (settings.getLength() != num_materials) {
-    throw runtime_error("NeutronScatteringMonitor:: there must be one form factor per material\"");
-  }
-
-  vector<FormFactorG> g_params(num_materials);
-  vector<FormFactorJ> j_params(num_materials);
-
-  for (auto i = 0; i < settings.getLength(); ++i) {
-    for (auto l : {0,2,4,6}) {
-      j_params[i][l] = config_optional<FormFactorCoeff>(settings[i], "j" + to_string(l), j_params[i][l]);
-    }
-    g_params[i] = config_required<FormFactorG>(settings[i], "g");
-  }
-
   neutron_form_factors_.resize(num_sites, kspace_paths_.size());
   for (auto a = 0; a < num_sites; ++a) {
     for (auto i = 0; i < kspace_paths_.size(); ++i) {
-      auto m = lattice->motif_atom(a).material;
+      auto m = lattice->motif_atom(a).material_index;
       auto q = kspace_paths_[i].xyz;
-      neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * lattice->parameter(), g_params[m], j_params[m]);
+      neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * lattice->parameter(), gj.first[m], gj.second[m]);
     }
   }
 }
@@ -298,7 +284,7 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_sec
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      Vec3 r_ab = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
+      Vec3 r_ab = lattice->motif_atom(b).position - lattice->motif_atom(a).position;
 
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
@@ -333,7 +319,7 @@ MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross_secti
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      const Vec3 r_ab = lattice->motif_atom(b).fractional_pos - lattice->motif_atom(a).fractional_pos;
+      const Vec3 r_ab = lattice->motif_atom(b).position - lattice->motif_atom(a).position;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
         auto Q = unit_vector(kpoint.xyz);

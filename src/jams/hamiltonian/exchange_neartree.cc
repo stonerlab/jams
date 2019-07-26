@@ -71,7 +71,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
   for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
     for (auto j = i+1; j < lattice->num_motif_atoms(); ++j) {
-      const auto distance = norm(lattice->motif_atom(i).fractional_pos - lattice->motif_atom(j).fractional_pos);
+      const auto distance = norm(lattice->motif_atom(i).position - lattice->motif_atom(j).position);
       if(distance < distance_tolerance_) {
         jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
                  "Check position file or relax distance_tolerance for exchange module",
@@ -156,7 +156,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
             continue;
           }
 
-          if (n.material == interaction_list_[type][j].material[1]) {
+          if (n.material_index == interaction_list_[type][j].material[1]) {
 
             // don't allow self interaction
             if (is_already_interacting[n.id]) {

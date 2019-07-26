@@ -7,6 +7,8 @@
 
 #include "jams/cuda/cuda_device_complex_ops.h"
 
+#include "jams/helpers/consts.h"
+
 __global__ void CudaSpectrumGeneralKernel(
         const unsigned i,
         const unsigned j,

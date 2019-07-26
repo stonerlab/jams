@@ -191,7 +191,7 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2>& fie
 
   for (int pos_j = 0; pos_j < lattice->num_motif_atoms(); ++pos_j) {
     for (int pos_i = 0; pos_i < lattice->num_motif_atoms(); ++pos_i) {
-      const double mus_j = lattice->material(lattice->motif_atom(pos_j).material).moment;
+      const double mus_j = lattice->material(lattice->motif_atom(pos_j).material_index).moment;
 
       const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
 
@@ -211,8 +211,8 @@ jams::MultiArray<Complex, 5>
 CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
     using std::pow;
 
-    const Vec3 r_frac_i = lattice->motif_atom(pos_i).fractional_pos;
-    const Vec3 r_frac_j = lattice->motif_atom(pos_j).fractional_pos;
+    const Vec3 r_frac_i = lattice->motif_atom(pos_i).position;
+    const Vec3 r_frac_j = lattice->motif_atom(pos_j).position;
 
     const Vec3 r_cart_i = lattice->fractional_to_cartesian(r_frac_i);
     const Vec3 r_cart_j = lattice->fractional_to_cartesian(r_frac_j);

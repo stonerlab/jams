@@ -23,7 +23,7 @@
 #include "jams/monitors/xyz.h"
 
 #ifdef HAS_CUDA
-  #include "jams/monitors/cuda_spectrum_general.h"
+  #include "jams/monitors/cuda_neutron_scattering_nolattice.h"
   #include "jams/monitors/cuda_spin_current.h"
   #include "jams/monitors/cuda_thermal_current.h"
 #endif

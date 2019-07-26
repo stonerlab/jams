@@ -20,6 +20,14 @@
 
 using Complex = std::complex<double>;
 
+namespace jams {
+    struct PeriodogramProps {
+        int length    = 1000;
+        int overlap    = 500;
+        double sample_time  = 1.0;
+    };
+}
+
 #define FFTW_COMPLEX_CAST(x) reinterpret_cast<fftw_complex*>(x)
 
 // Windowing functions

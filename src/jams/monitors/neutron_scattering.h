@@ -9,6 +9,7 @@
 
 #include <libconfig.h++>
 
+#include "jams/interface/fft.h"
 #include "jams/core/types.h"
 #include "jams/core/monitor.h"
 
@@ -24,12 +25,6 @@ namespace jams {
     inline bool operator==(const HKLIndex &a, const HKLIndex &b) {
       return approximately_equal(a.hkl, b.hkl);
     }
-
-    struct PeriodogramProps {
-        int length    = 1000;
-        int overlap    = 500;
-        double sample_time  = 1.0;
-    };
 }
 
 /**
