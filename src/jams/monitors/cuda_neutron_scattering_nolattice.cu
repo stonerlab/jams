@@ -293,7 +293,7 @@ jams::MultiArray<Vec3cx,2> CudaSpectrumGeneralMonitor::periodogram() {
 
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_kspace_samples; ++j) {
-      spectrum(i, j) *= fft_window_default(i, num_time_samples);
+      spectrum(i, j) *= fft_window_blackman_4(i, num_time_samples);
     }
   }
 
@@ -320,7 +320,7 @@ void CudaSpectrumGeneralMonitor::shift_periodogram_overlap() {
 void CudaSpectrumGeneralMonitor::output_neutron_cross_section() {
     ofstream ofs(seedname + "_neutron_scattering_path_" + to_string(0) + ".tsv");
 
-    ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q\t";
+    ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
     ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
     for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
       ofs << "sigma_pol" << to_string(k) << "_re\t" << "sigma_pol" << to_string(k) << "_im\t";
@@ -339,7 +339,7 @@ void CudaSpectrumGeneralMonitor::output_neutron_cross_section() {
       for (auto j = 0; j < kspace_path_.size(); ++j) {
         ofs << fmt::integer << j << "\t";
         ofs << fmt::decimal << kspace_path_(j) << "\t";
-        ofs << fmt::decimal << norm(kspace_path_(j)) << "\t";
+        ofs << fmt::decimal << kTwoPi * norm(kspace_path_(j)) / (lattice->parameter()*1e10) << "\t";
         ofs << fmt::decimal << (i * freq_delta / 1e12) << "\t"; // THz
         ofs << fmt::decimal << (i * freq_delta / 1e12) * 4.135668 << "\t"; // meV
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
@@ -360,19 +360,36 @@ void CudaSpectrumGeneralMonitor::output_neutron_cross_section() {
 void CudaSpectrumGeneralMonitor::store_kspace_data_on_path() {
   auto i = periodogram_index_;
 
-  for (auto k = 0; k < kspace_path_.size(); ++k) {
-    Vec3cx sum = {0.0, 0.0};
-    for (auto n = 0; n < globals::num_spins; ++n) {
-      Vec3 spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
-      Vec3 r = rspace_displacement_(n);
-      auto q = kspace_path_(k);
+//  for (auto k = 0; k < kspace_path_.size(); ++k) {
+//    kspace_spins_timeseries_(i, k) = {0.0, 0.0};
+//  }
 
-      // apply 3D window in space
-      auto window = pow2(cos(kPi*norm(r)));
-      auto f = exp(-kImagTwoPi * dot(q, r));
-      sum += f * spin * window;
+  fill(&kspace_spins_timeseries_(i,0), &kspace_spins_timeseries_(i,0) + kspace_path_.size(), Vec3cx{0.0});
+
+  for (auto n = 0; n < globals::num_spins; ++n) {
+    Vec3 spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
+
+    Vec3 r = rspace_displacement_(n);
+    if (norm(r) >= 0.5) continue;
+    auto delta_q = kspace_path_(1) - kspace_path_(0);
+
+    auto window = 1.0;
+    if (do_rspace_windowing_) {
+      // blackmann 4 window
+      const double a0 = 0.40217, a1 = 0.49704, a2 = 0.09392, a3 = 0.00183;
+      const double x = (kTwoPi * norm(r));
+      window = a0 + a1 * cos(x) + a2 * cos(2 * x) + a3 * cos(3 * x);
     }
-    kspace_spins_timeseries_(i, k) = sum / double(globals::num_spins);
+    auto f0 = exp(-kImagTwoPi * dot(delta_q, r));
+    auto f = Complex{1.0, 0.0};
+    for (auto k = 0; k < kspace_path_.size(); ++k) {
+      kspace_spins_timeseries_(i, k) += f * spin * window;
+      f *= f0;
+    }
+  }
+
+  for (auto k = 0; k < kspace_path_.size(); ++k) {
+    kspace_spins_timeseries_(i, k) /= double(globals::num_spins);
   }
 }
 
