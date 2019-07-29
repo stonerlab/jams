@@ -2,18 +2,16 @@
 // Created by Joseph Barker on 2018-11-22.
 //
 
-#ifndef JAMS_CUDA_NEUTRON_SCATTERING_NOLATTICE_H
-#define JAMS_CUDA_NEUTRON_SCATTERING_NOLATTICE_H
+#ifndef JAMS_NEUTRON_SCATTERING_NO_LATTICE_H
+#define JAMS_NEUTRON_SCATTERING_NO_LATTICE_H
 
-#include <thrust/complex.h>
-#include <thrust/device_vector.h>
 #include "jams/monitors/spectrum_general.h"
 #include "jams/interface/fft.h"
 
-class CudaSpectrumGeneralMonitor : public Monitor {
+class NeutronScatteringNoLatticeMonitor : public Monitor {
 public:
-    explicit CudaSpectrumGeneralMonitor(const libconfig::Setting &settings);
-    ~CudaSpectrumGeneralMonitor() override = default;
+    explicit NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings);
+    ~NeutronScatteringNoLatticeMonitor() override = default;
 
     void post_process() override {};
     void update(Solver *solver) override;
@@ -21,12 +19,14 @@ public:
 private:
 
     void configure_kspace_vectors(const libconfig::Setting& settings);
+    void configure_polarizations(libconfig::Setting &setting);
+    void configure_periodogram(libconfig::Setting &setting);
+    void configure_form_factors(libconfig::Setting &settings);
 
     void store_kspace_data_on_path();
 
     jams::MultiArray<Vec3cx,2> periodogram();
     void shift_periodogram_overlap();
-
     void output_neutron_cross_section();
 
     jams::MultiArray<Complex, 2> calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx,2>& spectrum);
@@ -34,7 +34,6 @@ private:
 
     bool do_rspace_windowing_ = true;
     jams::MultiArray<Vec3, 1> rspace_displacement_;
-    jams::MultiArray<double, 1> rspace_window_;
     jams::MultiArray<Vec3, 1> kspace_path_;
     jams::MultiArray<Vec3cx,2>  kspace_spins_timeseries_;
 
@@ -51,9 +50,7 @@ private:
     int num_k_ = 100;
     Vec3 kvector_ = {0.0, 0.0, 1.0};
 
-    void configure_polarizations(libconfig::Setting &setting);
 
-    void configure_periodogram(libconfig::Setting &setting);
 };
 
-#endif //JAMS_CUDA_NEUTRON_SCATTERING_NOLATTICE_H
+#endif //JAMS_NEUTRON_SCATTERING_NO_LATTICE_H
