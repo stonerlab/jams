@@ -102,6 +102,7 @@ target_sources(jams_object_lib
         helpers/error.cc
         interface/fft.cc
         helpers/maths.cc
+        helpers/neutrons.cc
         helpers/output.cc
         helpers/slice.cc
         helpers/stats.cc
@@ -115,6 +116,7 @@ target_sources(jams_object_lib
         monitors/magnetisation.cc
         monitors/magnetisation_rate.cc
         monitors/neutron_scattering.cc
+        monitors/neutron_scattering_no_lattice.cc
         monitors/skyrmion.cc
         monitors/smr.cc
         monitors/spectrum_fourier.cc
@@ -154,7 +156,6 @@ if(JAMS_BUILD_CUDA)
             hamiltonian/cuda_zeeman.cu
             hamiltonian/cuda_dipole_bruteforce.cu
             hamiltonian/cuda_dipole_sparse_tensor.cu
-            monitors/cuda_spectrum_general.cu
             monitors/cuda_spin_current.cc
             monitors/cuda_spin_current_kernel.cu
             monitors/cuda_thermal_current.cc

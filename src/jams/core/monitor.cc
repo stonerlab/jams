@@ -23,7 +23,7 @@
 #include "jams/monitors/xyz.h"
 
 #ifdef HAS_CUDA
-  #include "jams/monitors/cuda_spectrum_general.h"
+  #include "jams/monitors/neutron_scattering_no_lattice.h"
   #include "jams/monitors/cuda_spin_current.h"
   #include "jams/monitors/cuda_thermal_current.h"
 #endif
@@ -78,6 +78,7 @@ Monitor* Monitor::create(const Setting &settings) {
   DEFINED_MONITOR("skyrmion", SkyrmionMonitor, settings);
   DEFINED_MONITOR("smr", SMRMonitor, settings);
   DEFINED_MONITOR("neutron-scattering", NeutronScatteringMonitor, settings);
+  DEFINED_MONITOR("neutron-scattering-no-lattice", NeutronScatteringNoLatticeMonitor, settings);
   DEFINED_MONITOR("spectrum-fourier", SpectrumFourierMonitor, settings);
   DEFINED_MONITOR("spectrum-general-cpu", SpectrumGeneralMonitor, settings);
   DEFINED_MONITOR("spin-correlation", SpinCorrelationMonitor, settings);
@@ -89,7 +90,6 @@ Monitor* Monitor::create(const Setting &settings) {
   DEFINED_MONITOR("xyz", XyzMonitor, settings);
 
 #ifdef HAS_CUDA
-  DEFINED_MONITOR("spectrum-general", CudaSpectrumGeneralMonitor, settings);
   DEFINED_MONITOR("spin-current", CudaSpinCurrentMonitor, settings);
   DEFINED_MONITOR("thermal-current", CudaThermalCurrentMonitor, settings);
 #endif

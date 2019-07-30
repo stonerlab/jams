@@ -41,9 +41,9 @@ enum OutputFormat {TEXT, HDF5};
 
 struct Atom {
     int  id;
-    int  material;
-    int  motif_position;
-    Vec3 fractional_pos;
+    int  material_index;
+    int  motif_index;
+    Vec3 position;
 };
 
 template <typename T, typename Idx = int>

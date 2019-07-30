@@ -20,13 +20,23 @@
 
 using Complex = std::complex<double>;
 
+namespace jams {
+    struct PeriodogramProps {
+        int length    = 1000;
+        int overlap    = 500;
+        double sample_time  = 1.0;
+    };
+}
+
 #define FFTW_COMPLEX_CAST(x) reinterpret_cast<fftw_complex*>(x)
 
 // Windowing functions
 double fft_window_default(const int n, const int n_total);
-double fft_window_hanning(const int n, const int n_total);
+double fft_window_hann(const int n, const int n_total);
+double fft_window_hamming(const int n, const int n_total);
 double fft_window_blackman_4(const int n, const int n_total);
 double fft_window_exponential(const int n, const int n_total);
+double fft_window_nuttall(const int n, const int n_total);
 
 fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const std::array<int,3>& kspace_size, const int & motif_size);
 void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspace);

@@ -12,10 +12,10 @@ using std::complex;
 using std::vector;
 
 double fft_window_default(const int n, const int n_total) {
-  return fft_window_hanning(n, n_total);
+  return fft_window_hann(n, n_total);
 } 
 
-double fft_window_hanning(const int n, const int n_total) {
+double fft_window_hann(const int n, const int n_total) {
   return 0.50 - 0.50*cos((kTwoPi*n)/double(n_total-1));
 }
 
@@ -29,6 +29,15 @@ double fft_window_blackman_4(const int n, const int n_total) {
 double fft_window_exponential(const int n, const int n_total) {
   const double tau = 0.5 * n_total * (8.69  / 60.0);
   return exp(-abs(n - 0.5 * (n_total-1)) / tau);
+}
+
+double fft_window_hamming(const int n, const int n_total) {
+  return (25.0/46.0) - (1.0 - (25.0/46.0))*cos((kTwoPi*n)/double(n_total-1));
+}
+
+double fft_window_nuttall(const int n, const int n_total) {
+  double a0 = 0.355768, a1 = 0.487396, a2= 0.144232, a3 = 0.012604;
+  return a0 - a1 * cos(2*kPi*n / n_total) + a2 * cos(4*kPi*n / n_total) - a3 * cos(6*kPi*n / n_total);
 }
 
 // Precalculates the phase factors within the brilluoin zone and returns then as array
@@ -76,7 +85,7 @@ void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspac
   std::vector<complex<double>> exp_phase_z(lattice->kspace_size()[2]);
 
   for (auto m = 0; m < lattice->num_motif_atoms(); ++m) {
-    auto r_cart = lattice->fractional_to_cartesian(lattice->motif_atom(m).fractional_pos);
+    auto r_cart = lattice->fractional_to_cartesian(lattice->motif_atom(m).position);
 
     precalculate_kspace_phase_factors(lattice->kspace_size(), r_cart, exp_phase_x, exp_phase_y, exp_phase_z);
 

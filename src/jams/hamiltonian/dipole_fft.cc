@@ -216,8 +216,8 @@ jams::MultiArray<Complex, 5>
 DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
   using std::pow;
 
-  const Vec3 r_frac_i = lattice->motif_atom(pos_i).fractional_pos;
-  const Vec3 r_frac_j = lattice->motif_atom(pos_j).fractional_pos;
+  const Vec3 r_frac_i = lattice->motif_atom(pos_i).position;
+  const Vec3 r_frac_j = lattice->motif_atom(pos_j).position;
 
   const Vec3 r_cart_i = lattice->fractional_to_cartesian(r_frac_i);
   const Vec3 r_cart_j = lattice->fractional_to_cartesian(r_frac_j);
@@ -350,7 +350,7 @@ void DipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2> &fields)
 
       fftw_execute(fft_s_rspace_to_kspace);
 
-      const double mus_j = ::lattice->material(lattice->motif_atom(pos_j).material).moment;
+      const double mus_j = ::lattice->material(lattice->motif_atom(pos_j).material_index).moment;
 
       // perform convolution as multiplication in fourier space
       for (auto i = 0; i < kspace_padded_size_[0]; ++i) {
