@@ -1,46 +1,46 @@
-add_library(jams_object_lib OBJECT EXCLUDE_FROM_ALL "")
+add_library(jams-object-lib OBJECT EXCLUDE_FROM_ALL "")
 
-target_compile_features(jams_object_lib PRIVATE cxx_std_11)
+target_compile_features(jams-object-lib PRIVATE cxx_std_11)
 
-target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
-target_include_directories(jams_object_lib PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
+target_include_directories(jams-object-lib PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>)
+target_include_directories(jams-object-lib PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
 
 # object libraries cannot use target_link_libraries to pull in include and compile definitions
 # this hack allows us to pull them in manually
 foreach(TGT fftw3 cblas pcg symspg_static config++ hdf5 HighFive)
-    target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
-    target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
+    target_include_directories(jams-object-lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_definitions(jams-object-lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
 endforeach()
 
 if (MKL_FOUND)
-    target_compile_definitions(jams_object_lib PRIVATE HAS_MKL=1)
+    target_compile_definitions(jams-object-lib PRIVATE HAS_MKL=1)
 endif()
 
 if(JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
-    target_compile_definitions(jams_object_lib PRIVATE HAS_OMP=1)
-    target_compile_options(jams_object_lib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
+    target_compile_definitions(jams-object-lib PRIVATE HAS_OMP=1)
+    target_compile_options(jams-object-lib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
 endif()
 
 if(JAMS_BUILD_CUDA)
     if (JAMS_BUILD_MIXED_PREC)
-        target_compile_definitions(jams_object_lib PRIVATE HAS_CUSPARSE_MIXED_PREC=1)
+        target_compile_definitions(jams-object-lib PRIVATE HAS_CUSPARSE_MIXED_PREC=1)
     endif()
-    target_compile_definitions(jams_object_lib PRIVATE HAS_CUDA=1)
+    target_compile_definitions(jams-object-lib PRIVATE HAS_CUDA=1)
     foreach(TGT cusparse curand cublas cufft)
-        target_include_directories(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
-        target_compile_definitions(jams_object_lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
+        target_include_directories(jams-object-lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_INCLUDE_DIRECTORIES>)
+        target_compile_definitions(jams-object-lib PRIVATE $<TARGET_PROPERTY:${TGT},INTERFACE_COMPILE_DEFINITIONS>)
     endforeach()
 
     if(APPLE)
         # We need to add the path to the driver (libcuda.dylib) as an rpath,
         # so that the static cuda runtime can find it at runtime.
-        set_property(TARGET jams_object_lib
+        set_property(TARGET jams-object-lib
                      PROPERTY
                      BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
     endif()
 endif()
 
-add_executable(jams "main.cc" $<TARGET_OBJECTS:jams_object_lib>)
+add_executable(jams "main.cc" $<TARGET_OBJECTS:jams-object-lib>)
 
 target_compile_features(jams PRIVATE cxx_std_11)
 
@@ -66,17 +66,17 @@ endif()
 if (JAMS_BUILD_FASTMATH)
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         set(FAST_MATH_OPT -Ofast -ffast-math)
-        target_compile_options(jams_object_lib PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${FAST_MATH_OPT}>)
+        target_compile_options(jams-object-lib PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${FAST_MATH_OPT}>)
     elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(FAST_MATH_OPT -fno-math-errno  -fno-rounding-math -fno-signaling-nans -fno-signed-zeros -fcx-limited-range)
-        target_compile_options(jams_object_lib PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${FAST_MATH_OPT}>)
+        target_compile_options(jams-object-lib PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${FAST_MATH_OPT}>)
     elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
         set(FAST_MATH_OPT -ftz -msse3 -no-prec-div -fast -fp-model fast=2)
-        target_compile_options(jams_object_lib PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${FAST_MATH_OPT}>)
+        target_compile_options(jams-object-lib PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${FAST_MATH_OPT}>)
     endif()
 endif()
 
-target_sources(jams_object_lib
+target_sources(jams-object-lib
         PRIVATE
         containers/cell.cc
         core/hamiltonian.cc
@@ -142,7 +142,7 @@ target_sources(jams_object_lib
         )
 
 if(JAMS_BUILD_CUDA)
-    target_sources(jams_object_lib
+    target_sources(jams-object-lib
             PRIVATE
             cuda/cuda_array_kernels.cu
             cuda/cuda_solver.cc

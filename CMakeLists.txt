@@ -7,8 +7,9 @@ endif()
 option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" OFF)
 option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" ON)
 option(JAMS_BUILD_FASTMATH "Build JAMS with fast math flags" ON)
-option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
 option(JAMS_BUILD_MIXED_PREC "Build parts of JAMS using mixed precision." OFF)
+option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
+option(JAMS_BUILD_DOCS "Build all of JAMS's documentation." ON)
 
 option(USE_BOOST "Build HighFive with Boost support" OFF)
 option(HIGHFIVE_EXAMPLES "Build HighFive examples" OFF)
@@ -38,6 +39,10 @@ include(cmake/Dependencies.cmake)
 ensure_out_of_source_build()
 
 add_subdirectory(src/jams)
+
+if (JAMS_BUILD_DOCS)
+    add_subdirectory(docs/)
+endif()
 
 if (JAMS_BUILD_TESTS)
     add_subdirectory(test/jams)
