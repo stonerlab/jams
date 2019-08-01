@@ -119,6 +119,7 @@ target_sources(jams_object_lib
         monitors/neutron_scattering_no_lattice.cc
         monitors/skyrmion.cc
         monitors/smr.cc
+        monitors/spectrum_base.cc
         monitors/spectrum_fourier.cc
         monitors/spectrum_general.cc
         monitors/spin_correlation.cc
