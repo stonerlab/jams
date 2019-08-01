@@ -7,6 +7,7 @@ JAMS Index
 
    compiling
    running
+   system
    solvers
    hamiltonians
    thermostats
