@@ -8,28 +8,34 @@
 #include "jams/core/types.h"
 
 namespace jams {
-    constexpr bool   default_sim_verbose_output = false;
+    namespace defaults {
+        constexpr bool   sim_verbose_output = false;
 
-    constexpr auto default_physics_module = "empty";
+        constexpr auto   physics_module = "empty";
 
-    constexpr int    default_monitor_output_steps = 100;
-    constexpr double default_monitor_convergence_tolerance = 0.01;
+        constexpr auto   energy_unit_name = "joules";
 
-    constexpr int    default_solver_min_steps = 0;
-    constexpr double default_solver_monte_carlo_move_sigma = 0.5;
-    constexpr auto   default_solver_gpu_thermostat = "langevin-white-gpu";
+        constexpr int    monitor_output_steps = 100;
+        constexpr double monitor_convergence_tolerance = 0.01;
 
-    constexpr double default_material_gyro = 1.0;
-    constexpr double default_material_alpha = 0.01;
-    constexpr Vec3   default_material_spin = {0.0, 0.0, 1.0};
-    constexpr Mat3   default_material_spin_transform = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+        constexpr int    solver_min_steps = 0;
+        constexpr double solver_monte_carlo_move_sigma = 0.5;
+        constexpr double solver_monte_carlo_constraint_tolerance = 1e-8;
+        constexpr auto   solver_gpu_thermostat = "langevin-white-gpu";
 
-    constexpr bool   default_unitcell_symops = true;
+        constexpr double material_gyro = 1.0;
+        constexpr double material_alpha = 0.01;
+        constexpr Vec3   material_spin = {0.0, 0.0, 1.0};
+        constexpr Mat3   material_spin_transform = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 
-    constexpr Vec3b  default_lattice_periodic_boundaries = {true, true, true};
+        constexpr bool   unitcell_symops = true;
 
-    constexpr int    warning_unitcell_symops_size = 100;
+        constexpr Vec3b  lattice_periodic_boundaries = {true, true, true};
+        constexpr double lattice_tolerance = 1e-4; // default tolerance for checking distances in units of lattice constant
 
-}
+        constexpr int    warning_unitcell_symops_size = 100;
+
+    } // namespace defaults
+} // namespace jams
 
 #endif //JAMS_DEFAULTS_H

@@ -5,7 +5,19 @@
 
 #include <random>
 #include <array>
-#include <pcg/pcg_random.hpp>
+#include <pcg_random.hpp>
+#include <sstream>
+#include "jams/helpers/utils.h"
+
+namespace jams {
+    pcg32& random_generator();
+
+    inline std::string random_generator_internal_state() {
+      std::stringstream ss;
+      ss << random_generator();
+      return ss.str();
+    }
+}
 
 template <class RNG>
 std::array<double, 3> uniform_random_sphere(RNG &gen) {
@@ -21,10 +33,6 @@ std::array<double, 3> uniform_random_sphere(RNG &gen) {
   auto ss = sqrt(1.0 - s);
 
   return {2.0 * v1 * ss, 2.0 * v2 * ss, 1.0 - 2.0 * s};
-}
-
-namespace jams {
-    pcg32& random_generator();
 }
 
 #endif // JAMS_CORE_RAND_H

@@ -1,0 +1,25 @@
+//
+// Created by Joe Barker on 2018/11/01.
+//
+
+#ifndef JAMS_CUDA_UNIAXIAL_ANISOTROPY_H
+#define JAMS_CUDA_UNIAXIAL_ANISOTROPY_H
+
+#include <cuda_runtime_api.h>
+
+#include "jams/cuda/cuda_stream.h"
+#include "jams/hamiltonian/uniaxial_anisotropy.h"
+
+class CudaUniaxialHamiltonian : public UniaxialHamiltonian {
+public:
+    CudaUniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int size);
+    ~CudaUniaxialHamiltonian() override = default;
+
+    void   calculate_fields() override;
+private:
+
+    CudaStream dev_stream_;
+    unsigned int dev_blocksize_ = 64;
+};
+
+#endif //JAMS_CUDA_UNIAXIAL_ANISOTROPY_H

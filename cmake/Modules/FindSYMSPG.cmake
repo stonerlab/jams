@@ -1,4 +1,4 @@
-FIND_PATH(SYMSPG_INCLUDE_DIR spglib/spglib.h  PATHS ENV CPATH /usr/include /usr/local/include PATH_SUFFIXES spglib)
+FIND_PATH(SYMSPG_INCLUDE_DIR spglib.h  PATHS ENV CPATH /usr/include /usr/local/include PATH_SUFFIXES spglib)
 
 FIND_LIBRARY(SYMSPG_LIBRARY NAMES symspg PATHS ENV LD_LIBRARY_PATH  /usr/lib /usr/local/lib PATH_SUFFIXES)
 

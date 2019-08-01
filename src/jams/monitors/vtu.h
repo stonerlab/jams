@@ -11,29 +11,27 @@
 #include "jams/core/types.h"
 #include "jams/core/monitor.h"
 
-#include "jblib/containers/vec.h"
-#include "jblib/containers/array.h"
-
 class Solver;
 
 class VtuMonitor : public Monitor {
- public:
-  VtuMonitor(const libconfig::Setting &settings);
-  ~VtuMonitor();
+public:
+    explicit VtuMonitor(const libconfig::Setting &settings);
 
-  void update(Solver * solver);
-  bool is_converged() { return false; }
+    ~VtuMonitor() override = default;
 
- private:
+    void update(Solver *solver) override;
+    void post_process() override {};
+
+    bool is_converged() override { return false; }
+
+private:
     int num_slice_points;
     Vec3 slice_origin;
     Vec3 slice_size;
-    std::vector<int>        slice_spins;
-    jblib::Array<int, 1>    types_binary_data;
-    jblib::Array<float, 2>  points_binary_data;
-    jblib::Array<double, 2> spins_binary_data;
-
-
+    std::vector<int> slice_spins;
+    jams::MultiArray<int, 1> types_binary_data;
+    jams::MultiArray<float, 2> points_binary_data;
+    jams::MultiArray<double, 2> spins_binary_data;
 };
 
 #endif  // JAMS_MONITOR_VTU_H

@@ -110,12 +110,12 @@ namespace {
       { name      = "FeA";
         moment    = 2.0;
         spin      = [0.0, 0.0, 1.0];
-        transform = [ 1.0, 1.0, 1.0];
+        transform = ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]);
       },
       { name      = "FeB";
         moment    = 2.0;
         spin      = [0.0, 0.0, -1.0];
-        transform = [-1.0,-1.0,-1.0];
+        transform = ([-1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, -1.0]);
       }
     );
 
@@ -199,6 +199,26 @@ const std::string config_dipole_fft_128(R"(
 )");
 
 const std::string config_dipole_fft_1000(R"(
+  hamiltonians = (
+    {
+      module = "dipole";
+      strategy = "fft";
+      r_cutoff = 1000.0;
+    }
+  );
+)");
+
+const std::string config_dipole_tensor_128(R"(
+  hamiltonians = (
+    {
+      module = "dipole";
+      strategy = "fft";
+      r_cutoff = 128.0;
+    }
+  );
+)");
+
+const std::string config_dipole_tensor_1000(R"(
   hamiltonians = (
     {
       module = "dipole";

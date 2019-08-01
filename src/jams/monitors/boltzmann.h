@@ -8,20 +8,21 @@
 #include <libconfig.h++>
 
 #include "jams/core/monitor.h"
-#include "jblib/containers/array.h"
 
-class BoltzmannMonitor : public Monitor{
- public:
-  BoltzmannMonitor(const libconfig::Setting &settings);
-  ~BoltzmannMonitor();
+class BoltzmannMonitor : public Monitor {
+public:
+    explicit BoltzmannMonitor(const libconfig::Setting &settings);
+    ~BoltzmannMonitor() override = default;
 
-void update(Solver * solver);
-bool is_converged() { return false; }
+    void update(Solver *solver) override;
+    void post_process() override {};
 
- private:
-  jblib::Array<double, 1> bins;
-  double total;
-  std::ofstream outfile;
+    bool is_converged() override { return false; }
+
+private:
+    std::vector<double> bins_;
+    double total_;
+    std::ofstream tsv_file;
 };
 
 #endif  // JAMS_MONITOR_BOLTZMANN_H

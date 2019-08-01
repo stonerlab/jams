@@ -3,30 +3,37 @@
 #ifndef JAMS_CORE_TYPES_H
 #define JAMS_CORE_TYPES_H
 
-#include "../containers/vec3.h"
-#include "../containers/mat3.h"
+#include <complex>
 
-using std::string;
+#include "jams/containers/vec3.h"
+#include "jams/containers/mat3.h"
+#include "jams/helpers/utils.h"
+
+using Complex = std::complex<double>;
 
 //-----------------------------------------------------------------------------
 // enums
 //-----------------------------------------------------------------------------
 
-enum class CoordinateFormat {Cartesian, Fractional};
+enum class CoordinateFormat {CARTESIAN, FRACTIONAL};
+
+inline CoordinateFormat coordinate_format_from_string(const std::string s) {
+  if (capitalize(s) == "CART" || capitalize(s) == "CARTESIAN") return CoordinateFormat::CARTESIAN;
+  if (capitalize(s) == "FRAC" || capitalize(s) == "FRACTIONAL") return CoordinateFormat::FRACTIONAL;
+  throw std::runtime_error("Unknown coordinate format");
+}
+
+inline std::string to_string(CoordinateFormat f) {
+  switch (f) {
+    case CoordinateFormat::CARTESIAN:
+      return "CARTESIAN";
+    case CoordinateFormat::FRACTIONAL:
+      return "FRACTIONAL";
+  }
+  throw std::invalid_argument("unknown CoordinateFormat");
+}
+
 enum OutputFormat {TEXT, HDF5};
-
-//-----------------------------------------------------------------------------
-// typedefs
-//-----------------------------------------------------------------------------
-
-using Mat3  = std::array<std::array<double, 3>, 3>;
-
-using Vec3  = std::array<double, 3>;
-using Vec3b = std::array<bool, 3>;
-using Vec3i = std::array<int, 3>;
-
-using Vec4  = std::array<double, 4>;
-using Vec4i = std::array<int, 4>;
 
 //-----------------------------------------------------------------------------
 // structs
@@ -34,8 +41,17 @@ using Vec4i = std::array<int, 4>;
 
 struct Atom {
     int  id;
-    int  material;
-    Vec3 pos;
+    int  material_index;
+    int  motif_index;
+    Vec3 position;
+};
+
+template <typename T, typename Idx = int>
+struct Triad {
+    Idx i;
+    Idx j;
+    Idx k;
+    T   value;
 };
 
 #endif  // JAMS_CORE_TYPES_H

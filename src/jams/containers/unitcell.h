@@ -108,4 +108,9 @@ const Mat3 &UnitCell<Type>::inverse_vectors() const {
   return inverse_matrix_;
 }
 
+template <class Type>
+inline double volume(const UnitCell<Type> &u) {
+  return scalar_triple_product(u.a(), u.b(), u.c());
+}
+
 #endif //JAMS_UNITCELL_H

@@ -12,33 +12,34 @@
 #include "jams/core/monitor.h"
 #include "jams/helpers/stats.h"
 
-#include "jblib/containers/array.h"
-
 class Solver;
 
 class MagnetisationMonitor : public Monitor {
- public:
-  MagnetisationMonitor(const libconfig::Setting &settings);
-  ~MagnetisationMonitor();
+public:
+    explicit MagnetisationMonitor(const libconfig::Setting &settings);
 
-  void update(Solver * solver);
-  bool is_converged();
+    ~MagnetisationMonitor() override = default;
 
+    void update(Solver *solver) override;
+    void post_process() override {};
 
- private:
-  double binder_m2();
-  double binder_cumulant();
+    bool is_converged() override;
 
-  jblib::Array<double, 2> mag;
-    std::vector<Mat3> s_transform_;
-  std::vector<int> material_count_;
+private:
+    std::ofstream tsv_file;
+    std::string   tsv_header();
 
-  std::ofstream outfile;
+    double binder_m2();
 
-  Stats m_stats_;
-  Stats m2_stats_;
-  Stats m4_stats_;
-  std::vector<double> convergence_geweke_m_diagnostic_;
+    double binder_cumulant();
+
+    jams::MultiArray<Mat3, 1> s_transform_;
+    jams::MultiArray<unsigned, 1> material_count_;
+
+    Stats m_stats_;
+    Stats m2_stats_;
+    Stats m4_stats_;
+    std::vector<double> convergence_geweke_m_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_H

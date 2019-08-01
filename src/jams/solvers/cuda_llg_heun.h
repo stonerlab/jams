@@ -5,11 +5,8 @@
 
 #if HAS_CUDA
 
-#include "jams/cuda/wrappers/stream.h"
+#include "jams/cuda/cuda_stream.h"
 #include "jams/cuda/cuda_solver.h"
-
-#include "jblib/containers/array.h"
-#include "jblib/containers/cuda_array.h"
 
 class CUDAHeunLLGSolver : public CudaSolver {
   public:
@@ -20,6 +17,9 @@ class CUDAHeunLLGSolver : public CudaSolver {
 
   private:
     CudaStream dev_stream_;
+    bool zero_safe_kernels_required_;
+    double dt_;
+    jams::MultiArray<double, 2> s_old_;
 };
 
 #endif

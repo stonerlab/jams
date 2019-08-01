@@ -11,20 +11,15 @@
 
 #include "xyz.h"
 
-#include "jblib/containers/array.h"
-#include "jblib/math/equalities.h"
-
-
 XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
-  using namespace jblib;
 
   output_step_freq_ = settings["output_steps"];
 
   // settings for only outputting a slice
   if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
-    jams_error("Xyz monitor requires both slice_origin and slice_size to be specificed;");
+    jams_die("Xyz monitor requires both slice_origin and slice_size to be specificed;");
   }
 
   slice_spins.resize(0);
@@ -41,9 +36,9 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
       Vec3 pos = ::lattice->atom_position(i);
 
       // check if the current spin in inside the slice
-      if (floats_are_greater_than_or_equal(pos[0], slice_origin[0]) && floats_are_less_than_or_equal(pos[0], slice_origin[0] + slice_size[0])
-      &&  floats_are_greater_than_or_equal(pos[1], slice_origin[1]) && floats_are_less_than_or_equal(pos[1], slice_origin[1] + slice_size[1])
-      &&  floats_are_greater_than_or_equal(pos[2], slice_origin[2]) && floats_are_less_than_or_equal(pos[2], slice_origin[2] + slice_size[2])) {
+      if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)
+          &&  definately_greater_than(pos[1], slice_origin[1], jams::defaults::lattice_tolerance) && definately_less_than(pos[1], slice_origin[1] + slice_size[1], jams::defaults::lattice_tolerance)
+          &&  definately_greater_than(pos[2], slice_origin[2], jams::defaults::lattice_tolerance) && definately_less_than(pos[2], slice_origin[2] + slice_size[2], jams::defaults::lattice_tolerance)) {
         slice_spins.push_back(i);
       }
     }
@@ -68,9 +63,8 @@ void XyzMonitor::update(Solver * solver) {
     xyz_state_file << std::setw(16) << "sy";
     xyz_state_file << std::setw(16) << "sz" << std::endl;
 
-    if (slice_spins.size() > 0) {
-      for (int i = 0, iend = slice_spins.size(); i < iend; ++i) {
-        const int n = slice_spins[i];
+    if (!slice_spins.empty()) {
+      for (const auto n : slice_spins) {
         xyz_state_file << std::setw(9) << n;
         xyz_state_file << std::setw(16) << ::lattice->atom_position(n)[0] << std::setw(16) << ::lattice->atom_position(n)[1] << std::setw(16) << ::lattice->atom_position(n)[2];
         xyz_state_file << std::setw(16) << s(n,0) << std::setw(16) << s(n,1) << std::setw(16) <<  s(n, 2) << "\n";
@@ -84,7 +78,4 @@ void XyzMonitor::update(Solver * solver) {
     }
     xyz_state_file.close();
   }
-}
-
-XyzMonitor::~XyzMonitor() {
 }

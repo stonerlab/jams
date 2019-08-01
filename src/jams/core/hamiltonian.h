@@ -6,11 +6,8 @@
 #include <iosfwd>
 #include <cassert>
 
-#include "jblib/containers/array.h"
-
 #if HAS_CUDA
 #include <cuda_runtime_api.h>
-#include "jblib/containers/cuda_array.h"
 #endif  // CUDA
 
 #include "jams/core/types.h"
@@ -26,12 +23,10 @@ class Hamiltonian : public Base {
  public:
   Hamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
-  virtual ~Hamiltonian() {}
+  virtual ~Hamiltonian() = default;
 
   // factory
-  static Hamiltonian* create(const libconfig::Setting &settings, const unsigned int size);
-
-  std::string name() const { return name_; }
+  static Hamiltonian *create(const libconfig::Setting &settings, const unsigned int size, bool is_cuda_solver);
 
   virtual double calculate_total_energy() = 0;
   virtual double calculate_one_spin_energy(const int i) = 0;
@@ -53,41 +48,37 @@ class Hamiltonian : public Base {
     return field_(i,j);
   }
 
-  double* dev_ptr_energy() {
+    double* dev_ptr_field() {
     #if HAS_CUDA
-    assert(dev_energy_.is_allocated());
-    return dev_energy_.data();
-    #else
-    return NULL;
-    #endif
-  }
-  double* ptr_energy() {
-    assert(energy_.is_allocated());
-    return energy_.data();
-  }
-
-  double* dev_ptr_field() {
-    #if HAS_CUDA
-    assert(dev_field_.is_allocated());
-    return dev_field_.data();
+    return field_.device_data();
     #else
     return NULL;
     #endif
   }
   double* ptr_field() {
-    assert(field_.is_allocated());
     return field_.data();
   }
 
  protected:
     std::string name_;
-  jblib::Array<double, 1> energy_;
-  jblib::Array<double, 2> field_;
+    std::string input_unit_name_;
+    double      input_unit_conversion_ = 1.0;
 
-#if HAS_CUDA
-  jblib::CudaArray<double, 1> dev_energy_;
-  jblib::CudaArray<double, 1> dev_field_;
-#endif  // CUDA
+    jams::MultiArray<double, 1> energy_;
+    jams::MultiArray<double, 2> field_;
 };
+
+
+// Helper function to locate a chosen derived Hamiltonian within a list
+// of Hamiltonian base classes
+template <typename T>
+const T* find_hamiltonian(const std::vector<Hamiltonian*>&hamiltonians) {
+  for (const auto* ham : hamiltonians) {
+    if (is_castable<const T*>(ham)) {
+      return dynamic_cast<const T*>(ham);
+    }
+  }
+  throw std::runtime_error("cannot find hamiltonian");
+}
 
 #endif  // JAMS_CORE_HAMILTONIAN_H

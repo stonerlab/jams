@@ -2,19 +2,14 @@
 
 #include "jams/cuda/cuda_solver.h"
 
-#include <cublas.h>
+#include <cublas_v2.h>
 
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/core/monitor.h"
+#include "jams/cuda/cuda_common.h"
 
 using namespace std;
-
-void CudaSolver::sync_device_data() {
-  dev_s_.copy_to_host_array(globals::s);
-  dev_h_.copy_to_host_array(globals::h);
-  dev_ds_dt_.copy_to_host_array(globals::ds_dt);
-}
 
 void CudaSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
@@ -26,27 +21,7 @@ void CudaSolver::initialize(const libconfig::Setting& settings) {
 
   is_cuda_solver_ = true;
 
-//-----------------------------------------------------------------------------
-// Transfer the the other arrays to the device
-//-----------------------------------------------------------------------------
-
-  cout << "  transfering array data to device\n";
-  jblib::Array<double, 2> zero(num_spins, 3, 0.0);
-
-  // spin arrays
-  dev_s_        = jblib::CudaArray<double, 1>(s);
-  dev_s_old_    = jblib::CudaArray<double, 1>(s);
-  dev_ds_dt_    = jblib::CudaArray<double, 1>(zero);
-
-  // field array
-  dev_h_        = jblib::CudaArray<double, 1>(zero);
-
-  // materials array
-  jblib::Array<double, 2> mat(num_spins, 3);
-
-  dev_gyro_      = jblib::CudaArray<double, 1>(gyro);
-  dev_alpha_     = jblib::CudaArray<double, 1>(alpha);
-
+  CHECK_CUBLAS_STATUS(cublasCreate(&cublas_handle_));
 
   cout << "\n";
 }
@@ -54,29 +29,19 @@ void CudaSolver::initialize(const libconfig::Setting& settings) {
 void CudaSolver::compute_fields() {
   using namespace globals;
 
-  for (auto& ham : hamiltonians_) {
-    ham->calculate_fields();
+  if (hamiltonians_.empty()) return;
+
+  for (auto& hh : hamiltonians_) {
+    hh->calculate_fields();
   }
 
-  dev_h_.zero();
-  for (auto& ham : hamiltonians_) {
-    cublasDaxpy(dev_h_.elements(), 1.0, ham->dev_ptr_field(), 1, dev_h_.data(), 1);
+  cudaMemcpy(globals::h.device_data(),hamiltonians_[0]->dev_ptr_field(), globals::num_spins3*sizeof(double) ,cudaMemcpyDeviceToDevice);
+
+  if (hamiltonians_.size() == 1) return;
+
+  for (auto i = 1; i < hamiltonians_.size(); ++i) {
+    CHECK_CUBLAS_STATUS(cublasDaxpy(cublas_handle_,globals::h.elements(), &kOne, hamiltonians_[i]->dev_ptr_field(), 1, globals::h.device_data(), 1));
   }
+
 }
 
-void CudaSolver::notify_monitors() {
-  bool is_device_synchonised = false;
-  for (auto& mon : monitors_) {
-    if(mon->is_updating(iteration_)){
-      if (!is_device_synchonised) {
-        sync_device_data();
-        is_device_synchonised = true;
-      }
-      mon->update(this);
-    }
-  }
-}
-
-double *CudaSolver::dev_ptr_spin() {
-  return dev_s_.data();
-}

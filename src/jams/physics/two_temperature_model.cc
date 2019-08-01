@@ -11,8 +11,6 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 
-#include "jblib/math/functions.h"
-
 TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   : Physics(settings),
   pulseWidth(0),
@@ -75,7 +73,6 @@ TTMPhysics::~TTMPhysics() {
 
 void TTMPhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
-  using namespace jblib;
 
 double real_dt = dt/kGyromagneticRatio;
 

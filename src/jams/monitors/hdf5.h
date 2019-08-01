@@ -11,6 +11,7 @@
 
 #include "jams/core/monitor.h"
 #include "jams/helpers/slice.h"
+#include "jams/interface/h5.h"
 
 class Solver;
 
@@ -19,8 +20,10 @@ class Hdf5Monitor : public Monitor {
   explicit Hdf5Monitor(const libconfig::Setting &settings);
   ~Hdf5Monitor();
 
-  void update(Solver * solver);
-  bool is_converged() { return false; }
+  void update(Solver * solver) override;
+    void post_process() override {};
+
+    bool is_converged() override { return false; }
 
  private:
   void open_new_xdmf_file(const std::string &xdmf_file_name);
@@ -29,7 +32,7 @@ class Hdf5Monitor : public Monitor {
   void write_spin_h5_file(const std::string &h5_file_name, const H5::PredType float_type);
 
   H5::PredType float_pred_type_;
-  bool         compression_enabled_;
+  bool         compression_enabled_ = true;
   Slice        slice_;
   FILE*        xdmf_file_;
 };

@@ -9,7 +9,7 @@
 #include <vector>
 #include <libconfig.h++>
 
-#include <fftw3.h>
+#include "jams/interface/fft.h"
 #include "jams/core/base.h"
 
 // forward declarations
@@ -28,7 +28,7 @@ class Solver : public Base {
   virtual void run() = 0;
 
   bool is_converged();
-  bool is_running();
+  virtual bool is_running();
 
   inline bool is_cuda_solver() const {
     return is_cuda_solver_;
@@ -46,8 +46,8 @@ class Solver : public Base {
     return time_step_;
   }
 
-  inline double real_time_step() const {
-    return time_step_;
+  inline int max_steps() const {
+    return max_steps_;
   }
 
   inline const Physics * physics() const {
@@ -68,13 +68,12 @@ class Solver : public Base {
 
   void compute_fields();
 
-  virtual inline double * dev_ptr_spin() {
-    assert(is_cuda_solver_);
-    return nullptr;
-  }
-
   std::vector<Hamiltonian*>& hamiltonians() {
     return hamiltonians_;
+  }
+
+  std::vector<Monitor*>& monitors() {
+    return monitors_;
   }
 
   static Solver* create(const libconfig::Setting &setting);

@@ -3,6 +3,12 @@
 #ifndef JAMS_CUDA_ARRAY_KERNELS_H
 #define JAMS_CUDA_ARRAY_KERNELS_H
 
+#include <cuda.h>
+#include <thrust/device_ptr.h>
+#include <thrust/reduce.h>
+
+#include "jams/cuda/cuda_common.h"
+
 void cuda_array_elementwise_scale(
     const unsigned int n,            // n elements in i index
     const unsigned int m,            // m elements in j index
@@ -29,4 +35,8 @@ void cuda_array_float_to_double(
 	cudaStream_t stream     // cuda stream
 );
 
+template <typename T>
+inline T cuda_reduce_array(T* dev_ptr, const size_t size) {
+  return thrust::reduce(thrust::device_ptr<T>(dev_ptr), thrust::device_ptr<T>(dev_ptr) + size);
+}
 #endif  // JAMS_CUDA_ARRAY_KERNELS_H

@@ -23,8 +23,9 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   Solver::initialize(settings);
 
   max_steps_ = jams::config_required<int>(settings, "max_steps");
-  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::default_solver_min_steps);
+  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
 
+  use_total_energy_ = jams::config_optional<bool>(settings, "use_total_energy", false);
   is_preconditioner_enabled_ = settings.exists("preconditioner_theta") || settings.exists("preconditioner_phi");
   preconditioner_delta_theta_ = jams::config_optional<double>(settings, "preconditioner_theta", 5.0);
   preconditioner_delta_phi_ = jams::config_optional<double>(settings, "preconditioner_phi", 5.0);
@@ -68,8 +69,14 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
       cout << "  thermalizing\n";
       // do a short thermalization
-      for (int i = 0; i < 500; ++i) {
-        MetropolisAlgorithm(uniform_move);
+      if (use_total_energy_) {
+        for (int i = 0; i < 500; ++i) {
+          MetropolisAlgorithmTotalEnergy(uniform_move);
+        }
+      } else {
+        for (int i = 0; i < 500; ++i) {
+          MetropolisAlgorithm(uniform_move);
+        }
       }
 
       // now try systematic rotations
@@ -80,13 +87,25 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
     const double uniform_random_number = uniform_distribution(random_generator_);
     if (uniform_random_number < move_fraction_uniform_) {
-      move_running_acceptance_count_uniform_ += MetropolisAlgorithm(uniform_move);
+      if (use_total_energy_) {
+        move_running_acceptance_count_uniform_ += MetropolisAlgorithmTotalEnergy(uniform_move);
+      } else {
+        move_running_acceptance_count_uniform_ += MetropolisAlgorithm(uniform_move);
+      }
       run_count_uniform++;
     } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
-      move_running_acceptance_count_angle_ += MetropolisAlgorithm(angle_move);
+      if (use_total_energy_) {
+        move_running_acceptance_count_angle_ += MetropolisAlgorithmTotalEnergy(angle_move);
+      } else {
+        move_running_acceptance_count_angle_ += MetropolisAlgorithm(angle_move);
+      }
       run_count_angle++;
     } else {
-      move_running_acceptance_count_reflection_ += MetropolisAlgorithm(reflection_move);
+      if (use_total_energy_) {
+        move_running_acceptance_count_reflection_ += MetropolisAlgorithmTotalEnergy(reflection_move);
+      } else {
+        move_running_acceptance_count_reflection_ += MetropolisAlgorithm(reflection_move);
+      }
       run_count_reflection++;
     }
 
@@ -167,12 +186,12 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
       std::uint64_t count;
       double e_min;
-      jblib::Array<double, 2> s_min;
+      jams::MultiArray<double,2> s_min;
   public:
       explicit MagnetizationRotationMinimizer(std::vector<Hamiltonian*> & hamiltonians_ ) :
         hamiltonians_(&hamiltonians_), count(0), e_min(1e10), s_min(globals::s) {}
 
-      jblib::Array<double, 2> s() {
+      jams::MultiArray<double,2> s() {
         return s_min;
       }
 
@@ -180,7 +199,6 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
           bool operator()(It first, It last)  // called for each permutation
           {
             using std::vector;
-            using jblib::Array;
 
             int i, j;
             double energy;
@@ -226,7 +244,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
             if ( energy < e_min ) {
               // this configuration is the new minimum
               e_min = energy;
-              s_min = globals::s;
+              std::copy(globals::s.begin(), globals::s.end(), s_min.begin());
             }
             return false;
           }
@@ -242,8 +260,8 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
     Vec3 s_new;
 
-    jblib::Array<double, 2> s_init(globals::s);
-    jblib::Array<double, 2> s_min(globals::s);
+    jams::MultiArray<double,2> s_init(globals::s);
+    jams::MultiArray<double,2> s_min(globals::s);
 
     num_theta = (180.0 / delta_theta) + 1;
 
@@ -275,7 +293,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     preconditioner_file.close();
 
     // use the minimum configuration
-    globals::s = minimizer.s();
+    std::copy(minimizer.s().begin(),  minimizer.s().end(), globals::s.begin());
   }
 
   int MetropolisMCSolver::MetropolisAlgorithm(std::function<Vec3(Vec3)> trial_spin_move) {
@@ -305,3 +323,40 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     }
     return moves_accepted;
   }
+
+int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)> trial_spin_move) {
+  using std::min;
+  using std::exp;
+  std::uniform_real_distribution<> uniform_distribution;
+
+  const double beta = kBohrMagneton / (kBoltzmann * physics_module_->temperature());
+
+  unsigned moves_accepted = 0;
+  for (auto n = 0; n < globals::num_spins; ++n) {
+    // 2015-12-10 (JB) striding uniformly is ~4x faster than random choice (clang OSX).
+    // Seems to be because of caching/predication in the exchange field calculation.
+    auto s_initial = mc_spin_as_vec(n);
+    auto s_final = trial_spin_move(s_initial);
+
+    auto e_initial = 0.0;
+    for (const auto& ham : hamiltonians_) {
+      e_initial += ham->calculate_total_energy();
+    }
+
+    mc_set_spin_as_vec(n, s_final);
+    auto e_final = 0.0;
+    for (const auto& ham : hamiltonians_) {
+      e_final += ham->calculate_total_energy();
+    }
+
+    auto deltaE = e_final - e_initial;
+
+    if (uniform_distribution(random_generator_) < exp(min(0.0, -deltaE * beta))) {
+      moves_accepted++;
+      continue;
+    }
+
+    mc_set_spin_as_vec(n, s_initial);
+  }
+  return moves_accepted;
+}

@@ -9,8 +9,6 @@
 #include "jams/helpers/error.h"
 #include "sparsematrix.h"
 
-#include "jblib/containers/array.h"
-
 #define RESTRICT __restrict__
 
 ///
@@ -113,8 +111,8 @@ class SparseMatrix4D {
         std::vector<size_type> k_idx;
         std::vector<size_type> l_idx;
 
-        jblib::Array<size_type, 1>     pointers;
-        jblib::Array<size_type, 2>     coords;
+        jams::MultiArray<size_type, 1>     pointers;
+        jams::MultiArray<size_type, 2>     coords;
         std::vector<_Tp>       val;
 
 };
@@ -156,7 +154,7 @@ void SparseMatrix4D<_Tp>::insertValue(size_type i, size_type j, size_type k, siz
 
         if(  !( ((i < dim[0]) && (i >= 0)) && ((j < dim[1]) && (j >= 0))
                     && ((k < dim[2]) && (k >= 0)) && ((l < dim[3]) && (l >= 0)) ) ) { // element must be inside matrix boundaries
-            jams_error("Attempted to insert matrix element outside of matrix size");
+          die("Attempted to insert matrix element outside of matrix size");
         }
 
         i_idx.push_back(i);
@@ -168,7 +166,7 @@ void SparseMatrix4D<_Tp>::insertValue(size_type i, size_type j, size_type k, siz
 
         nnz_unmerged++;
     } else {
-        jams_error("Can only insert into MAP format sparse matrix");
+      die("Can only insert into MAP format sparse matrix");
     }
 
 }

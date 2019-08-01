@@ -13,7 +13,7 @@ set -o nounset
 # exit on first error
 set -o errexit
 
-trap "clean_exit" EXIT
+trap 'clean_exit $?' EXIT
 trap "error_exit 'SIGHUP'" SIGHUP
 trap "error_exit 'SIGINT'" SIGINT
 trap "error_exit 'SIGTERM'" SIGTERM
@@ -22,110 +22,125 @@ declare -r DIR="$(pwd)"
 declare -r TMP_DIR=$(mktemp -d)
 declare -r LOG="${TMP_DIR}/build.log"
 
-declare -r MAKEFLAGS='-j 4'
-declare -r URL=http://joebarker87@bitbucket.org/joebarker87/jams.git
+declare -r NUMPROC="$(getconf _NPROCESSORS_ONLN)"
+declare -r MAKEFLAGS="-j$NUMPROC"
+#declare -r URL=http://joebarker87@bitbucket.org/joebarker87/jams.git
+declare -r URL=git@bitbucket.org:joebarker87/jams.git
 declare -r EXE_PATH='build/src/jams/jams'
+declare -r NVCC_PATH="$(which nvcc)"
 
-function clean_exit {      
+function usage {
+	echo "usage: $0 [-b <branch>] [-c <commit>] [-t <build_type>] [-g <generator>] [-d | Debug]"
+}
+
+function clean_exit {
+  local exit_code=$1
+  if [ "$exit_code" -ne "0" ]; then
+    error_exit "EXIT $1"
+  fi     
   rm -rf "$TMP_DIR"
 }
 
 function error_exit {      
   local signal=$1
-  echo "An error occured with signal ${signal}"
-  echo ""
-  echo "Logfile:"
-  cat ${LOG}
+  echo -e ""
+  echo -e "\e[31m*** An error occured with signal ${signal} ***"
+  echo -e ""
+  cat "${LOG}"
  
   rm -rf "$TMP_DIR"
 }
 
 clean() {
   local directory="$1"
-  if [ -d $directory ]; then
-    rm -Rf $directory
+  if [ -d "$directory" ]; then
+    rm -Rf "$directory"
   fi
 }
 
 message() {
   local text="$1"
-  echo "${text}" | tee -a ${LOG}
+  echo -e "${text}" | tee -a "${LOG}"
 }
 
 copy_binary() {
   local workdir=$1
   local exe_name=$2
-  cp ${workdir}/${EXE_PATH} ${DIR}/${exe_name}
+  cp "${workdir}/${EXE_PATH}" "${DIR}/${exe_name}"
 }
 
-clone_git_repo_shallow() {
+clone_git_branch_shallow() {
   local repository=$1
   local branch=$2
   local destination=$3
 
-  mkdir -p $destination
-  git clone -b $branch --single-branch --depth 1 $repository $destination >> ${LOG} 2>&1 
+  mkdir -p "$destination"
+  git clone -b "$branch" --single-branch --depth 1 "$repository" "$destination" >> "${LOG}" 2>&1 
 }
 
-clone_git_repo() {
+clone_git_commit() {
   local repository=$1
-  local destination=$2
+  local commit=$2
+  local destination=$3
 
-  mkdir -p $destination
-  git clone $repository $destination >> ${LOG} 2>&1 
-}
-
-checkout_git_commit() {
-  local commit=$1
-  local workdir=$2
-  (cd ${workdir} && git checkout ${commit} .)
+  mkdir -p "$destination"
+  git clone "$repository" "$destination" >> "${LOG}" 2>&1 
+  (cd "${destination}" && git checkout -q "${commit}")
 }
 
 build_branch() {
   local branch="$1"
-  local build_type=$2
-  local generator=$3
+  local build_type="$2"
+  local build_options="$3"
+  local generator="$4"
 
-  local build_name=$(tr '[:upper:]' '[:lower:]' <<< "jams-${branch}-${build_type}")
-  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type}"
+  local sanitized_branch
+  sanitized_branch=$(basename "${branch}")
+
+  local build_name
+  build_name=$(tr '[:upper:]' '[:lower:]' <<< "jams-${sanitized_branch}-${build_type}")
+  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} ${build_options}"
 
   local workdir="${build_name}"
 
-  message "Building ${workdir} from '${URL}'..."
+  message "\e[1m==> Building \e[34m${workdir}\e[39m from \e[32m${URL}\e[39m...\e[0m"
 
-  clean ${workdir}
-  message "==> Cloning git repository..."
-  clone_git_repo_shallow ${URL} ${branch} ${workdir}
-  message "==> Running CMake..."
-  cmake_generate "${workdir}/build" ${cmake_args} ${generator}
-  message "==> Compiling source..."
-  build "${workdir}/build" ${generator}
-  message "==> Creating binary..."
-  copy_binary "${workdir}" ${build_name}
+  clean "${workdir}"
+  message "\e[1m==> Cloning git repository...\e[0m"
+  clone_git_branch_shallow "${URL}" "${branch}" "${workdir}"
+  message "\e[1m==> Running CMake...\e[0m"
+  cmake_generate "${workdir}/build" "${cmake_args}" "${generator}"
+  message "\e[1m==> Compiling source...\e[0m"
+  build "${workdir}/build" "${generator}"
+  message "\e[1m==> Creating binary...\e[0m"
+  copy_binary "${workdir}" "${build_name}"
+  message "\e[33m${DIR}/${build_name}\e[0m"
 }
 
 build_commit() {
   local commit="$1"
-  local build_type=$2
-  local generator=$3
+  local build_type="$2"
+  local build_options="$3"
+  local generator="$4"
 
-  local build_name=$(tr '[:upper:]' '[:lower:]' <<< "jams-${commit}-${build_type}")
-  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type}"
+  local build_name
+  build_name=$(tr '[:upper:]' '[:lower:]' <<< "jams-${commit}-${build_type}")
+  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} ${build_options}"
 
   local workdir="${build_name}"
 
-  message "Building ${workdir} from '${URL}'..."
+  message "\e[1m==> Building \e[34m${workdir}\e[39m from \e[32m${URL}\e[39m...\e[0m"
 
-  clean ${workdir}
-  message "==> Cloning git repository..."
-  clone_git_repo ${URL} ${workdir}
-  checkout_git_commit ${commit} ${workdir}
-  message "==> Running CMake..."
-  cmake_generate "${workdir}/build" ${cmake_args} ${generator}
-  message "==> Compiling source..."
-  build "${workdir}/build" ${generator}
-  message "==> Creating binary..."
-  copy_binary "${workdir}" ${build_name}
+  clean "${workdir}"
+  message "\e[1m==> Cloning git repository...\e[0m"
+  clone_git_commit "${URL}" "$commit" "${workdir}"
+  message "\e[1m==> Running CMake...\e[0m"
+  cmake_generate "${workdir}/build" "${cmake_args}" "${generator}"
+  message "\e[1m==> Compiling source...\e[0m"
+  build "${workdir}/build" "${generator}"
+  message "\e[1m==> Creating binary...\e[0m"
+  copy_binary "${workdir}" "${build_name}"
+  message "\e[33m${DIR}/${build_name}\e[0m"
 }
 
 cmake_generate() {
@@ -135,7 +150,8 @@ cmake_generate() {
 
   mkdir -p "${cmake_build_dir}"
 
-  (cd -- "${cmake_build_dir}" && cmake .. -G "${cmake_generator}" ${cmake_args} >> ${LOG} 2>&1)
+  # echo "cmake .. -G \"${cmake_generator}\" ${cmake_args}"
+  (cd -- "${cmake_build_dir}" && cmake .. -G "${cmake_generator}" ${cmake_args} >> "${LOG}" 2>&1)
 }
 
 build() {
@@ -144,10 +160,10 @@ build() {
 
   case ${build_system} in
     "Ninja")
-	(cd -- "${build_dir}" && ninja jams >> ${LOG} 2>&1)
+	(cd -- "${build_dir}" && ninja jams >> "${LOG}" 2>&1)
 	;;
     "Unix Makefiles")
-	(cd -- "${build_dir}" && make ${MAKEFLAGS} >> ${LOG} 2>&1)
+	(cd -- "${build_dir}" && make "${MAKEFLAGS}" >> "${LOG}" 2>&1)
 	;;
     /?)
 	echo "Unknown build system: ${build_system}"
@@ -160,9 +176,15 @@ main() {
   local branch="develop"
   local commit=""
   local build_type="Release"
-  local generator="Ninja"
+  local build_options=""
+  local generator="Unix Makefiles"
 
-  while getopts ":b:c:dt:h:" opt; do
+  if [[ -z "${NVCC_PATH}" ]]; then
+    message "\e[1m==> Disabling CUDA in build...\e[0m"
+    build_options="-DJAMS_BUILD_CUDA=OFF"
+  fi
+
+  while getopts ":b:c:dt:o:g:h" opt; do
     case $opt in
       b )
         branch=$OPTARG
@@ -176,22 +198,30 @@ main() {
       t )
         build_type=$OPTARG
         ;;
+      o )
+        build_options="${build_options} $OPTARG"
+        ;;
       g )
         generator=$OPTARG
         ;;
+      h )
+		usage
+		exit 0
+		;;
       \?)
         echo "Invalid option: -$OPTARG"
+        usage
         exit 1
         ;;
       esac
   done
 
-  cd $TMP_DIR
+  cd "$TMP_DIR"
 
-  if [ ! -z "${commit}" ]; then
-    build_commit "$commit" "$build_type" "$generator"
+  if [[ -n "${commit}" ]]; then
+    build_commit "$commit" "$build_type" "$build_options" "$generator"
   else
-    build_branch "$branch" "$build_type" "$generator"
+    build_branch "$branch" "$build_type" "$build_options" "$generator"
   fi
 }
  

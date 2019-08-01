@@ -9,125 +9,95 @@
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
+#include "jams/interface/openmp.h"
 
 #include "jams/monitors/magnetisation.h"
+#include "magnetisation.h"
+
 
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  mag(::lattice->num_materials(), 4),
   s_transform_(globals::num_spins),
-  outfile(),
+  tsv_file(),
   m_stats_(),
   m2_stats_(),
   m4_stats_()
 {
   using namespace globals;
 
-  // create transform arrays for example to apply a Holstein Primakoff transform
+  tsv_file.open(seedname + "_mag.tsv");
+  tsv_file.setf(std::ios::right);
+  tsv_file << tsv_header();
 
   s_transform_.resize(num_spins);
   for (int i = 0; i < num_spins; ++i) {
-    s_transform_[i] = lattice->material(lattice->atom_material_id(i)).transform;
+    s_transform_(i) = lattice->material(lattice->atom_material_id(i)).transform;
   }
 
-  material_count_.resize(lattice->num_materials(), 0);
+  zero(material_count_.resize(lattice->num_materials()));
   for (auto i = 0; i < num_spins; ++i) {
-    material_count_[lattice->atom_material_id(i)]++;
+    material_count_(lattice->atom_material_id(i))++;
   }
-
-  std::string name = seedname + "_mag.tsv";
-  outfile.open(name.c_str());
-  outfile.setf(std::ios::right);
-
-  // header for the magnetisation file
-  outfile << std::setw(12) << "time" << "\t";
-  outfile << std::setw(12) << "temperature" << "\t";
-  outfile << std::setw(12) << "Hx" << "\t";
-  outfile << std::setw(12) << "Hy" << "\t";
-  outfile << std::setw(12) << "Hz" << "\t";
-
-  for (int i = 0; i < lattice->num_materials(); ++i) {
-    outfile << std::setw(12) << lattice->material_name(i) + ":mx" << "\t";
-    outfile << std::setw(12) << lattice->material_name(i) + ":my" << "\t";
-    outfile << std::setw(12) << lattice->material_name(i) + ":mz" << "\t";
-    outfile << std::setw(12) << lattice->material_name(i) + ":m" << "\t";
-  }
-
-  outfile << std::setw(12) << "m2" << "\t";
-  outfile << std::setw(12) << "m4" << "\t";
-  outfile << std::setw(12) << "binder" << "\t";
-
-  if (convergence_is_on_) {
-    outfile << std::setw(12) << "geweke:m2" << "\t";
-    outfile << std::setw(12) << "geweke:m4";
-  }
-
-  outfile << "\n";
 }
 
 void MagnetisationMonitor::update(Solver * solver) {
   using namespace globals;
 
-    mag.zero();
+  jams::MultiArray<Vec3, 1> magnetisation(::lattice->num_materials(), {0.0, 0.0, 0.0});
 
-    for (auto i = 0; i < num_spins; ++i) {
-      int type = lattice->atom_material_id(i);
-      for (auto j = 0; j < 3; ++j) {
-        mag(type, j) += s(i, j);
+  for (auto i = 0; i < num_spins; ++i) {
+    const auto type = lattice->atom_material_id(i);
+    for (auto j = 0; j < 3; ++j) {
+      magnetisation(type)[j] += s(i, j);
+    }
+  }
+
+  for (auto type = 0; type < lattice->num_materials(); ++type) {
+    if (material_count_(type) == 0) continue;
+    for (auto j = 0; j < 3; ++j) {
+      magnetisation(type)[j] /= static_cast<double>(material_count_(type));
+    }
+  }
+
+  tsv_file.width(12);
+  tsv_file << std::scientific << solver->time() << "\t";
+  tsv_file << std::fixed << solver->physics()->temperature() << "\t";
+
+  for (auto i = 0; i < 3; ++i) {
+    tsv_file <<  solver->physics()->applied_field(i) << "\t";
+  }
+
+  for (auto type = 0; type < lattice->num_materials(); ++type) {
+    for (auto j = 0; j < 3; ++j) {
+      tsv_file << magnetisation(type)[j] << "\t";
+    }
+    tsv_file << norm(magnetisation(type)) << "\t";
+  }
+
+  if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
+    double m2 = binder_m2();
+    m_stats_.add(sqrt(m2));
+    m2_stats_.add(m2);
+    m4_stats_.add(m2 * m2);
+
+    tsv_file << m2 << "\t";
+    tsv_file << m2 * m2 << "\t";
+    tsv_file << binder_cumulant() << "\t";
+
+    if (convergence_is_on_) {
+      if (m_stats_.size() > 1 && m_stats_.size() % 10 == 0) {
+        double diagnostic;
+        m_stats_.geweke(diagnostic, convergence_stderr_);
+
+        convergence_geweke_m_diagnostic_.push_back(diagnostic);
+
+        tsv_file << diagnostic << "\t" << convergence_stderr_ << "\t" << m_stats_.stddev(0.1*m_stats_.size(), m_stats_.size()) / sqrt(m_stats_.size()*0.9);
+      } else {
+        tsv_file << "--------";
       }
     }
-
-    for (auto i = 0; i < lattice->num_materials(); ++i) {
-      for (auto j = 0; j < 3; ++j) {
-        mag(i, j) = mag(i, j)/static_cast<double>(material_count_[i]);
-      }
-    }
-
-    for (auto i = 0; i < lattice->num_materials(); ++i) {
-      mag(i, 3) = sqrt(mag(i, 0)*mag(i, 0) + mag(i, 1)*mag(i, 1)
-        + mag(i, 2)*mag(i, 2));
-    }
-
-    outfile << std::setw(12) << std::scientific << solver->time() << "\t";
-    outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
-
-    for (auto i = 0; i < 3; ++i) {
-      outfile <<  std::setw(12) << solver->physics()->applied_field(i) << "\t";
-    }
-
-    for (auto i = 0; i < lattice->num_materials(); ++i) {
-      outfile << std::setw(12) << mag(i, 0) << "\t";
-      outfile << std::setw(12) << mag(i, 1) << "\t";
-      outfile << std::setw(12) << mag(i, 2) << "\t";
-      outfile << std::setw(12) << mag(i, 3) << "\t";
-    }
-
-    if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
-      double m2 = binder_m2();
-      m_stats_.add(sqrt(m2));
-      m2_stats_.add(m2);
-      m4_stats_.add(m2 * m2);
-
-
-      outfile << std::setw(12) << m2 << "\t";
-      outfile << std::setw(12) << m2 * m2 << "\t";
-      outfile << std::setw(12) << binder_cumulant() << "\t";
-
-      if (convergence_is_on_) {
-        if (m_stats_.size() > 1 && m_stats_.size() % 10 == 0) {
-          double diagnostic;
-          m_stats_.geweke(diagnostic, convergence_stderr_);
-
-          convergence_geweke_m_diagnostic_.push_back(diagnostic);
-
-          outfile << std::setw(12) << diagnostic << "\t" << convergence_stderr_ << "\t" << m_stats_.stddev(0.1*m_stats_.size(), m_stats_.size()) / sqrt(m_stats_.size()*0.9);
-        } else {
-          outfile << std::setw(12) << "--------";
-        }
-      }
-    }
-
-    outfile << std::endl;
+  }
+  tsv_file << std::endl;
 }
 
 double MagnetisationMonitor::binder_m2() {
@@ -138,12 +108,12 @@ double MagnetisationMonitor::binder_m2() {
   for (int i = 0; i < num_spins; ++i) {
     for (int m = 0; m < 3; ++m) {
       for (int n = 0; n < 3; ++n) {
-        mag[m] = mag[m] + s_transform_[i][m][n] * s(i, n);
+        mag[m] = mag[m] + s_transform_(i)[m][n] * s(i, n);
       }
     }
   }
 
-  return abs_sq(mag) / square(static_cast<double>(num_spins));
+  return norm_sq(mag) / square(static_cast<double>(num_spins));
 }
 
 double MagnetisationMonitor::binder_cumulant() {
@@ -164,6 +134,32 @@ bool MagnetisationMonitor::is_converged() {
   return (z_count > (0.95 * 0.5 * convergence_geweke_m_diagnostic_.size())  && convergence_stderr_ < convergence_tolerance_) && convergence_is_on_;
 }
 
-MagnetisationMonitor::~MagnetisationMonitor() {
-  outfile.close();
+std::string MagnetisationMonitor::tsv_header() {
+  std::stringstream ss;
+  ss.width(12);
+
+  ss << "time\t";
+  ss << "temperature\t";
+  ss << "hx\t";
+  ss << "hy\t";
+  ss << "hz\t";
+
+  for (auto i = 0; i < lattice->num_materials(); ++i) {
+    auto name = lattice->material_name(i);
+    ss << name + "_mx\t";
+    ss << name + "_my\t";
+    ss << name + "_mz\t";
+    ss << name + "_m\t";
+  }
+
+  if (convergence_is_on_) {
+    ss << "m2\t";
+    ss << "m4\t";
+    ss << "binder\t";
+    ss << "geweke_m2\t";
+    ss << "geweke_m4";
+  }
+  ss << std::endl;
+
+  return ss.str();
 }

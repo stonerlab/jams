@@ -10,14 +10,13 @@
 #include <jams/helpers/defaults.h>
 
 #include "jams/helpers/consts.h"
-#include "jams/helpers/exception.h"
 #include "jams/core/globals.h"
 #include "jams/core/thermostat.h"
 #include "jams/core/physics.h"
+#include "jams/helpers/error.h"
+#include "jams/cuda/cuda_common.h"
 
-#include "cuda_llg_heun_kernel.h"
-
-#include "jblib/containers/array.h"
+#include "cuda_llg_heun_kernel.cuh"
 
 using namespace std;
 
@@ -28,7 +27,7 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   CudaSolver::initialize(settings);
 
   time_step_ = jams::config_required<double>(settings, "t_step");
-  double dt = time_step_ * kGyromagneticRatio;
+  dt_ = time_step_ * kGyromagneticRatio;
 
   auto t_max = jams::config_required<double>(settings, "t_max");
   auto t_min = jams::config_optional<double>(settings, "t_min", 0.0);
@@ -40,22 +39,32 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   cout << "t_max " << t_max << " steps (" <<  max_steps_ << ")\n";
   cout << "t_min " << t_min << " steps (" << min_steps_ << ")\n";
 
-  cout << "  copy time_step to symbol\n";
-  if(cudaMemcpyToSymbol(dev_dt, &dt, sizeof(double)) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
-  cout << "  copy num_spins to symbol\n";
-  if(cudaMemcpyToSymbol(dev_num_spins, &globals::num_spins, sizeof(unsigned int)) != cudaSuccess) {
-    throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-  }
-
-  std::string thermostat_name = jams::config_optional<string>(config->lookup("solver"), "thermostat", jams::default_solver_gpu_thermostat);
+  std::string thermostat_name = jams::config_optional<string>(config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
   thermostat_ = Thermostat::create(thermostat_name);
 
   cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
   cout << "done\n";
+
+  // check if we need to use zero safe versions of the kernels (for |S| = 0)
+  zero_safe_kernels_required_ = false;
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    if (approximately_zero(Vec3{s(i,0), s(i,1), s(i,2)})) {
+      zero_safe_kernels_required_ = true;
+      break;
+    }
+  }
+
+  if (zero_safe_kernels_required_) {
+    jams_warning("Some spins have zero length so zero safe kernels will be used.");
+  }
+
+  s_old_.resize(num_spins, 3);
+  for (auto i = 0; i < num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      s_old_(i, j) = s(i, j);
+    }
+  }
 }
 
 void CUDAHeunLLGSolver::run()
@@ -65,48 +74,49 @@ void CUDAHeunLLGSolver::run()
   const dim3 block_size = {84, 3, 1};
   auto grid_size = cuda_grid_size(block_size, {globals::num_spins, 3, 1});
 
-    cudaMemcpyAsync(dev_s_old_.data(),           // void *               dst
-               dev_s_.data(),               // const void *         src
-               num_spins3*sizeof(double),   // size_t               count
-               cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-               dev_stream_.get());                   // device stream
+  cudaMemcpyAsync(s_old_.device_data(),           // void *               dst
+             s.device_data(),               // const void *         src
+             num_spins3*sizeof(double),   // size_t               count
+             cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
+             dev_stream_.get());                   // device stream
 
-  if (debug_is_enabled()) {
-    if (cudaPeekAtLastError() != cudaSuccess) {
-     throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-  }
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-    thermostat_->set_temperature(physics_module_->temperature());
-    thermostat_->update();
+  thermostat_->set_temperature(physics_module_->temperature());
+  thermostat_->update();
 
-    compute_fields();
+  compute_fields();
 
+  if (zero_safe_kernels_required_) {
+    cuda_zero_safe_heun_llg_kernelA<<<grid_size, block_size>>>
+      (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
+       h.device_data(), thermostat_->device_data(),
+       gyro.device_data(), alpha.device_data(), dt_, num_spins);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+  } else {
     cuda_heun_llg_kernelA<<<grid_size, block_size>>>
-        (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
-          dev_h_.data(), thermostat_->noise(),
-          dev_gyro_.data(), dev_alpha_.data());
-
-  if (debug_is_enabled()) {
-    if (cudaPeekAtLastError() != cudaSuccess) {
-      throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
+      (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
+        h.device_data(), thermostat_->device_data(),
+          gyro.device_data(), alpha.device_data(), dt_, num_spins);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
-    compute_fields();
+  compute_fields();
 
+  if (zero_safe_kernels_required_) {
+    cuda_zero_safe_heun_llg_kernelB<<<grid_size, block_size>>>
+      (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
+          h.device_data(), thermostat_->device_data(),
+          gyro.device_data(), alpha.device_data(), dt_, num_spins);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+  } else {
     cuda_heun_llg_kernelB<<<grid_size, block_size>>>
-      (dev_s_.data(), dev_ds_dt_.data(), dev_s_old_.data(),
-        dev_h_.data(), thermostat_->noise(),
-        dev_gyro_.data(), dev_alpha_.data());
-
-  if (debug_is_enabled()) {
-    if (cudaPeekAtLastError() != cudaSuccess) {
-      throw cuda_api_exception("", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
+      (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
+          h.device_data(), thermostat_->device_data(),
+          gyro.device_data(), alpha.device_data(), dt_, num_spins);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
-
-    iteration_++;
+  iteration_++;
 }
 

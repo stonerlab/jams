@@ -1,4 +1,5 @@
-#include "cuda_defs.h"
+#include "jams/cuda/cuda_common.h"
+
 
 // y_ij <-- alpha_i * beta * x_ij
 
@@ -85,17 +86,17 @@ void cuda_array_elementwise_scale(
     if (incx == 1 && incy == 1) {
         if (x == y) {
             cuda_array_elementwise_scale_kernel_noinc_self_<<<grid_size, block_size, 0, stream>>>(n, m, alpha, beta, x);
-            cuda_kernel_error_check();
+            DEBUG_CHECK_CUDA_ASYNC_STATUS
             return;
         } else {
             cuda_array_elementwise_scale_kernel_noinc_<<<grid_size, block_size, 0, stream>>>(n, m, alpha, beta, x, y);
-            cuda_kernel_error_check();
+            DEBUG_CHECK_CUDA_ASYNC_STATUS
             return;
         }
     }
 
     cuda_array_elementwise_scale_kernel_general_<<<grid_size, block_size, 0, stream>>>(n, m, alpha, beta, x, incx, y, incy);
-    cuda_kernel_error_check();
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
     return;
 }
 
@@ -156,5 +157,3 @@ void cuda_array_float_to_double(
 
     cuda_array_float_to_double_kernel<<<grid_size, block_size, 0, stream>>>(n, in, out);
 }
-
-

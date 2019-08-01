@@ -4,24 +4,23 @@
 #include "jams/helpers/exception.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
-#include "jams/cuda/cuda_defs.h"
-#include "jams/cuda/cuda_sparsematrix.h"
 #include "jams/core/interactions.h"
 #include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
+#include "jams/helpers/error.h"
 
-#include "jblib/math/summations.h"
-
+#include "jams/hamiltonian/exchange.h"
 #include "exchange.h"
+
 
 using namespace std;
 
 void ExchangeHamiltonian::insert_interaction(const int i, const int j, const Mat3 &value) {
   for (auto m = 0; m < 3; ++m) {
     for (auto n = 0; n < 3; ++n) {
-      if (std::abs(value[m][n]) > energy_cutoff_) {
-        interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
+      if (std::abs(value[m][n]) * input_unit_conversion_ > energy_cutoff_ / kBohrMagneton) {
+        interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n] * input_unit_conversion_);
       }
     }
   }
@@ -34,61 +33,65 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   // read settings
   //---------------------------------------------------------------------
 
-    std::string interaction_filename = settings["exc_file"].c_str();
-    std::ifstream interaction_file(interaction_filename.c_str());
-    if (interaction_file.fail()) {
-      jams_error("failed to open interaction file %s", interaction_filename.c_str());
+
+  bool use_symops = true;
+  settings.lookupValue("symops", use_symops);
+
+  bool print_unfolded = false;
+  settings.lookupValue("print_unfolded", print_unfolded);
+
+  print_unfolded = print_unfolded || verbose_is_enabled() || debug_is_enabled();
+
+  energy_cutoff_ = 1E-26;  // Joules
+  settings.lookupValue("energy_cutoff", energy_cutoff_);
+  cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
+
+  radius_cutoff_ = 100.0;  // lattice parameters
+  settings.lookupValue("radius_cutoff", radius_cutoff_);
+  cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
+
+  distance_tolerance_ = jams::defaults::lattice_tolerance; // fractional coordinate units
+  settings.lookupValue("distance_tolerance", distance_tolerance_);
+  cout << "    distance_tolerance " << distance_tolerance_ << "\n";
+
+  safety_check_distance_tolerance(distance_tolerance_);
+
+  if (debug_is_enabled()) {
+    std::ofstream pos_file("debug_pos.dat");
+    for (int n = 0; n < lattice->num_materials(); ++n) {
+      for (int i = 0; i < globals::num_spins; ++i) {
+        if (lattice->atom_material_id(i) == n) {
+          pos_file << i << "\t" << lattice->atom_position(i) << " | "
+                   << lattice->cartesian_to_fractional(lattice->atom_position(i)) << "\n";
+        }
+      }
+      pos_file << "\n\n";
     }
-    cout << "    interaction file name " << interaction_filename << "\n";
+    pos_file.close();
+  }
 
-    std::string exchange_file_format_name = "JAMS";
-    settings.lookupValue("format", exchange_file_format_name);
-    exchange_file_format_ = exchange_file_format_from_string(exchange_file_format_name);
-
+  //---------------------------------------------------------------------
+  // generate interaction list
+  //---------------------------------------------------------------------
     std::string coordinate_format_name = "CARTESIAN";
     settings.lookupValue("coordinate_format", coordinate_format_name);
     CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
 
-    bool use_symops = true;
-    settings.lookupValue("symops", use_symops);
+    cout << "    coordinate format: " << to_string(coord_format) << "\n";
+    // exc_file is to maintain backwards compatibility
+    if (settings.exists("exc_file")) {
+      cout << "    interaction file name " << settings["exc_file"].c_str() << "\n";
 
-    bool print_unfolded = false;
-    settings.lookupValue("print_unfolded", print_unfolded);
-
-    print_unfolded = print_unfolded || verbose_is_enabled() || debug_is_enabled();
-
-    energy_cutoff_ = 1E-26;  // Joules
-    settings.lookupValue("energy_cutoff", energy_cutoff_);
-    cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
-
-    radius_cutoff_ = 100.0;  // lattice parameters
-    settings.lookupValue("radius_cutoff", radius_cutoff_);
-    cout << "    interaction radius cutoff " << radius_cutoff_ << "\n";
-
-    distance_tolerance_ = 1e-3; // fractional coordinate units
-    settings.lookupValue("distance_tolerance", distance_tolerance_);
-    cout << "    distance_tolerance " << distance_tolerance_ << "\n";
-    
-    safety_check_distance_tolerance(distance_tolerance_);
-
-    if (debug_is_enabled()) {
-      std::ofstream pos_file("debug_pos.dat");
-      for (int n = 0; n < lattice->num_materials(); ++n) {
-        for (int i = 0; i < globals::num_spins; ++i) {
-          if (lattice->atom_material_id(i) == n) {
-            pos_file << i << "\t" <<  lattice->atom_position(i) << " | " << lattice->cartesian_to_fractional(lattice->atom_position(i)) << "\n";
-          }
-        }
-        pos_file << "\n\n";
+      std::ifstream interaction_file(settings["exc_file"].c_str());
+      if (interaction_file.fail()) {
+        jams_die("failed to open interaction file");
       }
-      pos_file.close();
-    }
 
-    //---------------------------------------------------------------------
-    // generate interaction list
-    //---------------------------------------------------------------------
-  generate_neighbour_list_from_file(interaction_file, exchange_file_format_, coord_format, energy_cutoff_, radius_cutoff_, use_symops,
-                                    print_unfolded || debug_is_enabled(), neighbour_list_);
+      neighbour_list_ = generate_neighbour_list(interaction_file, coord_format, use_symops, energy_cutoff_,
+                                                radius_cutoff_);
+    } else if (settings.exists("interactions")) {
+      neighbour_list_ = generate_neighbour_list(settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_);
+    }
 
     if (debug_is_enabled()) {
       std::ofstream debug_file("DEBUG_exchange_nbr_list.tsv");
@@ -103,7 +106,15 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
     interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
-    cout << "    computed interactions\n";
+    cout << "    computed interactions: "<< neighbour_list_.num_interactions() << "\n";
+
+
+    cout << "    interactions per motif position: \n";
+    if (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2) && !lattice->has_impurities()) {
+        for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+            cout << "      " << i << ": " << neighbour_list_.num_interactions(i) <<"\n";
+        }
+    }
 
     for (int i = 0; i < neighbour_list_.size(); ++i) {
       for (auto const &j: neighbour_list_[i]) {
@@ -114,24 +125,6 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     cout << "    converting interaction matrix format from MAP to CSR\n";
     interaction_matrix_.convertMAP2CSR();
     cout << "    exchange matrix memory (CSR): " << interaction_matrix_.calculateMemory() << " (MB)\n";
-
-    // transfer arrays to cuda device if needed
-    if (solver->is_cuda_solver()) {
-#if HAS_CUDA
-      dev_energy_ = jblib::CudaArray<double, 1>(energy_);
-      dev_field_  = jblib::CudaArray<double, 1>(field_);
-
-      cout << "    init cusparse\n";
-      cusparseStatus_t status = cusparseCreate(&cusparse_handle_);
-      if (status != CUSPARSE_STATUS_SUCCESS) {
-        jams_error("cusparse Library initialization failed");
-      }
-      cusparseSetStream(cusparse_handle_, dev_stream_.get());
-
-      sparsematrix_copy_host_csr_to_cuda_csr(interaction_matrix_, dev_csr_interaction_matrix_);
-#endif
-  }
-
 }
 
 // --------------------------------------------------------------------------
@@ -139,25 +132,12 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 double ExchangeHamiltonian::calculate_total_energy() {
   double total_energy = 0.0;
 
-#if HAS_CUDA
-  if (solver->is_cuda_solver()) {
-    calculate_fields();
-    dev_field_.copy_to_host_array(field_);
-    for (auto i = 0; i < globals::num_spins; ++i) {
-        total_energy += -(  globals::s(i,0)*field_(i,0) 
-                     + globals::s(i,1)*field_(i,1)
-                     + globals::s(i,2)*field_(i,2) );
-    }
-  } else {
-#endif // CUDA
-
+  #if HAS_OMP
+  #pragma omp parallel for reduction(+:total_energy)
+  #endif
     for (int i = 0; i < globals::num_spins; ++i) {
         total_energy += calculate_one_spin_energy(i);
     }
-
-#if HAS_CUDA
-    }
-#endif // CUDA
 
     return 0.5*total_energy;
 }
@@ -184,8 +164,6 @@ double ExchangeHamiltonian::calculate_one_spin_energy(const int i) {
     return -(globals::s(i,0)*jij_sj[0] + globals::s(i,1)*jij_sj[1] + globals::s(i,2)*jij_sj[2]);
 }
 
-// --------------------------------------------------------------------------
-
 double ExchangeHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
 
@@ -199,15 +177,11 @@ double ExchangeHamiltonian::calculate_one_spin_energy_difference(const int i, co
     return e_final - e_initial;
 }
 
-// --------------------------------------------------------------------------
-
 void ExchangeHamiltonian::calculate_energies() {
     for (int i = 0; i < globals::num_spins; ++i) {
-        energy_[i] = calculate_one_spin_energy(i);
+        energy_(i) = calculate_one_spin_energy(i);
     }
 }
-
-// --------------------------------------------------------------------------
 
 void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
     assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
@@ -230,8 +204,6 @@ void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_fie
     }
 }
 
-// --------------------------------------------------------------------------
-
 void ExchangeHamiltonian::calculate_fields() {
   assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
   double one = 1.0;
@@ -241,37 +213,16 @@ void ExchangeHamiltonian::calculate_fields() {
   const int num_rows = globals::num_spins3;
   const int num_cols = globals::num_spins3;
 
-  if (solver->is_cuda_solver()) {
-#if HAS_CUDA
-    cusparseStatus_t stat =
-            cusparseDcsrmv(cusparse_handle_,
-                    CUSPARSE_OPERATION_NON_TRANSPOSE,
-                    num_rows,
-                    num_cols,
-                    interaction_matrix_.nonZero(),
-                    &one,
-                    dev_csr_interaction_matrix_.descr,
-                    dev_csr_interaction_matrix_.val,
-                    dev_csr_interaction_matrix_.row,
-                    dev_csr_interaction_matrix_.col,
-                    solver->dev_ptr_spin(),
-                    &zero,
-                    dev_field_.data());
-
-    if (debug_is_enabled()) {
-      if (stat != CUSPARSE_STATUS_SUCCESS) {
-        throw cuda_api_exception("cusparse failure", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-      }
-    }
-#endif  // CUDA
-  } else {
 #ifdef HAS_MKL
     mkl_dcsrmv(transa, &num_rows, &num_cols, &one, matdescra, interaction_matrix_.valPtr(),
             interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),
             &zero, field_.data());
 #else
-    jams_dcsrmv(transa, num_rows, num_cols, 1.0, matdescra, interaction_matrix_.valPtr(),
+    jams::Xcsrmv(transa, num_rows, num_cols, 1.0, matdescra, interaction_matrix_.valPtr(),
       interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
 #endif
-  }
+}
+
+const InteractionList<Mat3> &ExchangeHamiltonian::neighbour_list() const {
+  return neighbour_list_;
 }

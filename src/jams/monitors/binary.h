@@ -11,21 +11,16 @@
 #include "jams/core/monitor.h"
 #include "jams/core/types.h"
 
-#include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
-
 class BinaryMonitor : public Monitor {
  public:
-  BinaryMonitor(const libconfig::Setting &settings);
-  ~BinaryMonitor();
+  explicit BinaryMonitor(const libconfig::Setting &settings);
+    ~BinaryMonitor() override = default;
 
-  void update(Solver * solver);
-  bool is_converged() { return false; }
+  void update(Solver * solver) override;
+  void post_process() override {};
+  bool is_converged() override { return false; }
 
  private:
-    Vec3 slice_origin;
-    Vec3 slice_size;
-    std::vector<int>    slice_spins;
     bool is_file_overwrite_mode;
 };
 

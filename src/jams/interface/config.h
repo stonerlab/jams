@@ -7,6 +7,7 @@
 
 #include <libconfig.h++>
 #include <jams/helpers/utils.h>
+#include <jams/core/interactions.h>
 #include "jams/core/types.h"
 
 void config_patch(libconfig::Setting& orig, const libconfig::Setting& patch);
@@ -14,7 +15,7 @@ void config_patch(libconfig::Setting& orig, const libconfig::Setting& patch);
 namespace jams {
 
     template<typename T>
-    inline T config_required(const libconfig::Setting &setting, const std::string &name);
+    inline T config_required(const libconfig::Setting &s, const std::string &name);
 
     template<typename T>
     inline T config_optional(const libconfig::Setting &setting, const std::string &name, const T& def) {
@@ -51,6 +52,11 @@ namespace jams {
     }
 
     template<>
+    inline unsigned long config_required(const libconfig::Setting &setting, const std::string &name) {
+      return (unsigned long)(setting[name]);
+    }
+
+    template<>
     inline double config_required(const libconfig::Setting &setting, const std::string &name) {
       return double(setting[name]);
     }
@@ -79,17 +85,30 @@ namespace jams {
 
     template<>
     inline CoordinateFormat config_required(const libconfig::Setting &setting, const std::string &name) {
-      auto format = jams::config_required<string>(setting, "coordinate_format");
+      auto format = jams::config_required<std::string>(setting, "coordinate_format");
       if (lowercase(format) == "fractional") {
-        return CoordinateFormat::Fractional;
+        return CoordinateFormat::FRACTIONAL;
       } else if (lowercase(format) == "cartesian") {
-        return CoordinateFormat::Cartesian;
+        return CoordinateFormat::CARTESIAN;
       } else {
         throw std::runtime_error("Unknown coordinate format");
       }
     }
 
+    template<>
+    inline InteractionFileFormat config_required(const libconfig::Setting &setting, const std::string &name) {
+      auto format = jams::config_required<std::string>(setting, name);
+      if (lowercase(format) == "jams") {
+        return InteractionFileFormat::JAMS;
+      } else if (lowercase(format) == "kkr") {
+        return InteractionFileFormat::KKR;
+      } else {
+        throw std::runtime_error("Unknown interaction file format");
+      }
+    }
+
 }
 
+libconfig::Setting& config_find_setting_by_key_value_pair(const libconfig::Setting& settings, const std::string& key, const std::string& value);
 
 #endif //JAMS_CONFIG_H

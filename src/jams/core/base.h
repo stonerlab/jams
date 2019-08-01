@@ -71,7 +71,7 @@ debug_(debug)
 }
 
 inline Base::Base(const libconfig::Setting &settings) :
-  name_(jams::config_optional<string>(settings, "module", "")),
+  name_(jams::config_optional<std::string>(settings, "module", "")),
   verbose_(jams::config_optional<bool>(settings, "verbose", false)),
   debug_(jams::config_optional<bool>(settings, "debug", false))
 {

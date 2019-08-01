@@ -4,8 +4,6 @@
 #include <algorithm>
 
 #include "jams/core/lattice.h"
-#include "jblib/containers/matrix.h"
-#include "jblib/containers/vec.h"
 #include "jams/interface/blas.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
@@ -41,13 +39,9 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
     std::cout << "  dipole tensor memory estimate " << std::pow(double(globals::num_spins*3), 2)*8/double(1024*1024) << "(MB)\n";
 
-    dipole_tensor_ = jblib::Array<double,2>(globals::num_spins3, globals::num_spins3);
-    dipole_tensor_.zero();
+    zero(dipole_tensor_.resize(globals::num_spins3, globals::num_spins3));
 
     const double prefactor = kVacuumPermeadbility*kBohrMagneton/(4*kPi*pow(::lattice->parameter(),3));
-
-
-    jblib::Matrix<double, 3, 3> Id( 1, 0, 0, 0, 1, 0, 0, 0, 1 );
 
 
     for (int i = 0; i < globals::num_spins; ++i) {
@@ -63,17 +57,17 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
 
                         r_ij  = lattice->generate_image_position(lattice->atom_position(j), image_vector) - lattice->atom_position(i);
 
-                        r_abs = abs(r_ij);
+                        r_abs = norm(r_ij);
 
                         // i can interact with i in another image of the simulation cell (just not the 0, 0, 0 image)
                         // so detect based on r_abs rather than i == j
-                        if (r_abs > r_cutoff_ || unlikely(r_abs < 1e-5)) continue;
+                      if (definately_greater_than(r_abs, r_cutoff_, jams::defaults::lattice_tolerance) || unlikely(approximately_zero(r_abs, jams::defaults::lattice_tolerance))) continue;
 
                         r_hat = r_ij / r_abs;
 
                         for (int m = 0; m < 3; ++m) {
                             for (int n = 0; n < 3; ++n) {
-                                dipole_tensor_(3*i + m, 3*j + n) += (3*r_hat[m]*r_hat[n] - Id[m][n])*prefactor*globals::mus(i)*globals::mus(j)/pow(r_abs,3);
+                                dipole_tensor_(3*i + m, 3*j + n) += (3*r_hat[m]*r_hat[n] - kIdentityMat3[m][n])*prefactor*globals::mus(i)*globals::mus(j)/pow(r_abs,3);
                             }
                         }
                     }
@@ -119,10 +113,10 @@ double DipoleHamiltonianTensor::calculate_one_spin_energy_difference(const int i
 }
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianTensor::calculate_energies(jblib::Array<double, 1>& energies) {
+void DipoleHamiltonianTensor::calculate_energies(jams::MultiArray<double, 1>& energies) {
     assert(energies.size() == globals::num_spins);
     for (int i = 0; i < globals::num_spins; ++i) {
-        energies[i] = calculate_one_spin_energy(i);
+        energies(i) = calculate_one_spin_energy(i);
     }
 }
 
@@ -158,7 +152,7 @@ void DipoleHamiltonianTensor::calculate_one_spin_field(const int i, double h[3])
 
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianTensor::calculate_fields(jblib::Array<double, 2>& fields) {
+void DipoleHamiltonianTensor::calculate_fields(jams::MultiArray<double, 2>& fields) {
     // int i, j, m, n;
     // for (i = 0; i < globals::num_spins; ++i) {
     //     fields(i, 0) = 0.0; fields(i, 1) = 0.0; fields(i, 2) = 0.0;

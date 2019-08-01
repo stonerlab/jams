@@ -15,99 +15,68 @@
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/stats.h"
-#include "jblib/containers/array.h"
 
 SpinPumpingMonitor::SpinPumpingMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
+  tsv_file_.open(seedname + "_jsp.tsv");
+  tsv_file_.setf(std::ios::right);
+  tsv_file_ << tsv_header();
 
-  convergence_is_on_ = false;
-  if (settings.exists("convergence")) {
-    convergence_is_on_ = true;
-    convergence_tolerance_ = settings["convergence"];
-    std::cout << "  convergence tolerance " << convergence_tolerance_ << "\n";
+  material_count_.resize(lattice->num_materials(), 0);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    material_count_[lattice->atom_material_id(i)]++;
   }
-
-  // std::string name = "_iz_dist.tsv";
-  // name = seedname+name;
-  // iz_dist_file.open(name.c_str());
-  // iz_dist_file.setf(std::ios::right);
-  // iz_dist_file << std::setw(12) << "bin" << "\t";
-  // iz_dist_file << std::setw(12) << "Iz_g_real" << "\t";
-  // iz_dist_file << std::setw(12) << "count" << std::endl;
-
-
-  std::string filename = "_iz_mean.tsv";
-  filename = seedname+filename;
-  iz_mean_file.open(filename.c_str());
-  iz_mean_file.setf(std::ios::right);
-  iz_mean_file << std::setw(12) << "time" << "\t";
-  iz_mean_file << std::setw(12) << "Iz_g_real" << "\t";
-  iz_mean_file << std::setw(12) << "Iz_g_imag" << "\t";
-
-  if (convergence_is_on_) {
-    iz_mean_file << std::setw(12) << "geweke";
-  }
-
-  iz_mean_file << std::endl;
-
-  // name = "_w_dist.tsv";
-  // name = seedname+name;
-  // w_dist_file.open(name.c_str());
-  // w_dist_file << std::setw(12) << "bin" << "\t";
-  // w_dist_file << std::setw(12) << "w_freq" << "\t";
-  // w_dist_file << std::setw(12) << "count" << std::endl;
-
 }
 
 void SpinPumpingMonitor::update(Solver * solver) {
   using namespace globals;
-  using std::abs;
 
-    std::vector<Stats> spin_pumping_re(::lattice->num_materials());
-    std::vector<Stats> spin_pumping_im(::lattice->num_materials());
+  tsv_file_.width(12);
 
-    for (int i = 0; i < num_spins; ++i) {
-      spin_pumping_re[::lattice->atom_material_id(i)].add((s(i, 0)*ds_dt(i, 1) - s(i, 1)*ds_dt(i, 0)));
-      spin_pumping_im[::lattice->atom_material_id(i)].add(ds_dt(i, 2));
+  std::vector<Vec3> spin_pumping_real(material_count_.size());
+  std::vector<Vec3> spin_pumping_imag(material_count_.size());
+
+  for (auto i = 0; i < num_spins; ++i) {
+    const auto type = lattice->atom_material_id(i);
+
+    Vec3 s_i = {s(i,0), s(i, 1), s(i,2)};
+    Vec3 ds_dt_i = {ds_dt(i,0), ds_dt(i, 1), ds_dt(i,2)};
+
+    spin_pumping_real[type] += cross(s_i, ds_dt_i);
+    spin_pumping_imag[type] += ds_dt_i;
+  }
+
+  // output in rad / s^-1 T^-1
+  tsv_file_ << std::scientific << solver->time() << "\t";
+
+  for (auto type = 0; type < material_count_.size(); ++type) {
+    auto norm = kGyromagneticRatio / static_cast<double>(material_count_[type]);
+    for (auto j = 0; j < 3; ++j) {
+      tsv_file_ << std::scientific << spin_pumping_real[type][j] * norm  << "\t";
     }
-
-    // output in rad / s^-1 T^-1
-    iz_mean_file << std::setw(12) << std::scientific << solver->time() << "\t";
-
-    for (int n = 0; n < ::lattice->num_materials(); ++n) {
-      iz_mean_file << std::setw(12) << std::scientific << spin_pumping_re[n].mean() * kGyromagneticRatio << "\t";
-      iz_mean_file << std::setw(12) << std::scientific << spin_pumping_im[n].mean() * kGyromagneticRatio << "\t";
+    for (auto j = 0; j < 3; ++j) {
+      tsv_file_ << std::scientific << spin_pumping_imag[type][j] * norm << "\t";
     }
+  }
 
-
-    // if (convergence_is_on_) {
-    //   convergence_stats_.add(pumping.mean());
-    //   convergence_geweke_diagnostic_ = convergence_stats_.geweke();
-    //   iz_mean_file << std::setw(12) << convergence_geweke_diagnostic_;
-    // }
-
-    iz_mean_file << std::endl;
-
-    // Stats angular_velocity_stats(angular_velocity_total);
-    // angular_velocity_stats.histogram(range, bin);
-
-    // norm = 1.0 / angular_velocity_total.size();
-    // for (int i = 0; i < bin.size(); ++i) {
-    //   // output in Hz
-    //   w_dist_file << std::setw(12) << i << "\t";
-    //   w_dist_file << std::setw(12) << std::scientific << 0.5*(range[i] + range[i+1]) * kGyromagneticRatio << "\t";
-    //   w_dist_file << std::setw(12) << std::scientific << bin[i] * norm << "\n";
-    // }
-    // w_dist_file << "\n" << std::endl;
-
+  tsv_file_ << std::endl;
 }
 
-bool SpinPumpingMonitor::is_converged() {
-  return ((std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
-}
+std::string SpinPumpingMonitor::tsv_header() {
+  std::stringstream ss;
+  ss.width(12);
 
-SpinPumpingMonitor::~SpinPumpingMonitor() {
-  // w_dist_file.close();
-  // iz_dist_file.close();
-  iz_mean_file.close();
+  ss << "time\t";
+  for (auto i = 0; i < lattice->num_materials(); ++i) {
+    auto name = lattice->material_name(i);
+    ss << name + "_Re_J_x\t";
+    ss << name + "_Re_J_y\t";
+    ss << name + "_Re_J_z\t";
+    ss << name + "_Im_J_x\t";
+    ss << name + "_Im_J_y\t";
+    ss << name + "_Im_J_z\t";
+  }
+  ss << std::endl;
+
+  return ss.str();
 }

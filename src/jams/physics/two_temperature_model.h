@@ -9,8 +9,7 @@
 #include <vector>
 
 #include "jams/core/physics.h"
-
-#include "jblib/containers/array.h"
+#include "jams/containers/multiarray.h"
 
 class TTMPhysics : public Physics {
  public:
@@ -23,9 +22,9 @@ class TTMPhysics : public Physics {
   // electron temperature
   double pumpPower(double &pF) { return (1.152E20*pF); }
 
-  jblib::Array<double, 1> pulseWidth;
-  jblib::Array<double, 1> pulseFluence;
-  jblib::Array<double, 1> pulseStartTime;
+    jams::MultiArray<double, 1> pulseWidth;
+    jams::MultiArray<double, 1> pulseFluence;
+    jams::MultiArray<double, 1> pulseStartTime;
   double pumpTemp;
   double electronTemp;
   double phononTemp;

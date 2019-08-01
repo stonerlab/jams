@@ -14,8 +14,6 @@
 #include "jams/helpers/maths.h"
 #include "skyrmion.h"
 
-#include "jblib/containers/array.h"
-
 SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
   using namespace globals;
@@ -37,27 +35,15 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
   }
 
   std::cout << "  Sz thresholds:\n";
-  for (int n = 0; n < thresholds.size(); ++n) {
-    std::cout << "    " << thresholds[n] << "\n";
+  for (double threshold : thresholds) {
+    std::cout << "    " << threshold << "\n";
   }
 
-  std::string name = seedname + "_sky.dat";
+  std::string name = seedname + "_sky.tsv";
   outfile.open(name.c_str());
   outfile.setf(std::ios::right);
 
-  // header for the magnetisation file
-  outfile << "#";
-  outfile << std::setw(11) << "time";
-  outfile << std::setw(16) << "temperature";
-
-  for (int i = 0; i < lattice->num_materials(); ++i) {
-    outfile << std::setw(16) <<  lattice->material_name(i) + " -> " + "r_avg(x,y,z)";
-    for (int j = 0; j < thresholds.size(); ++j) {
-      outfile << std::setw(16) << "R_g" << "[t" << thresholds[j] << "]";
-      outfile << std::setw(16) << "2R_g/sqrt(2)" << "[t" << thresholds[j] << "]";
-    }
-  }
-  outfile << "\n";
+  outfile << tsv_header();
 
   create_center_of_mass_mapping();
 }
@@ -65,7 +51,6 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
 void SkyrmionMonitor::update(Solver * solver) {
   using namespace globals;
 
-    int i, n, type;
     double x, y;
 
     const double x_size = lattice->rmax()[0];
@@ -74,22 +59,21 @@ void SkyrmionMonitor::update(Solver * solver) {
     outfile << std::setw(12) << std::scientific << solver->time();
     outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
 
-    for (int t = 0; t < thresholds.size(); ++t) {
-
+    for (double threshold : thresholds) {
       std::vector<Vec3 > r_com(lattice->num_materials(), {0.0, 0.0, 0.0});
-      calc_center_of_mass(r_com, thresholds[t]);
+      calc_center_of_mass(r_com, threshold);
 
       int r_count[lattice->num_materials()];
       double radius_gyration[lattice->num_materials()];
 
-      for (i = 0; i < lattice->num_materials(); ++i) {
+      for (auto i = 0; i < lattice->num_materials(); ++i) {
         r_count[i] = 0;
         radius_gyration[i] = 0.0;
       }
 
-      for (i = 0; i < num_spins; ++i) {
-        type = lattice->atom_material_id(i);
-        if (s(i, 2)*type_norms[type] > thresholds[t]) {
+      for (auto i = 0; i < num_spins; ++i) {
+        auto type = lattice->atom_material_id(i);
+        if (s(i, 2)*type_norms[type] > threshold) {
           x = lattice->atom_position(i)[0] - r_com[type][0];
           x = x - nint(x / x_size) * x_size;  // min image convention
           y = lattice->atom_position(i)[1] - r_com[type][1];
@@ -99,17 +83,17 @@ void SkyrmionMonitor::update(Solver * solver) {
         }
       }
 
-      for (n = 0; n < lattice->num_materials(); ++n) {
+      for (auto n = 0; n < lattice->num_materials(); ++n) {
         radius_gyration[n] = sqrt(radius_gyration[n]/static_cast<double>(r_count[n]));
       }
 
-      for (n = 0; n < lattice->num_materials(); ++n) {
+      for (auto n = 0; n < lattice->num_materials(); ++n) {
         if (r_count[n] == 0) {
-          for (i = 0; i < 5; ++i) {
+          for (auto i = 0; i < 5; ++i) {
             outfile << std::setw(16) << 0.0;
           }
         } else {
-          for (i = 0; i < 3; ++i) {
+          for (auto i = 0; i < 3; ++i) {
             outfile << std::setw(16) << r_com[n][i]*lattice->parameter();
           }
           outfile << std::setw(16) << radius_gyration[n]*lattice->parameter() << std::setw(16) << (2.0/sqrt(2.0))*radius_gyration[n]*lattice->parameter();
@@ -223,3 +207,24 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
 SkyrmionMonitor::~SkyrmionMonitor() {
   outfile.close();
 }
+
+std::string SkyrmionMonitor::tsv_header() {
+  std::stringstream ss;
+  ss << std::setw(11) << "time\t";
+  ss << std::setw(16) << "temperature\t";
+
+  for (int i = 0; i < lattice->num_materials(); ++i) {
+    ss << std::setw(16) <<  lattice->material_name(i) + ":r_avg_x\t";
+    ss << std::setw(16) <<  lattice->material_name(i) + ":r_avg_y\t";
+    ss << std::setw(16) <<  lattice->material_name(i) + ":r_avg_z\t";
+
+    for (const auto threshold : thresholds) {
+      ss << std::setw(16) << "R_g" << "[t" << threshold << "]\t";
+      ss << std::setw(16) << "2R_g/sqrt(2)" << "[t" << threshold << "]\t";
+    }
+  }
+  ss << "\n";
+  return ss.str();
+}
+
+

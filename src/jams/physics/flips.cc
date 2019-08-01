@@ -6,7 +6,6 @@
 
 #include "jams/helpers/random.h"
 #include "jams/core/globals.h"
-#include "jblib/containers/array.h"
 
 FlipsPhysics::FlipsPhysics(const libconfig::Setting &settings)
 : Physics(settings) {

@@ -11,113 +11,99 @@
 #include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
-#include "torque.h"
-
-#include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
+#include "jams/monitors/torque.h"
+#include "jams/containers/vec3.h"
 
 TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  outfile(),
+  tsv_file(),
   torque_stats_(),
   convergence_geweke_diagnostic_()
 {
   using namespace globals;
+
+  tsv_file.open(seedname + "_torq.tsv");
+  tsv_file.setf(std::ios::right);
+  tsv_file << tsv_header();
 }
 
 void TorqueMonitor::update(Solver * solver) {
   using namespace globals;
 
-  static bool first_run = true;
+  tsv_file.width(12);
+  tsv_file << std::scientific << solver->time() << "\t";
 
-  if (first_run) {
-    open_outfile();
-    first_run = false;
-  }
+  std::vector<Vec3> torques;
+  for (auto &hamiltonian : solver->hamiltonians()) {
+    hamiltonian->calculate_fields();
 
-  for (int n = 0; n < 3; ++n) {
-    convergence_geweke_diagnostic_[n] = 100.0; // number much larger than 1
-  }
-
-  int i;
-  const double norm = kBohrMagneton/static_cast<double>(num_spins);
-
-  outfile << std::setw(12) << std::scientific << solver->time() << "\t";
-  outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
-
-  Vec3 total_torque = {0.0, 0.0, 0.0};
-  // output torque from each hamiltonian term
-  for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin(); it != solver->hamiltonians().end(); ++it) {
-    Vec3 this_torque = {0.0, 0.0, 0.0};
-
-    (*it)->calculate_fields();
-
-    for (i = 0; i < num_spins; ++i) {
-      this_torque[0] += s(i,1)*(*it)->field(i,2) - s(i,2)*(*it)->field(i,1);
-      this_torque[1] += s(i,2)*(*it)->field(i,0) - s(i,0)*(*it)->field(i,2);
-      this_torque[2] += s(i,0)*(*it)->field(i,1) - s(i,1)*(*it)->field(i,0);
+    Vec3 torque = {0.0, 0.0, 0.0};
+    for (auto i = 0; i < num_spins; ++i) {
+      const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
+      const Vec3 field = {hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)};
+      torque += cross(spin, field);
     }
 
-    total_torque = total_torque + this_torque * norm;
+    torques.push_back(torque * kBohrMagneton /static_cast<double>(num_spins));
+  }
 
-    for (i = 0; i < 3; ++i) {
-      outfile <<  std::setw(12) << std::scientific << this_torque[i] * norm << "\t";
+  for (const auto& torque : torques) {
+    for (auto n = 0; n < 3; ++n) {
+      tsv_file << std::scientific << torque[n] << "\t";
     }
   }
-  
-  // convergence stats
 
   if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
-    for (int n = 0; n < 3; ++n) {
+    convergence_geweke_diagnostic_ = {100.0, 100.0, 100.0}; // number much larger than 1
+
+    Vec3 total_torque = {0.0, 0.0, 0.0};
+    for (const auto& torque : torques) {
+      total_torque += torque;
+    }
+
+    for (auto n = 0; n < 3; ++n) {
       torque_stats_[n].add(total_torque[n]);
       torque_stats_[n].geweke(convergence_geweke_diagnostic_[n], convergence_stderr_);
 
       if (torque_stats_[n].size() > 1 && torque_stats_[n].size() % 10 == 0) {
-        outfile << std::setw(12) << convergence_geweke_diagnostic_[n] << "\t";
+        tsv_file << convergence_geweke_diagnostic_[n] << "\t";
       } else {
-        outfile << std::setw(12) << "--------";
+        tsv_file << "--------";
       }
     }
   }
 
-  outfile << std::endl;
-}
-
-void TorqueMonitor::open_outfile() {
-  std::string name = seedname + "_torq.tsv";
-  outfile.open(name.c_str());
-  outfile.setf(std::ios::right);
-
-  // column headers
-  outfile << std::setw(12) << "time" << "\t";
-  outfile << std::setw(12) << "temperature" << "\t";
-
-  for (std::vector<Hamiltonian*>::iterator it = solver->hamiltonians().begin() ; it != solver->hamiltonians().end(); ++it) {
-    outfile << std::setw(12) << (*it)->name()+":Tx" << "\t";
-    outfile << std::setw(12) << (*it)->name()+":Ty" << "\t";
-    outfile << std::setw(12) << (*it)->name()+":Tz" << "\t";
-    outfile << std::setw(12) << (*it)->name()+":geweke";
-  }
-  outfile << "\n";
+  tsv_file << std::endl;
 }
 
 bool TorqueMonitor::is_converged() {
-
-  if (convergence_is_on_ && convergence_geweke_diagnostic_.size() > 0) {
-    for (auto it = convergence_geweke_diagnostic_.begin() ; it != convergence_geweke_diagnostic_.end(); ++it) {
-      if (std::abs(*it) > convergence_tolerance_) {
+  if (convergence_is_on_ && !convergence_geweke_diagnostic_.empty()) {
+    for (double &x : convergence_geweke_diagnostic_) {
+      if (std::abs(x) > convergence_tolerance_) {
         return false;
       }
     }
-
     return true;
   }
-
   return false;
 }
 
-TorqueMonitor::~TorqueMonitor() {
-  if (outfile.is_open()) {
-    outfile.close();
+std::string TorqueMonitor::tsv_header() {
+  std::stringstream ss;
+  ss.width(12);
+
+  ss << "time\t";
+  for (auto &hamiltonian : solver->hamiltonians()) {
+    const auto name = hamiltonian->name();
+    ss << name + "_tx\t";
+    ss << name + "_ty\t";
+    ss << name + "_tz\t";
+
+    if (convergence_is_on_) {
+      tsv_file << name + "_geweke";
+    }
   }
+
+  ss << std::endl;
+  return ss.str();
 }

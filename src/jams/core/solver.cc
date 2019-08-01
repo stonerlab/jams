@@ -6,7 +6,6 @@
 
 #include "jams/helpers/error.h"
 #include "jams/core/physics.h"
-#include "jblib/containers/array.h"
 #include "jams/interface/blas.h"
 #include "jams/core/solver.h"
 #include "hamiltonian.h"
@@ -20,6 +19,7 @@
 
 #include "jams/solvers/cuda_llg_heun.h"
 #include "jams/solvers/cpu_llg_heun.h"
+#include "jams/solvers/cpu_rotations.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 #include "jams/solvers/cpu_monte_carlo_constrained.h"
 
@@ -52,23 +52,29 @@ void Solver::run() {
 
 
 void Solver::compute_fields() {
-  globals::h.zero();
+  if (hamiltonians_.empty()) return;
 
   for (auto& hh : hamiltonians_) {
     hh->calculate_fields();
   }
 
-  // sum hamiltonian field contributions into effective field
-  for (auto& hh : hamiltonians_) {
-    cblas_daxpy(globals::num_spins3, 1.0, hh->ptr_field(), 1, globals::h.data(), 1);
+  std::copy(hamiltonians_[0]->ptr_field(), hamiltonians_[0]->ptr_field()+globals::num_spins3, globals::h.data());
+
+  if (hamiltonians_.size() == 1) return;
+
+  for (auto i = 1; i < hamiltonians_.size(); ++i) {
+    cblas_daxpy(globals::num_spins3, 1.0, hamiltonians_[i]->ptr_field(), 1, globals::h.data(), 1);
   }
 }
 
 
 Solver* Solver::create(const libconfig::Setting &settings) {
-  std::string module_name = jams::default_physics_module;
-  settings.lookupValue("module", module_name);
+  auto module_name = jams::config_required<string>(settings, "module");
   module_name = lowercase(module_name);
+
+  if (module_name == "rotations-cpu") {
+    return new RotationSolver;
+  }
 
   if (module_name == "llg-heun-cpu") {
     return new HeunLLGSolver;

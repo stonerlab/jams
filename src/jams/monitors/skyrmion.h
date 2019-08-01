@@ -11,18 +11,19 @@
 #include "jams/core/types.h"
 #include "jams/core/monitor.h"
 
-#include "jblib/containers/array.h"
-#include "jblib/containers/vec.h"
-
 class SkyrmionMonitor : public Monitor {
  public:
   SkyrmionMonitor(const libconfig::Setting &settings);
   ~SkyrmionMonitor();
 
-  void update(Solver * solver);
-  bool is_converged() { return false; }
+  void update(Solver * solver) override;
+    void post_process() override {};
+
+    bool is_converged() override { return false; }
 
  private:
+    std::string tsv_header();
+
     void create_center_of_mass_mapping();
     void calc_center_of_mass(std::vector<Vec3 > &r_com, const double &threshold);
 

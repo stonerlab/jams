@@ -8,9 +8,6 @@
 
 #include "jams/core/physics.h"
 
-#include "jblib/containers/vec.h"
-
-
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/error.h"
@@ -44,7 +41,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
   Vec3 field = {0.0, 0.0, 0.0};
   if (physics_settings.exists("applied_field")) {
     if (!physics_settings["applied_field"].isArray() || !(physics_settings["applied_field"].getLength() == 3)) {
-      jams_error("Setting 'applied_field' must be an array of length 3.");
+      jams_die("Setting 'applied_field' must be an array of length 3.");
     }
     for (int n = 0; n != 3; ++n) {
       field[n] = physics_settings["applied_field"][n];
@@ -52,14 +49,14 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
   }
   applied_field_ = field;
 
-  output_step_freq_ = jams::config_optional<int>(physics_settings, "output_steps", jams::default_monitor_output_steps);
+  output_step_freq_ = jams::config_optional<int>(physics_settings, "output_steps", jams::defaults::monitor_output_steps);
 
   Vec3 origin;
   double radius;
   if (physics_settings.exists("initial_state")) {
     libconfig::Setting& state_settings = physics_settings["initial_state"];
     if (!state_settings["origin"].isArray() || !(state_settings["origin"].getLength() == 3)) {
-      jams_error("Setting 'initial_state.origin' must be an array of length 3.");
+      jams_die("Setting 'initial_state.origin' must be an array of length 3.");
     }
     for (int i = 0; i < 3; ++i) {
       origin[i] = state_settings["origin"][i];
@@ -80,7 +77,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 
 Physics* Physics::create(const libconfig::Setting &settings) {
 
-  std::string module_name = jams::default_physics_module;
+  std::string module_name = jams::defaults::physics_module;
   settings.lookupValue("module", module_name);
   module_name = lowercase(module_name);
 

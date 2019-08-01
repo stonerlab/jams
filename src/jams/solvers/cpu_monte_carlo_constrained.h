@@ -10,7 +10,7 @@
 #include "jams/core/solver.h"
 #include "jams/helpers/montecarlo.h"
 
-#include "pcg/pcg_random.hpp"
+#include "pcg_random.hpp"
 
 class ConstrainedMCSolver : public Solver {
  public:
@@ -19,7 +19,6 @@ class ConstrainedMCSolver : public Solver {
 
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
-    bool is_running();
 
  private:
     unsigned AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_spin_move);

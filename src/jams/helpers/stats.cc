@@ -5,10 +5,9 @@
 #include <vector>
 #include <iostream>
 
-#include <fftw3.h>
-
 #include "stats.h"
 #include "maths.h"
+#include "jams/interface/fft.h"
 
 double Stats::spectral_density_zero() {
     return spectral_density_zero(0, data_.size());

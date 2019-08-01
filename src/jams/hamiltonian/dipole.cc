@@ -3,8 +3,6 @@
 #include <stdexcept>
 #include <string>
 
-#include <cuda_runtime_api.h>
-
 #include "jams/core/globals.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/error.h"
@@ -13,26 +11,21 @@
 
 #include "strategy.h"
 
-#include "cuda_dipole_fft.h"
-#include "dipole.h"
-#include "dipole_bruteforce.h"
-#include "dipole_cpu_bruteforce.h"
-#include "dipole_tensor.h"
-#include "dipole_cuda_sparse_tensor.h"
-#include "dipole_ewald.h"
-#include "dipole_fft.h"
+#include "jams/hamiltonian/dipole.h"
+#include "jams/hamiltonian/dipole_bruteforce.h"
+#include "jams/hamiltonian/dipole_tensor.h"
+#include "jams/hamiltonian/dipole_ewald.h"
+#include "jams/hamiltonian/dipole_fft.h"
 
-#include "jblib/containers/array.h"
+#if HAS_CUDA
+#include <cuda_runtime_api.h>
+#include "jams/hamiltonian/cuda_dipole_fft.h"
+#include "jams/hamiltonian/cuda_dipole_sparse_tensor.h"
+#include "jams/hamiltonian/cuda_dipole_bruteforce.h"
+#endif
 
 DipoleHamiltonian::DipoleHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
-
-#if HAS_CUDA
-    if (solver->is_cuda_solver()) {
-        dev_energy_.resize(globals::num_spins);
-        dev_field_.resize(globals::num_spins3);
-    }
-#endif
 
     dipole_strategy_ = select_strategy(settings, size);
 }
@@ -44,28 +37,36 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
         std::string strategy_name(capitalize(settings["strategy"]));
 
         if (strategy_name == "TENSOR") {
+          if (solver->is_cuda_solver()) {
+#if HAS_CUDA
+            if (strategy_name == "CUDA_SPARSE_TENSOR") {
+              return new CudaDipoleHamiltonianSparseTensor(settings, size);
+            }
+#endif
+          }
             return new DipoleHamiltonianTensor(settings, size);
         }
 
-        if (strategy_name == "CUDA_SPARSE_TENSOR") {
-            return new DipoleHamiltonianCUDASparseTensor(settings, size);
-        }
 
-        if (strategy_name == "EWALD") {
-            return new DipoleHamiltonianEwald(settings, size);
-        }
+//        if (strategy_name == "EWALD") {
+//            return new DipoleHamiltonianEwald(settings, size);
+//        }
 
         if (strategy_name == "FFT") {
+#if HAS_CUDA
             if (solver->is_cuda_solver()) {
                 return new CudaDipoleHamiltonianFFT(settings, size);
             }
+#endif
             return new DipoleHamiltonianFFT(settings, size);
         }
 
         if (strategy_name == "BRUTEFORCE") {
+#if HAS_CUDA
           if (solver->is_cuda_solver()) {
-            return new DipoleHamiltonianBruteforce(settings, size);
+            return new CudaDipoleHamiltonianBruteforce(settings, size);
           }
+#endif
           return new DipoleHamiltonianCpuBruteforce(settings, size);
         }
 
@@ -107,10 +108,12 @@ void DipoleHamiltonian::calculate_one_spin_field(const int i, double h[3]) {
 // --------------------------------------------------------------------------
 
 void DipoleHamiltonian::calculate_fields() {
+#if HAS_CUDA
     if (solver->is_cuda_solver()) {
-        dipole_strategy_->calculate_fields(dev_field_);
-    } else {
         dipole_strategy_->calculate_fields(field_);
+        return;
     }
+#endif
+    dipole_strategy_->calculate_fields(field_);
 }
 

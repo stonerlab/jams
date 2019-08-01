@@ -6,17 +6,61 @@
 #include <complex>
 #include <algorithm>
 #include <cmath>
+#include <cfloat>
 
 #include "consts.h"
 
-#include "jams/containers/vec3.h"
-#include "jams/containers/mat3.h"
-#include "jams/core/types.h"
 
-using std::pow;
+// for these floating point comparisons we always compare the difference with the larger
+// of the two numbers to
+template <typename T>
+inline bool approximately_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  // check if a - b is close to zero (in which case the relative difference doesn't work
+  if (std::abs(a - b) <= epsilon) return true;
 
-inline double square(const double &x) {
-  return x*x;
+  // do relative size comparison
+  return std::abs(a - b) <= (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
+template <typename T>
+inline constexpr bool approximately_zero(const T& a, const T& epsilon = FLT_EPSILON) {
+  return std::abs(a) <= epsilon;
+}
+
+template <typename T>
+inline constexpr bool definately_greater_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  return (a - b) > (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
+template <typename T>
+inline constexpr bool definately_less_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  return (b - a) > (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
+template <typename T, typename U>
+inline bool constexpr all_equal(const T &t, const U &u) {
+  return t == u;
+}
+
+template <typename T, typename U, typename... Others>
+inline bool constexpr all_equal(const T &t, const U &u, Others const &... args) {
+  return (t == u) && all_equal(u, args...);
+}
+
+inline bool constexpr is_multiple_of(const int& x, const int& y) {
+  return x % y == 0;
+}
+
+inline double zero_safe_recip_norm(double x, double y, double z) {
+  if (approximately_zero(x) && approximately_zero(y) && approximately_zero(z)) {
+    return 0.0;
+  }
+
+  return 1.0 / sqrt(x * x + y * y + z * z);
+}
+
+inline constexpr double square(const double &x) {
+  return x * x;
 }
 
 template <typename T>
@@ -44,40 +88,29 @@ inline int nint(const double &x) {
   return floor(x+0.5);
 }
 
-inline bool even(const int x) {
+inline constexpr bool even(const int x) {
   return x % 2 == 0;
 }
 
-inline bool odd(const int x) {
+inline constexpr bool odd(const int x) {
   return x % 2 != 0;
+}
+
+inline constexpr double kronecker_delta(const int alpha, const int beta) {
+  // cast bool to double so that this works as a constexpr in C++11 which only supports 1 return statement
+  return alpha == beta;
 }
 
 inline double gaussian(const double x, const double sigma, const double mean = 0.0) {
   return kOne_SqrtTwoPi*exp(-0.5*std::pow((x - mean) / sigma, 2))/sigma;
 }
 
-inline double deg_to_rad(const double &angle) {
+inline constexpr double deg_to_rad(const double &angle) {
   return angle*(kPi/180.0);
 }
 
-inline double rad_to_deg(const double &angle) {
+inline constexpr double rad_to_deg(const double &angle) {
   return angle*(180.0/kPi);
-}
-
-inline Vec3 cartesian_from_spherical(const double &r, const double &theta, const double &phi) {
-  return {
-          sin(theta) * cos(phi),
-          sin(theta) * sin(phi),
-          cos(theta)
-  };
-}
-
-inline double azimuthal_angle(const Vec3 a) {
-  return acos(a[2]/abs(a));
-}
-
-inline double polar_angle(const Vec3 a) {
-  return atan2(a[2], a[0]);
 }
 
 inline double azimuthal_angle(const double a[3]) {
@@ -136,13 +169,8 @@ inline _Tp1 sign(const _Tp1 &x, const _Tp2 &y) {
 }
 
 template <typename _Tp1, typename _Tp2>
-inline bool same_sign(const _Tp1 x, const _Tp2 y) {
+inline constexpr bool same_sign(const _Tp1 x, const _Tp2 y) {
   return (x >= 0) ^ (y < 0);
-}
-
-inline bool equal(const double x, const double y, const double tolerance = 1e-8) {
-  using std::abs;
-  return same_sign(x, y) && (abs(x - y) < tolerance);
 }
 
 ///
@@ -155,7 +183,7 @@ inline bool equal(const double x, const double y, const double tolerance = 1e-8)
 /// @return -1, 0, 1 depending on sign
 ///
 template <typename _Tp>
-inline int sgn(_Tp x) {
+inline constexpr int sgn(_Tp x) {
     return (_Tp(0) < x) - (x < _Tp(0));
 }
 
@@ -242,27 +270,6 @@ inline void spherical_to_cartesian(const double r,
   (*z) = r*cos(theta);
 }
 
-inline Vec3 spherical_to_cartesian_vector(const double r,
-    const double theta, const double phi) {
-  return {r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), r*cos(theta)};
-}
-
-inline Mat3 rotation_matrix_y(const double& theta) {
-  return {
-    cos(theta),  0.0, sin(theta),
-    0.0,         1.0,        0.0,
-    -sin(theta), 0.0, cos(theta)
-  };
-}
-
-inline Mat3 rotation_matrix_z(const double& phi) {
-  return {
-    cos(phi),  -sin(phi), 0.0,
-    sin(phi),   cos(phi), 0.0,
-    0.0,        0.0,      1.0
-  };
-}
-
 template <typename _Tp>
 void matmul(const _Tp a[3][3], const _Tp b[3][3], _Tp c[3][3]) {
   for (int i = 0; i < 3; ++i) {
@@ -325,10 +332,6 @@ inline void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
   out[2] = a[0]*b[1] - a[1]*b[0];
 }
 
-Mat3 rotation_matrix_yz(const double theta, const double phi);
-Mat3 rotation_matrix_between_vectors(Vec3 a, Vec3 b);
-
-
 // Legendre polynomials
 double legendre_poly(const double x, const int n);
 
@@ -340,64 +343,64 @@ double legendre_dpoly(const double x, const int n);
 // uniaxial anisotropy is an expansion in legendre polynomials so lets define upto n = 6
 // so we have some fast intrinsics
 
-inline double legendre_poly_0(const double x) {
+inline constexpr double legendre_poly_0(const double x) {
   return 1.0;
 }
 
-inline double legendre_poly_1(const double x) {
+inline constexpr double legendre_poly_1(const double x) {
   return x;
 }
 
-inline double legendre_poly_2(const double x) {
+inline constexpr double legendre_poly_2(const double x) {
   // (3x^2 - 1)/2
   return (1.5 * x * x - 0.5);
 }
 
-inline double legendre_poly_3(const double x) {
+inline constexpr double legendre_poly_3(const double x) {
   // (5x^3 - 3x)/2
   return (2.5 * x * x * x - 1.5 * x);
 }
 
-inline double legendre_poly_4(const double x) {
+inline constexpr double legendre_poly_4(const double x) {
   // (35x^4 - 30x^2 + 3)/8
   return (4.375 * x * x * x * x - 3.75 * x * x + 0.375);
 }
 
-inline double legendre_poly_5(const double x) {
+inline constexpr double legendre_poly_5(const double x) {
   // (63x^5 - 70x^3 + 15x)/8
   return (7.875 * x * x * x * x * x - 8.75 * x * x * x + 1.875 * x);
 }
 
-inline double legendre_poly_6(const double x) {
+inline constexpr double legendre_poly_6(const double x) {
   // (231x^6 - 315x^4 + 105x^2 - 5)/16
   return (14.4375 * x * x * x * x * x * x - 19.6875 * x * x * x * x + 6.5625 * x * x - 0.3125);
 }
 
-inline double legendre_dpoly_0(const double x) {
+inline constexpr double legendre_dpoly_0(const double x) {
   return 0.0;
 }
 
-inline double legendre_dpoly_1(const double x) {
+inline constexpr double legendre_dpoly_1(const double x) {
   return 1.0;
 }
 
-inline double legendre_dpoly_2(const double x) {
+inline constexpr double legendre_dpoly_2(const double x) {
   return 3.0 * x;
 }
 
-inline double legendre_dpoly_3(const double x) {
+inline constexpr double legendre_dpoly_3(const double x) {
   return (7.5 * x * x - 1.5);
 }
 
-inline double legendre_dpoly_4(const double x) {
+inline constexpr double legendre_dpoly_4(const double x) {
   return (17.5 * x * x * x - 7.5 * x);
 }
 
-inline double legendre_dpoly_5(const double x) {
+inline constexpr double legendre_dpoly_5(const double x) {
   return (39.375 * x * x * x * x - 26.25 * x * x + 1.875);
 }
 
-inline double legendre_dpoly_6(const double x) {
+inline constexpr double legendre_dpoly_6(const double x) {
   return (86.625 * x * x * x * x * x - 78.75 * x * x * x + 13.125 * x);
 }
 

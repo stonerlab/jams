@@ -11,24 +11,26 @@
 #include "jams/core/monitor.h"
 #include "jams/helpers/stats.h"
 
-#include "jblib/containers/array.h"
-
 class MagnetisationRateMonitor : public Monitor {
- public:
-  MagnetisationRateMonitor(const libconfig::Setting &settings);
-  ~MagnetisationRateMonitor();
+public:
+    explicit MagnetisationRateMonitor(const libconfig::Setting &settings);
 
-  void update(Solver * solver);
-  bool is_converged();
+    ~MagnetisationRateMonitor() override = default;
 
- private:
-  jblib::Array<double, 2> dm_dt;
-  std::ofstream outfile;
+    void update(Solver *solver) override;
+    void post_process() override {};
 
-  Stats magnetisation_stats_;
-  bool convergence_is_on_;
-  double convergence_tolerance_;
-  double convergence_geweke_diagnostic_;
+    bool is_converged() override;
+
+private:
+    std::ofstream tsv_file;
+    std::string   tsv_header();
+
+    std::vector<int> material_count_;
+    Stats magnetisation_stats_;
+    bool convergence_is_on_;
+    double convergence_tolerance_;
+    double convergence_geweke_diagnostic_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_RATE_H

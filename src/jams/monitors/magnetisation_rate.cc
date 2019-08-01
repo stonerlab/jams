@@ -15,8 +15,7 @@ using namespace std;
 
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  dm_dt(::lattice->num_materials(), 4),
-  outfile(),
+  tsv_file(),
   magnetisation_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
   convergence_tolerance_(1.0),            // 1 standard deviation from the mean
@@ -30,93 +29,80 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
     cout << "  convergence tolerance " << convergence_tolerance_ << "\n";
   }
 
-  std::string name = seedname + "_dm_dt.tsv";
-  outfile.open(name.c_str());
-  outfile.setf(std::ios::right);
+  tsv_file.open(seedname + "_dm_dt.tsv");
+  tsv_file.setf(std::ios::right);
+  tsv_file << tsv_header();
 
-  // header for the magnetisation file
-  outfile << std::setw(12) << "time" << "\t";
-  outfile << std::setw(12) << "temperature" << "\t";
-  outfile << std::setw(12) << "Hx" << "\t";
-  outfile << std::setw(12) << "Hy" << "\t";
-  outfile << std::setw(12) << "Hz" << "\t";
-
-  for (int i = 0; i < lattice->num_materials(); ++i) {
-    outfile << std::setw(12) << lattice->material_name(i) + ":mx" << "\t";
-    outfile << std::setw(12) << lattice->material_name(i) + ":my" << "\t";
-    outfile << std::setw(12) << lattice->material_name(i) + ":mz" << "\t";
-    outfile << std::setw(12) << lattice->material_name(i) + ":m" << "\t";
+  material_count_.resize(lattice->num_materials(), 0);
+  for (auto i = 0; i < num_spins; ++i) {
+    material_count_[lattice->atom_material_id(i)]++;
   }
-
-  if (convergence_is_on_) {
-    outfile << std::setw(12) << "geweke";
-  }
-
-  outfile << "\n";
 }
 
 void MagnetisationRateMonitor::update(Solver * solver) {
   using namespace globals;
 
-    int i, j;
+  std::vector<Vec3> dm_dt(::lattice->num_materials(), {0.0, 0.0, 0.0});
 
-  std::vector<int> material_count(lattice->num_materials(), 0);
-
-
-  dm_dt.zero();
-
-    for (i = 0; i < num_spins; ++i) {
-      int type = lattice->atom_material_id(i);
-      for (j = 0; j < 3; ++j) {
-        dm_dt(type, j) += ds_dt(i, j);
-      }
-      material_count[type]++;
+  for (auto i = 0; i < num_spins; ++i) {
+    const auto type = lattice->atom_material_id(i);
+    for (auto j = 0; j < 3; ++j) {
+      dm_dt[type][j] += ds_dt(i, j);
     }
+  }
 
-    for (i = 0; i < lattice->num_materials(); ++i) {
-      for (j = 0; j < 3; ++j) {
-        dm_dt(i, j) = dm_dt(i, j)/static_cast<double>(material_count[i]);
-      }
+  for (auto type = 0; type < lattice->num_materials(); ++type) {
+    if (material_count_[type] == 0) continue;
+    for (auto j = 0; j < 3; ++j) {
+      dm_dt[type][j] /= static_cast<double>(material_count_[type]);
     }
+  }
 
-    for (i = 0; i < lattice->num_materials(); ++i) {
-      dm_dt(i, 3) = sqrt(dm_dt(i, 0)*dm_dt(i, 0) + dm_dt(i, 1)*dm_dt(i, 1)
-        + dm_dt(i, 2)*dm_dt(i, 2));
+  tsv_file.width(12);
+  tsv_file << std::scientific << solver->time() << "\t";
+
+  for (auto type = 0; type < lattice->num_materials(); ++type) {
+    for (auto j = 0; j < 3; ++j) {
+      tsv_file << dm_dt[type][j] << "\t";
     }
-
-    outfile << std::setw(12) << std::scientific << solver->time() << "\t";
-    outfile << std::setw(12) << std::fixed << solver->physics()->temperature() << "\t";
-
-    for (i = 0; i < 3; ++i) {
-      outfile <<  std::setw(12) << solver->physics()->applied_field(i) << "\t";
-    }
-
-    for (i = 0; i < lattice->num_materials(); ++i) {
-      outfile << std::setw(12) << std::scientific << dm_dt(i, 0)*kGyromagneticRatio << "\t";
-      outfile << std::setw(12) << std::scientific << dm_dt(i, 1)*kGyromagneticRatio << "\t";
-      outfile << std::setw(12) << std::scientific << dm_dt(i, 2)*kGyromagneticRatio << "\t";
-      outfile << std::setw(12) << std::scientific << dm_dt(i, 3)*kGyromagneticRatio << "\t";
-    }
+  }
 
     if (convergence_is_on_) {
       double total_dm_dt = 0.0;
-      for (i = 0; i < lattice->num_materials(); ++i) {
-        total_dm_dt += dm_dt(i, 3);
+      for (auto type = 0; type < lattice->num_materials(); ++type) {
+        total_dm_dt += norm(dm_dt[type]);
       }
 
       magnetisation_stats_.add(total_dm_dt);
       double nse = 0.0;
       magnetisation_stats_.geweke(convergence_geweke_diagnostic_, nse);
-      outfile << std::setw(12) << convergence_geweke_diagnostic_;
+      tsv_file << convergence_geweke_diagnostic_;
     }
 
-    outfile << std::endl;
+    tsv_file << std::endl;
 }
 
 bool MagnetisationRateMonitor::is_converged() {
   return ((std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
 }
 
-MagnetisationRateMonitor::~MagnetisationRateMonitor() {
-  outfile.close();
+std::string MagnetisationRateMonitor::tsv_header() {
+  std::stringstream ss;
+  ss.width(12);
+
+  ss << "time\t";
+
+  for (auto i = 0; i < lattice->num_materials(); ++i) {
+    auto name = lattice->material_name(i);
+    ss << name + "_dmx_dt\t";
+    ss << name + "_dmy_dt\t";
+    ss << name + "_dmz_dt\t";
+  }
+
+  if (convergence_is_on_) {
+    ss << "geweke_abs_dm_dt\t";
+  }
+  ss << std::endl;
+
+  return ss.str();
 }

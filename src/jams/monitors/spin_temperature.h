@@ -14,15 +14,17 @@ class Solver;
 
 class SpinTemperatureMonitor : public Monitor {
  public:
-  SpinTemperatureMonitor(const libconfig::Setting &settings);
-  ~SpinTemperatureMonitor();
+  explicit SpinTemperatureMonitor(const libconfig::Setting &settings);
+  ~SpinTemperatureMonitor() override = default;
 
-  void update(Solver * solver);
-  bool is_converged();
+  void update(Solver * solver) override;
+    void post_process() override {};
+
+    bool is_converged() override { return false; }
 
  private:
-  std::ofstream outfile;
-
+  std::ofstream tsv_file;
+  std::string   tsv_header();
 };
 
 #endif  // JAMS_MONITOR_SPIN_TEMPERATURE_H
