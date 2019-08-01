@@ -115,6 +115,7 @@ target_sources(jams_object_lib
         monitors/field.cc
         monitors/magnetisation.cc
         monitors/magnetisation_rate.cc
+        monitors/magnon_spectrum.cc
         monitors/neutron_scattering.cc
         monitors/neutron_scattering_no_lattice.cc
         monitors/skyrmion.cc

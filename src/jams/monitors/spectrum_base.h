@@ -5,9 +5,10 @@
 #ifndef JAMS_SPECTRUM_BASE_H
 #define JAMS_SPECTRUM_BASE_H
 
-#include <jams/interface/fft.h>
+#include "jams/interface/fft.h"
 #include "jams/containers/multiarray.h"
 #include "jams/core/monitor.h"
+#include "jams/core/solver.h"
 
 namespace jams {
     struct HKLIndex {
