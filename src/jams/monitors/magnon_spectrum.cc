@@ -74,8 +74,10 @@ void MagnonSpectrumMonitor::output_magnon_spectrum() {
         ofs << fmt::decimal << i * frequency_resolution_thz() * 4.135668 << "\t"; // meV
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
         for (auto k : {0,1,2}) {
-          ofs << fmt::sci << prefactor * total_magnon_spectrum_(i, j)[k].real() << "\t";
-          ofs << fmt::sci << prefactor * total_magnon_spectrum_(i, j)[k].imag() << "\t";
+          for (auto l : {0,1,2}) {
+            ofs << fmt::sci << prefactor * total_magnon_spectrum_(i, j)[k][l].real() << "\t";
+            ofs << fmt::sci << prefactor * total_magnon_spectrum_(i, j)[k][l].imag() << "\t";
+          }
         }
         ofs << "\n";
       }
@@ -86,31 +88,37 @@ void MagnonSpectrumMonitor::output_magnon_spectrum() {
   }
 }
 
-jams::MultiArray<Vec3cx, 2>
+jams::MultiArray<MagnonSpectrumMonitor::Mat3cx, 2>
 MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3> &spectrum) {
   const auto num_sites = spectrum.size(0);
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
 
-  MultiArray<Vec3cx, 2> magnon_spectrum(num_freqencies, num_reciprocal_points);
+  MultiArray<Mat3cx, 2> magnon_spectrum(num_freqencies, num_reciprocal_points);
   magnon_spectrum.zero();
 
   for (auto a = 0; a < num_sites; ++a) {
-      Vec3 r_ab = lattice->motif_atom(a).position;
+//    for (auto b = 0; b < num_sites; ++b) {
+      auto b = a;
+      const Vec3 r_a = lattice->motif_atom(a).position;
+      const Vec3 r_b = lattice->motif_atom(b).position;
 
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
-        auto Q = unit_vector(kpoint.xyz);
         auto q = kpoint.hkl;
         // structure factor: note that q and r are in fractional coordinates (hkl, abc)
-        auto sf = exp(-kImagTwoPi * dot(q, r_ab));
+//        auto sf = exp(kImagTwoPi * dot(q, r_ab));
 
         for (auto f = 0; f < num_freqencies; ++f) {
-          auto s_a = spectrum(a, f, k);
+          auto s_a = spectrum(a, f, k) * exp(-kImagTwoPi * dot(q, r_a));
+          auto s_b = spectrum(b, f, k) * exp(-kImagTwoPi * dot(q, r_b));
           for (auto i : {0, 1, 2}) {
-              magnon_spectrum(f, k) = sf * s_a;
+            for (auto j : {0, 1, 2}) {
+              magnon_spectrum(f, k)[i][j] += s_a[i] * s_b[j];
+            }
           }
         }
+//      }
     }
   }
   return magnon_spectrum;

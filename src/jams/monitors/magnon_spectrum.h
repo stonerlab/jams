@@ -21,6 +21,7 @@ class Solver;
 class MagnonSpectrumMonitor : public SpectrumBaseMonitor {
 public:
     using Complex = std::complex<double>;
+    using Mat3cx  = std::array<std::array<Complex, 3>, 3>;
 
     explicit MagnonSpectrumMonitor(const libconfig::Setting &settings);
     ~MagnonSpectrumMonitor() override = default;
@@ -32,9 +33,9 @@ public:
 private:
     void output_magnon_spectrum();
 
-    jams::MultiArray<Vec3cx, 2> calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
+    jams::MultiArray<Mat3cx, 2> calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
 
-    jams::MultiArray<Vec3cx,2> total_magnon_spectrum_;
+    jams::MultiArray<Mat3cx,2> total_magnon_spectrum_;
     jams::MultiArray<Mat3, 1>   transformations_;
     jams::MultiArray<double, 2> transformed_spins_;
 
