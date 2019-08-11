@@ -150,11 +150,6 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     qvecs.push_back(qpoints);
   }
 
-  vector<Vec3> r(num_spins);
-  for (auto i = 0; i < num_spins; ++i) {
-    r[i] = lattice->atom_position(i);
-  }
-
   // support for lattice vacancies (we will skip these in the spectrum loop)
   vector<bool> is_vacancy(num_spins, false);
   for (auto i = 0; i < num_spins; ++i) {

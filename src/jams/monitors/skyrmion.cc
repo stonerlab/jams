@@ -152,19 +152,17 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
   assert(tube_y.size() > 0);
 
   const int num_types = lattice->num_materials();
-  int i, type;
-  double theta_i, theta_j;
 
   std::vector<Vec3 > tube_x_com(num_types, {0.0, 0.0, 0.0});
   std::vector<Vec3 > tube_y_com(num_types, {0.0, 0.0, 0.0});
   int r_count[num_types];
 
-  for (type = 0; type < num_types; ++type) {
+  for (auto type = 0; type < num_types; ++type) {
     r_count[type] = 0;
   }
 
-  for (i = 0; i < num_spins; ++i) {
-    type = lattice->atom_material_id(i);
+  for (auto i = 0; i < num_spins; ++i) {
+    auto type = lattice->atom_material_id(i);
     if (s(i, 2)*type_norms[type] > threshold) {
       tube_x_com[type] += tube_x[i];
       tube_y_com[type] += tube_y[i];
@@ -172,13 +170,13 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
     }
   }
 
-  for (type = 0; type < num_types; ++type) {
+  for (auto type = 0; type < num_types; ++type) {
     r_com[type] /= static_cast<double>(r_count[type]);
   }
 
-  for (type = 0; type < num_types; ++type) {
-    theta_i = atan2(-tube_x_com[type][2], -tube_x_com[type][0]) + kPi;
-    theta_j = atan2(-tube_y_com[type][2], -tube_y_com[type][1]) + kPi;
+  for (auto type = 0; type < num_types; ++type) {
+    double theta_i = atan2(-tube_x_com[type][2], -tube_x_com[type][0]) + kPi;
+    double theta_j = atan2(-tube_y_com[type][2], -tube_y_com[type][1]) + kPi;
 
     r_com[type][0] = (theta_i*lattice->rmax()[0]/(kTwoPi));
     r_com[type][1] = (theta_j*lattice->rmax()[1]/(kTwoPi));

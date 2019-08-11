@@ -34,10 +34,8 @@ double Stats::spectral_density_zero(const size_t t0, const size_t t1) {
     fftw_plan       p;                  // fftw planning handle
     int num_samples = t1 - t0;          // number of data samples
     int nd = ceil(sqrt(num_samples));   // size of spectral windowing
-    double s0 = 0.0;                    // spectral density at zero (output)
 
     vector<complex<double>> x(num_samples); // fft result array
-
 
     p = fftw_plan_dft_r2c_1d(
         num_samples,                                // size of transform
@@ -50,7 +48,7 @@ double Stats::spectral_density_zero(const size_t t0, const size_t t1) {
     fftw_destroy_plan(p);
 
     // spectral windowing
-    s0 = 0.5 * norm(x[1]);
+    double s0 = 0.5 * norm(x[1]); // spectral density at zero (output)
     for (int k = 0; k < nd; ++k) {
         // skip x[0] because x[0] = mean(x)
         s0 = s0 + norm(x[k + 1]);
