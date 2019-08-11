@@ -37,11 +37,9 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
         std::string strategy_name(capitalize(settings["strategy"]));
 
         if (strategy_name == "TENSOR") {
-          if (solver->is_cuda_solver()) {
+          if (solver->is_cuda_solver() && strategy_name == "CUDA_SPARSE_TENSOR") {
 #if HAS_CUDA
-            if (strategy_name == "CUDA_SPARSE_TENSOR") {
-              return new CudaDipoleHamiltonianSparseTensor(settings, size);
-            }
+            return new CudaDipoleHamiltonianSparseTensor(settings, size);
 #endif
           }
             return new DipoleHamiltonianTensor(settings, size);

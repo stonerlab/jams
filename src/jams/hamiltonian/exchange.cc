@@ -1,18 +1,13 @@
-#include <set>
 #include <fstream>
+#include <set>
 
-#include "jams/helpers/exception.h"
 #include "jams/core/globals.h"
-#include "jams/helpers/consts.h"
 #include "jams/core/interactions.h"
-#include "jams/helpers/utils.h"
-#include "jams/core/solver.h"
 #include "jams/core/lattice.h"
-#include "jams/helpers/error.h"
-
 #include "jams/hamiltonian/exchange.h"
-#include "exchange.h"
-
+#include "jams/helpers/consts.h"
+#include "jams/helpers/error.h"
+#include "jams/helpers/utils.h"
 
 using namespace std;
 
@@ -36,11 +31,6 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
   bool use_symops = true;
   settings.lookupValue("symops", use_symops);
-
-  bool print_unfolded = false;
-  settings.lookupValue("print_unfolded", print_unfolded);
-
-  print_unfolded = print_unfolded || verbose_is_enabled() || debug_is_enabled();
 
   energy_cutoff_ = 1E-26;  // Joules
   settings.lookupValue("energy_cutoff", energy_cutoff_);
@@ -206,14 +196,14 @@ void ExchangeHamiltonian::calculate_one_spin_field(const int i, double local_fie
 
 void ExchangeHamiltonian::calculate_fields() {
   assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
-  double one = 1.0;
-  double zero = 0.0;
   const char transa[1] = {'N'};
   const char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
   const int num_rows = globals::num_spins3;
   const int num_cols = globals::num_spins3;
 
 #ifdef HAS_MKL
+    double one = 1.0;
+    double zero = 0.0;
     mkl_dcsrmv(transa, &num_rows, &num_cols, &one, matdescra, interaction_matrix_.valPtr(),
             interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),
             &zero, field_.data());
