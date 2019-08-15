@@ -41,5 +41,5 @@ include(cmake/Generate.cmake)
 add_subdirectory(src/jams)
 
 if (JAMS_BUILD_TESTS)
-    add_subdirectory(test/jams)
+    add_subdirectory(src/jams/test)
 endif()

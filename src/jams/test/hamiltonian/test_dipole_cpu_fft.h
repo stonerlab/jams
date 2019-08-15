@@ -8,12 +8,9 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/random.h"
 
-#include "jams/hamiltonian/test_dipole_input.h"
-#include "jams/hamiltonian/dipole_tensor.h"
+#include "jams/test/hamiltonian/test_dipole_input.h"
+#include "jams/hamiltonian/dipole_fft.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
-
-// For the dipole tensor, the 2D tests use too much memory so they are
-// deleted.
 
 
 //---------------------------------------------------------------------
@@ -23,18 +20,18 @@
 //---------------------------------------------------------------------
 
 // The fixture for testing class Foo.
-class DipoleHamiltonianTensorTest : public ::testing::Test {
+class DipoleHamiltonianFFTTest : public ::testing::Test {
  protected:
   // You can remove any or all of the following functions if its body
   // is empty.
 
-    DipoleHamiltonianTensorTest() {
+  DipoleHamiltonianFFTTest() {
     // You can do set-up work for each test here.
     ::lattice = new Lattice();
     ::config = new libconfig::Config();
   }
 
-  virtual ~DipoleHamiltonianTensorTest() {
+  virtual ~DipoleHamiltonianFFTTest() {
     // You can do clean-up work that doesn't throw exceptions here.
   }
 
@@ -72,10 +69,14 @@ class DipoleHamiltonianTensorTest : public ::testing::Test {
   // Objects declared here can be used by all tests in the test case for Foo.
 };
 
-TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM) {
-  SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_tensor_1000);
+//---------------------------------------------------------------------
+// CPU
+//---------------------------------------------------------------------
 
-  auto h = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM) {
+  SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_fft_1000);
+
+  auto h = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
  
   // S = (1, 0, 0) FM
 
@@ -123,10 +124,36 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM) {
   ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
 }
 
-  TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_AFM) {
-    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_tensor_1000);
+//---------------------------------------------------------------------
 
-    auto h = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_2D_FM_SLOW) {
+    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_2D + config_dipole_fft_128);
+
+    auto h = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+
+    // S = (0, 0, 1) FM
+#pragma nounroll_and_jam
+    for (unsigned int i = 0; i < globals::num_spins; ++i) {
+      globals::s(i, 0) = 0.0;
+      globals::s(i, 1) = 0.0;
+      globals::s(i, 2) = 1.0;
+    }
+
+    // Fit function from 2016-Johnston-PhysRevB.93.014421 Fig. 17(a)
+    double eigenvalue = -9.033622 + 6.28356 * (1.0 / 128.0);
+    double analytic = analytic_prefactor * eigenvalue;
+    double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
+
+    ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
+    ASSERT_NEAR(numeric/analytic, 1.0, 1e-5);
+  }
+
+  //---------------------------------------------------------------------
+
+  TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_AFM) {
+    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_fft_1000);
+
+    auto h = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (1, 0, 0) AFM
 #pragma nounroll_and_jam
@@ -167,7 +194,25 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM) {
     ASSERT_NEAR(numeric/analytic, 1.0, 1e-6);
   }
 
-TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM_RAND) {
+//---------------------------------------------------------------------
+
+  TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_2D_AFM_SLOW) {
+    SetUp(  config_basic_cpu + config_unitcell_sc_AFM + config_lattice_2D + config_dipole_fft_128);
+
+    auto h = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+
+    // 2016-Johnston-PhysRevB.93.014421 Fig. 18(a)
+    double eigenvalue = 2.6458865;
+    double analytic = analytic_prefactor * eigenvalue;
+    double numeric =  numeric_prefactor * h->calculate_total_energy() / double(globals::num_spins) ;
+
+    ASSERT_EQ(std::signbit(numeric), std::signbit(analytic));
+    ASSERT_NEAR(numeric/analytic, 1.0, 1e-5);
+  }
+
+//---------------------------------------------------------------------
+
+TEST_F(DipoleHamiltonianFFTTest, total_energy_CPU_1D_FM_RAND) {
   SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
 
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
@@ -179,29 +224,48 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM_RAND) {
   }
 
   auto h_bruteforce = new DipoleHamiltonianCpuBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
-  auto h_fft = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_fft = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
-  double result_tensor =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
+  double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
-  ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_tensor));
-  ASSERT_NEAR(result_bruteforce/result_tensor, 1.0, 1e-6);
+  ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
+  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-6);
 }
 
-TEST_F(DipoleHamiltonianTensorTest, total_energy_two_atom_CPU_1D_FM) {
+//---------------------------------------------------------------------
+
+TEST_F(DipoleHamiltonianFFTTest, total_energy_two_atom_CPU_1D_FM) {
   SetUp(  config_basic_cpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
   auto h_bruteforce = new DipoleHamiltonianCpuBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
-  auto h_tensor = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_fft = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
-  double result_tensor =  numeric_prefactor * h_tensor->calculate_total_energy() / double(globals::num_spins);
+  double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
-  ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_tensor));
-  ASSERT_NEAR(result_bruteforce/result_tensor, 1.0, 1e-6);
+  ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
+  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-6);
 }
 
-TEST_F(DipoleHamiltonianTensorTest, total_energy_two_atom_CPU_1D_FM_RAND) {
+//---------------------------------------------------------------------
+
+TEST_F(DipoleHamiltonianFFTTest, total_energy_two_atom_CPU_2D_FM_SLOW) {
+  SetUp(  config_basic_cpu + config_unitcell_bcc_2_atom + config_lattice_2D_128 + config_dipole_bruteforce_64);
+
+  auto h_bruteforce = new DipoleHamiltonianCpuBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_fft = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+
+  double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
+  double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
+
+  ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
+  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-6);
+}
+
+//---------------------------------------------------------------------
+
+TEST_F(DipoleHamiltonianFFTTest, total_energy_two_atom_CPU_1D_FM_RAND) {
   SetUp(  config_basic_cpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
@@ -214,11 +278,11 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_two_atom_CPU_1D_FM_RAND) {
   }
 
   auto h_bruteforce = new DipoleHamiltonianCpuBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
-  auto h_tensor = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_fft = new DipoleHamiltonianFFT(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
-  double result_tensor =  numeric_prefactor * h_tensor->calculate_total_energy() / double(globals::num_spins);
+  double result_fft =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
 
-  ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_tensor));
-  ASSERT_NEAR(result_bruteforce/result_tensor, 1.0, 1e-6);
+  ASSERT_EQ(std::signbit(result_bruteforce), std::signbit(result_fft));
+  ASSERT_NEAR(result_bruteforce/result_fft, 1.0, 1e-6);
 }
