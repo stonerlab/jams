@@ -80,15 +80,17 @@ public:
         #endif
         CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
         #else
-        memcpy(mutable_host_data(), rhs.const_host_data(), size_ * sizeof(T));
+        memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
         #endif
       }
 
       if (rhs.device_ptr_) {
+        #if HAS_CUDA
         #if SYNCEDMEMORY_PRINT_MEMCPY
         std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
         #endif
         CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
+        #endif
       }
     }
 

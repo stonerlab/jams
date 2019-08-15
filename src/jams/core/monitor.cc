@@ -12,6 +12,7 @@
 #include "jams/monitors/skyrmion.h"
 #include "jams/monitors/smr.h"
 #include "jams/monitors/neutron_scattering.h"
+#include "jams/monitors/neutron_scattering_no_lattice.h"
 #include "jams/monitors/spectrum_fourier.h"
 #include "jams/monitors/spectrum_general.h"
 #include "jams/monitors/spin_correlation.h"

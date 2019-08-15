@@ -1,19 +1,15 @@
-set(SPGLIB_VERSION 1.10.4)
+include(${PROJECT_SOURCE_DIR}/cmake/Modules/DownloadProject.cmake)
 
-if (CMAKE_VERSION VERSION_LESS 3.2)
-    set(UPDATE_DISCONNECTED_IF_AVAILABLE "")
-else()
-    set(UPDATE_DISCONNECTED_IF_AVAILABLE "UPDATE_DISCONNECTED 1")
-endif()
-
-include(${PROJECT_SOURCE_DIR}/cmake/DownloadProject/DownloadProject.cmake)
-download_project(PROJ                spglib
+download_project(
+        PROJ                spglib
         GIT_REPOSITORY      https://github.com/atztogo/spglib.git
-        GIT_TAG             v${SPGLIB_VERSION}
-        ${UPDATE_DISCONNECTED_IF_AVAILABLE}
-        )
+        GIT_TAG             ${JAMS_SPGLIB_VERSION}
+        UPDATE_DISCONNECTED 1
+)
 
 add_subdirectory(${spglib_SOURCE_DIR} ${spglib_BINARY_DIR} EXCLUDE_FROM_ALL)
+target_include_directories(symspg INTERFACE ${spglib_SOURCE_DIR}/src)
+target_include_directories(symspg_static INTERFACE ${spglib_SOURCE_DIR}/src)
 
-set_property(TARGET symspg PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${spglib_SOURCE_DIR}/src)
-set_property(TARGET symspg_static PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${spglib_SOURCE_DIR}/src)
+add_library(spglib_builtin ALIAS symspg_static)
+set(JAMS_SPGLIB_LIBRARIES "built-in (git)")
