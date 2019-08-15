@@ -178,4 +178,14 @@ bool is_castable(const T2 x) {
   return true;
 };
 
+inline std::string find_and_replace(std::string data, std::string find, std::string replace) {
+  size_t pos = data.find(find);
+
+  while(pos != std::string::npos) {
+    data.replace(pos, find.size(), replace);
+    pos = data.find(find, pos + replace.size());
+  }
+  return data;
+}
+
 #endif  // JAMS_CORE_UTILS_H

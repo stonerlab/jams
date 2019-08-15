@@ -24,6 +24,7 @@
 #include "jams/helpers/load.h"
 #include "jams/helpers/output.h"
 #include "jams/interface/config.h"
+#include "jams/helpers/utils.h"
 #include "jams/helpers/timer.h"
 #include "jams/helpers/progress_bar.h"
 #include "jams/containers/multiarray.h"
@@ -73,14 +74,40 @@ namespace jams {
 
     string header() {
       stringstream ss;
-      ss << "\nJAMS++ " << jams::build::version << "\n\n";
-      ss << "build   "  << jams::build::type << " (";
-        ss << "cuda:" << jams::build::option_cuda;
-        ss << " omp:" << jams::build::option_omp;
-        ss << " fastmath:" << jams::build::option_fastmath ;
-        ss << " mixed_prec:" << jams::build::option_mixed_prec << ")\n";
-      ss << "git     "  << jams::build::branch << " (" << jams::build::hash << ")\n" ;
-      ss << "run     ";
+      ss << "\nJAMS++ " << jams::build::version << "\n";
+      ss << "  commit     " << jams::build::hash << "\n";
+      ss << "  branch     " << jams::build::branch << "\n";
+      ss << "  build      " << jams::build::type << "\n";
+      ss << "  cuda       " << jams::build::option_cuda << "\n";
+      ss << "  omp        " << jams::build::option_omp << "\n";
+      ss << "  fastmath   " << jams::build::option_fastmath << "\n";
+      ss << "  mixed_prec " << jams::build::option_mixed_prec << "\n";
+      ss << "  libconfig  " << jams::build::libconfig_version << "\n";
+      ss << "    " << find_and_replace(jams::build::libconfig_libraries, ";", "\n    ") << "\n";
+      ss << "  highfive   " << jams::build::highfive_version << "\n";
+      ss << "    " << find_and_replace(jams::build::highfive_libraries, ";", "\n    ") << "\n";
+      ss << "  spglib     " << jams::build::spglib_version << "\n";
+      ss << "    " << find_and_replace(jams::build::spglib_libraries, ";", "\n    ") << "\n";
+      ss << "  pcg        " << jams::build::pcg_version << "\n";
+      ss << "    " << find_and_replace(jams::build::pcg_libraries, ";", "\n    ") << "\n";
+      ss << "  hdf5       " << jams::build::hdf5_version << "\n";
+      ss << "    " << find_and_replace(jams::build::hdf5_libraries, ";", "\n    ") << "\n";
+      #if HAS_MKL
+      ss << "  mkl        " << jams::build::mkl_version() << "\n";
+      ss << "    " << find_and_replace(jams::build::mkl_libraries, ";", "\n    ") << "\n";
+      #endif
+      #if HAS_CUDA
+      ss << "  cusparse   " << "\n";
+      ss << "    " << find_and_replace(jams::build::cusparse_libraries, ";", "\n    ") << "\n";
+      ss << "  curand   " << "\n";
+      ss << "    " << find_and_replace(jams::build::curand_libraries, ";", "\n    ") << "\n";
+      ss << "  cublas   " << "\n";
+      ss << "    " << find_and_replace(jams::build::cublas_libraries, ";", "\n    ") << "\n";
+      ss << "  cufft   " << "\n";
+      ss << "    " << find_and_replace(jams::build::cufft_libraries, ";", "\n    ") << "\n";
+      #endif
+
+      ss << "\nrun     ";
       ss << get_date_string(std::chrono::system_clock::now()) << "\n";
       #if HAS_OMP
       ss << "threads " << omp_get_max_threads() << "\n";
