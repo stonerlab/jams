@@ -16,6 +16,7 @@ download_project(
 )
 
 add_subdirectory(${libconfig_SOURCE_DIR} ${libconfig_BINARY_DIR} EXCLUDE_FROM_ALL)
+target_include_directories(config++ INTERFACE ${libconfig_SOURCE_DIR}/lib)
 
 add_library(libconfig_builtin ALIAS config++)
 set(JAMS_LIBCONFIG_LIBRARIES "built-in (git)")
