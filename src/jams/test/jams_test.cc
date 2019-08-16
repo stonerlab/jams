@@ -8,9 +8,6 @@
 #include "jams/test/hamiltonian/test_dipole_cpu_tensor.h"
 #include "jams/test/hamiltonian/test_dipole_cpu_fft.h"
 
-
-
-
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 

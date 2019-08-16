@@ -11,7 +11,6 @@ endif()
 target_link_libraries(jams
         fftw_external
         cblas_external
-        hdf5_external
         pcg_builtin
         spglib_builtin
         libconfig_builtin

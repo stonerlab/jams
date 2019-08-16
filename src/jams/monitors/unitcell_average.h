@@ -19,10 +19,9 @@ public:
 
 private:
     void open_new_xdmf_file(const std::string &xdmf_file_name);
-    void update_xdmf_file(const std::string &h5_file_name, const H5::PredType float_type);
-    void write_h5_file(const std::string &h5_file_name, const H5::PredType float_type);
+    void update_xdmf_file(const std::string &h5_file_name);
+    void write_h5_file(const std::string &h5_file_name);
 
-    H5::PredType float_pred_type_;
     bool         compression_enabled_ = true;
     Slice        slice_;
     FILE*        xdmf_file_;

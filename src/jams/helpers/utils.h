@@ -78,6 +78,11 @@ inline std::string file_basename(std::string filepath) {
   return filepath.substr(slash+1, dot-slash-1);
 }
 
+inline std::string file_extension(std::string filepath) {
+  auto dot = filepath.find_last_of('.');
+  return filepath.substr(dot+1);
+}
+
 inline bool string_is_comment(const std::string& s) {
   std::stringstream ss(s);
   char two_chars[2];
