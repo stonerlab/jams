@@ -113,17 +113,17 @@ void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name) {
 
   auto mag_dataset = file.createDataSet<double>("/magnetisation",  DataSpace({lattice->num_cells(), 3}), props);
 
-  mag_dataset.createAttribute("iteration", solver->iteration());
-  mag_dataset.createAttribute("time", solver->time());
-  mag_dataset.createAttribute("temperature", solver->physics()->temperature());
+  mag_dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
+  mag_dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
+  mag_dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
 
   mag_dataset.write(cell_mag_);
 
   auto neel_dataset = file.createDataSet<double>("/neel",  DataSpace({lattice->num_cells(), 3}), props);
 
-  neel_dataset.createAttribute("iteration", solver->iteration());
-  neel_dataset.createAttribute("time", solver->time());
-  neel_dataset.createAttribute("temperature", solver->physics()->temperature());
+  neel_dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
+  neel_dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
+  neel_dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
 
   neel_dataset.write(cell_neel_);
 }

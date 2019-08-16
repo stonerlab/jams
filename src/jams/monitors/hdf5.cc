@@ -89,12 +89,12 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name) {
 
   auto dataset = file.createDataSet<double>("/spins",  DataSpace({num_spins, 3}), props);
 
-  dataset.createAttribute("iteration", solver->iteration());
-  dataset.createAttribute("time", solver->time());
-  dataset.createAttribute("temperature", solver->physics()->temperature());
-  dataset.createAttribute("hx", solver->physics()->applied_field()[0]);
-  dataset.createAttribute("hy", solver->physics()->applied_field()[1]);
-  dataset.createAttribute("hz", solver->physics()->applied_field()[2]);
+  dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
+  dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
+  dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
+  dataset.createAttribute<double>("hx", DataSpace::From(solver->physics()->applied_field()[0]));
+  dataset.createAttribute<double>("hy", DataSpace::From(solver->physics()->applied_field()[1]));
+  dataset.createAttribute<double>("hz", DataSpace::From(solver->physics()->applied_field()[2]));
 
   dataset.write(s);
 }

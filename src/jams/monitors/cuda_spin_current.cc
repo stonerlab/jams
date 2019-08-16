@@ -162,8 +162,8 @@ void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_fi
 
   auto dataset = file.createDataSet<double>("/spin_current",  DataSpace::From(js));
 
-  dataset.createAttribute("iteration", solver->iteration());
-  dataset.createAttribute("time", solver->time());
+  dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
+  dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
 }
 
 void CudaSpinCurrentMonitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
