@@ -8,6 +8,8 @@
 #include <iostream>
 #include <stdexcept>
 
+#if HAS_CUDA
+
 #include <cuda.h>
 #include <cublas_v2.h>
 #include <curand.h>
@@ -114,5 +116,7 @@ inline void cuda_throw(cudaError_t return_code, const char *file, int line) {
 
 #define IDX4D(i, j, k, l, size0, size1, size2, size3) \
   ((i*size1+j)*size2+k)*size3+l)
+
+#endif // HAS_CUDA
 
 #endif //JAMS_CUDA_ERROR_H

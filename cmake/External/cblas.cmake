@@ -1,0 +1,11 @@
+add_library(cblas_external INTERFACE)
+
+find_package(MKL QUIET)
+if(MKL_FOUND)
+    target_include_directories(cblas_external INTERFACE ${MKL_INCLUDE_DIR})
+    target_link_libraries(cblas_external INTERFACE ${MKL_LIBRARIES})
+else()
+    find_package(BLAS REQUIRED)
+    target_include_directories(cblas_external INTERFACE ${BLAS_INCLUDE_DIR})
+    target_link_libraries(cblas_external INTERFACE ${BLAS_LIBRARIES})
+endif(MKL_FOUND)

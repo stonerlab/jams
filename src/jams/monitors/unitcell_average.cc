@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "version.h"
-#include "H5Cpp.h"
 
 #include "jams/helpers/error.h"
 #include "jams/core/physics.h"
@@ -34,10 +33,8 @@ namespace {
 
 UnitcellAverageMonitor::UnitcellAverageMonitor(const libconfig::Setting &settings)
     : Monitor(settings),
-      float_pred_type_(H5::PredType::IEEE_F64LE),
       slice_() {
   using namespace globals;
-  using namespace H5;
 
   output_step_freq_ = settings["output_steps"];
 
@@ -68,7 +65,6 @@ UnitcellAverageMonitor::~UnitcellAverageMonitor() {
 
 void UnitcellAverageMonitor::update(Solver * solver) {
   using namespace globals;
-  using namespace H5;
 
   int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
@@ -91,11 +87,11 @@ void UnitcellAverageMonitor::update(Solver * solver) {
     }
   }
 
-  write_h5_file(h5_file_name, float_pred_type_);
-  update_xdmf_file(h5_file_name, float_pred_type_);
+  write_h5_file(h5_file_name);
+  update_xdmf_file(h5_file_name);
 }
 
-void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name, const H5::PredType float_type) {
+void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name) {
   using namespace globals;
   using namespace HighFive;
 
@@ -117,17 +113,17 @@ void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name, cons
 
   auto mag_dataset = file.createDataSet<double>("/magnetisation",  DataSpace({lattice->num_cells(), 3}), props);
 
-  mag_dataset.createAttribute("iteration", solver->iteration());
-  mag_dataset.createAttribute("time", solver->time());
-  mag_dataset.createAttribute("temperature", solver->physics()->temperature());
+  mag_dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
+  mag_dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
+  mag_dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
 
   mag_dataset.write(cell_mag_);
 
   auto neel_dataset = file.createDataSet<double>("/neel",  DataSpace({lattice->num_cells(), 3}), props);
 
-  neel_dataset.createAttribute("iteration", solver->iteration());
-  neel_dataset.createAttribute("time", solver->time());
-  neel_dataset.createAttribute("temperature", solver->physics()->temperature());
+  neel_dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
+  neel_dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
+  neel_dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
 
   neel_dataset.write(cell_neel_);
 }
@@ -155,9 +151,8 @@ void UnitcellAverageMonitor::open_new_xdmf_file(const std::string &xdmf_file_nam
 
 //---------------------------------------------------------------------
 
-void UnitcellAverageMonitor::update_xdmf_file(const std::string &h5_file_name, const H5::PredType float_type) {
+void UnitcellAverageMonitor::update_xdmf_file(const std::string &h5_file_name) {
   using namespace globals;
-  using namespace H5;
 
   hsize_t      data_dimension  = lattice->num_cells();
   unsigned int float_precision = 8;

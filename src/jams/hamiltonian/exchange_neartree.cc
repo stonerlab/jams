@@ -268,11 +268,11 @@ void ExchangeNeartreeHamiltonian::calculate_one_spin_field(const int i, double l
     const int    *ptrb = interaction_matrix_.ptrB();
     const int    *ptre = interaction_matrix_.ptrE();
     const double *x   = s.data();
-    int j, m, begin, end;
 
-    for (m = 0; m < 3; ++m) {
-      begin = ptrb[3*i+m]; end = ptre[3*i+m];
-      for (j = begin; j < end; ++j) {
+    for (auto m = 0; m < 3; ++m) {
+      auto begin = ptrb[3*i+m];
+      auto end = ptre[3*i+m];
+      for (auto j = begin; j < end; ++j) {
         // k = indx[j];
         local_field[m] = local_field[m] + x[ indx[j] ]*val[j];
       }
@@ -283,14 +283,15 @@ void ExchangeNeartreeHamiltonian::calculate_one_spin_field(const int i, double l
 
 void ExchangeNeartreeHamiltonian::calculate_fields() {
   assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
-  double one = 1.0;
-  double zero = 0.0;
+
   const char transa[1] = {'N'};
   const char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
   const int num_rows = globals::num_spins3;
   const int num_cols = globals::num_spins3;
 
 #ifdef HAS_MKL
+    double one = 1.0;
+    double zero = 0.0;
     mkl_dcsrmv(transa, &num_rows, &num_cols, &one, matdescra, interaction_matrix_.valPtr(),
             interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),
             &zero, field_.data());
