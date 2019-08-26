@@ -30,9 +30,9 @@ public:
     explicit SpectrumBaseMonitor(const libconfig::Setting &settings);
     ~SpectrumBaseMonitor() override = default;
 
-    virtual void post_process() = 0;
-    virtual void update(Solver *solver) = 0;
-    virtual bool is_converged() override = 0;
+    void post_process() override = 0;
+    void update(Solver *solver) override = 0;
+    bool is_converged() override = 0;
 
     inline int num_kpoints() const {
       return kspace_paths_.size();
