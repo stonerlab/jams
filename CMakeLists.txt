@@ -7,26 +7,30 @@ endif()
 include(cmake/Utils.cmake)
 ensure_out_of_source_build()
 
-project(jams LANGUAGES C CXX)
-
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-if (JAMS_BUILD_CUDA)
-    enable_language(CUDA)
-endif()
-
-set(VERSION_MAJOR "2" )
-set(VERSION_MINOR "1" )
-set(VERSION_PATCH "1" )
-set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
-
 option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" OFF)
 option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" ON)
 option(JAMS_BUILD_FASTMATH "Build JAMS with fast math flags" ON)
 option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
 option(JAMS_BUILD_MIXED_PREC "Build parts of JAMS using mixed precision." OFF)
+
+project(jams LANGUAGES C CXX)
+
+if (JAMS_BUILD_CUDA)
+    enable_language(CUDA)
+endif()
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_CUDA_STANDARD 11)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_EXTENSIONS OFF)
+
+set(VERSION_MAJOR "2" )
+set(VERSION_MINOR "1" )
+set(VERSION_PATCH "1" )
+set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 # Latest libconfig version is 1.7.2 but the cmake support is broken. This is fixed in the current
 # github master branch
