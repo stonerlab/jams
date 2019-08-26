@@ -7,10 +7,14 @@
 
 // This hack avoids an incompatibility between CUDA and versions of fftw and mkl which do not detect __CUDACC__ as the
 // compiler, resulting in an compile error that __float128 is not defined. We never use the quad precision routines
-// in JAMS, so by defining __PGI (regardless of the compiler), the FFTW header will ignore the quad routines.
-#define __PGI
+// in JAMS, so by undefining __ICC, the FFTW header will ignore the quad routines.
+#ifdef __ICC
 #include <fftw3.h>
-#undef __PGI
+#else
+#define __ICC
+#include <fftw3.h>
+#undef __ICC
+#endif
 
 #include <complex>
 #include <array>
@@ -40,8 +44,8 @@ double fft_window_nuttall(const int n, const int n_total);
 fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const std::array<int,3>& kspace_size, const int & motif_size);
 void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspace);
 
-void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
-void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
+void fft_supercell_vector_field_to_kspace(jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
+void fft_supercell_scalar_field_to_kspace(jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
 
 template <std::size_t N>
 struct FFTWHermitianIndex {
