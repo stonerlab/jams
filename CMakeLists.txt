@@ -8,6 +8,11 @@ include(cmake/Utils.cmake)
 ensure_out_of_source_build()
 
 project(jams LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 if (JAMS_BUILD_CUDA)
     enable_language(CUDA)
 endif()
@@ -38,6 +43,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
 include(cmake/Dependencies.cmake)
 include(cmake/Generate.cmake)
+
 add_subdirectory(src/jams)
 
 if (JAMS_BUILD_TESTS)
