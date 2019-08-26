@@ -39,10 +39,12 @@ set(JAMS_SOURCES_CXX
         monitors/field.cc
         monitors/magnetisation.cc
         monitors/magnetisation_rate.cc
+        monitors/magnon_spectrum.cc
         monitors/neutron_scattering.cc
         monitors/neutron_scattering_no_lattice.cc
         monitors/skyrmion.cc
         monitors/smr.cc
+        monitors/spectrum_base.cc
         monitors/spectrum_fourier.cc
         monitors/spectrum_general.cc
         monitors/spin_correlation.cc
