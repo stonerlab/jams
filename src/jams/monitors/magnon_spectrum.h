@@ -33,12 +33,11 @@ public:
 private:
     void output_magnon_spectrum();
 
-    jams::MultiArray<Mat3cx, 2> calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
+    jams::MultiArray<Mat3cx, 3> calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
 
-    jams::MultiArray<Mat3cx,2> total_magnon_spectrum_;
     jams::MultiArray<Mat3, 1>   transformations_;
     jams::MultiArray<double, 2> transformed_spins_;
-
+    jams::MultiArray<Mat3cx,3> cumulative_magnon_spectrum_;
 };
 
 #endif //JAMS_MAGNON_SPECTRUM_H
