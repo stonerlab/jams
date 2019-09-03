@@ -34,6 +34,10 @@ public:
     void update(Solver *solver) override = 0;
     bool is_converged() override = 0;
 
+    inline int num_motif_atoms() const {
+      return num_motif_atoms_;
+    }
+
     inline int num_kpoints() const {
       return kspace_paths_.size();
     }
@@ -90,6 +94,7 @@ private:
     jams::PeriodogramProps periodogram_props_;
     int periodogram_index_ = 0;
     int total_periods_ = 0;
+    int num_motif_atoms_ = 0;
 };
 
 #endif //JAMS_SPECTRUM_BASE_H

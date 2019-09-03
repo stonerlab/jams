@@ -20,12 +20,12 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : M
   }
 
   auto kspace_size   = lattice->kspace_size();
-  auto num_sites     = lattice->num_motif_atoms();
+  num_motif_atoms_ = lattice->num_motif_atoms();
 
   zero(kspace_data_.resize(
-      kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_sites));
+      kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_motif_atoms_));
   zero(kspace_data_timeseries_.resize(
-      num_sites, periodogram_props_.length, kspace_paths_.size()));
+      num_motif_atoms_, periodogram_props_.length, kspace_paths_.size()));
 }
 
 
