@@ -1,7 +1,6 @@
 include(${PROJECT_SOURCE_DIR}/cmake/Utils.cmake)
 
 set(JAMS_SOURCES_CXX
-        main.cc
         containers/cell.cc
         core/hamiltonian.cc
         core/interactions.cc
