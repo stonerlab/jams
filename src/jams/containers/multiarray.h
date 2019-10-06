@@ -358,6 +358,12 @@ namespace jams {
             size_(detail::array_cast<size_type>(v)),
             data_(std::get<0>(v)) {}
 
+        template<class InputIt>
+        inline MultiArray(InputIt first, InputIt last)
+            : size_(detail::array_cast<size_type>(
+                std::array<typename std::iterator_traits<InputIt>::difference_type,1>({std::distance(first, last)}))),
+              data_(first, last) {}
+
         template <typename U>
         inline explicit MultiArray(const std::array<U, 1> &v, const Tp_& x) :
             size_(detail::array_cast<size_type>(v)),
@@ -373,6 +379,7 @@ namespace jams {
         }
 
         inline constexpr size_type size(const size_type n) const noexcept {
+          static_assert(n == 0, "MultiArray.size(n) is greater than the dimension");
           return std::get<0>(size_);
         }
 
