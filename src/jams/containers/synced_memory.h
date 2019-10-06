@@ -130,6 +130,12 @@ public:
       }
     }
 
+    template<class InputIt>
+    inline SyncedMemory(InputIt first, InputIt last)
+    : size_(std::distance(first, last))  {
+      std::copy(first, last, mutable_host_data());
+    }
+
     // get size of data
     inline constexpr size_type size() const noexcept { return size_; }
 
