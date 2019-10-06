@@ -10,7 +10,25 @@
 
 #include <numeric>
 
-template <typename T, typename Compare>
+template <class T>
+std::vector<std::size_t> sort_permutation(const std::vector<T>& vec) {
+  std::vector<std::size_t> p(vec.size());
+  std::iota(p.begin(), p.end(), 0);
+  std::sort(p.begin(), p.end(),
+            [&](std::size_t i, std::size_t j){ return vec[i] < vec[j]; });
+  return p;
+}
+
+template <class T, class Compare>
+std::vector<std::size_t> sort_permutation(const jams::MultiArray<T,1>& vec) {
+  std::vector<std::size_t> p(vec.size());
+  std::iota(p.begin(), p.end(), 0);
+  std::sort(p.begin(), p.end(),
+            [&](std::size_t i, std::size_t j){ return vec(i) < vec(j); });
+  return p;
+}
+
+template <class T, class Compare>
 std::vector<std::size_t> sort_permutation(
     const std::vector<T>& vec,
     Compare& compare = std::less<T>())
@@ -22,7 +40,7 @@ std::vector<std::size_t> sort_permutation(
   return p;
 }
 
-template <typename T, typename Compare>
+template <class T, class Compare>
 std::vector<std::size_t> sort_permutation(
     const jams::MultiArray<T,1>& vec,
     Compare& compare = std::less<T>())
@@ -34,8 +52,25 @@ std::vector<std::size_t> sort_permutation(
   return p;
 }
 
+template <class T>
+std::vector<std::size_t> stable_sort_permutation(const std::vector<T>& vec) {
+  std::vector<std::size_t> p(vec.size());
+  std::iota(p.begin(), p.end(), 0);
+  std::stable_sort(p.begin(), p.end(),
+                   [&](std::size_t i, std::size_t j){ return vec[i] < vec[j]; });
+  return p;
+}
 
-template <typename T, typename Compare>
+template <class T>
+std::vector<std::size_t> stable_sort_permutation(const jams::MultiArray<T,1>& vec) {
+  std::vector<std::size_t> p(vec.size());
+  std::iota(p.begin(), p.end(), 0);
+  std::stable_sort(p.begin(), p.end(),
+                   [&](std::size_t i, std::size_t j){ return vec(i) < vec(j); });
+  return p;
+}
+
+template <class T, class Compare>
 std::vector<std::size_t> stable_sort_permutation(
     const std::vector<T>& vec,
     Compare& compare = std::less<T>())
@@ -47,7 +82,7 @@ std::vector<std::size_t> stable_sort_permutation(
   return p;
 }
 
-template <typename T, typename Compare>
+template <class T, class Compare>
 std::vector<std::size_t> stable_sort_permutation(
     const jams::MultiArray<T,1>& vec,
     Compare& compare = std::less<T>())
