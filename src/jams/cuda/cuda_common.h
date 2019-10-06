@@ -19,6 +19,20 @@
 
 #include "jams/helpers/error.h"
 
+namespace jams {
+    namespace gpu {
+        template<typename T>
+        inline constexpr cudaDataType get_cuda_data_type();
+
+        template<>
+        inline constexpr cudaDataType get_cuda_data_type<float>() { return CUDA_R_32F; }
+
+        template<>
+        inline constexpr cudaDataType get_cuda_data_type<double>() { return CUDA_R_64F; }
+    }
+}
+
+
 const char* cusparseGetStatusString(cusparseStatus_t status);
 const char* curandGetStatusString(curandStatus_t status);
 const char* cublasGetStatusString(cublasStatus_t status);
