@@ -59,7 +59,7 @@ void CudaLangevinWhiteThermostat::update() {
 }
 
 CudaLangevinWhiteThermostat::~CudaLangevinWhiteThermostat() {
-  CHECK_CURAND_STATUS(curandDestroyGenerator(dev_rng_));
+  curandDestroyGenerator(dev_rng_);
   if (dev_stream_ != nullptr) {
     cudaStreamDestroy(dev_stream_);
   }

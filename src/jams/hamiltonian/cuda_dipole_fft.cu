@@ -49,11 +49,11 @@ namespace {
 
 CudaDipoleHamiltonianFFT::~CudaDipoleHamiltonianFFT() {
   if (cuda_fft_s_rspace_to_kspace) {
-      CHECK_CUFFT_STATUS(cufftDestroy(cuda_fft_s_rspace_to_kspace));
+      cufftDestroy(cuda_fft_s_rspace_to_kspace);
   }
 
   if (cuda_fft_h_kspace_to_rspace) {
-    CHECK_CUFFT_STATUS(cufftDestroy(cuda_fft_h_kspace_to_rspace));
+    cufftDestroy(cuda_fft_h_kspace_to_rspace);
   }
 }
 
