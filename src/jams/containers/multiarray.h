@@ -349,10 +349,6 @@ namespace jams {
             size_({size}),
             data_(size) {}
 
-        inline explicit MultiArray(size_type size, const Tp_& x):
-            size_({size}),
-            data_(size, x) {}
-
         template <typename U>
         inline explicit MultiArray(const std::array<U, 1> &v) :
             size_(detail::array_cast<size_type>(v)),
