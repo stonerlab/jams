@@ -37,6 +37,7 @@ const char* cusparseGetStatusString(cusparseStatus_t status);
 const char* curandGetStatusString(curandStatus_t status);
 const char* cublasGetStatusString(cublasStatus_t status);
 const char* cufftGetStatusString(cufftResult_t status);
+const char* cusparseGetMatTypeString(cusparseMatrixType_t type);
 
 #define CHECK_CUSPARSE_STATUS(x) \
 { \
