@@ -43,8 +43,7 @@ const char* cufftGetStatusString(cufftResult_t status);
   cusparseStatus_t stat; \
   if ((stat = (x)) != CUSPARSE_STATUS_SUCCESS) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("cusparse returned ") << cusparseGetStatusString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("cusparse returned ") + cusparseGetStatusString(stat)); \
   } \
 }
 
@@ -53,8 +52,7 @@ const char* cufftGetStatusString(cufftResult_t status);
   curandStatus_t stat; \
   if ((stat = (x)) != CURAND_STATUS_SUCCESS) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("curand returned ") << curandGetStatusString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("curand returned ") + curandGetStatusString(stat)); \
   } \
 }
 
@@ -63,8 +61,7 @@ const char* cufftGetStatusString(cufftResult_t status);
   cublasStatus_t stat; \
   if ((stat = (x)) != CUBLAS_STATUS_SUCCESS) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("cublas returned ") << cublasGetStatusString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("cublas returned ") + cublasGetStatusString(stat)); \
   } \
 }
 
@@ -73,8 +70,7 @@ const char* cufftGetStatusString(cufftResult_t status);
   cufftResult_t stat; \
   if ((stat = (x)) != CUFFT_SUCCESS) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("cufft returned ") << cufftGetStatusString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("cufft returned ") + cufftGetStatusString(stat)); \
   } \
 }
 
@@ -84,8 +80,7 @@ const char* cufftGetStatusString(cufftResult_t status);
   cudaError_t stat; \
   if ((stat = (x)) != cudaSuccess) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("cuda returned ") << cudaGetErrorString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("cuda returned ") + cudaGetErrorString(stat)); \
   } \
 }
 
