@@ -20,7 +20,6 @@
 #include "jams/hamiltonian/zeeman.h"
 
 #if HAS_CUDA
-  #include "jams/hamiltonian/cuda_exchange.h"
   #include "jams/hamiltonian/cuda_exchange_neartree.h"
   #include "jams/hamiltonian/cuda_random_anisotropy.h"
   #include "jams/hamiltonian/cuda_uniaxial_anisotropy.h"
@@ -32,11 +31,6 @@ using namespace std;
 
 Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsigned int size, bool is_cuda_solver) {
     if (capitalize(settings["module"]) == "EXCHANGE") {
-        #if HAS_CUDA
-          if (is_cuda_solver) {
-            return new CudaExchangeHamiltonian(settings, size);
-          }
-        #endif
         return new ExchangeHamiltonian(settings, size);
     }
 

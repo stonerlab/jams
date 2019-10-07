@@ -135,6 +135,57 @@ namespace jams {
           }
         }
 
+//        #ifdef HAS_CUDA
+//        // create a class for this so we can use default copy and move constructors in SparseMatrix
+//        class CusparseDescription {
+//            public:
+//            CusparseDescription() {
+//              std::cout << "default construct" << std::endl;
+//              CHECK_CUSPARSE_STATUS(cusparseCreateMatDescr(&descr_));
+//            }
+//
+//            CusparseDescription(const CusparseDescription& rhs) {
+//              std::cout << "copy construct" << std::endl;
+//
+//              CHECK_CUSPARSE_STATUS(cusparseCreateMatDescr(&descr_));
+//              set_type(rhs.type());
+//              set_fill_mode(rhs.fill_mode());
+//            }
+//
+//            cusparseMatDescr_t get() const {
+//              assert(descr_ != nullptr);
+//              return descr_;
+//            }
+//
+//            void set_type(cusparseMatrixType_t type) {
+//              CHECK_CUSPARSE_STATUS(cusparseSetMatType(descr_, type));
+//            }
+//
+//            void set_fill_mode(cusparseFillMode_t mode) {
+//              CHECK_CUSPARSE_STATUS(cusparseSetMatFillMode(descr_, mode));
+//            }
+//
+//            cusparseMatrixType_t type() const {
+//              return cusparseGetMatType(descr_);
+//            }
+//
+//            cusparseFillMode_t fill_mode() const {
+//              return cusparseGetMatFillMode(descr_);
+//            }
+//
+//            ~CusparseDescription() {
+//              if (descr_){
+//                std::cout << "destruct" << std::endl;
+//                cusparseDestroyMatDescr(descr_);
+//              }
+//            }
+//            private:
+//
+//            cusparseMatDescr_t descr_ = nullptr;
+//
+//            };
+//        #endif
+
     }
 
     // enum integer values mirror those in mkl_spblas.h so we can static_cast if needed
@@ -158,6 +209,9 @@ namespace jams {
     public:
         class Builder;
 
+        template<class F>
+        friend void swap(SparseMatrix<F>& lhs, SparseMatrix<F>& rhs);
+
         using value_type            = T;
         using value_reference       = value_type &;
         using const_value_reference = const value_type &;
@@ -168,15 +222,101 @@ namespace jams {
         using const_size_reference  = const size_type &;
         using size_pointer          = size_type *;
         using const_size_pointer    = const size_type *;
-
         using index_container = MultiArray<size_type, 1>;
         using value_container = MultiArray<value_type, 1>;
+
+        SparseMatrix() = default;
+
+        ~SparseMatrix() {
+          #ifdef HAS_CUDA
+          if (cusparse_descr_) {
+            cusparseDestroyMatDescr(cusparse_descr_);
+          }
+          #endif
+        }
+
+        SparseMatrix(const size_type num_rows, const size_type num_cols, const size_type num_non_zero,
+                     index_container rows, index_container cols, value_container vals,
+                     SparseMatrixFormat format, SparseMatrixType type, SparseMatrixFillMode fill_mode)
+            : format_(format),
+              type_(type),
+              fill_mode_(fill_mode),
+              num_rows_(num_rows),
+              num_cols_(num_cols),
+              num_non_zero_(num_non_zero),
+              row_(std::move(rows)),
+              col_(std::move(cols)),
+              val_(std::move(vals)) {
+#ifdef HAS_CUDA
+          cusparseCreateMatDescr(&cusparse_descr_);
+          switch (type_) {
+            case SparseMatrixType::GENERAL:
+              cusparseSetMatType(cusparse_descr_, CUSPARSE_MATRIX_TYPE_GENERAL);
+//            cusparse_descr_.set_type(CUSPARSE_MATRIX_TYPE_GENERAL);
+              break;
+            case SparseMatrixType::SYMMETRIC:
+              cusparseSetMatType(cusparse_descr_, CUSPARSE_MATRIX_TYPE_SYMMETRIC);
+//              cusparse_descr_.set_type(CUSPARSE_MATRIX_TYPE_SYMMETRIC);
+//              switch (fill_mode_) {
+//                case SparseMatrixFillMode::LOWER:
+//                  cusparse_descr_.set_fill_mode(CUSPARSE_FILL_MODE_LOWER);
+//                  break;
+//                case SparseMatrixFillMode::UPPER:
+//                  cusparse_descr_.set_fill_mode(CUSPARSE_FILL_MODE_UPPER);
+//                  break;
+//              }
+              break;
+          }
+#endif
+        }
+
+        SparseMatrix(const SparseMatrix<T>& rhs) {
+          SparseMatrix(rhs.num_rows_, rhs.num_cols_, rhs.num_non_zero_, rhs.row_, rhs.col_, rhs.val_, rhs.format_,
+                       rhs.type_, rhs.fill_mode_);
+        }
+
+        SparseMatrix(SparseMatrix&& rhs) noexcept :
+            format_(std::move(rhs.format_)),
+            type_(std::move(rhs.type_)),
+            fill_mode_(std::move(rhs.fill_mode_)),
+            num_rows_(std::move(rhs.num_rows_)),
+            num_cols_(std::move(rhs.num_cols_)),
+            num_non_zero_(std::move(rhs.num_non_zero_)),
+            row_(std::move(rhs.row_)),
+            col_(std::move(rhs.col_)),
+            val_(std::move(rhs.val_))
+        {
+          #ifdef HAS_CUDA
+          cusparse_descr_ = std::move(rhs.cusparse_descr_);
+          rhs.cusparse_descr_ = nullptr;
+          #endif
+        };
+
+        // copy assign
+        SparseMatrix& operator=(SparseMatrix rhs) & {
+          swap(*this, rhs);
+          return *this;
+        }
+
+        inline constexpr SparseMatrixFormat format() const { return format_; }
+
+        inline constexpr SparseMatrixType type() const { return type_; }
+
+        inline constexpr SparseMatrixFillMode fill_mode() const { return fill_mode_; }
+
+        inline constexpr size_type num_non_zero() const { return num_non_zero_; }
+
+        inline constexpr size_type num_rows() const { return num_rows_; }
+
+        inline constexpr size_type num_cols() const { return num_cols_; }
+
+        inline constexpr std::size_t memory() const { return row_.memory() + col_.memory() + val_.memory(); };
 
         template<class U, size_t N>
         void multiply(const MultiArray<U, N> &vector, MultiArray<U, N> &result) const;
 
         template<class U, size_t N>
-        U multiply_row(const size_type i, const MultiArray<U, N> &vector) const;
+        U multiply_row(size_type i, const MultiArray<U, N> &vector) const;
 
         #if HAS_CUDA
         template <class U, size_t N>
@@ -184,80 +324,21 @@ namespace jams {
                           cusparseHandle_t &handle, cudaStream_t stream_id);
         #endif
 
-        SparseMatrix() = default;
-
-        SparseMatrix(size_type num_rows, size_type num_cols, size_type num_non_zero,
-            index_container &rows, index_container &cols, value_container &vals,
-            SparseMatrixFormat format, SparseMatrixType type, SparseMatrixFillMode fill_mode)
-            : num_rows_(num_rows),
-              num_cols_(num_cols),
-              num_non_zero_(num_non_zero),
-              row_(rows),
-              col_(cols),
-              val_(vals),
-              format_(format),
-              type_(type),
-              fill_mode_(fill_mode) {
-#ifdef HAS_CUDA
-          cusparseCreateMatDescr(&cusparse_descr_);
-          switch (type_) {
-            case SparseMatrixType::GENERAL:
-              cusparseSetMatType(cusparse_descr_, CUSPARSE_MATRIX_TYPE_GENERAL);
-              break;
-            case SparseMatrixType::SYMMETRIC:
-              cusparseSetMatType(cusparse_descr_, CUSPARSE_MATRIX_TYPE_SYMMETRIC);
-              break;
-          }
-
-          switch (fill_mode_) {
-            case SparseMatrixFillMode::LOWER:
-              cusparseSetMatFillMode(cusparse_descr_, CUSPARSE_FILL_MODE_LOWER);
-              break;
-            case SparseMatrixFillMode::UPPER:
-              cusparseSetMatFillMode(cusparse_descr_, CUSPARSE_FILL_MODE_UPPER);
-              break;
-          }
-#endif
-        }
-
-        inline SparseMatrixFormat format() const { return format_; }
-
-        inline SparseMatrixType type() const { return type_; }
-
-        inline SparseMatrixFillMode fill_mode() const { return fill_mode_; }
-
-        inline size_type num_non_zero() const { return num_non_zero_; }
-
-        inline size_type num_rows() const { return num_rows_; }
-
-        inline size_type num_cols() const { return num_cols_; }
-
-        std::size_t memory() { return row_.memory() + col_.memory() + val_.memory(); };
-
     protected:
-        SparseMatrixFormat format_ = SparseMatrixFormat::COO;
-
-        SparseMatrixType type_ = SparseMatrixType::GENERAL;
+        SparseMatrixFormat format_      = SparseMatrixFormat::CSR;
+        SparseMatrixType type_          = SparseMatrixType::GENERAL;
         SparseMatrixFillMode fill_mode_ = SparseMatrixFillMode::LOWER;
-
-        size_type num_rows_ = 0;
-        size_type num_cols_ = 0;
-        size_type num_non_zero_ = 0;
-
+        size_type num_rows_             = 0;
+        size_type num_cols_             = 0;
+        size_type num_non_zero_         = 0;
         index_container row_;
         index_container col_;
         value_container val_;
 
         #ifdef HAS_CUDA
-        template <class U, size_t N>
-        void allocate_cusparse_csr_buffer(const MultiArray<U, N> &vector, MultiArray<U, N> &result, cusparseHandle_t &handle);
-
         cusparseMatDescr_t cusparse_descr_ = nullptr;
-
-        MultiArray<char, 1> cusparse_buffer_;
         #endif
     };
-
 
     template<typename T>
     template<class U, size_t N>
@@ -267,7 +348,6 @@ namespace jams {
           impl::Xcoomv_general(1.0, 0.0, num_rows_, num_non_zero_,
                                val_.data(), col_.data(), row_.data(),
                                vector.data(), result.data());
-//          throw std::runtime_error("unimplemented");
         case SparseMatrixFormat::CSR:
           #if HAS_MKL
           double one = 1.0;
@@ -301,44 +381,13 @@ namespace jams {
       }
     }
 
-    template<typename T>
-    template<class U, size_t N>
-    void SparseMatrix<T>::allocate_cusparse_csr_buffer(const MultiArray<U, N> &vector, MultiArray<U, N> &result, cusparseHandle_t &handle) {
-      if (cusparse_buffer_.empty()) {
-        const T one = 1.0;
-        const T zero = 0.0;
-        size_t buffer_size = 0;
-        CHECK_CUSPARSE_STATUS(cusparseCsrmvEx_bufferSize(
-            handle,
-            CUSPARSE_ALG0, //default, naive
-            CUSPARSE_OPERATION_NON_TRANSPOSE,
-            num_rows_,
-            num_cols_,
-            num_non_zero_,
-            &one, gpu::get_cuda_data_type<T>(),
-            cusparse_descr_,
-            val_.device_data(), gpu::get_cuda_data_type<T>(),
-            row_.device_data(),
-            col_.device_data(),
-            vector.device_data(), gpu::get_cuda_data_type<U>(), // this is presumably not used?
-            &zero, gpu::get_cuda_data_type<T>(),
-            result.device_data(), gpu::get_cuda_data_type<U>(), // this is presumably not used?
-            gpu::get_cuda_data_type<double>(), // execution type
-            &buffer_size));
-        cusparse_buffer_.resize(buffer_size);
-      }
-    }
-
+    #ifdef HAS_CUDA
     template<typename T>
     template<class U, size_t N>
     void SparseMatrix<T>::multiply_gpu(const MultiArray<U, N> &vector, MultiArray<U, N> &result,
                                        cusparseHandle_t &handle, cudaStream_t stream_id) {
       assert(handle != nullptr);
       assert(cusparse_descr_ != nullptr);
-      if (cusparse_buffer_.empty()) {
-        allocate_cusparse_csr_buffer(vector, result, handle);
-      }
-      assert(cusparse_buffer_.device_data() != nullptr);
       const T one = 1.0;
       const T zero = 0.0;
       switch (format_) {
@@ -346,46 +395,45 @@ namespace jams {
           throw std::runtime_error("unimplemented");
         case SparseMatrixFormat::CSR:
           cusparseSetStream(handle, stream_id);
-          CHECK_CUSPARSE_STATUS(cusparseCsrmvEx(
-              handle,
-              CUSPARSE_ALG0,
-              CUSPARSE_OPERATION_NON_TRANSPOSE,
-              num_rows_,
-              num_cols_,
-              num_non_zero_,
-              &one, gpu::get_cuda_data_type<T>(),
-              cusparse_descr_,
-              val_.device_data(), gpu::get_cuda_data_type<T>(),
-              row_.device_data(),
-              col_.device_data(),
-              vector.device_data(), gpu::get_cuda_data_type<double>(), // this is presumably not used?
-              &zero, gpu::get_cuda_data_type<T>(),
-              result.device_data(), gpu::get_cuda_data_type<double>(), // this is presumably not used?
-              gpu::get_cuda_data_type<double>(), // execution type
-              (void*)(cusparse_buffer_.device_data())));
-          cusparseSetStream(handle, 0);
+          // TODO: implement CUDA 10 general type version
+          // remember to (static)assert types are all the same if CUDA < 10
 
+          CHECK_CUSPARSE_STATUS(cusparseDcsrmv(
+             handle,
+             CUSPARSE_OPERATION_NON_TRANSPOSE,
+             num_rows_,
+             num_cols_,
+             num_non_zero_,
+             &one,
+             cusparse_descr_,
+             val_.device_data(),
+             row_.device_data(),
+             col_.device_data(),
+             vector.device_data(),
+             &zero,
+             result.device_data()));
+          cusparseSetStream(handle, 0);
       }
     }
+    #endif
+
+    template<class F>
+    void swap(SparseMatrix<F> &lhs, SparseMatrix<F> &rhs) {
+      using std::swap;
+      swap(lhs.format_, rhs.format_);
+      swap(lhs.type_, rhs.type_);
+      swap(lhs.fill_mode_, rhs.fill_mode_);
+      swap(lhs.num_rows_, rhs.num_rows_);
+      swap(lhs.num_cols_, rhs.num_cols_);
+      swap(lhs.num_non_zero_, rhs.num_non_zero_);
+      swap(lhs.row_, rhs.row_);
+      swap(lhs.col_, rhs.col_);
+      swap(lhs.val_, rhs.val_);
+      #ifdef HAS_CUDA
+      swap(lhs.cusparse_descr_, rhs.cusparse_descr_);
+      #endif
+    }
+
 }
-
-
-
-//
-//      if(type_ == SparseMatrixType::SYMMETRIC) {
-//        if(fill_mode_ == SparseMatrixFillMode::LOWER) {
-//          if( i > j ) {
-//            throw std::runtime_error("Attempted to insert lower matrix element in symmetric upper sparse matrix");
-//          }
-//        } else {
-//          if( i < j ) {
-//            throw std::runtime_error("Attempted to insert upper matrix element in symmetric lower sparse matrix");
-//          }
-//        }
-//      }
-//    }
-
-
-
 
 #endif // JAMS_CONTAINERS_SPARSE_MATRIX_H

@@ -168,8 +168,8 @@ inline Mat3 rotation_matrix_yz(const double theta, const double phi) {
 }
 
 template <typename T>
-inline T max_norm(const Mat<T,3,3>& a) {
-  T max = std::numeric_limits<T>::min();
+inline T max_abs(const Mat<T,3,3>& a) {
+  T max = 0.0;
   for (auto i = 0; i < 3; ++i) {
     for (auto j = 0; j < 3; ++j) {
       if (std::abs(a[i][j]) > max) {

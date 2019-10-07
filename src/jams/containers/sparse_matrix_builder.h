@@ -22,10 +22,6 @@ namespace jams {
 
         SparseMatrix<T> build();
 
-        SparseMatrix<T> build_csr();
-
-        SparseMatrix<T> build_coo();
-
         inline SparseMatrixFormat format() const { return format_; }
 
         inline SparseMatrixType type() const { return type_; }
@@ -47,12 +43,15 @@ namespace jams {
           return *this;
         }
 
+        void clear();
+
     private:
+        SparseMatrix<T> build_csr();
+        SparseMatrix<T> build_coo();
+
         void sort();
 
         void sum_duplicates();
-
-        void clear();
 
         void assert_safe_numeric_limits() const;
 
@@ -132,9 +131,11 @@ namespace jams {
       size_type current_row = 0;
 
       for (auto m = 1; m < nnz; ++m) {
+        assert(m < row_.size());
         if (row_[m] == current_row) {
           continue;
         }
+        assert(current_row + 1 < csr_rows.size());
         csr_rows(current_row + 1) = m;
         current_row++;
       }
@@ -158,6 +159,7 @@ namespace jams {
       jams::util::force_deallocation(col_);
       value_container coo_vals(val_.begin(), val_.end());
       jams::util::force_deallocation(val_);
+
       return SparseMatrix<T>(num_rows_, num_cols_, val_.size(), coo_rows, coo_cols, coo_vals, format_, type_, fill_mode_);
     }
 

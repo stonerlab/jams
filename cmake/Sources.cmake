@@ -21,6 +21,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/uniaxial_anisotropy.cc
         hamiltonian/uniaxial_microscopic_anisotropy.cc
         hamiltonian/random_anisotropy.cc
+        hamiltonian/sparse_interaction.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
         interface/fft.cc
@@ -72,7 +73,6 @@ set(JAMS_SOURCES_CUDA
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
         hamiltonian/cuda_dipole_fft.cu
-        hamiltonian/cuda_exchange.cu
         hamiltonian/cuda_exchange_neartree.cu
         hamiltonian/cuda_random_anisotropy.cu
         hamiltonian/cuda_zeeman.cu
