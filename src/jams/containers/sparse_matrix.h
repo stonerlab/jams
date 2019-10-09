@@ -134,83 +134,160 @@ namespace jams {
             }
           }
         }
-
-//        #ifdef HAS_CUDA
-//        // create a class for this so we can use default copy and move constructors in SparseMatrix
-//        class CusparseDescription {
-//            public:
-//            CusparseDescription() {
-//              std::cout << "default construct" << std::endl;
-//              CHECK_CUSPARSE_STATUS(cusparseCreateMatDescr(&descr_));
-//            }
-//
-//            CusparseDescription(const CusparseDescription& rhs) {
-//              std::cout << "copy construct" << std::endl;
-//
-//              CHECK_CUSPARSE_STATUS(cusparseCreateMatDescr(&descr_));
-//              set_type(rhs.type());
-//              set_fill_mode(rhs.fill_mode());
-//            }
-//
-//            cusparseMatDescr_t get() const {
-//              assert(descr_ != nullptr);
-//              return descr_;
-//            }
-//
-//            void set_type(cusparseMatrixType_t type) {
-//              CHECK_CUSPARSE_STATUS(cusparseSetMatType(descr_, type));
-//            }
-//
-//            void set_fill_mode(cusparseFillMode_t mode) {
-//              CHECK_CUSPARSE_STATUS(cusparseSetMatFillMode(descr_, mode));
-//            }
-//
-//            cusparseMatrixType_t type() const {
-//              return cusparseGetMatType(descr_);
-//            }
-//
-//            cusparseFillMode_t fill_mode() const {
-//              return cusparseGetMatFillMode(descr_);
-//            }
-//
-//            ~CusparseDescription() {
-//              if (descr_){
-//                std::cout << "destruct" << std::endl;
-//                cusparseDestroyMatDescr(descr_);
-//              }
-//            }
-//            private:
-//
-//            cusparseMatDescr_t descr_ = nullptr;
-//
-//            };
-//        #endif
-
     }
 
-    // enum integer values mirror those in mkl_spblas.h so we can static_cast if needed
-    enum class SparseMatrixType {
-        GENERAL = 20,
-        SYMMETRIC = 21
+    enum class SparseMatrixType { GENERAL, SYMMETRIC };
+
+    enum class SparseMatrixFillMode { LOWER, UPPER };
+
+    enum class SparseMatrixDiagType { NON_UNIT, UNIT };
+
+    enum class SparseMatrixFormat { COO, CSR };
+
+    // this class helps us to give information to different libraries about the sparse matrix
+
+    class SparseMatrixDescription {
+    public:
+        friend void swap(SparseMatrixDescription& lhs, SparseMatrixDescription& rhs);
+
+        SparseMatrixDescription() {
+          update_descriptors();
+        }
+
+        SparseMatrixDescription(SparseMatrixFormat format, SparseMatrixType type,
+            SparseMatrixFillMode fill_mode, SparseMatrixDiagType diag_type) :
+            format_(format), type_(type), fill_mode_(fill_mode), diag_type_(diag_type) {
+          update_descriptors();
+        }
+
+        ~SparseMatrixDescription() {
+          #ifdef HAS_CUDA
+          if (cusparse_desc_) {
+            cusparseDestroyMatDescr(cusparse_desc_);
+          }
+          #endif
+        };
+
+        // copy assign
+        SparseMatrixDescription& operator=(SparseMatrixDescription rhs) & {
+          swap(*this, rhs);
+          return *this;
+        }
+
+        SparseMatrixDescription(const SparseMatrixDescription& rhs) :
+          SparseMatrixDescription(rhs.format_, rhs.type_, rhs.fill_mode_, rhs.diag_type_) {}
+
+        SparseMatrixDescription(SparseMatrixDescription&& rhs) noexcept :
+          format_(rhs.format_), type_(rhs.type_), fill_mode_(rhs.fill_mode_), diag_type_(rhs.diag_type_), mkl_desc_(rhs.mkl_desc_) {
+          #ifdef HAS_CUDA
+          cusparse_desc_ = rhs.cusparse_desc_;
+          rhs.cusparse_desc_ = nullptr;
+          #endif
+        };
+
+        inline void set_type(SparseMatrixType type) { type_ = type; update_descriptors(); }
+        inline void set_format(SparseMatrixFormat format) { format_ = format; update_descriptors(); }
+        inline void set_fill_mode(SparseMatrixFillMode mode ) { fill_mode_ = mode; update_descriptors(); }
+        inline void set_diag_type(SparseMatrixDiagType diag ) { diag_type_ = diag; update_descriptors(); }
+
+        inline SparseMatrixType type() const { return type_; }
+        inline SparseMatrixFormat format() const { return format_; }
+        inline SparseMatrixFillMode fill_mode() const { return fill_mode_; }
+        inline SparseMatrixDiagType diag_type() const { return diag_type_; }
+
+        const char * mkl_desc() const { return mkl_desc_.data(); }
+        cusparseMatDescr_t cusparse_desc() { return cusparse_desc_; };
+
+    private:
+        void update_descriptors() {
+          set_mkl_descriptor();
+          set_cusparse_descriptor();
+        }
+
+        void set_mkl_descriptor() {
+          switch (type_) {
+            case SparseMatrixType::GENERAL:
+              mkl_desc_[0] = 'G';
+            case SparseMatrixType::SYMMETRIC:
+              mkl_desc_[0] = 'S';
+          }
+
+          switch (fill_mode_) {
+            case SparseMatrixFillMode::LOWER:
+              mkl_desc_[1] = 'L';
+            case SparseMatrixFillMode::UPPER:
+              mkl_desc_[1] = 'U';
+          }
+
+          switch (diag_type_) {
+            case SparseMatrixDiagType::NON_UNIT:
+              mkl_desc_[2] = 'N';
+            case SparseMatrixDiagType::UNIT:
+              mkl_desc_[2] = 'U';
+          }
+
+          mkl_desc_[3] = 'C'; // always use zero-based indexing
+          mkl_desc_[4] = 'N'; // unused by MKL
+          mkl_desc_[5] = 'N'; // unused by MKL
+        }
+
+        void set_cusparse_descriptor() {
+          if (cusparse_desc_ == nullptr) {
+            CHECK_CUSPARSE_STATUS(cusparseCreateMatDescr(&cusparse_desc_));
+          }
+
+          switch (type_) {
+            case SparseMatrixType::GENERAL:
+              cusparseSetMatType(cusparse_desc_, CUSPARSE_MATRIX_TYPE_GENERAL);
+            case SparseMatrixType::SYMMETRIC:
+              cusparseSetMatType(cusparse_desc_, CUSPARSE_MATRIX_TYPE_SYMMETRIC);
+          }
+
+          switch (fill_mode_) {
+            case SparseMatrixFillMode::LOWER:
+              cusparseSetMatFillMode(cusparse_desc_, CUSPARSE_FILL_MODE_LOWER);
+            case SparseMatrixFillMode::UPPER:
+              cusparseSetMatFillMode(cusparse_desc_, CUSPARSE_FILL_MODE_UPPER);
+          }
+
+          switch (diag_type_) {
+            case SparseMatrixDiagType::NON_UNIT:
+              cusparseSetMatDiagType(cusparse_desc_, CUSPARSE_DIAG_TYPE_NON_UNIT);
+            case SparseMatrixDiagType::UNIT:
+              cusparseSetMatDiagType(cusparse_desc_, CUSPARSE_DIAG_TYPE_UNIT);
+          }
+        }
+
+        // default values
+        SparseMatrixType type_          = SparseMatrixType::GENERAL;
+        SparseMatrixFormat format_      = SparseMatrixFormat::CSR;
+        SparseMatrixFillMode fill_mode_ = SparseMatrixFillMode::LOWER;
+        SparseMatrixDiagType diag_type_ = SparseMatrixDiagType::NON_UNIT;
+
+        std::array<char,6> mkl_desc_ = {'G', 'L', 'N', 'C', 'N', 'N'};
+
+        #if HAS_CUDA
+        cusparseMatDescr_t cusparse_desc_ = nullptr;
+        #endif
     };
 
-    enum class SparseMatrixFillMode {
-        LOWER = 40,
-        UPPER = 41
-    };
-
-    enum class SparseMatrixFormat {
-        COO, CSR
-    };
+    inline void swap(SparseMatrixDescription &lhs, SparseMatrixDescription &rhs) {
+      using std::swap;
+      swap(lhs.format_, rhs.format_);
+      swap(lhs.type_, rhs.type_);
+      swap(lhs.fill_mode_, rhs.fill_mode_);
+      swap(lhs.diag_type_, rhs.diag_type_);
+      swap(lhs.mkl_desc_, rhs.mkl_desc_);
+      #ifdef HAS_CUDA
+      swap(lhs.cusparse_desc_, rhs.cusparse_desc_);
+      #endif
+    }
 
 
     template<typename T>
     class SparseMatrix {
     public:
         class Builder;
-
-        template<class F>
-        friend void swap(SparseMatrix<F>& lhs, SparseMatrix<F>& rhs);
 
         using value_type            = T;
         using value_reference       = value_type &;
@@ -227,82 +304,22 @@ namespace jams {
 
         SparseMatrix() = default;
 
-        ~SparseMatrix() {
-          #ifdef HAS_CUDA
-          if (cusparse_descr_) {
-            cusparseDestroyMatDescr(cusparse_descr_);
-          }
-          #endif
-        }
-
         SparseMatrix(const size_type num_rows, const size_type num_cols, const size_type num_non_zero,
                      index_container rows, index_container cols, value_container vals,
                      SparseMatrixFormat format, SparseMatrixType type, SparseMatrixFillMode fill_mode)
-            : format_(format),
-              type_(type),
-              fill_mode_(fill_mode),
+            : description_(format, type, fill_mode, SparseMatrixDiagType::NON_UNIT),
               num_rows_(num_rows),
               num_cols_(num_cols),
               num_non_zero_(num_non_zero),
               row_(std::move(rows)),
               col_(std::move(cols)),
-              val_(std::move(vals)) {
-#ifdef HAS_CUDA
-          cusparseCreateMatDescr(&cusparse_descr_);
-          switch (type_) {
-            case SparseMatrixType::GENERAL:
-              cusparseSetMatType(cusparse_descr_, CUSPARSE_MATRIX_TYPE_GENERAL);
-//            cusparse_descr_.set_type(CUSPARSE_MATRIX_TYPE_GENERAL);
-              break;
-            case SparseMatrixType::SYMMETRIC:
-              cusparseSetMatType(cusparse_descr_, CUSPARSE_MATRIX_TYPE_SYMMETRIC);
-//              cusparse_descr_.set_type(CUSPARSE_MATRIX_TYPE_SYMMETRIC);
-//              switch (fill_mode_) {
-//                case SparseMatrixFillMode::LOWER:
-//                  cusparse_descr_.set_fill_mode(CUSPARSE_FILL_MODE_LOWER);
-//                  break;
-//                case SparseMatrixFillMode::UPPER:
-//                  cusparse_descr_.set_fill_mode(CUSPARSE_FILL_MODE_UPPER);
-//                  break;
-//              }
-              break;
-          }
-#endif
-        }
+              val_(std::move(vals)) {}
 
-        SparseMatrix(const SparseMatrix<T>& rhs) {
-          SparseMatrix(rhs.num_rows_, rhs.num_cols_, rhs.num_non_zero_, rhs.row_, rhs.col_, rhs.val_, rhs.format_,
-                       rhs.type_, rhs.fill_mode_);
-        }
+        inline constexpr SparseMatrixFormat format() const { return description_.format(); }
 
-        SparseMatrix(SparseMatrix&& rhs) noexcept :
-            format_(std::move(rhs.format_)),
-            type_(std::move(rhs.type_)),
-            fill_mode_(std::move(rhs.fill_mode_)),
-            num_rows_(std::move(rhs.num_rows_)),
-            num_cols_(std::move(rhs.num_cols_)),
-            num_non_zero_(std::move(rhs.num_non_zero_)),
-            row_(std::move(rhs.row_)),
-            col_(std::move(rhs.col_)),
-            val_(std::move(rhs.val_))
-        {
-          #ifdef HAS_CUDA
-          cusparse_descr_ = std::move(rhs.cusparse_descr_);
-          rhs.cusparse_descr_ = nullptr;
-          #endif
-        };
+        inline constexpr SparseMatrixType type() const { return description_.type(); }
 
-        // copy assign
-        SparseMatrix& operator=(SparseMatrix rhs) & {
-          swap(*this, rhs);
-          return *this;
-        }
-
-        inline constexpr SparseMatrixFormat format() const { return format_; }
-
-        inline constexpr SparseMatrixType type() const { return type_; }
-
-        inline constexpr SparseMatrixFillMode fill_mode() const { return fill_mode_; }
+        inline constexpr SparseMatrixFillMode fill_mode() const { return description_.fill_mode(); }
 
         inline constexpr size_type num_non_zero() const { return num_non_zero_; }
 
@@ -325,25 +342,20 @@ namespace jams {
         #endif
 
     protected:
-        SparseMatrixFormat format_      = SparseMatrixFormat::CSR;
-        SparseMatrixType type_          = SparseMatrixType::GENERAL;
-        SparseMatrixFillMode fill_mode_ = SparseMatrixFillMode::LOWER;
+          SparseMatrixDescription description_;
+
         size_type num_rows_             = 0;
         size_type num_cols_             = 0;
         size_type num_non_zero_         = 0;
         index_container row_;
         index_container col_;
         value_container val_;
-
-        #ifdef HAS_CUDA
-        cusparseMatDescr_t cusparse_descr_ = nullptr;
-        #endif
     };
 
     template<typename T>
     template<class U, size_t N>
     void SparseMatrix<T>::multiply(const MultiArray<U, N> &vector, MultiArray<U, N> &result) const {
-      switch (format_) {
+      switch (description_.format()) {
         case SparseMatrixFormat::COO:
           impl::Xcoomv_general(1.0, 0.0, num_rows_, num_non_zero_,
                                val_.data(), col_.data(), row_.data(),
@@ -353,8 +365,7 @@ namespace jams {
           double one = 1.0;
           double zero = 0.0;
           const char transa[1] = {'N'};
-          const char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
-          mkl_dcsrmv(transa, &num_rows_, &num_cols_, &one, matdescra, val_.data(),
+          mkl_dcsrmv(transa, &num_rows_, &num_cols_, &one, description_.mkl_desc(), val_.data(),
                      col_.data(), row_.data(), row_.data() + 1, vector.data(),
                      &zero, result.data());
           #else
@@ -369,7 +380,7 @@ namespace jams {
     template<typename T>
     template<class U, size_t N>
     U SparseMatrix<T>::multiply_row(const size_type i, const MultiArray<U, N> &vector) const {
-      switch (format_) {
+      switch (description_.format()) {
         case SparseMatrixFormat::COO:
           return impl::Xcoomv_general_row(
               val_.data(), col_.data(), row_.data(),
@@ -387,10 +398,9 @@ namespace jams {
     void SparseMatrix<T>::multiply_gpu(const MultiArray<U, N> &vector, MultiArray<U, N> &result,
                                        cusparseHandle_t &handle, cudaStream_t stream_id) {
       assert(handle != nullptr);
-      assert(cusparse_descr_ != nullptr);
       const T one = 1.0;
       const T zero = 0.0;
-      switch (format_) {
+      switch (description_.format()) {
         case SparseMatrixFormat::COO:
           throw std::runtime_error("unimplemented");
         case SparseMatrixFormat::CSR:
@@ -405,7 +415,7 @@ namespace jams {
              num_cols_,
              num_non_zero_,
              &one,
-             cusparse_descr_,
+             description_.cusparse_desc(),
              val_.device_data(),
              row_.device_data(),
              col_.device_data(),
@@ -416,23 +426,6 @@ namespace jams {
       }
     }
     #endif
-
-    template<class F>
-    void swap(SparseMatrix<F> &lhs, SparseMatrix<F> &rhs) {
-      using std::swap;
-      swap(lhs.format_, rhs.format_);
-      swap(lhs.type_, rhs.type_);
-      swap(lhs.fill_mode_, rhs.fill_mode_);
-      swap(lhs.num_rows_, rhs.num_rows_);
-      swap(lhs.num_cols_, rhs.num_cols_);
-      swap(lhs.num_non_zero_, rhs.num_non_zero_);
-      swap(lhs.row_, rhs.row_);
-      swap(lhs.col_, rhs.col_);
-      swap(lhs.val_, rhs.val_);
-      #ifdef HAS_CUDA
-      swap(lhs.cusparse_descr_, rhs.cusparse_descr_);
-      #endif
-    }
 
 }
 
