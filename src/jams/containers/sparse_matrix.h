@@ -196,7 +196,10 @@ namespace jams {
         inline SparseMatrixDiagType diag_type() const { return diag_type_; }
 
         const char * mkl_desc() const { return mkl_desc_.data(); }
+
+        #if HAS_CUDA
         cusparseMatDescr_t cusparse_desc() { return cusparse_desc_; };
+        #endif
 
     private:
         void update_descriptors() {
@@ -232,6 +235,8 @@ namespace jams {
         }
 
         void set_cusparse_descriptor() {
+          #if HAS_CUDA
+
           if (cusparse_desc_ == nullptr) {
             CHECK_CUSPARSE_STATUS(cusparseCreateMatDescr(&cusparse_desc_));
           }
@@ -256,6 +261,7 @@ namespace jams {
             case SparseMatrixDiagType::UNIT:
               cusparseSetMatDiagType(cusparse_desc_, CUSPARSE_DIAG_TYPE_UNIT);
           }
+          #endif
         }
 
         // default values
