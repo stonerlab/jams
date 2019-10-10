@@ -211,22 +211,28 @@ namespace jams {
           switch (type_) {
             case SparseMatrixType::GENERAL:
               mkl_desc_[0] = 'G';
+              break;
             case SparseMatrixType::SYMMETRIC:
               mkl_desc_[0] = 'S';
+              break;
           }
 
           switch (fill_mode_) {
             case SparseMatrixFillMode::LOWER:
               mkl_desc_[1] = 'L';
+              break;
             case SparseMatrixFillMode::UPPER:
               mkl_desc_[1] = 'U';
+              break;
           }
 
           switch (diag_type_) {
             case SparseMatrixDiagType::NON_UNIT:
               mkl_desc_[2] = 'N';
+              break;
             case SparseMatrixDiagType::UNIT:
               mkl_desc_[2] = 'U';
+              break;
           }
 
           mkl_desc_[3] = 'C'; // always use zero-based indexing
@@ -244,22 +250,28 @@ namespace jams {
           switch (type_) {
             case SparseMatrixType::GENERAL:
               cusparseSetMatType(cusparse_desc_, CUSPARSE_MATRIX_TYPE_GENERAL);
+              break;
             case SparseMatrixType::SYMMETRIC:
               cusparseSetMatType(cusparse_desc_, CUSPARSE_MATRIX_TYPE_SYMMETRIC);
+              break;
           }
 
           switch (fill_mode_) {
             case SparseMatrixFillMode::LOWER:
               cusparseSetMatFillMode(cusparse_desc_, CUSPARSE_FILL_MODE_LOWER);
+              break;
             case SparseMatrixFillMode::UPPER:
               cusparseSetMatFillMode(cusparse_desc_, CUSPARSE_FILL_MODE_UPPER);
+              break;
           }
 
           switch (diag_type_) {
             case SparseMatrixDiagType::NON_UNIT:
               cusparseSetMatDiagType(cusparse_desc_, CUSPARSE_DIAG_TYPE_NON_UNIT);
+              break;
             case SparseMatrixDiagType::UNIT:
               cusparseSetMatDiagType(cusparse_desc_, CUSPARSE_DIAG_TYPE_UNIT);
+              break;
           }
           #endif
         }
