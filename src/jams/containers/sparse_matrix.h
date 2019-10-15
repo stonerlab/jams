@@ -110,7 +110,7 @@ namespace jams {
           mkl_dcsrmv(transa, &num_rows_, &num_cols_, &one, description_.mkl_desc(), val_.data(),
                      col_.data(), row_.data(), row_.data() + 1, vector.data(), &zero, result.data());
           #else
-          impl::Xcsrmv_general(
+          jams::Xcsrmv_general(
               1.0, 0.0, num_rows_, val_.data(), col_.data(), row_.data(), vector.data(), result.data());
           #endif
       }
