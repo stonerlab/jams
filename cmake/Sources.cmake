@@ -73,7 +73,6 @@ set(JAMS_SOURCES_CUDA
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
         hamiltonian/cuda_dipole_fft.cu
-        hamiltonian/cuda_exchange_neartree.cu
         hamiltonian/cuda_random_anisotropy.cu
         hamiltonian/cuda_zeeman.cu
         hamiltonian/cuda_dipole_bruteforce.cu

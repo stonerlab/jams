@@ -9,33 +9,10 @@
 #include "exchange_neartree.h"
 #include "jams/helpers/error.h"
 
-
 using namespace std;
 
-void ExchangeNeartreeHamiltonian::insert_interaction(const int i, const int j, const Mat3 &value) {
-  for (int m = 0; m < 3; ++m) {
-    for (int n = 0; n < 3; ++n) {
-      if (std::abs(value[m][n]) > energy_cutoff_) {
-        if(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_SYMMETRIC) {
-          if(interaction_matrix_.getMatrixMode() == SPARSE_FILL_MODE_LOWER) {
-            if (i >= j) {
-              interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
-            }
-          } else {
-            if (i <= j) {
-              interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
-            }
-          }
-        } else {
-          interaction_matrix_.insertValue(3*i+m, 3*j+n, value[m][n]);
-        }
-      }
-    }
-  }
-}
-
 ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
-: Hamiltonian(settings, size) {
+: SparseInteractionHamiltonian(settings, size) {
 
     std::ofstream debug_file;
 
@@ -69,17 +46,16 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     // --- SAFETY ---
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
-  for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
-    for (auto j = i+1; j < lattice->num_motif_atoms(); ++j) {
-      const auto distance = norm(lattice->motif_atom(i).position - lattice->motif_atom(j).position);
-      if(distance < distance_tolerance_) {
-        jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
-                 "Check position file or relax distance_tolerance for exchange module",
-                 i, j, distance, distance_tolerance_);
+    for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+      for (auto j = i+1; j < lattice->num_motif_atoms(); ++j) {
+        const auto distance = norm(lattice->motif_atom(i).position - lattice->motif_atom(j).position);
+        if(distance < distance_tolerance_) {
+          jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
+                   "Check position file or relax distance_tolerance for exchange module",
+                   i, j, distance, distance_tolerance_);
+        }
       }
     }
-  }
-    // --------------
 
     //---------------------------------------------------------------------
     // read interactions from config
@@ -121,8 +97,6 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     // create interaction matrix
     //---------------------------------------------------------------------
 
-    interaction_matrix_.resize(globals::num_spins3, globals::num_spins3);
-    interaction_matrix_.setMatrixType(SPARSE_MATRIX_TYPE_GENERAL);
 
     cout << "\ncomputed interactions\n";
 
@@ -132,13 +106,13 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
       int type = lattice->atom_material_id(i);
 
-      for (int j = 0; j < interaction_list_[type].size(); ++j) {
+      for (int m = 0; m < interaction_list_[type].size(); ++m) {
         std::vector<Atom> nbr_lower;
         std::vector<Atom> nbr_upper;
 
         // TODO: move neartree out of lattice class
-        lattice->atom_neighbours(i, interaction_list_[type][j].inner_radius, nbr_lower);
-        lattice->atom_neighbours(i, interaction_list_[type][j].outer_radius + distance_tolerance_, nbr_upper);
+        lattice->atom_neighbours(i, interaction_list_[type][m].inner_radius, nbr_lower);
+        lattice->atom_neighbours(i, interaction_list_[type][m].outer_radius + distance_tolerance_, nbr_upper);
 
         std::vector<Atom> nbr(std::max(nbr_lower.size(), nbr_upper.size()));
 
@@ -152,33 +126,34 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         nbr.resize(it - nbr.begin());
 
         for (const Atom n : nbr) {
-          if (n.id == i) {
+          auto j = n.id;
+          if (i == j) {
             continue;
           }
 
-          if (n.material_index == interaction_list_[type][j].material[1]) {
+          if (n.material_index == interaction_list_[type][m].material[1]) {
 
             // don't allow self interaction
-            if (is_already_interacting[n.id]) {
-              jams_die("Multiple interactions between spins %d and %d.\n", i, n.id);
+            if (is_already_interacting[j]) {
+              jams_die("Multiple interactions between spins %d and %d.\n", i, j);
             }
-            is_already_interacting[n.id] = true;
+            is_already_interacting[j] = true;
 
-            double jij = interaction_list_[type][j].value;
+            double jij = interaction_list_[type][m].value;
 
-            // std::cout << i << "\t" << n.id << "\t" << jij << std::endl;
-
-            insert_interaction(i, n.id, {jij, 0.0, 0.0, 0.0, jij, 0.0, 0.0, 0.0, jij});
-            counter++;
+            if ( std::abs(jij) > energy_cutoff_ / kBohrMagneton ) {
+              insert_interaction_tensor(i, j, {jij, 0.0, 0.0, 0.0, jij, 0.0, 0.0, 0.0, jij});
+              counter++;
+            }
 
             if (debug_is_enabled()) {
-              debug_file << i << "\t" << n.id << "\t";
+              debug_file << i << "\t" << j << "\t";
               debug_file << lattice->atom_position(i)[0] << "\t";
               debug_file << lattice->atom_position(i)[1] << "\t";
               debug_file << lattice->atom_position(i)[2] << "\t";
-              debug_file << lattice->atom_position(n.id)[0] << "\t";
-              debug_file << lattice->atom_position(n.id)[1] << "\t";
-              debug_file << lattice->atom_position(n.id)[2] << "\n";
+              debug_file << lattice->atom_position(j)[0] << "\t";
+              debug_file << lattice->atom_position(j)[1] << "\t";
+              debug_file << lattice->atom_position(j)[2] << "\n";
             }
           }
         }
@@ -195,108 +170,5 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
   cout << "  total interactions " << counter << "\n";
   cout << "  average interactions per spin " << counter / double(globals::num_spins) << "\n";
 
-  cout << "    converting interaction matrix format from MAP to CSR\n";
-  interaction_matrix_.convertMAP2CSR();
-  cout << "    exchange matrix memory (CSR): " << interaction_matrix_.calculateMemory() << " (MB)\n";
-}
-
-// --------------------------------------------------------------------------
-
-double ExchangeNeartreeHamiltonian::calculate_total_energy() {
-    double e_total = 0.0;
-    for (int i = 0; i < globals::num_spins; ++i) {
-        e_total += calculate_one_spin_energy(i);
-    }
-    return e_total;
-}
-
-// --------------------------------------------------------------------------
-
-double ExchangeNeartreeHamiltonian::calculate_one_spin_energy(const int i) {
-    using namespace globals;
-    assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
-
-    double jij_sj[3] = {0.0, 0.0, 0.0};
-    const double *val = interaction_matrix_.valPtr();
-    const int    *indx = interaction_matrix_.colPtr();
-    const int    *ptrb = interaction_matrix_.ptrB();
-    const int    *ptre = interaction_matrix_.ptrE();
-    const double *x   = s.data();
-
-    for (int m = 0; m < 3; ++m) {
-      int begin = ptrb[3*i+m]; int end = ptre[3*i+m];
-      for (int j = begin; j < end; ++j) {
-        jij_sj[m] = jij_sj[m] + x[ indx[j] ]*val[j];
-      }
-    }
-    return -(s(i,0)*jij_sj[0] + s(i,1)*jij_sj[1] + s(i,2)*jij_sj[2]);
-}
-
-// --------------------------------------------------------------------------
-
-double ExchangeNeartreeHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-    assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
-
-    double local_field[3], e_initial, e_final;
-
-    calculate_one_spin_field(i, local_field);
-
-    e_initial = -(spin_initial[0]*local_field[0] + spin_initial[1]*local_field[1] + spin_initial[2]*local_field[2]);
-    e_final = -(spin_final[0]*local_field[0] + spin_final[1]*local_field[1] + spin_final[2]*local_field[2]);
-
-    return e_final - e_initial;
-}
-
-// --------------------------------------------------------------------------
-
-void ExchangeNeartreeHamiltonian::calculate_energies() {
-    for (int i = 0; i < globals::num_spins; ++i) {
-        energy_(i) = calculate_one_spin_energy(i);
-    }
-}
-
-// --------------------------------------------------------------------------
-
-void ExchangeNeartreeHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
-    using namespace globals;
-    assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
-
-    local_field[0] = 0.0, local_field[1] = 0.0; local_field[2] = 0.0;
-
-    const double *val = interaction_matrix_.valPtr();
-    const int    *indx = interaction_matrix_.colPtr();
-    const int    *ptrb = interaction_matrix_.ptrB();
-    const int    *ptre = interaction_matrix_.ptrE();
-    const double *x   = s.data();
-
-    for (auto m = 0; m < 3; ++m) {
-      auto begin = ptrb[3*i+m];
-      auto end = ptre[3*i+m];
-      for (auto j = begin; j < end; ++j) {
-        // k = indx[j];
-        local_field[m] = local_field[m] + x[ indx[j] ]*val[j];
-      }
-    }
-}
-
-// --------------------------------------------------------------------------
-
-void ExchangeNeartreeHamiltonian::calculate_fields() {
-  assert(interaction_matrix_.getMatrixType() == SPARSE_MATRIX_TYPE_GENERAL);
-
-  const char transa[1] = {'N'};
-  const char matdescra[6] = {'G', 'L', 'N', 'C', 'N', 'N'};
-  const int num_rows = globals::num_spins3;
-  const int num_cols = globals::num_spins3;
-
-#ifdef HAS_MKL
-    double one = 1.0;
-    double zero = 0.0;
-    mkl_dcsrmv(transa, &num_rows, &num_cols, &one, matdescra, interaction_matrix_.valPtr(),
-            interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(),
-            &zero, field_.data());
-#else
-    jams::Xcsrmv(transa, num_rows, num_cols, 1.0, matdescra, interaction_matrix_.valPtr(),
-      interaction_matrix_.colPtr(), interaction_matrix_.ptrB(), interaction_matrix_.ptrE(), globals::s.data(), 0.0, field_.data());
-#endif
+  finalize();
 }
