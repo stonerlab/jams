@@ -14,7 +14,6 @@
 #include "jams/hamiltonian/dipole.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
 #include "jams/hamiltonian/dipole_tensor.h"
-#include "jams/hamiltonian/dipole_ewald.h"
 #include "jams/hamiltonian/dipole_fft.h"
 
 #if HAS_CUDA
@@ -44,11 +43,6 @@ HamiltonianStrategy * DipoleHamiltonian::select_strategy(const libconfig::Settin
           }
             return new DipoleHamiltonianTensor(settings, size);
         }
-
-
-//        if (strategy_name == "EWALD") {
-//            return new DipoleHamiltonianEwald(settings, size);
-//        }
 
         if (strategy_name == "FFT") {
 #if HAS_CUDA

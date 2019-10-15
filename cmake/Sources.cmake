@@ -13,7 +13,6 @@ set(JAMS_SOURCES_CXX
         core/thermostat.cc
         hamiltonian/dipole.cc
         hamiltonian/dipole_bruteforce.cc
-        hamiltonian/dipole_ewald.cc
         hamiltonian/dipole_fft.cc
         hamiltonian/dipole_tensor.cc
         hamiltonian/exchange.cc
