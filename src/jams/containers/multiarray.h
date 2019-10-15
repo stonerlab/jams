@@ -186,7 +186,7 @@ namespace jams {
           return size_;
         }
 
-        inline constexpr size_type memory() const noexcept {
+        inline constexpr std::size_t memory() const noexcept {
           return data_.memory();
         }
 
@@ -383,7 +383,7 @@ namespace jams {
           return size_;
         }
 
-        inline constexpr size_type memory() const noexcept {
+        inline constexpr std::size_t memory() const noexcept {
           return data_.memory();
         }
 

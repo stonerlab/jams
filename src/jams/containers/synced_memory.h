@@ -140,7 +140,7 @@ public:
     inline constexpr size_type size() const noexcept { return size_; }
 
     // get size of memory in bytes
-    inline constexpr size_type memory() const noexcept { return size_ * sizeof(value_type); }
+    inline constexpr std::size_t memory() const noexcept { return size_ * sizeof(value_type); }
 
     // get maximum theoretical size of data
     inline constexpr size_type max_size() const noexcept;
