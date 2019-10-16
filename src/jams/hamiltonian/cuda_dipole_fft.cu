@@ -58,11 +58,10 @@ CudaDipoleHamiltonianFFT::~CudaDipoleHamiltonianFFT() {
 }
 
 CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size)
-: HamiltonianStrategy(settings, size),
+: Hamiltonian(settings, size),
   dev_stream_(),
   r_cutoff_(0),
   distance_tolerance_(jams::defaults::lattice_tolerance),
-  dipole_fields_(globals::num_spins, 3),
   kspace_size_({0, 0, 0}),
   kspace_padded_size_({0, 0, 0}),
   kspace_s_(),
@@ -108,7 +107,6 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
 
   kspace_s_.zero();
   kspace_h_.zero();
-  dipole_fields_.zero();
 
   cout << "    kspace size " << kspace_size_ << "\n";
   cout << "    kspace padded size " << kspace_padded_size_ << "\n";
@@ -147,13 +145,13 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
 }
 
 double CudaDipoleHamiltonianFFT::calculate_total_energy() {
-  calculate_fields(dipole_fields_);
+  calculate_fields();
 
   double e_total = 0.0;
-  for (int i = 0; i < globals::num_spins; ++i) {
-      e_total += (  globals::s(i,0)*dipole_fields_(i, 0)
-                  + globals::s(i,1)*dipole_fields_(i, 1)
-                  + globals::s(i,2)*dipole_fields_(i, 2) ) * globals::mus(i);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+      e_total += (  globals::s(i,0)*field_(i, 0)
+                  + globals::s(i,1)*field_(i, 1)
+                  + globals::s(i,2)*field_(i, 2) ) * globals::mus(i);
   }
 
   return -0.5*e_total;
@@ -173,7 +171,7 @@ double CudaDipoleHamiltonianFFT::calculate_one_spin_energy_difference(
     return 0.0;
 }
 
-void CudaDipoleHamiltonianFFT::calculate_energies(jams::MultiArray<double, 1>& energies) {
+void CudaDipoleHamiltonianFFT::calculate_energies() {
 
 }
 
@@ -181,7 +179,7 @@ void CudaDipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]
 
 }
 
-void CudaDipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2>& fields) {
+void CudaDipoleHamiltonianFFT::calculate_fields() {
 
   kspace_h_.zero();
 
@@ -204,7 +202,7 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2>& fie
     cudaDeviceSynchronize();
   }
 
-  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(fields.device_data())));
+  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
 }
 
 jams::MultiArray<Complex, 5>

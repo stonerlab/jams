@@ -14,7 +14,7 @@ DipoleHamiltonianCpuBruteforce::~DipoleHamiltonianCpuBruteforce() {
 }
 
 DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::Setting &settings, const unsigned int size)
-: HamiltonianStrategy(settings, size) {
+: Hamiltonian(settings, size) {
 
     settings.lookupValue("r_cutoff", r_cutoff_);
     std::cout << "  r_cutoff " << r_cutoff_ << "\n";
@@ -34,7 +34,7 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
 double DipoleHamiltonianCpuBruteforce::calculate_total_energy() {
     double e_total = 0.0;
 
-       for (int i = 0; i < globals::num_spins; ++i) {
+       for (auto i = 0; i < globals::num_spins; ++i) {
            e_total += calculate_one_spin_energy(i);
        }
 
@@ -68,10 +68,9 @@ double DipoleHamiltonianCpuBruteforce::calculate_one_spin_energy_difference(cons
 }
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianCpuBruteforce::calculate_energies(jams::MultiArray<double, 1>& energies) {
-    assert(energies.size() == globals::num_spins);
-    for (int i = 0; i < globals::num_spins; ++i) {
-        energies(i) = calculate_one_spin_energy(i);
+void DipoleHamiltonianCpuBruteforce::calculate_energies() {
+    for (auto i = 0; i < globals::num_spins; ++i) {
+        energy_(i) = calculate_one_spin_energy(i);
     }
 }
 
@@ -109,14 +108,14 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 
 // --------------------------------------------------------------------------
 
-void DipoleHamiltonianCpuBruteforce::calculate_fields(jams::MultiArray<double, 2>& fields) {
-    for (int i = 0; i < globals::num_spins; ++i) {
+void DipoleHamiltonianCpuBruteforce::calculate_fields() {
+    for (auto i = 0; i < globals::num_spins; ++i) {
         double h[3];
 
         calculate_one_spin_field(i, h);
 
-        for (int n = 0; n < 3; ++n) {
-            fields(i, n) = h[n];
+        for (auto n : {0,1,2}) {
+            field_(i, n) = h[n];
         }
     }
 }
