@@ -353,11 +353,11 @@ generate_integer_lookup_data(vector<InteractionData> &interactions) {
   return integer_offset_data;
 }
 
-InteractionList<Mat3>
+jams::InteractionList<Mat3, 2>
 neighbour_list_from_interactions(vector<InteractionData> &interactions) {
   auto integer_template = generate_integer_lookup_data(interactions);
 
-  InteractionList<Mat3> nbr_list(globals::num_spins);
+  jams::InteractionList<Mat3, 2> nbr_list;
 
   // loop over the translation vectors for lattice size
   for (int i = 0; i < lattice->size(0); ++i) {
@@ -379,7 +379,7 @@ neighbour_list_from_interactions(vector<InteractionData> &interactions) {
           int nbr_site = lattice->site_index_by_unit_cell(d_unit_cell[0], d_unit_cell[1], d_unit_cell[2],
                                                           I.unit_cell_pos_j);
 
-          if (nbr_list.exists(local_site, nbr_site)) {
+          if (nbr_list.contains({local_site, nbr_site})) {
             throw runtime_error("Multiple interactions for sites " + to_string(local_site) + " and " + to_string(nbr_site));
           }
 
@@ -388,7 +388,7 @@ neighbour_list_from_interactions(vector<InteractionData> &interactions) {
             continue;
           }
 
-          nbr_list.insert(local_site, nbr_site, I.J_ij);
+          nbr_list.insert({local_site, nbr_site}, I.J_ij);
         }
       }
     }
@@ -397,7 +397,7 @@ neighbour_list_from_interactions(vector<InteractionData> &interactions) {
   return nbr_list;
 }
 
-InteractionList<Mat3>
+jams::InteractionList<Mat3, 2>
 generate_neighbour_list(ifstream &file, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff) {
   auto file_desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, file_desc);
@@ -409,12 +409,12 @@ generate_neighbour_list(ifstream &file, CoordinateFormat coord_format, bool use_
 
   auto nbrs = neighbour_list_from_interactions(interactions);
 
-  neighbour_list_strict_checks(nbrs);
+//  neighbour_list_strict_checks(nbrs);
 
   return nbrs;
 }
 
-InteractionList<Mat3>
+jams::InteractionList<Mat3, 2>
 generate_neighbour_list(Setting& setting, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff) {
   auto file_desc = discover_interaction_setting_format(setting);
   auto interactions = interactions_from_settings(setting, file_desc);
@@ -426,7 +426,7 @@ generate_neighbour_list(Setting& setting, CoordinateFormat coord_format, bool us
 
   auto nbrs = neighbour_list_from_interactions(interactions);
 
-  neighbour_list_strict_checks(nbrs);
+//  neighbour_list_strict_checks(nbrs);
 
   return nbrs;
 }
@@ -458,24 +458,24 @@ void neighbour_list_strict_checks(const InteractionList<Mat3>& list) {
               }
           }
 
-          auto lambda = [](const Mat3& prev, const InteractionList<Mat3>::pair_type& next){ return prev + next.second; };
+//          auto lambda = [](const Mat3& prev, const InteractionList<Mat3>::pair_type& next){ return prev + next.second; };
 
 
-        // check diagonal part of J0 is the same for each motif position
-          vector<Mat3> motif_position_total_exchange(lattice->num_motif_atoms(), kZeroMat3);
-          for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
-              motif_position_total_exchange[i] = std::accumulate(list[i].begin(), list[i].end(), kZeroMat3, lambda);
-          }
-
-          for (auto i = 0; i < list.size(); ++i) {
-            auto pos = lattice->atom_motif_position(i);
-
-            Mat3 J0 = std::accumulate(list[i].begin(), list[i].end(), kZeroMat3, lambda);
-
-            if (!approximately_equal(diag(J0), diag(motif_position_total_exchange[pos]), 1e-6)){
-              throw runtime_error("inconsistent neighbour list: J0");
-            }
-          }
+//        // check diagonal part of J0 is the same for each motif position
+//          vector<Mat3> motif_position_total_exchange(lattice->num_motif_atoms(), kZeroMat3);
+//          for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+//              motif_position_total_exchange[i] = std::accumulate(list[i].begin(), list[i].end(), kZeroMat3, lambda);
+//          }
+//
+//          for (auto i = 0; i < list.size(); ++i) {
+//            auto pos = lattice->atom_motif_position(i);
+//
+//            Mat3 J0 = std::accumulate(list[i].begin(), list[i].end(), kZeroMat3, lambda);
+//
+//            if (!approximately_equal(diag(J0), diag(motif_position_total_exchange[pos]), 1e-6)){
+//              throw runtime_error("inconsistent neighbour list: J0");
+//            }
+//          }
       }
   }
 }
@@ -526,10 +526,11 @@ write_interaction_data(ostream &output, const vector<InteractionData> &data, Coo
   }
 }
 void
-write_neighbour_list(ostream &output, const InteractionList<Mat3> &list) {
-  for (int i = 0; i < list.size(); ++i) {
-    for (auto const &nbr : list[i]) {
-      int j = nbr.first;
+write_neighbour_list(ostream &output, const jams::InteractionList<Mat3,2> &list) {
+  for (int n = 0; n < list.size(); ++n) {
+      auto i = list[n].first[0];
+      auto j = list[n].first[1];
+      auto Jij = list[n].second;
       output << setw(12) << i << "\t";
       output << setw(12) << j << "\t";
       output << std::fixed << lattice->atom_position(i)[0] << "\t";
@@ -538,16 +539,14 @@ write_neighbour_list(ostream &output, const InteractionList<Mat3> &list) {
       output << std::fixed << lattice->atom_position(j)[0] << "\t";
       output << std::fixed << lattice->atom_position(j)[1] << "\t";
       output << std::fixed << lattice->atom_position(j)[2] << "\t";
-      output << setw(12) << scientific << nbr.second[0][0] << "\t";
-      output << setw(12) << scientific << nbr.second[0][1] << "\t";
-      output << setw(12) << scientific << nbr.second[0][2] << "\t";
-      output << setw(12) << scientific << nbr.second[1][0] << "\t";
-      output << setw(12) << scientific << nbr.second[1][1] << "\t";
-      output << setw(12) << scientific << nbr.second[1][2] << "\t";
-      output << setw(12) << scientific << nbr.second[2][0] << "\t";
-      output << setw(12) << scientific << nbr.second[2][1] << "\t";
-      output << setw(12) << scientific << nbr.second[2][2] << "\n";
-    }
-    output << "\n" << endl;
+      output << setw(12) << scientific << Jij[0][0] << "\t";
+      output << setw(12) << scientific << Jij[0][1] << "\t";
+      output << setw(12) << scientific << Jij[0][2] << "\t";
+      output << setw(12) << scientific << Jij[1][0] << "\t";
+      output << setw(12) << scientific << Jij[1][1] << "\t";
+      output << setw(12) << scientific << Jij[1][2] << "\t";
+      output << setw(12) << scientific << Jij[2][0] << "\t";
+      output << setw(12) << scientific << Jij[2][1] << "\t";
+      output << setw(12) << scientific << Jij[2][2] << "\n";
   }
 }

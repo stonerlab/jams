@@ -6,17 +6,21 @@
 #include <tuple>
 #include <utility>
 #include <map>
+#include <tuple>
+#include <cassert>
 
 #include <libconfig.h++>
 
 #include "jams/core/types.h"
 #include "jams/containers/mat3.h"
 #include "jams/helpers/utils.h"
-
-
+#include "jams/containers/unordered_vector_set.h"
+#include "jams/containers/vector_set.h"
+#include "jams/containers/interaction_list.h"
 
 template <class T>
 class InteractionList;
+
 
 //
 // JAMS format:
@@ -78,12 +82,12 @@ InteractionList<Mat3>
 neighbour_list_from_interactions(std::vector<InteractionData> &interactions,
         CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff);
 
-InteractionList<Mat3>
+jams::InteractionList<Mat3, 2>
 generate_neighbour_list(std::ifstream &file,
         CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
         double energy_cutoff = 0.0, double radius_cutoff = 0.0);
 
-InteractionList<Mat3>
+jams::InteractionList<Mat3, 2>
 generate_neighbour_list(libconfig::Setting& settings,
         CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
         double energy_cutoff = 0.0, double radius_cutoff = 0.0);
@@ -96,29 +100,26 @@ write_interaction_data(std::ostream &output, const std::vector<InteractionData> 
                        CoordinateFormat coord_format);
 
 void
-write_neighbour_list(std::ostream &output, const InteractionList<Mat3> &list);
-
+write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3, 2> &list);
 
 template <class T>
 class InteractionList {
   public:
     typedef unsigned int            size_type;
-    typedef std::map<size_type, T>          value_type;
+    typedef std::map<size_type, size_type> value_type;
     typedef value_type              reference;
     typedef const value_type&           const_reference;
     typedef value_type*                 pointer;
     typedef const value_type*         const_pointer;
     typedef pointer                             iterator;
     typedef const_pointer                       const_iterator;
-    typedef typename std::map<size_type, T>::value_type pair_type;
+    typedef typename std::map<size_type, size_type>::value_type pair_type;
 
     InteractionList()
-      : list() {};
+      : interactions_() {};
 
     InteractionList(size_type n)
-      : list(n) {};
-
-    ~InteractionList() {};
+      : interactions_(n) {};
 
     std::pair<typename value_type::iterator,bool>
     insert(size_type i, size_type j, const T &value);
@@ -132,41 +133,48 @@ class InteractionList {
     size_type num_interactions() const;
     size_type num_interactions(const int i) const;
 
+    const T& table(size_type i) const {
+      return values_[i];
+    }
+
     const_reference interactions(size_type i) const;
 
           reference operator[] (const size_type i);
     const_reference operator[] (const size_type i) const;
 
   private:
-    std::vector<value_type> list;
+    jams::UnorderedVectorSet<T> values_;
+    std::vector<value_type> interactions_;
 };
 
 template <class T>
 std::pair<typename InteractionList<T>::value_type::iterator,bool>
 InteractionList<T>::insert(size_type i, size_type j, const T &value) {
-  if (i >= list.size()) {
-    list.resize(i+1);
+  if (i >= interactions_.size()) {
+    interactions_.resize(i + 1);
   }
 
-  return list[i].insert({j, value});
+  auto it = values_.insert(value);
+  auto k = std::distance(values_.begin(), it.first);
+  return interactions_[i].insert({j, k});
 }
 
 template <class T>
 void 
 InteractionList<T>::resize(size_type size) {
-  list.resize(size);
+  interactions_.resize(size);
 }
 
 template <class T>
 typename InteractionList<T>::size_type
 InteractionList<T>::size() const{
-  return list.size();
+  return interactions_.size();
 }
 
 template <class T>
 typename InteractionList<T>::size_type
 InteractionList<T>::num_interactions(const int i) const{
-  return list[i].size();
+  return interactions_[i].size();
 }
 
 template <class T>
@@ -174,7 +182,7 @@ typename InteractionList<T>::size_type
 InteractionList<T>::num_interactions() const{
   size_type total = 0;
 
-  for (auto map : list) {
+  for (auto map : interactions_) {
     total += map.size();
   }
   return total;
@@ -183,24 +191,24 @@ InteractionList<T>::num_interactions() const{
 template <class T>
 typename InteractionList<T>::const_reference
 InteractionList<T>::interactions(size_type i) const {
-  return list[i];
+  return interactions_[i];
 }
 
 template <class T>
 typename InteractionList<T>::const_reference
 InteractionList<T>::operator[](const size_type i) const {
-  return list[i];
+  return interactions_[i];
 }
 
 template <class T>
 typename InteractionList<T>::reference
 InteractionList<T>::operator[](const size_type i) {
-  return list[i];
+  return interactions_[i];
 }
 
 template<class T>
 bool InteractionList<T>::exists(InteractionList::size_type i, InteractionList::size_type j) {
-  return list[i].find(j) != list[i].end();
+  return interactions_[i].count(j);
 }
 
 #endif // JAMS_CORE_INTERACTIONS_H
