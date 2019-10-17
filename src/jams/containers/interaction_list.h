@@ -52,6 +52,23 @@ namespace jams {
                  + value_table_.size() * sizeof(T);
         }
 
+        inline size_type num_interactions(const index_type i) const {
+          auto range = first_index_position_range(i);
+          return range.second - range.first;
+        }
+
+        std::vector<pair_type> interactions_of(const index_type i) const {
+          auto range = first_index_position_range(i);
+          std::vector<pair_type> result;
+          result.reserve(range.second - range.first);
+
+          for (auto n = range.first; n < range.second; ++n) {
+            result.push_back((*this)[n]);
+          }
+          return result;
+        }
+
+
     private:
 
         std::pair<size_type, size_type> first_index_position_range(const index_type i) const {
