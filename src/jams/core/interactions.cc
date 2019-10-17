@@ -15,7 +15,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/exception.h"
 
-void neighbour_list_strict_checks(const InteractionList<Mat3>& list);
+void neighbour_list_strict_checks(const jams::InteractionList<Mat3, 2>& list);
 
 using namespace std;
 using libconfig::Setting;
@@ -409,7 +409,7 @@ generate_neighbour_list(ifstream &file, CoordinateFormat coord_format, bool use_
 
   auto nbrs = neighbour_list_from_interactions(interactions);
 
-//  neighbour_list_strict_checks(nbrs);
+  neighbour_list_strict_checks(nbrs);
 
   return nbrs;
 }
@@ -426,19 +426,19 @@ generate_neighbour_list(Setting& setting, CoordinateFormat coord_format, bool us
 
   auto nbrs = neighbour_list_from_interactions(interactions);
 
-//  neighbour_list_strict_checks(nbrs);
+  neighbour_list_strict_checks(nbrs);
 
   return nbrs;
 }
 
-void neighbour_list_strict_checks(const InteractionList<Mat3>& list) {
+void neighbour_list_strict_checks(const jams::InteractionList<Mat3, 2>& list) {
   using namespace globals;
 
   // bulk system
   if (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2)) {
       if (!lattice->has_impurities()) {
           // check all spins have some neighbours
-        for (auto i = 0; i < list.size(); ++i) {
+        for (auto i = 0; i < num_spins; ++i) {
           if (list.num_interactions(i) == 0) {
            throw runtime_error("inconsistent neighbour list: zero neighbour");
          }
@@ -451,31 +451,34 @@ void neighbour_list_strict_checks(const InteractionList<Mat3>& list) {
               motif_position_interactions[i] = list.num_interactions(i);
           }
 
-          for (auto i = 0; i < list.size(); ++i) {
+          for (auto i = 0; i < num_spins; ++i) {
               auto pos = lattice->atom_motif_position(i);
               if (list.num_interactions(i) != motif_position_interactions[pos]) {
                   throw runtime_error("inconsistent neighbour list: motif count");
               }
           }
 
-//          auto lambda = [](const Mat3& prev, const InteractionList<Mat3>::pair_type& next){ return prev + next.second; };
+          auto lambda = [](const Mat3& prev, const jams::InteractionList<Mat3, 2>::pair_type& next){ return prev + next.second; };
 
 
-//        // check diagonal part of J0 is the same for each motif position
-//          vector<Mat3> motif_position_total_exchange(lattice->num_motif_atoms(), kZeroMat3);
-//          for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
-//              motif_position_total_exchange[i] = std::accumulate(list[i].begin(), list[i].end(), kZeroMat3, lambda);
-//          }
-//
-//          for (auto i = 0; i < list.size(); ++i) {
-//            auto pos = lattice->atom_motif_position(i);
-//
-//            Mat3 J0 = std::accumulate(list[i].begin(), list[i].end(), kZeroMat3, lambda);
-//
-//            if (!approximately_equal(diag(J0), diag(motif_position_total_exchange[pos]), 1e-6)){
-//              throw runtime_error("inconsistent neighbour list: J0");
-//            }
-//          }
+        // check diagonal part of J0 is the same for each motif position
+          vector<Mat3> motif_position_total_exchange(lattice->num_motif_atoms(), kZeroMat3);
+          for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+              auto neighbour_list = list.interactions_of(i);
+              motif_position_total_exchange[i] = std::accumulate(neighbour_list.begin(), neighbour_list.end(), kZeroMat3, lambda);
+          }
+
+          for (auto i = 0; i < num_spins; ++i) {
+            auto neighbour_list = list.interactions_of(i);
+
+            auto pos = lattice->atom_motif_position(i);
+
+            Mat3 J0 = std::accumulate(neighbour_list.begin(), neighbour_list.end(), kZeroMat3, lambda);
+
+            if (!approximately_equal(diag(J0), diag(motif_position_total_exchange[pos]), 1e-6)){
+              throw runtime_error("inconsistent neighbour list: J0");
+            }
+          }
       }
   }
 }
