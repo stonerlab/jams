@@ -19,6 +19,7 @@ namespace jams {
         using size_type = std::size_t;
         using index_type = int;
         using index_array_type = std::array<int, N>;
+        using pair_type = std::pair<const index_array_type&, const value_type&>;
 
         void insert(const index_array_type& index, const T &value) {
           auto insert_pos = indicies_.insert_and_get_position(index);
@@ -37,7 +38,7 @@ namespace jams {
           return indicies_.find(index) != indicies_.end();
         }
 
-        std::pair<const index_array_type&, const T&> operator[] (const size_type i) const {
+        pair_type operator[] (const size_type i) const {
           return {indicies_[i], value_table_[value_lookup_[i]]};
         }
 
@@ -52,6 +53,18 @@ namespace jams {
         }
 
     private:
+
+        std::pair<size_type, size_type> first_index_position_range(const index_type i) const {
+          struct Comp {
+              bool operator() ( const index_array_type &x, index_type i ) const { return std::get<0>(x) < i; }
+              bool operator() ( index_type i, const index_array_type& x ) const { return i < std::get<0>(x); }
+          };
+
+          auto range = std::equal_range(std::begin(indicies_), std::end(indicies_), i, Comp{});
+          return std::make_pair(
+              std::distance(begin(indicies_), range.first), std::distance(begin(indicies_), range.second));
+        }
+
         jams::VectorSet<index_array_type> indicies_;
         std::vector<size_type> value_lookup_;
         jams::UnorderedVectorSet<T> value_table_;
