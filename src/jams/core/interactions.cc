@@ -220,24 +220,17 @@ interactions_from_file(ifstream &file, const InteractionFileDescription& desc) {
     if (desc.dimension == InteractionType::SCALAR) {
       double J;
       is >> J;
-      interaction.J_ij[0][0] = J;
-      interaction.J_ij[0][1] = 0.0;
-      interaction.J_ij[0][2] = 0.0;
-      interaction.J_ij[1][0] = 0.0;
-      interaction.J_ij[1][1] = J;
-      interaction.J_ij[1][2] = 0.0;
-      interaction.J_ij[2][0] = 0.0;
-      interaction.J_ij[2][1] = 0.0;
-      interaction.J_ij[2][2] = J;
+      interaction.J_ij = J * kIdentityMat3;
     } else {
-      is >> interaction.J_ij[0][0] >> interaction.J_ij[0][1] >> interaction.J_ij[0][2];
-      is >> interaction.J_ij[1][0] >> interaction.J_ij[1][1] >> interaction.J_ij[1][2];
-      is >> interaction.J_ij[2][0] >> interaction.J_ij[2][1] >> interaction.J_ij[2][2];
+      for (auto i : {0,1,2}) {
+        for (auto j : {0,1,2}) {
+          is >> interaction.J_ij[i][j];
+        }
+      }
     }
 
     if (is.bad() || is.fail()) {
-      throw jams::runtime_error("failed to read line " + to_string(line_number) + " of interaction file",
-                                __FILE__, __LINE__, __PRETTY_FUNCTION__);
+      throw std::runtime_error("failed to read line " + to_string(line_number) + " of interaction file");
     }
 
     interactions.push_back(interaction);
@@ -271,7 +264,7 @@ interactions_from_settings(Setting &setting, const InteractionFileDescription& d
     J.r_ij = {setting[i][2][0], setting[i][2][1], setting[i][2][2]};
 
     if (desc.dimension == InteractionType::SCALAR) {
-      J.J_ij = {setting[i][3], 0.0, 0.0, 0.0, setting[i][3], 0.0, 0.0, 0.0, setting[i][3]};
+      J.J_ij = double(setting[i][3]) * kIdentityMat3;
     } else {
       J.J_ij = {setting[i][3][0], setting[i][3][1], setting[i][3][2],
                 setting[i][3][3], setting[i][3][4], setting[i][3][5],
