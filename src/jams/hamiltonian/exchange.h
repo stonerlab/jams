@@ -16,10 +16,10 @@ class ExchangeHamiltonian : public SparseInteractionHamiltonian {
     public:
         ExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
-        const InteractionList<Mat3>& neighbour_list() const;
+        const jams::InteractionList<Mat3,2>& neighbour_list() const;
 
     private:
-        InteractionList<Mat3> neighbour_list_;
+        jams::InteractionList<Mat3, 2> neighbour_list_;
         double energy_cutoff_;
         double radius_cutoff_;
         double distance_tolerance_;

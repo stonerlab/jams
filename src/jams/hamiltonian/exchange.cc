@@ -68,7 +68,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     debug_file.close();
   }
 
-  cout << "    computed interactions: "<< neighbour_list_.num_interactions() << "\n";
+  cout << "    computed interactions: "<< neighbour_list_.size() << "\n";
+  cout << "    neighbour list memory: " << neighbour_list_.memory() / kBytesToMegaBytes << " MB" << endl;
 
   cout << "    interactions per motif position: \n";
   if (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2) && !lattice->has_impurities()) {
@@ -77,19 +78,18 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     }
   }
 
-  for (int i = 0; i < neighbour_list_.size(); ++i) {
-    for (auto const &nbr: neighbour_list_[i]) {
-      auto j = nbr.first;
-      auto Jij = input_unit_conversion_ * nbr.second;
-      if (max_abs(Jij) > energy_cutoff_ / kBohrMagneton ) {
-        insert_interaction_tensor(i, j, Jij);
-      }
+  for (auto n = 0; n < neighbour_list_.size(); ++n) {
+    auto i = neighbour_list_[n].first[0];
+    auto j = neighbour_list_[n].first[1];
+    auto Jij = input_unit_conversion_ * neighbour_list_[n].second;
+    if (max_abs(Jij) > energy_cutoff_ / kBohrMagneton ) {
+      insert_interaction_tensor(i, j, Jij);
     }
   }
 
   finalize();
 }
 
-const InteractionList<Mat3> &ExchangeHamiltonian::neighbour_list() const {
+const jams::InteractionList<Mat3,2> &ExchangeHamiltonian::neighbour_list() const {
   return neighbour_list_;
 }
