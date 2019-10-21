@@ -12,14 +12,18 @@ namespace jams {
     // This is not neccesarily the most efficient method (especially for a  2D interaction list) but is quite general
     // to allow higher order interactions (e.g. 3 or 4 indicies). Memory use is minimized by only storing unique
     // values for the interactions.
-    template<class T, std::size_t N>
+    template<class T, int N>
     class InteractionList {
+        template<typename U, typename BaseType>
+        friend class InteractionMatrix;
     public:
         using value_type = T;
-        using size_type = std::size_t;
+        using size_type = int;
         using index_type = int;
         using index_array_type = std::array<int, N>;
         using pair_type = std::pair<const index_array_type&, const value_type&>;
+
+        InteractionList()  = default;
 
         void insert(const index_array_type& index, const T &value) {
           auto insert_pos = indicies_.insert_and_get_position(index);
