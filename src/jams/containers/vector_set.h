@@ -68,6 +68,12 @@ namespace jams {
         inline pointer data() noexcept { return data_.data(); }
         inline const_pointer data() const noexcept { return data_.data(); }
 
+        inline reference back() { return data_.back(); }
+        inline const_reference back() const { return data_.back(); }
+
+        inline reference front() { return data_.front(); }
+        inline const_reference front() const { return data_.front(); }
+
         size_type size() const noexcept { return data_.size(); }
         size_type capacity() const noexcept { return data_.capacity(); }
 
