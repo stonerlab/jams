@@ -7,21 +7,18 @@
 #include <fstream>
 #include "jams/core/monitor.h"
 #include "jams/cuda/cuda_stream.h"
-#include "jams/cuda/cuda_sparse_interaction_matrix.h"
 #include "jams/core/interactions.h"
 #include "jams/core/types.h"
+#include "jams/containers/interaction_matrix.h"
 
 Vec3 execute_cuda_thermal_current_kernel(
-        CudaStream &stream,
-        const int num_spins,
-        const double *dev_spins,
-        const int *index_pointers,
-        const int *index_data,
-        const double *value_data,
-        double *dev_thermal_current_rx,
-        double *dev_thermal_current_ry,
-        double *dev_thermal_current_rz
-                                        );
+    CudaStream &stream,
+    const jams::MultiArray<double, 2>& spins,
+    const jams::InteractionMatrix<Vec3, double>& interaction_matrix,
+    jams::MultiArray<double, 1>& dev_thermal_current_rx,
+    jams::MultiArray<double, 1>& dev_thermal_current_ry,
+    jams::MultiArray<double, 1>& dev_thermal_current_rz
+);
 
 class Solver;
 
@@ -40,14 +37,13 @@ public:
 private:
     CudaStream stream;
 
-    using TriadList = std::vector<Triad<Vec3>>;
+    using ThreeSpinList = jams::InteractionList<Vec3, 3>;
 
-    TriadList generate_triads_from_neighbour_list(const InteractionList<Mat3>& nbr_list);
-    void initialize_device_data(const TriadList& triads);
+    ThreeSpinList generate_three_spin_from_two_spin_interactions(const jams::InteractionList<Mat3, 2>& nbr_list);
 
     std::ofstream outfile;
 
-    SparseMatrixCSR<double> dev_csr_matrix_;
+    jams::InteractionMatrix<Vec3, double> interaction_matrix_;
 
     jams::MultiArray<double, 1> thermal_current_rx_;
     jams::MultiArray<double, 1> thermal_current_ry_;

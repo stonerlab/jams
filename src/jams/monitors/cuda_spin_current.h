@@ -9,8 +9,7 @@
 #include <libconfig.h++>
 
 #include "jams/cuda/cuda_stream.h"
-#include "jams/cuda/cuda_sparse_interaction_matrix.h"
-#include "jams/containers/sparsematrix.h"
+#include "jams/containers/sparse_matrix.h"
 #include "jams/core/monitor.h"
 #include "jams/core/types.h"
 
@@ -56,7 +55,7 @@ private:
 
     std::ofstream outfile;
 
-    SparseMatrixCSR<double> dev_csr_matrix_;
+    jams::SparseMatrix<Vec3> interaction_matrix_;
 
     jams::MultiArray<double, 1> spin_current_rx_x;
     jams::MultiArray<double, 1> spin_current_rx_y;
