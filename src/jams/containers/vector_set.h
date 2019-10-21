@@ -38,12 +38,13 @@ namespace jams {
           std::sort(begin(), end(), cmp_);
         }
 
-        iterator insert(const T& t) {
+        std::pair<iterator,bool> insert(const T& t) {
           iterator it = lower_bound(begin(), end(), t, cmp_);
           if (it == end() || cmp_(t, *it)) {
             data_.insert(it, t);
+            return {it, true};
           }
-          return it;
+          return {it, false};
         }
 
         // returns the position (index of vector) of the inserted object
@@ -52,7 +53,7 @@ namespace jams {
           // iterators are invalid after insert so we need to get begin() before,
           // the returned iterator is in terms of the original iterator range
           iterator it_begin = begin();
-          iterator it = insert(x);
+          iterator it = insert(x).first;
           return std::distance(it_begin, it);
         }
 
