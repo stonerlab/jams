@@ -72,7 +72,7 @@ void CUDAHeunLLGSolver::run()
   using namespace globals;
 
   const dim3 block_size = {84, 3, 1};
-  auto grid_size = cuda_grid_size(block_size, {globals::num_spins, 3, 1});
+  auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 3, 1});
 
   cudaMemcpyAsync(s_old_.device_data(),           // void *               dst
              s.device_data(),               // const void *         src
