@@ -72,7 +72,9 @@ namespace jams {
           for (auto m = 0; m < num_interactions_; ++m) {
             // first index is used for row_
             for (auto n = 1; n < index_size_; ++n) {
-              indices_(index_size_ * m + (n - 1)) = list.indicies_[m][n];
+              assert(list.indicies_[m][n] < num_rows_);
+              assert((index_size_ - 1) * m + (n - 1) < indices_.size());
+              indices_((index_size_ - 1) * m + (n - 1)) = list.indicies_[m][n];
             }
             // last index is lookup key for val_
             indices_(index_size_ * m + index_size_ - 1) = list.value_lookup_[m];
