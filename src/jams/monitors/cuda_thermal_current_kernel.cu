@@ -37,8 +37,7 @@ __global__ void thermal_current_kernel
       const int val_key = index_data[3*n + 2];
       assert(j < num_spins);
       assert(k < num_spins);
-//      assert(i != j && j != k && i != k);
-
+      assert(i != j && j != k && k != i);
 
       const double s_j[3] = {spins[3*j + 0], spins[3*j + 1], spins[3*j + 2]};
       const double s_k[3] = {spins[3*k + 0], spins[3*k + 1], spins[3*k + 2]};
