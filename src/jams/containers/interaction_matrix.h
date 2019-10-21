@@ -51,18 +51,22 @@ namespace jams {
           assert(val_size_ >= 1);
 
           // populate row_ (CSR style)
-          row_(0) = 0;
-          size_type current_row = 0;
-
-          for (auto m = 1; m < num_interactions_; ++m) {
-            if (std::get<0>(list.indicies_[m]) == current_row) {
-              continue;
+          {
+            row_(0) = 0;
+            size_type r = 0;
+            int i = 0;
+            while (r < num_rows) {
+              while (i < num_interactions_) {
+                const auto row_index = list.indicies_[i][0];
+                if (row_index != r) {
+                  break;
+                }
+                i++;
+              }
+              row_(r + 1) = i;
+              r++;
             }
-            assert(current_row + 1 < row_.size());
-            row_(current_row + 1) = m;
-            current_row++;
           }
-          row_(num_rows_) = num_interactions_;
 
           // populate indicies_ (data is j,k,l, ..., value_key)
           for (auto m = 0; m < num_interactions_; ++m) {
