@@ -302,7 +302,7 @@ namespace jams {
         }
 
     private:
-        size_container_type size_ = {0};
+        size_container_type size_ = { {0} };
         mutable SyncedMemory<Tp_> data_;
     };
 
@@ -494,7 +494,7 @@ namespace jams {
         }
 
     private:
-        size_container_type size_ = {0};
+        size_container_type size_ = { {0} };
         mutable SyncedMemory<Tp_> data_;
     };
 
