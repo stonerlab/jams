@@ -12,7 +12,7 @@ using std::complex;
 using std::vector;
 
 double fft_window_default(const int n, const int n_total) {
-  return fft_window_hann(n, n_total);
+  return fft_window_blackman_4(n, n_total);
 } 
 
 double fft_window_hann(const int n, const int n_total) {
@@ -131,7 +131,7 @@ fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<
           FFTW_PATIENT | FFTW_PRESERVE_INPUT);
 }
 
-void fft_supercell_vector_field_to_kspace(jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
+void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
   assert(rspace_data.elements() == 3 * num_sites * product(kspace_size));
 
   kspace_data.resize(kspace_size[0], kspace_size[1], kspace_size[2]/2 + 1, num_sites);
@@ -146,7 +146,7 @@ void fft_supercell_vector_field_to_kspace(jams::MultiArray<double, 2>& rspace_da
   // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
   auto plan = fftw_plan_many_dft_r2c(
       rank, transform_size, num_transforms,
-      rspace_data.begin(), nembed, stride, dist,
+      const_cast<double*>(rspace_data.begin()), nembed, stride, dist,
       FFTW_COMPLEX_CAST(kspace_data.begin()), nembed, stride, dist,
       FFTW_ESTIMATE);
 
@@ -157,7 +157,7 @@ void fft_supercell_vector_field_to_kspace(jams::MultiArray<double, 2>& rspace_da
   element_scale(kspace_data, 1.0/sqrt(product(lattice->kspace_size())));
 }
 
-void fft_supercell_scalar_field_to_kspace(jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
+void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
   assert(rspace_data.elements() == product(kspace_size));
 
   // assuming this is not a costly operation because .resize() already checks if it is the same size
@@ -173,7 +173,7 @@ void fft_supercell_scalar_field_to_kspace(jams::MultiArray<double, 1>& rspace_da
   // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
   auto plan = fftw_plan_many_dft_r2c(
       rank, transform_size, num_transforms,
-      rspace_data.begin(), nembed, stride, dist,
+      const_cast<double*>(rspace_data.begin()), nembed, stride, dist,
       FFTW_COMPLEX_CAST(kspace_data.begin()), nembed, stride, dist,
       FFTW_ESTIMATE);
 

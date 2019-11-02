@@ -51,17 +51,17 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 
   output_step_freq_ = jams::config_optional<int>(physics_settings, "output_steps", jams::defaults::monitor_output_steps);
 
-  Vec3 origin;
-  double radius;
   if (physics_settings.exists("initial_state")) {
     libconfig::Setting& state_settings = physics_settings["initial_state"];
     if (!state_settings["origin"].isArray() || !(state_settings["origin"].getLength() == 3)) {
       jams_die("Setting 'initial_state.origin' must be an array of length 3.");
     }
+
+    Vec3 origin;
     for (int i = 0; i < 3; ++i) {
       origin[i] = state_settings["origin"][i];
     }
-    radius = state_settings["radius"];
+    double radius = state_settings["radius"];
 
     for (int i = 0; i < globals::num_spins; ++i) {
       Vec3 pos = (lattice->atom_position(i)-origin);

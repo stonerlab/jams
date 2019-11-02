@@ -755,7 +755,7 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  int (*spg_types) = new int[motif_.size()];
+  int *spg_types = new int[motif_.size()];
 
   for (auto i = 0; i < motif_.size(); ++i) {
     spg_types[i] = motif_[i].material_index;
@@ -860,7 +860,7 @@ void Lattice::calc_symmetry_operations() {
     }
   }
 
-  int (*primitive_types) = new int[motif_.size()];
+  int *primitive_types = new int[motif_.size()];
 
   for (auto i = 0; i < motif_.size(); ++i) {
     primitive_types[i] = spg_types[i];

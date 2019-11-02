@@ -28,6 +28,7 @@ class MetropolisMCSolver : public Solver {
 
   pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
 
+  bool use_random_spin_order_ = true;
   bool use_total_energy_ = false;
   bool is_preconditioner_enabled_ = false;
   double preconditioner_delta_theta_ = 5.0;

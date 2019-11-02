@@ -3,7 +3,6 @@
 //
 
 #include <iomanip>
-#include "H5Cpp.h"
 
 #include "version.h"
 #include "jams/core/globals.h"
@@ -18,6 +17,7 @@
 #include "jams/monitors/cuda_spin_current.h"
 #include "cuda_spin_current.h"
 #include "jams/hamiltonian/exchange.h"
+#include "jams/interface/h5.h"
 
 using namespace std;
 
@@ -146,29 +146,11 @@ CudaSpinCurrentMonitor::~CudaSpinCurrentMonitor() {
 
 void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_file_name) {
   using namespace globals;
-  using namespace H5;
+  using namespace HighFive;
 
-  hsize_t dims[2];
+  File file(h5_file_name, File::ReadWrite | File::Create | File::Truncate);
 
-  dims[0] = static_cast<hsize_t>(num_spins);
-  dims[1] = 3;
-
-  H5File outfile(h5_file_name.c_str(), H5F_ACC_TRUNC);
-
-  DataSpace dataspace(2, dims);
-
-  DSetCreatPropList plist;
-
-  double out_iteration = solver->iteration();
-  double out_time = solver->time();
-
-  DataSet spin_dataset = outfile.createDataSet("spin_current", PredType::NATIVE_DOUBLE, dataspace, plist);
-
-  DataSpace attribute_dataspace(H5S_SCALAR);
-  Attribute attribute = spin_dataset.createAttribute("iteration", PredType::STD_I32LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_INT32, &out_iteration);
-  attribute = spin_dataset.createAttribute("time", PredType::IEEE_F64LE, attribute_dataspace);
-  attribute.write(PredType::NATIVE_DOUBLE, &out_time);
+  DataSetCreateProps props;
 
   jams::MultiArray<double, 2> js(num_spins, 3);
 
@@ -178,7 +160,10 @@ void CudaSpinCurrentMonitor::write_spin_current_h5_file(const std::string &h5_fi
     js(i,2) = spin_current_rz_z(i);
   }
 
-  spin_dataset.write(js.data(), PredType::NATIVE_DOUBLE);
+  auto dataset = file.createDataSet<double>("/spin_current",  DataSpace::From(js));
+
+  dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
+  dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
 }
 
 void CudaSpinCurrentMonitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
@@ -202,9 +187,8 @@ void CudaSpinCurrentMonitor::open_new_xdmf_file(const std::string &xdmf_file_nam
 
 void CudaSpinCurrentMonitor::update_xdmf_file(const std::string &h5_file_name) {
   using namespace globals;
-  using namespace H5;
 
-  hsize_t      data_dimension  = static_cast<hsize_t>(num_spins);
+  unsigned int data_dimension  = num_spins;
   unsigned int float_precision = 8;
 
   // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
@@ -212,7 +196,7 @@ void CudaSpinCurrentMonitor::update_xdmf_file(const std::string &h5_file_name) {
 
   fputs("      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n", xdmf_file_);
   fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", solver->time()/1e-12);
-  fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", data_dimension);
+  fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", num_spins);
   fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
   fprintf(xdmf_file_, "           %s_lattice.h5:/positions\n", seedname.c_str());

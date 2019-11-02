@@ -9,9 +9,11 @@
 #include "jams/monitors/hdf5.h"
 #include "jams/monitors/magnetisation.h"
 #include "jams/monitors/magnetisation_rate.h"
+#include "jams/monitors/magnon_spectrum.h"
 #include "jams/monitors/skyrmion.h"
 #include "jams/monitors/smr.h"
 #include "jams/monitors/neutron_scattering.h"
+#include "jams/monitors/neutron_scattering_no_lattice.h"
 #include "jams/monitors/spectrum_fourier.h"
 #include "jams/monitors/spectrum_general.h"
 #include "jams/monitors/spin_correlation.h"
@@ -77,6 +79,7 @@ Monitor* Monitor::create(const Setting &settings) {
   DEFINED_MONITOR("magnetisation-rate", MagnetisationRateMonitor, settings);
   DEFINED_MONITOR("skyrmion", SkyrmionMonitor, settings);
   DEFINED_MONITOR("smr", SMRMonitor, settings);
+  DEFINED_MONITOR("magnon-spectrum", MagnonSpectrumMonitor, settings);
   DEFINED_MONITOR("neutron-scattering", NeutronScatteringMonitor, settings);
   DEFINED_MONITOR("neutron-scattering-no-lattice", NeutronScatteringNoLatticeMonitor, settings);
   DEFINED_MONITOR("spectrum-fourier", SpectrumFourierMonitor, settings);
