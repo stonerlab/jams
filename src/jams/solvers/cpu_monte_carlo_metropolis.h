@@ -36,15 +36,15 @@ class MetropolisMCSolver : public Solver {
 
   int output_write_steps_ = 1000;
 
-  double move_fraction_uniform_     = 0.4;
-  double move_fraction_angle_       = 0.6;
+  double move_fraction_uniform_     = 0.1;
+  double move_fraction_angle_       = 0.9;
   double move_fraction_reflection_  = 0.0;
 
   double move_angle_sigma_ = 0.5;
 
-  unsigned run_count_uniform    = 0;
-  unsigned run_count_angle      = 0;
-  unsigned run_count_reflection = 0;
+  unsigned run_count_uniform_    = 0;
+  unsigned run_count_angle_      = 0;
+  unsigned run_count_reflection_ = 0;
 
   unsigned long long move_total_count_uniform_    = 0;
   unsigned long long move_total_count_angle_      = 0;
