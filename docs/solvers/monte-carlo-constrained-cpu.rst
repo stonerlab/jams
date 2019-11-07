@@ -36,27 +36,27 @@ second spin is from the same material or unit cell position.
 Required settings
 ^^^^^^^^^^^^^^^^^
 
-.. option:: max_steps
+.. describe:: max_steps
 
 Maximum number of Monte Carlo steps to solve.
 
-.. option:: cmc_constraint_theta
+.. describe:: cmc_constraint_theta
 
 Polar (from :math:`z`-axis) constraint angle in degrees.
 
-.. option:: cmc_constraint_phi
+.. describe:: cmc_constraint_phi
 
 Azimuthal (in :math:`xy`-plane)  constraint angle in degrees.
 
 Optional settings
 ^^^^^^^^^^^^^^^^^
 
-.. option:: min_steps = 0
+.. describe:: min_steps = 0
 
 Minimum number of Monte Carlo steps to solve (in case a monitor can stop
 the solver due to a convergence criterion).
 
-.. option:: output_write_steps = 1000
+.. describe:: output_write_steps = 1000
 
 Number of Monte Carlo steps between outputting trial move statistics to the
 terminal.
@@ -74,7 +74,7 @@ move is used for every trial move within one step.
 Statistics about how many moves were accepted of each type are printed to the
 terminal every :option:`output_write_steps` steps.
 
-.. option:: move_fraction_uniform = 0.0
+.. describe:: move_fraction_uniform = 0.0
 
 Fraction between 0 and 1 of trial moves which move a spin to a uniform
 random angle on the sphere.
@@ -82,19 +82,19 @@ random angle on the sphere.
 .. math::
 	  (S_x, S_y, S_z) \rightarrow (\sin\theta\cos\phi, \sin\theta\sin\phi, \cos\theta) \quad \mathrm{where}\quad \theta\sim[0,\pi],\phi\sim[0,2\pi)
 
-.. option:: move_fraction_angle = 1.0
+.. describe:: move_fraction_angle = 1.0
 
 Fraction between 0 and 1 of trial moves which move a spin by a limited angle.
 The size of the angle is controlled by  :option:`move_angle_sigma`.
 
-.. option:: move_angle_sigma = 0.5
+.. describe:: move_angle_sigma = 0.5
 
 The size of :math:`\sigma` in :option:`move_fraction_angle`.
 
 .. math::
 	  (S_x, S_y, S_z) \rightarrow (S_x, S_y, S_z) + \sigma(\sin\theta\cos\phi, \sin\theta\sin\phi, \cos\theta) \quad \mathrm{where}\quad \theta\sim[0,\pi],\phi\sim[0,2\pi)
 
-.. option:: move_fraction_reflection = 0.0
+.. describe:: move_fraction_reflection = 0.0
 
 Fraction between 0 and 1 of trial moves reflect a spin.
 

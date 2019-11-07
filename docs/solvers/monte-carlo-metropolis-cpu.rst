@@ -12,33 +12,33 @@ so there is no guarantee that every spin has a trial move, only that
 Required settings
 ^^^^^^^^^^^^^^^^^
 
-.. option:: max_steps
+.. describe:: max_steps
 
 Maximum number of Monte Carlo steps to solve.
 
 Optional settings
 ^^^^^^^^^^^^^^^^^
 
-.. option:: min_steps = 0
+.. describe:: min_steps = 0
 
 Minimum number of Monte Carlo steps to solve (in case a monitor can stop
 the solver due to a convergence criterion).
 
-.. option:: use_random_spin_order = true
+.. describe:: use_random_spin_order = true
 
 Toggle whether spins are selected randomly for trial moves or if the spins
 are selected in-order. On some systems/compilers the in-order selection
 has been seen to be 4x faster. Both methods should converge to the correct
 thermodynamic solution given enough steps.
 
-.. option:: use_total_energy = false
+.. describe:: use_total_energy = false
 
 Toggle whether energy difference are calculated per spin or using the total
-energy. Setting :option:`use_total_energy` to ``true`` will be much slower.
+energy. Setting `use_total_energy` to ``true`` will be much slower.
 This setting exists primarily to test that the Hamiltonians give the same result
 for the total energy and one spin energy calculations.
 
-.. option:: output_write_steps = 1000
+.. describe:: output_write_steps = 1000
 
 Number of Monte Carlo steps between outputting trial move statistics to the
 terminal.
@@ -54,9 +54,9 @@ The move to use for a given Monte Carlo step is chosen randomly but the same
 move is used for every trial move within one step.
 
 Statistics about how many moves were accepted of each type are printed to the
-terminal every :option:`output_write_steps` steps.
+terminal every `output_write_steps` steps.
 
-.. option:: move_fraction_uniform = 0.0
+.. describe:: move_fraction_uniform = 0.0
 
 Fraction between 0 and 1 of trial moves which move a spin to a uniform
 random angle on the sphere.
@@ -64,19 +64,19 @@ random angle on the sphere.
 .. math::
 	  (S_x, S_y, S_z) \rightarrow (\sin\theta\cos\phi, \sin\theta\sin\phi, \cos\theta) \quad \mathrm{where}\quad \theta\sim[0,\pi],\phi\sim[0,2\pi)
 
-.. option:: move_fraction_angle = 1.0
+.. describe:: move_fraction_angle = 1.0
 
 Fraction between 0 and 1 of trial moves which move a spin by a limited angle.
-The size of the angle is controlled by  :option:`move_angle_sigma`.
+The size of the angle is controlled by  `move_angle_sigma`.
 
-.. option:: move_angle_sigma = 0.5
+.. describe:: move_angle_sigma = 0.5
 
-The size of :math:`\sigma` in :option:`move_fraction_angle`.
+The size of :math:`\sigma` in `move_fraction_angle`.
 
 .. math::
 	  (S_x, S_y, S_z) \rightarrow (S_x, S_y, S_z) + \sigma(\sin\theta\cos\phi, \sin\theta\sin\phi, \cos\theta) \quad \mathrm{where}\quad \theta\sim[0,\pi],\phi\sim[0,2\pi)
 
-.. option:: move_fraction_reflection = 0.0
+.. describe:: move_fraction_reflection = 0.0
 
 Fraction between 0 and 1 of trial moves reflect a spin.
 
@@ -99,9 +99,9 @@ Currently where is only one preconditioner (*SystematicPreconditioner*) which
 does a quick search of angles for the total magnetisation to see which
 orientation gives the lowest energy.
 
-.. option:: preconditioner_theta = 5.0
+.. describe:: preconditioner_theta = 5.0
 
-.. option:: preconditioner_phi = 5.0
+.. describe:: preconditioner_phi = 5.0
 
 The :math:`\Delta\theta,\Delta\phi` to search for the minimum energy over.
 
