@@ -34,9 +34,9 @@ thermodynamic solution given enough steps.
 .. option:: use_total_energy = false
 
 Toggle whether energy difference are calculated per spin or using the total
-energy. Setting :option:`use_total_energy` to ``true`` will be much slower. This setting
-exists primarily to test that the Hamiltonians give the same result for the
-total energy and one spin energy calculations.
+energy. Setting :option:`use_total_energy` to ``true`` will be much slower.
+This setting exists primarily to test that the Hamiltonians give the same result
+for the total energy and one spin energy calculations.
 
 .. option:: output_write_steps = 1000
 
@@ -56,7 +56,7 @@ move is used for every trial move within one step.
 Statistics about how many moves were accepted of each type are printed to the
 terminal every :option:`output_write_steps` steps.
 
-.. option:: move_fraction_uniform = 0.1
+.. option:: move_fraction_uniform = 0.0
 
 Fraction between 0 and 1 of trial moves which move a spin to a uniform
 random angle on the sphere.
@@ -64,7 +64,7 @@ random angle on the sphere.
 .. math::
 	  (S_x, S_y, S_z) \rightarrow (\sin\theta\cos\phi, \sin\theta\sin\phi, \cos\theta) \quad \mathrm{where}\quad \theta\sim[0,\pi],\phi\sim[0,2\pi)
 
-.. option:: move_fraction_angle = 0.9
+.. option:: move_fraction_angle = 1.0
 
 Fraction between 0 and 1 of trial moves which move a spin by a limited angle.
 The size of the angle is controlled by  :option:`move_angle_sigma`.
