@@ -4,9 +4,17 @@ exchange
 Heisenberg bilinear exchange on a Bravis lattice
 
 .. math:: 
-      \mathcal{H} = -\tfrac{1}{2}\sum_{ij} \vec{S}_{i} \overline{\overline{J}}_{ij} \vec{S}_j
+      \mathcal{H} = -\tfrac{1}{2}\sum_{ij} \vec{S}_{i} \cdot \mathbb{J}_{ij} \cdot \vec{S}_j
 
+The exchange tensors :math:`\mathbb{J}_{ij}` are specified between materials
+or atom positions within the unit cell with an interaction vector
+:math:`\vec{r}_{ij}`. By default the interaction vector is in Cartesian
+coordinates and JAMS will use the detected symmetry operations of the
+unit cell to generate symmetric vectors.
 
+Specified interactions are not assumed to be reciprocal between
+materials/unitcell positions, so  if :math:`A` and :math:`B` are materials
+:math:`\mathbb{J}_{AB}` and :math:`\mathbb{J}_{BA}` must both be specified.
 
 
 Settings

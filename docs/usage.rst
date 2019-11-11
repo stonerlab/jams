@@ -1,5 +1,7 @@
-Running
-=======
+Usage
+=====
+
+JAMS is controlled by an input configuration file. Running jams involves
 
 .. code-block:: none
 

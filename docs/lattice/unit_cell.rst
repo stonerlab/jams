@@ -1,6 +1,10 @@
 Unit cell
 =========
 
+The group contains the definition of the lattice basis vectors and the position
+of atoms within the unit cell. By default the atomic positions are in fractional
+coordinates
+
 
 .. describe:: parameter
 
@@ -16,6 +20,9 @@ Unit cell
      [a1, b1, c1],
      [a2, b2, c2],
      [a3, b3, c3]);
+
+.. note::
+    The basis vectors form the **columns** of this matrix, not the rows.
 
 .. describe:: positions
 
@@ -35,12 +42,11 @@ Example
     unitcell: {
         parameter = 0.3e-9;
 
-        basis = (         
+        basis = (
          [1.0, 0.0, 0.0],
          [0.0, 1.0, 0.0],
          [0.0, 0.0, 1.0]);
 
        positions = (
-        ("A", [0.00, 0.00, 0.00]),
-        ("A", [0.50, 0.50, 0.50]));
- };
+        ("A", [0.00, 0.00, 0.00]));
+    };
