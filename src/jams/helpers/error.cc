@@ -22,7 +22,7 @@ void jams_die(const char *message, ...) {
   cerr << "ERROR: " << buffer << "\n\n";
   cerr << "********************************************************************************\n\n";
 
-  jams_finish();
+  jams::cleanup_simulation();
   exit(EXIT_FAILURE);
 }
 
