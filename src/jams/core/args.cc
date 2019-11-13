@@ -32,10 +32,8 @@ namespace jams {
         } else {
           if (program_args.config_file_path.empty()) {
             program_args.config_file_path = arg;
-          } else if (program_args.config_file_patch.empty()) {
-            program_args.config_file_patch  = arg;
           } else {
-            throw std::runtime_error("too many string arguments on command line");
+            program_args.config_file_patch += arg;
           }
         }
       }

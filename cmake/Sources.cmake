@@ -25,6 +25,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/zeeman.cc
         helpers/error.cc
         interface/fft.cc
+        helpers/interaction_calculator.cc
         helpers/maths.cc
         helpers/neutrons.cc
         helpers/output.cc
