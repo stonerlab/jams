@@ -23,6 +23,7 @@ public:
 
     bool nearest_neighbour(const double &radius, T &closest, const T &t) const;
     void find_in_radius(const double &radius, std::vector<T> &closest, const T &t) const;
+    void find_in_annulus(const double &inner_radius, const double &outer_radius, std::vector<T> &closest, const T &t) const;
 
 private:
     T *left = nullptr;                  // left object stored in this node
@@ -37,6 +38,7 @@ private:
     double max_distance_right = DBL_MIN; // longest distance from the right object to anything below it in the tree
 
     void in_radius(const double &radius, std::vector<T> &closest, const T &t) const;
+    void in_annulus(const double &inner_radius, const double &outer_radius, std::vector<T> &closest, const T &t) const;
     bool nearest(double &radius, T &closest, const T &t) const;
 };
 
@@ -139,6 +141,17 @@ void NearTree<T,FuncType>::find_in_radius(const double &radius,
 }
 
 template<typename T,
+    typename FuncType>
+void NearTree<T,FuncType>::find_in_annulus(const double &inner_radius, const double &outer_radius,
+                                          std::vector<T> &closest,
+                                          const T &t) const {   // t is the probe point, closest is a vector of contacts
+  // clear the contents of the return vector so that
+  // things don't accidentally accumulate
+  closest.clear();
+  in_annulus(inner_radius, outer_radius, closest, t);
+}
+
+template<typename T,
         typename FuncType>
 bool NearTree<T,FuncType>::nearest(double &radius,
                        T &closest, const T &t) const {
@@ -201,6 +214,36 @@ void NearTree<T,FuncType>::in_radius(const double &radius,
   if ((right_branch != nullptr) &&
       (radius + max_distance_right) >= distance_functor(t, *right)) {
     right_branch->in_radius(radius, closest, t);
+  }
+}
+
+template<typename T,
+    typename FuncType>
+void NearTree<T,FuncType>::in_annulus(const double &inner_radius, const double &outer_radius,
+                                     std::vector<T> &closest, const T &t) const {
+  // t is the probe point, closest is a vector of contacts
+
+  // first test each of the left and right positions to see
+  // if one holds a point nearer than the search radius.
+
+  if ((left != nullptr) && (distance_functor(t, *left) <= outer_radius) && (distance_functor(t, *left) > inner_radius)) {
+    closest.push_back(*left); // It's a keeper
+  }
+  if ((right != nullptr) && (distance_functor(t, *right) <= outer_radius) && (distance_functor(t, *right) > inner_radius)) {
+    closest.push_back(*right); // It's a keeper
+  }
+  //
+  // Now we test to see if the branches below might hold an
+  // object nearer than the search radius. The triangle rule
+  // is used to test whether it's even necessary to descend.
+  //
+  if ((left_branch != nullptr) &&
+      (outer_radius + max_distance_left) >= distance_functor(t, *left)) {
+    left_branch->in_annulus(inner_radius, outer_radius, closest, t);
+  }
+  if ((right_branch != nullptr) &&
+      (outer_radius + max_distance_right) >= distance_functor(t, *right)) {
+    right_branch->in_annulus(inner_radius, outer_radius, closest, t);
   }
 }
 
