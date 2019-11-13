@@ -57,6 +57,7 @@ namespace jams {
                  pex.getLine(), pex.getError());
       }
 
+      find_and_replace(sim.config_patch_string, "'", "");
       patch_config(sim.config_patch_string);
     }
 
@@ -290,11 +291,11 @@ namespace jams {
 
       try {
         cfg_patch.readFile(patch_string.c_str());
-        cout << "patching form file " << patch_string << "\n";
+        cout << "patching form file \"" << patch_string << "\"\n";
       }
       catch (libconfig::FileIOException &fex) {
         cfg_patch.readString(patch_string);
-        cout << "patching from string " << patch_string << "\n";
+        cout << "patching from string \"" << patch_string << "\"\n";
       }
       catch (const libconfig::ParseException &pex) {
         jams_die("Error parsing %s:%i: %s", pex.getFile(),

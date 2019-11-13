@@ -16,7 +16,7 @@ namespace jams {
         }
 
         inline std::ostream &decimal(std::ostream &os) {
-          return os << std::setprecision(8) << std::setw(12) << std::fixed;
+          return os << std::setprecision(6) << std::setw(12) << std::fixed;
         }
 
         inline std::ostream &sci(std::ostream &os) {
