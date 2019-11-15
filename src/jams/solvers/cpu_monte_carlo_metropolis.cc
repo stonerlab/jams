@@ -323,7 +323,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
       auto deltaE = 0.0;
       for (const auto& ham : hamiltonians_) {
-        deltaE += ham->calculate_one_spin_energy_difference(n, s_initial, s_final);
+        deltaE += ham->calculate_one_spin_energy_difference(spin_index, s_initial, s_final);
       }
 
       if (uniform_distribution(random_generator_) < exp(min(0.0, -deltaE * beta))) {
