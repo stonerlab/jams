@@ -138,7 +138,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
     }
   }
 
-  auto type_dataset = file.createDataSet<int>("/types",  DataSpace({num_spins}));
+  auto type_dataset = file.createDataSet<int>("/types",  DataSpace(num_spins));
   type_dataset.write(types);
   auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({num_spins, 3}));
   pos_dataset.write(positions);
@@ -154,7 +154,7 @@ void Hdf5Monitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
 
                fputs("<?xml version=\"1.0\"?>\n", xdmf_file_);
                fputs("<!DOCTYPE Xdmf SYSTEM \"https://gitlab.kitware.com/xdmf/xdmf/raw/master/Xdmf.dtd\"[]>\n", xdmf_file_);
-               fputs("<Xdmf Version=\"3.0\" xmlns:xi=\"http://www.w3.org/2003/XInclude\">\n", xdmf_file_);
+               fputs("<Xdmf Version=\"3.0\">\n", xdmf_file_);
                fputs("  <Domain Name=\"JAMS\">\n", xdmf_file_);
   fprintf(xdmf_file_, "    <Information Name=\"Commit\" Value=\"%s\" />\n", jams::build::hash);
   fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", seedname.c_str());
