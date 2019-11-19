@@ -138,7 +138,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
     }
   }
 
-  auto type_dataset = file.createDataSet<int>("/types",  DataSpace({num_spins}));
+  auto type_dataset = file.createDataSet<int>("/types",  DataSpace(num_spins));
   type_dataset.write(types);
   auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({num_spins, 3}));
   pos_dataset.write(positions);
