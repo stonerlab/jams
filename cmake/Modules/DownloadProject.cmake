@@ -154,7 +154,7 @@ function(download_project)
     # anything to be updated, so extra rebuilds of the project won't occur.
     # Make sure to pass through CMAKE_MAKE_PROGRAM in case the main project
     # has this set to something not findable on the PATH.
-    configure_file("${_DownloadProjectDir}/DownloadProject.CMakeLists.cmake.in"
+    configure_file("${CMAKE_SOURCE_DIR}/cmake/Templates/DownloadProject.CMakeLists.cmake.in"
                    "${DL_ARGS_DOWNLOAD_DIR}/CMakeLists.txt")
     execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}"
                         -D "CMAKE_MAKE_PROGRAM:FILE=${CMAKE_MAKE_PROGRAM}"

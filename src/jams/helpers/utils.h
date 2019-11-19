@@ -78,6 +78,11 @@ inline std::string file_basename(std::string filepath) {
   return filepath.substr(slash+1, dot-slash-1);
 }
 
+inline std::string file_extension(std::string filepath) {
+  auto dot = filepath.find_last_of('.');
+  return filepath.substr(dot+1);
+}
+
 inline bool string_is_comment(const std::string& s) {
   std::stringstream ss(s);
   char two_chars[2];
@@ -177,5 +182,15 @@ bool is_castable(const T2 x) {
   }
   return true;
 };
+
+inline std::string find_and_replace(std::string data, std::string find, std::string replace) {
+  size_t pos = data.find(find);
+
+  while(pos != std::string::npos) {
+    data.replace(pos, find.size(), replace);
+    pos = data.find(find, pos + replace.size());
+  }
+  return data;
+}
 
 #endif  // JAMS_CORE_UTILS_H

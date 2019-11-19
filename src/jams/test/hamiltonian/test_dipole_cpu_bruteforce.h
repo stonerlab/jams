@@ -10,7 +10,7 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/random.h"
 
-#include "jams/hamiltonian/test_dipole_input.h"
+#include "jams/test/hamiltonian/test_dipole_input.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
 
 //---------------------------------------------------------------------
