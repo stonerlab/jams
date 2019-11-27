@@ -33,6 +33,7 @@ extern "C"{
 #include "jams/containers/neartree.h"
 #include "jams/interface/h5.h"
 #include "jams/helpers/load.h"
+#include "jams/helpers/interaction_calculator.h"
 #include "lattice.h"
 
 
@@ -220,6 +221,14 @@ void Lattice::init_from_config(const libconfig::Config& cfg) {
   read_lattice_from_config(cfg.lookup("lattice"));
 
   init_unit_cell(cfg.lookup("lattice"), cfg.lookup("unitcell"));
+
+  double interaction_calculator_radius = 0.0;
+  interaction_calculator_radius = jams::config_optional<double>(cfg.lookup("unitcell"), "calculate_interaction_vectors", interaction_calculator_radius);
+
+  if (interaction_calculator_radius != 0.0) {
+    cout << "calculating interaction vectors up to r = " << interaction_calculator_radius << std::endl;
+    jams::interaction_calculator(unitcell, motif_, interaction_calculator_radius);
+  }
 
   if (symops_enabled_) {
 

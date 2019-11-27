@@ -2,6 +2,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/Utils.cmake)
 
 set(JAMS_SOURCES_CXX
         containers/cell.cc
+        core/args.cc
         core/hamiltonian.cc
         core/interactions.cc
         core/jams++.cc
@@ -23,6 +24,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/zeeman.cc
         helpers/error.cc
         interface/fft.cc
+        helpers/interaction_calculator.cc
         helpers/maths.cc
         helpers/neutrons.cc
         helpers/output.cc

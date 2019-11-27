@@ -101,6 +101,10 @@ inline constexpr double kronecker_delta(const int alpha, const int beta) {
   return alpha == beta;
 }
 
+inline constexpr double dirac_delta(const double x) {
+  return approximately_zero(x);
+}
+
 inline double gaussian(const double x, const double sigma, const double mean = 0.0) {
   return kOne_SqrtTwoPi*exp(-0.5*std::pow((x - mean) / sigma, 2))/sigma;
 }

@@ -13,6 +13,7 @@ template <typename T, std::size_t M, std::size_t N>
 using Mat = std::array<std::array<T, M>, N>;
 
 using Mat3  = std::array<std::array<double, 3>, 3>;
+using Mat3cx  = std::array<std::array<std::complex<double>, 3>, 3>;
 
 const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 const Mat<double, 3, 3> kZeroMat3 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
