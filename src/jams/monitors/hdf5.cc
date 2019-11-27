@@ -20,8 +20,8 @@
 using namespace std;
 
 namespace {
-    const unsigned h5_compression_chunk_size = 4095;
-    const unsigned h5_compression_factor = 6;
+    const int h5_compression_chunk_size = 4095;
+    const int h5_compression_factor = 6;
 }
 
 Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
@@ -82,12 +82,12 @@ void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name) {
   DataSetCreateProps props;
 
   if (compression_enabled_) {
-    props.add(Chunking({std::min(h5_compression_chunk_size, num_spins), 1}));
+    props.add(Chunking({static_cast<unsigned long long>(std::min(h5_compression_chunk_size, num_spins)), 1}));
     props.add(Shuffle());
     props.add(Deflate(h5_compression_factor));
   }
 
-  auto dataset = file.createDataSet<double>("/spins",  DataSpace({num_spins, 3}), props);
+  auto dataset = file.createDataSet<double>("/spins",  DataSpace({size_t(num_spins),3}), props);
 
   dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
   dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
@@ -140,7 +140,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 
   auto type_dataset = file.createDataSet<int>("/types",  DataSpace(num_spins));
   type_dataset.write(types);
-  auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({num_spins, 3}));
+  auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({size_t(num_spins),3}));
   pos_dataset.write(positions);
 }
 

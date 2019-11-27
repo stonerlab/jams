@@ -43,7 +43,8 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 void MagnetisationMonitor::update(Solver * solver) {
   using namespace globals;
 
-  jams::MultiArray<Vec3, 1> magnetisation(::lattice->num_materials(), {0.0, 0.0, 0.0});
+  jams::MultiArray<Vec3, 1> magnetisation(::lattice->num_materials());
+  zero(magnetisation);
 
   for (auto i = 0; i < num_spins; ++i) {
     const auto type = lattice->atom_material_id(i);

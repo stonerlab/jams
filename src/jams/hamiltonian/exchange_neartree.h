@@ -7,8 +7,8 @@
 
 #include <libconfig.h++>
 
-#include "jams/containers/sparsematrix.h"
-#include "jams/core/hamiltonian.h"
+#include "jams/containers/sparse_matrix.h"
+#include "jams/hamiltonian/sparse_interaction.h"
 
 struct InteractionNT {
     int material[2];
@@ -17,29 +17,14 @@ struct InteractionNT {
     double value;
 };
 
-class ExchangeNeartreeHamiltonian : public Hamiltonian {
-    friend class CudaExchangeNeartreeHamiltonian;
-
+class ExchangeNeartreeHamiltonian : public SparseInteractionHamiltonian {
     public:
         ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-        ~ExchangeNeartreeHamiltonian() = default;
 
         typedef std::vector<std::vector<InteractionNT>> InteractionList;
 
-        double calculate_total_energy();
-        double calculate_one_spin_energy(const int i);
-        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final);
-
-        void   calculate_energies();
-
-        void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields();
     private:
-
-        void insert_interaction(const int i, const int j, const Mat3 &value);
-
         InteractionList interaction_list_;
-        SparseMatrix<double> interaction_matrix_;
         double energy_cutoff_;
         double distance_tolerance_;
 };

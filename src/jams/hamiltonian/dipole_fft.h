@@ -6,10 +6,10 @@
 #include <libconfig.h++>
 
 #include "jams/types.h"
-#include "jams/hamiltonian/strategy.h"
+#include "jams/core/hamiltonian.h"
 #include "jams/interface/fft.h"
 
-class DipoleHamiltonianFFT : public HamiltonianStrategy {
+class DipoleHamiltonianFFT : public Hamiltonian {
 public:
     DipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size);
     ~DipoleHamiltonianFFT();
@@ -18,9 +18,9 @@ public:
     double calculate_one_spin_energy(const int i);
     double calculate_one_spin_energy(const int i, const Vec3 &s_i);
     double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
-    void   calculate_energies(jams::MultiArray<double, 1>& energies);
+    void   calculate_energies();
     void   calculate_one_spin_field(const int i, double h[3]);
-    void   calculate_fields(jams::MultiArray<double, 2>& fields);
+    void   calculate_fields();
 
 private:
 
@@ -35,7 +35,6 @@ private:
 
     jams::MultiArray<double, 4> rspace_s_;
     jams::MultiArray<double, 4> rspace_h_;
-    jams::MultiArray<double, 2> h_;
 
     std::array<unsigned,3>           kspace_size_ = {0, 0, 0};
     std::array<unsigned,3>           kspace_padded_size_ = {0, 0, 0};

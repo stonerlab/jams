@@ -21,6 +21,17 @@
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
+namespace jams {
+    namespace util {
+        // Forces containers to free any dynamical allocated memory (e.g. std::vector does not neccesarily free memory
+        // even when emptied)
+        template<class T>
+        inline void force_deallocation(T &object) {
+          T().swap(object);
+        }
+    }
+}
+
 inline double division_or_zero(const double nominator, const double denominator) {
   if (denominator == 0.0) {
     return 0.0;
