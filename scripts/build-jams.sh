@@ -24,9 +24,8 @@ declare -r LOG="${TMP_DIR}/build.log"
 
 declare -r NUMPROC="$(getconf _NPROCESSORS_ONLN)"
 declare -r MAKEFLAGS="-j$NUMPROC"
-#declare -r URL=http://joebarker87@bitbucket.org/joebarker87/jams.git
-declare -r URL=git@bitbucket.org:joebarker87/jams.git
-declare -r EXE_PATH='build/src/jams/jams'
+declare -r URL=https://drjbarker@github.com/stonerlab/jams.git
+declare -r EXE_PATH='bin/jams'
 declare -r NVCC_PATH="$(which nvcc)"
 
 function usage {
@@ -66,7 +65,7 @@ message() {
 copy_binary() {
   local workdir=$1
   local exe_name=$2
-  cp "${workdir}/${EXE_PATH}" "${DIR}/${exe_name}"
+  cp "${workdir}/build/${EXE_PATH}" "${DIR}/${exe_name}"
 }
 
 clone_git_branch_shallow() {
