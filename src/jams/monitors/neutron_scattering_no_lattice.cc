@@ -41,6 +41,7 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
   periodogram_props_.length = 500;
   periodogram_props_.overlap = 250;
 
+  zero(static_structure_factor_.resize(kspace_path_.size()));
   zero(kspace_spins_timeseries_.resize(periodogram_props_.length, kspace_path_.size()));
   zero(total_unpolarized_neutron_cross_section_.resize(
       periodogram_props_.length, kspace_path_.size()));
@@ -53,19 +54,23 @@ void NeutronScatteringNoLatticeMonitor::update(Solver *solver) {
   periodogram_index_++;
 
   if (is_multiple_of(periodogram_index_, periodogram_props_.length)) {
+
+    auto elastic_spectrum = average_kspace_timeseries();
     auto spectrum = periodogram();
+
     shift_periodogram_overlap();
     total_periods_++;
 
-    element_sum(total_unpolarized_neutron_cross_section_, calculate_unpolarized_cross_section(spectrum));
+    element_sum(total_unpolarized_neutron_cross_section_, calculate_unpolarized_cross_section(spectrum, elastic_spectrum));
 
     if (!neutron_polarizations_.empty()) {
       element_sum(total_polarized_neutron_cross_sections_,
-                  calculate_polarized_cross_sections(spectrum, neutron_polarizations_));
+                  calculate_polarized_cross_sections(spectrum, elastic_spectrum, neutron_polarizations_));
     }
 
 
     output_neutron_cross_section();
+    output_static_structure_factor();
   }
 }
 
@@ -84,24 +89,25 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
 }
 
 jams::MultiArray<Complex, 2>
-NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx,2> &spectrum) {
+NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx,2> &spectrum,
+    const jams::MultiArray<Vec3cx,1>& elastic_spectrum) {
   const auto num_freqencies = spectrum.size(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
   jams::MultiArray<Complex, 2> cross_section(num_freqencies, num_reciprocal_points);
   cross_section.zero();
 
-
-
   for (auto f = 0; f < num_freqencies; ++f) {
     for (auto k = 0; k < num_reciprocal_points; ++k) {
-        auto Q = unit_vector(kspace_path_(k));
+          auto s0 = elastic_spectrum(k);
+          auto Q = unit_vector(kspace_path_(k));
           auto s_a = conj(spectrum(f, k));
           auto s_b = spectrum(f, k);
+
           auto ff = pow2(neutron_form_factors_(0, k)); // NOTE: currently only supports one material
           for (auto i : {0, 1, 2}) {
             for (auto j : {0, 1, 2}) {
-              cross_section(f, k) += ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * s_a[i] * s_b[j];
+              cross_section(f, k) += ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * ((s_a[i] * s_b[j]) - dirac_delta(f) * s0[i] * s0[j]);
             }
           }
         }
@@ -111,7 +117,8 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
 
 jams::MultiArray<Complex, 3>
 NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const MultiArray<Vec3cx, 2> &spectrum,
-                                                                      const vector<Vec3> &polarizations) {
+    const jams::MultiArray<Vec3cx,1>& elastic_spectrum,
+    const vector<Vec3> &polarizations) {
   const auto num_freqencies = spectrum.size(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
@@ -186,6 +193,35 @@ void NeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
 
   // put the pointer to the overlap position
   periodogram_index_ = periodogram_props_.overlap;
+}
+
+void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
+  const auto num_time_points = kspace_spins_timeseries_.size(0);
+
+
+  ofstream ofs(seedname + "_static_structure_factor_path_" + to_string(0) + ".tsv");
+
+  ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
+  ofs << "Sxx_re\t" << "Sxx_im\t" << "Sxy_re\t" << "Sxy_im\t" << "Sxz_re\t" << "Sxz_im\t";
+  ofs << "Syx_re\t" << "Syx_im\t" << "Syy_re\t" << "Syy_im\t" << "Syz_re\t" << "Syz_im\t";
+  ofs << "Szx_re\t" << "Szx_im\t" << "Szy_re\t" << "Szy_im\t" << "Szz_re\t" << "Szz_im\n";
+
+  for (auto k = 0; k < kspace_path_.size(); ++k) {
+    ofs << fmt::integer << k << "\t";
+    ofs << fmt::decimal << kspace_path_(k) << "\t";
+    ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (lattice->parameter() * 1e10) << "\t";
+    for (auto i : {0,1,2}) {
+      for (auto j : {0,1,2}) {
+        auto s_a = static_structure_factor_(k)[i] / double(num_time_points);
+        auto s_b = static_structure_factor_(k)[j] / double(num_time_points);
+        auto s_ab = conj(s_a) * s_b;
+        ofs << fmt::sci << s_ab.real() << "\t";
+        ofs << fmt::sci << s_ab.imag() << "\t";
+      }
+    }
+    ofs << "\n";
+  }
+  ofs.close();
 }
 
 void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
@@ -299,4 +335,22 @@ void NeutronScatteringNoLatticeMonitor::configure_form_factors(Setting &settings
       neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * lattice->parameter(), g_params[a], j_params[a]);
     }
   }
+}
+
+jams::MultiArray<Vec3cx, 1> NeutronScatteringNoLatticeMonitor::average_kspace_timeseries() {
+  const auto num_time_points = kspace_spins_timeseries_.size(0);
+  const auto num_k_points = kspace_spins_timeseries_.size(1);
+  jams::MultiArray<Vec3cx, 1> average(num_k_points);
+  zero(average);
+  zero(static_structure_factor_);
+  for (auto i = 0; i < num_time_points; ++i) {
+    for (auto j = 0; j < num_k_points; ++j) {
+      static_structure_factor_(j) += kspace_spins_timeseries_(i,j);
+      average(j) += kspace_spins_timeseries_(i,j);
+    }
+  }
+
+  element_scale(average, 1.0/double(num_time_points));
+
+  return average;
 }
