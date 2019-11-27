@@ -2,7 +2,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/Utils.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/Sources.cmake)
 
 add_executable(jams "")
-target_sources(jams PRIVATE ${JAMS_SOURCES_CXX})
+target_sources(jams PRIVATE main.cc ${JAMS_SOURCES_CXX})
 
 target_include_directories(jams
         PRIVATE

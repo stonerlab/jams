@@ -25,7 +25,12 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
 
+  use_random_spin_order_ = jams::config_optional<bool>(settings, "use_random_spin_order", true);
+  cout << "    use_random_spin_order " << std::boolalpha << use_random_spin_order_ << "\n";
+
   use_total_energy_ = jams::config_optional<bool>(settings, "use_total_energy", false);
+  cout << "    use_total_energy " << std::boolalpha << use_total_energy_ << "\n";
+
   is_preconditioner_enabled_ = settings.exists("preconditioner_theta") || settings.exists("preconditioner_phi");
   preconditioner_delta_theta_ = jams::config_optional<double>(settings, "preconditioner_theta", 5.0);
   preconditioner_delta_phi_ = jams::config_optional<double>(settings, "preconditioner_phi", 5.0);
@@ -307,16 +312,22 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     for (auto n = 0; n < globals::num_spins; ++n) {
       // 2015-12-10 (JB) striding uniformly is ~4x faster than random choice (clang OSX).
       // Seems to be because of caching/predication in the exchange field calculation.
-      auto s_initial = mc_spin_as_vec(n);
+      int spin_index = n;
+
+      if (use_random_spin_order_) {
+        spin_index = jams::random_generator()(globals::num_spins);
+      }
+
+      auto s_initial = mc_spin_as_vec(spin_index);
       auto s_final = trial_spin_move(s_initial);
 
       auto deltaE = 0.0;
       for (const auto& ham : hamiltonians_) {
-        deltaE += ham->calculate_one_spin_energy_difference(n, s_initial, s_final);
+        deltaE += ham->calculate_one_spin_energy_difference(spin_index, s_initial, s_final);
       }
 
       if (uniform_distribution(random_generator_) < exp(min(0.0, -deltaE * beta))) {
-        mc_set_spin_as_vec(n, s_final);
+        mc_set_spin_as_vec(spin_index, s_final);
         moves_accepted++;
         continue;
       }
@@ -331,11 +342,17 @@ int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)>
 
   const double beta = kBohrMagneton / (kBoltzmann * physics_module_->temperature());
 
-  unsigned moves_accepted = 0;
+  int moves_accepted = 0;
   for (auto n = 0; n < globals::num_spins; ++n) {
     // 2015-12-10 (JB) striding uniformly is ~4x faster than random choice (clang OSX).
     // Seems to be because of caching/predication in the exchange field calculation.
-    auto s_initial = mc_spin_as_vec(n);
+    int spin_index = n;
+
+    if (use_random_spin_order_) {
+      spin_index = jams::random_generator()(globals::num_spins);
+    }
+
+    auto s_initial = mc_spin_as_vec(spin_index);
     auto s_final = trial_spin_move(s_initial);
 
     auto e_initial = 0.0;
@@ -343,7 +360,7 @@ int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)>
       e_initial += ham->calculate_total_energy();
     }
 
-    mc_set_spin_as_vec(n, s_final);
+    mc_set_spin_as_vec(spin_index, s_final);
     auto e_final = 0.0;
     for (const auto& ham : hamiltonians_) {
       e_final += ham->calculate_total_energy();
@@ -356,7 +373,7 @@ int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)>
       continue;
     }
 
-    mc_set_spin_as_vec(n, s_initial);
+    mc_set_spin_as_vec(spin_index, s_initial);
   }
   return moves_accepted;
 }

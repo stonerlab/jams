@@ -7,6 +7,7 @@
 #include <libconfig.h++>
 #include <random>
 
+#include "jams/core/args.h"
 #include "jams/helpers/defaults.h"
 
 namespace jams {
@@ -20,12 +21,14 @@ namespace jams {
         std::string   random_state;
         unsigned long random_seed;
     };
+
+    void initialize_simulation(const jams::ProgramArgs& program_args);
+    void patch_config(const std::string &patch_string);
+    void run_simulation();
+    void cleanup_simulation();
+    void global_initializer(const libconfig::Setting &settings);
 }
 
-void jams_initialize(int argc, char **argv);
-void jams_patch_config(const std::string &patch_string);
-void jams_run();
-void jams_finish();
-void jams_global_initializer(const libconfig::Setting &settings);
+
 
 #endif

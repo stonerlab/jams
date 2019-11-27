@@ -138,8 +138,10 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
     }
   }
 
-  auto type_dataset = file.createDataSet<int>("/types",  DataSpace::From(types));
-  auto pos_dataset = file.createDataSet<int>("/positions",  DataSpace::From(positions));
+  auto type_dataset = file.createDataSet<int>("/types",  DataSpace(num_spins));
+  type_dataset.write(types);
+  auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({num_spins, 3}));
+  pos_dataset.write(positions);
 }
 
 //---------------------------------------------------------------------
@@ -152,7 +154,7 @@ void Hdf5Monitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
 
                fputs("<?xml version=\"1.0\"?>\n", xdmf_file_);
                fputs("<!DOCTYPE Xdmf SYSTEM \"https://gitlab.kitware.com/xdmf/xdmf/raw/master/Xdmf.dtd\"[]>\n", xdmf_file_);
-               fputs("<Xdmf Version=\"3.0\" xmlns:xi=\"http://www.w3.org/2003/XInclude\">\n", xdmf_file_);
+               fputs("<Xdmf Version=\"3.0\">\n", xdmf_file_);
                fputs("  <Domain Name=\"JAMS\">\n", xdmf_file_);
   fprintf(xdmf_file_, "    <Information Name=\"Commit\" Value=\"%s\" />\n", jams::build::hash);
   fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", seedname.c_str());
@@ -168,33 +170,33 @@ void Hdf5Monitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
 void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name) {
   using namespace globals;
 
-  hsize_t      data_dimension  = 0;
+  unsigned      data_dimension  = 0;
   unsigned int float_precision = 8;
 
   if (slice_.num_points() != 0) {
-      data_dimension = static_cast<hsize_t>(slice_.num_points());
+      data_dimension = static_cast<unsigned>(slice_.num_points());
   } else {
-      data_dimension = static_cast<hsize_t>(num_spins);
+      data_dimension = static_cast<unsigned>(num_spins);
   }
 
                // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
                fseek(xdmf_file_, -31, SEEK_CUR);
 
-  fprintf(xdmf_file_, "      <Grid Name=\"Lattice %d\" GridType=\"Uniform\">\n", solver->iteration());
-  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", solver->time());
-  fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", data_dimension);
+  fprintf(xdmf_file_, "      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n");
+  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", solver->time()/1e-12);
+  fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%u\" />\n", data_dimension);
                fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
+  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
   fprintf(xdmf_file_, "           %s_lattice.h5:/positions\n", seedname.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Geometry>\n", xdmf_file_);
                fputs("       <Attribute Name=\"Type\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", data_dimension);
+  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", data_dimension);
   fprintf(xdmf_file_, "           %s_lattice.h5:/types\n", seedname.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
                fputs("       <Attribute Name=\"spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
+  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
   fprintf(xdmf_file_, "           %s:/spins\n", h5_file_name.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);

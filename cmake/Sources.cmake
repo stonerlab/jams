@@ -1,8 +1,8 @@
 include(${PROJECT_SOURCE_DIR}/cmake/Utils.cmake)
 
 set(JAMS_SOURCES_CXX
-        main.cc
         containers/cell.cc
+        core/args.cc
         core/hamiltonian.cc
         core/interactions.cc
         core/jams++.cc
@@ -25,6 +25,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/zeeman.cc
         helpers/error.cc
         interface/fft.cc
+        helpers/interaction_calculator.cc
         helpers/maths.cc
         helpers/neutrons.cc
         helpers/output.cc
@@ -39,10 +40,12 @@ set(JAMS_SOURCES_CXX
         monitors/field.cc
         monitors/magnetisation.cc
         monitors/magnetisation_rate.cc
+        monitors/magnon_spectrum.cc
         monitors/neutron_scattering.cc
         monitors/neutron_scattering_no_lattice.cc
         monitors/skyrmion.cc
         monitors/smr.cc
+        monitors/spectrum_base.cc
         monitors/spectrum_fourier.cc
         monitors/spectrum_general.cc
         monitors/spin_correlation.cc
