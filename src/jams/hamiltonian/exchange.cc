@@ -60,6 +60,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   } else if (settings.exists("interactions")) {
     neighbour_list_ = generate_neighbour_list(
         settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_);
+  } else {
+    throw std::runtime_error("'exc_file' or 'interactions' settings are required for exchange hamiltonian");
   }
 
   if (debug_is_enabled()) {
