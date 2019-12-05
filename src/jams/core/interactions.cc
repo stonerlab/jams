@@ -299,7 +299,7 @@ post_process_interactions(vector<InteractionData> &interactions, const Interacti
       return definately_less_than(max_abs(J.J_ij), energy_cutoff);});
   }
 
-  if (energy_cutoff > 0.0) {
+  if (radius_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
       return definately_greater_than(norm(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
   }
