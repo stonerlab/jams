@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "sparse_interaction.h"
 #include "jams/core/solver.h"
 
@@ -80,6 +82,12 @@ double SparseInteractionHamiltonian::calculate_total_energy() {
 
 void SparseInteractionHamiltonian::finalize() {
   assert(!is_finalized_);
+
+  if (debug_is_enabled()) {
+    std::ofstream os(seedname + "_" + name_ + "_spm.tsv");
+    sparse_matrix_builder_.output(os);
+    os.close();
+  }
   interaction_matrix_ = sparse_matrix_builder_
       .set_format(jams::SparseMatrixFormat::CSR)
       .build();
