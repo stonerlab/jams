@@ -397,6 +397,8 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
   lattice_periodic = jams::config_optional<Vec3b>(settings, "periodic", jams::defaults::lattice_periodic_boundaries);
   lattice_dimensions = jams::config_required<Vec3i>(settings, "size");
 
+  supercell = scale(Cell(unitcell.matrix(), lattice_periodic), lattice_dimensions);
+
   cout << "  lattice\n";
   cout << "    size " << lattice_dimensions << "\n";
   cout << "    periodic " << lattice_periodic << "\n";
@@ -412,8 +414,6 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
 void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings) {
   using namespace globals;
   using std::string;
-
-  supercell = scale(unitcell, lattice_dimensions);
 
   if (lattice_settings.exists("global_rotation") && lattice_settings.exists("orientation_axis")) {
     jams_warning("Orientation and global rotation are both in config. Orientation will be applied first and then global rotation.");
@@ -642,9 +642,8 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     jams_die("the number of computed lattice sites was zero, check input");
   }
 
-  Cell neartree_cell = supercell;
-  auto distance_metric = [neartree_cell](const Atom& a, const Atom& b)->double {
-      return norm(::minimum_image(neartree_cell, a.position, b.position));
+  auto distance_metric = [&](const Atom& a, const Atom& b)->double {
+      return norm(::minimum_image(supercell, a.position, b.position));
   };
 
   neartree_ = new NearTree<Atom, NeartreeFunctorType>(distance_metric, atoms_);
