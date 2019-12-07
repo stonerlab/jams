@@ -23,6 +23,9 @@ namespace jams {
         }
 
         void output(std::ostream& os);
+
+        bool is_structurally_symmetric();
+
         SparseMatrix<T> build();
 
         inline SparseMatrixFormat format() const { return format_; }
@@ -53,8 +56,7 @@ namespace jams {
         SparseMatrix<T> build_coo();
 
         void sort();
-
-        void sum_duplicates();
+        void merge();
 
         void assert_safe_numeric_limits() const;
 
@@ -66,6 +68,9 @@ namespace jams {
 
         size_type num_rows_ = 0;
         size_type num_cols_ = 0;
+
+        bool is_sorted_ = false;
+        bool is_merged_ = false;
 
         std::vector<value_type> val_;
         std::vector<size_type> row_;
@@ -79,10 +84,15 @@ namespace jams {
       row_.push_back(i);
       col_.push_back(j);
       val_.push_back(value);
+      is_sorted_ = false;
+      is_merged_ = false;
     }
 
     template<typename T>
     void SparseMatrix<T>::Builder::sort() {
+      if (is_sorted_) {
+        return;
+      }
       auto p = stable_sort_permutation(col_);
       apply_permutation_in_place(row_, p);
       apply_permutation_in_place(col_, p);
@@ -95,7 +105,10 @@ namespace jams {
     }
 
     template<typename T>
-    void SparseMatrix<T>::Builder::sum_duplicates() {
+    void SparseMatrix<T>::Builder::merge() {
+      if (is_merged_) {
+        return;
+      }
       for (auto m = 1; m < row_.size(); ++m) {
         if (row_[m] == row_[m - 1] && col_[m] == col_[m - 1]) {
           val_[m - 1] += val_[m];
@@ -110,6 +123,8 @@ namespace jams {
       jams::util::force_deallocation(row_);
       jams::util::force_deallocation(col_);
       jams::util::force_deallocation(val_);
+      is_sorted_ = false;
+      is_merged_ = false;
     }
 
     template<typename T>
@@ -125,7 +140,7 @@ namespace jams {
     template<typename T>
     SparseMatrix<T> SparseMatrix<T>::Builder::build_csr() {
       this->sort();
-      this->sum_duplicates();
+      this->merge();
 
       const auto nnz = val_.size();
 
@@ -155,7 +170,7 @@ namespace jams {
     template<typename T>
     SparseMatrix<T> SparseMatrix<T>::Builder::build_coo() {
       this->sort();
-      this->sum_duplicates();
+      this->merge();
       index_container coo_rows(row_.begin(), row_.end());
       jams::util::force_deallocation(row_);
       index_container coo_cols(col_.begin(), col_.end());
