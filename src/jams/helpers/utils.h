@@ -94,6 +94,10 @@ inline std::string file_extension(std::string filepath) {
   return filepath.substr(dot+1);
 }
 
+inline bool contains(const std::string& s1, const std::string& s2) {
+  return s1.find(s2) != std::string::npos;
+}
+
 inline bool string_is_comment(const std::string& s) {
   std::stringstream ss(s);
   char two_chars[2];
