@@ -1,6 +1,8 @@
 #ifndef JAMS_CONTAINERS_SPARSE_MATRIX_BUILDER_H
 #define JAMS_CONTAINERS_SPARSE_MATRIX_BUILDER_H
 
+#include <iostream>
+
 #include "jams/containers/sparse_matrix.h"
 
 namespace jams {
@@ -20,6 +22,7 @@ namespace jams {
                + col_.capacity() * sizeof(size_type);
         }
 
+        void output(std::ostream& os);
         SparseMatrix<T> build();
 
         inline SparseMatrixFormat format() const { return format_; }
@@ -175,6 +178,46 @@ namespace jams {
       if ((i >= num_rows_) || (i < 0) || (j >= num_cols_) || (j < 0)) {
         throw std::runtime_error("Invalid index for sparse matrix");
       }
+    }
+
+    template<typename T>
+    void SparseMatrix<T>::Builder::output(std::ostream &os) {
+      this->sort();
+      this->merge();
+
+      for (auto n = 0; n < row_.size(); ++n) {
+        os << row_[n] << " " << col_[n] << " " << val_[n] << "\n";
+      }
+    }
+
+    template<typename T>
+    bool SparseMatrix<T>::Builder::is_structurally_symmetric() {
+      this->sort();
+      this->merge();
+
+      for (auto n = 0; n < row_.size(); ++n) {
+        auto i = row_[n];
+        auto j = col_[n];
+
+        auto low = std::lower_bound(row_.cbegin(), row_.cend(), j);
+
+        // this j does not exist in row_ so matrix cannot be symmetric
+        if (low == row_.cend()) {
+          return false;
+        }
+
+        auto up = std::upper_bound(low, row_.cend(), j);
+
+        auto col_begin = col_.cbegin() + (low - row_.cbegin());
+        auto col_end = col_.cbegin() + (up - row_.cbegin());
+
+        auto found = std::binary_search(col_begin, col_end, i);
+
+        if (!found) {
+          return false;
+        }
+      }
+      return true;
     }
 };
 
