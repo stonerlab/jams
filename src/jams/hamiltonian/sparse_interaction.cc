@@ -88,6 +88,11 @@ void SparseInteractionHamiltonian::finalize() {
     sparse_matrix_builder_.output(os);
     os.close();
   }
+
+  if (!sparse_matrix_builder_.is_structurally_symmetric()) {
+    throw std::runtime_error("sparse matrix for " + name_ + " is not structurally symmetric");
+  }
+  
   interaction_matrix_ = sparse_matrix_builder_
       .set_format(jams::SparseMatrixFormat::CSR)
       .build();
