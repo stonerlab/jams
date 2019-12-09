@@ -169,6 +169,11 @@ inline constexpr T norm_sq(const Vec<T,3>& a) {
   return dot(a, a);
 }
 
+template <typename T>
+inline constexpr T angle(const Vec<T,3>& a, const Vec<T,3>& b) {
+  return acos(dot(a,b) / (norm(a), norm(b)));
+}
+
 inline Vec3 spherical_to_cartesian_vector(const double r, const double theta, const double phi) {
   return {r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), r*cos(theta)};
 }
