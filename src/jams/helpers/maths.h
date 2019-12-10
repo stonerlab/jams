@@ -47,6 +47,21 @@ inline bool constexpr all_equal(const T &t, const U &u, Others const &... args) 
   return (t == u) && all_equal(u, args...);
 }
 
+template <typename T, typename U>
+inline bool constexpr none_equal(const T &t, const U &u) {
+  return t != u;
+}
+
+template <typename T, typename U, typename... Others>
+inline bool constexpr none_equal(const T &t, const U &u, Others const &... args) {
+  return (t != u) && none_equal(u, args...) && none_equal(t, args...);
+}
+
+template <typename T, typename U, typename V>
+inline bool constexpr only_two_equal(const T &t, const U &u, const V &v) {
+  return (t == u && u != v) || (t != u && u == v) || (t == v && t != u);
+}
+
 inline bool constexpr is_multiple_of(const int& x, const int& y) {
   return x % y == 0;
 }
