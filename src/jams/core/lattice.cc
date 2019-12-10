@@ -159,11 +159,11 @@ Lattice::atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom>
 
 Vec3
 Lattice::displacement(const Vec3 &r_i, const Vec3 &r_j) const {
-  return displacement_calculator(r_i, r_j);
+  return ::minimum_image(supercell, r_i, r_j);
 }
 
 Vec3 Lattice::displacement(const unsigned &i, const unsigned &j) const {
-  return displacement_calculator(i, j);
+  return ::minimum_image(supercell, atoms_[i].position, atoms_[j].position);
 }
 
 Vec3
@@ -461,18 +461,14 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   cout << "  motif positions " << position_filename << "\n";
   cout << "  format " << cfg_coordinate_format_name << "\n";
 
-  DisplacementCalculator calc(unitcell);
   for (const Atom &atom: motif_) {
     cout << "    " << atom.id << " " << materials_.name(atom.material_index) << " " << atom.position << "\n";
-    calc.insert(atom.position);
   }
   cout << "\n";
 
-
-
   for (auto i = 0; i < motif_.size(); ++i) {
     for (auto j = i + 1; j < motif_.size(); ++j) {
-      if(!definately_greater_than(norm(calc(i, j)), jams::defaults::lattice_tolerance)) {
+      if(!definately_greater_than(norm(minimum_image(unitcell, motif_[i].position, motif_[j].position)), jams::defaults::lattice_tolerance)) {
         throw std::runtime_error("motif positions " + std::to_string(i) + " and " + std::to_string(j) + " are closer than the default lattice tolerance");
       }
     }
@@ -613,12 +609,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     }
   }
 
-  displacement_calculator = DisplacementCalculator(supercell);
-
-  for (const auto& a : atoms_) {
-    displacement_calculator.insert(a.position);
-  }
-
   if (atom_counter == 0) {
     jams_die("the number of computed lattice sites was zero, check input");
   }
@@ -641,6 +631,15 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   if (atom_counter == 0) {
     jams_die("the number of computed lattice sites was zero, check input");
   }
+
+  cout << "XXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
+
+  cout << abs(dot(supercell.a(), cross(supercell.b(), supercell.c()))) / norm(cross(supercell.b(), supercell.c())) << endl;
+  cout << abs(dot(supercell.b(), cross(supercell.c(), supercell.a()))) / norm(cross(supercell.c(), supercell.a())) << endl;
+  cout << abs(dot(supercell.c(), cross(supercell.a(), supercell.b()))) / norm(cross(supercell.a(), supercell.b())) << endl;
+
+  cout << "XXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
+
 
   auto distance_metric = [&](const Atom& a, const Atom& b)->double {
       return norm(::minimum_image(supercell, a.position, b.position));
