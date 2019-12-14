@@ -25,6 +25,7 @@ namespace jams {
         void output(std::ostream& os);
 
         bool is_structurally_symmetric();
+        bool is_symmetric();
 
         SparseMatrix<T> build();
 
@@ -229,6 +230,45 @@ namespace jams {
         auto found = std::binary_search(col_begin, col_end, i);
 
         if (!found) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    template<typename T>
+    bool SparseMatrix<T>::Builder::is_symmetric() {
+      this->sort();
+      this->merge();
+
+      for (auto n = 0; n < row_.size(); ++n) {
+        auto i = row_[n];
+        auto j = col_[n];
+        auto val = val_[n];
+
+        auto low = std::lower_bound(row_.cbegin(), row_.cend(), j);
+
+        if (low == row_.cend()) {
+          // this col (j) does not exist in row_ so matrix cannot be structurally symmetric
+          return false;
+        }
+
+        auto up = std::upper_bound(low, row_.cend(), j);
+
+        auto col_begin = col_.cbegin() + (low - row_.cbegin());
+        auto col_end = col_.cbegin() + (up - row_.cbegin());
+
+        auto col_loc = std::find(col_begin, col_end, i);
+
+        if (col_loc == col_.cend()) {
+          // this i does not exist in col_ so matrix cannot be structurally symmetric
+          return false;
+        }
+
+        auto val_trans = val_.begin() + (col_loc - col_.cbegin());
+
+        if (val != (*val_trans)) {
+          // even though the matrix is structurally symmetric the values are not symmetric
           return false;
         }
       }
