@@ -44,7 +44,6 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     cout << "distance_tolerance " << distance_tolerance_ << "\n";
 
-    // --- SAFETY ---
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
     for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
       for (auto j = i+1; j < lattice->num_motif_atoms(); ++j) {
@@ -57,10 +56,6 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       }
     }
 
-    //---------------------------------------------------------------------
-    // read interactions from config
-    //---------------------------------------------------------------------
-
     if (!settings.exists("interactions")) {
       jams_die("No interactions defined in ExchangeNeartree hamiltonian");
     }
@@ -68,7 +63,6 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     interaction_list_.resize(lattice->num_materials());
 
     for (int i = 0; i < settings["interactions"].getLength(); ++i) {
-
       std::string type_name_A = settings["interactions"][i][0].c_str();
       std::string type_name_B = settings["interactions"][i][1].c_str();
 
@@ -93,56 +87,51 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       interaction_list_[type_id_A].push_back(jij);
     }
 
-    //---------------------------------------------------------------------
-    // create interaction matrix
-    //---------------------------------------------------------------------
-
-
     cout << "\ncomputed interactions\n";
 
     int counter = 0;
-    for (int i = 0; i < globals::num_spins; ++i) {
+    for (auto i = 0; i < globals::num_spins; ++i) {
       std::vector<bool> is_already_interacting(globals::num_spins, false);
 
-      int type = lattice->atom_material_id(i);
+      const auto type_i = lattice->atom_material_id(i);
+      std::vector<Atom> nbr;
+      std::vector<Atom> nbr_lower;
+      std::vector<Atom> nbr_upper;
 
-      for (int m = 0; m < interaction_list_[type].size(); ++m) {
-        std::vector<Atom> nbr_lower;
-        std::vector<Atom> nbr_upper;
+      for (const auto& interaction : interaction_list_[type_i]) {
+        const auto type_j = interaction.material[1];
 
-        // TODO: move neartree out of lattice class
-        lattice->atom_neighbours(i, interaction_list_[type][m].inner_radius, nbr_lower);
-        lattice->atom_neighbours(i, interaction_list_[type][m].outer_radius + distance_tolerance_, nbr_upper);
+        nbr_lower.clear();
+        nbr_upper.clear();
 
-        std::vector<Atom> nbr(std::max(nbr_lower.size(), nbr_upper.size()));
+        lattice->atom_neighbours(i, interaction.inner_radius, nbr_lower);
+        lattice->atom_neighbours(i, interaction.outer_radius + distance_tolerance_, nbr_upper);
 
-        auto compare_func = [](Atom a, Atom b) { return a.id > b.id; };
+        auto compare_func = [](Atom a, Atom b) { return a.id < b.id; };
 
         std::sort(nbr_lower.begin(), nbr_lower.end(), compare_func);
         std::sort(nbr_upper.begin(), nbr_upper.end(), compare_func);
 
-        auto it = std::set_difference(nbr_upper.begin(), nbr_upper.end(), nbr_lower.begin(), nbr_lower.end(), nbr.begin(), compare_func);
+        nbr.clear();
+        std::set_difference(nbr_upper.begin(), nbr_upper.end(), nbr_lower.begin(), nbr_lower.end(), std::inserter(nbr, nbr.begin()), compare_func);
 
-        nbr.resize(it - nbr.begin());
-
-        for (const Atom n : nbr) {
+        for (const Atom& n : nbr) {
           auto j = n.id;
           if (i == j) {
             continue;
           }
 
-          if (n.material_index == interaction_list_[type][m].material[1]) {
-
+          if (n.material_index == type_j) {
             // don't allow self interaction
             if (is_already_interacting[j]) {
               jams_die("Multiple interactions between spins %d and %d.\n", i, j);
             }
             is_already_interacting[j] = true;
 
-            double jij = interaction_list_[type][m].value;
+            Mat3 Jij = interaction.value * kIdentityMat3;
 
-            if ( std::abs(jij) > energy_cutoff_ / kBohrMagneton ) {
-              insert_interaction_tensor(i, j, {jij, 0.0, 0.0, 0.0, jij, 0.0, 0.0, 0.0, jij});
+            if ( max_abs(Jij) > energy_cutoff_ / kBohrMagneton ) {
+              insert_interaction_tensor(i, j, Jij);
               counter++;
             }
 
@@ -158,6 +147,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
           }
         }
       }
+
       if (debug_is_enabled()) {
         debug_file << "\n\n";
       }
