@@ -34,8 +34,8 @@ private:
 
     FuncType distance_functor; // functor to calculate distance
 
-    double max_distance_left = DBL_MIN;  // longest distance from the left object to anything below it in the tree
-    double max_distance_right = DBL_MIN; // longest distance from the right object to anything below it in the tree
+    double max_distance_left = -1;  // longest distance from the left object to anything below it in the tree
+    double max_distance_right = -1; // longest distance from the right object to anything below it in the tree
 
     void in_radius(const double &radius, std::vector<T> &closest, const T &t) const;
     void in_annulus(const double &inner_radius, const double &outer_radius, std::vector<T> &closest, const T &t) const;
@@ -78,8 +78,8 @@ NearTree<T,FuncType>::~NearTree() {
   delete right;
   right = nullptr;
 
-  max_distance_left = DBL_MIN;
-  max_distance_right = DBL_MIN;
+  max_distance_left = -1;
+  max_distance_right = -1;
 }
 
 template<typename T,
