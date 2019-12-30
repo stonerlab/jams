@@ -182,7 +182,7 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
 }
 
 void SpectrumBaseMonitor::store_periodogram_data(const jams::MultiArray<double, 2> &data) {
-  fft_supercell_vector_field_to_kspace(data, kspace_data_, lattice->kspace_size(), lattice->num_motif_atoms());
+  fft_supercell_vector_field_to_kspace(data, kspace_data_, lattice->size(), lattice->kspace_size(), lattice->num_motif_atoms());
   store_kspace_data_on_path(kspace_data_, kspace_paths_);
   periodogram_index_++;
 }
