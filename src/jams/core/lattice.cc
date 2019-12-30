@@ -632,15 +632,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     jams_die("the number of computed lattice sites was zero, check input");
   }
 
-  cout << "XXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
-
-  cout << abs(dot(supercell.a(), cross(supercell.b(), supercell.c()))) / norm(cross(supercell.b(), supercell.c())) << endl;
-  cout << abs(dot(supercell.b(), cross(supercell.c(), supercell.a()))) / norm(cross(supercell.c(), supercell.a())) << endl;
-  cout << abs(dot(supercell.c(), cross(supercell.a(), supercell.b()))) / norm(cross(supercell.a(), supercell.b())) << endl;
-
-  cout << "XXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
-
-
   auto distance_metric = [&](const Atom& a, const Atom& b)->double {
       return norm(::minimum_image(supercell, a.position, b.position));
   };

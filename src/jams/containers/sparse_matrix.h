@@ -161,6 +161,7 @@ namespace jams {
              &zero,
              result.device_data()));
           cusparseSetStream(handle, 0);
+          break;
       }
     }
     #endif

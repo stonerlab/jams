@@ -146,17 +146,26 @@ namespace jams {
       const auto nnz = val_.size();
 
       index_container csr_rows(num_rows_ + 1);
+
       csr_rows(0) = 0;
       size_type current_row = 0;
+      size_type previous_row = 0;
 
       for (auto m = 1; m < nnz; ++m) {
+        current_row = row_[m];
         assert(m < row_.size());
-        if (row_[m] == current_row) {
+        if (current_row == previous_row) {
           continue;
         }
+
         assert(current_row + 1 < csr_rows.size());
-        csr_rows(current_row + 1) = m;
-        current_row++;
+
+        // fill in row array including any missing entries where there were no row,col values
+        for (auto i = previous_row+1; i < current_row+1; ++i) {
+          csr_rows(i) = m;
+        }
+
+        previous_row = current_row;
       }
       csr_rows(num_rows_) = nnz;
       jams::util::force_deallocation(row_);
