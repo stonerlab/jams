@@ -29,58 +29,6 @@ struct Impurity {
     double   fraction;
 };
 
-class DisplacementCalculator {
-public:
-    DisplacementCalculator() = default;
-    DisplacementCalculator(const Cell& cell) : cell_(cell) {};
-
-
-    inline void insert(const Vec3& cartesian_position) {
-      fractional_positions_.push_back(cell_.inverse_matrix() * cartesian_position);
-    }
-
-    __attribute__((hot))
-    inline Vec3 operator()(const unsigned& i, const unsigned& j) const {
-      Vec3 dr = (fractional_positions_[j] - fractional_positions_[i]);
-
-      if (cell_.periodic(0)) {
-        dr[0] = dr[0] - std::trunc(2.0 * dr[0]);
-      }
-
-      if (cell_.periodic(1)) {
-        dr[1] = dr[1] - std::trunc(2.0 * dr[1]);
-      }
-
-      if (cell_.periodic(2)) {
-        dr[2] = dr[2] - std::trunc(2.0 * dr[2]);
-      }
-
-      return cell_.matrix() * dr;
-    }
-
-    inline Vec3 operator()(const Vec3& r_cart_i, const Vec3& r_cart_j) const {
-      Vec3 dr = cell_.inverse_matrix() * (r_cart_j - r_cart_i);
-
-      if (cell_.periodic(0)) {
-        dr[0] = dr[0] - std::trunc(2.0 * dr[0]);
-      }
-
-      if (cell_.periodic(1)) {
-        dr[1] = dr[1] - std::trunc(2.0 * dr[1]);
-      }
-
-      if (cell_.periodic(2)) {
-        dr[2] = dr[2] - std::trunc(2.0 * dr[2]);
-      }
-
-      return cell_.matrix() * dr;
-    }
-
-private:
-    Cell cell_ = kIdentityMat3;
-    std::vector<Vec3> fractional_positions_;
-};
-
 class Lattice : public Base {
 public:
     using MaterialMap = NameIdMap<Material>;
@@ -223,8 +171,6 @@ private:
     std::vector<int>   atom_to_cell_lookup_;     // index is a spin and the data is the unit cell that spin belongs to
     std::vector<Vec3>  cell_centers_;
     std::vector<Vec3i> cell_offsets_;
-
-    DisplacementCalculator displacement_calculator;
 
     MaterialMap       materials_;
     unsigned          impurity_seed_;

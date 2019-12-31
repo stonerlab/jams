@@ -263,9 +263,7 @@ Vec3 ConstrainedMCSolver::total_transformed_magnetization() const {
   Vec3 m_total = {0.0, 0.0, 0.0};
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    for (auto n = 0; n < 3; ++n) {
-      m_total[n] += spin_transformations_[i][n][n] * globals::s(i,n) * globals::mus(i);
-    }
+    m_total += globals::mus(i) * spin_transformations_[i] * mc_spin_as_vec(i);
   }
 
   return m_total;

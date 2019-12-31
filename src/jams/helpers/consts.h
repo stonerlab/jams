@@ -30,6 +30,8 @@ constexpr double kTHz                   = 1E12;
 
 constexpr double kMeterToAngstroms      = 1e10;
 
+constexpr double kBytesToMegaBytes      = 1048576.0;
+
 constexpr std::complex<double> kCmplxZero = {0.0, 0.0};
 constexpr std::complex<double> kImagOne = {0.0, 1.0};
 constexpr std::complex<double> kImagTwoPi = {0.0, kTwoPi};

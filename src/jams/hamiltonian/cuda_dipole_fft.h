@@ -10,10 +10,10 @@
 #include <cufft.h>
 
 #include "jams/core/types.h"
-#include "jams/hamiltonian/strategy.h"
+#include "jams/core/hamiltonian.h"
 #include "jams/cuda/cuda_stream.h"
 
-class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
+class CudaDipoleHamiltonianFFT : public Hamiltonian {
     public:
         CudaDipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size);
 
@@ -23,10 +23,10 @@ class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
         double calculate_one_spin_energy(const int i);
         double calculate_one_spin_energy(const int i, const Vec3 &s_i);
         double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
-        void   calculate_energies(jams::MultiArray<double, 1>& energies);
+        void   calculate_energies();
 
         void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields(jams::MultiArray<double, 2>& fields);
+        void   calculate_fields();
     private:
         bool debug_ = false;
         bool check_radius_   = true;
@@ -44,8 +44,6 @@ class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
         jams::MultiArray<cufftDoubleComplex, 1>   kspace_h_;
 
     std::array<CudaStream, 4> dev_stream_;
-    jams::MultiArray<double, 2>     dipole_fields_;
-
 
     std::vector<std::vector<jams::MultiArray<cufftDoubleComplex, 1>>> kspace_tensors_;
 

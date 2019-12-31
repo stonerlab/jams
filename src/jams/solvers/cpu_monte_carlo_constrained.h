@@ -45,8 +45,8 @@ class ConstrainedMCSolver : public Solver {
 
     int output_write_steps_ = 100;
 
-    double move_fraction_uniform_     = 1.0; // default is guaranteed erogodic
-    double move_fraction_angle_       = 0.0;
+    double move_fraction_uniform_     = 0.0;
+    double move_fraction_angle_       = 1.0; // default is guaranteed erogodic
     double move_fraction_reflection_  = 0.0;
 
     double move_angle_sigma_ = 0.5;

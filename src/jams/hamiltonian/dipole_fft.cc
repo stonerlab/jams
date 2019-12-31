@@ -40,7 +40,7 @@ DipoleHamiltonianFFT::~DipoleHamiltonianFFT() {
 //---------------------------------------------------------------------
 
 DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size)
-: HamiltonianStrategy(settings, size)
+: Hamiltonian(settings, size)
 {
   settings.lookupValue("debug", debug_);
   settings.lookupValue("check_radius", check_radius_);
@@ -59,8 +59,6 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 
     settings.lookupValue("distance_tolerance", r_distance_tolerance_);
     cout << "  distance_tolerance " << r_distance_tolerance_ << "\n";
-
-    h_.resize(globals::num_spins, 3);
 
     for (auto n = 0; n < 3; ++n) {
         kspace_size_[n] = ::lattice->size(n);
@@ -144,11 +142,11 @@ DipoleHamiltonianFFT::DipoleHamiltonianFFT(const libconfig::Setting &settings, c
 double DipoleHamiltonianFFT::calculate_total_energy() {
     double e_total = 0.0;
 
-    calculate_fields(h_);
+    calculate_fields();
     for (auto i = 0; i < globals::num_spins; ++i) {
-        e_total += (  globals::s(i,0)*h_(i, 0)
-                    + globals::s(i,1)*h_(i, 1)
-                    + globals::s(i,2)*h_(i, 2) )*globals::mus(i);
+        e_total += (  globals::s(i,0) * field_(i, 0)
+                    + globals::s(i,1) * field_(i, 1)
+                    + globals::s(i,2) * field_(i, 2) )*globals::mus(i);
     }
 
     return -0.5*e_total;
@@ -175,7 +173,7 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
 {
     double h[3] = {0, 0, 0};
 
-    calculate_fields(h_);
+    calculate_fields();
     for (auto m = 0; m < 3; ++m) {
         Vec3i pos = ::lattice->cell_offset(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
@@ -187,10 +185,10 @@ double DipoleHamiltonianFFT::calculate_one_spin_energy_difference(
 
 //---------------------------------------------------------------------
 
-void DipoleHamiltonianFFT::calculate_energies(jams::MultiArray<double, 1>& energies) {
-    assert(energies.elements() == globals::num_spins);
+void DipoleHamiltonianFFT::calculate_energies() {
+    assert(energy_.elements() == globals::num_spins);
     for (auto i = 0; i < globals::num_spins; ++i) {
-        energies(i) = calculate_one_spin_energy(i);
+      energy_(i) = calculate_one_spin_energy(i);
     }
 }
 
@@ -201,7 +199,7 @@ void DipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
         h[m] = 0.0;
     }
 
-    calculate_fields(h_);
+    calculate_fields();
     for (auto m = 0; m < 3; ++m) {
         Vec3i pos = ::lattice->cell_offset(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
@@ -327,11 +325,11 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
 
 //---------------------------------------------------------------------
 
-void DipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2> &fields) {
+void DipoleHamiltonianFFT::calculate_fields() {
   using std::min;
   using std::pow;
 
-  fields.zero();
+  zero(field_);
 
   for (auto pos_i = 0; pos_i < ::lattice->num_motif_atoms(); ++pos_i) {
     kspace_h_.zero();
@@ -374,7 +372,7 @@ void DipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2> &fields)
         for (auto k = 0; k < kspace_size_[2]; ++k) {
           const auto index = lattice->site_index_by_unit_cell(i, j, k, pos_i);
           for (auto m = 0; m < 3; ++ m) {
-            fields(index, m) += rspace_h_(i, j, k, m);
+            field_(index, m) += rspace_h_(i, j, k, m);
           }
         }
       }

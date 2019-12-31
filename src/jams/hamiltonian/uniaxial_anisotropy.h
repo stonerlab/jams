@@ -24,10 +24,9 @@ class UniaxialHamiltonian : public Hamiltonian {
         void   calculate_one_spin_field(const int i, double h[3]);
         void   calculate_fields();
     private:
-        unsigned num_coefficients_ = 0;
-        jams::MultiArray<unsigned, 2> power_;
-        jams::MultiArray<double, 3>     axis_;
-        jams::MultiArray<double, 2>   magnitude_;
+        int power_;
+        jams::MultiArray<double, 2>   axis_;
+        jams::MultiArray<double, 1>   magnitude_;
 };
 
 #endif  // JAMS_HAMILTONIAN_UNIAXIAL_H

@@ -17,7 +17,7 @@ void jams_warning(const char *message, ...);
 
 
 #define JAMS_ERROR_MESSAGE(msg) (  \
-  JAMS_FILE_LINE ": error: " msg  \
+  std::string(JAMS_FILE_LINE ": error: " msg)  \
   )
 
 #endif

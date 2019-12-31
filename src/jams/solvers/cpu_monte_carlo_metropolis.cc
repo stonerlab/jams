@@ -24,6 +24,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
+  output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
 
   use_random_spin_order_ = jams::config_optional<bool>(settings, "use_random_spin_order", true);
   cout << "    use_random_spin_order " << std::boolalpha << use_random_spin_order_ << "\n";
@@ -48,16 +49,13 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
     move_fraction_angle_      = jams::config_optional<double>(settings, "move_fraction_angle", 0.0);
     move_fraction_reflection_ = jams::config_optional<double>(settings, "move_fraction_reflection", 0.0);
+    move_angle_sigma_         = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
 
     double move_fraction_sum = move_fraction_uniform_ + move_fraction_angle_ + move_fraction_reflection_;
 
     move_fraction_uniform_     /= move_fraction_sum;
     move_fraction_angle_       /= move_fraction_sum;
     move_fraction_reflection_  /= move_fraction_sum;
-  }
-
-  if (verbose_is_enabled()) {
-    cout << "    statsfile " << std::string(::seedname + "_mc_stats.dat") << "\n";
   }
 }
 
@@ -97,30 +95,30 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       } else {
         move_running_acceptance_count_uniform_ += MetropolisAlgorithm(uniform_move);
       }
-      run_count_uniform++;
+      run_count_uniform_++;
     } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
       if (use_total_energy_) {
         move_running_acceptance_count_angle_ += MetropolisAlgorithmTotalEnergy(angle_move);
       } else {
         move_running_acceptance_count_angle_ += MetropolisAlgorithm(angle_move);
       }
-      run_count_angle++;
+      run_count_angle_++;
     } else {
       if (use_total_energy_) {
         move_running_acceptance_count_reflection_ += MetropolisAlgorithmTotalEnergy(reflection_move);
       } else {
         move_running_acceptance_count_reflection_ += MetropolisAlgorithm(reflection_move);
       }
-      run_count_reflection++;
+      run_count_reflection_++;
     }
 
     iteration_++;
 
     if (iteration_ % output_write_steps_ == 0) {
 
-      move_total_count_uniform_ += run_count_uniform;
-      move_total_count_angle_ += run_count_angle;
-      move_total_count_reflection_ += run_count_reflection;
+      move_total_count_uniform_ += run_count_uniform_;
+      move_total_count_angle_ += run_count_angle_;
+      move_total_count_reflection_ += run_count_reflection_;
 
       move_total_acceptance_count_uniform_ += move_running_acceptance_count_uniform_;
       move_total_acceptance_count_angle_ += move_running_acceptance_count_angle_;
@@ -131,17 +129,17 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       cout << "move_acceptance_fraction\n";
 
       cout << "  uniform ";
-      cout << division_or_zero(move_running_acceptance_count_uniform_, globals::num_spins * run_count_uniform) << " (";
+      cout << division_or_zero(move_running_acceptance_count_uniform_, globals::num_spins * run_count_uniform_) << " (";
       cout << division_or_zero(move_total_acceptance_count_uniform_, globals::num_spins * move_total_count_uniform_)
            << ") \n";
 
       cout << "  angle ";
-      cout << division_or_zero(move_running_acceptance_count_angle_, globals::num_spins * run_count_angle) << " (";
+      cout << division_or_zero(move_running_acceptance_count_angle_, globals::num_spins * run_count_angle_) << " (";
       cout << division_or_zero(move_total_acceptance_count_angle_, globals::num_spins * move_total_count_angle_)
            << ") \n";
 
       cout << "  reflection ";
-      cout << division_or_zero(move_running_acceptance_count_reflection_, globals::num_spins * run_count_reflection)
+      cout << division_or_zero(move_running_acceptance_count_reflection_, globals::num_spins * run_count_reflection_)
            << " (";
       cout << division_or_zero(move_total_acceptance_count_reflection_,
               globals::num_spins * move_total_count_reflection_) << ") \n";
@@ -150,9 +148,9 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       move_running_acceptance_count_angle_ = 0;
       move_running_acceptance_count_reflection_ = 0;
 
-      run_count_uniform = 0;
-      run_count_angle = 0;
-      run_count_reflection = 0;
+      run_count_uniform_ = 0;
+      run_count_angle_ = 0;
+      run_count_reflection_ = 0;
     }
   }
 
@@ -292,7 +290,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     cout << "    permutations " << count << "\n";
 
     std::ofstream preconditioner_file;
-    preconditioner_file.open(std::string(::seedname+"_mc_pre.dat").c_str());
+    preconditioner_file.open(std::string(::seedname+"_mc_pre.tsv").c_str());
     preconditioner_file << "# theta (deg) | phi (deg) | energy (J) \n";
 
     preconditioner_file.close();

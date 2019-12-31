@@ -115,6 +115,21 @@ inline constexpr auto dot(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+template <typename T1, typename T2>
+inline constexpr auto dot(const Vec<T1,3>& a, const T2 b[3]) -> decltype(a[0] * b[0]) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+template <typename T1, typename T2>
+inline constexpr auto dot(const T1 a[3], const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+template <typename T1, typename T2>
+inline constexpr auto dot(const T1 a[3], const T2 b[3]) -> decltype(a[0] * b[0]) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
 template <typename T1>
 inline constexpr auto abs(const Vec<T1,3>& a) -> Vec<decltype(std::abs(a[0])), 3> {
   return {std::abs(a[0]), std::abs(a[1]), std::abs(a[2])};
@@ -152,6 +167,11 @@ inline constexpr auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
 template <typename T>
 inline constexpr T norm_sq(const Vec<T,3>& a) {
   return dot(a, a);
+}
+
+template <typename T>
+inline constexpr T angle(const Vec<T,3>& a, const Vec<T,3>& b) {
+  return acos(dot(a,b) / (norm(a), norm(b)));
 }
 
 inline Vec3 spherical_to_cartesian_vector(const double r, const double theta, const double phi) {

@@ -23,8 +23,8 @@ GLOBAL libconfig::Config *config;  ///< Config object
 GLOBAL std::string seedname;
 
 namespace globals {
-  GLOBAL unsigned int num_spins;
-  GLOBAL unsigned int num_spins3;
+  GLOBAL int num_spins;
+  GLOBAL int num_spins3;
 
   GLOBAL jams::MultiArray<double, 2> s;
   GLOBAL jams::MultiArray<double, 2> h;

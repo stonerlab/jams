@@ -21,6 +21,17 @@
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
+namespace jams {
+    namespace util {
+        // Forces containers to free any dynamical allocated memory (e.g. std::vector does not neccesarily free memory
+        // even when emptied)
+        template<class T>
+        inline void force_deallocation(T &object) {
+          T().swap(object);
+        }
+    }
+}
+
 inline double division_or_zero(const double nominator, const double denominator) {
   if (denominator == 0.0) {
     return 0.0;
@@ -81,6 +92,10 @@ inline std::string file_basename(std::string filepath) {
 inline std::string file_extension(std::string filepath) {
   auto dot = filepath.find_last_of('.');
   return filepath.substr(dot+1);
+}
+
+inline bool contains(const std::string& s1, const std::string& s2) {
+  return s1.find(s2) != std::string::npos;
 }
 
 inline bool string_is_comment(const std::string& s) {

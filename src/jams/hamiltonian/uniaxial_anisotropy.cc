@@ -11,25 +11,32 @@ using libconfig::Setting;
 using std::vector;
 using std::string;
 using std::runtime_error;
+
 // Settings should look like:
 // {
 //    module = "uniaxial";
-//    K1 = (1e-24, 2e-24);
+//    order = "K1";
+//    anisotropies = (
+//      (1, [0.0, 0.0, 1.0], 1e-24)
+//    );
 // }
 //
 // {
 //    module = "uniaxial";
-//    K1 = ((1e-24, [0, 0, 1]),
-//          (2e-24, [0, 0, 1]));
+//    order = "K1";
+//    anisotropies = (
+//      ("Fe", [0.0, 0.0, 1.0], 1e-24)
+//    );
 // }
 
 struct AnisotropySetting {
-    unsigned power;
-    double   energy;
-    Vec3     axis;
+    int      motif_position = -1;
+    string   material = "";
+    Vec3     axis = {0.0, 0.0, 1.0};
+    double   energy = 0.0;
 };
 
-unsigned anisotropy_power_from_name(const string name) {
+int anisotropy_power_from_name(const string name) {
   if (name == "K1") return 2;
   if (name == "K2") return 4;
   if (name == "K3") return 6;
@@ -37,31 +44,34 @@ unsigned anisotropy_power_from_name(const string name) {
 }
 
 AnisotropySetting read_anisotropy_setting(Setting &setting) {
-  if (setting.isList()) {
-    Vec3 axis = {setting[1][0], setting[1][1], setting[1][2]};
-    return AnisotropySetting{anisotropy_power_from_name(setting.getParent().getName()), setting[0], normalize(axis)};
+  if (!setting.isList()) {
+    throw runtime_error("Incorrectly formatted anisotropy setting");
   }
-  if (setting.isScalar()) {
-    return AnisotropySetting{anisotropy_power_from_name(setting.getParent().getName()), setting, {0.0, 0.0, 1.0}};
-  }
-  throw runtime_error("Incorrectly formatted anisotropy setting");
-}
+  AnisotropySetting result;
 
-vector<vector<AnisotropySetting>> read_all_anisotropy_settings(const Setting &settings) {
-vector<vector<AnisotropySetting>> anisotropies(lattice->num_materials());
-  auto anisotropy_names = {"K1", "K2", "K3"};
-  for (const auto name : anisotropy_names) {
-    if (settings.exists(name)) {
-      if (settings[name].getLength() != lattice->num_materials()) {
-        throw runtime_error("UniaxialHamiltonian: " + string(name) + "  must be specified for every material");
-      }
-
-      for (auto i = 0; i < settings[name].getLength(); ++i) {
-        anisotropies[i].push_back(read_anisotropy_setting(settings[name][i]));
-      }
+  if (setting[0].isNumber()) {
+    result.motif_position = int(setting[0]);
+    result.motif_position--;
+    if (result.motif_position < 0 || result.motif_position >= lattice->num_motif_atoms()) {
+      throw runtime_error("uniaxial anisotropy motif position is invalid");
+    }
+  } else {
+    result.material = string(setting[0].c_str());
+    if (!lattice->material_exists(result.material)) {
+      throw runtime_error("uniaxial anisotropy material is invalid");
     }
   }
-  // the array indicies are (type, power)
+  result.axis = normalize(Vec3{setting[1][0], setting[1][1], setting[1][2]});
+  result.energy = double(setting[2]);
+  return result;
+}
+
+vector<AnisotropySetting> read_all_anisotropy_settings(const Setting &settings) {
+  vector<AnisotropySetting> anisotropies;
+  for (auto i = 0; i < settings["anisotropies"].getLength(); ++i) {
+    anisotropies.push_back(read_anisotropy_setting(settings["anisotropies"][i]));
+  }
+
   return anisotropies;
 }
 
@@ -69,33 +79,36 @@ UniaxialHamiltonian::UniaxialHamiltonian(const Setting &settings, const unsigned
         : Hamiltonian(settings, num_spins) {
 
   // check if the old format is being used
-  if ((settings.exists("d2z") || settings.exists("d4z") || settings.exists("d6z"))) {
+  if (settings.exists("d2z") || settings.exists("d4z") || settings.exists("d6z")
+   || settings.exists("K1") || settings.exists("K2") || settings.exists("K3")) {
     jams_die(
-            "UniaxialHamiltonian: anisotropy should only be specified in terms of K1, K2, K3 maybe you want UniaxialCoefficientHamiltonian?");
+            "UniaxialHamiltonian: anisotropy should only be specified for a single K1, K2 or K3. "
+            "For d2z, d4z, d6z you want UniaxialCoefficientHamiltonian.");
   }
+
+  string order = jams::config_required<string>(settings, "order");
+  power_ = anisotropy_power_from_name(order);
 
   auto anisotropies = read_all_anisotropy_settings(settings);
 
-  for (auto type = 0; type < lattice->num_materials(); ++type) {
-    std::cout << "  " << lattice->material_name(type) << ":\n";
-    for (const auto& ani : anisotropies[type]) {
-      std::cout << "    " << ani.axis << "  " << ani.power << "  " << ani.energy << "\n";
-    }
-  }
+  zero(magnitude_.resize(num_spins));
+  zero(axis_.resize(num_spins, 3));
 
-  num_coefficients_ = anisotropies[0].size();
-
-  power_.resize(num_spins, anisotropies[0].size());
-  axis_.resize(num_spins, anisotropies[0].size(), 3);
-  magnitude_.resize(num_spins, anisotropies[0].size());
-
-  for (int i = 0; i < globals::num_spins; ++i) {
-    auto type = lattice->atom_material_id(i);
-    for (auto j = 0; j < anisotropies[type].size(); ++j) {
-      power_(i, j) = anisotropies[type][j].power;
-      magnitude_(i, j) = anisotropies[type][j].energy * input_unit_conversion_;
-      for (auto k : {0,1,2}) {
-        axis_(i, j, k) = anisotropies[type][j].axis[k];
+  for (const auto& ani : anisotropies) {
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      if (lattice->atom_motif_position(i) == ani.motif_position) {
+        magnitude_(i) = ani.energy * input_unit_conversion_;
+        for (auto j : {0, 1, 2}) {
+          axis_(i, j) = ani.axis[j];
+        }
+      }
+      if (lattice->material_exists(ani.material)) {
+        if (lattice->atom_material_id(i) == lattice->material_id(ani.material)) {
+          magnitude_(i) = ani.energy * input_unit_conversion_;
+          for (auto j : {0, 1, 2}) {
+            axis_(i, j) = ani.axis[j];
+          }
+        }
       }
     }
   }
@@ -114,10 +127,8 @@ double UniaxialHamiltonian::calculate_one_spin_energy(const int i) {
   using namespace globals;
   double energy = 0.0;
 
-  for (auto n = 0; n < num_coefficients_; ++n) {
-    auto dot = (axis_(i,n,0) * s(i,0) + axis_(i,n,1) * s(i,1) + axis_(i,n,2) * s(i,2));
-    energy += (-magnitude_(i,n) * pow(dot, power_(i,n)));
-  }
+  auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
+  energy += (-magnitude_(i) * pow(dot, power_));
 
   return energy;
 }
@@ -127,50 +138,37 @@ double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, co
   double e_initial = 0.0;
   double e_final = 0.0;
 
-  for (auto n = 0; n < num_coefficients_; ++n) {
-    auto s_dot_a = spin_initial[0] * axis_(i,n,0) + spin_initial[1] * axis_(i,n,1) + spin_initial[2] * axis_(i,n,2);
-    e_initial += (-magnitude_(i,n) * pow(s_dot_a, power_(i,n)));
-  }
+  auto s_dot_a = spin_initial[0] * axis_(i,0) + spin_initial[1] * axis_(i,1) + spin_initial[2] * axis_(i,2);
+  e_initial += (-magnitude_(i) * pow(s_dot_a, power_));
 
-  for (auto n = 0; n < num_coefficients_; ++n) {
-    auto s_dot_a = spin_final[0] * axis_(i,n,0) + spin_final[1] * axis_(i,n,1) + spin_final[2] * axis_(i,n,2);
-    e_final += (-magnitude_(i,n) * pow(s_dot_a, power_(i,n)));
-  }
+  auto s_dot_b = spin_final[0] * axis_(i,0) + spin_final[1] * axis_(i,1) + spin_final[2] * axis_(i,2);
+  e_final += (-magnitude_(i) * pow(s_dot_b, power_));
 
   return e_final - e_initial;
 }
 
 void UniaxialHamiltonian::calculate_energies() {
-  for (int i = 0; i < energy_.size(); ++i) {
+  for (auto i = 0; i < energy_.size(); ++i) {
     energy_(i) = calculate_one_spin_energy(i);
   }
 }
 
 void UniaxialHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
   using namespace globals;
-  local_field[0] = 0.0;
-  local_field[1] = 0.0;
-  local_field[2] = 0.0;
 
-  for (auto n = 0; n < num_coefficients_; ++n) {
-    auto dot = (axis_(i,n,0) * s(i,0) + axis_(i,n,1) * s(i,1) + axis_(i,n,2) * s(i,2));
-    for (auto j = 0; j < 3; ++j) {
-      local_field[j] += magnitude_(i,n) * power_(i,n) * pow(dot, power_(i,n) - 1) * axis_(i, n,j);
-    }
+  auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
+  for (auto j = 0; j < 3; ++j) {
+    local_field[j] = magnitude_(i) * power_ * pow(dot, power_ - 1) * axis_(i,j);
   }
 }
 
 void UniaxialHamiltonian::calculate_fields() {
   using namespace globals;
-  field_.zero();
-
   for (auto i = 0; i < num_spins; ++i) {
-    for (auto n = 0; n < num_coefficients_; ++n) {
-      auto dot = (axis_(i, n, 0) * s(i, 0) + axis_(i, n, 1) * s(i, 1) + axis_(i, n, 2) * s(i, 2));
-      for (auto j = 0; j < 3; ++j) {
-        field_(i,j) += magnitude_(i, n) * power_(i, n) * pow(dot, power_(i, n) - 1) * axis_(i, n, j);
-      }
+    double local_field[3];
+    calculate_one_spin_field(i, local_field);
+    for (auto j = 0; j < 3; ++j) {
+      field_(i,j) = local_field[j];
     }
   }
-
 }

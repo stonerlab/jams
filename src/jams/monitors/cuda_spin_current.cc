@@ -18,6 +18,7 @@
 #include "cuda_spin_current.h"
 #include "jams/hamiltonian/exchange.h"
 #include "jams/interface/h5.h"
+#include "jams/containers/sparse_matrix_builder.h"
 
 using namespace std;
 
@@ -39,38 +40,22 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   const auto exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
   assert (exchange_hamiltonian != nullptr);
 
-  SparseMatrix<Vec3> interaction_matrix(globals::num_spins, globals::num_spins);
+  jams::SparseMatrix<Vec3>::Builder sparse_matrix_builder(globals::num_spins, globals::num_spins);
 
-  for (auto i = 0; i < exchange_hamiltonian->neighbour_list().size(); ++i) {
-    for (auto const &nbr: exchange_hamiltonian->neighbour_list()[i]) {
-      auto j = nbr.first;
-      auto Jij = nbr.second[0][0];
-      auto r_i = lattice->atom_position(i);
-      auto r_j = lattice->atom_position(j);
-      interaction_matrix.insertValue(i, j, lattice->displacement(i, j) * Jij);
-    }
+  const auto& nbr_list = exchange_hamiltonian->neighbour_list();
+  for (auto n = 0; n < nbr_list.size(); ++n) {
+    auto i = nbr_list[n].first[0];
+    auto j = nbr_list[n].first[1];
+    auto Jij = nbr_list[n].second[0][0];
+    sparse_matrix_builder.insert(i, j, lattice->displacement(i, j) * Jij);
   }
 
-  cout << "  converting interaction matrix format from MAP to CSR\n";
-  interaction_matrix.convertMAP2CSR();
-  cout << "  exchange matrix memory (CSR): " << interaction_matrix.calculateMemory() << " MB\n";
-
-  dev_csr_matrix_.row.resize(interaction_matrix.rows()+1);
-  std::copy(interaction_matrix.rowPtr(), interaction_matrix.rowPtr()+interaction_matrix.rows()+1, dev_csr_matrix_.row.data());
-
-  dev_csr_matrix_.col.resize(interaction_matrix.nonZero());
-  std::copy(interaction_matrix.colPtr(), interaction_matrix.colPtr()+interaction_matrix.nonZero(), dev_csr_matrix_.col.data());
-
-
-  // not sure how Vec3 will copy so lets be safe
-  dev_csr_matrix_.val.resize(3*interaction_matrix.nonZero());
-  int count = 0;
-  for (unsigned i = 0; i < interaction_matrix.nonZero(); ++i) {
-    for (unsigned j = 0; j < 3; ++j) {
-      dev_csr_matrix_.val(count) = interaction_matrix.val(i)[j];
-      count++;
-    }
-  }
+  cout << "    dipole sparse matrix builder memory " << sparse_matrix_builder.memory() / kBytesToMegaBytes << "(MB)\n";
+  cout << "    building CSR matrix\n";
+  interaction_matrix_ = sparse_matrix_builder
+      .set_format(jams::SparseMatrixFormat::CSR)
+      .build();
+  cout << "    exchange sparse matrix memory (CSR): " << interaction_matrix_.memory() / kBytesToMegaBytes << " (MB)\n";
 
   spin_current_rx_x.resize(globals::num_spins);
   spin_current_rx_y.resize(globals::num_spins);
@@ -99,9 +84,9 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
           stream,
           globals::num_spins,
           globals::s.device_data(),
-          dev_csr_matrix_.val.device_data(),
-          dev_csr_matrix_.row.device_data(),
-          dev_csr_matrix_.col.device_data(),
+          reinterpret_cast<const double*>(interaction_matrix_.val_device_data()),
+          interaction_matrix_.row_device_data(),
+          interaction_matrix_.col_device_data(),
           spin_current_rx_x.device_data(),
           spin_current_rx_y.device_data(),
           spin_current_rx_z.device_data(),
@@ -113,7 +98,7 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
           spin_current_rz_z.device_data()
   );
 
-//  const double units = lattice->parameter() * kBohrMagneton * kGyromagneticRatio;
+  const double units = lattice->parameter() * kBohrMagneton * kGyromagneticRatio;
 
   outfile << std::setw(4) << std::scientific << solver->time() << "\t";
   for (auto r_m = 0; r_m < 3; ++r_m) {

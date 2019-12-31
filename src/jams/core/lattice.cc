@@ -159,11 +159,11 @@ Lattice::atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom>
 
 Vec3
 Lattice::displacement(const Vec3 &r_i, const Vec3 &r_j) const {
-  return displacement_calculator(r_i, r_j);
+  return ::minimum_image(supercell, r_i, r_j);
 }
 
 Vec3 Lattice::displacement(const unsigned &i, const unsigned &j) const {
-  return displacement_calculator(i, j);
+  return ::minimum_image(supercell, atoms_[i].position, atoms_[j].position);
 }
 
 Vec3
@@ -397,6 +397,8 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
   lattice_periodic = jams::config_optional<Vec3b>(settings, "periodic", jams::defaults::lattice_periodic_boundaries);
   lattice_dimensions = jams::config_required<Vec3i>(settings, "size");
 
+  supercell = scale(Cell(unitcell.matrix(), lattice_periodic), lattice_dimensions);
+
   cout << "  lattice\n";
   cout << "    size " << lattice_dimensions << "\n";
   cout << "    periodic " << lattice_periodic << "\n";
@@ -412,8 +414,6 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
 void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings) {
   using namespace globals;
   using std::string;
-
-  supercell = scale(unitcell, lattice_dimensions);
 
   if (lattice_settings.exists("global_rotation") && lattice_settings.exists("orientation_axis")) {
     jams_warning("Orientation and global rotation are both in config. Orientation will be applied first and then global rotation.");
@@ -461,18 +461,14 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   cout << "  motif positions " << position_filename << "\n";
   cout << "  format " << cfg_coordinate_format_name << "\n";
 
-  DisplacementCalculator calc(unitcell);
   for (const Atom &atom: motif_) {
     cout << "    " << atom.id << " " << materials_.name(atom.material_index) << " " << atom.position << "\n";
-    calc.insert(atom.position);
   }
   cout << "\n";
 
-
-
   for (auto i = 0; i < motif_.size(); ++i) {
     for (auto j = i + 1; j < motif_.size(); ++j) {
-      if(!definately_greater_than(norm(calc(i, j)), jams::defaults::lattice_tolerance)) {
+      if(!definately_greater_than(norm(minimum_image(unitcell, motif_[i].position, motif_[j].position)), jams::defaults::lattice_tolerance)) {
         throw std::runtime_error("motif positions " + std::to_string(i) + " and " + std::to_string(j) + " are closer than the default lattice tolerance");
       }
     }
@@ -613,12 +609,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     }
   }
 
-  displacement_calculator = DisplacementCalculator(supercell);
-
-  for (const auto& a : atoms_) {
-    displacement_calculator.insert(a.position);
-  }
-
   if (atom_counter == 0) {
     jams_die("the number of computed lattice sites was zero, check input");
   }
@@ -642,9 +632,8 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     jams_die("the number of computed lattice sites was zero, check input");
   }
 
-  Cell neartree_cell = supercell;
-  auto distance_metric = [neartree_cell](const Atom& a, const Atom& b)->double {
-      return norm(::minimum_image(neartree_cell, a.position, b.position));
+  auto distance_metric = [&](const Atom& a, const Atom& b)->double {
+      return norm(::minimum_image(supercell, a.position, b.position));
   };
 
   neartree_ = new NearTree<Atom, NeartreeFunctorType>(distance_metric, atoms_);

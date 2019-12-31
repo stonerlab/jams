@@ -31,7 +31,20 @@ namespace jams {
     };
 }
 
+namespace jams {
+    namespace fftw {
+        inline fftw_complex* complex_cast(std::complex<double>* ptr) {
+          return reinterpret_cast<fftw_complex*>(ptr);
+        }
+
+        inline fftw_complex* complex_cast(Vec3cx* ptr) {
+          return reinterpret_cast<fftw_complex*>(ptr);
+        }
+    }
+}
+
 #define FFTW_COMPLEX_CAST(x) reinterpret_cast<fftw_complex*>(x)
+#define FFTW_CONST_DOUBLE_CAST(x) reinterpret_cast<fftw_complex*>(x)
 
 // Windowing functions
 double fft_window_default(const int n, const int n_total);
@@ -44,7 +57,7 @@ double fft_window_nuttall(const int n, const int n_total);
 fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const std::array<int,3>& kspace_size, const int & motif_size);
 void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspace);
 
-void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
+void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites);
 void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
 
 template <std::size_t N>

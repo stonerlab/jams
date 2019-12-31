@@ -12,9 +12,7 @@ set(JAMS_SOURCES_CXX
         core/random.cc
         core/solver.cc
         core/thermostat.cc
-        hamiltonian/dipole.cc
         hamiltonian/dipole_bruteforce.cc
-        hamiltonian/dipole_ewald.cc
         hamiltonian/dipole_fft.cc
         hamiltonian/dipole_tensor.cc
         hamiltonian/exchange.cc
@@ -22,6 +20,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/uniaxial_anisotropy.cc
         hamiltonian/uniaxial_microscopic_anisotropy.cc
         hamiltonian/random_anisotropy.cc
+        hamiltonian/sparse_interaction.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
         interface/fft.cc
@@ -74,12 +73,9 @@ set(JAMS_SOURCES_CUDA
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
         hamiltonian/cuda_dipole_fft.cu
-        hamiltonian/cuda_exchange.cu
-        hamiltonian/cuda_exchange_neartree.cu
         hamiltonian/cuda_random_anisotropy.cu
         hamiltonian/cuda_zeeman.cu
         hamiltonian/cuda_dipole_bruteforce.cu
-        hamiltonian/cuda_dipole_sparse_tensor.cu
         monitors/cuda_spin_current.cc
         monitors/cuda_spin_current_kernel.cu
         monitors/cuda_thermal_current.cc
