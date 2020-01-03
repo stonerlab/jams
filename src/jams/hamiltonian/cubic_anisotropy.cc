@@ -86,7 +86,7 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
     for (auto type = 0; type < lattice->num_materials(); ++type) {
         std::cout << "  " << lattice->material_name(type) << ":\n";
         for (const auto& ani : anisotropies[type]) {
-            std::cout << "    " << ani.axis1 << "  " << ani.axis2 << "  " << ani.axis3 << "  " ani.power << "  " << ani.energy << "\n";
+            std::cout << "    " << ani.axis1 << "  " << ani.axis2 << "  " << ani.axis3 << "  " << ani.power << "  " << ani.energy << "\n";
         }
     }
 
