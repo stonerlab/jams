@@ -9,7 +9,6 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/hamiltonian/cubic_anisotropy.h"
-#include <ostream>
 
 using libconfig::Setting;
 using std::vector;
@@ -136,7 +135,7 @@ double CubicHamiltonian::calculate_one_spin_energy(const int i) {
             energy += -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
         }
         else{
-            cout >> power_(i,n);
+            std::cout << power_(i,n);
             throw runtime_error("Power doesn't work as an index");
         }
     }
