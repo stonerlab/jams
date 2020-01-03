@@ -124,9 +124,12 @@ double CubicHamiltonian::calculate_one_spin_energy(const int i) {
     double energy = 0.0;
 
     for (auto n = 0; n < num_coefficients_; ++n) {
-        auto dot1 = axis_(i,n,0,0)*s(i,0) + axis_(i,n,1,0)*s(i,1) + axis_(i,n,2,0)*s(i,2);
+        auto dot1 = s(i,0);
+        auto dot2 = s(i,1);
+        auto dot3 = s(i,2);
+        /*auto dot1 = axis_(i,n,0,0)*s(i,0) + axis_(i,n,1,0)*s(i,1) + axis_(i,n,2,0)*s(i,2);
         auto dot2 = axis_(i,n,0,1)*s(i,0) + axis_(i,n,1,1)*s(i,1) + axis_(i,n,2,1)*s(i,2);
-        auto dot3 = axis_(i,n,0,2)*s(i,0) + axis_(i,n,1,2)*s(i,1) + axis_(i,n,2,2)*s(i,2);
+        auto dot3 = axis_(i,n,0,2)*s(i,0) + axis_(i,n,1,2)*s(i,1) + axis_(i,n,2,2)*s(i,2);*/
 
 //        if(power_(i, n) == 1) {
             energy += -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2) + pow(dot2,2)*pow(dot3,2) + pow(dot3,2)*pow(dot1,2));
