@@ -43,9 +43,9 @@ unsigned anisotropy_power_from_name_cube(const string name) {
 //Need to remove use of a defined axis. This might be able to become the distortion term for Mai
 AnisotropySetting read_anisotropy_setting_cube(Setting &setting) {
     if (setting.isList()) {
-//        Vec3 axis1 = {setting[1][0], setting[1][1], setting[1][2]};
-//        Vec3 axis2 = {setting[2][0], setting[2][1], setting[2][2]};
-//        Vec3 axis3 = {setting[3][0], setting[3][1], setting[3][2]};
+        Vec3 axis1 = {setting[1][0], setting[1][1], setting[1][2]};
+        Vec3 axis2 = {setting[2][0], setting[2][1], setting[2][2]};
+        Vec3 axis3 = {setting[3][0], setting[3][1], setting[3][2]};
         return AnisotropySetting{anisotropy_power_from_name_cube(setting.getParent().getName()), setting[0], normalize(axis1), normalize(axis2), normalize(axis3)};
     }
     if (setting.isScalar()) {
@@ -86,7 +86,7 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
     for (auto type = 0; type < lattice->num_materials(); ++type) {
         std::cout << "  " << lattice->material_name(type) << ":\n";
         for (const auto& ani : anisotropies[type]) {
-            std::cout << "    " << ani.power << "  " << ani.energy << "\n";
+            std::cout << "    " << ani.axis1 << "  " << ani.axis2 << "  " << ani.axis3 << "  " ani.power << "  " << ani.energy << "\n";
         }
     }
 
