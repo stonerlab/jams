@@ -134,10 +134,6 @@ double CubicHamiltonian::calculate_one_spin_energy(const int i) {
         if(power_(i, n) == 2){
             energy += -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
         }
-        else{
-            std::cout << power_(i,n);
-            throw runtime_error("Power doesn't work as an index");
-        }
     }
 
     return energy;
