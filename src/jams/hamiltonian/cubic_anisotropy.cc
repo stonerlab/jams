@@ -9,6 +9,7 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/hamiltonian/cubic_anisotropy.h"
+#include <ostream>
 
 using libconfig::Setting;
 using std::vector;
