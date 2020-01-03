@@ -135,6 +135,7 @@ double CubicHamiltonian::calculate_one_spin_energy(const int i) {
             energy += -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
         }
         else{
+            cout >> power_(i,n);
             throw runtime_error("Power doesn't work as an index");
         }
     }
