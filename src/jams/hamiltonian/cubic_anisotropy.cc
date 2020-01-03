@@ -155,9 +155,6 @@ double CubicHamiltonian::calculate_one_spin_energy_difference(const int i, const
         if(power_(i, n) == 2){
             e_initial = -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
         }
-        else{
-            throw runtime_error("Cubic initial spin difference error");
-        }
     }
 
     for (auto n = 0; n < num_coefficients_; ++n) {
@@ -170,9 +167,6 @@ double CubicHamiltonian::calculate_one_spin_energy_difference(const int i, const
         }
         if(power_(i, n) == 2){
             e_final = -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
-        }
-        else{
-            throw runtime_error("Cubic initial spin difference error");
         }
     }
 
@@ -225,10 +219,6 @@ void CubicHamiltonian::calculate_one_spin_field(const int i, double local_field[
                                                             axis_(i, n, j, 2))));
             }
         }
-
-        else{
-            throw runtime_error("Cubic one_spin_field fails");
-        }
     }
 }
 
@@ -270,10 +260,6 @@ void CubicHamiltonian::calculate_fields() {
                                                                (axis_(i, n, j, 0) + axis_(i, n, j, 1) +
                                                                 axis_(i, n, j, 2))));
                 }
-            }
-
-            else{
-                throw runtime_error("Cubic total_field fails");
             }
         }
     }
