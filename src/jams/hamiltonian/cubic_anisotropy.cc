@@ -35,26 +35,26 @@ struct AnisotropySetting {
     Vec3     axis3;
 };
 
-unsigned anisotropy_power_from_name(const string name) {
+unsigned anisotropy_power_from_name_cube(const string name) {
     if (name == "K1") return 1;
     if (name == "K2") return 2;
     throw runtime_error("Unsupported anisotropy: " + name);
 }
 //Need to remove use of a defined axis. This might be able to become the distortion term for Mai
-AnisotropySetting read_anisotropy_setting(Setting &setting) {
+AnisotropySetting read_anisotropy_setting_cube(Setting &setting) {
     if (setting.isList()) {
         Vec3 axis1 = {setting[1][0], setting[1][1], setting[1][2]};
         Vec3 axis2 = {setting[2][0], setting[2][1], setting[2][2]};
         Vec3 axis3 = {setting[3][0], setting[3][1], setting[3][2]};
-        return AnisotropySetting{anisotropy_power_from_name(setting.getParent().getName()), setting[0], normalize(axis1), normalize(axis2), normalize(axis3)};
+        return AnisotropySetting{anisotropy_power_from_name_cube(setting.getParent().getName()), setting[0], normalize(axis1), normalize(axis2), normalize(axis3)};
     }
     if (setting.isScalar()) {
-        return AnisotropySetting{anisotropy_power_from_name(setting.getParent().getName()), setting, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+        return AnisotropySetting{anisotropy_power_from_name_cube(setting.getParent().getName()), setting, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
     }
     throw runtime_error("Incorrectly formatted anisotropy setting");
 }
 
-vector<vector<AnisotropySetting>> read_all_anisotropy_settings(const Setting &settings) {
+vector<vector<AnisotropySetting>> read_all_anisotropy_settings_cube(const Setting &settings) {
     vector<vector<AnisotropySetting>> anisotropies(lattice->num_materials());
     auto anisotropy_names = {"K1", "K2"};
     for (const auto name : anisotropy_names) {
@@ -81,7 +81,7 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
     //            "CubicHamiltonian: anisotropy should only be specified in terms of K1, K2, K3 maybe you want UniaxialCoefficientHamiltonian?");
     //}
 
-    auto anisotropies = read_all_anisotropy_settings(settings);
+    auto anisotropies = read_all_anisotropy_settings_cube(settings);
 
     for (auto type = 0; type < lattice->num_materials(); ++type) {
         std::cout << "  " << lattice->material_name(type) << ":\n";
