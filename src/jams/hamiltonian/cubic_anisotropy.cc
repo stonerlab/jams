@@ -64,7 +64,7 @@ vector<vector<AnisotropySetting>> read_all_anisotropy_settings_cube(const Settin
             }
 
             for (auto i = 0; i < settings[name].getLength(); ++i) {
-                anisotropies[i].push_back(read_anisotropy_setting(settings[name][i]));
+                anisotropies[i].push_back(read_anisotropy_setting_cube(settings[name][i]));
             }
         }
     }
