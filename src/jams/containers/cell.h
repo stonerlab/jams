@@ -54,6 +54,13 @@ public:
     inline Mat3 matrix() const {return matrix_;}
     inline Mat3 inverse_matrix() const {return inverse_matrix_;}
 
+    inline Vec3 cartesian_to_fractional(Vec3 xyz) const {return inverse_matrix_ * xyz;}
+    inline Vec3 fractional_to_cartesian(Vec3 hkl) const {return matrix_ * hkl;}
+
+    inline Vec3 inv_cartesian_to_fractional(Vec3 inv_xyz) const {return transpose(matrix_) * inv_xyz;}
+    inline Vec3 inv_fractional_to_cartesian(Vec3 inv_hkl) const {return transpose(inverse_matrix_) * inv_hkl;}
+
+
 protected:
     bool classify_orthogonal_basis() const;
     jams::LatticeSystem classify_lattice_system(const double& angle_eps = 1e-5) const;
