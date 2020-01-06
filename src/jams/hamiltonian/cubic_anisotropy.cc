@@ -41,7 +41,7 @@ unsigned anisotropy_power_from_name_cube(const string name) {
     throw runtime_error("Unsupported anisotropy: " + name);
 }
 //Need to remove use of a defined axis. This might be able to become the distortion term for Mai
-AnisotropySetting read_anisotropy_setting_cube(Setting &setting) {
+AnisotropySetting_cube read_anisotropy_setting_cube(Setting &setting) {
     if (setting.isList()) {
         Vec3 axis1 = {setting[1][0], setting[1][1], setting[1][2]};
         Vec3 axis2 = {setting[2][0], setting[2][1], setting[2][2]};
@@ -69,7 +69,7 @@ vector<vector<AnisotropySetting_cube>> read_all_anisotropy_settings_cube(const S
         }
     }
     // the array indicies are (type, power)
-    return anisotropies;
+    return anisotropies_cube;
 }
 
 CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int num_spins)
