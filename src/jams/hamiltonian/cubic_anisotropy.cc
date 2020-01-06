@@ -63,7 +63,7 @@ vector<vector<AnisotropySetting_cube>> read_all_anisotropy_settings_cube(const S
                 throw runtime_error("CubicHamiltonian: " + string(name) + "  must be specified for every material");
             }
 
-            if (settings[name].getLength() < lattice->num_materials()) {
+            if (settings[name].getLength() > lattice->num_materials()) {
                 throw runtime_error("CubicHamiltonian: " + string(name) + "  is specified for too many materials");
             }
 
