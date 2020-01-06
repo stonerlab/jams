@@ -334,7 +334,7 @@ void Lattice::read_materials_from_config(const libconfig::Setting &settings) {
 
     materials_.insert(material.name, material);
 
-    cout << "    " << material.id << " " << material.name << "\n";
+    cout << "    " << i << " " << material.name << "\n";
   }
 
   cout << "\n";
