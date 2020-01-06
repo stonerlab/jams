@@ -37,6 +37,10 @@ public:
     inline Vec3 b() const { return {matrix_[0][1], matrix_[1][1], matrix_[2][1]}; }
     inline Vec3 c() const { return {matrix_[0][2], matrix_[1][2], matrix_[2][2]}; }
 
+    inline Vec3 a_inv() const { return inverse_matrix_[0]; }
+    inline Vec3 b_inv() const { return inverse_matrix_[1]; }
+    inline Vec3 c_inv() const { return inverse_matrix_[2]; }
+
     inline double alpha() const {return rad_to_deg(angle(b(), c()));}
     inline double beta() const {return rad_to_deg(angle(c(), a()));}
     inline double gamma() const {return rad_to_deg(angle(a(), b()));}
