@@ -254,11 +254,11 @@ void CubicHamiltonian::calculate_fields() {
                                                                (axis_cube(i, n, j, 0) + axis_cube(i, n, j, 1) +
                                                                 axis_cube(i, n, j, 2))));
                     field_(i,j) += 2 * magnitude_(i, n) * ((dot2 * pow(dot1, 2) * pow(dot3, 2) *
-                                                               (axis_cube(i, n, j, 0) + axis_(i, n, j, 1) +
-                                                                axis_(i, n, j, 2))));
+                                                               (axis_cube(i, n, j, 0) + axis_cube(i, n, j, 1) +
+                                                                axis_cube(i, n, j, 2))));
                     field_(i,j) += 2 * magnitude_(i, n) * ((dot3 * pow(dot2, 2) * pow(dot1, 2) *
-                                                               (axis_(i, n, j, 0) + axis_(i, n, j, 1) +
-                                                                axis_(i, n, j, 2))));
+                                                               (axis_cube(i, n, j, 0) + axis_cube(i, n, j, 1) +
+                                                                axis_cube(i, n, j, 2))));
                 }
             }
         }
