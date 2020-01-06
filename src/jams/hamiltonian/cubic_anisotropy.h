@@ -16,14 +16,14 @@ public:
     CubicHamiltonian(const libconfig::Setting &settings, const unsigned int size);
     ~CubicHamiltonian() {};
 
-    double calculate_total_energy();
-    double calculate_one_spin_energy(const int i);
-    double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final);
+    double calculate_total_energy_cube();
+    double calculate_one_spin_energy_cube(const int i);
+    double calculate_one_spin_energy_difference_cube(const int i, const Vec3 &spin_initial, const Vec3 &spin_final);
 
-    void   calculate_energies();
+    void   calculate_energies_cube();
 
-    void   calculate_one_spin_field(const int i, double h[3]);
-    void   calculate_fields();
+    void   calculate_one_spin_field_cube(const int i, double h[3]);
+    void   calculate_fields_cube();
 private:
     unsigned num_coefficients_ = 0;
     jams::MultiArray<unsigned, 2> power_;
