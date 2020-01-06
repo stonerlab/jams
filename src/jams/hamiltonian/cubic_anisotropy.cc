@@ -35,7 +35,7 @@ struct AnisotropySetting_cube {
     Vec3     axis3;
 };
 
-unsigned anisotropy_power_from_name_cube(const string name) {
+unsigned anisotropy_power_from_name(const string name) {
     if (name == "K1") return 1; // This is outputted correctly
     if (name == "K2") return 2;
     throw runtime_error("Unsupported anisotropy: " + name);
@@ -111,15 +111,15 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
 }
 
 
-double CubicHamiltonian::calculate_total_energy_cube() {
+double CubicHamiltonian::calculate_total_energy() {
     double e_total = 0.0;
     for (int i = 0; i < energy_.size(); ++i) {
-        e_total += calculate_one_spin_energy_cube(i);
+        e_total += calculate_one_spin_energy(i);
     }
     return e_total;
 }
 
-double CubicHamiltonian::calculate_one_spin_energy_cube(const int i) {
+double CubicHamiltonian::calculate_one_spin_energy(const int i) {
     using namespace globals;
     double energy = 0.0;
 
@@ -142,7 +142,7 @@ double CubicHamiltonian::calculate_one_spin_energy_cube(const int i) {
     return energy;
 }
 
-double CubicHamiltonian::calculate_one_spin_energy_difference_cube(const int i, const Vec3 &spin_initial,
+double CubicHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial,
                                                               const Vec3 &spin_final) {
     double e_initial = 0.0;
     double e_final = 0.0;
@@ -176,13 +176,13 @@ double CubicHamiltonian::calculate_one_spin_energy_difference_cube(const int i, 
     return e_final - e_initial;
 }
 
-void CubicHamiltonian::calculate_energies_cube() {
+void CubicHamiltonian::calculate_energies() {
     for (int i = 0; i < energy_.size(); ++i) {
-        energy_(i) = calculate_one_spin_energy_cube(i);
+        energy_(i) = calculate_one_spin_energy(i);
     }
 }
 
-void CubicHamiltonian::calculate_one_spin_field_cube(const int i, double local_field[3]) {
+void CubicHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
     using namespace globals;
     local_field[0] = 0.0;
     local_field[1] = 0.0;
@@ -225,7 +225,7 @@ void CubicHamiltonian::calculate_one_spin_field_cube(const int i, double local_f
     }*/
 }
 
-void CubicHamiltonian::calculate_fields_cube() {
+void CubicHamiltonian::calculate_fields() {
     using namespace globals;
     field_.zero();
 
