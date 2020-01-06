@@ -377,8 +377,8 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
   }
 
   cout << "  unit cell\n";
-  cout << "    parameter " << lattice_parameter << "\n";
-  cout << "    volume " << this->volume() << "\n";
+  cout << "    parameter " << jams::fmt::sci << lattice_parameter << " (m)\n";
+  cout << "    volume " << jams::fmt::sci << this->volume() << " (m^3)\n";
   cout << "\n";
 
   cout << "    unit cell vectors\n";
@@ -410,7 +410,7 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
   supercell = scale(Cell(unitcell.matrix(), lattice_periodic), lattice_dimensions);
 
   cout << "  lattice\n";
-  cout << "    size " << lattice_dimensions << "\n";
+  cout << "    size " << lattice_dimensions << " (unit cells)\n";
   cout << "    periodic " << lattice_periodic << "\n";
   cout << "\n";
 
@@ -660,7 +660,10 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
   cout << "  computed lattice positions " << atom_counter << "\n";
   for (auto i = 0; i < atoms_.size(); ++i) {
-    cout << i << " " << materials_.name(atoms_[i].material_index) << " " << atoms_[i].position << " " << cell_offset(i) << "\n";
+    cout << "    " << jams::fmt::fixed_integer << i << " ";
+    cout << std::setw(8) << materials_.name(atoms_[i].material_index) << " ";
+    cout << jams::fmt::decimal << atoms_[i].position << " ";
+    cout << jams::fmt::fixed_integer << cell_offset(i) << "\n";
     if(!verbose_is_enabled() && i > 7) {
       cout << "    ... [use verbose output for details] ... \n";
       break;
@@ -892,9 +895,9 @@ void Lattice::calc_symmetry_operations() {
 
     for (int i = 0; i < 3; ++i) {
       cout << "    ";
-      cout << primitive_lattice[i][0] << " ";
-      cout << primitive_lattice[i][1] << " ";
-      cout << primitive_lattice[i][2] << "\n";
+      cout << jams::fmt::decimal << primitive_lattice[i][0] << " ";
+      cout << jams::fmt::decimal << primitive_lattice[i][1] << " ";
+      cout << jams::fmt::decimal << primitive_lattice[i][2] << "\n";
     }
     cout << "\n";
     cout << "    primitive motif positions:\n";
