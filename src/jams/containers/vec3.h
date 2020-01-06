@@ -288,9 +288,10 @@ Vec<T, N> normalize_components(const Vec<T, N>& x) {
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const Vec<T,3> &a) {
   auto w = os.width();
-  os << std::right << std::setw(w) << a[0] << " ";
-  os << std::right << std::setw(w) << a[1] << " ";
-  os << std::right << std::setw(w) << a[2];
+  auto p = os.precision();
+  os << std::right << std::setprecision(p) << std::setw(w) << a[0] << " ";
+  os << std::right << std::setprecision(p) << std::setw(w) << a[1] << " ";
+  os << std::right << std::setprecision(p) << std::setw(w) << a[2];
   return os;
 }
 
