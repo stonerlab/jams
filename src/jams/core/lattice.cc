@@ -70,9 +70,15 @@ namespace {
     }
 
     void output_unitcell_vectors(const Cell& cell) {
-      cout << "    a = " << cell.a() << "\n";
-      cout << "    b = " << cell.b() << "\n";
-      cout << "    c = " << cell.c() << "\n";
+      cout << "    a = " << jams::fmt::decimal << cell.a() << "\n";
+      cout << "    b = " << jams::fmt::decimal << cell.b() << "\n";
+      cout << "    c = " << jams::fmt::decimal << cell.c() << "\n";
+    }
+
+    void output_unitcell_inverse_vectors(const Cell& cell) {
+      cout << "    a_inv = " << jams::fmt::decimal << cell.a_inv() << "\n";
+      cout << "    b_inv = " << jams::fmt::decimal << cell.b_inv() << "\n";
+      cout << "    c_inv = " << jams::fmt::decimal << cell.c_inv() << "\n";
     }
 }
 
@@ -334,7 +340,7 @@ void Lattice::read_materials_from_config(const libconfig::Setting &settings) {
 
     materials_.insert(material.name, material);
 
-    cout << "    " << material.id << " " << material.name << "\n";
+    cout << "    " << i << " " << material.name << "\n";
   }
 
   cout << "\n";
@@ -371,8 +377,8 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
   }
 
   cout << "  unit cell\n";
-  cout << "    parameter " << lattice_parameter << "\n";
-  cout << "    volume " << this->volume() << "\n";
+  cout << "    parameter " << jams::fmt::sci << lattice_parameter << " (m)\n";
+  cout << "    volume " << jams::fmt::sci << this->volume() << " (m^3)\n";
   cout << "\n";
 
   cout << "    unit cell vectors\n";
@@ -382,13 +388,17 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
   cout << "    unit cell (matrix form)\n";
 
   for (auto i = 0; i < 3; ++i) {
-    cout << "    " << unitcell.matrix()[i] << "\n";
+    cout << "    " << jams::fmt::decimal << unitcell.matrix()[i] << "\n";
   }
+  cout << "\n";
+
+  cout << "    unit cell inverse vectors\n";
+  output_unitcell_inverse_vectors(unitcell);
   cout << "\n";
 
   cout << "    inverse unit cell (matrix form)\n";
   for (auto i = 0; i < 3; ++i) {
-    cout << "    " << unitcell.inverse_matrix()[i] << "\n";
+    cout << "    " << jams::fmt::decimal << unitcell.inverse_matrix()[i] << "\n";
   }
   cout << "\n";
 }
@@ -400,7 +410,7 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
   supercell = scale(Cell(unitcell.matrix(), lattice_periodic), lattice_dimensions);
 
   cout << "  lattice\n";
-  cout << "    size " << lattice_dimensions << "\n";
+  cout << "    size " << lattice_dimensions << " (unit cells)\n";
   cout << "    periodic " << lattice_periodic << "\n";
   cout << "\n";
 
@@ -491,6 +501,9 @@ void Lattice::global_rotation(const Mat3& rotation_matrix) {
   cout << "  global rotated lattice vectors\n";
   output_unitcell_vectors(unitcell);
   cout << "\n";
+  cout << "  global rotated inverse vectors\n";
+  output_unitcell_inverse_vectors(unitcell);
+  cout << "\n";
 }
 
 void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
@@ -527,6 +540,10 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
 
   cout << "  oriented lattice vectors\n";
   output_unitcell_vectors(unitcell);
+  cout << "\n";
+
+  cout << "  oriented inverse vectors\n";
+  output_unitcell_inverse_vectors(unitcell);
   cout << "\n";
 }
 
@@ -643,7 +660,10 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
   cout << "  computed lattice positions " << atom_counter << "\n";
   for (auto i = 0; i < atoms_.size(); ++i) {
-    cout << i << " " << materials_.name(atoms_[i].material_index) << " " << atoms_[i].position << " " << cell_offset(i) << "\n";
+    cout << "    " << jams::fmt::fixed_integer << i << " ";
+    cout << std::setw(8) << materials_.name(atoms_[i].material_index) << " ";
+    cout << jams::fmt::decimal << atoms_[i].position << " ";
+    cout << jams::fmt::fixed_integer << cell_offset(i) << "\n";
     if(!verbose_is_enabled() && i > 7) {
       cout << "    ... [use verbose output for details] ... \n";
       break;
@@ -875,9 +895,9 @@ void Lattice::calc_symmetry_operations() {
 
     for (int i = 0; i < 3; ++i) {
       cout << "    ";
-      cout << primitive_lattice[i][0] << " ";
-      cout << primitive_lattice[i][1] << " ";
-      cout << primitive_lattice[i][2] << "\n";
+      cout << jams::fmt::decimal << primitive_lattice[i][0] << " ";
+      cout << jams::fmt::decimal << primitive_lattice[i][1] << " ";
+      cout << jams::fmt::decimal << primitive_lattice[i][2] << "\n";
     }
     cout << "\n";
     cout << "    primitive motif positions:\n";

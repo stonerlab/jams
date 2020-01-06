@@ -111,6 +111,7 @@ namespace jams {
 
     void initialize_simulation(const jams::ProgramArgs &program_args) {
       jams::desync_io();
+      cout << std::boolalpha;
       cout << jams::header();
 
       jams::Simulation simulation;

@@ -92,7 +92,7 @@ vector<HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const vector<Vec3
     for (auto i = 0; i < num_coordinates; ++i) {
       // map an arbitrary coordinate into the limited k indicies of the reduced brillouin zone
       Vec3 hkl = scale(coordinate, 1.0/to_double(kspace_size));
-      Vec3 xyz = lattice->get_unitcell().inverse_matrix() * hkl;
+      Vec3 xyz = lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
       hkl_path.push_back(HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
 
       coordinate += delta;

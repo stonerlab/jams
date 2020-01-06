@@ -15,6 +15,10 @@ namespace jams {
           return os << std::fixed;
         }
 
+        inline std::ostream &fixed_integer(std::ostream &os) {
+          return os << std::fixed << std::setw(8);
+        }
+
         inline std::ostream &decimal(std::ostream &os) {
           return os << std::setprecision(6) << std::setw(12) << std::fixed;
         }
