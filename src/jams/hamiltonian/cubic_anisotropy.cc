@@ -93,7 +93,7 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
     num_coefficients_ = anisotropies_cube[0].size();
 
     power_.resize(num_spins, anisotropies_cube[0].size());
-    axis_.resize(num_spins, anisotropies_cube[0].size(), 3, 3); //Added in another dimension of size 3
+    axis_.resize(num_spins, anisotropies_cube[0].size(), 3)//, 3); //Added in another dimension of size 3
     magnitude_.resize(num_spins, anisotropies_cube[0].size());
 
     for (int i = 0; i < globals::num_spins; ++i) {
