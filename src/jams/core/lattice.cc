@@ -70,9 +70,15 @@ namespace {
     }
 
     void output_unitcell_vectors(const Cell& cell) {
-      cout << "    a = " << cell.a() << "\n";
-      cout << "    b = " << cell.b() << "\n";
-      cout << "    c = " << cell.c() << "\n";
+      cout << "    a = " << jams::fmt::decimal << cell.a() << "\n";
+      cout << "    b = " << jams::fmt::decimal << cell.b() << "\n";
+      cout << "    c = " << jams::fmt::decimal << cell.c() << "\n";
+    }
+
+    void output_unitcell_inverse_vectors(const Cell& cell) {
+      cout << "    a_inv = " << jams::fmt::decimal << cell.a_inv() << "\n";
+      cout << "    b_inv = " << jams::fmt::decimal << cell.b_inv() << "\n";
+      cout << "    c_inv = " << jams::fmt::decimal << cell.c_inv() << "\n";
     }
 }
 
@@ -382,13 +388,17 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
   cout << "    unit cell (matrix form)\n";
 
   for (auto i = 0; i < 3; ++i) {
-    cout << "    " << unitcell.matrix()[i] << "\n";
+    cout << "    " << jams::fmt::decimal << unitcell.matrix()[i] << "\n";
   }
+  cout << "\n";
+
+  cout << "    unit cell inverse vectors\n";
+  output_unitcell_inverse_vectors(unitcell);
   cout << "\n";
 
   cout << "    inverse unit cell (matrix form)\n";
   for (auto i = 0; i < 3; ++i) {
-    cout << "    " << unitcell.inverse_matrix()[i] << "\n";
+    cout << "    " << jams::fmt::decimal << unitcell.inverse_matrix()[i] << "\n";
   }
   cout << "\n";
 }
@@ -491,6 +501,9 @@ void Lattice::global_rotation(const Mat3& rotation_matrix) {
   cout << "  global rotated lattice vectors\n";
   output_unitcell_vectors(unitcell);
   cout << "\n";
+  cout << "  global rotated inverse vectors\n";
+  output_unitcell_inverse_vectors(unitcell);
+  cout << "\n";
 }
 
 void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
@@ -527,6 +540,10 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
 
   cout << "  oriented lattice vectors\n";
   output_unitcell_vectors(unitcell);
+  cout << "\n";
+
+  cout << "  oriented inverse vectors\n";
+  output_unitcell_inverse_vectors(unitcell);
   cout << "\n";
 }
 
