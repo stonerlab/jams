@@ -35,7 +35,7 @@ struct AnisotropySetting_cube {
     Vec3     axis3;
 };
 
-unsigned anisotropy_power_from_name(const string name) {
+unsigned anisotropy_power_from_name_cube(const string name) {
     if (name == "K1") return 1; // This is outputted correctly
     if (name == "K2") return 2;
     throw runtime_error("Unsupported anisotropy: " + name);
