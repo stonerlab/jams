@@ -132,12 +132,12 @@ double CubicHamiltonian::calculate_one_spin_energy(const int i) {
         auto dot2 = axis_cube(i,n,0,1)*s(i,0) + axis_cube(i,n,1,1)*s(i,1) + axis_cube(i,n,2,1)*s(i,2);
         auto dot3 = axis_cube(i,n,0,2)*s(i,0) + axis_cube(i,n,1,2)*s(i,1) + axis_cube(i,n,2,2)*s(i,2);
 
-//        if(power_(i, n) == 1) {
+        if(power_(i, n) == 1) {
             energy += -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2) + pow(dot2,2)*pow(dot3,2) + pow(dot3,2)*pow(dot1,2));
-//        }
-//        if(power_(i, n) == 2){
-//            energy += -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
-//        }
+        }
+        if(power_(i, n) == 2){
+            energy += -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
+        }
     }
 
     return energy;
@@ -195,13 +195,13 @@ void CubicHamiltonian::calculate_one_spin_field(const int i, double local_field[
             auto dot2 = axis_cube(i, n, 0, 1) * s(i, 0) + axis_cube(i, n, 1, 1) * s(i, 1) + axis_cube(i, n, 2, 1) * s(i, 2);
             auto dot3 = axis_cube(i, n, 0, 2) * s(i, 0) + axis_cube(i, n, 1, 2) * s(i, 1) + axis_cube(i, n, 2, 2) * s(i, 2);
             for (auto j = 0; j < 3; ++j) {
-                local_field[j] += 2 * magnitude_(i, n) * ((pow(dot2, 2) + pow(dot3, 2)) * (dot1 * (axis_cube(i, n, j, 0) +
+                local_field[j] += 2.0 * magnitude_(i, n) * ((pow(dot2, 2) + pow(dot3, 2)) * (dot1 * (axis_cube(i, n, j, 0) +
                                                                                                    axis_cube(i, n, j, 1) +
                                                                                                    axis_cube(i, n, j, 2))));
-                local_field[j] += 2 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot3, 2)) * (dot2 * (axis_cube(i, n, j, 0) +
+                local_field[j] += 2.0 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot3, 2)) * (dot2 * (axis_cube(i, n, j, 0) +
                                                                                                    axis_cube(i, n, j, 1) +
                                                                                                    axis_cube(i, n, j, 2))));
-                local_field[j] += 2 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot2, 2)) * (dot3 * (axis_cube(i, n, j, 0) +
+                local_field[j] += 2.0 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot2, 2)) * (dot3 * (axis_cube(i, n, j, 0) +
                                                                                                    axis_cube(i, n, j, 1) +
                                                                                                    axis_cube(i, n, j, 2))));
             }
@@ -212,13 +212,13 @@ void CubicHamiltonian::calculate_one_spin_field(const int i, double local_field[
             auto dot2 = axis_cube(i, n, 0, 1) * s(i, 0) + axis_cube(i, n, 1, 1) * s(i, 1) + axis_cube(i, n, 2, 1) * s(i, 2);
             auto dot3 = axis_cube(i, n, 0, 2) * s(i, 0) + axis_cube(i, n, 1, 2) * s(i, 1) + axis_cube(i, n, 2, 2) * s(i, 2);
             for (auto j = 0; j < 3; ++j) {
-                local_field[j] += 2 * magnitude_(i, n) * ((dot1 * pow(dot2, 2) * pow(dot3, 2) *
+                local_field[j] += 2.0 * magnitude_(i, n) * ((dot1 * pow(dot2, 2) * pow(dot3, 2) *
                                                            (axis_cube(i, n, j, 0) + axis_cube(i, n, j, 1) +
                                                             axis_cube(i, n, j, 2))));
-                local_field[j] += 2 * magnitude_(i, n) * ((dot2 * pow(dot1, 2) * pow(dot3, 2) *
+                local_field[j] += 2.0 * magnitude_(i, n) * ((dot2 * pow(dot1, 2) * pow(dot3, 2) *
                                                            (axis_cube(i, n, j, 0) + axis_cube(i, n, j, 1) +
                                                             axis_cube(i, n, j, 2))));
-                local_field[j] += 2 * magnitude_(i, n) * ((dot3 * pow(dot2, 2) * pow(dot1, 2) *
+                local_field[j] += 2.0 * magnitude_(i, n) * ((dot3 * pow(dot2, 2) * pow(dot1, 2) *
                                                            (axis_cube(i, n, j, 0) + axis_cube(i, n, j, 1) +
                                                             axis_cube(i, n, j, 2))));
             }
@@ -237,13 +237,13 @@ void CubicHamiltonian::calculate_fields() {
                 auto dot2 = axis_cube(i, n, 0, 1) * s(i, 0) + axis_cube(i, n, 1, 1) * s(i, 1) + axis_cube(i, n, 2, 1) * s(i, 2);
                 auto dot3 = axis_cube(i, n, 0, 2) * s(i, 0) + axis_cube(i, n, 1, 2) * s(i, 1) + axis_cube(i, n, 2, 2) * s(i, 2);
                 for (auto j = 0; j < 3; ++j) {
-                    field_(i,j) += 2 * magnitude_(i, n) * ((pow(dot2, 2) + pow(dot3, 2)) * (dot1 * (axis_cube(i, n, j, 0) +
+                    field_(i,j) += 2.0 * magnitude_(i, n) * ((pow(dot2, 2) + pow(dot3, 2)) * (dot1 * (axis_cube(i, n, j, 0) +
                                                                                                        axis_cube(i, n, j, 1) +
                                                                                                        axis_cube(i, n, j, 2))));
-                    field_(i,j) += 2 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot3, 2)) * (dot2 * (axis_cube(i, n, j, 0) +
+                    field_(i,j) += 2.0 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot3, 2)) * (dot2 * (axis_cube(i, n, j, 0) +
                                                                                                        axis_cube(i, n, j, 1) +
                                                                                                        axis_cube(i, n, j, 2))));
-                    field_(i,j) += 2 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot2, 2)) * (dot3 * (axis_cube(i, n, j, 0) +
+                    field_(i,j) += 2.0 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot2, 2)) * (dot3 * (axis_cube(i, n, j, 0) +
                                                                                                        axis_cube(i, n, j, 1) +
                                                                                                        axis_cube(i, n, j, 2))));
                 }
@@ -254,13 +254,13 @@ void CubicHamiltonian::calculate_fields() {
                 auto dot2 = axis_cube(i, n, 0, 1) * s(i, 0) + axis_cube(i, n, 1, 1) * s(i, 1) + axis_cube(i, n, 2, 1) * s(i, 2);
                 auto dot3 = axis_cube(i, n, 0, 2) * s(i, 0) + axis_cube(i, n, 1, 2) * s(i, 1) + axis_cube(i, n, 2, 2) * s(i, 2);
                 for (auto j = 0; j < 3; ++j) {
-                    field_(i,j) += 2 * magnitude_(i, n) * ((dot1 * pow(dot2, 2) * pow(dot3, 2) *
+                    field_(i,j) += 2.0 * magnitude_(i, n) * ((dot1 * pow(dot2, 2) * pow(dot3, 2) *
                                                                (axis_cube(i, n, j, 0) + axis_cube(i, n, j, 1) +
                                                                 axis_cube(i, n, j, 2))));
-                    field_(i,j) += 2 * magnitude_(i, n) * ((dot2 * pow(dot1, 2) * pow(dot3, 2) *
+                    field_(i,j) += 2.0 * magnitude_(i, n) * ((dot2 * pow(dot1, 2) * pow(dot3, 2) *
                                                                (axis_cube(i, n, j, 0) + axis_cube(i, n, j, 1) +
                                                                 axis_cube(i, n, j, 2))));
-                    field_(i,j) += 2 * magnitude_(i, n) * ((dot3 * pow(dot2, 2) * pow(dot1, 2) *
+                    field_(i,j) += 2.0 * magnitude_(i, n) * ((dot3 * pow(dot2, 2) * pow(dot1, 2) *
                                                                (axis_cube(i, n, j, 0) + axis_cube(i, n, j, 1) +
                                                                 axis_cube(i, n, j, 2))));
                 }
