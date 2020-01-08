@@ -1,8 +1,5 @@
 #include "jams/cuda/cuda_device_vector_ops.h"
 
-__device__ double dot(const double3 &a, const double3 &b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
 
 __global__ void cuda_cubic_energy_kernel(const int num_spins, const int num_coefficients, const unsigned * power,
                                             const double * magnitude, const double3 * axis, const double * dev_s, double * dev_e) {
