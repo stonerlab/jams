@@ -66,9 +66,8 @@ namespace jams {
       return line.replace(1, name.size() + 1, name + " ");
     }
 
-    string header() {
+    string build_info() {
       stringstream ss;
-      ss << "\nJAMS++ " << jams::build::version << "\n";
       ss << "  commit     " << jams::build::hash << "\n";
       ss << "  branch     " << jams::build::branch << "\n";
       ss << "  build      " << jams::build::type << "\n";
@@ -100,8 +99,12 @@ namespace jams {
       ss << "  cufft   " << "\n";
       ss << "    " << find_and_replace(jams::build::cufft_libraries, ";", "\n    ") << "\n";
       #endif
+      return ss.str();
+    }
 
-      ss << "\nrun     ";
+    string run_info() {
+      stringstream ss;
+      ss << "time    ";
       ss << get_date_string(std::chrono::system_clock::now()) << "\n";
       #if HAS_OMP
       ss << "threads " << omp_get_max_threads() << "\n";
@@ -110,9 +113,11 @@ namespace jams {
     }
 
     void initialize_simulation(const jams::ProgramArgs &program_args) {
-      jams::desync_io();
-      cout << std::boolalpha;
-      cout << jams::header();
+
+      cout << jams::section("build info") << std::endl;
+      cout << jams::build_info();
+      cout << jams::section("run info") << std::endl;
+      cout << jams::run_info();
 
       jams::Simulation simulation;
 
@@ -121,7 +126,7 @@ namespace jams {
       simulation.name = trim(file_basename(simulation.config_file_name));
 
       seedname = simulation.name;
-      cout << "config  " << simulation.config_file_name << "\n";   // TODO: tee cout also to a log file
+      cout << "config  " << simulation.config_file_name << "\n";
 
       jams::new_global_classes();
 

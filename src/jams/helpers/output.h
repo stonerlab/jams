@@ -8,7 +8,9 @@
 #include <iomanip>
 
 namespace jams {
-    void desync_io();
+    namespace output {
+        void initialise();
+    }
 
     namespace fmt {
         inline std::ostream &integer(std::ostream &os) {
