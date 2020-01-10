@@ -7,9 +7,21 @@
 #include "output.h"
 
 namespace jams {
-    void desync_io() {
-      std::cin.tie(nullptr);
-      std::ios_base::sync_with_stdio(false);
+    namespace output {
+        void desync_io() {
+          std::cin.tie(nullptr);
+          std::ios_base::sync_with_stdio(false);
+        }
+
+        void set_default_cout_flags() {
+          std::cout << std::boolalpha;
+        }
+
+        void initialise() {
+          desync_io();
+          set_default_cout_flags();
+        }
     }
+
 }
 
