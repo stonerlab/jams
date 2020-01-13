@@ -109,6 +109,10 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
                 axis_cube(i, j, 0, k) = anisotropies_cube[type][j].axis1[k];//
                 axis_cube(i, j, 1, k) = anisotropies_cube[type][j].axis2[k];//
                 axis_cube(i, j, 2, k) = anisotropies_cube[type][j].axis3[k];//
+                auto axis_1(i, j, 0, k) = anisotropies_cube[type][j].axis1[k];
+                auto axis_2(i, j, 1, k) = anisotropies_cube[type][j].axis2[k];
+                auto axis_3(i, j, 2, k) = anisotropies_cube[type][j].axis3[k];
+
             }
         }
     }
