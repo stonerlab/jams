@@ -1,6 +1,6 @@
 #include "jams/cuda/cuda_device_vector_ops.h"
 
-__device__ double dot(const double3 &a, const double3 &b) {
+__device__ double dotc(const double3 &a, const double3 &b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
@@ -12,9 +12,9 @@ __global__ void cuda_cubic_energy_kernel(const int num_spins, const int num_coef
         double energy = 0.0;
 
         for (auto n = 0; n < num_coefficients; ++n) {
-            auto s_dot_a = dot(s, axis1[num_coefficients * idx + n]);
-            auto s_dot_b = dot(s, axis2[num_coefficients * idx + n]);
-            auto s_dot_c = dot(s, axis3[num_coefficients * idx + n]);
+            auto s_dot_a = dotc(s, axis1[num_coefficients * idx + n]);
+            auto s_dot_b = dotc(s, axis2[num_coefficients * idx + n]);
+            auto s_dot_c = dotc(s, axis3[num_coefficients * idx + n]);
 
             if (power[num_coefficients * idx + n] == 1){
                 energy += -magnitude[num_coefficients * idx + n] * (pow(s_dot_a, 2) * pow(s_dot_b, 2) + pow(s_dot_b, 2) * pow(s_dot_c, 2) + pow(s_dot_a, 2) * pow(s_dot_c, 2));
