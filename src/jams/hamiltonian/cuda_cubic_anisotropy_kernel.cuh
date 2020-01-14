@@ -5,7 +5,7 @@ __device__ double dotc(const double3 &a, const double3 &b) {
 }
 
 __global__ void cuda_cubic_energy_kernel(const int num_spins, const int num_coefficients, const unsigned * power,
-                                            const double * magnitude, const double4 * axis, const double3 * axis1, const double3 * axis2, const double3 * axis3, const double * dev_s, double * dev_e) {
+                                            const double * magnitude, const double3 * axis1, const double3 * axis2, const double3 * axis3, const double * dev_s, double * dev_e) {
     const int idx = blockIdx.x*blockDim.x+threadIdx.x;
     if (idx < num_spins) {
         const double3 s = {dev_s[3 * idx], dev_s[3 * idx + 1], dev_s[3 * idx + 2]};
@@ -29,8 +29,7 @@ __global__ void cuda_cubic_energy_kernel(const int num_spins, const int num_coef
 }
 
 __global__ void cuda_cubic_field_kernel(const int num_spins, const int num_coefficients, const unsigned * power,
-                                           const double * magnitude, const double * axis, const double * axis1, const double * axis2, const double * axis3, const double * dev_s, double * dev_h) {
-    //Clearly idx is to do with which core on the GPU you're working with
+                                           const double * magnitude, const double * axis1, const double * axis2, const double * axis3, const double * dev_s, double * dev_h) {
     const int idx = blockIdx.x*blockDim.x+threadIdx.x;
     if (idx < num_spins) {
         const double s[3] = {dev_s[3*idx], dev_s[3*idx+1], dev_s[3*idx+2]};
