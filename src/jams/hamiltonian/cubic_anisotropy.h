@@ -27,7 +27,6 @@ public:
 private:
     unsigned num_coefficients_ = 0;
     jams::MultiArray<unsigned, 2> power_;
-    jams::MultiArray<double, 4>   axis_cube; // Changed from 3. Need the fourth item for the three different cubic axes
     jams::MultiArray<double, 3>   axis1_;
     jams::MultiArray<double, 3>   axis2_;
     jams::MultiArray<double, 3>   axis3_;
