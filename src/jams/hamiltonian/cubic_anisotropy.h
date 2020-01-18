@@ -11,7 +11,7 @@
 #include "jams/core/hamiltonian.h"
 
 class CubicHamiltonian : public Hamiltonian {
-    friend class CudaCubicHamiltonian;  // Don't forget to make this
+    friend class CudaCubicHamiltonian;
 public:
     CubicHamiltonian(const libconfig::Setting &settings, const unsigned int size);
     ~CubicHamiltonian() {};
@@ -26,10 +26,10 @@ public:
     void   calculate_fields();
 private:
     unsigned num_coefficients_ = 0;
-    jams::MultiArray<unsigned, 2> power_;
-    jams::MultiArray<double, 3>   axis1_;
-    jams::MultiArray<double, 3>   axis2_;
-    jams::MultiArray<double, 3>   axis3_;
+    jams::MultiArray<unsigned, 2> order_;
+    jams::MultiArray<Vec3, 2>   axis1_;
+    jams::MultiArray<Vec3, 2>   axis2_;
+    jams::MultiArray<Vec3, 2>   axis3_;
     jams::MultiArray<double, 2>   magnitude_;
 };
 

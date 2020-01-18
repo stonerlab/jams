@@ -115,6 +115,11 @@ inline constexpr auto dot(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+template <typename T1, typename T2>
+inline constexpr auto dot_sq(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+    return pow2(dot(a,b));
+}
+
 template <typename T1>
 inline constexpr auto abs(const Vec<T1,3>& a) -> Vec<decltype(std::abs(a[0])), 3> {
   return {std::abs(a[0]), std::abs(a[1]), std::abs(a[2])};

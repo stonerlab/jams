@@ -29,7 +29,7 @@ struct AnisotropySetting {
     Vec3     axis;
 };
 
-unsigned anisotropy_power_from_name(const string name) {
+unsigned cubic_anisotropy_order_from_name(const string name) {
   if (name == "K1") return 2;
   if (name == "K2") return 4;
   if (name == "K3") return 6;
@@ -39,10 +39,10 @@ unsigned anisotropy_power_from_name(const string name) {
 AnisotropySetting read_anisotropy_setting(Setting &setting) {
   if (setting.isList()) {
     Vec3 axis = {setting[1][0], setting[1][1], setting[1][2]};
-    return AnisotropySetting{anisotropy_power_from_name(setting.getParent().getName()), setting[0], normalize(axis)};
+    return AnisotropySetting{cubic_anisotropy_order_from_name(setting.getParent().getName()), setting[0], normalize(axis)};
   }
   if (setting.isScalar()) {
-    return AnisotropySetting{anisotropy_power_from_name(setting.getParent().getName()), setting, {0.0, 0.0, 1.0}};
+    return AnisotropySetting{cubic_anisotropy_order_from_name(setting.getParent().getName()), setting, {0.0, 0.0, 1.0}};
   }
   throw runtime_error("Incorrectly formatted anisotropy setting");
 }

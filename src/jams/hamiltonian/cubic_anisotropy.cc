@@ -27,100 +27,95 @@ using std::runtime_error;
 //          Can add in a check that two are orthogonal similar to the mumax implementation
 // }
 
-struct AnisotropySetting_cube {
-    unsigned power;
-    double   energy;
-    Vec3     axis1;
-    Vec3     axis2;
-    Vec3     axis3;
-};
+namespace {
+    struct AnisotropySetting_cube {
+        unsigned order;
+        double energy;
+        Vec3 axis1;
+        Vec3 axis2;
+        Vec3 axis3;
+    };
 
-unsigned anisotropy_power_from_name_cube(const string name) {
-    if (name == "K1") return 1; // This is outputted correctly
-    if (name == "K2") return 2;
-    throw runtime_error("Unsupported anisotropy: " + name);
-}
-//Need to remove use of a defined axis. This might be able to become the distortion term for Mai
-AnisotropySetting_cube read_anisotropy_setting_cube(Setting &setting) {
-    if (setting.isList()) {
-        Vec3 axis1 = {setting[1][0], setting[1][1], setting[1][2]};
-        Vec3 axis2 = {setting[2][0], setting[2][1], setting[2][2]};
-        Vec3 axis3 = {setting[3][0], setting[3][1], setting[3][2]};
-        return AnisotropySetting_cube{anisotropy_power_from_name_cube(setting.getParent().getName()), setting[0], normalize(axis1), normalize(axis2), normalize(axis3)};
+    unsigned cubic_anisotropy_order_from_name(const string name) {
+        if (name == "K1") return 1; // This is outputted correctly
+        if (name == "K2") return 2;
+        throw runtime_error("Unsupported anisotropy: " + name);
     }
-    if (setting.isScalar()) {
-        return AnisotropySetting_cube{anisotropy_power_from_name_cube(setting.getParent().getName()), setting, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+
+    AnisotropySetting_cube read_anisotropy_setting_cube(Setting &setting) {
+        if (setting.isList()) {
+            Vec3 axis1 = {setting[1][0], setting[1][1], setting[1][2]};
+            Vec3 axis2 = {setting[2][0], setting[2][1], setting[2][2]};
+            Vec3 axis3 = {setting[3][0], setting[3][1], setting[3][2]};
+            return AnisotropySetting_cube{cubic_anisotropy_order_from_name(setting.getParent().getName()), setting[0],
+                                          normalize(axis1), normalize(axis2), normalize(axis3)};
+        }
+        if (setting.isScalar()) {
+            return AnisotropySetting_cube{cubic_anisotropy_order_from_name(setting.getParent().getName()), setting,
+                                          {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+        }
+        throw runtime_error("Incorrectly formatted cubic anisotropy setting");
     }
-    throw runtime_error("Incorrectly formatted anisotropy setting");
-}
 
-vector<vector<AnisotropySetting_cube>> read_all_anisotropy_settings_cube(const Setting &settings) {
-    vector<vector<AnisotropySetting_cube>> anisotropies_cube(lattice->num_materials());
-    auto anisotropy_names_cube = {"K1", "K2"};
-    for (const auto name : anisotropy_names_cube) {
-        if (settings.exists(name)) {
-            if (settings[name].getLength() < lattice->num_materials()) {
-                throw runtime_error("CubicHamiltonian: " + string(name) + "  must be specified for every material");
-            }
+    vector<vector<AnisotropySetting_cube>> read_all_cubic_anisotropy_settings(const Setting &settings) {
+        vector<vector<AnisotropySetting_cube>> cubic_anisotropies(lattice->num_materials());
+        auto anisotropy_cubic_orders = {"K1", "K2"};
+        for (const auto name : anisotropy_cubic_orders) {
+            if (settings.exists(name)) {
+                if (settings[name].getLength() < lattice->num_materials()) {
+                    throw runtime_error("CubicHamiltonian: " + string(name) + "  must be specified for every material");
+                }
 
-            if (settings[name].getLength() > lattice->num_materials()) {
-                throw runtime_error("CubicHamiltonian: " + string(name) + "  is specified for too many materials");
-            }
+                if (settings[name].getLength() > lattice->num_materials()) {
+                    throw runtime_error("CubicHamiltonian: " + string(name) + "  is specified for too many materials");
+                }
 
-            for (auto i = 0; i < settings[name].getLength(); ++i) {
-                anisotropies_cube[i].push_back(read_anisotropy_setting_cube(settings[name][i]));
+                for (auto i = 0; i < settings[name].getLength(); ++i) {
+                    cubic_anisotropies[i].push_back(read_anisotropy_setting_cube(settings[name][i]));
+                }
             }
         }
+        // the array indicies are (type, power)
+        return cubic_anisotropies;
     }
-    // the array indicies are (type, power)
-    return anisotropies_cube;
 }
 
 CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int num_spins)
         : Hamiltonian(settings, num_spins) {
 
-    // check if the old format is being used
-    //if ((settings.exists("d2z") || settings.exists("d4z") || settings.exists("d6z"))) {
-    //    jams_die(
-    //            "CubicHamiltonian: anisotropy should only be specified in terms of K1, K2, K3 maybe you want UniaxialCoefficientHamiltonian?");
-    //}
+    auto cubic_anisotropies = read_all_cubic_anisotropy_settings(settings);
 
-    auto anisotropies_cube = read_all_anisotropy_settings_cube(settings);
-
+    std::cout << " material | axis 1 | axis 2 | axis 3 | order | energy" << "\n";
     for (auto type = 0; type < lattice->num_materials(); ++type) {
-        std::cout << "  " << lattice->material_name(type) << ":\n";
-        for (const auto& ani : anisotropies_cube[type]) {
-            std::cout << "    " << ani.axis1 << "  " << ani.axis2 << "  " << ani.axis3 << "  " << ani.power << "  " << ani.energy << "\n";
+        std::cout << "  " << lattice->material_name(type) << ": ";
+        for (const auto& ani : cubic_anisotropies[type]) {
+            std::cout << "   | [" << ani.axis1 << "] | [" << ani.axis2 << "] | [" << ani.axis3 << "] | " << ani.order << " | " << ani.energy << "\n";
         }
     }
 
-    num_coefficients_ = anisotropies_cube[0].size();
+    num_coefficients_ = cubic_anisotropies[0].size();
 
-    power_.resize(num_spins, anisotropies_cube[0].size());
-    axis1_.resize(num_spins, anisotropies_cube[0].size(), 3);
-    axis2_.resize(num_spins, anisotropies_cube[0].size(), 3);
-    axis3_.resize(num_spins, anisotropies_cube[0].size(), 3);
-    magnitude_.resize(num_spins, anisotropies_cube[0].size());
+    order_.resize(num_spins, cubic_anisotropies[0].size());
+    axis1_.resize(num_spins, cubic_anisotropies[0].size());
+    axis2_.resize(num_spins, cubic_anisotropies[0].size());
+    axis3_.resize(num_spins, cubic_anisotropies[0].size());
+    magnitude_.resize(num_spins, cubic_anisotropies[0].size());
 
-    for (int i = 0; i < globals::num_spins; ++i) {
+    for (auto i = 0; i < globals::num_spins; ++i) {
         auto type = lattice->atom_material_id(i);
-        for (auto j = 0; j < anisotropies_cube[type].size(); ++j) {
-            power_(i, j) = anisotropies_cube[type][j].power;
-            magnitude_(i, j) = anisotropies_cube[type][j].energy * input_unit_conversion_;
-            for (auto k : {0,1,2}) {
-                axis1_(i, j, k) = anisotropies_cube[type][j].axis1[k];
-                axis2_(i, j, k) = anisotropies_cube[type][j].axis2[k];
-                axis3_(i, j, k) = anisotropies_cube[type][j].axis3[k];
-
-            }
+        for (auto j = 0; j < cubic_anisotropies[type].size(); ++j) {
+            order_(i, j) = cubic_anisotropies[type][j].order;
+            magnitude_(i, j) = cubic_anisotropies[type][j].energy * input_unit_conversion_;
+            axis1_(i, j) = cubic_anisotropies[type][j].axis1;
+            axis2_(i, j) = cubic_anisotropies[type][j].axis2;
+            axis3_(i, j) = cubic_anisotropies[type][j].axis3;
         }
     }
 }
 
-
 double CubicHamiltonian::calculate_total_energy() {
     double e_total = 0.0;
-    for (int i = 0; i < energy_.size(); ++i) {
+    for (auto i = 0; i < energy_.size(); ++i) {
         e_total += calculate_one_spin_energy(i);
     }
     return e_total;
@@ -131,15 +126,16 @@ double CubicHamiltonian::calculate_one_spin_energy(const int i) {
     double energy = 0.0;
 
     for (auto n = 0; n < num_coefficients_; ++n) {
-        auto dot1 = axis1_(i,n,0)*s(i,0) + axis1_(i,n,1)*s(i,1) + axis1_(i,n,2)*s(i,2);//
-        auto dot2 = axis2_(i,n,0)*s(i,0) + axis2_(i,n,1)*s(i,1) + axis2_(i,n,2)*s(i,2);//
-        auto dot3 = axis3_(i,n,0)*s(i,0) + axis3_(i,n,1)*s(i,1) + axis3_(i,n,2)*s(i,2);//
+        Vec3 spin = {s(i, 0), s(i, 1), s(i, 2)};
 
-        if(power_(i, n) == 1) {
-            energy += -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2) + pow(dot2,2)*pow(dot3,2) + pow(dot3,2)*pow(dot1,2));
+        if(order_(i, n) == 1) {
+            energy += -magnitude_(i,n) * (dot_sq(axis1_(i,n), spin) * dot_sq(axis2_(i,n), spin)
+                    + dot_sq(axis2_(i,n), spin) * dot_sq(axis3_(i,n), spin)
+                    + dot_sq(axis3_(i,n), spin) * dot_sq(axis1_(i,n), spin) );
         }
-        if(power_(i, n) == 2){
-            energy += -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
+
+        if(order_(i, n) == 2){
+            energy += -magnitude_(i,n) * ( dot_sq(axis1_(i,n), spin) * dot_sq(axis2_(i,n), spin) * dot_sq(axis3_(i,n), spin) );
         }
     }
 
@@ -152,28 +148,20 @@ double CubicHamiltonian::calculate_one_spin_energy_difference(const int i, const
     double e_final = 0.0;
 
     for (auto n = 0; n < num_coefficients_; ++n) {
-        auto dot1 = axis1_(i,n,0)*spin_initial[0] + axis1_(i,n,1)*spin_initial[1] + axis1_(i,n,2)*spin_initial[2];//
-        auto dot2 = axis2_(i,n,0)*spin_initial[0] + axis2_(i,n,1)*spin_initial[1] + axis2_(i,n,2)*spin_initial[2];//
-        auto dot3 = axis3_(i,n,0)*spin_initial[0] + axis3_(i,n,1)*spin_initial[1] + axis3_(i,n,2)*spin_initial[2];//
+        if(order_(i, n) == 1) {
+            e_initial += -magnitude_(i,n) * (
+                    dot_sq(axis1_(i,n), spin_initial) * dot_sq(axis2_(i,n), spin_initial)
+                    + dot_sq(axis2_(i,n), spin_initial) * dot_sq(axis3_(i,n), spin_initial)
+                    + dot_sq(axis3_(i,n), spin_initial) * dot_sq(axis1_(i,n), spin_initial) );
 
-        if(power_(i, n) == 1) {  // Alternatively use if (n == 0){} else if (n == 1){} and remove power_ from cubic anisotropy. Note: Don't think this will work from the declaration of num_coefficients_
-            e_initial = -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2) + pow(dot2,2)*pow(dot3,2) + pow(dot3,2)*pow(dot1,2));
+            e_final += -magnitude_(i,n) * (dot_sq(axis1_(i,n), spin_final) * dot_sq(axis2_(i,n), spin_final)
+                    + dot_sq(axis2_(i,n), spin_final) * dot_sq(axis3_(i,n), spin_final)
+                    + dot_sq(axis3_(i,n), spin_final) * dot_sq(axis1_(i,n), spin_final) );
         }
-        if(power_(i, n) == 2){
-            e_initial = -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
-        }
-    }
 
-    for (auto n = 0; n < num_coefficients_; ++n) {
-        auto dot1 = axis1_(i,n,0)*spin_final[0] + axis1_(i,n,1)*spin_final[1] + axis1_(i,n,2)*spin_final[2];//
-        auto dot2 = axis2_(i,n,0)*spin_final[0] + axis2_(i,n,1)*spin_final[1] + axis2_(i,n,2)*spin_final[2];//
-        auto dot3 = axis3_(i,n,0)*spin_final[0] + axis3_(i,n,1)*spin_final[1] + axis3_(i,n,2)*spin_final[2];//
-
-        if(power_(i, n) == 1) {  // Alternatively use if (n == 0){} else if (n == 1){} and remove power_ from cubic anisotropy. Note: Don't think this will work from the declaration of num_coefficients_
-            e_final = -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2) + pow(dot2,2)*pow(dot3,2) + pow(dot3,2)*pow(dot1,2));
-        }
-        if(power_(i, n) == 2){
-            e_final = -magnitude_(i,n) * (pow(dot1,2)*pow(dot2,2)*pow(dot3,2));
+        if(order_(i, n) == 2) {
+            e_initial += -magnitude_(i,n) * ( dot_sq(axis1_(i,n), spin_initial) * dot_sq(axis2_(i,n), spin_initial) * dot_sq(axis3_(i,n), spin_initial) );
+            e_final += -magnitude_(i,n) * ( dot_sq(axis1_(i,n), spin_final) * dot_sq(axis2_(i,n), spin_final) * dot_sq(axis3_(i,n), spin_final) );
         }
     }
 
@@ -193,28 +181,24 @@ void CubicHamiltonian::calculate_one_spin_field(const int i, double local_field[
     local_field[2] = 0.0;
 
     for (auto n = 0; n < num_coefficients_; ++n) {
-        if (power_(i, n) == 1) {
-            auto dot1 = axis1_(i,n,0)*s(i,0) + axis1_(i,n,1)*s(i,1) + axis1_(i,n,2)*s(i,2);//
-            auto dot2 = axis2_(i,n,0)*s(i,0) + axis2_(i,n,1)*s(i,1) + axis2_(i,n,2)*s(i,2);//
-            auto dot3 = axis3_(i,n,0)*s(i,0) + axis3_(i,n,1)*s(i,1) + axis3_(i,n,2)*s(i,2);//
+        Vec3 spin = {s(i, 0), s(i, 1), s(i, 2)};
+        auto pre = 2.0 * magnitude_(i,n);
+
+        if (order_(i, n) == 1) {
             for (auto j = 0; j < 3; ++j) {
-                local_field[j] += 2.0 * magnitude_(i, n) * ((pow(dot2, 2) + pow(dot3, 2)) * (dot1 * (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                local_field[j] += 2.0 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot3, 2)) * (dot2 * (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                local_field[j] += 2.0 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot2, 2)) * (dot3 * (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
+                local_field[j] += pre * (
+                        axis1_(i,n)[j] * dot(axis1_(i, n), spin) * (dot_sq(axis2_(i,n), spin) + dot_sq(axis3_(i,n), spin))
+                      + axis2_(i,n)[j] * dot(axis2_(i, n), spin) * (dot_sq(axis3_(i,n), spin) + dot_sq(axis1_(i,n), spin))
+                      + axis3_(i,n)[j] * dot(axis3_(i, n), spin) * (dot_sq(axis1_(i,n), spin) + dot_sq(axis2_(i,n), spin)) );
             }
         }
 
-        if (power_(i, n) == 2) {
-            auto dot1 = axis1_(i,n,0)*s(i,0) + axis1_(i,n,1)*s(i,1) + axis1_(i,n,2)*s(i,2);//
-            auto dot2 = axis2_(i,n,0)*s(i,0) + axis2_(i,n,1)*s(i,1) + axis2_(i,n,2)*s(i,2);//
-            auto dot3 = axis3_(i,n,0)*s(i,0) + axis3_(i,n,1)*s(i,1) + axis3_(i,n,2)*s(i,2);//
+        if (order_(i, n) == 2) {
             for (auto j = 0; j < 3; ++j) {
-                local_field[j] += 2.0 * magnitude_(i, n) * ((dot1 * pow(dot2, 2) * pow(dot3, 2) *
-                                                           (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                local_field[j] += 2.0 * magnitude_(i, n) * ((dot2 * pow(dot1, 2) * pow(dot3, 2) *
-                                                           (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                local_field[j] += 2.0 * magnitude_(i, n) * ((dot3 * pow(dot2, 2) * pow(dot1, 2) *
-                                                           (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
+                local_field[j] += pre * (
+                          axis1_(i,n)[j]  * dot(axis1_(i, n), spin) * (dot_sq(axis2_(i,n), spin) * dot_sq(axis3_(i,n), spin))
+                        + axis2_(i,n)[j]  * dot(axis2_(i, n), spin) * (dot_sq(axis3_(i,n), spin) * dot_sq(axis1_(i,n), spin))
+                        + axis3_(i,n)[j]  * dot(axis3_(i, n), spin) * (dot_sq(axis1_(i,n), spin) * dot_sq(axis2_(i,n), spin)) );
             }
         }
     }
@@ -225,31 +209,12 @@ void CubicHamiltonian::calculate_fields() {
     field_.zero();
 
     for (auto i = 0; i < num_spins; ++i) {
-        for (auto n = 0; n < num_coefficients_; ++n) {
-            if (power_(i, n) == 1) {
-                auto dot1 = axis1_(i,n,0)*s(i,0) + axis1_(i,n,1)*s(i,1) + axis1_(i,n,2)*s(i,2);//
-                auto dot2 = axis2_(i,n,0)*s(i,0) + axis2_(i,n,1)*s(i,1) + axis2_(i,n,2)*s(i,2);//
-                auto dot3 = axis3_(i,n,0)*s(i,0) + axis3_(i,n,1)*s(i,1) + axis3_(i,n,2)*s(i,2);//
-                for (auto j = 0; j < 3; ++j) {
-                    field_(i,j) += 2.0 * magnitude_(i, n) * ((pow(dot2, 2) + pow(dot3, 2)) * (dot1 * (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                    field_(i,j) += 2.0 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot3, 2)) * (dot2 * (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                    field_(i,j) += 2.0 * magnitude_(i, n) * ((pow(dot1, 2) + pow(dot2, 2)) * (dot3 * (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                }
-            }
+        double local_field[3] = {0.0, 0.0, 0.0};
 
-            if (power_(i, n) == 2) {
-                auto dot1 = axis1_(i,n,0_*s(i,0) + axis1_(i,n,1)*s(i,1) + axis1_(i,n,2)*s(i,2);//
-                auto dot2 = axis2_(i,n,0)*s(i,0) + axis2_(i,n,1)*s(i,1) + axis2_(i,n,2)*s(i,2);//
-                auto dot3 = axis3_(i,n,0)*s(i,0) + axis3_(i,n,1)*s(i,1) + axis3_(i,n,2)*s(i,2);//
-                for (auto j = 0; j < 3; ++j) {
-                    field_(i,j) += 2.0 * magnitude_(i, n) * ((dot1 * pow(dot2, 2) * pow(dot3, 2) *
-                                                               (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                    field_(i,j) += 2.0 * magnitude_(i, n) * ((dot2 * pow(dot1, 2) * pow(dot3, 2) *
-                                                               (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                    field_(i,j) += 2.0 * magnitude_(i, n) * ((dot3 * pow(dot2, 2) * pow(dot1, 2) *
-                                                               (axis_1(i,n,j) + axis2_(i,n,j) + axis3_(i,n,j))));//
-                }
-            }
+        calculate_one_spin_field(i, local_field);
+
+        for (auto j = 0; j < 3; ++j) {
+            field_(i, j) = local_field[j];
         }
     }
 }
