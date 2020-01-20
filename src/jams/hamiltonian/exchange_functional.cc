@@ -8,8 +8,7 @@
 using namespace std;
 
 ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Setting &settings,
-                                                             const unsigned int size) : SparseInteractionHamiltonian(
-    settings, size) {
+    const unsigned int size) : SparseInteractionHamiltonian(settings, size) {
   auto exchange_functional = functional_from_settings(settings);
   radius_cutoff_ = jams::config_required<double>(settings, "r_cutoff");
 
@@ -60,12 +59,7 @@ double ExchangeFunctionalHamiltonian::functional_gaussian(const double rij, cons
 }
 
 double ExchangeFunctionalHamiltonian::functional_kaneyoshi(const double rij, const double J0, const double r0, const double sigma){
-  return J0 * pow2(rij - r0) * exp(-pow2(rij - r0) / sigma);
-}
-
-double ExchangeFunctionalHamiltonian::functional_bethe_slator(const double rij, const double J0, const double r0, const double sigma, const double center_sigma, const double offset){
-  return J0 * exp(-pow2(log((rij - r0) / center_sigma)) / sigma) - offset;
-  //approximation (gives similar shape to that of BS curve)
+  return J0 * pow2(rij - r0) * exp(-pow2(rij - r0) / (2 * pow2(sigma)));
 }
 
 ExchangeFunctionalHamiltonian::ExchangeFunctional
