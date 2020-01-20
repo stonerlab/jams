@@ -83,8 +83,6 @@ ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting
     return bind(functional_gaussian, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
   } else if (functional_name == "kaneyoshi") {
     return bind(functional_kaneyoshi, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
-  } else if (functional_name == "bethe_slator") {
-    bind(functional_bethe_slator, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]), double(settings["center_sigma"]), double(settings["offset"]));
   } else {
     throw runtime_error("unknown exchange functional: " + functional_name);
   }

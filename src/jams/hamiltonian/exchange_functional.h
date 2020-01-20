@@ -23,7 +23,6 @@ private:
     static double functional_exp(double rij, double J0, double r0, double lengthscale);
     static double functional_gaussian(double rij, double J0, double r0, double lengthscale);
     static double functional_kaneyoshi(double rij, double J0, double r0, double lengthscale);
-    static double functional_bethe_slator(double rij, double J0, double r0, double lengthscale, double center_lengthscale, double offset);
 
     double radius_cutoff_;
 };
