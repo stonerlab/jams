@@ -13,6 +13,7 @@
 
 #include "jams/hamiltonian/exchange.h"
 #include "jams/hamiltonian/exchange_neartree.h"
+#include "jams/hamiltonian/exchange_functional.h"
 #include "jams/hamiltonian/random_anisotropy.h"
 #include "jams/hamiltonian/uniaxial_anisotropy.h"
 #include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
@@ -35,6 +36,10 @@ using namespace std;
 Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsigned int size, bool is_cuda_solver) {
     if (capitalize(settings["module"]) == "EXCHANGE") {
         return new ExchangeHamiltonian(settings, size);
+    }
+
+    if (capitalize(settings["module"]) == "EXCHANGE-FUNCTIONAL") {
+      return new ExchangeFunctionalHamiltonian(settings, size);
     }
 
     if (capitalize(settings["module"]) == "EXCHANGE-NEARTREE") {
