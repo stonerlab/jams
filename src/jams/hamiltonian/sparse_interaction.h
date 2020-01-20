@@ -27,6 +27,7 @@ public:
     void   calculate_fields() override;
 
 protected:
+    void insert_interaction_scalar(const int i, const int j, const double &value);
     void insert_interaction_tensor(const int i, const int j, const Mat3 &value);
     void finalize();
 
