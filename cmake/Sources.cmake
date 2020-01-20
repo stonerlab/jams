@@ -16,6 +16,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/dipole_fft.cc
         hamiltonian/dipole_tensor.cc
         hamiltonian/exchange.cc
+        hamiltonian/exchange_functional.cc
         hamiltonian/exchange_neartree.cc
         hamiltonian/uniaxial_anisotropy.cc
         hamiltonian/uniaxial_microscopic_anisotropy.cc

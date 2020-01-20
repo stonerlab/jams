@@ -992,7 +992,7 @@ bool Lattice::apply_boundary_conditions(Vec4i& pos) const {
 
 double Lattice::max_interaction_radius() const {
   if (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2)) {
-    return rhombohedron_inradius(supercell.a(), supercell.b(), supercell.c()) - 1;
+    return rhombohedron_inradius(supercell.a(), supercell.b(), supercell.c());
   }
 
   if (!lattice->is_periodic(0) && !lattice->is_periodic(1) && !lattice->is_periodic(2)) {
