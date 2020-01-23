@@ -21,7 +21,7 @@ class ConstrainedMCSolver : public Solver {
   void run() override;
 
  private:
-    unsigned AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_spin_move);
+    unsigned AsselinAlgorithm(const std::function<Vec3(Vec3)>&  trial_spin_move);
 
     Vec3     rotate_cartesian_to_constraint(unsigned i, const Vec3 &spin) const;
     Vec3     rotate_constraint_to_cartesian(unsigned i, const Vec3 &spin) const;

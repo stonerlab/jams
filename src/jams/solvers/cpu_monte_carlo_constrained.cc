@@ -165,7 +165,7 @@ void ConstrainedMCSolver::run() {
   }
 }
 
-unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_spin_move) {
+unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>&  trial_spin_move) {
   std::uniform_real_distribution<> uniform_distribution;
 
   const double    beta = kBohrMagneton / (physics_module_->temperature() * kBoltzmann);
