@@ -2,6 +2,7 @@
 #include <iomanip>
 
 #include <libconfig.h++>
+#include "jams/helpers/output.h"
 
 #include "cpu_monte_carlo_constrained.h"
 
@@ -30,9 +31,12 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   move_angle_sigma_        = jams::config_optional<double>(settings, "move_angle_sigma", jams::defaults::solver_monte_carlo_move_sigma);
   output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::defaults::monitor_output_steps);
 
-  constraint_vector_       = cartesian_from_spherical(1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
-  inverse_rotation_matrix_ = rotation_matrix_y(deg_to_rad(constraint_theta_)) * rotation_matrix_z(deg_to_rad(constraint_phi_));
-  rotation_matrix_         = transpose(inverse_rotation_matrix_);
+  constraint_vector_       = spherical_to_cartesian_vector(1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
+
+  // from cartesian into the constraint space
+  rotation_matrix_         = rotation_matrix_y(-deg_to_rad(constraint_theta_))*rotation_matrix_z(deg_to_rad(-constraint_phi_));
+  // from the constraint space back to cartesian
+  inverse_rotation_matrix_ = rotation_matrix_z(deg_to_rad(constraint_theta_)) * rotation_matrix_y(deg_to_rad(constraint_phi_));
 
   if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
     move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
@@ -165,7 +169,7 @@ void ConstrainedMCSolver::run() {
   }
 }
 
-unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_spin_move) {
+unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>&  trial_spin_move) {
   std::uniform_real_distribution<> uniform_distribution;
 
   const double    beta = kBohrMagneton / (physics_module_->temperature() * kBoltzmann);
@@ -176,10 +180,10 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_
   // we move two spins moving all spins on average is num_spins/2
   for (auto i = 0; i < globals::num_spins/2; ++i) {
     // randomly get two spins s1 != s2
-    unsigned s1 = static_cast<unsigned int>(random_generator_(globals::num_spins));
-    unsigned s2 = s1;
+    auto s1 = static_cast<int>(random_generator_(globals::num_spins));
+    auto s2 = s1;
     while (s2 == s1) {
-      s2 = static_cast<unsigned int>(random_generator_(globals::num_spins));
+      s2 = static_cast<int>(random_generator_(globals::num_spins));
     }
 
     Vec3 s1_initial         = mc_spin_as_vec(s1);
@@ -206,19 +210,20 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_
 
     Vec3 deltaM = magnetization_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
 
-    double mz_new = dot(m_total + deltaM, constraint_vector_);
-    if (mz_new < 0.0) {
+    Vec3 m_trial_rotated = rotation_matrix_ * (m_total + deltaM);
+    if (m_trial_rotated[2] < 0.0) {
       // The new magnetization is in the opposite sense - revert s1, reject move
       continue;
     }
-    double mz_old = dot(m_total, constraint_vector_);
+    Vec3 m_initial_rotated = rotation_matrix_ * (m_total);
 
     double deltaE = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-    double probability = exp(-deltaE * beta) * pow2(mz_new/mz_old) * std::abs(s2_initial_rotated[2]/s2_trial_rotated[2]);
+    double probability = min(1.0, exp(-deltaE * beta) * pow2(m_trial_rotated[2] / m_initial_rotated[2]) * std::abs(s2_initial_rotated[2] / s2_trial_rotated[2]));
 
-    if (probability < uniform_distribution(random_generator_)) {
+    auto x = uniform_distribution(random_generator_);
+    if (x > probability) {
       // reject move
       continue;
     }
@@ -235,8 +240,8 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_
   return moves_accepted;
 }
 
-double ConstrainedMCSolver::energy_difference(unsigned s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
-                                              unsigned s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
+double ConstrainedMCSolver::energy_difference(const int s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
+                                              const int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
   double delta_energy1 = 0.0;
   for (auto hamiltonian : hamiltonians_) {
     delta_energy1 += hamiltonian->calculate_one_spin_energy_difference(s1, s1_initial, s1_trial);
@@ -253,8 +258,8 @@ double ConstrainedMCSolver::energy_difference(unsigned s1, const Vec3 &s1_initia
   return delta_energy1 + delta_energy2;
 }
 
-Vec3 ConstrainedMCSolver::magnetization_difference(unsigned s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
-                                                   unsigned s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
+Vec3 ConstrainedMCSolver::magnetization_difference(const int s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
+                                                   const int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
   return globals::mus(s1) * spin_transformations_[s1] * (s1_trial - s1_initial)
   + globals::mus(s2) * spin_transformations_[s2] * (s2_trial - s2_initial);
 }
@@ -272,24 +277,28 @@ Vec3 ConstrainedMCSolver::total_transformed_magnetization() const {
 void ConstrainedMCSolver::validate_constraint() const {
     Vec3 m_total = total_transformed_magnetization();
 
-   if (!approximately_equal(rad_to_deg(azimuthal_angle(m_total)), constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
+    const double actual_theta = rad_to_deg(polar_angle(m_total));
+    const double actual_phi = rad_to_deg(azimuthal_angle(m_total));
+
+  if (!approximately_equal(actual_theta, constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
      std::stringstream ss;
-     ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint violated (" << rad_to_deg(azimuthal_angle(m_total)) << " deg)";
+     ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(polar_angle(m_total)) << " deg)";
      throw std::runtime_error(ss.str());
    }
 
-   if (!approximately_equal(rad_to_deg(polar_angle(m_total)), constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
+   if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance) && !(approximately_zero(actual_theta))) {
      std::stringstream ss;
-     ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint violated (" << rad_to_deg(polar_angle(m_total)) << " deg)";
+     ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(azimuthal_angle(m_total)) << " deg)";
+     throw std::runtime_error(ss.str());
    }
 }
 
-Vec3 ConstrainedMCSolver::rotate_cartesian_to_constraint(unsigned i, const Vec3 &spin) const {
-  return spin_transformations_[i] * rotation_matrix_ * spin;
+Vec3 ConstrainedMCSolver::rotate_cartesian_to_constraint(const int i, const Vec3 &spin) const {
+  return rotation_matrix_ * (spin_transformations_[i] * spin);
 }
 
-Vec3 ConstrainedMCSolver::rotate_constraint_to_cartesian(unsigned i, const Vec3 &spin) const {
-  return transpose(spin_transformations_[i]) * inverse_rotation_matrix_ * spin;
+Vec3 ConstrainedMCSolver::rotate_constraint_to_cartesian(const int i, const Vec3 &spin) const {
+  return transpose(spin_transformations_[i]) * (inverse_rotation_matrix_ * spin);
 }
 
 
