@@ -289,11 +289,11 @@ void ConstrainedMCSolver::validate_constraint() const {
 }
 
 Vec3 ConstrainedMCSolver::rotate_cartesian_to_constraint(const int i, const Vec3 &spin) const {
-  return spin_transformations_[i] * rotation_matrix_ * spin;
+  return rotation_matrix_ * (spin_transformations_[i] * spin);
 }
 
 Vec3 ConstrainedMCSolver::rotate_constraint_to_cartesian(const int i, const Vec3 &spin) const {
-  return transpose(spin_transformations_[i]) * inverse_rotation_matrix_ * spin;
+  return transpose(spin_transformations_[i]) * (inverse_rotation_matrix_ * spin);
 }
 
 
