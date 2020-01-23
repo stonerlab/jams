@@ -176,14 +176,14 @@ inline constexpr T angle(const Vec<T,3>& a, const Vec<T,3>& b) {
 
 inline Vec3 spherical_to_cartesian_vector(const double r, const double theta, const double phi) {
   return {r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), r*cos(theta)};
-}
-
-inline double azimuthal_angle(const Vec<double,3> a) {
+inline double polar_angle(const Vec<double,3> a) {
   return acos(a[2]/norm(a));
 }
 
-inline double polar_angle(const Vec<double,3> a) {
+inline double azimuthal_angle(const Vec<double,3> a) {
   return atan2(a[2], a[0]);
+}
+
 }
 
 template <typename T>
