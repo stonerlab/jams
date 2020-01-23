@@ -183,7 +183,7 @@ inline double polar_angle(const Vec<double,3> a) {
 }
 
 inline double azimuthal_angle(const Vec<double,3> a) {
-  return atan2(a[2], a[0]);
+  return atan2(a[1], a[0]);
 }
 
 template <typename T>
