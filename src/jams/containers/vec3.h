@@ -178,14 +178,6 @@ inline Vec3 spherical_to_cartesian_vector(const double r, const double theta, co
   return {r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), r*cos(theta)};
 }
 
-inline Vec<double,3> cartesian_from_spherical(const double &r, const double &theta, const double &phi) {
-  return {
-      sin(theta) * cos(phi),
-      sin(theta) * sin(phi),
-      cos(theta)
-  };
-}
-
 inline double azimuthal_angle(const Vec<double,3> a) {
   return acos(a[2]/norm(a));
 }
