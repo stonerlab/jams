@@ -176,10 +176,10 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
   // we move two spins moving all spins on average is num_spins/2
   for (auto i = 0; i < globals::num_spins/2; ++i) {
     // randomly get two spins s1 != s2
-    unsigned s1 = static_cast<unsigned int>(random_generator_(globals::num_spins));
-    unsigned s2 = s1;
+    auto s1 = static_cast<int>(random_generator_(globals::num_spins));
+    auto s2 = s1;
     while (s2 == s1) {
-      s2 = static_cast<unsigned int>(random_generator_(globals::num_spins));
+      s2 = static_cast<int>(random_generator_(globals::num_spins));
     }
 
     Vec3 s1_initial         = mc_spin_as_vec(s1);
@@ -235,8 +235,8 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
   return moves_accepted;
 }
 
-double ConstrainedMCSolver::energy_difference(unsigned s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
-                                              unsigned s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
+double ConstrainedMCSolver::energy_difference(const int s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
+                                              const int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
   double delta_energy1 = 0.0;
   for (auto hamiltonian : hamiltonians_) {
     delta_energy1 += hamiltonian->calculate_one_spin_energy_difference(s1, s1_initial, s1_trial);
@@ -253,8 +253,8 @@ double ConstrainedMCSolver::energy_difference(unsigned s1, const Vec3 &s1_initia
   return delta_energy1 + delta_energy2;
 }
 
-Vec3 ConstrainedMCSolver::magnetization_difference(unsigned s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
-                                                   unsigned s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
+Vec3 ConstrainedMCSolver::magnetization_difference(const int s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
+                                                   const int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
   return globals::mus(s1) * spin_transformations_[s1] * (s1_trial - s1_initial)
   + globals::mus(s2) * spin_transformations_[s2] * (s2_trial - s2_initial);
 }
@@ -284,11 +284,11 @@ void ConstrainedMCSolver::validate_constraint() const {
    }
 }
 
-Vec3 ConstrainedMCSolver::rotate_cartesian_to_constraint(unsigned i, const Vec3 &spin) const {
+Vec3 ConstrainedMCSolver::rotate_cartesian_to_constraint(const int i, const Vec3 &spin) const {
   return spin_transformations_[i] * rotation_matrix_ * spin;
 }
 
-Vec3 ConstrainedMCSolver::rotate_constraint_to_cartesian(unsigned i, const Vec3 &spin) const {
+Vec3 ConstrainedMCSolver::rotate_constraint_to_cartesian(const int i, const Vec3 &spin) const {
   return transpose(spin_transformations_[i]) * inverse_rotation_matrix_ * spin;
 }
 
