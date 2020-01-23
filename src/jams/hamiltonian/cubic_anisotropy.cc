@@ -23,7 +23,8 @@ using std::runtime_error;
 // {
 //    module = "cubic";
 //    K1 = ((1e-24, [1, 0, 0], [0, 1, 0], [0, 0, 1]),
-//          (2e-24, [1, 0, 0], [0, 1, 0], [0, 0, 1])); specifying the different cubic axes for two materials. Vectors don't have to be normalized as this is done in the code
+//          (2e-24, [1, 0, 0], [0, 1, 0], [0, 0, 1])); specifying the different cubic axes for two materials. Vectors
+//          don't have to be normalized as this is done in the code
 //          Can add in a check that two are orthogonal similar to the mumax implementation
 // }
 

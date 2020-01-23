@@ -43,7 +43,7 @@ class ConstrainedMCSolver : public Solver {
 
     std::vector<Mat3> spin_transformations_;
 
-    int output_write_steps_ = 100;
+    int output_write_steps_ = 1;
 
     double move_fraction_uniform_     = 1.0; // default is guaranteed erogodic
     double move_fraction_angle_       = 0.0;
