@@ -209,19 +209,20 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
 
     Vec3 deltaM = magnetization_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
 
-    double mz_new = dot(m_total + deltaM, constraint_vector_);
-    if (mz_new < 0.0) {
+    Vec3 m_trial_rotated = rotation_matrix_ * (m_total + deltaM);
+    if (m_trial_rotated[2] < 0.0) {
       // The new magnetization is in the opposite sense - revert s1, reject move
       continue;
     }
-    double mz_old = dot(m_total, constraint_vector_);
+    Vec3 m_initial_rotated = rotation_matrix_ * (m_total);
 
     double deltaE = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-    double probability = exp(-deltaE * beta) * pow2(mz_new/mz_old) * std::abs(s2_initial_rotated[2]/s2_trial_rotated[2]);
+    double probability = min(1.0, exp(-deltaE * beta) * pow2(m_trial_rotated[2] / m_initial_rotated[2]) * std::abs(s2_initial_rotated[2] / s2_trial_rotated[2]));
 
-    if (probability < uniform_distribution(random_generator_)) {
+    auto x = uniform_distribution(random_generator_);
+    if (x > probability) {
       // reject move
       continue;
     }
