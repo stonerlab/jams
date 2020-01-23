@@ -31,8 +31,11 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::defaults::monitor_output_steps);
 
   constraint_vector_       = spherical_to_cartesian_vector(1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
-  inverse_rotation_matrix_ = rotation_matrix_y(deg_to_rad(constraint_theta_)) * rotation_matrix_z(deg_to_rad(constraint_phi_));
-  rotation_matrix_         = transpose(inverse_rotation_matrix_);
+
+  // from cartesian into the constraint space
+  rotation_matrix_         = rotation_matrix_y(-deg_to_rad(constraint_theta_))*rotation_matrix_z(deg_to_rad(-constraint_phi_));
+  // from the constraint space back to cartesian
+  inverse_rotation_matrix_ = rotation_matrix_z(deg_to_rad(constraint_theta_)) * rotation_matrix_y(deg_to_rad(constraint_phi_));
 
   if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
     move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
