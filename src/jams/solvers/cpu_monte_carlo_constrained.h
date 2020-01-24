@@ -21,14 +21,14 @@ class ConstrainedMCSolver : public Solver {
   void run() override;
 
  private:
-    unsigned AsselinAlgorithm(std::function<Vec3(Vec3)>  trial_spin_move);
+    unsigned AsselinAlgorithm(const std::function<Vec3(Vec3)>&  trial_spin_move);
 
-    Vec3     rotate_cartesian_to_constraint(unsigned i, const Vec3 &spin) const;
-    Vec3     rotate_constraint_to_cartesian(unsigned i, const Vec3 &spin) const;
+    Vec3     rotate_cartesian_to_constraint(int i, const Vec3 &spin) const;
+    Vec3     rotate_constraint_to_cartesian(int i, const Vec3 &spin) const;
     Vec3     total_transformed_magnetization() const;
 
-    double   energy_difference(unsigned s1, const Vec3 &s1_initial, const Vec3 &s1_trial, unsigned s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
-    Vec3     magnetization_difference(unsigned s1, const Vec3 &s1_initial, const Vec3 &s1_trial, unsigned s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
+    double   energy_difference(int s1, const Vec3 &s1_initial, const Vec3 &s1_trial, int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
+    Vec3     magnetization_difference(int s1, const Vec3 &s1_initial, const Vec3 &s1_trial, int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
 
     void     validate_constraint() const;
 
