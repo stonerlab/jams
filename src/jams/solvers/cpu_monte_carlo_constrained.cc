@@ -82,7 +82,7 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   }
 
   // do some basic checks
-  if (approximately_equal(move_fraction_reflection_, 1.0, 1e-8)) {
+  if (approximately_equal(move_fraction_reflection_, 1.0)) {
     jams_warning("Only reflection moves have been configured. This breaks ergodicity.");
   }
 
