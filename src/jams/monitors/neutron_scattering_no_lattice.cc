@@ -38,8 +38,8 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 
   periodogram_props_.sample_time = output_step_freq_ * solver->time_step();
 
-  periodogram_props_.length = 500;
-  periodogram_props_.overlap = 250;
+//  periodogram_props_.length = 500;
+//  periodogram_props_.overlap = 250;
 
   zero(static_structure_factor_.resize(kspace_path_.size()));
   zero(kspace_spins_timeseries_.resize(periodogram_props_.length, kspace_path_.size()));
