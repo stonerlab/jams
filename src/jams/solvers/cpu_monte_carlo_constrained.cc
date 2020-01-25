@@ -292,7 +292,13 @@ void ConstrainedMCSolver::validate_constraint() const {
      throw std::runtime_error(ss.str());
    }
 
-    if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance) && !(approximately_zero(actual_theta))) {
+    if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance) &&
+    !(approximately_zero(actual_theta, jams::defaults::solver_monte_carlo_constraint_tolerance)) &&
+    !approximately_equal(actual_phi, 360.0, jams::defaults::solver_monte_carlo_constraint_tolerance) &&
+    !approximately_zero(constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance) &&
+    !approximately_equal(constraint_phi_, 360.0, jams::defaults::solver_monte_carlo_constraint_tolerance) &&
+    !approximately_zero(actual_phi, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
+    //Wayyyyy too many exceptions. Much code smells. If any are ommitted it currently doesn't work for a very specific case (ie. 180, 360)
      std::stringstream ss;
         ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated (" << std::setprecision(10) << std::setw(12) << actual_phi << " deg)";
         throw std::runtime_error(ss.str());
