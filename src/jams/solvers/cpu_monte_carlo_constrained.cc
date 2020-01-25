@@ -36,7 +36,7 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   // from cartesian into the constraint space
   rotation_matrix_         = rotation_matrix_y(-deg_to_rad(constraint_theta_))*rotation_matrix_z(-deg_to_rad(constraint_phi_));
   // from the constraint space back to cartesian
-  inverse_rotation_matrix_ = transpose(rotation_matrix_);
+  inverse_rotation_matrix_ = inverse(rotation_matrix_);
 
 
   if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
@@ -284,17 +284,17 @@ void ConstrainedMCSolver::validate_constraint() const {
     Vec3 m_total = total_transformed_magnetization();
 
     const double actual_theta = rad_to_deg(polar_angle(m_total));
-    const double actual_phi = rad_to_deg(azimuthal_angle(m_total));
+    const double actual_phi = fmod((rad_to_deg(azimuthal_angle(m_total)) + 360.0), 360.0);
 
     if (!approximately_equal(actual_theta, constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
      std::stringstream ss;
-        ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(polar_angle(m_total)) << " deg)";
+        ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << actual_theta << " deg)";
      throw std::runtime_error(ss.str());
    }
 
     if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance) && !(approximately_zero(actual_theta))) {
      std::stringstream ss;
-        ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(azimuthal_angle(m_total)) << " deg)";
+        ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated (" << std::setprecision(10) << std::setw(12) << actual_phi << " deg)";
         throw std::runtime_error(ss.str());
    }
 }
