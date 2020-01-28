@@ -15,12 +15,12 @@ enum class MonteCarloMoveType {
 
 class MonteCarloMove {
 public:
-    virtual Vec3 operator()(Vec3 spin) = 0;
+    virtual Vec3 operator()(const Vec3& spin) = 0;
 };
 
 class MonteCarloReflectionMove : public MonteCarloMove {
 public:
-    inline Vec3 operator()(Vec3 spin) {
+    inline Vec3 operator()(const Vec3& spin) {
       return -spin;
     }
 };
@@ -32,7 +32,7 @@ public:
             gen_(gen)
             {}
 
-    inline Vec3 operator()(Vec3 spin) {
+    inline Vec3 operator()(const Vec3& spin) {
       return uniform_random_sphere(*gen_);
     }
 private:
@@ -46,7 +46,7 @@ public:
             gen_(gen),
             sigma_(sigma){}
 
-    inline Vec3 operator()(Vec3 spin) {
+    inline Vec3 operator()(const Vec3& spin) {
       return normalize(spin + uniform_random_sphere(*gen_) * sigma_);
     }
 
