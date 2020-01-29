@@ -54,8 +54,7 @@ double ExchangeFunctionalHamiltonian::functional_rkky(const double rij, const do
 }
 
 double ExchangeFunctionalHamiltonian::functional_gaussian(const double rij, const double J0, const double r0, const double sigma){
-  return J0 * exp(-pow2(rij - r0)) / (2 * pow2(sigma));
-  //approximation (gives similar shape to that of BS curve)
+  return J0 * exp(-pow2(rij - r0)/(2 * pow2(sigma)));
 }
 
 double ExchangeFunctionalHamiltonian::functional_kaneyoshi(const double rij, const double J0, const double r0, const double sigma){
