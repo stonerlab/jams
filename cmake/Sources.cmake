@@ -12,6 +12,7 @@ set(JAMS_SOURCES_CXX
         core/random.cc
         core/solver.cc
         core/thermostat.cc
+        hamiltonian/cubic_anisotropy.cc
         hamiltonian/dipole_bruteforce.cc
         hamiltonian/dipole_fft.cc
         hamiltonian/dipole_tensor.cc
@@ -71,6 +72,7 @@ set(JAMS_SOURCES_CUDA
         cuda/cuda_array_kernels.cu
         cuda/cuda_solver.cc
         cuda/cuda_common.cu
+        hamiltonian/cuda_cubic_anisotropy.cu
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
         hamiltonian/cuda_dipole_fft.cu

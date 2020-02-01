@@ -11,6 +11,7 @@
 #include "jams/helpers/error.h"
 #include "jams/helpers/utils.h"
 
+#include "jams/hamiltonian/cubic_anisotropy.h"
 #include "jams/hamiltonian/exchange.h"
 #include "jams/hamiltonian/exchange_neartree.h"
 #include "jams/hamiltonian/exchange_functional.h"
@@ -23,6 +24,7 @@
 #include "jams/hamiltonian/dipole_tensor.h"
 
 #if HAS_CUDA
+  #include "jams/hamiltonian/cuda_cubic_anisotropy.h"
   #include "jams/hamiltonian/cuda_random_anisotropy.h"
   #include "jams/hamiltonian/cuda_uniaxial_anisotropy.h"
   #include "jams/hamiltonian/cuda_uniaxial_microscopic_anisotropy.h"
@@ -63,6 +65,15 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
     #endif
         return new UniaxialMicroscopicHamiltonian(settings, size);
       }
+
+    if (capitalize(settings["module"]) == "CUBIC") {
+      #if HAS_CUDA
+      if (is_cuda_solver) {
+          return new CudaCubicHamiltonian(settings, size);
+        }
+      #endif
+      return new CubicHamiltonian(settings, size);
+    }
 
     if (capitalize(settings["module"]) == "ZEEMAN") {
 #if HAS_CUDA
