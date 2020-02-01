@@ -1,9 +1,5 @@
 #include "jams/cuda/cuda_device_vector_ops.h"
 
-__device__ double dot(const double3 &a, const double3 &b) {
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
 __global__ void cuda_uniaxial_energy_kernel(const int num_spins, const int power,
   const double * magnitude, const double * axis, const double * dev_s, double * dev_e) {
   const int idx = blockIdx.x*blockDim.x+threadIdx.x;
