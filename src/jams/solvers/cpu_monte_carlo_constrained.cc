@@ -27,7 +27,7 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
 
   constraint_theta_        = jams::config_required<double>(settings, "cmc_constraint_theta");
-  constraint_phi_          = jams::config_required<double>(settings, "cmc_constraint_phi");
+  constraint_phi_          = range_negpi_pi(jams::config_required<double>(settings, "cmc_constraint_phi"));
   move_angle_sigma_        = jams::config_optional<double>(settings, "move_angle_sigma", jams::defaults::solver_monte_carlo_move_sigma);
   output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::defaults::monitor_output_steps);
 
@@ -66,6 +66,12 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   cout << "    move_angle_sigma " << move_angle_sigma_ << "\n";
   cout << "    output_write_steps " << output_write_steps_ << "\n";
   cout << "    rotation matrix m -> mz\n";
+  Vec3 M = total_transformed_magnetization();
+  cout << "Maggie" << M << std::endl;
+  cout << azimuthal_angle(M) << std::endl;
+  cout << rad_to_deg(azimuthal_angle(M)) << std::endl;
+
+  cout << std::abs((rad_to_deg(azimuthal_angle(M)))+180.0) << std::endl;
   for (auto i = 0; i < 3; ++i) {
     cout << "      ";
     for (auto j = 0; j < 3; ++j) {
@@ -283,8 +289,8 @@ Vec3 ConstrainedMCSolver::total_transformed_magnetization() const {
 void ConstrainedMCSolver::validate_constraint() const {
     Vec3 m_total = total_transformed_magnetization();
 
-    const double actual_theta = rad_to_deg(polar_angle(m_total));
-    const double actual_phi = fmod((rad_to_deg(azimuthal_angle(m_total)) + 360.0), 360.0);
+    const double actual_theta = std::abs(rad_to_deg(polar_angle(m_total)));
+    const double actual_phi = rad_to_deg(azimuthal_angle(m_total));
 
     if (!approximately_equal(actual_theta, constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
      std::stringstream ss;
@@ -293,14 +299,8 @@ void ConstrainedMCSolver::validate_constraint() const {
    }
 
     if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance) &&
-    !(approximately_zero(sin(deg_to_rad(actual_theta)), jams::defaults::solver_monte_carlo_constraint_tolerance)) &&
-    !approximately_equal(actual_phi, 360.0, jams::defaults::solver_monte_carlo_constraint_tolerance) &&
-    !approximately_zero(constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance) &&
-    !approximately_equal(constraint_phi_, 360.0, jams::defaults::solver_monte_carlo_constraint_tolerance) &&
     !approximately_zero(actual_phi, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
-    //Wayyyyy too many exceptions. Much code smells. If any are ommitted it currently doesn't work for a very specific case (ie. 180, 360)
-    //Code fails when phi = {0.0, pi} since azimuthal rotations have the same cartesian vector
-    //Change approx_zero check from actual_theta to sin(actual_theta)
+
      std::stringstream ss;
         ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated (" << std::setprecision(10) << std::setw(12) << actual_phi << " deg)";
         throw std::runtime_error(ss.str());

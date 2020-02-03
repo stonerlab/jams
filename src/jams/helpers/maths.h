@@ -404,6 +404,14 @@ inline constexpr double legendre_dpoly_6(const double x) {
   return (86.625 * x * x * x * x * x - 78.75 * x * x * x + 13.125 * x);
 }
 
+inline double range_negpi_pi(const double angle) {
+    if (angle >= 180.0) {
+        return angle - 360.0;
+    }
+    else {
+        return angle;
+    }
+}
 
 
 #endif  // JAMS_CORE_MATHS_H
