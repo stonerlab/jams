@@ -32,12 +32,14 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
     configure_polarizations(settings["polarizations"]);
   }
 
+  //insert values "length" and "overlap" from cfg
   if (settings.exists("periodogram")) {
     configure_periodogram(settings["periodogram"]);
   }
 
   periodogram_props_.sample_time = output_step_freq_ * solver->time_step();
 
+  //zero: set all the elements as 0
   zero(static_structure_factor_.resize(kspace_path_.size()));
   zero(kspace_spins_timeseries_.resize(periodogram_props_.length, kspace_path_.size()));
   zero(total_unpolarized_neutron_cross_section_.resize(
@@ -72,19 +74,26 @@ void NeutronScatteringNoLatticeMonitor::update(Solver *solver) {
 }
 
 void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig::Setting &settings) {
-  kvector_ = jams::config_optional<Vec3>(settings, "kvector", kvector_);
+  kmax_ = jams::config_required<double>(settings, "kmax");
+  kvector_ = jams::config_required<Vec3>(settings, "kvector");
+  num_k_ = jams::config_required<int>(settings, "num_k");
 
   kspace_path_.resize(num_k_);
   for (auto i = 0; i < kspace_path_.size(); ++i) {
-    kspace_path_(i) = kvector_ * i * (kmax_ / num_k_);
+    //kspace_path_ stores the scattering vectors
+    kspace_path_(i) = kvector_ * i * (kmax_ / (num_k_-1));//kmax shoul be in the unit of [1/a]
+    cout << "i = " << i << ", kspace_path_(i) = " << kspace_path_(i) << endl;
   }
 
   rspace_displacement_.resize(globals::s.size(0));
   for (auto i = 0; i < globals::s.size(0); ++i) {
+    //rspace_displacement_ is the position vector of i-th spin
     rspace_displacement_(i) = lattice->displacement({0,0,0}, lattice->atom_position(i));
   }
 }
 
+//This function calculates inelastic magnetic scattering (inelastic magnetic + elastic phonon scattering)
+//That's why dirac_delta(f)*s0[i]*s0[j] is subtracted from cross_section(f, k).
 jams::MultiArray<Complex, 2>
 NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx,2> &spectrum,
     const jams::MultiArray<Vec3cx,1>& elastic_spectrum) {
@@ -195,7 +204,7 @@ void NeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
 void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   const auto num_time_points = kspace_spins_timeseries_.size(0);
 
-
+  //static_structure_factor=spin-spin correlation at the same time
   ofstream ofs(seedname + "_static_structure_factor_path_" + to_string(0) + ".tsv");
 
   ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
@@ -206,9 +215,10 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   for (auto k = 0; k < kspace_path_.size(); ++k) {
     ofs << fmt::integer << k << "\t";
     ofs << fmt::decimal << kspace_path_(k) << "\t";
-    ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (lattice->parameter() * 1e10) << "\t";
-    for (auto i : {0,1,2}) {
-      for (auto j : {0,1,2}) {
+    //By norm(kspace_path_(k)) we can get the magnitude of each k
+    ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (lattice->parameter() * 1e10) << "\t";//[angstrom^(-1)]
+    for (auto i : {0,1,2}) { //loop over i = 0, 1, 2 (meaning x,y,z components of spins)
+      for (auto j : {0,1,2}) {//loop over j = 0, 1, 2 (meaning x,y,z components of spins)
         auto s_a = static_structure_factor_(k)[i] / double(num_time_points);
         auto s_b = static_structure_factor_(k)[j] / double(num_time_points);
         auto s_ab = conj(s_a) * s_b;
@@ -242,8 +252,8 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
       for (auto j = 0; j < kspace_path_.size(); ++j) {
         ofs << fmt::integer << j << "\t";
-        ofs << fmt::decimal << kspace_path_(j) << "\t";
-        ofs << fmt::decimal << kTwoPi * norm(kspace_path_(j)) / (lattice->parameter()*1e10) << "\t";
+        ofs << fmt::decimal << kspace_path_(j) << "\t"; //k=k_j [AA^(-1)]
+        ofs << fmt::decimal << kTwoPi * norm(kspace_path_(j)) / (lattice->parameter()*1e10) << "\t"; //k=2*pi*k_j/a [m^(-1)]
         ofs << fmt::decimal << (i * freq_delta / 1e12) << "\t"; // THz
         ofs << fmt::decimal << (i * freq_delta / 1e12) * 4.135668 << "\t"; // meV
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
@@ -263,29 +273,32 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
 
 void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
   auto i = periodogram_index_;
-
+  //fill: insert the 3rd variable into 1st-2nd variables
+  //fill: "kspace_spins_timeseries_(i,0) - kspace_spins_timeseries_(i,0)+kspace_path_.size()" has Vec3cx{0,0}
   fill(&kspace_spins_timeseries_(i,0), &kspace_spins_timeseries_(i,0) + kspace_path_.size(), Vec3cx{0.0});
 
   for (auto n = 0; n < globals::num_spins; ++n) {
     Vec3 spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
 
     Vec3 r = rspace_displacement_(n);
+    //r should be normalized to get the length of position vector
     if (norm(r) >= 0.5) continue;
     auto delta_q = kspace_path_(1) - kspace_path_(0);
 
     auto window = 1.0;
+    //default setting of "bool do_rspace_windowing_" was changed to false.
     if (do_rspace_windowing_) {
       // blackmann 4 window
       const double a0 = 0.40217, a1 = 0.49704, a2 = 0.09392, a3 = 0.00183;
       const double x = (kTwoPi * norm(r));
       window = a0 + a1 * cos(x) + a2 * cos(2 * x) + a3 * cos(3 * x);
     }
-
+    //Fourier transform
     auto f0 = exp(-kImagTwoPi * dot(delta_q, r));
     auto f = Complex{1.0, 0.0};
     for (auto k = 0; k < kspace_path_.size(); ++k) {
-      kspace_spins_timeseries_(i, k) += f * spin * window;
-      f *= f0;
+        kspace_spins_timeseries_(i, k) += f * spin * window;
+        f *= f0;
     }
   }
 
