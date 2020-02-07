@@ -26,6 +26,7 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 
   if (settings.exists("form_factor")) {
     configure_form_factors(settings["form_factor"]);
+    evaluate_form_factor_ = true;
   }
 
   if (settings.exists("polarizations")) {
@@ -60,6 +61,7 @@ void NeutronScatteringNoLatticeMonitor::update(Solver *solver) {
     shift_periodogram_overlap();
     total_periods_++;
 
+    //element_sum: sum up each matrix element
     element_sum(total_unpolarized_neutron_cross_section_, calculate_unpolarized_cross_section(spectrum, elastic_spectrum));
 
     if (!neutron_polarizations_.empty()) {
@@ -109,8 +111,14 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
           auto Q = unit_vector(kspace_path_(k));
           auto s_a = conj(spectrum(f, k));
           auto s_b = spectrum(f, k);
+          double ff = 0.0;
 
-          auto ff = pow2(neutron_form_factors_(0, k)); // NOTE: currently only supports one material
+        if (evaluate_form_factor_) {
+            ff = pow2(neutron_form_factors_(0, k)); // NOTE: currently only supports one material
+        }
+        else{
+            ff = 1.0;
+        }
           for (auto i : {0, 1, 2}) {
             for (auto j : {0, 1, 2}) {
               cross_section(f, k) += ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * ((s_a[i] * s_b[j]) - dirac_delta(f) * s0[i] * s0[j]);

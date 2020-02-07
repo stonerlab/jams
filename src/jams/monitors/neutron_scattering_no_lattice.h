@@ -52,7 +52,7 @@ private:
     double kmax_;
     int num_k_;
     Vec3 kvector_;
-
+    bool evaluate_form_factor_ = false;
 
 };
 
