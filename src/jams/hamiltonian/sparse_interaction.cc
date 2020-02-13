@@ -92,7 +92,7 @@ double SparseInteractionHamiltonian::calculate_total_energy() {
   return 0.5 * total_energy;
 }
 
-void SparseInteractionHamiltonian::finalize() {
+void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symmetry_check) {
   assert(!is_finalized_);
 
   if (debug_is_enabled()) {
@@ -101,10 +101,21 @@ void SparseInteractionHamiltonian::finalize() {
     os.close();
   }
 
-  if (!sparse_matrix_builder_.is_symmetric()) {
-    throw std::runtime_error("sparse matrix for " + name_ + " is not symmetric");
+  switch(symmetry_check) {
+    case jams::SparseMatrixSymmetryCheck::None:
+      break;
+    case jams::SparseMatrixSymmetryCheck::Symmetric:
+      if (!sparse_matrix_builder_.is_symmetric()) {
+        throw std::runtime_error("sparse matrix for " + name_ + " is not symmetric");
+      }
+      break;
+    case jams::SparseMatrixSymmetryCheck::StructurallySymmetric:
+      if (!sparse_matrix_builder_.is_structurally_symmetric()) {
+        throw std::runtime_error("sparse matrix for " + name_ + " is not structurally symmetric");
+      }
+      break;
   }
-  
+
   interaction_matrix_ = sparse_matrix_builder_
       .set_format(jams::SparseMatrixFormat::CSR)
       .build();

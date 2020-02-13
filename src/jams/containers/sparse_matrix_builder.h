@@ -6,6 +6,13 @@
 #include "jams/containers/sparse_matrix.h"
 
 namespace jams {
+
+    enum class SparseMatrixSymmetryCheck {
+        None,
+        Symmetric,
+        StructurallySymmetric
+    };
+
     template<typename T>
     class SparseMatrix<T>::Builder {
     public:
