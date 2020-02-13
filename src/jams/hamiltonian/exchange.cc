@@ -89,7 +89,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     }
   }
 
-  finalize();
+  finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
 }
 
 const jams::InteractionList<Mat3,2> &ExchangeHamiltonian::neighbour_list() const {

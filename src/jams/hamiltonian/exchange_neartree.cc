@@ -160,5 +160,5 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
   cout << "  total interactions " << counter << "\n";
   cout << "  average interactions per spin " << counter / double(globals::num_spins) << "\n";
 
-  finalize();
+  finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
 }

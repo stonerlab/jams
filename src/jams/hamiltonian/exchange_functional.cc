@@ -41,7 +41,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   cout << "  total interactions " << jams::fmt::integer << counter << "\n";
   cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
 
-  finalize();
+  finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
 }
 
 double ExchangeFunctionalHamiltonian::functional_exp(const double rij, const double J0, const double r0, const double sigma){

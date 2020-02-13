@@ -37,10 +37,11 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
   const double prefactor = kVacuumPermeadbility * kBohrMagneton / (4 * kPi * pow(::lattice->parameter(), 3));
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    for (auto j = 0; j < globals::num_spins; ++j) {
+    for (auto j = i; j < globals::num_spins; ++j) {
       // loop over periodic images of the simulation lattice
       // this means r_cutoff can be larger than the simulation cell
       Mat3 dipole_tensor = kZeroMat3;
+
       for (auto Lx = -L_max[0]; Lx < L_max[0] + 1; ++Lx) {
         for (auto Ly = -L_max[1]; Ly < L_max[1] + 1; ++Ly) {
           for (auto Lz = -L_max[2]; Lz < L_max[2] + 1; ++Lz) {
@@ -67,14 +68,13 @@ DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &setti
                     pow(r_abs, 3);
               }
             }
-
           }
         }
       }
-      insert_interaction_tensor(i, j, prefactor * dipole_tensor);
 
+      insert_interaction_tensor(i, j, prefactor * dipole_tensor);
+      insert_interaction_tensor(j, i, prefactor * dipole_tensor);
     }
   }
-
-  finalize();
+  finalize(jams::SparseMatrixSymmetryCheck::None);
 }
