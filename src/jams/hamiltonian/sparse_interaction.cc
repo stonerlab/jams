@@ -19,9 +19,7 @@ void SparseInteractionHamiltonian::insert_interaction_scalar(const int i, const 
     return;
   }
   for (auto m = 0; m < 3; ++m) {
-    for (auto n = 0; n < 3; ++n) {
-        sparse_matrix_builder_.insert(3 * i + m, 3 * j + n, value);
-    }
+      sparse_matrix_builder_.insert(3 * i + m, 3 * j + m, value);
   }
 }
 

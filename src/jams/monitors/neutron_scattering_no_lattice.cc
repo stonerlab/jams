@@ -214,8 +214,6 @@ void NeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
 void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   const auto num_time_points = kspace_spins_timeseries_.size(0);
 
-  //(*) I think we should take the thermal average using python after running the program.
-  //(*) In that case, don't we want to save files with different name for each periodgram (to_string(0-total_periods))?
   //static_structure_factor=spin-spin correlation at the same time
   ofstream ofs(seedname + "_static_structure_factor_path_" + to_string(0) + ".tsv");
 
@@ -255,10 +253,6 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
 
     // sample time is here because the fourier transform in time is not an integral
     // but a discrete sum
-    //(*) Don't we have to remove (periodogram_props_.sample_time/kTwoPi) cause there shuld be
-    // another "1/periodogram_props_.sample_time" which comes from Dirac's delta function (Fermi's golden rule)?
-    //(*) Also we have to multiply kGyromagneticRatio to the prefactor?
-    //(*) Also we have to remove (0.5 * kNeutronGFactor) since it is already considered in the form factor?
     auto prefactor = (periodogram_props_.sample_time / double(total_periods_)) * (1.0 / (kTwoPi * kHBar))
                      * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
     auto barns_unitcell = prefactor / (1e-28);
