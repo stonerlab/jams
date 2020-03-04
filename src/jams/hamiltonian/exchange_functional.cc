@@ -61,6 +61,14 @@ double ExchangeFunctionalHamiltonian::functional_kaneyoshi(const double rij, con
   return J0 * pow2(rij - r0) * exp(-pow2(rij - r0) / (2 * pow2(sigma)));
 }
 
+double ExchangeFunctionalHamiltonian::functional_step(const double rij, const double J0, const double r_out){
+    if (rij < r_out){
+        return J0;
+    }
+    else
+        return 0.0;
+}
+
 ExchangeFunctionalHamiltonian::ExchangeFunctional
 ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting &settings) {
   using namespace std::placeholders;
@@ -75,7 +83,9 @@ ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting
   } else if (functional_name == "gaussian") {
     return bind(functional_gaussian, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
   } else if (functional_name == "kaneyoshi") {
-    return bind(functional_kaneyoshi, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
+      return bind(functional_kaneyoshi, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
+  } else if (functional_name == "step") {
+      return bind(functional_step, _1, double(settings["J0"]), double(settings["r_out"]));
   } else {
     throw runtime_error("unknown exchange functional: " + functional_name);
   }
