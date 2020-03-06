@@ -80,10 +80,10 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
   kvector_ = jams::config_required<Vec3>(settings, "kvector");
   num_k_ = jams::config_required<int>(settings, "num_k");
 
-  kspace_path_.resize(num_k_);
+  kspace_path_.resize(num_k_+1);
   for (auto i = 0; i < kspace_path_.size(); ++i) {//this line decides the range of kvector (whether -kmax to +kmax or 0 to kmax)
     //kspace_path_ stores the scattering vectors
-    kspace_path_(i) = kvector_ * i * (kmax_ / (num_k_-1));//kmax shoul be in the unit of [1/a]
+    kspace_path_(i) = kvector_ * i * (kmax_ / num_k_);//kmax shoul be in the unit of [2*pi/a(lattice constant)]
     cout << "i = " << i << ", kspace_path_(i) = " << kspace_path_(i) << endl;
   }
 
