@@ -1120,3 +1120,6 @@ bool Lattice::has_impurities() const {
     return !impurity_map_.empty();
 }
 
+Vec3i Lattice::get_lattice_dimensions() {
+    return lattice_dimensions;
+}

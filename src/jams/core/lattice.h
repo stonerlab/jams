@@ -128,6 +128,8 @@ public:
 
     const Vec3i &kspace_size() const;
 
+    Vec3i get_lattice_dimensions();
+
 private:
     void read_materials_from_config(const libconfig::Setting &settings);
     ImpurityMap read_impurities_from_config(const libconfig::Setting &settings);

@@ -292,7 +292,9 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
 
     Vec3 r = rspace_displacement_(n);
     //r should be normalized to get the length of position vector
-    if (norm(r) >= 0.5) continue;
+    Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
+    //Here we assume lattice_dimensions are all the same (x,y,z)
+    if (norm(r) >= lattice_dimensions[0]*0.5) continue;
     auto delta_q = kspace_path_(1) - kspace_path_(0);
 
     auto window = 1.0;
