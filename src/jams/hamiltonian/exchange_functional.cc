@@ -44,6 +44,14 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
 }
 
+
+double ExchangeFunctionalHamiltonian::functional_step(double rij, double J0, double r_cut) {
+  if (rij < r_cut) {
+    return J0;
+  }
+  return 0.0;
+}
+
 double ExchangeFunctionalHamiltonian::functional_exp(const double rij, const double J0, const double r0, const double sigma){
   return J0 * exp(-(rij - r0) / sigma);
 }
@@ -76,6 +84,8 @@ ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting
     return bind(functional_gaussian, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
   } else if (functional_name == "kaneyoshi") {
     return bind(functional_kaneyoshi, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
+  } else if (functional_name == "step") {
+    return bind(functional_step, _1, double(settings["J0"]), double(settings["r_cutoff"]));
   } else {
     throw runtime_error("unknown exchange functional: " + functional_name);
   }

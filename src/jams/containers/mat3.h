@@ -107,6 +107,13 @@ Mat<T,3,3> ssc(const Vec<T,3> &v) {
 }
 
 template <typename T>
+Mat<T,3,3> outer_product(const Vec<T,3> &a, const Vec<T,3> &b) {
+  return {a[0] * b[0], a[0] * b[1], a[0] * b[2],
+          a[1] * b[0], a[1] * b[1], a[1] * b[2],
+          a[2] * b[0], a[2] * b[1], a[2] * b[2],};
+}
+
+template <typename T>
 T determinant(const Mat<T,3,3>& a) {
   return a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1])
          +a[0][1]*(a[1][2]*a[2][0]-a[1][0]*a[2][2])
@@ -183,14 +190,19 @@ inline T max_abs(const Mat<T,3,3>& a) {
 
 inline Mat3 rotation_matrix_between_vectors(Vec<double,3> a, Vec<double,3> b) {
   // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+  // https://en.wikipedia.org/wiki/Rotation_matrix
 
-  // normalise
+  // Some implementations in the stack exchange have special points which cannot be dealt with easily
+  // (for example a == b or a == -b). The code below should work for all cases. It is maybe slightly less
+  // efficient but this does not get called a lot.
+
   a = normalize(a);
   b = normalize(b);
 
-  Vec<double,3> v = cross(a, b);
+  const auto c = dot(a, b);
+  const auto u = cross(a,b);
 
-  return kIdentityMat3 + ssc(v) + ((ssc(v) * ssc(v)) / (1.0 + dot(a, b)));
+  return c * kIdentityMat3 + ssc(u) + (1.0 - c) * outer_product(u,u);
 }
 
 #endif //JAMS_MAT3_H
