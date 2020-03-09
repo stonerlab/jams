@@ -113,7 +113,7 @@ void ConstrainedMCSolver::run() {
   }
 }
 
-unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>&  trial_spin_move) {
+unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& trial_spin_move) {
   std::uniform_real_distribution<> uniform_distribution;
 
   const double    beta = kBohrMagneton / (physics_module_->temperature() * kBoltzmann);
@@ -155,19 +155,20 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
     Vec3 deltaM = magnetization_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
 
     Vec3 m_trial_rotated = rotation_matrix_ * (m_total + deltaM);
+
     if (m_trial_rotated[2] < 0.0) {
       // The new magnetization is in the opposite sense - revert s1, reject move
       continue;
     }
+
     Vec3 m_initial_rotated = rotation_matrix_ * (m_total);
 
-    double deltaE = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
-
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-    double probability = min(1.0, exp(-deltaE * beta) * pow2(m_trial_rotated[2] / m_initial_rotated[2]) * std::abs(s2_initial_rotated[2] / s2_trial_rotated[2]));
+    double deltaE = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
+    double jacobian_factor = pow2(m_trial_rotated[2] / m_initial_rotated[2]) * std::abs(s2_initial_rotated[2] / s2_trial_rotated[2]);
+    double probability = min(1.0, exp(-deltaE * beta) * jacobian_factor);
 
-    auto x = uniform_distribution(random_generator_);
-    if (x > probability) {
+    if (uniform_distribution(random_generator_) > probability) {
       // reject move
       continue;
     }
