@@ -19,6 +19,15 @@
 
 using namespace std;
 
+namespace {
+    inline double remap_azimuthal_angle_degrees(double x) {
+      // remaps an angle in degrees to the range -180.0 < x <= 180.0
+      // this matches the mapping expected for atan2 but avoids the ambiguity
+      // of -180.0 == 180.0 which can cause issues for rotation matricies
+      return (x = fmod(x + 360.0, 360.0)) > 180.0 ? x - 360.0 : x;
+    }
+}
+
 void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   // initialize base class
   Solver::initialize(settings);
@@ -26,8 +35,12 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
 
-  constraint_theta_        = jams::config_required<double>(settings, "cmc_constraint_theta");
-  constraint_phi_          = jams::config_required<double>(settings, "cmc_constraint_phi");
+  // theta is angle for z to x-y plane from 0 to 180
+  constraint_theta_ = jams::config_required<double>(settings, "cmc_constraint_theta");
+  // phi is angle in the x-y plane from 0 to 360
+  constraint_phi_ = jams::config_required<double>(settings, "cmc_constraint_phi");
+  constraint_phi_ = remap_azimuthal_angle_degrees(constraint_phi_);
+
   move_angle_sigma_        = jams::config_optional<double>(settings, "move_angle_sigma", jams::defaults::solver_monte_carlo_move_sigma);
   output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::defaults::monitor_output_steps);
 
@@ -37,6 +50,7 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   rotation_matrix_         = rotation_matrix_y(-deg_to_rad(constraint_theta_))*rotation_matrix_z(-deg_to_rad(constraint_phi_));
   // from the constraint space back to cartesian
   inverse_rotation_matrix_ = transpose(rotation_matrix_);
+
 
   if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
     move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
@@ -56,56 +70,17 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
     spin_transformations_[i] = lattice->material(lattice->atom_material_id(i)).transform;
   }
 
-  cout << "    constraint angle theta (deg) " << constraint_theta_ << "\n";
-  cout << "    constraint angle phi (deg) " << constraint_phi_ << "\n";
-  cout << "    constraint vector " << constraint_vector_[0] << " " << constraint_vector_[1] << " " << constraint_vector_[2] << "\n";
-  cout << "    move_fraction_uniform " << move_fraction_uniform_ << "\n";
-  cout << "    move_fraction_angle " << move_fraction_angle_ << "\n";
-  cout << "    move_fraction_reflection " << move_fraction_reflection_ << "\n";
-  cout << "    move_angle_sigma " << move_angle_sigma_ << "\n";
-  cout << "    output_write_steps " << output_write_steps_ << "\n";
-  cout << "    rotation matrix m -> mz\n";
-  for (auto i = 0; i < 3; ++i) {
-    cout << "      ";
-    for (auto j = 0; j < 3; ++j) {
-      cout << rotation_matrix_[i][j] << " ";
-    }
-    cout << "\n";
-  }
-  cout << "    inverse rotation matrix mz -> m\n";
-  for (auto i = 0; i < 3; ++i) {
-    cout << "      ";
-    for (auto j = 0; j < 3; ++j) {
-      cout << inverse_rotation_matrix_[i][j] << " ";
-    }
-    cout << "\n";
-  }
+  output_initialization_info(cout);
 
-  // do some basic checks
-  if (approximately_equal(move_fraction_reflection_, 1.0)) {
-    jams_warning("Only reflection moves have been configured. This breaks ergodicity.");
-  }
-
-  Vec3 test_unit_vec = {0.0, 0.0, 1.0};
-  Vec3 test_forward_vec = rotation_matrix_ * test_unit_vec;
-  Vec3 test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
-
-  if (verbose_is_enabled()) {
-    cout << "  rotation sanity check\n";
-    cout << "    rotate\n";
-    cout << "      " << test_unit_vec << " -> " << test_forward_vec << "\n";
-    cout << "    back rotate\n";
-    cout << "      " << test_forward_vec << " -> " << test_back_vec << "\n";
-  }
-
-  for (int n = 0; n < 3; ++n) {
-    if (!approximately_equal(test_unit_vec[n], test_back_vec[n], jams::defaults::solver_monte_carlo_constraint_tolerance)) {
-      throw std::runtime_error("ConstrainedMCSolver :: rotation sanity check failed");
-    }
-  }
+  validate_angles();
+  validate_rotation_matricies();
+  validate_constraint();
+  validate_moves();
 }
 
 void ConstrainedMCSolver::run() {
+  reset_running_statistics();
+
   // Chooses nspins random spin pairs from the spin system and attempts a
   // Constrained Monte Carlo move on each pair, accepting for either lower
   // energy or with a Boltzmann thermal weighting.
@@ -115,57 +90,26 @@ void ConstrainedMCSolver::run() {
   MonteCarloAngleMove<pcg32_k1024>   angle_move(&random_generator_, move_angle_sigma_);
   MonteCarloReflectionMove           reflection_move;
 
-  const double uniform_random_number = uniform_distribution(random_generator_);
+  auto uniform_random_number = uniform_distribution(random_generator_);
   if (uniform_random_number < move_fraction_uniform_) {
     move_running_acceptance_count_uniform_ += AsselinAlgorithm(uniform_move);
-    run_count_uniform++;
+    run_count_uniform_++;
   } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
     move_running_acceptance_count_angle_ += AsselinAlgorithm(angle_move);
-    run_count_angle++;
+    run_count_angle_++;
   } else {
     move_running_acceptance_count_reflection_ += AsselinAlgorithm(reflection_move);
-    run_count_reflection++;
+    run_count_reflection_++;
   }
 
   iteration_++;
 
   if (iteration_ % output_write_steps_ == 0) {
-
     validate_constraint();
 
-    move_total_count_uniform_    += run_count_uniform;
-    move_total_count_angle_      += run_count_angle;
-    move_total_count_reflection_ += run_count_reflection;
-
-    move_total_acceptance_count_uniform_    += move_running_acceptance_count_uniform_;
-    move_total_acceptance_count_angle_      += move_running_acceptance_count_angle_;
-    move_total_acceptance_count_reflection_ += move_running_acceptance_count_reflection_;
-
-    cout << "\n";
-    cout << "iteration" << iteration_ << "\n";
-    cout << "move_acceptance_fraction\n";
-
-    double half_num_spins = 0.5 * globals::num_spins;
-
-    cout << "  uniform ";
-    cout << division_or_zero(move_running_acceptance_count_uniform_, half_num_spins * run_count_uniform) << " (";
-    cout << division_or_zero(move_total_acceptance_count_uniform_,   half_num_spins * move_total_count_uniform_) << ") \n";
-
-    cout << "  angle ";
-    cout << division_or_zero(move_running_acceptance_count_angle_, half_num_spins * run_count_angle) << " (";
-    cout << division_or_zero(move_total_acceptance_count_angle_,   half_num_spins * move_total_count_angle_) << ") \n";
-
-    cout << "  reflection ";
-    cout << division_or_zero(move_running_acceptance_count_reflection_, half_num_spins * run_count_reflection) << " (";
-    cout << division_or_zero(move_total_acceptance_count_reflection_,   half_num_spins * move_total_count_reflection_) << ") \n";
-    
-    move_running_acceptance_count_uniform_    = 0;
-    move_running_acceptance_count_angle_      = 0;
-    move_running_acceptance_count_reflection_ = 0;
-
-    run_count_uniform    = 0;
-    run_count_angle      = 0;
-    run_count_reflection = 0;
+    sum_running_acceptance_statistics();
+    output_running_stats_info(cout);
+    reset_running_statistics();
   }
 }
 
@@ -274,25 +218,6 @@ Vec3 ConstrainedMCSolver::total_transformed_magnetization() const {
   return m_total;
 }
 
-void ConstrainedMCSolver::validate_constraint() const {
-    Vec3 m_total = total_transformed_magnetization();
-
-    const double actual_theta = rad_to_deg(polar_angle(m_total));
-    const double actual_phi = rad_to_deg(azimuthal_angle(m_total));
-
-  if (!approximately_equal(actual_theta, constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
-     std::stringstream ss;
-     ss << "ConstrainedMCSolver::AsselinAlgorithm -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(polar_angle(m_total)) << " deg)";
-     throw std::runtime_error(ss.str());
-   }
-
-   if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance) && !(approximately_zero(actual_theta))) {
-     std::stringstream ss;
-     ss << "ConstrainedMCSolver::AsselinAlgorithm -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(azimuthal_angle(m_total)) << " deg)";
-     throw std::runtime_error(ss.str());
-   }
-}
-
 Vec3 ConstrainedMCSolver::rotate_cartesian_to_constraint(const int i, const Vec3 &spin) const {
   return rotation_matrix_ * (spin_transformations_[i] * spin);
 }
@@ -301,4 +226,127 @@ Vec3 ConstrainedMCSolver::rotate_constraint_to_cartesian(const int i, const Vec3
   return transpose(spin_transformations_[i]) * (inverse_rotation_matrix_ * spin);
 }
 
+void ConstrainedMCSolver::output_initialization_info(std::ostream &os) {
+  os << "    constraint angle theta (deg) " << constraint_theta_ << "\n";
+  os << "    constraint angle phi (deg) " << constraint_phi_ << "\n";
+  os << "    constraint vector " << constraint_vector_[0] << " " << constraint_vector_[1] << " " << constraint_vector_[2] << "\n";
+  os << "    move_fraction_uniform " << move_fraction_uniform_ << "\n";
+  os << "    move_fraction_angle " << move_fraction_angle_ << "\n";
+  os << "    move_fraction_reflection " << move_fraction_reflection_ << "\n";
+  os << "    move_angle_sigma " << move_angle_sigma_ << "\n";
+  os << "    output_write_steps " << output_write_steps_ << "\n";
+  os << "    rotation matrix m -> mz\n";
+  for (auto i = 0; i < 3; ++i) {
+    os << "      ";
+    for (auto j = 0; j < 3; ++j) {
+      os << rotation_matrix_[i][j] << " ";
+    }
+    os << "\n";
+  }
+  os << "    inverse rotation matrix mz -> m\n";
+  for (auto i = 0; i < 3; ++i) {
+    os << "      ";
+    for (auto j = 0; j < 3; ++j) {
+      os << inverse_rotation_matrix_[i][j] << " ";
+    }
+    os << "\n";
+  }
+}
 
+void ConstrainedMCSolver::validate_rotation_matricies() const {
+  Vec3 test_unit_vec = {0.0, 0.0, 1.0};
+  Vec3 test_forward_vec = rotation_matrix_ * test_unit_vec;
+  Vec3 test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
+
+  if (verbose_is_enabled()) {
+    cout << "  rotation sanity check\n";
+    cout << "    rotate\n";
+    cout << "      " << test_unit_vec << " -> " << test_forward_vec << "\n";
+    cout << "    back rotate\n";
+    cout << "      " << test_forward_vec << " -> " << test_back_vec << "\n";
+  }
+
+  for (int n = 0; n < 3; ++n) {
+    if (!approximately_equal(test_unit_vec[n], test_back_vec[n], jams::defaults::solver_monte_carlo_constraint_tolerance)) {
+      throw std::runtime_error("ConstrainedMCSolver :: rotation sanity check failed");
+    }
+  }
+}
+
+void ConstrainedMCSolver::output_running_stats_info(std::ostream &os) {
+  os << "\n";
+  os << "iteration: " << iteration_ << "\n";
+  os << "move_acceptance_fraction:\n";
+
+  double half_num_spins = 0.5 * globals::num_spins;
+
+  os << "  uniform:    ";
+  os << division_or_zero(move_running_acceptance_count_uniform_, half_num_spins * run_count_uniform_) << " (";
+  os << division_or_zero(move_total_acceptance_count_uniform_,   half_num_spins * move_total_count_uniform_) << ") \n";
+
+  os << "  angle:      ";
+  os << division_or_zero(move_running_acceptance_count_angle_, half_num_spins * run_count_angle_) << " (";
+  os << division_or_zero(move_total_acceptance_count_angle_,   half_num_spins * move_total_count_angle_) << ") \n";
+
+  os << "  reflection: ";
+  os << division_or_zero(move_running_acceptance_count_reflection_, half_num_spins * run_count_reflection_) << " (";
+  os << division_or_zero(move_total_acceptance_count_reflection_,   half_num_spins * move_total_count_reflection_) << ") \n";
+}
+
+
+void ConstrainedMCSolver::validate_constraint() const {
+  Vec3 m_total = total_transformed_magnetization();
+
+  const double actual_theta = rad_to_deg(polar_angle(m_total));
+  const double actual_phi = rad_to_deg(azimuthal_angle(m_total));
+
+  if (!approximately_equal(actual_theta, constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
+    std::stringstream ss;
+    ss << "ConstrainedMCSolver -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(polar_angle(m_total)) << " deg)";
+    throw std::runtime_error(ss.str());
+  }
+
+  if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance) && !(approximately_zero(actual_theta))) {
+    std::stringstream ss;
+    ss << "ConstrainedMCSolver -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(azimuthal_angle(m_total)) << " deg)";
+    throw std::runtime_error(ss.str());
+  }
+}
+
+void ConstrainedMCSolver::validate_angles() const {
+  if (constraint_theta_ < 0 || constraint_theta_ > 180.0) {
+    throw std::runtime_error(
+        "ConstrainedMCSolver -- theta ( " + to_string(constraint_theta_) + " ) is out of range (0 <= theta <= 180)");
+  }
+
+  if ( constraint_phi_ <= -180.0 || constraint_phi_ > 180.0) {
+    throw std::runtime_error(
+        "ConstrainedMCSolver -- phi ( " + to_string(constraint_phi_) + " ) is out of range (-180 <= phi <= 180)");
+  }
+}
+
+void ConstrainedMCSolver::validate_moves() const {
+  if (approximately_equal(move_fraction_reflection_, 1.0)) {
+    throw std::runtime_error("ConstrainedMCSolver -- Only reflection moves have been configured. This breaks ergodicity.");
+  }
+}
+
+void ConstrainedMCSolver::reset_running_statistics() {
+  move_running_acceptance_count_uniform_    = 0;
+  move_running_acceptance_count_angle_      = 0;
+  move_running_acceptance_count_reflection_ = 0;
+
+  run_count_uniform_    = 0;
+  run_count_angle_      = 0;
+  run_count_reflection_ = 0;
+}
+
+void ConstrainedMCSolver::sum_running_acceptance_statistics() {
+  move_total_count_uniform_    += run_count_uniform_;
+  move_total_count_angle_      += run_count_angle_;
+  move_total_count_reflection_ += run_count_reflection_;
+
+  move_total_acceptance_count_uniform_    += move_running_acceptance_count_uniform_;
+  move_total_acceptance_count_angle_      += move_running_acceptance_count_angle_;
+  move_total_acceptance_count_reflection_ += move_running_acceptance_count_reflection_;
+}
