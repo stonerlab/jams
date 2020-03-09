@@ -32,7 +32,7 @@ class ConstrainedMCSolver : public Solver {
     void sum_running_acceptance_statistics();
     void reset_running_statistics();
 
-    void align_spins_to_constraint();
+    void align_spins_to_constraint() const;
 
     unsigned AsselinAlgorithm(const std::function<Vec3(Vec3)>&  trial_spin_move);
 

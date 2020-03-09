@@ -119,10 +119,13 @@ void ConstrainedMCSolver::run() {
 }
 
 unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& trial_spin_move) {
-  std::uniform_real_distribution<> uniform_distribution;
+  using namespace std;
+  using namespace globals;
 
-  const double    beta = kBohrMagneton / (physics_module_->temperature() * kBoltzmann);
-  Vec3         m_total = total_transformed_magnetization();
+  uniform_real_distribution<> uniform_distribution;
+
+  const double beta = kBohrMagneton / (physics_module_->temperature() * kBoltzmann);
+  Vec3 magnetisation = total_transformed_magnetization();
 
   unsigned moves_accepted = 0;
 
@@ -153,25 +156,25 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
       continue;
     }
     // calculate the z-component so that |s2| = 1
-    s2_trial_rotated[2] = std::copysign(sqrt(1.0 - ss2), s2_initial_rotated[2]);
+    s2_trial_rotated[2] = copysign(sqrt(1.0 - ss2), s2_initial_rotated[2]);
 
     Vec3 s2_trial = rotate_constraint_to_cartesian(s2, s2_trial_rotated);
 
-    Vec3 deltaM = magnetization_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
+    Vec3 delta_m = magnetization_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
 
-    Vec3 m_trial_rotated = rotation_matrix_ * (m_total + deltaM);
+    Vec3 m_trial_rotated = rotation_matrix_ * (magnetisation + delta_m);
 
     if (m_trial_rotated[2] < 0.0) {
       // The new magnetization is in the opposite sense - revert s1, reject move
       continue;
     }
 
-    Vec3 m_initial_rotated = rotation_matrix_ * (m_total);
+    Vec3 m_initial_rotated = rotation_matrix_ * (magnetisation);
 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
-    double deltaE = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
-    double jacobian_factor = pow2(m_trial_rotated[2] / m_initial_rotated[2]) * std::abs(s2_initial_rotated[2] / s2_trial_rotated[2]);
-    double probability = min(1.0, exp(-deltaE * beta) * jacobian_factor);
+    double delta_e = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
+    double jacobian_factor = pow2(m_trial_rotated[2] / m_initial_rotated[2]) * abs(s2_initial_rotated[2] / s2_trial_rotated[2]);
+    double probability = min(1.0, exp(-delta_e * beta) * jacobian_factor);
 
     if (uniform_distribution(random_generator_) > probability) {
       // reject move
@@ -182,7 +185,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
     mc_set_spin_as_vec(s1, s1_trial);
     mc_set_spin_as_vec(s2, s2_trial);
 
-    m_total += deltaM;
+    magnetisation += delta_m;
 
     moves_accepted++;
   }
@@ -362,7 +365,7 @@ void ConstrainedMCSolver::sum_running_acceptance_statistics() {
   move_total_acceptance_count_reflection_ += move_running_acceptance_count_reflection_;
 }
 
-void ConstrainedMCSolver::align_spins_to_constraint() {
+void ConstrainedMCSolver::align_spins_to_constraint() const {
   auto M = total_transformed_magnetization();
 
   auto rotation = rotation_matrix_between_vectors(M, constraint_vector_);
