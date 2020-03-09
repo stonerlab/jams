@@ -32,6 +32,8 @@ class ConstrainedMCSolver : public Solver {
     void sum_running_acceptance_statistics();
     void reset_running_statistics();
 
+    void align_spins_to_constraint();
+
     unsigned AsselinAlgorithm(const std::function<Vec3(Vec3)>&  trial_spin_move);
 
     Vec3     rotate_cartesian_to_constraint(int i, const Vec3 &spin) const;
@@ -41,6 +43,7 @@ class ConstrainedMCSolver : public Solver {
     double   energy_difference(int s1, const Vec3 &s1_initial, const Vec3 &s1_trial, int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
     Vec3     magnetization_difference(int s1, const Vec3 &s1_initial, const Vec3 &s1_trial, int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
 
+    bool do_spin_initial_alignment_ = true;
 
     pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<std::random_device>();
 

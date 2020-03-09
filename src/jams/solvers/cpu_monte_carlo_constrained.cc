@@ -32,6 +32,8 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   // initialize base class
   Solver::initialize(settings);
 
+  do_spin_initial_alignment_ = jams::config_optional(settings, "auto_align", do_spin_initial_alignment_);
+
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
 
@@ -64,7 +66,6 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
     move_fraction_reflection_  /= move_fraction_sum;
   }
 
-
   spin_transformations_.resize(globals::num_spins);
   for (int i = 0; i < globals::num_spins; ++i) {
     spin_transformations_[i] = lattice->material(lattice->atom_material_id(i)).transform;
@@ -74,8 +75,12 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
 
   validate_angles();
   validate_rotation_matricies();
-  validate_constraint();
   validate_moves();
+
+  if (do_spin_initial_alignment_) {
+    align_spins_to_constraint();
+  }
+  validate_constraint();
 }
 
 void ConstrainedMCSolver::run() {
@@ -350,4 +355,17 @@ void ConstrainedMCSolver::sum_running_acceptance_statistics() {
   move_total_acceptance_count_uniform_    += move_running_acceptance_count_uniform_;
   move_total_acceptance_count_angle_      += move_running_acceptance_count_angle_;
   move_total_acceptance_count_reflection_ += move_running_acceptance_count_reflection_;
+}
+
+void ConstrainedMCSolver::align_spins_to_constraint() {
+  auto M = total_transformed_magnetization();
+
+  auto rotation = rotation_matrix_between_vectors(M, constraint_vector_);
+
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    Vec3 snew = rotation * mc_spin_as_vec(i);
+    for (auto j : {0, 1, 2}) {
+      globals::s(i, j) = snew[j];
+    }
+  }
 }
