@@ -38,7 +38,7 @@ UnitcellAverageMonitor::UnitcellAverageMonitor(const libconfig::Setting &setting
 
   output_step_freq_ = settings["output_steps"];
 
-  open_new_xdmf_file(seedname + "_avg.xdmf");
+  open_new_xdmf_file(jams::instance().output_path() + "/" + seedname + "_avg.xdmf");
 
   spin_transformations_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -68,7 +68,7 @@ void UnitcellAverageMonitor::update(Solver * solver) {
 
   int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
-  const std::string h5_file_name(seedname + "_" + zero_pad_number(outcount) + "_avg.h5");
+  const std::string h5_file_name(jams::instance().output_path() + "/" + seedname + "_" + zero_pad_number(outcount) + "_avg.h5");
 
   cell_mag_.zero();
   for (auto i = 0; i < num_spins; ++i) {
@@ -175,7 +175,7 @@ void UnitcellAverageMonitor::update_xdmf_file(const std::string &h5_file_name) {
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("       <Attribute Name=\"magnetisation\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s:/magnetisation\n", h5_file_name.c_str());
+  fprintf(xdmf_file_, "           %s:/magnetisation\n", file_basename(h5_file_name).c_str());
   fputs("         </DataItem>\n", xdmf_file_);
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("      </Grid>\n", xdmf_file_);

@@ -1,0 +1,5 @@
+include(CheckIncludeFiles)
+check_include_files(sys/stat.h HAVE_SYS_STAT_HEADER)
+if(NOT HAVE_SYS_STAT_HEADER)
+    message(FATAL_ERROR "Cannot find sys/stat.h required for filesystem calls")
+endif()

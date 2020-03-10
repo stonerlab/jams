@@ -13,8 +13,8 @@
 #include "field.h"
 
 FieldMonitor::FieldMonitor(const libconfig::Setting &settings)
-: Monitor(settings) {
-  tsv_file.open(seedname + "_fld.tsv");
+: Monitor(settings),
+  tsv_file(jams::filesystem::open_file(::seedname + "_fld.tsv")){
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 }

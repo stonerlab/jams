@@ -11,12 +11,11 @@
 
 SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file()
+  tsv_file(jams::filesystem::open_file(seedname + "_smr.tsv"))
 {
   std::cout << "\ninitialising SMR monitor\n";
   std::cout << "  assumes axes j->x, t->y, n->z\n";
 
-  tsv_file.open(seedname + "_smr.tsv");
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 }

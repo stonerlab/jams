@@ -272,7 +272,7 @@ void SpectrumFourierMonitor::fft_time() {
     // output DSF for each position in the unit cell
 
     if (output_sublattice_enabled_) {
-      std::ofstream unit_cell_sqw_file(seedname + "_sqw_" + std::to_string(unit_cell_atom) + ".tsv");
+      std::ofstream unit_cell_sqw_file = jams::filesystem::open_file(seedname + "_sqw_" + std::to_string(unit_cell_atom) + ".tsv");
       unit_cell_sqw_file.width(12);
       unit_cell_sqw_file << "k_index\t";
       unit_cell_sqw_file << "k_total\t";
@@ -316,7 +316,7 @@ void SpectrumFourierMonitor::fft_time() {
     }
   }
 
-  std::ofstream sqwfile(seedname + "_sqw.tsv");
+  std::ofstream sqwfile = jams::filesystem::open_file(seedname + "_sqw.tsv");
 
   sqwfile.width(12);
   sqwfile << "k_index\t";

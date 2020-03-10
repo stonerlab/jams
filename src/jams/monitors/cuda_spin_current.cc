@@ -110,7 +110,7 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
 
   if (do_h5_output && solver->iteration()%h5_output_steps == 0) {
     int outcount = solver->iteration()/h5_output_steps;  // int divisible by modulo above
-    const std::string h5_file_name(seedname + "_" + zero_pad_number(outcount) + "_js.h5");
+    const std::string h5_file_name(jams::instance().output_path() + "/" + seedname + "_" + zero_pad_number(outcount) + "_js.h5");
     write_spin_current_h5_file(h5_file_name);
     update_xdmf_file(h5_file_name);
   }
@@ -155,7 +155,7 @@ void CudaSpinCurrentMonitor::open_new_xdmf_file(const std::string &xdmf_file_nam
   using namespace globals;
 
   // create xdmf_file_
-  xdmf_file_ = fopen(xdmf_file_name.c_str(), "w");
+  xdmf_file_ = fopen(std::string(jams::instance().output_path() + "/" + xdmf_file_name).c_str(), "w");
 
   fputs("<?xml version=\"1.0\"?>\n", xdmf_file_);
   fputs("<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\"[]>\n", xdmf_file_);
@@ -194,7 +194,7 @@ void CudaSpinCurrentMonitor::update_xdmf_file(const std::string &h5_file_name) {
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("       <Attribute Name=\"spin_current\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s:/spin_current\n", h5_file_name.c_str());
+  fprintf(xdmf_file_, "           %s:/spin_current\n", file_basename(h5_file_name).c_str());
   fputs("         </DataItem>\n", xdmf_file_);
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("      </Grid>\n", xdmf_file_);

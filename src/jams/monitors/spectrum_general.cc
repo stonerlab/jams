@@ -36,11 +36,10 @@ namespace {
 
 
 
-SpectrumGeneralMonitor::SpectrumGeneralMonitor(const libconfig::Setting &settings) : Monitor(settings) {
+SpectrumGeneralMonitor::SpectrumGeneralMonitor(const libconfig::Setting &settings)
+: Monitor(settings),
+outfile(jams::filesystem::open_file(seedname + "_fk.tsv")){
   using namespace std;
-
-  std::string name = seedname + "_fk.tsv";
-  outfile.open(name.c_str());
 
   libconfig::Setting& solver_settings = ::config->lookup("solver");
 
@@ -183,7 +182,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     }
 
     if (i%10 == 0) {
-      std::ofstream cfile(seedname + "_corr.tsv");
+      std::ofstream cfile = jams::filesystem::open_file(seedname + "_corr.tsv");
       for (unsigned q = 0; q < qvecs.size(); ++q) {
         for (unsigned w = 0; w < padded_size_/2+1; ++w) {
           cfile << qmax_ * (q / double(num_qpoints_-1)) << " " << 0.5*w * freq_delta_ << " " << -SQw(q, w).imag() / (i + 1)/ static_cast<double>(padded_size_) << "\n";

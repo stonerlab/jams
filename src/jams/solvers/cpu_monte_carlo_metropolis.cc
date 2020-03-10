@@ -289,8 +289,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
     cout << "    permutations " << count << "\n";
 
-    std::ofstream preconditioner_file;
-    preconditioner_file.open(std::string(::seedname+"_mc_pre.tsv").c_str());
+    std::ofstream preconditioner_file = jams::filesystem::open_file(seedname + "_mc_pre.tsv");
     preconditioner_file << "# theta (deg) | phi (deg) | energy (J) \n";
 
     preconditioner_file.close();

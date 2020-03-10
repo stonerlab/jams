@@ -6,6 +6,7 @@
 #include <cstdarg>
 #include <fstream>
 #include <jams/common.h>
+#include <jams/helpers/filesystem.h>
 
 #if HAS_OMP
   #include <omp.h>

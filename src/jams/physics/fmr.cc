@@ -17,7 +17,7 @@ FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
   ACFieldFrequency(0),
   ACFieldStrength(3, 0),
   DCFieldStrength(3, 0),
-  PSDFile(),
+  PSDFile(jams::filesystem::open_file(seedname + "_psd.tsv")),
   PSDIntegral(0) {
   using namespace globals;
 
@@ -31,10 +31,6 @@ FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
   for (int i = 0; i < 3; ++i) {
     DCFieldStrength[i] = settings["DCFieldStrength"][i];
   }
-
-  std::string fileName = "_psd.dat";
-  fileName = seedname+fileName;
-  PSDFile.open(fileName.c_str());
 
   PSDIntegral.resize(num_spins);
 

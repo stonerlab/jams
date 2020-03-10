@@ -1,3 +1,5 @@
+include("${PROJECT_SOURCE_DIR}/cmake/External/filesystem.cmake")
+
 if(JAMS_BUILD_OMP)
     include("${PROJECT_SOURCE_DIR}/cmake/External/omp.cmake")
 endif()

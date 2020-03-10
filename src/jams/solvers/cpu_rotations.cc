@@ -38,7 +38,7 @@ void RotationSolver::run() {
 
     Vec3 spin_initial = {s(i,0), s(i,1), s(i,2)};
 
-    std::ofstream tsv_file(seedname + "_" + to_string(i) + "_ang_eng.tsv");
+    std::ofstream tsv_file = jams::filesystem::open_file(seedname + "_" + to_string(i) + "_ang_eng.tsv");
     tsv_file.width(12);
     tsv_file << "theta_deg\t";
     tsv_file << "phi_deg\t";

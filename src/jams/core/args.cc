@@ -16,6 +16,11 @@ namespace jams {
         return;
       }
 
+      if (flag.rfind("--output=", 0) == 0) {
+        program_args.output_path = flag.substr(flag.find('=') + 1);
+        return;
+      }
+
       throw std::runtime_error("Unknown flag \'" + flag + "\'");
     }
 

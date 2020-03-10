@@ -82,7 +82,7 @@ void VtuMonitor::update(Solver * solver) {
   if (solver->iteration()%output_step_freq_ == 0) {
     int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
-    std::ofstream vtkfile(std::string(seedname+"_"+zero_pad_number(outcount)+".vtu").c_str());
+    std::ofstream vtkfile = jams::filesystem::open_file(seedname + "_" + zero_pad_number(outcount) + ".vtu");
 
 
     uint32_t header_bytesize, types_bytesize, points_bytesize, spins_bytesize, num_points;

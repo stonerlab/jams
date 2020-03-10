@@ -17,8 +17,9 @@
 #include "jams/helpers/stats.h"
 
 SpinPumpingMonitor::SpinPumpingMonitor(const libconfig::Setting &settings)
-: Monitor(settings) {
-  tsv_file_.open(seedname + "_jsp.tsv");
+: Monitor(settings),
+tsv_file_(jams::filesystem::open_file(seedname + "_jsp.tsv"))
+{
   tsv_file_.setf(std::ios::right);
   tsv_file_ << tsv_header();
 
