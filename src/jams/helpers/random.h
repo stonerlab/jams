@@ -9,16 +9,6 @@
 #include <sstream>
 #include "jams/helpers/utils.h"
 
-namespace jams {
-    pcg32& random_generator();
-
-    inline std::string random_generator_internal_state() {
-      std::stringstream ss;
-      ss << random_generator();
-      return ss.str();
-    }
-}
-
 template <class RNG>
 std::array<double, 3> uniform_random_sphere(RNG &gen) {
   std::uniform_real_distribution<> dist;

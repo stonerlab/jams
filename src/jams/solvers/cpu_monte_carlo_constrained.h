@@ -36,16 +36,14 @@ class ConstrainedMCSolver : public Solver {
 
     unsigned AsselinAlgorithm(const std::function<Vec3(Vec3)>&  trial_spin_move);
 
-    Vec3     rotate_cartesian_to_constraint(int i, const Vec3 &spin) const;
-    Vec3     rotate_constraint_to_cartesian(int i, const Vec3 &spin) const;
+    Vec3     rotate_cartesian_to_constraint(const int &i, const Vec3 &spin) const;
+    Vec3     rotate_constraint_to_cartesian(const int &i, const Vec3 &spin) const;
     Vec3     total_transformed_magnetization() const;
 
-    double   energy_difference(int s1, const Vec3 &s1_initial, const Vec3 &s1_trial, int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
-    Vec3     magnetization_difference(int s1, const Vec3 &s1_initial, const Vec3 &s1_trial, int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
+    double   energy_difference(const int &s1, const Vec3 &s1_initial, const Vec3 &s1_trial, const int &s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
+    Vec3     magnetization_difference(const int &s1, const Vec3 &s1_initial, const Vec3 &s1_trial, const int &s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const;
 
     bool do_spin_initial_alignment_ = true;
-
-    pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<std::random_device>();
 
     double constraint_theta_   = 0.0;
     double constraint_phi_     = 0.0;

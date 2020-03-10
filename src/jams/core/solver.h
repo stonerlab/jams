@@ -30,10 +30,6 @@ class Solver : public Base {
   bool is_converged();
   virtual bool is_running();
 
-  inline bool is_cuda_solver() const {
-    return is_cuda_solver_;
-  }
-
   inline int iteration() const {
     return iteration_;
   }

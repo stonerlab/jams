@@ -59,7 +59,7 @@ inline Vec3 mc_spin_as_vec(int i) {
     return {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
 }
 
-inline void mc_set_spin_as_vec(int i, const Vec3& spin) {
+inline void mc_set_spin_as_vec(const int &i, const Vec3& spin) {
   globals::s(i, 0) = spin[0];
   globals::s(i, 1) = spin[1];
   globals::s(i, 2) = spin[2];

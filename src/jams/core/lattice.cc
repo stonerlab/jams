@@ -416,7 +416,7 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
 
   if(settings.exists("impurities")) {
     impurity_map_ = read_impurities_from_config(settings["impurities"]);
-    impurity_seed_ = jams::config_optional<unsigned>(settings, "impurities_seed", jams::random_generator()());
+    impurity_seed_ = jams::config_optional<unsigned>(settings, "impurities_seed", jams::instance().random_generator()());
     cout << "  impurity seed " << impurity_seed_ << "\n";
   }
 }

@@ -90,7 +90,7 @@ namespace jams {
         #if HAS_CUDA
         template <class U, size_t N>
         void multiply_gpu(const MultiArray<U, N> &vector, MultiArray<U, N> &result,
-                          cusparseHandle_t &handle, cudaStream_t stream_id);
+                          cusparseHandle_t handle, cudaStream_t stream_id);
         #endif
 
     protected:
@@ -141,7 +141,7 @@ namespace jams {
     template<typename T>
     template<class U, size_t N>
     void SparseMatrix<T>::multiply_gpu(const MultiArray<U, N> &vector, MultiArray<U, N> &result,
-                                       cusparseHandle_t &handle, cudaStream_t stream_id) {
+                                       cusparseHandle_t handle, cudaStream_t stream_id) {
       assert(handle != nullptr);
       switch (description_.format()) {
         case SparseMatrixFormat::COO:
