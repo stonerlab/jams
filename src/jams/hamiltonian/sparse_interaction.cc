@@ -90,7 +90,7 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
   assert(!is_finalized_);
 
   if (debug_is_enabled()) {
-    std::ofstream os(seedname + "_" + name_ + "_spm.tsv");
+    std::ofstream os = jams::filesystem::open_file("DEBUG_" + seedname + "_" + name_ + "_spm.tsv");
     sparse_matrix_builder_.output(os);
     os.close();
   }

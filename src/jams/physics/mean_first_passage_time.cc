@@ -12,12 +12,8 @@
 MFPTPhysics::MFPTPhysics(const libconfig::Setting &settings)
   : Physics(settings),
   maskArray(),
-  MFPTFile() {
+  MFPTFile(jams::filesystem::open_file(seedname + "_mfpt.tsv")) {
   using namespace globals;
-
-  std::string fileName = "_mfpt.dat";
-  fileName = seedname+fileName;
-  MFPTFile.open(fileName.c_str());
 
   maskArray.resize(num_spins);
 

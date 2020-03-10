@@ -14,8 +14,7 @@ BoltzmannMonitor::BoltzmannMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
 bins_(36, 0.0),
 total_(0),
-tsv_file() {
-  tsv_file.open(seedname + "_blt.tsv");
+tsv_file(jams::filesystem::open_file(seedname + "_blt.tsv")) {
 }
 
 void BoltzmannMonitor::update(Solver * solver) {

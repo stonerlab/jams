@@ -45,9 +45,9 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
         slice_ = Slice(settings["slice"]);
     }
 
-    open_new_xdmf_file(seedname + ".xdmf");
+    open_new_xdmf_file(jams::instance().output_path() + "/" + seedname + ".xdmf");
 
-    write_lattice_h5_file(seedname + "_lattice.h5");
+    write_lattice_h5_file(jams::instance().output_path() + "/" + seedname + "_lattice.h5");
 }
 
 Hdf5Monitor::~Hdf5Monitor() {
@@ -197,7 +197,7 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name) {
                fputs("       </Attribute>\n", xdmf_file_);
                fputs("       <Attribute Name=\"spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s:/spins\n", h5_file_name.c_str());
+  fprintf(xdmf_file_, "           %s:/spins\n", file_basename(h5_file_name).c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
    fputs("      </Grid>\n", xdmf_file_);

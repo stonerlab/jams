@@ -24,9 +24,9 @@ void BinaryMonitor::update(Solver * solver) {
   std::ofstream bin_file;
 
   if (is_file_overwrite_mode) {
-    bin_file.open(seedname + ".bin", std::ios::binary | std::ios::trunc);
+    bin_file = jams::filesystem::open_file(seedname + ".bin", std::ios::binary | std::ios::trunc);
   } else {
-    bin_file.open(seedname + "_" + zero_pad_number(outcount) + ".bin", std::ios::binary);
+    bin_file = jams::filesystem::open_file(seedname + "_" + zero_pad_number(outcount) + ".bin", std::ios::binary);
   }
 
   // pointers must be reinterpreted as a char *

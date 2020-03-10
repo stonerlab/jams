@@ -25,7 +25,7 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   Cl(3.0E06),
   G(17.0E17),
   Gsink(17.0E14),
-  TTMFile() {
+  TTMFile(jams::filesystem::open_file(seedname + "_ttm.tsv")) {
   using namespace globals;
 
   phononTemp = settings["InitialTemperature"];
@@ -58,10 +58,6 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   for (int i = 0; i < 3; ++i) {
     reversingField[i] = settings["ReversingField"][i];
   }
-
-  std::string fileName = "_ttm.dat";
-  fileName = seedname+fileName;
-  TTMFile.open(fileName.c_str());
 
   TTMFile << std::setprecision(8);
   TTMFile << "# t [s]\tT_el [K]\tT_ph [K]\tLaser [arb/]\n";

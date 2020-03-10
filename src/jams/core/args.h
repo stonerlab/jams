@@ -13,6 +13,7 @@ namespace jams {
         bool        setup_only        = false;
         std::string config_file_path  = "";
         std::string config_file_patch = "";
+        std::string output_path = "";
     };
 
     ProgramArgs parse_args(int argc, char **argv);

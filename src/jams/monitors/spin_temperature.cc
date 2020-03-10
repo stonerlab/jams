@@ -11,9 +11,9 @@
 #include "spin_temperature.h"
 
 SpinTemperatureMonitor::SpinTemperatureMonitor(const libconfig::Setting &settings)
-: Monitor(settings)
+: Monitor(settings),
+tsv_file(jams::filesystem::open_file(seedname + "_spin_T.tsv"))
 {
-  tsv_file.open(seedname + "_spin_T.tsv");
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 }
