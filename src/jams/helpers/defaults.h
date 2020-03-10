@@ -6,6 +6,7 @@
 #define JAMS_DEFAULTS_H
 
 #include "jams/core/types.h"
+#include <sys/stat.h>
 
 namespace jams {
     namespace defaults {
@@ -34,6 +35,8 @@ namespace jams {
         constexpr double lattice_tolerance = 1e-4; // default tolerance for checking distances in units of lattice constant
 
         constexpr int    warning_unitcell_symops_size = 100;
+
+        constexpr mode_t make_path_mode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH;
 
     } // namespace defaults
 } // namespace jams

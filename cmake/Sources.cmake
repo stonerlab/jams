@@ -25,6 +25,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/sparse_interaction.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
+        helpers/filesystem.cc
         interface/fft.cc
         helpers/interaction_calculator.cc
         helpers/maths.cc

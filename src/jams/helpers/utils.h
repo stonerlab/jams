@@ -208,4 +208,16 @@ inline std::string find_and_replace(std::string data, std::string find, std::str
   return data;
 }
 
+inline std::vector<std::string> split(const std::string& s, const std::string& delimiter) {
+  std::vector<std::string> result;
+  size_t last = 0;
+  size_t next = 0;
+  while ((next = s.find(delimiter, last)) != std::string::npos) {
+    result.push_back(s.substr(last, next-last));
+    last = next + 1;
+  }
+  result.push_back(s.substr(last));
+  return result;
+}
+
 #endif  // JAMS_CORE_UTILS_H
