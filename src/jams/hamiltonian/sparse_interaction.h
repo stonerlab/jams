@@ -17,7 +17,6 @@
 class SparseInteractionHamiltonian : public Hamiltonian {
 public:
     SparseInteractionHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-    ~SparseInteractionHamiltonian() override;
 
     double calculate_total_energy() override;
     double calculate_one_spin_energy(const int i) override;
@@ -37,7 +36,6 @@ private:
     jams::SparseMatrix<double> interaction_matrix_;
 
     #if HAS_CUDA
-    cusparseHandle_t cusparse_handle_ = nullptr;
     CudaStream cusparse_stream_;
     #endif
 };

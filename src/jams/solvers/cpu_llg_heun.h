@@ -27,7 +27,7 @@ class HeunLLGSolver : public Solver {
     jams::MultiArray<double, 1> sigma;
     jams::MultiArray<double, 2> w;
 
-    pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
+    pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::instance().random_generator()());
 };
 
 #endif  // JAMS_SOLVER_HEUNLLG_H

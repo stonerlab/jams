@@ -7,10 +7,6 @@ SparseInteractionHamiltonian::SparseInteractionHamiltonian(const libconfig::Sett
     : Hamiltonian(settings, size),
       sparse_matrix_builder_(3 * size, 3 * size)
     {
-
-  #if HAS_CUDA
-  CHECK_CUSPARSE_STATUS(cusparseCreate(&cusparse_handle_));
-  #endif
 }
 
 void SparseInteractionHamiltonian::insert_interaction_scalar(const int i, const int j, const double &value) {
@@ -37,8 +33,8 @@ void SparseInteractionHamiltonian::insert_interaction_tensor(const int i, const 
 void SparseInteractionHamiltonian::calculate_fields() {
   assert(is_finalized_);
   #if HAS_CUDA
-    if (solver->is_cuda_solver()) {
-      interaction_matrix_.multiply_gpu(globals::s, field_, cusparse_handle_, cusparse_stream_.get());
+    if (jams::instance().mode() == jams::Mode::GPU) {
+      interaction_matrix_.multiply_gpu(globals::s, field_, jams::instance().cusparse_handle(), cusparse_stream_.get());
       return;
     }
   #endif
@@ -120,13 +116,4 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
   std::cout << "    exchange sparse matrix memory (CSR): " << interaction_matrix_.memory() / kBytesToMegaBytes << " (MB)\n";
   sparse_matrix_builder_.clear();
   is_finalized_ = true;
-}
-
-SparseInteractionHamiltonian::~SparseInteractionHamiltonian() {
-  #ifdef HAS_CUDA
-  if (cusparse_handle_ != nullptr) {
-    cusparseDestroy(cusparse_handle_);
-    cusparse_handle_ = nullptr;
-  }
-  #endif
 }

@@ -26,7 +26,7 @@ class Hamiltonian : public Base {
   virtual ~Hamiltonian() = default;
 
   // factory
-  static Hamiltonian *create(const libconfig::Setting &settings, const unsigned int size, bool is_cuda_solver);
+  static Hamiltonian *create(const libconfig::Setting &settings, const unsigned int size);
 
   virtual double calculate_total_energy() = 0;
   virtual double calculate_one_spin_energy(const int i) = 0;

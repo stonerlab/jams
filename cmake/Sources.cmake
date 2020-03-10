@@ -2,6 +2,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/Utils.cmake)
 
 set(JAMS_SOURCES_CXX
         containers/cell.cc
+        common.cc
         core/args.cc
         core/hamiltonian.cc
         core/interactions.cc
@@ -9,7 +10,6 @@ set(JAMS_SOURCES_CXX
         core/lattice.cc
         core/monitor.cc
         core/physics.cc
-        core/random.cc
         core/solver.cc
         core/thermostat.cc
         hamiltonian/cubic_anisotropy.cc

@@ -25,7 +25,7 @@ using namespace std;
 CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
 
-  assert(solver->is_cuda_solver());
+  assert(jams::instance().mode() == jams::Mode::GPU);
 
   jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian\n"
                "in the config and assumes the exchange interaction is DIAGONAL AND ISOTROPIC");

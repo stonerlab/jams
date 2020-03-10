@@ -45,7 +45,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
             settings.exists("sigma") ? double(settings["sigma"][i]) : 0.0});
   }
 
-  auto seed = jams::config_optional<unsigned>(settings, "seed", jams::random_generator()());
+  auto seed = jams::config_optional<unsigned>(settings, "seed", jams::instance().random_generator()());
   cout << "    seed " << seed << "\n";
 
   pcg32 generator(seed);

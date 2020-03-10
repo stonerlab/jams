@@ -26,8 +26,6 @@ class MetropolisMCSolver : public Solver {
     void MetropolisPreconditioner(std::function<Vec3(Vec3)>  trial_spin_move);
   void SystematicPreconditioner(const double delta_theta, const double delta_phi);
 
-  pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
-
   bool use_random_spin_order_ = true;
   bool use_total_energy_ = false;
   bool is_preconditioner_enabled_ = false;

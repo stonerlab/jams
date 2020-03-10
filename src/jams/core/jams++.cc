@@ -5,6 +5,7 @@
 
 #include <cstdarg>
 #include <fstream>
+#include <jams/common.h>
 
 #if HAS_OMP
   #include <omp.h>
@@ -59,6 +60,18 @@ namespace jams {
 
       find_and_replace(sim.config_patch_string, "'", "");
       patch_config(sim.config_patch_string);
+    }
+
+    void set_mode() {
+      std::string solver_name = config->lookup("solver.module");
+      if (contains(solver_name, "gpu")) {
+        jams::instance().set_mode(Mode::GPU);
+        if (!jams::instance().has_gpu_device()) {
+          throw std::runtime_error("No CUDA device available");
+        }
+      } else {
+        jams::instance().set_mode(Mode::CPU);
+      }
     }
 
     std::string section(const std::string &name) {
@@ -132,7 +145,16 @@ namespace jams {
 
       jams::parse_config(simulation);
 
-      simulation.random_state = jams::random_generator_internal_state();
+      jams::set_mode();
+
+      if (jams::instance().mode() == Mode::GPU) {
+        cout << "mode    GPU \n";
+      } else {
+        cout << "mode    CPU \n";
+      }
+
+
+      simulation.random_state = jams::instance().random_generator_internal_state();
 
       try {
         ::config->setAutoConvert(true);
@@ -141,7 +163,7 @@ namespace jams {
 
           if (config->exists("sim.seed")) {
             simulation.random_seed = jams::config_required<unsigned long>(config->lookup("sim"), "seed");
-            jams::random_generator().seed(simulation.random_seed);
+            jams::instance().random_generator().seed(simulation.random_seed);
             cout << "seed    " << simulation.random_seed << "\n";
           }
 
@@ -172,7 +194,7 @@ namespace jams {
           const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
           for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
             solver->register_hamiltonian(
-                Hamiltonian::create(hamiltonian_settings[i], globals::num_spins, solver->is_cuda_solver()));
+                Hamiltonian::create(hamiltonian_settings[i], globals::num_spins));
           }
         }
 

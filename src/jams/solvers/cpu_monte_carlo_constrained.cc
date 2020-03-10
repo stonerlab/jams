@@ -91,11 +91,11 @@ void ConstrainedMCSolver::run() {
   // energy or with a Boltzmann thermal weighting.
   std::uniform_real_distribution<> uniform_distribution;
 
-  MonteCarloUniformMove<pcg32_k1024> uniform_move(&random_generator_);
-  MonteCarloAngleMove<pcg32_k1024>   angle_move(&random_generator_, move_angle_sigma_);
+  MonteCarloUniformMove<jams::RandomGeneratorType> uniform_move(&jams::instance().random_generator());
+  MonteCarloAngleMove<jams::RandomGeneratorType>   angle_move(&jams::instance().random_generator(), move_angle_sigma_);
   MonteCarloReflectionMove           reflection_move;
 
-  auto uniform_random_number = uniform_distribution(random_generator_);
+  auto uniform_random_number = uniform_distribution(jams::instance().random_generator());
   if (uniform_random_number < move_fraction_uniform_) {
     move_running_acceptance_count_uniform_ += AsselinAlgorithm(uniform_move);
     run_count_uniform_++;
@@ -132,10 +132,10 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
   // we move two spins moving all spins on average is num_spins/2
   for (auto i = 0; i < globals::num_spins/2; ++i) {
     // randomly get two spins s1 != s2
-    auto s1 = static_cast<int>(random_generator_(globals::num_spins));
+    auto s1 = static_cast<int>(jams::instance().random_generator()(globals::num_spins));
     auto s2 = s1;
     while (s2 == s1) {
-      s2 = static_cast<int>(random_generator_(globals::num_spins));
+      s2 = static_cast<int>(jams::instance().random_generator()(globals::num_spins));
     }
 
     Vec3 s1_initial         = mc_spin_as_vec(s1);
@@ -176,7 +176,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
     double jacobian_factor = pow2(m_trial_rotated[2] / m_initial_rotated[2]) * abs(s2_initial_rotated[2] / s2_trial_rotated[2]);
     double probability = min(1.0, exp(-delta_e * beta) * jacobian_factor);
 
-    if (uniform_distribution(random_generator_) > probability) {
+    if (uniform_distribution(jams::instance().random_generator()) > probability) {
       // reject move
       continue;
     }
@@ -193,8 +193,8 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
   return moves_accepted;
 }
 
-double ConstrainedMCSolver::energy_difference(const int s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
-                                              const int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
+double ConstrainedMCSolver::energy_difference(const int &s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
+                                              const int &s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
   double delta_energy1 = 0.0;
   for (auto hamiltonian : hamiltonians_) {
     delta_energy1 += hamiltonian->calculate_one_spin_energy_difference(s1, s1_initial, s1_trial);
@@ -211,8 +211,8 @@ double ConstrainedMCSolver::energy_difference(const int s1, const Vec3 &s1_initi
   return delta_energy1 + delta_energy2;
 }
 
-Vec3 ConstrainedMCSolver::magnetization_difference(const int s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
-                                                   const int s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
+Vec3 ConstrainedMCSolver::magnetization_difference(const int &s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
+                                                   const int &s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
   return globals::mus(s1) * spin_transformations_[s1] * (s1_trial - s1_initial)
   + globals::mus(s2) * spin_transformations_[s2] * (s2_trial - s2_initial);
 }
@@ -227,11 +227,11 @@ Vec3 ConstrainedMCSolver::total_transformed_magnetization() const {
   return m_total;
 }
 
-Vec3 ConstrainedMCSolver::rotate_cartesian_to_constraint(const int i, const Vec3 &spin) const {
+Vec3 ConstrainedMCSolver::rotate_cartesian_to_constraint(const int &i, const Vec3 &spin) const {
   return rotation_matrix_ * (spin_transformations_[i] * spin);
 }
 
-Vec3 ConstrainedMCSolver::rotate_constraint_to_cartesian(const int i, const Vec3 &spin) const {
+Vec3 ConstrainedMCSolver::rotate_constraint_to_cartesian(const int &i, const Vec3 &spin) const {
   return transpose(spin_transformations_[i]) * (inverse_rotation_matrix_ * spin);
 }
 

@@ -2,8 +2,6 @@
 
 #include "jams/cuda/cuda_solver.h"
 
-#include <cublas_v2.h>
-
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/core/monitor.h"
@@ -20,8 +18,6 @@ void CudaSolver::initialize(const libconfig::Setting& settings) {
   cout << "  initialising CUDA streams\n";
 
   is_cuda_solver_ = true;
-
-  CHECK_CUBLAS_STATUS(cublasCreate(&cublas_handle_));
 
   cout << "\n";
 }
@@ -40,7 +36,7 @@ void CudaSolver::compute_fields() {
   if (hamiltonians_.size() == 1) return;
 
   for (auto i = 1; i < hamiltonians_.size(); ++i) {
-    CHECK_CUBLAS_STATUS(cublasDaxpy(cublas_handle_,globals::h.elements(), &kOne, hamiltonians_[i]->dev_ptr_field(), 1, globals::h.device_data(), 1));
+    CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(),globals::h.elements(), &kOne, hamiltonians_[i]->dev_ptr_field(), 1, globals::h.device_data(), 1));
   }
 
 }

@@ -35,7 +35,7 @@
 
 using namespace std;
 
-Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsigned int size, bool is_cuda_solver) {
+Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsigned int size) {
     if (capitalize(settings["module"]) == "EXCHANGE") {
         return new ExchangeHamiltonian(settings, size);
     }
@@ -50,7 +50,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
     if (capitalize(settings["module"]) == "UNIAXIAL") {
       #if HAS_CUDA
-      if (is_cuda_solver) {
+      if (jams::instance().mode() == jams::Mode::GPU) {
         return new CudaUniaxialHamiltonian(settings, size);
       }
       #endif
@@ -59,7 +59,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
     if (capitalize(settings["module"]) == "UNIAXIAL-MICRO") {
     #if HAS_CUDA
-        if (is_cuda_solver) {
+        if (jams::instance().mode() == jams::Mode::GPU) {
           return new CudaUniaxialMicroscopicHamiltonian(settings, size);
         }
     #endif
@@ -68,7 +68,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
     if (capitalize(settings["module"]) == "CUBIC") {
       #if HAS_CUDA
-      if (is_cuda_solver) {
+      if (jams::instance().mode() == jams::Mode::GPU) {
           return new CudaCubicHamiltonian(settings, size);
         }
       #endif
@@ -77,7 +77,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
     if (capitalize(settings["module"]) == "ZEEMAN") {
 #if HAS_CUDA
-      if (is_cuda_solver) {
+      if (jams::instance().mode() == jams::Mode::GPU) {
         return new CudaZeemanHamiltonian(settings, size);
       }
 #endif
@@ -86,7 +86,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
     if (capitalize(settings["module"]) == "RANDOM-ANISOTROPY") {
 #if HAS_CUDA
-      if (is_cuda_solver) {
+      if (jams::instance().mode() == jams::Mode::GPU) {
         return new CudaRandomAnisotropyHamiltonian(settings, size);
       }
 #endif
@@ -103,7 +103,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
       if (strategy_name == "FFT") {
 #if HAS_CUDA
-        if (is_cuda_solver) {
+        if (jams::instance().mode() == jams::Mode::GPU) {
                 return new CudaDipoleHamiltonianFFT(settings, size);
             }
 #endif
@@ -112,7 +112,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
       if (strategy_name == "BRUTEFORCE") {
 #if HAS_CUDA
-        if (is_cuda_solver) {
+        if (jams::instance().mode() == jams::Mode::GPU) {
             return new CudaDipoleHamiltonianBruteforce(settings, size);
           }
 #endif

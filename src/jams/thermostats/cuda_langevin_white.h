@@ -12,7 +12,6 @@
 class CudaLangevinWhiteThermostat : public Thermostat {
  public:
   CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const int num_spins);
-  ~CudaLangevinWhiteThermostat();
 
   void update();
 
@@ -25,7 +24,6 @@ class CudaLangevinWhiteThermostat : public Thermostat {
 
 
  private:
-    curandGenerator_t           dev_rng_ = nullptr;  // device random generator
     cudaStream_t                dev_stream_ = nullptr;
 };
 

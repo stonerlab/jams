@@ -63,8 +63,8 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     using namespace globals;
     std::uniform_real_distribution<> uniform_distribution;
 
-    MonteCarloUniformMove<pcg32_k1024> uniform_move(&random_generator_);
-    MonteCarloAngleMove<pcg32_k1024>   angle_move(&random_generator_, move_angle_sigma_);
+    MonteCarloUniformMove<jams::RandomGeneratorType> uniform_move(&jams::instance().random_generator());
+    MonteCarloAngleMove<jams::RandomGeneratorType>   angle_move(&jams::instance().random_generator(), move_angle_sigma_);
     MonteCarloReflectionMove           reflection_move;
 
     if (is_preconditioner_enabled_ && iteration_ == 0) {
@@ -88,7 +88,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       cout << "done\n";
     }
 
-    const double uniform_random_number = uniform_distribution(random_generator_);
+    const double uniform_random_number = uniform_distribution(jams::instance().random_generator());
     if (uniform_random_number < move_fraction_uniform_) {
       if (use_total_energy_) {
         move_running_acceptance_count_uniform_ += MetropolisAlgorithmTotalEnergy(uniform_move);
@@ -313,7 +313,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       int spin_index = n;
 
       if (use_random_spin_order_) {
-        spin_index = jams::random_generator()(globals::num_spins);
+        spin_index = jams::instance().random_generator()(globals::num_spins);
       }
 
       auto s_initial = mc_spin_as_vec(spin_index);
@@ -324,7 +324,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
         deltaE += ham->calculate_one_spin_energy_difference(spin_index, s_initial, s_final);
       }
 
-      if (uniform_distribution(random_generator_) < exp(min(0.0, -deltaE * beta))) {
+      if (uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta))) {
         mc_set_spin_as_vec(spin_index, s_final);
         moves_accepted++;
         continue;
@@ -347,7 +347,7 @@ int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)>
     int spin_index = n;
 
     if (use_random_spin_order_) {
-      spin_index = jams::random_generator()(globals::num_spins);
+      spin_index = jams::instance().random_generator()(globals::num_spins);
     }
 
     auto s_initial = mc_spin_as_vec(spin_index);
@@ -366,7 +366,7 @@ int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)>
 
     auto deltaE = e_final - e_initial;
 
-    if (uniform_distribution(random_generator_) < exp(min(0.0, -deltaE * beta))) {
+    if (uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta))) {
       moves_accepted++;
       continue;
     }
