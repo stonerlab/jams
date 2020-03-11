@@ -48,5 +48,9 @@ namespace jams {
         std::ofstream open_file(const std::string &filename, std::ios_base::openmode mode) {
           return std::ofstream(jams::instance().output_path() + "/" + filename, mode);
         }
+
+        std::string output_path() {
+          return jams::instance().output_path() + "/";
+        }
     }
 }

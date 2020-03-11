@@ -14,6 +14,7 @@ namespace jams {
         void make_path(const std::string &path, mode_t mode = jams::defaults::make_path_mode);
 
         std::ofstream open_file(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out);
+        std::string output_path();
     }
 }
 

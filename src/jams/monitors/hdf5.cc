@@ -45,14 +45,14 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
         slice_ = Slice(settings["slice"]);
     }
 
-    open_new_xdmf_file(jams::instance().output_path() + "/" + seedname + ".xdmf");
+    open_new_xdmf_file(jams::filesystem::output_path() + seedname + ".xdmf");
 
-    write_lattice_h5_file(jams::instance().output_path() + "/" + seedname + "_lattice.h5");
+    write_lattice_h5_file(jams::filesystem::output_path() + "_lattice.h5");
 }
 
 Hdf5Monitor::~Hdf5Monitor() {
   // always write final in double precision
-    write_spin_h5_file(seedname + "_final.h5");
+    write_spin_h5_file(jams::filesystem::output_path() + seedname + "_final.h5");
     update_xdmf_file(seedname + "_final.h5");
 
     fclose(xdmf_file_);
@@ -66,7 +66,7 @@ void Hdf5Monitor::update(Solver * solver) {
   if (solver->iteration()%output_step_freq_ == 0) {
     int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
-    const std::string h5_file_name(seedname + "_" + zero_pad_number(outcount) + ".h5");
+    const std::string h5_file_name(jams::filesystem::output_path() + seedname + "_" + zero_pad_number(outcount) + ".h5");
 
     write_spin_h5_file(h5_file_name);
     update_xdmf_file(h5_file_name);
