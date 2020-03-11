@@ -10,6 +10,7 @@
 
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
+#include "jams/helpers/output.h"
 
 TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   : Physics(settings),
@@ -25,7 +26,7 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   Cl(3.0E06),
   G(17.0E17),
   Gsink(17.0E14),
-  TTMFile(jams::filesystem::open_file(seedname + "_ttm.tsv")) {
+  TTMFile(jams::output::open_file(seedname + "_ttm.tsv")) {
   using namespace globals;
 
   phononTemp = settings["InitialTemperature"];

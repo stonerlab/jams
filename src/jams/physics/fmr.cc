@@ -11,13 +11,14 @@
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
+#include "jams/helpers/output.h"
 
 FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
 : Physics(settings),
   ACFieldFrequency(0),
   ACFieldStrength(3, 0),
   DCFieldStrength(3, 0),
-  PSDFile(jams::filesystem::open_file(seedname + "_psd.tsv")),
+  PSDFile(jams::output::open_file(seedname + "_psd.tsv")),
   PSDIntegral(0) {
   using namespace globals;
 

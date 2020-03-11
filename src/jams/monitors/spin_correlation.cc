@@ -5,6 +5,7 @@
 #include "spin_correlation.h"
 #include "jams/core/lattice.h"
 #include "jams/interface/openmp.h"
+#include "jams/helpers/output.h"
 
 using namespace std;
 
@@ -101,7 +102,7 @@ void SpinCorrelationMonitor::post_process() {
   }
 
   {
-    ofstream of = jams::filesystem::open_file(seedname + "_corr_outplane.tsv");
+    ofstream of = jams::output::open_file(seedname + "_corr_outplane.tsv");
     of << "delta_r\tCzz\n";
     for (auto x : out_of_plane_sz_corr_histogram_) {
       auto delta_r = sqrt(x.first);
@@ -111,7 +112,7 @@ void SpinCorrelationMonitor::post_process() {
   }
 
   {
-    ofstream of = jams::filesystem::open_file(seedname + "_corr_inplane.tsv");
+    ofstream of = jams::output::open_file(seedname + "_corr_inplane.tsv");
     of << "delta_r\tCzz\n";
     for (auto x : in_plane_sz_corr_histogram_) {
         auto delta_r = sqrt(x.first);

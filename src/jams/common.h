@@ -8,7 +8,7 @@
 #include <sstream>
 #include <pcg_random.hpp>
 #include <jams/interface/randutils.h>
-#include "jams/helpers/filesystem.h"
+#include "jams/interface/system.h"
 
 #if HAS_CUDA
 #include <cusparse.h>
@@ -42,7 +42,7 @@ namespace jams {
         inline static const std::string& output_path() { return instance().output_path_; }
         static void set_output_dir(const std::string& path) {
           instance().output_path_ = path;
-          jams::filesystem::make_path(path);
+          jams::system::make_path(path);
         }
 
         inline static RandomGeneratorType& random_generator() { return instance().random_generator_; }

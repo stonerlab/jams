@@ -49,7 +49,7 @@ void MagnonSpectrumMonitor::update(Solver *solver) {
 
 void MagnonSpectrumMonitor::output_magnon_spectrum() {
   for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
-    ofstream ofs = jams::filesystem::open_file(seedname + "_magnon_spectrum_path_" + to_string(n) + ".tsv");
+    ofstream ofs = jams::output::open_file(seedname + "_magnon_spectrum_path_" + to_string(n) + ".tsv");
 
     ofs << "index\t" << "h\t" << "k\t" << "l\t" << "qx\t" << "qy\t" << "qz\t";
     ofs << "freq_THz\t" << "energy_meV\t";

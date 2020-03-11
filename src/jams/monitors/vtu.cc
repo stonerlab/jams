@@ -9,6 +9,8 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
+#include "jams/helpers/output.h"
+
 #include "vtu.h"
 
 #define QUOTEME_(x) #x
@@ -82,7 +84,7 @@ void VtuMonitor::update(Solver * solver) {
   if (solver->iteration()%output_step_freq_ == 0) {
     int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
-    std::ofstream vtkfile = jams::filesystem::open_file(seedname + "_" + zero_pad_number(outcount) + ".vtu");
+    std::ofstream vtkfile = jams::output::open_file(seedname + "_" + zero_pad_number(outcount) + ".vtu");
 
 
     uint32_t header_bytesize, types_bytesize, points_bytesize, spins_bytesize, num_points;

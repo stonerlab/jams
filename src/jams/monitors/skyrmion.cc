@@ -12,11 +12,13 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/maths.h"
+#include "jams/helpers/output.h"
+
 #include "skyrmion.h"
 
 SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
- outfile(jams::filesystem::open_file(seedname + "_sky.tsv")){
+ outfile(jams::output::open_file(seedname + "_sky.tsv")){
   using namespace globals;
 
   type_norms.resize(lattice->num_materials(), 1.0);

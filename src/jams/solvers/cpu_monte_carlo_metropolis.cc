@@ -11,6 +11,7 @@
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 #include "jams/helpers/permutations.h"
+#include "jams/helpers/output.h"
 
 #include <iomanip>
 
@@ -289,7 +290,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
     cout << "    permutations " << count << "\n";
 
-    std::ofstream preconditioner_file = jams::filesystem::open_file(seedname + "_mc_pre.tsv");
+    std::ofstream preconditioner_file = jams::output::open_file(seedname + "_mc_pre.tsv");
     preconditioner_file << "# theta (deg) | phi (deg) | energy (J) \n";
 
     preconditioner_file.close();

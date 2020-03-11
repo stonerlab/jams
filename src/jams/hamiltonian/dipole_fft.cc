@@ -4,12 +4,13 @@
 #include <cmath>
 #include <complex>
 #include <fstream>
-#include <jams/helpers/maths.h>
 
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
+#include "jams/helpers/maths.h"
+#include "jams/helpers/output.h"
 #include "jams/interface/fft.h"
 
 #include "jams/hamiltonian/dipole_fft.h"
@@ -273,7 +274,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
   }
 
   if (debug_) {
-    std::ofstream debugfile = jams::filesystem::open_file(
+    std::ofstream debugfile = jams::output::open_file(
         "DEBUG_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv");
 
     for (const auto& r : positions) {

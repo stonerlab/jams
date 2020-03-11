@@ -9,11 +9,12 @@
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
+#include "jams/helpers/output.h"
 
 #include "energy.h"
 
 EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
-: Monitor(settings), tsv_file(jams::filesystem::open_file(seedname + "_eng.tsv")) {
+: Monitor(settings), tsv_file(jams::output::open_file(seedname + "_eng.tsv")) {
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 }

@@ -14,6 +14,7 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/helpers/random.h"
+#include "jams/helpers/output.h"
 
 RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size)
         : Hamiltonian(settings, size),
@@ -59,7 +60,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   }
 
   if (debug_is_enabled() || verbose_is_enabled()) {
-    ofstream outfile = jams::filesystem::open_file("DEBUG_" + seedname + "_random_anisotropy.tsv");
+    ofstream outfile = jams::output::open_file("DEBUG_" + seedname + "_random_anisotropy.tsv");
     output_anisotropy_axes(outfile);
   }
 }

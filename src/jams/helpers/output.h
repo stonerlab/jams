@@ -10,6 +10,9 @@
 namespace jams {
     namespace output {
         void initialise();
+
+        std::ofstream open_file(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out);
+        std::string output_path();
     }
 
     namespace fmt {

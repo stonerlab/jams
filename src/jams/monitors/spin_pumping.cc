@@ -15,10 +15,11 @@
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/stats.h"
+#include "jams/helpers/output.h"
 
 SpinPumpingMonitor::SpinPumpingMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-tsv_file_(jams::filesystem::open_file(seedname + "_jsp.tsv"))
+tsv_file_(jams::output::open_file(seedname + "_jsp.tsv"))
 {
   tsv_file_.setf(std::ios::right);
   tsv_file_ << tsv_header();

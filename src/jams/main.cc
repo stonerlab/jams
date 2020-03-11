@@ -4,7 +4,6 @@
 #include "jams/core/jams++.h"
 #include "jams/core/args.h"
 #include "jams/helpers/output.h"
-#include "jams/helpers/filesystem.h"
 #include "jams/common.h"
 
 int main(int argc, char **argv) {

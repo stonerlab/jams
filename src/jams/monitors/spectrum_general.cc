@@ -10,16 +10,16 @@
 #include "jams/monitors/spectrum_general.h"
 
 #include <libconfig.h++>
-#include <jams/core/solver.h>
-#include <jams/core/globals.h>
-#include <jams/interface/fft.h>
-#include <jams/helpers/stats.h>
+#include "jams/core/solver.h"
+#include "jams/core/globals.h"
+#include "jams/interface/fft.h"
+#include "jams/helpers/stats.h"
 #include "jams/helpers/duration.h"
 #include "jams/helpers/random.h"
-#include <pcg_random.hpp>
 #include "jams/core/lattice.h"
 #include "spectrum_general.h"
 #include "jams/interface/openmp.h"
+#include "jams/helpers/output.h"
 
 
 using Complex = std::complex<double>;
@@ -38,7 +38,7 @@ namespace {
 
 SpectrumGeneralMonitor::SpectrumGeneralMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-outfile(jams::filesystem::open_file(seedname + "_fk.tsv")){
+outfile(jams::output::open_file(seedname + "_fk.tsv")){
   using namespace std;
 
   libconfig::Setting& solver_settings = ::config->lookup("solver");
@@ -182,7 +182,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     }
 
     if (i%10 == 0) {
-      std::ofstream cfile = jams::filesystem::open_file(seedname + "_corr.tsv");
+      std::ofstream cfile = jams::output::open_file(seedname + "_corr.tsv");
       for (unsigned q = 0; q < qvecs.size(); ++q) {
         for (unsigned w = 0; w < padded_size_/2+1; ++w) {
           cfile << qmax_ * (q / double(num_qpoints_-1)) << " " << 0.5*w * freq_delta_ << " " << -SQw(q, w).imag() / (i + 1)/ static_cast<double>(padded_size_) << "\n";

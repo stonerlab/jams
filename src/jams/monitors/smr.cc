@@ -7,11 +7,13 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
+#include "jams/helpers/output.h"
+
 #include "smr.h"
 
 SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(jams::filesystem::open_file(seedname + "_smr.tsv"))
+  tsv_file(jams::output::open_file(seedname + "_smr.tsv"))
 {
   std::cout << "\ninitialising SMR monitor\n";
   std::cout << "  assumes axes j->x, t->y, n->z\n";

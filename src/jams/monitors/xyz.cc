@@ -8,6 +8,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
+#include "jams/helpers/output.h"
 
 #include "xyz.h"
 
@@ -51,7 +52,7 @@ void XyzMonitor::update(Solver * solver) {
   if (solver->iteration()%output_step_freq_ == 0) {
     int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
-    std::ofstream xyz_state_file = jams::filesystem::open_file(std::string(seedname+"_"+zero_pad_number(outcount)+".xyz"));
+    std::ofstream xyz_state_file = jams::output::open_file(std::string(seedname+"_"+zero_pad_number(outcount)+".xyz"));
 
     // file header
     xyz_state_file << "#";

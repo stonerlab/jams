@@ -13,10 +13,11 @@
 #include "jams/core/hamiltonian.h"
 #include "jams/monitors/torque.h"
 #include "jams/containers/vec3.h"
+#include "jams/helpers/output.h"
 
 TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(jams::filesystem::open_file(seedname + "_torq.tsv")),
+  tsv_file(jams::output::open_file(seedname + "_torq.tsv")),
   torque_stats_(),
   convergence_geweke_diagnostic_()
 {

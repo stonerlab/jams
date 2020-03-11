@@ -8,6 +8,7 @@
 #include "jams/core/lattice.h"
 #include "exchange_neartree.h"
 #include "jams/helpers/error.h"
+#include "jams/helpers/output.h"
 
 using namespace std;
 
@@ -17,9 +18,9 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     std::ofstream debug_file;
 
     if (debug_is_enabled()) {
-      debug_file = jams::filesystem::open_file("DEBUG_exchange.dat");
+      debug_file = jams::output::open_file("DEBUG_exchange.dat");
 
-      std::ofstream pos_file = jams::filesystem::open_file("DEBUG_pos.dat");
+      std::ofstream pos_file = jams::output::open_file("DEBUG_pos.dat");
       for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
           if (lattice->atom_material_id(i) == n) {

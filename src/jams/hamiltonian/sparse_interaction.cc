@@ -2,6 +2,7 @@
 
 #include "sparse_interaction.h"
 #include "jams/core/solver.h"
+#include "jams/helpers/output.h"
 
 SparseInteractionHamiltonian::SparseInteractionHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size),
@@ -90,7 +91,7 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
   assert(!is_finalized_);
 
   if (debug_is_enabled()) {
-    std::ofstream os = jams::filesystem::open_file("DEBUG_" + seedname + "_" + name_ + "_spm.tsv");
+    std::ofstream os = jams::output::open_file("DEBUG_" + seedname + "_" + name_ + "_spm.tsv");
     sparse_matrix_builder_.output(os);
     os.close();
   }

@@ -6,7 +6,6 @@
 #include <cstdarg>
 #include <fstream>
 #include <jams/common.h>
-#include <jams/helpers/filesystem.h>
 
 #if HAS_OMP
   #include <omp.h>
@@ -338,7 +337,7 @@ namespace jams {
       config->lookupValue("sim.write_patched_config", do_write_patched_config);
 
       if (do_write_patched_config) {
-        std::string patched_config_filename = jams::filesystem::output_path() + seedname + "_patched.cfg";
+        std::string patched_config_filename = jams::output::output_path() + seedname + "_patched.cfg";
 
 #if (((LIBCONFIG_VER_MAJOR == 1) && (LIBCONFIG_VER_MINOR >= 6)) \
  || (LIBCONFIG_VER_MAJOR > 1))

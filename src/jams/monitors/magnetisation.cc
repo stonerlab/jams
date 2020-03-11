@@ -10,6 +10,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/interface/openmp.h"
+#include "jams/helpers/output.h"
 
 #include "jams/monitors/magnetisation.h"
 #include "magnetisation.h"
@@ -18,7 +19,7 @@
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   s_transform_(globals::num_spins),
-  tsv_file(jams::filesystem::open_file(::seedname + "_mag.tsv")),
+  tsv_file(jams::output::open_file(::seedname + "_mag.tsv")),
   m_stats_(),
   m2_stats_(),
   m4_stats_()
