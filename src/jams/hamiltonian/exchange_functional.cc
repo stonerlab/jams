@@ -69,6 +69,10 @@ double ExchangeFunctionalHamiltonian::functional_step(const double rij, const do
         return 0.0;
 }
 
+double ExchangeFunctionalHamiltonian::functional_gaussian_multi(const double rij, const double J0, const double r0, const double sigma, const double J0_2, const double r0_2, const double sigma_2, const double J0_3, const double r0_3, const double sigma_3){
+    return J0 * exp(-pow2(rij - r0)/(2 * pow2(sigma))) + J0_2 * exp(-pow2(rij - r0_2)/(2 * pow2(sigma_2))) + J0_3 * exp(-pow2(rij - r0_3)/(2 * pow2(sigma_3)));
+}
+
 ExchangeFunctionalHamiltonian::ExchangeFunctional
 ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting &settings) {
   using namespace std::placeholders;
@@ -82,6 +86,8 @@ ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting
     return bind(functional_exp, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
   } else if (functional_name == "gaussian") {
     return bind(functional_gaussian, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
+  } else if (functional_name == "gaussian_multi") {
+      return bind(functional_gaussian_multi, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]), double(settings["J0_2"]), double(settings["r0_2"]), double(settings["sigma_2"]), double(settings["J0_3"]), double(settings["r0_3"]), double(settings["sigma_3"]));
   } else if (functional_name == "kaneyoshi") {
       return bind(functional_kaneyoshi, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
   } else if (functional_name == "step") {
