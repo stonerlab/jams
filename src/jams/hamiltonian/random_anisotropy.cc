@@ -60,7 +60,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   }
 
   if (debug_is_enabled() || verbose_is_enabled()) {
-    ofstream outfile = jams::output::open_file("DEBUG_" + seedname + "_random_anisotropy.tsv");
+    ofstream outfile = jams::output::open_file("DEBUG_" + simulation_name + "_random_anisotropy.tsv");
     output_anisotropy_axes(outfile);
   }
 }

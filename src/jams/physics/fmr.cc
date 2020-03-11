@@ -18,7 +18,7 @@ FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
   ACFieldFrequency(0),
   ACFieldStrength(3, 0),
   DCFieldStrength(3, 0),
-  PSDFile(jams::output::open_file(seedname + "_psd.tsv")),
+  PSDFile(jams::output::open_file(simulation_name + "_psd.tsv")),
   PSDIntegral(0) {
   using namespace globals;
 

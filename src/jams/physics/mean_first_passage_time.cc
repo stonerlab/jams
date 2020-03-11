@@ -13,7 +13,7 @@
 MFPTPhysics::MFPTPhysics(const libconfig::Setting &settings)
   : Physics(settings),
   maskArray(),
-  MFPTFile(jams::output::open_file(seedname + "_mfpt.tsv")) {
+  MFPTFile(jams::output::open_file(simulation_name + "_mfpt.tsv")) {
   using namespace globals;
 
   maskArray.resize(num_spins);

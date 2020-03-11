@@ -13,7 +13,7 @@
 
 SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(jams::output::open_file(seedname + "_smr.tsv"))
+  tsv_file(jams::output::open_file(simulation_name + "_smr.tsv"))
 {
   std::cout << "\ninitialising SMR monitor\n";
   std::cout << "  assumes axes j->x, t->y, n->z\n";

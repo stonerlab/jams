@@ -19,14 +19,14 @@
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   s_transform_(globals::num_spins),
-  tsv_file(jams::output::open_file(::seedname + "_mag.tsv")),
+  tsv_file(jams::output::open_file(::simulation_name + "_mag.tsv")),
   m_stats_(),
   m2_stats_(),
   m4_stats_()
 {
   using namespace globals;
 
-//  tsv_file.open(seedname + "_mag.tsv");
+//  tsv_file.open(simulation_name + "_mag.tsv");
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 

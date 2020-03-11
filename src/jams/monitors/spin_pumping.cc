@@ -19,7 +19,7 @@
 
 SpinPumpingMonitor::SpinPumpingMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-tsv_file_(jams::output::open_file(seedname + "_jsp.tsv"))
+tsv_file_(jams::output::open_file(simulation_name + "_jsp.tsv"))
 {
   tsv_file_.setf(std::ios::right);
   tsv_file_ << tsv_header();

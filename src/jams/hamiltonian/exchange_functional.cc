@@ -18,7 +18,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     throw std::runtime_error("cutoff radius is larger than the maximum radius which avoids self interaction");
   }
 
-  ofstream of = jams::output::open_file(seedname + "_exchange_functional.tsv");
+  ofstream of = jams::output::open_file(simulation_name + "_exchange_functional.tsv");
   output_exchange_functional(of, exchange_functional, radius_cutoff_);
 
   auto counter = 0;

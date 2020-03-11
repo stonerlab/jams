@@ -169,7 +169,7 @@ MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross_secti
 
 void NeutronScatteringMonitor::output_neutron_cross_section() {
   for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
-    auto ofs = jams::output::open_file(seedname + "_neutron_scattering_path_" + to_string(n) + ".tsv");
+    auto ofs = jams::output::open_file(simulation_name + "_neutron_scattering_path_" + to_string(n) + ".tsv");
 
     ofs << "index\t" << "h\t" << "k\t" << "l\t" << "qx\t" << "qy\t" << "qz\t";
     ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";

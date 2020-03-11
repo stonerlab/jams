@@ -132,13 +132,21 @@ namespace jams {
       cout << jams::section("run info") << std::endl;
       cout << jams::run_info();
 
+      if (!program_args.output_path.empty()) {
+        jams::instance().set_output_dir(program_args.output_path);
+      }
+
       jams::Simulation simulation;
 
       simulation.config_file_name = program_args.config_file_path;
       simulation.config_patch_string = program_args.config_file_patch;
       simulation.name = trim(file_basename(simulation.config_file_name));
 
-      seedname = simulation.name;
+      if (!program_args.simulation_name.empty()) {
+        simulation.name = trim(program_args.simulation_name);
+      }
+
+      simulation_name = simulation.name;
       cout << "config  " << simulation.config_file_name << "\n";
 
       jams::new_global_classes();
@@ -337,7 +345,7 @@ namespace jams {
       config->lookupValue("sim.write_patched_config", do_write_patched_config);
 
       if (do_write_patched_config) {
-        std::string patched_config_filename = jams::output::output_path() + seedname + "_patched.cfg";
+        std::string patched_config_filename = jams::output::output_path() + simulation_name + "_patched.cfg";
 
 #if (((LIBCONFIG_VER_MAJOR == 1) && (LIBCONFIG_VER_MINOR >= 6)) \
  || (LIBCONFIG_VER_MAJOR > 1))

@@ -34,7 +34,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   h5_output_steps = jams::config_optional<unsigned>(settings, "h5_output_steps", output_step_freq_);
 
   if (do_h5_output) {
-    open_new_xdmf_file(seedname + "_js.xdmf");
+    open_new_xdmf_file(simulation_name + "_js.xdmf");
   }
 
   const auto exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
@@ -69,7 +69,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   spin_current_rz_y.resize(globals::num_spins);
   spin_current_rz_z.resize(globals::num_spins);
 
-  outfile.open(seedname + "_js.tsv");
+  outfile.open(simulation_name + "_js.tsv");
 
   outfile << "time\t";
   outfile << "js_rx_x\tjs_rx_y\tjs_rx_z" << "\t";
@@ -110,7 +110,7 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
 
   if (do_h5_output && solver->iteration()%h5_output_steps == 0) {
     int outcount = solver->iteration()/h5_output_steps;  // int divisible by modulo above
-    const std::string h5_file_name(jams::instance().output_path() + "/" + seedname + "_" + zero_pad_number(outcount) + "_js.h5");
+    const std::string h5_file_name(jams::instance().output_path() + "/" + simulation_name + "_" + zero_pad_number(outcount) + "_js.h5");
     write_spin_current_h5_file(h5_file_name);
     update_xdmf_file(h5_file_name);
   }
@@ -162,7 +162,7 @@ void CudaSpinCurrentMonitor::open_new_xdmf_file(const std::string &xdmf_file_nam
   fputs("<Xdmf xmlns:xi=\"http://www.w3.org/2003/XInclude\" Version=\"2.2\">\n", xdmf_file_);
   fputs("  <Domain Name=\"JAMS\">\n", xdmf_file_);
   fprintf(xdmf_file_, "    <Information Name=\"Commit\" Value=\"%s\" />\n", jams::build::hash);
-  fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", seedname.c_str());
+  fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", simulation_name.c_str());
   fputs("    <Grid Name=\"Time\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file_);
   fputs("    </Grid>\n", xdmf_file_);
   fputs("  </Domain>\n", xdmf_file_);
@@ -184,12 +184,12 @@ void CudaSpinCurrentMonitor::update_xdmf_file(const std::string &h5_file_name) {
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", num_spins);
   fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s_lattice.h5:/positions\n", seedname.c_str());
+  fprintf(xdmf_file_, "           %s_lattice.h5:/positions\n", simulation_name.c_str());
   fputs("         </DataItem>\n", xdmf_file_);
   fputs("       </Geometry>\n", xdmf_file_);
   fputs("       <Attribute Name=\"Type\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", data_dimension);
-  fprintf(xdmf_file_, "           %s_lattice.h5:/types\n", seedname.c_str());
+  fprintf(xdmf_file_, "           %s_lattice.h5:/types\n", simulation_name.c_str());
   fputs("         </DataItem>\n", xdmf_file_);
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("       <Attribute Name=\"spin_current\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);

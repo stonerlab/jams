@@ -43,7 +43,7 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   zero(thermal_current_ry_.resize(globals::num_spins));
   zero(thermal_current_rz_.resize(globals::num_spins));
 
-  outfile = jams::output::open_file(seedname + "_jq.tsv");
+  outfile = jams::output::open_file(simulation_name + "_jq.tsv");
   outfile.setf(std::ios::right);
   outfile << std::setw(12) << "time" << "\t";
   outfile << std::setw(12) << "jq_rx" << "\t";

@@ -461,7 +461,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   std::string position_filename;
   if (unitcell_settings["positions"].isList()) {
-    position_filename = seedname + ".cfg";
+    position_filename = simulation_name + ".cfg";
     read_motif_from_config(unitcell_settings["positions"], cfg_coordinate_format);
   } else {
     position_filename = unitcell_settings["positions"].c_str();

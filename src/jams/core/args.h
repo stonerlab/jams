@@ -14,6 +14,7 @@ namespace jams {
         std::string config_file_path  = "";
         std::string config_file_patch = "";
         std::string output_path = "";
+        std::string simulation_name = "";
     };
 
     ProgramArgs parse_args(int argc, char **argv);

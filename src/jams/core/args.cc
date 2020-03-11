@@ -21,6 +21,11 @@ namespace jams {
         return;
       }
 
+      if (flag.rfind("--name=", 0) == 0) {
+        program_args.simulation_name = flag.substr(flag.find('=') + 1);
+        return;
+      }
+
       throw std::runtime_error("Unknown flag \'" + flag + "\'");
     }
 

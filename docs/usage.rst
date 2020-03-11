@@ -29,3 +29,8 @@ Additional arguments
     Sets the path to output data files to. If the path does not exist JAMS will attempt to make all folders in the path.
     This option is useful for jobscripts and workflow tools to avoid changing directories. Input will still be read
     relative to the current working directory.
+
+.. describe:: --name=<simulation_name>
+
+    Sets the simulation name which is prefixed to output files written by JAMS. If this is not set the config file name
+    is used.

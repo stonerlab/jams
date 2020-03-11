@@ -4,7 +4,6 @@
 #include "jams/core/jams++.h"
 #include "jams/core/args.h"
 #include "jams/helpers/output.h"
-#include "jams/common.h"
 
 int main(int argc, char **argv) {
   jams::output::initialise();
@@ -12,12 +11,7 @@ int main(int argc, char **argv) {
 
   auto program_args = jams::parse_args(argc, argv);
 
-  if (!program_args.output_path.empty()) {
-    jams::instance().set_output_dir(program_args.output_path);
-  }
-
   jams::initialize_simulation(program_args);
-
   if (!program_args.setup_only) {
     jams::run_simulation();
   }

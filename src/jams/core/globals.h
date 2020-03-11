@@ -20,7 +20,7 @@ namespace libconfig { class Config; }
 GLOBAL Solver  *solver;
 GLOBAL Lattice *lattice;
 GLOBAL libconfig::Config *config;  ///< Config object
-GLOBAL std::string seedname;
+GLOBAL std::string simulation_name;
 
 namespace globals {
   GLOBAL int num_spins;
