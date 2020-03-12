@@ -38,6 +38,8 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
     configure_periodogram(settings["periodogram"]);
   }
 
+  t_diff_r_dep_ = config_required<int>(settings, "t_diff_r_dep_");
+
   periodogram_props_.sample_time = output_step_freq_ * solver->time_step();
 
   //zero: set all the elements as 0
@@ -52,6 +54,22 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 void NeutronScatteringNoLatticeMonitor::update(Solver *solver) {
   store_kspace_data_on_path();
   periodogram_index_++;
+
+    using namespace globals;
+
+    jams::MultiArray<double, 1> spin_x_time(num_spins);
+    jams::MultiArray<double, 1> spin_y_time(num_spins);
+    jams::MultiArray<double, 1> spin_z_time(num_spins);
+
+    for(auto i = 0; i < num_spins; ++i){
+        spin_x_time(i) = s(i, 0);
+        spin_y_time(i) = s(i, 1);
+        spin_z_time(i) = s(i, 2);
+    }
+
+    spin_x.push_back(spin_x_time);
+    spin_y.push_back(spin_y_time);
+    spin_z.push_back(spin_z_time);
 
   if (is_multiple_of(periodogram_index_, periodogram_props_.length)) {
 
@@ -96,13 +114,13 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
 
 //This function calculates inelastic magnetic scattering (inelastic magnetic + elastic phonon scattering)
 //That's why dirac_delta(f)*s0[i]*s0[j] is subtracted from cross_section(f, k).
-jams::MultiArray<Complex, 2>
+jams::MultiArray<std::complex<double>, 2>
 NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx,2> &spectrum,
     const jams::MultiArray<Vec3cx,1>& elastic_spectrum) {
   const auto num_freqencies = spectrum.size(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
-  jams::MultiArray<Complex, 2> cross_section(num_freqencies, num_reciprocal_points);
+  jams::MultiArray<std::complex<double>, 2> cross_section(num_freqencies, num_reciprocal_points);
   cross_section.zero();
 
   for (auto f = 0; f < num_freqencies; ++f) {
@@ -131,14 +149,14 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
   return cross_section;
 }
 
-jams::MultiArray<Complex, 3>
+jams::MultiArray<std::complex<double>, 3>
 NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const MultiArray<Vec3cx, 2> &spectrum,
     const jams::MultiArray<Vec3cx,1>& elastic_spectrum,
     const vector<Vec3> &polarizations) {
   const auto num_freqencies = spectrum.size(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
-  MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
+  MultiArray<std::complex<double>, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
 
   for (auto f = 0; f < num_freqencies; ++f) {
@@ -375,4 +393,163 @@ jams::MultiArray<Vec3cx, 1> NeutronScatteringNoLatticeMonitor::average_kspace_ti
   element_scale(average, 1.0/double(num_time_points));
 
   return average;
+}
+
+NeutronScatteringNoLatticeMonitor::~NeutronScatteringNoLatticeMonitor() {
+    using namespace std;
+    using namespace globals;
+
+    const double delta_t = periodogram_props_.sample_time;
+
+    string name3 = seedname + "_S+S-_r_dependence.tsv";
+    ofstream outfile3(name3.c_str());
+    outfile3.setf(std::ios::right);
+
+    string name4 = seedname + "_radial_dist.tsv";
+    ofstream outfile4(name4.c_str());
+    outfile4.setf(std::ios::right);
+
+    string name5 = seedname + "_SzSz_r_dependence.tsv";
+    ofstream outfile5(name5.c_str());
+    outfile5.setf(std::ios::right);
+
+    // header for the r-dependence of the S+S- file
+    outfile3 << std::setw(20) << "time_diff" << "\t";//(\t=tab)
+    outfile3 << std::setw(20) << "r_ij" << "\t";//(\t=tab)
+    outfile3 << std::setw(20) << "Re:S+S-/dist" << "\t";
+    outfile3 << std::setw(20) << "Im:S+S-/dist" << "\n";
+
+    // header for the radial dist file
+    outfile4 << std::setw(20) << "bin" << "\t";
+    outfile4 << std::setw(20) << "dist" << "\n";
+
+    // header for the r-dependence of the SzSz file
+    outfile5 << std::setw(20) << "time_diff" << "\t";//(\t=tab)
+    outfile5 << std::setw(20) << "r_ij" << "\t";//(\t=tab)
+    outfile5 << std::setw(20) << "Re:SzSz/dist" << "\t";
+    outfile5 << std::setw(20) << "Im:SzSz/dist" << "\n";
+
+    Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
+    int num_distance = std::ceil(0.5 * lattice_dimensions[0] / delta_r_);
+    //size of the array: (L/2)/delta_r_
+
+    vector<std::complex<double>> r_dependence_SxSy(num_distance, 0.0);
+    vector<std::complex<double>> r_dependence_SzSz(num_distance, 0.0);
+    vector<int> count_r_dep(r_dependence_SxSy.size(),0);
+
+    auto radial_dist = radial_distribution_function();
+
+    for (unsigned j = 0; j < num_spins; ++j) {
+        const auto r_j = lattice->atom_position(j);
+        for (unsigned i = 0; i < num_spins; ++i) {
+            if(i == j){
+                continue;
+            }
+            const auto r_i = lattice->atom_position(i);
+            const auto r_ij = lattice->displacement(r_i, r_j); // using j,i in this order gives r_j - r_i
+
+            unsigned m = std::ceil(this->distance(r_ij)/delta_r_);
+            if(m < r_dependence_SxSy.size()) {
+                auto correlation = time_correlation(i, j);
+
+                r_dependence_SxSy[m] += correlation[t_diff_r_dep_];
+                auto num_time_samples_z = (unsigned int) (periodogram_props_.length);
+                for (auto t_ref = 0; t_ref < num_time_samples_z; t_ref++) {
+                    r_dependence_SzSz[m] += spin_z[t_ref](i) * spin_z[t_ref + t_diff_r_dep_](j);
+                }
+                count_r_dep[m]++;
+            }
+        }//i
+    }//j
+
+    for (auto m = 0; m < radial_dist.size(); m++) {
+        outfile4 << std::setw(20) << m << "\t";
+        outfile4 << std::setw(20) << radial_dist[m] << "\n";
+    }
+
+    for (auto m = 1; m < r_dependence_SxSy.size(); m++) {
+        outfile3 << std::setw(20) << t_diff_r_dep_ * delta_t << "\t";
+        outfile3 << std::setw(20) << m << "\t";
+        if (count_r_dep[m] != 0) {
+            outfile3 << std::setw(20) << r_dependence_SxSy[m].real() / count_r_dep[m] << "\t";
+            outfile3 << std::setw(20) << r_dependence_SxSy[m].imag() / count_r_dep[m] << "\n";
+        }
+        else{
+            outfile3 << std::setw(20) << 0.0 << "\t";
+            outfile3 << std::setw(20) << 0.0 << "\n";
+        }
+    }
+
+    for (auto m = 1; m < r_dependence_SzSz.size(); m++) {
+        outfile5 << std::setw(20) << t_diff_r_dep_ * delta_t << "\t";
+        outfile5 << std::setw(20) << m << "\t";
+        if (count_r_dep[m] != 0) {
+            outfile5 << std::setw(20) << r_dependence_SzSz[m].real() / count_r_dep[m] << "\t";
+            outfile5 << std::setw(20) << r_dependence_SzSz[m].imag() / count_r_dep[m] << "\n";
+        }
+        else{
+            outfile5 << std::setw(20) << 0.0 << "\t";
+            outfile5 << std::setw(20) << 0.0 << "\n";
+        }
+    }
+
+    outfile3.close();
+    outfile4.close();
+    outfile5.close();
+
+}
+
+double NeutronScatteringNoLatticeMonitor::distance(const Vec3 &r_ij) {
+    return std::sqrt(r_ij[0] * r_ij[0] + r_ij[1] * r_ij[1] + r_ij[2] * r_ij[2]);
+}
+
+std::vector<std::complex<double>> NeutronScatteringNoLatticeMonitor::time_correlation(unsigned i, unsigned j) {
+    const auto num_time_samples = (unsigned int)(periodogram_props_.length);
+    std::vector<std::complex<double>> correlation(num_time_samples, 0.0);
+
+    for (auto t_diff = 0; t_diff < correlation.size(); t_diff++) {
+        for (auto t_ref = 0; t_ref < num_time_samples; t_ref++) {
+            if ((t_ref + t_diff) < num_time_samples && t_ref < num_time_samples) {
+                correlation[t_diff] +=
+                        spin_x[t_ref](i) * spin_x[t_ref + t_diff](j) + spin_y[t_ref](i) * spin_y[t_ref + t_diff](j)
+                        + kImagOne * (-spin_x[t_ref](i) * spin_y[t_ref + t_diff](j) + spin_y[t_ref](i) * spin_x[t_ref + t_diff](j));
+
+//                if(t_diff == 0){
+//                    std::cout << "num_t_samples = " << num_time_samples << std::endl;
+//                    std::cout << "t_diff = " << t_diff << ", t_ref = " << t_ref << std::endl;
+//                    std::cout << "corr (Re) = " << correlation[t_diff].real() << ", corr (Im) = " << correlation[t_diff].imag() << std::endl;
+//                }
+
+            }
+        }
+    }
+    return correlation;
+}
+
+std::vector<double> NeutronScatteringNoLatticeMonitor::radial_distribution_function() {
+    using namespace globals;
+    using namespace std;
+    Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
+    //Here we assume lattice_dimensions are all the same (x,y,z)
+    std::vector<double> dist(std::ceil(0.5 * lattice_dimensions[0] / delta_r_),0.0);
+    for(unsigned j = 0; j < num_spins; ++j){
+        const auto r_j = lattice->atom_position(j);
+        for(unsigned i = 0; i < num_spins; ++i){
+            if(i == j){
+                dist[0] = 0;
+                continue;
+            }
+            const auto r_i = lattice->atom_position(i);
+            const auto r_ij = (lattice->displacement(r_i, r_j)); // using j,i in this order gives r_j - r_i
+            int m = std::ceil(std::sqrt(r_ij[0] * r_ij[0] + r_ij[1] * r_ij[1] + r_ij[2] * r_ij[2])/delta_r_);
+            if(m > dist.size()){
+                continue;
+            }
+            dist[m]++;
+        }
+    }
+    for (auto kk = 0; kk < dist.size(); kk++){
+        dist[kk] /= num_spins;
+    }
+    return dist;
 }

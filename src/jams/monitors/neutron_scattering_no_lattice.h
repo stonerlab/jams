@@ -11,7 +11,8 @@
 class NeutronScatteringNoLatticeMonitor : public Monitor {
 public:
     explicit NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings);
-    ~NeutronScatteringNoLatticeMonitor() override = default;
+    ~NeutronScatteringNoLatticeMonitor() override;
+//    ~NeutronScatteringNoLatticeMonitor() override = default;
 
     void post_process() override {};
     void update(Solver *solver) override;
@@ -53,7 +54,16 @@ private:
     int num_k_;
     Vec3 kvector_;
     bool evaluate_form_factor_ = false;
+    double delta_r_ = 0.001;
+    int t_diff_r_dep_;
 
+    std::vector<jams::MultiArray<double, 1>> spin_x;
+    std::vector<jams::MultiArray<double, 1>> spin_y;
+    std::vector<jams::MultiArray<double, 1>> spin_z;
+
+    std::vector<double> radial_distribution_function();
+    double distance(const Vec3 &r_ij);
+    std::vector<std::complex<double>> time_correlation(unsigned i, unsigned j);
 };
 
 #endif //JAMS_NEUTRON_SCATTERING_NO_LATTICE_H
