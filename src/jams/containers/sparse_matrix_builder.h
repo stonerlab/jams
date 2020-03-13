@@ -234,7 +234,8 @@ namespace jams {
         auto low = std::lower_bound(row_.cbegin(), row_.cend(), j);
 
         // this j does not exist in row_ so matrix cannot be symmetric
-        if (low == row_.cend()) {
+        if ((*low) != j || low == row_.cend()) {
+          // this col (j) does not exist in row_ so matrix cannot be structurally symmetric
           return false;
         }
 
@@ -264,12 +265,14 @@ namespace jams {
 
         auto low = std::lower_bound(row_.cbegin(), row_.cend(), j);
 
-        if (low == row_.cend()) {
+        if ((*low) != j || low == row_.cend()) {
           // this col (j) does not exist in row_ so matrix cannot be structurally symmetric
           return false;
         }
 
         auto up = std::upper_bound(low, row_.cend(), j);
+
+        // all elements between 'low' and 'up' are data for row == j == col_[n]
 
         auto col_begin = col_.cbegin() + (low - row_.cbegin());
         auto col_end = col_.cbegin() + (up - row_.cbegin());
