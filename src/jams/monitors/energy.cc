@@ -14,7 +14,7 @@
 #include "energy.h"
 
 EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
-: Monitor(settings), tsv_file(jams::output::open_file(simulation_name + "_eng.tsv")) {
+: Monitor(settings), tsv_file(jams::output::full_path_filename("eng.tsv")) {
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 }

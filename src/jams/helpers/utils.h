@@ -83,16 +83,23 @@ inline std::string lowercase(std::string s) {
   return s;
 }
 
-inline std::string file_basename(std::string filepath) {
+inline std::string file_basename_no_extension(std::string filepath) {
   auto dot = filepath.find_last_of('.');
   auto slash = filepath.find_last_of("/\\");
   return filepath.substr(slash+1, dot-slash-1);
+}
+
+inline std::string file_basename(std::string filepath) {
+  auto slash = filepath.find_last_of("/\\");
+  return filepath.substr(slash+1);
 }
 
 inline std::string file_extension(std::string filepath) {
   auto dot = filepath.find_last_of('.');
   return filepath.substr(dot+1);
 }
+
+
 
 inline bool contains(const std::string& s1, const std::string& s2) {
   return s1.find(s2) != std::string::npos;

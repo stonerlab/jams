@@ -194,7 +194,7 @@ void CudaSpinCurrentMonitor::update_xdmf_file(const std::string &h5_file_name) {
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("       <Attribute Name=\"spin_current\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s:/spin_current\n", file_basename(h5_file_name).c_str());
+  fprintf(xdmf_file_, "           %s:/spin_current\n", file_basename_no_extension(h5_file_name).c_str());
   fputs("         </DataItem>\n", xdmf_file_);
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("      </Grid>\n", xdmf_file_);

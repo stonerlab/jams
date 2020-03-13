@@ -18,7 +18,7 @@
 
 SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
- outfile(jams::output::open_file(simulation_name + "_sky.tsv")){
+ outfile(jams::output::full_path_filename("sky.tsv")){
   using namespace globals;
 
   type_norms.resize(lattice->num_materials(), 1.0);

@@ -18,9 +18,9 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     std::ofstream debug_file;
 
     if (debug_is_enabled()) {
-      debug_file = jams::output::open_file("DEBUG_exchange.dat");
+      debug_file.open(jams::output::full_path_filename("DEBUG_exchange.dat"));
 
-      std::ofstream pos_file = jams::output::open_file("DEBUG_pos.dat");
+      std::ofstream pos_file(jams::output::full_path_filename("DEBUG_pos.dat"));
       for (int n = 0; n < lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
           if (lattice->atom_material_id(i) == n) {

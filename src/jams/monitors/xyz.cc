@@ -52,7 +52,7 @@ void XyzMonitor::update(Solver * solver) {
   if (solver->iteration()%output_step_freq_ == 0) {
     int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
-    std::ofstream xyz_state_file = jams::output::open_file(std::string(simulation_name + "_" + zero_pad_number(outcount) + ".xyz"));
+    std::ofstream xyz_state_file(jams::output::full_path_filename_series(".xyz", outcount));
 
     // file header
     xyz_state_file << "#";

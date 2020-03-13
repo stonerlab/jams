@@ -11,7 +11,8 @@ namespace jams {
     namespace output {
         void initialise();
 
-        std::ofstream open_file(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out);
+        std::string full_path_filename(const std::string& ending);
+        std::string full_path_filename_series(const std::string& ending, int num, int width=7);
         std::string output_path();
     }
 

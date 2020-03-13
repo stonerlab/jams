@@ -16,7 +16,7 @@ using namespace std;
 
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(jams::output::open_file(simulation_name + "_dm_dt.tsv")),
+  tsv_file(jams::output::full_path_filename("dm_dt.tsv")),
   magnetisation_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
   convergence_tolerance_(1.0),            // 1 standard deviation from the mean

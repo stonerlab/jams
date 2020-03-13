@@ -17,7 +17,7 @@
 
 TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(jams::output::open_file(simulation_name + "_torq.tsv")),
+  tsv_file(jams::output::full_path_filename("torq.tsv")),
   torque_stats_(),
   convergence_geweke_diagnostic_()
 {

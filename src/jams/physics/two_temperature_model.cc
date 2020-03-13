@@ -26,7 +26,7 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   Cl(3.0E06),
   G(17.0E17),
   Gsink(17.0E14),
-  TTMFile(jams::output::open_file(simulation_name + "_ttm.tsv")) {
+  TTMFile(jams::output::full_path_filename( "ttm.tsv")) {
   using namespace globals;
 
   phononTemp = settings["InitialTemperature"];

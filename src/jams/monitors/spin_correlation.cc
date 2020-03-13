@@ -102,7 +102,7 @@ void SpinCorrelationMonitor::post_process() {
   }
 
   {
-    ofstream of = jams::output::open_file(simulation_name + "_corr_outplane.tsv");
+    ofstream of(jams::output::full_path_filename("corr_outplane.tsv"));
     of << "delta_r\tCzz\n";
     for (auto x : out_of_plane_sz_corr_histogram_) {
       auto delta_r = sqrt(x.first);
@@ -112,7 +112,7 @@ void SpinCorrelationMonitor::post_process() {
   }
 
   {
-    ofstream of = jams::output::open_file(simulation_name + "_corr_inplane.tsv");
+    ofstream of(jams::output::full_path_filename("corr_inplane.tsv"));
     of << "delta_r\tCzz\n";
     for (auto x : in_plane_sz_corr_histogram_) {
         auto delta_r = sqrt(x.first);

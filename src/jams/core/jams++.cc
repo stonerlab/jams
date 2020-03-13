@@ -140,7 +140,7 @@ namespace jams {
 
       simulation.config_file_name = program_args.config_file_path;
       simulation.config_patch_string = program_args.config_file_patch;
-      simulation.name = trim(file_basename(simulation.config_file_name));
+      simulation.name = trim(file_basename_no_extension(simulation.config_file_name));
 
       if (!program_args.simulation_name.empty()) {
         simulation.name = trim(program_args.simulation_name);
@@ -345,7 +345,7 @@ namespace jams {
       config->lookupValue("sim.write_patched_config", do_write_patched_config);
 
       if (do_write_patched_config) {
-        std::string patched_config_filename = jams::output::output_path() + simulation_name + "_patched.cfg";
+        std::string patched_config_filename = jams::output::full_path_filename("patched.cfg");
 
 #if (((LIBCONFIG_VER_MAJOR == 1) && (LIBCONFIG_VER_MINOR >= 6)) \
  || (LIBCONFIG_VER_MAJOR > 1))

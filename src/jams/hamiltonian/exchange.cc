@@ -31,7 +31,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   safety_check_distance_tolerance(distance_tolerance_);
 
   if (debug_is_enabled()) {
-    std::ofstream pos_file = jams::output::open_file("DEBUG_pos.tsv");
+    std::ofstream pos_file(jams::output::full_path_filename("DEBUG_pos.tsv"));
     for (int n = 0; n < lattice->num_materials(); ++n) {
       for (int i = 0; i < globals::num_spins; ++i) {
         if (lattice->atom_material_id(i) == n) {
@@ -66,7 +66,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   }
 
   if (debug_is_enabled()) {
-    std::ofstream debug_file = jams::output::open_file("DEBUG_exchange_nbr_list.tsv");
+    std::ofstream debug_file(jams::output::full_path_filename("DEBUG_exchange_nbr_list.tsv"));
     write_neighbour_list(debug_file, neighbour_list_);
     debug_file.close();
   }

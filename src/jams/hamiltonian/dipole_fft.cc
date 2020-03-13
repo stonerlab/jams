@@ -274,8 +274,7 @@ DipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int p
   }
 
   if (debug_) {
-    std::ofstream debugfile = jams::output::open_file(
-        "DEBUG_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv");
+    std::ofstream debugfile(jams::output::full_path_filename("DEBUG_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv"));
 
     for (const auto& r : positions) {
       debugfile << r << "\n";

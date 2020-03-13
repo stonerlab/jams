@@ -19,7 +19,7 @@
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   s_transform_(globals::num_spins),
-  tsv_file(jams::output::open_file(::simulation_name + "_mag.tsv")),
+  tsv_file(jams::output::full_path_filename("mag.tsv")),
   m_stats_(),
   m2_stats_(),
   m4_stats_()

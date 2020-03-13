@@ -196,7 +196,7 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   const auto num_time_points = kspace_spins_timeseries_.size(0);
 
 
-  ofstream ofs = jams::output::open_file(simulation_name + "_static_structure_factor_path_" + to_string(0) + ".tsv");
+  ofstream ofs(jams::output::full_path_filename("static_structure_factor.tsv"));
 
   ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
   ofs << "Sxx_re\t" << "Sxx_im\t" << "Sxy_re\t" << "Sxy_im\t" << "Sxz_re\t" << "Sxz_im\t";
@@ -222,7 +222,7 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
 }
 
 void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
-    ofstream ofs = jams::output::open_file(simulation_name + "_neutron_scattering_path_" + to_string(0) + ".tsv");
+    ofstream ofs(jams::output::full_path_filename(simulation_name + "neutron_scattering.tsv"));
 
     ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
     ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
