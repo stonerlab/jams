@@ -43,18 +43,26 @@ using libconfig::Setting;
 using libconfig::Config;
 
 namespace {
-    Vec3 shift_fractional_coordinate_to_zero_one(Vec3 r) {
+    Vec3 shift_fractional_coordinate_to_zero_one(Vec3 r, const double eps = jams::defaults::lattice_tolerance) {
       for (auto n = 0; n < 3; ++n) {
         if (r[n] < 0.0) {
           r[n] = r[n] + 1.0;
+        }
+        // If we end up exactly on the opposite face/edge of the cell then
+        // this should actually be in the next cell (i.e. fractional coordinates
+        // are in the range 0 <= r[n] < 1. So we must map coordinates equal to 1
+        // back to 0.
+        if (approximately_equal(r[n], 1.0, eps)) {
+          r[n] = 0.0;
         }
       }
       return r;
     }
 
-    bool is_fractional_coordinate_valid(const Vec3 &r) {
+    bool is_fractional_coordinate_valid(const Vec3 &r, const double eps = jams::defaults::lattice_tolerance) {
+      // check fractional coordinates are in the range 0 <= r[n] < 1
       for (auto n = 0; n < 3; ++n) {
-        if (r[n] < 0.0 || r[n] > 1.0) {
+        if (r[n] < 0.0 || r[n] > 1.0 || approximately_equal(r[n], 1.0, eps)) {
           return false;
         }
       }
