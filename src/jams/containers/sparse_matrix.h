@@ -71,13 +71,13 @@ namespace jams {
 
         inline constexpr size_type num_cols() const { return num_cols_; }
 
-        inline const_size_pointer row_data()  const { row_.data(); }
-        inline const_size_pointer col_data()  const { col_.data(); }
-        inline const_value_pointer val_data()  const { val_.data(); }
+        inline const_size_pointer row_data()  const { return row_.data(); }
+        inline const_size_pointer col_data()  const { return col_.data(); }
+        inline const_value_pointer val_data()  const { return val_.data(); }
 
-        inline const_size_pointer row_device_data()  const { row_.device_data(); }
-        inline const_size_pointer col_device_data()  const { col_.device_data(); }
-        inline const_value_pointer val_device_data()  const { val_.device_data(); }
+        inline const_size_pointer row_device_data()  const { return row_.device_data(); }
+        inline const_size_pointer col_device_data()  const { return col_.device_data(); }
+        inline const_value_pointer val_device_data()  const { return val_.device_data(); }
 
         inline constexpr std::size_t memory() const { return row_.memory() + col_.memory() + val_.memory(); };
 
