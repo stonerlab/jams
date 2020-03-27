@@ -4,6 +4,7 @@
 #include <cufft.h>
 #include <jams/interface/fft.h>
 
+#include "jams/helpers/output.h"
 #include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
@@ -276,8 +277,8 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
     }
   
     if (debug_) {
-      std::ofstream debugfile = jams::output::open_file(
-          "DEBUG_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv");
+      std::ofstream debugfile(jams::output::full_path_filename(
+          "DEBUG_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv"));
 
       for (const auto& r : positions) {
         debugfile << r << "\n";
