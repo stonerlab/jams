@@ -143,6 +143,7 @@ namespace jams {
         case SparseMatrixFormat::CSR :
           return build_csr();
       };
+      throw std::runtime_error("Unknown sparse matrix format for SparseMatrix<T>::Builder::build()");
     }
 
     template<typename T>

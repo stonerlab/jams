@@ -122,6 +122,7 @@ namespace jams {
               1.0, 0.0, num_rows_, val_.data(), col_.data(), row_.data(), vector.data(), result.data());
           #endif
       }
+      throw std::runtime_error("Unknown sparse matrix format for SparseMatrix<T>::multiply");
     }
 
     template<typename T>
@@ -135,6 +136,7 @@ namespace jams {
           return jams::Xcsrmv_general_row(
               val_.data(), col_.data(), row_.data(), vector.data(), i);
       }
+      throw std::runtime_error("Unknown sparse matrix format for SparseMatrix<T>::multiply_row");
     }
 
     #ifdef HAS_CUDA
