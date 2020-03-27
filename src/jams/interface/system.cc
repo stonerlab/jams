@@ -3,6 +3,7 @@
 //
 
 #include <string>
+#include <cstring>
 #include <cerrno>
 #include <cstdio>
 
