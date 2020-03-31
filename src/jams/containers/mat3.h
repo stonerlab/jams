@@ -214,7 +214,7 @@ inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
 
   // Rodrigues's rotation formula
   const auto R = (1.0/(norm(a) * norm(b))) *
-       (c * kIdentityMat3 + ssc(u) + (1.0 - c) * outer_product(u,u) / norm_sq(u));
+       (c * kIdentityMat3 + ssc(u) + (norm(a) * norm(b) - c) * outer_product(u,u) / norm_sq(u));
 
   // a rotation matrix must be orthogonal and have a determinant of 1
   assert(approximately_equal(transpose(R), inverse(R)));
