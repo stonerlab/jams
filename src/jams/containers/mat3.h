@@ -80,6 +80,19 @@ inline Mat<T,3,3> operator*(const Mat<T,3,3>& lhs, const Mat<T,3,3>& rhs) {
   return result;
 }
 
+// Vec3 specialization
+template <typename T>
+inline bool approximately_equal(const Mat<T,3,3>& a, const Mat<T,3,3>& b, const T& epsilon = FLT_EPSILON) {
+  for (auto m = 0; m < 3; ++m) {
+    for (auto n = 0; n < 3; ++n) {
+      if (!approximately_equal(a[m][n], b[m][n], epsilon)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 template <typename T>
 Mat<T,3,3> matrix_from_rows(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
   return {a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]};
@@ -188,7 +201,7 @@ inline T max_abs(const Mat<T,3,3>& a) {
   return max;
 }
 
-inline Mat3 rotation_matrix_between_vectors(Vec<double,3> a, Vec<double,3> b) {
+inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
   // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
   // https://en.wikipedia.org/wiki/Rotation_matrix
 
@@ -196,13 +209,18 @@ inline Mat3 rotation_matrix_between_vectors(Vec<double,3> a, Vec<double,3> b) {
   // (for example a == b or a == -b). The code below should work for all cases. It is maybe slightly less
   // efficient but this does not get called a lot.
 
-  a = normalize(a);
-  b = normalize(b);
-
   const auto c = dot(a, b);
   const auto u = cross(a,b);
 
-  return c * kIdentityMat3 + ssc(u) + (1.0 - c) * outer_product(u,u);
+  // Rodrigues's rotation formula
+  const auto R = (1.0/(norm(a) * norm(b))) *
+       (c * kIdentityMat3 + ssc(u) + (1.0 - c) * outer_product(u,u) / norm_sq(u));
+
+  // a rotation matrix must be orthogonal and have a determinant of 1
+  assert(approximately_equal(transpose(R), inverse(R)));
+  assert(approximately_equal(determinant(R), 1.0));
+
+  return R;
 }
 
 #endif //JAMS_MAT3_H
