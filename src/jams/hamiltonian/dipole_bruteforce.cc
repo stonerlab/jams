@@ -27,7 +27,53 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
       frac_positions_[i] = lattice->get_supercell().inverse_matrix()*lattice->atom_position(i);
     }
 
-  }
+    std::vector<std::pair<Vec3f, int>> positions;
+
+    Vec3i L_max = {1, 1, 1};
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      // loop over periodic images of the simulation lattice
+      // this means r_cutoff can be larger than the simulation cell
+      Mat3 dipole_tensor = kZeroMat3;
+
+      for (auto Lx = -L_max[0]; Lx < L_max[0] + 1; ++Lx) {
+        for (auto Ly = -L_max[1]; Ly < L_max[1] + 1; ++Ly) {
+          for (auto Lz = -L_max[2]; Lz < L_max[2] + 1; ++Lz) {
+            Vec3i image_vector = {Lx, Ly, Lz};
+
+//            auto r = lattice->generate_image_position(lattice->atom_position(i), image_vector);
+
+            Vec3 frac_pos = lattice->cartesian_to_fractional(lattice->atom_position(i));
+
+            bool skip = false;
+            for (int n = 0; n < 3; ++n) {
+              if (lattice->is_periodic(n)) {
+                frac_pos[n] = frac_pos[n] + image_vector[n] * lattice->size()[n];
+                if (frac_pos[n] < -lattice->size()[n]/2.0 || frac_pos[n] > 1.5*lattice->size()[n]) {
+                  skip = true;
+                  break;
+                }
+              }
+            }
+
+            if (skip) {
+              continue;
+            }
+            auto r = lattice->fractional_to_cartesian(frac_pos);
+
+
+
+            positions.emplace_back(std::make_pair(Vec3f{float(r[0]), float(r[1]), float(r[2])},i));
+          }
+        }
+      }
+    }
+
+  auto distance_metric = [](const std::pair<Vec3f, int>& a, const std::pair<Vec3f, int>& b)->float {
+      return norm_sq(a.first-b.first);
+  };
+
+  near_tree_ = new NearTree<std::pair<Vec3f, int>, NeartreeFunctorType>(distance_metric, positions);
+}
 
 // --------------------------------------------------------------------------
 
@@ -80,27 +126,34 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 {
   using namespace globals;
 
-  const auto r_cut_squared = pow2(r_cutoff_);
   const auto w0 = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
 
   double hx = 0, hy = 0, hz = 0;
+
+  std::vector<std::pair<Vec3f, int>> neighbours;
+  const Vec3f r_i = {
+      float(lattice->atom_position(i)[0]),
+      float(lattice->atom_position(i)[1]),
+      float(lattice->atom_position(i)[2])
+  };
+  near_tree_->find_in_radius(r_cutoff_, neighbours, {r_i, i});
+
   #if HAS_OMP
   #pragma omp parallel for reduction(+:hx, hy, hz)
   #endif
-  for (auto j = 0; j < globals::num_spins; ++j) {
+  for (auto n = 0; n < neighbours.size(); ++n) {
+    const int j = neighbours[n].second;
     if (j == i) continue;
 
-    Vec3 r_ij = lattice->displacement(i, j);
+    const Vec3f r_ij =  neighbours[n].first - r_i;
 
     const auto r_abs_sq = norm_sq(r_ij);
 
-    if (r_abs_sq > r_cut_squared) continue;
-
     const auto sj_dot_r = s(j, 0) * r_ij[0] + s(j, 1) * r_ij[1] + s(j, 2) * r_ij[2];
 
-    hx += w0 * mus(i) * mus(j) * (3 * r_ij[0] * sj_dot_r - r_abs_sq * s(j, 0)) / pow(r_abs_sq, 2.5);
-    hy += w0 * mus(i) * mus(j) * (3 * r_ij[1] * sj_dot_r - r_abs_sq * s(j, 1)) / pow(r_abs_sq, 2.5);
-    hz += w0 * mus(i) * mus(j) * (3 * r_ij[2] * sj_dot_r - r_abs_sq * s(j, 2)) / pow(r_abs_sq, 2.5);
+    hx += w0 * mus(i) * mus(j) * (3.0 * r_ij[0] * sj_dot_r - r_abs_sq * s(j, 0)) / pow(r_abs_sq, 2.5);
+    hy += w0 * mus(i) * mus(j) * (3.0 * r_ij[1] * sj_dot_r - r_abs_sq * s(j, 1)) / pow(r_abs_sq, 2.5);
+    hz += w0 * mus(i) * mus(j) * (3.0 * r_ij[2] * sj_dot_r - r_abs_sq * s(j, 2)) / pow(r_abs_sq, 2.5);
   }
 
   h[0] = hx; h[1] = hy; h[2] = hz;
