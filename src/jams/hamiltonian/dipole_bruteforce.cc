@@ -33,14 +33,11 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
     for (auto i = 0; i < globals::num_spins; ++i) {
       // loop over periodic images of the simulation lattice
       // this means r_cutoff can be larger than the simulation cell
-      Mat3 dipole_tensor = kZeroMat3;
 
       for (auto Lx = -L_max[0]; Lx < L_max[0] + 1; ++Lx) {
         for (auto Ly = -L_max[1]; Ly < L_max[1] + 1; ++Ly) {
           for (auto Lz = -L_max[2]; Lz < L_max[2] + 1; ++Lz) {
             Vec3i image_vector = {Lx, Ly, Lz};
-
-//            auto r = lattice->generate_image_position(lattice->atom_position(i), image_vector);
 
             Vec3 frac_pos = lattice->cartesian_to_fractional(lattice->atom_position(i));
 
@@ -48,10 +45,10 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
             for (int n = 0; n < 3; ++n) {
               if (lattice->is_periodic(n)) {
                 frac_pos[n] = frac_pos[n] + image_vector[n] * lattice->size()[n];
-                if (frac_pos[n] < -lattice->size()[n]/2.0 || frac_pos[n] > 1.5*lattice->size()[n]) {
-                  skip = true;
-                  break;
-                }
+//                if (frac_pos[n] < -lattice->size()[n]/2.0 || frac_pos[n] > 1.5*lattice->size()[n]) {
+//                  skip = true;
+//                  break;
+//                }
               }
             }
 
