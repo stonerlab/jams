@@ -129,7 +129,7 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 
   std::vector<std::pair<Vec3, int>> neighbours;
   const Vec3 r_i = lattice->atom_position(i);
-  
+
   near_tree_->find_in_radius(r_cutoff_ * r_cutoff_, neighbours, {r_i, i});
 
   #if HAS_OMP
@@ -141,13 +141,13 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 
     const Vec3 r_ij =  neighbours[n].first - r_i;
 
-    const auto r_abs_sq = norm_sq(r_ij);
+    const auto r_abs = norm(r_ij);
 
     const auto sj_dot_r = s(j, 0) * r_ij[0] + s(j, 1) * r_ij[1] + s(j, 2) * r_ij[2];
 
-    hx += w0 * mus(i) * mus(j) * (3.0 * r_ij[0] * sj_dot_r - r_abs_sq * s(j, 0)) / pow(r_abs_sq, 2.5);
-    hy += w0 * mus(i) * mus(j) * (3.0 * r_ij[1] * sj_dot_r - r_abs_sq * s(j, 1)) / pow(r_abs_sq, 2.5);
-    hz += w0 * mus(i) * mus(j) * (3.0 * r_ij[2] * sj_dot_r - r_abs_sq * s(j, 2)) / pow(r_abs_sq, 2.5);
+    hx += w0 * mus(i) * mus(j) * (3.0 * r_ij[0] * sj_dot_r - pow2(r_abs) * s(j, 0)) / pow5(r_abs);
+    hy += w0 * mus(i) * mus(j) * (3.0 * r_ij[1] * sj_dot_r - pow2(r_abs) * s(j, 1)) / pow5(r_abs);
+    hz += w0 * mus(i) * mus(j) * (3.0 * r_ij[2] * sj_dot_r - pow2(r_abs) * s(j, 2)) / pow5(r_abs);
   }
 
   h[0] = hx; h[1] = hy; h[2] = hz;
