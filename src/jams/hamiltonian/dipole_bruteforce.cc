@@ -136,7 +136,7 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
       float(lattice->atom_position(i)[1]),
       float(lattice->atom_position(i)[2])
   };
-  near_tree_->find_in_radius(r_cutoff_, neighbours, {r_i, i});
+  near_tree_->find_in_radius(r_cutoff_ * r_cutoff_, neighbours, {r_i, i});
 
   #if HAS_OMP
   #pragma omp parallel for reduction(+:hx, hy, hz)
