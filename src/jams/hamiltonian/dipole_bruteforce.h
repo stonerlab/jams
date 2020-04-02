@@ -23,8 +23,8 @@ class DipoleHamiltonianCpuBruteforce : public Hamiltonian {
         void   calculate_fields();
 
     private:
-        using NeartreeFunctorType = std::function<float(const std::pair<Vec3f, int>& a, const std::pair<Vec3f, int>& b)>;
-        NearTree<std::pair<Vec3f, int>, NeartreeFunctorType>* near_tree_;
+        using NeartreeFunctorType = std::function<float(const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)>;
+        NearTree<std::pair<Vec3, int>, NeartreeFunctorType>* near_tree_;
         std::vector<Vec3>   frac_positions_;
         Mat3 supercell_matrix_;
         double r_cutoff_;

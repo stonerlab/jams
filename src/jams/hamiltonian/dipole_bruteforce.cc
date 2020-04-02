@@ -27,7 +27,7 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
       frac_positions_[i] = lattice->get_supercell().inverse_matrix()*lattice->atom_position(i);
     }
 
-    std::vector<std::pair<Vec3f, int>> positions;
+    std::vector<std::pair<Vec3, int>> positions;
 
     Vec3i L_max = {lattice->is_periodic(0), lattice->is_periodic(1), lattice->is_periodic(2)};
     for (auto i = 0; i < globals::num_spins; ++i) {
@@ -59,17 +59,17 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
 
 
 
-            positions.emplace_back(std::make_pair(Vec3f{float(r[0]), float(r[1]), float(r[2])},i));
+            positions.emplace_back(std::make_pair(Vec3{float(r[0]), float(r[1]), float(r[2])},i));
           }
         }
       }
     }
 
-  auto distance_metric = [](const std::pair<Vec3f, int>& a, const std::pair<Vec3f, int>& b)->float {
+  auto distance_metric = [](const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)->float {
       return norm_sq(a.first-b.first);
   };
 
-  near_tree_ = new NearTree<std::pair<Vec3f, int>, NeartreeFunctorType>(distance_metric, positions);
+  near_tree_ = new NearTree<std::pair<Vec3, int>, NeartreeFunctorType>(distance_metric, positions);
 }
 
 // --------------------------------------------------------------------------
@@ -127,12 +127,9 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 
   double hx = 0, hy = 0, hz = 0;
 
-  std::vector<std::pair<Vec3f, int>> neighbours;
-  const Vec3f r_i = {
-      float(lattice->atom_position(i)[0]),
-      float(lattice->atom_position(i)[1]),
-      float(lattice->atom_position(i)[2])
-  };
+  std::vector<std::pair<Vec3, int>> neighbours;
+  const Vec3 r_i = lattice->atom_position(i);
+  
   near_tree_->find_in_radius(r_cutoff_ * r_cutoff_, neighbours, {r_i, i});
 
   #if HAS_OMP
@@ -142,7 +139,7 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
     const int j = neighbours[n].second;
     if (j == i) continue;
 
-    const Vec3f r_ij =  neighbours[n].first - r_i;
+    const Vec3 r_ij =  neighbours[n].first - r_i;
 
     const auto r_abs_sq = norm_sq(r_ij);
 
