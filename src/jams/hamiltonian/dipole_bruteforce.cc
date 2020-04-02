@@ -29,7 +29,7 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
 
     std::vector<std::pair<Vec3f, int>> positions;
 
-    Vec3i L_max = {1, 1, 1};
+    Vec3i L_max = {lattice->is_periodic(0), lattice->is_periodic(1), lattice->is_periodic(2)};
     for (auto i = 0; i < globals::num_spins; ++i) {
       // loop over periodic images of the simulation lattice
       // this means r_cutoff can be larger than the simulation cell
