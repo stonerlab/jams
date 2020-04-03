@@ -32,9 +32,20 @@ inline constexpr bool definately_greater_than(const T& a, const T& b, const T& e
   return (a - b) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
+
+template <typename T>
+inline constexpr bool less_than_approx_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  return (a - b) < (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
 template <typename T>
 inline constexpr bool definately_less_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
   return (b - a) > (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
+template <typename T>
+inline constexpr bool greater_than_approx_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  return (b - a) < (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 template <typename T, typename U>
