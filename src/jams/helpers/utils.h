@@ -12,6 +12,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <map>
 #include <vector>
 
 #include "jams/containers/vec3.h"
@@ -225,6 +226,21 @@ inline std::vector<std::string> split(const std::string& s, const std::string& d
   }
   result.push_back(s.substr(last));
   return result;
+}
+
+inline std::string memory_in_natural_units(std::size_t size) {
+  std::map<int, std::string> byte_sizes;
+  byte_sizes[0] = "B";
+  byte_sizes[1] = "kB";
+  byte_sizes[2] = "MB";
+  byte_sizes[3] = "GB";
+  byte_sizes[4] = "TB";
+  byte_sizes[5] = "ZB";
+
+  int factor = int(log2(size)/log2(1024));
+  std::stringstream ss;
+  ss << std::setprecision(3) <<  size / pow(1024,factor) << " " << byte_sizes[factor];
+  return ss.str();
 }
 
 #endif  // JAMS_CORE_UTILS_H

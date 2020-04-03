@@ -114,7 +114,7 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
   interaction_matrix_ = sparse_matrix_builder_
       .set_format(jams::SparseMatrixFormat::CSR)
       .build();
-  std::cout << "    exchange sparse matrix memory (CSR): " << interaction_matrix_.memory() / kBytesToMegaBytes << " (MB)\n";
+  std::cout << "  " << name() << " sparse matrix memory (CSR): " << memory_in_natural_units(interaction_matrix_.memory()) << "\n";
   sparse_matrix_builder_.clear();
   is_finalized_ = true;
 }
