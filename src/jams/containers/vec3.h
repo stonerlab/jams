@@ -250,9 +250,9 @@ inline constexpr Vec<T,3> trunc(const Vec<T,3>& a) {
 template <typename T>
 inline constexpr Vec<double,3> to_double(const Vec<T,3>& a) {
   return {
-    static_cast<double>(std::trunc(a[0])),
-    static_cast<double>(std::trunc(a[1])),
-    static_cast<double>(std::trunc(a[2]))
+    static_cast<double>(a[0]),
+    static_cast<double>(a[1]),
+    static_cast<double>(a[2])
   };
 }
 
