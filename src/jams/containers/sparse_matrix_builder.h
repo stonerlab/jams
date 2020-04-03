@@ -117,13 +117,18 @@ namespace jams {
       if (is_merged_) {
         return;
       }
+      assert(row_.size() == col_.size());
+      assert(row_.size() == val_.size());
       for (auto m = 1; m < row_.size(); ++m) {
         if (row_[m] == row_[m - 1] && col_[m] == col_[m - 1]) {
           val_[m - 1] += val_[m];
+          val_.erase(val_.begin() + m);
           row_.erase(row_.begin() + m);
           col_.erase(col_.begin() + m);
         }
       }
+      assert(row_.size() == col_.size());
+      assert(row_.size() == val_.size());
     }
 
     template<typename T>
@@ -160,8 +165,8 @@ namespace jams {
       size_type previous_row = 0;
 
       for (auto m = 1; m < nnz; ++m) {
-        current_row = row_[m];
         assert(m < row_.size());
+        current_row = row_[m];
         if (current_row == previous_row) {
           continue;
         }
