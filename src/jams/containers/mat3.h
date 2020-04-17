@@ -5,6 +5,7 @@
 #ifndef JAMS_MAT3_H
 #define JAMS_MAT3_H
 
+#include <cassert>
 #include <array>
 #include <limits>
 #include "jams/containers/vec3.h"
