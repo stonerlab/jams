@@ -36,8 +36,8 @@ private:
     jams::MultiArray<double, 4> rspace_s_;
     jams::MultiArray<double, 4> rspace_h_;
 
-    std::array<unsigned,3>           kspace_size_ = {0, 0, 0};
-    std::array<unsigned,3>           kspace_padded_size_ = {0, 0, 0};
+    std::array<unsigned,3>           kspace_size_ = {{0, 0, 0}};
+    std::array<unsigned,3>           kspace_padded_size_ = {{0, 0, 0}};
     jams::MultiArray<Complex, 4>   kspace_s_;
     jams::MultiArray<Complex, 4>   kspace_h_;
 
