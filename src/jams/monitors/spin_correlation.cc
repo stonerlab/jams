@@ -63,7 +63,7 @@ void SpinCorrelationMonitor::post_process() {
   const double eps = jams::defaults::lattice_tolerance; // (lattice constants) this should be quite large for comparing lattice distances
 
   auto comparison = [eps](const double& a, const double& b) { return definately_less_than(a, b, eps); };
-  using histo_map = std::map<double, Datum<double>, decltype(comparison)>;
+  using histo_map = std::map<double, Datum, decltype(comparison)>;
 
   histo_map out_of_plane_sz_corr_histogram_(comparison);
   histo_map in_plane_sz_corr_histogram_(comparison);
