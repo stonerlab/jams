@@ -182,7 +182,7 @@ namespace jams {
         SparseMatrixFillMode fill_mode_ = SparseMatrixFillMode::LOWER;
         SparseMatrixDiagType diag_type_ = SparseMatrixDiagType::NON_UNIT;
 
-        std::array<char, 6> mkl_desc_ = {'G', 'L', 'N', 'C', 'N', 'N'};
+        std::array<char, 6> mkl_desc_ = {{'G', 'L', 'N', 'C', 'N', 'N'}};
 
         #if HAS_CUDA
         cusparseMatDescr_t cusparse_desc_ = nullptr;
