@@ -32,7 +32,7 @@ using std::runtime_error;
 struct AnisotropySetting {
     int      motif_position = -1;
     string   material = "";
-    Vec3     axis = {0.0, 0.0, 1.0};
+    Vec3     axis = {{0.0, 0.0, 1.0}};
     double   energy = 0.0;
 };
 
