@@ -101,15 +101,42 @@ namespace jams {
       if (is_sorted_) {
         return;
       }
-      auto p = stable_sort_permutation(col_);
-      apply_permutation_in_place(row_, p);
-      apply_permutation_in_place(col_, p);
-      apply_permutation_in_place(val_, p);
 
-      p = stable_sort_permutation(row_);
-      apply_permutation_in_place(row_, p);
-      apply_permutation_in_place(col_, p);
-      apply_permutation_in_place(val_, p);
+      assert(row_.size() == col_.size());
+      assert(row_.size() == val_.size());
+
+      // apply_permutation() should be much faster than apply_permutation_in_place() but requires double
+      // the memory. So try the faster method first and if we hit a memory issue do the permutation in place
+      if (!std::is_sorted(col_.begin(), col_.end())) {
+        auto p = stable_sort_permutation(col_);
+        try {
+          row_ = apply_permutation(row_, p);
+          col_ = apply_permutation(col_, p);
+          val_ = apply_permutation(val_, p);
+        }
+        catch (std::bad_alloc& ex) {
+          apply_permutation_in_place(row_, p);
+          apply_permutation_in_place(col_, p);
+          apply_permutation_in_place(val_, p);
+        }
+      }
+
+      if (!std::is_sorted(row_.begin(), row_.end())) {
+        auto p = stable_sort_permutation(row_);
+        try {
+          row_ = apply_permutation(row_, p);
+          col_ = apply_permutation(col_, p);
+          val_ = apply_permutation(val_, p);
+        }
+        catch (std::bad_alloc &ex) {
+          apply_permutation_in_place(row_, p);
+          apply_permutation_in_place(col_, p);
+          apply_permutation_in_place(val_, p);
+        }
+      }
+
+      assert(row_.size() == col_.size());
+      assert(row_.size() == val_.size());
     }
 
     template<typename T>
