@@ -19,6 +19,12 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
     settings.lookupValue("r_cutoff", r_cutoff_);
     std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
+    if (r_cutoff_ > lattice->max_interaction_radius()) {
+      throw std::runtime_error(
+          "r_cutoff is less than the maximum permitted interaction in the system"
+          " (" + std::to_string(lattice->max_interaction_radius())  + ")");
+    }
+
     int num_neighbours = 0;
     for (auto i = 0; i < globals::num_spins; ++i) {
       num_neighbours += lattice->num_neighbours(i, r_cutoff_);
