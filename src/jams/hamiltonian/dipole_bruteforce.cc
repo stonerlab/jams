@@ -19,57 +19,13 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
     settings.lookupValue("r_cutoff", r_cutoff_);
     std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
-  supercell_matrix_ = lattice->get_supercell().matrix();
-
-  frac_positions_.resize(globals::num_spins);
-
+    int num_neighbours = 0;
     for (auto i = 0; i < globals::num_spins; ++i) {
-      frac_positions_[i] = lattice->get_supercell().inverse_matrix()*lattice->atom_position(i);
+      num_neighbours += lattice->num_neighbours(i, r_cutoff_);
     }
 
-    std::vector<std::pair<Vec3, int>> positions;
+    std::cout << "  num_neighbours " << num_neighbours << "\n";
 
-    Vec3i L_max = {lattice->is_periodic(0), lattice->is_periodic(1), lattice->is_periodic(2)};
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      // loop over periodic images of the simulation lattice
-      // this means r_cutoff can be larger than the simulation cell
-
-      for (auto Lx = -L_max[0]; Lx < L_max[0] + 1; ++Lx) {
-        for (auto Ly = -L_max[1]; Ly < L_max[1] + 1; ++Ly) {
-          for (auto Lz = -L_max[2]; Lz < L_max[2] + 1; ++Lz) {
-            Vec3i image_vector = {Lx, Ly, Lz};
-
-            Vec3 frac_pos = lattice->cartesian_to_fractional(lattice->atom_position(i));
-
-            bool skip = false;
-            for (int n = 0; n < 3; ++n) {
-              if (lattice->is_periodic(n)) {
-                frac_pos[n] = frac_pos[n] + image_vector[n] * lattice->size()[n];
-//                if (frac_pos[n] < -lattice->size()[n]/2.0 || frac_pos[n] > 1.5*lattice->size()[n]) {
-//                  skip = true;
-//                  break;
-//                }
-              }
-            }
-
-            if (skip) {
-              continue;
-            }
-            auto r = lattice->fractional_to_cartesian(frac_pos);
-
-
-
-            positions.emplace_back(std::make_pair(Vec3{float(r[0]), float(r[1]), float(r[2])},i));
-          }
-        }
-      }
-    }
-
-  auto distance_metric = [](const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)->float {
-      return norm_sq(a.first-b.first);
-  };
-
-  near_tree_ = new NearTree<std::pair<Vec3, int>, NeartreeFunctorType>(distance_metric, positions);
 }
 
 // --------------------------------------------------------------------------
@@ -127,11 +83,9 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 
   double hx = 0, hy = 0, hz = 0;
 
-  std::vector<std::pair<Vec3, int>> neighbours;
   const Vec3 r_i = lattice->atom_position(i);
 
-  near_tree_->find_in_radius(r_cutoff_ * r_cutoff_, neighbours, {r_i, i});
-
+  const auto neighbours = lattice->atom_neighbours(i, r_cutoff_);
   #if HAS_OMP
   #pragma omp parallel for reduction(+:hx, hy, hz)
   #endif

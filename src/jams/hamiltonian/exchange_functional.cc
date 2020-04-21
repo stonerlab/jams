@@ -22,17 +22,16 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   output_exchange_functional(of, exchange_functional, radius_cutoff_);
 
   auto counter = 0;
-  vector<Atom> nbrs;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    nbrs.clear();
-    ::lattice->atom_neighbours(i, radius_cutoff_, nbrs);
+    auto r_i = lattice->atom_position(i);
+    auto nbrs = ::lattice->atom_neighbours(i, radius_cutoff_);
 
     for (const auto& nbr : nbrs) {
-      const auto j = nbr.id;
+      const auto j = nbr.second;
       if (i == j) {
         continue;
       }
-      const auto rij = norm(lattice->displacement(i, j));
+      const auto rij = norm(nbr.first - r_i);
       this->insert_interaction_scalar(i, j, input_unit_conversion_ * exchange_functional(rij));
       counter++;
     }

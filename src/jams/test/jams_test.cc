@@ -3,6 +3,7 @@
 #include "jams/test/containers/test_mat3.h"
 #include "jams/test/containers/test_vector_set.h"
 #include "jams/test/containers/test_unordered_vector_set.h"
+#include "jams/test/containers/test_neartree.h"
 //#include "jams/test/containers/test_synced_memory.h"
 //#include "jams/test/containers/test_multiarray.h"
 

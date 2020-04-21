@@ -95,34 +95,28 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       std::vector<bool> is_already_interacting(globals::num_spins, false);
 
       const auto type_i = lattice->atom_material_id(i);
-      std::vector<Atom> nbr;
-      std::vector<Atom> nbr_lower;
-      std::vector<Atom> nbr_upper;
 
       for (const auto& interaction : interaction_list_[type_i]) {
         const auto type_j = interaction.material[1];
 
-        nbr_lower.clear();
-        nbr_upper.clear();
+        auto nbr_lower = lattice->atom_neighbours(i, interaction.inner_radius);
+        auto nbr_upper = lattice->atom_neighbours(i, interaction.outer_radius + distance_tolerance_);
 
-        lattice->atom_neighbours(i, interaction.inner_radius, nbr_lower);
-        lattice->atom_neighbours(i, interaction.outer_radius + distance_tolerance_, nbr_upper);
+//        auto compare_func = [](Atom a, Atom b) { return a.id < b.id; };
 
-        auto compare_func = [](Atom a, Atom b) { return a.id < b.id; };
+        std::sort(nbr_lower.begin(), nbr_lower.end());
+        std::sort(nbr_upper.begin(), nbr_upper.end());
 
-        std::sort(nbr_lower.begin(), nbr_lower.end(), compare_func);
-        std::sort(nbr_upper.begin(), nbr_upper.end(), compare_func);
+        std::vector<std::pair<Vec3, int>> nbr;
+        std::set_difference(nbr_upper.begin(), nbr_upper.end(), nbr_lower.begin(), nbr_lower.end(), std::inserter(nbr, nbr.begin()));
 
-        nbr.clear();
-        std::set_difference(nbr_upper.begin(), nbr_upper.end(), nbr_lower.begin(), nbr_lower.end(), std::inserter(nbr, nbr.begin()), compare_func);
-
-        for (const Atom& n : nbr) {
-          auto j = n.id;
+        for (const std::pair<Vec3, int>& n : nbr) {
+          auto j = n.second;
           if (i == j) {
             continue;
           }
 
-          if (n.material_index == type_j) {
+          if (lattice->atom_material_id(j) == type_j) {
             // don't allow self interaction
             if (is_already_interacting[j]) {
               jams_die("Multiple interactions between spins %d and %d.\n", i, j);
