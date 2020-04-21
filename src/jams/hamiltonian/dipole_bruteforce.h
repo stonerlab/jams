@@ -5,6 +5,7 @@
 
 #include "jams/helpers/maths.h"
 #include "jams/core/hamiltonian.h"
+#include "jams/containers/neartree.h"
 
 class DipoleHamiltonianCpuBruteforce : public Hamiltonian {
     public:
@@ -22,6 +23,8 @@ class DipoleHamiltonianCpuBruteforce : public Hamiltonian {
         void   calculate_fields();
 
     private:
+        using NeartreeFunctorType = std::function<float(const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)>;
+        NearTree<std::pair<Vec3, int>, NeartreeFunctorType>* near_tree_;
         std::vector<Vec3>   frac_positions_;
         Mat3 supercell_matrix_;
         double r_cutoff_;
