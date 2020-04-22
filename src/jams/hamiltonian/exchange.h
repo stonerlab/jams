@@ -13,16 +13,16 @@
 #include "jams/hamiltonian/sparse_interaction.h"
 
 class ExchangeHamiltonian : public SparseInteractionHamiltonian {
-    public:
-        ExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
+public:
+    ExchangeHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-        const jams::InteractionList<Mat3,2>& neighbour_list() const;
+    const jams::InteractionList<Mat3, 2> &neighbour_list() const;
 
-    private:
-        jams::InteractionList<Mat3, 2> neighbour_list_;
-        double energy_cutoff_;
-        double radius_cutoff_;
-        double distance_tolerance_;
+private:
+    jams::InteractionList<Mat3, 2> neighbour_list_; // neighbour information
+    double energy_cutoff_; // abs cutoff energy for interaction
+    double radius_cutoff_; // cutoff radius for interaction
+    double distance_tolerance_; // distance tolerance for calculating interactions
 };
 
 #endif  // JAMS_HAMILTONIAN_EXCHANGE_H

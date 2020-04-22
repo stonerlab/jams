@@ -115,15 +115,14 @@ void UniaxialMicroscopicHamiltonian::calculate_energies() {
   }
 }
 
-void UniaxialMicroscopicHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
+Vec3 UniaxialMicroscopicHamiltonian::calculate_one_spin_field(const int i) {
   const double sz = globals::s(i, 2);
-  local_field[0] = 0.0;
-  local_field[1] = 0.0;
-  local_field[2] = 0.0;
+  Vec3 field = {0.0, 0.0, 0.0};
 
   for (int n = 0; n < mca_order_.size(); ++n) {
-    local_field[2] += -mca_value_(n,i) * legendre_dpoly(sz, mca_order_(n));
+    field[2] += -mca_value_(n,i) * legendre_dpoly(sz, mca_order_(n));
   }
+  return field;
 }
 
 void UniaxialMicroscopicHamiltonian::calculate_fields() {

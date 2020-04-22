@@ -8,28 +8,25 @@
 #include "jams/containers/neartree.h"
 
 class DipoleHamiltonianCpuBruteforce : public Hamiltonian {
-    public:
-        DipoleHamiltonianCpuBruteforce(const libconfig::Setting &settings, const unsigned int size);
+public:
+    DipoleHamiltonianCpuBruteforce(const libconfig::Setting &settings, unsigned int size);
 
-        ~DipoleHamiltonianCpuBruteforce();
+    double calculate_total_energy() override;
 
-        double calculate_total_energy();
-        double calculate_one_spin_energy(const int i);
-        double calculate_one_spin_energy(const int i, const Vec3 &s_i);
-        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
-        void   calculate_energies();
+    void calculate_energies() override;
 
-        void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields();
+    void calculate_fields() override;
 
-    private:
-        using NeartreeFunctorType = std::function<double(const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)>;
-        jams::NearTree<std::pair<Vec3, int>, NeartreeFunctorType>* near_tree_;
-//      NearTreeSquare<std::pair<Vec3, int>, NeartreeFunctorType>* near_tree_;
+    Vec3 calculate_one_spin_field(int i) override;
 
-    std::vector<Vec3>   frac_positions_;
-        Mat3 supercell_matrix_;
-        double r_cutoff_;
+    double calculate_one_spin_energy(int i) override;
+
+    double calculate_one_spin_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+
+private:
+    using NeartreeFunctorType = std::function<double(const std::pair<Vec3, int> &a, const std::pair<Vec3, int> &b)>;
+
+    double r_cutoff_; // cutoff radius for dipole interaction
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H

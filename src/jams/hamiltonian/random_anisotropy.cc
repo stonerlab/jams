@@ -92,20 +92,17 @@ void RandomAnisotropyHamiltonian::calculate_energies() {
   }
 }
 
-void RandomAnisotropyHamiltonian::calculate_one_spin_field(const int i, double *h) {
-  Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
-  Vec3 h_i = magnitude_[i] * dot(direction_[i], s_i) * direction_[i];
-  for (auto n = 0; n < 3; ++n) {
-    h[n] = h_i[n];
-  }
+Vec3 RandomAnisotropyHamiltonian::calculate_one_spin_field(const int i) {
+  using namespace globals;
+  Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
+  return magnitude_[i] * dot(direction_[i], s_i) * direction_[i];
 }
 
 void RandomAnisotropyHamiltonian::calculate_fields() {
   for (auto i = 0; i < field_.size(0); ++i) {
-    double h[3];
-    calculate_one_spin_field(i, h);
+    auto field = calculate_one_spin_field(i);
     for (auto n = 0; n < 3; ++n) {
-      field_(i, n) = h[n];
+      field_(i, n) = field[n];
     }
   }
 }

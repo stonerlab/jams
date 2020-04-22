@@ -153,22 +153,23 @@ void UniaxialHamiltonian::calculate_energies() {
   }
 }
 
-void UniaxialHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
+Vec3 UniaxialHamiltonian::calculate_one_spin_field(const int i) {
   using namespace globals;
 
   auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
+
+  Vec3 field;
   for (auto j = 0; j < 3; ++j) {
-    local_field[j] = magnitude_(i) * power_ * pow(dot, power_ - 1) * axis_(i,j);
+    field[j] = magnitude_(i) * power_ * pow(dot, power_ - 1) * axis_(i,j);
   }
+  return field;
 }
 
 void UniaxialHamiltonian::calculate_fields() {
-  using namespace globals;
-  for (auto i = 0; i < num_spins; ++i) {
-    double local_field[3];
-    calculate_one_spin_field(i, local_field);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    const auto field = calculate_one_spin_field(i);
     for (auto j = 0; j < 3; ++j) {
-      field_(i,j) = local_field[j];
+      field_(i, j) = field[j];
     }
   }
 }

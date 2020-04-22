@@ -12,23 +12,28 @@
 
 class RandomAnisotropyHamiltonian : public Hamiltonian {
     friend class CudaRandomAnisotropyHamiltonian;
-    public:
-    RandomAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-        ~RandomAnisotropyHamiltonian() override = default;
 
-        double calculate_total_energy() override;
-        double calculate_one_spin_energy(const int i) override;
-        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+public:
+    RandomAnisotropyHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-        void   calculate_energies() override;
+    double calculate_total_energy() override;
 
-        void   calculate_one_spin_field(const int i, double h[3]) override;
-        void   calculate_fields() override;
-    private:
-        void output_anisotropy_axes(std::ofstream &outfile);
+    void calculate_energies() override;
 
-        std::vector<double> magnitude_;
-        std::vector<Vec3>   direction_;
+    void calculate_fields() override;
+
+    Vec3 calculate_one_spin_field(int i) override;
+
+    double calculate_one_spin_energy(int i) override;
+
+    double calculate_one_spin_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+
+private:
+    // write information about the random axes to outfile
+    void output_anisotropy_axes(std::ofstream &outfile);
+
+    std::vector<Vec3> direction_; // local uniaxial anisotropy direction
+    std::vector<double> magnitude_; // magnitude of local anisotropy
 };
 
 #endif  // JAMS_HAMILTONIAN_RANDOM_ANISOTROPY_H

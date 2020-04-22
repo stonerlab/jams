@@ -42,11 +42,13 @@ void SparseInteractionHamiltonian::calculate_fields() {
   interaction_matrix_.multiply(globals::s, field_);
 }
 
-void SparseInteractionHamiltonian::calculate_one_spin_field(const int i, double *local_field) {
+Vec3 SparseInteractionHamiltonian::calculate_one_spin_field(const int i) {
   assert(is_finalized_);
+  Vec3 field;
   for (auto m = 0; m < 3; ++m) {
-    local_field[m] = interaction_matrix_.multiply_row(3*i + m, globals::s);
+    field[m] = interaction_matrix_.multiply_row(3*i + m, globals::s);
   }
+  return field;
 }
 
 void SparseInteractionHamiltonian::calculate_energies() {
@@ -60,18 +62,18 @@ void SparseInteractionHamiltonian::calculate_energies() {
 double SparseInteractionHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial,
                                                                           const Vec3 &spin_final) {
   assert(is_finalized_);
-  double local_field[3];
-  calculate_one_spin_field(i, local_field);
-  auto e_initial = -dot(spin_initial, local_field);
-  auto e_final = -dot(spin_final, local_field);
+  auto field = calculate_one_spin_field(i);
+  auto e_initial = -dot(spin_initial, field);
+  auto e_final = -dot(spin_final, field);
   return e_final - e_initial;
 }
 
 double SparseInteractionHamiltonian::calculate_one_spin_energy(const int i) {
+  using namespace globals;
   assert(is_finalized_);
-  double local_field[3];
-  calculate_one_spin_field(i, local_field);
-  return -(globals::s(i,0)*local_field[0] + globals::s(i,1)*local_field[1] + globals::s(i,2)*local_field[2]);
+  Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
+  auto field = calculate_one_spin_field(i);
+  return -dot(s_i, field);
 }
 
 double SparseInteractionHamiltonian::calculate_total_energy() {

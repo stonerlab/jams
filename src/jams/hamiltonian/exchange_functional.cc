@@ -68,7 +68,7 @@ double ExchangeFunctionalHamiltonian::functional_kaneyoshi(const double rij, con
   return J0 * pow2(rij - r0) * exp(-pow2(rij - r0) / (2 * pow2(sigma)));
 }
 
-ExchangeFunctionalHamiltonian::ExchangeFunctional
+ExchangeFunctionalHamiltonian::ExchangeFunctionalType
 ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting &settings) {
   using namespace std::placeholders;
 
@@ -92,7 +92,7 @@ ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting
 
 void
 ExchangeFunctionalHamiltonian::output_exchange_functional(std::ostream &os,
-    const ExchangeFunctionalHamiltonian::ExchangeFunctional& functional, double r_cutoff, double delta_r) {
+                                                          const ExchangeFunctionalHamiltonian::ExchangeFunctionalType& functional, double r_cutoff, double delta_r) {
   os << "radius    exchange" << "\n";
   double r = 0.0;
   while (r < r_cutoff) {
