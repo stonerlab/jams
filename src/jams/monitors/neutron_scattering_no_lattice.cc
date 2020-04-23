@@ -333,7 +333,7 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
       const double a0 = 0.40217, a1 = 0.49704, a2 = 0.09392, a3 = 0.00183;
       const double x = (kTwoPi * norm(r));
       window = a0 + a1 * cos(x) + a2 * cos(2 * x) + a3 * cos(3 * x);
-      cout << "do_rspace_windowing_ = true, value = " << do_rspace_windowing_ << endl;
+//      cout << "do_rspace_windowing_ = true, value = " << do_rspace_windowing_ << endl;
     }
     //Fourier transform
     auto f0 = exp(-kImagTwoPi * dot(delta_q, r));
