@@ -9,6 +9,7 @@
 #include <jams/helpers/utils.h>
 #include <jams/core/interactions.h>
 #include "jams/core/types.h"
+#include <iostream>
 
 void config_patch(libconfig::Setting& orig, const libconfig::Setting& patch);
 
