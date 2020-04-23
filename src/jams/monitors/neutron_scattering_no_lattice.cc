@@ -106,9 +106,12 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
   }
 
   rspace_displacement_.resize(globals::s.size(0));
+  Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
   for (auto i = 0; i < globals::s.size(0); ++i) {
     //rspace_displacement_ is the position vector of i-th spin
-    rspace_displacement_(i) = lattice->displacement({0,0,0}, lattice->atom_position(i));
+    //rspace_displacement_(i) = lattice->displacement({0,0,0}, lattice->atom_position(i));
+    //Generalize so that we can impose open boundary
+    rspace_displacement_(i) = lattice->displacement({lattice_dimensions[0]*0.5,lattice_dimensions[1]*0.5,lattice_dimensions[2]*0.5}, lattice->atom_position(i));
   }
 }
 
