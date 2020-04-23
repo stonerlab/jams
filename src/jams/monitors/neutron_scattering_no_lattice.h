@@ -36,6 +36,7 @@ private:
     jams::MultiArray<Complex, 3> calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx,2>& spectrum, const jams::MultiArray<Vec3cx,1>& elastic_spectrum, const std::vector<Vec3>& polarizations);
 
     bool do_rspace_windowing_ = false;
+    bool output_real_space_ss_corr_ = false;
     jams::MultiArray<Vec3, 1> rspace_displacement_;
     jams::MultiArray<Vec3, 1> kspace_path_;
     jams::MultiArray<Vec3cx,2>  kspace_spins_timeseries_;
