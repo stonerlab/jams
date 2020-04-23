@@ -22,6 +22,7 @@ namespace jams {
         if (setting.exists(name)) {
           return config_required<T>(setting, name);
         } else {
+          std::cout << "config_optional is called but default value will be used. name = " << name << std::endl;
           return def;
         }
     }
