@@ -16,6 +16,15 @@ namespace jams {
         double p = (l == 0) ? 1.0 : s_sq; //if l=0 then insert 1.0 to p, otherwise s_sq
         ffq += g[l] * p *
                (j[l].A * exp(-j[l].a * s_sq) + j[l].B * exp(-j[l].b * s_sq) + j[l].C * exp(-j[l].c * s_sq) + j[l].D);
+
+//        cout << "j_params[" << l << "].A = " << j[l].A << endl;
+//        cout << "j_params[" << l << "].a = " << j[l].a << endl;
+//        cout << "j_params[" << l << "].B = " << j[l].B << endl;
+//        cout << "j_params[" << l << "].b = " << j[l].b << endl;
+//        cout << "j_params[" << l << "].C = " << j[l].C << endl;
+//        cout << "j_params[" << l << "].c = " << j[l].c << endl;
+//        cout << "j_params[" << l << "].D = " << j[l].D << endl;
+//        cout << "g_params[" << l << "] = " << g[l] << endl;
       }
       return 0.5 * ffq;
     }

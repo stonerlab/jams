@@ -23,34 +23,34 @@ namespace jams {
         if (setting.exists(name)) {
           return config_required<T>(setting, name);
         } else {
-          std::cout << "config_optional is called but default value will be used. name = " << name << std::endl;
+//          std::cout << "config_optional is called but default value will be used. name = " << name << std::endl;
           return def;
         }
     }
 
     template<>
     inline std::string config_required(const libconfig::Setting &setting, const std::string &name) {
-      return setting[name].c_str();
+        return setting[name].c_str();
     }
 
     template<>
     inline bool config_required(const libconfig::Setting &setting, const std::string &name) {
-      return bool(setting[name]);
+        return bool(setting[name]);
     }
 
     template<>
     inline int config_required(const libconfig::Setting &setting, const std::string &name) {
-      return int(setting[name]);
+        return int(setting[name]);
     }
 
     template<>
     inline long config_required(const libconfig::Setting &setting, const std::string &name) {
-      return long(setting[name]);
+        return long(setting[name]);
     }
 
     template<>
     inline unsigned config_required(const libconfig::Setting &setting, const std::string &name) {
-      return unsigned(setting[name]);
+        return unsigned(setting[name]);
     }
 
     template<>

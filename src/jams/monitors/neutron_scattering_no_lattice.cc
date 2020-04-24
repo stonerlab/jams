@@ -22,11 +22,11 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 
   configure_kspace_vectors(settings);
 
-  config_optional(settings, "rspace_windowing", do_rspace_windowing_);
+  do_rspace_windowing_ = config_optional(settings, "rspace_windowing", false);
   cout << "do_rspace_windowing_ = " << do_rspace_windowing_ << endl;
 
-  config_optional(settings, "output_real_space_ss_corr_", output_real_space_ss_corr_);
-  cout << "output_real_space_ss_corr_ = " << output_real_space_ss_corr_ << endl;
+  output_real_space_ss_corr_ = config_optional(settings, "output_real_space_ss_corr_", false);
+  cout << "output_real_space_ss_corr_ = " <<  output_real_space_ss_corr_ << endl;
 
   if (settings.exists("form_factor")) {
     configure_form_factors(settings["form_factor"]);
