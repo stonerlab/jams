@@ -5,6 +5,8 @@
 #include "jams/hamiltonian/dipole_tensor.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
+#include "jams/helpers/timer.h"
+
 
 using namespace std;
 
@@ -62,6 +64,9 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
     }
   }
 
+  Timer<> timer;
   finalize(jams::SparseMatrixSymmetryCheck::None);
+  cout << "  build time " << timer.elapsed_time() << " seconds" << std::endl;
+
   cout << "  num_neighbours " << num_neighbours << "\n";
 }

@@ -121,7 +121,7 @@ void apply_permutation_in_place(
     std::vector<T>& vec,
     const std::vector<std::size_t>& p)
 {
-  std::vector<bool> done(vec.size());
+  std::vector<bool> done(vec.size(), false);
   for (std::size_t i = 0; i < vec.size(); ++i)
   {
     if (done[i])
