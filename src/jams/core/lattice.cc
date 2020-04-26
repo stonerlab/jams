@@ -1128,11 +1128,20 @@ bool Lattice::has_impurities() const {
 }
 
 void Lattice::generate_near_tree() {
-  std::vector<std::pair<Vec3, int>> positions;
+  // We do two passes here:
+  //   - First we make the 26 mirror supercells around the central cell
+  //   - We then find all positions which are within the maximum interaction
+  //     radius (inradius) of this point
+  //   - We then construct a new NearTree from only those positions
+
+  // In the tuple Vec3 is cartesian position, first int is supercell position and second it is the position in the
+  // super-supercell (or imaged cells). We ill use this last index to prune more efficiently later.
+  std::vector<std::tuple<Vec3, int, int>> indexed_positions;
 
   // only need to pad the supercell in periodic dimensions
   Vec3i L_max = {lattice_periodic[0], lattice_periodic[1], lattice_periodic[2]};
 
+  int super_super_index=0;
   for (auto i = 0; i < fractional_positions_.size(); ++i) {
     // loop over periodic images of the simulation lattice
     // this means r_cutoff can be larger than the simulation cell
@@ -1145,17 +1154,45 @@ void Lattice::generate_near_tree() {
 
           auto r = lattice->fractional_to_cartesian(frac_pos);
 
-          positions.emplace_back(std::make_pair(r,i));
+          indexed_positions.emplace_back(r,i, super_super_index);
+          super_super_index++;
         }
       }
     }
   }
 
+  std::vector<bool> is_reachable(indexed_positions.size(), false);
+
+  {
+    using MaximumNearTreeFunctorType = std::function<double(const std::tuple<Vec3, int, int>& a, const std::tuple<Vec3, int, int>& b)>;
+    auto tuple_norm = [](const std::tuple<Vec3, int, int>& a, const std::tuple<Vec3, int, int>& b)->double {
+        return norm(std::get<0>(a)-std::get<0>(b));
+    };
+    jams::NearTree<std::tuple<Vec3, int, int>, MaximumNearTreeFunctorType> maximum_neartree(tuple_norm,
+                                                                                            indexed_positions);
+    for (const auto &pos : cartesian_positions_) {
+      const auto neighbours = maximum_neartree.find_in_radius(lattice->max_interaction_radius(), {pos, 0, 0});
+      for (const auto &nbr : neighbours) {
+        is_reachable[std::get<2>(nbr)] = true;
+      }
+    }
+  }
+
+  std::cout << "  near tree maximal positions: " << indexed_positions.size() << std::endl;
+
+  std::vector<std::pair<Vec3,int>> reduced_positions;
+  reduced_positions.reserve(std::accumulate(is_reachable.begin(), is_reachable.end(), 0));
+  for (auto i = 0; i < indexed_positions.size(); ++i) {
+    if (is_reachable[i]) {
+      reduced_positions.emplace_back(std::get<0>(indexed_positions[i]), std::get<1>(indexed_positions[i]));
+    }
+  }
+
   auto l2_norm = [](const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)->double {
-      return norm(a.first-b.first);
+    return norm(a.first-b.first);
   };
 
-  neartree_.reset(new jams::NearTree<std::pair<Vec3, int>, NearTreeFunctorType>(l2_norm, positions));
+  neartree_.reset(new jams::NearTree<std::pair<Vec3, int>, NearTreeFunctorType>(l2_norm, reduced_positions));
 
   cout << "  near tree size " << neartree_->size() << "\n";
   cout << "  near tree memory " << memory_in_natural_units(neartree_->memory()) << "\n";
