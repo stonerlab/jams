@@ -10,9 +10,11 @@
 #ifdef HAS_CUDA
 #include "jams/hamiltonian/test_cuda_dipole_fft.h"
 #endif
-//#include "jams/test/hamiltonian/test_dipole_cpu_tensor.h"
-//#include "jams/test/hamiltonian/test_dipole_cpu_fft.h"
-//#include "jams/test/hamiltonian/test_dipole_cpu_bruteforce.h"
+
+#include "jams/test/hamiltonian/test_dipole_cpu_bruteforce.h"
+#include "jams/test/hamiltonian/test_dipole_cpu_neartree.h"
+#include "jams/test/hamiltonian/test_dipole_cpu_fft.h"
+#include "jams/test/hamiltonian/test_dipole_cpu_tensor.h"
 
 int main(int argc, char **argv) {
   srand(time(NULL));

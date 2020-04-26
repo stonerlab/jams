@@ -185,6 +185,33 @@ const std::string config_dipole_bruteforce_1000(R"(
   );
 )");
 
+    const std::string config_dipole_neartree_64(R"(
+  hamiltonians = (
+    {
+      module = "dipole-neartree";
+      r_cutoff = 64.0;
+    }
+  );
+)");
+
+    const std::string config_dipole_neartree_128(R"(
+  hamiltonians = (
+    {
+      module = "dipole-neartree";
+      r_cutoff = 128.0;
+    }
+  );
+)");
+
+    const std::string config_dipole_neartree_1000(R"(
+  hamiltonians = (
+    {
+      module = "dipole-bruteforce";
+      r_cutoff = 1000.0;
+    }
+  );
+)");
+
 const std::string config_dipole_fft_128(R"(
   hamiltonians = (
     {

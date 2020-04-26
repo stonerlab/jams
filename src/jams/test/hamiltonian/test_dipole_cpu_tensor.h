@@ -10,7 +10,7 @@
 
 #include "jams/test/hamiltonian/test_dipole_input.h"
 #include "jams/hamiltonian/dipole_tensor.h"
-#include "jams/hamiltonian/dipole_bruteforce.h"
+#include "jams/hamiltonian/dipole_neartree.h"
 
 // For the dipole tensor, the 2D tests use too much memory so they are
 // deleted.
@@ -178,7 +178,7 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM_RAND) {
     globals::s(i, 2) = spin[2];
   }
 
-  auto h_bruteforce = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
   auto h_fft = new DipoleTensorHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
@@ -191,7 +191,7 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM_RAND) {
 TEST_F(DipoleHamiltonianTensorTest, total_energy_two_atom_CPU_1D_FM) {
   SetUp(  config_basic_cpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
-  auto h_bruteforce = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
   auto h_tensor = new DipoleTensorHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
@@ -213,7 +213,7 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_two_atom_CPU_1D_FM_RAND) {
     globals::s(i, 2) = spin[2];
   }
 
-  auto h_bruteforce = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
   auto h_tensor = new DipoleTensorHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
