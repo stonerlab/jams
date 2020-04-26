@@ -8,11 +8,11 @@
 
 #include "jams/cuda/cuda_stream.h"
 
-class CudaDipoleHamiltonianBruteforce : public Hamiltonian {
+class CudaDipoleBruteforceHamiltonian : public Hamiltonian {
     public:
-        CudaDipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size);
+        CudaDipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
-        ~CudaDipoleHamiltonianBruteforce() = default;
+        ~CudaDipoleBruteforceHamiltonian() = default;
 
         double calculate_total_energy();
         double calculate_one_spin_energy(const int i);
@@ -20,7 +20,7 @@ class CudaDipoleHamiltonianBruteforce : public Hamiltonian {
         double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
         void   calculate_energies();
 
-        void   calculate_one_spin_field(const int i, double h[3]);
+        Vec3   calculate_one_spin_field(const int i);
         void   calculate_fields();
 
     private:

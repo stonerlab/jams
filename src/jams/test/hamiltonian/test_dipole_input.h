@@ -161,8 +161,7 @@ const std::string config_lattice_2D_128(R"(
 const std::string config_dipole_bruteforce_64(R"(
   hamiltonians = (
     {
-      module = "dipole";
-      strategy = "bruteforce";
+      module = "dipole-bruteforce";
       r_cutoff = 64.0;
     }
   );
@@ -171,8 +170,7 @@ const std::string config_dipole_bruteforce_64(R"(
 const std::string config_dipole_bruteforce_128(R"(
   hamiltonians = (
     {
-      module = "dipole";
-      strategy = "bruteforce";
+      module = "dipole-bruteforce";
       r_cutoff = 128.0;
     }
   );
@@ -181,8 +179,7 @@ const std::string config_dipole_bruteforce_128(R"(
 const std::string config_dipole_bruteforce_1000(R"(
   hamiltonians = (
     {
-      module = "dipole";
-      strategy = "bruteforce";
+      module = "dipole-bruteforce";
       r_cutoff = 1000.0;
     }
   );
@@ -191,8 +188,7 @@ const std::string config_dipole_bruteforce_1000(R"(
 const std::string config_dipole_fft_128(R"(
   hamiltonians = (
     {
-      module = "dipole";
-      strategy = "fft";
+      module = "dipole-fft";
       r_cutoff = 128.0;
     }
   );
@@ -201,8 +197,7 @@ const std::string config_dipole_fft_128(R"(
 const std::string config_dipole_fft_1000(R"(
   hamiltonians = (
     {
-      module = "dipole";
-      strategy = "fft";
+      module = "dipole-fft";
       r_cutoff = 1000.0;
     }
   );
@@ -211,8 +206,7 @@ const std::string config_dipole_fft_1000(R"(
 const std::string config_dipole_tensor_128(R"(
   hamiltonians = (
     {
-      module = "dipole";
-      strategy = "fft";
+      module = "dipole-tensor";
       r_cutoff = 128.0;
     }
   );
@@ -221,8 +215,7 @@ const std::string config_dipole_tensor_128(R"(
 const std::string config_dipole_tensor_1000(R"(
   hamiltonians = (
     {
-      module = "dipole";
-      strategy = "fft";
+      module = "dipole-tensor";
       r_cutoff = 1000.0;
     }
   );

@@ -7,7 +7,7 @@
 #include "cuda_dipole_bruteforce.h"
 #include "cuda_dipole_bruteforce_kernel.cuh"
 
-CudaDipoleHamiltonianBruteforce::CudaDipoleHamiltonianBruteforce(const libconfig::Setting &settings, const unsigned int size)
+CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
     Vec3 super_cell_dim = {0.0, 0.0, 0.0};
 
@@ -17,6 +17,12 @@ CudaDipoleHamiltonianBruteforce::CudaDipoleHamiltonianBruteforce(const libconfig
 
     settings.lookupValue("r_cutoff", r_cutoff_);
     std::cout << "  r_cutoff " << r_cutoff_ << "\n";
+
+    if (r_cutoff_ > lattice->max_interaction_radius()) {
+      throw std::runtime_error(
+          "r_cutoff is less than the maximum permitted interaction in the system"
+          " (" + std::to_string(lattice->max_interaction_radius())  + ")");
+    }
 
     auto v = pow3(lattice->parameter());
     dipole_prefactor_ = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
@@ -66,7 +72,7 @@ CudaDipoleHamiltonianBruteforce::CudaDipoleHamiltonianBruteforce(const libconfig
 
 // --------------------------------------------------------------------------
 
-double CudaDipoleHamiltonianBruteforce::calculate_total_energy() {
+double CudaDipoleBruteforceHamiltonian::calculate_total_energy() {
     double e_total = 0.0;
 
     calculate_fields();
@@ -79,56 +85,52 @@ double CudaDipoleHamiltonianBruteforce::calculate_total_energy() {
     return e_total;
 }
 
-double CudaDipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
-    double h[3];
-    calculate_one_spin_field(i, h);
-    return -0.5 * (s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2]);
+double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
+    const auto field = calculate_one_spin_field(i);
+    return -0.5 * dot(s_i, field);
 }
 
-double CudaDipoleHamiltonianBruteforce::calculate_one_spin_energy(const int i) {
+double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i) {
     Vec3 s_i = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
     return calculate_one_spin_energy(i, s_i);
 }
 
-double CudaDipoleHamiltonianBruteforce::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-    double h[3];
-    calculate_one_spin_field(i, h);
-    double e_initial = -(spin_initial[0]*h[0] + spin_initial[1]*h[1] + spin_initial[2]*h[2]);
-    double e_final = -(spin_final[0]*h[0] + spin_final[1]*h[1] + spin_final[2]*h[2]);
+double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+    const auto field = calculate_one_spin_field(i);
+    double e_initial = -dot(spin_initial, field);
+    double e_final = -dot(spin_final, field);
     return 0.5*(e_final - e_initial);
 }
 
-void CudaDipoleHamiltonianBruteforce::calculate_energies() {
+void CudaDipoleBruteforceHamiltonian::calculate_energies() {
     for (auto i = 0; i < globals::num_spins; ++i) {
         energy_(i) = calculate_one_spin_energy(i);
     }
 }
 
-void CudaDipoleHamiltonianBruteforce::calculate_one_spin_field(const int i, double h[3]) {
+Vec3 CudaDipoleBruteforceHamiltonian::calculate_one_spin_field(const int i) {
+  using namespace globals;
 
-    h[0] = 0.0; h[1] = 0.0; h[2] = 0.0;
+  const auto neighbours = lattice->atom_neighbours(i, r_cutoff_);
+  const double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
+  const Vec3 r_i = lattice->atom_position(i);
+  // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
+  // work is already done to find the neighbours.
 
-    for (auto j = 0; j < globals::num_spins; ++j) {
-        if (j == i) continue;
+  Vec3 field = {0.0, 0.0, 0.0};
+  for (const auto & neighbour : neighbours) {
+    const int j = neighbour.second;
+    if (j == i) continue;
 
-        auto r_ij = lattice->displacement(i, j);
-        const auto r_abs_sq = norm_sq(r_ij);
+    const Vec3 s_j = {s(j,0), s(j,1), s(j,2)};
+    const Vec3 r_ij =  neighbour.first - r_i;
 
-        if (r_abs_sq > (r_cutoff_*r_cutoff_)) continue;
-
-        const auto r_abs = sqrt(r_abs_sq);
-        const auto w0 = dipole_prefactor_ * globals::mus(i) * globals::mus(j) / pow5(r_abs);
-        const Vec3 s_j = {globals::s(j, 0), globals::s(j, 1), globals::s(j, 2)};
-        const auto s_j_dot_rhat = 3.0 * dot(s_j, r_ij);
-
-        #pragma unroll
-        for (auto n = 0; n < 3; ++n) {
-            h[n] += w0 * (r_ij[n] * s_j_dot_rhat - r_abs_sq * s_j[n]);
-        }
-    }
+    field += w0 * mus(j) * (3.0 * r_ij * dot(s_j, r_ij) - (norm(r_ij)*norm(r_ij)) * s_j) / pow5(norm(r_ij));
+  }
+  return field;
 }
 
-void CudaDipoleHamiltonianBruteforce::calculate_fields() {
+void CudaDipoleBruteforceHamiltonian::calculate_fields() {
     CudaStream stream;
 
     DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, stream.get() >>>

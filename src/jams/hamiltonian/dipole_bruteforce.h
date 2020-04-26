@@ -7,9 +7,9 @@
 #include "jams/core/hamiltonian.h"
 #include "jams/containers/neartree.h"
 
-class DipoleHamiltonianCpuBruteforce : public Hamiltonian {
+class DipoleBruteforceHamiltonian : public Hamiltonian {
 public:
-    DipoleHamiltonianCpuBruteforce(const libconfig::Setting &settings, unsigned int size);
+    DipoleBruteforceHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
     double calculate_total_energy() override;
 

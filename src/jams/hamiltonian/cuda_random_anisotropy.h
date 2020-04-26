@@ -25,7 +25,7 @@ class CudaRandomAnisotropyHamiltonian : public RandomAnisotropyHamiltonian {
       void   calculate_fields() override;
       double calculate_total_energy() override;
 
-      void   calculate_one_spin_field(const int i, double h[3]) final {
+      Vec3   calculate_one_spin_field(const int i) final {
         JAMS_UNIMPLEMENTED_FUNCTION; }
       double calculate_one_spin_energy(const int i) final {
         JAMS_UNIMPLEMENTED_FUNCTION; }

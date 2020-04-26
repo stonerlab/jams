@@ -8,9 +8,9 @@
 #include "jams/hamiltonian/sparse_interaction.h"
 #include "jams/containers/multiarray.h"
 
-class DipoleHamiltonianTensor : public SparseInteractionHamiltonian {
+class DipoleTensorHamiltonian : public SparseInteractionHamiltonian {
 public:
-    DipoleHamiltonianTensor(const libconfig::Setting &settings, unsigned int size);
+    DipoleTensorHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
 private:
     double r_cutoff_; // cutoff radius for dipole interaction

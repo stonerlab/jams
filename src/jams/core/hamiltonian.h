@@ -22,7 +22,7 @@ public:
     virtual ~Hamiltonian() = default;
 
     // factory to create a Hamiltonian from a libconfig::Setting
-    static Hamiltonian *create(const libconfig::Setting &settings, unsigned int size);
+    static Hamiltonian *create(const libconfig::Setting &settings, unsigned int size, bool is_cuda_solver);
 
     // calculate the total energy of this Hamiltonian term
     virtual double calculate_total_energy() = 0;
@@ -54,7 +54,7 @@ public:
     }
 
     // raw pointer to field data on cuda device
-    static double *dev_ptr_field() {
+    double *dev_ptr_field() {
       #if HAS_CUDA
       return field_.device_data();
       #else

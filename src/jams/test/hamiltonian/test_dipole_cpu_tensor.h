@@ -75,7 +75,7 @@ class DipoleHamiltonianTensorTest : public ::testing::Test {
 TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM) {
   SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_tensor_1000);
 
-  auto h = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h = new DipoleTensorHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
  
   // S = (1, 0, 0) FM
 
@@ -126,7 +126,7 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM) {
   TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_AFM) {
     SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_tensor_1000);
 
-    auto h = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleTensorHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (1, 0, 0) AFM
 #pragma nounroll_and_jam
@@ -178,8 +178,8 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM_RAND) {
     globals::s(i, 2) = spin[2];
   }
 
-  auto h_bruteforce = new DipoleHamiltonianCpuBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
-  auto h_fft = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_fft = new DipoleTensorHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
   double result_tensor =  numeric_prefactor * h_fft->calculate_total_energy() / double(globals::num_spins);
@@ -191,8 +191,8 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_CPU_1D_FM_RAND) {
 TEST_F(DipoleHamiltonianTensorTest, total_energy_two_atom_CPU_1D_FM) {
   SetUp(  config_basic_cpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
 
-  auto h_bruteforce = new DipoleHamiltonianCpuBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
-  auto h_tensor = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_tensor = new DipoleTensorHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
   double result_tensor =  numeric_prefactor * h_tensor->calculate_total_energy() / double(globals::num_spins);
@@ -213,8 +213,8 @@ TEST_F(DipoleHamiltonianTensorTest, total_energy_two_atom_CPU_1D_FM_RAND) {
     globals::s(i, 2) = spin[2];
   }
 
-  auto h_bruteforce = new DipoleHamiltonianCpuBruteforce(::config->lookup("hamiltonians.[0]"), globals::num_spins);
-  auto h_tensor = new DipoleHamiltonianTensor(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_bruteforce = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h_tensor = new DipoleTensorHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   double result_bruteforce =  numeric_prefactor * h_bruteforce->calculate_total_energy() / double(globals::num_spins) ;
   double result_tensor =  numeric_prefactor * h_tensor->calculate_total_energy() / double(globals::num_spins);

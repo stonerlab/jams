@@ -9,11 +9,11 @@
 #include "jams/core/hamiltonian.h"
 #include "jams/interface/fft.h"
 
-class DipoleHamiltonianFFT : public Hamiltonian {
+class DipoleFFTHamiltonian : public Hamiltonian {
 public:
-    DipoleHamiltonianFFT(const libconfig::Setting &settings, unsigned int size);
+    DipoleFFTHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    ~DipoleHamiltonianFFT() override;
+    ~DipoleFFTHamiltonian() override;
 
     double calculate_total_energy() override;
 

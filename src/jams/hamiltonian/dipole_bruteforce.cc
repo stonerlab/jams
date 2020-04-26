@@ -10,7 +10,7 @@
 
 #include "jams/hamiltonian/dipole_bruteforce.h"
 
-DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::Setting &settings, const unsigned int size)
+DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
 
     settings.lookupValue("r_cutoff", r_cutoff_);
@@ -32,7 +32,7 @@ DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::
 }
 
 
-double DipoleHamiltonianCpuBruteforce::calculate_total_energy() {
+double DipoleBruteforceHamiltonian::calculate_total_energy() {
     double e_total = 0.0;
 
        for (auto i = 0; i < globals::num_spins; ++i) {
@@ -44,21 +44,21 @@ double DipoleHamiltonianCpuBruteforce::calculate_total_energy() {
 
 
 
-double DipoleHamiltonianCpuBruteforce::calculate_one_spin_energy(const int i) {
+double DipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i) {
     Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
     auto field = calculate_one_spin_field(i);
     return -0.5 * dot(s_i, field);
 }
 
 
-double DipoleHamiltonianCpuBruteforce::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+double DipoleBruteforceHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
     const auto field = calculate_one_spin_field(i);
     const double e_initial = -dot(spin_initial, field);
     const double e_final = -dot(spin_final, field);
     return 0.5 * (e_final - e_initial);
 }
 
-void DipoleHamiltonianCpuBruteforce::calculate_energies() {
+void DipoleBruteforceHamiltonian::calculate_energies() {
     for (auto i = 0; i < globals::num_spins; ++i) {
         energy_(i) = calculate_one_spin_energy(i);
     }
@@ -66,7 +66,7 @@ void DipoleHamiltonianCpuBruteforce::calculate_energies() {
 
 
 __attribute__((hot))
-Vec3 DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i)
+Vec3 DipoleBruteforceHamiltonian::calculate_one_spin_field(const int i)
 {
   using namespace globals;
 
@@ -90,7 +90,7 @@ Vec3 DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i)
 }
 
 
-void DipoleHamiltonianCpuBruteforce::calculate_fields() {
+void DipoleBruteforceHamiltonian::calculate_fields() {
     for (auto i = 0; i < globals::num_spins; ++i) {
         const auto field = calculate_one_spin_field(i);
 
