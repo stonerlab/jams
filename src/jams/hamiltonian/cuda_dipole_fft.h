@@ -13,20 +13,20 @@
 #include "jams/core/hamiltonian.h"
 #include "jams/cuda/cuda_stream.h"
 
-class CudaDipoleHamiltonianFFT : public Hamiltonian {
+class CudaDipoleFFTHamiltonian : public Hamiltonian {
     public:
-        CudaDipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size);
+        CudaDipoleFFTHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-        ~CudaDipoleHamiltonianFFT();
+        ~CudaDipoleFFTHamiltonian() override;
 
-        double calculate_total_energy();
-        double calculate_one_spin_energy(const int i);
-        double calculate_one_spin_energy(const int i, const Vec3 &s_i);
-        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
-        void   calculate_energies();
+        double calculate_total_energy() override;
+        double calculate_energy(int i) override;
+        double calculate_one_spin_energy(int i, const Vec3 &s_i);
+        double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override ;
+        void   calculate_energies() override;
 
-        void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields();
+        Vec3   calculate_field(int i);
+        void   calculate_fields() override;
     private:
         bool debug_ = false;
         bool check_radius_   = true;

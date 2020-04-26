@@ -11,7 +11,7 @@
 #include "jams/helpers/random.h"
 
 #include "jams/test/hamiltonian/test_dipole_input.h"
-#include "jams/hamiltonian/dipole_bruteforce.h"
+#include "jams/hamiltonian/dipole_neartree.h"
 
 //---------------------------------------------------------------------
 // NOTE: The liberal use of #pragma nounroll_and_jam is to avoid a bug
@@ -19,18 +19,18 @@
 //       unrolling
 //---------------------------------------------------------------------
 
-class DipoleBruteforceHamiltonianTest : public ::testing::Test {
+class DipoleNearTreeHamiltonianTest : public ::testing::Test {
     protected:
         // You can remove any or all of the following functions if its body
         // is empty.
 
-        DipoleBruteforceHamiltonianTest() {
+        DipoleNearTreeHamiltonianTest() {
           // You can do set-up work for each test here.
           ::lattice = new Lattice();
           ::config = new libconfig::Config();
         }
 
-        ~DipoleBruteforceHamiltonianTest() = default;
+        ~DipoleNearTreeHamiltonianTest() = default;
 
         // If the constructor and destructor are not enough for setting up
         // and cleaning up each test, you can define the following methods:
@@ -60,10 +60,10 @@ class DipoleBruteforceHamiltonianTest : public ::testing::Test {
 // CPU
 //---------------------------------------------------------------------
 
-TEST_F(DipoleBruteforceHamiltonianTest, calculate_total_energy_CPU_1D_FM) {
-  SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
+TEST_F(DipoleNearTreeHamiltonianTest, calculate_total_energy_CPU_1D_FM) {
+  SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_neartree_1000);
 
-  auto h = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h = new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
  
   // S = (1, 0, 0) FM
 
@@ -115,10 +115,10 @@ TEST_F(DipoleBruteforceHamiltonianTest, calculate_total_energy_CPU_1D_FM) {
 
 //---------------------------------------------------------------------
 
-  TEST_F(DipoleBruteforceHamiltonianTest, DISABLED_calculate_total_energy_CPU_2D_FM_SLOW) {
-    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_2D + config_dipole_bruteforce_128);
+  TEST_F(DipoleNearTreeHamiltonianTest, DISABLED_calculate_total_energy_CPU_2D_FM_SLOW) {
+    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_2D + config_dipole_neartree_128);
 
-    auto h = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (0, 0, 1) FM
     #pragma nounroll_and_jam
@@ -139,10 +139,10 @@ TEST_F(DipoleBruteforceHamiltonianTest, calculate_total_energy_CPU_1D_FM) {
 
   //---------------------------------------------------------------------
 
-  TEST_F(DipoleBruteforceHamiltonianTest, calculate_total_energy_CPU_1D_AFM) {
-    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_bruteforce_1000);
+  TEST_F(DipoleNearTreeHamiltonianTest, calculate_total_energy_CPU_1D_AFM) {
+    SetUp(  config_basic_cpu + config_unitcell_sc + config_lattice_1D + config_dipole_neartree_1000);
 
-    auto h = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // S = (1, 0, 0) AFM
     #pragma nounroll_and_jam
@@ -185,10 +185,10 @@ TEST_F(DipoleBruteforceHamiltonianTest, calculate_total_energy_CPU_1D_FM) {
 
 //---------------------------------------------------------------------
 
-  TEST_F(DipoleBruteforceHamiltonianTest, calculate_total_energy_CPU_2D_AFM_SLOW) {
-    SetUp(  config_basic_cpu + config_unitcell_sc_AFM + config_lattice_2D + config_dipole_bruteforce_128);
+  TEST_F(DipoleNearTreeHamiltonianTest, calculate_total_energy_CPU_2D_AFM_SLOW) {
+    SetUp(  config_basic_cpu + config_unitcell_sc_AFM + config_lattice_2D + config_dipole_neartree_128);
 
-    auto h = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+    auto h = new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
     // 2016-Johnston-PhysRevB.93.014421 Fig. 18(a)
     double eigenvalue = 2.6458865;
@@ -201,10 +201,10 @@ TEST_F(DipoleBruteforceHamiltonianTest, calculate_total_energy_CPU_1D_FM) {
 
 //---------------------------------------------------------------------
 
-TEST_F(DipoleBruteforceHamiltonianTest, bruteforce_2_atom_CPU_1D_FM) {
-  SetUp(  config_basic_cpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_bruteforce_1000);
+TEST_F(DipoleNearTreeHamiltonianTest, bruteforce_2_atom_CPU_1D_FM) {
+  SetUp(  config_basic_cpu + config_unitcell_sc_2_atom + config_lattice_1D + config_dipole_neartree_1000);
 
-  auto h = new DipoleBruteforceHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+  auto h = new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
   // 1D FM spin chain with spins aligned along chain axis
   double eigenvalue = 4.808228;

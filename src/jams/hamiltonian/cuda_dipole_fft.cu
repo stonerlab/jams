@@ -2,7 +2,9 @@
 
 #include <libconfig.h++>
 #include <cufft.h>
-#include <jams/interface/fft.h>
+
+#include "jams/interface/fft.h"
+#include "jams/helpers/exception.h"
 
 #include "jams/helpers/output.h"
 #include "jams/helpers/consts.h"
@@ -48,7 +50,7 @@ namespace {
     const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 }
 
-CudaDipoleHamiltonianFFT::~CudaDipoleHamiltonianFFT() {
+CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
   if (cuda_fft_s_rspace_to_kspace) {
       cufftDestroy(cuda_fft_s_rspace_to_kspace);
   }
@@ -58,7 +60,7 @@ CudaDipoleHamiltonianFFT::~CudaDipoleHamiltonianFFT() {
   }
 }
 
-CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size)
+CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size),
   dev_stream_(),
   r_cutoff_(0),
@@ -80,7 +82,7 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
 
   if (check_radius_) {
     if (r_cutoff_ > ::lattice->max_interaction_radius()) {
-      throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
+      throw std::runtime_error("CudaDipoleFFTHamiltonian r_cutoff is too large for the lattice size."
                                        "The cutoff must be less than the inradius of the lattice.");
     }
   }
@@ -145,7 +147,7 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_[0].get()));
 }
 
-double CudaDipoleHamiltonianFFT::calculate_total_energy() {
+double CudaDipoleFFTHamiltonian::calculate_total_energy() {
   calculate_fields();
 
   double e_total = 0.0;
@@ -158,29 +160,29 @@ double CudaDipoleHamiltonianFFT::calculate_total_energy() {
   return -0.5*e_total;
 }
 
-double CudaDipoleHamiltonianFFT::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
+double CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
     return 0.0;
 }
 
-double CudaDipoleHamiltonianFFT::calculate_one_spin_energy(const int i) {
+double CudaDipoleFFTHamiltonian::calculate_energy(const int i) {
     return 0.0;
 }
 
-double CudaDipoleHamiltonianFFT::calculate_one_spin_energy_difference(
-    const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+double CudaDipoleFFTHamiltonian::calculate_energy_difference(
+    int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
 
     return 0.0;
 }
 
-void CudaDipoleHamiltonianFFT::calculate_energies() {
+void CudaDipoleFFTHamiltonian::calculate_energies() {
 
 }
 
-void CudaDipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
-
+Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i) {
+  throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field");
 }
 
-void CudaDipoleHamiltonianFFT::calculate_fields() {
+void CudaDipoleFFTHamiltonian::calculate_fields() {
 
   kspace_h_.zero();
 
@@ -207,7 +209,7 @@ void CudaDipoleHamiltonianFFT::calculate_fields() {
 }
 
 jams::MultiArray<Complex, 5>
-CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
+CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
     using std::pow;
 
     const Vec3 r_frac_i = lattice->motif_atom(pos_i).position;
@@ -254,7 +256,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
                 const auto r_abs_sq = norm_sq(r_ij);
 
                 if (!std::isnormal(r_abs_sq)) {
-                  throw runtime_error("fatal error in CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor: r_abs_sq is not normal");
+                  throw runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: r_abs_sq is not normal");
                 }
 
                 if (r_abs_sq > pow2(r_cutoff_ + distance_tolerance_)) {
@@ -267,7 +269,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
                     for (int n = 0; n < 3; ++n) {
                         auto value = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
                         if (!std::isfinite(value)) {
-                          throw runtime_error("fatal error in CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor: tensor Szz is not finite");
+                          throw runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: tensor Szz is not finite");
                         }
                         rspace_tensor(nx, ny, nz, m, n) = value;
                     }

@@ -117,12 +117,12 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
 double CubicHamiltonian::calculate_total_energy() {
   double e_total = 0.0;
   for (auto i = 0; i < energy_.size(); ++i) {
-    e_total += calculate_one_spin_energy(i);
+    e_total += calculate_energy(i);
   }
   return e_total;
 }
 
-double CubicHamiltonian::calculate_one_spin_energy(const int i) {
+double CubicHamiltonian::calculate_energy(const int i) {
   using namespace globals;
   double energy = 0.0;
 
@@ -143,8 +143,8 @@ double CubicHamiltonian::calculate_one_spin_energy(const int i) {
   return energy;
 }
 
-double CubicHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial,
-                                                              const Vec3 &spin_final) {
+double CubicHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                     const Vec3 &spin_final) {
   double e_initial = 0.0;
   double e_final = 0.0;
 
@@ -171,15 +171,13 @@ double CubicHamiltonian::calculate_one_spin_energy_difference(const int i, const
 
 void CubicHamiltonian::calculate_energies() {
   for (int i = 0; i < energy_.size(); ++i) {
-    energy_(i) = calculate_one_spin_energy(i);
+    energy_(i) = calculate_energy(i);
   }
 }
 
-void CubicHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
+Vec3 CubicHamiltonian::calculate_field(const int i) {
   using namespace globals;
-  local_field[0] = 0.0;
-  local_field[1] = 0.0;
-  local_field[2] = 0.0;
+  Vec3 field = {0.0, 0.0, 0.0};
 
   for (auto n = 0; n < num_coefficients_; ++n) {
     Vec3 spin = {s(i, 0), s(i, 1), s(i, 2)};
@@ -187,7 +185,7 @@ void CubicHamiltonian::calculate_one_spin_field(const int i, double local_field[
 
     if (order_(i, n) == 1) {
       for (auto j = 0; j < 3; ++j) {
-        local_field[j] += pre * (
+        field[j] += pre * (
             axis1_(i,n)[j] * dot(axis1_(i, n), spin) * (dot_sq(axis2_(i,n), spin) + dot_sq(axis3_(i,n), spin))
             + axis2_(i,n)[j] * dot(axis2_(i, n), spin) * (dot_sq(axis3_(i,n), spin) + dot_sq(axis1_(i,n), spin))
             + axis3_(i,n)[j] * dot(axis3_(i, n), spin) * (dot_sq(axis1_(i,n), spin) + dot_sq(axis2_(i,n), spin)) );
@@ -196,26 +194,21 @@ void CubicHamiltonian::calculate_one_spin_field(const int i, double local_field[
 
     if (order_(i, n) == 2) {
       for (auto j = 0; j < 3; ++j) {
-        local_field[j] += pre * (
+        field[j] += pre * (
             axis1_(i,n)[j]  * dot(axis1_(i, n), spin) * (dot_sq(axis2_(i,n), spin) * dot_sq(axis3_(i,n), spin))
             + axis2_(i,n)[j]  * dot(axis2_(i, n), spin) * (dot_sq(axis3_(i,n), spin) * dot_sq(axis1_(i,n), spin))
             + axis3_(i,n)[j]  * dot(axis3_(i, n), spin) * (dot_sq(axis1_(i,n), spin) * dot_sq(axis2_(i,n), spin)) );
       }
     }
   }
+  return field;
 }
 
 void CubicHamiltonian::calculate_fields() {
-  using namespace globals;
-  field_.zero();
-
-  for (auto i = 0; i < num_spins; ++i) {
-    double local_field[3] = {0.0, 0.0, 0.0};
-
-    calculate_one_spin_field(i, local_field);
-
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    const auto field = calculate_field(i);
     for (auto j = 0; j < 3; ++j) {
-      field_(i, j) = local_field[j];
+      field_(i, j) = field[j];
     }
   }
 }

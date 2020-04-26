@@ -8,7 +8,7 @@
 
 using namespace std;
 
-DipoleHamiltonianTensor::DipoleHamiltonianTensor(const libconfig::Setting &settings, const unsigned int size)
+DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : SparseInteractionHamiltonian(settings, size) {
 
   settings.lookupValue("r_cutoff", r_cutoff_);

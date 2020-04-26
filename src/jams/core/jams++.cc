@@ -202,7 +202,7 @@ namespace jams {
           const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
           for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
             solver->register_hamiltonian(
-                Hamiltonian::create(hamiltonian_settings[i], globals::num_spins));
+                Hamiltonian::create(hamiltonian_settings[i], globals::num_spins, solver->is_cuda_solver()));
           }
         }
 

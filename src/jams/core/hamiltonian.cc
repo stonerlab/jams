@@ -20,6 +20,7 @@
 #include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
 #include "jams/hamiltonian/zeeman.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
+#include "jams/hamiltonian/dipole_neartree.h"
 #include "jams/hamiltonian/dipole_fft.h"
 #include "jams/hamiltonian/dipole_tensor.h"
 
@@ -33,97 +34,51 @@
   #include "jams/hamiltonian/cuda_dipole_fft.h"
 #endif
 
+#define DEFINED_HAMILTONIAN(name, type, settings, size) \
+  { \
+    if (lowercase(settings["module"]) == name) { \
+      return new type(settings, size); \
+    } \
+  }
+
+#ifdef HAS_CUDA
+#define CUDA_HAMILTONIAN_NAME(type) Cuda##type
+  #define DEFINED_HAMILTONIAN_CUDA_VARIANT(name, type, is_cuda_solver, settings, size) \
+  { \
+    if (lowercase(settings["module"]) == name) { \
+      if(is_cuda_solver) { \
+        return new CUDA_HAMILTONIAN_NAME(type)(settings, size); \
+      } \
+      return new type(settings, size); \
+    } \
+  }
+#else
+#define DEFINED_HAMILTONIAN_CUDA_VARIANT(name, type, is_cuda_solver, settings, size) \
+  DEFINED_HAMILTONIAN(name, type, settings, size)
+#endif
+
+
 using namespace std;
 
-Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsigned int size) {
-    if (capitalize(settings["module"]) == "EXCHANGE") {
-        return new ExchangeHamiltonian(settings, size);
-    }
+Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsigned int size, bool is_cuda_solver) {
 
-    if (capitalize(settings["module"]) == "EXCHANGE-FUNCTIONAL") {
-      return new ExchangeFunctionalHamiltonian(settings, size);
-    }
-
-    if (capitalize(settings["module"]) == "EXCHANGE-NEARTREE") {
-        return new ExchangeNeartreeHamiltonian(settings, size);
-    }
-
-    if (capitalize(settings["module"]) == "UNIAXIAL") {
-      #if HAS_CUDA
-      if (jams::instance().mode() == jams::Mode::GPU) {
-        return new CudaUniaxialHamiltonian(settings, size);
-      }
-      #endif
-        return new UniaxialHamiltonian(settings, size);
-    }
-
-    if (capitalize(settings["module"]) == "UNIAXIAL-MICRO") {
-    #if HAS_CUDA
-        if (jams::instance().mode() == jams::Mode::GPU) {
-          return new CudaUniaxialMicroscopicHamiltonian(settings, size);
-        }
-    #endif
-        return new UniaxialMicroscopicHamiltonian(settings, size);
-      }
-
-    if (capitalize(settings["module"]) == "CUBIC") {
-      #if HAS_CUDA
-      if (jams::instance().mode() == jams::Mode::GPU) {
-          return new CudaCubicHamiltonian(settings, size);
-        }
-      #endif
-      return new CubicHamiltonian(settings, size);
-    }
-
-    if (capitalize(settings["module"]) == "ZEEMAN") {
-#if HAS_CUDA
-      if (jams::instance().mode() == jams::Mode::GPU) {
-        return new CudaZeemanHamiltonian(settings, size);
-      }
-#endif
-      return new ZeemanHamiltonian(settings, size);
-    }
-
-    if (capitalize(settings["module"]) == "RANDOM-ANISOTROPY") {
-#if HAS_CUDA
-      if (jams::instance().mode() == jams::Mode::GPU) {
-        return new CudaRandomAnisotropyHamiltonian(settings, size);
-      }
-#endif
-      return new RandomAnisotropyHamiltonian(settings, size);
-    }
-
-  if (capitalize(settings["module"]) == "DIPOLE") {
-    if (settings.exists("strategy")) {
-      std::string strategy_name(capitalize(settings["strategy"]));
-
-      if (strategy_name == "TENSOR") {
-        return new DipoleHamiltonianTensor(settings, size);
-      }
-
-      if (strategy_name == "FFT") {
-#if HAS_CUDA
-        if (jams::instance().mode() == jams::Mode::GPU) {
-                return new CudaDipoleHamiltonianFFT(settings, size);
-            }
-#endif
-        return new DipoleHamiltonianFFT(settings, size);
-      }
-
-      if (strategy_name == "BRUTEFORCE") {
-#if HAS_CUDA
-        if (jams::instance().mode() == jams::Mode::GPU) {
-            return new CudaDipoleHamiltonianBruteforce(settings, size);
-          }
-#endif
-        return new DipoleHamiltonianCpuBruteforce(settings, size);
-      }
-
-      throw std::runtime_error("Unknown DipoleHamiltonian strategy '" + strategy_name + "' requested\n");
-    }
-    jams_warning("no dipole strategy selected, defaulting to TENSOR");
-    return new DipoleHamiltonianTensor(settings, size);
+  if (settings.exists("strategy")) {
+    throw jams::removed_feature_error("dipole hamiltonians now have specific names and 'strategy' has been removed");
   }
+
+  DEFINED_HAMILTONIAN("exchange", ExchangeHamiltonian, settings, size);
+  DEFINED_HAMILTONIAN("exchange-functional", ExchangeFunctionalHamiltonian, settings, size);
+  DEFINED_HAMILTONIAN("exchange-neartree", ExchangeNeartreeHamiltonian, settings, size);
+  DEFINED_HAMILTONIAN("dipole-tensor", DipoleTensorHamiltonian, settings, size);
+  DEFINED_HAMILTONIAN("dipole-neartree", DipoleNearTreeHamiltonian, settings, size);
+
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial", UniaxialHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial-micro", UniaxialMicroscopicHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("cubic", CubicHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("zeeman", ZeemanHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("dipole-fft", DipoleFFTHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("dipole-bruteforce", DipoleBruteforceHamiltonian, is_cuda_solver, settings, size);
 
 
   throw std::runtime_error("unknown hamiltonian " + std::string(settings["module"].c_str()));
