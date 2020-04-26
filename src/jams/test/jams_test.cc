@@ -5,7 +5,7 @@
 #include "jams/test/containers/test_unordered_vector_set.h"
 #include "jams/test/containers/test_neartree.h"
 //#include "jams/test/containers/test_synced_memory.h"
-//#include "jams/test/containers/test_multiarray.h"
+#include "jams/test/containers/test_multiarray.h"
 
 #ifdef HAS_CUDA
 #include "jams/hamiltonian/test_cuda_dipole_fft.h"
