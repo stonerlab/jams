@@ -1,11 +1,12 @@
-// Copyright 2015 Joseph Barker. All rights reserved.
+//
+// Created by Joseph Barker on 2020-04-26.
+//
 
-#ifndef JAMS_HAMILTONIAN_DIPOLE_CPU_BRUTEFORCE_H
-#define JAMS_HAMILTONIAN_DIPOLE_CPU_BRUTEFORCE_H
+#ifndef JAMS_DIPOLE_BRUTEFORCE_H
+#define JAMS_DIPOLE_BRUTEFORCE_H
 
 #include "jams/helpers/maths.h"
 #include "jams/core/hamiltonian.h"
-#include "jams/containers/neartree.h"
 
 class DipoleBruteforceHamiltonian : public Hamiltonian {
 public:
@@ -24,9 +25,9 @@ public:
     double calculate_one_spin_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
 
 private:
-    using NeartreeFunctorType = std::function<double(const std::pair<Vec3, int> &a, const std::pair<Vec3, int> &b)>;
-
-    double r_cutoff_; // cutoff radius for dipole interaction
+    std::vector<Vec3>   frac_positions_;
+    Mat3 supercell_matrix_;
+    double r_cutoff_;
 };
 
-#endif  // JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
+#endif //JAMS_DIPOLE_BRUTEFORCE_H

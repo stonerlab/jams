@@ -20,6 +20,7 @@
 #include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
 #include "jams/hamiltonian/zeeman.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
+#include "jams/hamiltonian/dipole_neartree.h"
 #include "jams/hamiltonian/dipole_fft.h"
 #include "jams/hamiltonian/dipole_tensor.h"
 
@@ -69,6 +70,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_HAMILTONIAN("exchange-functional", ExchangeFunctionalHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-neartree", ExchangeNeartreeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("dipole-tensor", DipoleTensorHamiltonian, settings, size);
+  DEFINED_HAMILTONIAN("dipole-neartree", DipoleNearTreeHamiltonian, settings, size);
 
   DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial", UniaxialHamiltonian, is_cuda_solver, settings, size);
