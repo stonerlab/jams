@@ -80,7 +80,7 @@ void SpinCorrelationMonitor::post_process() {
 
         auto sum = 0.0;
         #if HAS_OMP
-        #pragma parallel for reduction(+:sum)
+        #pragma omp parallel for reduction(+:sum)
         #endif
         for (auto t = 0; t < num_samples_; ++t) {
           sum += sz_data_(i, t) * sz_data_(j, t);
