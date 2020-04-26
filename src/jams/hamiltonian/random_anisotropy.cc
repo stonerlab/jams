@@ -68,18 +68,18 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
 double RandomAnisotropyHamiltonian::calculate_total_energy() {
   double total_energy = 0.0;
   for (auto i = 0; i < energy_.size(); ++i) {
-    total_energy += calculate_one_spin_energy(i);
+    total_energy += calculate_energy(i);
   }
   return total_energy;
 }
 
-double RandomAnisotropyHamiltonian::calculate_one_spin_energy(const int i) {
+double RandomAnisotropyHamiltonian::calculate_energy(const int i) {
   using namespace globals;
   return -magnitude_[i] * pow2(direction_[i][0] * s(i, 0) + direction_[i][1] * s(i, 1) + direction_[i][2] * s(i, 2));
 }
 
-double RandomAnisotropyHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial,
-                                                                         const Vec3 &spin_final) {
+double RandomAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                const Vec3 &spin_final) {
   auto e_initial = -magnitude_[i] * pow2(direction_[i][0] * spin_initial[0] + direction_[i][1] * spin_initial[1] + direction_[i][2] * spin_initial[2]);
   auto e_final =   -magnitude_[i] * pow2(direction_[i][0] * spin_final[0] + direction_[i][1] * spin_final[1] + direction_[i][2] * spin_final[2]);
 
@@ -88,11 +88,11 @@ double RandomAnisotropyHamiltonian::calculate_one_spin_energy_difference(const i
 
 void RandomAnisotropyHamiltonian::calculate_energies() {
   for (auto i = 0; i < energy_.size(); ++i) {
-    energy_(i) = calculate_one_spin_energy(i);
+    energy_(i) = calculate_energy(i);
   }
 }
 
-Vec3 RandomAnisotropyHamiltonian::calculate_one_spin_field(const int i) {
+Vec3 RandomAnisotropyHamiltonian::calculate_field(const int i) {
   using namespace globals;
   Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
   return magnitude_[i] * dot(direction_[i], s_i) * direction_[i];
@@ -100,7 +100,7 @@ Vec3 RandomAnisotropyHamiltonian::calculate_one_spin_field(const int i) {
 
 void RandomAnisotropyHamiltonian::calculate_fields() {
   for (auto i = 0; i < field_.size(0); ++i) {
-    auto field = calculate_one_spin_field(i);
+    auto field = calculate_field(i);
     for (auto n = 0; n < 3; ++n) {
       field_(i, n) = field[n];
     }

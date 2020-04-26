@@ -40,21 +40,21 @@ double DipoleBruteforceHamiltonian::calculate_total_energy() {
   double e_total = 0.0;
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    e_total += calculate_one_spin_energy(i);
+    e_total += calculate_energy(i);
   }
 
   return e_total;
 }
 
-double DipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i) {
+double DipoleBruteforceHamiltonian::calculate_energy(const int i) {
   Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
-  auto field = calculate_one_spin_field(i);
+  auto field = calculate_field(i);
   return -0.5 * dot(s_i, field);
 }
 
-double DipoleBruteforceHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial,
-                                                                         const Vec3 &spin_final) {
-  const auto field = calculate_one_spin_field(i);
+double DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                const Vec3 &spin_final) {
+  const auto field = calculate_field(i);
   const double e_initial = -dot(spin_initial, field);
   const double e_final = -dot(spin_final, field);
   return 0.5 * (e_final - e_initial);
@@ -62,13 +62,13 @@ double DipoleBruteforceHamiltonian::calculate_one_spin_energy_difference(const i
 
 void DipoleBruteforceHamiltonian::calculate_energies() {
   for (auto i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_one_spin_energy(i);
+    energy_(i) = calculate_energy(i);
   }
 }
 
 
 __attribute__((hot))
-Vec3 DipoleBruteforceHamiltonian::calculate_one_spin_field(const int i) {
+Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
   using namespace globals;
 
   const auto r_cut_squared = pow2(r_cutoff_);
@@ -100,7 +100,7 @@ Vec3 DipoleBruteforceHamiltonian::calculate_one_spin_field(const int i) {
 
 void DipoleBruteforceHamiltonian::calculate_fields() {
   for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto field = calculate_one_spin_field(i);
+    const auto field = calculate_field(i);
 
     for (auto n : {0,1,2}) {
       field_(i, n) = field[n];

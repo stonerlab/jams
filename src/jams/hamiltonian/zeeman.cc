@@ -73,22 +73,22 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 double ZeemanHamiltonian::calculate_total_energy() {
     double e_total = 0.0;
     for (int i = 0; i < globals::num_spins; ++i) {
-        e_total += calculate_one_spin_energy(i);
+        e_total += calculate_energy(i);
     }
      return e_total;
 }
 
-double ZeemanHamiltonian::calculate_one_spin_energy(const int i) {
+double ZeemanHamiltonian::calculate_energy(const int i) {
     using namespace globals;
 
     const Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
-    const auto field = calculate_one_spin_field(i);
+    const auto field = calculate_field(i);
 
     return -dot(s_i, field);
 }
 
-double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-  const auto field = calculate_one_spin_field(i);
+double ZeemanHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+  const auto field = calculate_field(i);
   const auto e_initial = -dot(spin_initial, field);
   const auto e_final = -dot(spin_initial, field);
 
@@ -97,11 +97,11 @@ double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, cons
 
 void ZeemanHamiltonian::calculate_energies() {
     for (int i = 0; i < globals::num_spins; ++i) {
-        energy_(i) = calculate_one_spin_energy(i);
+        energy_(i) = calculate_energy(i);
     }
 }
 
-Vec3 ZeemanHamiltonian::calculate_one_spin_field(const int i) {
+Vec3 ZeemanHamiltonian::calculate_field(const int i) {
     using namespace globals;
     using std::pow;
 

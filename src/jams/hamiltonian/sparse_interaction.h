@@ -24,11 +24,11 @@ public:
 
     void calculate_fields() override;
 
-    Vec3 calculate_one_spin_field(int i) override;
+    Vec3 calculate_field(int i) override;
 
-    double calculate_one_spin_energy(int i) override;
+    double calculate_energy(int i) override;
 
-    double calculate_one_spin_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
 
 protected:
     // inserts a scalar interaction into the interaction matrix

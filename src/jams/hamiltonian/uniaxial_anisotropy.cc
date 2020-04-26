@@ -118,12 +118,12 @@ UniaxialHamiltonian::UniaxialHamiltonian(const Setting &settings, const unsigned
 double UniaxialHamiltonian::calculate_total_energy() {
   double e_total = 0.0;
   for (int i = 0; i < energy_.size(); ++i) {
-    e_total += calculate_one_spin_energy(i);
+    e_total += calculate_energy(i);
   }
   return e_total;
 }
 
-double UniaxialHamiltonian::calculate_one_spin_energy(const int i) {
+double UniaxialHamiltonian::calculate_energy(const int i) {
   using namespace globals;
   double energy = 0.0;
 
@@ -133,8 +133,8 @@ double UniaxialHamiltonian::calculate_one_spin_energy(const int i) {
   return energy;
 }
 
-double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial,
-                                                                 const Vec3 &spin_final) {
+double UniaxialHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                        const Vec3 &spin_final) {
   double e_initial = 0.0;
   double e_final = 0.0;
 
@@ -149,11 +149,11 @@ double UniaxialHamiltonian::calculate_one_spin_energy_difference(const int i, co
 
 void UniaxialHamiltonian::calculate_energies() {
   for (auto i = 0; i < energy_.size(); ++i) {
-    energy_(i) = calculate_one_spin_energy(i);
+    energy_(i) = calculate_energy(i);
   }
 }
 
-Vec3 UniaxialHamiltonian::calculate_one_spin_field(const int i) {
+Vec3 UniaxialHamiltonian::calculate_field(const int i) {
   using namespace globals;
 
   auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
@@ -167,7 +167,7 @@ Vec3 UniaxialHamiltonian::calculate_one_spin_field(const int i) {
 
 void UniaxialHamiltonian::calculate_fields() {
   for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto field = calculate_one_spin_field(i);
+    const auto field = calculate_field(i);
     for (auto j = 0; j < 3; ++j) {
       field_(i, j) = field[j];
     }

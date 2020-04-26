@@ -42,7 +42,7 @@ void SparseInteractionHamiltonian::calculate_fields() {
   interaction_matrix_.multiply(globals::s, field_);
 }
 
-Vec3 SparseInteractionHamiltonian::calculate_one_spin_field(const int i) {
+Vec3 SparseInteractionHamiltonian::calculate_field(const int i) {
   assert(is_finalized_);
   Vec3 field;
   for (auto m = 0; m < 3; ++m) {
@@ -55,24 +55,24 @@ void SparseInteractionHamiltonian::calculate_energies() {
   assert(is_finalized_);
   // TODO: Add GPU support
   for (int i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_one_spin_energy(i);
+    energy_(i) = calculate_energy(i);
   }
 }
 
-double SparseInteractionHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial,
-                                                                          const Vec3 &spin_final) {
+double SparseInteractionHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                 const Vec3 &spin_final) {
   assert(is_finalized_);
-  auto field = calculate_one_spin_field(i);
+  auto field = calculate_field(i);
   auto e_initial = -dot(spin_initial, field);
   auto e_final = -dot(spin_final, field);
   return e_final - e_initial;
 }
 
-double SparseInteractionHamiltonian::calculate_one_spin_energy(const int i) {
+double SparseInteractionHamiltonian::calculate_energy(const int i) {
   using namespace globals;
   assert(is_finalized_);
   Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
-  auto field = calculate_one_spin_field(i);
+  auto field = calculate_field(i);
   return -dot(s_i, field);
 }
 
@@ -84,7 +84,7 @@ double SparseInteractionHamiltonian::calculate_total_energy() {
   #pragma omp parallel for reduction(+:total_energy)
   #endif
   for (auto i = 0; i < globals::num_spins; ++i) {
-    total_energy += calculate_one_spin_energy(i);
+    total_energy += calculate_energy(i);
   }
   return 0.5 * total_energy;
 }

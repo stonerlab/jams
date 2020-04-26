@@ -34,13 +34,13 @@ public:
     virtual void calculate_fields() = 0;
 
     // calculate the field a spin i
-    virtual Vec3 calculate_one_spin_field(int i) = 0;
+    virtual Vec3 calculate_field(int i) = 0;
 
     // calculate the energy of spin i
-    virtual double calculate_one_spin_energy(int i) = 0;
+    virtual double calculate_energy(int i) = 0;
 
     // calculate the energy difference of spin i in initial and final states
-    virtual double calculate_one_spin_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) = 0;
+    virtual double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) = 0;
 
     inline double energy(const int i) const {
       assert(i < energy_.elements());

@@ -86,17 +86,17 @@ double CudaDipoleBruteforceHamiltonian::calculate_total_energy() {
 }
 
 double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
-    const auto field = calculate_one_spin_field(i);
+    const auto field = calculate_field(i);
     return -0.5 * dot(s_i, field);
 }
 
-double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i) {
+double CudaDipoleBruteforceHamiltonian::calculate_energy(const int i) {
     Vec3 s_i = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
     return calculate_one_spin_energy(i, s_i);
 }
 
-double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-    const auto field = calculate_one_spin_field(i);
+double CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+    const auto field = calculate_field(i);
     double e_initial = -dot(spin_initial, field);
     double e_final = -dot(spin_final, field);
     return 0.5*(e_final - e_initial);
@@ -104,11 +104,11 @@ double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy_difference(con
 
 void CudaDipoleBruteforceHamiltonian::calculate_energies() {
     for (auto i = 0; i < globals::num_spins; ++i) {
-        energy_(i) = calculate_one_spin_energy(i);
+        energy_(i) = calculate_energy(i);
     }
 }
 
-Vec3 CudaDipoleBruteforceHamiltonian::calculate_one_spin_field(const int i) {
+Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i) {
   using namespace globals;
 
   const auto neighbours = lattice->atom_neighbours(i, r_cutoff_);

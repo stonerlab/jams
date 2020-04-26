@@ -164,12 +164,12 @@ double CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Ve
     return 0.0;
 }
 
-double CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i) {
+double CudaDipoleFFTHamiltonian::calculate_energy(const int i) {
     return 0.0;
 }
 
-double CudaDipoleFFTHamiltonian::calculate_one_spin_energy_difference(
-    const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+double CudaDipoleFFTHamiltonian::calculate_energy_difference(
+    int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
 
     return 0.0;
 }
@@ -178,8 +178,8 @@ void CudaDipoleFFTHamiltonian::calculate_energies() {
 
 }
 
-Vec3 CudaDipoleFFTHamiltonian::calculate_one_spin_field(const int i) {
-  throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_one_spin_field");
+Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i) {
+  throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field");
 }
 
 void CudaDipoleFFTHamiltonian::calculate_fields() {

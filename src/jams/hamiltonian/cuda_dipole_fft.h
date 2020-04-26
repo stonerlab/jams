@@ -20,12 +20,12 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         ~CudaDipoleFFTHamiltonian() override;
 
         double calculate_total_energy() override;
-        double calculate_one_spin_energy(int i) override;
+        double calculate_energy(int i) override;
         double calculate_one_spin_energy(int i, const Vec3 &s_i);
-        double calculate_one_spin_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override ;
+        double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override ;
         void   calculate_energies() override;
 
-        Vec3   calculate_one_spin_field(int i);
+        Vec3   calculate_field(int i);
         void   calculate_fields() override;
     private:
         bool debug_ = false;

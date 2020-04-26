@@ -78,12 +78,12 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
 double UniaxialMicroscopicHamiltonian::calculate_total_energy() {
   double e_total = 0.0;
   for (int i = 0; i < energy_.size(); ++i) {
-    e_total += calculate_one_spin_energy(i);
+    e_total += calculate_energy(i);
   }
   return e_total;
 }
 
-double UniaxialMicroscopicHamiltonian::calculate_one_spin_energy(const int i) {
+double UniaxialMicroscopicHamiltonian::calculate_energy(const int i) {
   double energy = 0.0;
 
   for (int n = 0; n < mca_order_.size(); ++n) {
@@ -93,8 +93,8 @@ double UniaxialMicroscopicHamiltonian::calculate_one_spin_energy(const int i) {
   return energy;
 }
 
-double UniaxialMicroscopicHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial,
-                                                                 const Vec3 &spin_final) {
+double UniaxialMicroscopicHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                   const Vec3 &spin_final) {
   double e_initial = 0.0;
   double e_final = 0.0;
 
@@ -111,11 +111,11 @@ double UniaxialMicroscopicHamiltonian::calculate_one_spin_energy_difference(cons
 
 void UniaxialMicroscopicHamiltonian::calculate_energies() {
   for (int i = 0; i < energy_.size(); ++i) {
-    energy_(i) = calculate_one_spin_energy(i);
+    energy_(i) = calculate_energy(i);
   }
 }
 
-Vec3 UniaxialMicroscopicHamiltonian::calculate_one_spin_field(const int i) {
+Vec3 UniaxialMicroscopicHamiltonian::calculate_field(const int i) {
   const double sz = globals::s(i, 2);
   Vec3 field = {0.0, 0.0, 0.0};
 

@@ -148,15 +148,15 @@ double DipoleFFTHamiltonian::calculate_total_energy() {
     return -0.5*e_total;
 }
 
-double DipoleFFTHamiltonian::calculate_one_spin_energy(const int i) {
+double DipoleFFTHamiltonian::calculate_energy(const int i) {
   const Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
-  const auto field = calculate_one_spin_field(i);
+  const auto field = calculate_field(i);
   return -globals::mus(i) * dot(s_i, field);
 }
 
 
-double DipoleFFTHamiltonian::calculate_one_spin_energy_difference(
-    const int i, const Vec3 &spin_initial, const Vec3 &spin_final)
+double DipoleFFTHamiltonian::calculate_energy_difference(
+    int i, const Vec3 &spin_initial, const Vec3 &spin_final)
 {
     double h[3] = {0, 0, 0};
 
@@ -174,12 +174,12 @@ double DipoleFFTHamiltonian::calculate_one_spin_energy_difference(
 void DipoleFFTHamiltonian::calculate_energies() {
     assert(energy_.elements() == globals::num_spins);
     for (auto i = 0; i < globals::num_spins; ++i) {
-      energy_(i) = calculate_one_spin_energy(i);
+      energy_(i) = calculate_energy(i);
     }
 }
 
 
-Vec3 DipoleFFTHamiltonian::calculate_one_spin_field(const int i) {
+Vec3 DipoleFFTHamiltonian::calculate_field(const int i) {
     Vec3 field = {0.0, 0.0, 0.0};
     calculate_fields();
     for (auto m = 0; m < 3; ++m) {
