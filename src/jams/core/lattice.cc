@@ -1171,7 +1171,7 @@ void Lattice::generate_near_tree() {
     jams::NearTree<std::tuple<Vec3, int, int>, MaximumNearTreeFunctorType> maximum_neartree(tuple_norm,
                                                                                             indexed_positions);
     for (const auto &pos : cartesian_positions_) {
-      const auto neighbours = maximum_neartree.find_in_radius(lattice->max_interaction_radius(), {pos, 0, 0});
+      const auto neighbours = maximum_neartree.find_in_radius(lattice->max_interaction_radius(), std::tuple<Vec3, int, int>{pos, 0, 0});
       for (const auto &nbr : neighbours) {
         is_reachable[std::get<2>(nbr)] = true;
       }
