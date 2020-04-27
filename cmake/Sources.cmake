@@ -16,6 +16,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/dipole_bruteforce.cc
         hamiltonian/dipole_fft.cc
         hamiltonian/dipole_neartree.cc
+        hamiltonian/dipole_neighbour_list.cc
         hamiltonian/dipole_tensor.cc
         hamiltonian/exchange.cc
         hamiltonian/exchange_functional.cc
