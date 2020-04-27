@@ -30,7 +30,7 @@ namespace jams {
         }
 
         inline std::ostream &sci(std::ostream &os) {
-          return os << std::setprecision(8) << std::setw(12) << std::scientific;
+          return os << std::setprecision(8) << std::setw(16) << std::scientific << std::right;
         };
     }
 }
