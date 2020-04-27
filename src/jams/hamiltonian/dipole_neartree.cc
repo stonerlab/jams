@@ -7,8 +7,7 @@
 #include "jams/hamiltonian/dipole_neartree.h"
 
 DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
-: Hamiltonian(settings, size),
-is_cache_valid_(size, false){
+: Hamiltonian(settings, size){
 
     settings.lookupValue("r_cutoff", r_cutoff_);
     std::cout << "  r_cutoff " << r_cutoff_ << "\n";
@@ -18,6 +17,8 @@ is_cache_valid_(size, false){
           "r_cutoff is less than the maximum permitted interaction in the system"
           " (" + std::to_string(lattice->max_interaction_radius())  + ")");
     }
+
+    lattice->generate_optimised_near_tree();
 
     int num_neighbours = 0;
     for (auto i = 0; i < globals::num_spins; ++i) {

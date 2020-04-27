@@ -1128,6 +1128,42 @@ bool Lattice::has_impurities() const {
 }
 
 void Lattice::generate_near_tree() {
+  std::vector<std::pair<Vec3,int>> reduced_positions;
+
+  // only need to pad the supercell in periodic dimensions
+  Vec3i L_max = {lattice_periodic[0], lattice_periodic[1], lattice_periodic[2]};
+
+  int super_super_index=0;
+  for (auto i = 0; i < fractional_positions_.size(); ++i) {
+    // loop over periodic images of the simulation lattice
+    // this means r_cutoff can be larger than the simulation cell
+
+    for (auto Lx = -L_max[0]; Lx < L_max[0] + 1; ++Lx) {
+      for (auto Ly = -L_max[1]; Ly < L_max[1] + 1; ++Ly) {
+        for (auto Lz = -L_max[2]; Lz < L_max[2] + 1; ++Lz) {
+          Vec3i image_vector = {Lx, Ly, Lz};
+          Vec3 frac_pos = fractional_positions_[i] + to_double(scale(image_vector, lattice->size()));
+
+          auto r = lattice->fractional_to_cartesian(frac_pos);
+
+          reduced_positions.emplace_back(r,i);
+          super_super_index++;
+        }
+      }
+    }
+  }
+
+  auto l2_norm = [](const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)->double {
+      return norm(a.first-b.first);
+  };
+
+  neartree_.reset(new jams::NearTree<std::pair<Vec3, int>, NearTreeFunctorType>(l2_norm, reduced_positions));
+
+  cout << "  near tree size " << neartree_->size() << "\n";
+  cout << "  near tree memory " << memory_in_natural_units(neartree_->memory()) << "\n";
+}
+
+void Lattice::generate_optimised_near_tree() {
   // We do two passes here:
   //   - First we make the 26 mirror supercells around the central cell
   //   - We then find all positions which are within the maximum interaction
@@ -1137,6 +1173,7 @@ void Lattice::generate_near_tree() {
   // In the tuple Vec3 is cartesian position, first int is supercell position and second it is the position in the
   // super-supercell (or imaged cells). We ill use this last index to prune more efficiently later.
   std::vector<std::tuple<Vec3, int, int>> indexed_positions;
+  std::vector<std::pair<Vec3,int>> reduced_positions;
 
   // only need to pad the supercell in periodic dimensions
   Vec3i L_max = {lattice_periodic[0], lattice_periodic[1], lattice_periodic[2]};
@@ -1180,7 +1217,6 @@ void Lattice::generate_near_tree() {
 
   std::cout << "  near tree maximal positions: " << indexed_positions.size() << std::endl;
 
-  std::vector<std::pair<Vec3,int>> reduced_positions;
   reduced_positions.reserve(std::accumulate(is_reachable.begin(), is_reachable.end(), 0));
   for (auto i = 0; i < indexed_positions.size(); ++i) {
     if (is_reachable[i]) {
@@ -1196,7 +1232,6 @@ void Lattice::generate_near_tree() {
 
   cout << "  near tree size " << neartree_->size() << "\n";
   cout << "  near tree memory " << memory_in_natural_units(neartree_->memory()) << "\n";
-
 }
 
 int Lattice::num_neighbours(const int &i, const double &r_cutoff) const {

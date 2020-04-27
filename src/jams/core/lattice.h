@@ -130,6 +130,10 @@ public:
 
     const Vec3i &kspace_size() const;
 
+    // regenerates the the near tree to include only 'reachable' image spins
+    // but it is more time consuming to construct than generate_near_tree()
+    void generate_optimised_near_tree();
+
 private:
     void read_materials_from_config(const libconfig::Setting &settings);
     ImpurityMap read_impurities_from_config(const libconfig::Setting &settings);

@@ -24,11 +24,7 @@ public:
     double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
 
 private:
-    using NeartreeFunctorType = std::function<double(const std::pair<Vec3, int> &a, const std::pair<Vec3, int> &b)>;
-
     double r_cutoff_; // cutoff radius for dipole interaction
-
-    std::vector<bool> is_cache_valid_;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_NEARTREE_H
