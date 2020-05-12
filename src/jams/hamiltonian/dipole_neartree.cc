@@ -9,8 +9,8 @@
 DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size){
 
-    settings.lookupValue("r_cutoff", r_cutoff_);
-    std::cout << "  r_cutoff " << r_cutoff_ << "\n";
+  r_cutoff_ = jams::config_required<double>(settings, "r_cutoff");
+  std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
     if (r_cutoff_ > lattice->max_interaction_radius()) {
       throw std::runtime_error(
