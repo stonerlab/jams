@@ -202,20 +202,26 @@ inline T max_abs(const Mat<T,3,3>& a) {
   return max;
 }
 
+// calculates a rotation matrix from Vec3 a to Vec3 b
+
 inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
-  // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
-  // https://en.wikipedia.org/wiki/Rotation_matrix
+  const auto ua = unit_vector(a);
+  const auto ub = unit_vector(b);
+  const auto v = cross(ua,ub);
+  const auto c = dot(ua,ub);
 
-  // Some implementations in the stack exchange have special points which cannot be dealt with easily
-  // (for example a == b or a == -b). The code below should work for all cases. It is maybe slightly less
-  // efficient but this does not get called a lot.
-
-  const auto c = dot(a, b);
-  const auto u = cross(a,b);
+  // check if a == b or a == -b
+  if (approximately_zero(norm_sq(v))) {
+    // this is a shortcut for a == b and necessary
+    // for a == -b where Rodrigues's formula will fail
+    // return either I or -I
+    return diagonal_matrix(copysign(1.0, c));
+  }
 
   // Rodrigues's rotation formula
-  const auto R = (1.0/(norm(a) * norm(b))) *
-       (c * kIdentityMat3 + ssc(u) + (norm(a) * norm(b) - c) * outer_product(u,u) / norm_sq(u));
+  // See: https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+  //      https://en.wikipedia.org/wiki/Rotation_matrix
+  const auto R = kIdentityMat3 + ssc(v) + (1.0 / (1.0 + c)) * ssc(v) * ssc(v) ;
 
   // a rotation matrix must be orthogonal and have a determinant of 1
   assert(approximately_equal(transpose(R), inverse(R)));
