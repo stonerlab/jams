@@ -13,6 +13,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   radius_cutoff_ = jams::config_required<double>(settings, "r_cutoff");
 
   cout << "  cutoff radius: " << jams::fmt::decimal << radius_cutoff_ << "\n";
+  cout << "  max cutoff radius: " << lattice->max_interaction_radius() << "\n";
 
   if (radius_cutoff_ > lattice->max_interaction_radius()) {
     throw std::runtime_error("cutoff radius is larger than the maximum radius which avoids self interaction");
@@ -21,8 +22,29 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   ofstream of(seedname + "_exchange_functional.tsv");
   output_exchange_functional(of, exchange_functional, radius_cutoff_);
 
+  string name3 = seedname + "_spectrum_crystal_limit.tsv";
+  ofstream outfile3(name3.c_str());
+  outfile3.setf(std::ios::right);
+
+  // header for crystal-limit spectrum file
+  outfile3 << std::setw(20) << "k" << "\t";//(\t=tab)
+  outfile3 << std::setw(20) << "Re:E(k)" << "\t";
+  outfile3 << std::setw(20) << "Im:E(k)" << "\n";
+
   auto counter = 0;
   vector<Atom> nbrs;
+  // --- for crystal limit spectrum ---
+  int num_k = jams::config_required<int>(settings, "num_k");
+  std::vector<complex<double>> spectrum_crystal_limit(num_k,{0.0,0.0});
+  double kmax = jams::config_required<double>(settings, "kmax");
+  Vec3 kvector = jams::config_required<Vec3>(settings, "kvector");
+  jams::MultiArray<Vec3, 1> k;
+  k.resize(num_k+1);
+  for (auto n = 0; n < k.size(); ++n) {
+      k(n) = kvector * n * (kmax / num_k);
+//      cout << "n = " << n << ", kspace_path_(n) = " << k(n) << endl;
+  }
+  // --- for crystal limit spectrum ---
   for (auto i = 0; i < globals::num_spins; ++i) {
     nbrs.clear();
     ::lattice->atom_neighbours(i, radius_cutoff_, nbrs);
@@ -33,13 +55,31 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
         continue;
       }
       const auto rij = norm(lattice->displacement(i, j));
+      // --- for crystal limit spectrum ---
+      const auto rij_vec = lattice->displacement(i, j);
       this->insert_interaction_scalar(i, j, input_unit_conversion_ * exchange_functional(rij));
       counter++;
+      for (auto kk = 0; kk < spectrum_crystal_limit.size(); kk++){
+          double kr = std::inner_product(k(kk).begin(), k(kk).end(), rij_vec.begin(), 0.0);
+          std::complex<double> tmp = {input_unit_conversion_ * exchange_functional(rij)* (1.0-cos(kr)), input_unit_conversion_ * exchange_functional(rij) * sin(kr)};
+          spectrum_crystal_limit[kk] += tmp;
+      }
+      // --- for crystal limit spectrum ---
     }
+  }
+  for (auto kk = 0; kk < spectrum_crystal_limit.size(); kk++) {
+      spectrum_crystal_limit[kk] /= globals::num_spins;
   }
 
   cout << "  total interactions " << jams::fmt::integer << counter << "\n";
   cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
+  // --- for crystal limit spectrum ---
+  for (auto m = 0; m < spectrum_crystal_limit.size(); m++) {
+      cout << "  spectrum_crystal_limit (" << m << ") = " << spectrum_crystal_limit[m] << "\n";
+      outfile3 << std::setw(20) << k(m) << "\t";
+      outfile3 << std::setw(20) << spectrum_crystal_limit[m] << "\n";
+  }
+  // --- for crystal limit spectrum ---
 
   finalize();
 }
