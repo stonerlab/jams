@@ -36,7 +36,7 @@ private:
     jams::MultiArray<Complex, 3> calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx,2>& spectrum, const jams::MultiArray<Vec3cx,1>& elastic_spectrum, const std::vector<Vec3>& polarizations);
 
     bool do_rspace_windowing_;
-    bool output_real_space_ss_corr_;
+    bool output_dist_;
     jams::MultiArray<Vec3, 1> rspace_displacement_;
     jams::MultiArray<Vec3, 1> kspace_path_;
     jams::MultiArray<Vec3cx,2>  kspace_spins_timeseries_;
@@ -55,7 +55,7 @@ private:
     int num_k_;
     Vec3 kvector_;
     bool evaluate_form_factor_ = false;
-    double delta_r_ = 0.001;
+    double delta_r_ = 0.01;
     int t_diff_r_dep_;
 
     std::vector<jams::MultiArray<double, 1>> spin_x;
@@ -63,6 +63,7 @@ private:
     std::vector<jams::MultiArray<double, 1>> spin_z;
 
     std::vector<double> radial_distribution_function();
+    std::vector<double> radial_distribution_function_z();
     double distance(const Vec3 &r_ij);
     std::vector<std::complex<double>> time_correlation(unsigned i, unsigned j);
 };
