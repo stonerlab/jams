@@ -35,7 +35,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   vector<Atom> nbrs;
   // --- for crystal limit spectrum ---
   int num_k = jams::config_required<int>(settings, "num_k");
-  std::vector<complex<double>> spectrum_crystal_limit(num_k,{0.0,0.0});
+  std::vector<complex<double>> spectrum_crystal_limit(num_k+1,{0.0,0.0});
   double kmax = jams::config_required<double>(settings, "kmax");
   Vec3 kvector = jams::config_required<Vec3>(settings, "kvector");
   jams::MultiArray<Vec3, 1> k;
@@ -75,9 +75,12 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
   // --- for crystal limit spectrum ---
   for (auto m = 0; m < spectrum_crystal_limit.size(); m++) {
-      cout << "  spectrum_crystal_limit (" << m << ") = " << spectrum_crystal_limit[m] << "\n";
+//      cout << "  spectrum_crystal_limit (" << m << ") = " << spectrum_crystal_limit[m] << "\n";
+//      cout << "  real (" << m << ") = " << spectrum_crystal_limit[m].real() << "\n";
+//      cout << "  imag (" << m << ") = " << spectrum_crystal_limit[m].imag() << "\n";
       outfile3 << std::setw(20) << k(m) << "\t";
-      outfile3 << std::setw(20) << spectrum_crystal_limit[m] << "\n";
+      outfile3 << std::setw(20) << spectrum_crystal_limit[m].real() << "\n";
+      outfile3 << std::setw(20) << spectrum_crystal_limit[m].imag() << "\n";
   }
   // --- for crystal limit spectrum ---
 
