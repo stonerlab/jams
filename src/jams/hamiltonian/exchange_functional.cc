@@ -27,7 +27,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   outfile3.setf(std::ios::right);
 
   // header for crystal-limit spectrum file
-  outfile3 << std::setw(20) << "k" << "\t";//(\t=tab)
+  outfile3 << std::setw(20) << "kx" << "\t";//(\t=tab)
+  outfile3 << std::setw(20) << "ky" << "\t";//(\t=tab)
+  outfile3 << std::setw(20) << "kz" << "\t";//(\t=tab)
   outfile3 << std::setw(20) << "Re:E(k)" << "\t";
   outfile3 << std::setw(20) << "Im:E(k)" << "\n";
 
@@ -78,8 +80,10 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 //      cout << "  spectrum_crystal_limit (" << m << ") = " << spectrum_crystal_limit[m] << "\n";
 //      cout << "  real (" << m << ") = " << spectrum_crystal_limit[m].real() << "\n";
 //      cout << "  imag (" << m << ") = " << spectrum_crystal_limit[m].imag() << "\n";
-      outfile3 << std::setw(20) << k(m) << "\t";
-      outfile3 << std::setw(20) << spectrum_crystal_limit[m].real() << "\n";
+      outfile3 << std::setw(20) << k(m)[0] << "\t";
+      outfile3 << std::setw(20) << k(m)[1] << "\t";
+      outfile3 << std::setw(20) << k(m)[2] << "\t";
+      outfile3 << std::setw(20) << spectrum_crystal_limit[m].real() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit[m].imag() << "\n";
   }
   // --- for crystal limit spectrum ---
