@@ -55,7 +55,7 @@ private:
     int num_k_;
     Vec3 kvector_;
     bool evaluate_form_factor_ = false;
-    double delta_r_ = 0.01;
+    double delta_r_ = 0.001;
     int t_diff_r_dep_;
 
     std::vector<jams::MultiArray<double, 1>> spin_x;

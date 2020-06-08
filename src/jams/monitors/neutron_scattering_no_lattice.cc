@@ -420,31 +420,33 @@ NeutronScatteringNoLatticeMonitor::~NeutronScatteringNoLatticeMonitor() {
 
         // header for the radial dist file
         outfile4 << std::setw(20) << "bin" << "\t";
+        outfile4 << std::setw(20) << "r/L" << "\t";
         outfile4 << std::setw(20) << "dist" << "\n";
 
         // header for the radial dist (z) file
         outfile5 << std::setw(20) << "bin" << "\t";
+        outfile5 << std::setw(20) << "r/L" << "\t";
         outfile5 << std::setw(20) << "dist" << "\n";
 
         Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
         int num_distance = std::ceil(0.5 * lattice_dimensions[0] / delta_r_);
         //size of the array: (L/2)/delta_r_
 
-        vector<std::complex<double>> r_dependence_SxSy(num_distance, 0.0);
-        vector<std::complex<double>> r_dependence_SzSz(num_distance, 0.0);
-        vector<int> count_r_dep(r_dependence_SxSy.size(),0);
-
         auto radial_dist = radial_distribution_function();
         auto radial_dist_z = radial_distribution_function_z();
 
         for (auto m = 0; m < radial_dist.size(); m++) {
             outfile4 << std::setw(20) << m << "\t";
+            //Here we assume lattice_dimensions are all the same (x,y,z)
+            outfile4 << std::setw(20) << m * delta_r_ << "\t";
             outfile4 << std::setw(20) << radial_dist[m] << "\n";
         }
 
-        for (auto m = 0; m < radial_dist.size(); m++) {
+        for (auto m = 0; m < radial_dist_z.size(); m++) {
             outfile5 << std::setw(20) << m << "\t";
-            outfile5 << std::setw(20) << radial_dist[m] << "\n";
+            //Here we assume lattice_dimensions are all the same (x,y,z)
+            outfile5 << std::setw(20) << m * delta_r_ << "\t";
+            outfile5 << std::setw(20) << radial_dist_z[m] << "\n";
         }
 
         outfile4.close();
@@ -480,7 +482,7 @@ std::vector<double> NeutronScatteringNoLatticeMonitor::radial_distribution_funct
     }
     for (auto kk = 0; kk < dist.size(); kk++){
         dist[kk] /= num_spins;
-        cout << "dist[" << kk << "] = " << dist[kk] << ", dist/num_spins = " << dist[kk]/num_spins << endl;
+//        cout << "dist[" << kk << "] = " << dist[kk] << ", dist/num_spins = " << dist[kk]/num_spins << endl;
     }
     return dist;
 }
@@ -509,7 +511,7 @@ std::vector<double> NeutronScatteringNoLatticeMonitor::radial_distribution_funct
     }
     for (auto kk = 0; kk < dist_z.size(); kk++){
         dist_z[kk] /= num_spins;
-        cout << "dist_z[" << kk << "] = " << dist_z[kk] << ", dist_z/num_spins = " << dist_z[kk]/num_spins << endl;
+//        cout << "dist_z[" << kk << "] = " << dist_z[kk] << ", dist_z/num_spins = " << dist_z[kk]/num_spins << endl;
     }
     return dist_z;
 }
