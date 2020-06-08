@@ -34,6 +34,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   outfile3 << std::setw(20) << "Im:E(k)" << "\n";
 
   auto counter = 0;
+  auto counter2 = 0;
   vector<Atom> nbrs;
   // --- for crystal limit spectrum ---
   int num_k = jams::config_required<int>(settings, "num_k");
@@ -65,6 +66,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
           double kr = std::inner_product(k(kk).begin(), k(kk).end(), rij_vec.begin(), 0.0);
           std::complex<double> tmp = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)),  exchange_functional(rij) * sin(kTwoPi*kr)};
           spectrum_crystal_limit[kk] += tmp;
+          if(kr > 0.0){
+              counter2++;
+          }
       }
       // --- for crystal limit spectrum ---
     }
@@ -75,6 +79,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
   cout << "  total interactions " << jams::fmt::integer << counter << "\n";
   cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
+  cout << "  average interactions per spin (kr > 0) " << jams::fmt::decimal << counter2 / double(globals::num_spins)/spectrum_crystal_limit.size() << "\n";
   // --- for crystal limit spectrum ---
   for (auto m = 0; m < spectrum_crystal_limit.size(); m++) {
 //      cout << "  spectrum_crystal_limit (" << m << ") = " << spectrum_crystal_limit[m] << "\n";
