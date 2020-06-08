@@ -501,7 +501,7 @@ std::vector<double> NeutronScatteringNoLatticeMonitor::radial_distribution_funct
                 continue;
             }
             const auto r_i = lattice->atom_position(i);
-            const auto r_ij = (lattice->displacement(r_i, r_j)); // using j,i in this order gives r_j - r_i
+            const auto r_ij = (lattice->displacement(r_j, r_i));
             int m = std::ceil(r_ij[2]/delta_r_);
             if(m > dist_z.size()){
                 continue;
