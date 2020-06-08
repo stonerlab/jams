@@ -465,7 +465,7 @@ std::vector<double> NeutronScatteringNoLatticeMonitor::radial_distribution_funct
                 continue;
             }
             dist[m]++;
-            if(abs(r_ij[2]) > 0.0){
+            if(abs(r_ij[2]) > (delta_r_ * 10.0)){
                 count_z(m)++;
             }
         }
