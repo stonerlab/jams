@@ -64,9 +64,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       counter++;
       for (auto kk = 0; kk < spectrum_crystal_limit.size(); kk++){
           double kr = std::inner_product(k(kk).begin(), k(kk).end(), rij_vec.begin(), 0.0);
-          std::complex<double> tmp = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)),  exchange_functional(rij) * sin(kTwoPi*kr)};
-          spectrum_crystal_limit[kk] += tmp;
           if(kr != 0.0){
+              std::complex<double> tmp = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)),  exchange_functional(rij) * sin(kTwoPi*kr)};
+              spectrum_crystal_limit[kk] += tmp;
               counter2++;
           }
       }
