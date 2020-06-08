@@ -39,6 +39,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   // --- for crystal limit spectrum ---
   int num_k = jams::config_required<int>(settings, "num_k");
   std::vector<complex<double>> spectrum_crystal_limit(num_k+1,{0.0,0.0});
+  std::vector<complex<double>> spectrum_crystal_limit2(num_k+1,{0.0,0.0});
   double kmax = jams::config_required<double>(settings, "kmax");
   Vec3 kvector = jams::config_required<Vec3>(settings, "kvector");
   jams::MultiArray<Vec3, 1> k;
@@ -66,7 +67,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
           double kr = std::inner_product(k(kk).begin(), k(kk).end(), rij_vec.begin(), 0.0);
           if(kr != 0.0){
               std::complex<double> tmp = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)),  exchange_functional(rij) * sin(kTwoPi*kr)};
+              std::complex<double> tmp2 = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)) /(4*kPi*rij*rij),  exchange_functional(rij) * sin(kTwoPi*kr)/(4*kPi*rij*rij)};
               spectrum_crystal_limit[kk] += tmp;
+              spectrum_crystal_limit2[kk] += tmp2;
               counter2++;
           }
       }
@@ -75,6 +78,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   }
   for (auto kk = 0; kk < spectrum_crystal_limit.size(); kk++) {
       spectrum_crystal_limit[kk] /= globals::num_spins;
+      spectrum_crystal_limit2[kk] /= globals::num_spins;
   }
 
   cout << "  total interactions " << jams::fmt::integer << counter << "\n";
@@ -90,6 +94,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       outfile3 << std::setw(20) << k(m)[2] << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit[m].real() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit[m].imag() << "\n";
+      outfile3 << std::setw(20) << spectrum_crystal_limit2[m].real() << "\t";
+      outfile3 << std::setw(20) << spectrum_crystal_limit2[m].imag() << "\n";
   }
   // --- for crystal limit spectrum ---
 
