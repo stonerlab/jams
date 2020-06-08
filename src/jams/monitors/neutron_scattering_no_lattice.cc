@@ -414,26 +414,16 @@ NeutronScatteringNoLatticeMonitor::~NeutronScatteringNoLatticeMonitor() {
         ofstream outfile4(name4.c_str());
         outfile4.setf(std::ios::right);
 
-        string name5 = seedname + "_radial_dist_z.tsv";
-        ofstream outfile5(name5.c_str());
-        outfile5.setf(std::ios::right);
-
         // header for the radial dist file
         outfile4 << std::setw(20) << "bin" << "\t";
         outfile4 << std::setw(20) << "r/L" << "\t";
         outfile4 << std::setw(20) << "dist" << "\n";
-
-        // header for the radial dist (z) file
-        outfile5 << std::setw(20) << "bin" << "\t";
-        outfile5 << std::setw(20) << "r/L" << "\t";
-        outfile5 << std::setw(20) << "dist" << "\n";
 
         Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
         int num_distance = std::ceil(0.5 * lattice_dimensions[0] / delta_r_);
         //size of the array: (L/2)/delta_r_
 
         auto radial_dist = radial_distribution_function();
-        auto radial_dist_z = radial_distribution_function_z();
 
         for (auto m = 0; m < radial_dist.size(); m++) {
             outfile4 << std::setw(20) << m << "\t";
@@ -442,15 +432,7 @@ NeutronScatteringNoLatticeMonitor::~NeutronScatteringNoLatticeMonitor() {
             outfile4 << std::setw(20) << radial_dist[m] << "\n";
         }
 
-        for (auto m = 0; m < radial_dist_z.size(); m++) {
-            outfile5 << std::setw(20) << m << "\t";
-            //Here we assume lattice_dimensions are all the same (x,y,z)
-            outfile5 << std::setw(20) << m * delta_r_ << "\t";
-            outfile5 << std::setw(20) << radial_dist_z[m] << "\n";
-        }
-
         outfile4.close();
-        outfile5.close();
     }
 }
 
@@ -464,6 +446,11 @@ std::vector<double> NeutronScatteringNoLatticeMonitor::radial_distribution_funct
     Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
     //Here we assume lattice_dimensions are all the same (x,y,z)
     std::vector<double> dist(std::ceil(0.5 * lattice_dimensions[0] / delta_r_),0.0);
+    jams::MultiArray<double, 1> count_z;
+    count_z.resize(dist.size());
+    for(auto mm=0; mm < count_z.size(); mm++){
+        count_z(mm) = 0.0;
+    }
     for(unsigned j = 0; j < num_spins; ++j){
         const auto r_j = lattice->atom_position(j);
         for(unsigned i = 0; i < num_spins; ++i){
@@ -474,44 +461,38 @@ std::vector<double> NeutronScatteringNoLatticeMonitor::radial_distribution_funct
             const auto r_i = lattice->atom_position(i);
             const auto r_ij = (lattice->displacement(r_i, r_j)); // using j,i in this order gives r_j - r_i
             int m = std::ceil(std::sqrt(r_ij[0] * r_ij[0] + r_ij[1] * r_ij[1] + r_ij[2] * r_ij[2])/delta_r_);
-            if(m > dist.size()){
+            if(m >= dist.size()){
                 continue;
             }
             dist[m]++;
+            if(abs(r_ij[2]) > 0.0){
+                count_z(m)++;
+            }
         }
     }
     for (auto kk = 0; kk < dist.size(); kk++){
         dist[kk] /= num_spins;
-//        cout << "dist[" << kk << "] = " << dist[kk] << ", dist/num_spins = " << dist[kk]/num_spins << endl;
+        count_z(kk) /= num_spins;
+//        cout << "dist[" << kk << "]/num_spins = " << dist[kk] << endl;
+//        cout << "dist_z[" << kk << "]/num_spins = " << count_z(kk) << endl;
     }
-    return dist;
-}
 
-std::vector<double> NeutronScatteringNoLatticeMonitor::radial_distribution_function_z() {
-    using namespace globals;
-    using namespace std;
-    Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
-    //Here we assume lattice_dimensions are all the same (x,y,z)
-    std::vector<double> dist_z(std::ceil(0.5 * lattice_dimensions[0] / delta_r_),0.0);
-    for(unsigned j = 0; j < num_spins; ++j){
-        const auto r_j = lattice->atom_position(j);
-        for(unsigned i = 0; i < num_spins; ++i){
-            if(i == j){
-                dist_z[0] = 0;
-                continue;
-            }
-            const auto r_i = lattice->atom_position(i);
-            const auto r_ij = (lattice->displacement(r_j, r_i));
-            int m = std::ceil(abs(r_ij[2])/delta_r_);
-            if(m > dist_z.size()){
-                continue;
-            }
-            dist_z[m]++;
-        }
+    string name5 = seedname + "_radial_dist_z.tsv";
+    ofstream outfile5(name5.c_str());
+    outfile5.setf(std::ios::right);
+
+    // header for the radial dist (z) file
+    outfile5 << std::setw(20) << "bin" << "\t";
+    outfile5 << std::setw(20) << "r/L" << "\t";
+    outfile5 << std::setw(20) << "z/L" << "\t";
+    outfile5 << std::setw(20) << "dist" << "\n";
+
+    for (auto m = 0; m < dist.size(); m++) {
+        outfile5 << std::setw(20) << m << "\t";
+        //Here we assume lattice_dimensions are all the same (x,y,z)
+        outfile5 << std::setw(20) << m * delta_r_ << "\t";
+        outfile5 << std::setw(20) << count_z(m) << "\n";
     }
-    for (auto kk = 0; kk < dist_z.size(); kk++){
-        dist_z[kk] /= num_spins;
-//        cout << "dist_z[" << kk << "] = " << dist_z[kk] << ", dist_z/num_spins = " << dist_z[kk]/num_spins << endl;
-    }
-    return dist_z;
+    outfile5.close();
+    return dist;
 }
