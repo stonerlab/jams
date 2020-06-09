@@ -31,7 +31,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   outfile3 << std::setw(20) << "ky" << "\t";//(\t=tab)
   outfile3 << std::setw(20) << "kz" << "\t";//(\t=tab)
   outfile3 << std::setw(20) << "Re:E(k)" << "\t";
-  outfile3 << std::setw(20) << "Im:E(k)" << "\n";
+  outfile3 << std::setw(20) << "Im:E(k)" << "\t";
+  outfile3 << std::setw(20) << "Re:E(k)-2" << "\t";
+  outfile3 << std::setw(20) << "Im:E(k)-2" << "\n";
 
   auto counter = 0;
   auto counter2 = 0;
@@ -93,7 +95,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       outfile3 << std::setw(20) << k(m)[1] << "\t";
       outfile3 << std::setw(20) << k(m)[2] << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit[m].real() << "\t";
-      outfile3 << std::setw(20) << spectrum_crystal_limit[m].imag() << "\n";
+      outfile3 << std::setw(20) << spectrum_crystal_limit[m].imag() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit2[m].real() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit2[m].imag() << "\n";
   }
