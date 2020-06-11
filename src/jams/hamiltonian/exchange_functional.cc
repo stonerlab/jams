@@ -49,8 +49,10 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   Vec3 kvector = jams::config_required<Vec3>(settings, "kvector");
   double rij_min = jams::config_optional(settings, "rij_min", 0.0);
   double rij_max = jams::config_optional(settings, "rij_max", radius_cutoff_);
+  int central_site = jams::config_optional(settings, "central_site", 0);
   cout << "crystal limit: rij_min = " << rij_min << endl;
   cout << "crystal limit: rij_max = " << rij_max << endl;
+  cout << "central_site: i = " << central_site << endl;
 
   jams::MultiArray<Vec3, 1> k;
   k.resize(num_k+1);
@@ -81,7 +83,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
                   std::complex<double> tmp2 = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)) /(4*kPi*rij*rij),  exchange_functional(rij) * sin(kTwoPi*kr)/(4*kPi*rij*rij)};
                   spectrum_crystal_limit[kk] += tmp;
                   spectrum_crystal_limit2[kk] += tmp2;
-                  if(i == 25000){
+                  if(i == central_site){
                       spectrum_crystal_limit_noave[kk] += tmp;
                   }
                   counter2++;
