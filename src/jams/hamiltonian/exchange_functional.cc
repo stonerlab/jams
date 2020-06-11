@@ -34,6 +34,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   outfile3 << std::setw(20) << "Im:E(k)" << "\t";
   outfile3 << std::setw(20) << "Re:E(k)-2" << "\t";
   outfile3 << std::setw(20) << "Im:E(k)-2" << "\n";
+  outfile3 << std::setw(20) << "Re:E(k)-3" << "\n";
+  outfile3 << std::setw(20) << "Im:E(k)-3" << "\n";
 
   auto counter = 0;
   auto counter2 = 0;
@@ -42,6 +44,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   int num_k = jams::config_required<int>(settings, "num_k");
   std::vector<complex<double>> spectrum_crystal_limit(num_k+1,{0.0,0.0});
   std::vector<complex<double>> spectrum_crystal_limit2(num_k+1,{0.0,0.0});
+  std::vector<complex<double>> spectrum_crystal_limit_noave(num_k+1,{0.0,0.0});
   double kmax = jams::config_required<double>(settings, "kmax");
   Vec3 kvector = jams::config_required<Vec3>(settings, "kvector");
   jams::MultiArray<Vec3, 1> k;
@@ -72,6 +75,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
               std::complex<double> tmp2 = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)) /(4*kPi*rij*rij),  exchange_functional(rij) * sin(kTwoPi*kr)/(4*kPi*rij*rij)};
               spectrum_crystal_limit[kk] += tmp;
               spectrum_crystal_limit2[kk] += tmp2;
+              if(i == 0){
+                  spectrum_crystal_limit_noave[kk] += tmp;
+              }
               counter2++;
           }
       }
@@ -98,6 +104,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       outfile3 << std::setw(20) << spectrum_crystal_limit[m].imag() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit2[m].real() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit2[m].imag() << "\n";
+      outfile3 << std::setw(20) << spectrum_crystal_limit_noave[m].real() << "\n";
+      outfile3 << std::setw(20) << spectrum_crystal_limit_noave[m].imag() << "\n";
   }
   // --- for crystal limit spectrum ---
 
