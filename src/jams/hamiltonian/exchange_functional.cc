@@ -33,8 +33,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   outfile3 << std::setw(20) << "Re:E(k)" << "\t";
   outfile3 << std::setw(20) << "Im:E(k)" << "\t";
   outfile3 << std::setw(20) << "Re:E(k)-2" << "\t";
-  outfile3 << std::setw(20) << "Im:E(k)-2" << "\n";
-  outfile3 << std::setw(20) << "Re:E(k)-3" << "\n";
+  outfile3 << std::setw(20) << "Im:E(k)-2" << "\t";
+  outfile3 << std::setw(20) << "Re:E(k)-3" << "\t";
   outfile3 << std::setw(20) << "Im:E(k)-3" << "\n";
 
   auto counter = 0;
@@ -110,8 +110,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       outfile3 << std::setw(20) << spectrum_crystal_limit[m].real() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit[m].imag() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit2[m].real() << "\t";
-      outfile3 << std::setw(20) << spectrum_crystal_limit2[m].imag() << "\n";
-      outfile3 << std::setw(20) << spectrum_crystal_limit_noave[m].real() << "\n";
+      outfile3 << std::setw(20) << spectrum_crystal_limit2[m].imag() << "\t";
+      outfile3 << std::setw(20) << spectrum_crystal_limit_noave[m].real() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit_noave[m].imag() << "\n";
   }
   // --- for crystal limit spectrum ---
