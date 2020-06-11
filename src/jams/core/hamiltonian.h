@@ -68,7 +68,6 @@ public:
     }
 
 protected:
-    std::string name_; // Hamiltonian name
     std::string input_unit_name_; // name of energy unit in input
     double input_unit_conversion_ = 1.0; // conversion factor from input energy to JAMS native units
 

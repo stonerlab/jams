@@ -90,9 +90,9 @@ Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int 
         : Base(settings),
           energy_(size),
           field_(size, 3),
-          name_(settings["module"].c_str()),
           input_unit_name_(jams::config_optional<string>(settings, "unit_name", jams::defaults::energy_unit_name))
 {
+  set_name(settings["module"].c_str());
   cout << "  " << name() << " hamiltonian\n";
 
   if (!jams::internal_energy_unit_conversion.count(input_unit_name_)) {
