@@ -47,6 +47,11 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   std::vector<complex<double>> spectrum_crystal_limit_noave(num_k+1,{0.0,0.0});
   double kmax = jams::config_required<double>(settings, "kmax");
   Vec3 kvector = jams::config_required<Vec3>(settings, "kvector");
+  double rij_min = jams::config_optional(settings, "rij_min", 0.0);
+  double rij_max = jams::config_optional(settings, "rij_max", radius_cutoff_);
+  cout << "crystal limit: rij_min = " << rij_min << endl;
+  cout << "crystal limit: rij_max = " << rij_max << endl;
+
   jams::MultiArray<Vec3, 1> k;
   k.resize(num_k+1);
   for (auto n = 0; n < k.size(); ++n) {
@@ -64,21 +69,23 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
         continue;
       }
       const auto rij = norm(lattice->displacement(i, j));
-      // --- for crystal limit spectrum ---
-      const auto rij_vec = lattice->displacement(i, j);
       this->insert_interaction_scalar(i, j, input_unit_conversion_ * exchange_functional(rij));
       counter++;
-      for (auto kk = 0; kk < spectrum_crystal_limit.size(); kk++){
-          double kr = std::inner_product(k(kk).begin(), k(kk).end(), rij_vec.begin(), 0.0);
-          if(kr != 0.0){
-              std::complex<double> tmp = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)),  exchange_functional(rij) * sin(kTwoPi*kr)};
-              std::complex<double> tmp2 = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)) /(4*kPi*rij*rij),  exchange_functional(rij) * sin(kTwoPi*kr)/(4*kPi*rij*rij)};
-              spectrum_crystal_limit[kk] += tmp;
-              spectrum_crystal_limit2[kk] += tmp2;
-              if(i == 0){
-                  spectrum_crystal_limit_noave[kk] += tmp;
+      // --- for crystal limit spectrum ---
+      if(rij < rij_max && rij > rij_min){
+          const auto rij_vec = lattice->displacement(i, j);
+          for (auto kk = 0; kk < spectrum_crystal_limit.size(); kk++){
+              double kr = std::inner_product(k(kk).begin(), k(kk).end(), rij_vec.begin(), 0.0);
+              if(kr != 0.0){
+                  std::complex<double> tmp = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)),  exchange_functional(rij) * sin(kTwoPi*kr)};
+                  std::complex<double> tmp2 = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)) /(4*kPi*rij*rij),  exchange_functional(rij) * sin(kTwoPi*kr)/(4*kPi*rij*rij)};
+                  spectrum_crystal_limit[kk] += tmp;
+                  spectrum_crystal_limit2[kk] += tmp2;
+                  if(i == 0){
+                      spectrum_crystal_limit_noave[kk] += tmp;
+                  }
+                  counter2++;
               }
-              counter2++;
           }
       }
       // --- for crystal limit spectrum ---
