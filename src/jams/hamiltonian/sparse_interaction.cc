@@ -103,7 +103,7 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
   assert(!is_finalized_);
 
   if (debug_is_enabled()) {
-    std::ofstream os(jams::output::full_path_filename("DEBUG_" + name_ + "_spm.tsv"));
+    std::ofstream os(jams::output::full_path_filename("DEBUG_" + name() + "_spm.tsv"));
     sparse_matrix_builder_.output(os);
     os.close();
   }
@@ -113,12 +113,12 @@ void SparseInteractionHamiltonian::finalize(jams::SparseMatrixSymmetryCheck symm
       break;
     case jams::SparseMatrixSymmetryCheck::Symmetric:
       if (!sparse_matrix_builder_.is_symmetric()) {
-        throw std::runtime_error("sparse matrix for " + name_ + " is not symmetric");
+        throw std::runtime_error("sparse matrix for " + name() + " is not symmetric");
       }
       break;
     case jams::SparseMatrixSymmetryCheck::StructurallySymmetric:
       if (!sparse_matrix_builder_.is_structurally_symmetric()) {
-        throw std::runtime_error("sparse matrix for " + name_ + " is not structurally symmetric");
+        throw std::runtime_error("sparse matrix for " + name() + " is not structurally symmetric");
       }
       break;
   }
