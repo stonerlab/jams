@@ -81,7 +81,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
                   std::complex<double> tmp2 = { exchange_functional(rij)* (1.0-cos(kTwoPi*kr)) /(4*kPi*rij*rij),  exchange_functional(rij) * sin(kTwoPi*kr)/(4*kPi*rij*rij)};
                   spectrum_crystal_limit[kk] += tmp;
                   spectrum_crystal_limit2[kk] += tmp2;
-                  if(i == 0){
+                  if(i == 25000){
                       spectrum_crystal_limit_noave[kk] += tmp;
                   }
                   counter2++;
