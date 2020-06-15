@@ -45,6 +45,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   std::vector<complex<double>> spectrum_crystal_limit(num_k+1,{0.0,0.0});
   std::vector<complex<double>> spectrum_crystal_limit2(num_k+1,{0.0,0.0});
   std::vector<complex<double>> spectrum_crystal_limit_noave(num_k+1,{0.0,0.0});
+  std::vector<complex<double>> spectrum_crystal_limit_noave_central_cite(num_k+1,{0.0,0.0});
   double kmax = jams::config_required<double>(settings, "kmax");
   Vec3 kvector = jams::config_required<Vec3>(settings, "kvector");
   double rij_min = jams::config_optional(settings, "rij_min", 0.0);
@@ -64,6 +65,12 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   for (auto i = 0; i < globals::num_spins; ++i) {
     nbrs.clear();
     ::lattice->atom_neighbours(i, radius_cutoff_, nbrs);
+
+    rspace_displacement_(i) = lattice->displacement({lattice_dimensions[0]*0.5,lattice_dimensions[1]*0.5,lattice_dimensions[2]*0.5}, lattice->atom_position(i));
+    if( norm(rspace_displacement_(i)) < 0.001023 ){
+        int central_cite_indx = i;
+        cout << "central_site index: i = " << central_site_indx << endl;
+    }
 
     for (const auto& nbr : nbrs) {
       const auto j = nbr.id;
@@ -85,6 +92,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
                   spectrum_crystal_limit2[kk] += tmp2;
                   if(i == central_site){
                       spectrum_crystal_limit_noave[kk] += tmp;
+                  }
+                  else if(i == central_site_indx){
+                      spectrum_crystal_limit_noave_central_cite[kk] += tmp;
                   }
                   counter2++;
               }
@@ -114,7 +124,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       outfile3 << std::setw(20) << spectrum_crystal_limit2[m].real() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit2[m].imag() << "\t";
       outfile3 << std::setw(20) << spectrum_crystal_limit_noave[m].real() << "\t";
-      outfile3 << std::setw(20) << spectrum_crystal_limit_noave[m].imag() << "\n";
+      outfile3 << std::setw(20) << spectrum_crystal_limit_noave[m].imag() << "\t";
+      outfile3 << std::setw(20) << spectrum_crystal_limit_noave_central_cite[m].real() << "\t";
+      outfile3 << std::setw(20) << spectrum_crystal_limit_noave_central_cite[m].imag() << "\n";
   }
   // --- for crystal limit spectrum ---
 
