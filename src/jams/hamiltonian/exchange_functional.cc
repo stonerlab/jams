@@ -83,7 +83,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       counter++;
       // --- for crystal limit spectrum ---
       if(rij < rij_max && rij > rij_min){
-          const auto rij_vec = lattice->displacement(i, j);
+          const auto rij_vec = ::lattice->displacement(i, j);
           for (auto kk = 0; kk < spectrum_crystal_limit.size(); kk++){
               double kr = std::inner_product(k(kk).begin(), k(kk).end(), rij_vec.begin(), 0.0);
               if(kr != 0.0){
