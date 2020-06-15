@@ -54,6 +54,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   cout << "crystal limit: rij_min = " << rij_min << endl;
   cout << "crystal limit: rij_max = " << rij_max << endl;
   cout << "central_site: i = " << central_site << endl;
+  int central_site_indx;
 
   jams::MultiArray<Vec3, 1> k;
   k.resize(num_k+1);
@@ -68,7 +69,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
     rspace_displacement_(i) = lattice->displacement({lattice_dimensions[0]*0.5,lattice_dimensions[1]*0.5,lattice_dimensions[2]*0.5}, lattice->atom_position(i));
     if( norm(rspace_displacement_(i)) < 0.001023 ){
-        int central_cite_indx = i;
+        central_site_indx = i;
         cout << "central_site index: i = " << central_site_indx << endl;
     }
 
