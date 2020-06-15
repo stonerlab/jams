@@ -35,7 +35,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   outfile3 << std::setw(20) << "Re:E(k)-2" << "\t";
   outfile3 << std::setw(20) << "Im:E(k)-2" << "\t";
   outfile3 << std::setw(20) << "Re:E(k)-3" << "\t";
-  outfile3 << std::setw(20) << "Im:E(k)-3" << "\n";
+  outfile3 << std::setw(20) << "Im:E(k)-3" << "\t";
+  outfile3 << std::setw(20) << "Re:E(k)-4" << "\t";
+  outfile3 << std::setw(20) << "Im:E(k)-4" << "\n";
 
   auto counter = 0;
   auto counter2 = 0;
@@ -69,8 +71,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     nbrs.clear();
     ::lattice->atom_neighbours(i, radius_cutoff_, nbrs);
 
-    rspace_displacement_(i) = ::lattice->displacement({0.5,0.5,0.5}, lattice->atom_position(i));
-    if( norm(rspace_displacement_(i)) < 0.001023 ){
+    Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
+    rspace_displacement_(i) = ::lattice->displacement({lattice_dimensions[0]*0.5,lattice_dimensions[1]*0.5,lattice_dimensions[2]*0.5}, lattice->atom_position(i));
+    if( norm(rspace_displacement_(i)) < lattice_dimensions[0]*0.001023 ){
         central_site_indx = i;
         cout << "central_site index: i = " << central_site_indx << endl;
     }
@@ -98,6 +101,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
                   }
                   else if(i == central_site_indx){
                       spectrum_crystal_limit_noave_central_cite[kk] += tmp;
+                      cout << "NOW!" << endl;
                   }
                   counter2++;
               }
