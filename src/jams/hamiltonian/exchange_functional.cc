@@ -59,6 +59,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   int central_site_indx = 0;
   jams::MultiArray<Vec3, 1> rspace_displacement_;
   rspace_displacement_.resize(globals::s.size(0));
+  jams::MultiArray<Vec3, 1> rspace_displacement2_;
+  rspace_displacement2_.resize(globals::s.size(0));
 
   jams::MultiArray<Vec3, 1> k;
   k.resize(num_k+1);
@@ -73,9 +75,11 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
     Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
     rspace_displacement_(i) = ::lattice->displacement({lattice_dimensions[0]*0.5,lattice_dimensions[1]*0.5,lattice_dimensions[2]*0.5}, lattice->atom_position(i));
+    rspace_displacement2_(i) = ::lattice->displacement({0,0,0}, lattice->atom_position(i));
     if( norm(rspace_displacement_(i)) < lattice_dimensions[0]*0.01 ){ //0.002047
         central_site_indx = i;
         cout << "central_site index: i = " << central_site_indx << endl;
+        cout << "central coordinate = ( " << rspace_displacement2_(central_site_indx) << " )" << endl;
     }
 
     for (const auto& nbr : nbrs) {
