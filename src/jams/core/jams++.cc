@@ -36,7 +36,10 @@ using namespace std;
 namespace jams {
 
     void new_global_classes() {
-      config = new libconfig::Config();
+      ::config = new libconfig::Config();
+      ::config->setOptions(
+          libconfig::Config::OptionAutoConvert | libconfig::Config::OptionAllowScientificNotation);
+      ::config->setFloatPrecision(8);
       lattice = new Lattice();
     }
 
@@ -165,7 +168,6 @@ namespace jams {
       simulation.random_state = jams::instance().random_generator_internal_state();
 
       try {
-        ::config->setAutoConvert(true);
         if (::config->exists("sim")) {
           simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
 
