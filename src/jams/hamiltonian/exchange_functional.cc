@@ -75,11 +75,12 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
     Vec3i lattice_dimensions = ::lattice->get_lattice_dimensions();
     rspace_displacement_(i) = ::lattice->displacement({lattice_dimensions[0]*0.5,lattice_dimensions[1]*0.5,lattice_dimensions[2]*0.5}, lattice->atom_position(i));
-    rspace_displacement2_(i) = ::lattice->displacement({0,0,0}, lattice->atom_position(i));
+    rspace_displacement2_(i) = ::lattice->displacement(lattice->atom_position(i),{0,0,0});
     if( norm(rspace_displacement_(i)) < lattice_dimensions[0]*0.02 ){ //0.002047
         central_site_indx = i;
         cout << "central_site index: i = " << central_site_indx << endl;
-        cout << "central coordinate = ( " << rspace_displacement2_(central_site_indx) << " )" << endl;
+        cout << "central coordinate = ( " << rspace_displacement_(central_site_indx) << " )" << endl;
+        cout << "central coordinate 2 = ( " << rspace_displacement2_(central_site_indx) << " )" << endl;
     }
 
     for (const auto& nbr : nbrs) {
