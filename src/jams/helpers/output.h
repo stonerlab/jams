@@ -18,7 +18,7 @@ namespace jams {
 
     namespace fmt {
         inline std::ostream &integer(std::ostream &os) {
-          return os << std::fixed;
+          return os << std::fixed << std::setw(8) << std::right;
         }
 
         inline std::ostream &fixed_integer(std::ostream &os) {
@@ -26,7 +26,7 @@ namespace jams {
         }
 
         inline std::ostream &decimal(std::ostream &os) {
-          return os << std::setprecision(6) << std::setw(12) << std::fixed;
+          return os << std::setprecision(6) << std::setw(10) << std::fixed << std::right;
         }
 
         inline std::ostream &sci(std::ostream &os) {
