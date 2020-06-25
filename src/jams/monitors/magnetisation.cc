@@ -26,7 +26,6 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 {
   using namespace globals;
 
-//  tsv_file.open(simulation_name + "_mag.tsv");
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 
