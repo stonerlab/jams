@@ -67,7 +67,7 @@ namespace jams {
 
     void set_mode() {
       std::string solver_name = config->lookup("solver.module");
-      if (contains(solver_name, "gpu")) {
+      if (contains(lowercase(solver_name), "gpu")) {
         jams::instance().set_mode(Mode::GPU);
         if (!jams::instance().has_gpu_device()) {
           throw std::runtime_error("No CUDA device available");
