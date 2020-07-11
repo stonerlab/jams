@@ -15,9 +15,6 @@ namespace jams {
         std::string name;
         bool verbose = jams::defaults::sim_verbose_output;
 
-        std::string config_file_name;
-        std::string config_patch_string;
-
         std::string   random_state;
         unsigned long random_seed;
     };

@@ -36,33 +36,59 @@ using namespace std;
 namespace jams {
 
     void new_global_classes() {
-      ::config = new libconfig::Config();
-      ::config->setOptions(
-          libconfig::Config::OptionAutoConvert | libconfig::Config::OptionAllowScientificNotation);
-      ::config->setFloatPrecision(8);
       lattice = new Lattice();
     }
 
     void delete_global_classes() {
       delete solver;
       delete lattice;
-      delete config;
     }
 
-    void parse_config(jams::Simulation &sim) {
-      try {
-        config->readFile(sim.config_file_name.c_str());
-      }
-      catch (const libconfig::FileIOException &fioex) {
-        jams_die("I/O error while reading '%s'", sim.config_file_name.c_str());
-      }
-      catch (const libconfig::ParseException &pex) {
-        jams_die("Error parsing %s:%i: %s", pex.getFile(),
-                 pex.getLine(), pex.getError());
+    // Reads a vector of strings in order, combining to produce a config.
+    //
+    // If the string is an existent file name it is loaded as a config,
+    // otherwise it is directly interpreted as a config string.
+    void parse_config_strings(const vector<string>& config_strings, unique_ptr<libconfig::Config>& combined_config) {
+      if (!combined_config) {
+        combined_config.reset(new libconfig::Config);
       }
 
-      find_and_replace(sim.config_patch_string, "'", "");
-      patch_config(sim.config_patch_string);
+      for (const auto &s : config_strings) {
+        libconfig::Config patch;
+        if (jams::system::file_exists(s)) {
+          try {
+            patch.readFile(s.c_str());
+          }
+          catch (libconfig::FileIOException &fex) {
+            throw std::runtime_error("IO error opening config file: " + s);
+          }
+          catch (const libconfig::ParseException &pex) {
+            throw std::runtime_error("Error parsing config file: "
+                                     + string(pex.getFile()) + ":"
+                                     + to_string(pex.getLine()) + ":"
+                                     + string(pex.getError()));
+          }
+        } else {
+          try {
+            patch.readString(s.c_str());
+          }
+          catch (const libconfig::ParseException &pex) {
+            stringstream ss;
+            ss << "File not found or error parsing config string:\n";
+            ss << "  '" << s << "'\n";
+            ss << "line " << to_string(pex.getLine()) << ": " << string(pex.getError());
+
+            throw std::runtime_error(ss.str());
+          }
+        }
+
+        overwrite_config_settings(combined_config->getRoot(), patch.getRoot());
+      }
+    }
+
+    void write_config(const std::string& filename, const unique_ptr<libconfig::Config> &cfg) {
+      cfg->setFloatPrecision(jams::defaults::config_float_precision);
+      cfg->writeFile(filename.c_str());
     }
 
     void set_mode() {
@@ -128,46 +154,72 @@ namespace jams {
       return ss.str();
     }
 
+    unique_ptr<libconfig::Config> initialize_config(
+        const vector<string>& config_strings,
+        const int config_options = jams::defaults::config_options) {
+      using namespace libconfig;
+      unique_ptr<Config> cfg(new Config);
+      cfg->setOptions(config_options);
+      jams::parse_config_strings(config_strings, cfg);
+      return cfg;
+
+    }
+
     void initialize_simulation(const jams::ProgramArgs &program_args) {
-
-      cout << jams::section("build info") << std::endl;
-      cout << jams::build_info();
-      cout << jams::section("run info") << std::endl;
-      cout << jams::run_info();
-
-      if (!program_args.output_path.empty()) {
-        jams::instance().set_output_dir(program_args.output_path);
-      }
-
-      jams::Simulation simulation;
-
-      simulation.config_file_name = program_args.config_file_path;
-      simulation.config_patch_string = program_args.config_file_patch;
-      simulation.name = trim(file_basename_no_extension(simulation.config_file_name));
-
-      if (!program_args.simulation_name.empty()) {
-        simulation.name = trim(program_args.simulation_name);
-      }
-
-      simulation_name = simulation.name;
-      cout << "config  " << simulation.config_file_name << "\n";
-
-      jams::new_global_classes();
-
-      jams::parse_config(simulation);
-
-      jams::set_mode();
-
-      if (jams::instance().mode() == Mode::GPU) {
-        cout << "mode    GPU \n";
-      } else {
-        cout << "mode    CPU \n";
-      }
-
-
-      simulation.random_state = jams::instance().random_generator_internal_state();
-
       try {
+        cout << jams::section("build info") << std::endl;
+        cout << jams::build_info();
+        cout << jams::section("run info") << std::endl;
+        cout << jams::run_info();
+
+        if (!program_args.output_path.empty()) {
+          jams::instance().set_output_dir(program_args.output_path);
+        }
+
+        jams::Simulation simulation;
+
+        // specify a default name in case no other is found
+        simulation.name = "jams";
+        if (!program_args.simulation_name.empty()) {
+          // name specified with command line flag
+          simulation.name = trim(program_args.simulation_name);
+        } else {
+          // name after the first config file if one exists
+          for (const auto& s : program_args.config_strings) {
+            if (jams::system::file_exists(s)) {
+              simulation.name = trim(file_basename_no_extension(s));
+              break;
+            }
+          }
+        }
+        ::simulation_name = simulation.name;
+
+        cout << "config files " << "\n";
+        for (const auto& s : program_args.config_strings) {
+          if (jams::system::file_exists(s)) {
+            cout << "  " << s << "\n";
+          }
+        }
+
+        ::config = initialize_config(program_args.config_strings);
+
+        std::string filename = jams::output::full_path_filename("combined.cfg");
+        write_config(filename, ::config);
+
+        jams::new_global_classes();
+
+        jams::set_mode();
+
+        if (jams::instance().mode() == Mode::GPU) {
+          cout << "mode    GPU \n";
+        } else {
+          cout << "mode    CPU \n";
+        }
+
+
+        simulation.random_state = jams::instance().random_generator_internal_state();
+
+
         if (::config->exists("sim")) {
           simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
 
@@ -340,7 +392,7 @@ namespace jams {
                  pex.getLine(), pex.getError());
       }
 
-      config_patch(::config->getRoot(), cfg_patch.getRoot());
+      overwrite_config_settings(::config->getRoot(), cfg_patch.getRoot());
 
       bool do_write_patched_config = true;
 

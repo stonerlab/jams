@@ -34,17 +34,12 @@ namespace jams {
 
       ProgramArgs program_args;
       for (auto n = 1; n < argc; ++n) {
-        std::string arg(argv[n]);
-        trim(arg);
+        std::string arg = trim(argv[n]);
 
         if (arg_is_flag(arg)) {
           process_flag(arg, program_args);
         } else {
-          if (program_args.config_file_path.empty()) {
-            program_args.config_file_path = arg;
-          } else {
-            program_args.config_file_patch += arg;
-          }
+          program_args.config_strings.push_back(arg);
         }
       }
 
