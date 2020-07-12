@@ -378,39 +378,4 @@ namespace jams {
       }
     }
 
-    void patch_config(const std::string &patch_string) {
-      libconfig::Config cfg_patch;
-
-      if (patch_string.empty()) return;
-
-      try {
-        cfg_patch.readFile(patch_string.c_str());
-        cout << "patching form file \"" << patch_string << "\"\n";
-      }
-      catch (libconfig::FileIOException &fex) {
-        cfg_patch.readString(patch_string);
-        cout << "patching from string \"" << patch_string << "\"\n";
-      }
-      catch (const libconfig::ParseException &pex) {
-        jams_die("Error parsing %s:%i: %s", pex.getFile(),
-                 pex.getLine(), pex.getError());
-      }
-
-      overwrite_config_settings(::config->getRoot(), cfg_patch.getRoot());
-
-      bool do_write_patched_config = true;
-
-      config->lookupValue("sim.write_patched_config", do_write_patched_config);
-
-      if (do_write_patched_config) {
-        std::string patched_config_filename = jams::output::full_path_filename("patched.cfg");
-
-#if (((LIBCONFIG_VER_MAJOR == 1) && (LIBCONFIG_VER_MINOR >= 6)) \
- || (LIBCONFIG_VER_MAJOR > 1))
-        ::config->setFloatPrecision(8);
-#endif
-
-        ::config->writeFile(patched_config_filename.c_str());
-      }
-    }
 }
