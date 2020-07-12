@@ -12,7 +12,6 @@
 
 namespace jams {
     struct Simulation {
-        std::string name;
         bool verbose = jams::defaults::sim_verbose_output;
 
         std::string   random_state;

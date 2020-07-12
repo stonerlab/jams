@@ -175,6 +175,24 @@ namespace jams {
       write_config(filename, ::config);
     }
 
+    string choose_simulation_name(const jams::ProgramArgs &program_args) {
+      string name = "jams";
+      // specify a default name in case no other is found
+      if (!program_args.simulation_name.empty()) {
+        // name specified with command line flag
+        name = trim(program_args.simulation_name);
+      } else {
+        // name after the first config file if one exists
+        for (const auto& s : program_args.config_strings) {
+          if (jams::system::file_exists(s)) {
+            name = trim(file_basename_no_extension(s));
+            break;
+          }
+        }
+      }
+      return name;
+    }
+
     void initialize_simulation(const jams::ProgramArgs &program_args) {
       try {
         cout << jams::section("build info") << std::endl;
@@ -188,21 +206,7 @@ namespace jams {
 
         jams::Simulation simulation;
 
-        // specify a default name in case no other is found
-        simulation.name = "jams";
-        if (!program_args.simulation_name.empty()) {
-          // name specified with command line flag
-          simulation.name = trim(program_args.simulation_name);
-        } else {
-          // name after the first config file if one exists
-          for (const auto& s : program_args.config_strings) {
-            if (jams::system::file_exists(s)) {
-              simulation.name = trim(file_basename_no_extension(s));
-              break;
-            }
-          }
-        }
-        ::simulation_name = simulation.name;
+        ::simulation_name = choose_simulation_name(program_args);
 
         initialize_config(program_args.config_strings);
 
