@@ -154,15 +154,25 @@ namespace jams {
       return ss.str();
     }
 
-    unique_ptr<libconfig::Config> initialize_config(
+    void initialize_config(
         const vector<string>& config_strings,
         const int config_options = jams::defaults::config_options) {
       using namespace libconfig;
-      unique_ptr<Config> cfg(new Config);
-      cfg->setOptions(config_options);
-      jams::parse_config_strings(config_strings, cfg);
-      return cfg;
 
+      ::config.reset(new Config);
+      ::config->setOptions(config_options);
+
+      cout << "config files " << "\n";
+      for (const auto& s : config_strings) {
+        if (jams::system::file_exists(s)) {
+          cout << "  " << s << "\n";
+        }
+      }
+
+      jams::parse_config_strings(config_strings, ::config);
+
+      std::string filename = jams::output::full_path_filename("combined.cfg");
+      write_config(filename, ::config);
     }
 
     void initialize_simulation(const jams::ProgramArgs &program_args) {
@@ -194,17 +204,7 @@ namespace jams {
         }
         ::simulation_name = simulation.name;
 
-        cout << "config files " << "\n";
-        for (const auto& s : program_args.config_strings) {
-          if (jams::system::file_exists(s)) {
-            cout << "  " << s << "\n";
-          }
-        }
-
-        ::config = initialize_config(program_args.config_strings);
-
-        std::string filename = jams::output::full_path_filename("combined.cfg");
-        write_config(filename, ::config);
+        initialize_config(program_args.config_strings);
 
         jams::new_global_classes();
 
