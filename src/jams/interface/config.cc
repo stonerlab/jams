@@ -65,6 +65,15 @@ Setting& config_patch_add_or_merge_aggregate(Setting &orig, const Setting &patch
   }
 
   if (orig.isList() || orig.isArray()) {
+    // the origin's length is shorter then we need to make them the same
+    // so we can access all of the indicies. We have to be a little
+    // careful to get the types correct for each element because lists
+    // contain elements of different types.
+    if (orig.getLength() < patch.getParent().getLength()) {
+      for (auto i = orig.getLength(); i < patch.getParent().getLength(); ++i) {
+        orig.add(patch.getParent()[i].getType());
+      }
+    }
     return orig[patch.getIndex()];
   }
 
@@ -135,7 +144,7 @@ void config_patch_element(Setting& orig, const Setting& patch) {
   throw std::runtime_error("unknown setting type");
 }
 
-void config_patch(Setting& orig, const Setting& patch) {
+void overwrite_config_settings(Setting& orig, const Setting& patch) {
   if(!orig.isGroup() && !orig.isList()) {
     return;
   }

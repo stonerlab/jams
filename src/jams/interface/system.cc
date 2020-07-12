@@ -16,6 +16,11 @@
 
 using namespace std;
 
+bool jams::system::file_exists(const std::string &path) {
+  struct stat buffer;
+  return (stat (path.c_str(), &buffer) == 0);
+}
+
 void jams::system::make_directory(const string &path, mode_t mode) {
   // https://stackoverflow.com/questions/675039/how-can-i-create-directory-tree-in-c-linux
   typedef struct stat Stat;

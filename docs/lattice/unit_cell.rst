@@ -1,3 +1,4 @@
+.. _unitcell:
 Unit cell
 =========
 

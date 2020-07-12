@@ -10,6 +10,8 @@
 
 namespace jams {
     namespace system {
+        // returns true if file exists at path
+        bool file_exists(const std::string &path);
         void make_directory(const std::string &path, mode_t mode);
         void make_path(const std::string &path, mode_t mode = defaults::make_path_mode);
 

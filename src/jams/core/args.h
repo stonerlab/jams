@@ -6,15 +6,17 @@
 #define JAMS_ARGS_H
 
 #include <string>
+#include <vector>
 
 namespace jams {
 
     struct ProgramArgs {
         bool        setup_only        = false;
-        std::string config_file_path  = "";
-        std::string config_file_patch = "";
         std::string output_path = "";
         std::string simulation_name = "";
+
+        // a vector of filenames or patch strings to assemble to config
+        std::vector<std::string> config_strings;
     };
 
     ProgramArgs parse_args(int argc, char **argv);

@@ -6,11 +6,19 @@
 #define JAMS_DEFAULTS_H
 
 #include "jams/core/types.h"
+#include "jams/interface/config.h"
 #include <sys/stat.h>
 
 namespace jams {
     namespace defaults {
-        constexpr bool   sim_verbose_output = false;
+        constexpr bool sim_verbose_output = false;
+
+        constexpr int config_options =
+            libconfig::Config::OptionAutoConvert
+            | libconfig::Config::OptionAllowScientificNotation
+            | libconfig::Config::OptionSemicolonSeparators;
+
+        constexpr int    config_float_precision = 8;
 
         constexpr auto   physics_module = "empty";
 
