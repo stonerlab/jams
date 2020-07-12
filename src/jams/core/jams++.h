@@ -5,7 +5,6 @@
 
 #include <string>
 #include <libconfig.h++>
-#include <random>
 
 #include "jams/core/args.h"
 #include "jams/helpers/defaults.h"

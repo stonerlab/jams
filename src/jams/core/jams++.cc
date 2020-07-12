@@ -3,7 +3,6 @@
 #define GLOBALORIGIN
 #include "version.h"
 
-#include <cstdarg>
 #include <fstream>
 #include <jams/common.h>
 
@@ -18,7 +17,6 @@
 #include "jams/core/lattice.h"
 #include "jams/core/monitor.h"
 #include "jams/core/physics.h"
-#include "jams/helpers/random.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/duration.h"
 #include "jams/helpers/error.h"
@@ -29,7 +27,6 @@
 #include "jams/helpers/utils.h"
 #include "jams/helpers/timer.h"
 #include "jams/helpers/progress_bar.h"
-#include "jams/containers/multiarray.h"
 
 using namespace std;
 
