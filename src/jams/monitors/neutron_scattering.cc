@@ -24,7 +24,12 @@ using Complex = std::complex<double>;
 
 NeutronScatteringMonitor::NeutronScatteringMonitor(const Setting &settings)
 : SpectrumBaseMonitor(settings) {
-  configure_form_factors(settings["form_factor"]);
+
+  // default to 1.0 in case no form factor is given in the settings
+  fill(neutron_form_factors_.resize(lattice->num_motif_atoms(), num_kpoints()), 1.0);
+  if (settings.exists("form_factor")) {
+    configure_form_factors(settings["form_factor"]);
+  }
 
   if (settings.exists("polarizations")) {
     configure_polarizations(settings["polarizations"]);
