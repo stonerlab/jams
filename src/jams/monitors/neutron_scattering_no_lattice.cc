@@ -24,6 +24,8 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 
   config_optional(settings, "rspace_windowing", do_rspace_windowing_);
 
+  // default to 1.0 in case no form factor is given in the settings
+  fill(neutron_form_factors_.resize(lattice->num_materials(), num_k_), 1.0);
   if (settings.exists("form_factor")) {
     configure_form_factors(settings["form_factor"]);
   }
