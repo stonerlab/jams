@@ -126,9 +126,19 @@ MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(MultiArray
 
     assert(fft_plan);
 
+    MultiArray<Vec3cx, 1> static_spectrum(num_space_samples);
+    zero(static_spectrum);
     for (auto i = 0; i < num_time_samples; ++i) {
       for (auto j = 0; j < num_space_samples; ++j) {
-        spectrum(a, i, j) *= fft_window_default(i, num_time_samples);
+        static_spectrum(j) += spectrum(a, i, j);
+      }
+    }
+    element_scale(static_spectrum, 1.0/double(num_time_samples));
+
+
+    for (auto i = 0; i < num_time_samples; ++i) {
+      for (auto j = 0; j < num_space_samples; ++j) {
+        spectrum(a, i, j) = fft_window_default(i, num_time_samples)*(spectrum(a, i, j) - static_spectrum(j));
       }
     }
 
