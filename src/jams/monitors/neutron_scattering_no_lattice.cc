@@ -229,7 +229,7 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
 }
 
 void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
-    ofstream ofs(jams::output::full_path_filename(simulation_name + "neutron_scattering.tsv"));
+    ofstream ofs(jams::output::full_path_filename("neutron_scattering.tsv"));
 
     ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
     ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
