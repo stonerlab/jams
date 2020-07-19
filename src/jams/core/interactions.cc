@@ -174,11 +174,11 @@ discover_interaction_setting_format(Setting& setting) {
 
   }
 
-  if (!setting[0][2].isArray()) {
+  if (!(setting[0][2].isArray() || setting[0][2].isList())) {
     throw runtime_error("interaction vector format is incorrect");
   }
 
-  if (!((setting[0][3].isArray() && setting[0][3].getLength() == 9) || setting[0][3].isNumber())) {
+  if (!(((setting[0][3].isArray() || setting[0][3].isList()) && setting[0][3].getLength() == 9) || setting[0][3].isNumber())) {
     throw runtime_error("interaction energy format is incorrect");
   }
 
