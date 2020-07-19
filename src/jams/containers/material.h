@@ -28,7 +28,7 @@ public:
 
     inline explicit Material(const libconfig::Setting& cfg) :
             id       (0),
-            name     (jams::config_required<std::string>(cfg, "name")),
+            name     (cfg.getName()),
             moment   (jams::config_required<double>(cfg, "moment")),
             gyro     (jams::config_optional<double>(cfg, "gyro", jams::defaults::material_gyro)),
             alpha    (jams::config_optional<double>(cfg, "alpha", jams::defaults::material_alpha)),

@@ -37,7 +37,7 @@
 
 #define DEFINED_HAMILTONIAN(name, type, settings, size) \
   { \
-    if (lowercase(settings["module"]) == name) { \
+    if (lowercase(settings.getName()) == name) { \
       return new type(settings, size); \
     } \
   }
@@ -83,7 +83,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_HAMILTONIAN_CUDA_VARIANT("dipole-bruteforce", DipoleBruteforceHamiltonian, is_cuda_solver, settings, size);
 
 
-  throw std::runtime_error("unknown hamiltonian " + std::string(settings["module"].c_str()));
+  throw std::runtime_error("unknown hamiltonian " + std::string(settings.getName()));
 }
 
 Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int size)
@@ -92,7 +92,7 @@ Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int 
           field_(size, 3),
           input_unit_name_(jams::config_optional<string>(settings, "unit_name", jams::defaults::energy_unit_name))
 {
-  set_name(settings["module"].c_str());
+  set_name(settings.getName());
   cout << "  " << name() << " hamiltonian\n";
 
   if (!jams::internal_energy_unit_conversion.count(input_unit_name_)) {

@@ -36,13 +36,16 @@ using jams::config_optional;
 
 #define DEFINED_MONITOR(name, type, settings) \
 { \
-  if (lowercase(settings["module"]) == name) { \
+  if (lowercase(settings.getName()) == name) { \
     return new type(settings); \
   } \
 }
 
 Monitor::Monitor(const Setting &settings)
-: Base(settings),
+: Base(
+    settings.getName(),
+    jams::config_optional<bool>(settings, "verbose", false),
+    jams::config_optional<bool>(settings, "debug", false)),
   output_step_freq_(
           config_optional<int>(settings, "output_steps", jams::defaults::monitor_output_steps)),
   convergence_is_on_(
@@ -97,5 +100,5 @@ Monitor* Monitor::create(const Setting &settings) {
   DEFINED_MONITOR("thermal-current", CudaThermalCurrentMonitor, settings);
 #endif
 
-  throw std::runtime_error("unknown monitor " + std::string(settings["module"].c_str()));
+  throw std::runtime_error("unknown monitor " + std::string(settings.getName()));
 }
