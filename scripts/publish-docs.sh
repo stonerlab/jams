@@ -76,7 +76,7 @@ build_sphinx_docs() {
   message "\e[1m==> Running CMake...\e[0m"
   cmake -DJAMS_BUILD_DOCS=ON -DJAMS_BUILD_OMP=OFF -DJAMS_BUILD_CUDA=OFF -DJAMS_BUILD_TESTS=OFF -B"$JAMS_BUILD_DIR" -H"$JAMS_SRC_DIR" >> "${LOG}" 2>&1
   message "\e[1m==> Running make...\e[0m"
-  make --directory="$JAMS_BUILD_DIR" jams-docs >> "${LOG}" 2>&1
+  make --directory="$JAMS_BUILD_DIR" jams_docs >> "${LOG}" 2>&1
 }
 
 publish_github_pages() {
@@ -92,7 +92,7 @@ main() {
 
   cd "$TMP_DIR"
 
-  message "\e[1m==> Building \e[34mjams-docs\e[39m from \e[32m${JAMS_SRC_DIR}\e[39m...\e[0m"
+  message "\e[1m==> Building \e[34mjams_docs\e[39m from \e[32m${JAMS_SRC_DIR}\e[39m...\e[0m"
   build_sphinx_docs
 
   message "\e[1m==> Publishing github pages to \e[34m${GH_PAGES_REPO}\e[39m...\e[0m"
