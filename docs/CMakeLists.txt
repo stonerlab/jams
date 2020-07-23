@@ -22,7 +22,7 @@ configure_file(
         "${BINARY_BUILD_DIR}/conf.py"
         @ONLY)
 
-add_custom_target(jams-docs ALL
+add_custom_target(jams_docs ALL
         ${SPHINX_EXECUTABLE}
         -q -b html
         -c "${BINARY_BUILD_DIR}"

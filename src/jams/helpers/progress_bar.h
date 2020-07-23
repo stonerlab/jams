@@ -7,6 +7,8 @@
 
 #include <iomanip>
 
+#include "jams/interface/system.h"
+
 class ProgressBar {
 public:
     ProgressBar() = default;
@@ -28,6 +30,10 @@ public:
       return progress_;
     }
 
+    inline float percent() const {
+      return progress_ * 100.0f;
+    }
+
     inline void width(const unsigned w) {
       width_ = w;
     }
@@ -36,23 +42,35 @@ public:
       return width_;
     }
 
+    inline bool do_next_static_output() {
+      if (static_cast<unsigned>(percent()) == static_next_) {
+        static_next_ += static_resolution_;
+        return true;
+      }
+      return false;
+    };
+
 private:
     unsigned width_    = 72;
     float    progress_ = 0.0;
+    unsigned static_resolution_ = 10; // percent
+    unsigned static_next_ = 10; // percent
 };
 
-inline std::ostream& operator<<(std::ostream& os, const ProgressBar &p) {
-  auto pos = static_cast<unsigned>(p.width() * p.progress());
-  os << "\r[";
-  for (auto i = 0; i < p.width(); ++i) {
-    if (i <= pos) {
-      os << "=";
-    } else {
-      os << " ";
+inline std::ostream& operator<<(std::ostream& os, ProgressBar &p) {
+  if (jams::system::stdout_is_tty()) {
+    auto pos = static_cast<unsigned>(p.width() * p.progress());
+    os << "\r[";
+    for (auto i = 0; i < p.width(); ++i) {
+      os << ((i <= pos) ? "=" : " ");
+    }
+    os << "] ";
+    os << std::setw(3) << static_cast<unsigned>(p.percent()) << " %" << std::flush;
+  } else {
+    if (p.do_next_static_output()) {
+      os << "..." << static_cast<unsigned>(p.percent()) << "%" << std::flush;
     }
   }
-  os << "] ";
-  os << std::setw(3) << static_cast<unsigned>(p.progress() * 100.0) << " %" << std::flush;
   return os;
 }
 

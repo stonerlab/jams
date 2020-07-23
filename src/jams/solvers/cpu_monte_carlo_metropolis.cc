@@ -11,6 +11,7 @@
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 #include "jams/helpers/permutations.h"
+#include "jams/helpers/output.h"
 
 #include <iomanip>
 
@@ -289,8 +290,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
     cout << "    permutations " << count << "\n";
 
-    std::ofstream preconditioner_file;
-    preconditioner_file.open(std::string(::seedname+"_mc_pre.tsv").c_str());
+    std::ofstream preconditioner_file(jams::output::full_path_filename("mc_pre.tsv"));
     preconditioner_file << "# theta (deg) | phi (deg) | energy (J) \n";
 
     preconditioner_file.close();
@@ -321,7 +321,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
       auto deltaE = 0.0;
       for (const auto& ham : hamiltonians_) {
-        deltaE += ham->calculate_one_spin_energy_difference(spin_index, s_initial, s_final);
+        deltaE += ham->calculate_energy_difference(spin_index, s_initial, s_final);
       }
 
       if (uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta))) {

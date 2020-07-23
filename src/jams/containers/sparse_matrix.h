@@ -111,6 +111,7 @@ namespace jams {
         case SparseMatrixFormat::COO:
           jams::Xcoomv_general(1.0, 0.0, num_rows_, num_non_zero_, val_.data(), col_.data(), row_.data(),
               vector.data(), result.data());
+          return;
         case SparseMatrixFormat::CSR:
           #if HAS_MKL
           double one = 1.0, zero = 0.0;
@@ -121,7 +122,9 @@ namespace jams {
           jams::Xcsrmv_general(
               1.0, 0.0, num_rows_, val_.data(), col_.data(), row_.data(), vector.data(), result.data());
           #endif
+          return;
       }
+      throw std::runtime_error("Unknown sparse matrix format for SparseMatrix<T>::multiply");
     }
 
     template<typename T>
@@ -135,6 +138,7 @@ namespace jams {
           return jams::Xcsrmv_general_row(
               val_.data(), col_.data(), row_.data(), vector.data(), i);
       }
+      throw std::runtime_error("Unknown sparse matrix format for SparseMatrix<T>::multiply_row");
     }
 
     #ifdef HAS_CUDA

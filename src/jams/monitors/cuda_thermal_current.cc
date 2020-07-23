@@ -10,6 +10,7 @@
 #include <jams/helpers/maths.h>
 #include <jams/cuda/cuda_array_kernels.h>
 
+#include "jams/helpers/output.h"
 #include "jams/core/globals.h"
 #include "jams/interface/config.h"
 #include "jams/core/solver.h"
@@ -43,7 +44,7 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   zero(thermal_current_ry_.resize(globals::num_spins));
   zero(thermal_current_rz_.resize(globals::num_spins));
 
-  outfile.open(seedname + "_jq.tsv");
+  outfile.open(jams::output::full_path_filename("jq.tsv"));
   outfile.setf(std::ios::right);
   outfile << std::setw(12) << "time" << "\t";
   outfile << std::setw(12) << "jq_rx" << "\t";

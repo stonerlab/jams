@@ -59,7 +59,7 @@ public:
     Vec3 displacement(const unsigned& i, const unsigned&j) const;
 
     bool is_periodic(int i) const;
-    Vec3b periodic_boundaries() const;
+    const Vec3b & periodic_boundaries() const;
 
     const Atom& motif_atom(const int &i) const;
     int num_motif_atoms() const;
@@ -71,9 +71,11 @@ public:
     bool material_exists(const std::string &name);
 
     int atom_material_id(const int &i) const;           // integer index of the material
-    Vec3 atom_position(const int &i) const;             // cartesian position in the supercell
+    const Vec3 & atom_position(const int &i) const;             // cartesian position in the supercell
     unsigned atom_motif_position(const int &i) const;   // integer index within the motif
-    void atom_neighbours(const int &i, const double &r_cutoff, std::vector<Atom> &neighbours) const;
+    std::vector<std::pair<Vec3, int>> atom_neighbours(const int &i, const double &r_cutoff) const;
+    int num_neighbours(const int &i, const double &r_cutoff) const;
+
     int atom_unitcell(const int &i) const;
 
 
@@ -101,7 +103,7 @@ public:
     bool has_impurities() const;
 
     // TODO: remove rmax
-    Vec3 rmax() const;
+    const Vec3 & rmax() const;
 
     Vec3 generate_cartesian_lattice_position_from_fractional(const Vec3 &unit_cell_frac_pos,
                                                              const Vec3i &translation_vector) const;
@@ -128,6 +130,10 @@ public:
 
     const Vec3i &kspace_size() const;
 
+    // regenerates the the near tree to include only 'reachable' image spins
+    // but it is more time consuming to construct than generate_near_tree()
+    void generate_optimised_near_tree();
+
 private:
     void read_materials_from_config(const libconfig::Setting &settings);
     ImpurityMap read_impurities_from_config(const libconfig::Setting &settings);
@@ -142,6 +148,8 @@ private:
 
     void init_unit_cell(const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings);
 
+    void generate_near_tree();
+
     void generate_supercell(const libconfig::Setting &lattice_settings);
 
     void global_rotation(const Mat3 &rotation_matrix);
@@ -150,8 +158,9 @@ private:
 
     void calc_symmetry_operations();
 
-    using NeartreeFunctorType = std::function<double(const Atom &, const Atom &)>;
-    NearTree<Atom, NeartreeFunctorType> *neartree_ = nullptr;
+    using NearTreeFunctorType = std::function<double(const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)>;
+    using NearTreeType = jams::NearTree<std::pair<Vec3, int>, NearTreeFunctorType>;
+    std::unique_ptr<NearTreeType> neartree_;
 
 
     bool symops_enabled_;
@@ -167,6 +176,10 @@ private:
 
     std::vector<Atom> motif_;
     std::vector<Atom> atoms_;
+
+    // store both cartesian and fractional to avoid matrix multiplication when we want fractional
+    std::vector<Vec3> cartesian_positions_;
+    std::vector<Vec3> fractional_positions_;
 
     std::vector<int>   atom_to_cell_lookup_;     // index is a spin and the data is the unit cell that spin belongs to
     std::vector<Vec3>  cell_centers_;

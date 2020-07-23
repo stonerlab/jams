@@ -12,6 +12,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <map>
 #include <vector>
 
 #include "jams/containers/vec3.h"
@@ -83,16 +84,23 @@ inline std::string lowercase(std::string s) {
   return s;
 }
 
-inline std::string file_basename(std::string filepath) {
+inline std::string file_basename_no_extension(std::string filepath) {
   auto dot = filepath.find_last_of('.');
   auto slash = filepath.find_last_of("/\\");
   return filepath.substr(slash+1, dot-slash-1);
+}
+
+inline std::string file_basename(std::string filepath) {
+  auto slash = filepath.find_last_of("/\\");
+  return filepath.substr(slash+1);
 }
 
 inline std::string file_extension(std::string filepath) {
   auto dot = filepath.find_last_of('.');
   return filepath.substr(dot+1);
 }
+
+
 
 inline bool contains(const std::string& s1, const std::string& s2) {
   return s1.find(s2) != std::string::npos;
@@ -206,6 +214,33 @@ inline std::string find_and_replace(std::string data, std::string find, std::str
     pos = data.find(find, pos + replace.size());
   }
   return data;
+}
+
+inline std::vector<std::string> split(const std::string& s, const std::string& delimiter) {
+  std::vector<std::string> result;
+  size_t last = 0;
+  size_t next = 0;
+  while ((next = s.find(delimiter, last)) != std::string::npos) {
+    result.push_back(s.substr(last, next-last));
+    last = next + 1;
+  }
+  result.push_back(s.substr(last));
+  return result;
+}
+
+inline std::string memory_in_natural_units(std::size_t size) {
+  std::map<int, std::string> byte_sizes;
+  byte_sizes[0] = "B";
+  byte_sizes[1] = "kB";
+  byte_sizes[2] = "MB";
+  byte_sizes[3] = "GB";
+  byte_sizes[4] = "TB";
+  byte_sizes[5] = "ZB";
+
+  int factor = int(log2(size)/log2(1024));
+  std::stringstream ss;
+  ss << std::setprecision(3) <<  size / pow(1024,factor) << " " << byte_sizes[factor];
+  return ss.str();
 }
 
 #endif  // JAMS_CORE_UTILS_H

@@ -1,5 +1,7 @@
+.. _solvers:
 Solvers
 =======
+
 
 .. toctree::
    :glob:

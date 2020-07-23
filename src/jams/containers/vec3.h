@@ -250,9 +250,9 @@ inline constexpr Vec<T,3> trunc(const Vec<T,3>& a) {
 template <typename T>
 inline constexpr Vec<double,3> to_double(const Vec<T,3>& a) {
   return {
-    static_cast<double>(std::trunc(a[0])),
-    static_cast<double>(std::trunc(a[1])),
-    static_cast<double>(std::trunc(a[2]))
+    static_cast<double>(a[0]),
+    static_cast<double>(a[1]),
+    static_cast<double>(a[2])
   };
 }
 
@@ -286,8 +286,8 @@ template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const Vec<T,3> &a) {
   auto w = os.width();
   auto p = os.precision();
-  os << std::right << std::setprecision(p) << std::setw(w) << a[0] << " ";
-  os << std::right << std::setprecision(p) << std::setw(w) << a[1] << " ";
+  os << std::right << std::setprecision(p) << std::setw(w) << a[0];
+  os << std::right << std::setprecision(p) << std::setw(w) << a[1];
   os << std::right << std::setprecision(p) << std::setw(w) << a[2];
   return os;
 }

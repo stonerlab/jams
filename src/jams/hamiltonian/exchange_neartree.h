@@ -18,15 +18,15 @@ struct InteractionNT {
 };
 
 class ExchangeNeartreeHamiltonian : public SparseInteractionHamiltonian {
-    public:
-        ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
+public:
+    ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-        typedef std::vector<std::vector<InteractionNT>> InteractionList;
+    typedef std::vector<std::vector<InteractionNT>> InteractionList;
 
-    private:
-        InteractionList interaction_list_;
-        double energy_cutoff_;
-        double distance_tolerance_;
+private:
+    InteractionList interaction_list_;
+    double energy_cutoff_;
+    double distance_tolerance_;
 };
 
 #endif  // JAMS_HAMILTONIAN_EXCHANGE_DISTANCE_H

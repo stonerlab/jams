@@ -8,16 +8,13 @@
 
 #include "jams/core/globals.h"
 #include "jams/core/types.h"
+#include "jams/helpers/output.h"
 
 MFPTPhysics::MFPTPhysics(const libconfig::Setting &settings)
   : Physics(settings),
   maskArray(),
-  MFPTFile() {
+  MFPTFile(jams::output::full_path_filename("mfpt.tsv")) {
   using namespace globals;
-
-  std::string fileName = "_mfpt.dat";
-  fileName = seedname+fileName;
-  MFPTFile.open(fileName.c_str());
 
   maskArray.resize(num_spins);
 

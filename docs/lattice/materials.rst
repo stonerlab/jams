@@ -1,4 +1,3 @@
 .. _materials:
-
 Materials
 =========

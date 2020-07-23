@@ -101,15 +101,31 @@ namespace jams {
       if (is_sorted_) {
         return;
       }
-      auto p = stable_sort_permutation(col_);
-      apply_permutation_in_place(row_, p);
-      apply_permutation_in_place(col_, p);
-      apply_permutation_in_place(val_, p);
 
-      p = stable_sort_permutation(row_);
-      apply_permutation_in_place(row_, p);
-      apply_permutation_in_place(col_, p);
-      apply_permutation_in_place(val_, p);
+      assert(row_.size() == col_.size());
+      assert(row_.size() == val_.size());
+
+      // We sort by row and column by finding the permutation and then applying
+      // By doing both row and column in a single lambda we avoid doing two
+      // separate stable_sort and apply_permutation giving a factor 2x speedup.
+      std::vector<std::size_t> permutation(col_.size());
+      std::iota(permutation.begin(), permutation.end(), 0);
+      std::sort(permutation.begin(), permutation.end(),
+                [&](std::size_t i, std::size_t j) {
+                    if (row_[i] < row_[j]) {
+                      return true;
+                    } else if (row_[i] == row_[j]) {
+                      return col_[i] < col_[j];
+                    }
+                    return false;
+                });
+
+      row_ = apply_permutation(row_, permutation);
+      col_ = apply_permutation(col_, permutation);
+      val_ = apply_permutation(val_, permutation);
+
+      assert(row_.size() == col_.size());
+      assert(row_.size() == val_.size());
     }
 
     template<typename T>
@@ -117,13 +133,18 @@ namespace jams {
       if (is_merged_) {
         return;
       }
+      assert(row_.size() == col_.size());
+      assert(row_.size() == val_.size());
       for (auto m = 1; m < row_.size(); ++m) {
         if (row_[m] == row_[m - 1] && col_[m] == col_[m - 1]) {
           val_[m - 1] += val_[m];
+          val_.erase(val_.begin() + m);
           row_.erase(row_.begin() + m);
           col_.erase(col_.begin() + m);
         }
       }
+      assert(row_.size() == col_.size());
+      assert(row_.size() == val_.size());
     }
 
     template<typename T>
@@ -143,6 +164,7 @@ namespace jams {
         case SparseMatrixFormat::CSR :
           return build_csr();
       };
+      throw std::runtime_error("Unknown sparse matrix format for SparseMatrix<T>::Builder::build()");
     }
 
     template<typename T>
@@ -159,8 +181,8 @@ namespace jams {
       size_type previous_row = 0;
 
       for (auto m = 1; m < nnz; ++m) {
-        current_row = row_[m];
         assert(m < row_.size());
+        current_row = row_[m];
         if (current_row == previous_row) {
           continue;
         }
@@ -234,7 +256,8 @@ namespace jams {
         auto low = std::lower_bound(row_.cbegin(), row_.cend(), j);
 
         // this j does not exist in row_ so matrix cannot be symmetric
-        if (low == row_.cend()) {
+        if ((*low) != j || low == row_.cend()) {
+          // this col (j) does not exist in row_ so matrix cannot be structurally symmetric
           return false;
         }
 
@@ -264,12 +287,14 @@ namespace jams {
 
         auto low = std::lower_bound(row_.cbegin(), row_.cend(), j);
 
-        if (low == row_.cend()) {
+        if ((*low) != j || low == row_.cend()) {
           // this col (j) does not exist in row_ so matrix cannot be structurally symmetric
           return false;
         }
 
         auto up = std::upper_bound(low, row_.cend(), j);
+
+        // all elements between 'low' and 'up' are data for row == j == col_[n]
 
         auto col_begin = col_.cbegin() + (low - row_.cbegin());
         auto col_end = col_.cbegin() + (up - row_.cbegin());

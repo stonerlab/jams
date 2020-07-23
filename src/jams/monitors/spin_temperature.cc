@@ -8,12 +8,13 @@
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
 #include "jams/containers/vec3.h"
+#include "jams/helpers/output.h"
 #include "spin_temperature.h"
 
 SpinTemperatureMonitor::SpinTemperatureMonitor(const libconfig::Setting &settings)
-: Monitor(settings)
+: Monitor(settings),
+tsv_file(jams::output::full_path_filename("spin_T.tsv"))
 {
-  tsv_file.open(seedname + "_spin_T.tsv");
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 }

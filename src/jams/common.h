@@ -8,11 +8,13 @@
 #include <sstream>
 #include <pcg_random.hpp>
 #include <jams/interface/randutils.h>
+#include "jams/interface/system.h"
 
 #if HAS_CUDA
 #include <cusparse.h>
 #include <curand.h>
 #include <cublas_v2.h>
+
 #endif
 
 namespace jams {
@@ -37,6 +39,12 @@ namespace jams {
         inline static Mode mode() { return instance().mode_; }
         static void set_mode(Mode mode);
 
+        inline static const std::string& output_path() { return instance().output_path_; }
+        static void set_output_dir(const std::string& path) {
+          instance().output_path_ = path;
+          jams::system::make_path(path);
+        }
+
         inline static RandomGeneratorType& random_generator() { return instance().random_generator_; }
 
         inline static std::string random_generator_internal_state() {
@@ -55,10 +63,13 @@ namespace jams {
 
     private:
         void init_device_handles();
+        void make_output_dir();
 
         Mode mode_ = Mode::CPU;
 
         RandomGeneratorType random_generator_{randutils::auto_seed_128{}.base()};
+
+        std::string output_path_;
 
         #if HAS_CUDA
         cublasHandle_t cublas_handle_ = nullptr;
