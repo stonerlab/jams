@@ -353,4 +353,5 @@ jams::MultiArray<Vec3cx,1> NeutronScatteringNoLatticeMonitor::calculate_static_s
       static_structure_factor(j) += kspace_spins_timeseries_(i,j);
     }
   }
+  return static_structure_factor;
 }
