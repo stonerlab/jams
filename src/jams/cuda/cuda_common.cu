@@ -75,3 +75,13 @@ const char* cufftGetStatusString(cufftResult_t status) {
   }
   return "CUFFT_STATUS_UNKNOWN_ERROR";
 }
+
+const char* cusparseGetMatTypeString(cusparseMatrixType_t type) {
+  switch(type) {
+    case CUSPARSE_MATRIX_TYPE_GENERAL:    return "CUSPARSE_MATRIX_TYPE_GENERAL";
+    case CUSPARSE_MATRIX_TYPE_SYMMETRIC:  return "CUSPARSE_MATRIX_TYPE_SYMMETRIC";
+    case CUSPARSE_MATRIX_TYPE_HERMITIAN:  return "CUSPARSE_MATRIX_TYPE_HERMITIAN";
+    case CUSPARSE_MATRIX_TYPE_TRIANGULAR: return "CUSPARSE_MATRIX_TYPE_TRIANGULAR";
+  }
+  return "CUSPARSE_MATRIX_TYPE_UNKNOWN";
+}

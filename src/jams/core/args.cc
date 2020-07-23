@@ -16,6 +16,16 @@ namespace jams {
         return;
       }
 
+      if (flag.rfind("--output=", 0) == 0) {
+        program_args.output_path = flag.substr(flag.find('=') + 1);
+        return;
+      }
+
+      if (flag.rfind("--name=", 0) == 0) {
+        program_args.simulation_name = flag.substr(flag.find('=') + 1);
+        return;
+      }
+
       throw std::runtime_error("Unknown flag \'" + flag + "\'");
     }
 
@@ -24,17 +34,12 @@ namespace jams {
 
       ProgramArgs program_args;
       for (auto n = 1; n < argc; ++n) {
-        std::string arg(argv[n]);
-        trim(arg);
+        std::string arg = trim(argv[n]);
 
         if (arg_is_flag(arg)) {
           process_flag(arg, program_args);
         } else {
-          if (program_args.config_file_path.empty()) {
-            program_args.config_file_path = arg;
-          } else {
-            program_args.config_file_patch += arg;
-          }
+          program_args.config_strings.push_back(arg);
         }
       }
 

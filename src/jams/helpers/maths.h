@@ -32,9 +32,20 @@ inline constexpr bool definately_greater_than(const T& a, const T& b, const T& e
   return (a - b) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
+
+template <typename T>
+inline constexpr bool less_than_approx_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  return (a - b) < (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
 template <typename T>
 inline constexpr bool definately_less_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
   return (b - a) > (std::max(std::abs(a), std::abs(b)) * epsilon);
+}
+
+template <typename T>
+inline constexpr bool greater_than_approx_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+  return (b - a) < (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 template <typename T, typename U>
@@ -45,6 +56,21 @@ inline bool constexpr all_equal(const T &t, const U &u) {
 template <typename T, typename U, typename... Others>
 inline bool constexpr all_equal(const T &t, const U &u, Others const &... args) {
   return (t == u) && all_equal(u, args...);
+}
+
+template <typename T, typename U>
+inline bool constexpr none_equal(const T &t, const U &u) {
+  return t != u;
+}
+
+template <typename T, typename U, typename... Others>
+inline bool constexpr none_equal(const T &t, const U &u, Others const &... args) {
+  return (t != u) && none_equal(u, args...) && none_equal(t, args...);
+}
+
+template <typename T, typename U, typename V>
+inline bool constexpr only_two_equal(const T &t, const U &u, const V &v) {
+  return (t == u && u != v) || (t != u && u == v) || (t == v && t != u);
 }
 
 inline bool constexpr is_multiple_of(const int& x, const int& y) {
@@ -99,6 +125,10 @@ inline constexpr bool odd(const int x) {
 inline constexpr double kronecker_delta(const int alpha, const int beta) {
   // cast bool to double so that this works as a constexpr in C++11 which only supports 1 return statement
   return alpha == beta;
+}
+
+inline constexpr double dirac_delta(const double x) {
+  return approximately_zero(x);
 }
 
 inline double gaussian(const double x, const double sigma, const double mean = 0.0) {

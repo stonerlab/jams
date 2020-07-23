@@ -17,9 +17,6 @@ class CudaSolver : public Solver {
   virtual void run() = 0;
 
     void compute_fields();
-
- protected:
-    cublasHandle_t cublas_handle_;
 };
 
 #endif  // JAMS_CORE_CUDASOLVER_H

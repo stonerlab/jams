@@ -10,7 +10,7 @@
 #include <jams/core/interactions.h>
 #include "jams/core/types.h"
 
-void config_patch(libconfig::Setting& orig, const libconfig::Setting& patch);
+void overwrite_config_settings(libconfig::Setting& orig, const libconfig::Setting& patch);
 
 namespace jams {
 

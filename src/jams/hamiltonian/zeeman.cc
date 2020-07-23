@@ -73,60 +73,51 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 double ZeemanHamiltonian::calculate_total_energy() {
     double e_total = 0.0;
     for (int i = 0; i < globals::num_spins; ++i) {
-        e_total += calculate_one_spin_energy(i);
+        e_total += calculate_energy(i);
     }
      return e_total;
 }
 
-double ZeemanHamiltonian::calculate_one_spin_energy(const int i) {
+double ZeemanHamiltonian::calculate_energy(const int i) {
     using namespace globals;
-    double one_spin_field[3];
 
-    calculate_one_spin_field(i, one_spin_field);
+    const Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
+    const auto field = calculate_field(i);
 
-    return -(s(i, 0)*one_spin_field[0] + s(i, 1)*one_spin_field[1] + s(i, 2)*one_spin_field[2]);
+    return -dot(s_i, field);
 }
 
-double ZeemanHamiltonian::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-    using std::pow;
+double ZeemanHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+  const auto field = calculate_field(i);
+  const auto e_initial = -dot(spin_initial, field);
+  const auto e_final = -dot(spin_initial, field);
 
-    double e_initial = 0.0;
-    double e_final = 0.0;
-
-    double h_local[3];
-
-    calculate_one_spin_field(i, h_local);
-
-    for (int n = 0; n < 3; ++n) {
-        e_initial += -spin_initial[n]*h_local[n];
-    }
-
-    for (int n = 0; n < 3; ++n) {
-        e_final += -spin_final[n]*h_local[n];
-    }
-
-    return (e_final - e_initial);
+  return (e_final - e_initial);
 }
 
 void ZeemanHamiltonian::calculate_energies() {
     for (int i = 0; i < globals::num_spins; ++i) {
-        energy_(i) = calculate_one_spin_energy(i);
+        energy_(i) = calculate_energy(i);
     }
 }
 
-void ZeemanHamiltonian::calculate_one_spin_field(const int i, double local_field[3]) {
+Vec3 ZeemanHamiltonian::calculate_field(const int i) {
     using namespace globals;
     using std::pow;
 
+    Vec3 field = {0.0, 0.0, 0.0};
+
     for (int j = 0; j < 3; ++j) {
-        local_field[j] = dc_local_field_(i, j);
+      field[j] = dc_local_field_(i, j);
     }
 
     if (has_ac_local_field_) {
         for (int j = 0; j < 3; ++j) {
-            local_field[j] += ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
+          field[j] += ac_local_field_(i, j) * cos(ac_local_frequency_(i) * solver->time());
         }
     }
+
+    return field;
 }
 
 void ZeemanHamiltonian::calculate_fields() {

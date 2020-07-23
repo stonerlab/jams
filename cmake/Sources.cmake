@@ -2,6 +2,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/Utils.cmake)
 
 set(JAMS_SOURCES_CXX
         containers/cell.cc
+        common.cc
         core/args.cc
         core/hamiltonian.cc
         core/interactions.cc
@@ -9,22 +10,23 @@ set(JAMS_SOURCES_CXX
         core/lattice.cc
         core/monitor.cc
         core/physics.cc
-        core/random.cc
         core/solver.cc
         core/thermostat.cc
-        hamiltonian/dipole.cc
+        hamiltonian/cubic_anisotropy.cc
         hamiltonian/dipole_bruteforce.cc
-        hamiltonian/dipole_ewald.cc
         hamiltonian/dipole_fft.cc
+        hamiltonian/dipole_neartree.cc
+        hamiltonian/dipole_neighbour_list.cc
         hamiltonian/dipole_tensor.cc
         hamiltonian/exchange.cc
+        hamiltonian/exchange_functional.cc
         hamiltonian/exchange_neartree.cc
         hamiltonian/uniaxial_anisotropy.cc
         hamiltonian/uniaxial_microscopic_anisotropy.cc
         hamiltonian/random_anisotropy.cc
+        hamiltonian/sparse_interaction.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
-        interface/fft.cc
         helpers/interaction_calculator.cc
         helpers/maths.cc
         helpers/neutrons.cc
@@ -33,6 +35,8 @@ set(JAMS_SOURCES_CXX
         helpers/stats.cc
         helpers/utils.cc
         interface/config.cc
+        interface/fft.cc
+        interface/system.cc
         monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc
@@ -71,15 +75,13 @@ set(JAMS_SOURCES_CUDA
         cuda/cuda_array_kernels.cu
         cuda/cuda_solver.cc
         cuda/cuda_common.cu
+        hamiltonian/cuda_cubic_anisotropy.cu
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
         hamiltonian/cuda_dipole_fft.cu
-        hamiltonian/cuda_exchange.cu
-        hamiltonian/cuda_exchange_neartree.cu
         hamiltonian/cuda_random_anisotropy.cu
         hamiltonian/cuda_zeeman.cu
         hamiltonian/cuda_dipole_bruteforce.cu
-        hamiltonian/cuda_dipole_sparse_tensor.cu
         monitors/cuda_spin_current.cc
         monitors/cuda_spin_current_kernel.cu
         monitors/cuda_thermal_current.cc

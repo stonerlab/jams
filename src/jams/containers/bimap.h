@@ -35,6 +35,10 @@ void Bimap<A, B>::insert(const A &a, const B &b) {
   assert(mapA.size() == mapB.size());
   std::size_t hashA = std::hash<A>()(a);
   std::size_t hashB = std::hash<B>()(b);
+  if (mapA.count(hashA) || mapB.count(hashB)) {
+    // a or b already exist in the bimap
+    return;
+  }
   mapA.insert({hashB, a});
   mapB.insert({hashA, b});
 }

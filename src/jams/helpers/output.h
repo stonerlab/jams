@@ -8,19 +8,29 @@
 #include <iomanip>
 
 namespace jams {
-    void desync_io();
+    namespace output {
+        void initialise();
+
+        std::string full_path_filename(const std::string& ending);
+        std::string full_path_filename_series(const std::string& ending, int num, int width=7);
+        std::string output_path();
+    }
 
     namespace fmt {
         inline std::ostream &integer(std::ostream &os) {
-          return os << std::fixed;
+          return os << std::fixed << std::setw(8) << std::right;
+        }
+
+        inline std::ostream &fixed_integer(std::ostream &os) {
+          return os << std::fixed << std::setw(8);
         }
 
         inline std::ostream &decimal(std::ostream &os) {
-          return os << std::setprecision(6) << std::setw(12) << std::fixed;
+          return os << std::setprecision(6) << std::setw(10) << std::fixed << std::right;
         }
 
         inline std::ostream &sci(std::ostream &os) {
-          return os << std::setprecision(8) << std::setw(12) << std::scientific;
+          return os << std::setprecision(8) << std::setw(16) << std::scientific << std::right;
         };
     }
 }

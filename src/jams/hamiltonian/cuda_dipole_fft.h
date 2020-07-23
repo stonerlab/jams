@@ -10,23 +10,23 @@
 #include <cufft.h>
 
 #include "jams/core/types.h"
-#include "jams/hamiltonian/strategy.h"
+#include "jams/core/hamiltonian.h"
 #include "jams/cuda/cuda_stream.h"
 
-class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
+class CudaDipoleFFTHamiltonian : public Hamiltonian {
     public:
-        CudaDipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size);
+        CudaDipoleFFTHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-        ~CudaDipoleHamiltonianFFT();
+        ~CudaDipoleFFTHamiltonian() override;
 
-        double calculate_total_energy();
-        double calculate_one_spin_energy(const int i);
-        double calculate_one_spin_energy(const int i, const Vec3 &s_i);
-        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
-        void   calculate_energies(jams::MultiArray<double, 1>& energies);
+        double calculate_total_energy() override;
+        double calculate_energy(int i) override;
+        double calculate_one_spin_energy(int i, const Vec3 &s_i);
+        double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override ;
+        void   calculate_energies() override;
 
-        void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields(jams::MultiArray<double, 2>& fields);
+        Vec3   calculate_field(int i);
+        void   calculate_fields() override;
     private:
         bool debug_ = false;
         bool check_radius_   = true;
@@ -44,8 +44,6 @@ class CudaDipoleHamiltonianFFT : public HamiltonianStrategy {
         jams::MultiArray<cufftDoubleComplex, 1>   kspace_h_;
 
     std::array<CudaStream, 4> dev_stream_;
-    jams::MultiArray<double, 2>     dipole_fields_;
-
 
     std::vector<std::vector<jams::MultiArray<cufftDoubleComplex, 1>>> kspace_tensors_;
 

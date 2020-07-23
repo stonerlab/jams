@@ -1,30 +1,33 @@
-// Copyright 2015 Joseph Barker. All rights reserved.
+//
+// Created by Joseph Barker on 2020-04-26.
+//
 
-#ifndef JAMS_HAMILTONIAN_DIPOLE_CPU_BRUTEFORCE_H
-#define JAMS_HAMILTONIAN_DIPOLE_CPU_BRUTEFORCE_H
+#ifndef JAMS_DIPOLE_BRUTEFORCE_H
+#define JAMS_DIPOLE_BRUTEFORCE_H
 
 #include "jams/helpers/maths.h"
-#include "strategy.h"
+#include "jams/core/hamiltonian.h"
 
-class DipoleHamiltonianCpuBruteforce : public HamiltonianStrategy {
-    public:
-        DipoleHamiltonianCpuBruteforce(const libconfig::Setting &settings, const unsigned int size);
+class DipoleBruteforceHamiltonian : public Hamiltonian {
+public:
+    DipoleBruteforceHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-        ~DipoleHamiltonianCpuBruteforce();
+    double calculate_total_energy() override;
 
-        double calculate_total_energy();
-        double calculate_one_spin_energy(const int i);
-        double calculate_one_spin_energy(const int i, const Vec3 &s_i);
-        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
-        void   calculate_energies(jams::MultiArray<double, 1>& energies);
+    void calculate_energies() override;
 
-        void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields(jams::MultiArray<double, 2>& fields);
+    void calculate_fields() override;
 
-    private:
-        std::vector<Vec3>   frac_positions_;
-        Mat3 supercell_matrix_;
-        double r_cutoff_;
+    Vec3 calculate_field(int i) override;
+
+    double calculate_energy(int i) override;
+
+    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+
+private:
+    std::vector<Vec3>   frac_positions_;
+    Mat3 supercell_matrix_;
+    double r_cutoff_;
 };
 
-#endif  // JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
+#endif //JAMS_DIPOLE_BRUTEFORCE_H

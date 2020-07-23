@@ -45,10 +45,6 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    double dt_thermostat = ::config->lookup("solver.t_step");
    delta_tau_ = (dt_thermostat * kBoltzmann) / kHBar;
 
-   uint64_t dev_rng_seed = jams::random_generator()();
-
-
-   cout << "    seed " << dev_rng_seed << "\n";
    cout << "    omega_max (THz) " << omega_max_ / (kTwoPi * kTHz) << "\n";
    cout << "    hbar*w/kB " << (kHBar * omega_max_) / (kBoltzmann) << "\n";
    cout << "    t_step " << dt_thermostat << "\n";
@@ -66,13 +62,10 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
    cout << "    initialising CURAND\n";
 
-   CHECK_CURAND_STATUS(curandCreateGenerator(&thermostat_rng_, CURAND_RNG_PSEUDO_DEFAULT));
-   CHECK_CURAND_STATUS(curandSetStream(thermostat_rng_, dev_curand_stream_));
-   CHECK_CURAND_STATUS(curandSetPseudoRandomGeneratorSeed(thermostat_rng_, dev_rng_seed));
-   CHECK_CURAND_STATUS(curandGenerateSeeds(thermostat_rng_));
-   CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta0_.device_data(), eta0_.size(), 0.0, 1.0));
-   CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
-   CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta1b_.device_data(), eta1b_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
+   CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1b_.device_data(), eta1b_.size(), 0.0, 1.0));
 
    for (int i = 0; i < num_spins; ++i) {
      for (int j = 0; j < 3; ++j) {
@@ -111,7 +104,8 @@ void CudaLangevinBoseThermostat::update() {
   const double temperature = this->temperature();
 
   swap(eta1a_, eta1b_);
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
+  CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
 
   bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (
     noise_.device_data(), zeta5_.device_data(), zeta5p_.device_data(), zeta6_.device_data(), zeta6p_.device_data(),
@@ -119,7 +113,8 @@ void CudaLangevinBoseThermostat::update() {
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   if (do_zero_point_) {
-    CHECK_CURAND_STATUS(curandGenerateNormalDouble(thermostat_rng_, eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
+    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
 
     bose_zero_point_stochastic_process_cuda_kernel <<< grid_size, block_size, 0, dev_stream_ >>> (
         noise_.device_data(), zeta0_.device_data(), eta0_.device_data(), sigma_.device_data(), reduced_delta_tau,
@@ -129,16 +124,12 @@ void CudaLangevinBoseThermostat::update() {
 }
 
 CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
-  if (thermostat_rng_ != nullptr) {
-    CHECK_CURAND_STATUS(curandDestroyGenerator(thermostat_rng_))
-  }
-
   if (dev_stream_ != nullptr) {
-    CHECK_CUDA_STATUS(cudaStreamDestroy(dev_stream_));
+    cudaStreamDestroy(dev_stream_);
   }
 
   if (dev_curand_stream_ != nullptr) {
-    CHECK_CUDA_STATUS(cudaStreamDestroy(dev_curand_stream_));
+    cudaStreamDestroy(dev_curand_stream_);
   }
 }
 

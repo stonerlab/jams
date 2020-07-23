@@ -5,6 +5,7 @@
 #ifndef JAMS_MAT3_H
 #define JAMS_MAT3_H
 
+#include <cassert>
 #include <array>
 #include <limits>
 #include "jams/containers/vec3.h"
@@ -13,6 +14,7 @@ template <typename T, std::size_t M, std::size_t N>
 using Mat = std::array<std::array<T, M>, N>;
 
 using Mat3  = std::array<std::array<double, 3>, 3>;
+using Mat3cx  = std::array<std::array<std::complex<double>, 3>, 3>;
 
 const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 const Mat<double, 3, 3> kZeroMat3 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -79,6 +81,19 @@ inline Mat<T,3,3> operator*(const Mat<T,3,3>& lhs, const Mat<T,3,3>& rhs) {
   return result;
 }
 
+// Vec3 specialization
+template <typename T>
+inline bool approximately_equal(const Mat<T,3,3>& a, const Mat<T,3,3>& b, const T& epsilon = FLT_EPSILON) {
+  for (auto m = 0; m < 3; ++m) {
+    for (auto n = 0; n < 3; ++n) {
+      if (!approximately_equal(a[m][n], b[m][n], epsilon)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 template <typename T>
 Mat<T,3,3> matrix_from_rows(const Vec<T,3>& a, const Vec<T,3>& b, const Vec<T,3>& c) {
   return {a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]};
@@ -103,6 +118,13 @@ template <typename T>
 Mat<T,3,3> ssc(const Vec<T,3> &v) {
   // skew symmetric cross product matrix
   return {0, -v[2], v[1], v[2], 0, -v[0], -v[1], v[0], 0};
+}
+
+template <typename T>
+Mat<T,3,3> outer_product(const Vec<T,3> &a, const Vec<T,3> &b) {
+  return {a[0] * b[0], a[0] * b[1], a[0] * b[2],
+          a[1] * b[0], a[1] * b[1], a[1] * b[2],
+          a[2] * b[0], a[2] * b[1], a[2] * b[2],};
 }
 
 template <typename T>
@@ -168,8 +190,8 @@ inline Mat3 rotation_matrix_yz(const double theta, const double phi) {
 }
 
 template <typename T>
-inline T max_norm(const Mat<T,3,3>& a) {
-  T max = std::numeric_limits<T>::min();
+inline T max_abs(const Mat<T,3,3>& a) {
+  T max = 0.0;
   for (auto i = 0; i < 3; ++i) {
     for (auto j = 0; j < 3; ++j) {
       if (std::abs(a[i][j]) > max) {
@@ -180,16 +202,32 @@ inline T max_norm(const Mat<T,3,3>& a) {
   return max;
 }
 
-inline Mat3 rotation_matrix_between_vectors(Vec<double,3> a, Vec<double,3> b) {
-  // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+// calculates a rotation matrix from Vec3 a to Vec3 b
 
-  // normalise
-  a = normalize(a);
-  b = normalize(b);
+inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
+  const auto ua = unit_vector(a);
+  const auto ub = unit_vector(b);
+  const auto v = cross(ua,ub);
+  const auto c = dot(ua,ub);
 
-  Vec<double,3> v = cross(a, b);
+  // check if a == b or a == -b
+  if (approximately_zero(norm_sq(v))) {
+    // this is a shortcut for a == b and necessary
+    // for a == -b where Rodrigues's formula will fail
+    // return either I or -I
+    return diagonal_matrix(copysign(1.0, c));
+  }
 
-  return kIdentityMat3 + ssc(v) + ((ssc(v) * ssc(v)) / (1.0 + dot(a, b)));
+  // Rodrigues's rotation formula
+  // See: https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+  //      https://en.wikipedia.org/wiki/Rotation_matrix
+  const auto R = kIdentityMat3 + ssc(v) + (1.0 / (1.0 + c)) * ssc(v) * ssc(v) ;
+
+  // a rotation matrix must be orthogonal and have a determinant of 1
+  assert(approximately_equal(transpose(R), inverse(R)));
+  assert(approximately_equal(determinant(R), 1.0));
+
+  return R;
 }
 
 #endif //JAMS_MAT3_H

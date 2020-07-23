@@ -1,3 +1,7 @@
+//
+// Created by Joseph Barker on 2020-04-26.
+//
+
 #ifdef HAS_OMP
 #include <omp.h>
 #endif
@@ -8,81 +12,67 @@
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
 
-#include "dipole_bruteforce.h"
+#include "jams/hamiltonian/dipole_bruteforce.h"
 
-DipoleHamiltonianCpuBruteforce::~DipoleHamiltonianCpuBruteforce() {
-}
+DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size)
+    : Hamiltonian(settings, size) {
 
-DipoleHamiltonianCpuBruteforce::DipoleHamiltonianCpuBruteforce(const libconfig::Setting &settings, const unsigned int size)
-: HamiltonianStrategy(settings, size) {
+  settings.lookupValue("r_cutoff", r_cutoff_);
+  std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
-    settings.lookupValue("r_cutoff", r_cutoff_);
-    std::cout << "  r_cutoff " << r_cutoff_ << "\n";
+  if (r_cutoff_ > lattice->max_interaction_radius()) {
+    throw std::runtime_error(
+        "r_cutoff is less than the maximum permitted interaction in the system"
+        " (" + std::to_string(lattice->max_interaction_radius())  + ")");
+  }
 
   supercell_matrix_ = lattice->get_supercell().matrix();
 
   frac_positions_.resize(globals::num_spins);
 
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      frac_positions_[i] = lattice->get_supercell().inverse_matrix()*lattice->atom_position(i);
-    }
-
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    frac_positions_[i] = lattice->get_supercell().inverse_matrix() * lattice->atom_position(i);
   }
 
-// --------------------------------------------------------------------------
-
-double DipoleHamiltonianCpuBruteforce::calculate_total_energy() {
-    double e_total = 0.0;
-
-       for (int i = 0; i < globals::num_spins; ++i) {
-           e_total += calculate_one_spin_energy(i);
-       }
-
-    return e_total;
 }
 
-// --------------------------------------------------------------------------
+double DipoleBruteforceHamiltonian::calculate_total_energy() {
+  double e_total = 0.0;
 
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    e_total += calculate_energy(i);
+  }
 
-double DipoleHamiltonianCpuBruteforce::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
-    double h[3];
-    calculate_one_spin_field(i, h);
-    return -0.5 * (s_i[0]*h[0] + s_i[1]*h[1] + s_i[2]*h[2]);
+  return e_total;
 }
 
-// --------------------------------------------------------------------------
-
-double DipoleHamiltonianCpuBruteforce::calculate_one_spin_energy(const int i) {
-    Vec3 s_i = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
-    return calculate_one_spin_energy(i, s_i);
+double DipoleBruteforceHamiltonian::calculate_energy(const int i) {
+  Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
+  auto field = calculate_field(i);
+  return -0.5 * dot(s_i, field);
 }
 
-// --------------------------------------------------------------------------
-
-double DipoleHamiltonianCpuBruteforce::calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-    double h[3];
-    calculate_one_spin_field(i, h);
-    double e_initial = -(spin_initial[0]*h[0] + spin_initial[1]*h[1] + spin_initial[2]*h[2]);
-    double e_final = -(spin_final[0]*h[0] + spin_final[1]*h[1] + spin_final[2]*h[2]);
-    return 0.5*(e_final - e_initial);
+double DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                const Vec3 &spin_final) {
+  const auto field = calculate_field(i);
+  const double e_initial = -dot(spin_initial, field);
+  const double e_final = -dot(spin_final, field);
+  return 0.5 * (e_final - e_initial);
 }
-// --------------------------------------------------------------------------
 
-void DipoleHamiltonianCpuBruteforce::calculate_energies(jams::MultiArray<double, 1>& energies) {
-    assert(energies.size() == globals::num_spins);
-    for (int i = 0; i < globals::num_spins; ++i) {
-        energies(i) = calculate_one_spin_energy(i);
-    }
+void DipoleBruteforceHamiltonian::calculate_energies() {
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    energy_(i) = calculate_energy(i);
+  }
 }
 
 
 __attribute__((hot))
-void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, double h[3])
-{
+Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
   using namespace globals;
 
   const auto r_cut_squared = pow2(r_cutoff_);
-  const auto w0 = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
+  const double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
 
   double hx = 0, hy = 0, hz = 0;
   #if HAS_OMP
@@ -91,6 +81,7 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
   for (auto j = 0; j < globals::num_spins; ++j) {
     if (j == i) continue;
 
+    const Vec3 s_j = {s(j,0), s(j,1), s(j,2)};
     Vec3 r_ij = lattice->displacement(i, j);
 
     const auto r_abs_sq = norm_sq(r_ij);
@@ -99,24 +90,20 @@ void DipoleHamiltonianCpuBruteforce::calculate_one_spin_field(const int i, doubl
 
     const auto sj_dot_r = s(j, 0) * r_ij[0] + s(j, 1) * r_ij[1] + s(j, 2) * r_ij[2];
 
-    hx += w0 * mus(i) * mus(j) * (3 * r_ij[0] * sj_dot_r - r_abs_sq * s(j, 0)) / pow(r_abs_sq, 2.5);
-    hy += w0 * mus(i) * mus(j) * (3 * r_ij[1] * sj_dot_r - r_abs_sq * s(j, 1)) / pow(r_abs_sq, 2.5);
-    hz += w0 * mus(i) * mus(j) * (3 * r_ij[2] * sj_dot_r - r_abs_sq * s(j, 2)) / pow(r_abs_sq, 2.5);
+    hx += w0 * mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) - pow2(norm(r_ij)) * s_j[0]) / pow5(norm(r_ij));
+    hy += w0 * mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) - pow2(norm(r_ij)) * s_j[1]) / pow5(norm(r_ij));;
+    hz += w0 * mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) - pow2(norm(r_ij)) * s_j[2]) / pow5(norm(r_ij));;
   }
 
-  h[0] = hx; h[1] = hy; h[2] = hz;
+  return {hx, hy, hz};
 }
 
-// --------------------------------------------------------------------------
+void DipoleBruteforceHamiltonian::calculate_fields() {
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    const auto field = calculate_field(i);
 
-void DipoleHamiltonianCpuBruteforce::calculate_fields(jams::MultiArray<double, 2>& fields) {
-    for (int i = 0; i < globals::num_spins; ++i) {
-        double h[3];
-
-        calculate_one_spin_field(i, h);
-
-        for (int n = 0; n < 3; ++n) {
-            fields(i, n) = h[n];
-        }
+    for (auto n : {0,1,2}) {
+      field_(i, n) = field[n];
     }
+  }
 }

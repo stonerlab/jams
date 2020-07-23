@@ -23,18 +23,10 @@ using namespace std;
 
 CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),
-  dev_rng_(nullptr),
   dev_stream_(nullptr) {
   cout << "\n  initialising CUDA Langevin white noise thermostat\n";
 
   cudaStreamCreate(&dev_stream_);
-  uint64_t dev_rng_seed = jams::random_generator()();
-
-  cout << "    initialising CURAND\n";
-  CHECK_CURAND_STATUS(curandCreateGenerator(&dev_rng_, CURAND_RNG_PSEUDO_DEFAULT));
-  CHECK_CURAND_STATUS(curandSetStream(dev_rng_, dev_stream_));
-  CHECK_CURAND_STATUS(curandSetPseudoRandomGeneratorSeed(dev_rng_, dev_rng_seed));
-  CHECK_CURAND_STATUS(curandGenerateSeeds(dev_rng_));
 
   bool use_gilbert_prefactor = jams::config_optional<bool>(config->lookup("solver"), "gilbert_prefactor", false);
   cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
@@ -54,13 +46,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
 }
 
 void CudaLangevinWhiteThermostat::update() {
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(dev_rng_, noise_.device_data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
+  CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_stream_));
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), noise_.device_data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
   cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), sqrt(this->temperature()), noise_.device_data(), 1, noise_.device_data(), 1, dev_stream_);
-}
-
-CudaLangevinWhiteThermostat::~CudaLangevinWhiteThermostat() {
-  CHECK_CURAND_STATUS(curandDestroyGenerator(dev_rng_));
-  if (dev_stream_ != nullptr) {
-    cudaStreamDestroy(dev_stream_);
-  }
 }

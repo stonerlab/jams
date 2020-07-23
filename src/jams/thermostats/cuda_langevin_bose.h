@@ -41,7 +41,6 @@ class CudaLangevinBoseThermostat : public Thermostat {
     jams::MultiArray<double, 1> eta0_;
     jams::MultiArray<double, 1> eta1a_;
     jams::MultiArray<double, 1> eta1b_;
-    curandGenerator_t           thermostat_rng_ = nullptr;  // device random generator
     cudaStream_t                dev_stream_ = nullptr;
     cudaStream_t                dev_curand_stream_ = nullptr;
     double                      delta_tau_;

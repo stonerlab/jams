@@ -10,6 +10,7 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/interface/openmp.h"
+#include "jams/helpers/output.h"
 
 #include "jams/monitors/magnetisation.h"
 #include "magnetisation.h"
@@ -18,14 +19,13 @@
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   s_transform_(globals::num_spins),
-  tsv_file(),
+  tsv_file(jams::output::full_path_filename("mag.tsv")),
   m_stats_(),
   m2_stats_(),
   m4_stats_()
 {
   using namespace globals;
 
-  tsv_file.open(seedname + "_mag.tsv");
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 
@@ -41,9 +41,11 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 }
 
 void MagnetisationMonitor::update(Solver * solver) {
+  using namespace jams;
   using namespace globals;
 
-  jams::MultiArray<Vec3, 1> magnetisation(::lattice->num_materials(), {0.0, 0.0, 0.0});
+  jams::MultiArray<Vec3, 1> magnetisation(::lattice->num_materials());
+  zero(magnetisation);
 
   for (auto i = 0; i < num_spins; ++i) {
     const auto type = lattice->atom_material_id(i);
@@ -60,18 +62,16 @@ void MagnetisationMonitor::update(Solver * solver) {
   }
 
   tsv_file.width(12);
-  tsv_file << std::scientific << solver->time() << "\t";
-  tsv_file << std::fixed << solver->physics()->temperature() << "\t";
+  tsv_file << fmt::sci << solver->time();
+  tsv_file << fmt::decimal << solver->physics()->temperature();
 
   for (auto i = 0; i < 3; ++i) {
-    tsv_file <<  solver->physics()->applied_field(i) << "\t";
+    tsv_file << fmt::decimal << solver->physics()->applied_field(i);
   }
 
   for (auto type = 0; type < lattice->num_materials(); ++type) {
-    for (auto j = 0; j < 3; ++j) {
-      tsv_file << magnetisation(type)[j] << "\t";
-    }
-    tsv_file << norm(magnetisation(type)) << "\t";
+    tsv_file << fmt::decimal << magnetisation(type);
+    tsv_file << fmt::decimal << norm(magnetisation(type));
   }
 
   if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
@@ -80,9 +80,9 @@ void MagnetisationMonitor::update(Solver * solver) {
     m2_stats_.add(m2);
     m4_stats_.add(m2 * m2);
 
-    tsv_file << m2 << "\t";
-    tsv_file << m2 * m2 << "\t";
-    tsv_file << binder_cumulant() << "\t";
+    tsv_file << fmt::decimal << m2;
+    tsv_file << fmt::decimal << m2 * m2;
+    tsv_file << fmt::decimal << binder_cumulant();
 
     if (convergence_is_on_) {
       if (m_stats_.size() > 1 && m_stats_.size() % 10 == 0) {
@@ -91,7 +91,9 @@ void MagnetisationMonitor::update(Solver * solver) {
 
         convergence_geweke_m_diagnostic_.push_back(diagnostic);
 
-        tsv_file << diagnostic << "\t" << convergence_stderr_ << "\t" << m_stats_.stddev(0.1*m_stats_.size(), m_stats_.size()) / sqrt(m_stats_.size()*0.9);
+        tsv_file << fmt::decimal << diagnostic;
+        tsv_file << fmt::decimal << convergence_stderr_;
+        tsv_file << fmt::decimal << m_stats_.stddev(0.1*m_stats_.size(), m_stats_.size()) / sqrt(m_stats_.size()*0.9);
       } else {
         tsv_file << "--------";
       }
@@ -135,29 +137,30 @@ bool MagnetisationMonitor::is_converged() {
 }
 
 std::string MagnetisationMonitor::tsv_header() {
+  using namespace jams;
+
   std::stringstream ss;
   ss.width(12);
 
-  ss << "time\t";
-  ss << "temperature\t";
-  ss << "hx\t";
-  ss << "hy\t";
-  ss << "hz\t";
+  ss << fmt::sci << "time";
+  ss << fmt::decimal << "T";
+  ss << fmt::decimal << "hx";
+  ss << fmt::decimal << "hy";
+  ss << fmt::decimal << "hz";
 
   for (auto i = 0; i < lattice->num_materials(); ++i) {
     auto name = lattice->material_name(i);
-    ss << name + "_mx\t";
-    ss << name + "_my\t";
-    ss << name + "_mz\t";
-    ss << name + "_m\t";
+    for (const auto& suffix : {"_mx", "_my", "_mz", "_m"}) {
+      ss << fmt::decimal << name + suffix;
+    }
   }
 
   if (convergence_is_on_) {
-    ss << "m2\t";
-    ss << "m4\t";
-    ss << "binder\t";
-    ss << "geweke_m2\t";
-    ss << "geweke_m4";
+    ss << fmt::decimal << "m2";
+    ss << fmt::decimal << "m4";
+    ss << fmt::decimal << "binder";
+    ss << fmt::decimal << "geweke_m2";
+    ss << fmt::decimal << "geweke_m4";
   }
   ss << std::endl;
 

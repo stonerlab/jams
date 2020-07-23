@@ -92,7 +92,7 @@ vector<HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const vector<Vec3
     for (auto i = 0; i < num_coordinates; ++i) {
       // map an arbitrary coordinate into the limited k indicies of the reduced brillouin zone
       Vec3 hkl = scale(coordinate, 1.0/to_double(kspace_size));
-      Vec3 xyz = lattice->get_unitcell().inverse_matrix() * hkl;
+      Vec3 xyz = lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
       hkl_path.push_back(HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
 
       coordinate += delta;
@@ -126,9 +126,19 @@ MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(MultiArray
 
     assert(fft_plan);
 
+    MultiArray<Vec3cx, 1> static_spectrum(num_space_samples);
+    zero(static_spectrum);
     for (auto i = 0; i < num_time_samples; ++i) {
       for (auto j = 0; j < num_space_samples; ++j) {
-        spectrum(a, i, j) *= fft_window_default(i, num_time_samples);
+        static_spectrum(j) += spectrum(a, i, j);
+      }
+    }
+    element_scale(static_spectrum, 1.0/double(num_time_samples));
+
+
+    for (auto i = 0; i < num_time_samples; ++i) {
+      for (auto j = 0; j < num_space_samples; ++j) {
+        spectrum(a, i, j) = fft_window_default(i, num_time_samples)*(spectrum(a, i, j) - static_spectrum(j));
       }
     }
 
@@ -182,7 +192,7 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
 }
 
 void SpectrumBaseMonitor::store_periodogram_data(const jams::MultiArray<double, 2> &data) {
-  fft_supercell_vector_field_to_kspace(data, kspace_data_, lattice->kspace_size(), lattice->num_motif_atoms());
+  fft_supercell_vector_field_to_kspace(data, kspace_data_, lattice->size(), lattice->kspace_size(), lattice->num_motif_atoms());
   store_kspace_data_on_path(kspace_data_, kspace_paths_);
   periodogram_index_++;
 }

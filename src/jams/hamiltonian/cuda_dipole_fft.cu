@@ -2,8 +2,11 @@
 
 #include <libconfig.h++>
 #include <cufft.h>
-#include <jams/interface/fft.h>
 
+#include "jams/interface/fft.h"
+#include "jams/helpers/exception.h"
+
+#include "jams/helpers/output.h"
 #include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
@@ -47,22 +50,21 @@ namespace {
     const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 }
 
-CudaDipoleHamiltonianFFT::~CudaDipoleHamiltonianFFT() {
+CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
   if (cuda_fft_s_rspace_to_kspace) {
-      CHECK_CUFFT_STATUS(cufftDestroy(cuda_fft_s_rspace_to_kspace));
+      cufftDestroy(cuda_fft_s_rspace_to_kspace);
   }
 
   if (cuda_fft_h_kspace_to_rspace) {
-    CHECK_CUFFT_STATUS(cufftDestroy(cuda_fft_h_kspace_to_rspace));
+    cufftDestroy(cuda_fft_h_kspace_to_rspace);
   }
 }
 
-CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &settings, const unsigned int size)
-: HamiltonianStrategy(settings, size),
+CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &settings, const unsigned int size)
+: Hamiltonian(settings, size),
   dev_stream_(),
   r_cutoff_(0),
   distance_tolerance_(jams::defaults::lattice_tolerance),
-  dipole_fields_(globals::num_spins, 3),
   kspace_size_({0, 0, 0}),
   kspace_padded_size_({0, 0, 0}),
   kspace_s_(),
@@ -80,7 +82,7 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
 
   if (check_radius_) {
     if (r_cutoff_ > ::lattice->max_interaction_radius()) {
-      throw std::runtime_error("DipoleHamiltonianFFT r_cutoff is too large for the lattice size."
+      throw std::runtime_error("CudaDipoleFFTHamiltonian r_cutoff is too large for the lattice size."
                                        "The cutoff must be less than the inradius of the lattice.");
     }
   }
@@ -108,7 +110,6 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
 
   kspace_s_.zero();
   kspace_h_.zero();
-  dipole_fields_.zero();
 
   cout << "    kspace size " << kspace_size_ << "\n";
   cout << "    kspace padded size " << kspace_padded_size_ << "\n";
@@ -146,42 +147,42 @@ CudaDipoleHamiltonianFFT::CudaDipoleHamiltonianFFT(const libconfig::Setting &set
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_[0].get()));
 }
 
-double CudaDipoleHamiltonianFFT::calculate_total_energy() {
-  calculate_fields(dipole_fields_);
+double CudaDipoleFFTHamiltonian::calculate_total_energy() {
+  calculate_fields();
 
   double e_total = 0.0;
-  for (int i = 0; i < globals::num_spins; ++i) {
-      e_total += (  globals::s(i,0)*dipole_fields_(i, 0)
-                  + globals::s(i,1)*dipole_fields_(i, 1)
-                  + globals::s(i,2)*dipole_fields_(i, 2) ) * globals::mus(i);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+      e_total += (  globals::s(i,0)*field_(i, 0)
+                  + globals::s(i,1)*field_(i, 1)
+                  + globals::s(i,2)*field_(i, 2) ) * globals::mus(i);
   }
 
   return -0.5*e_total;
 }
 
-double CudaDipoleHamiltonianFFT::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
+double CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
     return 0.0;
 }
 
-double CudaDipoleHamiltonianFFT::calculate_one_spin_energy(const int i) {
+double CudaDipoleFFTHamiltonian::calculate_energy(const int i) {
     return 0.0;
 }
 
-double CudaDipoleHamiltonianFFT::calculate_one_spin_energy_difference(
-    const int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+double CudaDipoleFFTHamiltonian::calculate_energy_difference(
+    int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
 
     return 0.0;
 }
 
-void CudaDipoleHamiltonianFFT::calculate_energies(jams::MultiArray<double, 1>& energies) {
+void CudaDipoleFFTHamiltonian::calculate_energies() {
 
 }
 
-void CudaDipoleHamiltonianFFT::calculate_one_spin_field(const int i, double h[3]) {
-
+Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i) {
+  throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field");
 }
 
-void CudaDipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2>& fields) {
+void CudaDipoleFFTHamiltonian::calculate_fields() {
 
   kspace_h_.zero();
 
@@ -204,11 +205,11 @@ void CudaDipoleHamiltonianFFT::calculate_fields(jams::MultiArray<double, 2>& fie
     cudaDeviceSynchronize();
   }
 
-  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(fields.device_data())));
+  CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
 }
 
 jams::MultiArray<Complex, 5>
-CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
+CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
     using std::pow;
 
     const Vec3 r_frac_i = lattice->motif_atom(pos_i).position;
@@ -255,7 +256,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
                 const auto r_abs_sq = norm_sq(r_ij);
 
                 if (!std::isnormal(r_abs_sq)) {
-                  throw runtime_error("fatal error in CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor: r_abs_sq is not normal");
+                  throw runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: r_abs_sq is not normal");
                 }
 
                 if (r_abs_sq > pow2(r_cutoff_ + distance_tolerance_)) {
@@ -268,7 +269,7 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
                     for (int n = 0; n < 3; ++n) {
                         auto value = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
                         if (!std::isfinite(value)) {
-                          throw runtime_error("fatal error in CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor: tensor Szz is not finite");
+                          throw runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: tensor Szz is not finite");
                         }
                         rspace_tensor(nx, ny, nz, m, n) = value;
                     }
@@ -278,8 +279,8 @@ CudaDipoleHamiltonianFFT::generate_kspace_dipole_tensor(const int pos_i, const i
     }
   
     if (debug_) {
-      std::string filename = "debug_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv";
-      std::ofstream debugfile(filename);
+      std::ofstream debugfile(jams::output::full_path_filename(
+          "DEBUG_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv"));
 
       for (const auto& r : positions) {
         debugfile << r << "\n";

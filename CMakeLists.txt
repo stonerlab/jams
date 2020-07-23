@@ -10,8 +10,9 @@ ensure_out_of_source_build()
 option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" OFF)
 option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" ON)
 option(JAMS_BUILD_FASTMATH "Build JAMS with fast math flags" ON)
-option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
 option(JAMS_BUILD_MIXED_PREC "Build parts of JAMS using mixed precision." OFF)
+option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
+option(JAMS_BUILD_DOCS "Build all of JAMS's documentation." OFF)
 
 project(jams LANGUAGES C CXX)
 
@@ -28,13 +29,13 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_EXTENSIONS OFF)
 
 set(VERSION_MAJOR "2" )
-set(VERSION_MINOR "2" )
+set(VERSION_MINOR "3" )
 set(VERSION_PATCH "0" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 # Latest libconfig version is 1.7.2 but the cmake support is broken. This is fixed in the current
 # github master branch
-set(JAMS_LIBCONFIG_VERSION 6868939) # https://github.com/hyperrealm/libconfig
+set(JAMS_LIBCONFIG_VERSION f53e5de) # https://github.com/hyperrealm/libconfig
 set(JAMS_HIGHFIVE_VERSION v2.1.1)   # https://github.com/BlueBrain/HighFive
 set(JAMS_SPGLIB_VERSION v1.10.4)    # https://github.com/atztogo/spglib
 set(JAMS_PCG_VERSION v0.98.1)       # https://github.com/imneme/pcg-cpp
@@ -49,6 +50,10 @@ include(cmake/Dependencies.cmake)
 include(cmake/Generate.cmake)
 
 add_subdirectory(src/jams)
+
+if (JAMS_BUILD_DOCS)
+    add_subdirectory(docs/)
+endif()
 
 if (JAMS_BUILD_TESTS)
     add_subdirectory(src/jams/test)

@@ -42,6 +42,6 @@ void CudaZeemanHamiltonian::calculate_fields() {
 
 CudaZeemanHamiltonian::~CudaZeemanHamiltonian() {
   if (dev_stream_ != nullptr) {
-    CHECK_CUDA_STATUS(cudaStreamDestroy(dev_stream_));
+    cudaStreamDestroy(dev_stream_);
   }
 }

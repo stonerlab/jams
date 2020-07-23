@@ -5,28 +5,15 @@
 
 #include <libconfig.h++>
 
-
-#include "jams/hamiltonian/strategy.h"
+#include "jams/hamiltonian/sparse_interaction.h"
 #include "jams/containers/multiarray.h"
 
+class DipoleTensorHamiltonian : public SparseInteractionHamiltonian {
+public:
+    DipoleTensorHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-class DipoleHamiltonianTensor : public HamiltonianStrategy {
-    public:
-        DipoleHamiltonianTensor(const libconfig::Setting &settings, const unsigned int size);
-
-        ~DipoleHamiltonianTensor() {};
-
-        double calculate_total_energy();
-        double calculate_one_spin_energy(const int i);
-        double calculate_one_spin_energy(const int i, const Vec3 &s_i);
-        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final) ;
-        void   calculate_energies(jams::MultiArray<double, 1>& energies);
-
-        void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields(jams::MultiArray<double, 2>& fields);
-    private:
-        double r_cutoff_;
-        jams::MultiArray<double, 2> dipole_tensor_;
+private:
+    double r_cutoff_; // cutoff radius for dipole interaction
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_TENSOR_H
