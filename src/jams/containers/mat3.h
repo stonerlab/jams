@@ -81,6 +81,13 @@ inline Mat<T,3,3> operator*(const Mat<T,3,3>& lhs, const Mat<T,3,3>& rhs) {
   return result;
 }
 
+template <typename T1, typename T2>
+inline constexpr auto operator+=(Mat<T1,3,3>& lhs, const Mat<T2,3,3>& rhs) -> Mat<decltype(lhs[0][0] + rhs[0][0]),3,3> {
+  return {lhs[0][0] += rhs[0][0], lhs[0][1] += rhs[0][1], lhs[0][2] += rhs[0][2],
+          lhs[1][0] += rhs[1][0], lhs[1][1] += rhs[1][1], lhs[1][2] += rhs[1][2],
+          lhs[2][0] += rhs[2][0], lhs[2][1] += rhs[2][1], lhs[2][2] += rhs[2][2]};
+}
+
 // Vec3 specialization
 template <typename T>
 inline bool approximately_equal(const Mat<T,3,3>& a, const Mat<T,3,3>& b, const T& epsilon = FLT_EPSILON) {

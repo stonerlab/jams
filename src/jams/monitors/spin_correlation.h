@@ -17,9 +17,8 @@ public:
     void post_process() override;
     bool is_converged() override {return false;}
 private:
-    template <typename T>
     struct Datum {
-        T        total = 0.0;
+        double total = 0.0;
         unsigned count = 0;
     };
 

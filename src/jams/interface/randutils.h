@@ -453,6 +453,7 @@ namespace randutils {
         default_seeds local_entropy()
         {
           // This is a constant that changes every time we compile the code
+          __attribute__((unused))
           constexpr uint32_t compile_stamp =
               fnv(2166136261U, __DATE__ __TIME__ __FILE__);
 

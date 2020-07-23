@@ -46,6 +46,7 @@ private:
     jams::MultiArray<Complex, 4> kspace_s_;
     jams::MultiArray<Complex, 4> kspace_h_;
 
+
     std::vector<std::vector<jams::MultiArray<Complex, 5>>> kspace_tensors_;
 
     fftw_plan fft_s_rspace_to_kspace = nullptr;
