@@ -6,6 +6,8 @@
 
 #include "jams/hamiltonian/dipole_neighbour_list.h"
 
+using namespace std;
+
 DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size){
 
@@ -18,6 +20,34 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
         " (" + std::to_string(lattice->max_interaction_radius())  + ")");
   }
 
+  // This default predicate means every atom will be selected
+  function<bool(const int, const int)> selection_predicate =
+      [](const int i, const int j) { return true; };
+
+  // If we choose an exclusive pair of materials then we change the predicate
+  // so that only interactions a-b and b-a are calculated.
+  if (settings.exists("exclusive_pair")) {
+    const string a = settings["exclusive_pair"][0];
+    if (!lattice->material_exists(a)) {
+      throw runtime_error("material " + a + " does not exist");
+    }
+
+    const string b = settings["exclusive_pair"][1];
+    if (!lattice->material_exists(b)) {
+      throw runtime_error("material " + b + " does not exist");
+    }
+
+    // Change the Hamiltonian name to include the material pair. This is used
+    // for example to name columns in output files.
+    set_name(name() + "_" + a + "_" + b);
+
+    // select materials a and b either way around
+    selection_predicate = [=](const int i, const int j) {
+        return (lattice->atom_material_name(i) == a && lattice->atom_material_name(j) == b)
+               || (lattice->atom_material_name(i) == b && lattice->atom_material_name(j) == a);
+    };
+  }
+
   std::size_t max_memory_per_tensor = (sizeof(std::vector<std::pair<Vec3,int>>*) + sizeof(Vec3) + sizeof(int));
 
   std::cout << "  dipole neighbour list memory (estimate) "
@@ -26,7 +56,15 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
   int num_neighbours = 0;
   neighbour_list_.resize(globals::num_spins);
   for (auto i = 0; i < neighbour_list_.size(); ++i) {
-    neighbour_list_[i] = lattice->atom_neighbours(i, r_cutoff_);
+    // All neighbours of i within the r_cutoff distance
+    auto all_neighbours = lattice->atom_neighbours(i, r_cutoff_);
+
+    // Select only the neighbours which obey the predicate
+    for (const auto& nbr : all_neighbours) {
+      if (selection_predicate(i, nbr.second)) {
+        neighbour_list_[i].push_back(nbr);
+      }
+    }
     num_neighbours += neighbour_list_[i].size();
   }
 

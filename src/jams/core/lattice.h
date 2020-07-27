@@ -66,11 +66,12 @@ public:
 
     int num_materials() const;
     const Material &material(const int &i) const;
-    std::string material_name(int uid);
-    int material_id(const std::string &name);
-    bool material_exists(const std::string &name);
+    std::string material_name(int uid) const;
+    int material_id(const std::string &name) const;
+    bool material_exists(const std::string &name) const;
 
     int atom_material_id(const int &i) const;           // integer index of the material
+    std::string atom_material_name(const int &i) const; // name of the material of atom i
     const Vec3 & atom_position(const int &i) const;             // cartesian position in the supercell
     unsigned atom_motif_position(const int &i) const;   // integer index within the motif
     std::vector<std::pair<Vec3, int>> atom_neighbours(const int &i, const double &r_cutoff) const;
