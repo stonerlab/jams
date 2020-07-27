@@ -145,12 +145,12 @@ Lattice::num_materials() const {
 }
 
 std::string
-Lattice::material_name(int uid) {
+Lattice::material_name(int uid) const {
   return materials_.name(uid);
 }
 
 int
-Lattice::material_id(const std::string &name) {
+Lattice::material_id(const std::string &name) const {
   return materials_.id(name);
 }
 
@@ -158,6 +158,12 @@ int
 Lattice::atom_material_id(const int &i) const {
   assert(i < atoms_.size());
   return atoms_[i].material_index;
+}
+
+std::string
+Lattice::atom_material_name(const int &i) const {
+  assert(i < atoms_.size());
+  return material_name(atom_material_id(i));
 }
 
 const Vec3 &
@@ -1081,7 +1087,7 @@ const Mat3 &Lattice::get_global_rotation_matrix() {
   return global_orientation_matrix_;
 }
 
-bool Lattice::material_exists(const std::string &name) {
+bool Lattice::material_exists(const std::string &name) const {
   return materials_.contains(name);
 }
 
