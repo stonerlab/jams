@@ -237,7 +237,7 @@ inline std::string memory_in_natural_units(std::size_t size) {
   byte_sizes[4] = "TB";
   byte_sizes[5] = "ZB";
 
-  int factor = int(log2(size)/log2(1024));
+  int factor = int(std::log2(size)/std::log2(1024));
   std::stringstream ss;
   ss << std::setprecision(3) <<  size / pow(1024,factor) << " " << byte_sizes[factor];
   return ss.str();
