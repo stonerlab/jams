@@ -74,7 +74,7 @@ clone_git_branch_shallow() {
   local destination=$3
 
   mkdir -p "$destination"
-  git clone -b "$branch" --single-branch --depth 1 "$repository" "$destination" >> "${LOG}" 2>&1 
+  git clone -b "$branch" --single-branch "$repository" "$destination" >> "${LOG}" 2>&1
 }
 
 clone_git_commit() {
@@ -83,8 +83,28 @@ clone_git_commit() {
   local destination=$3
 
   mkdir -p "$destination"
-  git clone "$repository" "$destination" >> "${LOG}" 2>&1 
+  git clone "$repository" "$destination" >> "${LOG}" 2>&1
   (cd "${destination}" && git checkout -q "${commit}")
+}
+
+semantic_version_name() {
+  local cmake_build_dir="$1"
+
+  IFS='-' # hyphen (-) is set as delimiter
+  read -ra version_info <<< "$(git -C "${cmake_build_dir}" describe --tags --long)"
+  IFS=' ' # reset to default value after usage
+
+  N=${#version_info[@]}
+
+  if [[ $N -eq 3 ]]; then
+    version=${version_info[0]}
+    commits=${version_info[1]}
+    hash=${version_info[2]#"g"} # remove the leading 'g' from the hash which symbolises this is a git hash
+    echo "jams-${version}+${commits}.${hash}"
+  else
+    # we didn't find a 3 part description so use the whole string
+    echo "jams-${version_info[*]}"
+  fi
 }
 
 build_branch() {
@@ -93,20 +113,15 @@ build_branch() {
   local build_options="$3"
   local generator="$4"
 
-  local sanitized_branch
-  sanitized_branch=$(basename "${branch}")
-
-  local build_name
-  build_name=$(tr '[:upper:]' '[:lower:]' <<< "jams-${sanitized_branch}-${build_type}")
   local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} ${build_options}"
-
-  local workdir="${build_name}"
-
-  message "\e[1m==> Building \e[34m${workdir}\e[39m from \e[32m${URL}\e[39m...\e[0m"
+  local workdir="cmake-build-jams"
 
   clean "${workdir}"
-  message "\e[1m==> Cloning git repository...\e[0m"
+  message "\e[1m==> Cloning from \e[32m${URL}\e[39m...\e[0m"
   clone_git_branch_shallow "${URL}" "${branch}" "${workdir}"
+  local build_name
+  build_name=$(semantic_version_name ${workdir})
+  message "\e[1m==> Building \e[32m${build_name}\e[39m...\e[0m"
   message "\e[1m==> Running CMake...\e[0m"
   cmake_generate "${workdir}/build" "${cmake_args}" "${generator}"
   message "\e[1m==> Compiling source...\e[0m"
@@ -122,17 +137,15 @@ build_commit() {
   local build_options="$3"
   local generator="$4"
 
-  local build_name
-  build_name=$(tr '[:upper:]' '[:lower:]' <<< "jams-${commit}-${build_type}")
   local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} ${build_options}"
-
-  local workdir="${build_name}"
-
-  message "\e[1m==> Building \e[34m${workdir}\e[39m from \e[32m${URL}\e[39m...\e[0m"
+  local workdir="cmake-build-jams"
 
   clean "${workdir}"
-  message "\e[1m==> Cloning git repository...\e[0m"
+  message "\e[1m==> Cloning from \e[32m${URL}\e[39m...\e[0m"
   clone_git_commit "${URL}" "$commit" "${workdir}"
+  local build_name
+  build_name=$(semantic_version_name ${workdir})
+  message "\e[1m==> JAMS version name \e[32m${build_name}\e[39m...\e[0m"
   message "\e[1m==> Running CMake...\e[0m"
   cmake_generate "${workdir}/build" "${cmake_args}" "${generator}"
   message "\e[1m==> Compiling source...\e[0m"
@@ -172,7 +185,7 @@ build() {
 }
 
 main() {
-  local branch="develop"
+  local branch="master"
   local commit=""
   local build_type="Release"
   local build_options=""
@@ -223,5 +236,5 @@ main() {
     build_branch "$branch" "$build_type" "$build_options" "$generator"
   fi
 }
- 
+
 main "$@"
