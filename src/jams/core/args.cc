@@ -11,6 +11,11 @@ namespace jams {
     }
 
     void process_flag(const std::string& flag, ProgramArgs& program_args) {
+      if (flag == "--version") {
+        program_args.version_only = true;
+        return;
+      }
+
       if (flag == "--setup-only") {
         program_args.setup_only = true;
         return;

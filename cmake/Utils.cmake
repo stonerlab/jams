@@ -37,10 +37,22 @@ function(jams_extract_git_info)
         if(NOT ${__git_result} EQUAL 0)
             set(JAMS_GIT_COMMIT_HASH "unknown")
         endif()
+
+        execute_process(
+                COMMAND ${GIT_EXECUTABLE} describe --tags --long --dirty
+                ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                OUTPUT_VARIABLE JAMS_GIT_DESCRIPTION
+                RESULT_VARIABLE __git_result)
+
+        if(NOT ${__git_result} EQUAL 0)
+            set(JAMS_GIT_DESCRIPTION "unknown")
+        endif()
     endif()
 
     set(JAMS_GIT_BRANCH ${JAMS_GIT_BRANCH} PARENT_SCOPE)
     set(JAMS_GIT_COMMIT_HASH ${JAMS_GIT_COMMIT_HASH} PARENT_SCOPE)
+    set(JAMS_GIT_DESCRIPTION ${JAMS_GIT_DESCRIPTION} PARENT_SCOPE)
 endfunction()
 
 function(jams_set_fast_math target)
