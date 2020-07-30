@@ -192,6 +192,7 @@ namespace jams {
 
     void initialize_simulation(const jams::ProgramArgs &program_args) {
       try {
+        cout << "\nJAMS++ " << jams::build::version << std::endl;
         cout << jams::section("build info") << std::endl;
         cout << jams::build_info();
         cout << jams::section("run info") << std::endl;

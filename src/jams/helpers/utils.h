@@ -228,6 +228,25 @@ inline std::vector<std::string> split(const std::string& s, const std::string& d
   return result;
 }
 
+// Convert a string containing the output of git describe --tags --long into a
+// semantic version string
+inline std::string semantic_version(const std::string &git_description) {
+  auto parts = split(git_description, "-");
+
+  // this will be tag+commits_ahead.hash[.dirty], substr removes the 'g' at the front
+  // of the hash which only stands for 'git' and is not part of the hash. If the
+  // repo has uncommitted changes it is  marked with '.dirty' at the end
+  if (parts.size() == 3) {
+    return parts[0] + "+" + parts[1] + "." + parts[2].substr(1);
+  } else if (parts.size() == 4) {
+    return parts[0] + "+" + parts[1] + "." + parts[2].substr(1) + "." + parts[3];
+  }
+
+  // git description is not properly formatted to parse for semantic versioning
+  // so just return as is.
+  return git_description;
+}
+
 inline std::string memory_in_natural_units(std::size_t size) {
   std::map<int, std::string> byte_sizes;
   byte_sizes[0] = "B";
