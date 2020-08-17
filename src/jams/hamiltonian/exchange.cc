@@ -16,7 +16,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   bool use_symops = true;
   settings.lookupValue("symops", use_symops);
 
-  energy_cutoff_ = 1E-26;  // Joules
+  // this is in the units specified by 'unit_name' in the input
+  energy_cutoff_ = 0.0;
   settings.lookupValue("energy_cutoff", energy_cutoff_);
   cout << "    interaction energy cutoff " << energy_cutoff_ << "\n";
 
