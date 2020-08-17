@@ -491,7 +491,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   for (auto i = 0; i < motif_.size(); ++i) {
     for (auto j = i + 1; j < motif_.size(); ++j) {
-      if(!definately_greater_than(norm(minimum_image(unitcell, motif_[i].position, motif_[j].position)), jams::defaults::lattice_tolerance)) {
+      auto distance = norm(minimum_image(unitcell,fractional_to_cartesian(motif_[i].position), fractional_to_cartesian(motif_[j].position)));
+      if(!definately_greater_than(distance, jams::defaults::lattice_tolerance)) {
         throw std::runtime_error("motif positions " + std::to_string(i) + " and " + std::to_string(j) + " are closer than the default lattice tolerance");
       }
     }
