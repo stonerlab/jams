@@ -5,6 +5,7 @@
 #include <sstream>
 #include <set>
 #include <numeric>
+#include <jams/helpers/output.h>
 
 #include "jams/core/types.h"
 #include "jams/core/interactions.h"
@@ -523,26 +524,58 @@ write_interaction_data(ostream &output, const vector<InteractionData> &data, Coo
 }
 void
 write_neighbour_list(ostream &output, const jams::InteractionList<Mat3,2> &list) {
+  output << "#";
+  output << jams::fmt::integer << "i";
+  output << jams::fmt::integer << "j";
+  output << jams::fmt::integer << "type_i";
+  output << jams::fmt::integer << "type_j";
+  output << jams::fmt::decimal << "rx_i";
+  output << jams::fmt::decimal << "ry_i";
+  output << jams::fmt::decimal << "rz_i";
+  output << jams::fmt::decimal << "rx_j";
+  output << jams::fmt::decimal << "ry_j";
+  output << jams::fmt::decimal << "rz_j";
+  output << jams::fmt::decimal << "rx_ij";
+  output << jams::fmt::decimal << "ry_ij";
+  output << jams::fmt::decimal << "rz_ij";
+  output << jams::fmt::decimal << "|r_ij|";
+  output << jams::fmt::sci << "Jij_xx";
+  output << jams::fmt::sci << "Jij_xy";
+  output << jams::fmt::sci << "Jij_xz";
+  output << jams::fmt::sci << "Jij_yx";
+  output << jams::fmt::sci << "Jij_yy";
+  output << jams::fmt::sci << "Jij_yz";
+  output << jams::fmt::sci << "Jij_zx";
+  output << jams::fmt::sci << "Jij_zy";
+  output << jams::fmt::sci << "Jij_zz" << "\n";
+
   for (int n = 0; n < list.size(); ++n) {
       auto i = list[n].first[0];
       auto j = list[n].first[1];
+      auto rij = lattice->displacement(i, j);
       auto Jij = list[n].second;
-      output << setw(12) << i << "\t";
-      output << setw(12) << j << "\t";
-      output << std::fixed << lattice->atom_position(i)[0] << "\t";
-      output << std::fixed << lattice->atom_position(i)[1] << "\t";
-      output << std::fixed << lattice->atom_position(i)[2] << "\t";
-      output << std::fixed << lattice->atom_position(j)[0] << "\t";
-      output << std::fixed << lattice->atom_position(j)[1] << "\t";
-      output << std::fixed << lattice->atom_position(j)[2] << "\t";
-      output << setw(12) << scientific << Jij[0][0] << "\t";
-      output << setw(12) << scientific << Jij[0][1] << "\t";
-      output << setw(12) << scientific << Jij[0][2] << "\t";
-      output << setw(12) << scientific << Jij[1][0] << "\t";
-      output << setw(12) << scientific << Jij[1][1] << "\t";
-      output << setw(12) << scientific << Jij[1][2] << "\t";
-      output << setw(12) << scientific << Jij[2][0] << "\t";
-      output << setw(12) << scientific << Jij[2][1] << "\t";
-      output << setw(12) << scientific << Jij[2][2] << "\n";
+      output << jams::fmt::integer << i;
+      output << jams::fmt::integer << j;
+      output << jams::fmt::integer << lattice->atom_material_name(i);
+      output << jams::fmt::integer << lattice->atom_material_name(j);
+      output << jams::fmt::decimal << lattice->atom_position(i)[0];
+      output << jams::fmt::decimal << lattice->atom_position(i)[1];
+      output << jams::fmt::decimal << lattice->atom_position(i)[2];
+      output << jams::fmt::decimal << lattice->atom_position(j)[0];
+      output << jams::fmt::decimal << lattice->atom_position(j)[1];
+      output << jams::fmt::decimal << lattice->atom_position(j)[2];
+      output << jams::fmt::decimal << rij[0];
+      output << jams::fmt::decimal << rij[1];
+      output << jams::fmt::decimal << rij[2];
+      output << jams::fmt::decimal << norm(rij);
+      output << jams::fmt::sci << scientific << Jij[0][0];
+      output << jams::fmt::sci << scientific << Jij[0][1];
+      output << jams::fmt::sci << scientific << Jij[0][2];
+      output << jams::fmt::sci << scientific << Jij[1][0];
+      output << jams::fmt::sci << scientific << Jij[1][1];
+      output << jams::fmt::sci << scientific << Jij[1][2];
+      output << jams::fmt::sci << scientific << Jij[2][0];
+      output << jams::fmt::sci << scientific << Jij[2][1];
+      output << jams::fmt::sci << scientific << Jij[2][2] << "\n";
   }
 }
