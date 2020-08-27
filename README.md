@@ -20,14 +20,22 @@ libraries and packages which also need to be installed or built.
 **Note**: In recent versions of JAMS some of the dependencies are now pulled automagically by cmake and built within the JAMS
 project. This means they do not have to be installed separately. Currently these are: `spglib`.
 
+Recent versions of JAMS have the following build requirements:
+
 - cmake >= 3.8.0
 - cuda >= 9.0.176
-- libconfig++ >= 1.6.0
-- hdf5
-- blas
-- spglib
-- fftw3
-- sphinx (for documentation)
+- hdf5 >= 1.8.20 <= 1.10.* (1.12.* has an API change which is currently incompatible)
+- blas (e.g. mkl, openblas)
+- fftw3 (can be supplied by mkl)
+
+Older versions will also need 
+
+- [libconfig++](https://hyperrealm.github.io/libconfig/) >= 1.6.0
+- [spglib](http://spglib.github.io/spglib/)
+
+To build documentation we need 
+
+- [sphinx](http://sphinx-doc.org)
 
 ### Build Options
 CMake accepts the following build options:
