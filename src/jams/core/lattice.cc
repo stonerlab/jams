@@ -1040,16 +1040,23 @@ double Lattice::max_interaction_radius() const {
   return 0.0;
 }
 
+// generate a vector of points which are symmetric to r_cart under the crystal symmetry
+// the tolerance is used to determine if two points are equivalent
 std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3 &r_cart, const double &tolerance = jams::defaults::lattice_tolerance) const {
 
   const auto r_frac = cartesian_to_fractional(r_cart);
   std::vector<Vec3> symmetric_points;
 
+  // store the original point
   symmetric_points.push_back(r_cart);
+  // loop through all of the symmmetry operations
   for (const auto rotation_matrix : rotations_) {
+    // apply a symmetry operation
     const auto r_sym = fractional_to_cartesian(rotation_matrix * r_frac);
 
+    // check if the generated point is already in the vector
     if (!vec_exists_in_container(symmetric_points, r_sym, tolerance)) {
+      // it's not in the vector so append it
       symmetric_points.push_back(r_sym);
     }
   }
@@ -1058,13 +1065,18 @@ std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3 &r_cart, const d
 }
 
 bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double &tolerance = jams::defaults::lattice_tolerance) const {
+  // loop over the collection of points
   for (const auto r : points) {
+    // for each point generate the symmetric points according to the the crystal symmetry
     for (const auto r_sym : generate_symmetric_points(r, tolerance)) {
+      // if a symmetry generated point is not in our original collection of points then our original collection was not a complete set
+      // and we return fals
       if (!vec_exists_in_container(points, r_sym, tolerance)) {
         return false;
       }
     }
   }
+  // the collection of points contains all allowed symmetric points
   return true;
 }
 

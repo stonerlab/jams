@@ -150,6 +150,8 @@ inline int periodic_shift(const int x, const int dimx) {
 
 std::string word_wrap(const char *text, size_t line_length);
 
+// returns true if a Vec3 already exists in a container using safe floating point comparison
+// to a given tolerance
 template <typename T>
 bool vec_exists_in_container(const T& container, const Vec3& v1, const double tolerance = FLT_EPSILON) {
   auto it = std::find_if(container.begin(),container.end(), [&](const Vec3& v2) {
