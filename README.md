@@ -2,6 +2,14 @@
 
 Joe's Awesome Magnetic Simulator is an atomistic magnetisation dynamics code with CUDA GPU acceleration.
 
+## Releases
+
+Binaries attached to the released version are build on arc4 at Leeds. This version has CUDA enabled and is built against
+
+- mkl-2019.0
+- hdf5-1.8.20
+- cuda-10.1.168
+
 ## Compiling
 
 JAMS is built using the CMake build system. Building `should` be straight forward, but it depends on several other
