@@ -100,7 +100,11 @@ semantic_version_name() {
     version=${version_info[0]}
     commits=${version_info[1]}
     hash=${version_info[2]#"g"} # remove the leading 'g' from the hash which symbolises this is a git hash
-    echo "jams-${version}+${commits}.${hash}"
+    if [ $commits == '0' ]; then
+      echo "jams-${version}"
+    else
+      echo "jams-${version}+${commits}.${hash}"
+    fi
   else
     # we didn't find a 3 part description so use the whole string
     echo "jams-${version_info[*]}"
