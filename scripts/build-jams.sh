@@ -29,7 +29,7 @@ declare -r EXE_PATH='bin/jams'
 declare -r NVCC_PATH="$(which nvcc)"
 
 function usage {
-	echo "usage: $0 [-b <branch>] [-c <commit>] [-t <build_type>] [-g <generator>] [-d | Debug]"
+	echo "usage: $0 [-b <branch>] [-c <commit>] [-v <version>] [-t <build_type>] [-g <generator>] [-d | Debug]"
 }
 
 function clean_exit {
@@ -68,7 +68,7 @@ copy_binary() {
   cp "${workdir}/build/${EXE_PATH}" "${DIR}/${exe_name}"
 }
 
-clone_git_branch_shallow() {
+clone_git_branch() {
   local repository=$1
   local branch=$2
   local destination=$3
@@ -122,7 +122,7 @@ build_branch() {
 
   clean "${workdir}"
   message "\e[1m==> Cloning from \e[32m${URL}\e[39m...\e[0m"
-  clone_git_branch_shallow "${URL}" "${branch}" "${workdir}"
+  clone_git_branch "${URL}" "${branch}" "${workdir}"
   local build_name
   build_name=$(semantic_version_name ${workdir})
   message "\e[1m==> Building \e[32m${build_name}\e[39m...\e[0m"
@@ -200,13 +200,16 @@ main() {
     build_options="-DJAMS_BUILD_CUDA=OFF"
   fi
 
-  while getopts ":b:c:dt:o:g:h" opt; do
+  while getopts ":b:c:v:dt:o:g:h" opt; do
     case $opt in
       b )
         branch=$OPTARG
         ;;
       c )
         commit=$OPTARG
+        ;;
+      v )
+        branch=$OPTARG
         ;;
       d )
         build_type="Debug"
