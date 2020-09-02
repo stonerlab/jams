@@ -132,14 +132,22 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 
   kspace_tensors_.resize(lattice->num_motif_atoms());
   for (int pos_i = 0; pos_i < lattice->num_motif_atoms(); ++pos_i) {
-      for (int pos_j = 0; pos_j < lattice->num_motif_atoms(); ++pos_j) {
-        auto wq = generate_kspace_dipole_tensor(pos_i, pos_j);
+    std::vector<Vec3> generated_positions;
+    for (int pos_j = 0; pos_j < lattice->num_motif_atoms(); ++pos_j) {
+        auto wq = generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions);
 
         jams::MultiArray<cufftDoubleComplex, 1> gpu_wq(wq.elements());
         kspace_tensors_[pos_i].push_back(gpu_wq);
 
         CHECK_CUDA_STATUS(cudaMemcpy(kspace_tensors_[pos_i].back().data(), wq.data(), wq.elements() * sizeof(cufftDoubleComplex), cudaMemcpyHostToDevice));
           
+      }
+      if (check_symmetry_ && (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2))) {
+        if (!lattice->is_a_symmetry_complete_set(generated_positions, distance_tolerance_)) {
+          throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
+                                   "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
+                                   "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+        }
       }
   }
 
@@ -208,8 +216,10 @@ void CudaDipoleFFTHamiltonian::calculate_fields() {
   CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
 }
 
+// Generates the dipole tensor between unit cell positions i and j and appends
+// the generated positions to a vector
 jams::MultiArray<Complex, 5>
-CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
+CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
     using std::pow;
 
     const Vec3 r_frac_i = lattice->motif_atom(pos_i).position;
@@ -238,8 +248,6 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
     const double v = pow(lattice->parameter(), 3);
     const double w0 = fft_normalization_factor * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
 
-    std::vector<Vec3> positions;
-
     for (int nx = 0; nx < kspace_size_[0]; ++nx) {
         for (int ny = 0; ny < kspace_size_[1]; ++ny) {
             for (int nz = 0; nz < kspace_size_[2]; ++nz) {
@@ -263,7 +271,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                     continue;
                 }
 
-                positions.push_back(r_ij);
+              generated_positions.push_back(r_ij);
 
                 for (int m = 0; m < 3; ++m) {
                     for (int n = 0; n < 3; ++n) {
@@ -282,18 +290,11 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
       std::ofstream debugfile(jams::output::full_path_filename(
           "DEBUG_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv"));
 
-      for (const auto& r : positions) {
+      for (const auto& r : generated_positions) {
         debugfile << r << "\n";
       }
     }
 
-    if (check_symmetry_ && (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2))) {
-      if (lattice->is_a_symmetry_complete_set(positions, distance_tolerance_) == false) {
-        throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
-                                         "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
-                                         "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
-      }
-    }
     int rank            = 3;
     int stride          = 9;
     int dist            = 1;
