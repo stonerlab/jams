@@ -81,8 +81,16 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
   kspace_tensors_.resize(lattice->num_motif_atoms());
 
     for (auto pos_i = 0; pos_i < lattice->num_motif_atoms(); ++pos_i) {
+      std::vector<Vec3> generated_positions;
       for (auto pos_j = 0; pos_j < lattice->num_motif_atoms(); ++pos_j) {
-        kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j));
+        kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions));
+      }
+      if (check_symmetry_ && (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2))) {
+        if (!lattice->is_a_symmetry_complete_set(generated_positions, r_distance_tolerance_)) {
+          throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
+                                   "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
+                                   "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+        }
       }
     }
 
@@ -190,9 +198,10 @@ Vec3 DipoleFFTHamiltonian::calculate_field(const int i) {
 }
 
 
-
+// Generates the dipole tensor between unit cell positions i and j and appends
+// the generated positions to a vector
 jams::MultiArray<Complex, 5>
-DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j) {
+DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
   using std::pow;
 
   const Vec3 r_frac_i = lattice->motif_atom(pos_i).position;
@@ -221,9 +230,6 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
   const double a3 = pow3(::lattice->parameter());
   const double w0 = fft_normalization_factor * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * a3);
 
-  std::vector<Vec3> positions;
-  positions.reserve(product(kspace_size_));
-
   for (auto nx = 0; nx < kspace_size_[0]; ++nx) {
     for (auto ny = 0; ny < kspace_size_[1]; ++ny) {
       for (auto nz = 0; nz < kspace_size_[2]; ++nz) {
@@ -242,7 +248,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
           continue;
         }
 
-        positions.push_back(r_ij);
+        generated_positions.push_back(r_ij);
 
         for (auto m = 0; m < 3; ++m) {
           for (auto n = 0; n < 3; ++n) {
@@ -256,16 +262,8 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
   if (debug_) {
     std::ofstream debugfile(jams::output::full_path_filename("DEBUG_dipole_fft_" + std::to_string(pos_i) + "_" + std::to_string(pos_j) + "_rij.tsv"));
 
-    for (const auto& r : positions) {
+    for (const auto& r : generated_positions) {
       debugfile << r << "\n";
-    }
-  }
-
-  if (check_symmetry_ && (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2))) {
-    if (lattice->is_a_symmetry_complete_set(positions, r_distance_tolerance_) == false) {
-      throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
-              "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
-              "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
     }
   }
 
