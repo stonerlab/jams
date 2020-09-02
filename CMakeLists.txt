@@ -30,7 +30,7 @@ set(CMAKE_CUDA_EXTENSIONS OFF)
 
 set(VERSION_MAJOR "2" )
 set(VERSION_MINOR "5" )
-set(VERSION_PATCH "0" )
+set(VERSION_PATCH "1" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 # Latest libconfig version is 1.7.2 but the cmake support is broken. This is fixed in the current
