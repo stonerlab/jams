@@ -4,7 +4,6 @@ download_project(
         PROJ                pcg
         GIT_REPOSITORY      https://github.com/imneme/pcg-cpp.git
         GIT_TAG             ${JAMS_PCG_VERSION}
-        UPDATE_DISCONNECTED 1
 )
 
 add_library(pcg_builtin INTERFACE)

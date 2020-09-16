@@ -7,6 +7,7 @@ endif()
 include(cmake/Utils.cmake)
 ensure_out_of_source_build()
 
+option(JAMS_BUILD_OFFLINE "Build JAMS without updating external dependencies online" OFF)
 option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" OFF)
 option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" ON)
 option(JAMS_BUILD_FASTMATH "Build JAMS with fast math flags" ON)
@@ -18,6 +19,10 @@ project(jams LANGUAGES C CXX)
 
 if (JAMS_BUILD_CUDA)
     enable_language(CUDA)
+endif()
+
+if (${JAMS_BUILD_OFFLINE})
+    set_property(DIRECTORY ${jams_SOURCE_DIR} PROPERTY EP_UPDATE_DISCONNECTED 1)
 endif()
 
 set(CMAKE_CXX_STANDARD 11)
@@ -37,7 +42,7 @@ set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 # github master branch
 set(JAMS_LIBCONFIG_VERSION f53e5de) # https://github.com/hyperrealm/libconfig
 set(JAMS_HIGHFIVE_VERSION v2.1.1)   # https://github.com/BlueBrain/HighFive
-set(JAMS_SPGLIB_VERSION v1.10.4)    # https://github.com/atztogo/spglib
+set(JAMS_SPGLIB_VERSION v1.16.0)    # https://github.com/atztogo/spglib
 set(JAMS_PCG_VERSION v0.98.1)       # https://github.com/imneme/pcg-cpp
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
