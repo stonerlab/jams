@@ -118,7 +118,7 @@ namespace jams {
       ss << "    " << find_and_replace(jams::build::libconfig_libraries, ";", "\n    ") << "\n";
       ss << "  highfive   " << jams::build::highfive_version << "\n";
       ss << "    " << find_and_replace(jams::build::highfive_libraries, ";", "\n    ") << "\n";
-      ss << "  spglib     " << jams::build::spglib_version << "\n";
+      ss << "  spglib     " << jams::build::spglib_version() << "\n";
       ss << "    " << find_and_replace(jams::build::spglib_libraries, ";", "\n    ") << "\n";
       ss << "  pcg        " << jams::build::pcg_version << "\n";
       ss << "    " << find_and_replace(jams::build::pcg_libraries, ";", "\n    ") << "\n";
