@@ -28,7 +28,6 @@ namespace jams {
         constexpr auto libconfig_libraries = "@JAMS_LIBCONFIG_LIBRARIES@";
         constexpr auto highfive_version = "@JAMS_HIGHFIVE_VERSION@";
         constexpr auto highfive_libraries = "@JAMS_HIGHFIVE_LIBRARIES@";
-        constexpr auto spglib_version = "@JAMS_SPGLIB_VERSION@";
         constexpr auto spglib_libraries = "@JAMS_SPGLIB_LIBRARIES@";
         constexpr auto pcg_version = "@JAMS_PCG_VERSION@";
         constexpr auto pcg_libraries = "@JAMS_PCG_LIBRARIES@";
@@ -38,18 +37,10 @@ namespace jams {
         #if HAS_MKL
         constexpr auto mkl_libraries = "@MKL_LIBRARIES@";
 
-        inline std::string mkl_version() {
-            MKLVersion Version;
-            mkl_get_version(&Version);
-
-            std::stringstream ss;
-
-            ss << Version.MajorVersion << "." << Version.MinorVersion << "." << Version.UpdateVersion;
-            ss << " (Build " << Version.Build << ")";
-
-            return ss.str();
-        }
+        std::string mkl_version();
         #endif
+
+        std::string spglib_version();
 
         #if HAS_CUDA
             constexpr auto cusparse_libraries = "@JAMS_CUDA_cusparse_LIBRARIES@";
