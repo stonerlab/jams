@@ -4,7 +4,6 @@ download_project(
         PROJ                spglib
         GIT_REPOSITORY      https://github.com/atztogo/spglib.git
         GIT_TAG             ${JAMS_SPGLIB_VERSION}
-        UPDATE_DISCONNECTED 1
 )
 
 add_subdirectory(${spglib_SOURCE_DIR} ${spglib_BINARY_DIR} EXCLUDE_FROM_ALL)

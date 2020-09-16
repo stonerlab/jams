@@ -10,7 +10,6 @@ download_project(
         PROJ                HighFive
         GIT_REPOSITORY      https://github.com/BlueBrain/HighFive.git
         GIT_TAG             ${JAMS_HIGHFIVE_VERSION}
-        UPDATE_DISCONNECTED 1
         CMAKE_ARGS          ${PROJ_CMAKE_ARGS}
 )
 

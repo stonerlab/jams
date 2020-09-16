@@ -11,7 +11,6 @@ download_project(
         PROJ                libconfig
         GIT_REPOSITORY      https://github.com/hyperrealm/libconfig.git
         GIT_TAG             ${JAMS_LIBCONFIG_VERSION}
-        UPDATE_DISCONNECTED 1
         CMAKE_ARGS          ${PROJ_CMAKE_ARGS}
 )
 
