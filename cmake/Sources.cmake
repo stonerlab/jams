@@ -37,6 +37,7 @@ set(JAMS_SOURCES_CXX
         interface/config.cc
         interface/fft.cc
         interface/system.cc
+        maths/parallelepiped.cc
         monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc
