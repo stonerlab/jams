@@ -22,7 +22,8 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 
   configure_kspace_vectors(settings);
 
-  config_optional(settings, "rspace_windowing", do_rspace_windowing_);
+  do_rspace_windowing_ = config_optional(settings, "rspace_windowing", do_rspace_windowing_);
+  cout << "rspace windowing: " << do_rspace_windowing_ << endl;
 
   // default to 1.0 in case no form factor is given in the settings
   fill(neutron_form_factors_.resize(lattice->num_materials(), num_k_), 1.0);
