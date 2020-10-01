@@ -73,9 +73,11 @@ void NeutronScatteringNoLatticeMonitor::update(Solver *solver) {
 }
 
 void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig::Setting &settings) {
-  kvector_ = jams::config_optional<Vec3>(settings, "kvector", kvector_);
+  kmax_ = jams::config_required<double>(settings, "kmax");
+  kvector_ = jams::config_required<Vec3>(settings, "kvector");
+  num_k_ = jams::config_required<int>(settings, "num_k");
 
-  kspace_path_.resize(num_k_);
+  kspace_path_.resize(num_k_ + 1);
   for (auto i = 0; i < kspace_path_.size(); ++i) {
     kspace_path_(i) = kvector_ * i * (kmax_ / num_k_);
   }
