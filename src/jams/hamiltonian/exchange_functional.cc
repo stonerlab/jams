@@ -31,7 +31,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       if (i == j) {
         continue;
       }
-      const auto rij = norm(nbr.first - r_i);
+      const auto rij = norm(::lattice->displacement(i, j));
       this->insert_interaction_scalar(i, j, input_unit_conversion_ * exchange_functional(rij));
       counter++;
     }
