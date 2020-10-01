@@ -13,6 +13,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   radius_cutoff_ = jams::config_required<double>(settings, "r_cutoff");
 
   cout << "  cutoff radius: " << jams::fmt::decimal << radius_cutoff_ << "\n";
+  cout << "  max cutoff radius: " << lattice->max_interaction_radius() << "\n";
 
   if (radius_cutoff_ > lattice->max_interaction_radius()) {
     throw std::runtime_error("cutoff radius is larger than the maximum radius which avoids self interaction");
@@ -64,6 +65,10 @@ double ExchangeFunctionalHamiltonian::functional_gaussian(const double rij, cons
   return J0 * exp(-pow2(rij - r0)/(2 * pow2(sigma)));
 }
 
+double ExchangeFunctionalHamiltonian::functional_gaussian_multi(const double rij, const double J0, const double r0, const double sigma0, const double J1, const double r1, const double sigma1, const double J2, const double r2, const double sigma2) {
+  return functional_gaussian(rij, J0, r0, sigma0) + functional_gaussian(rij, J1, r1, sigma1) + functional_gaussian(rij, J2, r2, sigma2);
+}
+
 double ExchangeFunctionalHamiltonian::functional_kaneyoshi(const double rij, const double J0, const double r0, const double sigma){
   return J0 * pow2(rij - r0) * exp(-pow2(rij - r0) / (2 * pow2(sigma)));
 }
@@ -81,6 +86,11 @@ ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting
     return bind(functional_exp, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
   } else if (functional_name == "gaussian") {
     return bind(functional_gaussian, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
+  } else if (functional_name == "gaussian_multi") {
+    return bind(functional_gaussian_multi, _1,
+                double(settings["J0"]), double(settings["r0"]), double(settings["sigma0"]),
+                double(settings["J1"]), double(settings["r1"]), double(settings["sigma1"]),
+                double(settings["J2"]), double(settings["r2"]), double(settings["sigma2"]));
   } else if (functional_name == "kaneyoshi") {
     return bind(functional_kaneyoshi, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
   } else if (functional_name == "step") {
