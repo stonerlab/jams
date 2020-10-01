@@ -81,8 +81,12 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
   }
 
   rspace_displacement_.resize(globals::s.size(0));
+  Vec3i lattice_dimensions = ::lattice->size();
   for (auto i = 0; i < globals::s.size(0); ++i) {
-    rspace_displacement_(i) = lattice->displacement({0,0,0}, lattice->atom_position(i));
+    // generalize so that we can impose open boundaries
+    rspace_displacement_(i) = lattice->displacement(
+        {0.5 * lattice_dimensions[0], 0.5 * lattice_dimensions[1], 0.5 * lattice_dimensions[2]},
+        lattice->atom_position(i));
   }
 }
 
@@ -280,7 +284,7 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
     Vec3 spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
 
     Vec3 r = rspace_displacement_(n);
-    if (norm(r) >= 0.5) continue;
+    if (norm(r) >= lattice->max_interaction_radius()) continue;
     auto delta_q = kspace_path_(1) - kspace_path_(0);
 
     auto window = 1.0;
