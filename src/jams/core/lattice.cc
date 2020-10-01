@@ -35,6 +35,7 @@ extern "C"{
 #include "jams/helpers/load.h"
 #include "jams/helpers/interaction_calculator.h"
 #include "lattice.h"
+#include <jams/maths/parallelepiped.h>
 
 
 using std::cout;
@@ -67,14 +68,6 @@ namespace {
         }
       }
       return true;
-    }
-
-    double rhombus_inradius(const Vec3& v1, const Vec3& v2) {
-      return norm(cross(v1, v2)) / (2.0 * norm(v2));
-    }
-
-    double rhombohedron_inradius(const Vec3& v1, const Vec3& v2, const Vec3& v3) {
-      return std::min(rhombus_inradius(v1, v2), std::min(rhombus_inradius(v3, v1), rhombus_inradius(v2, v3)));
     }
 
     void output_unitcell_vectors(const Cell& cell) {
@@ -1005,39 +998,7 @@ bool Lattice::apply_boundary_conditions(Vec4i& pos) const {
 }
 
 double Lattice::max_interaction_radius() const {
-  if (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2)) {
-    return rhombohedron_inradius(supercell.a(), supercell.b(), supercell.c());
-  }
-
-  if (!lattice->is_periodic(0) && !lattice->is_periodic(1) && !lattice->is_periodic(2)) {
-    return std::min(norm(supercell.a()), std::min(norm(supercell.b()), norm(supercell.c()))) / 2.0;
-  }
-
-  if (lattice->is_periodic(0) && lattice->is_periodic(1) &&  !lattice->is_periodic(2)) {
-    return rhombus_inradius(supercell.a(), supercell.b());
-  }
-
-  if (lattice->is_periodic(0) && !lattice->is_periodic(1) &&  lattice->is_periodic(2)) {
-    return rhombus_inradius(supercell.a(), supercell.c());
-  }
-
-  if (!lattice->is_periodic(0) && lattice->is_periodic(1) &&  lattice->is_periodic(2)) {
-    return rhombus_inradius(supercell.a(), supercell.c());
-  }
-
-  if (!lattice->is_periodic(0) && !lattice->is_periodic(1) &&  lattice->is_periodic(2)) {
-    return norm(supercell.c()) / 2.0;
-  }
-
-  if (!lattice->is_periodic(0) && lattice->is_periodic(1) &&  !lattice->is_periodic(2)) {
-    return  norm(supercell.b()) / 2.0;
-  }
-
-  if (lattice->is_periodic(0) && !lattice->is_periodic(1) &&  !lattice->is_periodic(2)) {
-    return  norm(supercell.a()) / 2.0;
-  }
-
-  return 0.0;
+  return jams::maximum_interaction_length(supercell.a(), supercell.b(), supercell.c(), supercell.periodic());
 }
 
 // generate a vector of points which are symmetric to r_cart under the crystal symmetry
@@ -1257,3 +1218,50 @@ int Lattice::num_neighbours(const int &i, const double &r_cutoff) const {
   return neartree_->num_neighbours_in_radius(r_cutoff, {cartesian_positions_[i], i}) - 1;
 }
 
+double jams::maximum_interaction_length(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b& periodic_boundaries) {
+  // 3D periodic
+  // -----------
+  // This must be the inradius of the parellelepiped
+  if (periodic_boundaries == Vec3b{true, true, true}) {
+    return jams::maths::parallelepiped_inradius(a, b, c);
+  }
+
+  // 2D periodic
+  // -----------
+  // We only care about the interaction radius in a single plane. In the
+  // 'open' direction it doesn't matter what the interaction length is because
+  // there will not be any atoms to interact with beyond the boundary.
+  // Which plane to use is defined by which of the two dimensions are periodic.
+  if (periodic_boundaries == Vec3b{true, true, false}) {
+    return jams::maths::parallelogram_inradius(a, b);
+  }
+  if (periodic_boundaries == Vec3b{true, false, true}) {
+    return jams::maths::parallelogram_inradius(a, c);
+  }
+  if (periodic_boundaries == Vec3b{false, true, true}) {
+    return jams::maths::parallelogram_inradius(b, c);
+  }
+
+  // 1D periodic
+  // -----------
+  // As with 2D, we only care about the interaction along 1 dimension for the
+  // purposes of self interaction. Here is simply half the length along that
+  // dimension.
+  if (periodic_boundaries == Vec3b{true, false, false}) {
+    return 0.5 * norm(a);
+  }
+  if (periodic_boundaries == Vec3b{false, true, false}) {
+    return 0.5 * norm(b);
+  }
+  if (periodic_boundaries == Vec3b{false, false, true}) {
+    return 0.5 * norm(c);
+  }
+
+  // Open system (not periodic)
+  // --------------------------
+  // In an open system we can have any interaction radius because there is no
+  // possibility for self interaction. But we should return some meaningful
+  // number here (not inf!). The largest possible interaction length for a
+  // parallelepiped is the longest of the body diagonals.
+  return jams::maths::parallelepiped_longest_diagonal(a, b, c);
+}

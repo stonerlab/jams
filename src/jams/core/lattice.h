@@ -200,4 +200,17 @@ private:
 
 };
 
+namespace jams {
+    //
+    // Returns the maximum interaction length of the parallelepiped described by
+    // vectors a, b, c were periodic boundaries may be defined.
+    //
+    // - 3D periodic returns the radius of a sphere
+    // - 2D periodic returns the radius of a cylinder in the periodic plane
+    // - 1D periodic returns half the length along a line in the periodic direction
+    // - Non periodic returns the maximum length across the parallelepiped
+    //
+    double maximum_interaction_length(const Vec3& a, const Vec3& b, const Vec3& c, const Vec3b& periodic_boundaries);
+}
+
 #endif // JAMS_CORE_LATTICE_H
