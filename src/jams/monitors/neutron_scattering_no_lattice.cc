@@ -22,7 +22,8 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 
   configure_kspace_vectors(settings);
 
-  config_optional(settings, "rspace_windowing", do_rspace_windowing_);
+  do_rspace_windowing_ = config_optional(settings, "rspace_windowing", do_rspace_windowing_);
+  cout << "rspace windowing: " << do_rspace_windowing_ << endl;
 
   // default to 1.0 in case no form factor is given in the settings
   fill(neutron_form_factors_.resize(lattice->num_materials(), num_k_), 1.0);
@@ -72,16 +73,22 @@ void NeutronScatteringNoLatticeMonitor::update(Solver *solver) {
 }
 
 void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig::Setting &settings) {
-  kvector_ = jams::config_optional<Vec3>(settings, "kvector", kvector_);
+  kmax_ = jams::config_required<double>(settings, "kmax");
+  kvector_ = jams::config_required<Vec3>(settings, "kvector");
+  num_k_ = jams::config_required<int>(settings, "num_k");
 
-  kspace_path_.resize(num_k_);
+  kspace_path_.resize(num_k_ + 1);
   for (auto i = 0; i < kspace_path_.size(); ++i) {
     kspace_path_(i) = kvector_ * i * (kmax_ / num_k_);
   }
 
   rspace_displacement_.resize(globals::s.size(0));
+  Vec3i lattice_dimensions = ::lattice->size();
   for (auto i = 0; i < globals::s.size(0); ++i) {
-    rspace_displacement_(i) = lattice->displacement({0,0,0}, lattice->atom_position(i));
+    // generalize so that we can impose open boundaries
+    rspace_displacement_(i) = lattice->displacement(
+        {0.5 * lattice_dimensions[0], 0.5 * lattice_dimensions[1], 0.5 * lattice_dimensions[2]},
+        lattice->atom_position(i));
   }
 }
 
@@ -279,21 +286,15 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
     Vec3 spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
 
     Vec3 r = rspace_displacement_(n);
-    if (norm(r) >= 0.5) continue;
-    auto delta_q = kspace_path_(1) - kspace_path_(0);
 
-    auto window = 1.0;
-    if (do_rspace_windowing_) {
-      // blackmann 4 window
-      const double a0 = 0.40217, a1 = 0.49704, a2 = 0.09392, a3 = 0.00183;
-      const double x = (kTwoPi * norm(r));
-      window = a0 + a1 * cos(x) + a2 * cos(2 * x) + a3 * cos(3 * x);
-    }
+    // this is effectively a window in rspace
+    if (norm(r) >= lattice->max_interaction_radius()) continue;
+    auto delta_q = kspace_path_(1) - kspace_path_(0);
 
     auto f0 = exp(-kImagTwoPi * dot(delta_q, r));
     auto f = Complex{1.0, 0.0};
     for (auto k = 0; k < kspace_path_.size(); ++k) {
-      kspace_spins_timeseries_(i, k) += f * spin * window;
+      kspace_spins_timeseries_(i, k) += f * spin;
       f *= f0;
     }
   }
