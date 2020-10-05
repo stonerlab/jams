@@ -286,21 +286,15 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
     Vec3 spin = {globals::s(n,0), globals::s(n,1), globals::s(n,2)};
 
     Vec3 r = rspace_displacement_(n);
+
+    // this is effectively a window in rspace
     if (norm(r) >= lattice->max_interaction_radius()) continue;
     auto delta_q = kspace_path_(1) - kspace_path_(0);
-
-    auto window = 1.0;
-    if (do_rspace_windowing_) {
-      // blackmann 4 window
-      const double a0 = 0.40217, a1 = 0.49704, a2 = 0.09392, a3 = 0.00183;
-      const double x = (kTwoPi * norm(r));
-      window = a0 + a1 * cos(x) + a2 * cos(2 * x) + a3 * cos(3 * x);
-    }
 
     auto f0 = exp(-kImagTwoPi * dot(delta_q, r));
     auto f = Complex{1.0, 0.0};
     for (auto k = 0; k < kspace_path_.size(); ++k) {
-      kspace_spins_timeseries_(i, k) += f * spin * window;
+      kspace_spins_timeseries_(i, k) += f * spin;
       f *= f0;
     }
   }
