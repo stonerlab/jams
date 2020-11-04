@@ -4,6 +4,7 @@
 #include "jams/test/containers/test_vector_set.h"
 #include "jams/test/containers/test_unordered_vector_set.h"
 #include "jams/test/containers/test_neartree.h"
+#include "jams/test/containers/test_cell.h"
 //#include "jams/test/containers/test_synced_memory.h"
 #include "jams/test/containers/test_multiarray.h"
 #include "jams/test/hamiltonian/test_dipole_cpu.h"

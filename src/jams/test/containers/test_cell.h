@@ -9,14 +9,14 @@
 
 #include "jams/containers/cell.h"
 
-MATCHER_P2(Vec3Eq, expected, tolerance, "") {
-  for (auto i = 0; i < 3; ++i) {
-    if (std::abs(arg[i] - expected[i]) > tolerance) {
-      return false;
-    }
-  }
-  return true;
-}
+//MATCHER_P2(Vec3Eq, expected, tolerance, "") {
+//  for (auto i = 0; i < 3; ++i) {
+//    if (std::abs(arg[i] - expected[i]) > tolerance) {
+//      return false;
+//    }
+//  }
+//  return true;
+//}
 
 MATCHER_P2(Mat3Eq, expected, tolerance, "") {
   for (auto i = 0; i < 3; ++i) {
