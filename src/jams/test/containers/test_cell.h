@@ -52,46 +52,4 @@ TEST(CellTest, ctor) {
   ASSERT_THAT(x.inverse_matrix(), Mat3Eq(inverse_matrix, eps));
 }
 
-TEST(CellTest, minimum_image) {
-  using namespace testing;
-
-  const double eps = 1e-6;
-
-  Vec3 a = {10.00, 0.00, 0.00};
-  Vec3 b = {0.00, 10.00, 0.00};
-  Vec3 c = {0.00, 0.00, 10.00};
-
-  Cell x(a, b, c);
-
-  auto r_ij = minimum_image(x, {0, 0, 0}, {1, 1, 1});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{1, 1, 1}}, eps));
-
-  r_ij = minimum_image(x, {0, 0, 0}, {1, 1, 1});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{1, 1, 1}}, eps));
-
-  r_ij = minimum_image(x, {0, 0, 0}, {0, 0, 1});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{0, 0, 1}}, eps));
-
-  r_ij = minimum_image(x, {0, 0, 0}, {0, 1, 0});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{0, 1, 0}}, eps));
-
-  r_ij = minimum_image(x, {0, 0, 0}, {1, 0, 0});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{1, 0, 0}}, eps));
-
-  r_ij = minimum_image(x, {0, 0, 0}, {5, 5, 5});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{-5, -5, -5}}, eps));
-
-  r_ij = minimum_image(x, {0, 0, 0}, {-5, -5, -5});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{5, 5, 5}}, eps));
-
-  r_ij = minimum_image(x, {0, 0, 0}, {0, 0, 7});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{0, 0, -3}}, eps));
-
-  r_ij = minimum_image(x, {0, 0, 0}, {0, 7, 0});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{0, -3, 0}}, eps));
-
-  r_ij = minimum_image(x, {0, 0, 0}, {7, 0, 0});
-  ASSERT_THAT(r_ij, Vec3Eq(Vec3{{-3, 0, 0}}, eps));
-}
-
 #endif //JAMS_TEST_CELL_H

@@ -36,6 +36,7 @@ extern "C"{
 #include "jams/helpers/interaction_calculator.h"
 #include "lattice.h"
 #include <jams/maths/parallelepiped.h>
+#include <jams/lattice/minimum_image.h>
 
 
 using std::cout;
@@ -171,11 +172,11 @@ Lattice::atom_neighbours(const int &i, const double &r_cutoff) const {
 
 Vec3
 Lattice::displacement(const Vec3 &r_i, const Vec3 &r_j) const {
-  return ::minimum_image(supercell, r_i, r_j);
+  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), r_i, r_j);
 }
 
 Vec3 Lattice::displacement(const unsigned &i, const unsigned &j) const {
-  return ::minimum_image(supercell, atoms_[i].position, atoms_[j].position);
+  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), atoms_[i].position, atoms_[j].position);
 }
 
 Vec3
@@ -484,7 +485,9 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   for (auto i = 0; i < motif_.size(); ++i) {
     for (auto j = i + 1; j < motif_.size(); ++j) {
-      auto distance = norm(minimum_image(unitcell,fractional_to_cartesian(motif_[i].position), fractional_to_cartesian(motif_[j].position)));
+      auto distance = norm(
+              jams::minimum_image(unitcell.a(), unitcell.b(), unitcell.c(), unitcell.periodic(),
+                                  fractional_to_cartesian(motif_[i].position), fractional_to_cartesian(motif_[j].position)));
       if(!definately_greater_than(distance, jams::defaults::lattice_tolerance)) {
         throw std::runtime_error("motif positions " + std::to_string(i) + " and " + std::to_string(j) + " are closer than the default lattice tolerance");
       }
