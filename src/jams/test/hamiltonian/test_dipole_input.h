@@ -139,8 +139,8 @@ namespace jams {
             std::string config_lattice(const Vec3 &size, const Vec3b &pbc) {
               std::stringstream ss;
               ss << "lattice : {\n";
-              ss << "size = [" << size << "];\n";
-              ss << std::boolalpha << "periodic  = [" << pbc << "];\n";
+              ss << "size = [" << size[0] << ", " << size[1] << ", " << size[2] << "];\n";
+              ss << std::boolalpha << "periodic  = [" << pbc[0] << ", " << pbc[1] << ", " << pbc[2] << "];\n";
               ss << "};\n";
               return ss.str();
             }
