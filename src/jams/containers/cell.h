@@ -22,7 +22,6 @@ namespace jams {
     };
 }
 
-Vec3 minimum_image(const Cell& cell, const Vec3& r_cart_i, const Vec3& r_cart_j);
 double volume(const Cell& cell);
 Cell   scale(const Cell& cell, const Vec3i& size);
 Cell   rotate(const Cell& cell, const Mat3& rotation_matrix);

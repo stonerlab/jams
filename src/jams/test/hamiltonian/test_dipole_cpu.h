@@ -47,7 +47,7 @@ protected:
     DipoleHamiltonianTests() {
       // create global objects
       ::lattice = new Lattice();
-      ::config = new libconfig::Config();
+      ::config.reset(new libconfig::Config());
     }
 
     ~DipoleHamiltonianTests() = default;
@@ -71,7 +71,6 @@ protected:
       // destroy global objects
       delete ::solver;
       delete ::lattice;
-      delete ::config;
     }
 
     // test the total dipole energy for an ordered spin configuration
@@ -116,6 +115,33 @@ protected:
       std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " J/spin\n" << std::endl;
 
       ASSERT_NEAR(numeric, reference, target_accuracy);
+    }
+
+    // test the total dipole energy for an ordered spin configuration
+    // compared to a reference Hamiltonian
+    void ordered_spin_test(const Vec3& spin_direction) {
+        jams::testing::toggle_cout();
+        std::unique_ptr<DipoleNearTreeHamiltonian> reference_hamiltonian(
+                new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins));
+        jams::testing::toggle_cout();
+
+        for (unsigned int i = 0; i < globals::num_spins; ++i) {
+            globals::s(i, 0) = spin_direction[0];
+            globals::s(i, 1) = spin_direction[1];
+            globals::s(i, 2) = spin_direction[2];
+        }
+
+        double numeric = numeric_prefactor * hamiltonian->calculate_total_energy() / double(globals::num_spins);
+        double reference =
+                numeric_prefactor * reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
+
+        std::cout << "spin:       " << spin_direction << "\n";
+        std::cout << "expected:   " << jams::fmt::sci << reference << " J/spin\n";
+        std::cout << "actual:     " << jams::fmt::sci << numeric << " J/spin\n";
+        std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " J/spin\n";
+        std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " J/spin\n" << std::endl;
+
+        ASSERT_NEAR(numeric, reference, target_accuracy);
     }
 
     std::unique_ptr<T> hamiltonian;
@@ -264,5 +290,24 @@ TYPED_TEST(DipoleHamiltonianTests, total_energy_two_atom_2D_FM_CPU_SLOW) {
   TestFixture::random_spin_test();
 }
 
+TYPED_TEST(DipoleHamiltonianTests, total_energy_cubic_unitcell_FM_CPU) {
+    using namespace jams::testing::dipole;
+    TestFixture::SetUp(
+            config_basic_cpu
+            + config_cubic_unitcell
+            + config_lattice({5, 5, 5}, {true, true, true})
+            + config_dipole("dipole", 2.0));
 
+    TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
+}
 
+TYPED_TEST(DipoleHamiltonianTests, total_energy_non_cubic_unitcell_FM_CPU) {
+    using namespace jams::testing::dipole;
+    TestFixture::SetUp(
+            config_basic_cpu
+            + config_non_cubic_unitcell
+            + config_lattice({6, 6, 6}, {true, true, true})
+            + config_dipole("dipole", 1.0));
+
+    TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
+}
