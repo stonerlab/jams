@@ -47,7 +47,7 @@ protected:
     DipoleHamiltonianTests() {
       // create global objects
       ::lattice = new Lattice();
-      ::config = new libconfig::Config();
+      ::config.reset(new libconfig::Config());
     }
 
     ~DipoleHamiltonianTests() = default;
@@ -71,7 +71,6 @@ protected:
       // destroy global objects
       delete ::solver;
       delete ::lattice;
-      delete ::config;
     }
 
     // test the total dipole energy for an ordered spin configuration
