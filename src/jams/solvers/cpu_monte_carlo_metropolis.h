@@ -28,8 +28,8 @@ class MetropolisMCSolver : public Solver {
  private:
   class MagnetizationRotationMinimizer;
     int MetropolisAlgorithmTotalEnergy(SpinMoveFunction trial_spin_move);
-    void MetropolisPreconditioner(SpinMoveFunction  trial_spin_move);
-  void SystematicPreconditioner(const double delta_theta, const double delta_phi);
+
+    void SystematicPreconditioner(const double delta_theta, const double delta_phi);
 
   bool metadynamics_applied = false;
   bool use_random_spin_order_ = true;

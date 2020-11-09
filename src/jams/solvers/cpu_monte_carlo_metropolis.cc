@@ -158,36 +158,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
     }
   }
 
-  void MetropolisMCSolver::MetropolisPreconditioner(SpinMoveFunction  trial_spin_move) {
-    int n;
-    double e_initial, e_final;
-    Vec3 s_initial, s_final;
-
-    s_initial = mc_spin_as_vec(0);
-    s_final = trial_spin_move(s_initial);
-
-    e_initial = 0.0;
-    for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-      e_initial += (*it)->calculate_total_energy();
-    }
-
-    for (n = 0; n < globals::num_spins; ++n) {
-      mc_set_spin_as_vec(n, s_final);
-    }
-
-    e_final = 0.0;
-    for (std::vector<Hamiltonian*>::iterator it = hamiltonians_.begin() ; it != hamiltonians_.end(); ++it) {
-      e_final += (*it)->calculate_total_energy();
-    }
-
-    if (e_final - e_initial > 0.0) {
-      for (n = 0; n < globals::num_spins; ++n) {
-        mc_set_spin_as_vec(n, s_initial);
-      }
-    }
-  }
-
-  class MetropolisMCSolver::MagnetizationRotationMinimizer
+class MetropolisMCSolver::MagnetizationRotationMinimizer
   {
       std::vector<Hamiltonian*> * hamiltonians_;
 
