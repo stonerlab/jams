@@ -10,57 +10,41 @@
 #include <pcg_random.hpp>
 #include <random>
 #include "jams/helpers/random.h"
+#include <jams/helpers/montecarlo.h>
 
 class MetropolisMCSolver : public Solver {
- public:
-    using SpinMoveFunction = std::function<Vec3(Vec3)>;
+public:
+    using MoveFunction = std::function<Vec3(Vec3)>;
 
-  MetropolisMCSolver() = default;
-  ~MetropolisMCSolver() = default;
-  void initialize(const libconfig::Setting& settings);
-  void run();
+    MetropolisMCSolver() = default;
 
-    virtual double energy_difference(const Vec3 &initial_Spin, const Vec3 &final_Spin, const int &spin_index);
-    virtual int step(const SpinMoveFunction& trial_spin_move);
-    virtual int metropolis_algorithm(const SpinMoveFunction& trial_spin_move, int &spin_index);
-    virtual bool accept_by_probability(const double &deltaE, const double &beta) const;
+    ~MetropolisMCSolver() override = default;
 
- private:
-  class MagnetizationRotationMinimizer;
-    int MetropolisAlgorithmTotalEnergy(SpinMoveFunction trial_spin_move);
+    void initialize(const libconfig::Setting &settings) override;
 
-    void SystematicPreconditioner(const double delta_theta, const double delta_phi);
+    void run() override;
 
-  bool metadynamics_applied = false;
-  bool use_random_spin_order_ = true;
-  bool use_total_energy_ = false;
-  bool is_preconditioner_enabled_ = false;
-  double preconditioner_delta_theta_ = 5.0;
-  double preconditioner_delta_phi_ = 5.0;
+    virtual double energy_difference(const int spin_index,
+                                     const Vec3 &initial_spin,
+                                     const Vec3 &final_spin);
 
-  int output_write_steps_ = 1000;
+    virtual int monte_carlo_step(const MoveFunction &trial_spin_move);
 
-  double move_fraction_uniform_     = 0.0;
-  double move_fraction_angle_       = 1.0;
-  double move_fraction_reflection_  = 0.0;
+    virtual int
+    metropolis_algorithm(const MoveFunction &trial_spin_move, int spin_index);
 
-  double move_angle_sigma_ = 0.5;
+private:
+    void output_move_statistics();
 
-  unsigned run_count_uniform_    = 0;
-  unsigned run_count_angle_      = 0;
-  unsigned run_count_reflection_ = 0;
+    std::ofstream stats_file_;
 
-  unsigned long long move_total_count_uniform_    = 0;
-  unsigned long long move_total_count_angle_      = 0;
-  unsigned long long move_total_count_reflection_ = 0;
+    std::vector<std::string> move_names_;
+    std::vector<double> move_weights_;
+    std::vector<MoveFunction> move_functions_;
+    std::vector<int> moves_attempted_;
+    std::vector<int> moves_accepted_;
 
-  unsigned long long move_total_acceptance_count_uniform_      = 0;
-  unsigned long long move_total_acceptance_count_angle_        = 0;
-  unsigned long long move_total_acceptance_count_reflection_   = 0;
-
-  unsigned long long move_running_acceptance_count_uniform_    = 0;
-  unsigned long long move_running_acceptance_count_angle_      = 0;
-  unsigned long long move_running_acceptance_count_reflection_ = 0;
+    int output_write_steps_ = 1000;
 };
 
 #endif  // JAMS_SOLVER_METROPOLISMC_H

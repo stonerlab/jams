@@ -12,11 +12,11 @@
 #include "jams/core/physics.h"
 #include "jams/helpers/permutations.h"
 #include "jams/helpers/output.h"
+#include <jams/helpers/montecarlo.h>
 
 #include <iomanip>
 
 using namespace std;
-std::uniform_real_distribution<> uniform_distribution;
 
 void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libconfig - A library for processing structured configuration files
   using namespace globals;
@@ -28,334 +28,95 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps); //jams is a namespace
   output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
 
-  use_random_spin_order_ = jams::config_optional<bool>(settings, "use_random_spin_order", true);
-  cout << "    use_random_spin_order " << std::boolalpha << use_random_spin_order_ << "\n";
-
-  use_total_energy_ = jams::config_optional<bool>(settings, "use_total_energy", false);
-  cout << "    use_total_energy " << std::boolalpha << use_total_energy_ << "\n";
-
-  is_preconditioner_enabled_ = settings.exists("preconditioner_theta") || settings.exists("preconditioner_phi");
-  preconditioner_delta_theta_ = jams::config_optional<double>(settings, "preconditioner_theta", 5.0);
-  preconditioner_delta_phi_ = jams::config_optional<double>(settings, "preconditioner_phi", 5.0);
-
   cout << "    max_steps " << max_steps_ << "\n";
   cout << "    min_steps " << min_steps_ << "\n";
-  cout << "    preconditioner " << is_preconditioner_enabled_ << "\n";
 
-  if (is_preconditioner_enabled_) {
-    cout << "    preconditioner_theta " << preconditioner_delta_theta_ << "\n";
-    cout << "    preconditioner_phi   " << preconditioner_delta_phi_ << "\n";
-  }
+  move_names_.emplace_back("angle");
+  const auto sigma = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
+  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_angle", 1.0));
+  move_functions_.emplace_back(
+      jams::montecarlo::MonteCarloAngleMove<jams::RandomGeneratorType>(&jams::instance().random_generator(), sigma));
 
-  if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
-    move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
-    move_fraction_angle_      = jams::config_optional<double>(settings, "move_fraction_angle", 0.0);
-    move_fraction_reflection_ = jams::config_optional<double>(settings, "move_fraction_reflection", 0.0);
-    move_angle_sigma_         = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
+  move_names_.emplace_back("uniform");
+  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_uniform", 0.0));
+  move_functions_.emplace_back(
+      jams::montecarlo::MonteCarloUniformMove<jams::RandomGeneratorType>(&jams::instance().random_generator()));
 
-    double move_fraction_sum = move_fraction_uniform_ + move_fraction_angle_ + move_fraction_reflection_;
+  move_names_.emplace_back("reflection");
+  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_reflection", 0.0));
+  move_functions_.emplace_back(
+      jams::montecarlo::MonteCarloReflectionMove());
 
-    move_fraction_uniform_     /= move_fraction_sum;
-    move_fraction_angle_       /= move_fraction_sum;
-    move_fraction_reflection_  /= move_fraction_sum;
+  moves_accepted_.resize(move_functions_.size());
+  moves_attempted_.resize(move_functions_.size());
+
+}
+
+void MetropolisMCSolver::run() {
+  std::discrete_distribution<int> move_distribution(begin(move_weights_), end(move_weights_));
+
+  auto move_index = move_distribution(jams::instance().random_generator());
+
+  moves_attempted_[move_index] += globals::num_spins;
+  moves_accepted_[move_index] += monte_carlo_step(move_functions_[move_index]);
+
+  iteration_++;
+
+  if (iteration_ % output_write_steps_ == 0) {
+    output_move_statistics();
+
+    // reset statistics
+    fill(begin(moves_attempted_), end(moves_attempted_), 0);
+    fill(begin(moves_accepted_), end(moves_accepted_), 0);
   }
 }
 
-  void MetropolisMCSolver::run() {
-    using namespace globals;
-    std::uniform_real_distribution<> uniform_distribution;
-
-    MonteCarloUniformMove<jams::RandomGeneratorType> uniform_move(&jams::instance().random_generator());
-    MonteCarloAngleMove<jams::RandomGeneratorType>   angle_move(&jams::instance().random_generator(), move_angle_sigma_);
-    MonteCarloReflectionMove           reflection_move;
-
-    if (is_preconditioner_enabled_ && iteration_ == 0) {
-      cout << "preconditioning\n";
-
-      cout << "  thermalizing\n";
-      // do a short thermalization
-      if (use_total_energy_) {
-        for (int i = 0; i < 500; ++i) {
-          MetropolisAlgorithmTotalEnergy(uniform_move);
-        }
-      } else {
-        for (int i = 0; i < 500; ++i) {
-          //metropolis_algorithm(uniform_move);
-            step(uniform_move);
-        }
-      }
-
-      // now try systematic rotations
-      cout << "  magnetization rotations\n";
-      SystematicPreconditioner(preconditioner_delta_theta_, preconditioner_delta_phi_);
-      cout << "done\n";
-    }
-
-    const double uniform_random_number = uniform_distribution(jams::instance().random_generator());
-    if (uniform_random_number < move_fraction_uniform_) {
-      if (use_total_energy_) {
-        move_running_acceptance_count_uniform_ += MetropolisAlgorithmTotalEnergy(uniform_move);
-      } else {
-        move_running_acceptance_count_uniform_ += step(uniform_move);
-      }
-      run_count_uniform_++;
-    } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
-      if (use_total_energy_) {
-        move_running_acceptance_count_angle_ += MetropolisAlgorithmTotalEnergy(angle_move);
-      } else {
-        move_running_acceptance_count_angle_ += step(angle_move);
-      }
-      run_count_angle_++;
-    } else {
-      if (use_total_energy_) {
-        move_running_acceptance_count_reflection_ += MetropolisAlgorithmTotalEnergy(reflection_move);
-      } else {
-        move_running_acceptance_count_reflection_ += step(
-                reflection_move);
-      }
-      run_count_reflection_++;
-    }
-
-    iteration_++;
-
-    if (iteration_ % output_write_steps_ == 0) {
-
-      move_total_count_uniform_ += run_count_uniform_;
-      move_total_count_angle_ += run_count_angle_;
-      move_total_count_reflection_ += run_count_reflection_;
-
-      move_total_acceptance_count_uniform_ += move_running_acceptance_count_uniform_;
-      move_total_acceptance_count_angle_ += move_running_acceptance_count_angle_;
-      move_total_acceptance_count_reflection_ += move_running_acceptance_count_reflection_;
-
-      cout << "\n";
-      cout << "iteration" << iteration_ << "\n";
-      cout << "move_acceptance_fraction\n";
-
-      cout << "  uniform ";
-      cout << division_or_zero(move_running_acceptance_count_uniform_, globals::num_spins * run_count_uniform_) << " (";
-      cout << division_or_zero(move_total_acceptance_count_uniform_, globals::num_spins * move_total_count_uniform_)
-           << ") \n";
-
-      cout << "  angle ";
-      cout << division_or_zero(move_running_acceptance_count_angle_, globals::num_spins * run_count_angle_) << " (";
-      cout << division_or_zero(move_total_acceptance_count_angle_, globals::num_spins * move_total_count_angle_)
-           << ") \n";
-
-      cout << "  reflection ";
-      cout << division_or_zero(move_running_acceptance_count_reflection_, globals::num_spins * run_count_reflection_)
-           << " (";
-      cout << division_or_zero(move_total_acceptance_count_reflection_,
-              globals::num_spins * move_total_count_reflection_) << ") \n";
-
-      move_running_acceptance_count_uniform_ = 0;
-      move_running_acceptance_count_angle_ = 0;
-      move_running_acceptance_count_reflection_ = 0;
-
-      run_count_uniform_ = 0;
-      run_count_angle_ = 0;
-      run_count_reflection_ = 0;
-    }
-  }
-
-class MetropolisMCSolver::MagnetizationRotationMinimizer
-  {
-      std::vector<Hamiltonian*> * hamiltonians_;
-
-      std::uint64_t count;
-      double e_min;
-      jams::MultiArray<double,2> s_min;
-  public:
-      explicit MagnetizationRotationMinimizer(std::vector<Hamiltonian*> & hamiltonians_ ) :
-        hamiltonians_(&hamiltonians_), count(0), e_min(1e10), s_min(globals::s) {}
-
-      jams::MultiArray<double,2> s() {
-        return s_min;
-      }
-
-      template <class It>
-          bool operator()(It first, It last)  // called for each permutation
-          {
-            using std::vector;
-
-            int i, j;
-            double energy;
-            Vec3 s_new;
-            vector<Mat3> rotation(::lattice->num_materials());
-            vector<Vec3> mag(::lattice->num_materials());
-
-            if (last - first != ::lattice->num_materials()) {
-              throw std::runtime_error("number of angles in preconditioner does not match the number of materials");
-            }
-
-            // count the number of times this is called
-            ++count;
-
-            // calculate magnetization vector of each material
-            for (i = 0; i < globals::num_spins; ++i) {
-              for (j = 0; j < 3; ++j) {
-                mag[::lattice->atom_material_id(i)][j] += globals::s(i, j);
-              }
-            }
-            // don't need to normalize magnetization because only the direction is important
-            // calculate rotation matrix between magnetization and desired direction
-            for (i = 0; i < ::lattice->num_materials(); ++i) {
-              rotation[i] = rotation_matrix_between_vectors(mag[i], spherical_to_cartesian_vector(1.0, *first, 0.0));
-              ++first;
-            }
-
-            for (i = 0; i < globals::num_spins; ++i) {
-              for (j = 0; j < 3; ++j) {
-                s_new[j] = globals::s(i, j);
-              }
-              s_new = rotation[::lattice->atom_material_id(i)] * s_new;
-              for (j = 0; j < 3; ++j) {
-                globals::s(i, j) = s_new[j];
-              }
-            }
-
-            energy = 0.0;
-            for (auto it = hamiltonians_->begin() ; it != hamiltonians_->end(); ++it) {
-              energy += (*it)->calculate_total_energy();
-            }
-
-            if ( energy < e_min ) {
-              // this configuration is the new minimum
-              e_min = energy;
-              std::copy(globals::s.begin(), globals::s.end(), s_min.begin());
-            }
-            return false;
-          }
-
-      operator std::uint64_t() const {return count;}
-  };
-
-  void MetropolisMCSolver::SystematicPreconditioner(const double delta_theta, const double delta_phi) {
-    // TODO: this should probably rotate spins rather than set definite direction so we can then handle
-    // ferrimagnets too
-    int num_theta;
-    // double e_min, e_final, phi;
-
-    Vec3 s_new;
-
-    jams::MultiArray<double,2> s_init(globals::s);
-    jams::MultiArray<double,2> s_min(globals::s);
-
-    num_theta = (180.0 / delta_theta) + 1;
-
-
-    std::vector<double> theta(num_theta);
-
-    theta[0] = 0.0;
-    for (int i = 1; i < num_theta; ++i) {
-      theta[i] = theta[i-1] + delta_theta;
-    }
-
-    MagnetizationRotationMinimizer minimizer(hamiltonians_);
-
-    cout << "    delta theta (deg) " << delta_theta << "\n";
-
-    cout << "    num_theta " << num_theta << "\n";
-
-    std::uint64_t count = for_each_permutation(theta.begin(),
-                                                   theta.begin() + 3,
-                                                   theta.end(),
-                                                   minimizer);
-
-    cout << "    permutations " << count << "\n";
-
-    std::ofstream preconditioner_file(jams::output::full_path_filename("mc_pre.tsv"));
-    preconditioner_file << "# theta (deg) | phi (deg) | energy (J) \n";
-
-    preconditioner_file.close();
-
-    // use the minimum configuration
-    std::copy(minimizer.s().begin(),  minimizer.s().end(), globals::s.begin());
-  }
-
-
-int MetropolisMCSolver::step(const SpinMoveFunction& trial_spin_move) {
-  using std::min;
-  using std::exp;
-
+int MetropolisMCSolver::monte_carlo_step(const MoveFunction& trial_spin_move) {
   int moves_accepted = 0;
   for (auto n = 0; n < globals::num_spins; ++n) {
-	auto spin_index = n;
-	if (use_random_spin_order_) {
-	  spin_index = jams::instance().random_generator()(globals::num_spins);
-	}
-    moves_accepted += metropolis_algorithm(trial_spin_move, spin_index);
+    moves_accepted += metropolis_algorithm(trial_spin_move, jams::montecarlo::random_spin_index());
   }
   return moves_accepted;
 }
 
-int MetropolisMCSolver::metropolis_algorithm(const SpinMoveFunction& trial_spin_move, int &spin_index) {
-  auto s_initial = mc_spin_as_vec(spin_index);
-  auto s_final = trial_spin_move(s_initial);
+int MetropolisMCSolver::metropolis_algorithm(const MoveFunction& trial_spin_move, const int spin_index) {
+  const auto s_initial = jams::montecarlo::get_spin(spin_index);
+  const auto s_final = trial_spin_move(s_initial);
 
-  auto deltaE = energy_difference(s_final, s_initial, spin_index);
+  const auto deltaE = energy_difference(spin_index, s_initial, s_final);
 
-  const double beta = kBohrMagneton
-      / (kBoltzmann * physics_module_->temperature());
-  if (accept_by_probability(deltaE, beta)) {
-    mc_set_spin_as_vec(spin_index, s_final);
+  if (jams::montecarlo::accept_on_probability(deltaE, physics_module_->temperature())) {
+    jams::montecarlo::set_spin(spin_index, s_final);
     return 1;
   }
 
   return 0;
 }
 
-bool MetropolisMCSolver::accept_by_probability(const double &deltaE, const double &beta) const {
-  return uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta));
-}
-
-double MetropolisMCSolver::energy_difference(const Vec3 &initial_Spin, const Vec3 &final_Spin, const int &spin_index) {
+double MetropolisMCSolver::energy_difference(const int spin_index,
+                                             const Vec3 &initial_spin,
+                                             const Vec3 &final_spin) {
   auto energy_difference = 0.0;
-
-	for (const auto &ham : hamiltonians_) {
-	  return energy_difference += ham->calculate_energy_difference(spin_index, initial_Spin, final_Spin);
+  for (const auto &ham : hamiltonians_) {
+	  energy_difference += ham->calculate_energy_difference(spin_index, initial_spin, final_spin);
 	}
+	return energy_difference;
 }
 
-int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(SpinMoveFunction trial_spin_move) {
-  using std::min;
-  using std::exp;
-  std::uniform_real_distribution<> uniform_distribution;
+void MetropolisMCSolver::output_move_statistics() {
+  if (!stats_file_.is_open()) {
+    stats_file_.open(jams::output::full_path_filename("monte_carlo_stats.tsv"));
+    stats_file_ << "iteration ";
 
-  const double beta = kBohrMagneton / (kBoltzmann * physics_module_->temperature());
-
-  int moves_accepted = 0;
-  for (auto n = 0; n < globals::num_spins; ++n) {
-    // 2015-12-10 (JB) striding uniformly is ~4x faster than random choice (clang OSX).
-    // Seems to be because of caching/predication in the exchange field calculation.
-    int spin_index = n;
-
-    if (use_random_spin_order_) {
-      spin_index = jams::instance().random_generator()(globals::num_spins);
+    for (const auto name : move_names_) {
+      stats_file_ << name << " ";
     }
-
-    auto s_initial = mc_spin_as_vec(spin_index);
-    auto s_final = trial_spin_move(s_initial);
-
-    auto e_initial = 0.0;
-    for (const auto& ham : hamiltonians_) {
-      e_initial += ham->calculate_total_energy();
-    }
-
-    mc_set_spin_as_vec(spin_index, s_final);
-    auto e_final = 0.0;
-    for (const auto& ham : hamiltonians_) {
-      e_final += ham->calculate_total_energy();
-    }
-
-    auto deltaE = e_final - e_initial;
-
-    if (uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta))) {
-      moves_accepted++;
-      continue;
-    }
-
-    mc_set_spin_as_vec(spin_index, s_initial);
+    stats_file_ << endl;
   }
-  return moves_accepted;
+
+  stats_file_ << iteration() << " ";
+  for (auto n = 0; n < move_functions_.size(); ++n) {
+    stats_file_ << division_or_zero(moves_accepted_[n], moves_attempted_[n]) << " ";
+  }
+  stats_file_ << std::endl;
 }
