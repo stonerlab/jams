@@ -81,7 +81,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
       } else {
         for (int i = 0; i < 500; ++i) {
           //MetropolisAlgorithm(uniform_move);
-          Metropolis_Step(uniform_move);
+            MetropolisStep(uniform_move);
         }
       }
 
@@ -96,21 +96,22 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
       if (use_total_energy_) {
         move_running_acceptance_count_uniform_ += MetropolisAlgorithmTotalEnergy(uniform_move);
       } else {
-        move_running_acceptance_count_uniform_ += Metropolis_Step(uniform_move);
+        move_running_acceptance_count_uniform_ += MetropolisStep(uniform_move);
       }
       run_count_uniform_++;
     } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
       if (use_total_energy_) {
         move_running_acceptance_count_angle_ += MetropolisAlgorithmTotalEnergy(angle_move);
       } else {
-        move_running_acceptance_count_angle_ += Metropolis_Step(angle_move);
+        move_running_acceptance_count_angle_ += MetropolisStep(angle_move);
       }
       run_count_angle_++;
     } else {
       if (use_total_energy_) {
         move_running_acceptance_count_reflection_ += MetropolisAlgorithmTotalEnergy(reflection_move);
       } else {
-        move_running_acceptance_count_reflection_ += Metropolis_Step(reflection_move);
+        move_running_acceptance_count_reflection_ += MetropolisStep(
+                reflection_move);
       }
       run_count_reflection_++;
     }
@@ -302,7 +303,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
   }
 
 
-int MetropolisMCSolver::Metropolis_Step(SpinMoveFunction trial_spin_move) {
+int MetropolisMCSolver::MetropolisStep(SpinMoveFunction trial_spin_move) {
   using std::min;
   using std::exp;
   int spin_index = 0;
