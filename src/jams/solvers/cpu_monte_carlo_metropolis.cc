@@ -80,8 +80,8 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
         }
       } else {
         for (int i = 0; i < 500; ++i) {
-          //MetropolisAlgorithm(uniform_move);
-            MetropolisStep(uniform_move);
+          //metropolis_algorithm(uniform_move);
+            step(uniform_move);
         }
       }
 
@@ -96,21 +96,21 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
       if (use_total_energy_) {
         move_running_acceptance_count_uniform_ += MetropolisAlgorithmTotalEnergy(uniform_move);
       } else {
-        move_running_acceptance_count_uniform_ += MetropolisStep(uniform_move);
+        move_running_acceptance_count_uniform_ += step(uniform_move);
       }
       run_count_uniform_++;
     } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
       if (use_total_energy_) {
         move_running_acceptance_count_angle_ += MetropolisAlgorithmTotalEnergy(angle_move);
       } else {
-        move_running_acceptance_count_angle_ += MetropolisStep(angle_move);
+        move_running_acceptance_count_angle_ += step(angle_move);
       }
       run_count_angle_++;
     } else {
       if (use_total_energy_) {
         move_running_acceptance_count_reflection_ += MetropolisAlgorithmTotalEnergy(reflection_move);
       } else {
-        move_running_acceptance_count_reflection_ += MetropolisStep(
+        move_running_acceptance_count_reflection_ += step(
                 reflection_move);
       }
       run_count_reflection_++;
@@ -303,58 +303,44 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
   }
 
 
-int MetropolisMCSolver::MetropolisStep(SpinMoveFunction trial_spin_move) {
+int MetropolisMCSolver::step(const SpinMoveFunction& trial_spin_move) {
   using std::min;
   using std::exp;
-  int spin_index = 0;
-  unsigned moves_accepted = 0;
 
+  int moves_accepted = 0;
   for (auto n = 0; n < globals::num_spins; ++n) {
-	spin_index = n;
+	auto spin_index = n;
 	if (use_random_spin_order_) {
 	  spin_index = jams::instance().random_generator()(globals::num_spins);
 	}
-    moves_accepted +=MetropolisAlgorithm(trial_spin_move,spin_index);
+    moves_accepted += metropolis_algorithm(trial_spin_move, spin_index);
   }
   return moves_accepted;
-
 }
 
-  int MetropolisMCSolver::MetropolisAlgorithm(SpinMoveFunction trial_spin_move, int &spin_index) {
-    using std::min;
-    using std::exp;
+int MetropolisMCSolver::metropolis_algorithm(const SpinMoveFunction& trial_spin_move, int &spin_index) {
+  auto s_initial = mc_spin_as_vec(spin_index);
+  auto s_final = trial_spin_move(s_initial);
 
-    const double beta = kBohrMagneton / (kBoltzmann * physics_module_->temperature()); // Just defining beta
+  auto deltaE = energy_difference(s_final, s_initial, spin_index);
 
-    unsigned moves_accepted = 0;
-
-      auto s_initial = mc_spin_as_vec(spin_index); //take the random spin index and assign it as a the random initial spin - we need to pass this in metadynamics
-      auto s_final = trial_spin_move(s_initial); // also need to pass this in metadynamics
-  /*    auto deltaE = 0.0;
-      for (const auto& ham : hamiltonians_) {
-        deltaE += ham->calculate_energy_difference(spin_index, s_initial, s_final);
-      }*/
-      auto deltaE = Metropolis_Energy_Difference(s_final,s_initial,spin_index);
-
-      if ( acceptance_with_boltzmann_distribution(deltaE,beta)) {
-        mc_set_spin_as_vec(spin_index, s_final);
-        //moves_accepted++;
-        return 1;
-      } else
-		return 0;
-      //return moves_accepted;
+  const double beta = kBohrMagneton
+      / (kBoltzmann * physics_module_->temperature());
+  if (accept_by_probability(deltaE, beta)) {
+    mc_set_spin_as_vec(spin_index, s_final);
+    return 1;
   }
 
-bool MetropolisMCSolver::acceptance_with_boltzmann_distribution(const double &deltaE, const double &beta){
+  return 0;
+}
+
+bool MetropolisMCSolver::accept_by_probability(const double &deltaE, const double &beta) const {
   return uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta));
 }
 
-double MetropolisMCSolver::Metropolis_Energy_Difference(const Vec3 &initial_Spin,const Vec3 &final_Spin, const int &spin_index) {
+double MetropolisMCSolver::energy_difference(const Vec3 &initial_Spin, const Vec3 &final_Spin, const int &spin_index) {
   auto energy_difference = 0.0;
-  if (metadynamics_applied) {
-	std::cout
-		<< "Will invoke from metadynamics class functions to calculate the energy differece including the potential";
-  } else
+
 	for (const auto &ham : hamiltonians_) {
 	  return energy_difference += ham->calculate_energy_difference(spin_index, initial_Spin, final_Spin);
 	}

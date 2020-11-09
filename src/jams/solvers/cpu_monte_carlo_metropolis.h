@@ -20,12 +20,13 @@ class MetropolisMCSolver : public Solver {
   void initialize(const libconfig::Setting& settings);
   void run();
 
+    virtual double energy_difference(const Vec3 &initial_Spin, const Vec3 &final_Spin, const int &spin_index);
+    virtual int step(const SpinMoveFunction& trial_spin_move);
+    virtual int metropolis_algorithm(const SpinMoveFunction& trial_spin_move, int &spin_index);
+    virtual bool accept_by_probability(const double &deltaE, const double &beta) const;
+
  private:
   class MagnetizationRotationMinimizer;
-  int MetropolisStep(SpinMoveFunction trial_spin_move);
-  double Metropolis_Energy_Difference(const Vec3 &initial_Spin, const Vec3 &final_Spin,const int &spin_index);
-  int MetropolisAlgorithm(SpinMoveFunction trial_spin_move,int &spin_index);
-  bool acceptance_with_boltzmann_distribution(const double &deltaE, const double &beta);
     int MetropolisAlgorithmTotalEnergy(SpinMoveFunction trial_spin_move);
     void MetropolisPreconditioner(SpinMoveFunction  trial_spin_move);
   void SystematicPreconditioner(const double delta_theta, const double delta_phi);
