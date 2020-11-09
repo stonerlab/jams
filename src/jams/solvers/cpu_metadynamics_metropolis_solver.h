@@ -5,7 +5,8 @@
 #ifndef JAMS_SRC_JAMS_SOLVERS_CPU_METADYNAMICS_METROPOLIS_SOLVER_H_
 #define JAMS_SRC_JAMS_SOLVERS_CPU_METADYNAMICS_METROPOLIS_SOLVER_H_
 
-#include "jams/core/solver.h"
+#include <jams/core/solver.h>
+#include <jams/solvers/cpu_monte_carlo_metropolis.h>
 
 #include <fstream>
 #include <jams/core/types.h>
@@ -15,16 +16,28 @@
 #include <vector>
 
 
-class MetadynamicsMetropolisSolver {
+class MetadynamicsMetropolisSolver : public MetropolisMCSolver {
  public:
+    MetadynamicsMetropolisSolver() = default;
+    ~MetadynamicsMetropolisSolver() override = default;
+    void initialize(const libconfig::Setting& settings) override;
+    void run() override;
+
+    double energy_difference(const int spin_index,
+                             const Vec3 &initial_Spin,
+                             const Vec3 &final_Spin) override;
 
   double potential;
   double s_initial;
   double s_final;
   bool metadynamics;
-  auto potential_1d;
+//  auto potential_1d;
 
  private:
+    double potential_difference(const int spin_index,
+                                const Vec3 &initial_Spin,
+                                const Vec3 &final_Spin);
+
   std::vector<double> linear_space(const double& min, const double& max, const double& step);
   const double gaussian_amplitude = 1e-24; // Height of the gaussian 1.0e-24 same as the paper
   const double gaussian_width = 0.03; // Width of the gaussian 1.4e-2 same as the paper
