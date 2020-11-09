@@ -16,15 +16,16 @@
 #include <iomanip>
 
 using namespace std;
+std::uniform_real_distribution<> uniform_distribution;
 
-void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
+void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libconfig - A library for processing structured configuration files
   using namespace globals;
 
   // initialize base class
   Solver::initialize(settings);
 
-  max_steps_ = jams::config_required<int>(settings, "max_steps");
-  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
+  max_steps_ = jams::config_required<int>(settings, "max_steps"); //required to be passed by the config files , search and find the value named "max_steps"
+  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps); //jams is a namespace
   output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
 
   use_random_spin_order_ = jams::config_optional<bool>(settings, "use_random_spin_order", true);
@@ -79,7 +80,8 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
         }
       } else {
         for (int i = 0; i < 500; ++i) {
-          MetropolisAlgorithm(uniform_move);
+          //MetropolisAlgorithm(uniform_move);
+          Metropolis_Step(uniform_move);
         }
       }
 
@@ -94,21 +96,21 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       if (use_total_energy_) {
         move_running_acceptance_count_uniform_ += MetropolisAlgorithmTotalEnergy(uniform_move);
       } else {
-        move_running_acceptance_count_uniform_ += MetropolisAlgorithm(uniform_move);
+        move_running_acceptance_count_uniform_ += Metropolis_Step(uniform_move);
       }
       run_count_uniform_++;
     } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
       if (use_total_energy_) {
         move_running_acceptance_count_angle_ += MetropolisAlgorithmTotalEnergy(angle_move);
       } else {
-        move_running_acceptance_count_angle_ += MetropolisAlgorithm(angle_move);
+        move_running_acceptance_count_angle_ += Metropolis_Step(angle_move);
       }
       run_count_angle_++;
     } else {
       if (use_total_energy_) {
         move_running_acceptance_count_reflection_ += MetropolisAlgorithmTotalEnergy(reflection_move);
       } else {
-        move_running_acceptance_count_reflection_ += MetropolisAlgorithm(reflection_move);
+        move_running_acceptance_count_reflection_ += Metropolis_Step(reflection_move);
       }
       run_count_reflection_++;
     }
@@ -299,39 +301,63 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     std::copy(minimizer.s().begin(),  minimizer.s().end(), globals::s.begin());
   }
 
-  int MetropolisMCSolver::MetropolisAlgorithm(std::function<Vec3(Vec3)> trial_spin_move) {
+
+int MetropolisMCSolver::Metropolis_Step(std::function<Vec3(Vec3)> trial_spin_move) {
+  using std::min;
+  using std::exp;
+  int spin_index = 0;
+  unsigned moves_accepted = 0;
+
+  for (auto n = 0; n < globals::num_spins; ++n) {
+	spin_index = n;
+	if (use_random_spin_order_) {
+	  spin_index = jams::instance().random_generator()(globals::num_spins);
+	}
+    moves_accepted +=MetropolisAlgorithm(trial_spin_move,spin_index);
+  }
+  return moves_accepted;
+
+}
+
+  int MetropolisMCSolver::MetropolisAlgorithm(std::function<Vec3(Vec3)> trial_spin_move, int &spin_index) {
     using std::min;
     using std::exp;
-    std::uniform_real_distribution<> uniform_distribution;
 
-    const double beta = kBohrMagneton / (kBoltzmann * physics_module_->temperature());
+    const double beta = kBohrMagneton / (kBoltzmann * physics_module_->temperature()); // Just defining beta
 
     unsigned moves_accepted = 0;
-    for (auto n = 0; n < globals::num_spins; ++n) {
-      // 2015-12-10 (JB) striding uniformly is ~4x faster than random choice (clang OSX).
-      // Seems to be because of caching/predication in the exchange field calculation.
-      int spin_index = n;
 
-      if (use_random_spin_order_) {
-        spin_index = jams::instance().random_generator()(globals::num_spins);
-      }
-
-      auto s_initial = mc_spin_as_vec(spin_index);
-      auto s_final = trial_spin_move(s_initial);
-
-      auto deltaE = 0.0;
+      auto s_initial = mc_spin_as_vec(spin_index); //take the random spin index and assign it as a the random initial spin - we need to pass this in metadynamics
+      auto s_final = trial_spin_move(s_initial); // also need to pass this in metadynamics
+  /*    auto deltaE = 0.0;
       for (const auto& ham : hamiltonians_) {
         deltaE += ham->calculate_energy_difference(spin_index, s_initial, s_final);
-      }
+      }*/
+      auto deltaE = Metropolis_Energy_Difference(s_final,s_initial,spin_index);
 
-      if (uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta))) {
+      if ( acceptance_with_boltzmann_distribution(deltaE,beta)) {
         mc_set_spin_as_vec(spin_index, s_final);
-        moves_accepted++;
-        continue;
-      }
-    }
-    return moves_accepted;
+        //moves_accepted++;
+        return 1;
+      } else
+		return 0;
+      //return moves_accepted;
   }
+
+bool MetropolisMCSolver::acceptance_with_boltzmann_distribution(const double &deltaE, const double &beta){
+  return uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta));
+}
+
+double MetropolisMCSolver::Metropolis_Energy_Difference(const Vec3 &initial_Spin,const Vec3 &final_Spin, const int &spin_index) {
+  auto energy_difference = 0.0;
+  if (metadynamics_applied) {
+	std::cout
+		<< "Will invoke from metadynamics class functions to calculate the energy differece including the potential";
+  } else
+	for (const auto &ham : hamiltonians_) {
+	  return energy_difference += ham->calculate_energy_difference(spin_index, initial_Spin, final_Spin);
+	}
+}
 
 int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)> trial_spin_move) {
   using std::min;
