@@ -157,7 +157,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
     }
   }
 
-  void MetropolisMCSolver::MetropolisPreconditioner(std::function<Vec3(Vec3)>  trial_spin_move) {
+  void MetropolisMCSolver::MetropolisPreconditioner(SpinMoveFunction  trial_spin_move) {
     int n;
     double e_initial, e_final;
     Vec3 s_initial, s_final;
@@ -302,7 +302,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) { //libc
   }
 
 
-int MetropolisMCSolver::Metropolis_Step(std::function<Vec3(Vec3)> trial_spin_move) {
+int MetropolisMCSolver::Metropolis_Step(SpinMoveFunction trial_spin_move) {
   using std::min;
   using std::exp;
   int spin_index = 0;
@@ -319,7 +319,7 @@ int MetropolisMCSolver::Metropolis_Step(std::function<Vec3(Vec3)> trial_spin_mov
 
 }
 
-  int MetropolisMCSolver::MetropolisAlgorithm(std::function<Vec3(Vec3)> trial_spin_move, int &spin_index) {
+  int MetropolisMCSolver::MetropolisAlgorithm(SpinMoveFunction trial_spin_move, int &spin_index) {
     using std::min;
     using std::exp;
 
@@ -359,7 +359,7 @@ double MetropolisMCSolver::Metropolis_Energy_Difference(const Vec3 &initial_Spin
 	}
 }
 
-int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)> trial_spin_move) {
+int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(SpinMoveFunction trial_spin_move) {
   using std::min;
   using std::exp;
   std::uniform_real_distribution<> uniform_distribution;

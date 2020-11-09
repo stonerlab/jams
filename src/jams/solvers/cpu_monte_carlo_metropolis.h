@@ -13,6 +13,8 @@
 
 class MetropolisMCSolver : public Solver {
  public:
+    using SpinMoveFunction = std::function<Vec3(Vec3)>;
+
   MetropolisMCSolver() = default;
   ~MetropolisMCSolver() = default;
   void initialize(const libconfig::Setting& settings);
@@ -20,12 +22,12 @@ class MetropolisMCSolver : public Solver {
 
  private:
   class MagnetizationRotationMinimizer;
-  int Metropolis_Step(std::function<Vec3(Vec3)> trial_spin_move);
+  int Metropolis_Step(SpinMoveFunction trial_spin_move);
   double Metropolis_Energy_Difference(const Vec3 &initial_Spin, const Vec3 &final_Spin,const int &spin_index);
-  int MetropolisAlgorithm(std::function<Vec3(Vec3)> trial_spin_move,int &spin_index);
+  int MetropolisAlgorithm(SpinMoveFunction trial_spin_move,int &spin_index);
   bool acceptance_with_boltzmann_distribution(const double &deltaE, const double &beta);
-    int MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)> trial_spin_move);
-    void MetropolisPreconditioner(std::function<Vec3(Vec3)>  trial_spin_move);
+    int MetropolisAlgorithmTotalEnergy(SpinMoveFunction trial_spin_move);
+    void MetropolisPreconditioner(SpinMoveFunction  trial_spin_move);
   void SystematicPreconditioner(const double delta_theta, const double delta_phi);
 
   bool metadynamics_applied = false;
