@@ -22,6 +22,8 @@
 #include "jams/solvers/cpu_rotations.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 #include "jams/solvers/cpu_monte_carlo_constrained.h"
+#include "jams/solvers/cpu_metadynamics_metropolis_solver.h"
+
 
 using namespace std;
 
@@ -82,6 +84,10 @@ Solver* Solver::create(const libconfig::Setting &settings) {
 
   if (module_name == "monte-carlo-metropolis-cpu") {
     return new MetropolisMCSolver;
+  }
+
+  if (module_name == "monte-carlo-metadynamics-cpu") {
+    return new MetadynamicsMetropolisSolver;
   }
 
   if (module_name == "monte-carlo-constrained-cpu") {

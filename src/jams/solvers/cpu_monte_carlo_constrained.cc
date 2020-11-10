@@ -16,6 +16,7 @@
 #include "jams/helpers/montecarlo.h"
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
+#include "jams/helpers/montecarlo.h"
 
 using namespace std;
 
@@ -91,9 +92,9 @@ void ConstrainedMCSolver::run() {
   // energy or with a Boltzmann thermal weighting.
   std::uniform_real_distribution<> uniform_distribution;
 
-  MonteCarloUniformMove<jams::RandomGeneratorType> uniform_move(&jams::instance().random_generator());
-  MonteCarloAngleMove<jams::RandomGeneratorType>   angle_move(&jams::instance().random_generator(), move_angle_sigma_);
-  MonteCarloReflectionMove           reflection_move;
+  jams::montecarlo::MonteCarloUniformMove<jams::RandomGeneratorType> uniform_move(&jams::instance().random_generator());
+  jams::montecarlo::MonteCarloAngleMove<jams::RandomGeneratorType>   angle_move(&jams::instance().random_generator(), move_angle_sigma_);
+  jams::montecarlo::MonteCarloReflectionMove           reflection_move;
 
   auto uniform_random_number = uniform_distribution(jams::instance().random_generator());
   if (uniform_random_number < move_fraction_uniform_) {
@@ -132,19 +133,19 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
   // we move two spins moving all spins on average is num_spins/2
   for (auto i = 0; i < globals::num_spins/2; ++i) {
     // randomly get two spins s1 != s2
-    auto s1 = static_cast<int>(jams::instance().random_generator()(globals::num_spins));
+    auto s1 = jams::montecarlo::random_spin_index();
     auto s2 = s1;
     while (s2 == s1) {
-      s2 = static_cast<int>(jams::instance().random_generator()(globals::num_spins));
+      s2 = jams::montecarlo::random_spin_index();
     }
 
-    Vec3 s1_initial         = mc_spin_as_vec(s1);
+    Vec3 s1_initial         = jams::montecarlo::get_spin(s1);
     Vec3 s1_initial_rotated = rotate_cartesian_to_constraint(s1, s1_initial);
 
     Vec3 s1_trial           = trial_spin_move(s1_initial);
     Vec3 s1_trial_rotated   = rotate_cartesian_to_constraint(s1, s1_trial);
 
-    Vec3 s2_initial         = mc_spin_as_vec(s2);
+    Vec3 s2_initial         = jams::montecarlo::get_spin(s2);
     Vec3 s2_initial_rotated = rotate_cartesian_to_constraint(s2, s2_initial);
 
     // calculate new spin based on contraint mx = my = 0 in the constraint vector reference frame
@@ -182,8 +183,8 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
     }
 
     // accept move
-    mc_set_spin_as_vec(s1, s1_trial);
-    mc_set_spin_as_vec(s2, s2_trial);
+    jams::montecarlo::set_spin(s1, s1_trial);
+    jams::montecarlo::set_spin(s2, s2_trial);
 
     magnetisation += delta_m;
 
@@ -202,12 +203,12 @@ double ConstrainedMCSolver::energy_difference(const int &s1, const Vec3 &s1_init
   }
 
   // temporarily accept the move for s1 so we can calculate the s2 energies
-  mc_set_spin_as_vec(s1, s1_trial);
+  jams::montecarlo::set_spin(s1, s1_trial);
   double delta_energy2 = 0.0;
   for (auto hamiltonian : hamiltonians_) {
     delta_energy2 += hamiltonian->calculate_energy_difference(s2, s2_initial, s2_trial);
   }
-  mc_set_spin_as_vec(s1, s1_initial);
+  jams::montecarlo::set_spin(s1, s1_initial);
 
   return delta_energy1 + delta_energy2;
 }
@@ -222,7 +223,8 @@ Vec3 ConstrainedMCSolver::total_transformed_magnetization() const {
   Vec3 m_total = {0.0, 0.0, 0.0};
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    m_total += globals::mus(i) * spin_transformations_[i] * mc_spin_as_vec(i);
+    m_total += globals::mus(i) * spin_transformations_[i] *
+        jams::montecarlo::get_spin(i);
   }
 
   return m_total;
@@ -372,7 +374,7 @@ void ConstrainedMCSolver::align_spins_to_constraint() const {
   auto rotation = rotation_matrix_between_vectors(M, constraint_vector_);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 snew = rotation * mc_spin_as_vec(i);
+    Vec3 snew = rotation * jams::montecarlo::get_spin(i);
     for (auto j : {0, 1, 2}) {
       globals::s(i, j) = snew[j];
     }

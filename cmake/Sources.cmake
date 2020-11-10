@@ -69,6 +69,7 @@ set(JAMS_SOURCES_CXX
         physics/two_temperature_model.cc
         solvers/cpu_llg_heun.cc
         solvers/cpu_rotations.cc
+        solvers/cpu_metadynamics_metropolis_solver.cc
         solvers/cpu_monte_carlo_constrained.cc
         solvers/cpu_monte_carlo_metropolis.cc
         version.cc)
