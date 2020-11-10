@@ -10,12 +10,6 @@
 namespace jams {
     namespace montecarlo {
 
-        enum class MonteCarloMoveType {
-            REFLECTION,
-            UNIFORM,
-            ANGLE
-        };
-
         class MonteCarloMove {
         public:
             virtual Vec3 operator()(const Vec3& spin) = 0;
