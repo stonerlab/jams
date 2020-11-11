@@ -81,13 +81,12 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
   assert(r_cutoff_ < lattice->max_interaction_radius());
 
   auto displacement = [](const int i, const int j) {
-      return jams::minimum_image_smith_method_no_radius_check(
-                  lattice->get_supercell().a(),
-                  lattice->get_supercell().b(),
-                  lattice->get_supercell().c(),
-                  lattice->get_supercell().periodic(),
-                  lattice->atom_position(i),
-                  lattice->atom_position(j));
+      return jams::minimum_image_smith_method(
+              lattice->get_supercell().matrix(),
+              lattice->get_supercell().inverse_matrix(),
+              lattice->get_supercell().periodic(),
+              lattice->atom_position(i),
+              lattice->atom_position(j));
   };
 
   const auto r_cut_squared = pow2(r_cutoff_);

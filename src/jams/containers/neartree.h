@@ -150,8 +150,8 @@ namespace jams {
         typename FuncType>
     void NearTree<T, FuncType>::insert(const T &t) {
       // do a bit of precomputing if possible so that we can
-      // reduce the number of calls to operator 'double' as much
-      // as possible; 'double' might use square roots
+      // reduce the number of calls to operator norm_functor as much
+      // as possible; norm_functor might use square roots
       double tmp_distance_right = (right != nullptr) ? norm_functor(t, *right) : 0.0;
       double tmp_distance_left = (left != nullptr) ? norm_functor(t, *left) : 0.0;
 

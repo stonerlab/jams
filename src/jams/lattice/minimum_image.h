@@ -35,6 +35,7 @@
 ///
 
 #include <jams/containers/vec3.h>
+#include <jams/containers/mat3.h>
 
 namespace jams {
 
@@ -115,49 +116,14 @@ namespace jams {
 
     /// Calculates the vector displacement r_ij = r_i - r_j obeying the minimum
     /// image convention using Smith's algorithm within a cell defined by
-    /// vectors a, b, c with optional periodic boundaries along each vector. The
-    /// function will throw a std::domain_error if |r_ij| is not guaranteed to
-    /// be the shortest possible.
-    ///
-    /// @param a   cell vector a
-    /// @param b   cell vector b
-    /// @param c   cell vector c
-    /// @param pbc Vec3 of booleans for (a, b,c), true if lattice direction is periodic
-    /// @param r_i Vec3 point i
-    /// @param r_j Vec3 point j
-    /// @param check_cutoff_radius boolean toggle for safety check for skew cells
-    ///
-    /// @return r_ij minimum image displacement
-    ///
-    /// @throws std::domain_error - r_ij is greater than the cutfoff radius allowed for the cell
-    ///
-    /// @details This is a specialised version of the minimum image using the
-    /// method described in "W. Smith, CCP5 Information Quarterly for Computer
-    /// Simulation of Condensed Phases (1989)" whereby the minimum image is
-    /// solved in the ' lattice space' rather than real space. It should be much
-    /// more efficient than bruteforce searches of image cells and can also
-    /// handle non-orthogonal cells with no extra performance cost.
+    /// vectors a, b, c with optional periodic boundaries along each vector.
     ///
     /// @warning The method guarantees to give the minimum image only if the
     /// displacement found (r_ij) is less than the inradius of the cell (the
     /// radius of the smallest sphere which can be completely contained in the
-    /// cell). The function will check this condition and throw a
-    /// std::domain_error if it is violated. In such cases an alternate method
-    /// should be used to find the minimum image. The radius check can be
-    /// disabled using the 'check_cutoff_radius' argument in cases where we
-    /// guarantee in advance that the distances we are checking will be less
-    /// than the inradius.
-    ///
-    Vec3 minimum_image_smith_method(const Vec3 &a, const Vec3 &b, const Vec3 &c,
-                                    const Vec3b &pbc, const Vec3 &r_i,
-                                    const Vec3 &r_j);
-
-    /// Calculates the vector displacement r_ij = r_i - r_j obeying the minimum
-    /// image convention using Smith's algorithm within a cell defined by
-    /// vectors a, b, c with optional periodic boundaries along each vector.
-    ///
-    /// @warning This function does @b NOT guarantee to find the minimum image
-    /// for all r_i, r_j.
+    /// parallelepiped a,b,c). If this is not satisfied then an alternative
+    /// method must be used. This function does not check the inradius
+    /// condition.
     ///
     /// @param a   cell vector a
     /// @param b   cell vector b
@@ -166,14 +132,8 @@ namespace jams {
     /// periodic
     /// @param r_i Vec3 point i
     /// @param r_j Vec3 point j
-    /// @param check_cutoff_radius boolean toggle for safety check for skew
-    /// cells
     ///
     /// @return r_ij minimum image displacement
-    ///
-    /// @throws std::domain_error - r_ij is greater than the cutfoff radius
-    /// allowed for the cell
-    ///
     ///
     /// @details This is a specialised version of the minimum image using the
     /// method described in "W. Smith, CCP5 Information Quarterly for Computer
@@ -200,9 +160,10 @@ namespace jams {
     ///     for (auto j = 0; j < N; ++j) {
     ///         auto r_j = position[j];
     ///
-    ///         auto r_ij = minimum_image_smith_method_no_radius_check(a, b, c, pbc, r_i, r_j);
+    ///         auto r_ij = minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
     ///
-    ///         // here we guarantee r_cutoff is less than the inradus of the cell (a,b,c)
+    ///         // here we guarantee r_cutoff is less than the inradus of the
+    ///         // cell (a,b,c)
     ///         if (definately_greater_than(norm(r_ij), r_cutoff)) continue;
     ///
     ///         ... do some calculation ...
@@ -210,11 +171,33 @@ namespace jams {
     ///   }
     /// @endcode
     ///
-    Vec3
-    minimum_image_smith_method_no_radius_check(const Vec3 &a, const Vec3 &b,
-                                               const Vec3 &c, const Vec3b &pbc,
-                                               const Vec3 &r_i,
-                                               const Vec3 &r_j);
+    Vec3 minimum_image_smith_method(const Vec3 &a, const Vec3 &b, const Vec3 &c,
+                                    const Vec3b &pbc, const Vec3 &r_i,
+                                    const Vec3 &r_j);
+
+    /// Calculates the vector displacement r_ij = r_i - r_j obeying the minimum
+    /// image convention using Smith's algorithm within a cell defined by
+    /// vectors a, b, c with optional periodic boundaries along each vector.
+    ///
+    /// @warning The method guarantees to give the minimum image only if the
+    /// displacement found (r_ij) is less than the inradius of the cell (the
+    /// radius of the smallest sphere which can be completely contained in the
+    /// parallelepiped a,b,c). If this is not satisfied then an alternative
+    /// method must be used. This function does not check the inradius
+    /// condition.
+    ///
+    /// @param cell_matrix Mat3 where columns are (a, b, c) vectors defining the
+    /// unit cell
+    /// @param cell_inv_matrix Mat3 inverse of cell_matrix
+    /// @param r_i Vec3 point i
+    /// @param r_j Vec3 point j
+    ///
+    /// @return r_ij minimum image displacement
+    Vec3 minimum_image_smith_method(const Mat3 &cell_matrix,
+                                    const Mat3 &cell_inv_matrix,
+                                    const Vec3b &pbc,
+                                    const Vec3 &r_i, const Vec3 &r_j);
+
 }
 
 #endif //JAMS_LATTICE_MINIMUM_IMAGE_H

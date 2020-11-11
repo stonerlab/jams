@@ -23,8 +23,8 @@ TEST(LatticeMinimumImageTest, minimum_image_smith_method) {
         return Vec3 {rand()/double(RAND_MAX), rand()/double(RAND_MAX), rand()/double(RAND_MAX)};
     };
 
-    int num_test_cells = 20;
-    int num_test_positions = 10;
+    int num_test_cells = 50;
+    int num_test_positions = 100000;
 
     for (auto n = 0; n < num_test_cells; ++n) {
         Vec3 a = random_vector();
@@ -42,19 +42,10 @@ TEST(LatticeMinimumImageTest, minimum_image_smith_method) {
             const Vec3 r_j = random_position();
 
             Vec3 r_ij_smith, r_ij_brute;
-            try {
-                r_ij_smith = jams::minimum_image_smith_method(a, b, c, pbc, r_i,
-                                                              r_j);
-            }
-            catch (std::domain_error &e) {
-                EXPECT_GT(
-                        norm(jams::minimum_image_smith_method_no_radius_check(a,
-                                                                              b,
-                                                                              c,
-                                                                              pbc,
-                                                                              r_i,
-                                                                              r_j)),
-                        jams::maths::parallelepiped_inradius(a, b, c));
+
+            r_ij_smith = jams::minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
+          if (!definately_less_than(norm(r_ij_smith),
+                                   jams::maths::parallelepiped_inradius(a, b, c))) {
                 continue;
             }
             r_ij_brute = jams::minimum_image_bruteforce(a, b, c, pbc, r_i, r_j);
