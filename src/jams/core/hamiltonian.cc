@@ -11,6 +11,7 @@
 #include "jams/helpers/error.h"
 #include "jams/helpers/utils.h"
 
+#include "jams/hamiltonian/applied_field.h"
 #include "jams/hamiltonian/cubic_anisotropy.h"
 #include "jams/hamiltonian/exchange.h"
 #include "jams/hamiltonian/exchange_neartree.h"
@@ -67,6 +68,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
     throw jams::removed_feature_error("dipole hamiltonians now have specific names and 'strategy' has been removed");
   }
 
+  DEFINED_HAMILTONIAN("applied-field", AppliedFieldHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange", ExchangeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-functional", ExchangeFunctionalHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-neartree", ExchangeNeartreeHamiltonian, settings, size);
