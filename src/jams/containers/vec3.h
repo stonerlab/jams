@@ -135,6 +135,16 @@ inline constexpr auto dot_sq(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype
   return pow2(dot(a,b));
 }
 
+template <typename T>
+inline constexpr auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
+  return std::sqrt(dot(a, a));
+}
+
+template <typename T>
+inline constexpr T norm_sq(const Vec<T,3>& a) {
+  return dot(a, a);
+}
+
 template <typename T1>
 inline constexpr auto abs(const Vec<T1,3>& a) -> Vec<decltype(std::abs(a[0])), 3> {
   return {std::abs(a[0]), std::abs(a[1]), std::abs(a[2])};
@@ -145,6 +155,11 @@ inline constexpr auto cross(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<declt
   return {a[1]*b[2] - a[2]*b[1],
           a[2]*b[0] - a[0]*b[2],
           a[0]*b[1] - a[1]*b[0]};
+}
+
+template <typename T1, typename T2>
+inline constexpr auto cross_norm_sq(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+  return norm_sq(a) * norm_sq(b) - dot_sq(a, b);
 }
 
 template <typename T1, typename T2, typename T3>
@@ -160,18 +175,6 @@ inline constexpr auto vector_triple_product(const Vec<T1,3>& a, const Vec<T2,3>&
 template <typename T1, typename T2>
 inline constexpr auto scale(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[0] * b[0]), 3> {
   return {a[0] * b[0], a[1] * b[1], a[2] * b[2]};
-}
-
-
-
-template <typename T>
-inline constexpr auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
-  return std::sqrt(dot(a, a));
-}
-
-template <typename T>
-inline constexpr T norm_sq(const Vec<T,3>& a) {
-  return dot(a, a);
 }
 
 template <typename T>
