@@ -114,7 +114,6 @@ namespace jams {
                                                  const Vec3 &r_j,
                                                  const Vec3i &offset_depth);
 
-
     /// Calculates the vector displacement r_ij = r_i - r_j obeying the minimum
     /// image convention using Smith's algorithm within a cell defined by
     /// vectors a, b, c with optional periodic boundaries along each vector.
@@ -135,7 +134,7 @@ namespace jams {
     /// @param r_j Vec3 point j
     ///
     /// @return r_ij minimum image displacement
-    //////
+    ///
     /// @details This is a specialised version of the minimum image using the
     /// method described in "W. Smith, CCP5 Information Quarterly for Computer
     /// Simulation of Condensed Phases (1989)" whereby the minimum image is
