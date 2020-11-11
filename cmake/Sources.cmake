@@ -38,7 +38,6 @@ set(JAMS_SOURCES_CXX
         interface/fft.cc
         interface/system.cc
         lattice/minimum_image.cc
-        maths/parallelepiped.cc
         monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc
