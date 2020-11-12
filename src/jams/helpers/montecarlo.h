@@ -82,11 +82,11 @@ namespace jams {
                     sigma_(sigma){}
 
             inline Vec3 operator()(const Vec3& spin) {
-              return normalize(spin + uniform_random_sphere(*gen_) * sigma_);
+              return fma(sigma_, uniform_random_sphere(*gen_), spin);
             }
 
         private:
-            double sigma_ = 0.5;
+            const double sigma_ = 0.5;
             RNG * gen_;
           };
 
