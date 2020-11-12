@@ -30,6 +30,8 @@ public:
 
     double energy_difference(const int spin_index,const Vec3 &initial_Spin,const Vec3 &final_Spin) override;
 
+    void accept_move(const int spin_index, const Vec3 &initial_spin, const Vec3 &final_spin) override;
+
 private:
 
     double potential;
@@ -41,7 +43,6 @@ private:
     // previous move has been accepted or not.
     static Vec3 total_magnetisation_calculation();
 
-    static Vec3 trial_magnetisation_calculation(const Vec3 &current_magnetisation, const Vec3 &initial_spin, const Vec3 trial_spin);
     double potential_difference(const int spin_index,const Vec3 &initial_Spin,const Vec3 &final_Spin);
 
     std::vector<double> linear_space(const double &min, const double &max, const double &step);
@@ -64,7 +65,6 @@ private:
 
 
     Vec3 magnetisation_;
-    Vec3 trial_magnetisation_;
     std::vector<double> potential_1D_;
     std::vector<std::vector<double>> potential_2D_;
     const double gaussian_amplitude_ = 1e-25; // Height of the gaussian 1.0e-24 same as the paper

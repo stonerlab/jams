@@ -28,6 +28,8 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
 }
 
 void MetadynamicsMetropolisSolver::run() {
+  // update the total magnetisation to avoid the possibility of drift with accumulated errors
+  magnetisation_ = total_magnetisation_calculation();
   MetropolisMCSolver::run();
 
   if (iteration_ % 100 == 0) {
@@ -51,11 +53,12 @@ double MetadynamicsMetropolisSolver::energy_difference(const int spin_index,
 }
 
 double MetadynamicsMetropolisSolver::potential_difference(const int spin_index,const Vec3 &initial_Spin,const Vec3 &final_Spin) {
-  magnetisation_ = total_magnetisation_calculation();
-  auto initial_potential = interpolated_potential(sample_points_1d_, potential_1D_, magnetisation_[2] / globals::num_spins);
 
-  trial_magnetisation_calculation(magnetisation_, initial_Spin, final_Spin);
-  auto trial_potential = interpolated_potential(sample_points_1d_, potential_1D_, trial_magnetisation_[2] / globals::num_spins);
+  const Vec3 initial_magnetisation = magnetisation_;
+  auto initial_potential = interpolated_potential(sample_points_1d_, potential_1D_, initial_magnetisation[2] / globals::num_spins);
+
+  const Vec3 trial_magnetisation = magnetisation_ - initial_Spin + final_Spin;
+  auto trial_potential = interpolated_potential(sample_points_1d_, potential_1D_, trial_magnetisation[2] / globals::num_spins);
 
   return trial_potential - initial_potential;
 }
@@ -120,12 +123,17 @@ Vec3 MetadynamicsMetropolisSolver::total_magnetisation_calculation() {
   }
   return m;
 }
-Vec3 MetadynamicsMetropolisSolver::trial_magnetisation_calculation(const Vec3 &current_magnetisation, const Vec3 &initial_spin, const Vec3 trial_spin) {
-  return current_magnetisation - initial_spin + trial_spin;
-}
+
 double MetadynamicsMetropolisSolver::calculate_energy_difference(const vector<double> &potential) {
   const auto margin = potential.size()/4;
   const double max = *max_element(potential.begin()+margin, potential.end()-margin);
   const double min = *min_element(potential.begin()+margin, potential.end()-margin);
   return max - min;
+}
+
+void MetadynamicsMetropolisSolver::accept_move(const int spin_index,
+                                               const Vec3 &initial_spin,
+                                               const Vec3 &final_spin) {
+  MetropolisMCSolver::accept_move(spin_index, initial_spin, final_spin);
+  magnetisation_ - initial_spin + final_spin;
 }

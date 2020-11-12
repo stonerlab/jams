@@ -94,8 +94,7 @@ int MetropolisMCSolver::metropolis_algorithm(const MoveFunction& trial_spin_move
 
   if (jams::montecarlo::accept_on_boltzmann_distribution(deltaE,
                                                          physics_module_->temperature())) {
-    // The trial move has been accepted so set the spin to the new value
-    jams::montecarlo::set_spin(spin_index, s_final);
+    accept_move(spin_index, s_initial, s_final);
     return 1;
   }
 
@@ -129,4 +128,11 @@ void MetropolisMCSolver::output_move_statistics() {
     stats_file_ << division_or_zero(moves_accepted_[n], moves_attempted_[n]) << " ";
   }
   stats_file_ << std::endl;
+}
+
+void
+MetropolisMCSolver::accept_move(const int spin_index, const Vec3 &initial_spin,
+                                const Vec3 &final_spin) {
+  // The trial move has been accepted so set the spin to the new value
+  jams::montecarlo::set_spin(spin_index, final_spin);
 }

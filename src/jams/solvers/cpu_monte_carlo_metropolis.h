@@ -55,6 +55,12 @@ public:
     virtual int
     metropolis_algorithm(const MoveFunction &trial_spin_move, int spin_index);
 
+    /// Function hook for accepting a Monte Carlo move
+    virtual void
+    accept_move(const int spin_index,
+                const Vec3 &initial_spin,
+                const Vec3 &final_spin);
+
 private:
     /// Outputs statistics of Monte Carlo move acceptance rates to a file.
     void output_move_statistics();
