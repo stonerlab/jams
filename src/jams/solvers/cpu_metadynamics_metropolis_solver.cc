@@ -11,23 +11,35 @@
 #include <random>
 #include "jams/helpers/random.h"
 #include <vector>
+#include <jams/core/globals.h>
+#include <jams/helpers/montecarlo.h>
+#include <iostream>
 
 using namespace std;
 
-void
-MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings) {
+void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings) {
   MetropolisMCSolver::initialize(settings);
+  MetadynamicsMetropolisSolver::intialise_potential_histograms(potential_1D,potential_2D,sample_points_1d,sample_points_2d,sample_points_m_perpendicular);
+  cout << "Metadynamics" << "\n";
+  //initialise output files ?
+  energy_barrier_file.open("energy_barrier_metadynamics.tsv");
 }
 
 void MetadynamicsMetropolisSolver::run() {
-  intialise_potential_histograms(potential_1D,potential_2D,sample_points_1d,sample_points_2d,sample_points_m_perpendicular);
-  //to insert gaussian we need to know the magnetisation value at any given point of the simulation, perform the interpolation and use the function.
-  //Also need to be able to just calculate the potential difference between 2 given points.
-  // should we use flags to specify when we need to calculate the energy difference and when to add a gausian to our histogram ?!
-
-  // put code here for inserting new gaussians
   MetropolisMCSolver::run();
+  if (iteration_ % 100 == 0) {
+	magnetisation = total_magnetisation_calculation();
+	cout << magnetisation[2]/globals::num_spins <<"\n";
+	insert_gaussian(magnetisation[2] / globals::num_spins,gaussian_amplitude,gaussian_width,sample_points_1d,potential_1D);
+  }
+  if (iteration_%500 == 0){
+    auto barrier = calculate_energy_difference(potential_1D);
+    cout <<"Iteration: "<< iteration_<< "    energy Barrier: " << barrier << "\n";
+    energy_barrier_file << iteration_ << "	" << barrier <<endl;
+  }
 }
+
+
 
 double MetadynamicsMetropolisSolver::energy_difference(const int spin_index,
                                                        const Vec3 &initial_Spin,
@@ -37,10 +49,14 @@ double MetadynamicsMetropolisSolver::energy_difference(const int spin_index,
          + potential_difference(spin_index, initial_Spin, final_Spin);
 }
 
-double MetadynamicsMetropolisSolver::potential_difference(const int spin_index,
-                                                          const Vec3 &initial_Spin,
-                                                          const Vec3 &final_Spin) {
-  return 0;
+double MetadynamicsMetropolisSolver::potential_difference(const int spin_index,const Vec3 &initial_Spin,const Vec3 &final_Spin) {
+  magnetisation = total_magnetisation_calculation();
+  auto initial_potential = interpolated_potential(sample_points_1d,potential_1D,magnetisation[2]/globals::num_spins);
+
+  trial_magnetisation_calculation(magnetisation,initial_Spin,final_Spin);
+  auto trial_potential = interpolated_potential(sample_points_1d,potential_1D,trial_magnetisation[2]/globals::num_spins); //
+
+  return trial_potential - initial_potential ;
 }
 
 std::vector<double> MetadynamicsMetropolisSolver::linear_space(const double &min,const double &max,const double &step) {
@@ -93,7 +109,7 @@ double MetadynamicsMetropolisSolver::interpolated_potential(const vector<double>
   auto lower = floor((value - sample_points[0]) / (sample_points[1] - sample_points[0]));
   auto upper = lower+1;
   assert(lower < upper);
-  cout << "Indices Lower:" << lower <<endl;
+  //cout << "Indices Lower:" << lower <<endl; //need to check why why and why
   return linear_interpolation(value, sample_points[lower], sample_points[upper],
                               discrete_potential[lower], discrete_potential[upper]);
 }
@@ -105,4 +121,28 @@ double MetadynamicsMetropolisSolver::linear_interpolation(const double &x,const 
   auto a =y_lower + (x - x_lower)*(y_upper - y_lower) / (x_upper - x_lower);
 
   return y_lower + (x - x_lower)*(y_upper - y_lower) / (x_upper - x_lower);
+}
+Vec3 MetadynamicsMetropolisSolver::total_magnetisation_calculation() {
+
+  Vec3 m={0, 0, 0};
+  for (auto i =0; i <globals::num_spins; ++i) {
+    Vec3 spins = jams::montecarlo::get_spin(i);
+	for (auto n=0; n<3; ++n) {
+	  m[n] +=spins[n];
+	}
+  }
+  return m;
+}
+Vec3 MetadynamicsMetropolisSolver::trial_magnetisation_calculation(const Vec3 &current_magnetisation, const Vec3 &initial_spin, const Vec3 trial_spin) {
+  Vec3 trial_mag = {0,0,0};
+  for (auto n : {0, 1, 2}) {
+	trial_mag[n] = current_magnetisation[n] - initial_spin[n] + trial_spin[n];
+  }
+  return trial_mag;
+}
+double MetadynamicsMetropolisSolver::calculate_energy_difference(const vector<double> &potential) {
+  const auto margin = potential.size()/4;
+  const double max = *max_element(potential.begin()+margin, potential.end()-margin);
+  const double min = *min_element(potential.begin()+margin, potential.end()-margin);
+  return max - min;
 }
