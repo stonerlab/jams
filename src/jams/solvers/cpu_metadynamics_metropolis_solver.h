@@ -46,9 +46,7 @@ private:
 
     std::vector<double> linear_space(const double &min, const double &max, const double &step);
 
-    static void
-    intialise_potential_histograms(std::vector<double> &potential_1D,std::vector<std::vector<double>> &potential_2D,const std::vector<double> sample_points_1d,const std::vector<double> sample_points_2d,
-                                   const std::vector<double> sample_points_m_perpendicular);
+    void intialise_potential_histograms();
 
     void insert_gaussian(const double &center, const double &amplitude,const double &width,const std::vector<double> &sample_points,std::vector<double> &discrete_potential);
 

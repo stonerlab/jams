@@ -20,7 +20,7 @@ using namespace std;
 
 void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings) {
   MetropolisMCSolver::initialize(settings);
-  MetadynamicsMetropolisSolver::intialise_potential_histograms(potential_1D,potential_2D,sample_points_1d,sample_points_2d,sample_points_m_perpendicular);
+  intialise_potential_histograms();
   cout << "Metadynamics" << "\n";
   //initialise output files ?
   energy_barrier_file_.open(jams::output::full_path_filename("energy_barrier_metadynamics.tsv"));
@@ -76,10 +76,9 @@ double MetadynamicsMetropolisSolver::gaussian(const double &x,const double &cent
   return amplitude*exp(- (x-center)*(x-center ) / (2.0 * width*width));
 }
 
-void MetadynamicsMetropolisSolver::intialise_potential_histograms(std::vector<double> &potential_1D, std::vector<std::vector<double>> &potential_2D,const std::vector<double> sample_points_1d,const std::vector<double> sample_points_2d, const std::vector<double> sample_points_m_perpendicular)  {
-
-  potential_1D.resize(sample_points_1d.size(),0.0);
-  potential_2D.resize(sample_points_2d.size(),sample_points_m_perpendicular);
+void MetadynamicsMetropolisSolver::intialise_potential_histograms()  {
+  potential_1D_.resize(sample_points_1d_.size(),0.0);
+  potential_2D_.resize(sample_points_2d_.size(),sample_points_m_perpendicular_);
 }
 
 void MetadynamicsMetropolisSolver::insert_gaussian(const double &center, const double &amplitude, const double &width, const vector<double> &sample_points, vector<double> &discrete_potential) {
