@@ -50,8 +50,6 @@ private:
 
     void insert_gaussian(const double &center, const double &amplitude,const double &width,const std::vector<double> &sample_points,std::vector<double> &discrete_potential);
 
-    static double gaussian(const double &x, const double &center, const double &amplitude,const double &width);
-
     static double linear_interpolation(const double &x, const double &x_lower,const double &x_upper, const double &y_lower,const double &y_upper);
 
     double interpolated_potential(const std::vector<double> &sample_points,const std::vector<double> &discrete_potential,const double &value);

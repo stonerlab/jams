@@ -71,10 +71,6 @@ std::vector<double> MetadynamicsMetropolisSolver::linear_space(const double &min
   return space;
 }
 
-double MetadynamicsMetropolisSolver::gaussian(const double &x,const double &center,const double &amplitude,const double &width) {
-  return amplitude*exp(- (x-center)*(x-center ) / (2.0 * width*width));
-}
-
 void MetadynamicsMetropolisSolver::intialise_potential_histograms()  {
   potential_1D_.resize(sample_points_1d_.size(),0.0);
   potential_2D_.resize(sample_points_2d_.size(),sample_points_m_perpendicular_);

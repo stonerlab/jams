@@ -131,8 +131,8 @@ inline constexpr double dirac_delta(const double x) {
   return approximately_zero(x);
 }
 
-inline double gaussian(const double x, const double sigma, const double mean = 0.0) {
-  return kOne_SqrtTwoPi*exp(-0.5*std::pow((x - mean) / sigma, 2))/sigma;
+inline double gaussian(const double& x, const double& center, const double& amplitude, const double& width) {
+  return amplitude * exp(-0.5 * pow2((x - center) / width));
 }
 
 inline constexpr double deg_to_rad(const double &angle) {
