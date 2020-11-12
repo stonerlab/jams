@@ -14,6 +14,7 @@
 #include <jams/core/globals.h>
 #include <jams/helpers/montecarlo.h>
 #include <iostream>
+#include "jams/helpers/output.h"
 
 using namespace std;
 
@@ -22,7 +23,7 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
   MetadynamicsMetropolisSolver::intialise_potential_histograms(potential_1D,potential_2D,sample_points_1d,sample_points_2d,sample_points_m_perpendicular);
   cout << "Metadynamics" << "\n";
   //initialise output files ?
-  energy_barrier_file.open("energy_barrier_metadynamics.tsv");
+  energy_barrier_file_.open(jams::output::full_path_filename("energy_barrier_metadynamics.tsv"));
 }
 
 void MetadynamicsMetropolisSolver::run() {
