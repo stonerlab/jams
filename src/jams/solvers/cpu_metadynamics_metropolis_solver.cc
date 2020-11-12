@@ -28,19 +28,18 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
 
 void MetadynamicsMetropolisSolver::run() {
   MetropolisMCSolver::run();
+
   if (iteration_ % 100 == 0) {
-	magnetisation = total_magnetisation_calculation();
-	cout << magnetisation[2]/globals::num_spins <<"\n";
-	insert_gaussian(magnetisation[2] / globals::num_spins,gaussian_amplitude,gaussian_width,sample_points_1d,potential_1D);
+    magnetisation_ = total_magnetisation_calculation();
+	  cout << magnetisation_[2] / globals::num_spins << "\n";
+	  insert_gaussian(magnetisation_[2] / globals::num_spins, gaussian_amplitude_, gaussian_width_, sample_points_1d_, potential_1D_);
   }
-  if (iteration_%500 == 0){
-    auto barrier = calculate_energy_difference(potential_1D);
+  if (iteration_ % 500 == 0){
+    auto barrier = calculate_energy_difference(potential_1D_);
     cout <<"Iteration: "<< iteration_<< "    energy Barrier: " << barrier << "\n";
-    energy_barrier_file << iteration_ << "	" << barrier <<endl;
+    energy_barrier_file_ << iteration_ << "	" << barrier << endl;
   }
 }
-
-
 
 double MetadynamicsMetropolisSolver::energy_difference(const int spin_index,
                                                        const Vec3 &initial_Spin,
@@ -51,13 +50,13 @@ double MetadynamicsMetropolisSolver::energy_difference(const int spin_index,
 }
 
 double MetadynamicsMetropolisSolver::potential_difference(const int spin_index,const Vec3 &initial_Spin,const Vec3 &final_Spin) {
-  magnetisation = total_magnetisation_calculation();
-  auto initial_potential = interpolated_potential(sample_points_1d,potential_1D,magnetisation[2]/globals::num_spins);
+  magnetisation_ = total_magnetisation_calculation();
+  auto initial_potential = interpolated_potential(sample_points_1d_, potential_1D_, magnetisation_[2] / globals::num_spins);
 
-  trial_magnetisation_calculation(magnetisation,initial_Spin,final_Spin);
-  auto trial_potential = interpolated_potential(sample_points_1d,potential_1D,trial_magnetisation[2]/globals::num_spins); //
+  trial_magnetisation_calculation(magnetisation_, initial_Spin, final_Spin);
+  auto trial_potential = interpolated_potential(sample_points_1d_, potential_1D_, trial_magnetisation_[2] / globals::num_spins);
 
-  return trial_potential - initial_potential ;
+  return trial_potential - initial_potential;
 }
 
 std::vector<double> MetadynamicsMetropolisSolver::linear_space(const double &min,const double &max,const double &step) {
@@ -118,27 +117,20 @@ double MetadynamicsMetropolisSolver::linear_interpolation(const double &x,const 
   assert(x_lower < x_upper);
   assert(x > x_lower || approximately_equal(x, x_lower));
   assert(x < x_upper || approximately_equal(x, x_upper));
-  auto a =y_lower + (x - x_lower)*(y_upper - y_lower) / (x_upper - x_lower);
 
   return y_lower + (x - x_lower)*(y_upper - y_lower) / (x_upper - x_lower);
 }
 Vec3 MetadynamicsMetropolisSolver::total_magnetisation_calculation() {
-
   Vec3 m={0, 0, 0};
-  for (auto i =0; i <globals::num_spins; ++i) {
-    Vec3 spins = jams::montecarlo::get_spin(i);
-	for (auto n=0; n<3; ++n) {
-	  m[n] +=spins[n];
-	}
+  for (auto i = 0; i < globals::num_spins; ++i) {
+	  for (auto n = 0; n < 3; ++n) {
+	    m[n] += globals::s(i, n);
+  	}
   }
   return m;
 }
 Vec3 MetadynamicsMetropolisSolver::trial_magnetisation_calculation(const Vec3 &current_magnetisation, const Vec3 &initial_spin, const Vec3 trial_spin) {
-  Vec3 trial_mag = {0,0,0};
-  for (auto n : {0, 1, 2}) {
-	trial_mag[n] = current_magnetisation[n] - initial_spin[n] + trial_spin[n];
-  }
-  return trial_mag;
+  return current_magnetisation - initial_spin + trial_spin;
 }
 double MetadynamicsMetropolisSolver::calculate_energy_difference(const vector<double> &potential) {
   const auto margin = potential.size()/4;

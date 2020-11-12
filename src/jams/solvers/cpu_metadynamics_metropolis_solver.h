@@ -60,21 +60,21 @@ private:
 	static double calculate_energy_difference(const std::vector<double> &potential); // energy barrier calculation for plain metadynamics
 
 
-    const std::vector<double> sample_points_1d = linear_space(-2.0, 2.0,0.01); // mz with boundary conditions for the 1D potential
-    const std::vector<double> sample_points_2d = linear_space(-1.0, 1.0,0.01); // Predefined m_z for 2D potential
-    const std::vector<double> sample_points_m_perpendicular = linear_space(0, 1,0.01);//Predefined m_perp for 2D potential
+    const std::vector<double> sample_points_1d_ = linear_space(-2.0, 2.0, 0.01); // mz with boundary conditions for the 1D potential
+    const std::vector<double> sample_points_2d_ = linear_space(-1.0, 1.0, 0.01); // Predefined m_z for 2D potential
+    const std::vector<double> sample_points_m_perpendicular_ = linear_space(0, 1, 0.01);//Predefined m_perp for 2D potential
 
 
 
 
-    Vec3 magnetisation;
-    Vec3 trial_magnetisation;
-    std::vector<double> potential_1D;
-    std::vector<std::vector<double>> potential_2D;
-    const double gaussian_amplitude = 5.5e-24; // Height of the gaussian 1.0e-24 same as the paper
-    const double gaussian_width = 0.03; // Width of the gaussian 1.4e-2 same as the paper
+    Vec3 magnetisation_;
+    Vec3 trial_magnetisation_;
+    std::vector<double> potential_1D_;
+    std::vector<std::vector<double>> potential_2D_;
+    const double gaussian_amplitude_ = 1e-25; // Height of the gaussian 1.0e-24 same as the paper
+    const double gaussian_width_ = 0.03; // Width of the gaussian 1.4e-2 same as the paper
 
-    std::ofstream energy_barrier_file;
+    std::ofstream energy_barrier_file_;
 
 };
 
