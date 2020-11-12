@@ -15,6 +15,7 @@
 #include <jams/helpers/montecarlo.h>
 #include <iostream>
 #include "jams/helpers/output.h"
+#include <jams/maths/interpolation.h>
 
 using namespace std;
 
@@ -105,17 +106,11 @@ double MetadynamicsMetropolisSolver::interpolated_potential(const vector<double>
   auto upper = lower+1;
   assert(lower < upper);
   //cout << "Indices Lower:" << lower <<endl; //need to check why why and why
-  return linear_interpolation(value, sample_points[lower], sample_points[upper],
-                              discrete_potential[lower], discrete_potential[upper]);
+  return jams::maths::linear_interpolation(value,
+                              sample_points[lower], discrete_potential[lower],
+                              sample_points[upper], discrete_potential[upper]);
 }
 
-double MetadynamicsMetropolisSolver::linear_interpolation(const double &x,const double &x_lower,const double &x_upper,const double &y_lower,const double &y_upper) {
-  assert(x_lower < x_upper);
-  assert(x > x_lower || approximately_equal(x, x_lower));
-  assert(x < x_upper || approximately_equal(x, x_upper));
-
-  return y_lower + (x - x_lower)*(y_upper - y_lower) / (x_upper - x_lower);
-}
 Vec3 MetadynamicsMetropolisSolver::total_magnetisation_calculation() {
   Vec3 m={0, 0, 0};
   for (auto i = 0; i < globals::num_spins; ++i) {
