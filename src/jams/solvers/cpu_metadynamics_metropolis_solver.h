@@ -55,6 +55,11 @@ private:
 
     // Monitor Function
 	static double calculate_energy_difference(const std::vector<double> &potential); // energy barrier calculation for plain metadynamics
+	void physical_region_indices ( const std::vector<double>& points,int &lower_limit, int &upper_limit);
+	bool floats_are_equal(const double& x, const double& y, const double epsilon = 1e-8);
+	void potential_1d_print(std::ofstream &potential_1d_file, const double &lower_vector_index, const double &upper_vector_index);
+
+
 
 
     const std::vector<double> sample_points_1d_ = linear_space(-2.0, 2.0, 0.01); // mz with boundary conditions for the 1D potential
@@ -65,12 +70,16 @@ private:
 
 
     Vec3 magnetisation_;
+    Vec3 magnetisation_test;
     std::vector<double> potential_1D_;
     std::vector<std::vector<double>> potential_2D_;
     const double gaussian_amplitude_ = 1e-25; // Height of the gaussian 1.0e-24 same as the paper
     const double gaussian_width_ = 0.03; // Width of the gaussian 1.4e-2 same as the paper
+    int lower_limit_index = -1.0;
+    int upper_limit_index =1.0;
 
     std::ofstream energy_barrier_file_;
+    std::ofstream potential_1d_file_;
 
 };
 

@@ -22,25 +22,26 @@ using namespace std;
 void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings) {
   MetropolisMCSolver::initialize(settings);
   intialise_potential_histograms();
-  cout << "Metadynamics" << "\n";
-  //initialise output files ?
+  physical_region_indices(sample_points_1d_,lower_limit_index,upper_limit_index);
   energy_barrier_file_.open(jams::output::full_path_filename("energy_barrier_metadynamics.tsv"));
+  potential_1d_file_.open(jams::output::full_path_filename("potential_1d_metadynamics.tsv"));
 }
 
 void MetadynamicsMetropolisSolver::run() {
   // update the total magnetisation to avoid the possibility of drift with accumulated errors
   magnetisation_ = total_magnetisation_calculation();
   MetropolisMCSolver::run();
-
   if (iteration_ % 100 == 0) {
-    magnetisation_ = total_magnetisation_calculation();
-	  cout << magnetisation_[2] / globals::num_spins << "\n";
+
 	  insert_gaussian(magnetisation_[2] / globals::num_spins, gaussian_amplitude_, gaussian_width_, sample_points_1d_, potential_1D_);
   }
   if (iteration_ % 500 == 0){
     auto barrier = calculate_energy_difference(potential_1D_);
     cout <<"Iteration: "<< iteration_<< "    energy Barrier: " << barrier << "\n";
     energy_barrier_file_ << iteration_ << "	" << barrier << endl;
+  }
+  if (iteration_ % 1000 == 0){
+    potential_1d_print(potential_1d_file_,lower_limit_index,upper_limit_index);
   }
 }
 
@@ -67,10 +68,10 @@ std::vector<double> MetadynamicsMetropolisSolver::linear_space(const double &min
   assert(min < max);
   vector<double> space;
   double value = min;
-  do {
+  while (value < max+step) {
     space.push_back(value);
     value += step;
-  } while (value < max+step);
+  }
 
   return space;
 }
@@ -135,5 +136,34 @@ void MetadynamicsMetropolisSolver::accept_move(const int spin_index,
                                                const Vec3 &initial_spin,
                                                const Vec3 &final_spin) {
   MetropolisMCSolver::accept_move(spin_index, initial_spin, final_spin);
+  cout << "mag: " << magnetisation_[2]/globals::num_spins << " S_in: " << initial_spin[2] << " S_final: " << final_spin[2] << "\n";
   magnetisation_ - initial_spin + final_spin;
+}
+
+void MetadynamicsMetropolisSolver::physical_region_indices(const std::vector<double>& points,int &lower_limit,int &upper_limit) {
+
+  for (int i = 0; i < points.size(); ++i) {
+	if (floats_are_equal(lower_limit, points[i])) {
+	  cout << endl << "Lower Index: " << i << " Element at index " << points[i] << endl;
+	  lower_limit = i;
+
+	  break;
+	}
+  }
+  for (int ii = lower_limit; ii < points.size(); ++ii) {
+	if (floats_are_equal(upper_limit, points[ii])) {
+	  cout << " Upper Index: " << ii << " Element at index " << points[ii] << endl;
+	  upper_limit = ii;
+	  break;
+	}
+  }
+}
+bool MetadynamicsMetropolisSolver::floats_are_equal(const double &x, const double &y, const double epsilon) {
+  return abs(x - y) < epsilon;
+}
+void MetadynamicsMetropolisSolver::potential_1d_print(ofstream &potential_1d_file, const double &lower_vector_index, const double &upper_vector_index) {
+  for (auto i = lower_vector_index; i < upper_vector_index + 1; ++i) {
+	potential_1d_file << sample_points_1d_[i] << "	" << potential_1D_[i] << endl;
+  }
+
 }
