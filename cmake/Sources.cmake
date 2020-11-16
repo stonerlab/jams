@@ -38,6 +38,8 @@ set(JAMS_SOURCES_CXX
         interface/fft.cc
         interface/system.cc
         maths/parallelepiped.cc
+        metadynamics/collective_variable_factory.cc
+        metadynamics/magnetisation_cv.cc
         monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc
