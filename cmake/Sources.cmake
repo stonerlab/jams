@@ -78,6 +78,7 @@ set(JAMS_SOURCES_CUDA
         cuda/cuda_array_kernels.cu
         cuda/cuda_solver.cc
         cuda/cuda_common.cu
+        hamiltonian/cuda_applied_field.cu
         hamiltonian/cuda_cubic_anisotropy.cu
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu

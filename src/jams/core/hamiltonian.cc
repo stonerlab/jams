@@ -27,6 +27,7 @@
 #include "jams/hamiltonian/dipole_tensor.h"
 
 #if HAS_CUDA
+  #include "jams/hamiltonian/cuda_applied_field.h"
   #include "jams/hamiltonian/cuda_cubic_anisotropy.h"
   #include "jams/hamiltonian/cuda_random_anisotropy.h"
   #include "jams/hamiltonian/cuda_uniaxial_anisotropy.h"
@@ -68,7 +69,6 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
     throw jams::removed_feature_error("dipole hamiltonians now have specific names and 'strategy' has been removed");
   }
 
-  DEFINED_HAMILTONIAN("applied-field", AppliedFieldHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange", ExchangeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-functional", ExchangeFunctionalHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("exchange-neartree", ExchangeNeartreeHamiltonian, settings, size);
@@ -76,6 +76,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_HAMILTONIAN("dipole-neartree", DipoleNearTreeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("dipole-neighbour-list", DipoleNeighbourListHamiltonian, settings, size);
 
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("applied-field", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial", UniaxialHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial-micro", UniaxialMicroscopicHamiltonian, is_cuda_solver, settings, size);

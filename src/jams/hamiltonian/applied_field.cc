@@ -7,53 +7,67 @@ using namespace std;
 AppliedFieldHamiltonian::AppliedFieldHamiltonian(
     const libconfig::Setting &settings, unsigned int size)
     : Hamiltonian(settings, size),
-      applied_field_(jams::config_required<Vec3>(settings, "field")) {
+      applied_b_field_(jams::config_required<Vec3>(settings, "field")) {
 
-    cout << "field: " << applied_field_ << endl;
+    cout << "field: " << applied_b_field_ << endl;
 
-  for (int i = 0; i < globals::num_spins; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      field_(i, j) = applied_field_[j];
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      field_(i, j) = globals::mus(i) * applied_b_field_[j];
     }
   }
 }
 
 double AppliedFieldHamiltonian::calculate_total_energy() {
   double e_total = 0.0;
-  for (int i = 0; i < globals::num_spins; ++i) {
-    e_total += calculate_energy(i);
+  calculate_energies();
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    e_total += energy_(i);
   }
   return e_total;
 }
 
 void AppliedFieldHamiltonian::calculate_energies() {
-  for (int i = 0; i < globals::num_spins; ++i) {
+  for (auto i = 0; i < globals::num_spins; ++i) {
     energy_(i) = calculate_energy(i);
   }
 }
 
 void AppliedFieldHamiltonian::calculate_fields() {
-// do nothing - field_ is set constant in the constructor
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      field_(i, j) = globals::mus(i) * applied_b_field_[j];
+    }
+  }
 }
 
 Vec3 AppliedFieldHamiltonian::calculate_field(int i) {
-  return applied_field_;
+  return globals::mus(i) * applied_b_field_;
 }
 
 double AppliedFieldHamiltonian::calculate_energy(int i) {
   using namespace globals;
-  return -( s(i,0) * applied_field_[0]
-          + s(i,1) * applied_field_[1]
-          + s(i,2) * applied_field_[2]);
+  auto field = calculate_field(i);
+  return -(s(i,0) * field[0]
+          + s(i,1) * field[1]
+          + s(i,2) * field[2]);
 }
 
 double AppliedFieldHamiltonian::calculate_energy_difference(int i,
                                                             const Vec3 &spin_initial,
                                                             const Vec3 &spin_final) {
-  const auto e_initial = -dot(spin_initial, applied_field_);
-  const auto e_final = -dot(spin_final, applied_field_);
+  const auto e_initial = -dot(spin_initial, calculate_field(i));
+  const auto e_final = -dot(spin_final, calculate_field(i));
 
   return (e_final - e_initial);
+}
+
+const Vec3& AppliedFieldHamiltonian::b_field() const {
+  return applied_b_field_;
+}
+
+void AppliedFieldHamiltonian::set_b_field(const Vec3& field) {
+  applied_b_field_ = field;
 }
 
 
