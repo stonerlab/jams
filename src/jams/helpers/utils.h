@@ -55,15 +55,16 @@ inline std::string get_date_string(std::chrono::time_point<std::chrono::system_c
 }
 
 inline std::string& left_trim(std::string &s) {
-  s.erase(s.begin(), std::find_if(s.begin(), s.end(),
-    std::not1(std::ptr_fun<int, int>(std::isspace))));
+  s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+      return !std::isspace(ch);}));
   return s;
 }
 
 // trim from end
 inline std::string& right_trim(std::string &s) {
-  s.erase(std::find_if(s.rbegin(), s.rend(),
-    std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+  s.erase(std::find_if(s.rbegin(), s.rend(),[](unsigned char ch) {
+      return !std::isspace(ch);
+  }).base(), s.end());
   return s;
 }
 
