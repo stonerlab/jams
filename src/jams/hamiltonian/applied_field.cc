@@ -35,8 +35,9 @@ void AppliedFieldHamiltonian::calculate_energies() {
 
 void AppliedFieldHamiltonian::calculate_fields() {
   for (auto i = 0; i < globals::num_spins; ++i) {
+    auto local_field = calculate_field(i);
     for (auto j = 0; j < 3; ++j) {
-      field_(i, j) = globals::mus(i) * applied_b_field_[j];
+      field_(i, j) = local_field[j];
     }
   }
 }
