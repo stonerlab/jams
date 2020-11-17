@@ -147,16 +147,20 @@ inline double Stats::mean(const size_t t0, const size_t t1) {
 
 inline double Stats::stddev() {
   std::vector<double> diff(data_.size());
+
   std::transform(data_.begin(), data_.end(), diff.begin(),
-                 std::bind2nd(std::minus<double>(), this->mean()));
+                 [&](double x) { return x - this->mean(); });
+
   double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
   return std::sqrt(sq_sum / data_.size());
 }
 
 inline double Stats::stddev(const size_t t0, const size_t t1) {
   std::vector<double> diff(t1 - t0);
+
   std::transform(data_.begin() + t0, data_.begin() + t1, diff.begin(),
-                 std::bind2nd(std::minus<double>(), this->mean(t0, t1)));
+                 [&](double x) { return x - this->mean(t0, t1); });
+
   double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
   return std::sqrt(sq_sum / double(t1 - t0));
 }
