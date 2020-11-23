@@ -12,9 +12,14 @@
 #include "jams/core/types.h"
 
 class Solver;
-
 class Stats;
 
+///
+/// Calculates the average torque per spin from each Hamiltonian term as
+/// @f[
+/// \mathbf{\tau} = \frac{1}{N}\sum_i^N \mathbf{S}_i \times \mathbf{H}_i
+/// @f]
+///
 class TorqueMonitor : public Monitor {
 public:
     explicit TorqueMonitor(const libconfig::Setting &settings);

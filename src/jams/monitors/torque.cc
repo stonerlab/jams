@@ -33,20 +33,30 @@ void TorqueMonitor::update(Solver * solver) {
   tsv_file.width(12);
   tsv_file << std::scientific << solver->time() << "\t";
 
+  // Loop over all of the Hamiltonians to calculate the total torque from each
+  // Hamiltonian term. Each torque will be expressed as a torque per spin
+  // and appended to a std::vector.
   std::vector<Vec3> torques;
   for (auto &hamiltonian : solver->hamiltonians()) {
     hamiltonian->calculate_fields();
 
+    // Loop over all spins in the system and sum the torque for the current
+    // Hamiltonian
     Vec3 torque = {0.0, 0.0, 0.0};
     for (auto i = 0; i < num_spins; ++i) {
-      const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
+      // Calculate the local torque on a lattice site (\vec{S} \times \vec{H})
+      const Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
       const Vec3 field = {hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)};
+
       torque += cross(spin, field);
     }
 
+    // In JAMS internal units energies are normalised by mu_B so we undo that
+    // here
     torques.push_back(torque * kBohrMagneton /static_cast<double>(num_spins));
   }
 
+  // Output all of the torques as columns in the tsv file
   for (const auto& torque : torques) {
     for (auto n = 0; n < 3; ++n) {
       tsv_file << std::scientific << torque[n] << "\t";
