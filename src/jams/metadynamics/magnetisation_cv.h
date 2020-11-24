@@ -32,6 +32,7 @@ namespace jams {
 
         double gaussian_amplitude_;
         double gaussian_width_;
+        double histogram_step_size_;
 
         std::vector<double> sample_points_;
         std::vector<double> potential_;

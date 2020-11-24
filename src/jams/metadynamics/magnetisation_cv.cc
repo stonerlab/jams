@@ -2,8 +2,9 @@
 
 #include <jams/core/globals.h>
 #include <jams/maths/interpolation.h>
-
+#include <libconfig.h++>
 #include <fstream>
+#include <jams/interface/config.h>
 
 namespace {
     std::vector<double> linear_space(const double &min,const double &max,const double &step) {
@@ -19,18 +20,22 @@ namespace {
     }
 }
 
-jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable() {
-  gaussian_amplitude_ = 1e-25;
-  gaussian_width_ = 0.02;
+jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const libconfig::Setting &settings) {
 
-  sample_points_ = linear_space(-2.0, 2.0, 0.01);
+  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude" );
+  gaussian_width_ = jams::config_required<double>(settings, "gaussian_width") ;
+  histogram_step_size_ = jams::config_required<double>(settings,"histogram_step_size");
+
+  sample_points_ = linear_space(-2.0, 2.0, histogram_step_size_);
   potential_.resize(sample_points_.size(), 0.0);
 
   magnetisation_ = calculate_total_magnetisation();
 }
 
-jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(
-    const libconfig::Setting &settings) : MagnetisationCollectiveVariable() {}
+//jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(
+//    const libconfig::Setting &settings) : MagnetisationCollectiveVariable() {
+//  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude" );
+//}
 
 
 void jams::MagnetisationCollectiveVariable::insert_gaussian(
@@ -63,7 +68,7 @@ void jams::MagnetisationCollectiveVariable::insert_gaussian(
 
 void jams::MagnetisationCollectiveVariable::output(
     std::ofstream &of) {
-  assert(of.isopen());
+  assert(of.is_open());
   for (auto i = 0; i < sample_points_.size(); ++i) {
     of << i << " " << sample_points_[i] << " " << potential_[i] << "\n";
   }
