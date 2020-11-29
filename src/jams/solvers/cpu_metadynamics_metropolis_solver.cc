@@ -31,7 +31,7 @@ void MetadynamicsMetropolisSolver::run() {
   if (iteration_ % 100 == 0) {
     cv_potential_->insert_gaussian(1.0);
   }
-  if (iteration_ % 1000 == 0){
+  if (iteration_ % 10000 == 0){
     ofstream potential_file(jams::output::full_path_filename("_cv_potential.tsv"));
     cv_potential_->output(potential_file);
     potential_file.close();

@@ -40,6 +40,7 @@ set(JAMS_SOURCES_CXX
         maths/parallelepiped.cc
         metadynamics/collective_variable_factory.cc
         metadynamics/magnetisation_cv.cc
+        metadynamics/mz_orthogonal_mz_cv.cc
         monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc
