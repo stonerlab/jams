@@ -2,8 +2,8 @@
 // Created by Joseph Barker on 2019-04-23.
 //
 
-#ifndef JAMS_H5_H
-#define JAMS_H5_H
+#ifndef JAMS_HIGHFIVE_H
+#define JAMS_HIGHFIVE_H
 
 #include <highfive/H5File.hpp>
 #include <highfive/bits/H5Utils.hpp>
@@ -54,4 +54,4 @@ std::vector<size_t> _dims;
 }
 }
 
-#endif //JAMS_H5_H
+#endif //JAMS_HIGHFIVE_H
