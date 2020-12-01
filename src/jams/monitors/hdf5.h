@@ -10,7 +10,7 @@
 
 #include "jams/core/monitor.h"
 #include "jams/helpers/slice.h"
-#include "jams/interface/h5.h"
+#include "jams/interface/highfive.h"
 
 class Solver;
 

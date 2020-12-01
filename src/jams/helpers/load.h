@@ -7,7 +7,7 @@
 
 #include <vector>
 #include "jams/containers/multiarray.h"
-#include "jams/interface/h5.h"
+#include "jams/interface/highfive.h"
 
 template <std::size_t N>
 void load_array_from_h5_file(const std::string& filename, const std::string& data_set_path, jams::MultiArray<double, N>& array) {

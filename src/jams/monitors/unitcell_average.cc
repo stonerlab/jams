@@ -19,7 +19,7 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/slice.h"
-#include "jams/interface/h5.h"
+#include "jams/interface/highfive.h"
 #include "jams/containers/vec3.h"
 
 #include "jams/monitors/unitcell_average.h"

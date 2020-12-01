@@ -13,7 +13,7 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/slice.h"
-#include "jams/interface/h5.h"
+#include "jams/interface/highfive.h"
 #include "jams/helpers/output.h"
 
 #include "jams/monitors/hdf5.h"

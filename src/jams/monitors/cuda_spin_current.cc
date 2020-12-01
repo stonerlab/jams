@@ -17,7 +17,7 @@
 #include "jams/monitors/cuda_spin_current.h"
 #include "cuda_spin_current.h"
 #include "jams/hamiltonian/exchange.h"
-#include "jams/interface/h5.h"
+#include "jams/interface/highfive.h"
 #include "jams/containers/sparse_matrix_builder.h"
 
 using namespace std;
