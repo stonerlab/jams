@@ -705,13 +705,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     }
 
     for (auto n = 0; n < 3; ++n) {
-      globals::s(i, n) = material.spin[n];
-    }
-
-    double s_len = sqrt(globals::s(i,0)*globals::s(i,0) + globals::s(i,1)*globals::s(i,1) + globals::s(i,2)*globals::s(i,2));
-
-    for (auto n = 0; n < 3; ++n) {
-        globals::s(i, n) = globals::s(i, n)/s_len;
+      globals::s(i, n) = material.spin[n] / sqrt(material.spin[0]*material.spin[0] + material.spin[1]*material.spin[1] + material.spin[2]*material.spin[2]);
     }
 
     if (material.randomize) {
