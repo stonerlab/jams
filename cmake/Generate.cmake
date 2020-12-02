@@ -1,21 +1,10 @@
-execute_process(
-        COMMAND git rev-parse --abbrev-ref HEAD
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_BRANCH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+include("${PROJECT_SOURCE_DIR}/cmake/Utils.cmake")
 
-# Get the latest abbreviated commit hash of the working branch
-execute_process(
-        COMMAND git log -1 --format=%h
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_COMMIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+jams_extract_git_info()
 
-string(TIMESTAMP BUILD_TIME "%Y-%m-%d %H:%M:%S")
+string(TIMESTAMP JAMS_BUILD_TIME "%Y-%m-%d %H:%M:%S")
 
 configure_file(
-        ${CMAKE_SOURCE_DIR}/src/jams/version.h.in
-        ${CMAKE_BINARY_DIR}/generated/version.h
-)
+        ${CMAKE_SOURCE_DIR}/cmake/Templates/version.h.in
+        ${CMAKE_BINARY_DIR}/generated/version.h)
+

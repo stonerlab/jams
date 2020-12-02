@@ -9,13 +9,13 @@
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/maths.h"
+#include "jams/helpers/output.h"
 
 BoltzmannMonitor::BoltzmannMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
 bins_(36, 0.0),
 total_(0),
-tsv_file() {
-  tsv_file.open(seedname + "_blt.tsv");
+tsv_file(jams::output::full_path_filename("blt.tsv")) {
 }
 
 void BoltzmannMonitor::update(Solver * solver) {

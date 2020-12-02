@@ -1,0 +1,53 @@
+//
+// Created by Joe Barker on 2017/11/16.
+//
+
+#ifndef JAMS_VERSION_H
+#define JAMS_VERSION_H
+
+#include <string>
+#include <sstream>
+
+#if HAS_MKL
+#include "mkl.h"
+#endif
+
+namespace jams {
+    namespace build {
+        constexpr auto version = "@VERSION@"; // this is the version specified in the jams CMake file
+        constexpr auto type = "@CMAKE_BUILD_TYPE@";
+        constexpr auto time = "@JAMS_BUILD_TIME@";
+        constexpr auto description = "@JAMS_GIT_DESCRIPTION@"; // this is the git description where the version comes from a tag
+        constexpr auto branch = "@JAMS_GIT_BRANCH@";
+        constexpr auto hash = "@JAMS_GIT_COMMIT_HASH@";
+        constexpr auto option_cuda = "@JAMS_BUILD_CUDA@";
+        constexpr auto option_omp = "@JAMS_BUILD_OMP@";
+        constexpr auto option_fastmath = "@JAMS_BUILD_FASTMATH@";
+        constexpr auto option_mixed_prec = "@JAMS_BUILD_MIXED_PREC@";
+        constexpr auto libconfig_version = "@JAMS_LIBCONFIG_VERSION@";
+        constexpr auto libconfig_libraries = "@JAMS_LIBCONFIG_LIBRARIES@";
+        constexpr auto highfive_version = "@JAMS_HIGHFIVE_VERSION@";
+        constexpr auto highfive_libraries = "@JAMS_HIGHFIVE_LIBRARIES@";
+        constexpr auto spglib_libraries = "@JAMS_SPGLIB_LIBRARIES@";
+        constexpr auto pcg_version = "@JAMS_PCG_VERSION@";
+        constexpr auto pcg_libraries = "@JAMS_PCG_LIBRARIES@";
+        constexpr auto hdf5_version = "@JAMS_HDF5_VERSION@";
+        constexpr auto hdf5_libraries = "@JAMS_HDF5_LIBRARIES@";
+
+        #if HAS_MKL
+        constexpr auto mkl_libraries = "@MKL_LIBRARIES@";
+
+        std::string mkl_version();
+        #endif
+
+        std::string spglib_version();
+
+        #if HAS_CUDA
+            constexpr auto cusparse_libraries = "@JAMS_CUDA_cusparse_LIBRARIES@";
+            constexpr auto curand_libraries = "@JAMS_CUDA_curand_LIBRARIES@";
+            constexpr auto cublas_libraries = "@JAMS_CUDA_cublas_LIBRARIES@";
+            constexpr auto cufft_libraries = "@JAMS_CUDA_cufft_LIBRARIES@";
+        #endif
+    }
+}
+#endif //JAMS_VERSION_H

@@ -9,13 +9,14 @@
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
+#include "jams/helpers/output.h"
 
 #include "magnetisation_rate.h"
 using namespace std;
 
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(),
+  tsv_file(jams::output::full_path_filename("dm_dt.tsv")),
   magnetisation_stats_(),
   convergence_is_on_(false),              // do we want to use convergence in this monitor
   convergence_tolerance_(1.0),            // 1 standard deviation from the mean
@@ -29,7 +30,6 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
     cout << "  convergence tolerance " << convergence_tolerance_ << "\n";
   }
 
-  tsv_file.open(seedname + "_dm_dt.tsv");
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 

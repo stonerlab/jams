@@ -186,7 +186,7 @@ namespace jams {
           return size_;
         }
 
-        inline constexpr size_type memory() const noexcept {
+        inline constexpr std::size_t memory() const noexcept {
           return data_.memory();
         }
 
@@ -302,7 +302,7 @@ namespace jams {
         }
 
     private:
-        size_container_type size_ = {0};
+        size_container_type size_ = { {0} };
         mutable SyncedMemory<Tp_> data_;
     };
 
@@ -349,14 +349,16 @@ namespace jams {
             size_({size}),
             data_(size) {}
 
-        inline explicit MultiArray(size_type size, const Tp_& x):
-            size_({size}),
-            data_(size, x) {}
-
         template <typename U>
         inline explicit MultiArray(const std::array<U, 1> &v) :
             size_(detail::array_cast<size_type>(v)),
             data_(std::get<0>(v)) {}
+
+        template<class InputIt>
+        inline MultiArray(InputIt first, InputIt last)
+            : size_(detail::array_cast<size_type>(
+                std::array<typename std::iterator_traits<InputIt>::difference_type,1>({std::distance(first, last)}))),
+              data_(first, last) {}
 
         template <typename U>
         inline explicit MultiArray(const std::array<U, 1> &v, const Tp_& x) :
@@ -373,6 +375,7 @@ namespace jams {
         }
 
         inline constexpr size_type size(const size_type n) const noexcept {
+          static_assert(n == 0, "MultiArray.size(n) is greater than the dimension");
           return std::get<0>(size_);
         }
 
@@ -380,7 +383,7 @@ namespace jams {
           return size_;
         }
 
-        inline constexpr size_type memory() const noexcept {
+        inline constexpr std::size_t memory() const noexcept {
           return data_.memory();
         }
 
@@ -491,7 +494,7 @@ namespace jams {
         }
 
     private:
-        size_container_type size_ = {0};
+        size_container_type size_ = { {0} };
         mutable SyncedMemory<Tp_> data_;
     };
 

@@ -10,7 +10,18 @@
 
 class Cell;
 
-Vec3   minimum_image(const Cell& cell, const Vec3& r_i, const Vec3& r_j);
+namespace jams {
+    enum class LatticeSystem {
+        triclinic,
+        monoclinic,
+        orthorhombic,
+        tetragonal,
+        rhombohedral,
+        hexagonal,
+        cubic
+    };
+}
+
 double volume(const Cell& cell);
 Cell   scale(const Cell& cell, const Vec3i& size);
 Cell   rotate(const Cell& cell, const Mat3& rotation_matrix);
@@ -21,60 +32,61 @@ public:
     inline Cell(const Mat3 &basis, const Vec3b pbc = {{true, true, true}});
     inline Cell(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b pbc = {{true, true, true}});
 
-    inline Vec3 a() const;
-    inline Vec3 b() const;
-    inline Vec3 c() const;
+    inline Vec3 a() const { return {matrix_[0][0], matrix_[1][0], matrix_[2][0]}; }
+    inline Vec3 b() const { return {matrix_[0][1], matrix_[1][1], matrix_[2][1]}; }
+    inline Vec3 c() const { return {matrix_[0][2], matrix_[1][2], matrix_[2][2]}; }
 
-    inline Vec3b periodic() const;
-    inline bool periodic(int n) const;
+    inline Vec3 a_inv() const { return inverse_matrix_[0]; }
+    inline Vec3 b_inv() const { return inverse_matrix_[1]; }
+    inline Vec3 c_inv() const { return inverse_matrix_[2]; }
 
-    inline Mat3 matrix() const;
-    inline Mat3 inverse_matrix() const;
+    inline double alpha() const {return rad_to_deg(angle(b(), c()));}
+    inline double beta() const {return rad_to_deg(angle(c(), a()));}
+    inline double gamma() const {return rad_to_deg(angle(a(), b()));}
+
+    inline bool has_orthogonal_basis() const { return has_orthogonal_basis_; };
+    inline jams::LatticeSystem lattice_system() const { return lattice_system_; };
+
+    inline Vec3b periodic() const {return periodic_;}
+    inline bool periodic(int n) const {return periodic_[n];}
+
+    inline Mat3 matrix() const {return matrix_;}
+    inline Mat3 inverse_matrix() const {return inverse_matrix_;}
+
+    inline Vec3 cartesian_to_fractional(Vec3 xyz) const {return inverse_matrix_ * xyz;}
+    inline Vec3 fractional_to_cartesian(Vec3 hkl) const {return matrix_ * hkl;}
+
+    inline Vec3 inv_cartesian_to_fractional(Vec3 inv_xyz) const {return transpose(matrix_) * inv_xyz;}
+    inline Vec3 inv_fractional_to_cartesian(Vec3 inv_hkl) const {return transpose(inverse_matrix_) * inv_hkl;}
+
 
 protected:
+    bool classify_orthogonal_basis() const;
+    jams::LatticeSystem classify_lattice_system(const double& angle_eps = 1e-5) const;
+
     Mat3  matrix_ = kIdentityMat3;
     Mat3  inverse_matrix_= kIdentityMat3;
     Vec3b periodic_ = {{true, true, true}};
+
+    bool has_orthogonal_basis_ = true;
+    jams::LatticeSystem lattice_system_ = jams::LatticeSystem::cubic;
 };
 
 inline Cell::Cell(const Mat3 &basis, Vec3b pbc)
         : matrix_(basis),
           inverse_matrix_(inverse(matrix_)),
-          periodic_(pbc)
+          periodic_(pbc),
+          has_orthogonal_basis_(classify_orthogonal_basis()),
+          lattice_system_(classify_lattice_system())
 {}
 
 inline Cell::Cell(const Vec3 &a, const Vec3 &b, const Vec3 &c, Vec3b pbc)
         : matrix_(matrix_from_cols(a, b, c)),
           inverse_matrix_(inverse(matrix_)),
-          periodic_(pbc)
+          periodic_(pbc),
+          has_orthogonal_basis_(classify_orthogonal_basis()),
+          lattice_system_(classify_lattice_system())
 {}
 
-inline Vec3 Cell::a() const {
-  return {matrix_[0][0], matrix_[1][0], matrix_[2][0]};
-}
-
-inline Vec3 Cell::b() const {
-  return {matrix_[0][1], matrix_[1][1], matrix_[2][1]};
-}
-
-inline Vec3 Cell::c() const {
-  return {matrix_[0][2], matrix_[1][2], matrix_[2][2]};
-}
-
-inline bool Cell::periodic(const int n) const {
-  return periodic_[n];
-}
-
-inline Mat3 Cell::matrix() const {
-  return matrix_;
-}
-
-inline Mat3 Cell::inverse_matrix() const {
-  return inverse_matrix_;
-}
-
-Vec3b Cell::periodic() const {
-  return periodic_;
-}
 
 #endif //JAMS_CELL_H

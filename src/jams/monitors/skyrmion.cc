@@ -12,10 +12,13 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/helpers/maths.h"
+#include "jams/helpers/output.h"
+
 #include "skyrmion.h"
 
 SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
-: Monitor(settings) {
+: Monitor(settings),
+ outfile(jams::output::full_path_filename("sky.tsv")){
   using namespace globals;
 
   type_norms.resize(lattice->num_materials(), 1.0);
@@ -38,9 +41,7 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
   for (double threshold : thresholds) {
     std::cout << "    " << threshold << "\n";
   }
-
-  std::string name = seedname + "_sky.tsv";
-  outfile.open(name.c_str());
+  
   outfile.setf(std::ios::right);
 
   outfile << tsv_header();

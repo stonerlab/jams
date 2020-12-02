@@ -8,6 +8,7 @@
 #include <limits>
 #include <iostream>
 
+#include "jams/common.h"
 #include "jams/helpers/utils.h"
 
 #if HAS_CUDA
@@ -75,20 +76,26 @@ public:
 
       if (rhs.host_ptr_) {
         #if HAS_CUDA
-        #if SYNCEDMEMORY_PRINT_MEMCPY
-        std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
-        #endif
-        CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+        if (jams::instance().mode() == jams::Mode::GPU) {
+          #if SYNCEDMEMORY_PRINT_MEMCPY
+          std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
+          #endif
+          CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+        } else {
+          memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
+        }
         #else
-        memcpy(mutable_host_data(), rhs.const_host_data(), size_ * sizeof(T));
+        memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
         #endif
       }
 
       if (rhs.device_ptr_) {
+        #if HAS_CUDA
         #if SYNCEDMEMORY_PRINT_MEMCPY
         std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
         #endif
         CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
+        #endif
       }
     }
 
@@ -128,11 +135,17 @@ public:
       }
     }
 
+    template<class InputIt>
+    inline SyncedMemory(InputIt first, InputIt last)
+    : size_(std::distance(first, last))  {
+      std::copy(first, last, mutable_host_data());
+    }
+
     // get size of data
     inline constexpr size_type size() const noexcept { return size_; }
 
     // get size of memory in bytes
-    inline constexpr size_type memory() const noexcept { return size_ * sizeof(value_type); }
+    inline constexpr std::size_t memory() const noexcept { return size_ * sizeof(value_type); }
 
     // get maximum theoretical size of data
     inline constexpr size_type max_size() const noexcept;
@@ -211,15 +224,20 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
   if (size == 0) return;
 
   assert(!host_ptr_);
+
   #if HAS_CUDA
-  if (cudaMallocHost(reinterpret_cast<void**>(&host_ptr_), size_ * sizeof(T)) != cudaSuccess) {
-    throw std::bad_alloc();
+  if (jams::instance().mode() == jams::Mode::GPU) {
+    if (cudaMallocHost(reinterpret_cast<void **>(&host_ptr_), size_ * sizeof(T)) != cudaSuccess) {
+      throw std::bad_alloc();
+    }
+    assert(host_ptr_);
+    return;
   }
-  #else
+  #endif
+
   if (posix_memalign(reinterpret_cast<void**>(&host_ptr_), SYNCEDMEMORY_HOST_ALIGNMENT, size * sizeof(T) ) != 0) {
     throw std::bad_alloc();
   }
-  #endif
   assert(host_ptr_);
 }
 
@@ -355,17 +373,20 @@ template<class T>
 void SyncedMemory<T>::free_host_memory() {
   if (host_ptr_) {
     #if HAS_CUDA
-      auto status = cudaFreeHost(host_ptr_);
-      #if SYNCEDMEMORY_ALLOW_GLOBAL
+      if (jams::instance().mode() == jams::Mode::GPU) {
+        auto status = cudaFreeHost(host_ptr_);
+        host_ptr_ = nullptr;
+        #if SYNCEDMEMORY_ALLOW_GLOBAL
         assert(status == cudaSuccess || status == cudaErrorCudartUnloading);
-      #else
+        #else
         assert(status == cudaSuccess)
-      #endif
-    #else
-    free(host_ptr_);
+        #endif
+        return;
+      }
     #endif
+    free(host_ptr_);
+    host_ptr_ = nullptr;
   }
-  host_ptr_ = nullptr;
 }
 
 template<class T>

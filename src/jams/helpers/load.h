@@ -7,8 +7,7 @@
 
 #include <vector>
 #include "jams/containers/multiarray.h"
-#include "jams/interface/h5.h"
-#include "H5Cpp.h"
+#include "jams/interface/highfive.h"
 
 template <std::size_t N>
 void load_array_from_h5_file(const std::string& filename, const std::string& data_set_path, jams::MultiArray<double, N>& array) {
@@ -50,8 +49,7 @@ void load_array_from_tsv_file(const std::string& file_name, jams::MultiArray<dou
 
 template <std::size_t N>
 void load_array_from_file(const std::string& file_name, const std::string& data_set_path, jams::MultiArray<double, N>& array) {
-  using namespace H5;
-  if (H5File::isHdf5(file_name)) {
+  if (file_extension(file_name) == "h5") {
     load_array_from_h5_file(file_name, data_set_path, array);
   } else {
     load_array_from_tsv_file(file_name, array);

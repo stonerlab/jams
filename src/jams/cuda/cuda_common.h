@@ -8,6 +8,8 @@
 #include <iostream>
 #include <stdexcept>
 
+#if HAS_CUDA
+
 #include <cuda.h>
 #include <cublas_v2.h>
 #include <curand.h>
@@ -17,18 +19,32 @@
 
 #include "jams/helpers/error.h"
 
+namespace jams {
+    namespace gpu {
+        template<typename T>
+        inline constexpr cudaDataType get_cuda_data_type();
+
+        template<>
+        inline constexpr cudaDataType get_cuda_data_type<float>() { return CUDA_R_32F; }
+
+        template<>
+        inline constexpr cudaDataType get_cuda_data_type<double>() { return CUDA_R_64F; }
+    }
+}
+
+
 const char* cusparseGetStatusString(cusparseStatus_t status);
 const char* curandGetStatusString(curandStatus_t status);
 const char* cublasGetStatusString(cublasStatus_t status);
 const char* cufftGetStatusString(cufftResult_t status);
+const char* cusparseGetMatTypeString(cusparseMatrixType_t type);
 
 #define CHECK_CUSPARSE_STATUS(x) \
 { \
   cusparseStatus_t stat; \
   if ((stat = (x)) != CUSPARSE_STATUS_SUCCESS) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("cusparse returned ") << cusparseGetStatusString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("cusparse returned ") + cusparseGetStatusString(stat)); \
   } \
 }
 
@@ -37,8 +53,7 @@ const char* cufftGetStatusString(cufftResult_t status);
   curandStatus_t stat; \
   if ((stat = (x)) != CURAND_STATUS_SUCCESS) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("curand returned ") << curandGetStatusString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("curand returned ") + curandGetStatusString(stat)); \
   } \
 }
 
@@ -47,8 +62,7 @@ const char* cufftGetStatusString(cufftResult_t status);
   cublasStatus_t stat; \
   if ((stat = (x)) != CUBLAS_STATUS_SUCCESS) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("cublas returned ") << cublasGetStatusString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("cublas returned ") + cublasGetStatusString(stat)); \
   } \
 }
 
@@ -57,8 +71,7 @@ const char* cufftGetStatusString(cufftResult_t status);
   cufftResult_t stat; \
   if ((stat = (x)) != CUFFT_SUCCESS) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("cufft returned ") << cufftGetStatusString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("cufft returned ") + cufftGetStatusString(stat)); \
   } \
 }
 
@@ -68,8 +81,7 @@ const char* cufftGetStatusString(cufftResult_t status);
   cudaError_t stat; \
   if ((stat = (x)) != cudaSuccess) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    std::cerr << JAMS_ERROR_MESSAGE("cuda returned ") << cudaGetErrorString(stat) << std::endl; \
-    jams_die("exiting"); \
+    throw std::runtime_error(JAMS_ERROR_MESSAGE("cuda returned ") + cudaGetErrorString(stat)); \
   } \
 }
 
@@ -114,5 +126,7 @@ inline void cuda_throw(cudaError_t return_code, const char *file, int line) {
 
 #define IDX4D(i, j, k, l, size0, size1, size2, size3) \
   ((i*size1+j)*size2+k)*size3+l)
+
+#endif // HAS_CUDA
 
 #endif //JAMS_CUDA_ERROR_H

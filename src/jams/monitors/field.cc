@@ -9,12 +9,13 @@
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
+#include "jams/helpers/output.h"
 
 #include "field.h"
 
 FieldMonitor::FieldMonitor(const libconfig::Setting &settings)
-: Monitor(settings) {
-  tsv_file.open(seedname + "_fld.tsv");
+: Monitor(settings),
+  tsv_file(jams::output::full_path_filename("fld.tsv")){
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 }

@@ -9,31 +9,20 @@
 
 #include "jams/core/hamiltonian.h"
 #include "jams/core/interactions.h"
-#include "jams/containers/sparsematrix.h"
+#include "jams/containers/sparse_matrix.h"
+#include "jams/hamiltonian/sparse_interaction.h"
 
-class ExchangeHamiltonian : public Hamiltonian {
-    friend class CudaExchangeHamiltonian;
-    public:
-        ExchangeHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-        ~ExchangeHamiltonian() = default;
+class ExchangeHamiltonian : public SparseInteractionHamiltonian {
+public:
+    ExchangeHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-        double calculate_total_energy();
-        double calculate_one_spin_energy(const int i);
-        double calculate_one_spin_energy_difference(const int i, const Vec3 &spin_initial, const Vec3 &spin_final);
-        void   calculate_energies();
-        void   calculate_one_spin_field(const int i, double h[3]);
-        void   calculate_fields();
-        const InteractionList<Mat3>& neighbour_list() const;
+    const jams::InteractionList<Mat3, 2> &neighbour_list() const;
 
-    private:
-        void insert_interaction(const int i, const int j, const Mat3 &value);
-
-        InteractionList<Mat3> neighbour_list_;
-        SparseMatrix<double> interaction_matrix_;
-        double energy_cutoff_;
-        double radius_cutoff_;
-        double distance_tolerance_;
-        InteractionFileFormat exchange_file_format_;
+private:
+    jams::InteractionList<Mat3, 2> neighbour_list_; // neighbour information
+    double energy_cutoff_; // abs cutoff energy for interaction
+    double radius_cutoff_; // cutoff radius for interaction
+    double distance_tolerance_; // distance tolerance for calculating interactions
 };
 
 #endif  // JAMS_HAMILTONIAN_EXCHANGE_H

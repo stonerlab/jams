@@ -31,6 +31,11 @@ namespace jams {
   public:
       explicit unimplemented_error(const std::string &func) : std::logic_error("unimplemented function: " + func) { };
   };
+
+class removed_feature_error : public std::runtime_error {
+public:
+    explicit removed_feature_error(const std::string &text) : std::runtime_error(text) {};
+};
 #define JAMS_UNIMPLEMENTED_FUNCTION throw jams::unimplemented_error(__PRETTY_FUNCTION__)
 }
 

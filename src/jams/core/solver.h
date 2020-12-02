@@ -27,12 +27,9 @@ class Solver : public Base {
   virtual void initialize(const libconfig::Setting& settings) = 0;
   virtual void run() = 0;
 
+  bool is_cuda_solver() const { return is_cuda_solver_; }
   bool is_converged();
   virtual bool is_running();
-
-  inline bool is_cuda_solver() const {
-    return is_cuda_solver_;
-  }
 
   inline int iteration() const {
     return iteration_;

@@ -12,7 +12,7 @@
 #include "jams/interface/config.h"
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
-
+#include "jams/helpers/output.h"
 
 using namespace std;
 
@@ -38,7 +38,7 @@ void RotationSolver::run() {
 
     Vec3 spin_initial = {s(i,0), s(i,1), s(i,2)};
 
-    std::ofstream tsv_file(seedname + "_" + to_string(i) + "_ang_eng.tsv");
+    std::ofstream tsv_file(jams::output::full_path_filename_series("ang_eng.tsv", i, 1));
     tsv_file.width(12);
     tsv_file << "theta_deg\t";
     tsv_file << "phi_deg\t";
@@ -61,7 +61,7 @@ void RotationSolver::run() {
         // print angles and energy
         tsv_file << rad_to_deg(theta) << "\t" << rad_to_deg(phi) << "\t";
         for (auto &hamiltonian : solver->hamiltonians()) {
-          auto energy = kBohrMagneton * hamiltonian->calculate_one_spin_energy(i);
+          auto energy = kBohrMagneton * hamiltonian->calculate_energy(i);
           tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
         }
         tsv_file << std::endl;

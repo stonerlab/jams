@@ -26,8 +26,7 @@ class MetropolisMCSolver : public Solver {
     void MetropolisPreconditioner(std::function<Vec3(Vec3)>  trial_spin_move);
   void SystematicPreconditioner(const double delta_theta, const double delta_phi);
 
-  pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
-
+  bool use_random_spin_order_ = true;
   bool use_total_energy_ = false;
   bool is_preconditioner_enabled_ = false;
   double preconditioner_delta_theta_ = 5.0;
@@ -35,15 +34,15 @@ class MetropolisMCSolver : public Solver {
 
   int output_write_steps_ = 1000;
 
-  double move_fraction_uniform_     = 0.4;
-  double move_fraction_angle_       = 0.6;
+  double move_fraction_uniform_     = 0.0;
+  double move_fraction_angle_       = 1.0;
   double move_fraction_reflection_  = 0.0;
 
   double move_angle_sigma_ = 0.5;
 
-  unsigned run_count_uniform    = 0;
-  unsigned run_count_angle      = 0;
-  unsigned run_count_reflection = 0;
+  unsigned run_count_uniform_    = 0;
+  unsigned run_count_angle_      = 0;
+  unsigned run_count_reflection_ = 0;
 
   unsigned long long move_total_count_uniform_    = 0;
   unsigned long long move_total_count_angle_      = 0;

@@ -25,9 +25,11 @@ private:
 
     void store_kspace_data_on_path();
 
+    jams::MultiArray<Vec3cx,1> calculate_static_structure_factor();
     jams::MultiArray<Vec3cx,2> periodogram();
     void shift_periodogram_overlap();
     void output_neutron_cross_section();
+    void output_static_structure_factor();
 
     jams::MultiArray<Complex, 2> calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx,2>& spectrum);
     jams::MultiArray<Complex, 3> calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx,2>& spectrum, const std::vector<Vec3>& polarizations);

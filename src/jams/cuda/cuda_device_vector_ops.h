@@ -13,6 +13,10 @@ __device__ inline double dot(const double v1[3], const double v2[3]) {
 	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
+__device__ inline double dot(const double3 &a, const double3 &b) {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
 __device__ inline float abs(const float v1[3]) {
 	return dot(v1, v1);
 }

@@ -12,7 +12,7 @@ using std::complex;
 using std::vector;
 
 double fft_window_default(const int n, const int n_total) {
-  return fft_window_hann(n, n_total);
+  return fft_window_blackman_4(n, n_total);
 } 
 
 double fft_window_hann(const int n, const int n_total) {
@@ -123,7 +123,7 @@ fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<
           nembed,                  // number of embedded dimensions
           stride,                  // memory stride between elements of one fft dataset
           dist,                    // memory distance between fft datasets
-          reinterpret_cast<fftw_complex*>(kspace),        // output: complex data
+          jams::fftw::complex_cast(kspace),        // output: complex data
           nembed,                  // number of embedded dimensions
           stride,                  // memory stride between elements of one fft dataset
           dist,                    // memory distance between fft datasets
@@ -131,33 +131,62 @@ fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<
           FFTW_PATIENT | FFTW_PRESERVE_INPUT);
 }
 
-void fft_supercell_vector_field_to_kspace(jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
-  assert(rspace_data.elements() == 3 * num_sites * product(kspace_size));
+jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2>& rspace_data, const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites) {
+  jams::MultiArray<double, 5> padded_rspace_data(kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2],
+                                                 num_sites, 3);
+  zero(padded_rspace_data);
 
-  kspace_data.resize(kspace_size[0], kspace_size[1], kspace_size[2]/2 + 1, num_sites);
+  for (auto i = 0; i < kspace_size[0]; ++i) {
+    for (auto j = 0; j < kspace_size[1]; ++j) {
+      for (auto k = 0; k < kspace_size[2]; ++k) {
+        for (auto m = 0; m < num_sites; ++m) {
+          int index = ((i * kspace_size[1] + j) * kspace_size[2] + k) * num_sites + m;
+          for (auto n : {0, 1, 2}) {
+            padded_rspace_data(i, j, k, m, n) = rspace_data(index, n);
+          }
+        }
+      }
+    }
+  }
 
-  int rank              = 3;
-  int transform_size[3] = {kspace_size[0], kspace_size[1], kspace_size[2]};
-  int num_transforms    = 3 * num_sites;
-  int *nembed           = nullptr;
-  int stride            = 3 * num_sites;
-  int dist              = 1;
-
-  // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
-  auto plan = fftw_plan_many_dft_r2c(
-      rank, transform_size, num_transforms,
-      rspace_data.begin(), nembed, stride, dist,
-      FFTW_COMPLEX_CAST(kspace_data.begin()), nembed, stride, dist,
-      FFTW_ESTIMATE);
-
-  assert(plan);
-  fftw_execute(plan);
-  fftw_destroy_plan(plan);
-
-  element_scale(kspace_data, 1.0/sqrt(product(lattice->kspace_size())));
+  return padded_rspace_data;
 }
 
-void fft_supercell_scalar_field_to_kspace(jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
+void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data,  const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites) {
+  assert(rspace_data.elements() == 3 * num_sites * product(kspace_size));
+
+  kspace_data.resize(kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2]/2 + 1, num_sites);
+
+  auto fourier_transform = [&](const double* rspace_data_ptr) {
+      int rank              = 3;
+      int transform_size[3] = {kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2]};
+      int num_transforms    = 3 * num_sites;
+      int *nembed           = nullptr;
+      int stride            = 3 * num_sites;
+      int dist              = 1;
+
+      // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
+      auto plan = fftw_plan_many_dft_r2c(
+          rank, transform_size, num_transforms,
+          const_cast<double*>(rspace_data_ptr), nembed, stride, dist,
+          jams::fftw::complex_cast(kspace_data.data()), nembed, stride, dist,
+          FFTW_ESTIMATE);
+
+      assert(plan);
+      fftw_execute(plan);
+      fftw_destroy_plan(plan);
+      element_scale(kspace_data, 1.0/sqrt(product(kspace_size)));
+  };
+
+  if (kspace_size == kspace_padded_size) {
+    fourier_transform(rspace_data.data());
+  } else {
+    auto rspace_padded_data = fft_zero_pad_kspace(rspace_data, kspace_size, kspace_padded_size, num_sites);
+    fourier_transform(rspace_padded_data.data());
+  }
+}
+
+void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
   assert(rspace_data.elements() == product(kspace_size));
 
   // assuming this is not a costly operation because .resize() already checks if it is the same size
@@ -173,8 +202,8 @@ void fft_supercell_scalar_field_to_kspace(jams::MultiArray<double, 1>& rspace_da
   // FFTW_PRESERVE_INPUT is not supported for r2c arrays but FFTW_ESTIMATE doe not overwrite
   auto plan = fftw_plan_many_dft_r2c(
       rank, transform_size, num_transforms,
-      rspace_data.begin(), nembed, stride, dist,
-      FFTW_COMPLEX_CAST(kspace_data.begin()), nembed, stride, dist,
+      const_cast<double*>(rspace_data.begin()), nembed, stride, dist,
+      jams::fftw::complex_cast(kspace_data.begin()), nembed, stride, dist,
       FFTW_ESTIMATE);
 
   assert(plan);

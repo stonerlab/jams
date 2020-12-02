@@ -11,6 +11,7 @@
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 #include "jams/helpers/permutations.h"
+#include "jams/helpers/output.h"
 
 #include <iomanip>
 
@@ -24,8 +25,14 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
+  output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
+
+  use_random_spin_order_ = jams::config_optional<bool>(settings, "use_random_spin_order", true);
+  cout << "    use_random_spin_order " << std::boolalpha << use_random_spin_order_ << "\n";
 
   use_total_energy_ = jams::config_optional<bool>(settings, "use_total_energy", false);
+  cout << "    use_total_energy " << std::boolalpha << use_total_energy_ << "\n";
+
   is_preconditioner_enabled_ = settings.exists("preconditioner_theta") || settings.exists("preconditioner_phi");
   preconditioner_delta_theta_ = jams::config_optional<double>(settings, "preconditioner_theta", 5.0);
   preconditioner_delta_phi_ = jams::config_optional<double>(settings, "preconditioner_phi", 5.0);
@@ -43,6 +50,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
     move_fraction_angle_      = jams::config_optional<double>(settings, "move_fraction_angle", 0.0);
     move_fraction_reflection_ = jams::config_optional<double>(settings, "move_fraction_reflection", 0.0);
+    move_angle_sigma_         = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
 
     double move_fraction_sum = move_fraction_uniform_ + move_fraction_angle_ + move_fraction_reflection_;
 
@@ -50,18 +58,14 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     move_fraction_angle_       /= move_fraction_sum;
     move_fraction_reflection_  /= move_fraction_sum;
   }
-
-  if (verbose_is_enabled()) {
-    cout << "    statsfile " << std::string(::seedname + "_mc_stats.dat") << "\n";
-  }
 }
 
   void MetropolisMCSolver::run() {
     using namespace globals;
     std::uniform_real_distribution<> uniform_distribution;
 
-    MonteCarloUniformMove<pcg32_k1024> uniform_move(&random_generator_);
-    MonteCarloAngleMove<pcg32_k1024>   angle_move(&random_generator_, move_angle_sigma_);
+    MonteCarloUniformMove<jams::RandomGeneratorType> uniform_move(&jams::instance().random_generator());
+    MonteCarloAngleMove<jams::RandomGeneratorType>   angle_move(&jams::instance().random_generator(), move_angle_sigma_);
     MonteCarloReflectionMove           reflection_move;
 
     if (is_preconditioner_enabled_ && iteration_ == 0) {
@@ -85,37 +89,37 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       cout << "done\n";
     }
 
-    const double uniform_random_number = uniform_distribution(random_generator_);
+    const double uniform_random_number = uniform_distribution(jams::instance().random_generator());
     if (uniform_random_number < move_fraction_uniform_) {
       if (use_total_energy_) {
         move_running_acceptance_count_uniform_ += MetropolisAlgorithmTotalEnergy(uniform_move);
       } else {
         move_running_acceptance_count_uniform_ += MetropolisAlgorithm(uniform_move);
       }
-      run_count_uniform++;
+      run_count_uniform_++;
     } else if (uniform_random_number < (move_fraction_uniform_ + move_fraction_angle_)) {
       if (use_total_energy_) {
         move_running_acceptance_count_angle_ += MetropolisAlgorithmTotalEnergy(angle_move);
       } else {
         move_running_acceptance_count_angle_ += MetropolisAlgorithm(angle_move);
       }
-      run_count_angle++;
+      run_count_angle_++;
     } else {
       if (use_total_energy_) {
         move_running_acceptance_count_reflection_ += MetropolisAlgorithmTotalEnergy(reflection_move);
       } else {
         move_running_acceptance_count_reflection_ += MetropolisAlgorithm(reflection_move);
       }
-      run_count_reflection++;
+      run_count_reflection_++;
     }
 
     iteration_++;
 
     if (iteration_ % output_write_steps_ == 0) {
 
-      move_total_count_uniform_ += run_count_uniform;
-      move_total_count_angle_ += run_count_angle;
-      move_total_count_reflection_ += run_count_reflection;
+      move_total_count_uniform_ += run_count_uniform_;
+      move_total_count_angle_ += run_count_angle_;
+      move_total_count_reflection_ += run_count_reflection_;
 
       move_total_acceptance_count_uniform_ += move_running_acceptance_count_uniform_;
       move_total_acceptance_count_angle_ += move_running_acceptance_count_angle_;
@@ -126,17 +130,17 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       cout << "move_acceptance_fraction\n";
 
       cout << "  uniform ";
-      cout << division_or_zero(move_running_acceptance_count_uniform_, globals::num_spins * run_count_uniform) << " (";
+      cout << division_or_zero(move_running_acceptance_count_uniform_, globals::num_spins * run_count_uniform_) << " (";
       cout << division_or_zero(move_total_acceptance_count_uniform_, globals::num_spins * move_total_count_uniform_)
            << ") \n";
 
       cout << "  angle ";
-      cout << division_or_zero(move_running_acceptance_count_angle_, globals::num_spins * run_count_angle) << " (";
+      cout << division_or_zero(move_running_acceptance_count_angle_, globals::num_spins * run_count_angle_) << " (";
       cout << division_or_zero(move_total_acceptance_count_angle_, globals::num_spins * move_total_count_angle_)
            << ") \n";
 
       cout << "  reflection ";
-      cout << division_or_zero(move_running_acceptance_count_reflection_, globals::num_spins * run_count_reflection)
+      cout << division_or_zero(move_running_acceptance_count_reflection_, globals::num_spins * run_count_reflection_)
            << " (";
       cout << division_or_zero(move_total_acceptance_count_reflection_,
               globals::num_spins * move_total_count_reflection_) << ") \n";
@@ -145,9 +149,9 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
       move_running_acceptance_count_angle_ = 0;
       move_running_acceptance_count_reflection_ = 0;
 
-      run_count_uniform = 0;
-      run_count_angle = 0;
-      run_count_reflection = 0;
+      run_count_uniform_ = 0;
+      run_count_angle_ = 0;
+      run_count_reflection_ = 0;
     }
   }
 
@@ -286,8 +290,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
 
     cout << "    permutations " << count << "\n";
 
-    std::ofstream preconditioner_file;
-    preconditioner_file.open(std::string(::seedname+"_mc_pre.dat").c_str());
+    std::ofstream preconditioner_file(jams::output::full_path_filename("mc_pre.tsv"));
     preconditioner_file << "# theta (deg) | phi (deg) | energy (J) \n";
 
     preconditioner_file.close();
@@ -307,16 +310,22 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     for (auto n = 0; n < globals::num_spins; ++n) {
       // 2015-12-10 (JB) striding uniformly is ~4x faster than random choice (clang OSX).
       // Seems to be because of caching/predication in the exchange field calculation.
-      auto s_initial = mc_spin_as_vec(n);
+      int spin_index = n;
+
+      if (use_random_spin_order_) {
+        spin_index = jams::instance().random_generator()(globals::num_spins);
+      }
+
+      auto s_initial = mc_spin_as_vec(spin_index);
       auto s_final = trial_spin_move(s_initial);
 
       auto deltaE = 0.0;
       for (const auto& ham : hamiltonians_) {
-        deltaE += ham->calculate_one_spin_energy_difference(n, s_initial, s_final);
+        deltaE += ham->calculate_energy_difference(spin_index, s_initial, s_final);
       }
 
-      if (uniform_distribution(random_generator_) < exp(min(0.0, -deltaE * beta))) {
-        mc_set_spin_as_vec(n, s_final);
+      if (uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta))) {
+        mc_set_spin_as_vec(spin_index, s_final);
         moves_accepted++;
         continue;
       }
@@ -331,11 +340,17 @@ int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)>
 
   const double beta = kBohrMagneton / (kBoltzmann * physics_module_->temperature());
 
-  unsigned moves_accepted = 0;
+  int moves_accepted = 0;
   for (auto n = 0; n < globals::num_spins; ++n) {
     // 2015-12-10 (JB) striding uniformly is ~4x faster than random choice (clang OSX).
     // Seems to be because of caching/predication in the exchange field calculation.
-    auto s_initial = mc_spin_as_vec(n);
+    int spin_index = n;
+
+    if (use_random_spin_order_) {
+      spin_index = jams::instance().random_generator()(globals::num_spins);
+    }
+
+    auto s_initial = mc_spin_as_vec(spin_index);
     auto s_final = trial_spin_move(s_initial);
 
     auto e_initial = 0.0;
@@ -343,7 +358,7 @@ int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)>
       e_initial += ham->calculate_total_energy();
     }
 
-    mc_set_spin_as_vec(n, s_final);
+    mc_set_spin_as_vec(spin_index, s_final);
     auto e_final = 0.0;
     for (const auto& ham : hamiltonians_) {
       e_final += ham->calculate_total_energy();
@@ -351,12 +366,12 @@ int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)>
 
     auto deltaE = e_final - e_initial;
 
-    if (uniform_distribution(random_generator_) < exp(min(0.0, -deltaE * beta))) {
+    if (uniform_distribution(jams::instance().random_generator()) < exp(min(0.0, -deltaE * beta))) {
       moves_accepted++;
       continue;
     }
 
-    mc_set_spin_as_vec(n, s_initial);
+    mc_set_spin_as_vec(spin_index, s_initial);
   }
   return moves_accepted;
 }

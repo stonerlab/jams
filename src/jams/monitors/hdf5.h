@@ -7,11 +7,10 @@
 #include <string>
 
 #include <libconfig.h++>
-#include <H5Cpp.h>
 
 #include "jams/core/monitor.h"
 #include "jams/helpers/slice.h"
-#include "jams/interface/h5.h"
+#include "jams/interface/highfive.h"
 
 class Solver;
 
@@ -26,12 +25,14 @@ class Hdf5Monitor : public Monitor {
     bool is_converged() override { return false; }
 
  private:
+    void write_vector_field(const jams::MultiArray<double, 2>& field, const std::string& data_path, HighFive::File &file) const;
+    void write_scalar_field(const jams::MultiArray<double, 1>& field, const std::string& data_path, HighFive::File &file) const;
   void open_new_xdmf_file(const std::string &xdmf_file_name);
-  void update_xdmf_file(const std::string &h5_file_name, const H5::PredType float_type);
-  void write_lattice_h5_file(const std::string &h5_file_name, const H5::PredType float_type);
-  void write_spin_h5_file(const std::string &h5_file_name, const H5::PredType float_type);
+  void update_xdmf_file(const std::string &h5_file_name);
+  void write_lattice_h5_file(const std::string &h5_file_name);
+  void write_spin_h5_file(const std::string &h5_file_name);
 
-  H5::PredType float_pred_type_;
+  bool         write_ds_dt_ = false;
   bool         compression_enabled_ = true;
   Slice        slice_;
   FILE*        xdmf_file_;

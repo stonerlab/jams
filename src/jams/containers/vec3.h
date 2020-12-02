@@ -115,6 +115,36 @@ inline constexpr auto dot(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+template <typename T1, typename T2>
+inline constexpr auto dot(const Vec<T1,3>& a, const T2 b[3]) -> decltype(a[0] * b[0]) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+template <typename T1, typename T2>
+inline constexpr auto dot(const T1 a[3], const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+template <typename T1, typename T2>
+inline constexpr auto dot(const T1 a[3], const T2 b[3]) -> decltype(a[0] * b[0]) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+template <typename T1, typename T2>
+inline constexpr auto dot_sq(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+  return pow2(dot(a,b));
+}
+
+template <typename T>
+inline constexpr auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
+  return std::sqrt(dot(a, a));
+}
+
+template <typename T>
+inline constexpr T norm_sq(const Vec<T,3>& a) {
+  return dot(a, a);
+}
+
 template <typename T1>
 inline constexpr auto abs(const Vec<T1,3>& a) -> Vec<decltype(std::abs(a[0])), 3> {
   return {std::abs(a[0]), std::abs(a[1]), std::abs(a[2])};
@@ -125,6 +155,11 @@ inline constexpr auto cross(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<declt
   return {a[1]*b[2] - a[2]*b[1],
           a[2]*b[0] - a[0]*b[2],
           a[0]*b[1] - a[1]*b[0]};
+}
+
+template <typename T1, typename T2>
+inline constexpr auto cross_norm_sq(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+  return norm_sq(a) * norm_sq(b) - dot_sq(a, b);
 }
 
 template <typename T1, typename T2, typename T3>
@@ -142,36 +177,21 @@ inline constexpr auto scale(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<declt
   return {a[0] * b[0], a[1] * b[1], a[2] * b[2]};
 }
 
-
-
 template <typename T>
-inline constexpr auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
-  return std::sqrt(dot(a, a));
-}
-
-template <typename T>
-inline constexpr T norm_sq(const Vec<T,3>& a) {
-  return dot(a, a);
+inline constexpr T angle(const Vec<T,3>& a, const Vec<T,3>& b) {
+  return acos(dot(a,b) / (norm(a), norm(b)));
 }
 
 inline Vec3 spherical_to_cartesian_vector(const double r, const double theta, const double phi) {
-  return {r*sin(theta)*cos(phi), r*sin(theta)*sin(phi), r*cos(theta)};
-}
-
-inline Vec<double,3> cartesian_from_spherical(const double &r, const double &theta, const double &phi) {
-  return {
-      sin(theta) * cos(phi),
-      sin(theta) * sin(phi),
-      cos(theta)
-  };
-}
-
-inline double azimuthal_angle(const Vec<double,3> a) {
-  return acos(a[2]/norm(a));
+  return {r * sin(theta) * cos(phi), r * sin(theta) * sin(phi), r * cos(theta)};
 }
 
 inline double polar_angle(const Vec<double,3> a) {
-  return atan2(a[2], a[0]);
+  return acos(a[2]/norm(a));
+}
+
+inline double azimuthal_angle(const Vec<double,3> a) {
+  return atan2(a[1], a[0]);
 }
 
 template <typename T>
@@ -233,9 +253,9 @@ inline constexpr Vec<T,3> trunc(const Vec<T,3>& a) {
 template <typename T>
 inline constexpr Vec<double,3> to_double(const Vec<T,3>& a) {
   return {
-    static_cast<double>(std::trunc(a[0])),
-    static_cast<double>(std::trunc(a[1])),
-    static_cast<double>(std::trunc(a[2]))
+    static_cast<double>(a[0]),
+    static_cast<double>(a[1]),
+    static_cast<double>(a[2])
   };
 }
 
@@ -267,7 +287,12 @@ Vec<T, N> normalize_components(const Vec<T, N>& x) {
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const Vec<T,3> &a) {
-  return os << a[0] << " " << a[1] << " " << a[2];
+  auto w = os.width();
+  auto p = os.precision();
+  os << std::right << std::setprecision(p) << std::setw(w) << a[0] << " ";
+  os << std::right << std::setprecision(p) << std::setw(w) << a[1] << " ";
+  os << std::right << std::setprecision(p) << std::setw(w) << a[2];
+  return os;
 }
 
 

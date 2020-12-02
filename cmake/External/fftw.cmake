@@ -1,0 +1,11 @@
+add_library(fftw_external INTERFACE)
+
+find_package(MKL QUIET)
+if(MKL_FOUND)
+    target_include_directories(fftw_external INTERFACE ${FFTW3_INCLUDE_DIR})
+    target_link_libraries(fftw_external INTERFACE ${MKL_LIBRARIES})
+else()
+    find_package(FFTW3 QUIET REQUIRED)
+    target_include_directories(fftw_external INTERFACE ${FFTW3_INCLUDE_DIR})
+    target_link_libraries(fftw_external INTERFACE ${FFTW3_LIBRARY})
+endif(MKL_FOUND)

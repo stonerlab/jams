@@ -11,13 +11,14 @@
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
+#include "jams/helpers/output.h"
 
 FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
 : Physics(settings),
   ACFieldFrequency(0),
   ACFieldStrength(3, 0),
   DCFieldStrength(3, 0),
-  PSDFile(),
+  PSDFile(jams::output::full_path_filename("psd.tsv")),
   PSDIntegral(0) {
   using namespace globals;
 
@@ -31,10 +32,6 @@ FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
   for (int i = 0; i < 3; ++i) {
     DCFieldStrength[i] = settings["DCFieldStrength"][i];
   }
-
-  std::string fileName = "_psd.dat";
-  fileName = seedname+fileName;
-  PSDFile.open(fileName.c_str());
 
   PSDIntegral.resize(num_spins);
 

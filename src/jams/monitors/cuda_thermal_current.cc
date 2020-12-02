@@ -2,7 +2,6 @@
 // Created by Joe Barker on 2018/04/20.
 //
 
-
 #include <jams/helpers/exception.h>
 #include <jams/core/interactions.h>
 #include <jams/helpers/error.h>
@@ -11,6 +10,7 @@
 #include <jams/helpers/maths.h>
 #include <jams/cuda/cuda_array_kernels.h>
 
+#include "jams/helpers/output.h"
 #include "jams/core/globals.h"
 #include "jams/interface/config.h"
 #include "jams/core/solver.h"
@@ -19,65 +19,8 @@
 #include "jams/cuda/cuda_common.h"
 #include "jams/containers/csr.h"
 #include "jams/hamiltonian/exchange.h"
-
-namespace {
-
-    // convert a list of triads into a CSR like 3D sparse matrix
-    using TriadList = std::vector<Triad<Vec3>>;
-
-    void print_triad_list(const TriadList& triads, std::ostream &stream) {
-      for (const auto &x : triads) {
-        stream << x.i << "\t" << x.j << "\t" << x.k << "\t" << x.value << "\n";
-      }
-    }
-
-    void sort_triad_list(TriadList& triads) {
-      std::stable_sort(triads.begin(), triads.end(),
-              [](const Triad<Vec3> &a, const Triad<Vec3> &b) -> bool { return a.k < b.k; });
-
-      std::stable_sort(triads.begin(), triads.end(),
-              [](const Triad<Vec3> &a, const Triad<Vec3> &b) -> bool { return a.j < b.j; });
-
-      std::stable_sort(triads.begin(), triads.end(),
-              [](const Triad<Vec3> &a, const Triad<Vec3> &b) -> bool { return a.i < b.i; });
-    }
-
-    void convert_triad_list_to_csr_format(TriadList triads, const int num_rows,
-                                          jams::MultiArray<int, 1> &index_pointers,
-                                          jams::MultiArray<int, 2> &index_data,
-                                          jams::MultiArray<double, 2> &value_data)
-    {
-      index_pointers.resize(num_rows + 1);
-      index_data.resize(triads.size(), 2);
-      value_data.resize(triads.size(), 3);
-
-      index_pointers.zero();
-      index_data.zero();
-      value_data.zero();
-
-      sort_triad_list(triads);
-
-      index_pointers(0) = 0;
-      unsigned index_counter = 0;
-      for (auto i = 0; i < num_rows; ++i) {
-        for (auto n = index_pointers(i); n < triads.size(); ++n) {
-          if (triads[n].i != i) {
-            break;
-          }
-
-          index_data(n, 0) = triads[n].j;
-          index_data(n, 1) = triads[n].k;
-
-          for (auto m = 0; m < 3; ++m) {
-            value_data(n, m) = triads[n].value[m];
-          }
-          index_counter++;
-        }
-        index_pointers(i+1) = index_counter;
-      }
-      index_pointers(num_rows) = triads.size();
-    }
-};
+#include "cuda_thermal_current.h"
+#include "../core/globals.h"
 
 CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
@@ -88,21 +31,20 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   const auto exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
   assert (exchange_hamiltonian != nullptr);
 
-  const auto triad_list = generate_triads_from_neighbour_list(exchange_hamiltonian->neighbour_list());
+  const auto& nbr_list = exchange_hamiltonian->neighbour_list();
+
+
+  const auto triad_list = generate_three_spin_from_two_spin_interactions(exchange_hamiltonian->neighbour_list());
 
   cout << "    total ijk triads: " << triad_list.size() << endl;
 
-  double memory_estimate = (globals::num_spins + 1) * sizeof(int)
-                           + 2 * triad_list.size() * sizeof(int)
-                           + 3 * triad_list.size() * sizeof(double);
+  cout << "    interaction matrix memory: " << interaction_matrix_.memory() / kBytesToMegaBytes << "MB" << endl;
 
-  cout << "    triad matrix memory (CSR): " << memory_estimate / (1024 * 1024) << "MB" << endl;
+  zero(thermal_current_rx_.resize(globals::num_spins));
+  zero(thermal_current_ry_.resize(globals::num_spins));
+  zero(thermal_current_rz_.resize(globals::num_spins));
 
-  cout << "  initializing CUDA device data" << endl;
-
-  initialize_device_data(triad_list);
-
-  outfile.open(seedname + "_jq.tsv");
+  outfile.open(jams::output::full_path_filename("jq.tsv"));
   outfile.setf(std::ios::right);
   outfile << std::setw(12) << "time" << "\t";
   outfile << std::setw(12) << "jq_rx" << "\t";
@@ -112,16 +54,7 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
 
 void CudaThermalCurrentMonitor::update(Solver *solver) {
   Vec3 js = execute_cuda_thermal_current_kernel(
-          stream,
-          globals::num_spins,
-          globals::s.device_data(),
-          dev_csr_matrix_.row.device_data(),
-          dev_csr_matrix_.col.device_data(),
-          dev_csr_matrix_.val.device_data(),
-          thermal_current_rx_.device_data(),
-          thermal_current_ry_.device_data(),
-          thermal_current_rz_.device_data()
-  );
+          stream, globals::s, interaction_matrix_, thermal_current_rx_, thermal_current_ry_, thermal_current_rz_);
 
   outfile << std::setw(4) << std::scientific << solver->time() << "\t";
   for (auto n = 0; n < 3; ++ n) {
@@ -138,85 +71,61 @@ CudaThermalCurrentMonitor::~CudaThermalCurrentMonitor() {
   outfile.close();
 }
 
-CudaThermalCurrentMonitor::TriadList CudaThermalCurrentMonitor::generate_triads_from_neighbour_list(const InteractionList<Mat3>& nbr_list) {
-  TriadList triads;
+CudaThermalCurrentMonitor::ThreeSpinList CudaThermalCurrentMonitor::generate_three_spin_from_two_spin_interactions(const jams::InteractionList<Mat3, 2>& nbr_list) {
+  ThreeSpinList three_spin_list;
 
   // Jij * Jjk
-  for (auto i = 0; i < nbr_list.size(); ++i) {
+  for (auto i = 0; i < globals::num_spins; ++i) {
     // ij
-    for (auto const &nbr_j: nbr_list[i]) {
-      const int j = nbr_j.first;
+    for (auto const &nbr_j: nbr_list.interactions_of(i)) {
+      const auto j = nbr_j.first[1];
       const auto Jij = nbr_j.second[0][0];
       // jk
-      for (auto const &nbr_k: nbr_list[j]) {
-        const int k = nbr_k.first;
+      for (auto const &nbr_k: nbr_list.interactions_of(j)) {
+        const int k = nbr_k.first[1];
         const auto Jjk = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
         if (i > j || j > k || i > k) continue;
-        triads.push_back({i, j , k, Jij * Jjk * lattice->displacement(i, k)});
+        three_spin_list.insert({i, j, k}, Jij * Jjk * lattice->displacement(i, k));
       }
     }
   }
 
   // Jij * Jik
-  for (auto i = 0; i < nbr_list.size(); ++i) {
+  for (auto i = 0; i < globals::num_spins; ++i) {
     // ij
-    for (auto const &nbr_j: nbr_list[i]) {
-      const int j = nbr_j.first;
+    for (auto const &nbr_j: nbr_list.interactions_of(i)) {
+      const auto j = nbr_j.first[1];
       const auto Jij = nbr_j.second[0][0];
       // ik
-      for (auto const &nbr_k: nbr_list[i]) {
-        const int k = nbr_k.first;
+      for (auto const &nbr_k: nbr_list.interactions_of(i)) {
+        const auto k = nbr_k.first[1];
         const auto Jik = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
         if (i > j || j > k || i > k) continue;
-        triads.push_back({i, j , k, Jij * Jik * lattice->displacement(j, i)});
+        three_spin_list.insert({i, j, k}, Jij * Jik * lattice->displacement(j, i));
       }
     }
   }
 
-  // Jik * Jjk
-  for (auto i = 0; i < nbr_list.size(); ++i) {
+//  // Jik * Jjk
+  for (auto i = 0; i < globals::num_spins; ++i) {
     // ik
-    for (auto const &nbr_k: nbr_list[i]) {
-      const int  k = nbr_k.first;
+    for (auto const &nbr_k: nbr_list.interactions_of(i)) {
+      const auto  k = nbr_k.first[1];
       const auto Jik = nbr_k.second[0][0];
       // jk
-      for (auto const &nbr_j: nbr_list[k]) {
-        const int  j = nbr_j.first;
+      for (auto const &nbr_j: nbr_list.interactions_of(k)) {
+        const auto  j = nbr_j.first[1];
         const auto Jjk = nbr_j.second[0][0];
         if (i == j || j == k || i == k) continue;
         if (i > j || j > k || i > k) continue;
-        triads.push_back({i, j , k, Jik * Jjk * lattice->displacement(k, j)});
+        three_spin_list.insert({i, j, k}, Jik * Jjk * lattice->displacement(k, j));
       }
     }
   }
 
-  return triads;
-}
+  interaction_matrix_ = jams::InteractionMatrix<Vec3, double>(three_spin_list, globals::num_spins);
 
-void CudaThermalCurrentMonitor::initialize_device_data(const TriadList &triads) {
-  using std::swap;
-
-  jams::MultiArray<int, 1>    index_pointers;
-  jams::MultiArray<int, 2>    index_data;
-  jams::MultiArray<double, 2> value_data;
-
-  convert_triad_list_to_csr_format(triads, globals::num_spins, index_pointers, index_data, value_data);
-
-  swap(dev_csr_matrix_.row, index_pointers);
-
-  dev_csr_matrix_.col.resize(index_data.elements());
-  std::copy(index_data.begin(), index_data.end(), dev_csr_matrix_.col.begin());
-
-  dev_csr_matrix_.val.resize(value_data.elements());
-  std::copy(value_data.begin(), value_data.end(), dev_csr_matrix_.val.begin());
-
-  thermal_current_rx_.resize(globals::num_spins);
-  thermal_current_ry_.resize(globals::num_spins);
-  thermal_current_rz_.resize(globals::num_spins);
-
-  thermal_current_rx_.zero();
-  thermal_current_ry_.zero();
-  thermal_current_rz_.zero();
+  return three_spin_list;
 }

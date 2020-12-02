@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "version.h"
-#include "H5Cpp.h"
 
 #include "jams/helpers/error.h"
 #include "jams/core/physics.h"
@@ -20,7 +19,7 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/slice.h"
-#include "jams/interface/h5.h"
+#include "jams/interface/highfive.h"
 #include "jams/containers/vec3.h"
 
 #include "jams/monitors/unitcell_average.h"
@@ -34,14 +33,12 @@ namespace {
 
 UnitcellAverageMonitor::UnitcellAverageMonitor(const libconfig::Setting &settings)
     : Monitor(settings),
-      float_pred_type_(H5::PredType::IEEE_F64LE),
       slice_() {
   using namespace globals;
-  using namespace H5;
 
   output_step_freq_ = settings["output_steps"];
 
-  open_new_xdmf_file(seedname + "_avg.xdmf");
+  open_new_xdmf_file(jams::instance().output_path() + "/" + simulation_name + "_avg.xdmf");
 
   spin_transformations_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -68,11 +65,10 @@ UnitcellAverageMonitor::~UnitcellAverageMonitor() {
 
 void UnitcellAverageMonitor::update(Solver * solver) {
   using namespace globals;
-  using namespace H5;
 
   int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
-  const std::string h5_file_name(seedname + "_" + zero_pad_number(outcount) + "_avg.h5");
+  const std::string h5_file_name(jams::instance().output_path() + "/" + simulation_name + "_" + zero_pad_number(outcount) + "_avg.h5");
 
   cell_mag_.zero();
   for (auto i = 0; i < num_spins; ++i) {
@@ -91,11 +87,11 @@ void UnitcellAverageMonitor::update(Solver * solver) {
     }
   }
 
-  write_h5_file(h5_file_name, float_pred_type_);
-  update_xdmf_file(h5_file_name, float_pred_type_);
+  write_h5_file(h5_file_name);
+  update_xdmf_file(h5_file_name);
 }
 
-void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name, const H5::PredType float_type) {
+void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name) {
   using namespace globals;
   using namespace HighFive;
 
@@ -117,17 +113,17 @@ void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name, cons
 
   auto mag_dataset = file.createDataSet<double>("/magnetisation",  DataSpace({lattice->num_cells(), 3}), props);
 
-  mag_dataset.createAttribute("iteration", solver->iteration());
-  mag_dataset.createAttribute("time", solver->time());
-  mag_dataset.createAttribute("temperature", solver->physics()->temperature());
+  mag_dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
+  mag_dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
+  mag_dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
 
   mag_dataset.write(cell_mag_);
 
   auto neel_dataset = file.createDataSet<double>("/neel",  DataSpace({lattice->num_cells(), 3}), props);
 
-  neel_dataset.createAttribute("iteration", solver->iteration());
-  neel_dataset.createAttribute("time", solver->time());
-  neel_dataset.createAttribute("temperature", solver->physics()->temperature());
+  neel_dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
+  neel_dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
+  neel_dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
 
   neel_dataset.write(cell_neel_);
 }
@@ -145,7 +141,7 @@ void UnitcellAverageMonitor::open_new_xdmf_file(const std::string &xdmf_file_nam
   fputs("<Xdmf xmlns:xi=\"http://www.w3.org/2003/XInclude\" Version=\"2.2\">\n", xdmf_file_);
   fputs("  <Domain Name=\"JAMS\">\n", xdmf_file_);
   fprintf(xdmf_file_, "    <Information Name=\"Commit\" Value=\"%s\" />\n", jams::build::hash);
-  fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", seedname.c_str());
+  fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", simulation_name.c_str());
   fputs("    <Grid Name=\"Time\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file_);
   fputs("    </Grid>\n", xdmf_file_);
   fputs("  </Domain>\n", xdmf_file_);
@@ -155,9 +151,8 @@ void UnitcellAverageMonitor::open_new_xdmf_file(const std::string &xdmf_file_nam
 
 //---------------------------------------------------------------------
 
-void UnitcellAverageMonitor::update_xdmf_file(const std::string &h5_file_name, const H5::PredType float_type) {
+void UnitcellAverageMonitor::update_xdmf_file(const std::string &h5_file_name) {
   using namespace globals;
-  using namespace H5;
 
   hsize_t      data_dimension  = lattice->num_cells();
   unsigned int float_precision = 8;
@@ -180,7 +175,7 @@ void UnitcellAverageMonitor::update_xdmf_file(const std::string &h5_file_name, c
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("       <Attribute Name=\"magnetisation\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
-  fprintf(xdmf_file_, "           %s:/magnetisation\n", h5_file_name.c_str());
+  fprintf(xdmf_file_, "           %s:/magnetisation\n", file_basename_no_extension(h5_file_name).c_str());
   fputs("         </DataItem>\n", xdmf_file_);
   fputs("       </Attribute>\n", xdmf_file_);
   fputs("      </Grid>\n", xdmf_file_);
