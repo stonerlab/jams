@@ -18,7 +18,7 @@ namespace jams {
 
         /// Output the potential landscape to a file stream.
         /// TODO: Define what the format of this file will be
-        virtual void output(std::ofstream& of) = 0;
+        virtual void output() = 0;
 
         /// Calculate the difference in potential energy for the system when a
         /// single spin is changed from spin_initial to spin_final

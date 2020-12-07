@@ -13,7 +13,7 @@ namespace jams {
 
         void insert_gaussian(const double& relative_amplitude) override;
 
-        void output(std::ofstream& of) override;
+        void output() override;
 
         double potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
 

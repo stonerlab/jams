@@ -66,11 +66,9 @@ void jams::MagnetisationCollectiveVariable::insert_gaussian(
   magnetisation_ = calculate_total_magnetisation();
 }
 
-void jams::MagnetisationCollectiveVariable::output(
-    std::ofstream &of) {
-  assert(of.is_open());
+void jams::MagnetisationCollectiveVariable::output() {
   for (auto i = 0; i < sample_points_.size(); ++i) {
-    of << i << " " << sample_points_[i] << " " << potential_[i] << "\n";
+  //  of << i << " " << sample_points_[i] << " " << potential_[i] << "\n"; //TODO : fix
   }
 }
 
