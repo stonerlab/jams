@@ -140,7 +140,7 @@ Vec3 jams::MzOrthogonalMzCV::calculate_total_magnetisation() {
 }
 
 double jams::MzOrthogonalMzCV::amplitude_tempering(const double &m, const double &m_p) {
-  return gaussian_amplitude_ * exp(-(interpolated_2d_potential(m, m_p)) / bias_temp_ * kBoltzmann);
+  return gaussian_amplitude_ * exp(-(interpolated_2d_potential(m, m_p)) / (bias_temp_ * kBoltzmann));
 
 }
 
