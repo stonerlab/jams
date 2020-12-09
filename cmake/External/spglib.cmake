@@ -1,10 +1,20 @@
 include(${PROJECT_SOURCE_DIR}/cmake/Modules/DownloadProject.cmake)
 
-download_project(
-        PROJ                spglib
-        GIT_REPOSITORY      https://github.com/atztogo/spglib.git
-        GIT_TAG             ${JAMS_SPGLIB_VERSION}
-)
+set(JAMS_SPGLIB_URL "https://github.com/spglib/spglib.git")
+if (MESSAGE_QUIET AND (NOT DEFINED VERBOSE))
+    download_project(
+            PROJ                spglib
+            GIT_REPOSITORY      ${JAMS_SPGLIB_URL}
+            GIT_TAG             ${JAMS_SPGLIB_VERSION}
+            QUIET
+    )
+else()
+    download_project(
+            PROJ                spglib
+            GIT_REPOSITORY      ${JAMS_SPGLIB_URL}
+            GIT_TAG             ${JAMS_SPGLIB_VERSION}
+    )
+endif()
 
 add_subdirectory(${spglib_SOURCE_DIR} ${spglib_BINARY_DIR} EXCLUDE_FROM_ALL)
 target_include_directories(symspg PUBLIC $<BUILD_INTERFACE:${spglib_SOURCE_DIR}/src>)

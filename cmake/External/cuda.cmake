@@ -1,6 +1,6 @@
 add_library(cuda INTERFACE)
 
-find_package(CUDA REQUIRED)
+find_package(CUDA QUIET)
 
 target_include_directories(cuda INTERFACE ${CUDA_INCLUDE_DIRS})
 foreach(LIB cusparse curand cublas cufft)
