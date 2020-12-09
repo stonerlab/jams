@@ -1,6 +1,5 @@
 enable_testing()
 include(../../../cmake/Sources.cmake)
-include("../../../cmake/External/gtest.cmake")
 include(GoogleTest)
 
 if (JAMS_BUILD_CUDA)

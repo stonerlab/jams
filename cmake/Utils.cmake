@@ -5,8 +5,19 @@ macro(ensure_out_of_source_build)
      string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}"
      "${PARENTDIR}" insourcesubdir)
     if(insource OR insourcesubdir)
-        message(FATAL_ERROR "${CMAKE_PROJECT_NAME} requires an out of source build.")
-    endif(insource OR insourcesubdir)
+        message(FATAL_ERROR
+                " \n"
+                " -----------------------------------------------------------\n"
+                " CMAKE CONFIGURE ERROR\n"
+                " Building inside the project source folder is not allowed.\n"
+                " You want to do something like:\n"
+                " \n"
+                " mkdir ${CMAKE_SOURCE_DIR}/build\n"
+                " cd ${CMAKE_SOURCE_DIR}/build\n"
+                " cmake -DCMAKE_BUILD_TYPE=Release ..\n"
+                " -----------------------------------------------------------\n")
+
+endif(insource OR insourcesubdir)
 endmacro()
 
 function(jams_extract_git_info)
@@ -56,15 +67,15 @@ function(jams_extract_git_info)
 endfunction()
 
 function(jams_set_fast_math target)
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-        set(FAST_MATH_OPT -Ofast -ffast-math)
-        target_compile_options(${target} PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${FAST_MATH_OPT}>)
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
+        set(JAMS_FAST_MATH_OPT "-Ofast -ffast-math" CACHE STRING "enabled compiler fast math options")
+        target_compile_options(${target} PRIVATE $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${JAMS_FAST_MATH_OPT}>)
     elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        set(FAST_MATH_OPT -fno-math-errno  -fno-rounding-math -fno-signaling-nans -fno-signed-zeros -fcx-limited-range)
-        target_compile_options(${target} PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${FAST_MATH_OPT}>)
+        set(JAMS_FAST_MATH_OPT "-fno-math-errno  -fno-rounding-math -fno-signaling-nans -fno-signed-zeros -fcx-limited-range" CACHE STRING "enabled compiler fast math options")
+        target_compile_options(${target} PRIVATE $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${JAMS_FAST_MATH_OPT}>)
     elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-        set(FAST_MATH_OPT -ftz -msse3 -no-prec-div -fast -fp-model fast=2)
-        target_compile_options(${target} PUBLIC $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${FAST_MATH_OPT}>)
+        set(JAMS_FAST_MATH_OPT "-ftz -msse3 -no-prec-div -fast -fp-model fast=2" CACHE STRING "enabled compiler fast math options")
+        target_compile_options(${target} PRIVATE $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${JAMS_FAST_MATH_OPT}>)
     endif()
 endfunction()
 
