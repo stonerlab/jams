@@ -5,8 +5,19 @@ macro(ensure_out_of_source_build)
      string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}"
      "${PARENTDIR}" insourcesubdir)
     if(insource OR insourcesubdir)
-        message(FATAL_ERROR "${CMAKE_PROJECT_NAME} requires an out of source build.")
-    endif(insource OR insourcesubdir)
+        message(FATAL_ERROR
+                " \n"
+                " -----------------------------------------------------------\n"
+                " CMAKE CONFIGURE ERROR\n"
+                " Building inside the project source folder is not allowed.\n"
+                " You want to do something like:\n"
+                " \n"
+                " mkdir ${CMAKE_SOURCE_DIR}/build\n"
+                " cd ${CMAKE_SOURCE_DIR}/build\n"
+                " cmake -DCMAKE_BUILD_TYPE=Release ..\n"
+                " -----------------------------------------------------------\n")
+
+endif(insource OR insourcesubdir)
 endmacro()
 
 function(jams_extract_git_info)
