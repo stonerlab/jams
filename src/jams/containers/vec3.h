@@ -221,13 +221,16 @@ inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& e
   return true;
 }
 
+// Returns the unit vector of `a`. For vectors with a length less than a small
+// value `epsilon` a zero vector is returned.
 template <typename T>
-inline auto unit_vector(const Vec<T, 3> &a) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
-  if (approximately_zero(a)) {
+inline auto unit_vector(const Vec<T, 3> &a, const T& epsilon = DBL_EPSILON) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
+  const double length = norm(a);
+  if (approximately_zero(length, epsilon)) {
     return a;
   }
 
-  return a / norm(a);
+  return a / length;
 }
 
 template <typename T>
