@@ -704,29 +704,22 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
       globals::gyro(i) = jams::landau_lifshitz_gyro_prefactor(material.gyro, material.alpha, material.moment);
     }
 
-    for (auto n = 0; n < 3; ++n) {
-      globals::s(i, n) = material.spin[n];
-    }
-
-    double s_len = sqrt(globals::s(i,0)*globals::s(i,0) + globals::s(i,1)*globals::s(i,1) + globals::s(i,2)*globals::s(i,2));
-
-    for (auto n = 0; n < 3; ++n) {
-        globals::s(i, n) = globals::s(i, n)/s_len;
-    }
+    Vec3 spin = material.spin;
 
     if (material.randomize) {
-      Vec3 s_init = uniform_random_sphere(rng);
-      for (auto n = 0; n < 3; ++n) {
-        globals::s(i, n) = s_init[n];
-      }
+      spin = uniform_random_sphere(rng);
     }
 
-    // lattice vacancies
-    if (material.moment == 0.0 || material.spin == Vec3{0.0, 0.0, 0.0}) {
-      globals::mus(i) = 0.0;
-      for (auto n = 0; n < 3; ++n) {
-        globals::s(i, n) = 0.0;
-      }
+    // lattice vacancies have a moment of zero and a spin vector of zero
+    if (material.moment == 0.0) {
+      spin = Vec3{0.0, 0.0, 0.0};
+    }
+
+    // ensure the spin is unit vector or a zero vector
+    spin = unit_vector(spin);
+
+    for (auto n = 0; n < 3; ++n) {
+        globals::s(i, n) = spin[n];
     }
   }
 
