@@ -23,6 +23,7 @@ using namespace std;
 void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings) {
   MetropolisMCSolver::initialize(settings);
   cv_potential_.reset(jams::CollectiveVariableFactory::create(settings));
+  gaussian_deposition_stride_ =jams::config_optional<int>(settings,"gaussian_deposition_stride",200);
 
 }
 
@@ -30,7 +31,7 @@ void MetadynamicsMetropolisSolver::run() {
   // update the total magnetisation to avoid the possibility of drift with accumulated errors
   MetropolisMCSolver::run();
 
-  if (iteration_ % 1000 == 0) {
+  if (iteration_ % gaussian_deposition_stride_ == 0) {
 	cv_potential_->insert_gaussian(1.0);
 	cv_potential_->output();
   }

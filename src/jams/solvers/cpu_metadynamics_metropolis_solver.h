@@ -37,6 +37,7 @@ public:
 
 private:
     std::unique_ptr<jams::CollectiveVariablePotential> cv_potential_;
+    int gaussian_deposition_stride_ ;
 };
 
 #endif //JAMS_SRC_JAMS_SOLVERS_CPU_METADYNAMICS_METROPOLIS_SOLVER_H_

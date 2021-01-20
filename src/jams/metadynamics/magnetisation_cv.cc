@@ -5,6 +5,8 @@
 #include <libconfig.h++>
 #include <fstream>
 #include <jams/interface/config.h>
+#include "jams/helpers/output.h"
+#include "jams/core/solver.h"
 
 namespace {
     std::vector<double> linear_space(const double &min,const double &max,const double &step) {
@@ -25,9 +27,22 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
   gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude" );
   gaussian_width_ = jams::config_required<double>(settings, "gaussian_width") ;
   histogram_step_size_ = jams::config_required<double>(settings,"histogram_step_size");
+  tempering_ = jams::config_optional<bool>(settings,"tempering", false);
+  bias_temperature_ =jams::config_optional(settings,"bias_temperature",0);
+  if (!tempering_){
+	sim_type_selected = "plain";
+  } else {
+    sim_type_selected = "tempered";
+  }
+  metadynamics_simulation_parameters.open(jams::output::full_path_filename(sim_type_selected+"_parameters.tsv"));
+  metadynamics_simulation_parameters << "iterations" << "	" << "gaussian_amplitude" << "	" << "energy_barrier" <<"\n";
+  potential.open(jams::output::full_path_filename(sim_type_selected+"_potential.tsv"));
+  potential << "N(s(x),t)" << "	" << "V(s(x),t)" <<"\n";
+
 
   sample_points_ = linear_space(-2.0, 2.0, histogram_step_size_);
   potential_.resize(sample_points_.size(), 0.0);
+  physical_region_indices();
 
   magnetisation_ = calculate_total_magnetisation();
 }
@@ -40,13 +55,18 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
 
 void jams::MagnetisationCollectiveVariable::insert_gaussian(
     const double &relative_amplitude) {
+void jams::MagnetisationCollectiveVariable::insert_gaussian(const double &relative_amplitude) {
   assert(sample_points_.size() == potential_.size());
 
   auto center = collective_coordinate();
+  gaussian_amplitude_used = gaussian_amplitude_;
+  if (tempering_){
+	gaussian_amplitude_used = amplitude_tempering(magnetisation_[2]);
+  }
 
   for (auto i = 0; i < sample_points_.size(); ++i) {
     potential_[i] += gaussian(
-        sample_points_[i], center, gaussian_amplitude_, gaussian_width_);
+		sample_points_[i], center, gaussian_amplitude_used, gaussian_width_);
   }
   // calculate the center position for a gaussian according to mirror boundary conditions
   double mirrored_center;
@@ -58,8 +78,8 @@ void jams::MagnetisationCollectiveVariable::insert_gaussian(
   assert(mirrored_center >= -2 && mirrored_center <= 2);
 
   // insert the mirrored gaussian
-  for (auto i = 0; i < sample_points_.size(); ++i) {
-    potential_[i] += relative_amplitude * gaussian(sample_points_[i], mirrored_center, gaussian_amplitude_, gaussian_width_);
+  for (auto i = 0; i < potential_.size(); ++i) {
+    potential_[i] += relative_amplitude * gaussian(sample_points_[i], mirrored_center, gaussian_amplitude_used, gaussian_width_);
   }
 
   // recalculate total magnetisation to avoid numerical drift
@@ -67,9 +87,11 @@ void jams::MagnetisationCollectiveVariable::insert_gaussian(
 }
 
 void jams::MagnetisationCollectiveVariable::output() {
-  for (auto i = 0; i < sample_points_.size(); ++i) {
-  //  of << i << " " << sample_points_[i] << " " << potential_[i] << "\n"; //TODO : fix
+
+    for (auto i = lower_limit_index; i < upper_limit_index +1; ++i) {
+	potential << sample_points_[i] <<"	"<< potential_[i] <<  "\n";
   }
+    metadynamics_simulation_parameters <<solver->iteration() <<"	"<< gaussian_amplitude_used << "	"<<histogram_energy_difference() << "\n";
 }
 
 double jams::MagnetisationCollectiveVariable::potential_difference(int i,
@@ -96,6 +118,7 @@ Vec3 jams::MagnetisationCollectiveVariable::calculate_total_magnetisation() {
 
 double jams::MagnetisationCollectiveVariable::interpolated_potential(
     const double &value) {
+double jams::MagnetisationCollectiveVariable::interpolated_potential(const double &value) {
   assert(is_sorted(begin(sample_points_), end(sample_points_)));
   assert(value > sample_points_.front() || approximately_equal(sample_points_.front(), value));
   assert(value < sample_points_.back() || approximately_equal(sample_points_.back(), value));
@@ -118,4 +141,31 @@ void jams::MagnetisationCollectiveVariable::spin_update(int i,
                                                         const Vec3 &spin_initial,
                                                         const Vec3 &spin_final) {
   magnetisation_ = magnetisation_ - spin_initial + spin_final;
+}
+double jams::MagnetisationCollectiveVariable::amplitude_tempering(const double m) {
+  return gaussian_amplitude_ * exp(-(interpolated_potential(m/globals::num_spins)) / (bias_temperature_ * kBoltzmann));
+}
+ double jams::MagnetisationCollectiveVariable::histogram_energy_difference() {
+  const auto margin = potential_.size()/4;
+  const double max = *max_element(potential_.begin()+margin, potential_.end() -margin);
+  const double min = *min_element(potential_.begin()+margin, potential_.end() -margin);
+  return max - min;
+}
+void jams::MagnetisationCollectiveVariable::physical_region_indices() {
+  double lower_limit = -1;
+  double upper_limit = 1;
+  for (double i = 0; i < sample_points_.size(); ++i ) {
+	if (approximately_equal(sample_points_[i],lower_limit)) {
+	  lower_limit_index= i;
+	  assert(sample_points_[i]<=lower_limit_index);
+	  break;
+	}}
+  for (double ii=lower_limit_index; ii<sample_points_.size(); ++ii){
+	if ( approximately_equal(upper_limit, sample_points_[ii])) {
+	  upper_limit_index = ii;
+	  assert(sample_points_[ii]<=upper_limit_index);
+	  break;
+	}}
+
+
 }
