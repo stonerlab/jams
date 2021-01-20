@@ -133,9 +133,22 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
   for (auto i = 0; i < globals::num_spins/2; ++i) {
     // randomly get two spins s1 != s2
     auto s1 = static_cast<int>(jams::instance().random_generator()(globals::num_spins));
+
+    // vacancy sites have spin components zero and mus zero and must be skipped
+    // to avoid creating a moment on these sites with the trial move
+    if (globals::mus(s1) == 0.0) {
+      continue;
+    }
+
     auto s2 = s1;
     while (s2 == s1) {
       s2 = static_cast<int>(jams::instance().random_generator()(globals::num_spins));
+    }
+
+    // vacancy sites have spin components zero and mus zero and must be skipped
+    // to avoid creating a moment on these sites with the trial move
+    if (globals::mus(s2) == 0.0) {
+      continue;
     }
 
     Vec3 s1_initial         = mc_spin_as_vec(s1);
