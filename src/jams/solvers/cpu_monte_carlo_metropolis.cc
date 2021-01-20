@@ -316,6 +316,12 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
         spin_index = jams::instance().random_generator()(globals::num_spins);
       }
 
+      // vacancy sites have spin components zero and mus zero and must be skipped
+      // to avoid creating a moment on these sites with the trial move
+      if (globals::mus(spin_index) == 0.0) {
+        return 0.0;
+      }
+
       auto s_initial = mc_spin_as_vec(spin_index);
       auto s_final = trial_spin_move(s_initial);
 
