@@ -86,11 +86,14 @@ void jams::MagnetisationCollectiveVariable::insert_gaussian(const double &relati
   magnetisation_ = calculate_total_magnetisation();
 }
 
-void jams::MagnetisationCollectiveVariable::output() {
 
-    for (auto i = lower_limit_index; i < upper_limit_index +1; ++i) {
-	potential << sample_points_[i] <<"	"<< potential_[i] <<  "\n";
-  }
+void jams::MagnetisationCollectiveVariable::output() {
+    potential.open(jams::output::full_path_filename(sim_type_selected+"_potential.tsv"));
+    potential << "N(s(x),t)" << "	" << "V(s(x),t)" <<"\n";
+     for (auto i = lower_limit_index; i < upper_limit_index +1; ++i) {
+	   potential << sample_points_[i] <<"	"<< potential_[i] <<  "\n";
+      }
+    potential.close();
     metadynamics_simulation_parameters <<solver->iteration() <<"	"<< gaussian_amplitude_used << "	"<<histogram_energy_difference() << "\n";
 }
 
@@ -116,8 +119,6 @@ Vec3 jams::MagnetisationCollectiveVariable::calculate_total_magnetisation() {
   return m;
 }
 
-double jams::MagnetisationCollectiveVariable::interpolated_potential(
-    const double &value) {
 double jams::MagnetisationCollectiveVariable::interpolated_potential(const double &value) {
   assert(is_sorted(begin(sample_points_), end(sample_points_)));
   assert(value > sample_points_.front() || approximately_equal(sample_points_.front(), value));
