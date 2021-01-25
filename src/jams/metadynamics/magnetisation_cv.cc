@@ -7,6 +7,7 @@
 #include <jams/interface/config.h>
 #include "jams/helpers/output.h"
 #include "jams/core/solver.h"
+#include <string>
 
 namespace {
     std::vector<double> linear_space(const double &min,const double &max,const double &step) {
@@ -44,17 +45,10 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
   potential_.resize(sample_points_.size(), 0.0);
   physical_region_indices();
 
+
   magnetisation_ = calculate_total_magnetisation();
 }
 
-//jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(
-//    const libconfig::Setting &settings) : MagnetisationCollectiveVariable() {
-//  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude" );
-//}
-
-
-void jams::MagnetisationCollectiveVariable::insert_gaussian(
-    const double &relative_amplitude) {
 void jams::MagnetisationCollectiveVariable::insert_gaussian(const double &relative_amplitude) {
   assert(sample_points_.size() == potential_.size());
 
