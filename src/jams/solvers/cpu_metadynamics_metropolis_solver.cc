@@ -90,6 +90,6 @@ void MetadynamicsMetropolisSolver::run() {
   }
 
 double MetadynamicsMetropolisSolver::tempering_amplitude() {
-  return exp(-cv_potential_->current_potential() / (tempering_bias_temperature_ * kBoltzmann));
+  return exp(-cv_potential_->current_potential()*kBohrMagneton / (tempering_bias_temperature_ * kBoltzmann));
 }
 

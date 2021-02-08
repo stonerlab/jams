@@ -25,7 +25,7 @@ namespace {
 
 jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const libconfig::Setting &settings) {
 
-  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude" );
+  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude" ) / kBohrMagneton;
   gaussian_width_ = jams::config_required<double>(settings, "gaussian_width") ;
   histogram_step_size_ = jams::config_required<double>(settings,"histogram_step_size");
 
@@ -76,7 +76,7 @@ void jams::MagnetisationCollectiveVariable::output() {
     potential.open(jams::output::full_path_filename(sim_type_selected+"_potential.tsv"));
     potential << "N(s(x),t)" << "	" << "V(s(x),t)" <<"\n";
      for (auto i = lower_limit_index; i < upper_limit_index +1; ++i) {
-	   potential << sample_points_[i] <<"	"<< potential_[i] <<  "\n";
+	   potential << sample_points_[i] <<"	"<< potential_[i] * kBohrMagneton <<  "\n";
       }
     potential.close();
     metadynamics_simulation_parameters <<solver->iteration() <<"	"<< gaussian_amplitude_used << "	"<<histogram_energy_difference() << "\n";
