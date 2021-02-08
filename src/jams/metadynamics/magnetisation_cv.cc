@@ -47,7 +47,6 @@ void jams::MagnetisationCollectiveVariable::insert_gaussian(const double &relati
   assert(sample_points_.size() == potential_.size());
 
   auto center = collective_coordinate();
-  auto center = collective_coordinates()[0];
 
   for (auto i = 0; i < sample_points_.size(); ++i) {
     potential_[i] += relative_amplitude * gaussian(sample_points_[i],

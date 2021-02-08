@@ -20,6 +20,10 @@ namespace jams {
         /// TODO: Define what the format of this file will be
         virtual void output() = 0;
 
+        /// Returns the value of the potential at the current coordinates of the
+        /// collective variable
+        virtual double current_potential() = 0;
+
         /// Calculate the difference in potential energy for the system when a
         /// single spin is changed from spin_initial to spin_final
         virtual double potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) = 0;
