@@ -56,6 +56,13 @@ void MetadynamicsMetropolisSolver::run() {
     // Only change the relative amplitude of the gaussian if we are using
     // tempered metadynamics.
     double relative_amplitude = do_tempering_ ? tempering_amplitude() : 1.0;
+
+    if (!metadynamics_stats.is_open()) {
+      metadynamics_stats.open(jams::output::full_path_filename("metad_stats.tsv"));
+    }
+
+    metadynamics_stats << iteration() << " " << tempering_amplitude() << "\n";
+
     cv_potential_->insert_gaussian(relative_amplitude);
     cv_potential_->output();
   }

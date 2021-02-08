@@ -39,6 +39,8 @@ private:
 
     double tempering_amplitude();
 
+    std::ofstream metadynamics_stats;
+
     std::unique_ptr<jams::CollectiveVariablePotential> cv_potential_;
     int gaussian_deposition_stride_;
 
