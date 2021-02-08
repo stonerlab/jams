@@ -141,16 +141,16 @@ void jams::MagnetisationCollectiveVariable::spin_update(int i,
   return max - min;
 }
 void jams::MagnetisationCollectiveVariable::physical_region_indices() {
-  double lower_limit = -1;
-  double upper_limit = 1;
-  for (double i = 0; i < sample_points_.size(); ++i ) {
-	if (approximately_equal(sample_points_[i],lower_limit)) {
+  auto lower_limit = -1;
+  auto upper_limit = 1;
+  for (auto i = 0; i < sample_points_.size(); ++i ) {
+	if (approximately_equal(sample_points_[i],double(lower_limit))) {
 	  lower_limit_index= i;
 	  assert(sample_points_[i]<=lower_limit_index);
 	  break;
 	}}
-  for (double ii=lower_limit_index; ii<sample_points_.size(); ++ii){
-	if ( approximately_equal(upper_limit, sample_points_[ii])) {
+  for (auto ii=lower_limit_index; ii<sample_points_.size(); ++ii){
+	if ( approximately_equal(double(upper_limit), sample_points_[ii])) {
 	  upper_limit_index = ii;
 	  assert(sample_points_[ii]<=upper_limit_index);
 	  break;
