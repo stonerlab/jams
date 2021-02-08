@@ -27,7 +27,6 @@ jams::MzOrthogonalMzCV::MzOrthogonalMzCV(const libconfig::Setting &settings) {
 
   gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude");
   gaussian_width_ = jams::config_required<double>(settings, "gaussian_width");
-  bias_temp_ = jams::config_required<double>(settings, "bias_temperature");
   histogram_step_size_ = jams::config_required<double>(settings, "histogram_step_size");
 
   sample_points_mz_ = linear_space(-1.0, 1.0, histogram_step_size_);
@@ -42,7 +41,7 @@ jams::MzOrthogonalMzCV::MzOrthogonalMzCV(const libconfig::Setting &settings) {
 void jams::MzOrthogonalMzCV::output() {
 
   if (solver->iteration() % 1000 == 0) {
-	metadynamics_simulation_parameters << solver->iteration() << "	" << energy_barrier_calculation() << "	" << tempered_amplitude_<< "\n";
+	metadynamics_simulation_parameters << solver->iteration() << "	" << energy_barrier_calculation() << "\n";
   }
 
   if (solver->iteration() % 100000 == 0) {
@@ -55,6 +54,10 @@ void jams::MzOrthogonalMzCV::output() {
 	}
 	potential.close();
   }
+}
+
+double jams::MzOrthogonalMzCV::current_potential() {
+  return interpolated_2d_potential(magnetisation_[2] / globals::num_spins, mz_perpendicular(magnetisation_));
 }
 
 double jams::MzOrthogonalMzCV::potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
@@ -81,10 +84,9 @@ void jams::MzOrthogonalMzCV::spin_update(int i, const Vec3 &spin_initial, const 
 
 void jams::MzOrthogonalMzCV::insert_gaussian(const double &relative_amplitude) {
   mz_perpendicular_ = mz_perpendicular(magnetisation_);
-  tempered_amplitude_ =amplitude_tempering(magnetisation_[2]/globals::num_spins, mz_perpendicular_); //TODO: doesnt scale down.
   for (int i = 0; i < sample_points_mz_.size(); ++i) {
 	for (int ii = 0; ii < sample_points_mz_perpendicular_.size(); ++ii) {
-	  potential_2d_[i][ii] += gaussian_2D(magnetisation_[2] / globals::num_spins,sample_points_mz_[i],mz_perpendicular_,sample_points_mz_perpendicular_[ii],tempered_amplitude_);
+	  potential_2d_[i][ii] += relative_amplitude * gaussian_2D(magnetisation_[2] / globals::num_spins,sample_points_mz_[i],mz_perpendicular_,sample_points_mz_perpendicular_[ii], gaussian_amplitude_);
 
 	}
   }
@@ -137,11 +139,6 @@ Vec3 jams::MzOrthogonalMzCV::calculate_total_magnetisation() {
 	}
   }
   return m;
-}
-
-double jams::MzOrthogonalMzCV::amplitude_tempering(const double &m, const double &m_p) {
-  return gaussian_amplitude_ * exp(-(interpolated_2d_potential(m, m_p)) / (bias_temp_ * kBoltzmann));
-
 }
 
 double jams::MzOrthogonalMzCV::mz_perpendicular(Vec3 &magnetisation) {

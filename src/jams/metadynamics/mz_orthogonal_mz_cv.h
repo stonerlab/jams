@@ -22,6 +22,7 @@ class MzOrthogonalMzCV : public CollectiveVariablePotential {
   void output() override;
 
   double potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+    double current_potential() override;
 
   void spin_update(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
 
@@ -31,8 +32,6 @@ class MzOrthogonalMzCV : public CollectiveVariablePotential {
   double interpolated_2d_potential( const double& m, const double m_p);
 
   static Vec3 calculate_total_magnetisation();
-
-  double amplitude_tempering (const double &m, const double &m_p);
 
   static inline double mz_perpendicular(Vec3 &magnetisation);
 
@@ -45,8 +44,6 @@ class MzOrthogonalMzCV : public CollectiveVariablePotential {
 
    double gaussian_amplitude_;
    double gaussian_width_;
-  double tempered_amplitude_;
-  double bias_temp_;
   double histogram_step_size_;
 
   std::vector<double> sample_points_mz_;

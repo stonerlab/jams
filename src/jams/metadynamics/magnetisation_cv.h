@@ -15,6 +15,8 @@ namespace jams {
 
         void output() override;
 
+        double current_potential() override;
+
         double potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
 
         void spin_update(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
@@ -23,8 +25,6 @@ namespace jams {
         // in this case this is 1D but could be multi-dimensional
         /// Returns the current value of the collective coordinate
         double collective_coordinate();
-
-        double amplitude_tempering(const double m);
 
         double interpolated_potential(const double &value);
 
@@ -39,8 +39,6 @@ namespace jams {
         double gaussian_amplitude_;
         double gaussian_width_;
         double histogram_step_size_;
-        bool tempering_ ;
-        double bias_temperature_ ;
 	    double gaussian_amplitude_used;
 	    std::string sim_type_selected;
 

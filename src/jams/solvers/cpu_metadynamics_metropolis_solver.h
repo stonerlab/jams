@@ -36,8 +36,14 @@ public:
                      const Vec3 &final_spin) override;
 
 private:
+
+    double tempering_amplitude();
+
     std::unique_ptr<jams::CollectiveVariablePotential> cv_potential_;
-    int gaussian_deposition_stride_ ;
+    int gaussian_deposition_stride_;
+
+    bool do_tempering_ = false;
+    double tempering_bias_temperature_;
 };
 
 #endif //JAMS_SRC_JAMS_SOLVERS_CPU_METADYNAMICS_METROPOLIS_SOLVER_H_
