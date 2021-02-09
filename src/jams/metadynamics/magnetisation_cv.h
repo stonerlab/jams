@@ -42,8 +42,8 @@ namespace jams {
 	    double gaussian_amplitude_used;
 	    std::string sim_type_selected;
 
-	    double lower_limit_index = 0.0;
-	    double upper_limit_index = 0.0;
+	    int lower_limit_index = 0;
+	    int upper_limit_index = 0;
 
         std::vector<double> sample_points_;
         std::vector<double> potential_;
