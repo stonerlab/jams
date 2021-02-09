@@ -51,32 +51,28 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
   magnetisation_ = calculate_total_magnetisation();
 }
 
-void jams::MagnetisationCollectiveVariable::insert_gaussian(const double &relative_amplitude) {
+void jams::MagnetisationCollectiveVariable::insert_gaussian(
+    const double &relative_amplitude) {
   assert(sample_points_.size() == potential_.size());
 
-  auto center = collective_coordinate();
-
-  for (auto i = 0; i < sample_points_.size(); ++i) {
-    potential_[i] += relative_amplitude * gaussian(sample_points_[i],
-                                                   center, gaussian_amplitude_, gaussian_width_);
-  }
-  // calculate the center position for a gaussian according to mirror boundary conditions
-  double mirrored_center;
-  if (center >=0) {
-    mirrored_center = 2 - center;
-  } else {
-    mirrored_center = -2 - center;
-  }
-  assert(mirrored_center >= -2 && mirrored_center <= 2);
-
-  // insert the mirrored gaussian
-  for (auto i = 0; i < potential_.size(); ++i) {
-    potential_[i] += relative_amplitude * gaussian(sample_points_[i],
-                                                   mirrored_center, gaussian_amplitude_, gaussian_width_);
-  }
-
-  // recalculate total magnetisation to avoid numerical drift
+  // recalculate total magnetisation to avoid numerical drift from the
+  // addition and subtractions in spin_update()
   magnetisation_ = calculate_total_magnetisation();
+
+  double cv_center = collective_variable();
+
+  // calculate the center position for a gaussian according to mirror boundary conditions
+  double mirrored_center = cv_center >= 0.0 ? 2.0 - cv_center : -2.0 - cv_center;
+  assert(mirrored_center >= -2.0 && mirrored_center <= 2.0);
+
+  // insert gaussians into the discretised potential
+  for (auto i = 0; i < potential_.size(); ++i) {
+    for (const auto &center : {cv_center, mirrored_center}) {
+      potential_[i] += gaussian(sample_points_[i], center,
+                                gaussian_amplitude_ * relative_amplitude,
+                                gaussian_width_);
+    }
+  }
 }
 
 
@@ -84,7 +80,7 @@ void jams::MagnetisationCollectiveVariable::output() {
     std::ofstream potential_output_file(jams::output::full_path_filename("potential.tsv"));
     potential_output_file << "# m_z metad_potential_joules\n";
 
-    for (auto i = lower_limit_index; i < upper_limit_index +1; ++i) {
+    for (auto i = lower_limit_index; i < upper_limit_index + 1; ++i) {
       potential_output_file << sample_points_[i] << "	" << potential_[i] * kBohrMagneton << "\n";
     }
     potential_output_file.close();
