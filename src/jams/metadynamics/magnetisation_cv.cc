@@ -126,8 +126,8 @@ double jams::MagnetisationCollectiveVariable::interpolated_potential(const doubl
   assert(value > sample_points_.front() || approximately_equal(sample_points_.front(), value));
   assert(value < sample_points_.back() || approximately_equal(sample_points_.back(), value));
   assert(sample_points_.size() == potential_.size());
-  // TODO: Test if this gives the correct points for the interpolation
-  auto lower = floor((value - sample_points_[0]) / (sample_points_[1] - sample_points_[0]));
+
+  auto lower = floor((value - sample_points_[0]) / histogram_step_size_);
   auto upper = lower+1;
   assert(lower < upper);
   //cout << "Indices Lower:" << lower <<endl; //need to check why why and why
