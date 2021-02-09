@@ -133,7 +133,7 @@ double jams::MagnetisationCollectiveVariable::interpolated_potential(const doubl
                                            sample_points_[upper], potential_[upper]);
 }
 
-double jams::MagnetisationCollectiveVariable::collective_coordinate() {
+double jams::MagnetisationCollectiveVariable::collective_variable() {
   return magnetisation_[2] / globals::num_spins;
 }
 

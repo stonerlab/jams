@@ -24,7 +24,7 @@ namespace jams {
     private:
         // in this case this is 1D but could be multi-dimensional
         /// Returns the current value of the collective coordinate
-        double collective_coordinate();
+        double collective_variable();
 
         double interpolated_potential(const double &value);
 
