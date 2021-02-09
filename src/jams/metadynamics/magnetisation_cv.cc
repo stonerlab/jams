@@ -25,8 +25,18 @@ namespace {
 
 jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const libconfig::Setting &settings) {
 
+  // ---------------------------------------------------------------------------
+  // config settings
+  // ---------------------------------------------------------------------------
+
+  // maximum amplitude of inserted gaussians in Joules
+  // (this can be reduced by tempering in the metadynamics solver)
   gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude" ) / kBohrMagneton;
+
+  // width of the gaussian in units of mz
   gaussian_width_ = jams::config_required<double>(settings, "gaussian_width") ;
+
+  // discretisation width of the metadynamics potential landscape in units of mz
   histogram_step_size_ = jams::config_required<double>(settings,"histogram_step_size");
 
   metadynamics_simulation_parameters.open(jams::output::full_path_filename(sim_type_selected+"_parameters.tsv"));
