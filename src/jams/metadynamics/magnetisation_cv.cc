@@ -52,6 +52,16 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
   histogram_step_size_ = jams::config_required<double>(settings,"histogram_step_size");
 
   // ---------------------------------------------------------------------------
+  // validate settings
+  // ---------------------------------------------------------------------------
+
+  // If histogram_step_size does not divide evenly into the range -1 -> 1 then
+  // we will be missing either the start of the end point of the physical range.
+  if (!approximately_equal(std::remainder(2.0, histogram_step_size_), 0.0)) {
+    throw std::runtime_error("Invalid value of histogram_step_size: "
+                             "histogram_step_size must divide into 2.0 with no remainder");
+  }
+
   // ---------------------------------------------------------------------------
 
   sample_points_ = linear_space(-2.0, 2.0, histogram_step_size_);
