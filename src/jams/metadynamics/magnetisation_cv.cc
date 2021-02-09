@@ -115,8 +115,7 @@ void jams::MagnetisationCollectiveVariable::output() {
       potential_difference_output_file_
           << "# iteration metad_potential_diff_joules" << "\n";
     }
-
-    potential_difference_output_file_ << solver->iteration() << "	" << histogram_energy_difference() << "\n";
+    
     potential_difference_output_file_ << solver->iteration() << "	" << histogram_energy_difference()*kBohrMagneton << "\n";
 }
 
