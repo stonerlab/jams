@@ -8,6 +8,7 @@
 #include "jams/helpers/output.h"
 #include "jams/core/solver.h"
 #include <string>
+#include <algorithm>
 
 namespace {
     std::vector<double> linear_space(const double &min,const double &max,const double &step) {
@@ -20,6 +21,17 @@ namespace {
       }
 
       return space;
+    }
+
+    int find_equal_index(const std::vector<double>& container, const double& value) {
+      assert(is_sorted(begin(container), end(container)));
+      auto result = std::find_if(container.begin(), container.end(),
+                                   [&](double x){ return approximately_equal(x, value); });
+
+      // failed to find the index
+      assert (result != container.end());
+
+      return result - container.begin();
     }
 }
 
@@ -40,11 +52,14 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
   histogram_step_size_ = jams::config_required<double>(settings,"histogram_step_size");
 
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   sample_points_ = linear_space(-2.0, 2.0, histogram_step_size_);
+  lower_limit_index = find_equal_index(sample_points_, -1.0);
+  upper_limit_index = find_equal_index(sample_points_, 1.0);
+
   potential_.resize(sample_points_.size(), 0.0);
-  physical_region_indices();
-  
+
   magnetisation_ = calculate_total_magnetisation();
 }
 
@@ -132,7 +147,7 @@ double jams::MagnetisationCollectiveVariable::interpolated_potential(const doubl
   auto lower = floor((value - sample_points_[0]) / histogram_step_size_);
   auto upper = lower+1;
   assert(lower < upper);
-  //cout << "Indices Lower:" << lower <<endl; //need to check why why and why
+
   return jams::maths::linear_interpolation(value,
                                            sample_points_[lower], potential_[lower],
                                            sample_points_[upper], potential_[upper]);
@@ -153,22 +168,4 @@ void jams::MagnetisationCollectiveVariable::spin_update(int i,
   const double max = *max_element(potential_.begin()+margin, potential_.end() -margin);
   const double min = *min_element(potential_.begin()+margin, potential_.end() -margin);
   return max - min;
-}
-void jams::MagnetisationCollectiveVariable::physical_region_indices() {
-  auto lower_limit = -1;
-  auto upper_limit = 1;
-  for (auto i = 0; i < sample_points_.size(); ++i ) {
-	if (approximately_equal(sample_points_[i],double(lower_limit))) {
-	  lower_limit_index= i;
-	  assert(sample_points_[i]<=lower_limit_index);
-	  break;
-	}}
-  for (auto ii=lower_limit_index; ii<sample_points_.size(); ++ii){
-	if ( approximately_equal(double(upper_limit), sample_points_[ii])) {
-	  upper_limit_index = ii;
-	  assert(sample_points_[ii]<=upper_limit_index);
-	  break;
-	}}
-
-
 }
