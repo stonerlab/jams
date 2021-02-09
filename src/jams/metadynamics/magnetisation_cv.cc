@@ -39,10 +39,8 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
   // discretisation width of the metadynamics potential landscape in units of mz
   histogram_step_size_ = jams::config_required<double>(settings,"histogram_step_size");
 
-  metadynamics_simulation_parameters.open(jams::output::full_path_filename(sim_type_selected+"_parameters.tsv"));
+  metadynamics_simulation_parameters.open(jams::output::full_path_filename("parameters.tsv"));
   metadynamics_simulation_parameters << "iterations" << "	" << "gaussian_amplitude" << "	" << "energy_barrier" <<"\n";
-  potential.open(jams::output::full_path_filename(sim_type_selected+"_potential.tsv"));
-  potential << "N(s(x),t)" << "	" << "V(s(x),t)" <<"\n";
 
 
   sample_points_ = linear_space(-2.0, 2.0, histogram_step_size_);
@@ -83,14 +81,17 @@ void jams::MagnetisationCollectiveVariable::insert_gaussian(const double &relati
 
 
 void jams::MagnetisationCollectiveVariable::output() {
-    potential.open(jams::output::full_path_filename(sim_type_selected+"_potential.tsv"));
-    potential << "N(s(x),t)" << "	" << "V(s(x),t)" <<"\n";
-     for (auto i = lower_limit_index; i < upper_limit_index +1; ++i) {
-	   potential << sample_points_[i] <<"	"<< potential_[i] * kBohrMagneton <<  "\n";
-      }
-    potential.close();
+    std::ofstream potential_output_file(jams::output::full_path_filename("potential.tsv"));
+    potential_output_file << "# m_z metad_potential_joules\n";
+
+    for (auto i = lower_limit_index; i < upper_limit_index +1; ++i) {
+      potential_output_file << sample_points_[i] << "	" << potential_[i] * kBohrMagneton << "\n";
+    }
+    potential_output_file.close();
+
     metadynamics_simulation_parameters <<solver->iteration() <<"	"<< gaussian_amplitude_used << "	"<<histogram_energy_difference() << "\n";
 }
+
 
 double jams::MagnetisationCollectiveVariable::current_potential() {
   return interpolated_potential(magnetisation_[2] / globals::num_spins);
