@@ -39,15 +39,12 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
   // discretisation width of the metadynamics potential landscape in units of mz
   histogram_step_size_ = jams::config_required<double>(settings,"histogram_step_size");
 
-  metadynamics_simulation_parameters.open(jams::output::full_path_filename("parameters.tsv"));
-  metadynamics_simulation_parameters << "iterations" << "	" << "gaussian_amplitude" << "	" << "energy_barrier" <<"\n";
-
+  // ---------------------------------------------------------------------------
 
   sample_points_ = linear_space(-2.0, 2.0, histogram_step_size_);
   potential_.resize(sample_points_.size(), 0.0);
   physical_region_indices();
-
-
+  
   magnetisation_ = calculate_total_magnetisation();
 }
 
@@ -85,7 +82,16 @@ void jams::MagnetisationCollectiveVariable::output() {
     }
     potential_output_file.close();
 
-    metadynamics_simulation_parameters <<solver->iteration() <<"	"<< gaussian_amplitude_used << "	"<<histogram_energy_difference() << "\n";
+
+    if (!potential_difference_output_file_.is_open()) {
+      // open the output file to track the potential difference
+      potential_difference_output_file_.open(
+          jams::output::full_path_filename("potential_difference.tsv"));
+      potential_difference_output_file_
+          << "# iteration metad_potential_diff_joules" << "\n";
+    }
+
+    potential_difference_output_file_ << solver->iteration() << "	" << histogram_energy_difference() << "\n";
 }
 
 

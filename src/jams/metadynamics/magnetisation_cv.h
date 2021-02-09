@@ -39,7 +39,6 @@ namespace jams {
         double gaussian_amplitude_;
         double gaussian_width_;
         double histogram_step_size_;
-	    double gaussian_amplitude_used;
 
 	    int lower_limit_index = 0;
 	    int upper_limit_index = 0;
@@ -47,7 +46,7 @@ namespace jams {
         std::vector<double> sample_points_;
         std::vector<double> potential_;
 
-	  std::ofstream metadynamics_simulation_parameters;
+	  std::ofstream potential_difference_output_file_;
 
     };
 }
