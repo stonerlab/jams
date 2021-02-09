@@ -122,7 +122,9 @@ Vec3 jams::MagnetisationCollectiveVariable::calculate_total_magnetisation() {
 }
 
 double jams::MagnetisationCollectiveVariable::interpolated_potential(const double &value) {
-  assert(is_sorted(begin(sample_points_), end(sample_points_)));
+  // EXPENSIVE assert to catch assumption of sorted sample_points_
+  //  assert(is_sorted(begin(sample_points_), end(sample_points_)));
+
   assert(value > sample_points_.front() || approximately_equal(sample_points_.front(), value));
   assert(value < sample_points_.back() || approximately_equal(sample_points_.back(), value));
   assert(sample_points_.size() == potential_.size());
