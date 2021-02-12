@@ -14,5 +14,5 @@ jams::CollectiveVariableFactory::create(const libconfig::Setting &settings) {
   DEFINED_METADYNAMICS_CV("magnetisation", MagnetisationCollectiveVariable, settings);
   DEFINED_METADYNAMICS_CV("mz_orthogonal_mz",MzOrthogonalMzCV,settings);
 
-  throw std::runtime_error("unknown metadynamics collective variable: " + std::string(settings["collective_variable"]));
+  throw std::runtime_error("unknown metadynamics collective variable: " + std::string(settings["collective_variable"].c_str()));
 }
