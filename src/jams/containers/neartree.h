@@ -39,13 +39,27 @@ namespace jams {
     class NearTree {
     public:
 
+        friend void swap(NearTree<T, FuncType>& first, NearTree<T, FuncType>& second);
+
+        NearTree& operator=(NearTree other) {
+          swap(*this, other);
+          return *this;
+        }
+
+        NearTree(NearTree&& other) noexcept
+        : NearTree(other.norm_functor) {
+          swap(*this, other);
+        }
+
         explicit NearTree(FuncType func);
 
-        NearTree(FuncType func, std::vector<T> items, bool randomize = true);
+        NearTree(FuncType func, const std::vector<T>& items, bool randomize = true);
 
         ~NearTree();
 
         void insert(const T &t);
+
+        void insert(std::vector<T> items, bool randomize = true);
 
         bool nearest_neighbour(const double &radius, T &closest, const T &origin) const;
 
@@ -104,18 +118,9 @@ namespace jams {
     //
     template<typename T,
         typename FuncType>
-    NearTree<T, FuncType>::NearTree(FuncType func, std::vector<T> items, bool randomize)
+    NearTree<T, FuncType>::NearTree(FuncType func, const std::vector<T>& items, bool randomize)
         : norm_functor(func) {
-      if (randomize) {
-        // Near tree lookups are MUCH more efficient (an order of magnitude)
-        // if the inserted positions are randomized, rather than regular in
-        // space. Therefore, by default we will randomize the insertions from
-        // a vector constructor.
-        std::random_shuffle(items.begin(), items.end());
-      }
-      for (auto &x : items) {
-        insert(x);
-      }
+      insert(items, randomize);
     }
 
     //
@@ -138,6 +143,19 @@ namespace jams {
 
       max_distance_left = -1;
       max_distance_right = -1;
+    }
+
+    template<typename T, typename FuncType>
+    void NearTree<T, FuncType>::insert(std::vector<T> items, bool randomize) {
+      if (randomize) {
+        // Near tree lookups are MUCH more efficient (an order of magnitude)
+        // if the inserted positions are randomized, rather than regular in
+        // space. Therefore, by default we will randomize the insertions.
+        std::random_shuffle(items.begin(), items.end());
+      }
+      for (auto &x : items) {
+        insert(x);
+      }
     }
 
     //
@@ -410,6 +428,18 @@ namespace jams {
       }
       #endif
       return num_neighbours;
+    }
+
+    template<typename T, class FuncType>
+    void swap(NearTree<T, FuncType>& first, NearTree<T, FuncType>& second) {
+      using std::swap;
+
+      swap(first.left, second.left);
+      swap(first.right, second.right);
+      swap(first.left_branch, second.left_branch);
+      swap(first.max_distance_left, second.max_distance_left);
+      swap(first.max_distance_right, second.max_distance_right);
+      swap(first.norm_functor, second.norm_functor);
     }
 }
 
