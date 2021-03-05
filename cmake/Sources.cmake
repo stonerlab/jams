@@ -40,6 +40,7 @@ set(JAMS_SOURCES_CXX
         interface/fft.cc
         interface/system.cc
         lattice/minimum_image.cc
+        lattice/interaction_neartree.cc
         monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc

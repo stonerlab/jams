@@ -3,6 +3,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
+#include "jams/lattice/minimum_image.h"
 
 #include "cuda_dipole_bruteforce.h"
 #include "cuda_dipole_bruteforce_kernel.cuh"
@@ -110,24 +111,48 @@ void CudaDipoleBruteforceHamiltonian::calculate_energies() {
 
 Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i) {
   using namespace globals;
+  using namespace std::placeholders;
 
-  const auto neighbours = lattice->atom_neighbours(i, r_cutoff_);
+
+  // We will use Smith's algorithm for the minimum image convention below which is only valid for
+  // displacements less than the inradius of the cell. Our r_cutoff_ is checked at runtime in the
+  // constructor for this condition which allows us to turn off the safety check in Smith's algorithm
+  // (an optimisation). We assert the condition here again for safety.
+  assert(r_cutoff_ < lattice->max_interaction_radius());
+
+  auto displacement = [](const int i, const int j)->Vec3 {
+      return jams::minimum_image_smith_method(
+          lattice->get_supercell().matrix(),
+          lattice->get_supercell().inverse_matrix(),
+          lattice->get_supercell().periodic(),
+          lattice->atom_position(i),
+          lattice->atom_position(j));
+  };
+
+  const auto r_cut_squared = r_cutoff_ * r_cutoff_;
   const double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
-  const Vec3 r_i = lattice->atom_position(i);
-  // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
-  // work is already done to find the neighbours.
 
-  Vec3 field = {0.0, 0.0, 0.0};
-  for (const auto & neighbour : neighbours) {
-    const int j = neighbour.second;
+  double hx = 0, hy = 0, hz = 0;
+#if HAS_OMP
+#pragma omp parallel for reduction(+:hx, hy, hz)
+#endif
+  for (auto j = 0; j < globals::num_spins; ++j) {
     if (j == i) continue;
 
     const Vec3 s_j = {s(j,0), s(j,1), s(j,2)};
-    const Vec3 r_ij =  neighbour.first - r_i;
 
-    field += w0 * mus(j) * (3.0 * r_ij * dot(s_j, r_ij) - (norm(r_ij)*norm(r_ij)) * s_j) / pow5(norm(r_ij));
+    Vec3 r_ij = displacement(i, j);
+
+    const auto r_abs_sq = norm_sq(r_ij);
+
+    if (definately_greater_than(r_abs_sq, r_cut_squared)) continue;
+
+    hx += w0 * mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[0]) / pow5(norm(r_ij));
+    hy += w0 * mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[1]) / pow5(norm(r_ij));;
+    hz += w0 * mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[2]) / pow5(norm(r_ij));;
   }
-  return field;
+
+  return {hx, hy, hz};
 }
 
 void CudaDipoleBruteforceHamiltonian::calculate_fields() {

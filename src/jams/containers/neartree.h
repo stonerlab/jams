@@ -5,6 +5,7 @@
 #include <stack>
 #include <cfloat>
 #include <algorithm>
+#include <vector>
 
 // Toggles whether to do safe floating point comparisons with an 'epslion' or
 // use the trivial >=, <= operators
@@ -39,7 +40,8 @@ namespace jams {
     class NearTree {
     public:
 
-        friend void swap(NearTree<T, FuncType>& first, NearTree<T, FuncType>& second);
+        template<typename FType, class FFuncType>
+        friend void swap(NearTree<FType, FFuncType>& first, NearTree<FType, FFuncType>& second);
 
         NearTree& operator=(NearTree other) {
           swap(*this, other);

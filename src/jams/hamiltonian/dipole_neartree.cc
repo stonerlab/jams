@@ -1,3 +1,4 @@
+#include <jams/maths/parallelepiped.h>
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
@@ -5,36 +6,37 @@
 #include "jams/core/lattice.h"
 
 #include "jams/hamiltonian/dipole_neartree.h"
+#include "jams/interface/openmp.h"
 
 DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
-: Hamiltonian(settings, size){
+: Hamiltonian(settings, size),
+  r_cutoff_(jams::config_required<double>(settings, "r_cutoff")),
+  neartree_(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), r_cutoff_)
+{
 
-  r_cutoff_ = jams::config_required<double>(settings, "r_cutoff");
   std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
-    if (r_cutoff_ > lattice->max_interaction_radius()) {
-      throw std::runtime_error(
-          "r_cutoff is less than the maximum permitted interaction in the system"
-          " (" + std::to_string(lattice->max_interaction_radius())  + ")");
-    }
+  if (r_cutoff_ > lattice->max_interaction_radius()) {
+    throw std::runtime_error(
+        "r_cutoff is less than the maximum permitted interaction in the system"
+        " (" + std::to_string(lattice->max_interaction_radius())  + ")");
+  }
 
-    lattice->generate_optimised_near_tree();
+  neartree_.insert_sites(lattice->atom_cartesian_positions());
 
-    int num_neighbours = 0;
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      num_neighbours += lattice->num_neighbours(i, r_cutoff_);
-    }
 
-    std::cout << "  num_neighbours " << num_neighbours << "\n";
+  std::cout << "  near tree size " << neartree_.size() << "\n";
+  std::cout << "  near tree memory " << memory_in_natural_units(neartree_.memory()) << "\n";
 }
 
 
 double DipoleNearTreeHamiltonian::calculate_total_energy() {
     double e_total = 0.0;
 
-       for (auto i = 0; i < globals::num_spins; ++i) {
-           e_total += calculate_energy(i);
-       }
+    #pragma omp parallel for shared(globals::num_spins) default(none) reduction(+: e_total)
+    for (auto i = 0; i < globals::num_spins; ++i) {
+       e_total += calculate_energy(i);
+    }
 
     return e_total;
 }
@@ -56,9 +58,10 @@ double DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const Vec3 
 }
 
 void DipoleNearTreeHamiltonian::calculate_energies() {
-    for (auto i = 0; i < globals::num_spins; ++i) {
-        energy_(i) = calculate_energy(i);
-    }
+  #pragma omp parallel for shared(globals::num_spins) default(none)
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    energy_(i) = calculate_energy(i);
+  }
 }
 
 
@@ -67,9 +70,11 @@ Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i)
 {
   using namespace globals;
 
-  const auto neighbours = lattice->atom_neighbours(i, r_cutoff_);
-  const double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
   const Vec3 r_i = lattice->atom_position(i);
+
+  const auto neighbours = neartree_.neighbours(r_i, r_cutoff_);
+
+  const double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
   // work is already done to find the neighbours.
 
@@ -88,7 +93,8 @@ Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i)
 
 
 void DipoleNearTreeHamiltonian::calculate_fields() {
-    for (auto i = 0; i < globals::num_spins; ++i) {
+  OMP_PARALLEL_FOR
+  for (auto i = 0; i < globals::num_spins; ++i) {
         const auto field = calculate_field(i);
 
         for (auto n : {0,1,2}) {

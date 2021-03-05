@@ -5,6 +5,7 @@
 #include "jams/core/lattice.h"
 
 #include "jams/hamiltonian/dipole_neighbour_list.h"
+#include <jams/lattice/interaction_neartree.h>
 
 using namespace std;
 
@@ -48,16 +49,20 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
     };
   }
 
+  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), r_cutoff_);
+  neartree.insert_sites(lattice->atom_cartesian_positions());
+
   std::size_t max_memory_per_tensor = (sizeof(std::vector<std::pair<Vec3,int>>*) + sizeof(Vec3) + sizeof(int));
 
   std::cout << "  dipole neighbour list memory (estimate) "
-            << memory_in_natural_units(max_memory_per_tensor * globals::num_spins * lattice->num_neighbours(0, r_cutoff_)) << std::endl;
+            << memory_in_natural_units(max_memory_per_tensor * globals::num_spins * neartree.num_neighbours(lattice->atom_position(0), r_cutoff_)) << std::endl;
+
 
   int num_neighbours = 0;
   neighbour_list_.resize(globals::num_spins);
   for (auto i = 0; i < neighbour_list_.size(); ++i) {
     // All neighbours of i within the r_cutoff distance
-    auto all_neighbours = lattice->atom_neighbours(i, r_cutoff_);
+    auto all_neighbours = neartree.neighbours(lattice->atom_position(i), r_cutoff_);
 
     // Select only the neighbours which obey the predicate
     for (const auto& nbr : all_neighbours) {
