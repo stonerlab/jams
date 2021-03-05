@@ -73,9 +73,11 @@ public:
     int atom_material_id(const int &i) const;           // integer index of the material
     std::string atom_material_name(const int &i) const; // name of the material of atom i
     const Vec3 & atom_position(const int &i) const;             // cartesian position in the supercell
+    const Vec3 & atom_fractional_position(const int &i) const;             // cartesian position in the supercell
+
+    const std::vector<Vec3>& atom_cartesian_positions() const;
+
     unsigned atom_motif_position(const int &i) const;   // integer index within the motif
-    std::vector<std::pair<Vec3, int>> atom_neighbours(const int &i, const double &r_cutoff) const;
-    int num_neighbours(const int &i, const double &r_cutoff) const;
 
     int atom_unitcell(const int &i) const;
 
@@ -126,14 +128,7 @@ public:
 
     bool apply_boundary_conditions(int &a, int &b, int &c) const;
 
-    bool apply_boundary_conditions(Vec4i &pos) const;
-
-
     const Vec3i &kspace_size() const;
-
-    // regenerates the the near tree to include only 'reachable' image spins
-    // but it is more time consuming to construct than generate_near_tree()
-    void generate_optimised_near_tree();
 
 private:
     void read_materials_from_config(const libconfig::Setting &settings);
@@ -149,8 +144,6 @@ private:
 
     void init_unit_cell(const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings);
 
-    void generate_near_tree();
-
     void generate_supercell(const libconfig::Setting &lattice_settings);
 
     void global_rotation(const Mat3 &rotation_matrix);
@@ -158,11 +151,6 @@ private:
     void global_reorientation(const Vec3 &reference, const Vec3 &vector);
 
     void calc_symmetry_operations();
-
-    using NearTreeFunctorType = std::function<double(const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)>;
-    using NearTreeType = jams::NearTree<std::pair<Vec3, int>, NearTreeFunctorType>;
-    std::unique_ptr<NearTreeType> neartree_;
-
 
     bool symops_enabled_;
 

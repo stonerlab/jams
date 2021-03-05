@@ -9,6 +9,7 @@
 #include "exchange_neartree.h"
 #include "jams/helpers/error.h"
 #include "jams/helpers/output.h"
+#include <jams/lattice/interaction_neartree.h>
 
 using namespace std;
 
@@ -63,6 +64,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     interaction_list_.resize(lattice->num_materials());
 
+    double max_radius = 0.0;
+
     for (int i = 0; i < settings["interactions"].getLength(); ++i) {
       std::string type_name_A = settings["interactions"][i][0].c_str();
       std::string type_name_B = settings["interactions"][i][1].c_str();
@@ -78,6 +81,10 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       double inner_radius = settings["interactions"][i][2];
       double outer_radius = settings["interactions"][i][3];
 
+      if (outer_radius > max_radius) {
+        max_radius = outer_radius;
+      }
+
       double jij_value = double(settings["interactions"][i][4]) * input_unit_conversion_;
 
       auto type_id_A = lattice->material_id(type_name_A);
@@ -90,6 +97,9 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     cout << "\ncomputed interactions\n";
 
+    jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), max_radius + distance_tolerance_);
+    neartree.insert_sites(lattice->atom_cartesian_positions());
+
     int counter = 0;
     for (auto i = 0; i < globals::num_spins; ++i) {
       std::vector<bool> is_already_interacting(globals::num_spins, false);
@@ -99,8 +109,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       for (const auto& interaction : interaction_list_[type_i]) {
         const auto type_j = interaction.material[1];
 
-        auto nbr_lower = lattice->atom_neighbours(i, interaction.inner_radius);
-        auto nbr_upper = lattice->atom_neighbours(i, interaction.outer_radius + distance_tolerance_);
+        auto nbr_lower = neartree.neighbours(lattice->atom_position(i), interaction.inner_radius);
+        auto nbr_upper = neartree.neighbours(lattice->atom_position(i), interaction.outer_radius + distance_tolerance_);
 
 //        auto compare_func = [](Atom a, Atom b) { return a.id < b.id; };
 

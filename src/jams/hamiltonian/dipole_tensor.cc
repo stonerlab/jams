@@ -6,6 +6,7 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/timer.h"
+#include <jams/lattice/interaction_neartree.h>
 
 
 using namespace std;
@@ -22,9 +23,12 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
         " (" + std::to_string(lattice->max_interaction_radius())  + ")");
   }
 
+  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), r_cutoff_);
+  neartree.insert_sites(lattice->atom_cartesian_positions());
+
   int expected_neighbours = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    expected_neighbours += lattice->num_neighbours(i, r_cutoff_);
+    expected_neighbours += neartree.num_neighbours(lattice->atom_position(i), r_cutoff_);
   }
 
   std::size_t max_memory_per_tensor = 9*(2*sizeof(int) + sizeof(double));
@@ -41,7 +45,7 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
   for (auto i = 0; i < globals::num_spins; ++i) {
     const Vec3 r_i = lattice->atom_position(i);
 
-    const auto neighbours = lattice->atom_neighbours(i, r_cutoff_);
+    const auto neighbours = neartree.neighbours(r_i, r_cutoff_);
     for (const auto & neighbour : neighbours) {
       const int j = neighbour.second;
       assert(j >= 0 && j < globals::num_spins);
