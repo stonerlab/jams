@@ -116,7 +116,7 @@ void jams::MagnetisationCollectiveVariable::output() {
           << "# iteration metad_potential_diff_joules" << "\n";
     }
     
-    potential_difference_output_file_ << solver->iteration() << "	" << histogram_energy_difference()*kBohrMagneton << "\n";
+    potential_difference_output_file_ << solver->iteration() << "	" << histogram_energy_difference()*kBohrMagneton << std::endl;
 }
 
 
@@ -174,8 +174,24 @@ void jams::MagnetisationCollectiveVariable::spin_update(int i,
 }
 
  double jams::MagnetisationCollectiveVariable::histogram_energy_difference() {
+  // margin in the number of elements in potential in the "virtual" space
+  // outside of the range [-1,1]
   const auto margin = potential_.size()/4;
-  const double max = *max_element(potential_.begin()+margin, potential_.end() -margin);
-  const double min = *min_element(potential_.begin()+margin, potential_.end() -margin);
-  return max - min;
+
+  // midpoint is in the center of the potential space
+  const auto midpoint = potential_.size()/2;
+
+  // these are iterators to the maximum point between the edged (-1 or +1) and
+  // the midpoint. In the free energy (negative of the potential) these are
+  // the minimum energy wells in a uniaxial system
+  const auto left_max_it = max_element(potential_.begin()+margin, potential_.begin() + midpoint);
+  const auto right_max_it = max_element(potential_.begin()+midpoint, potential_.end() - margin);
+
+  // this is the potential energy minimum (free energy maximum) between the
+  // two maxima in a uniaxial system
+  const double min_energy = *min_element(left_max_it, right_max_it);
+
+  // we use the maximum of the two maxes for the estimated energy barrier
+  const double max_energy = std::max(*left_max_it, *right_max_it);
+  return min_energy - max_energy;
 }
