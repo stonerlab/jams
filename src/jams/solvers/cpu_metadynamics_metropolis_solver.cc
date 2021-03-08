@@ -36,8 +36,10 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
   // toggle tempered metadynamics on or off
   do_tempering_ = jams::config_optional<bool>(settings,"tempering", false);
 
-  // the bias temperature for tempered metadynamics
-  tempering_bias_temperature_ = jams::config_optional<double>(settings,"bias_temperature",0.0);
+  if (do_tempering_) {
+    // the bias temperature for tempered metadynamics
+    tempering_bias_temperature_ = jams::config_required<double>(settings,"tempering_bias_temperature");
+  }
 
   std::cout << "  gaussian deposition stride: " << gaussian_deposition_stride_ << "\n";
 
@@ -61,7 +63,7 @@ void MetadynamicsMetropolisSolver::run() {
       metadynamics_stats.open(jams::output::full_path_filename("metad_stats.tsv"));
     }
 
-    metadynamics_stats << iteration() << " " << tempering_amplitude() << "\n";
+    metadynamics_stats << jams::fmt::sci << iteration() << " " << relative_amplitude << std::endl;
 
     cv_potential_->insert_gaussian(relative_amplitude);
     cv_potential_->output();
@@ -90,6 +92,6 @@ void MetadynamicsMetropolisSolver::run() {
   }
 
 double MetadynamicsMetropolisSolver::tempering_amplitude() {
-  return exp(-cv_potential_->current_potential()*kBohrMagneton / (tempering_bias_temperature_ * kBoltzmann));
+  return exp(-(cv_potential_->current_potential()*kBohrMagneton) / (tempering_bias_temperature_ * kBoltzmann));
 }
 
