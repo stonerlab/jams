@@ -1,0 +1,8 @@
+name: hello-world
+on: push
+jobs:
+  my-job:
+    runs-on: self-hosted
+    steps:
+      - name: my-step
+        run: hostname
