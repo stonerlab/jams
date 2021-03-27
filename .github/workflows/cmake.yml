@@ -17,9 +17,7 @@ jobs:
     strategy:
       matrix:
         cudabuild: [ON, OFF]
-          
-    env: 
-      
+                
     steps:
     - uses: actions/checkout@v2
 
