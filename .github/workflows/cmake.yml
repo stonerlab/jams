@@ -14,7 +14,7 @@ jobs:
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: self-hosted
     env: 
-      GITHUB_ENV_MODULES: gnu/6.3.0 cuda/9.0.176 ninja/1.9.0 cmake/3.15.4 mkl/2018.2 hdf5-cxx/1.8.20
+      GITHUB_ENV_MODULES: git/2.21.0 gnu/6.3.0 cuda/9.0.176 ninja/1.9.0 cmake/3.15.4 mkl/2018.2 hdf5-cxx/1.8.20
       
     steps:
     - uses: actions/checkout@v2
