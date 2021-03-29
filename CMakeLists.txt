@@ -20,6 +20,7 @@ option(JAMS_BUILD_FASTMATH "Build JAMS with fast math flags" ON)
 option(JAMS_BUILD_MIXED_PREC "Build parts of JAMS using mixed precision." OFF)
 option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
 option(JAMS_BUILD_DOCS "Build all of JAMS's documentation." OFF)
+option(JAMS_BUILD_IN_DEPENDENCIES "Build JAMS dependencies in the same cmake project" ON)
 
 set(MESSAGE_QUIET ON)
 project(jams LANGUAGES C CXX)
@@ -50,10 +51,13 @@ set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 # Latest libconfig version is 1.7.2 but the cmake support is broken. This is fixed in the current
 # github master branch
 
-set(JAMS_LIBCONFIG_VERSION f53e5de) # https://github.com/hyperrealm/libconfig
-set(JAMS_HIGHFIVE_VERSION v2.1.1)   # https://github.com/BlueBrain/HighFive
-set(JAMS_SPGLIB_VERSION v1.16.0)    # https://github.com/spglib/spglib
-set(JAMS_PCG_VERSION v0.98.1)       # https://github.com/imneme/pcg-cpp
+if (JAMS_BUILD_IN_DEPENDENCIES)
+    set(JAMS_LIBCONFIG_VERSION f53e5de) # https://github.com/hyperrealm/libconfig
+    set(JAMS_HIGHFIVE_VERSION v2.1.1)   # https://github.com/BlueBrain/HighFive
+    set(JAMS_SPGLIB_VERSION v1.16.0)    # https://github.com/spglib/spglib
+    set(JAMS_PCG_VERSION v0.98.1)       # https://github.com/imneme/pcg-cpp
+endif()
+
 set(JAMS_GTEST_VERSION master)      # https://github.com/google/googletest.git
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -79,20 +83,21 @@ message("-----------------------------------------------------------")
 message("CMAKE CONFIGURATION COMPLETE")
 message("-----------------------------------------------------------")
 message("jams build options: ")
-message(STATUS "VERSION:               " ${VERSION})
-message(STATUS "JAMS_BUILD_CUDA:       " ${JAMS_BUILD_CUDA})
-message(STATUS "JAMS_BUILD_OMP:        " ${JAMS_BUILD_OMP})
-message(STATUS "JAMS_BUILD_FASTMATH:   " ${JAMS_BUILD_FASTMATH})
-message(STATUS "JAMS_BUILD_MIXED_PREC: " ${JAMS_BUILD_MIXED_PREC})
-message(STATUS "JAMS_BUILD_TESTS:      " ${JAMS_BUILD_TESTS})
-message(STATUS "JAMS_BUILD_DOCS:       " ${JAMS_BUILD_MIXED_PREC})
-message(STATUS "JAMS_BUILD_OFFLINE:    " ${JAMS_BUILD_OFFLINE})
+message(STATUS "VERSION:                        " ${VERSION})
+message(STATUS "JAMS_BUILD_CUDA:                " ${JAMS_BUILD_CUDA})
+message(STATUS "JAMS_BUILD_OMP:                 " ${JAMS_BUILD_OMP})
+message(STATUS "JAMS_BUILD_FASTMATH:            " ${JAMS_BUILD_FASTMATH})
+message(STATUS "JAMS_BUILD_MIXED_PREC:          " ${JAMS_BUILD_MIXED_PREC})
+message(STATUS "JAMS_BUILD_TESTS:               " ${JAMS_BUILD_TESTS})
+message(STATUS "JAMS_BUILD_DOCS:                " ${JAMS_BUILD_MIXED_PREC})
+message(STATUS "JAMS_BUILD_OFFLINE:             " ${JAMS_BUILD_OFFLINE})
+message(STATUS "JAMS_BUILD_IN_DEPENDENCIES:     " ${JAMS_BUILD_IN_DEPENDENCIES})
 
 message("compiler options:")
-message(STATUS "CMAKE_BUILD_TYPE:         " ${CMAKE_BUILD_TYPE})
-message(STATUS "CMAKE_CXX_COMPILER:       " ${CMAKE_CXX_COMPILER})
-message(STATUS "CMAKE_LINKER:             " ${CMAKE_LINKER})
-message(STATUS "CMAKE_MAKE_PROGRAM:       " ${CMAKE_MAKE_PROGRAM})
+message(STATUS "CMAKE_BUILD_TYPE:               " ${CMAKE_BUILD_TYPE})
+message(STATUS "CMAKE_CXX_COMPILER:             " ${CMAKE_CXX_COMPILER})
+message(STATUS "CMAKE_LINKER:                   " ${CMAKE_LINKER})
+message(STATUS "CMAKE_MAKE_PROGRAM:             " ${CMAKE_MAKE_PROGRAM})
 message(STATUS "CMAKE_CXX_COMPILE_FLAGS:        " ${CMAKE_CXX_COMPILE_FLAGS})
 message(STATUS "CMAKE_CXX_FLAGS:                " ${CMAKE_CXX_FLAGS})
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG:          " ${CMAKE_CXX_FLAGS_DEBUG})
@@ -101,12 +106,12 @@ message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: " ${CMAKE_CXX_FLAGS_RELWITHDEBIN
 message(STATUS "JAMS_FAST_MATH_OPT:             " ${JAMS_FAST_MATH_OPT})
 
 if(JAMS_BUILD_CUDA)
-message("cuda options:")
-    message(STATUS "CUDA_VERSION:             " ${CUDA_VERSION})
-    message(STATUS "CUDA_TOOLKIT_ROOT_DIR:    " ${CUDA_TOOLKIT_ROOT_DIR})
-    message(STATUS "CUDA_CUDART_LIBRARY:      " ${CUDA_CUDART_LIBRARY})
-    message(STATUS "CUDA_HOST_COMPILER:       " ${CUDA_HOST_COMPILER})
-    message(STATUS "CUDA_NVCC_EXECUTABLE:     " ${CUDA_NVCC_EXECUTABLE})
+    message("cuda options:")
+    message(STATUS "CUDA_VERSION:                   " ${CUDA_VERSION})
+    message(STATUS "CUDA_TOOLKIT_ROOT_DIR:          " ${CUDA_TOOLKIT_ROOT_DIR})
+    message(STATUS "CUDA_CUDART_LIBRARY:            " ${CUDA_CUDART_LIBRARY})
+    message(STATUS "CUDA_HOST_COMPILER:             " ${CUDA_HOST_COMPILER})
+    message(STATUS "CUDA_NVCC_EXECUTABLE:           " ${CUDA_NVCC_EXECUTABLE})
 endif()
 
 

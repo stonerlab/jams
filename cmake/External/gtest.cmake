@@ -6,6 +6,7 @@ if (MESSAGE_QUIET AND (NOT DEFINED VERBOSE))
             PROJ                googletest
             GIT_REPOSITORY      ${JAMS_GTEST_URL}
             GIT_TAG             ${JAMS_GTEST_VERSION}
+            GIT_SHALLOW         ON
             QUIET
     )
 else()
@@ -13,6 +14,7 @@ else()
             PROJ                googletest
             GIT_REPOSITORY      ${JAMS_GTEST_URL}
             GIT_TAG             ${JAMS_GTEST_VERSION}
+            GIT_SHALLOW         ON
     )
 endif()
 
