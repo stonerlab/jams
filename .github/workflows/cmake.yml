@@ -38,7 +38,7 @@ jobs:
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
-        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DJAMS_BUILD_CUDA=${{ matrix.build_cuda }}
+        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DJAMS_BUILD_CUDA=${{ matrix.cudabuild }}
 
     - name: Build
       working-directory: ${{github.workspace}}/build
