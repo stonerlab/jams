@@ -5,7 +5,7 @@ on: [push]
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
-  ENV_MODULES: cmake ninja git cuda/10.1.105 mkl/2018.2 hdf5-cxx/1.8.20 libconfig/6304782 spglib/1.16.0 pcg/1.12.0 highfive/2.1.1
+  ENV_MODULES: cmake ninja git gnu/8.3.0 cuda/10.1.105 mkl/2018.2 hdf5-cxx/1.8.20 libconfig/6304782 spglib/1.16.0 pcg/1.12.0 highfive/2.1.1
 
 jobs:
   build:
