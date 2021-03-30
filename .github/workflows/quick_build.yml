@@ -1,4 +1,4 @@
-name: CMake
+name: JAMS Quick Build
 
 on: [push]
 
@@ -8,7 +8,8 @@ env:
   ENV_MODULES: cmake ninja git gnu/8.3.0 cuda/10.1.105 mkl/2018.2 hdf5-cxx/1.8.20 libconfig/6304782 spglib/1.16.0 pcg/1.12.0 highfive/2.1.1
 
 jobs:
-  build:
+  quick_build:
+    name: Quick Build (CUDA enabled)
     # The CMake configure and build commands are platform agnostic and should work equally
     # well on Windows or Mac.  You can convert this to a matrix build if you need
     # cross-platform coverage.
@@ -16,7 +17,7 @@ jobs:
     runs-on: self-hosted
     strategy:
       matrix:
-        cudabuild: [ON, OFF]
+        BUILD_CUDA: [ON, OFF]
                 
     steps:
     - uses: actions/checkout@v2
@@ -38,7 +39,7 @@ jobs:
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
-        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DJAMS_BUILD_CUDA=${{ matrix.cudabuild }}
+        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DJAMS_BUILD_CUDA=${{ matrix.BUILD_CUDA }}
 
     - name: Build
       working-directory: ${{github.workspace}}/build
