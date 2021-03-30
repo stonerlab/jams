@@ -12,10 +12,10 @@ target_include_directories(jams
 target_link_libraries(jams
         fftw_external
         cblas_external
-        pcg_builtin
-        spglib_builtin
-        libconfig_builtin
-        highfive_builtin)
+        pcg
+        spglib
+        libconfig
+        highfive)
 
 if(JAMS_BUILD_CUDA)
     target_sources(jams PRIVATE ${JAMS_SOURCES_CUDA})

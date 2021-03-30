@@ -24,10 +24,10 @@ target_link_libraries(jams_tests
         gmock
         fftw_external
         cblas_external
-        pcg_builtin
-        spglib_builtin
-        libconfig_builtin
-        highfive_builtin)
+        pcg
+        spglib
+        libconfig
+        highfive)
 
 target_compile_features(jams_tests PRIVATE cxx_std_11)
 
