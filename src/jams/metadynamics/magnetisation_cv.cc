@@ -70,11 +70,17 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
 
   potential_.resize(sample_points_.size(), 0.0);
 
+  if (settings.exists("potential_file")) {
+    // TODO : finish the code test and copy it here (passing a potential file)
+  }
+
+
   magnetisation_ = calculate_total_magnetisation();
 }
 
 void jams::MagnetisationCollectiveVariable::insert_gaussian(
     const double &relative_amplitude) {
+void jams::MagnetisationCollectiveVariable::insert_gaussian(const double &relative_amplitude) {
   assert(sample_points_.size() == potential_.size());
 
   // recalculate total magnetisation to avoid numerical drift from the

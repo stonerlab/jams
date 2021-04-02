@@ -26,13 +26,35 @@ std::vector<double> linear_space(const double &min, const double &max, const dou
 jams::MzOrthogonalMzCV::MzOrthogonalMzCV(const libconfig::Setting &settings) {
 
   gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude");
+  // ---------------------------------------------------------------------------
+  // config settings
+  // ---------------------------------------------------------------------------
+
+  // maximum amplitude of inserted gaussians in Joules
+  // (this can be reduced by tempering in the metadynamics solver)
+  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude")/ kBohrMagneton;
+
+  // width of the gaussian in units of mz
   gaussian_width_ = jams::config_required<double>(settings, "gaussian_width");
+  // discretisation width of the metadynamics potential landscape in units of mz
   histogram_step_size_ = jams::config_required<double>(settings, "histogram_step_size");
+
+  // ---------------------------------------------------------------------------
+  // validate settings
+  // ---------------------------------------------------------------------------
+
+  // If histogram_step_size does not divide evenly into the range -1 -> 1 then
+  // we will be missing either the start of the end point of the physical range.
+  if (!approximately_equal(std::remainder(2.0, histogram_step_size_), 0.0)) {
+	throw std::runtime_error("Invalid value of histogram_step_size: "
+							 "histogram_step_size must divide into 2.0 with no remainder");
+  }
 
   sample_points_mz_ = linear_space(-1.0, 1.0, histogram_step_size_);
   sample_points_mz_perpendicular_ = linear_space(0, 1.0, histogram_step_size_);
   potential_2d_.resize(sample_points_mz_.size(), std::vector<double>(sample_points_mz_perpendicular_.size(), 0.0));
   metadynamics_simulation_parameters.open(jams::output::full_path_filename("_parameters.tsv"));
+  metadynamics_simulation_parameters.open(jams::output::full_path_filename("potential_difference.tsv"));
 
   magnetisation_ = calculate_total_magnetisation();
   assert(magnetisation_[2] / globals::num_spins <= 1);
@@ -42,14 +64,19 @@ void jams::MzOrthogonalMzCV::output() {
 
   if (solver->iteration() % 1000 == 0) {
 	metadynamics_simulation_parameters << solver->iteration() << "	" << energy_barrier_calculation() << "\n";
+  if (solver->iteration() % 10000 == 0) {
+	metadynamics_simulation_parameters << solver->iteration() << "	" << energy_barrier_calculation()*kBohrMagneton << "\n";
   }
 
   if (solver->iteration() % 100000 == 0) {
 	potential.open(jams::output::full_path_filename("_potential2d.tsv"));
+  if (solver->iteration() % 1000000 == 0) {
+	potential.open(jams::output::full_path_filename("potential.tsv"));
 	for (auto i = 0; i < sample_points_mz_.size(); ++i) {
 	  for (auto ii = 0; ii < sample_points_mz_perpendicular_.size(); ++ii) {
 		potential << sample_points_mz_perpendicular_[ii] << "	" << sample_points_mz_[i] << "	"
 				  << potential_2d_[i][ii] << "\n";\
+				  << potential_2d_[i][ii]*kBohrMagneton << "\n";\
 	  }
 	}
 	potential.close();
