@@ -53,7 +53,6 @@ jams::MzOrthogonalMzCV::MzOrthogonalMzCV(const libconfig::Setting &settings) {
   sample_points_mz_ = linear_space(-1.0, 1.0, histogram_step_size_);
   sample_points_mz_perpendicular_ = linear_space(0, 1.0, histogram_step_size_);
   potential_2d_.resize(sample_points_mz_.size(), std::vector<double>(sample_points_mz_perpendicular_.size(), 0.0));
-  metadynamics_simulation_parameters.open(jams::output::full_path_filename("_parameters.tsv"));
   metadynamics_simulation_parameters.open(jams::output::full_path_filename("potential_difference.tsv"));
 
   magnetisation_ = calculate_total_magnetisation();
