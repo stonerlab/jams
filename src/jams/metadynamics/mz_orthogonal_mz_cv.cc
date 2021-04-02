@@ -62,7 +62,7 @@ jams::MzOrthogonalMzCV::MzOrthogonalMzCV(const libconfig::Setting &settings) {
 void jams::MzOrthogonalMzCV::output() {
 
   if (solver->iteration() % 1000 == 0) {
-	metadynamics_simulation_parameters << solver->iteration() << "	" << energy_barrier_calculation() << "\n";
+	metadynamics_simulation_parameters << solver->iteration() << "	" << energy_barrier_calculation()*kBohrMagneton << "\n";
   }
   if (solver->iteration() % 1000000 == 0) {
 		potential.open(jams::output::full_path_filename("potential.tsv"));
