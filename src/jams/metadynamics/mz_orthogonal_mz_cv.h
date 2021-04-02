@@ -7,7 +7,7 @@
 
 #include <jams/metadynamics/collective_variable_potential.h>
 #include <jams/interface/config.h>
-#include <fstream>
+#include "fstream"
 
 namespace jams {
 class MzOrthogonalMzCV : public CollectiveVariablePotential {
@@ -22,7 +22,7 @@ class MzOrthogonalMzCV : public CollectiveVariablePotential {
   void output() override;
 
   double potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
-    double current_potential() override;
+  double current_potential() override;
 
 
   void spin_update(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;

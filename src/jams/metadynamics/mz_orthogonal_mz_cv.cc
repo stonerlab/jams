@@ -6,10 +6,12 @@
 #include <jams/core/globals.h>
 #include <jams/maths/interpolation.h>
 #include <libconfig.h++>
-#include "fstream"
+#include <fstream>
 #include <jams/interface/config.h>
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
+#include <string>
+#include <algorithm>
 
 std::vector<double> linear_space(const double &min, const double &max, const double &step) {
   assert(min < max);
