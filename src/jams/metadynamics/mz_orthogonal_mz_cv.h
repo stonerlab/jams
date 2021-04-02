@@ -23,7 +23,7 @@ class MzOrthogonalMzCV : public CollectiveVariablePotential {
 
   double potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
     double current_potential() override;
-  double current_potential() override;
+
 
   void spin_update(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
 

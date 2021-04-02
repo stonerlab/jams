@@ -78,8 +78,7 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
   magnetisation_ = calculate_total_magnetisation();
 }
 
-void jams::MagnetisationCollectiveVariable::insert_gaussian(
-    const double &relative_amplitude) {
+
 void jams::MagnetisationCollectiveVariable::insert_gaussian(const double &relative_amplitude) {
   assert(sample_points_.size() == potential_.size());
 
