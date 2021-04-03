@@ -104,13 +104,15 @@ void jams::MagnetisationCollectiveVariable::insert_gaussian(const double &relati
 
 
 void jams::MagnetisationCollectiveVariable::output() {
-    std::ofstream potential_output_file(jams::output::full_path_filename("potential.tsv"));
-    potential_output_file << "# m_z metad_potential_joules\n";
+  if (solver->iteration() % 1000000 == 0) {
+	std::ofstream potential_output_file(jams::output::full_path_filename("potential.tsv"));
+	potential_output_file << "\n";
 
-    for (auto i = lower_limit_index; i < upper_limit_index + 1; ++i) {
-      potential_output_file << sample_points_[i] << "	" << potential_[i] * kBohrMagneton << "\n";
-    }
-    potential_output_file.close();
+	for (auto i = lower_limit_index; i < upper_limit_index + 1; ++i) {
+	  potential_output_file << sample_points_[i] << "	" << potential_[i] * kBohrMagneton << "\n";
+	}
+	potential_output_file.close();
+  }
 
 
     if (!potential_difference_output_file_.is_open()) {
@@ -118,10 +120,12 @@ void jams::MagnetisationCollectiveVariable::output() {
       potential_difference_output_file_.open(
           jams::output::full_path_filename("potential_difference.tsv"));
       potential_difference_output_file_
-          << "# iteration metad_potential_diff_joules" << "\n";
+          << "iteration" <<"	"<< "metad_potential_diff_joules" << "\n";
     }
-    
-    potential_difference_output_file_ << solver->iteration() << "	" << histogram_energy_difference()*kBohrMagneton << std::endl;
+  if (solver->iteration() % 10000 == 0) {
+	potential_difference_output_file_ << solver->iteration() << "	" << histogram_energy_difference() * kBohrMagneton
+									  << std::endl;
+  }
 }
 
 
