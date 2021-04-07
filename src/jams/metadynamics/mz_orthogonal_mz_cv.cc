@@ -108,14 +108,13 @@ void jams::MzOrthogonalMzCV::output() {
 	}
 
 	void jams::MzOrthogonalMzCV::insert_gaussian(const double &relative_amplitude) {
-	  mz_perpendicular_ = mz_perpendicular(magnetisation_);
+	  // recalculate total magnetisation to avoid numerical drift from the
+	  // addition and subtractions in spin_update()
+	  magnetisation_ = calculate_total_magnetisation();
+      mz_perpendicular_ = mz_perpendicular(magnetisation_);
 	  for (int i = 0; i < sample_points_mz_.size(); ++i) {
 		for (int ii = 0; ii < sample_points_mz_perpendicular_.size(); ++ii) {
-		  potential_2d_[i][ii] += relative_amplitude * gaussian_2D(magnetisation_[2] / globals::num_spins,
-																   sample_points_mz_[i],
-																   mz_perpendicular_,
-																   sample_points_mz_perpendicular_[ii],
-																   gaussian_amplitude_);
+		  potential_2d_[i][ii] +=  gaussian_2D(magnetisation_[2] / globals::num_spins,sample_points_mz_[i],mz_perpendicular_,sample_points_mz_perpendicular_[ii],gaussian_amplitude_*relative_amplitude);
 
 		}
 	  }
