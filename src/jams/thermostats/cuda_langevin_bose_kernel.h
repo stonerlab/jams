@@ -16,8 +16,8 @@ __device__ void bose_ode(const double A[2], const double eta[2], const double z[
 
 template<unsigned N>
 __device__ void
-rk4_vectored(void ode(const double[N], const double[N], const double[N], double[N]), const double h, const double A[2],
-             const double eta[2], double z[2]) {
+rk4_vectored(void ode(const double[N], const double[N], const double[N], double[N]), const double h, const double A[N],
+             const double eta[N], double z[N]) {
   double k1[N], k2[N], k3[N], k4[N], f[N];
   double u[N];
 
