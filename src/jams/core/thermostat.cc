@@ -12,6 +12,7 @@
 
 #include "../thermostats/cuda_langevin_white.h"
 #include "../thermostats/cuda_langevin_bose.h"
+#include "../thermostats/cuda_langevin_arbitrary.h"
 
 using namespace std;
 Thermostat* Thermostat::create(const std::string &thermostat_name) {
@@ -24,6 +25,9 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
     }
     if (capitalize(thermostat_name) == "LANGEVIN-BOSE-GPU" ||capitalize(thermostat_name) == "CUDA_LANGEVIN_COTH") {
         return new CudaLangevinBoseThermostat(config->lookup("physics.temperature"), 0.0, globals::num_spins);
+    }
+    if (capitalize(thermostat_name) == "LANGEVIN-ARBITRARY-GPU" ||capitalize(thermostat_name) == "CUDA_LANGEVIN_ARBITRARY") {
+      return new CudaLangevinArbitraryThermostat(config->lookup("physics.temperature"), 0.0, globals::num_spins);
     }
     #endif
 
