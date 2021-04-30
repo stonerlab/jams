@@ -41,6 +41,7 @@ set(JAMS_SOURCES_CXX
         metadynamics/collective_variable_factory.cc
         metadynamics/magnetisation_cv.cc
         metadynamics/mz_orthogonal_mz_cv.cc
+        metadynamics/skyrmion_center_cv.cc
         monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc
