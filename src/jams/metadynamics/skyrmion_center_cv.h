@@ -31,7 +31,7 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
  private:
   void create_center_of_mass_mapping();
   void calc_center_of_mass(std::vector<Vec3> &r_com,std::vector<Vec3 > &tube_x_passed, std::vector<Vec3 > &tube_y_passed); // I have removed the treshold for now
-  void tubes_update(const int &spin);
+  void tubes_update(std::vector<Vec3 > &tube_x_passed, std::vector<Vec3 > &tube_y_passed,const int &spin, const double &i, const double &j);
   void trial_center_of_mass (Vec3 trial_spin, int spin_index);
 //  double collective_coordinate();
   double interpolated_2d_potential( const double& y, const double x);
