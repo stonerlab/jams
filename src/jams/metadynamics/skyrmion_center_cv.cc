@@ -59,33 +59,32 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   potential_2d_.resize(sample_points_x_.size(),std::vector<double>(sample_points_x_.size(),0.0));
   r_com.resize(lattice->num_materials(), {0.0, 0.0, 0.0});
   trial_r_com.resize(lattice->num_materials(), {0.0, 0.0, 0.0});
-  create_center_of_mass_mapping(); // TODO: after check, include this in the insert gaussian function for every x MC steps to avoid numerical drift
+  create_center_of_mass_mapping();
   calc_center_of_mass(r_com,tube_x,tube_y);
   skyrmion_outfile.open(jams::output::full_path_filename("sky.tsv"));
+  skyrmion_threshold_ = 0.05;
 }
 
 //-------OVERWRITTEN FUNCTIONS ---------//
 
 void jams::SkyrmionCenterCV::output() {
-  if (solver->iteration()% 10 == 0){
+  //if (solver->iteration()% 10 == 0){
     skyrmion_output();
+    skyrmion_outfile << " print" <<"/n";
+  //}
+  if (solver->iteration()%100 == 0){
+    potential_landscape.open(jams::output::full_path_filename("skyrmion_potential.tsv"));
+	for (auto i = 0; i < sample_points_y_.size(); ++i) {
+	  for (auto ii = 0; ii < sample_points_x_.size(); ++ii) {
+		potential_landscape << sample_points_x_[ii] << "	" << sample_points_y_[i] << "	"
+				  << potential_2d_[i][ii] * kBohrMagneton << "\n";
+	  }
+	}
+	potential_landscape.close();
   }
-//  if (solver->iteration()%100 == 0){
-//    potential_landscape.open(jams::output::full_path_filename("skyrmion_potential.tsv"));
-//	for (auto i = 0; i < sample_points_y_.size(); ++i) {
-//	  for (auto ii = 0; ii < sample_points_x_.size(); ++ii) {
-//		potential_landscape << sample_points_x_[ii] << "	" << sample_points_y_[i] << "	"
-//				  << potential_2d_[i][ii] * kBohrMagneton << "\n";
-//	  }
-//	}
-//	potential_landscape.close();
-//  }
-  std::cout<< "output()"<< "\n";
   }
 
 void jams::SkyrmionCenterCV::insert_gaussian(const double &relative_amplitude) {
- // create_center_of_mass_mapping(); //TODO : if statement to recalculate this every x-times to avoid numerical drift
-  calc_center_of_mass(r_com,tube_x,tube_y);
 
   for (int i = 0; i < sample_points_y_.size(); ++i) {
 	for (int ii = 0; ii < sample_points_x_.size(); ++ii) {
@@ -96,23 +95,26 @@ void jams::SkyrmionCenterCV::insert_gaussian(const double &relative_amplitude) {
 
 }
 double jams::SkyrmionCenterCV::current_potential() {
-//  TODO : calculate the potential the "current potential" (calculate the COM) used only for the tempering
  return interpolated_2d_potential(r_com[0][1],r_com[0][0]); //TODO : add type and think
 }
 double jams::SkyrmionCenterCV::potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final){
-  double initial_potential = current_potential();
+  double initial_potential = current_potential(); // save it in a gloabal variable
   double trial_potential;
-  trial_center_of_mass(spin_final,i); // Final spin and spin index "i" passed from the monte_carlo_class
+  trial_center_of_mass(spin_final,i);
   trial_potential = interpolated_2d_potential(trial_r_com[0][0],trial_r_com[0][1]);
   return trial_potential - initial_potential;
 }
 void jams::SkyrmionCenterCV::spin_update(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+  if (spin_final[2]<skyrmion_threshold_) {
 
-  double position_i, position_j;
-  position_i = lattice->atom_position(i)[0];
-  position_j = lattice->atom_position(i)[1];
-  tubes_update(tube_x, tube_y, i, position_i, position_j);
+    double position_i, position_j;
+	position_i = lattice->atom_position(i)[0];
+	position_j = lattice->atom_position(i)[1];
 
+	tubes_update(tube_x, tube_y, i, position_i, position_j);
+	calc_center_of_mass(r_com,tube_x,tube_y); // The center of mass is calculated only here during the monte carlo steps.
+
+  }
 }
 
 //-------SKYRMION CENTER OF MASS FUNCTIONS---------//
@@ -160,23 +162,23 @@ void jams::SkyrmionCenterCV::calc_center_of_mass(std::vector<Vec3> &r_com_passed
   using namespace globals;
   using namespace std;
 
-// assert(tube_x.size() > 0);
-//  assert(tube_y.size() > 0);
-
   const int num_types = lattice->num_materials();
 
   std::vector<Vec3 > tube_x_com(num_types, {0.0, 0.0, 0.0});
   std::vector<Vec3 > tube_y_com(num_types, {0.0, 0.0, 0.0});
   int r_count[num_types];
-//  tube_x_passed = tube_x_com; // nope this doesnt work
-//  tube_y_passed = tube_y_com; // typo
+
+// TODO: for now since we have only 1 material type I wont include
+//  this since the profile showed that is extremely computationally expensive
+//  just an integer "type" to be
 
   for (auto type = 0; type < num_types; ++type) {
 	r_count[type] = 0;
   }
 
   for (auto i = 0; i < num_spins; ++i) {
-	auto type = lattice->atom_material_id(i);
+	//auto type = lattice->atom_material_id(i); // TODO: similar as the previous TODO (just one material type)
+	auto type = 0;
 //	if (s(i, 2)*type_norms[type] > threshold) {
 	  tube_x_com[type] += tube_x[i];
 	  tube_y_com[type] += tube_y[i];
@@ -198,8 +200,9 @@ void jams::SkyrmionCenterCV::calc_center_of_mass(std::vector<Vec3> &r_com_passed
   }
 
 }// Original function is modified. So it can be used
-                                                                                                                                                      //for both the trial and current tubes and r_com
+//for both the trial and current tubes and r_com
 void jams::SkyrmionCenterCV::trial_center_of_mass(Vec3 trial_spin, int spin_index) {
+  //copy the tubes x & y and update them before calculating the trial CoM
   double trial_position_i, trial_position_j;
 
   auto trial_tube_x = tube_x;

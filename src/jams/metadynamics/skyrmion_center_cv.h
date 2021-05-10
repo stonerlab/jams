@@ -43,6 +43,8 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
   double gaussian_amplitude_;
   double gaussian_width_;
   double histogram_step_size_;
+  double current_potential_value;
+  double skyrmion_threshold_;
 
   std::vector<double> sample_points_x_;
   std::vector<double> sample_points_y_;
@@ -53,6 +55,7 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
   std::vector<double> thresholds;
   std::vector<Vec3 > r_com;
   std::vector<Vec3 > trial_r_com;
+
 
   std::ofstream potential_landscape;
   std::ofstream skyrmion_outfile;
