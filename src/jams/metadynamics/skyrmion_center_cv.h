@@ -9,7 +9,8 @@
 
 #include <jams/metadynamics/collective_variable_potential.h>
 #include <jams/interface/config.h>
-#include "fstream"
+#include <fstream>
+#include "jams/containers/multiarray.h"
 
 namespace jams {
 class SkyrmionCenterCV : public CollectiveVariablePotential {
@@ -29,11 +30,14 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
   void spin_update(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
 
  private:
-  void create_center_of_mass_mapping();
-  void calc_center_of_mass(std::vector<Vec3> &r_com,std::vector<Vec3 > &tube_x_passed, std::vector<Vec3 > &tube_y_passed); // I have removed the treshold for now
-  void tubes_update(std::vector<Vec3 > &tube_x_passed, std::vector<Vec3 > &tube_y_passed,const int &spin, const double &i, const double &j);
-  void trial_center_of_mass (Vec3 trial_spin, int spin_index);
-//  double collective_coordinate();
+    // map the 2D x-y plane onto two cylinder coordinate systems to allow
+    // calculation of the center of mass with periodic boundaries
+    void space_remapping();
+
+    // returns true if the z component of spin crosses the given threshold
+    bool spin_crossed_threshold(const Vec3& s_initial, const Vec3& s_final, const double& threshold);
+
+    Vec3 calc_center_of_mass(); // I have removed the treshold for now
   double interpolated_2d_potential( const double& y, const double x);
   double gaussian_2D(const double &x, const double &x0, const double &y, const double &y0, const double amplitude) const;
   void skyrmion_output();
@@ -43,19 +47,16 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
   double gaussian_amplitude_;
   double gaussian_width_;
   double histogram_step_size_;
-  double current_potential_value;
   double skyrmion_threshold_;
 
   std::vector<double> sample_points_x_;
   std::vector<double> sample_points_y_;
   std::vector<std::vector<double>> potential_2d_;
 
-  std::vector<Vec3 > tube_x, tube_y;
-  std::vector<double> type_norms;
-  std::vector<double> thresholds;
-  std::vector<Vec3 > r_com;
-  std::vector<Vec3 > trial_r_com;
+  Vec3 cached_initial_center_of_mass_ = {0.0, 0.0, 0.0};
+  Vec3 cached_trial_center_of_mass_ = {0.0, 0.0, 0.0};
 
+  std::vector<Vec3> tube_x_, tube_y_;
 
   std::ofstream potential_landscape;
   std::ofstream skyrmion_outfile;

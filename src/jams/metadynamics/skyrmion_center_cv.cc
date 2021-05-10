@@ -57,12 +57,12 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   sample_points_x_ = linear_space_creation(0,lattice->rmax()[0],histogram_step_size_);
   sample_points_y_ = linear_space_creation(0,lattice->rmax()[0],histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
   potential_2d_.resize(sample_points_x_.size(),std::vector<double>(sample_points_x_.size(),0.0));
-  r_com.resize(lattice->num_materials(), {0.0, 0.0, 0.0});
-  trial_r_com.resize(lattice->num_materials(), {0.0, 0.0, 0.0});
-  create_center_of_mass_mapping();
-  calc_center_of_mass(r_com,tube_x,tube_y);
   skyrmion_outfile.open(jams::output::full_path_filename("sky.tsv"));
   skyrmion_threshold_ = 0.05;
+
+  space_remapping();
+  cached_initial_center_of_mass_ = calc_center_of_mass();
+  cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
 }
 
 //-------OVERWRITTEN FUNCTIONS ---------//
@@ -88,131 +88,62 @@ void jams::SkyrmionCenterCV::insert_gaussian(const double &relative_amplitude) {
 
   for (int i = 0; i < sample_points_y_.size(); ++i) {
 	for (int ii = 0; ii < sample_points_x_.size(); ++ii) {
-	  potential_2d_[i][ii] +=  gaussian_2D(reinterpret_cast<const double &>(r_com[0][1]), sample_points_y_[i], r_com[0][0], sample_points_x_[ii], gaussian_amplitude_*relative_amplitude); // TODO :  r_com
+	  potential_2d_[i][ii] +=  gaussian_2D(reinterpret_cast<const double &>(cached_initial_center_of_mass_[1]), sample_points_y_[i], cached_initial_center_of_mass_[0], sample_points_x_[ii], gaussian_amplitude_*relative_amplitude); // TODO :  r_com
 
 	}
   }
 
 }
 double jams::SkyrmionCenterCV::current_potential() {
- return interpolated_2d_potential(r_com[0][1],r_com[0][0]); //TODO : add type and think
+ return interpolated_2d_potential(cached_initial_center_of_mass_[0], cached_initial_center_of_mass_[1]);
 }
+
 double jams::SkyrmionCenterCV::potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final){
   double initial_potential = current_potential(); // save it in a gloabal variable
   double trial_potential;
-  trial_center_of_mass(spin_final,i);
-  trial_potential = interpolated_2d_potential(trial_r_com[0][0],trial_r_com[0][1]);
+
+  Vec3 trial_center_of_mass = cached_initial_center_of_mass_;
+
+  if (spin_crossed_threshold(spin_initial, spin_final, skyrmion_threshold_)) {
+    trial_center_of_mass = calc_center_of_mass();
+    cached_trial_center_of_mass_ = trial_center_of_mass;
+  }
+
+  trial_potential = interpolated_2d_potential(trial_center_of_mass[0],trial_center_of_mass[1]);
   return trial_potential - initial_potential;
 }
 void jams::SkyrmionCenterCV::spin_update(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-  if (spin_final[2]<skyrmion_threshold_) {
-
-    double position_i, position_j;
-	position_i = lattice->atom_position(i)[0];
-	position_j = lattice->atom_position(i)[1];
-
-	tubes_update(tube_x, tube_y, i, position_i, position_j);
-	calc_center_of_mass(r_com,tube_x,tube_y); // The center of mass is calculated only here during the monte carlo steps.
-
-  }
+  // we don't need to check if the threshold was crossed here because
+  // cached_trial_center_of_mass_ contains the correct center of mass
+  // from the potential_difference() function
+  cached_initial_center_of_mass_ = cached_trial_center_of_mass_;
 }
 
-//-------SKYRMION CENTER OF MASS FUNCTIONS---------//
 
-void jams::SkyrmionCenterCV::create_center_of_mass_mapping() { // the original function has been broken into two functions. Now this function calls the tubes_update(spin_index) function
-                                                               // this allows me to use it to update the tubes if the monte carlo move is accepted. Also used to update the trial_tubes.
-  using namespace globals;
-
-  tube_x.resize(num_spins, {0.0, 0.0, 0.0});
-  tube_y.resize(num_spins, {0.0, 0.0, 0.0});
-  double i,j;
-  for (int n = 0; n < num_spins; ++n) {
-	i = lattice->atom_position(n)[0];
-	j = lattice->atom_position(n)[1];
-	tubes_update(tube_x,tube_y,n,i,j);
-  }
-}
-void jams::SkyrmionCenterCV::tubes_update(std::vector<Vec3 > &tube_x_passed, std::vector<Vec3 > &tube_y_passed,const int &spin, const double &i, const double &j) { // I broke it down so I can actually update the tubes when the MC move is accepted
-  using namespace globals;
-  double i_max, j_max, r_i, r_j, theta_i, theta_j, x, y, z;
-
-  i_max = lattice->rmax()[0];
-  j_max = lattice->rmax()[1];
-
-  r_i = i_max / (kTwoPi);
-  r_j = j_max / (kTwoPi);
-
-  theta_i = (i / i_max) * (kTwoPi);
-  theta_j = (j / j_max) * (kTwoPi);
-
-  x = r_i * cos(theta_i);
-  y = j;
-  z = r_i * sin(theta_i);
-
-  tube_x_passed[spin] = {x, y, z};
-
-  x = i;
-  y = r_j * cos(theta_j);
-  z = r_j * sin(theta_j);
-
-  tube_y_passed[spin] = {x, y, z};
-
-}
-void jams::SkyrmionCenterCV::calc_center_of_mass(std::vector<Vec3> &r_com_passed, std::vector<Vec3 > &tube_x_passed, std::vector<Vec3 > &tube_y_passed){ //const double &threshold) { //make them constant
+Vec3 jams::SkyrmionCenterCV::calc_center_of_mass() {
   using namespace globals;
   using namespace std;
 
-  const int num_types = lattice->num_materials();
-
-  std::vector<Vec3 > tube_x_com(num_types, {0.0, 0.0, 0.0});
-  std::vector<Vec3 > tube_y_com(num_types, {0.0, 0.0, 0.0});
-  int r_count[num_types];
-
-// TODO: for now since we have only 1 material type I wont include
-//  this since the profile showed that is extremely computationally expensive
-//  just an integer "type" to be
-
-  for (auto type = 0; type < num_types; ++type) {
-	r_count[type] = 0;
-  }
+  Vec3 tube_center_of_mass_x = {0.0, 0.0, 0.0};
+  Vec3 tube_center_of_mass_y = {0.0, 0.0, 0.0};
 
   for (auto i = 0; i < num_spins; ++i) {
-	//auto type = lattice->atom_material_id(i); // TODO: similar as the previous TODO (just one material type)
-	auto type = 0;
-//	if (s(i, 2)*type_norms[type] > threshold) {
-	  tube_x_com[type] += tube_x[i];
-	  tube_y_com[type] += tube_y[i];
-	  r_count[type]++; // parent failed to evaluate: variable not available
-//	}
+    if (globals::s(i,2) < skyrmion_threshold_) {
+      tube_center_of_mass_x += tube_x_[i];
+      tube_center_of_mass_y += tube_y_[i];
+    }
   }
 
-  for (auto type = 0; type < num_types; ++type) {
-	r_com[type] /= static_cast<double>(r_count[type]);
-  }
+	double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
+	double theta_y = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
 
-  for (auto type = 0; type < num_types; ++type) {
-	double theta_i = atan2(-tube_x_passed[type][2], -tube_x_passed[type][0]) + kPi;
-	double theta_j = atan2(-tube_y_passed[type][2], -tube_y_passed[type][1]) + kPi;
+	Vec3 center_of_mass = {
+      theta_x*lattice->rmax()[0]/(kTwoPi),
+      theta_y*lattice->rmax()[1]/(kTwoPi),
+      0.0
+  };
 
-	r_com_passed[type][0] = (theta_i*lattice->rmax()[0]/(kTwoPi));
-	r_com_passed[type][1] = (theta_j*lattice->rmax()[1]/(kTwoPi));
-	r_com_passed[type][2] = 0.0;
-  }
-
-}// Original function is modified. So it can be used
-//for both the trial and current tubes and r_com
-void jams::SkyrmionCenterCV::trial_center_of_mass(Vec3 trial_spin, int spin_index) {
-  //copy the tubes x & y and update them before calculating the trial CoM
-  double trial_position_i, trial_position_j;
-
-  auto trial_tube_x = tube_x;
-  auto trial_tube_y = tube_y;
-
-  trial_position_i = lattice->atom_position(spin_index)[0];
-  trial_position_j = lattice->atom_position(spin_index)[1];
-
-  tubes_update(trial_tube_x,trial_tube_y,spin_index,trial_position_i,trial_position_j);
-  calc_center_of_mass(trial_r_com,trial_tube_x,trial_tube_y);
+	return center_of_mass;
 }
 
 //---------------Private Functions---------------//
@@ -259,58 +190,98 @@ double jams::SkyrmionCenterCV::interpolated_2d_potential(const double &y, const 
   return jams::maths::linear_interpolation(y, sample_points_y_[lower_y], R1, sample_points_y_[upper_y], R2);
 }
 void jams::SkyrmionCenterCV::skyrmion_output() {
-  using namespace globals;
-
-  double x, y;
-
-  const double x_size = lattice->rmax()[0];
-  const double y_size = lattice->rmax()[1];
-
-  skyrmion_outfile << std::setw(12) << std::scientific << solver->time();
-  skyrmion_outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
-
-  for (double threshold : thresholds) {
-//	std::vector<Vec3 > r_com(lattice->num_materials(), {0.0, 0.0, 0.0});
-	calc_center_of_mass(r_com,tube_x,tube_y);
-
-	int r_count[lattice->num_materials()];
-	double radius_gyration[lattice->num_materials()];
-
-	for (auto i = 0; i < lattice->num_materials(); ++i) {
-	  r_count[i] = 0;
-	  radius_gyration[i] = 0.0;
-	}
-
-	for (auto i = 0; i < num_spins; ++i) {
-	  auto type = lattice->atom_material_id(i);
-	  if (s(i, 2)*type_norms[type] > threshold) {
-		x = lattice->atom_position(i)[0] - r_com[type][0];
-		x = x - nint(x / x_size) * x_size;  // min image convention
-		y = lattice->atom_position(i)[1] - r_com[type][1];
-		y = y - nint(y / y_size) * y_size;  // min image convention
-		radius_gyration[type] += x*x + y*y;
-		r_count[type]++;
-	  }
-	}
-
-	for (auto n = 0; n < lattice->num_materials(); ++n) {
-	  radius_gyration[n] = sqrt(radius_gyration[n]/static_cast<double>(r_count[n]));
-	}
-
-	for (auto n = 0; n < lattice->num_materials(); ++n) {
-	  if (r_count[n] == 0) {
-		for (auto i = 0; i < 5; ++i) {
-		  skyrmion_outfile << std::setw(16) << 0.0;
-		}
-	  } else {
-		for (auto i = 0; i < 3; ++i) {
-		  skyrmion_outfile << std::setw(16) << r_com[n][i]*lattice->parameter();
-		}
-		skyrmion_outfile << std::setw(16) << radius_gyration[n]*lattice->parameter() << std::setw(16) << (2.0/sqrt(2.0))*radius_gyration[n]*lattice->parameter();
-	  }
-	}
-  }
-
-  skyrmion_outfile << "\n";
+//  using namespace globals;
+//
+//  double x, y;
+//
+//  const double x_size = lattice->rmax()[0];
+//  const double y_size = lattice->rmax()[1];
+//
+//  skyrmion_outfile << std::setw(12) << std::scientific << solver->time();
+//  skyrmion_outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
+//
+//	calc_center_of_mass();
+//
+//	int r_count[lattice->num_materials()];
+//	double radius_gyration[lattice->num_materials()];
+//
+//	for (auto i = 0; i < lattice->num_materials(); ++i) {
+//	  r_count[i] = 0;
+//	  radius_gyration[i] = 0.0;
+//	}
+//
+//	for (auto i = 0; i < num_spins; ++i) {
+//	  auto type = lattice->atom_material_id(i);
+//	  if (s(i, 2)*type_norms[type] > threshold) {
+//		x = lattice->atom_position(i)[0] - r_com[type][0];
+//		x = x - nint(x / x_size) * x_size;  // min image convention
+//		y = lattice->atom_position(i)[1] - r_com[type][1];
+//		y = y - nint(y / y_size) * y_size;  // min image convention
+//		radius_gyration[type] += x*x + y*y;
+//		r_count[type]++;
+//	  }
+//	}
+//
+//	for (auto n = 0; n < lattice->num_materials(); ++n) {
+//	  radius_gyration[n] = sqrt(radius_gyration[n]/static_cast<double>(r_count[n]));
+//	}
+//
+//	for (auto n = 0; n < lattice->num_materials(); ++n) {
+//	  if (r_count[n] == 0) {
+//		for (auto i = 0; i < 5; ++i) {
+//		  skyrmion_outfile << std::setw(16) << 0.0;
+//		}
+//	  } else {
+//		for (auto i = 0; i < 3; ++i) {
+//		  skyrmion_outfile << std::setw(16) << r_com[n][i]*lattice->parameter();
+//		}
+//		skyrmion_outfile << std::setw(16) << radius_gyration[n]*lattice->parameter() << std::setw(16) << (2.0/sqrt(2.0))*radius_gyration[n]*lattice->parameter();
+//	  }
+//	}
+//  }
+//
+//  skyrmion_outfile << "\n";
 
 } // haven't spent any time on this TODO: check it
+
+void jams::SkyrmionCenterCV::space_remapping() {
+
+  // find maximum extent of the system for normalisation
+
+  tube_x_.resize(globals::num_spins);
+  tube_y_.resize(globals::num_spins);
+
+  // map 2D space into a cylinder with y as the axis
+  auto x_max = lattice->rmax()[0];
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    auto r = lattice->atom_position(i);
+
+    auto theta_x = (r[0] / x_max) * (kTwoPi);
+
+    auto x = (x_max / (kTwoPi)) * cos(theta_x);
+    auto y = r[1];
+    auto z = (x_max / (kTwoPi)) * sin(theta_x);
+
+    tube_x_[i] = {x, y, z};
+  }
+
+  // map 2D space into a cylinder with x as the axis
+  auto y_max = lattice->rmax()[1];
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    auto r = lattice->atom_position(i);
+
+    auto theta_y = (r[1] / y_max) * (kTwoPi);
+
+    auto x = r[0];
+    auto y = y_max * cos(theta_y);
+    auto z = y_max * sin(theta_y);
+
+    tube_y_[i] = {x, y, z};
+  }
+}
+
+bool jams::SkyrmionCenterCV::spin_crossed_threshold(const Vec3 &s_initial,
+                                                    const Vec3 &s_final,
+                                                    const double &threshold) {
+  return (s_initial[2] <= threshold && s_final[2] > threshold) || (s_initial[2] > threshold && s_final[2] <= threshold);
+}
