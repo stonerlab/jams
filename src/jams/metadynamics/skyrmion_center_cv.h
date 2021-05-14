@@ -60,6 +60,7 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
 
   std::ofstream potential_landscape;
   std::ofstream skyrmion_outfile;
+  std::ofstream skyrmion_com; //track the center of mass location, plot its path in python.
 
 }
 ;}

@@ -57,7 +57,10 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   sample_points_x_ = linear_space_creation(0,lattice->rmax()[0],histogram_step_size_);
   sample_points_y_ = linear_space_creation(0,lattice->rmax()[0],histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
   potential_2d_.resize(sample_points_x_.size(),std::vector<double>(sample_points_x_.size(),0.0));
-  skyrmion_outfile.open(jams::output::full_path_filename("sky.tsv"));
+  skyrmion_outfile.open(jams::output::full_path_filename("sky_test.tsv"));
+  skyrmion_com.open(jams::output::full_path_filename("com_track.tsv"));
+  skyrmion_outfile <<"Iteration"<< "	"<< "x" << "	"<< "y" << "	"<< "z" << "\n" ;
+  skyrmion_com <<"Iteration"<< "	"<< "x" << "	"<< "y" << "	"<< "z" << "\n" ;
   skyrmion_threshold_ = 0.05;
 
   space_remapping();
@@ -69,10 +72,11 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
 
 void jams::SkyrmionCenterCV::output() {
   //if (solver->iteration()% 10 == 0){
-    skyrmion_output();
-    skyrmion_outfile << " print" <<"/n";
+    //skyrmion_output();
   //}
-  if (solver->iteration()%100 == 0){
+  skyrmion_com << solver->iteration()<< "	" <<cached_initial_center_of_mass_[0] << "	" << cached_initial_center_of_mass_[1] << "	" << cached_initial_center_of_mass_[2] << "\n";
+
+  if (solver->iteration()%1000 == 0){
     potential_landscape.open(jams::output::full_path_filename("skyrmion_potential.tsv"));
 	for (auto i = 0; i < sample_points_y_.size(); ++i) {
 	  for (auto ii = 0; ii < sample_points_x_.size(); ++ii) {
@@ -82,6 +86,7 @@ void jams::SkyrmionCenterCV::output() {
 	}
 	potential_landscape.close();
   }
+
   }
 
 void jams::SkyrmionCenterCV::insert_gaussian(const double &relative_amplitude) {
