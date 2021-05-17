@@ -260,10 +260,24 @@ void jams::SkyrmionCenterCV::space_remapping() {
   tube_x_.resize(globals::num_spins);
   tube_y_.resize(globals::num_spins);
 
+  // We need to remove the third dimension from the lattice matrix because
+  // the remapping is in 2D only.
+  //
+  // NOTE: This means that we are assuming lattice vectors a,b are in the
+  // x,y plane and c is BOTH out of the plane and orthogonal to a,b. i.e.
+  // it must be a vector along z. We do a check here for safety.
+  auto c_unit_vec = normalize(lattice->get_unitcell().c());
+  assert(approximately_zero(c_unit_vec[0])
+      && approximately_zero(c_unit_vec[1])
+      && approximately_equal(c_unit_vec[2], 1.0));
+
+  Mat3 W = lattice->get_unitcell().matrix();
+  W[0][2] = 0.0; W[1][2] = 0.0; W[2][2] = 1.0;
+
   // map 2D space into a cylinder with y as the axis
   double x_max = lattice->size(0);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto r = lattice->cartesian_to_fractional(lattice->atom_position(i));
+    auto r = inverse(W) * lattice->atom_position(i);
 
     auto theta_x = (r[0] / x_max) * (kTwoPi);
 
@@ -271,13 +285,13 @@ void jams::SkyrmionCenterCV::space_remapping() {
     auto y = r[1];
     auto z = (x_max / (kTwoPi)) * sin(theta_x);
 
-    tube_x_[i] = lattice->fractional_to_cartesian({x, y, z});
+    tube_x_[i] = W * Vec3{x, y, z};
   }
 
   // map 2D space into a cylinder with x as the axis
   auto y_max = lattice->size(1);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto r = lattice->cartesian_to_fractional(lattice->atom_position(i));
+    auto r = inverse(W) * lattice->atom_position(i);
 
     auto theta_y = (r[1] / y_max) * (kTwoPi);
 
@@ -285,7 +299,7 @@ void jams::SkyrmionCenterCV::space_remapping() {
     auto y = (y_max / (kTwoPi)) * cos(theta_y);
     auto z = (y_max / (kTwoPi)) * sin(theta_y);
 
-    tube_y_[i] = lattice->fractional_to_cartesian({x, y, z});
+    tube_y_[i] = W * Vec3{x, y, z};
   }
 }
 
