@@ -184,16 +184,19 @@ Vec3 jams::SkyrmionCenterCV::calc_center_of_mass() {
     }
   }
 
+  Mat3 W = lattice->get_unitcell().matrix();
+  W[0][2] = 0.0; W[1][2] = 0.0; W[2][2] = 1.0;
+
 	double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
 	double theta_y = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
 
 	Vec3 center_of_mass = {
-      theta_x*lattice->rmax()[0]/(kTwoPi),
-      theta_y*lattice->rmax()[1]/(kTwoPi),
+      theta_x*lattice->size(0)/(kTwoPi),
+      theta_y*lattice->size(1)/(kTwoPi),
       0.0
   };
 
-	return center_of_mass;
+	return W*center_of_mass;
 }
 
 //---------------Private Functions---------------//
@@ -329,7 +332,7 @@ void jams::SkyrmionCenterCV::space_remapping() {
     auto y = r[1];
     auto z = (x_max / (kTwoPi)) * sin(theta_x);
 
-    tube_x_[i] = W * Vec3{x, y, z};
+    tube_x_[i] = Vec3{x, y, z};
   }
 
   // map 2D space into a cylinder with x as the axis
@@ -343,7 +346,7 @@ void jams::SkyrmionCenterCV::space_remapping() {
     auto y = (y_max / (kTwoPi)) * cos(theta_y);
     auto z = (y_max / (kTwoPi)) * sin(theta_y);
 
-    tube_y_[i] = W * Vec3{x, y, z};
+    tube_y_[i] = Vec3{x, y, z};
   }
 }
 
