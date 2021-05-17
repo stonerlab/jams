@@ -53,9 +53,53 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
 	throw std::runtime_error("Invalid value of histogram_step_size: "
 							 "histogram_step_size must divide into 2.0 with no remainder");
   }
+
+  // In general our 2D plane is a parallelogram and our x,y minimum and maximum
+  // need to be found by trying the coordinates of the different corners. We
+  // don't know in advance which points will be used because we could have
+  // (for example) this system:
+  //
+  //    top left ____________ top right
+  //             \           \
+  //              \           \
+  //   bottom left \___________\ bottom right
+  //
+  // or this system:
+  //
+  //          top left ____________ top right
+  //                 /           /
+  //               /           /
+  // bottom left /___________/ bottom right
+  //
+  // So we first find the coordinates of the corners and then find the min and
+  // max coordinates. This then allows us to create a rectangular sample space
+  //
+  //       ___________________
+  //      |     /           /|
+  //      |   /           /  |
+  //      |/___________/_____|
+  //
+  // The system can never actually reach the triangle in the edges but the
+  // metadynamics potential can 'leak' over the edge. This may actually be
+  // beneficial in periodic systems. In general we may need to think about how
+  // to deal with periodic systems (or periodic on one direction).
+  //
+  // In practical terms it means the output function will give a rectangle
+  // but only the data within parallelogram is part of the surface we sampled.
+  //
+
+  auto bottom_left  = lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
+  auto bottom_right = lattice->get_unitcell().matrix() * Vec3{double(lattice->size(0)), 0.0, 0.0};
+  auto top_left     = lattice->get_unitcell().matrix() * Vec3{0.0, double(lattice->size(1)), 0.0};
+  auto top_right    = lattice->get_unitcell().matrix() * Vec3{double(lattice->size(0)), double(lattice->size(1)), 0.0};
+
+  auto bounds_x = std::minmax({bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
+  auto bounds_y = std::minmax({bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
+
+
   //Create the 2d_potential landscape with dimension of the lattice points along x and y
-  sample_points_x_ = linear_space_creation(0,lattice->rmax()[0],histogram_step_size_);
-  sample_points_y_ = linear_space_creation(0,lattice->rmax()[1],histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
+  sample_points_x_ = linear_space_creation(bounds_x.first, bounds_x.second, histogram_step_size_);
+  sample_points_y_ = linear_space_creation(bounds_y.first, bounds_y.second, histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
   potential_2d_.resize(sample_points_x_.size(),std::vector<double>(sample_points_y_.size(),0.0));
   skyrmion_outfile.open(jams::output::full_path_filename("sky_test.tsv"));
   skyrmion_com.open(jams::output::full_path_filename("com_track.tsv"));
