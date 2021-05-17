@@ -109,8 +109,7 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
 
   space_remapping();
   output_remapping();
-  cached_initial_center_of_mass_ = calc_center_of_mass();
-  cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
+
 }
 
 //-------OVERWRITTEN FUNCTIONS ---------//
@@ -135,7 +134,11 @@ void jams::SkyrmionCenterCV::output() {
   }
 
 void jams::SkyrmionCenterCV::insert_gaussian(const double &relative_amplitude) {
-
+  if (do_first_cache_) {
+    cached_initial_center_of_mass_ = calc_center_of_mass();
+    cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
+    do_first_cache_ = false;
+  }
   for (int i = 0; i < sample_points_x_.size(); ++i) {
 	for (int j = 0; j < sample_points_y_.size(); ++j) {
 	  potential_2d_[i][j] +=  gaussian_2D(cached_initial_center_of_mass_[0], sample_points_x_[i], cached_initial_center_of_mass_[1], sample_points_y_[j], gaussian_amplitude_*relative_amplitude); // TODO :  r_com
@@ -145,10 +148,21 @@ void jams::SkyrmionCenterCV::insert_gaussian(const double &relative_amplitude) {
 
 }
 double jams::SkyrmionCenterCV::current_potential() {
+  if (do_first_cache_) {
+    cached_initial_center_of_mass_ = calc_center_of_mass();
+    cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
+    do_first_cache_ = false;
+  }
  return interpolated_2d_potential(cached_initial_center_of_mass_[0], cached_initial_center_of_mass_[1]);
 }
 
 double jams::SkyrmionCenterCV::potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final){
+  if (do_first_cache_) {
+    cached_initial_center_of_mass_ = calc_center_of_mass();
+    cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
+    do_first_cache_ = false;
+  }
+
   double initial_potential = current_potential(); // save it in a gloabal variable
   double trial_potential;
 
@@ -163,6 +177,12 @@ double jams::SkyrmionCenterCV::potential_difference(int i, const Vec3 &spin_init
   return trial_potential - initial_potential;
 }
 void jams::SkyrmionCenterCV::spin_update(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+  if (do_first_cache_) {
+    cached_initial_center_of_mass_ = calc_center_of_mass();
+    cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
+    do_first_cache_ = false;
+  }
+  
   // we don't need to check if the threshold was crossed here because
   // cached_trial_center_of_mass_ contains the correct center of mass
   // from the potential_difference() function

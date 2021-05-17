@@ -54,6 +54,13 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
   std::vector<double> sample_points_y_;
   std::vector<std::vector<double>> potential_2d_;
 
+  // The constructor for this class is usually called before the spin
+  // configuration is finalised so the centre of mass will be incorrect if the
+  // cache is initialised inside of the constructor. We therefore us this flag
+  // as a hack for the first setup of the cache. It may be better to eventually
+  // rewrite this with a "proper" caching system around the centre of mass
+  // function.
+  bool do_first_cache_ = true;
   Vec3 cached_initial_center_of_mass_ = {0.0, 0.0, 0.0};
   Vec3 cached_trial_center_of_mass_ = {0.0, 0.0, 0.0};
 
