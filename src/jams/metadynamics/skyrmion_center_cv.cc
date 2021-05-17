@@ -56,7 +56,7 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   //Create the 2d_potential landscape with dimension of the lattice points along x and y
   sample_points_x_ = linear_space_creation(0,lattice->rmax()[0],histogram_step_size_);
   sample_points_y_ = linear_space_creation(0,lattice->rmax()[1],histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
-  potential_2d_.resize(sample_points_x_.size(),std::vector<double>(sample_points_x_.size(),0.0));
+  potential_2d_.resize(sample_points_x_.size(),std::vector<double>(sample_points_y_.size(),0.0));
   skyrmion_outfile.open(jams::output::full_path_filename("sky_test.tsv"));
   skyrmion_com.open(jams::output::full_path_filename("com_track.tsv"));
   skyrmion_outfile <<"Iteration"<< "	"<< "x" << "	"<< "y" << "	"<< "z" << "\n" ;
@@ -78,10 +78,10 @@ void jams::SkyrmionCenterCV::output() {
 
   if (solver->iteration()%1000 == 0){
     potential_landscape.open(jams::output::full_path_filename("skyrmion_potential.tsv"));
-	for (auto i = 0; i < sample_points_y_.size(); ++i) {
-	  for (auto ii = 0; ii < sample_points_x_.size(); ++ii) {
-		potential_landscape << sample_points_x_[ii] << "	" << sample_points_y_[i] << "	"
-				  << potential_2d_[i][ii] * kBohrMagneton << "\n";
+	for (auto i = 0; i < sample_points_x_.size(); ++i) {
+	  for (auto j = 0; j < sample_points_y_.size(); ++j) {
+		potential_landscape << sample_points_x_[i] << "	" << sample_points_y_[j] << "	"
+				  << potential_2d_[i][j] * kBohrMagneton << "\n";
 	  }
 	}
 	potential_landscape.close();
@@ -91,9 +91,9 @@ void jams::SkyrmionCenterCV::output() {
 
 void jams::SkyrmionCenterCV::insert_gaussian(const double &relative_amplitude) {
 
-  for (int i = 0; i < sample_points_y_.size(); ++i) {
-	for (int ii = 0; ii < sample_points_x_.size(); ++ii) {
-	  potential_2d_[i][ii] +=  gaussian_2D(reinterpret_cast<const double &>(cached_initial_center_of_mass_[1]), sample_points_y_[i], cached_initial_center_of_mass_[0], sample_points_x_[ii], gaussian_amplitude_*relative_amplitude); // TODO :  r_com
+  for (int i = 0; i < sample_points_x_.size(); ++i) {
+	for (int j = 0; j < sample_points_y_.size(); ++j) {
+	  potential_2d_[i][j] +=  gaussian_2D(cached_initial_center_of_mass_[0], sample_points_x_[i], cached_initial_center_of_mass_[1], sample_points_y_[j], gaussian_amplitude_*relative_amplitude); // TODO :  r_com
 
 	}
   }
@@ -160,7 +160,7 @@ double jams::SkyrmionCenterCV::gaussian_2D(const double &x,const double &x0,cons
 	  * exp(-(((x - x0) * (x - x0)) + ((y - y0) * (y - y0))) / (2.0 * gaussian_width_ * gaussian_width_));
 
 }
-double jams::SkyrmionCenterCV::interpolated_2d_potential(const double &y, const double x) {
+double jams::SkyrmionCenterCV::interpolated_2d_potential(const double &y, const double& x) {
 //  assert(m <= 1); TODO : think carefylly for appropriate assert checks for x and y .
 //  assert(x < 1);
   double lower_y = floor(abs((y - sample_points_y_[0]) / (sample_points_y_[1]
@@ -173,10 +173,10 @@ double jams::SkyrmionCenterCV::interpolated_2d_potential(const double &y, const 
   assert(lower_y < upper_y);
   assert(lower_x < upper_x);
   //f(x1,y1)=Q(11) , f(x1,y2)=Q(12), f(x2,y1), f(x2,y2)
-  double Q11 = potential_2d_[lower_y][lower_x];
-  double Q12 = potential_2d_[lower_y][upper_x];
-  double Q21 = potential_2d_[upper_y][lower_x];
-  double Q22 = potential_2d_[upper_y][upper_x];
+  double Q11 = potential_2d_[lower_x][lower_y];
+  double Q12 = potential_2d_[lower_x][upper_y];
+  double Q21 = potential_2d_[upper_x][lower_y];
+  double Q22 = potential_2d_[upper_x][upper_y];
 
 
 

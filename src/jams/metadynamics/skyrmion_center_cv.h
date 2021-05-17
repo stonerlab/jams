@@ -38,7 +38,7 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
     bool spin_crossed_threshold(const Vec3& s_initial, const Vec3& s_final, const double& threshold);
 
     Vec3 calc_center_of_mass(); // I have removed the treshold for now
-  double interpolated_2d_potential( const double& y, const double x);
+  double interpolated_2d_potential( const double& x, const double& y);
   double gaussian_2D(const double &x, const double &x0, const double &y, const double &y0, const double amplitude) const;
   void skyrmion_output();
 
