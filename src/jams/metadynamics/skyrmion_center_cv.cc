@@ -55,7 +55,7 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   }
   //Create the 2d_potential landscape with dimension of the lattice points along x and y
   sample_points_x_ = linear_space_creation(0,lattice->rmax()[0],histogram_step_size_);
-  sample_points_y_ = linear_space_creation(0,lattice->rmax()[0],histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
+  sample_points_y_ = linear_space_creation(0,lattice->rmax()[1],histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
   potential_2d_.resize(sample_points_x_.size(),std::vector<double>(sample_points_x_.size(),0.0));
   skyrmion_outfile.open(jams::output::full_path_filename("sky_test.tsv"));
   skyrmion_com.open(jams::output::full_path_filename("com_track.tsv"));
