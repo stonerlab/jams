@@ -33,6 +33,7 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
     // map the 2D x-y plane onto two cylinder coordinate systems to allow
     // calculation of the center of mass with periodic boundaries
     void space_remapping();
+    void output_remapping();
 
     // returns true if the z component of spin crosses the given threshold
     bool spin_crossed_threshold(const Vec3& s_initial, const Vec3& s_final, const double& threshold);

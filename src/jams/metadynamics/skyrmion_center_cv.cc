@@ -64,6 +64,7 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   skyrmion_threshold_ = 0.05;
 
   space_remapping();
+  output_remapping();
   cached_initial_center_of_mass_ = calc_center_of_mass();
   cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
 }
@@ -191,6 +192,7 @@ double jams::SkyrmionCenterCV::interpolated_2d_potential(const double &y, const 
 												Q12,
 												sample_points_x_[upper_x],
 												Q22);
+
   //Interpolate along the y-axis
   return jams::maths::linear_interpolation(y, sample_points_y_[lower_y], R1, sample_points_y_[upper_y], R2);
 }
@@ -250,6 +252,8 @@ void jams::SkyrmionCenterCV::skyrmion_output() {
 } // haven't spent any time on this TODO: check it
 
 void jams::SkyrmionCenterCV::space_remapping() {
+  // The remapping is done in direct (fractional) space rather than real space
+  // because it allows us to handle non-square lattices.
 
   // find maximum extent of the system for normalisation
 
@@ -257,9 +261,9 @@ void jams::SkyrmionCenterCV::space_remapping() {
   tube_y_.resize(globals::num_spins);
 
   // map 2D space into a cylinder with y as the axis
-  auto x_max = lattice->rmax()[0];
+  double x_max = lattice->size(0);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto r = lattice->atom_position(i);
+    auto r = lattice->cartesian_to_fractional(lattice->atom_position(i));
 
     auto theta_x = (r[0] / x_max) * (kTwoPi);
 
@@ -267,21 +271,21 @@ void jams::SkyrmionCenterCV::space_remapping() {
     auto y = r[1];
     auto z = (x_max / (kTwoPi)) * sin(theta_x);
 
-    tube_x_[i] = {x, y, z};
+    tube_x_[i] = lattice->fractional_to_cartesian({x, y, z});
   }
 
   // map 2D space into a cylinder with x as the axis
-  auto y_max = lattice->rmax()[1];
+  auto y_max = lattice->size(1);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto r = lattice->atom_position(i);
+    auto r = lattice->cartesian_to_fractional(lattice->atom_position(i));
 
     auto theta_y = (r[1] / y_max) * (kTwoPi);
 
     auto x = r[0];
-    auto y = y_max * cos(theta_y);
-    auto z = y_max * sin(theta_y);
+    auto y = (y_max / (kTwoPi)) * cos(theta_y);
+    auto z = (y_max / (kTwoPi)) * sin(theta_y);
 
-    tube_y_[i] = {x, y, z};
+    tube_y_[i] = lattice->fractional_to_cartesian({x, y, z});
   }
 }
 
@@ -289,4 +293,18 @@ bool jams::SkyrmionCenterCV::spin_crossed_threshold(const Vec3 &s_initial,
                                                     const Vec3 &s_final,
                                                     const double &threshold) {
   return (s_initial[2] <= threshold && s_final[2] > threshold) || (s_initial[2] > threshold && s_final[2] <= threshold);
+}
+
+void jams::SkyrmionCenterCV::output_remapping() {
+  std::ofstream remap_file_x(jams::output::full_path_filename("sky_map_x.tsv"));
+
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    remap_file_x << tube_x_[i][0] << " " << tube_x_[i][1] << " " << tube_x_[i][2] << "\n";
+  }
+
+  std::ofstream remap_file_y(jams::output::full_path_filename("sky_map_y.tsv"));
+
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    remap_file_y << tube_y_[i][0] << " " << tube_y_[i][1] << " " << tube_y_[i][2] << "\n";
+  }
 }
