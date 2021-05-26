@@ -50,7 +50,11 @@ double coth(const double x) {
 
 // arbitrary correlation function
 double correlator(const double omega, const double temperature) {
-  if (omega == 0.0) return 1.0;
+//  if (omega == 0.0) return 1.0;
+//  double x = (kHBar * abs(omega)) / (2.0 * kBoltzmann * temperature);
+//  return x * coth(x);
+
+  if (omega == 0.0) return 0.5;
   double x = (kHBar * abs(omega)) / (kBoltzmann * temperature);
   return 0.5 * x / (exp(x) - 1);
 }
