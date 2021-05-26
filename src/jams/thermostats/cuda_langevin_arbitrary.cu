@@ -51,7 +51,8 @@ double coth(const double x) {
 // arbitrary correlation function
 double correlator(const double omega, const double temperature) {
   if (omega == 0.0) return 1.0;
-  return (kHBar * abs(omega))/(exp((kHBar * abs(omega)) / (kBoltzmann * temperature)) - 1);
+  double x = (kHBar * abs(omega)) / (kBoltzmann * temperature);
+  return 0.5 * x / (exp(x) - 1);
 }
 
 double timestep_mismatch_inv_correlator(const double omega, const double bath_time_step) {
@@ -139,7 +140,7 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
 
    for (int i = 0; i < num_spins; ++i) {
      for (int j = 0; j < 3; ++j) {
-        sigma_(i,j) = sqrt((2.0 * globals::alpha(i) * globals::mus(i) * kGyromagneticRatio));
+        sigma_(i,j) = sqrt((2.0 * globals::alpha(i) * kBoltzmann) / (globals::mus(i) * kBohrMagneton * kGyromagneticRatio));
      }
    }
 
@@ -184,7 +185,7 @@ void CudaLangevinArbitraryThermostat::update() {
 
   // scale by sigma
   // TODO: does temperature need to go here or in the kernel above?
-  cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), 1.0, noise_.device_data(), 1, noise_.device_data(), 1, dev_stream_);
+  cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), temperature, noise_.device_data(), 1, noise_.device_data(), 1, dev_stream_);
 
 
   debug_file_ << solver->iteration() * delta_t_ << " " << noise_(0, 0)
