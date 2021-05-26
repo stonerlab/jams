@@ -207,10 +207,10 @@ void CudaLangevinArbitraryThermostat::update() {
 
     vector<double> discrete_filter;
     if (do_zero_point_) {
-      discretize_function(std::function<double(double, double, double)>(
+      discrete_filter = discretize_function(std::function<double(double, double, double)>(
           zero_point_filter), delta_omega_, num_freq_, temperature_, delta_t_);
     } else {
-      discretize_function(std::function<double(double, double, double)>(
+      discrete_filter = discretize_function(std::function<double(double, double, double)>(
           barker_filter), delta_omega_, num_freq_, temperature_, delta_t_);
     }
     auto convoluted_filter = real_discrete_ft(discrete_filter);
