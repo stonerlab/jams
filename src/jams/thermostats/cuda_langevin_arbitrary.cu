@@ -191,7 +191,7 @@ void CudaLangevinArbitraryThermostat::update() {
 
   // scale by sigma
   // TODO: does temperature need to go here or in the kernel above?
-  cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), temperature, noise_.device_data(), 1, noise_.device_data(), 1, dev_stream_);
+  cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), sqrt(temperature), noise_.device_data(), 1, noise_.device_data(), 1, dev_stream_);
 
 
   debug_file_ << solver->iteration() * delta_t_ << " " << noise_(0, 0)
