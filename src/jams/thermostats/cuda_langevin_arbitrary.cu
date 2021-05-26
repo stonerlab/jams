@@ -48,15 +48,16 @@ double coth(const double x) {
 //  return abs(omega)*coth(abs(omega));
 //}
 
-// arbitrary correlation function
-double correlator(const double omega, const double temperature) {
-//  if (omega == 0.0) return 1.0;
-//  double x = (kHBar * abs(omega)) / (2.0 * kBoltzmann * temperature);
-//  return x * coth(x);
-
+double barker_correlator(const double omega, const double temperature) {
   if (omega == 0.0) return 1.0;
   double x = (kHBar * abs(omega)) / (kBoltzmann * temperature);
   return x / (exp(x) - 1);
+}
+
+double zero_point_correlator(const double omega, const double temperature) {
+  if (omega == 0.0) return 1.0;
+  double x = (kHBar * abs(omega)) / (2.0 * kBoltzmann * temperature);
+  return x * coth(x);
 }
 
 double timestep_mismatch_inv_correlator(const double omega, const double bath_time_step) {
@@ -66,8 +67,15 @@ double timestep_mismatch_inv_correlator(const double omega, const double bath_ti
 }
 
 // filter function
-double filter(const double omega, const double temperature, const double bath_time_step) {
-  auto x = correlator(omega, temperature); // * timestep_mismatch_inv_correlator(omega, bath_time_step);
+double barker_filter(const double omega, const double temperature, const double bath_time_step) {
+  auto x = barker_correlator(omega, temperature); // * timestep_mismatch_inv_correlator(omega, bath_time_step);
+  assert(!(x < 0.0));
+  return sqrt(x);
+}
+
+// filter function
+double zero_point_filter(const double omega, const double temperature, const double bath_time_step) {
+  auto x = zero_point_correlator(omega, temperature); // * timestep_mismatch_inv_correlator(omega, bath_time_step);
   assert(!(x < 0.0));
   return sqrt(x);
 }
@@ -123,6 +131,8 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
 //
 //   delta_omega_ = max_omega_ / double(num_freq_);
 //   delta_t_ = kPi / max_omega_;
+
+   config->lookupValue("thermostat.zero_point", do_zero_point_);
 
    cout << "    max_omega (THz) " << std::fixed << max_omega_ / (kTwoPi * kTHz) << "\n";
    cout << "    delta_t " << std::scientific << delta_t_ << "\n";
@@ -194,7 +204,15 @@ void CudaLangevinArbitraryThermostat::update() {
 
   if (filter_temperature_ != this->temperature()) {
     filter_temperature_ = this->temperature();
-    auto discrete_filter = discretize_function(std::function<double(double, double, double)>(filter), delta_omega_, num_freq_, temperature_, delta_t_);
+
+    vector<double> discrete_filter;
+    if (do_zero_point_) {
+      discretize_function(std::function<double(double, double, double)>(
+          zero_point_filter), delta_omega_, num_freq_, temperature_, delta_t_);
+    } else {
+      discretize_function(std::function<double(double, double, double)>(
+          barker_filter), delta_omega_, num_freq_, temperature_, delta_t_);
+    }
     auto convoluted_filter = real_discrete_ft(discrete_filter);
     filter_.resize(convoluted_filter.size());
     std::copy(convoluted_filter.begin(), convoluted_filter.end(), filter_.begin());
