@@ -143,11 +143,42 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
 
 
+   // If the noise term is written as a B-field in Tesla it should look like:
+   //
+   // B(t) = \sqrt{T} \sigma_i \xi(t, T)
+   //
+   // where the \sigma_i depends on parameters on the local site and \xi
+   // is a dimensionless noise.
+   //
+   // \sigma_i = \sqrt((2 \alpha_i k_B) / (\gamma_i \mu_{s,i}))
+   //
+   // where:
+   // - \alpha_i is a coupling parameter to the bath
+   // - k_B is Boltzmann constant
+   // - \gamma_i is the local gyromagnetic ratio (usually g_e \mu_B / \hbar)
+   // - \mu_{s,i} is the local magnetic moment in Bohr magnetons
+   //
+   // Inside of JAMS we have to take into account the reduce units namely that
+   // globals::gyro(i) == -\gamma_i / (\mu_{s,i}*kGyromagneticRatio), hence we
+   // should convert back to get \gamma_i.
+   //
+   // We also need to account for the fact that all fields are multiplied by
+   // globals::gyro(i) in the LLG in JAMS. In principle we want a B-field in
+   // tesla to be multiplied by \gamma_i, but the \mu_{s,i} from the field
+   // derivative H = -(1/\mu_{s,i}) \partial \mathcal{H}/\partial \vec{S}_i
+   // is factored out into the LLG. Hence our thermostat must be premultiplied
+   // by globals::mus(i) to account for this.
+   //
+   // Finally we put the 1/\sqrt{\Delta t} which is the scaling of the Gaussian
+   // noise processes into sigma (because it's a convenient place for it).
+   //
    for (int i = 0; i < num_spins; ++i) {
      // globals::gyro(i) = - gamma / mus
      const auto gamma = std::abs(globals::gyro(i)) * globals::mus(i) * kGyromagneticRatio;
+     // thermostat fields are treated like other fields in the LLG kernels and are multiplied by globals::gyro (i.e. gamma/mus) hence we want to pre multiply
+     // sigma by (1/mus)
      for (int j = 0; j < 3; ++j) {
-        sigma_(i,j) = sqrt((2.0 * globals::alpha(i) * kBoltzmann) / (globals::mus(i) * kBohrMagneton * gamma  * solver->time_step()));
+        sigma_(i,j) = sqrt((2.0 * globals::alpha(i) * globals::mus(i) * kBoltzmann) / (kBohrMagneton * gamma  * solver->time_step()));
      }
    }
 
