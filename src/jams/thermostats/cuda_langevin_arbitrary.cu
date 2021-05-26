@@ -54,9 +54,9 @@ double correlator(const double omega, const double temperature) {
 //  double x = (kHBar * abs(omega)) / (2.0 * kBoltzmann * temperature);
 //  return x * coth(x);
 
-  if (omega == 0.0) return 0.5;
+  if (omega == 0.0) return 1.0;
   double x = (kHBar * abs(omega)) / (kBoltzmann * temperature);
-  return 0.5 * x / (exp(x) - 1);
+  return x / (exp(x) - 1);
 }
 
 double timestep_mismatch_inv_correlator(const double omega, const double bath_time_step) {
