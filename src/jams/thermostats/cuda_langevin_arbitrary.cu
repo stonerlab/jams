@@ -118,7 +118,7 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
   {
    cout << "\n  initialising CUDA Langevin arbitrary noise thermostat\n";
 
-    num_freq_ = 10000;
+    num_freq_ = 1000;
     delta_t_ = solver->time_step();
     max_omega_ = kPi / delta_t_;
 //    config->lookupValue("thermostat.w_max", max_omega_);
