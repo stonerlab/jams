@@ -138,9 +138,12 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
 
    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
 
+
    for (int i = 0; i < num_spins; ++i) {
+     // globals::gyro(i) = - gamma / mus
+     const auto gamma = std::abs(globals::gyro(i)) * globals::mus(i) * kGyromagneticRatio;
      for (int j = 0; j < 3; ++j) {
-        sigma_(i,j) = sqrt((2.0 * globals::alpha(i) * kBoltzmann) / (globals::mus(i) * kBohrMagneton * kGyromagneticRatio));
+        sigma_(i,j) = sqrt((2.0 * globals::alpha(i) * kBoltzmann) / (globals::mus(i) * kBohrMagneton * gamma  * solver->time_step()));
      }
    }
 
@@ -176,7 +179,6 @@ void CudaLangevinArbitraryThermostat::update() {
       noise_.device_data(),
       filter_.device_data(),
       white_noise_.device_data(),
-      delta_t_,
       n,
       num_freq_,
       globals::num_spins3);
