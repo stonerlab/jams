@@ -197,7 +197,7 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), white_noise_.device_data(), white_noise_.size(), 0.0, 1.0));
 
 
-    debug_file_.open("noise.tsv");
+//    debug_file_.open("noise.tsv");
   }
 
 void CudaLangevinArbitraryThermostat::update() {
@@ -243,8 +243,8 @@ void CudaLangevinArbitraryThermostat::update() {
   cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), sqrt(temperature), noise_.device_data(), 1, noise_.device_data(), 1, dev_stream_);
 
 
-  debug_file_ << solver->iteration() * delta_t_ << " " << noise_(0, 0)
-              << "\n";
+//  debug_file_ << solver->iteration() * delta_t_ << " " << noise_(0, 0)
+//              << "\n";
 
   // generate new random numbers
   CHECK_CURAND_STATUS(
@@ -257,7 +257,7 @@ void CudaLangevinArbitraryThermostat::update() {
 }
 
 CudaLangevinArbitraryThermostat::~CudaLangevinArbitraryThermostat() {
-  debug_file_.close();
+//  debug_file_.close();
 
   if (dev_stream_ != nullptr) {
     cudaStreamDestroy(dev_stream_);
