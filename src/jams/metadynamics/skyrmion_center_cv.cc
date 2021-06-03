@@ -51,9 +51,9 @@ void jams::SkyrmionCenterCV::potential_import(const std::string &filename, std::
 	}
   }
   int copy_iterator = 0;
-  for (auto i=0; i < sample_points_y_.size(); ++i){
-    for(auto ii=0;ii < sample_points_y_.size();++ii){
-      potential_to_be_copied_at[i][ii] =save_potential_from_file[copy_iterator];
+  for (auto x=0; x < sample_points_x_.size(); ++x){
+    for(auto y=0; y < sample_points_y_.size(); ++y){
+      potential_to_be_copied_at[x][y] =save_potential_from_file[copy_iterator];
       copy_iterator++;
     }
   }
