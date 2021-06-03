@@ -30,6 +30,36 @@ std::vector<double> linear_space_creation(const double &min, const double &max, 
 
   return space;
 }
+void jams::SkyrmionCenterCV::potential_import(const std::string &filename, std::vector<std::vector<double>> &potential_to_be_copied_at) {
+  std::vector<double> save_potential_from_file;
+  double x_range,y_range,potential_passed;
+  int line_number = 0;
+
+  std::ifstream potential_file_passed(filename.c_str());
+
+  for (std::string line; getline(potential_file_passed, line);) {
+	if (string_is_comment(line)) {
+	  continue;
+	}
+	std::stringstream is(line);
+	is >> x_range >> y_range >> potential_passed;
+	line_number ++;
+	save_potential_from_file.push_back(potential_passed);
+
+	if (is.bad() || is.fail()) {
+	  throw std::runtime_error("failed to read line " + std::to_string(line_number));
+	}
+  }
+  int copy_iterator = 0;
+  for (auto i=0; i < sample_points_y_.size(); ++i){
+    for(auto ii=0;ii < sample_points_y_.size();++ii){
+      potential_to_be_copied_at[i][ii] =save_potential_from_file[copy_iterator];
+      copy_iterator++;
+    }
+  }
+  potential_file_passed.close();
+}
+
 jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude");
 
@@ -101,6 +131,13 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   sample_points_x_ = linear_space_creation(bounds_x.first, bounds_x.second, histogram_step_size_);
   sample_points_y_ = linear_space_creation(bounds_y.first, bounds_y.second, histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
   potential_2d_.resize(sample_points_x_.size(),std::vector<double>(sample_points_y_.size(),0.0));
+
+  if (settings.exists("potential_file")) {
+    //TODO:: add safety conditions (same size as histogram and sample points.
+	std::string filename = settings["potential_file"];
+	std::cout << "reading potential landscape data from " << filename << "\n";
+	potential_import(filename,potential_2d_);
+  }
   skyrmion_outfile.open(jams::output::full_path_filename("sky_test.tsv"));
   skyrmion_com.open(jams::output::full_path_filename("com_track.tsv"));
   skyrmion_outfile <<"Iteration"<< "	"<< "x" << "	"<< "y" << "	"<< "z" << "\n" ;
