@@ -60,6 +60,17 @@ double zero_point_correlator(const double omega, const double temperature) {
   return x * coth(x);
 }
 
+double lorentzian_correlator(const double omega, const double temperature) {
+  double Gamma = 5*kGyromagneticRatio;
+  double omega_0 = 10*kGyromagneticRatio;
+
+  double lorentzian = pow4(omega_0) / (pow2(pow2(omega_0) - pow2(omega)) + pow2(omega * Gamma));
+
+  if (omega == 0.0) return 1.0;
+  double x = (kHBar * abs(omega)) / (2.0 * kBoltzmann * temperature);
+  return lorentzian*(x * coth(x));
+}
+
 double timestep_mismatch_inv_correlator(const double omega, const double bath_time_step) {
   // TODO: check if this should be 1 or 0
   if (omega == 0.0) return 1.0;
@@ -76,6 +87,13 @@ double barker_filter(const double omega, const double temperature, const double 
 // filter function
 double zero_point_filter(const double omega, const double temperature, const double bath_time_step) {
   auto x = zero_point_correlator(omega, temperature); // * timestep_mismatch_inv_correlator(omega, bath_time_step);
+  assert(!(x < 0.0));
+  return sqrt(x);
+}
+
+// filter function
+double lorentzian_filter(const double omega, const double temperature, const double bath_time_step) {
+  auto x = lorentzian_correlator(omega, temperature); // * timestep_mismatch_inv_correlator(omega, bath_time_step);
   assert(!(x < 0.0));
   return sqrt(x);
 }
@@ -208,7 +226,7 @@ void CudaLangevinArbitraryThermostat::update() {
     vector<double> discrete_filter;
     if (do_zero_point_) {
       discrete_filter = discretize_function(std::function<double(double, double, double)>(
-          zero_point_filter), delta_omega_, num_freq_, temperature_, delta_t_);
+          lorentzian_filter), delta_omega_, num_freq_, temperature_, delta_t_);
     } else {
       discrete_filter = discretize_function(std::function<double(double, double, double)>(
           barker_filter), delta_omega_, num_freq_, temperature_, delta_t_);
