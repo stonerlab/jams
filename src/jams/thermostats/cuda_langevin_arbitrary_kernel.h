@@ -12,18 +12,21 @@ __global__ void arbitrary_stochastic_process_cuda_kernel
                 double *noise_,
                 const double *filter,
                 const double *rands,
-                const int n,
-                const int num_freq,
+                const int j, // pointer to central random number
+                const int num_trunc,
                 const int num_proc // 3*num_spins
         ) {
   const int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_proc) {
-    double sum = 0.0;
-    for (auto m = 0; m < (2*num_freq - 1); ++m) {
-      const auto n_m = pbc(n-m, (2*num_freq - 1));
-      auto rand_idx = num_proc*n_m + idx;
-      sum += filter[m] * rands[rand_idx];
+    double sum = filter[0]*rands[j];
+
+    for (auto k = 1; k < num_trunc; ++k) {
+      const auto j_minus_k = pbc(j-k, (2*num_trunc + 1));
+      const auto j_plus_k  = pbc(j+k, (2*num_trunc + 1));
+
+      sum += filter[k] * (rands[num_proc*j_plus_k + idx] + rands[num_proc*j_minus_k + idx]);
     }
+
     noise_[idx] = sum;
   }
 }

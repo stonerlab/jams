@@ -25,6 +25,7 @@ private:
     bool do_zero_point_ = false;
 
     int    num_freq_;
+    int    num_trunc_;
     double max_omega_;
     double delta_omega_;
     double delta_t_;
