@@ -139,7 +139,7 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   skyrmion_com.open(jams::output::full_path_filename("com_track.tsv"));
   skyrmion_outfile <<"Iteration"<< "	"<< "x" << "	"<< "y" << "	"<< "z" << "\n" ;
   skyrmion_com <<"Iteration"<< "	"<< "x" << "	"<< "y" << "	"<< "z" << "\n" ;
-  skyrmion_threshold_ = 0.05;
+  skyrmion_threshold_ = -0.5;
 
   space_remapping();
   output_remapping();
