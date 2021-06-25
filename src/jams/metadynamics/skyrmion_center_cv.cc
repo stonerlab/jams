@@ -61,9 +61,6 @@ void jams::SkyrmionCenterCV::potential_import(const std::string &filename, std::
 }
 
 jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
-  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude");
-
-  // maximum amplitude of inserted gaussians in Joules
   // maximum amplitude of inserted Gaussians in Joules
   // (this can be reduced by tempering in the metadynamics solver)
   gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude") / kBohrMagneton;
