@@ -25,7 +25,7 @@
 #include "jams/thermostats/cuda_langevin_arbitrary.h"
 #include "jams/thermostats/cuda_langevin_arbitrary_kernel.h"
 
-//#define PRINT_NOISE
+#define PRINT_NOISE
 
 using namespace std;
 
@@ -137,7 +137,7 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
 
   cout << "\n  initialising CUDA Langevin arbitrary noise thermostat\n";
 
-  num_freq_ = jams::config_optional(config->lookup("thermostat"), "num_freq", 4000);
+  num_freq_ = jams::config_optional(config->lookup("thermostat"), "num_freq", 10000);
   num_trunc_ = jams::config_optional(config->lookup("thermostat"), "num_trunc", 2000);
 
   assert(num_trunc_ <= num_freq_);
@@ -231,6 +231,13 @@ void CudaLangevinArbitraryThermostat::update() {
       discrete_filter = discretize_function(std::function<double(double, double, double)>(
           barker_filter), delta_omega_, num_freq_, temperature_, delta_t_);
     }
+
+    std::ofstream noise_target_file(jams::output::full_path_filename("noise_target_spectrum.tsv"));
+    for (auto i = 0; i < discrete_filter.size(); ++i) {
+      noise_target_file << i << " " << i*delta_omega_/(kTwoPi * kTHz) << " " << discrete_filter[i] << "\n";
+    }
+    noise_target_file.close();
+
 
     auto convoluted_filter = real_discrete_ft(discrete_filter);
 //    filter_.resize(convoluted_filter.size());
