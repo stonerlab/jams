@@ -20,7 +20,7 @@ __global__ void arbitrary_stochastic_process_cuda_kernel
   if (idx < num_proc) {
     double sum = filter[0]*rands[j];
 
-    for (auto k = 1; k < num_trunc; ++k) {
+    for (auto k = 1; k < num_trunc + 1; ++k) {
       const auto j_minus_k = pbc(j-k, (2*num_trunc + 1));
       const auto j_plus_k  = pbc(j+k, (2*num_trunc + 1));
 
