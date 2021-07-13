@@ -21,6 +21,8 @@ public:
 
 private:
     std::ofstream debug_file_;
+    std::ofstream memory_file_;
+
     bool debug_;
     bool do_zero_point_ = false;
 
@@ -31,8 +33,15 @@ private:
     double delta_t_;
     double filter_temperature_;
 
+    // Lorentzian parameters
+    double lorentzian_omega0_;
+    double lorentzian_gamma_;
+    double lorentzian_A_;
+
     jams::MultiArray<double, 1> filter_;
     jams::MultiArray<double, 1> white_noise_;
+    jams::MultiArray<double, 1> memory_w_process_;
+    jams::MultiArray<double, 1> memory_v_process_;
 
     cudaStream_t                dev_stream_ = nullptr;
     cudaStream_t                dev_curand_stream_ = nullptr;
