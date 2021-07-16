@@ -167,11 +167,11 @@ Lattice::atom_position(const int &i) const {
 
 Vec3
 Lattice::displacement(const Vec3 &r_i, const Vec3 &r_j) const {
-  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), r_i, r_j);
+  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), r_i, r_j, jams::defaults::lattice_tolerance);
 }
 
 Vec3 Lattice::displacement(const unsigned &i, const unsigned &j) const {
-  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), atoms_[i].position, atoms_[j].position);
+  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), atoms_[i].position, atoms_[j].position, jams::defaults::lattice_tolerance);
 }
 
 Vec3
@@ -482,8 +482,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
     for (auto j = i + 1; j < motif_.size(); ++j) {
       auto distance = norm(
               jams::minimum_image(unitcell.a(), unitcell.b(), unitcell.c(), unitcell.periodic(),
-                                  fractional_to_cartesian(motif_[i].position), fractional_to_cartesian(motif_[j].position)));
-      if(!definately_greater_than(distance, jams::defaults::lattice_tolerance)) {
+                                  fractional_to_cartesian(motif_[i].position), fractional_to_cartesian(motif_[j].position), jams::defaults::lattice_tolerance));
+      if(distance < jams::defaults::lattice_tolerance) {
         throw std::runtime_error("motif positions " + std::to_string(i) + " and " + std::to_string(j) + " are closer than the default lattice tolerance");
       }
     }

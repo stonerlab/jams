@@ -57,7 +57,7 @@ namespace jams {
     ///
     Vec3
     minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b &pbc,
-                  const Vec3 &r_i, const Vec3 &r_j);
+                  const Vec3 &r_i, const Vec3 &r_j, const double& epsilon);
 
     /// Bruteforce method to calculate the vector displacement r_ij = r_i - r_j
     /// obeying the minimum image convention within a cell defined by vectors a,
@@ -83,7 +83,7 @@ namespace jams {
     ///
     Vec3 minimum_image_bruteforce(const Vec3 &a, const Vec3 &b, const Vec3 &c,
                                   const Vec3b &pbc, const Vec3 &r_i,
-                                  const Vec3 &r_j);
+                                  const Vec3 &r_j, const double& epsilon);
 
     /// Bruteforce method to calculate the vector displacement r_ij = r_i - r_j
     /// obeying the minimum image convention within a cell defined by vectors a,
@@ -112,7 +112,8 @@ namespace jams {
                                                  const Vec3b &pbc,
                                                  const Vec3 &r_i,
                                                  const Vec3 &r_j,
-                                                 const Vec3i &offset_depth);
+                                                 const Vec3i &offset_depth,
+                                                 const double& epsilon);
 
     /// Calculates the vector displacement r_ij = r_i - r_j obeying the minimum
     /// image convention using Smith's algorithm within a cell defined by

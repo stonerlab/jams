@@ -14,10 +14,10 @@ namespace {
 };
 
 Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
-                         const Vec3b &pbc, const Vec3 &r_i, const Vec3 &r_j) {
+                         const Vec3b &pbc, const Vec3 &r_i, const Vec3 &r_j, const double& epsilon) {
   // If the vectors a, b, c lie in a plane then the minimum image will
   // probably not work
-  assert(!approximately_zero(jams::maths::parallelepiped_volume(a, b, c)));
+  assert(!approximately_zero(jams::maths::parallelepiped_volume(a, b, c), epsilon));
 
   if (is_open_system(pbc)) {
     // if there are no periodic boundaries then return the only solution
@@ -27,14 +27,14 @@ Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
   Vec3 r_ij = minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
 
   if (definately_less_than(
-      norm(r_ij), maths::parallelepiped_inradius(a, b, c))) {
+      norm(r_ij), maths::parallelepiped_inradius(a, b, c), epsilon)) {
     return r_ij;
   }
 
   // If r_ij is not inside the inradius we have to do a bruteforce check
   // algorithm which should always give the shortest r_ij but it is much
   // more costly.
-  return minimum_image_bruteforce(a, b, c, pbc, r_i, r_j);
+  return minimum_image_bruteforce(a, b, c, pbc, r_i, r_j, epsilon);
 }
 
 
@@ -43,7 +43,8 @@ Vec3 jams::minimum_image_bruteforce_explicit_depth(const Vec3 &a, const Vec3 &b,
                                                    const Vec3b &pbc,
                                                    const Vec3 &r_i,
                                                    const Vec3 &r_j,
-                                                   const Vec3i &offset_depth) {
+                                                   const Vec3i &offset_depth,
+                                                   const double& epsilon) {
   // If the cell is not periodic along a vector (a, b or c) then set the
   // offset_depth in that direction to zero
   const Vec3i N{
@@ -64,7 +65,7 @@ Vec3 jams::minimum_image_bruteforce_explicit_depth(const Vec3 &a, const Vec3 &b,
         auto r_ik = r_i - ((h * a + k * b + l * c) + r_j);
 
         // only need to compare squared distances which avoids a sqrt
-        if (definately_less_than(norm_sq(r_ik), norm_sq(r_ij))) {
+        if (definately_less_than(norm_sq(r_ik), norm_sq(r_ij), epsilon)) {
           r_ij = r_ik;
         }
       }
@@ -76,7 +77,7 @@ Vec3 jams::minimum_image_bruteforce_explicit_depth(const Vec3 &a, const Vec3 &b,
 
 Vec3 jams::minimum_image_bruteforce(const Vec3 &a, const Vec3 &b, const Vec3 &c,
                                     const Vec3b &pbc, const Vec3 &r_i,
-                                    const Vec3 &r_j) {
+                                    const Vec3 &r_j, const double& epsilon) {
   // calculate the displacement between r_i and r_j
   Vec3 r_ij = r_i - r_j;
 
@@ -97,7 +98,7 @@ Vec3 jams::minimum_image_bruteforce(const Vec3 &a, const Vec3 &b, const Vec3 &c,
   int N_c = ceil(r_max / jams::maths::parallelepiped_height(a, b, c));
 
   return minimum_image_bruteforce_explicit_depth(a, b, c, pbc, r_i, r_j,
-                                                 {N_a, N_b, N_c});
+                                                 {N_a, N_b, N_c}, epsilon);
 }
 
 Vec3 jams::minimum_image_smith_method(const Mat3 &cell_matrix,

@@ -78,8 +78,8 @@ inline bool constexpr is_multiple_of(const int& x, const int& y) {
   return x % y == 0;
 }
 
-inline double zero_safe_recip_norm(double x, double y, double z) {
-  if (approximately_zero(x) && approximately_zero(y) && approximately_zero(z)) {
+inline double zero_safe_recip_norm(double x, double y, double z, double epsilon = 1e-9) {
+  if (approximately_zero(x, epsilon) && approximately_zero(y, epsilon) && approximately_zero(z, epsilon)) {
     return 0.0;
   }
 
@@ -129,7 +129,7 @@ inline constexpr double kronecker_delta(const int alpha, const int beta) {
 }
 
 inline constexpr double dirac_delta(const double x) {
-  return approximately_zero(x);
+  return approximately_zero(x, DBL_EPSILON);
 }
 
 inline double gaussian(const double& x, const double& center, const double& amplitude, const double& width) {

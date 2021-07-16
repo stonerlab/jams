@@ -5,8 +5,9 @@
 #include <array>
 #include <cassert>
 
-jams::InteractionNearTree::InteractionNearTree(const Vec3&a, const Vec3& b, const Vec3& c, const Vec3b& pbc, const double& r_cutoff) :
+jams::InteractionNearTree::InteractionNearTree(const Vec3&a, const Vec3& b, const Vec3& c, const Vec3b& pbc, const double& r_cutoff, const double& epsilon) :
   r_cutoff_(r_cutoff),
+  epsilon_(epsilon),
   a_(a),
   b_(b),
   c_(c),
@@ -14,15 +15,15 @@ jams::InteractionNearTree::InteractionNearTree(const Vec3&a, const Vec3& b, cons
       [](const NearTreeDataType& a, const NearTreeDataType& b)->double {
         return norm(a.first-b.first);}){
 
-  num_image_cells_[0] = pbc[0] ? int(ceil(r_cutoff / jams::maths::parallelepiped_height(b, c, a))) : 0;
-  num_image_cells_[1] = pbc[1] ? int(ceil(r_cutoff / jams::maths::parallelepiped_height(c, a, b))) : 0;
-  num_image_cells_[2] = pbc[2] ? int(ceil(r_cutoff / jams::maths::parallelepiped_height(a, b, c))) : 0;
+  num_image_cells_[0] = pbc[0] ? int(ceil((r_cutoff+epsilon) / jams::maths::parallelepiped_height(b, c, a))) : 0;
+  num_image_cells_[1] = pbc[1] ? int(ceil((r_cutoff+epsilon) / jams::maths::parallelepiped_height(c, a, b))) : 0;
+  num_image_cells_[2] = pbc[2] ? int(ceil((r_cutoff+epsilon) / jams::maths::parallelepiped_height(a, b, c))) : 0;
 }
 
 std::vector<jams::InteractionNearTree::NearTreeDataType>
 jams::InteractionNearTree::neighbours(const Vec3 &r, const double &radius) const {
   assert(radius <= r_cutoff_);
-  return neartree_.find_in_radius(radius, {r, 0});
+  return neartree_.find_in_radius(radius, {r, 0}, epsilon_);
 }
 
 void jams::InteractionNearTree::insert_sites(const std::vector<Vec3>& sites) {
@@ -72,10 +73,12 @@ void jams::InteractionNearTree::insert_sites(const std::vector<Vec3>& sites) {
           // - We use !definately_greater_than rather than definately_less_than
           //   to make this inclusive of the very edge of the radius.
 
-          if (!std::all_of(distances.begin(), distances.end(),
-                           [&](const double &x) {
-                               return definately_less_than(x, r_cutoff_);
-                           })) {
+          bool inside_cutoff = std::none_of(distances.begin(), distances.end(),
+                  [&](const double &x) {
+                      return definately_greater_than(x, r_cutoff_, epsilon_);
+                  });
+
+          if (!inside_cutoff) {
             continue;
           }
 
@@ -89,6 +92,6 @@ void jams::InteractionNearTree::insert_sites(const std::vector<Vec3>& sites) {
 }
 
 int jams::InteractionNearTree::num_neighbours(const Vec3 &r, const double &radius) const {
-  return neartree_.num_neighbours_in_radius(radius, {r, 0}) - 1;
+  return neartree_.num_neighbours_in_radius(radius, {r, 0}, epsilon_) - 1;
 }
 
