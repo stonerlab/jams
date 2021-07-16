@@ -65,9 +65,9 @@ namespace jams {
 
         bool nearest_neighbour(const double &radius, T &closest, const T &origin) const;
 
-        int num_neighbours_in_radius(const double &radius, const T &origin, const double &epsilon = std::numeric_limits<double>::epsilon()) const;
+        int num_neighbours_in_radius(const double &radius, const T &origin, const double &epsilon) const;
 
-        std::vector<T> find_in_radius(const double &radius, const T &origin, const double &epsilon = std::numeric_limits<double>::epsilon()) const;
+        std::vector<T> find_in_radius(const double &radius, const T &origin, const double &epsilon) const;
 
         std::vector<T> find_in_annulus(const double &inner_radius, const double &outer_radius, const T &origin) const;
 

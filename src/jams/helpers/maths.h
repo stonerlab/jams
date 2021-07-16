@@ -14,7 +14,7 @@
 // for these floating point comparisons we always compare the difference with the larger
 // of the two numbers to
 template <typename T>
-inline bool approximately_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline bool approximately_equal(const T& a, const T& b, const T& epsilon) {
   // check if a - b is close to zero (in which case the relative difference doesn't work
   if (std::abs(a - b) <= epsilon) return true;
 
@@ -23,28 +23,29 @@ inline bool approximately_equal(const T& a, const T& b, const T& epsilon = FLT_E
 }
 
 template <typename T>
-inline constexpr bool approximately_zero(const T& a, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool approximately_zero(const T& a, const T& epsilon) {
   return std::abs(a) <= epsilon;
 }
 
+// Returns true if 'a' is greater than 'b' within a relative tolerance max(a,b) * epsilon
 template <typename T>
-inline constexpr bool definately_greater_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline bool definately_greater_than(const T& a, const T& b, const T& epsilon) {
   return (a - b) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 
 template <typename T>
-inline constexpr bool less_than_approx_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool less_than_approx_equal(const T& a, const T& b, const T& epsilon) {
   return (a - b) < (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 template <typename T>
-inline constexpr bool definately_less_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool definately_less_than(const T& a, const T& b, const T& epsilon) {
   return (b - a) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 template <typename T>
-inline constexpr bool greater_than_approx_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool greater_than_approx_equal(const T& a, const T& b, const T& epsilon) {
   return (b - a) < (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
