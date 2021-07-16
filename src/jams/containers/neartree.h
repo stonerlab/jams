@@ -414,10 +414,12 @@ namespace jams {
       if ((left_branch != nullptr) &&
           greater_than_approx_equal((radius + max_distance_left), norm_functor(origin, *left), epsilon)) {
         num_neighbours += left_branch->num_neighbours_in_radius(radius, origin);
+        num_neighbours += left_branch->num_neighbours_in_radius(radius, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
           greater_than_approx_equal((radius + max_distance_right), norm_functor(origin, *right), epsilon)) {
         num_neighbours += right_branch->num_neighbours_in_radius(radius, origin);
+        num_neighbours += right_branch->num_neighbours_in_radius(radius, origin, epsilon);
       }
       #else
       if ((left_branch != nullptr) &&
