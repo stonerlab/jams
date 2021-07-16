@@ -293,10 +293,10 @@ namespace jams {
       // if one holds a point nearer than the search radius.
 
       #ifdef SAFE_FLOAT_COMPARISON
-      if ((left != nullptr) && less_than_approx_equal(norm_functor(origin, *left), radius, epsilon)) {
+      if ((left != nullptr) && !definately_greater_than(norm_functor(origin, *left), radius, epsilon)) {
         closest.push_back(*left); // It's a keeper
       }
-      if ((right != nullptr) && less_than_approx_equal(norm_functor(origin, *right), radius, epsilon)) {
+      if ((right != nullptr) && !definately_greater_than(norm_functor(origin, *right), radius, epsilon)) {
         closest.push_back(*right); // It's a keeper
       }
       #else
@@ -314,11 +314,11 @@ namespace jams {
       //
       #ifdef SAFE_FLOAT_COMPARISON
       if ((left_branch != nullptr) &&
-          greater_than_approx_equal((radius + max_distance_left), norm_functor(origin, *left), epsilon)) {
+          !definately_greater_than(norm_functor(origin, *left), (radius + max_distance_left), epsilon)) {
         left_branch->in_radius(radius, closest, origin);
       }
       if ((right_branch != nullptr) &&
-          greater_than_approx_equal((radius + max_distance_right), norm_functor(origin, *right), epsilon)) {
+          !definately_greater_than(norm_functor(origin, *right), (radius + max_distance_right), epsilon)) {
         right_branch->in_radius(radius, closest, origin);
       }
       #else
@@ -391,10 +391,10 @@ namespace jams {
       // if one holds a point nearer than the search radius.
 
       #ifdef SAFE_FLOAT_COMPARISON
-      if ((left != nullptr) && less_than_approx_equal(norm_functor(origin, *left), radius, epsilon)) {
+      if ((left != nullptr) && !definately_greater_than(norm_functor(origin, *left), radius, epsilon)) {
         num_neighbours++;
       }
-      if ((right != nullptr) && less_than_approx_equal(norm_functor(origin, *right), radius, epsilon)) {
+      if ((right != nullptr) && !definately_greater_than(norm_functor(origin, *right), radius, epsilon)) {
         num_neighbours++;
       }
       #else
@@ -412,13 +412,11 @@ namespace jams {
       //
       #ifdef SAFE_FLOAT_COMPARISON
       if ((left_branch != nullptr) &&
-          greater_than_approx_equal((radius + max_distance_left), norm_functor(origin, *left), epsilon)) {
-        num_neighbours += left_branch->num_neighbours_in_radius(radius, origin);
+        !definately_greater_than(norm_functor(origin, *left), (radius + max_distance_left), epsilon)) {
         num_neighbours += left_branch->num_neighbours_in_radius(radius, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
-          greater_than_approx_equal((radius + max_distance_right), norm_functor(origin, *right), epsilon)) {
-        num_neighbours += right_branch->num_neighbours_in_radius(radius, origin);
+        !definately_greater_than(norm_functor(origin, *right), (radius + max_distance_right), epsilon)) {
         num_neighbours += right_branch->num_neighbours_in_radius(radius, origin, epsilon);
       }
       #else
