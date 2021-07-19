@@ -83,7 +83,7 @@ inline Mat<T,3,3> operator*(const Mat<T,3,3>& lhs, const Mat<T,3,3>& rhs) {
 
 // Vec3 specialization
 template <typename T>
-inline bool approximately_equal(const Mat<T,3,3>& a, const Mat<T,3,3>& b, const T& epsilon = FLT_EPSILON) {
+inline bool approximately_equal(const Mat<T,3,3>& a, const Mat<T,3,3>& b, const T& epsilon) {
   for (auto m = 0; m < 3; ++m) {
     for (auto n = 0; n < 3; ++n) {
       if (!approximately_equal(a[m][n], b[m][n], epsilon)) {
