@@ -69,7 +69,7 @@ namespace jams {
 
         std::vector<T> find_in_radius(const double &radius, const T &origin, const double &epsilon) const;
 
-        std::vector<T> find_in_annulus(const double &inner_radius, const double &outer_radius, const T &origin) const;
+        std::vector<T> find_in_annulus(const double &inner_radius, const double &outer_radius, const T &origin, const double &epsilon) const;
 
         inline std::size_t size() const { return node_count(); };
 
@@ -91,11 +91,11 @@ namespace jams {
 
         void
         in_radius(const double &radius, std::vector<T> &closest, const T &origin,
-                  const double &epsilon = std::numeric_limits<double>::epsilon()) const;
+                  const double &epsilon) const;
 
         void
         in_annulus(const double &inner_radius, const double &outer_radius, std::vector<T> &closest,
-                   const T &origin) const;
+                   const T &origin, const double &epsilon) const;
 
         bool nearest(double &radius, T &closest, const T &origin) const;
 
@@ -243,9 +243,10 @@ namespace jams {
     template<typename T,
         typename FuncType>
     std::vector<T> NearTree<T, FuncType>::find_in_annulus(const double &inner_radius, const double &outer_radius,
-                                                          const T &origin) const {
+                                                          const T &origin, const double &epsilon) const {
       std::vector<T> closest;
-      in_annulus(inner_radius, outer_radius, closest, origin);
+      in_annulus(inner_radius, outer_radius, closest, origin, epsilon);
+      return closest;
     }
 
     template<typename T,
@@ -315,11 +316,11 @@ namespace jams {
       #ifdef SAFE_FLOAT_COMPARISON
       if ((left_branch != nullptr) &&
           !definately_greater_than(norm_functor(origin, *left), (radius + max_distance_left), epsilon)) {
-        left_branch->in_radius(radius, closest, origin);
+        left_branch->in_radius(radius, closest, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
           !definately_greater_than(norm_functor(origin, *right), (radius + max_distance_right), epsilon)) {
-        right_branch->in_radius(radius, closest, origin);
+        right_branch->in_radius(radius, closest, origin, epsilon);
       }
       #else
       if ((left_branch != nullptr) &&
@@ -336,16 +337,18 @@ namespace jams {
     template<typename T,
         typename FuncType>
     void NearTree<T, FuncType>::in_annulus(const double &inner_radius, const double &outer_radius,
-                                           std::vector<T> &closest, const T &origin) const {
+                                           std::vector<T> &closest, const T &origin, const double& epsilon) const {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
-      if ((left != nullptr) && (norm_functor(origin, *left) <= outer_radius) &&
-          (norm_functor(origin, *left) > inner_radius)) {
+      if ((left != nullptr)
+      && !definately_greater_than(norm_functor(origin, *left), outer_radius, epsilon)
+        && definately_greater_than(norm_functor(origin, *left), inner_radius, epsilon)) {
         closest.push_back(*left); // It's a keeper
       }
-      if ((right != nullptr) && (norm_functor(origin, *right) <= outer_radius) &&
-          (norm_functor(origin, *right) > inner_radius)) {
+      if ((right != nullptr)
+          && !definately_greater_than(norm_functor(origin, *right), outer_radius, epsilon)
+          && definately_greater_than(norm_functor(origin, *right), inner_radius, epsilon)) {
         closest.push_back(*right); // It's a keeper
       }
       //
@@ -353,13 +356,14 @@ namespace jams {
       // object nearer than the search radius. The triangle rule
       // is used to test whether it's even necessary to descend.
       //
+
       if ((left_branch != nullptr) &&
-          (outer_radius + max_distance_left) >= norm_functor(origin, *left)) {
-        left_branch->in_annulus(inner_radius, outer_radius, closest, origin);
+          !definately_greater_than(norm_functor(origin, *left), (outer_radius + max_distance_left), epsilon)) {
+        left_branch->in_annulus(inner_radius, outer_radius, closest, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
-          (outer_radius + max_distance_right) >= norm_functor(origin, *right)) {
-        right_branch->in_annulus(inner_radius, outer_radius, closest, origin);
+          !definately_greater_than(norm_functor(origin, *right), (outer_radius + max_distance_right), epsilon)) {
+        right_branch->in_annulus(inner_radius, outer_radius, closest, origin, epsilon);
       }
     }
 
