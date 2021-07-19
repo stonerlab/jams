@@ -15,9 +15,9 @@ jams::InteractionNearTree::InteractionNearTree(const Vec3&a, const Vec3& b, cons
       [](const NearTreeDataType& a, const NearTreeDataType& b)->double {
         return norm(a.first-b.first);}){
 
-  num_image_cells_[0] = pbc[0] ? int(ceil((r_cutoff+epsilon) / jams::maths::parallelepiped_height(b, c, a))) : 0;
-  num_image_cells_[1] = pbc[1] ? int(ceil((r_cutoff+epsilon) / jams::maths::parallelepiped_height(c, a, b))) : 0;
-  num_image_cells_[2] = pbc[2] ? int(ceil((r_cutoff+epsilon) / jams::maths::parallelepiped_height(a, b, c))) : 0;
+  num_image_cells_[0] = pbc[0] ? int(ceil((r_cutoff) / jams::maths::parallelepiped_height(b, c, a))) : 0;
+  num_image_cells_[1] = pbc[1] ? int(ceil((r_cutoff) / jams::maths::parallelepiped_height(c, a, b))) : 0;
+  num_image_cells_[2] = pbc[2] ? int(ceil((r_cutoff) / jams::maths::parallelepiped_height(a, b, c))) : 0;
 }
 
 std::vector<jams::InteractionNearTree::NearTreeDataType>
