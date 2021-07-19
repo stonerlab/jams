@@ -64,8 +64,7 @@ Vec3 jams::minimum_image_bruteforce_explicit_depth(const Vec3 &a, const Vec3 &b,
         // offset cell
         auto r_ik = r_i - ((h * a + k * b + l * c) + r_j);
 
-        // only need to compare squared distances which avoids a sqrt
-        if (definately_less_than(norm_sq(r_ik), norm_sq(r_ij), pow2(epsilon))) {
+        if (norm_sq(r_ik) < norm_sq(r_ij)) {
           r_ij = r_ik;
         }
       }
