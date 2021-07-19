@@ -145,7 +145,7 @@ Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i) {
 
     const auto r_abs_sq = norm_sq(r_ij);
 
-    if (definately_greater_than(r_abs_sq, r_cut_squared)) continue;
+    if (definately_greater_than(r_abs_sq, r_cut_squared, jams::defaults::lattice_tolerance*jams::defaults::lattice_tolerance)) continue;
 
     hx += w0 * mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[0]) / pow5(norm(r_ij));
     hy += w0 * mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[1]) / pow5(norm(r_ij));;
