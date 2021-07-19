@@ -14,6 +14,9 @@
 
 TEST(InteractionNeartreeTest, neighbours_no_pbc_simple) {
   using namespace testing;
+  using Position = std::pair<Vec3, int>;
+
+  const int N = 5;
 
   Vec3 a = {1.0, 0.0, 0.0};
   Vec3 b = {0.0, 1.0, 0.0};
@@ -22,40 +25,52 @@ TEST(InteractionNeartreeTest, neighbours_no_pbc_simple) {
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
 
-  jams::InteractionNearTree near_tree(10*a, 10*b, 10*c, pbc, r_cutoff, epsilon);
+  jams::InteractionNearTree near_tree(N*a, N*b, N*c, pbc, r_cutoff, epsilon);
 
+  std::vector<Position> positions;
   std::vector<Vec3> sites;
-  for (auto i = 0; i < 10; ++i) {
-    for (auto j = 0; j < 10; ++j) {
-      for (auto k = 0; k < 10; ++k) {
-        sites.push_back(i*a + j*b + k*c);
+  int count = 0;
+  for (auto i = 0; i < N; ++i) {
+    for (auto j = 0; j < N; ++j) {
+      for (auto k = 0; k < N; ++k) {
+        positions.emplace_back(i * a + j * b + k * c, count);
+        sites.push_back(i * a + j * b + k * c);
+        count++;
       }
     }
   }
 
   near_tree.insert_sites(sites);
 
+  for (const auto &r_i : positions) {
 
-  for (const auto& r_i : sites) {
+    std::vector<Position> near_tree_neighbours = near_tree.neighbours(r_i.first, r_cutoff);
 
-    int num_nbrs_bruteforce = 0;
-    for (const auto& r_j : sites) {
-      auto r_ij = jams::minimum_image(10*a, 10*b, 10*c, pbc, r_i, r_j, epsilon);
+    std::vector<Position> brute_force_neighbours;
 
+    for (const auto &r_j : positions) {
+      const auto r_ij = r_i.first - r_j.first;
       if (norm(r_ij) < epsilon) continue;
-
       if (definately_greater_than(norm(r_ij), r_cutoff, epsilon)) continue;
-
-      num_nbrs_bruteforce++;
+      brute_force_neighbours.push_back(r_j);
     }
-    EXPECT_EQ(near_tree.num_neighbours(r_i, r_cutoff), num_nbrs_bruteforce);
 
+    auto positions_are_equivalent = [epsilon](const Position& a, const Position& b){
+      return approximately_equal(a.first, b.first, epsilon) && a.second == b.second;
+    };
+
+
+    EXPECT_EQ(near_tree_neighbours.size(), brute_force_neighbours.size());
+    EXPECT_TRUE(std::is_permutation(near_tree_neighbours.begin(), near_tree_neighbours.end(), brute_force_neighbours.begin(), positions_are_equivalent));
   }
-
 }
+
 
 TEST(InteractionNeartreeTest, neighbours_pbc_simple) {
   using namespace testing;
+  using Position = std::pair<Vec3, int>;
+
+  const int N = 5;
 
   Vec3 a = {1.0, 0.0, 0.0};
   Vec3 b = {0.0, 1.0, 0.0};
@@ -64,80 +79,163 @@ TEST(InteractionNeartreeTest, neighbours_pbc_simple) {
   double r_cutoff = 2.0;
   const double epsilon = 1e-5;
 
-  jams::InteractionNearTree near_tree(10*a, 10*b, 10*c, pbc, r_cutoff, epsilon);
+  jams::InteractionNearTree near_tree(N*a, N*b, N*c, pbc, r_cutoff, epsilon);
 
+  std::vector<Position> positions;
   std::vector<Vec3> sites;
-  for (auto i = 0; i < 10; ++i) {
-    for (auto j = 0; j < 10; ++j) {
-      for (auto k = 0; k < 10; ++k) {
-        sites.push_back(i*a + j*b + k*c);
+  int count = 0;
+  for (auto i = 0; i < N; ++i) {
+    for (auto j = 0; j < N; ++j) {
+      for (auto k = 0; k < N; ++k) {
+        positions.emplace_back(i * a + j * b + k * c, count);
+        sites.push_back(i * a + j * b + k * c);
+        count++;
       }
     }
   }
 
   near_tree.insert_sites(sites);
 
+  for (const auto &r_i : positions) {
 
-  for (const auto& r_i : sites) {
+    std::vector<Position> near_tree_neighbours = near_tree.neighbours(r_i.first, r_cutoff);
 
-    int num_nbrs_bruteforce = 0;
-    for (const auto& r_j : sites) {
-      auto r_ij = jams::minimum_image(10*a, 10*b, 10*c, pbc, r_i, r_j, epsilon);
-
-      if (norm(r_ij) < epsilon) continue;
-
-      if (definately_greater_than(norm(r_ij), r_cutoff, epsilon)) continue;
-
-      num_nbrs_bruteforce++;
+    for (auto &r_j : near_tree_neighbours) {
+      r_j.first = r_i.first - r_j.first;
     }
-    EXPECT_EQ(near_tree.num_neighbours(r_i, r_cutoff), num_nbrs_bruteforce);
 
+    std::vector<Position> brute_force_neighbours;
+
+    for (const auto &r_j : positions) {
+      auto r_ij = jams::minimum_image(N*a, N*b, N*c, pbc, r_i.first,
+                                      r_j.first, epsilon);
+      if (norm(r_ij) < epsilon) continue;
+      if (definately_greater_than(norm(r_ij), r_cutoff, epsilon)) continue;
+      brute_force_neighbours.emplace_back(r_ij, r_j.second);
+    }
+
+    auto positions_are_equivalent = [epsilon](const Position& a, const Position& b){
+        return approximately_equal(a.first, b.first, epsilon) && a.second == b.second;
+    };
+
+    EXPECT_EQ(near_tree_neighbours.size(), brute_force_neighbours.size());
+    EXPECT_TRUE(std::is_permutation(near_tree_neighbours.begin(), near_tree_neighbours.end(), brute_force_neighbours.begin(), positions_are_equivalent));
   }
-
 }
 
-TEST(InteractionNeartreeTest, neighbours_no_pbc) {
+
+TEST(InteractionNeartreeTest, neighbours_no_pbc_complicated) {
   using namespace testing;
+  using Position = std::pair<Vec3, int>;
+
+  const int N = 5;
 
   Vec3 a = {0.5, 0.0, 0.0};
   Vec3 b = {-0.25, 0.4330127019, 0.0};
   Vec3 c = {0.0, 0.2886751346, 0.4082482905};
   Vec3b pbc = {false, false, false};
-  double r_cutoff = 3.0;
-  double epsilon = 1e-5;
+  double r_cutoff = 2.0;
+  const double epsilon = 1e-5;
 
-  jams::InteractionNearTree near_tree(10*a, 10*b, 10*c, pbc, r_cutoff, epsilon);
+  jams::InteractionNearTree near_tree(N*a, N*b, N*c, pbc, r_cutoff, epsilon);
 
+  std::vector<Position> positions;
   std::vector<Vec3> sites;
-  for (auto i = 0; i < 10; ++i) {
-    for (auto j = 0; j < 10; ++j) {
-      for (auto k = 0; k < 10; ++k) {
-        sites.push_back(i*a + j*b + k*c);
+  int count = 0;
+  for (auto i = 0; i < N; ++i) {
+    for (auto j = 0; j < N; ++j) {
+      for (auto k = 0; k < N; ++k) {
+        positions.emplace_back(i * a + j * b + k * c, count);
+        sites.push_back(i * a + j * b + k * c);
+        count++;
       }
     }
   }
 
   near_tree.insert_sites(sites);
 
+  for (const auto &r_i : positions) {
 
-  for (const auto& r_i : sites) {
+    std::vector<Position> near_tree_neighbours = near_tree.neighbours(r_i.first, r_cutoff);
 
-    int num_nbrs_bruteforce = 0;
-    for (const auto& r_j : sites) {
-      auto r_ij = jams::minimum_image(10*a, 10*b, 10*c, pbc, r_i, r_j, epsilon);
+    std::vector<Position> brute_force_neighbours;
 
-      if (norm(r_ij) < 1e-3) continue;
-
+    for (const auto &r_j : positions) {
+      const auto r_ij = r_i.first - r_j.first;
+      if (norm(r_ij) < epsilon) continue;
       if (definately_greater_than(norm(r_ij), r_cutoff, epsilon)) continue;
-
-      num_nbrs_bruteforce++;
+      brute_force_neighbours.push_back(r_j);
     }
 
+    auto positions_are_equivalent = [epsilon](const Position& a, const Position& b){
+        return approximately_equal(a.first, b.first, epsilon) && a.second == b.second;
+    };
 
-    EXPECT_EQ(near_tree.num_neighbours(r_i, r_cutoff), num_nbrs_bruteforce);
 
+    EXPECT_EQ(near_tree_neighbours.size(), brute_force_neighbours.size());
+    EXPECT_TRUE(std::is_permutation(near_tree_neighbours.begin(), near_tree_neighbours.end(), brute_force_neighbours.begin(), positions_are_equivalent));
+  }
+}
+
+
+TEST(InteractionNeartreeTest, neighbours_pbc_complicated) {
+  using namespace testing;
+  using Position = std::pair<Vec3, int>;
+
+  const int N = 12;
+
+  Vec3 a = {0.5, 0.0, 0.0};
+  Vec3 b = {-0.25, 0.4330127019, 0.0};
+  Vec3 c = {0.0, 0.2886751346, 0.4082482905};
+  Vec3b pbc = {true, true, true};
+  double r_cutoff = 2.0;
+  const double epsilon = 1e-5;
+
+  ASSERT_LE(r_cutoff, jams::maths::parallelepiped_inradius(N*a, N*b, N*c));
+
+  jams::InteractionNearTree near_tree(N*a, N*b, N*c, pbc, r_cutoff, epsilon);
+
+  std::vector<Position> positions;
+  std::vector<Vec3> sites;
+  int count = 0;
+  for (auto i = 0; i < N; ++i) {
+    for (auto j = 0; j < N; ++j) {
+      for (auto k = 0; k < N; ++k) {
+        positions.emplace_back(i * a + j * b + k * c, count);
+        sites.push_back(i * a + j * b + k * c);
+        count++;
+      }
+    }
   }
 
+  near_tree.insert_sites(sites);
+
+  for (const auto &r_i : positions) {
+
+    std::vector<Position> near_tree_neighbours = near_tree.neighbours(r_i.first, r_cutoff);
+
+    for (auto &r_j : near_tree_neighbours) {
+      r_j.first = r_i.first - r_j.first;
+    }
+
+    std::vector<Position> brute_force_neighbours;
+
+    for (const auto &r_j : positions) {
+      auto r_ij = jams::minimum_image(N*a, N*b, N*c, pbc, r_i.first,
+                                      r_j.first, epsilon);
+      if (norm(r_ij) < epsilon) continue;
+      if (definately_greater_than(norm(r_ij), r_cutoff, epsilon)) continue;
+      brute_force_neighbours.emplace_back(r_ij, r_j.second);
+    }
+
+    auto positions_are_equivalent = [epsilon](const Position& a, const Position& b){
+        return approximately_equal(a.first, b.first, epsilon) && a.second == b.second;
+    };
+
+    EXPECT_EQ(near_tree_neighbours.size(), brute_force_neighbours.size());
+    EXPECT_TRUE(std::is_permutation(near_tree_neighbours.begin(), near_tree_neighbours.end(), brute_force_neighbours.begin(), positions_are_equivalent));
+  }
 }
+
 
 #endif //JAMS_LATTICE_INTERACTION_NEARTREE_TEST_H
