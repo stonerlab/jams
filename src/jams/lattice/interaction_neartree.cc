@@ -23,7 +23,7 @@ jams::InteractionNearTree::InteractionNearTree(const Vec3&a, const Vec3& b, cons
 std::vector<jams::InteractionNearTree::NearTreeDataType>
 jams::InteractionNearTree::neighbours(const Vec3 &r, const double &radius) const {
   assert(radius <= r_cutoff_);
-  return neartree_.find_in_radius(radius, {r, 0}, epsilon_);
+  return neartree_.find_in_annulus(epsilon_, radius, {r, 0}, epsilon_);
 }
 
 void jams::InteractionNearTree::insert_sites(const std::vector<Vec3>& sites) {
