@@ -36,7 +36,7 @@ jobs:
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
-        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DJAMS_BUILD_CUDA=ON
+        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DJAMS_BUILD_TESTS=ON -DJAMS_BUILD_CUDA=ON
 
     - name: Build
       working-directory: ${{github.workspace}}/build
@@ -46,9 +46,10 @@ jobs:
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
         cmake --build . --config $BUILD_TYPE
 
-#     - name: Test
-#       working-directory: ${{github.workspace}}/build
-#       shell: bash
-#       # Execute tests defined by the CMake configuration.  
-#       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-#       run: ctest -C $BUILD_TYPE
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: |
+        source /etc/profile.d/modules.sh && module load $ENV_MODULES
+        bin/jams_tests --gtest_filter=-*SLOW
+

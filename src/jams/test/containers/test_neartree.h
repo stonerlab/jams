@@ -27,9 +27,11 @@ TEST(NearTreeTest, L1Norm) {
 
   NearTree<Position, NeartreeFunctorType> near_tree(l1_norm, positions);
 
+
+  const double epsilon = 1e-6;
   for (auto i = 0; i < 100; ++i) {
     const double radius = rand()/double(RAND_MAX);
-    std::vector<Position> near_tree_neighbours = near_tree.find_in_radius(radius, positions[i]);
+    std::vector<Position> near_tree_neighbours = near_tree.find_in_radius(radius, positions[i], epsilon);
 
     std::vector<Position> brute_force_neighbours;
     for (auto j = 0; j < positions.size(); ++j) {
@@ -63,9 +65,11 @@ TEST(NearTreeTest, L2Norm) {
 
   NearTree<Position, NeartreeFunctorType> near_tree(distance_metric, positions);
 
+  const double epsilon = 1e-6;
+
   for (auto i = 0; i < 100; ++i) {
     const double radius = rand()/double(RAND_MAX);
-    std::vector<Position> near_tree_neighbours = near_tree.find_in_radius(radius, positions[i]);
+    std::vector<Position> near_tree_neighbours = near_tree.find_in_radius(radius, positions[i], epsilon);
 
     std::vector<Position> brute_force_neighbours;
     for (auto j = 0; j < positions.size(); ++j) {

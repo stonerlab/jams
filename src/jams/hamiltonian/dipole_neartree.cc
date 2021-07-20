@@ -11,7 +11,7 @@
 DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size),
   r_cutoff_(jams::config_required<double>(settings, "r_cutoff")),
-  neartree_(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), r_cutoff_)
+  neartree_(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance)
 {
 
   std::cout << "  r_cutoff " << r_cutoff_ << "\n";

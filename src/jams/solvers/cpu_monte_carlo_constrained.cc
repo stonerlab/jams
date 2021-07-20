@@ -330,7 +330,7 @@ void ConstrainedMCSolver::validate_constraint() const {
   }
 
   // theta is ~0 or 180 (i.e. it is at a pole) then the phi angle is undefined
-  const bool at_pole = approximately_zero(constraint_theta_) || approximately_equal(constraint_theta_, 180.0);
+  const bool at_pole = approximately_zero(constraint_theta_, DBL_EPSILON) || approximately_equal(constraint_theta_, 180.0, DBL_EPSILON);
   if (!at_pole) {
     if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
       std::stringstream ss;
@@ -354,7 +354,7 @@ void ConstrainedMCSolver::validate_angles() const {
 }
 
 void ConstrainedMCSolver::validate_moves() const {
-  if (approximately_equal(move_fraction_reflection_, 1.0)) {
+  if (approximately_equal(move_fraction_reflection_, 1.0, DBL_EPSILON)) {
     throw std::runtime_error("ConstrainedMCSolver -- Only reflection moves have been configured. This breaks ergodicity.");
   }
 }

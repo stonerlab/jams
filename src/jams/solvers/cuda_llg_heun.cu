@@ -49,7 +49,7 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   // check if we need to use zero safe versions of the kernels (for |S| = 0)
   zero_safe_kernels_required_ = false;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    if (approximately_zero(Vec3{s(i,0), s(i,1), s(i,2)})) {
+    if (approximately_zero(Vec3{s(i,0), s(i,1), s(i,2)}, DBL_EPSILON)) {
       zero_safe_kernels_required_ = true;
       break;
     }

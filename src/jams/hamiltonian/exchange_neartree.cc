@@ -97,7 +97,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     cout << "\ncomputed interactions\n";
 
-    jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), max_radius + distance_tolerance_);
+    jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), max_radius + distance_tolerance_, jams::defaults::lattice_tolerance);
     neartree.insert_sites(lattice->atom_cartesian_positions());
 
     int counter = 0;

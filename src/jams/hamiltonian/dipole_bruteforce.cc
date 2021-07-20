@@ -78,7 +78,7 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
   // displacements less than the inradius of the cell. Our r_cutoff_ is checked at runtime in the
   // constructor for this condition which allows us to turn off the safety check in Smith's algorithm
   // (an optimisation). We assert the condition here again for safety.
-  assert(r_cutoff_ < lattice->max_interaction_radius());
+  assert(r_cutoff_ <= lattice->max_interaction_radius());
 
   auto displacement = [](const int i, const int j) {
       return jams::minimum_image_smith_method(
@@ -105,8 +105,7 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
 
     const auto r_abs_sq = norm_sq(r_ij);
 
-    if (definately_greater_than(r_abs_sq, r_cut_squared)) continue;
-
+    if (definately_greater_than(r_abs_sq, r_cut_squared, jams::defaults::lattice_tolerance)) continue;
     hx += w0 * mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[0]) / pow5(norm(r_ij));
     hy += w0 * mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[1]) / pow5(norm(r_ij));;
     hz += w0 * mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[2]) / pow5(norm(r_ij));;

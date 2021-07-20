@@ -12,7 +12,9 @@
 #include "jams/hamiltonian/dipole_fft.h"
 #include "jams/hamiltonian/dipole_neartree.h"
 #include "jams/hamiltonian/dipole_neighbour_list.h"
-#include "jams/hamiltonian/dipole_tensor.h"
+// WARNING: dipole tensor tests are disabled because they are very slow for
+// automated testing on github
+//#include "jams/hamiltonian/dipole_tensor.h"
 #include "jams/helpers/output.h"
 #include "jams/helpers/random.h"
 #include "jams/test/hamiltonian/test_dipole_input.h"
@@ -35,8 +37,8 @@ typedef testing::Types<
     DipoleNearTreeHamiltonian,
     DipoleNeighbourListHamiltonian,
     DipoleBruteforceHamiltonian,
-    DipoleFFTHamiltonian,
-    DipoleTensorHamiltonian
+    DipoleFFTHamiltonian
+//    DipoleTensorHamiltonian
 > DipoleHamiltonianTypes;
 
 TYPED_TEST_SUITE(DipoleHamiltonianTests, DipoleHamiltonianTypes);

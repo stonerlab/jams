@@ -23,7 +23,7 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
         " (" + std::to_string(lattice->max_interaction_radius())  + ")");
   }
 
-  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), r_cutoff_);
+  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
   neartree.insert_sites(lattice->atom_cartesian_positions());
 
   int expected_neighbours = 0;

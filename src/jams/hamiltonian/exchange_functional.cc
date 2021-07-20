@@ -24,7 +24,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   ofstream of(jams::output::full_path_filename("exchange_functional.tsv"));
   output_exchange_functional(of, exchange_functional, radius_cutoff_);
 
-  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), radius_cutoff_);
+  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
   neartree.insert_sites(lattice->atom_cartesian_positions());
 
   auto counter = 0;

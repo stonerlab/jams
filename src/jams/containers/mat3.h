@@ -83,7 +83,7 @@ inline Mat<T,3,3> operator*(const Mat<T,3,3>& lhs, const Mat<T,3,3>& rhs) {
 
 // Vec3 specialization
 template <typename T>
-inline bool approximately_equal(const Mat<T,3,3>& a, const Mat<T,3,3>& b, const T& epsilon = FLT_EPSILON) {
+inline bool approximately_equal(const Mat<T,3,3>& a, const Mat<T,3,3>& b, const T& epsilon) {
   for (auto m = 0; m < 3; ++m) {
     for (auto n = 0; n < 3; ++n) {
       if (!approximately_equal(a[m][n], b[m][n], epsilon)) {
@@ -211,7 +211,7 @@ inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
   const auto c = dot(ua,ub);
 
   // check if a == b or a == -b
-  if (approximately_zero(norm_sq(v))) {
+  if (approximately_zero(norm_sq(v), DBL_EPSILON)) {
     // this is a shortcut for a == b and necessary
     // for a == -b where Rodrigues's formula will fail
     // return either I or -I
@@ -224,8 +224,8 @@ inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
   const auto R = kIdentityMat3 + ssc(v) + (1.0 / (1.0 + c)) * ssc(v) * ssc(v) ;
 
   // a rotation matrix must be orthogonal and have a determinant of 1
-  assert(approximately_equal(transpose(R), inverse(R)));
-  assert(approximately_equal(determinant(R), 1.0));
+  assert(approximately_equal(transpose(R), inverse(R), DBL_EPSILON));
+  assert(approximately_equal(determinant(R), 1.0, DBL_EPSILON));
 
   return R;
 }

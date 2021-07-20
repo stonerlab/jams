@@ -200,7 +200,7 @@ inline auto normalize(const Vec<T,3>& a) -> Vec<decltype(a[0] / std::abs(a[0])),
 }
 
 template <typename T>
-inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon = FLT_EPSILON) {
+inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon) {
   for (auto n = 0; n < 3; ++n) {
     if (!approximately_zero(a[n], epsilon)) {
       return false;
@@ -211,7 +211,7 @@ inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon = FLT_EPSILON
 
 // Vec3 specialization
 template <typename T>
-inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& epsilon = FLT_EPSILON) {
+inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& epsilon) {
 //  return approximately_equal(a[0], b[0], epsilon) && approximately_equal(a[1], b[1], epsilon) && approximately_equal(a[2], b[2], epsilon);
   for (auto n = 0; n < 3; ++n) {
     if (!approximately_equal(a[n], b[n], epsilon)) {

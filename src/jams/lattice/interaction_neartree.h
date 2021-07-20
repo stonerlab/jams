@@ -25,7 +25,7 @@ namespace jams {
         using NearTreeType = jams::NearTree<NearTreeDataType, NearTreeFunctorType>;
 
         InteractionNearTree(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b& pbc,
-                            const double& r_cutoff);
+                            const double& r_cutoff, const double& epsilon);
 
         // Insert a vector of site positions. The index will be numbered from
         // zero to sites.size() - 1
@@ -52,6 +52,8 @@ namespace jams {
     private:
 
         double r_cutoff_;
+        double epsilon_;
+
         Vec3 a_;
         Vec3 b_;
         Vec3 c_;

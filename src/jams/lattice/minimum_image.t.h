@@ -45,10 +45,10 @@ TEST(LatticeMinimumImageTest, minimum_image_smith_method) {
 
             r_ij_smith = jams::minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
           if (!definately_less_than(norm(r_ij_smith),
-                                   jams::maths::parallelepiped_inradius(a, b, c))) {
+                                   jams::maths::parallelepiped_inradius(a, b, c), double_epsilon)) {
                 continue;
             }
-            r_ij_brute = jams::minimum_image_bruteforce(a, b, c, pbc, r_i, r_j);
+            r_ij_brute = jams::minimum_image_bruteforce(a, b, c, pbc, r_i, r_j, double_epsilon);
 
             const Vec<Matcher<double>, 3> result = {
                     DoubleNear(r_ij_brute[0], double_epsilon),
@@ -100,9 +100,9 @@ TEST(LatticeMinimumImageTest, minimum_image) {
             const Vec3 r_i = random_position();
             const Vec3 r_j = random_position();
 
-            auto r_ij = jams::minimum_image(a, b, c, pbc, r_i, r_j);
+            auto r_ij = jams::minimum_image(a, b, c, pbc, r_i, r_j, double_epsilon);
 
-            auto r_ij_brute = jams::minimum_image_bruteforce_explicit_depth(a, b, c, pbc, r_i, r_j, {50, 50, 50});
+            auto r_ij_brute = jams::minimum_image_bruteforce_explicit_depth(a, b, c, pbc, r_i, r_j, {50, 50, 50}, double_epsilon);
 
             const Vec<Matcher<double>, 3> result = {
                     DoubleNear(r_ij_brute[0], double_epsilon),

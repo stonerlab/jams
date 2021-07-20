@@ -7,6 +7,7 @@
 
 #include <limits>
 #include <iostream>
+#include <iterator>
 
 #include "jams/common.h"
 #include "jams/helpers/utils.h"
@@ -135,7 +136,8 @@ public:
       }
     }
 
-    template<class InputIt>
+    template<class InputIt, typename std::enable_if<
+                std::is_base_of<std::input_iterator_tag,typename std::iterator_traits<InputIt>::iterator_category>::value, bool>::type = true>
     inline SyncedMemory(InputIt first, InputIt last)
     : size_(std::distance(first, last))  {
       std::copy(first, last, mutable_host_data());

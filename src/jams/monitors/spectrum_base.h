@@ -19,7 +19,7 @@ namespace jams {
     };
 
     inline bool operator==(const HKLIndex &a, const HKLIndex &b) {
-      return approximately_equal(a.hkl, b.hkl);
+      return approximately_equal(a.hkl, b.hkl, jams::defaults::lattice_tolerance);
     }
 }
 
