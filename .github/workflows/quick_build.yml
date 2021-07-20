@@ -49,5 +49,7 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/build
       shell: bash
-      run: bin/jams_tests --gtest_filter=-*SLOW
+      run: |
+        source /etc/profile.d/modules.sh && module load $ENV_MODULES
+        bin/jams_tests --gtest_filter=-*SLOW
 
