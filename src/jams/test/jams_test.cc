@@ -13,7 +13,7 @@
 #include "jams/test/hamiltonian/test_dipole_cpu.h"
 
 #ifdef HAS_CUDA
-#include "jams/hamiltonian/test_cuda_dipole_fft.h"
+#include "jams/test/hamiltonian/test_cuda_dipole_fft.h"
 #endif
 
 int main(int argc, char **argv) {
