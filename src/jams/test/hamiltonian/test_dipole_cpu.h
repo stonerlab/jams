@@ -37,8 +37,8 @@ typedef testing::Types<
     DipoleNearTreeHamiltonian,
     DipoleNeighbourListHamiltonian,
     DipoleBruteforceHamiltonian,
-    DipoleFFTHamiltonian,
-    DipoleTensorHamiltonian
+    DipoleFFTHamiltonian
+//    DipoleTensorHamiltonian
 > DipoleHamiltonianTypes;
 
 TYPED_TEST_SUITE(DipoleHamiltonianTests, DipoleHamiltonianTypes);
