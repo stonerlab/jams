@@ -8,13 +8,13 @@
 #include <jams/lattice/minimum_image.t.h>
 #include <jams/lattice/interaction_neartree.t.h>
 
-//#include "jams/test/containers/test_synced_memory.h"
+#include "jams/test/containers/test_synced_memory.h"
 #include "jams/test/containers/test_multiarray.h"
 #include "jams/test/hamiltonian/test_dipole_cpu.h"
 
-#ifdef HAS_CUDA
-#include "jams/test/hamiltonian/test_cuda_dipole_fft.h"
-#endif
+//#ifdef HAS_CUDA
+//#include "jams/test/hamiltonian/test_cuda_dipole_fft.h"
+//#endif
 
 int main(int argc, char **argv) {
   srand(time(NULL));
