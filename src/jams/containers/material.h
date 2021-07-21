@@ -29,8 +29,8 @@ public:
     inline explicit Material(const libconfig::Setting& cfg) :
             id       (0),
             name     (jams::config_required<std::string>(cfg, "name")),
-            moment   (jams::config_required<double>(cfg, "moment")),
-            gyro     (jams::config_optional<double>(cfg, "gyro", jams::defaults::material_gyro)),
+            moment   (jams::config_required<double>(cfg, "moment") * kBohrMagnetonIU), // input is in multiples of Bohr magneton, internally we use meV T^-1
+            gyro     (jams::config_optional<double>(cfg, "gyro", jams::defaults::material_gyro) * kGyromagneticRatioIU), // input is fraction of the gyromagnetic ratio, internally we use rad ps^-1 T^-1
             alpha    (jams::config_optional<double>(cfg, "alpha", jams::defaults::material_alpha)),
             transform(jams::config_optional<Mat3>(cfg, "transform", jams::defaults::material_spin_transform)) {
 

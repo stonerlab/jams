@@ -69,7 +69,7 @@ void FMRPhysics::update(const int &iterations, const double &time, const double 
     double pAverage = 0.0;
 
     for (int i = 0; i < num_spins; ++i) {
-      pAverage += (PSDIntegral(i)*(ACFieldFrequency*mus(i)*kBohrMagneton)/time);
+      pAverage += (PSDIntegral(i)*(ACFieldFrequency*mus(i))/time);
     }
 
     PSDFile << time << "\t" << pAverage/num_spins << "\n";

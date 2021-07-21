@@ -118,7 +118,7 @@ __global__ void bose_zero_point_stochastic_process_cuda_kernel
       s0 += c[i] * (e[i] - z[i]);
     }
 
-    noise[x] += T * sigma[x] * s0;
+    noise[x] += T * T * sigma[x] * s0;
   }
 }
 

@@ -79,13 +79,13 @@ protected:
     // compared to an analytic eigen value
     void eigenvalue_test(const std::string &spin_config_name, const double &expected_eigenvalue) {
       double analytic = analytic_prefactor * expected_eigenvalue;
-      double numeric = numeric_prefactor * hamiltonian->calculate_total_energy() / double(globals::num_spins);
+      double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
 
       std::cout << "spins:      " << spin_config_name << "\n";
-      std::cout << "expected:   " << jams::fmt::sci << analytic << " J/spin\n";
-      std::cout << "actual:     " << jams::fmt::sci << numeric << " J/spin\n";
-      std::cout << "difference: " << jams::fmt::sci << std::abs(analytic - numeric) << " J/spin\n";
-      std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " J/spin\n" << std::endl;
+      std::cout << "expected:   " << jams::fmt::sci << analytic << " meV/spin\n";
+      std::cout << "actual:     " << jams::fmt::sci << numeric << " meV/spin\n";
+      std::cout << "difference: " << jams::fmt::sci << std::abs(analytic - numeric) << " meV/spin\n";
+      std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
 
       ASSERT_NEAR(numeric, analytic, target_accuracy);
     }
@@ -106,15 +106,15 @@ protected:
         globals::s(i, 2) = spin[2];
       }
 
-      double numeric = numeric_prefactor * hamiltonian->calculate_total_energy() / double(globals::num_spins);
+      double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
       double reference =
-          numeric_prefactor * reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
+          reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
 
       std::cout << "spin:       random" << "\n";
-      std::cout << "expected:   " << jams::fmt::sci << reference << " J/spin\n";
-      std::cout << "actual:     " << jams::fmt::sci << numeric << " J/spin\n";
-      std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " J/spin\n";
-      std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " J/spin\n" << std::endl;
+      std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";
+      std::cout << "actual:     " << jams::fmt::sci << numeric << " meV/spin\n";
+      std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " meV/spin\n";
+      std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
 
       ASSERT_NEAR(numeric, reference, target_accuracy);
     }
@@ -133,29 +133,29 @@ protected:
             globals::s(i, 2) = spin_direction[2];
         }
 
-        double numeric = numeric_prefactor * hamiltonian->calculate_total_energy() / double(globals::num_spins);
+        double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
         double reference =
-                numeric_prefactor * reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
+                reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
 
         std::cout << "spin:       " << spin_direction << "\n";
-        std::cout << "expected:   " << jams::fmt::sci << reference << " J/spin\n";
-        std::cout << "actual:     " << jams::fmt::sci << numeric << " J/spin\n";
-        std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " J/spin\n";
-        std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " J/spin\n" << std::endl;
+        std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";
+        std::cout << "actual:     " << jams::fmt::sci << numeric << " meV/spin\n";
+        std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " meV/spin\n";
+        std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
 
         ASSERT_NEAR(numeric, reference, target_accuracy);
     }
 
     std::unique_ptr<T> hamiltonian;
 
-    // -(0.5 * mu0 / (4 pi)) * (mus / a^3)^2 = -23595.95647978379 J/m^3
     // mus = 2.0 muB; a = 0.3 nm
-    const double analytic_prefactor = -23595.95647978379 * pow3(0.3e-9); // joules
-    const double numeric_prefactor = kBohrMagneton;
+    // -(0.5 * mu0 / (4 pi)) * (mus / a^3)^2 = -23595.95647978379 J/m^3
+    // (-23595.95647978379 J/m^3) * (0.3e-9 m)^3 = -6.37090824954162e-25 J
+    //                                           = -0.0039764081652071 meV
+    const double analytic_prefactor = -((0.5 * kVacuumPermeabilityIU) / (4*kPi)) *  pow2(2 * kBohrMagnetonIU) / pow3(0.3e-9); // meV
 
-    // target accuracy for total energy per spin in Joules
-    // 1e-28 is so small we probably would ignore anisotropies on this level
-    const double target_accuracy = 1e-28;
+    // target accuracy for total energy per spin in meV
+    const double target_accuracy = 1e-6; // nano eV accuracy
 };
 
 // 1D ferromagnetic spin chain

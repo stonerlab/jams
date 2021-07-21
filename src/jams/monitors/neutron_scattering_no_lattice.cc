@@ -249,7 +249,7 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
 
     // sample time is here because the fourier transform in time is not an integral
     // but a discrete sum
-    auto prefactor = (periodogram_props_.sample_time / double(total_periods_)) * (1.0 / (kTwoPi * kHBar))
+    auto prefactor = (periodogram_props_.sample_time / double(total_periods_)) * (1.0 / (kTwoPi * kHBarIU))
                      * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
     auto barns_unitcell = prefactor / (1e-28);
     auto time_points = total_unpolarized_neutron_cross_section_.size(0);

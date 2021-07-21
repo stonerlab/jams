@@ -25,7 +25,7 @@ void EnergyMonitor::update(Solver * solver) {
   tsv_file << std::scientific << solver->time() << "\t";
 
   for (auto &hamiltonian : solver->hamiltonians()) {
-    auto energy = kBohrMagneton * hamiltonian->calculate_total_energy() / static_cast<double>(globals::num_spins);
+    auto energy = hamiltonian->calculate_total_energy();
     tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
   }
 
@@ -38,7 +38,7 @@ std::string EnergyMonitor::tsv_header() {
 
   ss << "time\t";
   for (auto &hamiltonian : solver->hamiltonians()) {
-    ss << hamiltonian->name() << "_e\t";
+    ss << hamiltonian->name() << "_E_meV\t";
   }
 
   ss << std::endl;

@@ -124,7 +124,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
 
   uniform_real_distribution<> uniform_distribution;
 
-  const double beta = kBohrMagneton / (physics_module_->temperature() * kBoltzmann);
+  const double beta = 1.0 / (physics_module_->temperature() * kBoltzmannIU);
   Vec3 magnetisation = total_transformed_magnetization();
 
   unsigned moves_accepted = 0;

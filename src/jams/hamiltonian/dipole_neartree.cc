@@ -74,7 +74,7 @@ Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i)
 
   const auto neighbours = neartree_.neighbours(r_i, r_cutoff_);
 
-  const double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
+  const double w0 = mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(lattice->parameter()));
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
   // work is already done to find the neighbours.
 

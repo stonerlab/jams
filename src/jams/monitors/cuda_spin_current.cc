@@ -98,7 +98,7 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
           spin_current_rz_z.device_data()
   );
 
-  const double units = lattice->parameter() * kBohrMagneton * kGyromagneticRatio;
+  const double units = lattice->parameter();
 
   outfile << std::setw(4) << std::scientific << solver->time() << "\t";
   for (auto r_m = 0; r_m < 3; ++r_m) {

@@ -228,7 +228,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
 
   const double fft_normalization_factor = 1.0 / product(kspace_padded_size_);
   const double a3 = pow3(::lattice->parameter());
-  const double w0 = fft_normalization_factor * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * a3);
+  const double w0 = fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * a3);
 
   for (auto nx = 0; nx < kspace_size_[0]; ++nx) {
     for (auto ny = 0; ny < kspace_size_[1]; ++ny) {

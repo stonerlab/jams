@@ -135,7 +135,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
             Mat3 Jij = interaction.value * kIdentityMat3;
 
-            if ( max_abs(Jij) > energy_cutoff_ / kBohrMagneton ) {
+            if ( max_abs(Jij) > energy_cutoff_ ) {
               insert_interaction_tensor(i, j, Jij);
               counter++;
             }

@@ -13,6 +13,7 @@ __global__ void cuda_heun_llg_kernelA
   const double * h_dev,
   const double * noise_dev,
   const double * gyro_dev,
+  const double * mus_dev,
   const double * alpha_dev,
   const double dev_dt,
   const unsigned dev_num_spins
@@ -34,14 +35,14 @@ __global__ void cuda_heun_llg_kernelA
   const unsigned int gxy = IDX2D(idx, ty, 85, 3);
 
   if (idx < dev_num_spins && ty < 3) {
-    h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
+    h[p0] = ((h_dev[gxy] / mus_dev[idx]) + noise_dev[gxy]);
     s[p0] = s_dev[gxy];
 
     __syncthreads();
 
-    rhs = (s[p1] * h[p2] - s[p2] * h[p1])
+    rhs = - gyro_dev[idx] * ((s[p1] * h[p2] - s[p2] * h[p1])
         + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
-                           - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) );
+                           - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) ));
 
     ds_dt_dev[gxy] = 0.5 * rhs;
 
@@ -61,6 +62,7 @@ __global__ void cuda_heun_llg_kernelB
   const double * h_dev,
   const double * noise_dev,
   const double * gyro_dev,
+  const double * mus_dev,
   const double * alpha_dev,
   const double dev_dt,
   const unsigned dev_num_spins
@@ -82,14 +84,14 @@ __global__ void cuda_heun_llg_kernelB
   const unsigned int gxy = IDX2D(idx, ty, 85, 3);
 
   if (idx < dev_num_spins && ty < 3) {
-    h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
+    h[p0] = ((h_dev[gxy] / mus_dev[idx]) + noise_dev[gxy]);
     s[p0] = s_dev[gxy];
 
     __syncthreads();
 
-    rhs = (s[p1] * h[p2] - s[p2] * h[p1])
-        + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
-                           - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) );
+    rhs = - gyro_dev[idx] * ((s[p1] * h[p2] - s[p2] * h[p1])
+                             + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
+                                                  - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) ));
 
 
     ds_dt_dev[gxy] = ds_dt_dev[gxy] + 0.5 * rhs;
@@ -119,6 +121,7 @@ __global__ void cuda_zero_safe_heun_llg_kernelA
                 const double * h_dev,
                 const double * noise_dev,
                 const double * gyro_dev,
+                const double * mus_dev,
                 const double * alpha_dev,
                 const double dev_dt,
                 const unsigned dev_num_spins
@@ -140,14 +143,14 @@ __global__ void cuda_zero_safe_heun_llg_kernelA
   const unsigned int gxy = 3 * idx + ty;
 
   if (idx < dev_num_spins && ty < 3) {
-    h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
+    h[p0] = ((h_dev[gxy] / mus_dev[idx]) + noise_dev[gxy]);
     s[p0] = s_dev[gxy];
 
     __syncthreads();
 
-    rhs = (s[p1] * h[p2] - s[p2] * h[p1])
-          + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
-                               - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) );
+    rhs = - gyro_dev[idx] * ((s[p1] * h[p2] - s[p2] * h[p1])
+                             + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
+                                                  - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) ));
 
     ds_dt_dev[gxy] = 0.5 * rhs;
 
@@ -167,6 +170,7 @@ __global__ void cuda_zero_safe_heun_llg_kernelB
                 const double * h_dev,
                 const double * noise_dev,
                 const double * gyro_dev,
+                const double * mus_dev,
                 const double * alpha_dev,
                 const double dev_dt,
                 const unsigned dev_num_spins
@@ -188,14 +192,14 @@ __global__ void cuda_zero_safe_heun_llg_kernelB
   const unsigned int gxy = 3 * idx + ty;
 
   if (idx < dev_num_spins && ty < 3) {
-    h[p0] = (h_dev[gxy] + noise_dev[gxy]) * gyro_dev[idx];
+    h[p0] = ((h_dev[gxy] / mus_dev[idx]) + noise_dev[gxy]) * gyro_dev[idx];
     s[p0] = s_dev[gxy];
 
     __syncthreads();
 
-    rhs = (s[p1] * h[p2] - s[p2] * h[p1])
-          + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
-                               - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) );
+    rhs = - gyro_dev[idx] * ((s[p1] * h[p2] - s[p2] * h[p1])
+                             + alpha_dev[idx] * ( s[p1] * (s[p0] * h[p1] - s[p1] * h[p0])
+                                                  - s[p2] * (s[p2] * h[p0] - s[p0] * h[p2]) ));
 
 
     ds_dt_dev[gxy] = ds_dt_dev[gxy] + 0.5 * rhs;

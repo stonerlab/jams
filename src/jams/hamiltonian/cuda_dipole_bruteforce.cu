@@ -26,7 +26,7 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
     }
 
     auto v = pow3(lattice->parameter());
-    dipole_prefactor_ = kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
+    dipole_prefactor_ = kVacuumPermeabilityIU / (4.0 * kPi * v);
 
     bool super_cell_pbc[3];
     Mat<float,3,3> super_unit_cell;
@@ -130,7 +130,7 @@ Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i) {
   };
 
   const auto r_cut_squared = r_cutoff_ * r_cutoff_;
-  const double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
+  const double w0 = mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(lattice->parameter()));
 
   double hx = 0, hy = 0, hz = 0;
 #if HAS_OMP

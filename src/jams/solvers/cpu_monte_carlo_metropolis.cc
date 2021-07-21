@@ -304,7 +304,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
     using std::exp;
     std::uniform_real_distribution<> uniform_distribution;
 
-    const double beta = kBohrMagneton / (kBoltzmann * physics_module_->temperature());
+    const double beta = 1.0 / (kBoltzmannIU * physics_module_->temperature());
 
     unsigned moves_accepted = 0;
     for (auto n = 0; n < globals::num_spins; ++n) {
@@ -344,7 +344,7 @@ int MetropolisMCSolver::MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)>
   using std::exp;
   std::uniform_real_distribution<> uniform_distribution;
 
-  const double beta = kBohrMagneton / (kBoltzmann * physics_module_->temperature());
+  const double beta = 1.0 / (kBoltzmannIU * physics_module_->temperature());
 
   int moves_accepted = 0;
   for (auto n = 0; n < globals::num_spins; ++n) {

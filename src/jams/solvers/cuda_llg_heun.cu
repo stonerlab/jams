@@ -27,7 +27,7 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   CudaSolver::initialize(settings);
 
   time_step_ = jams::config_required<double>(settings, "t_step");
-  dt_ = time_step_ * kGyromagneticRatio;
+  dt_ = time_step_;
 
   auto t_max = jams::config_required<double>(settings, "t_max");
   auto t_min = jams::config_optional<double>(settings, "t_min", 0.0);
@@ -91,13 +91,13 @@ void CUDAHeunLLGSolver::run()
     cuda_zero_safe_heun_llg_kernelA<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
        h.device_data(), thermostat_->device_data(),
-       gyro.device_data(), alpha.device_data(), dt_, num_spins);
+       gyro.device_data(), mus.device_data(), alpha.device_data(), dt_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   } else {
     cuda_heun_llg_kernelA<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
         h.device_data(), thermostat_->device_data(),
-          gyro.device_data(), alpha.device_data(), dt_, num_spins);
+          gyro.device_data(), mus.device_data(), alpha.device_data(), dt_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
@@ -107,13 +107,13 @@ void CUDAHeunLLGSolver::run()
     cuda_zero_safe_heun_llg_kernelB<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
           h.device_data(), thermostat_->device_data(),
-          gyro.device_data(), alpha.device_data(), dt_, num_spins);
+          gyro.device_data(), mus.device_data(), alpha.device_data(), dt_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   } else {
     cuda_heun_llg_kernelB<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
           h.device_data(), thermostat_->device_data(),
-          gyro.device_data(), alpha.device_data(), dt_, num_spins);
+          gyro.device_data(), mus.device_data(), alpha.device_data(), dt_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 

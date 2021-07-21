@@ -36,17 +36,17 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
    config->lookupValue("thermostat.zero_point", do_zero_point_);
 
-   double t_warmup = 1e-10; // 0.1 ns
+   double t_warmup = 100.0; // 0.1 ns
    config->lookupValue("thermostat.warmup_time", t_warmup);
 
-   omega_max_ = 25.0 * kTwoPi * kTHz;
+   omega_max_ = 25.0 * kTwoPi; // THz * 2 pi
    config->lookupValue("thermostat.w_max", omega_max_);
 
    double dt_thermostat = ::config->lookup("solver.t_step");
-   delta_tau_ = (dt_thermostat * kBoltzmann) / kHBar;
+   delta_tau_ = (dt_thermostat * kBoltzmannIU) / kHBarIU;
 
-   cout << "    omega_max (THz) " << omega_max_ / (kTwoPi * kTHz) << "\n";
-   cout << "    hbar*w/kB " << (kHBar * omega_max_) / (kBoltzmann) << "\n";
+   cout << "    omega_max (THz) " << omega_max_ / (kTwoPi) << "\n";
+   cout << "    hbar*w/kB " << (kHBarIU * omega_max_) / (kBoltzmannIU) << "\n";
    cout << "    t_step " << dt_thermostat << "\n";
    cout << "    delta tau " << delta_tau_ << "\n";
 
@@ -69,8 +69,8 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
 
    for (int i = 0; i < num_spins; ++i) {
      for (int j = 0; j < 3; ++j) {
-        sigma_(i,j) = (kBoltzmann) *
-            sqrt((2.0 * globals::alpha(i) * globals::mus(i)) / (kHBar * kGyromagneticRatio * kBohrMagneton));
+       sigma_(i,j) = (kBoltzmannIU) *
+                     sqrt((2.0 * globals::alpha(i)) / (kHBarIU * globals::gyro(i) * globals::mus(i)));
      }
    }
 
@@ -99,7 +99,7 @@ void CudaLangevinBoseThermostat::update() {
   int block_size = 96;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
-  const double reduced_omega_max = (kHBar * omega_max_) / (kBoltzmann * this->temperature());
+  const double reduced_omega_max = (kHBarIU * omega_max_) / (kBoltzmannIU * this->temperature());
   const double reduced_delta_tau = delta_tau_ * this->temperature();
   const double temperature = this->temperature();
 
