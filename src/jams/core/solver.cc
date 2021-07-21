@@ -19,6 +19,7 @@
 
 #include "jams/solvers/null_solver.h"
 #include "jams/solvers/cuda_llg_heun.h"
+#include "jams/solvers/cuda_llg_rk4.h"
 #include "jams/solvers/cpu_llg_heun.h"
 #include "jams/solvers/cpu_rotations.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
@@ -95,6 +96,10 @@ Solver* Solver::create(const libconfig::Setting &settings) {
 #if HAS_CUDA
   if (module_name == "llg-heun-gpu") {
     return new CUDAHeunLLGSolver;
+  }
+
+  if (module_name == "llg-rk4-gpu") {
+    return new CUDALLGRK4Solver;
   }
 #endif
 
