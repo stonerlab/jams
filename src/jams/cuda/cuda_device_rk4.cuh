@@ -14,7 +14,7 @@ rk4(nvstd::function<void(double[N], const double[N], Args...)> const& ode_rhs, d
     u[n] = y[n];
   }
 
-  ode_rhs(k1, y, args...);
+  ode_rhs(k1, u, args...);
 
   for (auto n = 0; n < N; ++n) {
     u[n] = y[n] + 0.5 * h * k1[n];
