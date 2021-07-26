@@ -115,6 +115,9 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   // but only the data within parallelogram is part of the surface we sampled.
   //
 
+  periodic_x_ = lattice->is_periodic(0);
+  periodic_y_ = lattice->is_periodic(1);
+
   auto bottom_left  = lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
   auto bottom_right = lattice->get_unitcell().matrix() * Vec3{double(lattice->size(0)), 0.0, 0.0};
   auto top_left     = lattice->get_unitcell().matrix() * Vec3{0.0, double(lattice->size(1)), 0.0};
@@ -228,27 +231,39 @@ Vec3 jams::SkyrmionCenterCV::calc_center_of_mass() {
   using namespace globals;
   using namespace std;
 
-  Vec3 tube_center_of_mass_x = {0.0, 0.0, 0.0};
-  Vec3 tube_center_of_mass_y = {0.0, 0.0, 0.0};
 
-  for (auto i = 0; i < num_spins; ++i) {
-    if (globals::s(i,2) < skyrmion_threshold_) {
-      tube_center_of_mass_x += tube_x_[i];
-      tube_center_of_mass_y += tube_y_[i];
-    }
-  }
 
   Mat3 W = lattice->get_unitcell().matrix();
   W[0][2] = 0.0; W[1][2] = 0.0; W[2][2] = 1.0;
 
-	double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
-	double theta_y = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
+  Vec3 tube_center_of_mass_x = {0.0, 0.0, 0.0};
+  Vec3 tube_center_of_mass_y = {0.0, 0.0, 0.0};
 
-	Vec3 center_of_mass = {
-      theta_x*lattice->size(0)/(kTwoPi),
-      theta_y*lattice->size(1)/(kTwoPi),
-      0.0
-  };
+  Vec3 center_of_mass = {0.0, 0.0, 0.0};
+
+  int num_core_spins = 0;
+  for (auto i = 0; i < num_spins; ++i) {
+    if (globals::s(i,2) < skyrmion_threshold_) {
+      tube_center_of_mass_x += tube_x_[i];
+      tube_center_of_mass_y += tube_y_[i];
+      num_core_spins++;
+    }
+  }
+
+
+  if (periodic_x_) {
+    double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[1]) + kPi;
+    center_of_mass[0] = theta_x*lattice->size(0)/(kTwoPi);
+  } else {
+    center_of_mass[0] = tube_center_of_mass_x[0] / double(num_core_spins);
+  }
+
+  if (periodic_y_) {
+    double theta_y = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
+    center_of_mass[1] = theta_y*lattice->size(1)/(kTwoPi);
+  } else {
+    center_of_mass[1] = tube_center_of_mass_y[1] / double(num_core_spins);
+  }
 
 	return W*center_of_mass;
 }
@@ -262,7 +277,7 @@ double jams::SkyrmionCenterCV::gaussian_2D(const double &x,const double &x0,cons
 	  * exp(-(((x - x0) * (x - x0)) + ((y - y0) * (y - y0))) / (2.0 * gaussian_width_ * gaussian_width_));
 
 }
-double jams::SkyrmionCenterCV::interpolated_2d_potential(const double &y, const double& x) {
+double jams::SkyrmionCenterCV::interpolated_2d_potential(const double &x, const double& y) {
 //  assert(m <= 1); TODO : think carefylly for appropriate assert checks for x and y .
 //  assert(x < 1);
   double lower_y = floor(abs((y - sample_points_y_[0]) / (sample_points_y_[1]
@@ -380,13 +395,17 @@ void jams::SkyrmionCenterCV::space_remapping() {
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto r = inverse(W) * lattice->atom_position(i);
 
-    auto theta_x = (r[0] / x_max) * (kTwoPi);
+    if (periodic_x_) {
+      auto theta_x = (r[0] / x_max) * (kTwoPi);
 
-    auto x = (x_max / (kTwoPi)) * cos(theta_x);
-    auto y = r[1];
-    auto z = (x_max / (kTwoPi)) * sin(theta_x);
+      auto x = (x_max / (kTwoPi)) * cos(theta_x);
+      auto y = r[1];
+      auto z = (x_max / (kTwoPi)) * sin(theta_x);
+      tube_x_[i] = Vec3{x, y, z};
+    } else {
+      tube_x_[i] = r;
+    }
 
-    tube_x_[i] = Vec3{x, y, z};
   }
 
   // map 2D space into a cylinder with x as the axis
@@ -394,13 +413,17 @@ void jams::SkyrmionCenterCV::space_remapping() {
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto r = inverse(W) * lattice->atom_position(i);
 
-    auto theta_y = (r[1] / y_max) * (kTwoPi);
+    if (periodic_y_) {
+      auto theta_y = (r[1] / y_max) * (kTwoPi);
 
-    auto x = r[0];
-    auto y = (y_max / (kTwoPi)) * cos(theta_y);
-    auto z = (y_max / (kTwoPi)) * sin(theta_y);
+      auto x = r[0];
+      auto y = (y_max / (kTwoPi)) * cos(theta_y);
+      auto z = (y_max / (kTwoPi)) * sin(theta_y);
 
-    tube_y_[i] = Vec3{x, y, z};
+      tube_y_[i] = Vec3{x, y, z};
+    } else {
+      tube_y_[i] = r;
+    }
   }
 }
 

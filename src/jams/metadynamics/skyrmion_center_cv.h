@@ -62,6 +62,10 @@ class SkyrmionCenterCV : public CollectiveVariablePotential {
   // rewrite this with a "proper" caching system around the centre of mass
   // function.
   bool do_first_cache_ = true;
+
+  bool periodic_x_ = true;
+  bool periodic_y_ = true;
+
   Vec3 cached_initial_center_of_mass_ = {0.0, 0.0, 0.0};
   Vec3 cached_trial_center_of_mass_ = {0.0, 0.0, 0.0};
 
