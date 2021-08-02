@@ -27,7 +27,7 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
         return new CudaLangevinBoseThermostat(config->lookup("physics.temperature"), 0.0, globals::num_spins);
     }
     if (capitalize(thermostat_name) == "LANGEVIN-ARBITRARY-GPU" ||capitalize(thermostat_name) == "CUDA_LANGEVIN_ARBITRARY") {
-      return new CudaLangevinArbitraryThermostat(config->lookup("physics.temperature"), 0.0, globals::num_spins);
+      return new CudaLorentzianThermostat(config->lookup("physics.temperature"), 0.0, globals::num_spins);
     }
     #endif
 

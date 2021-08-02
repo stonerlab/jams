@@ -20,6 +20,7 @@
 #include "jams/solvers/null_solver.h"
 #include "jams/solvers/cuda_llg_heun.h"
 #include "jams/solvers/cuda_llg_rk4.h"
+#include "jams/solvers/cuda_ll_lorentzian_rk4.h"
 #include "jams/solvers/cpu_llg_heun.h"
 #include "jams/solvers/cpu_rotations.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
@@ -100,6 +101,10 @@ Solver* Solver::create(const libconfig::Setting &settings) {
 
   if (module_name == "llg-rk4-gpu") {
     return new CUDALLGRK4Solver;
+  }
+
+  if (module_name == "ll-lorentzian-rk4-gpu") {
+    return new CUDALLLorentzianRK4Solver;
   }
 #endif
 

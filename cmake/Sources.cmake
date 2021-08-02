@@ -95,6 +95,7 @@ set(JAMS_SOURCES_CUDA
         monitors/cuda_thermal_current_kernel.cu
         solvers/cuda_llg_heun.cu
         solvers/cuda_llg_rk4.cu
+        solvers/cuda_ll_lorentzian_rk4.cu
         thermostats/cuda_langevin_bose.cu
         thermostats/cuda_langevin_arbitrary.cu
         thermostats/cuda_langevin_white.cc)

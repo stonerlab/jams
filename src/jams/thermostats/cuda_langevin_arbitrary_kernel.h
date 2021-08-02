@@ -34,45 +34,4 @@ __global__ void arbitrary_stochastic_process_cuda_kernel
   }
 }
 
-__global__ void lorentzian_memory_cuda_kernel(
-    double *w_data,
-    double *v_data,
-    const double * s_data,
-    const double * gyro_data,
-    const double omega,
-    const double gamma,
-    const double A,
-    const double dt,
-    const unsigned num_spins
-    ) {
-
-
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  const unsigned int idy = threadIdx.y;
-
-  if (idx < num_spins && idy < 3) {
-
-    double s = s_data[3*idx + idy];
-    double gyro = gyro_data[idx];
-
-    double y[2] = {
-        w_data[3*idx + idy],  // w -> y[0]
-        v_data[3*idx + idy]}; // v -> y[1]
-
-    nvstd::function<void(double[2], const double[2])> ode_system = [&](double out[2], const double in[2]) {
-      const double w = in[0];
-      const double v = in[1];
-
-      out[0] = -omega * omega * v - gamma * w - A * gyro * s;
-      out[1] = w;
-    };
-
-
-    rk4<2>(ode_system, y, dt);
-
-    w_data[3*idx + idy] = y[0];
-    v_data[3*idx + idy] = y[1];
-  }
-}
-
 #endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_ARBITRARY_KERNEL_H
