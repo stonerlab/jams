@@ -38,6 +38,7 @@ __global__ void lorentzian_memory_cuda_kernel(
     double *w_data,
     double *v_data,
     const double * s_data,
+    const double * gyro_data,
     const double omega,
     const double gamma,
     const double A,
@@ -52,6 +53,7 @@ __global__ void lorentzian_memory_cuda_kernel(
   if (idx < num_spins && idy < 3) {
 
     double s = s_data[3*idx + idy];
+    double gyro = gyro_data[idx];
 
     double y[2] = {
         w_data[3*idx + idy],  // w -> y[0]
@@ -61,8 +63,8 @@ __global__ void lorentzian_memory_cuda_kernel(
       const double w = in[0];
       const double v = in[1];
 
-      out[0] = -omega * omega * v - gamma * w - A * s; // dW/dt = -omega_0^2 V - \Gamma + \alpha\gamma S
-      out[1] = w; // dv/dt = w
+      out[0] = -omega * omega * v - gamma * w - A * gyro * s;
+      out[1] = w;
     };
 
 

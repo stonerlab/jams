@@ -44,23 +44,22 @@ double coth(const double x) {
 
 double barker_correlator(double& omega, double& temperature) {
   if (omega == 0.0) return 1.0;
-  double x = (kHBar * abs(omega)) / (kBoltzmann * temperature);
+  double x = (kHBarIU * abs(omega)) / (kBoltzmannIU * temperature);
   return x / (exp(x) - 1);
 }
 
 double zero_point_correlator(double& omega, double& temperature) {
   if (omega == 0.0) return 1.0;
-  double x = (kHBar * abs(omega)) / (2.0 * kBoltzmann * temperature);
+  double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * temperature);
   return x * coth(x);
 }
 
-double lorentzian_correlator(double& omega, double& temperature, double& gamma, double& omega0) {
+double lorentzian_correlator(double& omega, double& temperature, double& gamma, double& omega0, double& A) {
   if (omega == 0.0) return 1.0;
 
-  double lorentzian = pow4(omega0) / (pow2(pow2(omega0) - pow2(omega)) + pow2(omega * gamma));
+  double lorentzian = (A * gamma) / (pow2(pow2(omega0) - pow2(omega)) + pow2(omega * gamma));
 
-
-  double x = (kHBar * abs(omega)) / (2.0 * kBoltzmann * temperature);
+  double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * temperature);
   return lorentzian * (x * coth(x));
 }
 
@@ -130,10 +129,16 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
   lorentzian_gamma_ = jams::config_required<double>(config->lookup("thermostat"), "lorentzian_gamma"); // 3.71e12 * kTwoPi;
   lorentzian_omega0_ = jams::config_required<double>(config->lookup("thermostat"), "lorentzian_omega0"); // 6.27e12 * kTwoPi;
 
-  lorentzian_A_ = globals::alpha(0) / (lorentzian_gamma_ * globals::mus(0) * kBohrMagneton);
+  lorentzian_A_ =  (globals::alpha(0) * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
 
-  zero(memory_w_process_.resize(globals::num_spins3));
-  zero(memory_v_process_.resize(globals::num_spins3));
+  zero(memory_w_process_.resize(globals::num_spins, 3));
+  zero(memory_v_process_.resize(globals::num_spins, 3));
+
+  for (auto i = 0; i < num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      memory_w_process_(i,j) = lorentzian_A_ * globals::gyro(i) * globals::s(i,j);
+    }
+  }
 
 
   num_freq_ = jams::config_optional(config->lookup("thermostat"), "num_freq", 10000);
@@ -147,12 +152,12 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
 
   config->lookupValue("thermostat.zero_point", do_zero_point_);
 
-  cout << "    lorentzian gamma (THz)" << std::fixed << lorentzian_gamma_ / (kTwoPi * kTHz) << "\n";
-  cout << "    lorentzian omega0 (THz)" << std::fixed << lorentzian_omega0_ / (kTwoPi * kTHz) << "\n";
-  cout << "    lorentzian A " << std::scientific << lorentzian_A_ << "\n";
+  cout << "    lorentzian gamma (THz) " << std::fixed << lorentzian_gamma_ / (kTwoPi) << "\n";
+  cout << "    lorentzian omega0 (THz) " << std::fixed << lorentzian_omega0_ / (kTwoPi) << "\n";
+  cout << "    lorentzian A " << std::fixed << lorentzian_A_ << "\n";
 
-  cout << "    max_omega (THz) " << std::fixed << max_omega_ / (kTwoPi * kTHz) << "\n";
-  cout << "    delta_omega (THz) " << std::fixed << delta_omega_ / (kTwoPi * kTHz) << "\n";
+  cout << "    max_omega (THz) " << std::fixed << max_omega_ / (kTwoPi) << "\n";
+  cout << "    delta_omega (THz) " << std::fixed << delta_omega_ / (kTwoPi) << "\n";
   cout << "    delta_t " << std::scientific << delta_t_ << "\n";
   cout << "    num_freq " << num_freq_ << "\n";
   cout << "    num_trunc " << num_trunc_ << "\n";
@@ -187,27 +192,13 @@ CudaLangevinArbitraryThermostat::CudaLangevinArbitraryThermostat(const double &t
   // - \gamma_i is the local gyromagnetic ratio (usually g_e \mu_B / \hbar)
   // - \mu_{s,i} is the local magnetic moment in Bohr magnetons
   //
-  // Inside of JAMS we have to take into account the reduce units namely that
-  // globals::gyro(i) == -\gamma_i / (\mu_{s,i}*kGyromagneticRatio), hence we
-  // should convert back to get \gamma_i.
-  //
-  // We also need to account for the fact that all fields are multiplied by
-  // globals::gyro(i) in the LLG in JAMS. In principle we want a B-field in
-  // tesla to be multiplied by \gamma_i, but the \mu_{s,i} from the field
-  // derivative H = -(1/\mu_{s,i}) \partial \mathcal{H}/\partial \vec{S}_i
-  // is factored out into the LLG. Hence our thermostat must be premultiplied
-  // by globals::mus(i) to account for this.
-  //
-  // Finally we put the 1/\sqrt{\Delta t} which is the scaling of the Gaussian
+  // We put the 1/\sqrt{\Delta t} which is the scaling of the Gaussian
   // noise processes into sigma (because it's a convenient place for it).
   //
   for (int i = 0; i < num_spins; ++i) {
-   // globals::gyro(i) = - gamma / mus
-   const auto gamma = std::abs(globals::gyro(i)) * globals::mus(i) * kGyromagneticRatio;
-   // thermostat fields are treated like other fields in the LLG kernels and are multiplied by globals::gyro (i.e. gamma/mus) hence we want to pre multiply
-   // sigma by (1/mus)
    for (int j = 0; j < 3; ++j) {
-      sigma_(i,j) = sqrt((2.0 * globals::alpha(i) * globals::mus(i) * kBoltzmann) / (kBohrMagneton * gamma  * solver->time_step()));
+     sigma_(i, j) = sqrt((2.0 * kBoltzmannIU) /
+                         (globals::mus(i) * globals::gyro(i) * solver->time_step()));
    }
   }
 
@@ -236,8 +227,8 @@ void CudaLangevinArbitraryThermostat::update() {
     vector<double> discrete_filter;
     if (do_zero_point_) {
       discrete_filter = discrete_psd_filter(
-          std::function<double(double&, double&, double&, double&)>(lorentzian_correlator),
-          delta_omega_, num_freq_, delta_t_, temperature_, lorentzian_gamma_, lorentzian_omega0_);
+          std::function<double(double&, double&, double&, double&, double&)>(lorentzian_correlator),
+          delta_omega_, num_freq_, delta_t_, temperature_, lorentzian_gamma_, lorentzian_omega0_, lorentzian_A_);
     } else {
       discrete_filter = discrete_psd_filter(
           std::function<double(double&, double&)>(barker_correlator),
@@ -246,7 +237,7 @@ void CudaLangevinArbitraryThermostat::update() {
 
     std::ofstream noise_target_file(jams::output::full_path_filename("noise_target_spectrum.tsv"));
     for (auto i = 0; i < discrete_filter.size(); ++i) {
-      noise_target_file << i << " " << i*delta_omega_/(kTwoPi * kTHz) << " " << discrete_filter[i] << "\n";
+      noise_target_file << i << " " << i*delta_omega_/(kTwoPi) << " " << discrete_filter[i] << "\n";
     }
     noise_target_file.close();
 
@@ -257,7 +248,7 @@ void CudaLangevinArbitraryThermostat::update() {
 
     std::ofstream filter_full_file(jams::output::full_path_filename("noise_filter_full.tsv"));
     for (auto i = 0; i < convoluted_filter.size(); ++i) {
-      filter_full_file << i << " " << convoluted_filter[i] << "\n";
+      filter_full_file << i*delta_t_ << " " << convoluted_filter[i] << "\n";
     }
     filter_full_file.close();
 
@@ -329,10 +320,11 @@ void CudaLangevinArbitraryThermostat::update() {
             memory_w_process_.device_data(),
             memory_v_process_.device_data(),
             globals::s.device_data(),
-            lorentzian_omega0_ / kGyromagneticRatio,
-            lorentzian_gamma_ / kGyromagneticRatio,
-            lorentzian_A_ / kGyromagneticRatio,
-            solver->time_step() * kGyromagneticRatio,
+            globals::gyro.device_data(),
+            lorentzian_omega0_,
+            lorentzian_gamma_,
+            lorentzian_A_,
+            solver->time_step(),
             globals::num_spins);
   }
 
