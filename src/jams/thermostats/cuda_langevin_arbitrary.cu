@@ -60,8 +60,8 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   num_trunc_ = jams::config_optional(config->lookup("thermostat"), "num_trunc", 2000);
   assert(num_trunc_ <= num_freq_);
 
-  lorentzian_gamma_ = jams::config_required<double>(config->lookup("thermostat"), "lorentzian_gamma"); // 3.71e12 * kTwoPi;
-  lorentzian_omega0_ = jams::config_required<double>(config->lookup("thermostat"), "lorentzian_omega0"); // 6.27e12 * kTwoPi;
+  lorentzian_gamma_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_gamma"); // 3.71e12 * kTwoPi;
+  lorentzian_omega0_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_omega0"); // 6.27e12 * kTwoPi;
   lorentzian_A_ =  (globals::alpha(0) * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
 
   delta_t_ = solver->time_step();
