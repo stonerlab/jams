@@ -3,10 +3,9 @@
 #ifndef JAMS_CORE_THERMOSTAT_H
 #define JAMS_CORE_THERMOSTAT_H
 
-#include <iosfwd>
-
-#include "jams/core/types.h"
 #include "jams/containers/multiarray.h"
+
+#include <string>
 
 class Thermostat {
  public:
