@@ -18,7 +18,6 @@ class CUDAHeunLLGSolver : public CudaSolver {
   private:
     CudaStream dev_stream_;
     bool zero_safe_kernels_required_;
-    double dt_;
     jams::MultiArray<double, 2> s_old_;
 };
 

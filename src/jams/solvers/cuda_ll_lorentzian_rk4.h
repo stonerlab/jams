@@ -17,7 +17,6 @@ class CUDALLLorentzianRK4Solver : public CudaSolver {
 
   private:
     CudaStream dev_stream_;
-    double dt_;
 
     double lorentzian_omega_;
     double lorentzian_gamma_;
