@@ -48,6 +48,7 @@ private:
 
     std::ofstream debug_file_;
 
+    bool   use_classical_noise_;
     int    num_freq_;
     int    num_trunc_;
     double max_omega_;

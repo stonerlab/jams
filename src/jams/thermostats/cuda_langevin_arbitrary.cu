@@ -53,6 +53,7 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   }
   cout << "\n  initialising CUDA Langevin arbitrary noise thermostat\n";
 
+  use_classical_noise_ = jams::config_optional(config->lookup("thermostat"), "classical", false);
 
   // number of frequencies to discretize the spectrum over
   num_freq_ = jams::config_optional(config->lookup("thermostat"), "num_freq", 10000);
@@ -123,7 +124,12 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
         / (pow2(pow2(lorentzian_omega0_) - pow2(omega)) + pow2(omega * lorentzian_gamma_));
 
     double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * filter_temperature_);
-    return lorentzian * coth(x);
+
+    if (use_classical_noise_) {
+      return lorentzian / x;
+    } else {
+      return lorentzian * coth(x);
+    }
   };
 
   // Generate the discrete filter F(n) = sqrt(P(n * delta_omega))
