@@ -40,9 +40,6 @@ Solver::~Solver() {
 
 void Solver::initialize(const libconfig::Setting& settings) {
   assert(!initialized_);
-  set_name(jams::config_required<string>(settings, "module"));
-  set_verbose(jams::config_optional<bool>(settings, "verbose", false));
-  set_debug(jams::config_optional<bool>(settings, "debug", false));
 
   cout << "  " << name() << " solver\n";
 

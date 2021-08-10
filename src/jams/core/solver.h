@@ -18,7 +18,7 @@ class Monitor;
 class Hamiltonian;
 class Thermostat;
 
-class Solver : public Base {
+class Solver {
  public:
   Solver() = default;
 
@@ -26,6 +26,8 @@ class Solver : public Base {
 
   virtual void initialize(const libconfig::Setting& settings) = 0;
   virtual void run() = 0;
+
+  virtual std::string name() const = 0;
 
   bool is_cuda_solver() const { return is_cuda_solver_; }
   bool is_converged();

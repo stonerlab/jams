@@ -20,6 +20,8 @@ class ConstrainedMCSolver : public Solver {
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
 
+  std::string name() const { return "monte-carlo-constrained-cpu"; }
+
  private:
     void output_initialization_info(std::ostream &os);
     void output_running_stats_info(std::ostream &os);

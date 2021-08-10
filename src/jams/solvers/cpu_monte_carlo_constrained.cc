@@ -281,13 +281,11 @@ void ConstrainedMCSolver::validate_rotation_matricies() const {
   Vec3 test_forward_vec = rotation_matrix_ * test_unit_vec;
   Vec3 test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
 
-  if (verbose_is_enabled()) {
-    cout << "  rotation sanity check\n";
-    cout << "    rotate\n";
-    cout << "      " << test_unit_vec << " -> " << test_forward_vec << "\n";
-    cout << "    back rotate\n";
-    cout << "      " << test_forward_vec << " -> " << test_back_vec << "\n";
-  }
+  cout << "  rotation sanity check\n";
+  cout << "    rotate\n";
+  cout << "      " << test_unit_vec << " -> " << test_forward_vec << "\n";
+  cout << "    back rotate\n";
+  cout << "      " << test_forward_vec << " -> " << test_back_vec << "\n";
 
   for (int n = 0; n < 3; ++n) {
     if (!approximately_equal(test_unit_vec[n], test_back_vec[n], jams::defaults::solver_monte_carlo_constraint_tolerance)) {

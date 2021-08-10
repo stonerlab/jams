@@ -15,6 +15,8 @@ class CUDALLLorentzianRK4Solver : public CudaSolver {
     void initialize(const libconfig::Setting& settings);
     void run();
 
+    std::string name() const { return "ll-lorentzian-rk4-gpu"; }
+
   private:
     CudaStream dev_stream_;
 

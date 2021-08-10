@@ -19,6 +19,7 @@ class HeunLLGSolver : public Solver {
   void initialize(const libconfig::Setting& settings);
   void run();
 
+  std::string name() const { return "llg-heun-cpu"; }
 
  private:
     jams::MultiArray<double, 2> s_old_;

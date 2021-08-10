@@ -19,6 +19,8 @@ public:
     void initialize(const libconfig::Setting& settings) override;
     void run() override;
 
+    std::string name() const { return "rotations-cpu"; }
+
 
 private:
     unsigned num_theta_ = 36;

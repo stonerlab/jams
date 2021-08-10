@@ -15,6 +15,8 @@ class CUDAHeunLLGSolver : public CudaSolver {
     void initialize(const libconfig::Setting& settings);
     void run();
 
+    std::string name() const { return "llg-heun-gpu"; }
+
   private:
     CudaStream dev_stream_;
     bool zero_safe_kernels_required_;
