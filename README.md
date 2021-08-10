@@ -93,3 +93,21 @@ line arguments. For example:
 
 This provides a simple way to write batch scripts to loop over parameters or chain together multiple simulations with
 different steps.
+
+## Development
+
+### Internal Units
+
+Within the code we use the following units:
+
+- time: picoseconds (ps)
+- frequency: terahertz (THz)
+- energy: millielectron volts (meV)
+- field: Tesla (T)
+
+This gives equations where physical constants are all reasonably close to 1 so 
+that the implementation in code can be written exactly the same as the maths on 
+paper (i.e. there are no arbitrary normalised units). We avoid Hartree atomic
+units because the scales are quite a bit smaller than the relevant spin dynamic 
+scales and there's a high potential for bugs, for example because moments are
+multiples of $2\mu_B$.

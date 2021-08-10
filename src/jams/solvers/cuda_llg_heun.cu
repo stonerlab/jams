@@ -24,23 +24,21 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
 {
   using namespace globals;
 
-  CudaSolver::initialize(settings);
+  // convert input in seconds to picoseconds for internal units
+  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
+  auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
+  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
 
-  time_step_ = jams::config_required<double>(settings, "t_step");
-  dt_ = time_step_ * kGyromagneticRatio;
 
-  auto t_max = jams::config_required<double>(settings, "t_max");
-  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0);
+  max_steps_ = static_cast<int>(t_max / step_size_);
+  min_steps_ = static_cast<int>(t_min / step_size_);
 
-  max_steps_ = static_cast<int>(t_max / time_step_);
-  min_steps_ = static_cast<int>(t_min / time_step_);
-
-  cout << "timestep " << time_step_ << "\n";
-  cout << "t_max " << t_max << " steps (" <<  max_steps_ << ")\n";
-  cout << "t_min " << t_min << " steps (" << min_steps_ << ")\n";
+  cout << "\ntimestep (ps) " << step_size_ << "\n";
+  cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
+  cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
 
   std::string thermostat_name = jams::config_optional<string>(config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
-  thermostat_ = Thermostat::create(thermostat_name);
+  register_thermostat(Thermostat::create(thermostat_name));
 
   cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
@@ -82,8 +80,7 @@ void CUDAHeunLLGSolver::run()
 
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  thermostat_->set_temperature(physics_module_->temperature());
-  thermostat_->update();
+  update_thermostat();
 
   compute_fields();
 
@@ -91,13 +88,13 @@ void CUDAHeunLLGSolver::run()
     cuda_zero_safe_heun_llg_kernelA<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
        h.device_data(), thermostat_->device_data(),
-       gyro.device_data(), alpha.device_data(), dt_, num_spins);
+       gyro.device_data(), mus.device_data(), alpha.device_data(), step_size_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   } else {
     cuda_heun_llg_kernelA<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
-        h.device_data(), thermostat_->device_data(),
-          gyro.device_data(), alpha.device_data(), dt_, num_spins);
+       h.device_data(), thermostat_->device_data(),
+       gyro.device_data(), mus.device_data(), alpha.device_data(), step_size_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
@@ -106,14 +103,14 @@ void CUDAHeunLLGSolver::run()
   if (zero_safe_kernels_required_) {
     cuda_zero_safe_heun_llg_kernelB<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
-          h.device_data(), thermostat_->device_data(),
-          gyro.device_data(), alpha.device_data(), dt_, num_spins);
+       h.device_data(), thermostat_->device_data(),
+       gyro.device_data(), mus.device_data(), alpha.device_data(), step_size_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   } else {
     cuda_heun_llg_kernelB<<<grid_size, block_size>>>
       (s.device_data(), ds_dt.device_data(), s_old_.device_data(),
-          h.device_data(), thermostat_->device_data(),
-          gyro.device_data(), alpha.device_data(), dt_, num_spins);
+       h.device_data(), thermostat_->device_data(),
+       gyro.device_data(), mus.device_data(), alpha.device_data(), step_size_, num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 

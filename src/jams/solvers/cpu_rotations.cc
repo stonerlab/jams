@@ -19,13 +19,8 @@ using namespace std;
 void RotationSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
-  // initialize base class
-  Solver::initialize(settings);
-
   num_theta_ = jams::config_optional<unsigned>(settings, "num_theta", num_theta_);
   num_phi_ = jams::config_optional<unsigned>(settings, "num_phi", num_phi_);
-
-  initialized_ = true;
 }
 
 void RotationSolver::run() {
@@ -61,7 +56,7 @@ void RotationSolver::run() {
         // print angles and energy
         tsv_file << rad_to_deg(theta) << "\t" << rad_to_deg(phi) << "\t";
         for (auto &hamiltonian : solver->hamiltonians()) {
-          auto energy = kBohrMagneton * hamiltonian->calculate_energy(i);
+          auto energy = hamiltonian->calculate_energy(i);
           tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
         }
         tsv_file << std::endl;

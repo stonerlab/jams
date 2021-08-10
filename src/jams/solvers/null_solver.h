@@ -15,8 +15,10 @@ public:
     NullSolver() = default;
     ~NullSolver() = default;
 
+    std::string name() const { return "null"; }
+
+
     inline void initialize(const libconfig::Setting& settings) final {
-      Solver::initialize(settings);
       max_steps_ = 1;
     }
 

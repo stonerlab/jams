@@ -9,6 +9,9 @@ on:
   pull_request:
     branches:
       - master
+  # Allow manual triggers
+  workflow_dispatch:
+
 
 env:
   ENV_MODULES: cmake ninja git gnu/8.3.0 cuda/10.1.105 mkl/2018.2 hdf5-cxx/1.8.20

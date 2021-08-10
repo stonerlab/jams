@@ -18,6 +18,8 @@ class MetropolisMCSolver : public Solver {
   void initialize(const libconfig::Setting& settings);
   void run();
 
+  std::string name() const { return "monte-carlo-metropolis-cpu"; }
+
  private:
   class MagnetizationRotationMinimizer;
 

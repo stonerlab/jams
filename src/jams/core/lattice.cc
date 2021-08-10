@@ -86,11 +86,11 @@ namespace {
 
 namespace jams {
     double landau_lifshitz_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
-      return -gyro / mus;
+      return gyro;
     }
 
     double gilbert_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
-      return -gyro /((1.0 + pow2(alpha)) * mus);
+      return gyro /(1.0 + pow2(alpha));
     }
 }
 

@@ -246,7 +246,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
 
     const double fft_normalization_factor = 1.0 / product(kspace_size_);
     const double v = pow(lattice->parameter(), 3);
-    const double w0 = fft_normalization_factor * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * v);
+    const double w0 = fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * v);
 
     for (int nx = 0; nx < kspace_size_[0]; ++nx) {
         for (int ny = 0; ny < kspace_size_[1]; ++ny) {

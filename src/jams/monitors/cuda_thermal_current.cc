@@ -28,13 +28,12 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian\n"
                "in the config and assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
 
-  const auto exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
-  assert (exchange_hamiltonian != nullptr);
+  const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
 
-  const auto& nbr_list = exchange_hamiltonian->neighbour_list();
+  const auto& nbr_list = exchange_hamiltonian.neighbour_list();
 
 
-  const auto triad_list = generate_three_spin_from_two_spin_interactions(exchange_hamiltonian->neighbour_list());
+  const auto triad_list = generate_three_spin_from_two_spin_interactions(exchange_hamiltonian.neighbour_list());
 
   cout << "    total ijk triads: " << triad_list.size() << endl;
 

@@ -29,9 +29,6 @@ namespace {
 }
 
 void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
-  // initialize base class
-  Solver::initialize(settings);
-
   do_spin_initial_alignment_ = jams::config_optional(settings, "auto_align", do_spin_initial_alignment_);
 
   max_steps_ = jams::config_required<int>(settings, "max_steps");
@@ -124,7 +121,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
 
   uniform_real_distribution<> uniform_distribution;
 
-  const double beta = kBohrMagneton / (physics_module_->temperature() * kBoltzmann);
+  const double beta = 1.0 / (physics_module_->temperature() * kBoltzmannIU);
   Vec3 magnetisation = total_transformed_magnetization();
 
   unsigned moves_accepted = 0;
@@ -210,14 +207,14 @@ double ConstrainedMCSolver::energy_difference(const int &s1, const Vec3 &s1_init
                                               const int &s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
   assert(s1 != s2);
   double delta_energy1 = 0.0;
-  for (auto hamiltonian : hamiltonians_) {
+  for (const auto& hamiltonian : hamiltonians_) {
     delta_energy1 += hamiltonian->calculate_energy_difference(s1, s1_initial, s1_trial);
   }
 
   // temporarily accept the move for s1 so we can calculate the s2 energies
   mc_set_spin_as_vec(s1, s1_trial);
   double delta_energy2 = 0.0;
-  for (auto hamiltonian : hamiltonians_) {
+  for (const auto& hamiltonian : hamiltonians_) {
     delta_energy2 += hamiltonian->calculate_energy_difference(s2, s2_initial, s2_trial);
   }
   mc_set_spin_as_vec(s1, s1_initial);
@@ -281,13 +278,11 @@ void ConstrainedMCSolver::validate_rotation_matricies() const {
   Vec3 test_forward_vec = rotation_matrix_ * test_unit_vec;
   Vec3 test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
 
-  if (verbose_is_enabled()) {
-    cout << "  rotation sanity check\n";
-    cout << "    rotate\n";
-    cout << "      " << test_unit_vec << " -> " << test_forward_vec << "\n";
-    cout << "    back rotate\n";
-    cout << "      " << test_forward_vec << " -> " << test_back_vec << "\n";
-  }
+  cout << "  rotation sanity check\n";
+  cout << "    rotate\n";
+  cout << "      " << test_unit_vec << " -> " << test_forward_vec << "\n";
+  cout << "    back rotate\n";
+  cout << "      " << test_forward_vec << " -> " << test_back_vec << "\n";
 
   for (int n = 0; n < 3; ++n) {
     if (!approximately_equal(test_unit_vec[n], test_back_vec[n], jams::defaults::solver_monte_carlo_constraint_tolerance)) {

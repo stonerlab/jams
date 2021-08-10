@@ -37,12 +37,11 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
     open_new_xdmf_file(simulation_name + "_js.xdmf");
   }
 
-  const auto exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
-  assert (exchange_hamiltonian != nullptr);
+  const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
 
   jams::SparseMatrix<Vec3>::Builder sparse_matrix_builder(globals::num_spins, globals::num_spins);
 
-  const auto& nbr_list = exchange_hamiltonian->neighbour_list();
+  const auto& nbr_list = exchange_hamiltonian.neighbour_list();
   for (auto n = 0; n < nbr_list.size(); ++n) {
     auto i = nbr_list[n].first[0];
     auto j = nbr_list[n].first[1];
@@ -98,7 +97,7 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
           spin_current_rz_z.device_data()
   );
 
-  const double units = lattice->parameter() * kBohrMagneton * kGyromagneticRatio;
+  const double units = lattice->parameter();
 
   outfile << std::setw(4) << std::scientific << solver->time() << "\t";
   for (auto r_m = 0; r_m < 3; ++r_m) {

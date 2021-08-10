@@ -53,7 +53,7 @@ void TorqueMonitor::update(Solver * solver) {
 
     // In JAMS internal units energies are normalised by mu_B so we undo that
     // here
-    torques.push_back(torque * kBohrMagneton /static_cast<double>(num_spins));
+    torques.push_back(torque /static_cast<double>(num_spins));
   }
 
   // Output all of the torques as columns in the tsv file

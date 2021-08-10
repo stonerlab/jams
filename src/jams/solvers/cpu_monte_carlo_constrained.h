@@ -15,10 +15,12 @@
 class ConstrainedMCSolver : public Solver {
  public:
   ConstrainedMCSolver()  = default;
-  ~ConstrainedMCSolver() override = default;
+  ~ConstrainedMCSolver() = default;
 
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
+
+  std::string name() const { return "monte-carlo-constrained-cpu"; }
 
  private:
     void output_initialization_info(std::ostream &os);

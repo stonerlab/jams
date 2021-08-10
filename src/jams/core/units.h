@@ -11,14 +11,14 @@
 
 namespace jams {
     const std::map<std::string, double> internal_energy_unit_conversion = {
-            {"joules", 1.0/kBohrMagneton},
-            {"J", 1.0/kBohrMagneton},
-            {"milli_electron_volts", 1.6021766e-22/kBohrMagneton},
-            {"meV", 1.6021766e-22/kBohrMagneton},
-            {"milli_rydbergs", 2.1798724e-21/kBohrMagneton},
-            {"mRyd", 2.1798724e-21/kBohrMagneton},
-            {"rydbergs", 2.1798724e-18/kBohrMagneton},
-            {"Ryd", 2.1798724e-18/kBohrMagneton}
+            {"joules", kJoule2meV},
+            {"J", kJoule2meV},
+            {"milli_electron_volts", 1.0},
+            {"meV", 1.0},
+            {"milli_rydbergs", kJoule2meV},
+            {"mRyd", kJoule2meV},
+            {"rydbergs", kJoule2meV * 1e3},
+            {"Ryd", kJoule2meV * 1e3}
     };
 }
 

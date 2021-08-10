@@ -118,7 +118,7 @@ Vec3 DipoleNeighbourListHamiltonian::calculate_field(const int i)
 {
   using namespace globals;
 
-  double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
+  double w0 = mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(lattice->parameter()));
   Vec3 r_i = lattice->atom_position(i);
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
   // work is already done to find the neighbours.

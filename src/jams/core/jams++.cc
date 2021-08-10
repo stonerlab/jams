@@ -327,7 +327,7 @@ namespace jams {
 
           Timer<> timer;
 
-          for (auto m : solver->monitors()) {
+          for (const auto& m : solver->monitors()) {
             m->post_process();
           }
           cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;

@@ -1,26 +1,10 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
-
 #include "jams/cuda/cuda_solver.h"
 
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
-#include "jams/core/monitor.h"
-#include "jams/cuda/cuda_common.h"
 
-using namespace std;
-
-void CudaSolver::initialize(const libconfig::Setting& settings) {
-  using namespace globals;
-
-  Solver::initialize(settings);
-
-  cout << "\ninitializing CUDA base solver\n";
-  cout << "  initialising CUDA streams\n";
-
-  is_cuda_solver_ = true;
-
-  cout << "\n";
-}
+#include <cublas_v2.h>
 
 void CudaSolver::compute_fields() {
   using namespace globals;

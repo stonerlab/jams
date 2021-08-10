@@ -90,7 +90,7 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
   };
 
   const auto r_cut_squared = pow2(r_cutoff_);
-  const double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
+  const double w0 = mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(lattice->parameter()));
 
   double hx = 0, hy = 0, hz = 0;
   #if HAS_OMP

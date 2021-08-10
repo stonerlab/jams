@@ -39,7 +39,7 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
   cout << "  dipole sparse matrix memory estimate (upper bound) "
     << memory_in_natural_units(max_memory_per_tensor * expected_neighbours) << endl;
 
-  const double prefactor = kVacuumPermeadbility * kBohrMagneton / (4 * kPi * pow(::lattice->parameter(), 3));
+  const double prefactor = kVacuumPermeabilityIU / (4 * kPi * pow(::lattice->parameter(), 3));
 
   int num_neighbours = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
