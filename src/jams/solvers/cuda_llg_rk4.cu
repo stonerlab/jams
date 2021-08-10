@@ -43,7 +43,7 @@ void CUDALLGRK4Solver::initialize(const libconfig::Setting& settings)
   cout << "t_min " << t_min << " steps (" << min_steps_ << ")\n";
 
   std::string thermostat_name = jams::config_optional<string>(config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
-  thermostat_ = Thermostat::create(thermostat_name);
+  register_thermostat(Thermostat::create(thermostat_name));
 
   cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
@@ -78,8 +78,7 @@ void CUDALLGRK4Solver::run()
 
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  thermostat_->set_temperature(physics_module_->temperature());
-  thermostat_->update();
+  update_thermostat();
 
   compute_fields();
 

@@ -24,6 +24,7 @@
 #include "jams/monitors/magnetisation.h"
 #include "jams/thermostats/cuda_langevin_arbitrary.h"
 #include "jams/thermostats/cuda_langevin_arbitrary_kernel.h"
+#include "jams/interface/fft.h"
 
 //#define PRINT_NOISE
 

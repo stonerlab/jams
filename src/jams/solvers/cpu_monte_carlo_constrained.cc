@@ -207,14 +207,14 @@ double ConstrainedMCSolver::energy_difference(const int &s1, const Vec3 &s1_init
                                               const int &s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
   assert(s1 != s2);
   double delta_energy1 = 0.0;
-  for (auto hamiltonian : hamiltonians_) {
+  for (const auto& hamiltonian : hamiltonians_) {
     delta_energy1 += hamiltonian->calculate_energy_difference(s1, s1_initial, s1_trial);
   }
 
   // temporarily accept the move for s1 so we can calculate the s2 energies
   mc_set_spin_as_vec(s1, s1_trial);
   double delta_energy2 = 0.0;
-  for (auto hamiltonian : hamiltonians_) {
+  for (const auto& hamiltonian : hamiltonians_) {
     delta_energy2 += hamiltonian->calculate_energy_difference(s2, s2_initial, s2_trial);
   }
   mc_set_spin_as_vec(s1, s1_initial);

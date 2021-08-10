@@ -11,6 +11,7 @@
 #include "hamiltonian.h"
 #include "jams/core/monitor.h"
 #include "jams/helpers/consts.h"
+#include "jams/core/thermostat.h"
 
 #include "jams/core/base.h"
 #include "jams/helpers/utils.h"
@@ -35,19 +36,6 @@ return new type; \
 }
 
 using namespace std;
-
-Solver::~Solver() {
-  for (auto& m : monitors_) {
-    if (m) {
-      delete m;
-      m = nullptr;
-    }
-  }
-}
-
-
-void Solver::run() {
-}
 
 
 void Solver::compute_fields() {
@@ -85,7 +73,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
 
 
 void Solver::register_physics_module(Physics* package) {
-    physics_module_ = package;
+    physics_module_.reset(package);
 }
 
 
@@ -93,14 +81,24 @@ void Solver::update_physics_module() {
     physics_module_->update(iteration_, time(), step_size_);
 }
 
+void Solver::register_thermostat(Thermostat* thermostat) {
+  thermostat_.reset(thermostat);
+}
+
+
+void Solver::update_thermostat() {
+  thermostat_->set_temperature(physics_module_->temperature());
+  thermostat_->update();
+}
+
 
 void Solver::register_monitor(Monitor* monitor) {
-  monitors_.push_back(monitor);
+  monitors_.push_back(static_cast<unique_ptr<Monitor>>(monitor));
 }
 
 
 void Solver::register_hamiltonian(Hamiltonian* hamiltonian) {
-  hamiltonians_.push_back(hamiltonian);
+  hamiltonians_.push_back(static_cast<unique_ptr<Hamiltonian>>(hamiltonian));
 }
 
 

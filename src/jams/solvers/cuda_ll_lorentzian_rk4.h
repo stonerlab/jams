@@ -7,6 +7,7 @@
 
 #include "jams/cuda/cuda_stream.h"
 #include "jams/cuda/cuda_solver.h"
+#include "jams/containers/multiarray.h"
 
 class CUDALLLorentzianRK4Solver : public CudaSolver {
   public:
