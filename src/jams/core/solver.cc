@@ -26,6 +26,14 @@
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 #include "jams/solvers/cpu_monte_carlo_constrained.h"
 
+#define DEFINED_SOLVER(name, type) \
+{ \
+if (lowercase(settings["module"]) == name) { \
+std::cout << name << " solver \n"; \
+return new type; \
+} \
+}
+
 using namespace std;
 
 Solver::~Solver() {
@@ -60,43 +68,19 @@ void Solver::compute_fields() {
 
 
 Solver* Solver::create(const libconfig::Setting &settings) {
-  auto module_name = jams::config_required<string>(settings, "module");
-  module_name = lowercase(module_name);
+  DEFINED_SOLVER("null", NullSolver);
+  DEFINED_SOLVER("rotations-cpu", RotationSolver);
+  DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver);
+  DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver);
+  DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver);
 
-  if (module_name == "null") {
-    return new NullSolver;
-  }
-
-  if (module_name == "rotations-cpu") {
-    return new RotationSolver;
-  }
-
-  if (module_name == "llg-heun-cpu") {
-    return new HeunLLGSolver;
-  }
-
-  if (module_name == "monte-carlo-metropolis-cpu") {
-    return new MetropolisMCSolver;
-  }
-
-  if (module_name == "monte-carlo-constrained-cpu") {
-    return new ConstrainedMCSolver;
-  }
 #if HAS_CUDA
-  if (module_name == "llg-heun-gpu") {
-    return new CUDAHeunLLGSolver;
-  }
-
-  if (module_name == "llg-rk4-gpu") {
-    return new CUDALLGRK4Solver;
-  }
-
-  if (module_name == "ll-lorentzian-rk4-gpu") {
-    return new CUDALLLorentzianRK4Solver;
-  }
+  DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver);
+  DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver);
+  DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver);
 #endif
 
-  throw std::runtime_error("unknown solver " + module_name);
+  throw std::runtime_error("unknown solver " + std::string(settings["module"].c_str()));
 }
 
 
@@ -144,3 +128,5 @@ bool Solver::is_converged() {
   }
   return false;
 }
+
+#undef DEFINED_SOLVER
