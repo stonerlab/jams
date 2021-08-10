@@ -29,9 +29,6 @@ namespace {
 }
 
 void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
-  // initialize base class
-  Solver::initialize(settings);
-
   do_spin_initial_alignment_ = jams::config_optional(settings, "auto_align", do_spin_initial_alignment_);
 
   max_steps_ = jams::config_required<int>(settings, "max_steps");

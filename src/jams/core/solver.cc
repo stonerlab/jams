@@ -38,15 +38,6 @@ Solver::~Solver() {
 }
 
 
-void Solver::initialize(const libconfig::Setting& settings) {
-  assert(!initialized_);
-
-  cout << "  " << name() << " solver\n";
-
-  initialized_ = true;
-}
-
-
 void Solver::run() {
 }
 
@@ -115,7 +106,7 @@ void Solver::register_physics_module(Physics* package) {
 
 
 void Solver::update_physics_module() {
-    physics_module_->update(iteration_, time(), time_step_);
+    physics_module_->update(iteration_, time(), step_size_);
 }
 
 

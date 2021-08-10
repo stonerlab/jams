@@ -29,7 +29,8 @@ class Solver {
 
   virtual std::string name() const = 0;
 
-  bool is_cuda_solver() const { return is_cuda_solver_; }
+  virtual bool is_cuda_solver() const { return false; }
+
   bool is_converged();
   virtual bool is_running();
 
@@ -38,11 +39,11 @@ class Solver {
   }
 
   inline double time() const {
-    return iteration_ * time_step_;
+    return iteration_ * step_size_;
   }
 
   inline double time_step() const {
-    return time_step_;
+    return step_size_;
   }
 
   inline int max_steps() const {
@@ -65,7 +66,7 @@ class Solver {
 
   virtual void notify_monitors();
 
-  void compute_fields();
+  virtual void compute_fields();
 
   std::vector<Hamiltonian*>& hamiltonians() {
     return hamiltonians_;
@@ -77,14 +78,11 @@ class Solver {
 
   static Solver* create(const libconfig::Setting &setting);
  protected:
-    bool initialized_ = false;
-    bool is_cuda_solver_ = false;
-
     int iteration_ = 0;
     int max_steps_ = 0;
     int min_steps_ = 0;
 
-    double time_step_ = 1.0;
+    double step_size_ = 1.0;
 
   Physics*                  physics_module_ = nullptr;
   Thermostat*               thermostat_ = nullptr;

@@ -19,13 +19,8 @@ using namespace std;
 void RotationSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
-  // initialize base class
-  Solver::initialize(settings);
-
   num_theta_ = jams::config_optional<unsigned>(settings, "num_theta", num_theta_);
   num_phi_ = jams::config_optional<unsigned>(settings, "num_phi", num_phi_);
-
-  initialized_ = true;
 }
 
 void RotationSolver::run() {

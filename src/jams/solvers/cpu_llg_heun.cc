@@ -17,18 +17,15 @@ using namespace std;
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
-  // initialize base class
-  Solver::initialize(settings);
-
   // convert input in seconds to picoseconds for internal units
-  time_step_ = jams::config_required<double>(settings, "t_step") / 1e-12;
+  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
   auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
   auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
 
-  max_steps_ = static_cast<int>(t_max / time_step_);
-  min_steps_ = static_cast<int>(t_min / time_step_);
+  max_steps_ = static_cast<int>(t_max / step_size_);
+  min_steps_ = static_cast<int>(t_min / step_size_);
 
-  cout << "\ntimestep (ps) " << time_step_ << "\n";
+  cout << "\ntimestep (ps) " << step_size_ << "\n";
   cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
   cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
 
@@ -47,8 +44,6 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
     sigma_(i) = sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
                      (globals::mus(i) * globals::gyro(i) * solver->time_step() * denominator));
   }
-
-  initialized_ = true;
 }
 
 void HeunLLGSolver::run() {
@@ -101,7 +96,7 @@ void HeunLLGSolver::run() {
        ds_dt(i, j) = 0.5 * rhs[j];
     }
 
-    spin = unit_vector(spin + time_step_ * rhs);
+    spin = unit_vector(spin + step_size_ * rhs);
 
      for (auto j = 0; j < 3; ++j) {
       s(i, j) = spin[j];
@@ -141,7 +136,7 @@ void HeunLLGSolver::run() {
 
     Vec3 ds = {ds_dt(i, 0), ds_dt(i, 1) , ds_dt(i, 2)};
 
-    spin = unit_vector(spin_old + time_step_ * ds);
+    spin = unit_vector(spin_old + step_size_ * ds);
 
     for (auto j = 0; j < 3; ++j) {
       s(i, j) = spin[j];

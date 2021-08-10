@@ -25,22 +25,20 @@ void CUDALLGRK4Solver::initialize(const libconfig::Setting& settings)
 {
   using namespace globals;
 
-  CudaSolver::initialize(settings);
-
   // convert input in seconds to picoseconds for internal units
-  time_step_ = jams::config_required<double>(settings, "t_step") / 1e-12;
+  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
   auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
   auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
 
 
-  max_steps_ = static_cast<int>(t_max / time_step_);
-  min_steps_ = static_cast<int>(t_min / time_step_);
+  max_steps_ = static_cast<int>(t_max / step_size_);
+  min_steps_ = static_cast<int>(t_min / step_size_);
 
-  cout << "\ntimestep (ps) " << time_step_ << "\n";
+  cout << "\ntimestep (ps) " << step_size_ << "\n";
   cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
   cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
 
-  cout << "timestep " << time_step_ << "\n";
+  cout << "timestep " << step_size_ << "\n";
   cout << "t_max " << t_max << " steps (" <<  max_steps_ << ")\n";
   cout << "t_min " << t_min << " steps (" << min_steps_ << ")\n";
 
@@ -92,7 +90,7 @@ void CUDALLGRK4Solver::run()
        gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  double mid_time_step = 0.5 * time_step_;
+  double mid_time_step = 0.5 * step_size_;
   CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, s.device_data(), 1));
   CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k1_.device_data(), 1, s.device_data(), 1));
 
@@ -105,7 +103,7 @@ void CUDALLGRK4Solver::run()
        gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  mid_time_step = 0.5 * time_step_;
+  mid_time_step = 0.5 * step_size_;
   CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, s.device_data(), 1));
   CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k2_.device_data(), 1, s.device_data(), 1));
 
@@ -118,7 +116,7 @@ void CUDALLGRK4Solver::run()
        gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  mid_time_step = time_step_;
+  mid_time_step = step_size_;
   CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, s.device_data(), 1));
   CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k3_.device_data(), 1, s.device_data(), 1));
 
@@ -134,7 +132,7 @@ void CUDALLGRK4Solver::run()
   cuda_llg_rk4_combination_kernel<<<grid_size, block_size>>>
       (s.device_data(), s_old_.device_data(),
        k1_.device_data(), k2_.device_data(), k3_.device_data(), k4_.device_data(),
-       time_step_, num_spins);
+       step_size_, num_spins);
 
   iteration_++;
 }

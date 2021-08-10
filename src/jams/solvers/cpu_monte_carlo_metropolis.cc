@@ -20,9 +20,6 @@ using namespace std;
 void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
-  // initialize base class
-  Solver::initialize(settings);
-
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
   output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
