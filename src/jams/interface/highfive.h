@@ -23,11 +23,7 @@ namespace HighFive {
         static constexpr size_t recursive_ndim = ndim + inspector<value_type>::recursive_ndim;
 
         static std::array<size_t, recursive_ndim> getDimensions(const type& val) {
-          std::array<size_t, recursive_ndim> sizes{val.size()};
-          size_t index = ndim;
-          for (const auto& s: inspector<value_type>::getDimensions(val[0])) {
-            sizes[index++] = s;
-          }
+          std::array<size_t, recursive_ndim> sizes{val.shape()};
           return sizes;
         }
     };
