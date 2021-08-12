@@ -1,11 +1,15 @@
 include(${PROJECT_SOURCE_DIR}/cmake/Modules/DownloadProject.cmake)
 
 if (DEFINED JAMS_HIGHFIVE_VERSION)
-    set(USE_BOOST OFF CACHE INTERNAL "")
-    set(HIGHFIVE_EXAMPLES OFF CACHE INTERNAL "")
-    set(HIGHFIVE_UNIT_TESTS OFF CACHE INTERNAL "")
 
-    set(PROJ_CMAKE_ARGS -DUSE_BOOST=OFF -DHIGHFIVE_EXAMPLES=OFF -DHIGHFIVE_UNIT_TESTS=OFF)
+    set(HIGHFIVE_USE_BOOST     OFF CACHE INTERNAL "Enable Boost Support")
+    set(HIGHFIVE_USE_EIGEN     OFF CACHE INTERNAL "Enable Eigen testing")
+    set(HIGHFIVE_USE_XTENSOR   OFF CACHE INTERNAL "Enable xtensor testing")
+    set(HIGHFIVE_USE_OPENCV    OFF CACHE INTERNAL "Enable OpenCV testing")
+    set(HIGHFIVE_UNIT_TESTS    OFF CACHE INTERNAL "Enable unit tests")
+    set(HIGHFIVE_EXAMPLES      OFF CACHE INTERNAL "Compile examples")
+    set(HIGHFIVE_PARALLEL_HDF5 OFF CACHE INTERNAL "Enable Parallel HDF5 support")
+    set(HIGHFIVE_BUILD_DOCS    OFF CACHE INTERNAL "Enable documentation building")
 
     set(JAMS_HIGHFIVE_URL "https://github.com/BlueBrain/HighFive.git")
     if (MESSAGE_QUIET AND (NOT DEFINED VERBOSE))
@@ -14,7 +18,6 @@ if (DEFINED JAMS_HIGHFIVE_VERSION)
                 GIT_REPOSITORY      ${JAMS_HIGHFIVE_URL}
                 GIT_TAG             ${JAMS_HIGHFIVE_VERSION}
                 GIT_SHALLOW         ON
-                CMAKE_ARGS          ${PROJ_CMAKE_ARGS}
                 QUIET
         )
     else()
@@ -23,7 +26,6 @@ if (DEFINED JAMS_HIGHFIVE_VERSION)
                 GIT_REPOSITORY      ${JAMS_HIGHFIVE_URL}
                 GIT_TAG             ${JAMS_HIGHFIVE_VERSION}
                 GIT_SHALLOW         ON
-                CMAKE_ARGS          ${PROJ_CMAKE_ARGS}
         )
     endif()
 

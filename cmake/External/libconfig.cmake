@@ -14,7 +14,6 @@ if (DEFINED JAMS_LIBCONFIG_VERSION)
                 PROJ                libconfig
                 GIT_REPOSITORY      ${JAMS_LIBCONFIG_URL}
                 GIT_TAG             ${JAMS_LIBCONFIG_VERSION}
-                CMAKE_ARGS          ${PROJ_CMAKE_ARGS}
                 QUIET
         )
     else()
@@ -22,7 +21,6 @@ if (DEFINED JAMS_LIBCONFIG_VERSION)
                 PROJ                libconfig
                 GIT_REPOSITORY      ${JAMS_LIBCONFIG_URL}
                 GIT_TAG             ${JAMS_LIBCONFIG_VERSION}
-                CMAKE_ARGS          ${PROJ_CMAKE_ARGS}
         )
     endif()
 
