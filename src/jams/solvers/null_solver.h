@@ -13,9 +13,9 @@
 class NullSolver : public Solver {
 public:
     NullSolver() = default;
-    ~NullSolver() = default;
+    ~NullSolver() override = default;
 
-    std::string name() const { return "null"; }
+    std::string name() const override { return "null"; }
 
 
     inline void initialize(const libconfig::Setting& settings) final {

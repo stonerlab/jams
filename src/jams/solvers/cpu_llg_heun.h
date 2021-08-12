@@ -15,11 +15,11 @@
 class HeunLLGSolver : public Solver {
  public:
   HeunLLGSolver() = default;
-  ~HeunLLGSolver() = default;
-  void initialize(const libconfig::Setting& settings);
-  void run();
+  ~HeunLLGSolver() override = default;
+  void initialize(const libconfig::Setting& settings) override;
+  void run() override;
 
-  std::string name() const { return "llg-heun-cpu"; }
+  std::string name() const override { return "llg-heun-cpu"; }
 
  private:
     jams::MultiArray<double, 2> s_old_;

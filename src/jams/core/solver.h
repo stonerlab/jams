@@ -15,7 +15,7 @@
 class Solver {
  public:
   Solver() = default;
-  ~Solver() = default;
+  virtual ~Solver() = default;
 
   virtual void initialize(const libconfig::Setting& settings) = 0;
   virtual void run() = 0;

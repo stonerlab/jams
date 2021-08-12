@@ -12,11 +12,11 @@
 class CUDALLGRK4Solver : public CudaSolver {
   public:
     CUDALLGRK4Solver() = default;
-    ~CUDALLGRK4Solver() = default;
-    void initialize(const libconfig::Setting& settings);
-    void run();
+    ~CUDALLGRK4Solver() override = default;
+    void initialize(const libconfig::Setting& settings) override;
+    void run() override;
 
-    std::string name() const { return "llg-rk4-gpu"; }
+    std::string name() const override { return "llg-rk4-gpu"; }
 
   private:
     CudaStream dev_stream_;

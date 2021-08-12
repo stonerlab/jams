@@ -12,11 +12,11 @@
 class CUDALLLorentzianRK4Solver : public CudaSolver {
   public:
     CUDALLLorentzianRK4Solver() = default;
-    ~CUDALLLorentzianRK4Solver() = default;
-    void initialize(const libconfig::Setting& settings);
-    void run();
+    ~CUDALLLorentzianRK4Solver() override = default;
+    void initialize(const libconfig::Setting& settings) override;
+    void run() override;
 
-    std::string name() const { return "ll-lorentzian-rk4-gpu"; }
+    std::string name() const override { return "ll-lorentzian-rk4-gpu"; }
 
   private:
     CudaStream dev_stream_;

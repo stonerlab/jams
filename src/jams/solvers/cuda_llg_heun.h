@@ -12,11 +12,11 @@
 class CUDAHeunLLGSolver : public CudaSolver {
   public:
     CUDAHeunLLGSolver() = default;
-    ~CUDAHeunLLGSolver() = default;
-    void initialize(const libconfig::Setting& settings);
-    void run();
+    ~CUDAHeunLLGSolver() override = default;
+    void initialize(const libconfig::Setting& settings) override;
+    void run() override;
 
-    std::string name() const { return "llg-heun-gpu"; }
+    std::string name() const override { return "llg-heun-gpu"; }
 
   private:
     CudaStream dev_stream_;

@@ -14,11 +14,11 @@
 class MetropolisMCSolver : public Solver {
  public:
   MetropolisMCSolver() = default;
-  ~MetropolisMCSolver() = default;
-  void initialize(const libconfig::Setting& settings);
-  void run();
+  ~MetropolisMCSolver() override = default;
+  void initialize(const libconfig::Setting& settings) override;
+  void run() override;
 
-  std::string name() const { return "monte-carlo-metropolis-cpu"; }
+  std::string name() const override { return "monte-carlo-metropolis-cpu"; }
 
  private:
   class MagnetizationRotationMinimizer;
