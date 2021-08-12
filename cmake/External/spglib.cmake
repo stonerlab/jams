@@ -1,6 +1,9 @@
 include(${PROJECT_SOURCE_DIR}/cmake/Modules/DownloadProject.cmake)
 
 if (DEFINED JAMS_SPGLIB_VERSION)
+
+    set(USE_OMP ${JAMS_BUILD_OMP} CACHE INTERNAL "Build with OMP support")
+
     set(JAMS_SPGLIB_URL "https://github.com/spglib/spglib.git")
     if (MESSAGE_QUIET AND (NOT DEFINED VERBOSE))
         download_project(
