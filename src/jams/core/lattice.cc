@@ -644,15 +644,8 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     cout << "      " << materials_.name(n) << ": " << type_counter[n] << "\n";
   }
 
-  // store max coordinates
-  rmax_[0] = -DBL_MAX; rmax_[1] = -DBL_MAX; rmax_[2] = -DBL_MAX;
-  for (const auto& a : atoms_) {
-    for (auto n = 0; n < 3; ++n) {
-      if (a.position[n] > rmax_[n]) {
-        rmax_[n] = a.position[n];
-      }
-    }
-  }
+  // this is the top right hand corner of the top right unit cell in the super cell
+  rmax_ = generate_cartesian_lattice_position_from_fractional(Vec3{0.0, 0.0, 0.0}, lattice_dimensions);
 
   if (atom_counter == 0) {
     jams_die("the number of computed lattice sites was zero, check input");

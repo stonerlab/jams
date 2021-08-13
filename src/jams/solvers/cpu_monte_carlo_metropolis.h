@@ -3,60 +3,77 @@
 #ifndef JAMS_SOLVER_METROPOLISMC_H
 #define JAMS_SOLVER_METROPOLISMC_H
 
-#include "jams/core/solver.h"
-
 #include <fstream>
-#include <jams/core/types.h>
-#include <pcg_random.hpp>
-#include <random>
-#include "jams/helpers/random.h"
+#include <functional>
+#include <string>
+#include <vector>
+
+#include <jams/core/solver.h>
+#include <jams/interface/config.h>
+
+///
+/// Implements a solver based on Metropolis Monte Carlo. The class adds further
+/// virtual members so that it can be derived again for solvers which use
+/// Metropolis Monte Carlo as a template algorithm.
+///
 
 class MetropolisMCSolver : public Solver {
- public:
-  MetropolisMCSolver() = default;
-  ~MetropolisMCSolver() override = default;
-  void initialize(const libconfig::Setting& settings) override;
-  void run() override;
+public:
+    using MoveFunction = std::function<Vec3(Vec3)>;
+  
+    std::string name() const override { return "monte-carlo-metropolis-cpu"; }
 
-  std::string name() const override { return "monte-carlo-metropolis-cpu"; }
+    MetropolisMCSolver() = default;
 
- private:
-  class MagnetizationRotationMinimizer;
+    ~MetropolisMCSolver() override = default;
 
-  int MetropolisAlgorithm(std::function<Vec3(Vec3)> trial_spin_move);
-    int MetropolisAlgorithmTotalEnergy(std::function<Vec3(Vec3)> trial_spin_move);
-    void MetropolisPreconditioner(std::function<Vec3(Vec3)>  trial_spin_move);
-  void SystematicPreconditioner(const double delta_theta, const double delta_phi);
+    void initialize(const libconfig::Setting &settings) override;
 
-  bool use_random_spin_order_ = true;
-  bool use_total_energy_ = false;
-  bool is_preconditioner_enabled_ = false;
-  double preconditioner_delta_theta_ = 5.0;
-  double preconditioner_delta_phi_ = 5.0;
+    void run() override;
 
-  int output_write_steps_ = 1000;
+    /// Calculates the energy difference of the system when the spin at
+    /// @p spin_index is set to @p initial_spin and @p final_spin.
+    /// \f[
+    /// \Delta E = E_{final} - E_{initial}
+    /// \f]
+    /// A negative energy difference means the final state is lower in energy
+    /// than the initial state.
+    virtual double energy_difference(const int spin_index,
+                                     const Vec3 &initial_spin,
+                                     const Vec3 &final_spin);
 
-  double move_fraction_uniform_     = 0.0;
-  double move_fraction_angle_       = 1.0;
-  double move_fraction_reflection_  = 0.0;
+    /// Performs 'one' Monte Carlo step. We define as one attempted move of
+    /// every spin in the system on average. This means we don't guarantee
+    /// every spin will be touched each step, but there is a uniform
+    /// probability. Hence one step involves num_spins trial moves.
+    virtual int monte_carlo_step(const MoveFunction &trial_spin_move);
 
-  double move_angle_sigma_ = 0.5;
+    /// Implements the Metropolis algorithm where trial spin moves are accepted
+    /// or rejected according to the Boltzmann distribution. @p trial_spin_move
+    /// accepts any function with the signature MoveFunction allowing the
+    /// algorithm to be used with different trial moves. Some standard moves are
+    /// provided in src/jams/montecarlo.h as functor classes which implement
+    /// the MonteCarloMove abstract class.
+    virtual int
+    metropolis_algorithm(const MoveFunction &trial_spin_move, int spin_index);
 
-  unsigned run_count_uniform_    = 0;
-  unsigned run_count_angle_      = 0;
-  unsigned run_count_reflection_ = 0;
+    /// Function hook for accepting a Monte Carlo move
+    virtual void
+    accept_move(const int spin_index,
+                const Vec3 &initial_spin,
+                const Vec3 &final_spin);
 
-  unsigned long long move_total_count_uniform_    = 0;
-  unsigned long long move_total_count_angle_      = 0;
-  unsigned long long move_total_count_reflection_ = 0;
+private:
+    /// Outputs statistics of Monte Carlo move acceptance rates to a file.
+    void output_move_statistics();
 
-  unsigned long long move_total_acceptance_count_uniform_      = 0;
-  unsigned long long move_total_acceptance_count_angle_        = 0;
-  unsigned long long move_total_acceptance_count_reflection_   = 0;
-
-  unsigned long long move_running_acceptance_count_uniform_    = 0;
-  unsigned long long move_running_acceptance_count_angle_      = 0;
-  unsigned long long move_running_acceptance_count_reflection_ = 0;
+    std::ofstream stats_file_;
+    std::vector<std::string> move_names_;
+    std::vector<double> move_weights_;
+    std::vector<MoveFunction> move_functions_;
+    std::vector<int> moves_attempted_;
+    std::vector<int> moves_accepted_;
+    int output_write_steps_ = 1000;
 };
 
 #endif  // JAMS_SOLVER_METROPOLISMC_H
