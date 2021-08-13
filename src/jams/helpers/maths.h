@@ -14,7 +14,7 @@
 // for these floating point comparisons we always compare the difference with the larger
 // of the two numbers to
 template <typename T>
-inline bool approximately_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline bool approximately_equal(const T& a, const T& b, const T& epsilon) {
   // check if a - b is close to zero (in which case the relative difference doesn't work
   if (std::abs(a - b) <= epsilon) return true;
 
@@ -23,28 +23,29 @@ inline bool approximately_equal(const T& a, const T& b, const T& epsilon = FLT_E
 }
 
 template <typename T>
-inline constexpr bool approximately_zero(const T& a, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool approximately_zero(const T& a, const T& epsilon) {
   return std::abs(a) <= epsilon;
 }
 
+// Returns true if 'a' is greater than 'b' within a relative tolerance max(a,b) * epsilon
 template <typename T>
-inline constexpr bool definately_greater_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline bool definately_greater_than(const T& a, const T& b, const T& epsilon) {
   return (a - b) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 
 template <typename T>
-inline constexpr bool less_than_approx_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool less_than_approx_equal(const T& a, const T& b, const T& epsilon) {
   return (a - b) < (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 template <typename T>
-inline constexpr bool definately_less_than(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool definately_less_than(const T& a, const T& b, const T& epsilon) {
   return (b - a) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
 template <typename T>
-inline constexpr bool greater_than_approx_equal(const T& a, const T& b, const T& epsilon = FLT_EPSILON) {
+inline constexpr bool greater_than_approx_equal(const T& a, const T& b, const T& epsilon) {
   return (b - a) < (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
@@ -77,8 +78,8 @@ inline bool constexpr is_multiple_of(const int& x, const int& y) {
   return x % y == 0;
 }
 
-inline double zero_safe_recip_norm(double x, double y, double z) {
-  if (approximately_zero(x) && approximately_zero(y) && approximately_zero(z)) {
+inline double zero_safe_recip_norm(double x, double y, double z, double epsilon = 1e-9) {
+  if (approximately_zero(x, epsilon) && approximately_zero(y, epsilon) && approximately_zero(z, epsilon)) {
     return 0.0;
   }
 
@@ -128,7 +129,7 @@ inline constexpr double kronecker_delta(const int alpha, const int beta) {
 }
 
 inline constexpr double dirac_delta(const double x) {
-  return approximately_zero(x);
+  return approximately_zero(x, DBL_EPSILON);
 }
 
 inline double gaussian(const double& x, const double& center, const double& amplitude, const double& width) {

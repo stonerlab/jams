@@ -11,6 +11,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/core/solver.h"
 #include "jams/core/lattice.h"
+#include <jams/lattice/minimum_image.h>
 
 #include "jams/hamiltonian/dipole_bruteforce.h"
 
@@ -70,9 +71,26 @@ void DipoleBruteforceHamiltonian::calculate_energies() {
 __attribute__((hot))
 Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
   using namespace globals;
+  using namespace std::placeholders;
+
+
+  // We will use Smith's algorithm for the minimum image convention below which is only valid for
+  // displacements less than the inradius of the cell. Our r_cutoff_ is checked at runtime in the
+  // constructor for this condition which allows us to turn off the safety check in Smith's algorithm
+  // (an optimisation). We assert the condition here again for safety.
+  assert(r_cutoff_ <= lattice->max_interaction_radius());
+
+  auto displacement = [](const int i, const int j) {
+      return jams::minimum_image_smith_method(
+              lattice->get_supercell().matrix(),
+              lattice->get_supercell().inverse_matrix(),
+              lattice->get_supercell().periodic(),
+              lattice->atom_position(i),
+              lattice->atom_position(j));
+  };
 
   const auto r_cut_squared = pow2(r_cutoff_);
-  const double w0 = mus(i) * kVacuumPermeadbility * kBohrMagneton / (4.0 * kPi * pow3(lattice->parameter()));
+  const double w0 = mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(lattice->parameter()));
 
   double hx = 0, hy = 0, hz = 0;
   #if HAS_OMP
@@ -82,17 +100,15 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
     if (j == i) continue;
 
     const Vec3 s_j = {s(j,0), s(j,1), s(j,2)};
-    Vec3 r_ij = lattice->displacement(i, j);
+
+    Vec3 r_ij = displacement(i, j);
 
     const auto r_abs_sq = norm_sq(r_ij);
 
-    if (r_abs_sq > r_cut_squared) continue;
-
-    const auto sj_dot_r = s(j, 0) * r_ij[0] + s(j, 1) * r_ij[1] + s(j, 2) * r_ij[2];
-
-    hx += w0 * mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) - pow2(norm(r_ij)) * s_j[0]) / pow5(norm(r_ij));
-    hy += w0 * mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) - pow2(norm(r_ij)) * s_j[1]) / pow5(norm(r_ij));;
-    hz += w0 * mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) - pow2(norm(r_ij)) * s_j[2]) / pow5(norm(r_ij));;
+    if (definately_greater_than(r_abs_sq, r_cut_squared, jams::defaults::lattice_tolerance)) continue;
+    hx += w0 * mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[0]) / pow5(norm(r_ij));
+    hy += w0 * mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[1]) / pow5(norm(r_ij));;
+    hz += w0 * mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[2]) / pow5(norm(r_ij));;
   }
 
   return {hx, hy, hz};

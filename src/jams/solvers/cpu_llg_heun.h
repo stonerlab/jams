@@ -15,17 +15,16 @@
 class HeunLLGSolver : public Solver {
  public:
   HeunLLGSolver() = default;
-  ~HeunLLGSolver() = default;
-  void initialize(const libconfig::Setting& settings);
-  void run();
+  ~HeunLLGSolver() override = default;
+  void initialize(const libconfig::Setting& settings) override;
+  void run() override;
 
+  std::string name() const override { return "llg-heun-cpu"; }
 
  private:
-    double dt = 0.0;
-
-    jams::MultiArray<double, 2> snew;
-    jams::MultiArray<double, 1> sigma;
-    jams::MultiArray<double, 2> w;
+    jams::MultiArray<double, 2> s_old_;
+    jams::MultiArray<double, 1> sigma_;
+    jams::MultiArray<double, 2> w_;
 
     pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::instance().random_generator()());
 };

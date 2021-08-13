@@ -3,31 +3,27 @@
 #ifndef JAMS_CORE_SOLVER_H
 #define JAMS_CORE_SOLVER_H
 
-#include <cstddef>
-#include <cassert>
-#include <iosfwd>
+#include <memory>
 #include <vector>
 #include <libconfig.h++>
 
-#include "jams/interface/fft.h"
-#include "jams/core/base.h"
+#include "jams/core/thermostat.h"
+#include "jams/core/physics.h"
+#include "jams/core/monitor.h"
+#include "jams/core/hamiltonian.h"
 
-// forward declarations
-class Physics;
-class Monitor;
-class Hamiltonian;
-class Thermostat;
-
-class Solver : public Base {
+class Solver {
  public:
   Solver() = default;
-
-  virtual ~Solver();
+  virtual ~Solver() = default;
 
   virtual void initialize(const libconfig::Setting& settings) = 0;
   virtual void run() = 0;
 
-  bool is_cuda_solver() const { return is_cuda_solver_; }
+  virtual std::string name() const = 0;
+
+  virtual bool is_cuda_solver() const { return false; }
+
   bool is_converged();
   virtual bool is_running();
 
@@ -36,11 +32,11 @@ class Solver : public Base {
   }
 
   inline double time() const {
-    return iteration_ * time_step_;
+    return iteration_ * step_size_;
   }
 
   inline double time_step() const {
-    return time_step_;
+    return step_size_;
   }
 
   inline int max_steps() const {
@@ -48,46 +44,46 @@ class Solver : public Base {
   }
 
   inline const Physics * physics() const {
-    return physics_module_;
+    return physics_module_.get();
   }
 
   inline Thermostat * thermostat() const {
-    return thermostat_;
+    return thermostat_.get();
   }
 
   void register_physics_module(Physics* package);
   void update_physics_module();
+
+  void register_thermostat(Thermostat* thermostat);
+  void update_thermostat();
 
   void register_monitor(Monitor* monitor);
   void register_hamiltonian(Hamiltonian* hamiltonian);
 
   virtual void notify_monitors();
 
-  void compute_fields();
+  virtual void compute_fields();
 
-  std::vector<Hamiltonian*>& hamiltonians() {
+  std::vector<std::unique_ptr<Hamiltonian>>& hamiltonians() {
     return hamiltonians_;
   }
 
-  std::vector<Monitor*>& monitors() {
+  std::vector<std::unique_ptr<Monitor>>& monitors() {
     return monitors_;
   }
 
   static Solver* create(const libconfig::Setting &setting);
  protected:
-    bool initialized_ = false;
-    bool is_cuda_solver_ = false;
-
     int iteration_ = 0;
     int max_steps_ = 0;
     int min_steps_ = 0;
 
-    double time_step_ = 1.0;
+    double step_size_ = 1.0;
 
-  Physics*                  physics_module_ = nullptr;
-  Thermostat*               thermostat_ = nullptr;
-  std::vector<Monitor*>     monitors_;
-  std::vector<Hamiltonian*> hamiltonians_;
+  std::unique_ptr<Physics> physics_module_;
+  std::unique_ptr<Thermostat> thermostat_;
+  std::vector<std::unique_ptr<Monitor>> monitors_;
+  std::vector<std::unique_ptr<Hamiltonian>> hamiltonians_;
 };
 
 #endif  // JAMS_CORE_SOLVER_H

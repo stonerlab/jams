@@ -13,7 +13,7 @@
 #include "jams/core/lattice.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/slice.h"
-#include "jams/interface/h5.h"
+#include "jams/interface/highfive.h"
 #include "jams/helpers/output.h"
 
 #include "jams/monitors/hdf5.h"
@@ -46,6 +46,8 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
         slice_ = Slice(settings["slice"]);
     }
 
+    write_ds_dt_ = jams::config_optional<bool>(settings, "ds_dt", write_ds_dt_);
+
     open_new_xdmf_file(jams::output::full_path_filename(".xdmf"));
 
     write_lattice_h5_file(jams::output::full_path_filename("lattice.h5"));
@@ -75,29 +77,15 @@ void Hdf5Monitor::update(Solver * solver) {
 }
 
 void Hdf5Monitor::write_spin_h5_file(const std::string &h5_file_name) {
-  using namespace globals;
   using namespace HighFive;
 
   File file(h5_file_name, File::ReadWrite | File::Create | File::Truncate);
 
-  DataSetCreateProps props;
+  write_vector_field(globals::s, "/spins", file);
 
-  if (compression_enabled_) {
-    props.add(Chunking({static_cast<unsigned long long>(std::min(h5_compression_chunk_size, num_spins)), 1}));
-    props.add(Shuffle());
-    props.add(Deflate(h5_compression_factor));
+  if (write_ds_dt_) {
+    write_vector_field(globals::ds_dt, "/ds_dt", file);
   }
-
-  auto dataset = file.createDataSet<double>("/spins",  DataSpace({size_t(num_spins),3}), props);
-
-  dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
-  dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
-  dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
-  dataset.createAttribute<double>("hx", DataSpace::From(solver->physics()->applied_field()[0]));
-  dataset.createAttribute<double>("hy", DataSpace::From(solver->physics()->applied_field()[1]));
-  dataset.createAttribute<double>("hz", DataSpace::From(solver->physics()->applied_field()[2]));
-
-  dataset.write(s);
 }
 
 //---------------------------------------------------------------------
@@ -201,11 +189,51 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name) {
   fprintf(xdmf_file_, "           %s:/spins\n", file_basename(h5_file_name).c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
-   fputs("      </Grid>\n", xdmf_file_);
-
+               if (write_ds_dt_) {
+                 fputs("       <Attribute Name=\"ds_dt\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);
+                 fprintf(xdmf_file_,"         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
+                 fprintf(xdmf_file_, "           %s:/ds_dt\n", file_basename(h5_file_name).c_str());
+                 fputs("         </DataItem>\n", xdmf_file_);
+                 fputs("       </Attribute>\n", xdmf_file_);
+               }
+               fputs("      </Grid>\n", xdmf_file_);
                // reprint the closing tags of the XML
                fputs("    </Grid>\n", xdmf_file_);
                fputs("  </Domain>\n", xdmf_file_);
                fputs("</Xdmf>", xdmf_file_);
   fflush(xdmf_file_);
+}
+
+void Hdf5Monitor::write_vector_field(const jams::MultiArray<double, 2> &field,
+                                     const string &data_path,
+                                     HighFive::File &file) const {
+  using namespace HighFive;
+
+  DataSetCreateProps props;
+
+  if (compression_enabled_) {
+    props.add(Chunking({static_cast<unsigned long long>(std::min(h5_compression_chunk_size, int(field.size(0)))), 1}));
+    props.add(Shuffle());
+    props.add(Deflate(h5_compression_factor));
+  }
+
+  auto dataset = file.createDataSet<double>(data_path,  DataSpace({size_t(field.size(0)), size_t(field.size(1))}), props);
+  dataset.write(field);
+}
+
+void Hdf5Monitor::write_scalar_field(const jams::MultiArray<double, 1> &field,
+                                     const string &data_path,
+                                     HighFive::File &file) const {
+  using namespace HighFive;
+
+  DataSetCreateProps props;
+
+  if (compression_enabled_) {
+    props.add(Chunking({static_cast<unsigned long long>(std::min(h5_compression_chunk_size, int(field.size())))}));
+    props.add(Shuffle());
+    props.add(Deflate(h5_compression_factor));
+  }
+
+  auto dataset = file.createDataSet<double>(data_path,  DataSpace({size_t(field.size())}), props);
+  dataset.write(field);
 }

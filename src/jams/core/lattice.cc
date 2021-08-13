@@ -31,11 +31,12 @@ extern "C"{
 #include "jams/helpers/maths.h"
 #include "jams/helpers/utils.h"
 #include "jams/containers/neartree.h"
-#include "jams/interface/h5.h"
+#include "jams/interface/highfive.h"
 #include "jams/helpers/load.h"
 #include "jams/helpers/interaction_calculator.h"
 #include "lattice.h"
 #include <jams/maths/parallelepiped.h>
+#include <jams/lattice/minimum_image.h>
 
 
 using std::cout;
@@ -85,11 +86,11 @@ namespace {
 
 namespace jams {
     double landau_lifshitz_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
-      return -gyro / mus;
+      return gyro;
     }
 
     double gilbert_gyro_prefactor(const double& gyro, const double& alpha, const double& mus) {
-      return -gyro /((1.0 + pow2(alpha)) * mus);
+      return gyro /(1.0 + pow2(alpha));
     }
 }
 
@@ -164,18 +165,13 @@ Lattice::atom_position(const int &i) const {
   return cartesian_positions_[i];
 }
 
-std::vector<std::pair<Vec3, int>>
-Lattice::atom_neighbours(const int &i, const double &r_cutoff) const {
-  return neartree_->find_in_radius(r_cutoff, {cartesian_positions_[i], i});
-}
-
 Vec3
 Lattice::displacement(const Vec3 &r_i, const Vec3 &r_j) const {
-  return ::minimum_image(supercell, r_i, r_j);
+  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), r_i, r_j, jams::defaults::lattice_tolerance);
 }
 
 Vec3 Lattice::displacement(const unsigned &i, const unsigned &j) const {
-  return ::minimum_image(supercell, atoms_[i].position, atoms_[j].position);
+  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), atoms_[i].position, atoms_[j].position, jams::defaults::lattice_tolerance);
 }
 
 Vec3
@@ -484,8 +480,10 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   for (auto i = 0; i < motif_.size(); ++i) {
     for (auto j = i + 1; j < motif_.size(); ++j) {
-      auto distance = norm(minimum_image(unitcell,fractional_to_cartesian(motif_[i].position), fractional_to_cartesian(motif_[j].position)));
-      if(!definately_greater_than(distance, jams::defaults::lattice_tolerance)) {
+      auto distance = norm(
+              jams::minimum_image(unitcell.a(), unitcell.b(), unitcell.c(), unitcell.periodic(),
+                                  fractional_to_cartesian(motif_[i].position), fractional_to_cartesian(motif_[j].position), jams::defaults::lattice_tolerance));
+      if(distance < jams::defaults::lattice_tolerance) {
         throw std::runtime_error("motif positions " + std::to_string(i) + " and " + std::to_string(j) + " are closer than the default lattice tolerance");
       }
     }
@@ -653,8 +651,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     jams_die("the number of computed lattice sites was zero, check input");
   }
 
-  generate_near_tree();
-
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;
 
@@ -694,23 +690,22 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
       globals::gyro(i) = jams::landau_lifshitz_gyro_prefactor(material.gyro, material.alpha, material.moment);
     }
 
-    for (auto n = 0; n < 3; ++n) {
-      globals::s(i, n) = material.spin[n];
-    }
+    Vec3 spin = material.spin;
 
     if (material.randomize) {
-      Vec3 s_init = uniform_random_sphere(rng);
-      for (auto n = 0; n < 3; ++n) {
-        globals::s(i, n) = s_init[n];
-      }
+      spin = uniform_random_sphere(rng);
     }
 
-    // lattice vacancies
-    if (material.moment == 0.0 || material.spin == Vec3{0.0, 0.0, 0.0}) {
-      globals::mus(i) = 0.0;
-      for (auto n = 0; n < 3; ++n) {
-        globals::s(i, n) = 0.0;
-      }
+    // lattice vacancies have a moment of zero and a spin vector of zero
+    if (material.moment == 0.0) {
+      spin = Vec3{0.0, 0.0, 0.0};
+    }
+
+    // ensure the spin is unit vector or a zero vector
+    spin = unit_vector(spin);
+
+    for (auto n = 0; n < 3; ++n) {
+        globals::s(i, n) = spin[n];
     }
   }
 
@@ -977,19 +972,6 @@ bool Lattice::apply_boundary_conditions(int &a, int &b, int &c) const {
     return true;
 }
 
-// same as the Vec3 version but accepts a Vec4 where the last component is the motif
-// position difference
-bool Lattice::apply_boundary_conditions(Vec4i& pos) const {
-  Vec3i pos3 = {pos[0], pos[1], pos[2]};
-  bool is_within_lattice = apply_boundary_conditions(pos3);
-  if (is_within_lattice) {
-    pos[0] = pos3[0];
-    pos[1] = pos3[1];
-    pos[2] = pos3[2];
-  }
-  return is_within_lattice;
-}
-
 double Lattice::max_interaction_radius() const {
   return jams::maximum_interaction_length(supercell.a(), supercell.b(), supercell.c(), supercell.periodic());
 }
@@ -1100,115 +1082,12 @@ bool Lattice::has_impurities() const {
     return !impurity_map_.empty();
 }
 
-void Lattice::generate_near_tree() {
-  std::vector<std::pair<Vec3,int>> reduced_positions;
-
-  // only need to pad the supercell in periodic dimensions
-  Vec3i L_max = {lattice_periodic[0], lattice_periodic[1], lattice_periodic[2]};
-
-  int super_super_index=0;
-  for (auto i = 0; i < fractional_positions_.size(); ++i) {
-    // loop over periodic images of the simulation lattice
-    // this means r_cutoff can be larger than the simulation cell
-
-    for (auto Lx = -L_max[0]; Lx < L_max[0] + 1; ++Lx) {
-      for (auto Ly = -L_max[1]; Ly < L_max[1] + 1; ++Ly) {
-        for (auto Lz = -L_max[2]; Lz < L_max[2] + 1; ++Lz) {
-          Vec3i image_vector = {Lx, Ly, Lz};
-          Vec3 frac_pos = fractional_positions_[i] + to_double(scale(image_vector, lattice->size()));
-
-          auto r = lattice->fractional_to_cartesian(frac_pos);
-
-          reduced_positions.emplace_back(r,i);
-          super_super_index++;
-        }
-      }
-    }
-  }
-
-  auto l2_norm = [](const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)->double {
-      return norm(a.first-b.first);
-  };
-
-  neartree_.reset(new jams::NearTree<std::pair<Vec3, int>, NearTreeFunctorType>(l2_norm, reduced_positions));
-
-  cout << "  near tree size " << neartree_->size() << "\n";
-  cout << "  near tree memory " << memory_in_natural_units(neartree_->memory()) << "\n";
+const Vec3 &Lattice::atom_fractional_position(const int &i) const {
+  return fractional_positions_[i];
 }
 
-void Lattice::generate_optimised_near_tree() {
-  // We do two passes here:
-  //   - First we make the 26 mirror supercells around the central cell
-  //   - We then find all positions which are within the maximum interaction
-  //     radius (inradius) of this point
-  //   - We then construct a new NearTree from only those positions
-
-  // In the tuple Vec3 is cartesian position, first int is supercell position and second it is the position in the
-  // super-supercell (or imaged cells). We ill use this last index to prune more efficiently later.
-  std::vector<std::tuple<Vec3, int, int>> indexed_positions;
-  std::vector<std::pair<Vec3,int>> reduced_positions;
-
-  // only need to pad the supercell in periodic dimensions
-  Vec3i L_max = {lattice_periodic[0], lattice_periodic[1], lattice_periodic[2]};
-
-  int super_super_index=0;
-  for (auto i = 0; i < fractional_positions_.size(); ++i) {
-    // loop over periodic images of the simulation lattice
-    // this means r_cutoff can be larger than the simulation cell
-
-    for (auto Lx = -L_max[0]; Lx < L_max[0] + 1; ++Lx) {
-      for (auto Ly = -L_max[1]; Ly < L_max[1] + 1; ++Ly) {
-        for (auto Lz = -L_max[2]; Lz < L_max[2] + 1; ++Lz) {
-          Vec3i image_vector = {Lx, Ly, Lz};
-          Vec3 frac_pos = fractional_positions_[i] + to_double(scale(image_vector, lattice->size()));
-
-          auto r = lattice->fractional_to_cartesian(frac_pos);
-
-          indexed_positions.emplace_back(r,i, super_super_index);
-          super_super_index++;
-        }
-      }
-    }
-  }
-
-  std::vector<bool> is_reachable(indexed_positions.size(), false);
-
-  {
-    using MaximumNearTreeFunctorType = std::function<double(const std::tuple<Vec3, int, int>& a, const std::tuple<Vec3, int, int>& b)>;
-    auto tuple_norm = [](const std::tuple<Vec3, int, int>& a, const std::tuple<Vec3, int, int>& b)->double {
-        return norm(std::get<0>(a)-std::get<0>(b));
-    };
-    jams::NearTree<std::tuple<Vec3, int, int>, MaximumNearTreeFunctorType> maximum_neartree(tuple_norm,
-                                                                                            indexed_positions);
-    for (const auto &pos : cartesian_positions_) {
-      const auto neighbours = maximum_neartree.find_in_radius(lattice->max_interaction_radius(), std::tuple<Vec3, int, int>{pos, 0, 0});
-      for (const auto &nbr : neighbours) {
-        is_reachable[std::get<2>(nbr)] = true;
-      }
-    }
-  }
-
-  std::cout << "  near tree maximal positions: " << indexed_positions.size() << std::endl;
-
-  reduced_positions.reserve(std::accumulate(is_reachable.begin(), is_reachable.end(), 0));
-  for (auto i = 0; i < indexed_positions.size(); ++i) {
-    if (is_reachable[i]) {
-      reduced_positions.emplace_back(std::get<0>(indexed_positions[i]), std::get<1>(indexed_positions[i]));
-    }
-  }
-
-  auto l2_norm = [](const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)->double {
-    return norm(a.first-b.first);
-  };
-
-  neartree_.reset(new jams::NearTree<std::pair<Vec3, int>, NearTreeFunctorType>(l2_norm, reduced_positions));
-
-  cout << "  near tree size " << neartree_->size() << "\n";
-  cout << "  near tree memory " << memory_in_natural_units(neartree_->memory()) << "\n";
-}
-
-int Lattice::num_neighbours(const int &i, const double &r_cutoff) const {
-  return neartree_->num_neighbours_in_radius(r_cutoff, {cartesian_positions_[i], i}) - 1;
+const std::vector<Vec3> &Lattice::atom_cartesian_positions() const {
+  return cartesian_positions_;
 }
 
 double jams::maximum_interaction_length(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b& periodic_boundaries) {

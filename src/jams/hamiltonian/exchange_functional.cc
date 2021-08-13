@@ -5,6 +5,8 @@
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
 
+#include <jams/lattice/interaction_neartree.h>
+
 using namespace std;
 
 ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Setting &settings,
@@ -22,10 +24,13 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   ofstream of(jams::output::full_path_filename("exchange_functional.tsv"));
   output_exchange_functional(of, exchange_functional, radius_cutoff_);
 
+  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
+  neartree.insert_sites(lattice->atom_cartesian_positions());
+
   auto counter = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto r_i = lattice->atom_position(i);
-    auto nbrs = ::lattice->atom_neighbours(i, radius_cutoff_);
+    const auto nbrs = neartree.neighbours(r_i, radius_cutoff_);
 
     for (const auto& nbr : nbrs) {
       const auto j = nbr.second;

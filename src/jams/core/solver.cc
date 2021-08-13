@@ -11,13 +11,17 @@
 #include "hamiltonian.h"
 #include "jams/core/monitor.h"
 #include "jams/helpers/consts.h"
+#include "jams/core/thermostat.h"
 
 #include "jams/core/base.h"
 #include "jams/helpers/utils.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/defaults.h"
 
+#include "jams/solvers/null_solver.h"
 #include "jams/solvers/cuda_llg_heun.h"
+#include "jams/solvers/cuda_llg_rk4.h"
+#include "jams/solvers/cuda_ll_lorentzian_rk4.h"
 #include "jams/solvers/cpu_llg_heun.h"
 #include "jams/solvers/cpu_rotations.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
@@ -25,32 +29,15 @@
 #include "jams/solvers/cpu_metadynamics_metropolis_solver.h"
 
 
+#define DEFINED_SOLVER(name, type) \
+{ \
+if (lowercase(settings["module"]) == name) { \
+std::cout << name << " solver \n"; \
+return new type; \
+} \
+}
+
 using namespace std;
-
-Solver::~Solver() {
-  for (auto& m : monitors_) {
-    if (m) {
-      delete m;
-      m = nullptr;
-    }
-  }
-}
-
-
-void Solver::initialize(const libconfig::Setting& settings) {
-  assert(!initialized_);
-  set_name(jams::config_required<string>(settings, "module"));
-  set_verbose(jams::config_optional<bool>(settings, "verbose", false));
-  set_debug(jams::config_optional<bool>(settings, "debug", false));
-
-  cout << "  " << name() << " solver\n";
-
-  initialized_ = true;
-}
-
-
-void Solver::run() {
-}
 
 
 void Solver::compute_fields() {
@@ -71,55 +58,50 @@ void Solver::compute_fields() {
 
 
 Solver* Solver::create(const libconfig::Setting &settings) {
-  auto module_name = jams::config_required<string>(settings, "module");
-  module_name = lowercase(module_name);
+  DEFINED_SOLVER("null", NullSolver);
+  DEFINED_SOLVER("rotations-cpu", RotationSolver);
+  DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver);
+  DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver);
+  DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver);
+  DEFINED_SOLVER("monte-carlo-metadynamics-cpu", MetadynamicsMetropolisSolver);
 
-  if (module_name == "rotations-cpu") {
-    return new RotationSolver;
-  }
-
-  if (module_name == "llg-heun-cpu") {
-    return new HeunLLGSolver;
-  }
-
-  if (module_name == "monte-carlo-metropolis-cpu") {
-    return new MetropolisMCSolver;
-  }
-
-  if (module_name == "monte-carlo-metadynamics-cpu") {
-    return new MetadynamicsMetropolisSolver;
-  }
-
-  if (module_name == "monte-carlo-constrained-cpu") {
-    return new ConstrainedMCSolver;
-  }
 #if HAS_CUDA
-  if (module_name == "llg-heun-gpu") {
-    return new CUDAHeunLLGSolver;
-  }
+  DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver);
+  DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver);
+  DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver);
 #endif
 
-  throw std::runtime_error("unknown solver " + module_name);
+  throw std::runtime_error("unknown solver " + std::string(settings["module"].c_str()));
 }
 
 
 void Solver::register_physics_module(Physics* package) {
-    physics_module_ = package;
+    physics_module_.reset(package);
 }
 
 
 void Solver::update_physics_module() {
-    physics_module_->update(iteration_, time(), time_step_);
+    physics_module_->update(iteration_, time(), step_size_);
+}
+
+void Solver::register_thermostat(Thermostat* thermostat) {
+  thermostat_.reset(thermostat);
+}
+
+
+void Solver::update_thermostat() {
+  thermostat_->set_temperature(physics_module_->temperature());
+  thermostat_->update();
 }
 
 
 void Solver::register_monitor(Monitor* monitor) {
-  monitors_.push_back(monitor);
+  monitors_.push_back(static_cast<unique_ptr<Monitor>>(monitor));
 }
 
 
 void Solver::register_hamiltonian(Hamiltonian* hamiltonian) {
-  hamiltonians_.push_back(hamiltonian);
+  hamiltonians_.push_back(static_cast<unique_ptr<Hamiltonian>>(hamiltonian));
 }
 
 
@@ -147,3 +129,5 @@ bool Solver::is_converged() {
   }
   return false;
 }
+
+#undef DEFINED_SOLVER

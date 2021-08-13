@@ -7,18 +7,20 @@
 
 #include "jams/cuda/cuda_stream.h"
 #include "jams/cuda/cuda_solver.h"
+#include "jams/containers/multiarray.h"
 
 class CUDAHeunLLGSolver : public CudaSolver {
   public:
     CUDAHeunLLGSolver() = default;
-    ~CUDAHeunLLGSolver() = default;
-    void initialize(const libconfig::Setting& settings);
-    void run();
+    ~CUDAHeunLLGSolver() override = default;
+    void initialize(const libconfig::Setting& settings) override;
+    void run() override;
+
+    std::string name() const override { return "llg-heun-gpu"; }
 
   private:
     CudaStream dev_stream_;
     bool zero_safe_kernels_required_;
-    double dt_;
     jams::MultiArray<double, 2> s_old_;
 };
 

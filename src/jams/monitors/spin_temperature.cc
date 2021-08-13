@@ -36,7 +36,7 @@ void SpinTemperatureMonitor::update(Solver * solver) {
     sum_s_dot_h += dot(spin, field);
   }
 
-  const auto spin_temperature = kBohrMagneton * sum_s_cross_h / (2.0 * kBoltzmann * sum_s_dot_h);
+  const auto spin_temperature = sum_s_cross_h / (2.0 * kBoltzmannIU * sum_s_dot_h);
 
   tsv_file.width(12);
   tsv_file << std::scientific << solver->time() << "\t";

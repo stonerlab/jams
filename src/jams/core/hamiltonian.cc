@@ -11,6 +11,7 @@
 #include "jams/helpers/error.h"
 #include "jams/helpers/utils.h"
 
+#include "jams/hamiltonian/applied_field.h"
 #include "jams/hamiltonian/cubic_anisotropy.h"
 #include "jams/hamiltonian/exchange.h"
 #include "jams/hamiltonian/exchange_neartree.h"
@@ -24,8 +25,10 @@
 #include "jams/hamiltonian/dipole_neighbour_list.h"
 #include "jams/hamiltonian/dipole_fft.h"
 #include "jams/hamiltonian/dipole_tensor.h"
+#include "jams/hamiltonian/field_pulse.h"
 
 #if HAS_CUDA
+  #include "jams/hamiltonian/cuda_applied_field.h"
   #include "jams/hamiltonian/cuda_cubic_anisotropy.h"
   #include "jams/hamiltonian/cuda_random_anisotropy.h"
   #include "jams/hamiltonian/cuda_uniaxial_anisotropy.h"
@@ -33,6 +36,7 @@
   #include "jams/hamiltonian/cuda_zeeman.h"
   #include "jams/hamiltonian/cuda_dipole_bruteforce.h"
   #include "jams/hamiltonian/cuda_dipole_fft.h"
+  #include "jams/hamiltonian/cuda_field_pulse.h"
 #endif
 
 #define DEFINED_HAMILTONIAN(name, type, settings, size) \
@@ -74,6 +78,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_HAMILTONIAN("dipole-neartree", DipoleNearTreeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("dipole-neighbour-list", DipoleNeighbourListHamiltonian, settings, size);
 
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("applied-field", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial", UniaxialHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial-micro", UniaxialMicroscopicHamiltonian, is_cuda_solver, settings, size);
@@ -81,6 +86,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_HAMILTONIAN_CUDA_VARIANT("zeeman", ZeemanHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("dipole-fft", DipoleFFTHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("dipole-bruteforce", DipoleBruteforceHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("field-pulse", FieldPulseHamiltonian, is_cuda_solver, settings, size);
 
 
   throw std::runtime_error("unknown hamiltonian " + std::string(settings["module"].c_str()));

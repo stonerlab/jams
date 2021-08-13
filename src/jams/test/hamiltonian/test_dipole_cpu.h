@@ -12,7 +12,9 @@
 #include "jams/hamiltonian/dipole_fft.h"
 #include "jams/hamiltonian/dipole_neartree.h"
 #include "jams/hamiltonian/dipole_neighbour_list.h"
-#include "jams/hamiltonian/dipole_tensor.h"
+// WARNING: dipole tensor tests are disabled because they are very slow for
+// automated testing on github
+//#include "jams/hamiltonian/dipole_tensor.h"
 #include "jams/helpers/output.h"
 #include "jams/helpers/random.h"
 #include "jams/test/hamiltonian/test_dipole_input.h"
@@ -35,8 +37,8 @@ typedef testing::Types<
     DipoleNearTreeHamiltonian,
     DipoleNeighbourListHamiltonian,
     DipoleBruteforceHamiltonian,
-    DipoleFFTHamiltonian,
-    DipoleTensorHamiltonian
+    DipoleFFTHamiltonian
+//    DipoleTensorHamiltonian
 > DipoleHamiltonianTypes;
 
 TYPED_TEST_SUITE(DipoleHamiltonianTests, DipoleHamiltonianTypes);
@@ -47,7 +49,7 @@ protected:
     DipoleHamiltonianTests() {
       // create global objects
       ::lattice = new Lattice();
-      ::config = new libconfig::Config();
+      ::config.reset(new libconfig::Config());
     }
 
     ~DipoleHamiltonianTests() = default;
@@ -71,20 +73,19 @@ protected:
       // destroy global objects
       delete ::solver;
       delete ::lattice;
-      delete ::config;
     }
 
     // test the total dipole energy for an ordered spin configuration
     // compared to an analytic eigen value
     void eigenvalue_test(const std::string &spin_config_name, const double &expected_eigenvalue) {
       double analytic = analytic_prefactor * expected_eigenvalue;
-      double numeric = numeric_prefactor * hamiltonian->calculate_total_energy() / double(globals::num_spins);
+      double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
 
       std::cout << "spins:      " << spin_config_name << "\n";
-      std::cout << "expected:   " << jams::fmt::sci << analytic << " J/spin\n";
-      std::cout << "actual:     " << jams::fmt::sci << numeric << " J/spin\n";
-      std::cout << "difference: " << jams::fmt::sci << std::abs(analytic - numeric) << " J/spin\n";
-      std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " J/spin\n" << std::endl;
+      std::cout << "expected:   " << jams::fmt::sci << analytic << " meV/spin\n";
+      std::cout << "actual:     " << jams::fmt::sci << numeric << " meV/spin\n";
+      std::cout << "difference: " << jams::fmt::sci << std::abs(analytic - numeric) << " meV/spin\n";
+      std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
 
       ASSERT_NEAR(numeric, analytic, target_accuracy);
     }
@@ -105,29 +106,56 @@ protected:
         globals::s(i, 2) = spin[2];
       }
 
-      double numeric = numeric_prefactor * hamiltonian->calculate_total_energy() / double(globals::num_spins);
+      double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
       double reference =
-          numeric_prefactor * reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
+          reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
 
       std::cout << "spin:       random" << "\n";
-      std::cout << "expected:   " << jams::fmt::sci << reference << " J/spin\n";
-      std::cout << "actual:     " << jams::fmt::sci << numeric << " J/spin\n";
-      std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " J/spin\n";
-      std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " J/spin\n" << std::endl;
+      std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";
+      std::cout << "actual:     " << jams::fmt::sci << numeric << " meV/spin\n";
+      std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " meV/spin\n";
+      std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
 
       ASSERT_NEAR(numeric, reference, target_accuracy);
     }
 
+    // test the total dipole energy for an ordered spin configuration
+    // compared to a reference Hamiltonian
+    void ordered_spin_test(const Vec3& spin_direction) {
+        jams::testing::toggle_cout();
+        std::unique_ptr<DipoleNearTreeHamiltonian> reference_hamiltonian(
+                new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins));
+        jams::testing::toggle_cout();
+
+        for (unsigned int i = 0; i < globals::num_spins; ++i) {
+            globals::s(i, 0) = spin_direction[0];
+            globals::s(i, 1) = spin_direction[1];
+            globals::s(i, 2) = spin_direction[2];
+        }
+
+        double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
+        double reference =
+                reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
+
+        std::cout << "spin:       " << spin_direction << "\n";
+        std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";
+        std::cout << "actual:     " << jams::fmt::sci << numeric << " meV/spin\n";
+        std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " meV/spin\n";
+        std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
+
+        ASSERT_NEAR(numeric, reference, target_accuracy);
+    }
+
     std::unique_ptr<T> hamiltonian;
 
-    // -(0.5 * mu0 / (4 pi)) * (mus / a^3)^2 = -23595.95647978379 J/m^3
     // mus = 2.0 muB; a = 0.3 nm
-    const double analytic_prefactor = -23595.95647978379 * pow3(0.3e-9); // joules
-    const double numeric_prefactor = kBohrMagneton;
+    // -(0.5 * mu0 / (4 pi)) * (mus / a^3)^2 = -23595.95647978379 J/m^3
+    // (-23595.95647978379 J/m^3) * (0.3e-9 m)^3 = -6.37090824954162e-25 J
+    //                                           = -0.0039764081652071 meV
+    const double analytic_prefactor = -((0.5 * kVacuumPermeabilityIU) / (4*kPi)) *  pow2(2 * kBohrMagnetonIU) / pow3(0.3e-9); // meV
 
-    // target accuracy for total energy per spin in Joules
-    // 1e-28 is so small we probably would ignore anisotropies on this level
-    const double target_accuracy = 1e-28;
+    // target accuracy for total energy per spin in meV
+    const double target_accuracy = 1e-6; // nano eV accuracy
 };
 
 // 1D ferromagnetic spin chain
@@ -264,5 +292,24 @@ TYPED_TEST(DipoleHamiltonianTests, total_energy_two_atom_2D_FM_CPU_SLOW) {
   TestFixture::random_spin_test();
 }
 
+TYPED_TEST(DipoleHamiltonianTests, total_energy_cubic_unitcell_FM_CPU) {
+    using namespace jams::testing::dipole;
+    TestFixture::SetUp(
+            config_basic_cpu
+            + config_cubic_unitcell
+            + config_lattice({5, 5, 5}, {true, true, true})
+            + config_dipole("dipole", 2.0));
 
+    TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
+}
 
+TYPED_TEST(DipoleHamiltonianTests, total_energy_non_cubic_unitcell_FM_CPU) {
+    using namespace jams::testing::dipole;
+    TestFixture::SetUp(
+            config_basic_cpu
+            + config_non_cubic_unitcell
+            + config_lattice({6, 6, 6}, {true, true, true})
+            + config_dipole("dipole", 1.0));
+
+    TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
+}

@@ -1,8 +1,8 @@
 include(${PROJECT_SOURCE_DIR}/cmake/Utils.cmake)
 
 set(JAMS_SOURCES_CXX
-        containers/cell.cc
         common.cc
+        containers/cell.cc
         core/args.cc
         core/hamiltonian.cc
         core/interactions.cc
@@ -12,6 +12,7 @@ set(JAMS_SOURCES_CXX
         core/physics.cc
         core/solver.cc
         core/thermostat.cc
+        hamiltonian/applied_field.cc
         hamiltonian/cubic_anisotropy.cc
         hamiltonian/dipole_bruteforce.cc
         hamiltonian/dipole_fft.cc
@@ -21,10 +22,11 @@ set(JAMS_SOURCES_CXX
         hamiltonian/exchange.cc
         hamiltonian/exchange_functional.cc
         hamiltonian/exchange_neartree.cc
-        hamiltonian/uniaxial_anisotropy.cc
-        hamiltonian/uniaxial_microscopic_anisotropy.cc
+        hamiltonian/field_pulse.cc
         hamiltonian/random_anisotropy.cc
         hamiltonian/sparse_interaction.cc
+        hamiltonian/uniaxial_anisotropy.cc
+        hamiltonian/uniaxial_microscopic_anisotropy.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
         helpers/interaction_calculator.cc
@@ -42,11 +44,13 @@ set(JAMS_SOURCES_CXX
         metadynamics/magnetisation_cv.cc
         metadynamics/mz_orthogonal_mz_cv.cc
         metadynamics/skyrmion_center_cv.cc
+        lattice/minimum_image.cc
+        lattice/interaction_neartree.cc
         monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc
-        monitors/hdf5.cc
         monitors/field.cc
+        monitors/hdf5.cc
         monitors/magnetisation.cc
         monitors/magnetisation_rate.cc
         monitors/magnon_spectrum.cc
@@ -72,27 +76,33 @@ set(JAMS_SOURCES_CXX
         physics/square_field_pulse.cc
         physics/two_temperature_model.cc
         solvers/cpu_llg_heun.cc
-        solvers/cpu_rotations.cc
         solvers/cpu_metadynamics_metropolis_solver.cc
         solvers/cpu_monte_carlo_constrained.cc
         solvers/cpu_monte_carlo_metropolis.cc
+        solvers/cpu_rotations.cc
         version.cc)
 
 set(JAMS_SOURCES_CUDA
         cuda/cuda_array_kernels.cu
-        cuda/cuda_solver.cc
         cuda/cuda_common.cu
+        cuda/cuda_solver.cc
+        hamiltonian/cuda_applied_field.cu
         hamiltonian/cuda_cubic_anisotropy.cu
+        hamiltonian/cuda_dipole_bruteforce.cu
+        hamiltonian/cuda_dipole_fft.cu
+        hamiltonian/cuda_field_pulse.cu
+        hamiltonian/cuda_random_anisotropy.cu
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
-        hamiltonian/cuda_dipole_fft.cu
-        hamiltonian/cuda_random_anisotropy.cu
         hamiltonian/cuda_zeeman.cu
-        hamiltonian/cuda_dipole_bruteforce.cu
         monitors/cuda_spin_current.cc
         monitors/cuda_spin_current_kernel.cu
         monitors/cuda_thermal_current.cc
         monitors/cuda_thermal_current_kernel.cu
         solvers/cuda_llg_heun.cu
-        thermostats/cuda_langevin_bose.cu
+        solvers/cuda_llg_rk4.cu
+        solvers/cuda_ll_lorentzian_rk4.cu
+        thermostats/thm_bose_einstein_cuda_srk4.cu
+        thermostats/thm_bose_einstein_cuda_srk4_kernel.cuh
+        thermostats/cuda_langevin_arbitrary.cu
         thermostats/cuda_langevin_white.cc)

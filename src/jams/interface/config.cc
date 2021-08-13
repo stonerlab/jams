@@ -57,7 +57,7 @@ Setting& config_patch_add_or_merge_aggregate(Setting &orig, const Setting &patch
 
   // root
   if (patch.getPath().empty()) {
-    return orig.lookup(patch.getPath());
+    return orig;
   }
 
   if (orig.exists(patch.getName())) {

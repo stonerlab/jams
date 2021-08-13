@@ -72,7 +72,7 @@ namespace jams {
             shell.interactions.clear();
           }
 
-          if (approximately_equal(radius, 0.0)) {  // self interaction
+          if (approximately_zero(radius, jams::defaults::lattice_tolerance)) {  // self interaction
             continue;
           }
 

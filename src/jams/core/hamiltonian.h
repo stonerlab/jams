@@ -79,10 +79,10 @@ protected:
 // Helper function to locate a chosen derived Hamiltonian within a list
 // of Hamiltonian base classes
 template<typename T>
-const T *find_hamiltonian(const std::vector<Hamiltonian *> &hamiltonians) {
-  for (const auto *ham : hamiltonians) {
-    if (is_castable<const T *>(ham)) {
-      return dynamic_cast<const T *>(ham);
+const T &find_hamiltonian(const std::vector<std::unique_ptr<Hamiltonian>> &hamiltonians) {
+  for (const auto &ham : hamiltonians) {
+    if (is_castable<const T*>(ham.get())) {
+      return dynamic_cast<const T&>(*ham);
     }
   }
   throw std::runtime_error("cannot find hamiltonian");

@@ -17,25 +17,21 @@ using namespace std;
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
-  // initialize base class
-  Solver::initialize(settings);
+  // convert input in seconds to picoseconds for internal units
+  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
+  auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
+  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
 
-  time_step_ = jams::config_required<double>(settings, "t_step");
-  dt = time_step_ * kGyromagneticRatio;
+  max_steps_ = static_cast<int>(t_max / step_size_);
+  min_steps_ = static_cast<int>(t_min / step_size_);
 
-  auto t_max = jams::config_required<double>(settings, "t_max");
-  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0);
+  cout << "\ntimestep (ps) " << step_size_ << "\n";
+  cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
+  cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
 
-  max_steps_ = static_cast<int>(t_max / time_step_);
-  min_steps_ = static_cast<int>(t_min / time_step_);
-
-  cout << "\ntimestep " << dt << "\n";
-  cout << "\nt_max " << t_max << " steps " << max_steps_ << "\n";
-  cout << "\nt_min " << t_min << " steps " << min_steps_ << "\n";
-
-  snew.resize(num_spins, 3);
-  sigma.resize(num_spins);
-  w.resize(num_spins, 3);
+  s_old_.resize(num_spins, 3);
+  sigma_.resize(num_spins);
+  w_.resize(num_spins, 3);
 
   bool use_gilbert_prefactor = jams::config_optional<bool>(config->lookup("solver"), "gilbert_prefactor", false);
   cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
@@ -45,10 +41,9 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
     if (use_gilbert_prefactor) {
       denominator = 1.0 + pow2(globals::alpha(i));
     }
-    sigma(i) = sqrt( (2.0 * kBoltzmann * globals::alpha(i) * globals::mus(i)) / (solver->time_step() * kGyromagneticRatio * kBohrMagneton * denominator) );
+    sigma_(i) = sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
+                     (globals::mus(i) * globals::gyro(i) * solver->time_step() * denominator));
   }
-
-  initialized_ = true;
 }
 
 void HeunLLGSolver::run() {
@@ -56,19 +51,21 @@ void HeunLLGSolver::run() {
 
   std::normal_distribution<> normal_distribution;
 
+  // copy the spin configuration at the start of the step
+  s_old_ = s;
+
   if (physics_module_->temperature() > 0.0) {
 
-    std::generate(w.begin(), w.end(), [&](){return normal_distribution(random_generator_);});
+    std::generate(w_.begin(), w_.end(), [&](){return normal_distribution(random_generator_);});
 
     const auto sqrt_temperature = sqrt(physics_module_->temperature());
     OMP_PARALLEL_FOR
     for (auto i = 0; i < num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        w(i, j) = w(i, j)*sigma(i) * sqrt_temperature;
+        w_(i, j) = w_(i, j) * sigma_(i) * sqrt_temperature;
       }
     }
   }
-
 
   Solver::compute_fields();
 
@@ -76,57 +73,33 @@ void HeunLLGSolver::run() {
     OMP_PARALLEL_FOR
     for (auto i = 0; i < num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        h(i, j) = (w(i,j) + h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
+        h(i, j) = (w_(i, j) + h(i, j) / mus(i));
       }
     }
   } else {
     OMP_PARALLEL_FOR
     for (auto i = 0; i < num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        h(i, j) = (h(i, j) + (physics_module_->applied_field(j))*mus(i))*gyro(i);
+        h(i, j) = h(i, j) / mus(i);
       }
     }
   }
 
-//  OMP_PARALLEL_FOR
-//  for (auto i = 0; i < num_spins; ++i) {
-//   double sxh[3], rhs[3];
-//
-//    sxh[0] = s(i, 1)*h(i, 2) - s(i, 2)*h(i, 1);
-//    sxh[1] = s(i, 2)*h(i, 0) - s(i, 0)*h(i, 2);
-//    sxh[2] = s(i, 0)*h(i, 1) - s(i, 1)*h(i, 0);
-//
-//    rhs[0] = sxh[0] + alpha(i) * (s(i, 1)*sxh[2] - s(i, 2)*sxh[1]);
-//    rhs[1] = sxh[1] + alpha(i) * (s(i, 2)*sxh[0] - s(i, 0)*sxh[2]);
-//    rhs[2] = sxh[2] + alpha(i) * (s(i, 0)*sxh[1] - s(i, 1)*sxh[0]);
-//
-//     for (auto j = 0; j < 3; ++j) {
-//       snew(i, j) = s(i, j) + 0.5*dt*rhs[j];
-//    }
-//
-//     for (auto j = 0; j < 3; ++j) {
-//      s(i, j) = s(i, j) + dt*rhs[j];
-//    }
-//
-//    const auto norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
-//
-//    for (auto j = 0; j < 3; ++j) {
-//      s(i, j) = s(i, j)*norm;
-//    }
-//  }
   OMP_PARALLEL_FOR
   for (auto i = 0; i < num_spins; ++i) {
-    const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
-    const Vec3 field = {h(i,0), h(i,1), h(i,2)};
+    Vec3 spin = {s(i,0), s(i,1), s(i,2)};
+    Vec3 field = {h(i,0), h(i,1), h(i,2)};
 
-    const Vec3 rhs = cross(spin, field) + alpha(i) * cross(spin, (cross(spin, field)));
+    Vec3 rhs = -gyro(i) * (cross(spin, field) + alpha(i) * cross(spin, (cross(spin, field))));
 
     for (auto j = 0; j < 3; ++j) {
-       snew(i, j) = spin[j] + 0.5*dt*rhs[j];
+       ds_dt(i, j) = 0.5 * rhs[j];
     }
+
+    spin = unit_vector(spin + step_size_ * rhs);
 
      for (auto j = 0; j < 3; ++j) {
-      s(i, j) = unit_vector(spin + dt * rhs)[j];
+      s(i, j) = spin[j];
     }
 
   }
@@ -137,50 +110,36 @@ void HeunLLGSolver::run() {
     OMP_PARALLEL_FOR
     for (auto i = 0; i < num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        h(i, j) = (w(i, j) + h(i, j) + (physics_module_->applied_field(j)) * mus(i)) * gyro(i);
+        h(i, j) = (w_(i, j) + h(i, j) / mus(i));
       }
     }
   } else {
     OMP_PARALLEL_FOR
     for (auto i = 0; i < num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        h(i, j) = (h(i, j) + (physics_module_->applied_field(j)) * mus(i)) * gyro(i);
+        h(i, j) = h(i, j) / mus(i);
       }
     }
   }
 
-//  OMP_PARALLEL_FOR
-//  for (auto i = 0; i < num_spins; ++i) {
-//    double sxh[3], rhs[3];
-//
-//    sxh[0] = s(i, 1) * h(i, 2) - s(i, 2) * h(i, 1);
-//    sxh[1] = s(i, 2) * h(i, 0) - s(i, 0) * h(i, 2);
-//    sxh[2] = s(i, 0) * h(i, 1) - s(i, 1) * h(i, 0);
-//
-//    rhs[0] = sxh[0] + alpha(i) * (s(i, 1) * sxh[2] - s(i, 2) * sxh[1]);
-//    rhs[1] = sxh[1] + alpha(i) * (s(i, 2) * sxh[0] - s(i, 0) * sxh[2]);
-//    rhs[2] = sxh[2] + alpha(i) * (s(i, 0) * sxh[1] - s(i, 1) * sxh[0]);
-//
-//    for (auto j = 0; j < 3; ++j) {
-//      s(i, j) = snew(i, j) + 0.5 * dt * rhs[j];
-//    }
-//
-//    const auto norm = zero_safe_recip_norm(s(i, 0), s(i, 1), s(i, 2));
-//
-//    for (auto j = 0; j < 3; ++j) {
-//      s(i, j) = s(i, j) * norm;
-//    }
-//  }
-
   OMP_PARALLEL_FOR
   for (auto i = 0; i < num_spins; ++i) {
-    const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
-    const Vec3 spin_new = {snew(i,0), snew(i,1), snew(i,2)};
-    const Vec3 field = {h(i,0), h(i,1), h(i,2)};
-    const Vec3 rhs = cross(spin, field) + alpha(i) * cross(spin, (cross(spin, field)));
+    Vec3 spin = {s(i,0), s(i,1), s(i,2)};
+    Vec3 spin_old = {s_old_(i,0), s_old_(i,1), s_old_(i,2)};
+
+    Vec3 field = {h(i,0), h(i,1), h(i,2)};
+    Vec3 rhs = -gyro(i) * (cross(spin, field) + alpha(i) * cross(spin, (cross(spin, field))));
 
     for (auto j = 0; j < 3; ++j) {
-      s(i, j) = unit_vector(spin_new + 0.5 * dt * rhs)[j];
+      ds_dt(i, j) = ds_dt(i, j) + 0.5 * rhs[j];
+    }
+
+    Vec3 ds = {ds_dt(i, 0), ds_dt(i, 1) , ds_dt(i, 2)};
+
+    spin = unit_vector(spin_old + step_size_ * ds);
+
+    for (auto j = 0; j < 3; ++j) {
+      s(i, j) = spin[j];
     }
 
   }

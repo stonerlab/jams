@@ -52,7 +52,7 @@ void SpinPumpingMonitor::update(Solver * solver) {
   tsv_file_ << std::scientific << solver->time() << "\t";
 
   for (auto type = 0; type < material_count_.size(); ++type) {
-    auto norm = kGyromagneticRatio / static_cast<double>(material_count_[type]);
+    auto norm = 1.0 / static_cast<double>(material_count_[type]);
     for (auto j = 0; j < 3; ++j) {
       tsv_file_ << std::scientific << spin_pumping_real[type][j] * norm  << "\t";
     }

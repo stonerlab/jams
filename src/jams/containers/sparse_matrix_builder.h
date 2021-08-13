@@ -126,6 +126,8 @@ namespace jams {
 
       assert(row_.size() == col_.size());
       assert(row_.size() == val_.size());
+
+      is_sorted_ = true;
     }
 
     template<typename T>
@@ -145,6 +147,8 @@ namespace jams {
       }
       assert(row_.size() == col_.size());
       assert(row_.size() == val_.size());
+
+      is_merged_ = true;
     }
 
     template<typename T>

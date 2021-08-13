@@ -136,11 +136,51 @@ namespace jams {
               };
               )");
 
+            const std::string config_cubic_unitcell(R"(
+              materials = (
+                { name      = "FM";
+                  moment    = 1.65;
+                  alpha     = 0.01;
+                  spin      = [0.0, 0.0, 1.0];
+                }
+              );
+
+              unitcell: {
+                parameter = 5.90298e-10
+                basis = (
+                  [1.0, 0.0, 0.0],
+                  [0.0, 1.0, 0.0],
+                  [0.0, 0.0, 1.0]);
+                positions = (
+                  ("FM", [0.0, 0.0, 0.0]) );
+               };
+               )");
+
+            const std::string config_non_cubic_unitcell(R"(
+              materials = (
+                { name      = "FM";
+                  moment    = 1.65;
+                  alpha     = 0.01;
+                  spin      = [0.0, 0.0, 1.0];
+                }
+              );
+
+              unitcell: {
+                parameter = 5.90298e-10
+                basis = (
+                  [0.5, -0.25, 0.0],
+                  [0.0, 0.4330127019, 0.2886751346],
+                  [0.0, 0.0, 0.4082482905]);
+                positions = (
+                  ("FM", [0.0, 0.0, 0.0]) );
+               };
+               )");
+
             std::string config_lattice(const Vec3 &size, const Vec3b &pbc) {
               std::stringstream ss;
               ss << "lattice : {\n";
-              ss << "size = [" << size << "];\n";
-              ss << std::boolalpha << "periodic  = [" << pbc << "];\n";
+              ss << "size = [" << size[0] << ", " << size[1] << ", " << size[2] << "];\n";
+              ss << std::boolalpha << "periodic  = [" << pbc[0] << ", " << pbc[1] << ", " << pbc[2] << "];\n";
               ss << "};\n";
               return ss.str();
             }

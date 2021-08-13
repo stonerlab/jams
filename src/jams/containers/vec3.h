@@ -146,6 +146,16 @@ inline constexpr auto dot_sq(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype
   return pow2(dot(a,b));
 }
 
+template <typename T>
+inline constexpr auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
+  return std::sqrt(dot(a, a));
+}
+
+template <typename T>
+inline constexpr T norm_sq(const Vec<T,3>& a) {
+  return dot(a, a);
+}
+
 template <typename T1>
 inline constexpr auto abs(const Vec<T1,3>& a) -> Vec<decltype(std::abs(a[0])), 3> {
   return {std::abs(a[0]), std::abs(a[1]), std::abs(a[2])};
@@ -156,6 +166,11 @@ inline constexpr auto cross(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<declt
   return {a[1]*b[2] - a[2]*b[1],
           a[2]*b[0] - a[0]*b[2],
           a[0]*b[1] - a[1]*b[0]};
+}
+
+template <typename T1, typename T2>
+inline constexpr auto cross_norm_sq(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
+  return norm_sq(a) * norm_sq(b) - dot_sq(a, b);
 }
 
 template <typename T1, typename T2, typename T3>
@@ -171,18 +186,6 @@ inline constexpr auto vector_triple_product(const Vec<T1,3>& a, const Vec<T2,3>&
 template <typename T1, typename T2>
 inline constexpr auto scale(const Vec<T1,3>& a, const Vec<T2,3>& b) -> Vec<decltype(a[0] * b[0]), 3> {
   return {a[0] * b[0], a[1] * b[1], a[2] * b[2]};
-}
-
-
-
-template <typename T>
-inline constexpr auto norm(const Vec<T,3>& a) -> decltype(std::sqrt(a[0])) {
-  return std::sqrt(dot(a, a));
-}
-
-template <typename T>
-inline constexpr T norm_sq(const Vec<T,3>& a) {
-  return dot(a, a);
 }
 
 template <typename T>
@@ -208,7 +211,7 @@ inline auto normalize(const Vec<T,3>& a) -> Vec<decltype(a[0] / std::abs(a[0])),
 }
 
 template <typename T>
-inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon = FLT_EPSILON) {
+inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon) {
   for (auto n = 0; n < 3; ++n) {
     if (!approximately_zero(a[n], epsilon)) {
       return false;
@@ -219,7 +222,7 @@ inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon = FLT_EPSILON
 
 // Vec3 specialization
 template <typename T>
-inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& epsilon = FLT_EPSILON) {
+inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& epsilon) {
 //  return approximately_equal(a[0], b[0], epsilon) && approximately_equal(a[1], b[1], epsilon) && approximately_equal(a[2], b[2], epsilon);
   for (auto n = 0; n < 3; ++n) {
     if (!approximately_equal(a[n], b[n], epsilon)) {
@@ -229,13 +232,16 @@ inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& e
   return true;
 }
 
+// Returns the unit vector of `a`. For vectors with a length less than a small
+// value `epsilon` a zero vector is returned.
 template <typename T>
-inline auto unit_vector(const Vec<T, 3> &a) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
-  if (approximately_zero(a)) {
+inline auto unit_vector(const Vec<T, 3> &a, const T& epsilon = DBL_EPSILON) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
+  const double length = norm(a);
+  if (approximately_zero(length, epsilon)) {
     return a;
   }
 
-  return a / norm(a);
+  return a / length;
 }
 
 template <typename T>

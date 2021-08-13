@@ -20,16 +20,27 @@ using namespace std;
 void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   using namespace globals;
 
-  // Initialize base class
-  Solver::initialize(settings);
-
-  // Read in some standard settings for non-time based solvers
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
   output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
 
+
+  use_random_spin_order_ = jams::config_optional<bool>(settings, "use_random_spin_order", true);
+  cout << "    use_random_spin_order " << std::boolalpha << use_random_spin_order_ << "\n";
+
+  use_total_energy_ = jams::config_optional<bool>(settings, "use_total_energy", false);
+  cout << "    use_total_energy " << std::boolalpha << use_total_energy_ << "\n";
+
   cout << "    max_steps " << max_steps_ << "\n";
   cout << "    min_steps " << min_steps_ << "\n";
+
+  if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
+    move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
+    move_fraction_angle_      = jams::config_optional<double>(settings, "move_fraction_angle", 0.0);
+    move_fraction_reflection_ = jams::config_optional<double>(settings, "move_fraction_reflection", 0.0);
+    move_angle_sigma_         = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
+
+    double move_fraction_sum = move_fraction_uniform_ + move_fraction_angle_ + move_fraction_reflection_;
 
   // Create a set of vectors which contain different types of Monte Carlo moves.
   // Each move can has a 'fraction' (weight) associated with it to allow some
@@ -111,6 +122,7 @@ double MetropolisMCSolver::energy_difference(const int spin_index,
 	}
 	return energy_difference;
 }
+
 
 void MetropolisMCSolver::output_move_statistics() {
   if (!stats_file_.is_open()) {

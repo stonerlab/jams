@@ -10,7 +10,7 @@
 class RotationSolver : public Solver {
 public:
     RotationSolver() = default;
-    ~RotationSolver() = default;
+    ~RotationSolver() override = default;
 
     bool is_running() override {
       return iteration_ == 0;
@@ -18,6 +18,8 @@ public:
 
     void initialize(const libconfig::Setting& settings) override;
     void run() override;
+
+    std::string name() const override { return "rotations-cpu"; }
 
 
 private:

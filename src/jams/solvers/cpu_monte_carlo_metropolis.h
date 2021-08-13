@@ -20,6 +20,8 @@
 class MetropolisMCSolver : public Solver {
 public:
     using MoveFunction = std::function<Vec3(Vec3)>;
+  
+    std::string name() const override { return "monte-carlo-metropolis-cpu"; }
 
     MetropolisMCSolver() = default;
 

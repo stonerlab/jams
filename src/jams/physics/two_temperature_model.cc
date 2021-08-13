@@ -71,7 +71,7 @@ TTMPhysics::~TTMPhysics() {
 void TTMPhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
 
-double real_dt = dt/kGyromagneticRatio;
+double real_dt = dt;
 
   for (int i = 0; i < 3; ++i) {
     applied_field_[i] = reversingField[i];
