@@ -24,45 +24,33 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
   output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
 
-
-  use_random_spin_order_ = jams::config_optional<bool>(settings, "use_random_spin_order", true);
-  cout << "    use_random_spin_order " << std::boolalpha << use_random_spin_order_ << "\n";
-
-  use_total_energy_ = jams::config_optional<bool>(settings, "use_total_energy", false);
-  cout << "    use_total_energy " << std::boolalpha << use_total_energy_ << "\n";
-
   cout << "    max_steps " << max_steps_ << "\n";
   cout << "    min_steps " << min_steps_ << "\n";
 
   if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
-    move_fraction_uniform_    = jams::config_optional<double>(settings, "move_fraction_uniform", 0.0);
-    move_fraction_angle_      = jams::config_optional<double>(settings, "move_fraction_angle", 0.0);
-    move_fraction_reflection_ = jams::config_optional<double>(settings, "move_fraction_reflection", 0.0);
-    move_angle_sigma_         = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
 
-    double move_fraction_sum = move_fraction_uniform_ + move_fraction_angle_ + move_fraction_reflection_;
+    // Create a set of vectors which contain different types of Monte Carlo moves.
+    // Each move can has a 'fraction' (weight) associated with it to allow some
+    // move types to be attempted more frequently than others.
+    move_names_.emplace_back("angle");
+    const auto sigma = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
+    move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_angle", 1.0));
+    move_functions_.emplace_back(
+        jams::montecarlo::MonteCarloAngleMove<jams::RandomGeneratorType>(&jams::instance().random_generator(), sigma));
 
-  // Create a set of vectors which contain different types of Monte Carlo moves.
-  // Each move can has a 'fraction' (weight) associated with it to allow some
-  // move types to be attempted more frequently than others.
-  move_names_.emplace_back("angle");
-  const auto sigma = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
-  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_angle", 1.0));
-  move_functions_.emplace_back(
-      jams::montecarlo::MonteCarloAngleMove<jams::RandomGeneratorType>(&jams::instance().random_generator(), sigma));
+    move_names_.emplace_back("uniform");
+    move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_uniform", 0.0));
+    move_functions_.emplace_back(
+        jams::montecarlo::MonteCarloUniformMove<jams::RandomGeneratorType>(&jams::instance().random_generator()));
 
-  move_names_.emplace_back("uniform");
-  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_uniform", 0.0));
-  move_functions_.emplace_back(
-      jams::montecarlo::MonteCarloUniformMove<jams::RandomGeneratorType>(&jams::instance().random_generator()));
+    move_names_.emplace_back("reflection");
+    move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_reflection", 0.0));
+    move_functions_.emplace_back(
+        jams::montecarlo::MonteCarloReflectionMove());
 
-  move_names_.emplace_back("reflection");
-  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_reflection", 0.0));
-  move_functions_.emplace_back(
-      jams::montecarlo::MonteCarloReflectionMove());
-
-  moves_accepted_.resize(move_functions_.size());
-  moves_attempted_.resize(move_functions_.size());
+    moves_accepted_.resize(move_functions_.size());
+    moves_attempted_.resize(move_functions_.size());
+  }
 }
 
 void MetropolisMCSolver::run() {

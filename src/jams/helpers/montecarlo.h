@@ -113,7 +113,7 @@ namespace jams {
           using std::min;
           static std::uniform_real_distribution<> uniform_distribution;
 
-          double beta = (kBohrMagneton / kBoltzmann) / temperature;
+          double beta = (kBohrMagnetonIU / kBoltzmannIU) / temperature;
           return uniform_distribution(jams::instance().random_generator()) < prefactor*exp(min(0.0, -deltaE * beta));
         }
 

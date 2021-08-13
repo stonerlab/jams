@@ -26,7 +26,7 @@ namespace {
     int find_equal_index(const std::vector<double>& container, const double& value) {
       assert(is_sorted(begin(container), end(container)));
       auto result = std::find_if(container.begin(), container.end(),
-                                   [&](double x){ return approximately_equal(x, value); });
+                                   [&](double x){ return approximately_equal(x, value, 1e-5); });
 
       // failed to find the index
       assert (result != container.end());
@@ -43,7 +43,7 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
 
   // maximum amplitude of inserted gaussians in Joules
   // (this can be reduced by tempering in the metadynamics solver)
-  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude" ) / kBohrMagneton;
+  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude" ) / kJoule2meV;
 
   // width of the gaussian in units of mz
   gaussian_width_ = jams::config_required<double>(settings, "gaussian_width") ;
@@ -57,7 +57,7 @@ jams::MagnetisationCollectiveVariable::MagnetisationCollectiveVariable(const lib
 
   // If histogram_step_size does not divide evenly into the range -1 -> 1 then
   // we will be missing either the start of the end point of the physical range.
-  if (!approximately_equal(std::remainder(2.0, histogram_step_size_), 0.0)) {
+  if (!approximately_zero(std::remainder(2.0, histogram_step_size_), 1e-5)) {
     throw std::runtime_error("Invalid value of histogram_step_size: "
                              "histogram_step_size must divide into 2.0 with no remainder");
   }
@@ -109,7 +109,7 @@ void jams::MagnetisationCollectiveVariable::output() {
 	potential_output_file << "\n";
 
 	for (auto i = lower_limit_index; i < upper_limit_index + 1; ++i) {
-	  potential_output_file << sample_points_[i] << "	" << potential_[i] * kBohrMagneton << "\n";
+	  potential_output_file << sample_points_[i] << "	" << potential_[i] << "\n";
 	}
 	potential_output_file.close();
   }
@@ -123,7 +123,7 @@ void jams::MagnetisationCollectiveVariable::output() {
           << "iteration" <<"	"<< "metad_potential_diff_joules" << "\n";
     }
   if (solver->iteration() % 10000 == 0) {
-	potential_difference_output_file_ << solver->iteration() << "	" << histogram_energy_difference() * kBohrMagneton
+	potential_difference_output_file_ << solver->iteration() << "	" << histogram_energy_difference()
 									  << std::endl;
   }
 }

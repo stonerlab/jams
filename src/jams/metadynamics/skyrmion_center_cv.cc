@@ -17,9 +17,7 @@
 #include <string>
 #include <algorithm>
 
-std::vector<double> linear_space_creation(const double &min, const double &max, const double &steps) { //duplicate symbol 'linear_space(double const&, double const&, double const&)' in:
-  //CMakeFiles/jams.dir/metadynamics/mz_orthogonal_mz_cv.cc.o
-  // CMakeFiles/jams.dir/metadynamics/skyrmion_center_cv.cc.o
+std::vector<double> linear_space_creation(const double &min, const double &max, const double &steps) {
   assert(min < max);
   std::vector<double> space;
   double value = min;
@@ -63,7 +61,7 @@ void jams::SkyrmionCenterCV::potential_import(const std::string &filename, std::
 jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   // maximum amplitude of inserted Gaussians in Joules
   // (this can be reduced by tempering in the metadynamics solver)
-  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude") / kBohrMagneton;
+  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude") / kJoule2meV;
 
   // width of the gaussian in units of ??
   gaussian_width_ = jams::config_required<double>(settings, "gaussian_width");
@@ -76,7 +74,7 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
 
   // If histogram_step_size does not divide evenly into the range -1 -> 1 then
   // we will be missing either the start of the end point of the physical range.
-  if (!approximately_equal(std::remainder(2.0, histogram_step_size_), 0.0)) {
+  if (!approximately_zero(std::remainder(2.0, histogram_step_size_), 1e-5)) {
 	throw std::runtime_error("Invalid value of histogram_step_size: "
 							 "histogram_step_size must divide into 2.0 with no remainder");
   }
@@ -162,7 +160,7 @@ void jams::SkyrmionCenterCV::output() {
 	for (auto i = 0; i < sample_points_x_.size(); ++i) {
 	  for (auto j = 0; j < sample_points_y_.size(); ++j) {
 		potential_landscape << sample_points_x_[i] << "	" << sample_points_y_[j] << "	"
-				  << potential_2d_[i][j] * kBohrMagneton << "\n";
+				  << potential_2d_[i][j] << "\n";
 	  }
 	}
 	potential_landscape.close();

@@ -34,7 +34,7 @@ jams::MzOrthogonalMzCV::MzOrthogonalMzCV(const libconfig::Setting &settings) {
 
   // maximum amplitude of inserted gaussians in Joules
   // (this can be reduced by tempering in the metadynamics solver)
-  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude")/ kBohrMagneton;
+  gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude") / kJoule2meV;
 
   // width of the gaussian in units of mz
   gaussian_width_ = jams::config_required<double>(settings, "gaussian_width");
@@ -47,7 +47,7 @@ jams::MzOrthogonalMzCV::MzOrthogonalMzCV(const libconfig::Setting &settings) {
 
   // If histogram_step_size does not divide evenly into the range -1 -> 1 then
   // we will be missing either the start of the end point of the physical range.
-  if (!approximately_equal(std::remainder(2.0, histogram_step_size_), 0.0)) {
+  if (!approximately_zero(std::remainder(2.0, histogram_step_size_), 1e-5)) {
 	throw std::runtime_error("Invalid value of histogram_step_size: "
 							 "histogram_step_size must divide into 2.0 with no remainder");
   }
@@ -64,14 +64,14 @@ jams::MzOrthogonalMzCV::MzOrthogonalMzCV(const libconfig::Setting &settings) {
 void jams::MzOrthogonalMzCV::output() {
 
   if (solver->iteration() % 1000 == 0) {
-	metadynamics_simulation_parameters << solver->iteration() << "	" << energy_barrier_calculation()*kBohrMagneton << "\n";
+	metadynamics_simulation_parameters << solver->iteration() << "	" << energy_barrier_calculation() << "\n";
   }
   if (solver->iteration() % 1000000 == 0) {
 		potential.open(jams::output::full_path_filename("potential.tsv"));
 		for (auto i = 0; i < sample_points_mz_.size(); ++i) {
 		  for (auto ii = 0; ii < sample_points_mz_perpendicular_.size(); ++ii) {
 			potential << sample_points_mz_perpendicular_[ii] << "	" << sample_points_mz_[i] << "	"
-					  << potential_2d_[i][ii] * kBohrMagneton << "\n";
+					  << potential_2d_[i][ii] << "\n";
 		  }
 		}
 		potential.close();
