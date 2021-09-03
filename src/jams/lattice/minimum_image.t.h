@@ -15,12 +15,16 @@
 TEST(LatticeMinimumImageTest, minimum_image_smith_method) {
     using namespace testing;
 
-    const double double_epsilon = 1e-9;
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_real_distribution<double> dist;
+
+    const double double_epsilon = 1e-6;
 
     Vec3b pbc = {true, true, true};
 
     auto random_vector = [&](){
-        return Vec3 {rand()/double(RAND_MAX), rand()/double(RAND_MAX), rand()/double(RAND_MAX)};
+        return Vec3 {dist(rng), dist(rng), dist(rng)};
     };
 
     int num_test_cells = 50;
@@ -31,10 +35,8 @@ TEST(LatticeMinimumImageTest, minimum_image_smith_method) {
         Vec3 b = random_vector();
         Vec3 c = random_vector();
 
-        auto random_position = [&]() {
-            return a * rand() / double(RAND_MAX) +
-                   b * rand() / double(RAND_MAX) +
-                   c * rand() / double(RAND_MAX);
+        auto random_position = [&](){
+            return a * dist(rng) + b * dist(rng) + c * dist(rng);
         };
 
         for (auto i = 0; i < num_test_positions; ++i) {
@@ -75,13 +77,16 @@ TEST(LatticeMinimumImageTest, minimum_image_smith_method) {
 TEST(LatticeMinimumImageTest, minimum_image) {
     using namespace testing;
 
-    const double double_epsilon = 1e-9;
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_real_distribution<double> dist;
+
+    const double double_epsilon = 1e-6;
 
     Vec3b pbc = {true, true, true};
 
-
     auto random_vector = [&](){
-        return Vec3 {rand()/double(RAND_MAX), rand()/double(RAND_MAX), rand()/double(RAND_MAX)};
+        return Vec3 {dist(rng), dist(rng), dist(rng)};
     };
 
     int num_test_cells = 20;
@@ -93,7 +98,7 @@ TEST(LatticeMinimumImageTest, minimum_image) {
         Vec3 c = random_vector();
 
         auto random_position = [&](){
-            return a * rand()/double(RAND_MAX) + b * rand()/double(RAND_MAX) + c * rand()/double(RAND_MAX);
+            return a * dist(rng) + b * dist(rng) + c * dist(rng);
         };
 
         for (auto i = 0; i < num_test_positions; ++i) {
