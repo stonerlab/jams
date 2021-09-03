@@ -127,12 +127,12 @@ void jams::MzOrthogonalMzCV::output() {
 	double jams::MzOrthogonalMzCV::interpolated_2d_potential(const double &m, const double m_p) {
 	  assert(m <= 1);
 	  assert(m_p < 1);
-	  double lower_m = floor(abs((m - sample_points_mz_[0]) / (sample_points_mz_[1]
+	  int lower_m = floor(abs((m - sample_points_mz_[0]) / (sample_points_mz_[1]
 		  - sample_points_mz_[0]))); //lower_y index for the discrete_potential
-	  double upper_m = lower_m + 1;
-	  double lower_m_p = floor(abs((m_p - sample_points_mz_perpendicular_[0]) / (sample_points_mz_perpendicular_[1]
+	  int upper_m = lower_m + 1;
+	  int lower_m_p = floor(abs((m_p - sample_points_mz_perpendicular_[0]) / (sample_points_mz_perpendicular_[1]
 		  - sample_points_mz_perpendicular_[0])));//lower_x index for the discrete_potential
-	  double upper_m_p = lower_m_p + 1;
+	  int upper_m_p = lower_m_p + 1;
 
 	  assert(lower_m < upper_m);
 	  assert(lower_m_p < upper_m_p);
@@ -142,21 +142,10 @@ void jams::MzOrthogonalMzCV::output() {
 	  double Q21 = potential_2d_[upper_m][lower_m_p];
 	  double Q22 = potential_2d_[upper_m][upper_m_p];
 
-
-
-	  //Interpolate along the x-axis
-	  double R1 = jams::maths::linear_interpolation(m_p,
-													sample_points_mz_perpendicular_[lower_m_p],
-													Q11,
-													sample_points_mz_perpendicular_[upper_m_p],
-													Q21);
-	  double R2 = jams::maths::linear_interpolation(m_p,
-													sample_points_mz_perpendicular_[lower_m_p],
-													Q12,
-													sample_points_mz_perpendicular_[upper_m_p],
-													Q22);
-	  //Interpolate along the y-axis
-	  return jams::maths::linear_interpolation(m, sample_points_mz_[lower_m], R1, sample_points_mz_[upper_m], R2);
+    return jams::maths::bilinear_interpolation(m_p, m,
+         sample_points_mz_perpendicular_[lower_m_p], sample_points_mz_[lower_m],
+         sample_points_mz_perpendicular_[upper_m_p], sample_points_mz_[upper_m],
+         Q11, Q12, Q21, Q22);
 	}
 
 	Vec3 jams::MzOrthogonalMzCV::calculate_total_magnetisation() {

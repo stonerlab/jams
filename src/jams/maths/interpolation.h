@@ -1,24 +1,40 @@
-//
-// Created by Work on 2020/11/12.
-//
-
-#ifndef JAMS_MATHS_INTERPOLATION_H
-#define JAMS_MATHS_INTERPOLATION_H
-
-#include <cassert>
+#ifndef INCLUDED_JAMS_MATHS_INTERPOLATION
+#define INCLUDED_JAMS_MATHS_INTERPOLATION
 
 namespace jams {
     namespace maths {
-        /// 1D linear interpolation to find y at point x given lower coordinate
-        /// (x_lower, y_lower) and upper coordinate (x_upper, y_upper)
-        inline double linear_interpolation(const double &x,const double &x_lower, const double &y_lower, const double &x_upper, const double &y_upper) {
-     //     assert(x_lower < x_upper); in 2d potential this is not always true
-          assert(x > x_lower || approximately_equal(x, x_lower));
-          assert(x < x_upper || approximately_equal(x, x_upper));
+        ///
+        /// Interpolate the value at x from samples at x1 and x2
+        ///
+        double linear_interpolation(double x, double x1, double f_x1, double x2,
+                                    double f_x2);
 
-          return y_lower + (x - x_lower) * (y_upper - y_lower) / (x_upper - x_lower);
+        ///
+        /// Interpolate the value at the point (x,y) from samples
+        /// on the corners of the rectangle (x1,y1), (x1,y2), (x2, y1),
+        /// (x2, y2).
+        ///
+        /// \verbatim
+        ///    ^
+        ///    |   f_12      R2   f_22
+        /// y2 -   o- - - - -+- - o
+        ///    |
+        ///    |             |
+        /// y  -             * f(x,y)
+        ///    |             |
+        /// y1 -   o- - - - -+- - o
+        ///    |   f_11      R1   f_21
+        ///    |
+        ///    ----|---------|----|---->
+        ///        x1        x    x2
+        /// \endverbatim
+        ///
+        double bilinear_interpolation(double x, double y, double x1, double y1,
+                                      double x2,
+                                      double y2, double f_11, double f_12,
+                                      double f_21,
+                                      double f_22);
         }
-    }
 }
 
-#endif //JAMS_INTERPOLATION_H
+#endif // INCLUDED_JAMS_MATHS_INTERPOLATION

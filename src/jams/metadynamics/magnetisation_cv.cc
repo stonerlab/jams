@@ -168,8 +168,8 @@ double jams::MagnetisationCollectiveVariable::interpolated_potential(const doubl
   assert(lower < upper);
 
   return jams::maths::linear_interpolation(value,
-                                           sample_points_[lower], potential_[lower],
-                                           sample_points_[upper], potential_[upper]);
+                                 sample_points_[lower], potential_[lower],
+                                 sample_points_[upper], potential_[upper]);
 }
 
 double jams::MagnetisationCollectiveVariable::collective_variable() {

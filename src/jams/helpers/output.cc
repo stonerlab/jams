@@ -45,6 +45,13 @@ namespace jams {
           auto ext = file_extension(ending);
           return output_path() + ::simulation_name + sep + base + "_" + zero_pad_number(num, width) + "." + ext;
         }
+
+
+        void open_output_file_just_in_time(std::ofstream& os, const string &filename) {
+          if (!os.is_open()) {
+            os.open(jams::output::full_path_filename(filename));
+          }
+      }
     }
 
 }

@@ -5,6 +5,7 @@
 #include "jams/metadynamics/skyrmion_center_cv.h"
 #include <jams/core/globals.h>
 #include <jams/maths/interpolation.h>
+#include "jams/maths/functions.h"
 #include <libconfig.h++>
 #include <fstream>
 #include <jams/interface/config.h>
@@ -17,48 +18,27 @@
 #include <string>
 #include <algorithm>
 
-std::vector<double> linear_space_creation(const double &min, const double &max, const double &steps) {
+namespace {
+
+std::vector<double> linspace(double min, double max, double steps) {
   assert(min < max);
   std::vector<double> space;
   double value = min;
   while (value < max + steps) {
-	space.push_back(value);
-	value += steps;
+    space.push_back(value);
+    value += steps;
   }
 
   return space;
 }
-void jams::SkyrmionCenterCV::potential_import(const std::string &filename, std::vector<std::vector<double>> &potential_to_be_copied_at) {
-  std::vector<double> save_potential_from_file;
-  double x_range,y_range,potential_passed;
-  int line_number = 0;
 
-  std::ifstream potential_file_passed(filename.c_str());
-
-  for (std::string line; getline(potential_file_passed, line);) {
-	if (string_is_comment(line)) {
-	  continue;
-	}
-	std::stringstream is(line);
-	is >> x_range >> y_range >> potential_passed;
-	line_number ++;
-	save_potential_from_file.push_back(potential_passed);
-
-	if (is.bad() || is.fail()) {
-	  throw std::runtime_error("failed to read line " + std::to_string(line_number));
-	}
-  }
-  int copy_iterator = 0;
-  for (auto x=0; x < sample_points_x_.size(); ++x){
-    for(auto y=0; y < sample_points_y_.size(); ++y){
-      potential_to_be_copied_at[x][y] =save_potential_from_file[copy_iterator];
-      copy_iterator++;
-    }
-  }
-  potential_file_passed.close();
 }
 
 jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
+  // ---------------------------------------------------------------------------
+  // Read settings
+  // ---------------------------------------------------------------------------
+
   // maximum amplitude of inserted Gaussians in Joules
   // (this can be reduced by tempering in the metadynamics solver)
   gaussian_amplitude_ = jams::config_required<double>(settings, "gaussian_amplitude") / kJoule2meV;
@@ -68,6 +48,8 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   // discretisation width of the metadynamics potential landscape in units of ??
   histogram_step_size_ = jams::config_required<double>(settings, "histogram_step_size");
 
+  std::string potential_filename = jams::config_optional<std::string>(settings, "potential_file", "");
+
   // ---------------------------------------------------------------------------
   // validate settings
   // ---------------------------------------------------------------------------
@@ -75,8 +57,8 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   // If histogram_step_size does not divide evenly into the range -1 -> 1 then
   // we will be missing either the start of the end point of the physical range.
   if (!approximately_zero(std::remainder(2.0, histogram_step_size_), 1e-5)) {
-	throw std::runtime_error("Invalid value of histogram_step_size: "
-							 "histogram_step_size must divide into 2.0 with no remainder");
+    throw std::runtime_error("Invalid value of histogram_step_size: "
+                             "histogram_step_size must divide into 2.0 with no remainder");
   }
 
   // In general our 2D plane is a parallelogram and our x,y minimum and maximum
@@ -124,43 +106,80 @@ jams::SkyrmionCenterCV::SkyrmionCenterCV(const libconfig::Setting &settings) {
   auto bounds_x = std::minmax({bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
   auto bounds_y = std::minmax({bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
 
-
   //Create the 2d_potential landscape with dimension of the lattice points along x and y
-  sample_points_x_ = linear_space_creation(bounds_x.first, bounds_x.second, histogram_step_size_);
-  sample_points_y_ = linear_space_creation(bounds_y.first, bounds_y.second, histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
-  potential_2d_.resize(sample_points_x_.size(),std::vector<double>(sample_points_y_.size(),0.0));
+  cv_samples_x_ = linspace(bounds_x.first, bounds_x.second,
+                           histogram_step_size_);
+  cv_samples_y_ = linspace(bounds_y.first, bounds_y.second,
+                           histogram_step_size_); // TODO : dont know why rmax()[1] goes only up to 55.5 that's why I use rmax()[0] for y
+  potential_.resize(cv_samples_x_.size(), cv_samples_y_.size());
+  zero(potential_);
 
-  if (settings.exists("potential_file")) {
-    //TODO:: add safety conditions (same size as histogram and sample points.
-	std::string filename = settings["potential_file"];
-	std::cout << "reading potential landscape data from " << filename << "\n";
-	potential_import(filename,potential_2d_);
+  if (!potential_filename.empty()) {
+    std::cout << "reading potential landscape data from " << potential_filename << "\n";
+    import_potential(potential_filename);
   }
+
   skyrmion_outfile.open(jams::output::full_path_filename("sky_test.tsv"));
   skyrmion_com.open(jams::output::full_path_filename("com_track.tsv"));
   skyrmion_outfile <<"Iteration"<< "	"<< "x" << "	"<< "y" << "	"<< "z" << "\n" ;
   skyrmion_com <<"Iteration"<< "	"<< "x" << "	"<< "y" << "	"<< "z" << "\n" ;
-  skyrmion_threshold_ = -0.5;
+  skyrmion_core_threshold_ = -0.5;
 
   space_remapping();
   output_remapping();
 
 }
 
-//-------OVERWRITTEN FUNCTIONS ---------//
+void jams::SkyrmionCenterCV::import_potential(const std::string &filename) {
+  std::vector<double> file_data;
+  double x_range,y_range,potential_passed;
+
+  std::ifstream potential_file_passed(filename.c_str());
+
+  int line_number = 0;
+  for (std::string line; getline(potential_file_passed, line);) {
+    if (string_is_comment(line)) {
+      continue;
+    }
+    std::stringstream is(line);
+    is >> x_range >> y_range >> potential_passed;
+
+    if (is.bad() || is.fail()) {
+      throw std::runtime_error("failed to read line " + std::to_string(line_number));
+    }
+
+    file_data.push_back(potential_passed);
+
+    line_number++;
+  }
+
+  // If the file data is not the same size as our arrays in the class
+  // all sorts of things could go wrong. Stop the simulation here to avoid
+  // unintended consequences.
+  if (file_data.size() != cv_samples_x_.size() * cv_samples_y_.size()) {
+    throw std::runtime_error("potential in file'" + filename + "' is not the same size as in this simulation");
+  }
+
+  int copy_iterator = 0;
+  for (auto i = 0; i < cv_samples_x_.size(); ++i){
+    for(auto j = 0; j < cv_samples_y_.size(); ++j){
+      potential_(i, j) = file_data[copy_iterator];
+      copy_iterator++;
+    }
+  }
+  potential_file_passed.close();
+}
+
 
 void jams::SkyrmionCenterCV::output() {
-  //if (solver->iteration()% 10 == 0){
-    //skyrmion_output();
-  //}
   skyrmion_com << solver->iteration()<< "	" <<cached_initial_center_of_mass_[0] << "	" << cached_initial_center_of_mass_[1] << "	" << cached_initial_center_of_mass_[2] << "\n";
 
   if (solver->iteration()%1000 == 0){
     potential_landscape.open(jams::output::full_path_filename("skyrmion_potential.tsv"));
-	for (auto i = 0; i < sample_points_x_.size(); ++i) {
-	  for (auto j = 0; j < sample_points_y_.size(); ++j) {
-		potential_landscape << sample_points_x_[i] << "	" << sample_points_y_[j] << "	"
-				  << potential_2d_[i][j] << "\n";
+	for (auto i = 0; i < cv_samples_x_.size(); ++i) {
+	  for (auto j = 0; j < cv_samples_y_.size(); ++j) {
+		potential_landscape << cv_samples_x_[i] << "	" << cv_samples_y_[j] << "	"
+                        << potential_(i,j) << "\n";
 	  }
 	}
 	potential_landscape.close();
@@ -168,32 +187,36 @@ void jams::SkyrmionCenterCV::output() {
 
   }
 
+
 void jams::SkyrmionCenterCV::insert_gaussian(const double &relative_amplitude) {
   if (do_first_cache_) {
-    cached_initial_center_of_mass_ = calc_center_of_mass();
+    cached_initial_center_of_mass_ = skyrmion_center_of_mass();
     cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
     do_first_cache_ = false;
   }
-  for (int i = 0; i < sample_points_x_.size(); ++i) {
-	for (int j = 0; j < sample_points_y_.size(); ++j) {
-	  potential_2d_[i][j] +=  gaussian_2D(cached_initial_center_of_mass_[0], sample_points_x_[i], cached_initial_center_of_mass_[1], sample_points_y_[j], gaussian_amplitude_*relative_amplitude); // TODO :  r_com
-
-	}
+  for (auto i = 0; i < cv_samples_x_.size(); ++i) {
+    double g1 = jams::maths::gaussian(cached_initial_center_of_mass_[0], cv_samples_x_[i], gaussian_width_, 1.0);
+	  for (auto j = 0; j < cv_samples_y_.size(); ++j) {
+      double g2 = jams::maths::gaussian(cached_initial_center_of_mass_[1], cv_samples_y_[j], gaussian_width_, 1.0);
+      potential_(i,j) += relative_amplitude * g1 * g2;
+	  }
   }
-
 }
+
+
 double jams::SkyrmionCenterCV::current_potential() {
   if (do_first_cache_) {
-    cached_initial_center_of_mass_ = calc_center_of_mass();
+    cached_initial_center_of_mass_ = skyrmion_center_of_mass();
     cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
     do_first_cache_ = false;
   }
- return interpolated_2d_potential(cached_initial_center_of_mass_[0], cached_initial_center_of_mass_[1]);
+ return interpolated_potential(cached_initial_center_of_mass_[0],
+                               cached_initial_center_of_mass_[1]);
 }
 
 double jams::SkyrmionCenterCV::potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final){
   if (do_first_cache_) {
-    cached_initial_center_of_mass_ = calc_center_of_mass();
+    cached_initial_center_of_mass_ = skyrmion_center_of_mass();
     cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
     do_first_cache_ = false;
   }
@@ -203,17 +226,18 @@ double jams::SkyrmionCenterCV::potential_difference(int i, const Vec3 &spin_init
 
   Vec3 trial_center_of_mass = cached_initial_center_of_mass_;
 
-  if (spin_crossed_threshold(spin_initial, spin_final, skyrmion_threshold_)) {
-    trial_center_of_mass = calc_center_of_mass();
+  if (spin_crossed_threshold(spin_initial, spin_final, skyrmion_core_threshold_)) {
+    trial_center_of_mass = skyrmion_center_of_mass();
     cached_trial_center_of_mass_ = trial_center_of_mass;
   }
 
-  trial_potential = interpolated_2d_potential(trial_center_of_mass[0],trial_center_of_mass[1]);
+  trial_potential = interpolated_potential(trial_center_of_mass[0],
+                                           trial_center_of_mass[1]);
   return trial_potential - initial_potential;
 }
 void jams::SkyrmionCenterCV::spin_update(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
   if (do_first_cache_) {
-    cached_initial_center_of_mass_ = calc_center_of_mass();
+    cached_initial_center_of_mass_ = skyrmion_center_of_mass();
     cached_trial_center_of_mass_ = cached_initial_center_of_mass_;
     do_first_cache_ = false;
   }
@@ -225,11 +249,9 @@ void jams::SkyrmionCenterCV::spin_update(int i, const Vec3 &spin_initial, const 
 }
 
 
-Vec3 jams::SkyrmionCenterCV::calc_center_of_mass() {
+Vec3 jams::SkyrmionCenterCV::skyrmion_center_of_mass() {
   using namespace globals;
   using namespace std;
-
-
 
   Mat3 W = lattice->get_unitcell().matrix();
   W[0][2] = 0.0; W[1][2] = 0.0; W[2][2] = 1.0;
@@ -241,9 +263,9 @@ Vec3 jams::SkyrmionCenterCV::calc_center_of_mass() {
 
   int num_core_spins = 0;
   for (auto i = 0; i < num_spins; ++i) {
-    if (globals::s(i,2) < skyrmion_threshold_) {
-      tube_center_of_mass_x += tube_x_[i];
-      tube_center_of_mass_y += tube_y_[i];
+    if (globals::s(i,2) < skyrmion_core_threshold_) {
+      tube_center_of_mass_x += cylinder_remapping_x_[i];
+      tube_center_of_mass_y += cylinder_remapping_y_[i];
       num_core_spins++;
     }
   }
@@ -266,104 +288,28 @@ Vec3 jams::SkyrmionCenterCV::calc_center_of_mass() {
 	return W*center_of_mass;
 }
 
-//---------------Private Functions---------------//
 
-double jams::SkyrmionCenterCV::gaussian_2D(const double &x,const double &x0,const double &y,const double &y0,const double amplitude) const {
+double jams::SkyrmionCenterCV::interpolated_potential(const double &x, const double& y) {
+  int x1_index = floor(abs((x - cv_samples_x_[0]) / (cv_samples_x_[1]
+                                                    - cv_samples_x_[0])));
+  int y1_index = floor(abs((y - cv_samples_y_[0]) / (cv_samples_y_[1]
+                                                       - cv_samples_y_[0])));
+  int x2_index = x1_index + 1;
+  int y2_index = y1_index + 1;
 
-  // return gaussian_amplitude_* exp(-(((x - x0) * (x - x0)) + ((y - y0) * (y - y0))) / (2.0 * gaussian_width_ * gaussian_width_)); //to try fix the tempered amplitude
-  return amplitude
-	  * exp(-(((x - x0) * (x - x0)) + ((y - y0) * (y - y0))) / (2.0 * gaussian_width_ * gaussian_width_));
+  double Q11 = potential_(x1_index, y1_index);
+  double Q12 = potential_(x1_index, y2_index);
+  double Q21 = potential_(x2_index, y1_index);
+  double Q22 = potential_(x2_index, y2_index);
 
+  return jams::maths::bilinear_interpolation(x, y,
+                                             cv_samples_x_[x1_index],
+                                             cv_samples_y_[y1_index],
+                                             cv_samples_x_[x2_index],
+                                             cv_samples_y_[y2_index],
+                                             Q11, Q12, Q21, Q22);
 }
-double jams::SkyrmionCenterCV::interpolated_2d_potential(const double &x, const double& y) {
-//  assert(m <= 1); TODO : think carefylly for appropriate assert checks for x and y .
-//  assert(x < 1);
-  double lower_y = floor(abs((y - sample_points_y_[0]) / (sample_points_y_[1]
-	  - sample_points_y_[0]))); //lower_y index for the discrete_potential
-  double upper_y = lower_y + 1;
-  double lower_x = floor(abs((x - sample_points_x_[0]) / (sample_points_x_[1]
-	  - sample_points_x_[0])));//lower_x index for the discrete_potential
-  double upper_x = lower_x + 1;
 
-  assert(lower_y < upper_y);
-  assert(lower_x < upper_x);
-  //f(x1,y1)=Q(11) , f(x1,y2)=Q(12), f(x2,y1), f(x2,y2)
-  double Q11 = potential_2d_[lower_x][lower_y];
-  double Q12 = potential_2d_[lower_x][upper_y];
-  double Q21 = potential_2d_[upper_x][lower_y];
-  double Q22 = potential_2d_[upper_x][upper_y];
-
-
-
-  //Interpolate along the x-axis
-  double R1 = jams::maths::linear_interpolation(x,
-												sample_points_x_[lower_x],
-												Q11,
-												sample_points_x_[upper_x],
-												Q21);
-  double R2 = jams::maths::linear_interpolation(x,
-												sample_points_x_[lower_x],
-												Q12,
-												sample_points_x_[upper_x],
-												Q22);
-
-  //Interpolate along the y-axis
-  return jams::maths::linear_interpolation(y, sample_points_y_[lower_y], R1, sample_points_y_[upper_y], R2);
-}
-void jams::SkyrmionCenterCV::skyrmion_output() {
-//  using namespace globals;
-//
-//  double x, y;
-//
-//  const double x_size = lattice->rmax()[0];
-//  const double y_size = lattice->rmax()[1];
-//
-//  skyrmion_outfile << std::setw(12) << std::scientific << solver->time();
-//  skyrmion_outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
-//
-//	calc_center_of_mass();
-//
-//	int r_count[lattice->num_materials()];
-//	double radius_gyration[lattice->num_materials()];
-//
-//	for (auto i = 0; i < lattice->num_materials(); ++i) {
-//	  r_count[i] = 0;
-//	  radius_gyration[i] = 0.0;
-//	}
-//
-//	for (auto i = 0; i < num_spins; ++i) {
-//	  auto type = lattice->atom_material_id(i);
-//	  if (s(i, 2)*type_norms[type] > threshold) {
-//		x = lattice->atom_position(i)[0] - r_com[type][0];
-//		x = x - nint(x / x_size) * x_size;  // min image convention
-//		y = lattice->atom_position(i)[1] - r_com[type][1];
-//		y = y - nint(y / y_size) * y_size;  // min image convention
-//		radius_gyration[type] += x*x + y*y;
-//		r_count[type]++;
-//	  }
-//	}
-//
-//	for (auto n = 0; n < lattice->num_materials(); ++n) {
-//	  radius_gyration[n] = sqrt(radius_gyration[n]/static_cast<double>(r_count[n]));
-//	}
-//
-//	for (auto n = 0; n < lattice->num_materials(); ++n) {
-//	  if (r_count[n] == 0) {
-//		for (auto i = 0; i < 5; ++i) {
-//		  skyrmion_outfile << std::setw(16) << 0.0;
-//		}
-//	  } else {
-//		for (auto i = 0; i < 3; ++i) {
-//		  skyrmion_outfile << std::setw(16) << r_com[n][i]*lattice->parameter();
-//		}
-//		skyrmion_outfile << std::setw(16) << radius_gyration[n]*lattice->parameter() << std::setw(16) << (2.0/sqrt(2.0))*radius_gyration[n]*lattice->parameter();
-//	  }
-//	}
-//  }
-//
-//  skyrmion_outfile << "\n";
-
-} // haven't spent any time on this TODO: check it
 
 void jams::SkyrmionCenterCV::space_remapping() {
   // The remapping is done in direct (fractional) space rather than real space
@@ -371,8 +317,8 @@ void jams::SkyrmionCenterCV::space_remapping() {
 
   // find maximum extent of the system for normalisation
 
-  tube_x_.resize(globals::num_spins);
-  tube_y_.resize(globals::num_spins);
+  cylinder_remapping_x_.resize(globals::num_spins);
+  cylinder_remapping_y_.resize(globals::num_spins);
 
   // We need to remove the third dimension from the lattice matrix because
   // the remapping is in 2D only.
@@ -399,9 +345,9 @@ void jams::SkyrmionCenterCV::space_remapping() {
       auto x = (x_max / (kTwoPi)) * cos(theta_x);
       auto y = r[1];
       auto z = (x_max / (kTwoPi)) * sin(theta_x);
-      tube_x_[i] = Vec3{x, y, z};
+      cylinder_remapping_x_[i] = Vec3{x, y, z};
     } else {
-      tube_x_[i] = r;
+      cylinder_remapping_x_[i] = r;
     }
 
   }
@@ -418,9 +364,9 @@ void jams::SkyrmionCenterCV::space_remapping() {
       auto y = (y_max / (kTwoPi)) * cos(theta_y);
       auto z = (y_max / (kTwoPi)) * sin(theta_y);
 
-      tube_y_[i] = Vec3{x, y, z};
+      cylinder_remapping_y_[i] = Vec3{x, y, z};
     } else {
-      tube_y_[i] = r;
+      cylinder_remapping_y_[i] = r;
     }
   }
 }
@@ -435,12 +381,12 @@ void jams::SkyrmionCenterCV::output_remapping() {
   std::ofstream remap_file_x(jams::output::full_path_filename("sky_map_x.tsv"));
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    remap_file_x << tube_x_[i][0] << " " << tube_x_[i][1] << " " << tube_x_[i][2] << "\n";
+    remap_file_x << cylinder_remapping_x_[i][0] << " " << cylinder_remapping_x_[i][1] << " " << cylinder_remapping_x_[i][2] << "\n";
   }
 
   std::ofstream remap_file_y(jams::output::full_path_filename("sky_map_y.tsv"));
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    remap_file_y << tube_y_[i][0] << " " << tube_y_[i][1] << " " << tube_y_[i][2] << "\n";
+    remap_file_y << cylinder_remapping_y_[i][0] << " " << cylinder_remapping_y_[i][1] << " " << cylinder_remapping_y_[i][2] << "\n";
   }
 }
