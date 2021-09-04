@@ -39,8 +39,15 @@ set(JAMS_SOURCES_CXX
         interface/config.cc
         interface/fft.cc
         interface/system.cc
+        metadynamics/collective_variable_factory.cc
+        metadynamics/magnetisation_cv.cc
+        metadynamics/mz_orthogonal_mz_cv.cc
+        metadynamics/skyrmion_center_cv.cc
         lattice/minimum_image.cc
         lattice/interaction_neartree.cc
+        maths/functions.cc
+        maths/parallelepiped.cc
+        maths/interpolation.cc
         monitors/binary.cc
         monitors/boltzmann.cc
         monitors/energy.cc
@@ -71,6 +78,7 @@ set(JAMS_SOURCES_CXX
         physics/square_field_pulse.cc
         physics/two_temperature_model.cc
         solvers/cpu_llg_heun.cc
+        solvers/cpu_metadynamics_metropolis_solver.cc
         solvers/cpu_monte_carlo_constrained.cc
         solvers/cpu_monte_carlo_metropolis.cc
         solvers/cpu_rotations.cc

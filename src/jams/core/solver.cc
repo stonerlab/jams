@@ -26,6 +26,8 @@
 #include "jams/solvers/cpu_rotations.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 #include "jams/solvers/cpu_monte_carlo_constrained.h"
+#include "jams/solvers/cpu_metadynamics_metropolis_solver.h"
+
 
 #define DEFINED_SOLVER(name, type) \
 { \
@@ -61,6 +63,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
   DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver);
   DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver);
   DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver);
+  DEFINED_SOLVER("monte-carlo-metadynamics-cpu", MetadynamicsMetropolisSolver);
 
 #if HAS_CUDA
   DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver);

@@ -10,19 +10,19 @@
 #include "jams/helpers/utils.h"
 
 template <class RNG>
-std::array<double, 3> uniform_random_sphere(RNG &gen) {
+inline std::array<double, 3> uniform_random_sphere(RNG &gen) {
   std::uniform_real_distribution<> dist;
   double v1, v2, s;
 
   do {
-    v1 = -1.0 + 2.0 * dist(gen);
-    v2 = -1.0 + 2.0 * dist(gen);
+    v1 = fma(2.0, dist(gen), -1.0);
+    v2 = fma(2.0, dist(gen), -1.0);
     s = (v1 * v1) + (v2 * v2);
   } while (s > 1.0);
 
-  auto ss = sqrt(1.0 - s);
+  auto ss = 2.0 * sqrt(1.0 - s);
 
-  return {2.0 * v1 * ss, 2.0 * v2 * ss, 1.0 - 2.0 * s};
+  return {v1 * ss, v2 * ss, fma(-2.0, s, 1.0)};
 }
 
 #endif // JAMS_CORE_RAND_H

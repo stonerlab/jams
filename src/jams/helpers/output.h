@@ -11,6 +11,10 @@ namespace jams {
     namespace output {
         void initialise();
 
+        /// Open an output file with 'filename' in the full output path if not
+        /// already open.
+        void open_output_file_just_in_time(std::ofstream& os, const std::string& filename);
+
         std::string full_path_filename(const std::string& ending);
         std::string full_path_filename_series(const std::string& ending, int num, int width=7);
         std::string output_path();

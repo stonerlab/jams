@@ -110,6 +110,17 @@ inline constexpr auto operator%(const Vec<T,3>& lhs, const Vec<T,3>& rhs) -> Vec
   return {lhs[0] % rhs[0], lhs[1] % rhs[1], lhs[2] % rhs[2]};
 }
 
+template <typename T1>
+inline Vec<T1,3> fma(const Vec<T1,3>& a, const Vec<T1,3>& b, const Vec<T1,3>& c) {
+  return {std::fma(a[0], b[0], c[0]), std::fma(a[1], b[1], c[1]), std::fma(a[2], b[2], c[2])};
+}
+
+template <typename T1>
+inline Vec<T1,3> fma(const T1& a, const Vec<T1,3>& b, const Vec<T1,3>& c) {
+  return {std::fma(a, b[0], c[0]), std::fma(a, b[1], c[1]), std::fma(a, b[2], c[2])};
+}
+
+
 template <typename T1, typename T2>
 inline constexpr auto dot(const Vec<T1,3>& a, const Vec<T2,3>& b) -> decltype(a[0] * b[0]) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
