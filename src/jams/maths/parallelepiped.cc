@@ -16,7 +16,7 @@ double jams::maths::parallelogram_inradius(const Vec3 &a, const Vec3 &b) {
 }
 
 double jams::maths::parallelepiped_volume(const Vec3 &a, const Vec3 &b, const Vec3 &c) {
-  return abs(dot(cross(a, b), c));
+  return std::abs(dot(cross(a, b), c));
 }
 
 double jams::maths::parallelepiped_height(const Vec3 &a, const Vec3 &b, const Vec3 &c) {
