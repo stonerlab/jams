@@ -118,13 +118,18 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
                                  white_noise_.device_data(), white_noise_.size(), 0.0, 1.0));
 
   // Define the spectral function P(omega) as a lambda
-  std::function<double(double&)> lorentzian_spectral_function = [&](double& omega) {
-    if (omega == 0.0) return 1.0;
+  std::function<double(double)> lorentzian_spectral_function = [&](double omega) {
 
     double lorentzian = (lorentzian_A_ * lorentzian_gamma_ * kHBarIU * abs(omega))
         / (pow2(pow2(lorentzian_omega0_) - pow2(omega)) + pow2(omega * lorentzian_gamma_));
 
     double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * filter_temperature_);
+
+    // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
+    // the analytic limits for omega == 0.0
+    if (omega == 0.0) {
+      return (2.0 * kBoltzmannIU * filter_temperature_) * (lorentzian_A_ * lorentzian_gamma_) / pow4(lorentzian_omega0_);
+    }
 
     if (use_classical_noise_) {
       return lorentzian / x;
@@ -147,7 +152,7 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   // Output functions to files for checking
   std::ofstream noise_target_file(jams::output::full_path_filename("noise_target_spectrum.tsv"));
   for (auto i = 0; i < discrete_filter.size(); ++i) {
-    noise_target_file << i << " " << i*delta_omega_/(kTwoPi) << " " << discrete_filter[i] << "\n";
+    noise_target_file << i << " " << i*delta_omega_/(kTwoPi) << " " << lorentzian_spectral_function(i*delta_omega_) << "\n";
   }
   noise_target_file.close();
 

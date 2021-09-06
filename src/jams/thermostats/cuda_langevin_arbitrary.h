@@ -29,7 +29,7 @@ private:
     // omega (the frequencies over which the spectral function is defined and
     // then any additional parameters can be passed after this.
     template<typename... Args>
-    using SpectralFunctionSignature = std::function<double(double&, Args...)>;
+    using SpectralFunctionSignature = std::function<double(double, Args...)>;
 
     // Returns a vector containing sqrt{f(i * delta_omega, ...)}, i.e. the
     // spectral function f(omega, ...) sampled at regular discrete points
