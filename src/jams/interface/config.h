@@ -14,9 +14,29 @@ void overwrite_config_settings(libconfig::Setting& orig, const libconfig::Settin
 
 namespace jams {
 
+    /// Returns the value of the setting `name` within the group of settings
+    /// `s`. If the setting is not found a runtime_error exception is thrown.
+    ///
+    /// Usually the template parameter type `T` should be specified to ensure
+    /// the setting is converted to the correct type in ambigious cases (e.g.
+    /// int vs float).
+    ///
+    /// @example
+    /// auto my_param = config_required<double>(some_settings, "value");
+    ///
     template<typename T>
     inline T config_required(const libconfig::Setting &s, const std::string &name);
 
+    /// Returns the value of the setting `name` within the group of settings
+    /// `s`. If the setting is not found the default value `def` is returned.
+    ///
+    /// Usually the template parameter type `T` should be specified to ensure
+    /// the setting is converted to the correct type in ambigious cases (e.g.
+    /// int vs float).
+    ///
+    /// @example
+    /// auto my_param = config_optional<double>(some_settings, "value", 1.0);
+    ///
     template<typename T>
     inline T config_optional(const libconfig::Setting &setting, const std::string &name, const T& def) {
         if (setting.exists(name)) {

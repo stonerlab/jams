@@ -15,7 +15,16 @@ double parallelogram_area(const Vec3& a, const Vec3& b);
 //
 // Returns the height of the parallelogram defined by the vectors a
 // and b where b is taken as the base.
-//
+///
+/// \verbatim
+///
+///      +-----------+..^
+///     /           /   |
+///  b /           /    | height
+///   /           /     |
+///  +-----------+......v
+///        a
+/// \endverbatim
 double parallelogram_height(const Vec3& a, const Vec3& b);
 
 //
@@ -35,10 +44,22 @@ double parallelogram_inradius(const Vec3& a, const Vec3& b);
 //
 double parallelepiped_volume(const Vec3& a, const Vec3& b, const Vec3& c);
 
-//
-// Returns the height of the parallelepiped which is the distance
-// between the base (a, b) and the vector c
-//
+///
+/// Returns the height of the parallelepiped which is the distance
+/// between the base (a, b) and the vector c
+///
+/// \verbatim
+///
+///        +------------+....\
+///       / \         /  \    \
+///      /    +-----------+....\
+///     /    /c     /    /      ^
+///    /    /      /    /       |
+///   +----/------+..../....\   | height
+/// b  \  /         \ /      \  |
+///      +-----------+........\ v
+///            a
+/// \endverbatim
 double parallelepiped_height(const Vec3& a, const Vec3& b, const Vec3& c);
 
 //
