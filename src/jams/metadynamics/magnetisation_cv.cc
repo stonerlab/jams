@@ -159,8 +159,8 @@ double jams::MagnetisationCollectiveVariable::interpolated_potential(const doubl
   // EXPENSIVE assert to catch assumption of sorted sample_points_
   //  assert(is_sorted(begin(sample_points_), end(sample_points_)));
 
-  assert(value > sample_points_.front() || approximately_equal(sample_points_.front(), value));
-  assert(value < sample_points_.back() || approximately_equal(sample_points_.back(), value));
+  assert(value > sample_points_.front() || approximately_equal(sample_points_.front(), value, 1e-8));
+  assert(value < sample_points_.back() || approximately_equal(sample_points_.back(), value, 1e-8));
   assert(sample_points_.size() == potential_.size());
 
   auto lower = floor((value - sample_points_[0]) / histogram_step_size_);
