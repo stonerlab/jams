@@ -327,9 +327,9 @@ void jams::SkyrmionCenterCV::space_remapping() {
   // x,y plane and c is BOTH out of the plane and orthogonal to a,b. i.e.
   // it must be a vector along z. We do a check here for safety.
   auto c_unit_vec = normalize(lattice->get_unitcell().c());
-  assert(approximately_zero(c_unit_vec[0])
-      && approximately_zero(c_unit_vec[1])
-      && approximately_equal(c_unit_vec[2], 1.0));
+  assert(approximately_zero(c_unit_vec[0], 1e-8)
+      && approximately_zero(c_unit_vec[1], 1e-8)
+      && approximately_equal(c_unit_vec[2], 1.0, 1e-8));
 
   Mat3 W = lattice->get_unitcell().matrix();
   W[0][2] = 0.0; W[1][2] = 0.0; W[2][2] = 1.0;
