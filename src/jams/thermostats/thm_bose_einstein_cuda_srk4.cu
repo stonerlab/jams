@@ -19,8 +19,9 @@ jams::BoseEinsteinCudaSRK4Thermostat::BoseEinsteinCudaSRK4Thermostat(const doubl
 : Thermostat(temperature, sigma, num_spins) {
    std::cout << "\n  initialising CUDA Langevin semi-quantum noise thermostat\n";
 
-   const auto& thermostat_settings = config->lookup("thermostat");
-   auto warmup_time = jams::config_optional<double>(thermostat_settings, "warmup_time", 100.0);
+   double warmup_time = 100.0e-12;
+   config->lookupValue("thermostat.warmup_time", warmup_time);
+   warmup_time = warmup_time / 1e-12; // convert into ps
 
    const auto& solver_settings = config->lookup("solver");
    auto solver_time_step = jams::config_required<double>(solver_settings, "t_step");
