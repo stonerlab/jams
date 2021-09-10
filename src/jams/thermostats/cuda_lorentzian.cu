@@ -22,49 +22,42 @@
 #include "jams/helpers/utils.h"
 #include "jams/cuda/cuda_common.h"
 #include "jams/monitors/magnetisation.h"
-#include "jams/thermostats/cuda_langevin_arbitrary.h"
+#include "jams/thermostats/cuda_lorentzian.h"
 #include "jams/thermostats/cuda_langevin_arbitrary_kernel.h"
 #include "jams/interface/fft.h"
+#include "jams/maths/functions.h"
 
 //#define PRINT_NOISE
-
-using namespace std;
-
-namespace {
-
-double coth(const double x) {
-  return 1 / tanh(x);
-}
-
-double barker_correlator(double& omega, double& temperature) {
-  if (omega == 0.0) return 1.0;
-  double x = (kHBarIU * abs(omega)) / (kBoltzmannIU * temperature);
-  return x / (exp(x) - 1);
-}
-
-
-}
 
 CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),
   filter_temperature_(0.0) {
 
-  if (lattice->num_materials() > 1) {
-    throw std::runtime_error("CudaLangevinArbitraryThermostat is only implemented for single material cells");
-  }
-  cout << "\n  initialising CUDA Langevin arbitrary noise thermostat\n";
+  std::cout << "\n  initialising CUDA Langevin arbitrary noise thermostat\n";
 
-  use_classical_noise_ = jams::config_optional(config->lookup("thermostat"), "classical", false);
+  if (lattice->num_materials() > 1) {
+    throw std::runtime_error(
+        "CudaLangevinArbitraryThermostat is only implemented for single material cells");
+  }
+
+  auto noise_spectrum_type = lowercase(
+      jams::config_optional<std::string>(config->lookup("thermostat"),
+                                         "spectrum", "quantum-lorentzian"));
 
   // number of frequencies to discretize the spectrum over
-  num_freq_ = jams::config_optional(config->lookup("thermostat"), "num_freq", 10000);
+  num_freq_ = jams::config_optional(config->lookup("thermostat"), "num_freq",
+                                    10000);
   // number of terms to use in the convolution sum
-  num_trunc_ = jams::config_optional(config->lookup("thermostat"), "num_trunc", 2000);
+  num_trunc_ = jams::config_optional(config->lookup("thermostat"), "num_trunc",
+                                     2000);
   assert(num_trunc_ <= num_freq_);
 
-  lorentzian_gamma_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_gamma"); // 3.71e12 * kTwoPi;
-  lorentzian_omega0_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_omega0"); // 6.27e12 * kTwoPi;
-  lorentzian_A_ =  (globals::alpha(0) * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
+  lorentzian_gamma_ = kTwoPi * jams::config_required<double>(
+      config->lookup("thermostat"), "lorentzian_gamma");
+  lorentzian_omega0_ = kTwoPi * jams::config_required<double>(
+      config->lookup("thermostat"), "lorentzian_omega0");
+  lorentzian_A_ =
+      (globals::alpha(0) * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
 
   delta_t_ = solver->time_step();
   max_omega_ = kPi / delta_t_;
@@ -74,11 +67,12 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
 
 
   if (cudaStreamCreate(&dev_stream_) != cudaSuccess) {
-   jams_die("Failed to create CUDA stream in CudaLangevinArbitraryThermostat");
+    jams_die("Failed to create CUDA stream in CudaLangevinArbitraryThermostat");
   }
 
   if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess) {
-   jams_die("Failed to create CURAND stream in CudaLangevinArbitraryThermostat");
+    jams_die(
+        "Failed to create CURAND stream in CudaLangevinArbitraryThermostat");
   }
 
   // If the noise term is written as a B-field in Tesla it should look like:
@@ -107,36 +101,58 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
 
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
-      sigma_(i, j) = sqrt(1.0 /solver->time_step());
+      sigma_(i, j) = sqrt(1.0 / solver->time_step());
     }
   }
 
   // Do the initial population of white noise
-  white_noise_.resize((num_spins * 3) * (2*num_trunc_ + 1));
+  white_noise_.resize((num_spins * 3) * (2 * num_trunc_ + 1));
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(jams::instance().curand_generator(),
-                                 white_noise_.device_data(), white_noise_.size(), 0.0, 1.0));
+                                 white_noise_.device_data(),
+                                 white_noise_.size(), 0.0, 1.0));
 
   // Define the spectral function P(omega) as a lambda
-  std::function<double(double)> lorentzian_spectral_function = [&](double omega) {
+  std::function<double(double)> lorentzian_spectral_function;
 
-    double lorentzian = (lorentzian_A_ * lorentzian_gamma_ * kHBarIU * abs(omega))
-        / (pow2(pow2(lorentzian_omega0_) - pow2(omega)) + pow2(omega * lorentzian_gamma_));
+  if (noise_spectrum_type == "classical") {
+    lorentzian_spectral_function = [&](double omega) {
+        return 2.0 * kBoltzmannIU * filter_temperature_ * globals::alpha(0);
+    };
+  } else if (noise_spectrum_type == "classical-lorentzian") {
+    lorentzian_spectral_function = [&](double omega) {
+        double lorentzian = (lorentzian_A_ * lorentzian_gamma_ * kHBarIU * abs(omega))
+                            / (pow2(pow2(lorentzian_omega0_) - pow2(omega)) + pow2(omega * lorentzian_gamma_));
 
-    double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * filter_temperature_);
+        double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * filter_temperature_);
 
-    // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
-    // the analytic limits for omega == 0.0
-    if (omega == 0.0) {
-      return (2.0 * kBoltzmannIU * filter_temperature_) * (lorentzian_A_ * lorentzian_gamma_) / pow4(lorentzian_omega0_);
-    }
+        // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
+        // the analytic limits for omega == 0.0
+        if (omega == 0.0) {
+          return (2.0 * kBoltzmannIU * filter_temperature_) *
+                 (lorentzian_A_ * lorentzian_gamma_) / pow4(lorentzian_omega0_);
+        }
+        return lorentzian / x;
+    };
+  } else if (noise_spectrum_type == "quantum-lorentzian") {
+    lorentzian_spectral_function = [&](double omega) {
+        double lorentzian = (lorentzian_A_ * lorentzian_gamma_ * kHBarIU * abs(omega))
+                            / (pow2(pow2(lorentzian_omega0_) - pow2(omega)) + pow2(omega * lorentzian_gamma_));
 
-    if (use_classical_noise_) {
-      return lorentzian / x;
-    } else {
-      return lorentzian * coth(x);
-    }
-  };
+        double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * filter_temperature_);
+
+        // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
+        // the analytic limits for omega == 0.0
+        if (omega == 0.0) {
+          return (2.0 * kBoltzmannIU * filter_temperature_) *
+                 (lorentzian_A_ * lorentzian_gamma_) / pow4(lorentzian_omega0_);
+        }
+        return lorentzian * jams::maths::coth(x);
+    };
+  }
+  else {
+    throw std::runtime_error("unknown spectrum type '" + noise_spectrum_type +"'");
+  }
 
   // Generate the discrete filter F(n) = sqrt(P(n * delta_omega))
   auto discrete_filter = discrete_psd_filter(lorentzian_spectral_function, delta_omega_, num_freq_);
@@ -151,22 +167,26 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
 
   // Output functions to files for checking
   std::ofstream noise_target_file(jams::output::full_path_filename("noise_target_spectrum.tsv"));
+  noise_target_file << "freq_THz    spectrum_meV" << std::endl;
   for (auto i = 0; i < discrete_filter.size(); ++i) {
-    noise_target_file << i << " " << i*delta_omega_/(kTwoPi) << " " << lorentzian_spectral_function(i*delta_omega_) << "\n";
+    noise_target_file << jams::fmt::decimal << i*delta_omega_/(kTwoPi) << " ";
+    noise_target_file << jams::fmt::sci     << lorentzian_spectral_function(i*delta_omega_) << "\n";
   }
   noise_target_file.close();
 
-
   std::ofstream filter_full_file(jams::output::full_path_filename("noise_filter_full.tsv"));
+  filter_full_file << "delta_t_ps    filter_arb" << std::endl;
   for (auto i = 0; i < convoluted_filter.size(); ++i) {
-    filter_full_file << i*delta_t_ << " " << convoluted_filter[i] << "\n";
+    filter_full_file << jams::fmt::decimal << i*delta_t_ << " ";
+    filter_full_file << jams::fmt::sci     << convoluted_filter[i] << "\n";
   }
   filter_full_file.close();
 
-
   std::ofstream filter_file(jams::output::full_path_filename("noise_filter_trunc.tsv"));
+  filter_file << "delta_t_ps    filter_arb" << std::endl;
   for (auto i = 0; i < filter_.size(); ++i) {
-    filter_file << i << " " << filter_(i) << "\n";
+    filter_file << jams::fmt::decimal << i*delta_t_ << " ";
+    filter_file << jams::fmt::sci      << filter_(i) << "\n";
   }
   filter_file.close();
 
@@ -179,7 +199,7 @@ void CudaLorentzianThermostat::update() {
   assert(filter_.size() != 0);
 
   if (filter_temperature_ != this->temperature()) {
-    throw runtime_error(
+    throw std::runtime_error(
         "you cannot dynamically change the temperature for the CudaLangevinArbitraryThermostat");
   }
 
