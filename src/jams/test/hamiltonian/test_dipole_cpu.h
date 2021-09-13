@@ -117,6 +117,15 @@ protected:
       std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
 
       ASSERT_NEAR(numeric, reference, target_accuracy);
+
+      hamiltonian->calculate_fields();
+      reference_hamiltonian->calculate_fields();
+
+      for (auto i = 0; i < globals::num_spins; ++i) {
+        for (auto j = 0; j < 3; ++j) {
+          ASSERT_NEAR(hamiltonian->field(i, j), reference_hamiltonian->field(i,j), target_accuracy);
+        }
+      }
     }
 
     // test the total dipole energy for an ordered spin configuration

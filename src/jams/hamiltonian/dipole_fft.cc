@@ -150,7 +150,7 @@ double DipoleFFTHamiltonian::calculate_total_energy() {
     for (auto i = 0; i < globals::num_spins; ++i) {
         e_total += (  globals::s(i,0) * field_(i, 0)
                     + globals::s(i,1) * field_(i, 1)
-                    + globals::s(i,2) * field_(i, 2) )*globals::mus(i);
+                    + globals::s(i,2) * field_(i, 2) );
     }
 
     return -0.5*e_total;
@@ -159,7 +159,7 @@ double DipoleFFTHamiltonian::calculate_total_energy() {
 double DipoleFFTHamiltonian::calculate_energy(const int i) {
   const Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
   const auto field = calculate_field(i);
-  return -globals::mus(i) * dot(s_i, field);
+  return -dot(s_i, field);
 }
 
 
@@ -175,7 +175,7 @@ double DipoleFFTHamiltonian::calculate_energy_difference(
     }
 
     return -( (spin_final[0] * h[0] + spin_final[1] * h[1] + spin_final[2] * h[2])
-          - (spin_initial[0] * h[0] + spin_initial[1] * h[1] + spin_initial[2] * h[2])) * globals::mus(i);
+          - (spin_initial[0] * h[0] + spin_initial[1] * h[1] + spin_initial[2] * h[2]));
 }
 
 
@@ -349,7 +349,7 @@ void DipoleFFTHamiltonian::calculate_fields() {
         for (auto k = 0; k < kspace_size_[2]; ++k) {
           const auto index = lattice->site_index_by_unit_cell(i, j, k, pos_i);
           for (auto m = 0; m < 3; ++ m) {
-            field_(index, m) += rspace_h_(i, j, k, m);
+            field_(index, m) += rspace_h_(i, j, k, m) * globals::mus(i);
           }
         }
       }
