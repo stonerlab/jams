@@ -39,9 +39,10 @@ struct data_converter<jams::MultiArray<Tp_, Dim_, Idx_>, void>
     using container_converter<MultiArray>::container_converter;
 
   inline value_type* transform_read(MultiArray& array) {
-    if (std::equal(_dims.begin(), _dims.end(), std::begin(array.shape())) == false) {
+    auto&& dims = this->_space.getDimensions();
+    if (std::equal(dims.begin(), dims.end(), std::begin(array.shape())) == false) {
       std::array<Idx_, Dim_> ext;
-      std::copy(_dims.begin(), _dims.end(), ext.begin());
+      std::copy(dims.begin(), dims.end(), ext.begin());
       array.resize(ext);
     }
     return array.data();
@@ -50,8 +51,6 @@ struct data_converter<jams::MultiArray<Tp_, Dim_, Idx_>, void>
   inline const value_type* transform_write(const MultiArray& array) const noexcept{
     return array.data();
   }
-
-  std::vector<size_t> _dims;
 };
 }
 }
