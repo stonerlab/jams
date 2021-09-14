@@ -24,7 +24,7 @@ jams::BoseEinsteinCudaSRK4Thermostat::BoseEinsteinCudaSRK4Thermostat(const doubl
    warmup_time = warmup_time / 1e-12; // convert into ps
 
    const auto& solver_settings = config->lookup("solver");
-   auto solver_time_step = jams::config_required<double>(solver_settings, "t_step");
+   auto solver_time_step = jams::config_required<double>(solver_settings, "t_step") / 1e-12;  // convert into ps
 
    delta_tau_ = (solver_time_step * kBoltzmannIU) / kHBarIU;
    num_warm_up_steps_ = static_cast<unsigned>(warmup_time / solver_time_step);
