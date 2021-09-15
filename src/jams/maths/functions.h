@@ -16,6 +16,7 @@ namespace maths {
 //                      INLINE FUNCTION DEFINITIONS
 // ============================================================================
 
+inline
 double jams::maths::coth(double x) {
   return 1.0 / std::tanh(x);
 }
