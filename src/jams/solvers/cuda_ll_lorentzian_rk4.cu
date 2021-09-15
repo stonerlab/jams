@@ -39,9 +39,8 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
   auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
   auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
 
-  // convert input in Hz into THz for internal units
-  lorentzian_gamma_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_gamma") / 1e12;
-  lorentzian_omega_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_omega0") / 1e12;
+  lorentzian_gamma_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_gamma");
+  lorentzian_omega_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_omega0");
 
   lorentzian_A_ =  (globals::alpha(0) * pow4(lorentzian_omega_)) / (lorentzian_gamma_);
 
