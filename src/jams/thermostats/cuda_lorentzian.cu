@@ -56,8 +56,7 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
       config->lookup("thermostat"), "lorentzian_gamma");
   lorentzian_omega0_ = kTwoPi * jams::config_required<double>(
       config->lookup("thermostat"), "lorentzian_omega0");
-  lorentzian_A_ =
-      (globals::alpha(0) * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
+
 
   delta_t_ = solver->time_step();
   max_omega_ = kPi / delta_t_;
@@ -75,28 +74,9 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
         "Failed to create CURAND stream in CudaLangevinArbitraryThermostat");
   }
 
-  // If the noise term is written as a B-field in Tesla it should look like:
-  //
-  // B(t) = \sigma_i \xi(t, T)
-  //
-  // where the \sigma_i depends on parameters on the local site and \xi
-  // is a dimensionless noise.
-  //
-  // \sigma_i = \sqrt((2 \alpha_i k_B T) / (\gamma_i \mu_{s,i}))
-  //
-  // where:
-  // - \alpha_i is a coupling parameter to the bath
-  // - k_B is Boltzmann constant
-  // - \gamma_i is the local gyromagnetic ratio (usually g_e \mu_B / \hbar)
-  // - \mu_{s,i} is the local magnetic moment in Bohr magnetons
-  //
-  // We put the 1/\sqrt{\Delta t} which is the scaling of the Gaussian
-  // noise processes into sigma (because it's a convenient place for it).
-  //
-
-  // We store the temperature and check that it doesn't change when running
-  // the simulation. Currently we don't know how to deal with a dynamically
-  // changing temperature in this formalism.
+  // We store the temperature and check in update() that it doesn't change when
+  // running the simulation. Currently we don't know how to deal with a
+  // dynamically changing temperature in this formalism.
   filter_temperature_ = this->temperature();
 
   for (int i = 0; i < num_spins; ++i) {
@@ -112,12 +92,25 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
                                  white_noise_.device_data(),
                                  white_noise_.size(), 0.0, 1.0));
 
+  // In arXiv:2009.00600v2 Janet uses eta_G for the Gilbert damping, but this is
+  // a **dimensionful** Gilbert damping (implied by Eq. (1) in the paper and
+  // also explicitly mentioned). In JAMS alpha is the dimensionless Gilbert
+  // damping. The difference is eta_G = alpha / (mu_s * gamma). It's important
+  // that we convert here to get the scaling of the noice correct (i.e. it
+  // converts Janet's equations into the JAMS convention).
+
+  double eta_G = globals::alpha(0) / (globals::mus(0) * globals::gyro(0));
+
+  lorentzian_A_ =
+      (eta_G * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
+
+
   // Define the spectral function P(omega) as a lambda
   std::function<double(double)> lorentzian_spectral_function;
 
   if (noise_spectrum_type == "classical") {
     lorentzian_spectral_function = [&](double omega) {
-        return 2.0 * kBoltzmannIU * filter_temperature_ * globals::alpha(0);
+        return 2.0 * kBoltzmannIU * filter_temperature_ * eta_G;
     };
   } else if (noise_spectrum_type == "classical-lorentzian") {
     lorentzian_spectral_function = [&](double omega) {

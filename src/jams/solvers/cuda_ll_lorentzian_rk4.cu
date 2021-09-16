@@ -16,6 +16,7 @@
 #include "jams/core/physics.h"
 #include "jams/helpers/error.h"
 #include "jams/cuda/cuda_common.h"
+#include "jams/core/lattice.h"
 
 #include "jams/solvers/cuda_ll_lorentzian_rk4_kernel.cuh"
 
@@ -33,6 +34,11 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
 {
   using namespace globals;
 
+  if (lattice->num_materials() > 1) {
+    throw std::runtime_error(
+        "CUDALLLorentzianRK4Solver is only implemented for single material cells");
+  }
+
   // convert input in seconds to picoseconds for internal units
 
   step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
@@ -42,7 +48,16 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
   lorentzian_gamma_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_gamma");
   lorentzian_omega_ = kTwoPi * jams::config_required<double>(config->lookup("thermostat"), "lorentzian_omega0");
 
-  lorentzian_A_ =  (globals::alpha(0) * pow4(lorentzian_omega_)) / (lorentzian_gamma_);
+  // In arXiv:2009.00600v2 Janet uses eta_G for the Gilbert damping, but this is
+  // a **dimensionful** Gilbert damping (implied by Eq. (1) in the paper and
+  // also explicitly mentioned). In JAMS alpha is the dimensionless Gilbert
+  // damping. The difference is eta_G = alpha / (mu_s * gamma). It's important
+  // that we convert here to get the scaling of the noice correct (i.e. it
+  // converts Janet's equations into the JAMS convention).
+
+  double eta_G = globals::alpha(0) / (globals::mus(0) * globals::gyro(0));
+
+  lorentzian_A_ =  (eta_G * pow4(lorentzian_omega_)) / (lorentzian_gamma_);
 
   max_steps_ = static_cast<int>(t_max / step_size_);
   min_steps_ = static_cast<int>(t_min / step_size_);
@@ -128,7 +143,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       h.device_data(), thermostat_->device_data(),
-      gyro.device_data(), mus.device_data(), alpha.device_data(),
+      gyro.device_data(), mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -148,7 +163,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       h.device_data(), thermostat_->device_data(),
-      gyro.device_data(), mus.device_data(), alpha.device_data(),
+      gyro.device_data(), mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -168,7 +183,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       h.device_data(), thermostat_->device_data(),
-      gyro.device_data(), mus.device_data(), alpha.device_data(),
+      gyro.device_data(), mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
@@ -188,7 +203,7 @@ void CUDALLLorentzianRK4Solver::run()
       w_memory_process_.device_data(),
       v_memory_process_.device_data(),
       h.device_data(), thermostat_->device_data(),
-      gyro.device_data(), mus.device_data(), alpha.device_data(),
+      gyro.device_data(), mus.device_data(),
       lorentzian_omega_, lorentzian_gamma_, lorentzian_A_,
       num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS

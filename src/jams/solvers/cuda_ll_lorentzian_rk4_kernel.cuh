@@ -20,7 +20,6 @@ __global__ void cuda_ll_lorentzian_rk4_kernel
   const double * noise_dev,
   const double * gyro_dev,
   const double * mus_dev,
-  const double * alpha_dev,
   const double lorentzian_omega,
   const double lorentzian_gamma,
   const double lorentzian_A,
