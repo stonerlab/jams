@@ -267,7 +267,7 @@ std::vector<double> CudaLorentzianThermostat::discrete_real_fourier_transform(st
       size, //int n
       x.data(), // double *in
       x.data(), // double *out
-      FFTW_REDFT01, // fftw_r2r_kind kind
+      FFTW_REDFT10, // fftw_r2r_kind kind
       FFTW_ESTIMATE); // unsigned flags
 
   fftw_execute(plan);
