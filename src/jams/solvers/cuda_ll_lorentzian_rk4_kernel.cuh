@@ -30,10 +30,14 @@ __global__ void cuda_ll_lorentzian_rk4_kernel
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (idx < dev_num_spins) {
+    double v[3];
+    for (auto n = 0; n < 3; ++n) {
+      v[n] = v_dev[3*idx + n];
+    }
 
     double h[3];
     for (auto n = 0; n < 3; ++n) {
-      h[n] = ((h_dev[3*idx + n] / mus_dev[idx]) + noise_dev[3*idx + n] + v_dev[3*idx + n]);
+      h[n] = ((h_dev[3*idx + n] / mus_dev[idx]) + noise_dev[3*idx + n] + v[n]);
     }
 
     double s[3];
@@ -44,11 +48,6 @@ __global__ void cuda_ll_lorentzian_rk4_kernel
     double w[3];
     for (auto n = 0; n < 3; ++n) {
       w[n] = w_dev[3*idx + n];
-    }
-
-    double v[3];
-    for (auto n = 0; n < 3; ++n) {
-      v[n] = v_dev[3*idx + n];
     }
 
     double sxh[3] = {
