@@ -56,8 +56,8 @@ outfile(jams::output::full_path_filename("fk.tsv")){
   cout << "  number of samples " << num_samples_ << "\n";
   cout << "  sampling time (s) " << t_sample << "\n";
   cout << "  acquisition time (s) " << t_sample * num_samples_ << "\n";
-  cout << "  frequency resolution (THz) " << freq_delta_/kTHz << "\n";
-  cout << "  maximum frequency (THz) " << freq_max/kTHz << "\n";
+  cout << "  frequency resolution (THz) " << freq_delta_ << "\n";
+  cout << "  maximum frequency (THz) " << freq_max << "\n";
   cout << "\n";
 
   num_qvectors_ = jams::config_required<unsigned>(settings, "num_qvectors");

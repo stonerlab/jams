@@ -60,8 +60,8 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   cout << "  number of samples " << num_samples << "\n";
   cout << "  sampling time (s) " << t_sample << "\n";
   cout << "  acquisition time (s) " << t_sample * num_samples << "\n";
-  cout << "  frequency resolution (THz) " << freq_delta/kTHz << "\n";
-  cout << "  maximum frequency (THz) " << freq_max/kTHz << "\n";
+  cout << "  frequency resolution (THz) " << freq_delta << "\n";
+  cout << "  maximum frequency (THz) " << freq_max << "\n";
   cout << "\n";
 
   // ------------------------------------------------------------------
