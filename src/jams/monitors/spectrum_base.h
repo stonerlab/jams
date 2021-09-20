@@ -56,10 +56,10 @@ public:
     }
 
     inline double frequency_resolution_thz() const {
-      return (1.0 / (num_time_samples() * sample_time_interval())) / kTHz;
+      return (1.0 / (num_time_samples() * sample_time_interval()));
     }
     inline double max_frequency_thz() const {
-      return (1.0 / (2.0 * sample_time_interval())) / kTHz;
+      return (1.0 / (2.0 * sample_time_interval()));
     }
 
     void print_info() const;
