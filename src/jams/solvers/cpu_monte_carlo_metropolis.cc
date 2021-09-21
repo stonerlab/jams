@@ -27,30 +27,27 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   cout << "    max_steps " << max_steps_ << "\n";
   cout << "    min_steps " << min_steps_ << "\n";
 
-  if (settings.exists("move_fraction_uniform") || settings.exists("move_fraction_angle") || settings.exists("move_fraction_reflection")) {
+  // Create a set of vectors which contain different types of Monte Carlo moves.
+  // Each move can has a 'fraction' (weight) associated with it to allow some
+  // move types to be attempted more frequently than others.
+  move_names_.emplace_back("angle");
+  const auto sigma = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
+  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_angle", 1.0));
+  move_functions_.emplace_back(
+      jams::montecarlo::MonteCarloAngleMove<jams::RandomGeneratorType>(&jams::instance().random_generator(), sigma));
 
-    // Create a set of vectors which contain different types of Monte Carlo moves.
-    // Each move can has a 'fraction' (weight) associated with it to allow some
-    // move types to be attempted more frequently than others.
-    move_names_.emplace_back("angle");
-    const auto sigma = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
-    move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_angle", 1.0));
-    move_functions_.emplace_back(
-        jams::montecarlo::MonteCarloAngleMove<jams::RandomGeneratorType>(&jams::instance().random_generator(), sigma));
+  move_names_.emplace_back("uniform");
+  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_uniform", 0.0));
+  move_functions_.emplace_back(
+      jams::montecarlo::MonteCarloUniformMove<jams::RandomGeneratorType>(&jams::instance().random_generator()));
 
-    move_names_.emplace_back("uniform");
-    move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_uniform", 0.0));
-    move_functions_.emplace_back(
-        jams::montecarlo::MonteCarloUniformMove<jams::RandomGeneratorType>(&jams::instance().random_generator()));
+  move_names_.emplace_back("reflection");
+  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_reflection", 0.0));
+  move_functions_.emplace_back(
+      jams::montecarlo::MonteCarloReflectionMove());
 
-    move_names_.emplace_back("reflection");
-    move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_reflection", 0.0));
-    move_functions_.emplace_back(
-        jams::montecarlo::MonteCarloReflectionMove());
-
-    moves_accepted_.resize(move_functions_.size());
-    moves_attempted_.resize(move_functions_.size());
-  }
+  moves_accepted_.resize(move_functions_.size());
+  moves_attempted_.resize(move_functions_.size());
 }
 
 void MetropolisMCSolver::run() {
