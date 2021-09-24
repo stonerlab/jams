@@ -62,6 +62,18 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   max_omega_ = kPi / delta_t_;
   delta_omega_ = max_omega_ / double(num_freq_);
 
+  // In arXiv:2009.00600v2 Janet uses eta_G for the Gilbert damping, but this is
+  // a **dimensionful** Gilbert damping (implied by Eq. (1) in the paper and
+  // also explicitly mentioned). In JAMS alpha is the dimensionless Gilbert
+  // damping. The difference is eta_G = alpha / (mu_s * gamma). It's important
+  // that we convert here to get the scaling of the noice correct (i.e. it
+  // converts Janet's equations into the JAMS convention).
+
+  double eta_G = globals::alpha(0) / (globals::mus(0) * globals::gyro(0));
+
+  lorentzian_A_ =
+      (eta_G * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
+
   output_thermostat_properties(std::cout);
 
 
@@ -91,18 +103,6 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
       curandGenerateNormalDouble(jams::instance().curand_generator(),
                                  white_noise_.device_data(),
                                  white_noise_.size(), 0.0, 1.0));
-
-  // In arXiv:2009.00600v2 Janet uses eta_G for the Gilbert damping, but this is
-  // a **dimensionful** Gilbert damping (implied by Eq. (1) in the paper and
-  // also explicitly mentioned). In JAMS alpha is the dimensionless Gilbert
-  // damping. The difference is eta_G = alpha / (mu_s * gamma). It's important
-  // that we convert here to get the scaling of the noice correct (i.e. it
-  // converts Janet's equations into the JAMS convention).
-
-  double eta_G = globals::alpha(0) / (globals::mus(0) * globals::gyro(0));
-
-  lorentzian_A_ =
-      (eta_G * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
 
 
   // Define the spectral function P(omega) as a lambda
