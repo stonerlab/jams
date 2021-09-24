@@ -97,8 +97,15 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
     }
   }
 
-  // Do the initial population of white noise
-  white_noise_.resize((num_spins * 3) * (2 * num_trunc_ + 1));
+  // Curand will only generate noise for arrays which are multiples of 2
+  // so we sometimes have to make the size of the white noise array artificially
+  // larger. We can't just add 1 element to the total white_noise_ because when
+  // we generate random numbers later we will be generating only 3*num_spins
+  // numbers at each step. So we adjust 3*num_spins to make sure it's even.
+
+  num_spins3_even_ = (3 * num_spins) + ((3 * num_spins) % 2);
+
+  white_noise_.resize(num_spins3_even_ * (2 * num_trunc_ + 1));
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(jams::instance().curand_generator(),
                                  white_noise_.device_data(),
@@ -217,11 +224,11 @@ void CudaLorentzianThermostat::update() {
                                noise_.device_data(), 1, dev_stream_);
 
   // generate new random numbers ready for the next round
-  auto start_index = globals::num_spins3 * pbc(solver->iteration() + num_trunc_, 2 * num_trunc_ + 1);
+  auto start_index = num_spins3_even_ * pbc(solver->iteration() + num_trunc_, 2 * num_trunc_ + 1);
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(
           jams::instance().curand_generator(),
-           white_noise_.device_data() + start_index, globals::num_spins3, 0.0, 1.0));
+           white_noise_.device_data() + start_index, num_spins3_even_, 0.0, 1.0));
 
   #ifdef PRINT_NOISE
   debug_file_ << solver->iteration() * delta_t_ << " " << noise_(0, 0)

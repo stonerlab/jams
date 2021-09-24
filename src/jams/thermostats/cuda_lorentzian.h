@@ -165,6 +165,10 @@ private:
     double delta_t_;
     double filter_temperature_;
 
+    // 3*num_spins increased by one to make it even if needed. Required for
+    // curand which can only generate even lengths of random numbers.
+    int    num_spins3_even_;
+
     // Lorentzian parameters
     double lorentzian_omega0_;
     double lorentzian_gamma_;
