@@ -12,9 +12,9 @@ jams::maths::linear_interpolation(double x, double x1, double f_x1, double x2,
   assert(x <= x2);
 
 #ifdef FP_FAST_FMA
-  return std::fma((x - x1), (f_x2 - f_x1) / (x2 - x1), f_x2);
+  return std::fma((x - x1), (f_x2 - f_x1) / (x2 - x1), f_x1);
 #else
-  return f_x2 + (x - x1) * (f_x2 - f_x1) / (x2 - x1);
+  return f_x1 + (x - x1) * (f_x2 - f_x1) / (x2 - x1);
 #endif
 }
 
