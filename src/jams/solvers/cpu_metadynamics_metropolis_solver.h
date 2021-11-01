@@ -5,7 +5,7 @@
 
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 
-#include "jams/metadynamics/magnetisation_cv.h"
+#include "jams/metadynamics/metadynamics_potential.h"
 
 #include <fstream>
 #include <memory>
@@ -18,11 +18,14 @@
 class MetadynamicsMetropolisSolver : public MetropolisMCSolver {
 private:
     /// Pointer to collective variable object (owned by this class)
-    std::unique_ptr<jams::CollectiveVariablePotential> collective_variable_potential_;
+    std::unique_ptr<jams::MetadynamicsPotential> metad_potential_;
 
     /// Number of solver iterations between gaussian depositions into the
     /// collective variable potential landscape.
     int gaussian_deposition_stride_;
+
+    /// Number of solver iterations between outputing the potential.
+    int output_steps_;
 
     /// Toggle whether tempered metadynamics (systematically reducing the
     /// gaussian amplitude) is used.
