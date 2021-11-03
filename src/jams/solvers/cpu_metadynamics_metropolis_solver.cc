@@ -22,6 +22,7 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
 
   // Read the number of monte carlo steps between gaussian depositions in metadynamics
   gaussian_deposition_stride_ = jams::config_required<int>(settings,"gaussian_deposition_stride");
+  gaussian_deposition_delay_ = jams::config_optional<int>(settings,"gaussian_deposition_delay", 0);
 
   output_steps_ = jams::config_optional<int>(settings, "output_steps", gaussian_deposition_stride_);
 
@@ -36,6 +37,8 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
   // ---------------------------------------------------------------------------
 
   std::cout << "  gaussian deposition stride: " << gaussian_deposition_stride_ << "\n";
+  std::cout << "  gaussian deposition delay : " << gaussian_deposition_delay_ << "\n";
+
   std::cout << "  tempered metadynamics: " << std::boolalpha << do_tempering_ << "\n";
   if (do_tempering_) {
     std::cout << "  bias temperature (K): " << tempering_bias_temperature_ << "\n";
@@ -46,6 +49,12 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
 void MetadynamicsMetropolisSolver::run() {
   // Run the base monte carlo solver
   MetropolisMCSolver::run();
+
+  // Don't do any of the metadynamics until we have passed the
+  // gaussian_deposition_delay_
+  if (iteration_ < gaussian_deposition_delay_) {
+    return;
+  }
 
   // Deposit a gaussian at the required interval
   if (iteration_ % gaussian_deposition_stride_ == 0) {

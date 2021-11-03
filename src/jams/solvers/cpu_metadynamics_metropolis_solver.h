@@ -24,6 +24,9 @@ private:
     /// collective variable potential landscape.
     int gaussian_deposition_stride_;
 
+    /// Number of iterations to run before we start inserting gaussians
+    int gaussian_deposition_delay_;
+
     /// Number of solver iterations between outputing the potential.
     int output_steps_;
 
