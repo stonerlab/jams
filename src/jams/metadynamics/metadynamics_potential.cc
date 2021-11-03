@@ -6,6 +6,9 @@
 #include <jams/helpers/output.h>
 #include <fstream>
 
+#include <jams/core/solver.h>
+#include <jams/core/globals.h>
+
 // TODO: Add support for boundary conditions
 
 namespace {
@@ -132,6 +135,13 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   // TODO: need to fix bug for resizing with std::array to make this general for
   // kMaxDimensions
   potential_.resize(num_samples_[0], num_samples_[1]);
+
+  cvar_file_.open(jams::output::full_path_filename("metad_cvars.tsv"));
+  cvar_file_ << "time";
+  for (auto i = 0; i < num_cvars_; ++i) {
+    cvar_file_ << " " << cvars_[i]->name();
+  }
+  cvar_file_ << std::endl;
 }
 
 
@@ -269,6 +279,12 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
       potential_(i,j) += relative_amplitude * gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
     }
   }
+
+  cvar_file_ << ::solver->time();
+  for (auto n = 0; n < num_cvars_; ++n) {
+    cvar_file_ << " " << cvars_[n]->value();
+  }
+  cvar_file_ << std::endl;
 }
 
 

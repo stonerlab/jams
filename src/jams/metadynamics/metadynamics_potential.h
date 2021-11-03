@@ -6,6 +6,7 @@
 #include <jams/metadynamics/collective_variable.h>
 
 #include <array>
+#include <fstream>
 
 
 namespace jams {
@@ -31,7 +32,6 @@ namespace jams {
         void insert_gaussian(const double& relative_amplitude = 1.0);
 
         /// Output the potential landscape to a file stream.
-        /// TODO: Define what the format of this file will be
         void output();
 
         /// Returns the value of the potential at the current coordinates of the
@@ -52,7 +52,6 @@ namespace jams {
             int i, const Vec3 &spin_initial, const Vec3 &spin_final);
 
     private:
-
         const double kHardBCsPotential = 1e100; // a very large value in meV
 
         double              gaussian_amplitude_;
@@ -63,9 +62,11 @@ namespace jams {
         std::vector<std::string>                         cvar_names_;
         std::vector<PotentialBCs>                        cvar_bcs_;
         std::vector<std::vector<double>>                 cvar_sample_points_;
+        std::ofstream                                    cvar_file_;
 
         std::array<int,kMaxDimensions>    num_samples_;
         MultiArray<double,kMaxDimensions> potential_;
+
     };
 }
 
