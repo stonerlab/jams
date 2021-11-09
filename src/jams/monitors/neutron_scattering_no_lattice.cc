@@ -260,8 +260,8 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
         ofs << fmt::integer << j << "\t";
         ofs << fmt::decimal << kspace_path_(j) << "\t";
         ofs << fmt::decimal << kTwoPi * norm(kspace_path_(j)) / (lattice->parameter()*1e10) << "\t";
-        ofs << fmt::decimal << (i * freq_delta / 1e12) << "\t"; // THz
-        ofs << fmt::decimal << (i * freq_delta / 1e12) * 4.135668 << "\t"; // meV
+        ofs << fmt::decimal << (i * freq_delta) << "\t"; // THz
+        ofs << fmt::decimal << (i * freq_delta) * 4.135668 << "\t"; // meV
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
         ofs << fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() << "\t";
         ofs << fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() << "\t";
