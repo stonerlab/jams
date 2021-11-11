@@ -26,8 +26,8 @@ Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
 
   Vec3 r_ij = minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
 
-  if (definately_less_than(
-      norm(r_ij), maths::parallelepiped_inradius(a, b, c), epsilon)) {
+  if ((dot(a, b) == 0 && dot(b, c) == 0 && dot(c, a) == 0) ||
+      definately_less_than(norm(r_ij), maths::parallelepiped_inradius(a, b, c), epsilon)) {
     return r_ij;
   }
 
