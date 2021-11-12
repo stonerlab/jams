@@ -6,8 +6,10 @@
 #include "jams/core/lattice.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
+#include "jams/cuda/cuda_minimum_image.h"
 
 #include <cuda.h>
+
 
 CudaNeutronScatteringNoLatticeMonitor::CudaNeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
     : Monitor(settings){
@@ -39,9 +41,9 @@ CudaNeutronScatteringNoLatticeMonitor::CudaNeutronScatteringNoLatticeMonitor(con
   zero(spin_frequencies_.resize(periodogram_props_.length / 2 + 1, globals::num_spins, 3));
 
   zero(total_unpolarized_neutron_cross_section_.resize(
-      periodogram_props_.length, kspace_path_.size()));
-  zero(total_polarized_neutron_cross_sections_.resize(
-      neutron_polarizations_.size(),periodogram_props_.length, kspace_path_.size()));
+      kspace_path_.size(), periodogram_props_.length/2 + 1));
+//  zero(total_polarized_neutron_cross_sections_.resize(
+//      neutron_polarizations_.size(),periodogram_props_.length, kspace_path_.size()));
 }
 
 void CudaNeutronScatteringNoLatticeMonitor::configure_periodogram(libconfig::Setting &settings) {
@@ -62,22 +64,10 @@ void CudaNeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libco
 
 }
 
-void CudaNeutronScatteringNoLatticeMonitor::store_spin_data() {
-  auto t = periodogram_index_;
-
-  auto ptr_offset = t * globals::num_spins3;
-
-  cudaMemcpy(spin_timeseries_.device_data() + ptr_offset,
-             globals::s.device_data(),
-             globals::num_spins3*sizeof(double), cudaMemcpyDeviceToDevice);
-}
-
-void CudaNeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
+void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   // Do temporal fourier transform of spin data
 
   const int num_time_samples = periodogram_props_.length;
-
-
 
   int rank = 1;
   int transform_size[1] = {num_time_samples};
@@ -96,28 +86,29 @@ void CudaNeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
                         stride, dist, nembed, stride,
                     dist, CUFFT_D2Z, num_transforms));
 
-//  jams::MultiArray<double, 2> spin_averages(globals::num_spins, 3);
-//  zero(spin_averages);
-//  for (auto i = 0; i < globals::num_spins; ++i) {
-//    for (auto j = 0; j < 3; ++j) {
-//      for (auto t = 0; t < num_time_samples; ++t) {
-//        spin_averages(i, j) += spin_timeseries_(i, j, t);
-//      }
-//    }
-//  }
-//  element_scale(spin_averages, 1.0/double(num_time_samples));
-//
-//
-//  for (auto i = 0; i < globals::num_spins; ++i) {
-//    for (auto j = 0; j < 3; ++j) {
-//      for (auto t = 0; t < num_time_samples; ++t) {
-//        spin_frequencies_(i, j, t) = fft_window_default(t, num_time_samples) * (spin_timeseries_(i, j, t) - spin_averages(i,j));
-//      }
-//    }
-//  }
+  jams::MultiArray<double, 2> spin_averages(globals::num_spins, 3);
+  zero(spin_averages);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      for (auto t = 0; t < num_time_samples; ++t) {
+        spin_averages(i, j) += spin_timeseries_(t, i, j);
+      }
+    }
+  }
+  element_scale(spin_averages, 1.0/double(num_time_samples));
+
+  jams::MultiArray<double,3> windowed_timeseries = spin_timeseries_;
+
+  for (auto t = 0; t < num_time_samples; ++t) {
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      for (auto j = 0; j < 3; ++j) {
+        windowed_timeseries(t, i, j) = fft_window_default(t, num_time_samples)*(windowed_timeseries(t, i, j) - spin_averages(i,j));
+      }
+    }
+  }
 
   CHECK_CUFFT_STATUS(
-    cufftExecD2Z(fft_plan, reinterpret_cast<cufftDoubleReal*>(spin_timeseries_.device_data()),  reinterpret_cast<cufftDoubleComplex*>(spin_frequencies_.device_data())));
+    cufftExecD2Z(fft_plan, reinterpret_cast<cufftDoubleReal*>(windowed_timeseries.device_data()),  reinterpret_cast<cufftDoubleComplex*>(spin_frequencies_.device_data())));
 
   CHECK_CUFFT_STATUS(
       cufftDestroy(fft_plan));
@@ -133,78 +124,37 @@ void CudaNeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
   jams::MultiArray<std::complex<double>,2> s_conv(globals::num_spins, num_time_samples / 2 + 1);
 
   zero(s_conv);
-  // this assumes out kspace_path is a single straight line
+  // **ASSUMPTION** kspace_path is a single straight line
   const auto delta_q = kspace_path_(1) - kspace_path_(0);
   auto unit_q = unit_vector(delta_q);
 
 
-  const int num_freq = num_time_samples / 2 + 1;
-  const int num_k = kspace_path_.size();
+  const unsigned int num_freq = num_time_samples / 2 + 1;
+  const unsigned int num_k = kspace_path_.size();
 
-  jams::MultiArray<std::complex<double>, 2> sqw(kspace_path_.size(),
-                                                num_time_samples / 2 + 1);
+  jams::MultiArray<double, 2> r_ij(globals::num_spins, 3);
 
-  dim3 block_size = {32, 32, 1};
-  dim3 grid_size = {(num_k + block_size.x - 1) / block_size.x,
-                    (num_freq + block_size.y - 1) / block_size.y,
-                    1};
+  dim3 block_size = {32, 16, 1};
+  dim3 grid_size = cuda_grid_size(block_size, {num_k, num_freq, 1});
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    std::cout << i << std::endl;
 
+    // find all r_ij for current i using the minimum image convention.
     Vec3 r_i = lattice->atom_position(i);
 
-    spectrum_i_equal_j<<<grid_size, block_size>>>(
-        i, i, globals::num_spins, num_k, num_freq, unit_q[0], unit_q[1], unit_q[2],
-        reinterpret_cast<const cufftDoubleComplex*>(spin_frequencies_.device_data()),
-        reinterpret_cast<cufftDoubleComplex*>(sqw.device_data())
-    );
-    DEBUG_CHECK_CUDA_ASYNC_STATUS;
+    // **ASSUMPTION** the system is cubic so that Smith's method for minimum
+    // image works for all distances, not just the in-sphere.
+    jams::cuda_minimum_image(
+        lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(),
+        lattice->periodic_boundaries(), r_i, globals::positions, r_ij);
 
-    for (auto j = i+1; j < globals::num_spins; ++j) {
-      const Vec3 r_ij = lattice->displacement(r_i, lattice->atom_position(j));
-
-      spectrum_i_not_equal_j<<<grid_size, block_size>>>(
-          i, j, globals::num_spins, num_k, num_freq, unit_q[0], unit_q[1], unit_q[2],
-          r_ij[0], r_ij[1], r_ij[2],
+      spectrum_r_ij<<<grid_size, block_size>>>(
+          i, globals::num_spins, num_k, num_freq, unit_q[0], unit_q[1], unit_q[2],
+          r_ij.device_data(),
           reinterpret_cast<double*>(kspace_path_.device_data()),
           reinterpret_cast<const cufftDoubleComplex*>(spin_frequencies_.device_data()),
-          reinterpret_cast<cufftDoubleComplex*>(sqw.device_data())
-          );
+          reinterpret_cast<cufftDoubleComplex*>(total_unpolarized_neutron_cross_section_.device_data()));
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
-    }
-
-//    if (i%100 == 0) {
-//      std::ofstream ofs(jams::output::full_path_filename("neutron_scattering_fixed.tsv"));
-//
-//      ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
-//      ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
-//      ofs << "\n";
-//
-//      // sample time is here because the fourier transform in time is not an integral
-//      // but a discrete sum
-//      auto prefactor = (periodogram_props_.sample_time / double(total_periods_)) * (1.0 / (kTwoPi * kHBarIU))
-//                       * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
-//      auto barns_unitcell = prefactor / (1e-28);
-//      auto freq_delta = 1.0 / (periodogram_props_.length * periodogram_props_.sample_time);
-//
-//      for (auto w = 0; w <  num_time_samples / 2 + 1; ++w) {
-//        for (auto k = 0; k < kspace_path_.size(); ++k) {
-//          ofs << jams::fmt::integer << k << "\t";
-//          ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
-//          ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (lattice->parameter() * 1e10) << "\t";
-//          ofs << jams::fmt::decimal << (w * freq_delta) << "\t"; // THz
-//          ofs << jams::fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV
-//          // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-//          ofs << jams::fmt::sci << barns_unitcell * sqw(k, w).real() << "\t";
-//          ofs << jams::fmt::sci << barns_unitcell * sqw(k, w).imag() << "\t";
-//          ofs << "\n";
-//        }
-//        ofs << std::endl;
-//      }
-//
-//      ofs.close();
-//    }
   }
 
   std::ofstream ofs(jams::output::full_path_filename("neutron_scattering_fixed.tsv"));
@@ -228,8 +178,8 @@ void CudaNeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
       ofs << jams::fmt::decimal << (w * freq_delta) << "\t"; // THz
       ofs << jams::fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV
       // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-      ofs << jams::fmt::sci << barns_unitcell * sqw(k, w).real() << "\t";
-      ofs << jams::fmt::sci << barns_unitcell * sqw(k, w).imag() << "\t";
+      ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(k, w).real() << "\t";
+      ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(k, w).imag() << "\t";
       ofs << "\n";
     }
     ofs << std::endl;
@@ -246,12 +196,43 @@ void CudaNeutronScatteringNoLatticeMonitor::update(Solver *solver) {
   periodogram_index_++;
 
   if (is_multiple_of(periodogram_index_, periodogram_props_.length)) {
-
-
-//    shift_periodogram_overlap();
     total_periods_++;
 
+    output_spectrum();
 
-    output_fixed_spectrum();
+    shift_periodogram_overlap();
+
+
   }
+}
+
+void CudaNeutronScatteringNoLatticeMonitor::store_spin_data() {
+  auto t = periodogram_index_;
+
+  auto ptr_offset = t * globals::num_spins3;
+
+  cudaMemcpy(spin_timeseries_.device_data() + ptr_offset,
+             globals::s.device_data(),
+             globals::num_spins3*sizeof(double), cudaMemcpyDeviceToDevice);
+}
+
+void CudaNeutronScatteringNoLatticeMonitor::shift_periodogram_overlap() {
+  assert(periodogram_props_.overlap = periodogram_props_.length/2);
+
+//  cudaMemcpy(spin_timeseries_.device_data(),
+//             spin_timeseries_.device_data() + periodogram_props_.overlap,
+//             globals::num_spins3*sizeof(double)*periodogram_props_.overlap, cudaMemcpyDeviceToDevice);
+
+  // shift overlap data to the start of the range
+  for (auto t = 0; t < periodogram_props_.overlap; ++t) {
+    for (auto i = 0; i < spin_timeseries_.size(1); ++i) {
+      for (auto j = 0; j < spin_timeseries_.size(2); ++j) {
+        spin_timeseries_(t, i, j) = spin_timeseries_(
+            spin_timeseries_.size(0) - periodogram_props_.overlap + t, i, j);
+      }
+    }
+  }
+
+  // put the pointer to the overlap position
+  periodogram_index_ = periodogram_props_.overlap;
 }

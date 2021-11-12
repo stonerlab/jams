@@ -29,6 +29,7 @@ namespace globals {
   GLOBAL jams::MultiArray<double, 2> s;
   GLOBAL jams::MultiArray<double, 2> h;
   GLOBAL jams::MultiArray<double, 2> ds_dt;
+  GLOBAL jams::MultiArray<double, 2> positions;
 
   GLOBAL jams::MultiArray<double, 1> alpha;
   GLOBAL jams::MultiArray<double, 1> mus;

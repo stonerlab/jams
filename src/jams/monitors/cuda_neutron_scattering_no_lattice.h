@@ -26,7 +26,7 @@ private:
 
     void shift_periodogram_overlap();
 
-    void output_fixed_spectrum();
+    void output_spectrum();
 
     bool do_rspace_windowing_ = true;
     jams::MultiArray<Vec3, 1>   kspace_path_;
