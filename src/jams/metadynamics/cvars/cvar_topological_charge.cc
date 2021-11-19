@@ -35,7 +35,7 @@ jams::CVarTopologicalCharge::CVarTopologicalCharge(
 }
 
 double jams::CVarTopologicalCharge::value() {
-  return cached_value();
+  return cached_value(); //thats the topological_charge returned to caching ?
 }
 
 
@@ -165,12 +165,12 @@ double jams::CVarTopologicalCharge::total_topological_charge() const {
 
 
 double jams::CVarTopologicalCharge::calculate_expensive_value() {
-  return total_topological_charge();
+  return total_topological_charge(); // used in CachingCollectiveVariable
 }
 
 
 std::string jams::CVarTopologicalCharge::name() {
-  return name_;
+  return name_; //used in CollectiveVariable
 }
 
 
@@ -181,7 +181,7 @@ double jams::CVarTopologicalCharge::spin_move_trial_value(int i,
 
   set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
 
-  return trial_value;
+  return trial_value;  //Used in CollectiveVariable
 }
 
 

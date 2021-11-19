@@ -27,6 +27,8 @@
 //        range_min = -1.05;
 //        range_max = 0.05;
 //        range_step = 0.01;
+//        upper_bc = "MirrorBC";// not implemented yet; if non given HardBC will be used
+//        lower_bc = "Death"; Using the range min as threshold to stop the simulation.
 //      }
 //    );
 //  };

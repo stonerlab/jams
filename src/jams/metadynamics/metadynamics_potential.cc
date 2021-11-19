@@ -69,6 +69,8 @@ std::vector<double> linear_space(const double min,const double max,const double 
 //        range_min = -1.05;
 //        range_max = 0.05;
 //        range_step = 0.01;
+//        upper_boundary = MirrorBC; //if not specified will always be HardBC
+//        lower_boudary = "DeathBC; //the threshold to stop the simuation is the range_min
 //      },
 //      {
 //        name = "magnetisation";
@@ -100,9 +102,11 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
   cvars_.resize(num_cvars_);
   cvar_names_.resize(num_cvars_);
-  cvar_bcs_.resize(num_cvars_);
+  cvar_bcs_.resize(num_cvars_); // every CV can have one boundary condition ? I need to have 2 for the topological charge
   gaussian_width_.resize(num_cvars_);
   cvar_sample_points_.resize(num_cvars_);
+  cvar_range_min_.resize(num_cvars_);
+  cvar_range_max_.resize(num_cvars_);
 
   // Preset the num_samples in each dimension to 1. Then if we are only using
   // 1D our potential will be N x 1 (rather than N x 0!).
@@ -118,20 +122,38 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     gaussian_width_[i] = config_required<double>(cvar_settings, "gaussian_width");
 
     // Set the samples along this collective variable axis
+	//Todo: these need to be saved as  vector to access in the death boundary
     double range_step = config_required<double>(cvar_settings, "range_step");
     double range_min = config_required<double>(cvar_settings, "range_min");
     double range_max = config_required<double>(cvar_settings, "range_max");
     cvar_sample_points_[i] = linear_space(range_min, range_max, range_step);
+	cvar_range_max_[i] = range_max;
+	cvar_range_min_[i] = range_min;
     num_samples_[i] = cvar_sample_points_[i].size();
 
-    // Set the boundary conditions for this collective variable
+    // Set the lower and upper boundary conditions for this collective variable
     // TODO: need to implement this!
-    if (cvar_settings.exists("bcs")) {
-    } else {
-      cvar_bcs_[i] = PotentialBCs::HardBC;
-    }
-  }
 
+	if (cvar_settings.exists("bcs")) {
+	} else {
+	  cvar_bcs_[i] = PotentialBCs::HardBC;
+	}
+
+
+//    if (cvar_settings.exists("lower_bc") && lowercase(cvar_settings["lower_bc"]) == "death") { //When mirrorBC is implemented too, can just add another if statement
+//		lower_cvar_bc_[i] = PotentialBCs::DeathBC;
+//    } else {
+//      lower_cvar_bc_[i] = PotentialBCs::HardBC;
+//    }
+//	if (cvar_settings.exists("upper_bc") && lowercase(cvar_settings["upper_bc"]) == "death") { //When mirrorBC is implemented too, can just add another if statement
+//	  upper_cvar_bc_[i] = PotentialBCs::DeathBC;
+//	} else {
+//	  upper_cvar_bc_[i] = PotentialBCs::HardBC;
+//	}
+
+
+
+  }
   // TODO: need to fix bug for resizing with std::array to make this general for
   // kMaxDimensions
   potential_.resize(num_samples_[0], num_samples_[1]);
@@ -151,8 +173,14 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
   // needed due to a spin being accepted (usually related to caching).
   for (const auto& cvar : cvars_) {
     cvar->spin_move_accepted(i, spin_initial, spin_final);
-  }
+	std::cout << "cvar_name: " << cvar->name() << " cvar_value: " << cvar->value()<<std::endl;
+	}
+  if(death_bc_passed && death_boundary_check() ){
+     //TODO: write function to signal the solver to stop the simulation
+   }
 }
+
+
 
 
 double jams::MetadynamicsPotential::potential_difference(
@@ -322,6 +350,16 @@ void jams::MetadynamicsPotential::output() {
     }
     return;
   }
-
   assert(false); // Should not be reachable if num_cvars_ <= kMaxDimensions
+}
+
+bool jams::MetadynamicsPotential::death_boundary_check() {
+  for (auto i =0; i >num_cvars_; ++i){
+	if(lower_cvar_bc_[i] == PotentialBCs::DeathBC && cvars_[i]->value() <= cvar_range_min_[i]){
+	  return true;
+	} else if (upper_cvar_bc_[i]== PotentialBCs::DeathBC && cvars_[i]->value() >= cvar_range_max_[i]){
+	  return true;
+	}
+  }
+  return false;
 }
