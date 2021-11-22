@@ -202,6 +202,19 @@ inline T max_abs(const Mat<T,3,3>& a) {
   return max;
 }
 
+/// Returns rotation matrix which rotates by an angle theta around the given axis
+/// See: https://en.wikipedia.org/wiki/Rotation_matrix
+inline Mat3 rotation_matrix(const Vec3& axis, const double theta) {
+  // make sure we have a unit vector
+  const Vec3 u = unit_vector(axis);
+  const double c = cos(theta);
+  const double s = sin(theta);
+  return {
+    c + u[0]*u[0]*(1-c),       u[0]*u[1]*(1-c) - u[2]*s,  u[0]*u[2]*(1-c) + u[1]*s,
+    u[1]*u[0]*(1-c) + u[2]*s,  c + u[1]*u[1]*(1-c),       u[1]*u[2]*(1-c) - u[0]*s,
+    u[2]*u[0]*(1-c) - u[1]*s,  u[2]*u[1]*(1-c) + u[0]*s,  c + u[2]*u[2]*(1-c) };
+}
+
 // calculates a rotation matrix from Vec3 a to Vec3 b
 
 inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
