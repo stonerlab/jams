@@ -43,6 +43,11 @@ set(JAMS_SOURCES_CXX
         metadynamics/magnetisation_cv.cc
         metadynamics/mz_orthogonal_mz_cv.cc
         metadynamics/skyrmion_center_cv.cc
+        metadynamics/metadynamics_potential.cc
+        metadynamics/collective_variable.cc
+        metadynamics/caching_collective_variable.cc
+        metadynamics/cvars/cvar_magnetisation.cc
+        metadynamics/cvars/cvar_topological_charge.cc
         lattice/minimum_image.cc
         lattice/interaction_neartree.cc
         maths/functions.cc

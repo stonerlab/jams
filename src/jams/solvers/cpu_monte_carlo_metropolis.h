@@ -74,6 +74,7 @@ private:
     std::vector<int> moves_attempted_;
     std::vector<int> moves_accepted_;
     int output_write_steps_ = 1000;
+    bool select_spins_by_random_ = true;
 };
 
 #endif  // JAMS_SOLVER_METROPOLISMC_H

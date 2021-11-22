@@ -23,9 +23,11 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
   output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
+  select_spins_by_random_ = jams::config_optional<bool>(settings, "select_spins_by_random", select_spins_by_random_);
 
   cout << "    max_steps " << max_steps_ << "\n";
   cout << "    min_steps " << min_steps_ << "\n";
+  cout << "    select_spins_by_random " << std::boolalpha << select_spins_by_random_ << "\n";
 
   // Create a set of vectors which contain different types of Monte Carlo moves.
   // Each move can has a 'fraction' (weight) associated with it to allow some
@@ -76,8 +78,15 @@ void MetropolisMCSolver::run() {
 
 int MetropolisMCSolver::monte_carlo_step(const MoveFunction& trial_spin_move) {
   int moves_accepted = 0;
-  for (auto n = 0; n < globals::num_spins; ++n) {
-    moves_accepted += metropolis_algorithm(trial_spin_move, jams::montecarlo::random_spin_index());
+
+  if (select_spins_by_random_) {
+    for (auto n = 0; n < globals::num_spins; ++n) {
+      moves_accepted += metropolis_algorithm(trial_spin_move, jams::montecarlo::random_spin_index());
+    }
+  } else {
+    for (auto n = 0; n < globals::num_spins; ++n) {
+      moves_accepted += metropolis_algorithm(trial_spin_move, n);
+    }
   }
   return moves_accepted;
 }
