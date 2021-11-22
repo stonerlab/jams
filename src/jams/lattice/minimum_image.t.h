@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <jams/helpers/random.h>
 
 ///
 /// @test
@@ -71,34 +72,64 @@ TEST(LatticeMinimumImageTest, minimum_image_smith_method) {
 /// Testing this is difficult because it must already assume that our bruteforce
 /// method works correctly. Here we avoid assuming that the bruteforce automated
 /// selection of offset_depth is correct and compare with an explicit and large
-/// offset_depth. We use randomly generated cells and positions because this
-/// function should work for any possible cell and positions.
+/// offset_depth.
+///
+/// We use randomly generated cells and positions. To do this we construct
+/// a parallelepiped which can have minimum angles of 10 deg between vectors.
+/// This avoids random failures of the test when very collinear vectors are
+/// generated making the parallelepiped too skew to even bruteforce search
+/// effectively. Note that the random parallelepiped is still randomly oriented
+/// in a 3D space, i.e. we don't align 'a' along x.
 ///
 TEST(LatticeMinimumImageTest, minimum_image) {
     using namespace testing;
 
     std::random_device dev;
     std::mt19937 rng(dev());
-    std::uniform_real_distribution<double> dist;
+    std::uniform_real_distribution<double> angle_dist(deg_to_rad(10.0), deg_to_rad(90.0));
+    std::uniform_real_distribution<double> length_dist(1.0, 5.0);
+    std::uniform_real_distribution<double> pos_dist(1.0, 5.0);
 
     const double double_epsilon = 1e-6;
 
     Vec3b pbc = {true, true, true};
 
-    auto random_vector = [&](){
-        return Vec3 {dist(rng), dist(rng), dist(rng)};
-    };
-
     int num_test_cells = 20;
     int num_test_positions = 10;
 
     for (auto n = 0; n < num_test_cells; ++n) {
-        Vec3 a = random_vector();
-        Vec3 b = random_vector();
-        Vec3 c = random_vector();
+
+      // choose random angles
+      double alpha = angle_dist(rng); // angle between b and c
+      double beta  = angle_dist(rng); // angle between a and c
+      double gamma = angle_dist(rng); // angle between a and b
+
+        // choose random lengths for the cell
+        double u = length_dist(rng);
+        double v = length_dist(rng);
+        double w = length_dist(rng);
+
+        // choose a random vector for a
+        Vec3 a = uniform_random_sphere(rng);
+
+        // choose a random orientation for the a,b plane
+        Vec3 axis = cross(a, uniform_random_sphere(rng));
+
+        // rotate b from a by gamma around the random axis
+        Vec3 b = rotation_matrix(axis, gamma) * a;
+
+        // rotate c from a in the a,b plane by beta
+        // then rotate away from the a,b plane by alpha
+        Vec3 c = rotation_matrix(axis, beta) * a;
+        c = rotation_matrix(b, alpha) * c;
+
+        // assign random lengths
+        a = u * a;
+        b = v * b;
+        c = w * c;
 
         auto random_position = [&](){
-            return a * dist(rng) + b * dist(rng) + c * dist(rng);
+            return a * pos_dist(rng) + b * pos_dist(rng) + c * pos_dist(rng);
         };
 
         for (auto i = 0; i < num_test_positions; ++i) {
