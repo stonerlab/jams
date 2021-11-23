@@ -14,6 +14,7 @@
 #include "jams/monitors/smr.h"
 #include "jams/monitors/neutron_scattering.h"
 #include "jams/monitors/neutron_scattering_no_lattice.h"
+#include "jams/monitors/cuda_neutron_scattering_no_lattice.h"
 #include "jams/monitors/spectrum_fourier.h"
 #include "jams/monitors/spectrum_general.h"
 #include "jams/monitors/spin_correlation.h"
@@ -95,6 +96,7 @@ Monitor* Monitor::create(const Setting &settings) {
 #ifdef HAS_CUDA
   DEFINED_MONITOR("spin-current", CudaSpinCurrentMonitor, settings);
   DEFINED_MONITOR("thermal-current", CudaThermalCurrentMonitor, settings);
+  DEFINED_MONITOR("cuda-neutron-scattering-no-lattice", CudaNeutronScatteringNoLatticeMonitor, settings);
 #endif
 
   throw std::runtime_error("unknown monitor " + std::string(settings["module"].c_str()));

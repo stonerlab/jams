@@ -671,6 +671,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   globals::s.resize(globals::num_spins, 3);
   globals::ds_dt.resize(globals::num_spins, 3);
   globals::h.resize(globals::num_spins, 3);
+  globals::positions.resize(globals::num_spins, 3);
   globals::alpha.resize(globals::num_spins);
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
@@ -706,6 +707,10 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
     for (auto n = 0; n < 3; ++n) {
         globals::s(i, n) = spin[n];
+    }
+
+    for (auto n = 0; n < 3; ++n) {
+      globals::positions(i, n) = cartesian_positions_[i][n];
     }
   }
 
