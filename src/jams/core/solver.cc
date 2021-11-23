@@ -21,6 +21,7 @@
 #include "jams/solvers/null_solver.h"
 #include "jams/solvers/cuda_llg_heun.h"
 #include "jams/solvers/cuda_llg_rk4.h"
+#include "jams/solvers/cuda_metadynamics_llg_rk4.h"
 #include "jams/solvers/cuda_ll_lorentzian_rk4.h"
 #include "jams/solvers/cpu_llg_heun.h"
 #include "jams/solvers/cpu_rotations.h"
@@ -68,6 +69,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
 #if HAS_CUDA
   DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver);
   DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver);
+  DEFINED_SOLVER("llg-metadynamics-rk4-gpu", CUDAMetadynamicsLLGRK4Solver);
   DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver);
 #endif
 

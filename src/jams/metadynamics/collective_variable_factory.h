@@ -15,7 +15,9 @@ namespace jams {
     /// Factory class for producing CollectiveVariablePotential objects
     class CollectiveVariableFactory {
     public:
-        static CollectiveVariable* create(const libconfig::Setting& settings);
+        static jams::CollectiveVariable *
+        create(const libconfig::Setting &settings,
+               bool is_cuda_solver);
     };
 }
 #endif //INCLUDED_JAMS_METADYNAMICS_COLLECTIVE_VARIABLE_FACTORY

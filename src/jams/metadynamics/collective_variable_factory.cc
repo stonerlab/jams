@@ -8,6 +8,10 @@
 #include <jams/metadynamics/cvars/cvar_magnetisation.h>
 #include <jams/metadynamics/cvars/cvar_topological_charge.h>
 
+#ifdef HAS_CUDA
+#include <jams/metadynamics/cvars/cvar_magnetisation_cuda.h>
+#endif
+
 #include <stdexcept>
 
 #define DEFINED_METADYNAMICS_CVAR(name, type, settings) \
@@ -17,13 +21,31 @@
   } \
 }
 
+#ifdef HAS_CUDA
+#define CUDA_CVAR_VARIANT_NAME(type) type##Cuda
+#define DEFINED_METADYNAMICS_CVAR_CUDA_VARIANT(name, type, is_cuda_solver, settings) \
+  { \
+    if (lowercase(settings["name"]) == name) { \
+      if(is_cuda_solver) { \
+        return new CUDA_CVAR_VARIANT_NAME(type)(settings); \
+      } \
+      return new type(settings); \
+    } \
+  }
+#else
+#define DEFINED_METADYNAMICS_CVAR_CUDA_VARIANT(name, type, is_cuda_solver, settings) \
+  DEFINED_METADYNAMICS_CVAR(name, type, settings)
+#endif
+
 jams::CollectiveVariable *
-jams::CollectiveVariableFactory::create(const libconfig::Setting &settings) {
+jams::CollectiveVariableFactory::create(const libconfig::Setting &settings,
+                                        bool is_cuda_solver) {
 
   // New CollectiveVariablePotential derived classes should be added here
   // and the header included above.
-  DEFINED_METADYNAMICS_CVAR("magnetisation", CVarMagnetisation, settings);
   DEFINED_METADYNAMICS_CVAR("topological_charge", CVarTopologicalCharge, settings);
+
+  DEFINED_METADYNAMICS_CVAR_CUDA_VARIANT("magnetisation", CVarMagnetisation, is_cuda_solver, settings);
 
   throw std::runtime_error("unknown metadynamics collective variable: " + std::string(settings["collective_variable"].c_str()));
 }

@@ -279,7 +279,7 @@ namespace jams {
         }
 
         inline void zero() noexcept {
-          memset(data_.mutable_host_data(), 0, data_.memory());
+          data_.zero();
         }
 
         inline void fill(const value_type &value) {

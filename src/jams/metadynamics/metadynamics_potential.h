@@ -38,10 +38,16 @@ namespace jams {
         /// collective variable
         double current_potential();
 
+        const jams::MultiArray<double,2>& current_fields();
+
         /// Returns the value of the potential at the given coordinates using
         /// (bi)linear interpolation
         double potential(
             const std::array<double, kMaxDimensions>& cvar_coordinates);
+
+        double potential_derivative(
+            const std::array<double, kMaxDimensions>& cvar_coordinates);
+
 
         /// Calculate the difference in potential energy for the system when a
         /// single spin is changed from spin_initial to spin_final
@@ -52,6 +58,12 @@ namespace jams {
             int i, const Vec3 &spin_initial, const Vec3 &spin_final);
 
     private:
+        /// Returns the interpolated value at a given set of
+        /// cvar_coordinates on the sample_space
+        double interpolated_sample_value(
+            const MultiArray<double,kMaxDimensions>& sample_space,
+            const std::array<double, kMaxDimensions>& cvar_coordinates);
+
         const double kHardBCsPotential = 1e100; // a very large value in meV
 
         double              gaussian_amplitude_;
@@ -66,6 +78,9 @@ namespace jams {
 
         std::array<int,kMaxDimensions>    num_samples_;
         MultiArray<double,kMaxDimensions> potential_;
+        MultiArray<double,kMaxDimensions> potential_derivative_;
+
+        MultiArray<double,2>  potential_field_;
 
     };
 }

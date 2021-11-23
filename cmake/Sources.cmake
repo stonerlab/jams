@@ -102,6 +102,7 @@ set(JAMS_SOURCES_CUDA
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
         hamiltonian/cuda_zeeman.cu
+        metadynamics/cvars/cvar_magnetisation_cuda.cu
         monitors/cuda_spin_current.cc
         monitors/cuda_spin_current_kernel.cu
         monitors/cuda_thermal_current.cc
@@ -109,6 +110,7 @@ set(JAMS_SOURCES_CUDA
         solvers/cuda_llg_heun.cu
         solvers/cuda_llg_rk4.cu
         solvers/cuda_ll_lorentzian_rk4.cu
+        solvers/cuda_metadynamics_llg_rk4.cu
         thermostats/thm_bose_einstein_cuda_srk4.cu
         thermostats/thm_bose_einstein_cuda_srk4_kernel.cuh
         thermostats/cuda_lorentzian.cu
