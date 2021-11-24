@@ -23,6 +23,7 @@
 
 using Complex = std::complex<double>;
 
+//(*) where are these values used?
 namespace jams {
     struct PeriodogramProps {
         int length    = 1000;
