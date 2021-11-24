@@ -176,10 +176,12 @@ double ExchangeFunctionalHamiltonian::functional_gaussian_multi(const double rij
 }
 
 double ExchangeFunctionalHamiltonian::functional_random(const double rij, const double J0, const double rc, const double width){
-    std::uniform_real_distribution<> rand_potential(0.0, width * J0); //0.0 < width < 1.0 //rc is cutoff for the random potential
+    std::uniform_real_distribution<> rand_potential(-width * J0, width * J0); //-1.0 < width < 1.0
     std::mt19937 rand_src(12345); //seed=12345
-    if(rij < rc) {
-        return rand_potential(rand_src);
+    double rand = rand_potential(rand_src);
+    if(rij < r_out) {
+        std::cout << "random potential at r = " << rij << " is " << rand << << std::endl;
+        return J0 + rand;
     } else{
         return 0.0;
     }
