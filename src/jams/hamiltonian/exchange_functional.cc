@@ -1,5 +1,6 @@
 #include <functional>
 #include <fstream>
+#include <random>
 #include "jams/helpers/output.h"
 #include "jams/hamiltonian/exchange_functional.h"
 #include "jams/core/lattice.h"
