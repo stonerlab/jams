@@ -31,8 +31,6 @@ private:
     static double functional_random(const double rij, const double J0, const double r_out, const double width);
 
     pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
-    int seed = 12345; 
-    std::mt19937 rand_src_(seed);
     double radius_cutoff_;
 };
 
