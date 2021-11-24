@@ -8,7 +8,6 @@
 #include <random>
 
 #include "jams/helpers/random.h"
-#include "jblib/containers/array.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/core/interactions.h"
 #include "jams/containers/sparse_matrix.h"
