@@ -71,9 +71,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 //      cout << "n = " << n << ", kspace_path_(n) = " << k(n) << endl;
   }
 
-  if(settings.exists("random")){
-      std::mt19937 rand_src(12345); //seed=12345
-  }
+  std::mt19937 rand_src(12345); //seed=12345
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     nbrs.clear();
