@@ -4,6 +4,7 @@
 #include <functional>
 
 #include <libconfig.h++>
+#include <pcg/pcg_random.hpp>
 
 #include "jams/core/hamiltonian.h"
 #include "jams/core/interactions.h"
