@@ -180,7 +180,7 @@ double ExchangeFunctionalHamiltonian::functional_random(const double rij, const 
     std::mt19937 rand_src(12345); //seed=12345
     double rand = rand_potential(rand_src);
     if(rij < r_out) {
-        std::cout << "random potential at r = " << rij << " is " << rand << std::endl;
+        std::cout << "random potential at r = " << jams::fmt::decimal << rij << " is " << jams::fmt::sci << rand << std::endl;
         return J0 + rand;
     } else{
         return 0.0;
