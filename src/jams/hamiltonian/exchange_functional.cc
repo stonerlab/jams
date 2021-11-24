@@ -175,7 +175,7 @@ double ExchangeFunctionalHamiltonian::functional_gaussian_multi(const double rij
     return J0 * exp(-pow2(rij - r0)/(2 * pow2(sigma))) + J0_2 * exp(-pow2(rij - r0_2)/(2 * pow2(sigma_2))) + J0_3 * exp(-pow2(rij - r0_3)/(2 * pow2(sigma_3)));
 }
 
-double ExchangeFunctionalHamiltonian::functional_random(const double rij, const double J0, const double rc, const double width){
+double ExchangeFunctionalHamiltonian::functional_random(const double rij, const double J0, const double r_out, const double width){
     std::uniform_real_distribution<> rand_potential(-width * J0, width * J0); //-1.0 < width < 1.0
     std::mt19937 rand_src(12345); //seed=12345
     double rand = rand_potential(rand_src);
@@ -207,7 +207,7 @@ ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting
   } else if (functional_name == "step") {
       return bind(functional_step, _1, double(settings["J0"]), double(settings["r_out"]));
   } else if (functional_name == "random") {
-      return bind(functional_random, _1, double(settings["J0"]), double(settings["rc"]), double(settings["width"]));
+      return bind(functional_random, _1, double(settings["J0"]), double(settings["r_out"]), double(settings["width"]));
   } else {
     throw runtime_error("unknown exchange functional: " + functional_name);
   }
