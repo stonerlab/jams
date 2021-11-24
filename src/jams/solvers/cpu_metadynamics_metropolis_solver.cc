@@ -100,3 +100,7 @@ MetropolisMCSolver::accept_move(spin_index, initial_spin, final_spin);
 // spin has changed and what the new value is
 metad_potential_->spin_update(spin_index, initial_spin, final_spin);
 }
+
+bool MetadynamicsMetropolisSolver::is_running() {
+  return Solver::is_running() && !metad_potential_->stop_signal();
+}

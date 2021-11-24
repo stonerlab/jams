@@ -188,6 +188,7 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
 	std::cout << "cvar_name: " << cvar->name() << " cvar_value: " << cvar->value()<<std::endl;
 	}
   if(death_bc_passed && death_boundary_check()){
+    death_bc_triggered_ = true;
      //TODO: write function to signal the solver to stop the simulation
 	 std::cout<< "death_bc_passed && death_boundary_check is runed" << std::endl;
    }
@@ -400,4 +401,8 @@ bool jams::MetadynamicsPotential::death_boundary_check() {
 	}
   }
   return false;
+}
+
+bool jams::MetadynamicsPotential::stop_signal() {
+  return death_bc_triggered_;
 }

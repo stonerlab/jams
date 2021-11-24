@@ -53,6 +53,11 @@ namespace jams {
         void spin_update(
             int i, const Vec3 &spin_initial, const Vec3 &spin_final);
 
+
+        /// Returns true if the potential is signalling to the solver to stop
+        /// for example due to a boundary condition
+        bool stop_signal();
+
     private:
         const double kHardBCsPotential = 1e100; // a very large value in meV
 		bool death_boundary_check();
@@ -60,7 +65,7 @@ namespace jams {
         double              gaussian_amplitude_;
         std::vector<double> gaussian_width_;
 		bool death_bc_passed = false; //when it's passed from the config, will allow checking when the skyrmion is annihilated
-		bool death_bc_ = false; //if death_bc_passed = true , check for a value of topological charge to stop the simulation
+		bool death_bc_triggered_ = false; //if death_bc_passed = true , check for a value of topological charge to stop the simulation
 		                       // -> at the spin_update (to begin with) and sent a signal to solver to die
 
         int                                              num_cvars_;
