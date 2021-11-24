@@ -103,6 +103,8 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   cvars_.resize(num_cvars_);
   cvar_names_.resize(num_cvars_);
   cvar_bcs_.resize(num_cvars_); // every CV can have one boundary condition ? I need to have 2 for the topological charge
+  lower_cvar_bc_.resize(num_cvars_);
+  upper_cvar_bc_.resize(num_cvars_);
   gaussian_width_.resize(num_cvars_);
   cvar_sample_points_.resize(num_cvars_);
   cvar_range_min_.resize(num_cvars_);
@@ -134,9 +136,20 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     // Set the lower and upper boundary conditions for this collective variable
     // TODO: need to implement this!
 
-	if (cvar_settings.exists("bcs")) {
+//	if (cvar_settings.exists("bcs")) {
+//	} else {
+//	  cvar_bcs_[i] = PotentialBCs::HardBC;
+//	}
+	if (cvar_settings.exists("lower_bcs")) {
+	   //if it exists pass it here.
 	} else {
-	  cvar_bcs_[i] = PotentialBCs::HardBC;
+	  lower_cvar_bc_[i] = PotentialBCs::HardBC;
+	}
+
+	if (cvar_settings.exists("upper_bcs")) {
+	  //if it exist pass it here
+	} else {
+	  upper_cvar_bc_[i] = PotentialBCs::HardBC;
 	}
 
 
@@ -166,7 +179,6 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   cvar_file_ << std::endl;
 }
 
-
 void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
                                               const Vec3 &spin_final) {
   // Signal to the CollectiveVariables that they should do any internal work
@@ -175,8 +187,9 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
     cvar->spin_move_accepted(i, spin_initial, spin_final);
 	std::cout << "cvar_name: " << cvar->name() << " cvar_value: " << cvar->value()<<std::endl;
 	}
-  if(death_bc_passed && death_boundary_check() ){
+  if(death_bc_passed && death_boundary_check()){
      //TODO: write function to signal the solver to stop the simulation
+	 std::cout<< "death_bc_passed && death_boundary_check is runed" << std::endl;
    }
 }
 
@@ -194,17 +207,30 @@ double jams::MetadynamicsPotential::potential_difference(
     cvar_trial[n] = cvars_[n]->spin_move_trial_value(i, spin_initial, spin_final);
   }
 
+//  for (auto n = 0; n < num_cvars_; ++n) {
+//    if (cvar_bcs_[n] == PotentialBCs::HardBC) { //if lower or upper == HardBc then bla bla
+//      if (cvar_initial[n] < cvar_sample_points_[n].front()
+//          || cvar_initial[n] > cvar_sample_points_[n].back()) {
+//        return -kHardBCsPotential;
+//      }
+//      if (cvar_trial[n] < cvar_sample_points_[n].front()
+//          || cvar_trial[n] > cvar_sample_points_[n].back()) {
+//        return kHardBCsPotential;
+//      }
+//    }
+//  }
   for (auto n = 0; n < num_cvars_; ++n) {
-    if (cvar_bcs_[n] == PotentialBCs::HardBC) {
-      if (cvar_initial[n] < cvar_sample_points_[n].front()
-          || cvar_initial[n] > cvar_sample_points_[n].back()) {
-        return -kHardBCsPotential;
-      }
-      if (cvar_trial[n] < cvar_sample_points_[n].front()
-          || cvar_trial[n] > cvar_sample_points_[n].back()) {
-        return kHardBCsPotential;
-      }
-    }
+	if (lower_cvar_bc_[n] == PotentialBCs::HardBC ||upper_cvar_bc_[n] == PotentialBCs::HardBC
+	         ||lower_cvar_bc_[n] == PotentialBCs::DeathBC ||upper_cvar_bc_[n] == PotentialBCs::DeathBC ) { //if lower or upper == HardBc then bla bla
+	  if (cvar_initial[n] < cvar_sample_points_[n].front()
+		  || cvar_initial[n] > cvar_sample_points_[n].back()) {
+		return -kHardBCsPotential;
+	  }
+	  if (cvar_trial[n] < cvar_sample_points_[n].front()
+		  || cvar_trial[n] > cvar_sample_points_[n].back()) {
+		return kHardBCsPotential;
+	  }
+	}
   }
 
   return potential(cvar_trial) - potential(cvar_initial);
@@ -225,13 +251,21 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
   // Apply any hard boundary conditions where the potential is set very large
   // if we are outside of the collective variable's range.
   for (auto n = 0; n < num_cvars_; ++n) {
-    if (cvar_bcs_[n] == PotentialBCs::HardBC) {
-      if (cvar_coordinates[n] < cvar_sample_points_[n].front()
-          || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
-        bcs_potential = kHardBCsPotential;
-      }
-    }
+//    if (cvar_bcs_[n] == PotentialBCs::HardBC) {
+//      if (cvar_coordinates[n] < cvar_sample_points_[n].front()
+//          || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+//        bcs_potential = kHardBCsPotential;
+//      }
+//    }
+	if (lower_cvar_bc_[n] == PotentialBCs::HardBC ||upper_cvar_bc_[n] == PotentialBCs::HardBC
+		||lower_cvar_bc_[n] == PotentialBCs::DeathBC ||upper_cvar_bc_[n] == PotentialBCs::DeathBC) {
+	  if (cvar_coordinates[n] < cvar_sample_points_[n].front()
+		  || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+		bcs_potential = kHardBCsPotential;
+	  }
+	}
   }
+
 
   for (auto n = 0; n < num_cvars_; ++n) {
     auto lower = std::lower_bound(
@@ -354,7 +388,11 @@ void jams::MetadynamicsPotential::output() {
 }
 
 bool jams::MetadynamicsPotential::death_boundary_check() {
+  //This function is used as a parameter in if_statements and if true, they sent a signal to exit the simulation
+  //loop through all the collective variables and find if the death conditions are met
+  //if they are met return "true"
   for (auto i =0; i >num_cvars_; ++i){
+	//The min and max ranges are the death threshold values
 	if(lower_cvar_bc_[i] == PotentialBCs::DeathBC && cvars_[i]->value() <= cvar_range_min_[i]){
 	  return true;
 	} else if (upper_cvar_bc_[i]== PotentialBCs::DeathBC && cvars_[i]->value() >= cvar_range_max_[i]){
