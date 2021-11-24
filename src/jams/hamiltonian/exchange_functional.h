@@ -4,7 +4,7 @@
 #include <functional>
 
 #include <libconfig.h++>
-#include <unordered_map>
+#include <pcg_random.hpp>
 #include <random>
 
 #include "jams/helpers/random.h"
