@@ -177,9 +177,9 @@ double ExchangeFunctionalHamiltonian::functional_gaussian_multi(const double rij
 
 double ExchangeFunctionalHamiltonian::functional_random(const double rij, const double J0, const double r_out, const double width){
     std::uniform_real_distribution<> rand_potential(-width * J0, width * J0); //-1.0 < width < 1.0
-    double rand = rand_potential(rand_src_);
+    double rand = rand_potential(random_generator_);
     if(rij < r_out) {
-        std::cout << "random potential at r = " << jams::fmt::decimal << rij << " is " << jams::fmt::sci << rand << std::endl;
+        std::cout << "random potential at r = " << rij << " is " << jams::fmt::sci << rand << std::endl;
         return J0 + rand;
     } else{
         return 0.0;

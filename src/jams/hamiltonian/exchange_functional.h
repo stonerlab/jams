@@ -27,7 +27,7 @@ private:
     static double functional_step(double rij, double J0, double r_out);
     static double functional_random(const double rij, const double J0, const double r_out, const double width);
 
-    std::mt19937 rand_src_(12345); //seed=12345
+    pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
 
     double radius_cutoff_;
 };
