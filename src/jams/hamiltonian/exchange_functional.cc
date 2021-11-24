@@ -70,7 +70,11 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       k(n) = kvector * n * (kmax / num_k);
 //      cout << "n = " << n << ", kspace_path_(n) = " << k(n) << endl;
   }
-  // --- for crystal limit spectrum ---
+
+  if(settings.exists("random")){
+      std::mt19937 rand_src(12345); //seed=12345
+  }
+
   for (auto i = 0; i < globals::num_spins; ++i) {
     nbrs.clear();
     ::lattice->atom_neighbours(i, radius_cutoff_, nbrs);
@@ -85,13 +89,23 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
         cout << "central coordinate 2 = ( " << rspace_displacement2_(central_site_indx) << " )" << endl;
     }
 
-    for (const auto& nbr : nbrs) {
+    if(settings.exists("random")){
+    std::uniform_real_distribution<> rand_potential(-width, width);
+    double rand = rand_potential(rand_src);
+    }
+
+      for (const auto& nbr : nbrs) {
       const auto j = nbr.id;
       if (i == j) {
         continue;
       }
+
       const auto rij = norm(::lattice->displacement(i, j));
-      this->insert_interaction_scalar(i, j, input_unit_conversion_ * exchange_functional(rij));
+      if(settings.exists("random")){
+          this->insert_interaction_scalar(i, j, input_unit_conversion_ * (exchange_functional(rij) * (1 + rand)));
+      } else{
+          this->insert_interaction_scalar(i, j, input_unit_conversion_ * exchange_functional(rij));
+      }
       counter++;
       // --- for crystal limit spectrum ---
       if(rij < rij_max && rij > rij_min){
@@ -127,9 +141,6 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   cout << "  average interactions per spin (kr != 0) " << jams::fmt::decimal << counter2 / double(globals::num_spins)/num_k << "\n";
   // --- for crystal limit spectrum ---
   for (auto m = 0; m < spectrum_crystal_limit.size(); m++) {
-//      cout << "  spectrum_crystal_limit (" << m << ") = " << spectrum_crystal_limit[m] << "\n";
-//      cout << "  real (" << m << ") = " << spectrum_crystal_limit[m].real() << "\n";
-//      cout << "  imag (" << m << ") = " << spectrum_crystal_limit[m].imag() << "\n";
       outfile3 << std::setw(20) << k(m)[0] << "\t";
       outfile3 << std::setw(20) << k(m)[1] << "\t";
       outfile3 << std::setw(20) << k(m)[2] << "\t";
@@ -176,18 +187,6 @@ double ExchangeFunctionalHamiltonian::functional_gaussian_multi(const double rij
     return J0 * exp(-pow2(rij - r0)/(2 * pow2(sigma))) + J0_2 * exp(-pow2(rij - r0_2)/(2 * pow2(sigma_2))) + J0_3 * exp(-pow2(rij - r0_3)/(2 * pow2(sigma_3)));
 }
 
-double ExchangeFunctionalHamiltonian::functional_random(const double rij, const double J0, const double r_out, const double width){
-    std::mt19937 rand_src(rij); //seed=rij
-    std::uniform_real_distribution<> rand_potential(-width, width);
-    double rand = rand_potential(rand_src);
-    if(rij < r_out) {
-        std::cout << "random potential at r = " << rij << " is " << jams::fmt::sci << rand << std::endl;
-        return J0 * (1 + rand);
-    } else{
-        return 0.0;
-    }
-}
-
 ExchangeFunctionalHamiltonian::ExchangeFunctional
 ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting &settings) {
   using namespace std::placeholders;
@@ -207,8 +206,6 @@ ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting
       return bind(functional_kaneyoshi, _1, double(settings["J0"]), double(settings["r0"]), double(settings["sigma"]));
   } else if (functional_name == "step") {
       return bind(functional_step, _1, double(settings["J0"]), double(settings["r_out"]));
-  } else if (functional_name == "random") {
-      return bind(functional_random, _1, double(settings["J0"]), double(settings["r_out"]), double(settings["width"]));
   } else {
     throw runtime_error("unknown exchange functional: " + functional_name);
   }

@@ -28,9 +28,7 @@ private:
     static double functional_gaussian_multi(double rij, double J0, double r0, double lengthscale, double J0_2, double r0_2, double lengthscale_2, double J0_3, double r0_3, double lengthscale_3);
     static double functional_kaneyoshi(double rij, double J0, double r0, double lengthscale);
     static double functional_step(double rij, double J0, double r_out);
-    static double functional_random(const double rij, const double J0, const double r_out, const double width);
 
-    pcg32_k1024 random_generator_ = pcg_extras::seed_seq_from<pcg32>(jams::random_generator());
     double radius_cutoff_;
 };
 
