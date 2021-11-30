@@ -153,7 +153,8 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 	}
 	if(upper_cvar_bc_[i] == PotentialBCs::DeathBC || lower_cvar_bc_[i] == PotentialBCs::DeathBC) {
 	  lower_death_boundary_ = jams::config_optional<double>(cvar_settings,"lower_death_boundary",static_cast<const double>(cvar_range_min_[i]));
-	  upper_death_boundary_ = jams::config_required<double>(cvar_settings,"upper_death_boundary");
+	  upper_death_boundary_ = jams::config_optional(cvar_settings,"upper_death_boundary",static_cast<const double>(cvar_range_max_[i]));
+	  std::cout<<"Upper Boundary: " << upper_death_boundary_ << "\n";
 	}
   }
   // TODO: need to fix bug for resizing with std::array to make this general for
@@ -206,8 +207,9 @@ double jams::MetadynamicsPotential::potential_difference(
 //    }
 //  }
   for (auto n = 0; n < num_cvars_; ++n) {
-	if (lower_cvar_bc_[n] == PotentialBCs::HardBC ||upper_cvar_bc_[n] == PotentialBCs::HardBC
-	         ||lower_cvar_bc_[n] == PotentialBCs::DeathBC ||upper_cvar_bc_[n] == PotentialBCs::DeathBC ) { //if lower or upper == HardBc then bla bla
+	//TODO:For the sake of moving on
+//	if (lower_cvar_bc_[n] == PotentialBCs::HardBC ||upper_cvar_bc_[n] == PotentialBCs::HardBC
+//	         ||lower_cvar_bc_[n] == PotentialBCs::DeathBC ||upper_cvar_bc_[n] == PotentialBCs::DeathBC ) { //if lower or upper == HardBc then bla bla
 	  if (cvar_initial[n] < cvar_sample_points_[n].front()
 		  || cvar_initial[n] > cvar_sample_points_[n].back()) {
 		return -kHardBCsPotential;
@@ -216,7 +218,7 @@ double jams::MetadynamicsPotential::potential_difference(
 		  || cvar_trial[n] > cvar_sample_points_[n].back()) {
 		return kHardBCsPotential;
 	  }
-	}
+//	}
   }
 
   return potential(cvar_trial) - potential(cvar_initial);
@@ -243,13 +245,15 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 //        bcs_potential = kHardBCsPotential;
 //      }
 //    }
-	if (lower_cvar_bc_[n] == PotentialBCs::HardBC ||upper_cvar_bc_[n] == PotentialBCs::HardBC
-		||lower_cvar_bc_[n] == PotentialBCs::DeathBC ||upper_cvar_bc_[n] == PotentialBCs::DeathBC) {
+//TODO: for the sake of moving on
+
+//	if (lower_cvar_bc_[n] == PotentialBCs::HardBC ||upper_cvar_bc_[n] == PotentialBCs::HardBC
+//		||lower_cvar_bc_[n] == PotentialBCs::DeathBC ||upper_cvar_bc_[n] == PotentialBCs::DeathBC) {
 	  if (cvar_coordinates[n] < cvar_sample_points_[n].front()
 		  || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
 		bcs_potential = kHardBCsPotential;
 	  }
-	}
+//	}
   }
 
 
@@ -380,7 +384,8 @@ bool jams::MetadynamicsPotential::death_boundary_check() {
 	//The min and max ranges are the death threshold values
 	if(lower_cvar_bc_[i] == PotentialBCs::DeathBC && cvars_[i]->value() <= lower_death_boundary_){
 	  return true;
-	} else if (upper_cvar_bc_[i]== PotentialBCs::DeathBC && cvars_[i]->value() >= upper_death_boundary_){
+	} else if (upper_cvar_bc_[i]== PotentialBCs::DeathBC && cvars_[i]->value() > upper_death_boundary_){
+	  std::cout<<"Topological Charge: "<<cvars_[i]->value()<<" Death_boundary: " << upper_death_boundary_ << "\n";
 	  return true;
 	}
   }
