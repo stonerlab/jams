@@ -64,11 +64,13 @@ namespace jams {
 
         double              gaussian_amplitude_;
         std::vector<double> gaussian_width_;
+		double              lower_death_boundary_;
+		double              upper_death_boundary_;
 		bool death_bc_passed = false; //when it's passed from the config, will allow checking when the skyrmion is annihilated
 		bool death_bc_triggered_ = false; //if death_bc_passed = true , check for a value of topological charge to stop the simulation
 		                       // -> at the spin_update (to begin with) and sent a signal to solver to die
 
-        int                                              num_cvars_;
+        int                                              num_cvars_; //used to resize all the other vectors
         std::vector<std::unique_ptr<CollectiveVariable>> cvars_;
         std::vector<std::string>                         cvar_names_;
         std::vector<PotentialBCs>                        cvar_bcs_;

@@ -102,7 +102,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
   cvars_.resize(num_cvars_);
   cvar_names_.resize(num_cvars_);
-  cvar_bcs_.resize(num_cvars_); // every CV can have one boundary condition ? I need to have 2 for the topological charge
+  cvar_bcs_.resize(num_cvars_);
   lower_cvar_bc_.resize(num_cvars_);
   upper_cvar_bc_.resize(num_cvars_);
   gaussian_width_.resize(num_cvars_);
@@ -117,7 +117,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   for (auto i = 0; i < num_cvars_; ++i) {
     // Construct the collective variables from the factor and store pointers
     const auto& cvar_settings = settings["collective_variables"][i];
-    cvars_[i].reset(CollectiveVariableFactory::create(cvar_settings));
+    cvars_[i].reset(CollectiveVariableFactory::create(cvar_settings)); // TODO: I though I replaced it
     cvar_names_[i] = cvars_[i]->name();
 
     // Set the gaussian width for this collective variable
@@ -134,38 +134,27 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     num_samples_[i] = cvar_sample_points_[i].size();
 
     // Set the lower and upper boundary conditions for this collective variable
-    // TODO: need to implement this!
+	//TODO: Once the mirror boundaries are applied need to generalase these if statements
 
-//	if (cvar_settings.exists("bcs")) {
-//	} else {
-//	  cvar_bcs_[i] = PotentialBCs::HardBC;
-//	}
-	if (cvar_settings.exists("lower_bcs")) {
-	   //if it exists pass it here.
+
+	if (cvar_settings.exists("lower_boundary")) {
+	  lower_cvar_bc_[i] = PotentialBCs::DeathBC;
+	  std::cout<< "LOWER DEATH BOUNDARY SELECTED" << std::endl;
 	} else {
 	  lower_cvar_bc_[i] = PotentialBCs::HardBC;
 	}
 
-	if (cvar_settings.exists("upper_bcs")) {
-	  //if it exist pass it here
+
+	if (cvar_settings.exists("upper_boundary")) {
+	  upper_cvar_bc_[i] = PotentialBCs::DeathBC;
+	  std::cout<< "UPPER DEATH BOUNDARY SELECTED" << std::endl;
 	} else {
 	  upper_cvar_bc_[i] = PotentialBCs::HardBC;
 	}
-
-
-//    if (cvar_settings.exists("lower_bc") && lowercase(cvar_settings["lower_bc"]) == "death") { //When mirrorBC is implemented too, can just add another if statement
-//		lower_cvar_bc_[i] = PotentialBCs::DeathBC;
-//    } else {
-//      lower_cvar_bc_[i] = PotentialBCs::HardBC;
-//    }
-//	if (cvar_settings.exists("upper_bc") && lowercase(cvar_settings["upper_bc"]) == "death") { //When mirrorBC is implemented too, can just add another if statement
-//	  upper_cvar_bc_[i] = PotentialBCs::DeathBC;
-//	} else {
-//	  upper_cvar_bc_[i] = PotentialBCs::HardBC;
-//	}
-
-
-
+	if(upper_cvar_bc_[i] == PotentialBCs::DeathBC || lower_cvar_bc_[i] == PotentialBCs::DeathBC) {
+	  lower_death_boundary_ = jams::config_optional<double>(cvar_settings,"lower_death_boundary",static_cast<const double>(cvar_range_min_[i]));
+	  upper_death_boundary_ = jams::config_required<double>(cvar_settings,"upper_death_boundary");
+	}
   }
   // TODO: need to fix bug for resizing with std::array to make this general for
   // kMaxDimensions
@@ -184,17 +173,13 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
   // Signal to the CollectiveVariables that they should do any internal work
   // needed due to a spin being accepted (usually related to caching).
   for (const auto& cvar : cvars_) {
-    cvar->spin_move_accepted(i, spin_initial, spin_final);
-	std::cout << "cvar_name: " << cvar->name() << " cvar_value: " << cvar->value()<<std::endl;
+	if(solver->iteration()>1000 &&  death_boundary_check()){ //if i dont include the iteration check, the simulation ends before the skyrmion is thermalised
+	  std::cout<< "*** The Solver is now Signaled" << std::endl;
+	  death_bc_triggered_ = true;
 	}
-  if(death_bc_passed && death_boundary_check()){
-    death_bc_triggered_ = true;
-     //TODO: write function to signal the solver to stop the simulation
-	 std::cout<< "death_bc_passed && death_boundary_check is runed" << std::endl;
-   }
+    cvar->spin_move_accepted(i, spin_initial, spin_final);
+	}
 }
-
-
 
 
 double jams::MetadynamicsPotential::potential_difference(
@@ -315,7 +300,7 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
   }
 
   assert(false);
-  return 0.0;
+  //return 0.0;
 }
 
 void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitude) {
@@ -360,7 +345,6 @@ double jams::MetadynamicsPotential::current_potential() {
   return potential(coordinates);
 }
 
-
 void jams::MetadynamicsPotential::output() {
   std::ofstream of(jams::output::full_path_filename("metad_potential.tsv"));
 
@@ -392,11 +376,11 @@ bool jams::MetadynamicsPotential::death_boundary_check() {
   //This function is used as a parameter in if_statements and if true, they sent a signal to exit the simulation
   //loop through all the collective variables and find if the death conditions are met
   //if they are met return "true"
-  for (auto i =0; i >num_cvars_; ++i){
+  for (auto i =0; i < num_cvars_; ++i){
 	//The min and max ranges are the death threshold values
-	if(lower_cvar_bc_[i] == PotentialBCs::DeathBC && cvars_[i]->value() <= cvar_range_min_[i]){
+	if(lower_cvar_bc_[i] == PotentialBCs::DeathBC && cvars_[i]->value() <= lower_death_boundary_){
 	  return true;
-	} else if (upper_cvar_bc_[i]== PotentialBCs::DeathBC && cvars_[i]->value() >= cvar_range_max_[i]){
+	} else if (upper_cvar_bc_[i]== PotentialBCs::DeathBC && cvars_[i]->value() >= upper_death_boundary_){
 	  return true;
 	}
   }
