@@ -58,7 +58,7 @@ if (JAMS_BUILD_IN_DEPENDENCIES)
     set(JAMS_PCG_VERSION v0.98.1)       # https://github.com/imneme/pcg-cpp
 endif()
 
-set(JAMS_GTEST_VERSION master)      # https://github.com/google/googletest.git
+set(JAMS_GTEST_VERSION main)      # https://github.com/google/googletest.git
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
