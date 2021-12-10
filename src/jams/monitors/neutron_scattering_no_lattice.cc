@@ -18,7 +18,11 @@ using namespace jams;
 using namespace libconfig;
 
 NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
-: Monitor(settings) {
+: Monitor(settings),
+ neartree_(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), lattice->max_interaction_radius(), jams::defaults::lattice_tolerance)
+{
+
+  neartree_.insert_sites(lattice->atom_cartesian_positions());
 
   configure_kspace_vectors(settings);
 
@@ -41,6 +45,10 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 
   periodogram_props_.sample_time = output_step_freq_ * solver->time_step();
 
+
+  zero(spin_timeseries_.resize(globals::num_spins, 3, periodogram_props_.length));
+  zero(spin_frequencies_.resize(globals::num_spins, 3, periodogram_props_.length));
+
   zero(kspace_spins_timeseries_.resize(periodogram_props_.length, kspace_path_.size()));
   zero(total_unpolarized_neutron_cross_section_.resize(
       periodogram_props_.length, kspace_path_.size()));
@@ -50,25 +58,27 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 
 void NeutronScatteringNoLatticeMonitor::update(Solver *solver) {
   store_kspace_data_on_path();
+  store_spin_data();
   periodogram_index_++;
 
   if (is_multiple_of(periodogram_index_, periodogram_props_.length)) {
 
-    auto spectrum = periodogram();
+//    auto spectrum = periodogram();
 
     shift_periodogram_overlap();
     total_periods_++;
+//
+//    element_sum(total_unpolarized_neutron_cross_section_, calculate_unpolarized_cross_section(spectrum));
+//
+//    if (!neutron_polarizations_.empty()) {
+//      element_sum(total_polarized_neutron_cross_sections_,
+//                  calculate_polarized_cross_sections(spectrum, neutron_polarizations_));
+//    }
 
-    element_sum(total_unpolarized_neutron_cross_section_, calculate_unpolarized_cross_section(spectrum));
 
-    if (!neutron_polarizations_.empty()) {
-      element_sum(total_polarized_neutron_cross_sections_,
-                  calculate_polarized_cross_sections(spectrum, neutron_polarizations_));
-    }
-
-
-    output_neutron_cross_section();
-    output_static_structure_factor();
+    output_fixed_spectrum();
+//    output_neutron_cross_section();
+//    output_static_structure_factor();
   }
 }
 
@@ -182,7 +192,7 @@ jams::MultiArray<Vec3cx,2> NeutronScatteringNoLatticeMonitor::periodogram() {
 
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_kspace_samples; ++j) {
-      spectrum(i, j) = fft_window_blackman_4(i, num_time_samples) *
+      spectrum(i, j) = fft_window_default(i, num_time_samples) *
           (spectrum(i, j) - static_spectrum(j));
     }
   }
@@ -277,6 +287,7 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
     ofs.close();
 }
 
+
 void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
   auto i = periodogram_index_;
 
@@ -355,4 +366,171 @@ jams::MultiArray<Vec3cx,1> NeutronScatteringNoLatticeMonitor::calculate_static_s
     }
   }
   return static_structure_factor;
+}
+
+
+void NeutronScatteringNoLatticeMonitor::store_spin_data() {
+  auto t = periodogram_index_;
+
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      spin_timeseries_(i,j,t) = globals::s(i,j);
+    }
+  }
+
+}
+
+void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
+  // Do temporal fourier transform of spin data
+
+  const int num_time_samples = periodogram_props_.length;
+
+  int rank = 1;
+  int transform_size[1] = {num_time_samples};
+  int num_transforms = globals::num_spins3;
+  int nembed[1] = {num_time_samples};
+  int stride = 1;
+  int dist = num_time_samples;
+
+  fftw_plan fft_plan = fftw_plan_many_dft(rank, transform_size, num_transforms,
+                                          FFTW_COMPLEX_CAST(
+                                              spin_frequencies_.data()),
+                                          nembed, stride, dist,
+                                          FFTW_COMPLEX_CAST(
+                                              spin_frequencies_.data()),
+                                          nembed, stride, dist,
+                                          FFTW_BACKWARD, FFTW_ESTIMATE);
+
+  assert(fft_plan);
+
+  MultiArray<double, 2> spin_averages(globals::num_spins, 3);
+  zero(spin_averages);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      for (auto t = 0; t < num_time_samples; ++t) {
+        spin_averages(i, j) += spin_timeseries_(i, j, t);
+      }
+    }
+  }
+  element_scale(spin_averages, 1.0/double(num_time_samples));
+
+
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      for (auto t = 0; t < num_time_samples; ++t) {
+        spin_frequencies_(i, j, t) = fft_window_default(t, num_time_samples) * (spin_timeseries_(i, j, t) - spin_averages(i,j));
+      }
+    }
+  }
+
+
+
+
+  fftw_execute(fft_plan);
+
+  std::ofstream debug(jams::output::full_path_filename("debug.tsv"));
+  for (auto t = 0; t < num_time_samples; ++t) {
+    debug << t << " " << spin_frequencies_(0, 0, t).real() << " " << spin_frequencies_(0, 0, t).imag() << " " << spin_frequencies_(0, 1, t).real() << " " << spin_frequencies_(0, 1, t).imag() << std::endl;
+  }
+  debug.close();
+
+
+  element_scale(spin_frequencies_, 1.0 / double(num_time_samples));
+
+  // Do S(Q,w) = sum_i sum_j exp(-iQ.R_i) exp(iQ.R_j) conj(S_i^a(w)) S_j^b(w)
+
+  jams::MultiArray<std::complex<double>, 2> sqw(kspace_path_.size(),
+                                                num_time_samples / 2 + 1);
+
+  jams::MultiArray<std::complex<double>, 1> sw_i(num_time_samples / 2 + 1);
+  jams::MultiArray<std::complex<double>, 1> sw_j(num_time_samples / 2 + 1);
+
+  // this assumes out kspace_path is a single straight line
+  const auto delta_q = kspace_path_(1) - kspace_path_(0);
+  auto Q = unit_vector(delta_q);
+
+  zero(sqw);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    std::cout << i << std::endl;
+
+    // i == j is a special case because conj(S_i^a(w)) S_j^b(w) == conj(S_j^a(w)) S_i^b(w)
+    zero(sw_i);
+    for (auto m = 0; m < 3; ++m) {
+      for (auto n = 0; n < 3; ++n) {
+        const auto geom = (kronecker_delta(m, n) - Q[m] * Q[n]);
+        if (geom == 0.0) continue;
+        for (auto w = 0; w < num_time_samples / 2 + 1; ++w) {
+          sw_i(w) += geom * conj(spin_frequencies_(i, m, w)) * spin_frequencies_(i, n, w);
+        }
+      }
+    }
+
+    for (auto k = 0; k < kspace_path_.size(); ++k) {
+      for (auto w = 0; w < num_time_samples / 2 + 1; ++w) {
+        sqw(k,w) += sw_i(w);
+      }
+    }
+
+    // i > j
+    for (auto j = i+1; j < globals::num_spins; ++j) {
+
+      const Vec3 r_ij =  lattice->displacement(i,j);
+
+      zero(sw_i);
+      zero(sw_j);
+      for (auto m = 0; m < 3; ++m) {
+        for (auto n = 0; n < 3; ++n) {
+          const auto geom = (kronecker_delta(m, n) - Q[m] * Q[n]);
+          if (geom == 0.0) continue;
+          for (auto w = 0; w < num_time_samples / 2 + 1; ++w) {
+            sw_i(w) += geom * conj(spin_frequencies_(i, m, w)) * spin_frequencies_(j, n, w);
+          }
+          for (auto w = 0; w < num_time_samples / 2 + 1; ++w) {
+            sw_j(w) += geom * conj(spin_frequencies_(j, m, w)) * spin_frequencies_(i, n, w);
+          }
+        }
+      }
+
+      const auto f0 = exp(-kImagTwoPi * dot(delta_q, r_ij));
+      auto f = Complex{1.0, 0.0};
+      for (auto k = 0; k < kspace_path_.size(); ++k) {
+        for (auto w = 0; w < num_time_samples / 2 + 1; ++w) {
+          sqw(k,w) += (f * sw_i(w) + conj(f) * sw_j(w));
+        }
+        f *= f0;
+      }
+    }
+  }
+  ofstream ofs(jams::output::full_path_filename("neutron_scattering_fixed.tsv"));
+
+  ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
+  ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
+  ofs << "\n";
+
+  // sample time is here because the fourier transform in time is not an integral
+  // but a discrete sum
+  auto prefactor = (periodogram_props_.sample_time / double(total_periods_)) * (1.0 / (kTwoPi * kHBarIU))
+                   * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
+  auto barns_unitcell = prefactor / (1e-28);
+  auto freq_delta = 1.0 / (periodogram_props_.length * periodogram_props_.sample_time);
+
+  for (auto w = 0; w <  num_time_samples / 2 + 1; ++w) {
+    for (auto k = 0; k < kspace_path_.size(); ++k) {
+      ofs << fmt::integer << k << "\t";
+      ofs << fmt::decimal << kspace_path_(k) << "\t";
+      ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (lattice->parameter() * 1e10) << "\t";
+      ofs << fmt::decimal << (w * freq_delta) << "\t"; // THz
+      ofs << fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV
+      // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
+      ofs << fmt::sci << barns_unitcell * sqw(k, w).real() << "\t";
+      ofs << fmt::sci << barns_unitcell * sqw(k, w).imag() << "\t";
+      ofs << "\n";
+    }
+    ofs << endl;
+  }
+
+  ofs.close();
+
+  fftw_destroy_plan(fft_plan);
+
 }
