@@ -128,6 +128,13 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     // Set the boundary conditions for this collective variable
     // TODO: need to implement this!
     if (cvar_settings.exists("bcs")) {
+      if (lowercase(cvar_settings["bcs"]) == "hard"){
+        cvar_bcs_[i] = PotentialBCs::HardBC;
+      } else if (lowercase(cvar_settings["bcs"]) == "mirror") {
+        cvar_bcs_[i] = PotentialBCs::MirrorBC;
+      } else {
+        throw std::runtime_error("unknown metadynamics boundary condition");
+      }
     } else {
       cvar_bcs_[i] = PotentialBCs::HardBC;
     }
@@ -187,7 +194,7 @@ double jams::MetadynamicsPotential::potential_difference(
 }
 
 
-double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimensions>& cvar_coordinates) {
+double jams::MetadynamicsPotential::potential(std::array<double,kMaxDimensions> cvar_coordinates) {
 
 
   double bcs_potential = 0.0;
@@ -199,6 +206,13 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
       if (cvar_coordinates[n] < cvar_sample_points_[n].front()
           || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
         bcs_potential = kHardBCsPotential;
+      }
+    } else if (cvar_bcs_[n] == PotentialBCs::MirrorBC) {
+      if (cvar_coordinates[n] < cvar_sample_points_[n].front()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].front() - cvar_coordinates[n];
+      }
+      if (cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].back() - cvar_coordinates[n];
       }
     }
   }
@@ -206,32 +220,58 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
   return bcs_potential + interpolated_sample_value(potential_, cvar_coordinates);
 }
 
-double jams::MetadynamicsPotential::potential_derivative(const std::array<double,kMaxDimensions>& cvar_coordinates) {
+double jams::MetadynamicsPotential::potential_derivative(
+    std::array<double, kMaxDimensions> cvar_coordinates) {
 
 
   double bcs_potential = 0.0;
 
   // Apply any hard boundary conditions where the potential is set very large
   // if we are outside of the collective variable's range.
+
+  double sign = 1.0;
   for (auto n = 0; n < num_cvars_; ++n) {
     if (cvar_bcs_[n] == PotentialBCs::HardBC) {
       if (cvar_coordinates[n] < cvar_sample_points_[n].front()
           || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
         bcs_potential = kHardBCsPotential;
       }
+    } else if (cvar_bcs_[n] == PotentialBCs::MirrorBC) {
+      if (cvar_coordinates[n] < cvar_sample_points_[n].front()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].front() - cvar_coordinates[n];
+        sign *= -1.0;
+      }
+      if (cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].back() - cvar_coordinates[n];
+        sign *= -1.0;
+      }
     }
   }
 
-  return bcs_potential + interpolated_sample_value(potential_derivative_, cvar_coordinates);
+  return bcs_potential + sign * interpolated_sample_value(potential_derivative_, cvar_coordinates);
 }
 
 void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitude) {
+
+  std::array<double,kMaxDimensions> cvar_coordinates;
+  for (auto n = 0; n < num_cvars_; ++n) {
+    cvar_coordinates[n] = cvars_[n]->value();
+    if (cvar_bcs_[n] == PotentialBCs::MirrorBC) {
+      if (cvar_coordinates[n] < cvar_sample_points_[n].front()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].front() - cvar_coordinates[n];
+      }
+      if (cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].back() - cvar_coordinates[n];
+      }
+    }
+  }
+
 
   // Calculate CV distances along each 1D axis
   std::vector<std::vector<double>> distances;
   for (auto n = 0; n < num_cvars_; ++n) {
     distances.emplace_back(std::vector<double>(num_samples_[n]));
-    auto center = cvars_[n]->value();
+    auto center = cvar_coordinates[n];
     for (auto i = 0; i < num_samples_[n]; ++i) {
       distances[n][i] = cvar_sample_points_[n][i] - center;
     }
@@ -264,6 +304,91 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
       // TODO: CHECK THIS EQUATION IS CORRECT
       potential_derivative_(i,j) += (1.0/(gaussian_width_[0]*gaussian_width_[0]))*relative_amplitude * gaussian_amplitude_
           * gaussians[0][i] * (distances[0][i]);
+    }
+  }
+
+  if (cvar_bcs_[0] == PotentialBCs::MirrorBC) {
+
+
+    { // lower boundary
+      // Calculate CV distances along each 1D axis
+      std::vector<std::vector<double>> distances;
+      distances.emplace_back(std::vector<double>(num_samples_[0]));
+      auto center = cvar_sample_points_[0].front() + (cvar_sample_points_[0].front() - cvar_coordinates[0]);
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        distances[0][i] = cvar_sample_points_[0][i] - center;
+      }
+
+      // Calculate gaussians along each 1D axis
+      std::vector<std::vector<double>> gaussians;
+      gaussians.emplace_back(std::vector<double>(num_samples_[0]));
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        gaussians[0][i] = gaussian(distances[0][i], 0.0, 1.0,
+                                   gaussian_width_[0]);
+      }
+
+      // TODO: generalise to at least 3D
+      // If we only have 1D then we need to just have a single element with '1.0'
+      // for the second dimension.
+      gaussians.emplace_back(std::vector<double>(1, 1.0));
+
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        for (auto j = 0; j < num_samples_[1]; ++j) {
+          potential_(i, j) +=
+              relative_amplitude * gaussian_amplitude_ * gaussians[0][i] *
+              gaussians[1][j];
+        }
+      }
+
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        for (auto j = 0; j < num_samples_[1]; ++j) {
+          // TODO: CHECK THIS EQUATION IS CORRECT
+          potential_derivative_(i, j) +=
+              (1.0 / (gaussian_width_[0] * gaussian_width_[0])) *
+              relative_amplitude * gaussian_amplitude_
+              * gaussians[0][i] * (distances[0][i]);
+        }
+      }
+    }
+    { // upper boundary
+      // Calculate CV distances along each 1D axis
+      std::vector<std::vector<double>> distances;
+      distances.emplace_back(std::vector<double>(num_samples_[0]));
+      auto center = cvar_sample_points_[0].back() + (cvar_sample_points_[0].back() - cvar_coordinates[0]);
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        distances[0][i] = cvar_sample_points_[0][i] - center;
+      }
+
+      // Calculate gaussians along each 1D axis
+      std::vector<std::vector<double>> gaussians;
+      gaussians.emplace_back(std::vector<double>(num_samples_[0]));
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        gaussians[0][i] = gaussian(distances[0][i], 0.0, 1.0,
+                                   gaussian_width_[0]);
+      }
+
+      // TODO: generalise to at least 3D
+      // If we only have 1D then we need to just have a single element with '1.0'
+      // for the second dimension.
+      gaussians.emplace_back(std::vector<double>(1, 1.0));
+
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        for (auto j = 0; j < num_samples_[1]; ++j) {
+          potential_(i, j) +=
+              relative_amplitude * gaussian_amplitude_ * gaussians[0][i] *
+              gaussians[1][j];
+        }
+      }
+
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        for (auto j = 0; j < num_samples_[1]; ++j) {
+          // TODO: CHECK THIS EQUATION IS CORRECT
+          potential_derivative_(i, j) +=
+              (1.0 / (gaussian_width_[0] * gaussian_width_[0])) *
+              relative_amplitude * gaussian_amplitude_
+              * gaussians[0][i] * (distances[0][i]);
+        }
+      }
     }
   }
 
@@ -344,12 +469,14 @@ double jams::MetadynamicsPotential::interpolated_sample_value(
   std::array<int,kMaxDimensions> index_lower;
 
   for (auto n = 0; n < num_cvars_; ++n) {
-    auto lower = std::lower_bound(
+    auto lower = std::upper_bound(
         cvar_sample_points_[n].begin(),
         cvar_sample_points_[n].end(),
         cvar_coordinates[n]);
 
-    auto lower_index = std::distance(cvar_sample_points_[n].begin(), lower-1);
+    auto lower_index = std::distance(cvar_sample_points_[n].begin(), lower) - 1;
+    assert(lower_index >= 0);
+    assert(lower_index < cvar_sample_points_[n].size() - 1);
 
     index_lower[n] = lower_index;
     sample_lower[n] = cvar_sample_points_[n][lower_index];
