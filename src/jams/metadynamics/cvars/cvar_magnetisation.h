@@ -49,7 +49,9 @@ public:
 
     double value() override;
 
-    inline const jams::MultiArray<double, 2>& derivatives() override {};
+    inline const jams::MultiArray<double, 2>& derivatives() override {
+      throw std::runtime_error("unimplemented function");
+    };
 
     /// Returns the value of the collective variable after a trial
     /// spin move from spin_initial to spin_final (to be used with Monte Carlo).

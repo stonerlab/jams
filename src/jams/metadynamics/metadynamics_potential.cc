@@ -450,8 +450,19 @@ jams::MetadynamicsPotential::current_fields() {
 
   double scalar = potential_derivative(coordinates);
 
-  cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, cvars_[0]->derivatives().device_data(), 1, potential_field_.device_data(), 1);
-  cublasDscal(jams::instance().cublas_handle(), globals::num_spins3, &scalar, potential_field_.device_data(), 1);
+  if (solver->is_cuda_solver()) {
+    #if HAS_CUDA
+    cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, cvars_[0]->derivatives().device_data(), 1, potential_field_.device_data(), 1);
+    cublasDscal(jams::instance().cublas_handle(), globals::num_spins3, &scalar, potential_field_.device_data(), 1);
+    #endif
+  } else {
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      for (auto j = 0; j < 3; ++ j) {
+        potential_field_(i, j) = scalar * cvars_[0]->derivatives()(i, j);
+      }
+    }
+  }
+
 
 //  std::cout << potential_field_(0,0) << " " << potential_field_(0,1) << " " << potential_field_(0,2) << std::endl;
   return potential_field_;
