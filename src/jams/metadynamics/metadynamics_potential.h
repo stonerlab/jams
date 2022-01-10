@@ -32,7 +32,7 @@ namespace jams {
         void insert_gaussian(const double& relative_amplitude = 1.0);
 
         /// Output the potential landscape to a file stream.
-        void output();
+        void output(std::ostream& os, const double free_energy_scaling = 1.0) const;
 
         /// Returns the value of the potential at the current coordinates of the
         /// collective variable

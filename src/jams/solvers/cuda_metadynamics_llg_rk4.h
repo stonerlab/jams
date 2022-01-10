@@ -40,6 +40,9 @@ private:
     /// Output file for metadynamics statistics
     std::ofstream metadynamics_stats_file_;
 
+    /// Output file for metadynamics potential
+    std::ofstream metadynamics_potential_file_;
+
     jams::MultiArray<double,2> metadynamics_fields_;
 
     CudaStream dev_stream_;

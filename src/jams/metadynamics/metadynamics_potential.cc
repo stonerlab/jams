@@ -410,28 +410,28 @@ double jams::MetadynamicsPotential::current_potential() {
 }
 
 
-void jams::MetadynamicsPotential::output() {
-  std::ofstream of(jams::output::full_path_filename("metad_potential.tsv"));
-
+void jams::MetadynamicsPotential::output(std::ostream& os, const double free_energy_scaling) const {
+  os << "time ";
   for (auto n = 0; n < num_cvars_; ++n) {
-    of << cvar_names_[n] << " ";
+    os << cvar_names_[n] << " ";
   }
-
-  of << "potential_meV" << "\n";
+  os << "potential_meV free_energy_meV" << "\n";
 
   // TODO: generalise to at least 3D
   assert(num_cvars_ <= kMaxDimensions);
   if (num_cvars_ == 1) {
     for (auto i = 0; i < num_samples_[0]; ++i) {
-      of <<  cvar_sample_points_[0][i] << " " << potential_(i,0) << "\n";
+      os <<  solver->time() << " " << cvar_sample_points_[0][i] << " " << potential_(i,0) << " " << -free_energy_scaling * potential_(i,0) <<"\n";
     }
+    os << "\n\n";
     return;
   } else if (num_cvars_ == 2) {
     for (auto i = 0; i < num_samples_[0]; ++i) {
       for (auto j = 0; j < num_samples_[1]; ++j) {
-        of <<  cvar_sample_points_[0][i] << " " << cvar_sample_points_[1][j] << " " << potential_(i,j) << "\n";
+        os << solver->time() << " " << cvar_sample_points_[0][i] << " " << cvar_sample_points_[1][j] << " " << potential_(i,j) << " " << -free_energy_scaling * potential_(i,j) <<"\n";
       }
     }
+    os << "\n\n";
     return;
   }
 

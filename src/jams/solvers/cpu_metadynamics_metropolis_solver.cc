@@ -7,6 +7,7 @@
 #include "jams/interface/config.h"
 #include "jams/metadynamics/collective_variable_factory.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
+#include "jams/core/physics.h"
 
 #include <iostream>
 
@@ -25,6 +26,8 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
   gaussian_deposition_delay_ = jams::config_optional<int>(settings,"gaussian_deposition_delay", 0);
 
   output_steps_ = jams::config_optional<int>(settings, "output_steps", gaussian_deposition_stride_);
+
+  metadynamics_potential_file_.open(jams::output::full_path_filename("metad_potential.tsv"));
 
   // Toggle tempered metadynamics on or off
   do_tempering_ = jams::config_optional<bool>(settings,"tempering", false);
@@ -68,7 +71,7 @@ void MetadynamicsMetropolisSolver::run() {
 
       jams::output::open_output_file_just_in_time(metadynamics_stats_file_, "metad_stats.tsv");
 
-      metadynamics_stats_file_ << jams::fmt::sci << iteration() << " " << relative_amplitude << std::endl;
+      metadynamics_stats_file_ << jams::fmt::sci << iteration() << " " << relative_amplitude << "\n";
     }
 
     // Insert the gaussian into the potential
@@ -76,7 +79,14 @@ void MetadynamicsMetropolisSolver::run() {
   }
 
   if (iteration_ % output_steps_ == 0) {
-    metad_potential_->output();
+    metadynamics_stats_file_ << std::flush;
+
+    double scale = 1.0;
+    if (do_tempering_) {
+      scale = (physics()->temperature() + tempering_bias_temperature_) / tempering_bias_temperature_;
+    }
+    metad_potential_->output(metadynamics_potential_file_, scale);
+    metadynamics_potential_file_ << std::flush;
   }
 }
 
