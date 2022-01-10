@@ -15,7 +15,7 @@
 #include "jams/cuda/cuda_solver.h"
 #include "jams/containers/multiarray.h"
 
-class CUDAMetadynamicsLLGRK4Solver : public CUDALLGRK4Solver {
+class CUDAMetadynamicsLLGRK4Solver : public CudaSolver {
 private:
     /// Pointer to collective variable object (owned by this class)
     std::unique_ptr<jams::MetadynamicsPotential> metad_potential_;
@@ -42,6 +42,14 @@ private:
 
     jams::MultiArray<double,2> metadynamics_fields_;
 
+    CudaStream dev_stream_;
+
+    jams::MultiArray<double, 2> s_old_;
+    jams::MultiArray<double, 2> k1_;
+    jams::MultiArray<double, 2> k2_;
+    jams::MultiArray<double, 2> k3_;
+    jams::MultiArray<double, 2> k4_;
+
 public:
     /// Default constructor
     CUDAMetadynamicsLLGRK4Solver() = default;
@@ -58,9 +66,6 @@ public:
     // also triggering the insertion of gaussians into the potential
     // energy landscape.
     void run() override;
-
-    void compute_fields() override;
-
 
     std::string name() const override { return "llg-metadynamics-rk4-gpu"; }
 

@@ -1,10 +1,49 @@
 // cuda_metadynamics_llg_rk4.cc                                        -*-C++-*-
 #include <jams/solvers/cuda_metadynamics_llg_rk4.h>
 #include "jams/helpers/output.h"
+#include "jams/core/thermostat.h"
+
+#include "cuda_metadynamics_llg_rk4_kernel.cuh"
+
 
 void CUDAMetadynamicsLLGRK4Solver::initialize(const libconfig::Setting &settings) {
-  CUDALLGRK4Solver::initialize(settings);
+  using namespace globals;
 
+  // convert input in seconds to picoseconds for internal units
+  step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
+  auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
+  auto t_min = jams::config_optional<double>(settings, "t_min", 0.0) / 1e-12;
+
+
+  max_steps_ = static_cast<int>(t_max / step_size_);
+  min_steps_ = static_cast<int>(t_min / step_size_);
+
+  std::cout << "\ntimestep (ps) " << step_size_ << "\n";
+  std::cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
+  std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
+
+  std::cout << "timestep " << step_size_ << "\n";
+  std::cout << "t_max " << t_max << " steps (" <<  max_steps_ << ")\n";
+  std::cout << "t_min " << t_min << " steps (" << min_steps_ << ")\n";
+
+  std::string thermostat_name = jams::config_optional<std::string>(config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
+  register_thermostat(Thermostat::create(thermostat_name));
+
+  std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
+
+  std::cout << "done\n";
+
+  s_old_.resize(num_spins, 3);
+  for (auto i = 0; i < num_spins; ++i) {
+    for (auto j = 0; j < 3; ++j) {
+      s_old_(i, j) = s(i, j);
+    }
+  }
+
+  k1_.resize(num_spins, 3);
+  k2_.resize(num_spins, 3);
+  k3_.resize(num_spins, 3);
+  k4_.resize(num_spins, 3);
   // Set the pointer to the collective variables attached to the solver
   metad_potential_.reset(new jams::MetadynamicsPotential(settings));
 
@@ -39,8 +78,75 @@ void CUDAMetadynamicsLLGRK4Solver::initialize(const libconfig::Setting &settings
 
 
 void CUDAMetadynamicsLLGRK4Solver::run() {
-  // run the dynamical solver
-  CUDALLGRK4Solver::run();
+  using namespace globals;
+
+  const dim3 block_size = {64, 1, 1};
+  auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
+
+  cudaMemcpyAsync(s_old_.device_data(),           // void *               dst
+                  s.device_data(),               // const void *         src
+                  num_spins3*sizeof(double),   // size_t               count
+                  cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
+                  dev_stream_.get());                   // device stream
+
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
+  update_thermostat();
+
+  compute_fields();
+
+  // k1
+  cuda_metadynamics_llg_rk4_kernel<<<grid_size, block_size>>>
+      (s.device_data(), k1_.device_data(),
+       h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+       gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
+  double mid_time_step = 0.5 * step_size_;
+  CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, s.device_data(), 1));
+  CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k1_.device_data(), 1, s.device_data(), 1));
+
+  compute_fields();
+
+  // k2
+  cuda_metadynamics_llg_rk4_kernel<<<grid_size, block_size>>>
+      (s.device_data(), k2_.device_data(),
+       h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+       gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
+  mid_time_step = 0.5 * step_size_;
+  CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, s.device_data(), 1));
+  CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k2_.device_data(), 1, s.device_data(), 1));
+
+  compute_fields();
+
+  // k3
+  cuda_metadynamics_llg_rk4_kernel<<<grid_size, block_size>>>
+      (s.device_data(), k3_.device_data(),
+       h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+       gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
+  mid_time_step = step_size_;
+  CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, s.device_data(), 1));
+  CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k3_.device_data(), 1, s.device_data(), 1));
+
+  compute_fields();
+
+  // k4
+  cuda_metadynamics_llg_rk4_kernel<<<grid_size, block_size>>>
+      (s.device_data(), k4_.device_data(),
+       h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+       gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
+  cuda_metadynamics_llg_rk4_combination_kernel<<<grid_size, block_size>>>
+      (s.device_data(), s_old_.device_data(),
+       k1_.device_data(), k2_.device_data(), k3_.device_data(), k4_.device_data(),
+       step_size_, num_spins);
+
+  iteration_++;
 
 
   // Don't do any of the metadynamics until we have passed the
@@ -56,7 +162,7 @@ void CUDAMetadynamicsLLGRK4Solver::run() {
     // Set the relative amplitude of the gaussian if we are using tempering and
     // record the value in the stats file
     if (do_tempering_) {
-      relative_amplitude = exp(-(metad_potential_->current_potential())
+      relative_amplitude = std::exp(-(metad_potential_->current_potential())
                                / (tempering_bias_temperature_ * kBoltzmannIU));
 
       jams::output::open_output_file_just_in_time(metadynamics_stats_file_, "metad_stats.tsv");
@@ -73,10 +179,4 @@ void CUDAMetadynamicsLLGRK4Solver::run() {
   }
 }
 
-
-void CUDAMetadynamicsLLGRK4Solver::compute_fields() {
-  CudaSolver::compute_fields();
-
-  CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(),globals::h.elements(), &kOne, metad_potential_->current_fields().device_data(), 1, globals::h.device_data(), 1));
-}
 
