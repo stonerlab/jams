@@ -18,16 +18,17 @@
 //****** Class Initialisation ******
 jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Setting &settings) {
    //settings
-  std::string direction = config_required<std::string>(settings, "coordinate_direction");
+//  auto component = config_required<std::string>(settings, "component");
+  std::string component = config_required<std::string>(settings, "component");
 
-  if(direction =="x" || direction == "y"){
-	name_ = name_ + "x";
+  if(component =="x" || component == "y"){
+	name_ = name_ + component;
   }else {
 	throw std::runtime_error(" The Skyrmion Core Coordinate Direction "
 							 "Passed is Invalid");
   }
 
-  if (direction == "x"){
+  if (component == "x"){
 	value_returned_x = true;
   }else
 	value_returned_x = false;

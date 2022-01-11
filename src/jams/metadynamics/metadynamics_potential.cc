@@ -174,7 +174,7 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
   // Signal to the CollectiveVariables that they should do any internal work
   // needed due to a spin being accepted (usually related to caching).
   for (const auto& cvar : cvars_) {
-	if(solver->iteration()>1000 &&  death_boundary_check()){ //if i dont include the iteration check, the simulation ends before the skyrmion is thermalised
+	if(solver->iteration()>100 &&  death_boundary_check()){ //if i dont include the iteration check, the simulation ends before the skyrmion is thermalised
 	  std::cout<< "*** The Solver is now Signaled" << std::endl;
 	  death_bc_triggered_ = true;
 	}
