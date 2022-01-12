@@ -17,22 +17,22 @@
 
 //****** Class Initialisation ******
 jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Setting &settings) {
-   //settings
+  //settings
 //  auto component = config_required<std::string>(settings, "component");
   std::string component = config_required<std::string>(settings, "component");
 
-  if(component =="x" || component == "y"){
+  if (component == "x" || component == "y") {
 	name_ = name_ + component;
-  }else {
+  } else {
 	throw std::runtime_error(" The Skyrmion Core Coordinate Direction "
 							 "Passed is Invalid");
   }
 
-  if (component == "x"){
+  if (component == "x") {
 	value_returned_x = true;
-  }else
+  } else
 	value_returned_x = false;
-  
+
   periodic_x_ = lattice->is_periodic(0);
   periodic_y_ = lattice->is_periodic(1);
 
@@ -57,7 +57,9 @@ double jams::CVarSkyrmionCoreCoordinate::calculate_expensive_value() {
   return skyrmion_center_of_mass_coordinate();
 }
 
-double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,const Vec3 &spin_initial,const Vec3 &spin_trial) {
+double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,
+															   const Vec3 &spin_initial,
+															   const Vec3 &spin_trial) {
 
   double trial_coordinate = CachingCollectiveVariable::value();
 
@@ -100,6 +102,7 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
 
   // map 2D space into a cylinder with y as the axis
   double x_max = lattice->size(0);
+  auto y_max = lattice->size(1);
   for (auto i = 0; i < globals::num_spins; ++i) {
 	auto r = inverse(W) * lattice->atom_position(i);
 
@@ -112,6 +115,18 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
 	  cylinder_remapping_x_[i] = Vec3{x, y, z};
 	} else {
 	  cylinder_remapping_x_[i] = r;
+	}
+	// map 2D space into a cylinder with x as the axis
+	if (periodic_y_) {
+	  auto theta_y = (r[1] / y_max) * (kTwoPi);
+
+	  auto x = r[0];
+	  auto y = (y_max / (kTwoPi)) * cos(theta_y);
+	  auto z = (y_max / (kTwoPi)) * sin(theta_y);
+
+	  cylinder_remapping_y_[i] = Vec3{x, y, z};
+	} else {
+	  cylinder_remapping_y_[i] = r;
 	}
   }
 }
@@ -160,7 +175,9 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_coordinate() {
 
 }
 
-bool jams::CVarSkyrmionCoreCoordinate::spin_crossed_threshold(const Vec3 &s_initial,const Vec3 &s_final,const double &threshold) {
+bool jams::CVarSkyrmionCoreCoordinate::spin_crossed_threshold(const Vec3 &s_initial,
+															  const Vec3 &s_final,
+															  const double &threshold) {
   return (s_initial[2] <= threshold && s_final[2] > threshold) || (s_initial[2] > threshold && s_final[2] <= threshold);
 }
 
