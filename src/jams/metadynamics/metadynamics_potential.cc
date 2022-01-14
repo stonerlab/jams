@@ -239,11 +239,11 @@ double jams::MetadynamicsPotential::potential_derivative(
     } else if (cvar_bcs_[n] == PotentialBCs::MirrorBC) {
       if (cvar_coordinates[n] < cvar_sample_points_[n].front()) {
         cvar_coordinates[n] = cvar_sample_points_[n].front() - cvar_coordinates[n];
-        sign *= -1.0;
+//        sign *= -1.0;
       }
       if (cvar_coordinates[n] > cvar_sample_points_[n].back()) {
         cvar_coordinates[n] = cvar_sample_points_[n].back() - cvar_coordinates[n];
-        sign *= -1.0;
+//        sign *= -1.0;
       }
     }
   }
