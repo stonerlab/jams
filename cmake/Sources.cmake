@@ -47,6 +47,7 @@ set(JAMS_SOURCES_CXX
         metadynamics/collective_variable.cc
         metadynamics/caching_collective_variable.cc
         metadynamics/cvars/cvar_magnetisation.cc
+        metadynamics/cvars/cvar_reduced_mz.cc
         metadynamics/cvars/cvar_topological_charge.cc
         lattice/minimum_image.cc
         lattice/interaction_neartree.cc
@@ -104,6 +105,7 @@ set(JAMS_SOURCES_CUDA
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
         hamiltonian/cuda_zeeman.cu
         metadynamics/cvars/cvar_magnetisation_cuda.cu
+        metadynamics/cvars/cvar_reduced_mz_cuda.cu
         monitors/cuda_spin_current.cc
         monitors/cuda_spin_current_kernel.cu
         monitors/cuda_thermal_current.cc

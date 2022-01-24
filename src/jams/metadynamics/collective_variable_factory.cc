@@ -7,9 +7,11 @@
 
 #include <jams/metadynamics/cvars/cvar_magnetisation.h>
 #include <jams/metadynamics/cvars/cvar_topological_charge.h>
+#include <jams/metadynamics/cvars/cvar_reduced_mz.h>
 
 #ifdef HAS_CUDA
 #include <jams/metadynamics/cvars/cvar_magnetisation_cuda.h>
+#include <jams/metadynamics/cvars/cvar_reduced_mz_cuda.h>
 #endif
 
 #include <stdexcept>
@@ -45,6 +47,7 @@ jams::CollectiveVariableFactory::create(const libconfig::Setting &settings,
   // and the header included above.
   DEFINED_METADYNAMICS_CVAR("topological_charge", CVarTopologicalCharge, settings);
 
+  DEFINED_METADYNAMICS_CVAR_CUDA_VARIANT("reduced_mz", CVarReducedMz, is_cuda_solver, settings);
   DEFINED_METADYNAMICS_CVAR_CUDA_VARIANT("magnetisation", CVarMagnetisation, is_cuda_solver, settings);
 
   throw std::runtime_error("unknown metadynamics collective variable: " + std::string(settings["collective_variable"].c_str()));
