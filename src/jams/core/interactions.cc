@@ -105,6 +105,10 @@ namespace { //anon
 
           // check if no corresponding positions exists
           if (j == -1) continue;
+
+          // check j has the same type
+          if (get_motif_material_name(j) != J.type_j) continue;
+
           new_J.unit_cell_pos_j = j;
 
           new_data.push_back(new_J);
