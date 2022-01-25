@@ -139,12 +139,6 @@ namespace jams {
           return *this;
         }
 
-        MultiArray& operator=(MultiArray&& rhs) & noexcept {
-          MultiArray tmp(std::move(rhs));
-          swap(*this, tmp);
-          return *this;
-        }
-
         // construct using dimensions as arguments
         template<typename... Args>
         inline explicit MultiArray(const Args... args):
@@ -336,12 +330,6 @@ namespace jams {
 
         MultiArray& operator=(MultiArray rhs) & {
           swap(*this, rhs);
-          return *this;
-        }
-
-        MultiArray& operator=(MultiArray&& rhs) & noexcept {
-          MultiArray tmp(std::move(rhs));
-          swap(*this, tmp);
           return *this;
         }
 
