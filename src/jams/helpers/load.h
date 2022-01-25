@@ -5,6 +5,7 @@
 #ifndef JAMS_LOAD_H
 #define JAMS_LOAD_H
 
+#include <fstream>
 #include <vector>
 #include "jams/containers/multiarray.h"
 #include "jams/interface/highfive.h"

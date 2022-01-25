@@ -21,12 +21,13 @@
 #include "jams/helpers/duration.h"
 #include "jams/helpers/error.h"
 #include "jams/helpers/exception.h"
-#include "jams/helpers/load.h"
 #include "jams/helpers/output.h"
 #include "jams/interface/config.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/timer.h"
 #include "jams/helpers/progress_bar.h"
+
+#include <jams/initializer/init_dispatcher.h>
 
 using namespace std;
 
@@ -274,7 +275,7 @@ namespace jams {
         }
 
         if (::config->exists("initializer")) {
-          global_initializer(::config->lookup("initializer"));
+          jams::InitializerDispatcher::execute(::config->lookup("initializer"));
         }
       }
       catch (const libconfig::SettingTypeException &stex) {
@@ -348,32 +349,6 @@ namespace jams {
 
     void cleanup_simulation() {
       jams::delete_global_classes();
-    }
-
-    void global_initializer(const libconfig::Setting &settings) {
-      if (settings.exists("spins")) {
-        std::string file_name = settings["spins"];
-        cout << "reading spin data from file " << file_name << "\n";
-        load_array_from_file(file_name, "/spins", globals::s);
-      }
-
-      if (settings.exists("alpha")) {
-        std::string file_name = settings["alpha"];
-        cout << "reading alpha data from file " << file_name << "\n";
-        load_array_from_file(file_name, "/alpha", globals::alpha);
-      }
-
-      if (settings.exists("mus")) {
-        std::string file_name = settings["mus"];
-        cout << "reading mus data from file " << file_name << "\n";
-        load_array_from_file(file_name, "/mus", globals::mus);
-      }
-
-      if (settings.exists("gyro")) {
-        std::string file_name = settings["gyro"];
-        cout << "reading gyro data from file " << file_name << "\n";
-        load_array_from_file(file_name, "/gyro", globals::gyro);
-      }
     }
 
 }
