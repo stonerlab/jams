@@ -83,6 +83,7 @@ set(JAMS_SOURCES_CXX
         physics/fmr.cc
         physics/mean_first_passage_time.cc
         physics/ping.cc
+        physics/pinned_boundaries.cc
         physics/square_field_pulse.cc
         physics/two_temperature_model.cc
         solvers/cpu_llg_heun.cc
