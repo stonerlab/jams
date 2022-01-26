@@ -1,6 +1,6 @@
 // initializer_factory.cc                                                          -*-C++-*-
 #include <jams/initializer/init_dispatcher.h>
-#include <jams/initializer/init_domain_wall.h>
+#include <jams/initializer/init_bloch_domain_wall.h>
 #include <jams/initializer/init_h5.h>
 
 #include <stdexcept>

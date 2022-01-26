@@ -66,3 +66,5 @@ void PinnedBoundariesPhysics::update(const int &iterations, const double &time, 
 
   jams::rotate_spins(globals::s, right_rotation_matrix, right_pinned_indices_);
 }
+
+// ----------------------------- END-OF-FILE ----------------------------------

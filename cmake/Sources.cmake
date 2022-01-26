@@ -38,7 +38,7 @@ set(JAMS_SOURCES_CXX
         helpers/stats.cc
         helpers/utils.cc
         initializer/init_dispatcher.cc
-        initializer/init_domain_wall.cc
+        initializer/init_bloch_domain_wall.cc
         initializer/init_h5.cc
         interface/config.cc
         interface/fft.cc

@@ -1,10 +1,6 @@
 #ifndef JAMS_PINNED_BOUNDARIES_PHYSICS_H
 #define JAMS_PINNED_BOUNDARIES_PHYSICS_H
 
-#include <jams/core/physics.h>
-#include <jams/interface/config.h>
-#include <jams/containers/multiarray.h>
-
 /// @class PinnedBoundaryPhysics
 ///
 /// Maintains the direction of magnetisation in two edge regions by rotating
@@ -46,6 +42,9 @@
 /// };
 /// @endcode
 
+#include <jams/core/physics.h>
+#include <jams/interface/config.h>
+#include <jams/containers/multiarray.h>
 
 class PinnedBoundariesPhysics : public Physics {
 public:
@@ -63,3 +62,5 @@ private:
 };
 
 #endif  // JAMS_PINNED_BOUNDARIES_PHYSICS_H
+
+// ----------------------------- END-OF-FILE ----------------------------------
