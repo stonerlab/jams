@@ -50,7 +50,7 @@ jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Se
 
 //******** Public Overridden Functions ***************
 double jams::CVarSkyrmionCoreCoordinate::value() {
-  return CachingCollectiveVariable::value();
+  return cached_value();
 }
 
 double jams::CVarSkyrmionCoreCoordinate::calculate_expensive_value() {
@@ -61,11 +61,14 @@ double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,
 															   const Vec3 &spin_initial,
 															   const Vec3 &spin_trial) {
 
-  double trial_coordinate = CachingCollectiveVariable::value();
+  double trial_coordinate = cached_value();
 
   if (spin_crossed_threshold(spin_initial, spin_trial, skyrmion_core_threshold_)) {
 	trial_coordinate = skyrmion_center_of_mass_coordinate();
   }
+
+  set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_coordinate);
+
   return trial_coordinate;
 }
 
