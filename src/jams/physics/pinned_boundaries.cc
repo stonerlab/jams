@@ -3,6 +3,7 @@
 
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
+#include <jams/helpers/spinops.h>
 
 PinnedBoundariesPhysics::PinnedBoundariesPhysics(const libconfig::Setting &settings)
 : Physics(settings)
@@ -45,49 +46,23 @@ PinnedBoundariesPhysics::PinnedBoundariesPhysics(const libconfig::Setting &setti
 void PinnedBoundariesPhysics::update(const int &iterations, const double &time, const double &dt) {
   using namespace globals;
 
-  // Calculate the magnetisation in the left region
-  Vec3 left_mag = {0.0, 0.0, 0.0};
-  for (auto n = 0; n < left_pinned_indices_.elements(); ++n) {
-    const auto i = left_pinned_indices_(n);
-    for (auto j = 0; j < 3; ++j) {
-      left_mag[j] += globals::s(i, j);
-    }
-  }
-
   // Rotate the spins in the left region so that their magnetisation points
   // along the pinning direction
+
+  Vec3 left_mag = jams::sum_spins(globals::s, left_pinned_indices_);
+
   auto left_rotation_matrix = rotation_matrix_between_vectors(
       left_mag, left_pinned_magnetisation_);
 
-  for (auto n = 0; n < left_pinned_indices_.elements(); ++n) {
-    auto i = left_pinned_indices_(n);
-    Vec3 spin = {s(i,0), s(i,1), s(i,2)};
-    spin = left_rotation_matrix * spin;
-    for (auto j = 0; j < 3; ++j) {
-      s(i, j) = spin[j];
-    }
-  }
+  jams::rotate_spins(globals::s, left_rotation_matrix, left_pinned_indices_);
 
-  // Calculate the magnetisation in the right region
-  Vec3 right_mag = {0.0, 0.0, 0.0};
-  for (auto n = 0; n < right_pinned_indices_.elements(); ++n) {
-    auto i = right_pinned_indices_(n);
-    for (auto j = 0; j < 3; ++j) {
-      right_mag[j] += globals::s(i, j);
-    }
-  }
-
-  // Rotate the spins in the left region so that their magnetisation points
+  // Rotate the spins in the right region so that their magnetisation points
   // along the pinning direction
+
+  Vec3 right_mag = jams::sum_spins(globals::s, right_pinned_indices_);
+
   auto right_rotation_matrix = rotation_matrix_between_vectors(
       right_mag, right_pinned_magnetisation_);
 
-  for (auto n = 0; n < right_pinned_indices_.elements(); ++n) {
-    auto i = right_pinned_indices_(n);
-    Vec3 spin = {s(i,0), s(i,1), s(i,2)};
-    spin = right_rotation_matrix * spin;
-    for (auto j = 0; j < 3; ++j) {
-      s(i, j) = spin[j];
-    }
-  }
+  jams::rotate_spins(globals::s, right_rotation_matrix, right_pinned_indices_);
 }

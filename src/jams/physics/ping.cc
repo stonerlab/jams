@@ -1,6 +1,6 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#include "ping.h"
+#include <jams/physics/ping.h>
 
 #include <libconfig.h++>
 
@@ -8,6 +8,7 @@
 
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
+#include "jams/helpers/spinops.h"
 
 PingPhysics::PingPhysics(const libconfig::Setting &settings)
 : Physics(settings) {
@@ -28,13 +29,8 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
     phi_rotation_specified = true;
   }
 
-  Vec3 mag = {0,0,0};
   // find theta and phi of magnetisation
-  for (int i = 0; i < globals::num_spins; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      mag[j] += globals::s(i, j) * globals::mus(i);
-    }
-  }
+  Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus);
 
   init_theta = rad_to_deg(acos(mag[2] / norm(mag)));
   init_phi = rad_to_deg(atan2(mag[1], mag[0]));
@@ -72,18 +68,7 @@ PingPhysics::PingPhysics(const libconfig::Setting &settings)
 
   rotation_matrix = r_y * r_z;
 
-  Vec3 spin;
-  for (int i = 0; i < globals::num_spins; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      spin[j] = globals::s(i, j);
-    }
-
-    spin = rotation_matrix * spin;
-
-    for (int j = 0; j < 3; ++j) {
-      globals::s(i, j) = spin[j];
-    }
-  }
+  jams::rotate_spins(globals::s, rotation_matrix);
 
   initialized = true;
 }

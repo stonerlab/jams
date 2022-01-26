@@ -34,6 +34,7 @@ set(JAMS_SOURCES_CXX
         helpers/neutrons.cc
         helpers/output.cc
         helpers/slice.cc
+        helpers/spinops.cc
         helpers/stats.cc
         helpers/utils.cc
         initializer/init_dispatcher.cc
