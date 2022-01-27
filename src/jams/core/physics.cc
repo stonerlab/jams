@@ -19,6 +19,7 @@
 #include "jams/physics/square_field_pulse.h"
 #include "jams/physics/two_temperature_model.h"
 #include "jams/physics/ping.h"
+#include "jams/physics/pinned_boundaries.h"
 #include "jams/physics/flips.h"
 
 using namespace std;
@@ -107,6 +108,10 @@ Physics* Physics::create(const libconfig::Setting &settings) {
 
   if (module_name == "ping") {
     return new PingPhysics(settings);
+  }
+
+  if (module_name == "pinned_boundaries") {
+    return new PinnedBoundariesPhysics(settings);
   }
 
   if (module_name == "flip") {

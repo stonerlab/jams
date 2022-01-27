@@ -34,8 +34,12 @@ set(JAMS_SOURCES_CXX
         helpers/neutrons.cc
         helpers/output.cc
         helpers/slice.cc
+        helpers/spinops.cc
         helpers/stats.cc
         helpers/utils.cc
+        initializer/init_dispatcher.cc
+        initializer/init_bloch_domain_wall.cc
+        initializer/init_h5.cc
         interface/config.cc
         interface/fft.cc
         interface/system.cc
@@ -80,6 +84,7 @@ set(JAMS_SOURCES_CXX
         physics/fmr.cc
         physics/mean_first_passage_time.cc
         physics/ping.cc
+        physics/pinned_boundaries.cc
         physics/square_field_pulse.cc
         physics/two_temperature_model.cc
         solvers/cpu_llg_heun.cc
