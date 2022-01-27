@@ -24,7 +24,7 @@ void jams::InitializerDispatcher::execute(const libconfig::Setting &settings) {
   }
 
   DEFINED_INITIALIZER("h5", InitH5, settings);
-  DEFINED_INITIALIZER("domain_wall", InitDomainWall, settings);
+  DEFINED_INITIALIZER("bloch_domain_wall", InitBlochDomainWall, settings);
 
   throw std::runtime_error("unknown initializer: " + std::string(settings["module"].c_str()));
 }
