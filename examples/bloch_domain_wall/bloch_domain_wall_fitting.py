@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # 2022-01-27 Joseph Barker (j.barker@leeds.ac.uk)
 # This python script is for fitting Bloch domain walls in JAMS h5 output files.
@@ -132,52 +132,55 @@ fit_params.add('width',  value = 10.0)
 
 
 with open(output_filename, 'w') as outfile:
-    print('dw_center_nm dw_mz_muB dw_width_nm', file=outfile)
+    print('output dw_center_nm dw_center_nm_stderr dw_mz_muB dw_mz_muB_stderr dw_width_nm dw_width_nm_stderr', file=outfile)
     for n in range(0,9999999):
         # rather than working out how many output files exist in the series in advance
         # we simply try the maximum number of times and then break when we can't open
         # a file
         try:
             filename = f'{simulation_name}_{n:07}.h5'
+
+            with h5py.File(filename, 'r') as f:
+              spins = np.array(f['spins'])
+
+            # sum the magnetisation in each xplane
+            magnetisation = dict([(k, 0.0) for k in xplanes])
+
+            for r, s in zip(positions, spins):
+                magnetisation[r[0]] = magnetisation[r[0]] + s
+
+            # move the data into numpy arrays
+            x = np.array([k for k in magnetisation.keys()])
+            magnetisation = np.array([v for k, v in magnetisation.items()])
+
+            result = lmfit.minimize(bloch_domain_wall_residual, fit_params, args=(x,),
+                kws={'mx': magnetisation[:,0], 'my': magnetisation[:,1], 'mz': magnetisation[:,2]})
+
+            print(f"{n:07} "
+                  f"{result.params['center'].value:8.6f} {result.params['center'].stderr:8.6f} "
+                  f"{result.params['height'].value:8.6f} {result.params['height'].stderr:8.6f} "
+                  f"{result.params['width'].value:8.6f} {result.params['width'].stderr:8.6f}", file=outfile)
+
+
+            if args.print_fits:
+                print(lmfit.fit_report(result))
+
+                plt.plot(x, magnetisation[:,0], label='$M_x$')
+                plt.plot(x, magnetisation[:,1], label='$M_y$')
+                plt.plot(x, magnetisation[:,2], label='$M_z$')
+
+                plt.plot(x, bloch_domain_wall_mx(x, result.params['center'], result.params['height'], result.params['width']), '--', label='$M_x$ fit')
+                plt.plot(x, bloch_domain_wall_my(x, result.params['center'], result.params['height'], result.params['width']), '--', label='$M_y$ fit')
+                plt.plot(x, bloch_domain_wall_mz(x, result.params['center'], result.params['height'], result.params['width']), '--', label='$M_z$ fit')
+
+
+                plt.xlabel(r'$x$ (nm)')
+                plt.ylabel(r'$M_{x,y,z}$ ($\mu_{B}$)')
+
+                plt.title(filename)
+
+                plt.legend()
+                plt.savefig(f'{os.path.splitext(filename)[0]}.pdf')
         except OSError:
             break
-
-        with h5py.File(filename, 'r') as f:
-          spins = np.array(f['spins'])
-
-        # sum the magnetisation in each xplane
-        magnetisation = dict([(k, 0.0) for k in xplanes])
-
-        for r, s in zip(positions, spins):
-            magnetisation[r[0]] = magnetisation[r[0]] + s
-
-        # move the data into numpy arrays
-        x = np.array([k for k in magnetisation.keys()])
-        magnetisation = np.array([v for k, v in magnetisation.items()])
-
-        result = lmfit.minimize(bloch_domain_wall_residual, fit_params, args=(x,), 
-            kws={'mx': magnetisation[:,0], 'my': magnetisation[:,1], 'mz': magnetisation[:,2]})
-
-        print(f"{result.params['center'].value:8.6f} {result.params['height'].value:8.6f} {result.params['width'].value:8.6f}", file=outfile)
-
-
-        if args.print_fits:
-            print(lmfit.fit_report(result))
-
-            plt.plot(x, magnetisation[:,0], label='$M_x$')
-            plt.plot(x, magnetisation[:,1], label='$M_y$')
-            plt.plot(x, magnetisation[:,2], label='$M_z$')
-
-            plt.plot(x, bloch_domain_wall_mx(x, result.params['center'], result.params['height'], result.params['width']), '--', label='$M_x$ fit')
-            plt.plot(x, bloch_domain_wall_my(x, result.params['center'], result.params['height'], result.params['width']), '--', label='$M_y$ fit')
-            plt.plot(x, bloch_domain_wall_mz(x, result.params['center'], result.params['height'], result.params['width']), '--', label='$M_z$ fit')
-
-
-            plt.xlabel(r'$x$ (nm)')
-            plt.ylabel(r'$M_{x,y,z}$ ($\mu_{B}$)')
-
-            plt.title(filename)
-
-            plt.legend()
-            plt.savefig(f'{os.path.splitext(filename)[0]}.pdf')
 
