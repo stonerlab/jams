@@ -15,9 +15,11 @@ void jams::InitBlochDomainWall::execute(const libconfig::Setting &settings) {
 
   for (auto i = 0; i < num_spins; ++i) {
     auto r = ::lattice->atom_position(i);
+    // NOTE: The factor of pi here is an arbitrary convention. See the
+    // documentation for jams::InitBlochDomainWall.
     s(i, 0) = 0.0;
-    s(i, 1) = 1.0 / std::cosh((r[0]-center) / width);
-    s(i, 2) = std::tanh((r[0]-center) / width);
+    s(i, 1) = 1.0 / std::cosh(kPi * (r[0]-center) / width);
+    s(i, 2) = std::tanh(kPi * (r[0]-center) / width);
   }
 }
 
