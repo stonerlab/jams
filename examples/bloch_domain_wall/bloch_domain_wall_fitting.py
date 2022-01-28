@@ -6,6 +6,12 @@
 # data with a Bloch wall profile, where it is assumed the Bloch wall is unconstrained,
 # and the magnetisation at the left/right sides are in the -/+z directions.
 #
+# NOTE: We are using the convention for width which includes a factor of
+# pi. i.e. = pi \sqrt{A/K}. This factor of pi is an arbitrary choice in the
+# definition of width. Some authors use it some don't. Including the pi gives
+# are much better feeling for the extent of the domain wall when trying to fit
+# it into a finite size simulation box.
+#
 # Requirements
 # ------------
 # - numpy
@@ -54,7 +60,7 @@ def bloch_domain_wall_my(x, center, height, width):
     height: domain wall height (magnetization along z)
     width:  domain wall width
     """
-    return height/np.cosh((x-center)/width)
+    return height/np.cosh(np.pi * (x-center)/width)
 
 
 def bloch_domain_wall_mz(x, center, height, width):
@@ -66,7 +72,7 @@ def bloch_domain_wall_mz(x, center, height, width):
     height: domain wall height (magnetization along z)
     width:  domain wall width
     """
-    return height*np.tanh((x-center)/width)
+    return height*np.tanh(np.pi * (x-center)/width)
 
 
 def bloch_domain_wall_residual(params, x, mx, my, mz):
@@ -126,8 +132,8 @@ xplanes = np.unique(positions[:,0])
 
 fit_params = lmfit.Parameters()
 fit_params.add('center', value = np.mean(xplanes))
-fit_params.add('height', value = 1000.0)
-fit_params.add('width',  value = 10.0)
+fit_params.add('height', value = 256.0)
+fit_params.add('width',  value = 40.0)
 
 
 
@@ -181,6 +187,7 @@ with open(output_filename, 'w') as outfile:
 
                 plt.legend()
                 plt.savefig(f'{os.path.splitext(filename)[0]}.pdf')
+                plt.close()
         except OSError:
             break
 
