@@ -8,6 +8,7 @@
 #include "jams/monitors/field.h"
 #include "jams/monitors/hdf5.h"
 #include "jams/monitors/magnetisation.h"
+#include "jams/monitors/magnetisation_layers.h"
 #include "jams/monitors/magnetisation_rate.h"
 #include "jams/monitors/magnon_spectrum.h"
 #include "jams/monitors/skyrmion.h"
@@ -77,6 +78,7 @@ Monitor* Monitor::create(const Setting &settings) {
   DEFINED_MONITOR("field", FieldMonitor, settings);
   DEFINED_MONITOR("hdf5", Hdf5Monitor, settings);
   DEFINED_MONITOR("magnetisation", MagnetisationMonitor, settings);
+  DEFINED_MONITOR("magnetisation-layers", MagnetisationLayersMonitor, settings);
   DEFINED_MONITOR("magnetisation-rate", MagnetisationRateMonitor, settings);
   DEFINED_MONITOR("skyrmion", SkyrmionMonitor, settings);
   DEFINED_MONITOR("smr", SMRMonitor, settings);

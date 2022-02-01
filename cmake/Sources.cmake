@@ -63,6 +63,7 @@ set(JAMS_SOURCES_CXX
         monitors/field.cc
         monitors/hdf5.cc
         monitors/magnetisation.cc
+        monitors/magnetisation_layers.cc
         monitors/magnetisation_rate.cc
         monitors/magnon_spectrum.cc
         monitors/neutron_scattering.cc
