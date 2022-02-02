@@ -99,6 +99,7 @@ set(JAMS_SOURCES_CUDA
         cuda/cuda_array_kernels.cu
         cuda/cuda_common.cu
         cuda/cuda_solver.cc
+        cuda/cuda_spin_ops.cu
         cuda/cuda_minimum_image.cu
         hamiltonian/cuda_applied_field.cu
         hamiltonian/cuda_cubic_anisotropy.cu

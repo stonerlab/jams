@@ -23,7 +23,6 @@ public:
 
 private:
     int num_layers_;
-    jams::MultiArray<double,1> layer_positions_;
     jams::MultiArray<double,2> layer_magnetisation_;
     std::vector<jams::MultiArray<int,1>>    layer_spin_indicies_;
 };
