@@ -90,9 +90,11 @@ void MagnetisationLayersMonitor::update(Solver *solver) {
   for (auto layer_index = 0; layer_index < num_layers_; ++layer_index) {
     Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus,
                                          layer_spin_indicies_[layer_index]);
-    layer_magnetisation_(layer_index, 0) = mag[0];
-    layer_magnetisation_(layer_index, 1) = mag[1];
-    layer_magnetisation_(layer_index, 2) = mag[2];
+
+    // internally we use meV T^-1 for mus so convert back to Bohr magneton
+    layer_magnetisation_(layer_index, 0) = mag[0] / kBohrMagnetonIU;
+    layer_magnetisation_(layer_index, 1) = mag[1] / kBohrMagnetonIU;
+    layer_magnetisation_(layer_index, 2) = mag[2] / kBohrMagnetonIU;
   }
 
   // Open the h5 file to write new data
