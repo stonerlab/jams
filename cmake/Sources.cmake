@@ -97,6 +97,7 @@ set(JAMS_SOURCES_CXX
 
 set(JAMS_SOURCES_CUDA
         cuda/cuda_array_kernels.cu
+        cuda/cuda_array_reduction.cu
         cuda/cuda_common.cu
         cuda/cuda_solver.cc
         cuda/cuda_spin_ops.cu
