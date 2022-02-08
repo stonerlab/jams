@@ -63,6 +63,7 @@ set(JAMS_SOURCES_CXX
         monitors/field.cc
         monitors/hdf5.cc
         monitors/magnetisation.cc
+        monitors/magnetisation_layers.cc
         monitors/magnetisation_rate.cc
         monitors/magnon_spectrum.cc
         monitors/neutron_scattering.cc
@@ -96,8 +97,10 @@ set(JAMS_SOURCES_CXX
 
 set(JAMS_SOURCES_CUDA
         cuda/cuda_array_kernels.cu
+        cuda/cuda_array_reduction.cu
         cuda/cuda_common.cu
         cuda/cuda_solver.cc
+        cuda/cuda_spin_ops.cu
         cuda/cuda_minimum_image.cu
         hamiltonian/cuda_applied_field.cu
         hamiltonian/cuda_cubic_anisotropy.cu
