@@ -14,52 +14,63 @@
 
 #include "jams/monitors/magnetisation.h"
 #include "magnetisation.h"
+#include "jams/helpers/spinops.h"
+#include "jams/helpers/array_ops.h"
 
 
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  s_transform_(globals::num_spins),
-  tsv_file(jams::output::full_path_filename("mag.tsv")),
-  m_stats_(),
-  m2_stats_(),
-  m4_stats_()
+  tsv_file(jams::output::full_path_filename("mag.tsv"))
 {
   using namespace globals;
+
+  // calculate magnetisation per material or per unit cell position
+  auto grouping_str = jams::config_optional<std::string>(settings, "grouping", "materials");
+
+  if (lowercase(grouping_str) == "materials") {
+    grouping_ = Grouping::MATERIALS;
+  } else if (lowercase(grouping_str) == "positions") {
+    grouping_ = Grouping::POSITIONS;
+  } else {
+    throw std::runtime_error("unknown magnetisation grouping: " + grouping_str);
+  }
+
+  // should the magnetisation be normalised to 1 or be in units of muB
+  normalize_magnetisation_ = jams::config_optional<bool>(settings, "normalize", true);
+
 
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 
-  s_transform_.resize(num_spins);
-  for (int i = 0; i < num_spins; ++i) {
-    s_transform_(i) = lattice->material(lattice->atom_material_id(i)).transform;
-  }
 
-  zero(material_count_.resize(lattice->num_materials()));
-  for (auto i = 0; i < num_spins; ++i) {
-    material_count_(lattice->atom_material_id(i))++;
+  if (grouping_ == Grouping::MATERIALS) {
+    std::vector<std::vector<int>> material_index_groups(lattice->num_materials());
+    for (auto i = 0; i < num_spins; ++i) {
+      auto type = lattice->atom_material_id(i);
+      material_index_groups[type].push_back(i);
+    }
+
+    group_spin_indicies_.resize(material_index_groups.size());
+    for (auto n = 0; n < material_index_groups.size(); ++n) {
+      group_spin_indicies_[n] = jams::MultiArray<int,1>(material_index_groups[n].begin(), material_index_groups[n].end());
+    }
+  } else if (grouping_ == Grouping::POSITIONS) {
+    std::vector<std::vector<int>> position_index_groups(lattice->num_motif_atoms());
+    for (auto i = 0; i < num_spins; ++i) {
+      auto position = lattice->atom_motif_position(i);
+      position_index_groups[position].push_back(i);
+    }
+
+    group_spin_indicies_.resize(position_index_groups.size());
+    for (auto n = 0; n < position_index_groups.size(); ++n) {
+      group_spin_indicies_[n] = jams::MultiArray<int,1>(position_index_groups[n].begin(), position_index_groups[n].end());
+    }
   }
 }
 
 void MagnetisationMonitor::update(Solver * solver) {
   using namespace jams;
   using namespace globals;
-
-  jams::MultiArray<Vec3, 1> magnetisation(::lattice->num_materials());
-  zero(magnetisation);
-
-  for (auto i = 0; i < num_spins; ++i) {
-    const auto type = lattice->atom_material_id(i);
-    for (auto j = 0; j < 3; ++j) {
-      magnetisation(type)[j] += s(i, j);
-    }
-  }
-
-  for (auto type = 0; type < lattice->num_materials(); ++type) {
-    if (material_count_(type) == 0) continue;
-    for (auto j = 0; j < 3; ++j) {
-      magnetisation(type)[j] /= static_cast<double>(material_count_(type));
-    }
-  }
 
   tsv_file.width(12);
   tsv_file << fmt::sci << solver->time();
@@ -69,71 +80,26 @@ void MagnetisationMonitor::update(Solver * solver) {
     tsv_file << fmt::decimal << solver->physics()->applied_field(i);
   }
 
-  for (auto type = 0; type < lattice->num_materials(); ++type) {
-    tsv_file << fmt::decimal << magnetisation(type);
-    tsv_file << fmt::decimal << norm(magnetisation(type));
-  }
-
-  if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
-    double m2 = binder_m2();
-    m_stats_.add(sqrt(m2));
-    m2_stats_.add(m2);
-    m4_stats_.add(m2 * m2);
-
-    tsv_file << fmt::decimal << m2;
-    tsv_file << fmt::decimal << m2 * m2;
-    tsv_file << fmt::decimal << binder_cumulant();
-
-    if (convergence_is_on_) {
-      if (m_stats_.size() > 1 && m_stats_.size() % 10 == 0) {
-        double diagnostic;
-        m_stats_.geweke(diagnostic, convergence_stderr_);
-
-        convergence_geweke_m_diagnostic_.push_back(diagnostic);
-
-        tsv_file << fmt::decimal << diagnostic;
-        tsv_file << fmt::decimal << convergence_stderr_;
-        tsv_file << fmt::decimal << m_stats_.stddev(0.1*m_stats_.size(), m_stats_.size()) / sqrt(m_stats_.size()*0.9);
-      } else {
-        tsv_file << "--------";
-      }
+  for (auto n = 0; n < group_spin_indicies_.size(); ++n) {
+    Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus, group_spin_indicies_[n]);
+    double normalising_factor = 1.0;
+    if (normalize_magnetisation_) {
+      normalising_factor = 1.0 / jams::scalar_field_indexed_reduce(globals::mus, group_spin_indicies_[n]);
+    } else {
+      // internally we use meV T^-1 for mus so convert back to Bohr magneton
+      normalising_factor = 1.0 / kBohrMagnetonIU;
     }
+    tsv_file << fmt::decimal << mag[0] * normalising_factor;
+    tsv_file << fmt::decimal << mag[1] * normalising_factor;
+    tsv_file << fmt::decimal << mag[2] * normalising_factor;
+    tsv_file << fmt::decimal << norm(mag) * normalising_factor;
   }
+
   tsv_file << std::endl;
 }
 
-double MagnetisationMonitor::binder_m2() {
-  using namespace globals;
-
-  Vec3 mag;
-
-  for (int i = 0; i < num_spins; ++i) {
-    for (int m = 0; m < 3; ++m) {
-      for (int n = 0; n < 3; ++n) {
-        mag[m] = mag[m] + s_transform_(i)[m][n] * s(i, n);
-      }
-    }
-  }
-
-  return norm_sq(mag) / square(static_cast<double>(num_spins));
-}
-
-double MagnetisationMonitor::binder_cumulant() {
-  return 1.0 - (m4_stats_.mean()) / (3.0 * square(m2_stats_.mean()));
-}
-
 bool MagnetisationMonitor::is_converged() {
-
-  if (convergence_geweke_m_diagnostic_.size() < 10) {
-    return false;
-  }
-
-  int z_count = std::count_if(
-    convergence_geweke_m_diagnostic_.begin() + 0.5 * convergence_geweke_m_diagnostic_.size(),
-    convergence_geweke_m_diagnostic_.end(),
-    [](double x) {return std::abs(x) < 1.96;});
-
-  return (z_count > (0.95 * 0.5 * convergence_geweke_m_diagnostic_.size())  && convergence_stderr_ < convergence_tolerance_) && convergence_is_on_;
+  return false;
 }
 
 std::string MagnetisationMonitor::tsv_header() {
@@ -148,20 +114,22 @@ std::string MagnetisationMonitor::tsv_header() {
   ss << fmt::decimal << "hy";
   ss << fmt::decimal << "hz";
 
-  for (auto i = 0; i < lattice->num_materials(); ++i) {
-    auto name = lattice->material_name(i);
-    for (const auto& suffix : {"_mx", "_my", "_mz", "_m"}) {
-      ss << fmt::decimal << name + suffix;
+  if (grouping_ == Grouping::MATERIALS) {
+    for (auto i = 0; i < lattice->num_materials(); ++i) {
+      auto name = lattice->material_name(i);
+      for (const auto &suffix: {"_mx", "_my", "_mz", "_m"}) {
+        ss << fmt::decimal << name + suffix;
+      }
+    }
+  } else if (grouping_ == Grouping::POSITIONS) {
+    for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+      auto material_name = lattice->material_name(lattice->motif_atom(i).material_index);
+      for (const auto &suffix: {"_mx", "_my", "_mz", "_m"}) {
+        ss << fmt::decimal << std::to_string(i+1) + "_" + material_name + suffix;
+      }
     }
   }
 
-  if (convergence_is_on_) {
-    ss << fmt::decimal << "m2";
-    ss << fmt::decimal << "m4";
-    ss << fmt::decimal << "binder";
-    ss << fmt::decimal << "geweke_m2";
-    ss << fmt::decimal << "geweke_m4";
-  }
   ss << std::endl;
 
   return ss.str();

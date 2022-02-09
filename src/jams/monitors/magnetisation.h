@@ -26,20 +26,17 @@ public:
     bool is_converged() override;
 
 private:
+    enum class Grouping {
+        MATERIALS,
+        POSITIONS
+    };
+
+    Grouping grouping_ = Grouping::MATERIALS;
+    bool normalize_magnetisation_ = true;
     std::ofstream tsv_file;
     std::string   tsv_header();
 
-    double binder_m2();
-
-    double binder_cumulant();
-
-    jams::MultiArray<Mat3, 1> s_transform_;
-    jams::MultiArray<unsigned, 1> material_count_;
-
-    Stats m_stats_;
-    Stats m2_stats_;
-    Stats m4_stats_;
-    std::vector<double> convergence_geweke_m_diagnostic_;
+    std::vector<jams::MultiArray<int,1>> group_spin_indicies_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_H

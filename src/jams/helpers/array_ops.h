@@ -49,6 +49,23 @@ inline std::array<T, 3> vector_field_indexed_reduce(const jams::MultiArray<T, 2>
   }
   return sum;
 }
+
+template<class T>
+inline T scalar_field_indexed_reduce(const jams::MultiArray<T, 1> &x, const jams::MultiArray<int, 1>& indices) {
+  // Kahan sum over the field components to keep precision for long
+  // vectors.
+
+  T sum = x(indices(0));
+  T c = 0;
+
+  for (auto i = 1; i < indices.size(); ++i) {
+    T y = x(indices(i)) - c;
+    T t = sum + y;
+    c = (t - sum) - y;
+    sum = t;
+  }
+  return sum;
+}
 }
 
 
