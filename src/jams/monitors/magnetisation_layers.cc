@@ -32,7 +32,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   std::map<double, std::vector<int>, decltype(comp_less)> unique_positions(comp_less);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 r = rotation_matrix * ::lattice->atom_position(i);
+    Vec3 r = rotation_matrix * ::lattice->atom_position(i) * lattice->parameter() * kMeterToNanometer;
     unique_positions[r[2]].push_back(i);
   }
 
@@ -75,6 +75,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     auto dataset = group.createDataSet<double>(
         "layer_positions",HighFive::DataSpace::From(layer_positions));
     dataset.write(layer_positions);
+    dataset.createAttribute<std::string>("units", "nm");
   }
   {
     auto dataset = group.createDataSet<int>(
@@ -105,11 +106,12 @@ void MagnetisationLayersMonitor::update(Solver *solver) {
   HighFive::Group group = file.createGroup(
       h5_group + zero_pad_number(solver->iteration(),9));
 
-  group.createAttribute<double>("time",
-                                HighFive::DataSpace(1)).write(solver->time());
+  group.createAttribute<double>("time", solver->time());
+  group.createAttribute<std::string>("units", "ps");
 
   auto dataset = group.createDataSet<double>(
       "layer_magnetisation",HighFive::DataSpace::From(layer_magnetisation_));
+  dataset.createAttribute<std::string>("units", "muB");
 
   dataset.write(layer_magnetisation_);
 }
