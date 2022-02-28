@@ -50,11 +50,16 @@ jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Se
 
 //******** Public Overridden Functions ***************
 double jams::CVarSkyrmionCoreCoordinate::value() {
+//  return calculate_expensive_value();
   return cached_value();
 }
 
 double jams::CVarSkyrmionCoreCoordinate::calculate_expensive_value() {
-  return skyrmion_center_of_mass_coordinate();
+  if (value_returned_x) {
+    return skyrmion_center_of_mass_coordinate_x();
+  } else {
+    return skyrmion_center_of_mass_coordinate_y();
+  }
 }
 
 double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,
@@ -64,10 +69,14 @@ double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,
   double trial_coordinate = cached_value();
 
   if (spin_crossed_threshold(spin_initial, spin_trial, skyrmion_core_threshold_)) {
-	trial_coordinate = skyrmion_center_of_mass_coordinate();
-  }
 
-  set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_coordinate);
+    if (value_returned_x) {
+      trial_coordinate = skyrmion_center_of_mass_coordinate_x();
+    } else {
+      trial_coordinate = skyrmion_center_of_mass_coordinate_y();
+    }
+    set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_coordinate);
+  }
 
   return trial_coordinate;
 }
@@ -134,10 +143,8 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
   }
 }
 
-double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_coordinate() {
+double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_coordinate_x() {
   using namespace globals;
-  double coordinate_x = 0.0;
-  double coordinate_y = 0.0;
 
   Mat3 W = lattice->get_unitcell().matrix();
   W[0][2] = 0.0;
@@ -145,37 +152,47 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_coordinate() {
   W[2][2] = 1.0;
 
   Vec3 tube_center_of_mass_x = {0.0, 0.0, 0.0};
+
+  int num_core_spins = 0;
+  for (auto i = 0; i < num_spins; ++i) {
+    if (globals::s(i, 2) < skyrmion_core_threshold_) {
+      tube_center_of_mass_x += cylinder_remapping_x_[i];
+      num_core_spins++;
+    }
+  }
+
+  if (periodic_x_) {
+	  double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[1]) + kPi;
+    return theta_x * lattice->size(0) / (kTwoPi);
+  } else {
+	  return tube_center_of_mass_x[0] / double(num_core_spins);
+  }
+}
+
+double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_coordinate_y() {
+  using namespace globals;
+
+  Mat3 W = lattice->get_unitcell().matrix();
+  W[0][2] = 0.0;
+  W[1][2] = 0.0;
+  W[2][2] = 1.0;
+
   Vec3 tube_center_of_mass_y = {0.0, 0.0, 0.0};
 
   int num_core_spins = 0;
   for (auto i = 0; i < num_spins; ++i) {
-	if (globals::s(i, 2) < skyrmion_core_threshold_) {
-	  tube_center_of_mass_x += cylinder_remapping_x_[i];
-	  tube_center_of_mass_y += cylinder_remapping_y_[i];
-	  num_core_spins++;
-	}
-  }
-
-  if (periodic_x_) {
-	double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[1]) + kPi;
-	coordinate_x = theta_x * lattice->size(0) / (kTwoPi);
-  } else {
-	coordinate_x = tube_center_of_mass_x[0] / double(num_core_spins);
+    if (globals::s(i, 2) < skyrmion_core_threshold_) {
+      tube_center_of_mass_y += cylinder_remapping_y_[i];
+      num_core_spins++;
+    }
   }
 
   if (periodic_y_) {
-	double theta_y = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
-	coordinate_y = theta_y * lattice->size(1) / (kTwoPi);
+    double theta_x = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
+    return theta_x * lattice->size(1) / (kTwoPi);
   } else {
-	coordinate_y = tube_center_of_mass_y[1] / double(num_core_spins);
+    return tube_center_of_mass_y[1] / double(num_core_spins);
   }
-  //TODO: Here I return only x or y --> based on the bool passed initially
-  if (value_returned_x) {
-
-	return coordinate_x;
-  } else
-	return coordinate_y;
-
 }
 
 bool jams::CVarSkyrmionCoreCoordinate::spin_crossed_threshold(const Vec3 &s_initial,
