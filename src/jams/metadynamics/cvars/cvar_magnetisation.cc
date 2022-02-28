@@ -17,8 +17,7 @@ double jams::CVarMagnetisation::calculate_expensive_value() {
 }
 
 
-double
-jams::CVarMagnetisation::spin_move_trial_value(int i, const Vec3 &spin_initial,
+double jams::CVarMagnetisation::spin_move_trial_value(int i, const Vec3 &spin_initial,
                                                const Vec3 &spin_trial) {
 
   const double trial_value = cached_value() - spin_initial[magnetisation_component_] + spin_trial[magnetisation_component_];

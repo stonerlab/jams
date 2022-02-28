@@ -8,6 +8,7 @@
 
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
+#include "jams/core/lattice.h"
 
 // TODO: Add support for boundary conditions
 
@@ -126,8 +127,24 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     // Set the samples along this collective variable axis
 	//Todo: these need to be saved as  vector to access in the death boundary
     double range_step = config_required<double>(cvar_settings, "range_step");
-    double range_min = config_required<double>(cvar_settings, "range_min");
-    double range_max = config_required<double>(cvar_settings, "range_max");
+	double range_min = config_required<double>(cvar_settings, "range_min");
+	double range_max = config_required<double>(cvar_settings, "range_max");
+	if (cvar_names_[i] == ("skyrmion_coordinate_x") || cvar_names_[i] == ("skyrmion_coordinate_y")){
+	  auto bottom_left  = lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
+      auto bottom_right = lattice->get_unitcell().matrix() * Vec3{double(lattice->size(0)), 0.0, 0.0};
+	  auto top_left     = lattice->get_unitcell().matrix() * Vec3{0.0, double(lattice->size(1)), 0.0};
+	  auto top_right    = lattice->get_unitcell().matrix() * Vec3{double(lattice->size(0)), double(lattice->size(1)), 0.0};
+	  if(cvar_names_[i] == ("skyrmion_coordinate_x")){
+	  auto bounds_x = std::minmax({bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
+	   range_min = bounds_x.first;
+	   range_max = bounds_x.second;
+	  }
+	  if (cvar_names_[i] == ("skyrmion_coordinate_y")) {
+		auto bounds_y = std::minmax({bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
+		 range_min = bounds_y.first;
+		 range_max = bounds_y.second;
+	  }
+	}
     cvar_sample_points_[i] = linear_space(range_min, range_max, range_step);
 	cvar_range_max_[i] = range_max;
 	cvar_range_min_[i] = range_min;
@@ -226,7 +243,7 @@ double jams::MetadynamicsPotential::potential_difference(
 
 
 double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimensions>& cvar_coordinates) {
-  assert(cvar_coordinates.size() == num_cvars_);
+//  assert(cvar_coordinates.size() == num_cvars_);
   assert(cvar_coordinates.size() > 0 && cvar_coordinates.size() <= kMaxDimensions);
   // Lookup points above and below for linear interpolation. We can use the
   // the fact that the ranges are sorted to do a bisection search.

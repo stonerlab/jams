@@ -8,8 +8,9 @@
 #include "jams/maths/functions.h"
 #include <libconfig.h++>
 #include <jams/interface/config.h>
-
 #include "jams/core/lattice.h"
+
+
 #include "jams/helpers/consts.h"
 #include "jams/core/physics.h"
 
@@ -32,7 +33,6 @@ jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Se
 	value_returned_x = true;
   } else
 	value_returned_x = false;
-
   periodic_x_ = lattice->is_periodic(0);
   periodic_y_ = lattice->is_periodic(1);
 
@@ -43,7 +43,7 @@ jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Se
 
   auto bounds_x = std::minmax({bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
   auto bounds_y = std::minmax({bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
-  skyrmion_core_threshold_ = -0.5;
+  skyrmion_core_threshold_ = -0.05;
   space_remapping();
 
 }
