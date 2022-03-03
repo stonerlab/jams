@@ -33,8 +33,9 @@ class CVarSkyrmionCoreCoordinate : public CachingCollectiveVariable {
   /// be done once on initialisation.
   void space_remapping();
 
-  double skyrmion_center_of_mass_coordinate_x(); //Changed to double since I want to return on the coordinate
-  double skyrmion_center_of_mass_coordinate_y();
+//  double skyrmion_center_of_mass_coordinate_x(); //Changed to double since I want to return on the coordinate
+//  double skyrmion_center_of_mass_coordinate_y();
+  double skyrmion_center_of_mass();
   // Threshold value of s_z for considering a spin as part of the core of
   // the skyrmion for the purposes of calculating the centre.
   double skyrmion_core_threshold_; //

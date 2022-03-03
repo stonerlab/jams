@@ -55,11 +55,13 @@ double jams::CVarSkyrmionCoreCoordinate::value() {
 }
 
 double jams::CVarSkyrmionCoreCoordinate::calculate_expensive_value() {
-  if (value_returned_x) {
-    return skyrmion_center_of_mass_coordinate_x();
-  } else {
-    return skyrmion_center_of_mass_coordinate_y();
-  }
+  skyrmion_center_of_mass();
+//  if (value_returned_x) {
+//	skyrmion_center_of_mass();
+//    return skyrmion_center_of_mass_coordinate_x();
+//  } else {
+//    return skyrmion_center_of_mass_coordinate_y();
+//  }
 }
 
 double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,
@@ -69,12 +71,12 @@ double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,
   double trial_coordinate = cached_value();
 
   if (spin_crossed_threshold(spin_initial, spin_trial, skyrmion_core_threshold_)) {
-
-    if (value_returned_x) {
-      trial_coordinate = skyrmion_center_of_mass_coordinate_x();
-    } else {
-      trial_coordinate = skyrmion_center_of_mass_coordinate_y();
-    }
+	skyrmion_center_of_mass();
+//    if (value_returned_x) {
+//      trial_coordinate = skyrmion_center_of_mass_coordinate_x();
+//    } else {
+//      trial_coordinate = skyrmion_center_of_mass_coordinate_y();
+//    }
     set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_coordinate);
   }
 
@@ -143,62 +145,116 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
   }
 }
 
-double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_coordinate_x() {
-  using namespace globals;
-
-  Mat3 W = lattice->get_unitcell().matrix();
-  W[0][2] = 0.0;
-  W[1][2] = 0.0;
-  W[2][2] = 1.0;
-
-  Vec3 tube_center_of_mass_x = {0.0, 0.0, 0.0};
-
-  int num_core_spins = 0;
-  for (auto i = 0; i < num_spins; ++i) {
-    if (globals::s(i, 2) < skyrmion_core_threshold_) {
-      tube_center_of_mass_x += cylinder_remapping_x_[i];
-      num_core_spins++;
-    }
-  }
-
-  if (periodic_x_) {
-	  double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[1]) + kPi;
-    return theta_x * lattice->size(0) / (kTwoPi);
-  } else {
-	  return tube_center_of_mass_x[0] / double(num_core_spins);
-  }
-}
-
-double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_coordinate_y() {
-  using namespace globals;
-
-  Mat3 W = lattice->get_unitcell().matrix();
-  W[0][2] = 0.0;
-  W[1][2] = 0.0;
-  W[2][2] = 1.0;
-
-  Vec3 tube_center_of_mass_y = {0.0, 0.0, 0.0};
-
-  int num_core_spins = 0;
-  for (auto i = 0; i < num_spins; ++i) {
-    if (globals::s(i, 2) < skyrmion_core_threshold_) {
-      tube_center_of_mass_y += cylinder_remapping_y_[i];
-      num_core_spins++;
-    }
-  }
-
-  if (periodic_y_) {
-    double theta_x = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
-    return theta_x * lattice->size(1) / (kTwoPi);
-  } else {
-    return tube_center_of_mass_y[1] / double(num_core_spins);
-  }
-}
+//double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_coordinate_x() {
+//  using namespace globals;
+//
+//  Mat3 W = lattice->get_unitcell().matrix();
+//  W[0][2] = 0.0;
+//  W[1][2] = 0.0;
+//  W[2][2] = 1.0;
+//
+//  Vec3 tube_center_of_mass_x = {0.0, 0.0, 0.0};
+//  int num_core_spins = 0;
+//  for (auto i = 0; i < num_spins; ++i) {
+//    if (globals::s(i, 2) < skyrmion_core_threshold_) {
+//      tube_center_of_mass_x += cylinder_remapping_x_[i];
+//      num_core_spins++;
+//    }
+//  }
+//
+//  if (periodic_x_) {
+//	  double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
+//	  double x_frac = theta_x * lattice->size(0) / (kTwoPi);
+//	double x = (x_frac*W[0][0]) + (x_frac* W[0][1]) + (x_frac*W[0][2]);
+//	double x2 = (x_frac*W[0][0]) + (x_frac* W[1][0]) + (x_frac*W[2][0]);
+//	return x;
+//
+//  } else {
+//	  float x_frac_non_pe = tube_center_of_mass_x[0] / double(num_core_spins);
+//	  float x1 = W[0][0]*x_frac_non_pe + W[0][1] * x_frac_non_pe + W[0][2] * x_frac_non_pe;
+//	  return  x1 ;
+//  }
+//}
+//
+//double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_coordinate_y() {
+//  using namespace globals;
+//
+//  Mat3 W = lattice->get_unitcell().matrix();
+//  W[0][2] = 0.0;
+//  W[1][2] = 0.0;
+//  W[2][2] = 1.0;
+//
+//  Vec3 tube_center_of_mass_y = {0.0, 0.0, 0.0};
+//  Vec3 tube_center_of_mass_x = {0.0, 0.0,0.0};
+//
+//  int num_core_spins = 0;
+//  for (auto i = 0; i < num_spins; ++i) {
+//    if (globals::s(i, 2) < skyrmion_core_threshold_) {
+//      tube_center_of_mass_y += cylinder_remapping_y_[i];
+//	  tube_center_of_mass_x += cylinder_remapping_x_[i];
+//      num_core_spins++;
+//    }
+//  }
+//
+//  if (periodic_y_) {
+//    double theta_x = (atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi);
+//	double y_frac = theta_x * lattice->size(1) / (kTwoPi);
+//	double y = y_frac * W[1][0] +y_frac *W[1][1]  + y_frac * W[1][2];
+//	return y;
+//  } else {
+//	double y_frac_non_pe = tube_center_of_mass_y[1] / double(num_core_spins);
+//	double y1 =  y_frac_non_pe * W[1][0] +y_frac_non_pe *W[1][1]  + y_frac_non_pe * W[1][2];
+//    return y1;
+//  }
+//
+//}
 
 bool jams::CVarSkyrmionCoreCoordinate::spin_crossed_threshold(const Vec3 &s_initial,
 															  const Vec3 &s_final,
 															  const double &threshold) {
   return (s_initial[2] <= threshold && s_final[2] > threshold) || (s_initial[2] > threshold && s_final[2] <= threshold);
+}
+double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
+  using namespace globals;
+  using namespace std;
+
+  Mat3 W = lattice->get_unitcell().matrix();
+  W[0][2] = 0.0; W[1][2] = 0.0; W[2][2] = 1.0;
+
+  Vec3 tube_center_of_mass_x = {0.0, 0.0, 0.0};
+  Vec3 tube_center_of_mass_y = {0.0, 0.0, 0.0};
+
+  Vec3 center_of_mass = {0.0, 0.0, 0.0};
+
+  int num_core_spins = 0;
+  for (auto i = 0; i < num_spins; ++i) {
+    if (globals::s(i,2) < skyrmion_core_threshold_) {
+      tube_center_of_mass_x += cylinder_remapping_x_[i];
+      tube_center_of_mass_y += cylinder_remapping_y_[i];
+      num_core_spins++;
+    }
+  }
+
+
+//  if (periodic_x_) {
+//    double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
+//    center_of_mass[0] = theta_x*lattice->size(0)/(kTwoPi);
+//  } else {
+//    center_of_mass[0] = tube_center_of_mass_x[0] / double(num_core_spins);
+//  }
+
+  if (periodic_y_) {
+    double theta_y = 0.0;//atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
+    center_of_mass[1] = theta_y*lattice->size(1)/(kTwoPi);
+  } else {
+    center_of_mass[1] = tube_center_of_mass_y[1] / double(num_core_spins);
+  }
+  Vec3 value = W*center_of_mass;
+    if(value_returned_x) {
+	  return value[0];
+	}else{
+	return value[1];
+	}
 }
 
 
