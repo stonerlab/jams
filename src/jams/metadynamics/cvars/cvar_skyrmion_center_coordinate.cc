@@ -236,15 +236,15 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
   }
 
 
-//  if (periodic_x_) {
-//    double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
-//    center_of_mass[0] = theta_x*lattice->size(0)/(kTwoPi);
-//  } else {
-//    center_of_mass[0] = tube_center_of_mass_x[0] / double(num_core_spins);
-//  }
+  if (periodic_x_) {
+    double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
+    center_of_mass[0] = theta_x*lattice->size(0)/(kTwoPi);
+  } else {
+    center_of_mass[0] = tube_center_of_mass_x[0] / double(num_core_spins);
+  }
 
   if (periodic_y_) {
-    double theta_y = 0.0;//atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
+    double theta_y = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
     center_of_mass[1] = theta_y*lattice->size(1)/(kTwoPi);
   } else {
     center_of_mass[1] = tube_center_of_mass_y[1] / double(num_core_spins);
