@@ -60,7 +60,7 @@ double jams::CVarSkyrmionCoreCoordinate::calculate_expensive_value() {
 //	skyrmion_center_of_mass();
 //    return skyrmion_center_of_mass_coordinate_x();
 //  } else {
-//    return skyrmion_center_of_mass_coordinate_y();
+////    return skyrmion_center_of_mass_coordinate_y();
 //  }
 }
 
@@ -73,9 +73,11 @@ double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,
   if (spin_crossed_threshold(spin_initial, spin_trial, skyrmion_core_threshold_)) {
 	skyrmion_center_of_mass();
 //    if (value_returned_x) {
+//
 //      trial_coordinate = skyrmion_center_of_mass_coordinate_x();
 //    } else {
-//      trial_coordinate = skyrmion_center_of_mass_coordinate_y();
+////      trial_coordinate = skyrmion_center_of_mass_coordinate_y();
+//       auto x = 0;
 //    }
     set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_coordinate);
   }
@@ -163,10 +165,10 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
 //  }
 //
 //  if (periodic_x_) {
+//	tube_center_of_mass_x = W*tube_center_of_mass_x;
 //	  double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
 //	  double x_frac = theta_x * lattice->size(0) / (kTwoPi);
-//	double x = (x_frac*W[0][0]) + (x_frac* W[0][1]) + (x_frac*W[0][2]);
-//	double x2 = (x_frac*W[0][0]) + (x_frac* W[1][0]) + (x_frac*W[2][0]);
+//	  double x = (x_frac*W[0][0]) + (x_frac* W[0][1]) + (x_frac*W[0][2]);
 //	return x;
 //
 //  } else {
