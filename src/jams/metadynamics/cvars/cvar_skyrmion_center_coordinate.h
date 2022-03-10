@@ -26,16 +26,23 @@ class CVarSkyrmionCoreCoordinate : public CachingCollectiveVariable {
 
  private:
 
+    enum class Component {x, y};
+
   /// Maps the 2D x-y plane onto two cylinder coordinate systems to allow
   /// calculation of the center of mass with periodic boundaries. The remapped
   /// coordinates on the cylinders are stored in cylinder_remapping_x_ and
   /// cylinder_remapping_y_. Because the lattice is fixed this only needs to
   /// be done once on initialisation.
   void space_remapping();
+  Vec3 center_of_mass_reverse_transform(const int num_core_spins, const Vec3& tube_center_of_mass_x, const Vec3& tube_center_of_mass_y);
 
-//  double skyrmion_center_of_mass_coordinate_x(); //Changed to double since I want to return on the coordinate
+    //  double skyrmion_center_of_mass_coordinate_x(); //Changed to double since I want to return on the coordinate
 //  double skyrmion_center_of_mass_coordinate_y();
   double skyrmion_center_of_mass();
+  double skyrmion_center_of_mass_change(int i,
+                                   const Vec3 &spin_initial,
+                                   const Vec3 &spin_trial);
+
   // Threshold value of s_z for considering a spin as part of the core of
   // the skyrmion for the purposes of calculating the centre.
   double skyrmion_core_threshold_; //
@@ -44,7 +51,9 @@ class CVarSkyrmionCoreCoordinate : public CachingCollectiveVariable {
   static bool spin_crossed_threshold(const Vec3 &s_initial, const Vec3 &s_final, const double &threshold);
 
   std::string name_ = "skyrmion_coordinate_";
-  bool value_returned_x = true; //by default return x location.
+
+  Component coordinate_component_ = Component::x;
+
   //if y is requested by config --> value_returned = false
   //this is use in "skyrmion_center_of_mass_coordinate" to return X OR Y
   bool periodic_x_ = true;
