@@ -9,6 +9,7 @@
 #include <libconfig.h++>
 #include <jams/interface/config.h>
 #include "jams/core/lattice.h"
+#include <cmath> // so I can use the isnan() for debugging.
 
 
 #include "jams/helpers/consts.h"
@@ -48,6 +49,7 @@ jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Se
   auto bounds_x = std::minmax({bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
   auto bounds_y = std::minmax({bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
   skyrmion_core_threshold_ = -0.5;
+  skyrmion_core_threshold_ = -0.001;
   space_remapping();
 
 }
@@ -254,14 +256,25 @@ Vec3 jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const in
     double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
     center_of_mass[0] = theta_x*lattice->size(0)/(kTwoPi);
   } else {
-    center_of_mass[0] = tube_center_of_mass_x[0] / double(num_core_spins);
+	if(center_of_mass[0] == 0 && num_core_spins == 0){
+	  center_of_mass[0] = 0;
+	}else {
+	  center_of_mass[0] = tube_center_of_mass_x[0] / double(num_core_spins);
+	}
   }
 
   if (periodic_y_) {
     double theta_y = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
     center_of_mass[1] = theta_y*lattice->size(1)/(kTwoPi);
   } else {
-    center_of_mass[1] = tube_center_of_mass_y[1] / double(num_core_spins);
+	if (num_core_spins == 0){
+	  std::cout << tube_center_of_mass_y[1] << num_core_spins << "\n";
+	}
+	if (tube_center_of_mass_y[1] == 0 && num_core_spins ==0){
+	  center_of_mass[1] = 0 ;
+	}else {
+	  center_of_mass[1] = tube_center_of_mass_y[1] / double(num_core_spins);
+	}
   }
 
   Mat3 W = lattice->get_unitcell().matrix();
