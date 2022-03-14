@@ -267,9 +267,7 @@ Vec3 jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const in
     double theta_y = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
     center_of_mass[1] = theta_y*lattice->size(1)/(kTwoPi);
   } else {
-	if (num_core_spins == 0){
-	  std::cout << tube_center_of_mass_y[1] << num_core_spins << "\n";
-	}
+	
 	if (tube_center_of_mass_y[1] == 0 && num_core_spins ==0){
 	  center_of_mass[1] = 0 ;
 	}else {
