@@ -15,7 +15,7 @@ namespace jams {
             {"J", kJoule2meV},
             {"milli_electron_volts", 1.0},
             {"meV", 1.0},
-            {"milli_rydbergs", kJoule2meV},
+            {"milli_rydbergs", kmRyd2meV},
             {"mRyd", kmRyd2meV},
             {"rydbergs", kmRyd2meV * 1e3},
             {"Ryd", kmRyd2meV * 1e3}
