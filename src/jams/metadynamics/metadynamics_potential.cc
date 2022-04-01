@@ -169,9 +169,16 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 	  upper_cvar_bc_[i] = PotentialBCs::HardBC;
 	}
 	if(upper_cvar_bc_[i] == PotentialBCs::DeathBC || lower_cvar_bc_[i] == PotentialBCs::DeathBC) {
-	  lower_death_boundary_ = jams::config_optional<double>(cvar_settings,"lower_death_boundary",static_cast<const double>(cvar_range_min_[i]));
-	  upper_death_boundary_ = jams::config_optional(cvar_settings,"upper_death_boundary",static_cast<const double>(cvar_range_max_[i]));
-	  std::cout<<"Upper Boundary: " << upper_death_boundary_ << "\n";
+	  if(cvar_names_[i] == ("skyrmion_coordinate_y") || cvar_names_[i] == ("skyrmion_coordinate_x")){
+		lower_death_boundary_ = cvar_range_min_[i] + jams::config_optional<double>(cvar_settings,"lower_death_boundary",static_cast<const double>(cvar_range_min_[i]));
+		upper_death_boundary_ = cvar_range_max_[i] - jams::config_optional(cvar_settings,"upper_death_boundary",static_cast<const double>(cvar_range_max_[i]));
+		std::cout << "cordinate range_max: " << cvar_range_max_[i] << " coordinate range_min:" << cvar_range_min_[i] << "\n";
+		std::cout << "Upper Boundary (coordinate): " << upper_death_boundary_ << "lower Boundary (coordinate): " << lower_death_boundary_ << "\n";
+	  }else {
+		lower_death_boundary_ = jams::config_optional<double>(cvar_settings,"lower_death_boundary",static_cast<const double>(cvar_range_min_[i]));
+		upper_death_boundary_ =jams::config_optional(cvar_settings, "upper_death_boundary", static_cast<const double>(cvar_range_max_[i]));
+		std::cout << "Upper Boundary: " << upper_death_boundary_ << "lower Boundary: " << lower_death_boundary_ << "\n";
+	  }
 	}
   }
   // TODO: need to fix bug for resizing with std::array to make this general for
