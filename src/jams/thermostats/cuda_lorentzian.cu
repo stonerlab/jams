@@ -119,6 +119,17 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
     lorentzian_spectral_function = [&](double omega) {
         return 2.0 * kBoltzmannIU * filter_temperature_ * eta_G;
     };
+  } else if (noise_spectrum_type == "bose-einstein") {
+    lorentzian_spectral_function = [&](double omega) {
+        double hw = kHBarIU * abs(omega);
+        double kT = kBoltzmannIU * filter_temperature_;
+
+        if (omega == 0.0) {
+          return 2.0 * eta_G * kT * kT;
+        }
+
+        return 2.0 * eta_G * kT * hw /(std::expm1(hw / kT));
+    };
   } else if (noise_spectrum_type == "classical-lorentzian") {
     lorentzian_spectral_function = [&](double omega) {
         double lorentzian = (lorentzian_A_ * lorentzian_gamma_ * kHBarIU * abs(omega))
