@@ -58,9 +58,25 @@ include("${PROJECT_SOURCE_DIR}/cmake/External/hdf5.cmake")
 unset(MESSAGE_QUIET)
 
 if (HDF5_FOUND)
-    message(STATUS "  version: " ${JAMS_HDF5_VERSION})
-    message(STATUS "  libs: " ${JAMS_HDF5_LIBRARIES})
-else()
+    # IF HDF5 version is < 1.10 then throw an error
+    if(${JAMS_HDF5_VERSION} VERSION_LESS "1.10.0")
+        message(FATAL_ERROR
+                " \n"
+                " -----------------------------------------------------------\n"
+                " CMAKE CONFIGURE ERROR\n"
+                " UNSUPPORTED HDF5 VERSION\n"
+                " \n"
+                " JAMS requires HDF5 version >= 1.10\n"
+                " \n"
+                " HDF5 version found:\n"
+                "   version:  ${JAMS_HDF5_VERSION} \n"
+                "   libs:     ${JAMS_HDF5_LIBRARIES} \n"
+                " -----------------------------------------------------------\n")
+        endif()
+
+        message(STATUS "  version: " ${JAMS_HDF5_VERSION})
+        message(STATUS "  libs: " ${JAMS_HDF5_LIBRARIES})
+    else()
     missing_external_dependency_error("hdf5")
 endif()
 
