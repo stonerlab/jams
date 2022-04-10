@@ -48,13 +48,10 @@ set(VERSION_MINOR "10" )
 set(VERSION_PATCH "6" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
-# Latest libconfig version is 1.7.2 but the cmake support is broken. This is fixed in the current
-# github master branch
-
 if (JAMS_BUILD_IN_DEPENDENCIES)
     set(JAMS_LIBCONFIG_VERSION v1.7.3) # https://github.com/hyperrealm/libconfig
-    set(JAMS_HIGHFIVE_VERSION v2.3.1)   # https://github.com/BlueBrain/HighFive
-    set(JAMS_SPGLIB_VERSION v1.16.2)    # https://github.com/spglib/spglib
+    set(JAMS_HIGHFIVE_VERSION v2.4.0)   # https://github.com/BlueBrain/HighFive
+    set(JAMS_SPGLIB_VERSION v1.16.3)    # https://github.com/spglib/spglib
     set(JAMS_PCG_VERSION v0.98.1)       # https://github.com/imneme/pcg-cpp
 endif()
 
