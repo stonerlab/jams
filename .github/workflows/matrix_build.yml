@@ -14,7 +14,7 @@ on:
 
 
 env:
-  ENV_MODULES: cmake ninja git gnu/8.3.0 cuda/10.1.105 mkl/2018.2 hdf5-cxx/1.8.20
+  ENV_MODULES: cmake ninja git gnu/8.3.0 cuda/10.1.105 mkl/2018.2 hdf5/1.10.5
 
 jobs:
   matrix_build:
