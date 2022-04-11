@@ -14,6 +14,24 @@ function(missing_external_dependency_error name)
             " -----------------------------------------------------------\n")
 endfunction()
 
+function(external_dependency_version_error PACKAGE_NAME PACKAGE_VERSION MIN_VERSION)
+    # remove any "v" prefixes from the version string
+    string(REGEX REPLACE "^v" "" CLEAN_PACKAGE_VERSION ${PACKAGE_VERSION})
+
+    if(${CLEAN_PACKAGE_VERSION} VERSION_LESS "${MIN_VERSION}")
+        unset(MESSAGE_QUIET)
+
+        message(FATAL_ERROR
+                " \n"
+                " -----------------------------------------------------------\n"
+                " CMAKE CONFIGURE ERROR: UNSUPPORTED ${PACKAGE_NAME} VERSION\n"
+                " \n"
+                " JAMS requires ${PACKAGE_NAME} version >= ${MIN_VERSION}\n"
+                " ${PACKAGE_NAME} version found: ${CLEAN_PACKAGE_VERSION}\n"
+                " -----------------------------------------------------------\n")
+    endif()
+endfunction()
+
 message("-----------------------------------------------------------")
 message("CMAKE FINDING JAMS EXTERNAL DEPENDENCIES")
 message("-----------------------------------------------------------")
@@ -58,25 +76,13 @@ include("${PROJECT_SOURCE_DIR}/cmake/External/hdf5.cmake")
 unset(MESSAGE_QUIET)
 
 if (HDF5_FOUND)
-    # IF HDF5 version is < 1.10 then throw an error
-    if(${JAMS_HDF5_VERSION} VERSION_LESS "1.10.0")
-        message(FATAL_ERROR
-                " \n"
-                " -----------------------------------------------------------\n"
-                " CMAKE CONFIGURE ERROR\n"
-                " UNSUPPORTED HDF5 VERSION\n"
-                " \n"
-                " JAMS requires HDF5 version >= 1.10\n"
-                " \n"
-                " HDF5 version found:\n"
-                "   version:  ${JAMS_HDF5_VERSION} \n"
-                "   libs:     ${JAMS_HDF5_LIBRARIES} \n"
-                " -----------------------------------------------------------\n")
-        endif()
-
-        message(STATUS "  version: " ${JAMS_HDF5_VERSION})
-        message(STATUS "  libs: " ${JAMS_HDF5_LIBRARIES})
-    else()
+    message(STATUS "  version: " ${JAMS_HDF5_VERSION})
+    message(STATUS "  libs: ")
+    foreach(LIB ${JAMS_HDF5_LIBRARIES})
+        message(STATUS "    ${LIB}")
+    endforeach()
+    external_dependency_version_error("HDF5" ${JAMS_HDF5_VERSION} "1.10.0")
+else()
     missing_external_dependency_error("hdf5")
 endif()
 
@@ -117,6 +123,7 @@ unset(MESSAGE_QUIET)
 if (JAMS_LIBCONFIG_VERSION)
     message(STATUS "  url: " ${JAMS_LIBCONFIG_URL})
     message(STATUS "  version: " ${JAMS_LIBCONFIG_VERSION})
+    external_dependency_version_error("libconfig" ${JAMS_LIBCONFIG_VERSION} "1.6.0")
 else()
     if (NOT JAMS_LIBCONFIG_LIBRARIES)
         missing_external_dependency_error("libconfig")
