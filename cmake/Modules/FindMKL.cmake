@@ -22,7 +22,7 @@ set(MKL_USE_SINGLE_DYNAMIC_LIBRARY ON)
 
 # ---[ Root folders
 set(INTEL_PATH "/opt/intel" CACHE PATH "Folder contains intel libs")
-find_path(MKL_PATH include/mkl.h PATHS $ENV{MKL_ROOT} ${INTEL_PATH}/mkl
+find_path(MKL_PATH include/mkl.h PATHS $ENV{MKLROOT} $ENV{MKL_ROOT} ${INTEL_PATH}/mkl
                                    DOC "Folder contains MKL")
 
 # ---[ Find include dir
