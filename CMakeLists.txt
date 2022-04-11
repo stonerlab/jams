@@ -8,9 +8,18 @@ ensure_out_of_source_build()
 
 set(JAMS_VERSION "2.12.1")
 
+# Try to detect nvcc (the CUDA compiler). If it's found, enable CUDA support
+# by default. If not found then disable CUDA support by default.
+# JAMS_BUILD_CUDA can still be overridden when calling cmake.
+find_program(NVCC "nvcc")
+if (NVCC)
+    option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" ON)
+else()
+    option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" OFF)
+endif()
+
 option(JAMS_BUILD_OFFLINE "Build JAMS without updating external dependencies online" OFF)
 option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" OFF)
-option(JAMS_BUILD_CUDA "Build JAMS with CUDA support" ON)
 option(JAMS_BUILD_FASTMATH "Build JAMS with fast math flags" ON)
 option(JAMS_BUILD_MIXED_PREC "Build parts of JAMS using mixed precision." OFF)
 option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
