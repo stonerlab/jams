@@ -120,6 +120,15 @@ inline bool string_is_comment(const std::string& s) {
   return false;
 }
 
+inline std::string string_wrap(std::string str, int width) {
+  // https://stackoverflow.com/a/46836043
+  int n = str.rfind(' ', width);
+  if (n != std::string::npos) {
+    str.at(n) = '\n';
+  }
+  return str;
+}
+
 // Lifted from http://www.cplusplus.com/forum/general/15952/
 inline std::string zero_pad_number(const int num, const int width = 7) {
     std::ostringstream ss;

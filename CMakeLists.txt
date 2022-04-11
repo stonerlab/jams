@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
-function(message)
-    if ((NOT MESSAGE_QUIET) OR (DEFINED VERBOSE))
-        _message(${ARGN})
-    endif()
-endfunction()
-
+include(cmake/MessageQuiet.cmake)
 include(cmake/Utils.cmake)
+
+# Do not allow users to build the project inside of the source directory
 ensure_out_of_source_build()
+
+set(JAMS_VERSION "2.12.1")
 
 option(JAMS_BUILD_OFFLINE "Build JAMS without updating external dependencies online" OFF)
 option(JAMS_BUILD_OMP "Build JAMS with OpenMP support" OFF)
@@ -19,16 +18,11 @@ option(JAMS_BUILD_DOCS "Build all of JAMS's documentation." OFF)
 option(JAMS_BUILD_IN_DEPENDENCIES "Build JAMS dependencies in the same cmake project" ON)
 
 set(MESSAGE_QUIET ON)
+
 project(jams LANGUAGES C CXX)
 
 if (JAMS_BUILD_CUDA)
     enable_language(CUDA)
-endif()
-
-unset(MESSAGE_QUIET)
-
-if (${JAMS_BUILD_OFFLINE})
-    set_property(DIRECTORY ${jams_SOURCE_DIR} PROPERTY EP_UPDATE_DISCONNECTED 1)
 endif()
 
 set(CMAKE_CXX_STANDARD 11)
@@ -39,18 +33,24 @@ set(CMAKE_CUDA_STANDARD 11)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_EXTENSIONS OFF)
 
-set(VERSION_MAJOR "2" )
-set(VERSION_MINOR "10" )
-set(VERSION_PATCH "6" )
-set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+unset(MESSAGE_QUIET)
 
+if (${JAMS_BUILD_OFFLINE})
+    set_property(DIRECTORY ${jams_SOURCE_DIR} PROPERTY EP_UPDATE_DISCONNECTED 1)
+endif()
+
+# If JAMS_BUILD_IN_DEPENDENCIES is ON then we will download these tagged
+# versions from github and build them here rather than linking external
+# libraries.
 if (JAMS_BUILD_IN_DEPENDENCIES)
-    set(JAMS_LIBCONFIG_VERSION v1.7.3) # https://github.com/hyperrealm/libconfig
+    set(JAMS_LIBCONFIG_VERSION v1.7.3)  # https://github.com/hyperrealm/libconfig
     set(JAMS_HIGHFIVE_VERSION v2.4.0)   # https://github.com/BlueBrain/HighFive
     set(JAMS_SPGLIB_VERSION v1.16.3)    # https://github.com/spglib/spglib
     set(JAMS_PCG_VERSION v0.98.1)       # https://github.com/imneme/pcg-cpp
 endif()
 
+# It's recommended that googletest is always built into projects rather that
+# as an external library. Google call their master branch 'main'.
 set(JAMS_GTEST_VERSION main)      # https://github.com/google/googletest.git
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -76,7 +76,7 @@ message("-----------------------------------------------------------")
 message("CMAKE CONFIGURATION COMPLETE")
 message("-----------------------------------------------------------")
 message("jams build options: ")
-message(STATUS "VERSION:                        " ${VERSION})
+message(STATUS "JAMS_VERSION:                   " ${JAMS_VERSION})
 message(STATUS "JAMS_BUILD_CUDA:                " ${JAMS_BUILD_CUDA})
 message(STATUS "JAMS_BUILD_OMP:                 " ${JAMS_BUILD_OMP})
 message(STATUS "JAMS_BUILD_FASTMATH:            " ${JAMS_BUILD_FASTMATH})
@@ -106,7 +106,5 @@ if(JAMS_BUILD_CUDA)
     message(STATUS "CUDA_HOST_COMPILER:             " ${CUDA_HOST_COMPILER})
     message(STATUS "CUDA_NVCC_EXECUTABLE:           " ${CUDA_NVCC_EXECUTABLE})
 endif()
-
-
 
 message("-----------------------------------------------------------")

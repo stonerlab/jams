@@ -193,7 +193,12 @@ namespace jams {
 
     void initialize_simulation(const jams::ProgramArgs &program_args) {
       try {
-        cout << "\nJAMS++ " << jams::build::version << std::endl;
+        cout << "\nJAMS++ " << semantic_version(jams::build::description) << std::endl;
+
+        if (contains(jams::build::description, "dirty")) {
+          jams_warning("There are uncommitted changes in your git repository. DO NOT USE THIS BINARY FOR PRODUCTION CALCULATIONS.");
+        }
+
         cout << jams::section("build info") << std::endl;
         cout << jams::build_info();
         cout << jams::section("run info") << std::endl;
