@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 
-if(${CMAKE_VERSION} VERSION_GREATER "3.12.0")
-    cmake_policy(SET CMP0074 NEW) # ``find_package()`` uses ``<PackageName>_ROOT`` variables.
-endif()
-
 function(message)
     if ((NOT MESSAGE_QUIET) OR (DEFINED VERBOSE))
         _message(${ARGN})
