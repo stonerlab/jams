@@ -24,7 +24,8 @@ function(external_dependency_version_error PACKAGE_NAME PACKAGE_VERSION MIN_VERS
         message(FATAL_ERROR
                 " \n"
                 " -----------------------------------------------------------\n"
-                " CMAKE CONFIGURE ERROR: UNSUPPORTED ${PACKAGE_NAME} VERSION\n"
+                " CMAKE CONFIGURE ERROR\n"
+                " Unsupported ${PACKAGE_NAME} version.\n"
                 " \n"
                 " JAMS requires ${PACKAGE_NAME} version >= ${MIN_VERSION}\n"
                 " ${PACKAGE_NAME} version found: ${CLEAN_PACKAGE_VERSION}\n"
@@ -60,6 +61,8 @@ if (JAMS_BUILD_CUDA)
     set(MESSAGE_QUIET ON)
     include("${PROJECT_SOURCE_DIR}/cmake/External/cuda.cmake")
     unset(MESSAGE_QUIET)
+
+    external_dependency_version_error("cuda" ${JAMS_CUDA_VERSION} ${JAMS_CUDA_VERSION_MIN})
     if (CUDA_FOUND)
         message(STATUS "  cusparse: " ${JAMS_CUDA_cusparse_LIBRARIES})
         message(STATUS "  curand:   " ${JAMS_CUDA_curand_LIBRARIES})
@@ -81,7 +84,7 @@ if (HDF5_FOUND)
     foreach(LIB ${JAMS_HDF5_LIBRARIES})
         message(STATUS "    ${LIB}")
     endforeach()
-    external_dependency_version_error("HDF5" ${JAMS_HDF5_VERSION} "1.10.0")
+    external_dependency_version_error("HDF5" ${JAMS_HDF5_VERSION} ${JAMS_HDF5_VERSION_MIN})
 else()
     missing_external_dependency_error("hdf5")
 endif()
@@ -123,7 +126,7 @@ unset(MESSAGE_QUIET)
 if (JAMS_LIBCONFIG_VERSION)
     message(STATUS "  url: " ${JAMS_LIBCONFIG_URL})
     message(STATUS "  version: " ${JAMS_LIBCONFIG_VERSION})
-    external_dependency_version_error("libconfig" ${JAMS_LIBCONFIG_VERSION} "1.6.0")
+    external_dependency_version_error("libconfig" ${JAMS_LIBCONFIG_VERSION} ${JAMS_LIBCONFIG_VERSION_MIN})
 else()
     if (NOT JAMS_LIBCONFIG_LIBRARIES)
         missing_external_dependency_error("libconfig")

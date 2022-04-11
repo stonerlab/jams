@@ -48,6 +48,11 @@ if (${JAMS_BUILD_OFFLINE})
     set_property(DIRECTORY ${jams_SOURCE_DIR} PROPERTY EP_UPDATE_DISCONNECTED 1)
 endif()
 
+# Minimum versions required for external dependencies
+set(JAMS_LIBCONFIG_VERSION_MIN "1.6")
+set(JAMS_HDF5_VERSION_MIN "1.10")
+set(JAMS_CUDA_VERSION_MIN "9.0")
+
 # If JAMS_BUILD_IN_DEPENDENCIES is ON then we will download these tagged
 # versions from github and build them here rather than linking external
 # libraries.
