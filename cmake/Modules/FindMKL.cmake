@@ -21,16 +21,16 @@
 set(MKL_USE_SINGLE_DYNAMIC_LIBRARY ON)
 
 # ---[ Root folders
-set(INTEL_ROOT "/opt/intel" CACHE PATH "Folder contains intel libs")
-find_path(MKL_ROOT include/mkl.h PATHS $ENV{MKLROOT} ${INTEL_ROOT}/mkl
+set(INTEL_PATH "/opt/intel" CACHE PATH "Folder contains intel libs")
+find_path(MKL_PATH include/mkl.h PATHS $ENV{MKLROOT} $ENV{MKL_ROOT} ${INTEL_PATH}/mkl
                                    DOC "Folder contains MKL")
 
 # ---[ Find include dir
-find_path(MKL_INCLUDE_DIR mkl.h PATHS ${MKL_ROOT} PATH_SUFFIXES include)
+find_path(MKL_INCLUDE_DIR mkl.h PATHS ${MKL_PATH} PATH_SUFFIXES include)
 set(__looked_for MKL_INCLUDE_DIR)
 
 # ---[ Find fftw3 include dir
-find_path(FFTW3_INCLUDE_DIR fftw3.h PATHS ${MKL_ROOT} PATH_SUFFIXES include/fftw)
+find_path(FFTW3_INCLUDE_DIR fftw3.h PATHS ${MKL_PATH} PATH_SUFFIXES include/fftw)
 
 # ---[ Find libraries
 if(CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -73,7 +73,7 @@ foreach (__lib ${__mkl_libs})
 
   find_library(${__mkl_lib_upper}_LIBRARY
         NAMES ${__mkl_lib}
-        PATHS ${MKL_ROOT} "${MKL_INCLUDE_DIR}/.."
+        PATHS ${MKL_PATH} "${MKL_INCLUDE_DIR}/.."
         PATH_SUFFIXES ${__path_suffixes}
         DOC "The path to Intel(R) MKL ${__mkl_lib} library")
   mark_as_advanced(${__mkl_lib_upper}_LIBRARY)
@@ -91,12 +91,12 @@ if(NOT MKL_USE_SINGLE_DYNAMIC_LIBRARY)
   endif()
 
   if(WIN32)
-    find_path(INTEL_INCLUDE_DIR omp.h PATHS ${INTEL_ROOT} PATH_SUFFIXES include)
+    find_path(INTEL_INCLUDE_DIR omp.h PATHS ${INTEL_PATH} PATH_SUFFIXES include)
     list(APPEND __looked_for INTEL_INCLUDE_DIR)
   endif()
 
   find_library(MKL_RTL_LIBRARY ${__iomp5_libs}
-     PATHS ${INTEL_RTL_ROOT} ${INTEL_ROOT}/compiler ${MKL_ROOT}/.. ${MKL_ROOT}/../compiler
+     PATHS ${INTEL_RTL_ROOT} ${INTEL_PATH}/compiler ${MKL_PATH}/.. ${MKL_PATH}/../compiler
      PATH_SUFFIXES ${__path_suffixes}
      DOC "Path to Path to OpenMP runtime library")
 

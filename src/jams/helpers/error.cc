@@ -7,6 +7,7 @@
 #include <iostream>
 #include "jams/core/jams++.h"
 #include "jams/core/globals.h"
+#include "jams/helpers/utils.h"
 
 using namespace std;
 
@@ -34,7 +35,10 @@ void jams_warning(const char *string, ...) {
   vsprintf(buffer, string, args);
   va_end(args);
 
-  cerr << "\n********************************************************************************\n\n";
-  cerr << "WARNING: " << buffer << "\n\n";
-  cerr << "********************************************************************************\n\n";
+  cerr << "\n********************************************************************************\n";
+  cerr << "WARNING: \n";
+  cerr << string_wrap(buffer, 80);
+  cerr << "\n";
+  cerr << "********************************************************************************\n";
+  cerr << std::flush;
 }
