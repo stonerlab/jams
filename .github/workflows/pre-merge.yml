@@ -53,7 +53,7 @@ jobs:
       # how well JAMS will build elsewhere.
       run: |
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
-        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=ON -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build }} -DJAMS_BUILD_CUDA=${{ matrix.cuda_build }}
+        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=ON -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build }} -DJAMS_BUILD_CUDA=${{ matrix.cuda_build }} -DJAMS_BUILD_TESTS=ON 
 
     - name: Build
       working-directory: ${{github.workspace}}/build
