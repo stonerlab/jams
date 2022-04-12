@@ -21,8 +21,11 @@ jobs:
         name: ["CUDA 10"]
         include:
           - cuda_version: 11.6.2
+            cuda_build: ON
+            cmake_build: Release
             name: "CUDA 11"
           - cuda_build: OFF
+            cmake_build: Release
             name: "CPU"
 
     name: Build JAMS - ${{ matrix.cmake_build}} - ${{ matrix.name }}
