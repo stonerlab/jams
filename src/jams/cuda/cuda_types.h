@@ -63,10 +63,13 @@ inline constexpr cusparseIndexType_t get_cusparse_index_type<int32_t>() {
   return CUSPARSE_INDEX_32I;
 }
 
+#if CUDART_VERSION >= 11000
 template<>
 inline constexpr cusparseIndexType_t get_cusparse_index_type<int64_t>() {
   return CUSPARSE_INDEX_64I;
 }
+#endif
+
 }
 }
 
