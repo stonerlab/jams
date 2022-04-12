@@ -14,9 +14,9 @@ project. This means they do not have to be installed separately. Currently these
 
 Recent versions of JAMS have the following build requirements:
 
-- cmake >= 3.8.0
-- cuda >= 9.0.176
-- hdf5 >= 1.10.0 (older versions are API incompatible)
+- cmake >= 3.8
+- cuda >= 9.0
+- hdf5 >= 1.10 (older versions are API incompatible)
 - blas (e.g. mkl, openblas)
 - fftw3 (can be supplied by mkl)
 

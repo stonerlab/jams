@@ -1,21 +1,21 @@
-name: JAMS Quick Build
+name: Quick Build
 
 on: [push]
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
-  ENV_MODULES: cmake ninja git gnu/8.3.0 cuda/10.1.105 mkl/2018.2 hdf5/1.10.5
+  ENV_MODULES: cmake ninja git gnu/8.3.0 cuda/11.6.2 mkl/2018.2 hdf5/1.10.5
 
 jobs:
   quick_build:
-    name: Quick Build (CUDA enabled)
-    # The CMake configure and build commands are platform agnostic and should work equally
-    # well on Windows or Mac.  You can convert this to a matrix build if you need
-    # cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    name: Build JAMS - Release - CUDA 11
     runs-on: self-hosted
-                
+
+    # Skip in pull requests because we will run the more extensive pre-merge
+    # actions.
+    if: github.event_name != 'pull_request'
+
     steps:
     - uses: actions/checkout@v2
 
@@ -36,7 +36,7 @@ jobs:
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
-        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DJAMS_BUILD_TESTS=ON -DJAMS_BUILD_CUDA=ON
+        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DJAMS_BUILD_CUDA=ON -DJAMS_BUILD_TESTS=OFF 
 
     - name: Build
       working-directory: ${{github.workspace}}/build
@@ -45,11 +45,4 @@ jobs:
       run: |
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
         cmake --build . --config $BUILD_TYPE
-
-    - name: Test
-      working-directory: ${{github.workspace}}/build
-      shell: bash
-      run: |
-        source /etc/profile.d/modules.sh && module load $ENV_MODULES
-        bin/jams_tests --gtest_filter=-*SLOW
 

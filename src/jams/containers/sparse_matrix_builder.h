@@ -18,15 +18,15 @@ namespace jams {
     public:
         Builder() = default;
 
-        Builder(size_type num_rows, size_type num_cols)
+        Builder(index_type num_rows, index_type num_cols)
             : num_rows_(num_rows), num_cols_(num_cols) {}
 
-        void insert(size_type i, size_type j, const value_type &value);
+        void insert(index_type i, index_type j, const value_type &value);
 
         std::size_t memory() {
           return val_.capacity() * sizeof(value_type)
-               + row_.capacity() * sizeof(size_type)
-               + col_.capacity() * sizeof(size_type);
+               + row_.capacity() * sizeof(index_type)
+               + col_.capacity() * sizeof(index_type);
         }
 
         void output(std::ostream& os);
@@ -68,25 +68,25 @@ namespace jams {
 
         void assert_safe_numeric_limits() const;
 
-        void assert_index_is_valid(size_type i, size_type j) const;
+        void assert_index_is_valid(index_type i, index_type j) const;
 
         SparseMatrixFormat format_ = SparseMatrixFormat::COO;
         SparseMatrixType type_ = SparseMatrixType::GENERAL;
         SparseMatrixFillMode fill_mode_ = SparseMatrixFillMode::LOWER;
 
-        size_type num_rows_ = 0;
-        size_type num_cols_ = 0;
+        index_type num_rows_ = 0;
+        index_type num_cols_ = 0;
 
         bool is_sorted_ = false;
         bool is_merged_ = false;
 
         std::vector<value_type> val_;
-        std::vector<size_type> row_;
-        std::vector<size_type> col_;
+        std::vector<index_type> row_;
+        std::vector<index_type> col_;
     };
 
     template<typename T>
-    void SparseMatrix<T>::Builder::insert(size_type i, size_type j, const value_type &value) {
+    void SparseMatrix<T>::Builder::insert(index_type i, index_type j, const value_type &value) {
       assert_safe_numeric_limits();
       assert_index_is_valid(i, j);
       row_.push_back(i);
@@ -181,8 +181,8 @@ namespace jams {
       index_container csr_rows(num_rows_ + 1);
 
       csr_rows(0) = 0;
-      size_type current_row = 0;
-      size_type previous_row = 0;
+      index_type current_row = 0;
+      index_type previous_row = 0;
 
       for (auto m = 1; m < nnz; ++m) {
         assert(m < row_.size());
@@ -226,13 +226,13 @@ namespace jams {
 
     template<typename T>
     void SparseMatrix<T>::Builder::assert_safe_numeric_limits() const {
-      if (val_.size() >= std::numeric_limits<size_type>::max() - 1) {
-        throw std::runtime_error("Number of non zero elements is too large for the sparse matrix size_type");
+      if (val_.size() >= std::numeric_limits<index_type>::max() - 1) {
+        throw std::runtime_error("Number of non zero elements is too large for the sparse matrix index_type");
       }
     }
 
     template<typename T>
-    void SparseMatrix<T>::Builder::assert_index_is_valid(SparseMatrix::size_type i, SparseMatrix::size_type j) const {
+    void SparseMatrix<T>::Builder::assert_index_is_valid(SparseMatrix::index_type i, SparseMatrix::index_type j) const {
       if ((i >= num_rows_) || (i < 0) || (j >= num_cols_) || (j < 0)) {
         throw std::runtime_error("Invalid index for sparse matrix");
       }
