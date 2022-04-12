@@ -1,8 +1,6 @@
-name: JAMS Matrix Build
+name: Pre Merge Checks
 
 on:
-  # Trigger the workflow on push or pull request,
-  # but only for the master branch
   push:
     branches:
       - master
@@ -12,25 +10,25 @@ on:
   # Allow manual triggers
   workflow_dispatch:
 
-
-env:
-  ENV_MODULES: cmake ninja git gnu/8.3.0 cuda/10.1.105 mkl/2018.2 hdf5/1.10.5
-
 jobs:
-  matrix_build:
-    name: Matrix Build (Release - CUDA ON/OFF - Built-in Deps)
-    # The CMake configure and build commands are platform agnostic and should work equally
-    # well on Windows or Mac.  You can convert this to a matrix build if you need
-    # cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+  build-jams-variants:
     runs-on: self-hosted
     strategy:
       matrix:
-        # Build CPU and CUDA variants because there's a lot of ifdefs which can break things
-        BUILD_CUDA: [ON, OFF]
-        BUILD_TYPE: [Release]
+        cuda_version: [10.1.105]
+        cuda_build: [ON]
+        cmake_build: [Release]
+        name: ["CUDA 10"]
+        include:
+          - cuda_version: 11.6.2
+            name: "CUDA 11"
+          - cuda_build: OFF
+            name: "CPU"
 
-                
+    name: Build JAMS - ${{ matrix.cmake_build}} - ${{ matrix.name }}
+    env:
+      ENV_MODULES: cmake ninja git gnu/8.3.0 mkl/2018.2 hdf5/1.10.5 cuda/${{ matrix.cuda_version }}
+
     steps:
     - uses: actions/checkout@v2
 
@@ -55,7 +53,7 @@ jobs:
       # how well JAMS will build elsewhere.
       run: |
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
-        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=ON -DCMAKE_BUILD_TYPE=${{ matrix.BUILD_TYPE }} -DJAMS_BUILD_CUDA=${{ matrix.BUILD_CUDA }}
+        cmake $GITHUB_WORKSPACE -G Ninja -DJAMS_BUILD_IN_DEPENDENCIES=ON -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build }} -DJAMS_BUILD_CUDA=${{ matrix.cuda_build }}
 
     - name: Build
       working-directory: ${{github.workspace}}/build
@@ -65,9 +63,9 @@ jobs:
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
         cmake --build . --config $BUILD_TYPE
 
-#     - name: Test
-#       working-directory: ${{github.workspace}}/build
-#       shell: bash
-#       # Execute tests defined by the CMake configuration.  
-#       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-#       run: ctest -C $BUILD_TYPE
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: |
+        source /etc/profile.d/modules.sh && module load $ENV_MODULES
+        bin/jams_tests --gtest_filter=-*SLOW
