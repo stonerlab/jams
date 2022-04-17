@@ -65,7 +65,7 @@ void DipoleNearTreeHamiltonian::calculate_energies() {
 }
 
 
-__attribute__((hot))
+[[gnu::hot]]
 Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i)
 {
   using namespace globals;

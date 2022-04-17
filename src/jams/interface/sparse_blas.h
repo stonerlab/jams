@@ -11,7 +11,7 @@
 
 namespace jams {
         template<typename MatType, typename VecType>
-        __attribute__((hot))
+        [[gnu::hot]]
         VecType Xcsrmv_general_row(
             const MatType *csr_val,
             const int *csr_col,
@@ -55,7 +55,7 @@ namespace jams {
         }
 
         template<typename MatType, typename VecType>
-        __attribute__((hot))
+        [[gnu::hot]]
         void Xcsrmv_general(
             const VecType &alpha,
             const VecType &beta,
@@ -81,7 +81,7 @@ namespace jams {
         }
 
         template<typename MatType, typename VecType>
-        __attribute__((hot))
+        [[gnu::hot]]
         void Xcoomv_general(
             const VecType &alpha,
             const VecType &beta,
