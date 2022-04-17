@@ -6,6 +6,7 @@
 #include <cfloat>
 #include <algorithm>
 #include <vector>
+#include <random>
 
 // Toggles whether to do safe floating point comparisons with an 'epslion' or
 // use the trivial >=, <= operators
@@ -153,7 +154,9 @@ namespace jams {
         // Near tree lookups are MUCH more efficient (an order of magnitude)
         // if the inserted positions are randomized, rather than regular in
         // space. Therefore, by default we will randomize the insertions.
-        std::random_shuffle(items.begin(), items.end());
+        std::random_device rd;
+        std::mt19937 rng(rd());
+        std::shuffle(items.begin(), items.end(), rng);
       }
       for (auto &x : items) {
         insert(x);
