@@ -6,6 +6,8 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <memory>
+
 class InteractionNeartreeTest : public ::testing::Test {
 protected:
     using Position = std::pair<Vec3, int>;
@@ -31,7 +33,7 @@ protected:
       ASSERT_FALSE(pbc[1] && r_cutoff_ > jams::maths::parallelepiped_height(supercell_size_*c, supercell_size_*a, supercell_size_*b));
       ASSERT_FALSE(pbc[2] && r_cutoff_ > jams::maths::parallelepiped_height(supercell_size_*a, supercell_size_*b, supercell_size_*c));
 
-      near_tree_.reset(new jams::InteractionNearTree(supercell_size*a, supercell_size*b, supercell_size*c, pbc, r_cutoff, epsilon));
+      near_tree_ = std::make_unique<jams::InteractionNearTree>(supercell_size*a, supercell_size*b, supercell_size*c, pbc, r_cutoff, epsilon);
 
       std::vector<Vec3> sites;
       int count = 0;

@@ -9,12 +9,13 @@
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 
 #include <iostream>
+#include <memory>
 
 void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings) {
   MetropolisMCSolver::initialize(settings);
 
   // Set the pointer to the collective variables attached to the solver
-  metad_potential_.reset(new jams::MetadynamicsPotential(settings));
+  metad_potential_ = std::make_unique<jams::MetadynamicsPotential>(settings);
 
   // ---------------------------------------------------------------------------
   // Read settings

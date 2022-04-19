@@ -68,7 +68,7 @@ void DipoleBruteforceHamiltonian::calculate_energies() {
 }
 
 
-__attribute__((hot))
+[[gnu::hot]]
 Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
   using namespace globals;
   using namespace std::placeholders;

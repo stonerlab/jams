@@ -4,6 +4,7 @@
 #include "version.h"
 
 #include <fstream>
+#include <memory>
 #include <jams/common.h>
 
 #if HAS_OMP
@@ -48,7 +49,7 @@ namespace jams {
     // otherwise it is directly interpreted as a config string.
     void parse_config_strings(const vector<string>& config_strings, unique_ptr<libconfig::Config>& combined_config) {
       if (!combined_config) {
-        combined_config.reset(new libconfig::Config);
+        combined_config = std::make_unique<libconfig::Config>();
       }
 
       for (const auto &s : config_strings) {
@@ -157,7 +158,7 @@ namespace jams {
         const int config_options = jams::defaults::config_options) {
       using namespace libconfig;
 
-      ::config.reset(new Config);
+      ::config = std::make_unique<Config>();
       ::config->setOptions(config_options);
 
       cout << "config files " << "\n";

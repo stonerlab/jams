@@ -3,6 +3,7 @@
 #include <ctime>
 
 #include <libconfig.h++>
+#include <memory>
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
@@ -49,7 +50,7 @@ protected:
     DipoleHamiltonianTests() {
       // create global objects
       ::lattice = new Lattice();
-      ::config.reset(new libconfig::Config());
+      ::config = std::make_unique<libconfig::Config>();
     }
 
     ~DipoleHamiltonianTests() = default;
@@ -64,7 +65,7 @@ protected:
       ::solver->register_physics_module(Physics::create(config->lookup("physics")));
 
       // configure the current Hamiltonian for testing
-      hamiltonian.reset(new T(::config->lookup("hamiltonians.[0]"), globals::num_spins));
+      hamiltonian = std::make_unique<T>(::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
       jams::testing::toggle_cout();
     }

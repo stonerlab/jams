@@ -14,7 +14,7 @@
 // for these floating point comparisons we always compare the difference with the larger
 // of the two numbers to
 template <typename T>
-inline bool approximately_equal(const T& a, const T& b, const T& epsilon) {
+inline constexpr bool approximately_equal(const T& a, const T& b, const T& epsilon) {
   // check if a - b is close to zero (in which case the relative difference doesn't work
   if (std::abs(a - b) <= epsilon) return true;
 
@@ -29,7 +29,7 @@ inline constexpr bool approximately_zero(const T& a, const T& epsilon) {
 
 // Returns true if 'a' is greater than 'b' within a relative tolerance max(a,b) * epsilon
 template <typename T>
-inline bool definately_greater_than(const T& a, const T& b, const T& epsilon) {
+inline constexpr bool definately_greater_than(const T& a, const T& b, const T& epsilon) {
   return (a - b) > (std::max(std::abs(a), std::abs(b)) * epsilon);
 }
 
@@ -50,40 +50,40 @@ inline constexpr bool greater_than_approx_equal(const T& a, const T& b, const T&
 }
 
 template <typename T, typename U>
-inline bool constexpr all_equal(const T &t, const U &u) {
+inline constexpr bool all_equal(const T &t, const U &u) {
   return t == u;
 }
 
 template <typename T, typename U, typename... Others>
-inline bool constexpr all_equal(const T &t, const U &u, Others const &... args) {
+inline constexpr bool all_equal(const T &t, const U &u, Others const &... args) {
   return (t == u) && all_equal(u, args...);
 }
 
 template <typename T, typename U>
-inline bool constexpr none_equal(const T &t, const U &u) {
+inline constexpr bool none_equal(const T &t, const U &u) {
   return t != u;
 }
 
 template <typename T, typename U, typename... Others>
-inline bool constexpr none_equal(const T &t, const U &u, Others const &... args) {
+inline constexpr bool none_equal(const T &t, const U &u, Others const &... args) {
   return (t != u) && none_equal(u, args...) && none_equal(t, args...);
 }
 
 template <typename T, typename U, typename V>
-inline bool constexpr only_two_equal(const T &t, const U &u, const V &v) {
+inline constexpr bool only_two_equal(const T &t, const U &u, const V &v) {
   return (t == u && u != v) || (t != u && u == v) || (t == v && t != u);
 }
 
-inline bool constexpr is_multiple_of(const int& x, const int& y) {
+inline constexpr bool is_multiple_of(const int& x, const int& y) {
   return x % y == 0;
 }
 
-inline double zero_safe_recip_norm(double x, double y, double z, double epsilon = 1e-9) {
+inline constexpr double zero_safe_recip_norm(double x, double y, double z, double epsilon = 1e-9) {
   if (approximately_zero(x, epsilon) && approximately_zero(y, epsilon) && approximately_zero(z, epsilon)) {
     return 0.0;
   }
 
-  return 1.0 / sqrt(x * x + y * y + z * z);
+  return 1.0 / std::sqrt(x * x + y * y + z * z);
 }
 
 inline constexpr double square(const double &x) {
@@ -111,8 +111,8 @@ inline constexpr T pow5(const T&x) {
 }
 
 
-inline int nint(const double &x) {
-  return floor(x+0.5);
+inline constexpr int nint(const double &x) {
+  return std::floor(x+0.5);
 }
 
 inline constexpr bool even(const int x) {
@@ -132,8 +132,8 @@ inline constexpr double dirac_delta(const double x) {
   return approximately_zero(x, DBL_EPSILON);
 }
 
-inline double gaussian(const double& x, const double& center, const double& amplitude, const double& width) {
-  return amplitude * exp(-0.5 * pow2((x - center) / width));
+inline constexpr double gaussian(const double& x, const double& center, const double& amplitude, const double& width) {
+  return amplitude * std::exp(-0.5 * pow2((x - center) / width));
 }
 
 inline constexpr double deg_to_rad(const double &angle) {
@@ -144,20 +144,20 @@ inline constexpr double rad_to_deg(const double &angle) {
   return angle*(180.0/kPi);
 }
 
-inline double azimuthal_angle(const double a[3]) {
-  return acos(a[2]/sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]));
+inline constexpr double azimuthal_angle(const double a[3]) {
+  return std::acos(a[2]/std::sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]));
 }
 
-inline double polar_angle(const double a[3]) {
-  return atan2(a[1], a[0]);
+inline constexpr double polar_angle(const double a[3]) {
+  return std::atan2(a[1], a[0]);
 }
 
-inline double azimuthal_angle(const double x, const double y, const double z) {
-  return acos(z/sqrt(x*x + y*y + z*z));
+inline constexpr double azimuthal_angle(const double x, const double y, const double z) {
+  return std::acos(z/std::sqrt(x*x + y*y + z*z));
 }
 
-inline double polar_angle(const double x, const double y, const double z) {
-  return atan2(y, x);
+inline constexpr double polar_angle(const double x, const double y, const double z) {
+  return std::atan2(y, x);
 }
 
 // greatest common divisor
@@ -348,7 +348,7 @@ void matmul(const _A a[3][3], const _B x[3], _C y[3]) {
 }
 
 template <typename _Tp>
-inline _Tp DotProduct(const _Tp a[3], const _Tp b[3]) {
+inline constexpr _Tp DotProduct(const _Tp a[3], const _Tp b[3]) {
 #ifdef FP_FAST_FMA
   return fma(a[2], b[2], fma(a[1], b[1], a[0]*b[0]));
 #else
@@ -357,7 +357,7 @@ inline _Tp DotProduct(const _Tp a[3], const _Tp b[3]) {
 }
 
 template <typename _Tp>
-inline void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
+inline constexpr void CrossProduct(const _Tp a[3], const _Tp b[3], _Tp out[3]) {
   out[0] = a[1]*b[2] - a[2]*b[1];
   out[1] = a[2]*b[0] - a[0]*b[2];
   out[2] = a[0]*b[1] - a[1]*b[0];
