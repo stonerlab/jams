@@ -6,6 +6,7 @@
 #include <jams/helpers/maths.h>
 
 #include <fstream>
+#include <memory>
 #include <jams/helpers/output.h>
 
 namespace {
@@ -65,8 +66,8 @@ FieldPulseHamiltonian::FieldPulseHamiltonian(const libconfig::Setting &settings,
   auto temporal_center = jams::config_required<double>(settings, "temporal_center");
   auto field = jams::config_required<Vec3>(settings, "field");
 
-  temporal_field_pulse_.reset(new GaussianSurfacePulse(
-      surface_cutoff, temporal_width, temporal_center, field));
+  temporal_field_pulse_ = std::make_unique<GaussianSurfacePulse>(
+      surface_cutoff, temporal_width, temporal_center, field);
 
   std::ofstream pulse_file(jams::output::full_path_filename("field_pulse.tsv"));
   output_pulse(pulse_file);
