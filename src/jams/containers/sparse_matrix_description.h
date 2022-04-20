@@ -7,6 +7,20 @@
 
 #include <array>
 
+#if HAS_MKL
+#include <mkl_spblas.h>
+#include <mkl_version.h>
+#endif
+
+// Since MKL >= 2018 the NIST sparse BLAS interface is deprecated in MKL and
+// replaced with the new 'Inspector Executor' API. This macro is '1' if
+// the Inspector Executor API is available.
+#if defined(HAS_MKL) && INTEL_MKL_VERSION >= 20180000
+#define HAS_MKL_INSPECTOR_EXECUTOR_API 1
+#else
+#define HAS_MKL_INSPECTOR_EXECUTOR_API 0
+#endif
+
 #ifdef HAS_CUDA
 #include <cusparse.h>
 #include "jams/cuda/cuda_common.h"
@@ -98,6 +112,11 @@ namespace jams {
 
         const char* mkl_desc() const { return mkl_desc_.data(); }
 
+
+        #if HAS_MKL_INSPECTOR_EXECUTOR_API
+        matrix_descr mkl_inspector_executor_desc() const { return mkl_inspector_executor_descr_; };
+        #endif
+
         #if HAS_CUDA
         cusparseMatDescr_t cusparse_desc() const { return cusparse_desc_; };
         #endif
@@ -105,6 +124,7 @@ namespace jams {
     private:
         void update_descriptors() {
           set_mkl_descriptor();
+          set_mkl_inspector_executor_descriptor();
           set_cusparse_descriptor();
         }
 
@@ -139,6 +159,37 @@ namespace jams {
           mkl_desc_[3] = 'C'; // always use zero-based indexing
           mkl_desc_[4] = 'N'; // unused by MKL
           mkl_desc_[5] = 'N'; // unused by MKL
+        }
+
+        void set_mkl_inspector_executor_descriptor() {
+          #if HAS_MKL_INSPECTOR_EXECUTOR_API
+          switch (type_) {
+            case SparseMatrixType::GENERAL:
+              mkl_inspector_executor_descr_.type = SPARSE_MATRIX_TYPE_GENERAL;
+              break;
+            case SparseMatrixType::SYMMETRIC:
+              mkl_inspector_executor_descr_.type = SPARSE_MATRIX_TYPE_SYMMETRIC;
+              break;
+          }
+
+          switch (fill_mode_) {
+            case SparseMatrixFillMode::LOWER:
+              mkl_inspector_executor_descr_.mode = SPARSE_FILL_MODE_LOWER;
+              break;
+            case SparseMatrixFillMode::UPPER:
+              mkl_inspector_executor_descr_.mode = SPARSE_FILL_MODE_UPPER;
+              break;
+          }
+
+          switch (diag_type_) {
+            case SparseMatrixDiagType::NON_UNIT:
+              mkl_inspector_executor_descr_.diag = SPARSE_DIAG_NON_UNIT;
+              break;
+            case SparseMatrixDiagType::UNIT:
+              mkl_inspector_executor_descr_.diag = SPARSE_DIAG_UNIT;
+              break;
+          }
+          #endif
         }
 
         void set_cusparse_descriptor() {
@@ -184,6 +235,10 @@ namespace jams {
 
         std::array<char, 6> mkl_desc_ = {'G', 'L', 'N', 'C', 'N', 'N'};
 
+        #if HAS_MKL_INSPECTOR_EXECUTOR_API
+        matrix_descr mkl_inspector_executor_descr_;
+        #endif
+
         #if HAS_CUDA
         cusparseMatDescr_t cusparse_desc_ = nullptr;
         #endif
@@ -201,6 +256,8 @@ namespace jams {
       #endif
     }
 }
+
+#undef HAS_MKL_INSPECTOR_EXECUTOR_API
 
 
 #endif //JAMS_CONTAINERS_SPARSE_MATRIX_DESCRIPTION_H
