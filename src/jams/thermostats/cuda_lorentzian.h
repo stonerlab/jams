@@ -51,9 +51,22 @@
 /// * num_freq - int - optional (default 10000):
 ///     Number of frequencies used in Fourier method.
 ///
+///     The maximum noise frequency we can represent is ω_max = π/Δt. The
+///     frequency resolution will be ω_max / num_freq. We need sufficient
+///     resolution such that any features (such as the Lorentzian) in the noise
+///     PSD are well sampled. But we will be doing a real time convolution in
+///     the end with a smaller number of points than num_freq.
+///
 /// * num_trunc - int - optional (default 2000):
 ///     Number of time points to use in the real time convolution. This must
 ///     best less than num_freq.
+///
+///     The real time kernel should decay to zero quite quickly, with a
+///     dependence on the damping (Lorentzian width). So we can use fewer time
+///     points in the real time convolution than frequency samples. This
+///     parameter determines the memory requirement of the method which is
+///     dominated by the number of random samples we must store which is
+///     (2 * num_trunc + 1) * num_spins * 3.
 ///
 /// --------------
 /// Example Config
