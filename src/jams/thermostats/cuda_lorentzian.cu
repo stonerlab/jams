@@ -125,10 +125,10 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
         double kT = kBoltzmannIU * filter_temperature_;
 
         if (omega == 0.0) {
-          return 2.0 * eta_G * kT * kT;
+          return 2.0 * eta_G * kT;
         }
 
-        return 2.0 * eta_G * kT * hw /(std::expm1(hw / kT));
+        return 2.0 * eta_G * kT * (hw / kT) /(std::expm1(hw / kT));
     };
   } else if (noise_spectrum_type == "classical-lorentzian") {
     lorentzian_spectral_function = [&](double omega) {
