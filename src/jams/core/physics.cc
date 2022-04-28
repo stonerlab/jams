@@ -55,11 +55,33 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
     libconfig::Setting& state_settings = physics_settings["initial_state"];
     if (!state_settings["origin"].isArray() || !(state_settings["origin"].getLength() == 3)) {
       jams_die("Setting 'initial_state.origin' must be an array of length 3.");
+
     }
+
+	if (state_settings.exists("relative_x")) {
+	  relative_x_ = state_settings["relative_x"];
+	  cout << "Relative Skyrmion X position = " << relative_x_ <<"\n";
+	}
+
+	if (state_settings.exists("relative_y")) {
+	  relative_y_ = state_settings["relative_y"];
+	  cout << "Relative Skyrmion X position = " << relative_y_ <<"\n";
+	}
+
 
     Vec3 origin;
     for (int i = 0; i < 3; ++i) {
-      origin[i] = state_settings["origin"][i];
+	  if (i == 0) {
+		origin[i] = (state_settings["origin"][i]);
+		origin[i] = origin[i] * relative_x_;
+	  }
+	  else if (i == 1){
+		origin[i] = (state_settings["origin"][i]);
+		origin[i] = origin[i] * relative_y_;
+	  }
+	  else {
+		origin[i] = state_settings["origin"][i];
+	  }
     }
     double radius = state_settings["radius"];
 

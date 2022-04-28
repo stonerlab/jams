@@ -28,7 +28,10 @@ class Physics : public Base {
  protected:
   double              temperature_;
   Vec3 applied_field_;
-  int                 output_step_freq_;
+  int            output_step_freq_;
+  //Relative Skyrmion Possitions (input from config file)
+  double relative_x_ = 1.0;
+  double relative_y_ = 1.0;
 };
 
 #endif  // JAMS_CORE_PHYSICS_H
