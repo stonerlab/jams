@@ -19,6 +19,8 @@ jams::BoseEinsteinCudaSRK4Thermostat::BoseEinsteinCudaSRK4Thermostat(const doubl
 : Thermostat(temperature, sigma, num_spins) {
    std::cout << "\n  initialising CUDA Langevin semi-quantum noise thermostat\n";
 
+   jams_warning("This thermostat is currently broken. Do not use for production work.");
+
    double warmup_time = 100.0e-12;
    config->lookupValue("thermostat.warmup_time", warmup_time);
    warmup_time = warmup_time / 1e-12; // convert into ps
