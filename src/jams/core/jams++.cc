@@ -200,6 +200,10 @@ namespace jams {
           jams_warning("There are uncommitted changes in your git repository. DO NOT USE THIS BINARY FOR PRODUCTION CALCULATIONS.");
         }
 
+        if (contains(jams::build::description, "unknown")) {
+          jams_warning("JAMS version is unknown. DO NOT USE THIS BINARY FOR PRODUCTION CALCULATIONS.");
+        }
+
         cout << jams::section("build info") << std::endl;
         cout << jams::build_info();
         cout << jams::section("run info") << std::endl;
