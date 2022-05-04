@@ -14,7 +14,6 @@
 
 namespace jams {
     namespace build {
-        constexpr auto version = "@JAMS_VERSION@"; // this is the version specified in the jams CMake file
         constexpr auto type = "@CMAKE_BUILD_TYPE@";
         constexpr auto time = "@JAMS_BUILD_TIME@";
         constexpr auto description = "@JAMS_GIT_DESCRIPTION@"; // this is the git description where the version comes from a tag

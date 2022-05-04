@@ -6,8 +6,6 @@ include(cmake/Utils.cmake)
 # Do not allow users to build the project inside of the source directory
 ensure_out_of_source_build()
 
-set(JAMS_VERSION "2.13.1")
-
 # Try to detect nvcc (the CUDA compiler). If it's found, enable CUDA support
 # by default. If not found then disable CUDA support by default.
 # JAMS_BUILD_CUDA can still be overridden when calling cmake.
