@@ -65,7 +65,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 
 	if (state_settings.exists("relative_y")) {
 	  relative_y_ = state_settings["relative_y"];
-	  cout << "Relative Skyrmion X position = " << relative_y_ <<"\n";
+	  cout << "Relative Skyrmion Y position = " << relative_y_ <<"\n";
 	}
 
 
@@ -103,9 +103,21 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 
 	Vec3 origin; // push back the origin indices
 	for (int i = 0; i < 3; ++i) {
-	  cout << " perfect skyrmion function here";
 	  origin[i] = state_settings["origin"][i];
 	}
+
+	if (state_settings.exists("relative_x")) {
+	  relative_x_ = state_settings["relative_x"];
+	  origin[0] = origin[0]* relative_x_;
+	  cout << "Relative ('Perfect') Skyrmion X position = " << relative_x_ <<"\n";
+	}
+
+	if (state_settings.exists("relative_y")) {
+	  relative_y_ = state_settings["relative_y"];
+	  origin[1] = origin[1]* relative_y_;
+	  cout << "Relative ('Perfect') Skyrmion y position = " << relative_y_ <<"\n";
+	}
+	cout << "Skyrmion Initialed at: [" << origin[0]<< "," << origin[1] << "," << origin[2] <<"]" << "\n";
 
 	for (int i = 0; i < globals::num_spins; ++i) {
 	  Vec3 displacement = lattice->displacement(lattice->atom_position(i),origin);
