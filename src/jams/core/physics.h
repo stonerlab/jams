@@ -32,6 +32,10 @@ class Physics : public Base {
   //Relative Skyrmion Possitions (input from config file)
   double relative_x_ = 1.0;
   double relative_y_ = 1.0;
+
+ private:
+  double theta_calculation(const double& x, const double& y, const double& z, const double& r_skyrmion);
+  Vec3 spherical_to_cartesian(double x, double y, const double theta);
 };
 
 #endif  // JAMS_CORE_PHYSICS_H
