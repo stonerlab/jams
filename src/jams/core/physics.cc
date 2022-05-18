@@ -109,7 +109,6 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 
 	for (int i = 0; i < globals::num_spins; ++i) {
 	  Vec3 displacement = lattice->displacement(lattice->atom_position(i),origin);
-	  if(displacement[2] == 0){
 		double x_distance = displacement[0];
 		double y_distance = displacement[1];
 		double z_distance = displacement[2];
@@ -119,9 +118,8 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 		for(auto ii = 0; ii < cartesian_mag_directions.size(); ++ii) {
 		  assert(ii < 3 || ii == 2);
 		  globals::s(i, ii) = cartesian_mag_directions[ii];
-		}}else{
-		continue;
-	  }
+
+	}
 	}
   }
 
