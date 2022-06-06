@@ -34,7 +34,7 @@ class CVarSkyrmionCoreCoordinate : public CachingCollectiveVariable {
   /// cylinder_remapping_y_. Because the lattice is fixed this only needs to
   /// be done once on initialisation.
   void space_remapping();
-  Vec3 center_of_mass_reverse_transform(const int num_core_spins, const Vec3& tube_center_of_mass_x, const Vec3& tube_center_of_mass_y);
+  Vec3 center_of_mass_reverse_transform(const double total_mass, const Vec3& tube_center_of_mass_x, const Vec3& tube_center_of_mass_y);
 
     //  double skyrmion_center_of_mass_coordinate_x(); //Changed to double since I want to return on the coordinate
 //  double skyrmion_center_of_mass_coordinate_y();
@@ -48,7 +48,7 @@ class CVarSkyrmionCoreCoordinate : public CachingCollectiveVariable {
   double skyrmion_core_threshold_; //
   // Returns true if the z component of spin crosses the given threshold when
   // changing from s_initial to s_final.
-  static bool spin_crossed_threshold(const Vec3 &s_initial, const Vec3 &s_final, const double &threshold);
+  static bool is_spin_below_threshold(const Vec3 &s_initial, const Vec3 &s_final, const double &threshold);
 
   std::string name_ = "skyrmion_coordinate_";
 

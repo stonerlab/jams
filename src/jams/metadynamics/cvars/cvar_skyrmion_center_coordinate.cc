@@ -48,8 +48,7 @@ jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Se
 
   auto bounds_x = std::minmax({bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
   auto bounds_y = std::minmax({bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
-  skyrmion_core_threshold_ = -0.5;
-  skyrmion_core_threshold_ = -0.001;
+  skyrmion_core_threshold_ = 0.0;
   space_remapping();
 
 }
@@ -68,7 +67,8 @@ double jams::CVarSkyrmionCoreCoordinate::spin_move_trial_value(int i,
 															   const Vec3 &spin_trial) {
   double trial_coordinate = cached_value();
 
-  if (spin_crossed_threshold(spin_initial, spin_trial, skyrmion_core_threshold_)) {
+  if (is_spin_below_threshold(spin_initial, spin_trial,
+                              skyrmion_core_threshold_)) {
 
     trial_coordinate = cached_value() + skyrmion_center_of_mass_change(i, spin_initial, spin_trial);
 
@@ -141,10 +141,11 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
   }
 }
 
-bool jams::CVarSkyrmionCoreCoordinate::spin_crossed_threshold(const Vec3 &s_initial,
-															  const Vec3 &s_final,
-															  const double &threshold) {
-  return (s_initial[2] <= threshold && s_final[2] > threshold) || (s_initial[2] > threshold && s_final[2] <= threshold);
+bool jams::CVarSkyrmionCoreCoordinate::is_spin_below_threshold(const Vec3 &s_initial,
+                                                               const Vec3 &s_final,
+                                                               const double &threshold) {
+  return (s_initial[2] <= threshold) || (s_final[2] <= threshold);
+//  return (s_initial[2] <= threshold && s_final[2] > threshold) || (s_initial[2] > threshold && s_final[2] <= threshold);
 }
 
 double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
@@ -163,15 +164,17 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
 
   int num_core_spins = 0;
 
+  double mass = 0.0;
   for (auto i = 0; i < num_spins; ++i) {
     if (globals::s(i,2) <= skyrmion_core_threshold_) {
-      tube_center_of_mass_x += cylinder_remapping_x_[i];
-      tube_center_of_mass_y += cylinder_remapping_y_[i];
+      tube_center_of_mass_x += cylinder_remapping_x_[i] * globals::s(i,2);
+      tube_center_of_mass_y += cylinder_remapping_y_[i] * globals::s(i,2);
       num_core_spins++;
+      mass += globals::s(i,2);
     }
   }
 
-  auto value = center_of_mass_reverse_transform(num_core_spins, tube_center_of_mass_x, tube_center_of_mass_y);
+  auto value = center_of_mass_reverse_transform(mass, tube_center_of_mass_x, tube_center_of_mass_y);
 
   if (coordinate_component_ == Component::x) {
     return value[0];
@@ -249,17 +252,17 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_change(int i,
 
 }
 
-Vec3 jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const int num_core_spins, const Vec3& tube_center_of_mass_x, const Vec3& tube_center_of_mass_y) {
+Vec3 jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const double total_mass, const Vec3& tube_center_of_mass_x, const Vec3& tube_center_of_mass_y) {
   Vec3 center_of_mass = {0.0, 0.0, 0.0};
 
   if (periodic_x_) {
     double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
     center_of_mass[0] = theta_x*lattice->size(0)/(kTwoPi);
   } else {
-	if(center_of_mass[0] == 0 && num_core_spins == 0){
+	if(center_of_mass[0] == 0 && total_mass == 0){
 	  center_of_mass[0] = 0;
 	}else {
-	  center_of_mass[0] = tube_center_of_mass_x[0] / double(num_core_spins);
+	  center_of_mass[0] = tube_center_of_mass_x[0] / total_mass;
 	}
   }
 
@@ -268,10 +271,10 @@ Vec3 jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const in
     center_of_mass[1] = theta_y*lattice->size(1)/(kTwoPi);
   } else {
 	
-	if (tube_center_of_mass_y[1] == 0 && num_core_spins ==0){
+	if (tube_center_of_mass_y[1] == 0 && total_mass ==0){
 	  center_of_mass[1] = 0 ;
 	}else {
-	  center_of_mass[1] = tube_center_of_mass_y[1] / double(num_core_spins);
+	  center_of_mass[1] = tube_center_of_mass_y[1] / total_mass;
 	}
   }
 
