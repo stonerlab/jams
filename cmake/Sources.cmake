@@ -103,6 +103,7 @@ set(JAMS_SOURCES_CUDA
         cuda/cuda_spin_ops.cu
         cuda/cuda_minimum_image.cu
         hamiltonian/cuda_applied_field.cu
+        hamiltonian/cuda_biquadratic_exchange.cu
         hamiltonian/cuda_cubic_anisotropy.cu
         hamiltonian/cuda_dipole_bruteforce.cu
         hamiltonian/cuda_dipole_fft.cu
