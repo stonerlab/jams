@@ -49,6 +49,7 @@ set(JAMS_SOURCES_CXX
         metadynamics/cvars/cvar_magnetisation.cc
         metadynamics/cvars/cvar_skyrmion_center_coordinate.cc
         metadynamics/cvars/cvar_topological_charge.cc
+        metadynamics/cvars/cvar_topological_charge_finite_diff.cc
         lattice/minimum_image.cc
         lattice/interaction_neartree.cc
         maths/functions.cc
