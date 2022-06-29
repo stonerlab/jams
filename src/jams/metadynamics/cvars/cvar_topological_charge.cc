@@ -8,10 +8,16 @@
 #include <vector>
 #include <set>
 #include <jams/helpers/montecarlo.h>
+#include <jams/helpers/error.h>
 
 
 jams::CVarTopologicalCharge::CVarTopologicalCharge(
     const libconfig::Setting &settings) {
+
+  jams_warning("Metadynamics CV 'topological_charge' is based on the geometrical\n"
+               "definition of tpological charge and CANNOT be used as a CV.\n"
+               "We have retained the module purely for demonstration of it\n"
+               "not working.\n");
 
   if (settings.exists("radius_cutoff")) {
     radius_cutoff_ = settings["radius_cutoff"];
