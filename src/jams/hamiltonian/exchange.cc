@@ -85,8 +85,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   for (auto n = 0; n < neighbour_list_.size(); ++n) {
     auto i = neighbour_list_[n].first[0];
     auto j = neighbour_list_[n].first[1];
-    auto Jij = input_unit_conversion_ * neighbour_list_[n].second;
-    if (max_abs(Jij) > energy_cutoff_ * input_unit_conversion_ ) {
+    auto Jij = input_energy_unit_conversion_ * neighbour_list_[n].second;
+    if (max_abs(Jij) > energy_cutoff_ * input_energy_unit_conversion_ ) {
       insert_interaction_tensor(i, j, Jij);
     }
   }

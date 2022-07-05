@@ -68,11 +68,14 @@ public:
     }
 
 protected:
-    std::string input_unit_name_; // name of energy unit in input
-    double input_unit_conversion_ = 1.0; // conversion factor from input energy to JAMS native units
+    std::string input_energy_unit_name_; // name of energy unit in input
+    double input_energy_unit_conversion_ = 1.0; // conversion factor from input energy to JAMS native units
+
+    std::string input_distance_unit_name_; // name of distance unit in input
+    double input_distance_unit_conversion_ = 1.0; // conversion factor from input distance to JAMS native units
 
     jams::MultiArray<double, 1> energy_; // energy of every spin for this Hamiltonian
-    jams::MultiArray<double, 2> field_; // field at every spin for this Hamiltonian
+    jams::MultiArray<double, 2> field_; // field at every spin for this Hamiltonianl
 };
 
 
