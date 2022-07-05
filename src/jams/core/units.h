@@ -7,7 +7,9 @@
 
 #include <map>
 
-#include "jams/helpers/consts.h"
+#include <jams/helpers/consts.h>
+#include <jams/core/lattice.h>
+#include <jams/core/globals.h>
 
 namespace jams {
     const std::map<std::string, double> internal_energy_unit_conversion = {

@@ -85,7 +85,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         max_radius = outer_radius;
       }
 
-      double jij_value = double(settings["interactions"][i][4]) * input_unit_conversion_;
+      double jij_value = double(settings["interactions"][i][4]) * input_energy_unit_conversion_;
 
       auto type_id_A = lattice->material_id(type_name_A);
       auto type_id_B = lattice->material_id(type_name_B);

@@ -106,7 +106,7 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
     auto type = lattice->atom_material_id(i);
     for (auto j = 0; j < cubic_anisotropies[type].size(); ++j) {
       order_(i, j) = cubic_anisotropies[type][j].order;
-      magnitude_(i, j) = cubic_anisotropies[type][j].energy * input_unit_conversion_;
+      magnitude_(i, j) = cubic_anisotropies[type][j].energy * input_energy_unit_conversion_;
       axis1_(i, j) = cubic_anisotropies[type][j].axis1;
       axis2_(i, j) = cubic_anisotropies[type][j].axis2;
       axis3_(i, j) = cubic_anisotropies[type][j].axis3;

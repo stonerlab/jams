@@ -17,10 +17,10 @@ public:
 private:
     using ExchangeFunctionalType = std::function<double(double)>;
 
-    static ExchangeFunctionalType functional_from_settings(const libconfig::Setting &settings);
+    ExchangeFunctionalType functional_from_settings(const libconfig::Setting &settings);
 
-    static void output_exchange_functional(std::ostream &os, const ExchangeFunctionalType &functional, double r_cutoff,
-                                           double delta_r = 0.001);
+    void output_exchange_functional(std::ostream &os, const ExchangeFunctionalType &functional, double r_cutoff,
+                                           double delta_r=0.001);
 
     static double functional_step(double rij, double J0, double r_cut);
 

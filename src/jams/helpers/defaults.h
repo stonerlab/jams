@@ -23,6 +23,7 @@ namespace jams {
         constexpr auto   physics_module = "empty";
 
         constexpr auto   energy_unit_name = "joules";
+        constexpr auto   distance_unit_name = "lattice_constants";
 
         constexpr int    monitor_output_steps = 100;
         constexpr double monitor_convergence_tolerance = 0.01;
