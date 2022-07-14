@@ -95,47 +95,6 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
     }
 
   }
-  if (physics_settings.exists("perfect_skyrmion")){
-	libconfig::Setting& state_settings = physics_settings["perfect_skyrmion"];
-	if (!state_settings["origin"].isArray() || !(state_settings["origin"].getLength() == 3)) { // I guess get the origin of the skyrmion centre
-	  jams_die("Setting 'initial_state.origin' must be an array of length 3.");
-	}
-	double perfect_radius = state_settings["perfect_skyrmion_radius"];
-
-	Vec3 origin; // push back the origin indices
-	for (int i = 0; i < 3; ++i) {
-	  origin[i] = state_settings["origin"][i];
-	}
-
-	if (state_settings.exists("relative_x")) {
-	  relative_x_ = state_settings["relative_x"];
-	  origin[0] = origin[0]* relative_x_;
-	  cout << "Relative ('Perfect') Skyrmion X position = " << relative_x_ <<"\n";
-	}
-
-	if (state_settings.exists("relative_y")) {
-	  relative_y_ = state_settings["relative_y"];
-	  origin[1] = origin[1]* relative_y_;
-	  cout << "Relative ('Perfect') Skyrmion y position = " << relative_y_ <<"\n";
-	}
-	cout << "Skyrmion Initialed at: [" << origin[0]<< "," << origin[1] << "," << origin[2] <<"]" << "\n";
-
-	for (int i = 0; i < globals::num_spins; ++i) {
-	  Vec3 displacement = lattice->displacement(lattice->atom_position(i),origin);
-		double x_distance = displacement[0];
-		double y_distance = displacement[1];
-		double z_distance = displacement[2];
-		double theta_spherical = theta_calculation(x_distance, y_distance, z_distance, perfect_radius);
-		Vec3 cartesian_mag_directions = spherical_to_cartesian(x_distance,y_distance,theta_spherical);
-		//push back the skyrmion in the lattice
-		for(auto ii = 0; ii < cartesian_mag_directions.size(); ++ii) {
-		  assert(ii < 3 || ii == 2);
-		  globals::s(i, ii) = cartesian_mag_directions[ii];
-
-	}
-	}
-  }
-
 }
 
 Physics* Physics::create(const libconfig::Setting &settings) {
@@ -181,19 +140,4 @@ Physics* Physics::create(const libconfig::Setting &settings) {
   }
 
   throw std::runtime_error("unknown physics " + module_name);
-}
-
-double Physics::theta_calculation(const double &x, const double &y, const double &z, const double& r_skyrmion) {
-  double r = sqrt(x*x + y*y + z*z);
-  double theta_r = 2*(atan2(r_skyrmion,r)); //use atan2 to take into account the correct quadrant base on the signs of x,y
-  return theta_r;
-}
-
-Vec3 Physics::spherical_to_cartesian(double x, double y, const double theta) {
-  Vec3 cart_cordinates;
-  double phi = atan2(y,x);
-  cart_cordinates[0]= cos(phi)*sin(theta);
-  cart_cordinates[1]= sin(phi)*sin(theta);
-  cart_cordinates[2]= cos(theta);
-  return cart_cordinates;
 }
