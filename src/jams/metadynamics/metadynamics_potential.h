@@ -16,11 +16,9 @@ namespace jams {
         static const int kMaxDimensions = 2;
 
         // TODO: Implement MirrorBCs
-		//TODO: Implement & Test DeathBC
         enum class PotentialBCs {
           MirrorBC, // Gaussians are inserted as if the end of the ranges are mirrors.
-          HardBC,   // Gaussians cannot be inserted outside of the range.
-		  DeathBC // Kill the simulation if skyrmion is annihilated
+          HardBC    // Gaussians cannot be inserted outside of the range.
         };
 
         MetadynamicsPotential() = default;
@@ -53,31 +51,20 @@ namespace jams {
         void spin_update(
             int i, const Vec3 &spin_initial, const Vec3 &spin_final);
 
-
-        /// Returns true if the potential is signalling to the solver to stop
-        /// for example due to a boundary condition
-        bool stop_signal();
-
     private:
         const double kHardBCsPotential = 1e100; // a very large value in meV
-		bool death_boundary_check();
 
         double              gaussian_amplitude_;
         std::vector<double> gaussian_width_;
-		double              lower_death_boundary_;
-		double              upper_death_boundary_;
-		bool death_bc_passed = false; //when it's passed from the config, will allow checking when the skyrmion is annihilated
-		bool death_bc_triggered_ = false; //if death_bc_passed = true , check for a value of topological charge to stop the simulation
-		                       // -> at the spin_update (to begin with) and sent a signal to solver to die
 
         int                                              num_cvars_; //used to resize all the other vectors
         std::vector<std::unique_ptr<CollectiveVariable>> cvars_;
         std::vector<std::string>                         cvar_names_;
         std::vector<PotentialBCs>                        cvar_bcs_;
         std::vector<PotentialBCs>                        lower_cvar_bc_;
-		std::vector<PotentialBCs>                        upper_cvar_bc_;
-		std::vector<double>                              cvar_range_min_;
-		std::vector<double>                              cvar_range_max_;
+		    std::vector<PotentialBCs>                        upper_cvar_bc_;
+		    std::vector<double>                              cvar_range_min_;
+		    std::vector<double>                              cvar_range_max_;
         std::vector<std::vector<double>>                 cvar_sample_points_;
         std::ofstream                                    cvar_file_;
 

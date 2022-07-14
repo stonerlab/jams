@@ -4,6 +4,15 @@
 
 #include <jams/metadynamics/caching_collective_variable.h>
 
+// ***************************** WARNING *************************************
+// This finite difference scheme is built on the assumption that
+// you are using in-plane lattice vectors u₁ = x, u2 = x/2 + √3/2.
+// NO OTHER SYSTEMS ARE SUPPORTED.
+//
+// (2022-06-29 Joe: in principle this can be generalised, but this is a rush
+// job for Ioannis' PhD)
+// ***************************** WARNING *************************************
+
 // ---------------------------------------------------------------------------
 // config settings
 // ---------------------------------------------------------------------------

@@ -4,6 +4,13 @@
 
 #include <jams/metadynamics/caching_collective_variable.h>
 
+// ***************************** WARNING *************************************
+// CVarTopologicalCharge is based on the "geometrical" definition of topological
+// charge and CANNOT be used as a CV in metadynamics because it is strictly an
+// integer. We have retained the class purely to be able to demonstrate of it
+// that it does not work.
+// ***************************** WARNING *************************************
+
 // ---------------------------------------------------------------------------
 // config settings
 // ---------------------------------------------------------------------------
@@ -27,8 +34,6 @@
 //        range_min = -1.05;
 //        range_max = 0.05;
 //        range_step = 0.01;
-//        upper_bc = "MirrorBC";// not implemented yet; if non given HardBC will be used
-//        lower_bc = "Death"; Using the range min as threshold to stop the simulation.
 //      }
 //    );
 //  };

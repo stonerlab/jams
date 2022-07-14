@@ -15,7 +15,7 @@ jams::CVarTopologicalCharge::CVarTopologicalCharge(
     const libconfig::Setting &settings) {
 
   jams_warning("Metadynamics CV 'topological_charge' is based on the geometrical\n"
-               "definition of tpological charge and CANNOT be used as a CV.\n"
+               "definition of topological charge and CANNOT be used as a CV.\n"
                "We have retained the module purely for demonstration of it\n"
                "not working.\n");
 

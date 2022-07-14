@@ -94,9 +94,6 @@ return MetropolisMCSolver::energy_difference(spin_index, initial_Spin, final_Spi
 void MetadynamicsMetropolisSolver::accept_move(const int spin_index,
                        const Vec3 &initial_spin,
                        const Vec3 &final_spin) {
-  if (metad_potential_->stop_signal()) {
-	return;
-  }
 MetropolisMCSolver::accept_move(spin_index, initial_spin, final_spin);
 
 // As well as updating the monte carlo solver we update the collective variable
@@ -107,5 +104,5 @@ metad_potential_->spin_update(spin_index, initial_spin, final_spin);
 }
 
 bool MetadynamicsMetropolisSolver::is_running() {
-  return Solver::is_running() && !metad_potential_->stop_signal();
+  return Solver::is_running();
 }

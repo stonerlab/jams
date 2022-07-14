@@ -8,13 +8,6 @@
 jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     const libconfig::Setting &settings) {
 
-  // WARNING: This finite difference scheme is built on the assumption that
-  // you are using in-plane lattice vectors u₁ = x, u2 = x/2 + √3/2.
-  // NO OTHER SYSTEMS ARE SUPPORTED.
-  //
-  // (2022-06-29 Joe: in principle this can be generalised, but this is a rush
-  // job for Ioannis' PhD)
-
   if (!approximately_equal(lattice->a(), {1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)) {
     throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
                              "requires the 'a' lattice parameter to be (1.0, 0.0, 0.0)");
@@ -48,14 +41,14 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   // ------------------------------- ∂ₓS ---------------------------------------
   {
-    // first index is interaction vector, second is the +/- sign of the contribution
+    // first index is interaction vector, second is the +/- sign of the
+    // contribution
     std::vector<std::pair<Vec3, int>> dx_interaction_data = {
         {Vec3{1, -1, 0}, +1}, // +S(rᵢ + u₁ - u₂)
         {Vec3{-1, 1, 0}, -1}, // -S(rᵢ - u₁ + u₂)
         {Vec3{0, 1, 0},  +1}, // +S(rᵢ + u₂)
         {Vec3{0, -1, 0}, -1}  // -S(rᵢ - u₂)
     };
-
 
     std::vector<InteractionData> interaction_template;
     for (auto &data: dx_interaction_data) {
@@ -90,14 +83,14 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   // ------------------------------- ∂ᵧS ---------------------------------------
   {
-    // first index is interaction vector, second is the +/- sign of the contribution
+    // first index is interaction vector, second is the +/- sign of the
+    // contribution
     std::vector<std::pair<Vec3, int>> dx_interaction_data = {
         {Vec3{1, -1, 0}, -1}, // -S(rᵢ + u₁ - u₂)
         {Vec3{-1, 1, 0}, +1}, // +S(rᵢ - u₁ + u₂)
         {Vec3{0, 1, 0},  +1}, // +S(rᵢ + u₂)
         {Vec3{0, -1, 0}, -1}  // -S(rᵢ - u₂)
     };
-
 
     std::vector<InteractionData> interaction_template;
     for (auto &data: dx_interaction_data) {

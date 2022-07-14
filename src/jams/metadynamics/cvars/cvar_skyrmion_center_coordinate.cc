@@ -3,13 +3,12 @@
 //
 
 #include "cvar_skyrmion_center_coordinate.h"
-#include "jams/metadynamics/skyrmion_center_cv.h"
 #include <jams/core/globals.h>
 #include "jams/maths/functions.h"
 #include <libconfig.h++>
 #include <jams/interface/config.h>
 #include "jams/core/lattice.h"
-#include <cmath> // so I can use the isnan() for debugging.
+#include <cmath>
 
 
 #include "jams/helpers/consts.h"
@@ -17,7 +16,6 @@
 
 #include <algorithm>
 
-//****** Class Initialisation ******
 jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Setting &settings) {
   //settings
 //  auto component = config_required<std::string>(settings, "component");
@@ -41,13 +39,6 @@ jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Se
   periodic_x_ = lattice->is_periodic(0);
   periodic_y_ = lattice->is_periodic(1);
 
-  auto bottom_left = lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
-  auto bottom_right = lattice->get_unitcell().matrix() * Vec3{double(lattice->size(0)), 0.0, 0.0};
-  auto top_left = lattice->get_unitcell().matrix() * Vec3{0.0, double(lattice->size(1)), 0.0};
-  auto top_right = lattice->get_unitcell().matrix() * Vec3{double(lattice->size(0)), double(lattice->size(1)), 0.0};
-
-  auto bounds_x = std::minmax({bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
-  auto bounds_y = std::minmax({bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
   skyrmion_core_threshold_ = 0.0;
   space_remapping();
 

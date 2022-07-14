@@ -44,9 +44,6 @@ set(JAMS_SOURCES_CXX
         interface/fft.cc
         interface/system.cc
         metadynamics/collective_variable_factory.cc
-        metadynamics/magnetisation_cv.cc
-        metadynamics/mz_orthogonal_mz_cv.cc
-        metadynamics/skyrmion_center_cv.cc
         metadynamics/metadynamics_potential.cc
         metadynamics/collective_variable.cc
         metadynamics/caching_collective_variable.cc
