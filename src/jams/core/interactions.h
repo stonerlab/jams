@@ -78,9 +78,8 @@ discover_interaction_file_format(std::ifstream &file);
 std::vector<InteractionData>
 interactions_from_file(std::ifstream &file, const InteractionFileDescription& desc);
 
-InteractionList<Mat3>
-neighbour_list_from_interactions(std::vector<InteractionData> &interactions,
-        CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff);
+jams::InteractionList<Mat3, 2>
+neighbour_list_from_interactions(std::vector<InteractionData> &interactions);
 
 jams::InteractionList<Mat3, 2>
 generate_neighbour_list(std::ifstream &file,
