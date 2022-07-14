@@ -70,8 +70,6 @@ public:
     // been accepted.
     void accept_move(const int spin_index, const Vec3 &initial_spin,
                      const Vec3 &final_spin) override;
-
-    bool is_running() override;
 };
 
 #endif //INCLUDED_JAMS_SOLVERS_CPU_METADYNAMICS_METROPOLIS_SOLVER
