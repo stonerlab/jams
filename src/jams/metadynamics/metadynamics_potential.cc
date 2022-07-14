@@ -1,6 +1,7 @@
 // metadynamics_potential.cc                                                          -*-C++-*-
 
 #include "metadynamics_potential.h"
+#include <jams/helpers/exception.h>
 #include <jams/metadynamics/collective_variable_factory.h>
 #include <jams/maths/interpolation.h>
 #include <jams/helpers/output.h>
@@ -8,6 +9,7 @@
 
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
+#include <jams/core/lattice.h>
 
 // TODO: Add support for boundary conditions
 
@@ -101,8 +103,12 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   cvars_.resize(num_cvars_);
   cvar_names_.resize(num_cvars_);
   cvar_bcs_.resize(num_cvars_);
+  lower_cvar_bc_.resize(num_cvars_);
+  upper_cvar_bc_.resize(num_cvars_);
   gaussian_width_.resize(num_cvars_);
   cvar_sample_points_.resize(num_cvars_);
+  cvar_range_min_.resize(num_cvars_);
+  cvar_range_max_.resize(num_cvars_);
 
   // Preset the num_samples in each dimension to 1. Then if we are only using
   // 1D our potential will be N x 1 (rather than N x 0!).
@@ -110,38 +116,72 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
   for (auto i = 0; i < num_cvars_; ++i) {
     // Construct the collective variables from the factor and store pointers
-    const auto& cvar_settings = settings["collective_variables"][i];
+    const auto &cvar_settings = settings["collective_variables"][i];
     cvars_[i].reset(CollectiveVariableFactory::create(cvar_settings));
     cvar_names_[i] = cvars_[i]->name();
 
     // Set the gaussian width for this collective variable
-    gaussian_width_[i] = config_required<double>(cvar_settings, "gaussian_width");
+    gaussian_width_[i] = config_required<double>(cvar_settings,
+                                                 "gaussian_width");
 
     // Set the samples along this collective variable axis
+
     double range_step = config_required<double>(cvar_settings, "range_step");
     double range_min = config_required<double>(cvar_settings, "range_min");
     double range_max = config_required<double>(cvar_settings, "range_max");
+    if (cvar_names_[i] == ("skyrmion_coordinate_x") ||
+        cvar_names_[i] == ("skyrmion_coordinate_y")) {
+      auto bottom_left = lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
+      auto bottom_right = lattice->get_unitcell().matrix() *
+                          Vec3{double(lattice->size(0)), 0.0, 0.0};
+      auto top_left = lattice->get_unitcell().matrix() *
+                      Vec3{0.0, double(lattice->size(1)), 0.0};
+      auto top_right = lattice->get_unitcell().matrix() *
+                       Vec3{double(lattice->size(0)), double(lattice->size(1)),
+                            0.0};
+      if (cvar_names_[i] == ("skyrmion_coordinate_x")) {
+        auto bounds_x = std::minmax(
+            {bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
+        range_min = bounds_x.first;
+        range_max = bounds_x.second;
+      }
+      if (cvar_names_[i] == ("skyrmion_coordinate_y")) {
+        auto bounds_y = std::minmax(
+            {bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
+        range_min = bounds_y.first;
+        range_max = bounds_y.second;
+      }
+    }
     cvar_sample_points_[i] = linear_space(range_min, range_max, range_step);
+    cvar_range_max_[i] = range_max;
+    cvar_range_min_[i] = range_min;
     num_samples_[i] = cvar_sample_points_[i].size();
 
-    // Set the boundary conditions for this collective variable
-    // TODO: need to implement this!
-    if (cvar_settings.exists("bcs")) {
+    // Set the lower and upper boundary conditions for this collective variable
+    //TODO: Once the mirror boundaries are applied need to generalase these if statements
+
+
+    if (cvar_settings.exists("lower_boundary")) {
+      jams::unimplemented_error("lower_boundary");
     } else {
-      cvar_bcs_[i] = PotentialBCs::HardBC;
+      lower_cvar_bc_[i] = PotentialBCs::HardBC;
+    }
+
+    if (cvar_settings.exists("upper_boundary")) {
+      jams::unimplemented_error("upper_boundary");
+    } else {
+      upper_cvar_bc_[i] = PotentialBCs::HardBC;
     }
   }
 
-  // TODO: need to fix bug for resizing with std::array to make this general for
-  // kMaxDimensions
-  potential_.resize(num_samples_[0], num_samples_[1]);
+    potential_.resize(num_samples_[0], num_samples_[1]);
 
-  cvar_file_.open(jams::output::full_path_filename("metad_cvars.tsv"));
-  cvar_file_ << "time";
-  for (auto i = 0; i < num_cvars_; ++i) {
-    cvar_file_ << " " << cvars_[i]->name();
-  }
-  cvar_file_ << std::endl;
+    cvar_file_.open(jams::output::full_path_filename("metad_cvars.tsv"));
+    cvar_file_ << "time";
+    for (auto i = 0; i < num_cvars_; ++i) {
+      cvar_file_ << " " << cvars_[i]->name();
+    }
+    cvar_file_ << std::endl;
 }
 
 
@@ -150,8 +190,8 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
   // Signal to the CollectiveVariables that they should do any internal work
   // needed due to a spin being accepted (usually related to caching).
   for (const auto& cvar : cvars_) {
-    cvar->spin_move_accepted(i, spin_initial, spin_final);
-  }
+      cvar->spin_move_accepted(i, spin_initial, spin_final);
+  	}
 }
 
 
@@ -166,17 +206,16 @@ double jams::MetadynamicsPotential::potential_difference(
     cvar_trial[n] = cvars_[n]->spin_move_trial_value(i, spin_initial, spin_final);
   }
 
+
   for (auto n = 0; n < num_cvars_; ++n) {
-    if (cvar_bcs_[n] == PotentialBCs::HardBC) {
-      if (cvar_initial[n] < cvar_sample_points_[n].front()
-          || cvar_initial[n] > cvar_sample_points_[n].back()) {
-        return -kHardBCsPotential;
-      }
-      if (cvar_trial[n] < cvar_sample_points_[n].front()
-          || cvar_trial[n] > cvar_sample_points_[n].back()) {
-        return kHardBCsPotential;
-      }
-    }
+	  if (cvar_initial[n] < cvar_sample_points_[n].front()
+		  || cvar_initial[n] > cvar_sample_points_[n].back()) {
+		return -kHardBCsPotential;
+	  }
+	  if (cvar_trial[n] < cvar_sample_points_[n].front()
+		  || cvar_trial[n] > cvar_sample_points_[n].back()) {
+		return kHardBCsPotential;
+	  }
   }
 
   return potential(cvar_trial) - potential(cvar_initial);
@@ -184,7 +223,6 @@ double jams::MetadynamicsPotential::potential_difference(
 
 
 double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimensions>& cvar_coordinates) {
-  assert(cvar_coordinates.size() == num_cvars_);
   assert(cvar_coordinates.size() > 0 && cvar_coordinates.size() <= kMaxDimensions);
   // Lookup points above and below for linear interpolation. We can use the
   // the fact that the ranges are sorted to do a bisection search.
@@ -197,12 +235,10 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
   // Apply any hard boundary conditions where the potential is set very large
   // if we are outside of the collective variable's range.
   for (auto n = 0; n < num_cvars_; ++n) {
-    if (cvar_bcs_[n] == PotentialBCs::HardBC) {
-      if (cvar_coordinates[n] < cvar_sample_points_[n].front()
-          || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
-        bcs_potential = kHardBCsPotential;
-      }
-    }
+	  if (cvar_coordinates[n] < cvar_sample_points_[n].front()
+		  || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+		bcs_potential = kHardBCsPotential;
+	  }
   }
 
   for (auto n = 0; n < num_cvars_; ++n) {
@@ -267,7 +303,6 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
     }
   }
 
-  // TODO: generalise to at least 3D
   // If we only have 1D then we need to just have a single element with '1.0'
   // for the second dimension.
   if (num_cvars_ == 1) {
@@ -297,7 +332,6 @@ double jams::MetadynamicsPotential::current_potential() {
   return potential(coordinates);
 }
 
-
 void jams::MetadynamicsPotential::output() {
   std::ofstream of(jams::output::full_path_filename("metad_potential.tsv"));
 
@@ -322,6 +356,5 @@ void jams::MetadynamicsPotential::output() {
     }
     return;
   }
-
   assert(false); // Should not be reachable if num_cvars_ <= kMaxDimensions
 }

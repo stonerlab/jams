@@ -57,10 +57,14 @@ namespace jams {
         double              gaussian_amplitude_;
         std::vector<double> gaussian_width_;
 
-        int                                              num_cvars_;
+        int                                              num_cvars_; //used to resize all the other vectors
         std::vector<std::unique_ptr<CollectiveVariable>> cvars_;
         std::vector<std::string>                         cvar_names_;
         std::vector<PotentialBCs>                        cvar_bcs_;
+        std::vector<PotentialBCs>                        lower_cvar_bc_;
+		    std::vector<PotentialBCs>                        upper_cvar_bc_;
+		    std::vector<double>                              cvar_range_min_;
+		    std::vector<double>                              cvar_range_max_;
         std::vector<std::vector<double>>                 cvar_sample_points_;
         std::ofstream                                    cvar_file_;
 

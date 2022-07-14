@@ -73,7 +73,6 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
     }
 
   }
-
 }
 
 Physics* Physics::create(const libconfig::Setting &settings) {
