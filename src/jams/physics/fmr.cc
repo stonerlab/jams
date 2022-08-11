@@ -2,16 +2,20 @@
 
 #include "fmr.h"
 
-
 #include <libconfig.h++>
 
 #include <cmath>
 #include <string>
 
+#include "jams/core/hamiltonian.h"
+#include "jams/core/solver.h"
+
 #include "jams/core/types.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/output.h"
+#include "jams/helpers/error.h"
+#include "jams/core/lattice.h"
 
 FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
 : Physics(settings),
@@ -21,32 +25,46 @@ FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
   PSDFile(jams::output::full_path_filename("psd.tsv")),
   PSDIntegral(0) {
   using namespace globals;
+    if(settings.exists("dc_local_field")) {
+        if (settings["dc_local_field"].getLength() != lattice->num_materials()) {
+            jams_die("FMR: dc_local_field must be specified for every material");
+        }
 
-  ACFieldFrequency = settings["ACFieldFrequency"];
-  ACFieldFrequency = 2.0*M_PI*ACFieldFrequency;
+        for (int i = 0; i < 3; ++i) {
+            DCFieldStrength[i] = settings["dc_local_field"][0][i];
+            ACFieldStrength[i] = settings["ac_local_field"][0][i];
+        }
+    }
 
-  for (int i = 0; i < 3; ++i) {
-    ACFieldStrength[i] = settings["ACFieldStrength"][i];
-  }
+    ACFieldFrequency = settings["ac_local_frequency"][0];
+    ACFieldFrequency = kTwoPi*ACFieldFrequency;
 
-  for (int i = 0; i < 3; ++i) {
-    DCFieldStrength[i] = settings["DCFieldStrength"][i];
-  }
+    for (int i = 0; i < 3; ++i) {
+        ACFieldStrength[i] = settings["ac_local_field"][0][i];
+    }
 
-  PSDIntegral.resize(num_spins);
+    // Now all the fields have been read in, need to initialise a ZeemanHamiltonian class
+
+    solver->register_hamiltonian(
+            Hamiltonian::create(settings, num_spins, solver->is_cuda_solver()));
+
+    PSDIntegral.resize(num_spins);
 
   for (int i = 0; i < num_spins; ++i) {
     PSDIntegral(i) = 0;
   }
 
   initialized = true;
+
+  PSDFile.setf(std::ios::right);
+  PSDFile << "time (ps)\t" << "PSD_Av\n";
 }
 
 FMRPhysics::~FMRPhysics() {
   PSDFile.close();
 }
 
-void FMRPhysics::update(const int &iterations, const double &time, const double &dt) {
+void FMRPhysics::update(const int &iteration, const double &time, const double &dt) {
   using namespace globals;
 
   const double cosValue = cos(ACFieldFrequency*time);
@@ -65,13 +83,18 @@ void FMRPhysics::update(const int &iterations, const double &time, const double 
     PSDIntegral(i) += sProjection * sinValue * dt;
   }
 
-  if (iterations%output_step_freq_ == 0) {
+
+  if (iteration % output_step_freq_ == 0) {
+
+
     double pAverage = 0.0;
 
     for (int i = 0; i < num_spins; ++i) {
       pAverage += (PSDIntegral(i)*(ACFieldFrequency*mus(i))/time);
     }
 
-    PSDFile << time << "\t" << pAverage/num_spins << "\n";
+    PSDFile.width(12);
+
+    PSDFile << std::scientific << std::setprecision(15) << time << "\t" << pAverage/num_spins << std::endl;
   }
 }
