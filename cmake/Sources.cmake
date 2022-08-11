@@ -60,6 +60,7 @@ set(JAMS_SOURCES_CXX
         monitors/boltzmann.cc
         monitors/energy.cc
         monitors/field.cc
+        monitors/finite_difference_topological_charge.cc
         monitors/hdf5.cc
         monitors/magnetisation.cc
         monitors/magnetisation_layers.cc
