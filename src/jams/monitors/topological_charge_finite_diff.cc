@@ -2,7 +2,8 @@
 // Created by ioannis charalampidis on 02/08/2022.
 //
 
-#include "finite_difference_topological_charge.h"
+#include <jams/monitors/topological_charge_finite_diff.h>
+
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 #include <jams/core/interactions.h>
@@ -10,19 +11,21 @@
 #include <jams/containers/interaction_list.h>
 #include "jams/helpers/output.h"
 #include "jams/core/solver.h"
-//#include "jams/interface/config.h"
 
 
-TopChargeMonitor::TopChargeMonitor(const libconfig::Setting &settings) : Monitor(settings),outfile(jams::output::full_path_filename("top_charge.tsv")) {
+TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const libconfig::Setting &settings) : Monitor(settings), outfile(jams::output::full_path_filename("top_charge.tsv")) {
   if (!approximately_equal(lattice->a(), {1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)) {
-	throw std::runtime_error("Metadynamics 'topological_charge_finite_difference_monitor' "
+	throw std::runtime_error("Metadynamics 'finite-difference-topological-charge' "
 							 "requires the 'a' lattice parameter to be (1.0, 0.0, 0.0)");
   }
 
   if (!approximately_equal(lattice->b(), {0.5, sqrt(3)/2, 0.0}, jams::defaults::lattice_tolerance)) {
-	throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
+	throw std::runtime_error("Metadynamics CV 'finite-difference-topological-charge' "
 							 "requires the 'b' lattice parameter to be (0.5, 0.8660254, 0.0)");
   }
+
+  max_tolerance_threshold_ = jams::config_optional<double>(settings, "max_threshold",1.0);
+  min_tolerance_threshold_ = jams::config_optional<double>(settings,"min_threshold",-1.0);
 
 //// ------------------------------- ∂ₓS ---------------------------------------
   {
@@ -49,7 +52,6 @@ TopChargeMonitor::TopChargeMonitor(const libconfig::Setting &settings) : Monitor
 	}
 
 	jams::InteractionList<Mat3,2> nbrs = neighbour_list_from_interactions(interaction_template);
-//	jams::InteractionList<Mat3,2> nbrs = neighbour_list_from_interactions(interaction_templat;e)
 	dx_indices_.resize(globals::num_spins);
 	dx_values_.resize(globals::num_spins);
 
@@ -103,61 +105,52 @@ TopChargeMonitor::TopChargeMonitor(const libconfig::Setting &settings) : Monitor
 	}
   }
 
-  max_tolerance_threshold_ = jams::config_optional<double>(settings, "max_threshold",1.0);
-  min_tolerance_threshold_ = jams::config_optional<double>(settings,"min_threshold",-1.0);
-  tolerance_value_ = jams::config_optional<double>(settings,"tolerance_value",0.05);
-
 
   outfile.setf(std::ios::right);
   outfile << tsv_header();
 
 }
-bool TopChargeMonitor::is_converged() {
+bool TopologicalFiniteDiffChargeMonitor::is_converged() {
   if (convergence_is_on_ ) {
-
-//	  if (approximately_equal(monitor_top_charge_cache_,max_tolerance_threshold_,tolerance_value_)
-//	                 || approximately_equal(monitor_top_charge_cache_,min_tolerance_threshold_,tolerance_value_)) {
       if (monitor_top_charge_cache_ >= max_tolerance_threshold_ || monitor_top_charge_cache_ <= min_tolerance_threshold_ ){
-		std::cout << "skyrmion appeared " << monitor_top_charge_cache_ << "\n";
-		return true;
-	  }
+    		return true;
+	    }
   }
   return false;
 }
 
-void TopChargeMonitor::update(Solver *solver) {
+void TopologicalFiniteDiffChargeMonitor::update(Solver *solver) {
   using namespace jams;
   using namespace globals;
 
-  outfile.width(12);
   double topological_charge = 0.0;
   for (auto i = 0; i < globals::num_spins; ++i) {
-	topological_charge += local_topological_charge(i);
+	  topological_charge += local_topological_charge(i);
   }
-  monitor_top_charge_cache_ = topological_charge / (4.0 * kPi); //Global Variable I also use it to check the convergence.
+
+  monitor_top_charge_cache_ = topological_charge / (4.0 * kPi);
+
+  outfile.width(12);
   outfile << fmt::sci << solver->iteration()<< "\t";
-//  std::cout<<fmt::sci << solver->iteration()<< "\t";
-  outfile << fmt::decimal << monitor_top_charge_cache_<< "\t";
-//  std::cout<<" ,"<<fmt::decimal << monitor_top_charge_cache_;
+  outfile << fmt::decimal << monitor_top_charge_cache_ << "\t";
   outfile << std::endl;
-//  std::cout<<"\n";
 
 }
-std::string TopChargeMonitor::tsv_header() {
+std::string TopologicalFiniteDiffChargeMonitor::tsv_header() {
     using namespace jams;
 
   std::stringstream ss;
   ss.width(12);
 
-  ss <<fmt::sci << "iteration";
-  ss <<fmt::decimal << "TopCharge";
+  ss <<fmt::sci << "time";
+  ss <<fmt::decimal << "topological_charge";
 
   ss << std::endl;
 
   return ss.str();
 
 }
-double TopChargeMonitor::local_topological_charge(const int i) const {
+double TopologicalFiniteDiffChargeMonitor::local_topological_charge(const int i) const {
 
     Vec3 ds_x = {0.0, 0.0, 0.0};
   for (auto n = 0; n < dx_indices_[i].size(); ++n) {
@@ -173,7 +166,4 @@ double TopChargeMonitor::local_topological_charge(const int i) const {
 
   return dot(s_i, cross(ds_x, ds_y));
 }
-
-TopChargeMonitor::~TopChargeMonitor() = default;
-
 
