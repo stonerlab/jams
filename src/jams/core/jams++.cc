@@ -313,12 +313,13 @@ namespace jams {
           ProgressBar progress;
           Timer<> timer;
           while (::solver->is_running()) {
+            ::solver->update_physics_module();
+            ::solver->notify_monitors();
+
             if (::solver->is_converged()) {
               break;
             }
 
-            ::solver->update_physics_module();
-            ::solver->notify_monitors();
             ::solver->run();
 
             progress.set(double(::solver->iteration()) / double(::solver->max_steps()));
