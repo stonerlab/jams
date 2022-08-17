@@ -7,6 +7,7 @@
 #include "jams/monitors/energy.h"
 #include "jams/monitors/field.h"
 #include "jams/monitors/topological_charge_finite_diff.h"
+#include "jams/monitors/topological_charge_geometrical_def.h"
 #include "jams/monitors/hdf5.h"
 #include "jams/monitors/magnetisation.h"
 #include "jams/monitors/magnetisation_layers.h"
@@ -78,6 +79,7 @@ Monitor* Monitor::create(const Setting &settings) {
   DEFINED_MONITOR("energy", EnergyMonitor, settings);
   DEFINED_MONITOR("field", FieldMonitor, settings);
   DEFINED_MONITOR("topological-charge-finite-diff", TopologicalFiniteDiffChargeMonitor, settings);
+  DEFINED_MONITOR("topological-charge-geometrical-def", TopologicalGeometricalDefMonitor, settings);
   DEFINED_MONITOR("hdf5", Hdf5Monitor, settings);
   DEFINED_MONITOR("magnetisation", MagnetisationMonitor, settings);
   DEFINED_MONITOR("magnetisation-layers", MagnetisationLayersMonitor, settings);
