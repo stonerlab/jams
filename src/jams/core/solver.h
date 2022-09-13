@@ -24,7 +24,7 @@ class Solver {
 
   virtual bool is_cuda_solver() const { return false; }
 
-  bool is_converged();
+  Monitor::ConvergenceStatus convergence_status();
   virtual bool is_running();
 
   inline int iteration() const {

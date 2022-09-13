@@ -42,7 +42,6 @@ class NeutronScatteringMonitor : public SpectrumBaseMonitor {
 
     void post_process() override {};
     void update(Solver *solver) override;
-    bool is_converged() override { return false; }
 
 private:
     void configure_form_factors(libconfig::Setting& settings);

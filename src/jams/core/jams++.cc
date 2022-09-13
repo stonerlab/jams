@@ -316,7 +316,7 @@ namespace jams {
             ::solver->update_physics_module();
             ::solver->notify_monitors();
 
-            if (::solver->is_converged()) {
+            if (::solver->convergence_status() == Monitor::ConvergenceStatus::kConverged) {
               break;
             }
 

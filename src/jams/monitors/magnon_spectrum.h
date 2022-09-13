@@ -28,7 +28,6 @@ public:
 
     void post_process() override {};
     void update(Solver *solver) override;
-    bool is_converged() override { return false; }
 
 private:
     void output_total_magnon_spectrum();

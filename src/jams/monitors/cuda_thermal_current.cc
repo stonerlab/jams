@@ -62,10 +62,6 @@ void CudaThermalCurrentMonitor::update(Solver *solver) {
   outfile << std::endl;
 }
 
-bool CudaThermalCurrentMonitor::is_converged() {
-  return false;
-}
-
 CudaThermalCurrentMonitor::~CudaThermalCurrentMonitor() {
   outfile.close();
 }

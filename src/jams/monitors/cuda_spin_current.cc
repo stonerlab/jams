@@ -115,10 +115,6 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
   }
 }
 
-bool CudaSpinCurrentMonitor::is_converged() {
-  return false;
-}
-
 CudaSpinCurrentMonitor::~CudaSpinCurrentMonitor() {
   outfile.close();
 

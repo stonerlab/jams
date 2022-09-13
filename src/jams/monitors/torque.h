@@ -29,7 +29,7 @@ public:
     void update(Solver *solver) override;
     void post_process() override {};
 
-    bool is_converged() override;
+    ConvergenceStatus convergence_status() override;
 
 private:
     std::ofstream tsv_file;

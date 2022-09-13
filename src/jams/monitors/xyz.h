@@ -22,9 +22,6 @@ public:
     void update(Solver *solver) override;
     void post_process() override {};
 
-    bool is_converged() override { return false; }
-
-
 private:
     Vec3 slice_origin;
     Vec3 slice_size;

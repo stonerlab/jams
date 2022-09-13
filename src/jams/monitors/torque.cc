@@ -63,7 +63,7 @@ void TorqueMonitor::update(Solver * solver) {
     }
   }
 
-  if (convergence_is_on_ && solver->time() > convergence_burn_time_) {
+  if (convergence_status_ != Monitor::ConvergenceStatus::kDisabled && solver->time() > convergence_burn_time_) {
     convergence_geweke_diagnostic_ = {100.0, 100.0, 100.0}; // number much larger than 1
 
     Vec3 total_torque = {0.0, 0.0, 0.0};
@@ -86,16 +86,24 @@ void TorqueMonitor::update(Solver * solver) {
   tsv_file << std::endl;
 }
 
-bool TorqueMonitor::is_converged() {
-  if (convergence_is_on_ && !convergence_geweke_diagnostic_.empty()) {
+Monitor::ConvergenceStatus TorqueMonitor::convergence_status() {
+  if (convergence_status_ == ConvergenceStatus::kDisabled) {
+    return convergence_status_;
+  }
+
+  if (!convergence_geweke_diagnostic_.empty()) {
     for (double &x : convergence_geweke_diagnostic_) {
       if (std::abs(x) > convergence_tolerance_) {
-        return false;
+        convergence_status_ = ConvergenceStatus::kNotConverged;
+        return convergence_status_;
       }
     }
-    return true;
   }
-  return false;
+
+  // if we made it through the loop without returning then all elements of
+  // convergence_geweke_diagnostic_ must be converged
+  convergence_status_ = ConvergenceStatus::kConverged;
+  return convergence_status_;
 }
 
 std::string TorqueMonitor::tsv_header() {
@@ -109,7 +117,7 @@ std::string TorqueMonitor::tsv_header() {
     ss << name + "_ty\t";
     ss << name + "_tz\t";
 
-    if (convergence_is_on_) {
+    if (convergence_status_ != ConvergenceStatus::kDisabled) {
       tsv_file << name + "_geweke";
     }
   }

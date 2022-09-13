@@ -20,8 +20,6 @@ public:
     void update(Solver *solver) override;
     void post_process() override {};
 
-    bool is_converged() override { return false; }
-
 private:
     std::ofstream tsv_file;
     std::string   tsv_header();
