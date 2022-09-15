@@ -40,6 +40,12 @@ inline InteractionFileFormat interaction_file_format_from_string(const std::stri
 // Exchange can be specified isotropic (1 scalar) or a full tensor (9 scalars)
 enum class InteractionType {UNDEFINED, SCALAR, TENSOR};
 
+enum class InteractionChecks {
+    kNoZeroMotifNeighbourCount,    /// < Check no motif positions have zero neighbours
+    kIdenticalMotifNeighbourCount, /// < Check if all motif positions have the same number of neighbours
+    kIdenticalMotifTotalExchange   /// < Check all motif positions have the same total exchange value (based on diagonal part of exchange)
+};
+
 struct InteractionFileDescription {
     InteractionFileDescription() = default;
 
@@ -84,12 +90,14 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions);
 jams::InteractionList<Mat3, 2>
 generate_neighbour_list(std::ifstream &file,
         CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
-        double energy_cutoff = 0.0, double radius_cutoff = 0.0);
+        double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
+    InteractionChecks::kNoZeroMotifNeighbourCount, InteractionChecks::kIdenticalMotifNeighbourCount, InteractionChecks::kIdenticalMotifTotalExchange});
 
 jams::InteractionList<Mat3, 2>
 generate_neighbour_list(libconfig::Setting& settings,
         CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
-        double energy_cutoff = 0.0, double radius_cutoff = 0.0);
+        double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
+    InteractionChecks::kNoZeroMotifNeighbourCount, InteractionChecks::kIdenticalMotifNeighbourCount, InteractionChecks::kIdenticalMotifTotalExchange});
 
 void
 safety_check_distance_tolerance(const double &tolerance);
