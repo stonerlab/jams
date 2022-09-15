@@ -45,6 +45,60 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     pos_file.close();
   }
 
+  // Read in settings for which consistency checks should be performed on
+  // interactions. The checks are performed by the interaction functions.
+  //
+  // The JAMS config settings are:
+  //
+  // check_no_zero_motif_neighbour_count
+  // -----------------------------------
+  // If true, an exception will be raised if any motif position has zero
+  // neighbours (i.e. it is not included in the interaction list). It may be
+  // desirable to zero neighbours, for example if another interaction
+  // Hamiltonian is coupling these sites.
+  //
+  // check_identical_motif_neighbour_count
+  // -------------------------------------
+  // If true, an exception will be raised if any sites in the lattice which
+  // have the same motif position in the unit cell, have different numbers
+  // of neighbours.
+  // NOTE: This check will only run if periodic boundaries are disabled.
+  //
+  // check_identical_motif_total_exchange
+  // ------------------------------------
+  // If true, an exception will be raised in any sites in the lattice which
+  // have the same motif position in the unit cell, have different total
+  // exchange energy. The total exchange energy is calculated from the absolute
+  // sum of the diagonal components of the exchange tensor.
+  // NOTE: This check will only run if periodic boundaries are disabled.
+
+  std::vector<InteractionChecks> interaction_checks;
+
+  if (!settings.exists("check_no_zero_motif_neighbour_count")) {
+    interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
+  } else {
+    if (bool(settings["check_no_zero_motif_neighbour_count"]) == true) {
+      interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
+    }
+  }
+
+  if (!settings.exists("check_identical_motif_neighbour_count")) {
+    interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
+  } else {
+    if (bool(settings["check_identical_motif_neighbour_count"]) == true) {
+      interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
+    }
+  }
+
+  if (!settings.exists("check_identical_motif_total_exchange")) {
+    interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
+  } else {
+    if (bool(settings["check_identical_motif_total_exchange"]) == true) {
+      interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
+    }
+  }
+
+
   std::string coordinate_format_name = "CARTESIAN";
   settings.lookupValue("coordinate_format", coordinate_format_name);
   CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
@@ -58,10 +112,10 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       jams_die("failed to open interaction file");
     }
     neighbour_list_ = generate_neighbour_list(
-        interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_);
+        interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_, interaction_checks);
   } else if (settings.exists("interactions")) {
     neighbour_list_ = generate_neighbour_list(
-        settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_);
+        settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_, interaction_checks);
   } else {
     throw std::runtime_error("'exc_file' or 'interactions' settings are required for exchange hamiltonian");
   }
