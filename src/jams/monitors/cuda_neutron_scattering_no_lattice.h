@@ -14,7 +14,6 @@ public:
 
     void post_process() override {};
     void update(Solver *solver) override;
-    bool is_converged() override { return false; }
 private:
 
     void configure_kspace_vectors(const libconfig::Setting& settings);

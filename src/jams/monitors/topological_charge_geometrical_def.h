@@ -51,7 +51,7 @@ class TopologicalGeometricalDefMonitor : public Monitor {
   void update(Solver *solver) override;
   void post_process() override {};
 
-  bool is_converged() override;
+  ConvergenceStatus convergence_status() override;
 
  private:
   struct Triplet {

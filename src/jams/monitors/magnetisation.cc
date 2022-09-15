@@ -98,10 +98,6 @@ void MagnetisationMonitor::update(Solver * solver) {
   tsv_file << std::endl;
 }
 
-bool MagnetisationMonitor::is_converged() {
-  return false;
-}
-
 std::string MagnetisationMonitor::tsv_header() {
   using namespace jams;
 

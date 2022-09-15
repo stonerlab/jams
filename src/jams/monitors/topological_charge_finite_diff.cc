@@ -110,13 +110,18 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
   outfile << tsv_header();
 
 }
-bool TopologicalFiniteDiffChargeMonitor::is_converged() {
-  if (convergence_is_on_ ) {
-      if (monitor_top_charge_cache_ >= max_tolerance_threshold_ || monitor_top_charge_cache_ <= min_tolerance_threshold_ ){
-    		return true;
-	    }
+Monitor::ConvergenceStatus TopologicalFiniteDiffChargeMonitor::convergence_status() {
+  if (convergence_status_ == Monitor::ConvergenceStatus::kDisabled) {
+    return convergence_status_;
   }
-  return false;
+
+  convergence_status_ = Monitor::ConvergenceStatus::kNotConverged;
+  if (greater_than_approx_equal(monitor_top_charge_cache_, max_tolerance_threshold_, 1e-5)
+      || less_than_approx_equal(monitor_top_charge_cache_, min_tolerance_threshold_, 1e-5)) {
+    convergence_status_ =  Monitor::ConvergenceStatus::kConverged;
+  }
+
+  return convergence_status_;
 }
 
 void TopologicalFiniteDiffChargeMonitor::update(Solver *solver) {

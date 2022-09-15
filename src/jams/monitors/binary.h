@@ -18,7 +18,6 @@ class BinaryMonitor : public Monitor {
 
   void update(Solver * solver) override;
   void post_process() override {};
-  bool is_converged() override { return false; }
 
  private:
     bool is_file_overwrite_mode;

@@ -20,7 +20,7 @@ public:
     void update(Solver *solver) override;
     void post_process() override {};
 
-    bool is_converged() override;
+    ConvergenceStatus convergence_status() override;
 
 private:
     std::ofstream tsv_file;
@@ -28,8 +28,6 @@ private:
 
     std::vector<int> material_count_;
     Stats magnetisation_stats_;
-    bool convergence_is_on_;
-    double convergence_tolerance_;
     double convergence_geweke_diagnostic_;
 };
 

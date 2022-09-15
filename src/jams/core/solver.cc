@@ -117,17 +117,27 @@ bool Solver::is_running() {
   return iteration_ < max_steps_;
 }
 
-bool Solver::is_converged() {
+Monitor::ConvergenceStatus Solver::convergence_status() {
   if (iteration_ < min_steps_) {
-    return false;
+    return Monitor::ConvergenceStatus::kNotConverged;
   }
 
+  bool all_monitors_disabled = true;
   for (auto& m : monitors_) {
-    if (m->is_converged()) {
-      return true;
+    const auto& status = m->convergence_status();
+
+    all_monitors_disabled &= (status == Monitor::ConvergenceStatus::kDisabled);
+
+    if (status == Monitor::ConvergenceStatus::kNotConverged) {
+      return status;
     }
   }
-  return false;
+
+  if (all_monitors_disabled) {
+    return Monitor::ConvergenceStatus::kDisabled;
+  }
+
+  return Monitor::ConvergenceStatus::kConverged;
 }
 
 #undef DEFINED_SOLVER

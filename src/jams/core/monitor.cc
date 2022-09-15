@@ -49,8 +49,7 @@ Monitor::Monitor(const Setting &settings)
 : Base(settings),
   output_step_freq_(
           config_optional<int>(settings, "output_steps", jams::defaults::monitor_output_steps)),
-  convergence_is_on_(
-          settings.exists("convergence")),
+  convergence_status_(ConvergenceStatus::kDisabled),
   convergence_tolerance_(
           config_optional<double>(settings, "convergence", jams::defaults::monitor_convergence_tolerance)),
   convergence_stderr_(
@@ -60,7 +59,8 @@ Monitor::Monitor(const Setting &settings)
   cout << "  " << name() << " monitor\n";
   cout << "    output_steps " << output_step_freq_ << "\n";
 
-   if (convergence_is_on_) {
+   if (settings.exists("convergence")) {
+     convergence_status_ = ConvergenceStatus::kNotConverged;
      cout << "    convergence tolerance" << convergence_tolerance_ << "\n";
      cout << "    t_burn" << convergence_burn_time_ << "\n";
    }

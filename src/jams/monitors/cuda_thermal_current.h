@@ -30,7 +30,6 @@ public:
     void update(Solver * solver);
     void post_process() override {};
 
-    bool is_converged();
     inline std::string name() const {return "cuda-thermal-current";}
 
 

@@ -15,8 +15,6 @@ public:
     void update(Solver * solver) override;
     void post_process() override {};
 
-    bool is_converged() override { return false; }
-
 private:
     void open_new_xdmf_file(const std::string &xdmf_file_name);
     void update_xdmf_file(const std::string &h5_file_name);

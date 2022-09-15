@@ -88,8 +88,6 @@ public:
 
     inline void post_process() override {};
 
-    inline bool is_converged() override { return false; };
-
 private:
     std::string h5_group = "/jams/monitors/magnetisation_layers/";
 
