@@ -81,17 +81,17 @@ void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings) {
 vector<HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const vector<Vec3> &hkl_nodes, const Vec3i &kspace_size) {
   vector<HKLIndex> hkl_path;
   for (auto n = 0; n < hkl_nodes.size()-1; ++n) {
-    Vec3i origin = to_int(scale(hkl_nodes[n], kspace_size));
-    Vec3i displacement = to_int(scale(hkl_nodes[n+1], kspace_size)) - origin;
+    Vec3i origin = to_int(hadamard_product(hkl_nodes[n], kspace_size));
+    Vec3i displacement = to_int(hadamard_product(hkl_nodes[n + 1], kspace_size)) - origin;
     Vec3i delta = normalize_components(displacement);
 
     // use +1 to include the last point on the displacement
-    const auto num_coordinates = abs_max(displacement) + 1;
+    const auto num_coordinates = absolute_max(displacement) + 1;
 
     Vec3i coordinate = origin;
     for (auto i = 0; i < num_coordinates; ++i) {
       // map an arbitrary coordinate into the limited k indicies of the reduced brillouin zone
-      Vec3 hkl = scale(coordinate, 1.0/to_double(kspace_size));
+      Vec3 hkl = hadamard_product(coordinate, 1.0 / to_double(kspace_size));
       Vec3 xyz = lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
       hkl_path.push_back(HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
 

@@ -224,7 +224,7 @@ inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
   const auto c = dot(ua,ub);
 
   // check if a == b or a == -b
-  if (approximately_zero(norm_sq(v), 1e-12)) {
+  if (approximately_zero(norm_squared(v), 1e-12)) {
     // this is a shortcut for a == b and necessary
     // for a == -b where Rodrigues's formula will fail
     // return either I or -I

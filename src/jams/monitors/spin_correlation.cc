@@ -86,7 +86,7 @@ void SpinCorrelationMonitor::post_process() {
           sum += sz_data_(i, t) * sz_data_(j, t);
         }
 
-        const auto r_ij_sq = norm_sq(r_ij);
+        const auto r_ij_sq = norm_squared(r_ij);
 
         if (do_in_plane) {
           in_plane_sz_corr_histogram_[r_ij_sq].count += num_samples_;

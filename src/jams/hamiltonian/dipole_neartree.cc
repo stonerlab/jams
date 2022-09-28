@@ -86,7 +86,8 @@ Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i)
     const Vec3 s_j = {s(j,0), s(j,1), s(j,2)};
     const Vec3 r_ij =  neighbour.first - r_i;
 
-    field += w0 * mus(j) * (3.0 * r_ij * dot(s_j, r_ij) - norm_sq(r_ij) * s_j) / pow5(norm(r_ij));
+    field += w0 * mus(j) * (3.0 * r_ij * dot(s_j, r_ij) -
+        norm_squared(r_ij) * s_j) / pow5(norm(r_ij));
   }
   return field;
 }

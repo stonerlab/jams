@@ -17,11 +17,13 @@ __device__ inline double dot(const double3 &a, const double3 &b) {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-__device__ inline float abs(const float v1[3]) {
+/// Returns the square of the Euclidean norm (x^2 + y^2 + z^2) of the vector.
+__device__ inline float norm_squared(const float v1[3]) {
 	return dot(v1, v1);
 }
 
-__device__ inline double abs(const double v1[3]) {
+/// Returns the square of the Euclidean norm (x^2 + y^2 + z^2) of the vector.
+__device__ inline double norm_squared(const double v1[3]) {
 	return dot(v1, v1);
 }
 
