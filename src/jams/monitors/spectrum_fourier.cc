@@ -106,7 +106,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
       cout << "cfg_vec: " << cfg_vec << "\n";
     }
 
-    cfg_vec = scale(cfg_vec, ::lattice->kspace_size());
+    cfg_vec = hadamard_product(cfg_vec, ::lattice->kspace_size());
 
     auto bz_vec = cfg_vec;
 

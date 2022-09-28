@@ -130,13 +130,18 @@ double CubicHamiltonian::calculate_energy(const int i) {
     Vec3 spin = {s(i, 0), s(i, 1), s(i, 2)};
 
     if(order_(i, n) == 1) {
-      energy += -magnitude_(i,n) * (dot_sq(axis1_(i,n), spin) * dot_sq(axis2_(i,n), spin)
-                                    + dot_sq(axis2_(i,n), spin) * dot_sq(axis3_(i,n), spin)
-                                    + dot_sq(axis3_(i,n), spin) * dot_sq(axis1_(i,n), spin) );
+      energy += -magnitude_(i,n) * (dot_squared(axis1_(i, n), spin) *
+                                    dot_squared(axis2_(i, n), spin)
+                                    + dot_squared(axis2_(i, n), spin) * dot_squared(
+          axis3_(i, n), spin)
+                                    + dot_squared(axis3_(i, n), spin) * dot_squared(
+          axis1_(i, n), spin) );
     }
 
     if(order_(i, n) == 2){
-      energy += -magnitude_(i,n) * ( dot_sq(axis1_(i,n), spin) * dot_sq(axis2_(i,n), spin) * dot_sq(axis3_(i,n), spin) );
+      energy += -magnitude_(i,n) * (dot_squared(axis1_(i, n), spin) *
+                                    dot_squared(axis2_(i, n), spin) *
+                                    dot_squared(axis3_(i, n), spin) );
     }
   }
 
@@ -151,18 +156,38 @@ double CubicHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_ini
   for (auto n = 0; n < num_coefficients_; ++n) {
     if(order_(i, n) == 1) {
       e_initial += -magnitude_(i,n) * (
-          dot_sq(axis1_(i,n), spin_initial) * dot_sq(axis2_(i,n), spin_initial)
-          + dot_sq(axis2_(i,n), spin_initial) * dot_sq(axis3_(i,n), spin_initial)
-          + dot_sq(axis3_(i,n), spin_initial) * dot_sq(axis1_(i,n), spin_initial) );
+                                          dot_squared(axis1_(i, n),
+                                                      spin_initial) *
+                                          dot_squared(axis2_(i, n),
+                                                          spin_initial)
+                                          + dot_squared(axis2_(i, n), spin_initial) *
+            dot_squared(axis3_(i, n), spin_initial)
+          + dot_squared(axis3_(i, n), spin_initial) *
+            dot_squared(axis1_(i, n), spin_initial) );
 
-      e_final += -magnitude_(i,n) * (dot_sq(axis1_(i,n), spin_final) * dot_sq(axis2_(i,n), spin_final)
-                                     + dot_sq(axis2_(i,n), spin_final) * dot_sq(axis3_(i,n), spin_final)
-                                     + dot_sq(axis3_(i,n), spin_final) * dot_sq(axis1_(i,n), spin_final) );
+      e_final += -magnitude_(i,n) * (dot_squared(axis1_(i, n), spin_final) *
+                                     dot_squared(axis2_(i, n), spin_final)
+                                     + dot_squared(axis2_(i, n), spin_final) *
+                                       dot_squared(
+                                                                                    axis3_(
+                                                                                        i,
+                                                                                        n),
+                                                                                    spin_final)
+                                     + dot_squared(axis3_(i, n), spin_final) *
+                                       dot_squared(
+                                                                                                                           axis1_(
+                                                                                                                               i,
+                                                                                                                               n),
+                                                                                                                           spin_final) );
     }
 
     if(order_(i, n) == 2) {
-      e_initial += -magnitude_(i,n) * ( dot_sq(axis1_(i,n), spin_initial) * dot_sq(axis2_(i,n), spin_initial) * dot_sq(axis3_(i,n), spin_initial) );
-      e_final += -magnitude_(i,n) * ( dot_sq(axis1_(i,n), spin_final) * dot_sq(axis2_(i,n), spin_final) * dot_sq(axis3_(i,n), spin_final) );
+      e_initial += -magnitude_(i,n) * (dot_squared(axis1_(i, n), spin_initial) *
+                                       dot_squared(axis2_(i, n), spin_initial) *
+                                       dot_squared(axis3_(i, n), spin_initial) );
+      e_final += -magnitude_(i,n) * (dot_squared(axis1_(i, n), spin_final) *
+                                     dot_squared(axis2_(i, n), spin_final) *
+                                     dot_squared(axis3_(i, n), spin_final) );
     }
   }
 
@@ -186,18 +211,30 @@ Vec3 CubicHamiltonian::calculate_field(const int i) {
     if (order_(i, n) == 1) {
       for (auto j = 0; j < 3; ++j) {
         field[j] += pre * (
-            axis1_(i,n)[j] * dot(axis1_(i, n), spin) * (dot_sq(axis2_(i,n), spin) + dot_sq(axis3_(i,n), spin))
-            + axis2_(i,n)[j] * dot(axis2_(i, n), spin) * (dot_sq(axis3_(i,n), spin) + dot_sq(axis1_(i,n), spin))
-            + axis3_(i,n)[j] * dot(axis3_(i, n), spin) * (dot_sq(axis1_(i,n), spin) + dot_sq(axis2_(i,n), spin)) );
+            axis1_(i,n)[j] * dot(axis1_(i, n), spin) * (dot_squared(
+                axis2_(i, n), spin) +
+                                                        dot_squared(axis3_(i, n), spin))
+            + axis2_(i,n)[j] * dot(axis2_(i, n), spin) * (dot_squared(
+                axis3_(i, n), spin) +
+                                                          dot_squared(axis1_(i, n), spin))
+            + axis3_(i,n)[j] * dot(axis3_(i, n), spin) * (dot_squared(
+                axis1_(i, n), spin) +
+                                                          dot_squared(axis2_(i, n), spin)) );
       }
     }
 
     if (order_(i, n) == 2) {
       for (auto j = 0; j < 3; ++j) {
         field[j] += pre * (
-            axis1_(i,n)[j]  * dot(axis1_(i, n), spin) * (dot_sq(axis2_(i,n), spin) * dot_sq(axis3_(i,n), spin))
-            + axis2_(i,n)[j]  * dot(axis2_(i, n), spin) * (dot_sq(axis3_(i,n), spin) * dot_sq(axis1_(i,n), spin))
-            + axis3_(i,n)[j]  * dot(axis3_(i, n), spin) * (dot_sq(axis1_(i,n), spin) * dot_sq(axis2_(i,n), spin)) );
+            axis1_(i,n)[j]  * dot(axis1_(i, n), spin) * (dot_squared(
+                axis2_(i, n), spin) *
+                                                         dot_squared(axis3_(i, n), spin))
+            + axis2_(i,n)[j]  * dot(axis2_(i, n), spin) * (dot_squared(
+                axis3_(i, n), spin) *
+                                                           dot_squared(axis1_(i, n), spin))
+            + axis3_(i,n)[j]  * dot(axis3_(i, n), spin) * (dot_squared(
+                axis1_(i, n), spin) *
+                                                           dot_squared(axis2_(i, n), spin)) );
       }
     }
   }

@@ -60,14 +60,14 @@ inline void CalculateDisplacementVector(const float r_i_cartesian[3],
 //-----------------------------------------------------------------------------
 __device__ 
 inline void CalculateFieldElement(const float s_j[3], const float r_ij[3], 
-    const float prefactor, const float r_abs_sq, float h[3]) {
-  const float d_r_abs = rsqrtf(r_abs_sq);
+    const float prefactor, const float r_norm_squared, float h[3]) {
+  const float d_r_norm = rsqrtf(r_norm_squared);
   const float s_j_dot_rhat = dot(s_j, r_ij);
-  const float w0 = prefactor * d_r_abs * d_r_abs * d_r_abs * d_r_abs * d_r_abs;
+  const float w0 = prefactor * d_r_norm * d_r_norm * d_r_norm * d_r_norm * d_r_norm;
 
   #pragma unroll
   for (unsigned int n = 0; n < 3; ++n) {
-    h[n] = w0 * (3.0f * r_ij[n] * s_j_dot_rhat  - r_abs_sq * s_j[n]);
+    h[n] = w0 * (3.0f * r_ij[n] * s_j_dot_rhat  - r_norm_squared * s_j[n]);
   }
 }
 
@@ -86,7 +86,7 @@ __global__ void dipole_bruteforce_kernel
 
     double h[3] = {0.0, 0.0, 0.0};
 
-    float sj[3], ri[3], rj[3], r_ij[3], r_abs;
+    float sj[3], ri[3], rj[3], r_ij[3], r_norm_squared;
 
     if (i < num_spins) {
         for (n = 0; n < 3; ++n) {
@@ -106,10 +106,10 @@ __global__ void dipole_bruteforce_kernel
 
           CalculateDisplacementVector(ri, rj, r_ij);
 
-          r_abs = abs(r_ij);
+          r_norm_squared = norm_squared(r_ij);
 
-          if (r_abs <= r_cutoff_sq && i != j) {
-            CalculateFieldElement(sj, r_ij, mus_dev[j], r_abs, h_tmp);
+          if (r_norm_squared <= r_cutoff_sq && i != j) {
+            CalculateFieldElement(sj, r_ij, mus_dev[j], r_norm_squared, h_tmp);
           }
 
           // accumulate values
@@ -212,38 +212,38 @@ void DipoleBruteforceKernel(
 
             float r_ij1[3];
             CalculateDisplacementVector(r_i, r_j[t1], r_ij1);
-            const float r_abs1 = abs(r_ij1);
+            const float r_norm_squared1 = norm_squared(r_ij1);
 
             float r_ij2[3];
             CalculateDisplacementVector(r_i, r_j[t2], r_ij2);
-            const float r_abs2 = abs(r_ij2);
+            const float r_norm_squared2 = norm_squared(r_ij2);
 
             float r_ij3[3];
             CalculateDisplacementVector(r_i, r_j[t3], r_ij3);
-            const float r_abs3 = abs(r_ij3);
+            const float r_norm_squared3 = norm_squared(r_ij3);
 
             float r_ij4[3];
             CalculateDisplacementVector(r_i, r_j[t4], r_ij4);
-            const float r_abs4 = abs(r_ij4);
+            const float r_norm_squared4 = norm_squared(r_ij4);
 
             float h1[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && (r_abs1 <= r_cutoff_sq) && (i != j1) && (j1 < num_spins) ) {
-              CalculateFieldElement(s_j[t1], r_ij1, mus[t1], r_abs1, h1);
+            if ( (i < num_spins) && (r_norm_squared1 <= r_cutoff_sq) && (i != j1) && (j1 < num_spins) ) {
+              CalculateFieldElement(s_j[t1], r_ij1, mus[t1], r_norm_squared1, h1);
             }
 
             float h2[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && (r_abs2 <= r_cutoff_sq) && (i != j2) && (j2 < num_spins) ) {
-              CalculateFieldElement(s_j[t2], r_ij2, mus[t2], r_abs2, h2);
+            if ( (i < num_spins) && (r_norm_squared2 <= r_cutoff_sq) && (i != j2) && (j2 < num_spins) ) {
+              CalculateFieldElement(s_j[t2], r_ij2, mus[t2], r_norm_squared2, h2);
             }
 
             float h3[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && (r_abs3 <= r_cutoff_sq) && (i != j3) && (j3 < num_spins) ) {
-              CalculateFieldElement(s_j[t3], r_ij3, mus[t3], r_abs3, h3);
+            if ( (i < num_spins) && (r_norm_squared3 <= r_cutoff_sq) && (i != j3) && (j3 < num_spins) ) {
+              CalculateFieldElement(s_j[t3], r_ij3, mus[t3], r_norm_squared3, h3);
             }
 
             float h4[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && (r_abs4 <= r_cutoff_sq) && (i != j4) && (j4 < num_spins) ) {
-              CalculateFieldElement(s_j[t4], r_ij4, mus[t4], r_abs4, h4);
+            if ( (i < num_spins) && (r_norm_squared4 <= r_cutoff_sq) && (i != j4) && (j4 < num_spins) ) {
+              CalculateFieldElement(s_j[t4], r_ij4, mus[t4], r_norm_squared4, h4);
             }
 
             #pragma unroll
@@ -285,7 +285,7 @@ __global__ void dipole_bruteforce_sharemem_kernel
   __shared__ float sj[block_size][3];
   __shared__ float mus[block_size];
 
-  float r_abs, ri[3], r_ij[3];
+  float r_norm_squared, ri[3], r_ij[3];
 
   if (i < num_spins) {
     for (int n = 0; n < 3; ++n) {
@@ -320,10 +320,10 @@ __global__ void dipole_bruteforce_sharemem_kernel
       unsigned int j = t + block_size * b;
 
       CalculateDisplacementVector(ri, rj[t], r_ij);
-      r_abs = abs(r_ij);
+      r_norm_squared = norm_squared(r_ij);
 
-      if (r_abs <= r_cutoff_sq && i != j && j < num_spins && i < num_spins) {
-        CalculateFieldElement(sj[t], r_ij, mus[t], r_abs, h_tmp);
+      if (r_norm_squared <= r_cutoff_sq && i != j && j < num_spins && i < num_spins) {
+        CalculateFieldElement(sj[t], r_ij, mus[t], r_norm_squared, h_tmp);
       }
 
       for (int n = 0; n < 3; ++n) {

@@ -522,7 +522,7 @@ write_interaction_data(ostream &output, const vector<InteractionData> &data, Coo
     output << setw(12) << interaction.unit_cell_pos_j << "\t";
     output << setw(12) << interaction.type_i << "\t";
     output << setw(12) << interaction.type_j << "\t";
-    output << setw(12) << fixed << abs(interaction.r_ij) << "\t";
+    output << setw(12) << fixed << norm(interaction.r_ij) << "\t";
     if (coord_format == CoordinateFormat::CARTESIAN) {
       output << setw(12) << fixed << interaction.r_ij[0] << "\t";
       output << setw(12) << fixed << interaction.r_ij[1] << "\t";

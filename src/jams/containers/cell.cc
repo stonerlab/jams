@@ -30,7 +30,7 @@ Vec3 minimum_image_bruteforce(const Cell& cell, const Vec3& r_i_cart, const Vec3
     for (auto k = -N_b; k < N_b + 1; ++k) {
       for (auto l = -N_c; l < N_c + 1; ++l) {
         auto ds = r_ij + h * cell.a() + k * cell.b() + l * cell.c();
-        if (norm_sq(ds) < norm_sq(r_ij_min)) {
+        if (norm_squared(ds) < norm_squared(r_ij_min)) {
           r_ij_min = ds;
         }
       }

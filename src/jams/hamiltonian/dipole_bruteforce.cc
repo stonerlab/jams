@@ -103,12 +103,15 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i) {
 
     Vec3 r_ij = displacement(i, j);
 
-    const auto r_abs_sq = norm_sq(r_ij);
+    const auto r_abs_sq = norm_squared(r_ij);
 
     if (definately_greater_than(r_abs_sq, r_cut_squared, jams::defaults::lattice_tolerance)) continue;
-    hx += w0 * mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[0]) / pow5(norm(r_ij));
-    hy += w0 * mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[1]) / pow5(norm(r_ij));;
-    hz += w0 * mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) - norm_sq(r_ij) * s_j[2]) / pow5(norm(r_ij));;
+    hx += w0 * mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) -
+        norm_squared(r_ij) * s_j[0]) / pow5(norm(r_ij));
+    hy += w0 * mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) -
+        norm_squared(r_ij) * s_j[1]) / pow5(norm(r_ij));;
+    hz += w0 * mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) -
+        norm_squared(r_ij) * s_j[2]) / pow5(norm(r_ij));;
   }
 
   return {hx, hy, hz};
