@@ -78,7 +78,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 Physics* Physics::create(const libconfig::Setting &settings) {
 
   std::string module_name = jams::defaults::physics_module;
-  settings.lookupValue("module", module_name);
+  settings.lookupValue("physics_module", module_name);
   module_name = lowercase(module_name);
 
   if (module_name == "empty") {

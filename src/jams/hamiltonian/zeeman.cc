@@ -65,7 +65,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
         for (int i = 0; i < globals::num_spins; ++i) {
             ac_local_frequency_(i) = settings["ac_local_frequency"][lattice->atom_material_id(i)];
-            ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i);
+            ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i)*1e12;
         }
     }
 }
