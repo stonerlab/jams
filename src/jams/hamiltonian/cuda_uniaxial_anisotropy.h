@@ -27,6 +27,8 @@ private:
 
     CudaStream dev_stream_;
     unsigned int dev_blocksize_ = 64;
+    jams::MultiArray<double, 1> helicity_internal_;
+    jams::MultiArray<double, 1> helicity_entropy_;
 };
 
 #endif //JAMS_CUDA_UNIAXIAL_ANISOTROPY_H

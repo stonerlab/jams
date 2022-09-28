@@ -10,6 +10,8 @@
 CudaUniaxialHamiltonian::CudaUniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int num_spins)
         : UniaxialHamiltonian(settings, num_spins)
 {
+    helicity_internal_.resize(globals::num_spins);
+    helicity_entorpy_.resize(globals::num_spins);
 }
 
 double CudaUniaxialHamiltonian::calculate_total_energy() {
