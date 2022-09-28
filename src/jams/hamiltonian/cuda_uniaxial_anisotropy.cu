@@ -35,13 +35,13 @@ void CudaUniaxialHamiltonian::calculate_fields() {
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-double CudaUniaxialHamiltonian::calculate_internal_energy_differences() {
+void CudaUniaxialHamiltonian::calculate_internal_energy_differences() {
     cuda_uniaxial_helicity_energy_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_.get()>>>
             (globals::num_spins, power_, magnitude_.device_data(), axis_.device_data(), globals::s.device_data(), helicity_internal_.device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-double CudaUniaxialHamiltonian::calculate_entropies() {
+void CudaUniaxialHamiltonian::calculate_entropies() {
     cuda_uniaxial_entropy_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_.get()>>>
             (globals::num_spins, power_, magnitude_.device_data(), axis_.device_data(), globals::s.device_data(), helicity_entorpy_.device_data());
     DEBUG_CHECK_CUDA_ASYNC_STATUS;

@@ -18,8 +18,9 @@ public:
     double calculate_total_energy() override;
     void   calculate_energies() override;
     void   calculate_fields() override;
-    double calculate_internal_energy_difference(int i) override;
+    void calculate_internal_energy_differences();
     double calculate_total_internal_energy_difference() override;
+    void calculate_entropies();
     double calculate_entropy(int i) override;
     double calculate_total_entropy() override;
 
