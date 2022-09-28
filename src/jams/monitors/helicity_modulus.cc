@@ -57,19 +57,34 @@ HelicityModulusMonitor::HelicityModulusMonitor(const libconfig::Setting &setting
             .set_format(jams::SparseMatrixFormat::CSR)
             .build();
     cout << "    exchange sparse matrix memory (CSR): " << (interaction_rij_x_.memory() + interaction_rij_y_.memory() + interaction_rij_z_.memory()) / kBytesToMegaBytes << " (MB)\n";
+
+
+    helicity_field_rxx_.resize(globals::num_spins, 3);
+    helicity_field_rxy_.resize(globals::num_spins, 3);
+    helicity_field_rxz_.resize(globals::num_spins, 3);
+    helicity_field_ryy_.resize(globals::num_spins, 3);
+    helicity_field_ryz_.resize(globals::num_spins, 3);
+    helicity_field_rzz_.resize(globals::num_spins, 3);
+
+    entropy_field_x_.resize(globals::num_spins, 3);
+    entropy_field_y_.resize(globals::num_spins, 3);
+    entropy_field_z_.resize(globals::num_spins, 3);
+
 }
 
 void HelicityModulusMonitor::update(Solver * solver) {
     using namespace globals;
-    const double beta = 1.0 / (kBoltzmannIU * physics_module_->temperature());
-    tsv_file.width(16);
+
+    const double beta = 1.0 / (kBoltzmannIU * solver->physics()->temperature());
+    tsv_file.width(12);
 
     tsv_file << std::scientific << solver->time() << "\t";
 
     for (auto &hamiltonian : solver->hamiltonians()) {
         if (hamiltonian->name() == "exchange") {
 
-            hamiltonian->calculate_fields();
+            calculate_helicity_fields();
+            calculate_entropy_fields();
 
             Mat3 energy_difference = exchange_total_internal_energy_difference();
             Mat3 entropy = exchange_total_entropy();
@@ -83,9 +98,12 @@ void HelicityModulusMonitor::update(Solver * solver) {
                 }
             }
         }
+
         else {
             auto energy_difference = hamiltonian->calculate_total_internal_energy_difference();
             auto entropy = hamiltonian->calculate_total_entropy();
+            entropy *= beta;
+
             tsv_file << std::scientific << std::setprecision(15) << energy_difference << "\t";
             tsv_file << std::scientific << std::setprecision(15) << entropy << "\t";
         }
@@ -96,7 +114,7 @@ void HelicityModulusMonitor::update(Solver * solver) {
 
 std::string HelicityModulusMonitor::tsv_header() {
     std::stringstream ss;
-    ss.width(16);
+    ss.width(12);
 
     ss << "time\t";
     for (auto &hamiltonian : solver->hamiltonians()) {

@@ -82,6 +82,7 @@ Monitor* Monitor::create(const Setting &settings) {
   DEFINED_MONITOR("topological-charge-finite-diff", TopologicalFiniteDiffChargeMonitor, settings);
   DEFINED_MONITOR("topological-charge-geometrical-def", TopologicalGeometricalDefMonitor, settings);
   DEFINED_MONITOR("hdf5", Hdf5Monitor, settings);
+  DEFINED_MONITOR("helicity-modulus", HelicityModulusMonitor, settings);
   DEFINED_MONITOR("magnetisation", MagnetisationMonitor, settings);
   DEFINED_MONITOR("magnetisation-layers", MagnetisationLayersMonitor, settings);
   DEFINED_MONITOR("magnetisation-rate", MagnetisationRateMonitor, settings);
