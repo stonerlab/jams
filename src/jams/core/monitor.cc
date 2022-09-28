@@ -9,6 +9,7 @@
 #include "jams/monitors/topological_charge_finite_diff.h"
 #include "jams/monitors/topological_charge_geometrical_def.h"
 #include "jams/monitors/hdf5.h"
+#include "jams/monitors/helicity_modulus.h"
 #include "jams/monitors/magnetisation.h"
 #include "jams/monitors/magnetisation_layers.h"
 #include "jams/monitors/magnetisation_rate.h"

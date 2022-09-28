@@ -173,3 +173,46 @@ void UniaxialHamiltonian::calculate_fields() {
     }
   }
 }
+
+double UniaxialHamiltonian::calculate_internal_energy_difference(const int i) {
+    using namespace globals;
+    double dU = 0.0;
+
+    auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
+
+    Vec3 cross = {s(i,1)*axis_(i,2) - s(i,2)*axis_(i,1), s(i,2)*axis_(i,0) - s(i,0)*axis_(i,2), s(i,0)*axis_(i,1) - s(i,1)*axis_(i,0)};
+    auto mod_cross = norm(cross);
+
+    dU += power_*magnitude_(i)*( pow(dot, power_) - (power_ - 1) * pow(mod_cross, 2)*pow(dot, power_-2) );
+
+    return dU;
+}
+
+double UniaxialHamiltonian::calculate_total_internal_energy_difference() {
+    double dU_total = 0.0;
+    for (int i = 0; i < energy_.size(); ++i) {
+        dU_total += calculate_internal_energy_difference(i);
+    }
+    return dU_total;
+}
+
+double UniaxialHamiltonian::calculate_entropy(int i) {
+    using namespace globals;
+    double TS = 0.0;
+
+    auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
+
+    Vec3 cross = {s(i,1)*axis_(i,2) - s(i,2)*axis_(i,1), s(i,2)*axis_(i,0) - s(i,0)*axis_(i,2), s(i,0)*axis_(i,1) - s(i,1)*axis_(i,0)};
+
+    TS += pow(power_*magnitude_(i), 2) * pow(dot, 2*power_-2) * norm_sq(cross);
+
+    return TS;
+}
+
+double UniaxialHamiltonian::calculate_total_entropy() {
+    double TS_total = 0.0;
+    for (int i = 0; i < energy_.size(); ++i) {
+        TS_total += calculate_entropy(i);
+    }
+    return TS_total;
+}

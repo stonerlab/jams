@@ -42,6 +42,14 @@ public:
     // calculate the energy difference of spin i in initial and final states
     virtual double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) = 0;
 
+    virtual double calculate_internal_energy_difference(int i) = 0;
+
+    virtual double calculate_total_internal_energy_difference() = 0;
+
+    virtual double calculate_entropy(int i) = 0;
+
+    virtual double calculate_total_entropy() = 0;
+
     inline double energy(const int i) const {
       assert(i < energy_.elements());
       return energy_(i);

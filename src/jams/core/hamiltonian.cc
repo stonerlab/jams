@@ -95,6 +95,8 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int size)
         : Base(settings),
           energy_(size),
+          helicity_internal_(size),
+          helicity_entropy_(size),
           field_(size, 3)
 {
 

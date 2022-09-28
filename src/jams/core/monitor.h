@@ -42,6 +42,7 @@
 #include <libconfig.h++>
 
 #include "jams/core/base.h"
+#include "jams/core/physics.h"
 
 class Solver;
 
@@ -102,6 +103,7 @@ protected:
     double convergence_tolerance_;
     double convergence_stderr_;
     double convergence_burn_time_;
+    std::unique_ptr<Physics> physics_module_;
 };
 
 #endif  // JAMS_CORE_MONITOR_H
