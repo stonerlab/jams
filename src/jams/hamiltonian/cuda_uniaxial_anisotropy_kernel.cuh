@@ -46,7 +46,7 @@ __global__ void cuda_uniaxial_entropy_kernel(const int num_spins, const int powe
         const double a[3] = {axis[3*idx], axis[3*idx+1], axis[3*idx+2]};
 
         const double cross[3] = {cross_product_x(s, a), cross_product_y(s, a), cross_product_z(s, a)};
-        const double cross_norm = norm(cross);
+        const double cross_norm = sqrt(dot(cross, cross));
 
         dev_TS[idx] = magnitude[idx] * power * pow(dot(s, a), power-1) * cross_norm;
     }
