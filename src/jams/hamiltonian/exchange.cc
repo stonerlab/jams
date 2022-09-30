@@ -151,3 +151,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 const jams::InteractionList<Mat3,2> &ExchangeHamiltonian::neighbour_list() const {
   return neighbour_list_;
 }
+
+const double &ExchangeHamiltonian::get_input_conversion() const {
+    return input_energy_unit_conversion_;
+}

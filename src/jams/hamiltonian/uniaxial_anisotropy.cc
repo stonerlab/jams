@@ -200,11 +200,14 @@ double UniaxialHamiltonian::calculate_entropy(int i) {
     using namespace globals;
     double TS = 0.0;
 
-    auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
+    Vec3 spin = {s(i,0), s(i,1), s(i,2)};
+    Vec3 axis = {axis_(i,0), axis_(i,1),axis_(i,2)};
 
-    Vec3 cross = {s(i,1)*axis_(i,2) - s(i,2)*axis_(i,1), s(i,2)*axis_(i,0) - s(i,0)*axis_(i,2), s(i,0)*axis_(i,1) - s(i,1)*axis_(i,0)};
+    auto dot_product = dot(spin, axis);
 
-    TS += pow(power_*magnitude_(i), 2) * pow(dot, 2*power_-2) * norm_sq(cross);
+    auto cross_product = cross(spin, axis);
+
+    TS += power_*magnitude_(i) * pow(dot_product, power_-1) * norm(cross_product);
 
     return TS;
 }
@@ -214,5 +217,5 @@ double UniaxialHamiltonian::calculate_total_entropy() {
     for (int i = 0; i < energy_.size(); ++i) {
         TS_total += calculate_entropy(i);
     }
-    return TS_total;
+    return pow2(TS_total);
 }

@@ -37,20 +37,28 @@ private:
     Mat3 exchange_total_entropy();
     void calculate_helicity_fields();
     void calculate_entropy_fields();
-    jams::SparseMatrix<double> interaction_Jij_;
-    jams::SparseMatrix<double> interaction_rij_x_;
-    jams::SparseMatrix<double> interaction_rij_y_;
-    jams::SparseMatrix<double> interaction_rij_z_;
-    jams::MultiArray<double, 2> helicity_field_rxx_; // exchange helicity field at every spin for this Hamiltonian
-    jams::MultiArray<double, 2> helicity_field_rxy_; // exchange helicity field at every spin for this Hamiltonian
-    jams::MultiArray<double, 2> helicity_field_rxz_; // exchange helicity field at every spin for this Hamiltonian
-    jams::MultiArray<double, 2> helicity_field_ryy_; // exchange helicity field at every spin for this Hamiltonian
-    jams::MultiArray<double, 2> helicity_field_ryz_; // exchange helicity field at every spin for this Hamiltonian
-    jams::MultiArray<double, 2> helicity_field_rzz_; // exchange helicity field at every spin for this Hamiltonian
+    jams::SparseMatrix<double> interaction_JRR_xx_;
+    jams::SparseMatrix<double> interaction_JRR_xy_;
+    jams::SparseMatrix<double> interaction_JRR_xz_;
+    jams::SparseMatrix<double> interaction_JRR_yy_;
+    jams::SparseMatrix<double> interaction_JRR_yz_;
+    jams::SparseMatrix<double> interaction_JRR_zz_;
 
-    jams::MultiArray<double, 2> entropy_field_x_; // exchange entropy field at every spin for this Hamiltonian
-    jams::MultiArray<double, 2> entropy_field_y_; // exchange entropy field at every spin for this Hamiltonian
-    jams::MultiArray<double, 2> entropy_field_z_; // exchange entropy field at every spin for this Hamiltonian
+    jams::SparseMatrix<double> interaction_JR_x_;
+    jams::SparseMatrix<double> interaction_JR_y_;
+    jams::SparseMatrix<double> interaction_JR_z_;
+
+    jams::MultiArray<double, 2> helicity_field_rxrx_;
+    jams::MultiArray<double, 2> helicity_field_rxry_;
+    jams::MultiArray<double, 2> helicity_field_rxrz_;
+
+    jams::MultiArray<double, 2> helicity_field_ryry_;
+    jams::MultiArray<double, 2> helicity_field_ryrz_;
+    jams::MultiArray<double, 2> helicity_field_rzrz_;
+
+    jams::MultiArray<double, 2> entropy_field_rx_;
+    jams::MultiArray<double, 2> entropy_field_ry_;
+    jams::MultiArray<double, 2> entropy_field_rz_;
 
     #if HAS_CUDA
         CudaStream cusparse_stream_; // cuda stream to run in
