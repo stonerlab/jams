@@ -53,7 +53,7 @@ double CudaUniaxialHamiltonian::calculate_total_entropy() {
     for (auto i = 0; i < energy_.size(); ++i) {
         TS_total += helicity_entropy_(i);
     }
-    return TS_total;
+    return pow2(TS_total);
 }
 
 double CudaUniaxialHamiltonian::calculate_total_internal_energy_difference() {

@@ -207,7 +207,14 @@ std::string HelicityModulusMonitor::tsv_header() {
 void HelicityModulusMonitor::calculate_helicity_fields() {
 #if HAS_CUDA
     if (jams::instance().mode() == jams::Mode::GPU) {
-        //interaction_rij_x_.multiply_gpu(globals::s, helicity_field_rx_, jams::instance().cusparse_handle(), cusparse_stream_.get());        return;
+            interaction_JRR_xx_.multiply_gpu(globals::s, helicity_field_rxrx_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+            interaction_JRR_xy_.multiply_gpu(globals::s, helicity_field_rxry_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+            interaction_JRR_xz_.multiply_gpu(globals::s, helicity_field_rxrz_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+
+            interaction_JRR_yy_.multiply_gpu(globals::s, helicity_field_ryry_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+            interaction_JRR_yz_.multiply_gpu(globals::s, helicity_field_ryrz_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+            interaction_JRR_zz_.multiply_gpu(globals::s, helicity_field_rzrz_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+        return;
     }
 #endif
 
@@ -224,7 +231,9 @@ void HelicityModulusMonitor::calculate_helicity_fields() {
 void HelicityModulusMonitor::calculate_entropy_fields() {
 #if HAS_CUDA
     if (jams::instance().mode() == jams::Mode::GPU) {
-        //interaction_rij_x_.multiply_gpu(globals::s, entropy_field_x_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+        interaction_JR_x_.multiply_gpu(globals::s, entropy_field_rx_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+        interaction_JR_y_.multiply_gpu(globals::s, entropy_field_ry_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+        interaction_JR_z_.multiply_gpu(globals::s, entropy_field_rz_, jams::instance().cusparse_handle(), cusparse_stream_.get());
       return;
     }
 #endif
