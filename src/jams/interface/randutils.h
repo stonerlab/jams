@@ -517,7 +517,8 @@ namespace randutils {
 
           // Platform-specific entropy
           auto pid = crushto32(RANDUTILS_GETPID);
-          auto cpu = crushto32(RANDUTILS_CPU_ENTROPY);
+//          auto cpu = crushto32(RANDUTILS_CPU_ENTROPY); returns 1 for the arm64 architecture.
+          auto cpu = crushto32(0);
 
           return {{random_int, crushto32(hitime), stack, heap, self_data,
                       self_func, exit_func, thread_id, type_id, pid, cpu}};

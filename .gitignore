@@ -28,3 +28,5 @@ cout
 /examples
 /topological_charge
 *.h5
+*.tsv
+*.xdmf
