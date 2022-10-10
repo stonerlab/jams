@@ -34,8 +34,9 @@ __global__ void cuda_uniaxial_helicity_energy_kernel(const int num_spins, const 
 
         const double cross[3] = {cross_product_x(s, a), cross_product_y(s, a), cross_product_z(s, a)};
         const double cross_sq = dot(cross, cross);
+        const double dot_prod = dot(s, a);
 
-        dev_dU[idx] = magnitude[idx] * power * (pow(dot(s, a), power) - (power - 1)*cross_sq*pow(dot(s, a), power-2) );
+        dev_dU[idx] = magnitude[idx] * power * (pow(dot_prod, power) - (power - 1)*cross_sq*pow(dot_prod, power-2) );
     }
 }
 __global__ void cuda_uniaxial_entropy_kernel(const int num_spins, const int power,
@@ -44,10 +45,11 @@ __global__ void cuda_uniaxial_entropy_kernel(const int num_spins, const int powe
     if (idx < num_spins) {
         const double s[3] = {dev_s[3*idx], dev_s[3*idx+1], dev_s[3*idx+2]};
         const double a[3] = {axis[3*idx], axis[3*idx+1], axis[3*idx+2]};
+        const double Id[3] = {1.0, 1.0, 1.0};
 
         const double cross[3] = {cross_product_x(s, a), cross_product_y(s, a), cross_product_z(s, a)};
-        const double cross_norm = sqrt(dot(cross, cross));
+        const double cross_Id = dot(cross, Id);
 
-        dev_TS[idx] = magnitude[idx] * power * pow(dot(s, a), power-1) * cross_norm;
+        dev_TS[idx] = magnitude[idx] * power * pow(dot(s, a), power-1) * cross_Id;
     }
 }
