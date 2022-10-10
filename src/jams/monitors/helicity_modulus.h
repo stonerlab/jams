@@ -56,9 +56,9 @@ private:
     jams::MultiArray<double, 2> helicity_field_ryrz_;
     jams::MultiArray<double, 2> helicity_field_rzrz_;
 
-    jams::MultiArray<double, 2> entropy_field_rx_;
-    jams::MultiArray<double, 2> entropy_field_ry_;
-    jams::MultiArray<double, 2> entropy_field_rz_;
+    jams::MultiArray<double, 2> entropy_field_x_;
+    jams::MultiArray<double, 2> entropy_field_y_;
+    jams::MultiArray<double, 2> entropy_field_z_;
 
     #if HAS_CUDA
         CudaStream cusparse_stream_; // cuda stream to run in

@@ -42,18 +42,22 @@ public:
     // calculate the energy difference of spin i in initial and final states
     virtual double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) = 0;
 
+    // calculate the internal energy difference between energy minima for spin i
     virtual double calculate_internal_energy_difference(int i) {
         return 0.0;
     }
 
+    // calculate the total internal energy difference between energy minima
     virtual double calculate_total_internal_energy_difference() {
         return 0.0;
     }
 
-    virtual double calculate_entropy(int i) {
-        return 0.0;
+    // calculate the entropy contribution to the helicity modulus for spin io
+    virtual Vec3 calculate_entropy(int i) {
+        return {0.0, 0.0, 0.0};
     }
 
+    // calculate the total entropy contribution to the helicity modulus
     virtual double calculate_total_entropy() {
         return 0.0;
     }
@@ -92,8 +96,8 @@ protected:
 
     jams::MultiArray<double, 1> energy_; // energy of every spin for this Hamiltonian
     jams::MultiArray<double, 2> field_; // field at every spin for this Hamiltonianl
-    jams::MultiArray<double, 1> helicity_internal_; // internal energy difference for every spin
-    jams::MultiArray<double, 1> helicity_entropy_; // entropy contribution to the free energy difference for each spin
+    jams::MultiArray<double, 1> helicity_internal_; // internal energy difference between two minima for every spin
+    jams::MultiArray<double, 1> helicity_entropy_; // entropy contribution to the helicity modulus for each spin
 };
 
 

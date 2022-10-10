@@ -178,12 +178,12 @@ double UniaxialHamiltonian::calculate_internal_energy_difference(const int i) {
     using namespace globals;
     double dU = 0.0;
 
-    auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
+    const auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
 
-    Vec3 cross = {s(i,1)*axis_(i,2) - s(i,2)*axis_(i,1), s(i,2)*axis_(i,0) - s(i,0)*axis_(i,2), s(i,0)*axis_(i,1) - s(i,1)*axis_(i,0)};
-    auto mod_cross = norm(cross);
+    const Vec3 cross = {s(i,1)*axis_(i,2) - s(i,2)*axis_(i,1), s(i,2)*axis_(i,0) - s(i,0)*axis_(i,2), s(i,0)*axis_(i,1) - s(i,1)*axis_(i,0)};
+    const auto mod_cross_sq = norm_sq(cross);
 
-    dU += power_*magnitude_(i)*( pow(dot, power_) - (power_ - 1) * pow(mod_cross, 2)*pow(dot, power_-2) );
+    dU += power_*magnitude_(i)*( pow(dot, power_) - (power_ - 1) * mod_cross_sq*pow(dot, power_-1) );
 
     return dU;
 }
@@ -196,26 +196,34 @@ double UniaxialHamiltonian::calculate_total_internal_energy_difference() {
     return dU_total;
 }
 
-double UniaxialHamiltonian::calculate_entropy(int i) {
+Vec3 UniaxialHamiltonian::calculate_entropy(int i) {
     using namespace globals;
-    double TS = 0.0;
+    Vec3 TS = {0.0, 0.0, 0.0};
 
-    Vec3 spin = {s(i,0), s(i,1), s(i,2)};
-    Vec3 axis = {axis_(i,0), axis_(i,1),axis_(i,2)};
+    const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
+    const Vec3 axis = {axis_(i,0), axis_(i,1), axis_(i,2)};
 
-    auto dot_product = dot(spin, axis);
+    const auto dot_product = dot(spin, axis);
 
-    auto cross_product = cross(spin, axis);
+    const auto cross_product = cross(spin, axis);
 
-    TS += power_*magnitude_(i) * pow(dot_product, power_-1) * norm(cross_product);
+    TS += power_*magnitude_(i) * pow(dot_product, power_-1) * cross_product;
 
     return TS;
 }
 
 double UniaxialHamiltonian::calculate_total_entropy() {
-    double TS_total = 0.0;
-    for (int i = 0; i < energy_.size(); ++i) {
+    using namespace globals;
+    Vec3 TS_total = {0.0, 0.0, 0.0};
+
+    const Vec3 Id = {1.0, 1.0, 1.0};
+
+    #if HAS_OMP
+    #pragma omp parallel for default(none) shared(num_spins) reduction(+:TS_total)
+    #endif
+    for (int i = 0; i < num_spins; ++i) {
         TS_total += calculate_entropy(i);
     }
-    return pow2(TS_total);
+
+     return dot(TS_total, Id);
 }
