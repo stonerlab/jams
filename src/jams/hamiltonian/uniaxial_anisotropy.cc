@@ -214,16 +214,14 @@ Vec3 UniaxialHamiltonian::calculate_entropy(int i) {
 
 double UniaxialHamiltonian::calculate_total_entropy() {
     using namespace globals;
-    Vec3 TS_total = {0.0, 0.0, 0.0};
-
-    const Vec3 Id = {1.0, 1.0, 1.0};
+    double TS_total = 0.0;
 
     #if HAS_OMP
     #pragma omp parallel for default(none) shared(num_spins) reduction(+:TS_total)
     #endif
     for (int i = 0; i < num_spins; ++i) {
-        TS_total += calculate_entropy(i);
+        TS_total += norm(calculate_entropy(i));
     }
 
-     return dot(TS_total, Id);
+     return TS_total;
 }

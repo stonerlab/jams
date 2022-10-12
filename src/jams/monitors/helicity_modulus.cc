@@ -296,9 +296,9 @@ Mat3 HelicityModulusMonitor::exchange_total_entropy() {
         const Vec3 h_i_y = {entropy_field_y_(i,0), entropy_field_y_(i, 1), entropy_field_y_(i, 2)};
         const Vec3 h_i_z = {entropy_field_z_(i,0), entropy_field_z_(i, 1), entropy_field_z_(i, 2)};
 
-        TS[0][0] += dot(cross(s_i, h_i_x), Id);
-        TS[1][1] += dot(cross(s_i, h_i_y), Id);
-        TS[2][2] += dot(cross(s_i, h_i_z), Id);
+        TS[0][0] += norm(cross(s_i, h_i_x));
+        TS[1][1] += norm(cross(s_i, h_i_y));
+        TS[2][2] += norm(cross(s_i, h_i_z));
 
     }
 
