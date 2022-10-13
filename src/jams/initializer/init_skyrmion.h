@@ -4,37 +4,66 @@
 
 /// @class jams::InitSkyrmion
 ///
-/// Initialises a Skyrmion with a given radius, vorticity and helicity.
+/// Initialises a Skyrmion with a given charge, vorticity, helicity and
+/// 'c' and 'w' parameters which control width and domain wall sharpness.
 ///
 /// @details
-/// @p This class is designed for initialising a Bloch domain wall. The domain
-/// wall is placed in the x-direction and the spins are aligned im the -/+ z
-/// directions at the left/right ends of the wall. The center and width can be
-/// specified.
+/// @p This class is designed for initialising a Neel skyrmion with given
+/// properties and center. We follow the definitions given here:
+/// https://juspin.de/skyrmion-radius/. Examples of the charge, vorticity,
+/// helicity are given here: https://iopscience.iop.org/article/10.1088/1361-648X/ab5488.
 ///
-/// The general equation is
+/// The coordinates r are related to polar coordinates
 /// @f[
-///     S_x(x) = 0; S_y(x) = 1/cosh(pi (x-center) / width); S_z = tanh(pi (x-center) / width)
+///     r = (r \cos(\phi), r \sin(\phi), 0)
 /// @f]
-/// This assumes the system is much wider than the domain wall. See
-/// [Kazantseva, Phys. Rev. Lett. 94, 037206 (2005)](https://dx.doi.org/10.1103/physrevlett.94.037206)
-/// for a derivation and more details of constrained domain walls.
 ///
-/// @attention We are using the convention for width which includes a factor of
-/// pi. i.e. = pi \sqrt{A/K}. This factor of pi is an arbitrary choice in the
-/// definition of width. Some authors use it some don't. Including the pi gives
-/// are much better feeling for the extent of the domain wall when trying to fit
-/// it into a finite size simulation box.
+/// The spin orientation will be determined from spherical coordinates
+/// @f[
+///     m = (\sin(\theta) \cos(\phi), \sin(\theta) \cos(\phi), \cos(\theta))
+/// @f]
 ///
-/// @setting `initializer.width` (required) domain wall width in units of lattice constants
-/// @setting `initializer.center` (required) domain wall width in units of lattice constants
+/// The angles theta are given by
+/// @f[
+///     \theta(r) = \sum_{\pm} \arcsin( \tanh(-\frac{r \pm c}{w / 2}) ) + \pi
+/// @f]
+/// Where 'c' and 'w' determine the sharpness of the domain walls and the radius
+/// of the skyrmion.
+///
+/// @note The equations only allow the creation of Neel type skyrmions.
+/// this could be changed in future (see https://juspin.de/skyrmion-radius/).
+///
+/// @setting `initializer.coordinate_format` coordinate format ("fractional" or
+///          "cartesian") to use for the skyrmion centre (default "fractional")
+///
+/// @setting `initializer.center` position of the skyrmion center as a 2D vector
+///          in the x-y plane. If using fractional coordinates then these are
+///          relative to the super cell i.e. [0.5, 0.5] is the center of the
+///          whole system at z = 0. (default [0.5, 0.5] in fractional coordinates)
+///
+/// @setting `initializer.polarity` skyrmion core polarity (+1 or -1), where -1
+///           means a ferromagnet in the +z direction with a skyrmion core in
+///           the -z direction (default -1)
+///
+/// @setting `initializer.vorticity` skrymion vorticity (default 1.0)
+///
+/// @setting `initializer.helicity` skyrmion helicity (default 0.0)
+///
+/// @setting `initializer.w` skyrmion domain wall parameter 'w' (default 5.0)
+///
+/// @setting `initializer.c` skyrmion domain wall parameter 'c' (default 5.0)
 ///
 /// @example Example config:
 /// @code{.unparsed}
 /// initializer : {
-///     module = "domain_wall";
-///     width = 10.0;
-///     center = 64.0;
+///     module = "skyrmion";
+///     coordinate_format = "fractional";
+///     center = [0.5, 0.5];
+///     polarity = -1.0;
+///     vorticity = 1.0;
+///     helicity = 0.0;
+///     w = 5.0;
+///     c = 5.0;
 /// };
 /// @endcode
 
