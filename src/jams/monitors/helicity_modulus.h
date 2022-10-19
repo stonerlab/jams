@@ -34,7 +34,7 @@ private:
     std::ofstream tsv_file;
     std::string   tsv_header();
     Mat3 exchange_total_internal_energy_difference();
-    Mat3 exchange_total_entropy();
+    Vec3 exchange_total_entropy();
     void calculate_helicity_fields();
     void calculate_entropy_fields();
     jams::SparseMatrix<double> interaction_JRR_xx_;

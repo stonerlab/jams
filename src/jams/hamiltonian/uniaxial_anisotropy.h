@@ -31,7 +31,7 @@ public:
 
     double calculate_total_internal_energy_difference() override;
 
-    Vec3 calculate_entropy(int i) override;
+    double calculate_entropy(int i) override;
 
     double calculate_total_entropy() override;
 

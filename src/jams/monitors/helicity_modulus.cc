@@ -151,12 +151,12 @@ void HelicityModulusMonitor::update(Solver * solver) {
             calculate_entropy_fields();
 
             Mat3 energy_difference = exchange_total_internal_energy_difference();
-            Mat3 entropy = exchange_total_entropy();
+            Vec3 entropy = exchange_total_entropy();
 
             for (auto i = 0; i < 3; ++i) {
+                tsv_file << std::scientific << std::setprecision(15) << entropy[i] << "\t";
                 for (auto j = 0; j < 3; ++j) {
                     tsv_file << std::scientific << std::setprecision(15) << energy_difference[i][j] << "\t";
-                    tsv_file << std::scientific << std::setprecision(15) << entropy[i][j] << "\t";
                 }
             }
         }
@@ -182,9 +182,11 @@ std::string HelicityModulusMonitor::tsv_header() {
         if (hamiltonian->name() == "exchange") {
             string unit_vecs[3] = {"x", "y", "z"};
             for (auto i = 0; i < 3; ++i){
+
+                ss << hamiltonian->name() << "_TS_" << unit_vecs[i] <<"_E_meV\t";
+
                 for (auto j = 0; j < 3; ++j){
                     ss << hamiltonian->name() << "_dU_" << unit_vecs[i] << unit_vecs[j] <<"_E_meV\t";
-                    ss << hamiltonian->name() << "_TS_" << unit_vecs[i] << unit_vecs[j] <<"_E_meV\t";
                 }
             }
         }
@@ -281,11 +283,9 @@ Mat3 HelicityModulusMonitor::exchange_total_internal_energy_difference() {
     return dU;
 }
 
-Mat3 HelicityModulusMonitor::exchange_total_entropy() {
+Vec3 HelicityModulusMonitor::exchange_total_entropy() {
     using namespace globals;
-    Mat3 TS = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
-    const Vec3 Id = {1.0, 1.0, 1.0};
+    Vec3 TS = {0.0, 0.0, 0.0};
 
     for (auto i = 0; i < globals::num_spins; ++i) {
 
@@ -296,9 +296,9 @@ Mat3 HelicityModulusMonitor::exchange_total_entropy() {
         const Vec3 h_i_y = {entropy_field_y_(i,0), entropy_field_y_(i, 1), entropy_field_y_(i, 2)};
         const Vec3 h_i_z = {entropy_field_z_(i,0), entropy_field_z_(i, 1), entropy_field_z_(i, 2)};
 
-        TS[0][0] += norm(cross(s_i, h_i_x));
-        TS[1][1] += norm(cross(s_i, h_i_y));
-        TS[2][2] += norm(cross(s_i, h_i_z));
+        TS[0] += norm(cross(s_i, h_i_x));
+        TS[1] += norm(cross(s_i, h_i_y));
+        TS[2] += norm(cross(s_i, h_i_z));
 
     }
 

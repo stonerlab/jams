@@ -53,8 +53,8 @@ public:
     }
 
     // calculate the entropy contribution to the helicity modulus for spin io
-    virtual Vec3 calculate_entropy(int i) {
-        return {0.0, 0.0, 0.0};
+    virtual double calculate_entropy(int i) {
+        return 0.0;
     }
 
     // calculate the total entropy contribution to the helicity modulus
