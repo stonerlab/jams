@@ -45,6 +45,7 @@ HelicityModulusMonitor::HelicityModulusMonitor(const libconfig::Setting &setting
         auto j = nbr_list[n].first[1];
         auto Jij = input_energy_conversion * nbr_list[n].second;
         auto rij = lattice->displacement(i, j);
+        rij = abs(rij);
 
         Mat3 JijRij_x = rij[0] * Jij;
         Mat3 JijRij_y = rij[1] * Jij;
