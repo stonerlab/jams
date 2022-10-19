@@ -183,31 +183,36 @@ double UniaxialHamiltonian::calculate_internal_energy_difference(const int i) {
     const Vec3 cross = {s(i,1)*axis_(i,2) - s(i,2)*axis_(i,1), s(i,2)*axis_(i,0) - s(i,0)*axis_(i,2), s(i,0)*axis_(i,1) - s(i,1)*axis_(i,0)};
     const auto mod_cross_sq = norm_sq(cross);
 
-    dU += power_*magnitude_(i)*( pow(dot, power_) - (power_ - 1) * mod_cross_sq*pow(dot, power_-1) );
+    dU += power_*magnitude_(i)*( pow(dot, power_) - (power_ - 1) * mod_cross_sq*pow(dot, power_-2) );
 
     return dU;
 }
 
 double UniaxialHamiltonian::calculate_total_internal_energy_difference() {
+    using namespace globals;
     double dU_total = 0.0;
-    for (int i = 0; i < energy_.size(); ++i) {
+
+    #if HAS_OMP
+    #pragma omp parallel for default(none) shared(num_spins) reduction(+:dU_total)
+    #endif
+    for (int i = 0; i < num_spins; ++i) {
         dU_total += calculate_internal_energy_difference(i);
     }
     return dU_total;
 }
 
-Vec3 UniaxialHamiltonian::calculate_entropy(int i) {
+double UniaxialHamiltonian::calculate_entropy(int i) {
     using namespace globals;
-    Vec3 TS = {0.0, 0.0, 0.0};
+    double TS = 0.0;
 
     const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
     const Vec3 axis = {axis_(i,0), axis_(i,1), axis_(i,2)};
 
     const auto dot_product = dot(spin, axis);
 
-    const auto cross_product = cross(spin, axis);
+    const auto cross_product_norm = norm(cross(spin, axis));
 
-    TS += power_*magnitude_(i) * pow(dot_product, power_-1) * cross_product;
+    TS += power_*magnitude_(i) * pow(dot_product, power_-1) * cross_product_norm;
 
     return TS;
 }
@@ -220,7 +225,7 @@ double UniaxialHamiltonian::calculate_total_entropy() {
     #pragma omp parallel for default(none) shared(num_spins) reduction(+:TS_total)
     #endif
     for (int i = 0; i < num_spins; ++i) {
-        TS_total += norm(calculate_entropy(i));
+        TS_total += calculate_entropy(i);
     }
 
      return TS_total;
