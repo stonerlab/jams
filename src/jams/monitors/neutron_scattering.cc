@@ -173,10 +173,12 @@ MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross_secti
 }
 
 void NeutronScatteringMonitor::output_neutron_cross_section() {
+  double total_distance = 0.0;
+
   for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
     std::ofstream ofs(jams::output::full_path_filename_series("neutron_scattering_path.tsv", n));
 
-    ofs << "index\t" << "h\t" << "k\t" << "l\t" << "qx\t" << "qy\t" << "qz\t";
+    ofs << "index\t" << "q_total\t" << "h\t" << "k\t" << "l\t" << "qx\t" << "qy\t" << "qz\t";
     ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
     for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
       ofs << "sigma_pol" << to_string(k) << "_re\t" << "sigma_pol" << to_string(k) << "_im\t";
@@ -195,6 +197,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
       for (auto j = path_begin; j < path_end; ++j) {
         ofs << fmt::integer << j << "\t";
+        ofs << fmt::decimal << total_distance << "\t";
         ofs << fmt::decimal << kspace_paths_[j].hkl << "\t";
         ofs << fmt::decimal << kspace_paths_[j].xyz << "\t";
         ofs << fmt::decimal << i * frequency_resolution_thz() << "\t"; // THz
@@ -206,6 +209,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
           ofs << fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
           ofs << fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
         }
+        total_distance += norm(kspace_paths_[j].xyz);
         ofs << "\n";
       }
       ofs << endl;
