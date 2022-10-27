@@ -82,6 +82,11 @@ namespace jams {
     }
 
     template<>
+    inline Vec2 config_required(const libconfig::Setting &setting, const std::string &name) {
+      return {double(setting[name][0]), double(setting[name][1])};
+    }
+
+    template<>
     inline Vec3 config_required(const libconfig::Setting &setting, const std::string &name) {
       return {double(setting[name][0]), double(setting[name][1]), double(setting[name][2])};
     }
@@ -105,7 +110,7 @@ namespace jams {
 
     template<>
     inline CoordinateFormat config_required(const libconfig::Setting &setting, const std::string &name) {
-      auto format = jams::config_required<std::string>(setting, "coordinate_format");
+      auto format = jams::config_required<std::string>(setting, name);
       if (lowercase(format) == "fractional") {
         return CoordinateFormat::FRACTIONAL;
       } else if (lowercase(format) == "cartesian") {

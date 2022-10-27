@@ -83,10 +83,12 @@ vector<HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const vector<Vec3
   for (auto n = 0; n < hkl_nodes.size()-1; ++n) {
     Vec3i origin = to_int(hadamard_product(hkl_nodes[n], kspace_size));
     Vec3i displacement = to_int(hadamard_product(hkl_nodes[n + 1], kspace_size)) - origin;
-    Vec3i delta = normalize_components(displacement);
+
+    const int divisor = gcd( gcd( std::abs(displacement[0]), std::abs(displacement[1]) ), std::abs(displacement[2]) );
+    Vec3i delta = displacement / divisor;
 
     // use +1 to include the last point on the displacement
-    const auto num_coordinates = absolute_max(displacement) + 1;
+    const auto num_coordinates = divisor + 1;
 
     Vec3i coordinate = origin;
     for (auto i = 0; i < num_coordinates; ++i) {
