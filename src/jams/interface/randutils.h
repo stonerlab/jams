@@ -517,7 +517,14 @@ namespace randutils {
 
           // Platform-specific entropy
           auto pid = crushto32(RANDUTILS_GETPID);
-          auto cpu = crushto32(RANDUTILS_CPU_ENTROPY);
+          #if defined(__aarch64__) || defined(_M_ARM64)
+            // The macro RANDUTILS_CPU_ENTROPY should expand to '0' on arm
+            // platforms but somehow is giving '1' instead. Not clear why,
+            // so we're working around here.
+            auto cpu = crushto32(0);
+          #else
+            auto cpu = crushto32(RANDUTILS_CPU_ENTROPY);
+          #endif
 
           return {{random_int, crushto32(hitime), stack, heap, self_data,
                       self_func, exit_func, thread_id, type_id, pid, cpu}};

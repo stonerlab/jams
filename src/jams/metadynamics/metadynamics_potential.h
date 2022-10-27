@@ -53,9 +53,11 @@ namespace jams {
 
     private:
         const double kHardBCsPotential = 1e100; // a very large value in meV
+        void import_potential(const std::string &filename); //  can handle up to two Collective Variables.
 
         double              gaussian_amplitude_;
         std::vector<double> gaussian_width_;
+        bool    potential_input_file = false;
 
         int                                              num_cvars_; //used to resize all the other vectors
         std::vector<std::unique_ptr<CollectiveVariable>> cvars_;

@@ -90,6 +90,8 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
   gaussian_amplitude_ = config_required<double>(settings, "gaussian_amplitude");
 
+  std::string potential_filename = jams::config_optional<std::string>(settings, "potential_file", "");
+
   num_cvars_ = settings["collective_variables"].getLength();
 
   // We currently only support 1D or 2D CV spaces. DO NOT proceed if there are
@@ -175,6 +177,11 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   }
 
     potential_.resize(num_samples_[0], num_samples_[1]);
+
+    if (!potential_filename.empty()) {
+        std::cout << "Reading potential landscape data from " << potential_filename << "\n" << "Ensure you input the final h5 file from the previous simmulation" <<"\n";
+        import_potential(potential_filename);
+    }
 
     cvar_file_.open(jams::output::full_path_filename("metad_cvars.tsv"));
     cvar_file_ << "time";
@@ -358,3 +365,91 @@ void jams::MetadynamicsPotential::output() {
   }
   assert(false); // Should not be reachable if num_cvars_ <= kMaxDimensions
 }
+
+void jams::MetadynamicsPotential::import_potential(const std::string &filename) {
+    std::vector<double> file_data;
+    bool first_line = true;
+    if (num_cvars_ == 1 ) {
+        double first_cvar, potential_passed;
+        std::ifstream potential_file_passed(filename.c_str());
+
+        int line_number = 0;
+        for (std::string line; getline(potential_file_passed, line);) {
+            if (string_is_comment(line)) {
+                continue;
+            }
+            //ingore the title
+            if (first_line){
+                first_line = false;
+                continue;
+            }
+
+            std::stringstream is(line);
+            is >> first_cvar >> potential_passed;
+
+            if (is.bad() || is.fail()) {
+                throw std::runtime_error("failed to read line " + std::to_string(line_number));
+            }
+
+            file_data.push_back(potential_passed);
+
+            line_number++;
+        }
+        // If the file data is not the same size as our arrays in the class
+        // all sorts of things could go wrong. Stop the simulation here to avoid
+        // unintended consequences.
+        if (file_data.size() != num_samples_[0]) {
+             std::cout << num_samples_[0] << " file_data size:"<< file_data.size(),"\n";
+            throw std::runtime_error("The " + filename + " has different dimensions from the potential");
+        }
+
+        int copy_iterator = 0;
+        for (auto i = 0; i < num_samples_[0]; ++i){
+
+                potential_(i,0) = file_data[copy_iterator];
+                copy_iterator++;
+        }
+        potential_file_passed.close();
+    }
+// **********************************************************************************************
+    if(num_cvars_ == 2) {
+        double first_cvar, second_cvar, potential_passed;
+        std::ifstream potential_file_passed(filename.c_str());
+
+        int line_number = 0;
+        for (std::string line; getline(potential_file_passed, line);) {
+            if (string_is_comment(line)) {
+                continue;
+            }
+            //ingore the title
+            if (first_line){
+                first_line = false;
+                continue;
+            }
+
+            std::stringstream is(line);
+            is >> first_cvar >> second_cvar >> potential_passed;
+
+            file_data.push_back(potential_passed);
+
+            line_number++;
+        }
+
+        // If the file data is not the same size as our arrays in the class
+        // all sorts of things could go wrong. Stop the simulation here to avoid
+        // unintended consequences.
+        if (file_data.size() != num_samples_[0] * num_samples_[1]) {
+            throw std::runtime_error("The" + filename + "has different dimensions from the potential");
+        }
+
+        int copy_iterator = 0;
+        for (auto i = 0; i < num_samples_[0]; ++i) {
+            for (auto j = 0; j < num_samples_[1]; ++j) {
+                potential_(i, j) = file_data[copy_iterator];
+            }
+            copy_iterator++;
+        }
+        potential_file_passed.close();
+    }
+}
+
