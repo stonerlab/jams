@@ -152,12 +152,12 @@ void HelicityModulusMonitor::update(Solver * solver) {
             calculate_entropy_fields();
 
             Mat3 energy_difference = exchange_total_internal_energy_difference();
-            Vec3 entropy = exchange_total_entropy();
+            Mat3 entropy = exchange_total_entropy();
 
             for (auto i = 0; i < 3; ++i) {
-                tsv_file << std::scientific << std::setprecision(15) << entropy[i] << "\t";
                 for (auto j = 0; j < 3; ++j) {
                     tsv_file << std::scientific << std::setprecision(15) << energy_difference[i][j] << "\t";
+                    tsv_file << std::scientific << std::setprecision(15) << entropy[i][j] << "\t";
                 }
             }
         }
@@ -184,10 +184,10 @@ std::string HelicityModulusMonitor::tsv_header() {
             string unit_vecs[3] = {"x", "y", "z"};
             for (auto i = 0; i < 3; ++i){
 
-                ss << hamiltonian->name() << "_TS_" << unit_vecs[i] <<"_E_meV\t";
 
                 for (auto j = 0; j < 3; ++j){
                     ss << hamiltonian->name() << "_dU_" << unit_vecs[i] << unit_vecs[j] <<"_E_meV\t";
+                    ss << hamiltonian->name() << "_TS_" << unit_vecs[i] << unit_vecs[j] <<"_E_meV\t";
                 }
             }
         }
@@ -284,9 +284,11 @@ Mat3 HelicityModulusMonitor::exchange_total_internal_energy_difference() {
     return dU;
 }
 
-Vec3 HelicityModulusMonitor::exchange_total_entropy() {
+Mat3 HelicityModulusMonitor::exchange_total_entropy() {
     using namespace globals;
-    Vec3 TS = {0.0, 0.0, 0.0};
+    Mat3 TS = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+    const Vec3 dot_vec = {1.0, 1.0, 1.0};
 
     for (auto i = 0; i < globals::num_spins; ++i) {
 
@@ -297,9 +299,22 @@ Vec3 HelicityModulusMonitor::exchange_total_entropy() {
         const Vec3 h_i_y = {entropy_field_y_(i,0), entropy_field_y_(i, 1), entropy_field_y_(i, 2)};
         const Vec3 h_i_z = {entropy_field_z_(i,0), entropy_field_z_(i, 1), entropy_field_z_(i, 2)};
 
-        TS[0] += norm(cross(s_i, h_i_x));
-        TS[1] += norm(cross(s_i, h_i_y));
-        TS[2] += norm(cross(s_i, h_i_z));
+        const double cross_x = dot(cross(s_i, h_i_x), dot_vec);
+        const double cross_y = dot(cross(s_i, h_i_y), dot_vec);
+        const double cross_z = dot(cross(s_i, h_i_z), dot_vec);
+
+        TS[0][0] += cross_x * cross_x;
+        TS[1][1] += cross_y * cross_y;
+        TS[2][2] += cross_z * cross_z;
+
+        TS[0][1] += abs(cross_x * cross_y);
+        TS[1][0] += abs(cross_x * cross_y);
+
+        TS[0][2] += abs(cross_x * cross_z);
+        TS[2][0] += abs(cross_x * cross_z);
+
+        TS[1][2] += abs(cross_y * cross_z);
+        TS[2][1] += abs(cross_y * cross_z);
 
     }
 
