@@ -29,6 +29,10 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   settings.lookupValue("distance_tolerance", distance_tolerance_);
   cout << "    distance_tolerance " << distance_tolerance_ << "\n";
 
+  interaction_prefactor_ = 1.0;
+  settings.lookupValue("interaction_prefactor", interaction_prefactor_);
+  cout << "    interaction_prefactor " << interaction_prefactor_ << "\n";
+
   safety_check_distance_tolerance(distance_tolerance_);
 
   if (debug_is_enabled()) {
@@ -139,7 +143,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   for (auto n = 0; n < neighbour_list_.size(); ++n) {
     auto i = neighbour_list_[n].first[0];
     auto j = neighbour_list_[n].first[1];
-    auto Jij = input_energy_unit_conversion_ * neighbour_list_[n].second;
+    auto Jij = interaction_prefactor_ * input_energy_unit_conversion_ * neighbour_list_[n].second;
     if (max_abs(Jij) > energy_cutoff_ * input_energy_unit_conversion_ ) {
       insert_interaction_tensor(i, j, Jij);
     }
