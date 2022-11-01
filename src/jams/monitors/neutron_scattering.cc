@@ -209,7 +209,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
           ofs << fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
           ofs << fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
         }
-        total_distance += norm(kspace_paths_[j].xyz);
+        total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j+1].xyz);
         ofs << "\n";
       }
       ofs << endl;
