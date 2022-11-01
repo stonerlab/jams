@@ -104,7 +104,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
             ofs << fmt::sci << prefactor * total_magnon_spectrum(i, j)[k][l].imag();
           }
         }
-        total_distance += norm(kspace_paths_[j].xyz);
+        total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j+1].xyz);
         ofs << "\n";
       }
       ofs << "\n";
