@@ -173,7 +173,6 @@ MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross_secti
 }
 
 void NeutronScatteringMonitor::output_neutron_cross_section() {
-  double total_distance = 0.0;
 
   for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
     std::ofstream ofs(jams::output::full_path_filename_series("neutron_scattering_path.tsv", n));
@@ -195,6 +194,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
     auto path_begin = kspace_continuous_path_ranges_[n];
     auto path_end = kspace_continuous_path_ranges_[n + 1];
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
+      double total_distance = 0.0;
       for (auto j = path_begin; j < path_end; ++j) {
         ofs << fmt::integer << j << "\t";
         ofs << fmt::decimal << total_distance << "\t";
