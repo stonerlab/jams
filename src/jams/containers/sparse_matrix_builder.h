@@ -312,38 +312,81 @@ namespace jams {
       this->sort();
       this->merge();
 
+      // first, build a compressed row index
+
+      const auto nnz = val_.size();
+
+      // Here row_ is sorted and merged. Merged means that any entries with the
+      // same (row, col) are summed together. But there are still nnz entries
+      // in row_, col_ and val_. Now we need to 'compress' the rows. This means
+      // recording the col, val index that a row starts at into csr_rows.
+      // There is always the possibility that rows contain no values in which
+      // case the index should not increment.
+
+      index_container csr_rows(num_rows_ + 1);
+
+      csr_rows(0) = 0;
+      index_type current_row = 0;
+      index_type previous_row = 0;
+
+      for (auto m = 1; m < row_.size(); ++m) {
+
+        current_row = row_[m];
+        assert(current_row < num_rows_);
+
+        // We're still compressing this row
+        if (current_row == previous_row) {
+          continue;
+        }
+
+        assert(current_row + 1 < csr_rows.size());
+
+        // Current row is not the same as the previous row
+
+        // Find the difference between the current row and the previous
+        // row. This may not be 1 in the case where there are empty rows in
+        // the sparse matrix.
+        for (auto i = previous_row + 1; i < current_row + 1; ++i) {
+          csr_rows(i) = m;
+        }
+
+        previous_row = current_row;
+      }
+
+      // We may not have reached the end of the rows if there are empty rows
+      // at the bottom of the matrix. So we need to keep looping until the
+      // end and insert nnz.
+      for (auto i = previous_row + 1; i < num_rows_ + 1; ++i) {
+        csr_rows(i) = nnz;
+      }
+
       for (auto n = 0; n < row_.size(); ++n) {
         auto i = row_[n];
         auto j = col_[n];
         auto val = val_[n];
 
-        auto low = std::lower_bound(row_.cbegin(), row_.cend(), j);
+        auto row_start = csr_rows(j);
+        auto row_end   = csr_rows(j+1);
 
-        if ((*low) != j || low == row_.cend()) {
-          // this col (j) does not exist in row_ so matrix cannot be structurally symmetric
+        if (row_start == row_end) {
+          // column 'j' doesn't have any row indices so the matrix is not symmetric
           return false;
         }
 
-        auto up = std::upper_bound(low, row_.cend(), j);
+        auto found = std::lower_bound(col_.begin()+row_start, col_.begin()+row_end, i);
 
-        // all elements between 'low' and 'up' are data for row == j == col_[n]
-
-        auto col_begin = col_.cbegin() + (low - row_.cbegin());
-        auto col_end = col_.cbegin() + (up - row_.cbegin());
-
-        auto col_loc = std::find(col_begin, col_end, i);
-
-        if (col_loc == col_.cend()) {
-          // this i does not exist in col_ so matrix cannot be structurally symmetric
+        if (found == col_.begin()+row_end) {
+          // the corresponding column in j,i was not found so the matrix is not symmetric
           return false;
         }
 
-        auto val_trans = val_.begin() + (col_loc - col_.cbegin());
+        auto ptr_diff = found - col_.begin();
 
-        if (val != (*val_trans)) {
-          // even though the matrix is structurally symmetric the values are not symmetric
+        if ( *(val_.begin() + ptr_diff) != val ) {
+          // the values for i,j and j,i do not match so the matrix is not symmetric
           return false;
         }
+
       }
       return true;
     }
