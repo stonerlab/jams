@@ -80,6 +80,101 @@ namespace jams {
               val_(std::move(vals)) {
         }
 
+        SparseMatrix(SparseMatrix&& rhs) noexcept
+        : matrix_A_description_(std::move(rhs.matrix_A_description_)),
+          num_rows_(std::move(rhs.num_rows_)),
+          num_cols_(std::move(rhs.num_cols_)),
+          num_non_zero_(std::move(rhs.num_non_zero_)),
+          row_(std::move(rhs.row_)),
+          col_(std::move(rhs.col_)),
+          val_(std::move(rhs.val_)) {
+
+          #if HAS_MKL_INSPECTOR_EXECUTOR_API
+          mkl_matrix_A_handle_ = rhs.mkl_matrix_A_handle_;
+          if (rhs.mkl_matrix_A_handle_) {
+            mkl_sparse_destroy(rhs.mkl_matrix_A_handle_);
+            rhs.mkl_matrix_A_handle_ = nullptr;
+          }
+          #endif
+
+          #if HAS_CUSPARSE_GENERIC_API
+          cusparse_matrix_A_handle_ = rhs.cusparse_matrix_A_handle_;
+          if (rhs.cusparse_matrix_A_handle_) {
+            cusparseDestroySpMat(rhs.cusparse_matrix_A_handle_);
+            rhs.cusparse_matrix_A_handle_ = nullptr;
+          }
+
+          if (rhs.cusparse_vector_x_handle_) {
+            cusparseDestroyDnVec(rhs.cusparse_vector_x_handle_);
+            rhs.cusparse_vector_x_handle_ = nullptr;
+          }
+
+          if (rhs.cusparse_vector_y_handle_) {
+            cusparseDestroyDnVec(rhs.cusparse_vector_y_handle_);
+            rhs.cusparse_vector_y_handle_ = nullptr;
+          }
+
+          cusparse_buffer_size_ = rhs.cusparse_buffer_size_;
+          if (rhs.cusparse_buffer_) {
+            cudaFree(rhs.cusparse_buffer_);
+            rhs.cusparse_buffer_ = nullptr;
+          }
+          rhs.cusparse_buffer_size_ = 0;
+          #endif
+        }
+
+//        // copy assign
+//        SparseMatrix &operator=(SparseMatrix rhs) &{
+//          swap(*this, rhs);
+//          return *this;
+//        }
+
+        SparseMatrix &operator=(SparseMatrix&& rhs) noexcept {
+          if (this != &rhs) {
+            matrix_A_description_ = rhs.matrix_A_description_;
+            num_rows_ = rhs.num_rows_;
+            num_cols_ = rhs.num_cols_;
+            num_non_zero_ = rhs.num_non_zero_;
+            row_ = std::move(rhs.row_);
+            col_ = std::move(rhs.col_);
+            val_ = std::move(rhs.val_);
+
+            #if HAS_MKL_INSPECTOR_EXECUTOR_API
+            mkl_matrix_A_handle_ = rhs.mkl_matrix_A_handle_;
+            if (rhs.mkl_matrix_A_handle_) {
+              mkl_sparse_destroy(rhs.mkl_matrix_A_handle_);
+              rhs.mkl_matrix_A_handle_ = nullptr;
+            }
+            #endif
+
+            #if HAS_CUSPARSE_GENERIC_API
+            cusparse_matrix_A_handle_ = rhs.cusparse_matrix_A_handle_;
+            if (rhs.cusparse_matrix_A_handle_) {
+              cusparseDestroySpMat(rhs.cusparse_matrix_A_handle_);
+              rhs.cusparse_matrix_A_handle_ = nullptr;
+            }
+
+            if (rhs.cusparse_vector_x_handle_) {
+              cusparseDestroyDnVec(rhs.cusparse_vector_x_handle_);
+              rhs.cusparse_vector_x_handle_ = nullptr;
+            }
+
+            if (rhs.cusparse_vector_y_handle_) {
+              cusparseDestroyDnVec(rhs.cusparse_vector_y_handle_);
+              rhs.cusparse_vector_y_handle_ = nullptr;
+            }
+
+            cusparse_buffer_size_ = rhs.cusparse_buffer_size_;
+            if (rhs.cusparse_buffer_) {
+              cudaFree(rhs.cusparse_buffer_);
+              rhs.cusparse_buffer_ = nullptr;
+            }
+            rhs.cusparse_buffer_size_ = 0;
+            #endif
+          }
+          return *this;
+        }
+
         inline ~SparseMatrix() {
           #if HAS_MKL_INSPECTOR_EXECUTOR_API
           if (mkl_matrix_A_handle_) {
@@ -99,7 +194,7 @@ namespace jams {
             cusparse_vector_x_handle_ = nullptr;
           }
 
-          if (cusparse_vector_x_handle_) {
+          if (cusparse_vector_y_handle_) {
             cusparseDestroyDnVec(cusparse_vector_y_handle_);
             cusparse_vector_y_handle_ = nullptr;
           }

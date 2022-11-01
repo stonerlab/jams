@@ -102,6 +102,13 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     }
   }
 
+  jams::SparseMatrixSymmetryCheck sparse_matrix_checks = jams::SparseMatrixSymmetryCheck::Symmetric;
+
+  if (settings.exists("check_sparse_matrix_symmetry")) {
+    if (bool(settings["check_sparse_matrix_symmetry"]) == false) {
+      sparse_matrix_checks = jams::SparseMatrixSymmetryCheck::None;
+    }
+  }
 
   std::string coordinate_format_name = "CARTESIAN";
   settings.lookupValue("coordinate_format", coordinate_format_name);
@@ -149,7 +156,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     }
   }
 
-  finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
+  finalize(sparse_matrix_checks);
 }
 
 const jams::InteractionList<Mat3,2> &ExchangeHamiltonian::neighbour_list() const {
