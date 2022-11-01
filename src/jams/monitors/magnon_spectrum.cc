@@ -54,7 +54,6 @@ void MagnonSpectrumMonitor::update(Solver *solver) {
 }
 
 void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
-  double total_distance = 0.0;
 
   for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
     ofstream ofs(jams::output::full_path_filename_series("magnon_spectrum_path.tsv", n, 1));
@@ -90,6 +89,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
     auto path_begin = kspace_continuous_path_ranges_[n];
     auto path_end = kspace_continuous_path_ranges_[n + 1];
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
+      double total_distance = 0.0;
       for (auto j = path_begin; j < path_end; ++j) {
         ofs << fmt::integer << j;
         ofs << fmt::decimal << total_distance;
@@ -115,7 +115,6 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
 }
 
 void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum() {
-  double total_distance = 0.0;
 
   for (auto site = 0; site < num_motif_atoms(); ++site) {
     for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
@@ -146,6 +145,7 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum() {
       auto path_begin = kspace_continuous_path_ranges_[n];
       auto path_end = kspace_continuous_path_ranges_[n + 1];
       for (auto i = 0; i < (time_points / 2) + 1; ++i) {
+        double total_distance = 0.0;
         for (auto j = path_begin; j < path_end; ++j) {
           ofs << fmt::integer << j;
           ofs << fmt::decimal << total_distance;
