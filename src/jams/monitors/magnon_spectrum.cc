@@ -54,9 +54,11 @@ void MagnonSpectrumMonitor::update(Solver *solver) {
 }
 
 void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
+
   for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
     ofstream ofs(jams::output::full_path_filename_series("magnon_spectrum_path.tsv", n, 1));
     ofs << jams::fmt::integer << "index";
+    ofs << jams::fmt::decimal << "q_total";
     ofs << jams::fmt::decimal << "h" << jams::fmt::decimal<< "k" << jams::fmt::decimal<< "l";
     ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
     ofs << jams::fmt::decimal << "f_THz";
@@ -87,8 +89,10 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
     auto path_begin = kspace_continuous_path_ranges_[n];
     auto path_end = kspace_continuous_path_ranges_[n + 1];
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
+      double total_distance = 0.0;
       for (auto j = path_begin; j < path_end; ++j) {
         ofs << fmt::integer << j;
+        ofs << fmt::decimal << total_distance;
         ofs << fmt::decimal << kspace_paths_[j].hkl;
         ofs << fmt::decimal << kspace_paths_[j].xyz;
         ofs << fmt::decimal << i * frequency_resolution_thz(); // THz
@@ -100,6 +104,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
             ofs << fmt::sci << prefactor * total_magnon_spectrum(i, j)[k][l].imag();
           }
         }
+        total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j+1].xyz);
         ofs << "\n";
       }
       ofs << "\n";
@@ -110,6 +115,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
 }
 
 void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum() {
+
   for (auto site = 0; site < num_motif_atoms(); ++site) {
     for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
       ofstream ofs(jams::output::full_path_filename_series(
@@ -118,6 +124,7 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum() {
       ofs << "# site: " << site << " ";
       ofs << "material: " << lattice->material_name(lattice->motif_atom(site).material_index) << "\n";
       ofs << jams::fmt::integer << "index";
+      ofs << jams::fmt::decimal << "q_total";
       ofs << jams::fmt::decimal << "h" << jams::fmt::decimal<< "k" << jams::fmt::decimal<< "l";
       ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
       ofs << jams::fmt::decimal << "f_THz";
@@ -138,8 +145,10 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum() {
       auto path_begin = kspace_continuous_path_ranges_[n];
       auto path_end = kspace_continuous_path_ranges_[n + 1];
       for (auto i = 0; i < (time_points / 2) + 1; ++i) {
+        double total_distance = 0.0;
         for (auto j = path_begin; j < path_end; ++j) {
           ofs << fmt::integer << j;
+          ofs << fmt::decimal << total_distance;
           ofs << fmt::decimal << kspace_paths_[j].hkl;
           ofs << fmt::decimal << kspace_paths_[j].xyz;
           ofs << fmt::decimal << i * frequency_resolution_thz(); // THz
@@ -150,6 +159,7 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum() {
               ofs << fmt::sci << prefactor * cumulative_magnon_spectrum_(site, i, j)[k][l].imag();
             }
           }
+          total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j+1].xyz);
           ofs << "\n";
         }
         ofs << "\n";

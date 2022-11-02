@@ -26,3 +26,7 @@ cout
 /cmake-build*
 /.clion.source.upload.marker
 /examples
+/topological_charge
+*.h5
+*.tsv
+*.xdmf

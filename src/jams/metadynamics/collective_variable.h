@@ -1,4 +1,4 @@
-// collective_variable.h                                                          -*-C++-*-
+// collective_variable.h                                               -*-C++-*-
 #ifndef INCLUDED_JAMS_COLLECTIVE_VARIABLE
 #define INCLUDED_JAMS_COLLECTIVE_VARIABLE
 #include <jams/interface/config.h>

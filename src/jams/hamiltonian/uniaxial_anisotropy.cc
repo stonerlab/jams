@@ -97,14 +97,14 @@ UniaxialHamiltonian::UniaxialHamiltonian(const Setting &settings, const unsigned
   for (const auto& ani : anisotropies) {
     for (auto i = 0; i < globals::num_spins; ++i) {
       if (lattice->atom_motif_position(i) == ani.motif_position) {
-        magnitude_(i) = ani.energy * input_unit_conversion_;
+        magnitude_(i) = ani.energy * input_energy_unit_conversion_;
         for (auto j : {0, 1, 2}) {
           axis_(i, j) = ani.axis[j];
         }
       }
       if (lattice->material_exists(ani.material)) {
         if (lattice->atom_material_id(i) == lattice->material_id(ani.material)) {
-          magnitude_(i) = ani.energy * input_unit_conversion_;
+          magnitude_(i) = ani.energy * input_energy_unit_conversion_;
           for (auto j : {0, 1, 2}) {
             axis_(i, j) = ani.axis[j];
           }

@@ -22,8 +22,6 @@ class Hdf5Monitor : public Monitor {
   void update(Solver * solver) override;
     void post_process() override {};
 
-    bool is_converged() override { return false; }
-
  private:
     void write_vector_field(const jams::MultiArray<double, 2>& field, const std::string& data_path, HighFive::File &file) const;
     void write_scalar_field(const jams::MultiArray<double, 1>& field, const std::string& data_path, HighFive::File &file) const;

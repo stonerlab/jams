@@ -4,6 +4,13 @@
 
 #include <jams/metadynamics/caching_collective_variable.h>
 
+// ***************************** WARNING *************************************
+// CVarTopologicalCharge is based on the "geometrical" definition of topological
+// charge and CANNOT be used as a CV in metadynamics because it is strictly an
+// integer. We have retained the class purely to be able to demonstrate of it
+// that it does not work.
+// ***************************** WARNING *************************************
+
 // ---------------------------------------------------------------------------
 // config settings
 // ---------------------------------------------------------------------------

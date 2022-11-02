@@ -224,7 +224,7 @@ inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
   const auto c = dot(ua,ub);
 
   // check if a == b or a == -b
-  if (approximately_zero(norm_sq(v), DBL_EPSILON)) {
+  if (approximately_zero(norm_squared(v), 1e-12)) {
     // this is a shortcut for a == b and necessary
     // for a == -b where Rodrigues's formula will fail
     // return either I or -I
@@ -236,9 +236,11 @@ inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
   //      https://en.wikipedia.org/wiki/Rotation_matrix
   const auto R = kIdentityMat3 + ssc(v) + (1.0 / (1.0 + c)) * ssc(v) * ssc(v) ;
 
+  auto T = transpose(R);
+  auto I = inverse(R);
   // a rotation matrix must be orthogonal and have a determinant of 1
-  assert(approximately_equal(transpose(R), inverse(R), DBL_EPSILON));
-  assert(approximately_equal(determinant(R), 1.0, DBL_EPSILON));
+  assert(approximately_equal(transpose(R), inverse(R), 1e-12));
+  assert(approximately_equal(determinant(R), 1.0, 1e-12));
 
   return R;
 }

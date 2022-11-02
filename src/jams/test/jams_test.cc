@@ -12,9 +12,10 @@
 #include "jams/test/containers/test_multiarray.h"
 #include "jams/test/hamiltonian/test_dipole_cpu.h"
 
-//#ifdef HAS_CUDA
+#ifdef HAS_CUDA
 //#include "jams/test/hamiltonian/test_cuda_dipole_fft.h"
-//#endif
+#include <jams/cuda/cuda_array_reduction.t.h>
+#endif
 
 int main(int argc, char **argv) {
   srand(time(NULL));

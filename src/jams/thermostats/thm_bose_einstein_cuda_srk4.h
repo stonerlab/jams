@@ -9,6 +9,10 @@
 #include "jams/containers/multiarray.h"
 #include "jams/cuda/cuda_stream.h"
 
+/// ******************************** WARNING ***********************************
+/// This thermostat is currently broken. Do not use for production work.
+/// ****************************************************************************
+
 /// This implements a thermostat which has the statistics of a Bose-Einstein
 /// distribution which has the correlations
 ///

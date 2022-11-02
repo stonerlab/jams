@@ -26,9 +26,9 @@ class Physics : public Base {
   static Physics* create(const libconfig::Setting &settings);
 
  protected:
-  double              temperature_;
-  Vec3 applied_field_;
-  int                 output_step_freq_;
+  double  temperature_;
+  Vec3    applied_field_;
+  int     output_step_freq_;
 };
 
 #endif  // JAMS_CORE_PHYSICS_H

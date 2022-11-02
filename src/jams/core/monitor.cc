@@ -6,8 +6,11 @@
 #include "jams/monitors/boltzmann.h"
 #include "jams/monitors/energy.h"
 #include "jams/monitors/field.h"
+#include "jams/monitors/topological_charge_finite_diff.h"
+#include "jams/monitors/topological_charge_geometrical_def.h"
 #include "jams/monitors/hdf5.h"
 #include "jams/monitors/magnetisation.h"
+#include "jams/monitors/magnetisation_layers.h"
 #include "jams/monitors/magnetisation_rate.h"
 #include "jams/monitors/magnon_spectrum.h"
 #include "jams/monitors/skyrmion.h"
@@ -46,8 +49,7 @@ Monitor::Monitor(const Setting &settings)
 : Base(settings),
   output_step_freq_(
           config_optional<int>(settings, "output_steps", jams::defaults::monitor_output_steps)),
-  convergence_is_on_(
-          settings.exists("convergence")),
+  convergence_status_(ConvergenceStatus::kDisabled),
   convergence_tolerance_(
           config_optional<double>(settings, "convergence", jams::defaults::monitor_convergence_tolerance)),
   convergence_stderr_(
@@ -57,7 +59,8 @@ Monitor::Monitor(const Setting &settings)
   cout << "  " << name() << " monitor\n";
   cout << "    output_steps " << output_step_freq_ << "\n";
 
-   if (convergence_is_on_) {
+   if (settings.exists("convergence")) {
+     convergence_status_ = ConvergenceStatus::kNotConverged;
      cout << "    convergence tolerance" << convergence_tolerance_ << "\n";
      cout << "    t_burn" << convergence_burn_time_ << "\n";
    }
@@ -75,8 +78,11 @@ Monitor* Monitor::create(const Setting &settings) {
   DEFINED_MONITOR("boltzmann", BoltzmannMonitor, settings);
   DEFINED_MONITOR("energy", EnergyMonitor, settings);
   DEFINED_MONITOR("field", FieldMonitor, settings);
+  DEFINED_MONITOR("topological-charge-finite-diff", TopologicalFiniteDiffChargeMonitor, settings);
+  DEFINED_MONITOR("topological-charge-geometrical-def", TopologicalGeometricalDefMonitor, settings);
   DEFINED_MONITOR("hdf5", Hdf5Monitor, settings);
   DEFINED_MONITOR("magnetisation", MagnetisationMonitor, settings);
+  DEFINED_MONITOR("magnetisation-layers", MagnetisationLayersMonitor, settings);
   DEFINED_MONITOR("magnetisation-rate", MagnetisationRateMonitor, settings);
   DEFINED_MONITOR("skyrmion", SkyrmionMonitor, settings);
   DEFINED_MONITOR("smr", SMRMonitor, settings);

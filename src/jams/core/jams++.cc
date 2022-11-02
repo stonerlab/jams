@@ -4,6 +4,7 @@
 #include "version.h"
 
 #include <fstream>
+#include <memory>
 #include <jams/common.h>
 
 #if HAS_OMP
@@ -21,12 +22,13 @@
 #include "jams/helpers/duration.h"
 #include "jams/helpers/error.h"
 #include "jams/helpers/exception.h"
-#include "jams/helpers/load.h"
 #include "jams/helpers/output.h"
 #include "jams/interface/config.h"
 #include "jams/helpers/utils.h"
 #include "jams/helpers/timer.h"
 #include "jams/helpers/progress_bar.h"
+
+#include <jams/initializer/init_dispatcher.h>
 
 using namespace std;
 
@@ -47,7 +49,7 @@ namespace jams {
     // otherwise it is directly interpreted as a config string.
     void parse_config_strings(const vector<string>& config_strings, unique_ptr<libconfig::Config>& combined_config) {
       if (!combined_config) {
-        combined_config.reset(new libconfig::Config);
+        combined_config = std::make_unique<libconfig::Config>();
       }
 
       for (const auto &s : config_strings) {
@@ -156,7 +158,7 @@ namespace jams {
         const int config_options = jams::defaults::config_options) {
       using namespace libconfig;
 
-      ::config.reset(new Config);
+      ::config = std::make_unique<Config>();
       ::config->setOptions(config_options);
 
       cout << "config files " << "\n";
@@ -192,7 +194,16 @@ namespace jams {
 
     void initialize_simulation(const jams::ProgramArgs &program_args) {
       try {
-        cout << "\nJAMS++ " << jams::build::version << std::endl;
+        cout << "\nJAMS++ " << semantic_version(jams::build::description) << std::endl;
+
+        if (contains(jams::build::description, "dirty")) {
+          jams_warning("There are uncommitted changes in your git repository. DO NOT USE THIS BINARY FOR PRODUCTION CALCULATIONS.");
+        }
+
+        if (contains(jams::build::description, "unknown")) {
+          jams_warning("JAMS version is unknown. DO NOT USE THIS BINARY FOR PRODUCTION CALCULATIONS.");
+        }
+
         cout << jams::section("build info") << std::endl;
         cout << jams::build_info();
         cout << jams::section("run info") << std::endl;
@@ -274,7 +285,7 @@ namespace jams {
         }
 
         if (::config->exists("initializer")) {
-          global_initializer(::config->lookup("initializer"));
+          jams::InitializerDispatcher::execute(::config->lookup("initializer"));
         }
       }
       catch (const libconfig::SettingTypeException &stex) {
@@ -302,12 +313,13 @@ namespace jams {
           ProgressBar progress;
           Timer<> timer;
           while (::solver->is_running()) {
-            if (::solver->is_converged()) {
+            ::solver->update_physics_module();
+            ::solver->notify_monitors();
+
+            if (::solver->convergence_status() == Monitor::ConvergenceStatus::kConverged) {
               break;
             }
 
-            ::solver->update_physics_module();
-            ::solver->notify_monitors();
             ::solver->run();
 
             progress.set(double(::solver->iteration()) / double(::solver->max_steps()));
@@ -348,32 +360,6 @@ namespace jams {
 
     void cleanup_simulation() {
       jams::delete_global_classes();
-    }
-
-    void global_initializer(const libconfig::Setting &settings) {
-      if (settings.exists("spins")) {
-        std::string file_name = settings["spins"];
-        cout << "reading spin data from file " << file_name << "\n";
-        load_array_from_file(file_name, "/spins", globals::s);
-      }
-
-      if (settings.exists("alpha")) {
-        std::string file_name = settings["alpha"];
-        cout << "reading alpha data from file " << file_name << "\n";
-        load_array_from_file(file_name, "/alpha", globals::alpha);
-      }
-
-      if (settings.exists("mus")) {
-        std::string file_name = settings["mus"];
-        cout << "reading mus data from file " << file_name << "\n";
-        load_array_from_file(file_name, "/mus", globals::mus);
-      }
-
-      if (settings.exists("gyro")) {
-        std::string file_name = settings["gyro"];
-        cout << "reading gyro data from file " << file_name << "\n";
-        load_array_from_file(file_name, "/gyro", globals::gyro);
-      }
     }
 
 }

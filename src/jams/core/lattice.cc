@@ -476,18 +476,33 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   for (const Atom &atom: motif_) {
     cout << "    " << atom.id << " " << materials_.name(atom.material_index) << " " << atom.position << "\n";
   }
-  cout << "\n";
+  cout << endl;
 
-  for (auto i = 0; i < motif_.size(); ++i) {
-    for (auto j = i + 1; j < motif_.size(); ++j) {
-      auto distance = norm(
-              jams::minimum_image(unitcell.a(), unitcell.b(), unitcell.c(), unitcell.periodic(),
-                                  fractional_to_cartesian(motif_[i].position), fractional_to_cartesian(motif_[j].position), jams::defaults::lattice_tolerance));
-      if(distance < jams::defaults::lattice_tolerance) {
-        throw std::runtime_error("motif positions " + std::to_string(i) + " and " + std::to_string(j) + " are closer than the default lattice tolerance");
+  bool check_closeness = jams::config_optional<bool>(unitcell_settings, "check_closeness", true);
+
+  if (check_closeness) {
+    cout << "checking no atoms are too close together..." << std::flush;
+
+    for (auto i = 0; i < motif_.size(); ++i) {
+      for (auto j = i + 1; j < motif_.size(); ++j) {
+        auto distance = norm(
+            jams::minimum_image(unitcell.a(), unitcell.b(), unitcell.c(),
+                                unitcell.periodic(),
+                                fractional_to_cartesian(motif_[i].position),
+                                fractional_to_cartesian(motif_[j].position),
+                                jams::defaults::lattice_tolerance));
+        if (distance < jams::defaults::lattice_tolerance) {
+          throw std::runtime_error(
+              "motif positions " + std::to_string(i) + " and " +
+              std::to_string(j) +
+              " are closer than the default lattice tolerance");
+        }
       }
     }
+    cout << "ok" << endl;
   }
+
+
 
 }
 

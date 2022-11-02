@@ -4,7 +4,7 @@
 
 #include "jams/containers/cell.h"
 
-__attribute__((hot))
+[[gnu::hot]]
 Vec3 minimum_image_orthogonal_basis(const Cell& cell, const Vec3& r_cart_i, const Vec3& r_cart_j) {
   //   W. Smith, CCP5 Information Quarterly for Computer Simulation of Condensed Phases (1989).
   Vec3 dr = cell.inverse_matrix() * (r_cart_j - r_cart_i);
@@ -17,7 +17,7 @@ Vec3 minimum_image_orthogonal_basis(const Cell& cell, const Vec3& r_cart_i, cons
   return cell.matrix() * dr;
 }
 
-__attribute__((hot))
+[[gnu::hot]]
 Vec3 minimum_image_bruteforce(const Cell& cell, const Vec3& r_i_cart, const Vec3& r_j_cart) {
   const auto r_ij = r_j_cart - r_i_cart;
 
@@ -30,7 +30,7 @@ Vec3 minimum_image_bruteforce(const Cell& cell, const Vec3& r_i_cart, const Vec3
     for (auto k = -N_b; k < N_b + 1; ++k) {
       for (auto l = -N_c; l < N_c + 1; ++l) {
         auto ds = r_ij + h * cell.a() + k * cell.b() + l * cell.c();
-        if (norm_sq(ds) < norm_sq(r_ij_min)) {
+        if (norm_squared(ds) < norm_squared(r_ij_min)) {
           r_ij_min = ds;
         }
       }

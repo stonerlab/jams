@@ -113,14 +113,64 @@ public:
     }
 
     // copy assign
-    SyncedMemory& operator=(SyncedMemory rhs) & {
-      swap(*this, rhs);
+    SyncedMemory& operator=(const SyncedMemory &rhs) & {
+
+      if (this != &rhs) {
+        // Only reallocate if sizes are different and only resize the memory
+        // spaces that were already allocated on the rhs.
+        if (size_ != rhs.size_) {
+          if (rhs.host_ptr_) {
+            free_host_memory();
+            allocate_host_memory(rhs.size_);
+          }
+
+          if (rhs.device_ptr_) {
+            free_device_memory();
+            allocate_device_memory(rhs.size_);
+          }
+        }
+
+        size_ = rhs.size_;
+
+        // we use mutable_*_data() for 'this' to ensure allocation
+        // we use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
+
+        if (rhs.host_ptr_) {
+          #if HAS_CUDA
+          if (jams::instance().mode() == jams::Mode::GPU) {
+            #if SYNCEDMEMORY_PRINT_MEMCPY
+            std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
+            #endif
+            CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+          } else {
+            memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
+          }
+          #else
+          memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
+          #endif
+        }
+
+        if (rhs.device_ptr_) {
+          #if HAS_CUDA
+          #if SYNCEDMEMORY_PRINT_MEMCPY
+          std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+          #endif
+          CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
+          #endif
+        }
+      }
       return *this;
     }
 
     SyncedMemory& operator=(SyncedMemory&& rhs) & noexcept {
-      SyncedMemory tmp(std::move(rhs));
-      swap(*this, tmp);
+      size_ = rhs.size_;
+      host_ptr_ = rhs.host_ptr_;
+      device_ptr_ = rhs.device_ptr_;
+      sync_status_ = rhs.sync_status_;
+      rhs.sync_status_ = SyncStatus::UNINITIALIZED;
+      rhs.size_ = 0;
+      rhs.host_ptr_ = nullptr;
+      rhs.device_ptr_ = nullptr;
       return *this;
     }
 

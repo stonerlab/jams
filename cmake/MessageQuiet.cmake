@@ -1,0 +1,5 @@
+function(message)
+    if ((NOT MESSAGE_QUIET) OR (DEFINED VERBOSE))
+        _message(${ARGN})
+    endif()
+endfunction()

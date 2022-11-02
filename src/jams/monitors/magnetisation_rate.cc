@@ -18,17 +18,9 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
 : Monitor(settings),
   tsv_file(jams::output::full_path_filename("dm_dt.tsv")),
   magnetisation_stats_(),
-  convergence_is_on_(false),              // do we want to use convergence in this monitor
-  convergence_tolerance_(1.0),            // 1 standard deviation from the mean
   convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
   using namespace globals;
-
-  if (settings.exists("convergence")) {
-    convergence_is_on_ = true;
-    convergence_tolerance_ = settings["convergence"];
-    cout << "  convergence tolerance " << convergence_tolerance_ << "\n";
-  }
 
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
@@ -67,7 +59,7 @@ void MagnetisationRateMonitor::update(Solver * solver) {
     }
   }
 
-    if (convergence_is_on_) {
+    if (convergence_status_ != Monitor::ConvergenceStatus::kDisabled) {
       double total_dm_dt = 0.0;
       for (auto type = 0; type < lattice->num_materials(); ++type) {
         total_dm_dt += norm(dm_dt[type]);
@@ -82,8 +74,16 @@ void MagnetisationRateMonitor::update(Solver * solver) {
     tsv_file << std::endl;
 }
 
-bool MagnetisationRateMonitor::is_converged() {
-  return ((std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_) && convergence_is_on_);
+Monitor::ConvergenceStatus MagnetisationRateMonitor::convergence_status() {
+  if (convergence_status_ == ConvergenceStatus::kDisabled) {
+    return convergence_status_;
+  }
+
+  if (std::abs(convergence_geweke_diagnostic_) < convergence_tolerance_) {
+    convergence_status_ = ConvergenceStatus::kConverged;
+  }
+
+  return ConvergenceStatus::kNotConverged;
 }
 
 std::string MagnetisationRateMonitor::tsv_header() {
@@ -99,7 +99,7 @@ std::string MagnetisationRateMonitor::tsv_header() {
     ss << name + "_dmz_dt\t";
   }
 
-  if (convergence_is_on_) {
+  if (convergence_status_ != ConvergenceStatus::kDisabled) {
     ss << "geweke_abs_dm_dt\t";
   }
   ss << std::endl;

@@ -1,6 +1,7 @@
 // metadynamics_potential.cc                                                          -*-C++-*-
 
 #include "metadynamics_potential.h"
+#include <jams/helpers/exception.h>
 #include <jams/metadynamics/collective_variable_factory.h>
 #include <jams/maths/interpolation.h>
 #include <jams/helpers/output.h>
@@ -9,8 +10,7 @@
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
 #include <jams/cuda/cuda_array_kernels.h>
-
-// TODO: Add support for boundary conditions
+#include <jams/core/lattice.h>
 
 namespace {
 std::vector<double> linear_space(const double min,const double max,const double step) {
@@ -89,6 +89,8 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
   gaussian_amplitude_ = config_required<double>(settings, "gaussian_amplitude");
 
+  std::string potential_filename = jams::config_optional<std::string>(settings, "potential_file", "");
+
   num_cvars_ = settings["collective_variables"].getLength();
 
   // We currently only support 1D or 2D CV spaces. DO NOT proceed if there are
@@ -102,8 +104,12 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   cvars_.resize(num_cvars_);
   cvar_names_.resize(num_cvars_);
   cvar_bcs_.resize(num_cvars_);
+  lower_cvar_bc_.resize(num_cvars_);
+  upper_cvar_bc_.resize(num_cvars_);
   gaussian_width_.resize(num_cvars_);
   cvar_sample_points_.resize(num_cvars_);
+  cvar_range_min_.resize(num_cvars_);
+  cvar_range_max_.resize(num_cvars_);
 
   // Preset the num_samples in each dimension to 1. Then if we are only using
   // 1D our potential will be N x 1 (rather than N x 0!).
@@ -111,32 +117,75 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
   for (auto i = 0; i < num_cvars_; ++i) {
     // Construct the collective variables from the factor and store pointers
+
     const auto& cvar_settings = settings["collective_variables"][i];
     cvars_[i].reset(CollectiveVariableFactory::create(cvar_settings, ::solver->is_cuda_solver()));
+
     cvar_names_[i] = cvars_[i]->name();
 
     // Set the gaussian width for this collective variable
-    gaussian_width_[i] = config_required<double>(cvar_settings, "gaussian_width");
+    gaussian_width_[i] = config_required<double>(cvar_settings,
+                                                 "gaussian_width");
 
     // Set the samples along this collective variable axis
+
     double range_step = config_required<double>(cvar_settings, "range_step");
     double range_min = config_required<double>(cvar_settings, "range_min");
     double range_max = config_required<double>(cvar_settings, "range_max");
+    if (cvar_names_[i] == ("skyrmion_coordinate_x") ||
+        cvar_names_[i] == ("skyrmion_coordinate_y")) {
+      auto bottom_left = lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
+      auto bottom_right = lattice->get_unitcell().matrix() *
+                          Vec3{double(lattice->size(0)), 0.0, 0.0};
+      auto top_left = lattice->get_unitcell().matrix() *
+                      Vec3{0.0, double(lattice->size(1)), 0.0};
+      auto top_right = lattice->get_unitcell().matrix() *
+                       Vec3{double(lattice->size(0)), double(lattice->size(1)),
+                            0.0};
+      if (cvar_names_[i] == ("skyrmion_coordinate_x")) {
+        auto bounds_x = std::minmax(
+            {bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
+        range_min = bounds_x.first;
+        range_max = bounds_x.second;
+      }
+      if (cvar_names_[i] == ("skyrmion_coordinate_y")) {
+        auto bounds_y = std::minmax(
+            {bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
+        range_min = bounds_y.first;
+        range_max = bounds_y.second;
+      }
+    }
     cvar_sample_points_[i] = linear_space(range_min, range_max, range_step);
+    cvar_range_max_[i] = range_max;
+    cvar_range_min_[i] = range_min;
     num_samples_[i] = cvar_sample_points_[i].size();
+
 
     // Set the boundary conditions for this collective variable
     // TODO: need to implement this!
     if (cvar_settings.exists("bcs")) {
-      if (lowercase(cvar_settings["bcs"]) == "hard"){
+      if (lowercase(cvar_settings["bcs"]) == "hard") {
         cvar_bcs_[i] = PotentialBCs::HardBC;
       } else if (lowercase(cvar_settings["bcs"]) == "mirror") {
         cvar_bcs_[i] = PotentialBCs::MirrorBC;
       } else {
         throw std::runtime_error("unknown metadynamics boundary condition");
       }
+    }
+    // Set the lower and upper boundary conditions for this collective variable
+    //TODO: Once the mirror boundaries are applied need to generalase these if statements
+
+
+    if (cvar_settings.exists("lower_boundary")) {
+      jams::unimplemented_error("lower_boundary");
     } else {
-      cvar_bcs_[i] = PotentialBCs::HardBC;
+      lower_cvar_bc_[i] = PotentialBCs::HardBC;
+    }
+
+    if (cvar_settings.exists("upper_boundary")) {
+      jams::unimplemented_error("upper_boundary");
+    } else {
+      upper_cvar_bc_[i] = PotentialBCs::HardBC;
     }
   }
 
@@ -147,12 +196,18 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
   zero(potential_field_.resize(globals::num_spins, 3));
 
-  cvar_file_.open(jams::output::full_path_filename("metad_cvars.tsv"));
-  cvar_file_ << "time";
-  for (auto i = 0; i < num_cvars_; ++i) {
-    cvar_file_ << " " << cvars_[i]->name();
-  }
-  cvar_file_ << std::endl;
+
+    if (!potential_filename.empty()) {
+        std::cout << "Reading potential landscape data from " << potential_filename << "\n" << "Ensure you input the final h5 file from the previous simmulation" <<"\n";
+        import_potential(potential_filename);
+    }
+
+    cvar_file_.open(jams::output::full_path_filename("metad_cvars.tsv"));
+    cvar_file_ << "time";
+    for (auto i = 0; i < num_cvars_; ++i) {
+      cvar_file_ << " " << cvars_[i]->name();
+    }
+    cvar_file_ << std::endl;
 }
 
 
@@ -161,8 +216,8 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
   // Signal to the CollectiveVariables that they should do any internal work
   // needed due to a spin being accepted (usually related to caching).
   for (const auto& cvar : cvars_) {
-    cvar->spin_move_accepted(i, spin_initial, spin_final);
-  }
+      cvar->spin_move_accepted(i, spin_initial, spin_final);
+  	}
 }
 
 
@@ -177,25 +232,26 @@ double jams::MetadynamicsPotential::potential_difference(
     cvar_trial[n] = cvars_[n]->spin_move_trial_value(i, spin_initial, spin_final);
   }
 
+
   for (auto n = 0; n < num_cvars_; ++n) {
-    if (cvar_bcs_[n] == PotentialBCs::HardBC) {
-      if (cvar_initial[n] < cvar_sample_points_[n].front()
-          || cvar_initial[n] > cvar_sample_points_[n].back()) {
-        return -kHardBCsPotential;
-      }
-      if (cvar_trial[n] < cvar_sample_points_[n].front()
-          || cvar_trial[n] > cvar_sample_points_[n].back()) {
-        return kHardBCsPotential;
-      }
-    }
+	  if (cvar_initial[n] < cvar_sample_points_[n].front()
+		  || cvar_initial[n] > cvar_sample_points_[n].back()) {
+		return -kHardBCsPotential;
+	  }
+	  if (cvar_trial[n] < cvar_sample_points_[n].front()
+		  || cvar_trial[n] > cvar_sample_points_[n].back()) {
+		return kHardBCsPotential;
+	  }
   }
 
   return potential(cvar_trial) - potential(cvar_initial);
 }
 
 
-double jams::MetadynamicsPotential::potential(std::array<double,kMaxDimensions> cvar_coordinates) {
-
+double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimensions>& cvar_coordinates) {
+  assert(cvar_coordinates.size() > 0 && cvar_coordinates.size() <= kMaxDimensions);
+  // Lookup points above and below for linear interpolation. We can use the
+  // the fact that the ranges are sorted to do a bisection search.
 
   double bcs_potential = 0.0;
 
@@ -286,7 +342,6 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
     }
   }
 
-  // TODO: generalise to at least 3D
   // If we only have 1D then we need to just have a single element with '1.0'
   // for the second dimension.
   if (num_cvars_ == 1) {
@@ -409,7 +464,6 @@ double jams::MetadynamicsPotential::current_potential() {
   return potential(coordinates);
 }
 
-
 void jams::MetadynamicsPotential::output(std::ostream& os, const double free_energy_scaling) const {
   os << "time ";
   for (auto n = 0; n < num_cvars_; ++n) {
@@ -434,10 +488,8 @@ void jams::MetadynamicsPotential::output(std::ostream& os, const double free_ene
     os << "\n\n";
     return;
   }
-
   assert(false); // Should not be reachable if num_cvars_ <= kMaxDimensions
 }
-
 
 const jams::MultiArray<double, 2>&
 jams::MetadynamicsPotential::current_fields() {
@@ -530,3 +582,91 @@ double jams::MetadynamicsPotential::interpolated_sample_value(
   assert(false);
   return 0.0;
 }
+
+void jams::MetadynamicsPotential::import_potential(const std::string &filename) {
+    std::vector<double> file_data;
+    bool first_line = true;
+    if (num_cvars_ == 1 ) {
+        double first_cvar, potential_passed;
+        std::ifstream potential_file_passed(filename.c_str());
+
+        int line_number = 0;
+        for (std::string line; getline(potential_file_passed, line);) {
+            if (string_is_comment(line)) {
+                continue;
+            }
+            //ingore the title
+            if (first_line){
+                first_line = false;
+                continue;
+            }
+
+            std::stringstream is(line);
+            is >> first_cvar >> potential_passed;
+
+            if (is.bad() || is.fail()) {
+                throw std::runtime_error("failed to read line " + std::to_string(line_number));
+            }
+
+            file_data.push_back(potential_passed);
+
+            line_number++;
+        }
+        // If the file data is not the same size as our arrays in the class
+        // all sorts of things could go wrong. Stop the simulation here to avoid
+        // unintended consequences.
+        if (file_data.size() != num_samples_[0]) {
+             std::cout << num_samples_[0] << " file_data size:"<< file_data.size(),"\n";
+            throw std::runtime_error("The " + filename + " has different dimensions from the potential");
+        }
+
+        int copy_iterator = 0;
+        for (auto i = 0; i < num_samples_[0]; ++i){
+
+                potential_(i,0) = file_data[copy_iterator];
+                copy_iterator++;
+        }
+        potential_file_passed.close();
+    }
+// **********************************************************************************************
+    if(num_cvars_ == 2) {
+        double first_cvar, second_cvar, potential_passed;
+        std::ifstream potential_file_passed(filename.c_str());
+
+        int line_number = 0;
+        for (std::string line; getline(potential_file_passed, line);) {
+            if (string_is_comment(line)) {
+                continue;
+            }
+            //ingore the title
+            if (first_line){
+                first_line = false;
+                continue;
+            }
+
+            std::stringstream is(line);
+            is >> first_cvar >> second_cvar >> potential_passed;
+
+            file_data.push_back(potential_passed);
+
+            line_number++;
+        }
+
+        // If the file data is not the same size as our arrays in the class
+        // all sorts of things could go wrong. Stop the simulation here to avoid
+        // unintended consequences.
+        if (file_data.size() != num_samples_[0] * num_samples_[1]) {
+            throw std::runtime_error("The" + filename + "has different dimensions from the potential");
+        }
+
+        int copy_iterator = 0;
+        for (auto i = 0; i < num_samples_[0]; ++i) {
+            for (auto j = 0; j < num_samples_[1]; ++j) {
+                potential_(i, j) = file_data[copy_iterator];
+            }
+            copy_iterator++;
+        }
+        potential_file_passed.close();
+    }
+}
+

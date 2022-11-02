@@ -8,60 +8,107 @@
 #include <gmock/gmock.h>
 #include <jams/helpers/random.h>
 
+class LatticeMinimumImageTest : public ::testing::TestWithParam<std::tuple<Vec3, Vec3, Vec3>> {
+protected:
+
+    // These positions are in fractional coordinates (they are multiples of
+    // the lattice vectors a,b,c NOT cartesian points within the unit cell).
+    //
+    // We include a selection of positions which cover lots of possible edge
+    // cases, e.g. the point (0.5, 0.5, 0.5) is generate for cubic cells.
+    std::vector<Vec3> positions = {
+        // origin
+        Vec3{0.0, 0.0, 0.0},
+
+        // body center
+        Vec3{0.5, 0.5, 0.5},
+
+        // edges
+        Vec3{0.25, 0.0, 0.0},
+        Vec3{0.0, 0.25, 0.0},
+        Vec3{0.0, 0.0, 0.25},
+
+        Vec3{0.5, 0.0, 0.0},
+        Vec3{0.0, 0.5, 0.0},
+        Vec3{0.0, 0.0, 0.5},
+
+        Vec3{0.75, 0.0, 0.0},
+        Vec3{0.0, 0.75, 0.0},
+        Vec3{0.0, 0.0, 0.75},
+
+        // faces
+        Vec3{0.0, 0.25, 0.25},
+        Vec3{0.25, 0.0, 0.25},
+        Vec3{0.25, 0.25, 0.0},
+        Vec3{0.25, 0.25, 0.0},
+
+        Vec3{0.0, 0.5, 0.5},
+        Vec3{0.5, 0.0, 0.5},
+        Vec3{0.5, 0.5, 0.0},
+        Vec3{0.5, 0.5, 0.0},
+
+        Vec3{0.0, 0.75, 0.75},
+        Vec3{0.75, 0.0, 0.75},
+        Vec3{0.75, 0.75, 0.0},
+        Vec3{0.75, 0.75, 0.0},
+
+        // quadrants
+        Vec3{0.25, 0.25, 0.25},
+        Vec3{0.25, 0.25, 0.75},
+        Vec3{0.25, 0.75, 0.25},
+        Vec3{0.75, 0.25, 0.25},
+        Vec3{0.75, 0.75, 0.25},
+        Vec3{0.75, 0.25, 0.75},
+        Vec3{0.25, 0.75, 0.75},
+        Vec3{0.75, 0.75, 0.75},
+
+        // thirds
+        Vec3{1.0/3.0, 1.0/3.0, 1.0/3.0},
+        Vec3{2.0/3.0, 2.0/3.0, 2.0/3.0},
+    };
+};
+
 ///
 /// @test
 /// Tests that the minimum_image_smith_method function gives the shortest r_ij
-/// for results where |r_ij| is less than the inradius of the cell.
+/// in the region of validity of the algorithm where |r_ij| is less than the
+/// inradius of the cell.
 ///
-TEST(LatticeMinimumImageTest, minimum_image_smith_method) {
-    using namespace testing;
+TEST_P(LatticeMinimumImageTest, minimum_image_smith_method) {
+  const double double_epsilon = 1e-6;
 
-    std::random_device dev;
-    std::mt19937 rng(dev());
-    std::uniform_real_distribution<double> dist;
+  Vec3 a = std::get<0>(GetParam());
+  Vec3 b = std::get<1>(GetParam());
+  Vec3 c = std::get<2>(GetParam());
 
-    const double double_epsilon = 1e-6;
+  Vec3b pbc = {true, true, true};
 
-    Vec3b pbc = {true, true, true};
+  for (auto i = 0; i < positions.size(); ++i) {
+    for (auto j = 0; j < positions.size(); ++j) {
+      const Vec3 r_i = a * positions[i][0] + b * positions[i][1] + c * positions[i][2];
+      const Vec3 r_j = a * positions[j][0] + b * positions[j][1] + c * positions[j][2];
 
-    auto random_vector = [&](){
-        return Vec3 {dist(rng), dist(rng), dist(rng)};
-    };
+      Vec3 r_ij_smith, r_ij_brute;
 
-    int num_test_cells = 50;
-    int num_test_positions = 100000;
+      r_ij_smith = jams::minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
+      if (!definately_less_than(norm(r_ij_smith),
+                                jams::maths::parallelepiped_inradius(a, b, c),
+                                double_epsilon)) {
+        continue;
+      }
 
-    for (auto n = 0; n < num_test_cells; ++n) {
-        Vec3 a = random_vector();
-        Vec3 b = random_vector();
-        Vec3 c = random_vector();
+      r_ij_brute = jams::minimum_image_bruteforce(a, b, c, pbc, r_i, r_j,
+                                                  double_epsilon);
 
-        auto random_position = [&](){
-            return a * dist(rng) + b * dist(rng) + c * dist(rng);
-        };
+      const Vec<::testing::Matcher<double>, 3> result = {
+          ::testing::DoubleNear(r_ij_brute[0], double_epsilon),
+          ::testing::DoubleNear(r_ij_brute[1], double_epsilon),
+          ::testing::DoubleNear(r_ij_brute[2], double_epsilon)
+      };
 
-        for (auto i = 0; i < num_test_positions; ++i) {
-            const Vec3 r_i = random_position();
-            const Vec3 r_j = random_position();
-
-            Vec3 r_ij_smith, r_ij_brute;
-
-            r_ij_smith = jams::minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
-          if (!definately_less_than(norm(r_ij_smith),
-                                   jams::maths::parallelepiped_inradius(a, b, c), double_epsilon)) {
-                continue;
-            }
-            r_ij_brute = jams::minimum_image_bruteforce(a, b, c, pbc, r_i, r_j, double_epsilon);
-
-            const Vec<Matcher<double>, 3> result = {
-                    DoubleNear(r_ij_brute[0], double_epsilon),
-                    DoubleNear(r_ij_brute[1], double_epsilon),
-                    DoubleNear(r_ij_brute[2], double_epsilon)
-            };
-
-            EXPECT_THAT(r_ij_smith, ElementsAreArray(result));
-        }
+      EXPECT_THAT(r_ij_smith, ElementsAreArray(result));
     }
+  }
 }
 
 ///
@@ -69,86 +116,62 @@ TEST(LatticeMinimumImageTest, minimum_image_smith_method) {
 /// Tests that the general minimum_image function which should work in all cases
 /// gives the shortest r_ij.
 ///
-/// Testing this is difficult because it must already assume that our bruteforce
-/// method works correctly. Here we avoid assuming that the bruteforce automated
-/// selection of offset_depth is correct and compare with an explicit and large
-/// offset_depth.
+/// @attention
+/// We have a stricter requirement than just r_ij being the shortest, but also
+/// r_ij from the minimum_image function should also give the same *vector* as
+/// the bruteforce method (i.e. degenerate distances should consistently
+/// select the same vector amongst the possible choices).
 ///
-/// We use randomly generated cells and positions. To do this we construct
-/// a parallelepiped which can have minimum angles of 10 deg between vectors.
-/// This avoids random failures of the test when very collinear vectors are
-/// generated making the parallelepiped too skew to even bruteforce search
-/// effectively. Note that the random parallelepiped is still randomly oriented
-/// in a 3D space, i.e. we don't align 'a' along x.
+/// @warning
+/// This test already assumes that our bruteforce method works correctly. Here
+/// we avoid assuming that the bruteforce automated selection of offset_depth is
+/// correct and compare with an explicit and large offset_depth. This simpler
+/// bruteforce implementation is very simple code *likely* to be bug free, but
+/// means this test is not suitable for very skew cells where the offset_depth
+/// may be insufficient.
 ///
-TEST(LatticeMinimumImageTest, minimum_image) {
-    using namespace testing;
+TEST_P(LatticeMinimumImageTest, minimum_image) {
+  const double double_epsilon = 1e-6;
 
-    std::random_device dev;
-    std::mt19937 rng(dev());
-    std::uniform_real_distribution<double> angle_dist(deg_to_rad(10.0), deg_to_rad(90.0));
-    std::uniform_real_distribution<double> length_dist(1.0, 5.0);
-    std::uniform_real_distribution<double> pos_dist(1.0, 5.0);
+  Vec3 a = std::get<0>(GetParam());
+  Vec3 b = std::get<1>(GetParam());
+  Vec3 c = std::get<2>(GetParam());
 
-    const double double_epsilon = 1e-6;
+  Vec3b pbc = {true, true, true};
 
-    Vec3b pbc = {true, true, true};
+  for (auto i = 0; i < positions.size(); ++i) {
+    for (auto j = 0; j < positions.size(); ++j) {
+      const Vec3 r_i = a * positions[i][0] + b * positions[i][1] + c * positions[i][2];
+      const Vec3 r_j = a * positions[j][0] + b * positions[j][1] + c * positions[j][2];
 
-    int num_test_cells = 20;
-    int num_test_positions = 10;
+      auto r_ij = jams::minimum_image(a, b, c, pbc, r_i, r_j, double_epsilon);
+      auto r_ij_brute = jams::minimum_image_bruteforce_explicit_depth(a, b, c, pbc, r_i, r_j, {9, 9, 9}, double_epsilon);
 
-    for (auto n = 0; n < num_test_cells; ++n) {
+      const Vec<testing::Matcher<double>, 3> result = {
+          testing::DoubleNear(r_ij_brute[0], double_epsilon),
+          testing::DoubleNear(r_ij_brute[1], double_epsilon),
+          testing::DoubleNear(r_ij_brute[2], double_epsilon)
+      };
 
-      // choose random angles
-      double alpha = angle_dist(rng); // angle between b and c
-      double beta  = angle_dist(rng); // angle between a and c
-      double gamma = angle_dist(rng); // angle between a and b
-
-        // choose random lengths for the cell
-        double u = length_dist(rng);
-        double v = length_dist(rng);
-        double w = length_dist(rng);
-
-        // choose a random vector for a
-        Vec3 a = uniform_random_sphere(rng);
-
-        // choose a random orientation for the a,b plane
-        Vec3 axis = cross(a, uniform_random_sphere(rng));
-
-        // rotate b from a by gamma around the random axis
-        Vec3 b = rotation_matrix(axis, gamma) * a;
-
-        // rotate c from a in the a,b plane by beta
-        // then rotate away from the a,b plane by alpha
-        Vec3 c = rotation_matrix(axis, beta) * a;
-        c = rotation_matrix(b, alpha) * c;
-
-        // assign random lengths
-        a = u * a;
-        b = v * b;
-        c = w * c;
-
-        auto random_position = [&](){
-            return a * pos_dist(rng) + b * pos_dist(rng) + c * pos_dist(rng);
-        };
-
-        for (auto i = 0; i < num_test_positions; ++i) {
-            const Vec3 r_i = random_position();
-            const Vec3 r_j = random_position();
-
-            auto r_ij = jams::minimum_image(a, b, c, pbc, r_i, r_j, double_epsilon);
-
-            auto r_ij_brute = jams::minimum_image_bruteforce_explicit_depth(a, b, c, pbc, r_i, r_j, {50, 50, 50}, double_epsilon);
-
-            const Vec<Matcher<double>, 3> result = {
-                    DoubleNear(r_ij_brute[0], double_epsilon),
-                    DoubleNear(r_ij_brute[1], double_epsilon),
-                    DoubleNear(r_ij_brute[2], double_epsilon)
-            };
-
-            ASSERT_THAT(r_ij, ElementsAreArray(result)) << "|r_ij|: " << norm(r_ij) << "|r_ij_ref|: " << norm(r_ij_brute);
-        }
+      EXPECT_THAT(r_ij, ElementsAreArray(result)) << "|r_ij_test|: " << norm(r_ij) << "|r_ij_bruteforce|: " << norm(r_ij_brute);
     }
+  }
 }
+
+// A selection of Bravais lattices to test against. In principle we could
+// generate random lattice vectors (and we used to) but very skew cells take
+// a very long time to test with bruteforce. If using random cells we can't use
+// an explicit depth search but have to calculate the depth too otherwise we
+// had random failures when the cell was too skew for the current depth.
+// Any cells which appear to break the minimum image code should be added here
+// as test cases.
+INSTANTIATE_TEST_SUITE_P(LatticeTypes, LatticeMinimumImageTest,
+                         testing::Values(
+                             std::tuple<Vec3, Vec3, Vec3>({1,0,0}, {0,1,0}, {0,0,1}),             // cubic
+                             std::tuple<Vec3, Vec3, Vec3>({1,0,0}, {0.5,sqrt(3)/2,0}, {0,0,1.2}), // hexagonal
+                             std::tuple<Vec3, Vec3, Vec3>({0.5, -1/(2*sqrt(3)), 1.0/3.0 }, {1, 1/sqrt(3), 1.0/3.0}, {-0.5, -1/(2*sqrt(3)), 1.0/3.0}), // rhombohedral
+                             std::tuple<Vec3, Vec3, Vec3>({1,0,0}, {0,1,0}, {0,0,0.98}),             // tetragonal
+                             std::tuple<Vec3, Vec3, Vec3>({1,0,0}, {0,0.75,0}, {0,0,1.2})             // orthorhombic
+                         ));
 
 #endif //JAMS_LATTICE_MINIMUM_IMAGE_TEST_H

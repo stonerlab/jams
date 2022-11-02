@@ -34,21 +34,25 @@ set(JAMS_SOURCES_CXX
         helpers/neutrons.cc
         helpers/output.cc
         helpers/slice.cc
+        helpers/spinops.cc
         helpers/stats.cc
         helpers/utils.cc
+        initializer/init_dispatcher.cc
+        initializer/init_bloch_domain_wall.cc
+        initializer/init_h5.cc
+        initializer/init_skyrmion.cc
         interface/config.cc
         interface/fft.cc
         interface/system.cc
         metadynamics/collective_variable_factory.cc
-        metadynamics/magnetisation_cv.cc
-        metadynamics/mz_orthogonal_mz_cv.cc
-        metadynamics/skyrmion_center_cv.cc
         metadynamics/metadynamics_potential.cc
         metadynamics/collective_variable.cc
         metadynamics/caching_collective_variable.cc
         metadynamics/cvars/cvar_magnetisation.cc
         metadynamics/cvars/cvar_reduced_mz.cc
+        metadynamics/cvars/cvar_skyrmion_center_coordinate.cc
         metadynamics/cvars/cvar_topological_charge.cc
+        metadynamics/cvars/cvar_topological_charge_finite_diff.cc
         lattice/minimum_image.cc
         lattice/interaction_neartree.cc
         maths/functions.cc
@@ -58,8 +62,11 @@ set(JAMS_SOURCES_CXX
         monitors/boltzmann.cc
         monitors/energy.cc
         monitors/field.cc
+        monitors/topological_charge_finite_diff.cc
+        monitors/topological_charge_geometrical_def.cc
         monitors/hdf5.cc
         monitors/magnetisation.cc
+        monitors/magnetisation_layers.cc
         monitors/magnetisation_rate.cc
         monitors/magnon_spectrum.cc
         monitors/neutron_scattering.cc
@@ -81,6 +88,7 @@ set(JAMS_SOURCES_CXX
         physics/fmr.cc
         physics/mean_first_passage_time.cc
         physics/ping.cc
+        physics/pinned_boundaries.cc
         physics/square_field_pulse.cc
         physics/two_temperature_model.cc
         solvers/cpu_llg_heun.cc
@@ -92,8 +100,10 @@ set(JAMS_SOURCES_CXX
 
 set(JAMS_SOURCES_CUDA
         cuda/cuda_array_kernels.cu
+        cuda/cuda_array_reduction.cu
         cuda/cuda_common.cu
         cuda/cuda_solver.cc
+        cuda/cuda_spin_ops.cu
         cuda/cuda_minimum_image.cu
         hamiltonian/cuda_applied_field.cu
         hamiltonian/cuda_cubic_anisotropy.cu
@@ -117,5 +127,6 @@ set(JAMS_SOURCES_CUDA
         solvers/cuda_metadynamics_llg_rk4.cu
         thermostats/thm_bose_einstein_cuda_srk4.cu
         thermostats/thm_bose_einstein_cuda_srk4_kernel.cuh
+        thermostats/cuda_langevin_bose.cu
         thermostats/cuda_lorentzian.cu
         thermostats/cuda_langevin_white.cc)

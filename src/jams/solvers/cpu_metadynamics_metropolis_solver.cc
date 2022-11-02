@@ -10,12 +10,13 @@
 #include "jams/core/physics.h"
 
 #include <iostream>
+#include <memory>
 
 void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings) {
   MetropolisMCSolver::initialize(settings);
 
   // Set the pointer to the collective variables attached to the solver
-  metad_potential_.reset(new jams::MetadynamicsPotential(settings));
+  metad_potential_ = std::make_unique<jams::MetadynamicsPotential>(settings);
 
   // ---------------------------------------------------------------------------
   // Read settings
@@ -109,4 +110,5 @@ MetropolisMCSolver::accept_move(spin_index, initial_spin, final_spin);
 // which can often avoid some expensive recalculations if we tell it which
 // spin has changed and what the new value is
 metad_potential_->spin_update(spin_index, initial_spin, final_spin);
+
 }

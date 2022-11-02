@@ -28,7 +28,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
 
     std::vector<double> values(settings["d2z"].getLength());
     for (auto i = 0; i < settings["d2z"].getLength(); ++i) {
-      values[i] = double(settings["d2z"][i]) * input_unit_conversion_;
+      values[i] = double(settings["d2z"][i]) * input_energy_unit_conversion_;
     }
 
     cfg_mca_value.push_back(values);
@@ -42,7 +42,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
 
     std::vector<double> values(settings["d4z"].getLength());
     for (auto i = 0; i < settings["d4z"].getLength(); ++i) {
-      values[i] = double(settings["d4z"][i]) * input_unit_conversion_;
+      values[i] = double(settings["d4z"][i]) * input_energy_unit_conversion_;
     }
 
     cfg_mca_value.push_back(values);
@@ -56,7 +56,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
 
     std::vector<double> values(settings["d6z"].getLength());
     for (auto i = 0; i < settings["d6z"].getLength(); ++i) {
-      values[i] = double(settings["d6z"][i]) * input_unit_conversion_;
+      values[i] = double(settings["d6z"][i]) * input_energy_unit_conversion_;
     }
 
     cfg_mca_value.push_back(values);

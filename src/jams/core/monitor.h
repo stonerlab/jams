@@ -34,7 +34,7 @@
 ///         void update(Solver *solver) override;
 ///         void post_process() override {};
 ///
-///         bool is_converged() override;
+///         bool convergence_status() override;
 ///     };
 ///
 /// @endcode
@@ -51,6 +51,12 @@ class Solver;
 
 class Monitor : public Base {
 public:
+
+    enum class ConvergenceStatus {
+        kDisabled,
+        kConverged,
+        kNotConverged,
+    };
 
     ///
     /// Construct the monitor using any config values provided in `settings`.
@@ -78,7 +84,7 @@ public:
     ///
     virtual void post_process() = 0;
 
-    virtual bool is_converged() = 0;
+    virtual ConvergenceStatus convergence_status() { return convergence_status_; };
 
     bool is_updating(const int &iteration) const;
 
@@ -92,7 +98,7 @@ public:
 
 protected:
     int output_step_freq_;
-    bool convergence_is_on_;
+    ConvergenceStatus convergence_status_;
     double convergence_tolerance_;
     double convergence_stderr_;
     double convergence_burn_time_;

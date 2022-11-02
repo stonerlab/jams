@@ -42,7 +42,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   vector<RandomAnisotropyProperties> properties;
   for (auto i = 0; i < settings["magnitude"].getLength(); ++i) {
     properties.push_back({
-            double(settings["magnitude"][i]) * input_unit_conversion_,
+                             double(settings["magnitude"][i]) * input_energy_unit_conversion_,
             settings.exists("sigma") ? double(settings["sigma"][i]) : 0.0});
   }
 

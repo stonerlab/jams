@@ -7,7 +7,9 @@
 
 #include <map>
 
-#include "jams/helpers/consts.h"
+#include <jams/helpers/consts.h>
+#include <jams/core/lattice.h>
+#include <jams/core/globals.h>
 
 namespace jams {
     const std::map<std::string, double> internal_energy_unit_conversion = {
@@ -15,7 +17,7 @@ namespace jams {
             {"J", kJoule2meV},
             {"milli_electron_volts", 1.0},
             {"meV", 1.0},
-            {"milli_rydbergs", kJoule2meV},
+            {"milli_rydbergs", kmRyd2meV},
             {"mRyd", kmRyd2meV},
             {"rydbergs", kmRyd2meV * 1e3},
             {"Ryd", kmRyd2meV * 1e3}

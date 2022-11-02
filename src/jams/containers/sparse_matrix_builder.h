@@ -18,15 +18,15 @@ namespace jams {
     public:
         Builder() = default;
 
-        Builder(size_type num_rows, size_type num_cols)
+        Builder(index_type num_rows, index_type num_cols)
             : num_rows_(num_rows), num_cols_(num_cols) {}
 
-        void insert(size_type i, size_type j, const value_type &value);
+        void insert(index_type i, index_type j, const value_type &value);
 
         std::size_t memory() {
           return val_.capacity() * sizeof(value_type)
-               + row_.capacity() * sizeof(size_type)
-               + col_.capacity() * sizeof(size_type);
+               + row_.capacity() * sizeof(index_type)
+               + col_.capacity() * sizeof(index_type);
         }
 
         void output(std::ostream& os);
@@ -68,25 +68,25 @@ namespace jams {
 
         void assert_safe_numeric_limits() const;
 
-        void assert_index_is_valid(size_type i, size_type j) const;
+        void assert_index_is_valid(index_type i, index_type j) const;
 
         SparseMatrixFormat format_ = SparseMatrixFormat::COO;
         SparseMatrixType type_ = SparseMatrixType::GENERAL;
         SparseMatrixFillMode fill_mode_ = SparseMatrixFillMode::LOWER;
 
-        size_type num_rows_ = 0;
-        size_type num_cols_ = 0;
+        index_type num_rows_ = 0;
+        index_type num_cols_ = 0;
 
         bool is_sorted_ = false;
         bool is_merged_ = false;
 
         std::vector<value_type> val_;
-        std::vector<size_type> row_;
-        std::vector<size_type> col_;
+        std::vector<index_type> row_;
+        std::vector<index_type> col_;
     };
 
     template<typename T>
-    void SparseMatrix<T>::Builder::insert(size_type i, size_type j, const value_type &value) {
+    void SparseMatrix<T>::Builder::insert(index_type i, index_type j, const value_type &value) {
       assert_safe_numeric_limits();
       assert_index_is_valid(i, j);
       row_.push_back(i);
@@ -126,6 +126,9 @@ namespace jams {
 
       assert(row_.size() == col_.size());
       assert(row_.size() == val_.size());
+
+      // check the rows really are sorted
+      assert(std::is_sorted(row_.begin(), row_.end()));
 
       is_sorted_ = true;
     }
@@ -178,29 +181,54 @@ namespace jams {
 
       const auto nnz = val_.size();
 
+      // Here row_ is sorted and merged. Merged means that any entries with the
+      // same (row, col) are summed together. But there are still nnz entries
+      // in row_, col_ and val_. Now we need to 'compress' the rows. This means
+      // recording the col, val index that a row starts at into csr_rows.
+      // There is always the possibility that rows contain no values in which
+      // case the index should not increment.
+
       index_container csr_rows(num_rows_ + 1);
 
       csr_rows(0) = 0;
-      size_type current_row = 0;
-      size_type previous_row = 0;
+      index_type current_row = 0;
+      index_type previous_row = 0;
 
-      for (auto m = 1; m < nnz; ++m) {
-        assert(m < row_.size());
+      for (auto m = 1; m < row_.size(); ++m) {
+
         current_row = row_[m];
+        assert(current_row < num_rows_);
+
+        // We're still compressing this row
         if (current_row == previous_row) {
           continue;
         }
 
         assert(current_row + 1 < csr_rows.size());
 
-        // fill in row array including any missing entries where there were no row,col values
-        for (auto i = previous_row+1; i < current_row+1; ++i) {
+        // Current row is not the same as the previous row
+
+        // Find the difference between the current row and the previous
+        // row. This may not be 1 in the case where there are empty rows in
+        // the sparse matrix.
+        for (auto i = previous_row + 1; i < current_row + 1; ++i) {
           csr_rows(i) = m;
         }
 
         previous_row = current_row;
       }
-      csr_rows(num_rows_) = nnz;
+
+      // We may not have reached the end of the rows if there are empty rows
+      // at the bottom of the matrix. So we need to keep looping until the
+      // end and insert nnz.
+      for (auto i = previous_row + 1; i < num_rows_ + 1; ++i) {
+        csr_rows(i) = nnz;
+      }
+
+      assert(csr_rows(0) == 0);
+      assert(csr_rows(num_rows_) == nnz);
+      assert(std::is_sorted(csr_rows.begin(), csr_rows.end()));
+
       jams::util::force_deallocation(row_);
       index_container csr_cols(col_.begin(), col_.end());
       jams::util::force_deallocation(col_);
@@ -226,13 +254,13 @@ namespace jams {
 
     template<typename T>
     void SparseMatrix<T>::Builder::assert_safe_numeric_limits() const {
-      if (val_.size() >= std::numeric_limits<size_type>::max() - 1) {
-        throw std::runtime_error("Number of non zero elements is too large for the sparse matrix size_type");
+      if (val_.size() >= std::numeric_limits<index_type>::max() - 1) {
+        throw std::runtime_error("Number of non zero elements is too large for the sparse matrix index_type");
       }
     }
 
     template<typename T>
-    void SparseMatrix<T>::Builder::assert_index_is_valid(SparseMatrix::size_type i, SparseMatrix::size_type j) const {
+    void SparseMatrix<T>::Builder::assert_index_is_valid(SparseMatrix::index_type i, SparseMatrix::index_type j) const {
       if ((i >= num_rows_) || (i < 0) || (j >= num_cols_) || (j < 0)) {
         throw std::runtime_error("Invalid index for sparse matrix");
       }
@@ -284,38 +312,81 @@ namespace jams {
       this->sort();
       this->merge();
 
+      // first, build a compressed row index
+
+      const auto nnz = val_.size();
+
+      // Here row_ is sorted and merged. Merged means that any entries with the
+      // same (row, col) are summed together. But there are still nnz entries
+      // in row_, col_ and val_. Now we need to 'compress' the rows. This means
+      // recording the col, val index that a row starts at into csr_rows.
+      // There is always the possibility that rows contain no values in which
+      // case the index should not increment.
+
+      index_container csr_rows(num_rows_ + 1);
+
+      csr_rows(0) = 0;
+      index_type current_row = 0;
+      index_type previous_row = 0;
+
+      for (auto m = 1; m < row_.size(); ++m) {
+
+        current_row = row_[m];
+        assert(current_row < num_rows_);
+
+        // We're still compressing this row
+        if (current_row == previous_row) {
+          continue;
+        }
+
+        assert(current_row + 1 < csr_rows.size());
+
+        // Current row is not the same as the previous row
+
+        // Find the difference between the current row and the previous
+        // row. This may not be 1 in the case where there are empty rows in
+        // the sparse matrix.
+        for (auto i = previous_row + 1; i < current_row + 1; ++i) {
+          csr_rows(i) = m;
+        }
+
+        previous_row = current_row;
+      }
+
+      // We may not have reached the end of the rows if there are empty rows
+      // at the bottom of the matrix. So we need to keep looping until the
+      // end and insert nnz.
+      for (auto i = previous_row + 1; i < num_rows_ + 1; ++i) {
+        csr_rows(i) = nnz;
+      }
+
       for (auto n = 0; n < row_.size(); ++n) {
         auto i = row_[n];
         auto j = col_[n];
         auto val = val_[n];
 
-        auto low = std::lower_bound(row_.cbegin(), row_.cend(), j);
+        auto row_start = csr_rows(j);
+        auto row_end   = csr_rows(j+1);
 
-        if ((*low) != j || low == row_.cend()) {
-          // this col (j) does not exist in row_ so matrix cannot be structurally symmetric
+        if (row_start == row_end) {
+          // column 'j' doesn't have any row indices so the matrix is not symmetric
           return false;
         }
 
-        auto up = std::upper_bound(low, row_.cend(), j);
+        auto found = std::lower_bound(col_.begin()+row_start, col_.begin()+row_end, i);
 
-        // all elements between 'low' and 'up' are data for row == j == col_[n]
-
-        auto col_begin = col_.cbegin() + (low - row_.cbegin());
-        auto col_end = col_.cbegin() + (up - row_.cbegin());
-
-        auto col_loc = std::find(col_begin, col_end, i);
-
-        if (col_loc == col_.cend()) {
-          // this i does not exist in col_ so matrix cannot be structurally symmetric
+        if (found == col_.begin()+row_end) {
+          // the corresponding column in j,i was not found so the matrix is not symmetric
           return false;
         }
 
-        auto val_trans = val_.begin() + (col_loc - col_.cbegin());
+        auto ptr_diff = found - col_.begin();
 
-        if (val != (*val_trans)) {
-          // even though the matrix is structurally symmetric the values are not symmetric
+        if ( *(val_.begin() + ptr_diff) != val ) {
+          // the values for i,j and j,i do not match so the matrix is not symmetric
           return false;
         }
+
       }
       return true;
     }

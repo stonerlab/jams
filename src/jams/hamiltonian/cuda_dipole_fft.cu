@@ -261,7 +261,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                                           lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
                                                                                                        {nx, ny, nz})); // generate_cartesian_lattice_position_from_fractional requires FRACTIONAL coordinate
 
-                const auto r_abs_sq = norm_sq(r_ij);
+                const auto r_abs_sq = norm_squared(r_ij);
 
                 if (!std::isnormal(r_abs_sq)) {
                   throw runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: r_abs_sq is not normal");

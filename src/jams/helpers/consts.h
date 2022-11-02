@@ -36,6 +36,7 @@ constexpr double kBoltzmannIU         = 0.0861733326;  // meV K^-1
 constexpr double kVacuumPermeabilityIU   = 4*kPi*1E-7 / kJoule2meV; // Original is H m^-1 = J A^-2 m^-1 which we change to
 
 constexpr double kMeterToAngstroms      = 1e10;
+constexpr double kMeterToNanometer      = 1e9;
 
 constexpr double kBytesToMegaBytes      = 1048576.0;
 

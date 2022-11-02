@@ -22,8 +22,6 @@ class SpectrumFourierMonitor : public Monitor {
     void update(Solver *solver) override;
     void post_process() override {};
 
-    bool is_converged() override { return false; }
-
 private:
     void fft_space();
 
