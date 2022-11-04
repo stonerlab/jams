@@ -17,7 +17,7 @@ __global__ void cuda_uniaxial_field_kernel(const int num_spins, const int power,
   if (idx < num_spins) {
     const double s[3] = {dev_s[3*idx], dev_s[3*idx+1], dev_s[3*idx+2]};
     const double a[3] = {axis[3*idx], axis[3*idx+1], axis[3*idx+2]};
-    const auto pre = magnitude[idx] * power * pow(dot(s, a), power-1);
+    const double pre = magnitude[idx] * power * pow(dot(s, a), power-1);
 
     dev_h[3 * idx]     = pre * a[0];
     dev_h[3 * idx + 1] = pre * a[1];

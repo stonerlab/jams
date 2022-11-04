@@ -43,10 +43,10 @@ namespace jams {
         /// Returns the value of the potential at the given coordinates using
         /// (bi)linear interpolation
         double potential(
-            std::array<double, kMaxDimensions> cvar_coordinates);
+            std::array<double, kMaxDimensions>& cvar_coordinates);
 
         double potential_derivative(
-            std::array<double, kMaxDimensions> cvar_coordinates);
+            std::array<double, kMaxDimensions>& cvar_coordinates);
 
 
         /// Calculate the difference in potential energy for the system when a
