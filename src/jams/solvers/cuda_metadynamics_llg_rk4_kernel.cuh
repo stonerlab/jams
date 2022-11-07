@@ -67,7 +67,7 @@ __global__ void cuda_metadynamics_llg_rk4_kernel
 
     double rhs[3];
     for (auto n = 0; n < 3; ++n) {
-      rhs[n] = -gyro_dev[idx] * ((sxh[n] + sxf[n]) + alpha_dev[idx] * (sxsxh[n] + sxsxf[n]) );
+      rhs[n] = -gyro_dev[idx] * ((sxh[n] + sxf[n]) + alpha_dev[idx] * sxsxh[n]  + sxsxf[n] );
     }
 
     for (auto n = 0; n < 3; ++n) {
