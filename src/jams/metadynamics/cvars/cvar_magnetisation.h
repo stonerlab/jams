@@ -49,6 +49,10 @@ public:
 
     double value() override;
 
+    inline const jams::MultiArray<double, 2>& derivatives() override {
+      throw std::runtime_error("unimplemented function");
+    };
+
     /// Returns the value of the collective variable after a trial
     /// spin move from spin_initial to spin_final (to be used with Monte Carlo).
     double spin_move_trial_value(
@@ -56,7 +60,7 @@ public:
 
     double calculate_expensive_value() override;
 
-private:
+protected:
     std::string name_ = "magnetisation";
 
     int magnetisation_component_;

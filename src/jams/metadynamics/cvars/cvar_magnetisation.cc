@@ -39,13 +39,13 @@ jams::CVarMagnetisation::CVarMagnetisation(const libconfig::Setting &settings) {
 
   if (lowercase(component) == "x") {
     magnetisation_component_ = 0;
-    name_ = "magnetisation_x";
+    name_.append("_x");
   } else if (lowercase(component) == "y") {
     magnetisation_component_ = 1;
-    name_ = "magnetisation_y";
+    name_.append("_y");
   } else if (lowercase(component) == "z") {
     magnetisation_component_ = 2;
-    name_ = "magnetisation_z";
+    name_.append("_z");
   } else {
     throw std::runtime_error("'component' setting in magnetisation collective variable must be x, y or z");
   }

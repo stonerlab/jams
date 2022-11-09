@@ -4,6 +4,7 @@
 #include <jams/interface/config.h>
 
 #include <jams/containers/vec3.h>
+#include <jams/containers/multiarray.h>
 
 #include <string>
 #include <vector>
@@ -21,6 +22,8 @@ public:
 
     /// Returns the current value of the collective variable.
     virtual double value() = 0;
+
+    virtual const jams::MultiArray<double, 2>& derivatives() = 0;
 
     /// Returns the value of the collective variable after a trial
     /// spin move from spin_initial to spin_final (to be used with Monte Carlo).

@@ -9,9 +9,8 @@
 
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
+#include <jams/cuda/cuda_array_kernels.h>
 #include <jams/core/lattice.h>
-
-// TODO: Add support for boundary conditions
 
 namespace {
 std::vector<double> linear_space(const double min,const double max,const double step) {
@@ -117,9 +116,9 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   std::fill(std::begin(num_samples_), std::end(num_samples_), 1);
 
   for (auto i = 0; i < num_cvars_; ++i) {
-    // Construct the collective variables from the factor and store pointers
-    const auto &cvar_settings = settings["collective_variables"][i];
-    cvars_[i].reset(CollectiveVariableFactory::create(cvar_settings));
+    // Construct the collective variables from the factory and store pointers
+    const auto& cvar_settings = settings["collective_variables"][i];
+    cvars_[i].reset(CollectiveVariableFactory::create(cvar_settings, ::solver->is_cuda_solver()));
     cvar_names_[i] = cvars_[i]->name();
 
     // Set the gaussian width for this collective variable
@@ -131,6 +130,8 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     double range_step = config_required<double>(cvar_settings, "range_step");
     double range_min = config_required<double>(cvar_settings, "range_min");
     double range_max = config_required<double>(cvar_settings, "range_max");
+
+    // IOANNIS CODE: check if it's still used
     if (cvar_names_[i] == ("skyrmion_coordinate_x") ||
         cvar_names_[i] == ("skyrmion_coordinate_y")) {
       auto bottom_left = lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
@@ -154,11 +155,24 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
         range_max = bounds_y.second;
       }
     }
+
     cvar_sample_points_[i] = linear_space(range_min, range_max, range_step);
     cvar_range_max_[i] = range_max;
     cvar_range_min_[i] = range_min;
     num_samples_[i] = cvar_sample_points_[i].size();
 
+
+    // Set the boundary conditions for this collective variable
+    // TODO: need to implement this!
+    if (cvar_settings.exists("bcs")) {
+      if (lowercase(cvar_settings["bcs"]) == "hard") {
+        cvar_bcs_[i] = PotentialBCs::HardBC;
+      } else if (lowercase(cvar_settings["bcs"]) == "mirror") {
+        cvar_bcs_[i] = PotentialBCs::MirrorBC;
+      } else {
+        throw std::runtime_error("unknown metadynamics boundary condition");
+      }
+    }
     // Set the lower and upper boundary conditions for this collective variable
     //TODO: Once the mirror boundaries are applied need to generalase these if statements
 
@@ -176,7 +190,13 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     }
   }
 
-    potential_.resize(num_samples_[0], num_samples_[1]);
+  // TODO: need to fix bug for resizing with std::array to make this general for
+  // kMaxDimensions
+  potential_.resize(num_samples_[0], num_samples_[1]);
+  potential_derivative_.resize(num_samples_[0], num_samples_[1]);
+
+  zero(potential_field_.resize(globals::num_spins, 3));
+
 
     if (!potential_filename.empty()) {
         std::cout << "Reading potential landscape data from " << potential_filename << "\n" << "Ensure you input the final h5 file from the previous simmulation" <<"\n";
@@ -229,84 +249,98 @@ double jams::MetadynamicsPotential::potential_difference(
 }
 
 
-double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimensions>& cvar_coordinates) {
+double jams::MetadynamicsPotential::potential(std::array<double,kMaxDimensions>& cvar_coordinates) {
   assert(cvar_coordinates.size() > 0 && cvar_coordinates.size() <= kMaxDimensions);
   // Lookup points above and below for linear interpolation. We can use the
-  // the fact that the ranges are sorted to do a bisection search.
-
-  std::array<double,kMaxDimensions> sample_lower;
-  std::array<int,kMaxDimensions> index_lower;
+  // fact that the ranges are sorted to do a bisection search.
 
   double bcs_potential = 0.0;
 
   // Apply any hard boundary conditions where the potential is set very large
   // if we are outside of the collective variable's range.
   for (auto n = 0; n < num_cvars_; ++n) {
-	  if (cvar_coordinates[n] < cvar_sample_points_[n].front()
-		  || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
-		bcs_potential = kHardBCsPotential;
-	  }
+    if (cvar_bcs_[n] == PotentialBCs::HardBC) {
+      if (cvar_coordinates[n] < cvar_sample_points_[n].front()
+          || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+        bcs_potential = kHardBCsPotential;
+      }
+    } else if (cvar_bcs_[n] == PotentialBCs::MirrorBC) {
+      if (cvar_coordinates[n] < cvar_sample_points_[n].front()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].front() - cvar_coordinates[n];
+      }
+      if (cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].back() - cvar_coordinates[n];
+      }
+    }
   }
 
+  return bcs_potential + interpolated_sample_value(potential_, cvar_coordinates);
+}
+
+double jams::MetadynamicsPotential::potential_derivative(
+    std::array<double, kMaxDimensions>& cvar_coordinates) {
+
+
+  double bcs_potential = 0.0;
+
+  // Apply any hard boundary conditions where the potential is set very large
+  // if we are outside of the collective variable's range.
+
+  double sign = 1.0;
   for (auto n = 0; n < num_cvars_; ++n) {
-    auto lower = std::lower_bound(
-        cvar_sample_points_[n].begin(),
-        cvar_sample_points_[n].end(),
-        cvar_coordinates[n]);
-
-    auto lower_index = std::distance(cvar_sample_points_[n].begin(), lower-1);
-
-    index_lower[n] = lower_index;
-    sample_lower[n] = cvar_sample_points_[n][lower_index];
+    if (cvar_bcs_[n] == PotentialBCs::HardBC) {
+      if (cvar_coordinates[n] < cvar_sample_points_[n].front()
+          || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+        bcs_potential = kHardBCsPotential;
+      }
+    } else if (cvar_bcs_[n] == PotentialBCs::MirrorBC) {
+      if (cvar_coordinates[n] < cvar_sample_points_[n].front()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].front() - cvar_coordinates[n];
+//        sign *= -1.0;
+      }
+      if (cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].back() - cvar_coordinates[n];
+//        sign *= -1.0;
+      }
+    }
   }
 
-  // TODO: generalise to at least 3D
-  assert(num_cvars_ <= kMaxDimensions);
-  if (num_cvars_ == 1) {
-    auto x1_index = index_lower[0];
-    auto x2_index = index_lower[0] + 1;
-
-    return bcs_potential + maths::linear_interpolation(
-        cvar_coordinates[0],
-        cvar_sample_points_[0][x1_index], potential_(x1_index, 0),
-        cvar_sample_points_[0][x2_index], potential_(x2_index, 0));
-  }
-
-  if (num_cvars_ == 2) {
-    //f(x1,y1)=Q(11) , f(x1,y2)=Q(12), f(x2,y1), f(x2,y2)
-    int x1_index = index_lower[0];
-    int y1_index = index_lower[1];
-    int x2_index = x1_index + 1;
-    int y2_index = y1_index + 1;
-
-    double Q11 = potential_(x1_index, y1_index);
-    double Q12 = potential_(x1_index, y2_index);
-    double Q21 = potential_(x2_index, y1_index);
-    double Q22 = potential_(x2_index, y2_index);
-
-
-    return bcs_potential + maths::bilinear_interpolation(
-        cvar_coordinates[0], cvar_coordinates[1],
-        cvar_sample_points_[0][x1_index],
-        cvar_sample_points_[1][y1_index],
-        cvar_sample_points_[0][x2_index],
-        cvar_sample_points_[1][y2_index],
-        Q11, Q12, Q21, Q22);
-  }
-
-  assert(false);
-  return 0.0;
+  // boundary_potential + history_potential
+  return bcs_potential + sign * interpolated_sample_value(potential_derivative_, cvar_coordinates);
 }
 
 void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitude) {
+
+  std::array<double,kMaxDimensions> cvar_coordinates;
+  for (auto n = 0; n < num_cvars_; ++n) {
+    cvar_coordinates[n] = cvars_[n]->value();
+    if (cvar_bcs_[n] == PotentialBCs::MirrorBC) {
+      if (cvar_coordinates[n] < cvar_sample_points_[n].front()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].front() - cvar_coordinates[n];
+      }
+      if (cvar_coordinates[n] > cvar_sample_points_[n].back()) {
+        cvar_coordinates[n] = cvar_sample_points_[n].back() - cvar_coordinates[n];
+      }
+    }
+  }
+
+
+  // Calculate CV distances along each 1D axis
+  std::vector<std::vector<double>> distances;
+  for (auto n = 0; n < num_cvars_; ++n) {
+    distances.emplace_back(std::vector<double>(num_samples_[n]));
+    auto center = cvar_coordinates[n];
+    for (auto i = 0; i < num_samples_[n]; ++i) {
+      distances[n][i] = cvar_sample_points_[n][i] - center;
+    }
+  }
 
   // Calculate gaussians along each 1D axis
   std::vector<std::vector<double>> gaussians;
   for (auto n = 0; n < num_cvars_; ++n) {
     gaussians.emplace_back(std::vector<double>(num_samples_[n]));
-    auto center = cvars_[n]->value();
     for (auto i = 0; i < num_samples_[n]; ++i) {
-      gaussians[n][i] = gaussian(cvar_sample_points_[n][i], center, 1.0, gaussian_width_[n]);
+      gaussians[n][i] = gaussian(distances[n][i], 0.0, 1.0, gaussian_width_[n]);
     }
   }
 
@@ -319,6 +353,93 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
   for (auto i = 0; i < num_samples_[0]; ++i) {
     for (auto j = 0; j < num_samples_[1]; ++j) {
       potential_(i,j) += relative_amplitude * gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
+    }
+  }
+
+  for (auto i = 0; i < num_samples_[0]; ++i) {
+    for (auto j = 0; j < num_samples_[1]; ++j) {
+      potential_derivative_(i,j) += (1.0/(gaussian_width_[0]))*relative_amplitude * gaussian_amplitude_
+          * gaussians[0][i] * (distances[0][i]);
+    }
+  }
+
+  // insert virtual Gaussians on the opposite side of the mirror
+  if (cvar_bcs_[0] == PotentialBCs::MirrorBC) {
+
+
+    { // lower boundary
+      // Calculate CV distances along each 1D axis
+      std::vector<std::vector<double>> distances;
+      distances.emplace_back(std::vector<double>(num_samples_[0]));
+      auto center = cvar_sample_points_[0].front() + (cvar_sample_points_[0].front() - cvar_coordinates[0]);
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        distances[0][i] = cvar_sample_points_[0][i] - center;
+      }
+
+      // Calculate gaussians along each 1D axis
+      std::vector<std::vector<double>> gaussians;
+      gaussians.emplace_back(std::vector<double>(num_samples_[0]));
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        gaussians[0][i] = gaussian(distances[0][i], 0.0, 1.0,
+                                   gaussian_width_[0]);
+      }
+
+      // TODO: generalise to at least 3D
+      // If we only have 1D then we need to just have a single element with '1.0'
+      // for the second dimension.
+      gaussians.emplace_back(std::vector<double>(1, 1.0));
+
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        for (auto j = 0; j < num_samples_[1]; ++j) {
+          potential_(i, j) +=
+              relative_amplitude * gaussian_amplitude_ * gaussians[0][i] *
+              gaussians[1][j];
+        }
+      }
+
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        for (auto j = 0; j < num_samples_[1]; ++j) {
+          potential_derivative_(i,j) +=
+              (1.0/(gaussian_width_[0]))*relative_amplitude * gaussian_amplitude_ * gaussians[0][i] * (distances[0][i]);
+        }
+      }
+    }
+    { // upper boundary
+      // Calculate CV distances along each 1D axis
+      std::vector<std::vector<double>> distances;
+      distances.emplace_back(std::vector<double>(num_samples_[0]));
+      auto center = cvar_sample_points_[0].back() + (cvar_sample_points_[0].back() - cvar_coordinates[0]);
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        distances[0][i] = cvar_sample_points_[0][i] - center;
+      }
+
+      // Calculate gaussians along each 1D axis
+      std::vector<std::vector<double>> gaussians;
+      gaussians.emplace_back(std::vector<double>(num_samples_[0]));
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        gaussians[0][i] = gaussian(distances[0][i], 0.0, 1.0,
+                                   gaussian_width_[0]);
+      }
+
+      // TODO: generalise to at least 3D
+      // If we only have 1D then we need to just have a single element with '1.0'
+      // for the second dimension.
+      gaussians.emplace_back(std::vector<double>(1, 1.0));
+
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        for (auto j = 0; j < num_samples_[1]; ++j) {
+          potential_(i, j) +=
+              relative_amplitude * gaussian_amplitude_ * gaussians[0][i] *
+              gaussians[1][j];
+        }
+      }
+
+      for (auto i = 0; i < num_samples_[0]; ++i) {
+        for (auto j = 0; j < num_samples_[1]; ++j) {
+          potential_derivative_(i,j) +=
+              (1.0/(gaussian_width_[0]))*relative_amplitude * gaussian_amplitude_ * gaussians[0][i] * (distances[0][i]);
+        }
+      }
     }
   }
 
@@ -339,31 +460,123 @@ double jams::MetadynamicsPotential::current_potential() {
   return potential(coordinates);
 }
 
-void jams::MetadynamicsPotential::output() {
-  std::ofstream of(jams::output::full_path_filename("metad_potential.tsv"));
-
+void jams::MetadynamicsPotential::output(std::ostream& os, const double free_energy_scaling) const {
+  os << "time ";
   for (auto n = 0; n < num_cvars_; ++n) {
-    of << cvar_names_[n] << " ";
+    os << cvar_names_[n] << " ";
   }
-
-  of << "potential_meV" << "\n";
+  os << "potential_meV free_energy_meV field_term" << "\n";
 
   // TODO: generalise to at least 3D
   assert(num_cvars_ <= kMaxDimensions);
   if (num_cvars_ == 1) {
     for (auto i = 0; i < num_samples_[0]; ++i) {
-      of <<  cvar_sample_points_[0][i] << " " << potential_(i,0) << "\n";
+      os <<  solver->time() << " " << cvar_sample_points_[0][i] << " " << potential_(i,0) << " " << -free_energy_scaling * potential_(i,0) << " " << potential_derivative_(i,0) << "\n";
     }
+    os << "\n\n";
     return;
   } else if (num_cvars_ == 2) {
     for (auto i = 0; i < num_samples_[0]; ++i) {
       for (auto j = 0; j < num_samples_[1]; ++j) {
-        of <<  cvar_sample_points_[0][i] << " " << cvar_sample_points_[1][j] << " " << potential_(i,j) << "\n";
+        os << solver->time() << " " << cvar_sample_points_[0][i] << " " << cvar_sample_points_[1][j] << " " << potential_(i,j) << " " << -free_energy_scaling * potential_(i,j) <<"\n";
       }
     }
+    os << "\n\n";
     return;
   }
   assert(false); // Should not be reachable if num_cvars_ <= kMaxDimensions
+}
+
+const jams::MultiArray<double, 2>&
+jams::MetadynamicsPotential::current_fields() {
+  assert(num_cvars_ == 1); // multidimensional fields cvars not yet implemented
+  std::array<double,kMaxDimensions> coordinates;
+  for (auto n = 0; n < num_cvars_; ++n) {
+    coordinates[n] = cvars_[n]->value();
+  }
+
+
+  double scalar = potential_derivative(coordinates);
+
+  if (solver->is_cuda_solver()) {
+    #if HAS_CUDA
+    cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, cvars_[0]->derivatives().device_data(), 1, potential_field_.device_data(), 1);
+    cublasDscal(jams::instance().cublas_handle(), globals::num_spins3, &scalar, potential_field_.device_data(), 1);
+    #endif
+  } else {
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      for (auto j = 0; j < 3; ++ j) {
+        potential_field_(i, j) = scalar * cvars_[0]->derivatives()(i, j);
+      }
+    }
+  }
+
+
+//  std::cout << potential_field_(0,0) << " " << potential_field_(0,1) << " " << potential_field_(0,2) << std::endl;
+  return potential_field_;
+}
+
+
+double jams::MetadynamicsPotential::interpolated_sample_value(
+    const jams::MultiArray<double, 2> &sample_space,
+    const std::array<double, kMaxDimensions> &cvar_coordinates) {
+  // Lookup points above and below for linear interpolation. We can use the
+  // the fact that the ranges are sorted to do a bisection search.
+
+
+  std::array<double,kMaxDimensions> sample_lower;
+  std::array<int,kMaxDimensions> index_lower;
+
+  for (auto n = 0; n < num_cvars_; ++n) {
+    auto lower = std::upper_bound(
+        cvar_sample_points_[n].begin(),
+        cvar_sample_points_[n].end(),
+        cvar_coordinates[n]);
+
+    auto lower_index = std::distance(cvar_sample_points_[n].begin(), lower) - 1;
+    assert(lower_index >= 0);
+    assert(lower_index < cvar_sample_points_[n].size() - 1);
+
+    index_lower[n] = lower_index;
+    sample_lower[n] = cvar_sample_points_[n][lower_index];
+  }
+
+  // TODO: generalise to at least 3D
+  assert(num_cvars_ <= kMaxDimensions);
+  if (num_cvars_ == 1) {
+    auto x1_index = index_lower[0];
+    auto x2_index = index_lower[0] + 1;
+
+    return maths::linear_interpolation(
+        cvar_coordinates[0],
+        cvar_sample_points_[0][x1_index], sample_space(x1_index, 0),
+        cvar_sample_points_[0][x2_index], sample_space(x2_index, 0));
+  }
+
+  if (num_cvars_ == 2) {
+    //f(x1,y1)=Q(11) , f(x1,y2)=Q(12), f(x2,y1), f(x2,y2)
+    int x1_index = index_lower[0];
+    int y1_index = index_lower[1];
+    int x2_index = x1_index + 1;
+    int y2_index = y1_index + 1;
+
+    double Q11 = sample_space(x1_index, y1_index);
+    double Q12 = sample_space(x1_index, y2_index);
+    double Q21 = sample_space(x2_index, y1_index);
+    double Q22 = sample_space(x2_index, y2_index);
+
+
+    return maths::bilinear_interpolation(
+        cvar_coordinates[0], cvar_coordinates[1],
+        cvar_sample_points_[0][x1_index],
+        cvar_sample_points_[1][y1_index],
+        cvar_sample_points_[0][x2_index],
+        cvar_sample_points_[1][y2_index],
+        Q11, Q12, Q21, Q22);
+  }
+
+  assert(false);
+  return 0.0;
 }
 
 void jams::MetadynamicsPotential::import_potential(const std::string &filename) {

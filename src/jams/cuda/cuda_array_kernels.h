@@ -3,6 +3,7 @@
 #ifndef JAMS_CUDA_ARRAY_KERNELS_H
 #define JAMS_CUDA_ARRAY_KERNELS_H
 
+#if HAS_CUDA
 #include <cuda.h>
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
@@ -39,4 +40,7 @@ template <typename T>
 inline T cuda_reduce_array(T* dev_ptr, const size_t size) {
   return thrust::reduce(thrust::device_ptr<T>(dev_ptr), thrust::device_ptr<T>(dev_ptr) + size);
 }
+
+#endif  // HAS_CUDA
+
 #endif  // JAMS_CUDA_ARRAY_KERNELS_H
