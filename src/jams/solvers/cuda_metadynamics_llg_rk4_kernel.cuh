@@ -8,7 +8,10 @@
 #include "jams/cuda/cuda_device_rk4.cuh"
 
 
-__global__ void cuda_metadynamics_llg_rk4_kernel
+// Kernel numbers 1,2,3 refer to the equations in labbook page
+// 20221107_JB002_JAMS_llg_test
+
+__global__ void cuda_metadynamics_llg_rk4_kernel1
 (
   const double * s_dev,
   double * k_dev,
@@ -67,7 +70,143 @@ __global__ void cuda_metadynamics_llg_rk4_kernel
 
     double rhs[3];
     for (auto n = 0; n < 3; ++n) {
-      rhs[n] = -gyro_dev[idx] * (sxh[n] + alpha_dev[idx] * sxsxh[n]  + sxsxf[n] );
+      rhs[n] = -gyro_dev[idx] * ( (sxh[n] + sxf[n]) + alpha_dev[idx] * (sxsxh[n]   + sxsxf[n]) );
+    }
+
+    for (auto n = 0; n < 3; ++n) {
+      k_dev[3 * idx + n] = rhs[n];
+    }
+  }
+}
+
+__global__ void cuda_metadynamics_llg_rk4_kernel2
+    (
+        const double * s_dev,
+        double * k_dev,
+        const double * h_dev,
+        const double * f_dev,
+        const double * noise_dev,
+        const double * gyro_dev,
+        const double * mus_dev,
+        const double * alpha_dev,
+        const unsigned dev_num_spins
+    )
+{
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx < dev_num_spins) {
+
+    double h[3];
+    for (auto n = 0; n < 3; ++n) {
+      h[n] = ((h_dev[3*idx + n] / mus_dev[idx]) + noise_dev[3*idx + n]);
+    }
+
+    double f[3];
+    for (auto n = 0; n < 3; ++n) {
+      f[n] = ((f_dev[3*idx + n] / mus_dev[idx]));
+    }
+
+    double s[3];
+    for (auto n = 0; n < 3; ++n) {
+      s[n] = s_dev[3*idx + n];
+    }
+
+    double sxh[3] = {
+        (s[1] * h[2] - s[2] * h[1]),
+        (s[2] * h[0] - s[0] * h[2]),
+        (s[0] * h[1] - s[1] * h[0])
+    };
+
+    double sxsxh[3] = {
+        (s[1] * sxh[2] - s[2] * sxh[1]),
+        (s[2] * sxh[0] - s[0] * sxh[2]),
+        (s[0] * sxh[1] - s[1] * sxh[0])
+    };
+
+    double sxf[3] = {
+        (s[1] * f[2] - s[2] * f[1]),
+        (s[2] * f[0] - s[0] * f[2]),
+        (s[0] * f[1] - s[1] * f[0])
+    };
+
+    double sxsxf[3] = {
+        (s[1] * sxf[2] - s[2] * sxf[1]),
+        (s[2] * sxf[0] - s[0] * sxf[2]),
+        (s[0] * sxf[1] - s[1] * sxf[0])
+    };
+
+
+    double rhs[3];
+    for (auto n = 0; n < 3; ++n) {
+      rhs[n] = -gyro_dev[idx] * ( (sxh[n] + sxf[n]) + alpha_dev[idx] * (sxsxh[n])   + sxsxf[n] );
+    }
+
+    for (auto n = 0; n < 3; ++n) {
+      k_dev[3 * idx + n] = rhs[n];
+    }
+  }
+}
+
+__global__ void cuda_metadynamics_llg_rk4_kernel3
+    (
+        const double * s_dev,
+        double * k_dev,
+        const double * h_dev,
+        const double * f_dev,
+        const double * noise_dev,
+        const double * gyro_dev,
+        const double * mus_dev,
+        const double * alpha_dev,
+        const unsigned dev_num_spins
+    )
+{
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx < dev_num_spins) {
+
+    double h[3];
+    for (auto n = 0; n < 3; ++n) {
+      h[n] = ((h_dev[3*idx + n] / mus_dev[idx]) + noise_dev[3*idx + n]);
+    }
+
+    double f[3];
+    for (auto n = 0; n < 3; ++n) {
+      f[n] = ((f_dev[3*idx + n] / mus_dev[idx]));
+    }
+
+    double s[3];
+    for (auto n = 0; n < 3; ++n) {
+      s[n] = s_dev[3*idx + n];
+    }
+
+    double sxh[3] = {
+        (s[1] * h[2] - s[2] * h[1]),
+        (s[2] * h[0] - s[0] * h[2]),
+        (s[0] * h[1] - s[1] * h[0])
+    };
+
+    double sxsxh[3] = {
+        (s[1] * sxh[2] - s[2] * sxh[1]),
+        (s[2] * sxh[0] - s[0] * sxh[2]),
+        (s[0] * sxh[1] - s[1] * sxh[0])
+    };
+
+    double sxf[3] = {
+        (s[1] * f[2] - s[2] * f[1]),
+        (s[2] * f[0] - s[0] * f[2]),
+        (s[0] * f[1] - s[1] * f[0])
+    };
+
+    double sxsxf[3] = {
+        (s[1] * sxf[2] - s[2] * sxf[1]),
+        (s[2] * sxf[0] - s[0] * sxf[2]),
+        (s[0] * sxf[1] - s[1] * sxf[0])
+    };
+
+
+    double rhs[3];
+    for (auto n = 0; n < 3; ++n) {
+      rhs[n] = -gyro_dev[idx] * ( (sxh[n]) + alpha_dev[idx] * (sxsxh[n])   + sxsxf[n]);
     }
 
     for (auto n = 0; n < 3; ++n) {

@@ -9,6 +9,12 @@
 void CUDAMetadynamicsLLGRK4Solver::initialize(const libconfig::Setting &settings) {
   using namespace globals;
 
+  kernel_choice_ = jams::config_required<int>(settings, "kernel_choice");
+
+  if (kernel_choice_ < 1 || kernel_choice_ > 3) {
+    throw std::runtime_error("llg-metadynamics-rk4-gpu kernel choice must be 1, 2 or 3");
+  }
+
   // convert input in seconds to picoseconds for internal units
   step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
   auto t_max = jams::config_required<double>(settings, "t_max") / 1e-12;
@@ -98,10 +104,26 @@ void CUDAMetadynamicsLLGRK4Solver::run() {
   compute_fields();
 
   // k1
-  cuda_metadynamics_llg_rk4_kernel<<<grid_size, block_size>>>
-      (s.device_data(), k1_.device_data(),
-       h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
-       gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+  switch (kernel_choice_) {
+    case 1:
+      cuda_metadynamics_llg_rk4_kernel1<<<grid_size, block_size>>>
+          (s.device_data(), k1_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+    case 2:
+      cuda_metadynamics_llg_rk4_kernel2<<<grid_size, block_size>>>
+          (s.device_data(), k1_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+    case 3:
+      cuda_metadynamics_llg_rk4_kernel3<<<grid_size, block_size>>>
+          (s.device_data(), k1_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+  }
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   double mid_time_step = 0.5 * step_size_;
@@ -111,10 +133,26 @@ void CUDAMetadynamicsLLGRK4Solver::run() {
   compute_fields();
 
   // k2
-  cuda_metadynamics_llg_rk4_kernel<<<grid_size, block_size>>>
-      (s.device_data(), k2_.device_data(),
-       h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
-       gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+  switch (kernel_choice_) {
+    case 1:
+      cuda_metadynamics_llg_rk4_kernel1<<<grid_size, block_size>>>
+          (s.device_data(), k2_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+    case 2:
+      cuda_metadynamics_llg_rk4_kernel2<<<grid_size, block_size>>>
+          (s.device_data(), k2_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+    case 3:
+      cuda_metadynamics_llg_rk4_kernel3<<<grid_size, block_size>>>
+          (s.device_data(), k2_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+  }
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   mid_time_step = 0.5 * step_size_;
@@ -124,10 +162,26 @@ void CUDAMetadynamicsLLGRK4Solver::run() {
   compute_fields();
 
   // k3
-  cuda_metadynamics_llg_rk4_kernel<<<grid_size, block_size>>>
-      (s.device_data(), k3_.device_data(),
-       h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
-       gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+  switch (kernel_choice_) {
+    case 1:
+      cuda_metadynamics_llg_rk4_kernel1<<<grid_size, block_size>>>
+          (s.device_data(), k3_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+    case 2:
+      cuda_metadynamics_llg_rk4_kernel2<<<grid_size, block_size>>>
+          (s.device_data(), k3_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+    case 3:
+      cuda_metadynamics_llg_rk4_kernel3<<<grid_size, block_size>>>
+          (s.device_data(), k3_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+  }
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   mid_time_step = step_size_;
@@ -137,10 +191,26 @@ void CUDAMetadynamicsLLGRK4Solver::run() {
   compute_fields();
 
   // k4
-  cuda_metadynamics_llg_rk4_kernel<<<grid_size, block_size>>>
-      (s.device_data(), k4_.device_data(),
-       h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
-       gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+  switch (kernel_choice_) {
+    case 1:
+      cuda_metadynamics_llg_rk4_kernel1<<<grid_size, block_size>>>
+          (s.device_data(), k4_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+    case 2:
+      cuda_metadynamics_llg_rk4_kernel2<<<grid_size, block_size>>>
+          (s.device_data(), k4_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+    case 3:
+      cuda_metadynamics_llg_rk4_kernel3<<<grid_size, block_size>>>
+          (s.device_data(), k4_.device_data(),
+           h.device_data(), metad_potential_->current_fields().device_data(), thermostat_->device_data(),
+           gyro.device_data(), mus.device_data(), alpha.device_data(), num_spins);
+      break;
+  }
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   cuda_metadynamics_llg_rk4_combination_kernel<<<grid_size, block_size>>>

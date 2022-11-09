@@ -20,6 +20,9 @@ private:
     /// Pointer to collective variable object (owned by this class)
     std::unique_ptr<jams::MetadynamicsPotential> metad_potential_;
 
+    /// Choose which kernel to run (which form of the LLG equation)
+    int kernel_choice_;
+
     /// Number of solver iterations between gaussian depositions into the
     /// collective variable potential landscape.
     int gaussian_deposition_stride_;
@@ -69,6 +72,8 @@ public:
     // also triggering the insertion of gaussians into the potential
     // energy landscape.
     void run() override;
+
+
 
     std::string name() const override { return "llg-metadynamics-rk4-gpu"; }
 
