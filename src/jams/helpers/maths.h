@@ -144,19 +144,19 @@ inline constexpr double rad_to_deg(const double &angle) {
   return angle*(180.0/kPi);
 }
 
-inline constexpr double azimuthal_angle(const double a[3]) {
+inline double azimuthal_angle(const double a[3]) {
   return std::acos(a[2]/std::sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]));
 }
 
-inline constexpr double polar_angle(const double a[3]) {
+inline double polar_angle(const double a[3]) {
   return std::atan2(a[1], a[0]);
 }
 
-inline constexpr double azimuthal_angle(const double x, const double y, const double z) {
+inline double azimuthal_angle(const double x, const double y, const double z) {
   return std::acos(z/std::sqrt(x*x + y*y + z*z));
 }
 
-inline constexpr double polar_angle(const double x, const double y, const double z) {
+inline double polar_angle(const double x, const double y, const double z) {
   return std::atan2(y, x);
 }
 
