@@ -111,7 +111,7 @@ inline constexpr T pow5(const T&x) {
 }
 
 
-inline constexpr int nint(const double &x) {
+inline int nint(const double &x) {
   return std::floor(x+0.5);
 }
 
@@ -132,7 +132,7 @@ inline constexpr double dirac_delta(const double x) {
   return approximately_zero(x, DBL_EPSILON);
 }
 
-inline constexpr double gaussian(const double& x, const double& center, const double& amplitude, const double& width) {
+inline double gaussian(const double& x, const double& center, const double& amplitude, const double& width) {
   return amplitude * std::exp(-0.5 * pow2((x - center) / width));
 }
 
