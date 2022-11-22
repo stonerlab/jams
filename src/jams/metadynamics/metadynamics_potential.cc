@@ -161,16 +161,28 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
     // Set the lower and upper boundary conditions for this collective variable
     //TODO: Once the mirror boundaries are applied need to generalase these if statements
+    //TODO: Currently if lower or upper boundaries are passed from confiq, automatically we set the restoringBC and require the upper and lower boundary, need to generalise.
 
 
-    if (cvar_settings.exists("lower_boundary")) {
-      jams::unimplemented_error("lower_boundary");
-    } else {
+    if (cvar_settings.exists("lower_restoring_bc_threshold")) {
+        //add an if statement to check the name of the boundary condition:
+        //if its "restoringBC" do the following. Else jams::unimplemented_error("lower_boundary");
+        lower_cvar_bc_[i] = PotentialBCs::RestoringBC;
+        lower_restoringBC_threshold_ = jams::config_required<double>(cvar_settings, "lower_restoring_bc_threshold");
+        std::cout<< "Lower Restoring Boundary Condition, threshold: "<< lower_restoringBC_threshold_ << std::endl;
+        restoringBC_bool = true;
+    }
+    else {
       lower_cvar_bc_[i] = PotentialBCs::HardBC;
     }
 
-    if (cvar_settings.exists("upper_boundary")) {
-      jams::unimplemented_error("upper_boundary");
+    if (cvar_settings.exists("upper_restoring_bc_threshold")) {
+        //add an if statement to check the name of the boundary condition:
+        //if its "restoringBC" do the following. Else jams::unimplemented_error("lower_boundary");
+        upper_cvar_bc_[i] = PotentialBCs::RestoringBC;
+        upper_restoringBC_threshold_ = jams::config_required<double>(cvar_settings,"upper_restoring_bc_threshold");
+        restoringBC_bool = true;
+        std::cout << "Upper Restoring Boundary Condition, threshold:" <<upper_restoringBC_threshold_ << std::endl;
     } else {
       upper_cvar_bc_[i] = PotentialBCs::HardBC;
     }
@@ -215,17 +227,17 @@ double jams::MetadynamicsPotential::potential_difference(
 
 
   for (auto n = 0; n < num_cvars_; ++n) {
-	  if (cvar_initial[n] < cvar_sample_points_[n].front()
-		  || cvar_initial[n] > cvar_sample_points_[n].back()) {
-		return -kHardBCsPotential;
-	  }
-	  if (cvar_trial[n] < cvar_sample_points_[n].front()
-		  || cvar_trial[n] > cvar_sample_points_[n].back()) {
+      if (cvar_bcs_[i]==PotentialBCs::HardBC){
+	    if (cvar_initial[n] < cvar_sample_points_[n].front() || cvar_initial[n] > cvar_sample_points_[n].back()) {
+		    return -kHardBCsPotential;
+        }
+	    if (cvar_trial[n] < cvar_sample_points_[n].front()|| cvar_trial[n] > cvar_sample_points_[n].back()) {
 		return kHardBCsPotential;
-	  }
-  }
+	    }
+      }
 
   return potential(cvar_trial) - potential(cvar_initial);
+}
 }
 
 
@@ -241,6 +253,27 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   // Apply any hard boundary conditions where the potential is set very large
   // if we are outside of the collective variable's range.
+  double k_ = 100000000000000;
+  if (restoringBC_bool){
+      for (auto n = 0; n <num_cvars_; ++n){
+          double topological_charge_diff = 0.0;
+          bool return_restoring_potential = false;
+          if (cvar_coordinates[n] >= upper_restoringBC_threshold_){
+              topological_charge_diff = (cvar_coordinates[n] - upper_restoringBC_threshold_);
+              return_restoring_potential = true;
+          }
+          if (cvar_coordinates[n] <= lower_restoringBC_threshold_){
+              topological_charge_diff = (cvar_coordinates[n] - lower_restoringBC_threshold_)*(-1);
+              return_restoring_potential = true;
+          }
+          if (return_restoring_potential){
+              return (k_ * (topological_charge_diff * topological_charge_diff)) ;
+          }else{
+              continue;
+          }
+      }
+  }
+
   for (auto n = 0; n < num_cvars_; ++n) {
 	  if (cvar_coordinates[n] < cvar_sample_points_[n].front()
 		  || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
@@ -262,6 +295,8 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   // TODO: generalise to at least 3D
   assert(num_cvars_ <= kMaxDimensions);
+
+
   if (num_cvars_ == 1) {
     auto x1_index = index_lower[0];
     auto x2_index = index_lower[0] + 1;
@@ -301,8 +336,21 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitude) {
 
   // Calculate gaussians along each 1D axis
-  std::vector<std::vector<double>> gaussians;
-  for (auto n = 0; n < num_cvars_; ++n) {
+  bool add_gaussian_bool = false;
+  if (restoringBC_bool){
+      for (auto n = 0; n < num_cvars_; ++n){
+          if (cvars_[n]->value() >= upper_restoringBC_threshold_ || cvars_[n] -> value() <= lower_restoringBC_threshold_){
+              add_gaussian_bool = true;
+          }else {
+              continue; }
+      }
+  }
+
+
+  if(!add_gaussian_bool){
+      // Calculate gaussians along each 1D axis
+      std::vector<std::vector<double>> gaussians;
+      for (auto n = 0; n < num_cvars_; ++n) {
     gaussians.emplace_back(std::vector<double>(num_samples_[n]));
     auto center = cvars_[n]->value();
     for (auto i = 0; i < num_samples_[n]; ++i) {
@@ -327,6 +375,7 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
     cvar_file_ << " " << cvars_[n]->value();
   }
   cvar_file_ << std::endl;
+}
 }
 
 

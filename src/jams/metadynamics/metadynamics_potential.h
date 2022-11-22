@@ -18,7 +18,8 @@ namespace jams {
         // TODO: Implement MirrorBCs
         enum class PotentialBCs {
           MirrorBC, // Gaussians are inserted as if the end of the ranges are mirrors.
-          HardBC    // Gaussians cannot be inserted outside of the range.
+          HardBC,    // Gaussians cannot be inserted outside of the range.
+          RestoringBC // For values bigger than a threshold -> NO Gaussians are deposited, returns a V_{restoring}(Q(x)) potential.
         };
 
         MetadynamicsPotential() = default;
@@ -55,8 +56,12 @@ namespace jams {
         const double kHardBCsPotential = 1e100; // a very large value in meV
         void import_potential(const std::string &filename); //  can handle up to two Collective Variables.
 
+
         double              gaussian_amplitude_;
         std::vector<double> gaussian_width_;
+        double lower_restoringBC_threshold_;
+        double upper_restoringBC_threshold_;
+        bool restoringBC_bool = false;
         bool    potential_input_file = false;
 
         int                                              num_cvars_; //used to resize all the other vectors
@@ -64,14 +69,14 @@ namespace jams {
         std::vector<std::string>                         cvar_names_;
         std::vector<PotentialBCs>                        cvar_bcs_;
         std::vector<PotentialBCs>                        lower_cvar_bc_;
-		    std::vector<PotentialBCs>                        upper_cvar_bc_;
-		    std::vector<double>                              cvar_range_min_;
-		    std::vector<double>                              cvar_range_max_;
+        std::vector<PotentialBCs>                        upper_cvar_bc_;
+        std::vector<double>                              cvar_range_min_;
+        std::vector<double>                              cvar_range_max_;
         std::vector<std::vector<double>>                 cvar_sample_points_;
         std::ofstream                                    cvar_file_;
 
         std::array<int,kMaxDimensions>    num_samples_;
-        MultiArray<double,kMaxDimensions> potential_;
+        MultiArray<double,kMaxDimensions> potential_;\
 
     };
 }
