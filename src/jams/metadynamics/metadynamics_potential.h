@@ -76,7 +76,7 @@ namespace jams {
         std::ofstream                                    cvar_file_;
 
         std::array<int,kMaxDimensions>    num_samples_;
-        MultiArray<double,kMaxDimensions> potential_;\
+        MultiArray<double,kMaxDimensions> potential_;
 
     };
 }
