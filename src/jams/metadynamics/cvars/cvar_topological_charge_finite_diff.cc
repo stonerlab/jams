@@ -76,6 +76,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       auto sign = nbrs[n].second[0][0];
 
       // Divide by 2 for the dx direction
+      stencil_neighbour_indices_[i].insert(j);
       dx_indices_[i].push_back(j);
       dx_values_[i].push_back(sign / 2.0);
     }
@@ -118,6 +119,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       auto sign = nbrs[n].second[0][0];
 
       // Divide by 2\sqrt{3} for the dy direction
+      stencil_neighbour_indices_[i].insert(j);
       dy_indices_[i].push_back(j);
       dy_values_[i].push_back(sign / (2.0*sqrt(3)));
     }
@@ -126,16 +128,14 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
 }
 
-std::string jams::CVarTopologicalChargeFiniteDiff::name() {
-  return name_;
+std::string jams::CVarTopologicalChargeFiniteDiff::name() {  return name_;
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::value() {
   return cached_value();
 }
 
-double jams::CVarTopologicalChargeFiniteDiff::spin_move_trial_value(int i,
-                                                                    const Vec3 &spin_initial,
+double jams::CVarTopologicalChargeFiniteDiff::spin_move_trial_value(int i,                                                                    const Vec3 &spin_initial,
                                                                     const Vec3 &spin_trial) {
   const double trial_value = cached_value() + topological_charge_difference(i, spin_initial, spin_trial);
 
@@ -175,25 +175,30 @@ double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(const int
 double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int index,
                                                                   const Vec3 &spin_initial,
                                                                   const Vec3 &spin_final) const {
+  // We calculate the difference in the topological charge between the initial
+  // and final spin states. When one spin is changed, the topological charge on
+  // all sites connected to it through the finite difference stencil also changes.
+  // We therefore calculate the difference of the topological charge of the whole
+  // stencil.
+
   montecarlo::set_spin(index, spin_initial);
+
   double initial_charge = local_topological_charge(index);
-  // We also need to calculate all adjacent sites
-  // TODO: in non bulk systems we need to be careful how we select sites here
-  for (auto n = 0; n < dx_indices_[index].size(); ++n) {
-    initial_charge += local_topological_charge(dx_indices_[index][n]);
+  // Loop over neighbouring sites in the stencil
+  for (int n : stencil_neighbour_indices_[index]) {
+    initial_charge += local_topological_charge(n);
   }
 
   montecarlo::set_spin(index, spin_final);
-  double final_charge = local_topological_charge(index);
 
-  // We also need to calculate all adjacent sites
-  // TODO: in non bulk systems we need to be careful how we select sites here
-  for (auto n = 0; n < dx_indices_[index].size(); ++n) {
-    final_charge += local_topological_charge(dx_indices_[index][n]);
+  double final_charge = local_topological_charge(index);
+  // Loop over neighbouring sites in the stencil
+  for (int n : stencil_neighbour_indices_[index]) {
+    final_charge += local_topological_charge(n);
   }
 
-  montecarlo::set_spin(index, spin_initial);
 
+  montecarlo::set_spin(index, spin_initial);
 
   return (final_charge - initial_charge) / (4.0 * kPi);
 }

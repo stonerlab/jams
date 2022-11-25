@@ -67,6 +67,12 @@ namespace jams {
 
         std::string name_ = "topological_charge_finite_diff";
 
+        // In principle the dx and dy indices can be different, but we need
+        // to know all stencil points belonging to a site to be updated.
+        // Here the outer vector indexes the spin 'i' sites and the inner
+        // VectorSet will store a list of unique neighbour indices.
+        std::vector<VectorSet<int>> stencil_neighbour_indices_;
+
         // basically a CSR matrix
         std::vector<std::vector<int>> dx_indices_;
         std::vector<std::vector<double>> dx_values_;
