@@ -225,19 +225,19 @@ double jams::MetadynamicsPotential::potential_difference(
     cvar_trial[n] = cvars_[n]->spin_move_trial_value(i, spin_initial, spin_final);
   }
 
-
   for (auto n = 0; n < num_cvars_; ++n) {
-      if (cvar_bcs_[i]==PotentialBCs::HardBC){
-	    if (cvar_initial[n] < cvar_sample_points_[n].front() || cvar_initial[n] > cvar_sample_points_[n].back()) {
-		    return -kHardBCsPotential;
-        }
-	    if (cvar_trial[n] < cvar_sample_points_[n].front()|| cvar_trial[n] > cvar_sample_points_[n].back()) {
-		return kHardBCsPotential;
-	    }
+    if (cvar_bcs_[i] == PotentialBCs::HardBC) {
+      if (cvar_initial[n] < cvar_sample_points_[n].front() ||
+          cvar_initial[n] > cvar_sample_points_[n].back()) {
+        return -kHardBCsPotential;
       }
-
+      if (cvar_trial[n] < cvar_sample_points_[n].front() ||
+          cvar_trial[n] > cvar_sample_points_[n].back()) {
+        return kHardBCsPotential;
+      }
+    }
+  }
   return potential(cvar_trial) - potential(cvar_initial);
-}
 }
 
 
@@ -251,30 +251,17 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   double bcs_potential = 0.0;
 
-  // Apply any hard boundary conditions where the potential is set very large
-  // if we are outside of the collective variable's range.
-  double k_ = 100000000000000;
-  if (restoringBC_bool){
-      for (auto n = 0; n <num_cvars_; ++n){
-          double topological_charge_diff = 0.0;
-          bool return_restoring_potential = false;
-          if (cvar_coordinates[n] >= upper_restoringBC_threshold_){
-              topological_charge_diff = (cvar_coordinates[n] - upper_restoringBC_threshold_);
-              return_restoring_potential = true;
-          }
-          if (cvar_coordinates[n] <= lower_restoringBC_threshold_){
-              topological_charge_diff = (cvar_coordinates[n] - lower_restoringBC_threshold_)*(-1);
-              return_restoring_potential = true;
-          }
-          if (return_restoring_potential){
-              return (k_ * (topological_charge_diff * topological_charge_diff)) ;
-          }else{
-              continue;
-          }
-      }
-  }
-
+  double k = 100.0;
   for (auto n = 0; n < num_cvars_; ++n) {
+    if (lower_cvar_bc_[n] == PotentialBCs::RestoringBC && cvars_[n]->value() <= lower_restoringBC_threshold_) {
+      return k * pow2(cvar_coordinates[n] - lower_restoringBC_threshold_) + potential_(0,0);
+    }
+
+    if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && cvars_[n]->value() >= upper_restoringBC_threshold_) {
+      return k * pow2(cvar_coordinates[n] - upper_restoringBC_threshold_) + potential_(num_samples_[n],0);
+    }
+
+
 	  if (cvar_coordinates[n] < cvar_sample_points_[n].front()
 		  || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
 		bcs_potential = kHardBCsPotential;
@@ -336,23 +323,26 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitude) {
 
   // Calculate gaussians along each 1D axis
-  bool add_gaussian_bool = false;
-  if (restoringBC_bool){
-      for (auto n = 0; n < num_cvars_; ++n){
-          if (cvars_[n]->value() >= upper_restoringBC_threshold_ || cvars_[n] -> value() <= lower_restoringBC_threshold_){
-              add_gaussian_bool = true;
-          }else {
-              continue; }
-      }
-  }
-
-
-  if(!add_gaussian_bool){
-      // Calculate gaussians along each 1D axis
-      std::vector<std::vector<double>> gaussians;
-      for (auto n = 0; n < num_cvars_; ++n) {
+  std::vector<std::vector<double>> gaussians;
+  for (auto n = 0; n < num_cvars_; ++n) {
     gaussians.emplace_back(std::vector<double>(num_samples_[n]));
     auto center = cvars_[n]->value();
+
+    // If we have restoring boundary conditions and we are outside of the
+    // central range then we won't be adding any gaussian density so will
+    // just zero out the gaussian array
+    if (lower_cvar_bc_[n] == PotentialBCs::RestoringBC && cvars_[n]->value() <= lower_restoringBC_threshold_) {
+      std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
+      // skip setting the gaussians below
+      continue;
+    }
+
+    if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && cvars_[n]->value() >= upper_restoringBC_threshold_) {
+      std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
+      // skip setting the gaussians below
+      continue;
+    }
+
     for (auto i = 0; i < num_samples_[n]; ++i) {
       gaussians[n][i] = gaussian(cvar_sample_points_[n][i], center, 1.0, gaussian_width_[n]);
     }
@@ -375,8 +365,8 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
     cvar_file_ << " " << cvars_[n]->value();
   }
   cvar_file_ << std::endl;
-}
-}
+
+  }
 
 
 double jams::MetadynamicsPotential::current_potential() {
