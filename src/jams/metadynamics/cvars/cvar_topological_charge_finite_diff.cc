@@ -119,7 +119,6 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       auto i = nbrs[n].first[0];
       auto j = nbrs[n].first[1];
       auto weight = nbrs[n].second[0][0];
-      // Divide by 2 for the dx direction
       stencil_neighbour_indices_[i].insert(j);
       dx_indices_[i].push_back(j);
       dx_values_[i].push_back(weight);
@@ -173,8 +172,6 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       auto i = nbrs[n].first[0];
       auto j = nbrs[n].first[1];
       auto weight = nbrs[n].second[0][0];
-
-      // Divide by 2\sqrt{3} for the dy direction
       stencil_neighbour_indices_[i].insert(j);
       dy_indices_[i].push_back(j);
       dy_values_[i].push_back(weight);
