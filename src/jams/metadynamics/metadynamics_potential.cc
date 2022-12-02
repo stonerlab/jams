@@ -243,6 +243,12 @@ double jams::MetadynamicsPotential::potential_difference(
 
 double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimensions>& cvar_coordinates) {
   assert(cvar_coordinates.size() > 0 && cvar_coordinates.size() <= kMaxDimensions);
+
+  // We must use cvar_coordinates within the potential function and never
+  // cvars_[n]->value(). The later will only every return the current value of
+  // the cvar whereas potential() will be called with trial coordinates also.
+
+
   // Lookup points above and below for linear interpolation. We can use the
   // the fact that the ranges are sorted to do a bisection search.
 
@@ -253,12 +259,12 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   double k = 100.0;
   for (auto n = 0; n < num_cvars_; ++n) {
-    if (lower_cvar_bc_[n] == PotentialBCs::RestoringBC && cvars_[n]->value() <= lower_restoringBC_threshold_) {
       return k * pow2(cvar_coordinates[n] - lower_restoringBC_threshold_) + potential_(0,0);
+    if (lower_cvar_bc_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= lower_restoringBC_threshold_) {
     }
 
-    if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && cvars_[n]->value() >= upper_restoringBC_threshold_) {
       return k * pow2(cvar_coordinates[n] - upper_restoringBC_threshold_) + potential_(num_samples_[n],0);
+    if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= upper_restoringBC_threshold_) {
     }
 
 
