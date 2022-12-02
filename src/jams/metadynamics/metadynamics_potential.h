@@ -61,8 +61,8 @@ namespace jams {
         std::vector<double> gaussian_width_;
         double lower_restoringBC_threshold_;
         double upper_restoringBC_threshold_;
-        bool restoringBC_bool = false;
-        bool    potential_input_file = false;
+        double restoringBC_string_constant_;
+        bool   potential_input_file = false;
 
         int                                              num_cvars_; //used to resize all the other vectors
         std::vector<std::unique_ptr<CollectiveVariable>> cvars_;

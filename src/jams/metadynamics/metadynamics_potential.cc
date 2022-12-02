@@ -170,7 +170,8 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
         lower_cvar_bc_[i] = PotentialBCs::RestoringBC;
         lower_restoringBC_threshold_ = jams::config_required<double>(cvar_settings, "lower_restoring_bc_threshold");
         std::cout<< "Lower Restoring Boundary Condition, threshold: "<< lower_restoringBC_threshold_ << std::endl;
-        restoringBC_bool = true;
+        restoringBC_string_constant_ = jams::config_required<double>(cvar_settings, "restoring_bc_spring_constant");
+        std::cout<< "Restoring Boundary Condition spring constant: "<< restoringBC_string_constant_ << std::endl;
     }
     else {
       lower_cvar_bc_[i] = PotentialBCs::HardBC;
@@ -181,8 +182,10 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
         //if its "restoringBC" do the following. Else jams::unimplemented_error("lower_boundary");
         upper_cvar_bc_[i] = PotentialBCs::RestoringBC;
         upper_restoringBC_threshold_ = jams::config_required<double>(cvar_settings,"upper_restoring_bc_threshold");
-        restoringBC_bool = true;
         std::cout << "Upper Restoring Boundary Condition, threshold:" <<upper_restoringBC_threshold_ << std::endl;
+      restoringBC_string_constant_ = jams::config_required<double>(cvar_settings, "restoring_bc_spring_constant");
+      std::cout<< "Restoring Boundary Condition spring constant: "<< restoringBC_string_constant_ << std::endl;
+
     } else {
       upper_cvar_bc_[i] = PotentialBCs::HardBC;
     }
@@ -257,14 +260,13 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   double bcs_potential = 0.0;
 
-  double k = 100.0;
   for (auto n = 0; n < num_cvars_; ++n) {
-      return k * pow2(cvar_coordinates[n] - lower_restoringBC_threshold_) + potential_(0,0);
     if (lower_cvar_bc_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= lower_restoringBC_threshold_) {
+      return restoringBC_string_constant_ * pow2(cvar_coordinates[n] - lower_restoringBC_threshold_) + potential_(0,0);
     }
 
-      return k * pow2(cvar_coordinates[n] - upper_restoringBC_threshold_) + potential_(num_samples_[n],0);
     if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= upper_restoringBC_threshold_) {
+      return restoringBC_string_constant_ * pow2(cvar_coordinates[n] - upper_restoringBC_threshold_) + potential_(num_samples_[n],0);
     }
 
 
