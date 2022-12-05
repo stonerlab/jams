@@ -220,8 +220,8 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
 double jams::MetadynamicsPotential::potential_difference(
     int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
 
-  std::array<double,kMaxDimensions> cvar_initial;
-  std::array<double,kMaxDimensions> cvar_trial;
+  std::array<double,kMaxDimensions> cvar_initial = {0.0, 0.0};
+  std::array<double,kMaxDimensions> cvar_trial = {0.0, 0.0};
 
   for (auto n = 0; n < num_cvars_; ++n) {
     cvar_initial[n] = cvars_[n]->value();
