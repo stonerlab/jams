@@ -339,13 +339,13 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
     // If we have restoring boundary conditions and we are outside of the
     // central range then we won't be adding any gaussian density so will
     // just zero out the gaussian array
-    if (lower_cvar_bc_[n] == PotentialBCs::RestoringBC && cvars_[n]->value() <= lower_restoringBC_threshold_) {
+    if (lower_cvar_bc_[n] == PotentialBCs::RestoringBC && center <= lower_restoringBC_threshold_) {
       std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
       // skip setting the gaussians below
       continue;
     }
 
-    if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && cvars_[n]->value() >= upper_restoringBC_threshold_) {
+    if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && center >= upper_restoringBC_threshold_) {
       std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
       // skip setting the gaussians below
       continue;
