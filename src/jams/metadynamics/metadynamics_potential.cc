@@ -266,7 +266,7 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
     }
 
     if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= upper_restoringBC_threshold_) {
-      return restoringBC_string_constant_ * pow2(cvar_coordinates[n] - upper_restoringBC_threshold_) + potential_(num_samples_[n],0);
+      return restoringBC_string_constant_ * pow2(cvar_coordinates[n] - upper_restoringBC_threshold_) + potential_(num_samples_[n] - 1,0);
     }
 
 
