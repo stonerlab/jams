@@ -18,7 +18,7 @@ std::vector<double> linear_space(const double min,const double max,const double 
   assert(min < max);
   std::vector<double> space;
   double value = min;
-  while (value < max+step) {
+  while (less_than_approx_equal(value,max, 1e-4)) {
     space.push_back(value);
     value += step;
   }
