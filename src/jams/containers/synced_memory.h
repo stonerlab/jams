@@ -1,277 +1,323 @@
-//
-// Created by Joseph Barker on 2019-04-05.
-//
+// synced_memory.h                                                    -*-C++-*-
+#ifndef INCLUDED_JAMS_SYNCED_MEMORY
+#define INCLUDED_JAMS_SYNCED_MEMORY
+///
+/// @purpose: Provide an allocator for synchronised host and CUDA GPU memory
+///
+/// @classes:
+///   jams::SyncedMemory<T>: allocator for host/cuda gpu synchronised memory
+///
+/// @description: This component provides a concrete allocator,
+/// 'jams::SyncedMemory<T>' which lazily allocates memory on the host and CUDA
+/// GPU. Accessing host or device pointers will allocate and synchronise the
+/// memory spaces performing any needed memory transfers.
+///
+/// The lazy allocation means that the memory is not allocated until it is
+/// accessed for the first time. Therefore if the memory is only ever accessed
+/// by the host, no GPU memory is allocated. Moreover, the host memory
+/// allocation checks if there is an active CUDA context (this will be
+/// initialised if any CUDA runtime API calls have been made before allocation).
+/// If a CUDA context exists then the host memory is allocated with
+/// CudaMallocHost as pinned memory for improved performance for data transfers
+/// between the GPU and host. If there is no CUDA context we allocated aligned
+/// memory.
+///
+///
+///
+/// Usage
+/// -----
 
-#ifndef JAMS_SYNCED_MEMORY_H
-#define JAMS_SYNCED_MEMORY_H
+#if HAS_CUDA
+#include <jams/cuda/cuda_check_status.h>
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#endif
 
 #include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <iterator>
 #include <limits>
-
-#if HAS_CUDA
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#include <jams/cuda/cuda_check_status.h>
-#endif
+#include <new>
+#include <utility>
 
 // toggle printing all host/device synchronization calls to cout
-#define SYNCEDMEMORY_PRINT_MEMCPY 0
+#define SYNCED_MEMORY_PRINT_MEMCPY 0
 
 // toggle printing all host/device memset calls to cout
-#define SYNCEDMEMORY_PRINT_MEMSET 0
+#define SYNCED_MEMORY_PRINT_MEMSET 0
 
 // only include <iostream> if we actually use it
-#if SYNCEDMEMORY_PRINT_MEMCPY || SYNCEDMEMORY_PRINT_MEMSET
+#if SYNCED_MEMORY_PRINT_MEMCPY || SYNCED_MEMORY_PRINT_MEMSET
 #include <iostream>
 #endif
 
 // toggles support for using SyncedMemory in the global namespace
-#define SYNCEDMEMORY_ALLOW_GLOBAL 1
+#define SYNCED_MEMORY_ALLOW_GLOBAL 1
 //
 // If SyncedMemory is used in a global context then free()
 // calls CUDA routines after the CUDA context has been unloaded.
 // The calls then return cudaErrorCudartUnloading as the status.
 // This flag avoids checking the return status in free().
 
-// toggle checking free memory on device before allocating
-#define SYNCEDMEMORY_CHECK_FREE_MEMORY 1
-
 // toggle zeroing of host/device memory immediately after allocation
-#define SYNCEDMEMORY_ZERO_ON_ALLOCATION 0
+#define SYNCED_MEMORY_ZERO_ON_ALLOCATION 0
 
 // memory alignment for host memory (if supported)
-#define SYNCEDMEMORY_HOST_ALIGNMENT 64
+#define SYNCED_MEMORY_HOST_ALIGNMENT 64
 
 namespace jams {
 
-template <class T>
+// ==================
+// class SyncedMemory
+// ==================
+template<class T>
 class SyncedMemory {
 public:
-    template<class F>
-    friend void swap(SyncedMemory<F>& lhs, SyncedMemory<F>& rhs);
+    // TYPES
+    using value_type = T;
+    using reference = value_type &;
+    using const_reference = const value_type &;
+    using pointer = value_type *;
+    using const_pointer = const value_type *;
+    using size_type = std::size_t;
 
-    using value_type      = T;
-    using reference       = value_type&;
-    using const_reference = const value_type&;
-    using pointer         = value_type*;
-    using const_pointer   = const value_type*;
-    using size_type       = std::size_t;
-
-    enum class SyncStatus { UNINITIALIZED, SYNCHRONIZED, DEVICE_IS_MUTATED, HOST_IS_MUTATED };
-
-    SyncedMemory() = default;
-
-    ~SyncedMemory() {
-      free_host_memory();
-      free_device_memory();
-    }
-
-    SyncedMemory(const SyncedMemory& rhs)
-    : sync_status_(rhs.sync_status_)
-    {
-      if (size_ != rhs.size_) {
-        resize(rhs.size_);
-      }
-
-      // We use mutable_*_data() for 'this' to ensure allocation
-      // We use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
-      if (rhs.host_ptr_) {
-        if (has_cuda_context()) {
-          #if HAS_CUDA
-          // 2021-03-16 Joe: The use of cudaMemcpy(..., cudaMemcpyHostToHost)
-          // may not be strictly necessary. Just using memcpy works because
-          // the pointers are all host pointers. However cudaMemcpy should be
-          // enforcing device synchronisation so that we don't copy host memory
-          // while it's being asynchronously copied into or out of else where.
-          #if SYNCEDMEMORY_PRINT_MEMCPY
-          std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
-          #endif
-          CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
-          #endif
-        } else {
-          memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
-        }
-      }
-
-      if (rhs.device_ptr_) {
-        #if HAS_CUDA
-        #if SYNCEDMEMORY_PRINT_MEMCPY
-        std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
-        #endif
-        CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
-        #endif
-      }
-    }
-
-    // move constructor
-    SyncedMemory(SyncedMemory&& rhs) noexcept
-    : size_(std::move(rhs.size_)),
-      host_ptr_(std::move(rhs.host_ptr_)),
-      device_ptr_(std::move(rhs.device_ptr_)),
-      sync_status_(std::move(rhs.sync_status_)) {
-      rhs.sync_status_ = SyncStatus::UNINITIALIZED;
-      rhs.size_ = 0;
-      rhs.host_ptr_ = nullptr;
-      rhs.device_ptr_ = nullptr;
-    }
-
-    // copy assign
-    SyncedMemory& operator=(const SyncedMemory &rhs) & {
-
-      if (this != &rhs) {
-        // Only reallocate if sizes are different and only resize the memory
-        // spaces that were already allocated on the rhs.
-        if (size_ != rhs.size_) {
-          if (rhs.host_ptr_) {
-            free_host_memory();
-            allocate_host_memory(rhs.size_);
-          }
-
-          if (rhs.device_ptr_) {
-            free_device_memory();
-            allocate_device_memory(rhs.size_);
-          }
-        }
-
-        size_ = rhs.size_;
-
-        // we use mutable_*_data() for 'this' to ensure allocation
-        // we use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
-
-        if (rhs.host_ptr_) {
-          #if HAS_CUDA
-          if (has_cuda_context()) {
-            #if SYNCEDMEMORY_PRINT_MEMCPY
-            std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
-            #endif
-            CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
-          } else {
-            memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
-          }
-          #else
-          memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
-          #endif
-        }
-
-        if (rhs.device_ptr_) {
-          #if HAS_CUDA
-          #if SYNCEDMEMORY_PRINT_MEMCPY
-          std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
-          #endif
-          CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
-          #endif
-        }
-      }
-      return *this;
-    }
-
-    SyncedMemory& operator=(SyncedMemory&& rhs) & noexcept {
-      size_ = rhs.size_;
-      host_ptr_ = rhs.host_ptr_;
-      device_ptr_ = rhs.device_ptr_;
-      sync_status_ = rhs.sync_status_;
-      rhs.sync_status_ = SyncStatus::UNINITIALIZED;
-      rhs.size_ = 0;
-      rhs.host_ptr_ = nullptr;
-      rhs.device_ptr_ = nullptr;
-      return *this;
-    }
-
-    // construct for a given size
-    inline explicit SyncedMemory(size_type size) : size_(size) {}
-
-    // construct for a given size and initial value
-    inline SyncedMemory(size_type size, const T& x) : size_(size) {
-      if (x == T{0}) {
-        zero();
-      } else {
-        std::fill(mutable_host_data(), mutable_host_data() + size_, x);
-      }
-    }
-
-    template<class InputIt, typename std::enable_if<
-                std::is_base_of<std::input_iterator_tag,typename std::iterator_traits<InputIt>::iterator_category>::value, bool>::type = true>
-    inline SyncedMemory(InputIt first, InputIt last)
-    : size_(std::distance(first, last))  {
-      std::copy(first, last, mutable_host_data());
-    }
-
-    // get size of data
-    inline constexpr size_type size() const noexcept { return size_; }
-
-    // get size of memory in bytes
-    inline constexpr std::size_t memory() const noexcept { return size_ * sizeof(value_type); }
-
-    // get maximum theoretical size of data
-    inline constexpr size_type max_size() const noexcept;
-
-    // accessors
-    inline const_pointer const_host_data();
-    inline const_pointer const_device_data();
-    inline pointer mutable_host_data();
-    inline pointer mutable_device_data();
-
-    // modifiers
-    inline void clear() { resize(0); }
-
-    // zero all elements of the data
-    inline void zero();
-
-    // resize the data (destructive, reallocates)
-    inline void resize(size_type new_size);
+    /// Memory contents synchronisation state.
+    enum class SyncStatus {
+        UNINITIALIZED,     ///< Memory has not been allocated yet
+        SYNCHRONIZED,      ///< Host and GPU memory contents are in sync
+        DEVICE_IS_MUTATED, ///< GPU memory contents has changed since last sync
+        HOST_IS_MUTATED    ///< Host memory contents has changed since last sync
+    };
 
 private:
+    // DATA
+    size_type  size_             = 0;       ///< Number of elements which can be held
+    pointer    host_ptr_         = nullptr; ///< Pointer to start of host memory
+    pointer    device_ptr_       = nullptr; ///< Pointer to start of GPU memory
+    SyncStatus sync_status_      = SyncStatus::UNINITIALIZED; ///< Current synchronisation status
+    bool       host_cuda_malloc_ = false; ///< Whether host memory was allocated was allocated with CudaMalloc
 
-    inline bool has_cuda_context() const;
+public:
+    // FRIENDS
 
-    // copy host data to the device
+    /// Swap two SyncedMemory objects
+    template<class F>
+    friend void swap(SyncedMemory<F> &lhs, SyncedMemory<F> &rhs);
+
+    // CREATORS
+
+    /// Construct a default, uninitialised synced memory object of zero size.
+    SyncedMemory() = default;
+
+    /// Construct a synced memory object with given 'size' (number of elements
+    /// of type 'T'.
+    explicit SyncedMemory(size_type size);
+
+    /// Construct a synced memory object with given 'size' (number of elements
+    /// of type 'T'. The memory is initialised to the value 'x'.
+    SyncedMemory(size_type size, const T &x);
+
+    /// Construct a synced memory object with a size and values taken from
+    /// the range between the 'first' and 'last' input iterators.
+    template<class InputIt>
+    SyncedMemory(InputIt first, InputIt last);
+
+    /// Construct a synced memory object from another similar object.
+    SyncedMemory(const SyncedMemory &rhs);
+
+    /// Move constructor
+    SyncedMemory(SyncedMemory &&rhs) noexcept;
+
+    /// Destroy the synchronised memory. All memory allocated of the host and
+    /// GPU is released.
+    ~SyncedMemory();
+
+    /// copy assign
+    SyncedMemory &operator=(SyncedMemory rhs) &;
+
+    /// move assign
+    SyncedMemory &operator=(SyncedMemory &&rhs) & noexcept;
+
+    /// Return the size of the memory allocated as the number of elements of type
+    /// 'T'.
+    constexpr size_type size() const noexcept;
+
+    /// Return the size of the memory allocated of a single buffer (host or GPU)
+    /// in bytes.
+    constexpr std::size_t memory() const noexcept;
+
+    /// Return the maximum allocatable size in number of elements of type 'T'.
+    constexpr size_type max_size() const noexcept;
+
+    /// MANIPULATORS
+    /// ------------
+    void clear();
+
+    /// zero all elements of the data
+    void zero();
+
+    /// resize the data (destructive, reallocates)
+    void resize(size_type new_size);
+
+    // ACCESSORS
+
+    /// Return const_pointer to start of host data
+    const_pointer const_host_data();
+
+    /// Return const_point to start of device (GPU) data
+    const_pointer const_device_data();
+
+    /// Return mutable pointer to start of host data
+    pointer mutable_host_data();
+
+    /// Return mutable pointer to start of device (GPU) data
+    pointer mutable_device_data();
+
+private:
+    /// Return 'true' if this thread has an active CUDA context
+    bool has_cuda_context() const;
+
+    /// Copy host data to the device
     void copy_to_device();
 
-    // copy device data to the host
+    /// Copy device data to the host
     void copy_to_host();
 
-    // allocate host data with size number of elements
+    /// Allocate host data with size number of elements
     void allocate_host_memory(size_type size);
 
-    // allocate device data with size number of elements
+    /// Allocate device data with size number of elements
     void allocate_device_memory(size_type size);
 
-    // set device data to zero
-    inline void zero_device();
-    // set host data to zero
-    inline void zero_host();
+    /// Set device data to zero
+    void zero_device();
 
-    inline constexpr size_type max_size_host() const noexcept;
-    inline size_type max_size_device() const;
-    inline size_type available_size_device() const;
+    /// Set host data to zero
+    void zero_host();
 
-    inline void free_host_memory();
-    inline void free_device_memory();
+    /// Theoretical maximum number of elements which can be allocated on the host
+    constexpr size_type max_size_host() const noexcept;
 
-    size_type size_         = 0;
-    pointer host_ptr_       = nullptr;
-    pointer device_ptr_     = nullptr;
-    SyncStatus sync_status_ = SyncStatus::UNINITIALIZED;
-    bool host_was_cuda_malloced_ = false;
+    /// Theoretical maximum number of elements which can be allocated on the device
+    size_type max_size_device() const;
+
+    /// Free memory allocated on the host
+    void free_host_memory();
+
+    /// Free memory allocated on the device
+    void free_device_memory();
 };
 
+// ============================================================================
+//                      INLINE FUNCTION DEFINITIONS
+// ============================================================================
+
 template<class T>
-void SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) {
+SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size)
+    : size_(size) {}
+
+
+template<class T>
+SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
+    : size_(size) {
+  if (x == T{0}) {
+    zero();
+  } else {
+    std::fill(mutable_host_data(), mutable_host_data() + size_, x);
+  }
+}
+
+
+template<class T>
+template<class InputIt>
+SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last)
+    : size_(std::distance(first, last)) {
+  std::copy(first, last, mutable_host_data());
+}
+
+
+template<class T>
+SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
+    : sync_status_(rhs.sync_status_) {
+  if (size_ != rhs.size_) {
+    resize(rhs.size_);
+  }
+
+  // We use mutable_*_data() for 'this' to ensure allocation
+  // We use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
+  if (rhs.host_ptr_) {
+    if (has_cuda_context()) {
+#if HAS_CUDA
+      // 2021-03-16 Joe: The use of cudaMemcpy(..., cudaMemcpyHostToHost)
+      // may not be strictly necessary. Just using memcpy works because
+      // the pointers are all host pointers. However cudaMemcpy should be
+      // enforcing device synchronisation so that we don't copy host memory
+      // while it's being asynchronously copied into or out of else where.
+#if SYNCED_MEMORY_PRINT_MEMCPY
+      std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
+#endif
+      CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+#endif
+    } else {
+      memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
+    }
+  }
+
+  if (rhs.device_ptr_) {
+#if HAS_CUDA
+#if SYNCED_MEMORY_PRINT_MEMCPY
+    std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
+#endif
+    CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
+#endif
+  }
+}
+
+
+template<class T>
+SyncedMemory<T>::SyncedMemory(SyncedMemory &&rhs) noexcept
+    : size_(std::move(rhs.size_)), host_ptr_(std::move(rhs.host_ptr_))
+      , device_ptr_(std::move(rhs.device_ptr_)), sync_status_(
+        std::move(rhs.sync_status_)) {
+  rhs.sync_status_ = SyncStatus::UNINITIALIZED;
+  rhs.size_ = 0;
+  rhs.host_ptr_ = nullptr;
+  rhs.device_ptr_ = nullptr;
+}
+
+
+template<class T>
+SyncedMemory<T>::~SyncedMemory() {
+  free_host_memory();
+  free_device_memory();
+}
+
+
+template<class T>
+SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory rhs) &{
+  swap(*this, rhs);
+  return *this;
+}
+
+
+template<class T>
+SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory &&rhs) & noexcept {
+  SyncedMemory tmp(std::move(rhs));
+  swap(*this, tmp);
+  return *this;
+}
+
+
+template<class T>
+void
+SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) {
   #if HAS_CUDA
   if (size == 0) return;
 
   if (size > max_size_device()) {
     throw std::bad_alloc();
   }
-
-  #if SYNCEDMEMORY_CHECK_FREE_MEMORY
-  if (size > available_size_device()) {
-    throw std::bad_alloc();
-  }
-  #endif
 
   assert(!device_ptr_);
   if (cudaMalloc(reinterpret_cast<void**>(&device_ptr_), size_ * sizeof(T)) != cudaSuccess) {
@@ -281,10 +327,12 @@ void SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size)
   #endif
 }
 
+
 template<class T>
 void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
   if (size == 0) return;
 
+  // host_ptr_ must not already be allocated before we try to allocate
   assert(!host_ptr_);
 
   #if HAS_CUDA
@@ -293,42 +341,55 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
       throw std::bad_alloc();
     }
     assert(host_ptr_);
-    host_was_cuda_malloced_ = true;
+    host_cuda_malloc_ = true;
     return;
   }
   #endif
 
-  if (posix_memalign(reinterpret_cast<void**>(&host_ptr_), SYNCEDMEMORY_HOST_ALIGNMENT, size * sizeof(T) ) != 0) {
+  if (posix_memalign(reinterpret_cast<void **>(&host_ptr_),
+                     SYNCED_MEMORY_HOST_ALIGNMENT,
+                     size * sizeof(T)) != 0) {
     throw std::bad_alloc();
   }
+
+  // host_ptr_ must be allocated by the end of the function
   assert(host_ptr_);
 }
 
+
 template<class T>
-inline typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_host_data() {
+inline
+typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_host_data() {
   copy_to_host();
   return host_ptr_;
 }
 
+
 template<class T>
-inline typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_device_data() {
+inline
+typename SyncedMemory<T>::const_pointer SyncedMemory<T>::const_device_data() {
   copy_to_device();
   return device_ptr_;
 }
 
+
 template<class T>
-inline typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_host_data() {
+inline
+typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_host_data() {
   copy_to_host();
   sync_status_ = SyncStatus::HOST_IS_MUTATED;
   return host_ptr_;
 }
 
+
 template<class T>
-inline typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_device_data() {
+inline
+typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_device_data() {
   copy_to_device();
   sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
   return device_ptr_;
 }
+
 
 template<class T>
 void SyncedMemory<T>::copy_to_device() {
@@ -361,6 +422,7 @@ void SyncedMemory<T>::copy_to_device() {
   }
   #endif
 }
+
 
 template<class T>
 void SyncedMemory<T>::copy_to_host() {
@@ -395,29 +457,34 @@ void SyncedMemory<T>::copy_to_host() {
   }
 }
 
+
 template<class T>
-inline void SyncedMemory<T>::zero_device() {
+inline
+void SyncedMemory<T>::zero_device() {
   if (size_ == 0) return;
 
   #if HAS_CUDA
-  #if SYNCEDMEMORY_PRINT_MEMSET
-    std::cout << "INFO(SyncedMemory): device zero" << std::endl;
+  #if SYNCED_MEMORY_PRINT_MEMSET
+  std::cout << "INFO(SyncedMemory): device zero" << std::endl;
   #endif
-  assert(device_ptr_);
-  CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, size_ * sizeof(T)));
+assert(device_ptr_);
+CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, size_ * sizeof(T)));
   #endif
 }
 
+
 template<class T>
-inline void SyncedMemory<T>::zero_host() {
+inline
+void SyncedMemory<T>::zero_host() {
   if (size_ == 0) return;
 
-  #if SYNCEDMEMORY_PRINT_MEMSET
+      #if SYNCED_MEMORY_PRINT_MEMSET
     std::cout << "INFO(SyncedMemory): host zero" << std::endl;
-  #endif
+      #endif
   assert(host_ptr_);
   memset(host_ptr_, 0, size_ * sizeof(T));
 }
+
 
 template<class T>
 void SyncedMemory<T>::zero() {
@@ -443,28 +510,29 @@ template<class T>
 void SyncedMemory<T>::free_host_memory() {
   if (host_ptr_) {
     #if HAS_CUDA
-      if (host_was_cuda_malloced_) {
-        auto status = cudaFreeHost(host_ptr_);
-        host_ptr_ = nullptr;
-        #if SYNCEDMEMORY_ALLOW_GLOBAL
-        assert(status == cudaSuccess || status == cudaErrorCudartUnloading);
-        #else
-        assert(status == cudaSuccess)
-        #endif
-        return;
-      }
+    if (host_cuda_malloc_) {
+      auto status = cudaFreeHost(host_ptr_);
+      host_ptr_ = nullptr;
+      #if SYNCED_MEMORY_ALLOW_GLOBAL
+      assert(status == cudaSuccess || status == cudaErrorCudartUnloading);
+      #else
+      assert(status == cudaSuccess)
+      #endif
+      return;
+    }
     #endif
     free(host_ptr_);
     host_ptr_ = nullptr;
   }
 }
 
+
 template<class T>
 void SyncedMemory<T>::free_device_memory() {
   #if HAS_CUDA
   if (device_ptr_) {
     auto status = cudaFree(device_ptr_);
-    #if SYNCEDMEMORY_ALLOW_GLOBAL
+    #if SYNCED_MEMORY_ALLOW_GLOBAL
     assert(status == cudaSuccess || status == cudaErrorCudartUnloading);
     #else
     assert(status == cudaSuccess)
@@ -474,14 +542,17 @@ void SyncedMemory<T>::free_device_memory() {
   device_ptr_ = nullptr;
 }
 
+
 template<class T>
-constexpr typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size() const noexcept {
+constexpr
+typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size() const noexcept {
   #if HAS_CUDA
   return std::min(max_size_host(), max_size_device());
   #else
   return max_size_host();
   #endif
 }
+
 
 template<class T>
 void SyncedMemory<T>::resize(SyncedMemory::size_type new_size) {
@@ -492,6 +563,7 @@ void SyncedMemory<T>::resize(SyncedMemory::size_type new_size) {
   free_device_memory();
   sync_status_ = SyncStatus::UNINITIALIZED;
 }
+
 
 // max_size is for returning the maximum theoretical size a container can be,
 // i.e. it is still possible that we cannot allocate this amount of memory.
@@ -510,31 +582,23 @@ typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size_device() const {
   #endif
 }
 
-template<class T>
-typename SyncedMemory<T>::size_type SyncedMemory<T>::available_size_device() const {
-  #if HAS_CUDA
-  size_t free;
-  size_t total;
-  CHECK_CUDA_STATUS(cudaMemGetInfo(&free, &total));
-  return free / sizeof(value_type);
-  #else
-  return 0;
-  #endif
-}
 
 template<class T>
-constexpr typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size_host() const noexcept {
+constexpr typename SyncedMemory<T>::size_type
+SyncedMemory<T>::max_size_host() const noexcept {
   return std::numeric_limits<size_type>::max();
 }
 
+
 template<class T>
-void swap(SyncedMemory<T>& lhs, SyncedMemory<T>& rhs) {
+void swap(SyncedMemory<T> &lhs, SyncedMemory<T> &rhs) {
   using std::swap;
   swap(lhs.sync_status_, rhs.sync_status_);
   swap(lhs.size_, rhs.size_);
   swap(lhs.host_ptr_, rhs.host_ptr_);
   swap(lhs.device_ptr_, rhs.device_ptr_);
 }
+
 
 template<class T>
 bool SyncedMemory<T>::has_cuda_context() const {
@@ -547,6 +611,28 @@ bool SyncedMemory<T>::has_cuda_context() const {
 #endif
 }
 
+
+template<class T>
+constexpr typename SyncedMemory<T>::size_type
+SyncedMemory<T>::size() const noexcept { return size_; }
+
+
+template<class T>
+constexpr std::size_t SyncedMemory<T>::memory() const noexcept {
+  return size_ * sizeof(value_type);
+}
+
+
+template<class T>
+void SyncedMemory<T>::clear() { resize(0); }
+
 } // namespace jams
 
-#endif //JAMS_SYNCED_MEMORY_H
+#undef SYNCED_MEMORY_PRINT_MEMCPY
+#undef SYNCED_MEMORY_PRINT_MEMSET
+#undef SYNCED_MEMORY_ALLOW_GLOBAL
+#undef SYNCED_MEMORY_ZERO_ON_ALLOCATION
+#undef SYNCED_MEMORY_HOST_ALIGNMENT
+
+#endif
+// ----------------------------- END-OF-FILE ----------------------------------
