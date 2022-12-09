@@ -28,7 +28,6 @@
 /// -----
 
 #if HAS_CUDA
-#include <jams/cuda/cuda_check_status.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #endif
@@ -65,6 +64,14 @@
 
 // memory alignment for host memory (if supported)
 #define SYNCED_MEMORY_HOST_ALIGNMENT 64
+
+#define SYNCED_MEMORY_CHECK_CUDA_STATUS(x) \
+{ \
+  cudaError_t stat; \
+  if ((stat = (x)) != cudaSuccess) { \
+    throw std::runtime_error(cudaGetErrorString(stat)); \
+  } \
+}
 
 namespace jams {
 
@@ -257,7 +264,7 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
 #if SYNCED_MEMORY_PRINT_MEMCPY
       std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
 #endif
-      CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
 #endif
     } else {
       memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
@@ -269,7 +276,7 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
 #if SYNCED_MEMORY_PRINT_MEMCPY
     std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
 #endif
-    CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
 #endif
   }
 }
@@ -406,7 +413,7 @@ void SyncedMemory<T>::copy_to_device() {
     std::cout << "INFO(SyncedMemory): cudaMemcpyHostToDevice" << std::endl;
     #endif
     assert(device_ptr_ && host_ptr_);
-    CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, size_ * sizeof(T),
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, size_ * sizeof(T),
                                  cudaMemcpyHostToDevice));
     sync_status_ = SyncStatus::SYNCHRONIZED;
     return;
@@ -441,7 +448,7 @@ void SyncedMemory<T>::copy_to_host() {
     std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
     #endif
     assert(device_ptr_ && host_ptr_);
-    CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToHost));
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToHost));
     sync_status_ = SyncStatus::SYNCHRONIZED;
     #endif
     return;
@@ -468,7 +475,7 @@ void SyncedMemory<T>::zero_device() {
   std::cout << "INFO(SyncedMemory): device zero" << std::endl;
   #endif
 assert(device_ptr_);
-CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, size_ * sizeof(T)));
+SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemset(device_ptr_, 0, size_ * sizeof(T)));
   #endif
 }
 
@@ -478,9 +485,9 @@ inline
 void SyncedMemory<T>::zero_host() {
   if (size_ == 0) return;
 
-      #if SYNCED_MEMORY_PRINT_MEMSET
+  #if SYNCED_MEMORY_PRINT_MEMSET
     std::cout << "INFO(SyncedMemory): host zero" << std::endl;
-      #endif
+  #endif
   assert(host_ptr_);
   memset(host_ptr_, 0, size_ * sizeof(T));
 }
@@ -505,6 +512,7 @@ void SyncedMemory<T>::zero() {
   }
   #endif
 }
+
 
 template<class T>
 void SyncedMemory<T>::free_host_memory() {
@@ -573,9 +581,9 @@ template<class T>
 typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size_device() const {
   #if HAS_CUDA
   int dev = 0;
-  CHECK_CUDA_STATUS(cudaGetDevice(&dev));
+  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaGetDevice(&dev));
   cudaDeviceProp prop;
-  CHECK_CUDA_STATUS(cudaGetDeviceProperties(&prop, dev));
+  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaGetDeviceProperties(&prop, dev));
   return prop.maxGridSize[0];
   #else
   return 0;
@@ -626,13 +634,16 @@ constexpr std::size_t SyncedMemory<T>::memory() const noexcept {
 template<class T>
 void SyncedMemory<T>::clear() { resize(0); }
 
+
 } // namespace jams
+
 
 #undef SYNCED_MEMORY_PRINT_MEMCPY
 #undef SYNCED_MEMORY_PRINT_MEMSET
 #undef SYNCED_MEMORY_ALLOW_GLOBAL
 #undef SYNCED_MEMORY_ZERO_ON_ALLOCATION
 #undef SYNCED_MEMORY_HOST_ALIGNMENT
+#undef SYNCED_MEMORY_CHECK_CUDA_STATUS
 
 #endif
 // ----------------------------- END-OF-FILE ----------------------------------
