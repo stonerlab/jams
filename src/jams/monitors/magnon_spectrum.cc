@@ -2,10 +2,16 @@
 // Created by Joseph Barker on 2019-08-01.
 //
 
+#include <jams/containers/mat3.h>
+
+#include <jams/monitors/magnon_spectrum.h>
+
+
 #include <jams/helpers/output.h>
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
-#include "jams/monitors/magnon_spectrum.h"
+
+#include <complex>
 
 using namespace std;
 using namespace jams;

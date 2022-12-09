@@ -3,6 +3,7 @@
 
 #include <random>
 
+#include <jams/common.h>
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"
 #include "random.h"

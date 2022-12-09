@@ -19,6 +19,8 @@
 #include <complex>
 #include <array>
 
+#include <jams/containers/vec3.h>
+
 #include "jams/containers/multiarray.h"
 
 using Complex = std::complex<double>;

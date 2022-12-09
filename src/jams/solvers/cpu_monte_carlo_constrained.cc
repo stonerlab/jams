@@ -6,6 +6,7 @@
 
 #include "cpu_monte_carlo_constrained.h"
 
+#include <jams/common.h>
 #include "jams/core/jams++.h"
 #include "jams/helpers/error.h"
 #include "jams/helpers/utils.h"

@@ -12,6 +12,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <iostream>
 
 Thermostat* Thermostat::create(const std::string &thermostat_name) {
   std::cout << thermostat_name << " thermostat\n";

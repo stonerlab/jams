@@ -5,6 +5,7 @@
 #include <iomanip>
 
 #include "version.h"
+#include <jams/common.h>
 #include "jams/core/globals.h"
 #include "jams/core/interactions.h"
 #include "jams/core/lattice.h"

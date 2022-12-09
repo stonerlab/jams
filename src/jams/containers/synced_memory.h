@@ -5,24 +5,28 @@
 #ifndef JAMS_SYNCED_MEMORY_H
 #define JAMS_SYNCED_MEMORY_H
 
-#include <limits>
-#include <iostream>
+#include <algorithm>
+#include <cassert>
+#include <cstring>
 #include <iterator>
-
-#include "jams/common.h"
-#include "jams/helpers/utils.h"
+#include <limits>
 
 #if HAS_CUDA
-#include <cuda_runtime.h>
-#include "jams/cuda/cuda_common.h"
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <jams/cuda/cuda_check_status.h>
 #endif
-
 
 // toggle printing all host/device synchronization calls to cout
 #define SYNCEDMEMORY_PRINT_MEMCPY 0
 
 // toggle printing all host/device memset calls to cout
 #define SYNCEDMEMORY_PRINT_MEMSET 0
+
+// only include <iostream> if we actually use it
+#if SYNCEDMEMORY_PRINT_MEMCPY || SYNCEDMEMORY_PRINT_MEMSET
+#include <iostream>
+#endif
 
 // toggles support for using SyncedMemory in the global namespace
 #define SYNCEDMEMORY_ALLOW_GLOBAL 1
@@ -72,22 +76,24 @@ public:
         resize(rhs.size_);
       }
 
-      // we use mutable_*_data() for 'this' to ensure allocation
-      // we use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
-
+      // We use mutable_*_data() for 'this' to ensure allocation
+      // We use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
       if (rhs.host_ptr_) {
-        #if HAS_CUDA
-        if (jams::instance().mode() == jams::Mode::GPU) {
+        if (has_cuda_context()) {
+          #if HAS_CUDA
+          // 2021-03-16 Joe: The use of cudaMemcpy(..., cudaMemcpyHostToHost)
+          // may not be strictly necessary. Just using memcpy works because
+          // the pointers are all host pointers. However cudaMemcpy should be
+          // enforcing device synchronisation so that we don't copy host memory
+          // while it's being asynchronously copied into or out of else where.
           #if SYNCEDMEMORY_PRINT_MEMCPY
           std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
           #endif
           CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+          #endif
         } else {
           memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
         }
-        #else
-        memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
-        #endif
       }
 
       if (rhs.device_ptr_) {
@@ -137,7 +143,7 @@ public:
 
         if (rhs.host_ptr_) {
           #if HAS_CUDA
-          if (jams::instance().mode() == jams::Mode::GPU) {
+          if (has_cuda_context()) {
             #if SYNCEDMEMORY_PRINT_MEMCPY
             std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
             #endif
@@ -218,6 +224,9 @@ public:
     inline void resize(size_type new_size);
 
 private:
+
+    inline bool has_cuda_context() const;
+
     // copy host data to the device
     void copy_to_device();
 
@@ -246,6 +255,7 @@ private:
     pointer host_ptr_       = nullptr;
     pointer device_ptr_     = nullptr;
     SyncStatus sync_status_ = SyncStatus::UNINITIALIZED;
+    bool host_was_cuda_malloced_ = false;
 };
 
 template<class T>
@@ -278,11 +288,12 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
   assert(!host_ptr_);
 
   #if HAS_CUDA
-  if (jams::instance().mode() == jams::Mode::GPU) {
+  if (has_cuda_context()) {
     if (cudaMallocHost(reinterpret_cast<void **>(&host_ptr_), size_ * sizeof(T)) != cudaSuccess) {
       throw std::bad_alloc();
     }
     assert(host_ptr_);
+    host_was_cuda_malloced_ = true;
     return;
   }
   #endif
@@ -322,58 +333,65 @@ inline typename SyncedMemory<T>::pointer SyncedMemory<T>::mutable_device_data() 
 template<class T>
 void SyncedMemory<T>::copy_to_device() {
   #if HAS_CUDA
-  switch(sync_status_) {
-    case SyncStatus::UNINITIALIZED:
+  if (sync_status_ == SyncStatus::DEVICE_IS_MUTATED || sync_status_ == SyncStatus::SYNCHRONIZED) {
+    return;
+  }
+
+  if (sync_status_ == SyncStatus::HOST_IS_MUTATED) {
+    if (!device_ptr_) {
       allocate_device_memory(size_);
-      #ifdef SYNCEDMEMORY_ZERO_ON_ALLOCATION
-      zero_device();
-      #endif
-      sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
-      break;
-    case SyncStatus::HOST_IS_MUTATED:
-      if (!device_ptr_ ) {
-        allocate_device_memory(size_);
-      }
-      #if SYNCEDMEMORY_PRINT_MEMCPY
-        std::cout << "INFO(SyncedMemory): cudaMemcpyHostToDevice" << std::endl;
-      #endif
-      assert(device_ptr_ && host_ptr_);
-      CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, size_ * sizeof(T), cudaMemcpyHostToDevice));
-      sync_status_ = SyncStatus::SYNCHRONIZED;
-      break;
-    case SyncStatus::DEVICE_IS_MUTATED:
-    case SyncStatus::SYNCHRONIZED:
-      break;
+    }
+    #if SYNCEDMEMORY_PRINT_MEMCPY
+    std::cout << "INFO(SyncedMemory): cudaMemcpyHostToDevice" << std::endl;
+    #endif
+    assert(device_ptr_ && host_ptr_);
+    CHECK_CUDA_STATUS(cudaMemcpy(device_ptr_, host_ptr_, size_ * sizeof(T),
+                                 cudaMemcpyHostToDevice));
+    sync_status_ = SyncStatus::SYNCHRONIZED;
+    return;
+  }
+
+  if (sync_status_ == SyncStatus::UNINITIALIZED) {
+    allocate_device_memory(size_);
+    #ifdef SYNCEDMEMORY_ZERO_ON_ALLOCATION
+    zero_device();
+    #endif
+    sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
+    return;
   }
   #endif
 }
 
 template<class T>
 void SyncedMemory<T>::copy_to_host() {
-  switch(sync_status_) {
-  case SyncStatus::UNINITIALIZED:
-    allocate_host_memory(size_);
-    #ifdef SYNCEDMEMORY_ZERO_ON_ALLOCATION
-    zero_host();
-    #endif
-    sync_status_ = SyncStatus::HOST_IS_MUTATED;
-    break;
-  case SyncStatus::DEVICE_IS_MUTATED:
+  // Splitting into if statements and returning early has improved performance
+  // over using a switch statement (on GCC at least).
+  if (sync_status_ == SyncStatus::HOST_IS_MUTATED || sync_status_ == SyncStatus::SYNCHRONIZED) {
+    return;
+  }
+
+  if (sync_status_ == SyncStatus::DEVICE_IS_MUTATED) {
     #if HAS_CUDA
     if (!host_ptr_) {
       allocate_host_memory(size_);
     }
     #if SYNCEDMEMORY_PRINT_MEMCPY
-      std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
+    std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
     #endif
     assert(device_ptr_ && host_ptr_);
     CHECK_CUDA_STATUS(cudaMemcpy(host_ptr_, device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToHost));
     sync_status_ = SyncStatus::SYNCHRONIZED;
-    break;
     #endif
-  case SyncStatus::HOST_IS_MUTATED:
-  case SyncStatus::SYNCHRONIZED:
-    break;
+    return;
+  }
+
+  if (sync_status_ == SyncStatus::UNINITIALIZED) {
+    allocate_host_memory(size_);
+    #ifdef SYNCEDMEMORY_ZERO_ON_ALLOCATION
+    zero_host();
+    #endif
+    sync_status_ = SyncStatus::HOST_IS_MUTATED;
+    return;
   }
 }
 
@@ -425,7 +443,7 @@ template<class T>
 void SyncedMemory<T>::free_host_memory() {
   if (host_ptr_) {
     #if HAS_CUDA
-      if (jams::instance().mode() == jams::Mode::GPU) {
+      if (host_was_cuda_malloced_) {
         auto status = cudaFreeHost(host_ptr_);
         host_ptr_ = nullptr;
         #if SYNCEDMEMORY_ALLOW_GLOBAL
@@ -516,6 +534,17 @@ void swap(SyncedMemory<T>& lhs, SyncedMemory<T>& rhs) {
   swap(lhs.size_, rhs.size_);
   swap(lhs.host_ptr_, rhs.host_ptr_);
   swap(lhs.device_ptr_, rhs.device_ptr_);
+}
+
+template<class T>
+bool SyncedMemory<T>::has_cuda_context() const {
+#if HAS_CUDA
+  CUcontext* pctx = nullptr;
+  cuCtxGetCurrent(pctx);
+  return pctx != nullptr;
+#else
+  return false;
+#endif
 }
 
 } // namespace jams

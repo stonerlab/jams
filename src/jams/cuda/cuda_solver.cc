@@ -1,8 +1,10 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 #include "jams/cuda/cuda_solver.h"
 
+#include <jams/common.h>
 #include "jams/core/globals.h"
 #include "jams/core/hamiltonian.h"
+#include <jams/cuda/cuda_common.h>
 
 #include <cublas_v2.h>
 

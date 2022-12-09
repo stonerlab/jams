@@ -22,6 +22,7 @@ extern "C"{
 #include <cmath>
 #include <pcg_random.hpp>
 
+#include <jams/common.h>
 #include "jams/helpers/defaults.h"
 #include "jams/containers/material.h"
 #include "jams/helpers/error.h"

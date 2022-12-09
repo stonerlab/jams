@@ -2,6 +2,8 @@
 // Created by Joseph Barker on 2018-11-22.
 //
 
+#include <jams/containers/vec3.h>
+
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 #include "jams/cuda/cuda_common.h"
@@ -12,6 +14,7 @@
 #include "jams/monitors/neutron_scattering_no_lattice.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/neutrons.h"
+
 
 using namespace std;
 using namespace jams;

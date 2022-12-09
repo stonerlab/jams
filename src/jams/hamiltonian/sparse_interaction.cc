@@ -1,5 +1,6 @@
 #include <fstream>
 
+#include <jams/common.h>
 #include "sparse_interaction.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
