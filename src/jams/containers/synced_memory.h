@@ -73,6 +73,19 @@
   } \
 }
 
+namespace {
+template <typename... >
+using void_t = void;
+
+template <class T, class = void>
+struct is_iterator : std::false_type { };
+
+template <class T>
+struct is_iterator<T, void_t<
+                      typename std::iterator_traits<T>::iterator_category
+>> : std::true_type { };
+}
+
 namespace jams {
 
 // ==================
@@ -127,7 +140,7 @@ public:
 
     /// Construct a synced memory object with a size and values taken from
     /// the range between the 'first' and 'last' input iterators.
-    template<class InputIt>
+    template<class InputIt, typename std::enable_if<is_iterator<InputIt>::value, bool>::type = true>
     SyncedMemory(InputIt first, InputIt last);
 
     /// Construct a synced memory object from another similar object.
@@ -237,7 +250,7 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
 
 
 template<class T>
-template<class InputIt>
+template<class InputIt, typename std::enable_if<is_iterator<InputIt>::value, bool>::type>
 SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last)
     : size_(std::distance(first, last)) {
   std::copy(first, last, mutable_host_data());
