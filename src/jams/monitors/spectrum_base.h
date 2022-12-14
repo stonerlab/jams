@@ -10,6 +10,7 @@
 #include "jams/containers/multiarray.h"
 #include "jams/core/monitor.h"
 #include "jams/core/solver.h"
+#include <jams/helpers/defaults.h>
 
 namespace jams {
     struct HKLIndex {

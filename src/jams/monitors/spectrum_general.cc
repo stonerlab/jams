@@ -10,6 +10,7 @@
 #include "jams/monitors/spectrum_general.h"
 
 #include <libconfig.h++>
+#include <jams/common.h>
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/interface/fft.h"

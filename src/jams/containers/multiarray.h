@@ -5,11 +5,12 @@
 #ifndef JAMS_MULTIARRAY_H
 #define JAMS_MULTIARRAY_H
 
+#include <jams/containers/synced_memory.h>
+
 #include <array>
+#include <algorithm>
 #include <cassert>
 #include <cstring>
-
-#include "jams/containers/synced_memory.h"
 
 namespace jams {
     namespace detail {

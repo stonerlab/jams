@@ -4,6 +4,7 @@
 #define JAMS_CORE_GLOBALS_H
 
 #include <string>
+#include <memory>
 
 #include "jams/containers/multiarray.h"
 

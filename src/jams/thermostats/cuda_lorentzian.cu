@@ -6,6 +6,7 @@
 #include <random>
 #include <mutex>
 #include <fstream>
+#include <jams/common.h>
 
 #include "jams/helpers/output.h"
 #include "jams/helpers/utils.h"

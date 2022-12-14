@@ -8,6 +8,7 @@
 
 #include <pcg_random.hpp>
 
+#include <jams/common.h>
 #include "jams/core/solver.h"
 #include "jams/helpers/random.h"
 #include "jams/containers/multiarray.h"

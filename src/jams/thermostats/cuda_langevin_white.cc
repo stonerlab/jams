@@ -7,7 +7,7 @@
 #include <iomanip>
 
 #include "cuda_langevin_white.h"
-
+#include <jams/common.h>
 #include "jams/cuda/cuda_array_kernels.h"
 #include "jams/helpers/consts.h"
 #include "jams/core/globals.h"
