@@ -14,12 +14,12 @@
 
 
 TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const libconfig::Setting &settings) : Monitor(settings), outfile(jams::output::full_path_filename("top_charge.tsv")) {
-  if (!approximately_equal(lattice->a(), {1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)) {
+  if (!approximately_equal(globals::lattice->a(), {1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)) {
 	throw std::runtime_error("Metadynamics 'finite-difference-topological-charge' "
 							 "requires the 'a' lattice parameter to be (1.0, 0.0, 0.0)");
   }
 
-  if (!approximately_equal(lattice->b(), {0.5, sqrt(3)/2, 0.0}, jams::defaults::lattice_tolerance)) {
+  if (!approximately_equal(globals::lattice->b(), {0.5, sqrt(3) / 2, 0.0}, jams::defaults::lattice_tolerance)) {
 	throw std::runtime_error("Metadynamics CV 'finite-difference-topological-charge' "
 							 "requires the 'b' lattice parameter to be (0.5, 0.8660254, 0.0)");
   }
@@ -43,10 +43,10 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 	  InteractionData J;
 	  J.unit_cell_pos_i = 0;
 	  J.unit_cell_pos_j = 0;
-	  J.type_i = lattice->material_name(
-		  lattice->motif_atom(J.unit_cell_pos_i).material_index);
-	  J.type_j = lattice->material_name(lattice->motif_atom(J.unit_cell_pos_j).material_index);
-	  J.r_ij = ::lattice->fractional_to_cartesian(data.first);
+	  J.type_i = globals::lattice->material_name(
+		  globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+	  J.type_j = globals::lattice->material_name(globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+	  J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
 	  J.J_ij[0][0] = data.second;
 	  interaction_template.push_back(J);
 	}
@@ -81,11 +81,11 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 	  InteractionData J;
 	  J.unit_cell_pos_i = 0;
 	  J.unit_cell_pos_j = 0;
-	  J.type_i = lattice->material_name(
-		  lattice->motif_atom(J.unit_cell_pos_i).material_index);
-	  J.type_j = lattice->material_name(
-		  lattice->motif_atom(J.unit_cell_pos_j).material_index);
-	  J.r_ij = ::lattice->fractional_to_cartesian(data.first);
+	  J.type_i = globals::lattice->material_name(
+		  globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+	  J.type_j = globals::lattice->material_name(
+		  globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+	  J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
 	  J.J_ij[0][0] = data.second;
 	  interaction_template.push_back(J);
 	}
@@ -125,9 +125,6 @@ Monitor::ConvergenceStatus TopologicalFiniteDiffChargeMonitor::convergence_statu
 }
 
 void TopologicalFiniteDiffChargeMonitor::update(Solver *solver) {
-  using namespace jams;
-  using namespace globals;
-
   double topological_charge = 0.0;
   for (auto i = 0; i < globals::num_spins; ++i) {
 	  topological_charge += local_topological_charge(i);
@@ -136,8 +133,8 @@ void TopologicalFiniteDiffChargeMonitor::update(Solver *solver) {
   monitor_top_charge_cache_ = topological_charge / (4.0 * kPi);
 
   outfile.width(12);
-  outfile << fmt::sci << solver->iteration()<< "\t";
-  outfile << fmt::decimal << monitor_top_charge_cache_ << "\t";
+  outfile << jams::fmt::sci << solver->iteration()<< "\t";
+  outfile << jams::fmt::decimal << monitor_top_charge_cache_ << "\t";
   outfile << std::endl;
 
 }

@@ -18,23 +18,23 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
 
   cout << "  cutoff radius: " << jams::fmt::decimal << radius_cutoff_ << " (latt_const)\n";
-  cout << "  max cutoff radius: " << lattice->max_interaction_radius() << " (latt_const)\n";
+  cout << "  max cutoff radius: " << globals::lattice->max_interaction_radius() << " (latt_const)\n";
 
-  if (radius_cutoff_ > lattice->max_interaction_radius()) {
+  if (radius_cutoff_ > globals::lattice->max_interaction_radius()) {
     throw std::runtime_error("cutoff radius is larger than the maximum radius which avoids self interaction");
   }
 
   ofstream of(jams::output::full_path_filename("exchange_functional.tsv"));
   output_exchange_functional(of, exchange_functional, radius_cutoff_);
 
-  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
-  neartree.insert_sites(lattice->atom_cartesian_positions());
+  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
+  neartree.insert_sites(globals::lattice->atom_cartesian_positions());
 
   double total_abs_exchange = 0.0;
 
   auto counter = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto r_i = lattice->atom_position(i);
+    auto r_i = globals::lattice->atom_position(i);
     const auto nbrs = neartree.neighbours(r_i, radius_cutoff_);
 
     for (const auto& nbr : nbrs) {
@@ -42,7 +42,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       if (i == j) {
         continue;
       }
-      const auto rij = norm(::lattice->displacement(i, j));
+      const auto rij = norm(::globals::lattice->displacement(i, j));
       const auto Jij = exchange_functional(rij);
       this->insert_interaction_scalar(i, j, Jij);
       counter++;
@@ -139,7 +139,7 @@ ExchangeFunctionalHamiltonian::output_exchange_functional(std::ostream &os,
   os << "radius_nm  exchange_meV\n";
   double r = 0.0;
   while (r < r_cutoff) {
-    os << jams::fmt::decimal << r * ::lattice->parameter() * 1e9 << " " << jams::fmt::sci << functional(r) << "\n";
+    os << jams::fmt::decimal << r * ::globals::lattice->parameter() * 1e9 << " " << jams::fmt::sci << functional(r) << "\n";
     r += delta_r;
   }
 }

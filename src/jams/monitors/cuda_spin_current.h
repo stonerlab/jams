@@ -41,9 +41,9 @@ public:
     void post_process() override {};
 
 private:
-    void write_spin_current_h5_file(const std::string &h5_file_name);
+    void write_spin_current_h5_file(const std::string &h5_file_name, const int iteration, const double time);
     void open_new_xdmf_file(const std::string &xdmf_file_name);
-    void update_xdmf_file(const std::string &h5_file_name);
+    void update_xdmf_file(const std::string &h5_file_name, const double time);
 
     CudaStream stream;
 

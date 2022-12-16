@@ -59,15 +59,15 @@ namespace {
     }
 
     vector<vector<AnisotropySetting_cube>> read_all_cubic_anisotropy_settings(const Setting &settings) {
-      vector<vector<AnisotropySetting_cube>> cubic_anisotropies(lattice->num_materials());
+      vector<vector<AnisotropySetting_cube>> cubic_anisotropies(globals::lattice->num_materials());
       auto anisotropy_cubic_orders = {"K1", "K2"};
       for (const auto name : anisotropy_cubic_orders) {
         if (settings.exists(name)) {
-          if (settings[name].getLength() < lattice->num_materials()) {
+          if (settings[name].getLength() < globals::lattice->num_materials()) {
             throw runtime_error("CubicHamiltonian: " + string(name) + "  must be specified for every material");
           }
 
-          if (settings[name].getLength() > lattice->num_materials()) {
+          if (settings[name].getLength() > globals::lattice->num_materials()) {
             throw runtime_error("CubicHamiltonian: " + string(name) + "  is specified for too many materials");
           }
 
@@ -87,8 +87,8 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
   auto cubic_anisotropies = read_all_cubic_anisotropy_settings(settings);
 
   std::cout << " material | axis 1 | axis 2 | axis 3 | order | energy" << "\n";
-  for (auto type = 0; type < lattice->num_materials(); ++type) {
-    std::cout << "  " << lattice->material_name(type) << ": ";
+  for (auto type = 0; type < globals::lattice->num_materials(); ++type) {
+    std::cout << "  " << globals::lattice->material_name(type) << ": ";
     for (const auto& ani : cubic_anisotropies[type]) {
       std::cout << "   | [" << ani.axis1 << "] | [" << ani.axis2 << "] | [" << ani.axis3 << "] | " << ani.order << " | " << ani.energy << "\n";
     }
@@ -103,7 +103,7 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
   magnitude_.resize(num_spins, cubic_anisotropies[0].size());
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto type = lattice->atom_material_id(i);
+    auto type = globals::lattice->atom_material_id(i);
     for (auto j = 0; j < cubic_anisotropies[type].size(); ++j) {
       order_(i, j) = cubic_anisotropies[type][j].order;
       magnitude_(i, j) = cubic_anisotropies[type][j].energy * input_energy_unit_conversion_;
@@ -123,11 +123,10 @@ double CubicHamiltonian::calculate_total_energy(double time) {
 }
 
 double CubicHamiltonian::calculate_energy(const int i, double time) {
-  using namespace globals;
   double energy = 0.0;
 
   for (auto n = 0; n < num_coefficients_; ++n) {
-    Vec3 spin = {s(i, 0), s(i, 1), s(i, 2)};
+    Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
 
     if(order_(i, n) == 1) {
       energy += -magnitude_(i,n) * (dot_squared(axis1_(i, n), spin) *
@@ -201,11 +200,10 @@ void CubicHamiltonian::calculate_energies(double time) {
 }
 
 Vec3 CubicHamiltonian::calculate_field(const int i, double time) {
-  using namespace globals;
   Vec3 field = {0.0, 0.0, 0.0};
 
   for (auto n = 0; n < num_coefficients_; ++n) {
-    Vec3 spin = {s(i, 0), s(i, 1), s(i, 2)};
+    Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
     auto pre = 2.0 * magnitude_(i,n);
 
     if (order_(i, n) == 1) {

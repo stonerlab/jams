@@ -7,8 +7,6 @@
 #include <cublas_v2.h>
 
 void CudaSolver::compute_fields() {
-  using namespace globals;
-
   if (hamiltonians_.empty()) return;
 
   for (auto& hh : hamiltonians_) {

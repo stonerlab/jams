@@ -153,7 +153,7 @@ void FieldPulseHamiltonian::calculate_fields(double time) {
 }
 
 Vec3 FieldPulseHamiltonian::calculate_field(int i, double time) {
-  Vec3 r = ::lattice->atom_position(i);
+  Vec3 r = ::globals::lattice->atom_position(i);
   return globals::mus(i) *
       temporal_field_pulse_->local_field(time, r);
 }
@@ -180,8 +180,8 @@ void FieldPulseHamiltonian::output_pulse(std::ofstream& os) {
   }
 
 
-  for (auto i = 0; i < solver->max_steps(); ++i) {
-    auto time = i * solver->time_step();
+  for (auto i = 0; i < globals::solver->max_steps(); ++i) {
+    auto time = i * globals::solver->time_step();
     auto field = temporal_field_pulse_->max_field(time);
     os << jams::fmt::sci << time;
     os << jams::fmt::decimal << field[0];

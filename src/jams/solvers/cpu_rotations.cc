@@ -17,27 +17,23 @@
 using namespace std;
 
 void RotationSolver::initialize(const libconfig::Setting& settings) {
-  using namespace globals;
-
   num_theta_ = jams::config_optional<unsigned>(settings, "num_theta", num_theta_);
   num_phi_ = jams::config_optional<unsigned>(settings, "num_phi", num_phi_);
 }
 
 void RotationSolver::run() {
-  using namespace globals;
-
   const double dtheta = kPi / double(num_theta_ - 1);
   const double dphi = kTwoPi / double(num_phi_ - 1);
 
-  for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+  for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
 
-    Vec3 spin_initial = {s(i,0), s(i,1), s(i,2)};
+    Vec3 spin_initial = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
 
     std::ofstream tsv_file(jams::output::full_path_filename_series("ang_eng.tsv", i, 1));
     tsv_file.width(12);
     tsv_file << "theta_deg\t";
     tsv_file << "phi_deg\t";
-    for (auto &hamiltonian : solver->hamiltonians()) {
+    for (auto &hamiltonian : this->hamiltonians()) {
       tsv_file << hamiltonian->name() << "_e\t";
     }
     tsv_file << std::endl;
@@ -50,13 +46,13 @@ void RotationSolver::run() {
         // rotate one spin
         Vec3 spin = spherical_to_cartesian_vector(1.0, theta, phi);
         for (auto j = 0; j < 3; ++j) {
-          s(i,j) = spin[j];
+          globals::s(i,j) = spin[j];
         }
 
         // print angles and energy
         tsv_file << rad_to_deg(theta) << "\t" << rad_to_deg(phi) << "\t";
-        for (auto &hamiltonian : solver->hamiltonians()) {
-          auto energy = hamiltonian->calculate_energy(i, solver->time());
+        for (auto &hamiltonian : this->hamiltonians()) {
+          auto energy = hamiltonian->calculate_energy(i, this->time());
           tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
         }
         tsv_file << std::endl;
@@ -67,7 +63,7 @@ void RotationSolver::run() {
     }
 
     for (auto j = 0; j < 3; ++j) {
-      s(i,j) = spin_initial[j];
+      globals::s(i,j) = spin_initial[j];
     }
 
     tsv_file.close();

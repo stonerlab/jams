@@ -49,8 +49,8 @@ class DipoleHamiltonianTests : public ::testing::Test {
 protected:
     DipoleHamiltonianTests() {
       // create global objects
-      ::lattice = new Lattice();
-      ::config = std::make_unique<libconfig::Config>();
+      ::globals::lattice = new Lattice();
+      ::globals::config = std::make_unique<libconfig::Config>();
     }
 
     ~DipoleHamiltonianTests() = default;
@@ -58,22 +58,23 @@ protected:
     void SetUp(const std::string &config_string) {
       jams::testing::toggle_cout();
       // configure global objects and create lattice and solver
-      ::config->readString(config_string);
-      ::lattice->init_from_config(*::config);
-      ::solver = Solver::create(config->lookup("solver"));
-      ::solver->initialize(config->lookup("solver"));
-      ::solver->register_physics_module(Physics::create(config->lookup("physics")));
+      ::globals::config->readString(config_string);
+      ::globals::lattice->init_from_config(*::globals::config);
+      ::globals::solver = Solver::create(globals::config->lookup("solver"));
+      ::globals::solver->initialize(globals::config->lookup("solver"));
+      ::globals::solver->register_physics_module(Physics::create(
+          globals::config->lookup("physics")));
 
       // configure the current Hamiltonian for testing
-      hamiltonian = std::make_unique<T>(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+      hamiltonian = std::make_unique<T>(::globals::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
       jams::testing::toggle_cout();
     }
 
     virtual void TearDown() {
       // destroy global objects
-      delete ::solver;
-      delete ::lattice;
+      delete ::globals::solver;
+      delete ::globals::lattice;
     }
 
     // test the total dipole energy for an ordered spin configuration
@@ -96,7 +97,7 @@ protected:
     void random_spin_test() {
       jams::testing::toggle_cout();
       std::unique_ptr<DipoleNearTreeHamiltonian> reference_hamiltonian(
-          new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins));
+          new DipoleNearTreeHamiltonian(::globals::config->lookup("hamiltonians.[0]"), globals::num_spins));
       jams::testing::toggle_cout();
 
       pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
@@ -134,7 +135,7 @@ protected:
     void ordered_spin_test(const Vec3& spin_direction) {
         jams::testing::toggle_cout();
         std::unique_ptr<DipoleNearTreeHamiltonian> reference_hamiltonian(
-                new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins));
+                new DipoleNearTreeHamiltonian(::globals::config->lookup("hamiltonians.[0]"), globals::num_spins));
         jams::testing::toggle_cout();
 
         for (unsigned int i = 0; i < globals::num_spins; ++i) {

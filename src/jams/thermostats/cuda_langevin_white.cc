@@ -28,7 +28,8 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
 
   cudaStreamCreate(&dev_stream_);
 
-  bool use_gilbert_prefactor = jams::config_optional<bool>(config->lookup("solver"), "gilbert_prefactor", false);
+  bool use_gilbert_prefactor = jams::config_optional<bool>(
+      globals::config->lookup("solver"), "gilbert_prefactor", false);
   cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
 
 
@@ -39,7 +40,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
         denominator = 1.0 + pow2(globals::alpha(i));
       }
       sigma_(i, j) = sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
-                          (globals::mus(i) * globals::gyro(i) * solver->time_step() * denominator));
+                          (globals::mus(i) * globals::gyro(i) * globals::solver->time_step() * denominator));
     }
   }
   cout << "  done\n\n";

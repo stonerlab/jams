@@ -66,7 +66,8 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
 
   spin_transformations_.resize(globals::num_spins);
   for (int i = 0; i < globals::num_spins; ++i) {
-    spin_transformations_[i] = lattice->material(lattice->atom_material_id(i)).transform;
+    spin_transformations_[i] = globals::lattice->material(
+        globals::lattice->atom_material_id(i)).transform;
   }
 
   output_initialization_info(cout);
@@ -119,7 +120,6 @@ void ConstrainedMCSolver::run() {
 
 unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& trial_spin_move) {
   using namespace std;
-  using namespace globals;
 
   uniform_real_distribution<> uniform_distribution;
 

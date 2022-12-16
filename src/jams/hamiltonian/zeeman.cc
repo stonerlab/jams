@@ -23,21 +23,21 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
 
     if(settings.exists("dc_local_field")) {
-        if (settings["dc_local_field"].getLength() != lattice->num_materials()) {
+        if (settings["dc_local_field"].getLength() != globals::lattice->num_materials()) {
           jams_die("ZeemanHamiltonian: dc_local_field must be specified for every material");
         }
 
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                dc_local_field_(i, j) = settings["dc_local_field"][lattice->atom_material_id(i)][j];
+                dc_local_field_(i, j) = settings["dc_local_field"][globals::lattice->atom_material_id(i)][j];
                 dc_local_field_(i, j) *= globals::mus(i);
             }
         }
     }
 
     if(settings.exists("ac_local")) {
-        if (settings["ac_local"].getLength() != lattice->num_materials()) {
+        if (settings["ac_local"].getLength() != globals::lattice->num_materials()) {
           jams_die("ZeemanHamiltonian: ac_local must be specified for every material");
         }
     }
@@ -47,10 +47,10 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
         if(!(settings.exists("ac_local_field") && settings.exists("ac_local_frequency"))) {
           jams_die("ZeemanHamiltonian: ac_local must have a field and a frequency");
         }
-        if (settings["ac_local_frequency"].getLength() != lattice->num_materials()) {
+        if (settings["ac_local_frequency"].getLength() != globals::lattice->num_materials()) {
           jams_die("ZeemanHamiltonian: ac_local_frequency must be specified for every material");
         }
-        if (settings["ac_local_field"].getLength() != lattice->num_materials()) {
+        if (settings["ac_local_field"].getLength() != globals::lattice->num_materials()) {
           jams_die("ZeemanHamiltonian: ac_local_field must be specified for every material");
         }
 
@@ -58,13 +58,13 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                ac_local_field_(i, j) = settings["ac_local_field"][lattice->atom_material_id(i)][j];
+                ac_local_field_(i, j) = settings["ac_local_field"][globals::lattice->atom_material_id(i)][j];
                 ac_local_field_(i, j) *= globals::mus(i);
             }
         }
 
         for (int i = 0; i < globals::num_spins; ++i) {
-            ac_local_frequency_(i) = settings["ac_local_frequency"][lattice->atom_material_id(i)];
+            ac_local_frequency_(i) = settings["ac_local_frequency"][globals::lattice->atom_material_id(i)];
             ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i);
         }
     }
@@ -79,9 +79,7 @@ double ZeemanHamiltonian::calculate_total_energy(double time) {
 }
 
 double ZeemanHamiltonian::calculate_energy(const int i, double time) {
-    using namespace globals;
-
-    const Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
+    const Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     const auto field = calculate_field(i, time);
 
     return -dot(s_i, field);
@@ -102,7 +100,6 @@ void ZeemanHamiltonian::calculate_energies(double time) {
 }
 
 Vec3 ZeemanHamiltonian::calculate_field(const int i, double time) {
-    using namespace globals;
     using std::pow;
 
     Vec3 field = {0.0, 0.0, 0.0};

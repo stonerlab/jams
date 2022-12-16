@@ -33,7 +33,7 @@ CudaNeutronScatteringNoLatticeMonitor::CudaNeutronScatteringNoLatticeMonitor(con
     configure_periodogram(settings["periodogram"]);
   }
 
-  periodogram_props_.sample_time = output_step_freq_ * solver->time_step();
+  periodogram_props_.sample_time = output_step_freq_ * globals::solver->time_step();
 
 
   // NOTE: the memory layout here is DIFFERENT for the CPU version
@@ -140,13 +140,13 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   for (auto i = 0; i < globals::num_spins; ++i) {
 
     // find all r_ij for current i using the minimum image convention.
-    Vec3 r_i = lattice->atom_position(i);
+    Vec3 r_i = globals::lattice->atom_position(i);
 
     // **ASSUMPTION** the system is cubic so that Smith's method for minimum
     // image works for all distances, not just the in-sphere.
     jams::cuda_minimum_image(
-        lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(),
-        lattice->periodic_boundaries(), r_i, globals::positions, r_ij);
+        globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(),
+        globals::lattice->periodic_boundaries(), r_i, globals::positions, r_ij);
 
       spectrum_r_ij<<<grid_size, block_size>>>(
           i, globals::num_spins, num_k, num_freq, unit_q[0], unit_q[1], unit_q[2],
@@ -174,7 +174,8 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
     for (auto k = 0; k < kspace_path_.size(); ++k) {
       ofs << jams::fmt::integer << k << "\t";
       ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
-      ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (lattice->parameter() * 1e10) << "\t";
+      ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
+          globals::lattice->parameter() * 1e10) << "\t";
       ofs << jams::fmt::decimal << (w * freq_delta) << "\t"; // THz
       ofs << jams::fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV
       // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1

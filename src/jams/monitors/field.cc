@@ -52,7 +52,7 @@ std::string FieldMonitor::tsv_header() {
   ss.width(12);
 
   ss << "time\t";
-  for (auto &hamiltonian : solver->hamiltonians()) {
+  for (auto &hamiltonian : globals::solver->hamiltonians()) {
     ss << hamiltonian->name() << "_hx\t";
     ss << hamiltonian->name() << "_hy\t";
     ss << hamiltonian->name() << "_hz\t";

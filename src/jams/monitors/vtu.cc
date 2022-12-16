@@ -18,8 +18,6 @@
 
 VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-    using namespace globals;
-
     // settings for only outputting a slice
     if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
       jams_die("Xyz monitor requires both slice_origin and slice_size to be specificed;");
@@ -39,8 +37,8 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
       std::cout << "  slice size " << slice_size[0] << " " << slice_size[1] << " " << slice_size[2] << "\n";
 
         // check which spins are inside the slice
-        for (int i = 0; i < num_spins; ++i) {
-            Vec3 pos = ::lattice->atom_position(i);
+        for (int i = 0; i < globals::num_spins; ++i) {
+            Vec3 pos = globals::lattice->atom_position(i);
 
             // check if the current spin in inside the slice
           if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)
@@ -57,20 +55,22 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         spins_binary_data.resize(num_slice_points, 3);
 
         for (int i = 0; i < num_slice_points; ++i) {
-            types_binary_data(i) = ::lattice->atom_material_id(slice_spins[i]);
+            types_binary_data(i) = globals::lattice->atom_material_id(slice_spins[i]);
             for (int j = 0; j < 3; ++j) {
-                points_binary_data(i, j) = ::lattice->parameter()*::lattice->atom_position(slice_spins[i])[j];
+                points_binary_data(i, j) = globals::lattice->parameter() *
+                    globals::lattice->atom_position(slice_spins[i])[j];
             }
         }
     } else {
 
-        points_binary_data.resize(num_spins, 3);
-        types_binary_data.resize(num_spins);
+        points_binary_data.resize(globals::num_spins, 3);
+        types_binary_data.resize(globals::num_spins);
 
-        for (int i = 0; i < num_spins; ++i) {
-            types_binary_data(i) = ::lattice->atom_material_id(i);
+        for (int i = 0; i < globals::num_spins; ++i) {
+            types_binary_data(i) = globals::lattice->atom_material_id(i);
             for (int j = 0; j < 3; ++j) {
-                points_binary_data(i, j) = ::lattice->parameter()*::lattice->atom_position(i)[j];
+                points_binary_data(i, j) = globals::lattice->parameter() *
+                    globals::lattice->atom_position(i)[j];
             }
         }
     }
@@ -79,8 +79,6 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
 }
 
 void VtuMonitor::update(Solver * solver) {
-  using namespace globals;
-
   if (solver->iteration()%output_step_freq_ == 0) {
     int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
 
@@ -89,11 +87,11 @@ void VtuMonitor::update(Solver * solver) {
     uint32_t header_bytesize, types_bytesize, points_bytesize, spins_bytesize, num_points;
 
     if (num_slice_points == 0) {
-        num_points = num_spins;
+        num_points = globals::num_spins;
         header_bytesize = sizeof(uint32_t);
-        types_bytesize  = num_spins*sizeof(int32_t);
-        points_bytesize = num_spins3*sizeof(float);
-        spins_bytesize  = num_spins3*sizeof(double);
+        types_bytesize  = globals::num_spins*sizeof(int32_t);
+        points_bytesize = globals::num_spins3*sizeof(float);
+        spins_bytesize  = globals::num_spins3*sizeof(double);
     } else {
         num_points = num_slice_points;
         header_bytesize = sizeof(uint32_t);
@@ -102,7 +100,7 @@ void VtuMonitor::update(Solver * solver) {
         spins_bytesize  = 3*num_slice_points*sizeof(double);
         for (int i = 0; i < num_slice_points; ++i) {
             for (int j = 0; j < 3; ++j) {
-                spins_binary_data(i,j) = s(slice_spins[i],j);
+                spins_binary_data(i,j) = globals::s(slice_spins[i],j);
             }
         }
     }
@@ -111,7 +109,7 @@ void VtuMonitor::update(Solver * solver) {
     // header info
     vtkfile << "<!--" << "\n";
     vtkfile << "VTU file produced by JAMS++ (" << QUOTEME(GITCOMMIT) << ")\n";
-    vtkfile << "  configuration file: " << simulation_name << "\n";
+    vtkfile << "  configuration file: " << globals::simulation_name << "\n";
     vtkfile << "  iteration: " << solver->iteration() << "\n";
     vtkfile << "  time: " << solver->time() << "\n";
     vtkfile << "  temperature: " << solver->physics()->temperature() << "\n";
@@ -149,7 +147,7 @@ void VtuMonitor::update(Solver * solver) {
     vtkfile.write(reinterpret_cast<char*>(types_binary_data.data()), types_bytesize);
     vtkfile.write(reinterpret_cast<char*>(&spins_bytesize), header_bytesize);
     if (num_slice_points == 0) {
-        vtkfile.write(reinterpret_cast<char*>(s.data()), spins_bytesize);
+        vtkfile.write(reinterpret_cast<char*>(globals::s.data()), spins_bytesize);
     } else {
         vtkfile.write(reinterpret_cast<char*>(spins_binary_data.data()), spins_bytesize);
     }

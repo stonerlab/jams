@@ -18,8 +18,6 @@
 using namespace std;
 
 void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
-  using namespace globals;
-
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
   output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
@@ -113,7 +111,7 @@ double MetropolisMCSolver::energy_difference(const int spin_index,
   auto energy_difference = 0.0;
   // Calculate the energy difference from all of the Hamiltonian terms
   for (const auto &ham : hamiltonians_) {
-	  energy_difference += ham->calculate_energy_difference(spin_index, initial_spin, final_spin, solver->time());
+	  energy_difference += ham->calculate_energy_difference(spin_index, initial_spin, final_spin, globals::solver->time());
 	}
 	return energy_difference;
 }

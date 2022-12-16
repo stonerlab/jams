@@ -32,21 +32,19 @@ namespace {
 
 SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  using namespace globals;
-
   settings.lookupValue("output_sublattice", output_sublattice_enabled_);
 
   time_point_counter_ = 0;
 
   // create transform arrays for example to apply a Holstein Primakoff transform
-  spin_transformations.resize(num_spins);
-  transformed_spins.resize(num_spins, 3);
+  spin_transformations.resize(globals::num_spins);
+  transformed_spins.resize(globals::num_spins, 3);
 
-  for (int i = 0; i < num_spins; ++i) {
-    spin_transformations[i] = lattice->material(lattice->atom_material_id(i)).transform;
+  for (int i = 0; i < globals::num_spins; ++i) {
+    spin_transformations[i] = globals::lattice->material(globals::lattice->atom_material_id(i)).transform;
   }
 
-  libconfig::Setting& solver_settings = ::config->lookup("solver");
+  libconfig::Setting& solver_settings = globals::config->lookup("solver");
 
   double t_step = solver_settings["t_step"];
   double t_run = solver_settings["t_max"];
@@ -71,11 +69,11 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   // where Nx, Ny, Nz are the supercell positions and M is the motif position
   // We can use that to reinterpet the output from the fft as a 5D array
   // ------------------------------------------------------------------
-  s_kspace.resize(lattice->kspace_size()[0], lattice->kspace_size()[1], lattice->kspace_size()[2],
-                  lattice->num_motif_atoms(), 3);
+  s_kspace.resize(globals::lattice->kspace_size()[0], globals::lattice->kspace_size()[1], globals::lattice->kspace_size()[2],
+                  globals::lattice->num_motif_atoms(), 3);
 
-  fft_plan_s_rspace_to_kspace = fft_plan_rspace_to_kspace(transformed_spins.data(), s_kspace.data(), lattice->kspace_size(),
-                                                          lattice->num_motif_atoms());
+  fft_plan_s_rspace_to_kspace = fft_plan_rspace_to_kspace(transformed_spins.data(), s_kspace.data(), globals::lattice->kspace_size(),
+                                                          globals::lattice->num_motif_atoms());
 
   // ------------------------------------------------------------------
   // construct Brillouin zone sample points from the nodes specified
@@ -92,8 +90,8 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
 
   // read the bz-points from the config
 
-  auto b_to_k_matrix = lattice->get_unitcell().inverse_matrix();
-  auto k_to_b_matrix = lattice->get_unitcell().matrix();
+  auto b_to_k_matrix = globals::lattice->get_unitcell().inverse_matrix();
+  auto k_to_b_matrix = globals::lattice->get_unitcell().matrix();
 
   for (int n = 0, nend = cfg_nodes.getLength(); n < nend; ++n) {
 
@@ -106,7 +104,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
       cout << "cfg_vec: " << cfg_vec << "\n";
     }
 
-    cfg_vec = hadamard_product(cfg_vec, ::lattice->kspace_size());
+    cfg_vec = hadamard_product(cfg_vec, globals::lattice->kspace_size());
 
     auto bz_vec = cfg_vec;
 
@@ -135,12 +133,12 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
 
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
-      if (int(b_uvw_nodes[n][i]) > ::lattice->kspace_size()[i]) {
+      if (int(b_uvw_nodes[n][i]) > globals::lattice->kspace_size()[i]) {
         jams_die("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n][0]),
                  int(b_uvw_nodes[n][1]),
                  int(b_uvw_nodes[n][2]));
       }
-      if (int(b_uvw_nodes[n+1][i]) > ::lattice->kspace_size()[i]) {
+      if (int(b_uvw_nodes[n+1][i]) > globals::lattice->kspace_size()[i]) {
         jams_die("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n + 1][0]),
                  int(b_uvw_nodes[n + 1][1]), int(b_uvw_nodes[n + 1][2]));
       }
@@ -201,15 +199,12 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   }
 
 
-  sqw_x.resize(::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
-  sqw_y.resize(::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
-  sqw_z.resize(::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
+  sqw_x.resize(globals::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
+  sqw_y.resize(globals::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
+  sqw_z.resize(globals::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
 }
 
 void SpectrumFourierMonitor::update(Solver * solver) {
-  using std::complex;
-  using namespace globals;
-
   fft_space();
   store_bz_path_data();
 
@@ -257,7 +252,7 @@ void SpectrumFourierMonitor::fft_time() {
       FFTW_COMPLEX_CAST(fft_sqw_z.data()),onembed,ostride,odist,
       FFTW_FORWARD,FFTW_ESTIMATE);
 
-  for (auto unit_cell_atom = 0; unit_cell_atom < ::lattice->num_motif_atoms(); ++unit_cell_atom) {
+  for (auto unit_cell_atom = 0; unit_cell_atom < ::globals::lattice->num_motif_atoms(); ++unit_cell_atom) {
     for (auto i = 0; i < time_points; ++i) {
       for (auto j = 0; j < space_points; ++j) {
         fft_sqw_x(i,j) = sqw_x(unit_cell_atom, i, j)*fft_window_default(i, time_points);
@@ -293,9 +288,9 @@ void SpectrumFourierMonitor::fft_time() {
         for (auto j = 0; j < space_points; ++j) {
           unit_cell_sqw_file << std::setw(5) << std::fixed << j << "\t";
           unit_cell_sqw_file << float_format << total_length << "\t";
-          unit_cell_sqw_file << float_format << b_uvw_points[j][0] / double(::lattice->kspace_size()[0])  << "\t";
-          unit_cell_sqw_file << float_format << b_uvw_points[j][1] / double(::lattice->kspace_size()[1])  << "\t";
-          unit_cell_sqw_file << float_format << b_uvw_points[j][2] / double(::lattice->kspace_size()[2])  << "\t";
+          unit_cell_sqw_file << float_format << b_uvw_points[j][0] / double(::globals::lattice->kspace_size()[0]) << "\t";
+          unit_cell_sqw_file << float_format << b_uvw_points[j][1] / double(::globals::lattice->kspace_size()[1]) << "\t";
+          unit_cell_sqw_file << float_format << b_uvw_points[j][2] / double(::globals::lattice->kspace_size()[2]) << "\t";
           unit_cell_sqw_file << float_format << i * freq_delta / 1e12 << "\t";
           unit_cell_sqw_file << float_format << norm * fft_sqw_x(i, j).real() << "\t" << norm * fft_sqw_x(i, j).imag() << "\t";
           unit_cell_sqw_file << float_format << norm * fft_sqw_y(i, j).real() << "\t" << norm * fft_sqw_y(i, j).imag() << "\t";
@@ -338,9 +333,9 @@ void SpectrumFourierMonitor::fft_time() {
       for (auto j = bz_points_path_count[bz_region]; j < bz_points_path_count[bz_region+1]; ++j) {
         sqwfile << std::setw(5) << std::fixed << j << "\t";
         sqwfile << float_format << region_length + total_length + 0.5 * bz_lengths[j] << "\t";
-        sqwfile << float_format << b_uvw_points[j][0] / double(::lattice->kspace_size()[0]) << "\t";
-        sqwfile << float_format << b_uvw_points[j][1] / double(::lattice->kspace_size()[1]) << "\t";
-        sqwfile << float_format << b_uvw_points[j][2] / double(::lattice->kspace_size()[2]) << "\t";
+        sqwfile << float_format << b_uvw_points[j][0] / double(::globals::lattice->kspace_size()[0]) << "\t";
+        sqwfile << float_format << b_uvw_points[j][1] / double(::globals::lattice->kspace_size()[1]) << "\t";
+        sqwfile << float_format << b_uvw_points[j][2] / double(::globals::lattice->kspace_size()[2]) << "\t";
         sqwfile << float_format << i*freq_delta / 1e12 << "\t";
         sqwfile << float_format << sqrt(total_sqw_x(i,j)) << "\t";
         sqwfile << float_format << sqrt(total_sqw_y(i,j)) << "\t";
@@ -384,7 +379,7 @@ void SpectrumFourierMonitor::fft_space() {
 
   fftw_execute(fft_plan_s_rspace_to_kspace);
 
-  const double norm = 1.0 / sqrt(product(lattice->kspace_size()));
+  const double norm = 1.0 / sqrt(product(globals::lattice->kspace_size()));
   std::transform(s_kspace.begin(), s_kspace.end(), s_kspace.begin(),
       [norm](const std::complex<double> &a)->std::complex<double> {return a * norm;});
 
@@ -392,11 +387,11 @@ void SpectrumFourierMonitor::fft_space() {
 }
 
 void SpectrumFourierMonitor::store_bz_path_data() {
-  Vec3i size = lattice->kspace_size();
+  Vec3i size = globals::lattice->kspace_size();
 
   // extra safety in case there is an extra one time point due to floating point maths
   if (time_point_counter_ < sqw_x.size(1)) {
-    for (auto m = 0; m < ::lattice->num_motif_atoms(); ++m) {
+    for (auto m = 0; m < ::globals::lattice->num_motif_atoms(); ++m) {
       for (auto i = 0; i < b_uvw_points.size(); ++i) {
         auto uvw = b_uvw_points[i];
 

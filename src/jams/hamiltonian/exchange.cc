@@ -37,11 +37,12 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
   if (debug_is_enabled()) {
     std::ofstream pos_file(jams::output::full_path_filename("DEBUG_pos.tsv"));
-    for (int n = 0; n < lattice->num_materials(); ++n) {
+    for (int n = 0; n < globals::lattice->num_materials(); ++n) {
       for (int i = 0; i < globals::num_spins; ++i) {
-        if (lattice->atom_material_id(i) == n) {
-          pos_file << i << "\t" << lattice->atom_position(i) << " | "
-                   << lattice->cartesian_to_fractional(lattice->atom_position(i)) << "\n";
+        if (globals::lattice->atom_material_id(i) == n) {
+          pos_file << i << "\t" << globals::lattice->atom_position(i) << " | "
+                   << globals::lattice->cartesian_to_fractional(
+                       globals::lattice->atom_position(i)) << "\n";
         }
       }
       pos_file << "\n\n";
@@ -141,8 +142,8 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   cout << "    neighbour list memory: " << neighbour_list_.memory() / kBytesToMegaBytes << " MB" << endl;
 
   cout << "    interactions per motif position: \n";
-  if (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2) && !lattice->has_impurities()) {
-    for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+  if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2) && !globals::lattice->has_impurities()) {
+    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
       cout << "      " << i << ": " << neighbour_list_.num_interactions(i) <<"\n";
     }
   }

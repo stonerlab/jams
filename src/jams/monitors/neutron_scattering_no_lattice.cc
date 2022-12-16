@@ -19,10 +19,10 @@ using namespace libconfig;
 
 NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
- neartree_(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), lattice->max_interaction_radius(), jams::defaults::lattice_tolerance)
+ neartree_(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), globals::lattice->max_interaction_radius(), jams::defaults::lattice_tolerance)
 {
 
-  neartree_.insert_sites(lattice->atom_cartesian_positions());
+  neartree_.insert_sites(globals::lattice->atom_cartesian_positions());
 
   configure_kspace_vectors(settings);
 
@@ -30,7 +30,7 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
   cout << "rspace windowing: " << do_rspace_windowing_ << endl;
 
   // default to 1.0 in case no form factor is given in the settings
-  fill(neutron_form_factors_.resize(lattice->num_materials(), num_k_), 1.0);
+  fill(neutron_form_factors_.resize(globals::lattice->num_materials(), num_k_), 1.0);
   if (settings.exists("form_factor")) {
     configure_form_factors(settings["form_factor"]);
   }
@@ -43,7 +43,7 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
     configure_periodogram(settings["periodogram"]);
   }
 
-  periodogram_props_.sample_time = output_step_freq_ * solver->time_step();
+  periodogram_props_.sample_time = output_step_freq_ * globals::solver->time_step();
 
 
   zero(spin_timeseries_.resize(globals::num_spins, 3, periodogram_props_.length));
@@ -93,12 +93,12 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
   }
 
   rspace_displacement_.resize(globals::s.size(0));
-  Vec3i lattice_dimensions = ::lattice->size();
+  Vec3i lattice_dimensions = ::globals::lattice->size();
   for (auto i = 0; i < globals::s.size(0); ++i) {
     // generalize so that we can impose open boundaries
-    rspace_displacement_(i) = lattice->displacement(
+    rspace_displacement_(i) = globals::lattice->displacement(
         {0.5 * lattice_dimensions[0], 0.5 * lattice_dimensions[1], 0.5 * lattice_dimensions[2]},
-        lattice->atom_position(i));
+        globals::lattice->atom_position(i));
   }
 }
 
@@ -232,7 +232,8 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   for (auto k = 0; k < kspace_path_.size(); ++k) {
     ofs << fmt::integer << k << "\t";
     ofs << fmt::decimal << kspace_path_(k) << "\t";
-    ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (lattice->parameter() * 1e10) << "\t";
+    ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
+        globals::lattice->parameter() * 1e10) << "\t";
     for (auto i : {0,1,2}) {
       for (auto j : {0,1,2}) {
         auto s_a = static_structure_factor(k)[i] / double(num_time_points);
@@ -269,7 +270,8 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
       for (auto j = 0; j < kspace_path_.size(); ++j) {
         ofs << fmt::integer << j << "\t";
         ofs << fmt::decimal << kspace_path_(j) << "\t";
-        ofs << fmt::decimal << kTwoPi * norm(kspace_path_(j)) / (lattice->parameter()*1e10) << "\t";
+        ofs << fmt::decimal << kTwoPi * norm(kspace_path_(j)) / (
+            globals::lattice->parameter() * 1e10) << "\t";
         ofs << fmt::decimal << (i * freq_delta) << "\t"; // THz
         ofs << fmt::decimal << (i * freq_delta) * 4.135668 << "\t"; // meV
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
@@ -299,7 +301,7 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
     Vec3 r = rspace_displacement_(n);
 
     // this is effectively a window in rspace
-    if (norm(r) >= lattice->max_interaction_radius()) continue;
+    if (norm(r) >= globals::lattice->max_interaction_radius()) continue;
     auto delta_q = kspace_path_(1) - kspace_path_(0);
 
     auto f0 = exp(-kImagTwoPi * dot(delta_q, r));
@@ -330,7 +332,7 @@ void NeutronScatteringNoLatticeMonitor::configure_periodogram(libconfig::Setting
 void NeutronScatteringNoLatticeMonitor::configure_form_factors(Setting &settings) {
   auto gj = read_form_factor_settings(settings);
 
-  auto num_materials = lattice->num_materials();
+  auto num_materials = globals::lattice->num_materials();
 
   if (settings.getLength() != num_materials) {
     throw runtime_error("NeutronScatteringMonitor:: there must be one form factor per material\"");
@@ -350,7 +352,7 @@ void NeutronScatteringNoLatticeMonitor::configure_form_factors(Setting &settings
   for (auto a = 0; a < num_materials; ++a) {
     for (auto i = 0; i < num_k_; ++i) {
       auto q = kspace_path_(i);
-      neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * lattice->parameter(), g_params[a], j_params[a]);
+      neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * globals::lattice->parameter(), g_params[a], j_params[a]);
     }
   }
 }
@@ -474,7 +476,7 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
     // i > j
     for (auto j = i+1; j < globals::num_spins; ++j) {
 
-      const Vec3 r_ij =  lattice->displacement(i,j);
+      const Vec3 r_ij =  globals::lattice->displacement(i, j);
 
       zero(sw_i);
       zero(sw_j);
@@ -518,7 +520,8 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
     for (auto k = 0; k < kspace_path_.size(); ++k) {
       ofs << fmt::integer << k << "\t";
       ofs << fmt::decimal << kspace_path_(k) << "\t";
-      ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (lattice->parameter() * 1e10) << "\t";
+      ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
+          globals::lattice->parameter() * 1e10) << "\t";
       ofs << fmt::decimal << (w * freq_delta) << "\t"; // THz
       ofs << fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV
       // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1

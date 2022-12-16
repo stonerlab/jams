@@ -20,30 +20,26 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
   magnetisation_stats_(),
   convergence_geweke_diagnostic_(100.0)   // number much larger than 1
 {
-  using namespace globals;
-
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 
-  material_count_.resize(lattice->num_materials(), 0);
-  for (auto i = 0; i < num_spins; ++i) {
-    material_count_[lattice->atom_material_id(i)]++;
+  material_count_.resize(globals::lattice->num_materials(), 0);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    material_count_[globals::lattice->atom_material_id(i)]++;
   }
 }
 
 void MagnetisationRateMonitor::update(Solver * solver) {
-  using namespace globals;
+  std::vector<Vec3> dm_dt(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
 
-  std::vector<Vec3> dm_dt(::lattice->num_materials(), {0.0, 0.0, 0.0});
-
-  for (auto i = 0; i < num_spins; ++i) {
-    const auto type = lattice->atom_material_id(i);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    const auto type = globals::lattice->atom_material_id(i);
     for (auto j = 0; j < 3; ++j) {
-      dm_dt[type][j] += ds_dt(i, j);
+      dm_dt[type][j] += globals::ds_dt(i, j);
     }
   }
 
-  for (auto type = 0; type < lattice->num_materials(); ++type) {
+  for (auto type = 0; type < globals::lattice->num_materials(); ++type) {
     if (material_count_[type] == 0) continue;
     for (auto j = 0; j < 3; ++j) {
       dm_dt[type][j] /= static_cast<double>(material_count_[type]);
@@ -53,7 +49,7 @@ void MagnetisationRateMonitor::update(Solver * solver) {
   tsv_file.width(12);
   tsv_file << std::scientific << solver->time() << "\t";
 
-  for (auto type = 0; type < lattice->num_materials(); ++type) {
+  for (auto type = 0; type < globals::lattice->num_materials(); ++type) {
     for (auto j = 0; j < 3; ++j) {
       tsv_file << dm_dt[type][j] << "\t";
     }
@@ -61,7 +57,7 @@ void MagnetisationRateMonitor::update(Solver * solver) {
 
     if (convergence_status_ != Monitor::ConvergenceStatus::kDisabled) {
       double total_dm_dt = 0.0;
-      for (auto type = 0; type < lattice->num_materials(); ++type) {
+      for (auto type = 0; type < globals::lattice->num_materials(); ++type) {
         total_dm_dt += norm(dm_dt[type]);
       }
 
@@ -92,8 +88,8 @@ std::string MagnetisationRateMonitor::tsv_header() {
 
   ss << "time\t";
 
-  for (auto i = 0; i < lattice->num_materials(); ++i) {
-    auto name = lattice->material_name(i);
+  for (auto i = 0; i < globals::lattice->num_materials(); ++i) {
+    auto name = globals::lattice->material_name(i);
     ss << name + "_dmx_dt\t";
     ss << name + "_dmy_dt\t";
     ss << name + "_dmz_dt\t";

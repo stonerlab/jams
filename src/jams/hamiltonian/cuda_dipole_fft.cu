@@ -78,10 +78,10 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 
   r_cutoff_ = double(settings["r_cutoff"]);
   cout << "  r_cutoff " << r_cutoff_ << "\n";
-  cout << "  r_cutoff_max " << ::lattice->max_interaction_radius() << "\n";
+  cout << "  r_cutoff_max " << ::globals::lattice->max_interaction_radius() << "\n";
 
   if (check_radius_) {
-    if (r_cutoff_ > ::lattice->max_interaction_radius()) {
+    if (r_cutoff_ > ::globals::lattice->max_interaction_radius()) {
       throw std::runtime_error("CudaDipoleFFTHamiltonian r_cutoff is too large for the lattice size."
                                        "The cutoff must be less than the inradius of the lattice.");
     }
@@ -91,19 +91,19 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   cout << "  distance_tolerance " << distance_tolerance_ << "\n";
 
   for (int n = 0; n < 3; ++n) {
-      kspace_size_[n] = ::lattice->size(n);
+      kspace_size_[n] = ::globals::lattice->size(n);
   }
 
   kspace_padded_size_ = kspace_size_;
 
   for (int n = 0; n < 3; ++n) {
-      if (!::lattice->is_periodic(n)) {
+      if (!::globals::lattice->is_periodic(n)) {
           kspace_padded_size_[n] = kspace_size_[n] * 2;
       }
   }
 
   unsigned int kspace_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2]/2 + 1) *
-          lattice->num_motif_atoms() * 3;
+                             globals::lattice->num_motif_atoms() * 3;
 
   kspace_s_.resize(kspace_size);
   kspace_h_.resize(kspace_size);
@@ -115,9 +115,9 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   cout << "    kspace padded size " << kspace_padded_size_ << "\n";
 
   int rank            = 3;           
-  int stride          = 3 * lattice->num_motif_atoms();
+  int stride          = 3 * globals::lattice->num_motif_atoms();
   int dist            = 1;
-  int num_transforms  = 3 * lattice->num_motif_atoms();
+  int num_transforms  = 3 * globals::lattice->num_motif_atoms();
   int rspace_embed[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
   int kspace_embed[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]/2 + 1};
 
@@ -130,10 +130,10 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_h_kspace_to_rspace, rank, fft_size, kspace_embed, stride, dist,
           rspace_embed, stride, dist, CUFFT_Z2D, num_transforms));
 
-  kspace_tensors_.resize(lattice->num_motif_atoms());
-  for (int pos_i = 0; pos_i < lattice->num_motif_atoms(); ++pos_i) {
+  kspace_tensors_.resize(globals::lattice->num_motif_atoms());
+  for (int pos_i = 0; pos_i < globals::lattice->num_motif_atoms(); ++pos_i) {
     std::vector<Vec3> generated_positions;
-    for (int pos_j = 0; pos_j < lattice->num_motif_atoms(); ++pos_j) {
+    for (int pos_j = 0; pos_j < globals::lattice->num_motif_atoms(); ++pos_j) {
         auto wq = generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions);
 
         jams::MultiArray<cufftDoubleComplex, 1> gpu_wq(wq.elements());
@@ -142,8 +142,8 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
         CHECK_CUDA_STATUS(cudaMemcpy(kspace_tensors_[pos_i].back().data(), wq.data(), wq.elements() * sizeof(cufftDoubleComplex), cudaMemcpyHostToDevice));
           
       }
-      if (check_symmetry_ && (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2))) {
-        if (!lattice->is_a_symmetry_complete_set(generated_positions, distance_tolerance_)) {
+      if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
+        if (!globals::lattice->is_a_symmetry_complete_set(generated_positions, distance_tolerance_)) {
           throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
                                    "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
                                    "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
@@ -198,16 +198,17 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 
   cudaDeviceSynchronize();
 
-  for (int pos_j = 0; pos_j < lattice->num_motif_atoms(); ++pos_j) {
-    for (int pos_i = 0; pos_i < lattice->num_motif_atoms(); ++pos_i) {
-      const double mus_j = lattice->material(lattice->motif_atom(pos_j).material_index).moment;
+  for (int pos_j = 0; pos_j < globals::lattice->num_motif_atoms(); ++pos_j) {
+    for (int pos_i = 0; pos_i < globals::lattice->num_motif_atoms(); ++pos_i) {
+      const double mus_j = globals::lattice->material(
+          globals::lattice->motif_atom(pos_j).material_index).moment;
 
       const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
 
       dim3 block_size = {128, 1, 1};
       dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
 
-      cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, lattice->num_motif_atoms(), mus_j, kspace_s_.device_data(),  kspace_tensors_[pos_i][pos_j].device_data(), kspace_h_.device_data());
+      cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, globals::lattice->num_motif_atoms(), mus_j, kspace_s_.device_data(), kspace_tensors_[pos_i][pos_j].device_data(), kspace_h_.device_data());
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
     }
     cudaDeviceSynchronize();
@@ -222,11 +223,11 @@ jams::MultiArray<Complex, 5>
 CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
     using std::pow;
 
-    const Vec3 r_frac_i = lattice->motif_atom(pos_i).position;
-    const Vec3 r_frac_j = lattice->motif_atom(pos_j).position;
+    const Vec3 r_frac_i = globals::lattice->motif_atom(pos_i).position;
+    const Vec3 r_frac_j = globals::lattice->motif_atom(pos_j).position;
 
-    const Vec3 r_cart_i = lattice->fractional_to_cartesian(r_frac_i);
-    const Vec3 r_cart_j = lattice->fractional_to_cartesian(r_frac_j);
+    const Vec3 r_cart_i = globals::lattice->fractional_to_cartesian(r_frac_i);
+    const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
 
   jams::MultiArray<double, 5> rspace_tensor(
         kspace_padded_size_[0],
@@ -245,7 +246,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
     kspace_tensor.zero();
 
     const double fft_normalization_factor = 1.0 / product(kspace_size_);
-    const double v = pow(lattice->parameter(), 3);
+    const double v = pow(globals::lattice->parameter(), 3);
     const double w0 = fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * v);
 
     for (int nx = 0; nx < kspace_size_[0]; ++nx) {
@@ -257,9 +258,9 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                 } 
 
                 auto r_ij =
-                    lattice->displacement(r_cart_j,
-                                          lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
-                                                                                                       {nx, ny, nz})); // generate_cartesian_lattice_position_from_fractional requires FRACTIONAL coordinate
+                    globals::lattice->displacement(r_cart_j,
+                                                   globals::lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
+                                                                                                                         {nx, ny, nz})); // generate_cartesian_lattice_position_from_fractional requires FRACTIONAL coordinate
 
                 const auto r_abs_sq = norm_squared(r_ij);
 

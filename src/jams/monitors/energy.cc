@@ -37,7 +37,7 @@ std::string EnergyMonitor::tsv_header() {
   ss.width(12);
 
   ss << "time\t";
-  for (auto &hamiltonian : solver->hamiltonians()) {
+  for (auto &hamiltonian : globals::solver->hamiltonians()) {
     ss << hamiltonian->name() << "_E_meV\t";
   }
 

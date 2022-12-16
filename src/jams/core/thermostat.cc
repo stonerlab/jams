@@ -16,7 +16,8 @@
 Thermostat* Thermostat::create(const std::string &thermostat_name) {
   std::cout << thermostat_name << " thermostat\n";
 
-  auto temperature = jams::config_required<double>(config->lookup("physics"), "temperature");
+  auto temperature = jams::config_required<double>(
+      globals::config->lookup("physics"), "temperature");
 
   // create the selected thermostat
   #if HAS_CUDA

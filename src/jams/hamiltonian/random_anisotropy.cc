@@ -24,12 +24,12 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   using namespace std;
 
   // validate settings
-  if (settings["magnitude"].getLength() != lattice->num_materials()) {
+  if (settings["magnitude"].getLength() != globals::lattice->num_materials()) {
     jams_die("RandomAnisotropyHamiltonian: magnitude must be specified for every material");
   }
 
   if (settings.exists("sigma")) {
-    if (settings["sigma"].getLength() != lattice->num_materials()) {
+    if (settings["sigma"].getLength() != globals::lattice->num_materials()) {
       jams_die("RandomAnisotropyHamiltonian: sigma must be specified for every material");
     }
   }
@@ -54,7 +54,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   auto random_normal_number = bind(normal_distribution<>(), generator);
 
   for (auto i = 0; i < size; ++i) {
-    auto type = lattice->atom_material_id(i);
+    auto type = globals::lattice->atom_material_id(i);
     magnitude_[i] = properties[type].magnitude + properties[type].sigma * random_normal_number();
     direction_[i] = random_unit_vector();
   }
@@ -74,8 +74,7 @@ double RandomAnisotropyHamiltonian::calculate_total_energy(double time) {
 }
 
 double RandomAnisotropyHamiltonian::calculate_energy(const int i, double time) {
-  using namespace globals;
-  return -magnitude_[i] * pow2(direction_[i][0] * s(i, 0) + direction_[i][1] * s(i, 1) + direction_[i][2] * s(i, 2));
+  return -magnitude_[i] * pow2(direction_[i][0] * globals::s(i, 0) + direction_[i][1] * globals::s(i, 1) + direction_[i][2] * globals::s(i, 2));
 }
 
 double RandomAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
@@ -93,8 +92,7 @@ void RandomAnisotropyHamiltonian::calculate_energies(double time) {
 }
 
 Vec3 RandomAnisotropyHamiltonian::calculate_field(const int i, double time) {
-  using namespace globals;
-  Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
+  Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
   return magnitude_[i] * dot(direction_[i], s_i) * direction_[i];
 }
 
@@ -115,7 +113,7 @@ void RandomAnisotropyHamiltonian::output_anisotropy_axes(std::ofstream &outfile)
   outfile << "\n";
 
   for (auto i = 0; i < direction_.size(); ++i) {
-    auto r = lattice->atom_position(i);
+    auto r = globals::lattice->atom_position(i);
     outfile << std::setw(12) << i;
     outfile << std::setw(12) << r;
     outfile << std::setw(12) << direction_[i];

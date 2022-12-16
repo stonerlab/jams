@@ -47,11 +47,10 @@ Vec3 AppliedFieldHamiltonian::calculate_field(int i, double time) {
 }
 
 double AppliedFieldHamiltonian::calculate_energy(int i, double time) {
-  using namespace globals;
   auto field = calculate_field(i, time);
-  return -(s(i,0) * field[0]
-          + s(i,1) * field[1]
-          + s(i,2) * field[2]);
+  return -( globals::s(i,0) * field[0]
+          + globals::s(i,1) * field[1]
+          + globals::s(i,2) * field[2]);
 }
 
 double AppliedFieldHamiltonian::calculate_energy_difference(int i,

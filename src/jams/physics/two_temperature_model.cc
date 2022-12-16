@@ -27,15 +27,13 @@ TTMPhysics::TTMPhysics(const libconfig::Setting &settings)
   G(17.0E17),
   Gsink(17.0E14),
   TTMFile(jams::output::full_path_filename( "ttm.tsv")) {
-  using namespace globals;
-
   phononTemp = settings["InitialTemperature"];
   electronTemp = phononTemp;
 
   sinkTemp = phononTemp;
 
   const libconfig::Setting& laserPulseConfig =
-    ::config->lookup("physics.laserPulses");
+      globals::config->lookup("physics.laserPulses");
 
   const int nLaserPulses = laserPulseConfig.getLength();
 
@@ -69,10 +67,7 @@ TTMPhysics::~TTMPhysics() {
 }
 
 void TTMPhysics::update(const int &iterations, const double &time, const double &dt) {
-  using namespace globals;
-
-double real_dt = dt;
-
+  double real_dt = dt;
   for (int i = 0; i < 3; ++i) {
     applied_field_[i] = reversingField[i];
   }

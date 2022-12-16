@@ -8,8 +8,6 @@
 #include <cmath>
 
 void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
-  using namespace globals;
-
   double w = jams::config_optional<double>(settings, "w", 5.0);
   double c = jams::config_optional<double>(settings, "c", 5.0);
 
@@ -22,15 +20,15 @@ void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
   switch (coordinate_format) {
     case CoordinateFormat::FRACTIONAL: {
       center = jams::config_optional<Vec2>(settings, "center", Vec2{0.5, 0.5});
-      auto frac_center = lattice->fractional_to_cartesian(
-          {center[0] * lattice->size(0), center[1] * lattice->size(1),
-           center[1] * lattice->size(1)});
+      auto frac_center = globals::lattice->fractional_to_cartesian(
+          {center[0] * globals::lattice->size(0), center[1] * globals::lattice->size(1),
+           center[1] * globals::lattice->size(1)});
       center = Vec2{frac_center[0], frac_center[1]};
       }
       break;
     case CoordinateFormat::CARTESIAN: {
-      auto frac_center = lattice->fractional_to_cartesian(
-          {0.5 * lattice->size(0), 0.5 * lattice->size(1), 0.0});
+      auto frac_center = globals::lattice->fractional_to_cartesian(
+          {0.5 * globals::lattice->size(0), 0.5 * globals::lattice->size(1), 0.0});
       center = jams::config_optional<Vec2>(settings, "center",
                                            Vec2{frac_center[0],
                                                 frac_center[1]});
@@ -48,8 +46,8 @@ void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
   double Qv = jams::config_optional<double>(settings, "vorticity", 1.0);
   double Qh = jams::config_optional<double>(settings, "helicity", 0.0);
 
-  for (auto i = 0; i < num_spins; ++i) {
-    auto r_i = ::lattice->displacement({center[0], center[1], 0.0}, ::lattice->atom_position(i));
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    auto r_i = globals::lattice->displacement({center[0], center[1], 0.0}, globals::lattice->atom_position(i));
     double x = r_i[0];
     double y = r_i[1];
     double r = sqrt(x*x + y*y);

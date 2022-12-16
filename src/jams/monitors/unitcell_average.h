@@ -17,8 +17,8 @@ public:
 
 private:
     void open_new_xdmf_file(const std::string &xdmf_file_name);
-    void update_xdmf_file(const std::string &h5_file_name);
-    void write_h5_file(const std::string &h5_file_name);
+    void update_xdmf_file(const std::string &h5_file_name, const double time);
+    void write_h5_file(const std::string &h5_file_name, const int iteration, const double time, const double temperature);
 
     bool         compression_enabled_ = true;
     Slice        slice_;

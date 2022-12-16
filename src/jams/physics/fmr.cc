@@ -20,8 +20,6 @@ FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
   DCFieldStrength(3, 0),
   PSDFile(jams::output::full_path_filename("psd.tsv")),
   PSDIntegral(0) {
-  using namespace globals;
-
   ACFieldFrequency = settings["ACFieldFrequency"];
   ACFieldFrequency = 2.0*M_PI*ACFieldFrequency;
 
@@ -33,9 +31,9 @@ FMRPhysics::FMRPhysics(const libconfig::Setting &settings)
     DCFieldStrength[i] = settings["DCFieldStrength"][i];
   }
 
-  PSDIntegral.resize(num_spins);
+  PSDIntegral.resize(globals::num_spins);
 
-  for (int i = 0; i < num_spins; ++i) {
+  for (int i = 0; i < globals::num_spins; ++i) {
     PSDIntegral(i) = 0;
   }
 
@@ -47,8 +45,6 @@ FMRPhysics::~FMRPhysics() {
 }
 
 void FMRPhysics::update(const int &iterations, const double &time, const double &dt) {
-  using namespace globals;
-
   const double cosValue = cos(ACFieldFrequency*time);
   const double sinValue = sin(ACFieldFrequency*time);
 
@@ -57,10 +53,11 @@ void FMRPhysics::update(const int &iterations, const double &time, const double 
     + ACFieldStrength[i] * cosValue;
   }
 
-  for (int i = 0; i < num_spins; ++i) {
+  for (int i = 0; i < globals::num_spins; ++i) {
     const double sProjection =
-    s(i, 0)*ACFieldStrength[0] + s(i, 1)*ACFieldStrength[1]
-    + s(i, 2)*ACFieldStrength[2];
+        globals::s(i, 0)*ACFieldStrength[0]
+        + globals::s(i, 1)*ACFieldStrength[1]
+        + globals::s(i, 2)*ACFieldStrength[2];
 
     PSDIntegral(i) += sProjection * sinValue * dt;
   }
@@ -68,10 +65,10 @@ void FMRPhysics::update(const int &iterations, const double &time, const double 
   if (iterations%output_step_freq_ == 0) {
     double pAverage = 0.0;
 
-    for (int i = 0; i < num_spins; ++i) {
-      pAverage += (PSDIntegral(i)*(ACFieldFrequency*mus(i))/time);
+    for (int i = 0; i < globals::num_spins; ++i) {
+      pAverage += (PSDIntegral(i)*(ACFieldFrequency*globals::mus(i))/time);
     }
 
-    PSDFile << time << "\t" << pAverage/num_spins << "\n";
+    PSDFile << time << "\t" << pAverage/globals::num_spins << "\n";
   }
 }

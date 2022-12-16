@@ -21,18 +21,18 @@ DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Settin
   settings.lookupValue("r_cutoff", r_cutoff_);
   std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
-  if (r_cutoff_ > lattice->max_interaction_radius()) {
+  if (r_cutoff_ > globals::lattice->max_interaction_radius()) {
     throw std::runtime_error(
         "r_cutoff is less than the maximum permitted interaction in the system"
-        " (" + std::to_string(lattice->max_interaction_radius())  + ")");
+        " (" + std::to_string(globals::lattice->max_interaction_radius()) + ")");
   }
 
-  supercell_matrix_ = lattice->get_supercell().matrix();
+  supercell_matrix_ = globals::lattice->get_supercell().matrix();
 
   frac_positions_.resize(globals::num_spins);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    frac_positions_[i] = lattice->get_supercell().inverse_matrix() * lattice->atom_position(i);
+    frac_positions_[i] = globals::lattice->get_supercell().inverse_matrix() * globals::lattice->atom_position(i);
   }
 
 }
@@ -70,7 +70,6 @@ void DipoleBruteforceHamiltonian::calculate_energies(double time) {
 
 [[gnu::hot]]
 Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
-  using namespace globals;
   using namespace std::placeholders;
 
 
@@ -78,19 +77,19 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
   // displacements less than the inradius of the cell. Our r_cutoff_ is checked at runtime in the
   // constructor for this condition which allows us to turn off the safety check in Smith's algorithm
   // (an optimisation). We assert the condition here again for safety.
-  assert(r_cutoff_ <= lattice->max_interaction_radius());
+  assert(r_cutoff_ <= globals::lattice->max_interaction_radius());
 
   auto displacement = [](const int i, const int j) {
       return jams::minimum_image_smith_method(
-              lattice->get_supercell().matrix(),
-              lattice->get_supercell().inverse_matrix(),
-              lattice->get_supercell().periodic(),
-              lattice->atom_position(i),
-              lattice->atom_position(j));
+          globals::lattice->get_supercell().matrix(),
+          globals::lattice->get_supercell().inverse_matrix(),
+          globals::lattice->get_supercell().periodic(),
+          globals::lattice->atom_position(i),
+          globals::lattice->atom_position(j));
   };
 
   const auto r_cut_squared = pow2(r_cutoff_);
-  const double w0 = mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(lattice->parameter()));
+  const double w0 = globals::mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter()));
 
   double hx = 0, hy = 0, hz = 0;
   #if HAS_OMP
@@ -99,18 +98,18 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
   for (auto j = 0; j < globals::num_spins; ++j) {
     if (j == i) continue;
 
-    const Vec3 s_j = {s(j,0), s(j,1), s(j,2)};
+    const Vec3 s_j = {globals::s(j,0), globals::s(j,1), globals::s(j,2)};
 
     Vec3 r_ij = displacement(i, j);
 
     const auto r_abs_sq = norm_squared(r_ij);
 
     if (definately_greater_than(r_abs_sq, r_cut_squared, jams::defaults::lattice_tolerance)) continue;
-    hx += w0 * mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) -
+    hx += w0 * globals::mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) -
         norm_squared(r_ij) * s_j[0]) / pow5(norm(r_ij));
-    hy += w0 * mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) -
+    hy += w0 * globals::mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) -
         norm_squared(r_ij) * s_j[1]) / pow5(norm(r_ij));;
-    hz += w0 * mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) -
+    hz += w0 * globals::mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) -
         norm_squared(r_ij) * s_j[2]) / pow5(norm(r_ij));;
   }
 

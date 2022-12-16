@@ -52,12 +52,12 @@ AnisotropySetting read_anisotropy_setting(Setting &setting) {
   if (setting[0].isNumber()) {
     result.motif_position = int(setting[0]);
     result.motif_position--;
-    if (result.motif_position < 0 || result.motif_position >= lattice->num_motif_atoms()) {
+    if (result.motif_position < 0 || result.motif_position >= globals::lattice->num_motif_atoms()) {
       throw runtime_error("uniaxial anisotropy motif position is invalid");
     }
   } else {
     result.material = string(setting[0].c_str());
-    if (!lattice->material_exists(result.material)) {
+    if (!globals::lattice->material_exists(result.material)) {
       throw runtime_error("uniaxial anisotropy material is invalid");
     }
   }
@@ -96,14 +96,14 @@ UniaxialHamiltonian::UniaxialHamiltonian(const Setting &settings, const unsigned
 
   for (const auto& ani : anisotropies) {
     for (auto i = 0; i < globals::num_spins; ++i) {
-      if (lattice->atom_motif_position(i) == ani.motif_position) {
+      if (globals::lattice->atom_motif_position(i) == ani.motif_position) {
         magnitude_(i) = ani.energy * input_energy_unit_conversion_;
         for (auto j : {0, 1, 2}) {
           axis_(i, j) = ani.axis[j];
         }
       }
-      if (lattice->material_exists(ani.material)) {
-        if (lattice->atom_material_id(i) == lattice->material_id(ani.material)) {
+      if (globals::lattice->material_exists(ani.material)) {
+        if (globals::lattice->atom_material_id(i) == globals::lattice->material_id(ani.material)) {
           magnitude_(i) = ani.energy * input_energy_unit_conversion_;
           for (auto j : {0, 1, 2}) {
             axis_(i, j) = ani.axis[j];
@@ -124,10 +124,9 @@ double UniaxialHamiltonian::calculate_total_energy(double time) {
 }
 
 double UniaxialHamiltonian::calculate_energy(const int i, double time) {
-  using namespace globals;
   double energy = 0.0;
 
-  auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
+  auto dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
   energy += (-magnitude_(i) * pow(dot, power_));
 
   return energy;
@@ -154,9 +153,7 @@ void UniaxialHamiltonian::calculate_energies(double time) {
 }
 
 Vec3 UniaxialHamiltonian::calculate_field(const int i, double time) {
-  using namespace globals;
-
-  auto dot = (axis_(i,0) * s(i,0) + axis_(i,1) * s(i,1) + axis_(i,2) * s(i,2));
+  auto dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
 
   Vec3 field;
   for (auto j = 0; j < 3; ++j) {

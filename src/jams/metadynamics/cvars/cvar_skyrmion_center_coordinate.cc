@@ -36,8 +36,8 @@ jams::CVarSkyrmionCoreCoordinate::CVarSkyrmionCoreCoordinate(const libconfig::Se
 							 "Passed is Invalid");
   }
 
-  periodic_x_ = lattice->is_periodic(0);
-  periodic_y_ = lattice->is_periodic(1);
+  periodic_x_ = globals::lattice->is_periodic(0);
+  periodic_y_ = globals::lattice->is_periodic(1);
 
   skyrmion_core_threshold_ = 0.0;
   space_remapping();
@@ -91,21 +91,21 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
   // NOTE: This means that we are assuming lattice vectors a,b are in the
   // x,y plane and c is BOTH out of the plane and orthogonal to a,b. i.e.
   // it must be a vector along z. We do a check here for safety.
-  auto c_unit_vec = normalize(lattice->get_unitcell().c());
+  auto c_unit_vec = normalize(globals::lattice->get_unitcell().c());
   assert(approximately_zero(c_unit_vec[0], 1e-8)
 			 && approximately_zero(c_unit_vec[1], 1e-8)
 			 && approximately_equal(c_unit_vec[2], 1.0, 1e-8));
 
-  Mat3 W = lattice->get_unitcell().matrix();
+  Mat3 W = globals::lattice->get_unitcell().matrix();
   W[0][2] = 0.0;
   W[1][2] = 0.0;
   W[2][2] = 1.0;
 
   // map 2D space into a cylinder with y as the axis
-  double x_max = lattice->size(0);
-  auto y_max = lattice->size(1);
+  double x_max = globals::lattice->size(0);
+  auto y_max = globals::lattice->size(1);
   for (auto i = 0; i < globals::num_spins; ++i) {
-	auto r = inverse(W) * lattice->atom_position(i);
+	auto r = inverse(W) * globals::lattice->atom_position(i);
 
 	if (periodic_x_) {
 	  auto theta_x = (r[0] / x_max) * (kTwoPi);
@@ -140,7 +140,6 @@ bool jams::CVarSkyrmionCoreCoordinate::is_spin_below_threshold(const Vec3 &s_ini
 }
 
 double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
-  using namespace globals;
   using namespace std;
 
   // In the fully general case we need to calculate the centre of mass in
@@ -156,7 +155,7 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
   int num_core_spins = 0;
 
   double mass = 0.0;
-  for (auto i = 0; i < num_spins; ++i) {
+  for (auto i = 0; i < globals::num_spins; ++i) {
     if (globals::s(i,2) <= skyrmion_core_threshold_) {
       tube_center_of_mass_x += cylinder_remapping_x_[i] * globals::s(i,2);
       tube_center_of_mass_y += cylinder_remapping_y_[i] * globals::s(i,2);
@@ -182,7 +181,6 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
 double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_change(int i,
                                                                         const Vec3 &spin_initial,
                                                                         const Vec3 &spin_trial) {
-  using namespace globals;
   using namespace std;
 
   // In the fully general case we need to calculate the centre of mass in
@@ -196,7 +194,7 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_change(int i,
 
   int basic_num_core_spins = 0;
 
-  for (auto n = 0; n < num_spins; ++n) {
+  for (auto n = 0; n < globals::num_spins; ++n) {
     if (n == i) {
       continue;
     }
@@ -248,7 +246,7 @@ Vec3 jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const do
 
   if (periodic_x_) {
     double theta_x = atan2(-tube_center_of_mass_x[2], -tube_center_of_mass_x[0]) + kPi;
-    center_of_mass[0] = theta_x*lattice->size(0)/(kTwoPi);
+    center_of_mass[0] = theta_x * globals::lattice->size(0) / (kTwoPi);
   } else {
 	if(center_of_mass[0] == 0 && total_mass == 0){
 	  center_of_mass[0] = 0;
@@ -259,7 +257,7 @@ Vec3 jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const do
 
   if (periodic_y_) {
     double theta_y = atan2(-tube_center_of_mass_y[2], -tube_center_of_mass_y[1]) + kPi;
-    center_of_mass[1] = theta_y*lattice->size(1)/(kTwoPi);
+    center_of_mass[1] = theta_y * globals::lattice->size(1) / (kTwoPi);
   } else {
 	
 	if (tube_center_of_mass_y[1] == 0 && total_mass ==0){
@@ -269,7 +267,7 @@ Vec3 jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const do
 	}
   }
 
-  Mat3 W = lattice->get_unitcell().matrix();
+  Mat3 W = globals::lattice->get_unitcell().matrix();
 
   // ignore the z-direction
   W[0][2] = 0.0; W[1][2] = 0.0; W[2][2] = 1.0;

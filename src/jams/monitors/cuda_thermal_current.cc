@@ -28,7 +28,7 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian\n"
                "in the config and assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
 
-  const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::solver->hamiltonians());
+  const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::globals::solver->hamiltonians());
 
   const auto& nbr_list = exchange_hamiltonian.neighbour_list();
 
@@ -81,7 +81,7 @@ CudaThermalCurrentMonitor::ThreeSpinList CudaThermalCurrentMonitor::generate_thr
         const auto Jjk = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
         if (i > j || j > k || i > k) continue;
-        three_spin_list.insert({i, j, k}, Jij * Jjk * lattice->displacement(i, k));
+        three_spin_list.insert({i, j, k}, Jij * Jjk * globals::lattice->displacement(i, k));
       }
     }
   }
@@ -98,7 +98,7 @@ CudaThermalCurrentMonitor::ThreeSpinList CudaThermalCurrentMonitor::generate_thr
         const auto Jik = nbr_k.second[0][0];
         if (i == j || j == k || i == k) continue;
         if (i > j || j > k || i > k) continue;
-        three_spin_list.insert({i, j, k}, Jij * Jik * lattice->displacement(j, i));
+        three_spin_list.insert({i, j, k}, Jij * Jik * globals::lattice->displacement(j, i));
       }
     }
   }
@@ -115,7 +115,7 @@ CudaThermalCurrentMonitor::ThreeSpinList CudaThermalCurrentMonitor::generate_thr
         const auto Jjk = nbr_j.second[0][0];
         if (i == j || j == k || i == k) continue;
         if (i > j || j > k || i > k) continue;
-        three_spin_list.insert({i, j, k}, Jik * Jjk * lattice->displacement(k, j));
+        three_spin_list.insert({i, j, k}, Jik * Jjk * globals::lattice->displacement(k, j));
       }
     }
   }

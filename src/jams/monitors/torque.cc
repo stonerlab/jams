@@ -21,15 +21,11 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
   torque_stats_(),
   convergence_geweke_diagnostic_()
 {
-  using namespace globals;
-
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 }
 
 void TorqueMonitor::update(Solver * solver) {
-  using namespace globals;
-
   tsv_file.width(12);
   tsv_file << std::scientific << solver->time() << "\t";
 
@@ -43,7 +39,7 @@ void TorqueMonitor::update(Solver * solver) {
     // Loop over all spins in the system and sum the torque for the current
     // Hamiltonian
     Vec3 torque = {0.0, 0.0, 0.0};
-    for (auto i = 0; i < num_spins; ++i) {
+    for (auto i = 0; i < globals::num_spins; ++i) {
       // Calculate the local torque on a lattice site (\vec{S} \times \vec{H})
       const Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
       const Vec3 field = {hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)};
@@ -53,7 +49,7 @@ void TorqueMonitor::update(Solver * solver) {
 
     // In JAMS internal units energies are normalised by mu_B so we undo that
     // here
-    torques.push_back(torque /static_cast<double>(num_spins));
+    torques.push_back(torque /static_cast<double>(globals::num_spins));
   }
 
   // Output all of the torques as columns in the tsv file
@@ -111,7 +107,7 @@ std::string TorqueMonitor::tsv_header() {
   ss.width(12);
 
   ss << "time\t";
-  for (auto &hamiltonian : solver->hamiltonians()) {
+  for (auto &hamiltonian : globals::solver->hamiltonians()) {
     const auto name = hamiltonian->name();
     ss << name + "_tx\t";
     ss << name + "_ty\t";

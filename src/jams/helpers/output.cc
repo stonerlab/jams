@@ -36,14 +36,14 @@ namespace jams {
 
         string full_path_filename(const string &ending) {
           auto sep = file_basename_no_extension(ending).empty() ? "" : "_";
-          return output_path() + ::simulation_name + sep + ending;
+          return output_path() + ::globals::simulation_name + sep + ending;
         }
 
         string full_path_filename_series(const string &ending, int num, int width) {
           auto base = file_basename_no_extension(ending);
           auto sep = base.empty() ? "" : "_";
           auto ext = file_extension(ending);
-          return output_path() + ::simulation_name + sep + base + "_" + zero_pad_number(num, width) + "." + ext;
+          return output_path() + ::globals::simulation_name + sep + base + "_" + zero_pad_number(num, width) + "." + ext;
         }
 
 

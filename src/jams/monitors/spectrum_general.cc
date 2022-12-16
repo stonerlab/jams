@@ -41,7 +41,7 @@ SpectrumGeneralMonitor::SpectrumGeneralMonitor(const libconfig::Setting &setting
 outfile(jams::output::full_path_filename("fk.tsv")){
   using namespace std;
 
-  libconfig::Setting& solver_settings = ::config->lookup("solver");
+  libconfig::Setting& solver_settings = ::globals::config->lookup("solver");
 
   double t_step = solver_settings["t_step"];
   double t_run = solver_settings["t_max"];
@@ -69,15 +69,11 @@ outfile(jams::output::full_path_filename("fk.tsv")){
 }
 
 void SpectrumGeneralMonitor::update(Solver *solver) {
-  using namespace globals;
-  using namespace std;
-
   if (time_point_counter_ < num_samples_) {
-    for (auto i = 0; i < num_spins; ++i) {
-      spin_data_(i, time_point_counter_) = Complex{s(i, 0), s(i, 1)};
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      spin_data_(i, time_point_counter_) = Complex{globals::s(i, 0), globals::s(i, 1)};
     }
   }
-
   time_point_counter_++;
 }
 
@@ -125,7 +121,6 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   using namespace std;
   using namespace std::chrono;
   using namespace std::placeholders;
-  using namespace globals;
 
   cout << "calculating correlation function" << std::endl;
   auto start_time = time_point_cast<milliseconds>(system_clock::now());
@@ -150,9 +145,9 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   }
 
   // support for lattice vacancies (we will skip these in the spectrum loop)
-  vector<bool> is_vacancy(num_spins, false);
-  for (auto i = 0; i < num_spins; ++i) {
-    if (s(i, 0) == 0.0 && s(i, 1) == 0.0 && s(i, 2) == 0.0) {
+  vector<bool> is_vacancy(globals::num_spins, false);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    if (globals::s(i, 0) == 0.0 && globals::s(i, 1) == 0.0 && globals::s(i, 2) == 0.0) {
       is_vacancy[i] = true;
     }
   }
@@ -168,7 +163,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
       if (is_vacancy[j]) continue;
       for (unsigned n = 0; n < qvecs.size(); ++n) {
         // precalculate the exponential factors for the spatial fourier transform
-        const auto qfactors = generate_expQR(qvecs[n], lattice->displacement(j, i));
+        const auto qfactors = generate_expQR(qvecs[n], globals::lattice->displacement(j, i));
 
         OMP_PARALLEL_FOR
         for (unsigned w = 0; w < padded_size_ / 2 + 1; ++w) {

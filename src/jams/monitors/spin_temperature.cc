@@ -20,17 +20,15 @@ tsv_file(jams::output::full_path_filename("spin_T.tsv"))
 }
 
 void SpinTemperatureMonitor::update(Solver * solver) {
-  using namespace globals;
-
   double sum_s_dot_h = 0.0;
   double sum_s_cross_h = 0.0;
 
   #if HAS_OMP
   #pragma omp parallel for reduction(+:sum_s_cross_h, sum_s_dot_h)
   #endif
-  for (auto i = 0; i < num_spins; ++i) {
-    const Vec3 spin = {s(i,0), s(i,1), s(i,2)};
-    const Vec3 field = {h(i,0), h(i,1), h(i,2)};
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    const Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+    const Vec3 field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
 
     sum_s_cross_h += norm_squared(cross(spin, field));
     sum_s_dot_h += dot(spin, field);

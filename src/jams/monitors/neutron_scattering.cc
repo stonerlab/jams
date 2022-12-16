@@ -26,7 +26,7 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const Setting &settings)
 : SpectrumBaseMonitor(settings) {
 
   // default to 1.0 in case no form factor is given in the settings
-  fill(neutron_form_factors_.resize(lattice->num_motif_atoms(), num_kpoints()), 1.0);
+  fill(neutron_form_factors_.resize(globals::lattice->num_motif_atoms(), num_kpoints()), 1.0);
   if (settings.exists("form_factor")) {
     configure_form_factors(settings["form_factor"]);
   }
@@ -46,13 +46,13 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const Setting &settings)
 void NeutronScatteringMonitor::configure_form_factors(Setting &settings) {
   auto gj = read_form_factor_settings(settings);
 
-  auto num_sites     = lattice->num_motif_atoms();
+  auto num_sites     = globals::lattice->num_motif_atoms();
   neutron_form_factors_.resize(num_sites, num_kpoints());
   for (auto a = 0; a < num_sites; ++a) {
     for (auto i = 0; i < num_kpoints(); ++i) {
-      auto m = lattice->motif_atom(a).material_index;
+      auto m = globals::lattice->motif_atom(a).material_index;
       auto q = kspace_paths_[i].xyz;
-      neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * lattice->parameter(), gj.first[m], gj.second[m]);
+      neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * globals::lattice->parameter(), gj.first[m], gj.second[m]);
     }
   }
 }
@@ -105,7 +105,7 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_sec
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      Vec3 r_ab = lattice->motif_atom(b).position - lattice->motif_atom(a).position;
+      Vec3 r_ab = globals::lattice->motif_atom(b).position - globals::lattice->motif_atom(a).position;
 
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
@@ -140,7 +140,7 @@ MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross_secti
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      const Vec3 r_ab = lattice->motif_atom(b).position - lattice->motif_atom(a).position;
+      const Vec3 r_ab = globals::lattice->motif_atom(b).position - globals::lattice->motif_atom(a).position;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
         auto Q = unit_vector(kpoint.xyz);
@@ -188,7 +188,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
     // but a discrete sum
     auto prefactor = (sample_time_interval() / num_periodogram_iterations()) * (1.0 / (kTwoPi * kHBarIU))
                      * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
-    auto barns_unitcell = prefactor / (1e-28 * lattice->num_cells());
+    auto barns_unitcell = prefactor / (1e-28 * globals::lattice->num_cells());
     auto time_points = total_unpolarized_neutron_cross_section_.size(0);
 
     auto path_begin = kspace_continuous_path_ranges_[n];

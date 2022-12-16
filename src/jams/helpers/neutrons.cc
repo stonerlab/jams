@@ -20,7 +20,7 @@ namespace jams {
     }
 
     std::pair<vector<FormFactorG>, vector<FormFactorJ>> read_form_factor_settings(Setting &settings) {
-      auto num_materials = lattice->num_materials();
+      auto num_materials = globals::lattice->num_materials();
 
       if (settings.getLength() != num_materials) {
         throw runtime_error("there must be one form factor per material\"");

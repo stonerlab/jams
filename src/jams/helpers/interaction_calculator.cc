@@ -85,8 +85,8 @@ namespace jams {
           data.unit_cell_pos_i = n;
           data.unit_cell_pos_j = atom.motif_index;
           data.r_ij = unitcell.matrix() * (atom.position - origin);
-          data.type_i = ::lattice->material_name(motif[n].material_index);
-          data.type_j = ::lattice->material_name(atom.material_index);
+          data.type_i = ::globals::lattice->material_name(motif[n].material_index);
+          data.type_j = ::globals::lattice->material_name(atom.material_index);
 
           shell.interactions.push_back(data);
 

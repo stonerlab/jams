@@ -47,7 +47,7 @@ public:
     };
 
     inline double sample_time_interval() const {
-      return output_step_freq_ * solver->time_step();
+      return output_step_freq_ * globals::solver->time_step();
     }
 
     inline double num_periodogram_iterations() const {

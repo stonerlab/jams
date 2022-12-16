@@ -424,7 +424,6 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
 }
 
 void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings) {
-  using namespace globals;
   using std::string;
 
   if (lattice_settings.exists("global_rotation") && lattice_settings.exists("orientation_axis")) {
@@ -463,7 +462,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   std::string position_filename;
   if (unitcell_settings["positions"].isList()) {
-    position_filename = simulation_name + ".cfg";
+    position_filename = globals::simulation_name + ".cfg";
     read_motif_from_config(unitcell_settings["positions"], cfg_coordinate_format);
   } else {
     position_filename = unitcell_settings["positions"].c_str();
@@ -691,7 +690,8 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   globals::mus.resize(globals::num_spins);
   globals::gyro.resize(globals::num_spins);
 
-  bool use_gilbert_prefactor = jams::config_optional<bool>(config->lookup("solver"), "gilbert_prefactor", false);
+  bool use_gilbert_prefactor = jams::config_optional<bool>(
+      globals::config->lookup("solver"), "gilbert_prefactor", false);
 
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -961,32 +961,32 @@ void Lattice::calc_symmetry_operations() {
 // lattice then the function returns false
 bool Lattice::apply_boundary_conditions(Vec3i& pos) const {
     for (int l = 0; l < 3; ++l) {
-      if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= lattice->size(l))) {
+      if (!is_periodic(l) && (pos[l] < 0 || pos[l] >= globals::lattice->size(l))) {
         return false;
       } else {
-        pos[l] = (pos[l] + lattice->size(l))%lattice->size(l);
+        pos[l] = (pos[l] + globals::lattice->size(l)) % globals::lattice->size(l);
       }
     }
     return true;
 }
 
 bool Lattice::apply_boundary_conditions(int &a, int &b, int &c) const {
-    if (!is_periodic(0) && (a < 0 || a >= lattice->size(0))) {
+    if (!is_periodic(0) && (a < 0 || a >= globals::lattice->size(0))) {
       return false;
     } else {
-      a = (a + lattice->size(0))%lattice->size(0);
+      a = (a + globals::lattice->size(0)) % globals::lattice->size(0);
     }
 
-    if (!is_periodic(1) && (b < 0 || b >= lattice->size(1))) {
+    if (!is_periodic(1) && (b < 0 || b >= globals::lattice->size(1))) {
       return false;
     } else {
-      b = (b + lattice->size(1))%lattice->size(1);
+      b = (b + globals::lattice->size(1)) % globals::lattice->size(1);
     }
 
-    if (!is_periodic(2) && (c < 0 || c >= lattice->size(2))) {
+    if (!is_periodic(2) && (c < 0 || c >= globals::lattice->size(2))) {
       return false;
     } else {
-      c = (c + lattice->size(2))%lattice->size(2);
+      c = (c + globals::lattice->size(2)) % globals::lattice->size(2);
     }
 
     return true;

@@ -11,18 +11,18 @@
 DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size),
   r_cutoff_(jams::config_required<double>(settings, "r_cutoff")),
-  neartree_(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance)
+  neartree_(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance)
 {
 
   std::cout << "  r_cutoff " << r_cutoff_ << "\n";
 
-  if (r_cutoff_ > lattice->max_interaction_radius()) {
+  if (r_cutoff_ > globals::lattice->max_interaction_radius()) {
     throw std::runtime_error(
         "r_cutoff is less than the maximum permitted interaction in the system"
-        " (" + std::to_string(lattice->max_interaction_radius())  + ")");
+        " (" + std::to_string(globals::lattice->max_interaction_radius()) + ")");
   }
 
-  neartree_.insert_sites(lattice->atom_cartesian_positions());
+  neartree_.insert_sites(globals::lattice->atom_cartesian_positions());
 
 
   std::cout << "  near tree size " << neartree_.size() << "\n";
@@ -68,13 +68,11 @@ void DipoleNearTreeHamiltonian::calculate_energies(double time) {
 [[gnu::hot]]
 Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i, double time)
 {
-  using namespace globals;
-
-  const Vec3 r_i = lattice->atom_position(i);
+  const Vec3 r_i = globals::lattice->atom_position(i);
 
   const auto neighbours = neartree_.neighbours(r_i, r_cutoff_);
 
-  const double w0 = mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(lattice->parameter()));
+  const double w0 = globals::mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter()));
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
   // work is already done to find the neighbours.
 
@@ -83,10 +81,10 @@ Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i, double time)
     const int j = neighbour.second;
     if (j == i) continue;
 
-    const Vec3 s_j = {s(j,0), s(j,1), s(j,2)};
+    const Vec3 s_j = {globals::s(j,0), globals::s(j,1), globals::s(j,2)};
     const Vec3 r_ij =  neighbour.first - r_i;
 
-    field += w0 * mus(j) * (3.0 * r_ij * dot(s_j, r_ij) -
+    field += w0 * globals::mus(j) * (3.0 * r_ij * dot(s_j, r_ij) -
         norm_squared(r_ij) * s_j) / pow5(norm(r_ij));
   }
   return field;

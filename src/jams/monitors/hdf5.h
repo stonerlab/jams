@@ -26,7 +26,7 @@ class Hdf5Monitor : public Monitor {
     void write_vector_field(const jams::MultiArray<double, 2>& field, const std::string& data_path, HighFive::File &file) const;
     void write_scalar_field(const jams::MultiArray<double, 1>& field, const std::string& data_path, HighFive::File &file) const;
   void open_new_xdmf_file(const std::string &xdmf_file_name);
-  void update_xdmf_file(const std::string &h5_file_name);
+  void update_xdmf_file(const std::string &h5_file_name, const double time);
   void write_lattice_h5_file(const std::string &h5_file_name);
   void write_spin_h5_file(const std::string &h5_file_name);
 

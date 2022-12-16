@@ -8,12 +8,12 @@
 jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     const libconfig::Setting &settings) {
 
-  if (!approximately_equal(lattice->a(), {1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)) {
+  if (!approximately_equal(globals::lattice->a(), {1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)) {
     throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
                              "requires the 'a' lattice parameter to be (1.0, 0.0, 0.0)");
   }
 
-  if (!approximately_equal(lattice->b(), {0.5, sqrt(3)/2, 0.0}, jams::defaults::lattice_tolerance)) {
+  if (!approximately_equal(globals::lattice->b(), {0.5, sqrt(3) / 2, 0.0}, jams::defaults::lattice_tolerance)) {
     throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
                              "requires the 'b' lattice parameter to be (0.5, 0.8660254, 0.0)");
   }
@@ -55,11 +55,11 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       InteractionData J;
       J.unit_cell_pos_i = 0;
       J.unit_cell_pos_j = 0;
-      J.type_i = lattice->material_name(
-          lattice->motif_atom(J.unit_cell_pos_i).material_index);
-      J.type_j = lattice->material_name(
-          lattice->motif_atom(J.unit_cell_pos_j).material_index);
-      J.r_ij = ::lattice->fractional_to_cartesian(data.first);
+      J.type_i = globals::lattice->material_name(
+          globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+      J.type_j = globals::lattice->material_name(
+          globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+      J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
       J.J_ij[0][0] = data.second;
       interaction_template.push_back(J);
     }
@@ -97,11 +97,11 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       InteractionData J;
       J.unit_cell_pos_i = 0;
       J.unit_cell_pos_j = 0;
-      J.type_i = lattice->material_name(
-          lattice->motif_atom(J.unit_cell_pos_i).material_index);
-      J.type_j = lattice->material_name(
-          lattice->motif_atom(J.unit_cell_pos_j).material_index);
-      J.r_ij = ::lattice->fractional_to_cartesian(data.first);
+      J.type_i = globals::lattice->material_name(
+          globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+      J.type_j = globals::lattice->material_name(
+          globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+      J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
       J.J_ij[0][0] = data.second;
       interaction_template.push_back(J);
     }

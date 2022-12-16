@@ -77,5 +77,4 @@ PingPhysics::~PingPhysics() {
 }
 
 void PingPhysics::update(const int &iterations, const double &time, const double &dt) {
-  using namespace globals;
 }

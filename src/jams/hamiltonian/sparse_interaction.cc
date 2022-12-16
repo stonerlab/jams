@@ -75,15 +75,13 @@ double SparseInteractionHamiltonian::calculate_energy_difference(int i, const Ve
 }
 
 double SparseInteractionHamiltonian::calculate_energy(const int i, double time) {
-  using namespace globals;
   assert(is_finalized_);
-  Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
+  Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
   auto field = calculate_field(i, time);
   return -dot(s_i, field);
 }
 
 double SparseInteractionHamiltonian::calculate_total_energy(double time) {
-  using namespace globals;
   assert(is_finalized_);
 
   calculate_fields(time);
@@ -92,7 +90,7 @@ double SparseInteractionHamiltonian::calculate_total_energy(double time) {
   #pragma omp parallel for default(none) shared(num_spins, s, field_) reduction(+:total_energy)
   #endif
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
+    Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     Vec3 h_i = {field_(i,0), field_(i, 1), field_(i, 2)};
     total_energy += -dot(s_i, h_i);
   }

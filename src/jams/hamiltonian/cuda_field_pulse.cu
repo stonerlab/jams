@@ -20,7 +20,7 @@ CudaFieldPulseHamiltonian::CudaFieldPulseHamiltonian(
   positions_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
-      positions_(i, j) = lattice->atom_position(i)[j];
+      positions_(i, j) = globals::lattice->atom_position(i)[j];
     }
   }
 
@@ -51,8 +51,8 @@ void CudaFieldPulseHamiltonian::output_pulse(std::ofstream& os) {
   }
 
 
-  for (auto i = 0; i < solver->max_steps(); ++i) {
-    auto time = i * solver->time_step();
+  for (auto i = 0; i < globals::solver->max_steps(); ++i) {
+    auto time = i * globals::solver->time_step();
     auto field = gaussian(time, temporal_center_, 1.0, temporal_width_) * max_field_;
     os << jams::fmt::sci << time;
     os << jams::fmt::decimal << field[0];

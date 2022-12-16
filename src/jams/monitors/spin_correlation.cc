@@ -12,7 +12,7 @@ using namespace std;
 SpinCorrelationMonitor::SpinCorrelationMonitor(const libconfig::Setting &settings) :
 Monitor(settings){
 
-  libconfig::Setting& solver_settings = ::config->lookup("solver");
+  libconfig::Setting& solver_settings = ::globals::config->lookup("solver");
 
   double t_step = solver_settings["t_step"];
   double t_run = solver_settings["t_max"];
@@ -24,11 +24,9 @@ Monitor(settings){
 }
 
 void SpinCorrelationMonitor::update(Solver *solver) {
-  using namespace globals;
-
   if (time_point_counter_ < num_samples_) {
-    for (auto i = 0; i < num_spins; ++i) {
-      sz_data_(i, time_point_counter_) = static_cast<float>(s(i,2));
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      sz_data_(i, time_point_counter_) = static_cast<float>(globals::s(i,2));
     }
   }
 
@@ -37,25 +35,23 @@ void SpinCorrelationMonitor::update(Solver *solver) {
 
 #pragma GCC optimize ("Ofast")
 void SpinCorrelationMonitor::post_process() {
-  using namespace globals;
-
   // calculate average sz of each position in unit cell
-  vector<double> avg_sz(::lattice->num_motif_atoms(), 0.0);
+  vector<double> avg_sz(globals::lattice->num_motif_atoms(), 0.0);
 
-  for (auto i = 0; i < num_spins; ++i) {
-    auto n = lattice->atom_motif_position(i);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    auto n = globals::lattice->atom_motif_position(i);
     for (auto t = 0; t < num_samples_; ++t) {
       avg_sz[n] += sz_data_(i, t);
     }
   }
 
   for (double &n : avg_sz) {
-    n /= double(product(lattice->size()) * num_samples_);
+    n /= double(product(globals::lattice->size()) * num_samples_);
   }
 
   // subtract from the spin data
-  for (auto i = 0; i < num_spins; ++i) {
-    auto n = lattice->atom_motif_position(i);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    auto n = globals::lattice->atom_motif_position(i);
     for (auto t = 0; t < num_samples_; ++t) {
       sz_data_(i, t) -= avg_sz[n];
     }
@@ -71,7 +67,7 @@ void SpinCorrelationMonitor::post_process() {
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = i + 1; j < globals::num_spins; ++j) {
-      const auto r_ij = lattice->displacement(i, j);
+      const auto r_ij = globals::lattice->displacement(i, j);
 
       const auto do_out_of_plane = (approximately_zero(r_ij[0], eps) && approximately_zero(r_ij[1], eps));
       const auto do_in_plane = (approximately_zero(r_ij[2], eps));

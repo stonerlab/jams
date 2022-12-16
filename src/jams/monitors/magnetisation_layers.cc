@@ -32,7 +32,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   std::map<double, std::vector<int>, decltype(comp_less)> unique_positions(comp_less);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 r = rotation_matrix * ::lattice->atom_position(i) * lattice->parameter() * kMeterToNanometer;
+    Vec3 r = rotation_matrix * ::globals::lattice->atom_position(i) * globals::lattice->parameter() * kMeterToNanometer;
     unique_positions[r[2]].push_back(i);
   }
 

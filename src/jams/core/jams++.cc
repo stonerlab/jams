@@ -35,12 +35,12 @@ using namespace std;
 namespace jams {
 
     void new_global_classes() {
-      lattice = new Lattice();
+      globals::lattice = new Lattice();
     }
 
     void delete_global_classes() {
-      delete solver;
-      delete lattice;
+      delete globals::solver;
+      delete globals::lattice;
     }
 
     // Reads a vector of strings in order, combining to produce a config.
@@ -91,7 +91,7 @@ namespace jams {
     }
 
     void set_mode() {
-      std::string solver_name = config->lookup("solver.module");
+      std::string solver_name = globals::config->lookup("solver.module");
       if (contains(lowercase(solver_name), "gpu")) {
         jams::instance().set_mode(Mode::GPU);
         if (!jams::instance().has_gpu_device()) {
@@ -158,8 +158,8 @@ namespace jams {
         const int config_options = jams::defaults::config_options) {
       using namespace libconfig;
 
-      ::config = std::make_unique<Config>();
-      ::config->setOptions(config_options);
+      ::globals::config = std::make_unique<Config>();
+      ::globals::config->setOptions(config_options);
 
       cout << "config files " << "\n";
       for (const auto& s : config_strings) {
@@ -168,10 +168,10 @@ namespace jams {
         }
       }
 
-      jams::parse_config_strings(config_strings, ::config);
+      jams::parse_config_strings(config_strings, ::globals::config);
 
       std::string filename = jams::output::full_path_filename("combined.cfg");
-      write_config(filename, ::config);
+      write_config(filename, ::globals::config);
     }
 
     string choose_simulation_name(const jams::ProgramArgs &program_args) {
@@ -215,7 +215,7 @@ namespace jams {
 
         jams::Simulation simulation;
 
-        ::simulation_name = choose_simulation_name(program_args);
+        ::globals::simulation_name = choose_simulation_name(program_args);
 
         initialize_config(program_args.config_strings);
 
@@ -233,17 +233,20 @@ namespace jams {
         simulation.random_state = jams::instance().random_generator_internal_state();
 
 
-        if (::config->exists("sim")) {
-          simulation.verbose = jams::config_optional<bool>(config->lookup("sim"), "verbose", false);
+        if (::globals::config->exists("sim")) {
+          simulation.verbose = jams::config_optional<bool>(
+              globals::config->lookup("sim"), "verbose", false);
 
-          if (config->exists("sim.seed")) {
-            simulation.random_seed = jams::config_required<unsigned long>(config->lookup("sim"), "seed");
+          if (globals::config->exists("sim.seed")) {
+            simulation.random_seed = jams::config_required<unsigned long>(
+                globals::config->lookup("sim"), "seed");
             jams::instance().random_generator().seed(simulation.random_seed);
             cout << "seed    " << simulation.random_seed << "\n";
           }
 
-          if (config->exists("sim.rng_state")) {
-            auto state = jams::config_required<string>(config->lookup("sim"), "rng_state");
+          if (globals::config->exists("sim.rng_state")) {
+            auto state = jams::config_required<string>(
+                globals::config->lookup("sim"), "rng_state");
             istringstream(state) >> simulation.random_state;
           }
         }
@@ -253,39 +256,40 @@ namespace jams {
 
         cout << jams::section("init lattice") << std::endl;
 
-        lattice->init_from_config(*::config);
+        globals::lattice->init_from_config(*::globals::config);
 
         cout << jams::section("init solver") << std::endl;
 
-        solver = Solver::create(config->lookup("solver"));
-        solver->initialize(config->lookup("solver"));
-        solver->register_physics_module(Physics::create(config->lookup("physics")));     // todo: fix this memory leak
+        globals::solver = Solver::create(globals::config->lookup("solver"));
+        globals::solver->initialize(globals::config->lookup("solver"));
+        globals::solver->register_physics_module(Physics::create(
+            globals::config->lookup("physics")));     // todo: fix this memory leak
 
         cout << jams::section("init hamiltonians") << std::endl;
 
-        if (!::config->exists("hamiltonians")) {
+        if (!::globals::config->exists("hamiltonians")) {
           jams_die("No hamiltonians in config");
         } else {
-          const libconfig::Setting &hamiltonian_settings = ::config->lookup("hamiltonians");
+          const libconfig::Setting &hamiltonian_settings = ::globals::config->lookup("hamiltonians");
           for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
-            solver->register_hamiltonian(
-                Hamiltonian::create(hamiltonian_settings[i], globals::num_spins, solver->is_cuda_solver()));
+            globals::solver->register_hamiltonian(
+                Hamiltonian::create(hamiltonian_settings[i], globals::num_spins, globals::solver->is_cuda_solver()));
           }
         }
 
         cout << jams::section("init monitors") << std::endl;
 
-        if (!::config->exists("monitors")) {
+        if (!::globals::config->exists("monitors")) {
           jams_warning("No monitors in config");
         } else {
-          const libconfig::Setting &monitor_settings = ::config->lookup("monitors");
+          const libconfig::Setting &monitor_settings = ::globals::config->lookup("monitors");
           for (auto i = 0; i < monitor_settings.getLength(); ++i) {
-            solver->register_monitor(Monitor::create(monitor_settings[i]));
+            globals::solver->register_monitor(Monitor::create(monitor_settings[i]));
           }
         }
 
-        if (::config->exists("initializer")) {
-          jams::InitializerDispatcher::execute(::config->lookup("initializer"));
+        if (::globals::config->exists("initializer")) {
+          jams::InitializerDispatcher::execute(::globals::config->lookup("initializer"));
         }
       }
       catch (const libconfig::SettingTypeException &stex) {
@@ -312,18 +316,18 @@ namespace jams {
         {
           ProgressBar progress;
           Timer<> timer;
-          while (::solver->is_running()) {
-            ::solver->update_physics_module();
-            ::solver->notify_monitors();
+          while (::globals::solver->is_running()) {
+            ::globals::solver->update_physics_module();
+            ::globals::solver->notify_monitors();
 
-            if (::solver->convergence_status() == Monitor::ConvergenceStatus::kConverged) {
+            if (::globals::solver->convergence_status() == Monitor::ConvergenceStatus::kConverged) {
               break;
             }
 
-            ::solver->run();
+            ::globals::solver->run();
 
-            progress.set(double(::solver->iteration()) / double(::solver->max_steps()));
-            if (::solver->iteration() % 1000 == 0) {
+            progress.set(double(::globals::solver->iteration()) / double(::globals::solver->max_steps()));
+            if (::globals::solver->iteration() % 1000 == 0) {
               cout << progress;
             }
           }
@@ -339,7 +343,7 @@ namespace jams {
 
           Timer<> timer;
 
-          for (const auto& m : solver->monitors()) {
+          for (const auto& m : globals::solver->monitors()) {
             m->post_process();
           }
           cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;

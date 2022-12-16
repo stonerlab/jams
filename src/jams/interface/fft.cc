@@ -78,16 +78,14 @@ void precalculate_kspace_phase_factors(
 }
 
 void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspace) {
-  using namespace globals;
+  std::vector<complex<double>> exp_phase_x(globals::lattice->kspace_size()[0]);
+  std::vector<complex<double>> exp_phase_y(globals::lattice->kspace_size()[1]);
+  std::vector<complex<double>> exp_phase_z(globals::lattice->kspace_size()[2]);
 
-  std::vector<complex<double>> exp_phase_x(lattice->kspace_size()[0]);
-  std::vector<complex<double>> exp_phase_y(lattice->kspace_size()[1]);
-  std::vector<complex<double>> exp_phase_z(lattice->kspace_size()[2]);
+  for (auto m = 0; m < globals::lattice->num_motif_atoms(); ++m) {
+    auto r_cart = globals::lattice->fractional_to_cartesian(globals::lattice->motif_atom(m).position);
 
-  for (auto m = 0; m < lattice->num_motif_atoms(); ++m) {
-    auto r_cart = lattice->fractional_to_cartesian(lattice->motif_atom(m).position);
-
-    precalculate_kspace_phase_factors(lattice->kspace_size(), r_cart, exp_phase_x, exp_phase_y, exp_phase_z);
+    precalculate_kspace_phase_factors(globals::lattice->kspace_size(), r_cart, exp_phase_x, exp_phase_y, exp_phase_z);
 
     for (auto i = 0; i < kspace.size(0); ++i) {
       for (auto j = 0; j < kspace.size(1); ++j) {
@@ -210,5 +208,5 @@ void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rsp
   fftw_execute(plan);
   fftw_destroy_plan(plan);
 
-  element_scale(kspace_data, 1.0/sqrt(product(lattice->kspace_size())));
+  element_scale(kspace_data, 1.0/sqrt(product(globals::lattice->kspace_size())));
 }

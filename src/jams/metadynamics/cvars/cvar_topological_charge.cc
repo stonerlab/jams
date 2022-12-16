@@ -28,7 +28,7 @@ jams::CVarTopologicalCharge::CVarTopologicalCharge(
   // Calculate the number of layers along the z direction
   auto comp = [](double a, double b){ return definately_less_than(a, b, jams::defaults::lattice_tolerance); };
   std::set<double, decltype(comp)> z_indices(comp);
-  for (const auto& r : lattice->atom_cartesian_positions()) {
+  for (const auto& r : globals::lattice->atom_cartesian_positions()) {
     z_indices.insert(r[2]);
   }
   recip_num_layers_ = 1.0 / z_indices.size();
@@ -48,8 +48,8 @@ double jams::CVarTopologicalCharge::value() {
 void jams::CVarTopologicalCharge::calculate_elementary_triangles(){
 
   // Generate a near tree of nearest neighbours from which we can calculate the triangle indices
-  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
-  neartree.insert_sites(lattice->atom_cartesian_positions());
+  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
+  neartree.insert_sites(globals::lattice->atom_cartesian_positions());
 
   // Use a set to ensure only a single version of equivalent triangles is stored.
   // This uses the structs defined in the class to compare ijk triplets to
@@ -61,7 +61,7 @@ void jams::CVarTopologicalCharge::calculate_elementary_triangles(){
   std::unordered_set<Triplet, TripletHasher, HandedTripletComparator> unique_indices;
 
   for (int spin_i = 0; spin_i < globals::num_spins; ++spin_i) {
-    auto r_i = lattice->atom_position(spin_i); // cartesian possition of spin i
+    auto r_i = globals::lattice->atom_position(spin_i); // cartesian possition of spin i
 
     // Find neighbours within the same layer (assuming planes normal
     // to z). Then generate ijk sets but always moving in a clockwise direction

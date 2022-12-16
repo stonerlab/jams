@@ -21,7 +21,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
 
   // deal with magnetocrystalline anisotropy coefficients
   if (settings.exists("d2z")) {
-    if (settings["d2z"].getLength() != lattice->num_materials()) {
+    if (settings["d2z"].getLength() != globals::lattice->num_materials()) {
       jams_die("UniaxialHamiltonian: d2z must be specified for every material");
     }
     cfg_mca_order.push_back(2);
@@ -35,7 +35,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
   }
 
   if (settings.exists("d4z")) {
-    if (settings["d4z"].getLength() != lattice->num_materials()) {
+    if (settings["d4z"].getLength() != globals::lattice->num_materials()) {
       jams_die("UniaxialHamiltonian: d4z must be specified for every material");
     }
     cfg_mca_order.push_back(4);
@@ -49,7 +49,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
   }
 
   if (settings.exists("d6z")) {
-    if (settings["d6z"].getLength() != lattice->num_materials()) {
+    if (settings["d6z"].getLength() != globals::lattice->num_materials()) {
       jams_die("UniaxialHamiltonian: d6z must be specified for every material");
     }
     cfg_mca_order.push_back(6);
@@ -70,7 +70,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
   mca_value_.resize(cfg_mca_order.size(), num_spins);
   for (auto i = 0; i < cfg_mca_order.size(); ++i){
     for (auto j = 0; j < num_spins; ++j) {
-      mca_value_(i, j) = cfg_mca_value[i][lattice->atom_material_id(j)];
+      mca_value_(i, j) = cfg_mca_value[i][globals::lattice->atom_material_id(j)];
     }
   }
 }
