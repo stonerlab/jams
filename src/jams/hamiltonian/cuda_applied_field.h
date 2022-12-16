@@ -2,7 +2,7 @@
 #define JAMS_HAMILTONIAN_CUDA_APPLIED_FIELD_H
 
 #include <jams/cuda/cuda_stream.h>
-#include "jams/hamiltonian/applied_field.h"
+#include <jams/hamiltonian/applied_field.h>
 
 class CudaAppliedFieldHamiltonian : public AppliedFieldHamiltonian {
 public:

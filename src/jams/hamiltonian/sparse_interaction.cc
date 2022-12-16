@@ -3,6 +3,7 @@
 #include "sparse_interaction.h"
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
+#include <jams/core/globals.h>
 
 SparseInteractionHamiltonian::SparseInteractionHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size),

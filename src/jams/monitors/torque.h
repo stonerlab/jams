@@ -3,13 +3,10 @@
 #ifndef JAMS_MONITOR_TORQUE_H
 #define JAMS_MONITOR_TORQUE_H
 
+#include <jams/core/monitor.h>
+
 #include <fstream>
 #include <array>
-
-#include <libconfig.h++>
-
-#include "jams/core/monitor.h"
-#include "jams/core/types.h"
 
 class Solver;
 class Stats;

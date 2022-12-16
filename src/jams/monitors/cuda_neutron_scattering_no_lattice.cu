@@ -9,7 +9,7 @@
 #include "jams/cuda/cuda_minimum_image.h"
 
 #include <cuda.h>
-
+#include <fstream>
 
 CudaNeutronScatteringNoLatticeMonitor::CudaNeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
     : Monitor(settings){

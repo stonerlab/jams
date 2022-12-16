@@ -3,13 +3,7 @@
 #ifndef JAMS_MONITOR_BINARY_H
 #define JAMS_MONITOR_BINARY_H
 
-#include <fstream>
-#include <vector>
-
-#include <libconfig.h++>
-
-#include "jams/core/monitor.h"
-#include "jams/core/types.h"
+#include <jams/core/monitor.h>
 
 class BinaryMonitor : public Monitor {
  public:

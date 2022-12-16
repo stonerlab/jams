@@ -4,12 +4,15 @@
 
 #ifndef JAMS_CUDA_THERMAL_CURRENT_H
 #define JAMS_CUDA_THERMAL_CURRENT_H
+
+#include <jams/containers/interaction_list.h>
+#include <jams/containers/interaction_matrix.h>
+#include <jams/containers/multiarray.h>
+#include <jams/core/monitor.h>
+#include <jams/cuda/cuda_stream.h>
+
+#include <string>
 #include <fstream>
-#include "jams/core/monitor.h"
-#include "jams/cuda/cuda_stream.h"
-#include "jams/core/interactions.h"
-#include "jams/core/types.h"
-#include "jams/containers/interaction_matrix.h"
 
 Vec3 execute_cuda_thermal_current_kernel(
     CudaStream &stream,

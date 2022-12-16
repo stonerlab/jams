@@ -5,8 +5,8 @@
 #ifndef JAMS_DIPOLE_BRUTEFORCE_H
 #define JAMS_DIPOLE_BRUTEFORCE_H
 
-#include "jams/helpers/maths.h"
-#include "jams/core/hamiltonian.h"
+#include <jams/core/hamiltonian.h>
+#include <jams/core/types.h>
 
 class DipoleBruteforceHamiltonian : public Hamiltonian {
 public:

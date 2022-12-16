@@ -1,14 +1,9 @@
 #ifndef JAMS_HAMILTONIAN_EXCHANGE_FUNCTIONAL_H
 #define JAMS_HAMILTONIAN_EXCHANGE_FUNCTIONAL_H
 
+#include <jams/hamiltonian/sparse_interaction.h>
+
 #include <functional>
-
-#include <libconfig.h++>
-
-#include "jams/core/hamiltonian.h"
-#include "jams/core/interactions.h"
-#include "jams/containers/sparse_matrix.h"
-#include "jams/hamiltonian/sparse_interaction.h"
 
 class ExchangeFunctionalHamiltonian : public SparseInteractionHamiltonian {
 public:

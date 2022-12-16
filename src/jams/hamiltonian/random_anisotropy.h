@@ -4,11 +4,10 @@
 #ifndef JAMS_HAMILTONIAN_RANDOM_ANISOTROPY_H
 #define JAMS_HAMILTONIAN_RANDOM_ANISOTROPY_H
 
+#include <jams/core/hamiltonian.h>
+
+#include <iosfwd>
 #include <vector>
-
-#include <libconfig.h++>
-
-#include "jams/core/hamiltonian.h"
 
 class RandomAnisotropyHamiltonian : public Hamiltonian {
     friend class CudaRandomAnisotropyHamiltonian;

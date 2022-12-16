@@ -5,13 +5,12 @@
 #ifndef JAMS_CUDA_SPIN_CURRENT_H
 #define JAMS_CUDA_SPIN_CURRENT_H
 
-#include <fstream>
-#include <libconfig.h++>
+#include <jams/containers/sparse_matrix.h>
+#include <jams/core/monitor.h>
+#include <jams/core/types.h>
+#include <jams/cuda/cuda_stream.h>
 
-#include "jams/cuda/cuda_stream.h"
-#include "jams/containers/sparse_matrix.h"
-#include "jams/core/monitor.h"
-#include "jams/core/types.h"
+#include <fstream>
 
 class Solver;
 

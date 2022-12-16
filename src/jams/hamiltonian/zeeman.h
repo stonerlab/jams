@@ -3,9 +3,8 @@
 #ifndef JAMS_HAMILTONIAN_ZEEMAN_H
 #define JAMS_HAMILTONIAN_ZEEMAN_H
 
-#include <libconfig.h++>
-
-#include "jams/core/hamiltonian.h"
+#include <jams/core/hamiltonian.h>
+#include <jams/containers/multiarray.h>
 
 class ZeemanHamiltonian : public Hamiltonian {
     friend class CudaZeemanHamiltonian;

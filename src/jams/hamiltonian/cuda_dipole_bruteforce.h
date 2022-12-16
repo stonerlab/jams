@@ -3,10 +3,7 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
 #define JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H
 
-#include "jams/helpers/maths.h"
-#include "jams/core/hamiltonian.h"
-
-#include "jams/cuda/cuda_stream.h"
+#include <jams/core/hamiltonian.h>
 
 class CudaDipoleBruteforceHamiltonian : public Hamiltonian {
     public:

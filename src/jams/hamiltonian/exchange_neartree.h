@@ -3,12 +3,8 @@
 #ifndef JAMS_HAMILTONIAN_EXCHANGE_DISTANCE_H
 #define JAMS_HAMILTONIAN_EXCHANGE_DISTANCE_H
 
-#include <unordered_map>
-
-#include <libconfig.h++>
-
-#include "jams/containers/sparse_matrix.h"
-#include "jams/hamiltonian/sparse_interaction.h"
+#include <jams/hamiltonian/sparse_interaction.h>
+#include <jams/containers/interaction_list.h>
 
 struct InteractionNT {
     int material[2];

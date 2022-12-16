@@ -5,7 +5,12 @@
 #ifndef JAMS_MONITOR_UNITCELL_AVERAGE_H
 #define JAMS_MONITOR_UNITCELL_AVERAGE_H
 
-#include "jams/core/monitor.h"
+#include <jams/core/monitor.h>
+#include <jams/helpers/slice.h>
+
+#include <vector>
+
+class Solver;
 
 class UnitcellAverageMonitor : public Monitor {
 public:

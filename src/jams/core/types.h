@@ -17,6 +17,15 @@ using Complex = std::complex<double>;
 
 enum class CoordinateFormat {CARTESIAN, FRACTIONAL};
 
+//
+// JAMS format:
+// typename_i typename_j rx ry rz Jxx Jxy Jxz Jyx Jyy Jyz Jzx Jzy Jzz
+//
+// KKR format:
+// unitcell_pos_i unitcell_pos_j rx ry rz Jxx Jxy Jxz Jyx Jyy Jyz Jzx Jzy Jzz
+//
+enum class InteractionFileFormat {UNDEFINED, JAMS, KKR};
+
 inline CoordinateFormat coordinate_format_from_string(const std::string s) {
   if (capitalize(s) == "CART" || capitalize(s) == "CARTESIAN") return CoordinateFormat::CARTESIAN;
   if (capitalize(s) == "FRAC" || capitalize(s) == "FRACTIONAL") return CoordinateFormat::FRACTIONAL;

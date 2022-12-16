@@ -5,9 +5,10 @@
 #ifndef JAMS_SPIN_CORRELATION_H
 #define JAMS_SPIN_CORRELATION_H
 
-#include <complex>
+#include <jams/core/monitor.h>
 #include <jams/containers/multiarray.h>
-#include "jams/core/monitor.h"
+
+class Solver;
 
 class SpinCorrelationMonitor : public Monitor {
 public:

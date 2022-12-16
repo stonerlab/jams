@@ -3,12 +3,10 @@
 #ifndef JAMS_MONITOR_SPIN_TEMPERATURE_H
 #define JAMS_MONITOR_SPIN_TEMPERATURE_H
 
+#include <jams/core/monitor.h>
+
 #include <fstream>
-
-#include <libconfig.h++>
-
-#include "jams/core/types.h"
-#include "jams/core/monitor.h"
+#include <string>
 
 class Solver;
 

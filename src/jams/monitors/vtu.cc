@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <fstream>
 
 #include "jams/helpers/error.h"
 #include "jams/core/physics.h"

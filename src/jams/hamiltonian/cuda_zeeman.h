@@ -5,7 +5,7 @@
 #ifndef JAMS_CUDA_ZEEMAN_H
 #define JAMS_CUDA_ZEEMAN_H
 
-#include "jams/hamiltonian/zeeman.h"
+#include <jams/hamiltonian/zeeman.h>
 
 class CudaZeemanHamiltonian : public ZeemanHamiltonian {
 public:

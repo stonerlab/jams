@@ -3,11 +3,9 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_FFT_H
 #define JAMS_HAMILTONIAN_DIPOLE_FFT_H
 
-#include <libconfig.h++>
-
-#include "jams/types.h"
-#include "jams/core/hamiltonian.h"
-#include "jams/interface/fft.h"
+#include <jams/core/hamiltonian.h>
+#include <jams/core/types.h>
+#include <jams/interface/fft.h>
 
 class DipoleFFTHamiltonian : public Hamiltonian {
 public:

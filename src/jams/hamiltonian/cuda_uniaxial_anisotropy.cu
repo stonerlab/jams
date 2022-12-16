@@ -1,11 +1,9 @@
-#include <cuda_runtime_api.h>
+#include <jams/hamiltonian/cuda_uniaxial_anisotropy.h>
+#include <jams/hamiltonian/cuda_uniaxial_anisotropy_kernel.cuh>
+#include <jams/hamiltonian/uniaxial_anisotropy.h>
 
-#include "jams/core/solver.h"
-#include "jams/cuda/cuda_common.h"
+#include <jams/core/globals.h>
 
-#include "jams/hamiltonian/uniaxial_anisotropy.h"
-#include "jams/hamiltonian/cuda_uniaxial_anisotropy.h"
-#include "jams/hamiltonian/cuda_uniaxial_anisotropy_kernel.cuh"
 
 CudaUniaxialHamiltonian::CudaUniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int num_spins)
         : UniaxialHamiltonian(settings, num_spins)

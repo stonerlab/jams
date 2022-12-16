@@ -2,6 +2,7 @@
 
 #include <string>
 #include <iomanip>
+#include <fstream>
 
 #include "jams/helpers/error.h"
 #include "jams/core/solver.h"

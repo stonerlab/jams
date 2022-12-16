@@ -6,9 +6,11 @@
 #define JAMS_SRC_JAMS_MONITORS_TOPOLOGICAL_CHARGE_GEOMETRICAL_DEF_H_
 
 #include <jams/core/monitor.h>
+#include <jams/containers/vec3.h>
 #include <fstream>
+#include <functional>
+#include <string>
 #include <vector>
-#include <libconfig.h++>
 
 /// @class TopologicalFiniteDiffChargeMonitor
 ///

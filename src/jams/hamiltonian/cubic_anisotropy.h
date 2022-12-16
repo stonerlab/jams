@@ -5,9 +5,7 @@
 #ifndef JAMS_CUBIC_ANISOTROPY_H
 #define JAMS_CUBIC_ANISOTROPY_H
 
-#include <libconfig.h++>
-
-#include "jams/core/hamiltonian.h"
+#include <jams/core/hamiltonian.h>
 
 class CubicHamiltonian : public Hamiltonian {
     friend class CudaCubicHamiltonian;

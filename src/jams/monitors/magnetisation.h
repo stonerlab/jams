@@ -3,14 +3,12 @@
 #ifndef JAMS_MONITOR_MAGNETISATION_H
 #define JAMS_MONITOR_MAGNETISATION_H
 
+#include <jams/core/monitor.h>
+#include <jams/containers/multiarray.h>
+
 #include <fstream>
 #include <vector>
-
-#include <libconfig.h++>
-
-#include "jams/core/types.h"
-#include "jams/core/monitor.h"
-#include "jams/helpers/stats.h"
+#include <string>
 
 class Solver;
 

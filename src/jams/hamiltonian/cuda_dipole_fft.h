@@ -3,15 +3,13 @@
 #ifndef JAMS_HAMILTONIAN_CUDA_DIPOLE_FFT_H
 #define JAMS_HAMILTONIAN_CUDA_DIPOLE_FFT_H
 
+#include <jams/core/types.h>
+#include <jams/core/hamiltonian.h>
+#include <jams/cuda/cuda_stream.h>
+
 #include <array>
 
-#include <libconfig.h++>
-#include <cublas_v2.h>
 #include <cufft.h>
-
-#include "jams/core/types.h"
-#include "jams/core/hamiltonian.h"
-#include "jams/cuda/cuda_stream.h"
 
 class CudaDipoleFFTHamiltonian : public Hamiltonian {
     public:

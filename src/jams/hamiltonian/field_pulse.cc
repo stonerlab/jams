@@ -8,6 +8,7 @@
 #include <fstream>
 #include <memory>
 #include <jams/helpers/output.h>
+#include <jams/core/globals.h>
 
 namespace {
 

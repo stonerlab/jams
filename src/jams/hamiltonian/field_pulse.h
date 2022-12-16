@@ -1,12 +1,10 @@
 #ifndef JAMS_HAMILTONIAN_FIELD_PULSE_H
 #define JAMS_HAMILTONIAN_FIELD_PULSE_H
 
-
 #include <jams/core/hamiltonian.h>
-#include <jams/containers/vec3.h>
-#include <jams/interface/config.h>
 
 #include <iosfwd>
+#include <memory>
 
 ///
 /// Generic concept for a field pulse which can vary in both time and space

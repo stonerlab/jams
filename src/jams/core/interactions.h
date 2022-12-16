@@ -22,15 +22,6 @@ template <class T>
 class InteractionList;
 
 
-//
-// JAMS format:
-// typename_i typename_j rx ry rz Jxx Jxy Jxz Jyx Jyy Jyz Jzx Jzy Jzz
-//
-// KKR format:
-// unitcell_pos_i unitcell_pos_j rx ry rz Jxx Jxy Jxz Jyx Jyy Jyz Jzx Jzy Jzz
-//
-enum class InteractionFileFormat {UNDEFINED, JAMS, KKR};
-
 inline InteractionFileFormat interaction_file_format_from_string(const std::string s) {
   if (capitalize(s) == "JAMS") return InteractionFileFormat::JAMS;
   if (capitalize(s) == "KKR") return InteractionFileFormat::KKR;

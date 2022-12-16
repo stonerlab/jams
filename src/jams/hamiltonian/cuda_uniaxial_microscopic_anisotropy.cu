@@ -1,11 +1,9 @@
-#include <cuda.h>
+#include <jams/hamiltonian/cuda_uniaxial_microscopic_anisotropy.h>
+#include <jams/hamiltonian/cuda_uniaxial_microscopic_anisotropy_kernel.cuh>
 
-#include "jams/core/solver.h"
-#include "jams/cuda/cuda_common.h"
-
-#include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
-#include "jams/hamiltonian/cuda_uniaxial_microscopic_anisotropy.h"
-#include "jams/hamiltonian/cuda_uniaxial_microscopic_anisotropy_kernel.cuh"
+#include <jams/hamiltonian/uniaxial_microscopic_anisotropy.h>
+#include <jams/cuda/cuda_common.h>
+#include <jams/core/globals.h>
 
 CudaUniaxialMicroscopicHamiltonian::CudaUniaxialMicroscopicHamiltonian(const libconfig::Setting &settings, const unsigned int num_spins)
         : UniaxialMicroscopicHamiltonian(settings, num_spins)

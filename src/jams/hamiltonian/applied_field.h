@@ -2,8 +2,6 @@
 #define JAMS_HAMILTONIAN_APPLIED_FIELD_H
 
 #include <jams/core/hamiltonian.h>
-#include <jams/containers/vec3.h>
-#include <jams/interface/config.h>
 
 ///
 /// Hamiltonian for a spatially homogeneous, applied magnetic field

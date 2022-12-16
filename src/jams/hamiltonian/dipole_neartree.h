@@ -3,9 +3,11 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_NEARTREE_H
 #define JAMS_HAMILTONIAN_DIPOLE_NEARTREE_H
 
-#include "jams/helpers/maths.h"
-#include "jams/core/hamiltonian.h"
+#include <jams/core/hamiltonian.h>
 #include <jams/lattice/interaction_neartree.h>
+
+#include <utility>
+#include <functional>
 
 class DipoleNearTreeHamiltonian : public Hamiltonian {
 public:

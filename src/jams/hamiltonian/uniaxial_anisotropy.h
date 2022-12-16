@@ -3,11 +3,10 @@
 #ifndef JAMS_HAMILTONIAN_UNIAXIAL_H
 #define JAMS_HAMILTONIAN_UNIAXIAL_H
 
+#include <jams/core/hamiltonian.h>
+#include <jams/containers/multiarray.h>
+
 #include <vector>
-
-#include <libconfig.h++>
-
-#include "jams/core/hamiltonian.h"
 
 class UniaxialHamiltonian : public Hamiltonian {
     friend class CudaUniaxialHamiltonian;

@@ -5,10 +5,8 @@
 #ifndef JAMS_CUDA_UNIAXIAL_ANISOTROPY_H
 #define JAMS_CUDA_UNIAXIAL_ANISOTROPY_H
 
-#include <cuda_runtime_api.h>
-
-#include "jams/cuda/cuda_stream.h"
-#include "jams/hamiltonian/uniaxial_anisotropy.h"
+#include <jams/cuda/cuda_stream.h>
+#include <jams/hamiltonian/uniaxial_anisotropy.h>
 
 class CudaUniaxialHamiltonian : public UniaxialHamiltonian {
 public:

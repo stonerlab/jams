@@ -4,17 +4,13 @@
 #ifndef JAMS_HAMILTONIAN_RANDOM_ANISOTROPY_CUDA_H
 #define JAMS_HAMILTONIAN_RANDOM_ANISOTROPY_CUDA_H
 
+#include <jams/hamiltonian/random_anisotropy.h>
+#include <jams/helpers/exception.h>
+#include <jams/cuda/cuda_stream.h>
+
 #include <vector>
 
-#include <libconfig.h++>
-
-#include "jams/core/hamiltonian.h"
-#include "jams/hamiltonian/random_anisotropy.h"
-#include "jams/helpers/exception.h"
-#include "jams/cuda/cuda_stream.h"
-
 #include <thrust/device_vector.h>
-#include "jams/cuda/cuda_stream.h"
 
 class CudaRandomAnisotropyHamiltonian : public RandomAnisotropyHamiltonian {
     public:

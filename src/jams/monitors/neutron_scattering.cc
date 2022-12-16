@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <numeric>
 #include <iomanip>
+#include <fstream>
 
 #include "jams/helpers/output.h"
 #include "jams/core/solver.h"

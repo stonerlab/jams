@@ -5,8 +5,9 @@
 #ifndef JAMS_CUDA_UNIAXIAL_MICROSCOPIC_ANISOTROPY_H
 #define JAMS_CUDA_UNIAXIAL_MICROSCOPIC_ANISOTROPY_H
 
+#include <jams/hamiltonian/uniaxial_microscopic_anisotropy.h>
+
 #include <cuda_runtime_api.h>
-#include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
 
 class CudaUniaxialMicroscopicHamiltonian : public UniaxialMicroscopicHamiltonian {
 public:

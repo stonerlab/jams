@@ -1,12 +1,11 @@
-#include "jams/core/globals.h"
-#include "jams/helpers/consts.h"
-#include "jams/helpers/utils.h"
-#include "jams/core/solver.h"
-#include "jams/core/lattice.h"
-#include "jams/lattice/minimum_image.h"
+#include <jams/hamiltonian/cuda_dipole_bruteforce.h>
+#include <jams/hamiltonian/cuda_dipole_bruteforce_kernel.cuh>
 
-#include "cuda_dipole_bruteforce.h"
-#include "cuda_dipole_bruteforce_kernel.cuh"
+#include <jams/core/globals.h>
+#include <jams/core/lattice.h>
+#include <jams/cuda/cuda_stream.h>
+#include <jams/helpers/consts.h>
+#include <jams/lattice/minimum_image.h>
 
 CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {

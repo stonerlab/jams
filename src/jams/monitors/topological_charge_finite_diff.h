@@ -5,12 +5,11 @@
 #ifndef INCLUDED_JAMS_MONITORS_TOPOLOGICAL_CHARGE_FINITE_DIFF
 #define INCLUDED_JAMS_MONITORS_TOPOLOGICAL_CHARGE_FINITE_DIFF
 
+#include <jams/core/monitor.h>
+
 #include <fstream>
+#include <string>
 #include <vector>
-#include <libconfig.h++>
-#include "jams/core/types.h"
-#include "jams/core/monitor.h"
-#include <jams/helpers/montecarlo.h>
 
 /// @class TopologicalFiniteDiffChargeMonitor
 ///

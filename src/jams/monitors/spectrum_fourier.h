@@ -3,14 +3,13 @@
 #ifndef JAMS_MONITOR_STRUCTUREFACTOR_H
 #define JAMS_MONITOR_STRUCTUREFACTOR_H
 
+#include <jams/core/types.h>
+#include <jams/core/monitor.h>
+#include <jams/interface/fft.h>
+
 #include <fstream>
 #include <complex>
 #include <vector>
-
-#include <libconfig.h++>
-
-#include "jams/core/types.h"
-#include "jams/core/monitor.h"
 
 class Solver;
 

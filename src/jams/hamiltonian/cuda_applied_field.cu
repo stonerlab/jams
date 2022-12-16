@@ -1,6 +1,8 @@
 #include <jams/hamiltonian/cuda_applied_field.h>
 #include <jams/hamiltonian/cuda_applied_field_kernel.cuh>
 
+#include <jams/core/globals.h>
+
 CudaAppliedFieldHamiltonian::CudaAppliedFieldHamiltonian(
     const libconfig::Setting &settings, const unsigned int size) : AppliedFieldHamiltonian(
     settings, size) {}

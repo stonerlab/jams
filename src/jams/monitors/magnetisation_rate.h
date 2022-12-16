@@ -3,13 +3,13 @@
 #ifndef JAMS_MONITOR_MAGNETISATION_RATE_H
 #define JAMS_MONITOR_MAGNETISATION_RATE_H
 
+#include <jams/core/monitor.h>
+#include <jams/helpers/stats.h>
+
 #include <fstream>
+#include <string>
 
-#include <libconfig.h++>
-
-#include "jams/core/types.h"
-#include "jams/core/monitor.h"
-#include "jams/helpers/stats.h"
+class Solver;
 
 class MagnetisationRateMonitor : public Monitor {
 public:

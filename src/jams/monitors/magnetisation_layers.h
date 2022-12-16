@@ -75,6 +75,7 @@
 #include <jams/containers/multiarray.h>
 
 #include <vector>
+#include <string>
 
 class Solver;
 

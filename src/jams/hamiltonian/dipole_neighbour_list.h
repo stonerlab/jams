@@ -3,9 +3,10 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_NEIGHBOUR_LIST_H
 #define JAMS_HAMILTONIAN_DIPOLE_NEIGHBOUR_LIST_H
 
-#include "jams/helpers/maths.h"
-#include "jams/core/hamiltonian.h"
-#include "jams/containers/neartree.h"
+#include <jams/core/hamiltonian.h>
+
+#include <vector>
+#include <utility>
 
 class DipoleNeighbourListHamiltonian : public Hamiltonian {
 public:

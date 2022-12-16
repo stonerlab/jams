@@ -5,16 +5,13 @@
 #ifndef JAMS_MAGNON_SPECTRUM_H
 #define JAMS_MAGNON_SPECTRUM_H
 
+#include <jams/core/types.h>
+#include <jams/core/monitor.h>
+#include <jams/monitors/spectrum_base.h>
+
 #include <fstream>
 #include <complex>
 #include <vector>
-
-#include <libconfig.h++>
-
-#include "jams/interface/fft.h"
-#include "jams/core/types.h"
-#include "jams/core/monitor.h"
-#include "jams/monitors/spectrum_base.h"
 
 class Solver;
 

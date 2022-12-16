@@ -6,13 +6,12 @@
 #define JAMS_HAMILTONIAN_SPARSE_INTERACTION_H
 
 #if HAS_CUDA
-#include <cusparse.h>
-#include "jams/cuda/cuda_stream.h"
-#include "jams/cuda/cuda_common.h"
+#include <jams/cuda/cuda_stream.h>
 #endif
 
-#include "jams/core/hamiltonian.h"
-#include "jams/containers/sparse_matrix_builder.h"
+#include <jams/core/hamiltonian.h>
+#include <jams/containers/sparse_matrix.h>
+#include <jams/containers/sparse_matrix_builder.h>
 
 class SparseInteractionHamiltonian : public Hamiltonian {
 public:

@@ -3,17 +3,14 @@
 #ifndef JAMS_CORE_HAMILTONIAN_H
 #define JAMS_CORE_HAMILTONIAN_H
 
-#include <iosfwd>
+#include <jams/containers/multiarray.h>
+#include <jams/core/base.h>
+#include <jams/core/types.h>
+
 #include <cassert>
+#include <stdexcept>
 
-#if HAS_CUDA
-#include <cuda_runtime_api.h>
-#endif
-
-#include "jams/core/types.h"
-#include "jams/core/globals.h"
-#include "jams/core/base.h"
-#include "jams/interface/config.h"
+namespace libconfig { class Setting; }
 
 class Hamiltonian : public Base {
 public:

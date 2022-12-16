@@ -39,9 +39,10 @@
 ///
 /// @endcode
 
-#include <libconfig.h++>
 
-#include "jams/core/base.h"
+#include <jams/core/base.h>
+
+namespace libconfig { class Setting; }
 
 class Solver;
 

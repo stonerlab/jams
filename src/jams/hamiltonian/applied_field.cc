@@ -1,6 +1,7 @@
 
 #include <jams/hamiltonian/applied_field.h>
 #include <jams/containers/vec3.h>
+#include <jams/core/globals.h>
 
 using namespace std;
 

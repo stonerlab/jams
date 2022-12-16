@@ -6,16 +6,14 @@
 #define JAMS_BASE_H
 
 #include <string>
-#include <iostream>
-#include <libconfig.h++>
 
-#include "jams/interface/config.h"
+namespace libconfig { class Setting; }
 
 class Base {
 public:
     inline Base() = default;
-    explicit inline Base(const std::string& name, bool verbose = false, bool debug = false);
-    explicit inline Base(const libconfig::Setting& settings);
+    explicit Base(const std::string& name, bool verbose = false, bool debug = false);
+    explicit Base(const libconfig::Setting& settings);
 
     inline bool debug_is_enabled() const;
     inline void set_debug(bool value);
@@ -54,34 +52,6 @@ inline const std::string &Base::name() const {
 
 inline void Base::set_name(const std::string &value) {
   name_ = value;
-}
-
-inline Base::Base(const std::string& name, bool verbose, bool debug) :
-name_(name),
-verbose_(verbose),
-debug_(debug)
-{
-  if (debug_is_enabled()) {
-    std::cout << "  DEBUG\n";
-  }
-
-  if (verbose_is_enabled()) {
-    std::cout << "  VERBOSE\n";
-  }
-}
-
-inline Base::Base(const libconfig::Setting &settings) :
-  name_(jams::config_optional<std::string>(settings, "module", "")),
-  verbose_(jams::config_optional<bool>(settings, "verbose", false)),
-  debug_(jams::config_optional<bool>(settings, "debug", false))
-{
-  if (debug_is_enabled()) {
-    std::cout << "  DEBUG\n";
-  }
-
-  if (verbose_is_enabled()) {
-    std::cout << "  VERBOSE\n";
-  }
 }
 
 
