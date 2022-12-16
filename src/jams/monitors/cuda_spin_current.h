@@ -37,7 +37,7 @@ public:
     CudaSpinCurrentMonitor(const libconfig::Setting &settings);
     ~CudaSpinCurrentMonitor();
 
-    void update(Solver * solver);
+    void update(Solver& solver);
     void post_process() override {};
 
 private:

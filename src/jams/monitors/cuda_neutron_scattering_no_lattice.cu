@@ -192,7 +192,7 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
 }
 
 
-void CudaNeutronScatteringNoLatticeMonitor::update(Solver *solver) {
+void CudaNeutronScatteringNoLatticeMonitor::update(Solver& solver) {
   store_spin_data();
   periodogram_index_++;
 

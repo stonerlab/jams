@@ -25,16 +25,16 @@ TorqueMonitor::TorqueMonitor(const libconfig::Setting &settings)
   tsv_file << tsv_header();
 }
 
-void TorqueMonitor::update(Solver * solver) {
+void TorqueMonitor::update(Solver& solver) {
   tsv_file.width(12);
-  tsv_file << std::scientific << solver->time() << "\t";
+  tsv_file << std::scientific << solver.time() << "\t";
 
   // Loop over all of the Hamiltonians to calculate the total torque from each
   // Hamiltonian term. Each torque will be expressed as a torque per spin
   // and appended to a std::vector.
   std::vector<Vec3> torques;
-  for (auto &hamiltonian : solver->hamiltonians()) {
-    hamiltonian->calculate_fields(solver->time());
+  for (auto &hamiltonian : solver.hamiltonians()) {
+    hamiltonian->calculate_fields(solver.time());
 
     // Loop over all spins in the system and sum the torque for the current
     // Hamiltonian
@@ -59,7 +59,7 @@ void TorqueMonitor::update(Solver * solver) {
     }
   }
 
-  if (convergence_status_ != Monitor::ConvergenceStatus::kDisabled && solver->time() > convergence_burn_time_) {
+  if (convergence_status_ != Monitor::ConvergenceStatus::kDisabled && solver.time() > convergence_burn_time_) {
     convergence_geweke_diagnostic_ = {100.0, 100.0, 100.0}; // number much larger than 1
 
     Vec3 total_torque = {0.0, 0.0, 0.0};

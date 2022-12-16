@@ -68,7 +68,7 @@ outfile(jams::output::full_path_filename("fk.tsv")){
   spin_data_.zero();
 }
 
-void SpectrumGeneralMonitor::update(Solver *solver) {
+void SpectrumGeneralMonitor::update(Solver& solver) {
   if (time_point_counter_ < num_samples_) {
     for (auto i = 0; i < globals::num_spins; ++i) {
       spin_data_(i, time_point_counter_) = Complex{globals::s(i, 0), globals::s(i, 1)};

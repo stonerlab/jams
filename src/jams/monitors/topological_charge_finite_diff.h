@@ -59,7 +59,7 @@ class TopologicalFiniteDiffChargeMonitor : public Monitor {
   TopologicalFiniteDiffChargeMonitor(const libconfig::Setting &settings);
   ~TopologicalFiniteDiffChargeMonitor() override = default;
 
-  void update(Solver * solver) override;
+  void update(Solver& solver) override;
   void post_process() override {};
 
   ConvergenceStatus convergence_status() override;

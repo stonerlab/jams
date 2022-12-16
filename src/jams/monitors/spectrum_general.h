@@ -18,7 +18,7 @@ public:
     explicit SpectrumGeneralMonitor(const libconfig::Setting &settings);
     ~SpectrumGeneralMonitor() override;
 
-    void update(Solver * solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 private:
 

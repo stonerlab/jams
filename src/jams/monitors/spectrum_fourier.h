@@ -19,7 +19,7 @@ class SpectrumFourierMonitor : public Monitor {
   SpectrumFourierMonitor(const libconfig::Setting &settings);
   ~SpectrumFourierMonitor() override;
 
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 
 private:

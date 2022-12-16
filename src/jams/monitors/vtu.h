@@ -19,7 +19,7 @@ public:
 
     ~VtuMonitor() override = default;
 
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 
 private:

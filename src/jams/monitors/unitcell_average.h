@@ -12,7 +12,7 @@ public:
     explicit UnitcellAverageMonitor(const libconfig::Setting &settings);
     ~UnitcellAverageMonitor();
 
-    void update(Solver * solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 
 private:

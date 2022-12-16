@@ -44,9 +44,9 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
   }
 }
 
-void XyzMonitor::update(Solver * solver) {
-  if (solver->iteration()%output_step_freq_ == 0) {
-    int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
+void XyzMonitor::update(Solver& solver) {
+  if (solver.iteration()%output_step_freq_ == 0) {
+    int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
     std::ofstream xyz_state_file(jams::output::full_path_filename_series(".xyz", outcount));
 

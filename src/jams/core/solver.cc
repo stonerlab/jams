@@ -108,7 +108,7 @@ void Solver::register_hamiltonian(Hamiltonian* hamiltonian) {
 void Solver::notify_monitors() {
   for (auto& m : monitors_) {
     if (m->is_updating(iteration_)) {
-      m->update(this);
+      m->update(*this);
     }
   }
 }

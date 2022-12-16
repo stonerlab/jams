@@ -18,8 +18,8 @@ total_(0),
 tsv_file(jams::output::full_path_filename("blt.tsv")) {
 }
 
-void BoltzmannMonitor::update(Solver * solver) {
-  if (solver->iteration()%output_step_freq_ == 0) {
+void BoltzmannMonitor::update(Solver& solver) {
+  if (solver.iteration()%output_step_freq_ == 0) {
     for (int i = 0; i < globals::num_spins; ++i) {
       int round = static_cast<int>(rad_to_deg(acos(globals::s(i, 2)))*0.2);
       bins_[round]++;

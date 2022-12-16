@@ -16,7 +16,7 @@ class SkyrmionMonitor : public Monitor {
   SkyrmionMonitor(const libconfig::Setting &settings);
   ~SkyrmionMonitor();
 
-  void update(Solver * solver) override;
+  void update(Solver& solver) override;
     void post_process() override {};
 
  private:

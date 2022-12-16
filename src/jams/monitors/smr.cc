@@ -22,7 +22,7 @@ SMRMonitor::SMRMonitor(const libconfig::Setting &settings)
   tsv_file << tsv_header();
 }
 
-void SMRMonitor::update(Solver * solver) {
+void SMRMonitor::update(Solver& solver) {
   std::vector<double> mtsq_para(globals::lattice->num_materials(), 0.0);
   std::vector<double> mtsq_perp(globals::lattice->num_materials(), 0.0);
 
@@ -60,7 +60,7 @@ void SMRMonitor::update(Solver * solver) {
     }
   }
 
-  tsv_file << std::setw(12) << std::scientific << solver->time() << "\t";
+  tsv_file << std::setw(12) << std::scientific << solver.time() << "\t";
 
   for (int i = 0; i < globals::lattice->num_materials(); ++i) {
     tsv_file << std::setw(12) << mtsq_para[i] << "\t" << mtsq_perp[i] << "\t";

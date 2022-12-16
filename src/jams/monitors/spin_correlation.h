@@ -13,7 +13,7 @@ class SpinCorrelationMonitor : public Monitor {
 public:
     explicit SpinCorrelationMonitor(const libconfig::Setting &settings);
 
-    void update(Solver * solver) override;
+    void update(Solver& solver) override;
     void post_process() override;
 private:
     template <typename T>

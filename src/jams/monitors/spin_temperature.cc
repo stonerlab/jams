@@ -19,7 +19,7 @@ tsv_file(jams::output::full_path_filename("spin_T.tsv"))
   tsv_file << tsv_header();
 }
 
-void SpinTemperatureMonitor::update(Solver * solver) {
+void SpinTemperatureMonitor::update(Solver& solver) {
   double sum_s_dot_h = 0.0;
   double sum_s_cross_h = 0.0;
 
@@ -37,8 +37,8 @@ void SpinTemperatureMonitor::update(Solver * solver) {
   const auto spin_temperature = sum_s_cross_h / (2.0 * kBoltzmannIU * sum_s_dot_h);
 
   tsv_file.width(12);
-  tsv_file << std::scientific << solver->time() << "\t";
-  tsv_file << std::fixed << solver->physics()->temperature() << "\t";
+  tsv_file << std::scientific << solver.time() << "\t";
+  tsv_file << std::fixed << solver.physics()->temperature() << "\t";
   tsv_file << std::scientific << spin_temperature << "\n";
 }
 

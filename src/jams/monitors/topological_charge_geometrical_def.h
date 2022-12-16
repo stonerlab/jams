@@ -48,7 +48,7 @@ class TopologicalGeometricalDefMonitor : public Monitor {
   TopologicalGeometricalDefMonitor(const libconfig::Setting &settings);
   ~TopologicalGeometricalDefMonitor() override = default;
 
-  void update(Solver *solver) override;
+  void update(Solver& solver) override;
   void post_process() override {};
 
   ConvergenceStatus convergence_status() override;

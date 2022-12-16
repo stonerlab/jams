@@ -78,9 +78,9 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
     output_step_freq_ = settings["output_steps"];
 }
 
-void VtuMonitor::update(Solver * solver) {
-  if (solver->iteration()%output_step_freq_ == 0) {
-    int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
+void VtuMonitor::update(Solver& solver) {
+  if (solver.iteration()%output_step_freq_ == 0) {
+    int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
     std::ofstream vtkfile(jams::output::full_path_filename_series(".vtu", outcount));
 
@@ -110,10 +110,10 @@ void VtuMonitor::update(Solver * solver) {
     vtkfile << "<!--" << "\n";
     vtkfile << "VTU file produced by JAMS++ (" << QUOTEME(GITCOMMIT) << ")\n";
     vtkfile << "  configuration file: " << globals::simulation_name << "\n";
-    vtkfile << "  iteration: " << solver->iteration() << "\n";
-    vtkfile << "  time: " << solver->time() << "\n";
-    vtkfile << "  temperature: " << solver->physics()->temperature() << "\n";
-    vtkfile << "  applied field: (" << solver->physics()->applied_field(0) << ", " << solver->physics()->applied_field(1) << ", " << solver->physics()->applied_field(2) << ")\n";
+    vtkfile << "  iteration: " << solver.iteration() << "\n";
+    vtkfile << "  time: " << solver.time() << "\n";
+    vtkfile << "  temperature: " << solver.physics()->temperature() << "\n";
+    vtkfile << "  applied field: (" << solver.physics()->applied_field(0) << ", " << solver.physics()->applied_field(1) << ", " << solver.physics()->applied_field(2) << ")\n";
     vtkfile << "-->" << "\n";
     vtkfile << "<VTKFile type=\"UnstructuredGrid\" version=\"1.0\"  header_type=\"UInt32\" byte_order=\"LittleEndian\">" << "\n";
     vtkfile << "  <UnstructuredGrid>" << "\n";

@@ -32,7 +32,7 @@ public:
     ~SpectrumBaseMonitor() override = default;
 
     void post_process() override = 0;
-    void update(Solver *solver) override = 0;
+    void update(Solver& solver) override = 0;
 
     inline int num_motif_atoms() const {
       return num_motif_atoms_;

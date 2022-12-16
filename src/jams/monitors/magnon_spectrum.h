@@ -27,7 +27,7 @@ public:
     ~MagnonSpectrumMonitor() override = default;
 
     void post_process() override {};
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
 
 private:
     void output_total_magnon_spectrum();

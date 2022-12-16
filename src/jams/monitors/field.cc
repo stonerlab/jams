@@ -20,11 +20,11 @@ FieldMonitor::FieldMonitor(const libconfig::Setting &settings)
   tsv_file << tsv_header();
 }
 
-void FieldMonitor::update(Solver * solver) {
+void FieldMonitor::update(Solver& solver) {
 
   std::vector<Vec3> total_field;
-  for (auto &hamiltonian : solver->hamiltonians()) {
-    hamiltonian->calculate_fields(solver->time());
+  for (auto &hamiltonian : solver.hamiltonians()) {
+    hamiltonian->calculate_fields(solver.time());
 
     Vec3 field = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {
@@ -36,7 +36,7 @@ void FieldMonitor::update(Solver * solver) {
 
   tsv_file.width(12);
 
-  tsv_file << std::scientific << solver->time() << "\t";
+  tsv_file << std::scientific << solver.time() << "\t";
 
   for (const auto& field : total_field) {
     for (auto n = 0; n < 3; ++n) {

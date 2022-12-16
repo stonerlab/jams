@@ -64,7 +64,7 @@ void NeutronScatteringMonitor::configure_polarizations(libconfig::Setting &setti
   }
 }
 
-void NeutronScatteringMonitor::update(Solver * solver) {
+void NeutronScatteringMonitor::update(Solver& solver) {
   store_periodogram_data(globals::s);
 
   if (do_periodogram_update()) {

@@ -66,15 +66,15 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   }
 }
 
-void MagnetisationMonitor::update(Solver * solver) {
+void MagnetisationMonitor::update(Solver& solver) {
   using namespace jams;
 
   tsv_file.width(12);
-  tsv_file << fmt::sci << solver->time();
-  tsv_file << fmt::decimal << solver->physics()->temperature();
+  tsv_file << fmt::sci << solver.time();
+  tsv_file << fmt::decimal << solver.physics()->temperature();
 
   for (auto i = 0; i < 3; ++i) {
-    tsv_file << fmt::decimal << solver->physics()->applied_field(i);
+    tsv_file << fmt::decimal << solver.physics()->applied_field(i);
   }
 
   for (auto n = 0; n < group_spin_indicies_.size(); ++n) {

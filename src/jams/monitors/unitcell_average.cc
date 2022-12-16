@@ -61,8 +61,8 @@ UnitcellAverageMonitor::~UnitcellAverageMonitor() {
 
 
 
-void UnitcellAverageMonitor::update(Solver * solver) {
-  int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
+void UnitcellAverageMonitor::update(Solver& solver) {
+  int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
   const std::string h5_file_name(jams::instance().output_path() + "/" + globals::simulation_name + "_" + zero_pad_number(outcount) + "_avg.h5");
 
@@ -83,8 +83,8 @@ void UnitcellAverageMonitor::update(Solver * solver) {
     }
   }
 
-  write_h5_file(h5_file_name, solver->iteration(), solver->time(), solver->physics()->temperature());
-  update_xdmf_file(h5_file_name, solver->time());
+  write_h5_file(h5_file_name, solver.iteration(), solver.time(), solver.physics()->temperature());
+  update_xdmf_file(h5_file_name, solver.time());
 }
 
 void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name, const int iteration, const double time, const double temperature) {

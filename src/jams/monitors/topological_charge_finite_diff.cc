@@ -124,7 +124,7 @@ Monitor::ConvergenceStatus TopologicalFiniteDiffChargeMonitor::convergence_statu
   return convergence_status_;
 }
 
-void TopologicalFiniteDiffChargeMonitor::update(Solver *solver) {
+void TopologicalFiniteDiffChargeMonitor::update(Solver& solver) {
   double topological_charge = 0.0;
   for (auto i = 0; i < globals::num_spins; ++i) {
 	  topological_charge += local_topological_charge(i);
@@ -133,7 +133,7 @@ void TopologicalFiniteDiffChargeMonitor::update(Solver *solver) {
   monitor_top_charge_cache_ = topological_charge / (4.0 * kPi);
 
   outfile.width(12);
-  outfile << jams::fmt::sci << solver->iteration()<< "\t";
+  outfile << jams::fmt::sci << solver.iteration()<< "\t";
   outfile << jams::fmt::decimal << monitor_top_charge_cache_ << "\t";
   outfile << std::endl;
 

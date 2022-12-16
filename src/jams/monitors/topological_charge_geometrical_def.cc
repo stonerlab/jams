@@ -46,11 +46,11 @@ TopologicalGeometricalDefMonitor::TopologicalGeometricalDefMonitor(const libconf
   outfile << tsv_header();
 
 }
-void TopologicalGeometricalDefMonitor::update(Solver *solver) {
+void TopologicalGeometricalDefMonitor::update(Solver& solver) {
   monitor_top_charge_cache_ = total_topological_charge();
 
   outfile.width(12);
-  outfile << jams::fmt::sci << solver->iteration()<< "\t";
+  outfile << jams::fmt::sci << solver.iteration()<< "\t";
   outfile << jams::fmt::decimal << monitor_top_charge_cache_ << "\t";
   outfile << std::endl;
 }

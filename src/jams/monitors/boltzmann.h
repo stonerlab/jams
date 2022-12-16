@@ -14,7 +14,7 @@ public:
     explicit BoltzmannMonitor(const libconfig::Setting &settings);
     ~BoltzmannMonitor() override = default;
 
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 
 private:

@@ -41,7 +41,7 @@ class NeutronScatteringMonitor : public SpectrumBaseMonitor {
     ~NeutronScatteringMonitor() override = default;
 
     void post_process() override {};
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
 
 private:
     void configure_form_factors(libconfig::Setting& settings);

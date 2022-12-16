@@ -204,7 +204,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   sqw_z.resize(globals::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
 }
 
-void SpectrumFourierMonitor::update(Solver * solver) {
+void SpectrumFourierMonitor::update(Solver& solver) {
   fft_space();
   store_bz_path_data();
 

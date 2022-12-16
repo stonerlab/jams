@@ -78,7 +78,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   outfile.setf(std::ios::right);
 }
 
-void CudaSpinCurrentMonitor::update(Solver *solver) {
+void CudaSpinCurrentMonitor::update(Solver& solver) {
   Mat3 js = execute_cuda_spin_current_kernel(
           stream,
           globals::num_spins,
@@ -99,7 +99,7 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
 
   const double units = globals::lattice->parameter();
 
-  outfile << std::setw(4) << std::scientific << solver->time() << "\t";
+  outfile << std::setw(4) << std::scientific << solver.time() << "\t";
   for (auto r_m = 0; r_m < 3; ++r_m) {
     for (auto s_n = 0; s_n < 3; ++ s_n) {
       outfile << std::setw(12) << js[r_m][s_n] << "\t";
@@ -107,11 +107,11 @@ void CudaSpinCurrentMonitor::update(Solver *solver) {
   }
   outfile << "\n";
 
-  if (do_h5_output && solver->iteration()%h5_output_steps == 0) {
-    int outcount = solver->iteration()/h5_output_steps;  // int divisible by modulo above
+  if (do_h5_output && solver.iteration()%h5_output_steps == 0) {
+    int outcount = solver.iteration()/h5_output_steps;  // int divisible by modulo above
     const std::string h5_file_name(jams::instance().output_path() + "/" + globals::simulation_name + "_" + zero_pad_number(outcount) + "_js.h5");
-    write_spin_current_h5_file(h5_file_name, solver->iteration(), solver->time());
-    update_xdmf_file(h5_file_name, solver->time());
+    write_spin_current_h5_file(h5_file_name, solver.iteration(), solver.time());
+    update_xdmf_file(h5_file_name, solver.time());
   }
 }
 

@@ -26,7 +26,7 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting &settings)
   print_info();
 }
 
-void MagnonSpectrumMonitor::update(Solver *solver) {
+void MagnonSpectrumMonitor::update(Solver& solver) {
 
   transformed_spins_.zero();
 

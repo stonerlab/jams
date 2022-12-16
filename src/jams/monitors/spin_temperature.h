@@ -17,7 +17,7 @@ class SpinTemperatureMonitor : public Monitor {
   explicit SpinTemperatureMonitor(const libconfig::Setting &settings);
   ~SpinTemperatureMonitor() override = default;
 
-  void update(Solver * solver) override;
+  void update(Solver& solver) override;
     void post_process() override {};
 
  private:

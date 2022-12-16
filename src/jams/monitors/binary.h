@@ -16,7 +16,7 @@ class BinaryMonitor : public Monitor {
   explicit BinaryMonitor(const libconfig::Setting &settings);
     ~BinaryMonitor() override = default;
 
-  void update(Solver * solver) override;
+  void update(Solver& solver) override;
   void post_process() override {};
 
  private:

@@ -56,7 +56,7 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
       neutron_polarizations_.size(),periodogram_props_.length, kspace_path_.size()));
 }
 
-void NeutronScatteringNoLatticeMonitor::update(Solver *solver) {
+void NeutronScatteringNoLatticeMonitor::update(Solver& solver) {
   store_kspace_data_on_path();
   store_spin_data();
   periodogram_index_++;

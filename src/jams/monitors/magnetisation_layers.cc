@@ -85,7 +85,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 }
 
 
-void MagnetisationLayersMonitor::update(Solver *solver) {
+void MagnetisationLayersMonitor::update(Solver& solver) {
 
   // Loop over layers and calculate the magnetisation
   for (auto layer_index = 0; layer_index < num_layers_; ++layer_index) {
@@ -104,9 +104,9 @@ void MagnetisationLayersMonitor::update(Solver *solver) {
 
   // Write the data to file
   HighFive::Group group = file.createGroup(
-      h5_group + zero_pad_number(solver->iteration(),9));
+      h5_group + zero_pad_number(solver.iteration(),9));
 
-  group.createAttribute<double>("time", solver->time());
+  group.createAttribute<double>("time", solver.time());
   group.createAttribute<std::string>("units", "ps");
 
   auto dataset = group.createDataSet<double>(

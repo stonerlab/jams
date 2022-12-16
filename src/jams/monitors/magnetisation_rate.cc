@@ -29,7 +29,7 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
   }
 }
 
-void MagnetisationRateMonitor::update(Solver * solver) {
+void MagnetisationRateMonitor::update(Solver& solver) {
   std::vector<Vec3> dm_dt(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
 
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -47,7 +47,7 @@ void MagnetisationRateMonitor::update(Solver * solver) {
   }
 
   tsv_file.width(12);
-  tsv_file << std::scientific << solver->time() << "\t";
+  tsv_file << std::scientific << solver.time() << "\t";
 
   for (auto type = 0; type < globals::lattice->num_materials(); ++type) {
     for (auto j = 0; j < 3; ++j) {

@@ -16,8 +16,8 @@ BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
   settings.lookupValue("overwrite", is_file_overwrite_mode);
 }
 
-void BinaryMonitor::update(Solver * solver) {
-  int outcount = solver->iteration()/output_step_freq_;
+void BinaryMonitor::update(Solver& solver) {
+  int outcount = solver.iteration()/output_step_freq_;
 
   std::ofstream bin_file;
 

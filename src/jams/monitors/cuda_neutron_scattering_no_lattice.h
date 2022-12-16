@@ -13,7 +13,7 @@ public:
     ~CudaNeutronScatteringNoLatticeMonitor() override = default;
 
     void post_process() override {};
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
 private:
 
     void configure_kspace_vectors(const libconfig::Setting& settings);

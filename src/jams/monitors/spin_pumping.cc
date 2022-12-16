@@ -30,7 +30,7 @@ tsv_file_(jams::output::full_path_filename("jsp.tsv"))
   }
 }
 
-void SpinPumpingMonitor::update(Solver * solver) {
+void SpinPumpingMonitor::update(Solver& solver) {
   tsv_file_.width(12);
 
   std::vector<Vec3> spin_pumping_real(material_count_.size());
@@ -47,7 +47,7 @@ void SpinPumpingMonitor::update(Solver * solver) {
   }
 
   // output in rad / s^-1 T^-1
-  tsv_file_ << std::scientific << solver->time() << "\t";
+  tsv_file_ << std::scientific << solver.time() << "\t";
 
   for (auto type = 0; type < material_count_.size(); ++type) {
     auto norm = 1.0 / static_cast<double>(material_count_[type]);

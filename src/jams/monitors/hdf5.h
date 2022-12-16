@@ -19,7 +19,7 @@ class Hdf5Monitor : public Monitor {
   explicit Hdf5Monitor(const libconfig::Setting &settings);
   ~Hdf5Monitor();
 
-  void update(Solver * solver) override;
+  void update(Solver& solver) override;
     void post_process() override {};
 
  private:

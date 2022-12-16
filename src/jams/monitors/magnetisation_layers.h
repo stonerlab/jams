@@ -84,7 +84,7 @@ public:
 
     ~MagnetisationLayersMonitor() override = default;
 
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
 
     inline void post_process() override {};
 

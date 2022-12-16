@@ -47,14 +47,14 @@ SkyrmionMonitor::SkyrmionMonitor(const libconfig::Setting &settings)
   create_center_of_mass_mapping();
 }
 
-void SkyrmionMonitor::update(Solver * solver) {
+void SkyrmionMonitor::update(Solver& solver) {
     double x, y;
 
     const double x_size = globals::lattice->rmax()[0];
     const double y_size = globals::lattice->rmax()[1];
 
-    outfile << std::setw(12) << std::scientific << solver->time();
-    outfile << std::setw(16) << std::fixed << solver->physics()->temperature();
+    outfile << std::setw(12) << std::scientific << solver.time();
+    outfile << std::setw(16) << std::fixed << solver.physics()->temperature();
 
     for (double threshold : thresholds) {
       std::vector<Vec3 > r_com(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
