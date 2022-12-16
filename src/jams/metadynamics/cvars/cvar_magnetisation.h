@@ -58,7 +58,7 @@ public:
 
 private:
     std::string name_ = "magnetisation";
-
+    std::string material_;
     int magnetisation_component_;
 
 };
