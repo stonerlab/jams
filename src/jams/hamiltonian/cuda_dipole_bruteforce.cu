@@ -73,10 +73,10 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
 
 // --------------------------------------------------------------------------
 
-double CudaDipoleBruteforceHamiltonian::calculate_total_energy() {
+double CudaDipoleBruteforceHamiltonian::calculate_total_energy(double time) {
     double e_total = 0.0;
 
-    calculate_fields();
+    calculate_fields(time);
     for (int i = 0; i < globals::num_spins; ++i) {
         e_total += -0.5 * (  globals::s(i,0)*field_(i,0)
                            + globals::s(i,1)*field_(i,1)
@@ -86,30 +86,30 @@ double CudaDipoleBruteforceHamiltonian::calculate_total_energy() {
     return e_total;
 }
 
-double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
-    const auto field = calculate_field(i);
+double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i, double time) {
+    const auto field = calculate_field(i, time);
     return -0.5 * dot(s_i, field);
 }
 
-double CudaDipoleBruteforceHamiltonian::calculate_energy(const int i) {
+double CudaDipoleBruteforceHamiltonian::calculate_energy(const int i, double time) {
     Vec3 s_i = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
-    return calculate_one_spin_energy(i, s_i);
+    return calculate_one_spin_energy(i, s_i, time);
 }
 
-double CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-    const auto field = calculate_field(i);
+double CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) {
+    const auto field = calculate_field(i, time);
     double e_initial = -dot(spin_initial, field);
     double e_final = -dot(spin_final, field);
     return 0.5*(e_final - e_initial);
 }
 
-void CudaDipoleBruteforceHamiltonian::calculate_energies() {
+void CudaDipoleBruteforceHamiltonian::calculate_energies(double time) {
     for (auto i = 0; i < globals::num_spins; ++i) {
-        energy_(i) = calculate_energy(i);
+        energy_(i) = calculate_energy(i, time);
     }
 }
 
-Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i) {
+Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
   using namespace globals;
   using namespace std::placeholders;
 
@@ -158,7 +158,7 @@ Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i) {
   return {hx, hy, hz};
 }
 
-void CudaDipoleBruteforceHamiltonian::calculate_fields() {
+void CudaDipoleBruteforceHamiltonian::calculate_fields(double time) {
     CudaStream stream;
 
     DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, stream.get() >>>

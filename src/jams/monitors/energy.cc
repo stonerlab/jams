@@ -25,7 +25,7 @@ void EnergyMonitor::update(Solver * solver) {
   tsv_file << std::scientific << solver->time() << "\t";
 
   for (auto &hamiltonian : solver->hamiltonians()) {
-    auto energy = hamiltonian->calculate_total_energy();
+    auto energy = hamiltonian->calculate_total_energy(solver->time());
     tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
   }
 

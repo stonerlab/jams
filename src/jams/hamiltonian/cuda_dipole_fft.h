@@ -19,14 +19,14 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
 
         ~CudaDipoleFFTHamiltonian() override;
 
-        double calculate_total_energy() override;
-        double calculate_energy(int i) override;
-        double calculate_one_spin_energy(int i, const Vec3 &s_i);
-        double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override ;
-        void   calculate_energies() override;
+        double calculate_total_energy(double time) override;
+        double calculate_energy(int i, double time) override;
+        double calculate_one_spin_energy(int i, const Vec3 &s_i, double time);
+        double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override ;
+        void   calculate_energies(double time) override;
 
-        Vec3   calculate_field(int i);
-        void   calculate_fields() override;
+        Vec3   calculate_field(int i, double time);
+        void   calculate_fields(double time) override;
     private:
         bool debug_ = false;
         bool check_radius_   = true;

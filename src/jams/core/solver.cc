@@ -44,7 +44,7 @@ void Solver::compute_fields() {
   if (hamiltonians_.empty()) return;
 
   for (auto& hh : hamiltonians_) {
-    hh->calculate_fields();
+    hh->calculate_fields(this->time());
   }
 
   std::copy(hamiltonians_[0]->ptr_field(), hamiltonians_[0]->ptr_field()+globals::num_spins3, globals::h.data());

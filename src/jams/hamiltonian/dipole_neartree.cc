@@ -30,12 +30,12 @@ DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &s
 }
 
 
-double DipoleNearTreeHamiltonian::calculate_total_energy() {
+double DipoleNearTreeHamiltonian::calculate_total_energy(double time) {
     double e_total = 0.0;
 
     #pragma omp parallel for shared(globals::num_spins) default(none) reduction(+: e_total)
     for (auto i = 0; i < globals::num_spins; ++i) {
-       e_total += calculate_energy(i);
+       e_total += calculate_energy(i, time);
     }
 
     return e_total;
@@ -43,30 +43,30 @@ double DipoleNearTreeHamiltonian::calculate_total_energy() {
 
 
 
-double DipoleNearTreeHamiltonian::calculate_energy(const int i) {
+double DipoleNearTreeHamiltonian::calculate_energy(const int i, double time) {
     Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
-    auto field = calculate_field(i);
+    auto field = calculate_field(i, time);
     return -0.5 * dot(s_i, field);
 }
 
 
-double DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-    const auto field = calculate_field(i);
+double DipoleNearTreeHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) {
+    const auto field = calculate_field(i, time);
     const double e_initial = -dot(spin_initial, field);
     const double e_final = -dot(spin_final, field);
     return 0.5 * (e_final - e_initial);
 }
 
-void DipoleNearTreeHamiltonian::calculate_energies() {
+void DipoleNearTreeHamiltonian::calculate_energies(double time) {
   #pragma omp parallel for shared(globals::num_spins) default(none)
   for (auto i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_energy(i);
+    energy_(i) = calculate_energy(i, time);
   }
 }
 
 
 [[gnu::hot]]
-Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i)
+Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i, double time)
 {
   using namespace globals;
 
@@ -93,10 +93,10 @@ Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i)
 }
 
 
-void DipoleNearTreeHamiltonian::calculate_fields() {
+void DipoleNearTreeHamiltonian::calculate_fields(double time) {
   OMP_PARALLEL_FOR
   for (auto i = 0; i < globals::num_spins; ++i) {
-        const auto field = calculate_field(i);
+        const auto field = calculate_field(i, time);
 
         for (auto n : {0,1,2}) {
             field_(i, n) = field[n];

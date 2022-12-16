@@ -18,37 +18,37 @@ AppliedFieldHamiltonian::AppliedFieldHamiltonian(
   }
 }
 
-double AppliedFieldHamiltonian::calculate_total_energy() {
+double AppliedFieldHamiltonian::calculate_total_energy(double time) {
   double e_total = 0.0;
-  calculate_energies();
+  calculate_energies(time);
   for (auto i = 0; i < globals::num_spins; ++i) {
     e_total += energy_(i);
   }
   return e_total;
 }
 
-void AppliedFieldHamiltonian::calculate_energies() {
+void AppliedFieldHamiltonian::calculate_energies(double time) {
   for (auto i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_energy(i);
+    energy_(i) = calculate_energy(i, time);
   }
 }
 
-void AppliedFieldHamiltonian::calculate_fields() {
+void AppliedFieldHamiltonian::calculate_fields(double time) {
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto local_field = calculate_field(i);
+    auto local_field = calculate_field(i, time);
     for (auto j = 0; j < 3; ++j) {
       field_(i, j) = local_field[j];
     }
   }
 }
 
-Vec3 AppliedFieldHamiltonian::calculate_field(int i) {
+Vec3 AppliedFieldHamiltonian::calculate_field(int i, double time) {
   return globals::mus(i) * applied_b_field_;
 }
 
-double AppliedFieldHamiltonian::calculate_energy(int i) {
+double AppliedFieldHamiltonian::calculate_energy(int i, double time) {
   using namespace globals;
-  auto field = calculate_field(i);
+  auto field = calculate_field(i, time);
   return -(s(i,0) * field[0]
           + s(i,1) * field[1]
           + s(i,2) * field[2]);
@@ -56,9 +56,9 @@ double AppliedFieldHamiltonian::calculate_energy(int i) {
 
 double AppliedFieldHamiltonian::calculate_energy_difference(int i,
                                                             const Vec3 &spin_initial,
-                                                            const Vec3 &spin_final) {
-  const auto e_initial = -dot(spin_initial, calculate_field(i));
-  const auto e_final = -dot(spin_final, calculate_field(i));
+                                                            const Vec3 &spin_final, double time) {
+  const auto e_initial = -dot(spin_initial, calculate_field(i, time));
+  const auto e_final = -dot(spin_final, calculate_field(i, time));
 
   return (e_final - e_initial);
 }

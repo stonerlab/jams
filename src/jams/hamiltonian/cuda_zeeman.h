@@ -12,7 +12,7 @@ public:
     CudaZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size);
     ~CudaZeemanHamiltonian();
 
-    void calculate_fields();
+    void calculate_fields(double time);
 
 private:
     cudaStream_t dev_stream_ = nullptr;

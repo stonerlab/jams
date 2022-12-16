@@ -12,7 +12,7 @@ CudaCubicHamiltonian::CudaCubicHamiltonian(const libconfig::Setting &settings, c
 {
 }
 
-void CudaCubicHamiltonian::calculate_fields() {
+void CudaCubicHamiltonian::calculate_fields(double time) {
   cuda_cubic_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_.get()>>>
                                                                                                      (globals::num_spins, num_coefficients_, order_.device_data(), magnitude_.device_data(),
                                                                                                          reinterpret_cast<const double*>(axis1_.device_data()),

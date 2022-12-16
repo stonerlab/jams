@@ -75,15 +75,15 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
   }
 }
 
-double UniaxialMicroscopicHamiltonian::calculate_total_energy() {
+double UniaxialMicroscopicHamiltonian::calculate_total_energy(double time) {
   double e_total = 0.0;
   for (int i = 0; i < energy_.size(); ++i) {
-    e_total += calculate_energy(i);
+    e_total += calculate_energy(i, time);
   }
   return e_total;
 }
 
-double UniaxialMicroscopicHamiltonian::calculate_energy(const int i) {
+double UniaxialMicroscopicHamiltonian::calculate_energy(const int i, double time) {
   double energy = 0.0;
 
   for (int n = 0; n < mca_order_.size(); ++n) {
@@ -94,7 +94,7 @@ double UniaxialMicroscopicHamiltonian::calculate_energy(const int i) {
 }
 
 double UniaxialMicroscopicHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                                   const Vec3 &spin_final) {
+                                                                   const Vec3 &spin_final, double time) {
   double e_initial = 0.0;
   double e_final = 0.0;
 
@@ -109,13 +109,13 @@ double UniaxialMicroscopicHamiltonian::calculate_energy_difference(int i, const 
   return e_final - e_initial;
 }
 
-void UniaxialMicroscopicHamiltonian::calculate_energies() {
+void UniaxialMicroscopicHamiltonian::calculate_energies(double time) {
   for (int i = 0; i < energy_.size(); ++i) {
-    energy_(i) = calculate_energy(i);
+    energy_(i) = calculate_energy(i, time);
   }
 }
 
-Vec3 UniaxialMicroscopicHamiltonian::calculate_field(const int i) {
+Vec3 UniaxialMicroscopicHamiltonian::calculate_field(const int i, double time) {
   const double sz = globals::s(i, 2);
   Vec3 field = {0.0, 0.0, 0.0};
 
@@ -125,7 +125,7 @@ Vec3 UniaxialMicroscopicHamiltonian::calculate_field(const int i) {
   return field;
 }
 
-void UniaxialMicroscopicHamiltonian::calculate_fields() {
+void UniaxialMicroscopicHamiltonian::calculate_fields(double time) {
   field_.zero();
   for (int n = 0; n < mca_order_.size(); ++n) {
     for (int i = 0; i < field_.size(0); ++i) {

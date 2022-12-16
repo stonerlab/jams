@@ -15,7 +15,7 @@ CudaUniaxialMicroscopicHamiltonian::CudaUniaxialMicroscopicHamiltonian(const lib
   dev_blocksize_ = 128;
 }
 
-void CudaUniaxialMicroscopicHamiltonian::calculate_fields() {
+void CudaUniaxialMicroscopicHamiltonian::calculate_fields(double time) {
   cuda_uniaxial_microscopic_field_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, dev_stream_>>>
             (globals::num_spins, mca_order_.size(), mca_order_.device_data(), mca_value_.device_data(), globals::s.device_data(), field_.device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;

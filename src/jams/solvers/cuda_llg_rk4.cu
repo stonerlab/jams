@@ -66,6 +66,7 @@ void CUDALLGRK4Solver::initialize(const libconfig::Setting& settings)
 void CUDALLGRK4Solver::run()
 {
   using namespace globals;
+  double t0 = time_;
 
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
@@ -90,6 +91,8 @@ void CUDALLGRK4Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   double mid_time_step = 0.5 * step_size_;
+  time_ = t0 + mid_time_step;
+
   CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, s.device_data(), 1));
   CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k1_.device_data(), 1, s.device_data(), 1));
 
@@ -103,6 +106,8 @@ void CUDALLGRK4Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   mid_time_step = 0.5 * step_size_;
+  time_ = t0 + mid_time_step;
+
   CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, s.device_data(), 1));
   CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k2_.device_data(), 1, s.device_data(), 1));
 
@@ -116,6 +121,8 @@ void CUDALLGRK4Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   mid_time_step = step_size_;
+  time_ = t0 + mid_time_step;
+
   CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, s.device_data(), 1));
   CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k3_.device_data(), 1, s.device_data(), 1));
 
@@ -134,5 +141,6 @@ void CUDALLGRK4Solver::run()
        step_size_, num_spins);
 
   iteration_++;
+  time_ = iteration_ * step_size_;
 }
 

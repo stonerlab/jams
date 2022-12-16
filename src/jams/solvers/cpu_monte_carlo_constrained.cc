@@ -106,6 +106,7 @@ void ConstrainedMCSolver::run() {
   }
 
   iteration_++;
+  time_ = iteration_;
 
   if (iteration_ % output_write_steps_ == 0) {
     validate_constraint();
@@ -198,14 +199,14 @@ double ConstrainedMCSolver::energy_difference(const int &s1, const Vec3 &s1_init
   assert(s1 != s2);
   double delta_energy1 = 0.0;
   for (const auto& hamiltonian : hamiltonians_) {
-    delta_energy1 += hamiltonian->calculate_energy_difference(s1, s1_initial, s1_trial);
+    delta_energy1 += hamiltonian->calculate_energy_difference(s1, s1_initial, s1_trial, this->time());
   }
 
   // temporarily accept the move for s1 so we can calculate the s2 energies
   jams::montecarlo::set_spin(s1, s1_trial);
   double delta_energy2 = 0.0;
   for (const auto& hamiltonian : hamiltonians_) {
-    delta_energy2 += hamiltonian->calculate_energy_difference(s2, s2_initial, s2_trial);
+    delta_energy2 += hamiltonian->calculate_energy_difference(s2, s2_initial, s2_trial, this->time());
   }
   jams::montecarlo::set_spin(s1, s1_initial);
 

@@ -65,6 +65,7 @@ void MetropolisMCSolver::run() {
   moves_accepted_[move_index] += monte_carlo_step(move_functions_[move_index]);
 
   iteration_++;
+  time_ = iteration_;
 
   // Output statistics to file at the configured interval
   if (iteration_ % output_write_steps_ == 0) {
@@ -112,7 +113,7 @@ double MetropolisMCSolver::energy_difference(const int spin_index,
   auto energy_difference = 0.0;
   // Calculate the energy difference from all of the Hamiltonian terms
   for (const auto &ham : hamiltonians_) {
-	  energy_difference += ham->calculate_energy_difference(spin_index, initial_spin, final_spin);
+	  energy_difference += ham->calculate_energy_difference(spin_index, initial_spin, final_spin, solver->time());
 	}
 	return energy_difference;
 }

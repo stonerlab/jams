@@ -155,8 +155,8 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_[0].get()));
 }
 
-double CudaDipoleFFTHamiltonian::calculate_total_energy() {
-  calculate_fields();
+double CudaDipoleFFTHamiltonian::calculate_total_energy(double time) {
+  calculate_fields(time);
 
   double e_total = 0.0;
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -168,29 +168,29 @@ double CudaDipoleFFTHamiltonian::calculate_total_energy() {
   return -0.5*e_total;
 }
 
-double CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i) {
+double CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i, double time) {
     return 0.0;
 }
 
-double CudaDipoleFFTHamiltonian::calculate_energy(const int i) {
+double CudaDipoleFFTHamiltonian::calculate_energy(const int i, double time) {
     return 0.0;
 }
 
 double CudaDipoleFFTHamiltonian::calculate_energy_difference(
-    int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+    int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) {
 
     return 0.0;
 }
 
-void CudaDipoleFFTHamiltonian::calculate_energies() {
+void CudaDipoleFFTHamiltonian::calculate_energies(double time) {
 
 }
 
-Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i) {
+Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i, double time) {
   throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field");
 }
 
-void CudaDipoleFFTHamiltonian::calculate_fields() {
+void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 
   kspace_h_.zero();
 

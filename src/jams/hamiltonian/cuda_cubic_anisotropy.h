@@ -15,7 +15,7 @@ public:
     CudaCubicHamiltonian(const libconfig::Setting &settings, const unsigned int size);
     ~CudaCubicHamiltonian() override = default;
 
-    void   calculate_fields() override;
+    void   calculate_fields(double time) override;
 private:
 
     CudaStream dev_stream_;

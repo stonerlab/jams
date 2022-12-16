@@ -56,7 +56,7 @@ void RotationSolver::run() {
         // print angles and energy
         tsv_file << rad_to_deg(theta) << "\t" << rad_to_deg(phi) << "\t";
         for (auto &hamiltonian : solver->hamiltonians()) {
-          auto energy = hamiltonian->calculate_energy(i);
+          auto energy = hamiltonian->calculate_energy(i, solver->time());
           tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
         }
         tsv_file << std::endl;
@@ -73,4 +73,5 @@ void RotationSolver::run() {
     tsv_file.close();
   }
   iteration_++;
+  time_ = 0.0;
 }

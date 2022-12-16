@@ -80,11 +80,11 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
 }
 
 
-double DipoleNeighbourListHamiltonian::calculate_total_energy() {
+double DipoleNeighbourListHamiltonian::calculate_total_energy(double time) {
   double e_total = 0.0;
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    e_total += calculate_energy(i);
+    e_total += calculate_energy(i, time);
   }
 
   return e_total;
@@ -92,29 +92,29 @@ double DipoleNeighbourListHamiltonian::calculate_total_energy() {
 
 
 
-double DipoleNeighbourListHamiltonian::calculate_energy(const int i) {
+double DipoleNeighbourListHamiltonian::calculate_energy(const int i, double time) {
   Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
-  auto field = calculate_field(i);
+  auto field = calculate_field(i, time);
   return -0.5 * dot(s_i, field);
 }
 
 
-double DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-  const auto field = calculate_field(i);
+double DipoleNeighbourListHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) {
+  const auto field = calculate_field(i, time);
   const double e_initial = -dot(spin_initial, field);
   const double e_final = -dot(spin_final, field);
   return 0.5 * (e_final - e_initial);
 }
 
-void DipoleNeighbourListHamiltonian::calculate_energies() {
+void DipoleNeighbourListHamiltonian::calculate_energies(double time) {
   for (auto i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_energy(i);
+    energy_(i) = calculate_energy(i, time);
   }
 }
 
 
 [[gnu::hot]]
-Vec3 DipoleNeighbourListHamiltonian::calculate_field(const int i)
+Vec3 DipoleNeighbourListHamiltonian::calculate_field(const int i, double time)
 {
   using namespace globals;
 
@@ -138,9 +138,9 @@ Vec3 DipoleNeighbourListHamiltonian::calculate_field(const int i)
 }
 
 
-void DipoleNeighbourListHamiltonian::calculate_fields() {
+void DipoleNeighbourListHamiltonian::calculate_fields(double time) {
   for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto field = calculate_field(i);
+    const auto field = calculate_field(i, time);
 
     for (auto n : {0,1,2}) {
       field_(i, n) = field[n];

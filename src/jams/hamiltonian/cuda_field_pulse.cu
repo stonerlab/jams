@@ -28,7 +28,7 @@ CudaFieldPulseHamiltonian::CudaFieldPulseHamiltonian(
   output_pulse(pulse_file);
 }
 
-void CudaFieldPulseHamiltonian::calculate_fields() {
+void CudaFieldPulseHamiltonian::calculate_fields(double time) {
 
   dim3 block_size;
   block_size.x = 64;
@@ -36,7 +36,7 @@ void CudaFieldPulseHamiltonian::calculate_fields() {
   dim3 grid_size;
   grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
 
-  Vec3 b_field = gaussian(solver->time(), temporal_center_, 1.0, temporal_width_) * max_field_;
+  Vec3 b_field = gaussian(time, temporal_center_, 1.0, temporal_width_) * max_field_;
   double3 field = {b_field[0], b_field[1], b_field[2]};
   cuda_field_pulse_surface_kernel<<<grid_size, block_size, 0, cuda_stream_.get() >>>
       (globals::num_spins, surface_cutoff_, globals::mus.device_data(), positions_.device_data(),

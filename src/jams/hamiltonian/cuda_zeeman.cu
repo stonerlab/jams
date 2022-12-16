@@ -15,7 +15,7 @@ CudaZeemanHamiltonian::CudaZeemanHamiltonian(const libconfig::Setting &settings,
   CHECK_CUDA_STATUS(cudaStreamCreate(&dev_stream_));
 }
 
-void CudaZeemanHamiltonian::calculate_fields() {
+void CudaZeemanHamiltonian::calculate_fields(double time) {
     dim3 block_size;
         block_size.x = 32;
         block_size.y = 4;
@@ -33,7 +33,7 @@ void CudaZeemanHamiltonian::calculate_fields() {
 
         if (has_ac_local_field_) {
             cuda_zeeman_ac_field_kernel<<<grid_size, block_size, 0, dev_stream_>>>
-                (globals::num_spins, solver->time(),
+                (globals::num_spins, time,
                     ac_local_field_.device_data(), ac_local_frequency_.device_data(),
                     globals::s.device_data(), field_.device_data());
             DEBUG_CHECK_CUDA_ASYNC_STATUS;

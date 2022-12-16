@@ -32,7 +32,7 @@ class Solver {
   }
 
   inline double time() const {
-    return iteration_ * step_size_;
+    return time_;
   }
 
   inline double time_step() const {
@@ -78,6 +78,7 @@ class Solver {
     int max_steps_ = 0;
     int min_steps_ = 0;
 
+    double time_ = 0.0;
     double step_size_ = 1.0;
 
   std::unique_ptr<Physics> physics_module_;

@@ -143,10 +143,10 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
 }
 
 
-double DipoleFFTHamiltonian::calculate_total_energy() {
+double DipoleFFTHamiltonian::calculate_total_energy(double time) {
     double e_total = 0.0;
 
-    calculate_fields();
+    calculate_fields(time);
     for (auto i = 0; i < globals::num_spins; ++i) {
         e_total += (  globals::s(i,0) * field_(i, 0)
                     + globals::s(i,1) * field_(i, 1)
@@ -156,19 +156,19 @@ double DipoleFFTHamiltonian::calculate_total_energy() {
     return -0.5*e_total;
 }
 
-double DipoleFFTHamiltonian::calculate_energy(const int i) {
+double DipoleFFTHamiltonian::calculate_energy(const int i, double time) {
   const Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
-  const auto field = calculate_field(i);
+  const auto field = calculate_field(i, time);
   return -dot(s_i, field);
 }
 
 
 double DipoleFFTHamiltonian::calculate_energy_difference(
-    int i, const Vec3 &spin_initial, const Vec3 &spin_final)
+    int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time)
 {
     double h[3] = {0, 0, 0};
 
-    calculate_fields();
+    calculate_fields(time);
     for (auto m = 0; m < 3; ++m) {
         Vec3i pos = ::lattice->cell_offset(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
@@ -179,17 +179,17 @@ double DipoleFFTHamiltonian::calculate_energy_difference(
 }
 
 
-void DipoleFFTHamiltonian::calculate_energies() {
+void DipoleFFTHamiltonian::calculate_energies(double time) {
     assert(energy_.elements() == globals::num_spins);
     for (auto i = 0; i < globals::num_spins; ++i) {
-      energy_(i) = calculate_energy(i);
+      energy_(i) = calculate_energy(i, time);
     }
 }
 
 
-Vec3 DipoleFFTHamiltonian::calculate_field(const int i) {
+Vec3 DipoleFFTHamiltonian::calculate_field(const int i, double time) {
     Vec3 field = {0.0, 0.0, 0.0};
-    calculate_fields();
+    calculate_fields(time);
     for (auto m = 0; m < 3; ++m) {
         Vec3i pos = ::lattice->cell_offset(i);
         field[m] += rspace_h_(pos[0], pos[1], pos[2], m);
@@ -302,7 +302,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
 }
 
 
-void DipoleFFTHamiltonian::calculate_fields() {
+void DipoleFFTHamiltonian::calculate_fields(double time) {
   using std::min;
   using std::pow;
 

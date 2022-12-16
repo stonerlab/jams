@@ -15,17 +15,17 @@ class CubicHamiltonian : public Hamiltonian {
 public:
     CubicHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy() override;
+    double calculate_total_energy(double time) override;
 
-    void calculate_energies() override;
+    void calculate_energies(double time) override;
 
-    void calculate_fields() override;
+    void calculate_fields(double time) override;
 
-    Vec3 calculate_field(int i) override;
+    Vec3 calculate_field(int i, double time) override;
 
-    double calculate_energy(int i) override;
+    double calculate_energy(int i, double time) override;
 
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
 
 private:
     unsigned num_coefficients_ = 0;

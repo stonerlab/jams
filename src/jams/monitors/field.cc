@@ -24,7 +24,7 @@ void FieldMonitor::update(Solver * solver) {
 
   std::vector<Vec3> total_field;
   for (auto &hamiltonian : solver->hamiltonians()) {
-    hamiltonian->calculate_fields();
+    hamiltonian->calculate_fields(solver->time());
 
     Vec3 field = {0.0, 0.0, 0.0};
     for (auto i = 0; i < globals::num_spins; ++i) {

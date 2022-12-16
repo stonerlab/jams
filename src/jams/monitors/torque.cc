@@ -38,7 +38,7 @@ void TorqueMonitor::update(Solver * solver) {
   // and appended to a std::vector.
   std::vector<Vec3> torques;
   for (auto &hamiltonian : solver->hamiltonians()) {
-    hamiltonian->calculate_fields();
+    hamiltonian->calculate_fields(solver->time());
 
     // Loop over all spins in the system and sum the torque for the current
     // Hamiltonian

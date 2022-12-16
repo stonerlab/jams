@@ -12,7 +12,7 @@ void CudaSolver::compute_fields() {
   if (hamiltonians_.empty()) return;
 
   for (auto& hh : hamiltonians_) {
-    hh->calculate_fields();
+    hh->calculate_fields(this->time());
   }
 
   cudaMemcpy(globals::h.device_data(),hamiltonians_[0]->dev_ptr_field(), globals::num_spins3*sizeof(double) ,cudaMemcpyDeviceToDevice);

@@ -104,6 +104,7 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
 void CUDALLLorentzianRK4Solver::run()
 {
   using namespace globals;
+  double t0 = time_;
 
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
@@ -148,9 +149,12 @@ void CUDALLLorentzianRK4Solver::run()
       num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  cuda_rk4_internal_timestep(s.device_data(), s_old_.device_data(), s_k1_.device_data(), globals::num_spins3, 0.5 * step_size_);
-  cuda_rk4_internal_timestep(w_memory_process_.device_data(), w_memory_process_old_.device_data(), w_memory_process_k1_.device_data(), globals::num_spins3, 0.5 * step_size_);
-  cuda_rk4_internal_timestep(v_memory_process_.device_data(), v_memory_process_old_.device_data(), v_memory_process_k1_.device_data(), globals::num_spins3, 0.5 * step_size_);
+  double mid_time_step = 0.5 * step_size_;
+  time_ = t0 + mid_time_step;
+
+  cuda_rk4_internal_timestep(s.device_data(), s_old_.device_data(), s_k1_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(w_memory_process_.device_data(), w_memory_process_old_.device_data(), w_memory_process_k1_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(v_memory_process_.device_data(), v_memory_process_old_.device_data(), v_memory_process_k1_.device_data(), globals::num_spins3, mid_time_step);
 
   compute_fields();
 
@@ -168,9 +172,12 @@ void CUDALLLorentzianRK4Solver::run()
       num_spins);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  cuda_rk4_internal_timestep(s.device_data(), s_old_.device_data(), s_k2_.device_data(), globals::num_spins3, 0.5 * step_size_);
-  cuda_rk4_internal_timestep(w_memory_process_.device_data(), w_memory_process_old_.device_data(), w_memory_process_k2_.device_data(), globals::num_spins3, 0.5 * step_size_);
-  cuda_rk4_internal_timestep(v_memory_process_.device_data(), v_memory_process_old_.device_data(), v_memory_process_k2_.device_data(), globals::num_spins3, 0.5 * step_size_);
+  mid_time_step = 0.5 * step_size_;
+  time_ = t0 + mid_time_step;
+
+  cuda_rk4_internal_timestep(s.device_data(), s_old_.device_data(), s_k2_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(w_memory_process_.device_data(), w_memory_process_old_.device_data(), w_memory_process_k2_.device_data(), globals::num_spins3, mid_time_step);
+  cuda_rk4_internal_timestep(v_memory_process_.device_data(), v_memory_process_old_.device_data(), v_memory_process_k2_.device_data(), globals::num_spins3, mid_time_step);
 
   compute_fields();
 
@@ -191,6 +198,9 @@ void CUDALLLorentzianRK4Solver::run()
   cuda_rk4_internal_timestep(s.device_data(), s_old_.device_data(), s_k3_.device_data(), globals::num_spins3, step_size_);
   cuda_rk4_internal_timestep(w_memory_process_.device_data(), w_memory_process_old_.device_data(), w_memory_process_k3_.device_data(), globals::num_spins3, step_size_);
   cuda_rk4_internal_timestep(v_memory_process_.device_data(), v_memory_process_old_.device_data(), v_memory_process_k3_.device_data(), globals::num_spins3, step_size_);
+
+  mid_time_step = step_size_;
+  time_ = t0 + mid_time_step;
 
   compute_fields();
 
@@ -238,5 +248,6 @@ void CUDALLLorentzianRK4Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   iteration_++;
+  time_ = iteration_ * step_size_;
 }
 

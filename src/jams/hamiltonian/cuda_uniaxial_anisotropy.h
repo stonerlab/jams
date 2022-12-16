@@ -15,9 +15,9 @@ public:
     CudaUniaxialHamiltonian(const libconfig::Setting &settings, const unsigned int size);
     ~CudaUniaxialHamiltonian() override = default;
 
-    double calculate_total_energy() override;
-    void   calculate_energies() override;
-    void   calculate_fields() override;
+    double calculate_total_energy(double time) override;
+    void   calculate_energies(double time) override;
+    void   calculate_fields(double time) override;
 private:
 
     CudaStream dev_stream_;

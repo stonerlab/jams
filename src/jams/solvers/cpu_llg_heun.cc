@@ -48,6 +48,7 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
 
 void HeunLLGSolver::run() {
   using namespace globals;
+  double t0 = time_;
 
   std::normal_distribution<> normal_distribution;
 
@@ -104,6 +105,9 @@ void HeunLLGSolver::run() {
 
   }
 
+  double mid_time_step = step_size_;
+  time_ = t0 + mid_time_step;
+
   Solver::compute_fields();
 
   if (physics_module_->temperature() > 0.0) {
@@ -145,4 +149,5 @@ void HeunLLGSolver::run() {
   }
 
   iteration_++;
+  time_ = iteration_ * step_size_;
 }

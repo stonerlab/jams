@@ -68,6 +68,7 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
 void CUDAHeunLLGSolver::run()
 {
   using namespace globals;
+  double t0 = time_;
 
   const dim3 block_size = {84, 3, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 3, 1});
@@ -98,6 +99,9 @@ void CUDAHeunLLGSolver::run()
     DEBUG_CHECK_CUDA_ASYNC_STATUS
   }
 
+  double mid_time_step = step_size_;
+  time_ = t0 + mid_time_step;
+
   compute_fields();
 
   if (zero_safe_kernels_required_) {
@@ -115,5 +119,6 @@ void CUDAHeunLLGSolver::run()
   }
 
   iteration_++;
+  time_ = iteration_ * step_size_;
 }
 

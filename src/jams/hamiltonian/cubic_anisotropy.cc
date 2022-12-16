@@ -114,15 +114,15 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
   }
 }
 
-double CubicHamiltonian::calculate_total_energy() {
+double CubicHamiltonian::calculate_total_energy(double time) {
   double e_total = 0.0;
   for (auto i = 0; i < energy_.size(); ++i) {
-    e_total += calculate_energy(i);
+    e_total += calculate_energy(i, time);
   }
   return e_total;
 }
 
-double CubicHamiltonian::calculate_energy(const int i) {
+double CubicHamiltonian::calculate_energy(const int i, double time) {
   using namespace globals;
   double energy = 0.0;
 
@@ -149,7 +149,7 @@ double CubicHamiltonian::calculate_energy(const int i) {
 }
 
 double CubicHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                     const Vec3 &spin_final) {
+                                                     const Vec3 &spin_final, double time) {
   double e_initial = 0.0;
   double e_final = 0.0;
 
@@ -194,13 +194,13 @@ double CubicHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_ini
   return e_final - e_initial;
 }
 
-void CubicHamiltonian::calculate_energies() {
+void CubicHamiltonian::calculate_energies(double time) {
   for (int i = 0; i < energy_.size(); ++i) {
-    energy_(i) = calculate_energy(i);
+    energy_(i) = calculate_energy(i, time);
   }
 }
 
-Vec3 CubicHamiltonian::calculate_field(const int i) {
+Vec3 CubicHamiltonian::calculate_field(const int i, double time) {
   using namespace globals;
   Vec3 field = {0.0, 0.0, 0.0};
 
@@ -241,9 +241,9 @@ Vec3 CubicHamiltonian::calculate_field(const int i) {
   return field;
 }
 
-void CubicHamiltonian::calculate_fields() {
+void CubicHamiltonian::calculate_fields(double time) {
   for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto field = calculate_field(i);
+    const auto field = calculate_field(i, time);
     for (auto j = 0; j < 3; ++j) {
       field_(i, j) = field[j];
     }
