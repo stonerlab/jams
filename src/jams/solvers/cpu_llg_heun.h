@@ -13,9 +13,14 @@
 #include "jams/containers/multiarray.h"
 
 class HeunLLGSolver : public Solver {
- public:
+public:
   HeunLLGSolver() = default;
   ~HeunLLGSolver() override = default;
+
+  inline explicit HeunLLGSolver(const libconfig::Setting &settings) {
+    initialize(settings);
+  }
+
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
 

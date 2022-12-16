@@ -261,7 +261,7 @@ namespace jams {
         cout << jams::section("init solver") << std::endl;
 
         globals::solver = Solver::create(globals::config->lookup("solver"));
-        globals::solver->initialize(globals::config->lookup("solver"));
+
         globals::solver->register_physics_module(Physics::create(
             globals::config->lookup("physics")));     // todo: fix this memory leak
 

@@ -12,6 +12,10 @@ public:
     RotationSolver() = default;
     ~RotationSolver() override = default;
 
+    inline explicit RotationSolver(const libconfig::Setting &settings) {
+      initialize(settings);
+    }
+
     bool is_running() override {
       return iteration_ == 0;
     }

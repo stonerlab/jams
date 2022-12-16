@@ -15,6 +15,10 @@ public:
     NullSolver() = default;
     ~NullSolver() override = default;
 
+    inline explicit NullSolver(const libconfig::Setting& settings) {
+      initialize(settings);
+    }
+
     std::string name() const override { return "null"; }
 
 

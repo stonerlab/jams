@@ -29,11 +29,11 @@
 #include "jams/solvers/cpu_metadynamics_metropolis_solver.h"
 
 
-#define DEFINED_SOLVER(name, type) \
+#define DEFINED_SOLVER(name, type, settings) \
 { \
 if (lowercase(settings["module"]) == name) { \
 std::cout << name << " solver \n"; \
-return new type; \
+return new type(settings); \
 } \
 }
 
@@ -58,17 +58,17 @@ void Solver::compute_fields() {
 
 
 Solver* Solver::create(const libconfig::Setting &settings) {
-  DEFINED_SOLVER("null", NullSolver);
-  DEFINED_SOLVER("rotations-cpu", RotationSolver);
-  DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver);
-  DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver);
-  DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver);
-  DEFINED_SOLVER("monte-carlo-metadynamics-cpu", MetadynamicsMetropolisSolver);
+  DEFINED_SOLVER("null", NullSolver, settings);
+  DEFINED_SOLVER("rotations-cpu", RotationSolver, settings);
+  DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver, settings);
+  DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver, settings);
+  DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver, settings);
+  DEFINED_SOLVER("monte-carlo-metadynamics-cpu", MetadynamicsMetropolisSolver, settings);
 
 #if HAS_CUDA
-  DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver);
-  DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver);
-  DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver);
+  DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver, settings);
+  DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver, settings);
+  DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver, settings);
 #endif
 
   throw std::runtime_error("unknown solver " + std::string(settings["module"].c_str()));

@@ -27,6 +27,10 @@ public:
 
     ~MetropolisMCSolver() override = default;
 
+    inline explicit MetropolisMCSolver(const libconfig::Setting &settings) {
+      initialize(settings);
+    }
+
     void initialize(const libconfig::Setting &settings) override;
 
     void run() override;
