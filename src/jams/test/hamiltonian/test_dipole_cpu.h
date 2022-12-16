@@ -81,7 +81,7 @@ protected:
     // compared to an analytic eigen value
     void eigenvalue_test(const std::string &spin_config_name, const double &expected_eigenvalue) {
       double analytic = analytic_prefactor * expected_eigenvalue;
-      double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
+      double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
 
       std::cout << "spins:      " << spin_config_name << "\n";
       std::cout << "expected:   " << jams::fmt::sci << analytic << " meV/spin\n";
@@ -108,9 +108,9 @@ protected:
         globals::s(i, 2) = spin[2];
       }
 
-      double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
+      double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
       double reference =
-          reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
+          reference_hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
 
       std::cout << "spin:       random" << "\n";
       std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";
@@ -120,8 +120,8 @@ protected:
 
       ASSERT_NEAR(numeric, reference, target_accuracy);
 
-      hamiltonian->calculate_fields();
-      reference_hamiltonian->calculate_fields();
+      hamiltonian->calculate_fields(0);
+      reference_hamiltonian->calculate_fields(0);
 
       for (auto i = 0; i < globals::num_spins; ++i) {
         for (auto j = 0; j < 3; ++j) {
@@ -144,9 +144,9 @@ protected:
             globals::s(i, 2) = spin_direction[2];
         }
 
-        double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
+        double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
         double reference =
-                reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
+                reference_hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
 
         std::cout << "spin:       " << spin_direction << "\n";
         std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";
