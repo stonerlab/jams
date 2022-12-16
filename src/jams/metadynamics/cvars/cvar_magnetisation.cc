@@ -3,9 +3,8 @@
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 
-
 double jams::CVarMagnetisation::value() {
-  return cached_value() / globals::num_spins;
+  return cached_value() / num_mat_spins_;
 }
 
 
@@ -36,7 +35,7 @@ jams::CVarMagnetisation::spin_move_trial_value(int i, const Vec3 &spin_initial,
 
   set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
 
-  return trial_value / globals::num_spins;
+  return trial_value / num_mat_spins_;
 }
 
 
@@ -61,6 +60,17 @@ jams::CVarMagnetisation::CVarMagnetisation(const libconfig::Setting &settings) {
   } else {
       material = lattice->material_name(0);
   }
+  // Count the number of spins of each type.
+  int count = 0;
+  if (material=="All") {
+      count = globals::num_spins;
+  } else {
+      for (auto i=0; i < globals::num_spins; ++i) {
+          if (lattice->atom_material_name(i) == material) {
+              count += 1;
+          }
+      }
+  }
 
   auto component = config_required<std::string>(settings, "component");
 
@@ -68,14 +78,17 @@ jams::CVarMagnetisation::CVarMagnetisation(const libconfig::Setting &settings) {
     magnetisation_component_ = 0;
     name_ = "magnetisation_x";
     material_ = material;
+    num_mat_spins_ = count;
   } else if (lowercase(component) == "y") {
     magnetisation_component_ = 1;
     name_ = "magnetisation_y";
     material_ = material;
+    num_mat_spins_ = count;
   } else if (lowercase(component) == "z") {
     magnetisation_component_ = 2;
     name_ = "magnetisation_z";
     material_ = material;
+    num_mat_spins_ = count;
   } else {
     throw std::runtime_error("'component' setting in magnetisation collective variable must be x, y or z");
   }

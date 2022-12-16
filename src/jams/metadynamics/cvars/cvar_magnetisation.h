@@ -60,7 +60,7 @@ private:
     std::string name_ = "magnetisation";
     std::string material_;
     int magnetisation_component_;
-
+    int num_mat_spins_; // the number of spins of the material we are considering.
 };
 }
 
