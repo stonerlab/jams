@@ -27,6 +27,14 @@ public:
 
     double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
 
+    double calculate_internal_energy_difference(int i) override;
+
+    double calculate_total_internal_energy_difference() override;
+
+    double calculate_entropy(int i) override;
+
+    double calculate_total_entropy() override;
+
 private:
     int power_; // anisotropy power exponent
     jams::MultiArray<double, 2> axis_; // local uniaxial anisotropy axis

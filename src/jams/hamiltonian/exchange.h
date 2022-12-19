@@ -18,6 +18,8 @@ public:
 
     const jams::InteractionList<Mat3, 2> &neighbour_list() const;
 
+    const double &get_input_conversion() const;
+
 private:
     jams::InteractionList<Mat3, 2> neighbour_list_; // neighbour information
     double interaction_prefactor_; // prefactor to multiply interactions by to change between Hamiltonian conventions

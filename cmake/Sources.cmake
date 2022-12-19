@@ -64,6 +64,7 @@ set(JAMS_SOURCES_CXX
         monitors/topological_charge_finite_diff.cc
         monitors/topological_charge_geometrical_def.cc
         monitors/hdf5.cc
+        monitors/helicity_modulus.cc
         monitors/magnetisation.cc
         monitors/magnetisation_layers.cc
         monitors/magnetisation_rate.cc
