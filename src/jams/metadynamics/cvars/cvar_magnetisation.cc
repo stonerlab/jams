@@ -28,14 +28,14 @@ double jams::CVarMagnetisation::calculate_expensive_value() {
 double
 jams::CVarMagnetisation::spin_move_trial_value(int i, const Vec3 &spin_initial,
                                                const Vec3 &spin_trial) {
-  if (lattice->atom_material_id(i) != material_) {
-      set_cache_values(i, spin_initial, spin_trial, cached_value(), cached_value());
+  if (lattice->atom_material_id(i)==material_ || material_==-1) {
+    const double trial_value = cached_value() - spin_initial[magnetisation_component_] + spin_trial[magnetisation_component_];
+    set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
+    return trial_value / num_mat_spins_;
   }
-  const double trial_value = cached_value() - spin_initial[magnetisation_component_] + spin_trial[magnetisation_component_];
 
-  set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
-
-  return trial_value / num_mat_spins_;
+  set_cache_values(i, spin_initial, spin_trial, cached_value(), cached_value());
+  return cached_value();
 }
 
 
