@@ -14,7 +14,7 @@ double jams::CVarMagnetisation::calculate_expensive_value() {
   for (auto i =0; i < globals::num_spins; ++i) {
     // if the spin matches the specified material id, or we are considering
     // all spins in the system, then add that spin to the total magnetisation.
-    if (lattice->atom_material_id(i) || material_==-1) {
+    if (lattice->atom_material_id(i)==material_ || material_==-1) {
       magnetisation += globals::s(i, magnetisation_component_);
     }
   }
