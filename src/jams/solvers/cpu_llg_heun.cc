@@ -31,8 +31,7 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   sigma_.resize(globals::num_spins);
   w_.resize(globals::num_spins, 3);
 
-  bool use_gilbert_prefactor = jams::config_optional<bool>(globals::config->lookup("solver"), "gilbert_prefactor", false);
-  cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
+  bool use_gilbert_prefactor = jams::config_optional<bool>(settings, "gilbert_prefactor", false);
 
   for(int i = 0; i < globals::num_spins; ++i) {
     double denominator = 1.0;
@@ -40,7 +39,7 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
       denominator = 1.0 + pow2(globals::alpha(i));
     }
     sigma_(i) = sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
-                     (globals::mus(i) * globals::gyro(i) * globals::solver->time_step() * denominator));
+                     (globals::mus(i) * globals::gyro(i) * this->time_step() * denominator));
   }
 }
 
