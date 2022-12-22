@@ -7,6 +7,7 @@
 #include "jams/core/solver.h"
 #include "jams/helpers/output.h"
 #include "jams/cuda/cuda_minimum_image.h"
+#include <jams/cuda/cuda_common.h>
 
 #include <cuda.h>
 #include <fstream>

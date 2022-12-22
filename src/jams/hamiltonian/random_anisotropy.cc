@@ -9,6 +9,7 @@
 #include <pcg_random.hpp>
 
 #include <jams/core/globals.h>
+#include <jams/common.h>
 #include "jams/core/hamiltonian.h"
 #include "jams/core/lattice.h"
 #include "jams/hamiltonian/random_anisotropy.h"

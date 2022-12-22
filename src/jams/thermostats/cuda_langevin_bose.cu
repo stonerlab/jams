@@ -6,6 +6,7 @@
 #include <random>
 #include <mutex>
 
+#include <jams/common.h>
 #include "jams/helpers/utils.h"
 #include "jams/cuda/cuda_array_kernels.h"
 

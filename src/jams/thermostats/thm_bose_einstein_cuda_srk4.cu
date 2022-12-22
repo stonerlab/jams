@@ -3,6 +3,7 @@
 #include "jams/thermostats/thm_bose_einstein_cuda_srk4.h"
 #include "jams/thermostats/thm_bose_einstein_cuda_srk4_kernel.cuh"
 
+#include <jams/common.h>
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/consts.h"

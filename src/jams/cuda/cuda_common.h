@@ -19,6 +19,20 @@
 
 #include "jams/helpers/error.h"
 
+#include <jams/cuda/cuda_check_status.h>
+
+namespace jams {
+    namespace gpu {
+        template<typename T>
+        inline constexpr cudaDataType get_cuda_data_type();
+
+        template<>
+        inline constexpr cudaDataType get_cuda_data_type<float>() { return CUDA_R_32F; }
+
+        template<>
+        inline constexpr cudaDataType get_cuda_data_type<double>() { return CUDA_R_64F; }
+    }
+}
 
 const char* cusparseGetStatusString(cusparseStatus_t status);
 const char* curandGetStatusString(curandStatus_t status);
@@ -59,16 +73,6 @@ const char* cusparseGetMatTypeString(cusparseMatrixType_t type);
   if ((stat = (x)) != CUFFT_SUCCESS) { \
     std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
     throw std::runtime_error(JAMS_ERROR_MESSAGE("cufft returned ") + cufftGetStatusString(stat)); \
-  } \
-}
-
-
-#define CHECK_CUDA_STATUS(x) \
-{ \
-  cudaError_t stat; \
-  if ((stat = (x)) != cudaSuccess) { \
-    std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    throw std::runtime_error(JAMS_ERROR_MESSAGE("cuda returned ") + cudaGetErrorString(stat)); \
   } \
 }
 

@@ -3,6 +3,8 @@
 
 #include "jams/solvers/cuda_ll_lorentzian_rk4.h"
 
+#include <jams/common.h>
+
 #include <cuda.h>
 
 #include <algorithm>

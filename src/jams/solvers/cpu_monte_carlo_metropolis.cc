@@ -1,12 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
 #include <jams/solvers/cpu_monte_carlo_metropolis.h>
-
-#include <iomanip>
-#include <algorithm>
-
-#include <libconfig.h++>
-
+#include <jams/common.h>
 #include <jams/core/globals.h>
 #include <jams/core/hamiltonian.h>
 #include <jams/core/physics.h>
@@ -14,6 +9,12 @@
 #include <jams/helpers/montecarlo.h>
 #include <jams/helpers/output.h>
 #include <jams/interface/config.h>
+
+#include <iomanip>
+#include <algorithm>
+
+#include <libconfig.h++>
+
 
 using namespace std;
 

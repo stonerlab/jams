@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <cmath>
+
+#include <jams/common.h>
 #include <jams/interface/config.h>
 #include <jams/helpers/defaults.h>
 

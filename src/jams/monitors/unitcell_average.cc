@@ -12,6 +12,7 @@
 
 #include "version.h"
 
+#include <jams/common.h>
 #include "jams/helpers/error.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
