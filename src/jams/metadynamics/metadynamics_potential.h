@@ -63,6 +63,7 @@ namespace jams {
         double upper_restoringBC_threshold_;
         double restoringBC_string_constant_;
         bool   potential_input_file = false;
+        int cvar_file_output_;
 
         int                                              num_cvars_; //used to resize all the other vectors
         std::vector<std::unique_ptr<CollectiveVariable>> cvars_;

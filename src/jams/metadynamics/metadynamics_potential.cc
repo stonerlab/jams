@@ -86,9 +86,9 @@ std::vector<double> linear_space(const double min,const double max,const double 
 
 jams::MetadynamicsPotential::MetadynamicsPotential(
     const libconfig::Setting &settings) {
-
-
-  gaussian_amplitude_ = config_required<double>(settings, "gaussian_amplitude");
+    cvar_file_output_ = jams::config_optional<int>(settings, "cvars_output_steps", 10);
+    std::cout << "cvar file output steps : "<< cvar_file_output_ << std::endl;
+    gaussian_amplitude_ = config_required<double>(settings, "gaussian_amplitude");
 
   std::string potential_filename = jams::config_optional<std::string>(settings, "potential_file", "");
 
@@ -367,13 +367,13 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
       potential_(i,j) += relative_amplitude * gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
     }
   }
-
-  cvar_file_ << ::solver->time();
-  for (auto n = 0; n < num_cvars_; ++n) {
-    cvar_file_ << " " << cvars_[n]->value();
-  }
-  cvar_file_ << std::endl;
-
+    if (solver->iteration() % cvar_file_output_ == 0 ) {
+        cvar_file_ << ::solver->time();
+        for (auto n = 0; n < num_cvars_; ++n) {
+            cvar_file_ << " " << cvars_[n]->value();
+        }
+        cvar_file_ << std::endl;
+    }
   }
 
 
