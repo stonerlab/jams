@@ -12,7 +12,6 @@
 #include "jams/helpers/output.h"
 
 #include "magnetisation_rate.h"
-using namespace std;
 
 MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &settings)
 : Monitor(settings),

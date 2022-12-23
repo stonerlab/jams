@@ -25,8 +25,6 @@
 
 #include "jams/monitors/unitcell_average.h"
 
-using namespace std;
-
 namespace {
     const unsigned h5_compression_chunk_size = 4095;
     const unsigned h5_compression_factor = 6;

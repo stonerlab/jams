@@ -12,8 +12,6 @@
 #include "jams/helpers/random.h"
 #include "jams/interface/openmp.h"
 
-using namespace std;
-
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   // convert input in seconds to picoseconds for internal units
   step_size_ = jams::config_required<double>(settings, "t_step") / 1e-12;
@@ -23,15 +21,16 @@ void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   max_steps_ = static_cast<int>(t_max / step_size_);
   min_steps_ = static_cast<int>(t_min / step_size_);
 
-  cout << "\ntimestep (ps) " << step_size_ << "\n";
-  cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
-  cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
+  std::cout << "\ntimestep (ps) " << step_size_ << "\n";
+  std::cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
+  std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
 
   s_old_.resize(globals::num_spins, 3);
   sigma_.resize(globals::num_spins);
   w_.resize(globals::num_spins, 3);
 
   bool use_gilbert_prefactor = jams::config_optional<bool>(settings, "gilbert_prefactor", false);
+  std::cout << "    llg gilbert_prefactor " << use_gilbert_prefactor << "\n";
 
   for(int i = 0; i < globals::num_spins; ++i) {
     double denominator = 1.0;

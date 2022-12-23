@@ -5,16 +5,16 @@
 #include "jams/core/globals.h"
 #include "jams/helpers/interaction_calculator.h"
 
-using namespace std;
+#include <iostream>
 
 namespace jams {
     struct InteractionShell {
         int index = 0;
         double radius = 0.0;
-        vector<InteractionData> interactions;
+        std::vector<InteractionData> interactions;
     };
 
-    void interaction_calculator(const Cell &unitcell, const vector<Atom> &motif, const double r_max,
+    void interaction_calculator(const Cell &unitcell, const std::vector<Atom> &motif, const double r_max,
                                        const double eps) {
       // assumes motif is in fractional coordinates
       Vec3i num_cells = {
@@ -23,7 +23,7 @@ namespace jams {
           int(ceil(r_max / norm(unitcell.c())))
       };
 
-      vector<Atom> atoms;
+      std::vector<Atom> atoms;
       // generate all atoms up to r_max
       int counter = 0;
       for (auto i = -num_cells[0]; i < num_cells[0] + 1; ++i) {
@@ -52,10 +52,10 @@ namespace jams {
 
         sort(atoms.begin(), atoms.end(), cartesian_distance_comp);
 
-        ostringstream ss;
+        std::ostringstream ss;
 
 
-        vector<InteractionShell> interaction_shells;
+        std::vector<InteractionShell> interaction_shells;
 
         InteractionShell shell;
 
@@ -92,23 +92,23 @@ namespace jams {
 
         }
 
-        cout
+        std::cout
             << "# pos i |  pos j | type i | type j |      Rij_x |      Rij_y |      Rij_z |      Rij_u |      Rij_v |      Rij_w\n";
         for (const auto &s : interaction_shells) {
-          cout << "# shell: " << s.index << " interactions: " << s.interactions.size() << " radius: " << s.radius
-               << endl;
+          std::cout << "# shell: " << s.index << " interactions: " << s.interactions.size() << " radius: " << s.radius
+               << std::endl;
           for (const auto &interaction : s.interactions) {
-            cout << setw(8) << jams::fmt::integer << interaction.unit_cell_pos_i + 1 << " ";
-            cout << setw(8) << jams::fmt::integer << interaction.unit_cell_pos_j + 1 << " ";
-            cout << setw(8) << interaction.type_i << " ";
-            cout << setw(8) << interaction.type_j << " ";
-            cout << jams::fmt::decimal << interaction.r_ij << " ";
-            cout << jams::fmt::decimal << unitcell.inverse_matrix() * interaction.r_ij << endl;
+            std::cout << std::setw(8) << jams::fmt::integer << interaction.unit_cell_pos_i + 1 << " ";
+            std::cout << std::setw(8) << jams::fmt::integer << interaction.unit_cell_pos_j + 1 << " ";
+            std::cout << std::setw(8) << interaction.type_i << " ";
+            std::cout << std::setw(8) << interaction.type_j << " ";
+            std::cout << jams::fmt::decimal << interaction.r_ij << " ";
+            std::cout << jams::fmt::decimal << unitcell.inverse_matrix() * interaction.r_ij << std::endl;
           }
         }
-        cout << '#';
-        cout << string(79, '-');
-        cout << endl;
+        std::cout << '#';
+        std::cout << std::string(79, '-');
+        std::cout << std::endl;
 
       }
     }

@@ -22,15 +22,13 @@
 #include "jams/physics/pinned_boundaries.h"
 #include "jams/physics/flips.h"
 
-using namespace std;
-
 Physics::Physics(const libconfig::Setting &physics_settings) :
     Base(physics_settings),
     temperature_(0.0),
     applied_field_{0.0, 0.0, 0.0}
 {
 
-  cout << "  " << name() << " physics\n";
+  std::cout << "  " << name() << " physics\n";
 
   // initialise temperature
   temperature_ = 0.0;

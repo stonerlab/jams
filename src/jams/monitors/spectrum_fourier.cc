@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <numeric>
 #include <iomanip>
+#include <iostream>
 
 #include "jams/helpers/error.h"
 #include "jams/core/globals.h"
@@ -15,8 +16,6 @@
 #include "spectrum_fourier.h"
 #include "jams/helpers/output.h"
 
-using namespace std;
-
 class Solver;
 
 // We can't guarantee that FFT methods are being used by the integrator, so we implement all of the FFT
@@ -24,7 +23,7 @@ class Solver;
 // calculated much less frequently than every integration step.
 
 namespace {
-    ostream& float_format(ostream& out)
+    std::ostream& float_format(std::ostream& out)
     {
       return out << std::setprecision(8) << std::setw(12) << std::fixed;
     }
@@ -54,13 +53,13 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   double freq_max    = 1.0/(2.0*t_sample);
          freq_delta  = 1.0/(num_samples*t_sample);
 
-  cout << "\n";
-  cout << "  number of samples " << num_samples << "\n";
-  cout << "  sampling time (s) " << t_sample << "\n";
-  cout << "  acquisition time (s) " << t_sample * num_samples << "\n";
-  cout << "  frequency resolution (THz) " << freq_delta << "\n";
-  cout << "  maximum frequency (THz) " << freq_max << "\n";
-  cout << "\n";
+  std::cout << "\n";
+  std::cout << "  number of samples " << num_samples << "\n";
+  std::cout << "  sampling time (s) " << t_sample << "\n";
+  std::cout << "  acquisition time (s) " << t_sample * num_samples << "\n";
+  std::cout << "  frequency resolution (THz) " << freq_delta << "\n";
+  std::cout << "  maximum frequency (THz) " << freq_max << "\n";
+  std::cout << "\n";
 
   // ------------------------------------------------------------------
   // the spin array is a flat 2D array, but is constructed in the lattice
@@ -101,7 +100,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
                      double(cfg_nodes[n][2]) };
 
     if (debug_is_enabled()) {
-      cout << "cfg_vec: " << cfg_vec << "\n";
+      std::cout << "cfg_vec: " << cfg_vec << "\n";
     }
 
     cfg_vec = hadamard_product(cfg_vec, globals::lattice->kspace_size());
@@ -109,22 +108,22 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
     auto bz_vec = cfg_vec;
 
     if (verbose_is_enabled()) {
-      cout << "  bz node: ";
-      cout << "int[ ";
+      std::cout << "  bz node: ";
+      std::cout << "int[ ";
       for (auto i = 0; i < 3; ++i) {
-        cout << int(bz_vec[i]) << " ";
+        std::cout << int(bz_vec[i]) << " ";
       }
-      cout << "] float [ ";
+      std::cout << "] float [ ";
       for (auto i = 0; i < 3; ++i) {
-        cout << bz_vec[i] << " ";
+        std::cout << bz_vec[i] << " ";
       }
-      cout << "]\n";
+      std::cout << "]\n";
     }
 
     b_uvw_nodes.push_back({int(bz_vec[0]), int(bz_vec[1]), int(bz_vec[2])});
   }
 
-  cout << "\n";
+  std::cout << "\n";
 
   bz_points_path_count.push_back(0);
   for (int n = 0, nend = b_uvw_nodes.size()-1; n < nend; ++n) {
@@ -150,7 +149,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
     }
 
     if(verbose_is_enabled()) {
-      cout << "  bz line: [ " << bz_line[0] << " " << bz_line[1] << " " << bz_line[2] << "\n";
+      std::cout << "  bz line: [ " << bz_line[0] << " " << bz_line[1] << " " << bz_line[2] << "\n";
     }
 
     // normalised vector
@@ -162,7 +161,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
     const int bz_line_points = 1 + std::max(std::max(std::abs(bz_line[0]), std::abs(bz_line[1])), std::abs(bz_line[2]));
 
     if (verbose_is_enabled()) {
-      cout << "  bz line points  " << bz_line_points << "\n";
+      std::cout << "  bz line points  " << bz_line_points << "\n";
     }
 
     // store the length element between these points
@@ -185,13 +184,13 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
       b_uvw_points.push_back(bz_point);
       if (verbose_is_enabled()) {
         auto uvw = b_uvw_points.back();
-        cout << fixed << setprecision(8);
-        cout << "  bz point ";
-        cout << setw(4) << bz_point_counter << " ";
-        cout << setw(8) << bz_lengths.back() << " ";
-        cout << uvw << " ";
-        cout << b_to_k_matrix * uvw << "\n";
-        cout.unsetf(ios_base::floatfield);
+        std::cout << std::fixed << std::setprecision(8);
+        std::cout << "  bz point ";
+        std::cout << std::setw(4) << bz_point_counter << " ";
+        std::cout << std::setw(8) << bz_lengths.back() << " ";
+        std::cout << uvw << " ";
+        std::cout << b_to_k_matrix * uvw << "\n";
+        std::cout.unsetf(std::ios_base::floatfield);
       }
       bz_point_counter++;
     }
@@ -372,7 +371,7 @@ void SpectrumFourierMonitor::fft_space() {
   for (auto n = 0; n < globals::num_spins; ++n) {
     for (auto i = 0; i < 3; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        transformed_spins(n, i) += complex<double>{spin_transformations[n][i][j] * globals::s(n, j), 0.0};
+        transformed_spins(n, i) += std::complex<double>{spin_transformations[n][i][j] * globals::s(n, j), 0.0};
       }
     }
   }

@@ -26,7 +26,6 @@ MATCHER_P2(Vec3Eq, expected, tolerance, "") {
 
 TEST_P(Mat3Test, rotation_matrix_between_vectors) {
   using namespace testing;
-  using namespace std;
 
   const double eps = 1e-12;
   // Call GetParam() here to get the values

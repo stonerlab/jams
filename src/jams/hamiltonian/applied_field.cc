@@ -2,15 +2,16 @@
 #include <jams/hamiltonian/applied_field.h>
 #include <jams/containers/vec3.h>
 #include <jams/core/globals.h>
+#include <jams/interface/config.h>
 
-using namespace std;
+#include <iostream>
 
 AppliedFieldHamiltonian::AppliedFieldHamiltonian(
     const libconfig::Setting &settings, unsigned int size)
     : Hamiltonian(settings, size),
       applied_b_field_(jams::config_required<Vec3>(settings, "field")) {
 
-    cout << "field: " << applied_b_field_ << endl;
+  std::cout << "field: " << applied_b_field_ << std::endl;
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {

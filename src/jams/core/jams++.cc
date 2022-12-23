@@ -30,8 +30,6 @@
 
 #include <jams/initializer/init_dispatcher.h>
 
-using namespace std;
-
 namespace jams {
 
     void new_global_classes() {
@@ -47,7 +45,7 @@ namespace jams {
     //
     // If the string is an existent file name it is loaded as a config,
     // otherwise it is directly interpreted as a config string.
-    void parse_config_strings(const vector<string>& config_strings, unique_ptr<libconfig::Config>& combined_config) {
+    void parse_config_strings(const std::vector<std::string>& config_strings, std::unique_ptr<libconfig::Config>& combined_config) {
       if (!combined_config) {
         combined_config = std::make_unique<libconfig::Config>();
       }
@@ -63,19 +61,19 @@ namespace jams {
           }
           catch (const libconfig::ParseException &pex) {
             throw std::runtime_error("Error parsing config file: "
-                                     + string(pex.getFile()) + ":"
-                                     + to_string(pex.getLine()) + ":"
-                                     + string(pex.getError()));
+                                     + std::string(pex.getFile()) + ":"
+                                     + std::to_string(pex.getLine()) + ":"
+                                     + std::string(pex.getError()));
           }
         } else {
           try {
             patch.readString(s.c_str());
           }
           catch (const libconfig::ParseException &pex) {
-            stringstream ss;
+            std::stringstream ss;
             ss << "File not found or error parsing config string:\n";
             ss << "  '" << s << "'\n";
-            ss << "line " << to_string(pex.getLine()) << ": " << string(pex.getError());
+            ss << "line " << std::to_string(pex.getLine()) << ": " << std::string(pex.getError());
 
             throw std::runtime_error(ss.str());
           }
@@ -85,7 +83,7 @@ namespace jams {
       }
     }
 
-    void write_config(const std::string& filename, const unique_ptr<libconfig::Config> &cfg) {
+    void write_config(const std::string& filename, const std::unique_ptr<libconfig::Config> &cfg) {
       cfg->setFloatPrecision(jams::defaults::config_float_precision);
       cfg->writeFile(filename.c_str());
     }
@@ -107,8 +105,8 @@ namespace jams {
       return line.replace(1, name.size() + 1, name + " ");
     }
 
-    string build_info() {
-      stringstream ss;
+std::string build_info() {
+  std::stringstream ss;
       ss << "  commit     " << jams::build::hash << "\n";
       ss << "  branch     " << jams::build::branch << "\n";
       ss << "  build      " << jams::build::type << "\n";
@@ -143,8 +141,8 @@ namespace jams {
       return ss.str();
     }
 
-    string run_info() {
-      stringstream ss;
+std::string run_info() {
+  std::stringstream ss;
       ss << "time    ";
       ss << get_date_string(std::chrono::system_clock::now()) << "\n";
       #if HAS_OMP
@@ -154,17 +152,16 @@ namespace jams {
     }
 
     void initialize_config(
-        const vector<string>& config_strings,
+        const std::vector<std::string>& config_strings,
         const int config_options = jams::defaults::config_options) {
-      using namespace libconfig;
 
-      ::globals::config = std::make_unique<Config>();
+      ::globals::config = std::make_unique<libconfig::Config>();
       ::globals::config->setOptions(config_options);
 
-      cout << "config files " << "\n";
+      std::cout << "config files " << "\n";
       for (const auto& s : config_strings) {
         if (jams::system::file_exists(s)) {
-          cout << "  " << s << "\n";
+          std::cout << "  " << s << "\n";
         }
       }
 
@@ -174,8 +171,8 @@ namespace jams {
       write_config(filename, ::globals::config);
     }
 
-    string choose_simulation_name(const jams::ProgramArgs &program_args) {
-      string name = "jams";
+std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
+  std::string name = "jams";
       // specify a default name in case no other is found
       if (!program_args.simulation_name.empty()) {
         // name specified with command line flag
@@ -194,7 +191,7 @@ namespace jams {
 
     void initialize_simulation(const jams::ProgramArgs &program_args) {
       try {
-        cout << "\nJAMS++ " << semantic_version(jams::build::description) << std::endl;
+        std::cout << "\nJAMS++ " << semantic_version(jams::build::description) << std::endl;
 
         if (contains(jams::build::description, "dirty")) {
           jams_warning("There are uncommitted changes in your git repository. DO NOT USE THIS BINARY FOR PRODUCTION CALCULATIONS.");
@@ -204,10 +201,10 @@ namespace jams {
           jams_warning("JAMS version is unknown. DO NOT USE THIS BINARY FOR PRODUCTION CALCULATIONS.");
         }
 
-        cout << jams::section("build info") << std::endl;
-        cout << jams::build_info();
-        cout << jams::section("run info") << std::endl;
-        cout << jams::run_info();
+        std::cout << jams::section("build info") << std::endl;
+        std::cout << jams::build_info();
+        std::cout << jams::section("run info") << std::endl;
+        std::cout << jams::run_info();
 
         if (!program_args.output_path.empty()) {
           jams::instance().set_output_dir(program_args.output_path);
@@ -224,9 +221,9 @@ namespace jams {
         jams::set_mode();
 
         if (jams::instance().mode() == Mode::GPU) {
-          cout << "mode    GPU \n";
+          std::cout << "mode    GPU \n";
         } else {
-          cout << "mode    CPU \n";
+          std::cout << "mode    CPU \n";
         }
 
 
@@ -241,31 +238,31 @@ namespace jams {
             simulation.random_seed = jams::config_required<unsigned long>(
                 globals::config->lookup("sim"), "seed");
             jams::instance().random_generator().seed(simulation.random_seed);
-            cout << "seed    " << simulation.random_seed << "\n";
+            std::cout << "seed    " << simulation.random_seed << "\n";
           }
 
           if (globals::config->exists("sim.rng_state")) {
-            auto state = jams::config_required<string>(
+            auto state = jams::config_required<std::string>(
                 globals::config->lookup("sim"), "rng_state");
-            istringstream(state) >> simulation.random_state;
+            std::istringstream(state) >> simulation.random_state;
           }
         }
 
-        cout << "verbose " << simulation.verbose << "\n";
-        cout << "rng state " << simulation.random_state << "\n";
+        std::cout << "verbose " << simulation.verbose << "\n";
+        std::cout << "rng state " << simulation.random_state << "\n";
 
-        cout << jams::section("init lattice") << std::endl;
+        std::cout << jams::section("init lattice") << std::endl;
 
         globals::lattice->init_from_config(*::globals::config);
 
-        cout << jams::section("init solver") << std::endl;
+        std::cout << jams::section("init solver") << std::endl;
 
         globals::solver = Solver::create(globals::config->lookup("solver"));
 
         globals::solver->register_physics_module(Physics::create(
             globals::config->lookup("physics")));     // todo: fix this memory leak
 
-        cout << jams::section("init hamiltonians") << std::endl;
+        std::cout << jams::section("init hamiltonians") << std::endl;
 
         if (!::globals::config->exists("hamiltonians")) {
           jams_die("No hamiltonians in config");
@@ -277,7 +274,7 @@ namespace jams {
           }
         }
 
-        cout << jams::section("init monitors") << std::endl;
+        std::cout << jams::section("init monitors") << std::endl;
 
         if (!::globals::config->exists("monitors")) {
           jams_warning("No monitors in config");
@@ -311,8 +308,8 @@ namespace jams {
 
     void run_simulation() {
       try {
-        cout << jams::section("running solver") << std::endl;
-        cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
+        std::cout << jams::section("running solver") << std::endl;
+        std::cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
         {
           ProgressBar progress;
           Timer<> timer;
@@ -328,26 +325,26 @@ namespace jams {
 
             progress.set(double(::globals::solver->iteration()) / double(::globals::solver->max_steps()));
             if (::globals::solver->iteration() % 1000 == 0) {
-              cout << progress;
+              std::cout << progress;
             }
           }
-          cout << "\n\n";
-          cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
+          std::cout << "\n\n";
+          std::cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
 
-          cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
+          std::cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
         }
 
         {
-          cout << jams::section("running post process") << std::endl;
-          cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
+          std::cout << jams::section("running post process") << std::endl;
+          std::cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
 
           Timer<> timer;
 
           for (const auto& m : globals::solver->monitors()) {
             m->post_process();
           }
-          cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
-          cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
+          std::cout << "runtime " << timer.elapsed_time() << " seconds" << std::endl;
+          std::cout << "finish  " << get_date_string(std::chrono::system_clock::now()) << "\n\n";
         }
 
       }

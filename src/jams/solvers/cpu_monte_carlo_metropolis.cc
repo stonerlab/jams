@@ -15,18 +15,15 @@
 
 #include <libconfig.h++>
 
-
-using namespace std;
-
 void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
   output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
   select_spins_by_random_ = jams::config_optional<bool>(settings, "select_spins_by_random", select_spins_by_random_);
 
-  cout << "    max_steps " << max_steps_ << "\n";
-  cout << "    min_steps " << min_steps_ << "\n";
-  cout << "    select_spins_by_random " << std::boolalpha << select_spins_by_random_ << "\n";
+  std::cout << "    max_steps " << max_steps_ << "\n";
+  std::cout << "    min_steps " << min_steps_ << "\n";
+  std::cout << "    select_spins_by_random " << std::boolalpha << select_spins_by_random_ << "\n";
 
   // Create a set of vectors which contain different types of Monte Carlo moves.
   // Each move can has a 'fraction' (weight) associated with it to allow some
@@ -126,7 +123,7 @@ void MetropolisMCSolver::output_move_statistics() {
     for (const auto& name : move_names_) {
       stats_file_ << name << " ";
     }
-    stats_file_ << endl;
+    stats_file_ << std::endl;
   }
 
   stats_file_ << iteration() << " ";

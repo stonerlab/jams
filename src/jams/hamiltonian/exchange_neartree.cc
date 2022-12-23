@@ -11,8 +11,6 @@
 #include "jams/helpers/output.h"
 #include <jams/lattice/interaction_neartree.h>
 
-using namespace std;
-
 ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : SparseInteractionHamiltonian(settings, size) {
 
@@ -37,14 +35,14 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     if (settings.exists("energy_cutoff")) {
         energy_cutoff_ = settings["energy_cutoff"];
     }
-    cout << "interaction energy cutoff" << energy_cutoff_ << "\n";
+    std::cout << "interaction energy cutoff" << energy_cutoff_ << "\n";
 
     distance_tolerance_ = jams::defaults::lattice_tolerance; // fractional coordinate units
     if (settings.exists("distance_tolerance")) {
         distance_tolerance_ = settings["distance_tolerance"];
     }
 
-    cout << "distance_tolerance " << distance_tolerance_ << "\n";
+    std::cout << "distance_tolerance " << distance_tolerance_ << "\n";
 
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
     for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
@@ -95,7 +93,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       interaction_list_[type_id_A].push_back(jij);
     }
 
-    cout << "\ncomputed interactions\n";
+    std::cout << "\ncomputed interactions\n";
 
     jams::InteractionNearTree neartree(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), max_radius + distance_tolerance_, jams::defaults::lattice_tolerance);
     neartree.insert_sites(globals::lattice->atom_cartesian_positions());
@@ -162,8 +160,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       debug_file.close();
     }
 
-  cout << "  total interactions " << counter << "\n";
-  cout << "  average interactions per spin " << counter / double(globals::num_spins) << "\n";
+  std::cout << "  total interactions " << counter << "\n";
+  std::cout << "  average interactions per spin " << counter / double(globals::num_spins) << "\n";
 
   finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
 }

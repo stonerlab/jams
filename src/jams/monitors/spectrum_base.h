@@ -10,6 +10,7 @@
 #include <jams/core/monitor.h>
 #include <jams/core/solver.h>
 #include <jams/interface/fft.h>
+#include <jams/helpers/defaults.h>
 
 namespace jams {
     struct HKLIndex {

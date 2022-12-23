@@ -23,8 +23,6 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
           magnitude_(size, 0.0),
           direction_(size, {0.0, 0.0, 0.0})
 {
-  using namespace std;
-
   // validate settings
   if (settings["magnitude"].getLength() != globals::lattice->num_materials()) {
     jams_die("RandomAnisotropyHamiltonian: magnitude must be specified for every material");
@@ -41,7 +39,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
       double sigma;
   };
 
-  vector<RandomAnisotropyProperties> properties;
+  std::vector<RandomAnisotropyProperties> properties;
   for (auto i = 0; i < settings["magnitude"].getLength(); ++i) {
     properties.push_back({
                              double(settings["magnitude"][i]) * input_energy_unit_conversion_,
@@ -49,11 +47,11 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   }
 
   auto seed = jams::config_optional<unsigned>(settings, "seed", jams::instance().random_generator()());
-  cout << "    seed " << seed << "\n";
+  std::cout << "    seed " << seed << "\n";
 
   pcg32 generator(seed);
   auto random_unit_vector = bind(uniform_random_sphere<pcg32>, generator);
-  auto random_normal_number = bind(normal_distribution<>(), generator);
+  auto random_normal_number = bind(std::normal_distribution<>(), generator);
 
   for (auto i = 0; i < size; ++i) {
     auto type = globals::lattice->atom_material_id(i);
@@ -62,7 +60,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   }
 
   if (debug_is_enabled() || verbose_is_enabled()) {
-    ofstream outfile(jams::output::full_path_filename("DEBUG_random_anisotropy.tsv"));
+    std::ofstream outfile(jams::output::full_path_filename("DEBUG_random_anisotropy.tsv"));
     output_anisotropy_axes(outfile);
   }
 }

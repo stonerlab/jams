@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <vector>
 #include <cassert>
+#include <iostream>
 
 #include "jams/helpers/consts.h"
 #include "jams/core/physics.h"

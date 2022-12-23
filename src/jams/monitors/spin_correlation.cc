@@ -7,8 +7,6 @@
 #include "jams/interface/openmp.h"
 #include "jams/helpers/output.h"
 
-using namespace std;
-
 SpinCorrelationMonitor::SpinCorrelationMonitor(const libconfig::Setting &settings) :
 Monitor(settings){
 
@@ -36,7 +34,7 @@ void SpinCorrelationMonitor::update(Solver& solver) {
 #pragma GCC optimize ("Ofast")
 void SpinCorrelationMonitor::post_process() {
   // calculate average sz of each position in unit cell
-  vector<double> avg_sz(globals::lattice->num_motif_atoms(), 0.0);
+  std::vector<double> avg_sz(globals::lattice->num_motif_atoms(), 0.0);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto n = globals::lattice->atom_motif_position(i);
@@ -98,7 +96,7 @@ void SpinCorrelationMonitor::post_process() {
   }
 
   {
-    ofstream of(jams::output::full_path_filename("corr_outplane.tsv"));
+    std::ofstream of(jams::output::full_path_filename("corr_outplane.tsv"));
     of << "delta_r\tCzz\n";
     for (auto x : out_of_plane_sz_corr_histogram_) {
       auto delta_r = sqrt(x.first);
@@ -108,7 +106,7 @@ void SpinCorrelationMonitor::post_process() {
   }
 
   {
-    ofstream of(jams::output::full_path_filename("corr_inplane.tsv"));
+    std::ofstream of(jams::output::full_path_filename("corr_inplane.tsv"));
     of << "delta_r\tCzz\n";
     for (auto x : in_plane_sz_corr_histogram_) {
         auto delta_r = sqrt(x.first);

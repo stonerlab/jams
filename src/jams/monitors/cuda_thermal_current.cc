@@ -24,7 +24,6 @@
 
 CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
-  using namespace std;
   jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian\n"
                "in the config and assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
 
@@ -35,9 +34,9 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
 
   const auto triad_list = generate_three_spin_from_two_spin_interactions(exchange_hamiltonian.neighbour_list());
 
-  cout << "    total ijk triads: " << triad_list.size() << endl;
+  std::cout << "    total ijk triads: " << triad_list.size() << std::endl;
 
-  cout << "    interaction matrix memory: " << interaction_matrix_.memory() / kBytesToMegaBytes << "MB" << endl;
+  std::cout << "    interaction matrix memory: " << interaction_matrix_.memory() / kBytesToMegaBytes << "MB" << std::endl;
 
   zero(thermal_current_rx_.resize(globals::num_spins));
   zero(thermal_current_ry_.resize(globals::num_spins));
@@ -48,7 +47,7 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
   outfile << std::setw(12) << "time" << "\t";
   outfile << std::setw(12) << "jq_rx" << "\t";
   outfile << std::setw(12) << "jq_ry" << "\t";
-  outfile << std::setw(12) << "jq_rz" << endl;
+  outfile << std::setw(12) << "jq_rz" << std::endl;
 }
 
 void CudaThermalCurrentMonitor::update(Solver& solver) {

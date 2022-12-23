@@ -15,8 +15,6 @@
 #include "jams/hamiltonian/cuda_dipole_fft.h"
 #include "jams/cuda/cuda_common.h"
 
-using namespace std;
-
 __global__ void cuda_dipole_convolution(
   const unsigned int size,
   const unsigned int pos_i, 

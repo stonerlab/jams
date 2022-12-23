@@ -8,9 +8,6 @@
 #include "jams/helpers/timer.h"
 #include <jams/lattice/interaction_neartree.h>
 
-
-using namespace std;
-
 DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : SparseInteractionHamiltonian(settings, size) {
 
@@ -34,11 +31,11 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
 
   std::size_t max_memory_per_tensor = 9*(2*sizeof(int) + sizeof(double));
 
-  cout << "  dipole dense tensor memory (not used) "
-    << memory_in_natural_units(max_memory_per_tensor * pow2(globals::num_spins)) << endl;
+  std::cout << "  dipole dense tensor memory (not used) "
+    << memory_in_natural_units(max_memory_per_tensor * pow2(globals::num_spins)) << std::endl;
 
-  cout << "  dipole sparse matrix memory estimate (upper bound) "
-    << memory_in_natural_units(max_memory_per_tensor * expected_neighbours) << endl;
+  std::cout << "  dipole sparse matrix memory estimate (upper bound) "
+    << memory_in_natural_units(max_memory_per_tensor * expected_neighbours) << std::endl;
 
   const double prefactor = kVacuumPermeabilityIU / (4 * kPi * pow(::globals::lattice->parameter(), 3));
 
@@ -71,7 +68,7 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
 
   Timer<> timer;
   finalize(jams::SparseMatrixSymmetryCheck::None);
-  cout << "  build time " << timer.elapsed_time() << " seconds" << std::endl;
+  std::cout << "  build time " << timer.elapsed_time() << " seconds" << std::endl;
 
-  cout << "  num_neighbours " << num_neighbours << "\n";
+  std::cout << "  num_neighbours " << num_neighbours << "\n";
 }

@@ -15,6 +15,8 @@
 
 #include "jams/hamiltonian/dipole_bruteforce.h"
 
+#include <iostream>
+
 DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size) {
 

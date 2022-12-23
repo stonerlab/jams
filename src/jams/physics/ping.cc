@@ -5,6 +5,7 @@
 #include <libconfig.h++>
 
 #include <cmath>
+#include <iostream>
 
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"

@@ -18,8 +18,6 @@
 
 #include "cuda_llg_heun_kernel.cuh"
 
-using namespace std;
-
 void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
 {
   // convert input in seconds to picoseconds for internal units

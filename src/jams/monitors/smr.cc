@@ -3,6 +3,7 @@
 #include <string>
 #include <iomanip>
 #include <vector>
+#include <iostream>
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"

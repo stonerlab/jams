@@ -7,7 +7,7 @@
 #include "jams/hamiltonian/dipole_neighbour_list.h"
 #include <jams/lattice/interaction_neartree.h>
 
-using namespace std;
+#include <iostream>
 
 DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size){
@@ -22,20 +22,20 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
   }
 
   // This default predicate means every atom will be selected
-  function<bool(const int, const int)> selection_predicate =
+  std::function<bool(const int, const int)> selection_predicate =
       [](const int i, const int j) { return true; };
 
   // If we choose an exclusive pair of materials then we change the predicate
   // so that only interactions a-b and b-a are calculated.
   if (settings.exists("exclusive_pair")) {
-    const string a = settings["exclusive_pair"][0];
+    const std::string a = settings["exclusive_pair"][0];
     if (!globals::lattice->material_exists(a)) {
-      throw runtime_error("material " + a + " does not exist");
+      throw std::runtime_error("material " + a + " does not exist");
     }
 
-    const string b = settings["exclusive_pair"][1];
+    const std::string b = settings["exclusive_pair"][1];
     if (!globals::lattice->material_exists(b)) {
-      throw runtime_error("material " + b + " does not exist");
+      throw std::runtime_error("material " + b + " does not exist");
     }
 
     // Change the Hamiltonian name to include the material pair. This is used

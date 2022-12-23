@@ -19,8 +19,6 @@
 #include "jams/core/physics.h"
 #include "jams/helpers/montecarlo.h"
 
-using namespace std;
-
 namespace {
     inline double remap_azimuthal_angle_degrees(double x) {
       // remaps an angle in degrees to the range -180.0 < x <= 180.0
@@ -71,7 +69,7 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
         globals::lattice->atom_material_id(i)).transform;
   }
 
-  output_initialization_info(cout);
+  output_initialization_info(std::cout);
 
   validate_angles();
   validate_rotation_matricies();
@@ -114,15 +112,13 @@ void ConstrainedMCSolver::run() {
     validate_constraint();
 
     sum_running_acceptance_statistics();
-    output_running_stats_info(cout);
+    output_running_stats_info(std::cout);
     reset_running_statistics();
   }
 }
 
 unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& trial_spin_move) {
-  using namespace std;
-
-  uniform_real_distribution<> uniform_distribution;
+  std::uniform_real_distribution<> uniform_distribution;
 
   const double beta = 1.0 / (physics_module_->temperature() * kBoltzmannIU);
   Vec3 magnetisation = total_transformed_magnetization();
@@ -176,7 +172,7 @@ unsigned ConstrainedMCSolver::AsselinAlgorithm(const std::function<Vec3(Vec3)>& 
     // calculate the Boltzmann weighted probability including the Jacobian factors (see paper)
     double delta_e = energy_difference(s1, s1_initial, s1_trial, s2, s2_initial, s2_trial);
     double jacobian_factor = pow2(m_trial_rotated[2] / m_initial_rotated[2]) * abs(s2_initial_rotated[2] / s2_trial_rotated[2]);
-    double probability = min(1.0, exp(-delta_e * beta) * jacobian_factor);
+    double probability = std::min(1.0, exp(-delta_e * beta) * jacobian_factor);
 
     if (uniform_distribution(jams::instance().random_generator()) > probability) {
       // reject move
@@ -271,11 +267,11 @@ void ConstrainedMCSolver::validate_rotation_matricies() const {
   Vec3 test_forward_vec = rotation_matrix_ * test_unit_vec;
   Vec3 test_back_vec    = inverse_rotation_matrix_ * test_forward_vec;
 
-  cout << "  rotation sanity check\n";
-  cout << "    rotate\n";
-  cout << "      " << test_unit_vec << " -> " << test_forward_vec << "\n";
-  cout << "    back rotate\n";
-  cout << "      " << test_forward_vec << " -> " << test_back_vec << "\n";
+  std::cout << "  rotation sanity check\n";
+  std::cout << "    rotate\n";
+  std::cout << "      " << test_unit_vec << " -> " << test_forward_vec << "\n";
+  std::cout << "    back rotate\n";
+  std::cout << "      " << test_forward_vec << " -> " << test_back_vec << "\n";
 
   for (int n = 0; n < 3; ++n) {
     if (!approximately_equal(test_unit_vec[n], test_back_vec[n], jams::defaults::solver_monte_carlo_constraint_tolerance)) {
@@ -332,12 +328,12 @@ void ConstrainedMCSolver::validate_constraint() const {
 void ConstrainedMCSolver::validate_angles() const {
   if (constraint_theta_ < 0 || constraint_theta_ > 180.0) {
     throw std::runtime_error(
-        "ConstrainedMCSolver -- theta ( " + to_string(constraint_theta_) + " ) is out of range (0 <= theta <= 180)");
+        "ConstrainedMCSolver -- theta ( " + std::to_string(constraint_theta_) + " ) is out of range (0 <= theta <= 180)");
   }
 
   if ( constraint_phi_ <= -180.0 || constraint_phi_ > 180.0) {
     throw std::runtime_error(
-        "ConstrainedMCSolver -- phi ( " + to_string(constraint_phi_) + " ) is out of range (-180 <= phi <= 180)");
+        "ConstrainedMCSolver -- phi ( " + std::to_string(constraint_phi_) + " ) is out of range (-180 <= phi <= 180)");
   }
 }
 

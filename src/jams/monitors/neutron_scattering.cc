@@ -18,12 +18,9 @@
 #include "neutron_scattering.h"
 #include "jams/helpers/neutrons.h"
 
-using namespace std;
-using namespace jams;
-using libconfig::Setting;
 using Complex = std::complex<double>;
 
-NeutronScatteringMonitor::NeutronScatteringMonitor(const Setting &settings)
+NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &settings)
 : SpectrumBaseMonitor(settings) {
 
   // default to 1.0 in case no form factor is given in the settings
@@ -44,8 +41,8 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const Setting &settings)
   print_info();
 }
 
-void NeutronScatteringMonitor::configure_form_factors(Setting &settings) {
-  auto gj = read_form_factor_settings(settings);
+void NeutronScatteringMonitor::configure_form_factors(libconfig::Setting &settings) {
+  auto gj = jams::read_form_factor_settings(settings);
 
   auto num_sites     = globals::lattice->num_motif_atoms();
   neutron_form_factors_.resize(num_sites, num_kpoints());
@@ -96,12 +93,12 @@ void NeutronScatteringMonitor::update(Solver& solver) {
  * @return
  */
 
-MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_section(const MultiArray<Vec3cx, 3>& spectrum) {
+jams::MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum) {
   const auto num_sites = spectrum.size(0);
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
 
-  MultiArray<Complex, 2> cross_section(num_freqencies, num_reciprocal_points);
+  jams::MultiArray<Complex, 2> cross_section(num_freqencies, num_reciprocal_points);
   cross_section.zero();
 
   for (auto a = 0; a < num_sites; ++a) {
@@ -131,12 +128,12 @@ MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_sec
   return cross_section;
 }
 
-MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const MultiArray<Vec3cx, 3>& spectrum, const vector<Vec3>& polarizations) {
+jams::MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations) {
   const auto num_sites = spectrum.size(0);
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
 
-  MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
+  jams::MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
 
   for (auto a = 0; a < num_sites; ++a) {
@@ -181,7 +178,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
     ofs << "index\t" << "q_total\t" << "h\t" << "k\t" << "l\t" << "qx\t" << "qy\t" << "qz\t";
     ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
     for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
-      ofs << "sigma_pol" << to_string(k) << "_re\t" << "sigma_pol" << to_string(k) << "_im\t";
+      ofs << "sigma_pol" << std::to_string(k) << "_re\t" << "sigma_pol" << std::to_string(k) << "_im\t";
     }
     ofs << "\n";
 
@@ -197,23 +194,23 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
       double total_distance = 0.0;
       for (auto j = path_begin; j < path_end; ++j) {
-        ofs << fmt::integer << j << "\t";
-        ofs << fmt::decimal << total_distance << "\t";
-        ofs << fmt::decimal << kspace_paths_[j].hkl << "\t";
-        ofs << fmt::decimal << kspace_paths_[j].xyz << "\t";
-        ofs << fmt::decimal << i * frequency_resolution_thz() << "\t"; // THz
-        ofs << fmt::decimal << i * frequency_resolution_thz() * 4.135668 << "\t"; // meV
+        ofs << jams::fmt::integer << j << "\t";
+        ofs << jams::fmt::decimal << total_distance << "\t";
+        ofs << jams::fmt::decimal << kspace_paths_[j].hkl << "\t";
+        ofs << jams::fmt::decimal << kspace_paths_[j].xyz << "\t";
+        ofs << jams::fmt::decimal << i * frequency_resolution_thz() << "\t"; // THz
+        ofs << jams::fmt::decimal << i * frequency_resolution_thz() * 4.135668 << "\t"; // meV
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-        ofs << fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() << "\t";
-        ofs << fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() << "\t";
+        ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() << "\t";
+        ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() << "\t";
         for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
-          ofs << fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
-          ofs << fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
+          ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
+          ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
         }
         total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j+1].xyz);
         ofs << "\n";
       }
-      ofs << endl;
+      ofs << std::endl;
     }
 
     ofs.close();

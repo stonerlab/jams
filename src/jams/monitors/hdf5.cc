@@ -18,8 +18,6 @@
 
 #include "jams/monitors/hdf5.h"
 
-using namespace std;
-
 namespace {
     const int h5_compression_chunk_size = 4095;
     const int h5_compression_factor = 6;
@@ -38,7 +36,7 @@ Hdf5Monitor::Hdf5Monitor(const libconfig::Setting &settings)
 
     // compression options
     settings.lookupValue("compressed", compression_enabled_);
-    cout << "  compressed " << compression_enabled_ << "\n";
+  std::cout << "  compressed " << compression_enabled_ << "\n";
 
     if (settings.exists("slice")) {
         slice_ = Slice(settings["slice"]);
@@ -196,7 +194,7 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const double
 }
 
 void Hdf5Monitor::write_vector_field(const jams::MultiArray<double, 2> &field,
-                                     const string &data_path,
+                                     const std::string &data_path,
                                      HighFive::File &file) const {
   using namespace HighFive;
 
@@ -213,7 +211,7 @@ void Hdf5Monitor::write_vector_field(const jams::MultiArray<double, 2> &field,
 }
 
 void Hdf5Monitor::write_scalar_field(const jams::MultiArray<double, 1> &field,
-                                     const string &data_path,
+                                     const std::string &data_path,
                                      HighFive::File &file) const {
   using namespace HighFive;
 

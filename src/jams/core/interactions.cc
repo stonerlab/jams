@@ -19,12 +19,9 @@
 
 void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std::vector<InteractionChecks>& checks);
 
-using namespace std;
-using libconfig::Setting;
-
 namespace { //anon
-    void apply_symops(vector<InteractionData>& interactions) {
-      vector<InteractionData> symops_interaction_data;
+    void apply_symops(std::vector<InteractionData>& interactions) {
+      std::vector<InteractionData> symops_interaction_data;
 
       for (auto const &J : interactions) {
         auto new_J = J;
@@ -38,12 +35,12 @@ namespace { //anon
       swap(interactions, symops_interaction_data);
     }
 
-    string get_motif_material_name(const int unit_cell_pos) {
+    std::string get_motif_material_name(const int unit_cell_pos) {
       return globals::lattice->material_name(
           globals::lattice->motif_atom(unit_cell_pos).material_index);
     }
 
-    string get_spin_material_name(const int spin_index) {
+    std::string get_spin_material_name(const int spin_index) {
       return globals::lattice->material_name(
           globals::lattice->atom_material_id(spin_index));
     }
@@ -81,7 +78,7 @@ namespace { //anon
       return find_motif_index(q_ij - u_ij);
     }
 
-    void complete_interaction_typenames_names(vector<InteractionData>& interactions) {
+    void complete_interaction_typenames_names(std::vector<InteractionData>& interactions) {
       // if you want to apply symmetry operations this should be done before calling this function
       apply_transform(interactions,
                       [&](InteractionData J) -> InteractionData {
@@ -91,10 +88,10 @@ namespace { //anon
                       });
     }
 
-    void complete_interaction_unitcell_positions(vector<InteractionData>& interactions) {
+    void complete_interaction_unitcell_positions(std::vector<InteractionData>& interactions) {
       // if you want to apply symmetry operations this should be done before calling this function
 
-      vector<InteractionData> new_data;
+      std::vector<InteractionData> new_data;
       new_data.reserve(interactions.size());
 
       for (const auto& J : interactions) {
@@ -122,14 +119,14 @@ namespace { //anon
 } // namespace anon
 
 InteractionFileDescription
-discover_interaction_file_format(ifstream &file) {
+discover_interaction_file_format(std::ifstream &file) {
   InteractionFileDescription desc;
 
   auto initial_pos = file.tellg();
 
   file.seekg(0);
 
-  for (string line; getline(file, line);) {
+  for (std::string line; getline(file, line);) {
     if (string_is_comment(line)) {
       continue;
     }
@@ -140,13 +137,13 @@ discover_interaction_file_format(ifstream &file) {
     } else if (num_cols == 14) {
       desc.dimension = InteractionType::TENSOR;
     } else {
-      throw runtime_error("interaction file has an incorrect number of columns");
+      throw std::runtime_error("interaction file has an incorrect number of columns");
     }
 
-    stringstream is(line);
+    std::stringstream is(line);
 
     // discover type from int or string
-    string s1, s2;
+    std::string s1, s2;
     is >> s1 >> s2;
 
     if (string_is_int(s1) != string_is_int(s2)) {
@@ -164,15 +161,15 @@ discover_interaction_file_format(ifstream &file) {
     return desc;
   }
 
-  throw runtime_error("failed to discover interaction file format");
+  throw std::runtime_error("failed to discover interaction file format");
 }
 
 InteractionFileDescription
-discover_interaction_setting_format(Setting& setting) {
+discover_interaction_setting_format(libconfig::Setting& setting) {
   InteractionFileDescription desc;
 
   if (!(setting[0][0].getType() == setting[0][1].getType())) {
-    throw runtime_error("interaction type format is incorrect");
+    throw std::runtime_error("interaction type format is incorrect");
   }
 
   if (setting[0][0].isNumber()) {
@@ -183,11 +180,11 @@ discover_interaction_setting_format(Setting& setting) {
   }
 
   if (!setting[0][2].isArray()) {
-    throw runtime_error("interaction vector format is incorrect");
+    throw std::runtime_error("interaction vector format is incorrect");
   }
 
   if (!((setting[0][3].isArray() && setting[0][3].getLength() == 9) || setting[0][3].isNumber())) {
-    throw runtime_error("interaction energy format is incorrect");
+    throw std::runtime_error("interaction energy format is incorrect");
   }
 
   if (setting[0][3].isNumber()) {
@@ -199,19 +196,19 @@ discover_interaction_setting_format(Setting& setting) {
     return desc;
 }
 
-vector<InteractionData>
-interactions_from_file(ifstream &file, const InteractionFileDescription& desc) {
+std::vector<InteractionData>
+interactions_from_file(std::ifstream &file, const InteractionFileDescription& desc) {
   assert(desc.type != InteractionFileFormat::UNDEFINED );
   assert(desc.dimension != InteractionType ::UNDEFINED);
 
-  vector<InteractionData> interactions;
+  std::vector<InteractionData> interactions;
   int line_number = 0;
-  for (string line; getline(file, line);) {
+  for (std::string line; getline(file, line);) {
     if (string_is_comment(line)) {
       continue;
     }
 
-    stringstream is(line);
+    std::stringstream is(line);
     InteractionData interaction;
 
     if (desc.type == InteractionFileFormat::JAMS) {
@@ -238,7 +235,7 @@ interactions_from_file(ifstream &file, const InteractionFileDescription& desc) {
     }
 
     if (is.bad() || is.fail()) {
-      throw std::runtime_error("failed to read line " + to_string(line_number) + " of interaction file");
+      throw std::runtime_error("failed to read line " + std::to_string(line_number) + " of interaction file");
     }
 
     interactions.push_back(interaction);
@@ -247,14 +244,14 @@ interactions_from_file(ifstream &file, const InteractionFileDescription& desc) {
   return interactions;
 }
 
-vector<InteractionData>
-interactions_from_settings(Setting &setting, const InteractionFileDescription& desc) {
+std::vector<InteractionData>
+interactions_from_settings(libconfig::Setting &setting, const InteractionFileDescription& desc) {
   assert(desc.type != InteractionFileFormat::UNDEFINED );
   assert(desc.dimension != InteractionType ::UNDEFINED);
 
-  vector<InteractionData> interactions;
+  std::vector<InteractionData> interactions;
   if (!setting.isList()) {
-    throw runtime_error("exchange settings must be a list");
+    throw std::runtime_error("exchange settings must be a list");
   }
 
   for (auto i = 0; i < setting.getLength(); ++i) {
@@ -286,7 +283,7 @@ interactions_from_settings(Setting &setting, const InteractionFileDescription& d
 }
 
 void
-post_process_interactions(vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff) {
+post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff) {
   if (coord_format == CoordinateFormat::FRACTIONAL) {
     apply_transform(interactions, [](InteractionData J) -> InteractionData {
         J.r_ij = ::globals::lattice->fractional_to_cartesian(J.r_ij);
@@ -343,9 +340,9 @@ integer_interaction_from_data(const InteractionData& J) {
   return x;
 }
 
-vector<IntegerInteractionData>
-generate_integer_lookup_data(vector<InteractionData> &interactions) {
-  vector<IntegerInteractionData> integer_offset_data;
+std::vector<IntegerInteractionData>
+generate_integer_lookup_data(std::vector<InteractionData> &interactions) {
+  std::vector<IntegerInteractionData> integer_offset_data;
   integer_offset_data.reserve(interactions.size());
 
   for (const auto& J : interactions) {
@@ -355,7 +352,7 @@ generate_integer_lookup_data(vector<InteractionData> &interactions) {
 }
 
 jams::InteractionList<Mat3, 2>
-neighbour_list_from_interactions(vector<InteractionData> &interactions) {
+neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
   auto integer_template = generate_integer_lookup_data(interactions);
 
   jams::InteractionList<Mat3, 2> nbr_list;
@@ -381,7 +378,7 @@ neighbour_list_from_interactions(vector<InteractionData> &interactions) {
                                                                    I.unit_cell_pos_j);
 
           if (nbr_list.contains({local_site, nbr_site})) {
-            throw runtime_error("Multiple interactions for sites " + to_string(local_site) + " and " + to_string(nbr_site));
+            throw std::runtime_error("Multiple interactions for sites " + std::to_string(local_site) + " and " + std::to_string(nbr_site));
           }
 
           // catch if the site has a different material (presumably an impurity site)
@@ -399,7 +396,7 @@ neighbour_list_from_interactions(vector<InteractionData> &interactions) {
 }
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(ifstream &file, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
+generate_neighbour_list(std::ifstream &file, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
   auto file_desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, file_desc);
 
@@ -416,7 +413,7 @@ generate_neighbour_list(ifstream &file, CoordinateFormat coord_format, bool use_
 }
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(Setting& setting, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
+generate_neighbour_list(libconfig::Setting& setting, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
   auto file_desc = discover_interaction_setting_format(setting);
   auto interactions = interactions_from_settings(setting, file_desc);
 
@@ -438,14 +435,14 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
       case InteractionChecks::kNoZeroMotifNeighbourCount:
         for (auto i = 0; i < globals::num_spins; ++i) {
           if (list.num_interactions(i) == 0) {
-            throw runtime_error(
+            throw std::runtime_error(
                 "inconsistent neighbour list: some sites have no neighbours");
           }
         }
         break;
       case InteractionChecks::kIdenticalMotifNeighbourCount:
         if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2)) {
-            vector<unsigned> motif_position_interactions(
+          std::vector<unsigned> motif_position_interactions(
                 globals::lattice->num_motif_atoms());
             for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
               motif_position_interactions[i] = list.num_interactions(i);
@@ -454,7 +451,7 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
             for (auto i = 0; i < globals::num_spins; ++i) {
               auto pos = globals::lattice->atom_motif_position(i);
               if (list.num_interactions(i) != motif_position_interactions[pos]) {
-                throw runtime_error(
+                throw std::runtime_error(
                     "inconsistent neighbour list: some sites have different numbers of neighbours for the same motif position");
             }
           }
@@ -469,7 +466,7 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
               return prev + next.second;
           };
 
-          vector<Mat3> motif_position_total_exchange(globals::lattice->num_motif_atoms(),
+        std::vector<Mat3> motif_position_total_exchange(globals::lattice->num_motif_atoms(),
                                                      kZeroMat3);
           for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
             auto neighbour_list = list.interactions_of(i);
@@ -489,7 +486,7 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
             if (!approximately_equal(diag(J0),
                                      diag(motif_position_total_exchange[pos]),
                                      1e-6)) {
-              throw runtime_error("inconsistent neighbour list: J0");
+              throw std::runtime_error("inconsistent neighbour list: J0");
             }
           }
         }
@@ -515,36 +512,36 @@ safety_check_distance_tolerance(const double &tolerance) {
 }
 
 void
-write_interaction_data(ostream &output, const vector<InteractionData> &data, CoordinateFormat coord_format) {
+write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data, CoordinateFormat coord_format) {
   for (auto const &interaction : data) {
-    output << setw(12) << interaction.unit_cell_pos_i << "\t";
-    output << setw(12) << interaction.unit_cell_pos_j << "\t";
-    output << setw(12) << interaction.type_i << "\t";
-    output << setw(12) << interaction.type_j << "\t";
-    output << setw(12) << fixed << norm(interaction.r_ij) << "\t";
+    output << std::setw(12) << interaction.unit_cell_pos_i << "\t";
+    output << std::setw(12) << interaction.unit_cell_pos_j << "\t";
+    output << std::setw(12) << interaction.type_i << "\t";
+    output << std::setw(12) << interaction.type_j << "\t";
+    output << std::setw(12) << std::fixed << norm(interaction.r_ij) << "\t";
     if (coord_format == CoordinateFormat::CARTESIAN) {
-      output << setw(12) << fixed << interaction.r_ij[0] << "\t";
-      output << setw(12) << fixed << interaction.r_ij[1] << "\t";
-      output << setw(12) << fixed << interaction.r_ij[2] << "\t";
+      output << std::setw(12) << std::fixed << interaction.r_ij[0] << "\t";
+      output << std::setw(12) << std::fixed << interaction.r_ij[1] << "\t";
+      output << std::setw(12) << std::fixed << interaction.r_ij[2] << "\t";
     } else {
       auto r_ij_frac = globals::lattice->cartesian_to_fractional(interaction.r_ij);
-      output << setw(12) << fixed << r_ij_frac[0] << "\t";
-      output << setw(12) << fixed << r_ij_frac[1] << "\t";
-      output << setw(12) << fixed << r_ij_frac[2] << "\t";
+      output << std::setw(12) << std::fixed << r_ij_frac[0] << "\t";
+      output << std::setw(12) << std::fixed << r_ij_frac[1] << "\t";
+      output << std::setw(12) << std::fixed << r_ij_frac[2] << "\t";
     }
-    output << setw(12) << scientific << interaction.J_ij[0][0] << "\t";
-    output << setw(12) << scientific << interaction.J_ij[0][1] << "\t";
-    output << setw(12) << scientific << interaction.J_ij[0][2] << "\t";
-    output << setw(12) << scientific << interaction.J_ij[1][0] << "\t";
-    output << setw(12) << scientific << interaction.J_ij[1][1] << "\t";
-    output << setw(12) << scientific << interaction.J_ij[1][2] << "\t";
-    output << setw(12) << scientific << interaction.J_ij[2][0] << "\t";
-    output << setw(12) << scientific << interaction.J_ij[2][1] << "\t";
-    output << setw(12) << scientific << interaction.J_ij[2][2] << endl;
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[0][2] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[1][2] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.J_ij[2][2] << std::endl;
   }
 }
 void
-write_neighbour_list(ostream &output, const jams::InteractionList<Mat3,2> &list) {
+write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &list) {
   output << "#";
   output << jams::fmt::integer << "i";
   output << jams::fmt::integer << "j";
@@ -589,14 +586,14 @@ write_neighbour_list(ostream &output, const jams::InteractionList<Mat3,2> &list)
       output << jams::fmt::decimal << rij[1];
       output << jams::fmt::decimal << rij[2];
       output << jams::fmt::decimal << norm(rij);
-      output << jams::fmt::sci << scientific << Jij[0][0];
-      output << jams::fmt::sci << scientific << Jij[0][1];
-      output << jams::fmt::sci << scientific << Jij[0][2];
-      output << jams::fmt::sci << scientific << Jij[1][0];
-      output << jams::fmt::sci << scientific << Jij[1][1];
-      output << jams::fmt::sci << scientific << Jij[1][2];
-      output << jams::fmt::sci << scientific << Jij[2][0];
-      output << jams::fmt::sci << scientific << Jij[2][1];
-      output << jams::fmt::sci << scientific << Jij[2][2] << "\n";
+      output << jams::fmt::sci << std::scientific << Jij[0][0];
+      output << jams::fmt::sci << std::scientific << Jij[0][1];
+      output << jams::fmt::sci << std::scientific << Jij[0][2];
+      output << jams::fmt::sci << std::scientific << Jij[1][0];
+      output << jams::fmt::sci << std::scientific << Jij[1][1];
+      output << jams::fmt::sci << std::scientific << Jij[1][2];
+      output << jams::fmt::sci << std::scientific << Jij[2][0];
+      output << jams::fmt::sci << std::scientific << Jij[2][1];
+      output << jams::fmt::sci << std::scientific << Jij[2][2] << "\n";
   }
 }

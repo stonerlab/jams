@@ -8,6 +8,8 @@
 #include "jams/hamiltonian/dipole_neartree.h"
 #include "jams/interface/openmp.h"
 
+#include <iostream>
+
 DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size),
   r_cutoff_(jams::config_required<double>(settings, "r_cutoff")),

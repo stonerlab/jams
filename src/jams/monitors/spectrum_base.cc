@@ -8,9 +8,7 @@
 #include "jams/core/solver.h"
 #include "jams/monitors/spectrum_base.h"
 
-using namespace std;
-using namespace jams;
-using namespace libconfig;
+#include <iostream>
 
 SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : Monitor(settings) {
   configure_kspace_paths(settings["hkl_path"]);
@@ -29,7 +27,7 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : M
 }
 
 
-void SpectrumBaseMonitor::configure_kspace_paths(Setting& settings) {
+void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings) {
   // hkl_path can be a simple list of nodes e.g.
   //     hkl_path = ( [3.0, 3.0,-3.0], [ 5.0, 5.0,-5.0] );
   // or a list of discontinuous paths e.g.
@@ -37,7 +35,7 @@ void SpectrumBaseMonitor::configure_kspace_paths(Setting& settings) {
   //                 ([3.0, 3.0,-2.0], [ 5.0, 5.0,-4.0]));
 
   if (!(settings[0].isList() || settings[0].isArray())) {
-    throw runtime_error("NeutronScatteringMonitor:: hkl_nodes must be a list or a group");
+    throw std::runtime_error("NeutronScatteringMonitor:: hkl_nodes must be a list or a group");
   }
 
   bool has_discontinuous_paths = settings[0].isList();
@@ -45,7 +43,7 @@ void SpectrumBaseMonitor::configure_kspace_paths(Setting& settings) {
   kspace_continuous_path_ranges_.push_back(0);
   if (has_discontinuous_paths) {
     for (auto n = 0; n < settings.getLength(); ++n) {
-      vector<Vec3> hkl_path_nodes(settings[n].getLength());
+      std::vector<Vec3> hkl_path_nodes(settings[n].getLength());
       for (auto i = 0; i < settings[n].getLength(); ++i) {
         hkl_path_nodes[i] = Vec3{settings[n][i][0], settings[n][i][1], settings[n][i][2]};
       }
@@ -55,7 +53,7 @@ void SpectrumBaseMonitor::configure_kspace_paths(Setting& settings) {
       kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + new_path.size());
     }
   } else {
-    vector<Vec3> hkl_path_nodes(settings.getLength());
+    std::vector<Vec3> hkl_path_nodes(settings.getLength());
     for (auto i = 0; i < settings.getLength(); ++i) {
       hkl_path_nodes[i] = Vec3{settings[i][0], settings[i][1], settings[i][2]};
     }
@@ -78,8 +76,8 @@ void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings) {
  * @param kspace_size
  * @return
  */
-vector<HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const vector<Vec3> &hkl_nodes, const Vec3i &kspace_size) {
-  vector<HKLIndex> hkl_path;
+std::vector<jams::HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const std::vector<Vec3> &hkl_nodes, const Vec3i &kspace_size) {
+  std::vector<jams::HKLIndex> hkl_path;
   for (auto n = 0; n < hkl_nodes.size()-1; ++n) {
     Vec3i origin = to_int(hadamard_product(hkl_nodes[n], kspace_size));
     Vec3i displacement = to_int(hadamard_product(hkl_nodes[n + 1], kspace_size)) - origin;
@@ -95,7 +93,7 @@ vector<HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const vector<Vec3
       // map an arbitrary coordinate into the limited k indicies of the reduced brillouin zone
       Vec3 hkl = hadamard_product(coordinate, 1.0 / to_double(kspace_size));
       Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-      hkl_path.push_back(HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
+      hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
 
       coordinate += delta;
     }
@@ -106,7 +104,7 @@ vector<HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const vector<Vec3
   return hkl_path;
 }
 
-MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(MultiArray<Vec3cx, 3> spectrum) {
+jams::MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(jams::MultiArray<Vec3cx, 3> spectrum) {
   // pass spectrum by value to make a copy
 
   const int num_sites         = spectrum.size(0);
@@ -128,7 +126,7 @@ MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(MultiArray
 
     assert(fft_plan);
 
-    MultiArray<Vec3cx, 1> static_spectrum(num_space_samples);
+    jams::MultiArray<Vec3cx, 1> static_spectrum(num_space_samples);
     zero(static_spectrum);
     for (auto i = 0; i < num_time_samples; ++i) {
       for (auto j = 0; j < num_space_samples; ++j) {
@@ -200,11 +198,11 @@ void SpectrumBaseMonitor::store_periodogram_data(const jams::MultiArray<double, 
 }
 
 void SpectrumBaseMonitor::print_info() const {
-  cout << "\n";
-  cout << "  number of samples "          << num_time_samples() << "\n";
-  cout << "  sampling time (s) "          << sample_time_interval() << "\n";
-  cout << "  acquisition time (s) "       << sample_time_interval() * num_time_samples() << "\n";
-  cout << "  frequency resolution (THz) " << frequency_resolution_thz() << "\n";
-  cout << "  maximum frequency (THz) "    << max_frequency_thz() << "\n";
-  cout << "\n";
+  std::cout << "\n";
+  std::cout << "  number of samples "          << num_time_samples() << "\n";
+  std::cout << "  sampling time (s) "          << sample_time_interval() << "\n";
+  std::cout << "  acquisition time (s) "       << sample_time_interval() * num_time_samples() << "\n";
+  std::cout << "  frequency resolution (THz) " << frequency_resolution_thz() << "\n";
+  std::cout << "  maximum frequency (THz) "    << max_frequency_thz() << "\n";
+  std::cout << "\n";
 }

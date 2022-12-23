@@ -2,6 +2,7 @@
 #include <cmath>
 #include <complex>
 #include <fstream>
+#include <iostream>
 
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
@@ -12,11 +13,6 @@
 #include "jams/interface/fft.h"
 
 #include "jams/hamiltonian/dipole_fft.h"
-
-using std::pow;
-using std::abs;
-using std::min;
-using namespace std;
 
 namespace {
     const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
@@ -43,9 +39,9 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
   settings.lookupValue("check_radius", check_radius_);
   settings.lookupValue("check_symmetry", check_symmetry_);
 
-    r_cutoff_ = double(settings["r_cutoff"]);
-    cout << "  r_cutoff " << r_cutoff_ << "\n";
-    cout << "  r_cutoff_max " << ::globals::lattice->max_interaction_radius() << "\n";
+  r_cutoff_ = double(settings["r_cutoff"]);
+  std::cout << "  r_cutoff " << r_cutoff_ << "\n";
+  std::cout << "  r_cutoff_max " << ::globals::lattice->max_interaction_radius() << "\n";
 
     if (check_radius_) {
       if (r_cutoff_ > ::globals::lattice->max_interaction_radius()) {
@@ -55,7 +51,7 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
     }
 
     settings.lookupValue("distance_tolerance", r_distance_tolerance_);
-    cout << "  distance_tolerance " << r_distance_tolerance_ << "\n";
+  std::cout << "  distance_tolerance " << r_distance_tolerance_ << "\n";
 
     for (auto n = 0; n < 3; ++n) {
         kspace_size_[n] = ::globals::lattice->size(n);
@@ -74,9 +70,9 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
     kspace_s_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
     kspace_h_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
 
-    cout << "    kspace size " << kspace_size_ << "\n";
-    cout << "    kspace padded size " << kspace_padded_size_ << "\n";
-    cout << "    generating tensors\n";
+    std::cout << "    kspace size " << kspace_size_ << "\n";
+    std::cout << "    kspace padded size " << kspace_padded_size_ << "\n";
+    std::cout << "    generating tensors\n";
 
   kspace_tensors_.resize(globals::lattice->num_motif_atoms());
 
@@ -94,7 +90,7 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
       }
     }
 
-    cout << "    planning FFTs\n";
+    std::cout << "    planning FFTs\n";
 
     int rank            = 3;           
     int stride          = 3;
@@ -202,8 +198,6 @@ Vec3 DipoleFFTHamiltonian::calculate_field(const int i, double time) {
 // the generated positions to a vector
 jams::MultiArray<Complex, 5>
 DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
-  using std::pow;
-
   const Vec3 r_frac_i = globals::lattice->motif_atom(pos_i).position;
   const Vec3 r_frac_j = globals::lattice->motif_atom(pos_j).position;
 
@@ -303,9 +297,6 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
 
 
 void DipoleFFTHamiltonian::calculate_fields(double time) {
-  using std::min;
-  using std::pow;
-
   zero(field_);
 
   for (auto pos_i = 0; pos_i < ::globals::lattice->num_motif_atoms(); ++pos_i) {

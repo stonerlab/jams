@@ -21,8 +21,6 @@
 
 #include "cuda_llg_rk4_kernel.cuh"
 
-using namespace std;
-
 void CUDALLGRK4Solver::initialize(const libconfig::Setting& settings)
 {
   // convert input in seconds to picoseconds for internal units

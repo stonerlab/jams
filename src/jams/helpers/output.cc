@@ -11,15 +11,13 @@
 
 namespace jams {
     namespace output {
-        using namespace std;
-
         void desync_io() {
-          cin.tie(nullptr);
-          ios_base::sync_with_stdio(false);
+          std::cin.tie(nullptr);
+          std::ios_base::sync_with_stdio(false);
         }
 
         void set_default_cout_flags() {
-          cout << boolalpha;
+          std::cout << std::boolalpha;
         }
 
         void initialise() {
@@ -27,19 +25,19 @@ namespace jams {
           set_default_cout_flags();
         }
 
-        string output_path() {
+        std::string output_path() {
           if (jams::instance().output_path().empty()) {
-            return string();
+            return std::string();
           }
           return jams::instance().output_path() + "/";
         }
 
-        string full_path_filename(const string &ending) {
+        std::string full_path_filename(const std::string &ending) {
           auto sep = file_basename_no_extension(ending).empty() ? "" : "_";
           return output_path() + ::globals::simulation_name + sep + ending;
         }
 
-        string full_path_filename_series(const string &ending, int num, int width) {
+        std::string full_path_filename_series(const std::string &ending, int num, int width) {
           auto base = file_basename_no_extension(ending);
           auto sep = base.empty() ? "" : "_";
           auto ext = file_extension(ending);
@@ -47,7 +45,7 @@ namespace jams {
         }
 
 
-        void open_output_file_just_in_time(std::ofstream& os, const string &filename) {
+        void open_output_file_just_in_time(std::ofstream& os, const std::string &filename) {
           if (!os.is_open()) {
             os.open(jams::output::full_path_filename(filename));
           }

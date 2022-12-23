@@ -21,8 +21,6 @@
 #include "jams/interface/highfive.h"
 #include "jams/containers/sparse_matrix_builder.h"
 
-using namespace std;
-
 CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
 

@@ -140,8 +140,6 @@ bool jams::CVarSkyrmionCoreCoordinate::is_spin_below_threshold(const Vec3 &s_ini
 }
 
 double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
-  using namespace std;
-
   // In the fully general case we need to calculate the centre of mass in
   // fractional coordinates for BOTH x AND y and then transform back to
   // cartesian and return ONLY x OR y. This is because for non orthogonal lattice
@@ -181,8 +179,6 @@ double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass() {
 double jams::CVarSkyrmionCoreCoordinate::skyrmion_center_of_mass_change(int i,
                                                                         const Vec3 &spin_initial,
                                                                         const Vec3 &spin_trial) {
-  using namespace std;
-
   // In the fully general case we need to calculate the centre of mass in
   // fractional coordinates for BOTH x AND y and then transform back to
   // cartesian and return ONLY x OR y. This is because for non orthogonal lattice

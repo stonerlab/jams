@@ -22,8 +22,6 @@
 
 #include "jams/solvers/cuda_ll_lorentzian_rk4_kernel.cuh"
 
-using namespace std;
-
 namespace {
   void cuda_rk4_internal_timestep(double* x, const double* x_old, const double* x_k, const int size, const double step) {
     // does an internal rk4 step by producing x = x_old + step * x_k

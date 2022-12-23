@@ -34,10 +34,6 @@
   #include "jams/monitors/cuda_thermal_current.h"
 #endif
 
-using namespace std;
-using namespace libconfig;
-using jams::config_optional;
-
 #define DEFINED_MONITOR(name, type, settings) \
 { \
   if (lowercase(settings["module"]) == name) { \
@@ -45,24 +41,24 @@ using jams::config_optional;
   } \
 }
 
-Monitor::Monitor(const Setting &settings)
+Monitor::Monitor(const libconfig::Setting &settings)
 : Base(settings),
   output_step_freq_(
-          config_optional<int>(settings, "output_steps", jams::defaults::monitor_output_steps)),
+          jams::config_optional<int>(settings, "output_steps", jams::defaults::monitor_output_steps)),
   convergence_status_(ConvergenceStatus::kDisabled),
   convergence_tolerance_(
-          config_optional<double>(settings, "convergence", jams::defaults::monitor_convergence_tolerance)),
+          jams::config_optional<double>(settings, "convergence", jams::defaults::monitor_convergence_tolerance)),
   convergence_stderr_(
           0.0),
-  convergence_burn_time_(config_optional<double>(settings, "t_burn", 0.0))
+  convergence_burn_time_(jams::config_optional<double>(settings, "t_burn", 0.0))
 {
-  cout << "  " << name() << " monitor\n";
-  cout << "    output_steps " << output_step_freq_ << "\n";
+  std::cout << "  " << name() << " monitor\n";
+  std::cout << "    output_steps " << output_step_freq_ << "\n";
 
    if (settings.exists("convergence")) {
      convergence_status_ = ConvergenceStatus::kNotConverged;
-     cout << "    convergence tolerance" << convergence_tolerance_ << "\n";
-     cout << "    t_burn" << convergence_burn_time_ << "\n";
+     std::cout << "    convergence tolerance" << convergence_tolerance_ << "\n";
+     std::cout << "    t_burn" << convergence_burn_time_ << "\n";
    }
 }
 
@@ -73,7 +69,7 @@ bool Monitor::is_updating(const int &iteration) const {
   return false;
 }
 
-Monitor* Monitor::create(const Setting &settings) {
+Monitor* Monitor::create(const libconfig::Setting &settings) {
   DEFINED_MONITOR("binary", BinaryMonitor, settings);
   DEFINED_MONITOR("boltzmann", BoltzmannMonitor, settings);
   DEFINED_MONITOR("energy", EnergyMonitor, settings);

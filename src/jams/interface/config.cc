@@ -8,13 +8,11 @@
 
 #include "config.h"
 
-using namespace libconfig;
+void config_patch_simple(libconfig::Setting& orig, const libconfig::Setting& patch);
+void config_patch_element(libconfig::Setting& orig, const libconfig::Setting& patch);
+void config_patch_aggregate(libconfig::Setting& orig, const libconfig::Setting& patch);
 
-void config_patch_simple(Setting& orig, const Setting& patch);
-void config_patch_element(Setting& orig, const Setting& patch);
-void config_patch_aggregate(Setting& orig, const Setting& patch);
-
-void config_patch_simple(Setting& orig, const Setting& patch) {
+void config_patch_simple(libconfig::Setting& orig, const libconfig::Setting& patch) {
   if (patch.isAggregate()) {
     config_patch_aggregate(orig, patch);
   } else {
@@ -22,29 +20,29 @@ void config_patch_simple(Setting& orig, const Setting& patch) {
       orig.remove(patch.getName());
     }
 
-    if (patch.getType() == Setting::Type::TypeInt) {
+    if (patch.getType() == libconfig::Setting::Type::TypeInt) {
       orig.add(patch.getName(), patch.getType()) = static_cast<int>(patch);
       orig.setFormat(patch.getFormat());
       return;
     }
 
-    if (patch.getType() == Setting::Type::TypeInt64) {
+    if (patch.getType() == libconfig::Setting::Type::TypeInt64) {
       orig.add(patch.getName(), patch.getType()) = static_cast<int64_t>(patch);
       orig.setFormat(patch.getFormat());
       return;
     }
 
-    if (patch.getType() == Setting::Type::TypeFloat) {
+    if (patch.getType() == libconfig::Setting::Type::TypeFloat) {
       orig.add(patch.getName(), patch.getType()) = static_cast<double>(patch);
       return;
     }
 
-    if (patch.getType() == Setting::Type::TypeString) {
+    if (patch.getType() == libconfig::Setting::Type::TypeString) {
       orig.add(patch.getName(), patch.getType()) = patch.c_str();
       return;
     }
 
-    if (patch.getType() == Setting::Type::TypeBoolean) {
+    if (patch.getType() == libconfig::Setting::Type::TypeBoolean) {
       orig.add(patch.getName(), patch.getType()) = bool(patch);
       return;
     }
@@ -53,7 +51,7 @@ void config_patch_simple(Setting& orig, const Setting& patch) {
   }
 }
 
-Setting& config_patch_add_or_merge_aggregate(Setting &orig, const Setting &patch) {
+libconfig::Setting& config_patch_add_or_merge_aggregate(libconfig::Setting &orig, const libconfig::Setting &patch) {
 
   // root
   if (patch.getPath().empty()) {
@@ -86,9 +84,9 @@ Setting& config_patch_add_or_merge_aggregate(Setting &orig, const Setting &patch
 
 
 
-void config_patch_aggregate(Setting& orig, const Setting& patch) {
+void config_patch_aggregate(libconfig::Setting& orig, const libconfig::Setting& patch) {
 
-  Setting& aggregate = config_patch_add_or_merge_aggregate(orig, patch);
+  libconfig::Setting& aggregate = config_patch_add_or_merge_aggregate(orig, patch);
 
   const auto length = patch.getLength();
   for (auto i = 0; i < length; ++i) {
@@ -100,14 +98,14 @@ void config_patch_aggregate(Setting& orig, const Setting& patch) {
   }
 }
 
-void config_patch_element(Setting& orig, const Setting& patch) {
+void config_patch_element(libconfig::Setting& orig, const libconfig::Setting& patch) {
 
   if (patch.isAggregate()) {
     config_patch_aggregate(orig, patch);
     return;
   }
 
-  Setting *setting = nullptr;
+  libconfig::Setting *setting = nullptr;
 
   if (orig.getLength() > patch.getIndex()) {
     setting = &orig[patch.getIndex()];
@@ -116,27 +114,27 @@ void config_patch_element(Setting& orig, const Setting& patch) {
     setting->setFormat(patch.getFormat());
   }
 
-  if (patch.getType() == Setting::Type::TypeInt) {
+  if (patch.getType() == libconfig::Setting::Type::TypeInt) {
     *setting = int(patch);
     return;
   }
 
-  if (patch.getType() == Setting::Type::TypeInt64) {
+  if (patch.getType() == libconfig::Setting::Type::TypeInt64) {
     *setting = int64_t(patch);
     return;
   }
 
-  if (patch.getType() == Setting::Type::TypeFloat) {
+  if (patch.getType() == libconfig::Setting::Type::TypeFloat) {
     *setting = double(patch);
     return;
   }
 
-  if (patch.getType() == Setting::Type::TypeString) {
+  if (patch.getType() == libconfig::Setting::Type::TypeString) {
     *setting = patch.c_str();
     return;
   }
 
-  if (patch.getType() == Setting::Type::TypeBoolean) {
+  if (patch.getType() == libconfig::Setting::Type::TypeBoolean) {
     *setting = bool(patch);
     return;
   }
@@ -144,7 +142,7 @@ void config_patch_element(Setting& orig, const Setting& patch) {
   throw std::runtime_error("unknown setting type");
 }
 
-void overwrite_config_settings(Setting& orig, const Setting& patch) {
+void overwrite_config_settings(libconfig::Setting& orig, const libconfig::Setting& patch) {
   if(!orig.isGroup() && !orig.isList()) {
     return;
   }

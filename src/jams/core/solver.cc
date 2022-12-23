@@ -37,8 +37,6 @@ return new type(settings); \
 } \
 }
 
-using namespace std;
-
 
 void Solver::compute_fields() {
   if (hamiltonians_.empty()) return;
@@ -96,12 +94,12 @@ void Solver::update_thermostat() {
 
 
 void Solver::register_monitor(Monitor* monitor) {
-  monitors_.push_back(static_cast<unique_ptr<Monitor>>(monitor));
+  monitors_.push_back(static_cast<std::unique_ptr<Monitor>>(monitor));
 }
 
 
 void Solver::register_hamiltonian(Hamiltonian* hamiltonian) {
-  hamiltonians_.push_back(static_cast<unique_ptr<Hamiltonian>>(hamiltonian));
+  hamiltonians_.push_back(static_cast<std::unique_ptr<Hamiltonian>>(hamiltonian));
 }
 
 

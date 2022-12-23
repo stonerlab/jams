@@ -6,6 +6,7 @@
 #include <jams/maths/interpolation.h>
 #include <jams/helpers/output.h>
 #include <fstream>
+#include <iostream>
 
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
@@ -400,7 +401,7 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
         // all sorts of things could go wrong. Stop the simulation here to avoid
         // unintended consequences.
         if (file_data.size() != num_samples_[0]) {
-             std::cout << num_samples_[0] << " file_data size:"<< file_data.size(),"\n";
+             std::cout << num_samples_[0] << " file_data size:"<< file_data.size() << "\n";
             throw std::runtime_error("The " + filename + " has different dimensions from the potential");
         }
 

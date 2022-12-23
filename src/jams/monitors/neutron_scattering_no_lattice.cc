@@ -15,11 +15,6 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/neutrons.h"
 
-
-using namespace std;
-using namespace jams;
-using namespace libconfig;
-
 NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
  neartree_(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), globals::lattice->max_interaction_radius(), jams::defaults::lattice_tolerance)
@@ -29,8 +24,8 @@ NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libco
 
   configure_kspace_vectors(settings);
 
-  do_rspace_windowing_ = config_optional(settings, "rspace_windowing", do_rspace_windowing_);
-  cout << "rspace windowing: " << do_rspace_windowing_ << endl;
+  do_rspace_windowing_ = jams::config_optional(settings, "rspace_windowing", do_rspace_windowing_);
+  std::cout << "rspace windowing: " << do_rspace_windowing_ << std::endl;
 
   // default to 1.0 in case no form factor is given in the settings
   fill(neutron_form_factors_.resize(globals::lattice->num_materials(), num_k_), 1.0);
@@ -131,12 +126,12 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
 }
 
 jams::MultiArray<Complex, 3>
-NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const MultiArray<Vec3cx, 2> &spectrum,
-    const vector<Vec3> &polarizations) {
+NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 2> &spectrum,
+    const std::vector<Vec3> &polarizations) {
   const auto num_freqencies = spectrum.size(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
-  MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
+  jams::MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
 
   for (auto f = 0; f < num_freqencies; ++f) {
@@ -183,7 +178,7 @@ jams::MultiArray<Vec3cx,2> NeutronScatteringNoLatticeMonitor::periodogram() {
 
   assert(fft_plan);
 
-  MultiArray<Vec3cx, 1> static_spectrum(num_kspace_samples);
+  jams::MultiArray<Vec3cx, 1> static_spectrum(num_kspace_samples);
   zero(static_spectrum);
   for (auto i = 0; i < num_time_samples; ++i) {
     for (auto j = 0; j < num_kspace_samples; ++j) {
@@ -225,7 +220,7 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   const auto num_time_points = kspace_spins_timeseries_.size(0);
 
 
-  ofstream ofs(jams::output::full_path_filename("static_structure_factor.tsv"));
+  std::ofstream ofs(jams::output::full_path_filename("static_structure_factor.tsv"));
 
   ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
   ofs << "Sxx_re\t" << "Sxx_im\t" << "Sxy_re\t" << "Sxy_im\t" << "Sxz_re\t" << "Sxz_im\t";
@@ -233,17 +228,17 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   ofs << "Szx_re\t" << "Szx_im\t" << "Szy_re\t" << "Szy_im\t" << "Szz_re\t" << "Szz_im\n";
 
   for (auto k = 0; k < kspace_path_.size(); ++k) {
-    ofs << fmt::integer << k << "\t";
-    ofs << fmt::decimal << kspace_path_(k) << "\t";
-    ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
+    ofs << jams::fmt::integer << k << "\t";
+    ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
+    ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
         globals::lattice->parameter() * 1e10) << "\t";
     for (auto i : {0,1,2}) {
       for (auto j : {0,1,2}) {
         auto s_a = static_structure_factor(k)[i] / double(num_time_points);
         auto s_b = static_structure_factor(k)[j] / double(num_time_points);
         auto s_ab = conj(s_a) * s_b;
-        ofs << fmt::sci << s_ab.real() << "\t";
-        ofs << fmt::sci << s_ab.imag() << "\t";
+        ofs << jams::fmt::sci << s_ab.real() << "\t";
+        ofs << jams::fmt::sci << s_ab.imag() << "\t";
       }
     }
     ofs << "\n";
@@ -252,12 +247,12 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
 }
 
 void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
-    ofstream ofs(jams::output::full_path_filename("neutron_scattering.tsv"));
+    std::ofstream ofs(jams::output::full_path_filename("neutron_scattering.tsv"));
 
     ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
     ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
     for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
-      ofs << "sigma_pol" << to_string(k) << "_re\t" << "sigma_pol" << to_string(k) << "_im\t";
+      ofs << "sigma_pol" << std::to_string(k) << "_re\t" << "sigma_pol" << std::to_string(k) << "_im\t";
     }
     ofs << "\n";
 
@@ -271,22 +266,22 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
 
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
       for (auto j = 0; j < kspace_path_.size(); ++j) {
-        ofs << fmt::integer << j << "\t";
-        ofs << fmt::decimal << kspace_path_(j) << "\t";
-        ofs << fmt::decimal << kTwoPi * norm(kspace_path_(j)) / (
+        ofs << jams::fmt::integer << j << "\t";
+        ofs << jams::fmt::decimal << kspace_path_(j) << "\t";
+        ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(j)) / (
             globals::lattice->parameter() * 1e10) << "\t";
-        ofs << fmt::decimal << (i * freq_delta) << "\t"; // THz
-        ofs << fmt::decimal << (i * freq_delta) * 4.135668 << "\t"; // meV
+        ofs << jams::fmt::decimal << (i * freq_delta) << "\t"; // THz
+        ofs << jams::fmt::decimal << (i * freq_delta) * 4.135668 << "\t"; // meV
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-        ofs << fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() << "\t";
-        ofs << fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() << "\t";
+        ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).real() << "\t";
+        ofs << jams::fmt::sci << barns_unitcell * total_unpolarized_neutron_cross_section_(i, j).imag() << "\t";
         for (auto k = 0; k < total_polarized_neutron_cross_sections_.size(0); ++k) {
-          ofs << fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
-          ofs << fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
+          ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
+          ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
         }
         ofs << "\n";
       }
-      ofs << endl;
+      ofs << std::endl;
     }
 
     ofs.close();
@@ -332,23 +327,23 @@ void NeutronScatteringNoLatticeMonitor::configure_periodogram(libconfig::Setting
   periodogram_props_.overlap = settings["overlap"];
 }
 
-void NeutronScatteringNoLatticeMonitor::configure_form_factors(Setting &settings) {
-  auto gj = read_form_factor_settings(settings);
+void NeutronScatteringNoLatticeMonitor::configure_form_factors(libconfig::Setting &settings) {
+  auto gj = jams::read_form_factor_settings(settings);
 
   auto num_materials = globals::lattice->num_materials();
 
   if (settings.getLength() != num_materials) {
-    throw runtime_error("NeutronScatteringMonitor:: there must be one form factor per material\"");
+    throw std::runtime_error("NeutronScatteringMonitor:: there must be one form factor per material\"");
   }
 
-  vector<FormFactorG> g_params(num_materials);
-  vector<FormFactorJ> j_params(num_materials);
+  std::vector<jams::FormFactorG> g_params(num_materials);
+  std::vector<jams::FormFactorJ> j_params(num_materials);
 
   for (auto i = 0; i < settings.getLength(); ++i) {
     for (auto l : {0,2,4,6}) {
-      j_params[i][l] = config_optional<FormFactorCoeff>(settings[i], "j" + to_string(l), j_params[i][l]);
+      j_params[i][l] = config_optional<jams::FormFactorCoeff>(settings[i], "j" + std::to_string(l), j_params[i][l]);
     }
-    g_params[i] = config_required<FormFactorG>(settings[i], "g");
+    g_params[i] = jams::config_required<jams::FormFactorG>(settings[i], "g");
   }
 
   neutron_form_factors_.resize(num_materials, num_k_);
@@ -408,7 +403,7 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
 
   assert(fft_plan);
 
-  MultiArray<double, 2> spin_averages(globals::num_spins, 3);
+  jams::MultiArray<double, 2> spin_averages(globals::num_spins, 3);
   zero(spin_averages);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -506,7 +501,7 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
       }
     }
   }
-  ofstream ofs(jams::output::full_path_filename("neutron_scattering_fixed.tsv"));
+  std::ofstream ofs(jams::output::full_path_filename("neutron_scattering_fixed.tsv"));
 
   ofs << "index\t" << "qx\t" << "qy\t" << "qz\t" << "q_A-1\t";
   ofs << "freq_THz\t" << "energy_meV\t" << "sigma_unpol_re\t" << "sigma_unpol_im\t";
@@ -521,18 +516,18 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
 
   for (auto w = 0; w <  num_time_samples / 2 + 1; ++w) {
     for (auto k = 0; k < kspace_path_.size(); ++k) {
-      ofs << fmt::integer << k << "\t";
-      ofs << fmt::decimal << kspace_path_(k) << "\t";
-      ofs << fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
+      ofs << jams::fmt::integer << k << "\t";
+      ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
+      ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
           globals::lattice->parameter() * 1e10) << "\t";
-      ofs << fmt::decimal << (w * freq_delta) << "\t"; // THz
-      ofs << fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV
+      ofs << jams::fmt::decimal << (w * freq_delta) << "\t"; // THz
+      ofs << jams::fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV
       // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-      ofs << fmt::sci << barns_unitcell * sqw(k, w).real() << "\t";
-      ofs << fmt::sci << barns_unitcell * sqw(k, w).imag() << "\t";
+      ofs << jams::fmt::sci << barns_unitcell * sqw(k, w).real() << "\t";
+      ofs << jams::fmt::sci << barns_unitcell * sqw(k, w).imag() << "\t";
       ofs << "\n";
     }
-    ofs << endl;
+    ofs << std::endl;
   }
 
   ofs.close();
