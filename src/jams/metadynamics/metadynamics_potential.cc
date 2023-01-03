@@ -19,7 +19,7 @@ std::vector<double> linear_space(const double min,const double max,const double 
   assert(min < max);
   std::vector<double> space;
   double value = min;
-  while (value < max+step) {
+  while (less_than_approx_equal(value,max, 1e-4)) {
     space.push_back(value);
     value += step;
   }
@@ -87,9 +87,9 @@ std::vector<double> linear_space(const double min,const double max,const double 
 
 jams::MetadynamicsPotential::MetadynamicsPotential(
     const libconfig::Setting &settings) {
-
-
-  gaussian_amplitude_ = config_required<double>(settings, "gaussian_amplitude");
+    cvar_file_output_ = jams::config_optional<int>(settings, "cvars_output_steps", 10);
+    std::cout << "cvar file output steps : "<< cvar_file_output_ << std::endl;
+    gaussian_amplitude_ = config_required<double>(settings, "gaussian_amplitude");
 
   std::string potential_filename = jams::config_optional<std::string>(settings, "potential_file", "");
 
@@ -163,16 +163,31 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
     // Set the lower and upper boundary conditions for this collective variable
     //TODO: Once the mirror boundaries are applied need to generalase these if statements
+    //TODO: Currently if lower or upper boundaries are passed from confiq, automatically we set the restoringBC and require the upper and lower boundary, need to generalise.
 
 
-    if (cvar_settings.exists("lower_boundary")) {
-      jams::unimplemented_error("lower_boundary");
-    } else {
+    if (cvar_settings.exists("lower_restoring_bc_threshold")) {
+        //add an if statement to check the name of the boundary condition:
+        //if its "restoringBC" do the following. Else jams::unimplemented_error("lower_boundary");
+        lower_cvar_bc_[i] = PotentialBCs::RestoringBC;
+        lower_restoringBC_threshold_ = jams::config_required<double>(cvar_settings, "lower_restoring_bc_threshold");
+        std::cout<< "Lower Restoring Boundary Condition, threshold: "<< lower_restoringBC_threshold_ << std::endl;
+        restoringBC_string_constant_ = jams::config_required<double>(cvar_settings, "restoring_bc_spring_constant");
+        std::cout<< "Restoring Boundary Condition spring constant: "<< restoringBC_string_constant_ << std::endl;
+    }
+    else {
       lower_cvar_bc_[i] = PotentialBCs::HardBC;
     }
 
-    if (cvar_settings.exists("upper_boundary")) {
-      jams::unimplemented_error("upper_boundary");
+    if (cvar_settings.exists("upper_restoring_bc_threshold")) {
+        //add an if statement to check the name of the boundary condition:
+        //if its "restoringBC" do the following. Else jams::unimplemented_error("lower_boundary");
+        upper_cvar_bc_[i] = PotentialBCs::RestoringBC;
+        upper_restoringBC_threshold_ = jams::config_required<double>(cvar_settings,"upper_restoring_bc_threshold");
+        std::cout << "Upper Restoring Boundary Condition, threshold:" <<upper_restoringBC_threshold_ << std::endl;
+      restoringBC_string_constant_ = jams::config_required<double>(cvar_settings, "restoring_bc_spring_constant");
+      std::cout<< "Restoring Boundary Condition spring constant: "<< restoringBC_string_constant_ << std::endl;
+
     } else {
       upper_cvar_bc_[i] = PotentialBCs::HardBC;
     }
@@ -207,32 +222,38 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
 double jams::MetadynamicsPotential::potential_difference(
     int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
 
-  std::array<double,kMaxDimensions> cvar_initial;
-  std::array<double,kMaxDimensions> cvar_trial;
+  std::array<double,kMaxDimensions> cvar_initial = {0.0, 0.0};
+  std::array<double,kMaxDimensions> cvar_trial = {0.0, 0.0};
 
   for (auto n = 0; n < num_cvars_; ++n) {
     cvar_initial[n] = cvars_[n]->value();
     cvar_trial[n] = cvars_[n]->spin_move_trial_value(i, spin_initial, spin_final);
   }
 
-
   for (auto n = 0; n < num_cvars_; ++n) {
-	  if (cvar_initial[n] < cvar_sample_points_[n].front()
-		  || cvar_initial[n] > cvar_sample_points_[n].back()) {
-		return -kHardBCsPotential;
-	  }
-	  if (cvar_trial[n] < cvar_sample_points_[n].front()
-		  || cvar_trial[n] > cvar_sample_points_[n].back()) {
-		return kHardBCsPotential;
-	  }
+    if (cvar_bcs_[i] == PotentialBCs::HardBC) {
+      if (cvar_initial[n] < cvar_sample_points_[n].front() ||
+          cvar_initial[n] > cvar_sample_points_[n].back()) {
+        return -kHardBCsPotential;
+      }
+      if (cvar_trial[n] < cvar_sample_points_[n].front() ||
+          cvar_trial[n] > cvar_sample_points_[n].back()) {
+        return kHardBCsPotential;
+      }
+    }
   }
-
   return potential(cvar_trial) - potential(cvar_initial);
 }
 
 
 double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimensions>& cvar_coordinates) {
   assert(cvar_coordinates.size() > 0 && cvar_coordinates.size() <= kMaxDimensions);
+
+  // We must use cvar_coordinates within the potential function and never
+  // cvars_[n]->value(). The later will only every return the current value of
+  // the cvar whereas potential() will be called with trial coordinates also.
+
+
   // Lookup points above and below for linear interpolation. We can use the
   // the fact that the ranges are sorted to do a bisection search.
 
@@ -241,9 +262,16 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   double bcs_potential = 0.0;
 
-  // Apply any hard boundary conditions where the potential is set very large
-  // if we are outside of the collective variable's range.
   for (auto n = 0; n < num_cvars_; ++n) {
+    if (lower_cvar_bc_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= lower_restoringBC_threshold_) {
+      return restoringBC_string_constant_ * pow2(cvar_coordinates[n] - lower_restoringBC_threshold_) + potential_(0,0);
+    }
+
+    if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= upper_restoringBC_threshold_) {
+      return restoringBC_string_constant_ * pow2(cvar_coordinates[n] - upper_restoringBC_threshold_) + potential_(num_samples_[n] - 1,0);
+    }
+
+
 	  if (cvar_coordinates[n] < cvar_sample_points_[n].front()
 		  || cvar_coordinates[n] > cvar_sample_points_[n].back()) {
 		bcs_potential = kHardBCsPotential;
@@ -264,6 +292,8 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   // TODO: generalise to at least 3D
   assert(num_cvars_ <= kMaxDimensions);
+
+
   if (num_cvars_ == 1) {
     auto x1_index = index_lower[0];
     auto x2_index = index_lower[0] + 1;
@@ -307,6 +337,22 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
   for (auto n = 0; n < num_cvars_; ++n) {
     gaussians.emplace_back(std::vector<double>(num_samples_[n]));
     auto center = cvars_[n]->value();
+
+    // If we have restoring boundary conditions and we are outside of the
+    // central range then we won't be adding any gaussian density so will
+    // just zero out the gaussian array
+    if (lower_cvar_bc_[n] == PotentialBCs::RestoringBC && center <= lower_restoringBC_threshold_) {
+      std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
+      // skip setting the gaussians below
+      continue;
+    }
+
+    if (upper_cvar_bc_[n] == PotentialBCs::RestoringBC && center >= upper_restoringBC_threshold_) {
+      std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
+      // skip setting the gaussians below
+      continue;
+    }
+
     for (auto i = 0; i < num_samples_[n]; ++i) {
       gaussians[n][i] = gaussian(cvar_sample_points_[n][i], center, 1.0, gaussian_width_[n]);
     }
@@ -323,12 +369,14 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
       potential_(i,j) += relative_amplitude * gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
     }
   }
-
-  cvar_file_ << ::globals::solver->time();
-  for (auto n = 0; n < num_cvars_; ++n) {
-    cvar_file_ << " " << cvars_[n]->value();
+  
+  if (globals::solver->iteration() % cvar_file_output_ == 0 ) {
+    cvar_file_ << globals::solver->time();
+    for (auto n = 0; n < num_cvars_; ++n) {
+      cvar_file_ << " " << cvars_[n]->value();
+    }
+    cvar_file_ << std::endl;
   }
-  cvar_file_ << std::endl;
 }
 
 

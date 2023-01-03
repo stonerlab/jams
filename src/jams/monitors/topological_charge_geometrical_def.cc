@@ -145,10 +145,6 @@ double TopologicalGeometricalDefMonitor::local_topological_charge(const Vec3 &s_
   double triple_product = scalar_triple_product(s_i, s_j, s_k);
   double denominator = 1 + dot(s_i, s_j) + dot(s_i, s_k) + dot(s_j, s_k);
 
-  if (denominator <= 0.0) {
-	return 0.0;
-  }
-
   return 2.0 * atan2(triple_product, denominator) * recip_num_layers_;
 
 }

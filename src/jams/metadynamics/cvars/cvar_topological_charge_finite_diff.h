@@ -6,11 +6,9 @@
 
 // ***************************** WARNING *************************************
 // This finite difference scheme is built on the assumption that
-// you are using in-plane lattice vectors u₁ = x, u2 = x/2 + √3/2.
+// you are using either a hexagonal lattice with in-plane lattice vectors
+// u₁ = x, u₂ = x/2 + √3/2 or a square lattice with u₁ = x, u₂ = y.
 // NO OTHER SYSTEMS ARE SUPPORTED.
-//
-// (2022-06-29 Joe: in principle this can be generalised, but this is a rush
-// job for Ioannis' PhD)
 // ***************************** WARNING *************************************
 
 // ---------------------------------------------------------------------------
@@ -66,6 +64,12 @@ namespace jams {
                                                    const Vec3 &spin_final) const;
 
         std::string name_ = "topological_charge_finite_diff";
+
+        // In principle the dx and dy indices can be different, but we need
+        // to know all stencil points belonging to a site to be updated.
+        // Here the outer vector indexes the spin 'i' sites and the inner
+        // VectorSet will store a list of unique neighbour indices.
+        std::vector<VectorSet<int>> stencil_neighbour_indices_;
 
         // basically a CSR matrix
         std::vector<std::vector<int>> dx_indices_;

@@ -14,29 +14,55 @@
 
 
 TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const libconfig::Setting &settings) : Monitor(settings), outfile(jams::output::full_path_filename("top_charge.tsv")) {
-  if (!approximately_equal(globals::lattice->a(), {1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)) {
-	throw std::runtime_error("Metadynamics 'finite-difference-topological-charge' "
-							 "requires the 'a' lattice parameter to be (1.0, 0.0, 0.0)");
-  }
 
-  if (!approximately_equal(globals::lattice->b(), {0.5, sqrt(3) / 2, 0.0}, jams::defaults::lattice_tolerance)) {
-	throw std::runtime_error("Metadynamics CV 'finite-difference-topological-charge' "
-							 "requires the 'b' lattice parameter to be (0.5, 0.8660254, 0.0)");
+  // true if a and b are equal to the lattice a and b vectors.
+  auto lattice_equal = [&](Vec3 a, Vec3 b) {
+      return approximately_equal(globals::lattice->a(), a, jams::defaults::lattice_tolerance)
+             && approximately_equal(globals::lattice->b(), b, jams::defaults::lattice_tolerance);
+  };
+
+  // Detect if we have a square or hexagonal lattice in the plane (all other
+  // lattices are unsupported)
+  enum class LatticeShape {Unsupported, Square, Hexagonal};
+
+  LatticeShape lattice_shape = LatticeShape::Unsupported;
+  if (lattice_equal({1.0, 0.0, 0.0}, {0.0, 1.0, 0.0})) {
+    lattice_shape = LatticeShape::Square;
+  } else if (lattice_equal({1.0, 0.0, 0.0}, {0.5, sqrt(3)/2, 0.0})) {
+    lattice_shape = LatticeShape::Hexagonal;
+  } else {
+    throw std::runtime_error("Monitor 'topological_charge_finite_diff' "
+                             "requires the lattice to be either square or triangular.");
   }
 
   max_tolerance_threshold_ = jams::config_optional<double>(settings, "max_threshold",1.0);
   min_tolerance_threshold_ = jams::config_optional<double>(settings,"min_threshold",-1.0);
 
-//// ------------------------------- ∂ₓS ---------------------------------------
+// ------------------------------- ∂S/∂x ---------------------------------------
   {
-	// first index is interaction vector, second is the +/- sign of the
-	// contribution
-	std::vector<std::pair<Vec3, int>> dx_interaction_data = {
-		{Vec3{1, -1, 0}, +1}, // +S(rᵢ + u₁ - u₂)
-		{Vec3{-1, 1, 0}, -1}, // -S(rᵢ - u₁ + u₂)
-		{Vec3{0, 1, 0},  +1}, // +S(rᵢ + u₂)
-		{Vec3{0, -1, 0}, -1}  // -S(rᵢ - u₂)
-	};
+
+    std::vector<std::pair<Vec3, double>> dx_interaction_data;
+
+    if (lattice_shape == LatticeShape::Square) {
+      dx_interaction_data = {
+          {Vec3{ 1, 1, 0}, 1.0/16.0},
+          {Vec3{ 1,-1, 0}, 1.0/16.0},
+          {Vec3{ 1, 0, 0}, 3.0/8.0},
+          {Vec3{-1, 0, 0},-3.0/8.0},
+          {Vec3{-1, 1, 0},-1.0/16.0},
+          {Vec3{-1,-1, 0},-1.0/16.0},
+      };
+    }
+    if (lattice_shape == LatticeShape::Hexagonal) {
+      dx_interaction_data = {
+          {Vec3{ 1,-1, 0}, 1.0/6.0},
+          {Vec3{-1, 1, 0},-1.0/6.0},
+          {Vec3{ 0, 1, 0}, 1.0/6.0},
+          {Vec3{ 0,-1, 0},-1.0/6.0},
+          {Vec3{ 1, 0, 0}, 1.0/3.0},
+          {Vec3{-1, 0, 0},-1.0/3.0}
+      };
+    }
 
 	std::vector<InteractionData> interaction_template;
 	for (auto &data: dx_interaction_data) {
@@ -58,26 +84,39 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 	for (auto n = 0; n < nbrs.size(); ++n) {
 	  auto i = nbrs[n].first[0];
 	  auto j = nbrs[n].first[1];
-	  auto sign = nbrs[n].second[0][0];
-	  // Divide by 2 for the dx direction
+	  auto weight = nbrs[n].second[0][0];
 	  dx_indices_[i].push_back(j);
-	  dx_values_[i].push_back(sign / 2.0);
+	  dx_values_[i].push_back(weight);
 	}
   }
 
-  // ------------------------------- ∂ᵧS ---------------------------------------
+  // ------------------------------- ∂S/∂y -------------------------------------
   {
 	// first index is interaction vector, second is the +/- sign of the
 	// contribution
-	std::vector<std::pair<Vec3, int>> dx_interaction_data = {
-		{Vec3{1, -1, 0}, -1}, // -S(rᵢ + u₁ - u₂)
-		{Vec3{-1, 1, 0}, +1}, // +S(rᵢ - u₁ + u₂)
-		{Vec3{0, 1, 0}, +1}, // +S(rᵢ + u₂)
-		{Vec3{0, -1, 0}, -1}  // -S(rᵢ - u₂)
-	};
+    std::vector<std::pair<Vec3, double>> dy_interaction_data;
+
+    if (lattice_shape == LatticeShape::Square) {
+      dy_interaction_data = {
+          {Vec3{ 1, 1, 0}, 1.0/16.0},
+          {Vec3{-1, 1, 0}, 1.0/16.0},
+          {Vec3{ 0, 1, 0}, 3.0/8.0},
+          {Vec3{ 0,-1, 0},-3.0/8.0},
+          {Vec3{ 1,-1, 0},-1.0/16.0},
+          {Vec3{-1,-1, 0},-1.0/16.0},
+      };
+    }
+    if (lattice_shape == LatticeShape::Hexagonal) {
+      dy_interaction_data = {
+          {Vec3{ 1,-1, 0},-sqrt(3.0)/6.0},
+          {Vec3{-1, 1, 0}, sqrt(3.0)/6.0},
+          {Vec3{ 0, 1, 0}, sqrt(3.0)/6.0},
+          {Vec3{ 0,-1, 0},-sqrt(3.0)/6.0},
+      };
+    }
 
 	std::vector<InteractionData> interaction_template;
-	for (auto &data: dx_interaction_data) {
+	for (auto &data: dy_interaction_data) {
 	  InteractionData J;
 	  J.unit_cell_pos_i = 0;
 	  J.unit_cell_pos_j = 0;
@@ -97,11 +136,10 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 	for (auto n = 0; n < nbrs.size(); ++n) {
 	  auto i = nbrs[n].first[0];
 	  auto j = nbrs[n].first[1];
-	  auto sign = nbrs[n].second[0][0];
+	  auto weight = nbrs[n].second[0][0];
 
-	  // Divide by 2\sqrt{3} for the dy direction
 	  dy_indices_[i].push_back(j);
-	  dy_values_[i].push_back(sign / (2.0*sqrt(3)));
+	  dy_values_[i].push_back(weight);
 	}
   }
 
@@ -125,18 +163,22 @@ Monitor::ConvergenceStatus TopologicalFiniteDiffChargeMonitor::convergence_statu
 }
 
 void TopologicalFiniteDiffChargeMonitor::update(Solver& solver) {
-  double topological_charge = 0.0;
+  double sum = 0.0;
+  double c = 0.0;
+
   for (auto i = 0; i < globals::num_spins; ++i) {
-	  topological_charge += local_topological_charge(i);
+    double y = local_topological_charge(i) - c;
+    double t = sum + y;
+    c = (t - sum) - y;
+    sum = t;
   }
 
-  monitor_top_charge_cache_ = topological_charge / (4.0 * kPi);
+  monitor_top_charge_cache_ = sum / (4.0 * kPi);
 
   outfile.width(12);
   outfile << jams::fmt::sci << solver.iteration()<< "\t";
   outfile << jams::fmt::decimal << monitor_top_charge_cache_ << "\t";
   outfile << std::endl;
-
 }
 std::string TopologicalFiniteDiffChargeMonitor::tsv_header() {
     using namespace jams;
@@ -154,14 +196,14 @@ std::string TopologicalFiniteDiffChargeMonitor::tsv_header() {
 }
 double TopologicalFiniteDiffChargeMonitor::local_topological_charge(const int i) const {
 
-    Vec3 ds_x = {0.0, 0.0, 0.0};
+  Vec3 ds_x = {0.0, 0.0, 0.0};
   for (auto n = 0; n < dx_indices_[i].size(); ++n) {
-	ds_x += dx_values_[i][n] * jams::montecarlo::get_spin(dx_indices_[i][n]);
+	  ds_x += dx_values_[i][n] * jams::montecarlo::get_spin(dx_indices_[i][n]);
   }
 
   Vec3 ds_y = {0.0, 0.0, 0.0};
   for (auto n = 0; n < dy_indices_[i].size(); ++n) {
-	ds_y += dy_values_[i][n] * jams::montecarlo::get_spin(dy_indices_[i][n]);
+	  ds_y += dy_values_[i][n] * jams::montecarlo::get_spin(dy_indices_[i][n]);
   }
 
   Vec3 s_i = jams::montecarlo::get_spin(i);

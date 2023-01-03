@@ -8,47 +8,95 @@
 jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     const libconfig::Setting &settings) {
 
-  if (!approximately_equal(globals::lattice->a(), {1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)) {
+  // true if a and b are equal to the lattice a and b vectors.
+  auto lattice_equal = [&](Vec3 a, Vec3 b) {
+    return approximately_equal(globals::lattice->a(), a, defaults::lattice_tolerance)
+    && approximately_equal(globals::lattice->b(), b, defaults::lattice_tolerance);
+  };
+
+  // Detect if we have a square or hexagonal lattice in the plane (all other
+  // lattices are unsupported)
+  enum class LatticeShape {Unsupported, Square, Hexagonal};
+
+  LatticeShape lattice_shape = LatticeShape::Unsupported;
+  if (lattice_equal({1.0, 0.0, 0.0}, {0.0, 1.0, 0.0})) {
+    lattice_shape = LatticeShape::Square;
+  } else if (lattice_equal({1.0, 0.0, 0.0}, {0.5, sqrt(3)/2, 0.0})) {
+    lattice_shape = LatticeShape::Hexagonal;
+  } else {
     throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
-                             "requires the 'a' lattice parameter to be (1.0, 0.0, 0.0)");
+                             "requires the lattice to be either square or triangular.");
   }
 
-  if (!approximately_equal(globals::lattice->b(), {0.5, sqrt(3) / 2, 0.0}, jams::defaults::lattice_tolerance)) {
-    throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
-                             "requires the 'b' lattice parameter to be (0.5, 0.8660254, 0.0)");
-  }
-
-  // Create the finite difference template. For now we assume a hexagonal lattice
-  // with vectors u₁ = x, u2 = x/2 + √3/2 the finite difference scheme
-  // will be (see Rohart, Phys. Rev. B 93, 214412 (2016) Supplementary Info)
+  // Below we create the finite difference stencils. These are based on stencils
+  // in Xu, G.,Liu, G.R. (2006-10) WSEAS Transactions on Mathematics 5 (10)
+  // : 1117-1122. The figures below are from Fig. 2 in the paper and show the
+  // weights for (∂u/∂x, ∂u/∂y) in the brackets.
   //
-  // ∂ₓS ≈ [S(rᵢ + u₁ - u₂) + S(rᵢ + u₂) - S(rᵢ - u₁ + u₂) - S(rᵢ - u₂)] / 2
-  // ∂ᵧS ≈ [S(rᵢ - u₁ + u₂) + S(rᵢ + u₂) - S(rᵢ + u₁ - u₂) - S(rᵢ - u₂)] / 2√3
+  // Square lattice stencil
+  // ----------------------
   //
-  // The same 4 neighbour spins are used in both ∂ₓS and ∂ᵧS, but things might
-  // differ at the edge of the system, so we'll construct two neighbour lists:
-  // one for ∂ₓS and one for ∂ᵧS.
+  //   (-1/16, 1/16)   (0, 3/8)  (1/16, 1/16)
+  //               +-----+-----+
+  //               |     |     |
+  //               |     |     |
+  //     (-3/8, 0) +-----+-----+ ( 3/8, 0)
+  //               |     |     |
+  //               |     |     |
+  //               +-----+-----+
+  //  (-1/16,-1/16)   (0,-3/8)  ( 1/16,-1/16)
   //
-  // We'll generate these neighbour lists the same we do with exchange
-  // interactions using the functions and classes in jams/core/interactions.h.
-  // This is quite messy and massively overkill, but will avoid bugs while we
-  // do a very quick job here.
+  //
+  // Hexagonal lattice stencil
+  // -------------------------
+  //
+  //     (-1/6, √3/6) _______ ( 1/6, √3/6)
+  //                 /\     /\
+  //                /  \   /  \
+  //     (-1/3, 0) /____\ /____\ ( 1/3, 0)
+  //               \    / \    /
+  //                \  /   \  /
+  //                 \/_____\/
+  //     (-1/6,-√3/6)         ( 1/6,-√3/6)
+  //
+  // We'll generate neighbour lists from these stencils the same we do with
+  // exchange interactions using the functions and classes in
+  // jams/core/interactions.h. This is quite messy and overkill, but will avoid
+  // bugs while we do a very quick job here.
   //
   // Usually the interaction template is read from a plain text file or the
   // config. We'll skip that step and build the template manually here.
   //
 
+  stencil_neighbour_indices_.resize(globals::num_spins);
 
-  // ------------------------------- ∂ₓS ---------------------------------------
+  // ------------------------------- ∂S/∂x -------------------------------------
   {
     // first index is interaction vector, second is the +/- sign of the
     // contribution
-    std::vector<std::pair<Vec3, int>> dx_interaction_data = {
-        {Vec3{1, -1, 0}, +1}, // +S(rᵢ + u₁ - u₂)
-        {Vec3{-1, 1, 0}, -1}, // -S(rᵢ - u₁ + u₂)
-        {Vec3{0, 1, 0},  +1}, // +S(rᵢ + u₂)
-        {Vec3{0, -1, 0}, -1}  // -S(rᵢ - u₂)
-    };
+
+    std::vector<std::pair<Vec3, double>> dx_interaction_data;
+
+    if (lattice_shape == LatticeShape::Square) {
+      dx_interaction_data = {
+          {Vec3{ 1, 1, 0}, 1.0/16.0},
+          {Vec3{ 1,-1, 0}, 1.0/16.0},
+          {Vec3{ 1, 0, 0}, 3.0/8.0},
+          {Vec3{-1, 0, 0},-3.0/8.0},
+          {Vec3{-1, 1, 0},-1.0/16.0},
+          {Vec3{-1,-1, 0},-1.0/16.0},
+      };
+    }
+    if (lattice_shape == LatticeShape::Hexagonal) {
+      dx_interaction_data = {
+          {Vec3{ 1,-1, 0}, 1.0/6.0},
+          {Vec3{-1, 1, 0},-1.0/6.0},
+          {Vec3{ 0, 1, 0}, 1.0/6.0},
+          {Vec3{ 0,-1, 0},-1.0/6.0},
+          {Vec3{ 1, 0, 0}, 1.0/3.0},
+          {Vec3{-1, 0, 0},-1.0/3.0}
+      };
+    }
 
     std::vector<InteractionData> interaction_template;
     for (auto &data: dx_interaction_data) {
@@ -59,41 +107,52 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
       J.type_j = globals::lattice->material_name(
           globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
-      J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
+      J.r_ij = globals::lattice->fractional_to_cartesian(data.first);
       J.J_ij[0][0] = data.second;
       interaction_template.push_back(J);
     }
 
-    InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(
-        interaction_template);
-
+    jams::InteractionList<Mat3,2> nbrs = neighbour_list_from_interactions(interaction_template);
     dx_indices_.resize(globals::num_spins);
     dx_values_.resize(globals::num_spins);
 
     for (auto n = 0; n < nbrs.size(); ++n) {
       auto i = nbrs[n].first[0];
       auto j = nbrs[n].first[1];
-      auto sign = nbrs[n].second[0][0];
-
-      // Divide by 2 for the dx direction
+      auto weight = nbrs[n].second[0][0];
+      stencil_neighbour_indices_[i].insert(j);
       dx_indices_[i].push_back(j);
-      dx_values_[i].push_back(sign / 2.0);
+      dx_values_[i].push_back(weight);
     }
   }
 
-  // ------------------------------- ∂ᵧS ---------------------------------------
+  // ------------------------------- ∂S/∂y -------------------------------------
   {
     // first index is interaction vector, second is the +/- sign of the
     // contribution
-    std::vector<std::pair<Vec3, int>> dx_interaction_data = {
-        {Vec3{1, -1, 0}, -1}, // -S(rᵢ + u₁ - u₂)
-        {Vec3{-1, 1, 0}, +1}, // +S(rᵢ - u₁ + u₂)
-        {Vec3{0, 1, 0},  +1}, // +S(rᵢ + u₂)
-        {Vec3{0, -1, 0}, -1}  // -S(rᵢ - u₂)
-    };
+    std::vector<std::pair<Vec3, double>> dy_interaction_data;
 
-    std::vector<InteractionData> interaction_template;
-    for (auto &data: dx_interaction_data) {
+    if (lattice_shape == LatticeShape::Square) {
+      dy_interaction_data = {
+          {Vec3{ 1, 1, 0}, 1.0/16.0},
+          {Vec3{-1, 1, 0}, 1.0/16.0},
+          {Vec3{ 0, 1, 0}, 3.0/8.0},
+          {Vec3{ 0,-1, 0},-3.0/8.0},
+          {Vec3{ 1,-1, 0},-1.0/16.0},
+          {Vec3{-1,-1, 0},-1.0/16.0},
+      };
+    }
+    if (lattice_shape == LatticeShape::Hexagonal) {
+      dy_interaction_data = {
+          {Vec3{ 1,-1, 0},-sqrt(3.0)/6.0},
+          {Vec3{-1, 1, 0}, sqrt(3.0)/6.0},
+          {Vec3{ 0, 1, 0}, sqrt(3.0)/6.0},
+          {Vec3{ 0,-1, 0},-sqrt(3.0)/6.0},
+      };
+    }
+
+      std::vector<InteractionData> interaction_template;
+    for (auto &data: dy_interaction_data) {
       InteractionData J;
       J.unit_cell_pos_i = 0;
       J.unit_cell_pos_j = 0;
@@ -105,21 +164,18 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       J.J_ij[0][0] = data.second;
       interaction_template.push_back(J);
     }
-
-    InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(
+    jams::InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(
         interaction_template);
-
     dy_indices_.resize(globals::num_spins);
     dy_values_.resize(globals::num_spins);
 
     for (auto n = 0; n < nbrs.size(); ++n) {
       auto i = nbrs[n].first[0];
       auto j = nbrs[n].first[1];
-      auto sign = nbrs[n].second[0][0];
-
-      // Divide by 2\sqrt{3} for the dy direction
+      auto weight = nbrs[n].second[0][0];
+      stencil_neighbour_indices_[i].insert(j);
       dy_indices_[i].push_back(j);
-      dy_values_[i].push_back(sign / (2.0*sqrt(3)));
+      dy_values_[i].push_back(weight);
     }
   }
 
@@ -175,25 +231,30 @@ double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(const int
 double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int index,
                                                                   const Vec3 &spin_initial,
                                                                   const Vec3 &spin_final) const {
+  // We calculate the difference in the topological charge between the initial
+  // and final spin states. When one spin is changed, the topological charge on
+  // all sites connected to it through the finite difference stencil also changes.
+  // We therefore calculate the difference of the topological charge of the whole
+  // stencil.
+
   montecarlo::set_spin(index, spin_initial);
+
   double initial_charge = local_topological_charge(index);
-  // We also need to calculate all adjacent sites
-  // TODO: in non bulk systems we need to be careful how we select sites here
-  for (auto n = 0; n < dx_indices_[index].size(); ++n) {
-    initial_charge += local_topological_charge(dx_indices_[index][n]);
+  // Loop over neighbouring sites in the stencil
+  for (int n : stencil_neighbour_indices_[index]) {
+    initial_charge += local_topological_charge(n);
   }
 
   montecarlo::set_spin(index, spin_final);
-  double final_charge = local_topological_charge(index);
 
-  // We also need to calculate all adjacent sites
-  // TODO: in non bulk systems we need to be careful how we select sites here
-  for (auto n = 0; n < dx_indices_[index].size(); ++n) {
-    final_charge += local_topological_charge(dx_indices_[index][n]);
+  double final_charge = local_topological_charge(index);
+  // Loop over neighbouring sites in the stencil
+  for (int n : stencil_neighbour_indices_[index]) {
+    final_charge += local_topological_charge(n);
   }
 
-  montecarlo::set_spin(index, spin_initial);
 
+  montecarlo::set_spin(index, spin_initial);
 
   return (final_charge - initial_charge) / (4.0 * kPi);
 }
