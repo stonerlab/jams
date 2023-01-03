@@ -60,16 +60,16 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
   max_steps_ = static_cast<int>(t_max / step_size_);
   min_steps_ = static_cast<int>(t_min / step_size_);
 
-  cout << "timestep (ps) " << step_size_ << "\n";
-  cout << "t_max (ps) " << t_max << " steps (" <<  max_steps_ << ")\n";
-  cout << "t_min (ps) " << t_min << " steps (" << min_steps_ << ")\n";
+  std::cout << "timestep (ps) " << step_size_ << "\n";
+  std::cout << "t_max (ps) " << t_max << " steps (" <<  max_steps_ << ")\n";
+  std::cout << "t_min (ps) " << t_min << " steps (" << min_steps_ << ")\n";
 
-  std::string thermostat_name = jams::config_optional<string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
+  std::string thermostat_name = jams::config_optional<std::string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
   register_thermostat(Thermostat::create(thermostat_name));
 
-  cout << "  thermostat " << thermostat_name.c_str() << "\n";
+  std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
-  cout << "done\n";
+  std::cout << "done\n";
 
   s_old_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {

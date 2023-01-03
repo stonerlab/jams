@@ -48,12 +48,12 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
     sparse_matrix_builder.insert(i, j, globals::lattice->displacement(i, j) * Jij);
   }
 
-  cout << "    dipole sparse matrix builder memory " << sparse_matrix_builder.memory() / kBytesToMegaBytes << "(MB)\n";
-  cout << "    building CSR matrix\n";
+  std::cout << "    dipole sparse matrix builder memory " << sparse_matrix_builder.memory() / kBytesToMegaBytes << "(MB)\n";
+  std::cout << "    building CSR matrix\n";
   interaction_matrix_ = sparse_matrix_builder
       .set_format(jams::SparseMatrixFormat::CSR)
       .build();
-  cout << "    exchange sparse matrix memory (CSR): " << interaction_matrix_.memory() / kBytesToMegaBytes << " (MB)\n";
+  std::cout << "    exchange sparse matrix memory (CSR): " << interaction_matrix_.memory() / kBytesToMegaBytes << " (MB)\n";
 
   spin_current_rx_x.resize(globals::num_spins);
   spin_current_rx_y.resize(globals::num_spins);

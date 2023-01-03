@@ -75,8 +75,8 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   settings.lookupValue("check_symmetry", check_symmetry_);
 
   r_cutoff_ = double(settings["r_cutoff"]);
-  cout << "  r_cutoff " << r_cutoff_ << "\n";
-  cout << "  r_cutoff_max " << ::globals::lattice->max_interaction_radius() << "\n";
+  std::cout << "  r_cutoff " << r_cutoff_ << "\n";
+  std::cout << "  r_cutoff_max " << ::globals::lattice->max_interaction_radius() << "\n";
 
   if (check_radius_) {
     if (r_cutoff_ > ::globals::lattice->max_interaction_radius()) {
@@ -86,7 +86,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   }
 
   settings.lookupValue("distance_tolerance", distance_tolerance_);
-  cout << "  distance_tolerance " << distance_tolerance_ << "\n";
+  std::cout << "  distance_tolerance " << distance_tolerance_ << "\n";
 
   for (int n = 0; n < 3; ++n) {
       kspace_size_[n] = ::globals::lattice->size(n);
@@ -109,8 +109,8 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   kspace_s_.zero();
   kspace_h_.zero();
 
-  cout << "    kspace size " << kspace_size_ << "\n";
-  cout << "    kspace padded size " << kspace_padded_size_ << "\n";
+  std::cout << "    kspace size " << kspace_size_ << "\n";
+  std::cout << "    kspace padded size " << kspace_padded_size_ << "\n";
 
   int rank            = 3;           
   int stride          = 3 * globals::lattice->num_motif_atoms();
@@ -263,7 +263,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                 const auto r_abs_sq = norm_squared(r_ij);
 
                 if (!std::isnormal(r_abs_sq)) {
-                  throw runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: r_abs_sq is not normal");
+                  throw std::runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: r_abs_sq is not normal");
                 }
 
                 if (r_abs_sq > pow2(r_cutoff_ + distance_tolerance_)) {
@@ -276,7 +276,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                     for (int n = 0; n < 3; ++n) {
                         auto value = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
                         if (!std::isfinite(value)) {
-                          throw runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: tensor Szz is not finite");
+                          throw std::runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: tensor Szz is not finite");
                         }
                         rspace_tensor(nx, ny, nz, m, n) = value;
                     }

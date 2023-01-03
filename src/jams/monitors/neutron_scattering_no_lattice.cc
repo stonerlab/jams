@@ -341,7 +341,7 @@ void NeutronScatteringNoLatticeMonitor::configure_form_factors(libconfig::Settin
 
   for (auto i = 0; i < settings.getLength(); ++i) {
     for (auto l : {0,2,4,6}) {
-      j_params[i][l] = config_optional<jams::FormFactorCoeff>(settings[i], "j" + std::to_string(l), j_params[i][l]);
+      j_params[i][l] = jams::config_optional<jams::FormFactorCoeff>(settings[i], "j" + std::to_string(l), j_params[i][l]);
     }
     g_params[i] = jams::config_required<jams::FormFactorG>(settings[i], "g");
   }

@@ -29,16 +29,16 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
   max_steps_ = static_cast<int>(t_max / step_size_);
   min_steps_ = static_cast<int>(t_min / step_size_);
 
-  cout << "\ntimestep (ps) " << step_size_ << "\n";
-  cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
-  cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
+  std::cout << "\ntimestep (ps) " << step_size_ << "\n";
+  std::cout << "\nt_max (ps) " << t_max << " steps " << max_steps_ << "\n";
+  std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
 
-  std::string thermostat_name = jams::config_optional<string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
+  std::string thermostat_name = jams::config_optional<std::string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
   register_thermostat(Thermostat::create(thermostat_name));
 
-  cout << "  thermostat " << thermostat_name.c_str() << "\n";
+  std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
-  cout << "done\n";
+  std::cout << "done\n";
 
   // check if we need to use zero safe versions of the kernels (for |S| = 0)
   zero_safe_kernels_required_ = false;
