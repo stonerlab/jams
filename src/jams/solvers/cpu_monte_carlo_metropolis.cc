@@ -109,7 +109,7 @@ double MetropolisMCSolver::energy_difference(const int spin_index,
   auto energy_difference = 0.0;
   // Calculate the energy difference from all of the Hamiltonian terms
   for (const auto &ham : hamiltonians_) {
-	  energy_difference += ham->calculate_energy_difference(spin_index, initial_spin, final_spin, globals::solver->time());
+	  energy_difference += ham->calculate_energy_difference(spin_index, initial_spin, final_spin, this->time());
 	}
 	return energy_difference;
 }
