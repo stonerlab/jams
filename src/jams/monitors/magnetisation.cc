@@ -22,8 +22,6 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   tsv_file(jams::output::full_path_filename("mag.tsv"))
 {
-  using namespace globals;
-
   // calculate magnetisation per material or per unit cell position
   auto grouping_str = jams::config_optional<std::string>(settings, "grouping", "materials");
 
@@ -44,9 +42,9 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 
 
   if (grouping_ == Grouping::MATERIALS) {
-    std::vector<std::vector<int>> material_index_groups(lattice->num_materials());
-    for (auto i = 0; i < num_spins; ++i) {
-      auto type = lattice->atom_material_id(i);
+    std::vector<std::vector<int>> material_index_groups(globals::lattice->num_materials());
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      auto type = globals::lattice->atom_material_id(i);
       material_index_groups[type].push_back(i);
     }
 
@@ -55,9 +53,9 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
       group_spin_indicies_[n] = jams::MultiArray<int,1>(material_index_groups[n].begin(), material_index_groups[n].end());
     }
   } else if (grouping_ == Grouping::POSITIONS) {
-    std::vector<std::vector<int>> position_index_groups(lattice->num_motif_atoms());
-    for (auto i = 0; i < num_spins; ++i) {
-      auto position = lattice->atom_motif_position(i);
+    std::vector<std::vector<int>> position_index_groups(globals::lattice->num_motif_atoms());
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      auto position = globals::lattice->atom_motif_position(i);
       position_index_groups[position].push_back(i);
     }
 
@@ -68,16 +66,15 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   }
 }
 
-void MagnetisationMonitor::update(Solver * solver) {
+void MagnetisationMonitor::update(Solver& solver) {
   using namespace jams;
-  using namespace globals;
 
   tsv_file.width(12);
-  tsv_file << fmt::sci << solver->time();
-  tsv_file << fmt::decimal << solver->physics()->temperature();
+  tsv_file << fmt::sci << solver.time();
+  tsv_file << fmt::decimal << solver.physics()->temperature();
 
   for (auto i = 0; i < 3; ++i) {
-    tsv_file << fmt::decimal << solver->physics()->applied_field(i);
+    tsv_file << fmt::decimal << solver.physics()->applied_field(i);
   }
 
   for (auto n = 0; n < group_spin_indicies_.size(); ++n) {
@@ -111,15 +108,16 @@ std::string MagnetisationMonitor::tsv_header() {
   ss << fmt::decimal << "hz";
 
   if (grouping_ == Grouping::MATERIALS) {
-    for (auto i = 0; i < lattice->num_materials(); ++i) {
-      auto name = lattice->material_name(i);
+    for (auto i = 0; i < globals::lattice->num_materials(); ++i) {
+      auto name = globals::lattice->material_name(i);
       for (const auto &suffix: {"_mx", "_my", "_mz", "_m"}) {
         ss << fmt::decimal << name + suffix;
       }
     }
   } else if (grouping_ == Grouping::POSITIONS) {
-    for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
-      auto material_name = lattice->material_name(lattice->motif_atom(i).material_index);
+    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+      auto material_name = globals::lattice->material_name(
+          globals::lattice->motif_atom(i).material_index);
       for (const auto &suffix: {"_mx", "_my", "_mz", "_m"}) {
         ss << fmt::decimal << std::to_string(i+1) + "_" + material_name + suffix;
       }

@@ -14,11 +14,9 @@ MFPTPhysics::MFPTPhysics(const libconfig::Setting &settings)
   : Physics(settings),
   maskArray(),
   MFPTFile(jams::output::full_path_filename("mfpt.tsv")) {
-  using namespace globals;
+  maskArray.resize(globals::num_spins);
 
-  maskArray.resize(num_spins);
-
-  for (int i = 0; i < num_spins; ++i) {
+  for (int i = 0; i < globals::num_spins; ++i) {
     maskArray[i] = true;
   }
 }
@@ -28,10 +26,9 @@ MFPTPhysics::~MFPTPhysics() {
 }
 
 void MFPTPhysics::update(const int &iterations, const double &time, const double &dt) {
-  using namespace globals;
   if (iterations%output_step_freq_ == 0) {
-    for (int i = 0; i < num_spins; ++i) {
-      if (s(i, 2) < 0.0 && maskArray[i] == true) {
+    for (int i = 0; i < globals::num_spins; ++i) {
+      if (globals::s(i, 2) < 0.0 && maskArray[i] == true) {
         MFPTFile << time << "\n";
         maskArray[i] = false;
       }

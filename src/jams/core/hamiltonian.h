@@ -3,17 +3,14 @@
 #ifndef JAMS_CORE_HAMILTONIAN_H
 #define JAMS_CORE_HAMILTONIAN_H
 
-#include <iosfwd>
+#include <jams/containers/multiarray.h>
+#include <jams/core/base.h>
+#include <jams/core/types.h>
+
 #include <cassert>
+#include <stdexcept>
 
-#if HAS_CUDA
-#include <cuda_runtime_api.h>
-#endif
-
-#include "jams/core/types.h"
-#include "jams/core/globals.h"
-#include "jams/core/base.h"
-#include "jams/interface/config.h"
+namespace libconfig { class Setting; }
 
 class Hamiltonian : public Base {
 public:
@@ -25,22 +22,22 @@ public:
     static Hamiltonian *create(const libconfig::Setting &settings, unsigned int size, bool is_cuda_solver);
 
     // calculate the total energy of this Hamiltonian term
-    virtual double calculate_total_energy() = 0;
+    virtual double calculate_total_energy(double time) = 0;
 
     // calculate the energy of each spin and store in energy_
-    virtual void calculate_energies() = 0;
+    virtual void calculate_energies(double time) = 0;
 
     // calculate the field at each spin and store in field_
-    virtual void calculate_fields() = 0;
+    virtual void calculate_fields(double time) = 0;
 
     // calculate the field a spin i
-    virtual Vec3 calculate_field(int i) = 0;
+    virtual Vec3 calculate_field(int i, double time) = 0;
 
     // calculate the energy of spin i
-    virtual double calculate_energy(int i) = 0;
+    virtual double calculate_energy(int i, double time) = 0;
 
     // calculate the energy difference of spin i in initial and final states
-    virtual double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) = 0;
+    virtual double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) = 0;
 
     inline double energy(const int i) const {
       assert(i < energy_.elements());

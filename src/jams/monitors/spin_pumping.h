@@ -3,12 +3,11 @@
 #ifndef JAMS_MONITOR_SPIN_PUMPING_H
 #define JAMS_MONITOR_SPIN_PUMPING_H
 
+#include <jams/core/monitor.h>
+
 #include <fstream>
-
-#include <libconfig.h++>
-
-#include "jams/helpers/stats.h"
-#include "jams/core/monitor.h"
+#include <string>
+#include <vector>
 
 class Solver;
 
@@ -18,7 +17,7 @@ public:
 
     ~SpinPumpingMonitor() override = default;
 
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 
 private:

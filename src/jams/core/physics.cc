@@ -22,15 +22,13 @@
 #include "jams/physics/pinned_boundaries.h"
 #include "jams/physics/flips.h"
 
-using namespace std;
-
 Physics::Physics(const libconfig::Setting &physics_settings) :
     Base(physics_settings),
     temperature_(0.0),
     applied_field_{0.0, 0.0, 0.0}
 {
 
-  cout << "  " << name() << " physics\n";
+  std::cout << "  " << name() << " physics\n";
 
   // initialise temperature
   temperature_ = 0.0;
@@ -65,7 +63,8 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
     double radius = state_settings["radius"];
 
     for (int i = 0; i < globals::num_spins; ++i) {
-      Vec3 pos = lattice->displacement(lattice->atom_position(i),origin);
+      Vec3 pos = globals::lattice->displacement(
+          globals::lattice->atom_position(i), origin);
 
       if (pos[0]*pos[0] + pos[1]*pos[1] < radius*radius) {
         globals::s(i,2) = -globals::s(i,2);

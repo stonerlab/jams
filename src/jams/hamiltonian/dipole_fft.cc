@@ -2,6 +2,7 @@
 #include <cmath>
 #include <complex>
 #include <fstream>
+#include <iostream>
 
 #include "jams/core/lattice.h"
 #include "jams/core/globals.h"
@@ -12,11 +13,6 @@
 #include "jams/interface/fft.h"
 
 #include "jams/hamiltonian/dipole_fft.h"
-
-using std::pow;
-using std::abs;
-using std::min;
-using namespace std;
 
 namespace {
     const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
@@ -43,28 +39,28 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
   settings.lookupValue("check_radius", check_radius_);
   settings.lookupValue("check_symmetry", check_symmetry_);
 
-    r_cutoff_ = double(settings["r_cutoff"]);
-    cout << "  r_cutoff " << r_cutoff_ << "\n";
-    cout << "  r_cutoff_max " << ::lattice->max_interaction_radius() << "\n";
+  r_cutoff_ = double(settings["r_cutoff"]);
+  std::cout << "  r_cutoff " << r_cutoff_ << "\n";
+  std::cout << "  r_cutoff_max " << ::globals::lattice->max_interaction_radius() << "\n";
 
     if (check_radius_) {
-      if (r_cutoff_ > ::lattice->max_interaction_radius()) {
+      if (r_cutoff_ > ::globals::lattice->max_interaction_radius()) {
         throw std::runtime_error("DipoleFFTHamiltonian r_cutoff is too large for the lattice size."
                                          "The cutoff must be less than the inradius of the lattice.");
       }
     }
 
     settings.lookupValue("distance_tolerance", r_distance_tolerance_);
-    cout << "  distance_tolerance " << r_distance_tolerance_ << "\n";
+  std::cout << "  distance_tolerance " << r_distance_tolerance_ << "\n";
 
     for (auto n = 0; n < 3; ++n) {
-        kspace_size_[n] = ::lattice->size(n);
+        kspace_size_[n] = ::globals::lattice->size(n);
     }
 
     kspace_padded_size_ = kspace_size_;
 
     for (auto n = 0; n < 3; ++n) {
-        if (!::lattice->is_periodic(n)) {
+        if (!::globals::lattice->is_periodic(n)) {
             kspace_padded_size_[n] = kspace_size_[n] * 2;
         }
     }
@@ -74,19 +70,19 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
     kspace_s_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
     kspace_h_.resize(kspace_padded_size_[0], kspace_padded_size_[1], (kspace_padded_size_[2]/2)+1, 3);
 
-    cout << "    kspace size " << kspace_size_ << "\n";
-    cout << "    kspace padded size " << kspace_padded_size_ << "\n";
-    cout << "    generating tensors\n";
+    std::cout << "    kspace size " << kspace_size_ << "\n";
+    std::cout << "    kspace padded size " << kspace_padded_size_ << "\n";
+    std::cout << "    generating tensors\n";
 
-  kspace_tensors_.resize(lattice->num_motif_atoms());
+  kspace_tensors_.resize(globals::lattice->num_motif_atoms());
 
-    for (auto pos_i = 0; pos_i < lattice->num_motif_atoms(); ++pos_i) {
+    for (auto pos_i = 0; pos_i < globals::lattice->num_motif_atoms(); ++pos_i) {
       std::vector<Vec3> generated_positions;
-      for (auto pos_j = 0; pos_j < lattice->num_motif_atoms(); ++pos_j) {
+      for (auto pos_j = 0; pos_j < globals::lattice->num_motif_atoms(); ++pos_j) {
         kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions));
       }
-      if (check_symmetry_ && (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2))) {
-        if (!lattice->is_a_symmetry_complete_set(generated_positions, r_distance_tolerance_)) {
+      if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
+        if (!globals::lattice->is_a_symmetry_complete_set(generated_positions, r_distance_tolerance_)) {
           throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
                                    "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
                                    "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
@@ -94,7 +90,7 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
       }
     }
 
-    cout << "    planning FFTs\n";
+    std::cout << "    planning FFTs\n";
 
     int rank            = 3;           
     int stride          = 3;
@@ -143,10 +139,10 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
 }
 
 
-double DipoleFFTHamiltonian::calculate_total_energy() {
+double DipoleFFTHamiltonian::calculate_total_energy(double time) {
     double e_total = 0.0;
 
-    calculate_fields();
+    calculate_fields(time);
     for (auto i = 0; i < globals::num_spins; ++i) {
         e_total += (  globals::s(i,0) * field_(i, 0)
                     + globals::s(i,1) * field_(i, 1)
@@ -156,21 +152,21 @@ double DipoleFFTHamiltonian::calculate_total_energy() {
     return -0.5*e_total;
 }
 
-double DipoleFFTHamiltonian::calculate_energy(const int i) {
+double DipoleFFTHamiltonian::calculate_energy(const int i, double time) {
   const Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
-  const auto field = calculate_field(i);
+  const auto field = calculate_field(i, time);
   return -dot(s_i, field);
 }
 
 
 double DipoleFFTHamiltonian::calculate_energy_difference(
-    int i, const Vec3 &spin_initial, const Vec3 &spin_final)
+    int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time)
 {
     double h[3] = {0, 0, 0};
 
-    calculate_fields();
+    calculate_fields(time);
     for (auto m = 0; m < 3; ++m) {
-        Vec3i pos = ::lattice->cell_offset(i);
+        Vec3i pos = ::globals::lattice->cell_offset(i);
         h[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
 
@@ -179,19 +175,19 @@ double DipoleFFTHamiltonian::calculate_energy_difference(
 }
 
 
-void DipoleFFTHamiltonian::calculate_energies() {
+void DipoleFFTHamiltonian::calculate_energies(double time) {
     assert(energy_.elements() == globals::num_spins);
     for (auto i = 0; i < globals::num_spins; ++i) {
-      energy_(i) = calculate_energy(i);
+      energy_(i) = calculate_energy(i, time);
     }
 }
 
 
-Vec3 DipoleFFTHamiltonian::calculate_field(const int i) {
+Vec3 DipoleFFTHamiltonian::calculate_field(const int i, double time) {
     Vec3 field = {0.0, 0.0, 0.0};
-    calculate_fields();
+    calculate_fields(time);
     for (auto m = 0; m < 3; ++m) {
-        Vec3i pos = ::lattice->cell_offset(i);
+        Vec3i pos = ::globals::lattice->cell_offset(i);
         field[m] += rspace_h_(pos[0], pos[1], pos[2], m);
     }
     return field;
@@ -202,13 +198,11 @@ Vec3 DipoleFFTHamiltonian::calculate_field(const int i) {
 // the generated positions to a vector
 jams::MultiArray<Complex, 5>
 DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
-  using std::pow;
+  const Vec3 r_frac_i = globals::lattice->motif_atom(pos_i).position;
+  const Vec3 r_frac_j = globals::lattice->motif_atom(pos_j).position;
 
-  const Vec3 r_frac_i = lattice->motif_atom(pos_i).position;
-  const Vec3 r_frac_j = lattice->motif_atom(pos_j).position;
-
-  const Vec3 r_cart_i = lattice->fractional_to_cartesian(r_frac_i);
-  const Vec3 r_cart_j = lattice->fractional_to_cartesian(r_frac_j);
+  const Vec3 r_cart_i = globals::lattice->fractional_to_cartesian(r_frac_i);
+  const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
 
   jams::MultiArray<double, 5> rspace_tensor(
         kspace_padded_size_[0],
@@ -227,7 +221,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
   kspace_tensor.zero();
 
   const double fft_normalization_factor = 1.0 / product(kspace_padded_size_);
-  const double a3 = pow3(::lattice->parameter());
+  const double a3 = pow3(::globals::lattice->parameter());
   const double w0 = fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * a3);
 
   for (auto nx = 0; nx < kspace_size_[0]; ++nx) {
@@ -238,9 +232,9 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
           continue;
         }
 
-        const auto r_ij = lattice->displacement(r_cart_j,
-                                                lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
-                                                                                                             {nx, ny,
+        const auto r_ij = globals::lattice->displacement(r_cart_j,
+                                                         globals::lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
+                                                                                                                               {nx, ny,
                                                                                                               nz}));
         const auto r_abs_sq = norm_squared(r_ij);
 
@@ -302,20 +296,17 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
 }
 
 
-void DipoleFFTHamiltonian::calculate_fields() {
-  using std::min;
-  using std::pow;
-
+void DipoleFFTHamiltonian::calculate_fields(double time) {
   zero(field_);
 
-  for (auto pos_i = 0; pos_i < ::lattice->num_motif_atoms(); ++pos_i) {
+  for (auto pos_i = 0; pos_i < ::globals::lattice->num_motif_atoms(); ++pos_i) {
     kspace_h_.zero();
-    for (auto pos_j = 0; pos_j < ::lattice->num_motif_atoms(); ++pos_j) {
+    for (auto pos_j = 0; pos_j < ::globals::lattice->num_motif_atoms(); ++pos_j) {
       rspace_s_.zero();
       for (auto kx = 0; kx < kspace_size_[0]; ++kx) {
         for (auto ky = 0; ky < kspace_size_[1]; ++ky) {
           for (auto kz = 0; kz < kspace_size_[2]; ++kz) {
-            const auto index = ::lattice->site_index_by_unit_cell(kx, ky, kz, pos_j);
+            const auto index = ::globals::lattice->site_index_by_unit_cell(kx, ky, kz, pos_j);
             for (auto m = 0; m < 3; ++m) {
               rspace_s_(kx, ky, kz, m) = globals::s(index, m);
             }
@@ -325,7 +316,8 @@ void DipoleFFTHamiltonian::calculate_fields() {
 
       fftw_execute(fft_s_rspace_to_kspace);
 
-      const double mus_j = ::lattice->material(lattice->motif_atom(pos_j).material_index).moment;
+      const double mus_j = ::globals::lattice->material(
+          globals::lattice->motif_atom(pos_j).material_index).moment;
 
       // perform convolution as multiplication in fourier space
       for (auto i = 0; i < kspace_padded_size_[0]; ++i) {
@@ -347,7 +339,7 @@ void DipoleFFTHamiltonian::calculate_fields() {
     for (auto i = 0; i < kspace_size_[0]; ++i) {
       for (auto j = 0; j < kspace_size_[1]; ++j) {
         for (auto k = 0; k < kspace_size_[2]; ++k) {
-          const auto index = lattice->site_index_by_unit_cell(i, j, k, pos_i);
+          const auto index = globals::lattice->site_index_by_unit_cell(i, j, k, pos_i);
           for (auto m = 0; m < 3; ++ m) {
             field_(index, m) += rspace_h_(i, j, k, m) * globals::mus(i);
           }

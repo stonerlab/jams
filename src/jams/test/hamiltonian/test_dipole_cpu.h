@@ -49,8 +49,8 @@ class DipoleHamiltonianTests : public ::testing::Test {
 protected:
     DipoleHamiltonianTests() {
       // create global objects
-      ::lattice = new Lattice();
-      ::config = std::make_unique<libconfig::Config>();
+      ::globals::lattice = new Lattice();
+      ::globals::config = std::make_unique<libconfig::Config>();
     }
 
     ~DipoleHamiltonianTests() = default;
@@ -58,29 +58,30 @@ protected:
     void SetUp(const std::string &config_string) {
       jams::testing::toggle_cout();
       // configure global objects and create lattice and solver
-      ::config->readString(config_string);
-      ::lattice->init_from_config(*::config);
-      ::solver = Solver::create(config->lookup("solver"));
-      ::solver->initialize(config->lookup("solver"));
-      ::solver->register_physics_module(Physics::create(config->lookup("physics")));
+      ::globals::config->readString(config_string);
+      ::globals::lattice->init_from_config(*::globals::config);
+      ::globals::solver = Solver::create(globals::config->lookup("solver"));
+      ::globals::solver->initialize(globals::config->lookup("solver"));
+      ::globals::solver->register_physics_module(Physics::create(
+          globals::config->lookup("physics")));
 
       // configure the current Hamiltonian for testing
-      hamiltonian = std::make_unique<T>(::config->lookup("hamiltonians.[0]"), globals::num_spins);
+      hamiltonian = std::make_unique<T>(::globals::config->lookup("hamiltonians.[0]"), globals::num_spins);
 
       jams::testing::toggle_cout();
     }
 
     virtual void TearDown() {
       // destroy global objects
-      delete ::solver;
-      delete ::lattice;
+      delete ::globals::solver;
+      delete ::globals::lattice;
     }
 
     // test the total dipole energy for an ordered spin configuration
     // compared to an analytic eigen value
     void eigenvalue_test(const std::string &spin_config_name, const double &expected_eigenvalue) {
       double analytic = analytic_prefactor * expected_eigenvalue;
-      double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
+      double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
 
       std::cout << "spins:      " << spin_config_name << "\n";
       std::cout << "expected:   " << jams::fmt::sci << analytic << " meV/spin\n";
@@ -96,7 +97,7 @@ protected:
     void random_spin_test() {
       jams::testing::toggle_cout();
       std::unique_ptr<DipoleNearTreeHamiltonian> reference_hamiltonian(
-          new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins));
+          new DipoleNearTreeHamiltonian(::globals::config->lookup("hamiltonians.[0]"), globals::num_spins));
       jams::testing::toggle_cout();
 
       pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
@@ -107,9 +108,9 @@ protected:
         globals::s(i, 2) = spin[2];
       }
 
-      double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
+      double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
       double reference =
-          reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
+          reference_hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
 
       std::cout << "spin:       random" << "\n";
       std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";
@@ -119,8 +120,8 @@ protected:
 
       ASSERT_NEAR(numeric, reference, target_accuracy);
 
-      hamiltonian->calculate_fields();
-      reference_hamiltonian->calculate_fields();
+      hamiltonian->calculate_fields(0);
+      reference_hamiltonian->calculate_fields(0);
 
       for (auto i = 0; i < globals::num_spins; ++i) {
         for (auto j = 0; j < 3; ++j) {
@@ -134,7 +135,7 @@ protected:
     void ordered_spin_test(const Vec3& spin_direction) {
         jams::testing::toggle_cout();
         std::unique_ptr<DipoleNearTreeHamiltonian> reference_hamiltonian(
-                new DipoleNearTreeHamiltonian(::config->lookup("hamiltonians.[0]"), globals::num_spins));
+                new DipoleNearTreeHamiltonian(::globals::config->lookup("hamiltonians.[0]"), globals::num_spins));
         jams::testing::toggle_cout();
 
         for (unsigned int i = 0; i < globals::num_spins; ++i) {
@@ -143,9 +144,9 @@ protected:
             globals::s(i, 2) = spin_direction[2];
         }
 
-        double numeric = hamiltonian->calculate_total_energy() / double(globals::num_spins);
+        double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
         double reference =
-                reference_hamiltonian->calculate_total_energy() / double(globals::num_spins);
+                reference_hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
 
         std::cout << "spin:       " << spin_direction << "\n";
         std::cout << "expected:   " << jams::fmt::sci << reference << " meV/spin\n";

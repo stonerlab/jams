@@ -29,22 +29,20 @@
 #include "jams/solvers/cpu_metadynamics_metropolis_solver.h"
 
 
-#define DEFINED_SOLVER(name, type) \
+#define DEFINED_SOLVER(name, type, settings) \
 { \
 if (lowercase(settings["module"]) == name) { \
 std::cout << name << " solver \n"; \
-return new type; \
+return new type(settings); \
 } \
 }
-
-using namespace std;
 
 
 void Solver::compute_fields() {
   if (hamiltonians_.empty()) return;
 
   for (auto& hh : hamiltonians_) {
-    hh->calculate_fields();
+    hh->calculate_fields(this->time());
   }
 
   std::copy(hamiltonians_[0]->ptr_field(), hamiltonians_[0]->ptr_field()+globals::num_spins3, globals::h.data());
@@ -58,17 +56,17 @@ void Solver::compute_fields() {
 
 
 Solver* Solver::create(const libconfig::Setting &settings) {
-  DEFINED_SOLVER("null", NullSolver);
-  DEFINED_SOLVER("rotations-cpu", RotationSolver);
-  DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver);
-  DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver);
-  DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver);
-  DEFINED_SOLVER("monte-carlo-metadynamics-cpu", MetadynamicsMetropolisSolver);
+  DEFINED_SOLVER("null", NullSolver, settings);
+  DEFINED_SOLVER("rotations-cpu", RotationSolver, settings);
+  DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver, settings);
+  DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver, settings);
+  DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver, settings);
+  DEFINED_SOLVER("monte-carlo-metadynamics-cpu", MetadynamicsMetropolisSolver, settings);
 
 #if HAS_CUDA
-  DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver);
-  DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver);
-  DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver);
+  DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver, settings);
+  DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver, settings);
+  DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver, settings);
 #endif
 
   throw std::runtime_error("unknown solver " + std::string(settings["module"].c_str()));
@@ -96,19 +94,19 @@ void Solver::update_thermostat() {
 
 
 void Solver::register_monitor(Monitor* monitor) {
-  monitors_.push_back(static_cast<unique_ptr<Monitor>>(monitor));
+  monitors_.push_back(static_cast<std::unique_ptr<Monitor>>(monitor));
 }
 
 
 void Solver::register_hamiltonian(Hamiltonian* hamiltonian) {
-  hamiltonians_.push_back(static_cast<unique_ptr<Hamiltonian>>(hamiltonian));
+  hamiltonians_.push_back(static_cast<std::unique_ptr<Hamiltonian>>(hamiltonian));
 }
 
 
 void Solver::notify_monitors() {
   for (auto& m : monitors_) {
     if (m->is_updating(iteration_)) {
-      m->update(this);
+      m->update(*this);
     }
   }
 }

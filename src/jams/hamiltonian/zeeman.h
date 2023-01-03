@@ -3,9 +3,8 @@
 #ifndef JAMS_HAMILTONIAN_ZEEMAN_H
 #define JAMS_HAMILTONIAN_ZEEMAN_H
 
-#include <libconfig.h++>
-
-#include "jams/core/hamiltonian.h"
+#include <jams/core/hamiltonian.h>
+#include <jams/containers/multiarray.h>
 
 class ZeemanHamiltonian : public Hamiltonian {
     friend class CudaZeemanHamiltonian;
@@ -13,17 +12,17 @@ class ZeemanHamiltonian : public Hamiltonian {
 public:
     ZeemanHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy() override;
+    double calculate_total_energy(double time) override;
 
-    void calculate_energies() override;
+    void calculate_energies(double time) override;
 
-    void calculate_fields() override;
+    void calculate_fields(double time) override;
 
-    Vec3 calculate_field(int i) override;
+    Vec3 calculate_field(int i, double time) override;
 
-    double calculate_energy(int i) override;
+    double calculate_energy(int i, double time) override;
 
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
 
 private:
     jams::MultiArray<double, 2> dc_local_field_;

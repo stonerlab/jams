@@ -39,9 +39,10 @@
 ///
 /// @endcode
 
-#include <libconfig.h++>
 
-#include "jams/core/base.h"
+#include <jams/core/base.h>
+
+namespace libconfig { class Setting; }
 
 class Solver;
 
@@ -72,7 +73,7 @@ public:
     /// iteration is complete and the monitor can do some calculations based
     /// on the current state of the system if needed.
     ///
-    virtual void update(Solver *solver) = 0;
+    virtual void update(Solver& solver) = 0;
 
     ///
     /// Runs any post processing.

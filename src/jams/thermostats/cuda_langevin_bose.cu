@@ -27,31 +27,29 @@
 #include "jams/thermostats/cuda_langevin_bose.h"
 #include "jams/thermostats/cuda_langevin_bose_kernel.h"
 
-using namespace std;
-
 CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const int num_spins)
 : Thermostat(temperature, sigma, num_spins),
   debug_(false)
   {
-   cout << "\n  initialising CUDA Langevin semi-quantum noise thermostat\n";
+   std::cout << "\n  initialising CUDA Langevin semi-quantum noise thermostat\n";
 
-   config->lookupValue("thermostat.zero_point", do_zero_point_);
+   globals::config->lookupValue("thermostat.zero_point", do_zero_point_);
 
    double t_warmup = 1e-10 / 1e-12; // 0.1 ns
-   config->lookupValue("thermostat.warmup_time", t_warmup);
+   globals::config->lookupValue("thermostat.warmup_time", t_warmup);
 
    omega_max_ = 25.0 * kTwoPi;
-   config->lookupValue("thermostat.w_max", omega_max_);
+   globals::config->lookupValue("thermostat.w_max", omega_max_);
 
-   double dt_thermostat = double(::config->lookup("solver.t_step")) / 1e-12;
+   double dt_thermostat = double(::globals::config->lookup("solver.t_step")) / 1e-12;
    delta_tau_ = (dt_thermostat * kBoltzmannIU) / kHBarIU;
 
-   cout << "    omega_max (THz) " << omega_max_ / (kTwoPi) << "\n";
-   cout << "    hbar*w/kB " << (kHBarIU * omega_max_) / (kBoltzmannIU) << "\n";
-   cout << "    t_step " << dt_thermostat << "\n";
-   cout << "    delta tau " << delta_tau_ << "\n";
+   std::cout << "    omega_max (THz) " << omega_max_ / (kTwoPi) << "\n";
+   std::cout << "    hbar*w/kB " << (kHBarIU * omega_max_) / (kBoltzmannIU) << "\n";
+   std::cout << "    t_step " << dt_thermostat << "\n";
+   std::cout << "    delta tau " << delta_tau_ << "\n";
 
-   cout << "    initialising CUDA streams\n";
+   std::cout << "    initialising CUDA streams\n";
 
    if (cudaStreamCreate(&dev_stream_) != cudaSuccess) {
      jams_die("Failed to create CUDA stream in CudaLangevinBoseThermostat");
@@ -61,7 +59,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
      jams_die("Failed to create CURAND stream in CudaLangevinBoseThermostat");
    }
 
-   cout << "    initialising CURAND\n";
+   std::cout << "    initialising CURAND\n";
 
    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
@@ -135,7 +133,7 @@ CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
 }
 
 void CudaLangevinBoseThermostat::warmup(const unsigned steps) {
-  cout << "warming up thermostat " << steps << " steps @ " << this->temperature() << "K" << std::endl;
+  std::cout << "warming up thermostat " << steps << " steps @ " << this->temperature() << "K" << std::endl;
 
   for (auto i = 0; i < steps; ++i) {
     update();

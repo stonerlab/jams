@@ -2,10 +2,13 @@
 #ifndef INCLUDED_JAMS_MONITOR_CUDA_NEUTRON_SCATTERING_NO_LATTICE
 #define INCLUDED_JAMS_MONITOR_CUDA_NEUTRON_SCATTERING_NO_LATTICE
 
-#include "jams/monitors/spectrum_general.h"
-#include "jams/interface/fft.h"
-#include <jams/lattice/interaction_neartree.h>
 #include <jams/core/monitor.h>
+#include <jams/containers/multiarray.h>
+#include <jams/interface/fft.h>
+#include <jams/lattice/interaction_neartree.h>
+
+#include <vector>
+#include <complex>
 
 class CudaNeutronScatteringNoLatticeMonitor : public Monitor {
 public:
@@ -13,7 +16,7 @@ public:
     ~CudaNeutronScatteringNoLatticeMonitor() override = default;
 
     void post_process() override {};
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
 private:
 
     void configure_kspace_vectors(const libconfig::Setting& settings);

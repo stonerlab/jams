@@ -5,20 +5,25 @@
 #ifndef JAMS_MONITOR_UNITCELL_AVERAGE_H
 #define JAMS_MONITOR_UNITCELL_AVERAGE_H
 
-#include "jams/core/monitor.h"
+#include <jams/core/monitor.h>
+#include <jams/helpers/slice.h>
+
+#include <vector>
+
+class Solver;
 
 class UnitcellAverageMonitor : public Monitor {
 public:
     explicit UnitcellAverageMonitor(const libconfig::Setting &settings);
     ~UnitcellAverageMonitor();
 
-    void update(Solver * solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 
 private:
     void open_new_xdmf_file(const std::string &xdmf_file_name);
-    void update_xdmf_file(const std::string &h5_file_name);
-    void write_h5_file(const std::string &h5_file_name);
+    void update_xdmf_file(const std::string &h5_file_name, const double time);
+    void write_h5_file(const std::string &h5_file_name, const int iteration, const double time, const double temperature);
 
     bool         compression_enabled_ = true;
     Slice        slice_;

@@ -6,6 +6,7 @@
 #include <jams/maths/interpolation.h>
 #include <jams/helpers/output.h>
 #include <fstream>
+#include <iostream>
 
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
@@ -133,13 +134,14 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     double range_max = config_required<double>(cvar_settings, "range_max");
     if (cvar_names_[i] == ("skyrmion_coordinate_x") ||
         cvar_names_[i] == ("skyrmion_coordinate_y")) {
-      auto bottom_left = lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
-      auto bottom_right = lattice->get_unitcell().matrix() *
-                          Vec3{double(lattice->size(0)), 0.0, 0.0};
-      auto top_left = lattice->get_unitcell().matrix() *
-                      Vec3{0.0, double(lattice->size(1)), 0.0};
-      auto top_right = lattice->get_unitcell().matrix() *
-                       Vec3{double(lattice->size(0)), double(lattice->size(1)),
+      auto bottom_left = globals::lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
+      auto bottom_right = globals::lattice->get_unitcell().matrix() *
+                          Vec3{double(globals::lattice->size(0)), 0.0, 0.0};
+      auto top_left = globals::lattice->get_unitcell().matrix() *
+                      Vec3{0.0, double(globals::lattice->size(1)), 0.0};
+      auto top_right = globals::lattice->get_unitcell().matrix() *
+                       Vec3{double(globals::lattice->size(0)), double(
+                           globals::lattice->size(1)),
                             0.0};
       if (cvar_names_[i] == ("skyrmion_coordinate_x")) {
         auto bounds_x = std::minmax(
@@ -367,14 +369,15 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
       potential_(i,j) += relative_amplitude * gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
     }
   }
-    if (solver->iteration() % cvar_file_output_ == 0 ) {
-        cvar_file_ << ::solver->time();
-        for (auto n = 0; n < num_cvars_; ++n) {
-            cvar_file_ << " " << cvars_[n]->value();
-        }
-        cvar_file_ << std::endl;
+  
+  if (globals::solver->iteration() % cvar_file_output_ == 0 ) {
+    cvar_file_ << globals::solver->time();
+    for (auto n = 0; n < num_cvars_; ++n) {
+      cvar_file_ << " " << cvars_[n]->value();
     }
+    cvar_file_ << std::endl;
   }
+}
 
 
 double jams::MetadynamicsPotential::current_potential() {

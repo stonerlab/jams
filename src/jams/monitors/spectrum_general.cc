@@ -40,9 +40,7 @@ namespace {
 SpectrumGeneralMonitor::SpectrumGeneralMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
 outfile(jams::output::full_path_filename("fk.tsv")){
-  using namespace std;
-
-  libconfig::Setting& solver_settings = ::config->lookup("solver");
+  libconfig::Setting& solver_settings = ::globals::config->lookup("solver");
 
   double t_step = solver_settings["t_step"];
   double t_run = solver_settings["t_max"];
@@ -53,13 +51,13 @@ outfile(jams::output::full_path_filename("fk.tsv")){
   double freq_max    = 1.0/(2.0*t_sample);
   freq_delta_  = 1.0/(num_samples_*t_sample);
 
-  cout << "\n";
-  cout << "  number of samples " << num_samples_ << "\n";
-  cout << "  sampling time (s) " << t_sample << "\n";
-  cout << "  acquisition time (s) " << t_sample * num_samples_ << "\n";
-  cout << "  frequency resolution (THz) " << freq_delta_ << "\n";
-  cout << "  maximum frequency (THz) " << freq_max << "\n";
-  cout << "\n";
+  std::cout << "\n";
+  std::cout << "  number of samples " << num_samples_ << "\n";
+  std::cout << "  sampling time (s) " << t_sample << "\n";
+  std::cout << "  acquisition time (s) " << t_sample * num_samples_ << "\n";
+  std::cout << "  frequency resolution (THz) " << freq_delta_ << "\n";
+  std::cout << "  maximum frequency (THz) " << freq_max << "\n";
+  std::cout << "\n";
 
   num_qvectors_ = jams::config_required<unsigned>(settings, "num_qvectors");
   num_qpoints_ = jams::config_required<unsigned>(settings, "num_qpoints");
@@ -69,16 +67,12 @@ outfile(jams::output::full_path_filename("fk.tsv")){
   spin_data_.zero();
 }
 
-void SpectrumGeneralMonitor::update(Solver *solver) {
-  using namespace globals;
-  using namespace std;
-
+void SpectrumGeneralMonitor::update(Solver& solver) {
   if (time_point_counter_ < num_samples_) {
-    for (auto i = 0; i < num_spins; ++i) {
-      spin_data_(i, time_point_counter_) = Complex{s(i, 0), s(i, 1)};
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      spin_data_(i, time_point_counter_) = Complex{globals::s(i, 0), globals::s(i, 1)};
     }
   }
-
   time_point_counter_++;
 }
 
@@ -123,15 +117,13 @@ void SpectrumGeneralMonitor::apply_time_fourier_transform() {
 }
 
 SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
-  using namespace std;
   using namespace std::chrono;
   using namespace std::placeholders;
-  using namespace globals;
 
-  cout << "calculating correlation function" << std::endl;
+  std::cout << "calculating correlation function" << std::endl;
   auto start_time = time_point_cast<milliseconds>(system_clock::now());
-  cout << "start   " << get_date_string(start_time) << "\n\n";
-  cout.flush();
+  std::cout << "start   " << get_date_string(start_time) << "\n\n";
+  std::cout.flush();
 
   std::cout << duration_string(start_time, system_clock::now()) << " calculating fft time => frequency" << std::endl;
 
@@ -140,10 +132,10 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   std::cout << duration_string(start_time, system_clock::now()) << " done" << std::endl;
 
 
-  vector<vector<Vec3>> qvecs(num_qpoints_);
+  std::vector<std::vector<Vec3>> qvecs(num_qpoints_);
   for (auto n = 0; n < num_qvectors_; ++n) {
     auto qvec_rand = qmax_ * uniform_random_sphere(jams::instance().random_generator());
-    vector<Vec3> qpoints(num_qvectors_);
+    std::vector<Vec3> qpoints(num_qvectors_);
     for (auto i = 0; i < num_qpoints_; ++i){
       qpoints[i] = qvec_rand * (i / double(num_qpoints_-1));
     }
@@ -151,9 +143,9 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   }
 
   // support for lattice vacancies (we will skip these in the spectrum loop)
-  vector<bool> is_vacancy(num_spins, false);
-  for (auto i = 0; i < num_spins; ++i) {
-    if (s(i, 0) == 0.0 && s(i, 1) == 0.0 && s(i, 2) == 0.0) {
+  std::vector<bool> is_vacancy(globals::num_spins, false);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    if (globals::s(i, 0) == 0.0 && globals::s(i, 1) == 0.0 && globals::s(i, 2) == 0.0) {
       is_vacancy[i] = true;
     }
   }
@@ -169,7 +161,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
       if (is_vacancy[j]) continue;
       for (unsigned n = 0; n < qvecs.size(); ++n) {
         // precalculate the exponential factors for the spatial fourier transform
-        const auto qfactors = generate_expQR(qvecs[n], lattice->displacement(j, i));
+        const auto qfactors = generate_expQR(qvecs[n], globals::lattice->displacement(j, i));
 
         OMP_PARALLEL_FOR
         for (unsigned w = 0; w < padded_size_ / 2 + 1; ++w) {
@@ -196,7 +188,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
   }
 
   auto end_time = time_point_cast<milliseconds>(system_clock::now());
-  cout << "finish  " << get_date_string(end_time) << "\n\n";
-  cout << "runtime " << duration_string(start_time, end_time) << "\n";
-  cout.flush();
+  std::cout << "finish  " << get_date_string(end_time) << "\n\n";
+  std::cout << "runtime " << duration_string(start_time, end_time) << "\n";
+  std::cout.flush();
 }

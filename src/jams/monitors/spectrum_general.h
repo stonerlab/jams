@@ -5,11 +5,12 @@
 #ifndef JAMS_SPECTRUM_GENERAL_H
 #define JAMS_SPECTRUM_GENERAL_H
 
-#include "jams/core/monitor.h"
+#include <jams/core/monitor.h>
+#include <jams/containers/multiarray.h>
+
 #include <fstream>
 #include <vector>
 #include <complex>
-#include <jams/containers/multiarray.h>
 
 class SpectrumGeneralMonitor : public Monitor {
     friend class CudaSpectrumGeneralMonitor;
@@ -18,7 +19,7 @@ public:
     explicit SpectrumGeneralMonitor(const libconfig::Setting &settings);
     ~SpectrumGeneralMonitor() override;
 
-    void update(Solver * solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 private:
 

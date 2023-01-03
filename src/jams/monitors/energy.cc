@@ -19,13 +19,13 @@ EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
   tsv_file << tsv_header();
 }
 
-void EnergyMonitor::update(Solver * solver) {
+void EnergyMonitor::update(Solver& solver) {
   tsv_file.width(12);
 
-  tsv_file << std::scientific << solver->time() << "\t";
+  tsv_file << std::scientific << solver.time() << "\t";
 
-  for (auto &hamiltonian : solver->hamiltonians()) {
-    auto energy = hamiltonian->calculate_total_energy();
+  for (auto &hamiltonian : solver.hamiltonians()) {
+    auto energy = hamiltonian->calculate_total_energy(solver.time());
     tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
   }
 
@@ -37,7 +37,7 @@ std::string EnergyMonitor::tsv_header() {
   ss.width(12);
 
   ss << "time\t";
-  for (auto &hamiltonian : solver->hamiltonians()) {
+  for (auto &hamiltonian : globals::solver->hamiltonians()) {
     ss << hamiltonian->name() << "_E_meV\t";
   }
 

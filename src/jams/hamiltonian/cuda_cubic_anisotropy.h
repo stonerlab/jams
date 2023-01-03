@@ -5,17 +5,15 @@
 #ifndef JAMS_CUDA_CUBIC_ANISOTROPY_H
 #define JAMS_CUDA_CUBIC_ANISOTROPY_H
 
-#include <cuda_runtime_api.h>
-
-#include "jams/cuda/cuda_stream.h"
-#include "jams/hamiltonian/cubic_anisotropy.h"
+#include <jams/cuda/cuda_stream.h>
+#include <jams/hamiltonian/cubic_anisotropy.h>
 
 class CudaCubicHamiltonian : public CubicHamiltonian {
 public:
     CudaCubicHamiltonian(const libconfig::Setting &settings, const unsigned int size);
     ~CudaCubicHamiltonian() override = default;
 
-    void   calculate_fields() override;
+    void   calculate_fields(double time) override;
 private:
 
     CudaStream dev_stream_;

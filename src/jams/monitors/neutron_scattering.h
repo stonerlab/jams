@@ -3,16 +3,11 @@
 #ifndef JAMS_MONITOR_NEUTRON_SCATTERING_H
 #define JAMS_MONITOR_NEUTRON_SCATTERING_H
 
-#include <fstream>
+#include <jams/core/types.h>
+#include <jams/monitors/spectrum_base.h>
+
 #include <complex>
 #include <vector>
-
-#include <libconfig.h++>
-
-#include "jams/interface/fft.h"
-#include "jams/core/types.h"
-#include "jams/core/monitor.h"
-#include "jams/monitors/spectrum_base.h"
 
 class Solver;
 
@@ -41,7 +36,7 @@ class NeutronScatteringMonitor : public SpectrumBaseMonitor {
     ~NeutronScatteringMonitor() override = default;
 
     void post_process() override {};
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
 
 private:
     void configure_form_factors(libconfig::Setting& settings);

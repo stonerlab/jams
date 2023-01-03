@@ -5,15 +5,16 @@
 #ifndef JAMS_SPIN_CORRELATION_H
 #define JAMS_SPIN_CORRELATION_H
 
-#include <complex>
+#include <jams/core/monitor.h>
 #include <jams/containers/multiarray.h>
-#include "jams/core/monitor.h"
+
+class Solver;
 
 class SpinCorrelationMonitor : public Monitor {
 public:
     explicit SpinCorrelationMonitor(const libconfig::Setting &settings);
 
-    void update(Solver * solver) override;
+    void update(Solver& solver) override;
     void post_process() override;
 private:
     template <typename T>

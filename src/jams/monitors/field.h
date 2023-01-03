@@ -3,13 +3,12 @@
 #ifndef JAMS_MONITOR_FIELD_H
 #define JAMS_MONITOR_FIELD_H
 
+#include <jams/core/monitor.h>
+
 #include <fstream>
+#include <string>
 
-#include <libconfig.h++>
-
-#include "jams/core/types.h"
-#include "jams/core/solver.h"
-#include "jams/core/monitor.h"
+class Solver;
 
 class FieldMonitor : public Monitor {
 public:
@@ -17,7 +16,7 @@ public:
 
     ~FieldMonitor() override = default;
 
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 
 private:

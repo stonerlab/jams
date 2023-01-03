@@ -7,8 +7,6 @@
 
 #include <jams/lattice/interaction_neartree.h>
 
-using namespace std;
-
 ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Setting &settings,
     const unsigned int size) : SparseInteractionHamiltonian(settings, size) {
 
@@ -17,24 +15,24 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   radius_cutoff_ = input_distance_unit_conversion_ * jams::config_required<double>(settings, "r_cutoff");
 
 
-  cout << "  cutoff radius: " << jams::fmt::decimal << radius_cutoff_ << " (latt_const)\n";
-  cout << "  max cutoff radius: " << lattice->max_interaction_radius() << " (latt_const)\n";
+  std::cout << "  cutoff radius: " << jams::fmt::decimal << radius_cutoff_ << " (latt_const)\n";
+  std::cout << "  max cutoff radius: " << globals::lattice->max_interaction_radius() << " (latt_const)\n";
 
-  if (radius_cutoff_ > lattice->max_interaction_radius()) {
+  if (radius_cutoff_ > globals::lattice->max_interaction_radius()) {
     throw std::runtime_error("cutoff radius is larger than the maximum radius which avoids self interaction");
   }
 
-  ofstream of(jams::output::full_path_filename("exchange_functional.tsv"));
+  std::ofstream of(jams::output::full_path_filename("exchange_functional.tsv"));
   output_exchange_functional(of, exchange_functional, radius_cutoff_);
 
-  jams::InteractionNearTree neartree(lattice->get_supercell().a(), lattice->get_supercell().b(), lattice->get_supercell().c(), lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
-  neartree.insert_sites(lattice->atom_cartesian_positions());
+  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
+  neartree.insert_sites(globals::lattice->atom_cartesian_positions());
 
   double total_abs_exchange = 0.0;
 
   auto counter = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto r_i = lattice->atom_position(i);
+    auto r_i = globals::lattice->atom_position(i);
     const auto nbrs = neartree.neighbours(r_i, radius_cutoff_);
 
     for (const auto& nbr : nbrs) {
@@ -42,7 +40,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       if (i == j) {
         continue;
       }
-      const auto rij = norm(::lattice->displacement(i, j));
+      const auto rij = norm(::globals::lattice->displacement(i, j));
       const auto Jij = exchange_functional(rij);
       this->insert_interaction_scalar(i, j, Jij);
       counter++;
@@ -50,9 +48,9 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     }
   }
 
-  cout << "  total interactions " << jams::fmt::integer << counter << "\n";
-  cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
-  cout << "  average abs exchange energy per spin (meV)" << jams::fmt::decimal << total_abs_exchange / double(globals::num_spins) << "\n";
+  std::cout << "  total interactions " << jams::fmt::integer << counter << "\n";
+  std::cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
+  std::cout << "  average abs exchange energy per spin (meV)" << jams::fmt::decimal << total_abs_exchange / double(globals::num_spins) << "\n";
 
   finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
 }
@@ -90,26 +88,26 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalType
 ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting &settings) {
   using namespace std::placeholders;
 
-  const string functional_name = lowercase(jams::config_required<string>(settings, "functional"));
-  cout << "  exchange functional: " << functional_name << "\n";
+  const std::string functional_name = lowercase(jams::config_required<std::string>(settings, "functional"));
+  std::cout << "  exchange functional: " << functional_name << "\n";
 
   if (functional_name == "rkky") {
-    return bind(functional_rkky, _1,
+    return std::bind(functional_rkky, _1,
                 input_energy_unit_conversion_ * double(settings["J0"]),
                 input_distance_unit_conversion_ * double(settings["r0"]),
                 double(settings["k_F"]));
   } else if (functional_name == "exponential") {
-    return bind(functional_exp, _1,
+    return std::bind(functional_exp, _1,
                 input_energy_unit_conversion_ * double(settings["J0"]),
                 input_distance_unit_conversion_ * double(settings["r0"]),
                 input_distance_unit_conversion_ * double(settings["sigma"]));
   } else if (functional_name == "gaussian") {
-    return bind(functional_gaussian, _1,
+    return std::bind(functional_gaussian, _1,
                 input_energy_unit_conversion_ * double(settings["J0"]),
                 input_distance_unit_conversion_ * double(settings["r0"]),
                 input_distance_unit_conversion_ * double(settings["sigma"]));
   } else if (functional_name == "gaussian_multi") {
-    return bind(functional_gaussian_multi, _1,
+    return std::bind(functional_gaussian_multi, _1,
                 input_energy_unit_conversion_ * double(settings["J0"]),
                 input_distance_unit_conversion_ * double(settings["r0"]),
                 input_distance_unit_conversion_ * double(settings["sigma0"]),
@@ -120,16 +118,16 @@ ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting
                 input_distance_unit_conversion_ * double(settings["r2"]),
                 input_distance_unit_conversion_ * double(settings["sigma2"]));
   } else if (functional_name == "kaneyoshi") {
-    return bind(functional_kaneyoshi, _1,
+    return std::bind(functional_kaneyoshi, _1,
                 input_energy_unit_conversion_ * double(settings["J0"]),
                 input_distance_unit_conversion_ * double(settings["r0"]),
                 input_distance_unit_conversion_ * double(settings["sigma"]));
   } else if (functional_name == "step") {
-    return bind(functional_step, _1,
+    return std::bind(functional_step, _1,
                 input_energy_unit_conversion_ * double(settings["J0"]),
                 input_distance_unit_conversion_ * double(settings["r_cutoff"]));
   } else {
-    throw runtime_error("unknown exchange functional: " + functional_name);
+    throw std::runtime_error("unknown exchange functional: " + functional_name);
   }
 }
 
@@ -139,7 +137,7 @@ ExchangeFunctionalHamiltonian::output_exchange_functional(std::ostream &os,
   os << "radius_nm  exchange_meV\n";
   double r = 0.0;
   while (r < r_cutoff) {
-    os << jams::fmt::decimal << r * ::lattice->parameter() * 1e9 << " " << jams::fmt::sci << functional(r) << "\n";
+    os << jams::fmt::decimal << r * ::globals::lattice->parameter() * 1e9 << " " << jams::fmt::sci << functional(r) << "\n";
     r += delta_r;
   }
 }

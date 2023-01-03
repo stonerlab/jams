@@ -49,6 +49,10 @@ public:
     /// Default destructor
     ~MetadynamicsMetropolisSolver() override = default;
 
+    inline explicit MetadynamicsMetropolisSolver(const libconfig::Setting &settings) {
+      initialize(settings);
+    }
+
     // Initializes the MetadynamicsMetropolisSolver using settings from the global
     // config. This will also create and attach a coordinate variable object
     // specified in the config.

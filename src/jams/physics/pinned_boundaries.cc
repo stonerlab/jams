@@ -29,11 +29,11 @@ PinnedBoundariesPhysics::PinnedBoundariesPhysics(const libconfig::Setting &setti
   std::vector<int> right_region_indices;
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto cell = ::lattice->cell_offset(i);
+    auto cell = ::globals::lattice->cell_offset(i);
     if (cell[0] < left_pinned_cells) {
       left_region_indices.push_back(i);
     }
-    if (cell[0] >= lattice->size()[0] - right_pinned_cells) {
+    if (cell[0] >= globals::lattice->size()[0] - right_pinned_cells) {
       right_region_indices.push_back(i);
     }
   }
@@ -48,12 +48,10 @@ PinnedBoundariesPhysics::PinnedBoundariesPhysics(const libconfig::Setting &setti
 }
 
 void PinnedBoundariesPhysics::update(const int &iterations, const double &time, const double &dt) {
-  using namespace globals;
-
   // Rotate the spins in the left region so that their magnetisation points
   // along the pinning direction
 
-  if (::solver->is_cuda_solver()) {
+  if (globals::solver->is_cuda_solver()) {
     Vec3 left_mag = jams::vector_field_indexed_scale_and_reduce_cuda(globals::s, globals::mus, left_pinned_indices_);
 
     auto left_rotation_matrix = rotation_matrix_between_vectors(

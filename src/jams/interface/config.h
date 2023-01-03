@@ -6,9 +6,8 @@
 #define JAMS_CONFIG_H
 
 #include <libconfig.h++>
+#include <jams/core/types.h>
 #include <jams/helpers/utils.h>
-#include <jams/core/interactions.h>
-#include "jams/core/types.h"
 
 void overwrite_config_settings(libconfig::Setting& orig, const libconfig::Setting& patch);
 

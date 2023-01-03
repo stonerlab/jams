@@ -13,17 +13,14 @@
 
 #include <complex>
 
-using namespace std;
-using namespace jams;
-using namespace libconfig;
-
 MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting &settings) : SpectrumBaseMonitor(settings) {
   zero(cumulative_magnon_spectrum_.resize(num_motif_atoms(), num_time_samples(), num_kpoints()));
   zero(transformations_.resize(globals::num_spins));
   zero(transformed_spins_.resize(globals::num_spins, 3));
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    transformations_(i) = lattice->material(lattice->atom_material_id(i)).transform;
+    transformations_(i) = globals::lattice->material(
+        globals::lattice->atom_material_id(i)).transform;
   }
 
   do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
@@ -31,7 +28,7 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting &settings)
   print_info();
 }
 
-void MagnonSpectrumMonitor::update(Solver *solver) {
+void MagnonSpectrumMonitor::update(Solver& solver) {
 
   transformed_spins_.zero();
 
@@ -62,27 +59,27 @@ void MagnonSpectrumMonitor::update(Solver *solver) {
 void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
 
   for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
-    ofstream ofs(jams::output::full_path_filename_series("magnon_spectrum_path.tsv", n, 1));
+    std::ofstream ofs(jams::output::full_path_filename_series("magnon_spectrum_path.tsv", n, 1));
     ofs << jams::fmt::integer << "index";
     ofs << jams::fmt::decimal << "q_total";
     ofs << jams::fmt::decimal << "h" << jams::fmt::decimal<< "k" << jams::fmt::decimal<< "l";
     ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
     ofs << jams::fmt::decimal << "f_THz";
     ofs << jams::fmt::decimal << "E_meV";
-    for (const string& k : {"x", "y", "z"}) {
-      for (const string &l : {"x", "y", "z"}) {
+    for (const std::string& k : {"x", "y", "z"}) {
+      for (const std::string &l : {"x", "y", "z"}) {
         ofs << jams::fmt::sci << "Re_sqw_" + k + l;
         ofs << jams::fmt::sci << "Im_sqw_" + k + l;
       }
     }
-    ofs << endl;
+    ofs << std::endl;
 
     // sample time is here because the fourier transform in time is not an integral
     // but a discrete sum
     auto prefactor = (sample_time_interval() / num_periodogram_iterations());
     auto time_points = cumulative_magnon_spectrum_.size(1);
 
-    MultiArray<MagnonSpectrumMonitor::Mat3cx, 2> total_magnon_spectrum(cumulative_magnon_spectrum_.size(1), cumulative_magnon_spectrum_.size(2));
+    jams::MultiArray<MagnonSpectrumMonitor::Mat3cx, 2> total_magnon_spectrum(cumulative_magnon_spectrum_.size(1), cumulative_magnon_spectrum_.size(2));
     zero(total_magnon_spectrum);
     for (auto a = 0; a < cumulative_magnon_spectrum_.size(0); ++a) {
       for (auto f = 0; f < cumulative_magnon_spectrum_.size(1); ++f) {
@@ -97,17 +94,17 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum() {
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
       double total_distance = 0.0;
       for (auto j = path_begin; j < path_end; ++j) {
-        ofs << fmt::integer << j;
-        ofs << fmt::decimal << total_distance;
-        ofs << fmt::decimal << kspace_paths_[j].hkl;
-        ofs << fmt::decimal << kspace_paths_[j].xyz;
-        ofs << fmt::decimal << i * frequency_resolution_thz(); // THz
-        ofs << fmt::decimal << i * frequency_resolution_thz() * 4.135668; // meV
+        ofs << jams::fmt::integer << j;
+        ofs << jams::fmt::decimal << total_distance;
+        ofs << jams::fmt::decimal << kspace_paths_[j].hkl;
+        ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
+        ofs << jams::fmt::decimal << i * frequency_resolution_thz(); // THz
+        ofs << jams::fmt::decimal << i * frequency_resolution_thz() * 4.135668; // meV
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
         for (auto k : {0,1,2}) {
           for (auto l : {0,1,2}) {
-            ofs << fmt::sci << prefactor * total_magnon_spectrum(i, j)[k][l].real();
-            ofs << fmt::sci << prefactor * total_magnon_spectrum(i, j)[k][l].imag();
+            ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(i, j)[k][l].real();
+            ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(i, j)[k][l].imag();
           }
         }
         total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j+1].xyz);
@@ -124,24 +121,25 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum() {
 
   for (auto site = 0; site < num_motif_atoms(); ++site) {
     for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
-      ofstream ofs(jams::output::full_path_filename_series(
-          "magnon_spectrum_site_" + to_string(site) + "_path.tsv", n, 1));
+      std::ofstream ofs(jams::output::full_path_filename_series(
+          "magnon_spectrum_site_" + std::to_string(site) + "_path.tsv", n, 1));
 
       ofs << "# site: " << site << " ";
-      ofs << "material: " << lattice->material_name(lattice->motif_atom(site).material_index) << "\n";
+      ofs << "material: " << globals::lattice->material_name(
+          globals::lattice->motif_atom(site).material_index) << "\n";
       ofs << jams::fmt::integer << "index";
       ofs << jams::fmt::decimal << "q_total";
       ofs << jams::fmt::decimal << "h" << jams::fmt::decimal<< "k" << jams::fmt::decimal<< "l";
       ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
       ofs << jams::fmt::decimal << "f_THz";
       ofs << jams::fmt::decimal << "E_meV";
-      for (const string& k : {"x", "y", "z"}) {
-        for (const string &l : {"x", "y", "z"}) {
+      for (const std::string& k : {"x", "y", "z"}) {
+        for (const std::string &l : {"x", "y", "z"}) {
           ofs << jams::fmt::sci << "Re_sqw_" + k + l;
           ofs << jams::fmt::sci << "Im_sqw_" + k + l;
         }
       }
-      ofs << endl;
+      ofs << std::endl;
 
       // sample time is here because the fourier transform in time is not an integral
       // but a discrete sum
@@ -153,16 +151,16 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum() {
       for (auto i = 0; i < (time_points / 2) + 1; ++i) {
         double total_distance = 0.0;
         for (auto j = path_begin; j < path_end; ++j) {
-          ofs << fmt::integer << j;
-          ofs << fmt::decimal << total_distance;
-          ofs << fmt::decimal << kspace_paths_[j].hkl;
-          ofs << fmt::decimal << kspace_paths_[j].xyz;
-          ofs << fmt::decimal << i * frequency_resolution_thz(); // THz
-          ofs << fmt::decimal << i * frequency_resolution_thz() * 4.135668; // meV
+          ofs << jams::fmt::integer << j;
+          ofs << jams::fmt::decimal << total_distance;
+          ofs << jams::fmt::decimal << kspace_paths_[j].hkl;
+          ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
+          ofs << jams::fmt::decimal << i * frequency_resolution_thz(); // THz
+          ofs << jams::fmt::decimal << i * frequency_resolution_thz() * 4.135668; // meV
           for (auto k : {0, 1, 2}) {
             for (auto l : {0, 1, 2}) {
-              ofs << fmt::sci << prefactor * cumulative_magnon_spectrum_(site, i, j)[k][l].real();
-              ofs << fmt::sci << prefactor * cumulative_magnon_spectrum_(site, i, j)[k][l].imag();
+              ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, i, j)[k][l].real();
+              ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, i, j)[k][l].imag();
             }
           }
           total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j+1].xyz);
@@ -181,12 +179,12 @@ MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
 
-  MultiArray<Mat3cx, 3> magnon_spectrum(num_sites, num_freqencies, num_reciprocal_points);
+  jams::MultiArray<Mat3cx, 3> magnon_spectrum(num_sites, num_freqencies, num_reciprocal_points);
   magnon_spectrum.zero();
 
   for (auto a = 0; a < num_sites; ++a) {
     // structure factor: note that q and r are in fractional coordinates (hkl, abc)
-    const Vec3 r = lattice->motif_atom(a).position;
+    const Vec3 r = globals::lattice->motif_atom(a).position;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
         auto q = kpoint.hkl;

@@ -2,9 +2,6 @@
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
 
-using namespace std;
-using namespace libconfig;
-
 namespace jams {
 // Calculates the approximate neutron form factor at |q|
 // Approximation and constants from International Tables for Crystallography: Vol. C (pp. 454–461).
@@ -19,19 +16,19 @@ namespace jams {
       return 0.5 * ffq;
     }
 
-    std::pair<vector<FormFactorG>, vector<FormFactorJ>> read_form_factor_settings(Setting &settings) {
-      auto num_materials = lattice->num_materials();
+    std::pair<std::vector<FormFactorG>, std::vector<FormFactorJ>> read_form_factor_settings(libconfig::Setting &settings) {
+      auto num_materials = globals::lattice->num_materials();
 
       if (settings.getLength() != num_materials) {
-        throw runtime_error("there must be one form factor per material\"");
+        throw std::runtime_error("there must be one form factor per material\"");
       }
 
-      vector<FormFactorG> g_params(num_materials);
-      vector<FormFactorJ> j_params(num_materials);
+      std::vector<FormFactorG> g_params(num_materials);
+      std::vector<FormFactorJ> j_params(num_materials);
 
       for (auto i = 0; i < settings.getLength(); ++i) {
         for (auto l : {0,2,4,6}) {
-          j_params[i][l] = config_optional<FormFactorCoeff>(settings[i], "j" + to_string(l), j_params[i][l]);
+          j_params[i][l] = config_optional<FormFactorCoeff>(settings[i], "j" + std::to_string(l), j_params[i][l]);
         }
         g_params[i] = config_required<FormFactorG>(settings[i], "g");
       }

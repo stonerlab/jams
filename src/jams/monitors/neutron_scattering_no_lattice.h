@@ -5,8 +5,8 @@
 #ifndef JAMS_NEUTRON_SCATTERING_NO_LATTICE_H
 #define JAMS_NEUTRON_SCATTERING_NO_LATTICE_H
 
-#include "jams/monitors/spectrum_general.h"
-#include "jams/interface/fft.h"
+#include <jams/core/monitor.h>
+#include <jams/interface/fft.h>
 #include <jams/lattice/interaction_neartree.h>
 
 class NeutronScatteringNoLatticeMonitor : public Monitor {
@@ -15,7 +15,7 @@ public:
     ~NeutronScatteringNoLatticeMonitor() override = default;
 
     void post_process() override {};
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
 private:
 
     void configure_kspace_vectors(const libconfig::Setting& settings);

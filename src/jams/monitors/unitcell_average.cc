@@ -25,8 +25,6 @@
 
 #include "jams/monitors/unitcell_average.h"
 
-using namespace std;
-
 namespace {
     const unsigned h5_compression_chunk_size = 4095;
     const unsigned h5_compression_factor = 6;
@@ -35,27 +33,25 @@ namespace {
 UnitcellAverageMonitor::UnitcellAverageMonitor(const libconfig::Setting &settings)
     : Monitor(settings),
       slice_() {
-  using namespace globals;
-
   output_step_freq_ = settings["output_steps"];
 
-  open_new_xdmf_file(jams::instance().output_path() + "/" + simulation_name + "_avg.xdmf");
+  open_new_xdmf_file(jams::instance().output_path() + "/" + globals::simulation_name + "_avg.xdmf");
 
   spin_transformations_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    spin_transformations_[i] = lattice->material(lattice->atom_material_id(i)).transform;
+    spin_transformations_[i] = globals::lattice->material(globals::lattice->atom_material_id(i)).transform;
   }
 
-  cell_centers_.resize(lattice->num_cells(), 3);
+  cell_centers_.resize(globals::lattice->num_cells(), 3);
 
-  for (auto i = 0; i < lattice->num_cells(); ++i) {
+  for (auto i = 0; i < globals::lattice->num_cells(); ++i) {
     for (auto j = 0; j < 3; ++j) {
-      cell_centers_(i, j) = lattice->cell_center(i)[j];
+      cell_centers_(i, j) = globals::lattice->cell_center(i)[j];
     }
   }
 
-  cell_mag_.resize(lattice->num_cells(), 3);
-  cell_neel_.resize(lattice->num_cells(), 3);
+  cell_mag_.resize(globals::lattice->num_cells(), 3);
+  cell_neel_.resize(globals::lattice->num_cells(), 3);
 }
 
 UnitcellAverageMonitor::~UnitcellAverageMonitor() {
@@ -64,67 +60,63 @@ UnitcellAverageMonitor::~UnitcellAverageMonitor() {
 
 
 
-void UnitcellAverageMonitor::update(Solver * solver) {
-  using namespace globals;
+void UnitcellAverageMonitor::update(Solver& solver) {
+  int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
-  int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
-
-  const std::string h5_file_name(jams::instance().output_path() + "/" + simulation_name + "_" + zero_pad_number(outcount) + "_avg.h5");
+  const std::string h5_file_name(jams::instance().output_path() + "/" + globals::simulation_name + "_" + zero_pad_number(outcount) + "_avg.h5");
 
   cell_mag_.zero();
-  for (auto i = 0; i < num_spins; ++i) {
-    auto cell = lattice->cell_containing_atom(i);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    auto cell = globals::lattice->cell_containing_atom(i);
     for (auto j = 0; j < 3; ++j) {
-      cell_mag_(cell, j) += mus(i)*s(i,j);
+      cell_mag_(cell, j) += globals::mus(i)*globals::s(i,j);
     }
   }
 
   cell_neel_.zero();
-  for (auto i = 0; i < num_spins; ++i) {
-    auto cell = lattice->cell_containing_atom(i);
-    auto s_transformed = spin_transformations_[i] * Vec3{{s(i,0), s(i,1), s(i,2)}};
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    auto cell = globals::lattice->cell_containing_atom(i);
+    auto s_transformed = spin_transformations_[i] * Vec3{{globals::s(i,0), globals::s(i,1), globals::s(i,2)}};
     for (auto j = 0; j < 3; ++j) {
-      cell_neel_(cell, j) += mus(i)*s_transformed[j];
+      cell_neel_(cell, j) += globals::mus(i)*s_transformed[j];
     }
   }
 
-  write_h5_file(h5_file_name);
-  update_xdmf_file(h5_file_name);
+  write_h5_file(h5_file_name, solver.iteration(), solver.time(), solver.physics()->temperature());
+  update_xdmf_file(h5_file_name, solver.time());
 }
 
-void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name) {
-  using namespace globals;
+void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name, const int iteration, const double time, const double temperature) {
   using namespace HighFive;
-
 
   File file(h5_file_name, File::ReadWrite | File::Create | File::Truncate);
 
   DataSetCreateProps props;
 
   if (compression_enabled_) {
-    props.add(Chunking({std::min(h5_compression_chunk_size, lattice->num_cells()), 1}));
+    props.add(Chunking({std::min(h5_compression_chunk_size, globals::lattice->num_cells()), 1}));
     props.add(Shuffle());
     props.add(Deflate(h5_compression_factor));
   }
 
-  auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({lattice->num_cells(), 3}), props);
+  auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({globals::lattice->num_cells(), 3}), props);
 
   pos_dataset.write(cell_centers_);
 
 
-  auto mag_dataset = file.createDataSet<double>("/magnetisation",  DataSpace({lattice->num_cells(), 3}), props);
+  auto mag_dataset = file.createDataSet<double>("/magnetisation",  DataSpace({globals::lattice->num_cells(), 3}), props);
 
-  mag_dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
-  mag_dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
-  mag_dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
+  mag_dataset.createAttribute<int>("iteration", DataSpace::From(iteration));
+  mag_dataset.createAttribute<double>("time", DataSpace::From(time));
+  mag_dataset.createAttribute<double>("temperature", DataSpace::From(temperature));
 
   mag_dataset.write(cell_mag_);
 
-  auto neel_dataset = file.createDataSet<double>("/neel",  DataSpace({lattice->num_cells(), 3}), props);
+  auto neel_dataset = file.createDataSet<double>("/neel",  DataSpace({globals::lattice->num_cells(), 3}), props);
 
-  neel_dataset.createAttribute<int>("iteration", DataSpace::From(solver->iteration()));
-  neel_dataset.createAttribute<double>("time", DataSpace::From(solver->time()));
-  neel_dataset.createAttribute<double>("temperature", DataSpace::From(solver->physics()->temperature()));
+  neel_dataset.createAttribute<int>("iteration", DataSpace::From(iteration));
+  neel_dataset.createAttribute<double>("time", DataSpace::From(time));
+  neel_dataset.createAttribute<double>("temperature", DataSpace::From(temperature));
 
   neel_dataset.write(cell_neel_);
 }
@@ -132,8 +124,6 @@ void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name) {
 //---------------------------------------------------------------------
 
 void UnitcellAverageMonitor::open_new_xdmf_file(const std::string &xdmf_file_name) {
-  using namespace globals;
-
   // create xdmf_file_
   xdmf_file_ = fopen(xdmf_file_name.c_str(), "w");
 
@@ -142,7 +132,7 @@ void UnitcellAverageMonitor::open_new_xdmf_file(const std::string &xdmf_file_nam
   fputs("<Xdmf xmlns:xi=\"http://www.w3.org/2003/XInclude\" Version=\"2.2\">\n", xdmf_file_);
   fputs("  <Domain Name=\"JAMS\">\n", xdmf_file_);
   fprintf(xdmf_file_, "    <Information Name=\"Commit\" Value=\"%s\" />\n", jams::build::hash);
-  fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", simulation_name.c_str());
+  fprintf(xdmf_file_, "    <Information Name=\"Configuration\" Value=\"%s\" />\n", globals::simulation_name.c_str());
   fputs("    <Grid Name=\"Time\" GridType=\"Collection\" CollectionType=\"Temporal\">\n", xdmf_file_);
   fputs("    </Grid>\n", xdmf_file_);
   fputs("  </Domain>\n", xdmf_file_);
@@ -152,17 +142,15 @@ void UnitcellAverageMonitor::open_new_xdmf_file(const std::string &xdmf_file_nam
 
 //---------------------------------------------------------------------
 
-void UnitcellAverageMonitor::update_xdmf_file(const std::string &h5_file_name) {
-  using namespace globals;
-
-  hsize_t      data_dimension  = lattice->num_cells();
+void UnitcellAverageMonitor::update_xdmf_file(const std::string &h5_file_name, const double time) {
+  hsize_t      data_dimension  = globals::lattice->num_cells();
   unsigned int float_precision = 8;
 
   // rewind the closing tags of the XML  (Grid, Domain, Xdmf)
   fseek(xdmf_file_, -31, SEEK_CUR);
 
   fputs("      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n", xdmf_file_);
-  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", solver->time());
+  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", time);
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%llu\" />\n", data_dimension);
   fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%llu 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);

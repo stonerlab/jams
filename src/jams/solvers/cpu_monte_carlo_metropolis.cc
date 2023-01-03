@@ -15,20 +15,15 @@
 
 #include <libconfig.h++>
 
-
-using namespace std;
-
 void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
-  using namespace globals;
-
   max_steps_ = jams::config_required<int>(settings, "max_steps");
   min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
   output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
   select_spins_by_random_ = jams::config_optional<bool>(settings, "select_spins_by_random", select_spins_by_random_);
 
-  cout << "    max_steps " << max_steps_ << "\n";
-  cout << "    min_steps " << min_steps_ << "\n";
-  cout << "    select_spins_by_random " << std::boolalpha << select_spins_by_random_ << "\n";
+  std::cout << "    max_steps " << max_steps_ << "\n";
+  std::cout << "    min_steps " << min_steps_ << "\n";
+  std::cout << "    select_spins_by_random " << std::boolalpha << select_spins_by_random_ << "\n";
 
   // Create a set of vectors which contain different types of Monte Carlo moves.
   // Each move can has a 'fraction' (weight) associated with it to allow some
@@ -66,6 +61,7 @@ void MetropolisMCSolver::run() {
   moves_accepted_[move_index] += monte_carlo_step(move_functions_[move_index]);
 
   iteration_++;
+  time_ = iteration_;
 
   // Output statistics to file at the configured interval
   if (iteration_ % output_write_steps_ == 0) {
@@ -113,7 +109,7 @@ double MetropolisMCSolver::energy_difference(const int spin_index,
   auto energy_difference = 0.0;
   // Calculate the energy difference from all of the Hamiltonian terms
   for (const auto &ham : hamiltonians_) {
-	  energy_difference += ham->calculate_energy_difference(spin_index, initial_spin, final_spin);
+	  energy_difference += ham->calculate_energy_difference(spin_index, initial_spin, final_spin, globals::solver->time());
 	}
 	return energy_difference;
 }
@@ -127,7 +123,7 @@ void MetropolisMCSolver::output_move_statistics() {
     for (const auto& name : move_names_) {
       stats_file_ << name << " ";
     }
-    stats_file_ << endl;
+    stats_file_ << std::endl;
   }
 
   stats_file_ << iteration() << " ";

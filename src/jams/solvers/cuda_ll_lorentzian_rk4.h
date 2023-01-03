@@ -13,6 +13,11 @@ class CUDALLLorentzianRK4Solver : public CudaSolver {
   public:
     CUDALLLorentzianRK4Solver() = default;
     ~CUDALLLorentzianRK4Solver() override = default;
+
+    inline explicit CUDALLLorentzianRK4Solver(const libconfig::Setting &settings) {
+      initialize(settings);
+    }
+
     void initialize(const libconfig::Setting& settings) override;
     void run() override;
 

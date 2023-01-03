@@ -4,6 +4,7 @@ set(JAMS_SOURCES_CXX
         common.cc
         containers/cell.cc
         core/args.cc
+        core/base.cc
         core/hamiltonian.cc
         core/interactions.cc
         core/jams++.cc

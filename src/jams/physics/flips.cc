@@ -29,5 +29,4 @@ FlipsPhysics::~FlipsPhysics() {
 }
 
 void FlipsPhysics::update(const int &iterations, const double &time, const double &dt) {
-  using namespace globals;
 }

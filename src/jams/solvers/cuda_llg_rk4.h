@@ -13,6 +13,11 @@ class CUDALLGRK4Solver : public CudaSolver {
   public:
     CUDALLGRK4Solver() = default;
     ~CUDALLGRK4Solver() override = default;
+
+    inline explicit CUDALLGRK4Solver(const libconfig::Setting &settings) {
+      initialize(settings);
+    }
+
     void initialize(const libconfig::Setting& settings) override;
     void run() override;
 

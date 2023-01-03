@@ -3,13 +3,12 @@
 #ifndef JAMS_MONITOR_ENERGY_H
 #define JAMS_MONITOR_ENERGY_H
 
+#include <jams/core/monitor.h>
+
 #include <fstream>
+#include <string>
 
-#include <libconfig.h++>
-
-#include "jams/core/types.h"
-#include "jams/core/solver.h"
-#include "jams/core/monitor.h"
+class Solver;
 
 class EnergyMonitor : public Monitor {
 public:
@@ -17,7 +16,7 @@ public:
 
     ~EnergyMonitor() override = default;
 
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 
 private:

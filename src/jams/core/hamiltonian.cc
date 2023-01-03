@@ -62,9 +62,6 @@
   DEFINED_HAMILTONIAN(name, type, settings, size)
 #endif
 
-
-using namespace std;
-
 Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsigned int size, bool is_cuda_solver) {
 
   if (settings.exists("strategy")) {
@@ -98,42 +95,42 @@ Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int 
           field_(size, 3)
 {
 
-  input_energy_unit_name_ = jams::config_optional<string>(settings, "energy_units", jams::defaults::energy_unit_name);
+  input_energy_unit_name_ = jams::config_optional<std::string>(settings, "energy_units", jams::defaults::energy_unit_name);
 
   // old setting name for backwards compatibility
   if (settings.exists("unit_name")) {
-    input_energy_unit_name_ = jams::config_optional<string>(settings, "unit_name", jams::defaults::energy_unit_name);
+    input_energy_unit_name_ = jams::config_optional<std::string>(settings, "unit_name", jams::defaults::energy_unit_name);
   }
 
   if (!jams::internal_energy_unit_conversion.count(input_energy_unit_name_)) {
-    throw runtime_error("energy units: " + input_energy_unit_name_ + " is not known");
+    throw std::runtime_error("energy units: " + input_energy_unit_name_ + " is not known");
   }
 
   input_energy_unit_conversion_ = jams::internal_energy_unit_conversion.at(input_energy_unit_name_);
 
   // global lattice must have been created before accessing ::lattice->parameter()
-  assert(::lattice);
+  assert(::globals::lattice);
 
   const std::map<std::string, double> internal_distance_unit_conversion = {
       {"lattice_constants", 1.0},
-      {"m", 1.0 / ::lattice->parameter()},
-      {"meters", 1.0 / ::lattice->parameter()},
-      {"nm", 1e-9 / (::lattice->parameter())}, // lattice parameter from config is in meters
-      {"nanometers", 1e-9 / (::lattice->parameter())},
-      {"A", 1e-10 / (::lattice->parameter() * 1e10)},
-      {"angstroms", 1e-10 / (::lattice->parameter())}
+      {"m", 1.0 / ::globals::lattice->parameter()},
+      {"meters", 1.0 / ::globals::lattice->parameter()},
+      {"nm", 1e-9 / (::globals::lattice->parameter())}, // lattice parameter from config is in meters
+      {"nanometers", 1e-9 / (::globals::lattice->parameter())},
+      {"A", 1e-10 / (::globals::lattice->parameter() * 1e10)},
+      {"angstroms", 1e-10 / (::globals::lattice->parameter())}
   };
 
-  input_distance_unit_name_ = jams::config_optional<string>(settings, "distance_units", jams::defaults::distance_unit_name);
+  input_distance_unit_name_ = jams::config_optional<std::string>(settings, "distance_units", jams::defaults::distance_unit_name);
 
   if (!internal_distance_unit_conversion.count(input_distance_unit_name_)) {
-    throw runtime_error("distance units: " + input_distance_unit_name_ + " is not known");
+    throw std::runtime_error("distance units: " + input_distance_unit_name_ + " is not known");
   }
 
   input_distance_unit_conversion_ = internal_distance_unit_conversion.at(input_distance_unit_name_);
 
   set_name(settings["module"].c_str());
-  cout << "  " << name() << " hamiltonian\n";
+  std::cout << "  " << name() << " hamiltonian\n";
 
 
 

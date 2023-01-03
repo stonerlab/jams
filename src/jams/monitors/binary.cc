@@ -12,15 +12,12 @@
 
 BinaryMonitor::BinaryMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  using namespace globals;
-
   is_file_overwrite_mode = false;
   settings.lookupValue("overwrite", is_file_overwrite_mode);
 }
 
-void BinaryMonitor::update(Solver * solver) {
-  using namespace globals;
-  int outcount = solver->iteration()/output_step_freq_;
+void BinaryMonitor::update(Solver& solver) {
+  int outcount = solver.iteration()/output_step_freq_;
 
   std::ofstream bin_file;
 
@@ -31,7 +28,7 @@ void BinaryMonitor::update(Solver * solver) {
   }
 
   // pointers must be reinterpreted as a char *
-  bin_file.write(reinterpret_cast<char*>(&num_spins), sizeof(int));
-  bin_file.write(reinterpret_cast<char*>(s.data()), sizeof(double)*num_spins);
+  bin_file.write(reinterpret_cast<char*>(&globals::num_spins), sizeof(int));
+  bin_file.write(reinterpret_cast<char*>(globals::s.data()), sizeof(double)*globals::num_spins);
   bin_file.close();
 }

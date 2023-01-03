@@ -4,6 +4,8 @@
 
 #include <jams/metadynamics/caching_collective_variable.h>
 
+#include <jams/containers/vector_set.h>
+
 // ***************************** WARNING *************************************
 // This finite difference scheme is built on the assumption that
 // you are using either a hexagonal lattice with in-plane lattice vectors
@@ -69,7 +71,7 @@ namespace jams {
         // to know all stencil points belonging to a site to be updated.
         // Here the outer vector indexes the spin 'i' sites and the inner
         // VectorSet will store a list of unique neighbour indices.
-        std::vector<VectorSet<int>> stencil_neighbour_indices_;
+        std::vector<jams::VectorSet<int>> stencil_neighbour_indices_;
 
         // basically a CSR matrix
         std::vector<std::vector<int>> dx_indices_;

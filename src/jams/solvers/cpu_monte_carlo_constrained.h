@@ -17,6 +17,10 @@ class ConstrainedMCSolver : public Solver {
   ConstrainedMCSolver()  = default;
   ~ConstrainedMCSolver() = default;
 
+  inline explicit ConstrainedMCSolver(const libconfig::Setting &settings) {
+    initialize(settings);
+  }
+
   void initialize(const libconfig::Setting& settings) override;
   void run() override;
 

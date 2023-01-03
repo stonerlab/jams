@@ -21,12 +21,10 @@ FieldCoolPhysics::FieldCoolPhysics(const libconfig::Setting &settings)
   integration_time_step_(0.0),
   stepToggle(false),
   initialized(false) {
-  using namespace globals;
-
   initTemp = settings["InitialTemperature"];
   finalTemp = settings["FinalTemperature"];
 
-  integration_time_step_ = ::config->lookup("sim.t_step");
+  integration_time_step_ = globals::config->lookup("sim.t_step");
 
   for (int i = 0; i < 3; ++i) {
     initField[i] = settings["InitialField"][i];
@@ -46,7 +44,7 @@ FieldCoolPhysics::FieldCoolPhysics(const libconfig::Setting &settings)
         deltaH[i] = (initField[i]-finalField[i])/TSteps;
     }
     t_step = coolTime/TSteps;
-    t_eq = config->lookup("sim.t_eq");
+    t_eq = globals::config->lookup("sim.t_eq");
     stepToggle = true;
   } else {
     stepToggle = false;
@@ -56,8 +54,6 @@ FieldCoolPhysics::FieldCoolPhysics(const libconfig::Setting &settings)
 }
 
 void FieldCoolPhysics::update(const int &iterations, const double &time, const double &dt) {
-  using namespace globals;
-
   if (time > t_eq) {
     if (stepToggle == true) {
       int stepCount = (time-t_eq)/t_step;

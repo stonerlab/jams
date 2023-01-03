@@ -1,11 +1,13 @@
 #include <jams/hamiltonian/cuda_applied_field.h>
 #include <jams/hamiltonian/cuda_applied_field_kernel.cuh>
 
+#include <jams/core/globals.h>
+
 CudaAppliedFieldHamiltonian::CudaAppliedFieldHamiltonian(
     const libconfig::Setting &settings, const unsigned int size) : AppliedFieldHamiltonian(
     settings, size) {}
 
-void CudaAppliedFieldHamiltonian::calculate_fields() {
+void CudaAppliedFieldHamiltonian::calculate_fields(double time) {
   dim3 block_size;
   block_size.x = 64;
 
@@ -19,7 +21,7 @@ void CudaAppliedFieldHamiltonian::calculate_fields() {
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaAppliedFieldHamiltonian::calculate_energies() {
+void CudaAppliedFieldHamiltonian::calculate_energies(double time) {
   dim3 block_size;
   block_size.x = 64;
 

@@ -5,13 +5,12 @@
 #ifndef JAMS_CUDA_SPIN_CURRENT_H
 #define JAMS_CUDA_SPIN_CURRENT_H
 
-#include <fstream>
-#include <libconfig.h++>
+#include <jams/containers/sparse_matrix.h>
+#include <jams/core/monitor.h>
+#include <jams/core/types.h>
+#include <jams/cuda/cuda_stream.h>
 
-#include "jams/cuda/cuda_stream.h"
-#include "jams/containers/sparse_matrix.h"
-#include "jams/core/monitor.h"
-#include "jams/core/types.h"
+#include <fstream>
 
 class Solver;
 
@@ -37,13 +36,13 @@ public:
     CudaSpinCurrentMonitor(const libconfig::Setting &settings);
     ~CudaSpinCurrentMonitor();
 
-    void update(Solver * solver);
+    void update(Solver& solver);
     void post_process() override {};
 
 private:
-    void write_spin_current_h5_file(const std::string &h5_file_name);
+    void write_spin_current_h5_file(const std::string &h5_file_name, const int iteration, const double time);
     void open_new_xdmf_file(const std::string &xdmf_file_name);
-    void update_xdmf_file(const std::string &h5_file_name);
+    void update_xdmf_file(const std::string &h5_file_name, const double time);
 
     CudaStream stream;
 

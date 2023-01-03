@@ -6,29 +6,28 @@
 #define JAMS_HAMILTONIAN_SPARSE_INTERACTION_H
 
 #if HAS_CUDA
-#include <cusparse.h>
-#include "jams/cuda/cuda_stream.h"
-#include "jams/cuda/cuda_common.h"
+#include <jams/cuda/cuda_stream.h>
 #endif
 
-#include "jams/core/hamiltonian.h"
-#include "jams/containers/sparse_matrix_builder.h"
+#include <jams/core/hamiltonian.h>
+#include <jams/containers/sparse_matrix.h>
+#include <jams/containers/sparse_matrix_builder.h>
 
 class SparseInteractionHamiltonian : public Hamiltonian {
 public:
     SparseInteractionHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy() override;
+    double calculate_total_energy(double time) override;
 
-    void calculate_energies() override;
+    void calculate_energies(double time) override;
 
-    void calculate_fields() override;
+    void calculate_fields(double time) override;
 
-    Vec3 calculate_field(int i) override;
+    Vec3 calculate_field(int i, double time) override;
 
-    double calculate_energy(int i) override;
+    double calculate_energy(int i, double time) override;
 
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
 
 protected:
     // inserts a scalar interaction into the interaction matrix

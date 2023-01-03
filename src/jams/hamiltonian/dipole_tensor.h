@@ -3,10 +3,7 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_TENSOR_H
 #define JAMS_HAMILTONIAN_DIPOLE_TENSOR_H
 
-#include <libconfig.h++>
-
-#include "jams/hamiltonian/sparse_interaction.h"
-#include "jams/containers/multiarray.h"
+#include <jams/hamiltonian/sparse_interaction.h>
 
 class DipoleTensorHamiltonian : public SparseInteractionHamiltonian {
 public:

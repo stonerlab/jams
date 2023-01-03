@@ -10,8 +10,8 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
-    return approximately_equal(lattice->a(), a, defaults::lattice_tolerance)
-    && approximately_equal(lattice->b(), b, defaults::lattice_tolerance);
+    return approximately_equal(globals::lattice->a(), a, defaults::lattice_tolerance)
+    && approximately_equal(globals::lattice->b(), b, defaults::lattice_tolerance);
   };
 
   // Detect if we have a square or hexagonal lattice in the plane (all other
@@ -103,10 +103,11 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       InteractionData J;
       J.unit_cell_pos_i = 0;
       J.unit_cell_pos_j = 0;
-      J.type_i = lattice->material_name(
-          lattice->motif_atom(J.unit_cell_pos_i).material_index);
-      J.type_j = lattice->material_name(lattice->motif_atom(J.unit_cell_pos_j).material_index);
-      J.r_ij = ::lattice->fractional_to_cartesian(data.first);
+      J.type_i = globals::lattice->material_name(
+          globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+      J.type_j = globals::lattice->material_name(
+          globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+      J.r_ij = globals::lattice->fractional_to_cartesian(data.first);
       J.J_ij[0][0] = data.second;
       interaction_template.push_back(J);
     }
@@ -155,11 +156,11 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       InteractionData J;
       J.unit_cell_pos_i = 0;
       J.unit_cell_pos_j = 0;
-      J.type_i = lattice->material_name(
-          lattice->motif_atom(J.unit_cell_pos_i).material_index);
-      J.type_j = lattice->material_name(
-          lattice->motif_atom(J.unit_cell_pos_j).material_index);
-      J.r_ij = ::lattice->fractional_to_cartesian(data.first);
+      J.type_i = globals::lattice->material_name(
+          globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+      J.type_j = globals::lattice->material_name(
+          globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+      J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
       J.J_ij[0][0] = data.second;
       interaction_template.push_back(J);
     }

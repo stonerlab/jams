@@ -14,8 +14,6 @@ SquarePhysics::SquarePhysics(const libconfig::Setting &settings)
   PulseCount(0),
   PulseTotal(0),
   FieldStrength(3, 0) {
-  using namespace globals;
-
   PulseDuration = settings["PulseDuration"];
   PulseTotal    = settings["PulseTotal"];
   PulseCount = 1;
@@ -29,9 +27,7 @@ SquarePhysics::~SquarePhysics() {
 }
 
 void SquarePhysics::update(const int &iterations, const double &time, const double &dt) {
-  using namespace globals;
-
-  double eqtime = config->lookup("sim.t_eq");
+  double eqtime = globals::config->lookup("sim.t_eq");
 
   if ((time > eqtime) && ((time-eqtime) > (PulseDuration*PulseCount))) {
     PulseCount++;

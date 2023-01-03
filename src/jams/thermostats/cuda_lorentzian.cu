@@ -36,30 +36,30 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
 
   std::cout << "\n  initialising CUDA Langevin arbitrary noise thermostat\n";
 
-  if (lattice->num_materials() > 1) {
+  if (globals::lattice->num_materials() > 1) {
     throw std::runtime_error(
         "CudaLangevinArbitraryThermostat is only implemented for single material cells");
   }
 
   auto noise_spectrum_type = lowercase(
-      jams::config_optional<std::string>(config->lookup("thermostat"),
+      jams::config_optional<std::string>(globals::config->lookup("thermostat"),
                                          "spectrum", "quantum-lorentzian"));
 
   // number of frequencies to discretize the spectrum over
-  num_freq_ = jams::config_optional(config->lookup("thermostat"), "num_freq",
+  num_freq_ = jams::config_optional(globals::config->lookup("thermostat"), "num_freq",
                                     10000);
   // number of terms to use in the convolution sum
-  num_trunc_ = jams::config_optional(config->lookup("thermostat"), "num_trunc",
+  num_trunc_ = jams::config_optional(globals::config->lookup("thermostat"), "num_trunc",
                                      2000);
   assert(num_trunc_ <= num_freq_);
 
   lorentzian_gamma_ = kTwoPi * jams::config_required<double>(
-      config->lookup("thermostat"), "lorentzian_gamma");
+      globals::config->lookup("thermostat"), "lorentzian_gamma");
   lorentzian_omega0_ = kTwoPi * jams::config_required<double>(
-      config->lookup("thermostat"), "lorentzian_omega0");
+      globals::config->lookup("thermostat"), "lorentzian_omega0");
 
 
-  delta_t_ = solver->time_step();
+  delta_t_ = globals::solver->time_step();
   max_omega_ = kPi / delta_t_;
   delta_omega_ = max_omega_ / double(num_freq_);
 
@@ -94,7 +94,7 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
 
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
-      sigma_(i, j) = sqrt(1.0 / solver->time_step());
+      sigma_(i, j) = sqrt(1.0 / globals::solver->time_step());
     }
   }
 
@@ -221,7 +221,7 @@ void CudaLorentzianThermostat::update() {
   CHECK_CURAND_STATUS(
       curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
 
-  const auto n = pbc(solver->iteration(), (2 * num_trunc_ + 1));
+  const auto n = pbc(globals::solver->iteration(), (2 * num_trunc_ + 1));
   arbitrary_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>>(
       noise_.device_data(),
       filter_.device_data(),
@@ -236,7 +236,8 @@ void CudaLorentzianThermostat::update() {
                                noise_.device_data(), 1, dev_stream_);
 
   // generate new random numbers ready for the next round
-  auto start_index = num_spins3_even_ * pbc(solver->iteration() + num_trunc_, 2 * num_trunc_ + 1);
+  auto start_index = num_spins3_even_ * pbc(
+      globals::solver->iteration() + num_trunc_, 2 * num_trunc_ + 1);
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(
           jams::instance().curand_generator(),

@@ -75,6 +75,7 @@
 #include <jams/containers/multiarray.h>
 
 #include <vector>
+#include <string>
 
 class Solver;
 
@@ -84,7 +85,7 @@ public:
 
     ~MagnetisationLayersMonitor() override = default;
 
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
 
     inline void post_process() override {};
 

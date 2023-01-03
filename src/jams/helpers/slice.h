@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <vector>
+#include <iostream>
 
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
@@ -24,8 +25,6 @@ class Slice {
       slice_origin{0.0, 0.0, 0.0},
       slice_size{0.0, 0.0, 0.0},
       slice_map() {
-    using namespace globals;
-
     for (int i = 0; i < 3; ++i) {
       slice_origin[i] = settings["origin"][i];
     }
@@ -36,8 +35,8 @@ class Slice {
     }
     std::cout << "  slice size: " << slice_size[0] << " " << slice_size[1] << " " << slice_size[2] << "\n";
 
-    for (int i = 0; i < num_spins; ++i) {
-      Vec3 pos = lattice->atom_position(i);
+    for (int i = 0; i < globals::num_spins; ++i) {
+      Vec3 pos = globals::lattice->atom_position(i);
 
             // check if the current spin in inside the slice
       if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)
@@ -66,11 +65,12 @@ class Slice {
   }
 
   double position(const int i, const int j) {
-    return lattice->parameter()*lattice->atom_position(slice_map[i])[j];
+    return globals::lattice->parameter() *
+           globals::lattice->atom_position(slice_map[i])[j];
   }
 
   int type(const int i) {
-    return lattice->atom_material_id(slice_map[i]);
+    return globals::lattice->atom_material_id(slice_map[i]);
   }
 
  private:

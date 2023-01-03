@@ -3,18 +3,17 @@
 #ifndef JAMS_MONITOR_BOLTZMANN_H
 #define JAMS_MONITOR_BOLTZMANN_H
 
+#include <jams/core/monitor.h>
+
 #include <fstream>
-
-#include <libconfig.h++>
-
-#include "jams/core/monitor.h"
+#include <vector>
 
 class BoltzmannMonitor : public Monitor {
 public:
     explicit BoltzmannMonitor(const libconfig::Setting &settings);
     ~BoltzmannMonitor() override = default;
 
-    void update(Solver *solver) override;
+    void update(Solver& solver) override;
     void post_process() override {};
 
 private:

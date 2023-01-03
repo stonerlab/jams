@@ -5,11 +5,11 @@
 #ifndef JAMS_SPECTRUM_BASE_H
 #define JAMS_SPECTRUM_BASE_H
 
-#include "jams/core/globals.h"
-#include "jams/interface/fft.h"
-#include "jams/containers/multiarray.h"
-#include "jams/core/monitor.h"
-#include "jams/core/solver.h"
+#include <jams/containers/multiarray.h>
+#include <jams/core/globals.h>
+#include <jams/core/monitor.h>
+#include <jams/core/solver.h>
+#include <jams/interface/fft.h>
 #include <jams/helpers/defaults.h>
 
 namespace jams {
@@ -33,7 +33,7 @@ public:
     ~SpectrumBaseMonitor() override = default;
 
     void post_process() override = 0;
-    void update(Solver *solver) override = 0;
+    void update(Solver& solver) override = 0;
 
     inline int num_motif_atoms() const {
       return num_motif_atoms_;
@@ -48,7 +48,7 @@ public:
     };
 
     inline double sample_time_interval() const {
-      return output_step_freq_ * solver->time_step();
+      return output_step_freq_ * globals::solver->time_step();
     }
 
     inline double num_periodogram_iterations() const {

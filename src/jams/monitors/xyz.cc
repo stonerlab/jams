@@ -2,6 +2,7 @@
 
 #include <string>
 #include <iomanip>
+#include <fstream>
 
 #include "jams/helpers/error.h"
 #include "jams/core/solver.h"
@@ -14,8 +15,6 @@
 
 XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
-  using namespace globals;
-
   output_step_freq_ = settings["output_steps"];
 
   // settings for only outputting a slice
@@ -33,8 +32,8 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
       slice_size[i] = settings["slice_size"][i];
     }
     // check which spins are inside the slice
-    for (int i = 0; i < num_spins; ++i) {
-      Vec3 pos = ::lattice->atom_position(i);
+    for (int i = 0; i < globals::num_spins; ++i) {
+      Vec3 pos = globals::lattice->atom_position(i);
 
       // check if the current spin in inside the slice
       if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)
@@ -46,11 +45,9 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
   }
 }
 
-void XyzMonitor::update(Solver * solver) {
-  using namespace globals;
-
-  if (solver->iteration()%output_step_freq_ == 0) {
-    int outcount = solver->iteration()/output_step_freq_;  // int divisible by modulo above
+void XyzMonitor::update(Solver& solver) {
+  if (solver.iteration()%output_step_freq_ == 0) {
+    int outcount = solver.iteration()/output_step_freq_;  // int divisible by modulo above
 
     std::ofstream xyz_state_file(jams::output::full_path_filename_series(".xyz", outcount));
 
@@ -67,14 +64,14 @@ void XyzMonitor::update(Solver * solver) {
     if (!slice_spins.empty()) {
       for (const auto n : slice_spins) {
         xyz_state_file << std::setw(9) << n;
-        xyz_state_file << std::setw(16) << ::lattice->atom_position(n)[0] << std::setw(16) << ::lattice->atom_position(n)[1] << std::setw(16) << ::lattice->atom_position(n)[2];
-        xyz_state_file << std::setw(16) << s(n,0) << std::setw(16) << s(n,1) << std::setw(16) <<  s(n, 2) << "\n";
+        xyz_state_file << std::setw(16) << globals::lattice->atom_position(n)[0] << std::setw(16) << globals::lattice->atom_position(n)[1] << std::setw(16) << globals::lattice->atom_position(n)[2];
+        xyz_state_file << std::setw(16) << globals::s(n,0) << std::setw(16) << globals::s(n,1) << std::setw(16) <<  globals::s(n, 2) << "\n";
       }
     } else {
-      for (int n = 0; n < num_spins; ++n) {
+      for (int n = 0; n < globals::num_spins; ++n) {
         xyz_state_file << std::setw(9) << n;
-        xyz_state_file << std::setw(16) << ::lattice->atom_position(n)[0] << std::setw(16) << ::lattice->atom_position(n)[1] << std::setw(16) << ::lattice->atom_position(n)[2];
-        xyz_state_file << std::setw(16) << s(n,0) << std::setw(16) << s(n,1) << std::setw(16) <<  s(n, 2) << "\n";
+        xyz_state_file << std::setw(16) << globals::lattice->atom_position(n)[0] << std::setw(16) << globals::lattice->atom_position(n)[1] << std::setw(16) << globals::lattice->atom_position(n)[2];
+        xyz_state_file << std::setw(16) << globals::s(n,0) << std::setw(16) << globals::s(n,1) << std::setw(16) <<  globals::s(n, 2) << "\n";
       }
     }
     xyz_state_file.close();

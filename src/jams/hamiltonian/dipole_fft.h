@@ -3,11 +3,9 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_FFT_H
 #define JAMS_HAMILTONIAN_DIPOLE_FFT_H
 
-#include <libconfig.h++>
-
-#include "jams/types.h"
-#include "jams/core/hamiltonian.h"
-#include "jams/interface/fft.h"
+#include <jams/core/hamiltonian.h>
+#include <jams/core/types.h>
+#include <jams/interface/fft.h>
 
 class DipoleFFTHamiltonian : public Hamiltonian {
 public:
@@ -15,17 +13,17 @@ public:
 
     ~DipoleFFTHamiltonian() override;
 
-    double calculate_total_energy() override;
+    double calculate_total_energy(double time) override;
 
-    void calculate_energies() override;
+    void calculate_energies(double time) override;
 
-    void calculate_fields() override;
+    void calculate_fields(double time) override;
 
-    Vec3 calculate_field(int i) override;
+    Vec3 calculate_field(int i, double time) override;
 
-    double calculate_energy(int i) override;
+    double calculate_energy(int i, double time) override;
 
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) override;
+    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
 
 private:
 

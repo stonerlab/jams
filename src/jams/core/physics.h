@@ -3,10 +3,10 @@
 #ifndef JAMS_CORE_PHYSICS_H
 #define JAMS_CORE_PHYSICS_H
 
-#include <libconfig.h++>
+#include <jams/core/base.h>
+#include <jams/containers/vec3.h>
 
-#include "jams/core/types.h"
-#include "jams/core/base.h"
+namespace libconfig { class Setting; }
 
 class Physics : public Base {
  public:

@@ -13,6 +13,11 @@ class CUDAHeunLLGSolver : public CudaSolver {
   public:
     CUDAHeunLLGSolver() = default;
     ~CUDAHeunLLGSolver() override = default;
+
+    inline explicit CUDAHeunLLGSolver(const libconfig::Setting &settings) {
+      initialize(settings);
+    }
+
     void initialize(const libconfig::Setting& settings) override;
     void run() override;
 

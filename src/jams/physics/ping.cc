@@ -5,6 +5,7 @@
 #include <libconfig.h++>
 
 #include <cmath>
+#include <iostream>
 
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
@@ -77,5 +78,4 @@ PingPhysics::~PingPhysics() {
 }
 
 void PingPhysics::update(const int &iterations, const double &time, const double &dt) {
-  using namespace globals;
 }
