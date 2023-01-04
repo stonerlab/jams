@@ -14,7 +14,7 @@
 #include <stdexcept>
 #include <iostream>
 
-Thermostat* Thermostat::create(const std::string &thermostat_name) {
+Thermostat* Thermostat::create(const std::string &thermostat_name, const double timestep) {
   std::cout << thermostat_name << " thermostat\n";
 
   auto temperature = jams::config_required<double>(
@@ -23,16 +23,16 @@ Thermostat* Thermostat::create(const std::string &thermostat_name) {
   // create the selected thermostat
   #if HAS_CUDA
   if (capitalize(thermostat_name) == "LANGEVIN-WHITE-GPU" || capitalize(thermostat_name) == "CUDA_LANGEVIN_WHITE") {
-      return new CudaLangevinWhiteThermostat(temperature, 0.0, globals::num_spins);
+      return new CudaLangevinWhiteThermostat(temperature, 0.0, timestep, globals::num_spins);
   }
   if (capitalize(thermostat_name) == "LANGEVIN-BOSE-GPU" ||capitalize(thermostat_name) == "CUDA_LANGEVIN_COTH") {
-    return new CudaLangevinBoseThermostat(temperature, 0.0, globals::num_spins);
+    return new CudaLangevinBoseThermostat(temperature, 0.0, timestep, globals::num_spins);
   }
   if (capitalize(thermostat_name) == "LANGEVIN-BOSE-SRK4-GPU") {
-    return new jams::BoseEinsteinCudaSRK4Thermostat(temperature, 0.0, globals::num_spins);
+    return new jams::BoseEinsteinCudaSRK4Thermostat(temperature, 0.0, timestep, globals::num_spins);
   }
   if (capitalize(thermostat_name) == "LANGEVIN-LORENTZIAN-GPU" || capitalize(thermostat_name) == "LANGEVIN-ARBITRARY-GPU" ||capitalize(thermostat_name) == "CUDA_LANGEVIN_ARBITRARY") {
-    return new CudaLorentzianThermostat(temperature, 0.0, globals::num_spins);
+    return new CudaLorentzianThermostat(temperature, 0.0, timestep, globals::num_spins);
   }
   #endif
 

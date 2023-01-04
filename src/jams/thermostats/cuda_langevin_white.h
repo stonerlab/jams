@@ -11,7 +11,7 @@
 
 class CudaLangevinWhiteThermostat : public Thermostat {
  public:
-  CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const int num_spins);
+  CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins);
 
   void update();
 

@@ -27,8 +27,8 @@
 #include "jams/thermostats/cuda_langevin_bose.h"
 #include "jams/thermostats/cuda_langevin_bose_kernel.h"
 
-CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const int num_spins)
-: Thermostat(temperature, sigma, num_spins),
+CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins)
+: Thermostat(temperature, sigma, timestep, num_spins),
   debug_(false)
   {
    std::cout << "\n  initialising CUDA Langevin semi-quantum noise thermostat\n";
@@ -41,7 +41,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    omega_max_ = 25.0 * kTwoPi;
    globals::config->lookupValue("thermostat.w_max", omega_max_);
 
-   double dt_thermostat = double(::globals::config->lookup("solver.t_step")) / 1e-12;
+   double dt_thermostat = timestep;
    delta_tau_ = (dt_thermostat * kBoltzmannIU) / kHBarIU;
 
    std::cout << "    omega_max (THz) " << omega_max_ / (kTwoPi) << "\n";
