@@ -65,7 +65,7 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
   std::cout << "t_min (ps) " << t_min << " steps (" << min_steps_ << ")\n";
 
   std::string thermostat_name = jams::config_optional<std::string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
-  register_thermostat(Thermostat::create(thermostat_name));
+  register_thermostat(Thermostat::create(thermostat_name, this->time_step()));
 
   std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 

@@ -30,8 +30,8 @@
 
 //#define PRINT_NOISE
 
-CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, const double &sigma, const int num_spins)
-: Thermostat(temperature, sigma, num_spins),
+CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins)
+: Thermostat(temperature, sigma, timestep, num_spins),
   filter_temperature_(0.0) {
 
   std::cout << "\n  initialising CUDA Langevin arbitrary noise thermostat\n";
@@ -59,7 +59,7 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
       globals::config->lookup("thermostat"), "lorentzian_omega0");
 
 
-  delta_t_ = globals::solver->time_step();
+  delta_t_ = timestep;
   max_omega_ = kPi / delta_t_;
   delta_omega_ = max_omega_ / double(num_freq_);
 
@@ -94,7 +94,7 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
 
   for (int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
-      sigma_(i, j) = sqrt(1.0 / globals::solver->time_step());
+      sigma_(i, j) = sqrt(1.0 / timestep);
     }
   }
 

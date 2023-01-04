@@ -9,7 +9,7 @@
 
 class Thermostat {
  public:
-  Thermostat(const double &temperature, const double &sigma, const int num_spins)
+  Thermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins)
     : temperature_(temperature),
       sigma_(num_spins, 3),
       noise_(num_spins, 3)
@@ -22,7 +22,7 @@ class Thermostat {
   virtual void update() = 0;
 
   // factory
-  static Thermostat* create(const std::string &thermostat_name);
+  static Thermostat* create(const std::string &thermostat_name, const double timestep);
 
   // accessors
   double temperature() const { return temperature_; }
