@@ -19,8 +19,8 @@
 
 #include "jams/monitors/magnetisation.h"
 
-CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const int num_spins)
-: Thermostat(temperature, sigma, num_spins),
+CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins)
+: Thermostat(temperature, sigma, timestep, num_spins),
   dev_stream_(nullptr) {
   std::cout << "\n  initialising CUDA Langevin white noise thermostat\n";
 
@@ -38,7 +38,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
         denominator = 1.0 + pow2(globals::alpha(i));
       }
       sigma_(i, j) = sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
-                          (globals::mus(i) * globals::gyro(i) * globals::solver->time_step() * denominator));
+                          (globals::mus(i) * globals::gyro(i) * timestep * denominator));
     }
   }
   std::cout << "  done\n\n";

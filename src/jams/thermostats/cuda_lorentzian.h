@@ -134,7 +134,7 @@
 
 class CudaLorentzianThermostat : public Thermostat {
 public:
-    CudaLorentzianThermostat(const double &temperature, const double &sigma, const int num_spins);
+    CudaLorentzianThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins);
     ~CudaLorentzianThermostat();
 
     void update();
