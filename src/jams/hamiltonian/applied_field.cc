@@ -58,14 +58,14 @@ AppliedFieldHamiltonian::AppliedFieldHamiltonian(
     }
 
     std::cout << "field type: " << type << std::endl;
-    this->set_name(name() + "_" + type);
+    this->set_name(name() + "-" + type);
   } else {
     // Backwards compatibility with configs where the type was not
     // specified meaning that the field is a static applied field.
     time_dependent_field_ = std::make_unique<StaticField>(settings);
 
     std::cout << "field type: static" << std::endl;
-    this->set_name(name() + "_static");
+    this->set_name(name() + "-static");
   }
 
 
