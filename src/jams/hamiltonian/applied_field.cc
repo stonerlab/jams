@@ -6,16 +6,72 @@
 
 #include <iostream>
 
+namespace {
+
+struct StaticField : public AppliedFieldHamiltonian::TimeDependentField {
+public:
+    explicit StaticField(const libconfig::Setting &settings)
+    : b_field_(jams::config_required<Vec3>(settings, "field"))
+    {}
+
+    Vec3 field(const double time) override {
+      return b_field_;
+    }
+private:
+    Vec3 b_field_ = {0, 0, 0};
+};
+
+struct SincField : public AppliedFieldHamiltonian::TimeDependentField {
+public:
+    explicit SincField(const libconfig::Setting &settings)
+        : b_field_(jams::config_required<Vec3>(settings, "field"))
+        , temporal_center_(jams::config_required<double>(settings, "temporal_center") / 1e-12)
+        , temporal_width_(jams::config_required<double>(settings, "temporal_width")  / 1e-12)
+    {}
+
+    Vec3 field(const double time) override {
+      double x = temporal_width_ * (time - temporal_center_);
+
+      return b_field_ * sinc(x);
+    }
+private:
+    Vec3 b_field_ = {0, 0, 0};
+    double temporal_center_ = 0.0;
+    double temporal_width_ = 0.0;
+};
+}
+
 AppliedFieldHamiltonian::AppliedFieldHamiltonian(
     const libconfig::Setting &settings, unsigned int size)
-    : Hamiltonian(settings, size),
-      applied_b_field_(jams::config_required<Vec3>(settings, "field")) {
+    : Hamiltonian(settings, size) {
 
-  std::cout << "field: " << applied_b_field_ << std::endl;
+  if (settings.exists("type")) {
+    auto type = lowercase(jams::config_required<std::string>(settings, "type"));
+
+    if (type == "static") {
+      time_dependent_field_ = std::make_unique<StaticField>(settings);
+    }
+    else if (type == "sinc") {
+      time_dependent_field_ = std::make_unique<SincField>(settings);
+    } else {
+      throw std::runtime_error("Unknown field pulse type " + type);
+    }
+
+    std::cout << "field type: " << type << std::endl;
+    this->set_name(name() + "-" + type);
+  } else {
+    // Backwards compatibility with configs where the type was not
+    // specified meaning that the field is a static applied field.
+    time_dependent_field_ = std::make_unique<StaticField>(settings);
+
+    std::cout << "field type: static" << std::endl;
+    this->set_name(name() + "-static");
+  }
+
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
-      field_(i, j) = globals::mus(i) * applied_b_field_[j];
+      field_(i, j) = globals::mus(i) * time_dependent_field_->field(0.0)[j];
     }
   }
 }
@@ -45,7 +101,7 @@ void AppliedFieldHamiltonian::calculate_fields(double time) {
 }
 
 Vec3 AppliedFieldHamiltonian::calculate_field(int i, double time) {
-  return globals::mus(i) * applied_b_field_;
+  return globals::mus(i) * time_dependent_field_->field(time);
 }
 
 double AppliedFieldHamiltonian::calculate_energy(int i, double time) {
@@ -64,13 +120,6 @@ double AppliedFieldHamiltonian::calculate_energy_difference(int i,
   return (e_final - e_initial);
 }
 
-const Vec3& AppliedFieldHamiltonian::b_field() const {
-  return applied_b_field_;
-}
-
-void AppliedFieldHamiltonian::set_b_field(const Vec3& field) {
-  applied_b_field_ = field;
-}
 
 
 

@@ -17,6 +17,12 @@
 class AppliedFieldHamiltonian : public Hamiltonian {
 
 public:
+    struct TimeDependentField {
+    public:
+        virtual ~TimeDependentField() = default;
+        virtual Vec3 field(const double time) = 0;
+    };
+
     AppliedFieldHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
     double calculate_total_energy(double time) override;
@@ -31,14 +37,8 @@ public:
 
     double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
 
-    /// Returns the B field used in the Hamiltonian
-    const Vec3& b_field() const;
-
-    /// Changes the B field used in the Hamiltonian
-    virtual void set_b_field(const Vec3& field);
-
-private:
-    Vec3 applied_b_field_ = {0.0, 0.0, 0.0};
+protected:
+    std::unique_ptr<TimeDependentField> time_dependent_field_;
 };
 
 #endif //JAMS_HAMILTONIAN_APPLIED_FIELD_H

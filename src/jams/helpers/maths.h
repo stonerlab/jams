@@ -435,6 +435,16 @@ inline constexpr double legendre_dpoly_6(const double x) {
   return (86.625 * x * x * x * x * x - 78.75 * x * x * x + 13.125 * x);
 }
 
+/// Returns the cardinal sine function
+///   sinc(x) = sin(x) / x    for x ≠ 0
+///           = 1             for x = 0
+inline constexpr double sinc(const double x) {
+  if (x == 0.0) {
+    return 1.0;
+  }
+  return sin(x) / x;
+}
+
 
 
 #endif  // JAMS_CORE_MATHS_H
