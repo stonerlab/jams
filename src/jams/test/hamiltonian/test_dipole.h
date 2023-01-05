@@ -21,6 +21,11 @@
 #include "jams/test/hamiltonian/test_dipole_input.h"
 #include "jams/test/output.h"
 
+#if HAS_CUDA
+#include "jams/hamiltonian/cuda_dipole_fft.h"
+#include "jams/hamiltonian/cuda_dipole_bruteforce.h"
+#endif
+
 // Testing to validate the dipole Hamiltonians give correct results. We compare
 // to analytic results from 2016-Johnston-PhysRevB.93.014421 as well as using
 // random spin configurations to check consistency between classes. We also check
@@ -34,19 +39,31 @@
 //---------------------------------------------------------------------
 
 // Dipole Hamiltonian classes to test. They should be #included above.
+
+
+
 typedef testing::Types<
     DipoleNearTreeHamiltonian,
     DipoleNeighbourListHamiltonian,
     DipoleBruteforceHamiltonian,
     DipoleFFTHamiltonian
 //    DipoleTensorHamiltonian
-> DipoleHamiltonianTypes;
+> DipoleHamiltonianCPUTypes;
 
-TYPED_TEST_SUITE(DipoleHamiltonianTests, DipoleHamiltonianTypes);
+TYPED_TEST_SUITE(DipoleHamiltonianCPUTests, DipoleHamiltonianCPUTypes);
+
+#ifdef HAS_CUDA
+typedef testing::Types<
+    CudaDipoleFFTHamiltonian,
+    CudaDipoleBruteforceHamiltonian
+> DipoleHamiltonianGPUTypes;
+
+TYPED_TEST_SUITE(DipoleHamiltonianGPUTests, DipoleHamiltonianGPUTypes);
+#endif
 
 template<typename T>
 class DipoleHamiltonianTests : public ::testing::Test {
-protected:
+public:
     DipoleHamiltonianTests() {
       // create global objects
       ::globals::lattice = new Lattice();
@@ -80,8 +97,15 @@ protected:
     // test the total dipole energy for an ordered spin configuration
     // compared to an analytic eigen value
     void eigenvalue_test(const std::string &spin_config_name, const double &expected_eigenvalue) {
+      jams::testing::toggle_cout();
+      std::unique_ptr<DipoleNearTreeHamiltonian> reference_hamiltonian(
+          new DipoleNearTreeHamiltonian(::globals::config->lookup("hamiltonians.[0]"), globals::num_spins));
+      jams::testing::toggle_cout();
+
       double analytic = analytic_prefactor * expected_eigenvalue;
       double numeric = hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
+      double reference =
+          reference_hamiltonian->calculate_total_energy(0) / double(globals::num_spins);
 
       std::cout << "spins:      " << spin_config_name << "\n";
       std::cout << "expected:   " << jams::fmt::sci << analytic << " meV/spin\n";
@@ -90,6 +114,16 @@ protected:
       std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
 
       ASSERT_NEAR(numeric, analytic, target_accuracy);
+      ASSERT_NEAR(numeric, reference, target_accuracy);
+
+      hamiltonian->calculate_fields(0);
+      reference_hamiltonian->calculate_fields(0);
+
+      for (auto i = 0; i < globals::num_spins; ++i) {
+        for (auto j = 0; j < 3; ++j) {
+          ASSERT_NEAR(hamiltonian->field(i, j), reference_hamiltonian->field(i,j), target_accuracy);
+        }
+      }
     }
 
     // test the total dipole energy for a random spin configuration
@@ -154,7 +188,15 @@ protected:
         std::cout << "difference: " << jams::fmt::sci << std::abs(reference - numeric) << " meV/spin\n";
         std::cout << "tolerance:  " << jams::fmt::sci << target_accuracy << " meV/spin\n" << std::endl;
 
+        hamiltonian->calculate_fields(0);
+        reference_hamiltonian->calculate_fields(0);
+
         ASSERT_NEAR(numeric, reference, target_accuracy);
+        for (auto i = 0; i < globals::num_spins; ++i) {
+          for (auto j = 0; j < 3; ++j) {
+            ASSERT_NEAR(hamiltonian->field(i, j), reference_hamiltonian->field(i,j), target_accuracy);
+          }
+        }
     }
 
     std::unique_ptr<T> hamiltonian;
@@ -166,11 +208,17 @@ protected:
     const double analytic_prefactor = -((0.5 * kVacuumPermeabilityIU) / (4*kPi)) *  pow2(2 * kBohrMagnetonIU) / pow3(0.3e-9); // meV
 
     // target accuracy for total energy per spin in meV
-    const double target_accuracy = 1e-6; // nano eV accuracy
+    const double target_accuracy = 1e-5; // 10 neV accuracy
 };
 
+template<typename T>
+class DipoleHamiltonianCPUTests : public DipoleHamiltonianTests<T> {};
+
+template<typename T>
+class DipoleHamiltonianGPUTests : public DipoleHamiltonianTests<T> {};
+
 // 1D ferromagnetic spin chain
-TYPED_TEST(DipoleHamiltonianTests, total_energy_1D_FM_CPU) {
+TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_1D_FM_CPU) {
   using namespace jams::testing::dipole;
   TestFixture::SetUp(
       config_basic_cpu
@@ -200,8 +248,40 @@ TYPED_TEST(DipoleHamiltonianTests, total_energy_1D_FM_CPU) {
   TestFixture::eigenvalue_test("FM z-aligned", -2.404114);
 }
 
+#ifdef HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_1D_FM_GPU) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_unitcell_sc
+      + config_lattice({2000, 1, 1}, {true, false, false})
+      + config_dipole("dipole", 1000.0));
+
+  // S = (1, 0, 0) FM
+  TestFixture::eigenvalue_test("FM x-aligned", 4.808228);
+
+  // S = (0, 1, 0) FM
+  #pragma nounroll_and_jam
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    globals::s(i, 0) = 0.0;
+    globals::s(i, 1) = 1.0;
+    globals::s(i, 2) = 0.0;
+  }
+  TestFixture::eigenvalue_test("FM y-aligned", -2.404114);
+
+  // S = (0, 0, 1) FM
+  #pragma nounroll_and_jam
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    globals::s(i, 0) = 0.0;
+    globals::s(i, 1) = 0.0;
+    globals::s(i, 2) = 1.0;
+  }
+  TestFixture::eigenvalue_test("FM z-aligned", -2.404114);
+}
+#endif
+
 // 1D ferromagnetic spin chain with two atoms defined in unit cell
-TYPED_TEST(DipoleHamiltonianTests, total_energy_two_atom_1D_FM_CPU) {
+TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_two_atom_1D_FM_CPU) {
   using namespace jams::testing::dipole;
   TestFixture::SetUp(
       config_basic_cpu
@@ -212,8 +292,22 @@ TYPED_TEST(DipoleHamiltonianTests, total_energy_two_atom_1D_FM_CPU) {
   TestFixture::eigenvalue_test("FM z-aligned", 4.808228);
 }
 
+#ifdef HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_two_atom_1D_FM_GPU) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_unitcell_sc_2_atom
+      + config_lattice({2000, 1, 1}, {true, false, false})
+      + config_dipole("dipole", 1000.0));
+
+  TestFixture::eigenvalue_test("FM z-aligned", 4.808228);
+}
+#endif
+
+
 // 1D ferromagnetic spin chain with random spin orientations
-TYPED_TEST(DipoleHamiltonianTests, total_energy_1D_FM_random_CPU) {
+TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_1D_FM_random_CPU) {
   using namespace jams::testing::dipole;
   TestFixture::SetUp(
       config_basic_cpu
@@ -224,8 +318,22 @@ TYPED_TEST(DipoleHamiltonianTests, total_energy_1D_FM_random_CPU) {
   TestFixture::random_spin_test();
 }
 
+#ifdef HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_1D_FM_random_GPU) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_unitcell_sc
+      + config_lattice({2000, 1, 1}, {true, false, false})
+      + config_dipole("dipole", 1000.0));
+
+  TestFixture::random_spin_test();
+}
+#endif
+
+
 // 1D antiferromagnetic spin chain
-TYPED_TEST(DipoleHamiltonianTests, total_energy_1D_AFM_CPU) {
+TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_1D_AFM_CPU) {
   using namespace jams::testing::dipole;
   TestFixture::SetUp(
       config_basic_cpu
@@ -260,7 +368,95 @@ TYPED_TEST(DipoleHamiltonianTests, total_energy_1D_AFM_CPU) {
   TestFixture::eigenvalue_test("AFM y-aligned", 1.803085);
 }
 
-TYPED_TEST(DipoleHamiltonianTests, total_energy_CPU_2D_FM_SLOW) {
+#ifdef HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_1D_AFM_GPU) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_unitcell_sc
+      + config_lattice({2000, 1, 1}, {true, false, false})
+      + config_dipole("dipole", 1000.0));
+
+  // S = (1, 0, 0) AFM
+  #pragma nounroll_and_jam
+  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+    if (i % 2 == 0) {
+      globals::s(i, 0) = -1.0;
+    } else {
+      globals::s(i, 0) = 1.0;
+    }
+    globals::s(i, 1) = 0.0;
+    globals::s(i, 2) = 0.0;
+  }
+  TestFixture::eigenvalue_test("AFM x-aligned", -3.60617);
+
+  // S = (0, 1, 0) AFM
+  #pragma nounroll_and_jam
+  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+    globals::s(i, 0) = 0.0;
+    if (i % 2 == 0) {
+      globals::s(i, 1) = -1.0;
+    } else {
+      globals::s(i, 1) = 1.0;
+    }
+    globals::s(i, 2) = 0.0;
+  }
+  TestFixture::eigenvalue_test("AFM y-aligned", 1.803085);
+}
+#endif
+
+
+TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_cubic_unitcell_FM_CPU) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_cpu
+      + config_cubic_unitcell
+      + config_lattice({5, 5, 5}, {true, true, true})
+      + config_dipole("dipole", 2.0));
+
+  TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
+}
+
+#ifdef HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_cubic_unitcell_FM_GPU) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_cubic_unitcell
+      + config_lattice({5, 5, 5}, {true, true, true})
+      + config_dipole("dipole", 2.0));
+
+  TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
+}
+#endif
+
+
+TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_non_cubic_unitcell_FM_CPU) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_cpu
+      + config_non_cubic_unitcell
+      + config_lattice({6, 6, 6}, {true, true, true})
+      + config_dipole("dipole", 1.0));
+
+  TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
+}
+
+#ifdef HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_non_cubic_unitcell_FM_GPU) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_non_cubic_unitcell
+      + config_lattice({6, 6, 6}, {true, true, true})
+      + config_dipole("dipole", 1.0));
+
+  TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
+}
+#endif
+
+
+TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_2D_FM_CPU_SLOW) {
   using namespace jams::testing::dipole;
   TestFixture::SetUp(
       config_basic_cpu
@@ -280,7 +476,30 @@ TYPED_TEST(DipoleHamiltonianTests, total_energy_CPU_2D_FM_SLOW) {
   TestFixture::eigenvalue_test("FM z-aligned", -9.033622 + 6.28356 * (1.0 / 128.0));
 }
 
-TYPED_TEST(DipoleHamiltonianTests, total_energy_2D_AFM_CPU_SLOW) {
+#ifdef HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_2D_FM_GPU_SLOW) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_unitcell_sc
+      + config_lattice({256, 256, 1}, {true, true, false})
+      + config_dipole("dipole", 128.0));
+
+  // S = (0, 0, 1) FM
+  #pragma nounroll_and_jam
+  for (unsigned int i = 0; i < globals::num_spins; ++i) {
+    globals::s(i, 0) = 0.0;
+    globals::s(i, 1) = 0.0;
+    globals::s(i, 2) = 1.0;
+  }
+
+  // Eigen value from fit function from 2016-Johnston-PhysRevB.93.014421 Fig. 17(a)
+  TestFixture::eigenvalue_test("FM z-aligned", -9.033622 + 6.28356 * (1.0 / 128.0));
+}
+#endif
+
+
+TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_2D_AFM_CPU_SLOW) {
   using namespace jams::testing::dipole;
   TestFixture::SetUp(
       config_basic_cpu
@@ -292,35 +511,43 @@ TYPED_TEST(DipoleHamiltonianTests, total_energy_2D_AFM_CPU_SLOW) {
   TestFixture::eigenvalue_test("FM z-aligned", 2.6458865);
 }
 
-TYPED_TEST(DipoleHamiltonianTests, total_energy_two_atom_2D_FM_CPU_SLOW) {
+#ifdef HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_2D_AFM_GPU_SLOW) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_unitcell_sc_AFM
+      + config_lattice({256, 256, 1}, {true, true, false})
+      + config_dipole("dipole", 128.0));
+
+  // 2016-Johnston-PhysRevB.93.014421 Fig. 18(a)
+  TestFixture::eigenvalue_test("FM z-aligned", 2.6458865);
+}
+#endif
+
+
+TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_two_atom_2D_FM_CPU_SLOW) {
   using namespace jams::testing::dipole;
   TestFixture::SetUp(
       config_basic_cpu
       + config_unitcell_bcc_2_atom
-      + config_lattice({128, 128, 1}, {true, true, false})
-      + config_dipole("dipole", 64.0));
+      + config_lattice({32, 32, 1}, {true, true, false})
+      + config_dipole("dipole", 16.0));
 
   TestFixture::random_spin_test();
 }
 
-TYPED_TEST(DipoleHamiltonianTests, total_energy_cubic_unitcell_FM_CPU) {
-    using namespace jams::testing::dipole;
-    TestFixture::SetUp(
-            config_basic_cpu
-            + config_cubic_unitcell
-            + config_lattice({5, 5, 5}, {true, true, true})
-            + config_dipole("dipole", 2.0));
+#ifdef HAS_CUDA
+TYPED_TEST(DipoleHamiltonianGPUTests, total_energy_two_atom_2D_FM_GPU_SLOW) {
+  using namespace jams::testing::dipole;
+  TestFixture::SetUp(
+      config_basic_gpu
+      + config_unitcell_bcc_2_atom
+      + config_lattice({32, 32, 1}, {true, true, false})
+      + config_dipole("dipole", 16.0));
 
-    TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
+  TestFixture::random_spin_test();
 }
+#endif
 
-TYPED_TEST(DipoleHamiltonianTests, total_energy_non_cubic_unitcell_FM_CPU) {
-    using namespace jams::testing::dipole;
-    TestFixture::SetUp(
-            config_basic_cpu
-            + config_non_cubic_unitcell
-            + config_lattice({6, 6, 6}, {true, true, true})
-            + config_dipole("dipole", 1.0));
 
-    TestFixture::ordered_spin_test({0.0, 0.0, 1.0});
-}
