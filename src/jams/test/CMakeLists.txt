@@ -48,11 +48,11 @@ endif()
 if(JAMS_BUILD_CUDA)
     target_compile_definitions(jams_tests PRIVATE HAS_CUDA=1)
     target_link_libraries(jams_tests
-            cuda
-            cusparse
-            curand
-            cublas
-            cufft)
+            cuda_external
+            cusparse_external
+            curand_external
+            cublas_external
+            cufft_external)
 
     if (JAMS_BUILD_MIXED_PREC)
         target_compile_definitions(jams_tests PRIVATE HAS_CUSPARSE_MIXED_PREC=1)
