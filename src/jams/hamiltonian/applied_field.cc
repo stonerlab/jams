@@ -21,24 +21,64 @@ private:
     Vec3 b_field_ = {0, 0, 0};
 };
 
+/// Implements an AppliedFieldHamiltonian functional class for the field
+///
+/// B(t) = B * sinc(π * f_bw * (t - t0))
+///
+/// where f_bw is the frequency bandwidth and t0 is the time center. Note that
+/// the frequency bandwidth is centered on zero, so a bandwidth of 10 GHz
+/// excites frequencies from -5 GHz to 5 GHz.
+///
+
 struct SincField : public AppliedFieldHamiltonian::TimeDependentField {
 public:
     explicit SincField(const libconfig::Setting &settings)
         : b_field_(jams::config_required<Vec3>(settings, "field"))
-        , temporal_center_(jams::config_required<double>(settings, "temporal_center") / 1e-12)
-        , temporal_width_(jams::config_required<double>(settings, "temporal_width")  / 1e-12)
+        , time_center_(jams::config_required<double>(settings, "time_center") / 1e-12)
+        , freq_bandwidth_(jams::config_required<double>(settings, "freq_bandwidth")  / 1e12) //  Thz
     {}
 
     Vec3 field(const double time) override {
-      double x = temporal_width_ * (time - temporal_center_);
-
-      return b_field_ * sinc(x);
+      return b_field_ * sinc(kPi * freq_bandwidth_ * (time - time_center_));
     }
 private:
     Vec3 b_field_ = {0, 0, 0};
-    double temporal_center_ = 0.0;
-    double temporal_width_ = 0.0;
+    double time_center_ = 0.0;
+    double freq_bandwidth_ = 0.0;
 };
+
+/// Implements an AppliedFieldHamiltonian functional class for the field
+///
+/// B(t) = B * sinc(π * f_bw * (t - t0)) * cos(2π * f_c * (t - t0))
+///
+/// where f_bw is the frequency bandwidth and t0 is the time center and f_c is
+/// the frequency center. This allows discrete frequency ranges to be excited as
+/// a top hat function in frequency space with a cutoff above and below.
+///
+/// See Träger, Sci. Rep. 10, 18146 (2020)
+/// [https://doi.org/10.1038/s41598-020-74785-4] for example diagrams.
+///
+struct SincCosField : public AppliedFieldHamiltonian::TimeDependentField {
+public:
+    explicit SincCosField(const libconfig::Setting &settings)
+        : b_field_(jams::config_required<Vec3>(settings, "field"))
+          , time_center_(jams::config_required<double>(settings, "time_center") / 1e-12)
+          , freq_bandwidth_(jams::config_required<double>(settings, "freq_bandwidth")  / 1e12) //  THz
+          , freq_center_(jams::config_required<double>(settings, "freq_center")  / 1e12) //  THz
+    {}
+
+    Vec3 field(const double time) override {
+      return b_field_ * sinc(kPi * freq_bandwidth_ * (time - time_center_))
+                      * cos(kTwoPi * freq_center_ * (time - time_center_));
+    }
+private:
+    Vec3 b_field_ = {0, 0, 0};
+    double time_center_ = 0.0;
+    double freq_bandwidth_ = 0.0;
+    double freq_center_ = 0.0;
+};
+
+
 }
 
 AppliedFieldHamiltonian::AppliedFieldHamiltonian(
@@ -53,6 +93,9 @@ AppliedFieldHamiltonian::AppliedFieldHamiltonian(
     }
     else if (type == "sinc") {
       time_dependent_field_ = std::make_unique<SincField>(settings);
+    }
+    else if (type == "sinc-cos") {
+        time_dependent_field_ = std::make_unique<SincCosField>(settings);
     } else {
       throw std::runtime_error("Unknown field pulse type " + type);
     }
