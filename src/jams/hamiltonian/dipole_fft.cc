@@ -341,7 +341,7 @@ void DipoleFFTHamiltonian::calculate_fields(double time) {
         for (auto k = 0; k < kspace_size_[2]; ++k) {
           const auto index = globals::lattice->site_index_by_unit_cell(i, j, k, pos_i);
           for (auto m = 0; m < 3; ++ m) {
-            field_(index, m) += rspace_h_(i, j, k, m) * globals::mus(i);
+            field_(index, m) += rspace_h_(i, j, k, m) * globals::mus(index);
           }
         }
       }
