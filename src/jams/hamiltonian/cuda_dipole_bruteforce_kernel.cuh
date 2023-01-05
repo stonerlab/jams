@@ -71,6 +71,12 @@ inline void CalculateFieldElement(const float s_j[3], const float r_ij[3],
   }
 }
 
+template <typename T>
+__device__
+inline bool cuda_definately_greater_than(const T& a, const T& b, const T& epsilon) {
+  return (a - b) > (max(abs(a), abs(b)) * epsilon);
+}
+
 __global__ void dipole_bruteforce_kernel
 (
     const double * s_dev,
@@ -227,22 +233,22 @@ void DipoleBruteforceKernel(
             const float r_norm_squared4 = norm_squared(r_ij4);
 
             float h1[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && (r_norm_squared1 <= r_cutoff_sq) && (i != j1) && (j1 < num_spins) ) {
+            if ( (i < num_spins) && !cuda_definately_greater_than(r_norm_squared1, r_cutoff_sq, 1e-4f) && (i != j1) && (j1 < num_spins) ) {
               CalculateFieldElement(s_j[t1], r_ij1, mus[t1], r_norm_squared1, h1);
             }
 
             float h2[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && (r_norm_squared2 <= r_cutoff_sq) && (i != j2) && (j2 < num_spins) ) {
+            if ( (i < num_spins) && !cuda_definately_greater_than(r_norm_squared2, r_cutoff_sq, 1e-4f) && (i != j2) && (j2 < num_spins) ) {
               CalculateFieldElement(s_j[t2], r_ij2, mus[t2], r_norm_squared2, h2);
             }
 
             float h3[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && (r_norm_squared3 <= r_cutoff_sq) && (i != j3) && (j3 < num_spins) ) {
+            if ( (i < num_spins) && !cuda_definately_greater_than(r_norm_squared3, r_cutoff_sq, 1e-4f) && (i != j3) && (j3 < num_spins) ) {
               CalculateFieldElement(s_j[t3], r_ij3, mus[t3], r_norm_squared3, h3);
             }
 
             float h4[3] = {0.0, 0.0, 0.0};
-            if ( (i < num_spins) && (r_norm_squared4 <= r_cutoff_sq) && (i != j4) && (j4 < num_spins) ) {
+            if ( (i < num_spins) && !cuda_definately_greater_than(r_norm_squared4, r_cutoff_sq, 1e-4f) && (i != j4) && (j4 < num_spins) ) {
               CalculateFieldElement(s_j[t4], r_ij4, mus[t4], r_norm_squared4, h4);
             }
 
@@ -322,7 +328,9 @@ __global__ void dipole_bruteforce_sharemem_kernel
       CalculateDisplacementVector(ri, rj[t], r_ij);
       r_norm_squared = norm_squared(r_ij);
 
-      if (r_norm_squared <= r_cutoff_sq && i != j && j < num_spins && i < num_spins) {
+      if (cuda_definately_greater_than(r_norm_squared, r_cutoff_sq, 1e-4f)) continue;
+
+      if (i != j && j < num_spins && i < num_spins) {
         CalculateFieldElement(sj[t], r_ij, mus[t], r_norm_squared, h_tmp);
       }
 
