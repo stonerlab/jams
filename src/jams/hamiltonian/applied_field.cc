@@ -21,18 +21,32 @@ private:
     Vec3 b_field_ = {0, 0, 0};
 };
 
+/// Implements an AppliedFieldHamiltonian functional class for the field
+///
+/// B(t) = B * sinc(π * f_bw * (t - t0))
+///
+/// where f_bw is the frequency bandwidth and t0 is the time center. Note that
+/// the frequency bandwidth is centered on zero, so a bandwidth of 10 GHz
+/// excites frequencies from -5 GHz to 5 GHz.
+///
+
 struct SincField : public AppliedFieldHamiltonian::TimeDependentField {
 public:
     explicit SincField(const libconfig::Setting &settings)
         : b_field_(jams::config_required<Vec3>(settings, "field"))
-        , temporal_center_(jams::config_required<double>(settings, "temporal_center") / 1e-12)
-        , temporal_width_(jams::config_required<double>(settings, "temporal_width")  / 1e-12)
+        , time_center_(jams::config_required<double>(settings, "time_center") / 1e-12)
+        , freq_bandwidth_(jams::config_required<double>(settings, "freq_bandwidth")  / 1e12) //  Thz
     {}
 
     Vec3 field(const double time) override {
-      double x = temporal_width_ * (time - temporal_center_);
+      return b_field_ * sinc(kPi * freq_bandwidth_ * (time - time_center_));
+    }
+private:
+    Vec3 b_field_ = {0, 0, 0};
+    double time_center_ = 0.0;
+    double freq_bandwidth_ = 0.0;
+};
 
-      return b_field_ * sinc(x);
     }
 private:
     Vec3 b_field_ = {0, 0, 0};
