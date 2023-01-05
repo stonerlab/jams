@@ -95,6 +95,11 @@ void CudaLangevinBoseThermostat::update() {
     warmup(num_warm_up_steps_);
   }
 
+  if (this->temperature() == 0) {
+    CHECK_CUDA_STATUS(cudaMemset(noise_.device_data(), 0, noise_.elements()*sizeof(double)));
+    return;
+  }
+
   int block_size = 96;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 

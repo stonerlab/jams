@@ -45,6 +45,11 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
 }
 
 void CudaLangevinWhiteThermostat::update() {
+  if (this->temperature() == 0) {
+    CHECK_CUDA_STATUS(cudaMemset(noise_.device_data(), 0, noise_.elements()*sizeof(double)));
+    return;
+  }
+
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_stream_));
   CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), noise_.device_data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
   cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), sqrt(this->temperature()), noise_.device_data(), 1, noise_.device_data(), 1, dev_stream_);
