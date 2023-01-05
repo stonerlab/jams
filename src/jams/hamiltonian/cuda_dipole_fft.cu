@@ -137,9 +137,9 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
         jams::MultiArray<cufftDoubleComplex, 1> gpu_wq(wq.elements());
         kspace_tensors_[pos_i].push_back(gpu_wq);
 
-        CHECK_CUDA_STATUS(cudaMemcpy(kspace_tensors_[pos_i].back().data(), wq.data(), wq.elements() * sizeof(cufftDoubleComplex), cudaMemcpyHostToDevice));
-          
-      }
+        CHECK_CUDA_STATUS(cudaMemcpy(kspace_tensors_[pos_i].back().device_data(), wq.data(), wq.elements() * sizeof(cufftDoubleComplex), cudaMemcpyHostToDevice));
+
+    }
       if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
         if (!globals::lattice->is_a_symmetry_complete_set(generated_positions, distance_tolerance_)) {
           throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
@@ -192,7 +192,7 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 
   kspace_h_.zero();
 
-  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.data()));
+  CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
 
   cudaDeviceSynchronize();
 
