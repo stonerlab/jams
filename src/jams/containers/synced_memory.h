@@ -154,7 +154,7 @@ public:
     ~SyncedMemory();
 
     /// copy assign
-    SyncedMemory &operator=(SyncedMemory rhs) &;
+    SyncedMemory &operator=(const SyncedMemory& rhs) &;
 
     /// move assign
     SyncedMemory &operator=(SyncedMemory &&rhs) & noexcept;
@@ -316,7 +316,7 @@ SyncedMemory<T>::~SyncedMemory() {
 
 
 template<class T>
-SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory rhs) &{
+SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
   if (this != &rhs) {
     // Only reallocate if sizes are different and only resize the memory
     // spaces that were already allocated on the rhs.
