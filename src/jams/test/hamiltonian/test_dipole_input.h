@@ -83,11 +83,11 @@ namespace jams {
             const std::string config_unitcell_bcc_2_atom(R"(
               materials = (
                 { name      = "FeA";
-                  moment    = 2.0;
+                  moment    = 2.3;
                   spin      = [1.0, 0.0, 0.0];
                 },
                 { name      = "FeB";
-                  moment    = 1.0;
+                  moment    = 1.7;
                   spin      = [1.0, 0.0, 0.0];
                 }
               );
