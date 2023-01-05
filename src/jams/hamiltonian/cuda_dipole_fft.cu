@@ -14,6 +14,7 @@
 #include "jams/cuda/cuda_device_complex_ops.h"
 #include "jams/hamiltonian/cuda_dipole_fft.h"
 #include "jams/cuda/cuda_common.h"
+#include "jams/cuda/cuda_array_kernels.h"
 
 __global__ void cuda_dipole_convolution(
   const unsigned int size,
@@ -160,7 +161,7 @@ double CudaDipoleFFTHamiltonian::calculate_total_energy(double time) {
   for (auto i = 0; i < globals::num_spins; ++i) {
       e_total += (  globals::s(i,0)*field_(i, 0)
                   + globals::s(i,1)*field_(i, 1)
-                  + globals::s(i,2)*field_(i, 2) ) * globals::mus(i);
+                  + globals::s(i,2)*field_(i, 2) );
   }
 
   return -0.5*e_total;
@@ -181,7 +182,7 @@ double CudaDipoleFFTHamiltonian::calculate_energy_difference(
 }
 
 void CudaDipoleFFTHamiltonian::calculate_energies(double time) {
-
+  cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, dev_stream_[0].get());
 }
 
 Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i, double time) {
@@ -213,6 +214,9 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
   }
 
   CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
+
+  cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, dev_stream_[0].get());
+
 }
 
 // Generates the dipole tensor between unit cell positions i and j and appends
