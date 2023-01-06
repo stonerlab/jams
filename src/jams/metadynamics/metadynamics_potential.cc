@@ -193,7 +193,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     }
   }
 
-    potential_.resize(num_samples_[0], num_samples_[1]);
+    zero(potential_.resize(num_samples_[0], num_samples_[1]));
 
     if (!potential_filename.empty()) {
         std::cout << "Reading potential landscape data from " << potential_filename << "\n" << "Ensure you input the final h5 file from the previous simmulation" <<"\n";
