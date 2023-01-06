@@ -85,7 +85,7 @@ TEST(CudaArrayReductionTest, vector_field_indexed_reduce_cuda) {
     }
   }
 
-  jams::MultiArray<int, 1> indices(size);
+  jams::MultiArray<int, 1> indices(num_indices);
   for (auto i = 0; i < num_indices; ++i) {
     indices(i) = int_dist(rng);
   }
