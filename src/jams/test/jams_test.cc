@@ -10,10 +10,9 @@
 
 #include "jams/test/containers/test_synced_memory.h"
 #include "jams/test/containers/test_multiarray.h"
-#include "jams/test/hamiltonian/test_dipole_cpu.h"
+#include "jams/test/hamiltonian/test_dipole.h"
 
 #ifdef HAS_CUDA
-//#include "jams/test/hamiltonian/test_cuda_dipole_fft.h"
 #include <jams/cuda/cuda_array_reduction.t.h>
 #endif
 

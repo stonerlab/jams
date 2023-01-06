@@ -280,6 +280,12 @@ namespace jams {
           data_.clear();
         }
 
+        inline void swap(MultiArray& other) {
+          using std::swap;
+          swap(this->size_, other.size_);
+          swap(this->data_, other.data_);
+        }
+
         inline void zero() noexcept {
           memset(data_.mutable_host_data(), 0, data_.memory());
         }
@@ -336,8 +342,15 @@ namespace jams {
         MultiArray(MultiArray&& rhs) noexcept
         : size_(std::move(rhs.size_)), data_(std::move(rhs.data_)) {}
 
-        MultiArray& operator=(MultiArray rhs) & {
-          swap(*this, rhs);
+        MultiArray& operator=(const MultiArray& rhs) & {
+          size_ = rhs.size_;
+          data_ = rhs.data_;
+          return *this;
+        }
+
+        MultiArray& operator=(MultiArray&& rhs) & noexcept {
+          size_ = std::move(rhs.size_);
+          data_ = std::move(rhs.data_);
           return *this;
         }
 
@@ -463,6 +476,12 @@ namespace jams {
         inline void clear() noexcept {
           size_.fill(0);
           data_.clear();
+        }
+
+        inline void swap(MultiArray& other) {
+          using std::swap;
+          swap(this->size_, other.size_);
+          swap(this->data_, other.data_);
         }
 
         inline void zero() noexcept {

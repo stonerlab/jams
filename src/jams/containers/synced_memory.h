@@ -69,7 +69,7 @@
 { \
   cudaError_t stat; \
   if ((stat = (x)) != cudaSuccess) { \
-    throw std::runtime_error(cudaGetErrorString(stat)); \
+    throw std::runtime_error(__FILE__ ":" + std::to_string(__LINE__) + " CUDA error: " + cudaGetErrorString(stat)); \
   } \
 }
 
@@ -154,7 +154,7 @@ public:
     ~SyncedMemory();
 
     /// copy assign
-    SyncedMemory &operator=(SyncedMemory rhs) &;
+    SyncedMemory &operator=(const SyncedMemory& rhs) &;
 
     /// move assign
     SyncedMemory &operator=(SyncedMemory &&rhs) & noexcept;
@@ -316,7 +316,7 @@ SyncedMemory<T>::~SyncedMemory() {
 
 
 template<class T>
-SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory rhs) &{
+SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
   if (this != &rhs) {
     // Only reallocate if sizes are different and only resize the memory
     // spaces that were already allocated on the rhs.
@@ -390,9 +390,7 @@ SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) {
   }
 
   assert(!device_ptr_);
-  if (cudaMalloc(reinterpret_cast<void**>(&device_ptr_), size_ * sizeof(T)) != cudaSuccess) {
-    throw std::bad_alloc();
-  }
+  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMalloc(reinterpret_cast<void**>(&device_ptr_), size_ * sizeof(T)));
   assert(device_ptr_);
   #endif
 }
@@ -407,9 +405,7 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
 
   #if HAS_CUDA
   if (has_cuda_context()) {
-    if (cudaMallocHost(reinterpret_cast<void **>(&host_ptr_), size_ * sizeof(T)) != cudaSuccess) {
-      throw std::bad_alloc();
-    }
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMallocHost(reinterpret_cast<void **>(&host_ptr_), size_ * sizeof(T)));
     assert(host_ptr_);
     host_cuda_malloc_ = true;
     return;
