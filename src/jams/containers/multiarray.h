@@ -280,6 +280,12 @@ namespace jams {
           data_.clear();
         }
 
+        inline void swap(MultiArray& other) {
+          using std::swap;
+          swap(this->size_, other.size_);
+          swap(this->data_, other.data_);
+        }
+
         inline void zero() noexcept {
           memset(data_.mutable_host_data(), 0, data_.memory());
         }
@@ -470,6 +476,12 @@ namespace jams {
         inline void clear() noexcept {
           size_.fill(0);
           data_.clear();
+        }
+
+        inline void swap(MultiArray& other) {
+          using std::swap;
+          swap(this->size_, other.size_);
+          swap(this->data_, other.data_);
         }
 
         inline void zero() noexcept {
