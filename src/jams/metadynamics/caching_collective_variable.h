@@ -50,13 +50,14 @@ namespace jams {
 //   }
 //
 
+template <class CacheType>
 class CachingCollectiveVariable : public CollectiveVariable {
 private:
     bool cache_initialised_ = false;
-    double cached_value_ = std::numeric_limits<double>::signaling_NaN();
-    double cached_trial_value_ = std::numeric_limits<double>::signaling_NaN();
+    CacheType cached_value_;
+    CacheType cached_trial_value_;
     int cached_i_ = -1;
-    Vec3 cached_spin_initial_ ;
+    Vec3 cached_spin_initial_;
     Vec3 cached_spin_trial_;
 
 protected:
@@ -65,16 +66,16 @@ protected:
     inline bool can_use_cache_values(int i, const Vec3 &spin_initial,
                                      const Vec3 &spin_trial) const;
 
-    inline double cached_value();
+    inline CacheType cached_value();
 
     inline void
     set_cache_values(int i, const Vec3 &spin_initial, const Vec3 &spin_trial,
-                     const double value, const double trial_value);
+                     const CacheType value, const CacheType trial_value);
 
 public:
-    inline double value() override;
+    virtual inline double value() override = 0;
 
-    virtual double calculate_expensive_value() = 0;
+    virtual CacheType calculate_expensive_cache_value() = 0;
 
     inline void spin_move_accepted(int i, const Vec3 &spin_initial,
                             const Vec3 &spin_trial) override;
@@ -85,12 +86,13 @@ public:
 }
 
 // INLINE FUNCTIONS
-
-bool jams::CachingCollectiveVariable::cache_is_initialised() const {
+template <class CacheType>
+bool jams::CachingCollectiveVariable<CacheType>::cache_is_initialised() const {
   return cache_initialised_;
 }
 
-bool jams::CachingCollectiveVariable::can_use_cache_values(int i,
+template <class CacheType>
+bool jams::CachingCollectiveVariable<CacheType>::can_use_cache_values(int i,
                                                            const Vec3 &spin_initial,
                                                            const Vec3 &spin_trial) const {
   return cache_initialised_ && i == cached_i_
@@ -98,19 +100,21 @@ bool jams::CachingCollectiveVariable::can_use_cache_values(int i,
          && spin_trial == cached_spin_trial_;
 }
 
-double jams::CachingCollectiveVariable::cached_value() {
+template <class CacheType>
+CacheType jams::CachingCollectiveVariable<CacheType>::cached_value() {
   if (!cache_initialised_) {
-    cached_value_ = calculate_expensive_value();
+    cached_value_ = calculate_expensive_cache_value();
     cache_initialised_ = true;
   }
   return cached_value_;
 }
 
-void jams::CachingCollectiveVariable::set_cache_values(int i,
+template <class CacheType>
+void jams::CachingCollectiveVariable<CacheType>::set_cache_values(int i,
                                                        const Vec3 &spin_initial,
                                                        const Vec3 &spin_trial,
-                                                       const double value,
-                                                       const double trial_value) {
+                                                       const CacheType value,
+                                                       const CacheType trial_value) {
   cached_i_ = i;
   cached_spin_initial_ = spin_initial;
   cached_spin_trial_ = spin_trial;
@@ -119,17 +123,14 @@ void jams::CachingCollectiveVariable::set_cache_values(int i,
   cache_initialised_ = true;
 }
 
-double jams::CachingCollectiveVariable::value() {
-  return cached_value();
-}
-
-void jams::CachingCollectiveVariable::spin_move_accepted(int i,
+template <class CacheType>
+void jams::CachingCollectiveVariable<CacheType>::spin_move_accepted(int i,
                                                          const Vec3 &spin_initial,
                                                          const Vec3 &spin_trial) {
   if (can_use_cache_values(i, spin_initial, spin_trial)) {
     cached_value_ = cached_trial_value_;
   } else {
-    cached_value_ = calculate_expensive_value();
+    cached_value_ = calculate_expensive_cache_value();
     cache_initialised_ = true;
   }
 }

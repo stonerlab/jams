@@ -202,7 +202,7 @@ double jams::CVarTopologicalChargeFiniteDiff::spin_move_trial_value(int i,
 
 
 
-double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_value() {
+double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_cache_value() {
 
   double topological_charge = 0.0;
   for (auto i = 0; i < globals::num_spins; ++i) {

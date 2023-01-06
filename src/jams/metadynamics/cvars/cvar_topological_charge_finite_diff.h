@@ -42,7 +42,7 @@
 //
 
 namespace jams {
-    class CVarTopologicalChargeFiniteDiff : public CachingCollectiveVariable {
+    class CVarTopologicalChargeFiniteDiff : public CachingCollectiveVariable<double> {
     public:
         CVarTopologicalChargeFiniteDiff() = default;
         explicit CVarTopologicalChargeFiniteDiff(const libconfig::Setting &settings);
@@ -56,7 +56,7 @@ namespace jams {
         double spin_move_trial_value(
             int i, const Vec3 &spin_initial, const Vec3 &spin_trial) override;
 
-        double calculate_expensive_value() override;
+        double calculate_expensive_cache_value() override;
 
     private:
 

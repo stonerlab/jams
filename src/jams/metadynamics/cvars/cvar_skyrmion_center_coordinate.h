@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace jams {
-class CVarSkyrmionCoreCoordinate : public CachingCollectiveVariable {
+class CVarSkyrmionCoreCoordinate : public CachingCollectiveVariable<double> {
  public:
   CVarSkyrmionCoreCoordinate() = default;
 
@@ -22,7 +22,7 @@ class CVarSkyrmionCoreCoordinate : public CachingCollectiveVariable {
   /// spin move from spin_initial to spin_final (to be used with Monte Carlo).
   double spin_move_trial_value(int i, const Vec3 &spin_initial, const Vec3 &spin_trial) override;
 
-  double calculate_expensive_value() override;
+  double calculate_expensive_cache_value() override;
 
  private:
 

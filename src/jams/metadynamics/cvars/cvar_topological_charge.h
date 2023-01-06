@@ -40,7 +40,7 @@
 //
 
 namespace jams {
-class CVarTopologicalCharge : public CachingCollectiveVariable {
+class CVarTopologicalCharge : public CachingCollectiveVariable<double> {
 public:
     // Simple struct for storing ijk
     struct Triplet {
@@ -96,7 +96,7 @@ public:
     double spin_move_trial_value(
         int i, const Vec3 &spin_initial, const Vec3 &spin_trial) override;
 
-    double calculate_expensive_value() override;
+    double calculate_expensive_cache_value() override;
 
 private:
     std::string name_ = "topo_charge";
