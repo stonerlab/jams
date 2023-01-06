@@ -91,7 +91,7 @@ public:
       jams::testing::toggle_cout();
     }
 
-    virtual void TearDown() {
+    virtual void TearDown() override {
       // reset global objects
       globals::num_spins = 0;
       globals::num_spins3 = 0;
