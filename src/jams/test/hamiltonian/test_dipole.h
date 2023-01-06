@@ -9,6 +9,7 @@
 #include "jams/core/lattice.h"
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
+#include "jams/helpers/utils.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
 #include "jams/hamiltonian/dipole_fft.h"
 #include "jams/hamiltonian/dipole_neartree.h"
@@ -20,6 +21,7 @@
 #include "jams/helpers/random.h"
 #include "jams/test/hamiltonian/test_dipole_input.h"
 #include "jams/test/output.h"
+
 
 #if HAS_CUDA
 #include "jams/hamiltonian/cuda_dipole_fft.h"
@@ -65,15 +67,16 @@ template<typename T>
 class DipoleHamiltonianTests : public ::testing::Test {
 public:
     DipoleHamiltonianTests() {
+    }
+
+    ~DipoleHamiltonianTests() override = default;
+
+    virtual void SetUp(const std::string &config_string) {
+
+      jams::testing::toggle_cout();
       // create global objects
       ::globals::lattice = new Lattice();
       ::globals::config = std::make_unique<libconfig::Config>();
-    }
-
-    ~DipoleHamiltonianTests() = default;
-
-    void SetUp(const std::string &config_string) {
-      jams::testing::toggle_cout();
       // configure global objects and create lattice and solver
       ::globals::config->readString(config_string);
       ::globals::lattice->init_from_config(*::globals::config);
@@ -89,9 +92,29 @@ public:
     }
 
     virtual void TearDown() {
-      // destroy global objects
-      delete ::globals::solver;
-      delete ::globals::lattice;
+      // reset global objects
+      globals::num_spins = 0;
+      globals::num_spins3 = 0;
+
+      jams::util::force_deallocation(globals::s);
+      jams::util::force_deallocation(globals::h);
+      jams::util::force_deallocation(globals::ds_dt);
+      jams::util::force_deallocation(globals::positions);
+      jams::util::force_deallocation(globals::alpha);
+      jams::util::force_deallocation(globals::mus);
+      jams::util::force_deallocation(globals::gyro);
+
+      if (::globals::solver) {
+        delete ::globals::solver;
+        ::globals::solver = nullptr;
+      }
+
+      ::globals::config = nullptr;
+
+      if (globals::lattice) {
+        delete ::globals::lattice;
+        ::globals::lattice = nullptr;
+      }
     }
 
     // test the total dipole energy for an ordered spin configuration
@@ -214,8 +237,20 @@ public:
 template<typename T>
 class DipoleHamiltonianCPUTests : public DipoleHamiltonianTests<T> {};
 
+#ifdef HAS_CUDA
 template<typename T>
-class DipoleHamiltonianGPUTests : public DipoleHamiltonianTests<T> {};
+class DipoleHamiltonianGPUTests : public DipoleHamiltonianTests<T> {
+public:
+    void SetUp(const std::string &config_string) override {
+      cudaDeviceReset();
+      DipoleHamiltonianTests<T>::SetUp(config_string);
+    }
+
+    void TearDown() override {
+      DipoleHamiltonianTests<T>::TearDown();
+    }
+};
+#endif
 
 // 1D ferromagnetic spin chain
 TYPED_TEST(DipoleHamiltonianCPUTests, total_energy_1D_FM_CPU) {
