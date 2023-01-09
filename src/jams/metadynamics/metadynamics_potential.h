@@ -15,7 +15,6 @@ namespace jams {
         // Maximum number of CVar dimensions supported by the class
         static const int kMaxDimensions = 2;
 
-        // TODO: Implement MirrorBCs
         enum class PotentialBCs {
           MirrorBC, // Gaussians are inserted as if the end of the ranges are mirrors.
           HardBC,    // Gaussians cannot be inserted outside of the range.
@@ -56,6 +55,13 @@ namespace jams {
         const double kHardBCsPotential = 1e100; // a very large value in meV
         void import_potential(const std::string &filename); //  can handle up to two Collective Variables.
 
+        /// This private method does the actual addition of the Gaussian to the
+        /// internal potential. It is used by the public method
+        /// 'insert_gaussian()', but allows the Gaussian center to be specified.
+        /// We can then (for example) insert additional virtual Gaussians
+        /// outside of the CV range when implementing mirror boundary conditions.
+        void add_gaussian_to_potential(const double relative_amplitude, const std::array<double,kMaxDimensions> center);
+
 
         double              gaussian_amplitude_;
         std::vector<double> gaussian_width_;
@@ -68,7 +74,6 @@ namespace jams {
         int                                              num_cvars_; //used to resize all the other vectors
         std::vector<std::unique_ptr<CollectiveVariable>> cvars_;
         std::vector<std::string>                         cvar_names_;
-        std::vector<PotentialBCs>                        cvar_bcs_;
         std::vector<PotentialBCs>                        lower_cvar_bc_;
         std::vector<PotentialBCs>                        upper_cvar_bc_;
         std::vector<double>                              cvar_range_min_;
