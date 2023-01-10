@@ -443,7 +443,7 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
   for (auto n = 0; n < cvars_.size(); ++n) {
     if (cvar_lower_bcs_[n] == PotentialBCs::MirrorBC) {
       auto virtual_center = center;
-      virtual_center[n] = cvar_range_min_[n] - virtual_center[n];
+      virtual_center[n] = 2*cvar_range_min_[n] - virtual_center[n];
       add_gaussian_to_potential(relative_amplitude, virtual_center);
     }
 
