@@ -17,23 +17,39 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     : Monitor(settings) {
 
   Vec3 layer_normal = jams::config_required<Vec3>(settings, "layer_normal");
+  auto layer_thickness = jams::config_optional<double>(settings, "layer_thickness", 0.0);
 
   // construct a rotation matrix which will rotate the system so that the norm
   // is always along z
   Mat3 rotation_matrix = rotation_matrix_between_vectors(layer_normal, Vec3{0, 0, 1});
 
+  std::vector<double> rotated_z_position(globals::num_spins);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    auto r =  rotation_matrix * ::globals::lattice->atom_position(i) * globals::lattice->parameter() * kMeterToNanometer;
+    rotated_z_position[i] = r[2];
+  }
+
+
+  // Find the minimum value of z in the rotated system. This will be used as the
+  // baseline for layers with a finite thickness.
+  double z_min = *std::min_element(rotated_z_position.begin(), rotated_z_position.end());
+
   // Find the unique layer positions. If the z-component of the position (after
   // rotating the system) is within lattice_tolerance of an existing position
   // we consider them to be in the same layer.
   auto comp_less = [&](double a, double b) -> bool {
+    if (layer_thickness == 0.0) {
       return definately_less_than(a, b, jams::defaults::lattice_tolerance);
+    }
+    return definately_less_than(floor((a - z_min)/layer_thickness) , floor((b - z_min)/layer_thickness), jams::defaults::lattice_tolerance);
   };
 
-  std::map<double, std::vector<int>, decltype(comp_less)> unique_positions(comp_less);
+
+  std::map<double, std::vector<int>, decltype(comp_less)> unique_positions(
+      comp_less);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    Vec3 r = rotation_matrix * ::globals::lattice->atom_position(i) * globals::lattice->parameter() * kMeterToNanometer;
-    unique_positions[r[2]].push_back(i);
+    unique_positions[rotated_z_position[i]].push_back(i);
   }
 
   num_layers_ = unique_positions.size();
@@ -41,13 +57,14 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   layer_magnetisation_.resize(num_layers_, 3);
 
   // Move all the data into MultiArrays
-  jams::MultiArray<double,1> layer_positions(num_layers_);
-  jams::MultiArray<int,1> layer_spin_count(num_layers_);
+  jams::MultiArray<double, 1> layer_positions(num_layers_);
+  jams::MultiArray<int, 1> layer_spin_count(num_layers_);
 
   int counter = 0;
-  for (auto const& x : unique_positions) {
+  for (auto const &x: unique_positions) {
     layer_positions(counter) = x.first;
-    layer_spin_count(counter) = x.second.size(); // number of spins in the layer
+    layer_spin_count(
+        counter) = x.second.size(); // number of spins in the layer
     layer_spin_indicies_[counter].resize(x.second.size());
 
     for (auto i = 0; i < x.second.size(); ++i) {
@@ -68,8 +85,14 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
   }
   {
     auto dataset = group.createDataSet<double>(
-        "layer_norm",HighFive::DataSpace::From(layer_normal));
+        "layer_normal",HighFive::DataSpace::From(layer_normal));
     dataset.write(layer_normal);
+  }
+  {
+    auto dataset = group.createDataSet<double>(
+        "layer_thickness",HighFive::DataSpace::From(layer_thickness));
+    dataset.write(layer_thickness);
+    dataset.createAttribute<std::string>("units", "nm");
   }
   {
     auto dataset = group.createDataSet<double>(
