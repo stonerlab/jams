@@ -14,6 +14,10 @@ double jams::CVarMagnetisation::value() {
     return sqrt(magnetisation[0]*magnetisation[0] + magnetisation[1]*magnetisation[1]);
   }
 
+  if (magnetisation_component_ == 3) {
+    return norm(magnetisation);
+  }
+
   return magnetisation[magnetisation_component_];
 }
 
@@ -53,6 +57,11 @@ jams::CVarMagnetisation::spin_move_trial_value(int i, const Vec3 &spin_initial,
   if (magnetisation_component_ == -1) {
     return sqrt(magnetisation[0]*magnetisation[0] + magnetisation[1]*magnetisation[1]);
   }
+
+  if (magnetisation_component_ == 3) {
+    return norm(magnetisation);
+  }
+
 
   return magnetisation[magnetisation_component_];
 
@@ -111,11 +120,14 @@ jams::CVarMagnetisation::CVarMagnetisation(const libconfig::Setting &settings) {
   } else if (lowercase(component) == "z") {
     magnetisation_component_ = 2;
     name_ = "magnetisation_z";
+  } else if (lowercase(component) == "magnitude") {
+    magnetisation_component_ = 3;
+    name_ = "magnetisation_z";
   } else if (lowercase(component) == "transverse") {
     magnetisation_component_ = -1;
     name_ = "magnetisation_transverse";
   } else {
-    throw std::runtime_error("'component' setting in magnetisation collective variable must be x, y, z or transverse");
+    throw std::runtime_error("'component' setting in magnetisation collective variable must be x, y, z, transverse or magnitude");
   }
 }
 
