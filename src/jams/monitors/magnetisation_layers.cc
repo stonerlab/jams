@@ -58,18 +58,22 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
   // Move all the data into MultiArrays
   jams::MultiArray<double, 1> layer_positions(num_layers_);
+  jams::MultiArray<double, 1> layer_saturation_moment(num_layers_);
   jams::MultiArray<int, 1> layer_spin_count(num_layers_);
 
   int counter = 0;
   for (auto const &x: unique_positions) {
     layer_positions(counter) = x.first;
-    layer_spin_count(
-        counter) = x.second.size(); // number of spins in the layer
+    layer_spin_count(counter) = x.second.size(); // number of spins in the layer
     layer_spin_indicies_[counter].resize(x.second.size());
 
+    layer_saturation_moment(counter) = 0.0;
     for (auto i = 0; i < x.second.size(); ++i) {
-      layer_spin_indicies_[counter](i) = x.second[i];
+      auto spin_index = x.second[i];
+      layer_spin_indicies_[counter](i) = spin_index;
+      layer_saturation_moment(counter) += globals::mus(spin_index) / kBohrMagnetonIU;
     }
+
     counter++;
   }
 
@@ -99,6 +103,12 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
         "layer_positions",HighFive::DataSpace::From(layer_positions));
     dataset.write(layer_positions);
     dataset.createAttribute<std::string>("units", "nm");
+  }
+  {
+    auto dataset = group.createDataSet<double>(
+        "layer_saturation_moment",HighFive::DataSpace::From(layer_saturation_moment));
+    dataset.write(layer_saturation_moment);
+    dataset.createAttribute<std::string>("units", "bohr_magneton");
   }
   {
     auto dataset = group.createDataSet<int>(
