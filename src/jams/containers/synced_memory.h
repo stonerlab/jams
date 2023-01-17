@@ -303,7 +303,8 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory &&rhs) noexcept
     : size_(std::move(rhs.size_))
     , host_ptr_(std::move(rhs.host_ptr_))
     , device_ptr_(std::move(rhs.device_ptr_))
-    , sync_status_(std::move(rhs.sync_status_)) {
+    , sync_status_(std::move(rhs.sync_status_))
+    , host_cuda_malloc_(std::move(rhs.host_cuda_malloc_)){
   rhs.sync_status_ = SyncStatus::UNINITIALIZED;
   rhs.size_ = 0;
   rhs.host_ptr_ = nullptr;
@@ -374,10 +375,12 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory &&rhs) & noexcept {
   host_ptr_ = rhs.host_ptr_;
   device_ptr_ = rhs.device_ptr_;
   sync_status_ = rhs.sync_status_;
+  host_cuda_malloc_ = rhs.host_cuda_malloc_;
   rhs.sync_status_ = SyncStatus::UNINITIALIZED;
   rhs.size_ = 0;
   rhs.host_ptr_ = nullptr;
   rhs.device_ptr_ = nullptr;
+  rhs.host_cuda_malloc_ = false;
   return *this;
 }
 
@@ -667,6 +670,7 @@ void swap(SyncedMemory<T> &lhs, SyncedMemory<T> &rhs) {
   swap(lhs.size_, rhs.size_);
   swap(lhs.host_ptr_, rhs.host_ptr_);
   swap(lhs.device_ptr_, rhs.device_ptr_);
+  swap(lhs.host_cuda_malloc_, rhs.host_cuda_malloc_);
 }
 
 
