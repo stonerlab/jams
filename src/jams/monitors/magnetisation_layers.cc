@@ -91,29 +91,38 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     auto dataset = group.createDataSet<double>(
         "layer_normal",HighFive::DataSpace::From(layer_normal));
     dataset.write(layer_normal);
+    dataset.createAttribute<std::string>("axis0", "xyz");
   }
   {
     auto dataset = group.createDataSet<double>(
         "layer_thickness",HighFive::DataSpace::From(layer_thickness));
     dataset.write(layer_thickness);
     dataset.createAttribute<std::string>("units", "nm");
+    dataset.createAttribute<std::string>("axis0", "layer_index");
+    dataset.createAttribute<std::string>("axis1", "layer_thickness");
   }
   {
     auto dataset = group.createDataSet<double>(
         "layer_positions",HighFive::DataSpace::From(layer_positions));
     dataset.write(layer_positions);
     dataset.createAttribute<std::string>("units", "nm");
+    dataset.createAttribute<std::string>("axis0", "layer_index");
+    dataset.createAttribute<std::string>("axis1", "layer_position");
   }
   {
     auto dataset = group.createDataSet<double>(
         "layer_saturation_moment",HighFive::DataSpace::From(layer_saturation_moment));
     dataset.write(layer_saturation_moment);
+    dataset.createAttribute<std::string>("axis0", "layer_index");
+    dataset.createAttribute<std::string>("axis1", "magnetisation_xyz");
     dataset.createAttribute<std::string>("units", "bohr_magneton");
   }
   {
     auto dataset = group.createDataSet<int>(
         "layer_spin_count",HighFive::DataSpace::From(layer_spin_count));
     dataset.write(layer_spin_count);
+    dataset.createAttribute<std::string>("axis0", "layer_index");
+    dataset.createAttribute<std::string>("axis1", "number_of_spins");
   }
 }
 
