@@ -1,4 +1,4 @@
-#include <cuda.h>
+#include <cuda_runtime.h>
 #include <jams/core/types.h>
 #include "jams/cuda/cuda_device_vector_ops.h"
 #include <thrust/device_ptr.h>

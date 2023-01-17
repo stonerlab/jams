@@ -2,7 +2,7 @@
 
 #include "cuda_llg_heun.h"
 
-#include <cuda.h>
+#include <cuda_runtime.h>
 
 #include <algorithm>
 #include <cmath>

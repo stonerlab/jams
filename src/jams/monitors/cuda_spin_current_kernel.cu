@@ -1,4 +1,4 @@
-#include <cuda.h>
+#include <cuda_runtime.h>
 #include <jams/cuda/cuda_array_kernels.h>
 
 #include "jams/core/types.h"

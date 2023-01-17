@@ -3,7 +3,7 @@ add_library(cuda_external INTERFACE)
 find_package(CUDA QUIET)
 
 target_include_directories(cuda_external INTERFACE ${CUDA_INCLUDE_DIRS})
-target_link_libraries(cuda_external INTERFACE cuda)
+target_link_libraries(cuda_external INTERFACE cudart)
 set(JAMS_CUDA_VERSION ${CUDA_VERSION})
 
 foreach(LIB cusparse curand cublas cufft)
