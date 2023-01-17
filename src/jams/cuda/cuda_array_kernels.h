@@ -3,7 +3,7 @@
 #ifndef JAMS_CUDA_ARRAY_KERNELS_H
 #define JAMS_CUDA_ARRAY_KERNELS_H
 
-#include <cuda.h>
+#include <cuda_runtime.h>
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
 

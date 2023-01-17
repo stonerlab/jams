@@ -10,7 +10,7 @@
 
 #if HAS_CUDA
 
-#include <cuda.h>
+#include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include <curand.h>
 #include <cusparse.h>
