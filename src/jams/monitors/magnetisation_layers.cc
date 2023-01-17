@@ -146,14 +146,17 @@ void MagnetisationLayersMonitor::update(Solver& solver) {
 
   // Write the data to file
   HighFive::Group group = file.createGroup(
-      h5_group + zero_pad_number(solver.iteration(),9));
+      h5_group + "/timeseries/" + zero_pad_number(solver.iteration(),9));
 
   group.createAttribute<double>("time", solver.time());
+  group.createAttribute<double>("time_step", solver.time_step());
   group.createAttribute<std::string>("units", "ps");
 
   auto dataset = group.createDataSet<double>(
-      "layer_magnetisation",HighFive::DataSpace::From(layer_magnetisation_));
-  dataset.createAttribute<std::string>("units", "muB");
+      "magnetisation",HighFive::DataSpace::From(layer_magnetisation_));
+  dataset.createAttribute<std::string>("axis0", "layer_index");
+  dataset.createAttribute<std::string>("axis1", "magnetisation_xyz");
+  dataset.createAttribute<std::string>("units", "bohr_magneton");
 
   dataset.write(layer_magnetisation_);
 }
