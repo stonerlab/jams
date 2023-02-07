@@ -7,6 +7,31 @@
 
 jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     const libconfig::Setting &settings) {
+  // In all of this code, we assume stacking along z, so the motif offset can also be
+  // used to index the layers.
+  int num_layers = globals::lattice->num_motif_atoms();
+  std::string material = config_optional<std::string>(settings, "material", "all");
+
+  if (settings.exists("material")) {
+    std::string material = config_optional<std::string>(settings, material, "all");
+    if (!globals::lattice->material_exists(material)) {
+      throw std::runtime_error("Invalid material specified in topological charge collective variable.");
+    }
+    selected_material_id_ = globals::lattice->material_id(material);
+
+    num_selected_layers_ = 0;
+    for (auto i = 0; i < num_layers; ++i) {
+      // iterate over layers
+      if (globals::lattice->motif_atom(i).material_index == selected_material_id_) {
+        num_selected_layers_ += 1;
+      }
+      continue;
+    }
+
+  } else {
+    selected_material_id_ = -1;
+    num_selected_layers_ = num_layers;
+  }
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
@@ -206,10 +231,15 @@ double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_cache_value() 
 
   double topological_charge = 0.0;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    topological_charge += local_topological_charge(i);
+    // include the spin if it is of relevant material, or if we consider all
+    // spins in the system.
+    if (selected_material_id_==-1 || globals::lattice->atom_material_id(i)==selected_material_id_) {
+      topological_charge += local_topological_charge(i);
+    }
+
   }
 
-  return topological_charge / (4.0 * kPi);
+  return topological_charge / (4.0 * kPi * num_selected_layers_);
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(const int i) const {
@@ -256,5 +286,5 @@ double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int 
 
   montecarlo::set_spin(index, spin_initial);
 
-  return (final_charge - initial_charge) / (4.0 * kPi);
+  return (final_charge - initial_charge) / (4.0 * kPi * num_selected_layers_);
 }

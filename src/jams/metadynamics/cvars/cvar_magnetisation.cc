@@ -107,7 +107,7 @@ jams::CVarMagnetisation::CVarMagnetisation(const libconfig::Setting &settings) {
   }
 
   assert((selected_material_id_ >= 0 && selected_material_id_ < globals::lattice->num_materials()) || selected_material_id_ == -1);
-  assert(num_selected_spins_ > 0);
+  assert(total_selected_magnetization_ > 0);
 
   auto component = config_required<std::string>(settings, "component");
 
