@@ -10,7 +10,6 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
   // In all of this code, we assume stacking along z, so the motif offset can also be
   // used to index the layers.
   int num_layers = globals::lattice->num_motif_atoms();
-  std::string material = config_optional<std::string>(settings, "material", "all");
 
   if (settings.exists("material")) {
     std::string material = config_optional<std::string>(settings, material, "all");
@@ -21,11 +20,11 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
     num_selected_layers_ = 0;
     for (auto i = 0; i < num_layers; ++i) {
-      // iterate over layers
+      // iterate over layers, determining whether each motif atom is
+      // of the specified material or not.
       if (globals::lattice->motif_atom(i).material_index == selected_material_id_) {
         num_selected_layers_ += 1;
       }
-      continue;
     }
 
   } else {
