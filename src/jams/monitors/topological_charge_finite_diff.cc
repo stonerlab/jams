@@ -15,6 +15,25 @@
 
 TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const libconfig::Setting &settings) : Monitor(settings), outfile(jams::output::full_path_filename("top_charge.tsv")) {
 
+  if (settings.exists("material")) {
+    std::string material = jams::config_optional<std::string>(settings, material, "all");
+
+    if (!globals::lattice->material_exists(material)) {
+      throw std::runtime_error("Invalid material specified in topological charge collective variable.");
+    }
+    selected_material_id_ = globals::lattice->material_id(material);
+
+    num_selected_layers_ = 0;
+    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+      // iterate over layers
+      if (globals::lattice->motif_atom(i).material_index == selected_material_id_) {
+        num_selected_layers_ += 1;
+      }
+    }
+  } else {
+    selected_material_id_ = -1;
+    num_selected_layers_ = globals::lattice->num_motif_atoms();
+  }
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
       return approximately_equal(globals::lattice->a(), a, jams::defaults::lattice_tolerance)
@@ -167,13 +186,15 @@ void TopologicalFiniteDiffChargeMonitor::update(Solver& solver) {
   double c = 0.0;
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    double y = local_topological_charge(i) - c;
-    double t = sum + y;
-    c = (t - sum) - y;
-    sum = t;
+    if (selected_material_id_==-1 || globals::lattice->atom_material_id(i) == selected_material_id_) {
+      double y = local_topological_charge(i) - c;
+      double t = sum + y;
+      c = (t - sum) - y;
+      sum = t;
+    }
   }
 
-  monitor_top_charge_cache_ = sum / (4.0 * kPi);
+  monitor_top_charge_cache_ = sum / (4.0 * kPi * num_selected_layers_);
 
   outfile.width(12);
   outfile << jams::fmt::sci << solver.iteration()<< "\t";

@@ -68,6 +68,8 @@ class TopologicalFiniteDiffChargeMonitor : public Monitor {
 
   double local_topological_charge(const int i) const;
 
+  int selected_material_id_;
+  int num_selected_layers_;
 
   std::string name_ = "topological-charge-finite-diff";
   std::ofstream outfile;
