@@ -34,6 +34,10 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
     selected_material_id_ = -1;
     num_selected_layers_ = globals::lattice->num_motif_atoms();
   }
+
+  assert((selected_material_id_ >= 0 && selected_material_id_ < globals::lattice->num_materials()) || selected_material_id_ == -1);
+  assert(num_selected_layers_ > 0);
+
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
       return approximately_equal(globals::lattice->a(), a, jams::defaults::lattice_tolerance)
@@ -197,7 +201,7 @@ void TopologicalFiniteDiffChargeMonitor::update(Solver& solver) {
   monitor_top_charge_cache_ = sum / (4.0 * kPi * num_selected_layers_);
 
   outfile.width(12);
-  outfile << jams::fmt::sci << solver.iteration()<< "\t";
+  outfile << jams::fmt::sci << solver.iteration() << "\t";
   outfile << jams::fmt::decimal << monitor_top_charge_cache_ << "\t";
   outfile << std::endl;
 }

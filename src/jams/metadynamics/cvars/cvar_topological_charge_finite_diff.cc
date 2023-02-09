@@ -9,7 +9,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     const libconfig::Setting &settings) {
   // In all of this code, we assume stacking along z, so the motif offset can also be
   // used to index the layers.
-  int num_layers = globals::lattice->num_motif_atoms();
+  int total_layers = globals::lattice->num_motif_atoms();
 
   if (settings.exists("material")) {
     std::string material = config_optional<std::string>(settings, material, "all");
@@ -19,7 +19,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     selected_material_id_ = globals::lattice->material_id(material);
 
     num_selected_layers_ = 0;
-    for (auto i = 0; i < num_layers; ++i) {
+    for (auto i = 0; i < total_layers; ++i) {
       // iterate over layers, determining whether each motif atom is
       // of the specified material or not.
       if (globals::lattice->motif_atom(i).material_index == selected_material_id_) {
@@ -29,8 +29,11 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   } else {
     selected_material_id_ = -1;
-    num_selected_layers_ = num_layers;
+    num_selected_layers_ = globals::lattice->num_motif_atoms();
   }
+
+  assert((selected_material_id_ >= 0 && selected_material_id_ < globals::lattice->num_materials()) || selected_material_id_ == -1);
+  assert(num_selected_layers_ > 0);
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
@@ -217,11 +220,16 @@ double jams::CVarTopologicalChargeFiniteDiff::value() {
 double jams::CVarTopologicalChargeFiniteDiff::spin_move_trial_value(int i,
                                                                     const Vec3 &spin_initial,
                                                                     const Vec3 &spin_trial) {
-  const double trial_value = cached_value() + topological_charge_difference(i, spin_initial, spin_trial);
+  // check if the spin is of relevant material
+  if (selected_material_id_==-1 || globals::lattice->atom_material_id(i)==selected_material_id_) {
+    const double trial_value = cached_value() + topological_charge_difference(i, spin_initial, spin_trial);
+    set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
+    return trial_value;
+  }
 
-  set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
+  set_cache_values(i, spin_initial, spin_trial, cached_value(), cached_value());
 
-  return trial_value;  //Used in CollectiveVariable
+  return cached_value();  //Used in CollectiveVariable
 }
 
 
