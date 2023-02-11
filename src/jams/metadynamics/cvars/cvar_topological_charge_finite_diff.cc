@@ -12,7 +12,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
   int total_layers = globals::lattice->num_motif_atoms();
 
   if (settings.exists("material")) {
-    std::string material = config_optional<std::string>(settings, material, "all");
+    std::string material = config_optional<std::string>(settings, "material", "all");
     if (!globals::lattice->material_exists(material)) {
       throw std::runtime_error("Invalid material specified in topological charge collective variable.");
     }
@@ -20,7 +20,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
     num_selected_layers_ = 0;
     for (auto i = 0; i < total_layers; ++i) {
-      // iterate over layers, determining whether each motif atom is
+      // iterate over layers, determining whether each motif atom isq
       // of the specified material or not.
       if (globals::lattice->motif_atom(i).material_index == selected_material_id_) {
         num_selected_layers_ += 1;
