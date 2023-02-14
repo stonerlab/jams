@@ -43,13 +43,15 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   // Detect if we have a square or hexagonal lattice in the plane (all other
   // lattices are unsupported)
-  enum class LatticeShape {Unsupported, Square, Hexagonal};
+  enum class LatticeShape {Unsupported, Square, HexagonalAcute, HexagonalObtuse};
 
   LatticeShape lattice_shape = LatticeShape::Unsupported;
   if (lattice_equal({1.0, 0.0, 0.0}, {0.0, 1.0, 0.0})) {
     lattice_shape = LatticeShape::Square;
   } else if (lattice_equal({1.0, 0.0, 0.0}, {0.5, sqrt(3)/2, 0.0})) {
-    lattice_shape = LatticeShape::Hexagonal;
+    lattice_shape = LatticeShape::HexagonalAcute;
+  } else if (lattice_equal({1.0, 0.0, 0.0}, {-0.5, sqrt(3)/2, 0.0})) {
+    lattice_shape = LatticeShape::HexagonalObtuse;
   } else {
     throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
                              "requires the lattice to be either square or triangular.");
@@ -114,7 +116,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           {Vec3{-1,-1, 0},-1.0/16.0},
       };
     }
-    if (lattice_shape == LatticeShape::Hexagonal) {
+    if (lattice_shape == LatticeShape::HexagonalAcute) {
       dx_interaction_data = {
           {Vec3{ 1,-1, 0}, 1.0/6.0},
           {Vec3{-1, 1, 0},-1.0/6.0},
@@ -122,6 +124,11 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           {Vec3{ 0,-1, 0},-1.0/6.0},
           {Vec3{ 1, 0, 0}, 1.0/3.0},
           {Vec3{-1, 0, 0},-1.0/3.0}
+      };
+    }
+    if (lattice_shape == LatticeShape::HexagonalObtuse) {
+      dx_interaction_data = {
+          // FILL THESE IN
       };
     }
 
@@ -169,12 +176,17 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           {Vec3{-1,-1, 0},-1.0/16.0},
       };
     }
-    if (lattice_shape == LatticeShape::Hexagonal) {
+    if (lattice_shape == LatticeShape::HexagonalAcute) {
       dy_interaction_data = {
           {Vec3{ 1,-1, 0},-sqrt(3.0)/6.0},
           {Vec3{-1, 1, 0}, sqrt(3.0)/6.0},
           {Vec3{ 0, 1, 0}, sqrt(3.0)/6.0},
           {Vec3{ 0,-1, 0},-sqrt(3.0)/6.0},
+      };
+    }
+    if (lattice_shape == LatticeShape::HexagonalObtuse) {
+      dy_interaction_data = {
+          // FILL THESE IN
       };
     }
 
