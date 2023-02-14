@@ -128,7 +128,12 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     }
     if (lattice_shape == LatticeShape::HexagonalObtuse) {
       dx_interaction_data = {
-          // FILL THESE IN
+          {Vec3{0,1,0}, -1.0/6.0},
+          {Vec3{1,1,0}, 1.0/6.0},
+          {Vec3{1,0,0}, 1.0/3.0},
+          {Vec3{0,-1,0}, 1.0/6.0},
+          {Vec3{-1,-1,0}, -1.0/6.0},
+          {Vec3{-1,0,0}, -1.0/3.0},
       };
     }
 
@@ -186,7 +191,10 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     }
     if (lattice_shape == LatticeShape::HexagonalObtuse) {
       dy_interaction_data = {
-          // FILL THESE IN
+          {Vec3{0,1,0}, sqrt(3.0)/6.0},
+          {Vec3{1,1,0}, sqrt(3.0)/6.0},
+          {Vec3{0,-1,0}, -sqrt(3.0)/6.0},
+          {Vec3{-1,-1,0}, -sqrt(3.0)/6.0},
       };
     }
 
