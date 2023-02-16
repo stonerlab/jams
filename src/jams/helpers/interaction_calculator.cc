@@ -4,6 +4,7 @@
 
 #include "jams/core/globals.h"
 #include "jams/helpers/interaction_calculator.h"
+#include "jams/maths/parallelepiped.h"
 
 #include <iostream>
 
@@ -18,9 +19,9 @@ namespace jams {
                                        const double eps) {
       // assumes motif is in fractional coordinates
       Vec3i num_cells = {
-          int(ceil(r_max / norm(unitcell.a()))),
-          int(ceil(r_max / norm(unitcell.b()))),
-          int(ceil(r_max / norm(unitcell.c())))
+          int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.b(), unitcell.c(), unitcell.a()))),
+          int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.c(), unitcell.a(), unitcell.b()))),
+          int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.a(), unitcell.b(), unitcell.c())))
       };
 
       std::vector<Atom> atoms;
