@@ -295,7 +295,7 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
   // the fact that the ranges are sorted to do a bisection search.
 
   std::array<double,kMaxDimensions> sample_lower;
-  std::array<int,kMaxDimensions> index_lower;
+  std::array<int,kMaxDimensions> lower_index;
 
   double bcs_potential = 0.0;
 
@@ -315,23 +315,43 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 	  }
   }
 
+  // To do the linear (and bilinear) interpolation we need to find the
+  // discrete coordinates stored in cvar_sample_coordinates_ which are
+  // just below (lower coordinate)
+  // and just above (upper coordinate) the value of cvar_coordinates.
   for (auto n = 0; n < cvars_.size(); ++n) {
-    auto lower = std::lower_bound(
+
+    // cvar_sample_coordinates_ is sorted so std::lower_bound returns a pointer
+    // to the first element where
+    // cvar_coordinates[n] is larger than cvar_sample_coordinates_[n]. This
+    // should be the upper coordinate we want.
+    auto upper_coordinate_ptr = std::lower_bound(
         cvar_sample_coordinates_[n].begin(),
         cvar_sample_coordinates_[n].end(),
         cvar_coordinates[n]);
 
-    auto lower_index = std::distance(cvar_sample_coordinates_[n].begin(), lower - 1);
+    // We need the array index which is the distance from the begin pointer
+    // to the upper_coordinate_ptr
+    auto upper_index = std::distance(cvar_sample_coordinates_[n].begin(), upper_coordinate_ptr);
 
-    index_lower[n] = lower_index;
-    sample_lower[n] = cvar_sample_coordinates_[n][lower_index];
+    if (upper_coordinate_ptr == cvar_sample_coordinates_[n].begin()) {
+      // There's the possibility cvar_coordinates[n] == cvar_sample_coordinates_[n][0] but the
+      // in which case the std::lower_bound search will find the first element of cvar_sample_coordinates_[n].
+      // In this case we set the lower and upper index as the same.
+      lower_index[n] = upper_index;
+    } else {
+      // Normally the lower_index will be the index below the upper_index
+      lower_index[n] = upper_index - 1;
+    }
+
+    sample_lower[n] = cvar_sample_coordinates_[n][lower_index[n]];
   }
 
   assert(cvars_.size() <= kMaxDimensions);
 
   if (cvars_.size() == 1) {
-    auto x1_index = index_lower[0];
-    auto x2_index = index_lower[0] + 1;
+    auto x1_index = lower_index[0];
+    auto x2_index = lower_index[0] + 1;
 
     return bcs_potential + maths::linear_interpolation(
         cvar_coordinates[0],
@@ -341,8 +361,8 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   if (cvars_.size() == 2) {
     //f(x1,y1)=Q(11) , f(x1,y2)=Q(12), f(x2,y1), f(x2,y2)
-    int x1_index = index_lower[0];
-    int y1_index = index_lower[1];
+    int x1_index = lower_index[0];
+    int y1_index = lower_index[1];
     int x2_index = x1_index + 1;
     int y2_index = y1_index + 1;
 
