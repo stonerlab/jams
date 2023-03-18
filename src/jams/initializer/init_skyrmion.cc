@@ -59,11 +59,20 @@ void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
     double theta = asin(std::tanh(-(r+c)/(w/2.0))) + asin(std::tanh(-(r-c)/(w/2.0))) + kPi;
     double phi = std::atan2(y, x);
 
+    // Rotate the spins. This rotates any spins that start in the -z FM state into a skyrmion of one polarity,
+    // and any spins that start in the +z FM state into a skyrmion of opposite polarity,
+    // hence creating an AFM skyrmion.
     // The minus sign is so that a polarity of '-1' gives a skyrmion core in the
     // -z direction.
-    globals::s(i,0) = -Q * sin(theta) * cos(Qv*phi + Qh);
-    globals::s(i,1) = -Q * sin(theta) * sin(Qv*phi + Qh);
-    globals::s(i,2) = -Q * cos(theta);
+    Vec3 spin_initial{globals::s(i,0), globals::s(i, 1), globals::s(i, 2)};
+    Mat3 rot_matrix = -Q * Mat3{0, 0, sin(theta) * cos(Qv*phi + Qh),
+                                0, 0, sin(theta) * sin(Qv*phi + Qh),
+                                0, 0, cos(theta)};
+    Vec3 spin_final = rot_matrix * spin_initial;
+
+    for (auto j=0; j < 3; ++j) {
+      globals::s(i, j) = spin_final[j];
+    }
 
   }
 }
