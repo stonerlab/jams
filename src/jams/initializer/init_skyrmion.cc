@@ -8,8 +8,6 @@
 #include <cmath>
 
 void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
-  //
-  auto is_afm = jams::config_required<int>(settings, "is_afm");
 
   double w = jams::config_optional<double>(settings, "w", 5.0);
   double c = jams::config_optional<double>(settings, "c", 5.0);
@@ -62,25 +60,15 @@ void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
     double theta = asin(std::tanh(-(r+c)/(w/2.0))) + asin(std::tanh(-(r-c)/(w/2.0))) + kPi;
     double phi = std::atan2(y, x);
 
-    // if we're dealing with an antiferromagnet, orient the spins composing the skyrmion accordingly
-    if (is_afm) {
-      globals::lattice
-      if (globals::lattice->atom_material_id(i) == 0) {
-        // by convention, we'll hardcode this material to have the skyrmion core pointing along -z.
-        globals::s(i, 0) = -Q * sin(theta) * cos(Qv*phi + Qh);
-        globals::s(i, 1) = -Q * sin(theta) * sin(Qv*phi + Qh);
-        globals::s(i, 2) = -Q * cos(theta);
-      } else {
-        globals::s(i, 0) = Q * sin(theta) * cos(Qv*phi + Qh);
-        globals::s(i, 1) = Q * sin(theta) * sin(Qv*phi + Qh);
-        globals::s(i, 2) = Q * cos(theta);
-      }
-    } else {
-      globals::s(i, 0) = -Q * sin(theta) * cos(Qv*phi + Qh);
-      globals::s(i, 1) = -Q * sin(theta) * sin(Qv*phi + Qh);
-      globals::s(i, 2) = -Q * cos(theta);
-    }
+    Vec3 spin_initial{globals::s(i,0), globals::s(i, 1), globals::s(i, 2)};
+    Mat3 rot_matrix = -Q * Mat3{0, 0, sin(theta) * cos(Qv*phi + Qh),
+                                0, 0, sin(theta) * sin(Qv*phi + Qh),
+                                0, 0, cos(theta)};
+    Vec3 spin_final = rot_matrix * spin_initial;
 
+    for (auto j=0; j < 3; ++j) {
+      globals::s(i, j) = spin_final[j];
+    }
   }
 }
 
