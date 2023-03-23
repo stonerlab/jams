@@ -71,6 +71,9 @@ class TopologicalFiniteDiffChargeMonitor : public Monitor {
   int selected_material_id_;
   int num_selected_layers_;
 
+  bool layerwise_;
+  int selected_layer_index_;
+
   std::string name_ = "topological-charge-finite-diff";
   std::ofstream outfile;
 

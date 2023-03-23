@@ -22,6 +22,8 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
     if (!globals::lattice->material_exists(material)) {
       throw std::runtime_error("Invalid material specified in topological charge collective variable.");
     }
+    layerwise_ = false;
+
     selected_material_id_ = globals::lattice->material_id(material);
 
     num_selected_layers_ = 0;
@@ -31,11 +33,19 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
         num_selected_layers_ += 1;
       }
     }
+  } else if (settings.exists("layer")) {
+    auto layer = jams::config_required<int>(settings, "layer");
+
+    if (layer > (globals::lattice->num_motif_atoms() - 1)) {
+      throw std::runtime_error("The layer index specified is greater than number of layers in the system!");
+    }
+    selected_layer_index_ = layer;
+    layerwise_ = true;
   } else {
     selected_material_id_ = -1;
     num_selected_layers_ = globals::lattice->num_motif_atoms();
+    layerwise_ = false;
   }
-
   assert((selected_material_id_ >= 0 && selected_material_id_ < globals::lattice->num_materials()) ||
          selected_material_id_ == -1);
   assert(num_selected_layers_ > 0);
@@ -215,6 +225,15 @@ void TopologicalFiniteDiffChargeMonitor::update(Solver &solver) {
   double c = 0.0;
 
   for (auto i = 0; i < globals::num_spins; ++i) {
+    if (layerwise_) {
+      if (globals::lattice->atom_motif_position(i) == selected_layer_index_) {
+        double y = local_topological_charge(i) - c;
+        double t = sum + y;
+        c = (t - sum) - y;
+        sum = t;
+      }
+    }
+
     if (selected_material_id_ == -1 || globals::lattice->atom_material_id(i) == selected_material_id_) {
       double y = local_topological_charge(i) - c;
       double t = sum + y;
@@ -222,8 +241,11 @@ void TopologicalFiniteDiffChargeMonitor::update(Solver &solver) {
       sum = t;
     }
   }
-
-  monitor_top_charge_cache_ = sum / (4.0 * kPi * num_selected_layers_);
+  if (layerwise_) {
+    monitor_top_charge_cache_ = sum / (4.0 * kPi);
+  } else {
+    monitor_top_charge_cache_ = sum / (4.0 * kPi * num_selected_layers_);
+  }
 
   outfile.width(12);
   outfile << jams::fmt::sci << solver.iteration() << "\t";
