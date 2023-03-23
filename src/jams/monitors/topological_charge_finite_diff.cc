@@ -35,7 +35,7 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
     }
   } else if (settings.exists("layer")) {
     auto layer = jams::config_required<int>(settings, "layer");
-
+    std::cout << "Using layerwise topological charge monitor" << "\n";
     if (layer > (globals::lattice->num_motif_atoms() - 1)) {
       throw std::runtime_error("The layer index specified is greater than number of layers in the system!");
     }
@@ -227,6 +227,7 @@ void TopologicalFiniteDiffChargeMonitor::update(Solver &solver) {
   for (auto i = 0; i < globals::num_spins; ++i) {
     if (layerwise_) {
       if (globals::lattice->atom_motif_position(i) == selected_layer_index_) {
+        std::cout << "entered this if statement" << "\n";
         double y = local_topological_charge(i) - c;
         double t = sum + y;
         c = (t - sum) - y;
@@ -241,6 +242,7 @@ void TopologicalFiniteDiffChargeMonitor::update(Solver &solver) {
       sum = t;
     }
   }
+
   if (layerwise_) {
     monitor_top_charge_cache_ = sum / (4.0 * kPi);
   } else {
