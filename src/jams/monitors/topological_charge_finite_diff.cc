@@ -116,15 +116,20 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 
     std::vector<InteractionData> interaction_template;
     for (auto &data: dx_interaction_data) {
-      InteractionData J;
-      J.unit_cell_pos_i = 0;
-      J.unit_cell_pos_j = 0;
-      J.type_i = globals::lattice->material_name(
-        globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
-      J.type_j = globals::lattice->material_name(globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
-      J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
-      J.J_ij[0][0] = data.second;
-      interaction_template.push_back(J);
+      // To work with the neighbour_list_from_interactions() mechanics we need
+      // to specify the unit cell positions. We assume that each plane only
+      // contains one motif position.
+      for (auto m = 0; m < globals::lattice->num_motif_atoms(); ++m) {
+        InteractionData J;
+        J.unit_cell_pos_i = m;
+        J.unit_cell_pos_j = m;
+        J.type_i = globals::lattice->material_name(
+            globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+        J.type_j = globals::lattice->material_name(globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+        J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
+        J.J_ij[0][0] = data.second;
+        interaction_template.push_back(J);
+      }
     }
 
     jams::InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(interaction_template);
@@ -174,16 +179,18 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
     }
     std::vector<InteractionData> interaction_template;
     for (auto &data: dy_interaction_data) {
-      InteractionData J;
-      J.unit_cell_pos_i = 0;
-      J.unit_cell_pos_j = 0;
-      J.type_i = globals::lattice->material_name(
-        globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
-      J.type_j = globals::lattice->material_name(
-        globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
-      J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
-      J.J_ij[0][0] = data.second;
-      interaction_template.push_back(J);
+      for (auto m = 0; m < globals::lattice->num_motif_atoms(); ++m) {
+        InteractionData J;
+        J.unit_cell_pos_i = m;
+        J.unit_cell_pos_j = m;
+        J.type_i = globals::lattice->material_name(
+            globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+        J.type_j = globals::lattice->material_name(
+            globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+        J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
+        J.J_ij[0][0] = data.second;
+        interaction_template.push_back(J);
+      }
     }
     jams::InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(
       interaction_template);
