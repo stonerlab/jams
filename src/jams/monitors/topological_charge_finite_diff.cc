@@ -16,39 +16,45 @@
 TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const libconfig::Setting &settings) : Monitor(
   settings), outfile(jams::output::full_path_filename("top_charge.tsv")) {
 
-  if (settings.exists("material")) {
-    std::string material = jams::config_optional<std::string>(settings, "material", "all");
+  // calculate topological charge per material or per unit cell position
+  auto grouping_str = jams::config_optional<std::string>(settings, "grouping", "positions");
 
-    if (!globals::lattice->material_exists(material)) {
-      throw std::runtime_error("Invalid material specified in topological charge collective variable.");
-    }
-    layerwise_ = false;
-
-    selected_material_id_ = globals::lattice->material_id(material);
-
-    num_selected_layers_ = 0;
-    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
-      // iterate over layers
-      if (globals::lattice->motif_atom(i).material_index == selected_material_id_) {
-        num_selected_layers_ += 1;
-      }
-    }
-  } else if (settings.exists("layer")) {
-    auto layer = jams::config_required<int>(settings, "layer");
-    std::cout << "Using layerwise topological charge monitor" << "\n";
-    if (layer > (globals::lattice->num_motif_atoms() - 1)) {
-      throw std::runtime_error("The layer index specified is greater than number of layers in the system!");
-    }
-    selected_layer_index_ = layer;
-    layerwise_ = true;
+  if (lowercase(grouping_str) == "materials") {
+    grouping_ = Grouping::MATERIALS;
+  } else if (lowercase(grouping_str) == "positions") {
+    grouping_ = Grouping::POSITIONS;
   } else {
-    selected_material_id_ = -1;
-    num_selected_layers_ = globals::lattice->num_motif_atoms();
-    layerwise_ = false;
+    throw std::runtime_error("unknown topological charge grouping: " + grouping_str);
   }
-  assert((selected_material_id_ >= 0 && selected_material_id_ < globals::lattice->num_materials()) ||
-         selected_material_id_ == -1);
-  assert(num_selected_layers_ > 0);
+
+  if (grouping_ == Grouping::MATERIALS) {
+    // TODO: We can't reliably use globals::lattice->num_materials() here because we might
+    // have specified some materials in the cfg which are never actually used in the lattice.
+    // Need to work out how best to fix this. Do we enforce that all materials should be used,
+    // or should we make sure num_materials() only returns the number of materials used in the
+    // lattice.
+    std::vector<std::vector<int>> material_index_groups(globals::lattice->num_materials());
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      auto type = globals::lattice->atom_material_id(i);
+      material_index_groups[type].push_back(i);
+    }
+
+    group_spin_indicies_.resize(material_index_groups.size());
+    for (auto n = 0; n < material_index_groups.size(); ++n) {
+      group_spin_indicies_[n] = jams::MultiArray<int,1>(material_index_groups[n].begin(), material_index_groups[n].end());
+    }
+  } else if (grouping_ == Grouping::POSITIONS) {
+    std::vector<std::vector<int>> position_index_groups(globals::lattice->num_motif_atoms());
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      auto position = globals::lattice->atom_motif_position(i);
+      position_index_groups[position].push_back(i);
+    }
+
+    group_spin_indicies_.resize(position_index_groups.size());
+    for (auto n = 0; n < position_index_groups.size(); ++n) {
+      group_spin_indicies_[n] = jams::MultiArray<int,1>(position_index_groups[n].begin(), position_index_groups[n].end());
+    }
+  }
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
@@ -207,6 +213,11 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
     }
   }
 
+  if (grouping_ == Grouping::MATERIALS) {
+    monitor_top_charge_cache_.resize(globals::lattice->num_materials());
+  } else if (grouping_ == Grouping::POSITIONS) {
+    monitor_top_charge_cache_.resize(globals::lattice->num_motif_atoms());
+  }
 
   outfile.setf(std::ios::right);
   outfile << tsv_header();
@@ -219,8 +230,14 @@ Monitor::ConvergenceStatus TopologicalFiniteDiffChargeMonitor::convergence_statu
   }
 
   convergence_status_ = Monitor::ConvergenceStatus::kNotConverged;
-  if (greater_than_approx_equal(monitor_top_charge_cache_, max_tolerance_threshold_, 1e-5)
-      || less_than_approx_equal(monitor_top_charge_cache_, min_tolerance_threshold_, 1e-5)) {
+
+  bool layer_convergence = false;
+  for (auto n = 0; n < monitor_top_charge_cache_.size(); ++n) {
+    layer_convergence = layer_convergence &&
+        (greater_than_approx_equal(monitor_top_charge_cache_[n], max_tolerance_threshold_, 1e-5)
+                        || less_than_approx_equal(monitor_top_charge_cache_[n], min_tolerance_threshold_, 1e-5));
+  }
+  if (layer_convergence) {
     convergence_status_ = Monitor::ConvergenceStatus::kConverged;
   }
 
@@ -228,37 +245,15 @@ Monitor::ConvergenceStatus TopologicalFiniteDiffChargeMonitor::convergence_statu
 }
 
 void TopologicalFiniteDiffChargeMonitor::update(Solver &solver) {
-  double sum = 0.0;
-  double c = 0.0;
-
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    if (layerwise_) {
-      if (globals::lattice->atom_motif_position(i) == selected_layer_index_) {
-        std::cout << "entered this if statement" << "\n";
-        double y = local_topological_charge(i) - c;
-        double t = sum + y;
-        c = (t - sum) - y;
-        sum = t;
-      }
-    }
-
-    if (selected_material_id_ == -1 || globals::lattice->atom_material_id(i) == selected_material_id_) {
-      double y = local_topological_charge(i) - c;
-      double t = sum + y;
-      c = (t - sum) - y;
-      sum = t;
-    }
-  }
-
-  if (layerwise_) {
-    monitor_top_charge_cache_ = sum / (4.0 * kPi);
-  } else {
-    monitor_top_charge_cache_ = sum / (4.0 * kPi * num_selected_layers_);
-  }
-
+  outfile << jams::fmt::sci << solver.time();
   outfile.width(12);
   outfile << jams::fmt::sci << solver.iteration() << "\t";
-  outfile << jams::fmt::decimal << monitor_top_charge_cache_ << "\t";
+
+  for (auto n = 0; n < group_spin_indicies_.size(); ++n) {
+    double topological_charge = topological_charge_from_indices(group_spin_indicies_[n]);
+    outfile << jams::fmt::decimal << topological_charge / (4.0 * kPi);
+  }
+
   outfile << std::endl;
 }
 
@@ -269,9 +264,23 @@ std::string TopologicalFiniteDiffChargeMonitor::tsv_header() {
   ss.width(12);
 
   ss << fmt::sci << "time";
-  ss << fmt::decimal << "topological_charge";
+  ss << fmt::sci << "iteration";
+
+  if (grouping_ == Grouping::MATERIALS) {
+    for (auto i = 0; i < globals::lattice->num_materials(); ++i) {
+      auto name = globals::lattice->material_name(i);
+      ss << fmt::decimal << name;
+    }
+  } else if (grouping_ == Grouping::POSITIONS) {
+    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+      auto material_name = globals::lattice->material_name(
+          globals::lattice->motif_atom(i).material_index);
+      ss << fmt::sci << std::to_string(i+1) + "_" + material_name;
+    }
+  }
 
   ss << std::endl;
+
 
   return ss.str();
 
@@ -292,5 +301,22 @@ double TopologicalFiniteDiffChargeMonitor::local_topological_charge(const int i)
   Vec3 s_i = jams::montecarlo::get_spin(i);
 
   return dot(s_i, cross(ds_x, ds_y));
+}
+
+
+double TopologicalFiniteDiffChargeMonitor::topological_charge_from_indices(
+    const jams::MultiArray<int, 1> &indices) const {
+  double sum = 0.0;
+  double c = 0.0;
+  for (auto i = 0; i < indices.size(); ++i) {
+    const auto idx = indices(i);
+    // Use a Kahan sum incase we're adding some very small charges.
+    double y = local_topological_charge(idx) - c;
+    double t = sum + y;
+    c = (t - sum) - y;
+    sum = t;
+  }
+
+  return sum;
 }
 
