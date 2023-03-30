@@ -27,6 +27,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/random_anisotropy.cc
         hamiltonian/sparse_interaction.cc
         hamiltonian/uniaxial_anisotropy.cc
+        hamiltonian/uniaxial_generalised.cc
         hamiltonian/uniaxial_microscopic_anisotropy.cc
         hamiltonian/zeeman.cc
         helpers/error.cc
