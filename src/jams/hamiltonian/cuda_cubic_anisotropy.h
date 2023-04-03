@@ -13,6 +13,8 @@ public:
     CudaCubicHamiltonian(const libconfig::Setting &settings, const unsigned int size);
     ~CudaCubicHamiltonian() override = default;
 
+    double calculate_total_energy(double time) override;
+    void   calculate_energies(double time) override;
     void   calculate_fields(double time) override;
 private:
 
