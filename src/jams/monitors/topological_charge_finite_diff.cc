@@ -187,7 +187,7 @@ std::string TopologicalFiniteDiffChargeMonitor::tsv_header() {
   ss.width(12);
 
   ss <<fmt::sci << "time";
-  ss <<fmt::decimal << "topological_charge";
+  ss <<fmt::decimal << "charge";
 
   ss << std::endl;
 
