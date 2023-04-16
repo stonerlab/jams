@@ -57,6 +57,7 @@ if(DEFINED ENV{CONDA_PREFIX})
     set(h5_ignore_path
             $ENV{CONDA_PREFIX}/bin $ENV{CONDA_PREFIX}/lib $ENV{CONDA_PREFIX}/include
             $ENV{CONDA_PREFIX}/Library/bin $ENV{CONDA_PREFIX}/Library/lib $ENV{CONDA_PREFIX}/Library/include
+            /apps/developers/compilers/compilers/anaconda/2019.10
             )
     list(APPEND CMAKE_IGNORE_PATH ${h5_ignore_path})
 endif()
