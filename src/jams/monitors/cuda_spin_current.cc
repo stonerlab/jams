@@ -19,6 +19,7 @@
 #include "jams/hamiltonian/exchange.h"
 #include "jams/interface/highfive.h"
 #include "jams/containers/sparse_matrix_builder.h"
+#include "jams/helpers/output.h"
 
 CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
@@ -32,7 +33,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   h5_output_steps = jams::config_optional<unsigned>(settings, "h5_output_steps", output_step_freq_);
 
   if (do_h5_output) {
-    open_new_xdmf_file(globals::simulation_name + "_js.xdmf");
+    open_new_xdmf_file(jams::output::full_path_filename("js.xdmf"));
   }
 
   const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::globals::solver->hamiltonians());
@@ -58,7 +59,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   spin_current_ry_z.resize(globals::num_spins);
   spin_current_rz_z.resize(globals::num_spins);
 
-  outfile.open(globals::simulation_name + "_js.tsv");
+  outfile.open(jams::output::full_path_filename("js.tsv"));
 
   outfile << "time\t";
   outfile << "js_z_rx\tjs_z_ry\tjs_z_rz" << std::endl;
