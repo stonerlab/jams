@@ -82,11 +82,15 @@ void CudaSpinCurrentMonitor::update(Solver& solver) {
           spin_current_rz_z.device_data()
   );
 
-  const double units = globals::lattice->parameter();
+  // The calculation is in JAMS internal units. We want to convert to SI for
+  // output. Js should have dimensions of m/s. In JAMS lengths are in terms
+  // of the lattice constant and times are in picoseconds so we need to multiply
+  // by the lattice constant and convert 1/ps to 1/s.
+  const double units = globals::lattice->parameter() * 1e12;
 
   outfile << std::setw(4) << std::scientific << solver.time() << "\t";
   for (auto m = 0; m < 3; ++m) {
-      outfile << std::setw(12) << js_z[m] << "\t";
+      outfile << std::setw(12) << units * js_z[m] << "\t";
   }
   outfile << "\n";
 
