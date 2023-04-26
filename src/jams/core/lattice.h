@@ -44,7 +44,6 @@ public:
     Vec3i size() const;
 
     double parameter() const;   // [m]
-    double volume() const;      // [m^3]
 
     Vec3 a() const;
     Vec3 b() const;
