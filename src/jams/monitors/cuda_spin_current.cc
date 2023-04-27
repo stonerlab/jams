@@ -88,9 +88,9 @@ void CudaSpinCurrentMonitor::update(Solver& solver) {
   // by the lattice constant and convert 1/ps to 1/s.
   const double units = globals::lattice->parameter() * 1e12;
 
-  outfile << std::setw(4) << std::scientific << solver.time() << "\t";
+  outfile << jams::fmt::sci << solver.time() << "\t";
   for (auto m = 0; m < 3; ++m) {
-      outfile << std::setw(12) << units * js_z[m] << "\t";
+      outfile << jams::fmt::sci << units * js_z[m] << "\t";
   }
   outfile << "\n";
 
