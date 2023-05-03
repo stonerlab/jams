@@ -39,7 +39,7 @@ __global__ void cuda_gse_rk4_kernel
     };
 
     for (auto n = 0; n < 3; ++n) {
-      k_dev[3 * idx + n] = -gyro_dev[idx] * (sxh[n] - alpha_dev[idx] * h[n]) + noise_dev[3*idx + n];
+      k_dev[3 * idx + n] = -gyro_dev[idx] * (sxh[n] - alpha_dev[idx] * h[n]) + gyro_dev[idx] * noise_dev[3*idx + n];
     }
   }
 }
