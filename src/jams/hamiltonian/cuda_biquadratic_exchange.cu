@@ -4,6 +4,8 @@
 #include <jams/hamiltonian/cuda_biquadratic_exchange_kernel.cuh>
 
 #include <jams/core/lattice.h>
+#include <jams/core/globals.h>
+#include <jams/core/interactions.h>
 
 #include <fstream>
 
@@ -29,6 +31,67 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
 
   safety_check_distance_tolerance(distance_tolerance_);
 
+  // Read in settings for which consistency checks should be performed on
+  // interactions. The checks are performed by the interaction functions.
+  //
+  // The JAMS config settings are:
+  //
+  // check_no_zero_motif_neighbour_count
+  // -----------------------------------
+  // If true, an exception will be raised if any motif position has zero
+  // neighbours (i.e. it is not included in the interaction list). It may be
+  // desirable to zero neighbours, for example if another interaction
+  // Hamiltonian is coupling these sites.
+  //
+  // check_identical_motif_neighbour_count
+  // -------------------------------------
+  // If true, an exception will be raised if any sites in the lattice which
+  // have the same motif position in the unit cell, have different numbers
+  // of neighbours.
+  // NOTE: This check will only run if periodic boundaries are disabled.
+  //
+  // check_identical_motif_total_exchange
+  // ------------------------------------
+  // If true, an exception will be raised in any sites in the lattice which
+  // have the same motif position in the unit cell, have different total
+  // exchange energy. The total exchange energy is calculated from the absolute
+  // sum of the diagonal components of the exchange tensor.
+  // NOTE: This check will only run if periodic boundaries are disabled.
+
+  std::vector<InteractionChecks> interaction_checks;
+
+  if (!settings.exists("check_no_zero_motif_neighbour_count")) {
+    interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
+  } else {
+    if (bool(settings["check_no_zero_motif_neighbour_count"]) == true) {
+      interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
+    }
+  }
+
+  if (!settings.exists("check_identical_motif_neighbour_count")) {
+    interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
+  } else {
+    if (bool(settings["check_identical_motif_neighbour_count"]) == true) {
+      interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
+    }
+  }
+
+  if (!settings.exists("check_identical_motif_total_exchange")) {
+    interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
+  } else {
+    if (bool(settings["check_identical_motif_total_exchange"]) == true) {
+      interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
+    }
+  }
+
+  jams::SparseMatrixSymmetryCheck sparse_matrix_checks = jams::SparseMatrixSymmetryCheck::Symmetric;
+
+  if (settings.exists("check_sparse_matrix_symmetry")) {
+    if (bool(settings["check_sparse_matrix_symmetry"]) == false) {
+      sparse_matrix_checks = jams::SparseMatrixSymmetryCheck::None;
+    }
+  }
+
   std::string coordinate_format_name = "CARTESIAN";
   settings.lookupValue("coordinate_format", coordinate_format_name);
   CoordinateFormat coord_format = coordinate_format_from_string(coordinate_format_name);
@@ -42,10 +105,10 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
       jams_die("failed to open interaction file");
     }
     neighbour_list_ = generate_neighbour_list(
-        interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_);
+        interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_, interaction_checks);
   } else if (settings.exists("interactions")) {
     neighbour_list_ = generate_neighbour_list(
-        settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_);
+        settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_, interaction_checks);
   } else {
     throw std::runtime_error("'exc_file' or 'interactions' settings are required for exchange hamiltonian");
   }
@@ -54,8 +117,8 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
   std::cout << "    neighbour list memory: " << neighbour_list_.memory() / kBytesToMegaBytes << " MB" << std::endl;
 
   std::cout << "    interactions per motif position: \n";
-  if (lattice->is_periodic(0) && lattice->is_periodic(1) && lattice->is_periodic(2) && !lattice->has_impurities()) {
-    for (auto i = 0; i < lattice->num_motif_atoms(); ++i) {
+  if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2) && !globals::lattice->has_impurities()) {
+    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
       std::cout << "      " << i << ": " << neighbour_list_.num_interactions(i) <<"\n";
     }
   }
@@ -63,8 +126,8 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
   for (auto n = 0; n < neighbour_list_.size(); ++n) {
     auto i = neighbour_list_[n].first[0];
     auto j = neighbour_list_[n].first[1];
-    auto value = input_unit_conversion_ * neighbour_list_[n].second[0][0];
-    if (value > energy_cutoff_ * input_unit_conversion_ ) {
+    auto value = input_energy_unit_conversion_ * neighbour_list_[n].second[0][0];
+    if (value > energy_cutoff_ * input_energy_unit_conversion_ ) {
       sparse_matrix_builder_.insert(i, j, value);
     }
   }
@@ -82,7 +145,7 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
 }
 
 
-void CudaBiquadraticExchangeHamiltonian::calculate_fields() {
+void CudaBiquadraticExchangeHamiltonian::calculate_fields(double time) {
   assert(is_finalized_);
 
   const dim3 block_size = {128, 1, 1};
@@ -97,22 +160,22 @@ void CudaBiquadraticExchangeHamiltonian::calculate_fields() {
 }
 
 
-void CudaBiquadraticExchangeHamiltonian::calculate_energies() {
+void CudaBiquadraticExchangeHamiltonian::calculate_energies(double time) {
   assert(is_finalized_);
   // TODO: Add GPU support
 
   #pragma omp parallel for
   for (int i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_energy(i);
+    energy_(i) = calculate_energy(i, time);
   }
 }
 
 
-double CudaBiquadraticExchangeHamiltonian::calculate_total_energy() {
+double CudaBiquadraticExchangeHamiltonian::calculate_total_energy(double time) {
   using namespace globals;
   assert(is_finalized_);
 
-  calculate_fields();
+  calculate_fields(time);
   double total_energy = 0.0;
   #if HAS_OMP
   #pragma omp parallel for default(none) shared(num_spins, s, field_) reduction(+:total_energy)
@@ -126,7 +189,7 @@ double CudaBiquadraticExchangeHamiltonian::calculate_total_energy() {
 }
 
 
-Vec3 CudaBiquadraticExchangeHamiltonian::calculate_field(int i) {
+Vec3 CudaBiquadraticExchangeHamiltonian::calculate_field(int i, double time) {
   using namespace globals;
   assert(is_finalized_);
   Vec3 field;
@@ -150,20 +213,21 @@ Vec3 CudaBiquadraticExchangeHamiltonian::calculate_field(int i) {
 }
 
 
-double CudaBiquadraticExchangeHamiltonian::calculate_energy(int i) {
+double CudaBiquadraticExchangeHamiltonian::calculate_energy(int i, double time) {
   using namespace globals;
   assert(is_finalized_);
   Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
-  auto field = calculate_field(i);
+  auto field = calculate_field(i, time);
   return -0.5*dot(s_i, field);
 }
 
 
 double CudaBiquadraticExchangeHamiltonian::calculate_energy_difference(int i,
                                                                        const Vec3 &spin_initial,
-                                                                       const Vec3 &spin_final) {
+                                                                       const Vec3 &spin_final,
+                                                                       double time) {
   assert(is_finalized_);
-  auto field = calculate_field(i);
+  auto field = calculate_field(i, time);
   auto e_initial = -dot(spin_initial, 0.5*field);
   auto e_final = -dot(spin_final, 0.5*field);
   return e_final - e_initial;
