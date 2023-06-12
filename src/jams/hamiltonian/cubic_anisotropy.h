@@ -26,12 +26,11 @@ public:
     double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
 
 private:
-    unsigned num_coefficients_ = 0;
-    jams::MultiArray<unsigned, 2> order_;
-    jams::MultiArray<Vec3, 2> axis1_;
-    jams::MultiArray<Vec3, 2> axis2_;
-    jams::MultiArray<Vec3, 2> axis3_;
-    jams::MultiArray<double, 2> magnitude_;
+    jams::MultiArray<unsigned, 1> order_;
+    jams::MultiArray<double, 2> axis1_;
+    jams::MultiArray<double, 2> axis2_;
+    jams::MultiArray<double, 2> axis3_;
+    jams::MultiArray<double, 1> magnitude_;
 };
 
 #endif //JAMS_CUBIC_ANISOTROPY_H
