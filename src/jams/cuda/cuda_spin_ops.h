@@ -15,6 +15,23 @@ CUDA_ONLY_IMPLEMENTATION(
     void rotate_spins_cuda(jams::MultiArray<double, 2> &spins,
                            const Mat3 &rotation_matrix,
                            const jams::MultiArray<int, 1> &indices));
+
+
+/// Scale spins by given factor
+///
+/// @warning This scales the spin vectors to be non-unit vectors. This only
+/// makes sense for solves which do not assume the spins to be unit vectors.
+CUDA_ONLY_IMPLEMENTATION(
+    void scale_spins_cuda(jams::MultiArray<double, 2> &spins,
+                           const double &scale_factor,
+    const jams::MultiArray<int, 1> &indices));
+
+
+CUDA_ONLY_IMPLEMENTATION(
+    void add_to_spins_cuda(jams::MultiArray<double, 2> &spins,
+                          const double &additional_length,
+    const jams::MultiArray<int, 1> &indices));
+
 }
 
 #endif

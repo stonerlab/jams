@@ -86,6 +86,7 @@ set(JAMS_SOURCES_CXX
         physics/field_cool.cc
         physics/flips.cc
         physics/fmr.cc
+        physics/induced_spin_pulse.cc
         physics/mean_first_passage_time.cc
         physics/ping.cc
         physics/pinned_boundaries.cc

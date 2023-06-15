@@ -27,6 +27,11 @@ __device__ inline double norm_squared(const double v1[3]) {
 	return dot(v1, v1);
 }
 
+/// Returns the Euclidean norm (x^2 + y^2 + z^2) of the vector.
+__device__ inline double norm(const double v1[3]) {
+  return dot(v1, v1);
+}
+
 __device__ inline void matmul(const float mat[3][3], const float v_in[3], float v_out[3]) {
 	v_out[0] = mat[0][0] * (v_in[0])
 	         + mat[0][1] * (v_in[1])
