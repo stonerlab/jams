@@ -3,6 +3,7 @@
 #include <jams/initializer/init_bloch_domain_wall.h>
 #include <jams/initializer/init_h5.h>
 #include <jams/initializer/init_skyrmion.h>
+#include <jams/initializer/init_triple_q.h>
 
 
 #include <stdexcept>
@@ -28,6 +29,8 @@ void jams::InitializerDispatcher::execute(const libconfig::Setting &settings) {
   DEFINED_INITIALIZER("h5", InitH5, settings);
   DEFINED_INITIALIZER("bloch_domain_wall", InitBlochDomainWall, settings);
   DEFINED_INITIALIZER("skyrmion", InitSkyrmion, settings);
+  DEFINED_INITIALIZER("triple-q", InitTripleQ, settings);
+
 
   throw std::runtime_error("unknown initializer: " + std::string(settings["module"].c_str()));
 }
