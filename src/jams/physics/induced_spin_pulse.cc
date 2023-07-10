@@ -8,9 +8,14 @@ InducedSpinPulsePhysics::InducedSpinPulsePhysics(const libconfig::Setting &setti
 : Physics(settings)
 , pulse_center_time_(jams::config_required<double>(settings, "pulse_center_time"))
 , pulse_width_(jams::config_required<double>(settings, "pulse_width"))
-, pulse_height_(jams::config_required<double>(settings, "pulse_height")) {
+, pulse_height_(jams::config_required<double>(settings, "pulse_height"))
+, pulse_is_coherent_(jams::config_required<bool>(settings, "pulse_is_coherent")){
 
   std::string material = jams::config_required<std::string>(settings, "material");
+
+  if (pulse_is_coherent_) {
+    pulse_polarisation_ = normalize(jams::config_required<Vec3>(settings, "pulse_polarisation"));
+  }
 
   std::vector<int> indices;
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -33,5 +38,9 @@ void InducedSpinPulsePhysics::update(const int &iterations, const double &time,
     moment = pulse_height_*(1.0/(std::sqrt(kTwoPi)*pulse_width_))*exp(-0.5*square(relative_time/pulse_width_));
   }
 
-  jams::add_to_spins_cuda(globals::s, moment, spin_indices_);
+  if (pulse_is_coherent_) {
+    jams::add_to_spin_cuda(globals::s, moment * pulse_polarisation_, spin_indices_);
+  } else {
+    jams::add_to_spin_length_cuda(globals::s, moment, spin_indices_);
+  }
 }

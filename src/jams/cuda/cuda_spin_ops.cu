@@ -62,8 +62,8 @@ void jams::scale_spins_cuda(jams::MultiArray<double, 2> &spins,
 }
 
 
-__global__ void cuda_add_to_spins_kernel(double* spins, const int* indices, const unsigned size,
-                                        const double additional_length) {
+__global__ void cuda_add_to_spin_length_kernel(double* spins, const int* indices, const unsigned size,
+                                               const double additional_length) {
   unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (idx < size) {
@@ -71,18 +71,20 @@ __global__ void cuda_add_to_spins_kernel(double* spins, const int* indices, cons
 
     double s_norm = norm(s);
 
-    double scale_factor = (s_norm == 0.0) ? additional_length : (s_norm + additional_length) / s_norm;
-
-    spins[3*indices[idx] + 0] *= scale_factor;
-    spins[3*indices[idx] + 1] *= scale_factor;
-    spins[3*indices[idx] + 2] *= scale_factor;
+    // If the length of s is zero then it has no direction and we don't add
+    // anything to the length.
+    if (s_norm != 0.0) {
+      spins[3 * indices[idx] + 0] += additional_length * s[0] / s_norm;
+      spins[3 * indices[idx] + 1] += additional_length * s[1] / s_norm;
+      spins[3 * indices[idx] + 2] += additional_length * s[2] / s_norm;
+    }
   }
 
 }
 
-void jams::add_to_spins_cuda(jams::MultiArray<double, 2> &spins,
-                            const double &additional_length,
-                            const jams::MultiArray<int, 1> &indices) {
+void jams::add_to_spin_length_cuda(jams::MultiArray<double, 2> &spins,
+                                   const double &additional_length,
+                                   const jams::MultiArray<int, 1> &indices) {
 
   dim3 block_size;
   block_size.x = 128;
@@ -90,6 +92,34 @@ void jams::add_to_spins_cuda(jams::MultiArray<double, 2> &spins,
   dim3 grid_size;
   grid_size.x = (indices.size() + block_size.x - 1) / block_size.x;
 
-  cuda_add_to_spins_kernel<<<grid_size, block_size>>>(
-      spins.device_data(), indices.device_data(), indices.size(), additional_length);
+  cuda_add_to_spin_length_kernel<<<grid_size, block_size>>>(
+      spins.device_data(), indices.device_data(), indices.size(),
+      additional_length);
+}
+
+__global__ void cuda_add_to_spin_kernel(double* spins, const int* indices, const unsigned size,
+                                               const double additional_length_x, const double additional_length_y, const double additional_length_z) {
+  unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx < size) {
+    spins[3*indices[idx] + 0] += additional_length_x;
+    spins[3*indices[idx] + 1] += additional_length_y;
+    spins[3*indices[idx] + 2] += additional_length_z;
+  }
+
+}
+
+void jams::add_to_spin_cuda(jams::MultiArray<double, 2> &spins,
+                                   const Vec3 &additional_length,
+                                   const jams::MultiArray<int, 1> &indices) {
+
+  dim3 block_size;
+  block_size.x = 128;
+
+  dim3 grid_size;
+  grid_size.x = (indices.size() + block_size.x - 1) / block_size.x;
+
+  cuda_add_to_spin_kernel<<<grid_size, block_size>>>(
+      spins.device_data(), indices.device_data(), indices.size(),
+      additional_length[0], additional_length[1], additional_length[2]);
 }

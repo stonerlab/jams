@@ -13,12 +13,23 @@
 /// It does not implement a detailed physical model nor does it transfer spin
 /// moment between sites. It simply adjust the spin lengths.
 ///
-/// The spin moments are adjusted with a gaussian
+/// There are two modes, the incoherent mode adjusts the length of spins along
+/// their current direction
 /// @f[
-///    \vec{S}_i(t) = \vec{S}_i(t)\left[1 + \frac{A}{|\vec{S}_i(t)|}\exp\left(-\frac{(t-t_0)^2}{2\sigma^2} \right)\right]
+///    \vec{S}_i(t) = \vec{S}_i(t) + A\frac{\vec{S}_i(t)}{|\vec{S}_i(t)|}\exp\left(-\frac{(t-t_0)^2}{2\sigma^2} \right)
 /// @f]
 /// where A is the pulse height, t_0 is the pulse center time and sigma is the
-/// pulse width. Note that the gaussian is scaling the moments which are being
+/// pulse width.
+///
+/// The second mode adds spin moment coherently in a specified polarisation
+/// direction
+///
+/// @f[
+///    \vec{S}_i(t) = \vec{S}_i(t)+ A\vec{p}\exp\left(-\frac{(t-t_0)^2}{2\sigma^2} \right)
+/// @f]
+/// where \vec{p} is a unit vector along the polarisation direction.
+///
+/// Note that the gaussian is scaling the moments which are being
 /// integrated in time, so the pulse height is not the maximum size of the
 /// adjustment. The pulse height generally wants to be very small, order of
 /// 1e-5.
@@ -35,6 +46,8 @@
 /// @setting `physics.pulse_center_time` (required) center time of the Gaussian pulse in units of picoseconds
 /// @setting `physics.pulse_width` (required) temporal width of the Gaussian pulse in units of picoseconds
 /// @setting `physics.pulse_height` (required) height of Gaussian pulse in dimensionless units
+/// @setting `physics.pulse_is_coherent` (required) toggles whether to use the coherent or incoherent mode
+/// @setting `physics.pulse_polarisation` (required if pulse_is_coherent = true) 3 vector defining the pulse polarisation
 /// @setting `physics.material` (optional) restrict the application of the pulse to the specified material
 /// @example Example config:
 /// @code{.unparsed}
@@ -43,6 +56,8 @@
 ///     pulse_center_time = 10.0;
 ///     pulse_width = 0.5;
 ///     pulse_height = 1e-5;
+///     pulse_is_coherent = true;
+///     pulse_polarisation = [0.0, 0.0, 1.0];
 ///     material = "Rh";
 ///     temperature = 10.0;
 /// };
@@ -61,6 +76,8 @@ private:
     double pulse_center_time_;
     double pulse_width_;
     double pulse_height_;
+    bool   pulse_is_coherent_;
+    Vec3   pulse_polarisation_;
 
     jams::MultiArray<int, 1> spin_indices_;
 };
