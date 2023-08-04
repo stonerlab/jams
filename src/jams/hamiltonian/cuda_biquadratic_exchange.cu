@@ -132,8 +132,19 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
     }
   }
 
-  if (!sparse_matrix_builder_.is_symmetric()) {
-    throw std::runtime_error("sparse matrix for " + name() + " is not symmetric");
+  switch(sparse_matrix_checks) {
+    case jams::SparseMatrixSymmetryCheck::None:
+      break;
+    case jams::SparseMatrixSymmetryCheck::Symmetric:
+      if (!sparse_matrix_builder_.is_symmetric()) {
+        throw std::runtime_error("sparse matrix for " + name() + " is not symmetric");
+      }
+      break;
+    case jams::SparseMatrixSymmetryCheck::StructurallySymmetric:
+      if (!sparse_matrix_builder_.is_structurally_symmetric()) {
+        throw std::runtime_error("sparse matrix for " + name() + " is not structurally symmetric");
+      }
+      break;
   }
 
   interaction_matrix_ = sparse_matrix_builder_
