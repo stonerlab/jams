@@ -90,15 +90,21 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
   File file(h5_file_name, File::ReadWrite | File::Create | File::Truncate);
 
   jams::MultiArray<int, 1>    types;
+  jams::MultiArray<double, 1> moments;
   jams::MultiArray<double, 2> positions;
+
 
   if (slice_.num_points() != 0) {
     for (auto i = 0; i < slice_.num_points(); ++i) {
       types(i) = slice_.type(i);
     }
 
-    positions.resize(slice_.num_points(), 3);
+    moments.resize(slice_.num_points());
+    for (auto i = 0; i < slice_.num_points(); ++i) {
+      moments(i) = globals::mus(slice_.index(i));
+    }
 
+    positions.resize(slice_.num_points(), 3);
     for (auto i = 0; i < slice_.num_points(); ++i) {
       for (auto j = 0; j < 3; ++j) {
         positions(i, j) = slice_.position(i, j);
@@ -109,6 +115,11 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 
     for (auto i = 0; i < globals::num_spins; ++i) {
       types(i) = globals::lattice->atom_material_id(i);
+    }
+
+    moments.resize(globals::num_spins);
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      moments(i) = globals::mus(i);
     }
 
     positions.resize(globals::num_spins, 3);
@@ -122,8 +133,11 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 
   auto type_dataset = file.createDataSet<int>("/types",  DataSpace(globals::num_spins));
   type_dataset.write(types);
+  auto moment_dataset = file.createDataSet<double>("/moments",  DataSpace(globals::num_spins));
+  moment_dataset.write(moments);
   auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({size_t(globals::num_spins),3}));
   pos_dataset.write(positions);
+
 }
 
 //---------------------------------------------------------------------
@@ -171,6 +185,11 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const double
                fputs("       <Attribute Name=\"Type\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u\" NumberType=\"Int\" Precision=\"4\" Format=\"HDF\">\n", data_dimension);
   fprintf(xdmf_file_, "           %s_lattice.h5:/types\n", globals::simulation_name.c_str());
+                fputs("         </DataItem>\n", xdmf_file_);
+                fputs("       </Attribute>\n", xdmf_file_);
+                fputs("       <Attribute Name=\"Moment\" AttributeType=\"Scalar\" Center=\"Node\">\n", xdmf_file_);
+  fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);
+  fprintf(xdmf_file_, "           %s_lattice.h5:/moments\n", globals::simulation_name.c_str());
                fputs("         </DataItem>\n", xdmf_file_);
                fputs("       </Attribute>\n", xdmf_file_);
                fputs("       <Attribute Name=\"spin\" AttributeType=\"Vector\" Center=\"Node\">\n", xdmf_file_);

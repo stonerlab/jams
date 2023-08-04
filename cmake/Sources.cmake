@@ -42,6 +42,7 @@ set(JAMS_SOURCES_CXX
         initializer/init_bloch_domain_wall.cc
         initializer/init_h5.cc
         initializer/init_skyrmion.cc
+        initializer/init_triple_q.cc
         interface/config.cc
         interface/fft.cc
         interface/system.cc
@@ -86,6 +87,7 @@ set(JAMS_SOURCES_CXX
         physics/field_cool.cc
         physics/flips.cc
         physics/fmr.cc
+        physics/induced_spin_pulse.cc
         physics/mean_first_passage_time.cc
         physics/ping.cc
         physics/pinned_boundaries.cc
@@ -106,10 +108,12 @@ set(JAMS_SOURCES_CUDA
         cuda/cuda_spin_ops.cu
         cuda/cuda_minimum_image.cu
         hamiltonian/cuda_applied_field.cu
+        hamiltonian/cuda_biquadratic_exchange.cu
         hamiltonian/cuda_cubic_anisotropy.cu
         hamiltonian/cuda_dipole_bruteforce.cu
         hamiltonian/cuda_dipole_fft.cu
         hamiltonian/cuda_field_pulse.cu
+        hamiltonian/cuda_landau.cu
         hamiltonian/cuda_random_anisotropy.cu
         hamiltonian/cuda_uniaxial_anisotropy.cu
         hamiltonian/cuda_uniaxial_microscopic_anisotropy.cu
@@ -119,6 +123,7 @@ set(JAMS_SOURCES_CUDA
         monitors/cuda_thermal_current.cc
         monitors/cuda_thermal_current_kernel.cu
         monitors/cuda_neutron_scattering_no_lattice.cu
+        solvers/cuda_gse_rk4.cu
         solvers/cuda_llg_heun.cu
         solvers/cuda_llg_rk4.cu
         solvers/cuda_ll_lorentzian_rk4.cu

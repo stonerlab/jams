@@ -694,6 +694,9 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   bool use_gilbert_prefactor = jams::config_optional<bool>(
       globals::config->lookup("solver"), "gilbert_prefactor", false);
 
+  bool normalise_spins = jams::config_optional<bool>(
+      lattice_settings, "normalise_spins", true);
+
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto material = materials_[atom_material_id(i)];
@@ -718,8 +721,10 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
       spin = Vec3{0.0, 0.0, 0.0};
     }
 
-    // ensure the spin is unit vector or a zero vector
-    spin = unit_vector(spin);
+    if (normalise_spins) {
+      // ensure the spin is unit vector or a zero vector
+      spin = unit_vector(spin);
+    }
 
     for (auto n = 0; n < 3; ++n) {
         globals::s(i, n) = spin[n];

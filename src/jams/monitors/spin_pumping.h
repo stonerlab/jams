@@ -8,6 +8,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <jams/containers/multiarray.h>
 
 class Solver;
 
@@ -20,11 +21,16 @@ public:
     void update(Solver& solver) override;
     void post_process() override {};
 
+    bool is_updating(const int &iteration) override;
+
 private:
     std::string      tsv_header();
 
     std::ofstream    tsv_file_;
     std::vector<int> material_count_;
+
+    jams::MultiArray<double,2> s_old_;
+
 };
 
 #endif  // JAMS_MONITOR_SPIN_PUMPING_H

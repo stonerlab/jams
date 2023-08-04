@@ -87,7 +87,7 @@ public:
 
     virtual ConvergenceStatus convergence_status() { return convergence_status_; };
 
-    bool is_updating(const int &iteration) const;
+    virtual bool is_updating(const int &iteration);
 
     ///
     /// Factory which creates different Monitors which are derived from

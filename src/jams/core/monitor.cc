@@ -62,7 +62,7 @@ Monitor::Monitor(const libconfig::Setting &settings)
    }
 }
 
-bool Monitor::is_updating(const int &iteration) const {
+bool Monitor::is_updating(const int &iteration) {
   if (iteration % output_step_freq_ == 0) {
     return true;
   }
