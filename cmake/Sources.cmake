@@ -24,6 +24,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/exchange_functional.cc
         hamiltonian/exchange_neartree.cc
         hamiltonian/field_pulse.cc
+        hamiltonian/general_sparse_two_site_interaction.cc
         hamiltonian/random_anisotropy.cc
         hamiltonian/sparse_interaction.cc
         hamiltonian/uniaxial_anisotropy.cc
@@ -31,6 +32,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/zeeman.cc
         helpers/error.cc
         helpers/interaction_calculator.cc
+        helpers/interaction_list_helpers.cc
         helpers/maths.cc
         helpers/neutrons.cc
         helpers/output.cc

@@ -73,32 +73,25 @@ InteractionFileDescription
 discover_interaction_file_format(std::ifstream &file);
 
 std::vector<InteractionData>
-interactions_from_file(std::ifstream &file, const InteractionFileDescription& desc);
+interaction_stencil_from_tsv(std::ifstream &file, const InteractionFileDescription& desc);
 
 jams::InteractionList<Mat3, 2>
-neighbour_list_from_interactions(std::vector<InteractionData> &interactions);
+neighbour_list_from_interaction_stencil(std::vector<InteractionData> &interactions);
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(std::ifstream &file,
-        CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
-        double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
+neighbour_list_from_tsv(std::ifstream &file,
+                        CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true, double interaction_prefactor = 1.0, double energy_unit_conversion = 1.0,
+                        double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
     InteractionChecks::kNoZeroMotifNeighbourCount, InteractionChecks::kIdenticalMotifNeighbourCount, InteractionChecks::kIdenticalMotifTotalExchange});
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(libconfig::Setting& settings,
-        CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
-        double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
+neighbour_list_from_settings(libconfig::Setting& setting,
+                             CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true, double interaction_prefactor = 1.0, double energy_unit_conversion = 1.0,
+                             double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
     InteractionChecks::kNoZeroMotifNeighbourCount, InteractionChecks::kIdenticalMotifNeighbourCount, InteractionChecks::kIdenticalMotifTotalExchange});
 
 void
 safety_check_distance_tolerance(const double &tolerance);
-
-void
-write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data,
-                       CoordinateFormat coord_format);
-
-void
-write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3, 2> &list);
 
 template <class T>
 class InteractionList {

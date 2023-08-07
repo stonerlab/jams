@@ -197,7 +197,7 @@ discover_interaction_setting_format(libconfig::Setting& setting) {
 }
 
 std::vector<InteractionData>
-interactions_from_file(std::ifstream &file, const InteractionFileDescription& desc) {
+interaction_stencil_from_tsv(std::ifstream &file, const InteractionFileDescription& desc) {
   assert(desc.type != InteractionFileFormat::UNDEFINED );
   assert(desc.dimension != InteractionType ::UNDEFINED);
 
@@ -245,7 +245,7 @@ interactions_from_file(std::ifstream &file, const InteractionFileDescription& de
 }
 
 std::vector<InteractionData>
-interactions_from_settings(libconfig::Setting &setting, const InteractionFileDescription& desc) {
+interaction_stencil_from_settings(libconfig::Setting &setting, const InteractionFileDescription& desc) {
   assert(desc.type != InteractionFileFormat::UNDEFINED );
   assert(desc.dimension != InteractionType ::UNDEFINED);
 
@@ -283,7 +283,15 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
 }
 
 void
-post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff) {
+normalize_stencil_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double interaction_prefactor, double energy_unit_conversion, double energy_cutoff, double radius_cutoff) {
+
+  if (energy_unit_conversion != 1.0) {
+    apply_transform(interactions, [&energy_unit_conversion](InteractionData J) -> InteractionData {
+        J.J_ij = energy_unit_conversion*J.J_ij;
+        return J;
+    });
+  }
+
   if (coord_format == CoordinateFormat::FRACTIONAL) {
     apply_transform(interactions, [](InteractionData J) -> InteractionData {
         J.r_ij = ::globals::lattice->fractional_to_cartesian(J.r_ij);
@@ -301,12 +309,20 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
   // apply any predicates
   if (energy_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return definately_less_than(max_abs(J.J_ij), energy_cutoff, DBL_EPSILON);});
+      return definately_less_than(max_abs(J.J_ij), energy_unit_conversion*energy_cutoff, DBL_EPSILON);});
   }
 
   if (radius_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
       return definately_greater_than(norm(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
+  }
+
+  // The interaction prefactor is applied after any energy cutoff
+  if (interaction_prefactor != 1.0) {
+    apply_transform(interactions, [&interaction_prefactor](InteractionData J) -> InteractionData {
+        J.J_ij = interaction_prefactor*J.J_ij;
+        return J;
+    });
   }
 
   // complete any missing data (i.e. type names or unit cell positions
@@ -352,7 +368,7 @@ generate_integer_lookup_data(std::vector<InteractionData> &interactions) {
 }
 
 jams::InteractionList<Mat3, 2>
-neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
+neighbour_list_from_interaction_stencil(std::vector<InteractionData> &interactions) {
   auto integer_template = generate_integer_lookup_data(interactions);
 
   jams::InteractionList<Mat3, 2> nbr_list;
@@ -396,16 +412,18 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
 }
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(std::ifstream &file, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
+neighbour_list_from_tsv(std::ifstream &file, CoordinateFormat coord_format, bool use_symops, double interaction_prefactor, double energy_unit_conversion, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
   auto file_desc = discover_interaction_file_format(file);
-  auto interactions = interactions_from_file(file, file_desc);
+  auto interaction_stencil = interaction_stencil_from_tsv(file, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff);
+  normalize_stencil_interactions(interaction_stencil, file_desc, coord_format,
+                                 use_symops, interaction_prefactor, energy_unit_conversion,
+                                 energy_cutoff, radius_cutoff);
 
   // now the interaction data should be in the same format regardless of the input
   // calculate the neighbourlist from here
 
-  auto nbrs = neighbour_list_from_interactions(interactions);
+  auto nbrs = neighbour_list_from_interaction_stencil(interaction_stencil);
 
   neighbour_list_checks(nbrs, checks);
 
@@ -413,16 +431,18 @@ generate_neighbour_list(std::ifstream &file, CoordinateFormat coord_format, bool
 }
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(libconfig::Setting& setting, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
+neighbour_list_from_settings(libconfig::Setting& setting, CoordinateFormat coord_format, bool use_symops, double interaction_prefactor, double energy_unit_conversion, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
   auto file_desc = discover_interaction_setting_format(setting);
-  auto interactions = interactions_from_settings(setting, file_desc);
+  auto interaction_stencil = interaction_stencil_from_settings(setting, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff);
+  normalize_stencil_interactions(interaction_stencil, file_desc, coord_format,
+                                 use_symops, interaction_prefactor, energy_unit_conversion,
+                                 energy_cutoff, radius_cutoff);
 
   // now the interaction data should be in the same format regardless of the input
   // calculate the neighbourlist from here
 
-  auto nbrs = neighbour_list_from_interactions(interactions);
+  auto nbrs = neighbour_list_from_interaction_stencil(interaction_stencil);
 
   neighbour_list_checks(nbrs, checks);
 
@@ -508,92 +528,5 @@ safety_check_distance_tolerance(const double &tolerance) {
                  i, j, distance, tolerance);
       }
     }
-  }
-}
-
-void
-write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data, CoordinateFormat coord_format) {
-  for (auto const &interaction : data) {
-    output << std::setw(12) << interaction.unit_cell_pos_i << "\t";
-    output << std::setw(12) << interaction.unit_cell_pos_j << "\t";
-    output << std::setw(12) << interaction.type_i << "\t";
-    output << std::setw(12) << interaction.type_j << "\t";
-    output << std::setw(12) << std::fixed << norm(interaction.r_ij) << "\t";
-    if (coord_format == CoordinateFormat::CARTESIAN) {
-      output << std::setw(12) << std::fixed << interaction.r_ij[0] << "\t";
-      output << std::setw(12) << std::fixed << interaction.r_ij[1] << "\t";
-      output << std::setw(12) << std::fixed << interaction.r_ij[2] << "\t";
-    } else {
-      auto r_ij_frac = globals::lattice->cartesian_to_fractional(interaction.r_ij);
-      output << std::setw(12) << std::fixed << r_ij_frac[0] << "\t";
-      output << std::setw(12) << std::fixed << r_ij_frac[1] << "\t";
-      output << std::setw(12) << std::fixed << r_ij_frac[2] << "\t";
-    }
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][0] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][1] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][2] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][0] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][1] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][2] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][0] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][1] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][2] << std::endl;
-  }
-}
-void
-write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &list) {
-  output << "#";
-  output << jams::fmt::integer << "i";
-  output << jams::fmt::integer << "j";
-  output << jams::fmt::integer << "type_i";
-  output << jams::fmt::integer << "type_j";
-  output << jams::fmt::decimal << "rx_i";
-  output << jams::fmt::decimal << "ry_i";
-  output << jams::fmt::decimal << "rz_i";
-  output << jams::fmt::decimal << "rx_j";
-  output << jams::fmt::decimal << "ry_j";
-  output << jams::fmt::decimal << "rz_j";
-  output << jams::fmt::decimal << "rx_ij";
-  output << jams::fmt::decimal << "ry_ij";
-  output << jams::fmt::decimal << "rz_ij";
-  output << jams::fmt::decimal << "|r_ij|";
-  output << jams::fmt::sci << "Jij_xx";
-  output << jams::fmt::sci << "Jij_xy";
-  output << jams::fmt::sci << "Jij_xz";
-  output << jams::fmt::sci << "Jij_yx";
-  output << jams::fmt::sci << "Jij_yy";
-  output << jams::fmt::sci << "Jij_yz";
-  output << jams::fmt::sci << "Jij_zx";
-  output << jams::fmt::sci << "Jij_zy";
-  output << jams::fmt::sci << "Jij_zz" << "\n";
-
-  for (int n = 0; n < list.size(); ++n) {
-      auto i = list[n].first[0];
-      auto j = list[n].first[1];
-      auto rij = globals::lattice->displacement(i, j);
-      auto Jij = list[n].second;
-      output << jams::fmt::integer << i;
-      output << jams::fmt::integer << j;
-      output << jams::fmt::integer << globals::lattice->atom_material_name(i);
-      output << jams::fmt::integer << globals::lattice->atom_material_name(j);
-      output << jams::fmt::decimal << globals::lattice->atom_position(i)[0];
-      output << jams::fmt::decimal << globals::lattice->atom_position(i)[1];
-      output << jams::fmt::decimal << globals::lattice->atom_position(i)[2];
-      output << jams::fmt::decimal << globals::lattice->atom_position(j)[0];
-      output << jams::fmt::decimal << globals::lattice->atom_position(j)[1];
-      output << jams::fmt::decimal << globals::lattice->atom_position(j)[2];
-      output << jams::fmt::decimal << rij[0];
-      output << jams::fmt::decimal << rij[1];
-      output << jams::fmt::decimal << rij[2];
-      output << jams::fmt::decimal << norm(rij);
-      output << jams::fmt::sci << std::scientific << Jij[0][0];
-      output << jams::fmt::sci << std::scientific << Jij[0][1];
-      output << jams::fmt::sci << std::scientific << Jij[0][2];
-      output << jams::fmt::sci << std::scientific << Jij[1][0];
-      output << jams::fmt::sci << std::scientific << Jij[1][1];
-      output << jams::fmt::sci << std::scientific << Jij[1][2];
-      output << jams::fmt::sci << std::scientific << Jij[2][0];
-      output << jams::fmt::sci << std::scientific << Jij[2][1];
-      output << jams::fmt::sci << std::scientific << Jij[2][2] << "\n";
   }
 }

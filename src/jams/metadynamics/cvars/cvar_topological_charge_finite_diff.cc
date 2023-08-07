@@ -112,7 +112,8 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       interaction_template.push_back(J);
     }
 
-    jams::InteractionList<Mat3,2> nbrs = neighbour_list_from_interactions(interaction_template);
+    jams::InteractionList<Mat3,2> nbrs = neighbour_list_from_interaction_stencil(
+        interaction_template);
     dx_indices_.resize(globals::num_spins);
     dx_values_.resize(globals::num_spins);
 
@@ -164,7 +165,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       J.J_ij[0][0] = data.second;
       interaction_template.push_back(J);
     }
-    jams::InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(
+    jams::InteractionList<Mat3, 2> nbrs = neighbour_list_from_interaction_stencil(
         interaction_template);
     dy_indices_.resize(globals::num_spins);
     dy_values_.resize(globals::num_spins);
