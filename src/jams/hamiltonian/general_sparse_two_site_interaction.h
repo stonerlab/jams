@@ -61,18 +61,14 @@ GeneralSparseTwoSiteInteractionHamiltonian<T>::interaction_matrix() const {
 template <class T>
 GeneralSparseTwoSiteInteractionHamiltonian<T>::GeneralSparseTwoSiteInteractionHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size),
-    sparse_matrix_builder_(3 * size, 3 * size)
+    sparse_matrix_builder_(size, size)
 {}
 
 template <class T>
 void GeneralSparseTwoSiteInteractionHamiltonian<T>::insert_interaction(const int i, const int j, const T &value) {
   assert(!is_finalized_);
-  if (value == 0.0) {
-    return;
-  }
-  for (auto m = 0; m < 3; ++m) {
-    sparse_matrix_builder_.insert(3 * i + m, 3 * j + m, value);
-  }
+
+  sparse_matrix_builder_.insert(i, j, value);
 }
 
 template <class T>

@@ -36,6 +36,7 @@
   #include "jams/hamiltonian/cuda_uniaxial_microscopic_anisotropy.h"
   #include "jams/hamiltonian/cuda_zeeman.h"
   #include "jams/hamiltonian/cuda_landau.h"
+  #include "jams/hamiltonian/cuda_pisd_field_exchange.h"
   #include "jams/hamiltonian/cuda_dipole_bruteforce.h"
   #include "jams/hamiltonian/cuda_dipole_fft.h"
   #include "jams/hamiltonian/cuda_field_pulse.h"
@@ -90,6 +91,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
   DEFINED_CUDA_HAMILTONIAN("landau", CudaLandauHamiltonian, settings, size);
   DEFINED_CUDA_HAMILTONIAN("biquadratic-exchange", CudaBiquadraticExchangeHamiltonian, settings, size);
+  DEFINED_CUDA_HAMILTONIAN("pisd-field-exchange", CudaPISDFieldExchangeHamiltonian, settings, size);
 
   DEFINED_HAMILTONIAN_CUDA_VARIANT("applied-field", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);
