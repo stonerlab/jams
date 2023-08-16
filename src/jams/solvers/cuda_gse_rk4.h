@@ -11,31 +11,16 @@
 #if HAS_CUDA
 
 #include "jams/cuda/cuda_stream.h"
-#include "jams/cuda/cuda_solver.h"
+#include "jams/solvers/cuda_rk4_base.h"
 #include "jams/containers/multiarray.h"
 
-class CUDAGSERK4Solver : public CudaSolver {
+class CUDAGSERK4Solver : public CudaRK4BaseSolver {
 public:
-    CUDAGSERK4Solver() = default;
-    ~CUDAGSERK4Solver() override = default;
-
-    inline explicit CUDAGSERK4Solver(const libconfig::Setting &settings) {
-      initialize(settings);
-    }
-
-    void initialize(const libconfig::Setting& settings) override;
-    void run() override;
+    inline explicit CUDAGSERK4Solver(const libconfig::Setting &settings) : CudaRK4BaseSolver(settings) {};
 
     std::string name() const override { return "gse-rk4-gpu"; }
 
-private:
-    CudaStream dev_stream_;
-
-    jams::MultiArray<double, 2> s_old_;
-    jams::MultiArray<double, 2> k1_;
-    jams::MultiArray<double, 2> k2_;
-    jams::MultiArray<double, 2> k3_;
-    jams::MultiArray<double, 2> k4_;
+    void function_kernel(jams::MultiArray<double, 2>& spins, jams::MultiArray<double, 2>& k) override;
 };
 
 #endif
