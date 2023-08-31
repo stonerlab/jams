@@ -123,10 +123,24 @@ std::string build_info() {
       ss << "  pcg        " << jams::build::pcg_version << "\n";
       ss << "    " << find_and_replace(jams::build::pcg_libraries, ";", "\n    ") << "\n";
       ss << "  hdf5       " << jams::build::hdf5_version << "\n";
-      ss << "    " << find_and_replace(jams::build::hdf5_libraries, ";", "\n    ") << "\n";
+      ss << "    include directories: \n";
+      ss << "      " << find_and_replace(jams::build::hdf5_include_directories, ";", "\n      ") << "\n";
+      ss << "    link libraries: \n";
+      ss << "      " << find_and_replace(jams::build::hdf5_link_libraries, ";", "\n      ") << "\n";
+      ss << "  fftw3      " << jams::build::fftw3_vendor << "\n";
+      ss << "    include directories: \n";
+      ss << "      " << find_and_replace(jams::build::fftw3_include_directories, ";", "\n      ") << "\n";
+      ss << "    link libraries: \n";
+      ss << "      " << find_and_replace(jams::build::fftw3_link_libraries, ";", "\n      ") << "\n";
+      ss << "  cblas      " << jams::build::cblas_vendor << "\n";
+      ss << "    include directories: \n";
+      ss << "      " << find_and_replace(jams::build::cblas_include_directories, ";", "\n      ") << "\n";
+      ss << "    link libraries: \n";
+      ss << "      " << find_and_replace(jams::build::cblas_link_libraries, ";", "\n      ") << "\n";
       #if HAS_MKL
       ss << "  mkl        " << jams::build::mkl_version() << "\n";
-      ss << "    " << find_and_replace(jams::build::mkl_libraries, ";", "\n    ") << "\n";
+      ss << "    link libraries: \n";
+      ss << "      " << find_and_replace(jams::build::mkl_link_libraries, ";", "\n      ") << "\n";
       #endif
       #if HAS_CUDA
       ss << "  cusparse   " << "\n";
