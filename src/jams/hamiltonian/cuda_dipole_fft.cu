@@ -44,6 +44,11 @@ __global__ void cuda_dipole_convolution(
 
 }
 
+
+namespace {
+    const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+}
+
 CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
   if (cuda_fft_s_rspace_to_kspace) {
       cufftDestroy(cuda_fft_s_rspace_to_kspace);
@@ -191,17 +196,16 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
   CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
   cudaStreamSynchronize(dev_stream_[0].get());
 
-  const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
-
-  dim3 block_size = {32, 1, 1};
-  dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
-
-
   for (int pos_j = 0; pos_j < globals::lattice->num_motif_atoms(); ++pos_j) {
     const double mus_j = globals::lattice->material(
         globals::lattice->motif_atom(pos_j).material_index).moment;
 
     for (int pos_i = 0; pos_i < globals::lattice->num_motif_atoms(); ++pos_i) {
+
+      const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
+
+      dim3 block_size = {32, 1, 1};
+      dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
 
       cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, globals::lattice->num_motif_atoms(), mus_j, kspace_s_.device_data(), kspace_tensors_[pos_i][pos_j].device_data(), kspace_h_.device_data());
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
