@@ -31,10 +31,17 @@ namespace jams {
         constexpr auto pcg_version = "@JAMS_PCG_VERSION@";
         constexpr auto pcg_libraries = "@JAMS_PCG_LIBRARIES@";
         constexpr auto hdf5_version = "@JAMS_HDF5_VERSION@";
-        constexpr auto hdf5_libraries = "@JAMS_HDF5_LIBRARIES@";
+        constexpr auto hdf5_include_directories = "@JAMS_HDF5_INCLUDE_DIRECTORIES@";
+        constexpr auto hdf5_link_libraries = "@JAMS_HDF5_LINK_LIBRARIES@";
+        constexpr auto fftw3_vendor = "@JAMS_FFTW3_VENDOR@";
+        constexpr auto fftw3_include_directories = "@JAMS_FFTW3_INCLUDE_DIRECTORIES@";
+        constexpr auto fftw3_link_libraries = "@JAMS_FFTW3_LINK_LIBRARIES@";
+        constexpr auto cblas_vendor = "@JAMS_CBLAS_VENDOR@";
+        constexpr auto cblas_include_directories = "@JAMS_CBLAS_INCLUDE_DIRECTORIES@";
+        constexpr auto cblas_link_libraries = "@JAMS_CBLAS_LINK_LIBRARIES@";
 
         #if HAS_MKL
-        constexpr auto mkl_libraries = "@MKL_LIBRARIES@";
+        constexpr auto mkl_link_libraries = "@MKL_LIBRARIES@";
 
         std::string mkl_version();
         #endif
