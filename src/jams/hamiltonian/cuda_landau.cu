@@ -9,28 +9,7 @@
 
 CudaLandauHamiltonian::CudaLandauHamiltonian(const libconfig::Setting &settings,
                                              const unsigned int size)
-    : Hamiltonian(settings, size) {
-
-  landau_A_.resize(globals::num_spins);
-  landau_B_.resize(globals::num_spins);
-  landau_C_.resize(globals::num_spins);
-
-  for (int i = 0; i < globals::num_spins; ++i) {
-    landau_A_(i) = double(settings["A"][globals::lattice->atom_material_id(i)]) * input_energy_unit_conversion_;;
-    landau_B_(i) = double(settings["B"][globals::lattice->atom_material_id(i)]) * input_energy_unit_conversion_;;
-    landau_C_(i) = double(settings["C"][globals::lattice->atom_material_id(i)]) * input_energy_unit_conversion_;;
-  }
-
-}
-
-double CudaLandauHamiltonian::calculate_total_energy(double time) {
-  calculate_energies(time);
-  double e_total = 0.0;
-  for (auto i = 0; i < energy_.size(); ++i) {
-    e_total += energy_(i);
-  }
-  return e_total;
-}
+    : LandauHamiltonian(settings, size) {}
 
 void CudaLandauHamiltonian::calculate_energies(double time) {
   cuda_landau_energy_kernel<<<(globals::num_spins+dev_blocksize_-1)/dev_blocksize_, dev_blocksize_, 0, cuda_stream_.get()>>>

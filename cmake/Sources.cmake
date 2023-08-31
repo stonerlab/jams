@@ -24,6 +24,7 @@ set(JAMS_SOURCES_CXX
         hamiltonian/exchange_functional.cc
         hamiltonian/exchange_neartree.cc
         hamiltonian/field_pulse.cc
+        hamiltonian/landau.cc
         hamiltonian/random_anisotropy.cc
         hamiltonian/sparse_interaction.cc
         hamiltonian/uniaxial_anisotropy.cc

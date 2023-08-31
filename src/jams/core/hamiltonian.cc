@@ -20,6 +20,7 @@
 #include "jams/hamiltonian/uniaxial_anisotropy.h"
 #include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
 #include "jams/hamiltonian/zeeman.h"
+#include "jams/hamiltonian/landau.h"
 #include "jams/hamiltonian/dipole_bruteforce.h"
 #include "jams/hamiltonian/dipole_neartree.h"
 #include "jams/hamiltonian/dipole_neighbour_list.h"
@@ -88,7 +89,6 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_HAMILTONIAN("dipole-neartree", DipoleNearTreeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("dipole-neighbour-list", DipoleNeighbourListHamiltonian, settings, size);
 
-  DEFINED_CUDA_HAMILTONIAN("landau", CudaLandauHamiltonian, settings, size);
   DEFINED_CUDA_HAMILTONIAN("biquadratic-exchange", CudaBiquadraticExchangeHamiltonian, settings, size);
 
   DEFINED_HAMILTONIAN_CUDA_VARIANT("applied-field", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
@@ -100,6 +100,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_HAMILTONIAN_CUDA_VARIANT("dipole-fft", DipoleFFTHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("dipole-bruteforce", DipoleBruteforceHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("field-pulse", FieldPulseHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("landau", LandauHamiltonian, is_cuda_solver, settings, size);
 
 
   throw std::runtime_error("unknown hamiltonian " + std::string(settings["module"].c_str()));
