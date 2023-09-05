@@ -17,32 +17,73 @@
 
 void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   max_steps_ = jams::config_required<int>(settings, "max_steps");
-  min_steps_ = jams::config_optional<int>(settings, "min_steps", jams::defaults::solver_min_steps);
-  output_write_steps_ = jams::config_optional<int>(settings, "output_write_steps", output_write_steps_);
-  select_spins_by_random_ = jams::config_optional<bool>(settings, "select_spins_by_random", select_spins_by_random_);
+  min_steps_ = jams::config_optional<int>(settings, "min_steps",
+                                          jams::defaults::solver_min_steps);
+  output_write_steps_ = jams::config_optional<int>(settings,
+                                                   "output_write_steps",
+                                                   output_write_steps_);
+  select_spins_by_random_ = jams::config_optional<bool>(settings,
+                                                        "select_spins_by_random",
+                                                        select_spins_by_random_);
 
   std::cout << "    max_steps " << max_steps_ << "\n";
   std::cout << "    min_steps " << min_steps_ << "\n";
-  std::cout << "    select_spins_by_random " << std::boolalpha << select_spins_by_random_ << "\n";
+  std::cout << "    select_spins_by_random " << std::boolalpha
+            << select_spins_by_random_ << "\n";
 
   // Create a set of vectors which contain different types of Monte Carlo moves.
   // Each move can has a 'fraction' (weight) associated with it to allow some
   // move types to be attempted more frequently than others.
-  move_names_.emplace_back("angle");
-  const auto sigma = jams::config_optional<double>(settings, "move_angle_sigma", 0.5);
-  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_angle", 1.0));
-  move_functions_.emplace_back(
-      jams::montecarlo::MonteCarloAngleMove<jams::RandomGeneratorType>(&jams::instance().random_generator(), sigma));
+  {
+    move_names_.emplace_back("angle");
+    const auto sigma = jams::config_optional<double>(
+        settings, "move_angle_sigma", 0.5);
+    move_weights_.push_back(
+        jams::config_optional<double>(settings, "move_fraction_angle", 1.0));
+    move_functions_.emplace_back(
+        jams::montecarlo::MonteCarloAngleMove<jams::RandomGeneratorType>(
+            &jams::instance().random_generator(), sigma));
+  }
 
+  {
   move_names_.emplace_back("uniform");
-  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_uniform", 0.0));
+  move_weights_.push_back(
+      jams::config_optional<double>(settings, "move_fraction_uniform", 0.0));
   move_functions_.emplace_back(
-      jams::montecarlo::MonteCarloUniformMove<jams::RandomGeneratorType>(&jams::instance().random_generator()));
+      jams::montecarlo::MonteCarloUniformMove<jams::RandomGeneratorType>(
+          &jams::instance().random_generator()));
+  }
 
-  move_names_.emplace_back("reflection");
-  move_weights_.push_back(jams::config_optional<double>(settings, "move_fraction_reflection", 0.0));
-  move_functions_.emplace_back(
-      jams::montecarlo::MonteCarloReflectionMove());
+  {
+    move_names_.emplace_back("reflection");
+    move_weights_.push_back(
+        jams::config_optional<double>(
+            settings, "move_fraction_reflection", 0.0));
+    move_functions_.emplace_back(
+        jams::montecarlo::MonteCarloReflectionMove());
+  }
+
+  {
+    move_names_.emplace_back("length");
+    const auto sigma = jams::config_optional<double>(
+        settings, "move_length_sigma", 0.5);
+    move_weights_.push_back(
+        jams::config_optional<double>(
+            settings, "move_fraction_length", 0.0));
+    move_functions_.emplace_back(
+        jams::montecarlo::MonteCarloLengthMove<jams::RandomGeneratorType>(
+            &jams::instance().random_generator(), sigma));
+  }
+
+  {
+    move_names_.emplace_back("rotation");
+    move_weights_.push_back(
+        jams::config_optional<double>(
+            settings, "move_fraction_rotation", 0.0));
+    move_functions_.emplace_back(
+        jams::montecarlo::MonteCarloRotationMove<jams::RandomGeneratorType>(
+            &jams::instance().random_generator()));
+  }
 
   moves_accepted_.resize(move_functions_.size());
   moves_attempted_.resize(move_functions_.size());
