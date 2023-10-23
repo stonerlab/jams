@@ -5,6 +5,8 @@
 #include <jams/core/interactions.h>
 
 #include <fstream>
+#include "jams/helpers/error.h"
+
 
 BiquadraticExchangeHamiltonian::BiquadraticExchangeHamiltonian(
     const libconfig::Setting &settings, unsigned int size)
