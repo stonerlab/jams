@@ -12,6 +12,7 @@
 #include "jams/helpers/utils.h"
 
 #include "jams/hamiltonian/applied_field.h"
+#include "jams/hamiltonian/biquadratic_exchange.h"
 #include "jams/hamiltonian/cubic_anisotropy.h"
 #include "jams/hamiltonian/exchange.h"
 #include "jams/hamiltonian/exchange_neartree.h"
@@ -88,9 +89,9 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_HAMILTONIAN("dipole-tensor", DipoleTensorHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("dipole-neartree", DipoleNearTreeHamiltonian, settings, size);
   DEFINED_HAMILTONIAN("dipole-neighbour-list", DipoleNeighbourListHamiltonian, settings, size);
-  
+
   DEFINED_HAMILTONIAN_CUDA_VARIANT("applied-field", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
-  DEFINED_HAMILTONIAN_CUDA_VARIANT("biquadratic-exchange", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("biquadratic-exchange", BiquadraticExchangeHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial", UniaxialHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial-micro", UniaxialMicroscopicHamiltonian, is_cuda_solver, settings, size);
