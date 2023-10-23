@@ -4,6 +4,52 @@
 
 #include <jams/core/hamiltonian.h>
 
+///
+/// Hamiltonian for the Landau model
+///
+/// \f[
+///     \mathcal{H} = \sum_i A_i |S_i|^2 + B_i |S_i|^4 + C_i |S_i|^6
+/// \f]
+///
+/// @details A_i, B_i, C_i are energies which describe the Landau energy
+/// surface.
+///
+/// The effective field from the Hamiltonian is
+///
+/// \f[
+///     \vec{H}_i = -2 A_i S_i - 4 B_i S_i |S_i|^2 - 6 C_i S_i |S_i|^4
+/// \f]
+///
+/// Settings
+/// --------
+/// The Hamiltonian settings are:
+///
+/// module       : "landau"
+///
+/// energy_units : (string) units of the energies specified in this module
+///
+/// A            : List of values of 'A' in the Hamiltonian, one for each
+///                material, in the order of the materials group.
+///
+/// B            : List of values of 'B' in the Hamiltonian, one for each
+///                material, in the order of the materials group.
+///
+/// C            : List of values of 'C' in the Hamiltonian, one for each
+///                material, in the order of the materials group.
+///
+/// Example
+/// -------
+///
+/// hamiltonians = (
+///   {
+///     module = "landau";
+///     energy_units = "meV";
+///     A = [-440.0, 100.0];
+///     B = [ 150.0,   0.0];
+///     C = [ 50.0,    0.0];
+///   }
+/// );
+///
 
 class LandauHamiltonian : public Hamiltonian {
 
