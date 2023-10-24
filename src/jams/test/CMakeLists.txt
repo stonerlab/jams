@@ -24,6 +24,7 @@ target_link_libraries(jams_tests
         gmock
         fftw_external
         cblas_external
+        hdf5_external
         pcg
         spglib
         libconfig
