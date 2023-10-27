@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
+
+cmake_policy(VERSION 3.12)
 
 include(cmake/MessageQuiet.cmake)
 include(cmake/Utils.cmake)

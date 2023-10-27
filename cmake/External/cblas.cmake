@@ -37,8 +37,12 @@ if (NOT BLAS_FOUND)
         file(TO_CMAKE_PATH "$ENV{OpenBLAS_HOME}" OpenBLAS_HOME)
 
         SET(Open_BLAS_INCLUDE_SEARCH_PATHS
+                $ENV{BLAS_ROOT}
+                $ENV{BLAS_ROOT}/include
+                $ENV{BLAS_ROOT}/include/openblas
                 ${OpenBLAS_HOME}
                 ${OpenBLAS_HOME}/include
+                ${OpenBLAS_HOME}/include/openblas
                 /usr/local/include/openblas
                 /usr/local/include/openblas-base
                 /usr/local/opt/openblas/include
