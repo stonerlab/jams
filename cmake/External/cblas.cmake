@@ -14,9 +14,34 @@ foreach (VENDOR ${BLAS_VENDOR_SEARCH_LIST})
         set(BLA_VENDOR ${VENDOR})
         find_package(BLAS)
         if(BLAS_FOUND)
+
+            # The FindBLAS package doesn't look for the cblas.h file we need.
+            # We create a set of search paths to look for this. First we'll
+            # base this on the link libraries which have been found. These
+            # are often of the form "/opt/<package_name>/lib/<library>.so"
+            # so we will add paths one and two levels up, i.e.:
+            # - /opt/<package_name>/lib
+            # - /opt/<package_name>
+            # We will then also add paths which are specified in environment
+            # variables. This is commonly done on HPC clusters with module
+            # environments. We're combining this with the vendor names that
+            # cmake provides and include normal case, lower case and upper case
+            # possibilities. Finally, the `find_path` command will search the
+            # default paths in cmake.
+            # Additionally we set PATH_SUFFIXES to allow lots of combinations
+            # of vendor names and "include".
+
+            list(GET BLAS_LIBRARIES 0 BLAS_LIBRARIES_FIRST_PATH)
+            # going up one parent usually leaves us in a 'lib' directory
+            cmake_path(GET BLAS_LIBRARIES_FIRST_PATH PARENT_PATH BLAS_LIBRARIES_FIRST_PATH_PARENT)
+            # going up two paths hopefully puts us in the base path for the package
+            cmake_path(GET BLAS_LIBRARIES_FIRST_PATH_PARENT PARENT_PATH BLAS_LIBRARIES_FIRST_PATH_PARENT2)
+
             set(VENDOR_LOWER $<LOWER_CASE:${VENDOR}>)
             set(VENDOR_UPPER $<UPPER_CASE:${VENDOR}>)
             set(CBLAS_INCLUDE_SEARCH_PATHS
+                    ${BLAS_LIBRARIES_FIRST_PATH_PARENT}
+                    ${BLAS_LIBRARIES_FIRST_PATH_PARENT2}
                     $ENV{${VENDOR}_INCLUDE_DIR}
                     $ENV{${VENDOR_LOWER}_INCLUDE_DIR}
                     $ENV{${VENDOR_UPPER}_INCLUDE_DIR}
