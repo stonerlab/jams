@@ -8,6 +8,10 @@
 
 namespace jams {
 
+/// Normalise spins to unit vectors
+CUDA_ONLY_IMPLEMENTATION(
+    void normalise_spins_cuda(jams::MultiArray<double, 2> &spins));
+
 /// Rotate spins with given indices by the rotation matrix
 ///
 /// @warning No check is made that rotation_matrix is unitary.

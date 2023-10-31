@@ -1,6 +1,31 @@
 #include <jams/cuda/cuda_spin_ops.h>
 #include <jams/cuda/cuda_device_vector_ops.h>
 
+__global__ void cuda_normalise_spins_kernel(double * spins, const unsigned size)
+{
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx < size) {
+    double s[3] = {spins[3*idx + 0], spins[3*idx + 1], spins[3*idx + 2]};
+
+    double recip_snorm = rsqrt(s[0]*s[0] + s[1]*s[1] + s[2]*s[2]);
+
+    for (auto n = 0; n < 3; ++n) {
+      spins[3*idx + n] = s[n] * recip_snorm;
+    }
+  }
+}
+
+void jams::normalise_spins_cuda(jams::MultiArray<double, 2> &spins) {
+  dim3 block_size;
+  block_size.x = 128;
+
+  dim3 grid_size;
+  grid_size.x = (spins.size(0) + block_size.x - 1) / block_size.x;
+
+  cuda_normalise_spins_kernel<<<grid_size, block_size>>>(spins.device_data(), spins.size(0));
+}
+
 __global__ void cuda_rotate_spins_kernel(double* spins, const int* indices, const unsigned size,
                                          double Rxx, double Rxy, double Rxz,
                                          double Ryx, double Ryy, double Ryz,

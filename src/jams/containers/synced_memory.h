@@ -344,7 +344,7 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
     if (rhs.host_ptr_) {
       #if HAS_CUDA
       if (has_cuda_context()) {
-        #if SYNCEDMEMORY_PRINT_MEMCPY
+        #if SYNCED_MEMORY_PRINT_MEMCPY
         std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
         #endif
         SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
@@ -358,7 +358,7 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
 
     if (rhs.device_ptr_) {
       #if HAS_CUDA
-      #if SYNCEDMEMORY_PRINT_MEMCPY
+      #if SYNCED_MEMORY_PRINT_MEMCPY
       std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToDevice" << std::endl;
       #endif
       SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(mutable_device_data(), rhs.device_ptr_, size_ * sizeof(T), cudaMemcpyDeviceToDevice));
@@ -474,7 +474,7 @@ void SyncedMemory<T>::copy_to_device() {
     if (!device_ptr_) {
       allocate_device_memory(size_);
     }
-    #if SYNCEDMEMORY_PRINT_MEMCPY
+    #if SYNCED_MEMORY_PRINT_MEMCPY
     std::cout << "INFO(SyncedMemory): cudaMemcpyHostToDevice" << std::endl;
     #endif
     assert(device_ptr_ && host_ptr_);
@@ -486,7 +486,7 @@ void SyncedMemory<T>::copy_to_device() {
 
   if (sync_status_ == SyncStatus::UNINITIALIZED) {
     allocate_device_memory(size_);
-    #ifdef SYNCEDMEMORY_ZERO_ON_ALLOCATION
+    #ifdef SYNCED_MEMORY_ZERO_ON_ALLOCATION
     zero_device();
     #endif
     sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
@@ -509,7 +509,7 @@ void SyncedMemory<T>::copy_to_host() {
     if (!host_ptr_) {
       allocate_host_memory(size_);
     }
-    #if SYNCEDMEMORY_PRINT_MEMCPY
+    #if SYNCED_MEMORY_PRINT_MEMCPY
     std::cout << "INFO(SyncedMemory): cudaMemcpyDeviceToHost" << std::endl;
     #endif
     assert(device_ptr_ && host_ptr_);
@@ -521,7 +521,7 @@ void SyncedMemory<T>::copy_to_host() {
 
   if (sync_status_ == SyncStatus::UNINITIALIZED) {
     allocate_host_memory(size_);
-    #ifdef SYNCEDMEMORY_ZERO_ON_ALLOCATION
+    #ifdef SYNCED_MEMORY_ZERO_ON_ALLOCATION
     zero_host();
     #endif
     sync_status_ = SyncStatus::HOST_IS_MUTATED;

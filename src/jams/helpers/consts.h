@@ -37,6 +37,7 @@ constexpr double kVacuumPermeabilityIU   = 4*kPi*1E-7 / kJoule2meV; // Original 
 
 constexpr double kMeterToAngstroms      = 1e10;
 constexpr double kMeterToNanometer      = 1e9;
+constexpr double kSecondToPicosecond    = 1e12;
 
 constexpr double kBytesToMegaBytes      = 1048576.0;
 

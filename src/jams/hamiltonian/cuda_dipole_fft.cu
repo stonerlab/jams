@@ -37,9 +37,9 @@ __global__ void cuda_dipole_convolution(
         gpu_sq[3 * (num_pos * idx + pos_j) + 2]
       };
 
-      gpu_hq[3 * (num_pos * idx + pos_i) + 0] +=  alpha * (gpu_wq[9 * idx + 0] * sq[0] + gpu_wq[9 * idx + 1] * sq[1] + gpu_wq[9 * idx + 2] * sq[2]);
-      gpu_hq[3 * (num_pos * idx + pos_i) + 1] +=  alpha * (gpu_wq[9 * idx + 3] * sq[0] + gpu_wq[9 * idx + 4] * sq[1] + gpu_wq[9 * idx + 5] * sq[2]);
-      gpu_hq[3 * (num_pos * idx + pos_i) + 2] +=  alpha * (gpu_wq[9 * idx + 6] * sq[0] + gpu_wq[9 * idx + 7] * sq[1] + gpu_wq[9 * idx + 8] * sq[2]);
+      gpu_hq[3 * (num_pos * idx + pos_i) + 0] +=  alpha * (gpu_wq[6 * idx + 0] * sq[0] + gpu_wq[6 * idx + 1] * sq[1] + gpu_wq[6 * idx + 2] * sq[2]);
+      gpu_hq[3 * (num_pos * idx + pos_i) + 1] +=  alpha * (gpu_wq[6 * idx + 1] * sq[0] + gpu_wq[6 * idx + 3] * sq[1] + gpu_wq[6 * idx + 4] * sq[2]);
+      gpu_hq[3 * (num_pos * idx + pos_i) + 2] +=  alpha * (gpu_wq[6 * idx + 2] * sq[0] + gpu_wq[6 * idx + 4] * sq[1] + gpu_wq[6 * idx + 5] * sq[2]);
   }
 
 }
@@ -194,17 +194,17 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
   kspace_h_.zero();
 
   CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
-
-  cudaDeviceSynchronize();
+  cudaStreamSynchronize(dev_stream_[0].get());
 
   for (int pos_j = 0; pos_j < globals::lattice->num_motif_atoms(); ++pos_j) {
+    const double mus_j = globals::lattice->material(
+        globals::lattice->motif_atom(pos_j).material_index).moment;
+
     for (int pos_i = 0; pos_i < globals::lattice->num_motif_atoms(); ++pos_i) {
-      const double mus_j = globals::lattice->material(
-          globals::lattice->motif_atom(pos_j).material_index).moment;
 
       const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
 
-      dim3 block_size = {128, 1, 1};
+      dim3 block_size = {32, 1, 1};
       dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
 
       cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, globals::lattice->num_motif_atoms(), mus_j, kspace_s_.device_data(), kspace_tensors_[pos_i][pos_j].device_data(), kspace_h_.device_data());
@@ -221,7 +221,7 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-jams::MultiArray<Complex, 5>
+jams::MultiArray<Complex, 4>
 CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
     using std::pow;
 
@@ -231,17 +231,17 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
     const Vec3 r_cart_i = globals::lattice->fractional_to_cartesian(r_frac_i);
     const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
 
-  jams::MultiArray<double, 5> rspace_tensor(
+  jams::MultiArray<double, 4> rspace_tensor(
         kspace_padded_size_[0],
         kspace_padded_size_[1],
         kspace_padded_size_[2],
-        3, 3);
+        6);
 
-  jams::MultiArray<Complex, 5> kspace_tensor(
+  jams::MultiArray<Complex, 4> kspace_tensor(
         kspace_padded_size_[0],
         kspace_padded_size_[1],
         kspace_padded_size_[2]/2 + 1,
-        3, 3);
+        6);
 
 
     rspace_tensor.zero();
@@ -274,17 +274,32 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                     continue;
                 }
 
-              generated_positions.push_back(r_ij);
+                generated_positions.push_back(r_ij);
 
-                for (int m = 0; m < 3; ++m) {
-                    for (int n = 0; n < 3; ++n) {
-                        auto value = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
-                        if (!std::isfinite(value)) {
-                          throw std::runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: tensor Szz is not finite");
-                        }
-                        rspace_tensor(nx, ny, nz, m, n) = value;
-                    }
-                }
+                // xx
+                rspace_tensor(nx, ny, nz, 0) =  w0 * (3 * r_ij[0] * r_ij[0] - r_abs_sq) / pow(sqrt(r_abs_sq), 5);
+                // xy
+                rspace_tensor(nx, ny, nz, 1) =  w0 * (3 * r_ij[0] * r_ij[1]) / pow(sqrt(r_abs_sq), 5);
+                // xz
+                rspace_tensor(nx, ny, nz, 2) =  w0 * (3 * r_ij[0] * r_ij[2]) / pow(sqrt(r_abs_sq), 5);
+                // yy
+                rspace_tensor(nx, ny, nz, 3) =  w0 * (3 * r_ij[1] * r_ij[1] - r_abs_sq) / pow(sqrt(r_abs_sq), 5);
+                // yz
+                rspace_tensor(nx, ny, nz, 4) =  w0 * (3 * r_ij[1] * r_ij[2]) / pow(sqrt(r_abs_sq), 5);
+                // zz
+                rspace_tensor(nx, ny, nz, 5) =  w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / pow(sqrt(r_abs_sq), 5);
+
+//                for (int m = 0; m < 3; ++m) {
+//                    for (int n = m; n < 3; ++n) {
+//                        auto value = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
+//
+//                        std::cout << m << " " << n << " " << value << std::endl;
+//                        if (!std::isfinite(value)) {
+//                          throw std::runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: tensor Szz is not finite");
+//                        }
+//                        rspace_tensor(nx, ny, nz, m, n) = value;
+//                    }
+//                }
             }
         }
     }
@@ -299,9 +314,9 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
     }
 
     int rank            = 3;
-    int stride          = 9;
+    int stride          = 6;
     int dist            = 1;
-    int num_transforms  = 9;
+    int num_transforms  = 6;
     int * nembed        = nullptr;
     int transform_size[3]  = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 

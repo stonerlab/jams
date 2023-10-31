@@ -44,29 +44,5 @@ __global__ void cuda_gse_rk4_kernel
   }
 }
 
-__global__ void cuda_gse_rk4_combination_kernel
-    (
-        double * s_dev,
-        const double * s_old,
-        const double * k1_dev,
-        const double * k2_dev,
-        const double * k3_dev,
-        const double * k4_dev,
-        const double dt,
-        const unsigned dev_num_spins
-    )
-{
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-  if (idx < dev_num_spins) {
-
-    for (auto n = 0; n < 3; ++n) {
-      s_dev[3*idx + n] = s_old[3*idx + n] + dt * (k1_dev[3*idx + n] + 2*k2_dev[3*idx + n] + 2*k3_dev[3*idx + n] + k4_dev[3*idx + n]) / 6.0;
-    }
-
-    // In the GSE we don't renormalise the spin
-  }
-}
-
 
 #endif
