@@ -74,14 +74,19 @@ CudaRK4LLGSOTSolver::CudaRK4LLGSOTSolver(const libconfig::Setting &settings)
   //
   // This then converts to an effective field using Beff = (1/μ) * js_atom.
 
-  auto charge_current = jams::config_required<double>(settings, "charge_current_density");
+  auto charge_sheet_current = jams::config_required<double>(settings, "charge_sheet_current");
+
+  // We need to convert the charge sheet current into internal units. An ampere is 1 C/s, unit of charge 'e'
+  // is unchanged in JAMS but the time should be in picoseconds. The sheet area (t.w) needs to be converted
+  // from meters^2 to nanometers^2.
+  charge_sheet_current = charge_sheet_current / (kMeterToNanometer * kMeterToNanometer * kSecondToPicosecond);
 
   double volume_per_atom = volume(globals::lattice->get_unitcell()) / double(globals::lattice->num_motif_atoms());
 
   sot_coefficient_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    sot_coefficient_(i) = kHBarIU * spin_hall_angle * charge_current *
-        std::pow(volume_per_atom, 2.0/3.0) / (2 * kElementaryCharge);
+    sot_coefficient_(i) = kHBarIU * spin_hall_angle * charge_sheet_current *
+                          std::pow(volume_per_atom, 2.0/3.0) / (2 * kElementaryCharge);
   }
 }
 
