@@ -2,6 +2,7 @@ add_library(fftw_external INTERFACE)
 
 find_package(MKL QUIET)
 if(MKL_FOUND)
+    target_include_directories(fftw_external INTERFACE ${MKL_INCLUDE_DIR})
     target_include_directories(fftw_external INTERFACE ${FFTW3_INCLUDE_DIR})
     target_link_libraries(fftw_external INTERFACE ${MKL_LIBRARIES})
     set(JAMS_FFTW3_FOUND true)
