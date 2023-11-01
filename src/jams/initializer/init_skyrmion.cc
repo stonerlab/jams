@@ -10,6 +10,7 @@
 void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
   double w = jams::config_optional<double>(settings, "w", 5.0);
   double c = jams::config_optional<double>(settings, "c", 5.0);
+  double t = jams::config_optional<double>(settings, "t", 1.0);
 
   auto coordinate_format = jams::config_optional<CoordinateFormat>(settings, "coordinate_format", CoordinateFormat::FRACTIONAL);
 
@@ -61,9 +62,9 @@ void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
 
     // The minus sign is so that a polarity of '-1' gives a skyrmion core in the
     // -z direction.
-    globals::s(i,0) = -Q * sin(theta) * cos(Qv*phi + Qh);
-    globals::s(i,1) = -Q * sin(theta) * sin(Qv*phi + Qh);
-    globals::s(i,2) = -Q * cos(theta);
+    globals::s(i,0) = -Q * sin(t*theta) * cos(Qv*phi + Qh);
+    globals::s(i,1) = -Q * sin(t*theta) * sin(Qv*phi + Qh);
+    globals::s(i,2) = -Q * cos(t*theta);
 
   }
 }
