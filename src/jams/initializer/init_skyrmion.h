@@ -20,7 +20,7 @@
 ///
 /// The spin orientation will be determined from spherical coordinates
 /// @f[
-///     m = (\sin(\theta) \cos(\phi), \sin(\theta) \cos(\phi), \cos(\theta))
+///     m = (\sin(t \theta) \cos(\phi), \sin(t \theta) \cos(\phi), \cos(t \theta))
 /// @f]
 ///
 /// The angles theta are given by
@@ -28,7 +28,8 @@
 ///     \theta(r) = \sum_{\pm} \arcsin( \tanh(-\frac{r \pm c}{w / 2}) ) + \pi
 /// @f]
 /// Where 'c' and 'w' determine the sharpness of the domain walls and the radius
-/// of the skyrmion.
+/// of the skyrmion. 't' determines the number of twists through the profile,
+/// allowing the creation of skyrmiomium.
 ///
 /// @note The equations only allow the creation of Neel type skyrmions.
 /// this could be changed in future (see https://juspin.de/skyrmion-radius/).
@@ -53,6 +54,8 @@
 ///
 /// @setting `initializer.c` skyrmion domain wall parameter 'c' (default 5.0)
 ///
+/// @setting `initializer.t` skyrmion domain wall parameter 't' (default 1.0)
+///
 /// @example Example config:
 /// @code{.unparsed}
 /// initializer : {
@@ -64,6 +67,7 @@
 ///     helicity = 0.0;
 ///     w = 5.0;
 ///     c = 5.0;
+///     t = 1.0;
 /// };
 /// @endcode
 
