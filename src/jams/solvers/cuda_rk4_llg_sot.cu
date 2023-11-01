@@ -112,5 +112,5 @@ void CudaRK4LLGSOTSolver::function_kernel(jams::MultiArray<double, 2> &spins,
 
 
 void CudaRK4LLGSOTSolver::post_step(jams::MultiArray<double, 2> &spins) {
-
+  jams::normalise_spins_cuda(spins);
 }
