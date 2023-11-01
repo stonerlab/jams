@@ -91,7 +91,7 @@ void CudaRK4BaseSolver::run()
   function_kernel(globals::s, k4_);
 
   const dim3 block_size = {64, 1, 1};
-  auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
+  auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins3), 1, 1});
 
   // NOTE: this does NOT normalise the spins. This must be done in the post_step
   // function
