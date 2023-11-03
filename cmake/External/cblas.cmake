@@ -37,8 +37,9 @@ foreach (VENDOR ${BLAS_VENDOR_SEARCH_LIST})
             # going up two paths hopefully puts us in the base path for the package
             cmake_path(GET BLAS_LIBRARIES_FIRST_PATH_PARENT PARENT_PATH BLAS_LIBRARIES_FIRST_PATH_PARENT2)
 
-            set(VENDOR_LOWER $<LOWER_CASE:${VENDOR}>)
-            set(VENDOR_UPPER $<UPPER_CASE:${VENDOR}>)
+            string(TOLOWER "${VENDOR}" VENDOR_LOWER)
+            string(TOUPPER "${VENDOR}" VENDOR_UPPER)
+
             set(CBLAS_INCLUDE_SEARCH_PATHS
                     ${BLAS_LIBRARIES_FIRST_PATH_PARENT}
                     ${BLAS_LIBRARIES_FIRST_PATH_PARENT2}
@@ -60,9 +61,12 @@ foreach (VENDOR ${BLAS_VENDOR_SEARCH_LIST})
                     /usr/local/opt
                     /opt
             )
-
             cmake_path(CONVERT "${CBLAS_INCLUDE_SEARCH_PATHS}" TO_CMAKE_PATH_LIST CBLAS_INCLUDE_SEARCH_PATHS)
-            find_path(CBLAS_INCLUDE_DIR NAMES cblas.h HINTS ${CBLAS_INCLUDE_SEARCH_PATHS} PATH_SUFFIXES "${VENDOR}" "${VENDOR_LOWER}" "include" "include/${VENDOR}" "include/${VENDOR_LOWER}" REQUIRED NO_CACHE)
+
+            set(CBLAS_INCLUDE_PATH_SUFFIXES "${VENDOR}" "${VENDOR_LOWER}" "include" "include/${VENDOR}" "include/${VENDOR_LOWER}")
+            cmake_path(CONVERT "${CBLAS_INCLUDE_PATH_SUFFIXES}" TO_CMAKE_PATH_LIST CBLAS_INCLUDE_PATH_SUFFIXES)
+
+            find_path(CBLAS_INCLUDE_DIR NAMES cblas.h HINTS ${CBLAS_INCLUDE_SEARCH_PATHS} PATH_SUFFIXES ${CBLAS_INCLUDE_PATH_SUFFIXES} REQUIRED NO_CACHE)
             set(JAMS_CBLAS_FOUND true)
         endif()
     endif()
