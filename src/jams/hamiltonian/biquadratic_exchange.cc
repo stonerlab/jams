@@ -235,8 +235,25 @@ double BiquadraticExchangeHamiltonian::calculate_energy_difference(int i,
                                                                        const Vec3 &spin_final,
                                                                        double time) {
   assert(is_finalized_);
-  auto field = calculate_field(i, time);
-  auto e_initial = -dot(spin_initial, 0.5*field);
-  auto e_final = -dot(spin_final, 0.5*field);
+
+  // WARNING: You cannot use the field function here because it already contains
+  // s_i which we are also changing in the Monte Carlo
+
+  double e_initial = 0.0;
+  double e_final = 0.0;
+
+  const auto begin = interaction_matrix_.row_data()[i];
+  const auto end = interaction_matrix_.row_data()[i+1];
+
+  for (auto m = begin; m < end; ++m) {
+    auto j = interaction_matrix_.col_data()[m];
+    double B_ij = interaction_matrix_.val_data()[m];
+
+    Vec3 s_j = {globals::s(j,0), globals::s(j,1), globals::s(j,2)};
+
+    e_initial += -B_ij * pow2(dot(spin_initial, s_j));
+    e_final += -B_ij * pow2(dot(spin_final, s_j));
+  }
+
   return e_final - e_initial;
 }
