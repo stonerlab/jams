@@ -101,7 +101,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 
     moments.resize(slice_.num_points());
     for (auto i = 0; i < slice_.num_points(); ++i) {
-      moments(i) = globals::mus(slice_.index(i));
+      moments(i) = globals::mus(slice_.index(i))/kBohrMagnetonIU;
     }
 
     positions.resize(slice_.num_points(), 3);
@@ -119,7 +119,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 
     moments.resize(globals::num_spins);
     for (auto i = 0; i < globals::num_spins; ++i) {
-      moments(i) = globals::mus(i);
+      moments(i) = globals::mus(i)/kBohrMagnetonIU;
     }
 
     positions.resize(globals::num_spins, 3);
