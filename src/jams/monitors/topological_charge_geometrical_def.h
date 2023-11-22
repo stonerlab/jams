@@ -104,6 +104,7 @@ class TopologicalGeometricalDefMonitor : public Monitor {
   std::string name_ = "topological-charge-geometrical-def";
   std::ofstream outfile;
 
+  double triangle_over_counting_ = 1.0;
   double monitor_top_charge_cache_ = 0.0;
 
   double max_tolerance_threshold_ = 1.0;

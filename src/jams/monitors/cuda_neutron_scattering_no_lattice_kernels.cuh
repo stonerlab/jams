@@ -1,4 +1,4 @@
-#include <cuda.h>
+#include <cuda_runtime.h>
 #include <cufft.h>
 
 __global__ void spectrum(

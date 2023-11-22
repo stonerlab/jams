@@ -66,6 +66,7 @@ usual CMake flags `-DCMAKE_BUILD_TYPE=Debug` or `-DCMAKE_BUILD_TYPE=Release`.
 ```shell
 	mkdir build && cd build
 	cmake -DCMAKE_BUILD_TYPE=Release ..
+	make -j 10
 ```
 
 ## Running

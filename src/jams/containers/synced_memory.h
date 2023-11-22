@@ -15,20 +15,23 @@
 /// The lazy allocation means that the memory is not allocated until it is
 /// accessed for the first time. Therefore if the memory is only ever accessed
 /// by the host, no GPU memory is allocated. Moreover, the host memory
-/// allocation checks if there is an active CUDA context (this will be
-/// initialised if any CUDA runtime API calls have been made before allocation).
-/// If a CUDA context exists then the host memory is allocated with
-/// CudaMallocHost as pinned memory for improved performance for data transfers
-/// between the GPU and host. If there is no CUDA context we allocated aligned
-/// memory.
+/// allocation checks if there is a CUDA device available. If a CUDA device
+/// exists then the host memory is allocated with CudaMallocHost as pinned
+/// memory for improved performance for data transfers between the GPU and host.
+/// If there is no CUDA device we allocated aligned memory.
 ///
-///
+/// NOTE: We previously checked if there is an active CUDA context (i.e. there
+/// could be a device present but if there are no CUDA calls made then the
+/// context is never initialised). However this causes requires the binary to
+/// be linked to libcuda.so (rather than libcudart.so) which is part of the
+/// driver, not part of the runtime API. Binaries compiled against libcuda.so
+/// therefore don't work on machines without the CUDA driver installed even
+/// if they do have the CUDA runtime installed.
 ///
 /// Usage
 /// -----
 
 #if HAS_CUDA
-#include <cuda.h>
 #include <cuda_runtime_api.h>
 #endif
 
@@ -300,7 +303,8 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory &&rhs) noexcept
     : size_(std::move(rhs.size_))
     , host_ptr_(std::move(rhs.host_ptr_))
     , device_ptr_(std::move(rhs.device_ptr_))
-    , sync_status_(std::move(rhs.sync_status_)) {
+    , sync_status_(std::move(rhs.sync_status_))
+    , host_cuda_malloc_(std::move(rhs.host_cuda_malloc_)){
   rhs.sync_status_ = SyncStatus::UNINITIALIZED;
   rhs.size_ = 0;
   rhs.host_ptr_ = nullptr;
@@ -371,10 +375,12 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory &&rhs) & noexcept {
   host_ptr_ = rhs.host_ptr_;
   device_ptr_ = rhs.device_ptr_;
   sync_status_ = rhs.sync_status_;
+  host_cuda_malloc_ = rhs.host_cuda_malloc_;
   rhs.sync_status_ = SyncStatus::UNINITIALIZED;
   rhs.size_ = 0;
   rhs.host_ptr_ = nullptr;
   rhs.device_ptr_ = nullptr;
+  rhs.host_cuda_malloc_ = false;
   return *this;
 }
 
@@ -664,15 +670,16 @@ void swap(SyncedMemory<T> &lhs, SyncedMemory<T> &rhs) {
   swap(lhs.size_, rhs.size_);
   swap(lhs.host_ptr_, rhs.host_ptr_);
   swap(lhs.device_ptr_, rhs.device_ptr_);
+  swap(lhs.host_cuda_malloc_, rhs.host_cuda_malloc_);
 }
 
 
 template<class T>
 bool SyncedMemory<T>::has_cuda_context() const {
 #if HAS_CUDA
-  CUcontext* pctx = nullptr;
-  cuCtxGetCurrent(pctx);
-  return pctx != nullptr;
+  int device;
+  cudaError_t status = cudaGetDevice(&device);
+  return status == cudaSuccess;
 #else
   return false;
 #endif

@@ -86,6 +86,21 @@ void TopologicalGeometricalDefMonitor::calculate_elementary_triangles() {
   // handedness.
   std::unordered_set<Triplet, TripletHasher, HandedTripletComparator> unique_indices;
 
+  // In the special case of a square lattice we over-count every triangle twice
+  // because we will count both
+  //
+  // +-----+          +-----+
+  // | \   |   and    |   / |
+  // |   \ |          |  /  |
+  // + ----+          + ----+
+  //
+  // So here we detect the square lattice and compensate with a factor 1/2
+  if (approximately_equal(globals::lattice->a(), Vec3{1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)
+  && approximately_equal(globals::lattice->b(), Vec3{0.0, 1.0, 0.0}, jams::defaults::lattice_tolerance)) {
+    triangle_over_counting_ = 2.0;
+  }
+
+
   for (int spin_i = 0; spin_i < globals::num_spins; ++spin_i) {
 	auto r_i = globals::lattice->atom_position(spin_i); // cartesian possition of spin i
 
@@ -161,7 +176,7 @@ double TopologicalGeometricalDefMonitor::total_topological_charge() const {
 	sum += local_topological_charge(ijk);
   }
 
-  return sum / (4.0 * kPi);
+  return sum / (4.0 * kPi * triangle_over_counting_);
 }
 
 std::string TopologicalGeometricalDefMonitor::tsv_header(){
@@ -171,7 +186,7 @@ std::string TopologicalGeometricalDefMonitor::tsv_header(){
   ss.width(12);
 
   ss <<fmt::sci << "time";
-  ss <<fmt::decimal << "topological_charge";
+  ss <<fmt::decimal << "charge";
 
   ss << std::endl;
 

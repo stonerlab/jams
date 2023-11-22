@@ -106,9 +106,6 @@ double Lattice::parameter() const {
   return lattice_parameter;
 }
 
-double Lattice::volume() const {
-  return ::volume(supercell) * pow3(lattice_parameter);
-}
 
 int Lattice::size(int i) const {
   return lattice_dimensions[i];
@@ -381,7 +378,7 @@ void Lattice::read_unitcell_from_config(const libconfig::Setting &settings) {
 
   cout << "  unit cell\n";
   cout << "    parameter " << jams::fmt::sci << lattice_parameter << " (m)\n";
-  cout << "    volume " << jams::fmt::sci << this->volume() << " (m^3)\n";
+  cout << "    volume " << jams::fmt::sci << ::volume(unitcell) * pow3(lattice_parameter) << " (m^3)\n";
   cout << "\n";
 
   cout << "    unit cell vectors\n";
@@ -415,12 +412,13 @@ void Lattice::read_lattice_from_config(const libconfig::Setting &settings) {
   cout << "  lattice\n";
   cout << "    size " << lattice_dimensions << " (unit cells)\n";
   cout << "    periodic " << lattice_periodic << "\n";
+  cout << "    volume " << jams::fmt::sci << ::volume(supercell) * pow3(lattice_parameter) << "\n";
   cout << "\n";
 
   if(settings.exists("impurities")) {
     impurity_map_ = read_impurities_from_config(settings["impurities"]);
     impurity_seed_ = jams::config_optional<unsigned>(settings, "impurities_seed", jams::instance().random_generator()());
-    cout << "  impurity seed " << impurity_seed_ << "\n";
+    cout << jams::fmt::integer << "  impurity seed " << impurity_seed_ << "\n";
   }
 }
 
@@ -474,7 +472,9 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   cout << "  format " << cfg_coordinate_format_name << "\n";
 
   for (const Atom &atom: motif_) {
-    cout << "    " << atom.id << " " << materials_.name(atom.material_index) << " " << atom.position << "\n";
+    cout << "    " << jams::fmt::integer << atom.id << " ";
+    cout << materials_.name(atom.material_index) << " ";
+    cout << jams::fmt::decimal << atom.position << "\n";
   }
   cout << endl;
 
@@ -694,6 +694,9 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   bool use_gilbert_prefactor = jams::config_optional<bool>(
       globals::config->lookup("solver"), "gilbert_prefactor", false);
 
+  bool normalise_spins = jams::config_optional<bool>(
+      lattice_settings, "normalise_spins", true);
+
   pcg32 rng = pcg_extras::seed_seq_from<std::random_device>();
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto material = materials_[atom_material_id(i)];
@@ -710,7 +713,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     Vec3 spin = material.spin;
 
     if (material.randomize) {
-      spin = uniform_random_sphere(rng);
+      spin = jams::uniform_random_sphere(rng);
     }
 
     // lattice vacancies have a moment of zero and a spin vector of zero
@@ -718,8 +721,10 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
       spin = Vec3{0.0, 0.0, 0.0};
     }
 
-    // ensure the spin is unit vector or a zero vector
-    spin = unit_vector(spin);
+    if (normalise_spins) {
+      // ensure the spin is unit vector or a zero vector
+      spin = unit_vector(spin);
+    }
 
     for (auto n = 0; n < 3; ++n) {
         globals::s(i, n) = spin[n];

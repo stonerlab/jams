@@ -4,7 +4,7 @@
 
 #include <complex>
 
-#include <cuda.h>
+#include <cuda_runtime.h>
 #include <cusparse.h>
 
 namespace jams {

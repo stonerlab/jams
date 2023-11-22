@@ -50,7 +50,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   std::cout << "    seed " << seed << "\n";
 
   pcg32 generator(seed);
-  auto random_unit_vector = bind(uniform_random_sphere<pcg32>, generator);
+  auto random_unit_vector = bind(jams::uniform_random_sphere<pcg32>, generator);
   auto random_normal_number = bind(std::normal_distribution<>(), generator);
 
   for (auto i = 0; i < size; ++i) {

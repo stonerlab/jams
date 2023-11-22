@@ -137,14 +137,11 @@ args = parser.parse_args()
 with h5py.File(args.infile, "r") as f:
     print('time_ps dw_center_nm dw_center_nm_stderr dw_mz_muB dw_mz_muB_stderr dw_width_nm dw_width_nm_stderr', file=args.outfile)
 
-    positions = np.array(f['/jams/monitors/magnetisation_layers/layer_positions'])
+    dataset = f['/jams/monitors/magnetisation_layers']
 
-    for name, obj in f['/jams/monitors/magnetisation_layers'].items():
-        # We only want the groups with names like 000000000 for the time series data
-        if not isinstance(obj, h5py.Group) or 'time' not in obj.attrs:
-            continue
+    positions = np.array(dataset['layer_positions'])
 
-
+    for name, obj in dataset['timeseries'].items():
         fit_params = lmfit.Parameters()
         fit_params.add('center', value = np.mean(positions))
         fit_params.add('height', value = 1000.0)
@@ -152,7 +149,7 @@ with h5py.File(args.infile, "r") as f:
 
         time = float(obj.attrs['time'])
 
-        magnetisation = np.array(obj['layer_magnetisation'])
+        magnetisation = np.array(obj['magnetisation'])
 
         fit_data = {}
 

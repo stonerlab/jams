@@ -26,6 +26,7 @@ CudaThermalCurrentMonitor::CudaThermalCurrentMonitor(const libconfig::Setting &s
         : Monitor(settings) {
   jams_warning("This monitor automatically identifies the FIRST exchange hamiltonian\n"
                "in the config and assumes the exchange interaction is DIAGONAL AND ISOTROPIC");
+  jams_warning("This monitor should only be used with collinear systems which are magnetised along the z direction.");
 
   const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::globals::solver->hamiltonians());
 

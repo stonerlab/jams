@@ -12,6 +12,7 @@ target_include_directories(jams
 target_link_libraries(jams
         fftw_external
         cblas_external
+        hdf5_external
         pcg
         spglib
         libconfig

@@ -91,9 +91,65 @@ namespace jams {
             RNG * gen_;
           };
 
+        /// Implementation of MonteCarloMove which increases the spin length
+        /// by a random amount for a gaussian distribution.
+        /// \f[
+        /// |\mathbf{S}| \rightarrow |\mathbf{S}| + sigma N(0,1)
+        /// \f]
+        /// where \f$\Omega\f$ is a random vector on the unit sphere.
+        ///
+        /// @details The constructor requires a pointer to a random generator
+        /// and a value for sigma (default = 0.5).
+        /// This move is only for spin models which do not conserve the spin
+        /// length (i.e. with a Landau Hamiltonian)
+        template <class RNG>
+        class MonteCarloLengthMove : public MonteCarloMove {
+        public:
+            MonteCarloLengthMove(RNG * gen, const double sigma) :
+                normal_distribution(),
+                gen_(gen),
+                sigma_(sigma){}
+
+            inline Vec3 operator()(const Vec3& spin) {
+              return spin + sigma_*normal_distribution(*gen_)*unit_vector(spin);
+            }
+
+        private:
+            std::normal_distribution<> normal_distribution;
+            const double sigma_ = 0.5;
+            RNG * gen_;
+        };
+
+        /// Implementation of MonteCarloMove which increases the spin length
+        /// by a random amount for a gaussian distribution.
+        /// \f[
+        /// |\mathbf{S}| \rightarrow |\mathbf{S}| + sigma N(0,1)
+        /// \f]
+        /// where \f$\Omega\f$ is a random vector on the unit sphere.
+        ///
+        /// @details The constructor requires a pointer to a random generator
+        /// and a value for sigma (default = 0.5).
+        /// This move is only for spin models which do not conserve the spin
+        /// length (i.e. with a Landau Hamiltonian)
+        template <class RNG>
+        class MonteCarloRotationMove : public MonteCarloMove {
+        public:
+            MonteCarloRotationMove(RNG * gen) :
+                gen_(gen){}
+
+            inline Vec3 operator()(const Vec3& spin) {
+              Mat3 M = uniform_random_rotation(*gen_);
+
+              return M*spin;
+            }
+
+        private:
+            RNG * gen_;
+        };
+
         /// Get spin 'i' from the global spin array as a Vec3
         inline Vec3 get_spin(int i) {
-            return {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+          return {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
         }
 
         /// Set spin 'i' in the global spin array to 'spin'

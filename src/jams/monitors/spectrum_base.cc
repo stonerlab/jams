@@ -48,6 +48,15 @@ void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings) {
         hkl_path_nodes[i] = Vec3{settings[n][i][0], settings[n][i][1], settings[n][i][2]};
       }
 
+      // If the user gives two nodes which are identical then there is no path
+      // (it has no length) which could cause some nasty problems when we try
+      // to generate the paths.
+      for (auto i = 1; i < hkl_path_nodes.size(); ++i) {
+        if (hkl_path_nodes[i] == hkl_path_nodes[i-1]) {
+          throw std::runtime_error("Two consecutive hkl_nodes cannot be the same");
+        }
+      }
+
       auto new_path = generate_hkl_kspace_path(hkl_path_nodes, globals::lattice->kspace_size());
       kspace_paths_.insert(end(kspace_paths_), begin(new_path), end(new_path));
       kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + new_path.size());
@@ -56,6 +65,15 @@ void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings) {
     std::vector<Vec3> hkl_path_nodes(settings.getLength());
     for (auto i = 0; i < settings.getLength(); ++i) {
       hkl_path_nodes[i] = Vec3{settings[i][0], settings[i][1], settings[i][2]};
+    }
+
+    // If the user gives two nodes which are identical then there is no path
+    // (it has no length) which could cause some nasty problems when we try
+    // to generate the paths.
+    for (auto i = 1; i < hkl_path_nodes.size(); ++i) {
+      if (hkl_path_nodes[i] == hkl_path_nodes[i-1]) {
+        throw std::runtime_error("Two consecutive hkl_nodes cannot be the same");
+      }
     }
 
     kspace_paths_ = generate_hkl_kspace_path(hkl_path_nodes, globals::lattice->kspace_size());

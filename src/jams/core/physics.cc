@@ -15,6 +15,7 @@
 #include "jams/physics/empty.h"
 #include "jams/physics/field_cool.h"
 #include "jams/physics/fmr.h"
+#include "jams/physics/induced_spin_pulse.h"
 #include "jams/physics/mean_first_passage_time.h"
 #include "jams/physics/square_field_pulse.h"
 #include "jams/physics/two_temperature_model.h"
@@ -86,6 +87,10 @@ Physics* Physics::create(const libconfig::Setting &settings) {
 
   if (module_name == "fmr") {
     return new FMRPhysics(settings);
+  }
+
+  if (module_name == "induced-spin-pulse") {
+    return new InducedSpinPulsePhysics(settings);
   }
 
   if (module_name == "mean-first-passage-time") {

@@ -16,10 +16,10 @@
 #include "jams/helpers/exception.h"
 #include "jams/core/hamiltonian.h"
 #include "jams/monitors/cuda_spin_current.h"
-#include "cuda_spin_current.h"
 #include "jams/hamiltonian/exchange.h"
 #include "jams/interface/highfive.h"
 #include "jams/containers/sparse_matrix_builder.h"
+#include "jams/helpers/output.h"
 
 CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &settings)
         : Monitor(settings) {
@@ -33,7 +33,7 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
   h5_output_steps = jams::config_optional<unsigned>(settings, "h5_output_steps", output_step_freq_);
 
   if (do_h5_output) {
-    open_new_xdmf_file(globals::simulation_name + "_js.xdmf");
+    open_new_xdmf_file(jams::output::full_path_filename("js.xdmf"));
   }
 
   const auto& exchange_hamiltonian = find_hamiltonian<ExchangeHamiltonian>(::globals::solver->hamiltonians());
@@ -55,54 +55,42 @@ CudaSpinCurrentMonitor::CudaSpinCurrentMonitor(const libconfig::Setting &setting
       .build();
   std::cout << "    exchange sparse matrix memory (CSR): " << interaction_matrix_.memory() / kBytesToMegaBytes << " (MB)\n";
 
-  spin_current_rx_x.resize(globals::num_spins);
-  spin_current_rx_y.resize(globals::num_spins);
   spin_current_rx_z.resize(globals::num_spins);
-
-  spin_current_ry_x.resize(globals::num_spins);
-  spin_current_ry_y.resize(globals::num_spins);
   spin_current_ry_z.resize(globals::num_spins);
-
-  spin_current_rz_x.resize(globals::num_spins);
-  spin_current_rz_y.resize(globals::num_spins);
   spin_current_rz_z.resize(globals::num_spins);
 
-  outfile.open(globals::simulation_name + "_js.tsv");
+  outfile.open(jams::output::full_path_filename("js.tsv"));
 
   outfile << "time\t";
-  outfile << "js_rx_x\tjs_rx_y\tjs_rx_z" << "\t";
-  outfile << "js_ry_x\tjs_ry_y\tjs_ry_z" << "\t";
-  outfile << "js_rz_x\tjs_rz_y\tjs_rz_z" << std::endl;
+  outfile << "js_z_rx\tjs_z_ry\tjs_z_rz" << std::endl;
 
   outfile.setf(std::ios::right);
 }
 
 void CudaSpinCurrentMonitor::update(Solver& solver) {
-  Mat3 js = execute_cuda_spin_current_kernel(
+  Vec3 js_z = execute_cuda_spin_current_kernel(
           stream,
           globals::num_spins,
           globals::s.device_data(),
+          globals::gyro.device_data(),
+          globals::mus.device_data(),
           reinterpret_cast<const double*>(interaction_matrix_.val_device_data()),
           interaction_matrix_.row_device_data(),
           interaction_matrix_.col_device_data(),
-          spin_current_rx_x.device_data(),
-          spin_current_rx_y.device_data(),
           spin_current_rx_z.device_data(),
-          spin_current_ry_x.device_data(),
-          spin_current_ry_y.device_data(),
           spin_current_ry_z.device_data(),
-          spin_current_rz_x.device_data(),
-          spin_current_rz_y.device_data(),
           spin_current_rz_z.device_data()
   );
 
-  const double units = globals::lattice->parameter();
+  // The calculation is in JAMS internal units. We want to convert to SI for
+  // output. Js should have dimensions of m/s. In JAMS lengths are in terms
+  // of the lattice constant and times are in picoseconds so we need to multiply
+  // by the lattice constant and convert 1/ps to 1/s.
+  const double units = globals::lattice->parameter() * 1e12;
 
-  outfile << std::setw(4) << std::scientific << solver.time() << "\t";
-  for (auto r_m = 0; r_m < 3; ++r_m) {
-    for (auto s_n = 0; s_n < 3; ++ s_n) {
-      outfile << std::setw(12) << js[r_m][s_n] << "\t";
-    }
+  outfile << jams::fmt::sci << solver.time() << "\t";
+  for (auto m = 0; m < 3; ++m) {
+      outfile << jams::fmt::sci << units * js_z[m] << "\t";
   }
   outfile << "\n";
 
