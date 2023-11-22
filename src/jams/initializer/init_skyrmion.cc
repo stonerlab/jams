@@ -61,6 +61,11 @@ void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
     double phi = std::atan2(y, x);
 
     Vec3 spin_initial{globals::s(i,0), globals::s(i, 1), globals::s(i, 2)};
+
+    // The -Q is so that in a ferromagnet aligned along +z, a negative polarity gives a skyrmion
+    // with a core along -z. We use a rotation matrix rather than an explicity expresion for the spin
+    // orientation so that we can do clever things like initialising an antiferromagnetic skyrmion
+    // or puting a skyrmion into a thermalised system.
     Mat3 rot_matrix = -Q * Mat3{0, 0, sin(theta) * cos(Qv*phi + Qh),
                                 0, 0, sin(theta) * sin(Qv*phi + Qh),
                                 0, 0, cos(theta)};
