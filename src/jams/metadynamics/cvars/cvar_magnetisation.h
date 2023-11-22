@@ -40,7 +40,7 @@
 //
 
 namespace jams {
-class CVarMagnetisation : public CachingCollectiveVariable {
+class CVarMagnetisation : public CachingCollectiveVariable<Vec3> {
 public:
     CVarMagnetisation() = default;
     explicit CVarMagnetisation(const libconfig::Setting &settings);
@@ -54,13 +54,14 @@ public:
     double spin_move_trial_value(
         int i, const Vec3 &spin_initial, const Vec3 &spin_trial) override;
 
-    double calculate_expensive_value() override;
+    Vec3 calculate_expensive_cache_value() override;
 
 private:
     std::string name_ = "magnetisation";
     int selected_material_id_;
     int magnetisation_component_;
-    int num_selected_spins_; // the number of spins of the material we are considering.
+    double  total_selected_magnetization_;
+    bool normalize_ = false;
 };
 }
 

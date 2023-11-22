@@ -49,7 +49,7 @@ double jams::CVarSkyrmionCoreCoordinate::value() {
   return cached_value();
 }
 
-double jams::CVarSkyrmionCoreCoordinate::calculate_expensive_value() {
+double jams::CVarSkyrmionCoreCoordinate::calculate_expensive_cache_value() {
   return skyrmion_center_of_mass();
 }
 

@@ -170,7 +170,7 @@ double jams::CVarTopologicalCharge::total_topological_charge() const {
 }
 
 
-double jams::CVarTopologicalCharge::calculate_expensive_value() {
+double jams::CVarTopologicalCharge::calculate_expensive_cache_value() {
   return total_topological_charge();
 }
 

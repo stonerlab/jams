@@ -4,28 +4,32 @@
 #include <jams/core/lattice.h>
 
 double jams::CVarMagnetisation::value() {
-  return cached_value() / num_selected_spins_;
+  auto magnetisation = cached_value();
+
+  if (normalize_) {
+    magnetisation /= total_selected_magnetization_;
+  }
+
+  if (magnetisation_component_ == -1) {
+    return sqrt(magnetisation[0]*magnetisation[0] + magnetisation[1]*magnetisation[1]);
+  }
+
+  if (magnetisation_component_ == 3) {
+    return norm(magnetisation);
+  }
+
+  return magnetisation[magnetisation_component_];
 }
 
 
-double jams::CVarMagnetisation::calculate_expensive_value() {
-  double magnetisation = 0.0;
+Vec3 jams::CVarMagnetisation::calculate_expensive_cache_value() {
+  Vec3 magnetisation = {0.0, 0.0, 0.0};
 
-  // No specific material is selected so use all spins
-  if (selected_material_id_ == -1) {
-    for (auto i =0; i < globals::num_spins; ++i) {
-        magnetisation += globals::s(i, magnetisation_component_);
-    }
-    return magnetisation;
-  }
-
-  assert(selected_material_id_ >= 0 && selected_material_id_ < globals::lattice->num_materials());
-
-  // A specific material has been selected in the config so only include
-  // that material in the sum
-  for (auto i =0; i < globals::num_spins; ++i) {
-    if (globals::lattice->atom_material_id(i) == selected_material_id_) {
-      magnetisation += globals::s(i, magnetisation_component_);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    if (selected_material_id_ == -1 || globals::lattice->atom_material_id(i) == selected_material_id_) {
+      for (auto n = 0; n < 3; ++n) {
+        magnetisation[n] += (globals::mus(i)/kBohrMagnetonIU) * globals::s(i, n);
+      }
     }
   }
 
@@ -37,17 +41,30 @@ double
 jams::CVarMagnetisation::spin_move_trial_value(int i, const Vec3 &spin_initial,
                                                const Vec3 &spin_trial) {
 
-  // Spin 'i' is of chosen material, or all materials are selected
+  Vec3 magnetisation = cached_value();
+  // Spin 'i' is of chosen material, or all materials are selected then we
+  // adjust the magnetisation with the difference in the spin. Otherwise the
+  // magnetisation remains unchanged.
   if (selected_material_id_ == -1 || globals::lattice->atom_material_id(i) == selected_material_id_) {
-    const double trial_value = cached_value() - spin_initial[magnetisation_component_] + spin_trial[magnetisation_component_];
-    set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
-    return trial_value / num_selected_spins_;
+    magnetisation = magnetisation + (globals::mus(i)/kBohrMagnetonIU)*(spin_trial - spin_initial);
+    set_cache_values(i, spin_initial, spin_trial, cached_value(), magnetisation);
   }
 
-  // Spin 'i' is not of a selected material so the CV is not changed by this
-  // trial move
-  set_cache_values(i, spin_initial, spin_trial, cached_value(), cached_value());
-  return cached_value() / num_selected_spins_;
+  if (normalize_) {
+    magnetisation /= total_selected_magnetization_;
+  }
+
+  if (magnetisation_component_ == -1) {
+    return sqrt(magnetisation[0]*magnetisation[0] + magnetisation[1]*magnetisation[1]);
+  }
+
+  if (magnetisation_component_ == 3) {
+    return norm(magnetisation);
+  }
+
+
+  return magnetisation[magnetisation_component_];
+
 }
 
 
@@ -57,6 +74,9 @@ std::string jams::CVarMagnetisation::name() {
 
 
 jams::CVarMagnetisation::CVarMagnetisation(const libconfig::Setting &settings) {
+
+  normalize_ = config_optional<bool>(settings, "normalize", true);
+
 
   // The optional setting 'material' can be used to restrict the magnetisation
   // calculation to a single material. If the setting is omitted then all spins
@@ -73,19 +93,21 @@ jams::CVarMagnetisation::CVarMagnetisation(const libconfig::Setting &settings) {
     selected_material_id_ = globals::lattice->material_id(material);
 
     // record the number of spins of this material type
-    num_selected_spins_ = 0;
+    total_selected_magnetization_ = 0;
     for (auto i = 0; i < globals::num_spins; ++i) {
       if (globals::lattice->atom_material_id(i) == selected_material_id_) {
-        num_selected_spins_++;
+        total_selected_magnetization_ += (globals::mus(i)/kBohrMagnetonIU);
       }
     }
   } else {
     selected_material_id_ = -1;
-    num_selected_spins_ = globals::num_spins;
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      total_selected_magnetization_ += (globals::mus(i)/kBohrMagnetonIU);
+    }
   }
 
   assert((selected_material_id_ >= 0 && selected_material_id_ < globals::lattice->num_materials()) || selected_material_id_ == -1);
-  assert(num_selected_spins_ > 0);
+  assert(total_selected_magnetization_ > 0);
 
   auto component = config_required<std::string>(settings, "component");
 
@@ -98,8 +120,14 @@ jams::CVarMagnetisation::CVarMagnetisation(const libconfig::Setting &settings) {
   } else if (lowercase(component) == "z") {
     magnetisation_component_ = 2;
     name_ = "magnetisation_z";
+  } else if (lowercase(component) == "magnitude") {
+    magnetisation_component_ = 3;
+    name_ = "magnetisation_z";
+  } else if (lowercase(component) == "transverse") {
+    magnetisation_component_ = -1;
+    name_ = "magnetisation_transverse";
   } else {
-    throw std::runtime_error("'component' setting in magnetisation collective variable must be x, y or z");
+    throw std::runtime_error("'component' setting in magnetisation collective variable must be x, y, z, transverse or magnitude");
   }
 }
 

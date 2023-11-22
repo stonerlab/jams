@@ -7,6 +7,33 @@
 
 jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     const libconfig::Setting &settings) {
+  // In all of this code, we assume stacking along z, so the motif offset can also be
+  // used to index the layers.
+  int total_layers = globals::lattice->num_motif_atoms();
+
+  if (settings.exists("material")) {
+    std::string material = config_optional<std::string>(settings, "material", "all");
+    if (!globals::lattice->material_exists(material)) {
+      throw std::runtime_error("Invalid material specified in topological charge collective variable.");
+    }
+    selected_material_id_ = globals::lattice->material_id(material);
+
+    num_selected_layers_ = 0;
+    for (auto i = 0; i < total_layers; ++i) {
+      // iterate over layers, determining whether each motif atom isq
+      // of the specified material or not.
+      if (globals::lattice->motif_atom(i).material_index == selected_material_id_) {
+        num_selected_layers_ += 1;
+      }
+    }
+
+  } else {
+    selected_material_id_ = -1;
+    num_selected_layers_ = globals::lattice->num_motif_atoms();
+  }
+
+  assert((selected_material_id_ >= 0 && selected_material_id_ < globals::lattice->num_materials()) || selected_material_id_ == -1);
+  assert(num_selected_layers_ > 0);
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
@@ -16,13 +43,15 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   // Detect if we have a square or hexagonal lattice in the plane (all other
   // lattices are unsupported)
-  enum class LatticeShape {Unsupported, Square, Hexagonal};
+  enum class LatticeShape {Unsupported, Square, HexagonalAcute, HexagonalObtuse};
 
   LatticeShape lattice_shape = LatticeShape::Unsupported;
   if (lattice_equal({1.0, 0.0, 0.0}, {0.0, 1.0, 0.0})) {
     lattice_shape = LatticeShape::Square;
   } else if (lattice_equal({1.0, 0.0, 0.0}, {0.5, sqrt(3)/2, 0.0})) {
-    lattice_shape = LatticeShape::Hexagonal;
+    lattice_shape = LatticeShape::HexagonalAcute;
+  } else if (lattice_equal({1.0, 0.0, 0.0}, {-0.5, sqrt(3)/2, 0.0})) {
+    lattice_shape = LatticeShape::HexagonalObtuse;
   } else {
     throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
                              "requires the lattice to be either square or triangular.");
@@ -87,7 +116,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           {Vec3{-1,-1, 0},-1.0/16.0},
       };
     }
-    if (lattice_shape == LatticeShape::Hexagonal) {
+    if (lattice_shape == LatticeShape::HexagonalAcute) {
       dx_interaction_data = {
           {Vec3{ 1,-1, 0}, 1.0/6.0},
           {Vec3{-1, 1, 0},-1.0/6.0},
@@ -97,19 +126,34 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           {Vec3{-1, 0, 0},-1.0/3.0}
       };
     }
+    if (lattice_shape == LatticeShape::HexagonalObtuse) {
+      dx_interaction_data = {
+          {Vec3{0,1,0}, -1.0/6.0},
+          {Vec3{1,1,0}, 1.0/6.0},
+          {Vec3{1,0,0}, 1.0/3.0},
+          {Vec3{0,-1,0}, 1.0/6.0},
+          {Vec3{-1,-1,0}, -1.0/6.0},
+          {Vec3{-1,0,0}, -1.0/3.0},
+      };
+    }
 
     std::vector<InteractionData> interaction_template;
     for (auto &data: dx_interaction_data) {
-      InteractionData J;
-      J.unit_cell_pos_i = 0;
-      J.unit_cell_pos_j = 0;
-      J.type_i = globals::lattice->material_name(
-          globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
-      J.type_j = globals::lattice->material_name(
-          globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
-      J.r_ij = globals::lattice->fractional_to_cartesian(data.first);
-      J.J_ij[0][0] = data.second;
-      interaction_template.push_back(J);
+      // To work with the neighbour_list_from_interactions() mechanics we need
+      // to specify the unit cell positions. We assume that each plane only
+      // contains one motif position.
+      for (auto m = 0; m < globals::lattice->num_motif_atoms(); ++m) {
+        InteractionData J;
+        J.unit_cell_pos_i = m;
+        J.unit_cell_pos_j = m;
+        J.type_i = globals::lattice->material_name(
+            globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+        J.type_j = globals::lattice->material_name(
+            globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+        J.r_ij = globals::lattice->fractional_to_cartesian(data.first);
+        J.J_ij[0][0] = data.second;
+        interaction_template.push_back(J);
+      }
     }
 
     jams::InteractionList<Mat3,2> nbrs = neighbour_list_from_interactions(interaction_template);
@@ -142,7 +186,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           {Vec3{-1,-1, 0},-1.0/16.0},
       };
     }
-    if (lattice_shape == LatticeShape::Hexagonal) {
+    if (lattice_shape == LatticeShape::HexagonalAcute) {
       dy_interaction_data = {
           {Vec3{ 1,-1, 0},-sqrt(3.0)/6.0},
           {Vec3{-1, 1, 0}, sqrt(3.0)/6.0},
@@ -150,19 +194,29 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           {Vec3{ 0,-1, 0},-sqrt(3.0)/6.0},
       };
     }
+    if (lattice_shape == LatticeShape::HexagonalObtuse) {
+      dy_interaction_data = {
+          {Vec3{0,1,0}, sqrt(3.0)/6.0},
+          {Vec3{1,1,0}, sqrt(3.0)/6.0},
+          {Vec3{0,-1,0}, -sqrt(3.0)/6.0},
+          {Vec3{-1,-1,0}, -sqrt(3.0)/6.0},
+      };
+    }
 
       std::vector<InteractionData> interaction_template;
     for (auto &data: dy_interaction_data) {
-      InteractionData J;
-      J.unit_cell_pos_i = 0;
-      J.unit_cell_pos_j = 0;
-      J.type_i = globals::lattice->material_name(
-          globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
-      J.type_j = globals::lattice->material_name(
-          globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
-      J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
-      J.J_ij[0][0] = data.second;
-      interaction_template.push_back(J);
+      for (auto m = 0; m < globals::lattice->num_motif_atoms(); ++m) {
+        InteractionData J;
+        J.unit_cell_pos_i = m;
+        J.unit_cell_pos_j = m;
+        J.type_i = globals::lattice->material_name(
+            globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+        J.type_j = globals::lattice->material_name(
+            globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+        J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
+        J.J_ij[0][0] = data.second;
+        interaction_template.push_back(J);
+      }
     }
     jams::InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(
         interaction_template);
@@ -193,23 +247,33 @@ double jams::CVarTopologicalChargeFiniteDiff::value() {
 double jams::CVarTopologicalChargeFiniteDiff::spin_move_trial_value(int i,
                                                                     const Vec3 &spin_initial,
                                                                     const Vec3 &spin_trial) {
-  const double trial_value = cached_value() + topological_charge_difference(i, spin_initial, spin_trial);
+  // check if the spin is of relevant material
+  if (selected_material_id_==-1 || globals::lattice->atom_material_id(i)==selected_material_id_) {
+    const double trial_value = cached_value() + topological_charge_difference(i, spin_initial, spin_trial);
+    set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
+    return trial_value;
+  }
 
-  set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
+  set_cache_values(i, spin_initial, spin_trial, cached_value(), cached_value());
 
-  return trial_value;  //Used in CollectiveVariable
+  return cached_value();  //Used in CollectiveVariable
 }
 
 
 
-double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_value() {
+double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_cache_value() {
 
   double topological_charge = 0.0;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    topological_charge += local_topological_charge(i);
+    // include the spin if it is of relevant material, or if we consider all
+    // spins in the system.
+    if (selected_material_id_==-1 || globals::lattice->atom_material_id(i)==selected_material_id_) {
+      topological_charge += local_topological_charge(i);
+    }
+
   }
 
-  return topological_charge / (4.0 * kPi);
+  return topological_charge / (4.0 * kPi * num_selected_layers_);
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(const int i) const {
@@ -256,5 +320,5 @@ double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int 
 
   montecarlo::set_spin(index, spin_initial);
 
-  return (final_charge - initial_charge) / (4.0 * kPi);
+  return (final_charge - initial_charge) / (4.0 * kPi * num_selected_layers_);
 }

@@ -42,7 +42,7 @@
 //
 
 namespace jams {
-    class CVarTopologicalChargeFiniteDiff : public CachingCollectiveVariable {
+    class CVarTopologicalChargeFiniteDiff : public CachingCollectiveVariable<double> {
     public:
         CVarTopologicalChargeFiniteDiff() = default;
         explicit CVarTopologicalChargeFiniteDiff(const libconfig::Setting &settings);
@@ -56,7 +56,7 @@ namespace jams {
         double spin_move_trial_value(
             int i, const Vec3 &spin_initial, const Vec3 &spin_trial) override;
 
-        double calculate_expensive_value() override;
+        double calculate_expensive_cache_value() override;
 
     private:
 
@@ -66,6 +66,8 @@ namespace jams {
                                                    const Vec3 &spin_final) const;
 
         std::string name_ = "topological_charge_finite_diff";
+        int selected_material_id_;
+        int num_selected_layers_;
 
         // In principle the dx and dy indices can be different, but we need
         // to know all stencil points belonging to a site to be updated.
