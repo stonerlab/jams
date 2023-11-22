@@ -6,6 +6,7 @@
 #define INCLUDED_JAMS_MONITORS_TOPOLOGICAL_CHARGE_FINITE_DIFF
 
 #include <jams/core/monitor.h>
+#include <jams/containers/multiarray.h>
 
 #include <fstream>
 #include <string>
@@ -64,12 +65,21 @@ class TopologicalFiniteDiffChargeMonitor : public Monitor {
   ConvergenceStatus convergence_status() override;
 
  private:
-  static std::string tsv_header();
+    enum class Grouping {
+        MATERIALS,
+        POSITIONS
+    };
+
+    std::string tsv_header();
 
   double local_topological_charge(const int i) const;
+  double topological_charge_from_indices(const jams::MultiArray<int,1>& indices) const;
+
+  Grouping grouping_ = Grouping::POSITIONS;
+  std::vector<jams::MultiArray<int,1>> group_spin_indicies_;
 
 
-  std::string name_ = "topological-charge-finite-diff";
+    std::string name_ = "topological-charge-finite-diff";
   std::ofstream outfile;
 
   // basically a CSR matrix
@@ -80,7 +90,7 @@ class TopologicalFiniteDiffChargeMonitor : public Monitor {
   std::vector<std::vector<int>> dy_indices_;
   std::vector<std::vector<double>> dy_values_;
 
-  double monitor_top_charge_cache_ = 0.0;
+  std::vector<double> monitor_top_charge_cache_;
 
   double max_tolerance_threshold_ = 1.0;
   double min_tolerance_threshold_ = -1.0;
