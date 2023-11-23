@@ -200,7 +200,7 @@ double BiquadraticExchangeHamiltonian::calculate_total_energy(double time) {
 Vec3 BiquadraticExchangeHamiltonian::calculate_field(int i, double time) {
   using namespace globals;
   assert(is_finalized_);
-  Vec3 field;
+  Vec3 field = {0.0, 0.0, 0.0};
 
   const auto begin = interaction_matrix_.row_data()[i];
   const auto end = interaction_matrix_.row_data()[i+1];
