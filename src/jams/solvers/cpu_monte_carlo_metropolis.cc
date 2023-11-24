@@ -66,7 +66,7 @@ void MetropolisMCSolver::initialize(const libconfig::Setting& settings) {
   {
     move_names_.emplace_back("length");
     const auto sigma = jams::config_optional<double>(
-        settings, "move_length_sigma", 0.5);
+        settings, "move_length_sigma", 0.05);
     move_weights_.push_back(
         jams::config_optional<double>(
             settings, "move_fraction_length", 0.0));
