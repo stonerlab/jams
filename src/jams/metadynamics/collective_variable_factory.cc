@@ -5,6 +5,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/interface/config.h"
 
+#include <jams/metadynamics/cvars/cvar_local_spin_order.h>
 #include <jams/metadynamics/cvars/cvar_magnetisation.h>
 #include <jams/metadynamics/cvars/cvar_topological_charge.h>
 #include <jams/metadynamics/cvars/cvar_topological_charge_finite_diff.h>
@@ -24,6 +25,9 @@ jams::CollectiveVariableFactory::create(const libconfig::Setting &settings) {
 
   // New CollectiveVariablePotential derived classes should be added here
   // and the header included above.
+  DEFINED_METADYNAMICS_CVAR("local_spin_order",
+                            CVarLocalSpinOrder, settings);
+
   DEFINED_METADYNAMICS_CVAR("magnetisation",
                             CVarMagnetisation, settings);
 

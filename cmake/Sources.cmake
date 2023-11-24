@@ -53,6 +53,7 @@ set(JAMS_SOURCES_CXX
         metadynamics/collective_variable.cc
         metadynamics/caching_collective_variable.cc
         metadynamics/cvars/cvar_magnetisation.cc
+        metadynamics/cvars/cvar_local_spin_order.cc
         metadynamics/cvars/cvar_skyrmion_center_coordinate.cc
         metadynamics/cvars/cvar_topological_charge.cc
         metadynamics/cvars/cvar_topological_charge_finite_diff.cc
