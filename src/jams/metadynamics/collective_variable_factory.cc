@@ -7,6 +7,7 @@
 
 #include <jams/metadynamics/cvars/cvar_local_spin_order.h>
 #include <jams/metadynamics/cvars/cvar_magnetisation.h>
+#include <jams/metadynamics/cvars/cvar_moment.h>
 #include <jams/metadynamics/cvars/cvar_topological_charge.h>
 #include <jams/metadynamics/cvars/cvar_topological_charge_finite_diff.h>
 #include <jams/metadynamics/cvars/cvar_skyrmion_center_coordinate.h>
@@ -30,6 +31,9 @@ jams::CollectiveVariableFactory::create(const libconfig::Setting &settings) {
 
   DEFINED_METADYNAMICS_CVAR("magnetisation",
                             CVarMagnetisation, settings);
+
+  DEFINED_METADYNAMICS_CVAR("moment",
+                            CVarMoment, settings);
 
   DEFINED_METADYNAMICS_CVAR("topological_charge",
                             CVarTopologicalCharge, settings);

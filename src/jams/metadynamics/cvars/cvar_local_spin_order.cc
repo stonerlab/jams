@@ -90,7 +90,9 @@ double jams::CVarLocalSpinOrder::local_spin_order(const int i) const {
   double order = 0.0;
   for (auto n = 0; n < neighbour_indices_[i].size(); ++n) {
     const auto j = neighbour_indices_[i][n];
-    order += globals::s(i,0)*globals::s(j,0) + globals::s(i,1)*globals::s(j,1) + globals::s(i,2)*globals::s(j,2);
+    Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+    Vec3 s_j = {globals::s(j,0), globals::s(j,1), globals::s(j,2)};
+    order += dot(s_i, s_j) / (norm(s_i) * norm(s_j));
   }
 
   return order / double(num_neighbour_[i]);
