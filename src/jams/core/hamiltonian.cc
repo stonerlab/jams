@@ -93,13 +93,19 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
 
   DEFINED_HAMILTONIAN_CUDA_VARIANT("applied-field", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);
-  DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial", UniaxialHamiltonian, is_cuda_solver, settings, size);
-  DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial-micro", UniaxialMicroscopicHamiltonian, is_cuda_solver, settings, size);
-  DEFINED_HAMILTONIAN_CUDA_VARIANT("cubic", CubicHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("cubic-anisotropy", CubicAnisotropyHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial-anisotropy", UniaxialAnisotropyHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial-micro-anisotropy", UniaxialMicroscopicAnisotropyHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("zeeman", ZeemanHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("dipole-fft", DipoleFFTHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("dipole-bruteforce", DipoleBruteforceHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("field-pulse", FieldPulseHamiltonian, is_cuda_solver, settings, size);
+
+  // Old names retained for compatibility
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("cubic", CubicAnisotropyHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial", UniaxialAnisotropyHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial-micro", UniaxialMicroscopicAnisotropyHamiltonian, is_cuda_solver, settings, size);
+
 
 
   throw std::runtime_error("unknown hamiltonian " + std::string(settings["module"].c_str()));

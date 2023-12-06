@@ -9,10 +9,10 @@
 
 #include <cuda_runtime_api.h>
 
-class CudaUniaxialMicroscopicHamiltonian : public UniaxialMicroscopicHamiltonian {
+class CudaUniaxialMicroscopicAnisotropyHamiltonian : public UniaxialMicroscopicAnisotropyHamiltonian {
 public:
-    CudaUniaxialMicroscopicHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-    ~CudaUniaxialMicroscopicHamiltonian() override = default;
+    CudaUniaxialMicroscopicAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
+    ~CudaUniaxialMicroscopicAnisotropyHamiltonian() override = default;
 
     void   calculate_fields(double time) override;
 private:

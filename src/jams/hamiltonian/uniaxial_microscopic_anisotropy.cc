@@ -7,7 +7,7 @@
 #include "jams/helpers/error.h"
 #include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
 
-UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::Setting &settings, const unsigned int num_spins)
+UniaxialMicroscopicAnisotropyHamiltonian::UniaxialMicroscopicAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int num_spins)
         : Hamiltonian(settings, num_spins) {
 
   // don't allow mixed specification of anisotropy
@@ -75,7 +75,7 @@ UniaxialMicroscopicHamiltonian::UniaxialMicroscopicHamiltonian(const libconfig::
   }
 }
 
-double UniaxialMicroscopicHamiltonian::calculate_total_energy(double time) {
+double UniaxialMicroscopicAnisotropyHamiltonian::calculate_total_energy(double time) {
   double e_total = 0.0;
   for (int i = 0; i < energy_.size(); ++i) {
     e_total += calculate_energy(i, time);
@@ -83,7 +83,7 @@ double UniaxialMicroscopicHamiltonian::calculate_total_energy(double time) {
   return e_total;
 }
 
-double UniaxialMicroscopicHamiltonian::calculate_energy(const int i, double time) {
+double UniaxialMicroscopicAnisotropyHamiltonian::calculate_energy(const int i, double time) {
   double energy = 0.0;
 
   for (int n = 0; n < mca_order_.size(); ++n) {
@@ -93,8 +93,8 @@ double UniaxialMicroscopicHamiltonian::calculate_energy(const int i, double time
   return energy;
 }
 
-double UniaxialMicroscopicHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                                   const Vec3 &spin_final, double time) {
+double UniaxialMicroscopicAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                             const Vec3 &spin_final, double time) {
   double e_initial = 0.0;
   double e_final = 0.0;
 
@@ -109,13 +109,13 @@ double UniaxialMicroscopicHamiltonian::calculate_energy_difference(int i, const 
   return e_final - e_initial;
 }
 
-void UniaxialMicroscopicHamiltonian::calculate_energies(double time) {
+void UniaxialMicroscopicAnisotropyHamiltonian::calculate_energies(double time) {
   for (int i = 0; i < energy_.size(); ++i) {
     energy_(i) = calculate_energy(i, time);
   }
 }
 
-Vec3 UniaxialMicroscopicHamiltonian::calculate_field(const int i, double time) {
+Vec3 UniaxialMicroscopicAnisotropyHamiltonian::calculate_field(const int i, double time) {
   const double sz = globals::s(i, 2);
   Vec3 field = {0.0, 0.0, 0.0};
 
@@ -125,7 +125,7 @@ Vec3 UniaxialMicroscopicHamiltonian::calculate_field(const int i, double time) {
   return field;
 }
 
-void UniaxialMicroscopicHamiltonian::calculate_fields(double time) {
+void UniaxialMicroscopicAnisotropyHamiltonian::calculate_fields(double time) {
   field_.zero();
   for (int n = 0; n < mca_order_.size(); ++n) {
     for (int i = 0; i < field_.size(0); ++i) {
