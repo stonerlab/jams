@@ -59,7 +59,17 @@ AnisotropySetting_cube read_anisotropy_setting_cube(Setting &setting, std::strin
         throw runtime_error("Incorrectly formatted cubic_anisotropy");
     }
 
-    return result;
+
+  // The three axes must be orthogonal and normalised. We normalised when we read the input
+  // but the orthogonality must be checked.
+  if (!approximately_zero(dot(result.axis1, result.axis2), jams::defaults::lattice_tolerance)
+  || !approximately_zero(dot(result.axis2, result.axis3), jams::defaults::lattice_tolerance)
+  || !approximately_zero(dot(result.axis3, result.axis1), jams::defaults::lattice_tolerance))
+  {
+    throw runtime_error("cubic anisotropy UVW axes must be orthogonal");
+  }
+
+  return result;
 }
 
 vector<AnisotropySetting_cube> read_all_cubic_anisotropy_settings(const Setting &settings, const std::string order_name) {
