@@ -51,11 +51,11 @@
 /// );
 ///
 
-class CubicHamiltonian : public Hamiltonian {
-    friend class CudaCubicHamiltonian;
+class CubicAnisotropyHamiltonian : public Hamiltonian {
+    friend class CudaCubicAnisotropyHamiltonian;
 
 public:
-    CubicHamiltonian(const libconfig::Setting &settings, unsigned int size);
+    CubicAnisotropyHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
     double calculate_total_energy(double time) override;
 

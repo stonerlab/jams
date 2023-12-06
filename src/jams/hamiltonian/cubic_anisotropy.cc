@@ -83,7 +83,7 @@ vector<CubicAnisotropySetting> read_all_cubic_anisotropy_settings(const Setting 
     return anisotropies;
 }
 
-CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int num_spins)
+CubicAnisotropyHamiltonian::CubicAnisotropyHamiltonian(const Setting &settings, const unsigned int num_spins)
     : Hamiltonian(settings, num_spins) {
 
     std::string order_name;
@@ -124,7 +124,7 @@ CubicHamiltonian::CubicHamiltonian(const Setting &settings, const unsigned int n
     }
 }
 
-double CubicHamiltonian::calculate_total_energy(double time) {
+double CubicAnisotropyHamiltonian::calculate_total_energy(double time) {
   double e_total = 0.0;
   for (auto i = 0; i < energy_.size(); ++i) {
     e_total += calculate_energy(i, time);
@@ -132,7 +132,7 @@ double CubicHamiltonian::calculate_total_energy(double time) {
   return e_total;
 }
 
-double CubicHamiltonian::calculate_energy(const int i, double time) {
+double CubicAnisotropyHamiltonian::calculate_energy(const int i, double time) {
     double energy = 0.0;
 
     Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
@@ -155,8 +155,8 @@ double CubicHamiltonian::calculate_energy(const int i, double time) {
     return energy;
 }
 
-double CubicHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                     const Vec3 &spin_final, double time) {
+double CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                               const Vec3 &spin_final, double time) {
     double e_initial = 0.0;
     double e_final = 0.0;
 
@@ -188,13 +188,13 @@ double CubicHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_ini
   return e_final - e_initial;
 }
 
-void CubicHamiltonian::calculate_energies(double time) {
+void CubicAnisotropyHamiltonian::calculate_energies(double time) {
   for (int i = 0; i < energy_.size(); ++i) {
     energy_(i) = calculate_energy(i, time);
   }
 }
 
-Vec3 CubicHamiltonian::calculate_field(const int i, double time) {
+Vec3 CubicAnisotropyHamiltonian::calculate_field(const int i, double time) {
   Vec3 field = {0.0, 0.0, 0.0};
 
     Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
@@ -226,7 +226,7 @@ Vec3 CubicHamiltonian::calculate_field(const int i, double time) {
   return field;
 }
 
-void CubicHamiltonian::calculate_fields(double time) {
+void CubicAnisotropyHamiltonian::calculate_fields(double time) {
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto field = calculate_field(i, time);
     for (auto j = 0; j < 3; ++j) {

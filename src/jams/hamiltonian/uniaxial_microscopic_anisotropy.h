@@ -8,11 +8,11 @@
 
 #include <vector>
 
-class UniaxialMicroscopicHamiltonian : public Hamiltonian {
-    friend class CudaUniaxialMicroscopicHamiltonian;
+class UniaxialMicroscopicAnisotropyHamiltonian : public Hamiltonian {
+    friend class CudaUniaxialMicroscopicAnisotropyHamiltonian;
 
 public:
-    UniaxialMicroscopicHamiltonian(const libconfig::Setting &settings, unsigned int size);
+    UniaxialMicroscopicAnisotropyHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
     double calculate_total_energy(double time) override;
 
