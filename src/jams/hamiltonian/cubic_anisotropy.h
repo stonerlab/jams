@@ -27,9 +27,9 @@ public:
 
 private:
     jams::MultiArray<unsigned, 1> order_;
-    jams::MultiArray<double, 2> axis1_;
-    jams::MultiArray<double, 2> axis2_;
-    jams::MultiArray<double, 2> axis3_;
+    jams::MultiArray<double, 2> u_axes_;
+    jams::MultiArray<double, 2> v_axes_;
+    jams::MultiArray<double, 2> w_axes_;
     jams::MultiArray<double, 1> magnitude_;
 };
 
