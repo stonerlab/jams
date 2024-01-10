@@ -296,24 +296,27 @@ namespace jams {
             // keep checking if the handle needs updating.
             //
             // We retain the old interface for older versions of MKL.
-            #if HAS_MKL_INSPECTOR_EXECUTOR_API
-              if (!mkl_matrix_A_handle_) {
-                mkl_sparse_d_create_csr(&mkl_matrix_A_handle_,
-                                        SPARSE_INDEX_BASE_ZERO,
-                                        num_rows_, num_cols_,
-                                        row_.data(), row_.data() + 1,
-                                        col_.data(), val_.data());
-              }
-              mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE,
-                              1.0, mkl_matrix_A_handle_,
-                              matrix_A_description_.mkl_inspector_executor_desc(),
-                              vector_x.data(), 0.0, vector_y.data());
-            #else
+
+// MKL Inspector Executor disabled on 2024-01-10 due to segfaulting.
+//            #if HAS_MKL_INSPECTOR_EXECUTOR_API
+//              if (!mkl_matrix_A_handle_) {
+//                sparse_status_t status = mkl_sparse_d_create_csr(&mkl_matrix_A_handle_,
+//                                        SPARSE_INDEX_BASE_ZERO,
+//                                        num_rows_, num_cols_,
+//                                        row_.data(), row_.data() + 1,
+//                                        col_.data(), val_.data());
+//                assert(status == SPARSE_STATUS_SUCCESS);
+//              }
+//              mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE,
+//                              1.0, mkl_matrix_A_handle_,
+//                              matrix_A_description_.mkl_inspector_executor_desc(),
+//                              vector_x.data(), 0.0, vector_y.data());
+//            #else
               double one = 1.0, zero = 0.0;
               const char transa[1] = {'N'};
               mkl_dcsrmv(transa, &num_rows_, &num_cols_, &one, matrix_A_description_.mkl_desc(), val_.data(),
                          col_.data(), row_.data(), row_.data() + 1, vector_x.data(), &zero, vector_y.data());
-            #endif
+//            #endif
           #else
           jams::Xcsrmv_general(
               1.0, 0.0, num_rows_, val_.data(), col_.data(), row_.data(), vector_x.data(), vector_y.data());
