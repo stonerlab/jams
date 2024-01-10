@@ -8,10 +8,10 @@
 #include <jams/cuda/cuda_stream.h>
 #include <jams/hamiltonian/cubic_anisotropy.h>
 
-class CudaCubicHamiltonian : public CubicHamiltonian {
+class CudaCubicAnisotropyHamiltonian : public CubicAnisotropyHamiltonian {
 public:
-    CudaCubicHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-    ~CudaCubicHamiltonian() override = default;
+    CudaCubicAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
+    ~CudaCubicAnisotropyHamiltonian() override = default;
 
     double calculate_total_energy(double time) override;
     void   calculate_energies(double time) override;

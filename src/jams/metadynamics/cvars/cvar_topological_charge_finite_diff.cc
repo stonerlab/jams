@@ -14,18 +14,54 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     && approximately_equal(globals::lattice->b(), b, defaults::lattice_tolerance);
   };
 
-  // Detect if we have a square or hexagonal lattice in the plane (all other
-  // lattices are unsupported)
-  enum class LatticeShape {Unsupported, Square, Hexagonal};
-
-  LatticeShape lattice_shape = LatticeShape::Unsupported;
+  enum class LatticeType {Unsupported, Square, Hexagonal};
+  LatticeType lattice_type = LatticeType::Unsupported;
   if (lattice_equal({1.0, 0.0, 0.0}, {0.0, 1.0, 0.0})) {
-    lattice_shape = LatticeShape::Square;
-  } else if (lattice_equal({1.0, 0.0, 0.0}, {0.5, sqrt(3)/2, 0.0})) {
-    lattice_shape = LatticeShape::Hexagonal;
-  } else {
+    lattice_type = LatticeType::Square;
+  } else if (lattice_equal({1.0, 0.0, 0.0}, {0.5, sqrt(3) / 2, 0.0})) {
+    lattice_type = LatticeType::Hexagonal;
+  }
+
+  if (lattice_type == LatticeType::Unsupported) {
     throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
-                             "requires the lattice to be either square or triangular.");
+                             "requires the lattice to be either square or hexagonal.");
+  }
+
+  enum class FiniteDifferenceStencil {Unsupported, Square8, Hexagonal4, Hexagonal6, Hexagonal12};
+  FiniteDifferenceStencil stencil = FiniteDifferenceStencil::Unsupported;
+
+  // Set defaults for backwards compatibility
+  if (lattice_type == LatticeType::Square) {
+    stencil = FiniteDifferenceStencil::Square8;
+  } else if (lattice_type == LatticeType::Hexagonal) {
+    stencil = FiniteDifferenceStencil::Hexagonal6;
+  }
+
+  if(settings.exists("stencil")) {
+    std::string stencil_name = settings["stencil"].c_str();
+
+    // if there is a stencil setting then reset the stencil here so that we can
+    // check later if an unsupported stencil/lattice combination was chosen
+
+    stencil = FiniteDifferenceStencil::Unsupported;
+    if (stencil_name == "Square8" &&
+        lattice_type == LatticeType::Square) {
+      stencil = FiniteDifferenceStencil::Square8;
+    } else if (stencil_name == "Hexagonal6" &&
+               lattice_type == LatticeType::Hexagonal) {
+      stencil = FiniteDifferenceStencil::Hexagonal6;
+    } else if (stencil_name == "Hexagonal4" &&
+               lattice_type == LatticeType::Hexagonal) {
+      stencil = FiniteDifferenceStencil::Hexagonal4;
+    } else if (stencil_name ==
+               "Hexagonal12" && lattice_type == LatticeType::Hexagonal) {
+      stencil = FiniteDifferenceStencil::Hexagonal12;
+    }
+  }
+
+  if (stencil == FiniteDifferenceStencil::Unsupported) {
+    throw std::runtime_error("Metadynamics CV 'topological_charge_finite_diff' "
+                             "an unsupported stencil or stencil/lattice combination was selected");
   }
 
   // Below we create the finite difference stencils. These are based on stencils
@@ -77,7 +113,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
     std::vector<std::pair<Vec3, double>> dx_interaction_data;
 
-    if (lattice_shape == LatticeShape::Square) {
+    if (stencil == FiniteDifferenceStencil::Square8) {
       dx_interaction_data = {
           {Vec3{ 1, 1, 0}, 1.0/16.0},
           {Vec3{ 1,-1, 0}, 1.0/16.0},
@@ -87,14 +123,36 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           {Vec3{-1,-1, 0},-1.0/16.0},
       };
     }
-    if (lattice_shape == LatticeShape::Hexagonal) {
+    if (stencil == FiniteDifferenceStencil::Hexagonal4) {
       dx_interaction_data = {
+          {Vec3{ 1,-1, 0}, 1.0/2.0},
+          {Vec3{ 0, 1, 0}, 1.0/2.0},
+          {Vec3{-1, 1, 0},-1.0/2.0},
+          {Vec3{ 0,-1, 0},-1.0/2.0},
+      };
+    }
+    if (stencil == FiniteDifferenceStencil::Hexagonal6) {
+      dx_interaction_data = {
+          {Vec3{ 1, 0, 0}, 1.0/3.0},
+          {Vec3{-1, 0, 0},-1.0/3.0},
           {Vec3{ 1,-1, 0}, 1.0/6.0},
           {Vec3{-1, 1, 0},-1.0/6.0},
           {Vec3{ 0, 1, 0}, 1.0/6.0},
-          {Vec3{ 0,-1, 0},-1.0/6.0},
-          {Vec3{ 1, 0, 0}, 1.0/3.0},
-          {Vec3{-1, 0, 0},-1.0/3.0}
+          {Vec3{ 0,-1, 0},-1.0/6.0}
+      };
+    }
+    if (stencil == FiniteDifferenceStencil::Hexagonal12) {
+      dx_interaction_data = {
+          {Vec3{ 1, 0, 0}, 1.0/2.0}, // F
+          {Vec3{-1, 0, 0},-1.0/2.0}, // G
+          {Vec3{ 1,-1, 0}, 1.0/4.0}, // C
+          {Vec3{-1, 1, 0},-1.0/4.0}, // D
+          {Vec3{ 0, 1, 0}, 1.0/4.0}, // B
+          {Vec3{ 0,-1, 0},-1.0/4.0}, // E
+          {Vec3{ 1, 1, 0},-1.0/12.0},
+          {Vec3{ 2,-1, 0},-1.0/12.0},
+          {Vec3{-2, 1, 0}, 1.0/12.0},
+          {Vec3{-1,-1, 0}, 1.0/12.0}
       };
     }
 
@@ -132,7 +190,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     // contribution
     std::vector<std::pair<Vec3, double>> dy_interaction_data;
 
-    if (lattice_shape == LatticeShape::Square) {
+    if (stencil == FiniteDifferenceStencil::Square8) {
       dy_interaction_data = {
           {Vec3{ 1, 1, 0}, 1.0/16.0},
           {Vec3{-1, 1, 0}, 1.0/16.0},
@@ -142,12 +200,34 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           {Vec3{-1,-1, 0},-1.0/16.0},
       };
     }
-    if (lattice_shape == LatticeShape::Hexagonal) {
+    if (stencil == FiniteDifferenceStencil::Hexagonal4) {
+      dy_interaction_data = {
+          {Vec3{-1, 1, 0}, 1.0/(2*sqrt(3.0))},
+          {Vec3{ 0, 1, 0}, 1.0/(2*sqrt(3.0))},
+          {Vec3{ 1,-1, 0},-1.0/(2*sqrt(3.0))},
+          {Vec3{ 0,-1, 0},-1.0/(2*sqrt(3.0))},
+      };
+    }
+    if (stencil == FiniteDifferenceStencil::Hexagonal6) {
       dy_interaction_data = {
           {Vec3{ 1,-1, 0},-sqrt(3.0)/6.0},
           {Vec3{-1, 1, 0}, sqrt(3.0)/6.0},
           {Vec3{ 0, 1, 0}, sqrt(3.0)/6.0},
           {Vec3{ 0,-1, 0},-sqrt(3.0)/6.0},
+      };
+    }
+    if (stencil == FiniteDifferenceStencil::Hexagonal12) {
+      dy_interaction_data = {
+          {Vec3{ 1,-1, 0},-sqrt(3.0)/4.0},
+          {Vec3{-1, 1, 0}, sqrt(3.0)/4.0},
+          {Vec3{ 0, 1, 0}, sqrt(3.0)/4.0},
+          {Vec3{ 0,-1, 0},-sqrt(3.0)/4.0},
+          {Vec3{-1, 2, 0}, -1/(6*sqrt(3))},
+          {Vec3{ 1,-2, 0}, 1/(6*sqrt(3))},
+          {Vec3{ 1, 1, 0},-1.0/(12*sqrt(3))},
+          {Vec3{ 2,-1, 0}, 1.0/(12*sqrt(3))},
+          {Vec3{-2, 1, 0}, -1.0/(12*sqrt(3))},
+          {Vec3{-1,-1, 0}, 1.0/(12*sqrt(3))}
       };
     }
 

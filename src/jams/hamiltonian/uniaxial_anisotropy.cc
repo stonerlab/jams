@@ -75,7 +75,7 @@ vector<AnisotropySetting> read_all_anisotropy_settings(const Setting &settings) 
   return anisotropies;
 }
 
-UniaxialHamiltonian::UniaxialHamiltonian(const Setting &settings, const unsigned int num_spins)
+UniaxialAnisotropyHamiltonian::UniaxialAnisotropyHamiltonian(const Setting &settings, const unsigned int num_spins)
         : Hamiltonian(settings, num_spins) {
 
   // check if the old format is being used
@@ -115,7 +115,7 @@ UniaxialHamiltonian::UniaxialHamiltonian(const Setting &settings, const unsigned
 }
 
 
-double UniaxialHamiltonian::calculate_total_energy(double time) {
+double UniaxialAnisotropyHamiltonian::calculate_total_energy(double time) {
   double e_total = 0.0;
   for (int i = 0; i < energy_.size(); ++i) {
     e_total += calculate_energy(i, time);
@@ -123,7 +123,7 @@ double UniaxialHamiltonian::calculate_total_energy(double time) {
   return e_total;
 }
 
-double UniaxialHamiltonian::calculate_energy(const int i, double time) {
+double UniaxialAnisotropyHamiltonian::calculate_energy(const int i, double time) {
   double energy = 0.0;
 
   auto dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
@@ -132,8 +132,8 @@ double UniaxialHamiltonian::calculate_energy(const int i, double time) {
   return energy;
 }
 
-double UniaxialHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                        const Vec3 &spin_final, double time) {
+double UniaxialAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                  const Vec3 &spin_final, double time) {
   double e_initial = 0.0;
   double e_final = 0.0;
 
@@ -146,13 +146,13 @@ double UniaxialHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_
   return e_final - e_initial;
 }
 
-void UniaxialHamiltonian::calculate_energies(double time) {
+void UniaxialAnisotropyHamiltonian::calculate_energies(double time) {
   for (auto i = 0; i < energy_.size(); ++i) {
     energy_(i) = calculate_energy(i, time);
   }
 }
 
-Vec3 UniaxialHamiltonian::calculate_field(const int i, double time) {
+Vec3 UniaxialAnisotropyHamiltonian::calculate_field(const int i, double time) {
   auto dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
 
   Vec3 field;
@@ -162,7 +162,7 @@ Vec3 UniaxialHamiltonian::calculate_field(const int i, double time) {
   return field;
 }
 
-void UniaxialHamiltonian::calculate_fields(double time) {
+void UniaxialAnisotropyHamiltonian::calculate_fields(double time) {
   for (auto i = 0; i < globals::num_spins; ++i) {
     const auto field = calculate_field(i, time);
     for (auto j = 0; j < 3; ++j) {
