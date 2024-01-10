@@ -27,6 +27,7 @@ public:
 
 
 private:
+    bool     rotate_all_spins_ = true;
     unsigned num_theta_ = 36;
     unsigned num_phi_   = 72;
 };
