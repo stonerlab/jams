@@ -81,7 +81,8 @@ CudaRK4LLGSOTSolver::CudaRK4LLGSOTSolver(const libconfig::Setting &settings)
   // from meters^2 to nanometers^2.
   charge_current_density = charge_current_density / (kMeterToNanometer * kMeterToNanometer * kSecondToPicosecond);
 
-  double volume_per_atom = volume(globals::lattice->get_unitcell()) / double(globals::lattice->num_motif_atoms());
+  double volume_per_atom = pow3(globals::lattice->parameter() * kMeterToNanometer)
+          * volume(globals::lattice->get_unitcell()) / double(globals::lattice->num_motif_atoms());
 
   sot_coefficient_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
