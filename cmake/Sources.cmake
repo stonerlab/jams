@@ -14,6 +14,7 @@ set(JAMS_SOURCES_CXX
         core/solver.cc
         core/thermostat.cc
         hamiltonian/applied_field.cc
+        hamiltonian/cpu_crystal_field.cc
         hamiltonian/cubic_anisotropy.cc
         hamiltonian/dipole_bruteforce.cc
         hamiltonian/dipole_fft.cc
@@ -110,6 +111,7 @@ set(JAMS_SOURCES_CUDA
         hamiltonian/cuda_applied_field.cu
         hamiltonian/cuda_biquadratic_exchange.cu
         hamiltonian/cuda_cubic_anisotropy.cu
+        hamiltonian/cuda_crystal_field.cu
         hamiltonian/cuda_dipole_bruteforce.cu
         hamiltonian/cuda_dipole_fft.cu
         hamiltonian/cuda_field_pulse.cu
