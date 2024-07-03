@@ -82,7 +82,7 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
         kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions));
       }
       if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
-        if (!globals::lattice->is_a_symmetry_complete_set(generated_positions, r_distance_tolerance_)) {
+        if (!globals::lattice->is_a_symmetry_complete_set(pos_i, generated_positions, r_distance_tolerance_)) {
           throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
                                    "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
                                    "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
