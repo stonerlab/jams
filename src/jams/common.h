@@ -69,7 +69,7 @@ namespace jams {
 
         RandomGeneratorType random_generator_{randutils::auto_seed_128{}.base()};
 
-        std::string output_path_;
+        std::string output_path_ = ".";
 
         #if HAS_CUDA
         cublasHandle_t cublas_handle_ = nullptr;

@@ -13,7 +13,7 @@ namespace jams {
     struct ProgramArgs {
         bool        version_only      = false;
         bool        setup_only        = false;
-        std::string output_path = "";
+        std::string output_path = ".";
         std::string simulation_name = "";
 
         // a vector of filenames or patch strings to assemble to config
