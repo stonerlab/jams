@@ -46,7 +46,7 @@ UnitcellAverageMonitor::UnitcellAverageMonitor(const libconfig::Setting &setting
 
   for (auto i = 0; i < globals::lattice->num_cells(); ++i) {
     for (auto j = 0; j < 3; ++j) {
-      cell_centers_(i, j) = globals::lattice->cell_center(i)[j];
+      cell_centers_(i, j) =  globals::lattice->parameter() * globals::lattice->cell_center(i)[j] / 1e-9;
     }
   }
 
