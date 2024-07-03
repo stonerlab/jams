@@ -136,7 +136,8 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
   auto moment_dataset = file.createDataSet<double>("/moments",  DataSpace(globals::num_spins));
   moment_dataset.write(moments);
   auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({size_t(globals::num_spins),3}));
-  pos_dataset.write(positions);
+    pos_dataset.createAttribute<std::string>("units", DataSpace::From("nm"));
+    pos_dataset.write(positions);
 
 }
 

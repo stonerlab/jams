@@ -65,11 +65,12 @@ void UnitcellAverageMonitor::update(Solver& solver) {
 
   const std::string h5_file_name(jams::instance().output_path() + "/" + globals::simulation_name + "_" + zero_pad_number(outcount) + "_avg.h5");
 
+  double moment_IU_factor = 1.0 / kBohrMagnetonIU;
   cell_mag_.zero();
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto cell = globals::lattice->cell_containing_atom(i);
     for (auto j = 0; j < 3; ++j) {
-      cell_mag_(cell, j) += globals::mus(i)*globals::s(i,j);
+      cell_mag_(cell, j) += globals::mus(i)*globals::s(i,j) * moment_IU_factor;
     }
   }
 
@@ -78,7 +79,7 @@ void UnitcellAverageMonitor::update(Solver& solver) {
     auto cell = globals::lattice->cell_containing_atom(i);
     auto s_transformed = spin_transformations_[i] * Vec3{{globals::s(i,0), globals::s(i,1), globals::s(i,2)}};
     for (auto j = 0; j < 3; ++j) {
-      cell_neel_(cell, j) += globals::mus(i)*s_transformed[j];
+      cell_neel_(cell, j) += globals::mus(i)*s_transformed[j] * moment_IU_factor;
     }
   }
 
@@ -100,23 +101,25 @@ void UnitcellAverageMonitor::write_h5_file(const std::string &h5_file_name, cons
   }
 
   auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({globals::lattice->num_cells(), 3}), props);
+  pos_dataset.createAttribute<std::string>("units", "nm");
 
   pos_dataset.write(cell_centers_);
 
-
   auto mag_dataset = file.createDataSet<double>("/magnetisation",  DataSpace({globals::lattice->num_cells(), 3}), props);
 
+  mag_dataset.createAttribute<std::string>("units", "bohr_magnetons");
   mag_dataset.createAttribute<int>("iteration", DataSpace::From(iteration));
-  mag_dataset.createAttribute<double>("time", DataSpace::From(time));
-  mag_dataset.createAttribute<double>("temperature", DataSpace::From(temperature));
+  mag_dataset.createAttribute<double>("time_ps", DataSpace::From(time));
+  mag_dataset.createAttribute<double>("temperature_K", DataSpace::From(temperature));
 
   mag_dataset.write(cell_mag_);
 
   auto neel_dataset = file.createDataSet<double>("/neel",  DataSpace({globals::lattice->num_cells(), 3}), props);
 
+  neel_dataset.createAttribute<std::string>("units", "bohr_magnetons");
   neel_dataset.createAttribute<int>("iteration", DataSpace::From(iteration));
-  neel_dataset.createAttribute<double>("time", DataSpace::From(time));
-  neel_dataset.createAttribute<double>("temperature", DataSpace::From(temperature));
+  neel_dataset.createAttribute<double>("time_ps", DataSpace::From(time));
+  neel_dataset.createAttribute<double>("temperature_K", DataSpace::From(temperature));
 
   neel_dataset.write(cell_neel_);
 }
