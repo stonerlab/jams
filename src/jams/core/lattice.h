@@ -77,6 +77,7 @@ public:
     const std::vector<Vec3>& atom_cartesian_positions() const;
 
     unsigned atom_motif_position(const int &i) const;   // integer index within the motif
+    const std::vector<Mat3>& atom_motif_local_point_group_symops(const int &i); // return a vector of the point group operations local to the site
 
     int atom_unitcell(const int &i) const;
 
@@ -112,13 +113,16 @@ public:
 
     Vec3 generate_image_position(const Vec3 &unit_cell_cart_pos, const Vec3i &image_vector) const;
 
-    std::vector<Vec3> generate_symmetric_points(const Vec3 &r, const double &tolerance) const;
+    // Generates a list of points symmetric to r_cart based on the local point group symmetry of motif_position
+    std::vector<Vec3> generate_symmetric_points(const int motif_position, const Vec3 &r_cart, const double &tolerance);
 
     Vec3 cartesian_to_fractional(const Vec3 &r_cart) const;
 
     Vec3 fractional_to_cartesian(const Vec3 &r_frac) const;
 
-    bool is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double &tolerance) const;
+    // Returns true if the points are a symmetry complete set (the symmetry operations on each point, generate
+    // a point in the set), based on the local point group operations of the given motif position.
+    bool is_a_symmetry_complete_set(int motif_position, const std::vector<Vec3> &points, const double &tolerance);
 
     // lookup the site index but unit cell integer coordinates and motif offset
     int site_index_by_unit_cell(const int &i, const int &j, const int &k, const int &m) const;
@@ -184,6 +188,8 @@ private:
 
     SpglibDataset *spglib_dataset_ = nullptr;
     std::vector<Mat3> rotations_;
+    std::vector<std::vector<Mat3>> motif_local_pg_symops_;
+
 
 };
 
