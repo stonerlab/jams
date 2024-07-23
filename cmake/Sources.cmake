@@ -14,7 +14,7 @@ set(JAMS_SOURCES_CXX
         core/solver.cc
         core/thermostat.cc
         hamiltonian/applied_field.cc
-        hamiltonian/cpu_crystal_field.cc
+        hamiltonian/crystal_field.cc
         hamiltonian/cubic_anisotropy.cc
         hamiltonian/dipole_bruteforce.cc
         hamiltonian/dipole_fft.cc
