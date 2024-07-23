@@ -26,13 +26,15 @@ constexpr double kSpeedOfLight          = 299792458.0;      // m s^-1  || NIST (
 // fields -> Tesla (T)
 // energy -> millielectron volts (meV)
 
-constexpr double kJoule2meV = 6.24150907e21; // 1 Joule in meV
-constexpr double kmRyd2meV  = 13.605693123; // 1 mRyd in meV
-
 constexpr double kHBarIU              = 0.6582119569;  // meV ps
 constexpr double kBohrMagnetonIU      = 0.0578838181;  // meV T^-1
 constexpr double kGyromagneticRatioIU = kElectronGFactor * kBohrMagnetonIU / kHBarIU;  // rad ps^-1 T^-1
 constexpr double kBoltzmannIU         = 0.0861733326;  // meV K^-1
+
+constexpr double kJoule2meV = 6.24150907e21; // 1 Joule in meV
+constexpr double kmRyd2meV  = 13.605693123; // 1 mRyd in meV
+constexpr double kKelvin2meV  = kBoltzmannIU; // 1 Kelvin in meV
+
 constexpr double kVacuumPermeabilityIU   = 4*kPi*1E-7 / kJoule2meV; // Original is H m^-1 = J A^-2 m^-1 which we change to
 
 constexpr double kMeterToAngstroms      = 1e10;
