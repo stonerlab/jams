@@ -1,4 +1,6 @@
 #include <jams/cuda/cuda_array_reduction.h>
+#include <thrust/device_ptr.h>
+#include <thrust/reduce.h>
 #include "jams/containers/multiarray.h"
 #include "jams/helpers/array_ops.h"
 
@@ -63,7 +65,6 @@ in_thread_reduction(int tid, double3 *sdata, double3& mySum) {
     }
   }
 }
-
 
 template <unsigned int blockSize>
 __global__ void
@@ -492,6 +493,10 @@ Vec3 jams::vector_field_indexed_scale_and_reduce_cuda(const jams::MultiArray<dou
   }
 
   return jams::vector_field_reduce(block_sums);
+}
+
+double jams::scalar_field_reduce_cuda(const jams::MultiArray<double, 1> &x) {
+    return thrust::reduce(thrust::device_ptr<const double>(x.device_data()), thrust::device_ptr<const double>(x.device_data() + x.elements()));
 }
 
 
