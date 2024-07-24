@@ -11,15 +11,32 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
   spin_has_crystal_field_(false, size),
   crystal_field_tesseral_coeff_(0.0, kCrystalFieldNumCoeff_, size)
 {
-    auto &cf_coeff_settings = settings["crystal_field_coefficients"];
-
     energy_cutoff_ = jams::config_required<double>(settings, "energy_cutoff");
-    std::cout << "crystal field energy cutoff " << energy_cutoff_ << "\n";
+    std::cout << "energy_cutoff: " << energy_cutoff_ << "\n";
+
+    if (lowercase(settings["crystal_field_spin_type"]) == "up") {
+        crystal_field_spin_type = CrystalFieldSpinType::kSpinUp;
+        std::cout << "crystal_field_spin_type: up\n";
+
+    } else if (lowercase(settings["crystal_field_spin_type"]) == "down") {
+        crystal_field_spin_type = CrystalFieldSpinType::kSpinUp;
+        std::cout << "crystal_field_spin_type: down\n";
+    } else {
+        jams_die("crystal_field_spin_type must be 'up' or 'down'");
+    }
+
+    auto &cf_coeff_settings = settings["crystal_field_coefficients"];
 
     // validate input
     for (auto i = 0; i < cf_coeff_settings.getLength(); ++i) {
         if (!(cf_coeff_settings[i][0].isNumber() || cf_coeff_settings[i][0].isString())) {
-            // TODO: raise error that first item must be a number or letter
+          jams_die("First crystal_field_coefficients value must be a unit cell index or material name");
+        }
+
+        if (cf_coeff_settings[i][0].isNumber()) {
+          if (int(cf_coeff_settings[i][0]) < 1 || int(cf_coeff_settings[i][0]) > globals::lattice->num_motif_atoms()) {
+            jams_die("First crystal_field_coefficients unit cell index must be between 1 and ", globals::lattice->num_motif_atoms());
+          }
         }
 
         // TODO: check if the strings are valid materials and the numbers are valid positions
@@ -159,7 +176,14 @@ CrystalFieldHamiltonian::SphericalHarmonicCoefficientMap CrystalFieldHamiltonian
         // principle we could average the values, but this then causes difficulties if we convert to tesseral
         // harmonics which are purely real. The averaging means that it becomes harder to check that the real part is
         // purely real.
-        coefficients.at({l, m}) = {Re_Blm_up, Im_Blm_up};
+
+        if (crystal_field_spin_type == CrystalFieldSpinType::kSpinUp) {
+            coefficients.at({l, m}) = {Re_Blm_up, Im_Blm_up};
+        } else if (crystal_field_spin_type == CrystalFieldSpinType::kSpinDown) {
+            coefficients.at({l, m}) = {Re_Blm_down, Im_Blm_down};
+        } else {
+            assert(false); // unreachable
+        }
     }
 
     return coefficients;

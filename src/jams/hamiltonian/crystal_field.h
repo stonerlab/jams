@@ -62,6 +62,11 @@
 class CrystalFieldHamiltonian : public Hamiltonian {
 
 public:
+    enum class CrystalFieldSpinType {kSpinUp, kSpinDown};
+
+    using SphericalHarmonicCoefficientMap = std::map<std::pair<int, int>, std::complex<double>>;
+    using TesseralHarmonicCoefficientMap = std::map<std::pair<int, int>, double>;
+
     CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
     double calculate_total_energy(double time) override;
@@ -75,9 +80,6 @@ public:
     double calculate_energy(int i, double time) override;
 
     double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
-
-    using SphericalHarmonicCoefficientMap = std::map<std::pair<int, int>, std::complex<double>>;
-    using TesseralHarmonicCoefficientMap = std::map<std::pair<int, int>, double>;
 
 protected:
     // Reads a crystal field coefficient file and returns a SphericalHarmonicCoefficientMap where the key is the pair
@@ -94,6 +96,8 @@ protected:
 
     // Maximum number of crystal field coefficients supported. 27 corresponds to l=2,4,6
     unsigned int kCrystalFieldNumCoeff_ = 27;
+
+    CrystalFieldSpinType crystal_field_spin_type = CrystalFieldSpinType::kSpinUp;
 
     // Energy cutoff (in same units as input) to determine zero
     double energy_cutoff_ = 0.0;
