@@ -30,6 +30,11 @@ namespace jams {
         inline void force_deallocation(T &object) {
           T().swap(object);
         }
+
+        template <class T>
+        inline bool is_in_list(const T& value, std::initializer_list<T> list) {
+          return std::find(list.begin(), list.end(), value) != list.end();
+        }
     }
 }
 

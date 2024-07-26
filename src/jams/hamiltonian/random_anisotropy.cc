@@ -17,6 +17,7 @@
 #include "jams/helpers/error.h"
 #include "jams/helpers/random.h"
 #include "jams/helpers/output.h"
+#include <jams/helpers/exception.h>
 
 RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size)
         : Hamiltonian(settings, size),
@@ -25,12 +26,12 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
 {
   // validate settings
   if (settings["magnitude"].getLength() != globals::lattice->num_materials()) {
-    jams_die("RandomAnisotropyHamiltonian: magnitude must be specified for every material");
+    throw jams::ConfigException(settings["magnitude"], "magnitude must be specified for every material");
   }
 
   if (settings.exists("sigma")) {
     if (settings["sigma"].getLength() != globals::lattice->num_materials()) {
-      jams_die("RandomAnisotropyHamiltonian: sigma must be specified for every material");
+      throw jams::ConfigException(settings["sigma"], "sigma must be specified for every material");
     }
   }
 

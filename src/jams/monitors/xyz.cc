@@ -12,6 +12,7 @@
 #include "jams/helpers/output.h"
 
 #include "xyz.h"
+#include <jams/helpers/exception.h>
 
 XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
@@ -19,7 +20,7 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
 
   // settings for only outputting a slice
   if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
-    jams_die("Xyz monitor requires both slice_origin and slice_size to be specificed;");
+    throw jams::ConfigException(settings, "Xyz monitor requires both slice_origin and slice_size to be specified.");
   }
 
   slice_spins.resize(0);

@@ -503,9 +503,9 @@ safety_check_distance_tolerance(const double &tolerance) {
     for (auto j = i + 1; j < globals::lattice->num_motif_atoms(); ++j) {
       const auto distance = norm(globals::lattice->motif_atom(i).position - globals::lattice->motif_atom(j).position);
       if (distance < tolerance) {
-        jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
-                 "Check position file or relax distance_tolerance for exchange module",
-                 i, j, distance, tolerance);
+        throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
+                                    ") than the distance_tolerance (", tolerance, ").\n Check the positions",
+                                    "or relax distance_tolerance");
       }
     }
   }

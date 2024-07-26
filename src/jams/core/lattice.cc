@@ -431,7 +431,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
   if (lattice_settings.exists("orientation_axis")) {
     if (lattice_settings.exists("orientation_lattice_vector") && lattice_settings.exists("orientation_cartesian_vector")) {
-      jams_die("Only one of 'orientation_lattice_vector' or 'orientation_cartesian_vector' can be defined");
+      throw jams::ConfigException(lattice_settings, "Only one of 'orientation_lattice_vector' or 'orientation_cartesian_vector' can be defined");
     }
     auto reference_axis = jams::config_required<Vec3>(lattice_settings, "orientation_axis");
     if (lattice_settings.exists("orientation_lattice_vector")) {
@@ -515,7 +515,7 @@ void Lattice::global_rotation(const Mat3& rotation_matrix) {
   auto volume_after = ::volume(unitcell);
 
   if (!approximately_equal(volume_before, volume_after, pow3(jams::defaults::lattice_tolerance))) {
-    jams_die("unitcell volume has changed after rotation");
+    throw jams::SanityException("unitcell volume has changed after rotation");
   }
 
   cout << "  global rotated lattice vectors\n";
@@ -555,7 +555,7 @@ void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
   auto volume_after = ::volume(unitcell);
 
   if (!approximately_equal(volume_before, volume_after, pow3(jams::defaults::lattice_tolerance))) {
-    jams_die("unitcell volume has changed after rotation");
+    throw jams::SanityException("unitcell volume has changed after rotation");
   }
 
   cout << "  oriented lattice vectors\n";
@@ -651,7 +651,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   }
 
   if (atom_counter == 0) {
-    jams_die("the number of computed lattice sites was zero, check input");
+    throw jams::SanityException("the number of computed lattice sites was zero, check input");
   }
 
   cout << "    lattice material count\n";
@@ -661,10 +661,6 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
   // this is the top right hand corner of the top right unit cell in the super cell
   rmax_ = generate_cartesian_lattice_position_from_fractional(Vec3{0.0, 0.0, 0.0}, lattice_dimensions);
-
-  if (atom_counter == 0) {
-    jams_die("the number of computed lattice sites was zero, check input");
-  }
 
   globals::num_spins = atom_counter;
   globals::num_spins3 = 3*atom_counter;
@@ -1075,26 +1071,26 @@ Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setti
       materialA = materials_.id(settings[n][0].c_str());
     }
     catch(std::out_of_range &e) {
-      jams_die("impurity %d materialA (%s) does not exist", n, settings[n][0].c_str());
+      jams::ConfigException(settings, "impurity ", n, " materialA (", settings[n][0].c_str(), ") does not exist");
     }
 
     try {
       materialB = materials_.id(settings[n][1].c_str());
     }
     catch(std::out_of_range &e) {
-      jams_die("impurity %d materialB (%s) does not exist", n, settings[n][1].c_str());
+      jams::ConfigException(settings, "impurity ", n, " materialB (", settings[n][1].c_str(), ") does not exist");
     }
 
     auto fraction  = double(settings[n][2]);
 
     if (fraction < 0.0 || fraction >= 1.0) {
-      jams_die("impurity %d fraction must be 0 =< x < 1", n);
+      jams::ConfigException(settings, "impurity ", n, " fraction must be 0 =< x < 1");
     }
 
     Impurity imp = {materialB, fraction};
 
     if(impurities.emplace(materialA, imp).second == false) {
-      jams_die("impurity %d defined redefines a previous impurity", n);
+      jams::ConfigException(settings, "impurity ", n, " redefines a previous impurity");
     }
   }
   return impurities;

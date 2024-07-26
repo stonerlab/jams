@@ -15,6 +15,7 @@
 #include "jams/interface/fft.h"
 #include "spectrum_fourier.h"
 #include "jams/helpers/output.h"
+#include <jams/helpers/exception.h>
 
 class Solver;
 
@@ -133,13 +134,14 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
     // validate the nodes
     for (int i = 0; i < 3; ++i) {
       if (int(b_uvw_nodes[n][i]) > globals::lattice->kspace_size()[i]) {
-        jams_die("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n][0]),
-                 int(b_uvw_nodes[n][1]),
-                 int(b_uvw_nodes[n][2]));
+        throw jams::SanityException("bz node point [",
+                                    int(b_uvw_nodes[n][0]), ", ", int(b_uvw_nodes[n][1]),  ", ", int(b_uvw_nodes[n][2]),
+                                    "is larger than the kspace.");
       }
       if (int(b_uvw_nodes[n+1][i]) > globals::lattice->kspace_size()[i]) {
-        jams_die("bz node point [ %4d %4d %4d ] is larger than the kspace", int(b_uvw_nodes[n + 1][0]),
-                 int(b_uvw_nodes[n + 1][1]), int(b_uvw_nodes[n + 1][2]));
+        throw jams::SanityException("bz node point [",
+                                    int(b_uvw_nodes[n + 1][0]), ", ", int(b_uvw_nodes[n + 1][1]),  ", ", int(b_uvw_nodes[n + 1][2]),
+                                    "is larger than the kspace.");
       }
     }
 

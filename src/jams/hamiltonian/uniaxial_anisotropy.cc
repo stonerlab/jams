@@ -6,6 +6,7 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/hamiltonian/uniaxial_anisotropy.h"
+#include <jams/helpers/exception.h>
 
 using libconfig::Setting;
 using std::vector;
@@ -81,9 +82,8 @@ UniaxialAnisotropyHamiltonian::UniaxialAnisotropyHamiltonian(const Setting &sett
   // check if the old format is being used
   if (settings.exists("d2z") || settings.exists("d4z") || settings.exists("d6z")
    || settings.exists("K1") || settings.exists("K2") || settings.exists("K3")) {
-    jams_die(
-            "UniaxialHamiltonian: anisotropy should only be specified for a single K1, K2 or K3. "
-            "For d2z, d4z, d6z you want UniaxialCoefficientHamiltonian.");
+    throw jams::ConfigException(settings, "UniaxialHamiltonian: anisotropy should only be specified for a single K1, K2 or K3. ",
+                                "For d2z, d4z, d6z you want UniaxialCoefficientHamiltonian.");
   }
 
   string order = jams::config_required<string>(settings, "order");
