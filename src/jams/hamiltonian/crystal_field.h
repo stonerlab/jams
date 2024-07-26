@@ -62,67 +62,54 @@
 class CrystalFieldHamiltonian : public Hamiltonian {
 
 public:
-    enum class CrystalFieldSpinType {kSpinUp, kSpinDown};
+  using SphericalHarmonicCoefficientMap = std::map<std::pair<int, int>, std::complex<double>>;
+  using TesseralHarmonicCoefficientMap = std::map<std::pair<int, int>, double>;
 
-    using SphericalHarmonicCoefficientMap = std::map<std::pair<int, int>, std::complex<double>>;
-    using TesseralHarmonicCoefficientMap = std::map<std::pair<int, int>, double>;
+  enum class CrystalFieldSpinType {
+    kSpinUp,
+    kSpinDown
+  };
 
-    CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size);
+  CrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy(double time) override;
+  double calculate_total_energy(double time) override;
 
-    void calculate_energies(double time) override;
+  void calculate_energies(double time) override;
 
-    void calculate_fields(double time) override;
+  void calculate_fields(double time) override;
 
-    Vec3 calculate_field(int i, double time) override;
+  Vec3 calculate_field(int i, double time) override;
 
-    double calculate_energy(int i, double time) override;
+  double calculate_energy(int i, double time) override;
 
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
+  double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
 
 protected:
-    // Reads a crystal field coefficient file and returns a SphericalHarmonicCoefficientMap where the key is the pair
-    // {l, m} and the value is the complex crystal field coefficient.
-    //
-    // The file should have columns 'l, m, Re(B_lm_up), Im(B_lm_up), Re(B_lm_down), Im(B_lm_down)', although the
-    // columns Re(B_lm_down) and Im(B_lm_down) are ignored. Any missing values of l,m are set to zero.
-    //
-    // The returned map will be order (intrinsically due to C++ map) increasing in l and in m, e.g.
-    // {0, 0}, {2, -2}, {2, 1}, {2, 0}, {2, 1}, {2, 2}, {4, -4}, {4, -3} ...
-    SphericalHarmonicCoefficientMap read_crystal_field_coefficients_from_file(std::string filename);
+  // Reads a crystal field coefficient file and returns a SphericalHarmonicCoefficientMap where the key is the pair
+  // {l, m} and the value is the complex crystal field coefficient.
+  //
+  // The file should have columns 'l, m, Re(B_lm_up), Im(B_lm_up), Re(B_lm_down), Im(B_lm_down)', although the
+  // columns Re(B_lm_down) and Im(B_lm_down) are ignored. Any missing values of l,m are set to zero.
+  //
+  // The returned map will be order (intrinsically due to C++ map) increasing in l and in m, e.g.
+  // {0, 0}, {2, -2}, {2, 1}, {2, 0}, {2, 1}, {2, 2}, {4, -4}, {4, -3} ...
+  SphericalHarmonicCoefficientMap read_crystal_field_coefficients_from_file(const std::string& filename);
 
-    TesseralHarmonicCoefficientMap convert_spherical_to_tesseral(const SphericalHarmonicCoefficientMap& spherical_coefficients, const double zero_epsilon);
+  static TesseralHarmonicCoefficientMap convert_spherical_to_tesseral(const SphericalHarmonicCoefficientMap& spherical_coefficients, const double zero_epsilon);
 
-    // Maximum number of crystal field coefficients supported. 27 corresponds to l=2,4,6
-    unsigned int kCrystalFieldNumCoeff_ = 27;
+  // Maximum number of crystal field coefficients supported. 27 corresponds to l=2,4,6
+  const unsigned int kCrystalFieldNumCoeff_ = 27;
 
-    CrystalFieldSpinType crystal_field_spin_type = CrystalFieldSpinType::kSpinUp;
+  // Energy cutoff in input units
+  double energy_cutoff_;
 
-    // Energy cutoff (in same units as input) to determine zero
-    double energy_cutoff_ = 0.0;
+  CrystalFieldSpinType crystal_field_spin_type_;
 
-    // Boolean array of whether a spin has a non-zero crystal field
-    jams::MultiArray<bool, 1>  spin_has_crystal_field_;
+  // Boolean array of whether a spin has a non-zero crystal field
+  jams::MultiArray<bool, 1>  spin_has_crystal_field_;
 
-    // Stores the tesseral crystal field coefficients for each spin.
-    // (i.e. after transforming the complex crystal field coefficients
-    // into the tesseral convention).
-    //
-    // index 0:
-    //   tesseral coefficients (size kMaxCrystalFieldCoeff_)
-    //   ordered in increasing l and with m -> -l...l
-    // index 1:
-    //   spin index (size num_spins)
-    //
-    // The first few values are
-    // cf_coeff_[0,0] => C_{2,-2}, S_0
-    // cf_coeff_[1,0] => C_{2,-1}, S_0
-    // cf_coeff_[1,0] => C_{2, 0}, S_0
-    // ...
-    // cf_coeff_[0,1] => C_{2,-2}, S_1
-    //
-    jams::MultiArray<double, 2> crystal_field_tesseral_coeff_;
+  // Tesseral crystal field coefficients for each spin (axis 0: coefficient index, 1: spin index)
+  jams::MultiArray<double, 2> crystal_field_tesseral_coeff_;
 
 };
 
