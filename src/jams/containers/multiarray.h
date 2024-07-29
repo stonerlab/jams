@@ -148,15 +148,15 @@ namespace jams {
         }
 
         // construct using dimensions as arguments
-        template<typename... Args>
-        inline explicit MultiArray(const Args... args):
+        template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
+        inline explicit MultiArray(const Args... args) :
             size_({static_cast<size_type>(args)...}),
             data_(detail::product(static_cast<size_type>(args)...)) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
-        template<typename... Args>
+        template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
         inline explicit MultiArray(const value_type& x, const Args... args):
             size_({static_cast<size_type>(args)...}),
             data_(detail::product(static_cast<size_type>(args)...), x) {
@@ -165,11 +165,13 @@ namespace jams {
         }
 
         // construct using dimensions in array
-        inline explicit MultiArray(const std::array<size_type, Dim_> &v) :
+        template<typename Integral_>
+        inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
             size_(detail::array_cast<size_type>(v)),
             data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v))) {}
 
-        inline explicit MultiArray(const value_type& x, const std::array<size_type, Dim_> v) :
+      template<typename Integral_>
+      inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> v) :
             size_(detail::array_cast<size_type>(v)),
             data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v)), x) {}
 
