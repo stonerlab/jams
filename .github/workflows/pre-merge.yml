@@ -61,7 +61,7 @@ jobs:
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: |
         source /etc/profile.d/modules.sh && module load $ENV_MODULES
-        cmake --build . --config ${{ matrix.build_type }}
+        cmake --build . --config ${{ matrix.cmake_build }}
 
     - name: Test
       working-directory: ${{github.workspace}}/build
