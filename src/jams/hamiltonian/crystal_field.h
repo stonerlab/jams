@@ -85,6 +85,8 @@ public:
   double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
 
 protected:
+  double crystal_field_energy(int i, const Vec3& s);
+
   // Reads a crystal field coefficient file and returns a SphericalHarmonicCoefficientMap where the key is the pair
   // {l, m} and the value is the complex crystal field coefficient.
   //

@@ -457,13 +457,21 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 }
 
 double CrystalFieldHamiltonian::calculate_energy(int i, double time) {
+  return crystal_field_energy(i, {globals::s(i,0), globals::s(i,1), globals::s(i,2)});
+}
+
+double CrystalFieldHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final,
+                                                            double time) {
+  return crystal_field_energy(i, spin_final) - crystal_field_energy(i, spin_initial);
+}
+double CrystalFieldHamiltonian::crystal_field_energy(int i, const Vec3 &s) {
   if (!spin_has_crystal_field_(i)) {
     return 0.0;
   }
 
-  const double sx = globals::s(i, 0);
-  const double sy = globals::s(i, 1);
-  const double sz = globals::s(i, 2);
+  const double sx = s[0];
+  const double sy = s[1];
+  const double sz = s[2];
 
   double energy = 0.0;
 
@@ -568,9 +576,4 @@ double CrystalFieldHamiltonian::calculate_energy(int i, double time) {
           - 1. * (sy * sy * sy * sy * sy * sy));
 
   return energy;
-}
-
-double CrystalFieldHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final,
-                                                            double time) {
-  return 0;
 }
