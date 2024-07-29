@@ -34,6 +34,9 @@
 ///                it is used to check that the imaginary part of the tesseral
 ///                harmonics is zero.
 ///
+/// crystal_field_spin_type: ("up" or "down") whether to use the spin up or down
+///                data from the input file.
+///
 /// crystal_field_coefficients: (list of lists) each sub list takes the form
 ///                (material, J, alphaJ, betaJ, gammaJ, cf_param_filename)
 ///                where material can be a name or unit cell positions,
@@ -51,6 +54,7 @@
 ///   debug = false;
 ///   energy_units = "meV";
 ///   energy_cutoff = 0.001;
+///   crystal_field_spin_type = "up";
 ///   crystal_field_coefficients = (
 ///     // (material, J, alphaJ, betaJ, gammaJ, cf_param_filename)
 ///     ("Tb", 6, -0.01010101, 0.00012244, -0.00000112, "Tb.CFparameters.dat")
