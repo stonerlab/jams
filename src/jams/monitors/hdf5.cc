@@ -136,7 +136,8 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
   auto moment_dataset = file.createDataSet<double>("/moments",  DataSpace(globals::num_spins));
   moment_dataset.write(moments);
   auto pos_dataset = file.createDataSet<double>("/positions",  DataSpace({size_t(globals::num_spins),3}));
-  pos_dataset.write(positions);
+    pos_dataset.createAttribute<std::string>("units", DataSpace::From("nm"));
+    pos_dataset.write(positions);
 
 }
 
@@ -175,7 +176,7 @@ void Hdf5Monitor::update_xdmf_file(const std::string &h5_file_name, const double
                fseek(xdmf_file_, -31, SEEK_CUR);
 
   fprintf(xdmf_file_, "      <Grid Name=\"Lattice\" GridType=\"Uniform\">\n");
-  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", time/1e-12);
+  fprintf(xdmf_file_, "        <Time Value=\"%f\" />\n", time);
   fprintf(xdmf_file_, "        <Topology TopologyType=\"Polyvertex\" Dimensions=\"%u\" />\n", data_dimension);
                fputs("       <Geometry GeometryType=\"XYZ\">\n", xdmf_file_);
   fprintf(xdmf_file_, "         <DataItem Dimensions=\"%u 3\" NumberType=\"Float\" Precision=\"%u\" Format=\"HDF\">\n", data_dimension, float_precision);

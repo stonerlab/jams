@@ -25,7 +25,7 @@ namespace { //anon
 
       for (auto const &J : interactions) {
         auto new_J = J;
-        auto symmetric_points = globals::lattice->generate_symmetric_points(new_J.r_ij, jams::defaults::lattice_tolerance);
+        auto symmetric_points = globals::lattice->generate_symmetric_points(J.unit_cell_pos_i, new_J.r_ij, jams::defaults::lattice_tolerance);
         for (const auto p : symmetric_points) {
           new_J.r_ij = p;
           symops_interaction_data.push_back(new_J);

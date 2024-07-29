@@ -1000,7 +1000,7 @@ double Lattice::max_interaction_radius() const {
 
 // generate a vector of points which are symmetric to r_cart under the crystal symmetry
 // the tolerance is used to determine if two points are equivalent
-std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3 &r_cart, const double &tolerance = jams::defaults::lattice_tolerance) const {
+std::vector<Vec3> Lattice::generate_symmetric_points(const int motif_position, const Vec3 &r_cart, const double &tolerance = jams::defaults::lattice_tolerance) {
 
   const auto r_frac = cartesian_to_fractional(r_cart);
   std::vector<Vec3> symmetric_points;
@@ -1008,7 +1008,7 @@ std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3 &r_cart, const d
   // store the original point
   symmetric_points.push_back(r_cart);
   // loop through all of the symmmetry operations
-  for (const auto rotation_matrix : rotations_) {
+  for (const auto rotation_matrix : atom_motif_local_point_group_symops(motif_position)) {
     // apply a symmetry operation
     const auto r_sym = fractional_to_cartesian(rotation_matrix * r_frac);
 
@@ -1022,13 +1022,13 @@ std::vector<Vec3> Lattice::generate_symmetric_points(const Vec3 &r_cart, const d
   return symmetric_points;
 }
 
-bool Lattice::is_a_symmetry_complete_set(const std::vector<Vec3> &points, const double &tolerance = jams::defaults::lattice_tolerance) const {
+bool Lattice::is_a_symmetry_complete_set(const int motif_position, const std::vector<Vec3> &points, const double &tolerance = jams::defaults::lattice_tolerance) {
   // loop over the collection of points
   for (const auto r : points) {
     // for each point generate the symmetric points according to the the crystal symmetry
-    for (const auto r_sym : generate_symmetric_points(r, tolerance)) {
+    for (const auto r_sym : generate_symmetric_points(motif_position, r, tolerance)) {
       // if a symmetry generated point is not in our original collection of points then our original collection was not a complete set
-      // and we return fals
+      // and we return false
       if (!vec_exists_in_container(points, r_sym, tolerance)) {
         return false;
       }
@@ -1110,6 +1110,23 @@ const Vec3 &Lattice::atom_fractional_position(const int &i) const {
 
 const std::vector<Vec3> &Lattice::atom_cartesian_positions() const {
   return cartesian_positions_;
+}
+
+const std::vector<Mat3> &Lattice::atom_motif_local_point_group_symops(const int &i) {
+    // Pre-calculate the symops the first time the function is called
+    if (motif_local_pg_symops_.empty()) {
+        motif_local_pg_symops_.resize(num_motif_atoms());
+        for (auto m = 0; m < num_motif_atoms(); ++m) {
+            auto motif_position = motif_atom(m).position;
+            for (auto symop : rotations_) {
+                auto new_position = symop * motif_position;
+                if  (approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
+                    motif_local_pg_symops_[m].push_back(symop);
+                }
+            }
+        }
+    }
+    return motif_local_pg_symops_[i];
 }
 
 double jams::maximum_interaction_length(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b& periodic_boundaries) {
