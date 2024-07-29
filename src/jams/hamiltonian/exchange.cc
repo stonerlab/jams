@@ -116,10 +116,11 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
   std::cout << "    coordinate format: " << to_string(coord_format) << "\n";
   // exc_file is to maintain backwards compatibility
   if (settings.exists("exc_file")) {
-    std::cout << "    interaction file name " << settings["exc_file"].c_str() << "\n";
-    std::ifstream interaction_file(settings["exc_file"].c_str());
+    auto file_path = settings["exc_file"].c_str();
+    std::cout << "    interaction file name " << file_path << "\n";
+    std::ifstream interaction_file(file_path);
     if (interaction_file.fail()) {
-      jams_die("failed to open interaction file");
+      throw jams::FileException(file_path, "failed to open file");
     }
     neighbour_list_ = generate_neighbour_list(
         interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_, interaction_checks);
@@ -127,7 +128,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     neighbour_list_ = generate_neighbour_list(
         settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_, interaction_checks);
   } else {
-    throw std::runtime_error("'exc_file' or 'interactions' settings are required for exchange hamiltonian");
+    throw jams::ConfigException(settings, "'exc_file' or 'interactions' settings are required");
   }
 
   if (debug_is_enabled()) {

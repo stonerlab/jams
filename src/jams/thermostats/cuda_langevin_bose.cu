@@ -26,6 +26,7 @@
 #include "jams/monitors/magnetisation.h"
 #include "jams/thermostats/cuda_langevin_bose.h"
 #include "jams/thermostats/cuda_langevin_bose_kernel.h"
+#include <jams/helpers/exception.h>
 
 CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins),
@@ -52,11 +53,11 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
    std::cout << "    initialising CUDA streams\n";
 
    if (cudaStreamCreate(&dev_stream_) != cudaSuccess) {
-     jams_die("Failed to create CUDA stream in CudaLangevinBoseThermostat");
+     throw jams::GeneralException("Failed to create CUDA stream in CudaLangevinBoseThermostat");
    }
 
    if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess) {
-     jams_die("Failed to create CURAND stream in CudaLangevinBoseThermostat");
+     throw jams::GeneralException("Failed to create CURAND stream in CudaLangevinBoseThermostat");
    }
 
    std::cout << "    initialising CURAND\n";

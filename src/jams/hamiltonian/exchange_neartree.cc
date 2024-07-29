@@ -49,15 +49,16 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       for (auto j = i+1; j < globals::lattice->num_motif_atoms(); ++j) {
         const auto distance = norm(globals::lattice->motif_atom(i).position - globals::lattice->motif_atom(j).position);
         if(distance < distance_tolerance_) {
-          jams_die("Atoms %d and %d in the unit_cell are closer together (%f) than the distance_tolerance (%f).\n"
-                   "Check position file or relax distance_tolerance for exchange module",
-                   i, j, distance, distance_tolerance_);
+
+          throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
+                                      ") than the distance_tolerance (", distance_tolerance_, ").\n Check the positions",
+                                      "or relax distance_tolerance");
         }
       }
     }
 
     if (!settings.exists("interactions")) {
-      jams_die("No interactions defined in ExchangeNeartree hamiltonian");
+      jams::ConfigException(settings, "no 'interactions' setting in ExchangeNeartree hamiltonian");
     }
 
     interaction_list_.resize(globals::lattice->num_materials());
@@ -127,7 +128,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
           if (globals::lattice->atom_material_id(j) == type_j) {
             // don't allow self interaction
             if (is_already_interacting[j]) {
-              jams_die("Multiple interactions between spins %d and %d.\n", i, j);
+              throw jams::SanityException("multiple interactions between spins ", i, " and ", j);
             }
             is_already_interacting[j] = true;
 

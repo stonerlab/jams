@@ -85,9 +85,10 @@ TYPED_TEST(MultiArrayTest, ctor) {
   ASSERT_EQ(a2.size(0), 10);
   ASSERT_EQ(a2.size(1), 3);
 
-
-
-
+  MultiArray<TypeParam, 2> a3(10, 3);
+  ASSERT_EQ(a3.size(0), 10);
+  ASSERT_EQ(a3.size(1), 3);
+  
 }
 
 #endif //JAMS_TEST_MULTIARRAY_H

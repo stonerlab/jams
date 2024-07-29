@@ -279,7 +279,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
         std::cout << jams::section("init hamiltonians") << std::endl;
 
         if (!::globals::config->exists("hamiltonians")) {
-          jams_die("No hamiltonians in config");
+          throw jams::ConfigException(globals::config->getRoot(), "No hamiltonians group in config");
         } else {
           const libconfig::Setting &hamiltonian_settings = ::globals::config->lookup("hamiltonians");
           for (auto i = 0; i < hamiltonian_settings.getLength(); ++i) {
@@ -304,19 +304,22 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
         }
       }
       catch (const libconfig::SettingTypeException &stex) {
-        jams_die("Config setting type error '%s'", stex.getPath());
+        jams::die("CONFIG ERROR", stex.getPath(), ": setting type error");
       }
       catch (const libconfig::SettingNotFoundException &nfex) {
-        jams_die("Required config setting not found '%s'", nfex.getPath());
+        jams::die("CONFIG ERROR", nfex.getPath(), ": required setting not found");
       }
-      catch (const jams::runtime_error &gex) {
-        jams_die("%s", gex.what());
+      catch (const jams::runtime_error &e) {
+        jams::die("RUNTIME ERROR", e.what());
+      }
+      catch (const jams::ConfigException &e) {
+        jams::die("CONFIG ERROR", e.what());
       }
       catch (std::exception &e) {
-        jams_die("%s", e.what());
+        jams::die("ERROR", e.what());
       }
       catch (...) {
-        jams_die("Caught an unknown exception");
+        jams::die("UNKNOWN ERROR");
       }
     }
 
@@ -363,13 +366,13 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
 
       }
       catch (const jams::runtime_error &gex) {
-        jams_die("%s", gex.what());
+        jams::die("%s", gex.what());
       }
       catch (std::exception &e) {
-        jams_die("%s", e.what());
+        jams::die("%s", e.what());
       }
       catch (...) {
-        jams_die("Caught an unknown exception");
+        jams::die("Caught an unknown exception");
       }
     }
 

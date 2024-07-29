@@ -16,6 +16,8 @@ class Hamiltonian : public Base {
 public:
     Hamiltonian(const libconfig::Setting &settings, unsigned int size);
 
+    Hamiltonian();
+
     virtual ~Hamiltonian() = default;
 
     // factory to create a Hamiltonian from a libconfig::Setting

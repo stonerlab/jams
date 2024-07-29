@@ -148,16 +148,16 @@ namespace jams {
         }
 
         // construct using dimensions as arguments
-        template<typename... Args>
-        inline explicit MultiArray(const Args... args):
+        template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
+        inline explicit MultiArray(const Args... args) :
             size_({static_cast<size_type>(args)...}),
             data_(detail::product(static_cast<size_type>(args)...)) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in constructor does not match the MultiArray dimension");
         }
 
-        template<typename... Args>
-        inline explicit MultiArray(const Args... args, const value_type& x):
+        template<typename... Args, typename = std::enable_if_t<(std::conjunction_v<std::is_integral<Args>...> && (sizeof...(Args) == Dim_))>>
+        inline explicit MultiArray(const value_type& x, const Args... args):
             size_({static_cast<size_type>(args)...}),
             data_(detail::product(static_cast<size_type>(args)...), x) {
           static_assert(sizeof...(args) == Dim_,
@@ -165,13 +165,13 @@ namespace jams {
         }
 
         // construct using dimensions in array
-        template <typename U>
-        inline explicit MultiArray(const std::array<U, Dim_> &v) :
+        template<typename Integral_>
+        inline explicit MultiArray(const std::array<Integral_, Dim_> &v) :
             size_(detail::array_cast<size_type>(v)),
             data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v))) {}
 
-        template <typename U>
-        inline explicit MultiArray(const std::array<U, Dim_> &v, const value_type& x) :
+      template<typename Integral_>
+      inline explicit MultiArray(const value_type& x, const std::array<Integral_, Dim_> v) :
             size_(detail::array_cast<size_type>(v)),
             data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v)), x) {}
 
@@ -358,6 +358,10 @@ namespace jams {
             size_({size}),
             data_(size) {}
 
+        inline MultiArray(const Tp_& x, size_type size):
+                size_({size}),
+                data_(size, x) {}
+
         template <typename U>
         inline explicit MultiArray(const std::array<U, 1> &v) :
             size_(detail::array_cast<size_type>(v)),
@@ -370,7 +374,7 @@ namespace jams {
               data_(first, last) {}
 
         template <typename U>
-        inline explicit MultiArray(const std::array<U, 1> &v, const Tp_& x) :
+        inline explicit MultiArray(const Tp_& x, const std::array<U, 1> &v) :
             size_(detail::array_cast<size_type>(v)),
             data_(std::get<0>(v), x) {}
 

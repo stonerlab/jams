@@ -6,14 +6,14 @@
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/hamiltonian/uniaxial_microscopic_anisotropy.h"
+#include <jams/helpers/exception.h>
 
 UniaxialMicroscopicAnisotropyHamiltonian::UniaxialMicroscopicAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int num_spins)
         : Hamiltonian(settings, num_spins) {
 
   // don't allow mixed specification of anisotropy
   if ((settings.exists("K1") || settings.exists("K2") || settings.exists("K3"))) {
-    jams_die(
-            "UniaxialMicroscopicHamiltonian: anisotropy should only be specified in terms of d2z, d4z, d6z maybe you want UniaxialHamiltonian?");
+    throw jams::ConfigException(settings, "anisotropy should only be specified in terms of d2z, d4z, d6z maybe you want UniaxialHamiltonian?");
   }
 
   std::vector<int> cfg_mca_order;
@@ -22,7 +22,7 @@ UniaxialMicroscopicAnisotropyHamiltonian::UniaxialMicroscopicAnisotropyHamiltoni
   // deal with magnetocrystalline anisotropy coefficients
   if (settings.exists("d2z")) {
     if (settings["d2z"].getLength() != globals::lattice->num_materials()) {
-      jams_die("UniaxialHamiltonian: d2z must be specified for every material");
+      throw jams::ConfigException(settings["d2z"], "must be specified for every material");
     }
     cfg_mca_order.push_back(2);
 
@@ -36,7 +36,7 @@ UniaxialMicroscopicAnisotropyHamiltonian::UniaxialMicroscopicAnisotropyHamiltoni
 
   if (settings.exists("d4z")) {
     if (settings["d4z"].getLength() != globals::lattice->num_materials()) {
-      jams_die("UniaxialHamiltonian: d4z must be specified for every material");
+      throw jams::ConfigException(settings["d4z"], "must be specified for every material");
     }
     cfg_mca_order.push_back(4);
 
@@ -50,7 +50,8 @@ UniaxialMicroscopicAnisotropyHamiltonian::UniaxialMicroscopicAnisotropyHamiltoni
 
   if (settings.exists("d6z")) {
     if (settings["d6z"].getLength() != globals::lattice->num_materials()) {
-      jams_die("UniaxialHamiltonian: d6z must be specified for every material");
+      throw jams::ConfigException(settings["d6z"], "must be specified for every material");
+
     }
     cfg_mca_order.push_back(6);
 

@@ -22,6 +22,7 @@
 #include "jams/physics/ping.h"
 #include "jams/physics/pinned_boundaries.h"
 #include "jams/physics/flips.h"
+#include <jams/helpers/exception.h>
 
 Physics::Physics(const libconfig::Setting &physics_settings) :
     Base(physics_settings),
@@ -41,7 +42,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
   Vec3 field = {0.0, 0.0, 0.0};
   if (physics_settings.exists("applied_field")) {
     if (!physics_settings["applied_field"].isArray() || !(physics_settings["applied_field"].getLength() == 3)) {
-      jams_die("Setting 'applied_field' must be an array of length 3.");
+      throw jams::ConfigException(physics_settings["applied_field"], "must be an array of length 3");
     }
     for (int n = 0; n != 3; ++n) {
       field[n] = physics_settings["applied_field"][n];
@@ -54,7 +55,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
   if (physics_settings.exists("initial_state")) {
     libconfig::Setting& state_settings = physics_settings["initial_state"];
     if (!state_settings["origin"].isArray() || !(state_settings["origin"].getLength() == 3)) {
-      jams_die("Setting 'initial_state.origin' must be an array of length 3.");
+      throw jams::ConfigException(state_settings["origin"], "must be an array of length 3");
     }
 
     Vec3 origin;

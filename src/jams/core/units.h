@@ -20,7 +20,9 @@ namespace jams {
             {"milli_rydbergs", kmRyd2meV},
             {"mRyd", kmRyd2meV},
             {"rydbergs", kmRyd2meV * 1e3},
-            {"Ryd", kmRyd2meV * 1e3}
+            {"Ryd", kmRyd2meV * 1e3},
+            {"Kelvin", kKelvin2meV},
+            {"K", kKelvin2meV}
     };
 }
 

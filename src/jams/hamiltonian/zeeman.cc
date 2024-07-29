@@ -7,6 +7,7 @@
 #include "jams/helpers/error.h"
 
 #include "jams/hamiltonian/zeeman.h"
+#include <jams/helpers/exception.h>
 
 ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size)
@@ -24,7 +25,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
     if(settings.exists("dc_local_field")) {
         if (settings["dc_local_field"].getLength() != globals::lattice->num_materials()) {
-          jams_die("ZeemanHamiltonian: dc_local_field must be specified for every material");
+          throw jams::ConfigException(settings["dc_local_field"], "field must be specified for every material");
         }
 
 
@@ -38,20 +39,20 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
     if(settings.exists("ac_local")) {
         if (settings["ac_local"].getLength() != globals::lattice->num_materials()) {
-          jams_die("ZeemanHamiltonian: ac_local must be specified for every material");
+          throw jams::ConfigException(settings["ac_local"], "field must be specified for every material");
         }
     }
 
     has_ac_local_field_ = false;
     if(settings.exists("ac_local_field") || settings.exists("ac_local_frequency")) {
         if(!(settings.exists("ac_local_field") && settings.exists("ac_local_frequency"))) {
-          jams_die("ZeemanHamiltonian: ac_local must have a field and a frequency");
+          throw jams::ConfigException(settings["ac_local_field"], "must have a field and a frequency");
         }
         if (settings["ac_local_frequency"].getLength() != globals::lattice->num_materials()) {
-          jams_die("ZeemanHamiltonian: ac_local_frequency must be specified for every material");
+          throw jams::ConfigException(settings["ac_local_frequency"], "must be specified for every material");
         }
         if (settings["ac_local_field"].getLength() != globals::lattice->num_materials()) {
-          jams_die("ZeemanHamiltonian: ac_local_field must be specified for every material");
+          throw jams::ConfigException(settings["ac_local_field"], "must be specified for every material");
         }
 
         has_ac_local_field_ = true;

@@ -14,6 +14,7 @@
 #include "jams/helpers/output.h"
 
 #include "vtu.h"
+#include <jams/helpers/exception.h>
 
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
@@ -22,7 +23,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
 : Monitor(settings) {
     // settings for only outputting a slice
     if (settings.exists("slice_origin") ^ settings.exists("slice_size")) {
-      jams_die("Xyz monitor requires both slice_origin and slice_size to be specificed;");
+      throw jams::ConfigException(settings, "Vtu monitor requires both slice_origin and slice_size to be specified.");
     }
 
     num_slice_points = 0;

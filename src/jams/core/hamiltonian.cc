@@ -26,6 +26,7 @@
 #include "jams/hamiltonian/dipole_fft.h"
 #include "jams/hamiltonian/dipole_tensor.h"
 #include "jams/hamiltonian/field_pulse.h"
+#include "jams/hamiltonian/crystal_field.h"
 
 #if HAS_CUDA
   #include "jams/hamiltonian/cuda_applied_field.h"
@@ -39,6 +40,7 @@
   #include "jams/hamiltonian/cuda_dipole_bruteforce.h"
   #include "jams/hamiltonian/cuda_dipole_fft.h"
   #include "jams/hamiltonian/cuda_field_pulse.h"
+  #include "jams/hamiltonian/cuda_crystal_field.h"
 #endif
 
 #define DEFINED_HAMILTONIAN(name, type, settings, size) \
@@ -92,6 +94,7 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   DEFINED_CUDA_HAMILTONIAN("biquadratic-exchange", CudaBiquadraticExchangeHamiltonian, settings, size);
 
   DEFINED_HAMILTONIAN_CUDA_VARIANT("applied-field", AppliedFieldHamiltonian, is_cuda_solver, settings, size);
+  DEFINED_HAMILTONIAN_CUDA_VARIANT("crystal-field", CrystalFieldHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("random-anisotropy", RandomAnisotropyHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("cubic-anisotropy", CubicAnisotropyHamiltonian, is_cuda_solver, settings, size);
   DEFINED_HAMILTONIAN_CUDA_VARIANT("uniaxial-anisotropy", UniaxialAnisotropyHamiltonian, is_cuda_solver, settings, size);
