@@ -14,16 +14,16 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
       crystal_field_tesseral_coeff_(0.0, kCrystalFieldNumCoeff_, size) {
   std::cout << "energy_cutoff: " << energy_cutoff_ << "\n";
 
-  auto spin_type_string = lowercase(settings["crystal_field_spin_type_"]);
+  auto spin_type_string = lowercase(settings["crystal_field_spin_type"]);
 
   if (spin_type_string == "up") {
     crystal_field_spin_type_ = CrystalFieldSpinType::kSpinUp;
-    std::cout << "crystal_field_spin_type_: up\n";
+    std::cout << "crystal_field_spin_type: up\n";
   } else if (spin_type_string == "down") {
     crystal_field_spin_type_ = CrystalFieldSpinType::kSpinUp;
-    std::cout << "crystal_field_spin_type_: down\n";
+    std::cout << "crystal_field_spin_type: down\n";
   } else {
-    throw jams::ConfigException(settings["crystal_field_spin_type_"], "must be 'up' or 'down'");
+    throw jams::ConfigException(settings["crystal_field_spin_type"], "must be 'up' or 'down'");
   }
 
   for (auto n = 0; n < settings["crystal_field_coefficients"].getLength(); ++n) {
