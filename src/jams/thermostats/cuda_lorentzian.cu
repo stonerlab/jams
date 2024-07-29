@@ -27,6 +27,7 @@
 #include "jams/thermostats/cuda_langevin_arbitrary_kernel.h"
 #include "jams/interface/fft.h"
 #include "jams/maths/functions.h"
+#include <jams/helpers/exception.h>
 
 //#define PRINT_NOISE
 
@@ -79,12 +80,11 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
 
 
   if (cudaStreamCreate(&dev_stream_) != cudaSuccess) {
-    jams_die("Failed to create CUDA stream in CudaLangevinArbitraryThermostat");
+    throw jams::GeneralException("Failed to create CUDA stream in CudaLangevinBoseThermostat");
   }
 
   if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess) {
-    jams_die(
-        "Failed to create CURAND stream in CudaLangevinArbitraryThermostat");
+    throw jams::GeneralException("Failed to create CURAND stream in CudaLangevinBoseThermostat");
   }
 
   // We store the temperature and check in update() that it doesn't change when
