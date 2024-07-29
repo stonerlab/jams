@@ -50,7 +50,7 @@ namespace { //anon
       // it is possible that it does not correspond to a position in which case the
       // -1 is returned
       for (int k = 0; k < globals::lattice->num_motif_atoms(); ++k) {
-        auto pos = globals::lattice->motif_atom(k).position;
+        auto pos = globals::lattice->motif_atom(k).fractional_position;
         if (approximately_equal(pos, offset, tolerance)) {
           return k;
         }
@@ -69,7 +69,7 @@ namespace { //anon
     int find_unitcell_partner(int i, Vec3 r_ij) {
       // returns -1 if no partner is found
 
-      Vec3 p_ij_frac = globals::lattice->motif_atom(i).position;
+      Vec3 p_ij_frac = globals::lattice->motif_atom(i).fractional_position;
       Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(r_ij);
       // fractional interaction vector shifted by motif position
       Vec3 q_ij = r_ij_frac + p_ij_frac;
@@ -79,7 +79,6 @@ namespace { //anon
     }
 
     void complete_interaction_typenames_names(std::vector<InteractionData>& interactions) {
-      // if you want to apply symmetry operations this should be done before calling this function
       apply_transform(interactions,
                       [&](InteractionData J) -> InteractionData {
                           J.type_i = get_motif_material_name(J.unit_cell_pos_i);
@@ -89,8 +88,6 @@ namespace { //anon
     }
 
     void complete_interaction_unitcell_positions(std::vector<InteractionData>& interactions) {
-      // if you want to apply symmetry operations this should be done before calling this function
-
       std::vector<InteractionData> new_data;
       new_data.reserve(interactions.size());
 
@@ -291,6 +288,19 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
     });
   }
 
+  // Complete any missing data (i.e. type names or unit cell positions). This must be done BEFORE doing any symmetry
+  // operations so that the unit cell positions are known.
+
+  // fill missing possible unit cell positions (if the file is JAMS format)
+  if (desc.type == InteractionFileFormat::JAMS) {
+    complete_interaction_unitcell_positions(interactions);
+  }
+
+  // fill missing type names (if the file is KKR format)
+  if (desc.type == InteractionFileFormat::KKR) {
+    complete_interaction_typenames_names(interactions);
+  }
+
   if (use_symops && desc.type == InteractionFileFormat::JAMS) {
     // we apply symops before predicates, this will be more costly,
     // but means that predicates work the same regardless of whether
@@ -308,23 +318,11 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
     apply_predicate(interactions, [&](InteractionData J) -> bool {
       return definately_greater_than(norm(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
   }
-
-  // complete any missing data (i.e. type names or unit cell positions
-
-  // fill missing possible unit cell positions (if the file is JAMS format)
-  if (desc.type == InteractionFileFormat::JAMS) {
-    complete_interaction_unitcell_positions(interactions);
-  }
-
-  // fill missing type names (if the file is KKR format)
-  if (desc.type == InteractionFileFormat::KKR) {
-    complete_interaction_typenames_names(interactions);
-  }
 }
 
 IntegerInteractionData
 integer_interaction_from_data(const InteractionData& J) {
-  Vec3 p_ij_frac = globals::lattice->motif_atom(J.unit_cell_pos_i).position;
+  Vec3 p_ij_frac = globals::lattice->motif_atom(J.unit_cell_pos_i).fractional_position;
   Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(J.r_ij);
   Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
   Vec3 u_ij = round_to_integer_lattice(q_ij);
@@ -449,7 +447,7 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
             }
 
             for (auto i = 0; i < globals::num_spins; ++i) {
-              auto pos = globals::lattice->atom_motif_position(i);
+              auto pos = globals::lattice->atom_motif_index(i);
               if (list.num_interactions(i) != motif_position_interactions[pos]) {
                 throw std::runtime_error(
                     "inconsistent neighbour list: some sites have different numbers of neighbours for the same motif position");
@@ -478,7 +476,7 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
           for (auto i = 0; i < globals::num_spins; ++i) {
             auto neighbour_list = list.interactions_of(i);
 
-            auto pos = globals::lattice->atom_motif_position(i);
+            auto pos = globals::lattice->atom_motif_index(i);
 
             Mat3 J0 = std::accumulate(neighbour_list.begin(),
                                       neighbour_list.end(), kZeroMat3, lambda);
@@ -501,7 +499,7 @@ safety_check_distance_tolerance(const double &tolerance) {
 
   for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
     for (auto j = i + 1; j < globals::lattice->num_motif_atoms(); ++j) {
-      const auto distance = norm(globals::lattice->motif_atom(i).position - globals::lattice->motif_atom(j).position);
+      const auto distance = norm(globals::lattice->motif_atom(i).fractional_position - globals::lattice->motif_atom(j).fractional_position);
       if (distance < tolerance) {
         throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
                                     ") than the distance_tolerance (", tolerance, ").\n Check the positions",

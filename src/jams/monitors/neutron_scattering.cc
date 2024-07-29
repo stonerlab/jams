@@ -103,7 +103,7 @@ jams::MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cro
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      Vec3 r_ab = globals::lattice->motif_atom(b).position - globals::lattice->motif_atom(a).position;
+      Vec3 r_ab = globals::lattice->motif_atom(b).fractional_position - globals::lattice->motif_atom(a).fractional_position;
 
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
@@ -138,7 +138,7 @@ jams::MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      const Vec3 r_ab = globals::lattice->motif_atom(b).position - globals::lattice->motif_atom(a).position;
+      const Vec3 r_ab = globals::lattice->motif_atom(b).fractional_position - globals::lattice->motif_atom(a).fractional_position;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
         auto Q = unit_vector(kpoint.xyz);

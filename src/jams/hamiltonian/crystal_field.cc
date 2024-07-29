@@ -68,7 +68,7 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
 
     for (auto i = 0; i < globals::num_spins; i++) {
       if (cf_params[0].isNumber()) {
-        if (globals::lattice->atom_motif_position(i) != int(cf_params[0]) - 1) {
+        if (globals::lattice->atom_motif_index(i) != int(cf_params[0]) - 1) {
           continue;
         }
       }

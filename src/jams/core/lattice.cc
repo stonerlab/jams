@@ -169,7 +169,7 @@ Lattice::displacement(const Vec3 &r_i, const Vec3 &r_j) const {
 }
 
 Vec3 Lattice::displacement(const unsigned &i, const unsigned &j) const {
-  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), atoms_[i].position, atoms_[j].position, jams::defaults::lattice_tolerance);
+  return jams::minimum_image(supercell.a(), supercell.b(), supercell.c(), supercell.periodic(), atoms_[i].fractional_position, atoms_[j].fractional_position, jams::defaults::lattice_tolerance);
 }
 
 Vec3
@@ -263,17 +263,17 @@ void Lattice::read_motif_from_config(const libconfig::Setting &positions, Coordi
     }
     atom.material_index = materials_.id(atom_name);
 
-    atom.position[0] = positions[i][1][0];
-    atom.position[1] = positions[i][1][1];
-    atom.position[2] = positions[i][1][2];
+    atom.fractional_position[0] = positions[i][1][0];
+    atom.fractional_position[1] = positions[i][1][1];
+    atom.fractional_position[2] = positions[i][1][2];
 
     if (coordinate_format == CoordinateFormat::CARTESIAN) {
-      atom.position = cartesian_to_fractional(atom.position);
+      atom.fractional_position = cartesian_to_fractional(atom.fractional_position);
     }
 
-    atom.position = shift_fractional_coordinate_to_zero_one(atom.position);
+    atom.fractional_position = shift_fractional_coordinate_to_zero_one(atom.fractional_position);
 
-    if (!is_fractional_coordinate_valid(atom.position)) {
+    if (!is_fractional_coordinate_valid(atom.fractional_position)) {
       throw std::runtime_error("atom position " + std::to_string(i) + " is not a valid fractional coordinate");
     }
 
@@ -305,15 +305,15 @@ void Lattice::read_motif_from_file(const std::string &filename, CoordinateFormat
     line_as_stream.str(line);
 
     // read atom type name
-    line_as_stream >> atom_name >> atom.position[0] >> atom.position[1] >> atom.position[2];
+    line_as_stream >> atom_name >> atom.fractional_position[0] >> atom.fractional_position[1] >> atom.fractional_position[2];
 
     if (coordinate_format == CoordinateFormat::CARTESIAN) {
-      atom.position = cartesian_to_fractional(atom.position);
+      atom.fractional_position = cartesian_to_fractional(atom.fractional_position);
     }
 
-    atom.position = shift_fractional_coordinate_to_zero_one(atom.position);
+    atom.fractional_position = shift_fractional_coordinate_to_zero_one(atom.fractional_position);
 
-    if (!is_fractional_coordinate_valid(atom.position)) {
+    if (!is_fractional_coordinate_valid(atom.fractional_position)) {
       throw std::runtime_error("atom position " + std::to_string(motif_.size()) + " is not a valid fractional coordinate");
     }
     // check the material type is defined
@@ -474,7 +474,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
   for (const Atom &atom: motif_) {
     cout << "    " << jams::fmt::integer << atom.id << " ";
     cout << materials_.name(atom.material_index) << " ";
-    cout << jams::fmt::decimal << atom.position << "\n";
+    cout << jams::fmt::decimal << atom.fractional_position << "\n";
   }
   cout << endl;
 
@@ -488,8 +488,8 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
         auto distance = norm(
             jams::minimum_image(unitcell.a(), unitcell.b(), unitcell.c(),
                                 unitcell.periodic(),
-                                fractional_to_cartesian(motif_[i].position),
-                                fractional_to_cartesian(motif_[j].position),
+                                fractional_to_cartesian(motif_[i].fractional_position),
+                                fractional_to_cartesian(motif_[j].fractional_position),
                                 jams::defaults::lattice_tolerance));
         if (distance < jams::defaults::lattice_tolerance) {
           throw std::runtime_error(
@@ -621,7 +621,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
         cell_centers_.push_back(generate_cartesian_lattice_position_from_fractional(Vec3{0.5,0.5,0.5}, cell_offset));
 
         for (auto m = 0; m < motif_.size(); ++m) {
-          auto position    = generate_cartesian_lattice_position_from_fractional(motif_[m].position, cell_offset);
+          auto position    = generate_cartesian_lattice_position_from_fractional(motif_[m].fractional_position, cell_offset);
           auto material    = motif_[m].material_index;
 
           if (impurity_map_.count(material)) {
@@ -669,7 +669,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   for (auto i = 0; i < atoms_.size(); ++i) {
     cout << "    " << jams::fmt::fixed_integer << i << " ";
     cout << std::setw(8) << materials_.name(atoms_[i].material_index) << " ";
-    cout << jams::fmt::decimal << atoms_[i].position << " ";
+    cout << jams::fmt::decimal << atoms_[i].fractional_position << " ";
     cout << jams::fmt::fixed_integer << cell_offset(i) << "\n";
     if(!verbose_is_enabled() && i > 7) {
       cout << "    ... [use verbose output for details] ... \n";
@@ -786,7 +786,7 @@ void Lattice::calc_symmetry_operations() {
 
   for (auto i = 0; i < motif_.size(); ++i) {
     for (auto j = 0; j < 3; ++j) {
-      spg_positions[i][j] = motif_[i].position[j];
+      spg_positions[i][j] = motif_[i].fractional_position[j];
     }
   }
 
@@ -1000,7 +1000,7 @@ double Lattice::max_interaction_radius() const {
 
 // generate a vector of points which are symmetric to r_cart under the crystal symmetry
 // the tolerance is used to determine if two points are equivalent
-std::vector<Vec3> Lattice::generate_symmetric_points(const int motif_position, const Vec3 &r_cart, const double &tolerance = jams::defaults::lattice_tolerance) {
+std::vector<Vec3> Lattice::generate_symmetric_points(const int motif_index, const Vec3 &r_cart, const double &tolerance = jams::defaults::lattice_tolerance) {
 
   const auto r_frac = cartesian_to_fractional(r_cart);
   std::vector<Vec3> symmetric_points;
@@ -1008,7 +1008,7 @@ std::vector<Vec3> Lattice::generate_symmetric_points(const int motif_position, c
   // store the original point
   symmetric_points.push_back(r_cart);
   // loop through all of the symmmetry operations
-  for (const auto rotation_matrix : atom_motif_local_point_group_symops(motif_position)) {
+  for (const auto rotation_matrix : atom_motif_local_point_group_symops(motif_index)) {
     // apply a symmetry operation
     const auto r_sym = fractional_to_cartesian(rotation_matrix * r_frac);
 
@@ -1022,11 +1022,11 @@ std::vector<Vec3> Lattice::generate_symmetric_points(const int motif_position, c
   return symmetric_points;
 }
 
-bool Lattice::is_a_symmetry_complete_set(const int motif_position, const std::vector<Vec3> &points, const double &tolerance = jams::defaults::lattice_tolerance) {
+bool Lattice::is_a_symmetry_complete_set(const int motif_index, const std::vector<Vec3> &points, const double &tolerance = jams::defaults::lattice_tolerance) {
   // loop over the collection of points
   for (const auto r : points) {
     // for each point generate the symmetric points according to the the crystal symmetry
-    for (const auto r_sym : generate_symmetric_points(motif_position, r, tolerance)) {
+    for (const auto r_sym : generate_symmetric_points(motif_index, r, tolerance)) {
       // if a symmetry generated point is not in our original collection of points then our original collection was not a complete set
       // and we return false
       if (!vec_exists_in_container(points, r_sym, tolerance)) {
@@ -1096,7 +1096,7 @@ Lattice::ImpurityMap Lattice::read_impurities_from_config(const libconfig::Setti
   return impurities;
 }
 
-unsigned Lattice::atom_motif_position(const int &i) const {
+unsigned Lattice::atom_motif_index(const int &i) const {
   return atoms_[i].motif_index;
 }
 
@@ -1113,13 +1113,16 @@ const std::vector<Vec3> &Lattice::atom_cartesian_positions() const {
 }
 
 const std::vector<Mat3> &Lattice::atom_motif_local_point_group_symops(const int &i) {
+    assert(i >= 0);
+    assert(i< num_motif_atoms());
     // Pre-calculate the symops the first time the function is called
     if (motif_local_pg_symops_.empty()) {
         motif_local_pg_symops_.resize(num_motif_atoms());
         for (auto m = 0; m < num_motif_atoms(); ++m) {
-            auto motif_position = motif_atom(m).position;
+            auto motif_position = motif_atom(m).fractional_position;
             for (auto symop : rotations_) {
-                auto new_position = symop * motif_position;
+                auto new_position = shift_fractional_coordinate_to_zero_one(symop * motif_position);
+                // TODO: need to translate back into unit cell
                 if  (approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
                     motif_local_pg_symops_[m].push_back(symop);
                 }
