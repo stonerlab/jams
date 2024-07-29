@@ -15,10 +15,10 @@ jobs:
     runs-on: self-hosted
     strategy:
       matrix:
-        cuda_version: ["cuda/11.6.2"]
+        cuda_version: ["cuda/12.2.0"]
         cuda_build: [ON]
         cmake_build: [Release]
-        name: ["CUDA 11"]
+        name: ["CUDA 12"]
         include:
           - cuda_build: OFF
             cuda_version: ""
@@ -27,7 +27,7 @@ jobs:
 
     name: Build JAMS - ${{ matrix.cmake_build}} - ${{ matrix.name }}
     env:
-      ENV_MODULES: cmake ninja git cmake/3.15.4 gnu/8.3.0 mkl/2018.2 hdf5/1.10.5 ${{ matrix.cuda_version }}
+      ENV_MODULES: cmake ninja git cmake/3.22.3 gnu/8.3.0 mkl/2018.2 hdf5/1.10.5 ${{ matrix.cuda_version }}
 
     steps:
     - uses: actions/checkout@v3
