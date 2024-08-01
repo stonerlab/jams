@@ -72,11 +72,11 @@ public:
     int atom_material_id(const int &i) const;           // integer index of the material
     std::string atom_material_name(const int &i) const; // name of the material of atom i
     const Vec3 & atom_position(const int &i) const;             // cartesian position in the supercell
-    const Vec3 & atom_fractional_position(const int &i) const;             // cartesian position in the supercell
+    const Vec3 & atom_fractional_position(const int &i) const;             // fractional position in the supercell
 
     const std::vector<Vec3>& atom_cartesian_positions() const;
 
-    unsigned atom_motif_position(const int &i) const;   // integer index within the motif
+    unsigned atom_motif_index(const int &i) const;   // integer index within the motif
     const std::vector<Mat3>& atom_motif_local_point_group_symops(const int &i); // return a vector of the point group operations local to the site
 
     int atom_unitcell(const int &i) const;
@@ -113,8 +113,8 @@ public:
 
     Vec3 generate_image_position(const Vec3 &unit_cell_cart_pos, const Vec3i &image_vector) const;
 
-    // Generates a list of points symmetric to r_cart based on the local point group symmetry of motif_position
-    std::vector<Vec3> generate_symmetric_points(const int motif_position, const Vec3 &r_cart, const double &tolerance);
+    // Generates a list of points symmetric to r_cart based on the local point group symmetry of motif_index
+    std::vector<Vec3> generate_symmetric_points(const int motif_index, const Vec3 &r_cart, const double &tolerance);
 
     Vec3 cartesian_to_fractional(const Vec3 &r_cart) const;
 
@@ -122,7 +122,7 @@ public:
 
     // Returns true if the points are a symmetry complete set (the symmetry operations on each point, generate
     // a point in the set), based on the local point group operations of the given motif position.
-    bool is_a_symmetry_complete_set(int motif_position, const std::vector<Vec3> &points, const double &tolerance);
+    bool is_a_symmetry_complete_set(int motif_index, const std::vector<Vec3> &points, const double &tolerance);
 
     // lookup the site index but unit cell integer coordinates and motif offset
     int site_index_by_unit_cell(const int &i, const int &j, const int &k, const int &m) const;

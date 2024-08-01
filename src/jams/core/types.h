@@ -52,7 +52,7 @@ struct Atom {
     int  id;
     int  material_index;
     int  motif_index;
-    Vec3 position;
+    Vec3 fractional_position;
 };
 
 template <typename T, typename Idx = int>

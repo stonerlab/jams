@@ -55,7 +55,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   } else if (grouping_ == Grouping::POSITIONS) {
     std::vector<std::vector<int>> position_index_groups(globals::lattice->num_motif_atoms());
     for (auto i = 0; i < globals::num_spins; ++i) {
-      auto position = globals::lattice->atom_motif_position(i);
+      auto position = globals::lattice->atom_motif_index(i);
       position_index_groups[position].push_back(i);
     }
 
