@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[     66996,       1533]
-NotebookOptionsPosition[     65629,       1502]
-NotebookOutlinePosition[     66026,       1518]
-CellTagsIndexPosition[     65983,       1515]
+NotebookDataLength[     69623,       1591]
+NotebookOptionsPosition[     68254,       1560]
+NotebookOutlinePosition[     68651,       1576]
+CellTagsIndexPosition[     68608,       1573]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -52,7 +52,7 @@ Cell[BoxData[
 03c867f2286d"],
 
 Cell[BoxData[
- RowBox[{
+ RowBox[{"\[IndentingNewLine]", 
   RowBox[{"(*", " ", 
    RowBox[{
     RowBox[{"Returns", " ", "the", " ", "tesseral", " ", "harmonic", " ", 
@@ -61,7 +61,7 @@ Cell[BoxData[
      "coordinates"}], ",", " ", 
     RowBox[{"{", 
      RowBox[{"x", ",", " ", "y", ",", " ", "z"}], "}"}]}], " ", "*)"}], 
-  "\[IndentingNewLine]", 
+  "\[IndentingNewLine]", "\[IndentingNewLine]", 
   RowBox[{
    RowBox[{
     RowBox[{"TesseralHarmonic", "[", 
@@ -310,7 +310,7 @@ Cell[BoxData[
    3.928483785250798*^9, 3.9284837853234386`*^9}, {3.928483947399661*^9, 
    3.92848394751088*^9}, {3.928484332082508*^9, 3.928484332162674*^9}, {
    3.928484496625029*^9, 3.928484496773391*^9}, {3.928484634134342*^9, 
-   3.928484635727955*^9}, {3.928484848565608*^9, 3.9284848486594963`*^9}, {
+   3.928484635727955*^9}, {3.928484848565608*^9, 3.9284848486594973`*^9}, {
    3.928484999852021*^9, 3.928484999988886*^9}, {3.928485183625387*^9, 
    3.928485183693466*^9}, {3.928485367689653*^9, 3.92848537120545*^9}, {
    3.9284857550406322`*^9, 3.928485755622526*^9}, {3.9284858845794973`*^9, 
@@ -327,35 +327,40 @@ Cell[BoxData[
    3.928489068384659*^9, 3.928489225318329*^9}, {3.928489277072822*^9, 
    3.928489329698491*^9}, {3.9284893640027*^9, 3.928489421616424*^9}, {
    3.9284894578542557`*^9, 3.928489743385508*^9}, {3.928489773797492*^9, 
-   3.9284898452024817`*^9}, {3.928489879207059*^9, 3.928489931794491*^9}, {
+   3.928489845202482*^9}, {3.928489879207059*^9, 3.928489931794491*^9}, {
    3.928489962661076*^9, 3.928490024509976*^9}, {3.928490147243663*^9, 
    3.92849018457996*^9}, {3.928490216389386*^9, 3.928490216606091*^9}, {
    3.9284905135458593`*^9, 3.928490572869494*^9}, {3.928490744805297*^9, 
-   3.9284907779216137`*^9}, {3.928550472471162*^9, 3.928550481309124*^9}, {
+   3.9284907779216146`*^9}, {3.928550472471162*^9, 3.928550481309124*^9}, {
    3.928550736265871*^9, 3.928550776320882*^9}, {3.928572030564837*^9, 
    3.928572035804788*^9}, {3.928572419790909*^9, 3.928572515193926*^9}, {
    3.9285725683856*^9, 3.9285726312520447`*^9}, {3.92857266922994*^9, 
    3.92857266979884*^9}, {3.9285728150570297`*^9, 3.928572874989634*^9}, {
    3.928572983526702*^9, 3.928573052360368*^9}, {3.928574183546513*^9, 
-   3.928574214171873*^9}, {3.9285746619606957`*^9, 3.928574722312583*^9}, {
+   3.928574214171873*^9}, {3.928574661960696*^9, 3.928574722312583*^9}, {
    3.928574764379581*^9, 3.928574888164913*^9}, {3.92857494104332*^9, 
    3.9285751020395813`*^9}, {3.928575133519446*^9, 3.928575149136391*^9}, {
    3.9285751935222397`*^9, 3.928575201121382*^9}, {3.92857524369136*^9, 
-   3.92857526837361*^9}, {3.9306475644475737`*^9, 3.930647582507113*^9}, {
+   3.92857526837361*^9}, {3.930647564447574*^9, 3.930647582507113*^9}, {
    3.930647614553081*^9, 3.930647615053533*^9}, {3.930647824467781*^9, 
    3.9306478550440083`*^9}, {3.930647901305592*^9, 3.930647902014186*^9}, {
-   3.930647947534585*^9, 3.9306479733886127`*^9}, {3.930648315612398*^9, 
-   3.930648321317582*^9}, {3.9306483538656588`*^9, 3.930648411614725*^9}, {
-   3.9306484560053673`*^9, 3.930648461170745*^9}, {3.9306487824692583`*^9, 
-   3.930648861117687*^9}, {3.9306494246219873`*^9, 3.930649434421533*^9}, {
+   3.930647947534585*^9, 3.9306479733886123`*^9}, {3.930648315612398*^9, 
+   3.930648321317582*^9}, {3.9306483538656583`*^9, 3.930648411614725*^9}, {
+   3.930648456005367*^9, 3.930648461170745*^9}, {3.930648782469258*^9, 
+   3.930648861117687*^9}, {3.930649424621987*^9, 3.930649434421533*^9}, {
    3.930649762810357*^9, 3.930649772789239*^9}, {3.930711935562482*^9, 
    3.930711960526147*^9}, {3.9307121640575037`*^9, 3.930712301749958*^9}, {
-   3.9307129232439413`*^9, 3.930712964882428*^9}, {3.930713569634471*^9, 
+   3.930712923243941*^9, 3.930712964882428*^9}, {3.930713569634471*^9, 
    3.930713595945451*^9}, {3.930713663780051*^9, 3.930713667637631*^9}, {
    3.930713735554837*^9, 3.930713736205885*^9}, {3.930713793696225*^9, 
    3.930713794184331*^9}, {3.930713826899054*^9, 3.930713864292693*^9}, {
-   3.930714716900084*^9, 3.9307147344707527`*^9}, {3.930725403634508*^9, 
-   3.930725554240003*^9}},ExpressionUUID->"88868abf-989c-41f1-8d04-\
+   3.930714716900084*^9, 3.930714734470753*^9}, {3.930725403634508*^9, 
+   3.930725554240003*^9}, {3.931855837307577*^9, 3.931855958552607*^9}, {
+   3.93185599027604*^9, 3.9318561093250113`*^9}, {3.931856154142262*^9, 
+   3.931856158884606*^9}, {3.931856292313616*^9, 3.931856373945438*^9}, {
+   3.931856413895879*^9, 3.931856566584676*^9}, {3.9318610256384974`*^9, 
+   3.9318610277938013`*^9}, {3.9318612556852703`*^9, 
+   3.931861272889739*^9}},ExpressionUUID->"88868abf-989c-41f1-8d04-\
 160a16d0ed66"],
 
 Cell[CellGroupData[{
@@ -421,8 +426,17 @@ Cell[BoxData[
          RowBox[{
           RowBox[{"N", "[", 
            RowBox[{
-            RowBox[{"TesseralHarmonicUnitVector", "[", 
-             RowBox[{"l", ",", "m", ",", "x", ",", "y", ",", "z"}], "]"}], "/.", 
+            RowBox[{
+             RowBox[{"Sqrt", "[", 
+              RowBox[{"4", 
+               RowBox[{"Pi", "/", 
+                RowBox[{"(", 
+                 RowBox[{
+                  RowBox[{"2", "l"}], "+", "1"}], ")"}]}]}], "]"}], 
+             RowBox[{"TesseralHarmonicUnitVector", "[", 
+              RowBox[{"l", ",", 
+               RowBox[{"Abs", "[", "m", "]"}], ",", "x", ",", "y", ",", "z"}],
+               "]"}]}], "/.", 
             RowBox[{"{", 
              RowBox[{
               RowBox[{"x", "->", "sx"}], ",", 
@@ -435,136 +449,141 @@ Cell[BoxData[
        "\[IndentingNewLine]", 
        RowBox[{"count", "++"}], ";"}]}], "]"}]}], "]"}]}]], "Input",
  CellChangeTimes->{{3.930649874917778*^9, 3.930650091255452*^9}, {
-   3.9306501331725283`*^9, 3.930650198060398*^9}, {3.93065076760456*^9, 
+   3.930650133172528*^9, 3.930650198060398*^9}, {3.93065076760456*^9, 
    3.930650768201207*^9}, {3.930651330858753*^9, 3.9306514116125097`*^9}, 
    3.930653614321836*^9, {3.930710653685254*^9, 3.9307107154318113`*^9}, {
    3.930712988566277*^9, 3.930713020103464*^9}, {3.930713052090191*^9, 
-   3.930713143920722*^9}, {3.930713214739849*^9, 3.930713248935038*^9}},
- CellLabel->"In[27]:=",ExpressionUUID->"20fc15f6-c58a-437f-886e-0c41404925c8"],
+   3.930713143920722*^9}, {3.930713214739849*^9, 3.930713248935038*^9}, {
+   3.9318604022934093`*^9, 3.9318604035091953`*^9}, {3.93186104068332*^9, 
+   3.931861086993218*^9}, {3.931861249653821*^9, 3.931861275038603*^9}},
+ CellLabel->"In[35]:=",ExpressionUUID->"20fc15f6-c58a-437f-886e-0c41404925c8"],
 
 Cell["\<\
 // C_{2,-2} Z_{2,-2}
-energy += crystal_field_tesseral_coeff_(0, i) * 1.0925484305920792*sx*sy;
+energy += crystal_field_tesseral_coeff_(0, i) * 0.8660254037844386*(sx - \
+1.*sy)*(sx + sy);
 
 // C_{2,-1} Z_{2,-1}
-energy += crystal_field_tesseral_coeff_(1, i) * 1.0925484305920792*sy*sz;
+energy += crystal_field_tesseral_coeff_(1, i) * 1.7320508075688772*sx*sz;
 
 // C_{2,0} Z_{2,0}
-energy += crystal_field_tesseral_coeff_(2, i) * 0.31539156525252005*(-1. + \
-3.*(sz*sz));
+energy += crystal_field_tesseral_coeff_(2, i) * 0.5*(-1. + 3.*(sz*sz));
 
 // C_{2,1} Z_{2,1}
-energy += crystal_field_tesseral_coeff_(3, i) * 1.0925484305920792*sx*sz;
+energy += crystal_field_tesseral_coeff_(3, i) * 1.7320508075688772*sx*sz;
 
 // C_{2,2} Z_{2,2}
-energy += crystal_field_tesseral_coeff_(4, i) * 0.5462742152960396*(sx - \
+energy += crystal_field_tesseral_coeff_(4, i) * 0.8660254037844386*(sx - \
 1.*sy)*(sx + sy);
 
 // C_{4,-4} Z_{4,-4}
-energy += crystal_field_tesseral_coeff_(5, i) * 2.5033429417967046*sx*(sx - \
-1.*sy)*sy*(sx + sy);
+energy += crystal_field_tesseral_coeff_(5, i) * \
+0.739509972887452*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy);
 
 // C_{4,-3} Z_{4,-3}
-energy += crystal_field_tesseral_coeff_(6, i) * \
--1.7701307697799304*sy*(-3.*(sx*sx) + sy*sy)*sz;
+energy += crystal_field_tesseral_coeff_(6, i) * 2.091650066335189*(sx*sx*sx - \
+3.*sx*(sy*sy))*sz;
 
 // C_{4,-2} Z_{4,-2}
-energy += crystal_field_tesseral_coeff_(7, i) * 0.9461746957575601*sx*sy*(-1. \
-+ 7.*(sz*sz));
+energy += crystal_field_tesseral_coeff_(7, i) * -0.5590169943749475*(-1. + \
+2.*(sy*sy) + sz*sz)*(-1. + 7.*(sz*sz));
 
 // C_{4,-1} Z_{4,-1}
-energy += crystal_field_tesseral_coeff_(8, i) * 0.6690465435572892*sy*sz*(-3. \
+energy += crystal_field_tesseral_coeff_(8, i) * 0.7905694150420949*sx*sz*(-3. \
 + 7.*(sz*sz));
 
 // C_{4,0} Z_{4,0}
-energy += crystal_field_tesseral_coeff_(9, i) * 0.10578554691520431*(3. - \
-30.*(sz*sz) + 35.*(sz*sz*sz*sz));
+energy += crystal_field_tesseral_coeff_(9, i) * 0.125*(3. - 30.*(sz*sz) + \
+35.*(sz*sz*sz*sz));
 
 // C_{4,1} Z_{4,1}
 energy += crystal_field_tesseral_coeff_(10, i) * \
-0.6690465435572892*sx*sz*(-3. + 7.*(sz*sz));
+0.7905694150420949*sx*sz*(-3. + 7.*(sz*sz));
 
 // C_{4,2} Z_{4,2}
-energy += crystal_field_tesseral_coeff_(11, i) * -0.47308734787878004*(-1. + \
+energy += crystal_field_tesseral_coeff_(11, i) * -0.5590169943749475*(-1. + \
 2.*(sy*sy) + sz*sz)*(-1. + 7.*(sz*sz));
 
 // C_{4,3} Z_{4,3}
-energy += crystal_field_tesseral_coeff_(12, i) * 1.7701307697799304*(sx*sx*sx \
+energy += crystal_field_tesseral_coeff_(12, i) * 2.091650066335189*(sx*sx*sx \
 - 3.*sx*(sy*sy))*sz;
 
 // C_{4,4} Z_{4,4}
 energy += crystal_field_tesseral_coeff_(13, i) * \
-0.6258357354491761*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy);
+0.739509972887452*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy);
 
 // C_{6,-6} Z_{6,-6}
 energy += crystal_field_tesseral_coeff_(14, i) * \
-1.3663682103838286*(3.*(sx*sx*sx*sx*sx)*sy - 10.*(sx*sx*sx)*(sy*sy*sy) + \
-3.*sx*(sy*sy*sy*sy*sy));
+0.6716932893813962*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + \
+15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy));
 
 // C_{6,-5} Z_{6,-5}
 energy += crystal_field_tesseral_coeff_(15, i) * \
-2.366619162231752*(5.*(sx*sx*sx*sx)*sy - 10.*(sx*sx)*(sy*sy*sy) + \
-sy*sy*sy*sy*sy)*sz;
+2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
+5.*sx*(sy*sy*sy*sy))*sz;
 
 // C_{6,-4} Z_{6,-4}
 energy += crystal_field_tesseral_coeff_(16, i) * \
--2.0182596029148967*sx*sy*(-1. + 2.*(sy*sy) + sz*sz)*(-1. + 11.*(sz*sz));
+0.49607837082461076*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + \
+11.*(sz*sz));
 
 // C_{6,-3} Z_{6,-3}
 energy += crystal_field_tesseral_coeff_(17, i) * \
--0.9212052595149236*sy*sz*(-3. + 4.*(sy*sy) + 3.*(sz*sz))*(-3. + 11.*(sz*sz));
+-0.9057110466368399*sx*sz*(-1. + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
 
 // C_{6,-2} Z_{6,-2}
-energy += crystal_field_tesseral_coeff_(18, i) * 0.9212052595149236*sx*sy*(1. \
-- 18.*(sz*sz) + 33.*(sz*sz*sz*sz));
+energy += crystal_field_tesseral_coeff_(18, i) * -0.45285552331841994*(-1. + \
+2.*(sy*sy) + sz*sz)*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,-1} Z_{6,-1}
-energy += crystal_field_tesseral_coeff_(19, i) * 0.5826213625187314*sy*sz*(5. \
-- 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
+energy += crystal_field_tesseral_coeff_(19, i) * 0.57282196186948*sx*sz*(5. - \
+30.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,0} Z_{6,0}
-energy += crystal_field_tesseral_coeff_(20, i) * 0.06356920226762842*(-5. + \
+energy += crystal_field_tesseral_coeff_(20, i) * 0.0625*(-5. + \
 21.*(sz*sz)*(5. - 15.*(sz*sz) + 11.*(sz*sz*sz*sz)));
 
 // C_{6,1} Z_{6,1}
-energy += crystal_field_tesseral_coeff_(21, i) * 0.5826213625187314*sx*sz*(5. \
-- 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
+energy += crystal_field_tesseral_coeff_(21, i) * 0.57282196186948*sx*sz*(5. - \
+30.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,2} Z_{6,2}
-energy += crystal_field_tesseral_coeff_(22, i) * -0.4606026297574618*(-1. + \
+energy += crystal_field_tesseral_coeff_(22, i) * -0.45285552331841994*(-1. + \
 2.*(sy*sy) + sz*sz)*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,3} Z_{6,3}
 energy += crystal_field_tesseral_coeff_(23, i) * \
--0.9212052595149236*sx*sz*(-1. + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
+-0.9057110466368399*sx*sz*(-1. + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
 
 // C_{6,4} Z_{6,4}
 energy += crystal_field_tesseral_coeff_(24, i) * \
-0.5045649007287242*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + \
+0.49607837082461076*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + \
 11.*(sz*sz));
 
 // C_{6,5} Z_{6,5}
 energy += crystal_field_tesseral_coeff_(25, i) * \
-2.366619162231752*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
+2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
 5.*sx*(sy*sy*sy*sy))*sz;
 
 // C_{6,6} Z_{6,6}
 energy += crystal_field_tesseral_coeff_(26, i) * \
-0.6831841051919143*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + \
+0.6716932893813962*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + \
 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy));
 \
 \>", "Print",
  CellChangeTimes->{
-  3.9306499739904547`*^9, {3.9306500070640697`*^9, 3.930650036854413*^9}, 
-   3.9306500930899487`*^9, 3.930650148019988*^9, {3.930650182319181*^9, 
+  3.930649973990454*^9, {3.9306500070640693`*^9, 3.930650036854413*^9}, 
+   3.930650093089948*^9, 3.930650148019988*^9, {3.930650182319181*^9, 
    3.930650198541774*^9}, 3.930651336898677*^9, {3.930651382615047*^9, 
    3.930651412188663*^9}, 3.930653614763753*^9, 3.930711977033786*^9, 
-   3.930712309968731*^9, 3.9307130208722973`*^9, {3.930713225570897*^9, 
+   3.930712309968731*^9, 3.930713020872298*^9, {3.930713225570897*^9, 
    3.930713249490354*^9}, {3.930713739100842*^9, 3.930713759624702*^9}, 
-   3.930713830857244*^9},
+   3.930713830857244*^9, 3.931856114253254*^9, {3.9318561610916033`*^9, 
+   3.931856180921935*^9}, 3.931860403989595*^9, 3.931861112563158*^9, {
+   3.931861258757697*^9, 3.93186127619497*^9}},
  CellLabel->
   "During evaluation of \
-In[27]:=",ExpressionUUID->"04f93c58-b15e-411f-88a0-40d70bd0b71c"]
+In[35]:=",ExpressionUUID->"3b3cdcf9-b987-417f-9050-bcf11ccf8dde"]
 }, Open  ]],
 
 Cell[CellGroupData[{
@@ -623,9 +642,18 @@ Cell[BoxData[
        "\[IndentingNewLine]", 
        RowBox[{"field", "=", 
         RowBox[{
-         RowBox[{"-", 
+         RowBox[{
+          RowBox[{"-", 
+           RowBox[{"Sqrt", "[", 
+            RowBox[{"4", 
+             RowBox[{"Pi", "/", 
+              RowBox[{"(", 
+               RowBox[{
+                RowBox[{"2", "l"}], "+", "1"}], ")"}]}]}], "]"}]}], 
           RowBox[{"DTesseralHarmonicUnitVector", "[", 
-           RowBox[{"l", ",", "m", ",", "x", ",", "y", ",", "z"}], "]"}]}], "/.", 
+           RowBox[{"l", ",", 
+            RowBox[{"Abs", "[", "m", "]"}], ",", "x", ",", "y", ",", "z"}], 
+           "]"}]}], "/.", 
          RowBox[{"{", 
           RowBox[{
            RowBox[{"x", "->", "sx"}], ",", 
@@ -658,256 +686,260 @@ Cell[BoxData[
        "\[IndentingNewLine]", 
        RowBox[{"count", "++"}], ";"}]}], "]"}]}], "]"}]}]], "Input",
  CellChangeTimes->{{3.930710743515318*^9, 3.93071079430792*^9}, {
-   3.93071083054088*^9, 3.9307108422509327`*^9}, {3.930710915120241*^9, 
+   3.93071083054088*^9, 3.9307108422509336`*^9}, {3.930710915120241*^9, 
    3.930710916520404*^9}, 3.930711028234356*^9, {3.930714042460305*^9, 
    3.9307141859223413`*^9}, {3.930714647080714*^9, 3.930714650192254*^9}, 
-   3.9307153142847223`*^9},
- CellLabel->"In[79]:=",ExpressionUUID->"32ded60a-11f4-4950-8152-694ad14ee92b"],
+   3.930715314284722*^9, {3.931860904807393*^9, 3.931860906859302*^9}, 
+   3.931861307368721*^9},
+ CellLabel->"In[36]:=",ExpressionUUID->"32ded60a-11f4-4950-8152-694ad14ee92b"],
 
 Cell["\<\
 // -C_{2,-2} dZ_{2,-2}/dS
 double C2_2 = crystal_field_tesseral_coeff_(0, i);
-h[0] += C2_2*( -1.0925484305920792*sy*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
-h[1] += C2_2*( -1.0925484305920792*sx*(1. - 2.*(sy*sy)) );
-h[2] += C2_2*( 2.1850968611841584*sx*sy*sz );
+h[0] += C2_2*( -1.7320508075688772*sx*(2.*(sy*sy) + sz*sz) );
+h[1] += C2_2*( -1.7320508075688772*sy*(-2. + 2.*(sy*sy) + sz*sz) );
+h[2] += C2_2*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + sz*sz) );
 
 // -C_{2,-1} dZ_{2,-1}/dS
 double C2_1 = crystal_field_tesseral_coeff_(1, i);
-h[0] += C2_1*( 2.1850968611841584*sx*sy*sz );
-h[1] += C2_1*( -1.0925484305920792*(1. - 2.*(sy*sy))*sz );
-h[2] += C2_1*( -1.0925484305920792*sy*(1. - 2.*(sz*sz)) );
+h[0] += C2_1*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
+h[1] += C2_1*( 3.4641016151377544*sx*sy*sz );
+h[2] += C2_1*( -1.7320508075688772*sx*(1. - 2.*(sz*sz)) );
 
 // -C_{2,0} dZ_{2,0}/dS
 double C20 = crystal_field_tesseral_coeff_(2, i);
-h[0] += C20*( 1.8923493915151202*sx*(sz*sz) );
-h[1] += C20*( 1.8923493915151202*sy*(sz*sz) );
-h[2] += C20*( 1.8923493915151202*sz*(-1. + sz*sz) );
+h[0] += C20*( 3.*sx*(sz*sz) );
+h[1] += C20*( 3.*sy*(sz*sz) );
+h[2] += C20*( 3.*sz*(-1. + sz*sz) );
 
 // -C_{2,1} dZ_{2,1}/dS
 double C21 = crystal_field_tesseral_coeff_(3, i);
-h[0] += C21*( -1.0925484305920792*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
-h[1] += C21*( 2.1850968611841584*sx*sy*sz );
-h[2] += C21*( -1.0925484305920792*sx*(1. - 2.*(sz*sz)) );
+h[0] += C21*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
+h[1] += C21*( 3.4641016151377544*sx*sy*sz );
+h[2] += C21*( -1.7320508075688772*sx*(1. - 2.*(sz*sz)) );
 
 // -C_{2,2} dZ_{2,2}/dS
 double C22 = crystal_field_tesseral_coeff_(4, i);
-h[0] += C22*( -1.0925484305920792*sx*(2.*(sy*sy) + sz*sz) );
-h[1] += C22*( -1.0925484305920792*sy*(-2. + 2.*(sy*sy) + sz*sz) );
-h[2] += C22*( -1.0925484305920792*sz*(-1. + 2.*(sy*sy) + sz*sz) );
+h[0] += C22*( -1.7320508075688772*sx*(2.*(sy*sy) + sz*sz) );
+h[1] += C22*( -1.7320508075688772*sy*(-2. + 2.*(sy*sy) + sz*sz) );
+h[2] += C22*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + sz*sz) );
 
 // -C_{4,-4} dZ_{4,-4}/dS
 double C4_4 = crystal_field_tesseral_coeff_(5, i);
-h[0] += C4_4*( 2.5033429417967046*sy*(sx*sx*sx*sx + sy*sy*(sy*sy + sz*sz) - \
-3.*(sx*sx)*(2.*(sy*sy) + sz*sz)) );
-h[1] += C4_4*( -2.5033429417967046*sx*(1. + 8.*(sy*sy*sy*sy) - 1.*(sz*sz) + \
-4.*(sy*sy)*(-2. + sz*sz)) );
-h[2] += C4_4*( 10.013371767186818*sx*(sx - 1.*sy)*sy*(sx + sy)*sz );
+h[0] += C4_4*( 2.958039891549808*sx*(8.*(sy*sy*sy*sy) - 1.*(sz*sz) + \
+sz*sz*sz*sz + sy*sy*(-4. + 8.*(sz*sz))) );
+h[1] += C4_4*( 2.958039891549808*sy*(4. + 8.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
+sz*sz*sz*sz + 4.*(sy*sy)*(-3. + 2.*(sz*sz))) );
+h[2] += C4_4*( 2.958039891549808*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+sy*sy*sy*sy)*sz );
 
 // -C_{4,-3} dZ_{4,-3}/dS
 double C4_3 = crystal_field_tesseral_coeff_(6, i);
-h[0] += C4_3*( -3.540261539559861*sx*sy*sz*(-3. + 8.*(sy*sy) + 6.*(sz*sz)) );
-h[1] += C4_3*( -1.7701307697799304*sz*(3. - 3.*(sz*sz) + 2.*(sy*sy)*(-9. + \
-8.*(sy*sy) + 6.*(sz*sz))) );
-h[2] += C4_3*( -1.7701307697799304*sy*(-3. + 4.*(sy*sy) + 3.*(sz*sz))*(-1. + \
+h[0] += C4_3*( 2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
+4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
+h[1] += C4_3*( -4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
+h[2] += C4_3*( -2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + \
 4.*(sz*sz)) );
 
 // -C_{4,-2} dZ_{4,-2}/dS
 double C4_2 = crystal_field_tesseral_coeff_(7, i);
-h[0] += C4_2*( -0.9461746957575601*sy*(1. - 23.*(sz*sz) + 28.*(sz*sz*sz*sz) + \
-sy*sy*(-2. + 28.*(sz*sz))) );
-h[1] += C4_2*( -0.9461746957575601*sx*(-1. + 7.*(sz*sz) + sy*sy*(2. - \
-28.*(sz*sz))) );
-h[2] += C4_2*( -3.7846987830302403*sx*sy*sz*(4. - 7.*(sz*sz)) );
+h[0] += C4_2*( -2.23606797749979*sx*(-1.*(sy*sy) + 2.*(-2. + \
+7.*(sy*sy))*(sz*sz) + 7.*(sz*sz*sz*sz)) );
+h[1] += C4_2*( -2.23606797749979*sy*(1. - 11.*(sz*sz) + 7.*(sz*sz*sz*sz) + \
+sy*sy*(-1. + 14.*(sz*sz))) );
+h[2] += C4_2*( -2.23606797749979*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-4. + \
+7.*(sz*sz)) );
 
 // -C_{4,-1} dZ_{4,-1}/dS
 double C4_1 = crystal_field_tesseral_coeff_(8, i);
-h[0] += C4_1*( -1.3380930871145784*sx*sy*sz*(3. - 14.*(sz*sz)) );
-h[1] += C4_1*( -0.6690465435572892*sz*(-3. + 7.*(sz*sz) + sy*sy*(6. - \
-28.*(sz*sz))) );
-h[2] += C4_1*( 0.6690465435572892*sy*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
+h[0] += C4_1*( -0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + \
+sy*sy*(-6. + 28.*(sz*sz))) );
+h[1] += C4_1*( -1.5811388300841898*sx*sy*sz*(3. - 14.*(sz*sz)) );
+h[2] += C4_1*( 0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
 
 // -C_{4,0} dZ_{4,0}/dS
 double C40 = crystal_field_tesseral_coeff_(9, i);
-h[0] += C40*( -2.115710938304086*sx*(sz*sz)*(3. - 7.*(sz*sz)) );
-h[1] += C40*( -2.115710938304086*sy*(sz*sz)*(3. - 7.*(sz*sz)) );
-h[2] += C40*( 2.115710938304086*sz*(3. - 10.*(sz*sz) + 7.*(sz*sz*sz*sz)) );
+h[0] += C40*( -2.5*sx*(sz*sz)*(3. - 7.*(sz*sz)) );
+h[1] += C40*( -2.5*sy*(sz*sz)*(3. - 7.*(sz*sz)) );
+h[2] += C40*( 2.5*sz*(3. - 10.*(sz*sz) + 7.*(sz*sz*sz*sz)) );
 
 // -C_{4,1} dZ_{4,1}/dS
 double C41 = crystal_field_tesseral_coeff_(10, i);
-h[0] += C41*( -0.6690465435572892*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + \
+h[0] += C41*( -0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + \
 sy*sy*(-6. + 28.*(sz*sz))) );
-h[1] += C41*( -1.3380930871145784*sx*sy*sz*(3. - 14.*(sz*sz)) );
-h[2] += C41*( 0.6690465435572892*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
+h[1] += C41*( -1.5811388300841898*sx*sy*sz*(3. - 14.*(sz*sz)) );
+h[2] += C41*( 0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
 
 // -C_{4,2} dZ_{4,2}/dS
 double C42 = crystal_field_tesseral_coeff_(11, i);
-h[0] += C42*( -1.8923493915151202*sx*(-1.*(sy*sy) + 2.*(-2. + \
+h[0] += C42*( -2.23606797749979*sx*(-1.*(sy*sy) + 2.*(-2. + \
 7.*(sy*sy))*(sz*sz) + 7.*(sz*sz*sz*sz)) );
-h[1] += C42*( -1.8923493915151202*sy*(1. - 11.*(sz*sz) + 7.*(sz*sz*sz*sz) + \
+h[1] += C42*( -2.23606797749979*sy*(1. - 11.*(sz*sz) + 7.*(sz*sz*sz*sz) + \
 sy*sy*(-1. + 14.*(sz*sz))) );
-h[2] += C42*( -1.8923493915151202*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-4. + \
+h[2] += C42*( -2.23606797749979*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-4. + \
 7.*(sz*sz)) );
 
 // -C_{4,3} dZ_{4,3}/dS
 double C43 = crystal_field_tesseral_coeff_(12, i);
-h[0] += C43*( 1.7701307697799304*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
+h[0] += C43*( 2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
 4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
-h[1] += C43*( -3.540261539559861*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
-h[2] += C43*( -1.7701307697799304*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + \
+h[1] += C43*( -4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
+h[2] += C43*( -2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + \
 4.*(sz*sz)) );
 
 // -C_{4,4} dZ_{4,4}/dS
 double C44 = crystal_field_tesseral_coeff_(13, i);
-h[0] += C44*( 2.5033429417967046*sx*(8.*(sy*sy*sy*sy) - 1.*(sz*sz) + \
+h[0] += C44*( 2.958039891549808*sx*(8.*(sy*sy*sy*sy) - 1.*(sz*sz) + \
 sz*sz*sz*sz + sy*sy*(-4. + 8.*(sz*sz))) );
-h[1] += C44*( 2.5033429417967046*sy*(4. + 8.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
+h[1] += C44*( 2.958039891549808*sy*(4. + 8.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
 sz*sz*sz*sz + 4.*(sy*sy)*(-3. + 2.*(sz*sz))) );
-h[2] += C44*( 2.5033429417967046*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+h[2] += C44*( 2.958039891549808*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
 sy*sy*sy*sy)*sz );
 
 // -C_{6,-6} dZ_{6,-6}/dS
 double C6_6 = crystal_field_tesseral_coeff_(14, i);
-h[0] += C6_6*( 4.099104631151485*sy*(sx*sx*sx*sx*sx*sx - \
-1.*(sy*sy*sy*sy)*(sy*sy + sz*sz) - 5.*(sx*sx*sx*sx)*(3.*(sy*sy) + sz*sz) + \
-5.*(sx*sx)*(3.*(sy*sy*sy*sy) + 2.*(sy*sy)*(sz*sz))) );
-h[1] += C6_6*( -4.099104631151485*sx*(sx*sx*sx*sx*sx*sx - \
+h[0] += C6_6*( -4.030159736288377*sx*(6.*(sy*sy*sy*sy*sy*sy) + \
+5.*(sy*sy*sy*sy)*(sz*sz) - 10.*(sx*sx)*(sy*sy)*(2.*(sy*sy) + sz*sz) + \
+sx*sx*sx*sx*(6.*(sy*sy) + sz*sz)) );
+h[1] += C6_6*( 4.030159736288377*sy*(6.*(sx*sx*sx*sx*sx*sx) - \
+20.*(sx*sx*sx*sx)*(sy*sy) + 6.*(sx*sx)*(sy*sy*sy*sy) + (5.*(sx*sx*sx*sx) - \
+10.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
+h[2] += C6_6*( 4.030159736288377*(sx*sx*sx*sx*sx*sx - \
 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - \
-1.*(sy*sy*sy*sy*sy*sy) + (sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + \
-5.*(sy*sy*sy*sy))*(sz*sz)) );
-h[2] += C6_6*( 8.19820926230297*(3.*(sx*sx*sx*sx*sx)*sy - \
-10.*(sx*sx*sx)*(sy*sy*sy) + 3.*sx*(sy*sy*sy*sy*sy))*sz );
+1.*(sy*sy*sy*sy*sy*sy))*sz );
 
 // -C_{6,-5} dZ_{6,-5}/dS
 double C6_5 = crystal_field_tesseral_coeff_(15, i);
-h[0] += C6_5*( 4.733238324463504*sx*sy*sz*(5. - 40.*(sy*sy) + \
-48.*(sy*sy*sy*sy) + 20.*(-1. + 3.*(sy*sy))*(sz*sz) + 15.*(sz*sz*sz*sz)) );
-h[1] += C6_5*( -2.366619162231752*sz*(5.*(sx*sx*sx*sx*sx*sx) - \
-55.*(sx*sx*sx*sx)*(sy*sy) + 35.*(sx*sx)*(sy*sy*sy*sy) - \
-1.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+h[0] += C6_5*( -2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + \
+35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + \
+5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
 sy*sy*sy*sy)*(sz*sz)) );
-h[2] += C6_5*( -2.366619162231752*(5.*(sx*sx*sx*sx)*sy - \
-10.*(sx*sx)*(sy*sy*sy) + sy*sy*sy*sy*sy)*(1. - 6.*(sz*sz)) );
+h[1] += C6_5*( 4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + \
+48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
+h[2] += C6_5*( -2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
+5.*sx*(sy*sy*sy*sy))*(1. - 6.*(sz*sz)) );
 
 // -C_{6,-4} dZ_{6,-4}/dS
 double C6_4 = crystal_field_tesseral_coeff_(16, i);
-h[0] += C6_4*( 2.0182596029148967*sy*(-1. + 38.*(sz*sz) - 103.*(sz*sz*sz*sz) \
-+ 66.*(sz*sz*sz*sz*sz*sz) + 4.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
-2.*(sy*sy)*(4. - 83.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-h[1] += C6_4*( -2.0182596029148967*sx*(-1. + 8.*(sy*sy) - 8.*(sy*sy*sy*sy) + \
-6.*(2. - 19.*(sy*sy) + 22.*(sy*sy*sy*sy))*(sz*sz) + 11.*(-1. + \
-6.*(sy*sy))*(sz*sz*sz*sz)) );
-h[2] += C6_4*( -4.036519205829793*sx*sy*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-13. + \
-33.*(sz*sz)) );
+h[0] += C6_4*( 0.9921567416492215*sx*(13.*(sz*sz) - 46.*(sz*sz*sz*sz) + \
+33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
+8.*(sy*sy)*(1. - 24.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
+h[1] += C6_4*( 0.9921567416492215*sy*(-8. + 109.*(sz*sz) - 134.*(sz*sz*sz*sz) \
++ 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
+8.*(sy*sy)*(3. - 46.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
+h[2] += C6_4*( -0.9921567416492215*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+sy*sy*sy*sy)*sz*(13. - 33.*(sz*sz)) );
 
 // -C_{6,-3} dZ_{6,-3}/dS
 double C6_3 = crystal_field_tesseral_coeff_(17, i);
-h[0] += C6_3*( -5.527231557089541*sx*sy*sz*(3. - 28.*(sz*sz) + \
-33.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
-h[1] += C6_3*( -2.7636157785447706*sz*(-3. + 14.*(sz*sz) - 11.*(sz*sz*sz*sz) \
-+ 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + 2.*(sy*sy)*(9. - 50.*(sz*sz) + \
-33.*(sz*sz*sz*sz))) );
-h[2] += C6_3*( -2.7636157785447706*sy*(-3. + 4.*(sy*sy) + 3.*(sz*sz))*(1. - \
+h[0] += C6_3*( 2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + \
+22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + \
+2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
+h[1] += C6_3*( -5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + \
+11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
+h[2] += C6_3*( -2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - \
 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
 
 // -C_{6,-2} dZ_{6,-2}/dS
 double C6_2 = crystal_field_tesseral_coeff_(18, i);
-h[0] += C6_2*( -0.9212052595149236*sy*(-1. + 2.*(sy*sy) + 8.*(7. - \
-9.*(sy*sy))*(sz*sz) + 3.*(-79. + 66.*(sy*sy))*(sz*sz*sz*sz) + \
-198.*(sz*sz*sz*sz*sz*sz)) );
-h[1] += C6_2*( -0.9212052595149236*sx*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz) - \
-2.*(sy*sy)*(1. - 36.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-h[2] += C6_2*( 1.8424105190298472*sx*sy*sz*(19. - 102.*(sz*sz) + \
-99.*(sz*sz*sz*sz)) );
+h[0] += C6_2*( -0.9057110466368399*sx*(2.*(sy*sy) + (19. - \
+72.*(sy*sy))*(sz*sz) + 6.*(-17. + 33.*(sy*sy))*(sz*sz*sz*sz) + \
+99.*(sz*sz*sz*sz*sz*sz)) );
+h[1] += C6_2*( -0.9057110466368399*sy*(-2. + 55.*(sz*sz) - 168.*(sz*sz*sz*sz) \
++ 99.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(1. - 36.*(sz*sz) + \
+99.*(sz*sz*sz*sz))) );
+h[2] += C6_2*( -0.9057110466368399*sz*(-1. + 2.*(sy*sy) + sz*sz)*(19. - \
+102.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
 
 // -C_{6,-1} dZ_{6,-1}/dS
 double C6_1 = crystal_field_tesseral_coeff_(19, i);
-h[0] += C6_1*( 1.1652427250374628*sx*sy*sz*(5. - 60.*(sz*sz) + \
+h[0] += C6_1*( -0.57282196186948*sz*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) \
++ 198.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(5. - 60.*(sz*sz) + \
+99.*(sz*sz*sz*sz))) );
+h[1] += C6_1*( 1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + \
 99.*(sz*sz*sz*sz)) );
-h[1] += C6_1*( -0.5826213625187314*sz*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz) - \
-2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-h[2] += C6_1*( -0.5826213625187314*sy*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) \
-- 198.*(sz*sz*sz*sz*sz*sz)) );
+h[2] += C6_1*( -0.57282196186948*sx*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - \
+198.*(sz*sz*sz*sz*sz*sz)) );
 
 // -C_{6,0} dZ_{6,0}/dS
 double C60 = crystal_field_tesseral_coeff_(20, i);
-h[0] += C60*( 2.6699064952403937*sx*(sz*sz)*(5. - 30.*(sz*sz) + \
-33.*(sz*sz*sz*sz)) );
-h[1] += C60*( 2.6699064952403937*sy*(sz*sz)*(5. - 30.*(sz*sz) + \
-33.*(sz*sz*sz*sz)) );
-h[2] += C60*( 2.6699064952403937*sz*(-5. + 35.*(sz*sz) - 63.*(sz*sz*sz*sz) + \
+h[0] += C60*( 2.625*sx*(sz*sz)*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz)) );
+h[1] += C60*( 2.625*sy*(sz*sz)*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz)) );
+h[2] += C60*( 2.625*sz*(-5. + 35.*(sz*sz) - 63.*(sz*sz*sz*sz) + \
 33.*(sz*sz*sz*sz*sz*sz)) );
 
 // -C_{6,1} dZ_{6,1}/dS
 double C61 = crystal_field_tesseral_coeff_(21, i);
-h[0] += C61*( -0.5826213625187314*sz*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) \
-+ 198.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(5. - 60.*(sz*sz) + \
-99.*(sz*sz*sz*sz))) );
-h[1] += C61*( 1.1652427250374628*sx*sy*sz*(5. - 60.*(sz*sz) + \
+h[0] += C61*( -0.57282196186948*sz*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) + \
+198.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) \
+);
+h[1] += C61*( 1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + \
 99.*(sz*sz*sz*sz)) );
-h[2] += C61*( -0.5826213625187314*sx*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) \
-- 198.*(sz*sz*sz*sz*sz*sz)) );
+h[2] += C61*( -0.57282196186948*sx*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - \
+198.*(sz*sz*sz*sz*sz*sz)) );
 
 // -C_{6,2} dZ_{6,2}/dS
 double C62 = crystal_field_tesseral_coeff_(22, i);
-h[0] += C62*( -0.9212052595149236*sx*(2.*(sy*sy) + (19. - \
+h[0] += C62*( -0.9057110466368399*sx*(2.*(sy*sy) + (19. - \
 72.*(sy*sy))*(sz*sz) + 6.*(-17. + 33.*(sy*sy))*(sz*sz*sz*sz) + \
 99.*(sz*sz*sz*sz*sz*sz)) );
-h[1] += C62*( -0.9212052595149236*sy*(-2. + 55.*(sz*sz) - 168.*(sz*sz*sz*sz) \
+h[1] += C62*( -0.9057110466368399*sy*(-2. + 55.*(sz*sz) - 168.*(sz*sz*sz*sz) \
 + 99.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(1. - 36.*(sz*sz) + \
 99.*(sz*sz*sz*sz))) );
-h[2] += C62*( -0.9212052595149236*sz*(-1. + 2.*(sy*sy) + sz*sz)*(19. - \
+h[2] += C62*( -0.9057110466368399*sz*(-1. + 2.*(sy*sy) + sz*sz)*(19. - \
 102.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
 
 // -C_{6,3} dZ_{6,3}/dS
 double C63 = crystal_field_tesseral_coeff_(23, i);
-h[0] += C63*( 2.7636157785447706*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + \
+h[0] += C63*( 2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + \
 22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + \
 2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
-h[1] += C63*( -5.527231557089541*sx*sy*sz*(5. - 24.*(sz*sz) + \
+h[1] += C63*( -5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + \
 11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
-h[2] += C63*( -2.7636157785447706*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - \
+h[2] += C63*( -2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - \
 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
 
 // -C_{6,4} dZ_{6,4}/dS
 double C64 = crystal_field_tesseral_coeff_(24, i);
-h[0] += C64*( 1.0091298014574483*sx*(13.*(sz*sz) - 46.*(sz*sz*sz*sz) + \
+h[0] += C64*( 0.9921567416492215*sx*(13.*(sz*sz) - 46.*(sz*sz*sz*sz) + \
 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
 8.*(sy*sy)*(1. - 24.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
-h[1] += C64*( 1.0091298014574483*sy*(-8. + 109.*(sz*sz) - 134.*(sz*sz*sz*sz) \
+h[1] += C64*( 0.9921567416492215*sy*(-8. + 109.*(sz*sz) - 134.*(sz*sz*sz*sz) \
 + 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
 8.*(sy*sy)*(3. - 46.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
-h[2] += C64*( -1.0091298014574483*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+h[2] += C64*( -0.9921567416492215*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
 sy*sy*sy*sy)*sz*(13. - 33.*(sz*sz)) );
 
 // -C_{6,5} dZ_{6,5}/dS
 double C65 = crystal_field_tesseral_coeff_(25, i);
-h[0] += C65*( -2.366619162231752*sz*(-1.*(sx*sx*sx*sx*sx*sx) + \
+h[0] += C65*( -2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + \
 35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + \
 5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
 sy*sy*sy*sy)*(sz*sz)) );
-h[1] += C65*( 4.733238324463504*sx*sy*sz*(13. - 56.*(sy*sy) + \
+h[1] += C65*( 4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + \
 48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
-h[2] += C65*( -2.366619162231752*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
+h[2] += C65*( -2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
 5.*sx*(sy*sy*sy*sy))*(1. - 6.*(sz*sz)) );
 
 // -C_{6,6} dZ_{6,6}/dS
 double C66 = crystal_field_tesseral_coeff_(26, i);
-h[0] += C66*( -4.099104631151485*sx*(6.*(sy*sy*sy*sy*sy*sy) + \
+h[0] += C66*( -4.030159736288377*sx*(6.*(sy*sy*sy*sy*sy*sy) + \
 5.*(sy*sy*sy*sy)*(sz*sz) - 10.*(sx*sx)*(sy*sy)*(2.*(sy*sy) + sz*sz) + \
 sx*sx*sx*sx*(6.*(sy*sy) + sz*sz)) );
-h[1] += C66*( 4.099104631151485*sy*(6.*(sx*sx*sx*sx*sx*sx) - \
+h[1] += C66*( 4.030159736288377*sy*(6.*(sx*sx*sx*sx*sx*sx) - \
 20.*(sx*sx*sx*sx)*(sy*sy) + 6.*(sx*sx)*(sy*sy*sy*sy) + (5.*(sx*sx*sx*sx) - \
 10.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
-h[2] += C66*( 4.099104631151485*(sx*sx*sx*sx*sx*sx - \
+h[2] += C66*( 4.030159736288377*(sx*sx*sx*sx*sx*sx - \
 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - \
 1.*(sy*sy*sy*sy*sy*sy))*sz );
 \
 \>", "Print",
  CellChangeTimes->{3.93071413729953*^9, 3.930714186378677*^9, 
-  3.930715314789773*^9},
+  3.930715314789773*^9, 3.931860907687614*^9, 3.931861219743741*^9, 
+  3.93186130850968*^9},
  CellLabel->
   "During evaluation of \
-In[79]:=",ExpressionUUID->"c76b3756-9d73-4811-976b-b7c62321f8e2"]
+In[36]:=",ExpressionUUID->"70e2cfe0-d8e9-4cdc-8ad1-56014695eeb2"]
 }, Open  ]],
 
 Cell[CellGroupData[{
@@ -973,8 +1005,17 @@ Cell[BoxData[
          RowBox[{
           RowBox[{"N", "[", 
            RowBox[{
-            RowBox[{"TesseralHarmonicUnitVector", "[", 
-             RowBox[{"l", ",", "m", ",", "x", ",", "y", ",", "z"}], "]"}], "/.", 
+            RowBox[{
+             RowBox[{"Sqrt", "[", 
+              RowBox[{"4", 
+               RowBox[{"Pi", "/", 
+                RowBox[{"(", 
+                 RowBox[{
+                  RowBox[{"2", "l"}], "+", "1"}], ")"}]}]}], "]"}], 
+             RowBox[{"TesseralHarmonicUnitVector", "[", 
+              RowBox[{"l", ",", 
+               RowBox[{"Abs", "[", "m", "]"}], ",", "x", ",", "y", ",", "z"}],
+               "]"}]}], "/.", 
             RowBox[{"{", 
              RowBox[{
               RowBox[{"x", "->", "sx"}], ",", 
@@ -986,124 +1027,128 @@ Cell[BoxData[
         RowBox[{"\"\<stdout\>\"", ",", "\"\<\\n\>\""}], "]"}], ";", 
        "\[IndentingNewLine]", 
        RowBox[{"count", "++"}], ";"}]}], "]"}]}], "]"}]}]], "Input",
- CellChangeTimes->{{3.930717531122068*^9, 3.930717549014491*^9}},
- CellLabel->"In[81]:=",ExpressionUUID->"bc006230-b674-48dd-b535-8abd4317f768"],
+ CellChangeTimes->{{3.930717531122068*^9, 3.930717549014491*^9}, {
+   3.931860961106131*^9, 3.931860964925748*^9}, 3.9318615783317413`*^9},
+ CellLabel->"In[37]:=",ExpressionUUID->"bc006230-b674-48dd-b535-8abd4317f768"],
 
 Cell["\<\
 // C_{2,-2} Z_{2,-2}
-energy += dev_cf_coeffs[0*num_spins + idx] * 1.0925484305920792*sx*sy;
+energy += dev_cf_coeffs[0*num_spins + idx] * 0.8660254037844386*(sx - \
+1.*sy)*(sx + sy);
 
 // C_{2,-1} Z_{2,-1}
-energy += dev_cf_coeffs[1*num_spins + idx] * 1.0925484305920792*sy*sz;
+energy += dev_cf_coeffs[1*num_spins + idx] * 1.7320508075688772*sx*sz;
 
 // C_{2,0} Z_{2,0}
-energy += dev_cf_coeffs[2*num_spins + idx] * 0.31539156525252005*(-1. + \
-3.*(sz*sz));
+energy += dev_cf_coeffs[2*num_spins + idx] * 0.5*(-1. + 3.*(sz*sz));
 
 // C_{2,1} Z_{2,1}
-energy += dev_cf_coeffs[3*num_spins + idx] * 1.0925484305920792*sx*sz;
+energy += dev_cf_coeffs[3*num_spins + idx] * 1.7320508075688772*sx*sz;
 
 // C_{2,2} Z_{2,2}
-energy += dev_cf_coeffs[4*num_spins + idx] * 0.5462742152960396*(sx - \
+energy += dev_cf_coeffs[4*num_spins + idx] * 0.8660254037844386*(sx - \
 1.*sy)*(sx + sy);
 
 // C_{4,-4} Z_{4,-4}
-energy += dev_cf_coeffs[5*num_spins + idx] * 2.5033429417967046*sx*(sx - \
-1.*sy)*sy*(sx + sy);
+energy += dev_cf_coeffs[5*num_spins + idx] * 0.739509972887452*(sx*sx*sx*sx - \
+6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy);
 
 // C_{4,-3} Z_{4,-3}
-energy += dev_cf_coeffs[6*num_spins + idx] * \
--1.7701307697799304*sy*(-3.*(sx*sx) + sy*sy)*sz;
+energy += dev_cf_coeffs[6*num_spins + idx] * 2.091650066335189*(sx*sx*sx - \
+3.*sx*(sy*sy))*sz;
 
 // C_{4,-2} Z_{4,-2}
-energy += dev_cf_coeffs[7*num_spins + idx] * 0.9461746957575601*sx*sy*(-1. + \
-7.*(sz*sz));
+energy += dev_cf_coeffs[7*num_spins + idx] * -0.5590169943749475*(-1. + \
+2.*(sy*sy) + sz*sz)*(-1. + 7.*(sz*sz));
 
 // C_{4,-1} Z_{4,-1}
-energy += dev_cf_coeffs[8*num_spins + idx] * 0.6690465435572892*sy*sz*(-3. + \
+energy += dev_cf_coeffs[8*num_spins + idx] * 0.7905694150420949*sx*sz*(-3. + \
 7.*(sz*sz));
 
 // C_{4,0} Z_{4,0}
-energy += dev_cf_coeffs[9*num_spins + idx] * 0.10578554691520431*(3. - \
-30.*(sz*sz) + 35.*(sz*sz*sz*sz));
+energy += dev_cf_coeffs[9*num_spins + idx] * 0.125*(3. - 30.*(sz*sz) + \
+35.*(sz*sz*sz*sz));
 
 // C_{4,1} Z_{4,1}
-energy += dev_cf_coeffs[10*num_spins + idx] * 0.6690465435572892*sx*sz*(-3. + \
+energy += dev_cf_coeffs[10*num_spins + idx] * 0.7905694150420949*sx*sz*(-3. + \
 7.*(sz*sz));
 
 // C_{4,2} Z_{4,2}
-energy += dev_cf_coeffs[11*num_spins + idx] * -0.47308734787878004*(-1. + \
+energy += dev_cf_coeffs[11*num_spins + idx] * -0.5590169943749475*(-1. + \
 2.*(sy*sy) + sz*sz)*(-1. + 7.*(sz*sz));
 
 // C_{4,3} Z_{4,3}
-energy += dev_cf_coeffs[12*num_spins + idx] * 1.7701307697799304*(sx*sx*sx - \
+energy += dev_cf_coeffs[12*num_spins + idx] * 2.091650066335189*(sx*sx*sx - \
 3.*sx*(sy*sy))*sz;
 
 // C_{4,4} Z_{4,4}
-energy += dev_cf_coeffs[13*num_spins + idx] * 0.6258357354491761*(sx*sx*sx*sx \
+energy += dev_cf_coeffs[13*num_spins + idx] * 0.739509972887452*(sx*sx*sx*sx \
 - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy);
 
 // C_{6,-6} Z_{6,-6}
 energy += dev_cf_coeffs[14*num_spins + idx] * \
-1.3663682103838286*(3.*(sx*sx*sx*sx*sx)*sy - 10.*(sx*sx*sx)*(sy*sy*sy) + \
-3.*sx*(sy*sy*sy*sy*sy));
+0.6716932893813962*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + \
+15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy));
 
 // C_{6,-5} Z_{6,-5}
 energy += dev_cf_coeffs[15*num_spins + idx] * \
-2.366619162231752*(5.*(sx*sx*sx*sx)*sy - 10.*(sx*sx)*(sy*sy*sy) + \
-sy*sy*sy*sy*sy)*sz;
+2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
+5.*sx*(sy*sy*sy*sy))*sz;
 
 // C_{6,-4} Z_{6,-4}
-energy += dev_cf_coeffs[16*num_spins + idx] * -2.0182596029148967*sx*sy*(-1. \
-+ 2.*(sy*sy) + sz*sz)*(-1. + 11.*(sz*sz));
+energy += dev_cf_coeffs[16*num_spins + idx] * \
+0.49607837082461076*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + \
+11.*(sz*sz));
 
 // C_{6,-3} Z_{6,-3}
-energy += dev_cf_coeffs[17*num_spins + idx] * -0.9212052595149236*sy*sz*(-3. \
-+ 4.*(sy*sy) + 3.*(sz*sz))*(-3. + 11.*(sz*sz));
+energy += dev_cf_coeffs[17*num_spins + idx] * -0.9057110466368399*sx*sz*(-1. \
++ 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
 
 // C_{6,-2} Z_{6,-2}
-energy += dev_cf_coeffs[18*num_spins + idx] * 0.9212052595149236*sx*sy*(1. - \
-18.*(sz*sz) + 33.*(sz*sz*sz*sz));
+energy += dev_cf_coeffs[18*num_spins + idx] * -0.45285552331841994*(-1. + \
+2.*(sy*sy) + sz*sz)*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,-1} Z_{6,-1}
-energy += dev_cf_coeffs[19*num_spins + idx] * 0.5826213625187314*sy*sz*(5. - \
+energy += dev_cf_coeffs[19*num_spins + idx] * 0.57282196186948*sx*sz*(5. - \
 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,0} Z_{6,0}
-energy += dev_cf_coeffs[20*num_spins + idx] * 0.06356920226762842*(-5. + \
-21.*(sz*sz)*(5. - 15.*(sz*sz) + 11.*(sz*sz*sz*sz)));
+energy += dev_cf_coeffs[20*num_spins + idx] * 0.0625*(-5. + 21.*(sz*sz)*(5. - \
+15.*(sz*sz) + 11.*(sz*sz*sz*sz)));
 
 // C_{6,1} Z_{6,1}
-energy += dev_cf_coeffs[21*num_spins + idx] * 0.5826213625187314*sx*sz*(5. - \
+energy += dev_cf_coeffs[21*num_spins + idx] * 0.57282196186948*sx*sz*(5. - \
 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,2} Z_{6,2}
-energy += dev_cf_coeffs[22*num_spins + idx] * -0.4606026297574618*(-1. + \
+energy += dev_cf_coeffs[22*num_spins + idx] * -0.45285552331841994*(-1. + \
 2.*(sy*sy) + sz*sz)*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,3} Z_{6,3}
-energy += dev_cf_coeffs[23*num_spins + idx] * -0.9212052595149236*sx*sz*(-1. \
+energy += dev_cf_coeffs[23*num_spins + idx] * -0.9057110466368399*sx*sz*(-1. \
 + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
 
 // C_{6,4} Z_{6,4}
-energy += dev_cf_coeffs[24*num_spins + idx] * 0.5045649007287242*(sx*sx*sx*sx \
-- 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + 11.*(sz*sz));
+energy += dev_cf_coeffs[24*num_spins + idx] * \
+0.49607837082461076*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + \
+11.*(sz*sz));
 
 // C_{6,5} Z_{6,5}
 energy += dev_cf_coeffs[25*num_spins + idx] * \
-2.366619162231752*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
+2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
 5.*sx*(sy*sy*sy*sy))*sz;
 
 // C_{6,6} Z_{6,6}
 energy += dev_cf_coeffs[26*num_spins + idx] * \
-0.6831841051919143*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + \
+0.6716932893813962*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + \
 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy));
 \
 \>", "Print",
- CellChangeTimes->{3.9307175520006857`*^9},
+ CellChangeTimes->{3.930717552000686*^9, 3.931860965495504*^9, 
+  3.931861579713821*^9},
  CellLabel->
   "During evaluation of \
-In[81]:=",ExpressionUUID->"d35f1635-2d2f-4f66-8b17-29541810a825"]
+In[37]:=",ExpressionUUID->"366eccaf-7ad4-4527-a794-390ff019f5df"]
 }, Open  ]],
 
 Cell[CellGroupData[{
@@ -1165,9 +1210,18 @@ Cell[BoxData[
         "\[IndentingNewLine]", 
         RowBox[{"field", "=", 
          RowBox[{
-          RowBox[{"-", 
+          RowBox[{
+           RowBox[{"-", 
+            RowBox[{"Sqrt", "[", 
+             RowBox[{"4", 
+              RowBox[{"Pi", "/", 
+               RowBox[{"(", 
+                RowBox[{
+                 RowBox[{"2", "l"}], "+", "1"}], ")"}]}]}], "]"}]}], 
            RowBox[{"DTesseralHarmonicUnitVector", "[", 
-            RowBox[{"l", ",", "m", ",", "x", ",", "y", ",", "z"}], "]"}]}], "/.", 
+            RowBox[{"l", ",", 
+             RowBox[{"Abs", "[", "m", "]"}], ",", "x", ",", "y", ",", "z"}], 
+            "]"}]}], "/.", 
           RowBox[{"{", 
            RowBox[{
             RowBox[{"x", "->", "sx"}], ",", 
@@ -1217,7 +1271,7 @@ Cell[BoxData[
    3.928483785250798*^9, 3.9284837853234386`*^9}, {3.928483947399661*^9, 
    3.92848394751088*^9}, {3.928484332082508*^9, 3.928484332162674*^9}, {
    3.928484496625029*^9, 3.928484496773391*^9}, {3.928484634134342*^9, 
-   3.928484635727955*^9}, {3.928484848565608*^9, 3.9284848486594963`*^9}, {
+   3.928484635727955*^9}, {3.928484848565608*^9, 3.9284848486594973`*^9}, {
    3.928484999852021*^9, 3.928484999988886*^9}, {3.928485183625387*^9, 
    3.928485183693466*^9}, {3.928485367689653*^9, 3.92848537120545*^9}, {
    3.9284857550406322`*^9, 3.928485755622526*^9}, {3.9284858845794973`*^9, 
@@ -1234,270 +1288,274 @@ Cell[BoxData[
    3.928489068384659*^9, 3.928489225318329*^9}, {3.928489277072822*^9, 
    3.928489329698491*^9}, {3.9284893640027*^9, 3.928489421616424*^9}, {
    3.9284894578542557`*^9, 3.928489743385508*^9}, {3.928489773797492*^9, 
-   3.9284898452024817`*^9}, {3.928489879207059*^9, 3.928489931794491*^9}, {
+   3.928489845202482*^9}, {3.928489879207059*^9, 3.928489931794491*^9}, {
    3.928489962661076*^9, 3.928490024509976*^9}, {3.928490147243663*^9, 
    3.92849018457996*^9}, {3.928490216389386*^9, 3.928490216606091*^9}, {
    3.9284905135458593`*^9, 3.928490572869494*^9}, {3.928490744805297*^9, 
-   3.9284907779216137`*^9}, {3.928550472471162*^9, 3.928550481309124*^9}, {
+   3.9284907779216146`*^9}, {3.928550472471162*^9, 3.928550481309124*^9}, {
    3.928550736265871*^9, 3.928550776320882*^9}, {3.928572030564837*^9, 
    3.928572035804788*^9}, {3.928572419790909*^9, 3.928572515193926*^9}, {
    3.9285725683856*^9, 3.9285726312520447`*^9}, {3.92857266922994*^9, 
    3.92857266979884*^9}, {3.9285728150570297`*^9, 3.928572874989634*^9}, {
    3.928572983526702*^9, 3.928573052360368*^9}, {3.928574183546513*^9, 
-   3.928574214171873*^9}, {3.9285746619606957`*^9, 3.928574722312583*^9}, {
+   3.928574214171873*^9}, {3.928574661960696*^9, 3.928574722312583*^9}, {
    3.928574764379581*^9, 3.928574888164913*^9}, {3.92857494104332*^9, 
    3.9285751020395813`*^9}, {3.928575133519446*^9, 3.928575149136391*^9}, {
    3.9285751935222397`*^9, 3.928575201121382*^9}, {3.92857524369136*^9, 
-   3.92857526837361*^9}, {3.9306475644475737`*^9, 3.930647613732258*^9}, {
+   3.92857526837361*^9}, {3.930647564447574*^9, 3.930647613732258*^9}, {
    3.930714756632843*^9, 3.930714761697915*^9}, {3.930715241785158*^9, 
-   3.930715306844408*^9}},
- CellLabel->"In[80]:=",ExpressionUUID->"1e84f5fe-bc2c-4d95-9648-e87313f30c47"],
+   3.930715306844408*^9}, {3.931860987002965*^9, 3.931860989411446*^9}, 
+   3.9318615915858173`*^9},
+ CellLabel->"In[38]:=",ExpressionUUID->"1e84f5fe-bc2c-4d95-9648-e87313f30c47"],
 
 Cell["\<\
 // -C_{2,-2} dZ_{2,-2}/dS
 double C2_2 = dev_cf_coeffs[0*num_spins + idx];
-h[0] += C2_2*( -1.0925484305920792*sy*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
-h[1] += C2_2*( -1.0925484305920792*sx*(1. - 2.*(sy*sy)) );
-h[2] += C2_2*( 2.1850968611841584*sx*sy*sz );
+h[0] += C2_2*( -1.7320508075688772*sx*(2.*(sy*sy) + sz*sz) );
+h[1] += C2_2*( -1.7320508075688772*sy*(-2. + 2.*(sy*sy) + sz*sz) );
+h[2] += C2_2*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + sz*sz) );
 
 // -C_{2,-1} dZ_{2,-1}/dS
 double C2_1 = dev_cf_coeffs[1*num_spins + idx];
-h[0] += C2_1*( 2.1850968611841584*sx*sy*sz );
-h[1] += C2_1*( -1.0925484305920792*(1. - 2.*(sy*sy))*sz );
-h[2] += C2_1*( -1.0925484305920792*sy*(1. - 2.*(sz*sz)) );
+h[0] += C2_1*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
+h[1] += C2_1*( 3.4641016151377544*sx*sy*sz );
+h[2] += C2_1*( -1.7320508075688772*sx*(1. - 2.*(sz*sz)) );
 
 // -C_{2,0} dZ_{2,0}/dS
 double C20 = dev_cf_coeffs[2*num_spins + idx];
-h[0] += C20*( 1.8923493915151202*sx*(sz*sz) );
-h[1] += C20*( 1.8923493915151202*sy*(sz*sz) );
-h[2] += C20*( 1.8923493915151202*sz*(-1. + sz*sz) );
+h[0] += C20*( 3.*sx*(sz*sz) );
+h[1] += C20*( 3.*sy*(sz*sz) );
+h[2] += C20*( 3.*sz*(-1. + sz*sz) );
 
 // -C_{2,1} dZ_{2,1}/dS
 double C21 = dev_cf_coeffs[3*num_spins + idx];
-h[0] += C21*( -1.0925484305920792*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
-h[1] += C21*( 2.1850968611841584*sx*sy*sz );
-h[2] += C21*( -1.0925484305920792*sx*(1. - 2.*(sz*sz)) );
+h[0] += C21*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
+h[1] += C21*( 3.4641016151377544*sx*sy*sz );
+h[2] += C21*( -1.7320508075688772*sx*(1. - 2.*(sz*sz)) );
 
 // -C_{2,2} dZ_{2,2}/dS
 double C22 = dev_cf_coeffs[4*num_spins + idx];
-h[0] += C22*( -1.0925484305920792*sx*(2.*(sy*sy) + sz*sz) );
-h[1] += C22*( -1.0925484305920792*sy*(-2. + 2.*(sy*sy) + sz*sz) );
-h[2] += C22*( -1.0925484305920792*sz*(-1. + 2.*(sy*sy) + sz*sz) );
+h[0] += C22*( -1.7320508075688772*sx*(2.*(sy*sy) + sz*sz) );
+h[1] += C22*( -1.7320508075688772*sy*(-2. + 2.*(sy*sy) + sz*sz) );
+h[2] += C22*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + sz*sz) );
 
 // -C_{4,-4} dZ_{4,-4}/dS
 double C4_4 = dev_cf_coeffs[5*num_spins + idx];
-h[0] += C4_4*( 2.5033429417967046*sy*(sx*sx*sx*sx + sy*sy*(sy*sy + sz*sz) - \
-3.*(sx*sx)*(2.*(sy*sy) + sz*sz)) );
-h[1] += C4_4*( -2.5033429417967046*sx*(1. + 8.*(sy*sy*sy*sy) - 1.*(sz*sz) + \
-4.*(sy*sy)*(-2. + sz*sz)) );
-h[2] += C4_4*( 10.013371767186818*sx*(sx - 1.*sy)*sy*(sx + sy)*sz );
+h[0] += C4_4*( 2.958039891549808*sx*(8.*(sy*sy*sy*sy) - 1.*(sz*sz) + \
+sz*sz*sz*sz + sy*sy*(-4. + 8.*(sz*sz))) );
+h[1] += C4_4*( 2.958039891549808*sy*(4. + 8.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
+sz*sz*sz*sz + 4.*(sy*sy)*(-3. + 2.*(sz*sz))) );
+h[2] += C4_4*( 2.958039891549808*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+sy*sy*sy*sy)*sz );
 
 // -C_{4,-3} dZ_{4,-3}/dS
 double C4_3 = dev_cf_coeffs[6*num_spins + idx];
-h[0] += C4_3*( -3.540261539559861*sx*sy*sz*(-3. + 8.*(sy*sy) + 6.*(sz*sz)) );
-h[1] += C4_3*( -1.7701307697799304*sz*(3. - 3.*(sz*sz) + 2.*(sy*sy)*(-9. + \
-8.*(sy*sy) + 6.*(sz*sz))) );
-h[2] += C4_3*( -1.7701307697799304*sy*(-3. + 4.*(sy*sy) + 3.*(sz*sz))*(-1. + \
+h[0] += C4_3*( 2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
+4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
+h[1] += C4_3*( -4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
+h[2] += C4_3*( -2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + \
 4.*(sz*sz)) );
 
 // -C_{4,-2} dZ_{4,-2}/dS
 double C4_2 = dev_cf_coeffs[7*num_spins + idx];
-h[0] += C4_2*( -0.9461746957575601*sy*(1. - 23.*(sz*sz) + 28.*(sz*sz*sz*sz) + \
-sy*sy*(-2. + 28.*(sz*sz))) );
-h[1] += C4_2*( -0.9461746957575601*sx*(-1. + 7.*(sz*sz) + sy*sy*(2. - \
-28.*(sz*sz))) );
-h[2] += C4_2*( -3.7846987830302403*sx*sy*sz*(4. - 7.*(sz*sz)) );
+h[0] += C4_2*( -2.23606797749979*sx*(-1.*(sy*sy) + 2.*(-2. + \
+7.*(sy*sy))*(sz*sz) + 7.*(sz*sz*sz*sz)) );
+h[1] += C4_2*( -2.23606797749979*sy*(1. - 11.*(sz*sz) + 7.*(sz*sz*sz*sz) + \
+sy*sy*(-1. + 14.*(sz*sz))) );
+h[2] += C4_2*( -2.23606797749979*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-4. + \
+7.*(sz*sz)) );
 
 // -C_{4,-1} dZ_{4,-1}/dS
 double C4_1 = dev_cf_coeffs[8*num_spins + idx];
-h[0] += C4_1*( -1.3380930871145784*sx*sy*sz*(3. - 14.*(sz*sz)) );
-h[1] += C4_1*( -0.6690465435572892*sz*(-3. + 7.*(sz*sz) + sy*sy*(6. - \
-28.*(sz*sz))) );
-h[2] += C4_1*( 0.6690465435572892*sy*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
+h[0] += C4_1*( -0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + \
+sy*sy*(-6. + 28.*(sz*sz))) );
+h[1] += C4_1*( -1.5811388300841898*sx*sy*sz*(3. - 14.*(sz*sz)) );
+h[2] += C4_1*( 0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
 
 // -C_{4,0} dZ_{4,0}/dS
 double C40 = dev_cf_coeffs[9*num_spins + idx];
-h[0] += C40*( -2.115710938304086*sx*(sz*sz)*(3. - 7.*(sz*sz)) );
-h[1] += C40*( -2.115710938304086*sy*(sz*sz)*(3. - 7.*(sz*sz)) );
-h[2] += C40*( 2.115710938304086*sz*(3. - 10.*(sz*sz) + 7.*(sz*sz*sz*sz)) );
+h[0] += C40*( -2.5*sx*(sz*sz)*(3. - 7.*(sz*sz)) );
+h[1] += C40*( -2.5*sy*(sz*sz)*(3. - 7.*(sz*sz)) );
+h[2] += C40*( 2.5*sz*(3. - 10.*(sz*sz) + 7.*(sz*sz*sz*sz)) );
 
 // -C_{4,1} dZ_{4,1}/dS
 double C41 = dev_cf_coeffs[10*num_spins + idx];
-h[0] += C41*( -0.6690465435572892*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + \
+h[0] += C41*( -0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + \
 sy*sy*(-6. + 28.*(sz*sz))) );
-h[1] += C41*( -1.3380930871145784*sx*sy*sz*(3. - 14.*(sz*sz)) );
-h[2] += C41*( 0.6690465435572892*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
+h[1] += C41*( -1.5811388300841898*sx*sy*sz*(3. - 14.*(sz*sz)) );
+h[2] += C41*( 0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
 
 // -C_{4,2} dZ_{4,2}/dS
 double C42 = dev_cf_coeffs[11*num_spins + idx];
-h[0] += C42*( -1.8923493915151202*sx*(-1.*(sy*sy) + 2.*(-2. + \
+h[0] += C42*( -2.23606797749979*sx*(-1.*(sy*sy) + 2.*(-2. + \
 7.*(sy*sy))*(sz*sz) + 7.*(sz*sz*sz*sz)) );
-h[1] += C42*( -1.8923493915151202*sy*(1. - 11.*(sz*sz) + 7.*(sz*sz*sz*sz) + \
+h[1] += C42*( -2.23606797749979*sy*(1. - 11.*(sz*sz) + 7.*(sz*sz*sz*sz) + \
 sy*sy*(-1. + 14.*(sz*sz))) );
-h[2] += C42*( -1.8923493915151202*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-4. + \
+h[2] += C42*( -2.23606797749979*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-4. + \
 7.*(sz*sz)) );
 
 // -C_{4,3} dZ_{4,3}/dS
 double C43 = dev_cf_coeffs[12*num_spins + idx];
-h[0] += C43*( 1.7701307697799304*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
+h[0] += C43*( 2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
 4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
-h[1] += C43*( -3.540261539559861*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
-h[2] += C43*( -1.7701307697799304*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + \
+h[1] += C43*( -4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
+h[2] += C43*( -2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + \
 4.*(sz*sz)) );
 
 // -C_{4,4} dZ_{4,4}/dS
 double C44 = dev_cf_coeffs[13*num_spins + idx];
-h[0] += C44*( 2.5033429417967046*sx*(8.*(sy*sy*sy*sy) - 1.*(sz*sz) + \
+h[0] += C44*( 2.958039891549808*sx*(8.*(sy*sy*sy*sy) - 1.*(sz*sz) + \
 sz*sz*sz*sz + sy*sy*(-4. + 8.*(sz*sz))) );
-h[1] += C44*( 2.5033429417967046*sy*(4. + 8.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
+h[1] += C44*( 2.958039891549808*sy*(4. + 8.*(sy*sy*sy*sy) - 5.*(sz*sz) + \
 sz*sz*sz*sz + 4.*(sy*sy)*(-3. + 2.*(sz*sz))) );
-h[2] += C44*( 2.5033429417967046*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+h[2] += C44*( 2.958039891549808*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
 sy*sy*sy*sy)*sz );
 
 // -C_{6,-6} dZ_{6,-6}/dS
 double C6_6 = dev_cf_coeffs[14*num_spins + idx];
-h[0] += C6_6*( 4.099104631151485*sy*(sx*sx*sx*sx*sx*sx - \
-1.*(sy*sy*sy*sy)*(sy*sy + sz*sz) - 5.*(sx*sx*sx*sx)*(3.*(sy*sy) + sz*sz) + \
-5.*(sx*sx)*(3.*(sy*sy*sy*sy) + 2.*(sy*sy)*(sz*sz))) );
-h[1] += C6_6*( -4.099104631151485*sx*(sx*sx*sx*sx*sx*sx - \
+h[0] += C6_6*( -4.030159736288377*sx*(6.*(sy*sy*sy*sy*sy*sy) + \
+5.*(sy*sy*sy*sy)*(sz*sz) - 10.*(sx*sx)*(sy*sy)*(2.*(sy*sy) + sz*sz) + \
+sx*sx*sx*sx*(6.*(sy*sy) + sz*sz)) );
+h[1] += C6_6*( 4.030159736288377*sy*(6.*(sx*sx*sx*sx*sx*sx) - \
+20.*(sx*sx*sx*sx)*(sy*sy) + 6.*(sx*sx)*(sy*sy*sy*sy) + (5.*(sx*sx*sx*sx) - \
+10.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
+h[2] += C6_6*( 4.030159736288377*(sx*sx*sx*sx*sx*sx - \
 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - \
-1.*(sy*sy*sy*sy*sy*sy) + (sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + \
-5.*(sy*sy*sy*sy))*(sz*sz)) );
-h[2] += C6_6*( 8.19820926230297*(3.*(sx*sx*sx*sx*sx)*sy - \
-10.*(sx*sx*sx)*(sy*sy*sy) + 3.*sx*(sy*sy*sy*sy*sy))*sz );
+1.*(sy*sy*sy*sy*sy*sy))*sz );
 
 // -C_{6,-5} dZ_{6,-5}/dS
 double C6_5 = dev_cf_coeffs[15*num_spins + idx];
-h[0] += C6_5*( 4.733238324463504*sx*sy*sz*(5. - 40.*(sy*sy) + \
-48.*(sy*sy*sy*sy) + 20.*(-1. + 3.*(sy*sy))*(sz*sz) + 15.*(sz*sz*sz*sz)) );
-h[1] += C6_5*( -2.366619162231752*sz*(5.*(sx*sx*sx*sx*sx*sx) - \
-55.*(sx*sx*sx*sx)*(sy*sy) + 35.*(sx*sx)*(sy*sy*sy*sy) - \
-1.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+h[0] += C6_5*( -2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + \
+35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + \
+5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
 sy*sy*sy*sy)*(sz*sz)) );
-h[2] += C6_5*( -2.366619162231752*(5.*(sx*sx*sx*sx)*sy - \
-10.*(sx*sx)*(sy*sy*sy) + sy*sy*sy*sy*sy)*(1. - 6.*(sz*sz)) );
+h[1] += C6_5*( 4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + \
+48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
+h[2] += C6_5*( -2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
+5.*sx*(sy*sy*sy*sy))*(1. - 6.*(sz*sz)) );
 
 // -C_{6,-4} dZ_{6,-4}/dS
 double C6_4 = dev_cf_coeffs[16*num_spins + idx];
-h[0] += C6_4*( 2.0182596029148967*sy*(-1. + 38.*(sz*sz) - 103.*(sz*sz*sz*sz) \
-+ 66.*(sz*sz*sz*sz*sz*sz) + 4.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
-2.*(sy*sy)*(4. - 83.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-h[1] += C6_4*( -2.0182596029148967*sx*(-1. + 8.*(sy*sy) - 8.*(sy*sy*sy*sy) + \
-6.*(2. - 19.*(sy*sy) + 22.*(sy*sy*sy*sy))*(sz*sz) + 11.*(-1. + \
-6.*(sy*sy))*(sz*sz*sz*sz)) );
-h[2] += C6_4*( -4.036519205829793*sx*sy*sz*(-1. + 2.*(sy*sy) + sz*sz)*(-13. + \
-33.*(sz*sz)) );
+h[0] += C6_4*( 0.9921567416492215*sx*(13.*(sz*sz) - 46.*(sz*sz*sz*sz) + \
+33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
+8.*(sy*sy)*(1. - 24.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
+h[1] += C6_4*( 0.9921567416492215*sy*(-8. + 109.*(sz*sz) - 134.*(sz*sz*sz*sz) \
++ 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
+8.*(sy*sy)*(3. - 46.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
+h[2] += C6_4*( -0.9921567416492215*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+sy*sy*sy*sy)*sz*(13. - 33.*(sz*sz)) );
 
 // -C_{6,-3} dZ_{6,-3}/dS
 double C6_3 = dev_cf_coeffs[17*num_spins + idx];
-h[0] += C6_3*( -5.527231557089541*sx*sy*sz*(3. - 28.*(sz*sz) + \
-33.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
-h[1] += C6_3*( -2.7636157785447706*sz*(-3. + 14.*(sz*sz) - 11.*(sz*sz*sz*sz) \
-+ 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + 2.*(sy*sy)*(9. - 50.*(sz*sz) + \
-33.*(sz*sz*sz*sz))) );
-h[2] += C6_3*( -2.7636157785447706*sy*(-3. + 4.*(sy*sy) + 3.*(sz*sz))*(1. - \
+h[0] += C6_3*( 2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + \
+22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + \
+2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
+h[1] += C6_3*( -5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + \
+11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
+h[2] += C6_3*( -2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - \
 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
 
 // -C_{6,-2} dZ_{6,-2}/dS
 double C6_2 = dev_cf_coeffs[18*num_spins + idx];
-h[0] += C6_2*( -0.9212052595149236*sy*(-1. + 2.*(sy*sy) + 8.*(7. - \
-9.*(sy*sy))*(sz*sz) + 3.*(-79. + 66.*(sy*sy))*(sz*sz*sz*sz) + \
-198.*(sz*sz*sz*sz*sz*sz)) );
-h[1] += C6_2*( -0.9212052595149236*sx*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz) - \
-2.*(sy*sy)*(1. - 36.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-h[2] += C6_2*( 1.8424105190298472*sx*sy*sz*(19. - 102.*(sz*sz) + \
-99.*(sz*sz*sz*sz)) );
+h[0] += C6_2*( -0.9057110466368399*sx*(2.*(sy*sy) + (19. - \
+72.*(sy*sy))*(sz*sz) + 6.*(-17. + 33.*(sy*sy))*(sz*sz*sz*sz) + \
+99.*(sz*sz*sz*sz*sz*sz)) );
+h[1] += C6_2*( -0.9057110466368399*sy*(-2. + 55.*(sz*sz) - 168.*(sz*sz*sz*sz) \
++ 99.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(1. - 36.*(sz*sz) + \
+99.*(sz*sz*sz*sz))) );
+h[2] += C6_2*( -0.9057110466368399*sz*(-1. + 2.*(sy*sy) + sz*sz)*(19. - \
+102.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
 
 // -C_{6,-1} dZ_{6,-1}/dS
 double C6_1 = dev_cf_coeffs[19*num_spins + idx];
-h[0] += C6_1*( 1.1652427250374628*sx*sy*sz*(5. - 60.*(sz*sz) + \
+h[0] += C6_1*( -0.57282196186948*sz*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) \
++ 198.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(5. - 60.*(sz*sz) + \
+99.*(sz*sz*sz*sz))) );
+h[1] += C6_1*( 1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + \
 99.*(sz*sz*sz*sz)) );
-h[1] += C6_1*( -0.5826213625187314*sz*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz) - \
-2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-h[2] += C6_1*( -0.5826213625187314*sy*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) \
-- 198.*(sz*sz*sz*sz*sz*sz)) );
+h[2] += C6_1*( -0.57282196186948*sx*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - \
+198.*(sz*sz*sz*sz*sz*sz)) );
 
 // -C_{6,0} dZ_{6,0}/dS
 double C60 = dev_cf_coeffs[20*num_spins + idx];
-h[0] += C60*( 2.6699064952403937*sx*(sz*sz)*(5. - 30.*(sz*sz) + \
-33.*(sz*sz*sz*sz)) );
-h[1] += C60*( 2.6699064952403937*sy*(sz*sz)*(5. - 30.*(sz*sz) + \
-33.*(sz*sz*sz*sz)) );
-h[2] += C60*( 2.6699064952403937*sz*(-5. + 35.*(sz*sz) - 63.*(sz*sz*sz*sz) + \
+h[0] += C60*( 2.625*sx*(sz*sz)*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz)) );
+h[1] += C60*( 2.625*sy*(sz*sz)*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz)) );
+h[2] += C60*( 2.625*sz*(-5. + 35.*(sz*sz) - 63.*(sz*sz*sz*sz) + \
 33.*(sz*sz*sz*sz*sz*sz)) );
 
 // -C_{6,1} dZ_{6,1}/dS
 double C61 = dev_cf_coeffs[21*num_spins + idx];
-h[0] += C61*( -0.5826213625187314*sz*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) \
-+ 198.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(5. - 60.*(sz*sz) + \
-99.*(sz*sz*sz*sz))) );
-h[1] += C61*( 1.1652427250374628*sx*sy*sz*(5. - 60.*(sz*sz) + \
+h[0] += C61*( -0.57282196186948*sz*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) + \
+198.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) \
+);
+h[1] += C61*( 1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + \
 99.*(sz*sz*sz*sz)) );
-h[2] += C61*( -0.5826213625187314*sx*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) \
-- 198.*(sz*sz*sz*sz*sz*sz)) );
+h[2] += C61*( -0.57282196186948*sx*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - \
+198.*(sz*sz*sz*sz*sz*sz)) );
 
 // -C_{6,2} dZ_{6,2}/dS
 double C62 = dev_cf_coeffs[22*num_spins + idx];
-h[0] += C62*( -0.9212052595149236*sx*(2.*(sy*sy) + (19. - \
+h[0] += C62*( -0.9057110466368399*sx*(2.*(sy*sy) + (19. - \
 72.*(sy*sy))*(sz*sz) + 6.*(-17. + 33.*(sy*sy))*(sz*sz*sz*sz) + \
 99.*(sz*sz*sz*sz*sz*sz)) );
-h[1] += C62*( -0.9212052595149236*sy*(-2. + 55.*(sz*sz) - 168.*(sz*sz*sz*sz) \
+h[1] += C62*( -0.9057110466368399*sy*(-2. + 55.*(sz*sz) - 168.*(sz*sz*sz*sz) \
 + 99.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(1. - 36.*(sz*sz) + \
 99.*(sz*sz*sz*sz))) );
-h[2] += C62*( -0.9212052595149236*sz*(-1. + 2.*(sy*sy) + sz*sz)*(19. - \
+h[2] += C62*( -0.9057110466368399*sz*(-1. + 2.*(sy*sy) + sz*sz)*(19. - \
 102.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
 
 // -C_{6,3} dZ_{6,3}/dS
 double C63 = dev_cf_coeffs[23*num_spins + idx];
-h[0] += C63*( 2.7636157785447706*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + \
+h[0] += C63*( 2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + \
 22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + \
 2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
-h[1] += C63*( -5.527231557089541*sx*sy*sz*(5. - 24.*(sz*sz) + \
+h[1] += C63*( -5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + \
 11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
-h[2] += C63*( -2.7636157785447706*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - \
+h[2] += C63*( -2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - \
 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
 
 // -C_{6,4} dZ_{6,4}/dS
 double C64 = dev_cf_coeffs[24*num_spins + idx];
-h[0] += C64*( 1.0091298014574483*sx*(13.*(sz*sz) - 46.*(sz*sz*sz*sz) + \
+h[0] += C64*( 0.9921567416492215*sx*(13.*(sz*sz) - 46.*(sz*sz*sz*sz) + \
 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
 8.*(sy*sy)*(1. - 24.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
-h[1] += C64*( 1.0091298014574483*sy*(-8. + 109.*(sz*sz) - 134.*(sz*sz*sz*sz) \
+h[1] += C64*( 0.9921567416492215*sy*(-8. + 109.*(sz*sz) - 134.*(sz*sz*sz*sz) \
 + 33.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 33.*(sz*sz)) + \
 8.*(sy*sy)*(3. - 46.*(sz*sz) + 33.*(sz*sz*sz*sz))) );
-h[2] += C64*( -1.0091298014574483*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
+h[2] += C64*( -0.9921567416492215*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
 sy*sy*sy*sy)*sz*(13. - 33.*(sz*sz)) );
 
 // -C_{6,5} dZ_{6,5}/dS
 double C65 = dev_cf_coeffs[25*num_spins + idx];
-h[0] += C65*( -2.366619162231752*sz*(-1.*(sx*sx*sx*sx*sx*sx) + \
+h[0] += C65*( -2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + \
 35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + \
 5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + \
 sy*sy*sy*sy)*(sz*sz)) );
-h[1] += C65*( 4.733238324463504*sx*sy*sz*(13. - 56.*(sy*sy) + \
+h[1] += C65*( 4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + \
 48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
-h[2] += C65*( -2.366619162231752*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
+h[2] += C65*( -2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + \
 5.*sx*(sy*sy*sy*sy))*(1. - 6.*(sz*sz)) );
 
 // -C_{6,6} dZ_{6,6}/dS
 double C66 = dev_cf_coeffs[26*num_spins + idx];
-h[0] += C66*( -4.099104631151485*sx*(6.*(sy*sy*sy*sy*sy*sy) + \
+h[0] += C66*( -4.030159736288377*sx*(6.*(sy*sy*sy*sy*sy*sy) + \
 5.*(sy*sy*sy*sy)*(sz*sz) - 10.*(sx*sx)*(sy*sy)*(2.*(sy*sy) + sz*sz) + \
 sx*sx*sx*sx*(6.*(sy*sy) + sz*sz)) );
-h[1] += C66*( 4.099104631151485*sy*(6.*(sx*sx*sx*sx*sx*sx) - \
+h[1] += C66*( 4.030159736288377*sy*(6.*(sx*sx*sx*sx*sx*sx) - \
 20.*(sx*sx*sx*sx)*(sy*sy) + 6.*(sx*sx)*(sy*sy*sy*sy) + (5.*(sx*sx*sx*sx) - \
 10.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
-h[2] += C66*( 4.099104631151485*(sx*sx*sx*sx*sx*sx - \
+h[2] += C66*( 4.030159736288377*(sx*sx*sx*sx*sx*sx - \
 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - \
 1.*(sy*sy*sy*sy*sy*sy))*sz );
 \
 \>", "Print",
  CellChangeTimes->{{3.928575087700672*^9, 3.928575102601547*^9}, 
    3.9285751501131487`*^9, {3.928575233747437*^9, 3.928575262025721*^9}, 
-   3.930647550820323*^9, 3.930715350769292*^9},
+   3.930647550820323*^9, 3.930715350769292*^9, 3.9318609899064407`*^9, 
+   3.931861593591289*^9},
  CellLabel->
   "During evaluation of \
-In[80]:=",ExpressionUUID->"e2a7ee97-4317-459c-86e3-88f594e4743a"]
+In[38]:=",ExpressionUUID->"ffc693cd-183c-4537-a1b4-9811afa12f26"]
 }, Open  ]]
 },
 WindowSize->{1280, 1387},
@@ -1518,22 +1576,22 @@ CellTagsIndex->{}
 (*NotebookFileOutline
 Notebook[{
 Cell[558, 20, 1191, 31, 94, "Input",ExpressionUUID->"f3eaf6b6-ee5c-4ba3-8750-03c867f2286d"],
-Cell[1752, 53, 14388, 305, 520, "Input",ExpressionUUID->"88868abf-989c-41f1-8d04-160a16d0ed66"],
+Cell[1752, 53, 14767, 310, 562, "Input",ExpressionUUID->"88868abf-989c-41f1-8d04-160a16d0ed66"],
 Cell[CellGroupData[{
-Cell[16165, 362, 3771, 80, 262, "Input",ExpressionUUID->"20fc15f6-c58a-437f-886e-0c41404925c8"],
-Cell[19939, 444, 4257, 122, 1384, "Print",ExpressionUUID->"04f93c58-b15e-411f-88a0-40d70bd0b71c"]
+Cell[16544, 367, 4224, 91, 262, "Input",ExpressionUUID->"20fc15f6-c58a-437f-886e-0c41404925c8"],
+Cell[20771, 460, 4489, 125, 1384, "Print",ExpressionUUID->"3b3cdcf9-b987-417f-9050-bcf11ccf8dde"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[24233, 571, 4166, 93, 283, "Input",ExpressionUUID->"32ded60a-11f4-4950-8152-694ad14ee92b"],
-Cell[28402, 666, 11167, 243, 2761, "Print",ExpressionUUID->"c76b3756-9d73-4811-976b-b7c62321f8e2"]
+Cell[25297, 590, 4520, 103, 283, "Input",ExpressionUUID->"32ded60a-11f4-4950-8152-694ad14ee92b"],
+Cell[29820, 695, 11350, 246, 2761, "Print",ExpressionUUID->"70e2cfe0-d8e9-4cdc-8ad1-56014695eeb2"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[39606, 914, 3397, 75, 262, "Input",ExpressionUUID->"bc006230-b674-48dd-b535-8abd4317f768"],
-Cell[43006, 991, 3735, 114, 1384, "Print",ExpressionUUID->"d35f1635-2d2f-4f66-8b17-29541810a825"]
+Cell[41207, 946, 3777, 85, 262, "Input",ExpressionUUID->"bc006230-b674-48dd-b535-8abd4317f768"],
+Cell[44987, 1033, 3853, 117, 1384, "Print",ExpressionUUID->"366eccaf-7ad4-4527-a794-390ff019f5df"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[46778, 1110, 7646, 143, 325, "Input",ExpressionUUID->"1e84f5fe-bc2c-4d95-9648-e87313f30c47"],
-Cell[54427, 1255, 11186, 244, 2761, "Print",ExpressionUUID->"e2a7ee97-4317-459c-86e3-88f594e4743a"]
+Cell[48877, 1155, 8007, 153, 355, "Input",ExpressionUUID->"1e84f5fe-bc2c-4d95-9648-e87313f30c47"],
+Cell[56887, 1310, 11351, 247, 2761, "Print",ExpressionUUID->"ffc693cd-183c-4537-a1b4-9811afa12f26"]
 }, Open  ]]
 }
 ]
