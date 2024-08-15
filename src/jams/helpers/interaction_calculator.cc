@@ -32,7 +32,7 @@ namespace jams {
           for (auto k = -num_cells[2]; k < num_cells[2] + 1; ++k) {
             auto cell_offset = Vec3i{{i, j, k}};
             for (auto n = 0; n < motif.size(); ++n) {
-              auto r = motif[n].position + cell_offset;
+              auto r = motif[n].fractional_position + cell_offset;
               atoms.push_back({counter, motif[n].material_index, n, r});
               counter++;
             }
@@ -41,10 +41,10 @@ namespace jams {
       }
 
       for (auto n = 0; n < motif.size(); ++n) {
-        auto origin = motif[n].position;
+        auto origin = motif[n].fractional_position;
 
         auto cartesian_distance = [unitcell, origin](const Atom &a) -> double {
-            return norm(unitcell.matrix() * (a.position - origin));
+            return norm(unitcell.matrix() * (a.fractional_position - origin));
         };
 
         auto cartesian_distance_comp = [&](const Atom &a, const Atom &b) -> bool {
@@ -85,7 +85,7 @@ namespace jams {
 
           data.unit_cell_pos_i = n;
           data.unit_cell_pos_j = atom.motif_index;
-          data.r_ij = unitcell.matrix() * (atom.position - origin);
+          data.r_ij = unitcell.matrix() * (atom.fractional_position - origin);
           data.type_i = ::globals::lattice->material_name(motif[n].material_index);
           data.type_j = ::globals::lattice->material_name(atom.material_index);
 
