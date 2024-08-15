@@ -167,7 +167,7 @@ CrystalFieldHamiltonian::TesseralHarmonicCoefficientMap CrystalFieldHamiltonian:
       if (m == 0) {
         C_lm = spherical_coefficients.at({l, m});
       } else {
-        C_lm = std::sqrt(2) * spherical_coefficients.at({l, -m});
+        C_lm = spherical_coefficients.at({l, -m}) / std::sqrt(2);
       }
 
       // We need to check that the imaginary parts are very close to zero. However, this depends on the units
@@ -228,9 +228,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{2,-1} dZ_{2,-1}/dS
   double C2_1 = crystal_field_tesseral_coeff_(1, i);
-  h[0] += C2_1*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
-  h[1] += C2_1*( 3.4641016151377544*sx*sy*sz );
-  h[2] += C2_1*( -1.7320508075688772*sx*(1. - 2.*(sz*sz)) );
+  h[0] += C2_1*( 1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
+  h[1] += C2_1*( -3.4641016151377544*sx*sy*sz );
+  h[2] += C2_1*( -1.7320508075688772*sx*(-1. + 2.*(sz*sz)) );
 
 // -C_{2,0} dZ_{2,0}/dS
   double C20 = crystal_field_tesseral_coeff_(2, i);
@@ -240,9 +240,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{2,1} dZ_{2,1}/dS
   double C21 = crystal_field_tesseral_coeff_(3, i);
-  h[0] += C21*( -1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
-  h[1] += C21*( 3.4641016151377544*sx*sy*sz );
-  h[2] += C21*( -1.7320508075688772*sx*(1. - 2.*(sz*sz)) );
+  h[0] += C21*( 1.7320508075688772*sz*(-1. + 2.*(sy*sy) + 2.*(sz*sz)) );
+  h[1] += C21*( -3.4641016151377544*sx*sy*sz );
+  h[2] += C21*( -1.7320508075688772*sx*(-1. + 2.*(sz*sz)) );
 
 // -C_{2,2} dZ_{2,2}/dS
   double C22 = crystal_field_tesseral_coeff_(4, i);
@@ -258,9 +258,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{4,-3} dZ_{4,-3}/dS
   double C4_3 = crystal_field_tesseral_coeff_(6, i);
-  h[0] += C4_3*( 2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + 4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
-  h[1] += C4_3*( -4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
-  h[2] += C4_3*( -2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + 4.*(sz*sz)) );
+  h[0] += C4_3*( -2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + 4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
+  h[1] += C4_3*( 4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
+  h[2] += C4_3*( 2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + 4.*(sz*sz)) );
 
 // -C_{4,-2} dZ_{4,-2}/dS
   double C4_2 = crystal_field_tesseral_coeff_(7, i);
@@ -270,9 +270,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{4,-1} dZ_{4,-1}/dS
   double C4_1 = crystal_field_tesseral_coeff_(8, i);
-  h[0] += C4_1*( -0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + sy*sy*(-6. + 28.*(sz*sz))) );
-  h[1] += C4_1*( -1.5811388300841898*sx*sy*sz*(3. - 14.*(sz*sz)) );
-  h[2] += C4_1*( 0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
+  h[0] += C4_1*( 0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + sy*sy*(-6. + 28.*(sz*sz))) );
+  h[1] += C4_1*( -1.5811388300841898*sx*sy*sz*(-3. + 14.*(sz*sz)) );
+  h[2] += C4_1*( -0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
 
 // -C_{4,0} dZ_{4,0}/dS
   double C40 = crystal_field_tesseral_coeff_(9, i);
@@ -282,9 +282,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{4,1} dZ_{4,1}/dS
   double C41 = crystal_field_tesseral_coeff_(10, i);
-  h[0] += C41*( -0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + sy*sy*(-6. + 28.*(sz*sz))) );
-  h[1] += C41*( -1.5811388300841898*sx*sy*sz*(3. - 14.*(sz*sz)) );
-  h[2] += C41*( 0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
+  h[0] += C41*( 0.7905694150420949*sz*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz) + sy*sy*(-6. + 28.*(sz*sz))) );
+  h[1] += C41*( -1.5811388300841898*sx*sy*sz*(-3. + 14.*(sz*sz)) );
+  h[2] += C41*( -0.7905694150420949*sx*(3. - 27.*(sz*sz) + 28.*(sz*sz*sz*sz)) );
 
 // -C_{4,2} dZ_{4,2}/dS
   double C42 = crystal_field_tesseral_coeff_(11, i);
@@ -294,9 +294,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{4,3} dZ_{4,3}/dS
   double C43 = crystal_field_tesseral_coeff_(12, i);
-  h[0] += C43*( 2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + 4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
-  h[1] += C43*( -4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
-  h[2] += C43*( -2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + 4.*(sz*sz)) );
+  h[0] += C43*( -2.091650066335189*sz*(1. + 16.*(sy*sy*sy*sy) - 5.*(sz*sz) + 4.*(sz*sz*sz*sz) + 2.*(sy*sy)*(-7. + 10.*(sz*sz))) );
+  h[1] += C43*( 4.183300132670378*sx*sy*sz*(-5. + 8.*(sy*sy) + 2.*(sz*sz)) );
+  h[2] += C43*( 2.091650066335189*sx*(-1. + 4.*(sy*sy) + sz*sz)*(-1. + 4.*(sz*sz)) );
 
 // -C_{4,4} dZ_{4,4}/dS
   double C44 = crystal_field_tesseral_coeff_(13, i);
@@ -312,9 +312,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{6,-5} dZ_{6,-5}/dS
   double C6_5 = crystal_field_tesseral_coeff_(15, i);
-  h[0] += C6_5*( -2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + 35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + 5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
-  h[1] += C6_5*( 4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + 48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
-  h[2] += C6_5*( -2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + 5.*sx*(sy*sy*sy*sy))*(1. - 6.*(sz*sz)) );
+  h[0] += C6_5*( 2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + 35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + 5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
+  h[1] += C6_5*( -4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + 48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
+  h[2] += C6_5*( -2.3268138086232857*sx*(sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + 5.*(sy*sy*sy*sy))*(-1. + 6.*(sz*sz)) );
 
 // -C_{6,-4} dZ_{6,-4}/dS
   double C6_4 = crystal_field_tesseral_coeff_(16, i);
@@ -324,9 +324,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{6,-3} dZ_{6,-3}/dS
   double C6_3 = crystal_field_tesseral_coeff_(17, i);
-  h[0] += C6_3*( 2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + 22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + 2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
-  h[1] += C6_3*( -5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + 11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
-  h[2] += C6_3*( -2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
+  h[0] += C6_3*( -2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + 22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + 2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
+  h[1] += C6_3*( 5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + 11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
+  h[2] += C6_3*( 2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
 
 // -C_{6,-2} dZ_{6,-2}/dS
   double C6_2 = crystal_field_tesseral_coeff_(18, i);
@@ -336,9 +336,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{6,-1} dZ_{6,-1}/dS
   double C6_1 = crystal_field_tesseral_coeff_(19, i);
-  h[0] += C6_1*( -0.57282196186948*sz*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) + 198.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-  h[1] += C6_1*( 1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
-  h[2] += C6_1*( -0.57282196186948*sx*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - 198.*(sz*sz*sz*sz*sz*sz)) );
+  h[0] += C6_1*( -0.57282196186948*sz*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - 198.*(sz*sz*sz*sz*sz*sz) - 2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
+  h[1] += C6_1*( -1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
+  h[2] += C6_1*( -0.57282196186948*sx*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) + 198.*(sz*sz*sz*sz*sz*sz)) );
 
 // -C_{6,0} dZ_{6,0}/dS
   double C60 = crystal_field_tesseral_coeff_(20, i);
@@ -348,9 +348,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{6,1} dZ_{6,1}/dS
   double C61 = crystal_field_tesseral_coeff_(21, i);
-  h[0] += C61*( -0.57282196186948*sz*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) + 198.*(sz*sz*sz*sz*sz*sz) + 2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
-  h[1] += C61*( 1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
-  h[2] += C61*( -0.57282196186948*sx*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - 198.*(sz*sz*sz*sz*sz*sz)) );
+  h[0] += C61*( -0.57282196186948*sz*(5. - 100.*(sz*sz) + 285.*(sz*sz*sz*sz) - 198.*(sz*sz*sz*sz*sz*sz) - 2.*(sy*sy)*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz))) );
+  h[1] += C61*( -1.14564392373896*sx*sy*sz*(5. - 60.*(sz*sz) + 99.*(sz*sz*sz*sz)) );
+  h[2] += C61*( -0.57282196186948*sx*(-5. + 100.*(sz*sz) - 285.*(sz*sz*sz*sz) + 198.*(sz*sz*sz*sz*sz*sz)) );
 
 // -C_{6,2} dZ_{6,2}/dS
   double C62 = crystal_field_tesseral_coeff_(22, i);
@@ -360,9 +360,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{6,3} dZ_{6,3}/dS
   double C63 = crystal_field_tesseral_coeff_(23, i);
-  h[0] += C63*( 2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + 22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + 2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
-  h[1] += C63*( -5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + 11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
-  h[2] += C63*( -2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
+  h[0] += C63*( -2.7171331399105196*sz*(-1. + 16.*(sz*sz) - 37.*(sz*sz*sz*sz) + 22.*(sz*sz*sz*sz*sz*sz) + 8.*(sy*sy*sy*sy)*(-2. + 11.*(sz*sz)) + 2.*(sy*sy)*(7. - 54.*(sz*sz) + 55.*(sz*sz*sz*sz))) );
+  h[1] += C63*( 5.434266279821039*sx*sy*sz*(5. - 24.*(sz*sz) + 11.*(sz*sz*sz*sz) + sy*sy*(-8. + 44.*(sz*sz))) );
+  h[2] += C63*( 2.7171331399105196*sx*(-1. + 4.*(sy*sy) + sz*sz)*(1. - 15.*(sz*sz) + 22.*(sz*sz*sz*sz)) );
 
 // -C_{6,4} dZ_{6,4}/dS
   double C64 = crystal_field_tesseral_coeff_(24, i);
@@ -372,9 +372,9 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
 
 // -C_{6,5} dZ_{6,5}/dS
   double C65 = crystal_field_tesseral_coeff_(25, i);
-  h[0] += C65*( -2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + 35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + 5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
-  h[1] += C65*( 4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + 48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
-  h[2] += C65*( -2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + 5.*sx*(sy*sy*sy*sy))*(1. - 6.*(sz*sz)) );
+  h[0] += C65*( 2.3268138086232857*sz*(-1.*(sx*sx*sx*sx*sx*sx) + 35.*(sx*sx*sx*sx)*(sy*sy) - 55.*(sx*sx)*(sy*sy*sy*sy) + 5.*(sy*sy*sy*sy*sy*sy) + 5.*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
+  h[1] += C65*( -4.653627617246571*sx*sy*sz*(13. - 56.*(sy*sy) + 48.*(sy*sy*sy*sy) + 4.*(-4. + 9.*(sy*sy))*(sz*sz) + 3.*(sz*sz*sz*sz)) );
+  h[2] += C65*( -2.3268138086232857*sx*(sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + 5.*(sy*sy*sy*sy))*(-1. + 6.*(sz*sz)) );
 
 // -C_{6,6} dZ_{6,6}/dS
   double C66 = crystal_field_tesseral_coeff_(26, i);
@@ -408,13 +408,13 @@ double CrystalFieldHamiltonian::crystal_field_energy(int i, const Vec3 &s) {
   energy += crystal_field_tesseral_coeff_(0, i) * 0.8660254037844386*(sx - 1.*sy)*(sx + sy);
 
 // C_{2,-1} Z_{2,-1}
-  energy += crystal_field_tesseral_coeff_(1, i) * 1.7320508075688772*sx*sz;
+  energy += crystal_field_tesseral_coeff_(1, i) * -1.7320508075688772*sx*sz;
 
 // C_{2,0} Z_{2,0}
   energy += crystal_field_tesseral_coeff_(2, i) * 0.5*(-1. + 3.*(sz*sz));
 
 // C_{2,1} Z_{2,1}
-  energy += crystal_field_tesseral_coeff_(3, i) * 1.7320508075688772*sx*sz;
+  energy += crystal_field_tesseral_coeff_(3, i) * -1.7320508075688772*sx*sz;
 
 // C_{2,2} Z_{2,2}
   energy += crystal_field_tesseral_coeff_(4, i) * 0.8660254037844386*(sx - 1.*sy)*(sx + sy);
@@ -423,25 +423,25 @@ double CrystalFieldHamiltonian::crystal_field_energy(int i, const Vec3 &s) {
   energy += crystal_field_tesseral_coeff_(5, i) * 0.739509972887452*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy);
 
 // C_{4,-3} Z_{4,-3}
-  energy += crystal_field_tesseral_coeff_(6, i) * 2.091650066335189*(sx*sx*sx - 3.*sx*(sy*sy))*sz;
+  energy += crystal_field_tesseral_coeff_(6, i) * 2.091650066335189*sx*sz*(-1. + 4.*(sy*sy) + sz*sz);
 
 // C_{4,-2} Z_{4,-2}
   energy += crystal_field_tesseral_coeff_(7, i) * -0.5590169943749475*(-1. + 2.*(sy*sy) + sz*sz)*(-1. + 7.*(sz*sz));
 
 // C_{4,-1} Z_{4,-1}
-  energy += crystal_field_tesseral_coeff_(8, i) * 0.7905694150420949*sx*sz*(-3. + 7.*(sz*sz));
+  energy += crystal_field_tesseral_coeff_(8, i) * 0.7905694150420949*sx*sz*(3. - 7.*(sz*sz));
 
 // C_{4,0} Z_{4,0}
   energy += crystal_field_tesseral_coeff_(9, i) * 0.125*(3. - 30.*(sz*sz) + 35.*(sz*sz*sz*sz));
 
 // C_{4,1} Z_{4,1}
-  energy += crystal_field_tesseral_coeff_(10, i) * 0.7905694150420949*sx*sz*(-3. + 7.*(sz*sz));
+  energy += crystal_field_tesseral_coeff_(10, i) * 0.7905694150420949*sx*sz*(3. - 7.*(sz*sz));
 
 // C_{4,2} Z_{4,2}
   energy += crystal_field_tesseral_coeff_(11, i) * -0.5590169943749475*(-1. + 2.*(sy*sy) + sz*sz)*(-1. + 7.*(sz*sz));
 
 // C_{4,3} Z_{4,3}
-  energy += crystal_field_tesseral_coeff_(12, i) * 2.091650066335189*(sx*sx*sx - 3.*sx*(sy*sy))*sz;
+  energy += crystal_field_tesseral_coeff_(12, i) * 2.091650066335189*sx*sz*(-1. + 4.*(sy*sy) + sz*sz);
 
 // C_{4,4} Z_{4,4}
   energy += crystal_field_tesseral_coeff_(13, i) * 0.739509972887452*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy);
@@ -450,40 +450,39 @@ double CrystalFieldHamiltonian::crystal_field_energy(int i, const Vec3 &s) {
   energy += crystal_field_tesseral_coeff_(14, i) * 0.6716932893813962*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy));
 
 // C_{6,-5} Z_{6,-5}
-  energy += crystal_field_tesseral_coeff_(15, i) * 2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + 5.*sx*(sy*sy*sy*sy))*sz;
+  energy += crystal_field_tesseral_coeff_(15, i) * -2.3268138086232857*sx*(sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + 5.*(sy*sy*sy*sy))*sz;
 
 // C_{6,-4} Z_{6,-4}
   energy += crystal_field_tesseral_coeff_(16, i) * 0.49607837082461076*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + 11.*(sz*sz));
 
 // C_{6,-3} Z_{6,-3}
-  energy += crystal_field_tesseral_coeff_(17, i) * -0.9057110466368399*sx*sz*(-1. + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
+  energy += crystal_field_tesseral_coeff_(17, i) * 0.9057110466368399*sx*sz*(-1. + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
 
 // C_{6,-2} Z_{6,-2}
   energy += crystal_field_tesseral_coeff_(18, i) * -0.45285552331841994*(-1. + 2.*(sy*sy) + sz*sz)*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,-1} Z_{6,-1}
-  energy += crystal_field_tesseral_coeff_(19, i) * 0.57282196186948*sx*sz*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
+  energy += crystal_field_tesseral_coeff_(19, i) * -0.57282196186948*sx*sz*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,0} Z_{6,0}
   energy += crystal_field_tesseral_coeff_(20, i) * 0.0625*(-5. + 21.*(sz*sz)*(5. - 15.*(sz*sz) + 11.*(sz*sz*sz*sz)));
 
 // C_{6,1} Z_{6,1}
-  energy += crystal_field_tesseral_coeff_(21, i) * 0.57282196186948*sx*sz*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
+  energy += crystal_field_tesseral_coeff_(21, i) * -0.57282196186948*sx*sz*(5. - 30.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,2} Z_{6,2}
   energy += crystal_field_tesseral_coeff_(22, i) * -0.45285552331841994*(-1. + 2.*(sy*sy) + sz*sz)*(1. - 18.*(sz*sz) + 33.*(sz*sz*sz*sz));
 
 // C_{6,3} Z_{6,3}
-  energy += crystal_field_tesseral_coeff_(23, i) * -0.9057110466368399*sx*sz*(-1. + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
+  energy += crystal_field_tesseral_coeff_(23, i) * 0.9057110466368399*sx*sz*(-1. + 4.*(sy*sy) + sz*sz)*(-3. + 11.*(sz*sz));
 
 // C_{6,4} Z_{6,4}
   energy += crystal_field_tesseral_coeff_(24, i) * 0.49607837082461076*(sx*sx*sx*sx - 6.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(-1. + 11.*(sz*sz));
 
 // C_{6,5} Z_{6,5}
-  energy += crystal_field_tesseral_coeff_(25, i) * 2.3268138086232857*(sx*sx*sx*sx*sx - 10.*(sx*sx*sx)*(sy*sy) + 5.*sx*(sy*sy*sy*sy))*sz;
+  energy += crystal_field_tesseral_coeff_(25, i) * -2.3268138086232857*sx*(sx*sx*sx*sx - 10.*(sx*sx)*(sy*sy) + 5.*(sy*sy*sy*sy))*sz;
 
 // C_{6,6} Z_{6,6}
   energy += crystal_field_tesseral_coeff_(26, i) * 0.6716932893813962*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy));
-
   return energy;
 }
