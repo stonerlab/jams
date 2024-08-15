@@ -184,7 +184,7 @@ MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 
 
   for (auto a = 0; a < num_sites; ++a) {
     // structure factor: note that q and r are in fractional coordinates (hkl, abc)
-    const Vec3 r = globals::lattice->motif_atom(a).position;
+    const Vec3 r = globals::lattice->motif_atom(a).fractional_position;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
         auto q = kpoint.hkl;

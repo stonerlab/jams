@@ -225,8 +225,8 @@ jams::MultiArray<Complex, 4>
 CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
     using std::pow;
 
-    const Vec3 r_frac_i = globals::lattice->motif_atom(pos_i).position;
-    const Vec3 r_frac_j = globals::lattice->motif_atom(pos_j).position;
+    const Vec3 r_frac_i = globals::lattice->motif_atom(pos_i).fractional_position;
+    const Vec3 r_frac_j = globals::lattice->motif_atom(pos_j).fractional_position;
 
     const Vec3 r_cart_i = globals::lattice->fractional_to_cartesian(r_frac_i);
     const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
