@@ -98,21 +98,6 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
     }
   }
 
-  // Curand will only generate noise for arrays which are multiples of 2
-  // so we sometimes have to make the size of the white noise array artificially
-  // larger. We can't just add 1 element to the total white_noise_ because when
-  // we generate random numbers later we will be generating only 3*num_spins
-  // numbers at each step. So we adjust 3*num_spins to make sure it's even.
-
-  num_spins3_even_ = (3 * num_spins) + ((3 * num_spins) % 2);
-
-  white_noise_.resize(num_spins3_even_ * (2 * num_trunc_ + 1));
-  CHECK_CURAND_STATUS(
-      curandGenerateNormalDouble(jams::instance().curand_generator(),
-                                 white_noise_.device_data(),
-                                 white_noise_.size(), 0.0, 1.0));
-
-
   // Define the spectral function P(omega) as a lambda
   std::function<double(double)> lorentzian_spectral_function;
 
@@ -166,16 +151,72 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
     throw std::runtime_error("unknown spectrum type '" + noise_spectrum_type +"'");
   }
 
+  num_freq_ = 10000;
   // Generate the discrete filter F(n) = sqrt(P(n * delta_omega))
-  auto discrete_filter = discrete_psd_filter(lorentzian_spectral_function, delta_omega_, num_freq_);
-
+  auto discrete_filter = discrete_sqrt_psd(lorentzian_spectral_function, delta_omega_, num_freq_);
   // Do the fourier transform to go from frequency space into sqrt(P(omega)) -> K(t - t')
   auto convoluted_filter = discrete_real_fourier_transform(discrete_filter);
+
+  for (auto n = 0; n < 499; ++n) {
+    int trial_num_freq = num_freq_ += 10000;
+    auto trial_psd =
+        discrete_sqrt_psd(lorentzian_spectral_function, max_omega_ / double(trial_num_freq), trial_num_freq);
+    auto trial_filter =  discrete_real_fourier_transform(trial_psd);
+
+    bool close_enough = true;
+    for (auto i = 0; i < convoluted_filter.size(); ++i ) {
+      if (!approximately_equal(convoluted_filter[i], trial_filter[i], 1e-7)) {
+        close_enough = false;
+        break;
+      }
+    }
+
+    if (close_enough) {
+      break;
+    }
+
+    num_freq_ = trial_num_freq;
+    discrete_filter = trial_psd;
+    convoluted_filter = trial_filter;
+  };
+
+  std::cout << "auto configured num_freq: " << num_freq_ << std::endl;
+
+  std::vector<double> block_sums;
+  for (size_t i = 0; i < convoluted_filter.size(); i += 500) {
+    auto block_sum = std::accumulate(convoluted_filter.begin() + i, convoluted_filter.begin() + std::min(i + 500, convoluted_filter.size()), 0.0);
+    block_sums.push_back(block_sum);
+  }
+
+  for (auto i = 1; i < block_sums.size(); ++i) {
+    if (approximately_zero(block_sums[i], 1e-3) && approximately_zero(block_sums[i-1], 1e-3)) {
+      num_trunc_ = 500 * (i-1);
+      break;
+    }
+  }
+
+  std::cout << "auto configured num_trunc: " << num_trunc_ << std::endl;
+
 
   // We will do a truncated sum for the real time convolution so we only need to copy
   // forward part of the filter.
   filter_.resize(num_trunc_);
   std::copy(convoluted_filter.begin(), convoluted_filter.begin()+num_trunc_, filter_.begin());
+
+  // Curand will only generate noise for arrays which are multiples of 2
+  // so we sometimes have to make the size of the white noise array artificially
+  // larger. We can't just add 1 element to the total white_noise_ because when
+  // we generate random numbers later we will be generating only 3*num_spins
+  // numbers at each step. So we adjust 3*num_spins to make sure it's even.
+
+  num_spins3_even_ = (3 * num_spins) + ((3 * num_spins) % 2);
+
+  white_noise_.resize(num_spins3_even_ * (2 * num_trunc_ + 1));
+  CHECK_CURAND_STATUS(
+      curandGenerateNormalDouble(jams::instance().curand_generator(),
+                                 white_noise_.device_data(),
+                                 white_noise_.size(), 0.0, 1.0));
+
 
   // Output functions to files for checking
   std::ofstream noise_target_file(jams::output::full_path_filename("noise_target_spectrum.tsv"));
@@ -228,7 +269,7 @@ void CudaLorentzianThermostat::update() {
       white_noise_.device_data(),
       n,
       num_trunc_,
-      globals::num_spins3);
+      num_spins3_even_);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   // scale the noise by the prefactor sigma
@@ -237,7 +278,7 @@ void CudaLorentzianThermostat::update() {
 
   // generate new random numbers ready for the next round
   auto start_index = num_spins3_even_ * pbc(
-      globals::solver->iteration() + num_trunc_, 2 * num_trunc_ + 1);
+      globals::solver->iteration() + num_trunc_ + 1, 2 * num_trunc_ + 1);
   CHECK_CURAND_STATUS(
       curandGenerateNormalDouble(
           jams::instance().curand_generator(),
@@ -301,6 +342,5 @@ std::vector<double> CudaLorentzianThermostat::discrete_real_fourier_transform(st
 
   return x;
 }
-
 
 #undef PRINT_NOISE

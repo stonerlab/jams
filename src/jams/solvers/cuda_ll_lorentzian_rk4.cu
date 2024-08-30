@@ -78,10 +78,10 @@ void CUDALLLorentzianRK4Solver::initialize(const libconfig::Setting& settings)
     }
   }
 
-  s_k1_.resize(globals::num_spins, 3);
-  s_k2_.resize(globals::num_spins, 3);
-  s_k3_.resize(globals::num_spins, 3);
-  s_k4_.resize(globals::num_spins, 3);
+  zero(s_k1_.resize(globals::num_spins, 3));
+  zero(s_k2_.resize(globals::num_spins, 3));
+  zero(s_k3_.resize(globals::num_spins, 3));
+  zero(s_k4_.resize(globals::num_spins, 3));
 
   zero(w_memory_process_.resize(globals::num_spins, 3));
   zero(w_memory_process_old_.resize(globals::num_spins, 3));

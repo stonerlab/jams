@@ -158,11 +158,13 @@ private:
     // spectral function f(omega, ...) sampled at regular discrete points
     // delta_omega apart.
     template<typename... Args>
-    std::vector<double> discrete_psd_filter(
+    std::vector<double> discrete_sqrt_psd(
         SpectralFunctionSignature<Args...> spectral_function
         , const double& delta_omega
         , const int& num_freq
         , Args&&... args);
+
+
 
     // Returns the 1D discrete fourier transform of x. This is a properly
     // normalised transform.
@@ -197,7 +199,7 @@ private:
 // INLINE DEFINITIONS
 
 template<typename... Args>
-std::vector<double> CudaLorentzianThermostat::discrete_psd_filter(
+std::vector<double> CudaLorentzianThermostat::discrete_sqrt_psd(
     SpectralFunctionSignature<Args...> spectral_function,
     const double &delta_omega, const int &num_freq, Args &&... args) {
 
