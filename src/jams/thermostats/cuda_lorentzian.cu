@@ -46,23 +46,10 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
       jams::config_optional<std::string>(globals::config->lookup("thermostat"),
                                          "spectrum", "quantum-lorentzian"));
 
-  // number of frequencies to discretize the spectrum over
-  num_freq_ = jams::config_optional(globals::config->lookup("thermostat"), "num_freq",
-                                    10000);
-  // number of terms to use in the convolution sum
-  num_trunc_ = jams::config_optional(globals::config->lookup("thermostat"), "num_trunc",
-                                     2000);
-  assert(num_trunc_ <= num_freq_);
-
   lorentzian_gamma_ = kTwoPi * jams::config_required<double>(
       globals::config->lookup("thermostat"), "lorentzian_gamma");
   lorentzian_omega0_ = kTwoPi * jams::config_required<double>(
       globals::config->lookup("thermostat"), "lorentzian_omega0");
-
-
-  delta_t_ = timestep;
-  max_omega_ = kPi / delta_t_;
-  delta_omega_ = max_omega_ / double(num_freq_);
 
   // In arXiv:2009.00600v2 Janet uses eta_G for the Gilbert damping, but this is
   // a **dimensionful** Gilbert damping (implied by Eq. (1) in the paper and
@@ -73,19 +60,7 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
 
   double eta_G = globals::alpha(0) / (globals::mus(0) * globals::gyro(0));
 
-  lorentzian_A_ =
-      (eta_G * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
-
-  output_thermostat_properties(std::cout);
-
-
-  if (cudaStreamCreate(&dev_stream_) != cudaSuccess) {
-    throw jams::GeneralException("Failed to create CUDA stream in CudaLangevinBoseThermostat");
-  }
-
-  if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess) {
-    throw jams::GeneralException("Failed to create CURAND stream in CudaLangevinBoseThermostat");
-  }
+  lorentzian_A_ = (eta_G * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
 
   // We store the temperature and check in update() that it doesn't change when
   // running the simulation. Currently we don't know how to deal with a
@@ -99,109 +74,106 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   }
 
   // Define the spectral function P(omega) as a lambda
-  std::function<double(double)> lorentzian_spectral_function;
+  std::function<double(double)> psd_function;
 
   if (noise_spectrum_type == "classical") {
-    lorentzian_spectral_function = [&](double omega) {
-        return 2.0 * kBoltzmannIU * filter_temperature_ * eta_G;
+    psd_function = [&](double omega) {
+      return classical_spectrum(omega, filter_temperature_, eta_G);
     };
   } else if (noise_spectrum_type == "bose-einstein") {
-    lorentzian_spectral_function = [&](double omega) {
-        double hw = kHBarIU * abs(omega);
-        double kT = kBoltzmannIU * filter_temperature_;
-
-        if (omega == 0.0) {
-          return 2.0 * eta_G * kT;
-        }
-
-        return 2.0 * eta_G * kT * (hw / kT) /(std::expm1(hw / kT));
+    psd_function = [&](double omega) {
+      return no_zero_quantum_spectrum(omega, filter_temperature_, eta_G);
     };
   } else if (noise_spectrum_type == "classical-lorentzian") {
-    lorentzian_spectral_function = [&](double omega) {
-        double lorentzian = (lorentzian_A_ * lorentzian_gamma_ * kHBarIU * abs(omega))
-                            / (pow2(pow2(lorentzian_omega0_) - pow2(omega)) + pow2(omega * lorentzian_gamma_));
-
-        double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * filter_temperature_);
-
-        // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
-        // the analytic limits for omega == 0.0
-        if (omega == 0.0) {
-          return (2.0 * kBoltzmannIU * filter_temperature_) *
-                 (lorentzian_A_ * lorentzian_gamma_) / pow4(lorentzian_omega0_);
-        }
-        return lorentzian / x;
+    psd_function = [&](double omega) {
+      return classical_lorentzian_spectrum(omega, filter_temperature_, eta_G, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
   } else if (noise_spectrum_type == "quantum-lorentzian") {
-    lorentzian_spectral_function = [&](double omega) {
-        double lorentzian = (lorentzian_A_ * lorentzian_gamma_ * kHBarIU * abs(omega))
-                            / (pow2(pow2(lorentzian_omega0_) - pow2(omega)) + pow2(omega * lorentzian_gamma_));
-
-        double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * filter_temperature_);
-
-        // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
-        // the analytic limits for omega == 0.0
-        if (omega == 0.0) {
-          return (2.0 * kBoltzmannIU * filter_temperature_) *
-                 (lorentzian_A_ * lorentzian_gamma_) / pow4(lorentzian_omega0_);
-        }
-        return lorentzian * jams::maths::coth(x);
+    psd_function = [&](double omega) {
+      return quantum_lorentzian_spectrum(omega, filter_temperature_, eta_G, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
-  }
-  else {
+  } else if (noise_spectrum_type == "no-zero-quantum-lorentzian") {
+    psd_function = [&](double omega) {
+      return no_zero_quantum_lorentzian_spectrum(omega, filter_temperature_, eta_G, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
+    };
+  } else {
     throw std::runtime_error("unknown spectrum type '" + noise_spectrum_type +"'");
   }
 
-  num_freq_ = 10000;
+  // Autoconfigure the frequency resolution for the PSD omega -> t transform.
+  //
+  // If the resolution is too low then we sample features such as the Lorentzian too crudely which means the memory
+  // kernel is a poor approximation of the analytic Fourier transform. To calculate an appropriate resolution we
+  // successively increase the resolution until the memory kernel stops changing with increasing resolution. Note that
+  // the frequency resolution usually needs to be much higher than the final time range of the memory.
+
+  const int num_freq_init = 10000;
+  const int num_freq_increment = 10000;
+  const int num_freq_increment_attempts = 499;
+  const double memory_function_equality_tolerance = 1e-7;
+
+  delta_t_ = timestep;
+  max_omega_ = kPi / delta_t_;
+  delta_omega_ = max_omega_ / double(num_freq_);
+
+  num_freq_ = num_freq_init;
   // Generate the discrete filter F(n) = sqrt(P(n * delta_omega))
-  auto discrete_filter = discrete_sqrt_psd(lorentzian_spectral_function, delta_omega_, num_freq_);
+  auto discrete_psd = discrete_sqrt_psd(psd_function, delta_omega_, num_freq_);
   // Do the fourier transform to go from frequency space into sqrt(P(omega)) -> K(t - t')
-  auto convoluted_filter = discrete_real_fourier_transform(discrete_filter);
+  auto memory_kernel = discrete_real_fourier_transform(discrete_psd);
 
-  for (auto n = 0; n < 499; ++n) {
-    int trial_num_freq = num_freq_ += 10000;
-    auto trial_psd =
-        discrete_sqrt_psd(lorentzian_spectral_function, max_omega_ / double(trial_num_freq), trial_num_freq);
-    auto trial_filter =  discrete_real_fourier_transform(trial_psd);
+  for (auto n = 0; n < num_freq_increment_attempts; ++n) {
+    int trial_num_freq = num_freq_ += num_freq_increment;
+    auto trial_psd = discrete_sqrt_psd(psd_function, max_omega_ / double(trial_num_freq), trial_num_freq);
+    auto trial_kernel =  discrete_real_fourier_transform(trial_psd);
 
-    bool close_enough = true;
-    for (auto i = 0; i < convoluted_filter.size(); ++i ) {
-      if (!approximately_equal(convoluted_filter[i], trial_filter[i], 1e-7)) {
-        close_enough = false;
-        break;
-      }
-    }
+    bool kernels_are_equal = std::equal(memory_kernel.begin(), memory_kernel.end(), trial_kernel.begin(),
+                                        [&](const auto& x, const auto &y){
+                 return approximately_equal(x, y, memory_function_equality_tolerance);
+    });
 
-    if (close_enough) {
+    if (kernels_are_equal) {
       break;
     }
 
     num_freq_ = trial_num_freq;
-    discrete_filter = trial_psd;
-    convoluted_filter = trial_filter;
+    discrete_psd = trial_psd;
+    memory_kernel = trial_kernel;
   };
 
-  std::cout << "auto configured num_freq: " << num_freq_ << std::endl;
+  // Autoconfigure the number of memory kernel time steps to retain
+  //
+  // The Fourier transform of the PSD requires a high frequency resolution, but the memory kernel itself is usually
+  // fairly short ranged in time. So we only need to keep a truncated part of the kernel. We check how much to keep by
+  // calculating the mean of successive blocks of the kernel and stopping once we have two successive blocks with
+  // means close to zero.
+
+  const int trunc_block_size = 500;
+  const double trunc_zero_tolerance = 1e-3;
 
   std::vector<double> block_sums;
-  for (size_t i = 0; i < convoluted_filter.size(); i += 500) {
-    auto block_sum = std::accumulate(convoluted_filter.begin() + i, convoluted_filter.begin() + std::min(i + 500, convoluted_filter.size()), 0.0);
+  for (size_t i = 0; i < memory_kernel.size(); i += trunc_block_size) {
+    auto block_sum = std::accumulate(memory_kernel.begin() + i, memory_kernel.begin() + std::min(i + trunc_block_size, memory_kernel.size()), 0.0);
     block_sums.push_back(block_sum);
   }
 
   for (auto i = 1; i < block_sums.size(); ++i) {
-    if (approximately_zero(block_sums[i], 1e-3) && approximately_zero(block_sums[i-1], 1e-3)) {
-      num_trunc_ = 500 * (i-1);
+    if (approximately_zero(block_sums[i], trunc_zero_tolerance) && approximately_zero(block_sums[i-1], trunc_zero_tolerance)) {
+      num_trunc_ = trunc_block_size * (i-1);
       break;
     }
   }
 
-  std::cout << "auto configured num_trunc: " << num_trunc_ << std::endl;
+  memory_kernel_.resize(num_trunc_);
+  std::copy(memory_kernel.begin(), memory_kernel.begin()+num_trunc_, memory_kernel_.begin());
 
+  if (cudaStreamCreate(&dev_stream_) != cudaSuccess) {
+    throw jams::GeneralException("Failed to create CUDA stream in CudaLangevinBoseThermostat");
+  }
 
-  // We will do a truncated sum for the real time convolution so we only need to copy
-  // forward part of the filter.
-  filter_.resize(num_trunc_);
-  std::copy(convoluted_filter.begin(), convoluted_filter.begin()+num_trunc_, filter_.begin());
+  if (cudaStreamCreate(&dev_curand_stream_) != cudaSuccess) {
+    throw jams::GeneralException("Failed to create CURAND stream in CudaLangevinBoseThermostat");
+  }
 
   // Curand will only generate noise for arrays which are multiples of 2
   // so we sometimes have to make the size of the white noise array artificially
@@ -221,35 +193,37 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   // Output functions to files for checking
   std::ofstream noise_target_file(jams::output::full_path_filename("noise_target_spectrum.tsv"));
   noise_target_file << "freq_THz    spectrum_meV" << std::endl;
-  for (auto i = 0; i < discrete_filter.size(); ++i) {
+  for (auto i = 0; i < discrete_psd.size(); ++i) {
     noise_target_file << jams::fmt::decimal << i*delta_omega_/(kTwoPi) << " ";
-    noise_target_file << jams::fmt::sci     << lorentzian_spectral_function(i*delta_omega_) << "\n";
+    noise_target_file << jams::fmt::sci << psd_function(i*delta_omega_) << "\n";
   }
   noise_target_file.close();
 
   std::ofstream filter_full_file(jams::output::full_path_filename("noise_filter_full.tsv"));
   filter_full_file << "delta_t_ps    filter_arb" << std::endl;
-  for (auto i = 0; i < convoluted_filter.size(); ++i) {
+  for (auto i = 0; i < memory_kernel.size(); ++i) {
     filter_full_file << jams::fmt::decimal << i*delta_t_ << " ";
-    filter_full_file << jams::fmt::sci     << convoluted_filter[i] << "\n";
+    filter_full_file << jams::fmt::sci << memory_kernel[i] << "\n";
   }
   filter_full_file.close();
 
   std::ofstream filter_file(jams::output::full_path_filename("noise_filter_trunc.tsv"));
   filter_file << "delta_t_ps    filter_arb" << std::endl;
-  for (auto i = 0; i < filter_.size(); ++i) {
+  for (auto i = 0; i < memory_kernel_.size(); ++i) {
     filter_file << jams::fmt::decimal << i*delta_t_ << " ";
-    filter_file << jams::fmt::sci      << filter_(i) << "\n";
+    filter_file << jams::fmt::sci << memory_kernel_(i) << "\n";
   }
   filter_file.close();
 
   #ifdef PRINT_NOISE
   debug_file_.open("noise.tsv");
   #endif
+
+  output_thermostat_properties(std::cout);
 }
 
 void CudaLorentzianThermostat::update() {
-  assert(filter_.size() != 0);
+  assert(memory_kernel_.size() != 0);
 
   if (filter_temperature_ != this->temperature()) {
     throw std::runtime_error(
@@ -265,7 +239,7 @@ void CudaLorentzianThermostat::update() {
   const auto n = pbc(globals::solver->iteration(), (2 * num_trunc_ + 1));
   arbitrary_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>>(
       noise_.device_data(),
-      filter_.device_data(),
+      memory_kernel_.device_data(),
       white_noise_.device_data(),
       n,
       num_trunc_,
@@ -341,6 +315,58 @@ std::vector<double> CudaLorentzianThermostat::discrete_real_fourier_transform(st
   }
 
   return x;
+}
+
+double CudaLorentzianThermostat::classical_spectrum(double omega, double temperature, double eta_G) {
+  return 2.0 * kBoltzmannIU * temperature * eta_G;
+}
+
+
+double CudaLorentzianThermostat::no_zero_quantum_spectrum(double omega, double temperature, double eta_G) {
+  if (omega == 0.0) {
+    return 2.0 * eta_G * kBoltzmannIU * temperature;
+  }
+
+  double x = (kHBarIU * abs(omega)) / (kBoltzmannIU * temperature);
+  return 2.0 * eta_G * kHBarIU * abs(omega) /(std::expm1(x));
+}
+
+
+double CudaLorentzianThermostat::classical_lorentzian_spectrum(double omega, double temperature, double eta_G, double omega0, double gamma, double A) {
+  // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
+  // the analytic limits for omega == 0.0
+  if (omega == 0.0) {
+    return (2.0 * kBoltzmannIU * temperature) * (A * gamma) / pow4(omega0);
+  }
+
+  double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * temperature);
+
+  return kHBarIU * jams::maths::lorentzian(abs(omega), omega0, gamma, A) / x;
+}
+
+
+double CudaLorentzianThermostat::quantum_lorentzian_spectrum(double omega, double temperature, double eta_G, double omega0, double gamma, double A) {
+  // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
+  // the analytic limits for omega == 0.0
+  if (omega == 0.0) {
+    return (2.0 * kBoltzmannIU * temperature) * (A * gamma) / pow4(omega0);
+  }
+
+  double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * temperature);
+
+  return kHBarIU * jams::maths::lorentzian(abs(omega), omega0, gamma, A) * jams::maths::coth(x);
+}
+
+
+double CudaLorentzianThermostat::no_zero_quantum_lorentzian_spectrum(double omega, double temperature, double eta_G, double omega0, double gamma, double A) {
+  // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
+  // the analytic limits for omega == 0.0
+  if (omega == 0.0) {
+    return (2.0 * kBoltzmannIU * temperature) * (A * gamma) / pow4(omega0);
+  }
+
+  double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * temperature);
+  return kHBarIU * jams::maths::lorentzian(abs(omega), omega0, gamma, A) * (jams::maths::coth(x) - 1.0);
 }
 
 #undef PRINT_NOISE

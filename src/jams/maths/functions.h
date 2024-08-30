@@ -6,9 +6,13 @@
 
 namespace jams {
 namespace maths {
+
   double coth(double x);
 
   double gaussian(double x, double x0, double sigma, double A);
+
+  double lorentzian(double x, double center, double width, double amplitude);
+
 }
 }
 
@@ -20,6 +24,8 @@ inline
 double jams::maths::coth(double x) {
   return 1.0 / std::tanh(x);
 }
+
+
 
 #endif
 // ----------------------------- END-OF-FILE ----------------------------------
