@@ -86,15 +86,15 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
     };
   } else if (noise_spectrum_type == "classical-lorentzian") {
     psd_function = [&](double omega) {
-      return classical_lorentzian_spectrum(omega, filter_temperature_, eta_G, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
+      return classical_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
   } else if (noise_spectrum_type == "quantum-lorentzian") {
     psd_function = [&](double omega) {
-      return quantum_lorentzian_spectrum(omega, filter_temperature_, eta_G, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
+      return quantum_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
   } else if (noise_spectrum_type == "no-zero-quantum-lorentzian") {
     psd_function = [&](double omega) {
-      return no_zero_quantum_lorentzian_spectrum(omega, filter_temperature_, eta_G, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
+      return no_zero_quantum_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
   } else {
     throw std::runtime_error("unknown spectrum type '" + noise_spectrum_type +"'");
@@ -332,7 +332,7 @@ double CudaLorentzianThermostat::no_zero_quantum_spectrum(double omega, double t
 }
 
 
-double CudaLorentzianThermostat::classical_lorentzian_spectrum(double omega, double temperature, double eta_G, double omega0, double gamma, double A) {
+double CudaLorentzianThermostat::classical_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
   // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
   // the analytic limits for omega == 0.0
   if (omega == 0.0) {
@@ -345,7 +345,7 @@ double CudaLorentzianThermostat::classical_lorentzian_spectrum(double omega, dou
 }
 
 
-double CudaLorentzianThermostat::quantum_lorentzian_spectrum(double omega, double temperature, double eta_G, double omega0, double gamma, double A) {
+double CudaLorentzianThermostat::quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
   // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
   // the analytic limits for omega == 0.0
   if (omega == 0.0) {
@@ -358,7 +358,7 @@ double CudaLorentzianThermostat::quantum_lorentzian_spectrum(double omega, doubl
 }
 
 
-double CudaLorentzianThermostat::no_zero_quantum_lorentzian_spectrum(double omega, double temperature, double eta_G, double omega0, double gamma, double A) {
+double CudaLorentzianThermostat::no_zero_quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
   // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
   // the analytic limits for omega == 0.0
   if (omega == 0.0) {
