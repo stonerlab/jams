@@ -144,8 +144,15 @@ public:
 
 private:
 
-    void output_thermostat_properties(std::ostream& os);
+  static double classical_spectrum(double omega, double temperature, double eta_G);
+  static double no_zero_quantum_spectrum(double omega, double temperature, double eta_G);
 
+  static double classical_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A);
+  static double quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A);
+  static double no_zero_quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A);
+
+
+  void output_thermostat_properties(std::ostream& os);
 
     // Typedef for the signature of the spectral function. Mathematicall
     // this is something like f(omega, ...). The first argument will always be
@@ -154,15 +161,18 @@ private:
     template<typename... Args>
     using SpectralFunctionSignature = std::function<double(double, Args...)>;
 
+
     // Returns a vector containing sqrt{f(i * delta_omega, ...)}, i.e. the
     // spectral function f(omega, ...) sampled at regular discrete points
     // delta_omega apart.
     template<typename... Args>
-    std::vector<double> discrete_psd_filter(
+    std::vector<double> discrete_sqrt_psd(
         SpectralFunctionSignature<Args...> spectral_function
         , const double& delta_omega
         , const int& num_freq
         , Args&&... args);
+
+
 
     // Returns the 1D discrete fourier transform of x. This is a properly
     // normalised transform.
@@ -187,7 +197,7 @@ private:
     double lorentzian_gamma_;
     double lorentzian_A_;
 
-    jams::MultiArray<double, 1> filter_;
+    jams::MultiArray<double, 1> memory_kernel_;
     jams::MultiArray<double, 1> white_noise_;
 
     cudaStream_t                dev_stream_ = nullptr;
@@ -197,7 +207,7 @@ private:
 // INLINE DEFINITIONS
 
 template<typename... Args>
-std::vector<double> CudaLorentzianThermostat::discrete_psd_filter(
+std::vector<double> CudaLorentzianThermostat::discrete_sqrt_psd(
     SpectralFunctionSignature<Args...> spectral_function,
     const double &delta_omega, const int &num_freq, Args &&... args) {
 
