@@ -148,18 +148,23 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   // calculating the mean of successive blocks of the kernel and stopping once we have two successive blocks with
   // means close to zero.
 
-  const int trunc_block_size = 500;
-  const double trunc_zero_tolerance = 1e-3;
+  auto memory_absmax = *std::max_element(memory_kernel.begin(), memory_kernel.end(),
+    [](const auto& a, const auto& b){
+    return abs(a) < abs(b);
+  });
 
-  std::vector<double> block_sums;
+  const int trunc_block_size = 100;
+  const double trunc_zero_tolerance = memory_absmax * 0.005;
+
+  std::vector<double> block_averages;
   for (size_t i = 0; i < memory_kernel.size(); i += trunc_block_size) {
     auto block_sum = std::accumulate(memory_kernel.begin() + i, memory_kernel.begin() + std::min(i + trunc_block_size, memory_kernel.size()), 0.0);
-    block_sums.push_back(block_sum);
+    block_averages.push_back(block_sum / double(trunc_block_size));
   }
 
-  for (auto i = 1; i < block_sums.size(); ++i) {
-    if (approximately_zero(block_sums[i], trunc_zero_tolerance) && approximately_zero(block_sums[i-1], trunc_zero_tolerance)) {
-      num_trunc_ = trunc_block_size * (i-1);
+  for (auto i = 1; i < block_averages.size(); ++i) {
+    if (approximately_zero(block_averages[i], trunc_zero_tolerance) && approximately_zero(block_averages[i-1], trunc_zero_tolerance)) {
+      num_trunc_ = trunc_block_size * i;
       break;
     }
   }
