@@ -141,6 +141,9 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
     memory_kernel = trial_kernel;
   };
 
+  delta_omega_ = max_omega_ / double(num_freq_);
+
+
   // Autoconfigure the number of memory kernel time steps to retain
   //
   // The Fourier transform of the PSD requires a high frequency resolution, but the memory kernel itself is usually
@@ -200,7 +203,7 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   noise_target_file << "freq_THz    spectrum_meV" << std::endl;
   for (auto i = 0; i < discrete_psd.size(); ++i) {
     noise_target_file << jams::fmt::decimal << i*delta_omega_/(kTwoPi) << " ";
-    noise_target_file << jams::fmt::sci << psd_function(i*delta_omega_) << "\n";
+    noise_target_file << jams::fmt::sci << discrete_psd[i] << "\n";
   }
   noise_target_file.close();
 
