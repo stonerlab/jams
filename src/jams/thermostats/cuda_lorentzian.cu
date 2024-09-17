@@ -306,10 +306,11 @@ void CudaLorentzianThermostat::output_thermostat_properties(std::ostream& os) {
 
 std::vector<double> CudaLorentzianThermostat::discrete_real_fourier_transform(std::vector<double>& x) {
   int size = static_cast<int>(x.size());
+  std::vector<double> result(size);
   fftw_plan plan = fftw_plan_r2r_1d(
       size, //int n
       x.data(), // double *in
-      x.data(), // double *out
+      result.data(), // double *out
       FFTW_REDFT10, // fftw_r2r_kind kind
       FFTW_ESTIMATE); // unsigned flags
 
@@ -318,11 +319,11 @@ std::vector<double> CudaLorentzianThermostat::discrete_real_fourier_transform(st
 
   // normalise by the logical size of the DFT
   // (see http://www.fftw.org/fftw3_doc/1d-Real_002deven-DFTs-_0028DCTs_0029.html#g_t1d-Real_002deven-DFTs-_0028DCTs_0029)
-  for (double &i : x) {
+  for (double &i : result) {
     i /= 2*size;
   }
 
-  return x;
+  return result;
 }
 
 double CudaLorentzianThermostat::classical_spectrum(double omega, double temperature, double eta_G) {
