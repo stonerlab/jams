@@ -376,7 +376,13 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
                                                                    I.unit_cell_pos_j);
 
           if (nbr_list.contains({local_site, nbr_site})) {
-            throw std::runtime_error("Multiple interactions for sites " + std::to_string(local_site) + " and " + std::to_string(nbr_site));
+            auto r_ij = globals::lattice->displacement(nbr_site, local_site);
+            throw std::runtime_error(
+                "Multiple interactions for sites " + std::to_string(local_site) + " and " + std::to_string(nbr_site) + "\n"
+                + "i: motif pos: " + std::to_string(m) + " unit cell indices: " + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "\n"
+                + "j: motif pos: " + std::to_string(I.unit_cell_pos_j) + " unit cell indices: " + std::to_string(I.u_ij[0]) + ", " + std::to_string(I.u_ij[1]) + ", " + std::to_string(I.u_ij[2]) + "\n"
+                + "r_ij: " + std::to_string(r_ij[0]) + ", " + std::to_string(r_ij[1]) + ", " + std::to_string(r_ij[2])
+            );
           }
 
           // catch if the site has a different material (presumably an impurity site)
