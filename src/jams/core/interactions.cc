@@ -318,6 +318,8 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
     apply_predicate(interactions, [&](InteractionData J) -> bool {
       return definately_greater_than(norm(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
   }
+
+  check_interaction_list_symmetry(interactions);
 }
 
 IntegerInteractionData
@@ -515,6 +517,32 @@ safety_check_distance_tolerance(const double &tolerance) {
   }
 }
 
+void check_interaction_list_symmetry(const std::vector<InteractionData> &interactions) {
+  for (const auto &J : interactions) {
+    InteractionData sym_J;
+    sym_J.unit_cell_pos_i = J.unit_cell_pos_j;
+    sym_J.unit_cell_pos_j = J.unit_cell_pos_i;
+    sym_J.r_ij = -J.r_ij;
+    sym_J.J_ij = transpose(J.J_ij);
+    sym_J.type_i = J.type_j;
+    sym_J.type_j = J.type_i;
+
+
+    auto it = std::find_if(interactions.begin(), interactions.end(), [&](const InteractionData& sym_J){
+      return (sym_J.unit_cell_pos_i == J.unit_cell_pos_j
+      && sym_J.unit_cell_pos_j == J.unit_cell_pos_i
+      && sym_J.type_i == J.type_j
+      && sym_J.type_j == J.type_i
+      && approximately_equal(sym_J.r_ij, -J.r_ij, jams::defaults::lattice_tolerance)
+      && approximately_equal(sym_J.J_ij, transpose(J.J_ij), 1e-4));
+    });
+
+    if (it == interactions.end()) {
+      throw jams::SanityException("interaction template is not symmetric");
+    }
+  }
+}
+
 void
 write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data, CoordinateFormat coord_format) {
   for (auto const &interaction : data) {
@@ -601,3 +629,4 @@ write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &
       output << jams::fmt::sci << std::scientific << Jij[2][2] << "\n";
   }
 }
+
