@@ -93,7 +93,8 @@ generate_neighbour_list(libconfig::Setting& settings,
 void
 safety_check_distance_tolerance(const double &tolerance);
 
-/// Check that the interaction list has the correct symmetry J_ij = (J_ji)^T
+/// Check that for every interaction in the list there is a corresponding interaction which has the correct symmetries
+/// J_ij = (J_ji)^T and r_ij = -r_ji
 void
 check_interaction_list_symmetry(const std::vector<InteractionData> &interactions);
 
