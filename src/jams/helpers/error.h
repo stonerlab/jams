@@ -16,7 +16,7 @@ namespace jams {
     ([&]{
       std::cerr << details;
     } (), ...);
-    std::cerr << std::flush;
+    std::cerr << "\n" << std::flush;
 
     jams::cleanup_simulation();
     std::exit(EXIT_FAILURE);
