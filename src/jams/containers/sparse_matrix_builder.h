@@ -382,7 +382,8 @@ namespace jams {
 
         auto ptr_diff = found - col_.begin();
 
-        if ( *(val_.begin() + ptr_diff) != val ) {
+        auto sym_val = *(val_.begin() + ptr_diff);
+        if ( sym_val != val ) {
           // the values for i,j and j,i do not match so the matrix is not symmetric
           return false;
         }
