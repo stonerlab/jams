@@ -29,7 +29,7 @@ Vec3 minimum_image_bruteforce(const Cell& cell, const Vec3& r_i_cart, const Vec3
   for (auto h = -N_a; h < N_a + 1; ++h) {
     for (auto k = -N_b; k < N_b + 1; ++k) {
       for (auto l = -N_c; l < N_c + 1; ++l) {
-        auto ds = r_ij + h * cell.a() + k * cell.b() + l * cell.c();
+        auto ds = r_ij + h * cell.a1() + k * cell.a2() + l * cell.a3();
         if (norm_squared(ds) < norm_squared(r_ij_min)) {
           r_ij_min = ds;
         }
@@ -53,49 +53,49 @@ double volume(const Cell& cell) {
 }
 
 Cell scale(const Cell &cell, const Vec3i& size) {
-  Vec3 new_a = cell.a() * double(size[0]);
-  Vec3 new_b = cell.b() * double(size[1]);
-  Vec3 new_c = cell.c() * double(size[2]);
+  Vec3 new_a = cell.a1() * double(size[0]);
+  Vec3 new_b = cell.a2() * double(size[1]);
+  Vec3 new_c = cell.a3() * double(size[2]);
   return Cell(new_a, new_b, new_c, cell.periodic());
 }
 
 Cell rotate(const Cell &cell, const Mat3& rotation_matrix) {
-  Vec3 new_a = rotation_matrix * cell.a();
-  Vec3 new_b = rotation_matrix * cell.b();
-  Vec3 new_c = rotation_matrix * cell.c();
+  Vec3 new_a = rotation_matrix * cell.a1();
+  Vec3 new_b = rotation_matrix * cell.a2();
+  Vec3 new_c = rotation_matrix * cell.a3();
 
   return Cell(new_a, new_b, new_c, cell.periodic());
 }
 
 bool Cell::classify_orthogonal_basis() const {
-  return approximately_zero(dot(a(), b()), DBL_EPSILON)
-      && approximately_zero(dot(b(), c()), DBL_EPSILON)
-      && approximately_zero(dot(c(), a()), DBL_EPSILON);
+  return approximately_zero(dot(a1(), a2()), DBL_EPSILON)
+      && approximately_zero(dot(a2(), a3()), DBL_EPSILON)
+      && approximately_zero(dot(a3(), a1()), DBL_EPSILON);
 }
 
 jams::LatticeSystem Cell::classify_lattice_system(const double& angle_eps) const {
-  if (all_equal(a(), b(), c()) && all_equal(alpha(), beta(), gamma()) && approximately_equal(alpha(), 90.0, angle_eps)) {
+  if (all_equal(a1(), a2(), a3()) && all_equal(alpha(), beta(), gamma()) && approximately_equal(alpha(), 90.0, angle_eps)) {
     return jams::LatticeSystem::cubic;
   }
 
-  if (all_equal(a(), b(), c()) && all_equal(alpha(), beta(), gamma()) && !approximately_equal(alpha(), 90.0, angle_eps)) {
+  if (all_equal(a1(), a2(), a3()) && all_equal(alpha(), beta(), gamma()) && !approximately_equal(alpha(), 90.0, angle_eps)) {
     return jams::LatticeSystem::rhombohedral;
   }
 
-  if (only_two_equal(a(), b(), c()) && all_equal(alpha(), beta(), gamma()) &&
+  if (only_two_equal(a1(), a2(), a3()) && all_equal(alpha(), beta(), gamma()) &&
       (approximately_equal(alpha(), 120.0, angle_eps) || approximately_equal(beta(), 120.0, angle_eps) || approximately_equal(gamma(), 120.0, angle_eps)))  {
     return jams::LatticeSystem::hexagonal;
   }
 
-  if (only_two_equal(a(), b(), c()) && all_equal(alpha(), beta(), gamma()) && approximately_equal(alpha(), 90.0, angle_eps)) {
+  if (only_two_equal(a1(), a2(), a3()) && all_equal(alpha(), beta(), gamma()) && approximately_equal(alpha(), 90.0, angle_eps)) {
     return jams::LatticeSystem::tetragonal;
   }
 
-  if (none_equal(a(), b(), c()) && all_equal(alpha(), beta(), gamma()) && approximately_equal(alpha(), 90.0, angle_eps)) {
+  if (none_equal(a1(), a2(), a3()) && all_equal(alpha(), beta(), gamma()) && approximately_equal(alpha(), 90.0, angle_eps)) {
     return jams::LatticeSystem::orthorhombic;
   }
 
-  if ((a() != c() || c() != b() || c() != a()) &&
+  if ((a1() != a3() || a3() != a2() || a3() != a1()) &&
       (!approximately_equal(alpha(), 90.0, angle_eps) || !approximately_equal(beta(), 90.0, angle_eps) || !approximately_equal(gamma(), 90.0, angle_eps))) {
     return jams::LatticeSystem::monoclinic;
   }

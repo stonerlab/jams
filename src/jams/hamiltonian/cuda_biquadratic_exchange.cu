@@ -118,7 +118,7 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
 
   std::cout << "    interactions per motif position: \n";
   if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2) && !globals::lattice->has_impurities()) {
-    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+    for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
       std::cout << "      " << i << ": " << neighbour_list_.num_interactions(i) <<"\n";
     }
   }

@@ -19,7 +19,7 @@ InducedSpinPulsePhysics::InducedSpinPulsePhysics(const libconfig::Setting &setti
 
   std::vector<int> indices;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    if (globals::lattice->atom_material_name(i) == material) {
+    if (globals::lattice->lattice_site_material_name(i) == material) {
       indices.push_back(i);
     }
   }

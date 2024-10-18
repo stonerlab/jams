@@ -22,8 +22,10 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       std::ofstream pos_file(jams::output::full_path_filename("DEBUG_pos.dat"));
       for (int n = 0; n < globals::lattice->num_materials(); ++n) {
         for (int i = 0; i < globals::num_spins; ++i) {
-          if (globals::lattice->atom_material_id(i) == n) {
-            pos_file << i << "\t" << globals::lattice->atom_position(i)[0] << "\t" << globals::lattice->atom_position(i)[1] << "\t" << globals::lattice->atom_position(i)[2] << "\n";
+          if (globals::lattice->lattice_site_material_id(i) == n) {
+            pos_file << i << "\t" << globals::lattice->lattice_site_position_cart(i)[0] << "\t" << globals::lattice->lattice_site_position_cart(
+                i)[1] << "\t" << globals::lattice->lattice_site_position_cart(
+                i)[2] << "\n";
           }
         }
         pos_file << "\n\n";
@@ -45,9 +47,10 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     std::cout << "distance_tolerance " << distance_tolerance_ << "\n";
 
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
-    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
-      for (auto j = i+1; j < globals::lattice->num_motif_atoms(); ++j) {
-        const auto distance = norm(globals::lattice->motif_atom(i).fractional_position - globals::lattice->motif_atom(j).fractional_position);
+    for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
+      for (auto j = i+1; j < globals::lattice->num_basis_sites(); ++j) {
+        const auto distance = norm(globals::lattice->basis_site_atom(i).position_frac - globals::lattice->basis_site_atom(
+            j).position_frac);
         if(distance < distance_tolerance_) {
 
           throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
@@ -86,8 +89,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
       double jij_value = double(settings["interactions"][i][4]) * input_energy_unit_conversion_;
 
-      auto type_id_A = globals::lattice->material_id(type_name_A);
-      auto type_id_B = globals::lattice->material_id(type_name_B);
+      auto type_id_A = globals::lattice->material_index(type_name_A);
+      auto type_id_B = globals::lattice->material_index(type_name_B);
 
       InteractionNT jij = {type_id_A, type_id_B, inner_radius, outer_radius, jij_value};
 
@@ -96,20 +99,22 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     std::cout << "\ncomputed interactions\n";
 
-    jams::InteractionNearTree neartree(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), max_radius + distance_tolerance_, jams::defaults::lattice_tolerance);
-    neartree.insert_sites(globals::lattice->atom_cartesian_positions());
+    jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
+                                       globals::lattice->get_supercell().a2(),
+                                       globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), max_radius + distance_tolerance_, jams::defaults::lattice_tolerance);
+    neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
     int counter = 0;
     for (auto i = 0; i < globals::num_spins; ++i) {
       std::vector<bool> is_already_interacting(globals::num_spins, false);
 
-      const auto type_i = globals::lattice->atom_material_id(i);
+      const auto type_i = globals::lattice->lattice_site_material_id(i);
 
       for (const auto& interaction : interaction_list_[type_i]) {
         const auto type_j = interaction.material[1];
 
-        auto nbr_lower = neartree.neighbours(globals::lattice->atom_position(i), interaction.inner_radius);
-        auto nbr_upper = neartree.neighbours(globals::lattice->atom_position(i), interaction.outer_radius + distance_tolerance_);
+        auto nbr_lower = neartree.neighbours(globals::lattice->lattice_site_position_cart(i), interaction.inner_radius);
+        auto nbr_upper = neartree.neighbours(globals::lattice->lattice_site_position_cart(i), interaction.outer_radius + distance_tolerance_);
 
 //        auto compare_func = [](Atom a, Atom b) { return a.id < b.id; };
 
@@ -125,7 +130,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
             continue;
           }
 
-          if (globals::lattice->atom_material_id(j) == type_j) {
+          if (globals::lattice->lattice_site_material_id(j) == type_j) {
             // don't allow self interaction
             if (is_already_interacting[j]) {
               throw jams::SanityException("multiple interactions between spins ", i, " and ", j);
@@ -141,12 +146,12 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
             if (debug_is_enabled()) {
               debug_file << i << "\t" << j << "\t";
-              debug_file << globals::lattice->atom_position(i)[0] << "\t";
-              debug_file << globals::lattice->atom_position(i)[1] << "\t";
-              debug_file << globals::lattice->atom_position(i)[2] << "\t";
-              debug_file << globals::lattice->atom_position(j)[0] << "\t";
-              debug_file << globals::lattice->atom_position(j)[1] << "\t";
-              debug_file << globals::lattice->atom_position(j)[2] << "\n";
+              debug_file << globals::lattice->lattice_site_position_cart(i)[0] << "\t";
+              debug_file << globals::lattice->lattice_site_position_cart(i)[1] << "\t";
+              debug_file << globals::lattice->lattice_site_position_cart(i)[2] << "\t";
+              debug_file << globals::lattice->lattice_site_position_cart(j)[0] << "\t";
+              debug_file << globals::lattice->lattice_site_position_cart(j)[1] << "\t";
+              debug_file << globals::lattice->lattice_site_position_cart(j)[2] << "\n";
             }
           }
         }

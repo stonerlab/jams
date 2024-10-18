@@ -24,7 +24,7 @@ double jams::CVarMagnetisation::calculate_expensive_value() {
   // A specific material has been selected in the config so only include
   // that material in the sum
   for (auto i =0; i < globals::num_spins; ++i) {
-    if (globals::lattice->atom_material_id(i) == selected_material_id_) {
+    if (globals::lattice->lattice_site_material_id(i) == selected_material_id_) {
       magnetisation += globals::s(i, magnetisation_component_);
     }
   }
@@ -38,7 +38,7 @@ jams::CVarMagnetisation::spin_move_trial_value(int i, const Vec3 &spin_initial,
                                                const Vec3 &spin_trial) {
 
   // Spin 'i' is of chosen material, or all materials are selected
-  if (selected_material_id_ == -1 || globals::lattice->atom_material_id(i) == selected_material_id_) {
+  if (selected_material_id_ == -1 || globals::lattice->lattice_site_material_id(i) == selected_material_id_) {
     const double trial_value = cached_value() - spin_initial[magnetisation_component_] + spin_trial[magnetisation_component_];
     set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
     return trial_value / num_selected_spins_;
@@ -70,12 +70,12 @@ jams::CVarMagnetisation::CVarMagnetisation(const libconfig::Setting &settings) {
     if (!globals::lattice->material_exists(material)) {
         throw std::runtime_error("Invalid material specified in magnetisation collective variable");
     }
-    selected_material_id_ = globals::lattice->material_id(material);
+    selected_material_id_ = globals::lattice->material_index(material);
 
     // record the number of spins of this material type
     num_selected_spins_ = 0;
     for (auto i = 0; i < globals::num_spins; ++i) {
-      if (globals::lattice->atom_material_id(i) == selected_material_id_) {
+      if (globals::lattice->lattice_site_material_id(i) == selected_material_id_) {
         num_selected_spins_++;
       }
     }

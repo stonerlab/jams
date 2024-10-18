@@ -34,7 +34,7 @@ XyzMonitor::XyzMonitor(const libconfig::Setting &settings)
     }
     // check which spins are inside the slice
     for (int i = 0; i < globals::num_spins; ++i) {
-      Vec3 pos = globals::lattice->atom_position(i);
+      Vec3 pos = globals::lattice->lattice_site_position_cart(i);
 
       // check if the current spin in inside the slice
       if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)
@@ -65,13 +65,17 @@ void XyzMonitor::update(Solver& solver) {
     if (!slice_spins.empty()) {
       for (const auto n : slice_spins) {
         xyz_state_file << std::setw(9) << n;
-        xyz_state_file << std::setw(16) << globals::lattice->atom_position(n)[0] << std::setw(16) << globals::lattice->atom_position(n)[1] << std::setw(16) << globals::lattice->atom_position(n)[2];
+        xyz_state_file << std::setw(16) << globals::lattice->lattice_site_position_cart(n)[0] << std::setw(16) << globals::lattice->lattice_site_position_cart(
+            n)[1] << std::setw(16) << globals::lattice->lattice_site_position_cart(
+            n)[2];
         xyz_state_file << std::setw(16) << globals::s(n,0) << std::setw(16) << globals::s(n,1) << std::setw(16) <<  globals::s(n, 2) << "\n";
       }
     } else {
       for (int n = 0; n < globals::num_spins; ++n) {
         xyz_state_file << std::setw(9) << n;
-        xyz_state_file << std::setw(16) << globals::lattice->atom_position(n)[0] << std::setw(16) << globals::lattice->atom_position(n)[1] << std::setw(16) << globals::lattice->atom_position(n)[2];
+        xyz_state_file << std::setw(16) << globals::lattice->lattice_site_position_cart(n)[0] << std::setw(16) << globals::lattice->lattice_site_position_cart(
+            n)[1] << std::setw(16) << globals::lattice->lattice_site_position_cart(
+            n)[2];
         xyz_state_file << std::setw(16) << globals::s(n,0) << std::setw(16) << globals::s(n,1) << std::setw(16) <<  globals::s(n, 2) << "\n";
       }
     }

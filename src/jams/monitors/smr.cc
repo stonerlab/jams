@@ -39,7 +39,7 @@ void SMRMonitor::update(Solver& solver) {
     // j -> x
     // t -> y
     // n -> z
-    int type = globals::lattice->atom_material_id(i);
+    int type = globals::lattice->lattice_site_material_id(i);
     mtsq_para[type] +=  globals::s(i, 1) * globals::s(i, 1);
     mtsq_perp[type] +=  globals::s(i, 0) * globals::s(i, 0);
     mjmt_para[type] +=  globals::s(i, 0) * globals::s(i, 1);

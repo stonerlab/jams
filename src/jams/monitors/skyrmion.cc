@@ -70,11 +70,11 @@ void SkyrmionMonitor::update(Solver& solver) {
       }
 
       for (auto i = 0; i < globals::num_spins; ++i) {
-        auto type = globals::lattice->atom_material_id(i);
+        auto type = globals::lattice->lattice_site_material_id(i);
         if (globals::s(i, 2)*type_norms[type] > threshold) {
-          x = globals::lattice->atom_position(i)[0] - r_com[type][0];
+          x = globals::lattice->lattice_site_position_cart(i)[0] - r_com[type][0];
           x = x - nint(x / x_size) * x_size;  // min image convention
-          y = globals::lattice->atom_position(i)[1] - r_com[type][1];
+          y = globals::lattice->lattice_site_position_cart(i)[1] - r_com[type][1];
           y = y - nint(y / y_size) * y_size;  // min image convention
           radius_gyration[type] += x*x + y*y;
           r_count[type]++;
@@ -114,8 +114,8 @@ void SkyrmionMonitor::create_center_of_mass_mapping() {
   for (int n = 0; n < globals::num_spins; ++n) {
     double i, j, i_max, j_max, r_i, r_j, theta_i, theta_j, x, y, z;
 
-    i = globals::lattice->atom_position(n)[0];
-    j = globals::lattice->atom_position(n)[1];
+    i = globals::lattice->lattice_site_position_cart(n)[0];
+    j = globals::lattice->lattice_site_position_cart(n)[1];
 
     i_max = globals::lattice->rmax()[0];
     j_max = globals::lattice->rmax()[1];
@@ -157,7 +157,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
   }
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto type = globals::lattice->atom_material_id(i);
+    auto type = globals::lattice->lattice_site_material_id(i);
     if (globals::s(i, 2)*type_norms[type] > threshold) {
       tube_x_com[type] += tube_x[i];
       tube_y_com[type] += tube_y[i];
@@ -183,7 +183,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
   // }
 
   // for (i = 0; i < num_spins; ++i) {
-  //   type = lattice->atom_material_id(i);
+  //   type = lattice->lattice_site_material_id(i);
   //   if (s(i, 2)*type_norms[type] > threshold) {
   //     r_com[type] += lattice->lattice_positions_[i];
   //     r_count[type]++;

@@ -71,7 +71,7 @@ UniaxialMicroscopicAnisotropyHamiltonian::UniaxialMicroscopicAnisotropyHamiltoni
   mca_value_.resize(cfg_mca_order.size(), num_spins);
   for (auto i = 0; i < cfg_mca_order.size(); ++i){
     for (auto j = 0; j < num_spins; ++j) {
-      mca_value_(i, j) = cfg_mca_value[i][globals::lattice->atom_material_id(j)];
+      mca_value_(i, j) = cfg_mca_value[i][globals::lattice->lattice_site_material_id(j)];
     }
   }
 }

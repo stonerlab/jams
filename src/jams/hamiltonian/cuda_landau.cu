@@ -16,9 +16,9 @@ CudaLandauHamiltonian::CudaLandauHamiltonian(const libconfig::Setting &settings,
   landau_C_.resize(globals::num_spins);
 
   for (int i = 0; i < globals::num_spins; ++i) {
-    landau_A_(i) = double(settings["A"][globals::lattice->atom_material_id(i)]) * input_energy_unit_conversion_;;
-    landau_B_(i) = double(settings["B"][globals::lattice->atom_material_id(i)]) * input_energy_unit_conversion_;;
-    landau_C_(i) = double(settings["C"][globals::lattice->atom_material_id(i)]) * input_energy_unit_conversion_;;
+    landau_A_(i) = double(settings["A"][globals::lattice->lattice_site_material_id(i)]) * input_energy_unit_conversion_;;
+    landau_B_(i) = double(settings["B"][globals::lattice->lattice_site_material_id(i)]) * input_energy_unit_conversion_;;
+    landau_C_(i) = double(settings["C"][globals::lattice->lattice_site_material_id(i)]) * input_energy_unit_conversion_;;
   }
 
 }

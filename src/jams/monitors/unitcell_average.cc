@@ -39,7 +39,7 @@ UnitcellAverageMonitor::UnitcellAverageMonitor(const libconfig::Setting &setting
 
   spin_transformations_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    spin_transformations_[i] = globals::lattice->material(globals::lattice->atom_material_id(i)).transform;
+    spin_transformations_[i] = globals::lattice->material(globals::lattice->lattice_site_material_id(i)).transform;
   }
 
   cell_centers_.resize(globals::lattice->num_cells(), 3);

@@ -41,7 +41,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   transformed_spins.resize(globals::num_spins, 3);
 
   for (int i = 0; i < globals::num_spins; ++i) {
-    spin_transformations[i] = globals::lattice->material(globals::lattice->atom_material_id(i)).transform;
+    spin_transformations[i] = globals::lattice->material(globals::lattice->lattice_site_material_id(i)).transform;
   }
 
   libconfig::Setting& solver_settings = globals::config->lookup("solver");
@@ -70,10 +70,10 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   // We can use that to reinterpet the output from the fft as a 5D array
   // ------------------------------------------------------------------
   s_kspace.resize(globals::lattice->kspace_size()[0], globals::lattice->kspace_size()[1], globals::lattice->kspace_size()[2],
-                  globals::lattice->num_motif_atoms(), 3);
+                  globals::lattice->num_basis_sites(), 3);
 
   fft_plan_s_rspace_to_kspace = fft_plan_rspace_to_kspace(transformed_spins.data(), s_kspace.data(), globals::lattice->kspace_size(),
-                                                          globals::lattice->num_motif_atoms());
+                                                          globals::lattice->num_basis_sites());
 
   // ------------------------------------------------------------------
   // construct Brillouin zone sample points from the nodes specified
@@ -200,9 +200,9 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
   }
 
 
-  sqw_x.resize(globals::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
-  sqw_y.resize(globals::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
-  sqw_z.resize(globals::lattice->num_motif_atoms(), num_samples, b_uvw_points.size());
+  sqw_x.resize(globals::lattice->num_basis_sites(), num_samples, b_uvw_points.size());
+  sqw_y.resize(globals::lattice->num_basis_sites(), num_samples, b_uvw_points.size());
+  sqw_z.resize(globals::lattice->num_basis_sites(), num_samples, b_uvw_points.size());
 }
 
 void SpectrumFourierMonitor::update(Solver& solver) {
@@ -253,7 +253,7 @@ void SpectrumFourierMonitor::fft_time() {
       FFTW_COMPLEX_CAST(fft_sqw_z.data()),onembed,ostride,odist,
       FFTW_FORWARD,FFTW_ESTIMATE);
 
-  for (auto unit_cell_atom = 0; unit_cell_atom < ::globals::lattice->num_motif_atoms(); ++unit_cell_atom) {
+  for (auto unit_cell_atom = 0; unit_cell_atom < ::globals::lattice->num_basis_sites(); ++unit_cell_atom) {
     for (auto i = 0; i < time_points; ++i) {
       for (auto j = 0; j < space_points; ++j) {
         fft_sqw_x(i,j) = sqw_x(unit_cell_atom, i, j)*fft_window_default(i, time_points);
@@ -392,7 +392,7 @@ void SpectrumFourierMonitor::store_bz_path_data() {
 
   // extra safety in case there is an extra one time point due to floating point maths
   if (time_point_counter_ < sqw_x.size(1)) {
-    for (auto m = 0; m < ::globals::lattice->num_motif_atoms(); ++m) {
+    for (auto m = 0; m < ::globals::lattice->num_basis_sites(); ++m) {
       for (auto i = 0; i < b_uvw_points.size(); ++i) {
         auto uvw = b_uvw_points[i];
 

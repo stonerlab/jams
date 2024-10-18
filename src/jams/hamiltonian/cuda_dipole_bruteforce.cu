@@ -35,9 +35,9 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
         super_cell_pbc[i] = ::globals::lattice->is_periodic(i);
     }
 
-    auto A = ::globals::lattice->a() * double(::globals::lattice->size(0));
-    auto B = ::globals::lattice->b() * double(::globals::lattice->size(1));
-    auto C = ::globals::lattice->c() * double(::globals::lattice->size(2));
+    auto A = ::globals::lattice->a1() * double(::globals::lattice->size(0));
+    auto B = ::globals::lattice->a2() * double(::globals::lattice->size(1));
+    auto C = ::globals::lattice->a3() * double(::globals::lattice->size(2));
 
     auto matrix_double = matrix_from_cols(A, B, C);
 
@@ -65,7 +65,7 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
     r_float_.resize(globals::num_spins, 3);
     for (auto i = 0; i < globals::num_spins; ++i) {
         for (int j = 0; j < 3; ++j) {
-          r_float_(i, j) = globals::lattice->atom_position(i)[j];
+          r_float_(i, j) = globals::lattice->lattice_site_position_cart(i)[j];
         }
     }
 }
@@ -123,8 +123,8 @@ Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i, double time) 
           globals::lattice->get_supercell().matrix(),
           globals::lattice->get_supercell().inverse_matrix(),
           globals::lattice->get_supercell().periodic(),
-          globals::lattice->atom_position(i),
-          globals::lattice->atom_position(j));
+          globals::lattice->lattice_site_position_cart(i),
+          globals::lattice->lattice_site_position_cart(j));
   };
 
   const auto r_cut_squared = r_cutoff_ * r_cutoff_;

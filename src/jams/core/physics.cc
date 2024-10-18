@@ -66,7 +66,7 @@ Physics::Physics(const libconfig::Setting &physics_settings) :
 
     for (int i = 0; i < globals::num_spins; ++i) {
       Vec3 pos = globals::lattice->displacement(
-          globals::lattice->atom_position(i), origin);
+          globals::lattice->lattice_site_position_cart(i), origin);
 
       if (pos[0]*pos[0] + pos[1]*pos[1] < radius*radius) {
         globals::s(i,2) = -globals::s(i,2);

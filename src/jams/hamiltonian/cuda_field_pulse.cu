@@ -20,7 +20,7 @@ CudaFieldPulseHamiltonian::CudaFieldPulseHamiltonian(
   positions_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
-      positions_(i, j) = globals::lattice->atom_position(i)[j];
+      positions_(i, j) = globals::lattice->lattice_site_position_cart(i)[j];
     }
   }
 

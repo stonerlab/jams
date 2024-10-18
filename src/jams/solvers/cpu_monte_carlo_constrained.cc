@@ -66,7 +66,7 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   spin_transformations_.resize(globals::num_spins);
   for (int i = 0; i < globals::num_spins; ++i) {
     spin_transformations_[i] = globals::lattice->material(
-        globals::lattice->atom_material_id(i)).transform;
+        globals::lattice->lattice_site_material_id(i)).transform;
   }
 
   output_initialization_info(std::cout);

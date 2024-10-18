@@ -20,7 +20,7 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting &settings)
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     transformations_(i) = globals::lattice->material(
-        globals::lattice->atom_material_id(i)).transform;
+        globals::lattice->lattice_site_material_id(i)).transform;
   }
 
   do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
@@ -126,7 +126,7 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum() {
 
       ofs << "# site: " << site << " ";
       ofs << "material: " << globals::lattice->material_name(
-          globals::lattice->motif_atom(site).material_index) << "\n";
+          globals::lattice->basis_site_atom(site).material_index) << "\n";
       ofs << jams::fmt::integer << "index";
       ofs << jams::fmt::decimal << "q_total";
       ofs << jams::fmt::decimal << "h" << jams::fmt::decimal<< "k" << jams::fmt::decimal<< "l";
@@ -184,7 +184,7 @@ MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 
 
   for (auto a = 0; a < num_sites; ++a) {
     // structure factor: note that q and r are in fractional coordinates (hkl, abc)
-    const Vec3 r = globals::lattice->motif_atom(a).fractional_position;
+    const Vec3 r = globals::lattice->basis_site_atom(a).position_frac;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
         auto q = kpoint.hkl;

@@ -31,7 +31,7 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                dc_local_field_(i, j) = settings["dc_local_field"][globals::lattice->atom_material_id(i)][j];
+                dc_local_field_(i, j) = settings["dc_local_field"][globals::lattice->lattice_site_material_id(i)][j];
                 dc_local_field_(i, j) *= globals::mus(i);
             }
         }
@@ -59,13 +59,13 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
 
         for (int i = 0; i < globals::num_spins; ++i) {
             for (int j = 0; j < 3; ++j) {
-                ac_local_field_(i, j) = settings["ac_local_field"][globals::lattice->atom_material_id(i)][j];
+                ac_local_field_(i, j) = settings["ac_local_field"][globals::lattice->lattice_site_material_id(i)][j];
                 ac_local_field_(i, j) *= globals::mus(i);
             }
         }
 
         for (int i = 0; i < globals::num_spins; ++i) {
-            ac_local_frequency_(i) = settings["ac_local_frequency"][globals::lattice->atom_material_id(i)];
+            ac_local_frequency_(i) = settings["ac_local_frequency"][globals::lattice->lattice_site_material_id(i)];
             ac_local_frequency_(i) = kTwoPi*ac_local_frequency_(i);
         }
     }

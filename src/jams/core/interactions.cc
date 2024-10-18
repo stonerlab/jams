@@ -35,21 +35,16 @@ namespace { //anon
       swap(interactions, symops_interaction_data);
     }
 
-    std::string get_motif_material_name(const int unit_cell_pos) {
+    std::string basis_site_material_name(const int unit_cell_pos) {
       return globals::lattice->material_name(
-          globals::lattice->motif_atom(unit_cell_pos).material_index);
-    }
-
-    std::string get_spin_material_name(const int spin_index) {
-      return globals::lattice->material_name(
-          globals::lattice->atom_material_id(spin_index));
+          globals::lattice->basis_site_atom(unit_cell_pos).material_index);
     }
 
     std::optional<int> find_basis_site_index(const Vec3 &offset, const double tolerance = jams::defaults::lattice_tolerance) {
       // find which basis site this offset corresponds to. It is possible that it does not correspond to a position in
       // which case the optional return is falsey.
-      for (int k = 0; k < globals::lattice->num_motif_atoms(); ++k) {
-        auto pos = globals::lattice->motif_atom(k).fractional_position;
+      for (int k = 0; k < globals::lattice->num_basis_sites(); ++k) {
+        auto pos = globals::lattice->basis_site_atom(k).position_frac;
         if (approximately_equal(pos, offset, tolerance)) {
           return k;
         }
@@ -82,7 +77,7 @@ namespace { //anon
     std::optional<int> find_unitcell_partner(int i, Vec3 r_ij) {
       // returns -1 if no partner is found
 
-      Vec3 p_i_frac = globals::lattice->motif_atom(i).fractional_position;
+      Vec3 p_i_frac = globals::lattice->basis_site_atom(i).position_frac;
       Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(r_ij);
       // fractional interaction vector shifted by motif position
       Vec3 q_ij = r_ij_frac + p_i_frac;
@@ -93,8 +88,8 @@ namespace { //anon
     void complete_interaction_typenames_names(std::vector<InteractionData>& interactions) {
       apply_transform(interactions,
                       [&](InteractionData J) -> InteractionData {
-                          J.type_i = get_motif_material_name(J.basis_site_i);
-                          J.type_j = get_motif_material_name(J.basis_site_j);
+                          J.type_i = basis_site_material_name(J.basis_site_i);
+                          J.type_j = basis_site_material_name(J.basis_site_j);
                           return J;
                       });
     }
@@ -104,10 +99,10 @@ namespace { //anon
       new_data.reserve(interactions.size());
 
       for (const auto& J : interactions) {
-        for (int i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+        for (int i = 0; i < globals::lattice->num_basis_sites(); ++i) {
           auto new_J = J;
           // check i has the same type
-          if (get_motif_material_name(i) != J.type_i) continue;
+          if (basis_site_material_name(i) != J.type_i) continue;
           new_J.basis_site_i = i;
 
           auto basis_site_partner = find_unitcell_partner(i, J.interaction_vector_cart);
@@ -117,7 +112,7 @@ namespace { //anon
           int j = *basis_site_partner;
 
           // check j has the same type
-          if (get_motif_material_name(j) != J.type_j) continue;
+          if (basis_site_material_name(j) != J.type_j) continue;
 
           new_J.basis_site_j = j;
 
@@ -334,8 +329,8 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
   // calculate the lattice translation vectors
   apply_transform(interactions, [](InteractionData J) -> InteractionData {
-    Vec3 p_i_frac = globals::lattice->motif_atom(J.basis_site_i).fractional_position;
-    Vec3 p_j_frac = globals::lattice->motif_atom(J.basis_site_j).fractional_position;
+    Vec3 p_i_frac = globals::lattice->basis_site_atom(J.basis_site_i).position_frac;
+    Vec3 p_j_frac = globals::lattice->basis_site_atom(J.basis_site_j).position_frac;
     Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(J.interaction_vector_cart);
     Vec3 T = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac);
 
@@ -385,7 +380,7 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
           }
 
           // catch if the site has a different material (presumably an impurity site)
-          if (get_spin_material_name(local_site) != I.type_i || get_spin_material_name(nbr_site) != I.type_j) {
+          if (globals::lattice->lattice_site_material_name(local_site) != I.type_i || globals::lattice->lattice_site_material_name(nbr_site) != I.type_j) {
             continue;
           }
 
@@ -446,13 +441,13 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
       case InteractionChecks::kIdenticalMotifNeighbourCount:
         if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2)) {
           std::vector<unsigned> motif_position_interactions(
-                globals::lattice->num_motif_atoms());
-            for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+              globals::lattice->num_basis_sites());
+            for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
               motif_position_interactions[i] = list.num_interactions(i);
             }
 
             for (auto i = 0; i < globals::num_spins; ++i) {
-              auto pos = globals::lattice->atom_motif_index(i);
+              auto pos = globals::lattice->lattice_site_basis_index(i);
               if (list.num_interactions(i) != motif_position_interactions[pos]) {
                 throw std::runtime_error(
                     "inconsistent neighbour list: some sites have different numbers of neighbours for the same motif position");
@@ -469,9 +464,9 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
               return prev + next.second;
           };
 
-        std::vector<Mat3> motif_position_total_exchange(globals::lattice->num_motif_atoms(),
+        std::vector<Mat3> motif_position_total_exchange(globals::lattice->num_basis_sites(),
                                                      kZeroMat3);
-          for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+          for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
             auto neighbour_list = list.interactions_of(i);
             motif_position_total_exchange[i] = std::accumulate(
                 neighbour_list.begin(), neighbour_list.end(), kZeroMat3,
@@ -481,7 +476,7 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
           for (auto i = 0; i < globals::num_spins; ++i) {
             auto neighbour_list = list.interactions_of(i);
 
-            auto pos = globals::lattice->atom_motif_index(i);
+            auto pos = globals::lattice->lattice_site_basis_index(i);
 
             Mat3 J0 = std::accumulate(neighbour_list.begin(),
                                       neighbour_list.end(), kZeroMat3, lambda);
@@ -502,9 +497,10 @@ void
 safety_check_distance_tolerance(const double &tolerance) {
   // check that no atoms in the unit cell are closer together than the tolerance
 
-  for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
-    for (auto j = i + 1; j < globals::lattice->num_motif_atoms(); ++j) {
-      const auto distance = norm(globals::lattice->motif_atom(i).fractional_position - globals::lattice->motif_atom(j).fractional_position);
+  for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
+    for (auto j = i + 1; j < globals::lattice->num_basis_sites(); ++j) {
+      const auto distance = norm(globals::lattice->basis_site_atom(i).position_frac - globals::lattice->basis_site_atom(
+          j).position_frac);
       if (distance < tolerance) {
         throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
                                     ") than the distance_tolerance (", tolerance, ").\n Check the positions",
@@ -603,14 +599,14 @@ write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &
       auto Jij = list[n].second;
       output << jams::fmt::integer << i;
       output << jams::fmt::integer << j;
-      output << jams::fmt::integer << globals::lattice->atom_material_name(i);
-      output << jams::fmt::integer << globals::lattice->atom_material_name(j);
-      output << jams::fmt::decimal << globals::lattice->atom_position(i)[0];
-      output << jams::fmt::decimal << globals::lattice->atom_position(i)[1];
-      output << jams::fmt::decimal << globals::lattice->atom_position(i)[2];
-      output << jams::fmt::decimal << globals::lattice->atom_position(j)[0];
-      output << jams::fmt::decimal << globals::lattice->atom_position(j)[1];
-      output << jams::fmt::decimal << globals::lattice->atom_position(j)[2];
+      output << jams::fmt::integer << globals::lattice->lattice_site_material_name(i);
+      output << jams::fmt::integer << globals::lattice->lattice_site_material_name(j);
+      output << jams::fmt::decimal << globals::lattice->lattice_site_position_cart(i)[0];
+      output << jams::fmt::decimal << globals::lattice->lattice_site_position_cart(i)[1];
+      output << jams::fmt::decimal << globals::lattice->lattice_site_position_cart(i)[2];
+      output << jams::fmt::decimal << globals::lattice->lattice_site_position_cart(j)[0];
+      output << jams::fmt::decimal << globals::lattice->lattice_site_position_cart(j)[1];
+      output << jams::fmt::decimal << globals::lattice->lattice_site_position_cart(j)[2];
       output << jams::fmt::decimal << rij[0];
       output << jams::fmt::decimal << rij[1];
       output << jams::fmt::decimal << rij[2];

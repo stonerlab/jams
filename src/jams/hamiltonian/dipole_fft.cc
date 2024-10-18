@@ -74,11 +74,11 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
     std::cout << "    kspace padded size " << kspace_padded_size_ << "\n";
     std::cout << "    generating tensors\n";
 
-  kspace_tensors_.resize(globals::lattice->num_motif_atoms());
+  kspace_tensors_.resize(globals::lattice->num_basis_sites());
 
-    for (auto pos_i = 0; pos_i < globals::lattice->num_motif_atoms(); ++pos_i) {
+    for (auto pos_i = 0; pos_i < globals::lattice->num_basis_sites(); ++pos_i) {
       std::vector<Vec3> generated_positions;
-      for (auto pos_j = 0; pos_j < globals::lattice->num_motif_atoms(); ++pos_j) {
+      for (auto pos_j = 0; pos_j < globals::lattice->num_basis_sites(); ++pos_j) {
         kspace_tensors_[pos_i].push_back(generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions));
       }
       if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
@@ -198,8 +198,8 @@ Vec3 DipoleFFTHamiltonian::calculate_field(const int i, double time) {
 // the generated positions to a vector
 jams::MultiArray<Complex, 5>
 DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
-  const Vec3 r_frac_i = globals::lattice->motif_atom(pos_i).fractional_position;
-  const Vec3 r_frac_j = globals::lattice->motif_atom(pos_j).fractional_position;
+  const Vec3 r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
+  const Vec3 r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
 
   const Vec3 r_cart_i = globals::lattice->fractional_to_cartesian(r_frac_i);
   const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
@@ -299,9 +299,9 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
 void DipoleFFTHamiltonian::calculate_fields(double time) {
   zero(field_);
 
-  for (auto pos_i = 0; pos_i < ::globals::lattice->num_motif_atoms(); ++pos_i) {
+  for (auto pos_i = 0; pos_i < ::globals::lattice->num_basis_sites(); ++pos_i) {
     kspace_h_.zero();
-    for (auto pos_j = 0; pos_j < ::globals::lattice->num_motif_atoms(); ++pos_j) {
+    for (auto pos_j = 0; pos_j < ::globals::lattice->num_basis_sites(); ++pos_j) {
       rspace_s_.zero();
       for (auto kx = 0; kx < kspace_size_[0]; ++kx) {
         for (auto ky = 0; ky < kspace_size_[1]; ++ky) {
@@ -317,7 +317,7 @@ void DipoleFFTHamiltonian::calculate_fields(double time) {
       fftw_execute(fft_s_rspace_to_kspace);
 
       const double mus_j = ::globals::lattice->material(
-          globals::lattice->motif_atom(pos_j).material_index).moment;
+          globals::lattice->basis_site_atom(pos_j).material_index).moment;
 
       // perform convolution as multiplication in fourier space
       for (auto i = 0; i < kspace_padded_size_[0]; ++i) {

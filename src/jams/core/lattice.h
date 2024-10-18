@@ -3,6 +3,19 @@
 #ifndef JAMS_CORE_LATTICE_H
 #define JAMS_CORE_LATTICE_H
 
+
+/// The definitions and nomenclature follow Kittel's Introduction to Solid State Physics.
+///
+/// The *basis* is made of three crystal axes a1, a2, a3 and a set of basis sites with a Cartesian position
+/// r_i = x_i a1 + y_i a2 + z_i a3 where 0 <= x_i, y_i, z_i < 1. The coordinate (x_i, y_i, z_i) is called a
+/// *fractional coordinate*.
+///
+/// The lattice is formed by repeated translation of the basis by translation vectors
+///
+/// T = u1 a1 + u2 a2 + u3 a3, where u1, u2, u3 are integers. (u1, u2, u3) is therefore a 
+///
+///
+
 extern "C" {
 #include "spglib.h"
 }
@@ -40,47 +53,55 @@ public:
 
     void init_from_config(const libconfig::Config &pConfig);
 
-    int size(int i) const;      // number of unitcell in each dimension
+    int size(int dimension) const;      // number of unitcell in each dimension
     Vec3i size() const;
 
     double parameter() const;   // [m]
 
-    Vec3 a() const;
-    Vec3 b() const;
-    Vec3 c() const;
+    Vec3 a1() const;
+    Vec3 a2() const;
+    Vec3 a3() const;
 
     const Cell& get_supercell();
     const Cell& get_unitcell();
     const Mat3& get_global_rotation_matrix();
 
-    Vec3 displacement(const Vec3 &r_i, const Vec3 &r_j) const;
+    Vec3 displacement(const Vec3 &position_i_cart, const Vec3 &position_j_cart) const;
 
-    Vec3 displacement(const unsigned& i, const unsigned&j) const;
+    Vec3 displacement(const unsigned& lattice_site_i, const unsigned&lattice_site_j) const;
 
-    bool is_periodic(int i) const;
+    bool is_periodic(int dimension) const;
     const Vec3b & periodic_boundaries() const;
 
-    const Atom& motif_atom(const int &i) const;
-    int num_motif_atoms() const;
+    /// Return the Atom data for a basis site
+    const Atom& basis_site_atom(const int &basis_site_index) const;
 
+    /// Return the number of sites in the basis
+    int num_basis_sites() const;
+
+    /// Return the number of materials
     int num_materials() const;
-    const Material &material(const int &i) const;
-    std::string material_name(int uid) const;
-    int material_id(const std::string &name) const;
-    bool material_exists(const std::string &name) const;
 
-    int atom_material_id(const int &i) const;           // integer index of the material
-    std::string atom_material_name(const int &i) const; // name of the material of atom i
-    const Vec3 & atom_position(const int &i) const;             // cartesian position in the supercell
-    const Vec3 & atom_fractional_position(const int &i) const;             // fractional position in the supercell
+    /// Return the Material data for a given material index
+    const Material &material(const int &material_index) const;
 
-    const std::vector<Vec3>& atom_cartesian_positions() const;
+    /// Return the Material name for a given material index
+    std::string material_name(int material_index) const;
+    int material_index(const std::string &material_name) const;
+    bool material_exists(const std::string &material_name) const;
 
-    unsigned atom_motif_index(const int &i) const;   // integer index within the motif
-    const std::vector<Mat3>& atom_motif_local_point_group_symops(const int &i); // return a vector of the point group operations local to the site
+    int lattice_site_material_id(int lattice_site_index) const;           // integer index of the material
+    std::string lattice_site_material_name(int lattice_site_index) const; // name of the material of atom lattice_site_index
+    const Vec3 & lattice_site_position_cart(int lattice_site_index) const;             // cartesian position in the supercell
+    const Vec3 & lattice_site_vector_frac(int lattice_site_index) const;             // fractional position in the supercell
 
-    int atom_unitcell(const int &i) const;
+    const std::vector<Vec3>& lattice_site_positions_cart() const;
 
+    /// Return the basis site index of the given lattice site
+    unsigned lattice_site_basis_index(int lattice_site_index) const;
+
+    /// Return a vector of symmetry operations (rotation matrices) of the point group at the given lattice site
+    const std::vector<Mat3>& lattice_site_point_group_symops(int lattice_site_index);
 
     // supercell
 
@@ -88,16 +109,16 @@ public:
       return cell_offsets_.size();
     }
 
-    const Vec3i& cell_offset(const int &i) const {
-      return cell_offsets_[atom_to_cell_lookup_[i]];
+    const Vec3i& cell_offset(int lattice_site_index) const {
+      return cell_offsets_[lattice_site_to_cell_lookup_[lattice_site_index]];
     }
 
-    const int& cell_containing_atom(const int &i) const {
-      return atom_to_cell_lookup_[i];
+    int cell_containing_atom(int lattice_site_index) const {
+      return lattice_site_to_cell_lookup_[lattice_site_index];
     }
 
-    const Vec3& cell_center(const int &i) const {
-      return cell_centers_[i];
+    const Vec3& cell_center(int cell_index) const {
+      return cell_centers_[cell_index];
     }
 
 
@@ -108,13 +129,13 @@ public:
     // TODO: remove rmax
     const Vec3 & rmax() const;
 
-    Vec3 generate_cartesian_lattice_position_from_fractional(const Vec3 &unit_cell_frac_pos,
-                                                             const Vec3i &translation_vector) const;
+    Vec3 generate_cartesian_lattice_position_from_fractional(const Vec3 &basis_site_position_frac,
+                                                             const Vec3i &lattice_translation_vector) const;
 
     Vec3 generate_image_position(const Vec3 &unit_cell_cart_pos, const Vec3i &image_vector) const;
 
-    // Generates a list of points symmetric to r_cart based on the local point group symmetry of motif_index
-    std::vector<Vec3> generate_symmetric_points(const int motif_index, const Vec3 &r_cart, const double &tolerance);
+    // Generates a list of points symmetric to r_cart based on the local point group symmetry of basis_site_index
+    std::vector<Vec3> generate_symmetric_points(int basis_site_index, const Vec3 &r_cart, const double &tolerance);
 
     Vec3 cartesian_to_fractional(const Vec3 &r_cart) const;
 
@@ -141,9 +162,9 @@ private:
 
     void read_lattice_from_config(const libconfig::Setting &settings);
 
-    void read_motif_from_config(const libconfig::Setting &positions, CoordinateFormat coordinate_format);
+    void read_basis_sites_from_config(const libconfig::Setting &positions, CoordinateFormat coordinate_format);
 
-    void read_motif_from_file(const std::string &filename, CoordinateFormat coordinate_format);
+    void read_basis_sites_from_file(const std::string &filename, CoordinateFormat coordinate_format);
 
     void init_unit_cell(const libconfig::Setting &lattice_settings, const libconfig::Setting &unitcell_settings);
 
@@ -163,17 +184,17 @@ private:
     Cell supercell;
     double lattice_parameter;
 
-    Vec3i lattice_dimensions;
+    Vec3i lattice_dimensions_;
     Vec3b lattice_periodic;
 
-    std::vector<Atom> motif_;
-    std::vector<Atom> atoms_;
+    std::vector<Atom> basis_sites_;
+    std::vector<Atom> lattice_sites_;
 
     // store both cartesian and fractional to avoid matrix multiplication when we want fractional
-    std::vector<Vec3> cartesian_positions_;
-    std::vector<Vec3> fractional_positions_;
+    std::vector<Vec3> lattice_site_positions_cart_;
+    std::vector<Vec3> lattice_site_positions_frac_;
 
-    std::vector<int>   atom_to_cell_lookup_;     // index is a spin and the data is the unit cell that spin belongs to
+    std::vector<int>   lattice_site_to_cell_lookup_;     // index is a spin and the data is the unit cell that spin belongs to
     std::vector<Vec3>  cell_centers_;
     std::vector<Vec3i> cell_offsets_;
 
@@ -188,7 +209,7 @@ private:
 
     SpglibDataset *spglib_dataset_ = nullptr;
     std::vector<Mat3> rotations_;
-    std::vector<std::vector<Mat3>> motif_local_pg_symops_;
+    std::vector<std::vector<Mat3>> basis_site_point_group_symops_;
 
 
 };
@@ -196,14 +217,14 @@ private:
 namespace jams {
     //
     // Returns the maximum interaction length of the parallelepiped described by
-    // vectors a, b, c were periodic boundaries may be defined.
+    // vectors a1, a2, a3 were periodic boundaries may be defined.
     //
-    // - 3D periodic returns the radius of a sphere
-    // - 2D periodic returns the radius of a cylinder in the periodic plane
-    // - 1D periodic returns half the length along a line in the periodic direction
+    // - 3D periodic returns the radius of a1 sphere
+    // - 2D periodic returns the radius of a1 cylinder in the periodic plane
+    // - 1D periodic returns half the length along a1 line in the periodic direction
     // - Non periodic returns the maximum length across the parallelepiped
     //
-    double maximum_interaction_length(const Vec3& a, const Vec3& b, const Vec3& c, const Vec3b& periodic_boundaries);
+    double maximum_interaction_length(const Vec3& a1, const Vec3& a2, const Vec3& a3, const Vec3b& periodic_boundaries);
 }
 
 #endif // JAMS_CORE_LATTICE_H

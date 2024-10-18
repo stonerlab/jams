@@ -17,10 +17,12 @@
 
 NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
- neartree_(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), globals::lattice->max_interaction_radius(), jams::defaults::lattice_tolerance)
+ neartree_(globals::lattice->get_supercell().a1(),
+           globals::lattice->get_supercell().a2(),
+           globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), globals::lattice->max_interaction_radius(), jams::defaults::lattice_tolerance)
 {
 
-  neartree_.insert_sites(globals::lattice->atom_cartesian_positions());
+  neartree_.insert_sites(globals::lattice->lattice_site_positions_cart());
 
   configure_kspace_vectors(settings);
 
@@ -96,7 +98,7 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
     // generalize so that we can impose open boundaries
     rspace_displacement_(i) = globals::lattice->displacement(
         {0.5 * lattice_dimensions[0], 0.5 * lattice_dimensions[1], 0.5 * lattice_dimensions[2]},
-        globals::lattice->atom_position(i));
+        globals::lattice->lattice_site_position_cart(i));
   }
 }
 

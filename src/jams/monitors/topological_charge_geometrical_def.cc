@@ -28,7 +28,7 @@ TopologicalGeometricalDefMonitor::TopologicalGeometricalDefMonitor(const libconf
   // Calculate the number of layers along the z direction
   auto comp = [](double a, double b){ return definately_less_than(a, b, jams::defaults::lattice_tolerance); };
   std::set<double, decltype(comp)> z_indices(comp);
-  for (const auto& r : globals::lattice->atom_cartesian_positions()) {
+  for (const auto& r : globals::lattice->lattice_site_positions_cart()) {
 	z_indices.insert(r[2]);
   }
   recip_num_layers_ = 1.0 / z_indices.size();
@@ -74,8 +74,10 @@ Monitor::ConvergenceStatus TopologicalGeometricalDefMonitor::convergence_status(
 void TopologicalGeometricalDefMonitor::calculate_elementary_triangles() {
 
   // Generate a near tree of nearest neighbours from which we can calculate the triangle indices
-  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
-  neartree.insert_sites(globals::lattice->atom_cartesian_positions());
+  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
+                                     globals::lattice->get_supercell().a2(),
+                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
+  neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
   // Use a set to ensure only a single version of equivalent triangles is stored.
   // This uses the structs defined in the class to compare ijk triplets to
@@ -95,14 +97,14 @@ void TopologicalGeometricalDefMonitor::calculate_elementary_triangles() {
   // + ----+          + ----+
   //
   // So here we detect the square lattice and compensate with a factor 1/2
-  if (approximately_equal(globals::lattice->a(), Vec3{1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)
-  && approximately_equal(globals::lattice->b(), Vec3{0.0, 1.0, 0.0}, jams::defaults::lattice_tolerance)) {
+  if (approximately_equal(globals::lattice->a1(), Vec3{1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)
+  && approximately_equal(globals::lattice->a2(), Vec3{0.0, 1.0, 0.0}, jams::defaults::lattice_tolerance)) {
     triangle_over_counting_ = 2.0;
   }
 
 
   for (int spin_i = 0; spin_i < globals::num_spins; ++spin_i) {
-	auto r_i = globals::lattice->atom_position(spin_i); // cartesian possition of spin i
+	auto r_i = globals::lattice->lattice_site_position_cart(spin_i); // cartesian possition of spin i
 
 	// Find neighbours within the same layer (assuming planes normal
 	// to z). Then generate ijk sets but always moving in a clockwise direction

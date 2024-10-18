@@ -68,7 +68,7 @@ void RotationSolver::run() {
     tsv_file.close();
   } else {
 
-    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+    for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
 
       Vec3 spin_initial = {globals::s(i, 0), globals::s(i, 1),
                            globals::s(i, 2)};

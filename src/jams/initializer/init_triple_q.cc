@@ -11,15 +11,15 @@ void jams::InitTripleQ::execute(const libconfig::Setting &settings) {
   double k = jams::config_required<double>(settings, "k");
   double l = jams::config_required<double>(settings, "l");
 
-  Vec3 K1 = globals::lattice->get_unitcell().a_inv();
-  Vec3 K2 = globals::lattice->get_unitcell().b_inv();
-  Vec3 K3 = globals::lattice->get_unitcell().c_inv();
+  Vec3 K1 = globals::lattice->get_unitcell().b1();
+  Vec3 K2 = globals::lattice->get_unitcell().b2();
+  Vec3 K3 = globals::lattice->get_unitcell().b3();
 
   const std::string material = jams::config_optional<std::string>(settings, "material", "");
 
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    if (material != "" && globals::lattice->atom_material_name(i) != material) {
+    if (material != "" && globals::lattice->lattice_site_material_name(i) != material) {
       continue;
     }
 

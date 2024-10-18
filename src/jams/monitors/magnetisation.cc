@@ -44,7 +44,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   if (grouping_ == Grouping::MATERIALS) {
     std::vector<std::vector<int>> material_index_groups(globals::lattice->num_materials());
     for (auto i = 0; i < globals::num_spins; ++i) {
-      auto type = globals::lattice->atom_material_id(i);
+      auto type = globals::lattice->lattice_site_material_id(i);
       material_index_groups[type].push_back(i);
     }
 
@@ -53,9 +53,9 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
       group_spin_indicies_[n] = jams::MultiArray<int,1>(material_index_groups[n].begin(), material_index_groups[n].end());
     }
   } else if (grouping_ == Grouping::POSITIONS) {
-    std::vector<std::vector<int>> position_index_groups(globals::lattice->num_motif_atoms());
+    std::vector<std::vector<int>> position_index_groups(globals::lattice->num_basis_sites());
     for (auto i = 0; i < globals::num_spins; ++i) {
-      auto position = globals::lattice->atom_motif_index(i);
+      auto position = globals::lattice->lattice_site_basis_index(i);
       position_index_groups[position].push_back(i);
     }
 
@@ -115,9 +115,9 @@ std::string MagnetisationMonitor::tsv_header() {
       }
     }
   } else if (grouping_ == Grouping::POSITIONS) {
-    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+    for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
       auto material_name = globals::lattice->material_name(
-          globals::lattice->motif_atom(i).material_index);
+          globals::lattice->basis_site_atom(i).material_index);
       for (const auto &suffix: {"_mx", "_my", "_mz", "_m"}) {
         ss << fmt::sci << std::to_string(i+1) + "_" + material_name + suffix;
       }

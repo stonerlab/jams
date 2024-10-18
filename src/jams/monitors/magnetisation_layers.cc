@@ -25,7 +25,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
   std::vector<double> rotated_z_position(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto r =  rotation_matrix * ::globals::lattice->atom_position(i) * globals::lattice->parameter() * kMeterToNanometer;
+    auto r =  rotation_matrix * ::globals::lattice->lattice_site_position_cart(i) * globals::lattice->parameter() * kMeterToNanometer;
     rotated_z_position[i] = r[2];
   }
 

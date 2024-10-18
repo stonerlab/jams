@@ -110,7 +110,7 @@ CubicAnisotropyHamiltonian::CubicAnisotropyHamiltonian(const Setting &settings, 
     
     for (int i = 0; i < globals::num_spins; ++i) {
         for (int n = 0; n < globals::lattice->num_materials(); ++n) {
-            if (globals::lattice->atom_material_id(i) == n) {
+            if (globals::lattice->lattice_site_material_id(i) == n) {
                 magnitude_(i) = cubic_anisotropies[n].energy * input_energy_unit_conversion_;
                 for (int j = 0; j < 3; ++j) {
                   u_axes_(i, j) = cubic_anisotropies[n].u[j];

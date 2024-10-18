@@ -10,8 +10,8 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
-    return approximately_equal(globals::lattice->a(), a, defaults::lattice_tolerance)
-    && approximately_equal(globals::lattice->b(), b, defaults::lattice_tolerance);
+    return approximately_equal(globals::lattice->a1(), a, defaults::lattice_tolerance)
+    && approximately_equal(globals::lattice->a2(), b, defaults::lattice_tolerance);
   };
 
   enum class LatticeType {Unsupported, Square, Hexagonal};
@@ -162,9 +162,9 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       J.basis_site_i = 0;
       J.basis_site_j = 0;
       J.type_i = globals::lattice->material_name(
-          globals::lattice->motif_atom(J.basis_site_i).material_index);
+          globals::lattice->basis_site_atom(J.basis_site_i).material_index);
       J.type_j = globals::lattice->material_name(
-          globals::lattice->motif_atom(J.basis_site_j).material_index);
+          globals::lattice->basis_site_atom(J.basis_site_j).material_index);
       J.interaction_vector_cart = globals::lattice->fractional_to_cartesian(data.first);
       J.interaction_value_tensor[0][0] = data.second;
       interaction_template.push_back(J);
@@ -237,9 +237,9 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       J.basis_site_i = 0;
       J.basis_site_j = 0;
       J.type_i = globals::lattice->material_name(
-          globals::lattice->motif_atom(J.basis_site_i).material_index);
+          globals::lattice->basis_site_atom(J.basis_site_i).material_index);
       J.type_j = globals::lattice->material_name(
-          globals::lattice->motif_atom(J.basis_site_j).material_index);
+          globals::lattice->basis_site_atom(J.basis_site_j).material_index);
       J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(data.first);
       J.interaction_value_tensor[0][0] = data.second;
       interaction_template.push_back(J);
