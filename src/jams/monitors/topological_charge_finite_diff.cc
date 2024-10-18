@@ -67,11 +67,11 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 	std::vector<InteractionData> interaction_template;
 	for (auto &data: dx_interaction_data) {
 	  InteractionData J;
-	  J.unit_cell_pos_i = 0;
-	  J.unit_cell_pos_j = 0;
+	  J.basis_site_i = 0;
+	  J.basis_site_j = 0;
 	  J.type_i = globals::lattice->material_name(
-		  globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
-	  J.type_j = globals::lattice->material_name(globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+		  globals::lattice->motif_atom(J.basis_site_i).material_index);
+	  J.type_j = globals::lattice->material_name(globals::lattice->motif_atom(J.basis_site_j).material_index);
 	  J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
 	  J.J_ij[0][0] = data.second;
 	  interaction_template.push_back(J);
@@ -118,12 +118,12 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 	std::vector<InteractionData> interaction_template;
 	for (auto &data: dy_interaction_data) {
 	  InteractionData J;
-	  J.unit_cell_pos_i = 0;
-	  J.unit_cell_pos_j = 0;
+	  J.basis_site_i = 0;
+	  J.basis_site_j = 0;
 	  J.type_i = globals::lattice->material_name(
-		  globals::lattice->motif_atom(J.unit_cell_pos_i).material_index);
+		  globals::lattice->motif_atom(J.basis_site_i).material_index);
 	  J.type_j = globals::lattice->material_name(
-		  globals::lattice->motif_atom(J.unit_cell_pos_j).material_index);
+		  globals::lattice->motif_atom(J.basis_site_j).material_index);
 	  J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
 	  J.J_ij[0][0] = data.second;
 	  interaction_template.push_back(J);

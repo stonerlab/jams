@@ -25,7 +25,7 @@ namespace { //anon
 
       for (auto const &J : interactions) {
         auto new_J = J;
-        auto symmetric_points = globals::lattice->generate_symmetric_points(J.unit_cell_pos_i, new_J.r_ij, jams::defaults::lattice_tolerance);
+        auto symmetric_points = globals::lattice->generate_symmetric_points(J.basis_site_i, new_J.r_ij, jams::defaults::lattice_tolerance);
         for (const auto p : symmetric_points) {
           new_J.r_ij = p;
           symops_interaction_data.push_back(new_J);
@@ -81,8 +81,8 @@ namespace { //anon
     void complete_interaction_typenames_names(std::vector<InteractionData>& interactions) {
       apply_transform(interactions,
                       [&](InteractionData J) -> InteractionData {
-                          J.type_i = get_motif_material_name(J.unit_cell_pos_i);
-                          J.type_j = get_motif_material_name(J.unit_cell_pos_j);
+                          J.type_i = get_motif_material_name(J.basis_site_i);
+                          J.type_j = get_motif_material_name(J.basis_site_j);
                           return J;
                       });
     }
@@ -96,7 +96,7 @@ namespace { //anon
           auto new_J = J;
           // check i has the same type
           if (get_motif_material_name(i) != J.type_i) continue;
-          new_J.unit_cell_pos_i = i;
+          new_J.basis_site_i = i;
 
           auto j = find_unitcell_partner(i, J.r_ij);
 
@@ -106,7 +106,7 @@ namespace { //anon
           // check j has the same type
           if (get_motif_material_name(j) != J.type_j) continue;
 
-          new_J.unit_cell_pos_j = j;
+          new_J.basis_site_j = j;
 
           new_data.push_back(new_J);
         }
@@ -211,10 +211,10 @@ interactions_from_file(std::ifstream &file, const InteractionFileDescription& de
     if (desc.type == InteractionFileFormat::JAMS) {
       is >> interaction.type_i >> interaction.type_j;
     } else {
-      is >> interaction.unit_cell_pos_i >> interaction.unit_cell_pos_j;
+      is >> interaction.basis_site_i >> interaction.basis_site_j;
       // use zero based indexing
-      interaction.unit_cell_pos_i--;
-      interaction.unit_cell_pos_j--;
+      interaction.basis_site_i--;
+      interaction.basis_site_j--;
     }
 
     is >> interaction.r_ij[0] >> interaction.r_ij[1] >> interaction.r_ij[2];
@@ -256,8 +256,8 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
 
     if (desc.type == InteractionFileFormat::KKR) {
       // use zero based indexing
-      J.unit_cell_pos_i = int(setting[i][0])-1;
-      J.unit_cell_pos_j = int(setting[i][1])-1;
+      J.basis_site_i = int(setting[i][0])-1;
+      J.basis_site_j = int(setting[i][1])-1;
     } else {
       J.type_i = setting[i][0].c_str();
       J.type_j = setting[i][1].c_str();
@@ -330,9 +330,9 @@ integer_interaction_from_data(const InteractionData& J) {
   Vec3 u_ij = round_to_integer_lattice(q_ij);
   IntegerInteractionData x;
 
-  x.unit_cell_pos_i = J.unit_cell_pos_i;
-  x.unit_cell_pos_j = J.unit_cell_pos_j;
-  x.u_ij = Vec3i{int(u_ij[0]), int(u_ij[1]), int(u_ij[2])};
+  x.basis_site_i = J.basis_site_i;
+  x.basis_site_j = J.basis_site_j;
+  x.T_ij = Vec3i{int(T_ij[0]), int(T_ij[1]), int(T_ij[2])};
   x.J_ij = J.J_ij;
   x.type_i = J.type_i;
   x.type_j = J.type_j;
@@ -363,11 +363,11 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
       for (int k = 0; k < globals::lattice->size(2); ++k) {
         // loop over atoms in the interaction template
         for (const auto& I : integer_template) {
-          const int m = I.unit_cell_pos_i;
+          const int m = I.basis_site_i;
 
           int local_site = globals::lattice->site_index_by_unit_cell(i, j, k, m);
 
-          Vec3i d_unit_cell = Vec3i{i, j, k} + I.u_ij;
+          Vec3i d_unit_cell = Vec3i{i, j, k} + I.T_ij;
 
           // check if interaction goes outside of an open boundary
           if (globals::lattice->apply_boundary_conditions(d_unit_cell[0], d_unit_cell[1], d_unit_cell[2]) == false) {
@@ -375,14 +375,14 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
           }
 
           int nbr_site = globals::lattice->site_index_by_unit_cell(d_unit_cell[0], d_unit_cell[1], d_unit_cell[2],
-                                                                   I.unit_cell_pos_j);
+                                                                   I.basis_site_j);
 
           if (nbr_list.contains({local_site, nbr_site})) {
             auto r_ij = globals::lattice->displacement(nbr_site, local_site);
             throw std::runtime_error(
                 "Multiple interactions for sites " + std::to_string(local_site) + " and " + std::to_string(nbr_site) + "\n"
                 + "i: motif pos: " + std::to_string(m) + " unit cell indices: " + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "\n"
-                + "j: motif pos: " + std::to_string(I.unit_cell_pos_j) + " unit cell indices: " + std::to_string(I.u_ij[0]) + ", " + std::to_string(I.u_ij[1]) + ", " + std::to_string(I.u_ij[2]) + "\n"
+                + "j: motif pos: " + std::to_string(I.basis_site_j) + " unit cell indices: " + std::to_string(I.T_ij[0]) + ", " + std::to_string(I.T_ij[1]) + ", " + std::to_string(I.T_ij[2]) + "\n"
                 + "r_ij: " + std::to_string(r_ij[0]) + ", " + std::to_string(r_ij[1]) + ", " + std::to_string(r_ij[2])
             );
           }
@@ -520,8 +520,8 @@ safety_check_distance_tolerance(const double &tolerance) {
 void check_interaction_list_symmetry(const std::vector<InteractionData> &interactions) {
   for (const auto &J : interactions) {
     InteractionData sym_J;
-    sym_J.unit_cell_pos_i = J.unit_cell_pos_j;
-    sym_J.unit_cell_pos_j = J.unit_cell_pos_i;
+    sym_J.basis_site_i = J.basis_site_j;
+    sym_J.basis_site_j = J.basis_site_i;
     sym_J.r_ij = -J.r_ij;
     sym_J.J_ij = transpose(J.J_ij);
     sym_J.type_i = J.type_j;
@@ -529,8 +529,8 @@ void check_interaction_list_symmetry(const std::vector<InteractionData> &interac
 
 
     auto it = std::find_if(interactions.begin(), interactions.end(), [&](const InteractionData& sym_J){
-      return (sym_J.unit_cell_pos_i == J.unit_cell_pos_j
-      && sym_J.unit_cell_pos_j == J.unit_cell_pos_i
+      return (sym_J.basis_site_i == J.basis_site_j
+      && sym_J.basis_site_j == J.basis_site_i
       && sym_J.type_i == J.type_j
       && sym_J.type_j == J.type_i
       && approximately_equal(sym_J.r_ij, -J.r_ij, jams::defaults::lattice_tolerance)
@@ -546,8 +546,8 @@ void check_interaction_list_symmetry(const std::vector<InteractionData> &interac
 void
 write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data, CoordinateFormat coord_format) {
   for (auto const &interaction : data) {
-    output << std::setw(12) << interaction.unit_cell_pos_i << "\t";
-    output << std::setw(12) << interaction.unit_cell_pos_j << "\t";
+    output << std::setw(12) << interaction.basis_site_i << "\t";
+    output << std::setw(12) << interaction.basis_site_j << "\t";
     output << std::setw(12) << interaction.type_i << "\t";
     output << std::setw(12) << interaction.type_j << "\t";
     output << std::setw(12) << std::fixed << norm(interaction.r_ij) << "\t";
