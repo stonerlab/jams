@@ -52,21 +52,13 @@ struct InteractionFileDescription {
 };
 
 struct InteractionData {
-    int         basis_site_i = -1;
-    int         basis_site_j = -1;
-    Vec3        r_ij = {{0.0, 0.0, 0.0}}; // interaction vector (cartesian)
-    Mat3        J_ij = kZeroMat3;
-    std::string type_i = "NOTYPE";
-    std::string type_j = "NOTYPE";
-};
-
-struct IntegerInteractionData {
-    int         basis_site_i = -1;
-    int         basis_site_j = -1;
-    Vec3i       T_ij = {{0, 0, 0}};   // offset in unitcells
-    Mat3        J_ij = kZeroMat3;
-    std::string type_i = "NOTYPE";
-    std::string type_j = "NOTYPE";
+  int         basis_site_i = -1; // atom site 'i' in the basis (zero indexed)
+  int         basis_site_j = -1; // atom site 'j' in the basis (zero indexed)
+  Vec3        interaction_vector_cart = {0.0, 0.0, 0.0};
+  Mat3        interaction_value_tensor = kZeroMat3;
+  Vec3i       lattice_translation_vector = {0, 0, 0};
+  std::string type_i = "NOTYPE";
+  std::string type_j = "NOTYPE";
 };
 
 InteractionFileDescription
@@ -94,7 +86,7 @@ void
 safety_check_distance_tolerance(const double &tolerance);
 
 /// Check that for every interaction in the list there is a corresponding interaction which has the correct symmetries
-/// J_ij = (J_ji)^T and r_ij = -r_ji
+/// interaction_value_tensor = (J_ji)^T and interaction_vector_cart = -r_ji
 void
 check_interaction_list_symmetry(const std::vector<InteractionData> &interactions);
 

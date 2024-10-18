@@ -85,7 +85,7 @@ namespace jams {
 
           data.basis_site_i = n;
           data.basis_site_j = atom.motif_index;
-          data.r_ij = unitcell.matrix() * (atom.fractional_position - origin);
+          data.interaction_vector_cart = unitcell.matrix() * (atom.fractional_position - origin);
           data.type_i = ::globals::lattice->material_name(motif[n].material_index);
           data.type_j = ::globals::lattice->material_name(atom.material_index);
 
@@ -103,8 +103,8 @@ namespace jams {
             std::cout << std::setw(8) << jams::fmt::integer << interaction.basis_site_j + 1 << " ";
             std::cout << std::setw(8) << interaction.type_i << " ";
             std::cout << std::setw(8) << interaction.type_j << " ";
-            std::cout << jams::fmt::decimal << interaction.r_ij << " ";
-            std::cout << jams::fmt::decimal << unitcell.inverse_matrix() * interaction.r_ij << std::endl;
+            std::cout << jams::fmt::decimal << interaction.interaction_vector_cart << " ";
+            std::cout << jams::fmt::decimal << unitcell.inverse_matrix() * interaction.interaction_vector_cart << std::endl;
           }
         }
         std::cout << '#';

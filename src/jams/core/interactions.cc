@@ -25,9 +25,9 @@ namespace { //anon
 
       for (auto const &J : interactions) {
         auto new_J = J;
-        auto symmetric_points = globals::lattice->generate_symmetric_points(J.basis_site_i, new_J.r_ij, jams::defaults::lattice_tolerance);
+        auto symmetric_points = globals::lattice->generate_symmetric_points(J.basis_site_i, new_J.interaction_vector_cart, jams::defaults::lattice_tolerance);
         for (const auto p : symmetric_points) {
-          new_J.r_ij = p;
+          new_J.interaction_vector_cart = p;
           symops_interaction_data.push_back(new_J);
         }
       }
@@ -45,17 +45,16 @@ namespace { //anon
           globals::lattice->atom_material_id(spin_index));
     }
 
-    int find_motif_index(const Vec3 &offset, const double tolerance = jams::defaults::lattice_tolerance) {
-      // find which unit_cell position this offset corresponds to
-      // it is possible that it does not correspond to a position in which case the
-      // -1 is returned
+    std::optional<int> find_basis_site_index(const Vec3 &offset, const double tolerance = jams::defaults::lattice_tolerance) {
+      // find which basis site this offset corresponds to. It is possible that it does not correspond to a position in
+      // which case the optional return is falsey.
       for (int k = 0; k < globals::lattice->num_motif_atoms(); ++k) {
         auto pos = globals::lattice->motif_atom(k).fractional_position;
         if (approximately_equal(pos, offset, tolerance)) {
           return k;
         }
       }
-      return -1;
+      return std::nullopt;
     }
 
     /// Returns the integer lattice translation vector T of an arbitrary vector r accounting for difficulties
@@ -80,7 +79,7 @@ namespace { //anon
       return T;
     }
 
-    int find_unitcell_partner(int i, Vec3 r_ij) {
+    std::optional<int> find_unitcell_partner(int i, Vec3 r_ij) {
       // returns -1 if no partner is found
 
       Vec3 p_i_frac = globals::lattice->motif_atom(i).fractional_position;
@@ -88,7 +87,7 @@ namespace { //anon
       // fractional interaction vector shifted by motif position
       Vec3 q_ij = r_ij_frac + p_i_frac;
 
-      return find_motif_index(q_ij - lattice_translation_vector(q_ij));
+      return find_basis_site_index(q_ij - lattice_translation_vector(q_ij));
     }
 
     void complete_interaction_typenames_names(std::vector<InteractionData>& interactions) {
@@ -111,10 +110,11 @@ namespace { //anon
           if (get_motif_material_name(i) != J.type_i) continue;
           new_J.basis_site_i = i;
 
-          auto j = find_unitcell_partner(i, J.r_ij);
+          auto basis_site_partner = find_unitcell_partner(i, J.interaction_vector_cart);
+          // not such position exists
+          if (!basis_site_partner) continue;
 
-          // check if no corresponding positions exists
-          if (j == -1) continue;
+          int j = *basis_site_partner;
 
           // check j has the same type
           if (get_motif_material_name(j) != J.type_j) continue;
@@ -230,16 +230,16 @@ interactions_from_file(std::ifstream &file, const InteractionFileDescription& de
       interaction.basis_site_j--;
     }
 
-    is >> interaction.r_ij[0] >> interaction.r_ij[1] >> interaction.r_ij[2];
+    is >> interaction.interaction_vector_cart[0] >> interaction.interaction_vector_cart[1] >> interaction.interaction_vector_cart[2];
 
     if (desc.dimension == InteractionType::SCALAR) {
       double J;
       is >> J;
-      interaction.J_ij = J * kIdentityMat3;
+      interaction.interaction_value_tensor = J * kIdentityMat3;
     } else {
       for (auto i : {0,1,2}) {
         for (auto j : {0,1,2}) {
-          is >> interaction.J_ij[i][j];
+          is >> interaction.interaction_value_tensor[i][j];
         }
       }
     }
@@ -276,14 +276,14 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
       J.type_j = setting[i][1].c_str();
     }
 
-    J.r_ij = {setting[i][2][0], setting[i][2][1], setting[i][2][2]};
+    J.interaction_vector_cart = {setting[i][2][0], setting[i][2][1], setting[i][2][2]};
 
     if (desc.dimension == InteractionType::SCALAR) {
-      J.J_ij = double(setting[i][3]) * kIdentityMat3;
+      J.interaction_value_tensor = double(setting[i][3]) * kIdentityMat3;
     } else {
-      J.J_ij = {setting[i][3][0], setting[i][3][1], setting[i][3][2],
-                setting[i][3][3], setting[i][3][4], setting[i][3][5],
-                setting[i][3][6], setting[i][3][7], setting[i][3][8]};
+      J.interaction_value_tensor = {setting[i][3][0], setting[i][3][1], setting[i][3][2],
+                                    setting[i][3][3], setting[i][3][4], setting[i][3][5],
+                                    setting[i][3][6], setting[i][3][7], setting[i][3][8]};
     }
 
     interactions.push_back(J);
@@ -296,7 +296,7 @@ void
 post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff) {
   if (coord_format == CoordinateFormat::FRACTIONAL) {
     apply_transform(interactions, [](InteractionData J) -> InteractionData {
-        J.r_ij = ::globals::lattice->fractional_to_cartesian(J.r_ij);
+        J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(J.interaction_vector_cart);
         return J;
     });
   }
@@ -324,55 +324,34 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
   // apply any predicates
   if (energy_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return definately_less_than(max_abs(J.J_ij), energy_cutoff, DBL_EPSILON);});
+      return definately_less_than(max_abs(J.interaction_value_tensor), energy_cutoff, DBL_EPSILON);});
   }
 
   if (radius_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return definately_greater_than(norm(J.r_ij), radius_cutoff, jams::defaults::lattice_tolerance);});
+      return definately_greater_than(norm(J.interaction_vector_cart), radius_cutoff, jams::defaults::lattice_tolerance);});
   }
+
+  // calculate the lattice translation vectors
+  apply_transform(interactions, [](InteractionData J) -> InteractionData {
+    Vec3 p_i_frac = globals::lattice->motif_atom(J.basis_site_i).fractional_position;
+    Vec3 p_j_frac = globals::lattice->motif_atom(J.basis_site_j).fractional_position;
+    Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(J.interaction_vector_cart);
+    Vec3 T = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac);
+
+    // If r_ij_frac + p_i_frac - p_j_frac is not a cell translation vector then there is a problem with the inputted
+    // exchange vectors.
+    assert(approximately_zero(T - (r_ij_frac + p_i_frac - p_j_frac), jams::defaults::lattice_tolerance));
+
+    J.lattice_translation_vector = {int(T[0]), int(T[1]), int(T[2])};
+    return J;
+  });
 
   check_interaction_list_symmetry(interactions);
 }
 
-IntegerInteractionData
-integer_interaction_from_data(const InteractionData& J) {
-  Vec3 p_i_frac = globals::lattice->motif_atom(J.basis_site_i).fractional_position;
-  Vec3 p_j_frac = globals::lattice->motif_atom(J.basis_site_j).fractional_position;
-  Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(J.r_ij);
-  Vec3 T_ij = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac);
-
-  // If r_ij_frac + p_i_frac - p_j_frac is not a cell translation vector then there is a problem with the inputted
-  // exchange vectors.
-  assert(approximately_zero(T_ij - (r_ij_frac + p_i_frac - p_j_frac), jams::defaults::lattice_tolerance));
-
-  IntegerInteractionData x;
-
-  x.basis_site_i = J.basis_site_i;
-  x.basis_site_j = J.basis_site_j;
-  x.T_ij = Vec3i{int(T_ij[0]), int(T_ij[1]), int(T_ij[2])};
-  x.J_ij = J.J_ij;
-  x.type_i = J.type_i;
-  x.type_j = J.type_j;
-
-  return x;
-}
-
-std::vector<IntegerInteractionData>
-generate_integer_lookup_data(std::vector<InteractionData> &interactions) {
-  std::vector<IntegerInteractionData> integer_offset_data;
-  integer_offset_data.reserve(interactions.size());
-
-  for (const auto& J : interactions) {
-    integer_offset_data.push_back(integer_interaction_from_data(J));
-  }
-  return integer_offset_data;
-}
-
 jams::InteractionList<Mat3, 2>
 neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
-  auto integer_template = generate_integer_lookup_data(interactions);
-
   jams::InteractionList<Mat3, 2> nbr_list;
 
   // loop over the translation vectors for lattice size
@@ -380,12 +359,12 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
     for (int j = 0; j < globals::lattice->size(1); ++j) {
       for (int k = 0; k < globals::lattice->size(2); ++k) {
         // loop over atoms in the interaction template
-        for (const auto& I : integer_template) {
+        for (const auto& I : interactions) {
           const int m = I.basis_site_i;
 
           int local_site = globals::lattice->site_index_by_unit_cell(i, j, k, m);
 
-          Vec3i d_unit_cell = Vec3i{i, j, k} + I.T_ij;
+          Vec3i d_unit_cell = Vec3i{i, j, k} + I.lattice_translation_vector;
 
           // check if interaction goes outside of an open boundary
           if (globals::lattice->apply_boundary_conditions(d_unit_cell[0], d_unit_cell[1], d_unit_cell[2]) == false) {
@@ -400,8 +379,8 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
             throw std::runtime_error(
                 "Multiple interactions for sites " + std::to_string(local_site) + " and " + std::to_string(nbr_site) + "\n"
                 + "i: motif pos: " + std::to_string(m) + " unit cell indices: " + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "\n"
-                + "j: motif pos: " + std::to_string(I.basis_site_j) + " unit cell indices: " + std::to_string(I.T_ij[0]) + ", " + std::to_string(I.T_ij[1]) + ", " + std::to_string(I.T_ij[2]) + "\n"
-                + "r_ij: " + std::to_string(r_ij[0]) + ", " + std::to_string(r_ij[1]) + ", " + std::to_string(r_ij[2])
+                + "j: motif pos: " + std::to_string(I.basis_site_j) + " unit cell indices: " + std::to_string(I.lattice_translation_vector[0]) + ", " + std::to_string(I.lattice_translation_vector[1]) + ", " + std::to_string(I.lattice_translation_vector[2]) + "\n"
+                + "interaction_vector_cart: " + std::to_string(r_ij[0]) + ", " + std::to_string(r_ij[1]) + ", " + std::to_string(r_ij[2])
             );
           }
 
@@ -410,7 +389,7 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
             continue;
           }
 
-          nbr_list.insert({local_site, nbr_site}, I.J_ij);
+          nbr_list.insert({local_site, nbr_site}, I.interaction_value_tensor);
         }
       }
     }
@@ -540,8 +519,8 @@ void check_interaction_list_symmetry(const std::vector<InteractionData> &interac
     InteractionData sym_J;
     sym_J.basis_site_i = J.basis_site_j;
     sym_J.basis_site_j = J.basis_site_i;
-    sym_J.r_ij = -J.r_ij;
-    sym_J.J_ij = transpose(J.J_ij);
+    sym_J.interaction_vector_cart = -J.interaction_vector_cart;
+    sym_J.interaction_value_tensor = transpose(J.interaction_value_tensor);
     sym_J.type_i = J.type_j;
     sym_J.type_j = J.type_i;
 
@@ -551,8 +530,8 @@ void check_interaction_list_symmetry(const std::vector<InteractionData> &interac
       && sym_J.basis_site_j == J.basis_site_i
       && sym_J.type_i == J.type_j
       && sym_J.type_j == J.type_i
-      && approximately_equal(sym_J.r_ij, -J.r_ij, jams::defaults::lattice_tolerance)
-      && approximately_equal(sym_J.J_ij, transpose(J.J_ij), 1e-4));
+      && approximately_equal(sym_J.interaction_vector_cart, -J.interaction_vector_cart, jams::defaults::lattice_tolerance)
+      && approximately_equal(sym_J.interaction_value_tensor, transpose(J.interaction_value_tensor), 1e-4));
     });
 
     if (it == interactions.end()) {
@@ -568,26 +547,26 @@ write_interaction_data(std::ostream &output, const std::vector<InteractionData> 
     output << std::setw(12) << interaction.basis_site_j << "\t";
     output << std::setw(12) << interaction.type_i << "\t";
     output << std::setw(12) << interaction.type_j << "\t";
-    output << std::setw(12) << std::fixed << norm(interaction.r_ij) << "\t";
+    output << std::setw(12) << std::fixed << norm(interaction.interaction_vector_cart) << "\t";
     if (coord_format == CoordinateFormat::CARTESIAN) {
-      output << std::setw(12) << std::fixed << interaction.r_ij[0] << "\t";
-      output << std::setw(12) << std::fixed << interaction.r_ij[1] << "\t";
-      output << std::setw(12) << std::fixed << interaction.r_ij[2] << "\t";
+      output << std::setw(12) << std::fixed << interaction.interaction_vector_cart[0] << "\t";
+      output << std::setw(12) << std::fixed << interaction.interaction_vector_cart[1] << "\t";
+      output << std::setw(12) << std::fixed << interaction.interaction_vector_cart[2] << "\t";
     } else {
-      auto r_ij_frac = globals::lattice->cartesian_to_fractional(interaction.r_ij);
+      auto r_ij_frac = globals::lattice->cartesian_to_fractional(interaction.interaction_vector_cart);
       output << std::setw(12) << std::fixed << r_ij_frac[0] << "\t";
       output << std::setw(12) << std::fixed << r_ij_frac[1] << "\t";
       output << std::setw(12) << std::fixed << r_ij_frac[2] << "\t";
     }
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][0] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][1] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[0][2] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][0] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][1] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[1][2] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][0] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][1] << "\t";
-    output << std::setw(12) << std::scientific << interaction.J_ij[2][2] << std::endl;
+    output << std::setw(12) << std::scientific << interaction.interaction_value_tensor[0][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.interaction_value_tensor[0][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.interaction_value_tensor[0][2] << "\t";
+    output << std::setw(12) << std::scientific << interaction.interaction_value_tensor[1][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.interaction_value_tensor[1][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.interaction_value_tensor[1][2] << "\t";
+    output << std::setw(12) << std::scientific << interaction.interaction_value_tensor[2][0] << "\t";
+    output << std::setw(12) << std::scientific << interaction.interaction_value_tensor[2][1] << "\t";
+    output << std::setw(12) << std::scientific << interaction.interaction_value_tensor[2][2] << std::endl;
   }
 }
 void
@@ -606,7 +585,7 @@ write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &
   output << jams::fmt::decimal << "rx_ij";
   output << jams::fmt::decimal << "ry_ij";
   output << jams::fmt::decimal << "rz_ij";
-  output << jams::fmt::decimal << "|r_ij|";
+  output << jams::fmt::decimal << "|interaction_vector_cart|";
   output << jams::fmt::sci << "Jij_xx";
   output << jams::fmt::sci << "Jij_xy";
   output << jams::fmt::sci << "Jij_xz";

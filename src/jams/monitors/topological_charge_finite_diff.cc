@@ -72,8 +72,8 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 	  J.type_i = globals::lattice->material_name(
 		  globals::lattice->motif_atom(J.basis_site_i).material_index);
 	  J.type_j = globals::lattice->material_name(globals::lattice->motif_atom(J.basis_site_j).material_index);
-	  J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
-	  J.J_ij[0][0] = data.second;
+	  J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(data.first);
+	  J.interaction_value_tensor[0][0] = data.second;
 	  interaction_template.push_back(J);
 	}
 
@@ -124,8 +124,8 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 		  globals::lattice->motif_atom(J.basis_site_i).material_index);
 	  J.type_j = globals::lattice->material_name(
 		  globals::lattice->motif_atom(J.basis_site_j).material_index);
-	  J.r_ij = ::globals::lattice->fractional_to_cartesian(data.first);
-	  J.J_ij[0][0] = data.second;
+	  J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(data.first);
+	  J.interaction_value_tensor[0][0] = data.second;
 	  interaction_template.push_back(J);
 	}
 	jams::InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(
