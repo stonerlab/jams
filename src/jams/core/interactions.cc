@@ -58,24 +58,37 @@ namespace { //anon
       return -1;
     }
 
-    Vec3 round_to_integer_lattice(const Vec3 &q_ij, const double tolerance = jams::defaults::lattice_tolerance) {
-      Vec3 u_ij;
-      for (int k = 0; k < 3; ++k) {
-        u_ij[k] = floor(q_ij[k] + tolerance);
+    /// Returns the integer lattice translation vector T of an arbitrary vector r accounting for difficulties
+    /// in the precision at the edges and corners of the cell.
+    Vec3 lattice_translation_vector(const Vec3& r_frac, const double tolerance = jams::defaults::lattice_tolerance) {
+      // If we are very close to the origin or edge of a cell then rounding with floor() to find the cell translation
+      // vector can be tricky because smaller errors due to floating point precision (not least from the user input)
+      // could put us in the wrong cell. Therefore we first check for the case that we are very close (within
+      // jams::defaults::lattice_tolerance) of a cell origin, in which case we round to that origin. Otherwise we use
+      // floor() in the usual way.
+      Vec3 T;
+      for (auto n = 0; n < 3; ++n) {
+        double nearest_integer = std::nearbyint(r_frac[n]);
+        double floored_value = std::floor(r_frac[n]);
+
+        if (approximately_zero(r_frac[n] - nearest_integer, tolerance)) {
+          T[n] = nearest_integer;
+        } else {
+          T[n] = floored_value;
+        }
       }
-      return u_ij;
+      return T;
     }
 
     int find_unitcell_partner(int i, Vec3 r_ij) {
       // returns -1 if no partner is found
 
-      Vec3 p_ij_frac = globals::lattice->motif_atom(i).fractional_position;
+      Vec3 p_i_frac = globals::lattice->motif_atom(i).fractional_position;
       Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(r_ij);
       // fractional interaction vector shifted by motif position
-      Vec3 q_ij = r_ij_frac + p_ij_frac;
-      Vec3 u_ij = round_to_integer_lattice(q_ij);
+      Vec3 q_ij = r_ij_frac + p_i_frac;
 
-      return find_motif_index(q_ij - u_ij);
+      return find_motif_index(q_ij - lattice_translation_vector(q_ij));
     }
 
     void complete_interaction_typenames_names(std::vector<InteractionData>& interactions) {
@@ -324,10 +337,15 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
 IntegerInteractionData
 integer_interaction_from_data(const InteractionData& J) {
-  Vec3 p_ij_frac = globals::lattice->motif_atom(J.unit_cell_pos_i).fractional_position;
+  Vec3 p_i_frac = globals::lattice->motif_atom(J.basis_site_i).fractional_position;
+  Vec3 p_j_frac = globals::lattice->motif_atom(J.basis_site_j).fractional_position;
   Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(J.r_ij);
-  Vec3 q_ij = r_ij_frac + p_ij_frac; // fractional interaction vector shifted by motif position
-  Vec3 u_ij = round_to_integer_lattice(q_ij);
+  Vec3 T_ij = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac);
+
+  // If r_ij_frac + p_i_frac - p_j_frac is not a cell translation vector then there is a problem with the inputted
+  // exchange vectors.
+  assert(approximately_zero(T_ij - (r_ij_frac + p_i_frac - p_j_frac), jams::defaults::lattice_tolerance));
+
   IntegerInteractionData x;
 
   x.basis_site_i = J.basis_site_i;
