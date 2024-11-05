@@ -20,11 +20,6 @@ mathjax_path = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-source_suffix = '.rst'
-
-# The master toctree document.
-master_doc = 'index'
-
 html_theme = 'sphinx_rtd_theme'
 
 html_static_path = ['_static']
