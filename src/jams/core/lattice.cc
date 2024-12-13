@@ -930,6 +930,7 @@ void Lattice::calc_symmetry_operations() {
   cout << "    num symops " << spglib_dataset_->n_operations << "\n";
 
   Mat3 rot;
+  Vec3 trans;
   Mat3 id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 
   for (auto n = 0; n < spglib_dataset_->n_operations; ++n) {
@@ -951,7 +952,12 @@ void Lattice::calc_symmetry_operations() {
       }
     }
 
-    rotations_.push_back(rot);
+    for (auto i = 0; i < 3; ++i) {
+      trans[i] = spglib_dataset_->translations[n][i];
+    }
+
+    sym_rotations_.push_back(rot);
+    sym_translations_.push_back(trans);
   }
   cout << "\n";
 
@@ -1120,11 +1126,19 @@ const std::vector<Mat3> &Lattice::atom_motif_local_point_group_symops(const int 
         motif_local_pg_symops_.resize(num_motif_atoms());
         for (auto m = 0; m < num_motif_atoms(); ++m) {
             auto motif_position = motif_atom(m).fractional_position;
-            for (auto symop : rotations_) {
-                auto new_position = shift_fractional_coordinate_to_zero_one(symop * motif_position);
+            for (auto n = 0; n < sym_translations_.size(); ++n) {
+                // The point groups are found only from space group operations which do not include translation
+                // so we must skip any elements with a translation.
+                if (!approximately_zero(sym_translations_[n], jams::defaults::lattice_tolerance)) {
+                  continue;
+                }
+
+                auto rotation = sym_rotations_[n];
+
+                auto new_position = shift_fractional_coordinate_to_zero_one(rotation * motif_position);
                 // TODO: need to translate back into unit cell
                 if  (approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
-                    motif_local_pg_symops_[m].push_back(symop);
+                    motif_local_pg_symops_[m].push_back(rotation);
                 }
             }
         }
