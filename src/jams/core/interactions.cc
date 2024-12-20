@@ -40,7 +40,7 @@ namespace { //anon
           globals::lattice->basis_site_atom(unit_cell_pos).material_index);
     }
 
-    std::optional<int> find_basis_site_index(const Vec3 &offset, const double tolerance = jams::defaults::lattice_tolerance) {
+    std::optional<int> find_basis_site_index(const Vec3 &offset, const double tolerance) {
       // find which basis site this offset corresponds to. It is possible that it does not correspond to a position in
       // which case the optional return is falsey.
       for (int k = 0; k < globals::lattice->num_basis_sites(); ++k) {
@@ -54,11 +54,11 @@ namespace { //anon
 
     /// Returns the integer lattice translation vector T of an arbitrary vector r accounting for difficulties
     /// in the precision at the edges and corners of the cell.
-    Vec3 lattice_translation_vector(const Vec3& r_frac, const double tolerance = jams::defaults::lattice_tolerance) {
+    Vec3 lattice_translation_vector(const Vec3& r_frac, const double tolerance) {
       // If we are very close to the origin or edge of a cell then rounding with floor() to find the cell translation
       // vector can be tricky because smaller errors due to floating point precision (not least from the user input)
       // could put us in the wrong cell. Therefore we first check for the case that we are very close (within
-      // jams::defaults::lattice_tolerance) of a cell origin, in which case we round to that origin. Otherwise we use
+      // tolerance) of a cell origin, in which case we round to that origin. Otherwise we use
       // floor() in the usual way.
       Vec3 T;
       for (auto n = 0; n < 3; ++n) {
@@ -74,7 +74,7 @@ namespace { //anon
       return T;
     }
 
-    std::optional<int> find_unitcell_partner(int i, Vec3 r_ij) {
+    std::optional<int> find_unitcell_partner(int i, Vec3 r_ij, double tolerance) {
       // returns -1 if no partner is found
 
       Vec3 p_i_frac = globals::lattice->basis_site_atom(i).position_frac;
@@ -82,7 +82,7 @@ namespace { //anon
       // fractional interaction vector shifted by motif position
       Vec3 q_ij = r_ij_frac + p_i_frac;
 
-      return find_basis_site_index(q_ij - lattice_translation_vector(q_ij));
+      return find_basis_site_index(q_ij - lattice_translation_vector(q_ij, tolerance), tolerance);
     }
 
     void complete_interaction_typenames_names(std::vector<InteractionData>& interactions) {
@@ -94,7 +94,7 @@ namespace { //anon
                       });
     }
 
-    void complete_interaction_unitcell_positions(std::vector<InteractionData>& interactions) {
+    void complete_interaction_unitcell_positions(std::vector<InteractionData>& interactions, double distance_tolerance) {
       std::vector<InteractionData> new_data;
       new_data.reserve(interactions.size());
 
@@ -105,7 +105,7 @@ namespace { //anon
           if (basis_site_material_name(i) != J.type_i) continue;
           new_J.basis_site_i = i;
 
-          auto basis_site_partner = find_unitcell_partner(i, J.interaction_vector_cart);
+          auto basis_site_partner = find_unitcell_partner(i, J.interaction_vector_cart, distance_tolerance);
           // not such position exists
           if (!basis_site_partner) continue;
 
@@ -288,7 +288,7 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
 }
 
 void
-post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff) {
+post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance) {
   if (coord_format == CoordinateFormat::FRACTIONAL) {
     apply_transform(interactions, [](InteractionData J) -> InteractionData {
         J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(J.interaction_vector_cart);
@@ -301,7 +301,7 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
   // fill missing possible unit cell positions (if the file is JAMS format)
   if (desc.type == InteractionFileFormat::JAMS) {
-    complete_interaction_unitcell_positions(interactions);
+    complete_interaction_unitcell_positions(interactions, distance_tolerance);
   }
 
   // fill missing type names (if the file is KKR format)
@@ -328,15 +328,15 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
   }
 
   // calculate the lattice translation vectors
-  apply_transform(interactions, [](InteractionData J) -> InteractionData {
+  apply_transform(interactions, [&](InteractionData J) -> InteractionData {
     Vec3 p_i_frac = globals::lattice->basis_site_atom(J.basis_site_i).position_frac;
     Vec3 p_j_frac = globals::lattice->basis_site_atom(J.basis_site_j).position_frac;
     Vec3 r_ij_frac = globals::lattice->cartesian_to_fractional(J.interaction_vector_cart);
-    Vec3 T = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac);
+    Vec3 T = lattice_translation_vector(r_ij_frac + p_i_frac - p_j_frac, distance_tolerance);
 
     // If r_ij_frac + p_i_frac - p_j_frac is not a cell translation vector then there is a problem with the inputted
     // exchange vectors.
-    assert(approximately_zero(T - (r_ij_frac + p_i_frac - p_j_frac), jams::defaults::lattice_tolerance));
+    assert(approximately_zero(T - (r_ij_frac + p_i_frac - p_j_frac), distance_tolerance));
 
     J.lattice_translation_vector = {int(T[0]), int(T[1]), int(T[2])};
     return J;
@@ -394,11 +394,17 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
 }
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(std::ifstream &file, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
+generate_neighbour_list(std::ifstream &file,
+                        CoordinateFormat coord_format,
+                        bool use_symops,
+                        double energy_cutoff,
+                        double radius_cutoff,
+                        double distance_tolerance,
+                        std::vector<InteractionChecks> checks) {
   auto file_desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff);
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
 
   // now the interaction data should be in the same format regardless of the input
   // calculate the neighbourlist from here
@@ -411,11 +417,17 @@ generate_neighbour_list(std::ifstream &file, CoordinateFormat coord_format, bool
 }
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(libconfig::Setting& setting, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, std::vector<InteractionChecks> checks) {
+generate_neighbour_list(libconfig::Setting &setting,
+                        CoordinateFormat coord_format,
+                        bool use_symops,
+                        double energy_cutoff,
+                        double radius_cutoff,
+                        double distance_tolerance,
+                        std::vector<InteractionChecks> checks) {
   auto file_desc = discover_interaction_setting_format(setting);
   auto interactions = interactions_from_settings(setting, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff);
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
 
   // now the interaction data should be in the same format regardless of the input
   // calculate the neighbourlist from here

@@ -123,10 +123,22 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       throw jams::FileException(file_path, "failed to open file");
     }
     neighbour_list_ = generate_neighbour_list(
-        interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_, interaction_checks);
+        interaction_file,
+        coord_format,
+        use_symops,
+        energy_cutoff_,
+        radius_cutoff_,
+        distance_tolerance_,
+        interaction_checks);
   } else if (settings.exists("interactions")) {
     neighbour_list_ = generate_neighbour_list(
-        settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_, interaction_checks);
+        settings["interactions"],
+        coord_format,
+        use_symops,
+        energy_cutoff_,
+        radius_cutoff_,
+        distance_tolerance_,
+        interaction_checks);
   } else {
     throw jams::ConfigException(settings, "'exc_file' or 'interactions' settings are required");
   }

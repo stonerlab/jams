@@ -72,15 +72,21 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions);
 
 jams::InteractionList<Mat3, 2>
 generate_neighbour_list(std::ifstream &file,
-        CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
-        double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
-    InteractionChecks::kNoZeroMotifNeighbourCount, InteractionChecks::kIdenticalMotifNeighbourCount, InteractionChecks::kIdenticalMotifTotalExchange});
+                        CoordinateFormat coord_format,
+                        bool use_symops,
+                        double energy_cutoff,
+                        double radius_cutoff,
+                        double distance_tolerance,
+                        std::vector<InteractionChecks> checks);
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(libconfig::Setting& settings,
-        CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
-        double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
-    InteractionChecks::kNoZeroMotifNeighbourCount, InteractionChecks::kIdenticalMotifNeighbourCount, InteractionChecks::kIdenticalMotifTotalExchange});
+generate_neighbour_list(libconfig::Setting &settings,
+                        CoordinateFormat coord_format,
+                        bool use_symops,
+                        double energy_cutoff,
+                        double radius_cutoff,
+                        double distance_tolerance,
+                        std::vector<InteractionChecks> checks);
 
 void
 safety_check_distance_tolerance(const double &tolerance);
