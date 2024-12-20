@@ -41,7 +41,7 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
 
         // check which spins are inside the slice
         for (int i = 0; i < globals::num_spins; ++i) {
-            Vec3 pos = globals::lattice->atom_position(i);
+            Vec3 pos = globals::lattice->lattice_site_position_cart(i);
 
             // check if the current spin in inside the slice
           if (definately_greater_than(pos[0], slice_origin[0], jams::defaults::lattice_tolerance) && definately_less_than(pos[0], slice_origin[0] + slice_size[0], jams::defaults::lattice_tolerance)
@@ -58,10 +58,10 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         spins_binary_data.resize(num_slice_points, 3);
 
         for (int i = 0; i < num_slice_points; ++i) {
-            types_binary_data(i) = globals::lattice->atom_material_id(slice_spins[i]);
+            types_binary_data(i) = globals::lattice->lattice_site_material_id(slice_spins[i]);
             for (int j = 0; j < 3; ++j) {
                 points_binary_data(i, j) = globals::lattice->parameter() *
-                    globals::lattice->atom_position(slice_spins[i])[j];
+                    globals::lattice->lattice_site_position_cart(slice_spins[i])[j];
             }
         }
     } else {
@@ -70,10 +70,10 @@ VtuMonitor::VtuMonitor(const libconfig::Setting &settings)
         types_binary_data.resize(globals::num_spins);
 
         for (int i = 0; i < globals::num_spins; ++i) {
-            types_binary_data(i) = globals::lattice->atom_material_id(i);
+            types_binary_data(i) = globals::lattice->lattice_site_material_id(i);
             for (int j = 0; j < 3; ++j) {
                 points_binary_data(i, j) = globals::lattice->parameter() *
-                    globals::lattice->atom_position(i)[j];
+                    globals::lattice->lattice_site_position_cart(i)[j];
             }
         }
     }

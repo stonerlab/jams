@@ -13,7 +13,9 @@
 DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size),
   r_cutoff_(jams::config_required<double>(settings, "r_cutoff")),
-  neartree_(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance)
+  neartree_(globals::lattice->get_supercell().a1(),
+            globals::lattice->get_supercell().a2(),
+            globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance)
 {
 
   std::cout << "  r_cutoff " << r_cutoff_ << "\n";
@@ -24,7 +26,7 @@ DipoleNearTreeHamiltonian::DipoleNearTreeHamiltonian(const libconfig::Setting &s
         " (" + std::to_string(globals::lattice->max_interaction_radius()) + ")");
   }
 
-  neartree_.insert_sites(globals::lattice->atom_cartesian_positions());
+  neartree_.insert_sites(globals::lattice->lattice_site_positions_cart());
 
 
   std::cout << "  near tree size " << neartree_.size() << "\n";
@@ -70,7 +72,7 @@ void DipoleNearTreeHamiltonian::calculate_energies(double time) {
 [[gnu::hot]]
 Vec3 DipoleNearTreeHamiltonian::calculate_field(const int i, double time)
 {
-  const Vec3 r_i = globals::lattice->atom_position(i);
+  const Vec3 r_i = globals::lattice->lattice_site_position_cart(i);
 
   const auto neighbours = neartree_.neighbours(r_i, r_cutoff_);
 

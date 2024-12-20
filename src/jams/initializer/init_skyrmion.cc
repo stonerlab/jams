@@ -48,7 +48,8 @@ void jams::InitSkyrmion::execute(const libconfig::Setting &settings) {
   double Qh = jams::config_optional<double>(settings, "helicity", 0.0);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto r_i = globals::lattice->displacement({center[0], center[1], 0.0}, globals::lattice->atom_position(i));
+    auto r_i = globals::lattice->displacement({center[0], center[1], 0.0},
+                                              globals::lattice->lattice_site_position_cart(i));
     double x = r_i[0];
     double y = r_i[1];
     double r = sqrt(x*x + y*y);

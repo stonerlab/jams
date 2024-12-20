@@ -154,7 +154,7 @@ void FieldPulseHamiltonian::calculate_fields(double time) {
 }
 
 Vec3 FieldPulseHamiltonian::calculate_field(int i, double time) {
-  Vec3 r = ::globals::lattice->atom_position(i);
+  Vec3 r = ::globals::lattice->lattice_site_position_cart(i);
   return globals::mus(i) *
       temporal_field_pulse_->local_field(time, r);
 }

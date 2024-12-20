@@ -34,10 +34,10 @@ void SpinCorrelationMonitor::update(Solver& solver) {
 #pragma GCC optimize ("Ofast")
 void SpinCorrelationMonitor::post_process() {
   // calculate average sz of each position in unit cell
-  std::vector<double> avg_sz(globals::lattice->num_motif_atoms(), 0.0);
+  std::vector<double> avg_sz(globals::lattice->num_basis_sites(), 0.0);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto n = globals::lattice->atom_motif_index(i);
+    auto n = globals::lattice->lattice_site_basis_index(i);
     for (auto t = 0; t < num_samples_; ++t) {
       avg_sz[n] += sz_data_(i, t);
     }
@@ -49,7 +49,7 @@ void SpinCorrelationMonitor::post_process() {
 
   // subtract from the spin data
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto n = globals::lattice->atom_motif_index(i);
+    auto n = globals::lattice->lattice_site_basis_index(i);
     for (auto t = 0; t < num_samples_; ++t) {
       sz_data_(i, t) -= avg_sz[n];
     }

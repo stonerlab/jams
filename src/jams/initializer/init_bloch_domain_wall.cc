@@ -12,7 +12,7 @@ void jams::InitBlochDomainWall::execute(const libconfig::Setting &settings) {
   double center = jams::config_required<double>(settings, "center");
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    auto r = globals::lattice->atom_position(i);
+    auto r = globals::lattice->lattice_site_position_cart(i);
     // NOTE: The factor of pi here is an arbitrary convention. See the
     // documentation for jams::InitBlochDomainWall.
     globals::s(i, 0) = 0.0;

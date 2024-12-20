@@ -18,7 +18,7 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : M
   }
 
   auto kspace_size   = globals::lattice->kspace_size();
-  num_motif_atoms_ = globals::lattice->num_motif_atoms();
+  num_motif_atoms_ = globals::lattice->num_basis_sites();
 
   zero(kspace_data_.resize(
       kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_motif_atoms_));
@@ -210,7 +210,8 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
 }
 
 void SpectrumBaseMonitor::store_periodogram_data(const jams::MultiArray<double, 2> &data) {
-  fft_supercell_vector_field_to_kspace(data, kspace_data_, globals::lattice->size(), globals::lattice->kspace_size(), globals::lattice->num_motif_atoms());
+  fft_supercell_vector_field_to_kspace(data, kspace_data_, globals::lattice->size(), globals::lattice->kspace_size(),
+                                       globals::lattice->num_basis_sites());
   store_kspace_data_on_path(kspace_data_, kspace_paths_);
   periodogram_index_++;
 }

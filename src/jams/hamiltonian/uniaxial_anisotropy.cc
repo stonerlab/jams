@@ -53,7 +53,7 @@ AnisotropySetting read_anisotropy_setting(Setting &setting) {
   if (setting[0].isNumber()) {
     result.motif_position = int(setting[0]);
     result.motif_position--;
-    if (result.motif_position < 0 || result.motif_position >= globals::lattice->num_motif_atoms()) {
+    if (result.motif_position < 0 || result.motif_position >= globals::lattice->num_basis_sites()) {
       throw runtime_error("uniaxial anisotropy motif position is invalid");
     }
   } else {
@@ -96,14 +96,14 @@ UniaxialAnisotropyHamiltonian::UniaxialAnisotropyHamiltonian(const Setting &sett
 
   for (const auto& ani : anisotropies) {
     for (auto i = 0; i < globals::num_spins; ++i) {
-      if (globals::lattice->atom_motif_index(i) == ani.motif_position) {
+      if (globals::lattice->lattice_site_basis_index(i) == ani.motif_position) {
         magnitude_(i) = ani.energy * input_energy_unit_conversion_;
         for (auto j : {0, 1, 2}) {
           axis_(i, j) = ani.axis[j];
         }
       }
       if (globals::lattice->material_exists(ani.material)) {
-        if (globals::lattice->atom_material_id(i) == globals::lattice->material_id(ani.material)) {
+        if (globals::lattice->lattice_site_material_id(i) == globals::lattice->material_index(ani.material)) {
           magnitude_(i) = ani.energy * input_energy_unit_conversion_;
           for (auto j : {0, 1, 2}) {
             axis_(i, j) = ani.axis[j];

@@ -30,19 +30,19 @@ class Cell {
 public:
     inline Cell() = default;
     inline Cell(const Mat3 &basis, const Vec3b pbc = {{true, true, true}});
-    inline Cell(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b pbc = {{true, true, true}});
+    inline Cell(const Vec3 &a1, const Vec3 &a2, const Vec3 &a3, const Vec3b pbc = {{true, true, true}});
 
-    inline Vec3 a() const { return {matrix_[0][0], matrix_[1][0], matrix_[2][0]}; }
-    inline Vec3 b() const { return {matrix_[0][1], matrix_[1][1], matrix_[2][1]}; }
-    inline Vec3 c() const { return {matrix_[0][2], matrix_[1][2], matrix_[2][2]}; }
+    inline Vec3 a1() const { return {matrix_[0][0], matrix_[1][0], matrix_[2][0]}; }
+    inline Vec3 a2() const { return {matrix_[0][1], matrix_[1][1], matrix_[2][1]}; }
+    inline Vec3 a3() const { return {matrix_[0][2], matrix_[1][2], matrix_[2][2]}; }
 
-    inline Vec3 a_inv() const { return inverse_matrix_[0]; }
-    inline Vec3 b_inv() const { return inverse_matrix_[1]; }
-    inline Vec3 c_inv() const { return inverse_matrix_[2]; }
+    inline Vec3 b1() const { return inverse_matrix_[0]; }
+    inline Vec3 b2() const { return inverse_matrix_[1]; }
+    inline Vec3 b3() const { return inverse_matrix_[2]; }
 
-    inline double alpha() const {return rad_to_deg(angle(b(), c()));}
-    inline double beta() const {return rad_to_deg(angle(c(), a()));}
-    inline double gamma() const {return rad_to_deg(angle(a(), b()));}
+    inline double alpha() const {return rad_to_deg(angle(a2(), a3()));}
+    inline double beta() const {return rad_to_deg(angle(a3(), a1()));}
+    inline double gamma() const {return rad_to_deg(angle(a1(), a2()));}
 
     inline bool has_orthogonal_basis() const { return has_orthogonal_basis_; };
     inline jams::LatticeSystem lattice_system() const { return lattice_system_; };

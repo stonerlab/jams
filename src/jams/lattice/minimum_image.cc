@@ -27,21 +27,21 @@ Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
   Vec3 r_ij = minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
 
 //  if ((dot(a, b) == 0 && dot(b, c) == 0 && dot(c, a) == 0) ||
-//      definately_less_than(norm(r_ij), maths::parallelepiped_inradius(a, b, c), epsilon)) {
-//    return r_ij;
+//      definately_less_than(norm(interaction_vector_cart), maths::parallelepiped_inradius(a, b, c), epsilon)) {
+//    return interaction_vector_cart;
 //  }
 
-  // For Smith's method we accept only if |r_ij| < r_inradius. For orthogonal
+  // For Smith's method we accept only if |interaction_vector_cart| < r_inradius. For orthogonal
   // systems you can in principle always use Smith's method (the inradius check
   // guards against skewness) but degenerate points of the unit cell
   // are mapped into neighbouring cells i.e. the minimum image for
-  // r_i = (0, 0, 0) r_j = (0.5, 0.5, 0.5) is r_ij = (-0.5, -0.5, -0.5). In
-  // principle this makes no difference, but we generally want the r_ij found
-  // with Smith's method to be the same as the r_ij found with a brute force
+  // r_i = (0, 0, 0) r_j = (0.5, 0.5, 0.5) is interaction_vector_cart = (-0.5, -0.5, -0.5). In
+  // principle this makes no difference, but we generally want the interaction_vector_cart found
+  // with Smith's method to be the same as the interaction_vector_cart found with a brute force
   // method. In the brute force method, which of the degenerate positions
   // we identify will depend on the order in which we check them (i.e. if we
   // check one distance and then only accept shorter distances then the first
-  // cell we hit with the minimum distance will be the r_ij). So the simplest
+  // cell we hit with the minimum distance will be the interaction_vector_cart). So the simplest
   // behaviour is to check the central cell first and then loop over neighbours.
   // For Smith's method we can ensure degenerate points are found in the central
   // cell only by applying the cutoff radius to all cells such that generate
@@ -52,8 +52,8 @@ Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
     return r_ij;
   }
 
-  // If r_ij is not inside the inradius we have to do a bruteforce check
-  // algorithm which should always give the shortest r_ij but it is much
+  // If interaction_vector_cart is not inside the inradius we have to do a bruteforce check
+  // algorithm which should always give the shortest interaction_vector_cart but it is much
   // more costly.
   return minimum_image_bruteforce(a, b, c, pbc, r_i, r_j, epsilon);
 }
@@ -107,7 +107,7 @@ Vec3 jams::minimum_image_bruteforce(const Vec3 &a, const Vec3 &b, const Vec3 &c,
   }
 
   // Although the maximum possible distance is the longest diagonal, we only
-  // need to search cells which are within |r_ij| because we only care about
+  // need to search cells which are within |interaction_vector_cart| because we only care about
   // shorter distances.
   const auto r_max = norm(r_ij);
 
@@ -132,7 +132,7 @@ Vec3 jams::minimum_image_smith_method(const Mat3 &cell_matrix,
     return r_ij;
   }
 
-  // transform the real space r_ij into fractional lattice coordinates
+  // transform the real space interaction_vector_cart into fractional lattice coordinates
   Vec3 s_ij = cell_inv_matrix * r_ij;
 
   // In Smith's paper he uses the function INT(A). Presumably this is the

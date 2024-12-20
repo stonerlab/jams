@@ -24,7 +24,7 @@ MagnetisationRateMonitor::MagnetisationRateMonitor(const libconfig::Setting &set
 
   material_count_.resize(globals::lattice->num_materials(), 0);
   for (auto i = 0; i < globals::num_spins; ++i) {
-    material_count_[globals::lattice->atom_material_id(i)]++;
+    material_count_[globals::lattice->lattice_site_material_id(i)]++;
   }
 }
 
@@ -32,7 +32,7 @@ void MagnetisationRateMonitor::update(Solver& solver) {
   std::vector<Vec3> dm_dt(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto type = globals::lattice->atom_material_id(i);
+    const auto type = globals::lattice->lattice_site_material_id(i);
     for (auto j = 0; j < 3; ++j) {
       dm_dt[type][j] += globals::ds_dt(i, j);
     }

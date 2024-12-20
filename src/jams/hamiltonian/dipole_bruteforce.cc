@@ -34,7 +34,8 @@ DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Settin
   frac_positions_.resize(globals::num_spins);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    frac_positions_[i] = globals::lattice->get_supercell().inverse_matrix() * globals::lattice->atom_position(i);
+    frac_positions_[i] = globals::lattice->get_supercell().inverse_matrix() * globals::lattice->lattice_site_position_cart(
+        i);
   }
 
 }
@@ -86,8 +87,8 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
           globals::lattice->get_supercell().matrix(),
           globals::lattice->get_supercell().inverse_matrix(),
           globals::lattice->get_supercell().periodic(),
-          globals::lattice->atom_position(i),
-          globals::lattice->atom_position(j));
+          globals::lattice->lattice_site_position_cart(i),
+          globals::lattice->lattice_site_position_cart(j));
   };
 
   const auto r_cut_squared = pow2(r_cutoff_);

@@ -24,7 +24,7 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
 : SpectrumBaseMonitor(settings) {
 
   // default to 1.0 in case no form factor is given in the settings
-  fill(neutron_form_factors_.resize(globals::lattice->num_motif_atoms(), num_kpoints()), 1.0);
+  fill(neutron_form_factors_.resize(globals::lattice->num_basis_sites(), num_kpoints()), 1.0);
   if (settings.exists("form_factor")) {
     configure_form_factors(settings["form_factor"]);
   }
@@ -44,11 +44,11 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
 void NeutronScatteringMonitor::configure_form_factors(libconfig::Setting &settings) {
   auto gj = jams::read_form_factor_settings(settings);
 
-  auto num_sites     = globals::lattice->num_motif_atoms();
+  auto num_sites     = globals::lattice->num_basis_sites();
   neutron_form_factors_.resize(num_sites, num_kpoints());
   for (auto a = 0; a < num_sites; ++a) {
     for (auto i = 0; i < num_kpoints(); ++i) {
-      auto m = globals::lattice->motif_atom(a).material_index;
+      auto m = globals::lattice->basis_site_atom(a).material_index;
       auto q = kspace_paths_[i].xyz;
       neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * globals::lattice->parameter(), gj.first[m], gj.second[m]);
     }
@@ -103,7 +103,7 @@ jams::MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cro
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      Vec3 r_ab = globals::lattice->motif_atom(b).fractional_position - globals::lattice->motif_atom(a).fractional_position;
+      Vec3 r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
 
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
@@ -138,7 +138,7 @@ jams::MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross
 
   for (auto a = 0; a < num_sites; ++a) {
     for (auto b = 0; b < num_sites; ++b) {
-      const Vec3 r_ab = globals::lattice->motif_atom(b).fractional_position - globals::lattice->motif_atom(a).fractional_position;
+      const Vec3 r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = kspace_paths_[k];
         auto Q = unit_vector(kpoint.xyz);

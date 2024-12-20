@@ -91,7 +91,7 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
   // NOTE: This means that we are assuming lattice vectors a,b are in the
   // x,y plane and c is BOTH out of the plane and orthogonal to a,b. i.e.
   // it must be a vector along z. We do a check here for safety.
-  auto c_unit_vec = normalize(globals::lattice->get_unitcell().c());
+  auto c_unit_vec = normalize(globals::lattice->get_unitcell().a3());
   assert(approximately_zero(c_unit_vec[0], 1e-8)
 			 && approximately_zero(c_unit_vec[1], 1e-8)
 			 && approximately_equal(c_unit_vec[2], 1.0, 1e-8));
@@ -105,7 +105,7 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
   double x_max = globals::lattice->size(0);
   auto y_max = globals::lattice->size(1);
   for (auto i = 0; i < globals::num_spins; ++i) {
-	auto r = inverse(W) * globals::lattice->atom_position(i);
+	auto r = inverse(W) * globals::lattice->lattice_site_position_cart(i);
 
 	if (periodic_x_) {
 	  auto theta_x = (r[0] / x_max) * (kTwoPi);

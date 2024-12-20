@@ -55,7 +55,7 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   auto random_normal_number = bind(std::normal_distribution<>(), generator);
 
   for (auto i = 0; i < size; ++i) {
-    auto type = globals::lattice->atom_material_id(i);
+    auto type = globals::lattice->lattice_site_material_id(i);
     magnitude_[i] = properties[type].magnitude + properties[type].sigma * random_normal_number();
     direction_[i] = random_unit_vector();
   }
@@ -114,7 +114,7 @@ void RandomAnisotropyHamiltonian::output_anisotropy_axes(std::ofstream &outfile)
   outfile << "\n";
 
   for (auto i = 0; i < direction_.size(); ++i) {
-    auto r = globals::lattice->atom_position(i);
+    auto r = globals::lattice->lattice_site_position_cart(i);
     outfile << std::setw(12) << i;
     outfile << std::setw(12) << r;
     outfile << std::setw(12) << direction_[i];

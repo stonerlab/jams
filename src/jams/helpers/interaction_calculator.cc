@@ -19,9 +19,9 @@ namespace jams {
                                        const double eps) {
       // assumes motif is in fractional coordinates
       Vec3i num_cells = {
-          int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.b(), unitcell.c(), unitcell.a()))),
-          int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.c(), unitcell.a(), unitcell.b()))),
-          int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.a(), unitcell.b(), unitcell.c())))
+          int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.a2(), unitcell.a3(), unitcell.a1()))),
+          int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.a3(), unitcell.a1(), unitcell.a2()))),
+          int(ceil(r_max / jams::maths::parallelepiped_height(unitcell.a1(), unitcell.a2(), unitcell.a3())))
       };
 
       std::vector<Atom> atoms;
@@ -32,7 +32,7 @@ namespace jams {
           for (auto k = -num_cells[2]; k < num_cells[2] + 1; ++k) {
             auto cell_offset = Vec3i{{i, j, k}};
             for (auto n = 0; n < motif.size(); ++n) {
-              auto r = motif[n].fractional_position + cell_offset;
+              auto r = motif[n].position_frac + cell_offset;
               atoms.push_back({counter, motif[n].material_index, n, r});
               counter++;
             }
@@ -41,10 +41,10 @@ namespace jams {
       }
 
       for (auto n = 0; n < motif.size(); ++n) {
-        auto origin = motif[n].fractional_position;
+        auto origin = motif[n].position_frac;
 
         auto cartesian_distance = [unitcell, origin](const Atom &a) -> double {
-            return norm(unitcell.matrix() * (a.fractional_position - origin));
+            return norm(unitcell.matrix() * (a.position_frac - origin));
         };
 
         auto cartesian_distance_comp = [&](const Atom &a, const Atom &b) -> bool {
@@ -83,9 +83,9 @@ namespace jams {
 
           InteractionData data;
 
-          data.unit_cell_pos_i = n;
-          data.unit_cell_pos_j = atom.motif_index;
-          data.r_ij = unitcell.matrix() * (atom.fractional_position - origin);
+          data.basis_site_i = n;
+          data.basis_site_j = atom.basis_site_index;
+          data.interaction_vector_cart = unitcell.matrix() * (atom.position_frac - origin);
           data.type_i = ::globals::lattice->material_name(motif[n].material_index);
           data.type_j = ::globals::lattice->material_name(atom.material_index);
 
@@ -99,12 +99,12 @@ namespace jams {
           std::cout << "# shell: " << s.index << " interactions: " << s.interactions.size() << " radius: " << s.radius
                << std::endl;
           for (const auto &interaction : s.interactions) {
-            std::cout << std::setw(8) << jams::fmt::integer << interaction.unit_cell_pos_i + 1 << " ";
-            std::cout << std::setw(8) << jams::fmt::integer << interaction.unit_cell_pos_j + 1 << " ";
+            std::cout << std::setw(8) << jams::fmt::integer << interaction.basis_site_i + 1 << " ";
+            std::cout << std::setw(8) << jams::fmt::integer << interaction.basis_site_j + 1 << " ";
             std::cout << std::setw(8) << interaction.type_i << " ";
             std::cout << std::setw(8) << interaction.type_j << " ";
-            std::cout << jams::fmt::decimal << interaction.r_ij << " ";
-            std::cout << jams::fmt::decimal << unitcell.inverse_matrix() * interaction.r_ij << std::endl;
+            std::cout << jams::fmt::decimal << interaction.interaction_vector_cart << " ";
+            std::cout << jams::fmt::decimal << unitcell.inverse_matrix() * interaction.interaction_vector_cart << std::endl;
           }
         }
         std::cout << '#';

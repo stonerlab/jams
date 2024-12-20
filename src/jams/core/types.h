@@ -51,8 +51,8 @@ enum OutputFormat {TEXT, HDF5};
 struct Atom {
     int  id;
     int  material_index;
-    int  motif_index;
-    Vec3 fractional_position;
+    int  basis_site_index;
+    Vec3 position_frac;
 };
 
 template <typename T, typename Idx = int>

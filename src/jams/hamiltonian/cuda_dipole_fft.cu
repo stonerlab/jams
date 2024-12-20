@@ -102,7 +102,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   }
 
   unsigned int kspace_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2]/2 + 1) *
-                             globals::lattice->num_motif_atoms() * 3;
+                             globals::lattice->num_basis_sites() * 3;
 
   kspace_s_.resize(kspace_size);
   kspace_h_.resize(kspace_size);
@@ -114,9 +114,9 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   std::cout << "    kspace padded size " << kspace_padded_size_ << "\n";
 
   int rank            = 3;           
-  int stride          = 3 * globals::lattice->num_motif_atoms();
+  int stride          = 3 * globals::lattice->num_basis_sites();
   int dist            = 1;
-  int num_transforms  = 3 * globals::lattice->num_motif_atoms();
+  int num_transforms  = 3 * globals::lattice->num_basis_sites();
   int rspace_embed[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
   int kspace_embed[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]/2 + 1};
 
@@ -129,10 +129,10 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_h_kspace_to_rspace, rank, fft_size, kspace_embed, stride, dist,
           rspace_embed, stride, dist, CUFFT_Z2D, num_transforms));
 
-  kspace_tensors_.resize(globals::lattice->num_motif_atoms());
-  for (int pos_i = 0; pos_i < globals::lattice->num_motif_atoms(); ++pos_i) {
+  kspace_tensors_.resize(globals::lattice->num_basis_sites());
+  for (int pos_i = 0; pos_i < globals::lattice->num_basis_sites(); ++pos_i) {
     std::vector<Vec3> generated_positions;
-    for (int pos_j = 0; pos_j < globals::lattice->num_motif_atoms(); ++pos_j) {
+    for (int pos_j = 0; pos_j < globals::lattice->num_basis_sites(); ++pos_j) {
         auto wq = generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions);
 
         jams::MultiArray<cufftDoubleComplex, 1> gpu_wq(wq.elements());
@@ -196,18 +196,18 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
   CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
   cudaStreamSynchronize(dev_stream_[0].get());
 
-  for (int pos_j = 0; pos_j < globals::lattice->num_motif_atoms(); ++pos_j) {
+  for (int pos_j = 0; pos_j < globals::lattice->num_basis_sites(); ++pos_j) {
     const double mus_j = globals::lattice->material(
-        globals::lattice->motif_atom(pos_j).material_index).moment;
+        globals::lattice->basis_site_atom(pos_j).material_index).moment;
 
-    for (int pos_i = 0; pos_i < globals::lattice->num_motif_atoms(); ++pos_i) {
+    for (int pos_i = 0; pos_i < globals::lattice->num_basis_sites(); ++pos_i) {
 
       const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
 
       dim3 block_size = {32, 1, 1};
       dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
 
-      cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, globals::lattice->num_motif_atoms(), mus_j, kspace_s_.device_data(), kspace_tensors_[pos_i][pos_j].device_data(), kspace_h_.device_data());
+      cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, globals::lattice->num_basis_sites(), mus_j, kspace_s_.device_data(), kspace_tensors_[pos_i][pos_j].device_data(), kspace_h_.device_data());
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
     }
     cudaDeviceSynchronize();
@@ -225,8 +225,8 @@ jams::MultiArray<Complex, 4>
 CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
     using std::pow;
 
-    const Vec3 r_frac_i = globals::lattice->motif_atom(pos_i).fractional_position;
-    const Vec3 r_frac_j = globals::lattice->motif_atom(pos_j).fractional_position;
+    const Vec3 r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
+    const Vec3 r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
 
     const Vec3 r_cart_i = globals::lattice->fractional_to_cartesian(r_frac_i);
     const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);

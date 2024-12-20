@@ -44,26 +44,28 @@ DipoleNeighbourListHamiltonian::DipoleNeighbourListHamiltonian(const libconfig::
 
     // select materials a and b either way around
     selection_predicate = [=](const int i, const int j) {
-        return (globals::lattice->atom_material_name(i) == a && globals::lattice->atom_material_name(j) == b)
-               || (globals::lattice->atom_material_name(i) == b && globals::lattice->atom_material_name(j) == a);
+        return (globals::lattice->lattice_site_material_name(i) == a && globals::lattice->lattice_site_material_name(j) == b)
+               || (globals::lattice->lattice_site_material_name(i) == b && globals::lattice->lattice_site_material_name(j) == a);
     };
   }
 
-  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
-  neartree.insert_sites(globals::lattice->atom_cartesian_positions());
+  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
+                                     globals::lattice->get_supercell().a2(),
+                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
+  neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
   std::size_t max_memory_per_tensor = (sizeof(std::vector<std::pair<Vec3,int>>*) + sizeof(Vec3) + sizeof(int));
 
   std::cout << "  dipole neighbour list memory (estimate) "
             << memory_in_natural_units(max_memory_per_tensor * globals::num_spins * neartree.num_neighbours(
-                globals::lattice->atom_position(0), r_cutoff_)) << std::endl;
+                globals::lattice->lattice_site_position_cart(0), r_cutoff_)) << std::endl;
 
 
   int num_neighbours = 0;
   neighbour_list_.resize(globals::num_spins);
   for (auto i = 0; i < neighbour_list_.size(); ++i) {
     // All neighbours of i within the r_cutoff distance
-    auto all_neighbours = neartree.neighbours(globals::lattice->atom_position(i), r_cutoff_);
+    auto all_neighbours = neartree.neighbours(globals::lattice->lattice_site_position_cart(i), r_cutoff_);
 
     // Select only the neighbours which obey the predicate
     for (const auto& nbr : all_neighbours) {
@@ -118,7 +120,7 @@ void DipoleNeighbourListHamiltonian::calculate_energies(double time) {
 Vec3 DipoleNeighbourListHamiltonian::calculate_field(const int i, double time)
 {
   double w0 = globals::mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter()));
-  Vec3 r_i = globals::lattice->atom_position(i);
+  Vec3 r_i = globals::lattice->lattice_site_position_cart(i);
   // 2020-04-21 Using OMP on this loop gives almost no speedup because the heavy
   // work is already done to find the neighbours.
 

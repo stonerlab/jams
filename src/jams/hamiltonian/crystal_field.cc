@@ -32,10 +32,10 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
 
     // validate settings
     if (cf_params[0].isNumber()) {
-      if (int(cf_params[0]) < 1 || int(cf_params[0]) > globals::lattice->num_motif_atoms()) {
+      if (int(cf_params[0]) < 1 || int(cf_params[0]) > globals::lattice->num_basis_sites()) {
         throw jams::ConfigException(cf_params[0],
                                     "unit cell index must be between 1 and ",
-                                    globals::lattice->num_motif_atoms());
+                                    globals::lattice->num_basis_sites());
       }
     } else if (cf_params[0].isString()) {
       if (!globals::lattice->material_exists(cf_params[0])) {
@@ -68,13 +68,13 @@ CrystalFieldHamiltonian::CrystalFieldHamiltonian(const libconfig::Setting &setti
 
     for (auto i = 0; i < globals::num_spins; i++) {
       if (cf_params[0].isNumber()) {
-        if (globals::lattice->atom_motif_index(i) != int(cf_params[0]) - 1) {
+        if (globals::lattice->lattice_site_basis_index(i) != int(cf_params[0]) - 1) {
           continue;
         }
       }
 
       if (cf_params[0].isString()) {
-        if (globals::lattice->atom_material_name(i) != std::string(cf_params[0])) {
+        if (globals::lattice->lattice_site_material_name(i) != std::string(cf_params[0])) {
           continue;
         }
       }

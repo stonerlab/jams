@@ -114,7 +114,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
     types.resize(globals::num_spins);
 
     for (auto i = 0; i < globals::num_spins; ++i) {
-      types(i) = globals::lattice->atom_material_id(i);
+      types(i) = globals::lattice->lattice_site_material_id(i);
     }
 
     moments.resize(globals::num_spins);
@@ -126,7 +126,7 @@ void Hdf5Monitor::write_lattice_h5_file(const std::string &h5_file_name) {
 
     for (auto i = 0; i < globals::num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
-        positions(i, j) = globals::lattice->parameter() * globals::lattice->atom_position(i)[j] / 1e-9;
+        positions(i, j) = globals::lattice->parameter() * globals::lattice->lattice_site_position_cart(i)[j] / 1e-9;
       }
     }
   }

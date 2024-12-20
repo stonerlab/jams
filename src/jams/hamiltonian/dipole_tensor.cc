@@ -20,13 +20,15 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
         " (" + std::to_string(globals::lattice->max_interaction_radius()) + ")");
   }
 
-  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(), globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
-  neartree.insert_sites(globals::lattice->atom_cartesian_positions());
+  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
+                                     globals::lattice->get_supercell().a2(),
+                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
+  neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
   int expected_neighbours = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
     expected_neighbours += neartree.num_neighbours(
-        globals::lattice->atom_position(i), r_cutoff_);
+        globals::lattice->lattice_site_position_cart(i), r_cutoff_);
   }
 
   std::size_t max_memory_per_tensor = 9*(2*sizeof(int) + sizeof(double));
@@ -41,7 +43,7 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
 
   int num_neighbours = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    const Vec3 r_i = globals::lattice->atom_position(i);
+    const Vec3 r_i = globals::lattice->lattice_site_position_cart(i);
 
     const auto neighbours = neartree.neighbours(r_i, r_cutoff_);
     for (const auto & neighbour : neighbours) {

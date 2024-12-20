@@ -141,12 +141,13 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   for (auto i = 0; i < globals::num_spins; ++i) {
 
     // find all r_ij for current i using the minimum image convention.
-    Vec3 r_i = globals::lattice->atom_position(i);
+    Vec3 r_i = globals::lattice->lattice_site_position_cart(i);
 
     // **ASSUMPTION** the system is cubic so that Smith's method for minimum
     // image works for all distances, not just the in-sphere.
     jams::cuda_minimum_image(
-        globals::lattice->get_supercell().a(), globals::lattice->get_supercell().b(), globals::lattice->get_supercell().c(),
+        globals::lattice->get_supercell().a1(),
+        globals::lattice->get_supercell().a2(), globals::lattice->get_supercell().a3(),
         globals::lattice->periodic_boundaries(), r_i, globals::positions, r_ij);
 
       spectrum_r_ij<<<grid_size, block_size>>>(

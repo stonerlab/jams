@@ -52,21 +52,13 @@ struct InteractionFileDescription {
 };
 
 struct InteractionData {
-    int         unit_cell_pos_i = -1;
-    int         unit_cell_pos_j = -1;
-    Vec3        r_ij = {{0.0, 0.0, 0.0}}; // interaction vector (cartesian)
-    Mat3        J_ij = kZeroMat3;
-    std::string type_i = "NOTYPE";
-    std::string type_j = "NOTYPE";
-};
-
-struct IntegerInteractionData {
-    int         unit_cell_pos_i = -1;
-    int         unit_cell_pos_j = -1;
-    Vec3i       u_ij = {{0, 0, 0}};   // offset in unitcells
-    Mat3        J_ij = kZeroMat3;
-    std::string type_i = "NOTYPE";
-    std::string type_j = "NOTYPE";
+  int         basis_site_i = -1; // atom site 'i' in the basis (zero indexed)
+  int         basis_site_j = -1; // atom site 'j' in the basis (zero indexed)
+  Vec3        interaction_vector_cart = {0.0, 0.0, 0.0};
+  Mat3        interaction_value_tensor = kZeroMat3;
+  Vec3i       lattice_translation_vector = {0, 0, 0};
+  std::string type_i = "NOTYPE";
+  std::string type_j = "NOTYPE";
 };
 
 InteractionFileDescription
@@ -80,18 +72,29 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions);
 
 jams::InteractionList<Mat3, 2>
 generate_neighbour_list(std::ifstream &file,
-        CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
-        double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
-    InteractionChecks::kNoZeroMotifNeighbourCount, InteractionChecks::kIdenticalMotifNeighbourCount, InteractionChecks::kIdenticalMotifTotalExchange});
+                        CoordinateFormat coord_format,
+                        bool use_symops,
+                        double energy_cutoff,
+                        double radius_cutoff,
+                        double distance_tolerance,
+                        std::vector<InteractionChecks> checks);
 
 jams::InteractionList<Mat3, 2>
-generate_neighbour_list(libconfig::Setting& settings,
-        CoordinateFormat coord_format = CoordinateFormat::CARTESIAN, bool use_symops = true,
-        double energy_cutoff = 0.0, double radius_cutoff = 0.0, std::vector<InteractionChecks> checks = {
-    InteractionChecks::kNoZeroMotifNeighbourCount, InteractionChecks::kIdenticalMotifNeighbourCount, InteractionChecks::kIdenticalMotifTotalExchange});
+generate_neighbour_list(libconfig::Setting &settings,
+                        CoordinateFormat coord_format,
+                        bool use_symops,
+                        double energy_cutoff,
+                        double radius_cutoff,
+                        double distance_tolerance,
+                        std::vector<InteractionChecks> checks);
 
 void
 safety_check_distance_tolerance(const double &tolerance);
+
+/// Check that for every interaction in the list there is a corresponding interaction which has the correct symmetries
+/// interaction_value_tensor = (J_ji)^T and interaction_vector_cart = -r_ji
+void
+check_interaction_list_symmetry(const std::vector<InteractionData> &interactions);
 
 void
 write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data,

@@ -37,10 +37,10 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     std::ofstream pos_file(jams::output::full_path_filename("DEBUG_pos.tsv"));
     for (int n = 0; n < globals::lattice->num_materials(); ++n) {
       for (int i = 0; i < globals::num_spins; ++i) {
-        if (globals::lattice->atom_material_id(i) == n) {
-          pos_file << i << "\t" << globals::lattice->atom_position(i) << " | "
+        if (globals::lattice->lattice_site_material_id(i) == n) {
+          pos_file << i << "\t" << globals::lattice->lattice_site_position_cart(i) << " | "
                    << globals::lattice->cartesian_to_fractional(
-                       globals::lattice->atom_position(i)) << "\n";
+                       globals::lattice->lattice_site_position_cart(i)) << "\n";
         }
       }
       pos_file << "\n\n";
@@ -123,10 +123,22 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
       throw jams::FileException(file_path, "failed to open file");
     }
     neighbour_list_ = generate_neighbour_list(
-        interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_, interaction_checks);
+        interaction_file,
+        coord_format,
+        use_symops,
+        energy_cutoff_,
+        radius_cutoff_,
+        distance_tolerance_,
+        interaction_checks);
   } else if (settings.exists("interactions")) {
     neighbour_list_ = generate_neighbour_list(
-        settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_, interaction_checks);
+        settings["interactions"],
+        coord_format,
+        use_symops,
+        energy_cutoff_,
+        radius_cutoff_,
+        distance_tolerance_,
+        interaction_checks);
   } else {
     throw jams::ConfigException(settings, "'exc_file' or 'interactions' settings are required");
   }
@@ -142,7 +154,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
 
   std::cout << "    interactions per motif position: \n";
   if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2) && !globals::lattice->has_impurities()) {
-    for (auto i = 0; i < globals::lattice->num_motif_atoms(); ++i) {
+    for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
       std::cout << "      " << i << ": " << neighbour_list_.num_interactions(i) <<"\n";
     }
   }
