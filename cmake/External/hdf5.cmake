@@ -1,6 +1,6 @@
 add_library(hdf5_external INTERFACE)
 
-set(HDF5_USE_STATIC_LIBRARIES ON)
+set(HDF5_USE_STATIC_LIBRARIES OFF)
 find_package(HDF5 COMPONENTS C QUIET)
 
 
