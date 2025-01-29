@@ -105,10 +105,10 @@ CudaBiquadraticExchangeHamiltonian::CudaBiquadraticExchangeHamiltonian(
       throw jams::FileException(settings["exc_file"].c_str(), "failed to open interaction file");
     }
     neighbour_list_ = generate_neighbour_list(
-        interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_, interaction_checks);
+        interaction_file, coord_format, use_symops, energy_cutoff_,radius_cutoff_, distance_tolerance_, interaction_checks);
   } else if (settings.exists("interactions")) {
     neighbour_list_ = generate_neighbour_list(
-        settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_, interaction_checks);
+        settings["interactions"], coord_format, use_symops, energy_cutoff_, radius_cutoff_, distance_tolerance_, interaction_checks);
   } else {
     throw std::runtime_error("'exc_file' or 'interactions' settings are required for exchange hamiltonian");
   }
