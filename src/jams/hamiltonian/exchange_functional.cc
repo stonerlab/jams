@@ -7,52 +7,75 @@
 
 #include <jams/lattice/interaction_neartree.h>
 
+
 ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Setting &settings,
     const unsigned int size) : SparseInteractionHamiltonian(settings, size) {
 
-  auto exchange_functional = functional_from_settings(settings);
 
-  radius_cutoff_ = input_distance_unit_conversion_ * jams::config_required<double>(settings, "r_cutoff");
+  std::map<std::pair<std::string, std::string>, std::pair<double, ExchangeFunctionalType>> exchange_functional_map;
 
 
-  std::cout << "  cutoff radius: " << jams::fmt::decimal << radius_cutoff_ << " (latt_const)\n";
-  std::cout << "  max cutoff radius: " << globals::lattice->max_interaction_radius() << " (latt_const)\n";
+  double max_cutoff_radius = 0.0;
+  for (auto n = 0; n < settings["interactions"].getLength(); ++n) {
+    auto type_i = std::string(settings["interactions"][n][0]);
+    auto type_j = std::string(settings["interactions"][n][1]);
+    auto functional_name = std::string(settings["interactions"][n][2]);
+    auto r_cutoff = input_distance_unit_conversion_ * double(settings["interactions"][n][3]);
 
-  if (radius_cutoff_ > globals::lattice->max_interaction_radius()) {
-    throw std::runtime_error("cutoff radius is larger than the maximum radius which avoids self interaction");
+    if (r_cutoff > globals::lattice->max_interaction_radius()) {
+      throw std::runtime_error("cutoff radius " + std::to_string(r_cutoff) + " is larger than the maximum cutoff radius " + std::to_string(globals::lattice->max_interaction_radius()));
+    }
+
+    if (r_cutoff > max_cutoff_radius) {
+      max_cutoff_radius = r_cutoff;
+    }
+
+    std::vector<double> params;
+    for (auto k = 4; k < settings["interactions"][n].getLength(); ++k) {
+      params.push_back(settings["interactions"][n][k]);
+    }
+
+    auto exchange_functional = functional_from_params(functional_name, params);
+
+    exchange_functional_map[{type_i, type_j}] = {r_cutoff, exchange_functional};
+
+    if (type_i != type_j) {
+      exchange_functional_map[{type_j, type_i}] = {r_cutoff, exchange_functional};
+    }
   }
 
-  std::ofstream of(jams::output::full_path_filename("exchange_functional.tsv"));
-  output_exchange_functional(of, exchange_functional, radius_cutoff_);
 
   jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
                                      globals::lattice->get_supercell().a2(),
                                      globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
   neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
-  double total_abs_exchange = 0.0;
-
   auto counter = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
+    auto type_i = globals::lattice->lattice_site_material_name(i);
     auto r_i = globals::lattice->lattice_site_position_cart(i);
-    const auto nbrs = neartree.neighbours(r_i, radius_cutoff_);
+    const auto nbrs = neartree.neighbours(r_i, max_cutoff_radius);
 
     for (const auto& nbr : nbrs) {
       const auto j = nbr.second;
       if (i == j) {
         continue;
       }
+      auto type_j = globals::lattice->lattice_site_material_name(j);
+      auto r_cutoff = exchange_functional_map[{type_i, type_j}].first;
+
       const auto rij = norm(::globals::lattice->displacement(i, j));
-      const auto Jij = exchange_functional(rij);
-      this->insert_interaction_scalar(i, j, Jij);
-      counter++;
-      total_abs_exchange += std::abs(Jij);
+
+      if (rij <= r_cutoff) {
+        auto& functional = exchange_functional_map[{type_i, type_j}].second;
+        this->insert_interaction_scalar(i, j, functional(rij));
+        counter++;
+      }
     }
   }
 
   std::cout << "  total interactions " << jams::fmt::integer << counter << "\n";
   std::cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
-  std::cout << "  average abs exchange energy per spin (meV)" << jams::fmt::decimal << total_abs_exchange / double(globals::num_spins) << "\n";
 
   finalize(jams::SparseMatrixSymmetryCheck::Symmetric);
 }
@@ -65,72 +88,76 @@ double ExchangeFunctionalHamiltonian::functional_step(double rij, double J0, dou
   return 0.0;
 }
 
-double ExchangeFunctionalHamiltonian::functional_exp(const double rij, const double J0, const double r0, const double sigma){
+double ExchangeFunctionalHamiltonian::functional_exp(double rij, double J0, double r0, double sigma){
   return J0 * exp(-(rij - r0) / sigma);
 }
 
-double ExchangeFunctionalHamiltonian::functional_rkky(const double rij, const double J0, const double r0, const double k_F) {
+double ExchangeFunctionalHamiltonian::functional_rkky(double rij, double J0, double r0, double k_F) {
   double kr = 2 * k_F * (rij - r0);
   return - J0 * (kr * cos(kr) - sin(kr)) / pow4(kr);
 }
 
-double ExchangeFunctionalHamiltonian::functional_gaussian(const double rij, const double J0, const double r0, const double sigma){
+double ExchangeFunctionalHamiltonian::functional_gaussian(double rij, double J0, double r0, double sigma){
   return J0 * exp(-pow2(rij - r0)/(2 * pow2(sigma)));
 }
 
-double ExchangeFunctionalHamiltonian::functional_gaussian_multi(const double rij, const double J0, const double r0, const double sigma0, const double J1, const double r1, const double sigma1, const double J2, const double r2, const double sigma2) {
+double ExchangeFunctionalHamiltonian::functional_gaussian_multi(double rij, double J0, double r0, double sigma0, double J1, double r1, double sigma1, double J2, double r2, double sigma2) {
   return functional_gaussian(rij, J0, r0, sigma0) + functional_gaussian(rij, J1, r1, sigma1) + functional_gaussian(rij, J2, r2, sigma2);
 }
 
-double ExchangeFunctionalHamiltonian::functional_kaneyoshi(const double rij, const double J0, const double r0, const double sigma){
+double ExchangeFunctionalHamiltonian::functional_kaneyoshi(double rij, double J0, double r0, double sigma){
   return J0 * pow2(rij - r0) * exp(-pow2(rij - r0) / (2 * pow2(sigma)));
 }
 
+
 ExchangeFunctionalHamiltonian::ExchangeFunctionalType
-ExchangeFunctionalHamiltonian::functional_from_settings(const libconfig::Setting &settings) {
+ExchangeFunctionalHamiltonian::functional_from_params(const std::string& name, const std::vector<double>& params) {
   using namespace std::placeholders;
 
-  const std::string functional_name = lowercase(jams::config_required<std::string>(settings, "functional"));
-  std::cout << "  exchange functional: " << functional_name << "\n";
+  std::cout << "  exchange functional: " << name << "\n";
 
-  if (functional_name == "rkky") {
+  if (name == "rkky") {
     return std::bind(functional_rkky, _1,
-                input_energy_unit_conversion_ * double(settings["J0"]),
-                input_distance_unit_conversion_ * double(settings["r0"]),
-                double(settings["k_F"]));
-  } else if (functional_name == "exponential") {
-    return std::bind(functional_exp, _1,
-                input_energy_unit_conversion_ * double(settings["J0"]),
-                input_distance_unit_conversion_ * double(settings["r0"]),
-                input_distance_unit_conversion_ * double(settings["sigma"]));
-  } else if (functional_name == "gaussian") {
-    return std::bind(functional_gaussian, _1,
-                input_energy_unit_conversion_ * double(settings["J0"]),
-                input_distance_unit_conversion_ * double(settings["r0"]),
-                input_distance_unit_conversion_ * double(settings["sigma"]));
-  } else if (functional_name == "gaussian_multi") {
-    return std::bind(functional_gaussian_multi, _1,
-                input_energy_unit_conversion_ * double(settings["J0"]),
-                input_distance_unit_conversion_ * double(settings["r0"]),
-                input_distance_unit_conversion_ * double(settings["sigma0"]),
-                input_energy_unit_conversion_ * double(settings["J1"]),
-                input_distance_unit_conversion_ * double(settings["r1"]),
-                input_distance_unit_conversion_ * double(settings["sigma1"]),
-                input_energy_unit_conversion_ * double(settings["J2"]),
-                input_distance_unit_conversion_ * double(settings["r2"]),
-                input_distance_unit_conversion_ * double(settings["sigma2"]));
-  } else if (functional_name == "kaneyoshi") {
-    return std::bind(functional_kaneyoshi, _1,
-                input_energy_unit_conversion_ * double(settings["J0"]),
-                input_distance_unit_conversion_ * double(settings["r0"]),
-                input_distance_unit_conversion_ * double(settings["sigma"]));
-  } else if (functional_name == "step") {
-    return std::bind(functional_step, _1,
-                input_energy_unit_conversion_ * double(settings["J0"]),
-                input_distance_unit_conversion_ * double(settings["r_cutoff"]));
-  } else {
-    throw std::runtime_error("unknown exchange functional: " + functional_name);
+                input_energy_unit_conversion_   * params[0],  // J0
+                input_distance_unit_conversion_ * params[1],  // r0
+                                                  params[2]); // k_F
   }
+  if (name == "exponential") {
+    return std::bind(functional_exp, _1,
+                     input_energy_unit_conversion_   * params[0],  // J0
+                     input_distance_unit_conversion_ * params[1],  // r0
+                     input_distance_unit_conversion_ * params[2]); // sigma
+  }
+  if (name == "gaussian") {
+    return std::bind(functional_gaussian, _1,
+                     input_energy_unit_conversion_   * params[0],  // J0
+                     input_distance_unit_conversion_ * params[1],  // r0
+                     input_distance_unit_conversion_ * params[2]); // sigma
+  }
+  if (name == "gaussian_multi") {
+    return std::bind(functional_gaussian_multi, _1,
+                     input_energy_unit_conversion_   * params[0],  // J0
+                     input_distance_unit_conversion_ * params[1],  // r0
+                     input_distance_unit_conversion_ * params[2],  // sigma0
+                     input_energy_unit_conversion_   * params[3],  // J1
+                     input_distance_unit_conversion_ * params[4],  // r1
+                     input_distance_unit_conversion_ * params[5],  // sigma1
+                     input_energy_unit_conversion_   * params[6],  // J2
+                     input_distance_unit_conversion_ * params[7],  // r2
+                     input_distance_unit_conversion_ * params[8]); // sigma2
+  }
+  if (name == "kaneyoshi") {
+    return std::bind(functional_kaneyoshi, _1,
+                     input_energy_unit_conversion_   * params[0],  // J0
+                     input_distance_unit_conversion_ * params[1],  // r0
+                     input_distance_unit_conversion_ * params[2]); // sigma
+  }
+  if (name == "step") {
+    return std::bind(functional_step, _1,
+                     input_energy_unit_conversion_   * params[0],  // J0
+                     input_distance_unit_conversion_ * params[1]); // r_cutoff
+  }
+  throw std::runtime_error("unknown exchange functional: " + name);
 }
 
 void
