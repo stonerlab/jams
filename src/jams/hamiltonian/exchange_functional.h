@@ -5,6 +5,23 @@
 
 #include <functional>
 
+// Example config input
+//
+// hamiltonians = (
+//   {
+//     module = "exchange-functional";
+//     energy_units = "meV";
+//     distance_units = "angstroms";
+//     interactions = (
+//       # type_i, type_j, functional, r_cutoff, parameters...
+//       ("Co", "Co", "exponential", 3.0, 4.0, 2.0, 0.5),
+//       ("Co", "Gd", "exponential", 3.0,-2.0, 2.0, 0.5),
+//       ("Gd", "Gd", "exponential", 3.0, 0.1, 2.0, 0.5)
+//     );
+//   }
+// );
+
+
 class ExchangeFunctionalHamiltonian : public SparseInteractionHamiltonian {
 public:
     ExchangeFunctionalHamiltonian(const libconfig::Setting &settings, unsigned int size);
@@ -12,7 +29,7 @@ public:
 private:
     using ExchangeFunctionalType = std::function<double(double)>;
 
-    ExchangeFunctionalType functional_from_settings(const libconfig::Setting &settings);
+    ExchangeFunctionalType functional_from_params(const std::string& name, const std::vector<double>& params);
 
     void output_exchange_functional(std::ostream &os, const ExchangeFunctionalType &functional, double r_cutoff,
                                            double delta_r=0.001);
@@ -25,7 +42,7 @@ private:
 
     static double functional_gaussian(double rij, double J0, double r0, double lengthscale);
 
-    static double functional_gaussian_multi(const double rij, const double J0, const double r0, const double sigma0, const double J1, const double r1, const double sigma1, const double J2, const double r2, const double sigma2);
+    static double functional_gaussian_multi(double rij, double J0, double r0, double sigma0, double J1, double r1, double sigma1, double J2, double r2, double sigma2);
 
     static double functional_kaneyoshi(double rij, double J0, double r0, double lengthscale);
 
