@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+project(jams LANGUAGES C CXX)
 
 include(cmake/MessageQuiet.cmake)
 include(cmake/Utils.cmake)
@@ -24,23 +25,27 @@ option(JAMS_BUILD_TESTS "Build all of JAMS's unit tests." OFF)
 option(JAMS_BUILD_DOCS "Build all of JAMS's documentation." OFF)
 option(JAMS_BUILD_IN_DEPENDENCIES "Build JAMS dependencies in the same cmake project" ON)
 
-set(MESSAGE_QUIET ON)
-
-project(jams LANGUAGES C CXX)
-
-if (JAMS_BUILD_CUDA)
-    enable_language(CUDA)
-endif()
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_CUDA_STANDARD 17)
-set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_EXTENSIONS OFF)
+if (JAMS_BUILD_CUDA)
+    if(DEFINED ENV{CUDA_ARCHITECTURES} AND NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+        set(CMAKE_CUDA_ARCHITECTURES $ENV{CUDA_ARCHITECTURES})
+    else()
+        # Default architectures if the environment variable is not set
+        set(CMAKE_CUDA_ARCHITECTURES "60;70;80;89;90")
+    endif()
 
-unset(MESSAGE_QUIET)
+    set(MESSAGE_QUIET)
+    enable_language(CUDA)
+    unset(MESSAGE_QUIET)
+
+    set(CMAKE_CUDA_STANDARD 17)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+    set(CMAKE_CUDA_EXTENSIONS OFF)
+endif()
+
 
 if (${JAMS_BUILD_OFFLINE})
     set_property(DIRECTORY ${jams_SOURCE_DIR} PROPERTY EP_UPDATE_DISCONNECTED 1)
@@ -117,6 +122,7 @@ if(JAMS_BUILD_CUDA)
     message(STATUS "CUDA_CUDART_LIBRARY:            " ${CUDA_CUDART_LIBRARY})
     message(STATUS "CUDA_HOST_COMPILER:             " ${CUDA_HOST_COMPILER})
     message(STATUS "CUDA_NVCC_EXECUTABLE:           " ${CUDA_NVCC_EXECUTABLE})
+    message(STATUS "CMAKE_CUDA_ARCHITECTURES:       " ${CMAKE_CUDA_ARCHITECTURES})
 endif()
 
 message("-----------------------------------------------------------")
