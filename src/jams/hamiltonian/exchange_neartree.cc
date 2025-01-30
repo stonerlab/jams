@@ -49,8 +49,9 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     // check that no atoms in the unit cell are closer together than the distance_tolerance_
     for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
       for (auto j = i+1; j < globals::lattice->num_basis_sites(); ++j) {
-        const auto distance = norm(globals::lattice->basis_site_atom(i).position_frac - globals::lattice->basis_site_atom(
-            j).position_frac);
+        const auto distance = norm(
+          globals::lattice->basis_site_atom(i).position_frac
+             - globals::lattice->basis_site_atom(j).position_frac);
         if(distance < distance_tolerance_) {
 
           throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,

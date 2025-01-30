@@ -224,7 +224,7 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 jams::MultiArray<Complex, 4>
 CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
     using std::pow;
-
+  
     const Vec3 r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
     const Vec3 r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
 

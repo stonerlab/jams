@@ -309,7 +309,8 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
     complete_interaction_typenames_names(interactions);
   }
 
-  if (use_symops && desc.type == InteractionFileFormat::JAMS) {
+
+  if (use_symops) {
     // we apply symops before predicates, this will be more costly,
     // but means that predicates work the same regardless of whether
     // the input was given symmetrised or not
