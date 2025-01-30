@@ -8,7 +8,7 @@
 
 namespace jams {
 
-class GeneralException : std::exception {
+class GeneralException : public std::exception {
   std::string msg;
  public:
   template<class ... Args>
