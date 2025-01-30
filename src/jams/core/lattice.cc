@@ -936,6 +936,7 @@ void Lattice::calc_symmetry_operations() {
   cout << "    num symops " << spglib_dataset_->n_operations << "\n";
 
   Mat3 rot;
+  Vec3 trans;
   Mat3 id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 
   for (auto n = 0; n < spglib_dataset_->n_operations; ++n) {
@@ -957,7 +958,12 @@ void Lattice::calc_symmetry_operations() {
       }
     }
 
-    rotations_.push_back(rot);
+    for (auto i = 0; i < 3; ++i) {
+      trans[i] = spglib_dataset_->translations[n][i];
+    }
+
+    sym_rotations_.push_back(rot);
+    sym_translations_.push_back(trans);
   }
   cout << "\n";
 
@@ -1119,18 +1125,26 @@ const std::vector<Vec3> &Lattice::lattice_site_positions_cart() const {
 }
 
 const std::vector<Mat3> &Lattice::lattice_site_point_group_symops(int lattice_site_index) {
-    assert(lattice_site_index >= 0);
-    assert(lattice_site_index< num_basis_sites());
+    assert(i >= 0);
+    assert(i< num_motif_atoms());
     // Pre-calculate the symops the first time the function is called
     if (basis_site_point_group_symops_.empty()) {
         basis_site_point_group_symops_.resize(num_basis_sites());
         for (auto m = 0; m < num_basis_sites(); ++m) {
             auto motif_position = basis_site_atom(m).position_frac;
-            for (auto symop : rotations_) {
-                auto new_position = normalise_fractional_coordinate(symop * motif_position);
+            for (auto n = 0; n < sym_translations_.size(); ++n) {
+                // The point groups are found only from space group operations which do not include translation
+                // so we must skip any elements with a translation.
+                if (!approximately_zero(sym_translations_[n], jams::defaults::lattice_tolerance)) {
+                  continue;
+                }
+
+                auto rotation = sym_rotations_[n];
+
+                auto new_position = normalise_fractional_coordinate(rotation * motif_position);
                 // TODO: need to translate back into unit cell
                 if  (approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
-                    basis_site_point_group_symops_[m].push_back(symop);
+                    basis_site_point_group_symops_[m].push_back(rotation);
                 }
             }
         }

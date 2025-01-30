@@ -96,26 +96,99 @@ void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings) {
  */
 std::vector<jams::HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const std::vector<Vec3> &hkl_nodes, const Vec3i &kspace_size) {
   std::vector<jams::HKLIndex> hkl_path;
+  // Our sampling of k-space is discrete, with a point per unit cell in the supercell. Therefore the path between
+  // nodes must be rasterized onto the discrete grid. Here we use a 3D version of Bresenham's line algorithm to do this.
+  // This enables us to have good sampling, even when the line does not exactly hit the discrete k-points, but also
+  // avoiding any interpolation which could distort the data. The algorithm works by first identifying the 'driving'
+  // axis (x, y or z), the one with the largest displacement and then whilst stepping along that axis, adjusting the
+  // steps along the remaining axes.
+
   for (auto n = 0; n < hkl_nodes.size()-1; ++n) {
-    Vec3i origin = to_int(hadamard_product(hkl_nodes[n], kspace_size));
-    Vec3i displacement = to_int(hadamard_product(hkl_nodes[n + 1], kspace_size)) - origin;
+    Vec3i start = to_int(hadamard_product(hkl_nodes[n], kspace_size));
+    Vec3i end = to_int(hadamard_product(hkl_nodes[n + 1], kspace_size));
+    Vec3i displacement = absolute(end - start);
 
-    const int divisor = gcd( gcd( std::abs(displacement[0]), std::abs(displacement[1]) ), std::abs(displacement[2]) );
-    Vec3i delta = displacement / divisor;
+    Vec3i step = {
+        (end[0] > start[0]) ? 1 : -1,
+        (end[1] > start[1]) ? 1 : -1,
+        (end[2] > start[2]) ? 1 : -1};
 
-    // use +1 to include the last point on the displacement
-    const auto num_coordinates = divisor + 1;
+    // x-axis is driving axis
+    if (displacement[0] >= displacement[1] && displacement[0] >= displacement[2]) {
+      int p1 = 2 * displacement[1] - displacement[0];
+      int p2 = 2 * displacement[2] - displacement[0];
+      while (start[0] != end[0]) {
+        Vec3 hkl = hadamard_product(start, 1.0 / to_double(kspace_size));
+        Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
+        hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
-    Vec3i coordinate = origin;
-    for (auto i = 0; i < num_coordinates; ++i) {
-      // map an arbitrary coordinate into the limited k indicies of the reduced brillouin zone
-      Vec3 hkl = hadamard_product(coordinate, 1.0 / to_double(kspace_size));
-      Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-      hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
+        start[0] += step[0];
+        if (p1 >= 0) {
+          start[1] += step[1];
+          p1 -= 2 * displacement[0];
+        }
+        if (p2 >= 0) {
+          start[2] += step[2];
+          p2 -= 2 * displacement[0];
+        }
+        p1 += 2 * displacement[1];
+        p2 += 2 * displacement[2];
 
-      coordinate += delta;
+      }
     }
+    // y-axis is driving axis
+    else if (displacement[1] >= displacement[0] && displacement[1] >= displacement[2]) {
+      int p1 = 2 * displacement[0] - displacement[1];
+      int p2 = 2 * displacement[2] - displacement[1];
+      while (start[1] != end[1]) {
+        Vec3 hkl = hadamard_product(start, 1.0 / to_double(kspace_size));
+        Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
+        hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
+
+        start[1] += step[1];
+        if (p1 >= 0) {
+          start[0] += step[0];
+          p1 -= 2 * displacement[1];
+        }
+        if (p2 >= 0) {
+          start[2] += step[2];
+          p2 -= 2 * displacement[1];
+        }
+        p1 += 2 * displacement[0];
+        p2 += 2 * displacement[2];
+
+      }
+    }
+    // z-axis is driving axis
+    else {
+      int p1 = 2 * displacement[0] - displacement[2];
+      int p2 = 2 * displacement[2] - displacement[2];
+      while (start[2] != end[2]) {
+        Vec3 hkl = hadamard_product(start, 1.0 / to_double(kspace_size));
+        Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
+        hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
+
+        start[2] += step[2];
+        if (p1 >= 0) {
+          start[1] += step[1];
+          p1 -= 2 * displacement[2];
+        }
+        if (p2 >= 0) {
+          start[0] += step[0];
+          p2 -= 2 * displacement[2];
+        }
+        p1 += 2 * displacement[1];
+        p2 += 2 * displacement[0];
+
+      }
+    }
+
+    //include final point
+    Vec3 hkl = hadamard_product(end, 1.0 / to_double(kspace_size));
+    Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
+    hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
   }
+
   // remove duplicates in the path where start and end indicies are the same at nodes
   hkl_path.erase(unique(hkl_path.begin(), hkl_path.end()), hkl_path.end());
 

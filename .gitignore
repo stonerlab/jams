@@ -30,3 +30,6 @@ cout
 *.h5
 *.tsv
 *.xdmf
+
+# Allow .cfg files in the test directory
+!test/*.cfg

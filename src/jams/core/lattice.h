@@ -208,10 +208,11 @@ private:
     Vec3 rmax_;
 
     SpglibDataset *spglib_dataset_ = nullptr;
-    std::vector<Mat3> rotations_;
+
+    std::vector<Mat3> sym_rotations_;
+    std::vector<Vec3> sym_translations_;
+
     std::vector<std::vector<Mat3>> basis_site_point_group_symops_;
-
-
 };
 
 namespace jams {
