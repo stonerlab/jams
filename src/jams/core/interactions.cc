@@ -5,6 +5,7 @@
 #include <sstream>
 #include <set>
 #include <numeric>
+#include <optional>
 #include <jams/helpers/output.h>
 
 #include "jams/core/types.h"
