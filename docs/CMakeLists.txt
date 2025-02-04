@@ -17,10 +17,10 @@ set(SPHINX_CACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/_doctrees")
 # HTML output directory
 set(SPHINX_HTML_DIR "${CMAKE_CURRENT_BINARY_DIR}/html")
 
-configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/conf.py.in"
-        "${BINARY_BUILD_DIR}/conf.py"
-        @ONLY)
+#configure_file(
+#        "${CMAKE_CURRENT_SOURCE_DIR}/conf.py.in"
+#        "${BINARY_BUILD_DIR}/conf.py"
+#        @ONLY)
 
 add_custom_target(jams_docs ALL
         ${SPHINX_EXECUTABLE}

@@ -18,6 +18,8 @@ namespace jams {
         std::string full_path_filename(const std::string& ending);
         std::string full_path_filename_series(const std::string& ending, int num, int width=7);
         std::string output_path();
+
+        std::ofstream full_path_ofstream(const std::string &filename, std::ios_base::openmode = std::ios_base::out);
     }
 
     namespace fmt {

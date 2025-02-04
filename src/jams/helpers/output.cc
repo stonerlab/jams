@@ -37,6 +37,10 @@ namespace jams {
           return output_path() + ::globals::simulation_name + sep + ending;
         }
 
+        std::ofstream full_path_ofstream(const std::string &filename, std::ios_base::openmode openmode) {
+          return std::ofstream(full_path_filename(filename), openmode);
+        }
+
         std::string full_path_filename_series(const std::string &ending, int num, int width) {
           auto base = file_basename_no_extension(ending);
           auto sep = base.empty() ? "" : "_";

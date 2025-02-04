@@ -10,6 +10,7 @@
 
 #include "jams/core/types.h"
 #include "jams/core/interactions.h"
+
 #include "jams/helpers/consts.h"
 #include "jams/helpers/error.h"
 #include "jams/core/lattice.h"
@@ -289,10 +290,18 @@ interactions_from_settings(libconfig::Setting &setting, const InteractionFileDes
 }
 
 void
-post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance) {
+post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance, double interaction_prefactor) {
   if (coord_format == CoordinateFormat::FRACTIONAL) {
     apply_transform(interactions, [](InteractionData J) -> InteractionData {
         J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(J.interaction_vector_cart);
+        return J;
+    });
+  }
+
+  // apply any prefactor to the interactions
+  if (interaction_prefactor != 1.0) {
+    apply_transform(interactions, [&](InteractionData J) -> InteractionData {
+        J.interaction_value_tensor = interaction_prefactor * J.interaction_value_tensor;
         return J;
     });
   }
@@ -402,11 +411,12 @@ generate_neighbour_list(std::ifstream &file,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
+                        double interaction_prefactor,
                         std::vector<InteractionChecks> checks) {
   auto file_desc = discover_interaction_file_format(file);
   auto interactions = interactions_from_file(file, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, interaction_prefactor);
 
   // now the interaction data should be in the same format regardless of the input
   // calculate the neighbourlist from here
@@ -425,11 +435,12 @@ generate_neighbour_list(libconfig::Setting &setting,
                         double energy_cutoff,
                         double radius_cutoff,
                         double distance_tolerance,
+                        double interaction_prefactor,
                         std::vector<InteractionChecks> checks) {
   auto file_desc = discover_interaction_setting_format(setting);
   auto interactions = interactions_from_settings(setting, file_desc);
 
-  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance, interaction_prefactor);
 
   // now the interaction data should be in the same format regardless of the input
   // calculate the neighbourlist from here
@@ -507,9 +518,8 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
   }
 }
 
-void
-safety_check_distance_tolerance(const double &tolerance) {
-  // check that no atoms in the unit cell are closer together than the tolerance
+// Check that no atoms in the unit cell are closer together than the tolerance
+void safety_check_distance_tolerance(const double &tolerance) {
 
   for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
     for (auto j = i + 1; j < globals::lattice->num_basis_sites(); ++j) {
@@ -551,7 +561,7 @@ void check_interaction_list_symmetry(const std::vector<InteractionData> &interac
 }
 
 void
-write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data, CoordinateFormat coord_format) {
+write_interaction_data(std::ostream &&output, const std::vector<InteractionData> &data, CoordinateFormat coord_format) {
   for (auto const &interaction : data) {
     output << std::setw(12) << interaction.basis_site_i << "\t";
     output << std::setw(12) << interaction.basis_site_j << "\t";
@@ -580,7 +590,7 @@ write_interaction_data(std::ostream &output, const std::vector<InteractionData> 
   }
 }
 void
-write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &list) {
+write_neighbour_list(std::ostream &&output, const jams::InteractionList<Mat3,2> &list) {
   output << "#";
   output << jams::fmt::integer << "i";
   output << jams::fmt::integer << "j";
@@ -634,6 +644,116 @@ write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &
       output << jams::fmt::sci << std::scientific << Jij[2][0];
       output << jams::fmt::sci << std::scientific << Jij[2][1];
       output << jams::fmt::sci << std::scientific << Jij[2][2] << "\n";
+  }
+}
+
+std::vector<InteractionChecks> read_interaction_checks_from_settings(const libconfig::Setting &settings) {
+  std::vector<InteractionChecks> interaction_checks;
+
+  if (!settings.exists("check_no_zero_motif_neighbour_count")) {
+    interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
+  } else {
+    if (bool(settings["check_no_zero_motif_neighbour_count"]) == true) {
+      interaction_checks.push_back(InteractionChecks::kNoZeroMotifNeighbourCount);
+    }
+  }
+
+  if (!settings.exists("check_identical_motif_neighbour_count")) {
+    interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
+  } else {
+    if (bool(settings["check_identical_motif_neighbour_count"]) == true) {
+      interaction_checks.push_back(InteractionChecks::kIdenticalMotifNeighbourCount);
+    }
+  }
+
+  if (!settings.exists("check_identical_motif_total_exchange")) {
+    interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
+  } else {
+    if (bool(settings["check_identical_motif_total_exchange"]) == true) {
+      interaction_checks.push_back(InteractionChecks::kIdenticalMotifTotalExchange);
+    }
+  }
+
+  return interaction_checks;
+}
+
+jams::InteractionList<Mat3, 2> create_neighbour_list_from_settings(const libconfig::Setting &settings) {
+
+  auto use_symops = jams::config_optional<bool>(settings, "symops", true);
+
+  // energy_cutoff in units specified by 'unit_name' in the input (i.e. the same units as the interaction input)
+  auto energy_cutoff = jams::config_optional<double>(settings, "energy_cutoff", 0.0);
+  std::cout << "    interaction energy cutoff " << energy_cutoff << "\n";
+
+  // radius_cutoff in units of lattice parameters
+  auto radius_cutoff = jams::config_optional<double>(settings, "radius_cutoff", 100.0);
+  std::cout << "    interaction radius cutoff " << radius_cutoff << "\n";
+
+  // distance_tolerance in fractional coordinate units
+  auto distance_tolerance = jams::config_optional<double>(settings, "distance_tolerance", jams::defaults::lattice_tolerance);
+  std::cout << "    interaction distance tolerance " << distance_tolerance << "\n";
+
+  auto interaction_prefactor = jams::config_optional<double>(settings, "interaction_prefactor", 1.0);
+  std::cout << "    interaction prefactor " << interaction_prefactor << "\n";
+  safety_check_distance_tolerance(distance_tolerance);
+
+  auto coordinate_format_name = jams::config_optional<std::string>(settings, "coordinate_format_name", "cartesian");
+  std::cout << "    coordinate format: " << coordinate_format_name << "\n";
+
+
+
+  if (settings.exists("exc_file") && settings.exists("interactions")) {
+    throw std::runtime_error("only 'exc_file' or 'interactions' can be specified, not both");
+  }
+
+  std::vector<InteractionChecks> interaction_checks = read_interaction_checks_from_settings(settings);
+
+  if (settings.exists("interactions") && settings["interactions"].isList()) {
+    // read exchange directly from the config file
+    return generate_neighbour_list(
+    settings["interactions"],
+    coordinate_format_from_string(coordinate_format_name),
+    use_symops,
+    energy_cutoff,
+    radius_cutoff,
+    distance_tolerance,
+    interaction_prefactor,
+    interaction_checks);
+  }
+
+  // read exchange from a file
+  std::string exchange_filename;
+  if (settings.exists("exc_file") && settings["exc_file"].isString()) {
+    exchange_filename = std::string(settings["exc_file"]);
+  } else if (settings.exists("interactions") && settings["interactions"].isString()) {
+    exchange_filename = std::string(settings["interactions"]);
+  }
+  std::cout << "    interaction file name " << exchange_filename << "\n";
+
+  std::ifstream interaction_file(exchange_filename);
+  if (interaction_file.fail()) {
+    throw jams::FileException(exchange_filename, "failed to open file");
+  }
+  return generate_neighbour_list(
+      interaction_file,
+      coordinate_format_from_string(coordinate_format_name),
+      use_symops,
+      energy_cutoff,
+      radius_cutoff,
+      distance_tolerance,
+      interaction_prefactor,
+      interaction_checks);
+}
+
+void print_neighbour_list_info(std::ostream &os, const jams::InteractionList<Mat3, 2>& neighbour_list) {
+  os << "    computed interactions: "<< neighbour_list.size() << "\n";
+  os << "    neighbour list memory: " << neighbour_list.memory() / kBytesToMegaBytes << " MB" << std::endl;
+
+  os << "    interactions per motif position: \n";
+  if (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2) && !globals::lattice->has_impurities()) {
+    for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
+      os << "      " << i << ": " << neighbour_list.num_interactions(i) <<"\n";
+    }
   }
 }
 

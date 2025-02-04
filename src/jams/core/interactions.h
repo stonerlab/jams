@@ -97,11 +97,11 @@ void
 check_interaction_list_symmetry(const std::vector<InteractionData> &interactions);
 
 void
-write_interaction_data(std::ostream &output, const std::vector<InteractionData> &data,
+write_interaction_data(std::ostream &&output, const std::vector<InteractionData> &data,
                        CoordinateFormat coord_format);
 
 void
-write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3, 2> &list);
+write_neighbour_list(std::ostream &&output, const jams::InteractionList<Mat3, 2> &list);
 
 template <class T>
 class InteractionList {
@@ -211,5 +211,37 @@ template<class T>
 bool InteractionList<T>::exists(InteractionList::size_type i, InteractionList::size_type j) {
   return interactions_[i].count(j);
 }
+
+// Read in settings for which consistency checks should be performed on
+// interactions. The checks are performed by the interaction functions.
+//
+// The JAMS config settings are:
+//
+// check_no_zero_motif_neighbour_count
+// -----------------------------------
+// If true, an exception will be raised if any motif position has zero
+// neighbours (i.e. it is not included in the interaction list). It may be
+// desirable to zero neighbours, for example if another interaction
+// Hamiltonian is coupling these sites.
+//
+// check_identical_motif_neighbour_count
+// -------------------------------------
+// If true, an exception will be raised if any sites in the lattice which
+// have the same motif position in the unit cell, have different numbers
+// of neighbours.
+// NOTE: This check will only run if periodic boundaries are disabled.
+//
+// check_identical_motif_total_exchange
+// ------------------------------------
+// If true, an exception will be raised in any sites in the lattice which
+// have the same motif position in the unit cell, have different total
+// exchange energy. The total exchange energy is calculated from the absolute
+// sum of the diagonal components of the exchange tensor.
+// NOTE: This check will only run if periodic boundaries are disabled.
+std::vector<InteractionChecks> read_interaction_checks_from_settings(const libconfig::Setting &settings);
+
+jams::InteractionList<Mat3, 2> create_neighbour_list_from_settings(const libconfig::Setting &settings);
+
+void print_neighbour_list_info(std::ostream &os, const jams::InteractionList<Mat3, 2>& neighbour_list);
 
 #endif // JAMS_CORE_INTERACTIONS_H

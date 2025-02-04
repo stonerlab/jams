@@ -13,6 +13,30 @@ namespace jams {
         StructurallySymmetric
     };
 
+    // Read SparseMatrixSymmetryCheck from the "check_sparse_matrix_symmetry" settings. The default_check will be returned
+    // if the setting does not exists.
+    inline SparseMatrixSymmetryCheck read_sparse_matrix_symmetry_check_from_settings(const libconfig::Setting& settings, SparseMatrixSymmetryCheck default_check = SparseMatrixSymmetryCheck::None) {
+      if (settings.exists("check_sparse_matrix_symmetry")) {
+        auto& check = settings["check_sparse_matrix_symmetry"];
+        if (check.isString() && lowercase(check) == "structurally_symmetric") {
+          return SparseMatrixSymmetryCheck::StructurallySymmetric;
+        }
+        if (check.isString() && lowercase(check) == "symmetric") {
+          return SparseMatrixSymmetryCheck::Symmetric;
+        }
+        if (check.isString() && lowercase(check) == "none") {
+          return SparseMatrixSymmetryCheck::None;
+        }
+        if (bool(check) == false) {
+          return SparseMatrixSymmetryCheck::None;
+        }
+        if (bool(check) == true) {
+          return jams::SparseMatrixSymmetryCheck::Symmetric;
+        }
+      }
+      return default_check;
+    }
+
     template<typename T>
     class SparseMatrix<T>::Builder {
     public:
@@ -349,6 +373,9 @@ namespace jams {
       }
       return true;
     }
+
+
+
 };
 
 #endif // JAMS_CONTAINERS_SPARSE_MATRIX_BUILDER_H
