@@ -1133,16 +1133,9 @@ const std::vector<Mat3> &Lattice::lattice_site_point_group_symops(int lattice_si
         for (auto m = 0; m < num_basis_sites(); ++m) {
             auto motif_position = basis_site_atom(m).position_frac;
             for (auto n = 0; n < sym_translations_.size(); ++n) {
-                // The point groups are found only from space group operations which do not include translation
-                // so we must skip any elements with a translation.
-                if (!approximately_zero(sym_translations_[n], jams::defaults::lattice_tolerance)) {
-                  continue;
-                }
-
                 auto rotation = sym_rotations_[n];
 
                 auto new_position = normalise_fractional_coordinate(rotation * motif_position);
-                // TODO: need to translate back into unit cell
                 if  (approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
                     basis_site_point_group_symops_[m].push_back(rotation);
                 }
