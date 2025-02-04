@@ -29,17 +29,26 @@ public:
     inline explicit Material(const libconfig::Setting& cfg) :
             id       (0),
             name     (jams::config_required<std::string>(cfg, "name")),
-            moment   (jams::config_required<double>(cfg, "moment") * kBohrMagnetonIU), // input is in multiples of Bohr magneton, internally we use meV T^-1
             gyro     (jams::config_optional<double>(cfg, "gyro", jams::defaults::material_gyro) * kGyromagneticRatioIU), // input is fraction of the gyromagnetic ratio, internally we use rad ps^-1 T^-1
             alpha    (jams::config_optional<double>(cfg, "alpha", jams::defaults::material_alpha)),
             transform(jams::config_optional<Mat3>(cfg, "transform", jams::defaults::material_spin_transform)) {
+
+      if (cfg.exists("s_quantum_number") && cfg.exists("moment")) {
+        throw std::runtime_error("only 'moment' or 's_quantum_number' can be specified for a material, not both");
+      }
+
+      if (cfg.exists("s_quantum_number")) {
+        moment = kElectronGFactor * double(cfg["s_quantum_number"]) * kBohrMagnetonIU;
+      } else {
+        moment = jams::config_required<double>(cfg, "moment") * kBohrMagnetonIU; // input is in multiples of Bohr magneton, internally we use meV T^-1
+      }
 
       if (cfg.exists("spin")) {
         bool is_array = (cfg["spin"].getType() == libconfig::Setting::TypeArray);
         bool is_string = (cfg["spin"].getType() == libconfig::Setting::TypeString);
 
         if (!(is_array || is_string)) {
-          std::runtime_error("spin setting is not string or array");
+          throw std::runtime_error("spin setting is not string or array");
         }
 
         if (is_array) {
