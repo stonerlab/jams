@@ -1,8 +1,8 @@
-#ifndef JAMS_CUDA_LORENTZIAN_THERMOSTAT_H
-#define JAMS_CUDA_LORENTZIAN_THERMOSTAT_H
+#ifndef JAMS_CUDA_THERMOSTAT_GENERAL_FFT_H
+#define JAMS_CUDA_THERMOSTAT_GENERAL_FFT_H
 
 /// ==============================
-/// Class CudaLorentzianThermostat
+/// Class CudaThermostatGeneralFFT
 /// ==============================
 /// Implements a thermostat based on harmonic oscillators with a Lorentzian
 /// coupling function following Anders, arXiv:2009.00600
@@ -132,10 +132,10 @@
 
 #include "jams/core/thermostat.h"
 
-class CudaLorentzianThermostat : public Thermostat {
+class CudaThermostatGeneralFFT : public Thermostat {
 public:
-    CudaLorentzianThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins);
-    ~CudaLorentzianThermostat();
+    CudaThermostatGeneralFFT(const double &temperature, const double &sigma, const double timestep, const int num_spins);
+    ~CudaThermostatGeneralFFT();
 
     void update();
 
@@ -143,6 +143,8 @@ public:
     const double* device_data() { return noise_.device_data(); }
 
 private:
+
+  void init_lorentzian(libconfig::Setting &settings, double eta_G);
 
   static double classical_spectrum(double omega, double temperature, double eta_G);
   static double no_zero_quantum_spectrum(double omega, double temperature, double eta_G);
@@ -207,7 +209,7 @@ private:
 // INLINE DEFINITIONS
 
 template<typename... Args>
-std::vector<double> CudaLorentzianThermostat::discrete_sqrt_psd(
+std::vector<double> CudaThermostatGeneralFFT::discrete_sqrt_psd(
     SpectralFunctionSignature<Args...> spectral_function,
     const double &delta_omega, const int &num_freq, Args &&... args) {
 
@@ -222,4 +224,4 @@ std::vector<double> CudaLorentzianThermostat::discrete_sqrt_psd(
 }
 
 #endif  // CUDA
-#endif  // JAMS_CUDA_LORENTZIAN_THERMOSTAT_H
+#endif  // JAMS_CUDA_THERMOSTAT_GENERAL_FFT_H

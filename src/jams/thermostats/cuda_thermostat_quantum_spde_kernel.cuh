@@ -73,7 +73,7 @@ rk4_vectored(void ode(const double[N], const double[N], const double[N], double[
   }
 }
 
-__global__ void bose_zero_point_stochastic_process_cuda_kernel
+__global__ void cuda_thermostat_quantum_spde_zero_point_kernel
         (
                 double *noise,
                 double *zeta,
@@ -127,7 +127,7 @@ __global__ void bose_zero_point_stochastic_process_cuda_kernel
 }
 
 
-__global__ void bose_coth_stochastic_process_cuda_kernel
+__global__ void cuda_thermostat_quantum_spde_no_zero_kernel
         (
                 double *noise,
                 double *zeta5,

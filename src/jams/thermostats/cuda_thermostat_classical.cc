@@ -6,7 +6,7 @@
 #include <string>
 #include <iomanip>
 
-#include "cuda_langevin_white.h"
+#include "jams/thermostats/cuda_thermostat_classical.h"
 #include <jams/common.h>
 #include "jams/cuda/cuda_array_kernels.h"
 #include "jams/helpers/consts.h"
@@ -19,10 +19,10 @@
 
 #include "jams/monitors/magnetisation.h"
 
-CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins)
+CudaThermostatClassical::CudaThermostatClassical(const double &temperature, const double &sigma, const double timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins),
   dev_stream_(nullptr) {
-  std::cout << "\n  initialising CUDA Langevin white noise thermostat\n";
+  std::cout << "\n  initialising classical-gpu thermostat\n";
 
   cudaStreamCreate(&dev_stream_);
 
@@ -44,7 +44,7 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   std::cout << "  done\n\n";
 }
 
-void CudaLangevinWhiteThermostat::update() {
+void CudaThermostatClassical::update() {
   if (this->temperature() == 0) {
     CHECK_CUDA_STATUS(cudaMemset(noise_.device_data(), 0, noise_.elements()*sizeof(double)));
     return;

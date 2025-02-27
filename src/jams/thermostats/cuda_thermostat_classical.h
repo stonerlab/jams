@@ -1,7 +1,7 @@
 // Copyright 2014 Joseph Barker. All rights reserved.
 
-#ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_WHITE_H
-#define JAMS_CUDA_THERMOSTAT_LANGEVIN_WHITE_H
+#ifndef JAMS_CUDA_THERMOSTAT_CLASSICAL_H
+#define JAMS_CUDA_THERMOSTAT_CLASSICAL_H
 
 #if HAS_CUDA
 
@@ -9,9 +9,9 @@
 
 #include "jams/core/thermostat.h"
 
-class CudaLangevinWhiteThermostat : public Thermostat {
+class CudaThermostatClassical : public Thermostat {
  public:
-  CudaLangevinWhiteThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins);
+  CudaThermostatClassical(const double &temperature, const double &sigma, const double timestep, const int num_spins);
 
   void update();
 
@@ -28,4 +28,4 @@ class CudaLangevinWhiteThermostat : public Thermostat {
 };
 
 #endif  // CUDA
-#endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_WHITE_H
+#endif  // JAMS_CUDA_THERMOSTAT_CLASSICAL_H
