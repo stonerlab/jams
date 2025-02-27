@@ -23,7 +23,7 @@
 #include "jams/helpers/utils.h"
 #include "jams/cuda/cuda_common.h"
 #include "jams/monitors/magnetisation.h"
-#include "jams/thermostats/cuda_lorentzian.h"
+#include "jams/thermostats/cuda_thermostat_general_fft.h"
 #include "jams/thermostats/cuda_thermostat_general_fft_kernel.h"
 #include "jams/interface/fft.h"
 #include "jams/maths/functions.h"
