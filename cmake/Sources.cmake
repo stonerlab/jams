@@ -133,6 +133,6 @@ set(JAMS_SOURCES_CUDA
         solvers/cuda_rk4_llg_sot.cu
         thermostats/thm_bose_einstein_cuda_srk4.cu
         thermostats/thm_bose_einstein_cuda_srk4_kernel.cuh
-        thermostats/cuda_langevin_bose.cu
-        thermostats/cuda_lorentzian.cu
+        thermostats/cuda_thermostat_quantum_spde.cu
+        thermostats/cuda_thermostat_general_fft.cu
         thermostats/cuda_langevin_white.cc)

@@ -10,8 +10,8 @@
 #include "jams/helpers/utils.h"
 #include "jams/cuda/cuda_array_kernels.h"
 
-#include "cuda_langevin_bose.h"
-#include "cuda_langevin_bose_kernel.h"
+#include "jams/thermostats/cuda_thermostat_quantum_spde.h"
+#include "jams/thermostats/cuda_thermostat_quantum_spde_kernel.cuh"
 
 #include "jams/core/solver.h"
 #include "jams/core/globals.h"
@@ -24,15 +24,13 @@
 #include "jams/helpers/utils.h"
 #include "jams/cuda/cuda_common.h"
 #include "jams/monitors/magnetisation.h"
-#include "jams/thermostats/cuda_langevin_bose.h"
-#include "jams/thermostats/cuda_langevin_bose_kernel.h"
 #include <jams/helpers/exception.h>
 
-CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins)
+CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, const double &sigma, const double timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins),
   debug_(false)
   {
-   std::cout << "\n  initialising CUDA Langevin semi-quantum noise thermostat\n";
+   std::cout << "\n  initialising quantum-spde-gpu thermostat\n";
 
    globals::config->lookupValue("thermostat.zero_point", do_zero_point_);
 
@@ -90,7 +88,7 @@ CudaLangevinBoseThermostat::CudaLangevinBoseThermostat(const double &temperature
   }
 }
 
-void CudaLangevinBoseThermostat::update() {
+void CudaThermostatQuantumSpde::update() {
   if (!is_warmed_up_) {
     is_warmed_up_ = true;
     warmup(num_warm_up_steps_);
@@ -112,7 +110,7 @@ void CudaLangevinBoseThermostat::update() {
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
   CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
 
-  bose_coth_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (
+  cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (
     noise_.device_data(), zeta5_.device_data(), zeta5p_.device_data(), zeta6_.device_data(), zeta6p_.device_data(),
     eta1b_.device_data(), sigma_.device_data(), reduced_delta_tau, temperature, reduced_omega_max, globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
@@ -121,14 +119,14 @@ void CudaLangevinBoseThermostat::update() {
     CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
     CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
 
-    bose_zero_point_stochastic_process_cuda_kernel <<< grid_size, block_size, 0, dev_stream_ >>> (
+    cuda_thermostat_quantum_spde_zero_point_kernel <<< grid_size, block_size, 0, dev_stream_ >>> (
         noise_.device_data(), zeta0_.device_data(), eta0_.device_data(), sigma_.device_data(), reduced_delta_tau,
         temperature, reduced_omega_max, globals::num_spins3);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
   }
 }
 
-CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
+CudaThermostatQuantumSpde::~CudaThermostatQuantumSpde() {
   if (dev_stream_ != nullptr) {
     cudaStreamDestroy(dev_stream_);
   }
@@ -138,7 +136,7 @@ CudaLangevinBoseThermostat::~CudaLangevinBoseThermostat() {
   }
 }
 
-void CudaLangevinBoseThermostat::warmup(const unsigned steps) {
+void CudaThermostatQuantumSpde::warmup(const unsigned steps) {
   std::cout << "warming up thermostat " << steps << " steps @ " << this->temperature() << "K" << std::endl;
 
   for (auto i = 0; i < steps; ++i) {

@@ -24,32 +24,28 @@
 #include "jams/cuda/cuda_common.h"
 #include "jams/monitors/magnetisation.h"
 #include "jams/thermostats/cuda_lorentzian.h"
-#include "jams/thermostats/cuda_langevin_arbitrary_kernel.h"
+#include "jams/thermostats/cuda_thermostat_general_fft_kernel.h"
 #include "jams/interface/fft.h"
 #include "jams/maths/functions.h"
 #include <jams/helpers/exception.h>
 
 //#define PRINT_NOISE
 
-CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins)
+CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const double &temperature, const double &sigma, const double timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins),
   filter_temperature_(0.0) {
 
-  std::cout << "\n  initialising CUDA Langevin arbitrary noise thermostat\n";
+  std::cout << "\n  initialising general-fft-gpu thermostat\n";
 
   if (globals::lattice->num_materials() > 1) {
     throw std::runtime_error(
         "CudaLangevinArbitraryThermostat is only implemented for single material cells");
   }
 
-  auto noise_spectrum_type = lowercase(
-      jams::config_optional<std::string>(globals::config->lookup("thermostat"),
-                                         "spectrum", "quantum-lorentzian"));
+  auto& thermostat_settings = globals::config->lookup("thermostat");
 
-  lorentzian_gamma_ = kTwoPi * jams::config_required<double>(
-      globals::config->lookup("thermostat"), "lorentzian_gamma");
-  lorentzian_omega0_ = kTwoPi * jams::config_required<double>(
-      globals::config->lookup("thermostat"), "lorentzian_omega0");
+  auto noise_spectrum_type = lowercase(
+      jams::config_required<std::string>(thermostat_settings, "spectrum"));
 
   // In arXiv:2009.00600v2 Janet uses eta_G for the Gilbert damping, but this is
   // a **dimensionful** Gilbert damping (implied by Eq. (1) in the paper and
@@ -60,7 +56,6 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
 
   double eta_G = globals::alpha(0) / (globals::mus(0) * globals::gyro(0));
 
-  lorentzian_A_ = (eta_G * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
 
   // We store the temperature and check in update() that it doesn't change when
   // running the simulation. Currently we don't know how to deal with a
@@ -76,23 +71,26 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   // Define the spectral function P(omega) as a lambda
   std::function<double(double)> psd_function;
 
-  if (noise_spectrum_type == "classical") {
+  if (noise_spectrum_type == "classical-ohmic" || noise_spectrum_type == "classical") {
     psd_function = [&](double omega) {
       return classical_spectrum(omega, filter_temperature_, eta_G);
     };
-  } else if (noise_spectrum_type == "bose-einstein") {
+  } else if (noise_spectrum_type == "quantum-no-zero-ohmic" || noise_spectrum_type == "bose-einstein") {
     psd_function = [&](double omega) {
       return no_zero_quantum_spectrum(omega, filter_temperature_, eta_G);
     };
   } else if (noise_spectrum_type == "classical-lorentzian") {
+    init_lorentzian(thermostat_settings, eta_G);
     psd_function = [&](double omega) {
       return classical_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
   } else if (noise_spectrum_type == "quantum-lorentzian") {
+    init_lorentzian(thermostat_settings, eta_G);
     psd_function = [&](double omega) {
       return quantum_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
-  } else if (noise_spectrum_type == "no-zero-quantum-lorentzian") {
+  } else if (noise_spectrum_type == "quantum-no-zero-lorentzian" || noise_spectrum_type == "no-zero-quantum-lorentzian") {
+    init_lorentzian(thermostat_settings, eta_G);
     psd_function = [&](double omega) {
       return no_zero_quantum_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
@@ -230,7 +228,7 @@ CudaLorentzianThermostat::CudaLorentzianThermostat(const double &temperature, co
   output_thermostat_properties(std::cout);
 }
 
-void CudaLorentzianThermostat::update() {
+void CudaThermostatGeneralFFT::update() {
   assert(memory_kernel_.size() != 0);
 
   if (filter_temperature_ != this->temperature()) {
@@ -245,7 +243,7 @@ void CudaLorentzianThermostat::update() {
       curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
 
   const auto n = pbc(globals::solver->iteration(), (2 * num_trunc_ + 1));
-  arbitrary_stochastic_process_cuda_kernel<<<grid_size, block_size, 0, dev_stream_ >>>(
+  cuda_thermostat_general_fft_kernel<<<grid_size, block_size, 0, dev_stream_ >>>(
       noise_.device_data(),
       memory_kernel_.device_data(),
       white_noise_.device_data(),
@@ -276,7 +274,7 @@ void CudaLorentzianThermostat::update() {
       curandSetStream(jams::instance().curand_generator(), nullptr));
 }
 
-CudaLorentzianThermostat::~CudaLorentzianThermostat() {
+CudaThermostatGeneralFFT::~CudaThermostatGeneralFFT() {
   #ifdef PRINT_NOISE
     debug_file_.close();
   #endif
@@ -291,7 +289,7 @@ CudaLorentzianThermostat::~CudaLorentzianThermostat() {
 }
 
 
-void CudaLorentzianThermostat::output_thermostat_properties(std::ostream& os) {
+void CudaThermostatGeneralFFT::output_thermostat_properties(std::ostream& os) {
   os << "    lorentzian gamma (THz) " << std::fixed << lorentzian_gamma_ / (kTwoPi) << "\n";
   os << "    lorentzian omega0 (THz) " << std::fixed << lorentzian_omega0_ / (kTwoPi) << "\n";
   os << "    lorentzian A " << std::fixed << lorentzian_A_ << "\n";
@@ -304,7 +302,7 @@ void CudaLorentzianThermostat::output_thermostat_properties(std::ostream& os) {
 }
 
 
-std::vector<double> CudaLorentzianThermostat::discrete_real_fourier_transform(std::vector<double>& x) {
+std::vector<double> CudaThermostatGeneralFFT::discrete_real_fourier_transform(std::vector<double>& x) {
   int size = static_cast<int>(x.size());
   fftw_plan plan = fftw_plan_r2r_1d(
       size, //int n
@@ -325,12 +323,18 @@ std::vector<double> CudaLorentzianThermostat::discrete_real_fourier_transform(st
   return x;
 }
 
-double CudaLorentzianThermostat::classical_spectrum(double omega, double temperature, double eta_G) {
+void CudaThermostatGeneralFFT::init_lorentzian(libconfig::Setting &settings, double eta_G) {
+  lorentzian_gamma_ = kTwoPi * jams::config_required<double>(settings, "lorentzian_gamma");
+  lorentzian_omega0_ = kTwoPi * jams::config_required<double>(settings, "lorentzian_omega0");
+  lorentzian_A_ = (eta_G * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
+}
+
+double CudaThermostatGeneralFFT::classical_spectrum(double omega, double temperature, double eta_G) {
   return 2.0 * kBoltzmannIU * temperature * eta_G;
 }
 
 
-double CudaLorentzianThermostat::no_zero_quantum_spectrum(double omega, double temperature, double eta_G) {
+double CudaThermostatGeneralFFT::no_zero_quantum_spectrum(double omega, double temperature, double eta_G) {
   if (omega == 0.0) {
     return 2.0 * eta_G * kBoltzmannIU * temperature;
   }
@@ -340,7 +344,7 @@ double CudaLorentzianThermostat::no_zero_quantum_spectrum(double omega, double t
 }
 
 
-double CudaLorentzianThermostat::classical_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
+double CudaThermostatGeneralFFT::classical_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
   // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
   // the analytic limits for omega == 0.0
   if (omega == 0.0) {
@@ -353,7 +357,7 @@ double CudaLorentzianThermostat::classical_lorentzian_spectrum(double omega, dou
 }
 
 
-double CudaLorentzianThermostat::quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
+double CudaThermostatGeneralFFT::quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
   // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
   // the analytic limits for omega == 0.0
   if (omega == 0.0) {
@@ -366,7 +370,7 @@ double CudaLorentzianThermostat::quantum_lorentzian_spectrum(double omega, doubl
 }
 
 
-double CudaLorentzianThermostat::no_zero_quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
+double CudaThermostatGeneralFFT::no_zero_quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
   // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
   // the analytic limits for omega == 0.0
   if (omega == 0.0) {

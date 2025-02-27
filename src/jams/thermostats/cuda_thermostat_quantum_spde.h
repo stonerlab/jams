@@ -14,10 +14,10 @@
 
 #include "jams/core/thermostat.h"
 
-class CudaLangevinBoseThermostat : public Thermostat {
+class CudaThermostatQuantumSpde : public Thermostat {
  public:
-  CudaLangevinBoseThermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins);
-  ~CudaLangevinBoseThermostat();
+  CudaThermostatQuantumSpde(const double &temperature, const double &sigma, const double timestep, const int num_spins);
+  ~CudaThermostatQuantumSpde();
 
   void update();
 

@@ -1,5 +1,5 @@
-#ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_ARBITRARY_KERNEL_H
-#define JAMS_CUDA_THERMOSTAT_LANGEVIN_ARBITRARY_KERNEL_H
+#ifndef JAMS_CUDA_THERMOSTAT_GENERAL_FFT_KERNEL_H
+#define JAMS_CUDA_THERMOSTAT_GENERAL_FFT_KERNEL_H
 
 #include "jams/cuda/cuda_device_rk4.cuh"
 
@@ -10,7 +10,7 @@ __host__ __device__ inline int pbc(const int i, const int size) {
 // all threads should pull the same n-m at the same time, i.e.
 // a given n-m should be contiguous for all num_proc
 
-__global__ void arbitrary_stochastic_process_cuda_kernel
+__global__ void cuda_thermostat_general_fft_kernel
         (
                 double *noise_,
                 const double *filter,
@@ -34,4 +34,4 @@ __global__ void arbitrary_stochastic_process_cuda_kernel
   }
 }
 
-#endif  // JAMS_CUDA_THERMOSTAT_LANGEVIN_ARBITRARY_KERNEL_H
+#endif  // JAMS_CUDA_THERMOSTAT_GENERAL_FFT_KERNEL_H
