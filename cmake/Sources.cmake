@@ -135,4 +135,4 @@ set(JAMS_SOURCES_CUDA
         thermostats/thm_bose_einstein_cuda_srk4_kernel.cuh
         thermostats/cuda_thermostat_quantum_spde.cu
         thermostats/cuda_thermostat_general_fft.cu
-        thermostats/cuda_langevin_white.cc)
+        thermostats/cuda_thermostat_classical.cc)
