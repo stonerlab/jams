@@ -883,7 +883,7 @@ void Lattice::calc_symmetry_operations() {
     cout << "    " << i << " " << materials_.name(spglib_dataset_->std_types[i]) << " ";
     cout << spglib_dataset_->std_positions[i][0] << " " << spglib_dataset_->std_positions[i][1] << " " << spglib_dataset_->std_positions[i][2] << "\n";
   }
-  
+
   int primitive_num_atoms = basis_sites_.size();
   double primitive_lattice[3][3];
 
@@ -1125,8 +1125,8 @@ const std::vector<Vec3> &Lattice::lattice_site_positions_cart() const {
 }
 
 const std::vector<Mat3> &Lattice::lattice_site_point_group_symops(int lattice_site_index) {
-    assert(i >= 0);
-    assert(i< num_motif_atoms());
+    assert(lattice_site_index >= 0);
+    assert(lattice_site_index < num_motif_atoms());
     // Pre-calculate the symops the first time the function is called
     if (basis_site_point_group_symops_.empty()) {
         basis_site_point_group_symops_.resize(num_basis_sites());
