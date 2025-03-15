@@ -34,9 +34,9 @@ CudaLangevinWhiteThermostat::CudaLangevinWhiteThermostat(const double &temperatu
   for(int i = 0; i < num_spins; ++i) {
     for (int j = 0; j < 3; ++j) {
       double denominator = 1.0;
-//      if (use_gilbert_prefactor) {
-//        denominator = 1.0 + pow2(globals::alpha(i));
-//      }
+      if (use_gilbert_prefactor) {
+        denominator = 1.0 + pow2(globals::alpha(i));
+      }
       sigma_(i, j) = sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
                           (globals::mus(i) * globals::gyro(i) * timestep * denominator));
     }
