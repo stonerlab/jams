@@ -26,8 +26,7 @@ __global__ void cuda_llg_rk4_kernel
 
     double h[3];
     for (auto n = 0; n < 3; ++n) {
-//        h[n] = ((h_dev[3*idx + n] / mus_dev[idx]) + noise_dev[3*idx + n]);
-        h[n] = (h_dev[3*idx + n] + noise_dev[3*idx + n]);
+        h[n] = ((h_dev[3*idx + n] / mus_dev[idx]) + noise_dev[3*idx + n]);
     }
 
     double s[3];
