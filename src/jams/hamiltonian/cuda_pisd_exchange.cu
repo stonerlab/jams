@@ -12,10 +12,15 @@ CudaPisdExchangeHamiltonian::CudaPisdExchangeHamiltonian(const libconfig::Settin
   bz_field_(jams::config_required<double>(settings, "bz_field"))
 {
   for (auto i = 0; i < globals::num_spins; ++i) {
-    // This Hamiltonian is for spin 1/2, so our mus should be g/2 bohr magnetons
-    if (!approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 2.0, 1e-5)) {
+    // This Hamiltonian is for spin {1/2, 1, 3/2, 2}, so our mus should be g*{1/2, 1, 3/2, 2} bohr magnetons
+    if (!(approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 0.5, 1e-5) or
+        approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 1.0, 1e-5) or
+        approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 1.5, 1e-5) or
+        approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 2.0, 1e-5)
+            )
+        ) {
       std::cout << globals::mus(i) << ", " << globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU) << std::endl;
-      throw std::runtime_error("The pisd-exchange hamiltonian is only for S=2 systems");
+      throw std::runtime_error("The pisd-exchange hamiltonian is only for S={1/2, 1, 3/2, 2} systems");
     }
   }
 
