@@ -1,9 +1,9 @@
-#ifndef INCLUDED_JAMS_CUDA_PISD_EXCHANGE_KERNEL_SPIN_TWO
-#define INCLUDED_JAMS_CUDA_PISD_EXCHANGE_KERNEL_SPIN_TWO
+#ifndef INCLUDED_JAMS_CUDA_PISD_EXCHANGE_KERNEL
+#define INCLUDED_JAMS_CUDA_PISD_EXCHANGE_KERNEL
 
 #include <jams/helpers/consts.h>
 
-__global__ void cuda_pisd_exchange_field_kernel_spin_two(const double Bz, const double beta,
+__global__ void cuda_pisd_exchange_field_kernel(const double Bz, const double beta,
     const unsigned int num_spins, const double * dev_s, const int * dev_rows, const int * dev_cols, const double * dev_vals, double * dev_h) {
   using std::pow;
 
