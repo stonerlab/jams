@@ -13,9 +13,9 @@ CudaPisdExchangeHamiltonian::CudaPisdExchangeHamiltonian(const libconfig::Settin
 {
   for (auto i = 0; i < globals::num_spins; ++i) {
     // This Hamiltonian is for spin 1/2, so our mus should be g/2 bohr magnetons
-    if (!approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 0.5, 1e-5)) {
+    if (!approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 2.0, 1e-5)) {
       std::cout << globals::mus(i) << ", " << globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU) << std::endl;
-      throw std::runtime_error("The pisd-exchange hamiltonian is only for S=1/2 systems");
+      throw std::runtime_error("The pisd-exchange hamiltonian is only for S=2 systems");
     }
   }
 
