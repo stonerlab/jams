@@ -21,6 +21,10 @@ class CudaPisdExchangeHamiltonian : public NeighbourListInteractionHamiltonian {
     Vec3 calculate_field(int i, double time) override;
 
   private:
+    std::function<void(const double, const double, const unsigned int,
+                       const double*, const int*, const int*,
+                       const double*, double*)> kernel_launcher;
+    void select_kernel();  // New method for assigning the appropriate kernel
     double bz_field_;
     jams::InteractionList<Mat3, 2> neighbour_list_; // neighbour list
 };
