@@ -13,9 +13,12 @@ CudaPisdExchangeHamiltonian::CudaPisdExchangeHamiltonian(const libconfig::Settin
 {
 
     for (auto i = 0; i < globals::num_spins; ++i) {
-        int double_spin = static_cast<int>(std::round(2*globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU)));
     // This Hamiltonian is for spin {1/2, 1, 3/2, 2}, so our mus should be g*{1/2, 1, 3/2, 2} bohr magnetons
-        if (!(double_spin==1 or double_spin==2 or double_spin==3 or double_spin==4)) {
+        if (!(approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 0.5, 1e-5) or
+               approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 1.0, 1e-5) or
+               approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 1.5, 1e-5) or
+               approximately_equal(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU), 2.0, 1e-5)
+        )) {
             std::cout << globals::mus(i) << ", " << globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU) << std::endl;
             throw std::runtime_error("The pisd-exchange hamiltonian is only for S={1/2, 1, 3/2, 2} systems");
         }
@@ -46,19 +49,16 @@ CudaPisdExchangeHamiltonian::CudaPisdExchangeHamiltonian(const libconfig::Settin
 void CudaPisdExchangeHamiltonian::select_kernel(const int double_spin) {
     switch (double_spin) {
         case 1:
-            kernel_launcher = cuda_pisd_exchange_field_kernel_spin_one_half;
+            cuda_pisd_exchange_field_kernel = cuda_pisd_exchange_field_kernel_spin_one_half;
             break;
-
         case 2:
-            kernel_launcher = cuda_pisd_exchange_field_kernel_spin_one;
+            cuda_pisd_exchange_field_kernel = cuda_pisd_exchange_field_kernel_spin_one;
             break;
-
         case 3:
-            kernel_launcher = cuda_pisd_exchange_field_kernel_spin_three_half;
+            cuda_pisd_exchange_field_kernel = cuda_pisd_exchange_field_kernel_spin_three_half;
             break;
-
         case 4:
-            kernel_launcher = cuda_pisd_exchange_field_kernel_spin_two;
+            cuda_pisd_exchange_field_kernel = cuda_pisd_exchange_field_kernel_spin_two;
             break;
         default:
             std::cout << "Unsupported spin value: " << double_spin << std::endl;
@@ -74,7 +74,7 @@ void CudaPisdExchangeHamiltonian::calculate_fields(double time) {
 
   const double beta = 1.0/(kBoltzmannIU * globals::solver->thermostat()->temperature());
 
-  kernel_launcher<<<grid_size, block_size>>>
+  cuda_pisd_exchange_field_kernel<<<grid_size, block_size>>>
       (bz_field_, beta,
        globals::num_spins, globals::s.device_data(), interaction_matrix_.row_device_data(),
        interaction_matrix_.col_device_data(), interaction_matrix_.val_device_data(),
