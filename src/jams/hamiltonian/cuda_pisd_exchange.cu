@@ -73,37 +73,13 @@ void CudaPisdExchangeHamiltonian::calculate_fields(double time) {
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
   const double beta = 1.0/(kBoltzmannIU * globals::solver->thermostat()->temperature());
-  switch(rint(2*globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU))) {
-      case 1:
-          kernel_launcher<<<grid_size, block_size>>>
-              (bz_field_, beta,
-               globals::num_spins, globals::s.device_data(), interaction_matrix_.row_device_data(),
-               interaction_matrix_.col_device_data(), interaction_matrix_.val_device_data(),
-               field_.device_data());
-      case 2:
-          cuda_pisd_exchange_field_kernel_spin_one<<<grid_size, block_size>>>
-                  (bz_field_, beta,
-                   globals::num_spins, globals::s.device_data(), interaction_matrix_.row_device_data(),
-                   interaction_matrix_.col_device_data(), interaction_matrix_.val_device_data(),
-                   field_.device_data());
-      case 3:
-          cuda_pisd_exchange_field_kernel_spin_three_half<<<grid_size, block_size>>>
-                  (bz_field_, beta,
-                   globals::num_spins, globals::s.device_data(), interaction_matrix_.row_device_data(),
-                   interaction_matrix_.col_device_data(), interaction_matrix_.val_device_data(),
-                   field_.device_data());
-      case 4:
-          cuda_pisd_exchange_field_kernel_spin_two<<<grid_size, block_size>>>
-                  (bz_field_, beta,
-                   globals::num_spins, globals::s.device_data(), interaction_matrix_.row_device_data(),
-                   interaction_matrix_.col_device_data(), interaction_matrix_.val_device_data(),
-                   field_.device_data());
-      default:
-          std::cerr << "Unsupported spin value: " << rint(2*globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU)) << std::endl;
-          throw std::runtime_error("Unknown spin value encountered in kernel launcher.");
-  }
-    DEBUG_CHECK_CUDA_ASYNC_STATUS
 
+  kernel_launcher<<<grid_size, block_size>>>
+      (bz_field_, beta,
+       globals::num_spins, globals::s.device_data(), interaction_matrix_.row_device_data(),
+       interaction_matrix_.col_device_data(), interaction_matrix_.val_device_data(),
+       field_.device_data());
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
 }
 
 Vec3 CudaPisdExchangeHamiltonian::calculate_field(int i, double time) {
