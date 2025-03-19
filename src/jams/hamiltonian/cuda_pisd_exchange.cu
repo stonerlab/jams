@@ -43,7 +43,7 @@ CudaPisdExchangeHamiltonian::CudaPisdExchangeHamiltonian(const libconfig::Settin
     finalize(sparse_matrix_symmetry_check);
 }
 
-void CudaPisdExchangeHamiltonian::select_kernel(double_spin) {
+void CudaPisdExchangeHamiltonian::select_kernel(const int double_spin) {
     switch (double_spin) {
         case 1:
             kernel_launcher = cuda_pisd_exchange_field_kernel_spin_one_half;
