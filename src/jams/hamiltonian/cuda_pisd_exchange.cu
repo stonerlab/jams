@@ -13,7 +13,7 @@ CudaPisdExchangeHamiltonian::CudaPisdExchangeHamiltonian(const libconfig::Settin
 {
 
     for (auto i = 0; i < globals::num_spins; ++i) {
-        int double_spin = static_cast<int> 2* std::round(globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU));
+        int double_spin = static_cast<int> std::round(2*globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU));
     // This Hamiltonian is for spin {1/2, 1, 3/2, 2}, so our mus should be g*{1/2, 1, 3/2, 2} bohr magnetons
         if (!(double_spin==1 or double_spin==2 or double_spin==3 or double_spin==4)) {
             std::cout << globals::mus(i) << ", " << globals::mus(i) / (kElectronGFactor * kBohrMagnetonIU) << std::endl;
@@ -38,7 +38,7 @@ CudaPisdExchangeHamiltonian::CudaPisdExchangeHamiltonian(const libconfig::Settin
 
         insert_interaction_scalar(i, j, value);
     }
-    select_kernel(static_cast<int> 2* std::round(globals::mus(0) / (kElectronGFactor * kBohrMagnetonIU)));
+    select_kernel(static_cast<int> std::round(2*globals::mus(0) / (kElectronGFactor * kBohrMagnetonIU)));
 
     finalize(sparse_matrix_symmetry_check);
 }
