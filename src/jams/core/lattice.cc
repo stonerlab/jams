@@ -1126,7 +1126,7 @@ const std::vector<Vec3> &Lattice::lattice_site_positions_cart() const {
 
 const std::vector<Mat3> &Lattice::lattice_site_point_group_symops(int lattice_site_index) {
     assert(lattice_site_index >= 0);
-    assert(lattice_site_index < num_motif_atoms());
+    assert(lattice_site_index < num_basis_sites());
     // Pre-calculate the symops the first time the function is called
     if (basis_site_point_group_symops_.empty()) {
         basis_site_point_group_symops_.resize(num_basis_sites());
