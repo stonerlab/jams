@@ -166,8 +166,12 @@ CrystalFieldHamiltonian::TesseralHarmonicCoefficientMap CrystalFieldHamiltonian:
       std::complex<double> C_lm = {0.0, 0.0};
       if (m == 0) {
         C_lm = spherical_coefficients.at({l, m});
-      } else {
-        C_lm = spherical_coefficients.at({l, -m}) / std::sqrt(2);
+      } else if (m > 0) {
+        C_lm =
+            kSqrtOne_Two * (spherical_coefficients.at({l, -m}) + std::pow(-1, m) * spherical_coefficients.at({l, m}));
+      } else if (m < 0) {
+        C_lm = kImagOne * kSqrtOne_Two
+            * (spherical_coefficients.at({l, m}) - std::pow(-1, m) * spherical_coefficients.at({l, -m}));
       }
 
       // We need to check that the imaginary parts are very close to zero. However, this depends on the units
