@@ -25,7 +25,9 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   // calculate magnetisation per material or per unit cell position
   auto grouping_str = jams::config_optional<std::string>(settings, "grouping", "materials");
 
-  if (lowercase(grouping_str) == "materials") {
+  if (lowercase(grouping_str) == "none") {
+    grouping_ = Grouping::NONE;
+  } else if (lowercase(grouping_str) == "materials") {
     grouping_ = Grouping::MATERIALS;
   } else if (lowercase(grouping_str) == "positions") {
     grouping_ = Grouping::POSITIONS;
@@ -41,7 +43,13 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   tsv_file << tsv_header();
 
 
-  if (grouping_ == Grouping::MATERIALS) {
+  if (grouping_ == Grouping::NONE) {
+    jams::MultiArray<int,1> indices(globals::num_spins);
+    for (auto i = 0; i < globals::num_spins; ++i) {
+      indices(i) = i;
+    }
+    group_spin_indicies_.push_back(indices);
+  } else if (grouping_ == Grouping::MATERIALS) {
     std::vector<std::vector<int>> material_index_groups(globals::lattice->num_materials());
     for (auto i = 0; i < globals::num_spins; ++i) {
       auto type = globals::lattice->lattice_site_material_id(i);

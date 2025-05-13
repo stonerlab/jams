@@ -23,6 +23,7 @@ public:
 
 private:
     enum class Grouping {
+        NONE,
         MATERIALS,
         POSITIONS
     };
