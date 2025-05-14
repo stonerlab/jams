@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <array>
+#include <jams/interface/blas.h>
 #include <limits>
 #include "jams/containers/vec3.h"
 
@@ -129,29 +130,59 @@ Mat<T,3,3> outer_product(const Vec<T,3> &a, const Vec<T,3> &b) {
 
 template <typename T>
 T determinant(const Mat<T,3,3>& a) {
-  return a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1])
-         +a[0][1]*(a[1][2]*a[2][0]-a[1][0]*a[2][2])
-         +a[0][2]*(a[1][0]*a[2][1]-a[1][1]*a[2][0]);
+  int n = 3;
+  int ipiv[3];
+  int info;
+
+  // Make a copy since LAPACK modifies the input and expects column-major order
+  double A_copy[9] = {
+    a[0][0], a[1][0], a[2][0], a[0][1], a[1][1], a[2][1], a[0][2], a[1][2], a[2][2]
+  };
+  // Perform LU decomposition
+  dgetrf_(&n, &n, A_copy, &n, ipiv, &info);
+  assert(info == 0);
+
+  // Compute determinant from U (product of diagonal elements)
+  double det = 1.0;
+  for (int i = 0; i < n; ++i) {
+    det *= A_copy[i * n + i]; // diagonal of U in column-major
+  }
+
+  // Adjust sign based on pivoting
+  int num_swaps = 0;
+  for (int i = 0; i < n; ++i) {
+    if (ipiv[i] != i + 1) ++num_swaps;
+  }
+
+  if (num_swaps % 2 != 0) det = -det;
+
+  return det;
 }
 
 template <typename T>
 Mat<T,3,3> inverse(const Mat<T,3,3>& a) {
-  T det = 1.0/determinant(a);
+  int n = 3;
+  int lda = 3;
+  int ipiv[3];
+  int info;
 
-  Mat<T,3,3> out;
-  out[0][0] = det*(a[1][1]*a[2][2]-a[1][2]*a[2][1]);
-  out[0][1] = det*(a[2][1]*a[0][2]-a[0][1]*a[2][2]);
-  out[0][2] = det*(a[0][1]*a[1][2]-a[1][1]*a[0][2]);
+  double A_copy[9] = {
+    a[0][0], a[1][0], a[2][0], a[0][1], a[1][1], a[2][1], a[0][2], a[1][2], a[2][2]
+  };
 
-  out[1][0] = det*(a[1][2]*a[2][0]-a[1][0]*a[2][2]);
-  out[1][1] = det*(a[0][0]*a[2][2]-a[0][2]*a[2][0]);
-  out[1][2] = det*(a[0][2]*a[1][0]-a[0][0]*a[1][2]);
+  // Step 1: LU decomposition
+  dgetrf_(&n, &n, A_copy, &lda, ipiv, &info);
+  assert(info == 0);
 
-  out[2][0] = det*(a[1][0]*a[2][1]-a[2][0]*a[1][1]);
-  out[2][1] = det*(a[2][0]*a[0][1]-a[0][0]*a[2][1]);
-  out[2][2] = det*(a[0][0]*a[1][1]-a[1][0]*a[0][1]);
+  // Step 2: Matrix inversion
+  double work[64];
+  int lwork = 64;
+  dgetri_(&n, A_copy, &lda, ipiv, work, &lwork, &info);
+  assert(info == 0);
 
-  return out;
+  return {A_copy[0], A_copy[3], A_copy[6],
+          A_copy[1], A_copy[4], A_copy[7],
+          A_copy[2], A_copy[5], A_copy[8]};
 }
 
 template <typename T>
@@ -215,32 +246,47 @@ inline Mat3 rotation_matrix(const Vec3& axis, const double theta) {
     u[2]*u[0]*(1-c) - u[1]*s,  u[2]*u[1]*(1-c) + u[0]*s,  c + u[2]*u[2]*(1-c) };
 }
 
+
+inline Mat3 rotation_matrix_from_axis_angle(const Vec3 &axis, double angle) {
+  const Vec3 u = unit_vector(axis);
+  const double c = std::cos(angle);
+  const double s = std::sin(angle);
+  const Mat3 vx = ssc(u);
+
+  return kIdentityMat3 + s * vx + (1.0 - c) * vx * vx;
+}
+
 // calculates a rotation matrix from Vec3 a to Vec3 b
-
 inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
-  const auto ua = unit_vector(a);
-  const auto ub = unit_vector(b);
-  const auto v = cross(ua,ub);
-  const auto c = dot(ua,ub);
+  const Vec3 ua = unit_vector(a);
+  const Vec3 ub = unit_vector(b);
+  const double c = dot(ua, ub);
 
-  // check if a == b or a == -b
-  if (approximately_zero(norm_squared(v), 1e-12)) {
-    // this is a shortcut for a == b and necessary
-    // for a == -b where Rodrigues's formula will fail
-    // return either I or -I
-    return diagonal_matrix(copysign(1.0, c));
+  // vectors are nearly parallel
+  if (approximately_equal(c, 1.0, 1e-12)) {
+    return kIdentityMat3;
   }
 
-  // Rodrigues's rotation formula
-  // See: https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
-  //      https://en.wikipedia.org/wiki/Rotation_matrix
-  const auto R = kIdentityMat3 + ssc(v) + (1.0 / (1.0 + c)) * ssc(v) * ssc(v) ;
+  // vectors are nearly opposite
+  if (approximately_equal(c, -1.0, 1e-12)) {
+    // Find an orthogonal vector to a
+    Vec3 ortho = std::abs(ua[0]) < 0.9 ? Vec3{1, 0, 0} : Vec3{0, 1, 0};
+    Vec3 axis = unit_vector(cross(ua, ortho));
+    return rotation_matrix_from_axis_angle(axis, kPi);
+  }
 
-  auto T = transpose(R);
-  auto I = inverse(R);
-  // a rotation matrix must be orthogonal and have a determinant of 1
-  assert(approximately_equal(transpose(R), inverse(R), 1e-12));
-  assert(approximately_equal(determinant(R), 1.0, 1e-12));
+  // Rodrigues' rotation formula
+  Vec3 v = cross(ua, ub);
+  const double s = norm(v);  // sin(theta)
+  Mat3 vx = ssc(v);          // skew-symmetric cross-product matrix
+
+  const double k = (1.0 - c) / (s * s);
+
+  Mat3 R = kIdentityMat3 + vx + k * vx * vx;
+
+  // Check R is a valid rotation matrix
+  assert(approximately_equal(determinant(R), 1.0, 1e-10));
+  assert(approximately_equal(transpose(R), inverse(R), 1e-10));
 
   return R;
 }
