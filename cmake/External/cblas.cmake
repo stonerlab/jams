@@ -7,6 +7,7 @@ if(MKL_FOUND)
     set(JAMS_CBLAS_FOUND true)
     set(JAMS_CBLAS_VENDOR "mkl")
     set(BLAS_FOUND ON)
+    set(LAPACK_FOUND ON)
 endif()
 
 if (NOT BLAS_FOUND)
@@ -25,8 +26,9 @@ if (NOT BLAS_FOUND)
 
         target_include_directories(cblas_external INTERFACE ${CBLAS_INCLUDE_DIR})
         target_link_libraries(cblas_external INTERFACE ${BLAS_LIBRARIES})
-        set(JAMS_CBLAS_FOUND true)
         set(JAMS_CBLAS_VENDOR "Apple")
+        set(JAMS_CBLAS_FOUND ON)
+        set(LAPACK_FOUND ON)
     endif()
 endif()
 
@@ -81,3 +83,18 @@ endif()
 if (NOT BLAS_FOUND)
     message(FATAL_ERROR "Failed to find a BLAS library")
 endif()
+
+if (NOT LAPACK_FOUND)
+    find_package(LAPACK REQUIRED)
+
+    if (LAPACK_FOUND)
+        target_link_libraries(cblas_external INTERFACE ${LAPACK_LIBRARIES})
+        set(JAMS_LAPACK_FOUND TRUE)
+        set(JAMS_LAPACK_VENDOR "Generic")  # Could be set to OpenBLAS if known
+    endif()
+endif()
+
+if (NOT LAPACK_FOUND)
+    message(FATAL_ERROR "Failed to find a LAPACK library")
+endif()
+
