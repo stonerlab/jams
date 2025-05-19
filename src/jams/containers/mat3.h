@@ -148,14 +148,18 @@ inline float determinant(const Mat<float, 3, 3>& a) {
   assert(info == 0);
 
   float det = 1.0f;
-  for (int i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i) {
     det *= A_copy[i * n + i];
+  }
 
   int num_swaps = 0;
-  for (int i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i) {
     if (ipiv[i] != i + 1) ++num_swaps;
-
-  if (num_swaps % 2 != 0) det = -det;
+  }
+  
+  if (num_swaps % 2 != 0) {
+    det = -det;
+  }
 
   return det;
 }
@@ -177,14 +181,20 @@ inline double determinant(const Mat<double, 3, 3>& a) {
   assert(info == 0);
 
   double det = 1.0;
-  for (int i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i) {
     det *= A_copy[i * n + i];
+  }
 
   int num_swaps = 0;
-  for (int i = 0; i < n; ++i)
-    if (ipiv[i] != i + 1) ++num_swaps;
+  for (int i = 0; i < n; ++i) {
+    if (ipiv[i] != i + 1) {
+      ++num_swaps;
+    }
+  }
 
-  if (num_swaps % 2 != 0) det = -det;
+  if (num_swaps % 2 != 0) {
+    det = -det;
+  }
 
   return det;
 }
