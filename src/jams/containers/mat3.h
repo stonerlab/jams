@@ -129,30 +129,60 @@ Mat<T,3,3> outer_product(const Vec<T,3> &a, const Vec<T,3> &b) {
 }
 
 template <typename T>
-T determinant(const Mat<T,3,3>& a) {
+T determinant(const Mat<T,3,3>& a);
+
+template <>
+inline float determinant(const Mat<float, 3, 3>& a) {
   int n = 3;
+  int lda = 3;
   int ipiv[3];
   int info;
 
-  // Make a copy since LAPACK modifies the input and expects column-major order
-  double A_copy[9] = {
-    a[0][0], a[1][0], a[2][0], a[0][1], a[1][1], a[2][1], a[0][2], a[1][2], a[2][2]
+  float A_copy[9] = {
+      a[0][0], a[1][0], a[2][0],
+      a[0][1], a[1][1], a[2][1],
+      a[0][2], a[1][2], a[2][2]
   };
-  // Perform LU decomposition
-  dgetrf_(&n, &n, A_copy, &n, ipiv, &info);
+
+  sgetrf_(&n, &n, A_copy, &lda, ipiv, &info);
   assert(info == 0);
 
-  // Compute determinant from U (product of diagonal elements)
-  double det = 1.0;
-  for (int i = 0; i < n; ++i) {
-    det *= A_copy[i * n + i]; // diagonal of U in column-major
-  }
+  float det = 1.0f;
+  for (int i = 0; i < n; ++i)
+    det *= A_copy[i * n + i];
 
-  // Adjust sign based on pivoting
   int num_swaps = 0;
-  for (int i = 0; i < n; ++i) {
+  for (int i = 0; i < n; ++i)
     if (ipiv[i] != i + 1) ++num_swaps;
-  }
+
+  if (num_swaps % 2 != 0) det = -det;
+
+  return det;
+}
+
+template <>
+inline double determinant(const Mat<double, 3, 3>& a) {
+  int n = 3;
+  int lda = 3;
+  int ipiv[3];
+  int info;
+
+  double A_copy[9] = {
+      a[0][0], a[1][0], a[2][0],
+      a[0][1], a[1][1], a[2][1],
+      a[0][2], a[1][2], a[2][2]
+  };
+
+  dgetrf_(&n, &n, A_copy, &lda, ipiv, &info);
+  assert(info == 0);
+
+  double det = 1.0;
+  for (int i = 0; i < n; ++i)
+    det *= A_copy[i * n + i];
+
+  int num_swaps = 0;
+  for (int i = 0; i < n; ++i)
+    if (ipiv[i] != i + 1) ++num_swaps;
 
   if (num_swaps % 2 != 0) det = -det;
 
@@ -160,30 +190,64 @@ T determinant(const Mat<T,3,3>& a) {
 }
 
 template <typename T>
-Mat<T,3,3> inverse(const Mat<T,3,3>& a) {
+Mat<T, 3, 3> inverse(const Mat<T, 3, 3>& a);
+
+template <>
+inline Mat<float, 3, 3> inverse(const Mat<float, 3, 3>& a) {
+  int n = 3;
+  int lda = 3;
+  int ipiv[3];
+  int info;
+
+  float A_copy[9] = {
+      a[0][0], a[1][0], a[2][0],
+      a[0][1], a[1][1], a[2][1],
+      a[0][2], a[1][2], a[2][2]
+  };
+
+  sgetrf_(&n, &n, A_copy, &lda, ipiv, &info);
+  assert(info == 0);
+
+  float work[64];
+  int lwork = 64;
+  sgetri_(&n, A_copy, &lda, ipiv, work, &lwork, &info);
+  assert(info == 0);
+
+  return {
+      A_copy[0], A_copy[3], A_copy[6],
+      A_copy[1], A_copy[4], A_copy[7],
+      A_copy[2], A_copy[5], A_copy[8]
+  };
+}
+
+template <>
+inline Mat<double, 3, 3> inverse(const Mat<double, 3, 3>& a) {
   int n = 3;
   int lda = 3;
   int ipiv[3];
   int info;
 
   double A_copy[9] = {
-    a[0][0], a[1][0], a[2][0], a[0][1], a[1][1], a[2][1], a[0][2], a[1][2], a[2][2]
+      a[0][0], a[1][0], a[2][0],
+      a[0][1], a[1][1], a[2][1],
+      a[0][2], a[1][2], a[2][2]
   };
 
-  // Step 1: LU decomposition
   dgetrf_(&n, &n, A_copy, &lda, ipiv, &info);
   assert(info == 0);
 
-  // Step 2: Matrix inversion
   double work[64];
   int lwork = 64;
   dgetri_(&n, A_copy, &lda, ipiv, work, &lwork, &info);
   assert(info == 0);
 
-  return {A_copy[0], A_copy[3], A_copy[6],
-          A_copy[1], A_copy[4], A_copy[7],
-          A_copy[2], A_copy[5], A_copy[8]};
+  return {
+      A_copy[0], A_copy[3], A_copy[6],
+      A_copy[1], A_copy[4], A_copy[7],
+      A_copy[2], A_copy[5], A_copy[8]
+  };
 }
+
 
 template <typename T>
 Mat<T,3,3> transpose(const Mat<T,3,3>& a) {
