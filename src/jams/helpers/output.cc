@@ -5,6 +5,9 @@
 #include <iostream>
 #include <fstream>
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/helpers/output.h"
@@ -49,8 +52,41 @@ namespace jams {
           if (!os.is_open()) {
             os.open(jams::output::full_path_filename(filename));
           }
-      }
-    }
+        }
 
-}
+        int lock_file(const std::string& lock_filename) {
+          int fd = open(lock_filename.c_str(), O_CREAT | O_RDWR, 0666);
+          if (fd < 0) {
+            perror("open lock file");
+            exit(1);
+          }
+
+          struct flock fl{};
+          fl.l_type = F_WRLCK;
+          fl.l_whence = SEEK_SET;
+          fl.l_start = 0;
+          fl.l_len = 0;  // entire file
+
+          if (fcntl(fd, F_SETLKW, &fl) == -1) {
+            perror("fcntl lock");
+            close(fd);
+            exit(1);
+          }
+
+          return fd;  // keep it open to maintain the lock
+        }
+
+        void unlock_file(int fd) {
+          struct flock fl{};
+          fl.l_type = F_UNLCK;
+          fl.l_whence = SEEK_SET;
+          fl.l_start = 0;
+          fl.l_len = 0;
+
+          fcntl(fd, F_SETLK, &fl);
+          close(fd);
+        }
+    }
+  }
+
 

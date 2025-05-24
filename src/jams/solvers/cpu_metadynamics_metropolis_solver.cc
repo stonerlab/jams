@@ -38,10 +38,6 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
   parallel_shared_potential_file_name_ = jams::config_optional<std::string>(settings, "parallel_shared_potential_file", "");
   parallel_shared_potential_sync_steps_ = jams::config_optional<int>(settings, "parallel_shared_potential_sync_steps", 1000);
 
-  if (!parallel_shared_potential_file_name_.empty()) {
-    metad_potential_->initialise_shared_potential_file(parallel_shared_potential_file_name_);
-  }
-
   // ---------------------------------------------------------------------------
 
   std::cout << "  gaussian deposition stride: " << gaussian_deposition_stride_ << "\n";
@@ -83,7 +79,7 @@ void MetadynamicsMetropolisSolver::run() {
     metad_potential_->insert_gaussian(relative_amplitude);
   }
 
-  if (iteration_ % parallel_shared_potential_sync_steps_ == 0) {
+  if (!parallel_shared_potential_file_name_.empty() && iteration_ % parallel_shared_potential_sync_steps_ == 0) {
     metad_potential_->synchronise_shared_potential(parallel_shared_potential_file_name_);
   }
 
