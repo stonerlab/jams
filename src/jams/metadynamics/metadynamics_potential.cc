@@ -602,26 +602,31 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
 }
 
 void jams::MetadynamicsPotential::synchronise_shared_potential(const std::string &file_name) {
-  auto lock_file_name = file_basename_no_extension(file_name) + ".lock";
+  auto lock_file_name = file_name + ".lock";
   int lock_fd = output::lock_file(lock_file_name);
 
-  HighFive::File file(file_name, HighFive::File::ReadWrite | HighFive::File::Create);
-
   MultiArray<double, kMaxDimensions> shared_potential(metad_potential_.shape());
-  if (!file.exist("shared_potential")) {
-    zero(shared_potential);
-    file.createDataSet<double>("shared_potential", HighFive::DataSpace::From(shared_potential));
-  } else {
-    file.getDataSet("shared_potential").read(shared_potential);
-  }
+  { // Scoping guards to make sure the hdf5 file is closed before we unlock the lock file
+    HighFive::File file(file_name, HighFive::File::ReadWrite | HighFive::File::Create);
 
-  for (auto i = 0; i < metad_potential_.size(0); ++i) {
-    for (auto j = 0; j < metad_potential_.size(1); ++j) {
-      shared_potential(i, j) += metad_potential_delta_(i, j);
+    if (!file.exist("shared_potential")) {
+      zero(shared_potential);
+      file.createDataSet<double>("shared_potential", HighFive::DataSpace::From(shared_potential));
+    } else {
+      file.getDataSet("shared_potential").read(shared_potential);
     }
+
+    for (auto i = 0; i < metad_potential_.size(0); ++i) {
+      for (auto j = 0; j < metad_potential_.size(1); ++j) {
+        shared_potential(i, j) += metad_potential_delta_(i, j);
+      }
+    }
+
+    file.getDataSet("shared_potential").write(shared_potential);
+
+    file.flush();
   }
 
-  file.getDataSet("shared_potential").write(shared_potential);
   output::unlock_file(lock_fd);
 
   metad_potential_ = shared_potential;
