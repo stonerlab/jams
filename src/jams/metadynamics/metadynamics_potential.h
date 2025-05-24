@@ -51,6 +51,11 @@ namespace jams {
         void spin_update(
             int i, const Vec3 &spin_initial, const Vec3 &spin_final);
 
+        void initialise_shared_potential_file(const std::string& file_name);
+
+        /// Merge potential with a shared potential stored in file
+        void synchronise_shared_potential(const std::string& file_name);
+
     private:
         /// Import the initial potential from file
         void import_potential(const std::string &filename); //  can handle up to two Collective Variables.
@@ -65,6 +70,9 @@ namespace jams {
         // --- METADYNAMICS POTENTIAL
         /// the multidimensional metadynamics potential
         MultiArray<double,kMaxDimensions> metad_potential_;
+
+        /// Changes in the potential since the last parallel file synchronisation
+        MultiArray<double,kMaxDimensions> metad_potential_delta_;
 
         /// base amplitude (before any tempering) for metadynamics gaussian
         /// potentials

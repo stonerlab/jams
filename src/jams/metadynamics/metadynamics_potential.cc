@@ -1,12 +1,18 @@
 // metadynamics_potential.cc                                                          -*-C++-*-
 
 #include "metadynamics_potential.h"
+#include "jams/interface/highfive.h"
 #include <jams/helpers/exception.h>
 #include <jams/metadynamics/collective_variable_factory.h>
 #include <jams/maths/interpolation.h>
 #include <jams/helpers/output.h>
 #include <fstream>
 #include <iostream>
+#include <thread>
+
+#include <sys/stat.h>  // For POSIX stat()
+#include <fcntl.h>     // For O_CREAT, O_EXCL
+#include <unistd.h>    // For close()
 
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
@@ -229,6 +235,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   }
 
     zero(metad_potential_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
+    zero(metad_potential_delta_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
 
     if (!potential_filename.empty()) {
         std::cout << "Reading potential landscape data from " << potential_filename << "\n" << "Ensure you input the final h5 file from the previous simmulation" <<"\n";
@@ -403,6 +410,12 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
   for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
     for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
       metad_potential_(i, j) += relative_amplitude * metad_gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
+    }
+  }
+
+  for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
+    for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
+      metad_potential_delta_(i, j) += relative_amplitude * metad_gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
     }
   }
 }
@@ -586,5 +599,72 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
         }
         potential_file_passed.close();
     }
+}
+void jams::MetadynamicsPotential::synchronise_shared_potential(const std::string &file_name) {
+  bool lock_acquired = false;
+
+  while (!lock_acquired) {
+    HighFive::File file(file_name, HighFive::File::ReadWrite);
+
+    // read lock attribute
+    auto lock_attr = file.getAttribute("lock");
+    int lock_state;
+    lock_attr.read(lock_state);
+
+    if (lock_state == 0) {
+      lock_state = 1;
+      lock_attr.write(lock_state);
+      lock_acquired = true;
+
+      auto dataset = file.getDataSet("shared_potential");
+      MultiArray<double,kMaxDimensions> shared_potential;
+      dataset.read(shared_potential);
+
+      for (auto i = 0; i < metad_potential_.size(0); ++i) {
+        for (auto j = 0; j < metad_potential_.size(1); ++j) {
+          shared_potential(i, j) += metad_potential_delta_(i, j);
+        }
+      }
+
+      dataset.write(shared_potential);
+
+      lock_state = 0;
+      lock_attr.write(lock_state);
+
+      for (auto i = 0; i < metad_potential_.size(0); ++i) {
+        for (auto j = 0; j < metad_potential_.size(1); ++j) {
+          metad_potential_(i, j) = shared_potential(i, j);
+        }
+      }
+
+      metad_potential_delta_.zero();
+    }
+    if (!lock_acquired) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+  }
+}
+
+void jams::MetadynamicsPotential::initialise_shared_potential_file(const std::string &file_name) {
+  int fd = open(file_name.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0664);
+
+  if (fd != -1) {
+    // Successfully created file (this walker initializes it)
+    close(fd);  // immediately close POSIX file descriptor
+
+    // Initialize HDF5 file via HighFive
+    HighFive::File file(file_name, HighFive::File::Overwrite);
+    MultiArray<double,kMaxDimensions> shared_potential(metad_potential_.shape());
+    shared_potential.zero();
+    file.createDataSet<double>("shared_potential", HighFive::DataSpace::From(shared_potential))
+        .write(shared_potential);
+    file.createAttribute<int>("lock", HighFive::DataSpace::From(int(0))).write(0);
+
+    std::cout << "Initialized shared potential file: " << file_name << "\n";
+  } else {
+    // Another walker has already created it
+    std::cout << "Shared potential file already exists: " << file_name << "\n";
+  }
 }
 

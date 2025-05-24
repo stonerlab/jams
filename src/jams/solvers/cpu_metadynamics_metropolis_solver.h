@@ -37,6 +37,12 @@ private:
     /// Bias temperature for tempered metadynamics algorithm.
     double tempering_bias_temperature_;
 
+    /// File name for the shared potential file for parallel calculations
+    std::string parallel_shared_potential_file_name_;
+
+    /// Number of steps between synchronising the potential with the shared file for parallel calculations
+    int parallel_shared_potential_sync_steps_;
+
     /// Output file for metadynamics statistics
     std::ofstream metadynamics_stats_file_;
 
