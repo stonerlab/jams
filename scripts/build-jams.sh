@@ -24,7 +24,7 @@ declare -r LOG="${TMP_DIR}/build.log"
 
 declare -r NUMPROC="$(getconf _NPROCESSORS_ONLN)"
 declare -r MAKEFLAGS="-j$NUMPROC"
-declare -r URL=https://drjbarker@github.com/stonerlab/jams.git
+declare URL=https://github.com/stonerlab/jams.git
 declare -r EXE_PATH='bin/jams'
 declare -r NVCC_PATH="$(which nvcc)"
 
