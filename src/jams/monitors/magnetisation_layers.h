@@ -90,11 +90,21 @@ public:
     inline void post_process() override {};
 
 private:
-    std::string h5_group = "/jams/monitors/magnetisation_layers/";
+    enum class Grouping {
+        NONE,
+        MATERIALS,
+        POSITIONS
+    };
 
-    int num_layers_;
-    jams::MultiArray<double,2>           layer_magnetisation_;
-    std::vector<jams::MultiArray<int,1>> layer_spin_indicies_;
+    Grouping grouping_ = Grouping::NONE;
+
+    std::string h5_group_root_name_ = "/jams/monitors/magnetisation_layers/";
+
+    std::vector<std::string> group_names_;
+    std::vector<jams::MultiArray<int,1>> group_spin_indices_;
+    std::vector<int> group_num_layers_;
+    std::vector<jams::MultiArray<double,2>>           group_layer_magnetisation_;
+    std::vector<std::vector<jams::MultiArray<int,1>>> group_layer_spin_indicies_;
 };
 
 #endif
