@@ -375,8 +375,8 @@ neighbour_list_from_interactions(std::vector<InteractionData> &interactions) {
             auto r_ij = globals::lattice->displacement(nbr_site, local_site);
             throw std::runtime_error(
                 "Multiple interactions for sites " + std::to_string(local_site) + " and " + std::to_string(nbr_site) + "\n"
-                + "i: motif pos: " + std::to_string(m) + " unit cell indices: " + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "\n"
-                + "j: motif pos: " + std::to_string(I.basis_site_j) + " unit cell indices: " + std::to_string(I.lattice_translation_vector[0]) + ", " + std::to_string(I.lattice_translation_vector[1]) + ", " + std::to_string(I.lattice_translation_vector[2]) + "\n"
+                + "i: motif pos: " + std::to_string(m + 1) + " unit cell indices: " + std::to_string(i) + ", " + std::to_string(j) + ", " + std::to_string(k) + "\n"
+                + "j: motif pos: " + std::to_string(I.basis_site_j + 1) + " unit cell indices: " + std::to_string(I.lattice_translation_vector[0]) + ", " + std::to_string(I.lattice_translation_vector[1]) + ", " + std::to_string(I.lattice_translation_vector[2]) + "\n"
                 + "interaction_vector_cart: " + std::to_string(r_ij[0]) + ", " + std::to_string(r_ij[1]) + ", " + std::to_string(r_ij[2])
             );
           }
@@ -536,16 +536,22 @@ void check_interaction_list_symmetry(const std::vector<InteractionData> &interac
 
 
     auto it = std::find_if(interactions.begin(), interactions.end(), [&](const InteractionData& sym_J){
-      return (sym_J.basis_site_i == J.basis_site_j
-      && sym_J.basis_site_j == J.basis_site_i
-      && sym_J.type_i == J.type_j
-      && sym_J.type_j == J.type_i
-      && approximately_equal(sym_J.interaction_vector_cart, -J.interaction_vector_cart, jams::defaults::lattice_tolerance)
-      && approximately_equal(sym_J.interaction_value_tensor, transpose(J.interaction_value_tensor), 1e-4));
+      return (sym_J.basis_site_i == J.basis_site_i
+      && sym_J.basis_site_j == J.basis_site_j
+      && sym_J.type_i == J.type_i
+      && sym_J.type_j == J.type_j
+      && approximately_equal(sym_J.interaction_vector_cart, J.interaction_vector_cart, jams::defaults::lattice_tolerance)
+      && approximately_equal(sym_J.interaction_value_tensor, J.interaction_value_tensor, 1e-4));
     });
 
     if (it == interactions.end()) {
-      throw jams::SanityException("interaction template is not symmetric");
+      std::string message = "Interaction template is not symmetric. " +
+      std::to_string(sym_J.basis_site_i + 1) + " " + std::to_string(sym_J.basis_site_j + 1) + " " +
+        std::to_string(sym_J.interaction_vector_cart[0]) + " " +
+          std::to_string(sym_J.interaction_vector_cart[1]) + " " +
+            std::to_string(sym_J.interaction_vector_cart[2]);
+
+      throw jams::SanityException(message);
     }
   }
 }
