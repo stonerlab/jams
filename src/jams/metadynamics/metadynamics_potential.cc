@@ -376,25 +376,21 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 void jams::MetadynamicsPotential::add_gaussian_to_potential(
     const double relative_amplitude, const std::array<double,kMaxDimensions> center) {
 
+  // If we are outside a restoring boundary then we don't add any gaussian density to the potential and just return.
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && center[n] <= restoring_bc_lower_threshold_) {
+      return;
+    }
+
+    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && center[n] >= restoring_bc_upper_threshold_) {
+      return;
+    }
+  }
+
   // Calculate gaussians along each 1D axis
   std::vector<std::vector<double>> gaussians;
   for (auto n = 0; n < cvars_.size(); ++n) {
     gaussians.emplace_back(std::vector<double>(num_cvar_sample_coordinates_[n]));
-
-    // If we have restoring boundary conditions and we are outside of the
-    // central range then we won't be adding any gaussian density so will
-    // just zero out the gaussian array
-    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && center[n] <= restoring_bc_lower_threshold_) {
-      std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
-      // skip setting the gaussians below
-      continue;
-    }
-
-    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && center[n] >= restoring_bc_upper_threshold_) {
-      std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
-      // skip setting the gaussians below
-      continue;
-    }
 
     for (auto i = 0; i < num_cvar_sample_coordinates_[n]; ++i) {
       gaussians[n][i] = gaussian(cvar_sample_coordinates_[n][i], center[n], 1.0, cvar_gaussian_widths_[n]);
