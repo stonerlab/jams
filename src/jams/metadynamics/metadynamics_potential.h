@@ -65,6 +65,11 @@ namespace jams {
         /// outside of the CV range when implementing mirror boundary conditions.
         void add_gaussian_to_potential(const double relative_amplitude, const std::array<double,kMaxDimensions> center);
 
+        double interpolated_potential(const std::array<double, kMaxDimensions>& cvar_coordinates);
+
+        /// Returns the lowest indices of the discrete potential grid square which contains cvar_coordinates
+        std::array<int,kMaxDimensions> potential_grid_indices(const std::array<double, kMaxDimensions>& cvar_coordinates);
+
         // --- METADYNAMICS POTENTIAL
         /// the multidimensional metadynamics potential
         MultiArray<double,kMaxDimensions> metad_potential_;
