@@ -301,100 +301,52 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
   // Lookup points above and below for linear interpolation. We can use the
   // the fact that the ranges are sorted to do a bisection search.
 
-  std::array<double,kMaxDimensions> sample_lower;
-  std::array<int,kMaxDimensions> index_lower;
 
   double bcs_potential = 0.0;
 
+  // Apply restoring boundary conditions
   for (auto n = 0; n < cvars_.size(); ++n) {
-    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_) {
-      return restoring_bc_spring_constant_ * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_) + metad_potential_(0, 0);
-    }
+    if ((cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_)
+      || (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_)) {
 
-    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_) {
-      return restoring_bc_spring_constant_ * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_) + metad_potential_(num_cvar_sample_coordinates_[n] - 1, 0);
-    }
+      return restoring_bc_spring_constant_ * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_)
+        + interpolated_potential(cvar_coordinates);
+      }
+  }
 
 
+  for (auto n = 0; n < cvars_.size(); ++n) {
 	  if (cvar_coordinates[n] < cvar_sample_coordinates_[n].front()
 		  || cvar_coordinates[n] > cvar_sample_coordinates_[n].back()) {
-		bcs_potential = kHardBCsPotential;
+		return kHardBCsPotential;
 	  }
   }
 
-  for (auto n = 0; n < cvars_.size(); ++n) {
-    auto lower = std::lower_bound(
-        cvar_sample_coordinates_[n].begin(),
-        cvar_sample_coordinates_[n].end(),
-        cvar_coordinates[n]);
 
-    auto lower_index = std::distance(cvar_sample_coordinates_[n].begin(), lower - 1);
-
-    index_lower[n] = lower_index;
-    sample_lower[n] = cvar_sample_coordinates_[n][lower_index];
-  }
-
-  assert(cvars_.size() <= kMaxDimensions);
-
-  if (cvars_.size() == 1) {
-    auto x1_index = index_lower[0];
-    auto x2_index = index_lower[0] + 1;
-
-    return bcs_potential + maths::linear_interpolation(
-        cvar_coordinates[0],
-        cvar_sample_coordinates_[0][x1_index], metad_potential_(x1_index, 0),
-        cvar_sample_coordinates_[0][x2_index], metad_potential_(x2_index, 0));
-  }
-
-  if (cvars_.size() == 2) {
-    //f(x1,y1)=Q(11) , f(x1,y2)=Q(12), f(x2,y1), f(x2,y2)
-    int x1_index = index_lower[0];
-    int y1_index = index_lower[1];
-    int x2_index = x1_index + 1;
-    int y2_index = y1_index + 1;
-
-    double Q11 = metad_potential_(x1_index, y1_index);
-    double Q12 = metad_potential_(x1_index, y2_index);
-    double Q21 = metad_potential_(x2_index, y1_index);
-    double Q22 = metad_potential_(x2_index, y2_index);
-
-
-    return bcs_potential + maths::bilinear_interpolation(
-        cvar_coordinates[0], cvar_coordinates[1],
-        cvar_sample_coordinates_[0][x1_index],
-        cvar_sample_coordinates_[1][y1_index],
-        cvar_sample_coordinates_[0][x2_index],
-        cvar_sample_coordinates_[1][y2_index],
-        Q11, Q12, Q21, Q22);
-  }
+  return interpolated_potential(cvar_coordinates);
 
   assert(false);
-  return 0.0;
 }
 
 
 void jams::MetadynamicsPotential::add_gaussian_to_potential(
     const double relative_amplitude, const std::array<double,kMaxDimensions> center) {
 
+  // If we are outside a restoring boundary then we don't add any gaussian density to the potential and just return.
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && center[n] <= restoring_bc_lower_threshold_) {
+      return;
+    }
+
+    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && center[n] >= restoring_bc_upper_threshold_) {
+      return;
+    }
+  }
+
   // Calculate gaussians along each 1D axis
   std::vector<std::vector<double>> gaussians;
   for (auto n = 0; n < cvars_.size(); ++n) {
     gaussians.emplace_back(std::vector<double>(num_cvar_sample_coordinates_[n]));
-
-    // If we have restoring boundary conditions and we are outside of the
-    // central range then we won't be adding any gaussian density so will
-    // just zero out the gaussian array
-    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && center[n] <= restoring_bc_lower_threshold_) {
-      std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
-      // skip setting the gaussians below
-      continue;
-    }
-
-    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && center[n] >= restoring_bc_upper_threshold_) {
-      std::fill(std::begin(gaussians[n]), std::end(gaussians[n]), 0.0);
-      // skip setting the gaussians below
-      continue;
-    }
 
     for (auto i = 0; i < num_cvar_sample_coordinates_[n]; ++i) {
       gaussians[n][i] = gaussian(cvar_sample_coordinates_[n][i], center[n], 1.0, cvar_gaussian_widths_[n]);
@@ -420,6 +372,65 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
   }
 }
 
+double jams::MetadynamicsPotential::interpolated_potential(const std::array<double, kMaxDimensions> &cvar_coordinates) {
+  auto lower_indices = potential_grid_indices(cvar_coordinates);
+
+  assert(cvars_.size() <= kMaxDimensions);
+
+  if (cvars_.size() == 1) {
+
+    auto x1_index = lower_indices[0];
+    // If the lower index is at the upper edge of the system (possibly the CV is outside of the coordinate range)
+    // then set x1 == x2
+    auto x2_index = x1_index == num_cvar_sample_coordinates_[0] ? x1_index : x1_index + 1;
+
+    return maths::linear_interpolation(
+        cvar_coordinates[0],
+        cvar_sample_coordinates_[0][x1_index], metad_potential_(x1_index, 0),
+        cvar_sample_coordinates_[0][x2_index], metad_potential_(x2_index, 0));
+  }
+
+  if (cvars_.size() == 2) {
+    //f(x1,y1)=Q(11) , f(x1,y2)=Q(12), f(x2,y1), f(x2,y2)
+    int x1_index = lower_indices[0];
+    int y1_index = lower_indices[1];
+    auto x2_index = x1_index == num_cvar_sample_coordinates_[0] ? x1_index : x1_index + 1;
+    auto y2_index = y1_index == num_cvar_sample_coordinates_[1] ? y1_index : y1_index + 1;
+
+    double Q11 = metad_potential_(x1_index, y1_index);
+    double Q12 = metad_potential_(x1_index, y2_index);
+    double Q21 = metad_potential_(x2_index, y1_index);
+    double Q22 = metad_potential_(x2_index, y2_index);
+
+
+    return maths::bilinear_interpolation(
+        cvar_coordinates[0], cvar_coordinates[1],
+        cvar_sample_coordinates_[0][x1_index],
+        cvar_sample_coordinates_[1][y1_index],
+        cvar_sample_coordinates_[0][x2_index],
+        cvar_sample_coordinates_[1][y2_index],
+        Q11, Q12, Q21, Q22);
+  }
+}
+
+std::array<int, jams::MetadynamicsPotential::kMaxDimensions> jams::MetadynamicsPotential::potential_grid_indices(
+  const std::array<double, kMaxDimensions> &cvar_coordinates) {
+
+  std::array<int,kMaxDimensions> index_lower;
+
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    auto lower = std::lower_bound(
+        cvar_sample_coordinates_[n].begin(),
+        cvar_sample_coordinates_[n].end(),
+        cvar_coordinates[n]);
+
+    auto lower_index = std::distance(cvar_sample_coordinates_[n].begin(), lower - 1);
+
+    index_lower[n] = lower_index;
+  }
+
+  return index_lower;
+}
 
 void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitude) {
 
