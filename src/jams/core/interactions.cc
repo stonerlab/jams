@@ -344,7 +344,6 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
     return J;
   });
 
-  check_interaction_list_symmetry(interactions);
 }
 
 jams::InteractionList<Mat3, 2>
@@ -407,6 +406,8 @@ generate_neighbour_list(std::ifstream &file,
   auto interactions = interactions_from_file(file, file_desc);
 
   post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  check_interaction_list_symmetry(interactions);
+
 
   // now the interaction data should be in the same format regardless of the input
   // calculate the neighbourlist from here
@@ -430,6 +431,7 @@ generate_neighbour_list(libconfig::Setting &setting,
   auto interactions = interactions_from_settings(setting, file_desc);
 
   post_process_interactions(interactions, file_desc, coord_format, use_symops, energy_cutoff, radius_cutoff, distance_tolerance);
+  check_interaction_list_symmetry(interactions);
 
   // now the interaction data should be in the same format regardless of the input
   // calculate the neighbourlist from here

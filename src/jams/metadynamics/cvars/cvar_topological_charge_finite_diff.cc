@@ -170,6 +170,8 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       interaction_template.push_back(J);
     }
 
+    post_process_interactions(interaction_template, {InteractionFileFormat::KKR, InteractionType::SCALAR}, CoordinateFormat::CARTESIAN, false, 0.0, 0.0, jams::defaults::lattice_tolerance);
+
     jams::InteractionList<Mat3,2> nbrs = neighbour_list_from_interactions(interaction_template);
     dx_indices_.resize(globals::num_spins);
     dx_values_.resize(globals::num_spins);
@@ -244,6 +246,10 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
       J.interaction_value_tensor[0][0] = data.second;
       interaction_template.push_back(J);
     }
+
+    post_process_interactions(interaction_template, {InteractionFileFormat::KKR, InteractionType::SCALAR}, CoordinateFormat::CARTESIAN, false, 0.0, 0.0, jams::defaults::lattice_tolerance);
+
+
     jams::InteractionList<Mat3, 2> nbrs = neighbour_list_from_interactions(
         interaction_template);
     dy_indices_.resize(globals::num_spins);

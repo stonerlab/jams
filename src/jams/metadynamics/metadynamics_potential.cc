@@ -1,12 +1,18 @@
 // metadynamics_potential.cc                                                          -*-C++-*-
 
 #include "metadynamics_potential.h"
+#include "jams/interface/highfive.h"
 #include <jams/helpers/exception.h>
 #include <jams/metadynamics/collective_variable_factory.h>
 #include <jams/maths/interpolation.h>
 #include <jams/helpers/output.h>
 #include <fstream>
 #include <iostream>
+#include <thread>
+
+#include <sys/stat.h>  // For POSIX stat()
+#include <fcntl.h>     // For O_CREAT, O_EXCL
+#include <unistd.h>    // For close()
 
 #include <jams/core/solver.h>
 #include <jams/core/globals.h>
@@ -229,6 +235,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   }
 
     zero(metad_potential_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
+    zero(metad_potential_delta_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
 
     if (!potential_filename.empty()) {
         std::cout << "Reading potential landscape data from " << potential_filename << "\n" << "Ensure you input the final h5 file from the previous simmulation" <<"\n";
@@ -403,6 +410,12 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
   for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
     for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
       metad_potential_(i, j) += relative_amplitude * metad_gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
+    }
+  }
+
+  for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
+    for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
+      metad_potential_delta_(i, j) += relative_amplitude * metad_gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
     }
   }
 }
@@ -587,4 +600,38 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
         potential_file_passed.close();
     }
 }
+
+void jams::MetadynamicsPotential::synchronise_shared_potential(const std::string &file_name) {
+  auto lock_file_name = file_name + ".lock";
+  int lock_fd = output::lock_file(lock_file_name);
+
+  MultiArray<double, kMaxDimensions> shared_potential(metad_potential_.shape());
+  { // Scoping guards to make sure the hdf5 file is closed before we unlock the lock file
+    HighFive::File file(file_name, HighFive::File::ReadWrite | HighFive::File::Create);
+
+    if (!file.exist("shared_potential")) {
+      zero(shared_potential);
+      file.createDataSet<double>("shared_potential", HighFive::DataSpace::From(shared_potential));
+    } else {
+      file.getDataSet("shared_potential").read(shared_potential);
+    }
+
+    for (auto i = 0; i < metad_potential_.size(0); ++i) {
+      for (auto j = 0; j < metad_potential_.size(1); ++j) {
+        shared_potential(i, j) += metad_potential_delta_(i, j);
+      }
+    }
+
+    file.getDataSet("shared_potential").write(shared_potential);
+
+    file.flush();
+  }
+
+  output::unlock_file(lock_fd);
+
+  metad_potential_ = shared_potential;
+  zero(metad_potential_delta_);
+}
+
+
 

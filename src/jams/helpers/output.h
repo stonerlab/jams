@@ -18,6 +18,9 @@ namespace jams {
         std::string full_path_filename(const std::string& ending);
         std::string full_path_filename_series(const std::string& ending, int num, int width=7);
         std::string output_path();
+
+        int lock_file(const std::string& lock_filename);
+        void unlock_file(int fd);
     }
 
     namespace fmt {

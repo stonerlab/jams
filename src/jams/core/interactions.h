@@ -103,6 +103,9 @@ write_interaction_data(std::ostream &output, const std::vector<InteractionData> 
 void
 write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3, 2> &list);
 
+void
+post_process_interactions(std::vector<InteractionData> &interactions, const InteractionFileDescription& desc, CoordinateFormat coord_format, bool use_symops, double energy_cutoff, double radius_cutoff, double distance_tolerance);
+
 template <class T>
 class InteractionList {
   public:
