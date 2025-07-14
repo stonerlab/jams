@@ -306,14 +306,13 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   // Apply restoring boundary conditions
   for (auto n = 0; n < cvars_.size(); ++n) {
-    if ((cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_)
-      || (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_)) {
-
-      return restoring_bc_spring_constant_ * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_)
-        + interpolated_potential(cvar_coordinates);
-      }
+    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_) {
+      return interpolated_potential(cvar_coordinates) + restoring_bc_spring_constant_ * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_);
+    }
+    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_) {
+      return interpolated_potential(cvar_coordinates) + restoring_bc_spring_constant_ * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_);
+    }
   }
-
 
   for (auto n = 0; n < cvars_.size(); ++n) {
 	  if (cvar_coordinates[n] < cvar_sample_coordinates_[n].front()
