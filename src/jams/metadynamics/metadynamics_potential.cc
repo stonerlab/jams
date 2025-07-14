@@ -331,17 +331,6 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 void jams::MetadynamicsPotential::add_gaussian_to_potential(
     const double relative_amplitude, const std::array<double,kMaxDimensions> center) {
 
-  // If we are outside a restoring boundary then we don't add any gaussian density to the potential and just return.
-  for (auto n = 0; n < cvars_.size(); ++n) {
-    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && center[n] <= restoring_bc_lower_threshold_) {
-      return;
-    }
-
-    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && center[n] >= restoring_bc_upper_threshold_) {
-      return;
-    }
-  }
-
   // Calculate gaussians along each 1D axis
   std::vector<std::vector<double>> gaussians;
   for (auto n = 0; n < cvars_.size(); ++n) {
@@ -410,6 +399,8 @@ double jams::MetadynamicsPotential::interpolated_potential(const std::array<doub
         cvar_sample_coordinates_[1][y2_index],
         Q11, Q12, Q21, Q22);
   }
+
+  return 0.0;
 }
 
 std::array<int, jams::MetadynamicsPotential::kMaxDimensions> jams::MetadynamicsPotential::potential_grid_indices(
