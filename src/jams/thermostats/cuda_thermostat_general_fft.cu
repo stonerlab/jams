@@ -73,11 +73,15 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const double &temperature, co
 
   if (noise_spectrum_type == "classical-ohmic" || noise_spectrum_type == "classical") {
     psd_function = [&](double omega) {
-      return classical_spectrum(omega, filter_temperature_, eta_G);
+      return classical_ohmic_spectrum(omega, filter_temperature_, eta_G);
+    };
+  } else if (noise_spectrum_type == "quantum-ohmic") {
+    psd_function = [&](double omega) {
+      return quantum_ohmic_spectrum(omega, filter_temperature_, eta_G);
     };
   } else if (noise_spectrum_type == "quantum-no-zero-ohmic" || noise_spectrum_type == "bose-einstein") {
     psd_function = [&](double omega) {
-      return no_zero_quantum_spectrum(omega, filter_temperature_, eta_G);
+      return quantum_no_zero_ohmic_spectrum(omega, filter_temperature_, eta_G);
     };
   } else if (noise_spectrum_type == "classical-lorentzian") {
     init_lorentzian(thermostat_settings, eta_G);
@@ -92,7 +96,7 @@ CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const double &temperature, co
   } else if (noise_spectrum_type == "quantum-no-zero-lorentzian" || noise_spectrum_type == "no-zero-quantum-lorentzian") {
     init_lorentzian(thermostat_settings, eta_G);
     psd_function = [&](double omega) {
-      return no_zero_quantum_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
+      return quantum_no_zero_lorentzian_spectrum(omega, filter_temperature_, lorentzian_omega0_, lorentzian_gamma_, lorentzian_A_);
     };
   } else {
     throw std::runtime_error("unknown spectrum type '" + noise_spectrum_type +"'");
@@ -329,18 +333,26 @@ void CudaThermostatGeneralFFT::init_lorentzian(libconfig::Setting &settings, dou
   lorentzian_A_ = (eta_G * pow4(lorentzian_omega0_)) / (lorentzian_gamma_);
 }
 
-double CudaThermostatGeneralFFT::classical_spectrum(double omega, double temperature, double eta_G) {
-  return 2.0 * kBoltzmannIU * temperature * eta_G;
+double CudaThermostatGeneralFFT::classical_ohmic_spectrum(double omega, double temperature, double eta_G) {
+    return 2.0 * kBoltzmannIU * temperature * eta_G;
 }
 
-
-double CudaThermostatGeneralFFT::no_zero_quantum_spectrum(double omega, double temperature, double eta_G) {
+double CudaThermostatGeneralFFT::quantum_ohmic_spectrum(double omega, double temperature, double eta_G) {
   if (omega == 0.0) {
-    return 2.0 * eta_G * kBoltzmannIU * temperature;
+    return 2.0 * kBoltzmannIU * temperature * eta_G;
   }
 
-  double x = (kHBarIU * abs(omega)) / (kBoltzmannIU * temperature);
-  return 2.0 * eta_G * kHBarIU * abs(omega) /(std::expm1(x));
+  double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * temperature);
+  return 2.0 * kBoltzmannIU * temperature * eta_G * x * jams::maths::coth(x);
+}
+
+double CudaThermostatGeneralFFT::quantum_no_zero_ohmic_spectrum(double omega, double temperature, double eta_G) {
+  if (omega == 0.0) {
+    return 2.0 * kBoltzmannIU * temperature * eta_G;
+  }
+
+  double x = (kHBarIU * abs(omega)) / (2.0 * kBoltzmannIU * temperature);
+  return 2.0 * kBoltzmannIU * temperature * eta_G * x * (jams::maths::coth(x) - 1.0);
 }
 
 
@@ -370,7 +382,7 @@ double CudaThermostatGeneralFFT::quantum_lorentzian_spectrum(double omega, doubl
 }
 
 
-double CudaThermostatGeneralFFT::no_zero_quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
+double CudaThermostatGeneralFFT::quantum_no_zero_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A) {
   // Need to avoid undefined calculations (1/0 and coth(0)) so here we use
   // the analytic limits for omega == 0.0
   if (omega == 0.0) {
