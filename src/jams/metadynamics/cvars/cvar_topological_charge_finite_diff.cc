@@ -243,7 +243,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
           globals::lattice->basis_site_atom(J.basis_site_i).material_index);
       J.type_j = globals::lattice->material_name(
           globals::lattice->basis_site_atom(J.basis_site_j).material_index);
-      J.interaction_vector_cart = ::globals::lattice->fractional_to_cartesian(data.first);
+      J.interaction_vector_cart = globals::lattice->fractional_to_cartesian(data.first);
       J.interaction_value_tensor[0][0] = data.second;
       interaction_template.push_back(J);
     }
