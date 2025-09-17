@@ -158,8 +158,10 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     cvar_names_[i] = cvars_[i]->name();
 
     // Set the gaussian width for this collective variable
-    cvar_gaussian_widths_[i] = config_required<double>(cvar_settings,
-                                                       "gaussian_width");
+    cvar_gaussian_widths_[i] = config_required<double>(cvar_settings, "gaussian_width");
+    if (!(std::isfinite(cvar_gaussian_widths_[i]) && cvar_gaussian_widths_[i] > 0.0)) {
+      throw std::runtime_error("gaussian_width must be finite and > 0");
+    }
 
     // Set the samples along this collective variable axis
 
