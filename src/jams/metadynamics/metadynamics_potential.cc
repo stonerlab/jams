@@ -493,7 +493,7 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
 
 
 double jams::MetadynamicsPotential::current_potential() {
-  std::array<double,kMaxDimensions> coordinates;
+  std::array<double,kMaxDimensions> coordinates{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     coordinates[n] = cvars_[n]->value();
   }
