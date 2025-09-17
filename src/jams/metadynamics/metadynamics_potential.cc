@@ -607,9 +607,8 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
         int copy_iterator = 0;
         for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
             for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
-              metad_potential_(i, j) = file_data[copy_iterator];
+              metad_potential_(i, j) = file_data[copy_iterator++];
             }
-            copy_iterator++;
         }
         potential_file_passed.close();
     }
