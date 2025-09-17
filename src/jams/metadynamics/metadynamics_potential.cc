@@ -215,20 +215,24 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
     // Read additional settings for the boundary conditions
 
+    std::fill(restoring_bc_upper_threshold_.begin(), restoring_bc_upper_threshold_.end(), 0.0);
+    std::fill(restoring_bc_lower_threshold_.begin(), restoring_bc_lower_threshold_.end(), 0.0);
+    std::fill(restoring_bc_spring_constant_.begin(), restoring_bc_spring_constant_.end(), 0.0);
+
     if (cvar_upper_bcs_[i] == PotentialBCs::RestoringBC) {
-      restoring_bc_upper_threshold_ =
+      restoring_bc_upper_threshold_[i] =
           jams::config_required<double>(
               cvar_settings, "upper_restoring_bc_threshold");
-      restoring_bc_spring_constant_ =
+      restoring_bc_spring_constant_[i] =
           jams::config_required<double>(
             cvar_settings, "restoring_bc_spring_constant");
     }
 
     if (cvar_lower_bcs_[i] == PotentialBCs::RestoringBC) {
-      restoring_bc_lower_threshold_ =
+      restoring_bc_lower_threshold_[i] =
           jams::config_required<double>(
               cvar_settings, "lower_restoring_bc_threshold");
-      restoring_bc_spring_constant_ =
+      restoring_bc_spring_constant_[i] =
           jams::config_required<double>(
               cvar_settings, "restoring_bc_spring_constant");
     }
@@ -306,11 +310,11 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
   // Apply restoring boundary conditions
   for (auto n = 0; n < cvars_.size(); ++n) {
-    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_) {
-      return interpolated_potential(cvar_coordinates) + restoring_bc_spring_constant_ * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_);
+    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_[n]) {
+      return interpolated_potential(cvar_coordinates) + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
     }
-    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_) {
-      return interpolated_potential(cvar_coordinates) + restoring_bc_spring_constant_ * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_);
+    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_[n]) {
+      return interpolated_potential(cvar_coordinates) + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
     }
   }
 

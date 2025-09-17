@@ -121,13 +121,13 @@ namespace jams {
         // --- --- Restoring boundary conditions
 
         /// lower CV coordinate at which to apply restoring boundary conditions
-        double restoring_bc_lower_threshold_;
+        std::array<double,kMaxDimensions> restoring_bc_lower_threshold_;
 
         /// upper CV coordinate at which to apply restoring boundary conditions
-        double restoring_bc_upper_threshold_;
+        std::array<double,kMaxDimensions> restoring_bc_upper_threshold_;
 
         /// restoring boundary condition spring constant
-        double restoring_bc_spring_constant_;
+        std::array<double,kMaxDimensions> restoring_bc_spring_constant_;
 
         // --- --- Hard boundary conditions
 
