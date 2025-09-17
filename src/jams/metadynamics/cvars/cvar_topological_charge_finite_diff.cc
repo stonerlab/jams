@@ -4,6 +4,7 @@
 #include <jams/core/lattice.h>
 #include <jams/core/interactions.h>
 #include <jams/helpers/montecarlo.h>
+#include <cmath>
 
 jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     const libconfig::Setting &settings) {
@@ -18,7 +19,7 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
   LatticeType lattice_type = LatticeType::Unsupported;
   if (lattice_equal({1.0, 0.0, 0.0}, {0.0, 1.0, 0.0})) {
     lattice_type = LatticeType::Square;
-  } else if (lattice_equal({1.0, 0.0, 0.0}, {0.5, sqrt(3) / 2, 0.0})) {
+  } else if (lattice_equal({1.0, 0.0, 0.0}, {0.5, std::sqrt(3.0) / 2.0, 0.0})) {
     lattice_type = LatticeType::Hexagonal;
   }
 
@@ -204,32 +205,32 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     }
     if (stencil == FiniteDifferenceStencil::Hexagonal4) {
       dy_interaction_data = {
-          {Vec3{-1, 1, 0}, 1.0/(2*sqrt(3.0))},
-          {Vec3{ 0, 1, 0}, 1.0/(2*sqrt(3.0))},
-          {Vec3{ 1,-1, 0},-1.0/(2*sqrt(3.0))},
-          {Vec3{ 0,-1, 0},-1.0/(2*sqrt(3.0))},
+          {Vec3{-1, 1, 0}, 1.0/(2.0*std::sqrt(3.0))},
+          {Vec3{ 0, 1, 0}, 1.0/(2.0*std::sqrt(3.0))},
+          {Vec3{ 1,-1, 0},-1.0/(2.0*std::sqrt(3.0))},
+          {Vec3{ 0,-1, 0},-1.0/(2.0*std::sqrt(3.0))},
       };
     }
     if (stencil == FiniteDifferenceStencil::Hexagonal6) {
       dy_interaction_data = {
-          {Vec3{ 1,-1, 0},-sqrt(3.0)/6.0},
-          {Vec3{-1, 1, 0}, sqrt(3.0)/6.0},
-          {Vec3{ 0, 1, 0}, sqrt(3.0)/6.0},
-          {Vec3{ 0,-1, 0},-sqrt(3.0)/6.0},
+          {Vec3{ 1,-1, 0},-std::sqrt(3.0)/6.0},
+          {Vec3{-1, 1, 0}, std::sqrt(3.0)/6.0},
+          {Vec3{ 0, 1, 0}, std::sqrt(3.0)/6.0},
+          {Vec3{ 0,-1, 0},-std::sqrt(3.0)/6.0},
       };
     }
     if (stencil == FiniteDifferenceStencil::Hexagonal12) {
       dy_interaction_data = {
-          {Vec3{ 1,-1, 0},-sqrt(3.0)/4.0},
-          {Vec3{-1, 1, 0}, sqrt(3.0)/4.0},
-          {Vec3{ 0, 1, 0}, sqrt(3.0)/4.0},
-          {Vec3{ 0,-1, 0},-sqrt(3.0)/4.0},
-          {Vec3{-1, 2, 0}, -1/(6*sqrt(3))},
-          {Vec3{ 1,-2, 0}, 1/(6*sqrt(3))},
-          {Vec3{ 1, 1, 0},-1.0/(12*sqrt(3))},
-          {Vec3{ 2,-1, 0}, 1.0/(12*sqrt(3))},
-          {Vec3{-2, 1, 0}, -1.0/(12*sqrt(3))},
-          {Vec3{-1,-1, 0}, 1.0/(12*sqrt(3))}
+          {Vec3{ 1,-1, 0},-std::sqrt(3.0)/4.0},
+          {Vec3{-1, 1, 0}, std::sqrt(3.0)/4.0},
+          {Vec3{ 0, 1, 0}, std::sqrt(3.0)/4.0},
+          {Vec3{ 0,-1, 0},-std::sqrt(3.0)/4.0},
+          {Vec3{-1, 2, 0}, -1.0/(6.0*std::sqrt(3.0))},
+          {Vec3{ 1,-2, 0}, 1.0/(6.0*std::sqrt(3.0))},
+          {Vec3{ 1, 1, 0},-1.0/(12.0*std::sqrt(3.0))},
+          {Vec3{ 2,-1, 0}, 1.0/(12.0*std::sqrt(3.0))},
+          {Vec3{-2, 1, 0}, -1.0/(12.0*std::sqrt(3.0))},
+          {Vec3{-1,-1, 0}, 1.0/(12.0*std::sqrt(3.0))}
       };
     }
 
