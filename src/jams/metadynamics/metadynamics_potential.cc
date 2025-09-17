@@ -258,6 +258,9 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     }
 
     cvar_output_file_.open(jams::output::full_path_filename("metad_cvars.tsv"));
+    if (!cvar_output_file_) {
+      throw std::runtime_error("Failed to open metad_cvars.tsv for writing");
+    }
     cvar_output_file_ << "time";
     for (auto i = 0; i < cvars_.size(); ++i) {
       cvar_output_file_ << " " << cvars_[i]->name();
@@ -591,6 +594,10 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
 
             std::stringstream is(line);
             is >> first_cvar >> second_cvar >> potential_passed;
+
+          if (is.bad() || is.fail()) {
+            throw std::runtime_error("failed to read line " + std::to_string(line_number));
+          }
 
             file_data.push_back(potential_passed);
 
