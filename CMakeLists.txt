@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10...3.28 FATAL_ERROR)
 project(jams LANGUAGES C CXX)
 
 include(cmake/MessageQuiet.cmake)
@@ -60,9 +60,9 @@ set(JAMS_CUDA_VERSION_MIN "9.0")
 # versions from github and build them here rather than linking external
 # libraries.
 if (JAMS_BUILD_IN_DEPENDENCIES)
-    set(JAMS_LIBCONFIG_VERSION v1.7.3)  # https://github.com/hyperrealm/libconfig
-    set(JAMS_HIGHFIVE_VERSION v2.4.0)   # https://github.com/BlueBrain/HighFive
-    set(JAMS_SPGLIB_VERSION v1.16.3)    # https://github.com/spglib/spglib
+    set(JAMS_LIBCONFIG_VERSION v1.8.1)  # https://github.com/hyperrealm/libconfig
+    set(JAMS_HIGHFIVE_VERSION v2.4.0)   # https://github.com/highfive-devs/highfive
+    set(JAMS_SPGLIB_VERSION v1.16.5)    # https://github.com/spglib/spglib
     set(JAMS_PCG_VERSION v0.98.1)       # https://github.com/imneme/pcg-cpp
 endif()
 

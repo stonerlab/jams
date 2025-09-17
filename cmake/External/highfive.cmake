@@ -11,7 +11,7 @@ if (DEFINED JAMS_HIGHFIVE_VERSION)
     set(HIGHFIVE_PARALLEL_HDF5 OFF CACHE INTERNAL "Enable Parallel HDF5 support")
     set(HIGHFIVE_BUILD_DOCS    OFF CACHE INTERNAL "Enable documentation building")
 
-    set(JAMS_HIGHFIVE_URL "https://github.com/BlueBrain/HighFive.git")
+    set(JAMS_HIGHFIVE_URL "https://github.com/highfive-devs/highfive")
     if (MESSAGE_QUIET AND (NOT DEFINED VERBOSE))
         download_project(
                 PROJ                HighFive

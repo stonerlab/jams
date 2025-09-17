@@ -146,12 +146,13 @@ private:
 
   void init_lorentzian(libconfig::Setting &settings, double eta_G);
 
-  static double classical_spectrum(double omega, double temperature, double eta_G);
-  static double no_zero_quantum_spectrum(double omega, double temperature, double eta_G);
+  static double classical_ohmic_spectrum(double omega, double temperature, double eta_G);
+  static double quantum_ohmic_spectrum(double omega, double temperature, double eta_G);
+  static double quantum_no_zero_ohmic_spectrum(double omega, double temperature, double eta_G);
 
   static double classical_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A);
   static double quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A);
-  static double no_zero_quantum_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A);
+  static double quantum_no_zero_lorentzian_spectrum(double omega, double temperature, double omega0, double gamma, double A);
 
 
   void output_thermostat_properties(std::ostream& os);
