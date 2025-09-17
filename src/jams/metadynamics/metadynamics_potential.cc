@@ -9,6 +9,8 @@
 #include <fstream>
 #include <iostream>
 #include <thread>
+#include <algorithm>
+#include <sstream>
 
 #include <sys/stat.h>  // For POSIX stat()
 #include <fcntl.h>     // For O_CREAT, O_EXCL
