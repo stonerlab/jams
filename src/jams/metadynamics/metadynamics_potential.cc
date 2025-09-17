@@ -309,7 +309,7 @@ double jams::MetadynamicsPotential::potential_difference(
 
 
 double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimensions>& cvar_coordinates) {
-  assert(cvar_coordinates.size() > 0 && cvar_coordinates.size() <= kMaxDimensions);
+  assert(cvars_.size() > 0 && cvars_.size() <= kMaxDimensions);
 
   // We must use cvar_coordinates within the potential function and never
   // cvars_[n]->value(). The later will only every return the current value of
