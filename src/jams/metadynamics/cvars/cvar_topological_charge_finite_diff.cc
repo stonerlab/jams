@@ -10,8 +10,8 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
-    return approximately_equal(globals::lattice->a1(), a, defaults::lattice_tolerance)
-    && approximately_equal(globals::lattice->a2(), b, defaults::lattice_tolerance);
+    return approximately_equal(globals::lattice->a1(), a, jams::defaults::lattice_tolerance)
+    && approximately_equal(globals::lattice->a2(), b, jams::defaults::lattice_tolerance);
   };
 
   enum class LatticeType {Unsupported, Square, Hexagonal};
