@@ -273,16 +273,16 @@ double jams::MetadynamicsPotential::potential_difference(
   }
 
   for (auto n = 0; n < cvars_.size(); ++n) {
-    if (cvar_lower_bcs_[i] == PotentialBCs::HardBC && cvar_initial[n] < cvar_sample_coordinates_[n].front()) {
+    if (cvar_lower_bcs_[n] == PotentialBCs::HardBC && cvar_initial[n] < cvar_sample_coordinates_[n].front()) {
       return -kHardBCsPotential;
     }
-    if (cvar_upper_bcs_[i] == PotentialBCs::HardBC && cvar_initial[n] > cvar_sample_coordinates_[n].back()) {
+    if (cvar_upper_bcs_[n] == PotentialBCs::HardBC && cvar_initial[n] > cvar_sample_coordinates_[n].back()) {
       return -kHardBCsPotential;
     }
-    if (cvar_lower_bcs_[i] == PotentialBCs::HardBC && cvar_trial[n] < cvar_sample_coordinates_[n].front()) {
+    if (cvar_lower_bcs_[n] == PotentialBCs::HardBC && cvar_trial[n] < cvar_sample_coordinates_[n].front()) {
       return kHardBCsPotential;
     }
-    if (cvar_upper_bcs_[i] == PotentialBCs::HardBC && cvar_trial[n] > cvar_sample_coordinates_[n].back()) {
+    if (cvar_upper_bcs_[n] == PotentialBCs::HardBC && cvar_trial[n] > cvar_sample_coordinates_[n].back()) {
       return kHardBCsPotential;
     }
   }
