@@ -365,43 +365,41 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
 }
 
 double jams::MetadynamicsPotential::interpolated_potential(const std::array<double, kMaxDimensions> &cvar_coordinates) {
-  auto lower_indices = potential_grid_indices(cvar_coordinates);
+  const auto lower_indices = potential_grid_indices(cvar_coordinates);
 
   assert(cvars_.size() <= kMaxDimensions);
 
-  if (cvars_.size() == 1) {
+  const int i0 = lower_indices[0];
+  const int i1 = std::min(i0 + 1, num_cvar_sample_coordinates_[0] - 1);
 
-    auto x1_index = lower_indices[0];
-    // If the lower index is at the upper edge of the system (possibly the CV is outside of the coordinate range)
-    // then set x1 == x2
-    auto x2_index = x1_index == num_cvar_sample_coordinates_[0] ? x1_index : x1_index + 1;
+  if (cvars_.size() == 1) {
+    // clamp
+    if (i0 == i1) return metad_potential_(i0, 0);
 
     return maths::linear_interpolation(
         cvar_coordinates[0],
-        cvar_sample_coordinates_[0][x1_index], metad_potential_(x1_index, 0),
-        cvar_sample_coordinates_[0][x2_index], metad_potential_(x2_index, 0));
+        cvar_sample_coordinates_[0][i0], metad_potential_(i0, 0),
+        cvar_sample_coordinates_[0][i1], metad_potential_(i1, 0));
   }
 
   if (cvars_.size() == 2) {
-    //f(x1,y1)=Q(11) , f(x1,y2)=Q(12), f(x2,y1), f(x2,y2)
-    int x1_index = lower_indices[0];
-    int y1_index = lower_indices[1];
-    auto x2_index = x1_index == num_cvar_sample_coordinates_[0] ? x1_index : x1_index + 1;
-    auto y2_index = y1_index == num_cvar_sample_coordinates_[1] ? y1_index : y1_index + 1;
+    const int j0 = lower_indices[1];
+    const int j1 = std::min(j0 + 1, num_cvar_sample_coordinates_[1] - 1);
 
-    double Q11 = metad_potential_(x1_index, y1_index);
-    double Q12 = metad_potential_(x1_index, y2_index);
-    double Q21 = metad_potential_(x2_index, y1_index);
-    double Q22 = metad_potential_(x2_index, y2_index);
+    // clamp
+    if (i0 == i1 && j0 == j1) return metad_potential_(i0, j0);
 
+    //f(i0,j0)=Q(11) , f(i0,j1)=Q(12), f(i1,j0), f(i1,j1)
+    const double Q00 = metad_potential_(i0, j0);
+    const double Q01 = metad_potential_(i0, j1);
+    const double Q10 = metad_potential_(i1, j0);
+    const double Q11 = metad_potential_(i1, j1);
 
     return maths::bilinear_interpolation(
         cvar_coordinates[0], cvar_coordinates[1],
-        cvar_sample_coordinates_[0][x1_index],
-        cvar_sample_coordinates_[1][y1_index],
-        cvar_sample_coordinates_[0][x2_index],
-        cvar_sample_coordinates_[1][y2_index],
-        Q11, Q12, Q21, Q22);
+        cvar_sample_coordinates_[0][i0], cvar_sample_coordinates_[1][j0],
+        cvar_sample_coordinates_[0][i1], cvar_sample_coordinates_[1][j1],
+        Q00, Q01, Q10, Q11);
   }
 
   return 0.0;
