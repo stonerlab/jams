@@ -136,6 +136,9 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   // Preset the num_samples in each dimension to 1. Then if we are only using
   // 1D our potential will be N x 1 (rather than N x 0!).
   std::fill(std::begin(num_cvar_sample_coordinates_), std::end(num_cvar_sample_coordinates_), 1);
+  std::fill(restoring_bc_upper_threshold_.begin(), restoring_bc_upper_threshold_.end(), 0.0);
+  std::fill(restoring_bc_lower_threshold_.begin(), restoring_bc_lower_threshold_.end(), 0.0);
+  std::fill(restoring_bc_spring_constant_.begin(), restoring_bc_spring_constant_.end(), 0.0);
 
   for (auto i = 0; i < num_cvars; ++i) {
     // Construct the collective variables from the factor and store pointers
@@ -214,11 +217,6 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     }
 
     // Read additional settings for the boundary conditions
-
-    std::fill(restoring_bc_upper_threshold_.begin(), restoring_bc_upper_threshold_.end(), 0.0);
-    std::fill(restoring_bc_lower_threshold_.begin(), restoring_bc_lower_threshold_.end(), 0.0);
-    std::fill(restoring_bc_spring_constant_.begin(), restoring_bc_spring_constant_.end(), 0.0);
-
     if (cvar_upper_bcs_[i] == PotentialBCs::RestoringBC) {
       restoring_bc_upper_threshold_[i] =
           jams::config_required<double>(
