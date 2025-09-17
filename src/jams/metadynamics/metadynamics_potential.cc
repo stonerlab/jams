@@ -424,23 +424,23 @@ double jams::MetadynamicsPotential::interpolated_potential(const std::array<doub
   return 0.0;
 }
 
-std::array<int, jams::MetadynamicsPotential::kMaxDimensions> jams::MetadynamicsPotential::potential_grid_indices(
-  const std::array<double, kMaxDimensions> &cvar_coordinates) {
-
-  std::array<int,kMaxDimensions> index_lower;
-
+std::array<int, jams::MetadynamicsPotential::kMaxDimensions>
+jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kMaxDimensions> &cvar_coordinates) {
+  std::array<int,kMaxDimensions> i0{};
   for (auto n = 0; n < cvars_.size(); ++n) {
-    auto lower = std::lower_bound(
-        cvar_sample_coordinates_[n].begin(),
-        cvar_sample_coordinates_[n].end(),
-        cvar_coordinates[n]);
+    const auto& grid = cvar_sample_coordinates_[n];
+    auto it = std::upper_bound(grid.begin(), grid.end(), cvar_coordinates[n]);
+    int i1 = static_cast<int>(std::distance(grid.begin(), it));
 
-    auto lower_index = std::distance(cvar_sample_coordinates_[n].begin(), lower - 1);
-
-    index_lower[n] = lower_index;
+    if (i1 <= 0) {
+      i0[n] = 0;                       // cvar_coordinates <= grid.front()
+    } else if (i1 >= static_cast<int>(grid.size())) {
+      i0[n] = static_cast<int>(grid.size()) - 1;  // cvar_coordinates >= grid.back()
+    } else {
+      i0[n] = i1 - 1;                  // grid[i0] < cvar_coordinates <= grid[i0+1]
+    }
   }
-
-  return index_lower;
+  return i0;
 }
 
 void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitude) {
