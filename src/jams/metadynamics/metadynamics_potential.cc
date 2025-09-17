@@ -39,7 +39,16 @@ config_required(const libconfig::Setting &setting, const std::string &name) {
 
 namespace {
 std::vector<double> linear_space(const double min,const double max,const double step) {
+  if (!(min < max)) {
+    throw std::runtime_error("linear_space: min must be < max");
+  }
+
+  if (!(step > 0.0)) {
+    throw std::runtime_error("linear_space: step must be > 0");
+  }
+
   assert(min < max);
+
   std::vector<double> space;
   double value = min;
   while (less_than_approx_equal(value,max, 1e-4)) {
