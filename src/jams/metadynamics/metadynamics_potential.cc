@@ -32,7 +32,7 @@ config_required(const libconfig::Setting &setting, const std::string &name) {
   } else if (lowercase(format) == "restoring") {
     return MetadynamicsPotential::PotentialBCs::RestoringBC;
   } else {
-    throw std::runtime_error("Unknown metadynamics boundary condition: " + name);
+    throw std::runtime_error("Unknown metadynamics boundary condition value '" + format + "' for setting '" + name + "'");
   }
 }
 }
@@ -242,7 +242,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     zero(metad_potential_delta_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
 
     if (!potential_filename.empty()) {
-        std::cout << "Reading potential landscape data from " << potential_filename << "\n" << "Ensure you input the final h5 file from the previous simmulation" <<"\n";
+        std::cout << "Reading potential landscape data from " << potential_filename << "\n" << "Ensure you input the final h5 file from the previous simulation" <<"\n";
         import_potential(potential_filename);
     }
 
@@ -529,7 +529,7 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
             if (string_is_comment(line)) {
                 continue;
             }
-            //ingore the title
+            //ignore the title
             if (first_line){
                 first_line = false;
                 continue;
@@ -572,7 +572,7 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
             if (string_is_comment(line)) {
                 continue;
             }
-            //ingore the title
+            // ignore the title
             if (first_line){
                 first_line = false;
                 continue;
@@ -590,7 +590,7 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
         // all sorts of things could go wrong. Stop the simulation here to avoid
         // unintended consequences.
         if (file_data.size() != num_cvar_sample_coordinates_[0] * num_cvar_sample_coordinates_[1]) {
-            throw std::runtime_error("The" + filename + "has different dimensions from the potential");
+            throw std::runtime_error("The " + filename + " has different dimensions from the potential");
         }
 
         int copy_iterator = 0;
