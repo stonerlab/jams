@@ -320,15 +320,21 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
   // the fact that the ranges are sorted to do a bisection search.
 
 
-  double bcs_potential = 0.0;
+  // Clamp to the edge of the grid to determine the constant to add for RestoringBC if we are over the threshold
+  std::array<double,kMaxDimensions> x = cvar_coordinates;
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    x[n] = std::clamp(x[n],
+      cvar_sample_coordinates_[n].front(),
+      cvar_sample_coordinates_[n].back());
+  }
 
   // Apply restoring boundary conditions
   for (auto n = 0; n < cvars_.size(); ++n) {
     if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_[n]) {
-      return interpolated_potential(cvar_coordinates) + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
+      return interpolated_potential(x) + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
     }
     if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_[n]) {
-      return interpolated_potential(cvar_coordinates) + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
+      return interpolated_potential(x) + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
     }
   }
 
@@ -339,8 +345,7 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 	  }
   }
 
-
-  return interpolated_potential(cvar_coordinates);
+  return interpolated_potential(x);
 
   assert(false);
 }
