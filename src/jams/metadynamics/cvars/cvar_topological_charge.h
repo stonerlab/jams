@@ -3,6 +3,7 @@
 #define INCLUDED_JAMS_CVAR_TOPOLOGICAL_CHARGE
 
 #include <jams/metadynamics/caching_collective_variable.h>
+#include <jams/interface/config.h>
 
 // ***************************** WARNING *************************************
 // CVarTopologicalCharge is based on the "geometrical" definition of topological

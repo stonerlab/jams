@@ -3,7 +3,7 @@
 #define INCLUDED_JAMS_CVAR_TOPOLOGICAL_CHARGE_FINITE_DIFF
 
 #include <jams/metadynamics/caching_collective_variable.h>
-
+#include <jams/interface/config.h>
 #include <jams/containers/vector_set.h>
 
 // ***************************** WARNING *************************************

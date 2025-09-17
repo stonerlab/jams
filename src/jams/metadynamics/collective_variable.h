@@ -1,12 +1,10 @@
 // collective_variable.h                                               -*-C++-*-
 #ifndef INCLUDED_JAMS_COLLECTIVE_VARIABLE
 #define INCLUDED_JAMS_COLLECTIVE_VARIABLE
-#include <jams/interface/config.h>
 
 #include <jams/containers/vec3.h>
 
 #include <string>
-#include <vector>
 
 namespace jams {
 

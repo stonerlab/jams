@@ -7,6 +7,8 @@
 
 #include <jams/metadynamics/caching_collective_variable.h>
 #include <jams/containers/vec3.h>
+#include <jams/interface/config.h>
+
 #include <vector>
 
 namespace jams {

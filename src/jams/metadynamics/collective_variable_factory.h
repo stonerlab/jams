@@ -3,7 +3,7 @@
 #ifndef INCLUDED_JAMS_METADYNAMICS_COLLECTIVE_VARIABLE_FACTORY
 #define INCLUDED_JAMS_METADYNAMICS_COLLECTIVE_VARIABLE_FACTORY
 
-#include "jams/metadynamics/metadynamics_potential.h"
+#include "jams/metadynamics/collective_variable.h"
 #include "jams/interface/config.h"
 
 namespace jams {

@@ -3,10 +3,8 @@
 #define INCLUDED_JAMS_CVAR_MAGNETISATION
 
 #include <jams/metadynamics/caching_collective_variable.h>
-
+#include <jams/interface/config.h>
 #include <jams/containers/vec3.h>
-
-#include <vector>
 
 // ---------------------------------------------------------------------------
 // config settings
