@@ -133,6 +133,9 @@ inline constexpr double dirac_delta(const double x) {
 }
 
 inline double gaussian(const double& x, const double& center, const double& amplitude, const double& width) {
+  if (width <= 0.0 || !std::isfinite(width)) [[unlikely]] {
+    throw std::invalid_argument("gaussian: width must be finite and > 0");
+  }
   return amplitude * std::exp(-0.5 * pow2((x - center) / width));
 }
 
