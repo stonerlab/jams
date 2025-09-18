@@ -6,6 +6,7 @@
 #include <jams/metadynamics/collective_variable_factory.h>
 #include <jams/maths/interpolation.h>
 #include <jams/helpers/output.h>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -247,7 +248,20 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
           jams::config_required<double>(
               cvar_settings, "restoring_bc_spring_constant");
     }
+
+    // Upper
+    if (!std::isfinite(restoring_bc_upper_threshold_[i]))
+      throw std::runtime_error("upper_restoring_bc_threshold must be finite");
+    if (!(std::isfinite(restoring_bc_spring_constant_[i]) && restoring_bc_spring_constant_[i] >= 0.0))
+      throw std::runtime_error("restoring_bc_spring_constant must be finite and >= 0");
+
+    // Lower
+    if (!std::isfinite(restoring_bc_lower_threshold_[i]))
+      throw std::runtime_error("lower_restoring_bc_threshold must be finite");
+    if (!(std::isfinite(restoring_bc_spring_constant_[i]) && restoring_bc_spring_constant_[i] >= 0.0))
+      throw std::runtime_error("restoring_bc_spring_constant must be finite and >= 0");
   }
+
 
     zero(metad_potential_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
     zero(metad_potential_delta_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
@@ -353,6 +367,9 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
 void jams::MetadynamicsPotential::add_gaussian_to_potential(
     const double relative_amplitude, const std::array<double,kMaxDimensions> center) {
+  if (!std::isfinite(relative_amplitude)) {
+    throw std::runtime_error("Gaussian relative amplitude is not finite.");
+  }
 
   // Calculate gaussians along each 1D axis
   std::vector<std::vector<double>> gaussians;
@@ -468,6 +485,13 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
   for (auto n = 0; n < cvars_.size(); ++n) {
     center[n] = cvars_[n]->value();
   }
+
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    if (!std::isfinite(center[n])) {
+      throw std::runtime_error("Collective variable value is not finite for CV '" + cvar_names_[n] + "'");
+    }
+  }
+
   add_gaussian_to_potential(relative_amplitude, center);
 
   // This deals with any mirror boundaries by adding virtual Gaussians outside
@@ -576,6 +600,10 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
             std::stringstream is(line);
             is >> first_cvar >> potential_passed;
 
+          if (!std::isfinite(potential_passed)) {
+            throw std::runtime_error("Non-finite potential value on line " + std::to_string(line_number));
+          }
+
             if (is.bad() || is.fail()) {
                 throw std::runtime_error("failed to read line " + std::to_string(line_number));
             }
@@ -618,6 +646,10 @@ void jams::MetadynamicsPotential::import_potential(const std::string &filename) 
 
             std::stringstream is(line);
             is >> first_cvar >> second_cvar >> potential_passed;
+
+          if (!std::isfinite(potential_passed)) {
+            throw std::runtime_error("Non-finite potential value on line " + std::to_string(line_number));
+          }
 
           if (is.bad() || is.fail()) {
             throw std::runtime_error("failed to read line " + std::to_string(line_number));
