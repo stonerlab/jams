@@ -408,6 +408,25 @@ double jams::MetadynamicsPotential::interpolated_potential(const std::array<doub
     // clamp
     if (i0 == i1 && j0 == j1) return metad_potential_(i0, j0);
 
+    const double x  = cvar_coordinates[0];
+    const double y  = cvar_coordinates[1];
+    const double x0 = cvar_sample_coordinates_[0][i0];
+    const double x1 = cvar_sample_coordinates_[0][i1];
+    const double y0 = cvar_sample_coordinates_[1][j0];
+    const double y1 = cvar_sample_coordinates_[1][j1];
+
+    // If one axis collapses, do 1D interpolation on the other axis
+    if (i0 == i1 && j0 != j1) {
+      const double f0 = metad_potential_(i0, j0);
+      const double f1 = metad_potential_(i0, j1);
+      return maths::linear_interpolation(y, y0, f0, y1, f1);
+    }
+    if (j0 == j1 && i0 != i1) {
+      const double f0 = metad_potential_(i0, j0);
+      const double f1 = metad_potential_(i1, j0);
+      return maths::linear_interpolation(x, x0, f0, x1, f1);
+    }
+
     //f(i0,j0)=Q(11) , f(i0,j1)=Q(12), f(i1,j0), f(i1,j1)
     const double Q00 = metad_potential_(i0, j0);
     const double Q01 = metad_potential_(i0, j1);
