@@ -115,7 +115,11 @@ std::string MagnetisationMonitor::tsv_header() {
   ss << fmt::sci << "hy";
   ss << fmt::sci << "hz";
 
-  if (grouping_ == Grouping::MATERIALS) {
+  if (grouping_ == Grouping::NONE) {
+    for (const auto &name: {"mx", "my", "mz", "m"}) {
+      ss << fmt::decimal << name;
+    }
+  } else if (grouping_ == Grouping::MATERIALS) {
     for (auto i = 0; i < globals::lattice->num_materials(); ++i) {
       auto name = globals::lattice->material_name(i);
       for (const auto &suffix: {"_mx", "_my", "_mz", "_m"}) {
