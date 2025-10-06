@@ -52,7 +52,7 @@ if (${JAMS_BUILD_OFFLINE})
 endif()
 
 # Minimum versions required for external dependencies
-set(JAMS_LIBCONFIG_VERSION_MIN "1.6")
+set(JAMS_LIBCONFIG_VERSION_MIN "1.8")
 set(JAMS_HDF5_VERSION_MIN "1.10")
 set(JAMS_CUDA_VERSION_MIN "9.0")
 
