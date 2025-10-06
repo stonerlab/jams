@@ -100,11 +100,6 @@ namespace jams {
       }
     }
 
-    std::string section(const std::string &name) {
-      std::string line = "\n--------------------------------------------------------------------------------\n";
-      return line.replace(1, name.size() + 1, name + " ");
-    }
-
 std::string build_info() {
   std::stringstream ss;
       ss << "  commit     " << jams::build::hash << "\n";
@@ -215,9 +210,9 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
           jams_warning("JAMS version is unknown. DO NOT USE THIS BINARY FOR PRODUCTION CALCULATIONS.");
         }
 
-        std::cout << jams::section("build info") << std::endl;
+        std::cout << jams::output::section("build info") << std::endl;
         std::cout << jams::build_info();
-        std::cout << jams::section("run info") << std::endl;
+        std::cout << jams::output::section("run info") << std::endl;
         std::cout << jams::run_info();
 
         if (!program_args.output_path.empty()) {
@@ -265,18 +260,18 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
         std::cout << "verbose " << simulation.verbose << "\n";
         std::cout << "rng state " << simulation.random_state << "\n";
 
-        std::cout << jams::section("init lattice") << std::endl;
+        std::cout << jams::output::section("init lattice") << std::endl;
 
         globals::lattice->init_from_config(*::globals::config);
 
-        std::cout << jams::section("init solver") << std::endl;
+        std::cout << jams::output::section("init solver") << std::endl;
 
         globals::solver = Solver::create(globals::config->lookup("solver"));
 
         globals::solver->register_physics_module(Physics::create(
             globals::config->lookup("physics")));     // todo: fix this memory leak
 
-        std::cout << jams::section("init hamiltonians") << std::endl;
+        std::cout << jams::output::section("init hamiltonians") << std::endl;
 
         if (!::globals::config->exists("hamiltonians")) {
           throw jams::ConfigException(globals::config->getRoot(), "No hamiltonians group in config");
@@ -288,7 +283,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
           }
         }
 
-        std::cout << jams::section("init monitors") << std::endl;
+        std::cout << jams::output::section("init monitors") << std::endl;
 
         if (!::globals::config->exists("monitors")) {
           jams_warning("No monitors in config");
@@ -325,7 +320,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
 
     void run_simulation() {
       try {
-        std::cout << jams::section("running solver") << std::endl;
+        std::cout << jams::output::section("running solver") << std::endl;
         std::cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
         {
           ProgressBar progress;
@@ -352,7 +347,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
         }
 
         {
-          std::cout << jams::section("running post process") << std::endl;
+          std::cout << jams::output::section("running post process") << std::endl;
           std::cout << "start   " << get_date_string(std::chrono::system_clock::now()) << "\n" << std::endl;
 
           Timer<> timer;

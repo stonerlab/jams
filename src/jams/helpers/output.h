@@ -21,6 +21,11 @@ namespace jams {
 
         int lock_file(const std::string& lock_filename);
         void unlock_file(int fd);
+
+        inline std::string section(const std::string &name) {
+          std::string line = "\n--------------------------------------------------------------------------------\n";
+          return line.replace(1, name.size() + 1, name + " ");
+        }
     }
 
     namespace fmt {
