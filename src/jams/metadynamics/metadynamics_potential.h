@@ -13,7 +13,7 @@ namespace jams {
     class MetadynamicsPotential {
     public:
         // Maximum number of CVar dimensions supported by the class
-        static const int kMaxDimensions = 2;
+        static const int kNumCVars = 2;
 
         enum class PotentialBCs {
           MirrorBC,   // extra 'virtual' Gaussians are inserted as if the end of the ranges are mirrors
@@ -41,7 +41,7 @@ namespace jams {
         /// Returns the value of the potential at the given coordinates using
         /// (bi)linear interpolation
         double potential(
-            const std::array<double, kMaxDimensions>& cvar_coordinates);
+            const std::array<double, kNumCVars>& cvar_coordinates);
 
         /// Calculate the difference in potential energy for the system when a
         /// single spin is changed from spin_initial to spin_final
@@ -65,19 +65,19 @@ namespace jams {
         /// 'insert_gaussian()', but allows the Gaussian center to be specified.
         /// We can then (for example) insert additional virtual Gaussians
         /// outside of the CV range when implementing mirror boundary conditions.
-        void add_gaussian_to_potential(const double relative_amplitude, const std::array<double,kMaxDimensions> center);
+        void add_gaussian_to_potential(const double relative_amplitude, const std::array<double,kNumCVars> center);
 
-        double interpolated_potential(const std::array<double, kMaxDimensions>& cvar_coordinates);
+        double interpolated_potential(const std::array<double, kNumCVars>& cvar_coordinates);
 
         /// Returns the lowest indices of the discrete potential grid square which contains cvar_coordinates
-        std::array<int,kMaxDimensions> potential_grid_indices(const std::array<double, kMaxDimensions>& cvar_coordinates);
+        std::array<int,kNumCVars> potential_grid_indices(const std::array<double, kNumCVars>& cvar_coordinates);
 
         // --- METADYNAMICS POTENTIAL
         /// the multidimensional metadynamics potential
-        MultiArray<double,kMaxDimensions> metad_potential_;
+        MultiArray<double,kNumCVars> metad_potential_;
 
         /// Changes in the potential since the last parallel file synchronisation
-        MultiArray<double,kMaxDimensions> metad_potential_delta_;
+        MultiArray<double,kNumCVars> metad_potential_delta_;
 
         /// base amplitude (before any tempering) for metadynamics gaussian
         /// potentials
@@ -103,7 +103,7 @@ namespace jams {
         std::vector<std::vector<double>> cvar_sample_coordinates_;
 
         /// number of discrete CV samples in each CV dimension
-        std::array<int,kMaxDimensions> num_cvar_sample_coordinates_;
+        std::array<int,kNumCVars> num_cvar_sample_coordinates_;
 
         /// number of iterations between CV outputs to file
         int cvar_output_stride_;
@@ -123,13 +123,13 @@ namespace jams {
         // --- --- Restoring boundary conditions
 
         /// lower CV coordinate at which to apply restoring boundary conditions
-        std::array<double,kMaxDimensions> restoring_bc_lower_threshold_;
+        std::array<double,kNumCVars> restoring_bc_lower_threshold_;
 
         /// upper CV coordinate at which to apply restoring boundary conditions
-        std::array<double,kMaxDimensions> restoring_bc_upper_threshold_;
+        std::array<double,kNumCVars> restoring_bc_upper_threshold_;
 
         /// restoring boundary condition spring constant
-        std::array<double,kMaxDimensions> restoring_bc_spring_constant_;
+        std::array<double,kNumCVars> restoring_bc_spring_constant_;
 
         // --- --- Hard boundary conditions
 

@@ -6,6 +6,7 @@
 #include <jams/metadynamics/collective_variable_factory.h>
 #include <jams/maths/interpolation.h>
 #include <jams/helpers/output.h>
+#include <jams/helpers/container_utils.h>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -128,12 +129,11 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
   int num_cvars = settings["collective_variables"].getLength();
 
-  // We currently only support 1D or 2D CV spaces. DO NOT proceed if there are
-  // more specified.
-  if (num_cvars > kMaxDimensions || num_cvars < 1) {
+  // We only support a limited, hardcoded number of CV dimensions. DO NOT proceed if there are more CVs specified.
+  if (num_cvars > kNumCVars || num_cvars < 1) {
     throw std::runtime_error(
         "The number of collective variables should be between 1 and " +
-        std::to_string(kMaxDimensions));
+        std::to_string(kNumCVars));
   }
 
   cvars_.resize(num_cvars);
@@ -145,14 +145,18 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   cvar_range_min_.resize(num_cvars);
   cvar_range_max_.resize(num_cvars);
 
+  zero_all(restoring_bc_upper_threshold_, restoring_bc_lower_threshold_, restoring_bc_spring_constant_);
+
   // Preset the num_samples in each dimension to 1. Then if we are only using
   // 1D our potential will be N x 1 (rather than N x 0!).
   std::fill(std::begin(num_cvar_sample_coordinates_), std::end(num_cvar_sample_coordinates_), 1);
-  std::fill(restoring_bc_upper_threshold_.begin(), restoring_bc_upper_threshold_.end(), 0.0);
-  std::fill(restoring_bc_lower_threshold_.begin(), restoring_bc_lower_threshold_.end(), 0.0);
-  std::fill(restoring_bc_spring_constant_.begin(), restoring_bc_spring_constant_.end(), 0.0);
+
+  // Set 'HardBC' as the default if no boundary condition is given in the settings
+  std::fill(std::begin(cvar_lower_bcs_), std::end(cvar_lower_bcs_), MetadynamicsPotential::PotentialBCs::HardBC);
+  std::fill(std::begin(cvar_upper_bcs_), std::end(cvar_upper_bcs_), MetadynamicsPotential::PotentialBCs::HardBC);
 
   for (auto i = 0; i < num_cvars; ++i) {
+
     // Construct the collective variables from the factor and store pointers
     const auto &cvar_settings = settings["collective_variables"][i];
     cvars_[i].reset(CollectiveVariableFactory::create(cvar_settings));
@@ -165,46 +169,32 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     }
 
     // Set the samples along this collective variable axis
-
     double range_step = config_required<double>(cvar_settings, "range_step");
     double range_min = config_required<double>(cvar_settings, "range_min");
     double range_max = config_required<double>(cvar_settings, "range_max");
-    if (cvar_names_[i] == ("skyrmion_coordinate_x") ||
-        cvar_names_[i] == ("skyrmion_coordinate_y")) {
-      auto bottom_left = globals::lattice->get_unitcell().matrix() * Vec3{0.0, 0.0, 0.0};
-      auto bottom_right = globals::lattice->get_unitcell().matrix() *
-                          Vec3{double(globals::lattice->size(0)), 0.0, 0.0};
-      auto top_left = globals::lattice->get_unitcell().matrix() *
-                      Vec3{0.0, double(globals::lattice->size(1)), 0.0};
-      auto top_right = globals::lattice->get_unitcell().matrix() *
-                       Vec3{double(globals::lattice->size(0)), double(
-                           globals::lattice->size(1)),
-                            0.0};
+
+    if (cvar_names_[i] == ("skyrmion_coordinate_x") || cvar_names_[i] == ("skyrmion_coordinate_y")) {
+      const auto cell = globals::lattice->get_unitcell().matrix();
+      const auto size_a = double(globals::lattice->size(0));
+      const auto size_b = double(globals::lattice->size(1));
+
+      auto bottom_left = cell * Vec3{0.0, 0.0, 0.0};
+      auto bottom_right = cell * Vec3{size_a , 0.0, 0.0};
+      auto top_left = cell * Vec3{0.0, size_b, 0.0};
+      auto top_right = cell * Vec3{size_a , size_b, 0.0};
+
       if (cvar_names_[i] == ("skyrmion_coordinate_x")) {
-        auto bounds_x = std::minmax(
-            {bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
-        range_min = bounds_x.first;
-        range_max = bounds_x.second;
+        std::tie(range_min, range_max) = std::minmax({bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
       }
       if (cvar_names_[i] == ("skyrmion_coordinate_y")) {
-        auto bounds_y = std::minmax(
-            {bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
-        range_min = bounds_y.first;
-        range_max = bounds_y.second;
+        std::tie(range_min, range_max) = std::minmax({bottom_left[1], bottom_right[1], top_left[1], top_right[1]});
       }
     }
+
     cvar_sample_coordinates_[i] = linear_space(range_min, range_max, range_step);
     cvar_range_max_[i] = range_max;
     cvar_range_min_[i] = range_min;
     num_cvar_sample_coordinates_[i] = cvar_sample_coordinates_[i].size();
-
-    // Set the lower and upper boundary conditions for this collective variable
-    //TODO: Once the mirror boundaries are applied need to generalase these if statements
-    //TODO: Currently if lower or upper boundaries are passed from confiq, automatically we set the restoringBC and require the upper and lower boundary, need to generalise.
-
-
-    // Set 'HardBC' as the default if no boundary condition is given in the settings
-    cvar_upper_bcs_[i] = MetadynamicsPotential::PotentialBCs::HardBC;
 
     // Read the boundary condition type from the settings. Reading of
     // 'upper_restoring_bc_threshold' is for backwards compatibility with
@@ -212,20 +202,13 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     // setting was implemented and 'upper_restoring_bc_threshold' was the
     // key setting to turn on restoring RestoringBC.
     if (cvar_settings.exists("upper_bc")) {
-      cvar_upper_bcs_[i] =
-          jams::config_required<PotentialBCs>(
-              cvar_settings, "upper_bc");
+      cvar_upper_bcs_[i] = jams::config_required<PotentialBCs>(cvar_settings, "upper_bc");
     } else if (cvar_settings.exists("upper_restoring_bc_threshold")) {
       cvar_upper_bcs_[i] = PotentialBCs::RestoringBC;
     }
 
-    // The same as above but for the lower boundary conditions
-    cvar_lower_bcs_[i] = PotentialBCs::HardBC;
-
     if (cvar_settings.exists("lower_bc")) {
-      cvar_lower_bcs_[i] =
-          jams::config_required<PotentialBCs>(
-              cvar_settings, "lower_bc");
+      cvar_lower_bcs_[i] = jams::config_required<PotentialBCs>(cvar_settings, "lower_bc");
     } else if (cvar_settings.exists("lower_restoring_bc_threshold")) {
       cvar_lower_bcs_[i] = PotentialBCs::RestoringBC;
     }
@@ -233,20 +216,16 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     // Read additional settings for the boundary conditions
     if (cvar_upper_bcs_[i] == PotentialBCs::RestoringBC) {
       restoring_bc_upper_threshold_[i] =
-          jams::config_required<double>(
-              cvar_settings, "upper_restoring_bc_threshold");
+          jams::config_required<double>(cvar_settings, "upper_restoring_bc_threshold");
       restoring_bc_spring_constant_[i] =
-          jams::config_required<double>(
-            cvar_settings, "restoring_bc_spring_constant");
+          jams::config_required<double>(cvar_settings, "restoring_bc_spring_constant");
     }
 
     if (cvar_lower_bcs_[i] == PotentialBCs::RestoringBC) {
       restoring_bc_lower_threshold_[i] =
-          jams::config_required<double>(
-              cvar_settings, "lower_restoring_bc_threshold");
+          jams::config_required<double>(cvar_settings, "lower_restoring_bc_threshold");
       restoring_bc_spring_constant_[i] =
-          jams::config_required<double>(
-              cvar_settings, "restoring_bc_spring_constant");
+          jams::config_required<double>(cvar_settings, "restoring_bc_spring_constant");
     }
 
     // Upper
@@ -275,6 +254,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     if (!cvar_output_file_) {
       throw std::runtime_error("Failed to open metad_cvars.tsv for writing");
     }
+  
     cvar_output_file_ << "time";
     for (auto i = 0; i < cvars_.size(); ++i) {
       cvar_output_file_ << " " << cvars_[i]->name();
@@ -300,8 +280,8 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
 double jams::MetadynamicsPotential::potential_difference(
     int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
 
-  std::array<double,kMaxDimensions> cvar_initial = {0.0, 0.0};
-  std::array<double,kMaxDimensions> cvar_trial = {0.0, 0.0};
+  std::array<double,kNumCVars> cvar_initial = {0.0, 0.0};
+  std::array<double,kNumCVars> cvar_trial = {0.0, 0.0};
 
   for (auto n = 0; n < cvars_.size(); ++n) {
     cvar_initial[n] = cvars_[n]->value();
@@ -326,7 +306,7 @@ double jams::MetadynamicsPotential::potential_difference(
 }
 
 
-double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimensions>& cvar_coordinates) {
+double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>& cvar_coordinates) {
   assert(cvars_.size() > 0 && cvars_.size() <= kMaxDimensions);
 
   // We must use cvar_coordinates within the potential function and never
@@ -343,14 +323,14 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
   //  - x_thr : like x_edge, but when inside a restoring zone, clamp to the
   //            restoring threshold (so the base potential is taken at the
   //            threshold surface, not at the far grid edge).
-  std::array<double,kMaxDimensions> x_edge = cvar_coordinates;
+  std::array<double,kNumCVars> x_edge = cvar_coordinates;
   for (auto n = 0; n < cvars_.size(); ++n) {
       x_edge[n] = std::clamp(x_edge[n],
         cvar_sample_coordinates_[n].front(),
         cvar_sample_coordinates_[n].back());
   }
 
-  std::array<double,kMaxDimensions> x_thr = x_edge;
+  std::array<double,kNumCVars> x_thr = x_edge;
   for (auto n = 0; n < cvars_.size(); ++n) {
       if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC &&
         less_than_approx_equal(cvar_coordinates[n], restoring_bc_lower_threshold_[n], 1e-5) ) {
@@ -388,7 +368,7 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
 
 
 void jams::MetadynamicsPotential::add_gaussian_to_potential(
-    const double relative_amplitude, const std::array<double,kMaxDimensions> center) {
+    const double relative_amplitude, const std::array<double,kNumCVars> center) {
   if (!std::isfinite(relative_amplitude)) {
     throw std::runtime_error("Gaussian relative amplitude is not finite.");
   }
@@ -422,7 +402,7 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
   }
 }
 
-double jams::MetadynamicsPotential::interpolated_potential(const std::array<double, kMaxDimensions> &cvar_coordinates) {
+double jams::MetadynamicsPotential::interpolated_potential(const std::array<double, kNumCVars> &cvar_coordinates) {
   const auto lower_indices = potential_grid_indices(cvar_coordinates);
 
   assert(cvars_.size() <= kMaxDimensions);
@@ -482,9 +462,9 @@ double jams::MetadynamicsPotential::interpolated_potential(const std::array<doub
   return 0.0;
 }
 
-std::array<int, jams::MetadynamicsPotential::kMaxDimensions>
-jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kMaxDimensions> &cvar_coordinates) {
-  std::array<int,kMaxDimensions> i0{};
+std::array<int, jams::MetadynamicsPotential::kNumCVars>
+jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kNumCVars> &cvar_coordinates) {
+  std::array<int,kNumCVars> i0{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     const auto& grid = cvar_sample_coordinates_[n];
     auto it = std::upper_bound(grid.begin(), grid.end(), cvar_coordinates[n]);
@@ -503,7 +483,7 @@ jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kMa
 
 void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitude) {
 
-  std::array<double,kMaxDimensions> center;
+  std::array<double,kNumCVars> center;
   for (auto n = 0; n < cvars_.size(); ++n) {
     center[n] = cvars_[n]->value();
   }
@@ -566,7 +546,7 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
 
 
 double jams::MetadynamicsPotential::current_potential() {
-  std::array<double,kMaxDimensions> coordinates{};
+  std::array<double,kNumCVars> coordinates{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     coordinates[n] = cvars_[n]->value();
   }
@@ -702,7 +682,7 @@ void jams::MetadynamicsPotential::synchronise_shared_potential(const std::string
   auto lock_file_name = file_name + ".lock";
   int lock_fd = output::lock_file(lock_file_name);
 
-  MultiArray<double, kMaxDimensions> shared_potential(metad_potential_.shape());
+  MultiArray<double, kNumCVars> shared_potential(metad_potential_.shape());
   { // Scoping guards to make sure the hdf5 file is closed before we unlock the lock file
     HighFive::File file(file_name, HighFive::File::ReadWrite | HighFive::File::Create);
 
