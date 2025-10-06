@@ -54,6 +54,8 @@ namespace jams {
         /// Merge potential with a shared potential stored in file
         void synchronise_shared_potential(const std::string& file_name);
 
+        void print_settings();
+
     private:
         /// Import the initial potential from file
         void import_potential(const std::string &filename); //  can handle up to two Collective Variables.
@@ -137,6 +139,19 @@ namespace jams {
 
 
     };
+
+    inline const char* to_string(MetadynamicsPotential::PotentialBCs bc) noexcept {
+        switch (bc) {
+            case MetadynamicsPotential::PotentialBCs::MirrorBC:    return "MirrorBC";
+            case MetadynamicsPotential::PotentialBCs::HardBC:      return "HardBC";
+            case MetadynamicsPotential::PotentialBCs::RestoringBC: return "RestoringBC";
+            default:                        return "UnknownBC";
+        }
+    }
+
+    inline std::ostream& operator<<(std::ostream& os, MetadynamicsPotential::PotentialBCs bc) {
+        return os << to_string(bc);
+    }
 }
 
 #endif //JAMS_METADYNAMICS_COLLECTIVE_VARIABLE_POTENTIAL_H

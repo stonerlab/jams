@@ -280,6 +280,10 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
       cvar_output_file_ << " " << cvars_[i]->name();
     }
     cvar_output_file_ << std::endl;
+
+  std::cout << jams::output::section("init metadynamics potential") << std::endl;
+
+  print_settings();
 }
 
 
@@ -344,16 +348,17 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kMaxDimens
       x_edge[n] = std::clamp(x_edge[n],
         cvar_sample_coordinates_[n].front(),
         cvar_sample_coordinates_[n].back());
-    }
+  }
+
   std::array<double,kMaxDimensions> x_thr = x_edge;
   for (auto n = 0; n < cvars_.size(); ++n) {
       if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC &&
-          cvar_coordinates[n] <= restoring_bc_lower_threshold_[n]) {
+        less_than_approx_equal(cvar_coordinates[n], restoring_bc_lower_threshold_[n], 1e-5) ) {
           // evaluate base potential at the lower restoring threshold
           x_thr[n] = std::max(x_thr[n], restoring_bc_lower_threshold_[n]);
         }
       if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC &&
-          cvar_coordinates[n] >= restoring_bc_upper_threshold_[n]) {
+        greater_than_approx_equal(cvar_coordinates[n], restoring_bc_upper_threshold_[n], 1e-5) ) {
           // evaluate base potential at the upper restoring threshold
           x_thr[n] = std::min(x_thr[n], restoring_bc_upper_threshold_[n]);
         }
@@ -724,6 +729,22 @@ void jams::MetadynamicsPotential::synchronise_shared_potential(const std::string
 
   metad_potential_ = shared_potential;
   zero(metad_potential_delta_);
+}
+void jams::MetadynamicsPotential::print_settings() {
+  std::cout << "metad_gaussian_amplitude: " << metad_gaussian_amplitude_ << "\n";
+  std::cout << "cvar_output_stride: " << cvar_output_stride_ << "\n";
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    std::cout << "cvar_names[" << n << "]: " << cvar_names_[n] << "\n";
+    std::cout << "cvar_range_min[" << n << "]: " << cvar_range_min_[n] << "\n";
+    std::cout << "cvar_range_max[" << n << "]: " << cvar_range_max_[n] << "\n";
+    std::cout << "cvar_lower_bcs[" << n << "]: " << cvar_lower_bcs_[n] << "\n";
+    std::cout << "cvar_upper_bcs[" << n << "]: " << cvar_upper_bcs_[n] << "\n";
+    std::cout << "restoring_bc_lower_threshold[" << n << "]: " << restoring_bc_lower_threshold_[n] << "\n";
+    std::cout << "restoring_bc_upper_threshold[" << n << "]: " << restoring_bc_upper_threshold_[n] << "\n";
+    std::cout << "restoring_bc_spring_constant[" << n << "]: " << restoring_bc_spring_constant_[n] << "\n";
+    std::cout << "cvar_gaussian_widths[" << n << "]: " << cvar_gaussian_widths_[n] << "\n";
+    std::cout << "num_cvar_sample_coordinates[" << n << "]: " << num_cvar_sample_coordinates_[n] << "\n";
+  }
 }
 
 

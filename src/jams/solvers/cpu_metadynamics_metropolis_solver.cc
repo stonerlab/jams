@@ -15,9 +15,6 @@
 void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings) {
   MetropolisMCSolver::initialize(settings);
 
-  // Set the pointer to the collective variables attached to the solver
-  metad_potential_ = std::make_unique<jams::MetadynamicsPotential>(settings);
-
   // ---------------------------------------------------------------------------
   // Read settings
   // ---------------------------------------------------------------------------
@@ -53,6 +50,9 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
   if (do_tempering_) {
     std::cout << "  bias temperature (K): " << tempering_bias_temperature_ << "\n";
   }
+
+  // Set the pointer to the collective variables attached to the solver
+  metad_potential_ = std::make_unique<jams::MetadynamicsPotential>(settings);
 }
 
 
