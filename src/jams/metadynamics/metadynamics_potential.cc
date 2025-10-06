@@ -583,7 +583,6 @@ void jams::MetadynamicsPotential::output() {
 
   of << "potential_meV" << "\n";
 
-  // TODO: generalise to at least 3D
   assert(cvars_.size() <= kMaxDimensions);
   if (cvars_.size() == 1) {
     for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
