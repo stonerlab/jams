@@ -117,7 +117,7 @@ build_branch() {
   local build_options="$3"
   local generator="$4"
 
-  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} ${build_options}"
+  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_POLICY_VERSION_MINIMUM=3.10 ${build_options}"
   local workdir="cmake-build-jams"
 
   clean "${workdir}"
@@ -141,7 +141,7 @@ build_commit() {
   local build_options="$3"
   local generator="$4"
 
-  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} ${build_options}"
+  local cmake_args="-DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_POLICY_VERSION_MINIMUM=3.10 ${build_options}"
   local workdir="cmake-build-jams"
 
   clean "${workdir}"
