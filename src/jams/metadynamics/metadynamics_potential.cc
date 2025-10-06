@@ -254,7 +254,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     if (!cvar_output_file_) {
       throw std::runtime_error("Failed to open metad_cvars.tsv for writing");
     }
-  
+
     cvar_output_file_ << "time";
     for (auto i = 0; i < cvars_.size(); ++i) {
       cvar_output_file_ << " " << cvars_[i]->name();
@@ -276,94 +276,60 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
   	}
 }
 
-
-double jams::MetadynamicsPotential::potential_difference(
-    int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-
-  std::array<double,kNumCVars> cvar_initial = {0.0, 0.0};
-  std::array<double,kNumCVars> cvar_trial = {0.0, 0.0};
-
+// Return the difference in the metadynamics potential energy when changing spin i from the state spin_initial to
+// spin_trial.
+double jams::MetadynamicsPotential::potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+  std::array<double,kNumCVars> cvar_initial{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     cvar_initial[n] = cvars_[n]->value();
+  }
+
+  std::array<double,kNumCVars> cvar_trial{};
+  for (auto n = 0; n < cvars_.size(); ++n) {
     cvar_trial[n] = cvars_[n]->spin_move_trial_value(i, spin_initial, spin_final);
   }
 
-  for (auto n = 0; n < cvars_.size(); ++n) {
-    if (cvar_lower_bcs_[n] == PotentialBCs::HardBC && cvar_initial[n] < cvar_sample_coordinates_[n].front()) {
-      return -kHardBCsPotential;
-    }
-    if (cvar_upper_bcs_[n] == PotentialBCs::HardBC && cvar_initial[n] > cvar_sample_coordinates_[n].back()) {
-      return -kHardBCsPotential;
-    }
-    if (cvar_lower_bcs_[n] == PotentialBCs::HardBC && cvar_trial[n] < cvar_sample_coordinates_[n].front()) {
-      return kHardBCsPotential;
-    }
-    if (cvar_upper_bcs_[n] == PotentialBCs::HardBC && cvar_trial[n] > cvar_sample_coordinates_[n].back()) {
-      return kHardBCsPotential;
-    }
-  }
   return potential(cvar_trial) - potential(cvar_initial);
 }
 
 
 double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>& cvar_coordinates) {
-  assert(cvars_.size() > 0 && cvars_.size() <= kMaxDimensions);
+  assert(cvars_.size() > 0 && cvars_.size() <= kNumCVars);
+
 
   // We must use cvar_coordinates within the potential function and never
   // cvars_[n]->value(). The later will only every return the current value of
   // the cvar whereas potential() will be called with trial coordinates also.
 
-
-  // Lookup points above and below for linear interpolation. We can use the
-  // the fact that the ranges are sorted to do a bisection search.
-
-
-  // Prepare evaluation points:
-  //  - x_edge: coordinates clamped to the grid edges
-  //  - x_thr : like x_edge, but when inside a restoring zone, clamp to the
-  //            restoring threshold (so the base potential is taken at the
-  //            threshold surface, not at the far grid edge).
-  std::array<double,kNumCVars> x_edge = cvar_coordinates;
+  // Apply any hard boundary conditions. If the CV is over the boundary, return a very large energy penalty.
+  // This applies regardless of the boundary conditions (i.e. systems always have a hard boundary at the edge of the
+  // grid).
   for (auto n = 0; n < cvars_.size(); ++n) {
-      x_edge[n] = std::clamp(x_edge[n],
-        cvar_sample_coordinates_[n].front(),
-        cvar_sample_coordinates_[n].back());
+    const auto lo = cvar_sample_coordinates_[n].front();
+    const auto hi = cvar_sample_coordinates_[n].back();
+    if ((cvar_coordinates[n] < lo) || (cvar_coordinates[n] > hi)) {
+      return kHardBCsPotential; // huge positive penalty
+    }
   }
 
-  std::array<double,kNumCVars> x_thr = x_edge;
+  const auto potential = interpolated_potential(cvar_coordinates);
+
+  // Apply restoring boundary conditions. If the CV is over the threshold, the potential should be the spring
+  // potential plus the value of the potential. If we go as far as the edge of the grid, then make that a hard boundary.
   for (auto n = 0; n < cvars_.size(); ++n) {
       if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC &&
         less_than_approx_equal(cvar_coordinates[n], restoring_bc_lower_threshold_[n], 1e-5) ) {
           // evaluate base potential at the lower restoring threshold
-          x_thr[n] = std::max(x_thr[n], restoring_bc_lower_threshold_[n]);
+          return potential + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
         }
       if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC &&
         greater_than_approx_equal(cvar_coordinates[n], restoring_bc_upper_threshold_[n], 1e-5) ) {
           // evaluate base potential at the upper restoring threshold
-          x_thr[n] = std::min(x_thr[n], restoring_bc_upper_threshold_[n]);
+          return potential + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
         }
     }
 
-  // Apply restoring boundary conditions
-  for (auto n = 0; n < cvars_.size(); ++n) {
-    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_[n]) {
-      return interpolated_potential(x_thr) + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
-    }
-    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_[n]) {
-      return interpolated_potential(x_thr) + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
-    }
-  }
-
-  for (auto n = 0; n < cvars_.size(); ++n) {
-	  if (cvar_coordinates[n] < cvar_sample_coordinates_[n].front()
-		  || cvar_coordinates[n] > cvar_sample_coordinates_[n].back()) {
-		return kHardBCsPotential;
-	  }
-  }
-
-  return interpolated_potential(x_edge);
-
-  assert(false);
+  return potential;
 }
 
 
@@ -405,7 +371,7 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
 double jams::MetadynamicsPotential::interpolated_potential(const std::array<double, kNumCVars> &cvar_coordinates) {
   const auto lower_indices = potential_grid_indices(cvar_coordinates);
 
-  assert(cvars_.size() <= kMaxDimensions);
+  assert(cvars_.size() <= kNumCVars);
 
   const int i0 = lower_indices[0];
   const int i1 = std::min(i0 + 1, num_cvar_sample_coordinates_[0] - 1);
@@ -563,7 +529,7 @@ void jams::MetadynamicsPotential::output() {
 
   of << "potential_meV" << "\n";
 
-  assert(cvars_.size() <= kMaxDimensions);
+  assert(cvars_.size() <= kNumCVars);
   if (cvars_.size() == 1) {
     for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
       of << cvar_sample_coordinates_[0][i] << " " << metad_potential_(i, 0) << "\n";
@@ -577,7 +543,7 @@ void jams::MetadynamicsPotential::output() {
     }
     return;
   }
-  assert(false); // Should not be reachable if cvars_.size() <= kMaxDimensions
+  assert(false); // Should not be reachable if cvars_.size() <= kNumCVars
 }
 
 void jams::MetadynamicsPotential::import_potential(const std::string &filename) {
