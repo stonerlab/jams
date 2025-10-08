@@ -169,9 +169,12 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     }
 
     // Set the samples along this collective variable axis
-    double range_step = config_required<double>(cvar_settings, "range_step");
     double range_min = config_required<double>(cvar_settings, "range_min");
     double range_max = config_required<double>(cvar_settings, "range_max");
+
+    // If no step size is given then use width / 5.
+    // This is the same as PLUMED default and completely by accident, roughly what we were tending to use.
+    double range_step = config_optional<double>(cvar_settings, "range_step", cvar_gaussian_widths_[i] / 5.0);
 
     if (cvar_names_[i] == ("skyrmion_coordinate_x") || cvar_names_[i] == ("skyrmion_coordinate_y")) {
       const auto cell = globals::lattice->get_unitcell().matrix();
