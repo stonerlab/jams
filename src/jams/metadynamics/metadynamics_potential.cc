@@ -22,6 +22,8 @@
 #include <jams/core/globals.h>
 #include <jams/core/lattice.h>
 
+#include "jams/macros.h"
+
 namespace jams {
 template<>
 inline MetadynamicsPotential::PotentialBCs
@@ -427,7 +429,8 @@ double jams::MetadynamicsPotential::interpolated_potential(const std::array<doub
         Q00, Q01, Q10, Q11);
   }
 
-  return 0.0;
+  assert(false && "Unreachable code");
+  UNREACHABLE();
 }
 
 std::array<int, jams::MetadynamicsPotential::kNumCVars>
