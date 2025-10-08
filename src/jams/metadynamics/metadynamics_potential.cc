@@ -151,9 +151,8 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   // 1D our potential will be N x 1 (rather than N x 0!).
   std::fill(std::begin(num_cvar_sample_coordinates_), std::end(num_cvar_sample_coordinates_), 1);
 
-  // Set 'HardBC' as the default if no boundary condition is given in the settings
-  std::fill(std::begin(cvar_lower_bcs_), std::end(cvar_lower_bcs_), MetadynamicsPotential::PotentialBCs::HardBC);
-  std::fill(std::begin(cvar_upper_bcs_), std::end(cvar_upper_bcs_), MetadynamicsPotential::PotentialBCs::HardBC);
+  std::fill(std::begin(cvar_lower_bcs_), std::end(cvar_lower_bcs_), MetadynamicsPotential::PotentialBCs::NoBC);
+  std::fill(std::begin(cvar_upper_bcs_), std::end(cvar_upper_bcs_), MetadynamicsPotential::PotentialBCs::NoBC);
 
   for (auto i = 0; i < num_cvars; ++i) {
 

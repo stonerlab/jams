@@ -16,6 +16,7 @@ namespace jams {
         static const int kNumCVars = 2;
 
         enum class PotentialBCs {
+          NoBC,       // no boundary condition
           MirrorBC,   // extra 'virtual' Gaussians are inserted as if the end of the ranges are mirrors
           HardBC,     // inserting Gaussians outside the range is forbidden (extremely large potential energy penalty)
           RestoringBC // For values bigger than a threshold -> NO Gaussians are deposited, returns a V_{restoring}(Q(x)) potential.
@@ -142,6 +143,7 @@ namespace jams {
 
     inline const char* to_string(MetadynamicsPotential::PotentialBCs bc) noexcept {
         switch (bc) {
+            case MetadynamicsPotential::PotentialBCs::NoBC:    return "NoBC";
             case MetadynamicsPotential::PotentialBCs::MirrorBC:    return "MirrorBC";
             case MetadynamicsPotential::PotentialBCs::HardBC:      return "HardBC";
             case MetadynamicsPotential::PotentialBCs::RestoringBC: return "RestoringBC";
