@@ -25,12 +25,14 @@ namespace jams {
         MetadynamicsPotential() = default;
         explicit MetadynamicsPotential(const libconfig::Setting &settings);
 
+        bool is_cvar_on_grid();
+
         /// Inserts a Gaussian energy peak into the potential energy landscape.
         /// This may be multi-dimensional. The widths and absolute amplitude are
         /// constant and should be specified in the constructor. The relative
         /// amplitude is for scaling inserted Gaussians, for example when doing
         /// tempered metadynamics.
-        void insert_gaussian(const double& relative_amplitude = 1.0);
+        void insert_gaussian(double relative_amplitude = 1.0);
 
         /// Output the potential landscape to a file stream.
         void output();
@@ -129,6 +131,12 @@ namespace jams {
         /// upper CV coordinate at which to apply restoring boundary conditions
         std::array<double,kNumCVars> restoring_bc_upper_threshold_;
 
+        /// lower CV coordinate at which to apply mirror boundary conditions
+        std::array<double,kNumCVars> mirror_bc_lower_threshold_;
+
+        /// upper CV coordinate at which to apply mirror boundary conditions
+        std::array<double,kNumCVars> mirror_bc_upper_threshold_;
+
         /// restoring boundary condition spring constant
         std::array<double,kNumCVars> restoring_bc_spring_constant_;
 
@@ -138,7 +146,8 @@ namespace jams {
         /// conditions. Units are JAMS internal units (meV)
         const double kHardBCsPotential = 1e100;
 
-
+        /// Number of Gaussian widths after which to set to zero
+        const double kGaussianExtent = 3.0;
     };
 
     inline const char* to_string(MetadynamicsPotential::PotentialBCs bc) noexcept {

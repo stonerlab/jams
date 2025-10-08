@@ -148,6 +148,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   cvar_range_max_.resize(num_cvars);
 
   zero_all(restoring_bc_upper_threshold_, restoring_bc_lower_threshold_, restoring_bc_spring_constant_);
+  zero_all(mirror_bc_upper_threshold_, mirror_bc_lower_threshold_);
 
   // Preset the num_samples in each dimension to 1. Then if we are only using
   // 1D our potential will be N x 1 (rather than N x 0!).
@@ -209,13 +210,18 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
       cvar_upper_bcs_[i] = jams::config_required<PotentialBCs>(cvar_settings, "upper_bc");
     } else if (cvar_settings.exists("upper_restoring_bc_threshold")) {
       cvar_upper_bcs_[i] = PotentialBCs::RestoringBC;
+    } else if (cvar_settings.exists("upper_mirror_bc_threshold")) {
+      cvar_upper_bcs_[i] = PotentialBCs::MirrorBC;
     }
 
     if (cvar_settings.exists("lower_bc")) {
       cvar_lower_bcs_[i] = jams::config_required<PotentialBCs>(cvar_settings, "lower_bc");
     } else if (cvar_settings.exists("lower_restoring_bc_threshold")) {
       cvar_lower_bcs_[i] = PotentialBCs::RestoringBC;
+    } else if (cvar_settings.exists("lower_mirror_bc_threshold")) {
+      cvar_lower_bcs_[i] = PotentialBCs::MirrorBC;
     }
+
 
     // Read additional settings for the boundary conditions
     if (cvar_upper_bcs_[i] == PotentialBCs::RestoringBC) {
@@ -230,6 +236,16 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
           jams::config_required<double>(cvar_settings, "lower_restoring_bc_threshold");
       restoring_bc_spring_constant_[i] =
           jams::config_required<double>(cvar_settings, "restoring_bc_spring_constant");
+    }
+
+    if (cvar_upper_bcs_[i] == PotentialBCs::MirrorBC) {
+      mirror_bc_upper_threshold_[i] =
+          jams::config_required<double>(cvar_settings, "upper_mirror_bc_threshold");
+    }
+
+    if (cvar_lower_bcs_[i] == PotentialBCs::MirrorBC) {
+      mirror_bc_lower_threshold_[i] =
+          jams::config_required<double>(cvar_settings, "lower_mirror_bc_threshold");
     }
 
     // Upper
@@ -263,13 +279,26 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     for (auto i = 0; i < cvars_.size(); ++i) {
       cvar_output_file_ << " " << cvars_[i]->name();
     }
-    cvar_output_file_ << std::endl;
+    cvar_output_file_ << " relative_amplitude" << std::endl;
 
   std::cout << jams::output::section("init metadynamics potential") << std::endl;
 
   print_settings();
 }
+bool jams::MetadynamicsPotential::is_cvar_on_grid() {
+  std::array<double,kNumCVars> cv{};
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    cv[n] = cvars_[n]->value();
+  }
 
+  if (cvars_.size() == 1) {
+    return cv[0] >= cvar_range_min_[0] && cv[0] <= cvar_range_max_[0];
+  }
+  if (cvars_.size() == 2) {
+    return cv[0] >= cvar_range_min_[0] && cv[0] <= cvar_range_max_[0] && cv[1] >= cvar_range_min_[1] && cv[1] <= cvar_range_max_[1];
+  }
+  return false;
+}
 
 void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
                                               const Vec3 &spin_final) {
@@ -306,30 +335,29 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>
   // the cvar whereas potential() will be called with trial coordinates also.
 
   // Apply any hard boundary conditions. If the CV is over the boundary, return a very large energy penalty.
-  // This applies regardless of the boundary conditions (i.e. systems always have a hard boundary at the edge of the
-  // grid).
   for (auto n = 0; n < cvars_.size(); ++n) {
     const auto lo = cvar_sample_coordinates_[n].front();
     const auto hi = cvar_sample_coordinates_[n].back();
-    if ((cvar_coordinates[n] < lo) || (cvar_coordinates[n] > hi)) {
+    if ((cvar_lower_bcs_[n] == PotentialBCs::HardBC && cvar_coordinates[n] < lo)
+      || (cvar_upper_bcs_[n] == PotentialBCs::HardBC && cvar_coordinates[n] > hi)) {
       return kHardBCsPotential; // huge positive penalty
     }
   }
 
+  // The interpolated_potential function has clamping built in, so it will return the clamped value at the edge of
+  // the grid if the CV is outside of the grid.
   const auto potential = interpolated_potential(cvar_coordinates);
 
+
   // Apply restoring boundary conditions. If the CV is over the threshold, the potential should be the spring
-  // potential plus the value of the potential. If we go as far as the edge of the grid, then make that a hard boundary.
+  // potential plus the value of the potential.
   for (auto n = 0; n < cvars_.size(); ++n) {
-      if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC &&
-        less_than_approx_equal(cvar_coordinates[n], restoring_bc_lower_threshold_[n], 1e-5) ) {
-          // evaluate base potential at the lower restoring threshold
-          return potential + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
+      if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_[n] ) {
+          return potential + 0.5 * restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
         }
-      if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC &&
-        greater_than_approx_equal(cvar_coordinates[n], restoring_bc_upper_threshold_[n], 1e-5) ) {
+      if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_[n] ) {
           // evaluate base potential at the upper restoring threshold
-          return potential + restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
+          return potential + 0.5 * restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
         }
     }
 
@@ -339,6 +367,10 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>
 
 void jams::MetadynamicsPotential::add_gaussian_to_potential(
     const double relative_amplitude, const std::array<double,kNumCVars> center) {
+  if (relative_amplitude == 0.0) {
+    return;
+  }
+
   if (!std::isfinite(relative_amplitude)) {
     throw std::runtime_error("Gaussian relative amplitude is not finite.");
   }
@@ -349,9 +381,39 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
     gaussians.emplace_back(std::vector<double>(num_cvar_sample_coordinates_[n]));
 
     for (auto i = 0; i < num_cvar_sample_coordinates_[n]; ++i) {
-      gaussians[n][i] = gaussian(cvar_sample_coordinates_[n][i], center[n], 1.0, cvar_gaussian_widths_[n]);
+      if (std::abs(cvar_sample_coordinates_[n][i] - center[n]) > kGaussianExtent * cvar_gaussian_widths_[n]) {
+        gaussians[n][i] = 0.0;
+      } else {
+        gaussians[n][i] = gaussian(cvar_sample_coordinates_[n][i], center[n], 1.0, cvar_gaussian_widths_[n]);
+      }
     }
   }
+
+  double gaussian_mass = 0.0;
+  for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
+    for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
+      gaussian_mass += gaussians[0][i] * gaussians[1][j];
+    }
+  }
+
+  // If we are adding a Gaussian off the grid, for example due to mirror boundaries
+  // and we are more than kGaussianExtent * width away from the grid edge, then there will be no Gaussian
+  // mass.
+  if (gaussian_mass == 0.0) {
+    return;
+  }
+
+  // normalize the gaussians
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    for (auto i = 0; i < gaussians[n].size(); ++i) {
+      gaussians[n][i] /= gaussian_mass;
+    }
+  }
+
+  // std::cout << "center: " << center[0] << " " << center[1] << std::endl;
+  // std::cout << "relative amplitude: " << relative_amplitude << std::endl;
+  // std::cout << "gaussian mass: " << std::scientific << gaussian_mass << std::endl;
+  // std::cout << "d_gaussian_mass: " << d_gaussian_mass << std::endl;
 
   // If we only have 1D then we need to just have a single element with '1.0'
   // for the second dimension.
@@ -375,64 +437,66 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
 double jams::MetadynamicsPotential::interpolated_potential(const std::array<double, kNumCVars> &cvar_coordinates) {
   const auto lower_indices = potential_grid_indices(cvar_coordinates);
 
-  assert(cvars_.size() <= kNumCVars);
+#ifndef NDEBUG
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    assert(lower_indices[n] >= 0 && lower_indices[n] < num_cvar_sample_coordinates_[n]);
+  }
+#endif
 
-  const int i0 = lower_indices[0];
-  const int i1 = std::min(i0 + 1, num_cvar_sample_coordinates_[0] - 1);
+  const auto& grid0 = cvar_sample_coordinates_[0];
+  const double x = cvar_coordinates[0];
+  const bool clamp_lo_x = x <= grid0.front();
+  const bool clamp_hi_x = x >= grid0.back();
+
+  int i0 = lower_indices[0];
+  int i1 = (clamp_lo_x || clamp_hi_x) ? i0 : std::min(i0 + 1, num_cvar_sample_coordinates_[0] - 1);
 
   if (cvars_.size() == 1) {
     // clamp
     if (i0 == i1) return metad_potential_(i0, 0);
 
     return maths::linear_interpolation(
-        cvar_coordinates[0],
-        cvar_sample_coordinates_[0][i0], metad_potential_(i0, 0),
-        cvar_sample_coordinates_[0][i1], metad_potential_(i1, 0));
+        x, grid0[i0], metad_potential_(i0, 0),
+           grid0[i1], metad_potential_(i1, 0));
   }
 
-  if (cvars_.size() == 2) {
-    const int j0 = lower_indices[1];
-    const int j1 = std::min(j0 + 1, num_cvar_sample_coordinates_[1] - 1);
 
-    // clamp
+  if (cvars_.size() == 2) {
+    const auto& grid1 = cvar_sample_coordinates_[1];
+    const double y = cvar_coordinates[1];
+    const bool clamp_lo_y = y <= grid1.front();
+    const bool clamp_hi_y = y >= grid1.back();
+
+    int j0 = lower_indices[1];
+    int j1 = (clamp_lo_y || clamp_hi_y) ? j0 : std::min(j0 + 1, num_cvar_sample_coordinates_[1] - 1);
+
+    // full clamp (corner)
     if (i0 == i1 && j0 == j1) return metad_potential_(i0, j0);
 
-    const double x  = cvar_coordinates[0];
-    const double y  = cvar_coordinates[1];
-    const double x0 = cvar_sample_coordinates_[0][i0];
-    const double x1 = cvar_sample_coordinates_[0][i1];
-    const double y0 = cvar_sample_coordinates_[1][j0];
-    const double y1 = cvar_sample_coordinates_[1][j1];
-
-    // If one axis collapses, do 1D interpolation on the other axis
+    // clamp in x only: 1D interp along y at boundary i0
     if (i0 == i1 && j0 != j1) {
-      const double f0 = metad_potential_(i0, j0);
-      const double f1 = metad_potential_(i0, j1);
-      return maths::linear_interpolation(y, y0, f0, y1, f1);
+      return maths::linear_interpolation(y, grid1[j0], metad_potential_(i0, j0),
+                                            grid1[j1], metad_potential_(i0, j1));
     }
+    // clamp in y only: 1D interp along x at boundary j0
     if (j0 == j1 && i0 != i1) {
-      const double f0 = metad_potential_(i0, j0);
-      const double f1 = metad_potential_(i1, j0);
-      return maths::linear_interpolation(x, x0, f0, x1, f1);
+      return maths::linear_interpolation(x, grid0[i0], metad_potential_(i0, j0),
+                                            grid0[i1], metad_potential_(i1, j0));
     }
-
-    //f(i0,j0)=Q(11) , f(i0,j1)=Q(12), f(i1,j0), f(i1,j1)
+    // interior: bilinear
     const double Q00 = metad_potential_(i0, j0);
     const double Q01 = metad_potential_(i0, j1);
     const double Q10 = metad_potential_(i1, j0);
     const double Q11 = metad_potential_(i1, j1);
-
-    return maths::bilinear_interpolation(
-        cvar_coordinates[0], cvar_coordinates[1],
-        cvar_sample_coordinates_[0][i0], cvar_sample_coordinates_[1][j0],
-        cvar_sample_coordinates_[0][i1], cvar_sample_coordinates_[1][j1],
-        Q00, Q01, Q10, Q11);
+    return maths::bilinear_interpolation(x, y, grid0[i0], grid1[j0], grid0[i1], grid1[j1], Q00, Q01, Q10, Q11);
   }
 
   assert(false && "Unreachable code");
   UNREACHABLE();
 }
 
+// Returns the nearest grid indices to the given cvar_coordinates. If the coordinates are outside of the grid then
+// the index clamps to the nearest edge.
 std::array<int, jams::MetadynamicsPotential::kNumCVars>
 jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kNumCVars> &cvar_coordinates) {
   std::array<int,kNumCVars> i0{};
@@ -452,9 +516,9 @@ jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kNu
   return i0;
 }
 
-void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitude) {
+void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
 
-  std::array<double,kNumCVars> center;
+  std::array<double,kNumCVars> center{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     center[n] = cvars_[n]->value();
   }
@@ -463,6 +527,11 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
     if (!std::isfinite(center[n])) {
       throw std::runtime_error("Collective variable value is not finite for CV '" + cvar_names_[n] + "'");
     }
+  }
+
+
+  if (!is_cvar_on_grid()) {
+    relative_amplitude = 0.0;
   }
 
   add_gaussian_to_potential(relative_amplitude, center);
@@ -493,25 +562,28 @@ void jams::MetadynamicsPotential::insert_gaussian(const double& relative_amplitu
 
   for (auto n = 0; n < cvars_.size(); ++n) {
     if (cvar_lower_bcs_[n] == PotentialBCs::MirrorBC) {
-      auto virtual_center = center;
-      virtual_center[n] = 2*cvar_range_min_[n] - virtual_center[n];
-      add_gaussian_to_potential(relative_amplitude, virtual_center);
+      if (std::abs(center[n] - mirror_bc_lower_threshold_[n]) <= kGaussianExtent * cvar_gaussian_widths_[n]) {
+        auto virtual_center = center;
+        virtual_center[n] = 2*mirror_bc_lower_threshold_[n] - virtual_center[n];
+        add_gaussian_to_potential(relative_amplitude, virtual_center);
+      }
     }
 
     if (cvar_upper_bcs_[n] == PotentialBCs::MirrorBC) {
-      auto virtual_center = center;
-      virtual_center[n] = 2*cvar_range_max_[n] - virtual_center[n];
-      add_gaussian_to_potential(relative_amplitude, virtual_center);
+      if (std::abs(center[n] - mirror_bc_upper_threshold_[n]) <= kGaussianExtent * cvar_gaussian_widths_[n]) {
+        auto virtual_center = center;
+        virtual_center[n] = 2*mirror_bc_upper_threshold_[n] - virtual_center[n];
+        add_gaussian_to_potential(relative_amplitude, virtual_center);
+      }
     }
   }
-
 
   if (globals::solver->iteration() % cvar_output_stride_ == 0 ) {
     cvar_output_file_ << globals::solver->time();
     for (auto n = 0; n < cvars_.size(); ++n) {
       cvar_output_file_ << " " << cvars_[n]->value();
     }
-    cvar_output_file_ << std::endl;
+    cvar_output_file_ << " " << relative_amplitude << std::endl;
   }
 }
 
