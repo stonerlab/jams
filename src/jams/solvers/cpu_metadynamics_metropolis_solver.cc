@@ -25,17 +25,13 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
 
   output_steps_ = jams::config_optional<int>(settings, "output_steps", gaussian_deposition_stride_);
 
-  // Toggle tempered metadynamics on or off
-  if (do_tempering_) {
-    tempering_bias_temperature_ = jams::config_required<double>(settings, "tempering_bias_temperature");
-    if (!(std::isfinite(tempering_bias_temperature_) && tempering_bias_temperature_ > 0.0)) {
-      throw std::runtime_error("tempering_bias_temperature must be finite and > 0");
-    }
+  tempering_bias_temperature_ = jams::config_optional<double>(settings, "tempering_bias_temperature", 0.0);
+  if (!std::isfinite(tempering_bias_temperature_)) {
+    throw std::runtime_error("tempering_bias_temperature must be finite and > 0");
   }
 
-  if (do_tempering_) {
-    // Read the bias temperature for tempered metadynamics
-    tempering_bias_temperature_ = jams::config_required<double>(settings,"tempering_bias_temperature");
+  if (tempering_bias_temperature_ != 0.0) {
+    do_tempering_ = true;
   }
 
   parallel_shared_potential_file_name_ = jams::config_optional<std::string>(settings, "parallel_shared_potential_file", "");
