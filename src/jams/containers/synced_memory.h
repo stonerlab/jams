@@ -166,14 +166,14 @@ public:
 
     /// Return the size of the memory allocated as the number of elements of type
     /// 'T'.
-    constexpr size_type size() const noexcept;
+    [[nodiscard]] constexpr size_type size() const noexcept;
 
     /// Return the size of the memory allocated of a single buffer (host or GPU)
     /// in bytes.
-    constexpr std::size_t memory() const noexcept;
+    [[nodiscard]] constexpr std::size_t memory() const noexcept;
 
     /// Return the maximum allocatable size in number of elements of type 'T'.
-    constexpr size_type max_size() const noexcept;
+    [[nodiscard]] constexpr size_type max_size() const noexcept;
 
     /// MANIPULATORS
     /// ------------
@@ -201,7 +201,7 @@ public:
 
 private:
     /// Return 'true' if this thread has an active CUDA context
-    bool has_cuda_context() const;
+    [[nodiscard]] bool has_cuda_context() const;
 
     /// Copy host data to the device
     void copy_to_device();
@@ -222,10 +222,10 @@ private:
     void zero_host();
 
     /// Theoretical maximum number of elements which can be allocated on the host
-    constexpr size_type max_size_host() const noexcept;
+    [[nodiscard]] constexpr size_type max_size_host() const noexcept;
 
     /// Theoretical maximum number of elements which can be allocated on the device
-    size_type max_size_device() const;
+    [[nodiscard]] size_type max_size_device() const;
 
     /// Free memory allocated on the host
     void free_host_memory();
