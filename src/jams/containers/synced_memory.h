@@ -133,11 +133,11 @@ public:
     // CREATORS
 
     /// Construct a default, uninitialised synced memory object of zero size.
-    SyncedMemory() = default;
+    SyncedMemory() noexcept = default;
 
     /// Construct a synced memory object with given 'size' (number of elements
     /// of type 'T'.
-    explicit SyncedMemory(size_type size);
+    explicit SyncedMemory(size_type size) noexcept;
 
     /// Construct a synced memory object with given 'size' (number of elements
     /// of type 'T'. The memory is initialised to the value 'x'.
@@ -177,13 +177,13 @@ public:
 
     /// MANIPULATORS
     /// ------------
-    void clear();
+    void clear() noexcept;
 
     /// zero all elements of the data
     void zero();
 
     /// resize the data (destructive, reallocates)
-    void resize(size_type new_size);
+    void resize(size_type new_size) noexcept;
 
     // ACCESSORS
 
@@ -201,7 +201,7 @@ public:
 
 private:
     /// Return 'true' if this thread has an active CUDA context
-    [[nodiscard]] bool has_cuda_context() const;
+    [[nodiscard]] bool has_cuda_context() const noexcept;
 
     /// Copy host data to the device
     void copy_to_device();
@@ -228,10 +228,10 @@ private:
     [[nodiscard]] size_type max_size_device() const;
 
     /// Free memory allocated on the host
-    void free_host_memory();
+    void free_host_memory() noexcept;
 
     /// Free memory allocated on the device
-    void free_device_memory();
+    void free_device_memory() noexcept;
 };
 
 // ============================================================================
@@ -239,7 +239,7 @@ private:
 // ============================================================================
 
 template<class T>
-SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size)
+SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size) noexcept
     : size_(size) {}
 
 
@@ -584,7 +584,7 @@ void SyncedMemory<T>::zero() {
 
 
 template<class T>
-void SyncedMemory<T>::free_host_memory() {
+void SyncedMemory<T>::free_host_memory() noexcept {
   if (host_ptr_) {
     #if HAS_CUDA
     if (host_cuda_malloc_) {
@@ -605,7 +605,7 @@ void SyncedMemory<T>::free_host_memory() {
 
 
 template<class T>
-void SyncedMemory<T>::free_device_memory() {
+void SyncedMemory<T>::free_device_memory() noexcept{
   #if HAS_CUDA
   if (device_ptr_) {
     auto status = cudaFree(device_ptr_);
@@ -632,7 +632,7 @@ typename SyncedMemory<T>::size_type SyncedMemory<T>::max_size() const noexcept {
 
 
 template<class T>
-void SyncedMemory<T>::resize(SyncedMemory::size_type new_size) {
+void SyncedMemory<T>::resize(SyncedMemory::size_type new_size) noexcept {
   if (size_ == new_size) return;
 
   size_ = new_size;
@@ -668,7 +668,7 @@ SyncedMemory<T>::max_size_host() const noexcept {
 
 
 template<class T>
-void swap(SyncedMemory<T> &lhs, SyncedMemory<T> &rhs) {
+void swap(SyncedMemory<T> &lhs, SyncedMemory<T> &rhs) noexcept {
   using std::swap;
   swap(lhs.sync_status_, rhs.sync_status_);
   swap(lhs.size_, rhs.size_);
@@ -679,7 +679,7 @@ void swap(SyncedMemory<T> &lhs, SyncedMemory<T> &rhs) {
 
 
 template<class T>
-bool SyncedMemory<T>::has_cuda_context() const {
+bool SyncedMemory<T>::has_cuda_context() const noexcept{
 #if HAS_CUDA
   int device;
   cudaError_t status = cudaGetDevice(&device);
@@ -702,7 +702,7 @@ constexpr std::size_t SyncedMemory<T>::memory() const noexcept {
 
 
 template<class T>
-void SyncedMemory<T>::clear() { resize(0); }
+void SyncedMemory<T>::clear() noexcept { resize(0); }
 
 
 } // namespace jams
