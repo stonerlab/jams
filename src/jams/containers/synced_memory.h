@@ -488,7 +488,7 @@ void SyncedMemory<T>::copy_to_device() {
 
   if (sync_status_ == SyncStatus::UNINITIALIZED) {
     allocate_device_memory(size_);
-    #ifdef SYNCED_MEMORY_ZERO_ON_ALLOCATION
+    #if SYNCED_MEMORY_ZERO_ON_ALLOCATION
     zero_device();
     #endif
     sync_status_ = SyncStatus::DEVICE_IS_MUTATED;
@@ -523,7 +523,7 @@ void SyncedMemory<T>::copy_to_host() {
 
   if (sync_status_ == SyncStatus::UNINITIALIZED) {
     allocate_host_memory(size_);
-    #ifdef SYNCED_MEMORY_ZERO_ON_ALLOCATION
+    #if SYNCED_MEMORY_ZERO_ON_ALLOCATION
     zero_host();
     #endif
     sync_status_ = SyncStatus::HOST_IS_MUTATED;
