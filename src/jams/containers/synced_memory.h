@@ -396,8 +396,9 @@ SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) {
   }
 
   assert(!device_ptr_);
-  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMalloc(reinterpret_cast<void**>(&device_ptr_), size_ * sizeof(T)));
+  SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMalloc(reinterpret_cast<void**>(&device_ptr_), size * sizeof(T)));
   assert(device_ptr_);
+  size_ = size;
   #endif
 }
 
@@ -411,8 +412,9 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
 
   #if HAS_CUDA
   if (has_cuda_context()) {
-    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMallocHost(reinterpret_cast<void **>(&host_ptr_), size_ * sizeof(T)));
+    SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMallocHost(reinterpret_cast<void **>(&host_ptr_), size * sizeof(T)));
     assert(host_ptr_);
+    size_ = size;
     host_cuda_malloc_ = true;
     return;
   }
