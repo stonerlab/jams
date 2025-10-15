@@ -591,7 +591,7 @@ void SyncedMemory<T>::free_host_memory() {
       #if SYNCED_MEMORY_ALLOW_GLOBAL
       assert(status == cudaSuccess || status == cudaErrorCudartUnloading);
       #else
-      assert(status == cudaSuccess)
+      assert(status == cudaSuccess);
       #endif
       return;
     }
@@ -610,7 +610,7 @@ void SyncedMemory<T>::free_device_memory() {
     #if SYNCED_MEMORY_ALLOW_GLOBAL
     assert(status == cudaSuccess || status == cudaErrorCudartUnloading);
     #else
-    assert(status == cudaSuccess)
+    assert(status == cudaSuccess);
     #endif
   }
   #endif
