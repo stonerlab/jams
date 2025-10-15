@@ -37,10 +37,12 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
 #include <iterator>
 #include <limits>
 #include <new>
+#include <stdexcept>
 #include <utility>
 
 // toggle printing all host/device synchronization calls to cout
