@@ -253,7 +253,8 @@ SyncedMemory<T>::SyncedMemory(SyncedMemory::size_type size, const T &x)
   if (x == T{0}) {
     zero();
   } else {
-    std::fill(mutable_host_data(), mutable_host_data() + size_, x);
+    pointer p = mutable_host_data();
+    std::fill(p, p + size_, x);
   }
 }
 
@@ -262,7 +263,8 @@ template<class T>
 template<class InputIt, std::enable_if_t<is_iterator<InputIt>::value, bool>>
 SyncedMemory<T>::SyncedMemory(InputIt first, InputIt last)
     : size_(std::distance(first, last)) {
-  std::copy(first, last, mutable_host_data());
+  pointer p = mutable_host_data();
+  std::copy(first, last, p);
 }
 
 
@@ -276,6 +278,7 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
   // We use mutable_*_data() for 'this' to ensure allocation
   // We use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
   if (rhs.host_ptr_) {
+    pointer p = mutable_host_data();
     if (has_cuda_context()) {
 #if HAS_CUDA
       // 2021-03-16 Joe: The use of cudaMemcpy(..., cudaMemcpyHostToHost)
@@ -286,10 +289,10 @@ SyncedMemory<T>::SyncedMemory(const SyncedMemory &rhs)
 #if SYNCED_MEMORY_PRINT_MEMCPY
       std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
 #endif
-      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+      SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(p, rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
 #endif
     } else {
-      memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
+      memcpy(p, rhs.host_ptr_, size_ * sizeof(T));
     }
   }
 
@@ -348,17 +351,18 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(const SyncedMemory& rhs) &{
     // we use rhs.*_ptr_ for 'rhs' so we don't change the value of rhs.sync_status_
 
     if (rhs.host_ptr_) {
+      pointer p = mutable_host_data();
       #if HAS_CUDA
       if (has_cuda_context()) {
         #if SYNCED_MEMORY_PRINT_MEMCPY
         std::cout << "INFO(SyncedMemory): cudaMemcpyHostToHost" << std::endl;
         #endif
-        SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
+        SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMemcpy(p, rhs.host_ptr_, size_ * sizeof(T), cudaMemcpyHostToHost));
       } else {
-        memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
+        memcpy(p, rhs.host_ptr_, size_ * sizeof(T));
       }
       #else
-      memcpy(mutable_host_data(), rhs.host_ptr_, size_ * sizeof(T));
+      memcpy(p, rhs.host_ptr_, size_ * sizeof(T));
       #endif
     }
 
