@@ -128,7 +128,7 @@ public:
 
     /// Swap two SyncedMemory objects
     template<class F>
-    friend void swap(SyncedMemory<F> &lhs, SyncedMemory<F> &rhs);
+    friend void swap(SyncedMemory<F> &lhs, SyncedMemory<F> &rhs) noexcept;
 
     // CREATORS
 
