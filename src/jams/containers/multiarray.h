@@ -397,7 +397,7 @@ namespace jams {
         }
 
         inline constexpr std::size_t memory() const noexcept {
-          return data_.memory();
+          return data_.bytes();
         }
 
         inline constexpr size_type elements() const noexcept {
