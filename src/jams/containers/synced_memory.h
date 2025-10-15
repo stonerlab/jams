@@ -43,6 +43,7 @@
 #include <limits>
 #include <new>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 // toggle printing all host/device synchronization calls to cout
