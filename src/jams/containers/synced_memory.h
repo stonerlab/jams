@@ -108,6 +108,9 @@ public:
     using const_pointer = const value_type *;
     using size_type = std::size_t;
 
+    static_assert(std::is_trivially_copyable<T>::value,
+      "SyncedMemory<T> requires trivially copyable T (uses memcpy)");
+
     /// Memory contents synchronisation state.
     enum class SyncStatus {
         UNINITIALIZED,     ///< Memory has not been allocated yet
