@@ -1,14 +1,12 @@
 add_library(cuda_external INTERFACE)
 
-find_package(CUDA QUIET)
+find_package(CUDAToolkit REQUIRED)
 
-target_include_directories(cuda_external INTERFACE ${CUDA_INCLUDE_DIRS})
-target_link_libraries(cuda_external INTERFACE cudart)
-set(JAMS_CUDA_VERSION ${CUDA_VERSION})
+target_link_libraries(cuda_external INTERFACE CUDA::cudart)
+set(JAMS_CUDA_VERSION ${CUDAToolkit_VERSION})
 
 foreach(LIB cusparse curand cublas cufft)
     add_library(${LIB}_external INTERFACE)
-    target_include_directories(${LIB}_external INTERFACE ${CUDA_INCLUDE_DIRS})
-    target_link_libraries(${LIB}_external INTERFACE ${CUDA_${LIB}_LIBRARY})
-    set(JAMS_CUDA_${LIB}_LIBRARIES ${CUDA_${LIB}_LIBRARY})
+    target_link_libraries(${LIB}_external INTERFACE CUDA::${LIB})
+    set(JAMS_CUDA_${LIB}_LIBRARIES CUDA::${LIB})
 endforeach()

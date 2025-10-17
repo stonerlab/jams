@@ -63,7 +63,7 @@ if (JAMS_BUILD_CUDA)
     unset(MESSAGE_QUIET)
 
     external_dependency_version_error("cuda" ${JAMS_CUDA_VERSION} ${JAMS_CUDA_VERSION_MIN})
-    if (CUDA_FOUND)
+    if (CUDAToolkit_FOUND)
         message(STATUS "  cusparse: " ${JAMS_CUDA_cusparse_LIBRARIES})
         message(STATUS "  curand:   " ${JAMS_CUDA_curand_LIBRARIES})
         message(STATUS "  cublas:   " ${JAMS_CUDA_cublas_LIBRARIES})
