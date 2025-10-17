@@ -33,20 +33,31 @@ template<class Tp_, std::size_t Dim_, class Idx_>
 struct data_converter<jams::MultiArray<Tp_, Dim_, Idx_>, void>
     : public container_converter<jams::MultiArray<Tp_, Dim_, Idx_>> {
 
-
     using MultiArray = jams::MultiArray<Tp_, Dim_, Idx_>;
     using value_type = typename inspector<Tp_>::base_type;
     using container_converter<MultiArray>::container_converter;
 
-  inline value_type* transform_read(MultiArray& array) {
-    auto&& dims = this->_space.getDimensions();
-    if (std::equal(dims.begin(), dims.end(), std::begin(array.shape())) == false) {
-      std::array<Idx_, Dim_> ext;
-      std::copy(dims.begin(), dims.end(), ext.begin());
-      array.resize(ext);
+    inline value_type* transform_read(MultiArray& array) {
+      auto&& dims = this->_space.getDimensions();
+
+      if (dims.size() != Dim_) {
+        throw HighFive::DataSpaceException(
+            "Rank mismatch: dataset rank = " + std::to_string(dims.size()) +
+            ", MultiArray rank = " + std::to_string(Dim_));
+      }
+
+      std::array<Idx_, Dim_> ext{};
+      for (std::size_t i = 0; i < Dim_; ++i) {
+        ext[i] = static_cast<Idx_>(dims[i]);
+      }
+
+      const auto shape = array.shape();
+      if (!std::equal(ext.begin(), ext.end(), shape.begin())) {
+        array.resize(ext);
+      }
+
+      return array.data();
     }
-    return array.data();
-  }
 
   inline const value_type* transform_write(const MultiArray& array) const noexcept{
     return array.data();

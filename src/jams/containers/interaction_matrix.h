@@ -90,7 +90,7 @@ namespace jams {
         }
 
         inline std::size_t memory() const {
-          return row_.memory() + indices_.memory() + val_.memory();
+          return row_.bytes() + indices_.bytes() + val_.bytes();
         }
 
         inline constexpr int num_rows() const { return num_rows_; }

@@ -227,7 +227,7 @@ namespace jams {
         inline const_size_pointer col_device_data()  const { return col_.device_data(); }
         inline const_value_pointer val_device_data()  const { return val_.device_data(); }
 
-        inline constexpr std::size_t memory() const { return row_.memory() + col_.memory() + val_.memory(); };
+        inline constexpr std::size_t memory() const { return row_.bytes() + col_.bytes() + val_.bytes(); };
 
         // Performs the multiplication y = A * x where 'A' is this sparse matrix
         // and vectors x and y are dense vectors passed into the function.

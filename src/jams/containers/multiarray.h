@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <type_traits>
 
 namespace jams {
     namespace detail {
@@ -125,7 +126,10 @@ namespace jams {
         using iterator = pointer;
         using const_iterator = const_pointer;
 
-        MultiArray() = default;
+        static_assert(std::is_trivially_copyable<Tp_>::value,
+              "MultiArray<T> requires trivially copyable T for device use");
+
+        MultiArray() noexcept = default;
         ~MultiArray() = default;
 
         MultiArray(const MultiArray& rhs)
@@ -176,31 +180,31 @@ namespace jams {
             data_(detail::vec<std::size_t, Dim_, Dim_>::last_n_product(detail::array_cast<size_type>(v)), x) {}
 
         // capacity
-        inline constexpr bool empty() const noexcept {
+        [[nodiscard]] inline constexpr bool empty() const noexcept {
           return data_.size() == 0;
         }
 
-        inline constexpr size_type size(const size_type n) const noexcept {
+        [[nodiscard]] inline constexpr size_type size(const size_type n) const noexcept {
           return size_[n];
         }
 
-        inline const size_container_type& shape() const noexcept {
+        [[nodiscard]] inline const size_container_type& shape() const noexcept {
           return size_;
         }
 
-        inline constexpr std::size_t memory() const noexcept {
-          return data_.memory();
+        [[nodiscard]] inline constexpr std::size_t bytes() const noexcept {
+          return data_.bytes();
         }
 
-        inline constexpr size_type elements() const noexcept {
+        [[nodiscard]] inline constexpr size_type elements() const noexcept {
           return data_.size();
         }
 
-        inline constexpr dim_type dimension() const noexcept {
+        [[nodiscard]] inline constexpr dim_type dimension() const noexcept {
           return Dim_;
         }
 
-        inline constexpr size_type max_size() const noexcept {
+        [[nodiscard]] inline constexpr size_type max_size() const noexcept {
           return data_.max_size();
         }
 
@@ -280,7 +284,7 @@ namespace jams {
           data_.clear();
         }
 
-        inline void swap(MultiArray& other) {
+        inline void swap(MultiArray& other) noexcept {
           using std::swap;
           swap(this->size_, other.size_);
           swap(this->data_, other.data_);
@@ -291,14 +295,19 @@ namespace jams {
         }
 
         inline void fill(const value_type &value) {
-          std::fill(data_.mutable_host_data(), data_.mutable_host_data() + data_.size(), value);
+          if (value == Tp_{0}) {
+            zero();
+            return;
+          }
+          pointer p = data_.mutable_host_data();
+          std::fill(p, p + data_.size(), value);
         }
 
         template<typename... Args>
         inline MultiArray& resize(const Args &... args) {
           static_assert(sizeof...(args) == Dim_,
                         "number of MultiArray indicies in resize does not match the MultiArray dimension");
-          size_ = {static_cast<size_type>(args)...},
+          size_ = {static_cast<size_type>(args)...};
           data_.resize(detail::product(static_cast<size_type>(args)...));
           return *this;
         }
@@ -333,7 +342,7 @@ namespace jams {
         template<class FTp_, std::size_t FDim_, class FIdx_>
         friend void swap(MultiArray<FTp_, FDim_, FIdx_>& lhs, MultiArray<FTp_, FDim_, FIdx_>& rhs);
 
-        MultiArray() = default;
+        MultiArray() noexcept = default;
         ~MultiArray() = default;
 
         MultiArray(const MultiArray& rhs)
@@ -379,36 +388,36 @@ namespace jams {
             data_(std::get<0>(v), x) {}
 
         // capacity
-        inline constexpr bool empty() const noexcept {
+        [[nodiscard]] inline constexpr bool empty() const noexcept {
           return data_.size() == 0;
         }
 
-        inline constexpr size_type size() const noexcept {
+        [[nodiscard]] inline constexpr size_type size() const noexcept {
           return std::get<0>(size_);
         }
 
-        inline constexpr size_type size(const size_type n) const noexcept {
+        [[nodiscard]] inline constexpr size_type size(const size_type n) const noexcept {
           static_assert(n == 0, "MultiArray.size(n) is greater than the dimension");
           return std::get<0>(size_);
         }
 
-        inline const size_container_type& shape() const noexcept {
+        [[nodiscard]] inline const size_container_type& shape() const noexcept {
           return size_;
         }
 
-        inline constexpr std::size_t memory() const noexcept {
-          return data_.memory();
+        [[nodiscard]] inline constexpr std::size_t bytes() const noexcept {
+          return data_.bytes();
         }
 
-        inline constexpr size_type elements() const noexcept {
+        [[nodiscard]] inline constexpr size_type elements() const noexcept {
           return data_.size();
         }
 
-        inline constexpr dim_type dimension() const noexcept {
+        [[nodiscard]] inline constexpr dim_type dimension() const noexcept {
           return 1;
         }
 
-        inline constexpr size_type max_size() const noexcept {
+        [[nodiscard]] inline constexpr size_type max_size() const noexcept {
           return data_.max_size();
         }
 
@@ -482,7 +491,7 @@ namespace jams {
           data_.clear();
         }
 
-        inline void swap(MultiArray& other) {
+        inline void swap(MultiArray& other) noexcept {
           using std::swap;
           swap(this->size_, other.size_);
           swap(this->data_, other.data_);
@@ -497,7 +506,8 @@ namespace jams {
             zero();
             return;
           }
-          std::fill(data_.mutable_host_data(), data_.mutable_host_data() + data_.size(), value);
+          pointer p = data_.mutable_host_data();
+          std::fill(p, p + data_.size(), value);
         }
 
         inline MultiArray& resize( size_type count ) {
