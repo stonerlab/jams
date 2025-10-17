@@ -53,3 +53,9 @@ endif()
 if (JAMS_BUILD_FASTMATH)
     jams_set_fast_math(jams)
 endif()
+
+
+include(GNUInstallDirs)
+install(TARGETS jams
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
