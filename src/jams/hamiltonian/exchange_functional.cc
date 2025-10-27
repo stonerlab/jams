@@ -47,7 +47,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
   jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
                                      globals::lattice->get_supercell().a2(),
-                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
+                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), max_cutoff_radius, jams::defaults::lattice_tolerance);
   neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
   auto counter = 0;
@@ -66,7 +66,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
       const auto rij = norm(::globals::lattice->displacement(i, j));
 
-      if (rij <= r_cutoff) {
+      if (less_than_approx_equal(rij, r_cutoff, jams::defaults::lattice_tolerance)) {
         auto& functional = exchange_functional_map[{type_i, type_j}].second;
         this->insert_interaction_scalar(i, j, functional(rij));
         counter++;
@@ -82,7 +82,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
 
 double ExchangeFunctionalHamiltonian::functional_step(double rij, double J0, double r_cut) {
-  if (rij < r_cut) {
+  if (less_than_approx_equal(rij,  r_cut, jams::defaults::lattice_tolerance)) {
     return J0;
   }
   return 0.0;
