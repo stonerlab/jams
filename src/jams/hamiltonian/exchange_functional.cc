@@ -66,7 +66,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
       const auto rij = norm(::globals::lattice->displacement(i, j));
 
-      if (rij <= r_cutoff) {
+      if (less_than_approx_equal(rij, r_cutoff, jams::defaults::lattice_tolerance)) {
         auto& functional = exchange_functional_map[{type_i, type_j}].second;
         this->insert_interaction_scalar(i, j, functional(rij));
         counter++;
@@ -82,7 +82,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
 
 double ExchangeFunctionalHamiltonian::functional_step(double rij, double J0, double r_cut) {
-  if (rij < r_cut) {
+  if (less_than_approx_equal(rij,  r_cut, jams::defaults::lattice_tolerance)) {
     return J0;
   }
   return 0.0;
