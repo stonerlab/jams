@@ -47,7 +47,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
   jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
                                      globals::lattice->get_supercell().a2(),
-                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), radius_cutoff_, jams::defaults::lattice_tolerance);
+                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), max_cutoff_radius, jams::defaults::lattice_tolerance);
   neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
   auto counter = 0;

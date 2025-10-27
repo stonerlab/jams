@@ -45,8 +45,6 @@ private:
     static double functional_gaussian_multi(double rij, double J0, double r0, double sigma0, double J1, double r1, double sigma1, double J2, double r2, double sigma2);
 
     static double functional_kaneyoshi(double rij, double J0, double r0, double lengthscale);
-
-    double radius_cutoff_;
 };
 
 #endif  // JAMS_HAMILTONIAN_EXCHANGE_FUNCTIONAL_H
