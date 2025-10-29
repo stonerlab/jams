@@ -97,7 +97,7 @@ namespace jams {
         /// 'insert_gaussian()', but allows the Gaussian center to be specified.
         /// We can then (for example) insert additional virtual Gaussians
         /// outside of the CV range when implementing mirror boundary conditions.
-        void add_gaussian_to_potential(const double relative_amplitude, const std::array<double,kNumCVars> center);
+        void add_gaussian_to_landscape(const std::array<double,kNumCVars> center, MultiArray<double,kNumCVars>& landscape);
 
         double interpolated_potential(const std::array<double, kNumCVars>& cvar_coordinates);
 

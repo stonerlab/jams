@@ -374,15 +374,9 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>
 }
 
 
-void jams::MetadynamicsPotential::add_gaussian_to_potential(
-    const double relative_amplitude, const std::array<double,kNumCVars> center) {
-  if (relative_amplitude == 0.0) {
-    return;
-  }
-
-  if (!std::isfinite(relative_amplitude)) {
-    throw std::runtime_error("Gaussian relative amplitude is not finite.");
-  }
+void jams::MetadynamicsPotential::add_gaussian_to_landscape(
+  const std::array<double,kNumCVars> center,
+  MultiArray<double,kNumCVars>& landscape) {
 
   // Calculate gaussians along each 1D axis
   std::vector<std::vector<double>> gaussians;
@@ -398,32 +392,6 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
     }
   }
 
-  double gaussian_mass = 0.0;
-  for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
-    for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
-      gaussian_mass += gaussians[0][i] * gaussians[1][j];
-    }
-  }
-
-  // If we are adding a Gaussian off the grid, for example due to mirror boundaries
-  // and we are more than kGaussianExtent * width away from the grid edge, then there will be no Gaussian
-  // mass.
-  if (gaussian_mass == 0.0) {
-    return;
-  }
-
-  // normalize the gaussians
-  for (auto n = 0; n < cvars_.size(); ++n) {
-    for (auto i = 0; i < gaussians[n].size(); ++i) {
-      gaussians[n][i] /= gaussian_mass;
-    }
-  }
-
-  // std::cout << "center: " << center[0] << " " << center[1] << std::endl;
-  // std::cout << "relative amplitude: " << relative_amplitude << std::endl;
-  // std::cout << "gaussian mass: " << std::scientific << gaussian_mass << std::endl;
-  // std::cout << "d_gaussian_mass: " << d_gaussian_mass << std::endl;
-
   // If we only have 1D then we need to just have a single element with '1.0'
   // for the second dimension.
   if (cvars_.size() == 1) {
@@ -432,13 +400,7 @@ void jams::MetadynamicsPotential::add_gaussian_to_potential(
 
   for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
     for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
-      metad_potential_(i, j) += relative_amplitude * metad_gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
-    }
-  }
-
-  for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
-    for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
-      metad_potential_delta_(i, j) += relative_amplitude * metad_gaussian_amplitude_ * gaussians[0][i] * gaussians[1][j];
+      landscape(i, j) += gaussians[0][i] * gaussians[1][j];
     }
   }
 }
@@ -537,13 +499,39 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
       throw std::runtime_error("Collective variable value is not finite for CV '" + cvar_names_[n] + "'");
     }
   }
-
-
-  if (!is_cvar_on_grid()) {
+  // Suppress deposition outside the configured range depending on the active BCs.
+  // - HardBC: suppress outside range
+  // - RestoringBC: suppress only when outside range (allowed within range even if beyond threshold)
+  // - MirrorBC: do not suppress; mirrored Gaussians will be inserted below
+  // - NoBC: suppress outside range (undefined behaviour otherwise)
+  bool suppress = false;
+  for (auto n = 0; n < cvars_.size(); ++n) {
+    const double lo = cvar_range_min_[n];
+    const double hi = cvar_range_max_[n];
+    if (center[n] < lo) {
+      auto bc = cvar_lower_bcs_[n];
+      if (bc == PotentialBCs::MirrorBC) {
+        continue; // allow mirroring
+      } else {
+        suppress = true; break;
+      }
+    } else if (center[n] > hi) {
+      auto bc = cvar_upper_bcs_[n];
+      if (bc == PotentialBCs::MirrorBC) {
+        continue; // allow mirroring
+      } else {
+        suppress = true; break;
+      }
+    }
+  }
+  if (suppress) {
     relative_amplitude = 0.0;
   }
 
-  add_gaussian_to_potential(relative_amplitude, center);
+  MultiArray<double,kNumCVars> metad_potential_update(metad_potential_.shape());
+  metad_potential_update.zero();
+
+  add_gaussian_to_landscape(center, metad_potential_update);
 
   // This deals with any mirror boundaries by adding virtual Gaussians outside
   // the normal range. Note that these are only treated in a quasi 1D way.
@@ -574,7 +562,7 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
       if (std::abs(center[n] - mirror_bc_lower_threshold_[n]) <= kGaussianExtent * cvar_gaussian_widths_[n]) {
         auto virtual_center = center;
         virtual_center[n] = 2*mirror_bc_lower_threshold_[n] - virtual_center[n];
-        add_gaussian_to_potential(relative_amplitude, virtual_center);
+        add_gaussian_to_landscape(virtual_center, metad_potential_update);
       }
     }
 
@@ -582,8 +570,46 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
       if (std::abs(center[n] - mirror_bc_upper_threshold_[n]) <= kGaussianExtent * cvar_gaussian_widths_[n]) {
         auto virtual_center = center;
         virtual_center[n] = 2*mirror_bc_upper_threshold_[n] - virtual_center[n];
-        add_gaussian_to_potential(relative_amplitude, virtual_center);
+        add_gaussian_to_landscape(virtual_center, metad_potential_update);
       }
+    }
+  }
+
+  // Calculate the total gaussian mass deposited
+  double gaussian_mass = 0.0;
+  for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
+    for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
+      gaussian_mass += metad_potential_update(i, j);
+    }
+  }
+
+  if (!std::isfinite(gaussian_mass)) {
+    throw std::runtime_error("Gaussian mass is not finite.");
+  }
+
+  // Adjust the amplitude by normalising the total gaussian mass deposited
+  // to 1 and multiplying by the basic gaussian amplitude and the relative
+  // amplitude from any tempering.
+  if (gaussian_mass != 0.0) {
+    const double amplitude_adjustment = relative_amplitude * metad_gaussian_amplitude_ / gaussian_mass;
+    for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
+      for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
+        metad_potential_update(i, j) *= amplitude_adjustment;
+      }
+    }
+  }
+
+  // Update the metadynamics potential
+  for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
+    for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
+      metad_potential_(i, j) += metad_potential_update(i, j);
+    }
+  }
+
+  // Update the potential that tracks changes between outputs to the synchronisation file
+  for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
+    for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
+      metad_potential_delta_(i, j) += metad_potential_update(i, j);
     }
   }
 
