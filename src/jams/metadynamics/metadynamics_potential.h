@@ -15,6 +15,35 @@ namespace jams {
         // Maximum number of CVar dimensions supported by the class
         static const int kNumCVars = 2;
 
+        ///
+        /// Boundary condition types of metadynamics CV axes.
+        ///
+        /// Controls how the metadynamics potential is evaluate and how
+        /// gaussians are deposited when a CV approaches or exceeds
+        /// a given boundary.
+        ///
+        /// **NoBC** - No boundary condition.
+        /// There are no boundary conditions applied. If the CV does not
+        /// have a limited domain, then behaviour when it exceeds the
+        /// domain is not defined.
+        ///
+        /// **MirrorBC** - Reflect Gaussians about a configured threshold.
+        /// The boundaries specified by thresholds `lower_mirror_bc_threshold`,
+        /// `upper_mirror_bc_threshold` cause additional gaussians to be inserted
+        /// as though the boundary is a mirror.
+        ///
+        /// **HardBC** - Hard wall: forbid outside-grid states with huge penalty.
+        /// Exceeding the cvar min or max range results in a very large energy penalty,
+        /// such that any move attempting to cross the boundary is effectively forbidden.
+        ///
+        /// **RestoringBC** - Spring-like restoring to threshold
+        /// When the CV is beyond the `lower_restoring_bc_threshold` and
+        /// `upper_restoring_bc_threshold` thresholds an additional spring like
+        /// potential @f$ V_\mathrm{rest}(x) = \tfrac{1}{2}\,k\,(x - x_\mathrm{thr})^2 @f$
+        /// is added. If the CV further exceeds the limits of the cvar range, no further
+        /// gaussians are added. The potential is then then sum of the spring part and the
+        /// clamped value of the potential at the nearest edge of the range.
+        ///
         enum class PotentialBCs {
           NoBC,       // no boundary condition
           MirrorBC,   // extra 'virtual' Gaussians are inserted as if the end of the ranges are mirrors
