@@ -344,24 +344,33 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>
     }
   }
 
-  // The interpolated_potential function has clamping built in, so it will return the clamped value at the edge of
-  // the grid if the CV is outside of the grid.
-  const auto potential = interpolated_potential(cvar_coordinates);
+  // The interpolated_potential function has clamping built in, so it will return the
+  // clamped value at the edge of the grid if the CV is outside of the grid. Per the
+  // header documentation, the base potential is taken at the current coordinates
+  // (subject to this grid-edge clamp), and restoring penalties are added separately.
+  const auto base_potential = interpolated_potential(cvar_coordinates);
 
-
-  // Apply restoring boundary conditions. If the CV is over the threshold, the potential should be the spring
-  // potential plus the value of the potential.
+  // Apply restoring boundary conditions as per header docs:
+  // - If a CV is beyond its restoring threshold(s), add a spring penalty
+  //   0.5 * k * (x - x_thr)^2.
+  // - The base potential is evaluated at the current (possibly clamped-to-grid)
+  //   coordinates via interpolated_potential; no special threshold clamp.
+  // - Penalties from multiple dimensions accumulate across axes.
+  double restoring_penalty = 0.0;
   for (auto n = 0; n < cvars_.size(); ++n) {
-      if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] <= restoring_bc_lower_threshold_[n] ) {
-          return potential + 0.5 * restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
-        }
-      if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC && cvar_coordinates[n] >= restoring_bc_upper_threshold_[n] ) {
-          // evaluate base potential at the upper restoring threshold
-          return potential + 0.5 * restoring_bc_spring_constant_[n] * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
-        }
-    }
+      if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC &&
+          cvar_coordinates[n] <= restoring_bc_lower_threshold_[n]) {
+          restoring_penalty += 0.5 * restoring_bc_spring_constant_[n]
+                             * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
+      }
+      if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC &&
+          cvar_coordinates[n] >= restoring_bc_upper_threshold_[n]) {
+          restoring_penalty += 0.5 * restoring_bc_spring_constant_[n]
+                             * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
+      }
+  }
 
-  return potential;
+  return base_potential + restoring_penalty;
 }
 
 
