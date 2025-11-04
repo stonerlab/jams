@@ -17,15 +17,15 @@
 class CudaThermostatQuantumSpde : public Thermostat {
  public:
   CudaThermostatQuantumSpde(const double &temperature, const double &sigma, const double timestep, const int num_spins);
-  ~CudaThermostatQuantumSpde();
+  ~CudaThermostatQuantumSpde() override;
 
-  void update();
+  void update() override;
 
   // override the base class implementation
-  const double* device_data() { return noise_.device_data(); }
+  const double* device_data() override { return noise_.device_data(); }
 
  private:
-    bool debug_;
+    bool debug_ = false;
     bool do_zero_point_ = false;
 
     jams::MultiArray<double, 1> zeta0_;

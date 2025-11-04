@@ -27,8 +27,7 @@
 #include <jams/helpers/exception.h>
 
 CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, const double &sigma, const double timestep, const int num_spins)
-: Thermostat(temperature, sigma, timestep, num_spins),
-  debug_(false)
+: Thermostat(temperature, sigma, timestep, num_spins)
   {
    std::cout << "\n  initialising quantum-spde-gpu thermostat\n";
 
