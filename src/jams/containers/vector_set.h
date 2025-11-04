@@ -34,8 +34,11 @@ namespace jams {
 
         template <class InputIterator>
         VectorSet(InputIterator first, InputIterator last, const Compare& c = Compare())
-        : data_(first, last), cmp_(c) {
-          std::sort(begin(), end(), cmp_);
+          : data_(first, last), cmp_(c) {
+            std::sort(begin(), end(), cmp_);
+            data_.erase(std::unique(begin(), end(),
+                                    [&](const T& a, const T& b){ return !cmp_(a,b) && !cmp_(b,a); }),
+                        end());
         }
 
         std::pair<iterator,bool> insert(const T& t) {
@@ -85,9 +88,12 @@ namespace jams {
         inline const_iterator end() const noexcept { return data_.end(); }
         inline const_iterator cend() const noexcept { return data_.cend(); }
 
+        void reserve(size_type n) { data_.reserve(n); }
+        bool empty() const noexcept { return data_.empty(); }
+
     private:
-        Compare cmp_;
         container_type data_;
+        Compare cmp_;
     };
 };
 

@@ -107,6 +107,19 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   stencil_neighbour_indices_.resize(globals::num_spins);
 
+  const std::size_t expected_nbrs =
+    (stencil == FiniteDifferenceStencil::Square8)   ? 8 :
+    (stencil == FiniteDifferenceStencil::Hexagonal4)? 4 :
+    (stencil == FiniteDifferenceStencil::Hexagonal6)? 6 :
+    (stencil == FiniteDifferenceStencil::Hexagonal12)?12 : 0;
+
+  stencil_neighbour_indices_.resize(globals::num_spins);
+  if (expected_nbrs > 0) {
+    for (auto &nbrs : stencil_neighbour_indices_) {
+      nbrs.reserve(expected_nbrs);
+    }
+  }
+
   // ------------------------------- ∂S/∂x -------------------------------------
   {
     // first index is interaction vector, second is the +/- sign of the
@@ -299,18 +312,23 @@ double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_value() {
   return topological_charge / (4.0 * kPi);
 }
 
-double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(const int i) const {
-  Vec3 ds_x = {0.0, 0.0, 0.0};
-  for (auto n = 0; n < dx_indices_[i].size(); ++n) {
-    ds_x += dx_values_[i][n] * montecarlo::get_spin(dx_indices_[i][n]);
+double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(int i) const {
+  const auto &dx_idx = dx_indices_[i];
+  const auto &dx_val = dx_values_[i];
+  const auto &dy_idx = dy_indices_[i];
+  const auto &dy_val = dy_values_[i];
+
+  Vec3 ds_x{0.0, 0.0, 0.0};
+  for (std::size_t n = 0; n < dx_idx.size(); ++n) {
+    ds_x += dx_val[n] * montecarlo::get_spin(dx_idx[n]);
   }
 
-  Vec3 ds_y = {0.0, 0.0, 0.0};
-  for (auto n = 0; n < dy_indices_[i].size(); ++n) {
-    ds_y += dy_values_[i][n] * montecarlo::get_spin(dy_indices_[i][n]);
+  Vec3 ds_y{0.0, 0.0, 0.0};
+  for (std::size_t n = 0; n < dy_idx.size(); ++n) {
+    ds_y += dy_val[n] * montecarlo::get_spin(dy_idx[n]);
   }
 
-  Vec3 s_i = montecarlo::get_spin(i);
+  const Vec3 s_i = montecarlo::get_spin(i);
 
   return dot(s_i, cross(ds_x, ds_y));
 }
@@ -324,22 +342,19 @@ double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int 
   // We therefore calculate the difference of the topological charge of the whole
   // stencil.
 
-  montecarlo::set_spin(index, spin_initial);
+  const auto &stencil_nbrs = stencil_neighbour_indices_[index];
 
+  montecarlo::set_spin(index, spin_initial);
   double initial_charge = local_topological_charge(index);
-  // Loop over neighbouring sites in the stencil
-  for (int n : stencil_neighbour_indices_[index]) {
+  for (int n : stencil_nbrs) {
     initial_charge += local_topological_charge(n);
   }
 
   montecarlo::set_spin(index, spin_final);
-
   double final_charge = local_topological_charge(index);
-  // Loop over neighbouring sites in the stencil
-  for (int n : stencil_neighbour_indices_[index]) {
+  for (int n : stencil_nbrs) {
     final_charge += local_topological_charge(n);
   }
-
 
   montecarlo::set_spin(index, spin_initial);
 
