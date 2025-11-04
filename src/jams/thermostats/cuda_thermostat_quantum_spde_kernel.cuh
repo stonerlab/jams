@@ -3,19 +3,19 @@
 #ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_KERNEL_H
 #define JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_KERNEL_H
 
-__device__ void linear_ode(const double A[4], const double eta[4], const double z[4], double f[4]) {
+__device__ inline void linear_ode(const double A[4], const double eta[4], const double z[4], double f[4]) {
   for (auto i = 0; i < 4; ++i) {
     f[i] = A[i] * (eta[i] - z[i]);
   }
 }
 
-__device__ void bose_ode(const double A[2], const double eta[2], const double z[2], double f[2]) {
+__device__ inline void bose_ode(const double A[2], const double eta[2], const double z[2], double f[2]) {
   f[0] = z[1];
   f[1] = eta[0] - A[1] * A[1] * z[0] - A[0] * z[1];
 }
 
 template<unsigned N>
-__device__ void
+__device__ inline void
 rk4_vectored(void ode(const double[N], const double[N], const double[N], double[N]), const double h, const double A[N],
              const double eta[N], double z[N]) {
   double k1[N], k2[N], k3[N], k4[N], f[N];
@@ -69,7 +69,7 @@ rk4_vectored(void ode(const double[N], const double[N], const double[N], double[
   }
 }
 
-__global__ void cuda_thermostat_quantum_spde_zero_point_kernel
+__global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
         (
                 double *noise,
                 double *zeta,
@@ -123,7 +123,7 @@ __global__ void cuda_thermostat_quantum_spde_zero_point_kernel
 }
 
 
-__global__ void cuda_thermostat_quantum_spde_no_zero_kernel
+__global__ inline void cuda_thermostat_quantum_spde_no_zero_kernel
         (
                 double *noise,
                 double *zeta5,
