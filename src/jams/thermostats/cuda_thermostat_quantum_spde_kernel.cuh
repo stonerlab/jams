@@ -31,10 +31,6 @@ rk4_vectored(void ode(const double[N], const double[N], const double[N], double[
     k1[i] = h * f[i];
   }
 
-  for (auto i = 0; i < N; ++i) {
-    k1[i] = h * f[i];
-  }
-
   // K2
   for (auto i = 0; i < N; ++i) {
     u[i] = z[i] + 0.5 * k1[i];
