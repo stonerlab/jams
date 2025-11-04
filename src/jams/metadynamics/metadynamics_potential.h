@@ -54,8 +54,6 @@ namespace jams {
         MetadynamicsPotential() = default;
         explicit MetadynamicsPotential(const libconfig::Setting &settings);
 
-        bool is_cvar_on_grid();
-
         /// Inserts a Gaussian energy peak into the potential energy landscape.
         /// This may be multi-dimensional. The widths and absolute amplitude are
         /// constant and should be specified in the constructor. The relative
@@ -66,14 +64,17 @@ namespace jams {
         /// Output the potential landscape to a file stream.
         void output();
 
-        /// Returns the value of the bare (without boundary potentials) metadynamics
-        /// potential at the current coordinates of the collective variable
-        double bare_potential();
+        /// Returns an array of the current CV coordinates
+        std::array<double,kNumCVars> cvar_coordinates();
 
-        /// Returns the value of the potential at the given coordinates using
-        /// (bi)linear interpolation
-        double potential(
-            const std::array<double, kNumCVars>& cvar_coordinates);
+        /// Returns the value of the base (without boundary potentials) metadynamics
+        /// potential at the given coordinates of the collective variable using
+        /// interpolation on the grid
+        double base_potential(const std::array<double, kNumCVars>& cvar_coordinates);
+
+        /// Returns the value of the full (with boundary potentials) metadynamics potential
+        /// at the given coordinates
+        double full_potential(const std::array<double, kNumCVars>& cvar_coordinates);
 
         /// Calculate the difference in potential energy for the system when a
         /// single spin is changed from spin_initial to spin_final
@@ -98,8 +99,6 @@ namespace jams {
         /// We can then (for example) insert additional virtual Gaussians
         /// outside of the CV range when implementing mirror boundary conditions.
         void add_gaussian_to_landscape(const std::array<double,kNumCVars> center, MultiArray<double,kNumCVars>& landscape);
-
-        double interpolated_potential(const std::array<double, kNumCVars>& cvar_coordinates);
 
         /// Returns the lowest indices of the discrete potential grid square which contains cvar_coordinates
         std::array<int,kNumCVars> potential_grid_indices(const std::array<double, kNumCVars>& cvar_coordinates);

@@ -25,14 +25,15 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
 
   output_steps_ = jams::config_optional<int>(settings, "output_steps", gaussian_deposition_stride_);
 
-  tempering_bias_temperature_ = jams::config_optional<double>(settings, "tempering_bias_temperature", 0.0);
-  if (!std::isfinite(tempering_bias_temperature_)) {
-    throw std::runtime_error("tempering_bias_temperature must be finite and > 0");
-  }
+  tempering_bias_temperature_ =
+      jams::config_optional<double>(settings, "tempering_bias_temperature", 0.0);
 
-  if (tempering_bias_temperature_ != 0.0) {
-    do_tempering_ = true;
-  }
+  if (!(std::isfinite(tempering_bias_temperature_) &&
+        tempering_bias_temperature_ >= 0.0)) {
+    throw std::runtime_error("tempering_bias_temperature must be finite and >= 0");
+        }
+
+  do_tempering_ = (tempering_bias_temperature_ > 0.0);
 
   parallel_shared_potential_file_name_ = jams::config_optional<std::string>(settings, "parallel_shared_potential_file", "");
   parallel_shared_potential_sync_steps_ = jams::config_optional<int>(settings, "parallel_shared_potential_sync_steps", 1000);
@@ -69,7 +70,7 @@ void MetadynamicsMetropolisSolver::run() {
     // Set the relative amplitude of the gaussian if we are using tempering and
     // record the value in the stats file
     if (do_tempering_) {
-        relative_amplitude = exp(-(metad_potential_->bare_potential())
+        relative_amplitude = exp(-(metad_potential_->base_potential(metad_potential_->cvar_coordinates()))
                                  / (tempering_bias_temperature_ * kBoltzmannIU));
         if (iteration_ % output_steps_  == 0) {
         jams::output::open_output_file_just_in_time(metadynamics_stats_file_, "metad_stats.tsv");

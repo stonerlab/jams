@@ -285,20 +285,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
   print_settings();
 }
-bool jams::MetadynamicsPotential::is_cvar_on_grid() {
-  std::array<double,kNumCVars> cv{};
-  for (auto n = 0; n < cvars_.size(); ++n) {
-    cv[n] = cvars_[n]->value();
-  }
 
-  if (cvars_.size() == 1) {
-    return cv[0] >= cvar_range_min_[0] && cv[0] <= cvar_range_max_[0];
-  }
-  if (cvars_.size() == 2) {
-    return cv[0] >= cvar_range_min_[0] && cv[0] <= cvar_range_max_[0] && cv[1] >= cvar_range_min_[1] && cv[1] <= cvar_range_max_[1];
-  }
-  return false;
-}
 
 void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
                                               const Vec3 &spin_final) {
@@ -312,25 +299,22 @@ void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
 // Return the difference in the metadynamics potential energy when changing spin i from the state spin_initial to
 // spin_trial.
 double jams::MetadynamicsPotential::potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-  std::array<double,kNumCVars> cvar_initial{};
-  for (auto n = 0; n < cvars_.size(); ++n) {
-    cvar_initial[n] = cvars_[n]->value();
-  }
+  std::array<double,kNumCVars> cvar_initial = cvar_coordinates();
 
   std::array<double,kNumCVars> cvar_trial{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     cvar_trial[n] = cvars_[n]->spin_move_trial_value(i, spin_initial, spin_final);
   }
 
-  return potential(cvar_trial) - potential(cvar_initial);
+  return full_potential(cvar_trial) - full_potential(cvar_initial);
 }
 
 
-double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>& cvar_coordinates) {
+double jams::MetadynamicsPotential::full_potential(const std::array<double,kNumCVars>& cv) {
   assert(cvars_.size() > 0 && cvars_.size() <= kNumCVars);
 
 
-  // We must use cvar_coordinates within the potential function and never
+  // We must use cv within the potential function and never
   // cvars_[n]->value(). The later will only every return the current value of
   // the cvar whereas potential() will be called with trial coordinates also.
 
@@ -338,8 +322,8 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>
   for (auto n = 0; n < cvars_.size(); ++n) {
     const auto lo = cvar_sample_coordinates_[n].front();
     const auto hi = cvar_sample_coordinates_[n].back();
-    if ((cvar_lower_bcs_[n] == PotentialBCs::HardBC && cvar_coordinates[n] < lo)
-      || (cvar_upper_bcs_[n] == PotentialBCs::HardBC && cvar_coordinates[n] > hi)) {
+    if ((cvar_lower_bcs_[n] == PotentialBCs::HardBC && cv[n] < lo)
+      || (cvar_upper_bcs_[n] == PotentialBCs::HardBC && cv[n] > hi)) {
       return kHardBCsPotential; // huge positive penalty
     }
   }
@@ -348,7 +332,7 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>
   // clamped value at the edge of the grid if the CV is outside of the grid. Per the
   // header documentation, the base potential is taken at the current coordinates
   // (subject to this grid-edge clamp), and restoring penalties are added separately.
-  const auto base_potential = interpolated_potential(cvar_coordinates);
+  const auto potential = base_potential(cv);
 
   // Apply restoring boundary conditions as per header docs:
   // - If a CV is beyond its restoring threshold(s), add a spring penalty
@@ -359,18 +343,18 @@ double jams::MetadynamicsPotential::potential(const std::array<double,kNumCVars>
   double restoring_penalty = 0.0;
   for (auto n = 0; n < cvars_.size(); ++n) {
       if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC &&
-          cvar_coordinates[n] <= restoring_bc_lower_threshold_[n]) {
+          cv[n] <= restoring_bc_lower_threshold_[n]) {
           restoring_penalty += 0.5 * restoring_bc_spring_constant_[n]
-                             * pow2(cvar_coordinates[n] - restoring_bc_lower_threshold_[n]);
+                             * pow2(cv[n] - restoring_bc_lower_threshold_[n]);
       }
       if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC &&
-          cvar_coordinates[n] >= restoring_bc_upper_threshold_[n]) {
+          cv[n] >= restoring_bc_upper_threshold_[n]) {
           restoring_penalty += 0.5 * restoring_bc_spring_constant_[n]
-                             * pow2(cvar_coordinates[n] - restoring_bc_upper_threshold_[n]);
+                             * pow2(cv[n] - restoring_bc_upper_threshold_[n]);
       }
   }
 
-  return base_potential + restoring_penalty;
+  return potential + restoring_penalty;
 }
 
 
@@ -405,7 +389,7 @@ void jams::MetadynamicsPotential::add_gaussian_to_landscape(
   }
 }
 
-double jams::MetadynamicsPotential::interpolated_potential(const std::array<double, kNumCVars> &cvar_coordinates) {
+double jams::MetadynamicsPotential::base_potential(const std::array<double, kNumCVars> &cvar_coordinates) {
   const auto lower_indices = potential_grid_indices(cvar_coordinates);
 
 #ifndef NDEBUG
@@ -489,12 +473,9 @@ jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kNu
 
 void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
 
-  std::array<double,kNumCVars> center{};
-  for (auto n = 0; n < cvars_.size(); ++n) {
-    center[n] = cvars_[n]->value();
-  }
+  auto center = cvar_coordinates();
 
-  for (auto n = 0; n < cvars_.size(); ++n) {
+  for (auto n = 0; n < center.size(); ++n) {
     if (!std::isfinite(center[n])) {
       throw std::runtime_error("Collective variable value is not finite for CV '" + cvar_names_[n] + "'");
     }
@@ -623,13 +604,13 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
 }
 
 
-double jams::MetadynamicsPotential::bare_potential() {
+std::array<double, jams::MetadynamicsPotential::kNumCVars>
+jams::MetadynamicsPotential::cvar_coordinates() {
   std::array<double,kNumCVars> coordinates{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     coordinates[n] = cvars_[n]->value();
   }
-
-  return interpolated_potential(coordinates);;
+  return coordinates;
 }
 
 void jams::MetadynamicsPotential::output() {
