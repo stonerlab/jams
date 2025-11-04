@@ -27,12 +27,22 @@
 #include <jams/helpers/exception.h>
 
 CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, const double &sigma, const double timestep, const int num_spins)
-: Thermostat(temperature, sigma, timestep, num_spins),
-  debug_(false)
+: Thermostat(temperature, sigma, timestep, num_spins)
   {
    std::cout << "\n  initialising quantum-spde-gpu thermostat\n";
 
+  zeta5_.resize(num_spins * 3).zero();
+  zeta5p_.resize(num_spins * 3).zero();
+  zeta6_.resize(num_spins * 3).zero();
+  zeta6p_.resize(num_spins * 3).zero();
+  eta1a_.resize(2 * num_spins * 3).zero();
+  eta1b_.resize(2 * num_spins * 3).zero();
+
    globals::config->lookupValue("thermostat.zero_point", do_zero_point_);
+   if (do_zero_point_) {
+     zeta0_.resize(4 * num_spins * 3).zero();
+     eta0_.resize(4 * num_spins * 3).zero();
+   }
 
    double t_warmup = 1e-10 / 1e-12; // 0.1 ns
    globals::config->lookupValue("thermostat.warmup_time", t_warmup);
@@ -61,7 +71,9 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, 
    std::cout << "    initialising CURAND\n";
 
    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
-   CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+   if (do_zero_point_) {
+     CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+   }
    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1b_.device_data(), eta1b_.size(), 0.0, 1.0));
 
@@ -72,28 +84,15 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, 
       }
     }
 
-   num_warm_up_steps_ = static_cast<unsigned>(t_warmup / dt_thermostat);
+   auto num_warm_up_steps = static_cast<unsigned>(t_warmup / dt_thermostat);
 
-
-  zero(zeta5_.resize(num_spins * 3));
-  zero(zeta5p_.resize(num_spins * 3));
-  zero(zeta6_.resize(num_spins * 3));
-  zero(zeta6p_.resize(num_spins * 3));
-  zero(eta1a_.resize(2 * num_spins * 3));
-  zero(eta1b_.resize(2 * num_spins * 3));
-
-  if (do_zero_point_) {
-    zero(zeta0_.resize(4 * num_spins * 3));
-    zero(eta0_.resize(4 * num_spins * 3));
+  std::cout << "warming up thermostat " << num_warm_up_steps << " steps @ " << this->temperature() << "K" << std::endl;
+  for (auto i = 0; i < num_warm_up_steps; ++i) {
+    CudaThermostatQuantumSpde::update();
   }
 }
 
 void CudaThermostatQuantumSpde::update() {
-  if (!is_warmed_up_) {
-    is_warmed_up_ = true;
-    warmup(num_warm_up_steps_);
-  }
-
   if (this->temperature() == 0) {
     CHECK_CUDA_STATUS(cudaMemset(noise_.device_data(), 0, noise_.elements()*sizeof(double)));
     return;
@@ -133,13 +132,5 @@ CudaThermostatQuantumSpde::~CudaThermostatQuantumSpde() {
 
   if (dev_curand_stream_ != nullptr) {
     cudaStreamDestroy(dev_curand_stream_);
-  }
-}
-
-void CudaThermostatQuantumSpde::warmup(const unsigned steps) {
-  std::cout << "warming up thermostat " << steps << " steps @ " << this->temperature() << "K" << std::endl;
-
-  for (auto i = 0; i < steps; ++i) {
-    update();
   }
 }
