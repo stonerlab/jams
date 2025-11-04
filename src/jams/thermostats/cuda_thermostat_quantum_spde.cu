@@ -90,8 +90,8 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, 
 
 void CudaThermostatQuantumSpde::update() {
   if (!is_warmed_up_) {
-    is_warmed_up_ = true;
     warmup(num_warm_up_steps_);
+    is_warmed_up_ = true;
   }
 
   if (this->temperature() == 0) {
