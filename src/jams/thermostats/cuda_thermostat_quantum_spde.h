@@ -25,13 +25,8 @@ class CudaThermostatQuantumSpde : public Thermostat {
   const double* device_data() { return noise_.device_data(); }
 
  private:
-
-    void warmup(const unsigned steps);
-
     bool debug_;
     bool do_zero_point_ = false;
-    bool is_warmed_up_ = false;
-    unsigned num_warm_up_steps_ = 0;
 
     jams::MultiArray<double, 1> zeta0_;
     jams::MultiArray<double, 1> zeta5_;

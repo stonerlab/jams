@@ -85,15 +85,15 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, 
       }
     }
 
-   num_warm_up_steps_ = static_cast<unsigned>(t_warmup / dt_thermostat);
+   auto num_warm_up_steps = static_cast<unsigned>(t_warmup / dt_thermostat);
+
+  std::cout << "warming up thermostat " << num_warm_up_steps << " steps @ " << this->temperature() << "K" << std::endl;
+  for (auto i = 0; i < num_warm_up_steps; ++i) {
+    CudaThermostatQuantumSpde::update();
+  }
 }
 
 void CudaThermostatQuantumSpde::update() {
-  if (!is_warmed_up_) {
-    warmup(num_warm_up_steps_);
-    is_warmed_up_ = true;
-  }
-
   if (this->temperature() == 0) {
     CHECK_CUDA_STATUS(cudaMemset(noise_.device_data(), 0, noise_.elements()*sizeof(double)));
     return;
@@ -133,13 +133,5 @@ CudaThermostatQuantumSpde::~CudaThermostatQuantumSpde() {
 
   if (dev_curand_stream_ != nullptr) {
     cudaStreamDestroy(dev_curand_stream_);
-  }
-}
-
-void CudaThermostatQuantumSpde::warmup(const unsigned steps) {
-  std::cout << "warming up thermostat " << steps << " steps @ " << this->temperature() << "K" << std::endl;
-
-  for (auto i = 0; i < steps; ++i) {
-    update();
   }
 }
