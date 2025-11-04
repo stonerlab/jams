@@ -623,13 +623,13 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
 }
 
 
-double jams::MetadynamicsPotential::current_potential() {
+double jams::MetadynamicsPotential::bare_potential() {
   std::array<double,kNumCVars> coordinates{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     coordinates[n] = cvars_[n]->value();
   }
 
-  return potential(coordinates);
+  return interpolated_potential(coordinates);;
 }
 
 void jams::MetadynamicsPotential::output() {

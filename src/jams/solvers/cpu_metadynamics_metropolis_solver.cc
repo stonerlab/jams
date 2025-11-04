@@ -69,7 +69,7 @@ void MetadynamicsMetropolisSolver::run() {
     // Set the relative amplitude of the gaussian if we are using tempering and
     // record the value in the stats file
     if (do_tempering_) {
-        relative_amplitude = exp(-(metad_potential_->current_potential())
+        relative_amplitude = exp(-(metad_potential_->bare_potential())
                                  / (tempering_bias_temperature_ * kBoltzmannIU));
         if (iteration_ % output_steps_  == 0) {
         jams::output::open_output_file_just_in_time(metadynamics_stats_file_, "metad_stats.tsv");

@@ -66,9 +66,9 @@ namespace jams {
         /// Output the potential landscape to a file stream.
         void output();
 
-        /// Returns the value of the potential at the current coordinates of the
-        /// collective variable
-        double current_potential();
+        /// Returns the value of the bare (without boundary potentials) metadynamics
+        /// potential at the current coordinates of the collective variable
+        double bare_potential();
 
         /// Returns the value of the potential at the given coordinates using
         /// (bi)linear interpolation
