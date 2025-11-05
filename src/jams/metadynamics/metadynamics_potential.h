@@ -130,6 +130,9 @@ namespace jams {
         /// vector of the maximum of the discretised CV coordinates in each CV dimension
         std::vector<double> cvar_range_max_;
 
+        /// vector of 1/step of the discretised CV coordinates in each CV dimension
+        std::vector<double> cvar_inv_step_;
+
         /// vector of vectors of the discrete CV sample coordinates in each CV dimension
         std::vector<std::vector<double>> cvar_sample_coordinates_;
 

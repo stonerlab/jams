@@ -146,6 +146,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   cvar_sample_coordinates_.resize(num_cvars);
   cvar_range_min_.resize(num_cvars);
   cvar_range_max_.resize(num_cvars);
+  cvar_inv_step_.resize(num_cvars);
 
   zero_all(restoring_bc_upper_threshold_, restoring_bc_lower_threshold_, restoring_bc_spring_constant_);
   zero_all(mirror_bc_upper_threshold_, mirror_bc_lower_threshold_);
@@ -199,6 +200,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     cvar_sample_coordinates_[i] = linear_space(range_min, range_max, range_step);
     cvar_range_max_[i] = range_max;
     cvar_range_min_[i] = range_min;
+    cvar_inv_step_[i] = 1.0 / range_step;
     num_cvar_sample_coordinates_[i] = cvar_sample_coordinates_[i].size();
 
     // Read the boundary condition type from the settings. Reading of
@@ -454,21 +456,31 @@ double jams::MetadynamicsPotential::base_potential(const std::array<double, kNum
 // the index clamps to the nearest edge.
 std::array<int, jams::MetadynamicsPotential::kNumCVars>
 jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kNumCVars> &cvar_coordinates) {
-  std::array<int,kNumCVars> i0{};
+  std::array<int, kNumCVars> idx{};
   for (auto n = 0; n < cvars_.size(); ++n) {
-    const auto& grid = cvar_sample_coordinates_[n];
-    auto it = std::upper_bound(grid.begin(), grid.end(), cvar_coordinates[n]);
-    int i1 = static_cast<int>(std::distance(grid.begin(), it));
+    const double x   = cvar_coordinates[n];
+    const double min = cvar_range_min_[n];
+    const double max = cvar_range_max_[n];
+    const double inv_step = cvar_inv_step_[n]; // = 1.0 / range_step
 
-    if (i1 <= 0) {
-      i0[n] = 0;                       // cvar_coordinates <= grid.front()
-    } else if (i1 >= static_cast<int>(grid.size())) {
-      i0[n] = static_cast<int>(grid.size()) - 1;  // cvar_coordinates >= grid.back()
-    } else {
-      i0[n] = i1 - 1;                  // grid[i0] < cvar_coordinates <= grid[i0+1]
+    const int npoints = num_cvar_sample_coordinates_[n];
+
+    // Map into grid coordinate (0 .. npoints-1) in floating point
+    double t = (x - min) * inv_step;
+
+    // Floor to integer cell index
+    int i = static_cast<int>(std::floor(t));
+
+    // Clamp to [0, npoints-1]
+    if (i < 0) {
+      i = 0;
+    } else if (i >= npoints) {
+      i = npoints - 1;
     }
+
+    idx[n] = i;
   }
-  return i0;
+  return idx;
 }
 
 void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
