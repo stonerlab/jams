@@ -56,8 +56,8 @@ private:
     double cached_value_ = std::numeric_limits<double>::signaling_NaN();
     double cached_trial_value_ = std::numeric_limits<double>::signaling_NaN();
     int cached_i_ = -1;
-    Vec3 cached_spin_initial_ ;
-    Vec3 cached_spin_trial_;
+    Vec3 cached_spin_initial_ = {};
+    Vec3 cached_spin_trial_ = {};
 
 protected:
     inline bool cache_is_initialised() const;
