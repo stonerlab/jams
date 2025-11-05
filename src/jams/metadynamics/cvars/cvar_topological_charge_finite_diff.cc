@@ -313,6 +313,24 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
     fd_weights_[i] = std::move(tmp);
   }
+
+
+  affected_sites_.clear();
+  affected_sites_.resize(globals::num_spins);
+  for (int i = 0; i < globals::num_spins; ++i) {
+    auto &lst = affected_sites_[i];
+    lst.clear();
+    lst.reserve(stencil_neighbour_indices_[i].size() + 1);
+    lst.push_back(i);
+    for (int n : stencil_neighbour_indices_[i]) {
+      lst.push_back(n);
+    }
+  }
+
+  // Size per-site caches; they will be populated on first calculate_expensive_value().
+  q_site_.assign(globals::num_spins, 0.0);
+  dsx_site_.assign(globals::num_spins, Vec3{0.0, 0.0, 0.0});
+  dsy_site_.assign(globals::num_spins, Vec3{0.0, 0.0, 0.0});
 }
 
 std::string jams::CVarTopologicalChargeFiniteDiff::name() {
@@ -323,26 +341,116 @@ double jams::CVarTopologicalChargeFiniteDiff::value() {
   return cached_value();
 }
 
-double jams::CVarTopologicalChargeFiniteDiff::spin_move_trial_value(int i,
-                                                                    const Vec3 &spin_initial,
-                                                                    const Vec3 &spin_trial) {
-  const double trial_value = cached_value() + topological_charge_difference(i, spin_initial, spin_trial);
 
-  set_cache_values(i, spin_initial, spin_trial, cached_value(), trial_value);
+double jams::CVarTopologicalChargeFiniteDiff::spin_move_trial_value(
+    int i, const Vec3 &spin_initial, const Vec3 &spin_trial) {
 
-  return trial_value;  //Used in CollectiveVariable
+  // Ensure base cache (and our per-site caches) are initialised.
+  const double current_value = cached_value();
+
+  trial_deltas_.clear();
+  trial_moving_index_ = i;
+  trial_spin_initial_ = spin_initial;
+  trial_spin_final_   = spin_trial;
+
+  double dq_sum = 0.0; // sum of raw local dq over affected sites
+
+  const auto &sites = affected_sites_[i];
+  trial_deltas_.reserve(sites.size());
+
+  for (int j : sites) {
+    // Find weights connecting site j to moving index i
+    double wx = 0.0, wy = 0.0;
+    for (const auto &w : fd_weights_[j]) {
+      if (w.index == i) { wx = w.wx; wy = w.wy; break; }
+    }
+
+    // Compute dsx/dsy deltas without relying on Vec3 subtraction
+    Vec3 ddsx{0.0, 0.0, 0.0};
+    Vec3 ddsy{0.0, 0.0, 0.0};
+    if (wx != 0.0) {
+      ddsx = fma(wx,  spin_trial, ddsx);
+      ddsx = fma(-wx, spin_initial, ddsx);
+    }
+    if (wy != 0.0) {
+      ddsy = fma(wy,  spin_trial, ddsy);
+      ddsy = fma(-wy, spin_initial, ddsy);
+    }
+
+    const Vec3 dsx_new = dsx_site_[j] + ddsx;
+    const Vec3 dsy_new = dsy_site_[j] + ddsy;
+
+    const Vec3 s_j_initial = (j == i) ? spin_initial : montecarlo::get_spin(j);
+    const Vec3 s_j_final   = (j == i) ? spin_trial   : s_j_initial;
+
+    const double q_init  = q_site_[j];
+    const double q_final = scalar_triple_product(s_j_final, dsx_new, dsy_new);
+    const double dq      = q_final - q_init;
+
+    dq_sum += dq;
+    trial_deltas_.push_back(SiteDelta{j, ddsx, ddsy, dq});
+  }
+
+  const double trial_value = current_value + dq_sum / (4.0 * kPi);
+  set_cache_values(i, spin_initial, spin_trial, current_value, trial_value);
+  return trial_value;
 }
 
 
+void jams::CVarTopologicalChargeFiniteDiff::spin_move_accepted(
+    int i, const Vec3 &spin_initial, const Vec3 &spin_trial) {
 
-double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_value() {
-
-  double topological_charge = 0.0;
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    topological_charge += local_topological_charge(i);
+  // Apply buffered deltas to per-site caches and advance the cached value.
+  double dq_sum = 0.0;
+  for (const auto &d : trial_deltas_) {
+    dsx_site_[d.j] = dsx_site_[d.j] + d.ddsx;
+    dsy_site_[d.j] = dsy_site_[d.j] + d.ddsy;
+    q_site_[d.j]  += d.dq;
+    dq_sum        += d.dq;
   }
 
-  return topological_charge / (4.0 * kPi);
+  // Advance the scalar cache (value is managed by the base class through set_cache_values).
+  const double new_value = cached_value() + dq_sum / (4.0 * kPi);
+
+  // Set current and trial values to the same new_value to avoid any mismatch on next call.
+  set_cache_values(i, spin_initial, spin_trial, new_value, new_value);
+
+  // Clear trial buffer
+  trial_deltas_.clear();
+  trial_moving_index_ = -1;
+}
+
+double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_value() {
+  double total = 0.0;
+
+  if ((int)q_site_.size() != globals::num_spins) {
+    q_site_.assign(globals::num_spins, 0.0);
+    dsx_site_.assign(globals::num_spins, Vec3{0.0, 0.0, 0.0});
+    dsy_site_.assign(globals::num_spins, Vec3{0.0, 0.0, 0.0});
+  }
+
+  for (int i = 0; i < globals::num_spins; ++i) {
+    const auto &weights = fd_weights_[i];
+
+    Vec3 ds_x{0.0, 0.0, 0.0};
+    Vec3 ds_y{0.0, 0.0, 0.0};
+
+    for (const auto &w : weights) {
+      const Vec3 s = montecarlo::get_spin(w.index);
+      if (w.wx != 0.0) ds_x = fma(w.wx, s, ds_x);
+      if (w.wy != 0.0) ds_y = fma(w.wy, s, ds_y);
+    }
+
+    dsx_site_[i] = ds_x;
+    dsy_site_[i] = ds_y;
+
+    const Vec3 s_i = montecarlo::get_spin(i);
+    const double q = scalar_triple_product(s_i, ds_x, ds_y);
+    q_site_[i] = q;
+    total += q;
+  }
+
+  return total / (4.0 * kPi);
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(int i) const {

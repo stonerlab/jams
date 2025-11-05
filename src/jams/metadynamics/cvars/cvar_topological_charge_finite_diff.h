@@ -62,6 +62,9 @@ namespace jams {
         double spin_move_trial_value(
             int i, const Vec3 &spin_initial, const Vec3 &spin_trial) override;
 
+        void spin_move_accepted(int i, const Vec3 &spin_initial,
+                    const Vec3 &spin_trial) override;
+
         double calculate_expensive_value() override;
 
     private:
@@ -93,6 +96,26 @@ namespace jams {
         // basically a CSR matrix
         std::vector<std::vector<int>> dy_indices_;
         std::vector<std::vector<double>> dy_values_;
+
+            // ---------------- Per-site caches and trial delta buffer ----------------
+            // Local cached contributions: q_site_[j] = s_j · (dsx_site_[j] × dsy_site_[j])
+            std::vector<double> q_site_;
+            std::vector<Vec3>   dsx_site_;
+            std::vector<Vec3>   dsy_site_;
+
+            // For each moving index k, sites affected are {k} ∪ stencil_neighbour_indices_[k]
+            std::vector<std::vector<int>> affected_sites_;
+
+            struct SiteDelta {
+                int   j;     // site index
+                Vec3  ddsx;  // delta dsx at site j
+                Vec3  ddsy;  // delta dsy at site j
+                double dq;   // delta local topological charge at site j (raw, before 1/(4π))
+            };
+            mutable std::vector<SiteDelta> trial_deltas_;
+            mutable int  trial_moving_index_ = -1;
+            mutable Vec3 trial_spin_initial_ = {};
+            mutable Vec3 trial_spin_final_   = {};
     };
 }
 #endif
