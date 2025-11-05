@@ -1,28 +1,24 @@
 // metadynamics_potential.cc                                                          -*-C++-*-
 
-#include "metadynamics_potential.h"
-#include "jams/interface/highfive.h"
-#include <jams/helpers/exception.h>
-#include <jams/metadynamics/collective_variable_factory.h>
-#include <jams/maths/interpolation.h>
-#include <jams/helpers/output.h>
+#include <jams/core/globals.h>
+#include <jams/core/lattice.h>
+#include <jams/core/solver.h>
 #include <jams/helpers/container_utils.h>
+#include <jams/helpers/exception.h>
+#include <jams/helpers/output.h>
+#include <jams/interface/highfive.h>
+#include <jams/macros.h>
+#include <jams/maths/interpolation.h>
+#include <jams/metadynamics/collective_variable_factory.h>
+#include <jams/metadynamics/metadynamics_potential.h>
+
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iostream>
-#include <thread>
-#include <algorithm>
 #include <sstream>
-
 #include <sys/stat.h>  // For POSIX stat()
-#include <fcntl.h>     // For O_CREAT, O_EXCL
-#include <unistd.h>    // For close()
-
-#include <jams/core/solver.h>
-#include <jams/core/globals.h>
-#include <jams/core/lattice.h>
-
-#include "jams/macros.h"
+#include <thread>
 
 namespace jams {
 template<>
@@ -31,18 +27,21 @@ config_required(const libconfig::Setting &setting, const std::string &name) {
   auto format = jams::config_required<std::string>(setting, name);
   if (lowercase(format) == "mirror") {
     return MetadynamicsPotential::PotentialBCs::MirrorBC;
-  } else if (lowercase(format) == "hard") {
-    return MetadynamicsPotential::PotentialBCs::HardBC;
-  } else if (lowercase(format) == "restoring") {
-    return MetadynamicsPotential::PotentialBCs::RestoringBC;
-  } else {
-    throw std::runtime_error("Unknown metadynamics boundary condition value '" + format + "' for setting '" + name + "'");
   }
+  if (lowercase(format) == "hard") {
+    return MetadynamicsPotential::PotentialBCs::HardBC;
+  }
+  if (lowercase(format) == "restoring") {
+    return MetadynamicsPotential::PotentialBCs::RestoringBC;
+  }
+
+  throw std::runtime_error(
+    "Unknown metadynamics boundary condition value '" + format + "' for setting '" + name + "'");
 }
 }
 
 namespace {
-std::vector<double> linear_space(const double min,const double max,const double step) {
+std::vector<double> linear_space(const double min, const double max, const double step) {
   if (!(min < max)) {
     throw std::runtime_error("linear_space: min must be < max");
   }
@@ -54,8 +53,9 @@ std::vector<double> linear_space(const double min,const double max,const double 
   assert(min < max);
 
   std::vector<double> space;
+  space.reserve(static_cast<size_t>(std::ceil((max - min) / step)));
   double value = min;
-  while (less_than_approx_equal(value,max, 1e-4)) {
+  while (less_than_approx_equal(value, max, 1e-4)) {
     space.push_back(value);
     value += step;
   }
@@ -63,6 +63,7 @@ std::vector<double> linear_space(const double min,const double max,const double 
   return space;
 }
 }
+
 // ---------------------------------------------------------------------------
 // config settings
 // ---------------------------------------------------------------------------
@@ -121,23 +122,24 @@ std::vector<double> linear_space(const double min,const double max,const double 
 //  };
 //
 
-jams::MetadynamicsPotential::MetadynamicsPotential(
-    const libconfig::Setting &settings) {
+namespace jams {
+MetadynamicsPotential::MetadynamicsPotential(
+  const libconfig::Setting &settings) {
   cvar_output_stride_ = jams::config_optional<int>(settings, "cvars_output_steps", 10);
-    std::cout << "cvar file output steps : " << cvar_output_stride_ << std::endl;
+  std::cout << "cvar file output steps : " << cvar_output_stride_ << std::endl;
 
   do_metad_potential_interpolation_ = config_optional<bool>(settings, "interpolation", true);
   metad_gaussian_amplitude_ = config_required<double>(settings, "gaussian_amplitude");
 
-  std::string potential_filename = jams::config_optional<std::string>(settings, "potential_file", "");
+  auto potential_filename = jams::config_optional<std::string>(settings, "potential_file", "");
 
   int num_cvars = settings["collective_variables"].getLength();
 
   // We only support a limited, hardcoded number of CV dimensions. DO NOT proceed if there are more CVs specified.
   if (num_cvars > kNumCVars || num_cvars < 1) {
     throw std::runtime_error(
-        "The number of collective variables should be between 1 and " +
-        std::to_string(kNumCVars));
+      "The number of collective variables should be between 1 and " +
+      std::to_string(kNumCVars));
   }
 
   cvars_.resize(num_cvars);
@@ -161,7 +163,6 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
   std::fill(std::begin(cvar_upper_bcs_), std::end(cvar_upper_bcs_), MetadynamicsPotential::PotentialBCs::NoBC);
 
   for (auto i = 0; i < num_cvars; ++i) {
-
     // Construct the collective variables from the factor and store pointers
     const auto &cvar_settings = settings["collective_variables"][i];
     cvars_[i].reset(CollectiveVariableFactory::create(cvar_settings));
@@ -179,17 +180,17 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 
     // If no step size is given then use width / 5.
     // This is the same as PLUMED default and completely by accident, roughly what we were tending to use.
-    double range_step = config_optional<double>(cvar_settings, "range_step", cvar_gaussian_widths_[i] / 5.0);
+    auto range_step = config_optional<double>(cvar_settings, "range_step", cvar_gaussian_widths_[i] / 5.0);
 
     if (cvar_names_[i] == ("skyrmion_coordinate_x") || cvar_names_[i] == ("skyrmion_coordinate_y")) {
       const auto cell = globals::lattice->get_unitcell().matrix();
-      const auto size_a = double(globals::lattice->size(0));
-      const auto size_b = double(globals::lattice->size(1));
+      const auto size_a = static_cast<double>(globals::lattice->size(0));
+      const auto size_b = static_cast<double>(globals::lattice->size(1));
 
       auto bottom_left = cell * Vec3{0.0, 0.0, 0.0};
-      auto bottom_right = cell * Vec3{size_a , 0.0, 0.0};
+      auto bottom_right = cell * Vec3{size_a, 0.0, 0.0};
       auto top_left = cell * Vec3{0.0, size_b, 0.0};
-      auto top_right = cell * Vec3{size_a , size_b, 0.0};
+      auto top_right = cell * Vec3{size_a, size_b, 0.0};
 
       if (cvar_names_[i] == ("skyrmion_coordinate_x")) {
         std::tie(range_min, range_max) = std::minmax({bottom_left[0], bottom_right[0], top_left[0], top_right[0]});
@@ -203,7 +204,7 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     cvar_range_max_[i] = range_max;
     cvar_range_min_[i] = range_min;
     cvar_inv_step_[i] = 1.0 / range_step;
-    num_cvar_sample_coordinates_[i] = cvar_sample_coordinates_[i].size();
+    num_cvar_sample_coordinates_[i] = static_cast<int>(cvar_sample_coordinates_[i].size());
 
     // Read the boundary condition type from the settings. Reading of
     // 'upper_restoring_bc_threshold' is for backwards compatibility with
@@ -225,7 +226,6 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     } else if (cvar_settings.exists("lower_mirror_bc_threshold")) {
       cvar_lower_bcs_[i] = PotentialBCs::MirrorBC;
     }
-
 
     // Read additional settings for the boundary conditions
     if (cvar_upper_bcs_[i] == PotentialBCs::RestoringBC) {
@@ -265,25 +265,25 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
       throw std::runtime_error("restoring_bc_spring_constant must be finite and >= 0");
   }
 
+  zero(metad_potential_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
+  zero(metad_potential_delta_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
 
-    zero(metad_potential_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
-    zero(metad_potential_delta_.resize(num_cvar_sample_coordinates_[0], num_cvar_sample_coordinates_[1]));
+  if (!potential_filename.empty()) {
+    std::cout << "Reading potential landscape data from " << potential_filename << "\n" <<
+        "Ensure you input the final h5 file from the previous simulation" << "\n";
+    import_potential(potential_filename);
+  }
 
-    if (!potential_filename.empty()) {
-        std::cout << "Reading potential landscape data from " << potential_filename << "\n" << "Ensure you input the final h5 file from the previous simulation" <<"\n";
-        import_potential(potential_filename);
-    }
+  cvar_output_file_.open(jams::output::full_path_filename("metad_cvars.tsv"));
+  if (!cvar_output_file_) {
+    throw std::runtime_error("Failed to open metad_cvars.tsv for writing");
+  }
 
-    cvar_output_file_.open(jams::output::full_path_filename("metad_cvars.tsv"));
-    if (!cvar_output_file_) {
-      throw std::runtime_error("Failed to open metad_cvars.tsv for writing");
-    }
-
-    cvar_output_file_ << "time";
-    for (auto i = 0; i < cvars_.size(); ++i) {
-      cvar_output_file_ << " " << cvars_[i]->name();
-    }
-    cvar_output_file_ << " relative_amplitude" << std::endl;
+  cvar_output_file_ << "time";
+  for (const auto &cvar : cvars_) {
+    cvar_output_file_ << " " << cvar->name();
+  }
+  cvar_output_file_ << " relative_amplitude" << std::endl;
 
   std::cout << jams::output::section("init metadynamics potential") << std::endl;
 
@@ -291,21 +291,23 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
 }
 
 
-void jams::MetadynamicsPotential::spin_update(int i, const Vec3 &spin_initial,
-                                              const Vec3 &spin_final) {
+void MetadynamicsPotential::spin_update(int i,
+                                              const Vec3 &spin_initial,
+                                              const Vec3 &spin_final) const {
   // Signal to the CollectiveVariables that they should do any internal work
   // needed due to a spin being accepted (usually related to caching).
-  for (const auto& cvar : cvars_) {
-      cvar->spin_move_accepted(i, spin_initial, spin_final);
-  	}
+  for (const auto &cvar : cvars_) {
+    cvar->spin_move_accepted(i, spin_initial, spin_final);
+  }
 }
+
 
 // Return the difference in the metadynamics potential energy when changing spin i from the state spin_initial to
 // spin_trial.
-double jams::MetadynamicsPotential::potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
-  std::array<double,kNumCVars> cvar_initial = cvar_coordinates();
+double MetadynamicsPotential::potential_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final) {
+  std::array<double, kNumCVars> cvar_initial = cvar_coordinates();
 
-  std::array<double,kNumCVars> cvar_trial{};
+  std::array<double, kNumCVars> cvar_trial{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     cvar_trial[n] = cvars_[n]->spin_move_trial_value(i, spin_initial, spin_final);
   }
@@ -314,9 +316,8 @@ double jams::MetadynamicsPotential::potential_difference(int i, const Vec3 &spin
 }
 
 
-double jams::MetadynamicsPotential::full_potential(const std::array<double,kNumCVars>& cv) {
+double MetadynamicsPotential::full_potential(const std::array<double, kNumCVars> &cv) {
   assert(cvars_.size() > 0 && cvars_.size() <= kNumCVars);
-
 
   // We must use cv within the potential function and never
   // cvars_[n]->value(). The later will only every return the current value of
@@ -346,30 +347,29 @@ double jams::MetadynamicsPotential::full_potential(const std::array<double,kNumC
   // - Penalties from multiple dimensions accumulate across axes.
   double restoring_penalty = 0.0;
   for (auto n = 0; n < cvars_.size(); ++n) {
-      if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC &&
-          cv[n] <= restoring_bc_lower_threshold_[n]) {
-          restoring_penalty += 0.5 * restoring_bc_spring_constant_[n]
-                             * pow2(cv[n] - restoring_bc_lower_threshold_[n]);
-      }
-      if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC &&
-          cv[n] >= restoring_bc_upper_threshold_[n]) {
-          restoring_penalty += 0.5 * restoring_bc_spring_constant_[n]
-                             * pow2(cv[n] - restoring_bc_upper_threshold_[n]);
-      }
+    if (cvar_lower_bcs_[n] == PotentialBCs::RestoringBC &&
+      cv[n] <= restoring_bc_lower_threshold_[n]) {
+      restoring_penalty += 0.5 * restoring_bc_spring_constant_[n]
+          * pow2(cv[n] - restoring_bc_lower_threshold_[n]);
+    }
+    if (cvar_upper_bcs_[n] == PotentialBCs::RestoringBC &&
+      cv[n] >= restoring_bc_upper_threshold_[n]) {
+      restoring_penalty += 0.5 * restoring_bc_spring_constant_[n]
+          * pow2(cv[n] - restoring_bc_upper_threshold_[n]);
+    }
   }
 
   return potential + restoring_penalty;
 }
 
 
-void jams::MetadynamicsPotential::add_gaussian_to_landscape(
-  const std::array<double,kNumCVars> center,
-  MultiArray<double,kNumCVars>& landscape) {
-
+void MetadynamicsPotential::add_gaussian_to_landscape(
+  const std::array<double, kNumCVars> center,
+  MultiArray<double, kNumCVars> &landscape) {
   // Calculate gaussians along each 1D axis
-  std::vector<std::vector<double>> gaussians;
+  std::vector<std::vector<double> > gaussians;
   for (auto n = 0; n < cvars_.size(); ++n) {
-    gaussians.emplace_back(std::vector<double>(num_cvar_sample_coordinates_[n]));
+    gaussians.emplace_back(num_cvar_sample_coordinates_[n]);
 
     for (auto i = 0; i < num_cvar_sample_coordinates_[n]; ++i) {
       if (std::abs(cvar_sample_coordinates_[n][i] - center[n]) > kGaussianExtent * cvar_gaussian_widths_[n]) {
@@ -383,7 +383,7 @@ void jams::MetadynamicsPotential::add_gaussian_to_landscape(
   // If we only have 1D then we need to just have a single element with '1.0'
   // for the second dimension.
   if (cvars_.size() == 1) {
-    gaussians.emplace_back(std::vector<double>(1,1.0));
+    gaussians.emplace_back(1, 1.0);
   }
 
   for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
@@ -393,20 +393,23 @@ void jams::MetadynamicsPotential::add_gaussian_to_landscape(
   }
 }
 
-double jams::MetadynamicsPotential::base_potential(const std::array<double, kNumCVars> &cvar_coordinates) {
+
+double MetadynamicsPotential::base_potential(const std::array<double, kNumCVars> &cvar_coordinates) {
   if (do_metad_potential_interpolation_) {
     return get_base_potential_interpolated_value(cvar_coordinates);
   }
   return get_base_potential_nearest_value(cvar_coordinates);
 }
 
-double jams::MetadynamicsPotential::get_base_potential_nearest_value(const std::array<double, kNumCVars> &cvar_coordinates) {
+
+double MetadynamicsPotential::get_base_potential_nearest_value(
+  const std::array<double, kNumCVars> &cvar_coordinates) {
   const auto lower_indices = potential_grid_indices(cvar_coordinates);
 
 #ifndef NDEBUG
   for (auto n = 0; n < cvars_.size(); ++n) {
     assert(lower_indices[n] >= 0 &&
-           lower_indices[n] < num_cvar_sample_coordinates_[n]);
+      lower_indices[n] < num_cvar_sample_coordinates_[n]);
   }
 #endif
 
@@ -457,7 +460,9 @@ double jams::MetadynamicsPotential::get_base_potential_nearest_value(const std::
   UNREACHABLE();
 }
 
-double jams::MetadynamicsPotential::get_base_potential_interpolated_value(const std::array<double, kNumCVars> &cvar_coordinates) {
+
+double MetadynamicsPotential::get_base_potential_interpolated_value(
+  const std::array<double, kNumCVars> &cvar_coordinates) {
   const auto lower_indices = potential_grid_indices(cvar_coordinates);
 
 #ifndef NDEBUG
@@ -466,7 +471,7 @@ double jams::MetadynamicsPotential::get_base_potential_interpolated_value(const 
   }
 #endif
 
-  const auto& grid0 = cvar_sample_coordinates_[0];
+  const auto &grid0 = cvar_sample_coordinates_[0];
   const double x = cvar_coordinates[0];
   const bool clamp_lo_x = x <= grid0.front();
   const bool clamp_hi_x = x >= grid0.back();
@@ -479,13 +484,15 @@ double jams::MetadynamicsPotential::get_base_potential_interpolated_value(const 
     if (i0 == i1) return metad_potential_(i0, 0);
 
     return maths::linear_interpolation(
-        x, grid0[i0], metad_potential_(i0, 0),
-           grid0[i1], metad_potential_(i1, 0));
+      x,
+      grid0[i0],
+      metad_potential_(i0, 0),
+      grid0[i1],
+      metad_potential_(i1, 0));
   }
 
-
   if (cvars_.size() == 2) {
-    const auto& grid1 = cvar_sample_coordinates_[1];
+    const auto &grid1 = cvar_sample_coordinates_[1];
     const double y = cvar_coordinates[1];
     const bool clamp_lo_y = y <= grid1.front();
     const bool clamp_hi_y = y >= grid1.back();
@@ -498,13 +505,19 @@ double jams::MetadynamicsPotential::get_base_potential_interpolated_value(const 
 
     // clamp in x only: 1D interp along y at boundary i0
     if (i0 == i1 && j0 != j1) {
-      return maths::linear_interpolation(y, grid1[j0], metad_potential_(i0, j0),
-                                            grid1[j1], metad_potential_(i0, j1));
+      return maths::linear_interpolation(y,
+                                         grid1[j0],
+                                         metad_potential_(i0, j0),
+                                         grid1[j1],
+                                         metad_potential_(i0, j1));
     }
     // clamp in y only: 1D interp along x at boundary j0
     if (j0 == j1 && i0 != i1) {
-      return maths::linear_interpolation(x, grid0[i0], metad_potential_(i0, j0),
-                                            grid0[i1], metad_potential_(i1, j0));
+      return maths::linear_interpolation(x,
+                                         grid0[i0],
+                                         metad_potential_(i0, j0),
+                                         grid0[i1],
+                                         metad_potential_(i1, j0));
     }
     // interior: bilinear
     const double Q00 = metad_potential_(i0, j0);
@@ -518,15 +531,15 @@ double jams::MetadynamicsPotential::get_base_potential_interpolated_value(const 
   UNREACHABLE();
 }
 
+
 // Returns the nearest grid indices to the given cvar_coordinates. If the coordinates are outside of the grid then
 // the index clamps to the nearest edge.
-std::array<int, jams::MetadynamicsPotential::kNumCVars>
-jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kNumCVars> &cvar_coordinates) {
+std::array<int, MetadynamicsPotential::kNumCVars>
+MetadynamicsPotential::potential_grid_indices(const std::array<double, kNumCVars> &cvar_coordinates) const {
   std::array<int, kNumCVars> idx{};
   for (auto n = 0; n < cvars_.size(); ++n) {
-    const double x   = cvar_coordinates[n];
+    const double x = cvar_coordinates[n];
     const double min = cvar_range_min_[n];
-    const double max = cvar_range_max_[n];
     const double inv_step = cvar_inv_step_[n]; // = 1.0 / range_step
 
     const int npoints = num_cvar_sample_coordinates_[n];
@@ -549,8 +562,8 @@ jams::MetadynamicsPotential::potential_grid_indices(const std::array<double, kNu
   return idx;
 }
 
-void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
 
+void MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
   auto center = cvar_coordinates();
 
   for (auto n = 0; n < center.size(); ++n) {
@@ -572,14 +585,16 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
       if (bc == PotentialBCs::MirrorBC) {
         continue; // allow mirroring
       } else {
-        suppress = true; break;
+        suppress = true;
+        break;
       }
     } else if (center[n] > hi) {
       auto bc = cvar_upper_bcs_[n];
       if (bc == PotentialBCs::MirrorBC) {
         continue; // allow mirroring
       } else {
-        suppress = true; break;
+        suppress = true;
+        break;
       }
     }
   }
@@ -587,7 +602,7 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
     relative_amplitude = 0.0;
   }
 
-  MultiArray<double,kNumCVars> metad_potential_update(metad_potential_.shape());
+  MultiArray<double, kNumCVars> metad_potential_update(metad_potential_.shape());
   metad_potential_update.zero();
 
   add_gaussian_to_landscape(center, metad_potential_update);
@@ -615,12 +630,11 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
   //                    |                  |
   //     virtual     .  |  o               |      virtual  .
 
-
   for (auto n = 0; n < cvars_.size(); ++n) {
     if (cvar_lower_bcs_[n] == PotentialBCs::MirrorBC) {
       if (std::abs(center[n] - mirror_bc_lower_threshold_[n]) <= kGaussianExtent * cvar_gaussian_widths_[n]) {
         auto virtual_center = center;
-        virtual_center[n] = 2*mirror_bc_lower_threshold_[n] - virtual_center[n];
+        virtual_center[n] = 2 * mirror_bc_lower_threshold_[n] - virtual_center[n];
         add_gaussian_to_landscape(virtual_center, metad_potential_update);
       }
     }
@@ -628,7 +642,7 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
     if (cvar_upper_bcs_[n] == PotentialBCs::MirrorBC) {
       if (std::abs(center[n] - mirror_bc_upper_threshold_[n]) <= kGaussianExtent * cvar_gaussian_widths_[n]) {
         auto virtual_center = center;
-        virtual_center[n] = 2*mirror_bc_upper_threshold_[n] - virtual_center[n];
+        virtual_center[n] = 2 * mirror_bc_upper_threshold_[n] - virtual_center[n];
         add_gaussian_to_landscape(virtual_center, metad_potential_update);
       }
     }
@@ -672,26 +686,27 @@ void jams::MetadynamicsPotential::insert_gaussian(double relative_amplitude) {
     }
   }
 
-  if (globals::solver->iteration() % cvar_output_stride_ == 0 ) {
+  if (globals::solver->iteration() % cvar_output_stride_ == 0) {
     cvar_output_file_ << globals::solver->time();
-    for (auto n = 0; n < cvars_.size(); ++n) {
-      cvar_output_file_ << " " << cvars_[n]->value();
+    for (const auto &cvar : cvars_) {
+      cvar_output_file_ << " " << cvar->value();
     }
     cvar_output_file_ << " " << relative_amplitude << std::endl;
   }
 }
 
 
-std::array<double, jams::MetadynamicsPotential::kNumCVars>
-jams::MetadynamicsPotential::cvar_coordinates() {
-  std::array<double,kNumCVars> coordinates{};
+std::array<double, MetadynamicsPotential::kNumCVars>
+MetadynamicsPotential::cvar_coordinates() const {
+  std::array<double, kNumCVars> coordinates{};
   for (auto n = 0; n < cvars_.size(); ++n) {
     coordinates[n] = cvars_[n]->value();
   }
   return coordinates;
 }
 
-void jams::MetadynamicsPotential::output(const std::string &filename) const {
+
+void MetadynamicsPotential::output(const std::string &filename) const {
   std::ofstream of(filename);
 
   for (auto n = 0; n < cvars_.size(); ++n) {
@@ -711,7 +726,8 @@ void jams::MetadynamicsPotential::output(const std::string &filename) const {
   if (cvars_.size() == 2) {
     for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
       for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
-        of << cvar_sample_coordinates_[0][i] << " " << cvar_sample_coordinates_[1][j] << " " << metad_potential_(i, j) << "\n";
+        of << cvar_sample_coordinates_[0][i] << " " << cvar_sample_coordinates_[1][j] << " " << metad_potential_(i, j)
+            << "\n";
       }
     }
     return;
@@ -719,110 +735,111 @@ void jams::MetadynamicsPotential::output(const std::string &filename) const {
   assert(false); // Should not be reachable if cvars_.size() <= kNumCVars
 }
 
-void jams::MetadynamicsPotential::import_potential(const std::string &filename) {
-    std::vector<double> file_data;
-    bool first_line = true;
-    if (cvars_.size() == 1 ) {
-        double first_cvar, potential_passed;
-        std::ifstream potential_file_passed(filename.c_str());
 
-        int line_number = 0;
-        for (std::string line; getline(potential_file_passed, line);) {
-            if (string_is_comment(line)) {
-                continue;
-            }
-            //ignore the title
-            if (first_line){
-                first_line = false;
-                continue;
-            }
+void MetadynamicsPotential::import_potential(const std::string &filename) {
+  std::vector<double> file_data;
+  bool first_line = true;
+  if (cvars_.size() == 1) {
+    double first_cvar, potential_passed;
+    std::ifstream potential_file_passed(filename.c_str());
 
-            std::stringstream is(line);
-            is >> first_cvar >> potential_passed;
+    int line_number = 0;
+    for (std::string line; getline(potential_file_passed, line);) {
+      if (string_is_comment(line)) {
+        continue;
+      }
+      //ignore the title
+      if (first_line) {
+        first_line = false;
+        continue;
+      }
 
-          if (!std::isfinite(potential_passed)) {
-            throw std::runtime_error("Non-finite potential value on line " + std::to_string(line_number));
-          }
+      std::stringstream is(line);
+      is >> first_cvar >> potential_passed;
 
-            if (is.bad() || is.fail()) {
-                throw std::runtime_error("failed to read line " + std::to_string(line_number));
-            }
+      if (!std::isfinite(potential_passed)) {
+        throw std::runtime_error("Non-finite potential value on line " + std::to_string(line_number));
+      }
 
-            file_data.push_back(potential_passed);
+      if (is.bad() || is.fail()) {
+        throw std::runtime_error("failed to read line " + std::to_string(line_number));
+      }
 
-            line_number++;
-        }
-        // If the file data is not the same size as our arrays in the class
-        // all sorts of things could go wrong. Stop the simulation here to avoid
-        // unintended consequences.
-        if (file_data.size() != num_cvar_sample_coordinates_[0]) {
-             std::cout << num_cvar_sample_coordinates_[0] << " file_data size:" << file_data.size() << "\n";
-            throw std::runtime_error("The " + filename + " has different dimensions from the potential");
-        }
+      file_data.push_back(potential_passed);
 
-        int copy_iterator = 0;
-        for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i){
-
-          metad_potential_(i, 0) = file_data[copy_iterator];
-                copy_iterator++;
-        }
-        potential_file_passed.close();
+      line_number++;
     }
-// **********************************************************************************************
-    if(cvars_.size() == 2) {
-        double first_cvar, second_cvar, potential_passed;
-        std::ifstream potential_file_passed(filename.c_str());
-
-        int line_number = 0;
-        for (std::string line; getline(potential_file_passed, line);) {
-            if (string_is_comment(line)) {
-                continue;
-            }
-            // ignore the title
-            if (first_line){
-                first_line = false;
-                continue;
-            }
-
-            std::stringstream is(line);
-            is >> first_cvar >> second_cvar >> potential_passed;
-
-          if (!std::isfinite(potential_passed)) {
-            throw std::runtime_error("Non-finite potential value on line " + std::to_string(line_number));
-          }
-
-          if (is.bad() || is.fail()) {
-            throw std::runtime_error("failed to read line " + std::to_string(line_number));
-          }
-
-            file_data.push_back(potential_passed);
-
-            line_number++;
-        }
-
-        // If the file data is not the same size as our arrays in the class
-        // all sorts of things could go wrong. Stop the simulation here to avoid
-        // unintended consequences.
-        if (file_data.size() != num_cvar_sample_coordinates_[0] * num_cvar_sample_coordinates_[1]) {
-            throw std::runtime_error("The " + filename + " has different dimensions from the potential");
-        }
-
-        int copy_iterator = 0;
-        for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
-            for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
-              metad_potential_(i, j) = file_data[copy_iterator++];
-            }
-        }
-        potential_file_passed.close();
+    // If the file data is not the same size as our arrays in the class
+    // all sorts of things could go wrong. Stop the simulation here to avoid
+    // unintended consequences.
+    if (file_data.size() != num_cvar_sample_coordinates_[0]) {
+      std::cout << num_cvar_sample_coordinates_[0] << " file_data size:" << file_data.size() << "\n";
+      throw std::runtime_error("The " + filename + " has different dimensions from the potential");
     }
+
+    int copy_iterator = 0;
+    for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
+      metad_potential_(i, 0) = file_data[copy_iterator];
+      copy_iterator++;
+    }
+    potential_file_passed.close();
+  }
+  // **********************************************************************************************
+  if (cvars_.size() == 2) {
+    double first_cvar, second_cvar, potential_passed;
+    std::ifstream potential_file_passed(filename.c_str());
+
+    int line_number = 0;
+    for (std::string line; getline(potential_file_passed, line);) {
+      if (string_is_comment(line)) {
+        continue;
+      }
+      // ignore the title
+      if (first_line) {
+        first_line = false;
+        continue;
+      }
+
+      std::stringstream is(line);
+      is >> first_cvar >> second_cvar >> potential_passed;
+
+      if (!std::isfinite(potential_passed)) {
+        throw std::runtime_error("Non-finite potential value on line " + std::to_string(line_number));
+      }
+
+      if (is.bad() || is.fail()) {
+        throw std::runtime_error("failed to read line " + std::to_string(line_number));
+      }
+
+      file_data.push_back(potential_passed);
+
+      line_number++;
+    }
+
+    // If the file data is not the same size as our arrays in the class
+    // all sorts of things could go wrong. Stop the simulation here to avoid
+    // unintended consequences.
+    if (file_data.size() != num_cvar_sample_coordinates_[0] * num_cvar_sample_coordinates_[1]) {
+      throw std::runtime_error("The " + filename + " has different dimensions from the potential");
+    }
+
+    int copy_iterator = 0;
+    for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
+      for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
+        metad_potential_(i, j) = file_data[copy_iterator++];
+      }
+    }
+    potential_file_passed.close();
+  }
 }
 
-void jams::MetadynamicsPotential::synchronise_shared_potential(const std::string &file_name) {
+
+void MetadynamicsPotential::synchronise_shared_potential(const std::string &file_name) {
   auto lock_file_name = file_name + ".lock";
   int lock_fd = output::lock_file(lock_file_name);
 
-  MultiArray<double, kNumCVars> shared_potential(metad_potential_.shape());
-  { // Scoping guards to make sure the hdf5 file is closed before we unlock the lock file
+  MultiArray<double, kNumCVars> shared_potential(metad_potential_.shape()); {
+    // Scoping guards to make sure the hdf5 file is closed before we unlock the lock file
     HighFive::File file(file_name, HighFive::File::ReadWrite | HighFive::File::Create);
 
     if (!file.exist("shared_potential")) {
@@ -848,7 +865,9 @@ void jams::MetadynamicsPotential::synchronise_shared_potential(const std::string
   metad_potential_ = shared_potential;
   zero(metad_potential_delta_);
 }
-void jams::MetadynamicsPotential::print_settings() const {
+
+
+void MetadynamicsPotential::print_settings() const {
   std::cout << "metad_gaussian_amplitude: " << metad_gaussian_amplitude_ << "\n";
   std::cout << "cvar_output_stride: " << cvar_output_stride_ << "\n";
   for (auto n = 0; n < cvars_.size(); ++n) {
@@ -864,6 +883,4 @@ void jams::MetadynamicsPotential::print_settings() const {
     std::cout << "num_cvar_sample_coordinates[" << n << "]: " << num_cvar_sample_coordinates_[n] << "\n";
   }
 }
-
-
-
+}

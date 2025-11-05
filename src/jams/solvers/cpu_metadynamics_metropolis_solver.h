@@ -3,20 +3,19 @@
 #ifndef INCLUDED_JAMS_SOLVERS_CPU_METADYNAMICS_METROPOLIS_SOLVER
 #define INCLUDED_JAMS_SOLVERS_CPU_METADYNAMICS_METROPOLIS_SOLVER
 
-#include "jams/solvers/cpu_monte_carlo_metropolis.h"
-
 #include "jams/metadynamics/metadynamics_potential.h"
+#include "jams/solvers/cpu_monte_carlo_metropolis.h"
 
 #include <fstream>
 #include <memory>
-#include <vector>
 
 // ==================================
 // class MetadynamicsMetropolisSolver
 // ==================================
 
+namespace jams {
 class MetadynamicsMetropolisSolver : public MetropolisMCSolver {
-private:
+  private:
     /// Pointer to collective variable object (owned by this class)
     std::unique_ptr<jams::MetadynamicsPotential> metad_potential_;
 
@@ -49,7 +48,7 @@ private:
     /// Output file for metadynamics statistics
     std::ofstream metadynamics_stats_file_;
 
-public:
+  public:
     /// CREATORS
 
     /// Default constructor
@@ -58,9 +57,11 @@ public:
     /// Default destructor
     ~MetadynamicsMetropolisSolver() override = default;
 
+
     explicit MetadynamicsMetropolisSolver(const libconfig::Setting &settings) {
       MetadynamicsMetropolisSolver::initialize(settings);
     }
+
 
     // Initializes the MetadynamicsMetropolisSolver using settings from the global
     // config. This will also create and attach a coordinate variable object
@@ -74,15 +75,18 @@ public:
 
     // Overrides the energy_difference function of MetropolisMCSolver
     // to also include the contribution from the CV potential landscape
-    double energy_difference(const int spin_index, const Vec3 &initial_Spin,
+    double energy_difference(const int spin_index,
+                             const Vec3 &initial_Spin,
                              const Vec3 &final_Spin) override;
 
     // Overrides the accept_move function of MetropolisMCSolver to also update
     // the CV object. This is because CVs are often expensive to recalculate
     // so the algorithm can be optimised by only recalculating if a spin has
     // been accepted.
-    void accept_move(const int spin_index, const Vec3 &initial_spin,
+    void accept_move(const int spin_index,
+                     const Vec3 &initial_spin,
                      const Vec3 &final_spin) override;
 };
+}
 
 #endif //INCLUDED_JAMS_SOLVERS_CPU_METADYNAMICS_METROPOLIS_SOLVER

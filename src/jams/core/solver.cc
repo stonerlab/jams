@@ -63,7 +63,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
   DEFINED_SOLVER("llg-heun-cpu", HeunLLGSolver, settings);
   DEFINED_SOLVER("monte-carlo-metropolis-cpu", MetropolisMCSolver, settings);
   DEFINED_SOLVER("monte-carlo-constrained-cpu", ConstrainedMCSolver, settings);
-  DEFINED_SOLVER("monte-carlo-metadynamics-cpu", MetadynamicsMetropolisSolver, settings);
+  DEFINED_SOLVER("monte-carlo-metadynamics-cpu", jams::MetadynamicsMetropolisSolver, settings);
 
 #if HAS_CUDA
   DEFINED_SOLVER("gse-rk4-gpu", CUDAGSERK4Solver, settings);

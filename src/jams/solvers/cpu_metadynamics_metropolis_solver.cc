@@ -1,16 +1,16 @@
 // cpu_metadynamics_metropolis_solver.cc                               -*-C++-*-
 
-#include "jams/solvers/cpu_metadynamics_metropolis_solver.h"
-
 #include "jams/containers/vec3.h"
 #include "jams/helpers/output.h"
 #include "jams/interface/config.h"
+#include "jams/solvers/cpu_metadynamics_metropolis_solver.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 
 #include <cmath>
 #include <iostream>
 #include <memory>
 
+namespace jams {
 void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings) {
   MetropolisMCSolver::initialize(settings);
 
@@ -19,8 +19,8 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
   // ---------------------------------------------------------------------------
 
   // Read the number of monte carlo steps between gaussian depositions in metadynamics
-  gaussian_deposition_stride_ = jams::config_required<int>(settings,"gaussian_deposition_stride");
-  gaussian_deposition_delay_ = jams::config_optional<int>(settings,"gaussian_deposition_delay", 0);
+  gaussian_deposition_stride_ = jams::config_required<int>(settings, "gaussian_deposition_stride");
+  gaussian_deposition_delay_ = jams::config_optional<int>(settings, "gaussian_deposition_delay", 0);
 
   output_steps_ = jams::config_optional<int>(settings, "output_steps", gaussian_deposition_stride_);
   potential_save_steps_ = jams::config_optional<int>(settings, "potential_save_steps", 0);
@@ -29,14 +29,19 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
       jams::config_optional<double>(settings, "tempering_bias_temperature", 0.0);
 
   if (!(std::isfinite(tempering_bias_temperature_) &&
-        tempering_bias_temperature_ >= 0.0)) {
+    tempering_bias_temperature_ >= 0.0)) {
     throw std::runtime_error("tempering_bias_temperature must be finite and >= 0");
-        }
+  }
 
   do_tempering_ = (tempering_bias_temperature_ > 0.0);
 
-  parallel_shared_potential_file_name_ = jams::config_optional<std::string>(settings, "parallel_shared_potential_file", "");
-  parallel_shared_potential_sync_steps_ = jams::config_optional<int>(settings, "parallel_shared_potential_sync_steps", 1000);
+  parallel_shared_potential_file_name_ = jams::config_optional<std::string>(
+    settings,
+    "parallel_shared_potential_file",
+    "");
+  parallel_shared_potential_sync_steps_ = jams::config_optional<int>(settings,
+                                                                     "parallel_shared_potential_sync_steps",
+                                                                     1000);
 
   // ---------------------------------------------------------------------------
 
@@ -70,12 +75,12 @@ void MetadynamicsMetropolisSolver::run() {
     // Set the relative amplitude of the gaussian if we are using tempering and
     // record the value in the stats file
     if (do_tempering_) {
-        relative_amplitude = exp(-(metad_potential_->base_potential(metad_potential_->cvar_coordinates()))
-                                 / (tempering_bias_temperature_ * kBoltzmannIU));
-        if (iteration_ % output_steps_  == 0) {
+      relative_amplitude = exp(-(metad_potential_->base_potential(metad_potential_->cvar_coordinates()))
+        / (tempering_bias_temperature_ * kBoltzmannIU));
+      if (iteration_ % output_steps_ == 0) {
         jams::output::open_output_file_just_in_time(metadynamics_stats_file_, "metad_stats.tsv");
         metadynamics_stats_file_ << jams::fmt::sci << iteration() << " " << relative_amplitude << std::endl;
-    }
+      }
     }
 
     // Insert the gaussian into the potential
@@ -92,28 +97,29 @@ void MetadynamicsMetropolisSolver::run() {
   }
   if (potential_save_steps_ != 0 && iteration_ % potential_save_steps_ == 0) {
     metad_potential_->output(
-    jams::output::full_path_filename_series("metad_potential.tsv", iteration_, 10));
+      jams::output::full_path_filename_series("metad_potential.tsv", iteration_, 10));
   }
 }
 
-double MetadynamicsMetropolisSolver::energy_difference(const int spin_index,
-                           const Vec3 &initial_Spin,
-                           const Vec3 &final_Spin) {
 
-// re-define the energy difference for the monte carlo solver
-// so that it uses the metadynamics potential
-return MetropolisMCSolver::energy_difference(spin_index, initial_Spin, final_Spin)
-       + metad_potential_->potential_difference(spin_index, initial_Spin, final_Spin);
+double MetadynamicsMetropolisSolver::energy_difference(const int spin_index,
+                                                       const Vec3 &initial_Spin,
+                                                       const Vec3 &final_Spin) {
+  // re-define the energy difference for the monte carlo solver
+  // so that it uses the metadynamics potential
+  return MetropolisMCSolver::energy_difference(spin_index, initial_Spin, final_Spin)
+      + metad_potential_->potential_difference(spin_index, initial_Spin, final_Spin);
 }
 
+
 void MetadynamicsMetropolisSolver::accept_move(const int spin_index,
-                       const Vec3 &initial_spin,
-                       const Vec3 &final_spin) {
-MetropolisMCSolver::accept_move(spin_index, initial_spin, final_spin);
+                                               const Vec3 &initial_spin,
+                                               const Vec3 &final_spin) {
+  MetropolisMCSolver::accept_move(spin_index, initial_spin, final_spin);
 
-// As well as updating the monte carlo solver we update the collective variable
-// which can often avoid some expensive recalculations if we tell it which
-// spin has changed and what the new value is
-metad_potential_->spin_update(spin_index, initial_spin, final_spin);
-
+  // As well as updating the monte carlo solver we update the collective variable
+  // which can often avoid some expensive recalculations if we tell it which
+  // spin has changed and what the new value is
+  metad_potential_->spin_update(spin_index, initial_spin, final_spin);
+}
 }
