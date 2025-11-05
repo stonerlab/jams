@@ -691,8 +691,8 @@ jams::MetadynamicsPotential::cvar_coordinates() {
   return coordinates;
 }
 
-void jams::MetadynamicsPotential::output() {
-  std::ofstream of(jams::output::full_path_filename("metad_potential.tsv"));
+void jams::MetadynamicsPotential::output(const std::string &filename) {
+  std::ofstream of(filename);
 
   for (auto n = 0; n < cvars_.size(); ++n) {
     of << cvar_names_[n] << " ";

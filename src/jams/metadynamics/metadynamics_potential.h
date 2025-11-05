@@ -62,7 +62,7 @@ namespace jams {
         void insert_gaussian(double relative_amplitude = 1.0);
 
         /// Output the potential landscape to a file stream.
-        void output();
+        void output(const std::string& filename);
 
         /// Returns an array of the current CV coordinates
         std::array<double,kNumCVars> cvar_coordinates();

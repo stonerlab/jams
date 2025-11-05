@@ -30,6 +30,9 @@ private:
     /// Number of solver iterations between outputing the potential.
     int output_steps_;
 
+    /// Number of solver iterations between storing the potential.
+    int potential_save_steps_;
+
     /// Toggle whether tempered metadynamics (systematically reducing the
     /// gaussian amplitude) is used.
     bool do_tempering_ = false;

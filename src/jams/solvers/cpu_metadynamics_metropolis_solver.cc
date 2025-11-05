@@ -24,6 +24,7 @@ void MetadynamicsMetropolisSolver::initialize(const libconfig::Setting &settings
   gaussian_deposition_delay_ = jams::config_optional<int>(settings,"gaussian_deposition_delay", 0);
 
   output_steps_ = jams::config_optional<int>(settings, "output_steps", gaussian_deposition_stride_);
+  potential_save_steps_ = jams::config_optional<int>(settings, "potential_save_steps", 0);
 
   tempering_bias_temperature_ =
       jams::config_optional<double>(settings, "tempering_bias_temperature", 0.0);
@@ -87,7 +88,12 @@ void MetadynamicsMetropolisSolver::run() {
   }
 
   if (iteration_ % output_steps_ == 0) {
-    metad_potential_->output();
+    metad_potential_->output(
+      jams::output::full_path_filename("metad_potential.tsv"));
+  }
+  if (potential_save_steps_ != 0 && iteration_ % potential_save_steps_ == 0) {
+    metad_potential_->output(
+    jams::output::full_path_filename_series("metad_potential.tsv", iteration_, 10));
   }
 }
 
