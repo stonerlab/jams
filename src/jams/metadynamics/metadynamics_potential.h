@@ -90,6 +90,11 @@ namespace jams {
         void print_settings();
 
     private:
+
+        double get_base_potential_nearest_value(const std::array<double, kNumCVars> &cvar_coordinates);
+
+        double get_base_potential_interpolated_value(const std::array<double, kNumCVars> &cvar_coordinates);
+
         /// Import the initial potential from file
         void import_potential(const std::string &filename); //  can handle up to two Collective Variables.
 
@@ -113,6 +118,8 @@ namespace jams {
         /// base amplitude (before any tempering) for metadynamics gaussian
         /// potentials
         double metad_gaussian_amplitude_;
+
+        bool do_metad_potential_interpolation_ = true;
 
         // --- COLLECTIVE VARIABLES
         /// vector of pointers to a CV instance for each CV dimension

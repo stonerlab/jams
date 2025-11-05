@@ -125,6 +125,8 @@ jams::MetadynamicsPotential::MetadynamicsPotential(
     const libconfig::Setting &settings) {
   cvar_output_stride_ = jams::config_optional<int>(settings, "cvars_output_steps", 10);
     std::cout << "cvar file output steps : " << cvar_output_stride_ << std::endl;
+
+  do_metad_potential_interpolation_ = config_optional<bool>(settings, "interpolation", true);
   metad_gaussian_amplitude_ = config_required<double>(settings, "gaussian_amplitude");
 
   std::string potential_filename = jams::config_optional<std::string>(settings, "potential_file", "");
@@ -392,6 +394,72 @@ void jams::MetadynamicsPotential::add_gaussian_to_landscape(
 }
 
 double jams::MetadynamicsPotential::base_potential(const std::array<double, kNumCVars> &cvar_coordinates) {
+  if (do_metad_potential_interpolation_) {
+    return get_base_potential_interpolated_value(cvar_coordinates);
+  }
+  return get_base_potential_nearest_value(cvar_coordinates);
+}
+
+double jams::MetadynamicsPotential::get_base_potential_nearest_value(
+    const std::array<double, kNumCVars> &cvar_coordinates) {
+  // Compute the nearest grid index in each CV dimension directly, using the
+  // fact that the CV grids are uniform: grid[n][k] = cvar_range_min_[n] + k * step.
+  // We map the coordinate to a floating index t, round to nearest integer, and
+  // clamp to the valid index range.
+
+  int i = 0;
+  int j = 0;
+
+  if (!cvars_.empty()) {
+    const double x        = cvar_coordinates[0];
+    const double min_x    = cvar_range_min_[0];
+    const double inv_step = cvar_inv_step_[0];
+    const int npoints_x   = num_cvar_sample_coordinates_[0];
+
+    // Floating index in [0, npoints_x-1] (in ideal arithmetic)
+    double t = (x - min_x) * inv_step;
+    // Round to nearest integer cell
+    int idx = static_cast<int>(std::floor(t + 0.5));
+
+    // Clamp to [0, npoints_x-1]
+    if (idx < 0) {
+      idx = 0;
+    } else if (idx >= npoints_x) {
+      idx = npoints_x - 1;
+    }
+    i = idx;
+  }
+
+  if (cvars_.size() == 1) {
+    // 1D case: nearest point along the single CV axis.
+    return metad_potential_(i, 0);
+  }
+
+  if (cvars_.size() == 2) {
+    const double y        = cvar_coordinates[1];
+    const double min_y    = cvar_range_min_[1];
+    const double inv_step = cvar_inv_step_[1];
+    const int npoints_y   = num_cvar_sample_coordinates_[1];
+
+    double t = (y - min_y) * inv_step;
+    int idy = static_cast<int>(std::floor(t + 0.5));
+
+    if (idy < 0) {
+      idy = 0;
+    } else if (idy >= npoints_y) {
+      idy = npoints_y - 1;
+    }
+    j = idy;
+
+    // 2D case: nearest point on the 2D grid.
+    return metad_potential_(i, j);
+  }
+
+  assert(false && "Unreachable code: get_base_potential_nearest_value only supports up to kNumCVars dimensions");
+  UNREACHABLE();
+}
+
+double jams::MetadynamicsPotential::get_base_potential_interpolated_value(const std::array<double, kNumCVars> &cvar_coordinates) {
   const auto lower_indices = potential_grid_indices(cvar_coordinates);
 
 #ifndef NDEBUG
@@ -448,7 +516,7 @@ double jams::MetadynamicsPotential::base_potential(const std::array<double, kNum
     return maths::bilinear_interpolation(x, y, grid0[i0], grid1[j0], grid0[i1], grid1[j1], Q00, Q01, Q10, Q11);
   }
 
-  assert(false && "Unreachable code");
+  assert(false && "Unreachable code: base_potential only supports up to kNumCVars dimensions");
   UNREACHABLE();
 }
 
