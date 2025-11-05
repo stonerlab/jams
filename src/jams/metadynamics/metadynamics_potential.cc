@@ -691,7 +691,7 @@ jams::MetadynamicsPotential::cvar_coordinates() {
   return coordinates;
 }
 
-void jams::MetadynamicsPotential::output(const std::string &filename) {
+void jams::MetadynamicsPotential::output(const std::string &filename) const {
   std::ofstream of(filename);
 
   for (auto n = 0; n < cvars_.size(); ++n) {
@@ -706,7 +706,9 @@ void jams::MetadynamicsPotential::output(const std::string &filename) {
       of << cvar_sample_coordinates_[0][i] << " " << metad_potential_(i, 0) << "\n";
     }
     return;
-  } else if (cvars_.size() == 2) {
+  }
+
+  if (cvars_.size() == 2) {
     for (auto i = 0; i < num_cvar_sample_coordinates_[0]; ++i) {
       for (auto j = 0; j < num_cvar_sample_coordinates_[1]; ++j) {
         of << cvar_sample_coordinates_[0][i] << " " << cvar_sample_coordinates_[1][j] << " " << metad_potential_(i, j) << "\n";
@@ -846,7 +848,7 @@ void jams::MetadynamicsPotential::synchronise_shared_potential(const std::string
   metad_potential_ = shared_potential;
   zero(metad_potential_delta_);
 }
-void jams::MetadynamicsPotential::print_settings() {
+void jams::MetadynamicsPotential::print_settings() const {
   std::cout << "metad_gaussian_amplitude: " << metad_gaussian_amplitude_ << "\n";
   std::cout << "cvar_output_stride: " << cvar_output_stride_ << "\n";
   for (auto n = 0; n < cvars_.size(); ++n) {

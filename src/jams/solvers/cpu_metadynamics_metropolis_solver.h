@@ -22,29 +22,29 @@ private:
 
     /// Number of solver iterations between gaussian depositions into the
     /// collective variable potential landscape.
-    int gaussian_deposition_stride_;
+    int gaussian_deposition_stride_{};
 
     /// Number of iterations to run before we start inserting gaussians
-    int gaussian_deposition_delay_;
+    int gaussian_deposition_delay_{};
 
     /// Number of solver iterations between outputing the potential.
-    int output_steps_;
+    int output_steps_{};
 
     /// Number of solver iterations between storing the potential.
-    int potential_save_steps_;
+    int potential_save_steps_{};
 
     /// Toggle whether tempered metadynamics (systematically reducing the
     /// gaussian amplitude) is used.
     bool do_tempering_ = false;
 
     /// Bias temperature for tempered metadynamics algorithm.
-    double tempering_bias_temperature_;
+    double tempering_bias_temperature_{};
 
     /// File name for the shared potential file for parallel calculations
     std::string parallel_shared_potential_file_name_;
 
     /// Number of steps between synchronising the potential with the shared file for parallel calculations
-    int parallel_shared_potential_sync_steps_;
+    int parallel_shared_potential_sync_steps_{};
 
     /// Output file for metadynamics statistics
     std::ofstream metadynamics_stats_file_;
@@ -58,8 +58,8 @@ public:
     /// Default destructor
     ~MetadynamicsMetropolisSolver() override = default;
 
-    inline explicit MetadynamicsMetropolisSolver(const libconfig::Setting &settings) {
-      initialize(settings);
+    explicit MetadynamicsMetropolisSolver(const libconfig::Setting &settings) {
+      MetadynamicsMetropolisSolver::initialize(settings);
     }
 
     // Initializes the MetadynamicsMetropolisSolver using settings from the global

@@ -13,7 +13,7 @@ namespace jams {
     class MetadynamicsPotential {
     public:
         // Maximum number of CVar dimensions supported by the class
-        static const int kNumCVars = 2;
+        static constexpr int kNumCVars = 2;
 
         ///
         /// Boundary condition types of metadynamics CV axes.
@@ -62,7 +62,7 @@ namespace jams {
         void insert_gaussian(double relative_amplitude = 1.0);
 
         /// Output the potential landscape to a file stream.
-        void output(const std::string& filename);
+        void output(const std::string& filename) const;
 
         /// Returns an array of the current CV coordinates
         std::array<double,kNumCVars> cvar_coordinates();
@@ -87,7 +87,7 @@ namespace jams {
         /// Merge potential with a shared potential stored in file
         void synchronise_shared_potential(const std::string& file_name);
 
-        void print_settings();
+        void print_settings() const;
 
     private:
 
@@ -117,7 +117,7 @@ namespace jams {
 
         /// base amplitude (before any tempering) for metadynamics gaussian
         /// potentials
-        double metad_gaussian_amplitude_;
+        double metad_gaussian_amplitude_{};
 
         bool do_metad_potential_interpolation_ = true;
 
@@ -144,10 +144,10 @@ namespace jams {
         std::vector<std::vector<double>> cvar_sample_coordinates_;
 
         /// number of discrete CV samples in each CV dimension
-        std::array<int,kNumCVars> num_cvar_sample_coordinates_;
+        std::array<int,kNumCVars> num_cvar_sample_coordinates_{};
 
         /// number of iterations between CV outputs to file
-        int cvar_output_stride_;
+        int cvar_output_stride_{};
 
         /// CV output file
         std::ofstream cvar_output_file_;
@@ -164,19 +164,19 @@ namespace jams {
         // --- --- Restoring boundary conditions
 
         /// lower CV coordinate at which to apply restoring boundary conditions
-        std::array<double,kNumCVars> restoring_bc_lower_threshold_;
+        std::array<double,kNumCVars> restoring_bc_lower_threshold_{};
 
         /// upper CV coordinate at which to apply restoring boundary conditions
-        std::array<double,kNumCVars> restoring_bc_upper_threshold_;
+        std::array<double,kNumCVars> restoring_bc_upper_threshold_{};
 
         /// lower CV coordinate at which to apply mirror boundary conditions
-        std::array<double,kNumCVars> mirror_bc_lower_threshold_;
+        std::array<double,kNumCVars> mirror_bc_lower_threshold_{};
 
         /// upper CV coordinate at which to apply mirror boundary conditions
-        std::array<double,kNumCVars> mirror_bc_upper_threshold_;
+        std::array<double,kNumCVars> mirror_bc_upper_threshold_{};
 
         /// restoring boundary condition spring constant
-        std::array<double,kNumCVars> restoring_bc_spring_constant_;
+        std::array<double,kNumCVars> restoring_bc_spring_constant_{};
 
         // --- --- Hard boundary conditions
 

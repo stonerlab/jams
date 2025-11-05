@@ -5,7 +5,6 @@
 #include "jams/containers/vec3.h"
 #include "jams/helpers/output.h"
 #include "jams/interface/config.h"
-#include "jams/metadynamics/collective_variable_factory.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
 
 #include <cmath>
