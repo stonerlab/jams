@@ -196,8 +196,8 @@ inline constexpr auto cross_norm_squared(const Vec<T1,3>& a, const Vec<T2,3>& b)
 
 /// Returns the scalar triple product a . (b x c)
 template <typename T1, typename T2, typename T3>
-inline constexpr auto scalar_triple_product(const Vec<T1,3>& a, const Vec<T2,3>& b, const Vec<T3,3>& c) -> decltype(a[0] * b[0] * c[0]) {
-  return dot(a, cross(b, c));
+inline constexpr auto scalar_triple_product(const Vec<T1,3>& a, const Vec<T2,3>& b, const Vec<T3,3>& c) noexcept -> decltype(a[0] * b[0] * c[0]) {
+  return a[0]*(b[1]*c[2] - b[2]*c[1]) + a[1]*(b[2]*c[0] - b[0]*c[2]) + a[2]*(b[0]*c[1] - b[1]*c[0]);
 }
 
 /// Returns a Vec from the vector triple product a x (b x c)
