@@ -6,23 +6,49 @@
 #define JAMS_INTERFACE_SPARSE_BLAS_H
 
 #include <cstring>
+#include <cmath>
+#include <vector>
+#include <algorithm>
 
 #include "jams/interface/openmp.h"
 
 namespace jams {
         template<typename MatType, typename VecType>
-        [[gnu::hot]]
-        VecType Xcsrmv_general_row(
-            const MatType *csr_val,
-            const int *csr_col,
-            const int *csr_row,
-            const VecType *x,
+        [[gnu::hot, gnu::always_inline]]
+        inline VecType Xcsrmv_general_row(
+            const MatType * __restrict csr_val,
+            const int     * __restrict csr_col,
+            const int     * __restrict csr_row,
+            const VecType * __restrict x,
             const int row) {
 
-          VecType sum = 0.0;
-          for (auto j = csr_row[row]; j < csr_row[row + 1]; ++j) {
-            sum += x[csr_col[j]] * csr_val[j];
+          const int start = csr_row[row];
+          const int end   = csr_row[row + 1];
+          const int len   = end - start;
+
+          if (len <= 0) {
+            return static_cast<VecType>(0.0);
           }
+
+          const MatType * __restrict val = csr_val + start;
+          const int     * __restrict col = csr_col + start;
+
+          VecType sum = static_cast<VecType>(0.0);
+
+          // Hint the compiler to vectorise; gather may still limit speed but this
+          // helps on compilers with OpenMP SIMD support.
+          #if defined(_OPENMP)
+          #pragma omp simd reduction(+:sum)
+          #endif
+          for (int k = 0; k < len; ++k) {
+            const VecType vx = x[col[k]];
+            #if defined(__FMA__) || defined(__FMA4__) || defined(__AVX2__)
+              sum = std::fma(static_cast<VecType>(val[k]), vx, sum);
+            #else
+              sum += vx * static_cast<VecType>(val[k]);
+            #endif
+          }
+
           return sum;
         }
 
@@ -60,11 +86,11 @@ namespace jams {
             const VecType &alpha,
             const VecType &beta,
             const int &m,
-            const MatType *csr_val,
-            const int *csr_col,
-            const int *csr_row,
-            const VecType *x,
-            double *y) {
+            const MatType * __restrict csr_val,
+            const int * __restrict csr_col,
+            const int * __restrict csr_row,
+            const VecType * __restrict x,
+            double * __restrict y) {
 
           if (alpha == 1.0 && beta == 0.0) {
             OMP_PARALLEL_FOR
@@ -93,26 +119,61 @@ namespace jams {
             const VecType *x,
             double *y) {
 
-          if (alpha == 1.0 && beta == 0.0) {
-            memset(y, 0.0, sizeof(double)*m);
+          // Build row boundaries (row_ptr) from COO rows in O(nnz) by a single scan.
+          // Assumes coo_row is sorted by row.
+          std::vector<int> row_ptr;
+          row_ptr.resize(m + 1);
+          int k = 0;
+          for (int r = 0; r < m; ++r) {
+            row_ptr[r] = k;
+            while (k < nnz && coo_row[k] == r) { ++k; }
+          }
+          row_ptr[m] = k; // should equal nnz
+
+          if (alpha == static_cast<VecType>(1.0) && beta == static_cast<VecType>(0.0)) {
+            // y = A * x (COO), rows are independent
+            std::fill_n(y, m, 0.0);
             OMP_PARALLEL_FOR
-            for (auto i = 0; i < nnz; ++i) {
-              auto row = coo_row[i];
-              auto col = coo_col[i];
-              auto val = coo_val[i];
-              y[row] += x[col] * val;
+            for (int r = 0; r < m; ++r) {
+              const int start = row_ptr[r];
+              const int end   = row_ptr[r + 1];
+              double sum = 0.0;
+              #if defined(_OPENMP)
+              #pragma omp simd reduction(+:sum)
+              #endif
+              for (int j = start; j < end; ++j) {
+                const auto vx = x[coo_col[j]];
+                #if defined(__FMA__) || defined(__FMA4__) || defined(__AVX2__)
+                  sum = std::fma(static_cast<double>(coo_val[j]), static_cast<double>(vx), sum);
+                #else
+                  sum += static_cast<double>(vx) * static_cast<double>(coo_val[j]);
+                #endif
+              }
+              y[r] = sum;
             }
           } else {
+            // y = beta*y + alpha*A*x (COO)
             OMP_PARALLEL_FOR
-            for (auto i = 0; i < m; ++i) {
-              y[i] *= beta;
+            for (int r = 0; r < m; ++r) {
+              y[r] *= static_cast<double>(beta);
             }
             OMP_PARALLEL_FOR
-            for (auto i = 0; i < nnz; ++i) {
-              auto row = coo_row[i];
-              auto col = coo_col[i];
-              auto val = coo_val[i];
-              y[row] += alpha * x[col] * val;
+            for (int r = 0; r < m; ++r) {
+              const int start = row_ptr[r];
+              const int end   = row_ptr[r + 1];
+              double sum = 0.0;
+              #if defined(_OPENMP)
+              #pragma omp simd reduction(+:sum)
+              #endif
+              for (int j = start; j < end; ++j) {
+                const auto vx = x[coo_col[j]];
+                #if defined(__FMA__) || defined(__FMA4__) || defined(__AVX2__)
+                  sum = std::fma(static_cast<double>(coo_val[j]), static_cast<double>(vx), sum);
+                #else
+                  sum += static_cast<double>(vx) * static_cast<double>(coo_val[j]);
+                #endif
+              }
+              y[r] += static_cast<double>(alpha) * sum;
             }
           }
         }
