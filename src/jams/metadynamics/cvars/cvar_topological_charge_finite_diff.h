@@ -42,6 +42,12 @@
 //
 
 namespace jams {
+    struct FDWeights {
+        int index;
+        double wx;
+        double wy;
+    };
+
     class CVarTopologicalChargeFiniteDiff : public CachingCollectiveVariable {
     public:
         CVarTopologicalChargeFiniteDiff() = default;
@@ -61,6 +67,12 @@ namespace jams {
     private:
 
         double local_topological_charge(const int i) const;
+        double local_topological_charge_difference_for_site(
+        const std::vector<jams::FDWeights> &weights,
+        int site_index,
+        int moving_index,
+        const Vec3 &spin_initial,
+        const Vec3 &spin_final) const;
         double topological_charge_difference(int index,
                                                    const Vec3 &spin_initial,
                                                    const Vec3 &spin_final) const;
@@ -74,6 +86,7 @@ namespace jams {
         std::vector<jams::VectorSet<int>> stencil_neighbour_indices_;
 
         // basically a CSR matrix
+        std::vector<std::vector<FDWeights>> fd_weights_;
         std::vector<std::vector<int>> dx_indices_;
         std::vector<std::vector<double>> dx_values_;
 

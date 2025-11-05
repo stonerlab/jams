@@ -279,7 +279,40 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
     }
   }
 
+  fd_weights_.clear();
+  fd_weights_.resize(globals::num_spins);
 
+  for (int i = 0; i < globals::num_spins; ++i) {
+    const auto &dx_idx = dx_indices_[i];
+    const auto &dx_val = dx_values_[i];
+    const auto &dy_idx = dy_indices_[i];
+    const auto &dy_val = dy_values_[i];
+
+    // Build a temporary map idx -> (wx, wy).
+    // Since stencil sizes are tiny (<= 12), a simple vector search is fine.
+    std::vector<FDWeights> tmp;
+    tmp.reserve(dx_idx.size() + dy_idx.size());
+
+    auto add_weight = [&](int idx, double wx, double wy) {
+      for (auto &w : tmp) {
+        if (w.index == idx) {
+          w.wx += wx;
+          w.wy += wy;
+          return;
+        }
+      }
+      tmp.push_back(FDWeights{idx, wx, wy});
+    };
+
+    for (std::size_t n = 0; n < dx_idx.size(); ++n) {
+      add_weight(dx_idx[n], dx_val[n], 0.0);
+    }
+    for (std::size_t n = 0; n < dy_idx.size(); ++n) {
+      add_weight(dy_idx[n], 0.0, dy_val[n]);
+    }
+
+    fd_weights_[i] = std::move(tmp);
+  }
 }
 
 std::string jams::CVarTopologicalChargeFiniteDiff::name() {
@@ -313,25 +346,82 @@ double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_value() {
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(int i) const {
-  const auto &dx_idx = dx_indices_[i];
-  const auto &dx_val = dx_values_[i];
-  const auto &dy_idx = dy_indices_[i];
-  const auto &dy_val = dy_values_[i];
+  const auto &weights = fd_weights_[i];
 
   Vec3 ds_x{0.0, 0.0, 0.0};
-  for (std::size_t n = 0; n < dx_idx.size(); ++n) {
-    ds_x += dx_val[n] * montecarlo::get_spin(dx_idx[n]);
-  }
-
   Vec3 ds_y{0.0, 0.0, 0.0};
-  for (std::size_t n = 0; n < dy_idx.size(); ++n) {
-    ds_y += dy_val[n] * montecarlo::get_spin(dy_idx[n]);
+
+  for (const auto &w : weights) {
+    const Vec3 s = montecarlo::get_spin(w.index);
+    if (w.wx != 0.0) {
+      ds_x = fma(w.wx, s, ds_x);
+    }
+    if (w.wy != 0.0) {
+      ds_y = fma(w.wy, s, ds_y);
+    }
   }
 
   const Vec3 s_i = montecarlo::get_spin(i);
-
-  return dot(s_i, cross(ds_x, ds_y));
+  return scalar_triple_product(s_i, ds_x, ds_y);
 }
+
+double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge_difference_for_site(
+    const std::vector<jams::FDWeights> &weights,
+    int site_index,
+    int moving_index,
+    const Vec3 &spin_initial,
+    const Vec3 &spin_final) const {
+
+  Vec3 ds_x_init{0.0, 0.0, 0.0};
+  Vec3 ds_y_init{0.0, 0.0, 0.0};
+  Vec3 ds_x_final{0.0, 0.0, 0.0};
+  Vec3 ds_y_final{0.0, 0.0, 0.0};
+
+  for (const auto &w : weights) {
+    Vec3 s_cur;
+    Vec3 s_init;
+    Vec3 s_final;
+
+    if (w.index == moving_index) {
+      // For the moving spin, use the provided initial/final values.
+      s_init = spin_initial;
+      s_final = spin_final;
+    } else {
+      // For all other spins, the configuration is unchanged.
+      s_cur = montecarlo::get_spin(w.index);
+      s_init = s_cur;
+      s_final = s_cur;
+    }
+
+    if (w.wx != 0.0) {
+      ds_x_init  = fma(w.wx, s_init,  ds_x_init);
+      ds_x_final = fma(w.wx, s_final, ds_x_final);
+    }
+    if (w.wy != 0.0) {
+      ds_y_init  = fma(w.wy, s_init,  ds_y_init);
+      ds_y_final = fma(w.wy, s_final, ds_y_final);
+    }
+  }
+
+  // Central spin at this site.
+  Vec3 s_i_init;
+  Vec3 s_i_final;
+
+  if (site_index == moving_index) {
+    s_i_init  = spin_initial;
+    s_i_final = spin_final;
+  } else {
+    const Vec3 s_i = montecarlo::get_spin(site_index);
+    s_i_init  = s_i;
+    s_i_final = s_i;
+  }
+
+  const double q_init  = scalar_triple_product(s_i_init,  ds_x_init,  ds_y_init);
+  const double q_final = scalar_triple_product(s_i_final, ds_x_final, ds_y_final);
+
+  return q_final - q_init;
+}
+
 
 double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int index,
                                                                   const Vec3 &spin_initial,
@@ -340,23 +430,20 @@ double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int 
   // and final spin states. When one spin is changed, the topological charge on
   // all sites connected to it through the finite difference stencil also changes.
   // We therefore calculate the difference of the topological charge of the whole
-  // stencil.
+  // stencil, but without modifying the global spin configuration.
 
+  double delta_charge = 0.0;
+
+  // Contribution from the site whose spin is being changed.
+  delta_charge += local_topological_charge_difference_for_site(
+      fd_weights_[index], index, index, spin_initial, spin_final);
+
+  // Contributions from all stencil neighbours that depend on this spin.
   const auto &stencil_nbrs = stencil_neighbour_indices_[index];
-
-  montecarlo::set_spin(index, spin_initial);
-  double initial_charge = local_topological_charge(index);
   for (int n : stencil_nbrs) {
-    initial_charge += local_topological_charge(n);
+    delta_charge += local_topological_charge_difference_for_site(
+        fd_weights_[n], n, index, spin_initial, spin_final);
   }
 
-  montecarlo::set_spin(index, spin_final);
-  double final_charge = local_topological_charge(index);
-  for (int n : stencil_nbrs) {
-    final_charge += local_topological_charge(n);
-  }
-
-  montecarlo::set_spin(index, spin_initial);
-
-  return (final_charge - initial_charge) / (4.0 * kPi);
+  return delta_charge / (4.0 * kPi);
 }
