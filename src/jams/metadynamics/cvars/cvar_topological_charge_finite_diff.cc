@@ -391,7 +391,7 @@ double jams::CVarTopologicalChargeFiniteDiff::spin_move_trial_value(
     trial_deltas_.push_back(SiteDelta{j, ddsx, ddsy, dq});
   }
 
-  const double trial_value = current_value + dq_sum / (4.0 * kPi);
+  const double trial_value = current_value + dq_sum * kOne_FourPi;
   set_cache_values(i, spin_initial, spin_trial, current_value, trial_value);
   return trial_value;
 }
@@ -410,7 +410,7 @@ void jams::CVarTopologicalChargeFiniteDiff::spin_move_accepted(
   }
 
   // Advance the scalar cache (value is managed by the base class through set_cache_values).
-  const double new_value = cached_value() + dq_sum / (4.0 * kPi);
+  const double new_value = cached_value() + dq_sum * kOne_FourPi;
 
   // Set current and trial values to the same new_value to avoid any mismatch on next call.
   set_cache_values(i, spin_initial, spin_trial, new_value, new_value);
@@ -450,7 +450,7 @@ double jams::CVarTopologicalChargeFiniteDiff::calculate_expensive_value() {
     total += q;
   }
 
-  return total / (4.0 * kPi);
+  return total * kOne_FourPi;
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(int i) const {
@@ -553,5 +553,5 @@ double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int 
         fd_weights_[n], n, index, spin_initial, spin_final);
   }
 
-  return delta_charge / (4.0 * kPi);
+  return delta_charge * kOne_FourPi;
 }

@@ -13,6 +13,7 @@ constexpr double kSqrtTwo               = 1.41421356237309504880168872420969808;
 constexpr double kSqrtTwo_Pi            = 0.797884560802865355879892119868763737;
 constexpr double kSqrtOne_Two           = 0.707106781186547524400844362104849039;
 constexpr double kOne_SqrtTwoPi         = 0.398942280401432677939946059934381868;
+constexpr double kOne_FourPi            = 0.079577471545947667884441881686257181;
 constexpr double kPi                    = 3.14159265358979323846264338327950288;
 constexpr double kTwoPi                 = 2.0*kPi;
 constexpr double kElectronGFactor       = 2.0023193043625; //         || NIST 2018 CODATA
