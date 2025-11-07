@@ -43,6 +43,9 @@ namespace jams {
         std::vector<NearTreeDataType>
         neighbours(const Vec3 &r, const double &radius) const;
 
+        std::vector<NearTreeDataType>
+        shell(const Vec3 &r, const double &radius, const double& width) const;
+
         // Return a the number of neighbours within radius of point r.
         // We assume the point r is on a site as so we subtract 1 from the number
         // of points with the sphere.
