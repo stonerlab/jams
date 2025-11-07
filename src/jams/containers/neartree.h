@@ -44,14 +44,24 @@ namespace jams {
         template<typename FType, class FFuncType>
         friend void swap(NearTree<FType, FFuncType>& first, NearTree<FType, FFuncType>& second);
 
+
+        NearTree(const NearTree&) = delete;
+        NearTree& operator=(const NearTree&) = delete;
+
         NearTree& operator=(NearTree other) {
           swap(*this, other);
           return *this;
         }
 
         NearTree(NearTree&& other) noexcept
-        : NearTree(other.norm_functor) {
+        : left(nullptr), right(nullptr), left_branch(nullptr), right_branch(nullptr),
+          max_distance_left(-1), max_distance_right(-1), norm_functor(std::move(other.norm_functor)) {
           swap(*this, other);
+        }
+
+        NearTree& operator=(NearTree&& other) noexcept {
+          if (this != &other) swap(*this, other);
+          return *this;
         }
 
         explicit NearTree(FuncType func);
