@@ -473,4 +473,4 @@ namespace jams {
     }
 }
 
-#endif  // JAMS_CORE_LATTICE_H
+#endif  // JAMS_CORE_NEARTREE_H
