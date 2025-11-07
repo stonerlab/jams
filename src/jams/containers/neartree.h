@@ -446,6 +446,7 @@ namespace jams {
       swap(first.left, second.left);
       swap(first.right, second.right);
       swap(first.left_branch, second.left_branch);
+      swap(first.right_branch, second.right_branch);
       swap(first.max_distance_left, second.max_distance_left);
       swap(first.max_distance_right, second.max_distance_right);
       swap(first.norm_functor, second.norm_functor);
