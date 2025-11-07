@@ -62,7 +62,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     }
 
     if (!settings.exists("interactions")) {
-      jams::ConfigException(settings, "no 'interactions' setting in ExchangeNeartree hamiltonian");
+      throw jams::ConfigException(settings, "no 'interactions' setting in ExchangeNeartree hamiltonian");
     }
 
     interaction_list_.resize(globals::lattice->num_materials());
