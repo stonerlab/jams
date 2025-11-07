@@ -270,14 +270,18 @@ namespace jams {
       bool is_nearer = false;
       // first test each of the left and right positions to see
       // if one holds a point nearer than the nearest so far.
+
+      const auto norm_left = norm_functor(origin, *left);
+      const auto norm_right = norm_functor(origin, *right);
+
       if ((left != nullptr) &&
-          ((tmp_radius = (norm_functor(origin, *left))) <= radius)) {
+          ((tmp_radius = norm_left) <= radius)) {
         radius = tmp_radius;
         closest = *left;
         is_nearer = true;
       }
       if ((right != nullptr) &&
-          ((tmp_radius = (norm_functor(origin, *right))) <= radius)) {
+          ((tmp_radius = norm_right) <= radius)) {
         radius = tmp_radius;
         closest = *right;
         is_nearer = true;
@@ -287,12 +291,12 @@ namespace jams {
       // rule is used to test whether it's even necessary to
       // descend.
       if ((left_branch != nullptr) &&
-          ((radius + max_distance_left) >= (norm_functor(origin, *left)))) {
+          ((radius + max_distance_left) >= norm_left)) {
         is_nearer |= left_branch->nearest(radius, closest, origin);
       }
 
       if ((right_branch != nullptr) &&
-          ((radius + max_distance_right) >= (norm_functor(origin, *right)))) {
+          ((radius + max_distance_right) >= norm_right)) {
         is_nearer |= right_branch->nearest(radius, closest, origin);
       }
       return (is_nearer);
@@ -306,18 +310,21 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
+      const auto norm_left = norm_functor(origin, *left);
+      const auto norm_right = norm_functor(origin, *right);
+
       #ifdef SAFE_FLOAT_COMPARISON
-      if ((left != nullptr) && !definately_greater_than(norm_functor(origin, *left), radius, epsilon)) {
+      if ((left != nullptr) && !definately_greater_than(norm_left, radius, epsilon)) {
         closest.push_back(*left); // It's a keeper
       }
-      if ((right != nullptr) && !definately_greater_than(norm_functor(origin, *right), radius, epsilon)) {
+      if ((right != nullptr) && !definately_greater_than(norm_right, radius, epsilon)) {
         closest.push_back(*right); // It's a keeper
       }
       #else
-      if ((left != nullptr) && (norm_functor(origin, *left) <= radius)) {
+      if ((left != nullptr) && (norm_left <= radius)) {
         closest.push_back(*left); // It's a keeper
       }
-      if ((right != nullptr) && (norm_functor(origin, *right) <= radius)) {
+      if ((right != nullptr) && (norm_right <= radius)) {
         closest.push_back(*right); // It's a keeper
       }
       #endif
@@ -328,21 +335,21 @@ namespace jams {
       //
       #ifdef SAFE_FLOAT_COMPARISON
       if ((left_branch != nullptr) &&
-          !definately_greater_than(norm_functor(origin, *left), (radius + max_distance_left), epsilon)) {
+          !definately_greater_than(norm_left, (radius + max_distance_left), epsilon)) {
         left_branch->in_radius(radius, closest, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
-          !definately_greater_than(norm_functor(origin, *right), (radius + max_distance_right), epsilon)) {
+          !definately_greater_than(norm_right, (radius + max_distance_right), epsilon)) {
         right_branch->in_radius(radius, closest, origin, epsilon);
       }
       #else
       if ((left_branch != nullptr) &&
-          (radius + max_distance_left) >= norm_functor(origin, *left)) {
-        left_branch->in_radius(radius, closest, origin);
+          (radius + max_distance_left) >= norm_left) {
+        left_branch->in_radius(radius, closest, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
-          (radius + max_distance_right) >= norm_functor(origin, *right)) {
-        right_branch->in_radius(radius, closest, origin);
+          (radius + max_distance_right) >= norm_right) {
+        right_branch->in_radius(radius, closest, origin, epsilon);
       }
       #endif
     }
@@ -354,14 +361,17 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
+      const auto norm_left = norm_functor(origin, *left);
+      const auto norm_right = norm_functor(origin, *right);
+
       if ((left != nullptr)
-      && !definately_greater_than(norm_functor(origin, *left), outer_radius, epsilon)
-        && definately_greater_than(norm_functor(origin, *left), inner_radius, epsilon)) {
+      && !definately_greater_than(norm_left, outer_radius, epsilon)
+        && definately_greater_than(norm_left, inner_radius, epsilon)) {
         closest.push_back(*left); // It's a keeper
       }
       if ((right != nullptr)
-          && !definately_greater_than(norm_functor(origin, *right), outer_radius, epsilon)
-          && definately_greater_than(norm_functor(origin, *right), inner_radius, epsilon)) {
+          && !definately_greater_than(norm_right, outer_radius, epsilon)
+          && definately_greater_than(norm_right, inner_radius, epsilon)) {
         closest.push_back(*right); // It's a keeper
       }
       //
@@ -371,11 +381,11 @@ namespace jams {
       //
 
       if ((left_branch != nullptr) &&
-          !definately_greater_than(norm_functor(origin, *left), (outer_radius + max_distance_left), epsilon)) {
+          !definately_greater_than(norm_left, (outer_radius + max_distance_left), epsilon)) {
         left_branch->in_annulus(inner_radius, outer_radius, closest, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
-          !definately_greater_than(norm_functor(origin, *right), (outer_radius + max_distance_right), epsilon)) {
+          !definately_greater_than(norm_right, (outer_radius + max_distance_right), epsilon)) {
         right_branch->in_annulus(inner_radius, outer_radius, closest, origin, epsilon);
       }
     }
@@ -439,11 +449,11 @@ namespace jams {
       #else
       if ((left_branch != nullptr) &&
           (radius + max_distance_left) >= norm_functor(origin, *left)) {
-        num_neighbours += left_branch->num_neighbours_in_radius(radius, origin);
+        num_neighbours += left_branch->num_neighbours_in_radius(radius, origin, epsilon);
       }
       if ((right_branch != nullptr) &&
           (radius + max_distance_right) >= norm_functor(origin, *right)) {
-        num_neighbours += right_branch->num_neighbours_in_radius(radius, origin);
+        num_neighbours += right_branch->num_neighbours_in_radius(radius, origin, epsilon);
       }
       #endif
       return num_neighbours;
