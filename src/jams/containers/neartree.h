@@ -271,8 +271,8 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the nearest so far.
 
-      const auto norm_left = norm_functor(origin, *left);
-      const auto norm_right = norm_functor(origin, *right);
+      const auto norm_left = left != nullptr ? norm_functor(origin, *left) : 0.0;
+      const auto norm_right = right != nullptr ? norm_functor(origin, *right) : 0.0;
 
       if ((left != nullptr) &&
           ((tmp_radius = norm_left) <= radius)) {
@@ -310,8 +310,8 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
-      const auto norm_left = norm_functor(origin, *left);
-      const auto norm_right = norm_functor(origin, *right);
+      const auto norm_left = left != nullptr ? norm_functor(origin, *left) : 0.0;
+      const auto norm_right = right != nullptr ? norm_functor(origin, *right) : 0.0;
 
       #ifdef SAFE_FLOAT_COMPARISON
       if ((left != nullptr) && !definately_greater_than(norm_left, radius, epsilon)) {
@@ -361,8 +361,8 @@ namespace jams {
       // first test each of the left and right positions to see
       // if one holds a point nearer than the search radius.
 
-      const auto norm_left = norm_functor(origin, *left);
-      const auto norm_right = norm_functor(origin, *right);
+      const auto norm_left = left != nullptr ? norm_functor(origin, *left) : 0.0;
+      const auto norm_right = right != nullptr ? norm_functor(origin, *right) : 0.0;
 
       if ((left != nullptr)
       && !definately_greater_than(norm_left, outer_radius, epsilon)
