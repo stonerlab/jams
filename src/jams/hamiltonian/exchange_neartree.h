@@ -7,10 +7,9 @@
 #include <jams/containers/interaction_list.h>
 
 struct InteractionNT {
-    int material[2];
-    double inner_radius;
-    double outer_radius;
-    double value;
+    std::pair<int, int> material;
+    double rij;
+    double Jij;
 };
 
 class ExchangeNeartreeHamiltonian : public SparseInteractionHamiltonian {
@@ -22,7 +21,7 @@ public:
 private:
     InteractionList interaction_list_;
     double energy_cutoff_;
-    double distance_tolerance_;
+    double shell_width_;
 };
 
 #endif  // JAMS_HAMILTONIAN_EXCHANGE_DISTANCE_H
