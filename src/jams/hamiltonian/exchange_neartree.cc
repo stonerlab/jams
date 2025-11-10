@@ -38,6 +38,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     shell_width_ = jams::config_optional<double>(settings, "shell_width", 1e-3);
     std::cout << "  shell_width " << shell_width_ << "\n";
+    shell_width_ *= input_distance_unit_conversion_;
 
     // check that no atoms in the unit cell are closer together than the shell width
     for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
@@ -72,7 +73,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
         throw std::runtime_error("exchange neartree interaction " +  std::to_string(i) + ": material " + type_name_B + " does not exist in the config");
       }
 
-      double radius = settings["interactions"][i][2];
+      double radius = double(settings["interactions"][i][2]) * input_distance_unit_conversion_;
 
       if (radius > max_radius) {
         max_radius = radius;
