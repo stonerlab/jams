@@ -95,6 +95,8 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
     neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
+    auto cartesian_positions = globals::lattice->lattice_site_positions_cart();
+
     int counter = 0;
     std::vector<int> seen_stamp(globals::num_spins, -1);
     for (auto i = 0; i < globals::num_spins; ++i) {
@@ -103,7 +105,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       // for (const auto& interaction : interaction_list_[type_i]) {
       for (const auto& [types, radius, Jij] : interaction_list_[type_i]) {
         assert(types.first != type_i);
-        auto neighbours = neartree.shell(globals::lattice->lattice_site_position_cart(i), radius, shell_width_);
+        auto neighbours = neartree.shell(cartesian_positions[i], radius, shell_width_);
         for (const auto& [rij, j] : neighbours) {
           if (i == j) {
             continue;
