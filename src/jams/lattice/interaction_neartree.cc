@@ -26,6 +26,12 @@ jams::InteractionNearTree::neighbours(const Vec3 &r, const double &radius) const
   return neartree_.find_in_annulus(epsilon_, radius, {r, 0}, epsilon_);
 }
 
+std::vector<jams::InteractionNearTree::NearTreeDataType>
+jams::InteractionNearTree::shell(const Vec3 &r, const double &radius, const double& width) const {
+  assert(radius <= r_cutoff_);
+  return neartree_.find_in_annulus(radius - 0.5 * width, radius + 0.5 * width, {r, 0}, epsilon_);
+}
+
 void jams::InteractionNearTree::insert_sites(const std::vector<Vec3>& sites) {
 // There are 6 surface normals for a parallelepiped but the parallel nature means each pair of opposite
   // surfaces has the same normal with opposite sign, so we only need calculate

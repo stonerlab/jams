@@ -15,7 +15,6 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 : SparseInteractionHamiltonian(settings, size) {
 
     std::ofstream debug_file;
-
     if (debug_is_enabled()) {
       debug_file.open(jams::output::full_path_filename("DEBUG_exchange.dat"));
 
@@ -33,42 +32,35 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       pos_file.close();
     }
 
-    energy_cutoff_ = 1E-26;  // Joules
-    if (settings.exists("energy_cutoff")) {
-        energy_cutoff_ = settings["energy_cutoff"];
-    }
-    std::cout << "interaction energy cutoff" << energy_cutoff_ << "\n";
+    energy_cutoff_ = jams::config_optional<double>(settings, "energy_cutoff", 1E-26);
+    energy_cutoff_ *= input_energy_unit_conversion_;
+    std::cout << "  energy_cutoff " << energy_cutoff_ << "\n";
 
-    distance_tolerance_ = jams::defaults::lattice_tolerance; // fractional coordinate units
-    if (settings.exists("distance_tolerance")) {
-        distance_tolerance_ = settings["distance_tolerance"];
-    }
+    shell_width_ = jams::config_optional<double>(settings, "shell_width", 1e-3);
+    std::cout << "  shell_width " << shell_width_ << "\n";
+    shell_width_ *= input_distance_unit_conversion_;
 
-    std::cout << "distance_tolerance " << distance_tolerance_ << "\n";
-
-    // check that no atoms in the unit cell are closer together than the distance_tolerance_
+    // check that no atoms in the unit cell are closer together than the shell width
     for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
       for (auto j = i+1; j < globals::lattice->num_basis_sites(); ++j) {
         const auto distance = norm(
           globals::lattice->basis_site_atom(i).position_frac
-             - globals::lattice->basis_site_atom(j).position_frac);
-        if(distance < distance_tolerance_) {
-
+          - globals::lattice->basis_site_atom(j).position_frac);
+        if(distance < shell_width_) {
           throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
-                                      ") than the distance_tolerance (", distance_tolerance_, ").\n Check the positions",
+                                      ") than the shell_width (", shell_width_, ").\n Check the positions",
                                       "or relax distance_tolerance");
         }
       }
     }
 
     if (!settings.exists("interactions")) {
-      jams::ConfigException(settings, "no 'interactions' setting in ExchangeNeartree hamiltonian");
+      throw jams::ConfigException(settings, "no 'interactions' setting in ExchangeNeartree hamiltonian");
     }
 
     interaction_list_.resize(globals::lattice->num_materials());
 
     double max_radius = 0.0;
-
     for (int i = 0; i < settings["interactions"].getLength(); ++i) {
       std::string type_name_A = settings["interactions"][i][0].c_str();
       std::string type_name_B = settings["interactions"][i][1].c_str();
@@ -78,70 +70,61 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       }
 
       if (!globals::lattice->material_exists(type_name_B)) {
-        throw std::runtime_error("exchange neartree interaction " +  std::to_string(i) + ": material " + type_name_A + " does not exist in the config");
+        throw std::runtime_error("exchange neartree interaction " +  std::to_string(i) + ": material " + type_name_B + " does not exist in the config");
       }
 
-      double inner_radius = settings["interactions"][i][2];
-      double outer_radius = settings["interactions"][i][3];
+      double radius = double(settings["interactions"][i][2]) * input_distance_unit_conversion_;
 
-      if (outer_radius > max_radius) {
-        max_radius = outer_radius;
+      if (radius > max_radius) {
+        max_radius = radius;
       }
 
-      double jij_value = double(settings["interactions"][i][4]) * input_energy_unit_conversion_;
+      double jij_value = double(settings["interactions"][i][3]) * input_energy_unit_conversion_;
 
       auto type_id_A = globals::lattice->material_index(type_name_A);
       auto type_id_B = globals::lattice->material_index(type_name_B);
 
-      InteractionNT jij = {type_id_A, type_id_B, inner_radius, outer_radius, jij_value};
+      interaction_list_[type_id_A].emplace_back(InteractionNT{{type_id_A, type_id_B}, radius, jij_value});
 
-      interaction_list_[type_id_A].push_back(jij);
+      if (type_id_A != type_id_B) {
+        interaction_list_[type_id_B].emplace_back(InteractionNT{{type_id_B, type_id_A}, radius, jij_value});
+      }
     }
-
-    std::cout << "\ncomputed interactions\n";
 
     jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
                                        globals::lattice->get_supercell().a2(),
-                                       globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), max_radius + distance_tolerance_, jams::defaults::lattice_tolerance);
+                                       globals::lattice->get_supercell().a3(),
+                                       globals::lattice->periodic_boundaries(),
+                                       max_radius + shell_width_,
+                                       shell_width_ / 10.0);
+
     neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
-    int counter = 0;
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      std::vector<bool> is_already_interacting(globals::num_spins, false);
+    auto cartesian_positions = globals::lattice->lattice_site_positions_cart();
 
+    int counter = 0;
+    std::vector<int> seen_stamp(globals::num_spins, -1);
+    for (auto i = 0; i < globals::num_spins; ++i) {
       const auto type_i = globals::lattice->lattice_site_material_id(i);
 
-      for (const auto& interaction : interaction_list_[type_i]) {
-        const auto type_j = interaction.material[1];
-
-        auto nbr_lower = neartree.neighbours(globals::lattice->lattice_site_position_cart(i), interaction.inner_radius);
-        auto nbr_upper = neartree.neighbours(globals::lattice->lattice_site_position_cart(i), interaction.outer_radius + distance_tolerance_);
-
-//        auto compare_func = [](Atom a, Atom b) { return a.id < b.id; };
-
-        std::sort(nbr_lower.begin(), nbr_lower.end());
-        std::sort(nbr_upper.begin(), nbr_upper.end());
-
-        std::vector<std::pair<Vec3, int>> nbr;
-        std::set_difference(nbr_upper.begin(), nbr_upper.end(), nbr_lower.begin(), nbr_lower.end(), std::inserter(nbr, nbr.begin()));
-
-        for (const std::pair<Vec3, int>& n : nbr) {
-          auto j = n.second;
+      // for (const auto& interaction : interaction_list_[type_i]) {
+      for (const auto& [types, radius, Jij] : interaction_list_[type_i]) {
+        assert(types.first != type_i);
+        auto neighbours = neartree.shell(cartesian_positions[i], radius, shell_width_);
+        for (const auto& [rij, j] : neighbours) {
           if (i == j) {
             continue;
           }
 
-          if (globals::lattice->lattice_site_material_id(j) == type_j) {
+          if (globals::lattice->lattice_site_material_id(j) == types.second) {
             // don't allow self interaction
-            if (is_already_interacting[j]) {
+            if (seen_stamp[j] == i) {
               throw jams::SanityException("multiple interactions between spins ", i, " and ", j);
             }
-            is_already_interacting[j] = true;
+            seen_stamp[j] = i;
 
-            Mat3 Jij = interaction.value * kIdentityMat3;
-
-            if ( max_abs(Jij) > energy_cutoff_ ) {
-              insert_interaction_tensor(i, j, Jij);
+            if ( std::abs(Jij) > energy_cutoff_ ) {
+              insert_interaction_tensor(i, j, Jij * kIdentityMat3);
               counter++;
             }
 
