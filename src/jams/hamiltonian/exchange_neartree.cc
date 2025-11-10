@@ -85,6 +85,10 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
       auto type_id_B = globals::lattice->material_index(type_name_B);
 
       interaction_list_[type_id_A].emplace_back(InteractionNT{{type_id_A, type_id_B}, radius, jij_value});
+
+      if (type_id_A != type_id_B) {
+        interaction_list_[type_id_B].emplace_back(InteractionNT{{type_id_B, type_id_A}, radius, jij_value});
+      }
     }
 
     jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
