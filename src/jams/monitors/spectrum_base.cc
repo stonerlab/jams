@@ -243,7 +243,7 @@ jams::MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(jams
 }
 
 bool SpectrumBaseMonitor::do_periodogram_update() {
-  return is_multiple_of(periodogram_index_, periodogram_props_.length);
+  return periodogram_index_ >= periodogram_props_.length && periodogram_props_.length > 0;
 }
 
 SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_spectrum(CmplxVecField &timeseries) {
