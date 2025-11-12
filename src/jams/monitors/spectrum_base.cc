@@ -85,6 +85,18 @@ void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings) {
 void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings) {
   periodogram_props_.length = settings["length"];
   periodogram_props_.overlap = settings["overlap"];
+
+  if (periodogram_props_.length <= 0) {
+    throw std::runtime_error("Periodogram length must be greater than zero");
+  }
+  
+  if (periodogram_props_.overlap <= 0) {
+    throw std::runtime_error("Periodogram overlap must be greater than zero");
+  }
+
+  if (periodogram_props_.overlap >= periodogram_props_.length) {
+    throw std::runtime_error("Periodogram overlap must be less than periodogram length");
+  }
 }
 
 
