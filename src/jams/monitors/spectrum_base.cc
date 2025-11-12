@@ -162,7 +162,7 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const 
     // z-axis is driving axis
     else {
       int p1 = 2 * displacement[0] - displacement[2];
-      int p2 = 2 * displacement[2] - displacement[2];
+      int p2 = 2 * displacement[1] - displacement[2];
       while (start[2] != end[2]) {
         Vec3 hkl = hadamard_product(start, 1.0 / to_double(kspace_size));
         Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
