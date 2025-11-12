@@ -11,6 +11,7 @@
 #include <iostream>
 
 SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : Monitor(settings) {
+  periodogram_props_ = {0, 0};
   configure_kspace_paths(settings["hkl_path"]);
 
   if (settings.exists("compute_periodogram")) {
