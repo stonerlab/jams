@@ -11,6 +11,7 @@
 #include <iostream>
 
 SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : Monitor(settings) {
+  periodogram_props_ = {0, 0};
   configure_kspace_paths(settings["hkl_path"]);
 
   if (settings.exists("compute_periodogram")) {
@@ -84,6 +85,18 @@ void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings) {
 void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings) {
   periodogram_props_.length = settings["length"];
   periodogram_props_.overlap = settings["overlap"];
+
+  if (periodogram_props_.length <= 0) {
+    throw std::runtime_error("Periodogram length must be greater than zero");
+  }
+  
+  if (periodogram_props_.overlap <= 0) {
+    throw std::runtime_error("Periodogram overlap must be greater than zero");
+  }
+
+  if (periodogram_props_.overlap >= periodogram_props_.length) {
+    throw std::runtime_error("Periodogram overlap must be less than periodogram length");
+  }
 }
 
 
@@ -241,8 +254,8 @@ jams::MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(jams
   return spectrum;
 }
 
-bool SpectrumBaseMonitor::do_periodogram_update() {
-  return is_multiple_of(periodogram_index_, periodogram_props_.length);
+bool SpectrumBaseMonitor::do_periodogram_update() const {
+  return periodogram_index_ >= periodogram_props_.length && periodogram_props_.length > 0;
 }
 
 SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_spectrum(CmplxVecField &timeseries) {

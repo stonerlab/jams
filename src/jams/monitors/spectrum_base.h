@@ -70,7 +70,7 @@ protected:
     void configure_kspace_paths(libconfig::Setting& settings);
     void configure_periodogram(libconfig::Setting& settings);
 
-    bool do_periodogram_update();
+    bool do_periodogram_update() const;
     void store_periodogram_data(const jams::MultiArray<double, 2> &data);
 
     CmplxVecField compute_periodogram_spectrum(CmplxVecField &timeseries);
