@@ -22,8 +22,22 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     auto functional_name = std::string(settings["interactions"][n][2]);
     auto r_cutoff = input_distance_unit_conversion_ * double(settings["interactions"][n][3]);
 
+    // Check that this pair (in either order) has not been specified before
+    const auto key_ij = std::make_pair(type_i, type_j);
+    const auto key_ji = std::make_pair(type_j, type_i);
+
+    if (exchange_functional_map.find(key_ij) != exchange_functional_map.end() ||
+        exchange_functional_map.find(key_ji) != exchange_functional_map.end()) {
+      throw std::runtime_error(
+          "Interaction between types \"" + type_i + "\" and \"" + type_j +
+          "\" is defined more than once (order does not matter).");
+        }
+
     if (r_cutoff > globals::lattice->max_interaction_radius()) {
-      throw std::runtime_error("cutoff radius " + std::to_string(r_cutoff) + " is larger than the maximum cutoff radius " + std::to_string(globals::lattice->max_interaction_radius()));
+      throw std::runtime_error(
+          "cutoff radius " + std::to_string(r_cutoff) +
+          " is larger than the maximum cutoff radius " +
+          std::to_string(globals::lattice->max_interaction_radius()));
     }
 
     if (r_cutoff > max_cutoff_radius) {
@@ -37,10 +51,11 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
     auto exchange_functional = functional_from_params(functional_name, params);
 
-    exchange_functional_map[{type_i, type_j}] = {r_cutoff, exchange_functional};
+    // Now safe to insert
+    exchange_functional_map[key_ij] = {r_cutoff, exchange_functional};
 
     if (type_i != type_j) {
-      exchange_functional_map[{type_j, type_i}] = {r_cutoff, exchange_functional};
+      exchange_functional_map[key_ji] = {r_cutoff, exchange_functional};
     }
   }
 
@@ -50,25 +65,41 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
                                      globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), max_cutoff_radius, jams::defaults::lattice_tolerance);
   neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
 
+  auto cartesian_positions = globals::lattice->lattice_site_positions_cart();
+
   auto counter = 0;
+  std::vector<int> seen_stamp(globals::num_spins, -1);
+
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto type_i = globals::lattice->lattice_site_material_name(i);
+
     auto r_i = globals::lattice->lattice_site_position_cart(i);
     const auto nbrs = neartree.neighbours(r_i, max_cutoff_radius);
 
-    for (const auto& nbr : nbrs) {
-      const auto j = nbr.second;
-      if (i == j) {
+    for (const auto& [rij, j] : nbrs) {
+      if (i >= j) {
         continue;
       }
       auto type_j = globals::lattice->lattice_site_material_name(j);
-      auto r_cutoff = exchange_functional_map[{type_i, type_j}].first;
+      auto& [r_cutoff, functional] = exchange_functional_map[{type_i, type_j}];
 
-      const auto rij = norm(::globals::lattice->displacement(i, j));
+      const auto r = norm(rij);
 
-      if (less_than_approx_equal(rij, r_cutoff, jams::defaults::lattice_tolerance)) {
-        auto& functional = exchange_functional_map[{type_i, type_j}].second;
-        this->insert_interaction_scalar(i, j, functional(rij));
+      if (less_than_approx_equal(r, r_cutoff, jams::defaults::lattice_tolerance)) {
+        // don't allow self interaction
+        if (seen_stamp[j] == i) {
+          throw jams::SanityException("multiple interactions between spins ", i, " and ", j);
+        }
+        seen_stamp[j] = i;
+
+        // We insert ij and ji at the same time because tiny floating point differences of
+        // functional(rij) vs functional(rji) can lead to the sparse matrix being a tiny bit non-symmetric.
+        // This probably makes no difference to results, but means that our symmetry check for the matrix
+        // will fail because we don't do floating point equality checks, but check that values for ij and ji
+        // are identical.
+        auto Jij = functional(r);
+        this->insert_interaction_scalar(i, j, Jij);
+        this->insert_interaction_scalar(j, i, Jij);
         counter++;
       }
     }
