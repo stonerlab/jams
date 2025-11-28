@@ -77,7 +77,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     const auto nbrs = neartree.neighbours(r_i, max_cutoff_radius);
 
     for (const auto& [rij, j] : nbrs) {
-      if (i >= j) {
+      // Only process ij, ji is inserted at the same time. Also disallow self interaction.
+      if (j <= i) {
         continue;
       }
       auto type_j = globals::lattice->lattice_site_material_name(j);
