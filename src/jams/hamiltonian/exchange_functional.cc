@@ -59,6 +59,16 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
     }
   }
 
+  auto output_functionals = jams::config_optional<bool>(settings, "output_functionals", false);
+
+  if (output_functionals) {
+    for (const auto& [type, functional] : exchange_functional_map) {
+      std::ofstream functional_file(jams::output::full_path_filename("exchange_functional_" + type.first + "_" + type.second + ".tsv"));
+      output_exchange_functional(functional_file, functional.second, functional.first, 0.01);
+    }
+  }
+
+
 
   jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
                                      globals::lattice->get_supercell().a2(),
@@ -105,6 +115,8 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       }
     }
   }
+
+
 
   std::cout << "  total interactions " << jams::fmt::integer << counter << "\n";
   std::cout << "  average interactions per spin " << jams::fmt::decimal << counter / double(globals::num_spins) << "\n";
