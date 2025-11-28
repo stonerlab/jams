@@ -109,7 +109,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
 
       // for (const auto& interaction : interaction_list_[type_i]) {
       for (const auto& [types, radius, Jij] : interaction_list_[type_i]) {
-        assert(types.first != type_i);
+        assert(types.first == type_i);
         auto neighbours = neartree.shell(cartesian_positions[i], radius, shell_width_);
         for (const auto& [rij, j] : neighbours) {
           if (i == j) {
