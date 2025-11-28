@@ -8,11 +8,6 @@ Heisenberg bilinear exchange with a functional form based on type and distance
 
 The exchange function :math:`J_{a,b}(r_{ij})` is specified between materials :math:`a` and :math:`b`.
 Neighbours with the given material types at distance :math:`r_{ij}` will be given the exchange value.
-Note that this assumes spherical shells and is most appropriate for simple lattices
-(e.g. SC, BCC, FCC) with high symmetry. For systems with more complex symmetry it may
-be the case that exchange interactions have the same distance but belong to different
-stars of :math:`\mathbf{r}` which are not linked by symmetry. No checks are made for violations
-of such symmetry.
 
 .. note::
     Specified interactions are assumed to be reciprocal between
@@ -47,7 +42,7 @@ zero outside.
 .. describe:: exp
 
 Exponentially decaying function with a linear shift :math:`r_0` and
-decay constant :math:`sigma`.
+decay constant :math:`\sigma`.
 
 .. math::
     J(r) = J_0 \operatorname{exp}\left( -\frac{r-r_0}{\sigma} \right)
@@ -61,7 +56,7 @@ decay constant :math:`sigma`.
 
 .. describe:: gaussian
 
-Gaussian function centered on :math:`r_0` with width :math:`sigma`.
+Gaussian function centered on :math:`r_0` with width :math:`\sigma`.
 
 .. math::
     J(r) = J_0 \operatorname{exp}\left( -\frac{(r-r_0)^2}{2\sigma^2} \right)
