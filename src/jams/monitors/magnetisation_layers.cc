@@ -37,7 +37,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
       indices(i) = i;
     }
     group_spin_indices_.push_back(indices);
-    group_names_.push_back("");
+    group_names_.push_back("total");
   } else if (grouping_ == Grouping::MATERIALS) {
     auto num_groups = globals::lattice->num_materials();
     std::vector<std::vector<int>> material_index_groups(num_groups);
