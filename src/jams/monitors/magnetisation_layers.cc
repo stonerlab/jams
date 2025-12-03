@@ -18,6 +18,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
   Vec3 layer_normal = jams::config_required<Vec3>(settings, "layer_normal");
   auto layer_thickness = jams::config_optional<double>(settings, "layer_thickness", 0.0);
+  auto distance_tolerance = jams::config_optional<double>(settings, "distance_tolerance", jams::defaults::lattice_tolerance);
 
   auto grouping_str = jams::config_optional<std::string>(settings, "grouping", "materials");
 
@@ -37,7 +38,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
       indices(i) = i;
     }
     group_spin_indices_.push_back(indices);
-    group_names_.push_back("");
+    group_names_.push_back("total");
   } else if (grouping_ == Grouping::MATERIALS) {
     auto num_groups = globals::lattice->num_materials();
     std::vector<std::vector<int>> material_index_groups(num_groups);
@@ -85,24 +86,27 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     Mat3 rotation_matrix = rotation_matrix_between_vectors(layer_normal, Vec3{0, 0, 1});
 
     std::vector<double> rotated_z_position(globals::num_spins);
-    for (auto i : group_spin_indices_[group_idx]) {
-      auto r =  rotation_matrix * ::globals::lattice->lattice_site_position_cart(i) * globals::lattice->parameter() * kMeterToNanometer;
-      rotated_z_position[i] = r[2];
-    }
-
 
     // Find the minimum value of z in the rotated system. This will be used as the
     // baseline for layers with a finite thickness.
-    double z_min = *std::min_element(rotated_z_position.begin(), rotated_z_position.end());
+    double z_min = std::numeric_limits<double>::max();
+    for (auto i : group_spin_indices_[group_idx]) {
+      auto r = rotation_matrix * ::globals::lattice->lattice_site_position_cart(i)
+               * globals::lattice->parameter() * kMeterToNanometer;
+      rotated_z_position[i] = r[2];
+      if (rotated_z_position[i] < z_min) {
+        z_min = rotated_z_position[i];
+      }
+    }
 
     // Find the unique layer positions. If the z-component of the position (after
     // rotating the system) is within lattice_tolerance of an existing position
     // we consider them to be in the same layer.
     auto comp_less = [&](double a, double b) -> bool {
       if (layer_thickness == 0.0) {
-        return definately_less_than(a, b, jams::defaults::lattice_tolerance);
+        return definately_less_than(a, b, distance_tolerance);
       }
-      return definately_less_than(floor((a - z_min)/layer_thickness) , floor((b - z_min)/layer_thickness), jams::defaults::lattice_tolerance);
+      return definately_less_than(floor((a - z_min)/layer_thickness) , floor((b - z_min)/layer_thickness), distance_tolerance);
     };
 
 
@@ -124,19 +128,30 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     jams::MultiArray<int, 1> layer_spin_count(num_layers);
 
     int counter = 0;
-    for (auto const &x: unique_positions) {
-      layer_positions(counter) = x.first;
-      layer_spin_count(counter) = x.second.size(); // number of spins in the layer
-      group_layer_spin_indicies_[group_idx][counter].resize(x.second.size());
+    for (auto const &z: unique_positions) {
+
+      double z_layer_pos;
+      if (layer_thickness == 0.0) {
+        z_layer_pos = z.first;
+      } else {
+        // compute bin index from representative z, then bin centre
+        auto bin_index = std::floor((z.first  - (z_min - 0.5 * layer_thickness)) / layer_thickness);
+
+        z_layer_pos = z_min + (bin_index + 0.5) * layer_thickness;
+      }
+
+      layer_positions(counter) = z_layer_pos;
+      layer_spin_count(counter) = z.second.size();
+      group_layer_spin_indicies_[group_idx][counter].resize(z.second.size());
 
       layer_saturation_moment(counter) = 0.0;
-      for (auto i = 0; i < x.second.size(); ++i) {
-        auto spin_index = x.second[i];
+      for (auto i = 0; i < z.second.size(); ++i) {
+        auto spin_index = z.second[i];
         group_layer_spin_indicies_[group_idx][counter](i) = spin_index;
         layer_saturation_moment(counter) += globals::mus(spin_index) / kBohrMagnetonIU;
       }
 
-      counter++;
+      ++counter;
     }
 
     HighFive::Group h5_group = file.createGroup(h5_group_root_name_ +"/groups/" + group_names_[group_idx] + "/");
