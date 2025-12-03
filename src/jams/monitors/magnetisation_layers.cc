@@ -85,15 +85,18 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     Mat3 rotation_matrix = rotation_matrix_between_vectors(layer_normal, Vec3{0, 0, 1});
 
     std::vector<double> rotated_z_position(globals::num_spins);
-    for (auto i : group_spin_indices_[group_idx]) {
-      auto r =  rotation_matrix * ::globals::lattice->lattice_site_position_cart(i) * globals::lattice->parameter() * kMeterToNanometer;
-      rotated_z_position[i] = r[2];
-    }
-
 
     // Find the minimum value of z in the rotated system. This will be used as the
     // baseline for layers with a finite thickness.
-    double z_min = *std::min_element(rotated_z_position.begin(), rotated_z_position.end());
+    double z_min = std::numeric_limits<double>::max();
+    for (auto i : group_spin_indices_[group_idx]) {
+      auto r = rotation_matrix * ::globals::lattice->lattice_site_position_cart(i)
+               * globals::lattice->parameter() * kMeterToNanometer;
+      rotated_z_position[i] = r[2];
+      if (rotated_z_position[i] < z_min) {
+        z_min = rotated_z_position[i];
+      }
+    }
 
     // Find the unique layer positions. If the z-component of the position (after
     // rotating the system) is within lattice_tolerance of an existing position
