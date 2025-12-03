@@ -128,19 +128,30 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     jams::MultiArray<int, 1> layer_spin_count(num_layers);
 
     int counter = 0;
-    for (auto const &x: unique_positions) {
-      layer_positions(counter) = x.first;
-      layer_spin_count(counter) = x.second.size(); // number of spins in the layer
-      group_layer_spin_indicies_[group_idx][counter].resize(x.second.size());
+    for (auto const &z: unique_positions) {
+
+      double z_layer_pos;
+      if (layer_thickness == 0.0) {
+        z_layer_pos = z.first;
+      } else {
+        // compute bin index from representative z, then bin centre
+        auto bin_index = std::floor((z.first  - (z_min - 0.5 * layer_thickness)) / layer_thickness);
+
+        z_layer_pos = z_min + (bin_index + 0.5) * layer_thickness;
+      }
+
+      layer_positions(counter) = z_layer_pos;
+      layer_spin_count(counter) = z.second.size();
+      group_layer_spin_indicies_[group_idx][counter].resize(z.second.size());
 
       layer_saturation_moment(counter) = 0.0;
-      for (auto i = 0; i < x.second.size(); ++i) {
-        auto spin_index = x.second[i];
+      for (auto i = 0; i < z.second.size(); ++i) {
+        auto spin_index = z.second[i];
         group_layer_spin_indicies_[group_idx][counter](i) = spin_index;
         layer_saturation_moment(counter) += globals::mus(spin_index) / kBohrMagnetonIU;
       }
 
-      counter++;
+      ++counter;
     }
 
     HighFive::Group h5_group = file.createGroup(h5_group_root_name_ +"/groups/" + group_names_[group_idx] + "/");
