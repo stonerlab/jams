@@ -18,6 +18,7 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
 
   Vec3 layer_normal = jams::config_required<Vec3>(settings, "layer_normal");
   auto layer_thickness = jams::config_optional<double>(settings, "layer_thickness", 0.0);
+  auto distance_tolerance = jams::config_optional<double>(settings, "distance_tolerance", jams::defaults::lattice_tolerance);
 
   auto grouping_str = jams::config_optional<std::string>(settings, "grouping", "materials");
 
@@ -103,9 +104,9 @@ MagnetisationLayersMonitor::MagnetisationLayersMonitor(
     // we consider them to be in the same layer.
     auto comp_less = [&](double a, double b) -> bool {
       if (layer_thickness == 0.0) {
-        return definately_less_than(a, b, jams::defaults::lattice_tolerance);
+        return definately_less_than(a, b, distance_tolerance);
       }
-      return definately_less_than(floor((a - z_min)/layer_thickness) , floor((b - z_min)/layer_thickness), jams::defaults::lattice_tolerance);
+      return definately_less_than(floor((a - z_min)/layer_thickness) , floor((b - z_min)/layer_thickness), distance_tolerance);
     };
 
 
