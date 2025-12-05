@@ -123,13 +123,13 @@ std::string MagnetisationMonitor::tsv_header() {
 
   if (grouping_ == Grouping::NONE) {
     for (const auto &name: {"mx", "my", "mz", "m"}) {
-      ss << fmt::decimal << name;
+      ss << fmt::sci << name;
     }
   } else if (grouping_ == Grouping::MATERIALS) {
     for (auto i = 0; i < globals::lattice->num_materials(); ++i) {
       auto name = globals::lattice->material_name(i);
       for (const auto &suffix: {"_mx", "_my", "_mz", "_m"}) {
-        ss << fmt::decimal << name + suffix;
+        ss << fmt::sci << name + suffix;
       }
     }
   } else if (grouping_ == Grouping::POSITIONS) {
