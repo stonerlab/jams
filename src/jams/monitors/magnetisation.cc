@@ -23,13 +23,14 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   tsv_file(jams::output::full_path_filename("mag.tsv"))
 {
   // calculate magnetisation per material or per unit cell position
-  auto grouping_str = jams::config_optional<std::string>(settings, "grouping", "materials");
+  auto grouping_str = lowercase(
+    jams::config_optional<std::string>(settings, "grouping", "materials"));
 
-  if (lowercase(grouping_str) == "none") {
+  if (grouping_str == "none") {
     grouping_ = Grouping::NONE;
-  } else if (lowercase(grouping_str) == "materials") {
+  } else if (grouping_str == "materials") {
     grouping_ = Grouping::MATERIALS;
-  } else if (lowercase(grouping_str) == "positions") {
+  } else if (grouping_str == "positions") {
     grouping_ = Grouping::POSITIONS;
   } else {
     throw std::runtime_error("unknown magnetisation grouping: " + grouping_str);
