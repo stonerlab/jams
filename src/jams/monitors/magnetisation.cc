@@ -42,35 +42,50 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
   tsv_file.setf(std::ios::right);
   tsv_file << tsv_header();
 
-
-  if (grouping_ == Grouping::NONE) {
-    jams::MultiArray<int,1> indices(globals::num_spins);
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      indices(i) = i;
-    }
-    group_spin_indicies_.push_back(indices);
-  } else if (grouping_ == Grouping::MATERIALS) {
-    std::vector<std::vector<int>> material_index_groups(globals::lattice->num_materials());
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      auto type = globals::lattice->lattice_site_material_id(i);
-      material_index_groups[type].push_back(i);
+  switch (grouping_) {
+    case Grouping::NONE: {
+      jams::MultiArray<int,1> indices(globals::num_spins);
+      for (auto i = 0; i < globals::num_spins; ++i) {
+        indices(i) = i;
+      }
+      group_spin_indicies_.push_back(indices);
+      break;
     }
 
-    group_spin_indicies_.resize(material_index_groups.size());
-    for (auto n = 0; n < material_index_groups.size(); ++n) {
-      group_spin_indicies_[n] = jams::MultiArray<int,1>(material_index_groups[n].begin(), material_index_groups[n].end());
-    }
-  } else if (grouping_ == Grouping::POSITIONS) {
-    std::vector<std::vector<int>> position_index_groups(globals::lattice->num_basis_sites());
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      auto position = globals::lattice->lattice_site_basis_index(i);
-      position_index_groups[position].push_back(i);
+    case Grouping::MATERIALS: {
+      std::vector<std::vector<int>> material_index_groups(globals::lattice->num_materials());
+      for (auto i = 0; i < globals::num_spins; ++i) {
+        auto type = globals::lattice->lattice_site_material_id(i);
+        material_index_groups[type].push_back(i);
+      }
+
+      group_spin_indicies_.resize(material_index_groups.size());
+      for (auto n = 0; n < material_index_groups.size(); ++n) {
+        group_spin_indicies_[n] = jams::MultiArray<int,1>(
+            material_index_groups[n].begin(),
+            material_index_groups[n].end());
+      }
+      break;
     }
 
-    group_spin_indicies_.resize(position_index_groups.size());
-    for (auto n = 0; n < position_index_groups.size(); ++n) {
-      group_spin_indicies_[n] = jams::MultiArray<int,1>(position_index_groups[n].begin(), position_index_groups[n].end());
+    case Grouping::POSITIONS: {
+      std::vector<std::vector<int>> position_index_groups(globals::lattice->num_basis_sites());
+      for (auto i = 0; i < globals::num_spins; ++i) {
+        auto pos = globals::lattice->lattice_site_basis_index(i);
+        position_index_groups[pos].push_back(i);
+      }
+
+      group_spin_indicies_.resize(position_index_groups.size());
+      for (auto n = 0; n < position_index_groups.size(); ++n) {
+        group_spin_indicies_[n] = jams::MultiArray<int,1>(
+            position_index_groups[n].begin(),
+            position_index_groups[n].end());
+      }
+      break;
     }
+
+    default:
+      break;
   }
 }
 
