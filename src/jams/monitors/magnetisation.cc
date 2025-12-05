@@ -122,25 +122,39 @@ std::string MagnetisationMonitor::tsv_header() {
 
   ss << fmt::sci << "time";
 
-  if (grouping_ == Grouping::NONE) {
-    for (const auto &name: {"mx", "my", "mz", "m"}) {
-      ss << fmt::sci << name;
-    }
-  } else if (grouping_ == Grouping::MATERIALS) {
-    for (auto i = 0; i < globals::lattice->num_materials(); ++i) {
-      auto name = globals::lattice->material_name(i);
-      for (const auto &suffix: {"_mx", "_my", "_mz", "_m"}) {
-        ss << fmt::sci << name + suffix;
+  switch (grouping_) {
+    case Grouping::NONE: {
+      for (const auto &name : {"mx", "my", "mz", "m"}) {
+        ss << fmt::sci << name;
       }
+      break;
     }
-  } else if (grouping_ == Grouping::POSITIONS) {
-    for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
-      auto material_name = globals::lattice->material_name(
-          globals::lattice->basis_site_atom(i).material_index);
-      for (const auto &suffix: {"_mx", "_my", "_mz", "_m"}) {
-        ss << fmt::sci << std::to_string(i+1) + "_" + material_name + suffix;
+
+    case Grouping::MATERIALS: {
+      const auto nm = globals::lattice->num_materials();
+      for (int i = 0; i < nm; ++i) {
+        auto name = globals::lattice->material_name(i);
+        for (const auto &suffix : {"_mx", "_my", "_mz", "_m"}) {
+          ss << fmt::sci << name + suffix;
+        }
       }
+      break;
     }
+
+    case Grouping::POSITIONS: {
+      const auto nb = globals::lattice->num_basis_sites();
+      for (int i = 0; i < nb; ++i) {
+        const auto mat = globals::lattice->basis_site_atom(i).material_index;
+        auto material_name = globals::lattice->material_name(mat);
+        for (const auto &suffix : {"_mx", "_my", "_mz", "_m"}) {
+          ss << fmt::sci << std::to_string(i + 1) + "_" + material_name + suffix;
+        }
+      }
+      break;
+    }
+
+    default:
+      break;
   }
 
   ss << std::endl;
