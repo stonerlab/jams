@@ -13,35 +13,38 @@
 
 #include "energy.h"
 
+#include "jams/interface/config.h"
+
+
 EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
-: Monitor(settings), tsv_file(jams::output::full_path_filename("eng.tsv")) {
-  tsv_file.setf(std::ios::right);
+: Monitor(settings),
+  tsv_file(jams::output::full_path_filename("eng.tsv")) {
+  output_precision_ = jams::config_optional<int>(settings, "precision", 8);
   tsv_file << tsv_header();
 }
 
 void EnergyMonitor::update(Solver& solver) {
-  tsv_file.width(12);
 
-  tsv_file << std::scientific << solver.time() << "\t";
+  tsv_file << jams::fmt::sci(output_precision_) << solver.time();
 
   for (auto &hamiltonian : solver.hamiltonians()) {
     auto energy = hamiltonian->calculate_total_energy(solver.time());
-    tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
+    tsv_file << jams::fmt::sci(output_precision_) << energy;
   }
 
   tsv_file << std::endl;
 }
 
 std::string EnergyMonitor::tsv_header() {
-  std::stringstream ss;
-  ss.width(12);
+  std::vector<jams::output::ColDef> cols;
 
-  ss << "time\t";
-  for (auto &hamiltonian : globals::solver->hamiltonians()) {
-    ss << hamiltonian->name() << "_E_meV\t";
+  cols.push_back({"time", "picoseconds"});
+  for (const auto& h : globals::solver->hamiltonians()) {
+    cols.push_back({h->name(), "meV"});
   }
 
-  ss << std::endl;
+  std::string units_line = jams::output::make_json_units_string(cols);
+  std::string header_line = jams::output::make_tsv_header_row(cols, output_precision_);
 
-  return ss.str();
+  return units_line + header_line;
 }

@@ -23,6 +23,7 @@ private:
     std::ofstream tsv_file;
     std::string   tsv_header();
 
+    int output_precision_ = 8;
 };
 
 #endif  // JAMS_MONITOR_ENERGY_H

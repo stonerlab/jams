@@ -33,6 +33,8 @@ private:
     std::ofstream tsv_file;
     std::string   tsv_header();
 
+    int output_precision_ = 8;
+
     std::vector<jams::MultiArray<int,1>> group_spin_indices_;
 };
 

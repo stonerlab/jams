@@ -22,6 +22,8 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
   tsv_file(jams::output::full_path_filename("mag.tsv"))
 {
+  output_precision_ = jams::config_optional<int>(settings, "precision", 8);
+
   // calculate magnetisation per material or per unit cell position
   auto grouping_str = lowercase(
     jams::config_optional<std::string>(settings, "grouping", "materials"));
@@ -93,8 +95,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 void MagnetisationMonitor::update(Solver& solver) {
   using namespace jams;
 
-  tsv_file.width(12);
-  tsv_file << fmt::sci << solver.time();
+  tsv_file << fmt::sci(output_precision_) << solver.time();
 
   for (auto n = 0; n < group_spin_indices_.size(); ++n) {
     Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus, group_spin_indices_[n]);
@@ -105,27 +106,29 @@ void MagnetisationMonitor::update(Solver& solver) {
       // internally we use meV T^-1 for mus so convert back to Bohr magneton
       normalising_factor = 1.0 / kBohrMagnetonIU;
     }
-    tsv_file << fmt::sci << mag[0] * normalising_factor;
-    tsv_file << fmt::sci << mag[1] * normalising_factor;
-    tsv_file << fmt::sci << mag[2] * normalising_factor;
-    tsv_file << fmt::sci << norm(mag) * normalising_factor;
+    tsv_file << fmt::sci(output_precision_) << mag[0] * normalising_factor;
+    tsv_file << fmt::sci(output_precision_) << mag[1] * normalising_factor;
+    tsv_file << fmt::sci(output_precision_) << mag[2] * normalising_factor;
+    tsv_file << fmt::sci(output_precision_) << norm(mag) * normalising_factor;
   }
 
   tsv_file << std::endl;
 }
 
 std::string MagnetisationMonitor::tsv_header() {
-  using namespace jams;
+  std::vector<jams::output::ColDef> cols;
 
-  std::stringstream ss;
-  ss.width(12);
+  std::string mag_unit = "dimensionless";
+  if (!normalize_magnetisation_) {
+    mag_unit = "bohr magnetons";
+  }
 
-  ss << fmt::header << "time";
+  cols.push_back({"time", "picoseconds"});
 
   switch (grouping_) {
     case Grouping::NONE: {
       for (const auto &name : {"mx", "my", "mz", "m"}) {
-        ss << fmt::header << name;
+        cols.push_back({name, mag_unit});
       }
       break;
     }
@@ -135,7 +138,7 @@ std::string MagnetisationMonitor::tsv_header() {
       for (int i = 0; i < nm; ++i) {
         auto name = globals::lattice->material_name(i);
         for (const auto &suffix : {"_mx", "_my", "_mz", "_m"}) {
-          ss << fmt::header << name + suffix;
+          cols.push_back({name + suffix, mag_unit});
         }
       }
       break;
@@ -147,7 +150,7 @@ std::string MagnetisationMonitor::tsv_header() {
         const auto mat = globals::lattice->basis_site_atom(i).material_index;
         auto material_name = globals::lattice->material_name(mat);
         for (const auto &suffix : {"_mx", "_my", "_mz", "_m"}) {
-          ss << fmt::header << std::to_string(i + 1) + "_" + material_name + suffix;
+          cols.push_back({material_name + "_" + std::to_string(i + 1) + suffix, mag_unit});
         }
       }
       break;
@@ -157,7 +160,8 @@ std::string MagnetisationMonitor::tsv_header() {
       break;
   }
 
-  ss << std::endl;
+  std::string units_line = jams::output::make_json_units_string(cols);
+  std::string header_line = jams::output::make_tsv_header_row(cols, output_precision_);
 
-  return ss.str();
+  return units_line + header_line;
 }
