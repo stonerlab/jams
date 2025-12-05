@@ -120,12 +120,12 @@ std::string MagnetisationMonitor::tsv_header() {
   std::stringstream ss;
   ss.width(12);
 
-  ss << fmt::sci << "time";
+  ss << fmt::header << "time";
 
   switch (grouping_) {
     case Grouping::NONE: {
       for (const auto &name : {"mx", "my", "mz", "m"}) {
-        ss << fmt::sci << name;
+        ss << fmt::header << name;
       }
       break;
     }
@@ -135,7 +135,7 @@ std::string MagnetisationMonitor::tsv_header() {
       for (int i = 0; i < nm; ++i) {
         auto name = globals::lattice->material_name(i);
         for (const auto &suffix : {"_mx", "_my", "_mz", "_m"}) {
-          ss << fmt::sci << name + suffix;
+          ss << fmt::header << name + suffix;
         }
       }
       break;
@@ -147,7 +147,7 @@ std::string MagnetisationMonitor::tsv_header() {
         const auto mat = globals::lattice->basis_site_atom(i).material_index;
         auto material_name = globals::lattice->material_name(mat);
         for (const auto &suffix : {"_mx", "_my", "_mz", "_m"}) {
-          ss << fmt::sci << std::to_string(i + 1) + "_" + material_name + suffix;
+          ss << fmt::header << std::to_string(i + 1) + "_" + material_name + suffix;
         }
       }
       break;
