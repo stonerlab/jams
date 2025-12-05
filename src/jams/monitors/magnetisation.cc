@@ -94,11 +94,6 @@ void MagnetisationMonitor::update(Solver& solver) {
 
   tsv_file.width(12);
   tsv_file << fmt::sci << solver.time();
-  tsv_file << fmt::sci << solver.physics()->temperature();
-
-  for (auto i = 0; i < 3; ++i) {
-    tsv_file << fmt::sci << solver.physics()->applied_field(i);
-  }
 
   for (auto n = 0; n < group_spin_indicies_.size(); ++n) {
     Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus, group_spin_indicies_[n]);
@@ -125,10 +120,6 @@ std::string MagnetisationMonitor::tsv_header() {
   ss.width(12);
 
   ss << fmt::sci << "time";
-  ss << fmt::sci << "T";
-  ss << fmt::sci << "hx";
-  ss << fmt::sci << "hy";
-  ss << fmt::sci << "hz";
 
   if (grouping_ == Grouping::NONE) {
     for (const auto &name: {"mx", "my", "mz", "m"}) {
