@@ -33,7 +33,7 @@ private:
     std::ofstream tsv_file;
     std::string   tsv_header();
 
-    std::vector<jams::MultiArray<int,1>> group_spin_indicies_;
+    std::vector<jams::MultiArray<int,1>> group_spin_indices_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_H

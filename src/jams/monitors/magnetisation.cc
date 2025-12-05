@@ -49,7 +49,7 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
       for (auto i = 0; i < globals::num_spins; ++i) {
         indices(i) = i;
       }
-      group_spin_indicies_.push_back(indices);
+      group_spin_indices_.push_back(indices);
       break;
     }
 
@@ -60,9 +60,9 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
         material_index_groups[type].push_back(i);
       }
 
-      group_spin_indicies_.resize(material_index_groups.size());
+      group_spin_indices_.resize(material_index_groups.size());
       for (auto n = 0; n < material_index_groups.size(); ++n) {
-        group_spin_indicies_[n] = jams::MultiArray<int,1>(
+        group_spin_indices_[n] = jams::MultiArray<int,1>(
             material_index_groups[n].begin(),
             material_index_groups[n].end());
       }
@@ -76,9 +76,9 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
         position_index_groups[pos].push_back(i);
       }
 
-      group_spin_indicies_.resize(position_index_groups.size());
+      group_spin_indices_.resize(position_index_groups.size());
       for (auto n = 0; n < position_index_groups.size(); ++n) {
-        group_spin_indicies_[n] = jams::MultiArray<int,1>(
+        group_spin_indices_[n] = jams::MultiArray<int,1>(
             position_index_groups[n].begin(),
             position_index_groups[n].end());
       }
@@ -96,11 +96,11 @@ void MagnetisationMonitor::update(Solver& solver) {
   tsv_file.width(12);
   tsv_file << fmt::sci << solver.time();
 
-  for (auto n = 0; n < group_spin_indicies_.size(); ++n) {
-    Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus, group_spin_indicies_[n]);
+  for (auto n = 0; n < group_spin_indices_.size(); ++n) {
+    Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus, group_spin_indices_[n]);
     double normalising_factor = 1.0;
     if (normalize_magnetisation_) {
-      normalising_factor = 1.0 / jams::scalar_field_indexed_reduce(globals::mus, group_spin_indicies_[n]);
+      normalising_factor = 1.0 / jams::scalar_field_indexed_reduce(globals::mus, group_spin_indices_[n]);
     } else {
       // internally we use meV T^-1 for mus so convert back to Bohr magneton
       normalising_factor = 1.0 / kBohrMagnetonIU;
