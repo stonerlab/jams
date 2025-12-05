@@ -3,6 +3,7 @@
 #include <cmath>
 #include <string>
 #include <iomanip>
+#include <sstream>
 
 #include "jams/core/physics.h"
 #include "jams/core/solver.h"
@@ -13,7 +14,6 @@
 #include "jams/helpers/output.h"
 
 #include "jams/monitors/magnetisation.h"
-#include "magnetisation.h"
 #include "jams/helpers/spinops.h"
 #include "jams/helpers/array_ops.h"
 
