@@ -8,6 +8,8 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include <fstream>
+#include <cassert>
 
 namespace jams::fmt {
 struct SciFmt {
@@ -107,7 +109,7 @@ namespace jams::output {
 
         switch (col.format) {
           case ColFmt::Integer:
-            os << static_cast<long long>(std::llround(v));
+            os << std::llround(v);
             break;
           case ColFmt::Scientific:
           case ColFmt::Fixed:
@@ -147,6 +149,72 @@ namespace jams::output {
       os << '\n';
       return os.str();
     }
+
+class TsvWriter {
+      public:
+        TsvWriter(const std::string& filename, const std::vector<ColDef> cols, int precision = 8)
+          : file_(filename), cols_(std::move(cols)), precision_(precision) {
+          if (!file_) {
+            throw std::runtime_error("Failed to open TSV file: " + filename);
+          }
+          write_header();
+        }
+
+        void open(const std::string& filename, const std::vector<ColDef> cols, int precision = 8) {
+          file_.close();
+          file_.open(filename);
+          if (!file_) {
+            throw std::runtime_error("Failed to open TSV file: " + filename);
+          }
+          cols_ = std::move(cols);
+          precision_ = precision;
+          write_header();
+        }
+
+        std::size_t num_cols() const noexcept {
+          return cols_.size();
+        }
+
+        const std::vector<ColDef>& columns() const  noexcept { return cols_; }
+        int precision() const noexcept { return precision_; }
+
+        void set_precision(int precision) noexcept { precision_ = precision; }
+
+        void write_row(const std::vector<double>& values) {
+          assert(values.size() == cols_.size());
+          write_tsv_row(file_, cols_, values, precision_);
+        }
+
+        template<typename Container>
+        void write_row_container(const Container& c) {
+          std::vector<double> values;
+          values.reserve(cols_.size());
+          for (const auto& v : c) {
+            values.push_back(v);
+          }
+          write_row(values);
+        }
+
+        template<typename... Ts>
+        void write_row_values(Ts... xs) {
+          static_assert(sizeof...(Ts) > 0, "write_row_values needs at least one value");
+          std::array<double, sizeof...(Ts)> arr {static_cast<double>(xs)...};
+          write_row_container(arr);
+        }
+
+        std::ofstream& stream() noexcept { return file_; }
+
+      private:
+        void write_header() {
+          file_ << make_json_units_string(cols_);
+          file_ << make_tsv_header_row(cols_, precision_);
+        }
+
+        std::ofstream file_;
+        std::vector<ColDef> cols_;
+        int precision_ = 8;
+
+    };
 }
 
 #endif //JAMS_HELPERS_OUTPUT_H

@@ -21,10 +21,8 @@ public:
     void post_process() override {};
 
 private:
-    std::ofstream tsv_file_;
-    std::vector<jams::output::ColDef> tsv_cols_;
-
-    int output_precision_ = 8;
+    static jams::output::TsvWriter make_tsv_writer(const libconfig::Setting &settings);
+    jams::output::TsvWriter tsv_;
 };
 
 #endif  // JAMS_MONITOR_ENERGY_H

@@ -16,14 +16,40 @@
 #include "jams/monitors/magnetisation.h"
 #include "jams/helpers/spinops.h"
 #include "jams/helpers/array_ops.h"
+#include "jams/helpers/container_utils.h"
 
 
 MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
-  tsv_file(jams::output::full_path_filename("mag.tsv"))
-{
-  output_precision_ = jams::config_optional<int>(settings, "precision", 8);
+  tsv_(make_tsv_writer(settings))
+{}
 
+void MagnetisationMonitor::update(Solver& solver) {
+  auto values = make_reserved<double>(tsv_.num_cols());
+
+  values.push_back(solver.time());
+
+  for (auto n = 0; n < group_spin_indices_.size(); ++n) {
+    Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus, group_spin_indices_[n]);
+    double normalising_factor = 1.0;
+    if (normalize_magnetisation_) {
+      normalising_factor = 1.0 / jams::scalar_field_indexed_reduce(globals::mus, group_spin_indices_[n]);
+    } else {
+      // internally we use meV T^-1 for mus so convert back to Bohr magneton
+      normalising_factor = 1.0 / kBohrMagnetonIU;
+    }
+
+    values.push_back(mag[0] * normalising_factor);
+    values.push_back(mag[1] * normalising_factor);
+    values.push_back(mag[2] * normalising_factor);
+    values.push_back(norm(mag) * normalising_factor);
+  }
+
+  tsv_.write_row(values);
+}
+
+
+jams::output::TsvWriter MagnetisationMonitor::make_tsv_writer(const libconfig::Setting &settings) {
   // calculate magnetisation per material or per unit cell position
   auto grouping_str = lowercase(
     jams::config_optional<std::string>(settings, "grouping", "materials"));
@@ -40,10 +66,6 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
 
   // should the magnetisation be normalised to 1 or be in units of muB
   normalize_magnetisation_ = jams::config_optional<bool>(settings, "normalize", true);
-
-
-  tsv_file.setf(std::ios::right);
-  tsv_file << tsv_header();
 
   switch (grouping_) {
     case Grouping::NONE: {
@@ -90,32 +112,8 @@ MagnetisationMonitor::MagnetisationMonitor(const libconfig::Setting &settings)
     default:
       break;
   }
-}
 
-void MagnetisationMonitor::update(Solver& solver) {
-  using namespace jams;
-
-  tsv_file << fmt::sci(output_precision_) << solver.time();
-
-  for (auto n = 0; n < group_spin_indices_.size(); ++n) {
-    Vec3 mag = jams::sum_spins_moments(globals::s, globals::mus, group_spin_indices_[n]);
-    double normalising_factor = 1.0;
-    if (normalize_magnetisation_) {
-      normalising_factor = 1.0 / jams::scalar_field_indexed_reduce(globals::mus, group_spin_indices_[n]);
-    } else {
-      // internally we use meV T^-1 for mus so convert back to Bohr magneton
-      normalising_factor = 1.0 / kBohrMagnetonIU;
-    }
-    tsv_file << fmt::sci(output_precision_) << mag[0] * normalising_factor;
-    tsv_file << fmt::sci(output_precision_) << mag[1] * normalising_factor;
-    tsv_file << fmt::sci(output_precision_) << mag[2] * normalising_factor;
-    tsv_file << fmt::sci(output_precision_) << norm(mag) * normalising_factor;
-  }
-
-  tsv_file << std::endl;
-}
-
-std::string MagnetisationMonitor::tsv_header() {
+  auto precision = jams::config_optional<int>(settings, "precision", 8);
   std::vector<jams::output::ColDef> cols;
 
   std::string mag_unit = "dimensionless";
@@ -160,8 +158,9 @@ std::string MagnetisationMonitor::tsv_header() {
       break;
   }
 
-  std::string units_line = jams::output::make_json_units_string(cols);
-  std::string header_line = jams::output::make_tsv_header_row(cols, output_precision_);
-
-  return units_line + header_line;
+  return jams::output::TsvWriter(
+    jams::output::full_path_filename("mag.tsv"),
+    std::move(cols),
+    precision
+  );
 }

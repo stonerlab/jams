@@ -28,14 +28,14 @@ private:
         POSITIONS
     };
 
+    jams::output::TsvWriter make_tsv_writer(const libconfig::Setting &settings);
+
+
     Grouping grouping_ = Grouping::MATERIALS;
     bool normalize_magnetisation_ = true;
-    std::ofstream tsv_file;
-    std::string   tsv_header();
-
-    int output_precision_ = 8;
-
     std::vector<jams::MultiArray<int,1>> group_spin_indices_;
+
+    jams::output::TsvWriter tsv_;
 };
 
 #endif  // JAMS_MONITOR_MAGNETISATION_H
