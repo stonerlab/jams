@@ -4,6 +4,7 @@
 #define JAMS_MONITOR_ENERGY_H
 
 #include <jams/core/monitor.h>
+#include <jams/helpers/output.h>
 
 #include <fstream>
 #include <string>
@@ -20,8 +21,8 @@ public:
     void post_process() override {};
 
 private:
-    std::ofstream tsv_file;
-    std::string   tsv_header();
+    std::ofstream tsv_file_;
+    std::vector<jams::output::ColDef> tsv_cols_;
 
     int output_precision_ = 8;
 };

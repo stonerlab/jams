@@ -61,10 +61,64 @@ namespace jams::output {
     int lock_file(const std::string& lock_filename);
     void unlock_file(int fd);
 
+    enum class ColFmt {
+      Scientific,
+      Fixed,
+      Integer
+    };
+
     struct ColDef {
         std::string name;
         std::string units;
+        ColFmt format = ColFmt::Scientific;
     };
+
+    inline void apply_format(std::ostream& os, ColFmt fmt, int precision = 8)
+    {
+      os.unsetf(std::ios::floatfield);  // Clear scientific/fixed flags first
+
+      switch (fmt) {
+        case ColFmt::Scientific:
+          os << std::scientific << std::setprecision(precision) << std::setw(precision + 9);
+          break;
+        case ColFmt::Fixed:
+          os << std::fixed << std::setprecision(precision) << std::setw(precision + 4);
+          break;
+        case ColFmt::Integer:
+          os << std::setw(8);
+          break;
+      }
+
+      os << std::right;
+    }
+
+    inline void write_tsv_row(std::ostream& os,
+                          const std::vector<ColDef>& cols,
+                          const std::vector<double>& values,
+                          int precision)
+    {
+      // assert(cols.size() == values.size());
+
+      for (std::size_t i = 0; i < cols.size(); ++i) {
+        const auto& col = cols[i];
+        double v = values[i];
+
+        apply_format(os, col.format, precision);
+
+        switch (col.format) {
+          case ColFmt::Integer:
+            os << static_cast<long long>(std::llround(v));
+            break;
+          case ColFmt::Scientific:
+          case ColFmt::Fixed:
+            os << v;
+            break;
+        }
+      }
+
+      os << '\n';
+    }
+
 
     inline std::string make_json_units_string(const std::vector<ColDef>& cols) {
       std::ostringstream os;
@@ -86,7 +140,8 @@ namespace jams::output {
       os << std::scientific << std::setprecision(precision) << std::right;
 
       for (const auto& col : cols) {
-        os << fmt::sci(precision) << col.name;
+        apply_format(os, col.format, precision);
+        os << col.name;
       }
 
       os << '\n';
