@@ -31,15 +31,19 @@ __global__ void cuda_dipole_convolution(
 
   if (idx < size) {
 
+    auto offset_i = 3 * (num_pos * idx + pos_i);
+    auto offset_j = 3 * (num_pos * idx + pos_j);
+    auto offset_w = 6 * idx;
+
     const cuDoubleComplex sq[3] = 
-      { gpu_sq[3 * (num_pos * idx + pos_j) + 0],
-        gpu_sq[3 * (num_pos * idx + pos_j) + 1],
-        gpu_sq[3 * (num_pos * idx + pos_j) + 2]
+      { gpu_sq[offset_j + 0],
+        gpu_sq[offset_j + 1],
+        gpu_sq[offset_j + 2]
       };
 
-      gpu_hq[3 * (num_pos * idx + pos_i) + 0] +=  alpha * (gpu_wq[6 * idx + 0] * sq[0] + gpu_wq[6 * idx + 1] * sq[1] + gpu_wq[6 * idx + 2] * sq[2]);
-      gpu_hq[3 * (num_pos * idx + pos_i) + 1] +=  alpha * (gpu_wq[6 * idx + 1] * sq[0] + gpu_wq[6 * idx + 3] * sq[1] + gpu_wq[6 * idx + 4] * sq[2]);
-      gpu_hq[3 * (num_pos * idx + pos_i) + 2] +=  alpha * (gpu_wq[6 * idx + 2] * sq[0] + gpu_wq[6 * idx + 4] * sq[1] + gpu_wq[6 * idx + 5] * sq[2]);
+      gpu_hq[offset_i + 0] +=  alpha * (gpu_wq[offset_w + 0] * sq[0] + gpu_wq[offset_w + 1] * sq[1] + gpu_wq[offset_w + 2] * sq[2]);
+      gpu_hq[offset_i + 1] +=  alpha * (gpu_wq[offset_w + 1] * sq[0] + gpu_wq[offset_w + 3] * sq[1] + gpu_wq[offset_w + 4] * sq[2]);
+      gpu_hq[offset_i + 2] +=  alpha * (gpu_wq[offset_w + 2] * sq[0] + gpu_wq[offset_w + 4] * sq[1] + gpu_wq[offset_w + 5] * sq[2]);
   }
 
 }
