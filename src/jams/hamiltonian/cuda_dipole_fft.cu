@@ -26,34 +26,33 @@ __global__ void cuda_dipole_convolution(
   ComplexType* hk
 )
 {
-  const unsigned int k_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned int k_idx = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned int pos_i = blockIdx.y;
 
-  if (k_idx < num_kpoints) {
-    for (int pos_i = 0; pos_i < num_pos; ++pos_i) {
-      ComplexType hk_sum[3] = {0.0, 0.0, 0.0};
+  if (k_idx >= num_kpoints || pos_i >= num_pos) return;
 
-      int offset_i = 3 * (num_pos * k_idx + pos_i);
-      for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
-        int offset_j = 3 * (num_pos * k_idx + pos_j);
-        int offset_w = ((pos_i*num_pos + pos_j)*num_kpoints + k_idx)*6;
-        const ComplexType sq[3] = {sk[offset_j + 0], sk[offset_j + 1], sk[offset_j + 2]};
+  ComplexType hk_sum[3] = {0.0, 0.0, 0.0};
 
-        const ComplexType w[6] = {
-          wk[offset_w + 0], wk[offset_w + 1], wk[offset_w + 2], wk[offset_w + 3], wk[offset_w + 4], wk[offset_w + 5]
-        };
+  int offset_i = 3 * (num_pos * k_idx + pos_i);
+  for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
+    int offset_j = 3 * (num_pos * k_idx + pos_j);
+    int offset_w = ((pos_i*num_pos + pos_j)*num_kpoints + k_idx)*6;
+    const ComplexType sq[3] = {sk[offset_j + 0], sk[offset_j + 1], sk[offset_j + 2]};
 
-        RealType mu_j = __ldg(mu + pos_j);
-        hk_sum[0] +=  mu_j * (w[0] * sq[0] + w[1] * sq[1] + w[2] * sq[2]);
-        hk_sum[1] +=  mu_j * (w[1] * sq[0] + w[3] * sq[1] + w[4] * sq[2]);
-        hk_sum[2] +=  mu_j * (w[2] * sq[0] + w[4] * sq[1] + w[5] * sq[2]);
-      }
+    const ComplexType w[6] = {
+      wk[offset_w + 0], wk[offset_w + 1], wk[offset_w + 2], wk[offset_w + 3], wk[offset_w + 4], wk[offset_w + 5]
+    };
 
-      RealType mu_i = __ldg(mu + pos_i);
-      hk[offset_i + 0] = mu_i * hk_sum[0];
-      hk[offset_i + 1] = mu_i * hk_sum[1];
-      hk[offset_i + 2] = mu_i * hk_sum[2];
-    }
+    RealType mu_j = __ldg(mu + pos_j);
+    hk_sum[0] +=  mu_j * (w[0] * sq[0] + w[1] * sq[1] + w[2] * sq[2]);
+    hk_sum[1] +=  mu_j * (w[1] * sq[0] + w[3] * sq[1] + w[4] * sq[2]);
+    hk_sum[2] +=  mu_j * (w[2] * sq[0] + w[4] * sq[1] + w[5] * sq[2]);
   }
+
+  RealType mu_i = __ldg(mu + pos_i);
+  hk[offset_i + 0] = mu_i * hk_sum[0];
+  hk[offset_i + 1] = mu_i * hk_sum[1];
+  hk[offset_i + 2] = mu_i * hk_sum[2];
 }
 
 CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
@@ -240,12 +239,13 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
   CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
 #endif
 
+  unsigned int num_pos = globals::lattice->num_basis_sites();
 const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
 const dim3 block_size = {256, 1, 1};
-const dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
+const dim3 grid_size = cuda_grid_size(block_size, {fft_size, num_pos, 1});
 
 
-cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_.get()>>>(fft_size, globals::lattice->num_basis_sites(), mus_float_.device_data(), kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.device_data());
+cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_.get()>>>(fft_size, num_pos, mus_float_.device_data(), kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.device_data());
 DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 #ifdef DO_MIXED_PRECISION
