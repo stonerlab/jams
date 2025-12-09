@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <fstream>
 #include <cassert>
+#include <cmath>
 
 namespace jams::fmt {
 struct SciFmt {

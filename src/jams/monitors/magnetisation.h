@@ -3,6 +3,7 @@
 #ifndef JAMS_MONITOR_MAGNETISATION_H
 #define JAMS_MONITOR_MAGNETISATION_H
 
+#include <jams/helpers/output.h>
 #include <jams/core/monitor.h>
 #include <jams/containers/multiarray.h>
 
