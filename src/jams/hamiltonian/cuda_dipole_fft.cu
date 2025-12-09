@@ -277,20 +277,22 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                     continue;
                 }
 
+                const double r_pow_5_2 = r_abs_sq * r_abs_sq * std::sqrt(r_abs_sq);
+
                 generated_positions.push_back(r_ij);
 
                 // xx
-                rspace_tensor(nx, ny, nz, 0) =  w0 * (3 * r_ij[0] * r_ij[0] - r_abs_sq) / pow(sqrt(r_abs_sq), 5);
+                rspace_tensor(nx, ny, nz, 0) =  w0 * (3 * r_ij[0] * r_ij[0] - r_abs_sq) / r_pow_5_2;
                 // xy
-                rspace_tensor(nx, ny, nz, 1) =  w0 * (3 * r_ij[0] * r_ij[1]) / pow(sqrt(r_abs_sq), 5);
+                rspace_tensor(nx, ny, nz, 1) =  w0 * (3 * r_ij[0] * r_ij[1]) / r_pow_5_2;
                 // xz
-                rspace_tensor(nx, ny, nz, 2) =  w0 * (3 * r_ij[0] * r_ij[2]) / pow(sqrt(r_abs_sq), 5);
+                rspace_tensor(nx, ny, nz, 2) =  w0 * (3 * r_ij[0] * r_ij[2]) / r_pow_5_2;
                 // yy
-                rspace_tensor(nx, ny, nz, 3) =  w0 * (3 * r_ij[1] * r_ij[1] - r_abs_sq) / pow(sqrt(r_abs_sq), 5);
+                rspace_tensor(nx, ny, nz, 3) =  w0 * (3 * r_ij[1] * r_ij[1] - r_abs_sq) / r_pow_5_2;
                 // yz
-                rspace_tensor(nx, ny, nz, 4) =  w0 * (3 * r_ij[1] * r_ij[2]) / pow(sqrt(r_abs_sq), 5);
+                rspace_tensor(nx, ny, nz, 4) =  w0 * (3 * r_ij[1] * r_ij[2]) / r_pow_5_2;
                 // zz
-                rspace_tensor(nx, ny, nz, 5) =  w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / pow(sqrt(r_abs_sq), 5);
+                rspace_tensor(nx, ny, nz, 5) =  w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / r_pow_5_2;
 
 //                for (int m = 0; m < 3; ++m) {
 //                    for (int n = m; n < 3; ++n) {
