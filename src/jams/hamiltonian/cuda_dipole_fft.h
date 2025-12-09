@@ -50,14 +50,16 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
 
         jams::MultiArray<float, 2> s_float_;
         jams::MultiArray<float, 2> h_float_;
+        jams::MultiArray<float, 1> mus_float_;
 
 
         jams::MultiArray<cufftComplexLo, 1>   kspace_s_;
         jams::MultiArray<cufftComplexLo, 1>   kspace_h_;
 
-    std::array<CudaStream, 4> dev_stream_;
+        CudaStream dev_stream_;
 
-    std::vector<std::vector<jams::MultiArray<cufftComplexLo, 1>>> kspace_tensors_;
+        // size is num_sites, num_sites, num_kpoints, num_tensor_components
+        jams::MultiArray<cufftComplexLo, 4> kspace_tensors_;
 
         cufftHandle                     cuda_fft_s_rspace_to_kspace;
         cufftHandle                     cuda_fft_h_kspace_to_rspace;

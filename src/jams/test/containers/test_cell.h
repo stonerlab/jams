@@ -44,9 +44,9 @@ TEST(CellTest, ctor) {
 
   Cell x(a, b, c);
 
-  ASSERT_THAT(x.a(), Vec3Eq(a, eps));
-  ASSERT_THAT(x.b(), Vec3Eq(b, eps));
-  ASSERT_THAT(x.c(), Vec3Eq(c, eps));
+  ASSERT_THAT(x.a1(), Vec3Eq(a, eps));
+  ASSERT_THAT(x.a2(), Vec3Eq(b, eps));
+  ASSERT_THAT(x.a3(), Vec3Eq(c, eps));
 
   ASSERT_THAT(x.matrix(), Mat3Eq(unitcell, eps));
   ASSERT_THAT(x.inverse_matrix(), Mat3Eq(inverse_matrix, eps));

@@ -18,35 +18,42 @@
 
 template<typename RealType, typename ComplexType>
 __global__ void cuda_dipole_convolution(
-  const unsigned int size,
-  const unsigned int pos_i, 
-  const unsigned int pos_j,
+  const unsigned int num_kpoints,
   const unsigned int num_pos,
-  const RealType alpha,
-  const ComplexType* gpu_sq,
-  const ComplexType* gpu_wq,
-  ComplexType* gpu_hq
+  const RealType* mu,
+  const ComplexType* sk,
+  const ComplexType* wk,
+  ComplexType* hk
 )
 {
-  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  const unsigned int k_idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-  if (idx < size) {
+  if (k_idx < num_kpoints) {
+    for (int pos_i = 0; pos_i < num_pos; ++pos_i) {
+      ComplexType hk_sum[3] = {0.0, 0.0, 0.0};
 
-    auto offset_i = 3 * (num_pos * idx + pos_i);
-    auto offset_j = 3 * (num_pos * idx + pos_j);
-    auto offset_w = 6 * idx;
+      int offset_i = 3 * (num_pos * k_idx + pos_i);
+      for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
+        int offset_j = 3 * (num_pos * k_idx + pos_j);
+        int offset_w = ((pos_i*num_pos + pos_j)*num_kpoints + k_idx)*6;
+        const ComplexType sq[3] = {sk[offset_j + 0], sk[offset_j + 1], sk[offset_j + 2]};
 
-    const ComplexType sq[3] =
-      { gpu_sq[offset_j + 0],
-        gpu_sq[offset_j + 1],
-        gpu_sq[offset_j + 2]
-      };
+        const ComplexType w[6] = {
+          wk[offset_w + 0], wk[offset_w + 1], wk[offset_w + 2], wk[offset_w + 3], wk[offset_w + 4], wk[offset_w + 5]
+        };
 
-      gpu_hq[offset_i + 0] +=  alpha * (gpu_wq[offset_w + 0] * sq[0] + gpu_wq[offset_w + 1] * sq[1] + gpu_wq[offset_w + 2] * sq[2]);
-      gpu_hq[offset_i + 1] +=  alpha * (gpu_wq[offset_w + 1] * sq[0] + gpu_wq[offset_w + 3] * sq[1] + gpu_wq[offset_w + 4] * sq[2]);
-      gpu_hq[offset_i + 2] +=  alpha * (gpu_wq[offset_w + 2] * sq[0] + gpu_wq[offset_w + 4] * sq[1] + gpu_wq[offset_w + 5] * sq[2]);
+        RealType mu_j = __ldg(mu + pos_j);
+        hk_sum[0] +=  mu_j * (w[0] * sq[0] + w[1] * sq[1] + w[2] * sq[2]);
+        hk_sum[1] +=  mu_j * (w[1] * sq[0] + w[3] * sq[1] + w[4] * sq[2]);
+        hk_sum[2] +=  mu_j * (w[2] * sq[0] + w[4] * sq[1] + w[5] * sq[2]);
+      }
+
+      RealType mu_i = __ldg(mu + pos_i);
+      hk[offset_i + 0] = mu_i * hk_sum[0];
+      hk[offset_i + 1] = mu_i * hk_sum[1];
+      hk[offset_i + 2] = mu_i * hk_sum[2];
+    }
   }
-
 }
 
 CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
@@ -133,6 +140,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 
   s_float_.resize(globals::s.size(0), globals::s.size(1));
   h_float_.resize(globals::h.size(0), globals::h.size(1));
+
 #else
   CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_s_rspace_to_kspace, rank, fft_size, rspace_embed, stride, dist,
         kspace_embed, stride, dist, CUFFT_D2Z, num_transforms));
@@ -141,17 +149,31 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
           rspace_embed, stride, dist, CUFFT_Z2D, num_transforms));
 #endif
 
+  const auto num_sites = globals::lattice->num_basis_sites();
+  const auto num_kpoints = kspace_embed[0] * kspace_embed[1] * kspace_embed[2];
+  const auto num_tensor_components = 6;
 
-  kspace_tensors_.resize(globals::lattice->num_basis_sites());
-  for (int pos_i = 0; pos_i < globals::lattice->num_basis_sites(); ++pos_i) {
+  kspace_tensors_.resize(num_sites, num_sites, num_kpoints, num_tensor_components);
+  for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
     std::vector<Vec3> generated_positions;
-    for (int pos_j = 0; pos_j < globals::lattice->num_basis_sites(); ++pos_j) {
+    for (int pos_j = 0; pos_j < num_sites; ++pos_j) {
         auto wq = generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions);
 
-        jams::MultiArray<cufftComplexLo, 1> gpu_wq(wq.elements());
-        kspace_tensors_[pos_i].push_back(gpu_wq);
-
-        CHECK_CUDA_STATUS(cudaMemcpy(kspace_tensors_[pos_i].back().device_data(), wq.data(), wq.elements() * sizeof(*wq.data()), cudaMemcpyHostToDevice));
+        assert(wq.size(0)*wq.size(1)*wq.size(2) == kspace_tensors_.size(2));
+        for (auto h = 0; h < wq.size(0); ++h) {
+          for (auto k = 0; k < wq.size(1); ++k) {
+            for (auto l = 0; l < wq.size(2); ++l) {
+              for (auto m = 0; m < num_tensor_components; ++m) {
+                auto k_idx = (h*kspace_embed[1] + k)*kspace_embed[2] + l;
+#ifdef DO_MIXED_PRECISION
+                kspace_tensors_(pos_i, pos_j, k_idx, m) = make_cuComplex(wq(h, k, l, m).real(), wq(h, k, l, m).imag());
+#else
+                kspace_tensors_(pos_i, pos_j, k_idx, m) = make_cuDoubleComplex(wq(h, k, l, m).real(), wq(h, k, l, m).imag());
+#endif
+              }
+            }
+          }
+        }
 
     }
       if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
@@ -163,8 +185,15 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
       }
   }
 
-  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_s_rspace_to_kspace, dev_stream_[0].get()));
-  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_[0].get()));
+  mus_float_.resize(num_sites);
+  for (auto i = 0; i < num_sites; ++i) {
+    mus_float_(i) = globals::lattice->material(globals::lattice->basis_site_atom(i).material_index).moment;
+  }
+
+
+
+  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_s_rspace_to_kspace, dev_stream_.get()));
+  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_.get()));
 }
 
 double CudaDipoleFFTHamiltonian::calculate_total_energy(double time) {
@@ -195,7 +224,7 @@ double CudaDipoleFFTHamiltonian::calculate_energy_difference(
 }
 
 void CudaDipoleFFTHamiltonian::calculate_energies(double time) {
-  cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, dev_stream_[0].get());
+  cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, dev_stream_.get());
 }
 
 Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i, double time) {
@@ -204,42 +233,29 @@ Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i, double time) {
 
 void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 
-  kspace_h_.zero();
-
 #ifdef DO_MIXED_PRECISION
-  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), dev_stream_[0].get());
+  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), dev_stream_.get());
   CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftReal*>(s_float_.device_data()), kspace_s_.device_data()));
 #else
   CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
 #endif
 
-  cudaStreamSynchronize(dev_stream_[0].get());
+const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
+const dim3 block_size = {256, 1, 1};
+const dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
 
-  const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
-  const dim3 block_size = {64, 1, 1};
-  const dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
 
-  for (int pos_j = 0; pos_j < globals::lattice->num_basis_sites(); ++pos_j) {
-    const double mus_j = globals::lattice->material(
-    globals::lattice->basis_site_atom(pos_j).material_index).moment;
-
-    for (int pos_i = 0; pos_i < globals::lattice->num_basis_sites(); ++pos_i) {
-      cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, globals::lattice->num_basis_sites(), mus_j, kspace_s_.device_data(), kspace_tensors_[pos_i][pos_j].device_data(), kspace_h_.device_data());
-      DEBUG_CHECK_CUDA_ASYNC_STATUS;
-    }
-    for (auto &s : dev_stream_) {
-      CHECK_CUDA_STATUS(cudaStreamSynchronize(s.get()));
-    }
-  }
+cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_.get()>>>(fft_size, globals::lattice->num_basis_sites(), mus_float_.device_data(), kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.device_data());
+DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 #ifdef DO_MIXED_PRECISION
   CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftReal*>(h_float_.device_data())));
-  cuda_array_float_to_double(h_float_.elements(), h_float_.device_data(), field_.device_data(), dev_stream_[0].get());
+  cuda_array_float_to_double(h_float_.elements(), h_float_.device_data(), field_.device_data(), dev_stream_.get());
 #else
   CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
 #endif
 
-  cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, dev_stream_[0].get());
+  // cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, dev_stream_.get());
 }
 
 // Generates the dipole tensor between unit cell positions i and j and appends

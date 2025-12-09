@@ -38,7 +38,7 @@ TYPED_TEST(SynchedMemoryTest, size) {
 
   SyncedMemory<TypeParam> x(10);
   ASSERT_EQ(x.size(), 10);
-  ASSERT_EQ(x.memory(), 10*sizeof(TypeParam));
+  ASSERT_EQ(x.bytes(), 10*sizeof(TypeParam));
 
   // if we can't address the memory space with int then we're
   // in trouble
