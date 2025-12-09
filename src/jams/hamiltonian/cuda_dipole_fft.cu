@@ -44,11 +44,6 @@ __global__ void cuda_dipole_convolution(
 
 }
 
-
-namespace {
-    const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-}
-
 CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
   if (cuda_fft_s_rspace_to_kspace) {
       cufftDestroy(cuda_fft_s_rspace_to_kspace);
