@@ -13,6 +13,15 @@
 
 class CudaDipoleFFTHamiltonian : public Hamiltonian {
     public:
+
+#ifdef DO_MIXED_PRECISION
+        using ComplexLo = std::complex<float>;
+        using cufftComplexLo = cufftComplex;
+#else
+        using ComplexLo = std::complex<double>;
+        using cufftComplexLo = cufftDoubleComplex;
+#endif
+
         CudaDipoleFFTHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
         ~CudaDipoleFFTHamiltonian() override;
@@ -30,7 +39,7 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         bool check_radius_   = true;
         bool check_symmetry_ = true;
 
-        jams::MultiArray<Complex, 4> generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions);
+        jams::MultiArray<ComplexLo, 4> generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions);
 
         double                          r_cutoff_;
         double                          distance_tolerance_;
@@ -38,12 +47,17 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
 
         Vec3i                    kspace_size_;
         Vec3i                    kspace_padded_size_;
-        jams::MultiArray<cufftDoubleComplex, 1>   kspace_s_;
-        jams::MultiArray<cufftDoubleComplex, 1>   kspace_h_;
+
+        jams::MultiArray<float, 2> s_float_;
+        jams::MultiArray<float, 2> h_float_;
+
+
+        jams::MultiArray<cufftComplexLo, 1>   kspace_s_;
+        jams::MultiArray<cufftComplexLo, 1>   kspace_h_;
 
     std::array<CudaStream, 4> dev_stream_;
 
-    std::vector<std::vector<jams::MultiArray<cufftDoubleComplex, 1>>> kspace_tensors_;
+    std::vector<std::vector<jams::MultiArray<cufftComplexLo, 1>>> kspace_tensors_;
 
         cufftHandle                     cuda_fft_s_rspace_to_kspace;
         cufftHandle                     cuda_fft_h_kspace_to_rspace;

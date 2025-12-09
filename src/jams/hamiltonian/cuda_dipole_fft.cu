@@ -16,15 +16,16 @@
 #include "jams/cuda/cuda_common.h"
 #include "jams/cuda/cuda_array_kernels.h"
 
+template<typename RealType, typename ComplexType>
 __global__ void cuda_dipole_convolution(
   const unsigned int size,
   const unsigned int pos_i, 
   const unsigned int pos_j,
   const unsigned int num_pos,
-  const double alpha,
-  const cufftDoubleComplex* gpu_sq,
-  const cufftDoubleComplex* gpu_wq,
-  cufftDoubleComplex* gpu_hq
+  const RealType alpha,
+  const ComplexType* gpu_sq,
+  const ComplexType* gpu_wq,
+  ComplexType* gpu_hq
 )
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -35,7 +36,7 @@ __global__ void cuda_dipole_convolution(
     auto offset_j = 3 * (num_pos * idx + pos_j);
     auto offset_w = 6 * idx;
 
-    const cuDoubleComplex sq[3] = 
+    const ComplexType sq[3] =
       { gpu_sq[offset_j + 0],
         gpu_sq[offset_j + 1],
         gpu_sq[offset_j + 2]
@@ -122,11 +123,24 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   int fft_size[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
   int fft_padded_size[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
+
+#ifdef DO_MIXED_PRECISION
   CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_s_rspace_to_kspace, rank, fft_size, rspace_embed, stride, dist,
-          kspace_embed, stride, dist, CUFFT_D2Z, num_transforms));
+      kspace_embed, stride, dist, CUFFT_R2C, num_transforms));
+
+  CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_h_kspace_to_rspace, rank, fft_size, kspace_embed, stride, dist,
+          rspace_embed, stride, dist, CUFFT_C2R, num_transforms));
+
+  s_float_.resize(globals::s.size(0), globals::s.size(1));
+  h_float_.resize(globals::h.size(0), globals::h.size(1));
+#else
+  CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_s_rspace_to_kspace, rank, fft_size, rspace_embed, stride, dist,
+        kspace_embed, stride, dist, CUFFT_D2Z, num_transforms));
 
   CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_h_kspace_to_rspace, rank, fft_size, kspace_embed, stride, dist,
           rspace_embed, stride, dist, CUFFT_Z2D, num_transforms));
+#endif
+
 
   kspace_tensors_.resize(globals::lattice->num_basis_sites());
   for (int pos_i = 0; pos_i < globals::lattice->num_basis_sites(); ++pos_i) {
@@ -134,10 +148,10 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
     for (int pos_j = 0; pos_j < globals::lattice->num_basis_sites(); ++pos_j) {
         auto wq = generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions);
 
-        jams::MultiArray<cufftDoubleComplex, 1> gpu_wq(wq.elements());
+        jams::MultiArray<cufftComplexLo, 1> gpu_wq(wq.elements());
         kspace_tensors_[pos_i].push_back(gpu_wq);
 
-        CHECK_CUDA_STATUS(cudaMemcpy(kspace_tensors_[pos_i].back().device_data(), wq.data(), wq.elements() * sizeof(cufftDoubleComplex), cudaMemcpyHostToDevice));
+        CHECK_CUDA_STATUS(cudaMemcpy(kspace_tensors_[pos_i].back().device_data(), wq.data(), wq.elements() * sizeof(*wq.data()), cudaMemcpyHostToDevice));
 
     }
       if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
@@ -192,22 +206,24 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 
   kspace_h_.zero();
 
+#ifdef DO_MIXED_PRECISION
+  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), dev_stream_[0].get());
+  CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftReal*>(s_float_.device_data()), kspace_s_.device_data()));
+#else
   CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
+#endif
+
   cudaStreamSynchronize(dev_stream_[0].get());
 
   const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
-  const dim3 block_size = {32, 1, 1};
+  const dim3 block_size = {64, 1, 1};
   const dim3 grid_size = cuda_grid_size(block_size, {fft_size, 1, 1});
 
   for (int pos_j = 0; pos_j < globals::lattice->num_basis_sites(); ++pos_j) {
     const double mus_j = globals::lattice->material(
-        globals::lattice->basis_site_atom(pos_j).material_index).moment;
+    globals::lattice->basis_site_atom(pos_j).material_index).moment;
 
     for (int pos_i = 0; pos_i < globals::lattice->num_basis_sites(); ++pos_i) {
-
-
-
-
       cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_[pos_i%4].get()>>>(fft_size, pos_i, pos_j, globals::lattice->num_basis_sites(), mus_j, kspace_s_.device_data(), kspace_tensors_[pos_i][pos_j].device_data(), kspace_h_.device_data());
       DEBUG_CHECK_CUDA_ASYNC_STATUS;
     }
@@ -216,15 +232,19 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
     }
   }
 
+#ifdef DO_MIXED_PRECISION
+  CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftReal*>(h_float_.device_data())));
+  cuda_array_float_to_double(h_float_.elements(), h_float_.device_data(), field_.device_data(), dev_stream_[0].get());
+#else
   CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
+#endif
 
   cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, dev_stream_[0].get());
-
 }
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-jams::MultiArray<Complex, 4>
+jams::MultiArray<CudaDipoleFFTHamiltonian::ComplexLo, 4>
 CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
     using std::pow;
   
@@ -240,7 +260,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
         kspace_padded_size_[2],
         6);
 
-  jams::MultiArray<Complex, 4> kspace_tensor(
+  jams::MultiArray<Complex, 4> kspace_tensor_hi(
         kspace_padded_size_[0],
         kspace_padded_size_[1],
         kspace_padded_size_[2]/2 + 1,
@@ -248,7 +268,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
 
 
     rspace_tensor.zero();
-    kspace_tensor.zero();
+    kspace_tensor_hi.zero();
 
     const double fft_normalization_factor = 1.0 / product(kspace_size_);
     const double v = pow(globals::lattice->parameter(), 3);
@@ -293,18 +313,6 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                 rspace_tensor(nx, ny, nz, 4) =  w0 * (3 * r_ij[1] * r_ij[2]) / r_pow_5_2;
                 // zz
                 rspace_tensor(nx, ny, nz, 5) =  w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / r_pow_5_2;
-
-//                for (int m = 0; m < 3; ++m) {
-//                    for (int n = m; n < 3; ++n) {
-//                        auto value = w0 * (3 * r_ij[m] * r_ij[n] - r_abs_sq * Id[m][n]) / pow(sqrt(r_abs_sq), 5);
-//
-//                        std::cout << m << " " << n << " " << value << std::endl;
-//                        if (!std::isfinite(value)) {
-//                          throw std::runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: tensor Szz is not finite");
-//                        }
-//                        rspace_tensor(nx, ny, nz, m, n) = value;
-//                    }
-//                }
             }
         }
     }
@@ -334,7 +342,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
             nembed,                     // number of embedded dimensions
             stride,                     // memory stride between elements of one fft dataset
             dist,                       // memory distance between fft datasets
-            FFTW_COMPLEX_CAST(kspace_tensor.data()),       // output: real dat
+            FFTW_COMPLEX_CAST(kspace_tensor_hi.data()),       // output: real dat
             nembed,                     // number of embedded dimensions
             stride,                     // memory stride between elements of one fft dataset
             dist,                       // memory distance between fft datasets
@@ -343,6 +351,22 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
     fftw_execute(fft_dipole_tensor_rspace_to_kspace);
     fftw_destroy_plan(fft_dipole_tensor_rspace_to_kspace);
 
-    return kspace_tensor;
+  jams::MultiArray<ComplexLo, 4> kspace_tensor_lo(
+    kspace_padded_size_[0],
+    kspace_padded_size_[1],
+    kspace_padded_size_[2]/2 + 1,
+    6);
+
+    for (auto i = 0; i < kspace_tensor_hi.size(0); ++i) {
+      for (auto j = 0; j < kspace_tensor_hi.size(1); ++j) {
+        for (auto k = 0; k < kspace_tensor_hi.size(2); ++k) {
+          for (auto l = 0; l < kspace_tensor_hi.size(3); ++l) {
+            kspace_tensor_lo(i, j, k, l) = kspace_tensor_hi(i, j, k, l);
+          }
+        }
+      }
+    }
+
+    return kspace_tensor_lo;
 }
 

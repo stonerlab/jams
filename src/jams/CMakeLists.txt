@@ -40,6 +40,10 @@ if(JAMS_BUILD_CUDA)
     endif()
 endif()
 
+if (JAMS_BUILD_MIXED_PREC)
+    target_compile_definitions(jams PRIVATE DO_MIXED_PRECISION)
+endif()
+
 if (JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
     target_compile_definitions(jams PRIVATE HAS_OMP)
     target_compile_options(jams PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
