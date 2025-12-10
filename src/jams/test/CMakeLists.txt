@@ -66,6 +66,11 @@ if(JAMS_BUILD_CUDA)
     endif()
 endif()
 
+
+if (JAMS_BUILD_MIXED_PREC)
+    target_compile_definitions(jams_tests PRIVATE DO_MIXED_PRECISION)
+endif()
+
 if (JAMS_BUILD_FASTMATH)
     jams_set_fast_math(jams_tests)
 endif()
