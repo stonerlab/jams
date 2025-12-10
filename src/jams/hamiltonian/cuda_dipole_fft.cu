@@ -16,11 +16,12 @@
 #include "jams/cuda/cuda_common.h"
 #include "jams/cuda/cuda_array_kernels.h"
 
-template<typename RealType, typename ComplexType>
+__constant__ float mu_const[128];
+
+template<typename ComplexType>
 __global__ void cuda_dipole_convolution(
   const unsigned int num_kpoints,
   const unsigned int num_pos,
-  const RealType* mu,
   const ComplexType* sk,
   const ComplexType* wk,
   ComplexType* hk
@@ -52,16 +53,14 @@ __global__ void cuda_dipole_convolution(
     ComplexType w4 = wk[base4];
     ComplexType w5 = wk[base5];
 
-    RealType mu_j = __ldg(mu + pos_j);
-    hk_sum[0] +=  mu_j * (w0 * sq[0] + w1 * sq[1] + w2 * sq[2]);
-    hk_sum[1] +=  mu_j * (w1 * sq[0] + w3 * sq[1] + w4 * sq[2]);
-    hk_sum[2] +=  mu_j * (w2 * sq[0] + w4 * sq[1] + w5 * sq[2]);
+    hk_sum[0] +=  mu_const[pos_j] * (w0 * sq[0] + w1 * sq[1] + w2 * sq[2]);
+    hk_sum[1] +=  mu_const[pos_j] * (w1 * sq[0] + w3 * sq[1] + w4 * sq[2]);
+    hk_sum[2] +=  mu_const[pos_j] * (w2 * sq[0] + w4 * sq[1] + w5 * sq[2]);
   }
 
-  RealType mu_i = __ldg(mu + pos_i);
-  hk[offset_i + 0] = mu_i * hk_sum[0];
-  hk[offset_i + 1] = mu_i * hk_sum[1];
-  hk[offset_i + 2] = mu_i * hk_sum[2];
+  hk[offset_i + 0] = mu_const[pos_i] * hk_sum[0];
+  hk[offset_i + 1] = mu_const[pos_i] * hk_sum[1];
+  hk[offset_i + 2] = mu_const[pos_i] * hk_sum[2];
 }
 
 CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
@@ -199,7 +198,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
     mus_float_(i) = globals::lattice->material(globals::lattice->basis_site_atom(i).material_index).moment;
   }
 
-
+  cudaMemcpyToSymbol(mu_const, mus_float_.device_data(), mus_float_.bytes(), 0, cudaMemcpyHostToDevice);
 
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_s_rspace_to_kspace, dev_stream_.get()));
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_.get()));
@@ -251,11 +250,11 @@ void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 
   unsigned int num_pos = globals::lattice->num_basis_sites();
 const unsigned int fft_size = kspace_padded_size_[0] * kspace_padded_size_[1] * (kspace_padded_size_[2] / 2 + 1);
-const dim3 block_size = {256, 1, 1};
+const dim3 block_size = {64, 1, 1};
 const dim3 grid_size = cuda_grid_size(block_size, {fft_size, num_pos, 1});
 
 
-cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_.get()>>>(fft_size, num_pos, mus_float_.device_data(), kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.device_data());
+cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.device_data());
 DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 #ifdef DO_MIXED_PRECISION
