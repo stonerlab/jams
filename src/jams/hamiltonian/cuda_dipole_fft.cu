@@ -34,10 +34,15 @@ __global__ void cuda_dipole_convolution(
 
   ComplexType hk_sum[3] = {0.0, 0.0, 0.0};
 
-  int offset_i = 3 * (num_pos * k_idx + pos_i);
   for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
-    int offset_j = 3 * (num_pos * k_idx + pos_j);
-    const ComplexType sq[3] = {sk[offset_j + 0], sk[offset_j + 1], sk[offset_j + 2]};
+    int batch_base_j = 3 * pos_j;
+    int idx0 = (batch_base_j + 0) * num_kpoints + k_idx;
+    int idx1 = (batch_base_j + 1) * num_kpoints + k_idx;
+    int idx2 = (batch_base_j + 2) * num_kpoints + k_idx;
+
+    const ComplexType sq0 = sk[idx0];
+    const ComplexType sq1 = sk[idx1];
+    const ComplexType sq2 = sk[idx2];
 
     int base0 = ((pos_i*num_pos + pos_j) * 6 + 0) * num_kpoints + k_idx;
     int base1 = base0 + num_kpoints;
@@ -53,14 +58,20 @@ __global__ void cuda_dipole_convolution(
     ComplexType w4 = wk[base4];
     ComplexType w5 = wk[base5];
 
-    hk_sum[0] +=  mu_const[pos_j] * (w0 * sq[0] + w1 * sq[1] + w2 * sq[2]);
-    hk_sum[1] +=  mu_const[pos_j] * (w1 * sq[0] + w3 * sq[1] + w4 * sq[2]);
-    hk_sum[2] +=  mu_const[pos_j] * (w2 * sq[0] + w4 * sq[1] + w5 * sq[2]);
+    hk_sum[0] +=  mu_const[pos_j] * (w0 * sq0 + w1 * sq1 + w2 * sq2);
+    hk_sum[1] +=  mu_const[pos_j] * (w1 * sq0 + w3 * sq1 + w4 * sq2);
+    hk_sum[2] +=  mu_const[pos_j] * (w2 * sq0 + w4 * sq1 + w5 * sq2);
   }
 
-  hk[offset_i + 0] = mu_const[pos_i] * hk_sum[0];
-  hk[offset_i + 1] = mu_const[pos_i] * hk_sum[1];
-  hk[offset_i + 2] = mu_const[pos_i] * hk_sum[2];
+  int batch_base_i = 3 * pos_i;
+  int out0 = (batch_base_i + 0) * num_kpoints + k_idx;
+  int out1 = (batch_base_i + 1) * num_kpoints + k_idx;
+  int out2 = (batch_base_i + 2) * num_kpoints + k_idx;
+
+  const float mu_i = mu_const[pos_i];
+  hk[out0] = mu_i * hk_sum[0];
+  hk[out1] = mu_i * hk_sum[1];
+  hk[out2] = mu_i * hk_sum[2];
 }
 
 CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
@@ -127,37 +138,88 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   std::cout << "    kspace size " << kspace_size_ << "\n";
   std::cout << "    kspace padded size " << kspace_padded_size_ << "\n";
 
+  const int num_sites     = globals::lattice->num_basis_sites();
+
   int rank            = 3;           
-  int stride          = 3 * globals::lattice->num_basis_sites();
+  int stride          = 3 * num_sites;
   int dist            = 1;
-  int num_transforms  = 3 * globals::lattice->num_basis_sites();
   int rspace_embed[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
   int kspace_embed[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]/2 + 1};
 
   int fft_size[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
   int fft_padded_size[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
+  const int num_kpoints   = kspace_embed[0] * kspace_embed[1] * kspace_embed[2]; // Nx * Ny * (Nz/2+1)
+  const int num_transforms = 3 * num_sites;                                      // unchanged
+
+  // Input (real, r-space) layout: keep as before
+  const int istride = 3 * num_sites;
+  const int idist   = 1;
+
+  // Output (complex, k-space) layout: [batch][k_idx], batch = 3*pos + comp
+  const int ostride = 1;               // k dimension is contiguous
+  const int odist   = num_kpoints;     // distance between batches
+
 
 #ifdef DO_MIXED_PRECISION
-  CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_s_rspace_to_kspace, rank, fft_size, rspace_embed, stride, dist,
-      kspace_embed, stride, dist, CUFFT_R2C, num_transforms));
+  CHECK_CUFFT_STATUS(
+      cufftPlanMany(&cuda_fft_s_rspace_to_kspace,
+                    rank,
+                    fft_size,
+                    rspace_embed,  // inembed
+                    istride,       // istride
+                    idist,         // idist
+                    kspace_embed,  // onembed
+                    ostride,       // ostride
+                    odist,         // odist
+                    CUFFT_R2C,
+                    num_transforms));
+#else
+  CHECK_CUFFT_STATUS(
+      cufftPlanMany(&cuda_fft_s_rspace_to_kspace,
+                    rank,
+                    fft_size,
+                    rspace_embed,  // inembed
+                    istride,       // istride
+                    idist,         // idist
+                    kspace_embed,  // onembed
+                    ostride,       // ostride
+                    odist,         // odist
+                    CUFFT_D2Z,
+                    num_transforms));
+#endif
 
-  CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_h_kspace_to_rspace, rank, fft_size, kspace_embed, stride, dist,
-          rspace_embed, stride, dist, CUFFT_C2R, num_transforms));
+#ifdef DO_MIXED_PRECISION
+  CHECK_CUFFT_STATUS(
+      cufftPlanMany(&cuda_fft_h_kspace_to_rspace,
+                    rank,
+                    fft_size,
+                    kspace_embed,  // inembed (k-space)
+                    ostride,       // istride (now complex input)
+                    odist,         // idist
+                    rspace_embed,  // onembed (r-space)
+                    istride,       // ostride
+                    idist,         // odist
+                    CUFFT_C2R,
+                    num_transforms));
+#else
+  CHECK_CUFFT_STATUS(
+      cufftPlanMany(&cuda_fft_h_kspace_to_rspace,
+                    rank,
+                    fft_size,
+                    kspace_embed,  // inembed (k-space)
+                    ostride,       // istride
+                    odist,         // idist
+                    rspace_embed,  // onembed (r-space)
+                    istride,       // ostride
+                    idist,         // odist
+                    CUFFT_Z2D,
+                    num_transforms));
+#endif
 
   s_float_.resize(globals::s.size(0), globals::s.size(1));
   h_float_.resize(globals::h.size(0), globals::h.size(1));
 
-#else
-  CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_s_rspace_to_kspace, rank, fft_size, rspace_embed, stride, dist,
-        kspace_embed, stride, dist, CUFFT_D2Z, num_transforms));
-
-  CHECK_CUFFT_STATUS(cufftPlanMany(&cuda_fft_h_kspace_to_rspace, rank, fft_size, kspace_embed, stride, dist,
-          rspace_embed, stride, dist, CUFFT_Z2D, num_transforms));
-#endif
-
-  const auto num_sites = globals::lattice->num_basis_sites();
-  const auto num_kpoints = kspace_embed[0] * kspace_embed[1] * kspace_embed[2];
   const auto num_tensor_components = 6;
 
   kspace_tensors_.resize(num_sites, num_sites, num_tensor_components, num_kpoints);
