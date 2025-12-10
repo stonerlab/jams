@@ -36,17 +36,26 @@ __global__ void cuda_dipole_convolution(
   int offset_i = 3 * (num_pos * k_idx + pos_i);
   for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
     int offset_j = 3 * (num_pos * k_idx + pos_j);
-    int offset_w = ((pos_i*num_pos + pos_j)*num_kpoints + k_idx)*6;
     const ComplexType sq[3] = {sk[offset_j + 0], sk[offset_j + 1], sk[offset_j + 2]};
 
-    const ComplexType w[6] = {
-      wk[offset_w + 0], wk[offset_w + 1], wk[offset_w + 2], wk[offset_w + 3], wk[offset_w + 4], wk[offset_w + 5]
-    };
+    int base0 = ((pos_i*num_pos + pos_j) * 6 + 0) * num_kpoints + k_idx;
+    int base1 = base0 + num_kpoints;
+    int base2 = base1 + num_kpoints;
+    int base3 = base2 + num_kpoints;
+    int base4 = base3 + num_kpoints;
+    int base5 = base4 + num_kpoints;
+
+    ComplexType w0 = wk[base0];
+    ComplexType w1 = wk[base1];
+    ComplexType w2 = wk[base2];
+    ComplexType w3 = wk[base3];
+    ComplexType w4 = wk[base4];
+    ComplexType w5 = wk[base5];
 
     RealType mu_j = __ldg(mu + pos_j);
-    hk_sum[0] +=  mu_j * (w[0] * sq[0] + w[1] * sq[1] + w[2] * sq[2]);
-    hk_sum[1] +=  mu_j * (w[1] * sq[0] + w[3] * sq[1] + w[4] * sq[2]);
-    hk_sum[2] +=  mu_j * (w[2] * sq[0] + w[4] * sq[1] + w[5] * sq[2]);
+    hk_sum[0] +=  mu_j * (w0 * sq[0] + w1 * sq[1] + w2 * sq[2]);
+    hk_sum[1] +=  mu_j * (w1 * sq[0] + w3 * sq[1] + w4 * sq[2]);
+    hk_sum[2] +=  mu_j * (w2 * sq[0] + w4 * sq[1] + w5 * sq[2]);
   }
 
   RealType mu_i = __ldg(mu + pos_i);
@@ -152,22 +161,23 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   const auto num_kpoints = kspace_embed[0] * kspace_embed[1] * kspace_embed[2];
   const auto num_tensor_components = 6;
 
-  kspace_tensors_.resize(num_sites, num_sites, num_kpoints, num_tensor_components);
+  kspace_tensors_.resize(num_sites, num_sites, num_tensor_components, num_kpoints);
   for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
     std::vector<Vec3> generated_positions;
     for (int pos_j = 0; pos_j < num_sites; ++pos_j) {
         auto wq = generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions);
 
-        assert(wq.size(0)*wq.size(1)*wq.size(2) == kspace_tensors_.size(2));
-        for (auto h = 0; h < wq.size(0); ++h) {
-          for (auto k = 0; k < wq.size(1); ++k) {
-            for (auto l = 0; l < wq.size(2); ++l) {
-              for (auto m = 0; m < num_tensor_components; ++m) {
+      assert(wq.size(1)*wq.size(2)*wq.size(3) == kspace_tensors_.size(3));
+      for (auto m = 0; m < num_tensor_components; ++m) {
+
+        for (auto h = 0; h < wq.size(1); ++h) {
+          for (auto k = 0; k < wq.size(2); ++k) {
+            for (auto l = 0; l < wq.size(3); ++l) {
                 auto k_idx = (h*kspace_embed[1] + k)*kspace_embed[2] + l;
 #ifdef DO_MIXED_PRECISION
-                kspace_tensors_(pos_i, pos_j, k_idx, m) = make_cuComplex(wq(h, k, l, m).real(), wq(h, k, l, m).imag());
+                kspace_tensors_(pos_i, pos_j, m, k_idx) = make_cuComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
 #else
-                kspace_tensors_(pos_i, pos_j, k_idx, m) = make_cuDoubleComplex(wq(h, k, l, m).real(), wq(h, k, l, m).imag());
+                kspace_tensors_(pos_i, pos_j, m, k_idx) = make_cuDoubleComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
 #endif
               }
             }
@@ -271,16 +281,16 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
     const Vec3 r_cart_j = globals::lattice->fractional_to_cartesian(r_frac_j);
 
   jams::MultiArray<double, 4> rspace_tensor(
+        6,
         kspace_padded_size_[0],
         kspace_padded_size_[1],
-        kspace_padded_size_[2],
-        6);
+        kspace_padded_size_[2]);
 
   jams::MultiArray<Complex, 4> kspace_tensor_hi(
+        6,
         kspace_padded_size_[0],
         kspace_padded_size_[1],
-        kspace_padded_size_[2]/2 + 1,
-        6);
+        kspace_padded_size_[2]/2 + 1);
 
 
     rspace_tensor.zero();
@@ -318,17 +328,17 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                 generated_positions.push_back(r_ij);
 
                 // xx
-                rspace_tensor(nx, ny, nz, 0) =  w0 * (3 * r_ij[0] * r_ij[0] - r_abs_sq) / r_pow_5_2;
+                rspace_tensor(0, nx, ny, nz) =  w0 * (3 * r_ij[0] * r_ij[0] - r_abs_sq) / r_pow_5_2;
                 // xy
-                rspace_tensor(nx, ny, nz, 1) =  w0 * (3 * r_ij[0] * r_ij[1]) / r_pow_5_2;
+                rspace_tensor(1, nx, ny, nz) =  w0 * (3 * r_ij[0] * r_ij[1]) / r_pow_5_2;
                 // xz
-                rspace_tensor(nx, ny, nz, 2) =  w0 * (3 * r_ij[0] * r_ij[2]) / r_pow_5_2;
+                rspace_tensor(2, nx, ny, nz) =  w0 * (3 * r_ij[0] * r_ij[2]) / r_pow_5_2;
                 // yy
-                rspace_tensor(nx, ny, nz, 3) =  w0 * (3 * r_ij[1] * r_ij[1] - r_abs_sq) / r_pow_5_2;
+                rspace_tensor(3, nx, ny, nz) =  w0 * (3 * r_ij[1] * r_ij[1] - r_abs_sq) / r_pow_5_2;
                 // yz
-                rspace_tensor(nx, ny, nz, 4) =  w0 * (3 * r_ij[1] * r_ij[2]) / r_pow_5_2;
+                rspace_tensor(4, nx, ny, nz) =  w0 * (3 * r_ij[1] * r_ij[2]) / r_pow_5_2;
                 // zz
-                rspace_tensor(nx, ny, nz, 5) =  w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / r_pow_5_2;
+                rspace_tensor(5, nx, ny, nz) =  w0 * (3 * r_ij[2] * r_ij[2] - r_abs_sq) / r_pow_5_2;
             }
         }
     }
@@ -342,36 +352,39 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
       }
     }
 
-    int rank            = 3;
-    int stride          = 6;
-    int dist            = 1;
-    int num_transforms  = 6;
-    int * nembed        = nullptr;
-    int transform_size[3]  = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
+  int rank           = 3;
+  int istride        = 1;
+  int ostride        = 1;
+  int idist          = kspace_padded_size_[0]*kspace_padded_size_[1]*kspace_padded_size_[2];         // Nx*Ny*Nz
+  int odist          = kspace_padded_size_[0]*kspace_padded_size_[1]*(kspace_padded_size_[2]/2 + 1); // Nx*Ny*(Nz/2+1)
+  int num_transforms = 6;
+  int *inembed       = nullptr;
+  int *outembed      = nullptr;
+  int transform_size[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]};
 
-    fftw_plan fft_dipole_tensor_rspace_to_kspace
-        = fftw_plan_many_dft_r2c(
-            rank,                       // dimensionality
-            transform_size,    // array of sizes of each dimension
-            num_transforms,             // number of transforms
-            rspace_tensor.data(),       // input: real data
-            nembed,                     // number of embedded dimensions
-            stride,                     // memory stride between elements of one fft dataset
-            dist,                       // memory distance between fft datasets
-            FFTW_COMPLEX_CAST(kspace_tensor_hi.data()),       // output: real dat
-            nembed,                     // number of embedded dimensions
-            stride,                     // memory stride between elements of one fft dataset
-            dist,                       // memory distance between fft datasets
-            FFTW_ESTIMATE|FFTW_PRESERVE_INPUT);
+  fftw_plan fft_dipole_tensor_rspace_to_kspace =
+      fftw_plan_many_dft_r2c(
+          rank,
+          transform_size,
+          num_transforms,
+          rspace_tensor.data(),
+          inembed,
+          istride,
+          idist,
+          FFTW_COMPLEX_CAST(kspace_tensor_hi.data()),
+          outembed,
+          ostride,
+          odist,
+          FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
 
     fftw_execute(fft_dipole_tensor_rspace_to_kspace);
     fftw_destroy_plan(fft_dipole_tensor_rspace_to_kspace);
 
   jams::MultiArray<ComplexLo, 4> kspace_tensor_lo(
+    6,
     kspace_padded_size_[0],
     kspace_padded_size_[1],
-    kspace_padded_size_[2]/2 + 1,
-    6);
+    kspace_padded_size_[2]/2 + 1);
 
     for (auto i = 0; i < kspace_tensor_hi.size(0); ++i) {
       for (auto j = 0; j < kspace_tensor_hi.size(1); ++j) {
