@@ -5,6 +5,7 @@
 
 #include <jams/core/types.h>
 #include <jams/monitors/spectrum_base.h>
+#include <jams/helpers/mixed_precision.h>
 
 #include <complex>
 #include <vector>
@@ -30,8 +31,6 @@ class Solver;
  */
 class NeutronScatteringMonitor : public SpectrumBaseMonitor {
  public:
-    using Complex = std::complex<double>;
-
     explicit NeutronScatteringMonitor(const libconfig::Setting &settings);
     ~NeutronScatteringMonitor() override = default;
 
@@ -44,13 +43,13 @@ private:
 
     void output_neutron_cross_section();
 
-    jams::MultiArray<Complex, 2> calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum);
-    jams::MultiArray<Complex, 3> calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations);
+    jams::MultiArray<jams::ComplexHi, 2> calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum);
+    jams::MultiArray<jams::ComplexHi, 3> calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations);
 
     jams::MultiArray<double, 2> neutron_form_factors_;
     std::vector<Vec3>           neutron_polarizations_;
-    jams::MultiArray<Complex,2> total_unpolarized_neutron_cross_section_;
-    jams::MultiArray<Complex,3> total_polarized_neutron_cross_sections_;
+    jams::MultiArray<jams::ComplexHi,2> total_unpolarized_neutron_cross_section_;
+    jams::MultiArray<jams::ComplexHi,3> total_polarized_neutron_cross_sections_;
 
 
 

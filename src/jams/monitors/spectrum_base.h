@@ -26,7 +26,6 @@ namespace jams {
 
 class SpectrumBaseMonitor : public Monitor {
 public:
-    using Complex = std::complex<double>;
     using CmplxVecField = jams::MultiArray<Vec3cx, 3>;
 
     explicit SpectrumBaseMonitor(const libconfig::Setting &settings);

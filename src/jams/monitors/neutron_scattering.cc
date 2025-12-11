@@ -17,8 +17,7 @@
 #include "jams/interface/fft.h"
 #include "neutron_scattering.h"
 #include "jams/helpers/neutrons.h"
-
-using Complex = std::complex<double>;
+#include <jams/helpers/mixed_precision.h>
 
 NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &settings)
 : SpectrumBaseMonitor(settings) {
@@ -93,12 +92,12 @@ void NeutronScatteringMonitor::update(Solver& solver) {
  * @return
  */
 
-jams::MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum) {
+jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum) {
   const auto num_sites = spectrum.size(0);
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
 
-  jams::MultiArray<Complex, 2> cross_section(num_freqencies, num_reciprocal_points);
+  jams::MultiArray<jams::ComplexHi, 2> cross_section(num_freqencies, num_reciprocal_points);
   cross_section.zero();
 
   for (auto a = 0; a < num_sites; ++a) {
@@ -128,12 +127,12 @@ jams::MultiArray<Complex, 2> NeutronScatteringMonitor::calculate_unpolarized_cro
   return cross_section;
 }
 
-jams::MultiArray<Complex, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations) {
+jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations) {
   const auto num_sites = spectrum.size(0);
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
 
-  jams::MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
+  jams::MultiArray<jams::ComplexHi, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
 
   for (auto a = 0; a < num_sites; ++a) {

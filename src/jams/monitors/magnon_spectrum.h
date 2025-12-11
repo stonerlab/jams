@@ -8,6 +8,7 @@
 #include <jams/core/types.h>
 #include <jams/core/monitor.h>
 #include <jams/monitors/spectrum_base.h>
+#include <jams/helpers/mixed_precision.h>
 
 #include <fstream>
 #include <complex>
@@ -17,8 +18,7 @@ class Solver;
 
 class MagnonSpectrumMonitor : public SpectrumBaseMonitor {
 public:
-    using Complex = std::complex<double>;
-    using Mat3cx  = std::array<std::array<Complex, 3>, 3>;
+    using Mat3cx  = std::array<std::array<jams::ComplexHi, 3>, 3>;
 
     explicit MagnonSpectrumMonitor(const libconfig::Setting &settings);
     ~MagnonSpectrumMonitor() override = default;

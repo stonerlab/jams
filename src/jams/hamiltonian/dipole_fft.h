@@ -6,6 +6,7 @@
 #include <jams/core/hamiltonian.h>
 #include <jams/core/types.h>
 #include <jams/interface/fft.h>
+#include <jams/helpers/mixed_precision.h>
 
 class DipoleFFTHamiltonian : public Hamiltonian {
 public:
@@ -27,7 +28,7 @@ public:
 
 private:
 
-    jams::MultiArray<Complex, 5> generate_kspace_dipole_tensor(int pos_i, const int pos_j, std::vector<Vec3>& generated_positions);
+    jams::MultiArray<jams::ComplexHi, 5> generate_kspace_dipole_tensor(int pos_i, const int pos_j, std::vector<Vec3>& generated_positions);
 
     bool debug_ = false;
     bool check_radius_ = true;
@@ -41,10 +42,10 @@ private:
 
     std::array<unsigned, 3> kspace_size_ = {0, 0, 0};
     std::array<unsigned, 3> kspace_padded_size_ = {0, 0, 0};
-    jams::MultiArray<Complex, 4> kspace_s_;
-    jams::MultiArray<Complex, 4> kspace_h_;
+    jams::MultiArray<jams::ComplexHi, 4> kspace_s_;
+    jams::MultiArray<jams::ComplexHi, 4> kspace_h_;
 
-    std::vector<std::vector<jams::MultiArray<Complex, 5>>> kspace_tensors_;
+    std::vector<std::vector<jams::MultiArray<jams::ComplexHi, 5>>> kspace_tensors_;
 
     fftw_plan fft_s_rspace_to_kspace = nullptr;
     fftw_plan fft_h_kspace_to_rspace = nullptr;

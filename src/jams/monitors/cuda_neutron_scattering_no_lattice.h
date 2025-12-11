@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <complex>
+#include <jams/helpers/mixed_precision.h>
 
 class CudaNeutronScatteringNoLatticeMonitor : public Monitor {
 public:
@@ -37,8 +38,8 @@ private:
 
     jams::MultiArray<double, 2> neutron_form_factors_;
     std::vector<Vec3>           neutron_polarizations_;
-    jams::MultiArray<Complex,2> total_unpolarized_neutron_cross_section_;
-    jams::MultiArray<Complex,3> total_polarized_neutron_cross_sections_;
+    jams::MultiArray<jams::ComplexHi,2> total_unpolarized_neutron_cross_section_;
+    jams::MultiArray<jams::ComplexHi,3> total_polarized_neutron_cross_sections_;
 
     jams::PeriodogramProps periodogram_props_;
     int periodogram_index_ = 0;

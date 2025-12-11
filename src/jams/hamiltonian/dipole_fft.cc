@@ -196,7 +196,7 @@ Vec3 DipoleFFTHamiltonian::calculate_field(const int i, double time) {
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-jams::MultiArray<Complex, 5>
+jams::MultiArray<jams::ComplexHi, 5>
 DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
   const Vec3 r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
   const Vec3 r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
@@ -210,7 +210,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
         kspace_padded_size_[2],
         3, 3);
 
-  jams::MultiArray<Complex, 5> kspace_tensor(
+  jams::MultiArray<jams::ComplexHi, 5> kspace_tensor(
         kspace_padded_size_[0],
         kspace_padded_size_[1],
         kspace_padded_size_[2]/2 + 1,

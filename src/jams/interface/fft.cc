@@ -184,7 +184,7 @@ void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rsp
   }
 }
 
-void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
+void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
   assert(rspace_data.elements() == product(kspace_size));
 
   // assuming this is not a costly operation because .resize() already checks if it is the same size

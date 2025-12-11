@@ -332,7 +332,7 @@ DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-jams::MultiArray<ComplexLo, 4>
+jams::MultiArray<jams::ComplexLo, 4>
 CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
     using std::pow;
   
@@ -348,7 +348,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
         kspace_padded_size_[1],
         kspace_padded_size_[2]);
 
-  jams::MultiArray<Complex, 4> kspace_tensor_hi(
+  jams::MultiArray<jams::ComplexHi, 4> kspace_tensor_hi(
         6,
         kspace_padded_size_[0],
         kspace_padded_size_[1],
@@ -442,7 +442,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
     fftw_execute(fft_dipole_tensor_rspace_to_kspace);
     fftw_destroy_plan(fft_dipole_tensor_rspace_to_kspace);
 
-  jams::MultiArray<ComplexLo, 4> kspace_tensor_lo(
+  jams::MultiArray<jams::ComplexLo, 4> kspace_tensor_lo(
     6,
     kspace_padded_size_[0],
     kspace_padded_size_[1],

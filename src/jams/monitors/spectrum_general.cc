@@ -21,13 +21,11 @@
 #include "spectrum_general.h"
 #include "jams/interface/openmp.h"
 #include "jams/helpers/output.h"
-
-
-using Complex = std::complex<double>;
+#include <jams/helpers/mixed_precision.h>
 
 namespace {
-    std::vector<Complex> generate_expQR(const std::vector<Vec3> &qvecs, const Vec3& R) {
-      std::vector<Complex> result(qvecs.size());
+    std::vector<jams::ComplexHi> generate_expQR(const std::vector<Vec3> &qvecs, const Vec3& R) {
+      std::vector<jams::ComplexHi> result(qvecs.size());
       for (auto q = 0; q < result.size(); ++q) {
         result[q] = exp(kImagTwoPi * dot(qvecs[q], R));
       }
@@ -70,7 +68,7 @@ outfile(jams::output::full_path_filename("fk.tsv")){
 void SpectrumGeneralMonitor::update(Solver& solver) {
   if (time_point_counter_ < num_samples_) {
     for (auto i = 0; i < globals::num_spins; ++i) {
-      spin_data_(i, time_point_counter_) = Complex{globals::s(i, 0), globals::s(i, 1)};
+      spin_data_(i, time_point_counter_) = jams::ComplexHi{globals::s(i, 0), globals::s(i, 1)};
     }
   }
   time_point_counter_++;
@@ -150,7 +148,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
     }
   }
 
-  jams::MultiArray<Complex, 2> SQw(qvecs.size(), padded_size_/2+1);
+  jams::MultiArray<jams::ComplexHi, 2> SQw(qvecs.size(), padded_size_/2+1);
   SQw.zero();
 
   // generate spectrum looping over all i,j

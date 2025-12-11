@@ -20,10 +20,9 @@
 #include <array>
 
 #include <jams/containers/vec3.h>
+#include <jams/helpers/mixed_precision.h>
 
 #include "jams/containers/multiarray.h"
-
-using Complex = std::complex<double>;
 
 namespace jams {
     struct PeriodogramProps {
@@ -60,7 +59,7 @@ fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<
 void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspace);
 
 void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites);
-void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<Complex,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
+void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
 
 template <std::size_t N>
 struct FFTWHermitianIndex {

@@ -14,6 +14,7 @@
 #include "jams/monitors/neutron_scattering_no_lattice.h"
 #include "jams/helpers/consts.h"
 #include "jams/helpers/neutrons.h"
+#include <jams/helpers/mixed_precision.h>
 
 NeutronScatteringNoLatticeMonitor::NeutronScatteringNoLatticeMonitor(const libconfig::Setting &settings)
 : Monitor(settings),
@@ -102,12 +103,12 @@ void NeutronScatteringNoLatticeMonitor::configure_kspace_vectors(const libconfig
   }
 }
 
-jams::MultiArray<Complex, 2>
+jams::MultiArray<jams::ComplexHi, 2>
 NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx,2> &spectrum) {
   const auto num_freqencies = spectrum.size(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
-  jams::MultiArray<Complex, 2> cross_section(num_freqencies, num_reciprocal_points);
+  jams::MultiArray<jams::ComplexHi, 2> cross_section(num_freqencies, num_reciprocal_points);
   cross_section.zero();
 
   for (auto f = 0; f < num_freqencies; ++f) {
@@ -127,13 +128,13 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
   return cross_section;
 }
 
-jams::MultiArray<Complex, 3>
+jams::MultiArray<jams::ComplexHi, 3>
 NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 2> &spectrum,
     const std::vector<Vec3> &polarizations) {
   const auto num_freqencies = spectrum.size(0);
   const auto num_reciprocal_points = kspace_path_.size();
 
-  jams::MultiArray<Complex, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
+  jams::MultiArray<jams::ComplexHi, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
 
   for (auto f = 0; f < num_freqencies; ++f) {
@@ -305,7 +306,7 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
     auto delta_q = kspace_path_(1) - kspace_path_(0);
 
     auto f0 = exp(-kImagTwoPi * dot(delta_q, r));
-    auto f = Complex{1.0, 0.0};
+    auto f = jams::ComplexHi{1.0, 0.0};
     for (auto k = 0; k < kspace_path_.size(); ++k) {
       kspace_spins_timeseries_(i, k) += f * spin;
       f *= f0;
@@ -494,7 +495,7 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
       }
 
       const auto f0 = exp(-kImagTwoPi * dot(delta_q, r_ij));
-      auto f = Complex{1.0, 0.0};
+      auto f = jams::ComplexHi{1.0, 0.0};
       for (auto k = 0; k < kspace_path_.size(); ++k) {
         for (auto w = 0; w < num_time_samples / 2 + 1; ++w) {
           sqw(k,w) += (f * sw_i(w) + conj(f) * sw_j(w));
