@@ -68,7 +68,7 @@ endif()
 
 
 if (JAMS_BUILD_MIXED_PREC)
-    target_compile_definitions(jams_tests PRIVATE DO_MIXED_PRECISION)
+    target_compile_definitions(jams_tests PRIVATE DO_MIXED_PRECISION=1)
 endif()
 
 if (JAMS_BUILD_FASTMATH)

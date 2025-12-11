@@ -15,6 +15,7 @@
 #include "jams/hamiltonian/cuda_dipole_fft.h"
 #include "jams/cuda/cuda_common.h"
 #include "jams/cuda/cuda_array_kernels.h"
+#include <jams/helpers/mixed_precision.h>
 
 __constant__ float mu_const[128];
 
@@ -161,7 +162,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   const int odist   = num_kpoints;     // distance between batches
 
 
-#ifdef DO_MIXED_PRECISION
+#if DO_MIXED_PRECISION
   CHECK_CUFFT_STATUS(
       cufftPlanMany(&cuda_fft_s_rspace_to_kspace,
                     rank,
@@ -189,7 +190,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
                     num_transforms));
 #endif
 
-#ifdef DO_MIXED_PRECISION
+#if DO_MIXED_PRECISION
   CHECK_CUFFT_STATUS(
       cufftPlanMany(&cuda_fft_h_kspace_to_rspace,
                     rank,
@@ -235,7 +236,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
           for (auto k = 0; k < wq.size(2); ++k) {
             for (auto l = 0; l < wq.size(3); ++l) {
                 auto k_idx = (h*kspace_embed[1] + k)*kspace_embed[2] + l;
-#ifdef DO_MIXED_PRECISION
+#if DO_MIXED_PRECISION
                 kspace_tensors_(pos_i, pos_j, m, k_idx) = make_cuComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
 #else
                 kspace_tensors_(pos_i, pos_j, m, k_idx) = make_cuDoubleComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
@@ -303,7 +304,7 @@ Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i, double time) {
 
 void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 
-#ifdef DO_MIXED_PRECISION
+#if DO_MIXED_PRECISION
   cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), dev_stream_.get());
   CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftReal*>(s_float_.device_data()), kspace_s_.device_data()));
 #else
@@ -331,7 +332,7 @@ DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-jams::MultiArray<CudaDipoleFFTHamiltonian::ComplexLo, 4>
+jams::MultiArray<ComplexLo, 4>
 CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
     using std::pow;
   

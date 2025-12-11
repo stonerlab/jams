@@ -34,7 +34,7 @@ if (JAMS_BUILD_CUDA)
         set(CMAKE_CUDA_ARCHITECTURES $ENV{CUDA_ARCHITECTURES})
     else()
         # Default architectures if the environment variable is not set
-        set(CMAKE_CUDA_ARCHITECTURES "70;80;89;90")
+        set(CMAKE_CUDA_ARCHITECTURES "75;80;89;90")
     endif()
 
     set(MESSAGE_QUIET)

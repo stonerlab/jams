@@ -6,6 +6,7 @@
 #include <jams/core/types.h>
 #include <jams/core/hamiltonian.h>
 #include <jams/cuda/cuda_stream.h>
+#include <jams/helpers/mixed_precision.h>
 
 #include <array>
 
@@ -13,17 +14,7 @@
 
 class CudaDipoleFFTHamiltonian : public Hamiltonian {
     public:
-
-#ifdef DO_MIXED_PRECISION
-        using ComplexLo = std::complex<float>;
-        using cufftComplexLo = cufftComplex;
-#else
-        using ComplexLo = std::complex<double>;
-        using cufftComplexLo = cufftDoubleComplex;
-#endif
-
         CudaDipoleFFTHamiltonian(const libconfig::Setting &settings, unsigned int size);
-
         ~CudaDipoleFFTHamiltonian() override;
 
         double calculate_total_energy(double time) override;

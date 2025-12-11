@@ -21,7 +21,7 @@ target_link_libraries(jams
 
 if(JAMS_BUILD_CUDA)
     target_sources(jams PRIVATE ${JAMS_SOURCES_CUDA})
-    target_compile_definitions(jams PRIVATE HAS_CUDA)
+    target_compile_definitions(jams PRIVATE HAS_CUDA=1)
     target_link_libraries(jams
             cuda_external
             cusparse_external
@@ -30,7 +30,7 @@ if(JAMS_BUILD_CUDA)
             cufft_external)
 
     if (JAMS_BUILD_MIXED_PREC)
-        target_compile_definitions(jams PRIVATE HAS_CUSPARSE_MIXED_PREC)
+        target_compile_definitions(jams PRIVATE HAS_CUSPARSE_MIXED_PREC=1)
     endif()
 
     if(APPLE)
@@ -41,17 +41,17 @@ if(JAMS_BUILD_CUDA)
 endif()
 
 if (JAMS_BUILD_MIXED_PREC)
-    target_compile_definitions(jams PRIVATE DO_MIXED_PRECISION)
+    target_compile_definitions(jams PRIVATE DO_MIXED_PRECISION=1)
 endif()
 
 if (JAMS_BUILD_OMP AND OpenMP_CXX_FOUND)
-    target_compile_definitions(jams PRIVATE HAS_OMP)
+    target_compile_definitions(jams PRIVATE HAS_OMP=1)
     target_compile_options(jams PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
     target_link_libraries(jams OpenMP::OpenMP_CXX)
 endif()
 
 if (MKL_FOUND)
-    target_compile_definitions(jams PRIVATE HAS_MKL)
+    target_compile_definitions(jams PRIVATE HAS_MKL=1)
 endif()
 
 if (JAMS_BUILD_FASTMATH)
