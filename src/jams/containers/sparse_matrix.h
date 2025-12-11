@@ -412,6 +412,18 @@ namespace jams {
             }
             cudaMalloc(&cusparse_buffer_, new_buffer_size);
             cusparse_buffer_size_ = new_buffer_size;
+
+            CHECK_CUSPARSE_STATUS(cusparseSpMV_preprocess(
+              handle,
+              CUSPARSE_OPERATION_NON_TRANSPOSE,
+              &one,
+              cusparse_matrix_A_handle_,
+              cusparse_vector_x_handle_,
+              &zero,
+              cusparse_vector_y_handle_,
+              cuda::get_cuda_data_type<U>(),
+              CUSPARSE_SPMV_CSR_ALG1,
+              cusparse_buffer_));
           }
 
           CHECK_CUSPARSE_STATUS(cusparseSpMV(
