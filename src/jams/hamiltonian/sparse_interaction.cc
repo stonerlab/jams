@@ -6,9 +6,14 @@
 #include "jams/helpers/output.h"
 #include <jams/core/globals.h>
 
+#include "jams/cuda/cuda_array_kernels.h"
+
+
 SparseInteractionHamiltonian::SparseInteractionHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size),
-      sparse_matrix_builder_(3 * size, 3 * size)
+      sparse_matrix_builder_(3 * size, 3 * size),
+      s_float_(size, 3),
+      h_float_(size, 3)
     {
 }
 
@@ -37,7 +42,13 @@ void SparseInteractionHamiltonian::calculate_fields(double time) {
   assert(is_finalized_);
   #if HAS_CUDA
     if (jams::instance().mode() == jams::Mode::GPU) {
+#if DO_MIXED_PRECISION
+      cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), cusparse_stream_.get());
+      interaction_matrix_.multiply_gpu(s_float_, h_float_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+      cuda_array_float_to_double(h_float_.elements(), h_float_.device_data(), field_.device_data(), cusparse_stream_.get());
+#else
       interaction_matrix_.multiply_gpu(globals::s, field_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+#endif
       return;
     }
   #endif
@@ -59,8 +70,15 @@ Vec3 SparseInteractionHamiltonian::calculate_field(const int i, double time) {
 
 void SparseInteractionHamiltonian::calculate_energies(double time) {
   assert(is_finalized_);
-  // TODO: Add GPU support
-
+  #if HAS_CUDA
+  if (jams::instance().mode() == jams::Mode::GPU) {
+    interaction_matrix_.multiply_gpu(globals::s, field_, jams::instance().cusparse_handle(), cusparse_stream_.get());
+    for (int i = 0; i < globals::num_spins; ++i) {
+      energy_(i) = globals::s(i,0)*field_(i, 0) + globals::s(i,1)*field_(i, 1) + globals::s(i,2)*field_(i, 2);
+    }
+    return;
+  }
+  #endif
   #pragma omp parallel for
   for (int i = 0; i < globals::num_spins; ++i) {
     energy_(i) = calculate_energy(i, time);

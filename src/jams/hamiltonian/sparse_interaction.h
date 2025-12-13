@@ -13,6 +13,9 @@
 #include <jams/containers/sparse_matrix.h>
 #include <jams/containers/sparse_matrix_builder.h>
 
+#include "jams/helpers/mixed_precision.h"
+
+
 class SparseInteractionHamiltonian : public Hamiltonian {
 public:
     SparseInteractionHamiltonian(const libconfig::Setting &settings, unsigned int size);
@@ -42,8 +45,10 @@ protected:
 
 private:
     bool is_finalized_ = false; // is the sparse matrix finalized and built
-    jams::SparseMatrix<double>::Builder sparse_matrix_builder_; // helper to build the sparse matrix and output a chosen type
-    jams::SparseMatrix<double> interaction_matrix_; // the sparse matrix to be used in calculations
+    jams::SparseMatrix<jams::Real>::Builder sparse_matrix_builder_; // helper to build the sparse matrix and output a chosen type
+    jams::SparseMatrix<jams::Real> interaction_matrix_; // the sparse matrix to be used in calculations
+    jams::MultiArray<float, 2> s_float_;
+    jams::MultiArray<float, 2> h_float_;
 
     #if HAS_CUDA
     CudaStream cusparse_stream_; // cuda stream to run in

@@ -49,6 +49,9 @@ void CudaRK4BaseSolver::initialize(const libconfig::Setting &settings) {
 
 void CudaRK4BaseSolver::run()
 {
+  const dim3 block_size = {64, 1, 1};
+  auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins3), 1, 1});
+
   double t0 = time_;
 
   cudaMemcpyAsync(s_old_.device_data(),           // void *               dst
@@ -69,29 +72,30 @@ void CudaRK4BaseSolver::run()
   double mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
 
-  CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
-  CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k1_.device_data(), 1, globals::s.device_data(), 1));
+  cuda_rk4_mid_step_kernel<<<grid_size, block_size>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k1_.device_data(), globals::s.device_data());
+  // CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
+  // CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k1_.device_data(), 1, globals::s.device_data(), 1));
 
   function_kernel(globals::s, k2_);
 
   mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
 
-  CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
-  CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k2_.device_data(), 1, globals::s.device_data(), 1));
+  cuda_rk4_mid_step_kernel<<<grid_size, block_size>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k2_.device_data(), globals::s.device_data());
+  // CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
+  // CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k2_.device_data(), 1, globals::s.device_data(), 1));
 
   function_kernel(globals::s, k3_);
 
   mid_time_step = step_size_;
   time_ = t0 + mid_time_step;
 
-  CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
-  CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k3_.device_data(), 1, globals::s.device_data(), 1));
+  cuda_rk4_mid_step_kernel<<<grid_size, block_size>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k3_.device_data(), globals::s.device_data());
+  // CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
+  // CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k3_.device_data(), 1, globals::s.device_data(), 1));
 
   function_kernel(globals::s, k4_);
 
-  const dim3 block_size = {64, 1, 1};
-  auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins3), 1, 1});
 
   // NOTE: this does NOT normalise the spins. This must be done in the post_step
   // function

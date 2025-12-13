@@ -157,3 +157,20 @@ void cuda_array_float_to_double(
 
     cuda_array_float_to_double_kernel<<<grid_size, block_size, 0, stream>>>(n, in, out);
 }
+
+__global__ void cuda_array_sum_across(
+    unsigned int num_input_arrays,
+    unsigned int num_elements,
+    double** inputs,
+    double* out) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+
+    for (int idx = tid; idx < num_elements; idx += stride) {
+        double acc = 0.0;
+        for (int k = 0; k < num_input_arrays; ++k) {
+            acc += inputs[k][idx];
+        }
+        out[idx] = acc;
+    }
+}

@@ -105,7 +105,7 @@ set(JAMS_SOURCES_CUDA
         cuda/cuda_array_kernels.cu
         cuda/cuda_array_reduction.cu
         cuda/cuda_common.cu
-        cuda/cuda_solver.cc
+        cuda/cuda_solver.cu
         cuda/cuda_spin_ops.cu
         cuda/cuda_minimum_image.cu
         hamiltonian/cuda_applied_field.cu

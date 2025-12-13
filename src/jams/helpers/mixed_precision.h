@@ -13,6 +13,10 @@
 
 namespace jams {
 #if DO_MIXED_PRECISION
+
+using RealHi = double;
+using Real = float;
+
 using ComplexHi = std::complex<double>;
 using ComplexLo = std::complex<float>;
 
@@ -21,6 +25,9 @@ using ComplexLo = std::complex<float>;
 using cufftComplexLo = cufftComplex;
 #endif
 #else
+using RealHi = double;
+using Real = double;
+
 using ComplexLo = std::complex<double>;
 #if HAS_CUDA
 using cufftComplexLo = cufftDoubleComplex;

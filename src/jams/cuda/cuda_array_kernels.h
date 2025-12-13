@@ -35,6 +35,13 @@ void cuda_array_float_to_double(
 	cudaStream_t stream     // cuda stream
 );
 
+__global__ void cuda_array_sum_across(
+	unsigned int num_input_arrays,
+	unsigned int num_elements,
+	double** inputs,
+	double* out
+	);
+
 template <typename T>
 inline T cuda_reduce_array(T* dev_ptr, const size_t size) {
   return thrust::reduce(thrust::device_ptr<T>(dev_ptr), thrust::device_ptr<T>(dev_ptr) + size);

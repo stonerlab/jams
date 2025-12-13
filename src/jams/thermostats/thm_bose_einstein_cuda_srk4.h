@@ -54,7 +54,7 @@ namespace jams {
 class BoseEinsteinCudaSRK4Thermostat : public Thermostat {
 public:
     BoseEinsteinCudaSRK4Thermostat(const double &temperature, const double &sigma, const double timestep, const int num_spins);
-    ~BoseEinsteinCudaSRK4Thermostat() override = default;
+    ~BoseEinsteinCudaSRK4Thermostat() override;
 
     void update() override;
 
@@ -71,6 +71,13 @@ private:
     jams::MultiArray<double, 1> v6_;
     jams::MultiArray<double, 1> psi5_;
     jams::MultiArray<double, 1> psi6_;
+
+
+    cudaEvent_t event5_;
+    cudaEvent_t event6_;
+
+    curandGenerator_t prng5_;
+    curandGenerator_t prng6_;
 
     CudaStream dev_stream5_;
     CudaStream dev_stream6_;

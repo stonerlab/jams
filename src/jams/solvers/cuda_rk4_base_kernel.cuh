@@ -1,3 +1,18 @@
+__global__ void cuda_rk4_mid_step_kernel
+(
+  const unsigned dev_num_spins3,
+  const double step,
+  const double * s_old_dev,
+  const double * k_dev,
+  double * s_dev
+
+  ) {
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx >= dev_num_spins3) return;
+
+  s_dev[idx] = s_old_dev[idx] + step * k_dev[idx];
+}
 __global__ void cuda_rk4_combination_kernel
     (
         double * s_dev,
