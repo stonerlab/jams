@@ -17,7 +17,28 @@
 #include "jams/cuda/cuda_array_kernels.h"
 #include <jams/helpers/mixed_precision.h>
 
+
 __constant__ float mu_const[128];
+
+// Pack upper-triangular (i<=j) pairs into a 1D index.
+// Number of pairs = n*(n+1)/2.
+__host__ __device__ __forceinline__ int upper_tri_index(const int i, const int j, const int n) {
+  // Requires: 0 <= i <= j < n
+  return i * n - (i * (i - 1)) / 2 + (j - i);
+}
+
+template <typename ComplexType>
+__device__ __forceinline__ ComplexType complex_conj(const ComplexType &z);
+
+template <>
+__device__ __forceinline__ cuComplex complex_conj<cuComplex>(const cuComplex &z) {
+  return cuConjf(z);
+}
+
+template <>
+__device__ __forceinline__ cuDoubleComplex complex_conj<cuDoubleComplex>(const cuDoubleComplex &z) {
+  return cuConj(z);
+}
 
 template<typename ComplexType>
 __global__ void cuda_dipole_convolution(
@@ -45,12 +66,19 @@ __global__ void cuda_dipole_convolution(
     const ComplexType sq1 = sk[idx1];
     const ComplexType sq2 = sk[idx2];
 
-    int base0 = ((pos_i*num_pos + pos_j) * 6 + 0) * num_kpoints + k_idx;
-    int base1 = base0 + num_kpoints;
-    int base2 = base1 + num_kpoints;
-    int base3 = base2 + num_kpoints;
-    int base4 = base3 + num_kpoints;
-    int base5 = base4 + num_kpoints;
+    // wk is stored only for i<=j (upper-triangular in (pos_i,pos_j))
+    const int a = (pos_i <= pos_j) ? pos_i : pos_j;
+    const int b = (pos_i <= pos_j) ? pos_j : pos_i;
+    const bool swapped = (pos_i > pos_j);
+
+    const int pair = upper_tri_index(a, b, (int)num_pos);
+
+    int base0 = ((pair * 6 + 0) * (int)num_kpoints) + (int)k_idx;
+    int base1 = base0 + (int)num_kpoints;
+    int base2 = base1 + (int)num_kpoints;
+    int base3 = base2 + (int)num_kpoints;
+    int base4 = base3 + (int)num_kpoints;
+    int base5 = base4 + (int)num_kpoints;
 
     ComplexType w0 = wk[base0];
     ComplexType w1 = wk[base1];
@@ -58,6 +86,16 @@ __global__ void cuda_dipole_convolution(
     ComplexType w3 = wk[base3];
     ComplexType w4 = wk[base4];
     ComplexType w5 = wk[base5];
+
+    // Hermitian symmetry: W_{ji}(k) = conj(W_{ij}(k))
+    if (swapped) {
+      w0 = complex_conj(w0);
+      w1 = complex_conj(w1);
+      w2 = complex_conj(w2);
+      w3 = complex_conj(w3);
+      w4 = complex_conj(w4);
+      w5 = complex_conj(w5);
+    }
 
     hk_sum[0] +=  mu_const[pos_j] * (w0 * sq0 + w1 * sq1 + w2 * sq2);
     hk_sum[1] +=  mu_const[pos_j] * (w1 * sq0 + w3 * sq1 + w4 * sq2);
@@ -141,7 +179,7 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 
   const int num_sites     = globals::lattice->num_basis_sites();
 
-  int rank            = 3;           
+  int rank            = 3;
   int stride          = 3 * num_sites;
   int dist            = 1;
   int rspace_embed[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
@@ -223,37 +261,40 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 
   const auto num_tensor_components = 6;
 
-  kspace_tensors_.resize(num_sites, num_sites, num_tensor_components, num_kpoints);
+  const int num_pairs = num_sites * (num_sites + 1) / 2;
+  kspace_tensors_.resize(num_pairs, num_tensor_components, num_kpoints);
   for (int pos_i = 0; pos_i < num_sites; ++pos_i) {
-    std::vector<Vec3> generated_positions;
-    for (int pos_j = 0; pos_j < num_sites; ++pos_j) {
-        auto wq = generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions);
+    for (int pos_j = pos_i; pos_j < num_sites; ++pos_j) {
+      std::vector<Vec3> generated_positions;
+      auto wq = generate_kspace_dipole_tensor(pos_i, pos_j, generated_positions);
 
-      assert(wq.size(1)*wq.size(2)*wq.size(3) == kspace_tensors_.size(3));
+      assert(wq.size(1) * wq.size(2) * wq.size(3) == kspace_tensors_.size(2));
+
+      const int pair = upper_tri_index(pos_i, pos_j, num_sites);
       for (auto m = 0; m < num_tensor_components; ++m) {
-
         for (auto h = 0; h < wq.size(1); ++h) {
           for (auto k = 0; k < wq.size(2); ++k) {
             for (auto l = 0; l < wq.size(3); ++l) {
-                auto k_idx = (h*kspace_embed[1] + k)*kspace_embed[2] + l;
+              auto k_idx = (h * kspace_embed[1] + k) * kspace_embed[2] + l;
 #if DO_MIXED_PRECISION
-                kspace_tensors_(pos_i, pos_j, m, k_idx) = make_cuComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
+              kspace_tensors_(pair, m, k_idx) = make_cuComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
 #else
-                kspace_tensors_(pos_i, pos_j, m, k_idx) = make_cuDoubleComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
+              kspace_tensors_(pair, m, k_idx) = make_cuDoubleComplex(wq(m, h, k, l).real(), wq(m, h, k, l).imag());
 #endif
-              }
             }
           }
         }
+      }
 
-    }
       if (check_symmetry_ && (globals::lattice->is_periodic(0) && globals::lattice->is_periodic(1) && globals::lattice->is_periodic(2))) {
         if (!globals::lattice->is_a_symmetry_complete_set(pos_i, generated_positions, distance_tolerance_)) {
-          throw std::runtime_error("The points included in the dipole tensor do not form set of all symmetric points.\n"
-                                   "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
-                                   "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
+          throw std::runtime_error(
+              "The points included in the dipole tensor do not form set of all symmetric points.\n"
+              "This can happen if the r_cutoff just misses a point because of floating point arithmetic"
+              "Check that the lattice vectors are specified to enough precision or increase r_cutoff by a very small amount.");
         }
       }
+    }
   }
 
   mus_float_.resize(num_sites);
