@@ -11,14 +11,14 @@
 
 class CudaThermostatClassical : public Thermostat {
  public:
-  CudaThermostatClassical(const double &temperature, const double &sigma, const double timestep, const int num_spins);
+  CudaThermostatClassical(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
 
   void update();
 
-  const double* device_data() override { return noise_.device_data(); }
+  const jams::Real* device_data() override { return noise_.device_data(); }
 
 
-  double field(int i, int j) {
+  jams::Real field(int i, int j) {
     return noise_(i, j);
   }
 

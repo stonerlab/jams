@@ -134,13 +134,13 @@
 
 class CudaThermostatGeneralFFT : public Thermostat {
 public:
-    CudaThermostatGeneralFFT(const double &temperature, const double &sigma, const double timestep, const int num_spins);
+    CudaThermostatGeneralFFT(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
     ~CudaThermostatGeneralFFT();
 
     void update();
 
     // override the base class implementation
-    const double* device_data() { return noise_.device_data(); }
+    const jams::Real* device_data() { return noise_.device_data(); }
 
 private:
 

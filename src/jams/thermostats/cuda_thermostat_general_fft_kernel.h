@@ -2,6 +2,7 @@
 #define JAMS_CUDA_THERMOSTAT_GENERAL_FFT_KERNEL_H
 
 #include "jams/cuda/cuda_device_rk4.cuh"
+#include "jams/helpers/mixed_precision.h"
 
 __host__ __device__ inline int pbc(const int i, const int size) {
   return (i + size) % size;
@@ -12,7 +13,7 @@ __host__ __device__ inline int pbc(const int i, const int size) {
 
 __global__ void cuda_thermostat_general_fft_kernel
         (
-                double *noise_,
+                jams::Real *noise_,
                 const double *filter,
                 const double *rands,
                 const int j, // pointer to central random number

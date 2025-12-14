@@ -3,21 +3,23 @@
 #ifndef JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_KERNEL_H
 #define JAMS_CUDA_THERMOSTAT_LANGEVIN_BOSE_KERNEL_H
 
-__device__ inline void linear_ode(const double A[4], const double eta[4], const double z[4], double f[4]) {
+#include <jams/helpers/mixed_precision.h>
+
+__device__ inline void linear_ode(const double A[4], const jams::Real eta[4], const double z[4], double f[4]) {
   for (auto i = 0; i < 4; ++i) {
     f[i] = A[i] * (eta[i] - z[i]);
   }
 }
 
-__device__ inline void bose_ode(const double A[2], const double eta[2], const double z[2], double f[2]) {
+__device__ inline void bose_ode(const double A[2], const jams::Real eta[2], const double z[2], double f[2]) {
   f[0] = z[1];
   f[1] = eta[0] - A[1] * A[1] * z[0] - A[0] * z[1];
 }
 
 template<unsigned N>
 __device__ inline void
-rk4_vectored(void ode(const double[N], const double[N], const double[N], double[N]), const double h, const double A[N],
-             const double eta[N], double z[N]) {
+rk4_vectored(void ode(const double[N], const jams::Real[N], const double[N], double[N]), const double h, const double A[N],
+             const jams::Real eta[N], double z[N]) {
   double k1[N], k2[N], k3[N], k4[N], f[N];
   double u[N];
 
@@ -71,12 +73,12 @@ rk4_vectored(void ode(const double[N], const double[N], const double[N], double[
 
 __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
         (
-                double *noise,
+                jams::Real *noise,
                 double *zeta,
-                const double *eta,
-                const double *sigma,
+                const jams::Real *eta,
+                const jams::Real *sigma,
                 const double h,
-                const double T,
+                const jams::Real T,
                 const double w_m,
                 const int N
         ) {
@@ -102,7 +104,7 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
       z[i] = zeta[4*x + i];
     }
 
-    double e[4];
+    jams::Real e[4];
     for (auto i = 0; i < 4; ++i) {
       e[i] = eta[4*x + i] * sqrt(2.0 / (lambda[i] * h));
     }
@@ -125,15 +127,15 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
 
 __global__ inline void cuda_thermostat_quantum_spde_no_zero_kernel
         (
-                double *noise,
+                jams::Real *noise,
                 double *zeta5,
                 double *zeta5p,
                 double *zeta6,
                 double *zeta6p,
-                const double *eta,
-                const double *sigma,
+                const jams::Real *eta,
+                const jams::Real *sigma,
                 const double h,
-                const double T,
+                const jams::Real T,
                 const double w_m,
                 const int N
         ) {
@@ -141,7 +143,8 @@ __global__ inline void cuda_thermostat_quantum_spde_no_zero_kernel
   if (x < N) {
 
     double s1 = 0.0;
-    double e[2], z[2], gamma_omega[2];
+    jams::Real e[2];
+    double z[2], gamma_omega[2];
 
     gamma_omega[0] = 5.0142;
     gamma_omega[1] = 2.7189;

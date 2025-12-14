@@ -6,6 +6,7 @@
 #include "jams/cuda/cuda_common.h"
 
 #include "jams/cuda/cuda_device_rk4.cuh"
+#include "jams/helpers/mixed_precision.h"
 
 
 __global__ void cuda_ll_lorentzian_rk4_kernel
@@ -17,7 +18,7 @@ __global__ void cuda_ll_lorentzian_rk4_kernel
   const double * w_dev,
   const double * v_dev,
   const double * h_dev,
-  const double * noise_dev,
+  const jams::Real * noise_dev,
   const double * gyro_dev,
   const double * mus_dev,
   const double lorentzian_omega,

@@ -16,13 +16,13 @@
 
 class CudaThermostatQuantumSpde : public Thermostat {
  public:
-  CudaThermostatQuantumSpde(const double &temperature, const double &sigma, const double timestep, const int num_spins);
+  CudaThermostatQuantumSpde(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
   ~CudaThermostatQuantumSpde() override;
 
   void update() override;
 
   // override the base class implementation
-  const double* device_data() override { return noise_.device_data(); }
+  const jams::Real* device_data() override { return noise_.device_data(); }
 
  private:
     bool debug_ = false;
@@ -33,9 +33,9 @@ class CudaThermostatQuantumSpde : public Thermostat {
     jams::MultiArray<double, 1> zeta5p_;
     jams::MultiArray<double, 1> zeta6_;
     jams::MultiArray<double, 1> zeta6p_;
-    jams::MultiArray<double, 1> eta0_;
-    jams::MultiArray<double, 1> eta1a_;
-    jams::MultiArray<double, 1> eta1b_;
+    jams::MultiArray<jams::Real, 1> eta0_;
+    jams::MultiArray<jams::Real, 1> eta1a_;
+    jams::MultiArray<jams::Real, 1> eta1b_;
     cudaStream_t                dev_stream_ = nullptr;
     cudaStream_t                dev_curand_stream_ = nullptr;
     double                      delta_tau_;

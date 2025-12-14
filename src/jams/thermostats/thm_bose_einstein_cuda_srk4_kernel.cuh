@@ -3,6 +3,8 @@
 #ifndef INCLUDED_JAMS_THM_BOSE_EINSTEIN_CUDA_SRK4_KERNEL
 #define INCLUDED_JAMS_THM_BOSE_EINSTEIN_CUDA_SRK4_KERNEL
 
+#include "jams/helpers/mixed_precision.h"
+
 // Implements as **stochastic** fourth order Runge-Kutta scheme (SRK4) to solve
 // the second order stochastic differential equation
 //
@@ -183,11 +185,11 @@ __global__ void stochastic_rk4_cuda_kernel(
 /// which depends on the temperature and the local parameters on each spin
 /// site.
 __global__ void stochastic_combination_cuda_kernel(
-    double * noise,
+    jams::Real * noise,
     const double * v5_dev,
     const double * v6_dev,
-    const double *sigma,
-    const double T,
+    const jams::Real *sigma,
+    const jams::Real T,
     const unsigned size) {
 
   const int idx = blockIdx.x * blockDim.x + threadIdx.x;

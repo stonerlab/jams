@@ -26,7 +26,7 @@
 #include "jams/monitors/magnetisation.h"
 #include <jams/helpers/exception.h>
 
-CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, const double &sigma, const double timestep, const int num_spins)
+CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins)
   {
    std::cout << "\n  initialising quantum-spde-gpu thermostat\n";
@@ -72,15 +72,15 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, 
 
    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
    if (do_zero_point_) {
-     CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+     CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
    }
-   CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
-   CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1b_.device_data(), eta1b_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
+   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1b_.device_data(), eta1b_.size(), 0.0, 1.0));
 
     for (int i = 0; i < num_spins; ++i) {
       for (int j = 0; j < 3; ++j) {
-        sigma_(i,j) = (kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
-                                            / (kHBarIU * globals::gyro(i) * globals::mus(i)));
+        sigma_(i,j) = static_cast<jams::Real>((kBoltzmannIU) * sqrt((2.0 * globals::alpha(i))
+                                            / (kHBarIU * globals::gyro(i) * globals::mus(i))));
       }
     }
 
@@ -94,7 +94,7 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const double &temperature, 
 
 void CudaThermostatQuantumSpde::update() {
   if (this->temperature() == 0) {
-    CHECK_CUDA_STATUS(cudaMemset(noise_.device_data(), 0, noise_.elements()*sizeof(double)));
+    CHECK_CUDA_STATUS(cudaMemset(noise_.device_data(), 0, noise_.bytes()));
     return;
   }
 
@@ -103,11 +103,11 @@ void CudaThermostatQuantumSpde::update() {
 
   const double reduced_omega_max = (kHBarIU * omega_max_) / (kBoltzmannIU * this->temperature());
   const double reduced_delta_tau = delta_tau_ * this->temperature();
-  const double temperature = this->temperature();
+  const jams::Real temperature = this->temperature();
 
   swap(eta1a_, eta1b_);
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
+  CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
 
   cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (
     noise_.device_data(), zeta5_.device_data(), zeta5p_.device_data(), zeta6_.device_data(), zeta6p_.device_data(),
@@ -116,7 +116,7 @@ void CudaThermostatQuantumSpde::update() {
 
   if (do_zero_point_) {
     CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
-    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+    CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
 
     cuda_thermostat_quantum_spde_zero_point_kernel <<< grid_size, block_size, 0, dev_stream_ >>> (
         noise_.device_data(), zeta0_.device_data(), eta0_.device_data(), sigma_.device_data(), reduced_delta_tau,

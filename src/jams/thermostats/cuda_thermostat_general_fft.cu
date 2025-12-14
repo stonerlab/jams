@@ -28,10 +28,11 @@
 #include "jams/interface/fft.h"
 #include "jams/maths/functions.h"
 #include <jams/helpers/exception.h>
+#include <jams/helpers/mixed_precision.h>
 
 //#define PRINT_NOISE
 
-CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const double &temperature, const double &sigma, const double timestep, const int num_spins)
+CudaThermostatGeneralFFT::CudaThermostatGeneralFFT(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins),
   filter_temperature_(0.0) {
 

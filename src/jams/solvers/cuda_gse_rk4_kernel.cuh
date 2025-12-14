@@ -11,7 +11,7 @@ __global__ void cuda_gse_rk4_kernel
   const double * s_dev,
   double * k_dev,
   const double * h_dev,
-  const double * noise_dev,
+  const jams::Real * noise_dev,
   const double * gyro_dev,
   const double * mus_dev,
   const double * alpha_dev,

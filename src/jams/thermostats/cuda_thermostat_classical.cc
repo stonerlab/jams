@@ -19,7 +19,7 @@
 
 #include "jams/monitors/magnetisation.h"
 
-CudaThermostatClassical::CudaThermostatClassical(const double &temperature, const double &sigma, const double timestep, const int num_spins)
+CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins)
 : Thermostat(temperature, sigma, timestep, num_spins),
   dev_stream_(nullptr) {
   std::cout << "\n  initialising classical-gpu thermostat\n";
@@ -37,8 +37,8 @@ CudaThermostatClassical::CudaThermostatClassical(const double &temperature, cons
       if (use_gilbert_prefactor) {
         denominator = 1.0 + pow2(globals::alpha(i));
       }
-      sigma_(i, j) = sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
-                          (globals::mus(i) * globals::gyro(i) * timestep * denominator));
+      sigma_(i, j) = static_cast<jams::Real>(sqrt((2.0 * kBoltzmannIU * globals::alpha(i)) /
+                          (globals::mus(i) * globals::gyro(i) * timestep * denominator)));
     }
   }
   std::cout << "  done\n\n";
@@ -51,6 +51,6 @@ void CudaThermostatClassical::update() {
   }
 
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_stream_));
-  CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), noise_.device_data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
+  CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), noise_.device_data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
   cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), sqrt(this->temperature()), noise_.device_data(), 1, noise_.device_data(), 1, dev_stream_);
 }

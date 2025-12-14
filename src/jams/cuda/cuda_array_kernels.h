@@ -10,6 +10,18 @@
 #include "jams/cuda/cuda_common.h"
 
 void cuda_array_elementwise_scale(
+	const unsigned int n,            // n elements in i index
+	const unsigned int m,            // m elements in j index
+	const float * alpha,   // scale factors array of length n
+	const float   beta,    // uniform scale factor
+	float * x,             // input array
+	const unsigned int incx,         // input increment
+	float * y,             // output array
+	const unsigned int incy,         // output increment
+	cudaStream_t stream     // cuda stream
+);
+
+void cuda_array_elementwise_scale(
     const unsigned int n,            // n elements in i index
     const unsigned int m,            // m elements in j index
     const double * alpha,   // scale factors array of length n

@@ -4,6 +4,7 @@
 #define JAMS_SOLVER_CUDA_HEUNLLG_KERNEL_H
 
 #include "jams/cuda/cuda_common.h"
+#include "jams/helpers/mixed_precision.h"
 
 __global__ void cuda_heun_llg_kernelA
 (
@@ -11,7 +12,7 @@ __global__ void cuda_heun_llg_kernelA
   double * ds_dt_dev,
   const double * s_old_dev,
   const double * h_dev,
-  const double * noise_dev,
+  const jams::Real * noise_dev,
   const double * gyro_dev,
   const double * mus_dev,
   const double * alpha_dev,
@@ -60,7 +61,7 @@ __global__ void cuda_heun_llg_kernelB
   double * ds_dt_dev,
   const double * s_old_dev,
   const double * h_dev,
-  const double * noise_dev,
+  const jams::Real * noise_dev,
   const double * gyro_dev,
   const double * mus_dev,
   const double * alpha_dev,
@@ -119,7 +120,7 @@ __global__ void cuda_zero_safe_heun_llg_kernelA
                 double * ds_dt_dev,
                 const double * s_old_dev,
                 const double * h_dev,
-                const double * noise_dev,
+                const jams::Real * noise_dev,
                 const double * gyro_dev,
                 const double * mus_dev,
                 const double * alpha_dev,
@@ -168,7 +169,7 @@ __global__ void cuda_zero_safe_heun_llg_kernelB
                 double * ds_dt_dev,
                 const double * s_old_dev,
                 const double * h_dev,
-                const double * noise_dev,
+                const jams::Real * noise_dev,
                 const double * gyro_dev,
                 const double * mus_dev,
                 const double * alpha_dev,

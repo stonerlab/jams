@@ -14,7 +14,7 @@
 #include <stdexcept>
 #include <iostream>
 
-Thermostat* Thermostat::create(const std::string &thermostat_name, const double timestep) {
+Thermostat* Thermostat::create(const std::string &thermostat_name, const jams::Real timestep) {
   std::cout << thermostat_name << " thermostat\n";
 
   auto temperature = jams::config_required<double>(

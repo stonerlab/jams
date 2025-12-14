@@ -2,6 +2,7 @@
 #define JAMS_SOLVER_CUDA_RK4_LLG_SOT_KERNEL_H
 
 #include <jams/cuda/cuda_device_vector_ops.h>
+#include <jams/helpers/mixed_precision.h>
 
 __global__ void cuda_rk4_llg_sot_kernel
     (
@@ -10,7 +11,7 @@ __global__ void cuda_rk4_llg_sot_kernel
         const double * h_dev,
         const double * polarisation_dev,
         const double * sot_dev,
-        const double * noise_dev,
+        const jams::Real * noise_dev,
         const double * gyro_dev,
         const double * mus_dev,
         const double * alpha_dev,
