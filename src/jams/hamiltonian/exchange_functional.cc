@@ -46,7 +46,13 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 
     std::vector<double> params;
     for (auto k = 4; k < settings["interactions"][n].getLength(); ++k) {
-      params.push_back(settings["interactions"][n][k]);
+      if (settings["interactions"][n][k].getType() == libconfig::Setting::TypeList || settings["interactions"][n][k].getType() == libconfig::Setting::TypeArray) {
+        for (auto l = 0; l < settings["interactions"][n][k].getLength(); ++l) {
+          params.push_back(settings["interactions"][n][k][l]);
+        }
+      } else {
+        params.push_back(settings["interactions"][n][k]);
+      }
     }
 
     auto exchange_functional = functional_from_params(functional_name, params);
@@ -64,7 +70,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   if (output_functionals) {
     for (const auto& [type, functional] : exchange_functional_map) {
       std::ofstream functional_file(jams::output::full_path_filename("exchange_functional_" + type.first + "_" + type.second + ".tsv"));
-      output_exchange_functional(functional_file, functional.second, functional.first, 0.01);
+      output_exchange_functional(functional_file, functional.second, functional.first, 0.1);
     }
   }
 
@@ -108,7 +114,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
         // This probably makes no difference to results, but means that our symmetry check for the matrix
         // will fail because we don't do floating point equality checks, but check that values for ij and ji
         // are identical.
-        auto Jij = functional(r);
+        auto Jij = functional(rij);
         this->insert_interaction_scalar(i, j, Jij);
         this->insert_interaction_scalar(j, i, Jij);
         counter++;
@@ -125,32 +131,73 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
 }
 
 
-double ExchangeFunctionalHamiltonian::functional_step(double rij, double J0, double r_cut) {
-  if (less_than_approx_equal(rij,  r_cut, jams::defaults::lattice_tolerance)) {
+double ExchangeFunctionalHamiltonian::functional_step(Vec3 rij, double J0, double r_cut) {
+  double r = norm(rij);
+  if (less_than_approx_equal(r,  r_cut, jams::defaults::lattice_tolerance)) {
     return J0;
   }
   return 0.0;
 }
 
-double ExchangeFunctionalHamiltonian::functional_exp(double rij, double J0, double r0, double sigma){
-  return J0 * exp(-(rij - r0) / sigma);
+double ExchangeFunctionalHamiltonian::functional_exp(Vec3 rij, double J0, double r0, double sigma){
+  double r = norm(rij);
+  return J0 * exp(-(r - r0) / sigma);
 }
 
-double ExchangeFunctionalHamiltonian::functional_rkky(double rij, double J0, double r0, double k_F) {
-  double kr = 2 * k_F * (rij - r0);
+double ExchangeFunctionalHamiltonian::functional_rkky(Vec3 rij, double J0, double r0, double k_F) {
+  double r = norm(rij);
+  double kr = 2 * k_F * (r - r0);
   return - J0 * (kr * cos(kr) - sin(kr)) / pow4(kr);
 }
 
-double ExchangeFunctionalHamiltonian::functional_gaussian(double rij, double J0, double r0, double sigma){
-  return J0 * exp(-pow2(rij - r0)/(2 * pow2(sigma)));
+double ExchangeFunctionalHamiltonian::functional_gaussian(Vec3 rij, double J0, double r0, double sigma){
+  double r = norm(rij);
+  return J0 * exp(-pow2(r - r0)/(2 * pow2(sigma)));
 }
 
-double ExchangeFunctionalHamiltonian::functional_gaussian_multi(double rij, double J0, double r0, double sigma0, double J1, double r1, double sigma1, double J2, double r2, double sigma2) {
+double ExchangeFunctionalHamiltonian::functional_gaussian_multi(Vec3 rij, double J0, double r0, double sigma0, double J1, double r1, double sigma1, double J2, double r2, double sigma2) {
   return functional_gaussian(rij, J0, r0, sigma0) + functional_gaussian(rij, J1, r1, sigma1) + functional_gaussian(rij, J2, r2, sigma2);
 }
 
-double ExchangeFunctionalHamiltonian::functional_kaneyoshi(double rij, double J0, double r0, double sigma){
-  return J0 * pow2(rij - r0) * exp(-pow2(rij - r0) / (2 * pow2(sigma)));
+double ExchangeFunctionalHamiltonian::functional_kaneyoshi(Vec3 rij, double J0, double r0, double sigma){
+  double r = norm(rij);
+  return J0 * pow2(r - r0) * exp(-pow2(r - r0) / (2 * pow2(sigma)));
+}
+
+
+double ExchangeFunctionalHamiltonian::functional_c3z(Vec3 rij,
+  Vec3 qs1,
+  Vec3 qc1,
+  double J0,
+  double J1s,
+  double J1c,
+  double d0,
+  double l0,
+  double l1s,
+  double l1c,
+  double rstar) {
+
+  double r = norm(rij);
+  Vec3 r_para{rij[0], rij[1], 0.0};
+
+  double term_0 = J0 * exp(-std::abs(r - d0)/l0);
+
+  double term_s1 = 0.0;
+  Vec3 qs[3] = {qs1, rotation_matrix_z(2*kPi / 3.0) * qs1, rotation_matrix_z(4*kPi / 3.0) * qs1};
+  for (const auto & q : qs) {
+    term_s1 += sin(dot(q, r_para));
+  }
+  term_s1 *= J1s * exp(-std::abs(r - rstar) / l1s);
+
+
+  double term_c1 = 0.0;
+  Vec3 qc[3] = {qc1, rotation_matrix_z(2*kPi / 3.0) * qc1, rotation_matrix_z(4*kPi / 3.0) * qc1};
+  for (const auto & i : qc) {
+    term_c1 += sin(dot(i, r_para));
+  }
+  term_c1 *= J1c * exp(-std::abs(r - rstar) / l1c);
+
+  return term_0 + term_s1 + term_c1;
 }
 
 
@@ -196,6 +243,19 @@ ExchangeFunctionalHamiltonian::functional_from_params(const std::string& name, c
                      input_distance_unit_conversion_ * params[1],  // r0
                      input_distance_unit_conversion_ * params[2]); // sigma
   }
+  if (name == "c3z") {
+    return std::bind(functional_c3z, _1,
+      input_distance_unit_conversion_ * Vec3{params[0], params[1], params[2]}, // qs
+      input_distance_unit_conversion_ * Vec3{params[3], params[4], params[5]}, // qc
+      input_energy_unit_conversion_ * params[6], // J0
+      input_energy_unit_conversion_ * params[7], // J1s
+      input_energy_unit_conversion_ * params[8], // J1c
+      input_distance_unit_conversion_ * params[9], // d0
+      input_distance_unit_conversion_ * params[10], // l0
+      input_distance_unit_conversion_ * params[11], // l1s
+      input_distance_unit_conversion_ * params[12], // l1c
+      input_distance_unit_conversion_ * params[13]); // rstar
+  }
   if (name == "step") {
     return std::bind(functional_step, _1,
                      input_energy_unit_conversion_   * params[0],  // J0
@@ -205,14 +265,43 @@ ExchangeFunctionalHamiltonian::functional_from_params(const std::string& name, c
 }
 
 void
-ExchangeFunctionalHamiltonian::output_exchange_functional(std::ostream &os,
-                                                          const ExchangeFunctionalHamiltonian::ExchangeFunctionalType& functional, double r_cutoff, double delta_r) {
-  os << "radius_nm  exchange_meV\n";
-  double r = 0.0;
-  while (r < r_cutoff) {
-    os << jams::fmt::decimal << r * ::globals::lattice->parameter() * 1e9 << " " << jams::fmt::sci << functional(r) << "\n";
-    r += delta_r;
+ExchangeFunctionalHamiltonian::output_exchange_functional(
+    std::ostream &os,
+    const ExchangeFunctionalHamiltonian::ExchangeFunctionalType &functional,
+    double r_cutoff,
+    double delta_r)
+{
+  const double a = ::globals::lattice->parameter(); // metres
+
+  const int n = static_cast<int>(std::ceil(r_cutoff / delta_r));
+
+  os << "x_nm  y_nm  z_nm  exchange_meV\n";
+
+  for (int ix = -n; ix <= n; ++ix) {
+    const double x = ix * delta_r;
+
+    for (int iy = -n; iy <= n; ++iy) {
+      const double y = iy * delta_r;
+
+      for (int iz = -n; iz <= n; ++iz) {
+        const double z = iz * delta_r;
+
+        Vec3 rij = {x, y, z};
+
+        // const double r = norm(rij);
+        // if (r > r_cutoff) {
+          // continue;
+        // }
+
+        os << jams::fmt::decimal
+           << x * a * 1e9 << " "
+           << y * a * 1e9 << " "
+           << z * a * 1e9 << " "
+           << jams::fmt::sci
+           << functional(rij)
+           << "\n";
+      }
+    }
   }
 }
-
 
