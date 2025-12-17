@@ -1,18 +1,18 @@
 exchange-functional
 ===================
 
-Heisenberg bilinear exchange with a functional form based on type and distance
+Heisenberg bilinear exchange with a functional form based on type and interaction vector
 
 .. math::
-      \mathcal{H} = -\tfrac{1}{2}\sum_{ij} J_{a,b}(r_{ij}) \mathbf{S}_{a,i} \cdot \mathbf{S}_{b,j}
+      \mathcal{H} = -\tfrac{1}{2}\sum_{ij} J_{a,b}(\mathbf{r}_{ij}) \mathbf{S}_{a,i} \cdot \mathbf{S}_{b,j}
 
-The exchange function :math:`J_{a,b}(r_{ij})` is specified between materials :math:`a` and :math:`b`.
-Neighbours with the given material types at distance :math:`r_{ij}` will be given the exchange value.
+The exchange function :math:`J_{a,b}(\mathbf{r}_{ij})` is specified between materials :math:`a` and :math:`b`.
+Neighbours with the given material types will be given the exchange value calculate from :math:`J_{a,b}(\mathbf{r}_{ij})`.
 
 .. note::
     Specified interactions are assumed to be reciprocal between
     materials, so  if :math:`A` and :math:`B` are materials only one of
-    :math:`J_{AB}(r)` and :math:`J_{BA}(r)` should be specified. Moreover
+    :math:`J_{AB}(\mathbf{r}_{ij})` and :math:`J_{BA}(\mathbf{r}_{ij})` should be specified. Moreover
     only one functional can be specified per material or material pair.
 
 Functionals
@@ -26,10 +26,10 @@ A step function where :math:`J_0` is constant within :math:`r_0` and
 zero outside.
 
 .. math::
-    J(r) =
+    J(\mathbf{r}_{ij}) =
     \begin{cases}
-        J_{0}, & r \le r_{\mathrm{cut}}, \\
-        0, & r > r_{\mathrm{cut}} .
+        J_{0}, & |r_{ij}| \le r_{\mathrm{cut}}, \\
+        0, & |r_{ij}| > r_{\mathrm{cut}} .
     \end{cases}
 
 .. code-block:: none
@@ -45,7 +45,7 @@ Exponentially decaying function with a linear shift :math:`r_0` and
 decay constant :math:`\sigma`.
 
 .. math::
-    J(r) = J_0 \operatorname{exp}\left( -\frac{r-r_0}{\sigma} \right)
+    J(\mathbf{r}_{ij}) = J_0 \operatorname{exp}\left( -\frac{|r_{ij}|-r_0}{\sigma} \right)
 
 .. code-block:: none
 
@@ -59,7 +59,7 @@ decay constant :math:`\sigma`.
 Gaussian function centered on :math:`r_0` with width :math:`\sigma`.
 
 .. math::
-    J(r) = J_0 \operatorname{exp}\left( -\frac{(r-r_0)^2}{2\sigma^2} \right)
+    J(\mathbf{r}_{ij}) = J_0 \operatorname{exp}\left( -\frac{(|r_{ij}|-r_0)^2}{2\sigma^2} \right)
 
 .. code-block:: none
 
@@ -73,7 +73,7 @@ Gaussian function centered on :math:`r_0` with width :math:`\sigma`.
 Function used in Kaneyoshi's papers on amorphous magnets.
 
 .. math::
-    J(r) = J_0 (r-r_0)^2\operatorname{exp}\left( -\frac{(r-r_0)^2}{2\sigma^2} \right)
+    J(\mathbf{r}_{ij}) = J_0 (|r_{ij}|-r_0)^2\operatorname{exp}\left( -\frac{(|r_{ij}|-r_0)^2}{2\sigma^2} \right)
 
 .. code-block:: none
 
@@ -88,7 +88,7 @@ RKKY type interaction with oscillating sign. Defined with a shift :math:`r_0` an
 wavenumber :math:`k`.
 
 .. math::
-    J(r) = -J_0 \frac{2 k (r-r_0) \cos(2 k (r-r_0)) - \sin(2 k (r-r_0)}{(2 k (r - r_0))^4}
+    J(\mathbf{r}_{ij}) = -J_0 \frac{2 k (|r_{ij}|-r_0) \cos(2 k (|r_{ij}|-r_0)) - \sin(2 k (|r_{ij}|-r_0)}{(2 k (|r_{ij}| - r_0))^4}
 
 .. code-block:: none
 
@@ -102,7 +102,7 @@ wavenumber :math:`k`.
 Multiple (three) gaussian functions with independent centers, widths and amplitudes.
 
 .. math::
-    J(r) = J_0 \operatorname{exp}\left( -\frac{(r-r_0)^2}{2\sigma_0^2} \right) + J_1 \operatorname{exp}\left( -\frac{(r-r_1)^2}{2\sigma_1^2} \right) + J_2 \operatorname{exp}\left( -\frac{(r-r_2)^2}{2\sigma_2^2} \right)
+    J(\mathbf{r}_{ij}) = J_0 \operatorname{exp}\left( -\frac{(|r_{ij}|-r_0)^2}{2\sigma_0^2} \right) + J_1 \operatorname{exp}\left( -\frac{(|r_{ij}|-r_1)^2}{2\sigma_1^2} \right) + J_2 \operatorname{exp}\left( -\frac{(|r_{ij}|-r_2)^2}{2\sigma_2^2} \right)
 
 
 .. code-block:: none
@@ -111,6 +111,31 @@ Multiple (three) gaussian functions with independent centers, widths and amplitu
         // type_i, type_j, functional, r_cutoff, J0, r0, sigma0, J1, r1, sigma1, J2, r2, sigma2
         ("A", "A", "gaussian_multi", 4.0, 20.0, 1.0, 1.0, -10.0, 2.0, 1.0, 5.0, 3.0, 1.0)
     );
+
+.. describe:: c3z
+
+Three fold rotationally symmetric function in the x-y plane. See `arXiv:2206.05264 <https://arxiv.org/abs/2206.05264>`_ and
+`Nano Lett. 23, 6088 (2023) <https://dx.doi.org/10.1021/acs.nanolett.3c01529>`_.
+
+
+.. math::
+   J_{ij}
+   =
+   J_{0}\,\exp\left(-\lvert r_{ij} - d_{0} \rvert / l_{0}\right)
+   + J_{1}^{\mathrm{s}}\,\exp\left(-\lvert r_{ij} - r_{*} \rvert / l_{1}^{\mathrm{s}}\right)
+     \sum_{a=1}^{3} \sin\left(\mathbf{q}_{a}^{\mathrm{s}} \cdot \mathbf{r}_{\parallel}\right)
+   + J_{1}^{\mathrm{c}}\,\exp\left(-\lvert r_{ij} - r_{*} \rvert / l_{1}^{\mathrm{c}}\right)
+     \sum_{a=1}^{3} \cos\left(\mathbf{q}_{a}^{\mathrm{c}} \cdot \mathbf{r}_{\parallel}\right).
+
+.. code-block:: none
+
+    interactions = (
+        // type_i, type_j, functional, r_cutoff, qs1, qc1, J0, J1s, J1c, d0, l0, l1s, l1c, r*
+        ("A", "B", "c3z", 10.0, [0.7, 0.0, 0.0], [1.73, 1.0, 0.0], -0.1, -0.5, 0.1, 6.7, 0.1, 0.3, 0.6, 7.3),
+    );
+
+.. note::
+    Only :math:`\mathbf{q}_{1}^{s,c}` are specified and :math:`\mathbf{q}_{2,3}^{s,c}` are calculated from the C3z symmetry.
 
 Settings
 ########
