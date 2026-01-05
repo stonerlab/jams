@@ -24,6 +24,7 @@
 #include "jams/solvers/cuda_llg_rk4.h"
 #include "jams/solvers/cuda_ll_lorentzian_rk4.h"
 #include "jams/solvers/cuda_rk4_llg_sot.h"
+#include "jams/solvers/cuda_llg_semi_implicit.h"
 #include "jams/solvers/cpu_llg_heun.h"
 #include "jams/solvers/cpu_rotations.h"
 #include "jams/solvers/cpu_monte_carlo_metropolis.h"
@@ -71,6 +72,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
   DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver, settings);
   DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver, settings);
   DEFINED_SOLVER("llg-sot-rk4-gpu", CudaRK4LLGSOTSolver, settings);
+  DEFINED_SOLVER("llg-simp-gpu", CUDALLGSemiImplictSolver, settings);
 #endif
 
   throw std::runtime_error("unknown solver " + std::string(settings["module"].c_str()));

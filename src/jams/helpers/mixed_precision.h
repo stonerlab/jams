@@ -28,6 +28,7 @@ using cufftComplexLo = cufftComplex;
 using RealHi = double;
 using Real = double;
 
+using ComplexHi = std::complex<double>;
 using ComplexLo = std::complex<double>;
 #if HAS_CUDA
 using cufftComplexLo = cufftDoubleComplex;

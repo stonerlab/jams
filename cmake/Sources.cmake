@@ -131,6 +131,7 @@ set(JAMS_SOURCES_CUDA
         solvers/cuda_ll_lorentzian_rk4.cu
         solvers/cuda_rk4_base.cu
         solvers/cuda_rk4_llg_sot.cu
+        solvers/cuda_llg_semi_implicit.cu
         thermostats/thm_bose_einstein_cuda_srk4.cu
         thermostats/thm_bose_einstein_cuda_srk4_kernel.cuh
         thermostats/cuda_thermostat_quantum_spde.cu
