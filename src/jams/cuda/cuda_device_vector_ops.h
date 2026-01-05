@@ -1,34 +1,34 @@
 #ifndef JAMS_CORE_CUDA_VECTOR_OPS_H
 #define JAMS_CORE_CUDA_VECTOR_OPS_H
 
-__device__ inline double pow2(double x) {
+__device__ __forceinline__ double pow2(double x) {
   return x * x;
 }
 
-__device__ inline float dot(const float v1[3], const float v2[3]) {
+__device__ __forceinline__ float dot(const float v1[3], const float v2[3]) {
 	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
-__device__ inline double dot(const double v1[3], const double v2[3]) {
+__device__ __forceinline__ double dot(const double v1[3], const double v2[3]) {
 	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
-__device__ inline double dot(const double3 &a, const double3 &b) {
+__device__ __forceinline__ double dot(const double3 &a, const double3 &b) {
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 /// Returns the square of the Euclidean norm (x^2 + y^2 + z^2) of the vector.
-__device__ inline float norm_squared(const float v1[3]) {
+__device__ __forceinline__ float norm_squared(const float v1[3]) {
 	return dot(v1, v1);
 }
 
 /// Returns the square of the Euclidean norm (x^2 + y^2 + z^2) of the vector.
-__device__ inline double norm_squared(const double v1[3]) {
+__device__ __forceinline__ double norm_squared(const double v1[3]) {
 	return dot(v1, v1);
 }
 
 /// Returns the Euclidean norm (x^2 + y^2 + z^2) of the vector.
-__device__ inline double norm(const double v1[3]) {
+__device__ __forceinline__ double norm(const double v1[3]) {
   return dot(v1, v1);
 }
 
@@ -60,18 +60,18 @@ __device__ inline void matmul(const double mat[3][3], const double v_in[3], doub
 	         + mat[2][2] * (v_in[2]);
 }
 
-__host__ __device__
-inline double cross_product_x(const double a[3], const double b[3]) {
+__host__ __device__ __forceinline__
+double cross_product_x(const double a[3], const double b[3]) {
   return a[1] * b[2] - a[2] * b[1];
 }
 
-__host__ __device__
-inline double cross_product_y(const double a[3], const double b[3]) {
+__host__ __device__ __forceinline__
+double cross_product_y(const double a[3], const double b[3]) {
   return a[2] * b[0] - a[0] * b[2];
 }
 
-__host__ __device__
-inline double cross_product_z(const double a[3], const double b[3]) {
+__host__ __device__ __forceinline__
+double cross_product_z(const double a[3], const double b[3]) {
   return a[0] * b[1] - a[1] * b[0];
 }
 

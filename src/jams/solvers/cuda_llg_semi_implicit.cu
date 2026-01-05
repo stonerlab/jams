@@ -8,6 +8,20 @@
 #include "jams/cuda/cuda_device_vector_ops.h"
 
 __device__ __forceinline__
+void project_to_tangent(
+  const double A[3],
+  const double S[3],
+  double result[3])
+{
+  const double S_dot_A = dot(S, A);
+  #pragma unroll
+  for (auto n = 0; n < 3; ++n) {
+    result[n] = A[n] - S_dot_A * S[n];
+  }
+}
+
+
+__device__ __forceinline__
 void cayley(const double A[3],
             const double S[3],
             double result[3])
@@ -22,11 +36,12 @@ void cayley(const double A[3],
 
   const double scale = 1.0 / (1.0 + 0.25 * norm_squared(A));
 
-  for (auto n = 0; n < 3; ++n)
-  {
+  #pragma unroll
+  for (auto n = 0; n < 3; ++n) {
     result[n] = S[n] + (AxS[n]+ 0.5 * AxAxS[n]) * scale;
   }
 }
+
 
 __global__ void cuda_llg_semi_implicit_kernel_mid_step(
   const unsigned num_spins,
@@ -40,16 +55,16 @@ __global__ void cuda_llg_semi_implicit_kernel_mid_step(
 
   const unsigned base = 3u * idx;
 
-  const double x = s_init_dev[base + 0] + s_pred_dev[base + 0];
-  const double y = s_init_dev[base + 1] + s_pred_dev[base + 1];
-  const double z = s_init_dev[base + 2] + s_pred_dev[base + 2];
+  double s[3];
+  for (auto n = 0; n < 3; ++n) {
+    s[n] = s_init_dev[base + n] + s_pred_dev[base + n];
+  }
 
-  const double n2 = x*x + y*y + z*z;
-  const double inv_norm = rsqrt(n2);
+  const double inv_norm = rsqrt(norm_squared(s));
 
-  s_mid_dev[base + 0] = x * inv_norm;
-  s_mid_dev[base + 1] = y * inv_norm;
-  s_mid_dev[base + 2] = z * inv_norm;
+  for (auto n = 0; n < 3; ++n) {
+    s_mid_dev[base + n] = s[n] * inv_norm;
+  }
 }
 
 
@@ -68,52 +83,44 @@ __global__ void cuda_llg_semi_implicit_kernel_step
 )
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
   if (idx >= dev_num_spins) return;
+
+  const unsigned int base = 3u * idx;
 
   double h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = ((h_step_dev[3*idx + n] / mus_dev[idx]) + noise_init_dev[3*idx + n]);
+    h[n] = ((h_step_dev[base + n] / mus_dev[idx]) + noise_init_dev[base + n]);
   }
 
   double s[3];
   for (auto n = 0; n < 3; ++n) {
-    s[n] = s_step_dev[3*idx + n];
+    s[n] = s_step_dev[base + n];
   }
 
-  double sxh[3] = {
-    (s[1] * h[2] - s[2] * h[1]),
-    (s[2] * h[0] - s[0] * h[2]),
-    (s[0] * h[1] - s[1] * h[0])
-  };
+  double sxh[3];
+  cross_product(s, h, sxh);
 
   double A[3];
   for (auto n = 0; n < 3; ++n) {
     A[n] = dt * gyro_dev[idx] * (h[n] + alpha_dev[idx] * sxh[n]);
   }
 
-  // Orthogonal projection
-  const double s_dot_A = s[0]*A[0] + s[1]*A[1] + s[2]*A[2];
-  for (auto n = 0; n < 3; ++n)
-  {
-    A[n] = A[n] - s_dot_A * s[n];
-  }
+  double A_perp[3];
+  project_to_tangent(A, s, A_perp);
 
   double s_init[3];
   for (auto n = 0; n < 3; ++n) {
-    s_init[n] = s_init_dev[3*idx + n];
+    s_init[n] = s_init_dev[base + n];
   }
-
-
 
   double s_out[3];
-  cayley(A, s_init, s_out);
+  cayley(A_perp, s_init, s_out);
 
-  for (auto n = 0; n < 3; ++n)
-  {
-    s_out_dev[3*idx + n] = s_out[n];
+  for (auto n = 0; n < 3; ++n) {
+    s_out_dev[base + n] = s_out[n];
   }
 }
+
 
 void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
 {
@@ -176,7 +183,11 @@ void CUDALLGSemiImplictSolver::run()
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  cuda_llg_semi_implicit_kernel_mid_step<<<grid_size, block_size>>>(globals::num_spins, s_init_.device_data(), s_pred_.device_data(), globals::s.device_data());
+  cuda_llg_semi_implicit_kernel_mid_step<<<grid_size, block_size>>>(
+    globals::num_spins,
+    s_init_.device_data(),
+    s_pred_.device_data(),
+    globals::s.device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   compute_fields();
