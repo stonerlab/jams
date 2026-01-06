@@ -83,13 +83,61 @@ __device__ void dexp_inv_so3(const double phi[3], const double v[3], double resu
   return;
 }
 
+__device__ __forceinline__
+void omega_llg(const double s[3], const double h[3],
+               const double gyro, const double alpha,
+               double omega[3])
+{
+  // omega = gyro * ( H + alpha * (S×H) )
+  double sxh[3];
+  cross_product(s, h, sxh);
+  omega[0] = gyro * (h[0] + alpha * sxh[0]);
+  omega[1] = gyro * (h[1] + alpha * sxh[1]);
+  omega[2] = gyro * (h[2] + alpha * sxh[2]);
+}
+
+__global__ void cuda_llg_rkmk2_kernel_noise_half_step(
+  double* s_inout_dev,
+  const jams::Real* noise_dev,
+  const double* gyro_dev,
+  const double* alpha_dev,
+  unsigned num_spins,
+  double dt,
+  double noise_scale)
+{
+  const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= num_spins) return;
+  const unsigned base = 3u * idx;
+
+  // Spin
+  double s[3] = {s_inout_dev[base+0], s_inout_dev[base+1], s_inout_dev[base+2]};
+
+  // Treat white noise as an effective field for this substep
+  double h[3] = {
+    noise_scale * noise_dev[base+0],
+    noise_scale * noise_dev[base+1],
+    noise_scale * noise_dev[base+2]
+  };
+
+  double w[3];
+  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], w);
+
+  double phi[3] = {dt * w[0], dt * w[1], dt * w[2]};
+  double out[3];
+  rodrigues_rotate(phi, s, out);
+
+  s_inout_dev[base+0] = out[0];
+  s_inout_dev[base+1] = out[1];
+  s_inout_dev[base+2] = out[2];
+}
+
+
 __global__ void cuda_llg_rkmk2_kernel_step_1
 (
   const double * s_init_dev,
   double * phi_dev,
   double * s_out_dev,
   const double * h_step_dev,  // field at the same time as s_step
-  const jams::Real * noise_init_dev, // noise at the same time as s_init
   const double * gyro_dev,
   const double * mus_dev,
   const double * alpha_dev,
@@ -104,7 +152,7 @@ __global__ void cuda_llg_rkmk2_kernel_step_1
 
   double h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = ((h_step_dev[base + n] / mus_dev[idx]) + noise_init_dev[base + n]);
+    h[n] = h_step_dev[base + n] / mus_dev[idx];
   }
 
   double s[3];
@@ -145,7 +193,6 @@ __global__ void cuda_llg_rkmk2_kernel_step_2
   const double * phi_dev,
   double * s_out_dev,
   const double * h_step_dev,  // field at the same time as s_step
-  const jams::Real * noise_init_dev, // noise at the same time as s_init
   const double * gyro_dev,
   const double * mus_dev,
   const double * alpha_dev,
@@ -160,7 +207,7 @@ __global__ void cuda_llg_rkmk2_kernel_step_2
 
   double h[3];
   for (auto n = 0; n < 3; ++n) {
-    h[n] = ((h_step_dev[base + n] / mus_dev[idx]) + noise_init_dev[base + n]);
+    h[n] = h_step_dev[base + n] / mus_dev[idx];
   }
 
   double s[3];
@@ -168,13 +215,8 @@ __global__ void cuda_llg_rkmk2_kernel_step_2
     s[n] = s_step_dev[base + n];
   }
 
-  double sxh[3];
-  cross_product(s, h, sxh);
-
   double omega[3];
-  for (auto n = 0; n < 3; ++n) {
-    omega[n] = gyro_dev[idx] * (h[n] + alpha_dev[idx] * sxh[n]);
-  }
+  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega);
 
   double v2[3];
   for (auto n = 0; n < 3; ++n) {
@@ -239,27 +281,41 @@ void CUDALLGRKMK2Solver::initialize(const libconfig::Setting& settings)
 void CUDALLGRKMK2Solver::run()
 {
   double t0 = time_;
+  const double half_dt = 0.5 * step_size_;
 
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
+
+  update_thermostat();
+  cudaDeviceSynchronize();
+
+  cuda_llg_rkmk2_kernel_noise_half_step<<<grid_size, block_size, 0, dev_stream_.get()>>>(
+    globals::s.device_data(),
+    thermostat_->device_data(),
+    globals::gyro.device_data(),
+    globals::alpha.device_data(),
+    globals::num_spins, half_dt, M_SQRT2);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
   cudaMemcpyAsync(s_init_.device_data(),           // void *               dst
-                  globals::s.device_data(),               // const void *         src
-                  globals::s.bytes(),   // size_t               count
-                  cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-                  dev_stream_.get());                   // device stream
+                globals::s.device_data(),               // const void *         src
+                globals::s.bytes(),   // size_t               count
+                cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
+                dev_stream_.get());                   // device stream
 
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  update_thermostat();
+
   compute_fields();
 
-  cuda_llg_rkmk2_kernel_step_1<<<grid_size, block_size>>>(
+  cudaDeviceSynchronize();
+
+  cuda_llg_rkmk2_kernel_step_1<<<grid_size, block_size, 0, dev_stream_.get()>>>(
     s_init_.device_data(),
     phi_.device_data(),
     globals::s.device_data(),
     globals::h.device_data(),
-    thermostat_->device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
@@ -272,13 +328,14 @@ void CUDALLGRKMK2Solver::run()
 
   compute_fields();
 
-  cuda_llg_rkmk2_kernel_step_2<<<grid_size, block_size>>>(
+  cudaDeviceSynchronize();
+
+  cuda_llg_rkmk2_kernel_step_2<<<grid_size, block_size, 0, dev_stream_.get()>>>(
     s_init_.device_data(),
     globals::s.device_data(),
     phi_.device_data(),
     globals::s.device_data(),
     globals::h.device_data(),
-    thermostat_->device_data(),
     globals::gyro.device_data(),
     globals::mus.device_data(),
     globals::alpha.device_data(),
@@ -286,9 +343,19 @@ void CUDALLGRKMK2Solver::run()
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  iteration_++;
-  time_ = iteration_ * step_size_;
+  update_thermostat();
+  cudaDeviceSynchronize();
 
+  cuda_llg_rkmk2_kernel_noise_half_step<<<grid_size, block_size, 0, dev_stream_.get()>>>(
+  globals::s.device_data(),
+  thermostat_->device_data(),
+  globals::gyro.device_data(),
+  globals::alpha.device_data(),
+  globals::num_spins, half_dt, M_SQRT2);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
+  iteration_++;
+  time_ = t0 + step_size_;
   cudaDeviceSynchronize();
 
 }
