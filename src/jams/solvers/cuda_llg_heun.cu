@@ -17,6 +17,7 @@
 #include "jams/cuda/cuda_common.h"
 
 #include "cuda_llg_heun_kernel.cuh"
+#include "jams/common.h"
 
 void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
 {
@@ -40,19 +41,6 @@ void CUDAHeunLLGSolver::initialize(const libconfig::Setting& settings)
 
   std::cout << "done\n";
 
-  // check if we need to use zero safe versions of the kernels (for |S| = 0)
-  zero_safe_kernels_required_ = false;
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    if (approximately_zero(Vec3{globals::s(i,0), globals::s(i,1), globals::s(i,2)}, DBL_EPSILON)) {
-      zero_safe_kernels_required_ = true;
-      break;
-    }
-  }
-
-  if (zero_safe_kernels_required_) {
-    jams_warning("Some spins have zero length so zero safe kernels will be used.");
-  }
-
   s_old_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -72,7 +60,7 @@ void CUDAHeunLLGSolver::run()
                   globals::s.device_data(),               // const void *         src
                   globals::num_spins3*sizeof(double),   // size_t               count
              cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-             dev_stream_.get());                   // device stream
+             jams::instance().cuda_master_stream().get());                   // device stream
 
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
@@ -80,42 +68,28 @@ void CUDAHeunLLGSolver::run()
 
   compute_fields();
 
-  if (zero_safe_kernels_required_) {
-    cuda_zero_safe_heun_llg_kernelA<<<grid_size, block_size>>>
-      (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
-       globals::h.device_data(), thermostat_->device_data(),
-       globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
+
+  cuda_heun_llg_kernelA<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
+    (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
+     globals::h.device_data(), thermostat_->device_data(),
+     globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
        step_size_, globals::num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
-  } else {
-    cuda_heun_llg_kernelA<<<grid_size, block_size>>>
-      (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
-       globals::h.device_data(), thermostat_->device_data(),
-       globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
-       step_size_, globals::num_spins);
-    DEBUG_CHECK_CUDA_ASYNC_STATUS
-  }
+
+  jams::instance().cuda_master_stream().synchronize();
 
   double mid_time_step = step_size_;
   time_ = t0 + mid_time_step;
 
   compute_fields();
 
-  if (zero_safe_kernels_required_) {
-    cuda_zero_safe_heun_llg_kernelB<<<grid_size, block_size>>>
-      (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
-       globals::h.device_data(), thermostat_->device_data(),
-       globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
-       step_size_, globals::num_spins);
+  cuda_heun_llg_kernelB<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>
+    (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
+      globals::h.device_data(), thermostat_->device_data(),
+      globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
+      step_size_, globals::num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
-  } else {
-    cuda_heun_llg_kernelB<<<grid_size, block_size>>>
-      (globals::s.device_data(), globals::ds_dt.device_data(), s_old_.device_data(),
-       globals::h.device_data(), thermostat_->device_data(),
-       globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
-       step_size_, globals::num_spins);
-    DEBUG_CHECK_CUDA_ASYNC_STATUS
-  }
+  jams::instance().cuda_master_stream().synchronize();
 
   iteration_++;
   time_ = iteration_ * step_size_;
