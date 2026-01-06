@@ -94,7 +94,7 @@ CudaThermostatQuantumSpde::CudaThermostatQuantumSpde(const jams::Real &temperatu
 
 void CudaThermostatQuantumSpde::update() {
   if (this->temperature() == 0) {
-    CHECK_CUDA_STATUS(cudaMemset(noise_.device_data(), 0, noise_.bytes()));
+    CHECK_CUDA_STATUS(cudaMemsetAsync(noise_.device_data(), 0, noise_.bytes(), jams::instance().cuda_master_stream().get()));
     return;
   }
 
@@ -109,16 +109,16 @@ void CudaThermostatQuantumSpde::update() {
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
 
-  cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, dev_stream_ >>> (
+  cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get() >>> (
     noise_.device_data(), zeta5_.device_data(), zeta5p_.device_data(), zeta6_.device_data(), zeta6p_.device_data(),
     eta1b_.device_data(), sigma_.device_data(), reduced_delta_tau, temperature, reduced_omega_max, globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   if (do_zero_point_) {
-    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
+    CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), jams::instance().cuda_master_stream().get()));
     CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
 
-    cuda_thermostat_quantum_spde_zero_point_kernel <<< grid_size, block_size, 0, dev_stream_ >>> (
+    cuda_thermostat_quantum_spde_zero_point_kernel <<< grid_size, block_size, 0, jams::instance().cuda_master_stream().get() >>> (
         noise_.device_data(), zeta0_.device_data(), eta0_.device_data(), sigma_.device_data(), reduced_delta_tau,
         temperature, reduced_omega_max, globals::num_spins3);
     DEBUG_CHECK_CUDA_ASYNC_STATUS;

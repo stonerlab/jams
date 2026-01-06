@@ -4,6 +4,7 @@
 
 #include "jams/solvers/cuda_llg_semi_implicit.h"
 
+#include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
 
@@ -163,14 +164,14 @@ void CUDALLGSemiImplictSolver::run()
                   globals::s.device_data(),               // const void *         src
                   globals::s.bytes(),   // size_t               count
                   cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-                  dev_stream_.get());                   // device stream
+                  jams::instance().cuda_master_stream().get());                   // device stream
 
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   update_thermostat();
   compute_fields();
 
-  cuda_llg_semi_implicit_kernel_step<<<grid_size, block_size>>>(
+  cuda_llg_semi_implicit_kernel_step<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
     globals::s.device_data(),
     s_pred_.device_data(),
@@ -183,16 +184,17 @@ void CUDALLGSemiImplictSolver::run()
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
-  cuda_llg_semi_implicit_kernel_mid_step<<<grid_size, block_size>>>(
+  cuda_llg_semi_implicit_kernel_mid_step<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::num_spins,
     s_init_.device_data(),
     s_pred_.device_data(),
     globals::s.device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
+  jams::instance().cuda_master_stream().synchronize();
   compute_fields();
 
-  cuda_llg_semi_implicit_kernel_step<<<grid_size, block_size>>>(
+  cuda_llg_semi_implicit_kernel_step<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
     globals::s.device_data(),
     globals::s.device_data(),
@@ -204,10 +206,10 @@ void CUDALLGSemiImplictSolver::run()
     globals::num_spins, step_size_
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  jams::instance().cuda_master_stream().synchronize();
 
   iteration_++;
   time_ = iteration_ * step_size_;
 
-  cudaDeviceSynchronize();
 
 }

@@ -28,9 +28,9 @@ __device__ void rodrigues_rotate(const double phi[3], const double S[3], double 
     return;
   }
 
-  const double th = sqrt(th2);
-  const double s = sin(th);
-  const double c = cos(th);
+  double th = sqrt(th2);
+  double s, c;
+  sincos(th, &s, &c);
 
   double k[3];
   for (auto n = 0; n < 3; ++n)
@@ -70,7 +70,9 @@ __device__ void dexp_inv_so3(const double phi[3], const double v[3], double resu
 
   const double th = sqrt(th2);
   const double half = 0.5 * th;
-  const double cot_half = cos(half) / sin(half);
+  double s, c;
+  sincos(half, &s, &c);
+  const double cot_half = c / s;
   const double beta = (1.0/th2) * (1.0 - half * cot_half);
 
   double c1[3];
@@ -103,8 +105,7 @@ __global__ void cuda_llg_rkmk2_kernel_noise_half_step(
   const double* gyro_dev,
   const double* alpha_dev,
   unsigned num_spins,
-  double dt,
-  double noise_scale)
+  double dt)
 {
   const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx >= num_spins) return;
@@ -115,9 +116,9 @@ __global__ void cuda_llg_rkmk2_kernel_noise_half_step(
 
   // Treat white noise as an effective field for this substep
   double h[3] = {
-    noise_scale * noise_dev[base+0],
-    noise_scale * noise_dev[base+1],
-    noise_scale * noise_dev[base+2]
+    noise_dev[base+0],
+    noise_dev[base+1],
+    noise_dev[base+2]
   };
 
   double w[3];
@@ -263,7 +264,8 @@ void CUDALLGRKMK2Solver::initialize(const libconfig::Setting& settings)
   std::cout << "\nt_min (ps) " << t_min << " steps " << min_steps_ << "\n";
 
   std::string thermostat_name = jams::config_optional<std::string>(globals::config->lookup("solver"), "thermostat", jams::defaults::solver_gpu_thermostat);
-  register_thermostat(Thermostat::create(thermostat_name, this->time_step()));
+  // Strang splitting means the thermostat timestep is 1/2 of the RKMK time step
+  register_thermostat(Thermostat::create(thermostat_name, 0.5 * this->time_step()));
 
   std::cout << "  thermostat " << thermostat_name.c_str() << "\n";
 
@@ -284,7 +286,7 @@ void CUDALLGRKMK2Solver::run()
   double t0 = time_;
   const double half_dt = 0.5 * step_size_;
 
-  const dim3 block_size = {64, 1, 1};
+  const dim3 block_size = {256, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
 
@@ -295,7 +297,7 @@ void CUDALLGRKMK2Solver::run()
     thermostat_->device_data(),
     globals::gyro.device_data(),
     globals::alpha.device_data(),
-    globals::num_spins, half_dt, M_SQRT2);
+    globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
 
@@ -309,7 +311,6 @@ void CUDALLGRKMK2Solver::run()
 
 
   compute_fields(); // uses cuda_master_stream internally to synchronise
-  jams::instance().cuda_master_stream().synchronize();
 
   cuda_llg_rkmk2_kernel_step_1<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
@@ -329,7 +330,6 @@ void CUDALLGRKMK2Solver::run()
   time_ = t0 + mid_time_step;
 
   compute_fields(); // uses cuda_master_stream internally to synchronise
-  jams::instance().cuda_master_stream().synchronize();
 
   cuda_llg_rkmk2_kernel_step_2<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
@@ -351,7 +351,7 @@ void CUDALLGRKMK2Solver::run()
   thermostat_->device_data(),
   globals::gyro.device_data(),
   globals::alpha.device_data(),
-  globals::num_spins, half_dt, M_SQRT2);
+  globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   jams::instance().cuda_master_stream().synchronize();
 
