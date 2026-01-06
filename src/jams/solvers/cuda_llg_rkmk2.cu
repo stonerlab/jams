@@ -29,8 +29,10 @@ __device__ void rodrigues_rotate(const double phi[3], const double S[3], double 
   }
 
   double th = sqrt(th2);
-  double s, c;
-  sincos(th, &s, &c);
+  const double s = sin(th);
+  const double c = cos(th);
+  // double s, c;
+  // sincos(th, &s, &c);
 
   double k[3];
   for (auto n = 0; n < 3; ++n)
@@ -70,8 +72,11 @@ __device__ void dexp_inv_so3(const double phi[3], const double v[3], double resu
 
   const double th = sqrt(th2);
   const double half = 0.5 * th;
-  double s, c;
-  sincos(half, &s, &c);
+  const double s = sin(half);
+  const double c = cos(half);
+
+  // double s, c;
+  // sincos(half, &s, &c);
   const double cot_half = c / s;
   const double beta = (1.0/th2) * (1.0 - half * cot_half);
 

@@ -23,6 +23,7 @@
 #include "jams/monitors/spin_correlation.h"
 #include "jams/monitors/spin_pumping.h"
 #include "jams/monitors/spin_temperature.h"
+#include "jams/monitors/stability.h"
 #include "jams/monitors/torque.h"
 #include "jams/monitors/unitcell_average.h"
 #include "jams/monitors/vtu.h"
@@ -90,6 +91,7 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
   DEFINED_MONITOR("spin-correlation", SpinCorrelationMonitor, settings);
   DEFINED_MONITOR("spin-pumping", SpinPumpingMonitor, settings);
   DEFINED_MONITOR("spin-temperature", SpinTemperatureMonitor, settings);
+  DEFINED_MONITOR("stability", StabilityMonitor, settings);
   DEFINED_MONITOR("torque", TorqueMonitor, settings);
   DEFINED_MONITOR("unitcell-average", UnitcellAverageMonitor, settings);
   DEFINED_MONITOR("vtu", VtuMonitor, settings);
