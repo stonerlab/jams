@@ -8,13 +8,14 @@
 #include <sstream>
 #include <pcg_random.hpp>
 #include <jams/interface/randutils.h>
+
 #include "jams/interface/system.h"
 
 #if HAS_CUDA
 #include <cusparse.h>
 #include <curand.h>
 #include <cublas_v2.h>
-
+#include "cuda/cuda_stream.h"
 #endif
 
 namespace jams {
@@ -56,6 +57,8 @@ namespace jams {
         static bool has_gpu_device();
 
         #ifdef HAS_CUDA
+        inline static CudaStream& cuda_master_stream() { return instance().cuda_master_stream_; }
+
         inline static cublasHandle_t cublas_handle() { return instance().cublas_handle_; }
         inline static cusparseHandle_t cusparse_handle() { return instance().cusparse_handle_; }
         inline static curandGenerator_t curand_generator() { return instance().curand_generator_; }
@@ -72,6 +75,8 @@ namespace jams {
         std::string output_path_ = ".";
 
         #if HAS_CUDA
+        CudaStream cuda_master_stream_;
+
         cublasHandle_t cublas_handle_ = nullptr;
         cusparseHandle_t cusparse_handle_ = nullptr;
         curandGenerator_t curand_generator_ = nullptr;

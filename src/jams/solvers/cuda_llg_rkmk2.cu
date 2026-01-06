@@ -5,6 +5,7 @@
 
 #include "jams/solvers/cuda_llg_rkmk2.h"
 
+#include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
 
@@ -288,9 +289,8 @@ void CUDALLGRKMK2Solver::run()
 
 
   update_thermostat();
-  cudaDeviceSynchronize();
 
-  cuda_llg_rkmk2_kernel_noise_half_step<<<grid_size, block_size, 0, dev_stream_.get()>>>(
+  cuda_llg_rkmk2_kernel_noise_half_step<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.device_data(),
     thermostat_->device_data(),
     globals::gyro.device_data(),
@@ -298,20 +298,20 @@ void CUDALLGRKMK2Solver::run()
     globals::num_spins, half_dt, M_SQRT2);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
+
   cudaMemcpyAsync(s_init_.device_data(),           // void *               dst
                 globals::s.device_data(),               // const void *         src
                 globals::s.bytes(),   // size_t               count
                 cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-                dev_stream_.get());                   // device stream
+                jams::instance().cuda_master_stream().get());                   // device stream
 
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
 
-  compute_fields();
+  compute_fields(); // uses cuda_master_stream internally to synchronise
+  jams::instance().cuda_master_stream().synchronize();
 
-  cudaDeviceSynchronize();
-
-  cuda_llg_rkmk2_kernel_step_1<<<grid_size, block_size, 0, dev_stream_.get()>>>(
+  cuda_llg_rkmk2_kernel_step_1<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
     phi_.device_data(),
     globals::s.device_data(),
@@ -323,14 +323,15 @@ void CUDALLGRKMK2Solver::run()
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
+  jams::instance().cuda_master_stream().synchronize();
+
   double mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
 
-  compute_fields();
+  compute_fields(); // uses cuda_master_stream internally to synchronise
+  jams::instance().cuda_master_stream().synchronize();
 
-  cudaDeviceSynchronize();
-
-  cuda_llg_rkmk2_kernel_step_2<<<grid_size, block_size, 0, dev_stream_.get()>>>(
+  cuda_llg_rkmk2_kernel_step_2<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     s_init_.device_data(),
     globals::s.device_data(),
     phi_.device_data(),
@@ -344,18 +345,16 @@ void CUDALLGRKMK2Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   update_thermostat();
-  cudaDeviceSynchronize();
 
-  cuda_llg_rkmk2_kernel_noise_half_step<<<grid_size, block_size, 0, dev_stream_.get()>>>(
+  cuda_llg_rkmk2_kernel_noise_half_step<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
   globals::s.device_data(),
   thermostat_->device_data(),
   globals::gyro.device_data(),
   globals::alpha.device_data(),
   globals::num_spins, half_dt, M_SQRT2);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
+  jams::instance().cuda_master_stream().synchronize();
 
   iteration_++;
   time_ = t0 + step_size_;
-  cudaDeviceSynchronize();
-
 }

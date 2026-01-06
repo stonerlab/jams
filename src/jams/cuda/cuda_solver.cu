@@ -17,14 +17,7 @@ void CudaSolver::compute_fields() {
   for (auto& hh : hamiltonians_) {
     hh->calculate_fields(this->time());
   }
-
-  // cudaMemcpy(globals::h.device_data(),hamiltonians_[0]->dev_ptr_field(), globals::num_spins3*sizeof(double) ,cudaMemcpyDeviceToDevice);
-  //
-  // if (hamiltonians_.size() == 1) return;
-  //
-  // for (auto i = 1; i < hamiltonians_.size(); ++i) {
-  //   CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(),globals::h.elements(), &kOne, hamiltonians_[i]->dev_ptr_field(), 1, globals::h.device_data(), 1));
-  // }
+  cudaDeviceSynchronize();
 
   const int num_input_arrays = static_cast<int>(hamiltonians_.size());
   const int num_elements = globals::h.elements(); // == globals::num_spins3
@@ -38,15 +31,16 @@ void CudaSolver::compute_fields() {
     }
 
     // Copy pointer array to device (cache this if topology is fixed)
-    cudaMalloc(&dev_field_ptrs_, num_input_arrays * sizeof(double*));
-    cudaMemcpy(dev_field_ptrs_, h_ptrs.data(),
+    cudaMallocAsync(&dev_field_ptrs_, num_input_arrays * sizeof(double*), jams::instance().cuda_master_stream().get());
+    cudaMemcpyAsync(dev_field_ptrs_, h_ptrs.data(),
                num_input_arrays * sizeof(double*),
-               cudaMemcpyHostToDevice);
+               cudaMemcpyHostToDevice,
+               jams::instance().cuda_master_stream().get());
   }
 
   int block_size = 256;
   int grid_size = (num_elements + block_size - 1) / block_size;
-  cuda_array_sum_across<<<grid_size, block_size>>>(num_input_arrays, num_elements, dev_field_ptrs_, globals::h.device_data());
+  cuda_array_sum_across<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(num_input_arrays, num_elements, dev_field_ptrs_, globals::h.device_data());
 
 }
 

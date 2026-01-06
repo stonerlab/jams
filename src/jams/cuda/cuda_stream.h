@@ -25,37 +25,53 @@ class CudaStream {
     inline cudaStream_t& get();
 
   private:
+    inline void create_stream();
+    inline void destroy_stream();
     cudaStream_t stream_ = nullptr;
 };
 
-inline CudaStream::CudaStream() {
-}
+inline CudaStream::CudaStream() = default;
 
 inline CudaStream::CudaStream(std::nullptr_t) {
 }
 
 inline CudaStream::~CudaStream() {
+  destroy_stream();
+}
+
+inline void CudaStream::create_stream()
+{
+  assert(!stream_);
+  cudaError_t result = cudaStreamCreate(&stream_);
+  if (result != cudaSuccess) {
+    stream_ = nullptr;
+    cuda_throw(result, __FILE__, __LINE__);
+  }
+}
+
+inline void CudaStream::destroy_stream()
+{
   if (stream_) {
+    synchronize();
     cudaStreamDestroy(stream_);
+    stream_ = nullptr;
   }
 }
 
 inline cudaStream_t& CudaStream::get() {
   if (!stream_) {
-    cudaError_t result = cudaStreamCreate(&stream_);
-    if (result != cudaSuccess) {
-      stream_ = nullptr;
-      cuda_throw(result, __FILE__, __LINE__);
-    }
+    create_stream();
   }
   assert(stream_);
   return stream_;
 }
 
 inline void CudaStream::synchronize() {
-  if(stream_) {
-    CHECK_CUDA_STATUS(cudaStreamSynchronize(stream_));
+  if (!stream_) {
+    create_stream();
   }
+  assert(stream_);
+  CHECK_CUDA_STATUS(cudaStreamSynchronize(stream_));
 }
 
 inline CudaStream::operator bool() const {
