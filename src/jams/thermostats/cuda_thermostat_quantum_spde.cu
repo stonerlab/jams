@@ -107,8 +107,11 @@ void CudaThermostatQuantumSpde::update() {
 
   swap(eta1a_, eta1b_);
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), dev_curand_stream_));
+#ifdef DO_MIXED_PRECISION
   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
-
+#else
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta1a_.device_data(), eta1a_.size(), 0.0, 1.0));
+#endif
   cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get() >>> (
     noise_.device_data(), zeta5_.device_data(), zeta5p_.device_data(), zeta6_.device_data(), zeta6p_.device_data(),
     eta1b_.device_data(), sigma_.device_data(), reduced_delta_tau, temperature, reduced_omega_max, globals::num_spins3);
@@ -116,7 +119,11 @@ void CudaThermostatQuantumSpde::update() {
 
   if (do_zero_point_) {
     CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), jams::instance().cuda_master_stream().get()));
+#ifdef DO_MIXED_PRECISION
     CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+#else
+    CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), eta0_.device_data(), eta0_.size(), 0.0, 1.0));
+#endif
 
     cuda_thermostat_quantum_spde_zero_point_kernel <<< grid_size, block_size, 0, jams::instance().cuda_master_stream().get() >>> (
         noise_.device_data(), zeta0_.device_data(), eta0_.device_data(), sigma_.device_data(), reduced_delta_tau,

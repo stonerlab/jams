@@ -48,6 +48,10 @@ void CudaThermostatClassical::update() {
   }
 
   CHECK_CURAND_STATUS(curandSetStream(jams::instance().curand_generator(), jams::instance().cuda_master_stream().get()));
+#ifdef DO_MIXED_PRECISION
   CHECK_CURAND_STATUS(curandGenerateNormal(jams::instance().curand_generator(), noise_.device_data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
+#else
+  CHECK_CURAND_STATUS(curandGenerateNormalDouble(jams::instance().curand_generator(), noise_.device_data(), (globals::num_spins3+(globals::num_spins3%2)), 0.0, 1.0));
+#endif
   cuda_array_elementwise_scale(globals::num_spins, 3, sigma_.device_data(), sqrt(this->temperature()), noise_.device_data(), 1, noise_.device_data(), 1, jams::instance().cuda_master_stream().get());
 }
