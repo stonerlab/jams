@@ -52,7 +52,6 @@ inline void CudaStream::create_stream()
 inline void CudaStream::destroy_stream()
 {
   if (stream_) {
-    synchronize();
     cudaStreamDestroy(stream_);
     stream_ = nullptr;
   }
