@@ -233,7 +233,7 @@ void cuda_array_double_to_float(
 )
 {
     dim3 block_size;
-    block_size.x = 128;
+    block_size.x = 256;
 
     dim3 grid_size;
     grid_size.x = (n + block_size.x - 1) / block_size.x;
