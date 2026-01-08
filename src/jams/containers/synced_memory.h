@@ -401,18 +401,22 @@ SyncedMemory<T> &SyncedMemory<T>::operator=(SyncedMemory &&rhs) & noexcept {
 template<class T>
 void
 SyncedMemory<T>::allocate_device_memory(const SyncedMemory::size_type size) {
-  #if HAS_CUDA
+#if HAS_CUDA
   if (size == 0) return;
 
   if (size > max_size_device()) {
     throw std::bad_alloc();
   }
 
+  // Compile-time check for alignment guarantee of cudaMalloc.
+  static_assert(alignof(T) <= 256,
+                "SyncedMemory<T>: alignof(T) > 256 may not be satisfied by cudaMalloc alignment");
+
   assert(!device_ptr_);
   SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMalloc(reinterpret_cast<void**>(&device_ptr_), bytes(size)));
   assert(device_ptr_);
   size_ = size;
-  #endif
+#endif
 }
 
 
@@ -423,7 +427,7 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
   // host_ptr_ must not already be allocated before we try to allocate
   assert(!host_ptr_);
 
-  #if HAS_CUDA
+#if HAS_CUDA
   if (has_cuda_context()) {
     SYNCED_MEMORY_CHECK_CUDA_STATUS(cudaMallocHost(reinterpret_cast<void **>(&host_ptr_), bytes(size)));
     assert(host_ptr_);
@@ -431,16 +435,23 @@ void SyncedMemory<T>::allocate_host_memory(const SyncedMemory::size_type size) {
     host_cuda_malloc_ = true;
     return;
   }
-  #endif
+#endif
 
-  if (posix_memalign(reinterpret_cast<void **>(&host_ptr_),
-                     SYNCED_MEMORY_HOST_ALIGNMENT,
-                     bytes(size)) != 0) {
+  // Ensure the returned pointer satisfies alignment requirements for T.
+  // posix_memalign requires alignment to be a power of two and a multiple of sizeof(void*).
+  const std::size_t alignment = std::max<std::size_t>(SYNCED_MEMORY_HOST_ALIGNMENT, alignof(T));
+  static_assert((SYNCED_MEMORY_HOST_ALIGNMENT & (SYNCED_MEMORY_HOST_ALIGNMENT - 1)) == 0,
+                "SYNCED_MEMORY_HOST_ALIGNMENT must be a power of two");
+
+  void* raw = nullptr;
+  if (posix_memalign(&raw, alignment, bytes(size)) != 0) {
     throw std::bad_alloc();
   }
+  host_ptr_ = reinterpret_cast<pointer>(raw);
 
   // host_ptr_ must be allocated by the end of the function
   assert(host_ptr_);
+  size_ = size;
 }
 
 
