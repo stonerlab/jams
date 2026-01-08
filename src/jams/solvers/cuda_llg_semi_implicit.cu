@@ -15,10 +15,10 @@ __global__ void cuda_llg_semi_implicit_pred_kernel
   double * __restrict__ s_inout_dev, // in: S_n, out: (S_n + S'_n+1) / 2
   const jams::Real * __restrict__ h_dev,
   const jams::Real * __restrict__ gyro_dev,
-  const jams::Real * __restrict__ mus_dev,
+  const jams::Real * __restrict__ rmu_dev,
   const jams::Real * __restrict__ alpha_dev,
   const unsigned dev_num_spins,
-  const double dt
+  const jams::Real dt
 )
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -26,10 +26,11 @@ __global__ void cuda_llg_semi_implicit_pred_kernel
 
   const unsigned int base = 3u * idx;
 
+  jams::Real rmu = rmu_dev[idx];
   const jams::Real3 h = {
-    h_dev[base + 0] / mus_dev[idx],
-    h_dev[base + 1] / mus_dev[idx],
-    h_dev[base + 2] / mus_dev[idx]
+    h_dev[base + 0] * rmu,
+    h_dev[base + 1] * rmu,
+    h_dev[base + 2] * rmu
   };
 
   const double3 s = {
@@ -38,11 +39,7 @@ __global__ void cuda_llg_semi_implicit_pred_kernel
     s_inout_dev[base + 2]
   };
 
-  double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
-  omega.x *= dt;
-  omega.y *= dt;
-  omega.z *= dt;
-  // double3 A = {dt * omega.x,dt*omega.y,dt*omega.z };
+  double3 omega = omega_llg(s, h, gyro_dev[idx] * dt, alpha_dev[idx]);
 
   omega = project_to_tangent(omega, s);
 
@@ -68,10 +65,10 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
   const double * __restrict__ s_init_dev, // S_n
   const jams::Real * __restrict__ h_dev,  // field at the same time as s_step
   const jams::Real * __restrict__ gyro_dev,
-  const jams::Real * __restrict__ mus_dev,
+  const jams::Real * __restrict__ rmu_dev,
   const jams::Real * __restrict__ alpha_dev,
   const unsigned dev_num_spins,
-  const double dt
+  const jams::Real dt
 )
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -79,10 +76,11 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
 
   const unsigned int base = 3u * idx;
 
+  jams::Real rmu = rmu_dev[idx];
   const jams::Real3 h = {
-    h_dev[base + 0] / mus_dev[idx],
-    h_dev[base + 1] / mus_dev[idx],
-    h_dev[base + 2] / mus_dev[idx]
+    h_dev[base + 0] * rmu,
+    h_dev[base + 1] * rmu,
+    h_dev[base + 2] * rmu
   };
 
   const double3 s = {
@@ -91,10 +89,9 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
     s_inout_dev[base + 2]
   };
 
-  const double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
+  double3 omega = omega_llg(s, h, dt * gyro_dev[idx], alpha_dev[idx]);
 
-  double3 A = {dt * omega.x,dt*omega.y,dt*omega.z };
-  A = project_to_tangent(A, s);
+  omega = project_to_tangent(omega, s);
 
   double3 s_out = {
     s_init_dev[base + 0],
@@ -102,7 +99,7 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
     s_init_dev[base + 2]
   };
 
-  s_out = cayley_rotate(A, s_out);
+  s_out = cayley_rotate(omega, s_out);
 
   s_inout_dev[base + 0] = s_out.x;
   s_inout_dev[base + 1] = s_out.y;
@@ -132,6 +129,12 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
 
   std::cout << "done\n";
 
+  rmu_.resize(globals::num_spins);
+  for (auto i = 0; i < globals::num_spins; ++i)
+  {
+    rmu_(i) = jams::Real(1) / globals::mus(i);
+  }
+
   s_init_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -143,8 +146,8 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
 
 void CUDALLGSemiImplictSolver::run()
 {
-  double t0 = time_;
-  const double half_dt = 0.5 * step_size_;
+  jams::Real t0 = time_;
+  const jams::Real half_dt = 0.5 * step_size_;
 
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
@@ -173,14 +176,14 @@ void CUDALLGSemiImplictSolver::run()
     globals::s.device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
-    globals::mus.device_data(),
+    rmu_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
 
-  double mid_time_step = 0.5 * step_size_;
+  jams::Real mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
   compute_fields();
 
@@ -189,7 +192,7 @@ void CUDALLGSemiImplictSolver::run()
   s_init_.device_data(),
     globals::h.device_data(),
     globals::gyro.device_data(),
-    globals::mus.device_data(),
+    rmu_.device_data(),
     globals::alpha.device_data(),
     globals::num_spins, step_size_
     );

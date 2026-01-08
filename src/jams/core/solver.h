@@ -31,7 +31,7 @@ class Solver {
     return iteration_;
   }
 
-  inline double time() const {
+  inline jams::Real time() const {
     return time_;
   }
 
@@ -78,8 +78,8 @@ class Solver {
     int max_steps_ = 0;
     int min_steps_ = 0;
 
-    double time_ = 0.0;
-    double step_size_ = 1.0;
+    jams::Real time_ = 0.0;
+    jams::Real step_size_ = 1.0;
 
   std::unique_ptr<Physics> physics_module_;
   std::unique_ptr<Thermostat> thermostat_;

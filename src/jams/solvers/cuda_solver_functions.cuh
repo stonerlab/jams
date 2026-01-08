@@ -6,6 +6,7 @@
 #define JAMS_CUDA_SOLVER_FUNCTIONS_CUH
 
 #include "jams/cuda/cuda_device_vector_ops.h"
+#include <cuda_runtime.h>
 
 __device__ __forceinline__
 void omega_llg(const double s[3], const jams::Real h[3],
@@ -18,38 +19,27 @@ void omega_llg(const double s[3], const jams::Real h[3],
   result[2] = gyro * (h[2] + alpha * (s[0] * h[1] - s[1] * h[0]));
 }
 
+
 __device__ __forceinline__
 double3 omega_llg(const double3& s, const jams::Real3& h,
                const jams::Real gyro, const jams::Real alpha)
 {
   return {
-    gyro * (h.x + alpha * (s.y * h.z - s.z * h.y)),
-    gyro * (h.y + alpha * (s.z * h.x - s.x * h.z)),
-    gyro * (h.z + alpha * (s.x * h.y - s.y * h.x)),
+    gyro * __fma_rn(alpha, (s.y * h.z - s.z * h.y), h.x),
+    gyro * __fma_rn(alpha, (s.z * h.x - s.x * h.z), h.y),
+    gyro * __fma_rn(alpha, (s.x * h.y - s.y * h.x), h.z),
   };
 }
 
-__device__ __forceinline__
-void project_to_tangent(
-  const double A[3],
-  const double S[3],
-  double result[3])
-{
-    const double S_dot_A = dot(S, A);
-#pragma unroll
-    for (auto n = 0; n < 3; ++n) {
-        result[n] = A[n] - S_dot_A * S[n];
-    }
-}
 
 __device__ __forceinline__
 double3 project_to_tangent(const double3& A, const double3& S)
 {
   const double S_dot_A = S.x*A.x + S.y*A.y + S.z*A.z;
   return {
-  A.x - S_dot_A * S.x,
-    A.y - S_dot_A * S.y,
-    A.z - S_dot_A * S.z
+    __fma_rn(-S_dot_A, S.x, A.x),
+    __fma_rn(-S_dot_A, S.y, A.y),
+    __fma_rn(-S_dot_A, S.z, A.z)
   };
 }
 
@@ -60,35 +50,14 @@ double3 cayley_rotate(const double3& A, const double3& S)
   double3 AxS = cross_product(A, S);
 
   const double norm_sq = A.x*A.x + A.y*A.y + A.z*A.z;
-  const double scale = 1.0 / (1.0 + 0.25 * norm_sq);
+  // const double scale = 1.0 / __fma_rn(0.25, norm_sq, 1.0);
+  const double scale = 1.0 / __fma_rn(0.25, norm_sq, 1.0);
 
   return {
-    S.x + (AxS.x + 0.5 * (A.y * AxS.z - A.z * AxS.y)) * scale,
-    S.y + (AxS.y + 0.5 * (A.z * AxS.x - A.x * AxS.z)) * scale,
-    S.z + (AxS.z + 0.5 * (A.x * AxS.y - A.y * AxS.x)) * scale
+    __fma_rn((AxS.x + 0.5 * (A.y * AxS.z - A.z * AxS.y)), scale, S.x),
+    __fma_rn((AxS.y + 0.5 * (A.z * AxS.x - A.x * AxS.z)), scale, S.y),
+    __fma_rn((AxS.z + 0.5 * (A.x * AxS.y - A.y * AxS.x)), scale, S.z)
   };
-}
-
-
-__device__ __forceinline__
-void cayley_rotate(const double A[3],
-            const double S[3],
-            double result[3])
-{
-    // AxS
-    double AxS[3];
-    cross_product(A, S,AxS);
-
-    // A x (A x S)
-    double AxAxS[3];
-    cross_product(A, AxS,AxAxS);
-
-    const double scale = 1.0 / (1.0 + 0.25 * norm_squared(A));
-
-#pragma unroll
-    for (auto n = 0; n < 3; ++n) {
-        result[n] = S[n] + (AxS[n]+ 0.5 * AxAxS[n]) * scale;
-    }
 }
 
 
@@ -228,40 +197,35 @@ __global__ inline void cuda_llg_noise_step_cayley_kernel(
   const jams::Real* __restrict__ gyro_dev,
   const jams::Real* __restrict__ alpha_dev,
   unsigned num_spins,
-  double dt)
+  jams::Real dt)
 {
   const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx >= num_spins) return;
   const unsigned base = 3u * idx;
 
-  // Spin
-  double s[3] = {s_inout_dev[base+0], s_inout_dev[base+1], s_inout_dev[base+2]};
-
-  // Treat white noise as an effective field for this substep
-  jams::Real h[3] = {
-    noise_dev[base+0],
-    noise_dev[base+1],
-    noise_dev[base+2]
+  const double3 s = {
+    s_inout_dev[base + 0],
+    s_inout_dev[base + 1],
+    s_inout_dev[base + 2]
   };
 
-  double phi[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], phi);
+  const jams::Real3 h = {
+    noise_dev[base + 0],
+    noise_dev[base + 1],
+    noise_dev[base + 2]
+  };
 
-  for (auto n = 0; n < 3; ++n) {
-    phi[n] = phi[n] * dt;
-  }
+  double3 phi = omega_llg(s, h, dt * gyro_dev[idx], alpha_dev[idx]);
 
   // This projection is not strictly necessary but can help to reduce
   // errors in the spin norm due to floating point arithmetic.
-  double phi_perp[3];
-  project_to_tangent(phi, s, phi_perp);
+  phi = project_to_tangent(phi, s);
 
-  double out[3];
-  cayley_rotate(phi_perp, s, out);
+  double3 out = cayley_rotate(phi, s);
 
-  s_inout_dev[base+0] = out[0];
-  s_inout_dev[base+1] = out[1];
-  s_inout_dev[base+2] = out[2];
+  s_inout_dev[base+0] = out.x;
+  s_inout_dev[base+1] = out.y;
+  s_inout_dev[base+2] = out.z;
 }
 
 #endif //JAMS_CUDA_SOLVER_FUNCTIONS_CUH
