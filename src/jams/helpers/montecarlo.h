@@ -52,7 +52,7 @@ namespace jams {
                     {}
 
             inline Vec3 operator()(const Vec3& spin) {
-              return uniform_random_sphere(*gen_);
+              return uniform_random_sphere<double>(*gen_);
             }
 
         private:
@@ -83,7 +83,7 @@ namespace jams {
                     sigma_(sigma){}
 
             inline Vec3 operator()(const Vec3& spin) {
-              return normalize(fma(sigma_, uniform_random_sphere(*gen_), spin));
+              return normalize(fma(sigma_, uniform_random_sphere<double>(*gen_), spin));
             }
 
         private:

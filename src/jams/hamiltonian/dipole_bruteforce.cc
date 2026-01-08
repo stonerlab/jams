@@ -29,7 +29,7 @@ DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Settin
         " (" + std::to_string(globals::lattice->max_interaction_radius()) + ")");
   }
 
-  supercell_matrix_ = globals::lattice->get_supercell().matrix();
+  supercell_matrix_ = matrix_cast<jams::Real>(globals::lattice->get_supercell().matrix());
 
   frac_positions_.resize(globals::num_spins);
 
@@ -40,39 +40,22 @@ DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Settin
 
 }
 
-double DipoleBruteforceHamiltonian::calculate_total_energy(double time) {
-  double e_total = 0.0;
-
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    e_total += calculate_energy(i, time);
-  }
-
-  return e_total;
-}
-
-double DipoleBruteforceHamiltonian::calculate_energy(const int i, double time) {
-  Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
+jams::Real DipoleBruteforceHamiltonian::calculate_energy(const int i, jams::Real time) {
+  Vec3R s_i = array_cast<jams::Real>(Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
   auto field = calculate_field(i, time);
   return -0.5 * dot(s_i, field);
 }
 
-double DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                                const Vec3 &spin_final, double time) {
+jams::Real DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                const Vec3 &spin_final, jams::Real time) {
   const auto field = calculate_field(i, time);
-  const double e_initial = -dot(spin_initial, field);
-  const double e_final = -dot(spin_final, field);
+  const jams::Real e_initial = -dot(spin_initial, field);
+  const jams::Real e_final = -dot(spin_final, field);
   return 0.5 * (e_final - e_initial);
 }
 
-void DipoleBruteforceHamiltonian::calculate_energies(double time) {
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_energy(i, time);
-  }
-}
-
-
 [[gnu::hot]]
-Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
+Vec3R DipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time) {
   using namespace std::placeholders;
 
 
@@ -91,23 +74,23 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
           globals::lattice->lattice_site_position_cart(j));
   };
 
-  const auto r_cut_squared = pow2(r_cutoff_);
-  const double w0 = globals::mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter()));
+  const jams::Real r_cut_squared = pow2(r_cutoff_);
+  const jams::Real w0 = globals::mus(i) * static_cast<jams::Real>(kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter())));
 
-  double hx = 0, hy = 0, hz = 0;
+  jams::Real hx = 0, hy = 0, hz = 0;
   #if HAS_OMP
   #pragma omp parallel for reduction(+:hx, hy, hz)
   #endif
   for (auto j = 0; j < globals::num_spins; ++j) {
     if (j == i) continue;
 
-    const Vec3 s_j = {globals::s(j,0), globals::s(j,1), globals::s(j,2)};
+    const auto s_j = array_cast<jams::Real>(Vec3{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
+    auto r_ij = array_cast<jams::Real>(displacement(i, j));
 
-    Vec3 r_ij = displacement(i, j);
+    const jams::Real r_abs_sq = norm_squared(r_ij);
 
-    const auto r_abs_sq = norm_squared(r_ij);
-
-    if (definately_greater_than(r_abs_sq, r_cut_squared, jams::defaults::lattice_tolerance)) continue;
+    const jams::Real eps = jams::defaults::lattice_tolerance;
+    if (definately_greater_than(r_abs_sq, r_cut_squared, eps)) continue;
     hx += w0 * globals::mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) -
         norm_squared(r_ij) * s_j[0]) / pow5(norm(r_ij));
     hy += w0 * globals::mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) -
@@ -117,14 +100,4 @@ Vec3 DipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
   }
 
   return {hx, hy, hz};
-}
-
-void DipoleBruteforceHamiltonian::calculate_fields(double time) {
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto field = calculate_field(i, time);
-
-    for (auto n : {0,1,2}) {
-      field_(i, n) = field[n];
-    }
-  }
 }

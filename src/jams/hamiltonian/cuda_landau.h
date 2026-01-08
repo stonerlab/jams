@@ -12,26 +12,26 @@ public:
     CudaLandauHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
 
-    inline Vec3 calculate_field(int i, double time)  override
+    inline Vec3R calculate_field(int i, jams::Real time)  override
     { throw jams::unimplemented_error("CudaLandauHamiltonian::calculate_field"); }
 
 
-    inline double calculate_energy(int i, double time)  override
+    inline jams::Real calculate_energy(int i, jams::Real time)  override
     { throw jams::unimplemented_error("CudaLandauHamiltonian::calculate_energy"); }
 
-    inline double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time)  override
+    inline jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time)  override
     { throw jams::unimplemented_error("CudaLandauHamiltonian::calculate_energy_difference"); }
 
-    double calculate_total_energy(double time) override;
-    void calculate_fields(double time) override;
-    void calculate_energies(double time) override;
+    jams::Real calculate_total_energy(jams::Real time) override;
+    void calculate_fields(jams::Real time) override;
+    void calculate_energies(jams::Real time) override;
 
 private:
     unsigned int dev_blocksize_ = 64;
 
-    jams::MultiArray<double,1> landau_A_;
-    jams::MultiArray<double,1> landau_B_;
-    jams::MultiArray<double,1> landau_C_;
+    jams::MultiArray<jams::Real,1> landau_A_;
+    jams::MultiArray<jams::Real,1> landau_B_;
+    jams::MultiArray<jams::Real,1> landau_C_;
 };
 
 

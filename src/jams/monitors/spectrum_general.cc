@@ -132,7 +132,7 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
 
   std::vector<std::vector<Vec3>> qvecs(num_qpoints_);
   for (auto n = 0; n < num_qvectors_; ++n) {
-    auto qvec_rand = qmax_ * uniform_random_sphere(jams::instance().random_generator());
+    auto qvec_rand = qmax_ * uniform_random_sphere<double>(jams::instance().random_generator());
     std::vector<Vec3> qpoints(num_qvectors_);
     for (auto i = 0; i < num_qpoints_; ++i){
       qpoints[i] = qvec_rand * (i / double(num_qpoints_-1));

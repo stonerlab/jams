@@ -58,7 +58,6 @@ set(JAMS_SOURCES_CXX
         lattice/minimum_image.cc
         lattice/interaction_neartree.cc
         maths/functions.cc
-        maths/parallelepiped.cc
         maths/interpolation.cc
         monitors/binary.cc
         monitors/boltzmann.cc
@@ -81,6 +80,7 @@ set(JAMS_SOURCES_CXX
         monitors/spin_correlation.cc
         monitors/spin_pumping.cc
         monitors/spin_temperature.cc
+        monitors/stability.cc
         monitors/torque.cc
         monitors/unitcell_average.cc
         monitors/vtu.cc

@@ -4,6 +4,8 @@
 #include <jams/core/hamiltonian.h>
 #include <jams/cuda/cuda_stream.h>
 
+#include "jams/helpers/exception.h"
+
 ///
 /// Hamiltonian for a time and space variable magnetic field pulse
 ///
@@ -25,39 +27,35 @@ public:
 
     CudaFieldPulseHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy(double time) override {
-      assert(false); // unimplemented
-      return 0.0;
+    jams::Real calculate_total_energy(jams::Real time) override {
+      throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_total_energy is unimplemented");
     }
 
-    void calculate_energies(double time) override {
-      assert(false); // unimplemented
+    void calculate_energies(jams::Real time) override {
+      throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energies is unimplemented");
     }
 
-    void calculate_fields(double time) override;
+    void calculate_fields(jams::Real time) override;
 
-    Vec3 calculate_field(int i, double time) override {
-      assert(false); // unimplemented
-      return {0.0, 0.0, 0.0};
+    Vec3R calculate_field(int i, jams::Real time) override {
+      throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_field is unimplemented");
     }
 
-    double calculate_energy(int i, double time) override {
-      assert(false); // unimplemented
-      return 0.0;
+    jams::Real calculate_energy(int i, jams::Real time) override {
+      throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energy is unimplemented");
     }
 
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override {
-      assert(false); // unimplemented
-      return 0.0;
+    jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override {
+      throw jams::unimplemented_error("CudaFieldPulseHamiltonian::calculate_energy_difference is unimplemented");
     }
 
 private:
-    jams::MultiArray<double, 2> positions_;
+    jams::MultiArray<jams::Real, 2> positions_;
 
-    double surface_cutoff_;
-    double temporal_width_;
-    double temporal_center_;
-    Vec3 max_field_;
+    jams::Real surface_cutoff_;
+    jams::Real temporal_width_;
+    jams::Real temporal_center_;
+    Vec3R max_field_;
 
     void output_pulse(std::ofstream& pulse_file);
 };

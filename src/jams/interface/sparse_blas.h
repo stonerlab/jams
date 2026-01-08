@@ -10,28 +10,28 @@
 #include "jams/interface/openmp.h"
 
 namespace jams {
-        template<typename MatType, typename VecType>
+        template<typename MatType, typename X>
         [[gnu::hot]]
-        VecType Xcsrmv_general_row(
+        X Xcsrmv_general_row(
             const MatType *csr_val,
             const int *csr_col,
             const int *csr_row,
-            const VecType *x,
+            const X *x,
             const int row) {
 
-          VecType sum = 0.0;
+          X sum = X(0);
           for (auto j = csr_row[row]; j < csr_row[row + 1]; ++j) {
             sum += x[csr_col[j]] * csr_val[j];
           }
           return sum;
         }
 
-        template<typename MatType, typename VecType>
-        VecType Xcoomv_general_row(
+        template<typename MatType, typename X>
+        X Xcoomv_general_row(
             const MatType *coo_val,
             const int *coo_col,
             const int *coo_row,
-            const VecType *x,
+            const X *x,
             const int row) {
 
           // coordinates must be sorted by row
@@ -43,7 +43,7 @@ namespace jams {
           }
 
           // process just the rows of interest and then finish
-          VecType sum = 0.0;
+          X sum = X(0);
           while(coo_row[i] == row) {
             auto col = coo_col[i];
             auto val = coo_val[i];
@@ -54,19 +54,19 @@ namespace jams {
           return sum;
         }
 
-        template<typename MatType, typename VecType>
+        template<typename MatType, typename A, typename X, typename Y>
         [[gnu::hot]]
         void Xcsrmv_general(
-            const VecType &alpha,
-            const VecType &beta,
+            const A &alpha,
+            const A &beta,
             const int &m,
             const MatType *csr_val,
             const int *csr_col,
             const int *csr_row,
-            const VecType *x,
-            double *y) {
+            const X *x,
+            Y *y) {
 
-          if (alpha == 1.0 && beta == 0.0) {
+          if (alpha == A(1) && beta == A(0)) {
             OMP_PARALLEL_FOR
             for (auto i = 0; i < m; ++i) {  // iterate num_rows
               y[i] = Xcsrmv_general_row(csr_val, csr_col, csr_row, x, i);
@@ -80,21 +80,24 @@ namespace jams {
           }
         }
 
-        template<typename MatType, typename VecType>
+        template<typename MatType, typename A, typename X, typename Y>
         [[gnu::hot]]
         void Xcoomv_general(
-            const VecType &alpha,
-            const VecType &beta,
+            const A &alpha,
+            const A &beta,
             const int &m,
             const int &nnz,
             const MatType *coo_val,
             const int *coo_col,
             const int *coo_row,
-            const VecType *x,
-            double *y) {
+            const X *x,
+            Y *y) {
 
-          if (alpha == 1.0 && beta == 0.0) {
-            memset(y, 0.0, sizeof(double)*m);
+          if (alpha == A(1) && beta == A(0)) {
+            OMP_PARALLEL_FOR
+            for (auto i = 0; i < m; ++i) {
+              y[i] = Y(0);
+            }
             OMP_PARALLEL_FOR
             for (auto i = 0; i < nnz; ++i) {
               auto row = coo_row[i];

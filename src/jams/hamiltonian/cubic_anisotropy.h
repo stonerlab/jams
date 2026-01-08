@@ -57,24 +57,18 @@ class CubicAnisotropyHamiltonian : public Hamiltonian {
 public:
     CubicAnisotropyHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy(double time) override;
+    Vec3R calculate_field(int i, jams::Real time) override;
 
-    void calculate_energies(double time) override;
+    jams::Real calculate_energy(int i, jams::Real time) override;
 
-    void calculate_fields(double time) override;
-
-    Vec3 calculate_field(int i, double time) override;
-
-    double calculate_energy(int i, double time) override;
-
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
+    jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override;
 
 private:
     jams::MultiArray<unsigned, 1> order_;
-    jams::MultiArray<double, 2> u_axes_;
-    jams::MultiArray<double, 2> v_axes_;
-    jams::MultiArray<double, 2> w_axes_;
-    jams::MultiArray<double, 1> magnitude_;
+    jams::MultiArray<jams::Real, 2> u_axes_;
+    jams::MultiArray<jams::Real, 2> v_axes_;
+    jams::MultiArray<jams::Real, 2> w_axes_;
+    jams::MultiArray<jams::Real, 1> magnitude_;
 };
 
 #endif //JAMS_CUBIC_ANISOTROPY_H

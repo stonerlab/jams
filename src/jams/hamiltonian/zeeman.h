@@ -12,22 +12,14 @@ class ZeemanHamiltonian : public Hamiltonian {
 public:
     ZeemanHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy(double time) override;
+    Vec3R calculate_field(int i, jams::Real time) override;
 
-    void calculate_energies(double time) override;
-
-    void calculate_fields(double time) override;
-
-    Vec3 calculate_field(int i, double time) override;
-
-    double calculate_energy(int i, double time) override;
-
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
+    jams::Real calculate_energy(int i, jams::Real time) override;
 
 private:
-    jams::MultiArray<double, 2> dc_local_field_;
-    jams::MultiArray<double, 2> ac_local_field_;
-    jams::MultiArray<double, 1> ac_local_frequency_;
+    jams::MultiArray<jams::Real, 2> dc_local_field_;
+    jams::MultiArray<jams::Real, 2> ac_local_field_;
+    jams::MultiArray<jams::Real, 1> ac_local_frequency_;
 
     bool has_ac_local_field_;
 };

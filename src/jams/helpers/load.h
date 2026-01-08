@@ -10,16 +10,16 @@
 #include "jams/containers/multiarray.h"
 #include "jams/interface/highfive.h"
 
-template <std::size_t N>
-void load_array_from_h5_file(const std::string& filename, const std::string& data_set_path, jams::MultiArray<double, N>& array) {
+template <std::size_t N, typename T>
+void load_array_from_h5_file(const std::string& filename, const std::string& data_set_path, jams::MultiArray<T, N>& array) {
   using namespace HighFive;
   File file(filename, File::ReadOnly);
   auto dataset = file.getDataSet(data_set_path);
   dataset.read(array);
 }
 
-template <std::size_t N>
-void load_array_from_tsv_file(const std::string& file_name, jams::MultiArray<double, N>& array) {
+template <std::size_t N, typename T>
+void load_array_from_tsv_file(const std::string& file_name, jams::MultiArray<T, N>& array) {
   std::ifstream tsv_file(file_name);
 
   if(!tsv_file.is_open()) {
@@ -48,8 +48,8 @@ void load_array_from_tsv_file(const std::string& file_name, jams::MultiArray<dou
   }
 }
 
-template <std::size_t N>
-void load_array_from_file(const std::string& file_name, const std::string& data_set_path, jams::MultiArray<double, N>& array) {
+template <std::size_t N, typename T>
+void load_array_from_file(const std::string& file_name, const std::string& data_set_path, jams::MultiArray<T, N>& array) {
   if (file_extension(file_name) == "h5") {
     load_array_from_h5_file(file_name, data_set_path, array);
   } else {

@@ -20,24 +20,24 @@ class SparseInteractionHamiltonian : public Hamiltonian {
 public:
     SparseInteractionHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy(double time) override;
+    jams::Real calculate_total_energy(jams::Real time) override;
 
-    void calculate_energies(double time) override;
+    void calculate_energies(jams::Real time) override;
 
-    void calculate_fields(double time) override;
+    void calculate_fields(jams::Real time) override;
 
-    Vec3 calculate_field(int i, double time) override;
+    Vec3R calculate_field(int i, jams::Real time) override;
 
-    double calculate_energy(int i, double time) override;
+    jams::Real calculate_energy(int i, jams::Real time) override;
 
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
+    jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override;
 
 protected:
     // inserts a scalar interaction into the interaction matrix
-    void insert_interaction_scalar(int i, int j, const double &value);
+    void insert_interaction_scalar(int i, int j, const jams::Real &value);
 
     // inserts a tensor interaction block into the interaction matrix
-    void insert_interaction_tensor(int i, int j, const Mat3 &value);
+    void insert_interaction_tensor(int i, int j, const Mat3R &value);
 
     // finishes constructing the sparse_matrix_builder_ making the builder
     // emit a matrix for use in calculations
@@ -48,7 +48,6 @@ private:
     jams::SparseMatrix<jams::Real>::Builder sparse_matrix_builder_; // helper to build the sparse matrix and output a chosen type
     jams::SparseMatrix<jams::Real> interaction_matrix_; // the sparse matrix to be used in calculations
     jams::MultiArray<float, 2> s_float_;
-    jams::MultiArray<float, 2> h_float_;
 };
 
 #endif //JAMS_HAMILTONIAN_SPARSE_INTERACTION_H

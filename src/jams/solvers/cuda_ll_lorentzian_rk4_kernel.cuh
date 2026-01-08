@@ -17,10 +17,10 @@ __global__ void cuda_ll_lorentzian_rk4_kernel
   const double * s_dev,
   const double * w_dev,
   const double * v_dev,
-  const double * h_dev,
+  const jams::Real * h_dev,
   const jams::Real * noise_dev,
-  const double * gyro_dev,
-  const double * mus_dev,
+  const jams::Real * gyro_dev,
+  const jams::Real * mus_dev,
   const double lorentzian_omega,
   const double lorentzian_gamma,
   const double lorentzian_A,
@@ -35,7 +35,7 @@ __global__ void cuda_ll_lorentzian_rk4_kernel
       v[n] = v_dev[3*idx + n];
     }
 
-    double h[3];
+    jams::Real h[3];
     for (auto n = 0; n < 3; ++n) {
       h[n] = ((h_dev[3*idx + n] / mus_dev[idx]) + noise_dev[3*idx + n] + v[n]);
     }

@@ -12,11 +12,11 @@ class CudaCrystalFieldHamiltonian : public CrystalFieldHamiltonian {
 public:
     CudaCrystalFieldHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy(double time) override;
+    jams::Real calculate_total_energy(jams::Real time) override;
 
-    void calculate_energies(double time) override;
+    void calculate_energies(jams::Real time) override;
 
-    void calculate_fields(double time) override;
+    void calculate_fields(jams::Real time) override;
 };
 
 #endif //JAMS_CUDA_CRYSTAL_FIELD_H

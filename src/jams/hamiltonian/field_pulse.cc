@@ -16,8 +16,8 @@ namespace {
     class GaussianSurfacePulse : public TemporalFieldPulse {
     public:
         GaussianSurfacePulse(
-            const double& surface_cutoff, const double& temporal_width,
-            const double& temporal_center, const Vec3& field) :
+            const jams::Real& surface_cutoff, const jams::Real& temporal_width,
+            const jams::Real& temporal_center, const Vec3R& field) :
             surface_cutoff_(surface_cutoff),
             temporal_width_(temporal_width),
             temporal_center_(temporal_center),
@@ -25,12 +25,12 @@ namespace {
 
         explicit GaussianSurfacePulse(const libconfig::Setting &settings)
         : GaussianSurfacePulse(
-            jams::config_required<double>(settings, "surface_cutoff"),
-            jams::config_required<double>(settings, "temporal_width"),
-            jams::config_required<double>(settings, "temporal_center"),
-            jams::config_required<Vec3>(settings, "field")) {};
+            jams::config_required<jams::Real>(settings, "surface_cutoff"),
+            jams::config_required<jams::Real>(settings, "temporal_width"),
+            jams::config_required<jams::Real>(settings, "temporal_center"),
+            jams::config_required<Vec3R>(settings, "field")) {};
 
-        Vec3 local_field(const double& time, const Vec3& r) override {
+        Vec3R local_field(const jams::Real& time, const Vec3R& r) override {
           if (!count_as_surface(r)) {
             return {0.0, 0.0, 0.0};
           }
@@ -40,72 +40,72 @@ namespace {
         // Returns the maximum field at a given time and internally caches the
         // result. This avoid constant recalculation of the gaussian function
         // for function calls all at the same timestep.
-        Vec3 max_field(const double& time) override {
+        Vec3R max_field(const jams::Real& time) override {
           if (time == cache_time_) {
             return cache_field_;
           }
           cache_time_ = time;
-          cache_field_ = gaussian(time, temporal_center_, 1.0, temporal_width_) * field_;
+          cache_field_ = gaussian(time, temporal_center_, jams::Real(1.0), temporal_width_) * field_;
           return cache_field_;
         }
 
         // Returns true if the z-component of position r is greater than the
         // surface cutoff plane.
-        bool count_as_surface(const Vec3& r) const {
+        bool count_as_surface(const Vec3R& r) const {
           return r[2] > surface_cutoff_;
         }
 
     private:
-        double surface_cutoff_;
-        double temporal_center_;
-        double temporal_width_;
-        Vec3 field_;
-        Vec3 cache_field_ = {0.0, 0.0, 0.0};
-        double cache_time_ = std::numeric_limits<double>::quiet_NaN();
+        jams::Real surface_cutoff_;
+        jams::Real temporal_center_;
+        jams::Real temporal_width_;
+        Vec3R field_;
+        Vec3R cache_field_ = {0.0, 0.0, 0.0};
+        jams::Real cache_time_ = std::numeric_limits<jams::Real>::quiet_NaN();
     };
 
 
     class SincPulse : public TemporalFieldPulse {
     public:
         SincPulse(
-            const double& temporal_width,
-            const double& temporal_center, const Vec3& field) :
+            const jams::Real& temporal_width,
+            const jams::Real& temporal_center, const Vec3R& field) :
             temporal_center_(temporal_center),
             temporal_width_(temporal_width),
             field_(field) {};
 
         explicit SincPulse(const libconfig::Setting &settings)
             : SincPulse(
-            jams::config_required<double>(settings, "temporal_width"),
-            jams::config_required<double>(settings, "temporal_center"),
-            jams::config_required<Vec3>(settings, "field")) {};
+            jams::config_required<jams::Real>(settings, "temporal_width"),
+            jams::config_required<jams::Real>(settings, "temporal_center"),
+            jams::config_required<Vec3R>(settings, "field")) {};
 
-        Vec3 local_field(const double& time, const Vec3& r) override {
+        Vec3R local_field(const jams::Real& time, const Vec3R& r) override {
           return max_field(time);
         }
 
         // Returns the maximum field at a given time and internally caches the
         // result. This avoid constant recalculation of the gaussian function
         // for function calls all at the same timestep.
-        Vec3 max_field(const double& time) override {
+        Vec3R max_field(const jams::Real& time) override {
           if (time == cache_time_) {
             return cache_field_;
           }
 
           cache_time_ = time;
 
-          double x = temporal_width_ * (time - temporal_center_);
+          jams::Real x = temporal_width_ * (time - temporal_center_);
           cache_field_ = (sin(x) / x) * field_;
 
           return cache_field_;
         }
 
     private:
-        double temporal_center_;
-        double temporal_width_;
-        Vec3 field_;
-        Vec3 cache_field_ = {0.0, 0.0, 0.0};
-        double cache_time_ = std::numeric_limits<double>::quiet_NaN();
+        jams::Real temporal_center_;
+        jams::Real temporal_width_;
+        Vec3R field_;
+        Vec3R cache_field_ = {0.0, 0.0, 0.0};
+        jams::Real cache_time_ = std::numeric_limits<jams::Real>::quiet_NaN();
     };
 }
 
@@ -129,50 +129,18 @@ FieldPulseHamiltonian::FieldPulseHamiltonian(const libconfig::Setting &settings,
   output_pulse(pulse_file);
 }
 
-double FieldPulseHamiltonian::calculate_total_energy(double time) {
-  double e_total = 0.0;
-  calculate_energies(time);
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    e_total += energy_(i);
-  }
-  return e_total;
-}
-
-void FieldPulseHamiltonian::calculate_energies(double time) {
-  for (auto i = 0; i < globals::num_spins; ++i) {
-      energy_(i) = calculate_energy(i, time);
-  }
-}
-
-void FieldPulseHamiltonian::calculate_fields(double time) {
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    auto local_field = calculate_field(i, time);
-    for (auto j = 0; j < 3; ++j) {
-      field_(i, j) = local_field[j];
-    }
-  }
-}
-
-Vec3 FieldPulseHamiltonian::calculate_field(int i, double time) {
-  Vec3 r = ::globals::lattice->lattice_site_position_cart(i);
+Vec3R FieldPulseHamiltonian::calculate_field(int i, jams::Real time) {
+  Vec3R r {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
   return globals::mus(i) *
       temporal_field_pulse_->local_field(time, r);
 }
 
-double FieldPulseHamiltonian::calculate_energy(int i, double time) {
-  Vec3 spin = {globals::s(i,0), globals::s(i, 1), globals::s(i, 2)};
-  Vec3 field = calculate_field(i, time);
+jams::Real FieldPulseHamiltonian::calculate_energy(int i, jams::Real time) {
+  Vec3R spin = array_cast<jams::Real>(Vec3{globals::s(i,0), globals::s(i, 1), globals::s(i, 2)});
+  Vec3R field = calculate_field(i, time);
   return -dot(spin, field);
 }
 
-double FieldPulseHamiltonian::calculate_energy_difference(int i,
-                                                          const Vec3 &spin_initial,
-                                                          const Vec3 &spin_final, double time) {
-  const auto e_initial = -dot(spin_initial, calculate_field(i, time));
-  const auto e_final = -dot(spin_final, calculate_field(i, time));
-
-  return (e_final - e_initial);
-}
 
 void FieldPulseHamiltonian::output_pulse(std::ofstream& os) {
   if (!os.is_open()) {

@@ -124,18 +124,11 @@ CubicAnisotropyHamiltonian::CubicAnisotropyHamiltonian(const Setting &settings, 
     }
 }
 
-double CubicAnisotropyHamiltonian::calculate_total_energy(double time) {
-  double e_total = 0.0;
-  for (auto i = 0; i < energy_.size(); ++i) {
-    e_total += calculate_energy(i, time);
-  }
-  return e_total;
-}
 
-double CubicAnisotropyHamiltonian::calculate_energy(const int i, double time) {
+jams::Real CubicAnisotropyHamiltonian::calculate_energy(const int i, jams::Real time) {
     double energy = 0.0;
 
-    Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+    Vec3 spin = Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
     Vec3 u = {u_axes_(i, 0), u_axes_(i, 1), u_axes_(i, 2)};
     Vec3 v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
     Vec3 w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
@@ -152,11 +145,11 @@ double CubicAnisotropyHamiltonian::calculate_energy(const int i, double time) {
       energy += -magnitude_(i) * (Su2 * Sv2 * Sw2);
     }
     
-    return energy;
+    return static_cast<jams::Real>(energy);
 }
 
-double CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                               const Vec3 &spin_final, double time) {
+jams::Real CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                               const Vec3 &spin_final, jams::Real time) {
     double e_initial = 0.0;
     double e_final = 0.0;
 
@@ -185,16 +178,11 @@ double CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3
       e_final += -magnitude_(i) * (Su2_final * Sv2_final * Sw2_final);
     }
 
-  return e_final - e_initial;
+  return static_cast<jams::Real>(e_final - e_initial);
 }
 
-void CubicAnisotropyHamiltonian::calculate_energies(double time) {
-  for (int i = 0; i < energy_.size(); ++i) {
-    energy_(i) = calculate_energy(i, time);
-  }
-}
 
-Vec3 CubicAnisotropyHamiltonian::calculate_field(const int i, double time) {
+Vec3R CubicAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
   Vec3 field = {0.0, 0.0, 0.0};
 
     Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
@@ -223,14 +211,5 @@ Vec3 CubicAnisotropyHamiltonian::calculate_field(const int i, double time) {
       }
     }
 
-  return field;
-}
-
-void CubicAnisotropyHamiltonian::calculate_fields(double time) {
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto field = calculate_field(i, time);
-    for (auto j = 0; j < 3; ++j) {
-      field_(i, j) = field[j];
-    }
-  }
+  return array_cast<jams::Real>(field);
 }

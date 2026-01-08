@@ -9,10 +9,10 @@
 
 CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size) {
-    Vec3 super_cell_dim = {0.0, 0.0, 0.0};
+    Vec3R super_cell_dim{0, 0, 0};
 
     for (int n = 0; n < 3; ++n) {
-        super_cell_dim[n] = 0.5*double(globals::lattice->size(n));
+        super_cell_dim[n] = jams::Real(globals::lattice->size(n)) / 2;
     }
 
     settings.lookupValue("r_cutoff", r_cutoff_);
@@ -25,11 +25,11 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
     }
 
     auto v = pow3(globals::lattice->parameter());
-    dipole_prefactor_ = kVacuumPermeabilityIU / (4.0 * kPi * v);
+    dipole_prefactor_ = static_cast<jams::Real>(kVacuumPermeabilityIU / (4.0 * kPi * v));
 
     bool super_cell_pbc[3];
-    Mat<float,3,3> super_unit_cell;
-    Mat<float,3,3> super_unit_cell_inv;
+    Mat<jams::Real,3,3> super_unit_cell;
+    Mat<jams::Real,3,3> super_unit_cell_inv;
 
     for (int i = 0; i < 3; ++i) {
         super_cell_pbc[i] = ::globals::lattice->is_periodic(i);
@@ -43,7 +43,7 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            super_unit_cell[i][j] = static_cast<float>(matrix_double[i][j]);
+            super_unit_cell[i][j] = static_cast<jams::Real>(matrix_double[i][j]);
         }
     }
 
@@ -51,11 +51,11 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
 
     float r_cutoff_float = static_cast<float>(r_cutoff_);
 
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(double)));
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(float)));
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_cell_pbc,      super_cell_pbc,      3 * sizeof(bool)));
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell,     &super_unit_cell[0][0],     9 * sizeof(float)));
-    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell_inv, &super_unit_cell_inv[0][0], 9 * sizeof(float)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_dipole_prefactor,    &dipole_prefactor_,       sizeof(&dipole_prefactor_)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_r_cutoff,           &r_cutoff_float,       sizeof(&r_cutoff_float)));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_cell_pbc,      &super_cell_pbc[0],      3 * sizeof(&super_cell_pbc[0])));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell,     &super_unit_cell[0][0],     9 * sizeof(&super_unit_cell[0][0])));
+    CHECK_CUDA_STATUS(cudaMemcpyToSymbol(dev_super_unit_cell_inv, &super_unit_cell_inv[0][0], 9 * sizeof(&super_unit_cell_inv[0][0])));
 
     mus_float_.resize(globals::num_spins);
     for (auto i = 0; i < globals::num_spins; ++i) {
@@ -72,7 +72,7 @@ CudaDipoleBruteforceHamiltonian::CudaDipoleBruteforceHamiltonian(const libconfig
 
 // --------------------------------------------------------------------------
 
-double CudaDipoleBruteforceHamiltonian::calculate_total_energy(double time) {
+jams::Real CudaDipoleBruteforceHamiltonian::calculate_total_energy(jams::Real time) {
     double e_total = 0.0;
 
     calculate_fields(time);
@@ -85,30 +85,30 @@ double CudaDipoleBruteforceHamiltonian::calculate_total_energy(double time) {
     return e_total;
 }
 
-double CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i, double time) {
+jams::Real CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i, jams::Real time) {
     const auto field = calculate_field(i, time);
-    return -0.5 * dot(s_i, field);
+    return -dot(s_i, field) / 2;
 }
 
-double CudaDipoleBruteforceHamiltonian::calculate_energy(const int i, double time) {
+jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy(const int i, jams::Real time) {
     Vec3 s_i = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
     return calculate_one_spin_energy(i, s_i, time);
 }
 
-double CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) {
+jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) {
     const auto field = calculate_field(i, time);
     double e_initial = -dot(spin_initial, field);
     double e_final = -dot(spin_final, field);
     return 0.5*(e_final - e_initial);
 }
 
-void CudaDipoleBruteforceHamiltonian::calculate_energies(double time) {
+void CudaDipoleBruteforceHamiltonian::calculate_energies(jams::Real time) {
     for (auto i = 0; i < globals::num_spins; ++i) {
         energy_(i) = calculate_energy(i, time);
     }
 }
 
-Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i, double time) {
+Vec3R CudaDipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time) {
   using namespace std::placeholders;
 
 
@@ -128,9 +128,9 @@ Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i, double time) 
   };
 
   const auto r_cut_squared = r_cutoff_ * r_cutoff_;
-  const double w0 = globals::mus(i) * kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter()));
+  const jams::Real w0 = globals::mus(i) * static_cast<jams::Real>(kVacuumPermeabilityIU / (4.0 * kPi * pow3(globals::lattice->parameter())));
 
-  double hx = 0, hy = 0, hz = 0;
+  jams::Real hx = 0, hy = 0, hz = 0;
 #if HAS_OMP
 #pragma omp parallel for reduction(+:hx, hy, hz)
 #endif
@@ -141,9 +141,10 @@ Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i, double time) 
 
     Vec3 r_ij = displacement(i, j);
 
-    const auto r_abs_sq = norm_squared(r_ij);
+    const jams::Real r_abs_sq = norm_squared(r_ij);
 
-    if (definately_greater_than(r_abs_sq, r_cut_squared, jams::defaults::lattice_tolerance*jams::defaults::lattice_tolerance)) continue;
+      const auto eps = static_cast<jams::Real>(jams::defaults::lattice_tolerance*jams::defaults::lattice_tolerance);
+    if (definately_greater_than(r_abs_sq, r_cut_squared, eps)) continue;
 
     hx += w0 * globals::mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) -
         norm_squared(r_ij) * s_j[0]) / pow5(norm(r_ij));
@@ -156,7 +157,7 @@ Vec3 CudaDipoleBruteforceHamiltonian::calculate_field(const int i, double time) 
   return {hx, hy, hz};
 }
 
-void CudaDipoleBruteforceHamiltonian::calculate_fields(double time) {
+void CudaDipoleBruteforceHamiltonian::calculate_fields(jams::Real time) {
     CudaStream stream;
 
     DipoleBruteforceKernel<<<(globals::num_spins + block_size - 1)/block_size, block_size, 0, stream.get() >>>

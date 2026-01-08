@@ -1,6 +1,8 @@
 #include <jams/cuda/cuda_array_reduction.h>
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
+#include <thrust/system/cuda/execution_policy.h>
+
 #include "jams/containers/multiarray.h"
 #include "jams/helpers/array_ops.h"
 
@@ -17,9 +19,9 @@ unsigned int next_pow2(unsigned int x)
   return ++x;
 }
 
-template <unsigned int blockSize>
+template <unsigned int blockSize, typename T>
 __device__ void
-in_thread_reduction(int tid, double3 *sdata, double3& mySum) {
+in_thread_reduction(int tid, T *sdata, T& mySum) {
   // do reduction in shared mem
   if ((blockSize >= 512) && (tid < 256))
   {
@@ -66,22 +68,26 @@ in_thread_reduction(int tid, double3 *sdata, double3& mySum) {
   }
 }
 
-template <unsigned int blockSize>
+template <unsigned int blockSize, typename T>
 __global__ void
-vector_field_reduce_kernel(const double *g_data, double *g_block_sums, unsigned int n)
+vector_field_reduce_kernel(const T *g_data, T *g_block_sums, unsigned int n)
 {
-  extern __shared__ double3 sdata[];
+  using T3 = std::conditional_t<std::is_same_v<T, double>, double3, float3>;
+  static_assert(std::is_same_v<T, double> || std::is_same_v<T, float>, "type must be float or double");
+
+  extern __shared__ unsigned char sdata_raw[];
+  T3* sdata = reinterpret_cast<T3*>(sdata_raw);
 
   // perform first level of reduction,
   // reading from global memory, writing to shared memory
   unsigned int tid = threadIdx.x;
   unsigned int i = blockIdx.x*(blockSize*2) + threadIdx.x;
 
-  double3 mySum = {0, 0, 0};
+  T3 mySum = {0, 0, 0};
   if (i < n) {
-    mySum.x = g_data[3*i+0];
-    mySum.y = g_data[3*i+1];
-    mySum.z = g_data[3*i+2];
+    mySum.x = static_cast<T>(g_data[3 * i + 0]);
+    mySum.y = static_cast<T>(g_data[3 * i + 1]);
+    mySum.z = static_cast<T>(g_data[3 * i + 2]);
   }
 
   if (i + blockSize < n) {
@@ -104,18 +110,22 @@ vector_field_reduce_kernel(const double *g_data, double *g_block_sums, unsigned 
 }
 
 
-template <unsigned int blockSize>
+template <unsigned int blockSize, typename T>
 __global__ void
-vector_field_multiply_and_reduce_kernel(const double *g_data, const double *g_ifactors, double *g_block_sums, unsigned int n)
+vector_field_multiply_and_reduce_kernel(const T *g_data, const T *g_ifactors, T *g_block_sums, unsigned int n)
 {
-  extern __shared__ double3 sdata[];
+  using T3 = std::conditional_t<std::is_same_v<T, double>, double3, float3>;
+  static_assert(std::is_same_v<T, double> || std::is_same_v<T, float>, "type must be float or double");
+
+  extern __shared__ unsigned char sdata_raw[];
+  T3* sdata = reinterpret_cast<T3*>(sdata_raw);
 
   // perform first level of reduction,
   // reading from global memory, writing to shared memory
   unsigned int tid = threadIdx.x;
   unsigned int i = blockIdx.x*(blockSize*2) + threadIdx.x;
 
-  double3 mySum = {0, 0, 0};
+  T3 mySum = {0, 0, 0};
   if (i < n) {
     mySum.x = g_data[3*i+0] * g_ifactors[i];
     mySum.y = g_data[3*i+1] * g_ifactors[i];
@@ -142,18 +152,22 @@ vector_field_multiply_and_reduce_kernel(const double *g_data, const double *g_if
 }
 
 
-template <unsigned int blockSize>
+template <unsigned int blockSize, typename T>
 __global__ void
-vector_field_indexed_reduce_kernel(const double *g_data, const int *g_indicies, double *g_block_sums, unsigned int n)
+vector_field_indexed_reduce_kernel(const T *g_data, const int *g_indicies, T *g_block_sums, unsigned int n)
 {
-  extern __shared__ double3 sdata[];
+  using T3 = std::conditional_t<std::is_same_v<T, double>, double3, float3>;
+  static_assert(std::is_same_v<T, double> || std::is_same_v<T, float>, "type must be float or double");
+
+  extern __shared__ unsigned char sdata_raw[];
+  T3* sdata = reinterpret_cast<T3*>(sdata_raw);
 
   // perform first level of reduction,
   // reading from global memory, writing to shared memory
   unsigned int tid = threadIdx.x;
   unsigned int i = blockIdx.x*(blockSize*2) + threadIdx.x;
 
-  double3 mySum = {0, 0, 0};
+  T3 mySum = {0, 0, 0};
   if (i < n) {
     mySum.x = g_data[3*g_indicies[i]+0];
     mySum.y = g_data[3*g_indicies[i]+1];
@@ -180,18 +194,22 @@ vector_field_indexed_reduce_kernel(const double *g_data, const int *g_indicies, 
 }
 
 
-template <unsigned int blockSize>
+template <unsigned int blockSize, typename T1, typename T2>
 __global__ void
-vector_field_key_multiply_and_reduce_kernel(const double *g_data, const double *g_ifactors, const int *g_indicies, double *g_block_sums, unsigned int n)
+vector_field_key_multiply_and_reduce_kernel(const T1 *g_data, const T2 *g_ifactors, const int *g_indicies, T1 *g_block_sums, unsigned int n)
 {
-  extern __shared__ double3 sdata[];
+  using T3 = std::conditional_t<std::is_same_v<T1, double>, double3, float3>;
+  static_assert(std::is_same_v<T1, double> || std::is_same_v<T1, float>, "type must be float or double");
+
+  extern __shared__ unsigned char sdata_raw[];
+  T3* sdata = reinterpret_cast<T3*>(sdata_raw);
 
   // perform first level of reduction,
   // reading from global memory, writing to shared memory
   unsigned int tid = threadIdx.x;
   unsigned int i = blockIdx.x*(blockSize*2) + threadIdx.x;
 
-  double3 mySum = {0, 0, 0};
+  T3 mySum = {0, 0, 0};
   if (i < n) {
     mySum.x = g_data[3*g_indicies[i]+0] * g_ifactors[g_indicies[i]];
     mySum.y = g_data[3*g_indicies[i]+1] * g_ifactors[g_indicies[i]];;
@@ -425,10 +443,13 @@ Vec3 jams::vector_field_scale_and_reduce_cuda(const jams::MultiArray<double, 2>&
   return jams::vector_field_reduce(block_sums);
 }
 
-
-Vec3 jams::vector_field_indexed_scale_and_reduce_cuda(const jams::MultiArray<double, 2>& x, const jams::MultiArray<double, 1>& scale_factors, const jams::MultiArray<int, 1>& indices) {
+template <typename X, typename S>
+std::array<X,3> jams::vector_field_indexed_scale_and_reduce_cuda(const jams::MultiArray<X, 2>& x, const jams::MultiArray<S, 1>& scale_factors, const jams::MultiArray<int, 1>& indices) {
   assert(x.size(1) == 3);
   assert(x.size(0) == scale_factors.size());
+
+  using X3 = std::conditional_t<std::is_same_v<X, double>, double3, float3>;
+  static_assert(std::is_same_v<X, double> || std::is_same_v<X, float>, "type must be float or double");
 
   int size = indices.size();
   int threads = (size < MAX_THREADS*2) ? next_pow2((size + 1)/ 2) : MAX_THREADS;
@@ -436,7 +457,7 @@ Vec3 jams::vector_field_indexed_scale_and_reduce_cuda(const jams::MultiArray<dou
 
   // This is a static buffer so that we don't have to keep reallocating every
   // call. THIS IS NOT THREAD SAFE
-  static jams::MultiArray<double, 2> block_sums;
+  static jams::MultiArray<X, 2> block_sums;
 
   if (block_sums.size(0) < blocks) {
     block_sums.resize(blocks, 3);
@@ -447,7 +468,7 @@ Vec3 jams::vector_field_indexed_scale_and_reduce_cuda(const jams::MultiArray<dou
 
   // when there is only one warp per block, we need to allocate two warps
   // worth of shared memory so that we don't index shared memory out of bounds
-  int smemSize = (threads <= 32) ? 2 * threads * sizeof(double3) : threads * sizeof(double3);
+  int smemSize = (threads <= 32) ? 2 * threads * sizeof(X3) : threads * sizeof(X3);
 
   switch (threads)
   {
@@ -495,8 +516,19 @@ Vec3 jams::vector_field_indexed_scale_and_reduce_cuda(const jams::MultiArray<dou
   return jams::vector_field_reduce(block_sums);
 }
 
-double jams::scalar_field_reduce_cuda(const jams::MultiArray<double, 1> &x) {
-    return thrust::reduce(thrust::device_ptr<const double>(x.device_data()), thrust::device_ptr<const double>(x.device_data() + x.elements()));
+template std::array<double,3> jams::vector_field_indexed_scale_and_reduce_cuda<double,float>(const jams::MultiArray<double, 2>& x, const jams::MultiArray<float, 1>& scale_factors, const jams::MultiArray<int, 1>& indices);
+
+template std::array<float,3> jams::vector_field_indexed_scale_and_reduce_cuda<float,float>(const jams::MultiArray<float, 2>& x, const jams::MultiArray<float, 1>& scale_factors, const jams::MultiArray<int, 1>& indices);
+
+template std::array<double,3> jams::vector_field_indexed_scale_and_reduce_cuda<double,double>(const jams::MultiArray<double, 2>& x, const jams::MultiArray<double, 1>& scale_factors, const jams::MultiArray<int, 1>& indices);
+
+
+float jams::scalar_field_reduce_cuda(const jams::MultiArray<float, 1> &x, cudaStream_t stream) {
+  return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const float>(x.device_data()), thrust::device_ptr<const float>(x.device_data() + x.elements()), float(0), thrust::plus<float>());
+}
+
+double jams::scalar_field_reduce_cuda(const jams::MultiArray<double, 1> &x, cudaStream_t stream) {
+  return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const double>(x.device_data()), thrust::device_ptr<const double>(x.device_data() + x.elements()), double(0), thrust::plus<double>());
 }
 
 

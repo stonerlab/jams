@@ -132,8 +132,18 @@ inline constexpr double dirac_delta(const double x) {
   return approximately_zero(x, DBL_EPSILON);
 }
 
-inline double gaussian(const double& x, const double& center, const double& amplitude, const double& width) {
-  return amplitude * std::exp(-0.5 * pow2((x - center) / width));
+
+template <typename T>
+inline T gaussian(const T& x,
+                  const T& center,
+                  const T& amplitude,
+                  const T& width)
+{
+  static_assert(std::is_floating_point<T>::value,
+                "gaussian requires a floating-point type");
+
+  return amplitude
+       * std::exp(T(-0.5) * pow2((x - center) / width));
 }
 
 inline constexpr double deg_to_rad(const double &angle) {

@@ -1,14 +1,15 @@
 #ifndef JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_KERNEL_H
 #define JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_KERNEL_H
 
+#include "jams/helpers/mixed_precision.h"
 #include "jams/cuda/cuda_common.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
 
-__constant__ float dev_super_unit_cell[3][3];
-__constant__ float dev_super_unit_cell_inv[3][3];
+__constant__ jams::Real dev_super_unit_cell[3][3];
+__constant__ jams::Real dev_super_unit_cell_inv[3][3];
 __constant__ bool   dev_super_cell_pbc[3];
-__constant__ double dev_dipole_prefactor;
-__constant__ float dev_r_cutoff;
+__constant__ jams::Real dev_dipole_prefactor;
+__constant__ jams::Real dev_r_cutoff;
 
 constexpr unsigned int block_size = 128;
 
@@ -23,7 +24,7 @@ constexpr unsigned int block_size = 128;
 //-----------------------------------------------------------------------------
 __device__ 
 inline void ApplyMinimumImageConvention(const bool pbc[3], 
-    float displacement[3]) {
+    jams::Real displacement[3]) {
   #pragma unroll
   for (unsigned int n = 0; n < 3; ++n) {
     if (pbc[n]) { 
@@ -38,9 +39,9 @@ inline void ApplyMinimumImageConvention(const bool pbc[3],
 // space accounting for any periodic boundary conditions
 //-----------------------------------------------------------------------------
 __device__ 
-inline void CalculateDisplacementVector(const float r_i_cartesian[3],
-    const float rj_cartesian[3], float dr_cartesian[3]) {
-  float dr_fractional[3];
+inline void CalculateDisplacementVector(const jams::Real r_i_cartesian[3],
+    const jams::Real rj_cartesian[3], jams::Real dr_cartesian[3]) {
+  jams::Real dr_fractional[3];
 
   #pragma unroll
   for (unsigned int n = 0; n < 3; ++n) {
@@ -59,8 +60,8 @@ inline void CalculateDisplacementVector(const float r_i_cartesian[3],
 // Calculate the field contribution from spin j with displacement vector r_ij
 //-----------------------------------------------------------------------------
 __device__ 
-inline void CalculateFieldElement(const float s_j[3], const float r_ij[3], 
-    const float prefactor, const float r_norm_squared, float h[3]) {
+inline void CalculateFieldElement(const jams::Real s_j[3], const jams::Real r_ij[3],
+    const jams::Real prefactor, const jams::Real r_norm_squared, jams::Real h[3]) {
   const float d_r_norm = rsqrtf(r_norm_squared);
   const float s_j_dot_rhat = dot(s_j, r_ij);
   const float w0 = prefactor * d_r_norm * d_r_norm * d_r_norm * d_r_norm * d_r_norm;
@@ -80,56 +81,58 @@ inline bool cuda_definately_greater_than(const T& a, const T& b, const T& epsilo
 __global__ void dipole_bruteforce_kernel
 (
     const double * s_dev,
-    const float * r_dev,
-    const float * mus_dev,
+    const jams::Real * r_dev,
+    const jams::Real * mus_dev,
     const unsigned int num_spins,
-    double * h_dev
+    jams::Real * h_dev
 )
 {
-    const unsigned int i = blockIdx.x*blockDim.x+threadIdx.x;
+    const unsigned int idx = blockIdx.x*blockDim.x+threadIdx.x;
+    const unsigned int base_i = 3u * idx;
+    if (idx >= num_spins) return;
+
     unsigned int n;
-    const float r_cutoff_sq = dev_r_cutoff * dev_r_cutoff; 
+    const jams::Real r_cutoff_sq = dev_r_cutoff * dev_r_cutoff;
 
-    double h[3] = {0.0, 0.0, 0.0};
+    jams::Real h[3] {0, 0, 0};
 
-    float sj[3], ri[3], rj[3], r_ij[3], r_norm_squared;
+    jams::Real sj[3], ri[3], rj[3], r_ij[3], r_norm_squared;
 
-    if (i < num_spins) {
-        for (n = 0; n < 3; ++n) {
-            ri[n] = r_dev[3*i + n];
-        }
+    for (n = 0; n < 3; ++n) {
+        ri[n] = r_dev[base_i + n];
+    }
 
-        for (int j = 0; j < num_spins; ++j) {
-          float h_tmp[3] = {0.0, 0.0, 0.0};
+    for (int j = 0; j < num_spins; ++j) {
+      const auto base_j = 3u * j;
+      jams::Real h_tmp[3] = {0.0, 0.0, 0.0};
 
-          for (n = 0; n < 3; ++n) {
-              rj[n] = r_dev[3*j + n];
-          }
+      for (n = 0; n < 3; ++n) {
+          rj[n] = r_dev[base_j + n];
+      }
 
-          for (n = 0; n < 3; ++n) {
-              sj[n] = s_dev[3*j + n];
-          }
+      for (n = 0; n < 3; ++n) {
+          sj[n] = static_cast<jams::Real>(s_dev[base_j + n]);
+      }
 
-          CalculateDisplacementVector(ri, rj, r_ij);
+      CalculateDisplacementVector(ri, rj, r_ij);
 
-          r_norm_squared = norm_squared(r_ij);
+      r_norm_squared = norm_squared(r_ij);
 
-          if (r_norm_squared <= r_cutoff_sq && i != j) {
-            CalculateFieldElement(sj, r_ij, mus_dev[j], r_norm_squared, h_tmp);
-          }
+      if (r_norm_squared <= r_cutoff_sq && idx != j) {
+        CalculateFieldElement(sj, r_ij, mus_dev[j], r_norm_squared, h_tmp);
+      }
 
-          // accumulate values
-          for (n = 0; n < 3; ++n) {
-            h[n] += h_tmp[n];
-          }
-        }
+      // accumulate values
+      for (n = 0; n < 3; ++n) {
+        h[n] += h_tmp[n];
+      }
+    }
 
-        // write to global memory
-        #pragma unroll
-        for (n = 0; n < 3; ++n) {
-          // constant is kB * mu_0 / 4 pi
-            h_dev[3*i + n] = mus_dev[i] * dev_dipole_prefactor * h[n];
-        }
+    // write to global memory
+    #pragma unroll
+    for (n = 0; n < 3; ++n) {
+      // constant is kB * mu_0 / 4 pi
+        h_dev[base_i + n] = mus_dev[idx] * dev_dipole_prefactor * h[n];
     }
 }
 
@@ -150,21 +153,21 @@ __global__ void dipole_bruteforce_kernel
 __global__ 
 void DipoleBruteforceKernel(
     const double * s_dev,
-    const float * r_dev,
-    const float * mus_dev,
+    const jams::Real * r_dev,
+    const jams::Real * mus_dev,
     const unsigned int num_spins,
-          double * h_dev)
+          jams::Real * h_dev)
 {
     const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     const unsigned int thread_idx = threadIdx.x;
 
-    const float r_cutoff_sq = dev_r_cutoff * dev_r_cutoff; 
-    float r_i[3];
-    double h[3] = {0.0, 0.0, 0.0};
+    const jams::Real r_cutoff_sq = dev_r_cutoff * dev_r_cutoff;
+    jams::Real r_i[3];
+    jams::Real h[3] = {0, 0, 0};
 
-    __shared__ float r_j[block_size][3];
-    __shared__ float s_j[block_size][3];
-    __shared__ float mus[block_size];
+    __shared__ jams::Real r_j[block_size][3];
+    __shared__ jams::Real s_j[block_size][3];
+    __shared__ jams::Real mus[block_size];
 
 
     if (i < num_spins) {
@@ -193,7 +196,7 @@ void DipoleBruteforceKernel(
         }
         #pragma unroll
         for (unsigned int n = 0; n < 3; ++n) {
-            s_j[thread_idx][n] = s_dev[3 * shared_idx + n];
+            s_j[thread_idx][n] = static_cast<jams::Real>(s_dev[3 * shared_idx + n]);
         }
       }
       // sync to make sure the shared data is filled from all block threads
@@ -272,26 +275,26 @@ void DipoleBruteforceKernel(
 __global__ void dipole_bruteforce_sharemem_kernel
 (
     const double * s_dev,
-    const float * r_dev,
-    const float * mus_dev,
+    const jams::Real * r_dev,
+    const jams::Real * mus_dev,
     const unsigned int num_spins,
-    double * h_dev
+    jams::Real * h_dev
 )
 {
   const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-  const float r_cutoff_sq = dev_r_cutoff * dev_r_cutoff; 
-  double h[3] = {0.0, 0.0, 0.0};
+  const jams::Real r_cutoff_sq = dev_r_cutoff * dev_r_cutoff;
+  jams::Real h[3] = {0, 0, 0};
 
   const unsigned int thread_idx = threadIdx.x; 
   const unsigned int num_blocks = (num_spins + block_size - 1) / block_size;
 
   // assert(blockDim.x == block_size);
 
-  __shared__ float rj[block_size][3];
-  __shared__ float sj[block_size][3];
-  __shared__ float mus[block_size];
+  __shared__ jams::Real rj[block_size][3];
+  __shared__ jams::Real sj[block_size][3];
+  __shared__ jams::Real mus[block_size];
 
-  float r_norm_squared, ri[3], r_ij[3];
+  jams::Real r_norm_squared, ri[3], r_ij[3];
 
   if (i < num_spins) {
     for (int n = 0; n < 3; ++n) {
@@ -315,7 +318,7 @@ __global__ void dipole_bruteforce_sharemem_kernel
       }
 
       for (unsigned int n = 0; n < 3; ++n) {
-          sj[thread_idx][n] = s_dev[3*shared_idx + n];
+          sj[thread_idx][n] = static_cast<jams::Real>(s_dev[3*shared_idx + n]);
       }
     }
     // sync to make sure the shared data is filled from all block threads

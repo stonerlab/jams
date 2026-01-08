@@ -59,7 +59,7 @@ private:
     int num_k_ = 100;
     Vec3 kvector_ = {0.0, 0.0, 1.0};
 
-    jams::InteractionNearTree neartree_;
+    jams::InteractionNearTree<double> neartree_;
 
 
 };

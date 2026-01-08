@@ -10,6 +10,7 @@
 #include <map>
 #include <utility>
 #include <vector>
+#include <type_traits>
 
 #include "jams/containers/sparse_matrix_description.h"
 #include "jams/interface/sparse_blas.h"
@@ -231,8 +232,8 @@ namespace jams {
 
         // Performs the multiplication y = A * x where 'A' is this sparse matrix
         // and vectors x and y are dense vectors passed into the function.
-        template<class U, size_t N>
-        void multiply(const MultiArray<U, N> &vector_x, MultiArray<U, N> &vector_y);
+        template<class X, class Y, size_t N>
+        void multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N> &vector_y);
 
 
         // Multiplies row 'i' of this sparse matrix by the dense vector x
@@ -275,56 +276,68 @@ namespace jams {
         value_container val_;
     };
 
-    template<typename T>
-    template<class U, size_t N>
-    void SparseMatrix<T>::multiply(const MultiArray<U, N> &vector_x, MultiArray<U, N> &vector_y) {
-      switch (matrix_A_description_.format()) {
-        case SparseMatrixFormat::COO:
-          jams::Xcoomv_general(1.0, 0.0, num_rows_, num_non_zero_, val_.data(), col_.data(), row_.data(),
-              vector_x.data(), vector_y.data());
-          return;
-        case SparseMatrixFormat::CSR:
-          #if HAS_MKL
-            // Since MKL >= 2018 the NIST sparse BLAS interface is being
-            // deprecated in MKL and replaced with the new 'Inspector Executor'
-            // API. This requires creating a sparse matrix handle which contains
-            // basic information about the matrix. We do this on the first
-            // call of this function and clean it up in the destructor.
-            //
-            // Because this matrix is constructed by a factory the internal
-            // structure of the matrix should not change so we don't need to
-            // keep checking if the handle needs updating.
-            //
-            // We retain the old interface for older versions of MKL.
+template<typename T>
+template<class X, class Y, size_t N>
+void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N> &vector_y) {
+  switch (matrix_A_description_.format()) {
+    case SparseMatrixFormat::COO:
+      jams::Xcoomv_general(1.0, 0.0, num_rows_, num_non_zero_, val_.data(), col_.data(), row_.data(),
+          vector_x.data(), vector_y.data());
+      return;
+    case SparseMatrixFormat::CSR:
+      #if HAS_MKL
+        // Since MKL >= 2018 the NIST sparse BLAS interface is being
+        // deprecated in MKL and replaced with the new 'Inspector Executor'
+        // API. This requires creating a sparse matrix handle which contains
+        // basic information about the matrix. We do this on the first
+        // call of this function and clean it up in the destructor.
+        //
+        // Because this matrix is constructed by a factory the internal
+        // structure of the matrix should not change so we don't need to
+        // keep checking if the handle needs updating.
+        //
+        // We retain the old interface for older versions of MKL.
 
-// MKL Inspector Executor disabled on 2024-01-10 due to segfaulting.
-//            #if HAS_MKL_INSPECTOR_EXECUTOR_API
-//              if (!mkl_matrix_A_handle_) {
-//                sparse_status_t status = mkl_sparse_d_create_csr(&mkl_matrix_A_handle_,
-//                                        SPARSE_INDEX_BASE_ZERO,
-//                                        num_rows_, num_cols_,
-//                                        row_.data(), row_.data() + 1,
-//                                        col_.data(), val_.data());
-//                assert(status == SPARSE_STATUS_SUCCESS);
-//              }
-//              mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE,
-//                              1.0, mkl_matrix_A_handle_,
-//                              matrix_A_description_.mkl_inspector_executor_desc(),
-//                              vector_x.data(), 0.0, vector_y.data());
-//            #else
-              double one = 1.0, zero = 0.0;
-              const char transa[1] = {'N'};
-              mkl_dcsrmv(transa, &num_rows_, &num_cols_, &one, matrix_A_description_.mkl_desc(), val_.data(),
-                         col_.data(), row_.data(), row_.data() + 1, vector_x.data(), &zero, vector_y.data());
-//            #endif
-          #else
+        // MKL Inspector Executor disabled on 2024-01-10 due to segfaulting.
+        //            #if HAS_MKL_INSPECTOR_EXECUTOR_API
+        //              if (!mkl_matrix_A_handle_) {
+        //                sparse_status_t status = mkl_sparse_d_create_csr(&mkl_matrix_A_handle_,
+        //                                        SPARSE_INDEX_BASE_ZERO,
+        //                                        num_rows_, num_cols_,
+        //                                        row_.data(), row_.data() + 1,
+        //                                        col_.data(), val_.data());
+        //                assert(status == SPARSE_STATUS_SUCCESS);
+        //              }
+        //              mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE,
+        //                              1.0, mkl_matrix_A_handle_,
+        //                              matrix_A_description_.mkl_inspector_executor_desc(),
+        //                              vector_x.data(), 0.0, vector_y.data());
+        //            #else
+
+        // Only use MKL when X and Y have the same type and the call is MKL-compatible.
+        // If X and Y differ, we must use the jams::* kernels.
+        if constexpr (std::is_same<X, Y>::value &&
+                      std::is_same<T, double>::value &&
+                      std::is_same<X, double>::value) {
+          double one = 1.0, zero = 0.0;
+          const char transa[1] = {'N'};
+          mkl_dcsrmv(transa, &num_rows_, &num_cols_, &one, matrix_A_description_.mkl_desc(),
+                     val_.data(), col_.data(), row_.data(), row_.data() + 1,
+                     vector_x.data(), &zero, vector_y.data());
+        } else {
           jams::Xcsrmv_general(
               1.0, 0.0, num_rows_, val_.data(), col_.data(), row_.data(), vector_x.data(), vector_y.data());
-          #endif
-          return;
-      }
-      throw std::runtime_error("Unknown sparse matrix format for SparseMatrix<T>::multiply");
-    }
+        }
+
+        //            #endif
+      #else
+        jams::Xcsrmv_general(
+            1.0, 0.0, num_rows_, val_.data(), col_.data(), row_.data(), vector_x.data(), vector_y.data());
+      #endif
+      return;
+  }
+  throw std::runtime_error("Unknown sparse matrix format for SparseMatrix<T>::multiply");
+}
 
     template<typename T>
     template<class U, size_t N>

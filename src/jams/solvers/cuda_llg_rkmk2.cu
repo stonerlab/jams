@@ -15,10 +15,10 @@ __global__ void cuda_llg_rkmk2_kernel_step_1
   const double * s_init_dev,
   double * phi_dev,
   double * s_out_dev,
-  const double * h_step_dev,  // field at the same time as s_step
-  const double * gyro_dev,
-  const double * mus_dev,
-  const double * alpha_dev,
+  const jams::Real * h_step_dev,  // field at the same time as s_step
+  const jams::Real * gyro_dev,
+  const jams::Real * mus_dev,
+  const jams::Real * alpha_dev,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -28,7 +28,7 @@ __global__ void cuda_llg_rkmk2_kernel_step_1
 
   const unsigned int base = 3u * idx;
 
-  double h[3];
+  jams::Real h[3];
   for (auto n = 0; n < 3; ++n) {
     h[n] = h_step_dev[base + n] / mus_dev[idx];
   }
@@ -65,10 +65,10 @@ __global__ void cuda_llg_rkmk2_kernel_step_2
   const double * s_step_dev,
   const double * phi_dev,
   double * s_out_dev,
-  const double * h_step_dev,  // field at the same time as s_step
-  const double * gyro_dev,
-  const double * mus_dev,
-  const double * alpha_dev,
+  const jams::Real * h_step_dev,  // field at the same time as s_step
+  const jams::Real * gyro_dev,
+  const jams::Real * mus_dev,
+  const jams::Real * alpha_dev,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -78,7 +78,7 @@ __global__ void cuda_llg_rkmk2_kernel_step_2
 
   const unsigned int base = 3u * idx;
 
-  double h[3];
+  jams::Real h[3];
   for (auto n = 0; n < 3; ++n) {
     h[n] = h_step_dev[base + n] / mus_dev[idx];
   }

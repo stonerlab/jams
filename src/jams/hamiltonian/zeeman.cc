@@ -71,39 +71,19 @@ ZeemanHamiltonian::ZeemanHamiltonian(const libconfig::Setting &settings, const u
     }
 }
 
-double ZeemanHamiltonian::calculate_total_energy(double time) {
-    double e_total = 0.0;
-    for (int i = 0; i < globals::num_spins; ++i) {
-        e_total += calculate_energy(i, time);
-    }
-     return e_total;
-}
 
-double ZeemanHamiltonian::calculate_energy(const int i, double time) {
+jams::Real ZeemanHamiltonian::calculate_energy(const int i, jams::Real time) {
     const Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     const auto field = calculate_field(i, time);
 
     return -dot(s_i, field);
 }
 
-double ZeemanHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) {
-  const auto field = calculate_field(i, time);
-  const auto e_initial = -dot(spin_initial, field);
-  const auto e_final = -dot(spin_initial, field);
 
-  return (e_final - e_initial);
-}
-
-void ZeemanHamiltonian::calculate_energies(double time) {
-    for (int i = 0; i < globals::num_spins; ++i) {
-        energy_(i) = calculate_energy(i, time);
-    }
-}
-
-Vec3 ZeemanHamiltonian::calculate_field(const int i, double time) {
+Vec3R ZeemanHamiltonian::calculate_field(const int i, jams::Real time) {
     using std::pow;
 
-    Vec3 field = {0.0, 0.0, 0.0};
+    Vec3R field = {0.0, 0.0, 0.0};
 
     for (int j = 0; j < 3; ++j) {
       field[j] = dc_local_field_(i, j);
@@ -118,15 +98,3 @@ Vec3 ZeemanHamiltonian::calculate_field(const int i, double time) {
     return field;
 }
 
-void ZeemanHamiltonian::calculate_fields(double time) {
-    for (int i = 0; i < globals::num_spins; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            field_(i, j) = dc_local_field_(i, j);
-        }
-        if (has_ac_local_field_) {
-            for (int j = 0; j < 3; ++j) {
-                field_(i, j) += ac_local_field_(i, j) * cos(ac_local_frequency_(i) * time);
-            }
-        }
-    }
-}

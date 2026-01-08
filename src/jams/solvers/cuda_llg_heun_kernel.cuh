@@ -11,17 +11,17 @@ __global__ void cuda_heun_llg_kernelA
   double * s_dev,
   double * ds_dt_dev,
   const double * s_old_dev,
-  const double * h_dev,
+  const jams::Real * h_dev,
   const jams::Real * noise_dev,
-  const double * gyro_dev,
-  const double * mus_dev,
-  const double * alpha_dev,
+  const jams::Real * gyro_dev,
+  const jams::Real * mus_dev,
+  const jams::Real * alpha_dev,
   const double dev_dt,
   const unsigned dev_num_spins
 )
 {
   __shared__ double s[85 * 3];
-  __shared__ double h[85 * 3];
+  __shared__ jams::Real h[85 * 3];
   double rhs;
 
   const unsigned int tx3 = 3 * threadIdx.x;
@@ -60,17 +60,17 @@ __global__ void cuda_heun_llg_kernelB
   double * s_dev,
   double * ds_dt_dev,
   const double * s_old_dev,
-  const double * h_dev,
+  const jams::Real * h_dev,
   const jams::Real * noise_dev,
-  const double * gyro_dev,
-  const double * mus_dev,
-  const double * alpha_dev,
+  const jams::Real * gyro_dev,
+  const jams::Real * mus_dev,
+  const jams::Real * alpha_dev,
   const double dev_dt,
   const unsigned dev_num_spins
 )
 {
   __shared__ double s[85 * 3];
-  __shared__ double h[85 * 3];
+  __shared__ jams::Real h[85 * 3];
   double rhs;
 
   const unsigned int tx3 = 3*threadIdx.x;

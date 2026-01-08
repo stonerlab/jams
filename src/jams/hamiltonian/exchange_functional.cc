@@ -108,7 +108,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
         // This probably makes no difference to results, but means that our symmetry check for the matrix
         // will fail because we don't do floating point equality checks, but check that values for ij and ji
         // are identical.
-        auto Jij = functional(r);
+        jams::Real Jij = static_cast<jams::Real>(functional(r));
         this->insert_interaction_scalar(i, j, Jij);
         this->insert_interaction_scalar(j, i, Jij);
         counter++;

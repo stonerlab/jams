@@ -124,7 +124,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
             seen_stamp[j] = i;
 
             if ( std::abs(Jij) > energy_cutoff_ ) {
-              insert_interaction_tensor(i, j, Jij * kIdentityMat3);
+              insert_interaction_tensor(i, j, matrix_cast<jams::Real>(Jij * kIdentityMat3));
               counter++;
             }
 

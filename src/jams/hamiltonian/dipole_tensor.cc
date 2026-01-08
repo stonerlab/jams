@@ -20,18 +20,27 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
         " (" + std::to_string(globals::lattice->max_interaction_radius()) + ")");
   }
 
-  jams::InteractionNearTree neartree(globals::lattice->get_supercell().a1(),
-                                     globals::lattice->get_supercell().a2(),
-                                     globals::lattice->get_supercell().a3(), globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
-  neartree.insert_sites(globals::lattice->lattice_site_positions_cart());
+  jams::InteractionNearTree<jams::Real> neartree(
+    array_cast<jams::Real>(globals::lattice->get_supercell().a1()),
+    array_cast<jams::Real>(globals::lattice->get_supercell().a2()),
+    array_cast<jams::Real>(globals::lattice->get_supercell().a3()),
+    globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
+
+  std::vector<Vec3R> positions;
+  positions.reserve(globals::num_spins);
+  for (auto i = 0; i < globals::num_spins; ++i)
+  {
+    positions.push_back(array_cast<jams::Real>(Vec3{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}));
+  }
+  neartree.insert_sites(positions);
 
   int expected_neighbours = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
     expected_neighbours += neartree.num_neighbours(
-        globals::lattice->lattice_site_position_cart(i), r_cutoff_);
+        Vec3R{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}, r_cutoff_);
   }
 
-  std::size_t max_memory_per_tensor = 9*(2*sizeof(int) + sizeof(double));
+  std::size_t max_memory_per_tensor = 9*(2*sizeof(int) + sizeof(jams::Real));
 
   std::cout << "  dipole dense tensor memory (not used) "
     << memory_in_natural_units(max_memory_per_tensor * pow2(globals::num_spins)) << std::endl;
@@ -39,11 +48,11 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
   std::cout << "  dipole sparse matrix memory estimate (upper bound) "
     << memory_in_natural_units(max_memory_per_tensor * expected_neighbours) << std::endl;
 
-  const double prefactor = kVacuumPermeabilityIU / (4 * kPi * pow(::globals::lattice->parameter(), 3));
+  const jams::Real prefactor = static_cast<jams::Real>(kVacuumPermeabilityIU / (4 * kPi * pow(::globals::lattice->parameter(), 3)));
 
   int num_neighbours = 0;
   for (auto i = 0; i < globals::num_spins; ++i) {
-    const Vec3 r_i = globals::lattice->lattice_site_position_cart(i);
+    const Vec3R r_i{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)};
 
     const auto neighbours = neartree.neighbours(r_i, r_cutoff_);
     for (const auto & neighbour : neighbours) {
@@ -55,11 +64,11 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
       const auto r_abs = norm(r_ij);
       const auto r_hat = r_ij / r_abs;
 
-      Mat3 dipole_tensor = kZeroMat3;
+      Mat3R dipole_tensor = kZeroMat3R;
       for (auto m : {0, 1, 2}) {
         for (auto n : {0, 1, 2}) {
           dipole_tensor[m][n] +=
-              (3.0 * r_hat[m] * r_hat[n] - kIdentityMat3[m][n]) * globals::mus(i) * globals::mus(j) /
+              (jams::Real(3.0) * r_hat[m] * r_hat[n] - kIdentityMat3R[m][n]) * globals::mus(i) * globals::mus(j) /
               pow3(r_abs);
         }
       }

@@ -193,31 +193,7 @@ CrystalFieldHamiltonian::TesseralHarmonicCoefficientMap CrystalFieldHamiltonian:
   return tesseral_coefficients;
 }
 
-double CrystalFieldHamiltonian::calculate_total_energy(double time) {
-  double e_total = 0.0;
-  calculate_energies(time);
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    e_total += energy_(i);
-  }
-  return e_total;
-}
-
-void CrystalFieldHamiltonian::calculate_energies(double time) {
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    energy_(i) = calculate_energy(i, time);
-  }
-}
-
-void CrystalFieldHamiltonian::calculate_fields(double time) {
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    auto local_field = calculate_field(i, time);
-    for (auto j = 0; j < 3; ++j) {
-      field_(i, j) = local_field[j];
-    }
-  }
-}
-
-Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
+Vec3R CrystalFieldHamiltonian::calculate_field(int i, jams::Real time) {
   const double sx = globals::s(i, 0);
   const double sy = globals::s(i, 1);
   const double sz = globals::s(i, 2);
@@ -386,18 +362,18 @@ Vec3 CrystalFieldHamiltonian::calculate_field(int i, double time) {
   h[1] += C66*( 4.030159736288377*sy*(6.*(sx*sx*sx*sx*sx*sx) - 20.*(sx*sx*sx*sx)*(sy*sy) + 6.*(sx*sx)*(sy*sy*sy*sy) + (5.*(sx*sx*sx*sx) - 10.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
   h[2] += C66*( 4.030159736288377*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy))*sz );
 
-  return h;
+  return array_cast<jams::Real>(h);
 }
 
-double CrystalFieldHamiltonian::calculate_energy(int i, double time) {
+jams::Real CrystalFieldHamiltonian::calculate_energy(int i, jams::Real time) {
   return crystal_field_energy(i, {globals::s(i,0), globals::s(i,1), globals::s(i,2)});
 }
 
-double CrystalFieldHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final,
-                                                            double time) {
+jams::Real CrystalFieldHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final,
+                                                            jams::Real time) {
   return crystal_field_energy(i, spin_final) - crystal_field_energy(i, spin_initial);
 }
-double CrystalFieldHamiltonian::crystal_field_energy(int i, const Vec3 &s) {
+jams::Real CrystalFieldHamiltonian::crystal_field_energy(int i, const Vec3 &s) {
   if (!spin_has_crystal_field_(i)) {
     return 0.0;
   }
@@ -488,5 +464,5 @@ double CrystalFieldHamiltonian::crystal_field_energy(int i, const Vec3 &s) {
 
 // C_{6,6} Z_{6,6}
   energy += crystal_field_tesseral_coeff_(26, i) * 0.6716932893813962*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy));
-  return energy;
+  return static_cast<jams::Real>(energy);
 }

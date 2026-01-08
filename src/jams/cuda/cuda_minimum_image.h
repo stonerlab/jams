@@ -12,8 +12,8 @@
 #include <jams/containers/multiarray.h>
 
 namespace jams {
-  void cuda_minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c, const Vec3b &pbc,
-                          const Vec3 &r_i, const jams::MultiArray<double,2>& r, jams::MultiArray<double,2>& r_ij);
+  void cuda_minimum_image(const Vec3R &a, const Vec3R &b, const Vec3R &c, const Vec3b &pbc,
+                          const Vec3R &r_i, const jams::MultiArray<jams::Real,2>& r, jams::MultiArray<jams::Real,2>& r_ij);
 }
 
 #endif

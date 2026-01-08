@@ -13,10 +13,10 @@
 __global__ void cuda_llg_semi_implicit_pred_kernel
 (
   double * __restrict__ s_inout_dev, // in: S_n, out: (S_n + S'_n+1) / 2
-  const double * __restrict__ h_dev,
-  const double * __restrict__ gyro_dev,
-  const double * __restrict__ mus_dev,
-  const double * __restrict__ alpha_dev,
+  const jams::Real * __restrict__ h_dev,
+  const jams::Real * __restrict__ gyro_dev,
+  const jams::Real * __restrict__ mus_dev,
+  const jams::Real * __restrict__ alpha_dev,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -26,12 +26,10 @@ __global__ void cuda_llg_semi_implicit_pred_kernel
 
   const unsigned int base = 3u * idx;
 
-  const double inv_mus = 1.0 / mus_dev[idx];
-
-  const double3 h = {
-    h_dev[base + 0] * inv_mus,
-    h_dev[base + 1] * inv_mus,
-    h_dev[base + 2] * inv_mus
+  const jams::Real3 h = {
+    h_dev[base + 0] / mus_dev[idx],
+    h_dev[base + 1] / mus_dev[idx],
+    h_dev[base + 2] / mus_dev[idx]
   };
 
   const double3 s = {
@@ -68,10 +66,10 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
 (
   double * __restrict__ s_inout_dev, // in: (S_n + S'_{n+1}) / 2 out: S_{n+1}
   const double * __restrict__ s_init_dev, // S_n
-  const double * __restrict__ h_dev,  // field at the same time as s_step
-  const double * __restrict__ gyro_dev,
-  const double * __restrict__ mus_dev,
-  const double * __restrict__ alpha_dev,
+  const jams::Real * __restrict__ h_dev,  // field at the same time as s_step
+  const jams::Real * __restrict__ gyro_dev,
+  const jams::Real * __restrict__ mus_dev,
+  const jams::Real * __restrict__ alpha_dev,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -81,12 +79,10 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
 
   const unsigned int base = 3u * idx;
 
-  const double inv_mus = 1.0 / mus_dev[idx];
-
-  const double3 h = {
-    h_dev[base + 0] * inv_mus,
-    h_dev[base + 1] * inv_mus,
-    h_dev[base + 2] * inv_mus
+  const jams::Real3 h = {
+    h_dev[base + 0] / mus_dev[idx],
+    h_dev[base + 1] / mus_dev[idx],
+    h_dev[base + 2] / mus_dev[idx]
   };
 
   const double3 s = {

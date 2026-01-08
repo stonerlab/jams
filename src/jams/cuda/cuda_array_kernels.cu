@@ -259,22 +259,26 @@ void cuda_array_float_to_double(
     DEBUG_CHECK_CUDA_ASYNC_STATUS
 }
 
+template<typename T>
 __global__ void cuda_array_sum_across(
     unsigned int num_input_arrays,
     unsigned int num_elements,
-    double** inputs,
-    double* out) {
+    T** inputs,
+    T* out) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
 
     for (int idx = tid; idx < num_elements; idx += stride) {
-        double acc = 0.0;
+        T acc = 0.0;
         for (int k = 0; k < num_input_arrays; ++k) {
             acc += inputs[k][idx];
         }
         out[idx] = acc;
     }
 }
+
+template __global__ void cuda_array_sum_across<float>(unsigned int, unsigned int, float**, float*);
+template __global__ void cuda_array_sum_across<double>(unsigned int, unsigned int, double**, double*);
 
 __global__ void cuda_array_dot_product_kernel(
     unsigned int n,
@@ -289,6 +293,66 @@ __global__ void cuda_array_dot_product_kernel(
     if (idx >= n) return;
 
     double result = 0.0;
+    for (unsigned int i = 0; i < 3; ++i) {
+        result += x[base + i] * y[base + i];
+    }
+
+    out[idx] = A * result;
+}
+
+__global__ void cuda_array_dot_product_kernel(
+    unsigned int n,
+    const float A,
+    const float * x,
+    const float * y,
+    float * out)
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int base = 3u * idx;
+
+    if (idx >= n) return;
+
+    float result = 0.0;
+    for (unsigned int i = 0; i < 3; ++i) {
+        result += x[base + i] * y[base + i];
+    }
+
+    out[idx] = A * result;
+}
+
+__global__ void cuda_array_dot_product_kernel(
+    unsigned int n,
+    const float A,
+    const float * x,
+    const double * y,
+    float * out)
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int base = 3u * idx;
+
+    if (idx >= n) return;
+
+    float result = 0.0;
+    for (unsigned int i = 0; i < 3; ++i) {
+        result += x[base + i] * y[base + i];
+    }
+
+    out[idx] = A * result;
+}
+
+__global__ void cuda_array_dot_product_kernel(
+    unsigned int n,
+    const float A,
+    const double * x,
+    const float * y,
+    float * out)
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int base = 3u * idx;
+
+    if (idx >= n) return;
+
+    float result = 0.0;
     for (unsigned int i = 0; i < 3; ++i) {
         result += x[base + i] * y[base + i];
     }
@@ -313,6 +377,68 @@ void cuda_array_dot_product(
 
     cuda_array_dot_product_kernel<<<grid_size, block_size, 0, stream>>>(n, A, x, y, out);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
+}
+
+void cuda_array_dot_product(
+    unsigned int n,
+    const float A,
+    const float * x,
+    const float * y,
+    float * out,
+    cudaStream_t stream
+    )
+{
+    dim3 block_size;
+    block_size.x = 128;
+
+    dim3 grid_size;
+    grid_size.x = (n + block_size.x - 1) / block_size.x;
+
+    cuda_array_dot_product_kernel<<<grid_size, block_size, 0, stream>>>(n, A, x, y, out);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+}
+
+void cuda_array_dot_product(
+    unsigned int n,
+    const float A,
+    const float * x,
+    const double * y,
+    float * out,
+    cudaStream_t stream
+    )
+{
+    dim3 block_size;
+    block_size.x = 128;
+
+    dim3 grid_size;
+    grid_size.x = (n + block_size.x - 1) / block_size.x;
+
+    cuda_array_dot_product_kernel<<<grid_size, block_size, 0, stream>>>(n, A, x, y, out);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+}
+
+void cuda_array_dot_product(
+    unsigned int n,
+    const float A,
+    const double * x,
+    const float * y,
+    float * out,
+    cudaStream_t stream
+    )
+{
+    dim3 block_size;
+    block_size.x = 128;
+
+    dim3 grid_size;
+    grid_size.x = (n + block_size.x - 1) / block_size.x;
+
+    cuda_array_dot_product_kernel<<<grid_size, block_size, 0, stream>>>(n, A, x, y, out);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+}
+
+
+float cuda_reduce_array(const float* dev_ptr, const size_t size, cudaStream_t stream) {
+    return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const float>(dev_ptr), thrust::device_ptr<const float>(dev_ptr) + size, float(0), thrust::plus<float>());
 }
 
 double cuda_reduce_array(const double* dev_ptr, const size_t size, cudaStream_t stream) {

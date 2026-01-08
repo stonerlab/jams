@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "jams/containers/multiarray.h"
+#include "jams/helpers/mixed_precision.h"
 
 #ifndef GLOBALORIGIN
 #define GLOBAL extern
@@ -25,13 +26,13 @@ namespace globals {
   GLOBAL int num_spins3;
 
   GLOBAL jams::MultiArray<double, 2> s;
-  GLOBAL jams::MultiArray<double, 2> h;
+  GLOBAL jams::MultiArray<jams::Real, 2> h;
   GLOBAL jams::MultiArray<double, 2> ds_dt;
-  GLOBAL jams::MultiArray<double, 2> positions;
+  GLOBAL jams::MultiArray<jams::Real, 2> positions;
 
-  GLOBAL jams::MultiArray<double, 1> alpha;
-  GLOBAL jams::MultiArray<double, 1> mus;
-  GLOBAL jams::MultiArray<double, 1> gyro;
+  GLOBAL jams::MultiArray<jams::Real, 1> alpha;
+  GLOBAL jams::MultiArray<jams::Real, 1> mus;
+  GLOBAL jams::MultiArray<jams::Real, 1> gyro;
   
   GLOBAL Solver  *solver;
   GLOBAL Lattice *lattice;

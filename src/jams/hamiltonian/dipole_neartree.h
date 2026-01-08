@@ -9,31 +9,29 @@
 #include <utility>
 #include <functional>
 
+namespace jams
+{
+    template <typename CoordType>
+    class InteractionNearTree;
+}
+
 class DipoleNearTreeHamiltonian : public Hamiltonian {
 public:
-    using NearTreeFunctorType = std::function<double(const std::pair<Vec3, int>& a, const std::pair<Vec3, int>& b)>;
-    using NearTreeType = jams::NearTree<std::pair<Vec3, int>, NearTreeFunctorType>;
+    using NearTreeFunctorType = std::function<jams::Real(const std::pair<Vec3R, int>& a, const std::pair<Vec3R, int>& b)>;
+    using NearTreeType = jams::NearTree<std::pair<Vec3R, int>, NearTreeFunctorType>;
 
     DipoleNearTreeHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy(double time) override;
+    Vec3R calculate_field(int i, jams::Real time) override;
 
-    void calculate_energies(double time) override;
+    jams::Real calculate_energy(int i, jams::Real time) override;
 
-    void calculate_fields(double time) override;
-
-    Vec3 calculate_field(int i, double time) override;
-
-    double calculate_energy(int i, double time) override;
-
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
+    jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override;
 
 private:
-    double r_cutoff_; // cutoff radius for dipole interaction
+    jams::Real r_cutoff_; // cutoff radius for dipole interaction
 
-    jams::InteractionNearTree neartree_;
-
-//    NearTreeType neartree_;
+    jams::InteractionNearTree<jams::Real> neartree_;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_NEARTREE_H

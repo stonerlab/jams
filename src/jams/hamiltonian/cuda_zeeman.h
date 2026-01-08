@@ -11,6 +11,6 @@ class CudaZeemanHamiltonian : public ZeemanHamiltonian {
 public:
     CudaZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
-    void calculate_fields(double time);
+    void calculate_fields(jams::Real time);
 };
 #endif //JAMS_CUDA_ZEEMAN_H

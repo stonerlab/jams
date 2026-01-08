@@ -715,7 +715,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
     Vec3 spin = material.spin;
 
     if (material.randomize) {
-      spin = uniform_random_sphere(rng);
+      spin = uniform_random_sphere<double>(rng);
     }
 
     // lattice vacancies have a moment of zero and a spin vector of zero

@@ -11,7 +11,9 @@
 #include <iomanip>
 #include <algorithm>
 #include <complex>
+#include <type_traits>
 #include "jams/helpers/maths.h"
+#include "jams/helpers/mixed_precision.h"
 
 template <typename T, std::size_t N>
 using Vec = std::array<T, N>;
@@ -20,12 +22,34 @@ using Vec2  = std::array<double, 2>;
 
 using Vec3  = std::array<double, 3>;
 using Vec3f = std::array<float, 3>;
+using Vec3R = std::array<jams::Real, 3>;
 using Vec3b = std::array<bool, 3>;
 using Vec3i = std::array<int, 3>;
 using Vec3cx  = std::array<std::complex<double>, 3>;
 
 using Vec4  = std::array<double, 4>;
 using Vec4i = std::array<int, 4>;
+
+
+
+template <typename To, typename From, std::size_t N>
+constexpr std::array<To, N>
+array_cast(const std::array<From, N>& in)
+{
+  if constexpr (std::is_same<To, From>::value) {
+    return in;
+  } else {
+    static_assert(std::is_arithmetic<To>::value,
+                  "array_cast requires arithmetic To type");
+    static_assert(std::is_arithmetic<From>::value,
+                  "array_cast requires arithmetic From type");
+
+    std::array<To, N> out{};
+    for (std::size_t i = 0; i < N; ++i)
+      out[i] = static_cast<To>(in[i]);
+    return out;
+  }
+}
 
 template <typename T>
 inline constexpr Vec<T,3> operator-(const Vec<T,3>& rhs) {
@@ -274,7 +298,7 @@ inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& e
 // value `epsilon` the original vector is returned.
 template <typename T>
 inline auto unit_vector(const Vec<T, 3> &a, const T& epsilon = DBL_EPSILON) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
-  const double length = norm(a);
+  const auto length = norm(a);
   if (approximately_zero(length, epsilon)) {
     return a;
   }

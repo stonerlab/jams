@@ -9,23 +9,21 @@ class CudaDipoleBruteforceHamiltonian : public Hamiltonian {
     public:
         CudaDipoleBruteforceHamiltonian(const libconfig::Setting &settings, const unsigned int size);
 
-        ~CudaDipoleBruteforceHamiltonian() = default;
+        jams::Real calculate_total_energy(jams::Real time) override;
+        jams::Real calculate_energy(const int i, jams::Real time) override;
+        jams::Real calculate_one_spin_energy(const int i, const Vec3 &s_i, jams::Real time);
+        jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override;
+        void   calculate_energies(jams::Real time) override;
 
-        double calculate_total_energy(double time);
-        double calculate_energy(const int i, double time);
-        double calculate_one_spin_energy(const int i, const Vec3 &s_i, double time);
-        double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) ;
-        void   calculate_energies(double time);
-
-        Vec3   calculate_field(const int i, double time);
-        void   calculate_fields(double time);
+        Vec3R   calculate_field(const int i, jams::Real time) override;
+        void   calculate_fields(jams::Real time) override;
 
     private:
-        double r_cutoff_;
-        double dipole_prefactor_;
+        jams::Real r_cutoff_;
+        jams::Real dipole_prefactor_;
 
-        jams::MultiArray<float, 2> r_float_;
-        jams::MultiArray<float, 1> mus_float_;
+        jams::MultiArray<jams::Real, 2> r_float_;
+        jams::MultiArray<jams::Real, 1> mus_float_;
 };
 
 #endif  // JAMS_HAMILTONIAN_DIPOLE_BRUTEFORCE_H

@@ -18,7 +18,7 @@
 #include <jams/helpers/mixed_precision.h>
 
 
-__constant__ float mu_const[128];
+__constant__ jams::Real mu_const[128];
 
 // Pack upper-triangular (i<=j) pairs into a 1D index.
 // Number of pairs = n*(n+1)/2.
@@ -107,7 +107,7 @@ __global__ void cuda_dipole_convolution(
   int out1 = (batch_base_i + 1) * num_kpoints + k_idx;
   int out2 = (batch_base_i + 2) * num_kpoints + k_idx;
 
-  const float mu_i = mu_const[pos_i];
+  const jams::Real mu_i = mu_const[pos_i];
   hk[out0] = mu_i * hk_sum[0];
   hk[out1] = mu_i * hk_sum[1];
   hk[out2] = mu_i * hk_sum[2];
@@ -256,7 +256,6 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 #endif
 
   s_float_.resize(globals::s.size(0), globals::s.size(1));
-  h_float_.resize(globals::h.size(0), globals::h.size(1));
 
   const auto num_tensor_components = 6;
 
@@ -296,46 +295,46 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
     }
   }
 
-  mus_float_.resize(num_sites);
+  mus_unitcell_.resize(num_sites);
   for (auto i = 0; i < num_sites; ++i) {
-    mus_float_(i) = globals::lattice->material(globals::lattice->basis_site_atom(i).material_index).moment;
+    mus_unitcell_(i) = globals::lattice->material(globals::lattice->basis_site_atom(i).material_index).moment;
   }
 
-  cudaMemcpyToSymbol(mu_const, mus_float_.device_data(), mus_float_.bytes(), 0, cudaMemcpyHostToDevice);
+  cudaMemcpyToSymbol(mu_const, mus_unitcell_.device_data(), mus_unitcell_.bytes(), 0, cudaMemcpyHostToDevice);
 
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_s_rspace_to_kspace, cuda_stream_.get()));
   CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, cuda_stream_.get()));
 }
 
-double CudaDipoleFFTHamiltonian::calculate_total_energy(double time) {
+jams::Real CudaDipoleFFTHamiltonian::calculate_total_energy(jams::Real time) {
   calculate_energies(time);
   return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }
 
-double CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i, double time) {
-    return 0.0;
+jams::Real CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i, jams::Real time) {
+    throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_one_spin_energy is not implemented");
 }
 
-double CudaDipoleFFTHamiltonian::calculate_energy(const int i, double time) {
-    return 0.0;
+jams::Real CudaDipoleFFTHamiltonian::calculate_energy(const int i, jams::Real time) {
+    throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_energy is not implemented");
 }
 
-double CudaDipoleFFTHamiltonian::calculate_energy_difference(
-    int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) {
-
-    return 0.0;
+jams::Real CudaDipoleFFTHamiltonian::calculate_energy_difference(
+    int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) {
+  throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_energy_difference is not implemented");
 }
 
-void CudaDipoleFFTHamiltonian::calculate_energies(double time) {
+void CudaDipoleFFTHamiltonian::calculate_energies(jams::Real time) {
   calculate_fields(time);
-  cuda_array_dot_product(globals::num_spins, -0.5, globals::s.device_data(), field_.device_data(), energy_.device_data(), cuda_stream_.get());
+  const auto minus_half = static_cast<jams::Real>(-0.5);
+  cuda_array_dot_product(globals::num_spins, minus_half, globals::s.device_data(), field_.device_data(), energy_.device_data(), cuda_stream_.get());
 }
 
-Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i, double time) {
-  throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field");
+Vec3R CudaDipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
+  throw jams::unimplemented_error("CudaDipoleFFTHamiltonian::calculate_field is not implemented");
 }
 
-void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
+void CudaDipoleFFTHamiltonian::calculate_fields(jams::Real time) {
 
 #if DO_MIXED_PRECISION
   cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), cuda_stream_.get());
@@ -354,13 +353,11 @@ cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(fft_si
 DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 #ifdef DO_MIXED_PRECISION
-  CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftReal*>(h_float_.device_data())));
-  cuda_array_float_to_double(h_float_.elements(), h_float_.device_data(), field_.device_data(), cuda_stream_.get());
+  CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftReal*>(field_.device_data())));
 #else
   CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
 #endif
 
-  // cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, cuda_stream_.get());
 }
 
 // Generates the dipole tensor between unit cell positions i and j and appends

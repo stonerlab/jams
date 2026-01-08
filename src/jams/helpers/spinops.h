@@ -29,13 +29,13 @@ const jams::MultiArray<int, 1>& indices);
 /// Returns the sum of all spins multiplied by their moments
 Vec3 sum_spins_moments(
 const jams::MultiArray<double, 2>& spins,
-const jams::MultiArray<double, 1>& moments);
+const jams::MultiArray<jams::Real, 1>& moments);
 
 
 /// Returns the sum of the spins multiplied by their moments with the given indices
 Vec3 sum_spins_moments(
 const jams::MultiArray<double, 2>& spins,
-const jams::MultiArray<double, 1>& moments,
+const jams::MultiArray<jams::Real, 1>& moments,
 const jams::MultiArray<int, 1>& indices);
 }
 

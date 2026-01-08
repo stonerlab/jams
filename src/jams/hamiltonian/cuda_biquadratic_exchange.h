@@ -17,17 +17,15 @@ class CudaBiquadraticExchangeHamiltonian : public Hamiltonian {
 public:
     CudaBiquadraticExchangeHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy(double time) override;
+    jams::Real calculate_total_energy(jams::Real time) override;
 
-    void calculate_energies(double time) override;
+    void calculate_fields(jams::Real time) override;
 
-    void calculate_fields(double time) override;
+    Vec3R calculate_field(int i, jams::Real time) override;
 
-    Vec3 calculate_field(int i, double time) override;
+    jams::Real calculate_energy(int i, jams::Real time) override;
 
-    double calculate_energy(int i, double time) override;
-
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
+    jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override;
 
 
 private:
@@ -38,8 +36,8 @@ private:
     jams::InteractionList<Mat3, 2> neighbour_list_; // neighbour list
 
     bool is_finalized_ = false; // is the sparse matrix finalized and built
-    jams::SparseMatrix<double>::Builder sparse_matrix_builder_; // helper to build the sparse matrix and output a chosen type
-    jams::SparseMatrix<double> interaction_matrix_; // the sparse matrix to be used in calculations
+    jams::SparseMatrix<jams::Real>::Builder sparse_matrix_builder_; // helper to build the sparse matrix and output a chosen type
+    jams::SparseMatrix<jams::Real> interaction_matrix_; // the sparse matrix to be used in calculations
 };
 
 #endif

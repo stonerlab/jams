@@ -15,7 +15,7 @@
 #include "jams/hamiltonian/dipole_fft.h"
 
 namespace {
-    const Mat3 Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+    const Mat3R Id = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 }
 
 
@@ -139,8 +139,8 @@ DipoleFFTHamiltonian::DipoleFFTHamiltonian(const libconfig::Setting &settings, c
 }
 
 
-double DipoleFFTHamiltonian::calculate_total_energy(double time) {
-    double e_total = 0.0;
+jams::Real DipoleFFTHamiltonian::calculate_total_energy(jams::Real time) {
+    jams::Real e_total = 0.0;
 
     calculate_fields(time);
     for (auto i = 0; i < globals::num_spins; ++i) {
@@ -152,17 +152,17 @@ double DipoleFFTHamiltonian::calculate_total_energy(double time) {
     return -0.5*e_total;
 }
 
-double DipoleFFTHamiltonian::calculate_energy(const int i, double time) {
-  const Vec3 s_i = {{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)}};
+jams::Real DipoleFFTHamiltonian::calculate_energy(const int i, jams::Real time) {
+  const Vec3R s_i = array_cast<jams::Real>(Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
   const auto field = calculate_field(i, time);
-  return -dot(s_i, field);
+  return -0.5 * dot(s_i, field);
 }
 
 
-double DipoleFFTHamiltonian::calculate_energy_difference(
-    int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time)
+jams::Real DipoleFFTHamiltonian::calculate_energy_difference(
+    int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time)
 {
-    double h[3] = {0, 0, 0};
+    jams::Real h[3] = {0, 0, 0};
 
     calculate_fields(time);
     for (auto m = 0; m < 3; ++m) {
@@ -175,16 +175,8 @@ double DipoleFFTHamiltonian::calculate_energy_difference(
 }
 
 
-void DipoleFFTHamiltonian::calculate_energies(double time) {
-    assert(energy_.elements() == globals::num_spins);
-    for (auto i = 0; i < globals::num_spins; ++i) {
-      energy_(i) = calculate_energy(i, time);
-    }
-}
-
-
-Vec3 DipoleFFTHamiltonian::calculate_field(const int i, double time) {
-    Vec3 field = {0.0, 0.0, 0.0};
+Vec3R DipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
+    Vec3R field = {0.0, 0.0, 0.0};
     calculate_fields(time);
     for (auto m = 0; m < 3; ++m) {
         Vec3i pos = ::globals::lattice->cell_offset(i);
@@ -196,7 +188,7 @@ Vec3 DipoleFFTHamiltonian::calculate_field(const int i, double time) {
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-jams::MultiArray<jams::ComplexHi, 5>
+jams::MultiArray<jams::ComplexLo, 5>
 DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
   const Vec3 r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
   const Vec3 r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
@@ -292,11 +284,34 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
     fftw_destroy_plan(fft_dipole_tensor_rspace_to_kspace);
   }
 
-    return kspace_tensor;
+  jams::MultiArray<jams::ComplexLo, 5> kspace_tensor_lo(
+      kspace_padded_size_[0],
+      kspace_padded_size_[1],
+      kspace_padded_size_[2]/2 + 1,
+      3, 3);
+
+  for (auto i = 0; i < kspace_padded_size_[0]; ++i)
+  {
+    for (auto j = 0; j < kspace_padded_size_[1]; ++j)
+    {
+      for (auto k = 0; k < (kspace_padded_size_[2]/2)+1; ++k)
+      {
+        for (auto m = 0; m < 3; ++m)
+        {
+          for (auto n = 0; n < 3; ++n)
+          {
+            kspace_tensor_lo(i,j,k,m,n) = jams::ComplexLo{static_cast<float>(kspace_tensor(i,j,k,m,n).real()), static_cast<float>(kspace_tensor(i,j,k,m,n).imag())};
+          }
+        }
+      }
+    }
+  }
+
+    return kspace_tensor_lo;
 }
 
 
-void DipoleFFTHamiltonian::calculate_fields(double time) {
+void DipoleFFTHamiltonian::calculate_fields(jams::Real time) {
   zero(field_);
 
   for (auto pos_i = 0; pos_i < ::globals::lattice->num_basis_sites(); ++pos_i) {
@@ -316,7 +331,7 @@ void DipoleFFTHamiltonian::calculate_fields(double time) {
 
       fftw_execute(fft_s_rspace_to_kspace);
 
-      const double mus_j = ::globals::lattice->material(
+      const jams::Real mus_j = ::globals::lattice->material(
           globals::lattice->basis_site_atom(pos_j).material_index).moment;
 
       // perform convolution as multiplication in fourier space
@@ -325,7 +340,14 @@ void DipoleFFTHamiltonian::calculate_fields(double time) {
           for (auto k = 0; k < (kspace_padded_size_[2]/2)+1; ++k) {
             for (auto m = 0; m < 3; ++m) {
               for (auto n = 0; n < 3; ++n) {
-                kspace_h_(i,j,k,m) += mus_j * kspace_tensors_[pos_i][pos_j](i,j,k,m,n) * kspace_s_(i,j,k,n);
+                const auto& T = kspace_tensors_[pos_i][pos_j](i,j,k,m,n);
+                const auto& S = kspace_s_(i,j,k,n);
+                kspace_h_(i,j,k,m) += jams::ComplexHi{
+                  static_cast<jams::RealHi>(mus_j * T.real()) * S.real()
+                - static_cast<jams::RealHi>(mus_j * T.imag()) * S.imag(),
+                  static_cast<jams::RealHi>(mus_j * T.real()) * S.imag()
+                + static_cast<jams::RealHi>(mus_j * T.imag()) * S.real()
+              };
               }
             }
           }

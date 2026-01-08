@@ -81,6 +81,11 @@ namespace jams {
     }
 
     template<>
+    inline float config_required(const libconfig::Setting &setting, const std::string &name) {
+      return float(setting[name]);
+    }
+
+    template<>
     inline Vec2 config_required(const libconfig::Setting &setting, const std::string &name) {
       return {double(setting[name][0]), double(setting[name][1])};
     }
@@ -88,6 +93,11 @@ namespace jams {
     template<>
     inline Vec3 config_required(const libconfig::Setting &setting, const std::string &name) {
       return {double(setting[name][0]), double(setting[name][1]), double(setting[name][2])};
+    }
+
+    template<>
+    inline Vec3R config_required(const libconfig::Setting &setting, const std::string &name) {
+        return {jams::Real(setting[name][0]), jams::Real(setting[name][1]), jams::Real(setting[name][2])};
     }
 
     template<>

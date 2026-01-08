@@ -12,9 +12,9 @@
 class CudaUniaxialMicroscopicAnisotropyHamiltonian : public UniaxialMicroscopicAnisotropyHamiltonian {
 public:
     CudaUniaxialMicroscopicAnisotropyHamiltonian(const libconfig::Setting &settings, const unsigned int size);
-    ~CudaUniaxialMicroscopicAnisotropyHamiltonian() override = default;
 
-    void   calculate_fields(double time) override;
+    void calculate_energies(jams::Real time) override;
+    void   calculate_fields(jams::Real time) override;
 private:
     unsigned int dev_blocksize_;
 };

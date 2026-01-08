@@ -62,7 +62,7 @@ class CudaSolver : public Solver {
         DEBUG_CHECK_CUDA_ASYNC_STATUS
     }
 
-    double** dev_field_ptrs_ = nullptr;
+    jams::Real** dev_field_ptrs_ = nullptr;
     cudaEvent_t spin_barrier_event_ {};
 };
 

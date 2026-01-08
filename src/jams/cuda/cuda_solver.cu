@@ -30,15 +30,15 @@ void CudaSolver::compute_fields() {
 
   if (dev_field_ptrs_ == nullptr) {
     // Collect device pointers on host
-    std::vector<double*> h_ptrs(num_input_arrays);
+    std::vector<jams::Real*> h_ptrs(num_input_arrays);
     for (int i = 0; i < num_input_arrays; ++i) {
       h_ptrs[i] = hamiltonians_[i]->dev_ptr_field();
     }
 
     // Copy pointer array to device (cache this if topology is fixed)
-    cudaMallocAsync(&dev_field_ptrs_, num_input_arrays * sizeof(double*), jams::instance().cuda_master_stream().get());
+    cudaMallocAsync(&dev_field_ptrs_, num_input_arrays * sizeof(jams::Real*), jams::instance().cuda_master_stream().get());
     cudaMemcpyAsync(dev_field_ptrs_, h_ptrs.data(),
-               num_input_arrays * sizeof(double*),
+               num_input_arrays * sizeof(jams::Real*),
                cudaMemcpyHostToDevice,
                jams::instance().cuda_master_stream().get());
   }

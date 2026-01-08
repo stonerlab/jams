@@ -17,14 +17,14 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         CudaDipoleFFTHamiltonian(const libconfig::Setting &settings, unsigned int size);
         ~CudaDipoleFFTHamiltonian() override;
 
-        double calculate_total_energy(double time) override;
-        double calculate_energy(int i, double time) override;
-        double calculate_one_spin_energy(int i, const Vec3 &s_i, double time);
-        double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override ;
-        void   calculate_energies(double time) override;
+        jams::Real calculate_total_energy(jams::Real time) override;
+        jams::Real calculate_energy(int i, jams::Real time) override;
+        jams::Real calculate_one_spin_energy(int i, const Vec3 &s_i, jams::Real time);
+        jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override ;
+        void   calculate_energies(jams::Real time) override;
 
-        Vec3   calculate_field(int i, double time);
-        void   calculate_fields(double time) override;
+        Vec3R   calculate_field(int i, jams::Real time);
+        void   calculate_fields(jams::Real time) override;
     private:
         bool debug_ = false;
         bool check_radius_   = true;
@@ -32,16 +32,15 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
 
         jams::MultiArray<jams::ComplexLo, 4> generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions);
 
-        double                          r_cutoff_;
-        double                          distance_tolerance_;
+        jams::Real                          r_cutoff_;
+        jams::Real                          distance_tolerance_;
 
 
         Vec3i                    kspace_size_;
         Vec3i                    kspace_padded_size_;
 
-        jams::MultiArray<float, 2> s_float_;
-        jams::MultiArray<float, 2> h_float_;
-        jams::MultiArray<float, 1> mus_float_;
+        jams::MultiArray<jams::Real, 2> s_float_;
+        jams::MultiArray<jams::Real, 1> mus_unitcell_;
 
 
         jams::MultiArray<jams::cufftComplexLo, 1>   kspace_s_;

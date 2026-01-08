@@ -33,8 +33,8 @@ using std::runtime_error;
 struct AnisotropySetting {
     int      motif_position = -1;
     string   material = "";
-    Vec3     axis = {0.0, 0.0, 1.0};
-    double   energy = 0.0;
+    Vec3R     axis = {0.0, 0.0, 1.0};
+    jams::Real   energy = 0.0;
 };
 
 int anisotropy_power_from_name(const string name) {
@@ -62,8 +62,8 @@ AnisotropySetting read_anisotropy_setting(Setting &setting) {
       throw runtime_error("uniaxial anisotropy material is invalid");
     }
   }
-  result.axis = normalize(Vec3{setting[1][0], setting[1][1], setting[1][2]});
-  result.energy = double(setting[2]);
+  result.axis = normalize(Vec3R{setting[1][0], setting[1][1], setting[1][2]});
+  result.energy = jams::Real(setting[2]);
   return result;
 }
 
@@ -114,17 +114,8 @@ UniaxialAnisotropyHamiltonian::UniaxialAnisotropyHamiltonian(const Setting &sett
   }
 }
 
-
-double UniaxialAnisotropyHamiltonian::calculate_total_energy(double time) {
-  double e_total = 0.0;
-  for (int i = 0; i < energy_.size(); ++i) {
-    e_total += calculate_energy(i, time);
-  }
-  return e_total;
-}
-
-double UniaxialAnisotropyHamiltonian::calculate_energy(const int i, double time) {
-  double energy = 0.0;
+jams::Real UniaxialAnisotropyHamiltonian::calculate_energy(const int i, jams::Real time) {
+  jams::Real energy = 0.0;
 
   auto dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
   energy += (-magnitude_(i) * pow(dot, power_));
@@ -132,10 +123,10 @@ double UniaxialAnisotropyHamiltonian::calculate_energy(const int i, double time)
   return energy;
 }
 
-double UniaxialAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                                  const Vec3 &spin_final, double time) {
-  double e_initial = 0.0;
-  double e_final = 0.0;
+jams::Real UniaxialAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                  const Vec3 &spin_final, jams::Real time) {
+  jams::Real e_initial = 0.0;
+  jams::Real e_final = 0.0;
 
   auto s_dot_a = spin_initial[0] * axis_(i,0) + spin_initial[1] * axis_(i,1) + spin_initial[2] * axis_(i,2);
   e_initial += (-magnitude_(i) * pow(s_dot_a, power_));
@@ -146,27 +137,19 @@ double UniaxialAnisotropyHamiltonian::calculate_energy_difference(int i, const V
   return e_final - e_initial;
 }
 
-void UniaxialAnisotropyHamiltonian::calculate_energies(double time) {
+
+void UniaxialAnisotropyHamiltonian::calculate_energies(jams::Real time) {
   for (auto i = 0; i < energy_.size(); ++i) {
     energy_(i) = calculate_energy(i, time);
   }
 }
 
-Vec3 UniaxialAnisotropyHamiltonian::calculate_field(const int i, double time) {
-  auto dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
+Vec3R UniaxialAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
+  jams::Real dot = (axis_(i,0) * globals::s(i,0) + axis_(i,1) * globals::s(i,1) + axis_(i,2) * globals::s(i,2));
 
-  Vec3 field;
+  Vec3R field;
   for (auto j = 0; j < 3; ++j) {
     field[j] = magnitude_(i) * power_ * pow(dot, power_ - 1) * axis_(i,j);
   }
   return field;
-}
-
-void UniaxialAnisotropyHamiltonian::calculate_fields(double time) {
-  for (auto i = 0; i < globals::num_spins; ++i) {
-    const auto field = calculate_field(i, time);
-    for (auto j = 0; j < 3; ++j) {
-      field_(i, j) = field[j];
-    }
-  }
 }

@@ -114,6 +114,42 @@ Hamiltonian * Hamiltonian::create(const libconfig::Setting &settings, const unsi
   throw std::runtime_error("unknown hamiltonian " + std::string(settings["module"].c_str()));
 }
 
+void Hamiltonian::calculate_fields(jams::Real time)
+{
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    auto local_field = calculate_field(i, time);
+    for (auto j = 0; j < 3; ++j) {
+      field_(i, j) = local_field[j];
+    }
+  }
+}
+
+void Hamiltonian::calculate_energies(jams::Real time)
+{
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    energy_(i) = calculate_energy(i, time);
+  }
+}
+
+jams::Real Hamiltonian::calculate_total_energy(jams::Real time)
+{
+  double e_total = 0.0;
+  calculate_energies(time);
+  for (auto i = 0; i < globals::num_spins; ++i) {
+    e_total += energy_(i);
+  }
+  return e_total;
+}
+
+jams::Real Hamiltonian::calculate_energy_difference(int i, const Vec3& spin_initial, const Vec3& spin_final,
+  jams::Real time)
+{
+  const jams::Real e_initial = -dot(array_cast<jams::Real>(spin_initial), calculate_field(i, time));
+  const jams::Real e_final = -dot(array_cast<jams::Real>(spin_final), calculate_field(i, time));
+
+  return (e_final - e_initial);
+}
+
 Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int size)
         : Base(settings),
           energy_(size),

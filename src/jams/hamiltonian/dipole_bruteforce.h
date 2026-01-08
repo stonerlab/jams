@@ -12,22 +12,16 @@ class DipoleBruteforceHamiltonian : public Hamiltonian {
 public:
     DipoleBruteforceHamiltonian(const libconfig::Setting &settings, unsigned int size);
 
-    double calculate_total_energy(double time) override;
+    Vec3R calculate_field(int i, jams::Real time) override;
 
-    void calculate_energies(double time) override;
+    jams::Real calculate_energy(int i, jams::Real time) override;
 
-    void calculate_fields(double time) override;
-
-    Vec3 calculate_field(int i, double time) override;
-
-    double calculate_energy(int i, double time) override;
-
-    double calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, double time) override;
+    jams::Real calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) override;
 
 private:
     std::vector<Vec3>   frac_positions_;
-    Mat3 supercell_matrix_;
-    double r_cutoff_;
+    Mat3R supercell_matrix_;
+    jams::Real r_cutoff_;
 };
 
 #endif //JAMS_DIPOLE_BRUTEFORCE_H

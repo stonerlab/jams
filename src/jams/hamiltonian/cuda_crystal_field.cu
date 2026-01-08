@@ -8,7 +8,7 @@ CudaCrystalFieldHamiltonian::CudaCrystalFieldHamiltonian(
         const libconfig::Setting &settings, const unsigned int size) : CrystalFieldHamiltonian(
         settings, size) {}
 
-void CudaCrystalFieldHamiltonian::calculate_fields(double time) {
+void CudaCrystalFieldHamiltonian::calculate_fields(jams::Real time) {
     dim3 block_size;
     block_size.x = 64;
 
@@ -20,7 +20,7 @@ void CudaCrystalFieldHamiltonian::calculate_fields(double time) {
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-void CudaCrystalFieldHamiltonian::calculate_energies(double time) {
+void CudaCrystalFieldHamiltonian::calculate_energies(jams::Real time) {
     dim3 block_size;
     block_size.x = 64;
 
@@ -32,7 +32,7 @@ void CudaCrystalFieldHamiltonian::calculate_energies(double time) {
     DEBUG_CHECK_CUDA_ASYNC_STATUS;
 }
 
-double CudaCrystalFieldHamiltonian::calculate_total_energy(double time) {
+jams::Real CudaCrystalFieldHamiltonian::calculate_total_energy(jams::Real time) {
     calculate_energies(time);
     return jams::scalar_field_reduce_cuda(energy_);
 }

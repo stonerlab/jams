@@ -36,23 +36,23 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   }
 
   struct RandomAnisotropyProperties {
-      double magnitude;
-      double sigma;
+      jams::Real magnitude;
+      jams::Real sigma;
   };
 
   std::vector<RandomAnisotropyProperties> properties;
   for (auto i = 0; i < settings["magnitude"].getLength(); ++i) {
     properties.push_back({
-                             double(settings["magnitude"][i]) * input_energy_unit_conversion_,
-            settings.exists("sigma") ? double(settings["sigma"][i]) : 0.0});
+                             static_cast<jams::Real>(jams::Real(settings["magnitude"][i]) * input_energy_unit_conversion_),
+            settings.exists("sigma") ? jams::Real(settings["sigma"][i]) : jams::Real(0)});
   }
 
   auto seed = jams::config_optional<unsigned>(settings, "seed", jams::instance().random_generator()());
   std::cout << "    seed " << seed << "\n";
 
   pcg32 generator(seed);
-  auto random_unit_vector = bind(uniform_random_sphere<pcg32>, generator);
-  auto random_normal_number = bind(std::normal_distribution<>(), generator);
+  auto random_unit_vector = std::bind(uniform_random_sphere<jams::Real, pcg32>, generator);
+  auto random_normal_number = std::bind(std::normal_distribution<jams::Real>(), generator);
 
   for (auto i = 0; i < size; ++i) {
     auto type = globals::lattice->lattice_site_material_id(i);
@@ -66,45 +66,17 @@ RandomAnisotropyHamiltonian::RandomAnisotropyHamiltonian(const libconfig::Settin
   }
 }
 
-double RandomAnisotropyHamiltonian::calculate_total_energy(double time) {
-  double total_energy = 0.0;
-  for (auto i = 0; i < energy_.size(); ++i) {
-    total_energy += calculate_energy(i, time);
-  }
-  return total_energy;
-}
 
-double RandomAnisotropyHamiltonian::calculate_energy(const int i, double time) {
+jams::Real RandomAnisotropyHamiltonian::calculate_energy(const int i, jams::Real time) {
   return -magnitude_[i] * pow2(direction_[i][0] * globals::s(i, 0) + direction_[i][1] * globals::s(i, 1) + direction_[i][2] * globals::s(i, 2));
 }
 
-double RandomAnisotropyHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                                const Vec3 &spin_final, double time) {
-  auto e_initial = -magnitude_[i] * pow2(direction_[i][0] * spin_initial[0] + direction_[i][1] * spin_initial[1] + direction_[i][2] * spin_initial[2]);
-  auto e_final =   -magnitude_[i] * pow2(direction_[i][0] * spin_final[0] + direction_[i][1] * spin_final[1] + direction_[i][2] * spin_final[2]);
 
-  return e_final - e_initial;
-}
-
-void RandomAnisotropyHamiltonian::calculate_energies(double time) {
-  for (auto i = 0; i < energy_.size(); ++i) {
-    energy_(i) = calculate_energy(i, time);
-  }
-}
-
-Vec3 RandomAnisotropyHamiltonian::calculate_field(const int i, double time) {
-  Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
+Vec3R RandomAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
+  Vec3R s_i = array_cast<jams::Real>(Vec3{globals::s(i,0), globals::s(i,1), globals::s(i,2)});
   return magnitude_[i] * dot(direction_[i], s_i) * direction_[i];
 }
 
-void RandomAnisotropyHamiltonian::calculate_fields(double time) {
-  for (auto i = 0; i < field_.size(0); ++i) {
-    auto field = calculate_field(i, time);
-    for (auto n = 0; n < 3; ++n) {
-      field_(i, n) = field[n];
-    }
-  }
-}
 
 void RandomAnisotropyHamiltonian::output_anisotropy_axes(std::ofstream &outfile) {
   outfile << std::setw(12) << "index";

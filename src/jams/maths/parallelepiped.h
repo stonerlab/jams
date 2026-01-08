@@ -2,83 +2,145 @@
 #define JAMS_PARALLELEPIPED_H
 
 #include <array>
+#include <jams/containers/vec3.h>
 
 namespace jams {
 namespace maths {
-using Vec3 = std::array<double, 3>;
 
-//
-// Returns the area of the parallelogram defined by the vectors a and b
-//
-double parallelogram_area(const Vec3& a, const Vec3& b);
+    template <typename T>
+    inline void require_fp()
+    {
+        static_assert(std::is_floating_point<T>::value,
+                      "This function requires a floating-point type");
+    }
 
-//
-// Returns the height of the parallelogram defined by the vectors a
-// and b where b is taken as the base.
-///
-/// \verbatim
-///
-///      +-----------+..^
-///     /           /   |
-///  b /           /    | height
-///   /           /     |
-///  +-----------+......v
-///        a
-/// \endverbatim
-double parallelogram_height(const Vec3& a, const Vec3& b);
+    ///
+    /// Returns the area of the parallelogram defined by the vectors a and b
+    ///
+    template <typename T>
+    inline T parallelogram_area(const Vec<T,3>& a, const Vec<T,3>& b)
+    {
+        require_fp<T>();
+        return norm(cross(a, b));
+    }
 
-//
-// Returns the smallest inradius of the parallelogram defined by the
-// vectors a and b. The inradius is the radius of the largest circle
-// which fits within the parallelogram.
-//
-// NOTE: The inradius is only the same as for the inscribed circle if
-// the parallelogram is a rhombus (i.e. equal length edges). For a
-// general parallelogram the circle will not touch all of the edges.
-//
-double parallelogram_inradius(const Vec3& a, const Vec3& b);
+    ///
+    /// Returns the height of the parallelogram defined by the vectors a
+    /// and b where b is taken as the base.
+    ///
+    /// \verbatim
+    ///
+    ///      +-----------+..^
+    ///     /           /   |
+    ///  b /           /    | height
+    ///   /           /     |
+    ///  +-----------+......v
+    ///        a
+    /// \endverbatim
+    template <typename T>
+    inline T parallelogram_height(const Vec<T,3>& a, const Vec<T,3>& b)
+    {
+        require_fp<T>();
+        return parallelogram_area(a, b) / norm(b);
+    }
 
-//
-// Returns the volume of the parallelepiped defined by the vectors
-// a, b and c.
-//
-double parallelepiped_volume(const Vec3& a, const Vec3& b, const Vec3& c);
+    ///
+    /// Returns the smallest inradius of the parallelogram defined by the
+    /// vectors a and b. The inradius is the radius of the largest circle
+    /// which fits within the parallelogram.
+    ///
+    /// NOTE: The inradius is only the same as for the inscribed circle if
+    /// the parallelogram is a rhombus (i.e. equal length edges). For a
+    /// general parallelogram the circle will not touch all of the edges.
+    ///
+    template <typename T>
+    inline T parallelogram_inradius(const Vec<T,3>& a, const Vec<T,3>& b)
+    {
+        require_fp<T>();
+        return T(0.5) * std::min(parallelogram_height(a, b),
+                                 parallelogram_height(b, a));
+    }
 
-///
-/// Returns the height of the parallelepiped which is the distance
-/// between the base (a, b) and the vector c
-///
-/// \verbatim
-///
-///        +------------+....\
-///       / \         /  \    \
-///      /    +-----------+....\
-///     /    /c     /    /      ^
-///    /    /      /    /       |
-///   +----/------+..../....\   | height
-/// b  \  /         \ /      \  |
-///      +-----------+........\ v
-///            a
-/// \endverbatim
-double parallelepiped_height(const Vec3& a, const Vec3& b, const Vec3& c);
+    ///
+    /// Returns the volume of the parallelepiped defined by the vectors
+    /// a, b and c.
+    ///
+    template <typename T>
+    inline T parallelepiped_volume(const Vec<T,3>& a,
+                                   const Vec<T,3>& b,
+                                   const Vec<T,3>& c)
+    {
+        require_fp<T>();
+        return std::abs(dot(cross(a, b), c));
+    }
 
-//
-// Returns the smallest inradius of the parallelepiped defined by the
-// vectors a, b and c. The inradius is the radius of the largest sphere
-// which fits within the parallelepiped.
-//
-// NOTE: The inradius is only the same as for the inscribed sphere if
-// the parallelogram is a rhombohedron (i.e. equal length edges and
-// angles). For a general parallelepiped the circle will not touch all
-// of the edges.
-//
-double parallelepiped_inradius(const Vec3& a, const Vec3& b, const Vec3& c);
+    ///
+    /// Returns the height of the parallelepiped which is the distance
+    /// between the base (a, b) and the vector c
+    ///
+    /// \verbatim
+    ///
+    ///        +------------+....\
+    ///       / \         /  \    \
+    ///      /    +-----------+....\
+    ///     /    /c     /    /      ^
+    ///    /    /      /    /       |
+    ///   +----/------+..../....\   | height
+    /// b  \  /         \ /      \  |
+    ///      +-----------+........\ v
+    ///            a
+    /// \endverbatim
+    template <typename T>
+    inline T parallelepiped_height(const Vec<T,3>& a,
+                                   const Vec<T,3>& b,
+                                   const Vec<T,3>& c)
+    {
+        require_fp<T>();
+        return parallelepiped_volume(a, b, c) / norm(cross(a, b));
+    }
 
-//
-// Returns the longest body diagonal of the parallelepiped defined by
-// vectors a, b and c
-//
-double parallelepiped_longest_diagonal(const Vec3& a, const Vec3& b, const Vec3& c);
+
+    ///
+    /// Returns the smallest inradius of the parallelepiped defined by the
+    /// vectors a, b and c. The inradius is the radius of the largest sphere
+    /// which fits within the parallelepiped.
+    ///
+    /// NOTE: The inradius is only the same as for the inscribed sphere if
+    /// the parallelogram is a rhombohedron (i.e. equal length edges and
+    /// angles). For a general parallelepiped the circle will not touch all
+    /// of the edges.
+    ///
+    template <typename T>
+    inline T parallelepiped_inradius(const Vec<T,3>& a,
+                                     const Vec<T,3>& b,
+                                     const Vec<T,3>& c)
+    {
+        require_fp<T>();
+        return T(0.5) * std::min({
+            parallelepiped_height(a, b, c),
+            parallelepiped_height(c, a, b),
+            parallelepiped_height(b, c, a)
+        });
+    }
+
+
+    ///
+    /// Returns the longest body diagonal of the parallelepiped defined by
+    /// vectors a, b and c
+    ///
+    template <typename T>
+    inline T parallelepiped_longest_diagonal(const Vec<T,3>& a,
+                                             const Vec<T,3>& b,
+                                             const Vec<T,3>& c)
+    {
+        require_fp<T>();
+        return std::max({
+            norm(a + b + c),
+            norm(-a + b + c),
+            norm(a - b + c),
+            norm(a + b - c)
+        });
+    }
 }
 }
 

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <string>
+#include <type_traits>
 #include <jams/interface/config.h>
 
 #include "jams/helpers/error.h"
@@ -53,9 +54,22 @@ void Solver::compute_fields() {
 
   if (hamiltonians_.size() == 1) return;
 
-  for (auto i = 1; i < hamiltonians_.size(); ++i) {
-    cblas_daxpy(globals::num_spins3, 1.0, hamiltonians_[i]->ptr_field(), 1, globals::h.data(), 1);
-  }
+  if constexpr (std::is_same_v<jams::Real, double>)
+  {
+    for (auto i = 1; i < hamiltonians_.size(); ++i) {
+      cblas_daxpy(globals::num_spins3, 1.0, 
+                      reinterpret_cast<const double*>(hamiltonians_[i]->ptr_field()), 1, 
+                      reinterpret_cast<double*>(globals::h.data()), 1);
+        }
+      } else
+      {
+        for (auto i = 1; i < hamiltonians_.size(); ++i) {
+          cblas_saxpy(globals::num_spins3, 1.0f, 
+                      reinterpret_cast<const float*>(hamiltonians_[i]->ptr_field()), 1, 
+                      reinterpret_cast<float*>(globals::h.data()), 1);
+        }
+      }
+
 }
 
 

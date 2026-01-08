@@ -163,11 +163,11 @@ __global__ void spectrum_r_ij(
     const int num_spins,
     const int num_k,
     const int num_freq,
-    const double qx,
-    const double qy,
-    const double qz,
-    const double* r_ij_dev,
-    const double* kvectors,
+    const jams::Real qx,
+    const jams::Real qy,
+    const jams::Real qz,
+    const jams::Real* r_ij_dev,
+    const jams::Real* kvectors,
     const cufftDoubleComplex* spin_frequencies,
     cufftDoubleComplex* skw)
 {
@@ -175,8 +175,8 @@ __global__ void spectrum_r_ij(
   const int w = blockIdx.y * blockDim.y + threadIdx.y;
 
   if (k < num_k && w < num_freq) {
-    const double unit_q[3] = {qx, qy, qz};
-    const double3 kvec = {kvectors[3 * k + 0], kvectors[3 * k + 1],
+    const jams::Real unit_q[3] = {qx, qy, qz};
+    const jams::Real3 kvec = {kvectors[3 * k + 0], kvectors[3 * k + 1],
                           kvectors[3 * k + 2]};
 
     cufftDoubleComplex s_iw[3] = {
@@ -187,7 +187,7 @@ __global__ void spectrum_r_ij(
     cufftDoubleComplex skw_sum = {0.0, 0.0};
     for (auto m = 0; m < 3; ++m) {
       for (auto n = 0; n < 3; ++n) {
-        const auto geom = (double(m == n) - unit_q[m] * unit_q[n]);
+        const auto geom = (jams::Real(m == n) - unit_q[m] * unit_q[n]);
         if (geom == 0.0) continue;
         // conj(s_imw) * s_jnw
         skw_sum.x += geom * (s_iw[m].x * s_iw[n].x + s_iw[m].y * s_iw[n].y);
@@ -202,7 +202,7 @@ __global__ void spectrum_r_ij(
           spin_frequencies[3 * (w * num_spins + j) + 2]};
 
 
-      const double r_ij[3] = {
+      const jams::Real r_ij[3] = {
           r_ij_dev[3*j + 0],
           r_ij_dev[3*j + 1],
           r_ij_dev[3*j + 2]};
@@ -212,7 +212,7 @@ __global__ void spectrum_r_ij(
 
       for (auto m = 0; m < 3; ++m) {
         for (auto n = 0; n < 3; ++n) {
-          const auto geom = (double(m == n) - unit_q[m] * unit_q[n]);
+          const auto geom = (jams::Real(m == n) - unit_q[m] * unit_q[n]);
           if (geom == 0.0) continue;
           // conj(s_imw) * s_jnw
 
@@ -224,7 +224,7 @@ __global__ void spectrum_r_ij(
         }
       }
 
-      double k_dot_r = kvec.x * r_ij[0] + kvec.y * r_ij[1] + kvec.z * r_ij[2];
+      jams::Real k_dot_r = kvec.x * r_ij[0] + kvec.y * r_ij[1] + kvec.z * r_ij[2];
       cufftDoubleComplex exp_kr = {cos(-2 * M_PI * k_dot_r),
                                    sin(-2 * M_PI * k_dot_r)};
 

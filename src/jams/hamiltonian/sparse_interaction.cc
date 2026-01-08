@@ -12,12 +12,11 @@
 SparseInteractionHamiltonian::SparseInteractionHamiltonian(const libconfig::Setting &settings, const unsigned int size)
     : Hamiltonian(settings, size),
       sparse_matrix_builder_(3 * size, 3 * size),
-      s_float_(size, 3),
-      h_float_(size, 3)
-    {
+      s_float_(size, 3)
+{
 }
 
-void SparseInteractionHamiltonian::insert_interaction_scalar(const int i, const int j, const double &value) {
+void SparseInteractionHamiltonian::insert_interaction_scalar(const int i, const int j, const jams::Real &value) {
   assert(!is_finalized_);
   if (value == 0.0) {
     return;
@@ -27,7 +26,7 @@ void SparseInteractionHamiltonian::insert_interaction_scalar(const int i, const 
   }
 }
 
-void SparseInteractionHamiltonian::insert_interaction_tensor(const int i, const int j, const Mat3 &value) {
+void SparseInteractionHamiltonian::insert_interaction_tensor(const int i, const int j, const Mat3R &value) {
   assert(!is_finalized_);
   for (auto m = 0; m < 3; ++m) {
     for (auto n = 0; n < 3; ++n) {
@@ -38,14 +37,13 @@ void SparseInteractionHamiltonian::insert_interaction_tensor(const int i, const 
   }
 }
 
-void SparseInteractionHamiltonian::calculate_fields(double time) {
+void SparseInteractionHamiltonian::calculate_fields(jams::Real time) {
   assert(is_finalized_);
   #if HAS_CUDA
     if (jams::instance().mode() == jams::Mode::GPU) {
 #if DO_MIXED_PRECISION
       cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), cuda_stream_.get());
-      interaction_matrix_.multiply_gpu(s_float_, h_float_, jams::instance().cusparse_handle(), cuda_stream_.get());
-      cuda_array_float_to_double(h_float_.elements(), h_float_.device_data(), field_.device_data(), cuda_stream_.get());
+      interaction_matrix_.multiply_gpu(s_float_, field_, jams::instance().cusparse_handle(), cuda_stream_.get());
 #else
       interaction_matrix_.multiply_gpu(globals::s, field_, jams::instance().cusparse_handle(), cuda_stream_.get());
 #endif
@@ -55,9 +53,9 @@ void SparseInteractionHamiltonian::calculate_fields(double time) {
   interaction_matrix_.multiply(globals::s, field_);
 }
 
-Vec3 SparseInteractionHamiltonian::calculate_field(const int i, double time) {
+Vec3R SparseInteractionHamiltonian::calculate_field(const int i, jams::Real time) {
   assert(is_finalized_);
-  Vec3 field;
+  Vec3R field;
 
   #if HAS_OMP
   #pragma omp parallel for default(none) shared(globals::s, i, field)
@@ -68,12 +66,12 @@ Vec3 SparseInteractionHamiltonian::calculate_field(const int i, double time) {
   return field;
 }
 
-void SparseInteractionHamiltonian::calculate_energies(double time) {
+void SparseInteractionHamiltonian::calculate_energies(jams::Real time) {
   assert(is_finalized_);
   #if HAS_CUDA
   if (jams::instance().mode() == jams::Mode::GPU) {
     calculate_fields(time);
-    cuda_array_dot_product(globals::num_spins, -0.5, field_.device_data(), globals::s.device_data(), energy_.device_data(), cuda_stream_.get());
+    cuda_array_dot_product(globals::num_spins, jams::Real(-0.5), globals::s.device_data(), field_.device_data(), energy_.device_data(), cuda_stream_.get());
     return;
   }
   #endif
@@ -83,8 +81,8 @@ void SparseInteractionHamiltonian::calculate_energies(double time) {
   }
 }
 
-double SparseInteractionHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
-                                                                 const Vec3 &spin_final, double time) {
+jams::Real SparseInteractionHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
+                                                                 const Vec3 &spin_final, jams::Real time) {
   assert(is_finalized_);
   auto field = calculate_field(i, time);
   auto e_initial = -dot(spin_initial, field);
@@ -92,14 +90,14 @@ double SparseInteractionHamiltonian::calculate_energy_difference(int i, const Ve
   return e_final - e_initial;
 }
 
-double SparseInteractionHamiltonian::calculate_energy(const int i, double time) {
+jams::Real SparseInteractionHamiltonian::calculate_energy(const int i, jams::Real time) {
   assert(is_finalized_);
   Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
   auto field = calculate_field(i, time);
   return -0.5 * dot(s_i, field);
 }
 
-double SparseInteractionHamiltonian::calculate_total_energy(double time) {
+jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time) {
   assert(is_finalized_);
 
 #if HAS_CUDA
@@ -111,7 +109,7 @@ double SparseInteractionHamiltonian::calculate_total_energy(double time) {
 #endif
 
 
-  double total_energy = 0.0;
+  jams::Real total_energy = 0.0;
   calculate_fields(time);
   #if HAS_OMP
   #pragma omp parallel for default(none) shared(num_spins, s, field_) reduction(+:total_energy)

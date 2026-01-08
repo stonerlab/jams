@@ -56,12 +56,45 @@ void cuda_array_dot_product(
 	cudaStream_t stream
 	);
 
+// Calculates the dot product of two (n,3) arrays along the second axis
+void cuda_array_dot_product(
+	unsigned int n,
+	const float A,
+	const float * x,
+	const float * y,
+	float * out,
+	cudaStream_t stream
+	);
+
+// Calculates the dot product of two (n,3) arrays along the second axis
+void cuda_array_dot_product(
+	unsigned int n,
+	const float A,
+	const double * x,
+	const float * y,
+	float * out,
+	cudaStream_t stream
+	);
+
+// Calculates the dot product of two (n,3) arrays along the second axis
+void cuda_array_dot_product(
+	unsigned int n,
+	const float A,
+	const float * x,
+	const double * y,
+	float * out,
+	cudaStream_t stream
+	);
+
+template<typename T>
 __global__ void cuda_array_sum_across(
 	unsigned int num_input_arrays,
 	unsigned int num_elements,
-	double** inputs,
-	double* out
+	T** inputs,
+	T* out
 	);
+
+float cuda_reduce_array(const float* dev_ptr, const size_t size, cudaStream_t stream = nullptr);
 
 double cuda_reduce_array(const double* dev_ptr, const size_t size, cudaStream_t stream = nullptr);
 

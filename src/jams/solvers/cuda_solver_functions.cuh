@@ -8,8 +8,8 @@
 #include "jams/cuda/cuda_device_vector_ops.h"
 
 __device__ __forceinline__
-void omega_llg(const double s[3], const double h[3],
-               const double gyro, const double alpha,
+void omega_llg(const double s[3], const jams::Real h[3],
+               const jams::Real gyro, const jams::Real alpha,
                double result[3])
 {
 
@@ -19,8 +19,8 @@ void omega_llg(const double s[3], const double h[3],
 }
 
 __device__ __forceinline__
-double3 omega_llg(const double3& s, const double3& h,
-               const double gyro, const double alpha)
+double3 omega_llg(const double3& s, const jams::Real3& h,
+               const jams::Real gyro, const jams::Real alpha)
 {
   return {
     gyro * (h.x + alpha * (s.y * h.z - s.z * h.y)),
@@ -45,7 +45,7 @@ void project_to_tangent(
 __device__ __forceinline__
 double3 project_to_tangent(const double3& A, const double3& S)
 {
-  const double S_dot_A = dot(S, A);
+  const double S_dot_A = S.x*A.x + S.y*A.y + S.z*A.z;
   return {
   A.x - S_dot_A * S.x,
     A.y - S_dot_A * S.y,
@@ -191,8 +191,8 @@ __device__ inline void dexp_inv_so3(const double phi[3], const double v[3], doub
 __global__ inline void cuda_llg_noise_step_rodrigues_kernel(
   double* s_inout_dev,
   const jams::Real* noise_dev,
-  const double* gyro_dev,
-  const double* alpha_dev,
+  const jams::Real* gyro_dev,
+  const jams::Real* alpha_dev,
   unsigned num_spins,
   double dt)
 {
@@ -204,7 +204,7 @@ __global__ inline void cuda_llg_noise_step_rodrigues_kernel(
   double s[3] = {s_inout_dev[base+0], s_inout_dev[base+1], s_inout_dev[base+2]};
 
   // Treat white noise as an effective field for this substep
-  double h[3] = {
+  jams::Real h[3] = {
     noise_dev[base+0],
     noise_dev[base+1],
     noise_dev[base+2]
@@ -225,8 +225,8 @@ __global__ inline void cuda_llg_noise_step_rodrigues_kernel(
 __global__ inline void cuda_llg_noise_step_cayley_kernel(
   double* __restrict__ s_inout_dev,
   const jams::Real* __restrict__ noise_dev,
-  const double* __restrict__ gyro_dev,
-  const double* __restrict__ alpha_dev,
+  const jams::Real* __restrict__ gyro_dev,
+  const jams::Real* __restrict__ alpha_dev,
   unsigned num_spins,
   double dt)
 {
@@ -238,7 +238,7 @@ __global__ inline void cuda_llg_noise_step_cayley_kernel(
   double s[3] = {s_inout_dev[base+0], s_inout_dev[base+1], s_inout_dev[base+2]};
 
   // Treat white noise as an effective field for this substep
-  double h[3] = {
+  jams::Real h[3] = {
     noise_dev[base+0],
     noise_dev[base+1],
     noise_dev[base+2]

@@ -164,7 +164,7 @@ ExchangeHamiltonian::ExchangeHamiltonian(const libconfig::Setting &settings, con
     auto j = neighbour_list_[n].first[1];
     auto Jij = interaction_prefactor_ * input_energy_unit_conversion_ * neighbour_list_[n].second;
     if (max_abs(Jij) > energy_cutoff_ * input_energy_unit_conversion_ ) {
-      insert_interaction_tensor(i, j, Jij);
+      insert_interaction_tensor(i, j, matrix_cast<jams::Real>(Jij));
     }
   }
 
