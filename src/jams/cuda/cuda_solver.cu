@@ -15,9 +15,14 @@ void CudaSolver::compute_fields() {
   if (hamiltonians_.empty()) return;
 
   for (auto& hh : hamiltonians_) {
+    wait_on_spin_barrier_event(hh->get_stream());
     hh->calculate_fields(this->time());
+    hh->record_done();
   }
-  cudaDeviceSynchronize();
+
+  for (auto& hh : hamiltonians_) {
+    hh->wait_on(jams::instance().cuda_master_stream().get());
+  }
 
   const int num_input_arrays = static_cast<int>(hamiltonians_.size());
   const int num_elements = globals::h.elements(); // == globals::num_spins3

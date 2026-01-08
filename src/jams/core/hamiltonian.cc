@@ -158,5 +158,9 @@ Hamiltonian::Hamiltonian(const libconfig::Setting &settings, const unsigned int 
   std::cout << "  " << name() << " hamiltonian\n";
 
 
+#ifdef HAS_CUDA
+  cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+#endif
 
 }

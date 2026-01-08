@@ -43,7 +43,7 @@ CudaThermostatClassical::CudaThermostatClassical(const jams::Real &temperature, 
 
 void CudaThermostatClassical::update() {
   if (this->temperature() == 0) {
-    CHECK_CUDA_STATUS(cudaMemsetAsync(noise_.device_data(), 0, noise_.elements()*sizeof(double),jams::instance().cuda_master_stream().get()));
+    CHECK_CUDA_STATUS(cudaMemsetAsync(noise_.device_data(), 0, noise_.bytes(),jams::instance().cuda_master_stream().get()));
     return;
   }
 

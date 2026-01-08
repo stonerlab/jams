@@ -30,9 +30,7 @@ class CudaRandomAnisotropyHamiltonian : public RandomAnisotropyHamiltonian {
 
     private:
       unsigned   dev_blocksize_ = 128;
-
-      CudaStream dev_stream_;
-      thrust::device_vector<double> dev_magnitude_;
+  thrust::device_vector<double> dev_magnitude_;
       thrust::device_vector<double> dev_direction_;
 };
 

@@ -52,8 +52,6 @@ public:
     }
 
 private:
-    CudaStream cuda_stream_;
-
     jams::MultiArray<double, 2> positions_;
 
     double surface_cutoff_;

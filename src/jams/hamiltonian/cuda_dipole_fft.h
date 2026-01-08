@@ -47,8 +47,6 @@ class CudaDipoleFFTHamiltonian : public Hamiltonian {
         jams::MultiArray<jams::cufftComplexLo, 1>   kspace_s_;
         jams::MultiArray<jams::cufftComplexLo, 1>   kspace_h_;
 
-        CudaStream dev_stream_;
-
         // size is num_sites, num_sites, num_tensor_components, num_kpoints
         jams::MultiArray<jams::cufftComplexLo, 3> kspace_tensors_;
 

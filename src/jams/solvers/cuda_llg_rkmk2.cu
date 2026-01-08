@@ -8,136 +8,7 @@
 #include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
-
-
-__device__ void rodrigues_rotate(const double phi[3], const double S[3], double result[3])
-{
-  const double th2 = norm_squared(phi);
-  if (th2 < 1e-24)
-  {
-    // exp([phi])S ≈ S + phi×S + 1/2 phi×(phi×S)
-    double c1[3];
-    cross_product(phi, S, c1);
-    double c2[3];
-    cross_product(phi, c1, c2);
-
-    for (auto n = 0; n < 3; ++n)
-    {
-      result[n] = S[n] + c1[n] + c2[n] * 0.5;
-    }
-    return;
-  }
-
-  double th = sqrt(th2);
-  const double s = sin(th);
-  const double c = cos(th);
-  // double s, c;
-  // sincos(th, &s, &c);
-
-  double k[3];
-  for (auto n = 0; n < 3; ++n)
-  {
-    k[n] = phi[n] * (1.0 / th);
-  }
-
-  // Rv = v c + (k×v) s + k (k·v)(1-c)
-  double kxS[3];
-  cross_product(k, S, kxS);
-  const double kdotS = dot(k, S);
-  for (auto n = 0; n < 3; ++n)
-  {
-    result[n] = S[n] * c + kxS[n] * s + kdotS * (1.0 - c) * k[n];
-  }
-  return;
-}
-
-
-// dexp^{-1}_phi(v) for so(3) in vector form.
-// Uses: v - 1/2 phi×v + beta(th) phi×(phi×v)
-// beta(th) = (1/th^2) * (1 - (th/2) cot(th/2))
-__device__ void dexp_inv_so3(const double phi[3], const double v[3], double result[3]) {
-  const double th2 = norm_squared(phi);
-  if (th2 < 1e-24) {
-    // dexp^{-1}_phi(v) = v - 1/2 (phi×v) + 1/12 (phi×(phi×v)) + O(||phi||^3)
-    double c1[3];
-    cross_product(phi, v, c1);
-    double c2[3];
-    cross_product(phi, c1, c2);
-
-    for (auto n = 0; n < 3; ++n) {
-      result[n] = v[n] - c1[n] * 0.5 + c2[n] * (1.0/12.0);
-    }
-    return;
-  }
-
-  const double th = sqrt(th2);
-  const double half = 0.5 * th;
-  const double s = sin(half);
-  const double c = cos(half);
-
-  // double s, c;
-  // sincos(half, &s, &c);
-  const double cot_half = c / s;
-  const double beta = (1.0/th2) * (1.0 - half * cot_half);
-
-  double c1[3];
-  cross_product(phi, v, c1);
-  double c2[3];
-  cross_product(phi, c1, c2);
-
-  for (auto n = 0; n < 3; ++n) {
-    result[n] = v[n] - c1[n] * 0.5 + c2[n] * beta;
-  }
-  return;
-}
-
-__device__ __forceinline__
-void omega_llg(const double s[3], const double h[3],
-               const double gyro, const double alpha,
-               double omega[3])
-{
-  // omega = gyro * ( H + alpha * (S×H) )
-  double sxh[3];
-  cross_product(s, h, sxh);
-  omega[0] = gyro * (h[0] + alpha * sxh[0]);
-  omega[1] = gyro * (h[1] + alpha * sxh[1]);
-  omega[2] = gyro * (h[2] + alpha * sxh[2]);
-}
-
-__global__ void cuda_llg_rkmk2_kernel_noise_half_step(
-  double* s_inout_dev,
-  const jams::Real* noise_dev,
-  const double* gyro_dev,
-  const double* alpha_dev,
-  unsigned num_spins,
-  double dt)
-{
-  const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx >= num_spins) return;
-  const unsigned base = 3u * idx;
-
-  // Spin
-  double s[3] = {s_inout_dev[base+0], s_inout_dev[base+1], s_inout_dev[base+2]};
-
-  // Treat white noise as an effective field for this substep
-  double h[3] = {
-    noise_dev[base+0],
-    noise_dev[base+1],
-    noise_dev[base+2]
-  };
-
-  double w[3];
-  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], w);
-
-  double phi[3] = {dt * w[0], dt * w[1], dt * w[2]};
-  double out[3];
-  rodrigues_rotate(phi, s, out);
-
-  s_inout_dev[base+0] = out[0];
-  s_inout_dev[base+1] = out[1];
-  s_inout_dev[base+2] = out[2];
-}
-
+#include "jams/solvers/cuda_solver_functions.cuh"
 
 __global__ void cuda_llg_rkmk2_kernel_step_1
 (
@@ -167,13 +38,8 @@ __global__ void cuda_llg_rkmk2_kernel_step_1
     s[n] = s_init_dev[base + n];
   }
 
-  double sxh[3];
-  cross_product(s, h, sxh);
-
   double omega[3];
-  for (auto n = 0; n < 3; ++n) {
-    omega[n] = gyro_dev[idx] * (h[n] + alpha_dev[idx] * sxh[n]);
-  }
+  omega_llg(s, h, gyro_dev[idx], alpha_dev[idx], omega);
 
   double phi[3];
   for (auto n = 0; n < 3; ++n) {
@@ -297,7 +163,7 @@ void CUDALLGRKMK2Solver::run()
 
   update_thermostat();
 
-  cuda_llg_rkmk2_kernel_noise_half_step<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
+  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.device_data(),
     thermostat_->device_data(),
     globals::gyro.device_data(),
@@ -351,7 +217,7 @@ void CUDALLGRKMK2Solver::run()
 
   update_thermostat();
 
-  cuda_llg_rkmk2_kernel_noise_half_step<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
+  cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
   globals::s.device_data(),
   thermostat_->device_data(),
   globals::gyro.device_data(),

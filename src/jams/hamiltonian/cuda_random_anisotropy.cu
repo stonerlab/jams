@@ -20,7 +20,7 @@ CudaRandomAnisotropyHamiltonian::CudaRandomAnisotropyHamiltonian(const libconfig
 
 void CudaRandomAnisotropyHamiltonian::calculate_fields(double time) {
   const unsigned num_blocks = (globals::num_spins+dev_blocksize_-1)/dev_blocksize_;
-  random_anisotropy_cuda_field_kernel<<<num_blocks, dev_blocksize_, 0, dev_stream_.get()>>>(
+  random_anisotropy_cuda_field_kernel<<<num_blocks, dev_blocksize_, 0, cuda_stream_.get()>>>(
           globals::num_spins,
           globals::s.device_data(),
           dev_direction_.data().get(),
@@ -32,7 +32,7 @@ void CudaRandomAnisotropyHamiltonian::calculate_fields(double time) {
 
 void CudaRandomAnisotropyHamiltonian::calculate_energies(double time) {
   const unsigned num_blocks = (globals::num_spins+dev_blocksize_-1)/dev_blocksize_;
-  random_anisotropy_cuda_energy_kernel<<<num_blocks, dev_blocksize_, 0, dev_stream_.get()>>>(
+  random_anisotropy_cuda_energy_kernel<<<num_blocks, dev_blocksize_, 0, cuda_stream_.get()>>>(
           globals::num_spins,
           globals::s.device_data(),
           dev_direction_.data().get(),

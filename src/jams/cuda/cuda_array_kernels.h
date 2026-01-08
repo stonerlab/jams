@@ -5,9 +5,6 @@
 
 #ifdef HAS_CUDA
 #include <cuda_runtime.h>
-#include <thrust/device_ptr.h>
-#include <thrust/reduce.h>
-
 #include "jams/cuda/cuda_common.h"
 
 void cuda_array_elementwise_scale(
@@ -48,6 +45,17 @@ void cuda_array_float_to_double(
 	cudaStream_t stream     // cuda stream
 );
 
+
+// Calculates the dot product of two (n,3) arrays along the second axis
+void cuda_array_dot_product(
+	unsigned int n,
+	const double A,
+	const double * x,
+	const double * y,
+	double * out,
+	cudaStream_t stream
+	);
+
 __global__ void cuda_array_sum_across(
 	unsigned int num_input_arrays,
 	unsigned int num_elements,
@@ -55,9 +63,7 @@ __global__ void cuda_array_sum_across(
 	double* out
 	);
 
-template <typename T>
-inline T cuda_reduce_array(T* dev_ptr, const size_t size) {
-  return thrust::reduce(thrust::device_ptr<T>(dev_ptr), thrust::device_ptr<T>(dev_ptr) + size);
-}
+double cuda_reduce_array(const double* dev_ptr, const size_t size, cudaStream_t stream = nullptr);
+
 #endif
 #endif  // JAMS_CUDA_ARRAY_KERNELS_H

@@ -125,7 +125,6 @@ CudaDipoleFFTHamiltonian::~CudaDipoleFFTHamiltonian() {
 
 CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &settings, const unsigned int size)
 : Hamiltonian(settings, size),
-  dev_stream_(),
   r_cutoff_(0),
   distance_tolerance_(jams::defaults::lattice_tolerance),
   kspace_size_({0, 0, 0}),
@@ -304,21 +303,13 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
 
   cudaMemcpyToSymbol(mu_const, mus_float_.device_data(), mus_float_.bytes(), 0, cudaMemcpyHostToDevice);
 
-  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_s_rspace_to_kspace, dev_stream_.get()));
-  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, dev_stream_.get()));
+  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_s_rspace_to_kspace, cuda_stream_.get()));
+  CHECK_CUFFT_STATUS(cufftSetStream(cuda_fft_h_kspace_to_rspace, cuda_stream_.get()));
 }
 
 double CudaDipoleFFTHamiltonian::calculate_total_energy(double time) {
-  calculate_fields(time);
-
-  double e_total = 0.0;
-  for (auto i = 0; i < globals::num_spins; ++i) {
-      e_total += (  globals::s(i,0)*field_(i, 0)
-                  + globals::s(i,1)*field_(i, 1)
-                  + globals::s(i,2)*field_(i, 2) );
-  }
-
-  return -0.5*e_total;
+  calculate_energies(time);
+  return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }
 
 double CudaDipoleFFTHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i, double time) {
@@ -336,7 +327,8 @@ double CudaDipoleFFTHamiltonian::calculate_energy_difference(
 }
 
 void CudaDipoleFFTHamiltonian::calculate_energies(double time) {
-  cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, dev_stream_.get());
+  calculate_fields(time);
+  cuda_array_dot_product(globals::num_spins, -0.5, globals::s.device_data(), field_.device_data(), energy_.device_data(), cuda_stream_.get());
 }
 
 Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i, double time) {
@@ -346,7 +338,7 @@ Vec3 CudaDipoleFFTHamiltonian::calculate_field(const int i, double time) {
 void CudaDipoleFFTHamiltonian::calculate_fields(double time) {
 
 #if DO_MIXED_PRECISION
-  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), dev_stream_.get());
+  cuda_array_double_to_float(globals::s.elements(), globals::s.device_data(), s_float_.device_data(), cuda_stream_.get());
   CHECK_CUFFT_STATUS(cufftExecR2C(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftReal*>(s_float_.device_data()), kspace_s_.device_data()));
 #else
   CHECK_CUFFT_STATUS(cufftExecD2Z(cuda_fft_s_rspace_to_kspace, reinterpret_cast<cufftDoubleReal*>(globals::s.device_data()), kspace_s_.device_data()));
@@ -358,17 +350,17 @@ const dim3 block_size = {64, 1, 1};
 const dim3 grid_size = cuda_grid_size(block_size, {fft_size, num_pos, 1});
 
 
-cuda_dipole_convolution<<<grid_size, block_size, 0, dev_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.device_data());
+cuda_dipole_convolution<<<grid_size, block_size, 0, cuda_stream_.get()>>>(fft_size, num_pos, kspace_s_.device_data(), kspace_tensors_.device_data(), kspace_h_.device_data());
 DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
 #ifdef DO_MIXED_PRECISION
   CHECK_CUFFT_STATUS(cufftExecC2R(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftReal*>(h_float_.device_data())));
-  cuda_array_float_to_double(h_float_.elements(), h_float_.device_data(), field_.device_data(), dev_stream_.get());
+  cuda_array_float_to_double(h_float_.elements(), h_float_.device_data(), field_.device_data(), cuda_stream_.get());
 #else
   CHECK_CUFFT_STATUS(cufftExecZ2D(cuda_fft_h_kspace_to_rspace, kspace_h_.device_data(), reinterpret_cast<cufftDoubleReal*>(field_.device_data())));
 #endif
 
-  // cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, dev_stream_.get());
+  // cuda_array_elementwise_scale(globals::num_spins, 3, globals::mus.device_data(), 1.0, field_.device_data(), 1, field_.device_data(), 1, cuda_stream_.get());
 }
 
 // Generates the dipole tensor between unit cell positions i and j and appends

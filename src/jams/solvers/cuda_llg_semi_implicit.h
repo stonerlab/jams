@@ -18,10 +18,7 @@ public:
 
     std::string name() const override { return "llg-simp-gpu"; }
 private:
-    CudaStream dev_stream_;
     jams::MultiArray<double, 2> s_init_;
-    jams::MultiArray<double, 2> s_pred_;
-
 };
 
 #endif

@@ -16,7 +16,6 @@ public:
 
     void   calculate_fields(double time) override;
 private:
-    cudaStream_t dev_stream_ = nullptr;
     unsigned int dev_blocksize_;
 };
 

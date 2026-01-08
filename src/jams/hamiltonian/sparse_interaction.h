@@ -49,10 +49,6 @@ private:
     jams::SparseMatrix<jams::Real> interaction_matrix_; // the sparse matrix to be used in calculations
     jams::MultiArray<float, 2> s_float_;
     jams::MultiArray<float, 2> h_float_;
-
-    #if HAS_CUDA
-    CudaStream cusparse_stream_; // cuda stream to run in
-    #endif
 };
 
 #endif //JAMS_HAMILTONIAN_SPARSE_INTERACTION_H

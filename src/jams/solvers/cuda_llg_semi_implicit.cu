@@ -7,78 +7,16 @@
 #include "jams/common.h"
 #include "jams/core/globals.h"
 #include "jams/cuda/cuda_device_vector_ops.h"
-
-__device__ __forceinline__
-void project_to_tangent(
-  const double A[3],
-  const double S[3],
-  double result[3])
-{
-  const double S_dot_A = dot(S, A);
-  #pragma unroll
-  for (auto n = 0; n < 3; ++n) {
-    result[n] = A[n] - S_dot_A * S[n];
-  }
-}
+#include "jams/solvers/cuda_solver_functions.cuh"
 
 
-__device__ __forceinline__
-void cayley(const double A[3],
-            const double S[3],
-            double result[3])
-{
-  // AxS
-  double AxS[3];
-  cross_product(A, S,AxS);
-
-  // A x (A x S)
-  double AxAxS[3];
-  cross_product(A, AxS,AxAxS);
-
-  const double scale = 1.0 / (1.0 + 0.25 * norm_squared(A));
-
-  #pragma unroll
-  for (auto n = 0; n < 3; ++n) {
-    result[n] = S[n] + (AxS[n]+ 0.5 * AxAxS[n]) * scale;
-  }
-}
-
-
-__global__ void cuda_llg_semi_implicit_kernel_mid_step(
-  const unsigned num_spins,
-  const double* __restrict__ s_init_dev,
-  const double* __restrict__ s_pred_dev,
-  double* __restrict__ s_mid_dev
-)
-{
-  const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx >= num_spins) return;
-
-  const unsigned base = 3u * idx;
-
-  double s[3];
-  for (auto n = 0; n < 3; ++n) {
-    s[n] = s_init_dev[base + n] + s_pred_dev[base + n];
-  }
-
-  const double inv_norm = rsqrt(norm_squared(s));
-
-  for (auto n = 0; n < 3; ++n) {
-    s_mid_dev[base + n] = s[n] * inv_norm;
-  }
-}
-
-
-__global__ void cuda_llg_semi_implicit_kernel_step
+__global__ void cuda_llg_semi_implicit_pred_kernel
 (
-  const double * s_init_dev, // S_n
-  const double * s_step_dev, // S at this step (S_n for predictor, (S_n + S_n+1) / 2 for corrector)
-  double * s_out_dev,        // S_n+1
-  const double * h_step_dev,  // field at the same time as s_step
-  const jams::Real * noise_init_dev, // noise at the same time as s_init
-  const double * gyro_dev,
-  const double * mus_dev,
-  const double * alpha_dev,
+  double * __restrict__ s_inout_dev, // in: S_n, out: (S_n + S'_n+1) / 2
+  const double * __restrict__ h_dev,
+  const double * __restrict__ gyro_dev,
+  const double * __restrict__ mus_dev,
+  const double * __restrict__ alpha_dev,
   const unsigned dev_num_spins,
   const double dt
 )
@@ -88,38 +26,91 @@ __global__ void cuda_llg_semi_implicit_kernel_step
 
   const unsigned int base = 3u * idx;
 
-  double h[3];
-  for (auto n = 0; n < 3; ++n) {
-    h[n] = ((h_step_dev[base + n] / mus_dev[idx]) + noise_init_dev[base + n]);
-  }
+  const double inv_mus = 1.0 / mus_dev[idx];
 
-  double s[3];
-  for (auto n = 0; n < 3; ++n) {
-    s[n] = s_step_dev[base + n];
-  }
+  const double3 h = {
+    h_dev[base + 0] * inv_mus,
+    h_dev[base + 1] * inv_mus,
+    h_dev[base + 2] * inv_mus
+  };
 
-  double sxh[3];
-  cross_product(s, h, sxh);
+  const double3 s = {
+    s_inout_dev[base + 0],
+    s_inout_dev[base + 1],
+    s_inout_dev[base + 2]
+  };
 
-  double A[3];
-  for (auto n = 0; n < 3; ++n) {
-    A[n] = dt * gyro_dev[idx] * (h[n] + alpha_dev[idx] * sxh[n]);
-  }
+  double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
+  omega.x *= dt;
+  omega.y *= dt;
+  omega.z *= dt;
+  // double3 A = {dt * omega.x,dt*omega.y,dt*omega.z };
 
-  double A_perp[3];
-  project_to_tangent(A, s, A_perp);
+  omega = project_to_tangent(omega, s);
 
-  double s_init[3];
-  for (auto n = 0; n < 3; ++n) {
-    s_init[n] = s_init_dev[base + n];
-  }
+  double3 s_pred = cayley_rotate(omega, s);
 
-  double s_out[3];
-  cayley(A_perp, s_init, s_out);
+  // Make the midpoint estimate
+  // no need to multiply by 1/2 because we normalise below
+  s_pred.x += s.x;
+  s_pred.y += s.y;
+  s_pred.z += s.z;
 
-  for (auto n = 0; n < 3; ++n) {
-    s_out_dev[base + n] = s_out[n];
-  }
+  double inv_norm = rnorm3d(s_pred.x, s_pred.y, s_pred.z);
+
+  // Write (S_{n} + S'_{n+1}) / 2 to memory
+  s_inout_dev[base + 0] = s_pred.x * inv_norm;
+  s_inout_dev[base + 1] = s_pred.y * inv_norm;
+  s_inout_dev[base + 2] = s_pred.z * inv_norm;
+}
+
+__global__ void cuda_llg_semi_implicit_corr_kernel
+(
+  double * __restrict__ s_inout_dev, // in: (S_n + S'_{n+1}) / 2 out: S_{n+1}
+  const double * __restrict__ s_init_dev, // S_n
+  const double * __restrict__ h_dev,  // field at the same time as s_step
+  const double * __restrict__ gyro_dev,
+  const double * __restrict__ mus_dev,
+  const double * __restrict__ alpha_dev,
+  const unsigned dev_num_spins,
+  const double dt
+)
+{
+  const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= dev_num_spins) return;
+
+  const unsigned int base = 3u * idx;
+
+  const double inv_mus = 1.0 / mus_dev[idx];
+
+  const double3 h = {
+    h_dev[base + 0] * inv_mus,
+    h_dev[base + 1] * inv_mus,
+    h_dev[base + 2] * inv_mus
+  };
+
+  const double3 s = {
+    s_inout_dev[base + 0],
+    s_inout_dev[base + 1],
+    s_inout_dev[base + 2]
+  };
+
+  const double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
+
+  double3 A = {dt * omega.x,dt*omega.y,dt*omega.z };
+  A = project_to_tangent(A, s);
+
+  double3 s_out = {
+    s_init_dev[base + 0],
+    s_init_dev[base + 1],
+    s_init_dev[base + 2]
+  };
+
+  s_out = cayley_rotate(A, s_out);
+
+  s_inout_dev[base + 0] = s_out.x;
+  s_inout_dev[base + 1] = s_out.y;
+  s_inout_dev[base + 2] = s_out.z;
 }
 
 
@@ -145,7 +136,6 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
 
   std::cout << "done\n";
 
-  s_pred_.resize(globals::num_spins, 3);
   s_init_.resize(globals::num_spins, 3);
   for (auto i = 0; i < globals::num_spins; ++i) {
     for (auto j = 0; j < 3; ++j) {
@@ -157,56 +147,68 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
 
 void CUDALLGSemiImplictSolver::run()
 {
+  double t0 = time_;
+  const double half_dt = 0.5 * step_size_;
+
   const dim3 block_size = {64, 1, 1};
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
-  cudaMemcpyAsync(s_init_.device_data(),           // void *               dst
-                  globals::s.device_data(),               // const void *         src
-                  globals::s.bytes(),   // size_t               count
-                  cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-                  jams::instance().cuda_master_stream().get());                   // device stream
+  update_thermostat();
 
+  cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
+  globals::s.device_data(),
+  thermostat_->device_data(),
+  globals::gyro.device_data(),
+  globals::alpha.device_data(),
+  globals::num_spins, half_dt);
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+  record_spin_barrier_event();
+
+  cudaMemcpyAsync(s_init_.device_data(),           // void *               dst
+                globals::s.device_data(),               // const void *         src
+                globals::s.bytes(),   // size_t               count
+                cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
+                jams::instance().cuda_master_stream().get());                   // device stream
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+
+  compute_fields();
+
+  cuda_llg_semi_implicit_pred_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
+    globals::s.device_data(),
+    globals::h.device_data(),
+    globals::gyro.device_data(),
+    globals::mus.device_data(),
+    globals::alpha.device_data(),
+    globals::num_spins, step_size_
+    );
+  DEBUG_CHECK_CUDA_ASYNC_STATUS
+  record_spin_barrier_event();
+
+  double mid_time_step = 0.5 * step_size_;
+  time_ = t0 + mid_time_step;
+  compute_fields();
+
+  cuda_llg_semi_implicit_corr_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
+  globals::s.device_data(),
+  s_init_.device_data(),
+    globals::h.device_data(),
+    globals::gyro.device_data(),
+    globals::mus.device_data(),
+    globals::alpha.device_data(),
+    globals::num_spins, step_size_
+    );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   update_thermostat();
-  compute_fields();
 
-  cuda_llg_semi_implicit_kernel_step<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    s_init_.device_data(),
-    globals::s.device_data(),
-    s_pred_.device_data(),
-    globals::h.device_data(),
-    thermostat_->device_data(),
-    globals::gyro.device_data(),
-    globals::mus.device_data(),
-    globals::alpha.device_data(),
-    globals::num_spins, step_size_
-    );
+  cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
+  globals::s.device_data(),
+  thermostat_->device_data(),
+  globals::gyro.device_data(),
+  globals::alpha.device_data(),
+  globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-
-  cuda_llg_semi_implicit_kernel_mid_step<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    globals::num_spins,
-    s_init_.device_data(),
-    s_pred_.device_data(),
-    globals::s.device_data());
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-
-  jams::instance().cuda_master_stream().synchronize();
-  compute_fields();
-
-  cuda_llg_semi_implicit_kernel_step<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
-    s_init_.device_data(),
-    globals::s.device_data(),
-    globals::s.device_data(),
-    globals::h.device_data(),
-    thermostat_->device_data(),
-    globals::gyro.device_data(),
-    globals::mus.device_data(),
-    globals::alpha.device_data(),
-    globals::num_spins, step_size_
-    );
-  DEBUG_CHECK_CUDA_ASYNC_STATUS
-  jams::instance().cuda_master_stream().synchronize();
+  record_spin_barrier_event();
 
   iteration_++;
   time_ = iteration_ * step_size_;

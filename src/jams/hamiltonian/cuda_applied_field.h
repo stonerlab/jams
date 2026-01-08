@@ -10,8 +10,6 @@ public:
 
     void calculate_fields(double time) override;
     void calculate_energies(double time) override;
-
-private:
-    CudaStream cuda_stream_;
+    double calculate_total_energy(double time) override;
 };
 #endif //JAMS_HAMILTONIAN_CUDA_APPLIED_FIELD_H

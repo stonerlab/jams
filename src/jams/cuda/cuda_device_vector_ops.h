@@ -29,7 +29,12 @@ __device__ __forceinline__ double norm_squared(const double v1[3]) {
 
 /// Returns the Euclidean norm (x^2 + y^2 + z^2) of the vector.
 __device__ __forceinline__ double norm(const double v1[3]) {
-  return dot(v1, v1);
+  return norm3d(v1[0], v1[1], v1[2]);
+}
+
+/// Returns the reciprocal of the Euclidean norm 1/(x^2 + y^2 + z^2) of the vector.
+__device__ __forceinline__ double rnorm(const double v1[3]) {
+	return rnorm3d(v1[0], v1[1], v1[2]);
 }
 
 __device__ inline void matmul(const float mat[3][3], const float v_in[3], float v_out[3]) {
@@ -80,6 +85,15 @@ inline void cross_product(const double a[3], const double b[3], double c[3]) {
   c[0] = cross_product_x(a, b);
   c[1] = cross_product_y(a, b);
   c[2] = cross_product_z(a, b);
+}
+
+__host__ __device__ __forceinline__
+double3 cross_product(const double3 a, const double3 b) {
+	return {
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x
+	};
 }
 
 // a.(b x c)

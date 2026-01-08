@@ -17,8 +17,6 @@ public:
     void   calculate_energies(double time) override;
     void   calculate_fields(double time) override;
 private:
-
-    CudaStream dev_stream_;
     unsigned int dev_blocksize_ = 64;
 };
 

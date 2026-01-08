@@ -1,6 +1,7 @@
 #include "jams/cuda/cuda_common.h"
-
-
+#include <thrust/device_ptr.h>
+#include <thrust/reduce.h>
+#include <thrust/system/cuda/execution_policy.h>
 // y_ij <-- alpha_i * beta * x_ij
 
 __global__ void cuda_array_elementwise_scale_kernel_general_(
@@ -238,6 +239,7 @@ void cuda_array_double_to_float(
     grid_size.x = (n + block_size.x - 1) / block_size.x;
 
     cuda_array_double_to_float_kernel<<<grid_size, block_size, 0, stream>>>(n, in, out);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
 }
 
 void cuda_array_float_to_double(
@@ -254,6 +256,7 @@ void cuda_array_float_to_double(
     grid_size.x = (n + block_size.x - 1) / block_size.x;
 
     cuda_array_float_to_double_kernel<<<grid_size, block_size, 0, stream>>>(n, in, out);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
 }
 
 __global__ void cuda_array_sum_across(
@@ -271,4 +274,47 @@ __global__ void cuda_array_sum_across(
         }
         out[idx] = acc;
     }
+}
+
+__global__ void cuda_array_dot_product_kernel(
+    unsigned int n,
+    const double A,
+    const double * x,
+    const double * y,
+    double * out)
+{
+    const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int base = 3u * idx;
+
+    if (idx >= n) return;
+
+    double result = 0.0;
+    for (unsigned int i = 0; i < 3; ++i) {
+        result += x[base + i] * y[base + i];
+    }
+
+    out[idx] = A * result;
+}
+
+void cuda_array_dot_product(
+    unsigned int n,
+    const double A,
+    const double * x,
+    const double * y,
+    double * out,
+    cudaStream_t stream
+    )
+{
+    dim3 block_size;
+    block_size.x = 128;
+
+    dim3 grid_size;
+    grid_size.x = (n + block_size.x - 1) / block_size.x;
+
+    cuda_array_dot_product_kernel<<<grid_size, block_size, 0, stream>>>(n, A, x, y, out);
+    DEBUG_CHECK_CUDA_ASYNC_STATUS
+}
+
+double cuda_reduce_array(const double* dev_ptr, const size_t size, cudaStream_t stream) {
+    return thrust::reduce(thrust::cuda::par.on(stream), thrust::device_ptr<const double>(dev_ptr), thrust::device_ptr<const double>(dev_ptr) + size, double(0), thrust::plus<double>());
 }

@@ -27,7 +27,6 @@ public:
     void calculate_energies(double time) override;
 
 private:
-    CudaStream cuda_stream_;
     unsigned int dev_blocksize_ = 64;
 
     jams::MultiArray<double,1> landau_A_;

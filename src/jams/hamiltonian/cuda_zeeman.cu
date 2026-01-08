@@ -12,7 +12,6 @@
 
 CudaZeemanHamiltonian::CudaZeemanHamiltonian(const libconfig::Setting &settings, const unsigned int size)
         : ZeemanHamiltonian(settings, size) {
-  CHECK_CUDA_STATUS(cudaStreamCreate(&dev_stream_));
 }
 
 void CudaZeemanHamiltonian::calculate_fields(double time) {
@@ -28,20 +27,14 @@ void CudaZeemanHamiltonian::calculate_fields(double time) {
                    dc_local_field_.device_data(),               // const void *         src
                    globals::num_spins3*sizeof(double),   // size_t               count
                    cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-                   dev_stream_);                   // device stream
+                   cuda_stream_.get());                   // device stream
         DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
         if (has_ac_local_field_) {
-            cuda_zeeman_ac_field_kernel<<<grid_size, block_size, 0, dev_stream_>>>
+            cuda_zeeman_ac_field_kernel<<<grid_size, block_size, 0, cuda_stream_.get()>>>
                 (globals::num_spins, time,
                     ac_local_field_.device_data(), ac_local_frequency_.device_data(),
                     globals::s.device_data(), field_.device_data());
             DEBUG_CHECK_CUDA_ASYNC_STATUS;
         }
-}
-
-CudaZeemanHamiltonian::~CudaZeemanHamiltonian() {
-  if (dev_stream_ != nullptr) {
-    cudaStreamDestroy(dev_stream_);
-  }
 }

@@ -3,6 +3,8 @@
 
 #include <jams/core/globals.h>
 
+#include "jams/cuda/cuda_array_kernels.h"
+
 CudaAppliedFieldHamiltonian::CudaAppliedFieldHamiltonian(
     const libconfig::Setting &settings, const unsigned int size) : AppliedFieldHamiltonian(
     settings, size) {}
@@ -33,4 +35,10 @@ void CudaAppliedFieldHamiltonian::calculate_energies(double time) {
       (globals::num_spins, globals::s.device_data(), globals::mus.device_data(),
        {b_field[0], b_field[1], b_field[2]}, energy_.device_data());
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
+}
+
+double CudaAppliedFieldHamiltonian::calculate_total_energy(double time)
+{
+    calculate_energies(time);
+    return cuda_reduce_array(energy_.device_data(), globals::num_spins, cuda_stream_.get());
 }
