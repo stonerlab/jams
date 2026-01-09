@@ -196,8 +196,8 @@ __global__ inline void cuda_llg_noise_step_cayley_kernel(
   const jams::Real* __restrict__ noise_dev,
   const jams::Real* __restrict__ gyro_dev,
   const jams::Real* __restrict__ alpha_dev,
-  jams::Real dt,
-  unsigned num_spins)
+  unsigned num_spins,
+  jams::Real dt)
 {
   const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx >= num_spins) return;
