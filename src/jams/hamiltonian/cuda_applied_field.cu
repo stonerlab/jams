@@ -15,11 +15,13 @@ __global__ void cuda_applied_field_energy_kernel(const unsigned int num_spins, c
 
 __global__ void cuda_applied_field_kernel(const unsigned int num_spins, const jams::Real * dev_mus, const jams::Real3 b_field, jams::Real * dev_h) {
     const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int base = 3u * idx;
     if (idx >= num_spins) return;
 
-    dev_h[3*idx + 0] = dev_mus[idx] * b_field.x;
-    dev_h[3*idx + 1] = dev_mus[idx] * b_field.y;
-    dev_h[3*idx + 2] = dev_mus[idx] * b_field.z;
+    const jams::Real mu = dev_mus[idx];
+    dev_h[base + 0] = mu * b_field.x;
+    dev_h[base + 1] = mu * b_field.y;
+    dev_h[base + 2] = mu * b_field.z;
 }
 
 CudaAppliedFieldHamiltonian::CudaAppliedFieldHamiltonian(
@@ -28,7 +30,7 @@ CudaAppliedFieldHamiltonian::CudaAppliedFieldHamiltonian(
 
 void CudaAppliedFieldHamiltonian::calculate_fields(jams::Real time) {
   dim3 block_size;
-  block_size.x = 64;
+  block_size.x = 256;
 
   dim3 grid_size;
   grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
@@ -42,7 +44,7 @@ void CudaAppliedFieldHamiltonian::calculate_fields(jams::Real time) {
 
 void CudaAppliedFieldHamiltonian::calculate_energies(jams::Real time) {
   dim3 block_size;
-  block_size.x = 64;
+  block_size.x = 256;
 
   dim3 grid_size;
   grid_size.x = (globals::num_spins + block_size.x - 1) / block_size.x;
