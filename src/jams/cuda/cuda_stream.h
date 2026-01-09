@@ -8,13 +8,32 @@
 
 class CudaStream {
   public:
+    enum class Priority
+    {
+      DEFAULT,
+      HIGH,
+      LOW
+    };
+
     inline CudaStream();
-    inline CudaStream(std::nullptr_t);
+    explicit inline CudaStream(std::nullptr_t);
+    explicit inline CudaStream(Priority priority);
 
     inline ~CudaStream();
 
-    CudaStream(CudaStream&&) = default;
-    CudaStream& operator=(CudaStream&&) = default;
+    inline CudaStream(CudaStream&& other) noexcept : stream_(other.stream_) {
+      other.stream_ = nullptr;
+    }
+
+    inline CudaStream& operator=(CudaStream&& other) noexcept {
+      if (this != &other) {
+        destroy_stream();
+        stream_ = other.stream_;
+        other.stream_ = nullptr;
+      }
+      return *this;
+    }
+
     CudaStream(const CudaStream&) = delete;
     CudaStream& operator=(const CudaStream&) = delete;
 
@@ -33,6 +52,33 @@ class CudaStream {
 inline CudaStream::CudaStream() = default;
 
 inline CudaStream::CudaStream(std::nullptr_t) {
+}
+
+inline CudaStream::CudaStream(Priority priority)
+{
+  int leastPriority = 0, greatestPriority = 0;
+  cudaError_t result = cudaDeviceGetStreamPriorityRange(&leastPriority, &greatestPriority);
+  if (result != cudaSuccess) {
+    cuda_throw(result, __FILE__, __LINE__);
+  }
+
+  switch (priority)
+  {
+  case Priority::HIGH:
+    result = cudaStreamCreateWithPriority(&stream_, cudaStreamNonBlocking, greatestPriority);
+    break;
+  case Priority::LOW:
+    result = cudaStreamCreateWithPriority(&stream_, cudaStreamNonBlocking, leastPriority);
+    break;
+  case Priority::DEFAULT:
+    result = cudaStreamCreate(&stream_);
+    break;
+  }
+
+  if (result != cudaSuccess) {
+    stream_ = nullptr;
+    cuda_throw(result, __FILE__, __LINE__);
+  }
 }
 
 inline CudaStream::~CudaStream() {

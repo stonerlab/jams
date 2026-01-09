@@ -156,6 +156,8 @@ void CUDALLGSemiImplictSolver::run()
   auto grid_size = cuda_grid_size(block_size, {static_cast<unsigned int>(globals::num_spins), 1, 1});
 
   update_thermostat();
+  thermostat_->record_done();
+  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
   globals::s.device_data(),
@@ -200,6 +202,8 @@ void CUDALLGSemiImplictSolver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   update_thermostat();
+  thermostat_->record_done();
+  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_cayley_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
   globals::s.device_data(),

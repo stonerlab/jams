@@ -17,7 +17,6 @@
 class CudaThermostatQuantumSpde : public Thermostat {
  public:
   CudaThermostatQuantumSpde(const jams::Real &temperature, const jams::Real &sigma, const jams::Real timestep, const int num_spins);
-  ~CudaThermostatQuantumSpde() override;
 
   void update() override;
 
@@ -25,6 +24,10 @@ class CudaThermostatQuantumSpde : public Thermostat {
   const jams::Real* device_data() override { return noise_.device_data(); }
 
  private:
+    // Generate random numbers on a low priority stream so it can be multiplexed with all of the field and integration
+    // until we next need random numbers
+    CudaStream curand_stream_{CudaStream::Priority::LOW};
+    cudaEvent_t curand_done_{};
     bool debug_ = false;
     bool do_zero_point_ = false;
 
@@ -36,8 +39,6 @@ class CudaThermostatQuantumSpde : public Thermostat {
     jams::MultiArray<jams::Real, 1> eta0_;
     jams::MultiArray<jams::Real, 1> eta1a_;
     jams::MultiArray<jams::Real, 1> eta1b_;
-    cudaStream_t                dev_stream_ = nullptr;
-    cudaStream_t                dev_curand_stream_ = nullptr;
     double                      delta_tau_;
     double                      omega_max_;
 };
