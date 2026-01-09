@@ -14,7 +14,7 @@ __global__ void cuda_uniaxial_energy_kernel(const int num_spins, const int power
 
   const jams::Real s[3] = {static_cast<jams::Real>(dev_s[base + 0]), static_cast<jams::Real>(dev_s[base + 1]), static_cast<jams::Real>(dev_s[base + 2])};
   const jams::Real a[3] = {axis[base + 0], axis[base + 1], axis[base + 2]};
-  dev_e[idx] = -magnitude[idx] * pow(dot(s, a), power);
+  dev_e[idx] = -magnitude[idx] * pow_int(dot(s, a), power);
 }
 
 __global__ void cuda_uniaxial_field_kernel(const int num_spins, const int power,
@@ -23,12 +23,12 @@ __global__ void cuda_uniaxial_field_kernel(const int num_spins, const int power,
   const unsigned int base = 3u * idx;
   if (idx >= num_spins) return;
 
-  const jams::Real s[3] = {static_cast<jams::Real>(dev_s[base + 0]), static_cast<jams::Real>(dev_s[base + 1]), static_cast<jams::Real>(dev_s[base + 2])};
-  const jams::Real a[3] = {axis[base + 0], axis[base + 1], axis[base + 2]};
-  const jams::Real pre = magnitude[idx] * power * pow(dot(s, a), power-1);
-  dev_h[base + 0] = pre * a[0];
-  dev_h[base + 1] = pre * a[1];
-  dev_h[base + 2] = pre * a[2];
+  const jams::Real3 s{static_cast<jams::Real>(dev_s[base + 0]), static_cast<jams::Real>(dev_s[base + 1]), static_cast<jams::Real>(dev_s[base + 2])};
+  const jams::Real3 a{axis[base + 0], axis[base + 1], axis[base + 2]};
+  const jams::Real pre = magnitude[idx] * static_cast<jams::Real>(power) * pow_int(dot(s, a), power-1);
+  dev_h[base + 0] = pre * a.x;
+  dev_h[base + 1] = pre * a.y;
+  dev_h[base + 2] = pre * a.z;
 }
 
 

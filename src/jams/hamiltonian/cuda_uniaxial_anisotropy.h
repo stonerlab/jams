@@ -16,7 +16,7 @@ public:
     void   calculate_energies(jams::Real time) override;
     void   calculate_fields(jams::Real time) override;
 private:
-    unsigned int dev_blocksize_ = 64;
+    unsigned int dev_blocksize_ = 256;
 };
 
 #endif //JAMS_CUDA_UNIAXIAL_ANISOTROPY_H
