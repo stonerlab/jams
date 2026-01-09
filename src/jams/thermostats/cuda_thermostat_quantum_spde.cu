@@ -98,7 +98,7 @@ void CudaThermostatQuantumSpde::update() {
     return;
   }
 
-  int block_size = 96;
+  int block_size = 128;
   int grid_size = (globals::num_spins3 + block_size - 1) / block_size;
 
   const double reduced_omega_max = (kHBarIU * omega_max_) / (kBoltzmannIU * this->temperature());
@@ -114,7 +114,7 @@ void CudaThermostatQuantumSpde::update() {
 #endif
   cuda_thermostat_quantum_spde_no_zero_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get() >>> (
     noise_.device_data(), zeta5_.device_data(), zeta5p_.device_data(), zeta6_.device_data(), zeta6p_.device_data(),
-    eta1b_.device_data(), sigma_.device_data(), reduced_delta_tau, temperature, reduced_omega_max, globals::num_spins3);
+    eta1b_.device_data(), sigma_.device_data(), reduced_delta_tau, temperature, globals::num_spins3);
   DEBUG_CHECK_CUDA_ASYNC_STATUS;
 
   if (do_zero_point_) {
