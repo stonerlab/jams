@@ -196,8 +196,8 @@ __global__ inline void cuda_llg_noise_step_cayley_kernel(
   const jams::Real* __restrict__ noise_dev,
   const jams::Real* __restrict__ gyro_dev,
   const jams::Real* __restrict__ alpha_dev,
-  unsigned num_spins,
-  jams::Real dt)
+  jams::Real dt,
+  unsigned num_spins)
 {
   const unsigned idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx >= num_spins) return;
@@ -209,19 +209,25 @@ __global__ inline void cuda_llg_noise_step_cayley_kernel(
     s_inout_dev[base + 2]
   };
 
+  const jams::Real gyro = gyro_dev[idx];
   const jams::Real3 h = {
-    noise_dev[base + 0],
-    noise_dev[base + 1],
-    noise_dev[base + 2]
+    noise_dev[base + 0] * dt * gyro,
+    noise_dev[base + 1] * dt * gyro,
+    noise_dev[base + 2] * dt * gyro
   };
 
-  double3 phi = omega_llg(s, h, dt * gyro_dev[idx], alpha_dev[idx]);
+  const jams::Real alpha = alpha_dev[idx];
+  double3 omega = {
+      alpha * (s.y * h.z - s.z * h.y) + h.x,
+      alpha * (s.z * h.x - s.x * h.z) + h.y,
+      alpha * (s.x * h.y - s.y * h.x) + h.z,
+  };
 
   // This projection is not strictly necessary but can help to reduce
   // errors in the spin norm due to floating point arithmetic.
-  phi = project_to_tangent(phi, s);
+  omega = project_to_tangent(omega, s);
 
-  double3 out = cayley_rotate(phi, s);
+  double3 out = cayley_rotate(omega, s);
 
   s_inout_dev[base+0] = out.x;
   s_inout_dev[base+1] = out.y;
