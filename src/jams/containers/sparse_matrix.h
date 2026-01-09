@@ -92,35 +92,39 @@ namespace jams {
 
           #if HAS_MKL_INSPECTOR_EXECUTOR_API
           mkl_matrix_A_handle_ = rhs.mkl_matrix_A_handle_;
-          if (rhs.mkl_matrix_A_handle_) {
-            mkl_sparse_destroy(rhs.mkl_matrix_A_handle_);
-            rhs.mkl_matrix_A_handle_ = nullptr;
-          }
+          rhs.mkl_matrix_A_handle_ = nullptr;
           #endif
 
           #if HAS_CUSPARSE_GENERIC_API
           cusparse_matrix_A_handle_ = rhs.cusparse_matrix_A_handle_;
-          if (rhs.cusparse_matrix_A_handle_) {
-            cusparseDestroySpMat(rhs.cusparse_matrix_A_handle_);
-            rhs.cusparse_matrix_A_handle_ = nullptr;
-          }
+          rhs.cusparse_matrix_A_handle_ = nullptr;
 
-          if (rhs.cusparse_vector_x_handle_) {
-            cusparseDestroyDnVec(rhs.cusparse_vector_x_handle_);
-            rhs.cusparse_vector_x_handle_ = nullptr;
-          }
+          cusparse_vector_x_handle_ = rhs.cusparse_vector_x_handle_;
+          rhs.cusparse_vector_x_handle_ = nullptr;
 
-          if (rhs.cusparse_vector_y_handle_) {
-            cusparseDestroyDnVec(rhs.cusparse_vector_y_handle_);
-            rhs.cusparse_vector_y_handle_ = nullptr;
-          }
+          cusparse_vector_y_handle_ = rhs.cusparse_vector_y_handle_;
+          rhs.cusparse_vector_y_handle_ = nullptr;
+
+          cusparse_buffer_ = rhs.cusparse_buffer_;
+          rhs.cusparse_buffer_ = nullptr;
 
           cusparse_buffer_size_ = rhs.cusparse_buffer_size_;
-          if (rhs.cusparse_buffer_) {
-            cudaFree(rhs.cusparse_buffer_);
-            rhs.cusparse_buffer_ = nullptr;
-          }
           rhs.cusparse_buffer_size_ = 0;
+
+          cusparse_cached_x_elements_ = rhs.cusparse_cached_x_elements_;
+          rhs.cusparse_cached_x_elements_ = 0;
+
+          cusparse_cached_y_elements_ = rhs.cusparse_cached_y_elements_;
+          rhs.cusparse_cached_y_elements_ = 0;
+
+          cusparse_cached_compute_type_ = rhs.cusparse_cached_compute_type_;
+          rhs.cusparse_cached_compute_type_ = CUDA_R_32F;
+
+          cusparse_cached_alg_ = rhs.cusparse_cached_alg_;
+          rhs.cusparse_cached_alg_ = CUSPARSE_SPMV_ALG_DEFAULT;
+
+          cusparse_buffer_valid_ = rhs.cusparse_buffer_valid_;
+          rhs.cusparse_buffer_valid_ = false;
           #endif
         }
 
@@ -132,6 +136,8 @@ namespace jams {
 
         SparseMatrix &operator=(SparseMatrix&& rhs) noexcept {
           if (this != &rhs) {
+            // Release any backend resources currently owned by *this* before stealing from rhs.
+            release_backend_handles_();
             matrix_A_description_ = rhs.matrix_A_description_;
             num_rows_ = rhs.num_rows_;
             num_cols_ = rhs.num_cols_;
@@ -142,70 +148,46 @@ namespace jams {
 
             #if HAS_MKL_INSPECTOR_EXECUTOR_API
             mkl_matrix_A_handle_ = rhs.mkl_matrix_A_handle_;
-            if (rhs.mkl_matrix_A_handle_) {
-              mkl_sparse_destroy(rhs.mkl_matrix_A_handle_);
-              rhs.mkl_matrix_A_handle_ = nullptr;
-            }
+            rhs.mkl_matrix_A_handle_ = nullptr;
             #endif
 
             #if HAS_CUSPARSE_GENERIC_API
             cusparse_matrix_A_handle_ = rhs.cusparse_matrix_A_handle_;
-            if (rhs.cusparse_matrix_A_handle_) {
-              cusparseDestroySpMat(rhs.cusparse_matrix_A_handle_);
-              rhs.cusparse_matrix_A_handle_ = nullptr;
-            }
+            rhs.cusparse_matrix_A_handle_ = nullptr;
 
-            if (rhs.cusparse_vector_x_handle_) {
-              cusparseDestroyDnVec(rhs.cusparse_vector_x_handle_);
-              rhs.cusparse_vector_x_handle_ = nullptr;
-            }
+            cusparse_vector_x_handle_ = rhs.cusparse_vector_x_handle_;
+            rhs.cusparse_vector_x_handle_ = nullptr;
 
-            if (rhs.cusparse_vector_y_handle_) {
-              cusparseDestroyDnVec(rhs.cusparse_vector_y_handle_);
-              rhs.cusparse_vector_y_handle_ = nullptr;
-            }
+            cusparse_vector_y_handle_ = rhs.cusparse_vector_y_handle_;
+            rhs.cusparse_vector_y_handle_ = nullptr;
+
+            cusparse_buffer_ = rhs.cusparse_buffer_;
+            rhs.cusparse_buffer_ = nullptr;
 
             cusparse_buffer_size_ = rhs.cusparse_buffer_size_;
-            if (rhs.cusparse_buffer_) {
-              cudaFree(rhs.cusparse_buffer_);
-              rhs.cusparse_buffer_ = nullptr;
-            }
             rhs.cusparse_buffer_size_ = 0;
+
+            cusparse_cached_x_elements_ = rhs.cusparse_cached_x_elements_;
+            rhs.cusparse_cached_x_elements_ = 0;
+
+            cusparse_cached_y_elements_ = rhs.cusparse_cached_y_elements_;
+            rhs.cusparse_cached_y_elements_ = 0;
+
+            cusparse_cached_compute_type_ = rhs.cusparse_cached_compute_type_;
+            rhs.cusparse_cached_compute_type_ = CUDA_R_32F;
+
+            cusparse_cached_alg_ = rhs.cusparse_cached_alg_;
+            rhs.cusparse_cached_alg_ = CUSPARSE_SPMV_ALG_DEFAULT;
+
+            cusparse_buffer_valid_ = rhs.cusparse_buffer_valid_;
+            rhs.cusparse_buffer_valid_ = false;
             #endif
           }
           return *this;
         }
 
         inline ~SparseMatrix() {
-          #if HAS_MKL_INSPECTOR_EXECUTOR_API
-          if (mkl_matrix_A_handle_) {
-            mkl_sparse_destroy(mkl_matrix_A_handle_);
-            mkl_matrix_A_handle_ = nullptr;
-          }
-          #endif
-
-          #if HAS_CUSPARSE_GENERIC_API
-          if (cusparse_matrix_A_handle_) {
-            cusparseDestroySpMat(cusparse_matrix_A_handle_);
-            cusparse_matrix_A_handle_ = nullptr;
-          }
-
-          if (cusparse_vector_x_handle_) {
-            cusparseDestroyDnVec(cusparse_vector_x_handle_);
-            cusparse_vector_x_handle_ = nullptr;
-          }
-
-          if (cusparse_vector_y_handle_) {
-            cusparseDestroyDnVec(cusparse_vector_y_handle_);
-            cusparse_vector_y_handle_ = nullptr;
-          }
-
-          if (cusparse_buffer_) {
-            cudaFree(cusparse_buffer_);
-            cusparse_buffer_ = nullptr;
-            cusparse_buffer_size_ = 0;
-          }
-          #endif
+          release_backend_handles_();
         }
 
         inline constexpr SparseMatrixFormat format() const { return matrix_A_description_.format(); }
@@ -266,6 +248,12 @@ namespace jams {
 
         void*       cusparse_buffer_ = nullptr;
         std::size_t cusparse_buffer_size_ = 0;
+        // Cached SpMV configuration so we can avoid calling cusparseSpMV_bufferSize on every multiply.
+        std::size_t cusparse_cached_x_elements_ = 0;
+        std::size_t cusparse_cached_y_elements_ = 0;
+        cudaDataType cusparse_cached_compute_type_ = CUDA_R_32F; // sentinel
+        cusparseSpMVAlg_t cusparse_cached_alg_ = CUSPARSE_SPMV_ALG_DEFAULT;
+        bool cusparse_buffer_valid_ = false;
         #endif
 
         index_type num_rows_             = 0;
@@ -274,6 +262,43 @@ namespace jams {
         index_container row_;
         index_container col_;
         value_container val_;
+
+        void release_backend_handles_() noexcept {
+          #if HAS_MKL_INSPECTOR_EXECUTOR_API
+          if (mkl_matrix_A_handle_) {
+            mkl_sparse_destroy(mkl_matrix_A_handle_);
+            mkl_matrix_A_handle_ = nullptr;
+          }
+          #endif
+
+          #if HAS_CUSPARSE_GENERIC_API
+          if (cusparse_matrix_A_handle_) {
+            cusparseDestroySpMat(cusparse_matrix_A_handle_);
+            cusparse_matrix_A_handle_ = nullptr;
+          }
+
+          if (cusparse_vector_x_handle_) {
+            cusparseDestroyDnVec(cusparse_vector_x_handle_);
+            cusparse_vector_x_handle_ = nullptr;
+          }
+
+          if (cusparse_vector_y_handle_) {
+            cusparseDestroyDnVec(cusparse_vector_y_handle_);
+            cusparse_vector_y_handle_ = nullptr;
+          }
+
+          if (cusparse_buffer_) {
+            cudaFree(cusparse_buffer_);
+            cusparse_buffer_ = nullptr;
+          }
+          cusparse_buffer_size_ = 0;
+          cusparse_cached_x_elements_ = 0;
+          cusparse_cached_y_elements_ = 0;
+          cusparse_cached_compute_type_ = CUDA_R_32F; // sentinel
+          cusparse_cached_alg_ = CUSPARSE_SPMV_ALG_DEFAULT;
+          cusparse_buffer_valid_ = false;
+          #endif
+        }
     };
 
 template<typename T>
@@ -363,10 +388,13 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
         case SparseMatrixFormat::COO:
           throw std::runtime_error("unimplemented");
         case SparseMatrixFormat::CSR:
-          cusparseSetStream(handle, stream_id);
+          // Preserve the handle's existing stream and restore it on exit.
+          cudaStream_t prev_stream = nullptr;
+          CHECK_CUSPARSE_STATUS(cusparseGetStream(handle, &prev_stream));
+          CHECK_CUSPARSE_STATUS(cusparseSetStream(handle, stream_id));
           const T one = 1.0, zero = 0.0;
 
-    #if HAS_CUSPARSE_GENERIC_API
+#if HAS_CUSPARSE_GENERIC_API
 
           if (!cusparse_matrix_A_handle_) {
             CHECK_CUSPARSE_STATUS(cusparseCreateCsr(
@@ -384,6 +412,11 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
             ));
           }
 
+          if (cusparse_vector_x_handle_ && cusparse_cached_x_elements_ != vector_x.elements()) {
+            CHECK_CUSPARSE_STATUS(cusparseDestroyDnVec(cusparse_vector_x_handle_));
+            cusparse_vector_x_handle_ = nullptr;
+            cusparse_buffer_valid_ = false;
+          }
           if (!cusparse_vector_x_handle_) {
             CHECK_CUSPARSE_STATUS(cusparseCreateDnVec(
                 &cusparse_vector_x_handle_,
@@ -391,8 +424,13 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
                 (void*)vector_x.device_data(),
                 cuda::get_cuda_data_type<U>()));
           }
-          cusparseDnVecSetValues(cusparse_vector_x_handle_, (void*)vector_x.device_data());
+          CHECK_CUSPARSE_STATUS(cusparseDnVecSetValues(cusparse_vector_x_handle_, (void*)vector_x.device_data()));
 
+          if (cusparse_vector_y_handle_ && cusparse_cached_y_elements_ != vector_y.elements()) {
+            CHECK_CUSPARSE_STATUS(cusparseDestroyDnVec(cusparse_vector_y_handle_));
+            cusparse_vector_y_handle_ = nullptr;
+            cusparse_buffer_valid_ = false;
+          }
           if (!cusparse_vector_y_handle_) {
             CHECK_CUSPARSE_STATUS(cusparseCreateDnVec(
                 &cusparse_vector_y_handle_,
@@ -400,43 +438,57 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
                 (void*)vector_y.device_data(),
                 cuda::get_cuda_data_type<U>()));
           }
-          cusparseDnVecSetValues(cusparse_vector_y_handle_, (void*)vector_y.device_data());
+          CHECK_CUSPARSE_STATUS(cusparseDnVecSetValues(cusparse_vector_y_handle_, (void*)vector_y.device_data()));
 
-          size_t new_buffer_size = 0;
+          const cudaDataType compute_type = cuda::get_cuda_data_type<U>();
+          const cusparseSpMVAlg_t alg = CUSPARSE_SPMV_ALG_DEFAULT;
 
-          CHECK_CUSPARSE_STATUS(cusparseSpMV_bufferSize(
-              handle,
-              CUSPARSE_OPERATION_NON_TRANSPOSE,
-              &one,
-              cusparse_matrix_A_handle_,
-              cusparse_vector_x_handle_,
-              &zero,
-              cusparse_vector_y_handle_,
-              // Note: the type selection here may be more complicated in general.
-              // The compute type depends on the types of A/X/Y.
-              // see https://docs.nvidia.com/cuda/cusparse/index.html#cusparse-generic-function-spmv
-              cuda::get_cuda_data_type<U>(),
-              CUSPARSE_SPMV_CSR_ALG1,
-              &new_buffer_size));
+          const bool need_buffer_query = (!cusparse_buffer_valid_) ||
+                                         (cusparse_cached_x_elements_ != vector_x.elements()) ||
+                                         (cusparse_cached_y_elements_ != vector_y.elements()) ||
+                                         (cusparse_cached_compute_type_ != compute_type) ||
+                                         (cusparse_cached_alg_ != alg);
 
-          if (new_buffer_size > cusparse_buffer_size_) {
-            if (cusparse_buffer_) {
-              cudaFree(cusparse_buffer_);
+          if (need_buffer_query) {
+            size_t new_buffer_size = 0;
+            CHECK_CUSPARSE_STATUS(cusparseSpMV_bufferSize(
+                handle,
+                CUSPARSE_OPERATION_NON_TRANSPOSE,
+                &one,
+                cusparse_matrix_A_handle_,
+                cusparse_vector_x_handle_,
+                &zero,
+                cusparse_vector_y_handle_,
+                compute_type,
+                alg,
+                &new_buffer_size));
+
+            if (new_buffer_size > cusparse_buffer_size_) {
+              if (cusparse_buffer_) {
+                cudaFree(cusparse_buffer_);
+              }
+              cudaMalloc(&cusparse_buffer_, new_buffer_size);
+              cusparse_buffer_size_ = new_buffer_size;
             }
-            cudaMalloc(&cusparse_buffer_, new_buffer_size);
-            cusparse_buffer_size_ = new_buffer_size;
 
+            cusparse_cached_x_elements_ = vector_x.elements();
+            cusparse_cached_y_elements_ = vector_y.elements();
+            cusparse_cached_compute_type_ = compute_type;
+            cusparse_cached_alg_ = alg;
+            cusparse_buffer_valid_ = true;
+
+            // Preprocess is tied to the current SpMV configuration and buffer.
             CHECK_CUSPARSE_STATUS(cusparseSpMV_preprocess(
-              handle,
-              CUSPARSE_OPERATION_NON_TRANSPOSE,
-              &one,
-              cusparse_matrix_A_handle_,
-              cusparse_vector_x_handle_,
-              &zero,
-              cusparse_vector_y_handle_,
-              cuda::get_cuda_data_type<U>(),
-              CUSPARSE_SPMV_CSR_ALG1,
-              cusparse_buffer_));
+                handle,
+                CUSPARSE_OPERATION_NON_TRANSPOSE,
+                &one,
+                cusparse_matrix_A_handle_,
+                cusparse_vector_x_handle_,
+                &zero,
+                cusparse_vector_y_handle_,
+                compute_type,
+                alg,
+                cusparse_buffer_));
           }
 
           CHECK_CUSPARSE_STATUS(cusparseSpMV(
@@ -447,13 +499,10 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
               cusparse_vector_x_handle_,
               &zero,
               cusparse_vector_y_handle_,
-              // Note: the type selection here may be more complex in general.
-              // The compute type depends on the types of A/X/Y.
-              // see (https://docs.nvidia.com/cuda/cusparse/index.html#cusparse-generic-function-spmv)
-              cuda::get_cuda_data_type<U>(),
-              CUSPARSE_SPMV_CSR_ALG1,
+              compute_type,
+              alg,
               cusparse_buffer_));
-    #else
+#else
           CHECK_CUSPARSE_STATUS(cusparseDcsrmv(
              handle,
              CUSPARSE_OPERATION_NON_TRANSPOSE,
@@ -464,8 +513,9 @@ void SparseMatrix<T>::multiply(const MultiArray<X, N> &vector_x, MultiArray<Y, N
              vector_x.device_data(),
              &zero,
              vector_y.device_data()));
-    #endif
-          cusparseSetStream(handle, 0);
+#endif
+          // Restore the previous stream on the handle.
+          CHECK_CUSPARSE_STATUS(cusparseSetStream(handle, prev_stream));
           break;
 
       }
