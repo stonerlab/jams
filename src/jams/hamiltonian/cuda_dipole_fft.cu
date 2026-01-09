@@ -57,6 +57,8 @@ __global__ void cuda_dipole_convolution(
   ComplexType hk_sum[3] = {0.0, 0.0, 0.0};
 
   for (int pos_j = 0; pos_j < num_pos; ++pos_j) {
+    const jams::Real mu_j = mu_const[pos_j];
+
     int batch_base_j = 3 * pos_j;
     int idx0 = (batch_base_j + 0) * num_kpoints + k_idx;
     int idx1 = (batch_base_j + 1) * num_kpoints + k_idx;
@@ -76,38 +78,36 @@ __global__ void cuda_dipole_convolution(
     int base0 = ((pair * 6 + 0) * (int)num_kpoints) + (int)k_idx;
     int base1 = base0 + (int)num_kpoints;
     int base2 = base1 + (int)num_kpoints;
-    int base3 = base2 + (int)num_kpoints;
-    int base4 = base3 + (int)num_kpoints;
-    int base5 = base4 + (int)num_kpoints;
-
-    ComplexType w0 = wk[base0];
-    ComplexType w1 = wk[base1];
-    ComplexType w2 = wk[base2];
-    ComplexType w3 = wk[base3];
-    ComplexType w4 = wk[base4];
-    ComplexType w5 = wk[base5];
 
     // Hermitian symmetry: W_{ji}(k) = conj(W_{ij}(k))
-    if (swapped) {
-      w0 = complex_conj(w0);
-      w1 = complex_conj(w1);
-      w2 = complex_conj(w2);
-      w3 = complex_conj(w3);
-      w4 = complex_conj(w4);
-      w5 = complex_conj(w5);
-    }
+    // Staggering the accessing of w components gives about 1 us improvement on A30.
+    ComplexType w0 = swapped ? wk[base0] : complex_conj(wk[base0]);
+    ComplexType w1 = swapped ? wk[base1] : complex_conj(wk[base1]);
+    ComplexType w2 = swapped ? wk[base2] : complex_conj(wk[base2]);
 
-    hk_sum[0] +=  mu_const[pos_j] * (w0 * sq0 + w1 * sq1 + w2 * sq2);
-    hk_sum[1] +=  mu_const[pos_j] * (w1 * sq0 + w3 * sq1 + w4 * sq2);
-    hk_sum[2] +=  mu_const[pos_j] * (w2 * sq0 + w4 * sq1 + w5 * sq2);
+    hk_sum[0] +=  mu_j * (w0 * sq0 + w1 * sq1 + w2 * sq2);
+
+    int base3 = base2 + (int)num_kpoints;
+    int base4 = base3 + (int)num_kpoints;
+
+    ComplexType w3 = swapped ? wk[base3] : complex_conj(wk[base3]);
+    ComplexType w4 = swapped ? wk[base4] : complex_conj(wk[base4]);
+
+    hk_sum[1] +=  mu_j * (w1 * sq0 + w3 * sq1 + w4 * sq2);
+
+    int base5 = base4 + (int)num_kpoints;
+
+    ComplexType w5 = swapped ? wk[base5] : complex_conj(wk[base5]);
+
+    hk_sum[2] +=  mu_j * (w2 * sq0 + w4 * sq1 + w5 * sq2);
   }
+  const jams::Real mu_i = mu_const[pos_i];
 
   int batch_base_i = 3 * pos_i;
   int out0 = (batch_base_i + 0) * num_kpoints + k_idx;
   int out1 = (batch_base_i + 1) * num_kpoints + k_idx;
   int out2 = (batch_base_i + 2) * num_kpoints + k_idx;
 
-  const jams::Real mu_i = mu_const[pos_i];
   hk[out0] = mu_i * hk_sum[0];
   hk[out1] = mu_i * hk_sum[1];
   hk[out2] = mu_i * hk_sum[2];
