@@ -1,10 +1,16 @@
 #ifndef JAMS_CORE_CUDA_VECTOR_OPS_H
 #define JAMS_CORE_CUDA_VECTOR_OPS_H
 
-__device__ __forceinline__ double pow2(double x) {
-  return x * x;
+template <typename T>
+__device__ __forceinline__
+T pow_int(T x, int p)
+{
+	T r = T(1.0);
+#pragma unroll
+	for (int i = 0; i < p; ++i)
+		r *= x;
+	return r;
 }
-
 
 __device__ __forceinline__ float dot(const float3 a, const float3 b) {
 	return a.x*b.x + a.y*b.y + a.z*b.z;
