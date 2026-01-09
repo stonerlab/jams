@@ -10,15 +10,14 @@
 #include "jams/solvers/cuda_solver_functions.cuh"
 
 
-__global__ void cuda_llg_semi_implicit_pred_kernel
+__global__ __maxnreg__(32)
+void cuda_llg_semi_implicit_pred_kernel
 (
   double * __restrict__ s_inout_dev, // in: S_n, out: (S_n + S'_n+1) / 2
   const jams::Real * __restrict__ h_dev,
   const jams::Real * __restrict__ gyro_dev,
-  const jams::Real * __restrict__ rmu_dev,
   const jams::Real * __restrict__ alpha_dev,
-  const unsigned dev_num_spins,
-  const jams::Real dt
+  const unsigned dev_num_spins
 )
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -26,11 +25,11 @@ __global__ void cuda_llg_semi_implicit_pred_kernel
 
   const unsigned int base = 3u * idx;
 
-  jams::Real rmu = rmu_dev[idx];
-  const jams::Real3 h = {
-    h_dev[base + 0] * rmu,
-    h_dev[base + 1] * rmu,
-    h_dev[base + 2] * rmu
+  jams::Real gyro = gyro_dev[idx];
+  jams::Real3 h = {
+    h_dev[base + 0] * gyro,
+    h_dev[base + 1] * gyro,
+    h_dev[base + 2] * gyro
   };
 
   const double3 s = {
@@ -39,7 +38,14 @@ __global__ void cuda_llg_semi_implicit_pred_kernel
     s_inout_dev[base + 2]
   };
 
-  double3 omega = omega_llg(s, h, gyro_dev[idx] * dt, alpha_dev[idx]);
+  jams::Real alpha = alpha_dev[idx];
+  double3 omega = {
+    alpha * (s.y * h.z - s.z * h.y) + h.x,
+    alpha * (s.z * h.x - s.x * h.z) + h.y,
+    alpha * (s.x * h.y - s.y * h.x) + h.z,
+  };
+
+  // double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
 
   omega = project_to_tangent(omega, s);
 
@@ -65,22 +71,19 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
   const double * __restrict__ s_init_dev, // S_n
   const jams::Real * __restrict__ h_dev,  // field at the same time as s_step
   const jams::Real * __restrict__ gyro_dev,
-  const jams::Real * __restrict__ rmu_dev,
   const jams::Real * __restrict__ alpha_dev,
-  const unsigned dev_num_spins,
-  const jams::Real dt
-)
+  const unsigned dev_num_spins
+  )
 {
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx >= dev_num_spins) return;
 
   const unsigned int base = 3u * idx;
 
-  jams::Real rmu = rmu_dev[idx];
   const jams::Real3 h = {
-    h_dev[base + 0] * rmu,
-    h_dev[base + 1] * rmu,
-    h_dev[base + 2] * rmu
+    h_dev[base + 0],
+    h_dev[base + 1],
+    h_dev[base + 2]
   };
 
   const double3 s = {
@@ -89,7 +92,7 @@ __global__ void cuda_llg_semi_implicit_corr_kernel
     s_inout_dev[base + 2]
   };
 
-  double3 omega = omega_llg(s, h, dt * gyro_dev[idx], alpha_dev[idx]);
+  double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
 
   omega = project_to_tangent(omega, s);
 
@@ -129,10 +132,10 @@ void CUDALLGSemiImplictSolver::initialize(const libconfig::Setting& settings)
 
   std::cout << "done\n";
 
-  rmu_.resize(globals::num_spins);
+  dt_gyro_mu_.resize(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i)
   {
-    rmu_(i) = jams::Real(1) / globals::mus(i);
+    dt_gyro_mu_(i) = step_size_ * globals::gyro(i) / globals::mus(i);
   }
 
   s_init_.resize(globals::num_spins, 3);
@@ -175,10 +178,9 @@ void CUDALLGSemiImplictSolver::run()
   cuda_llg_semi_implicit_pred_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.device_data(),
     globals::h.device_data(),
-    globals::gyro.device_data(),
-    rmu_.device_data(),
+    dt_gyro_mu_.device_data(),
     globals::alpha.device_data(),
-    globals::num_spins, step_size_
+    globals::num_spins
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
   record_spin_barrier_event();
@@ -191,10 +193,9 @@ void CUDALLGSemiImplictSolver::run()
   globals::s.device_data(),
   s_init_.device_data(),
     globals::h.device_data(),
-    globals::gyro.device_data(),
-    rmu_.device_data(),
+    dt_gyro_mu_.device_data(),
     globals::alpha.device_data(),
-    globals::num_spins, step_size_
+    globals::num_spins
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 

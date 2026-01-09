@@ -23,6 +23,7 @@ using ComplexLo = std::complex<float>;
 #if HAS_CUDA
 // TODO I think this is binary compatible with std::complex, so maybe not needed
 using cufftComplexLo = cufftComplex;
+using Real2 = float2;
 using Real3 = float3;
 #endif
 
@@ -35,6 +36,7 @@ using ComplexHi = std::complex<double>;
 using ComplexLo = std::complex<double>;
 #if HAS_CUDA
 using cufftComplexLo = cufftDoubleComplex;
+using Real2 = double2;
 using Real3 = double3;
 #endif
 #endif

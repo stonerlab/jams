@@ -22,12 +22,12 @@ void omega_llg(const double s[3], const jams::Real h[3],
 
 __device__ __forceinline__
 double3 omega_llg(const double3& s, const jams::Real3& h,
-               const jams::Real gyro, const jams::Real alpha)
+               const double gyro, const double alpha)
 {
   return {
-    gyro * __fma_rn(alpha, (s.y * h.z - s.z * h.y), h.x),
-    gyro * __fma_rn(alpha, (s.z * h.x - s.x * h.z), h.y),
-    gyro * __fma_rn(alpha, (s.x * h.y - s.y * h.x), h.z),
+    gyro * (alpha * (s.y * h.z - s.z * h.y) + h.x),
+    gyro * (alpha * (s.z * h.x - s.x * h.z) + h.y),
+    gyro * (alpha * (s.x * h.y - s.y * h.x) + h.z),
   };
 }
 
@@ -51,7 +51,7 @@ double3 cayley_rotate(const double3& A, const double3& S)
 
   const double norm_sq = A.x*A.x + A.y*A.y + A.z*A.z;
   // const double scale = 1.0 / __fma_rn(0.25, norm_sq, 1.0);
-  const double scale = 1.0 / __fma_rn(0.25, norm_sq, 1.0);
+  const double scale = 1.0 / (1.0 + 0.25 * norm_sq);
 
   return {
     __fma_rn((AxS.x + 0.5 * (A.y * AxS.z - A.z * AxS.y)), scale, S.x),

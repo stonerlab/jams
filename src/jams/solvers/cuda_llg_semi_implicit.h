@@ -19,7 +19,7 @@ public:
     std::string name() const override { return "llg-simp-gpu"; }
 private:
     jams::MultiArray<double, 2> s_init_;
-    jams::MultiArray<jams::Real, 1> rmu_;
+    jams::MultiArray<jams::Real, 1> dt_gyro_mu_;
 };
 
 #endif
