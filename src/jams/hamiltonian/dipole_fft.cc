@@ -188,7 +188,7 @@ Vec3R DipoleFFTHamiltonian::calculate_field(const int i, jams::Real time) {
 
 // Generates the dipole tensor between unit cell positions i and j and appends
 // the generated positions to a vector
-jams::MultiArray<jams::ComplexLo, 5>
+jams::MultiArray<jams::Complex, 5>
 DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int pos_j, std::vector<Vec3> &generated_positions) {
   const Vec3 r_frac_i = globals::lattice->basis_site_atom(pos_i).position_frac;
   const Vec3 r_frac_j = globals::lattice->basis_site_atom(pos_j).position_frac;
@@ -284,7 +284,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
     fftw_destroy_plan(fft_dipole_tensor_rspace_to_kspace);
   }
 
-  jams::MultiArray<jams::ComplexLo, 5> kspace_tensor_lo(
+  jams::MultiArray<jams::Complex, 5> kspace_tensor_lo(
       kspace_padded_size_[0],
       kspace_padded_size_[1],
       kspace_padded_size_[2]/2 + 1,
@@ -300,7 +300,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
         {
           for (auto n = 0; n < 3; ++n)
           {
-            kspace_tensor_lo(i,j,k,m,n) = jams::ComplexLo{static_cast<float>(kspace_tensor(i,j,k,m,n).real()), static_cast<float>(kspace_tensor(i,j,k,m,n).imag())};
+            kspace_tensor_lo(i,j,k,m,n) = jams::Complex{static_cast<float>(kspace_tensor(i,j,k,m,n).real()), static_cast<float>(kspace_tensor(i,j,k,m,n).imag())};
           }
         }
       }
