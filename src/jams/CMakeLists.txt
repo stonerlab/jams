@@ -1,9 +1,7 @@
 include(${PROJECT_SOURCE_DIR}/cmake/Utils.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/Sources.cmake)
 
-add_executable(jams ""
-        hamiltonian/cuda_crystal_field.h
-        solvers/cuda_llg_semi_implicit.h)
+add_executable(jams "")
 target_sources(jams PRIVATE main.cc ${JAMS_SOURCES_CXX})
 
 target_include_directories(jams
