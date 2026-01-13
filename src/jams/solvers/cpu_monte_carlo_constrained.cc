@@ -212,16 +212,16 @@ double ConstrainedMCSolver::energy_difference(const int &s1, const Vec3 &s1_init
 
 Vec3 ConstrainedMCSolver::magnetization_difference(const int &s1, const Vec3 &s1_initial, const Vec3 &s1_trial,
                                                    const int &s2, const Vec3 &s2_initial, const Vec3 &s2_trial) const {
-  return globals::mus(s1) * spin_transformations_[s1] * (s1_trial - s1_initial)
-  + globals::mus(s2) * spin_transformations_[s2] * (s2_trial - s2_initial);
+  return globals::mus(s1) * (spin_transformations_[s1] * (s1_trial - s1_initial))
+  + globals::mus(s2) * (spin_transformations_[s2] * (s2_trial - s2_initial));
 }
 
 Vec3 ConstrainedMCSolver::total_transformed_magnetization() const {
   Vec3 m_total = {0.0, 0.0, 0.0};
 
   for (auto i = 0; i < globals::num_spins; ++i) {
-    m_total += globals::mus(i) * spin_transformations_[i] *
-        jams::montecarlo::get_spin(i);
+    m_total += globals::mus(i) * (spin_transformations_[i] *
+        jams::montecarlo::get_spin(i));
   }
 
   return m_total;
