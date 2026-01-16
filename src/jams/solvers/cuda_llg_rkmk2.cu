@@ -227,5 +227,5 @@ void CUDALLGRKMK2Solver::run()
   jams::instance().cuda_master_stream().synchronize();
 
   iteration_++;
-  time_ = t0 + step_size_;
+  time_ = iteration_ * step_size_;
 }
