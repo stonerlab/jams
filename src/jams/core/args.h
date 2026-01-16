@@ -10,6 +10,11 @@
 
 namespace jams {
 
+    struct ConfigInput {
+        std::string value;
+        bool        force_string = false;
+    };
+
     struct ProgramArgs {
         bool        version_only      = false;
         bool        setup_only        = false;
@@ -17,7 +22,7 @@ namespace jams {
         std::string simulation_name = "";
 
         // a vector of filenames or patch strings to assemble to config
-        std::vector<std::string> config_strings;
+        std::vector<ConfigInput> config_inputs;
     };
 
     ProgramArgs parse_args(int argc, char **argv);

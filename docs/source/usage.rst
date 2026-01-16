@@ -19,6 +19,13 @@ appear are added to the configuration. Any duplicated settings are overwritten i
 
   ./jams input.cfg 'physics : {temperature = 100.0;};'
 
+You can also force a configuration string with :code:`--config`, which reads
+the text until the next flag as a libconfig string:
+
+.. code-block:: none
+
+  ./jams input.cfg --config physics : {temperature = 100.0;}
+
 overrides the :code:`physics.temperature` setting of :code:`input.cfg`. This provides a simple way to write batch
 scripts to loop over parameters or chain together multiple simulations with different steps. Multiple configuration
 files can be chained together so that simulations can be composed, for example the definition of the unit cell might
@@ -62,6 +69,10 @@ Command line flags
 
     Sets the simulation name which is prefixed to output files written by JAMS. If this is not set the config file name
     is used.
+
+.. describe:: --config <libconfig>
+
+    Treats the following text (up to the next flag) as a libconfig string rather than a filename.
 
 Output
 ------

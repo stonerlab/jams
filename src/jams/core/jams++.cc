@@ -45,14 +45,15 @@ namespace jams {
     //
     // If the string is an existent file name it is loaded as a config,
     // otherwise it is directly interpreted as a config string.
-    void parse_config_strings(const std::vector<std::string>& config_strings, std::unique_ptr<libconfig::Config>& combined_config) {
+    void parse_config_strings(const std::vector<ConfigInput>& config_inputs, std::unique_ptr<libconfig::Config>& combined_config) {
       if (!combined_config) {
         combined_config = std::make_unique<libconfig::Config>();
       }
 
-      for (const auto &s : config_strings) {
+      for (const auto &input : config_inputs) {
+        const std::string &s = input.value;
         libconfig::Config patch;
-        if (jams::system::file_exists(s)) {
+        if (!input.force_string && jams::system::file_exists(s)) {
           try {
             patch.readFile(s.c_str());
           }
@@ -71,7 +72,11 @@ namespace jams {
           }
           catch (const libconfig::ParseException &pex) {
             std::stringstream ss;
-            ss << "File not found or error parsing config string:\n";
+            if (input.force_string) {
+              ss << "Error parsing config string:\n";
+            } else {
+              ss << "File not found or error parsing config string:\n";
+            }
             ss << "  '" << s << "'\n";
             ss << "line " << std::to_string(pex.getLine()) << ": " << std::string(pex.getError());
 
@@ -166,20 +171,20 @@ std::string run_info() {
     }
 
     void initialize_config(
-        const std::vector<std::string>& config_strings,
+        const std::vector<ConfigInput>& config_inputs,
         const int config_options = jams::defaults::config_options) {
 
       ::globals::config = std::make_unique<libconfig::Config>();
       ::globals::config->setOptions(config_options);
 
       std::cout << "config files " << "\n";
-      for (const auto& s : config_strings) {
-        if (jams::system::file_exists(s)) {
-          std::cout << "  " << s << "\n";
+      for (const auto& input : config_inputs) {
+        if (!input.force_string && jams::system::file_exists(input.value)) {
+          std::cout << "  " << input.value << "\n";
         }
       }
 
-      jams::parse_config_strings(config_strings, ::globals::config);
+      jams::parse_config_strings(config_inputs, ::globals::config);
 
       std::string filename = jams::output::full_path_filename("combined.cfg");
       write_config(filename, ::globals::config);
@@ -193,12 +198,12 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
         name = trim(program_args.simulation_name);
       } else {
         // name after the first config file if one exists
-        for (const auto& s : program_args.config_strings) {
-          if (jams::system::file_exists(s)) {
-            name = trim(file_basename_no_extension(s));
-            break;
-          }
+      for (const auto& input : program_args.config_inputs) {
+        if (!input.force_string && jams::system::file_exists(input.value)) {
+          name = trim(file_basename_no_extension(input.value));
+          break;
         }
+      }
       }
       return name;
     }
@@ -228,7 +233,7 @@ std::string choose_simulation_name(const jams::ProgramArgs &program_args) {
 
         ::globals::simulation_name = choose_simulation_name(program_args);
 
-        initialize_config(program_args.config_strings);
+        initialize_config(program_args.config_inputs);
 
         jams::new_global_classes();
 
