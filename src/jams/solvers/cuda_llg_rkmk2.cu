@@ -162,6 +162,8 @@ void CUDALLGRKMK2Solver::run()
 
 
   update_thermostat();
+  thermostat_->record_done();
+  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0, jams::instance().cuda_master_stream().get()>>>(
     globals::s.device_data(),
@@ -170,7 +172,7 @@ void CUDALLGRKMK2Solver::run()
     globals::alpha.device_data(),
     globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-
+  record_spin_barrier_event();
 
   cudaMemcpyAsync(s_init_.device_data(),           // void *               dst
                 globals::s.device_data(),               // const void *         src
@@ -194,8 +196,7 @@ void CUDALLGRKMK2Solver::run()
     globals::num_spins, step_size_
     );
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-
-  jams::instance().cuda_master_stream().synchronize();
+  record_spin_barrier_event();
 
   double mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
@@ -216,6 +217,8 @@ void CUDALLGRKMK2Solver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   update_thermostat();
+  thermostat_->record_done();
+  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   cuda_llg_noise_step_rodrigues_kernel<<<grid_size, block_size, 0,  jams::instance().cuda_master_stream().get()>>>(
   globals::s.device_data(),
@@ -224,7 +227,7 @@ void CUDALLGRKMK2Solver::run()
   globals::alpha.device_data(),
   globals::num_spins, half_dt);
   DEBUG_CHECK_CUDA_ASYNC_STATUS
-  jams::instance().cuda_master_stream().synchronize();
+  record_spin_barrier_event();
 
   iteration_++;
   time_ = iteration_ * step_size_;

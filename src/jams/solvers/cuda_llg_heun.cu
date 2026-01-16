@@ -65,6 +65,8 @@ void CUDAHeunLLGSolver::run()
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   update_thermostat();
+  thermostat_->record_done();
+  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
 
   compute_fields();
 
@@ -75,8 +77,8 @@ void CUDAHeunLLGSolver::run()
      globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
        step_size_, globals::num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
+  record_spin_barrier_event();
 
-  jams::instance().cuda_master_stream().synchronize();
 
   double mid_time_step = step_size_;
   time_ = t0 + mid_time_step;
@@ -89,7 +91,7 @@ void CUDAHeunLLGSolver::run()
       globals::gyro.device_data(), globals::mus.device_data(), globals::alpha.device_data(),
       step_size_, globals::num_spins);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
-  jams::instance().cuda_master_stream().synchronize();
+  record_spin_barrier_event();
 
   iteration_++;
   time_ = iteration_ * step_size_;

@@ -58,55 +58,64 @@ void CudaRK4BaseSolver::run()
                   globals::s.device_data(),               // const void *         src
                   globals::num_spins3*sizeof(double),   // size_t               count
                   cudaMemcpyDeviceToDevice,    // enum cudaMemcpyKind  kind
-                  dev_stream_.get());                   // device stream
+                  jams::instance().cuda_master_stream().get());                   // device stream
 
   DEBUG_CHECK_CUDA_ASYNC_STATUS
 
   pre_step(globals::s);
 
   update_thermostat();
+  thermostat_->record_done();
+  thermostat_->wait_on(jams::instance().cuda_master_stream().get());
+
 
   // k1
+  record_spin_barrier_event();
   function_kernel(globals::s, k1_);
 
   double mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
 
-  cuda_rk4_mid_step_kernel<<<grid_size, block_size>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k1_.device_data(), globals::s.device_data());
+  cuda_rk4_mid_step_kernel<<<grid_size, block_size, 0 ,jams::instance().cuda_master_stream().get()>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k1_.device_data(), globals::s.device_data());
   // CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
   // CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k1_.device_data(), 1, globals::s.device_data(), 1));
 
+  record_spin_barrier_event();
   function_kernel(globals::s, k2_);
 
   mid_time_step = 0.5 * step_size_;
   time_ = t0 + mid_time_step;
 
-  cuda_rk4_mid_step_kernel<<<grid_size, block_size>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k2_.device_data(), globals::s.device_data());
+  cuda_rk4_mid_step_kernel<<<grid_size, block_size, 0 ,jams::instance().cuda_master_stream().get()>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k2_.device_data(), globals::s.device_data());
   // CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
   // CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k2_.device_data(), 1, globals::s.device_data(), 1));
 
+  record_spin_barrier_event();
   function_kernel(globals::s, k3_);
 
   mid_time_step = step_size_;
   time_ = t0 + mid_time_step;
 
-  cuda_rk4_mid_step_kernel<<<grid_size, block_size>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k3_.device_data(), globals::s.device_data());
+  cuda_rk4_mid_step_kernel<<<grid_size, block_size, 0 ,jams::instance().cuda_master_stream().get()>>>(globals::num_spins3, mid_time_step, s_old_.device_data(), k3_.device_data(), globals::s.device_data());
   // CHECK_CUBLAS_STATUS(cublasDcopy(jams::instance().cublas_handle(), globals::num_spins3, s_old_.device_data(), 1, globals::s.device_data(), 1));
   // CHECK_CUBLAS_STATUS(cublasDaxpy(jams::instance().cublas_handle(), globals::num_spins3, &mid_time_step, k3_.device_data(), 1, globals::s.device_data(), 1));
 
+  record_spin_barrier_event();
   function_kernel(globals::s, k4_);
 
 
   // NOTE: this does NOT normalise the spins. This must be done in the post_step
   // function
-  cuda_rk4_combination_kernel<<<grid_size, block_size>>>
+  record_spin_barrier_event();
+  cuda_rk4_combination_kernel<<<grid_size, block_size, 0 ,jams::instance().cuda_master_stream().get()>>>
       (globals::s.device_data(), s_old_.device_data(),
        k1_.device_data(), k2_.device_data(), k3_.device_data(), k4_.device_data(),
        step_size_, globals::num_spins3);
 
+  record_spin_barrier_event();
   post_step(globals::s);
 
-  cudaDeviceSynchronize();
+  record_spin_barrier_event();
 
   iteration_++;
   time_ = iteration_ * step_size_;
