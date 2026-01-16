@@ -32,6 +32,7 @@
 #include "jams/solvers/cpu_monte_carlo_constrained.h"
 #include "jams/solvers/cpu_metadynamics_metropolis_solver.h"
 #include "jams/solvers/cuda_llg_rkmk2.h"
+#include "jams/solvers/cuda_llg_rkmk4.h"
 
 
 #define DEFINED_SOLVER(name, type, settings) \
@@ -89,6 +90,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
   DEFINED_SOLVER("llg-sot-rk4-gpu", CudaRK4LLGSOTSolver, settings);
   DEFINED_SOLVER("llg-simp-gpu", CUDALLGSemiImplictSolver, settings);
   DEFINED_SOLVER("llg-rkmk2-gpu", CUDALLGRKMK2Solver, settings);
+  DEFINED_SOLVER("llg-rkmk4-gpu", CUDALLGRKMK4Solver, settings);
 #endif
 
   throw std::runtime_error("unknown solver " + std::string(settings["module"].c_str()));
