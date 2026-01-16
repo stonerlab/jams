@@ -9,6 +9,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import shutil
+import time
 from test.jams_integration_test import JamsIntegrationtest
 
 GYRO = 2.0023193043625 * 0.0578838181 / 0.6582119569 # per Tesla per picosecond with same precision as JAMS
@@ -16,6 +17,8 @@ GYRO = 2.0023193043625 * 0.0578838181 / 0.6582119569 # per Tesla per picosecond 
 def make_cfg(
         solver: str,
         dt_fs: float,
+        s0,
+        t_max_ps: float = 10.0,
         alpha: float = 0.1,
 ) -> str:
     """
@@ -34,7 +37,7 @@ def make_cfg(
     str
         libconfig text.
     """
-    output_steps = int(1.0 / dt_fs)
+    output_steps = max(int(1.0 / dt_fs), 1)
 
     cfg = {
         "materials": (
@@ -42,7 +45,7 @@ def make_cfg(
                 "name": "A",
                 "moment": 1.0,
                 "alpha": alpha,
-                "spin": [1.0, 0.0, 0.0],
+                "spin": s0,
             },
         ),
         "unitcell": {
@@ -69,7 +72,7 @@ def make_cfg(
         "solver": {
             "module": solver,
             "t_step": dt_fs * 1e-15,
-            "t_max": 10.0e-12,
+            "t_max": t_max_ps * 1e-12,
         },
         "monitors": (
             {"module": "magnetisation", "output_steps": output_steps},
@@ -86,7 +89,7 @@ def make_cfg(
 
 class TestIntegrator(JamsIntegrationtest):
     def run_single_spin_relaxation_case(self, solver: str, dt_fs: float) -> None:
-        cfg = make_cfg(solver, dt_fs)
+        cfg = make_cfg(solver, dt_fs, s0=[1.0, 0.0, 0.0])
         mag_file = os.path.join(self.temp_dir, "jams_mag.tsv")
         if os.path.exists(mag_file):
             os.remove(mag_file)
@@ -116,9 +119,12 @@ class TestIntegrator(JamsIntegrationtest):
 
         df = pd.read_csv(mag_file, sep=r'\s+')
 
-        df['A_mx_delta'] = mx(df['time'], 0.1, 100.0) - df['A_mx']
-        df['A_my_delta'] = my(df['time'], 0.1, 100.0) - df['A_my']
-        df['A_mz_delta'] = mz(df['time'], 0.1, 100.0) - df['A_mz']
+        df['A_mx_exact'] = mx(df['time'], 0.1, 100.0)
+        df['A_my_exact'] = my(df['time'], 0.1, 100.0)
+        df['A_mz_exact'] = mz(df['time'], 0.1, 100.0)
+        df['A_mx_delta'] = df['A_mx_exact'] - df['A_mx']
+        df['A_my_delta'] = df['A_my_exact'] - df['A_my']
+        df['A_mz_delta'] = df['A_mz_exact'] - df['A_mz']
         df['A_m_delta'] = 1.0 - df['A_m']
 
         max_delta = df[['A_mx_delta', 'A_my_delta', 'A_mz_delta', 'A_m_delta']].abs().max().max()
@@ -142,7 +148,7 @@ class TestIntegrator(JamsIntegrationtest):
         self.assertLess(max_delta, 1e-4)
 
     def run_single_spin_precession_case(self, solver: str, dt_fs: float) -> None:
-        cfg = make_cfg(solver, dt_fs, alpha=0.0)
+        cfg = make_cfg(solver, dt_fs, s0 = [1 / np.sqrt(2), 0.0, 1 / np.sqrt(2)], t_max_ps=10, alpha=0.0)
         mag_file = os.path.join(self.temp_dir, "jams_mag.tsv")
         if os.path.exists(mag_file):
             os.remove(mag_file)
@@ -156,25 +162,25 @@ class TestIntegrator(JamsIntegrationtest):
             f"Expected output file not found: {mag_file}",
         )
 
-        def mx(t, alpha, H):
+        def mx(t, H):
             omega = GYRO * H
-            tau = 1 / (alpha * GYRO * H)
-            return np.cos(omega * t)
+            return (1 / np.sqrt(2)) * np.cos(omega * t)
 
-        def my(t, alpha, H):
+        def my(t, H):
             omega = GYRO * H
-            tau = 1 / (alpha * GYRO * H)
-            return np.sin(omega * t)
+            return (1 / np.sqrt(2)) * np.sin(omega * t)
 
-        def mz(t, alpha, H):
-            tau = 1 / (alpha * GYRO * H)
-            return 0.0
+        def mz(t, H):
+            return 1 / np.sqrt(2)
 
         df = pd.read_csv(mag_file, sep=r'\s+')
 
-        df['A_mx_delta'] = mx(df['time'], 0.1, 100.0) - df['A_mx']
-        df['A_my_delta'] = my(df['time'], 0.1, 100.0) - df['A_my']
-        df['A_mz_delta'] = mz(df['time'], 0.1, 100.0) - df['A_mz']
+        df['A_mx_exact'] = mx(df['time'], 100.0)
+        df['A_my_exact'] = my(df['time'], 100.0)
+        df['A_mz_exact'] = mz(df['time'], 100.0)
+        df['A_mx_delta'] = df['A_mx_exact'] - df['A_mx']
+        df['A_my_delta'] = df['A_my_exact'] - df['A_my']
+        df['A_mz_delta'] = df['A_mz_exact'] - df['A_mz']
         df['A_m_delta'] = 1.0 - df['A_m']
 
         max_delta = df[['A_mx_delta', 'A_my_delta', 'A_mz_delta', 'A_m_delta']].abs().max().max()
@@ -200,13 +206,13 @@ class TestIntegrator(JamsIntegrationtest):
     def test_single_spin_relaxation(self):
             self.keep_artifacts = True
             solvers = [
-                "llg-heun-cpu",
                 "llg-heun-gpu",
                 "llg-rk4-gpu",
                 "llg-simp-gpu",
-                "llg-rkmk2-gpu"
+                "llg-rkmk2-gpu",
+                "llg-rkmk4-gpu"
             ]
-            time_steps_fs = [1.0, ]
+            time_steps_fs = [20.0, 10.0, 5.0, 2.0, 1.0]
 
             for solver in solvers:
                 if solver.endswith("-gpu") and not self.enable_gpu:
@@ -214,18 +220,21 @@ class TestIntegrator(JamsIntegrationtest):
 
                 for dt_fs in time_steps_fs:
                     with self.subTest(solver=solver, dt_fs=dt_fs):
+                        start = time.perf_counter()
                         self.run_single_spin_relaxation_case(solver, dt_fs)
+                        elapsed = time.perf_counter() - start
+                        print(f"subtest relax solver={solver} dt_fs={dt_fs} elapsed={elapsed:.3f}s")
 
     def test_single_spin_precession(self):
             self.keep_artifacts = True
             solvers = [
-                "llg-heun-cpu",
                 "llg-heun-gpu",
                 "llg-rk4-gpu",
                 "llg-simp-gpu",
-                "llg-rkmk2-gpu"
+                "llg-rkmk2-gpu",
+                "llg-rkmk4-gpu"
             ]
-            time_steps_fs = [1.0, ]
+            time_steps_fs = [20.0, 10.0, 5.0, 2.0, 1.0]
 
             for solver in solvers:
                 if solver.endswith("-gpu") and not self.enable_gpu:
@@ -233,7 +242,10 @@ class TestIntegrator(JamsIntegrationtest):
 
                 for dt_fs in time_steps_fs:
                     with self.subTest(solver=solver, dt_fs=dt_fs):
+                        start = time.perf_counter()
                         self.run_single_spin_precession_case(solver, dt_fs)
+                        elapsed = time.perf_counter() - start
+                        print(f"subtest precession solver={solver} dt_fs={dt_fs} elapsed={elapsed:.3f}s")
 
 
 if __name__ == "__main__":

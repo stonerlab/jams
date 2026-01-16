@@ -89,6 +89,28 @@ different steps.
 
 ## Development
 
+### Integration tests
+
+Use `scripts/run-integration-tests.sh` to create a fresh Python venv, build the JAMS binary, and run the integration tests.
+
+```shell
+  bash scripts/run-integration-tests.sh
+```
+
+To build a specific variant, pass extra CMake flags:
+
+```shell
+  bash scripts/run-integration-tests.sh -o -DJAMS_BUILD_CUDA=OFF -o -DJAMS_BUILD_OMP=OFF
+```
+
+Other useful options:
+
+- `--build-type Debug`
+- `--generator Ninja`
+- `--jobs 8`
+- `--enable-gpu`
+- `--tests test/test_exchange_symops.py`
+
 ### Internal Units
 
 Within the code we use the following units:

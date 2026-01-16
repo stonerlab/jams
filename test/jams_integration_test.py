@@ -19,6 +19,10 @@ def _consume_binary_path_arg():
 
 _BINARY_PATH_FROM_ARGS = _consume_binary_path_arg()
 _BINARY_PATH_FROM_ENV = os.getenv("JAMS_BINARY_PATH")
+_ARTIFACT_STAMP = os.getenv("JAMS_TEST_STAMP")
+if not _ARTIFACT_STAMP:
+    _ARTIFACT_STAMP = time.strftime("%Y%m%d-%H%M%S")
+    os.environ["JAMS_TEST_STAMP"] = _ARTIFACT_STAMP
 
 class JamsIntegrationtest(unittest.TestCase):
     temp_dir = None
@@ -54,7 +58,7 @@ class JamsIntegrationtest(unittest.TestCase):
                 self.__class__.use_temp_dir = True
 
         # Make a unique dir per test
-        stamp = time.strftime("%Y%m%d-%H%M%S")
+        stamp = _ARTIFACT_STAMP
         test_class = self.__class__.__name__
         test_method = self._testMethodName
 
