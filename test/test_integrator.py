@@ -5,6 +5,7 @@ import unittest
 import libconf
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import shutil
 from test.jams_integration_test import JamsIntegrationtest
 
@@ -119,26 +120,31 @@ class TestIntegrator(JamsIntegrationtest):
 
         max_delta = df[['A_mx_delta', 'A_my_delta', 'A_mz_delta', 'A_m_delta']].abs().max().max()
 
+        artifact_name = f"mag_{solver}_dt{dt_fs:.3f}fs.tsv"
+        df.to_csv(self.artifact_dir / artifact_name, sep=" ", index=False, float_format="%.8e")
+
+        plt.plot(df['time'], df['A_mx_delta'])
+
         self.assertLess(max_delta, 1e-4)
 
-        artifact_name = f"mag_{solver}_dt{dt_fs:.3f}fs.tsv"
-        df.to_csv(self.artifact_dir / artifact_name, sep=" ", index=False)
-
     def test_single_spin(self):
-        self.keep_artifacts = True
-        solvers = [
-            "llg-heun-cpu",
-            "llg-heun-gpu",
-        ]
-        time_steps_fs = [1.0, 0.5]
+            self.keep_artifacts = True
+            solvers = [
+                "llg-heun-cpu",
+                "llg-heun-gpu",
+                "llg-rk4-gpu",
+                "llg-simp-gpu",
+                "llg-rkmk2-gpu"
+            ]
+            time_steps_fs = [1.0, 0.5]
 
-        for solver in solvers:
-            if solver.endswith("-gpu") and not self.enable_gpu:
-                continue
+            for solver in solvers:
+                if solver.endswith("-gpu") and not self.enable_gpu:
+                    continue
 
-            for dt_fs in time_steps_fs:
-                with self.subTest(solver=solver, dt_fs=dt_fs):
-                    self.run_single_spin_case(solver, dt_fs)
+                for dt_fs in time_steps_fs:
+                    with self.subTest(solver=solver, dt_fs=dt_fs):
+                        self.run_single_spin_case(solver, dt_fs)
 
 
 if __name__ == "__main__":
