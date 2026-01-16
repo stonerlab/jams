@@ -46,12 +46,11 @@ inline T config_required(const libconfig::Setting &s, const std::string &name) {
 template<typename T, std::size_t N>
 struct config_required_impl<std::array<T, N>, void> {
   static std::array<T, N> get(const libconfig::Setting &s, const std::string &name) {
-    if (s.getLength() != N)
-    {
-      throw std::runtime_error("config_required: array size mismatch");
-    }
     std::array<T, N> out{};
     const auto &arr = s[name];
+    if (arr.getLength() != N) {
+      throw std::runtime_error("config_required: array size mismatch");
+    }
     for (std::size_t i = 0; i < N; ++i) {
       out[i] = static_cast<T>(arr[static_cast<int>(i)]);
     }
