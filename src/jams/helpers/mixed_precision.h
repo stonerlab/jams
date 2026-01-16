@@ -37,7 +37,7 @@ using ComplexHi = std::complex<double>;
 using Complex = std::complex<double>;
 #if HAS_CUDA
 using cufftComplexHi = cufftDoubleComplex;
-using cufftComplexLo = cufftDoubleComplex;
+using cufftComplex = cufftDoubleComplex;
 using Real2 = double2;
 using Real3 = double3;
 #endif
