@@ -10,6 +10,7 @@ Options:
   -p, --python <path>        Python interpreter to use (default: python3)
   -v, --venv <dir>           Venv directory (default: .venv-jams-tests)
   -e, --env-file <path>      Environment file for test deps (default: test/environment.yml)
+  -w, --work-dir <dir>       Working directory for test outputs (default: temp dir)
   -b, --build-dir <dir>      CMake build directory (default: cmake-build-integration)
   -t, --build-type <type>    CMake build type (default: Release)
   -g, --generator <name>     CMake generator (default: unset)
@@ -37,6 +38,7 @@ REUSE_VENV=""
 REUSE_BINARY=""
 SKIP_BUILD=""
 EXTERNAL_BINARY=""
+WORK_DIR=""
 declare -a CMAKE_OPTIONS=()
 declare -a TESTS=()
 
@@ -52,6 +54,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -e|--env-file)
       ENV_FILE="$2"
+      shift 2
+      ;;
+    -w|--work-dir)
+      WORK_DIR="$2"
       shift 2
       ;;
     -b|--build-dir)
@@ -209,6 +215,9 @@ fi
 export JAMS_BINARY_PATH="${BINARY_PATH}"
 if [[ -n "${ENABLE_GPU}" ]]; then
   export JAMS_TEST_ENABLE_GPU=1
+fi
+if [[ -n "${WORK_DIR}" ]]; then
+  export JAMS_TEST_WORKDIR="${WORK_DIR}"
 fi
 
 "${VENV_DIR}/bin/python" -m unittest "${TESTS[@]}"

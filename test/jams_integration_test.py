@@ -21,7 +21,8 @@ _BINARY_PATH_FROM_ARGS = _consume_binary_path_arg()
 _BINARY_PATH_FROM_ENV = os.getenv("JAMS_BINARY_PATH")
 
 class JamsIntegrationtest(unittest.TestCase):
-    temp_dir = tempfile.mkdtemp()
+    temp_dir = None
+    use_temp_dir = True
     test_dir = os.path.dirname(os.path.abspath(__file__))
     binary_path = _BINARY_PATH_FROM_ENV or _BINARY_PATH_FROM_ARGS
     keep_artifacts = False
@@ -42,6 +43,16 @@ class JamsIntegrationtest(unittest.TestCase):
         if not os.path.exists(self.binary_path):
             raise FileNotFoundError(f"JAMS binary not found: {self.binary_path}")
 
+        if self.__class__.temp_dir is None:
+            workdir = os.getenv("JAMS_TEST_WORKDIR", "").strip()
+            if workdir:
+                self.__class__.temp_dir = workdir
+                self.__class__.use_temp_dir = False
+                os.makedirs(self.__class__.temp_dir, exist_ok=True)
+            else:
+                self.__class__.temp_dir = tempfile.mkdtemp()
+                self.__class__.use_temp_dir = True
+
         # Make a unique dir per test
         stamp = time.strftime("%Y%m%d-%H%M%S")
         test_class = self.__class__.__name__
@@ -49,9 +60,9 @@ class JamsIntegrationtest(unittest.TestCase):
 
         self.artifact_dir = (
                 Path(self.temp_dir)
+                / stamp
                 / self.__class__.__name__
                 / self._testMethodName
-                / stamp
         )
         self.artifact_dir.mkdir(parents=True, exist_ok=True)
 
@@ -74,7 +85,8 @@ class JamsIntegrationtest(unittest.TestCase):
             # Keep temp_dir if you want everything; or keep only artifact_dir
             print(f"Keeping artifacts in: {self.artifact_dir}")
         else:
-            shutil.rmtree(self.temp_dir, ignore_errors=True)
+            if self.__class__.use_temp_dir:
+                shutil.rmtree(self.temp_dir, ignore_errors=True)
         super().tearDown()
 
     def runJamsCfgFile(self, cfg_file, setup_only=False):
