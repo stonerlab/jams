@@ -24,8 +24,10 @@ class Thermostat {
     sigma_.zero();
     noise_.zero();
 
+#if HAS_CUDA
     cudaEventCreateWithFlags(&done_, cudaEventDisableTiming);
     DEBUG_CHECK_CUDA_ASYNC_STATUS
+#endif
   }
 
   virtual ~Thermostat() = default;

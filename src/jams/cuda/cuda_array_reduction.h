@@ -28,12 +28,13 @@ namespace jams {
             std::array<X,3> vector_field_indexed_scale_and_reduce_cuda(const jams::MultiArray<X, 2> &x,
                                                             const jams::MultiArray<S, 1> &scale_factors,
                                                             const jams::MultiArray<int, 1> &indices));
-
+#if HAS_CUDA
         CUDA_ONLY_IMPLEMENTATION(
                 float scalar_field_reduce_cuda(const jams::MultiArray<float, 1> &x, cudaStream_t stream = nullptr));
 
         CUDA_ONLY_IMPLEMENTATION(
                 double scalar_field_reduce_cuda(const jams::MultiArray<double, 1> &x, cudaStream_t stream = nullptr));
+#endif
 }
 
 #endif
