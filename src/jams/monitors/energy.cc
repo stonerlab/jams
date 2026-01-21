@@ -13,35 +13,41 @@
 
 #include "energy.h"
 
+#include "jams/helpers/container_utils.h"
+#include "jams/interface/config.h"
+
+
 EnergyMonitor::EnergyMonitor(const libconfig::Setting &settings)
-: Monitor(settings), tsv_file(jams::output::full_path_filename("eng.tsv")) {
-  tsv_file.setf(std::ios::right);
-  tsv_file << tsv_header();
-}
+: Monitor(settings),
+  tsv_(make_tsv_writer(settings))
+{}
 
 void EnergyMonitor::update(Solver& solver) {
-  tsv_file.width(12);
+  auto values = make_reserved<double>(tsv_.num_cols());
 
-  tsv_file << std::scientific << solver.time() << "\t";
-
-  for (auto &hamiltonian : solver.hamiltonians()) {
-    auto energy = hamiltonian->calculate_total_energy(solver.time());
-    tsv_file << std::scientific << std::setprecision(15) << energy << "\t";
+  values.push_back(solver.time());
+  for (auto &h : solver.hamiltonians()) {
+    values.push_back(h->calculate_total_energy(solver.time()));
   }
 
-  tsv_file << std::endl;
+  tsv_.write_row(values);
 }
 
-std::string EnergyMonitor::tsv_header() {
-  std::stringstream ss;
-  ss.width(12);
 
-  ss << "time\t";
-  for (auto &hamiltonian : globals::solver->hamiltonians()) {
-    ss << hamiltonian->name() << "_E_meV\t";
+jams::output::TsvWriter EnergyMonitor::make_tsv_writer(const libconfig::Setting &settings) {
+  auto precision = jams::config_optional<int>(settings, "precision", 8);
+
+  std::vector<jams::output::ColDef> cols;
+  cols.push_back({"time", "picoseconds", jams::output::ColFmt::Scientific});
+
+  for (const auto& h : globals::solver->hamiltonians()) {
+    cols.push_back({h->name(), "meV", jams::output::ColFmt::Scientific});
   }
 
-  ss << std::endl;
-
-  return ss.str();
+  return jams::output::TsvWriter(
+      jams::output::full_path_filename("eng.tsv"),
+      std::move(cols),
+      precision
+  );
 }
+

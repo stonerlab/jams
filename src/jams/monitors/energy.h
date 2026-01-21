@@ -4,6 +4,7 @@
 #define JAMS_MONITOR_ENERGY_H
 
 #include <jams/core/monitor.h>
+#include <jams/helpers/output.h>
 
 #include <fstream>
 #include <string>
@@ -20,9 +21,8 @@ public:
     void post_process() override {};
 
 private:
-    std::ofstream tsv_file;
-    std::string   tsv_header();
-
+    static jams::output::TsvWriter make_tsv_writer(const libconfig::Setting &settings);
+    jams::output::TsvWriter tsv_;
 };
 
 #endif  // JAMS_MONITOR_ENERGY_H
