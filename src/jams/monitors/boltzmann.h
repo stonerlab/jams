@@ -14,11 +14,12 @@ public:
     ~BoltzmannMonitor() override = default;
 
     void update(Solver& solver) override;
-    void post_process() override {};
+    void post_process() override;
 
 private:
     std::vector<double> bins_;
     double total_;
+    double delay_time_;
     std::ofstream tsv_file;
 };
 
