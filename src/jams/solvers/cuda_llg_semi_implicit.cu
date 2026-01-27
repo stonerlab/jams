@@ -25,11 +25,10 @@ void cuda_llg_semi_implicit_pred_kernel
 
   const unsigned int base = 3u * idx;
 
-  jams::Real gyro = gyro_dev[idx];
   jams::Real3 h = {
-    h_dev[base + 0] * gyro,
-    h_dev[base + 1] * gyro,
-    h_dev[base + 2] * gyro
+    h_dev[base + 0],
+    h_dev[base + 1],
+    h_dev[base + 2]
   };
 
   const double3 s = {
@@ -38,31 +37,21 @@ void cuda_llg_semi_implicit_pred_kernel
     s_inout_dev[base + 2]
   };
 
-  jams::Real alpha = alpha_dev[idx];
-  double3 omega = {
-    alpha * (s.y * h.z - s.z * h.y) + h.x,
-    alpha * (s.z * h.x - s.x * h.z) + h.y,
-    alpha * (s.x * h.y - s.y * h.x) + h.z,
-  };
-
-  // double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
+  double3 omega = omega_llg(s, h, gyro_dev[idx], alpha_dev[idx]);
 
   omega = project_to_tangent(omega, s);
 
   double3 s_pred = cayley_rotate(omega, s);
 
   // Make the midpoint estimate
-  // no need to multiply by 1/2 because we normalise below
-  s_pred.x += s.x;
-  s_pred.y += s.y;
-  s_pred.z += s.z;
-
-  double inv_norm = rnorm3d(s_pred.x, s_pred.y, s_pred.z);
+  s_pred.x = 0.5 * (s_pred.x + s.x);
+  s_pred.y = 0.5 * (s_pred.y + s.y);
+  s_pred.z = 0.5 * (s_pred.z + s.z);
 
   // Write (S_{n} + S'_{n+1}) / 2 to memory
-  s_inout_dev[base + 0] = s_pred.x * inv_norm;
-  s_inout_dev[base + 1] = s_pred.y * inv_norm;
-  s_inout_dev[base + 2] = s_pred.z * inv_norm;
+  s_inout_dev[base + 0] = s_pred.x;
+  s_inout_dev[base + 1] = s_pred.y;
+  s_inout_dev[base + 2] = s_pred.z;
 }
 
 __global__ void cuda_llg_semi_implicit_corr_kernel
