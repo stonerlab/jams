@@ -20,6 +20,7 @@
 #include "jams/helpers/defaults.h"
 
 #include "jams/solvers/null_solver.h"
+#include "jams/solvers/cuda_llg_dm.h"
 #include "jams/solvers/cuda_gse_rk4.h"
 #include "jams/solvers/cuda_llg_heun.h"
 #include "jams/solvers/cuda_llg_rk4.h"
@@ -85,6 +86,7 @@ Solver* Solver::create(const libconfig::Setting &settings) {
 #if HAS_CUDA
   DEFINED_SOLVER("gse-rk4-gpu", CUDAGSERK4Solver, settings);
   DEFINED_SOLVER("llg-heun-gpu", CUDAHeunLLGSolver, settings);
+  DEFINED_SOLVER("llg-dm-gpu", CUDALLGDMSolver, settings);
   DEFINED_SOLVER("llg-rk4-gpu", CUDALLGRK4Solver, settings);
   DEFINED_SOLVER("ll-lorentzian-rk4-gpu", CUDALLLorentzianRK4Solver, settings);
   DEFINED_SOLVER("llg-sot-rk4-gpu", CudaRK4LLGSOTSolver, settings);
