@@ -5,70 +5,58 @@
 
 #include <jams/helpers/mixed_precision.h>
 
-__device__ inline void linear_ode(const jams::Real A[4], const jams::Real eta[4], const double z[4], double f[4]) {
-  for (auto i = 0; i < 4; ++i) {
-    f[i] = A[i] * (eta[i] - z[i]);
-  }
+__device__ inline double ou_linear_update(const double z, const jams::Real lambda, const jams::Real eta,
+                                          const jams::Real h) {
+  const double decay = exp(-static_cast<double>(lambda) * static_cast<double>(h));
+  return static_cast<double>(eta) + (z - static_cast<double>(eta)) * decay;
 }
 
-__device__ inline void bose_ode(const jams::Real A[2], const jams::Real eta[2], const double z[2], double f[2]) {
-  f[0] = z[1];
-  f[1] = eta[0] - A[1] * A[1] * z[0] - A[0] * z[1];
-}
+__device__ inline void bose_exact_update(const jams::Real A[2], const jams::Real eta0,
+                                         const jams::Real h, double z[2]) {
+  const double gamma = static_cast<double>(A[0]);
+  const double omega = static_cast<double>(A[1]);
+  const double omega2 = omega * omega;
+  const double alpha = 0.5 * gamma;
+  const double decay = exp(-alpha * static_cast<double>(h));
+  const double force_eq = static_cast<double>(eta0) / omega2;
 
-template<unsigned N>
-__device__ inline void
-rk4_vectored(void ode(const jams::Real[N], const jams::Real[N], const double[N], double[N]), const double h, const jams::Real A[N],
-             const jams::Real eta[N], double z[N]) {
-  double k1[N], k2[N], k3[N], k4[N], f[N];
-  double u[N];
+  double y0 = z[0] - force_eq;
+  double v0 = z[1];
 
-  for (auto i = 0; i < N; ++i) {
-    u[i] = z[i];
+  const double discriminant = omega2 - alpha * alpha;
+  if (discriminant > 0.0) {
+    const double beta = sqrt(discriminant);
+    const double c = cos(beta * static_cast<double>(h));
+    const double s = sin(beta * static_cast<double>(h));
+    const double inv_beta = 1.0 / beta;
+
+    const double y1 = decay * (y0 * c + (v0 + alpha * y0) * inv_beta * s);
+    const double v1 = decay * (v0 * c - (alpha * v0 + omega2 * y0) * inv_beta * s);
+
+    z[0] = y1 + force_eq;
+    z[1] = v1;
+    return;
   }
 
-  ode(A, eta, u, f);
+  if (discriminant < 0.0) {
+    const double beta = sqrt(-discriminant);
+    const double c = cosh(beta * static_cast<double>(h));
+    const double s = sinh(beta * static_cast<double>(h));
+    const double inv_beta = 1.0 / beta;
 
-  for (auto i = 0; i < N; ++i) {
-    k1[i] = h * f[i];
+    const double y1 = decay * (y0 * c + (v0 + alpha * y0) * inv_beta * s);
+    const double v1 = decay * (v0 * c - (alpha * v0 + omega2 * y0) * inv_beta * s);
+
+    z[0] = y1 + force_eq;
+    z[1] = v1;
+    return;
   }
 
-  // K2
-  for (auto i = 0; i < N; ++i) {
-    u[i] = z[i] + 0.5 * k1[i];
-  }
+  const double y1 = decay * (y0 + (v0 + alpha * y0) * static_cast<double>(h));
+  const double v1 = decay * (v0 - alpha * (v0 + alpha * y0) * static_cast<double>(h));
 
-  ode(A, eta, u, f);
-
-  for (auto i = 0; i < N; ++i) {
-    k2[i] = h * f[i];
-  }
-
-  // K3
-  for (auto i = 0; i < N; ++i) {
-    u[i] = z[i] + 0.5 * k2[i];
-  }
-
-  ode(A, eta, u, f);
-
-  for (auto i = 0; i < N; ++i) {
-    k3[i] = h * f[i];
-  }
-
-  // K4
-  for (auto i = 0; i < N; ++i) {
-    u[i] = z[i] + k3[i];
-  }
-
-  ode(A, eta, u, f);
-
-  for (auto i = 0; i < N; ++i) {
-    k4[i] = h * f[i];
-  }
-
-  for (auto i = 0; i < N; ++i) {
-    z[i] = z[i] + (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]) / 6.0;
-  }
+  z[0] = y1 + force_eq;
+  z[1] = v1;
 }
 
 __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
@@ -109,7 +97,9 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
       e[i] = eta[4*x + i] * sqrtf(jams::Real(2.0) / (lambda[i] * h));
     }
 
-    rk4_vectored<4>(linear_ode, h, lambda, e, z);
+    for (auto i = 0; i < 4; ++i) {
+      z[i] = ou_linear_update(z[i], lambda[i], e[i], h);
+    }
 
     for (auto i = 0; i < 4; ++i) {
       zeta[4 * x + i] = z[i];
@@ -153,7 +143,7 @@ __global__ inline void cuda_thermostat_quantum_spde_no_zero_kernel
     z[0] = zeta5[x];
     z[1] = zeta5p[x];
 
-    rk4_vectored<2>(bose_ode, h, gamma_omega, e, z);
+    bose_exact_update(gamma_omega, e[0], h, z);
 
     zeta5[x] = z[0];
     zeta5p[x] = z[1];
@@ -171,7 +161,7 @@ __global__ inline void cuda_thermostat_quantum_spde_no_zero_kernel
     z[0] = zeta6[x];
     z[1] = zeta6p[x];
 
-    rk4_vectored<2>(bose_ode, h, gamma_omega, e, z);
+    bose_exact_update(gamma_omega, e[0], h, z);
 
     zeta6[x] = z[0];
     zeta6p[x] = z[1];
