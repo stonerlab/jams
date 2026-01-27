@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <string>
 
 #if HAS_CUDA
 
@@ -42,37 +43,45 @@ const char* cusparseGetMatTypeString(cusparseMatrixType_t type);
 
 #define CHECK_CUSPARSE_STATUS(x) \
 { \
-  cusparseStatus_t stat; \
-  if ((stat = (x)) != CUSPARSE_STATUS_SUCCESS) { \
-    std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    throw std::runtime_error(JAMS_ERROR_MESSAGE("cusparse returned ") + cusparseGetStatusString(stat)); \
+  cusparseStatus_t stat = (x); \
+  if (stat != CUSPARSE_STATUS_SUCCESS) { \
+    std::cerr << __FILE__ << "(" << __LINE__ << "): " << __PRETTY_FUNCTION__ << std::endl; \
+    throw std::runtime_error( \
+      std::string(__FILE__) + "(" + std::to_string(__LINE__) + "): cusparse returned " + \
+      std::string(cusparseGetStatusString(stat))); \
   } \
 }
 
 #define CHECK_CURAND_STATUS(x) \
 { \
-  curandStatus_t stat; \
-  if ((stat = (x)) != CURAND_STATUS_SUCCESS) { \
-    std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    throw std::runtime_error(JAMS_ERROR_MESSAGE("curand returned ") + curandGetStatusString(stat)); \
+  curandStatus_t stat = (x); \
+  if (stat != CURAND_STATUS_SUCCESS) { \
+    std::cerr << __FILE__ << "(" << __LINE__ << "): " << __PRETTY_FUNCTION__ << std::endl; \
+    throw std::runtime_error( \
+      std::string(__FILE__) + "(" + std::to_string(__LINE__) + "): curand returned " + \
+      std::string(curandGetStatusString(stat))); \
   } \
 }
 
 #define CHECK_CUBLAS_STATUS(x) \
 { \
-  cublasStatus_t stat; \
-  if ((stat = (x)) != CUBLAS_STATUS_SUCCESS) { \
-    std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    throw std::runtime_error(JAMS_ERROR_MESSAGE("cublas returned ") + cublasGetStatusString(stat)); \
+  cublasStatus_t stat = (x); \
+  if (stat != CUBLAS_STATUS_SUCCESS) { \
+    std::cerr << __FILE__ << "(" << __LINE__ << "): " << __PRETTY_FUNCTION__ << std::endl; \
+    throw std::runtime_error( \
+      std::string(__FILE__) + "(" + std::to_string(__LINE__) + "): cublas returned " + \
+      std::string(cublasGetStatusString(stat))); \
   } \
 }
 
 #define CHECK_CUFFT_STATUS(x) \
 { \
-  cufftResult_t stat; \
-  if ((stat = (x)) != CUFFT_SUCCESS) { \
-    std::cerr << JAMS_FILE ": " << __PRETTY_FUNCTION__ << std::endl; \
-    throw std::runtime_error(JAMS_ERROR_MESSAGE("cufft returned ") + cufftGetStatusString(stat)); \
+  cufftResult_t stat = (x); \
+  if (stat != CUFFT_SUCCESS) { \
+    std::cerr << __FILE__ << "(" << __LINE__ << "): " << __PRETTY_FUNCTION__ << std::endl; \
+    throw std::runtime_error( \
+      std::string(__FILE__) + "(" + std::to_string(__LINE__) + "): cufft returned " + \
+      std::string(cufftGetStatusString(stat))); \
   } \
 }
 
