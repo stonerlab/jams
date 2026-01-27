@@ -44,6 +44,7 @@
 
 Monitor::Monitor(const libconfig::Setting &settings)
 : Base(settings),
+  start_delay_steps_(jams::config_optional<int>(settings, "start_delay_steps", 0)),
   output_step_freq_(
           jams::config_optional<int>(settings, "output_steps", jams::defaults::monitor_output_steps)),
   convergence_status_(ConvergenceStatus::kDisabled),
@@ -64,6 +65,10 @@ Monitor::Monitor(const libconfig::Setting &settings)
 }
 
 bool Monitor::is_updating(const int &iteration) {
+  if (iteration < start_delay_steps_)
+  {
+    return false;
+  }
   if (iteration % output_step_freq_ == 0) {
     return true;
   }

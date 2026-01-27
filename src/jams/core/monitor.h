@@ -98,6 +98,7 @@ public:
     static Monitor *create(const libconfig::Setting &settings);
 
 protected:
+    int start_delay_steps_ = 0;
     int output_step_freq_;
     ConvergenceStatus convergence_status_;
     double convergence_tolerance_;
