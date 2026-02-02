@@ -32,11 +32,14 @@ private:
 
     // Toggle outputting spectrum for each site in the unit cell as individual files
     bool do_site_resolved_output_ = false;
+    bool do_auto_basis_transform_ = true;
 
     jams::MultiArray<Mat3cx, 3> calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
 
-    jams::MultiArray<Mat3, 1>   transformations_;
-    jams::MultiArray<double, 2> transformed_spins_;
+    /// @brief Sublattice magnetisation directions for each basis site at each time sample in the current periodogram
+    /// @details Layout: mean_sublattice_directions_(basis_site, periodogram_index)
+    jams::MultiArray<Vec3, 2> mean_sublattice_directions_;
+
     jams::MultiArray<Mat3cx,3> cumulative_magnon_spectrum_;
 };
 

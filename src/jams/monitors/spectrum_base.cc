@@ -9,6 +9,7 @@
 #include "jams/monitors/spectrum_base.h"
 
 #include <iostream>
+#include <cmath>
 
 SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : Monitor(settings) {
   periodogram_props_ = {0, 0};
@@ -89,7 +90,7 @@ void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings) {
   if (periodogram_props_.length <= 0) {
     throw std::runtime_error("Periodogram length must be greater than zero");
   }
-  
+
   if (periodogram_props_.overlap <= 0) {
     throw std::runtime_error("Periodogram overlap must be greater than zero");
   }
@@ -222,11 +223,21 @@ jams::MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(jams
   int stride = num_space_samples * 3;
   int dist = 1;
 
+  // Normalise the FFT window to unit RMS power so that windowing does not change overall power.
+  // For Welch/periodogram-style spectra, this makes amplitudes comparable across window choices.
+  double w2sum = 0.0;
+  for (auto i = 0; i < num_time_samples; ++i) {
+    const double w = fft_window_default(i, num_time_samples);
+    w2sum += w * w;
+  }
+  const double w_rms = (w2sum > 0.0) ? std::sqrt(w2sum / double(num_time_samples)) : 1.0;
+  const double win_norm = (w_rms > 0.0) ? (1.0 / w_rms) : 1.0;
+
   for (auto a = 0; a < num_sites; ++a) {
     fftw_plan fft_plan = fftw_plan_many_dft(rank, transform_size, num_transforms,
                                             FFTW_COMPLEX_CAST(&spectrum(a,0,0)), nembed, stride, dist,
                                             FFTW_COMPLEX_CAST(&spectrum(a,0,0)), nembed, stride, dist,
-                                            FFTW_BACKWARD, FFTW_ESTIMATE);
+                                            FFTW_FORWARD, FFTW_ESTIMATE);
 
     assert(fft_plan);
 
@@ -239,10 +250,9 @@ jams::MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(jams
     }
     element_scale(static_spectrum, 1.0/double(num_time_samples));
 
-
     for (auto i = 0; i < num_time_samples; ++i) {
       for (auto j = 0; j < num_space_samples; ++j) {
-        spectrum(a, i, j) = fft_window_default(i, num_time_samples)*(spectrum(a, i, j) - static_spectrum(j));
+        spectrum(a, i, j) = (win_norm * fft_window_default(i, num_time_samples)) * (spectrum(a, i, j) - static_spectrum(j));
       }
     }
 
@@ -259,13 +269,28 @@ bool SpectrumBaseMonitor::do_periodogram_update() const {
 }
 
 SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_spectrum(CmplxVecField &timeseries) {
-    auto spectrum = fft_timeseries_to_frequency(timeseries);
+  auto spectrum = fft_timeseries_to_frequency(timeseries);
   shift_periodogram_timeseries(timeseries, periodogram_props_.overlap);
-    // put the pointer to the overlap position
-    periodogram_index_ = periodogram_props_.overlap;
-    total_periods_++;
+  // put the pointer to the overlap position
+  periodogram_index_ = periodogram_props_.overlap;
+  total_periods_++;
 
-    return spectrum;
+  return spectrum;
+}
+
+SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rotated_spectrum(CmplxVecField &timeseries, const jams::MultiArray<Mat3, 1>& rotations) {
+
+  auto transformed_timeseries = rotate_sk_timeseries(timeseries, rotations);
+  transformed_timeseries = apply_sk_channel_mapping(transformed_timeseries);
+
+
+  auto spectrum = fft_timeseries_to_frequency(transformed_timeseries);
+  shift_periodogram_timeseries(timeseries, periodogram_props_.overlap);
+  // put the pointer to the overlap position
+  periodogram_index_ = periodogram_props_.overlap;
+  total_periods_++;
+
+  return spectrum;
 }
 
 void SpectrumBaseMonitor::shift_periodogram_timeseries(CmplxVecField &timeseries, int overlap) {
@@ -302,11 +327,46 @@ void SpectrumBaseMonitor::store_periodogram_data(const jams::MultiArray<double, 
   periodogram_index_++;
 }
 
+SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::rotate_sk_timeseries(const CmplxVecField& timeseries,
+  const jams::MultiArray<Mat3, 1>& rotations)
+{
+  auto rotated_timeseries = timeseries;
+
+  for (auto m = 0; m < rotated_timeseries.size(0); ++m) // num_sites
+  {
+    const auto R = rotations(m); // maps mean direction to +z (see construction above)
+    for (auto i = 0; i < rotated_timeseries.size(1); ++i) // periodogram_index
+    {
+      for (auto n = 0; n < rotated_timeseries.size(2); ++n) // kpath_index
+      {
+        rotated_timeseries(m, i, n) = R * rotated_timeseries(m, i, n);
+      }
+    }
+  }
+  return rotated_timeseries;
+}
+
+SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::apply_sk_channel_mapping(const CmplxVecField& timeseries)
+{
+  auto mapped_timeseries = timeseries;
+  for (auto m = 0; m < mapped_timeseries.size(0); ++m) // num_sites
+  {
+    for (auto i = 0; i < timeseries.size(1); ++i) // periodogram_index
+    {
+      for (auto n = 0; n < timeseries.size(2); ++n) // kpath_index
+      {
+        mapped_timeseries(m, i, n) = channel_mapping_ * mapped_timeseries(m, i, n);
+      }
+    }
+  }
+  return mapped_timeseries;
+}
+
 void SpectrumBaseMonitor::print_info() const {
   std::cout << "\n";
-  std::cout << "  number of samples "          << num_time_samples() << "\n";
+  std::cout << "  number of samples "          << num_periodogram_samples() << "\n";
   std::cout << "  sampling time (s) "          << sample_time_interval() << "\n";
-  std::cout << "  acquisition time (s) "       << sample_time_interval() * num_time_samples() << "\n";
+  std::cout << "  acquisition time (s) "       << sample_time_interval() * num_periodogram_samples() << "\n";
   std::cout << "  frequency resolution (THz) " << frequency_resolution_thz() << "\n";
   std::cout << "  maximum frequency (THz) "    << max_frequency_thz() << "\n";
   std::cout << "\n";

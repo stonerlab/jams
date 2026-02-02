@@ -6,14 +6,13 @@
 #include "jams/core/lattice.h"
 #include "jams/interface/fft.h"
 #include "jams/helpers/consts.h"
-#include "jams/interface/fft.h"
 
 using std::complex;
 using std::vector;
 
 double fft_window_default(const int n, const int n_total) {
   return fft_window_blackman_4(n, n_total);
-} 
+}
 
 double fft_window_hann(const int n, const int n_total) {
   return 0.50 - 0.50*cos((kTwoPi*n)/double(n_total-1));
@@ -57,21 +56,24 @@ void precalculate_kspace_phase_factors(
 
   two_pi_i_dr = kImagTwoPi * r_cart[0];
   exp_phase_0 = exp(two_pi_i_dr);
-  phase_x[0] = exp(-two_pi_i_dr * double(kspace_size[0] - 1));
+  // phase_x[k] = exp(+i 2π k r_x)
+  phase_x[0] = complex<double>(1.0, 0.0);
   for (auto i = 1; i < phase_x.size(); ++i) {
     phase_x[i] = phase_x[i-1] * exp_phase_0;
   }
 
   two_pi_i_dr = kImagTwoPi * r_cart[1];
   exp_phase_0 = exp(two_pi_i_dr);
-  phase_y[0] = exp(-two_pi_i_dr * double(kspace_size[1] - 1));
+  // phase_y[k] = exp(+i 2π k r_y)
+  phase_y[0] = complex<double>(1.0, 0.0);
   for (auto i = 1; i < phase_y.size(); ++i) {
     phase_y[i] = phase_y[i-1] * exp_phase_0;
   }
 
   two_pi_i_dr = kImagTwoPi * r_cart[2];
   exp_phase_0 = exp(two_pi_i_dr);
-  phase_z[0] = exp(-two_pi_i_dr * double(kspace_size[2] - 1));
+  // phase_z[k] = exp(+i 2π k r_z)
+  phase_z[0] = complex<double>(1.0, 0.0);
   for (auto i = 1; i < phase_z.size(); ++i) {
     phase_z[i] = phase_z[i-1] * exp_phase_0;
   }
@@ -173,7 +175,7 @@ void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rsp
       assert(plan);
       fftw_execute(plan);
       fftw_destroy_plan(plan);
-      element_scale(kspace_data, 1.0/sqrt(product(kspace_size)));
+      element_scale(kspace_data, 1.0/sqrt(product(kspace_padded_size)));
   };
 
   if (kspace_size == kspace_padded_size) {
@@ -208,5 +210,5 @@ void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rsp
   fftw_execute(plan);
   fftw_destroy_plan(plan);
 
-  element_scale(kspace_data, 1.0/sqrt(product(globals::lattice->kspace_size())));
+  element_scale(kspace_data, 1.0/sqrt(product(kspace_size)));
 }

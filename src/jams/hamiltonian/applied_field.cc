@@ -39,7 +39,7 @@ public:
     {}
 
     Vec3R field(const jams::Real time) override {
-      return b_field_ * static_cast<jams::Real>(sinc(kPi * freq_bandwidth_ * (time - time_center_)));
+      return b_field_ * static_cast<jams::Real>(jams::sinc(kPi * freq_bandwidth_ * (time - time_center_)));
     }
 private:
     Vec3R b_field_ = {0, 0, 0};
@@ -68,7 +68,7 @@ public:
     {}
 
     Vec3R field(const jams::Real time) override {
-      return b_field_ * static_cast<jams::Real>(sinc(kPi * freq_bandwidth_ * (time - time_center_))
+      return b_field_ * static_cast<jams::Real>(jams::sinc(kPi * freq_bandwidth_ * (time - time_center_))
                       * cos(kTwoPi * freq_center_ * (time - time_center_)));
     }
 private:

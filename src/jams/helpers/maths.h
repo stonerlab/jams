@@ -10,6 +10,37 @@
 
 #include "consts.h"
 
+namespace jams
+{
+  /// @brief 1 - cos(x)
+  ///
+  /// Avoids catastrophic cancellation for small x
+  inline double cos1m(const double x)
+  {
+    // Threshold can be tuned; this is conservative and safe for double
+    if (std::abs(x) < 1e-4) {
+      // Use a series expansion to avoid cancellation
+      const double x2 = x * x;
+      return x2 * (0.5 - x2 * (1.0/24.0 - x2 * (1.0/720.0)));
+    }
+
+    return 1.0 - std::cos(x);
+  }
+
+  /// Returns the cardinal sine function
+  ///   sinc(x) = sin(x) / x    for x ≠ 0
+  ///           = 1             for x = 0
+  inline constexpr double sinc(const double x) {
+    // Taylor expand for small x to avoid catastrophic cancellation
+    if (std::abs(x) < 1e-4) {
+      const double x2 = x * x;
+      return 1.0 - x2 * (1.0 / 6.0 - x2 * (1.0 / 120.0 - x2 * (1.0 / 5040.0)));
+    }
+
+    return std::sin(x) / x;
+  }
+}
+
 
 // for these floating point comparisons we always compare the difference with the larger
 // of the two numbers to
@@ -154,20 +185,25 @@ inline constexpr double rad_to_deg(const double &angle) {
   return angle*(180.0/kPi);
 }
 
-inline double azimuthal_angle(const double a[3]) {
-  return std::acos(a[2]/std::sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]));
-}
-
-inline double polar_angle(const double a[3]) {
-  return std::atan2(a[1], a[0]);
-}
-
 inline double azimuthal_angle(const double x, const double y, const double z) {
-  return std::acos(z/std::sqrt(x*x + y*y + z*z));
+  const double r2 = x*x + y*y + z*z;
+  if (r2 <= 0.0) {
+    return 0.0;
+  }
+  const double c = z / std::sqrt(r2);
+  return std::acos(std::clamp(c, -1.0, 1.0));
 }
 
 inline double polar_angle(const double x, const double y, const double z) {
   return std::atan2(y, x);
+}
+
+inline double azimuthal_angle(const double a[3]) {
+  return azimuthal_angle(a[0], a[1], a[2]);
+}
+
+inline double polar_angle(const double a[3]) {
+  return polar_angle(a[0], a[1], a[2]);
 }
 
 // greatest common divisor
@@ -299,9 +335,16 @@ bool next_point_symmetry(_Tp pts[3]) {
 
 inline void cartesian_to_spherical(const double x,
     const double y, const double z, double* r, double* theta, double* phi) {
-  (*r) = sqrt(x*x+y*y+z*z);
-  (*theta) = acos(z/(*r));
-  (*phi) = atan2(y, x);
+  const double r2 = x*x + y*y + z*z;
+  (*r) = std::sqrt(r2);
+  if (*r <= 0.0) {
+    (*theta) = 0.0;
+    (*phi) = 0.0;
+    return;
+  }
+  const double c = z / (*r);
+  (*theta) = std::acos(std::clamp(c, -1.0, 1.0));
+  (*phi) = std::atan2(y, x);
 }
 
 inline void spherical_to_cartesian(const double r,
@@ -445,15 +488,9 @@ inline constexpr double legendre_dpoly_6(const double x) {
   return (86.625 * x * x * x * x * x - 78.75 * x * x * x + 13.125 * x);
 }
 
-/// Returns the cardinal sine function
-///   sinc(x) = sin(x) / x    for x ≠ 0
-///           = 1             for x = 0
-inline constexpr double sinc(const double x) {
-  if (x == 0.0) {
-    return 1.0;
-  }
-  return sin(x) / x;
-}
+
+
+
 
 
 

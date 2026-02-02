@@ -33,9 +33,9 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
   }
 
   zero(total_unpolarized_neutron_cross_section_.resize(
-      num_time_samples(), num_kpoints()));
+      num_periodogram_samples(), num_kpoints()));
   zero(total_polarized_neutron_cross_sections_.resize(
-      neutron_polarizations_.size(), num_time_samples(), num_kpoints()));
+      neutron_polarizations_.size(), num_periodogram_samples(), num_kpoints()));
 
   print_info();
 }
@@ -183,7 +183,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
 
     // sample time is here because the fourier transform in time is not an integral
     // but a discrete sum
-    auto prefactor = (sample_time_interval() / num_periodogram_iterations()) * (1.0 / (kTwoPi * kHBarIU))
+    auto prefactor = (sample_time_interval() / num_periodogram_periods()) * (1.0 / (kTwoPi * kHBarIU))
                      * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
     auto barns_unitcell = prefactor / (1e-28 * globals::lattice->num_cells());
     auto time_points = total_unpolarized_neutron_cross_section_.size(0);

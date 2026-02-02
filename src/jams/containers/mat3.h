@@ -20,6 +20,7 @@ using Mat3R  = std::array<std::array<jams::Real, 3>, 3>;
 using Mat3cx  = std::array<std::array<std::complex<double>, 3>, 3>;
 
 const Mat<double, 3, 3> kIdentityMat3 = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+const Mat3cx kIdentityMat3cx = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
 const Mat<double, 3, 3> kZeroMat3 = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 const Mat<jams::Real, 3, 3> kIdentityMat3R = {1, 0, 0, 0, 1, 0, 0, 0, 1};
@@ -51,6 +52,16 @@ matrix_cast(const std::array<std::array<From, M>, N>& in)
     return out;
   }
 }
+
+template <typename T, std::size_t N>
+constexpr std::array<std::array<T, N>, N> identity()
+{
+  std::array<std::array<T, N>, N> out{};  // zero/value-initialised
+  for (std::size_t i = 0; i < N; ++i)
+    out[i][i] = T{1};
+  return out;
+}
+
 
 template <typename T1, typename T2>
 inline auto operator*(const Mat<T1,3,3>& lhs, const Vec<T2,3>& rhs) ->Vec<decltype(lhs[0][0] * rhs[0]),3> {
@@ -350,48 +361,63 @@ inline Mat3 rotation_matrix(const Vec3& axis, const double theta) {
 }
 
 
-inline Mat3 rotation_matrix_from_axis_angle(const Vec3 &axis, double angle) {
-  const Vec3 u = unit_vector(axis);
-  const double c = std::cos(angle);
-  const double s = std::sin(angle);
-  const Mat3 vx = ssc(u);
+inline Mat3 rotation_matrix_from_axis_angle(const Vec3& axis, double angle) {
+  constexpr double eps_axis = 1e-14;
 
-  return kIdentityMat3 + s * vx + (1.0 - c) * vx * vx;
+  const double n = norm(axis);
+  if (n < eps_axis) return kIdentityMat3;
+
+  const Vec3 u = axis / n;
+
+  double s = std::sin(angle);
+  double c1m = jams::cos1m(angle);
+
+  const Mat3 vx = ssc(u);
+  const Mat3 vx2 = vx * vx;
+
+  Mat3 R = kIdentityMat3 + s * vx + c1m * vx2;
+
+#ifndef NDEBUG
+  const Mat3 RtR = transpose(R) * R;
+  assert(approximately_equal(RtR, kIdentityMat3, 1e-10));
+  assert(std::abs(determinant(R) - 1.0) < 1e-10);
+#endif
+
+  return R;
 }
 
 // calculates a rotation matrix from Vec3 a to Vec3 b
-inline Mat3 rotation_matrix_between_vectors(const Vec3 &a, const Vec3 &b) {
-  const Vec3 ua = unit_vector(a);
-  const Vec3 ub = unit_vector(b);
-  const double c = dot(ua, ub);
+inline Mat3 rotation_matrix_between_vectors(const Vec3& a, const Vec3& b) {
+  constexpr double eps = 1e-14;      // for norms
+  constexpr double eps_s2 = 1e-24;   // for sin^2
 
-  // vectors are nearly parallel
-  if (approximately_equal(c, 1.0, 1e-12)) {
-    return kIdentityMat3;
-  }
+  const double na = norm(a), nb = norm(b);
+  if (na < eps || nb < eps) return kIdentityMat3;
 
-  // vectors are nearly opposite
-  if (approximately_equal(c, -1.0, 1e-12)) {
-    // Find an orthogonal vector to a
-    Vec3 ortho = std::abs(ua[0]) < 0.9 ? Vec3{1, 0, 0} : Vec3{0, 1, 0};
+  const Vec3 ua = a / na;
+  const Vec3 ub = b / nb;
+
+  const double c_raw = dot(ua, ub);
+  const double c = std::max(-1.0, std::min(1.0, c_raw));
+
+  Vec3 v = cross(ua, ub);
+  const double s2 = dot(v, v);
+
+  if (s2 < eps_s2) {
+    if (c > 0.0) return kIdentityMat3; // parallel
+    // antiparallel: pick stable orthogonal axis
+    Vec3 ortho;
+    if (std::abs(ua[0]) <= std::abs(ua[1]) && std::abs(ua[0]) <= std::abs(ua[2])) ortho = {1,0,0};
+    else if (std::abs(ua[1]) <= std::abs(ua[2])) ortho = {0,1,0};
+    else ortho = {0,0,1};
     Vec3 axis = unit_vector(cross(ua, ortho));
     return rotation_matrix_from_axis_angle(axis, kPi);
   }
 
-  // Rodrigues' rotation formula
-  Vec3 v = cross(ua, ub);
-  const double s = norm(v);  // sin(theta)
-  Mat3 vx = ssc(v);          // skew-symmetric cross-product matrix
-
-  const double k = (1.0 - c) / (s * s);
-
-  Mat3 R = kIdentityMat3 + vx + k * vx * vx;
-
-  // Check R is a valid rotation matrix
-  assert(approximately_equal(determinant(R), 1.0, 1e-10));
-  assert(approximately_equal(transpose(R), inverse(R), 1e-10));
-
-  return R;
+  const double s = std::sqrt(s2);
+  const double theta = std::atan2(s, c);
+  const Vec3 axis = v / s;
+  return rotation_matrix_from_axis_angle(axis, theta);
 }
 
 #endif //JAMS_MAT3_H
