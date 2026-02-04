@@ -313,9 +313,43 @@ MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 
     jams::MultiArray<Mat3cx, 3> magnon_spectrum(num_sites, num_freqencies, num_reciprocal_points);
     magnon_spectrum.zero();
 
+    /// @brief Transverse dynamical structure factor @f$S^{+-}(\mathbf q,\omega)@f$.
+    ///
+    /// @details
+    /// Uses fractional coordinates: @f$\mathbf q@f$ is in (hkl) and @f$\mathbf r@f$ is in (abc).
+    ///
+    /// The spectrum of interest is
+    /// @f[
+    ///   S^{+-}(\mathbf q,\omega)=\frac{1}{2\pi}\int_{-\infty}^{\infty} dt\;
+    ///   e^{\,i\omega t}\,\big\langle S^{+}(\mathbf q,t)\,S^{-}(-\mathbf q,0)\big\rangle.
+    /// @f]
+    ///
+    /// Evaluating the time correlation as a convolution in frequency space gives
+    /// @f[
+    ///   S^{+-}(\mathbf q,\omega)=\Big\langle S^{+}(\mathbf q,\omega)\,S^{-}(-\mathbf q,-\omega)\Big\rangle.
+    /// @f]
+    ///
+    /// Using the identity @f$S^{-}(\mathbf r,t)=\mathrm{conj}\!\left(S^{+}(\mathbf r,t)\right)@f$, we have
+    /// @f[
+    ///   S^{-}(-\mathbf q,-\omega)=\mathrm{conj}\!\left(S^{+}(\mathbf q,\omega)\right),
+    /// @f]
+    /// hence
+    /// @f[
+    ///   S^{+-}(\mathbf q,\omega)=\mathrm{conj}\!\left(S^{+}(\mathbf q,\omega)\right)\,S^{+}(\mathbf q,\omega)
+    ///   = \left|S^{+}(\mathbf q,\omega)\right|^2.
+    /// @f]
+    ///
+    /// This provides a mapping
+    ///
+    /// S+(q,w) S+(-q,-w) => S+(q,w) conj(S-(q,w))
+    /// S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
+    /// S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
+    /// S-(q,w) S-(-q,-w) => S-(q,w) conj(S+(q,w))
+    ///
+    /// and the sqw array contains (through the channel mapping) components
+    /// 0: +  |  1: -  |  2: z
     for (auto a = 0; a < num_sites; ++a)
     {
-        // structure factor: note that q and r are in fractional coordinates (hkl, abc)
         const Vec3 r = globals::lattice->basis_site_atom(a).position_frac;
         for (auto k = 0; k < num_reciprocal_points; ++k)
         {
@@ -324,13 +358,28 @@ MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 
             for (auto f = 0; f < num_freqencies; ++f)
             {
                 auto sqw = spectrum(a, f, k) * exp(-kImagTwoPi * dot(q, r));
-                for (auto i : {0, 1, 2})
-                {
-                    for (auto j : {0, 1, 2})
-                    {
-                        magnon_spectrum(a, f, k)[i][j] = conj(sqw[i]) * sqw[j];
-                    }
-                }
+
+                // S+(q,w) S+(-q,-w) => S+(q,w) conj(S-(q,w))
+                magnon_spectrum(a, f, k)[0][0] = sqw[0] * conj(sqw[1]);
+                // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
+                magnon_spectrum(a, f, k)[0][1] = sqw[0] * conj(sqw[0]);
+                // S+(q,w) Sz(-q,-w) => S+(q,w) conj(Sz(q,w))
+                magnon_spectrum(a, f, k)[0][2] = sqw[0] * conj(sqw[2]);
+
+                // S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
+                magnon_spectrum(a, f, k)[1][0] = sqw[1] * conj(sqw[1]);
+                // S-(q,w) S-(-q,-w) => S-(q,w) conj(S+(q,w))
+                magnon_spectrum(a, f, k)[1][1] = sqw[1] * conj(sqw[0]);
+                // S-(q,w) Sz(-q,-w) => S-(q,w) conj(Sz(q,w))
+                magnon_spectrum(a, f, k)[1][2] = sqw[1] * conj(sqw[2]);
+
+
+                // Sz(q,w) S+(-q,-w) => Sz(q,w) conj(S-(q,w))
+                magnon_spectrum(a, f, k)[2][0] = sqw[2] * conj(sqw[1]);
+                // Sz(q,w) S-(-q,-w) => Sz(q,w) conj(S+(q,w))
+                magnon_spectrum(a, f, k)[2][1] = sqw[2] * conj(sqw[0]);
+                // Sz(q,w) Sz(-q,-w) => Sz(q,w) conj(Sz(q,w))
+                magnon_spectrum(a, f, k)[2][2] = sqw[2] * conj(sqw[2]);
             }
         }
     }
