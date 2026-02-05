@@ -33,6 +33,7 @@ private:
     // Toggle outputting spectrum for each site in the unit cell as individual files
     bool do_site_resolved_output_ = false;
     bool do_auto_basis_transform_ = true;
+    bool do_output_negative_frequencies_ = false;
 
     jams::MultiArray<Mat3cx, 3> calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
 

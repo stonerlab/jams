@@ -69,6 +69,10 @@ public:
       return (1.0 / (2.0 * sample_time_interval()));
     }
 
+    void set_boson_normalisation(bool enable) {
+      do_boson_normalisation_ = enable;
+    }
+
     inline const Mat3cx& get_channel_mapping() const { return channel_mapping_; }
     inline void set_channel_mapping(const Mat3cx& channel_mapping) { channel_mapping_ = channel_mapping; }
 
@@ -90,6 +94,7 @@ protected:
     /// @details The channel mapping allows Sx, Sy, Sz components to be recombined. The most obvious use for this
     /// is to construct S+,S-,Sz.
     CmplxVecField apply_sk_channel_mapping(const CmplxVecField &sk_timeseries);
+
 
     CmplxVecField compute_periodogram_spectrum(CmplxVecField &timeseries);
     CmplxVecField compute_periodogram_rotated_spectrum(CmplxVecField &timeseries, const jams::MultiArray<Mat3, 1>& rotations);
@@ -120,6 +125,8 @@ private:
     int periodogram_index_ = 0;
     int total_periods_ = 0;
     int num_motif_atoms_ = 0;
+
+    bool do_boson_normalisation_ = true;
 
     /// @brief 3x3 complex matrix that defines how the Sx, Sy, Sz components are combined before
     /// the Fourier transform. Defaults to identity matrix;

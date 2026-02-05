@@ -20,6 +20,8 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
     zero(mean_sublattice_directions_.resize(globals::lattice->num_basis_sites(), num_periodogram_samples()));
 
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
+    do_output_negative_frequencies_ =
+        jams::config_optional<bool>(settings, "output_negative_frequencies", do_output_negative_frequencies_);
 
     // Set channel mapping to spin raising and lowering operators
     const double inv_sqrt_2 = 1.0 / sqrt(2.0);
@@ -205,8 +207,14 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
 
         auto path_begin = kspace_continuous_path_ranges_[n];
         auto path_end = kspace_continuous_path_ranges_[n + 1];
-        for (auto i = 0; i < (time_points / 2) + 1; ++i)
+        const auto freq_end = do_output_negative_frequencies_ ? time_points : (time_points / 2) + 1;
+        const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
+        for (auto i = 0; i < freq_end; ++i)
         {
+            const auto f = do_output_negative_frequencies_ ? (freq_start + i) % time_points : i;
+            const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
+                                                           : static_cast<int>(f) - static_cast<int>(time_points);
+            const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
             double total_distance = 0.0;
             for (auto j = path_begin; j < path_end; ++j)
             {
@@ -214,15 +222,15 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
                 ofs << jams::fmt::decimal << total_distance;
                 ofs << jams::fmt::decimal << kspace_paths_[j].hkl;
                 ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
-                ofs << jams::fmt::decimal << i * frequency_resolution_thz(); // THz
-                ofs << jams::fmt::decimal << i * frequency_resolution_thz() * 4.135668; // meV
+                ofs << jams::fmt::decimal << freq_thz; // THz
+                ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
                 // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
                 for (auto k : {0, 1, 2})
                 {
                     for (auto l : {0, 1, 2})
                     {
-                        ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(i, j)[k][l].real();
-                        ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(i, j)[k][l].imag();
+                        ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[k][l].real();
+                        ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[k][l].imag();
                     }
                 }
                 if (j + 1 < path_end) {
@@ -272,8 +280,14 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
 
             auto path_begin = kspace_continuous_path_ranges_[n];
             auto path_end = kspace_continuous_path_ranges_[n + 1];
-            for (auto i = 0; i < (time_points / 2) + 1; ++i)
+            const auto freq_end = do_output_negative_frequencies_ ? time_points : (time_points / 2) + 1;
+            const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
+            for (auto i = 0; i < freq_end; ++i)
             {
+                const auto f = do_output_negative_frequencies_ ? (freq_start + i) % time_points : i;
+                const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
+                                                               : static_cast<int>(f) - static_cast<int>(time_points);
+                const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
                 double total_distance = 0.0;
                 for (auto j = path_begin; j < path_end; ++j)
                 {
@@ -281,14 +295,14 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
                     ofs << jams::fmt::decimal << total_distance;
                     ofs << jams::fmt::decimal << kspace_paths_[j].hkl;
                     ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
-                    ofs << jams::fmt::decimal << i * frequency_resolution_thz(); // THz
-                    ofs << jams::fmt::decimal << i * frequency_resolution_thz() * 4.135668; // meV
+                    ofs << jams::fmt::decimal << freq_thz; // THz
+                    ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
                     for (auto k : {0, 1, 2})
                     {
                         for (auto l : {0, 1, 2})
                         {
-                            ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, i, j)[k][l].real();
-                            ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, i, j)[k][l].imag();
+                            ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[k][l].real();
+                            ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[k][l].imag();
                         }
                     }
                     if (j + 1 < path_end) {

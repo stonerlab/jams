@@ -84,8 +84,8 @@ void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings) {
 }
 
 void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings) {
-  periodogram_props_.length = settings["length"];
-  periodogram_props_.overlap = settings["overlap"];
+  periodogram_props_.length = jams::config_required<int>(settings, "length");
+  periodogram_props_.overlap = jams::config_optional<int>(settings, "overlap", periodogram_props_.length / 2);
 
   if (periodogram_props_.length <= 0) {
     throw std::runtime_error("Periodogram length must be greater than zero");
@@ -356,10 +356,25 @@ SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::apply_sk_channel_mapping
       for (auto n = 0; n < timeseries.size(2); ++n) // kpath_index
       {
         mapped_timeseries(m, i, n) = channel_mapping_ * mapped_timeseries(m, i, n);
+
+        if (do_boson_normalisation_) {
+          // After channel mapping, channels are (+, -, z).
+          // Convert to approximate boson amplitudes a ~ S^+ / sqrt(2S).
+          // globals::s stores unit spins; globals::mus stores moments in mu_B.
+          // S = mu/(g mu_B) meaning a ~ = (s^+ * mu/(g mu_B)) / sqrt(2 * mu/(g mu_B)) = s^+ sqrt(mu / (2 g mu_B))
+          const double mu = globals::mus(m);
+          if (mu > 0.0) {
+            const double scale = std::sqrt(mu / (2 * kElectronGFactor * kBohrMagnetonIU));
+            mapped_timeseries(m, i, n)[0] *= scale; // S+
+            mapped_timeseries(m, i, n)[1] *= scale; // S-
+            // z unchanged
+          }
+        }
       }
     }
   }
   return mapped_timeseries;
+
 }
 
 void SpectrumBaseMonitor::print_info() const {
