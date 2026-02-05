@@ -19,18 +19,12 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
     zero(cumulative_magnon_spectrum_.resize(num_motif_atoms(), num_periodogram_samples(), num_kpoints()));
     zero(mean_sublattice_directions_.resize(globals::lattice->num_basis_sites(), num_periodogram_samples()));
 
+    do_magnon_density_ = jams::config_optional<bool>(settings, "magnon_density", do_magnon_density_);
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
     do_output_negative_frequencies_ =
         jams::config_optional<bool>(settings, "output_negative_frequencies", do_output_negative_frequencies_);
 
-    // Set channel mapping to spin raising and lowering operators
-    const double inv_sqrt_2 = 1.0 / sqrt(2.0);
-    Mat3cx mapping{
-        inv_sqrt_2,  kImagOne*inv_sqrt_2, 0.0,
-        inv_sqrt_2, -kImagOne*inv_sqrt_2, 0.0,
-               0.0,               0.0, 1.0};
-
-    set_channel_mapping(mapping);
+    set_channel_mapping(ChannelMapping::RaiseLower);
 
     print_info();
 }
@@ -49,92 +43,89 @@ void MagnonSpectrumMonitor::update(Solver& solver)
 
     if (do_periodogram_update())
     {
-        if (do_auto_basis_transform_)
+        jams::MultiArray<Vec3, 1> mean_directions(globals::lattice->num_basis_sites());
+        zero(mean_directions);
+
+        const double wsum = [&]()
         {
-            jams::MultiArray<Vec3, 1> mean_directions(globals::lattice->num_basis_sites());
-            zero(mean_directions);
-
-            const double wsum = [&]()
+            double s = 0.0;
+            for (auto n = 0; n < num_periodogram_samples(); ++n)
             {
-                double s = 0.0;
-                for (auto n = 0; n < num_periodogram_samples(); ++n)
-                {
-                    s += fft_window_default(n, num_periodogram_samples());
-                }
-                return s;
-            }();
+                s += fft_window_default(n, num_periodogram_samples());
+            }
+            return s;
+        }();
 
-            // Calculate the mean magnetisation direction for each sublattice across this periodogram period.
-            // We use the same windowing function as the FFT for consistency.
-            for (auto m = 0; m < globals::lattice->num_basis_sites(); ++m)
+        // Calculate the mean magnetisation direction for each sublattice across this periodogram period.
+        // We use the same windowing function as the FFT for consistency.
+        for (auto m = 0; m < globals::lattice->num_basis_sites(); ++m)
+        {
+            for (auto n = 0; n < num_periodogram_samples(); ++n)
             {
-                for (auto n = 0; n < num_periodogram_samples(); ++n)
-                {
-                    mean_directions(m) += fft_window_default(n, num_periodogram_samples()) *
-                        mean_sublattice_directions_(m, n);
-                }
-                if (wsum > 0.0) mean_directions(m) *= (1.0 / wsum);
+                mean_directions(m) += fft_window_default(n, num_periodogram_samples()) *
+                    mean_sublattice_directions_(m, n);
+            }
+            if (wsum > 0.0) mean_directions(m) *= (1.0 / wsum);
+        }
+
+        jams::MultiArray<Mat3, 1> rotations(globals::lattice->num_basis_sites());
+        for (auto m = 0; m < globals::lattice->num_basis_sites(); ++m)
+        {
+            // Construct a local transverse basis (e1,e2,n) with a fixed gauge.
+            // This avoids the ill-conditioning of "minimal rotation" when n ≈ z.
+            Vec3 n_hat = mean_directions(m);
+            const double n_norm = norm(n_hat);
+            if (n_norm <= 0.0)
+            {
+                rotations(m) = kIdentityMat3;
+                continue;
+            }
+            n_hat *= (1.0 / n_norm);
+
+            // Choose the global Cartesian axis least aligned with n_hat to avoid discontinuous gauge flips.
+            const Vec3 ex{1.0, 0.0, 0.0};
+            const Vec3 ey{0.0, 1.0, 0.0};
+            const Vec3 ez{0.0, 0.0, 1.0};
+
+            const double ax = std::abs(dot(ex, n_hat));
+            const double ay = std::abs(dot(ey, n_hat));
+            const double az = std::abs(dot(ez, n_hat));
+
+            Vec3 r = ex;
+            double a_min = ax;
+            if (ay < a_min)
+            {
+                r = ey;
+                a_min = ay;
+            }
+            if (az < a_min)
+            {
+                r = ez;
+                a_min = az;
             }
 
-            jams::MultiArray<Mat3, 1> rotations(globals::lattice->num_basis_sites());
-            for (auto m = 0; m < globals::lattice->num_basis_sites(); ++m)
+            // e1 = normalised projection of r into the plane normal to n
+            Vec3 e1 = r - dot(r, n_hat) * n_hat;
+            const double e1_norm = norm(e1);
+            if (e1_norm <= 0.0)
             {
-                // Construct a local transverse basis (e1,e2,n) with a fixed gauge.
-                // This avoids the ill-conditioning of "minimal rotation" when n ≈ z.
-                Vec3 n_hat = mean_directions(m);
-                const double n_norm = norm(n_hat);
-                if (n_norm <= 0.0)
-                {
-                    rotations(m) = kIdentityMat3;
-                    continue;
-                }
-                n_hat *= (1.0 / n_norm);
-
-                // Choose the global Cartesian axis least aligned with n_hat to avoid discontinuous gauge flips.
-                const Vec3 ex{1.0, 0.0, 0.0};
-                const Vec3 ey{0.0, 1.0, 0.0};
-                const Vec3 ez{0.0, 0.0, 1.0};
-
-                const double ax = std::abs(dot(ex, n_hat));
-                const double ay = std::abs(dot(ey, n_hat));
-                const double az = std::abs(dot(ez, n_hat));
-
-                Vec3 r = ex;
-                double a_min = ax;
-                if (ay < a_min)
-                {
-                    r = ey;
-                    a_min = ay;
-                }
-                if (az < a_min)
-                {
-                    r = ez;
-                    a_min = az;
-                }
-
-                // e1 = normalised projection of r into the plane normal to n
-                Vec3 e1 = r - dot(r, n_hat) * n_hat;
-                const double e1_norm = norm(e1);
-                if (e1_norm <= 0.0)
-                {
-                    // Extremely unlikely after the fallback, but be safe.
-                    rotations(m) = kIdentityMat3;
-                    continue;
-                }
-                e1 *= (1.0 / e1_norm);
-
-                // e2 completes a right-handed orthonormal triad
-                Vec3 e2 = cross(n_hat, e1);
-
-                // Build rotation matrix that maps global -> local components:
-                // v_local = [e1^T; e2^T; n^T] v_global.
-                Mat3 R = kIdentityMat3;
-                R[0][0] = e1[0];    R[0][1] = e1[1];    R[0][2] = e1[2];
-                R[1][0] = e2[0];    R[1][1] = e2[1];    R[1][2] = e2[2];
-                R[2][0] = n_hat[0]; R[2][1] = n_hat[1]; R[2][2] = n_hat[2];
-
-                rotations(m) = R;
+                // Extremely unlikely after the fallback, but be safe.
+                rotations(m) = kIdentityMat3;
+                continue;
             }
+            e1 *= (1.0 / e1_norm);
+
+            // e2 completes a right-handed orthonormal triad
+            Vec3 e2 = cross(n_hat, e1);
+
+            // Build rotation matrix that maps global -> local components:
+            // v_local = [e1^T; e2^T; n^T] v_global.
+            Mat3 R = kIdentityMat3;
+            R[0][0] = e1[0];    R[0][1] = e1[1];    R[0][2] = e1[2];
+            R[1][0] = e2[0];    R[1][1] = e2[1];    R[1][2] = e2[2];
+            R[2][0] = n_hat[0]; R[2][1] = n_hat[1]; R[2][2] = n_hat[2];
+
+            rotations(m) = R;
 
             auto spectrum = compute_periodogram_rotated_spectrum(kspace_data_timeseries_, rotations);
 

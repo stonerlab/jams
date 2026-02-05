@@ -280,8 +280,13 @@ SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_spec
 
 SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rotated_spectrum(CmplxVecField &timeseries, const jams::MultiArray<Mat3, 1>& rotations) {
 
-  auto transformed_timeseries = rotate_sk_timeseries(timeseries, rotations);
-  transformed_timeseries = apply_sk_channel_mapping(transformed_timeseries);
+
+  auto transformed_timeseries = timeseries;
+
+  if (channel_mapping_ == ChannelMapping::RaiseLower)
+  {
+    apply_raise_lower_mapping(transformed_timeseries, rotations);
+  }
 
 
   auto spectrum = fft_timeseries_to_frequency(transformed_timeseries);
@@ -327,54 +332,28 @@ void SpectrumBaseMonitor::store_periodogram_data(const jams::MultiArray<double, 
   periodogram_index_++;
 }
 
-SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::rotate_sk_timeseries(const CmplxVecField& timeseries,
-  const jams::MultiArray<Mat3, 1>& rotations)
+void SpectrumBaseMonitor::apply_raise_lower_mapping(CmplxVecField& timeseries, const jams::MultiArray<Mat3, 1>& rotations)
 {
-  auto rotated_timeseries = timeseries;
+  const Mat3cx kBosonChannelMap = {
+    1.0 / sqrt(2.0),  kImagOne / sqrt(2.0), 0.0,
+    1.0 / sqrt(2.0), -kImagOne / sqrt(2.0), 0.0,
+                   0.0,                   0.0, 1.0};
 
-  for (auto m = 0; m < rotated_timeseries.size(0); ++m) // num_sites
-  {
-    const auto R = rotations(m); // maps mean direction to +z (see construction above)
-    for (auto i = 0; i < rotated_timeseries.size(1); ++i) // periodogram_index
+    for (auto m = 0; m < timeseries.size(0); ++m) // num_sites
     {
-      for (auto n = 0; n < rotated_timeseries.size(2); ++n) // kpath_index
+      const double S = kElectronGFactor * globals::mus(m);
+      const auto R = rotations(m);
+      for (auto i = 0; i < timeseries.size(1); ++i) // periodogram_index
       {
-        rotated_timeseries(m, i, n) = R * rotated_timeseries(m, i, n);
-      }
-    }
-  }
-  return rotated_timeseries;
-}
-
-SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::apply_sk_channel_mapping(const CmplxVecField& timeseries)
-{
-  auto mapped_timeseries = timeseries;
-  for (auto m = 0; m < mapped_timeseries.size(0); ++m) // num_sites
-  {
-    for (auto i = 0; i < timeseries.size(1); ++i) // periodogram_index
-    {
-      for (auto n = 0; n < timeseries.size(2); ++n) // kpath_index
-      {
-        mapped_timeseries(m, i, n) = channel_mapping_ * mapped_timeseries(m, i, n);
-
-        if (do_boson_normalisation_) {
-          // After channel mapping, channels are (+, -, z).
-          // Convert to approximate boson amplitudes a ~ S^+ / sqrt(2S).
-          // globals::s stores unit spins; globals::mus stores moments in mu_B.
-          // S = mu/(g mu_B) meaning a ~ = (s^+ * mu/(g mu_B)) / sqrt(2 * mu/(g mu_B)) = s^+ sqrt(mu / (2 g mu_B))
-          const double mu = globals::mus(m);
-          if (mu > 0.0) {
-            const double scale = std::sqrt(mu / (2 * kElectronGFactor * kBohrMagnetonIU));
-            mapped_timeseries(m, i, n)[0] *= scale; // S+
-            mapped_timeseries(m, i, n)[1] *= scale; // S-
-            // z unchanged
-          }
+        for (auto n = 0; n < timeseries.size(2); ++n) // kpath_index
+        {
+          auto spin = timeseries(m, i, n);
+          spin = R * spin; // rotate the spin
+          spin = kBosonChannelMap * spin; // apply the channel mapping
+          timeseries(m, i, n) = S * spin;
         }
       }
     }
-  }
-  return mapped_timeseries;
-
 }
 
 void SpectrumBaseMonitor::print_info() const {

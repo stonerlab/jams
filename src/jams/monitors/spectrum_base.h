@@ -26,6 +26,20 @@ namespace jams {
 
 class SpectrumBaseMonitor : public Monitor {
 public:
+
+  /// @brief Enum defining which channel mapping scheme to use to map
+  /// Sx,Sy,Sz to different channels for the spectrum.
+  ///
+  /// @details
+  /// `Cartesian` leaves the channels as (Sx, Sy, Sz)
+  /// `RaiseLower` maps to raising and lowering like operators (S+, S-, Sz) with
+  /// S+ = (Sx + i Sy)/sqrt(2), S- = (Sx - i Sy)/sqrt(2) and scales the data by the spin size.
+  enum class ChannelMapping
+  {
+    Cartesian, ///< (Sx, Sy, Sz)
+    RaiseLower      ///< (S+, S-, Sz)
+  };
+
     using CmplxVecField = jams::MultiArray<Vec3cx, 3>;
 
     explicit SpectrumBaseMonitor(const libconfig::Setting &settings);
@@ -69,12 +83,8 @@ public:
       return (1.0 / (2.0 * sample_time_interval()));
     }
 
-    void set_boson_normalisation(bool enable) {
-      do_boson_normalisation_ = enable;
-    }
-
-    inline const Mat3cx& get_channel_mapping() const { return channel_mapping_; }
-    inline void set_channel_mapping(const Mat3cx& channel_mapping) { channel_mapping_ = channel_mapping; }
+    inline ChannelMapping get_channel_mapping() const { return channel_mapping_; }
+    inline void set_channel_mapping(const ChannelMapping channel_mapping) { channel_mapping_ = channel_mapping; }
 
     void print_info() const;
 
@@ -87,13 +97,11 @@ protected:
     bool do_periodogram_update() const;
     void store_periodogram_data(const jams::MultiArray<double, 2> &data);
 
-    CmplxVecField rotate_sk_timeseries(const CmplxVecField &sk_timeseries, const jams::MultiArray<Mat3, 1>& rotations);
-
     /// @brief Applies the channel mapping to S(k,t) timeseries data.
     ///
     /// @details The channel mapping allows Sx, Sy, Sz components to be recombined. The most obvious use for this
     /// is to construct S+,S-,Sz.
-    CmplxVecField apply_sk_channel_mapping(const CmplxVecField &sk_timeseries);
+    void apply_raise_lower_mapping(CmplxVecField& sk_timeseries, const jams::MultiArray<Mat3, 1>& rotations);
 
 
     CmplxVecField compute_periodogram_spectrum(CmplxVecField &timeseries);
@@ -121,16 +129,16 @@ protected:
     CmplxVecField kspace_data_timeseries_;
 
 private:
-    jams::PeriodogramProps periodogram_props_;
-    int periodogram_index_ = 0;
-    int total_periods_ = 0;
-    int num_motif_atoms_ = 0;
 
-    bool do_boson_normalisation_ = true;
+  /// @brief 3x3 complex matrix that defines how the Sx, Sy, Sz components are combined before
+  /// the Fourier transform. Defaults to identity matrix;
+  ChannelMapping channel_mapping_ = ChannelMapping::RaiseLower;
 
-    /// @brief 3x3 complex matrix that defines how the Sx, Sy, Sz components are combined before
-    /// the Fourier transform. Defaults to identity matrix;
-    Mat3cx channel_mapping_ = identity<jams::ComplexHi, 3>();
+  jams::PeriodogramProps periodogram_props_;
+  int periodogram_index_ = 0;
+  int total_periods_ = 0;
+  int num_motif_atoms_ = 0;
+
 };
 
 #endif //JAMS_SPECTRUM_BASE_H
