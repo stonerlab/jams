@@ -298,14 +298,37 @@ SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rota
   return spectrum;
 }
 
-void SpectrumBaseMonitor::shift_periodogram_timeseries(CmplxVecField &timeseries, int overlap) {
-  assert(overlap < timeseries.size(1));
-  // shift overlap data to the start of the range
-  for (auto a = 0; a < timeseries.size(0); ++a) {           // motif atom
-    for (auto i = 0; i < overlap; ++i) {    // time index
-      for (auto j = 0; j < timeseries.size(2); ++j) {       // kpoint index
-        timeseries(a, i, j) = timeseries(a, timeseries.size(1) - overlap + i, j);
-      }
+// void SpectrumBaseMonitor::shift_periodogram_timeseries(CmplxVecField &timeseries, int overlap) {
+//   assert(overlap < timeseries.size(1));
+//   // shift overlap data to the start of the range
+//   for (auto a = 0; a < timeseries.size(0); ++a) {           // motif atom
+//     for (auto i = 0; i < overlap; ++i) {    // time index
+//       for (auto j = 0; j < timeseries.size(2); ++j) {       // kpoint index
+//         timeseries(a, i, j) = timeseries(a, timeseries.size(1) - overlap + i, j);
+//       }
+//     }
+//   }
+// }
+
+void SpectrumBaseMonitor::shift_periodogram_timeseries(CmplxVecField& timeseries, int overlap)
+{
+  const std::size_t A = timeseries.size(0);
+  const std::size_t T = timeseries.size(1);
+  const std::size_t K = timeseries.size(2);
+
+  assert(overlap >= 0);
+  const std::size_t ov = static_cast<std::size_t>(overlap);
+  assert(ov < T);
+
+  const std::size_t src0 = T - ov;
+
+  for (std::size_t a = 0; a < A; ++a)
+  {
+    for (std::size_t i = 0; i < ov; ++i)
+    {
+      auto*       dst = &timeseries(a, i, 0);
+      const auto* src = &timeseries(a, src0 + i, 0);
+      std::copy_n(src, K, dst);
     }
   }
 }

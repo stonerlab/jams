@@ -138,20 +138,8 @@ void MagnonSpectrumMonitor::update(Solver& solver)
 
             output_total_magnon_spectrum();
 
-            // Shift the sublattice direction data by the periodogram overlap and zero the end of the array
-            for (auto m = 0; m < globals::lattice->num_basis_sites(); ++m)
-            {
-                for (auto n = 0; n < periodogram_overlap(); ++n)
-                {
-                    // time index
-                    const auto shift_index = num_periodogram_samples() - periodogram_overlap() + n;
-                    mean_sublattice_directions_(m, n) = mean_sublattice_directions_(m, shift_index);
-                }
-                for (auto n = periodogram_overlap(); n < num_periodogram_samples(); ++n)
-                {
-                    mean_sublattice_directions_(m, n) = Vec3{0, 0, 0};
-                }
-            }
+
+            shift_and_zero_mean_directions();
         }
     }
 }
@@ -305,6 +293,28 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
             }
             ofs.close();
         }
+    }
+}
+
+void MagnonSpectrumMonitor::shift_and_zero_mean_directions()
+{
+    const std::size_t M  = globals::lattice->num_basis_sites();
+    const std::size_t Ns = static_cast<std::size_t>(num_periodogram_samples());
+    const std::size_t ov = static_cast<std::size_t>(periodogram_overlap());
+
+    assert(ov < Ns);
+
+    const std::size_t src0 = Ns - ov;
+
+    for (std::size_t m = 0; m < M; ++m)
+    {
+        // Copy overlap block to the start: [src0, Ns) -> [0, ov)
+        auto*       dst = &mean_sublattice_directions_(m, 0);
+        const auto* src = &mean_sublattice_directions_(m, src0);
+        std::copy_n(src, ov, dst);
+
+        // Zero the tail: [ov, Ns)
+        std::fill_n(&mean_sublattice_directions_(m, ov), Ns - ov, Vec3{0, 0, 0});
     }
 }
 
