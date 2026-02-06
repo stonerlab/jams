@@ -12,22 +12,84 @@
 #include <cmath>
 
 SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : Monitor(settings) {
-  periodogram_props_ = {0, 0};
+
   configure_kspace_paths(settings["hkl_path"]);
 
   if (settings.exists("compute_periodogram")) {
     configure_periodogram(settings["compute_periodogram"]);
   }
 
-  auto kspace_size   = globals::lattice->kspace_size();
+  auto kspace_size = globals::lattice->kspace_size();
+
   num_motif_atoms_ = globals::lattice->num_basis_sites();
 
   zero(kspace_data_.resize(
       kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_motif_atoms_));
   zero(kspace_data_timeseries_.resize(
       num_motif_atoms_, periodogram_props_.length, kspace_paths_.size()));
+
+  
+  skw_spectrum_.resize(num_motif_atoms_, periodogram_props_.length, kspace_paths_.size());
 }
 
+void SpectrumBaseMonitor::insert_full_kspace(Vec3i kspace_size) {
+  assert(do_full_kspace_);
+  std::vector<jams::HKLIndex> hkl_path;
+
+  for (auto l = 0; l < kspace_size[0]; ++l) {
+    for (auto m = 0; m < kspace_size[1]; ++m) {
+      for (auto n = 0; n < kspace_size[2]; ++n) {
+        Vec3i coordinate = {l, m, n};
+        Vec3 hkl = hadamard_product(coordinate, 1.0 / to_double(kspace_size));
+        Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
+        hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
+      }
+    }
+  }
+
+  kspace_paths_.insert(end(kspace_paths_), begin(hkl_path), end(hkl_path));
+
+  if (kspace_continuous_path_ranges_.empty())
+  {
+    kspace_continuous_path_ranges_.push_back(0);
+  }
+  kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + hkl_path.size());
+}
+
+void SpectrumBaseMonitor::insert_continuous_kpath(libconfig::Setting& settings) {
+  if (!settings.isList())
+  {
+    throw std::runtime_error("SpectrumBaseMonitor::configure_continuous_kpath failed because settings is not a List");
+  }
+
+  std::vector<Vec3> hkl_path_nodes(settings.getLength());
+  for (auto i = 0; i < settings.getLength(); ++i) {
+    if (!settings[i].isArray())
+    {
+      throw std::runtime_error("SpectrumBaseMonitor::configure_continuous_kpath failed hkl node is not an Array");
+    }
+
+    hkl_path_nodes[i] = Vec3{settings[i][0], settings[i][1], settings[i][2]};
+  }
+
+  // If the user gives two nodes which are identical then there is no path
+  // (it has no length) which could cause some nasty problems when we try
+  // to generate the paths.
+  for (auto i = 1; i < hkl_path_nodes.size(); ++i) {
+    if (hkl_path_nodes[i] == hkl_path_nodes[i-1]) {
+      throw std::runtime_error("Two consecutive hkl_nodes cannot be the same");
+    }
+  }
+
+  auto new_path = generate_hkl_kspace_path(hkl_path_nodes, globals::lattice->kspace_size());
+  kspace_paths_.insert(end(kspace_paths_), begin(new_path), end(new_path));
+
+  if (kspace_continuous_path_ranges_.empty())
+  {
+    kspace_continuous_path_ranges_.push_back(0);
+  }
+  kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + new_path.size());
+}
 
 void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings) {
   // hkl_path can be a simple list of nodes e.g.
@@ -36,51 +98,42 @@ void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings) {
   //    hkl_path = ( ([3.0, 3.0,-3.0], [ 5.0, 5.0,-5.0]),
   //                 ([3.0, 3.0,-2.0], [ 5.0, 5.0,-4.0]));
 
-  if (!(settings[0].isList() || settings[0].isArray())) {
-    throw std::runtime_error("NeutronScatteringMonitor:: hkl_nodes must be a list or a group");
+
+  // Configur full kspace
+  if (settings.isString() && std::string(settings.c_str()) == "full")
+  {
+    insert_full_kspace(globals::lattice->kspace_size());
+    return;
   }
 
-  bool has_discontinuous_paths = settings[0].isList();
-
-  kspace_continuous_path_ranges_.push_back(0);
-  if (has_discontinuous_paths) {
-    for (auto n = 0; n < settings.getLength(); ++n) {
-      std::vector<Vec3> hkl_path_nodes(settings[n].getLength());
-      for (auto i = 0; i < settings[n].getLength(); ++i) {
-        hkl_path_nodes[i] = Vec3{settings[n][i][0], settings[n][i][1], settings[n][i][2]};
-      }
-
-      // If the user gives two nodes which are identical then there is no path
-      // (it has no length) which could cause some nasty problems when we try
-      // to generate the paths.
-      for (auto i = 1; i < hkl_path_nodes.size(); ++i) {
-        if (hkl_path_nodes[i] == hkl_path_nodes[i-1]) {
-          throw std::runtime_error("Two consecutive hkl_nodes cannot be the same");
-        }
-      }
-
-      auto new_path = generate_hkl_kspace_path(hkl_path_nodes, globals::lattice->kspace_size());
-      kspace_paths_.insert(end(kspace_paths_), begin(new_path), end(new_path));
-      kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + new_path.size());
-    }
-  } else {
-    std::vector<Vec3> hkl_path_nodes(settings.getLength());
-    for (auto i = 0; i < settings.getLength(); ++i) {
-      hkl_path_nodes[i] = Vec3{settings[i][0], settings[i][1], settings[i][2]};
-    }
-
-    // If the user gives two nodes which are identical then there is no path
-    // (it has no length) which could cause some nasty problems when we try
-    // to generate the paths.
-    for (auto i = 1; i < hkl_path_nodes.size(); ++i) {
-      if (hkl_path_nodes[i] == hkl_path_nodes[i-1]) {
-        throw std::runtime_error("Two consecutive hkl_nodes cannot be the same");
-      }
-    }
-
-    kspace_paths_ = generate_hkl_kspace_path(hkl_path_nodes, globals::lattice->kspace_size());
-    kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + kspace_paths_.size());
+  // Configure a single kpath
+  if (settings[0].isArray())
+  {
+    insert_continuous_kpath(settings);
+    return;
   }
+
+  // Configure a list of discontinuous kpaths
+  if (settings[0].isList())
+  {
+    for (auto n = 0; n < settings.getLength(); ++n)
+    {
+      if (settings[n].isArray())
+      {
+        insert_continuous_kpath(settings[n]);
+        continue;
+      }
+      if (settings[n].isString() && std::string(settings[n].c_str()) == "full")
+      {
+        insert_full_kspace(globals::lattice->kspace_size());
+        continue;
+      }
+      throw std::runtime_error("SpectrumBaseMonitor::configure_kspace_paths failed because a nodes is not an Array or String");
+    }
+    return;
+  }
+
+  throw std::runtime_error("SpectrumBaseMonitor::configure_kspace_paths failed because settings is not an Array, List or String");
 }
 
 void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings) {
@@ -279,15 +332,11 @@ SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_spec
 }
 
 SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rotated_spectrum(CmplxVecField &timeseries, const jams::MultiArray<Mat3, 1>& rotations) {
-
-
   auto transformed_timeseries = timeseries;
-
   if (channel_mapping_ == ChannelMapping::RaiseLower)
   {
     apply_raise_lower_mapping(transformed_timeseries, rotations);
   }
-
 
   auto spectrum = fft_timeseries_to_frequency(transformed_timeseries);
   shift_periodogram_timeseries(timeseries, periodogram_props_.overlap);
@@ -348,35 +397,41 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
   }
 }
 
-void SpectrumBaseMonitor::store_periodogram_data(const jams::MultiArray<double, 2> &data) {
-  fft_supercell_vector_field_to_kspace(data, kspace_data_, globals::lattice->size(), globals::lattice->kspace_size(),
-                                       globals::lattice->num_basis_sites());
+void SpectrumBaseMonitor::fourier_transform_to_kspace_and_store(const jams::MultiArray<double, 2> &data) {
+  fft_supercell_vector_field_to_kspace(
+    data,
+    kspace_data_,
+    globals::lattice->size(),
+    globals::lattice->kspace_size(),
+    globals::lattice->num_basis_sites());
+
   store_kspace_data_on_path(kspace_data_, kspace_paths_);
   periodogram_index_++;
 }
 
 void SpectrumBaseMonitor::apply_raise_lower_mapping(CmplxVecField& timeseries, const jams::MultiArray<Mat3, 1>& rotations)
 {
-  const Mat3cx kBosonChannelMap = {
-    1.0 / sqrt(2.0),  kImagOne / sqrt(2.0), 0.0,
-    1.0 / sqrt(2.0), -kImagOne / sqrt(2.0), 0.0,
-                   0.0,                   0.0, 1.0};
+  const double kInvSqrt2 = 1.0/sqrt(2.0);
 
-    for (auto m = 0; m < timeseries.size(0); ++m) // num_sites
+  for (auto m = 0; m < timeseries.size(0); ++m) // num_sites
+  {
+    const double S = kElectronGFactor * globals::mus(m);
+    const auto R = rotations(m);
+    for (auto i = 0; i < timeseries.size(1); ++i) // periodogram_index
     {
-      const double S = kElectronGFactor * globals::mus(m);
-      const auto R = rotations(m);
-      for (auto i = 0; i < timeseries.size(1); ++i) // periodogram_index
+      for (auto n = 0; n < timeseries.size(2); ++n) // kpath_index
       {
-        for (auto n = 0; n < timeseries.size(2); ++n) // kpath_index
-        {
-          auto spin = timeseries(m, i, n);
-          spin = R * spin; // rotate the spin
-          spin = kBosonChannelMap * spin; // apply the channel mapping
-          timeseries(m, i, n) = S * spin;
-        }
+        auto rotated_spin = S * (R *timeseries(m, i, n));
+
+        Vec3cx remapped_spin = {
+          kInvSqrt2 * (rotated_spin[0] + kImagOne * rotated_spin[1]),
+          kInvSqrt2 * (rotated_spin[0] - kImagOne * rotated_spin[1]),
+          rotated_spin[2] };
+
+        timeseries(m, i, n) = remapped_spin;
       }
     }
+  }
 }
 
 void SpectrumBaseMonitor::print_info() const {

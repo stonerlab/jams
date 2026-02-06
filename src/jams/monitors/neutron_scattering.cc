@@ -62,7 +62,7 @@ void NeutronScatteringMonitor::configure_polarizations(libconfig::Setting &setti
 }
 
 void NeutronScatteringMonitor::update(Solver& solver) {
-  store_periodogram_data(globals::s);
+  fourier_transform_to_kspace_and_store(globals::s);
 
   if (do_periodogram_update()) {
     auto spectrum = compute_periodogram_spectrum(kspace_data_timeseries_);

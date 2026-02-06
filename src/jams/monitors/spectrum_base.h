@@ -91,11 +91,17 @@ public:
 
 protected:
 
+    void insert_full_kspace(Vec3i kspace_size);
+    void insert_continuous_kpath(libconfig::Setting& settings);
     void configure_kspace_paths(libconfig::Setting& settings);
     void configure_periodogram(libconfig::Setting& settings);
 
     bool do_periodogram_update() const;
-    void store_periodogram_data(const jams::MultiArray<double, 2> &data);
+
+    /// @brief Fourier transform S(r) -> S(k) and store in the timeseries S(k,t)
+    ///
+    /// @param [in] data Spin data S(r)
+    void fourier_transform_to_kspace_and_store(const jams::MultiArray<double, 2> &data);
 
     /// @brief Applies the channel mapping to S(k,t) timeseries data.
     ///
@@ -117,6 +123,8 @@ protected:
 
     void store_kspace_data_on_path(const jams::MultiArray<Vec3cx,4> &kspace_data, const std::vector<jams::HKLIndex> &kspace_path);
 
+    bool do_full_kspace_ = false;
+
     std::vector<jams::HKLIndex> kspace_paths_;
     std::vector<int>            kspace_continuous_path_ranges_;
 
@@ -134,10 +142,13 @@ private:
   /// the Fourier transform. Defaults to identity matrix;
   ChannelMapping channel_mapping_ = ChannelMapping::RaiseLower;
 
-  jams::PeriodogramProps periodogram_props_;
+  jams::PeriodogramProps periodogram_props_ {0, 0};
   int periodogram_index_ = 0;
   int total_periods_ = 0;
   int num_motif_atoms_ = 0;
+
+  /// @brief Output memory for the spectrum
+  jams::MultiArray<Vec3cx,3> skw_spectrum_;
 
 };
 
