@@ -29,6 +29,10 @@ public:
 private:
     void output_total_magnon_spectrum();
     void output_site_resolved_magnon_spectrum();
+    void output_magnon_density();
+
+    /// Shift the sublattice direction data by the periodogram overlap and zero the end of the array
+    void shift_and_zero_mean_directions();
 
     // Toggle calculating and outputting the magnon density
     bool do_magnon_density_ = false;

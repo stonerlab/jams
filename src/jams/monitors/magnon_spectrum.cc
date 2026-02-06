@@ -19,7 +19,7 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
     zero(cumulative_magnon_spectrum_.resize(num_motif_atoms(), num_periodogram_samples(), num_kpoints()));
     zero(mean_sublattice_directions_.resize(globals::lattice->num_basis_sites(), num_periodogram_samples()));
 
-    do_magnon_density_ = jams::config_optional<bool>(settings, "magnon_density", do_magnon_density_);
+    do_magnon_density_ = jams::config_optional<bool>(settings, "output_magnon_density", do_magnon_density_);
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
     do_output_negative_frequencies_ =
         jams::config_optional<bool>(settings, "output_negative_frequencies", do_output_negative_frequencies_);
@@ -39,7 +39,7 @@ void MagnonSpectrumMonitor::update(Solver& solver)
         mean_sublattice_directions_(m, p) += spin;
     }
 
-    store_periodogram_data(globals::s);
+    fourier_transform_to_kspace_and_store(globals::s);
 
     if (do_periodogram_update())
     {
@@ -127,20 +127,25 @@ void MagnonSpectrumMonitor::update(Solver& solver)
 
             rotations(m) = R;
 
-            auto spectrum = compute_periodogram_rotated_spectrum(kspace_data_timeseries_, rotations);
-
-            element_sum(cumulative_magnon_spectrum_, calculate_magnon_spectrum(spectrum));
-
-            if (do_site_resolved_output_)
-            {
-                output_site_resolved_magnon_spectrum();
-            }
-
-            output_total_magnon_spectrum();
-
-
-            shift_and_zero_mean_directions();
         }
+        auto spectrum = compute_periodogram_rotated_spectrum(kspace_data_timeseries_, rotations);
+
+        element_sum(cumulative_magnon_spectrum_, calculate_magnon_spectrum(spectrum));
+
+        if (do_site_resolved_output_)
+        {
+            output_site_resolved_magnon_spectrum();
+        }
+
+        output_total_magnon_spectrum();
+
+        if (do_magnon_density_)
+        {
+            output_magnon_density();
+        }
+
+
+        shift_and_zero_mean_directions();
     }
 }
 
@@ -293,6 +298,55 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
             }
             ofs.close();
         }
+    }
+}
+
+void MagnonSpectrumMonitor::output_magnon_density()
+{
+    for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n)
+    {
+        std::ofstream ofs(jams::output::full_path_filename_series("magnon_density_path.tsv", n, 1));
+        ofs << jams::fmt::decimal << "f_THz";
+        ofs << jams::fmt::decimal << "E_meV";
+        ofs << jams::fmt::decimal << "density";
+        ofs << std::endl;
+
+        // sample time is here because the fourier transform in time is not an integral
+        // but a discrete sum
+        auto prefactor = (sample_time_interval() / (num_periodogram_periods() * product(globals::lattice->kspace_size())));
+        auto time_points = cumulative_magnon_spectrum_.size(1);
+
+        jams::MultiArray<double, 1> total_magnon_density(cumulative_magnon_spectrum_.size(1));
+        zero(total_magnon_density);
+        for (auto a = 0; a < cumulative_magnon_spectrum_.size(0); ++a)
+        {
+            for (auto f = 0; f < cumulative_magnon_spectrum_.size(1); ++f)
+            {
+                for (auto k = 0; k < cumulative_magnon_spectrum_.size(2); ++k)
+                {
+                    // [0][1] => S+-
+                    total_magnon_density(f) += std::abs(cumulative_magnon_spectrum_(a, f, k)[0][1]);
+                }
+            }
+        }
+
+        const auto freq_end = do_output_negative_frequencies_ ? time_points : (time_points / 2) + 1;
+        const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
+        for (auto i = 0; i < freq_end; ++i)
+        {
+            const auto f = do_output_negative_frequencies_ ? (freq_start + i) % time_points : i;
+            const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
+                                                           : static_cast<int>(f) - static_cast<int>(time_points);
+            const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
+
+            ofs << jams::fmt::decimal << freq_thz; // THz
+            ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
+
+            ofs << jams::fmt::sci << prefactor * total_magnon_density(f);
+            ofs << "\n";
+        }
+
+        ofs.close();
     }
 }
 
