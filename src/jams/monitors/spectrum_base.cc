@@ -269,50 +269,74 @@ jams::MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(jams
   const int num_time_samples  = spectrum.size(1);
   const int num_space_samples = spectrum.size(2);
 
-  int rank = 1;
-  int transform_size[1] = {num_time_samples};
-  int num_transforms = num_space_samples * 3;
-  int nembed[1] = {num_time_samples};
-  int stride = num_space_samples * 3;
-  int dist = 1;
-
   // Normalise the FFT window to unit RMS power so that windowing does not change overall power.
   // For Welch/periodogram-style spectra, this makes amplitudes comparable across window choices.
   double w2sum = 0.0;
+  jams::MultiArray<double, 1> window(num_time_samples);
   for (auto i = 0; i < num_time_samples; ++i) {
-    const double w = fft_window_default(i, num_time_samples);
-    w2sum += w * w;
+    window(i) = fft_window_default(i, num_time_samples);
+    w2sum += window(i) * window(i);
   }
   const double w_rms = (w2sum > 0.0) ? std::sqrt(w2sum / double(num_time_samples)) : 1.0;
   const double win_norm = (w_rms > 0.0) ? (1.0 / w_rms) : 1.0;
+  const double time_norm = 1.0 / static_cast<double>(num_time_samples);
 
-  for (auto a = 0; a < num_sites; ++a) {
-    fftw_plan fft_plan = fftw_plan_many_dft(rank, transform_size, num_transforms,
-                                            FFTW_COMPLEX_CAST(&spectrum(a,0,0)), nembed, stride, dist,
-                                            FFTW_COMPLEX_CAST(&spectrum(a,0,0)), nembed, stride, dist,
-                                            FFTW_FORWARD, FFTW_ESTIMATE);
+  jams::MultiArray<Vec3cx, 1> sk0(num_space_samples);
 
-    assert(fft_plan);
-
-    jams::MultiArray<Vec3cx, 1> static_spectrum(num_space_samples);
-    zero(static_spectrum);
-    for (auto i = 0; i < num_time_samples; ++i) {
-      for (auto j = 0; j < num_space_samples; ++j) {
-        static_spectrum(j) += spectrum(a, i, j);
-      }
-    }
-    element_scale(static_spectrum, 1.0/double(num_time_samples));
-
-    for (auto i = 0; i < num_time_samples; ++i) {
-      for (auto j = 0; j < num_space_samples; ++j) {
-        spectrum(a, i, j) = (win_norm * fft_window_default(i, num_time_samples)) * (spectrum(a, i, j) - static_spectrum(j));
+  for (auto a = 0; a < num_sites; ++a)
+  {
+    zero(sk0);
+    for (auto t = 0; t < num_time_samples; ++t) {
+      for (auto k = 0; k < num_space_samples; ++k) {
+        sk0(k) += time_norm * spectrum(a, t, k);
       }
     }
 
-    fftw_execute(fft_plan);
-    fftw_destroy_plan(fft_plan);
+
+    for (auto t = 0; t < num_time_samples; ++t) {
+      for (auto k = 0; k < num_space_samples; ++k) {
+        spectrum(a, t, k) = time_norm * win_norm * window(t) * (spectrum(a, t, k) - sk0(k));
+      }
+    }
   }
-  element_scale(spectrum, 1.0 / double(num_time_samples));
+
+  const int rank = 1;
+
+  const int num_transforms_per_site   = num_space_samples * 3;   // transforms per site
+  const int istride_time = num_transforms_per_site;
+  const int ostride_time = num_transforms_per_site;
+
+  const int site_block   = num_time_samples * num_transforms_per_site;
+
+  fftw_iodim dims[rank];
+  dims[0].n  = num_time_samples;
+  dims[0].is = istride_time;
+  dims[0].os = ostride_time;
+
+  // Two howmany dimensions: (tr within site), then (site)
+  fftw_iodim howmany_dims[2];
+
+  // Transform index (tr): contiguous
+  howmany_dims[0].n  = num_transforms_per_site;
+  howmany_dims[0].is = 1;
+  howmany_dims[0].os = 1;
+
+  // Site index (a): jump by whole site block
+  howmany_dims[1].n  = num_sites;
+  howmany_dims[1].is = site_block;
+  howmany_dims[1].os = site_block;
+
+  auto* data = FFTW_COMPLEX_CAST(&spectrum(0, 0, 0));
+
+  fftw_plan plan = fftw_plan_guru_dft(
+      rank, dims,
+      2, howmany_dims,
+      data, data,
+      FFTW_FORWARD, FFTW_ESTIMATE);
+
+  assert(plan);
+  fftw_execute(plan);
+  fftw_destroy_plan(plan);
 
   return spectrum;
 }
