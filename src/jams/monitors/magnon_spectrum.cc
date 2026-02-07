@@ -161,12 +161,9 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
         ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
         ofs << jams::fmt::decimal << "f_THz";
         ofs << jams::fmt::decimal << "E_meV";
-        ofs << jams::fmt::sci << "Re_sqw_+-";
-        ofs << jams::fmt::sci << "Im_sqw_+-";
-        ofs << jams::fmt::sci << "Re_sqw_-+";
-        ofs << jams::fmt::sci << "Im_sqw_-+";
-        ofs << jams::fmt::sci << "Re_sqw_zz";
-        ofs << jams::fmt::sci << "Im_sqw_zz";
+        ofs << jams::fmt::sci << "sqw_+-";
+        ofs << jams::fmt::sci << "sqw_-+";
+        ofs << jams::fmt::sci << "sqw_zz";
         ofs << std::endl;
 
         // sample time is here because the fourier transform in time is not an integral
@@ -192,12 +189,9 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
                 ofs << jams::fmt::decimal << kspace_paths_[k].xyz;
                 ofs << jams::fmt::decimal << freq_thz; // THz
                 ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[0].real();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[0].imag();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[1].real();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[1].imag();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[2].real();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[2].imag();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[0];
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[1];
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[2];
 
                 if (k + 1 < path_end) {
                     total_distance += norm(kspace_paths_[k].xyz - kspace_paths_[k + 1].xyz);
@@ -396,13 +390,13 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum(const jams::MultiArray<Ve
             {
                 const auto sqw = spectrum(a, f, k);
                 // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
-                cumulative_magnon_spectrum_(f, k)[0] += sqw[0] * conj(sqw[0]);
+                cumulative_magnon_spectrum_(f, k)[0] += std::real(sqw[0] * conj(sqw[0]));
 
                 // S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
-                cumulative_magnon_spectrum_(f, k)[1] += sqw[1] * conj(sqw[1]);
+                cumulative_magnon_spectrum_(f, k)[1] += std::real(sqw[1] * conj(sqw[1]));
 
                 // Sz(q,w) Sz(-q,-w) => Sz(q,w) conj(Sz(q,w))
-                cumulative_magnon_spectrum_(f, k)[2] += sqw[2] * conj(sqw[2]);
+                cumulative_magnon_spectrum_(f, k)[2] += std::real(sqw[2] * conj(sqw[2]));
             }
         }
     }

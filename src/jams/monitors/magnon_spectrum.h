@@ -49,7 +49,7 @@ private:
 
     /// @details cumulative_magnon_spectrum_(motif_index, frequency_index, k_index)[component]
     /// component: 0: +- | 1: -+ | 2: zz
-    jams::MultiArray<Vec3cx,2> cumulative_magnon_spectrum_;
+    jams::MultiArray<Vec3,2> cumulative_magnon_spectrum_;
 };
 
 #endif //JAMS_MAGNON_SPECTRUM_H
