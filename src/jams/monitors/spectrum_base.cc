@@ -13,6 +13,8 @@
 
 SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : Monitor(settings) {
 
+  keep_negative_frequencies_ = jams::config_optional<bool>(settings, "keep_negative_frequencies", keep_negative_frequencies_);
+
   configure_kspace_paths(settings["hkl_path"]);
 
   if (settings.exists("compute_periodogram")) {

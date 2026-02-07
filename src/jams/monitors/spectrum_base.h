@@ -56,6 +56,20 @@ public:
       return kspace_paths_.size();
     }
 
+    bool keep_negative_frequencies() const
+    {
+      return keep_negative_frequencies_;
+    }
+
+    int num_frequencies() const
+    {
+      if (keep_negative_frequencies_)
+      {
+        return num_periodogram_samples();
+      }
+      return num_periodogram_samples() / 2 + 1;
+    }
+
     inline int periodogram_index() const {
       return periodogram_index_;
     }

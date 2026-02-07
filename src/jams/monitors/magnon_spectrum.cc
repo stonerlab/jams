@@ -16,8 +16,6 @@
 
 MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings) : SpectrumBaseMonitor(settings)
 {
-    do_output_negative_frequencies_ =
-    jams::config_optional<bool>(settings, "output_negative_frequencies", do_output_negative_frequencies_);
 
 
 
@@ -181,7 +179,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
         for (auto i = 0; i < num_frequencies(); ++i)
         {
-            const auto f = do_output_negative_frequencies_ ? (freq_start + i) % time_points : i;
+            const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
             const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
                                                            : static_cast<int>(f) - static_cast<int>(time_points);
             const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
@@ -311,11 +309,11 @@ void MagnonSpectrumMonitor::output_magnon_density()
             }
         }
 
-        const auto freq_end = do_output_negative_frequencies_ ? time_points : (time_points / 2) + 1;
+        const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
         for (auto i = 0; i < freq_end; ++i)
         {
-            const auto f = do_output_negative_frequencies_ ? (freq_start + i) % time_points : i;
+            const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
             const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
                                                            : static_cast<int>(f) - static_cast<int>(time_points);
             const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();

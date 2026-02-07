@@ -28,14 +28,7 @@ public:
 
 private:
 
-    int num_frequencies() const
-    {
-        if (do_output_negative_frequencies_)
-        {
-            return num_periodogram_samples();
-        }
-        return num_periodogram_samples() / 2 + 1;
-    }
+
     void output_total_magnon_spectrum();
     void output_site_resolved_magnon_spectrum();
     void output_magnon_density();
@@ -47,8 +40,6 @@ private:
     bool do_magnon_density_ = false;
     // Toggle outputting spectrum for each site in the unit cell as individual files
     bool do_site_resolved_output_ = false;
-    // Toggle outputting the negative frequency data of the magnon spectrum
-    bool do_output_negative_frequencies_ = false;
 
     void accumulate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
 
