@@ -65,7 +65,7 @@ void NeutronScatteringMonitor::update(Solver& solver) {
   fourier_transform_to_kspace_and_store(globals::s);
 
   if (do_periodogram_update()) {
-    auto spectrum = compute_periodogram_spectrum(kspace_data_timeseries_);
+    auto spectrum = compute_periodogram_spectrum(sk_timeseries_);
 
     element_sum(total_unpolarized_neutron_cross_section_,
         calculate_unpolarized_cross_section(spectrum));

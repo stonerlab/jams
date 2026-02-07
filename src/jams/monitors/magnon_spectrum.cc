@@ -16,13 +16,16 @@
 
 MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings) : SpectrumBaseMonitor(settings)
 {
-    zero(cumulative_magnon_spectrum_.resize(num_periodogram_samples(), num_kpoints()));
+    do_output_negative_frequencies_ =
+    jams::config_optional<bool>(settings, "output_negative_frequencies", do_output_negative_frequencies_);
+
+
+
+    zero(cumulative_magnon_spectrum_.resize(num_frequencies(), num_kpoints()));
     zero(mean_sublattice_directions_.resize(globals::lattice->num_basis_sites(), num_periodogram_samples()));
 
     do_magnon_density_ = jams::config_optional<bool>(settings, "output_magnon_density", do_magnon_density_);
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
-    do_output_negative_frequencies_ =
-        jams::config_optional<bool>(settings, "output_negative_frequencies", do_output_negative_frequencies_);
 
     set_channel_mapping(ChannelMapping::RaiseLower);
 
@@ -128,7 +131,7 @@ void MagnonSpectrumMonitor::update(Solver& solver)
             rotations(m) = R;
 
         }
-        auto spectrum = compute_periodogram_rotated_spectrum(kspace_data_timeseries_, rotations);
+        auto spectrum = compute_periodogram_rotated_spectrum(sk_timeseries_, rotations);
 
         accumulate_magnon_spectrum(spectrum);
 
@@ -175,32 +178,31 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
 
         auto path_begin = kspace_continuous_path_ranges_[n];
         auto path_end = kspace_continuous_path_ranges_[n + 1];
-        const auto freq_end = do_output_negative_frequencies_ ? time_points : (time_points / 2) + 1;
         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
-        for (auto i = 0; i < freq_end; ++i)
+        for (auto i = 0; i < num_frequencies(); ++i)
         {
             const auto f = do_output_negative_frequencies_ ? (freq_start + i) % time_points : i;
             const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
                                                            : static_cast<int>(f) - static_cast<int>(time_points);
             const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
             double total_distance = 0.0;
-            for (auto j = path_begin; j < path_end; ++j)
+            for (auto k = path_begin; k < path_end; ++k)
             {
-                ofs << jams::fmt::integer << j;
+                ofs << jams::fmt::integer << k;
                 ofs << jams::fmt::decimal << total_distance;
-                ofs << jams::fmt::decimal << kspace_paths_[j].hkl;
-                ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
+                ofs << jams::fmt::decimal << kspace_paths_[k].hkl;
+                ofs << jams::fmt::decimal << kspace_paths_[k].xyz;
                 ofs << jams::fmt::decimal << freq_thz; // THz
                 ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[0].real();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[0].imag();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[1].real();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[1].imag();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[2].real();
-                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[2].imag();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[0].real();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[0].imag();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[1].real();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[1].imag();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[2].real();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[2].imag();
 
-                if (j + 1 < path_end) {
-                    total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j + 1].xyz);
+                if (k + 1 < path_end) {
+                    total_distance += norm(kspace_paths_[k].xyz - kspace_paths_[k + 1].xyz);
                 }
                 ofs << "\n";
             }
@@ -353,10 +355,6 @@ void MagnonSpectrumMonitor::shift_and_zero_mean_directions()
 
 void MagnonSpectrumMonitor::accumulate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum)
 {
-    const auto num_sites = spectrum.size(0);
-    const auto num_freqencies = spectrum.size(1);
-    const auto num_reciprocal_points = spectrum.size(2);
-
     /// @brief Transverse dynamical structure factor @f$S^{+-}(\mathbf q,\omega)@f$.
     ///
     /// @details
@@ -392,11 +390,11 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum(const jams::MultiArray<Ve
     ///
     /// and the sqw array contains (through the channel mapping) components
     /// 0: +  |  1: -  |  2: z
-    for (auto a = 0; a < num_sites; ++a)
+    for (auto a = 0; a < num_motif_atoms(); ++a)
     {
-        for (auto f = 0; f < num_freqencies; ++f)
+        for (auto f = 0; f < num_frequencies(); ++f)
         {
-            for (auto k = 0; k < num_reciprocal_points; ++k)
+            for (auto k = 0; k < num_kpoints(); ++k)
             {
                 const auto sqw = spectrum(a, f, k);
                 // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))

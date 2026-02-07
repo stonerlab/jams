@@ -27,6 +27,15 @@ public:
     void update(Solver& solver) override;
 
 private:
+
+    int num_frequencies() const
+    {
+        if (do_output_negative_frequencies_)
+        {
+            return num_periodogram_samples();
+        }
+        return num_periodogram_samples() / 2 + 1;
+    }
     void output_total_magnon_spectrum();
     void output_site_resolved_magnon_spectrum();
     void output_magnon_density();

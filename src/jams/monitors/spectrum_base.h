@@ -134,9 +134,13 @@ protected:
 
     /// @brief S(k, t) time series where only k along kpath are stored
     /// @details Layout: kspace_data_timeseries_(basis_index, periodogram_index, kpath_index)
-    CmplxVecField kspace_data_timeseries_;
+  jams::MultiArray<jams::ComplexHi, 2> sk_phase_factors_;
+
+  jams::MultiArray<Vec3cx, 3> sk_timeseries_;
 
 private:
+
+  bool keep_negative_frequencies_ = false;
 
   /// @brief 3x3 complex matrix that defines how the Sx, Sy, Sz components are combined before
   /// the Fourier transform. Defaults to identity matrix;
@@ -147,7 +151,6 @@ private:
   int total_periods_ = 0;
   int num_motif_atoms_ = 0;
 
-  jams::MultiArray<jams::ComplexHi, 2> sk_phase_factors_;
 
   /// @brief Output memory for the spectrum
   jams::MultiArray<Vec3cx,3> skw_spectrum_;

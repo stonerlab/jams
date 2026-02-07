@@ -25,7 +25,7 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : M
 
   zero(kspace_data_.resize(
       kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_motif_atoms_));
-  zero(kspace_data_timeseries_.resize(
+  zero(sk_timeseries_.resize(
       num_motif_atoms_, periodogram_props_.length, kspace_paths_.size()));
 
   
@@ -425,9 +425,9 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
       auto i = periodogram_index_;
       auto idx = kindex.offset;
       if (kindex.conj) {
-        kspace_data_timeseries_(a, i, k) = sk_phase_factors_(a, k) * conj(kspace_data(idx[0], idx[1], idx[2], a));
+        sk_timeseries_(a, i, k) = sk_phase_factors_(a, k) * conj(kspace_data(idx[0], idx[1], idx[2], a));
       } else {
-        kspace_data_timeseries_(a, i, k) = sk_phase_factors_(a, k) * kspace_data(idx[0], idx[1], idx[2], a);
+        sk_timeseries_(a, i, k) = sk_phase_factors_(a, k) * kspace_data(idx[0], idx[1], idx[2], a);
       }
     }
   }
