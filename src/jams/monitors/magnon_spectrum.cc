@@ -160,14 +160,12 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
         ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
         ofs << jams::fmt::decimal << "f_THz";
         ofs << jams::fmt::decimal << "E_meV";
-        for (const std::string& k : {"+", "-", "z"})
-        {
-            for (const std::string& l : {"+", "-", "z"})
-            {
-                ofs << jams::fmt::sci << "Re_sqw_" + k + l;
-                ofs << jams::fmt::sci << "Im_sqw_" + k + l;
-            }
-        }
+        ofs << jams::fmt::sci << "Re_sqw_+-";
+        ofs << jams::fmt::sci << "Im_sqw_+-";
+        ofs << jams::fmt::sci << "Re_sqw_-+";
+        ofs << jams::fmt::sci << "Im_sqw_-+";
+        ofs << jams::fmt::sci << "Re_sqw_zz";
+        ofs << jams::fmt::sci << "Im_sqw_zz";
         ofs << std::endl;
 
         // sample time is here because the fourier transform in time is not an integral
@@ -175,7 +173,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
         auto prefactor = (sample_time_interval() / num_periodogram_periods());
         auto time_points = cumulative_magnon_spectrum_.size(1);
 
-        jams::MultiArray<MagnonSpectrumMonitor::Mat3cx, 2> total_magnon_spectrum(
+        jams::MultiArray<Vec3cx, 2> total_magnon_spectrum(
             cumulative_magnon_spectrum_.size(1), cumulative_magnon_spectrum_.size(2));
         zero(total_magnon_spectrum);
         for (auto a = 0; a < cumulative_magnon_spectrum_.size(0); ++a)
@@ -208,15 +206,13 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
                 ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
                 ofs << jams::fmt::decimal << freq_thz; // THz
                 ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
-                // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
-                for (auto k : {0, 1, 2})
-                {
-                    for (auto l : {0, 1, 2})
-                    {
-                        ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[k][l].real();
-                        ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[k][l].imag();
-                    }
-                }
+                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[0].real();
+                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[0].imag();
+                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[1].real();
+                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[1].imag();
+                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[2].real();
+                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[2].imag();
+
                 if (j + 1 < path_end) {
                     total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j + 1].xyz);
                 }
@@ -247,14 +243,12 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
             ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
             ofs << jams::fmt::decimal << "f_THz";
             ofs << jams::fmt::decimal << "E_meV";
-            for (const std::string& k : {"+", "-", "z"})
-            {
-                for (const std::string& l : {"+", "-", "z"})
-                {
-                    ofs << jams::fmt::sci << "Re_sqw_" + k + l;
-                    ofs << jams::fmt::sci << "Im_sqw_" + k + l;
-                }
-            }
+            ofs << jams::fmt::sci << "Re_sqw_+-";
+            ofs << jams::fmt::sci << "Im_sqw_+-";
+            ofs << jams::fmt::sci << "Re_sqw_-+";
+            ofs << jams::fmt::sci << "Im_sqw_-+";
+            ofs << jams::fmt::sci << "Re_sqw_zz";
+            ofs << jams::fmt::sci << "Im_sqw_zz";
             ofs << std::endl;
 
             // sample time is here because the fourier transform in time is not an integral
@@ -281,14 +275,13 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
                     ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
                     ofs << jams::fmt::decimal << freq_thz; // THz
                     ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
-                    for (auto k : {0, 1, 2})
-                    {
-                        for (auto l : {0, 1, 2})
-                        {
-                            ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[k][l].real();
-                            ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[k][l].imag();
-                        }
-                    }
+                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[0].real();
+                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[0].imag();
+                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[1].real();
+                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[1].imag();
+                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[2].real();
+                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[2].imag();
+
                     if (j + 1 < path_end) {
                         total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j + 1].xyz);
                     }
@@ -325,7 +318,7 @@ void MagnonSpectrumMonitor::output_magnon_density()
                 for (auto k = 0; k < cumulative_magnon_spectrum_.size(2); ++k)
                 {
                     // [0][1] => S+-
-                    total_magnon_density(f) += std::abs(cumulative_magnon_spectrum_(a, f, k)[0][1]);
+                    total_magnon_density(f) += std::abs(cumulative_magnon_spectrum_(a, f, k)[0]);
                 }
             }
         }
@@ -372,14 +365,14 @@ void MagnonSpectrumMonitor::shift_and_zero_mean_directions()
     }
 }
 
-jams::MultiArray<MagnonSpectrumMonitor::Mat3cx, 3>
+jams::MultiArray<Vec3cx, 3>
 MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum)
 {
     const auto num_sites = spectrum.size(0);
     const auto num_freqencies = spectrum.size(1);
     const auto num_reciprocal_points = spectrum.size(2);
 
-    jams::MultiArray<Mat3cx, 3> magnon_spectrum(num_sites, num_freqencies, num_reciprocal_points);
+    jams::MultiArray<Vec3cx, 3> magnon_spectrum(num_sites, num_freqencies, num_reciprocal_points);
     magnon_spectrum.zero();
 
     /// @brief Transverse dynamical structure factor @f$S^{+-}(\mathbf q,\omega)@f$.
@@ -428,27 +421,14 @@ MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 
             {
                 auto sqw = spectrum(a, f, k) * exp(-kImagTwoPi * dot(q, r));
 
-                // S+(q,w) S+(-q,-w) => S+(q,w) conj(S-(q,w))
-                magnon_spectrum(a, f, k)[0][0] = sqw[0] * conj(sqw[1]);
                 // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
-                magnon_spectrum(a, f, k)[0][1] = sqw[0] * conj(sqw[0]);
-                // S+(q,w) Sz(-q,-w) => S+(q,w) conj(Sz(q,w))
-                magnon_spectrum(a, f, k)[0][2] = sqw[0] * conj(sqw[2]);
+                magnon_spectrum(a, f, k)[0] = sqw[0] * conj(sqw[0]);
 
                 // S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
-                magnon_spectrum(a, f, k)[1][0] = sqw[1] * conj(sqw[1]);
-                // S-(q,w) S-(-q,-w) => S-(q,w) conj(S+(q,w))
-                magnon_spectrum(a, f, k)[1][1] = sqw[1] * conj(sqw[0]);
-                // S-(q,w) Sz(-q,-w) => S-(q,w) conj(Sz(q,w))
-                magnon_spectrum(a, f, k)[1][2] = sqw[1] * conj(sqw[2]);
+                magnon_spectrum(a, f, k)[1] = sqw[1] * conj(sqw[1]);
 
-
-                // Sz(q,w) S+(-q,-w) => Sz(q,w) conj(S-(q,w))
-                magnon_spectrum(a, f, k)[2][0] = sqw[2] * conj(sqw[1]);
-                // Sz(q,w) S-(-q,-w) => Sz(q,w) conj(S+(q,w))
-                magnon_spectrum(a, f, k)[2][1] = sqw[2] * conj(sqw[0]);
                 // Sz(q,w) Sz(-q,-w) => Sz(q,w) conj(Sz(q,w))
-                magnon_spectrum(a, f, k)[2][2] = sqw[2] * conj(sqw[2]);
+                magnon_spectrum(a, f, k)[2] = sqw[2] * conj(sqw[2]);
             }
         }
     }

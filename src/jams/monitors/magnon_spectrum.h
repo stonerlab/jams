@@ -41,13 +41,15 @@ private:
     // Toggle outputting the negative frequency data of the magnon spectrum
     bool do_output_negative_frequencies_ = false;
 
-    jams::MultiArray<Mat3cx, 3> calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
+    jams::MultiArray<Vec3cx, 3> calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
 
     /// @brief Sublattice magnetisation directions for each basis site at each time sample in the current periodogram
     /// @details Layout: mean_sublattice_directions_(basis_site, periodogram_index)
     jams::MultiArray<Vec3, 2> mean_sublattice_directions_;
 
-    jams::MultiArray<Mat3cx,3> cumulative_magnon_spectrum_;
+    /// @details cumulative_magnon_spectrum_(motif_index, frequency_index, k_index)[component]
+    /// component: 0: +- | 1: -+ | 2: zz
+    jams::MultiArray<Vec3cx,3> cumulative_magnon_spectrum_;
 };
 
 #endif //JAMS_MAGNON_SPECTRUM_H
