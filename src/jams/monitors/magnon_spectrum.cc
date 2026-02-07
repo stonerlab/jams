@@ -130,7 +130,7 @@ void MagnonSpectrumMonitor::update(Solver& solver)
         }
         auto spectrum = compute_periodogram_rotated_spectrum(kspace_data_timeseries_, rotations);
 
-        element_sum(cumulative_magnon_spectrum_, calculate_magnon_spectrum(spectrum));
+        accumulate_magnon_spectrum(spectrum);
 
         if (do_site_resolved_output_)
         {
@@ -365,15 +365,11 @@ void MagnonSpectrumMonitor::shift_and_zero_mean_directions()
     }
 }
 
-jams::MultiArray<Vec3cx, 3>
-MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum)
+void MagnonSpectrumMonitor::accumulate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum)
 {
     const auto num_sites = spectrum.size(0);
     const auto num_freqencies = spectrum.size(1);
     const auto num_reciprocal_points = spectrum.size(2);
-
-    jams::MultiArray<Vec3cx, 3> magnon_spectrum(num_sites, num_freqencies, num_reciprocal_points);
-    magnon_spectrum.zero();
 
     /// @brief Transverse dynamical structure factor @f$S^{+-}(\mathbf q,\omega)@f$.
     ///
@@ -412,25 +408,21 @@ MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 
     /// 0: +  |  1: -  |  2: z
     for (auto a = 0; a < num_sites; ++a)
     {
-        const Vec3 r = globals::lattice->basis_site_atom(a).position_frac;
         for (auto k = 0; k < num_reciprocal_points; ++k)
         {
-            auto kpoint = kspace_paths_[k];
-            auto q = kpoint.hkl;
             for (auto f = 0; f < num_freqencies; ++f)
             {
-                auto sqw = spectrum(a, f, k);
-
+                const auto sqw = spectrum(a, f, k);
                 // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
-                magnon_spectrum(a, f, k)[0] = sqw[0] * conj(sqw[0]);
+                cumulative_magnon_spectrum_(a, f, k)[0] += sqw[0] * conj(sqw[0]);
 
                 // S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
-                magnon_spectrum(a, f, k)[1] = sqw[1] * conj(sqw[1]);
+                cumulative_magnon_spectrum_(a, f, k)[1] += sqw[1] * conj(sqw[1]);
 
                 // Sz(q,w) Sz(-q,-w) => Sz(q,w) conj(Sz(q,w))
-                magnon_spectrum(a, f, k)[2] = sqw[2] * conj(sqw[2]);
+                cumulative_magnon_spectrum_(a, f, k)[2] += sqw[2] * conj(sqw[2]);
             }
         }
     }
-    return magnon_spectrum;
 }
+
