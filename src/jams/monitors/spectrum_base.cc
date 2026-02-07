@@ -29,7 +29,19 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : M
       num_motif_atoms_, periodogram_props_.length, kspace_paths_.size()));
 
   
-  skw_spectrum_.resize(num_motif_atoms_, periodogram_props_.length, kspace_paths_.size());
+  skw_spectrum_.resize(num_motif_atoms(), num_periodogram_samples(), num_kpoints());
+
+  sk_phase_factors_.resize(num_motif_atoms(), num_kpoints());
+  for (auto a = 0; a < num_motif_atoms(); ++a)
+  {
+    const Vec3 r = globals::lattice->basis_site_atom(a).position_frac;
+    for (auto k = 0; k < num_kpoints(); ++k)
+    {
+      auto q = kspace_paths_[k].hkl;
+      sk_phase_factors_(a, k) = exp(-kImagTwoPi * dot(q, r));
+    }
+  }
+
 }
 
 void SpectrumBaseMonitor::insert_full_kspace(Vec3i kspace_size) {
@@ -413,9 +425,9 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
       auto i = periodogram_index_;
       auto idx = kindex.offset;
       if (kindex.conj) {
-        kspace_data_timeseries_(a, i, k) = conj(kspace_data(idx[0], idx[1], idx[2], a));
+        kspace_data_timeseries_(a, i, k) = sk_phase_factors_(a, k) * conj(kspace_data(idx[0], idx[1], idx[2], a));
       } else {
-        kspace_data_timeseries_(a, i, k) = kspace_data(idx[0], idx[1], idx[2], a);
+        kspace_data_timeseries_(a, i, k) = sk_phase_factors_(a, k) * kspace_data(idx[0], idx[1], idx[2], a);
       }
     }
   }

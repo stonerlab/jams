@@ -147,6 +147,8 @@ private:
   int total_periods_ = 0;
   int num_motif_atoms_ = 0;
 
+  jams::MultiArray<jams::ComplexHi, 2> sk_phase_factors_;
+
   /// @brief Output memory for the spectrum
   jams::MultiArray<Vec3cx,3> skw_spectrum_;
 

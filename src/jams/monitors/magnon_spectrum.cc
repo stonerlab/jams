@@ -419,7 +419,7 @@ MagnonSpectrumMonitor::calculate_magnon_spectrum(const jams::MultiArray<Vec3cx, 
             auto q = kpoint.hkl;
             for (auto f = 0; f < num_freqencies; ++f)
             {
-                auto sqw = spectrum(a, f, k) * exp(-kImagTwoPi * dot(q, r));
+                auto sqw = spectrum(a, f, k);
 
                 // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
                 magnon_spectrum(a, f, k)[0] = sqw[0] * conj(sqw[0]);
