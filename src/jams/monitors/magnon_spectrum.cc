@@ -16,7 +16,7 @@
 
 MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings) : SpectrumBaseMonitor(settings)
 {
-    zero(cumulative_magnon_spectrum_.resize(num_motif_atoms(), num_periodogram_samples(), num_kpoints()));
+    zero(cumulative_magnon_spectrum_.resize(num_periodogram_samples(), num_kpoints()));
     zero(mean_sublattice_directions_.resize(globals::lattice->num_basis_sites(), num_periodogram_samples()));
 
     do_magnon_density_ = jams::config_optional<bool>(settings, "output_magnon_density", do_magnon_density_);
@@ -171,21 +171,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
         // sample time is here because the fourier transform in time is not an integral
         // but a discrete sum
         auto prefactor = (sample_time_interval() / num_periodogram_periods());
-        auto time_points = cumulative_magnon_spectrum_.size(1);
-
-        jams::MultiArray<Vec3cx, 2> total_magnon_spectrum(
-            cumulative_magnon_spectrum_.size(1), cumulative_magnon_spectrum_.size(2));
-        zero(total_magnon_spectrum);
-        for (auto a = 0; a < cumulative_magnon_spectrum_.size(0); ++a)
-        {
-            for (auto f = 0; f < cumulative_magnon_spectrum_.size(1); ++f)
-            {
-                for (auto k = 0; k < cumulative_magnon_spectrum_.size(2); ++k)
-                {
-                    total_magnon_spectrum(f, k) += cumulative_magnon_spectrum_(a, f, k);
-                }
-            }
-        }
+        auto time_points = num_periodogram_samples();
 
         auto path_begin = kspace_continuous_path_ranges_[n];
         auto path_end = kspace_continuous_path_ranges_[n + 1];
@@ -206,12 +192,12 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
                 ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
                 ofs << jams::fmt::decimal << freq_thz; // THz
                 ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
-                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[0].real();
-                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[0].imag();
-                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[1].real();
-                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[1].imag();
-                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[2].real();
-                ofs << jams::fmt::sci << prefactor * total_magnon_spectrum(f, j)[2].imag();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[0].real();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[0].imag();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[1].real();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[1].imag();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[2].real();
+                ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, j)[2].imag();
 
                 if (j + 1 < path_end) {
                     total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j + 1].xyz);
@@ -227,71 +213,71 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
 
 void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
 {
-    for (auto site = 0; site < num_motif_atoms(); ++site)
-    {
-        for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n)
-        {
-            std::ofstream ofs(jams::output::full_path_filename_series(
-                "magnon_spectrum_site_" + std::to_string(site) + "_path.tsv", n, 1));
-
-            ofs << "# site: " << site << " ";
-            ofs << "material: " << globals::lattice->material_name(
-                globals::lattice->basis_site_atom(site).material_index) << "\n";
-            ofs << jams::fmt::integer << "index";
-            ofs << jams::fmt::decimal << "q_total";
-            ofs << jams::fmt::decimal << "h" << jams::fmt::decimal << "k" << jams::fmt::decimal << "l";
-            ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
-            ofs << jams::fmt::decimal << "f_THz";
-            ofs << jams::fmt::decimal << "E_meV";
-            ofs << jams::fmt::sci << "Re_sqw_+-";
-            ofs << jams::fmt::sci << "Im_sqw_+-";
-            ofs << jams::fmt::sci << "Re_sqw_-+";
-            ofs << jams::fmt::sci << "Im_sqw_-+";
-            ofs << jams::fmt::sci << "Re_sqw_zz";
-            ofs << jams::fmt::sci << "Im_sqw_zz";
-            ofs << std::endl;
-
-            // sample time is here because the fourier transform in time is not an integral
-            // but a discrete sum
-            auto prefactor = (sample_time_interval() / num_periodogram_periods());
-            auto time_points = cumulative_magnon_spectrum_.size(1);
-
-            auto path_begin = kspace_continuous_path_ranges_[n];
-            auto path_end = kspace_continuous_path_ranges_[n + 1];
-            const auto freq_end = do_output_negative_frequencies_ ? time_points : (time_points / 2) + 1;
-            const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
-            for (auto i = 0; i < freq_end; ++i)
-            {
-                const auto f = do_output_negative_frequencies_ ? (freq_start + i) % time_points : i;
-                const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
-                                                               : static_cast<int>(f) - static_cast<int>(time_points);
-                const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
-                double total_distance = 0.0;
-                for (auto j = path_begin; j < path_end; ++j)
-                {
-                    ofs << jams::fmt::integer << j;
-                    ofs << jams::fmt::decimal << total_distance;
-                    ofs << jams::fmt::decimal << kspace_paths_[j].hkl;
-                    ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
-                    ofs << jams::fmt::decimal << freq_thz; // THz
-                    ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
-                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[0].real();
-                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[0].imag();
-                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[1].real();
-                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[1].imag();
-                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[2].real();
-                    ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[2].imag();
-
-                    if (j + 1 < path_end) {
-                        total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j + 1].xyz);
-                    }
-                    ofs << "\n";
-                }
-                ofs << "\n";
-            }
-            ofs.close();
-        }
-    }
+    // for (auto site = 0; site < num_motif_atoms(); ++site)
+    // {
+    //     for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n)
+    //     {
+    //         std::ofstream ofs(jams::output::full_path_filename_series(
+    //             "magnon_spectrum_site_" + std::to_string(site) + "_path.tsv", n, 1));
+    //
+    //         ofs << "# site: " << site << " ";
+    //         ofs << "material: " << globals::lattice->material_name(
+    //             globals::lattice->basis_site_atom(site).material_index) << "\n";
+    //         ofs << jams::fmt::integer << "index";
+    //         ofs << jams::fmt::decimal << "q_total";
+    //         ofs << jams::fmt::decimal << "h" << jams::fmt::decimal << "k" << jams::fmt::decimal << "l";
+    //         ofs << jams::fmt::decimal << "qx" << jams::fmt::decimal << "qy" << jams::fmt::decimal << "qz";
+    //         ofs << jams::fmt::decimal << "f_THz";
+    //         ofs << jams::fmt::decimal << "E_meV";
+    //         ofs << jams::fmt::sci << "Re_sqw_+-";
+    //         ofs << jams::fmt::sci << "Im_sqw_+-";
+    //         ofs << jams::fmt::sci << "Re_sqw_-+";
+    //         ofs << jams::fmt::sci << "Im_sqw_-+";
+    //         ofs << jams::fmt::sci << "Re_sqw_zz";
+    //         ofs << jams::fmt::sci << "Im_sqw_zz";
+    //         ofs << std::endl;
+    //
+    //         // sample time is here because the fourier transform in time is not an integral
+    //         // but a discrete sum
+    //         auto prefactor = (sample_time_interval() / num_periodogram_periods());
+    //         auto time_points = cumulative_magnon_spectrum_.size(1);
+    //
+    //         auto path_begin = kspace_continuous_path_ranges_[n];
+    //         auto path_end = kspace_continuous_path_ranges_[n + 1];
+    //         const auto freq_end = do_output_negative_frequencies_ ? time_points : (time_points / 2) + 1;
+    //         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
+    //         for (auto i = 0; i < freq_end; ++i)
+    //         {
+    //             const auto f = do_output_negative_frequencies_ ? (freq_start + i) % time_points : i;
+    //             const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
+    //                                                            : static_cast<int>(f) - static_cast<int>(time_points);
+    //             const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
+    //             double total_distance = 0.0;
+    //             for (auto j = path_begin; j < path_end; ++j)
+    //             {
+    //                 ofs << jams::fmt::integer << j;
+    //                 ofs << jams::fmt::decimal << total_distance;
+    //                 ofs << jams::fmt::decimal << kspace_paths_[j].hkl;
+    //                 ofs << jams::fmt::decimal << kspace_paths_[j].xyz;
+    //                 ofs << jams::fmt::decimal << freq_thz; // THz
+    //                 ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
+    //                 ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[0].real();
+    //                 ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[0].imag();
+    //                 ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[1].real();
+    //                 ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[1].imag();
+    //                 ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[2].real();
+    //                 ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(site, f, j)[2].imag();
+    //
+    //                 if (j + 1 < path_end) {
+    //                     total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j + 1].xyz);
+    //                 }
+    //                 ofs << "\n";
+    //             }
+    //             ofs << "\n";
+    //         }
+    //         ofs.close();
+    //     }
+    // }
 }
 
 void MagnonSpectrumMonitor::output_magnon_density()
@@ -318,7 +304,7 @@ void MagnonSpectrumMonitor::output_magnon_density()
                 for (auto k = 0; k < cumulative_magnon_spectrum_.size(2); ++k)
                 {
                     // [0][1] => S+-
-                    total_magnon_density(f) += std::abs(cumulative_magnon_spectrum_(a, f, k)[0]);
+                    total_magnon_density(f) += std::abs(cumulative_magnon_spectrum_(f, k)[0]);
                 }
             }
         }
@@ -408,19 +394,19 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum(const jams::MultiArray<Ve
     /// 0: +  |  1: -  |  2: z
     for (auto a = 0; a < num_sites; ++a)
     {
-        for (auto k = 0; k < num_reciprocal_points; ++k)
+        for (auto f = 0; f < num_freqencies; ++f)
         {
-            for (auto f = 0; f < num_freqencies; ++f)
+            for (auto k = 0; k < num_reciprocal_points; ++k)
             {
                 const auto sqw = spectrum(a, f, k);
                 // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
-                cumulative_magnon_spectrum_(a, f, k)[0] += sqw[0] * conj(sqw[0]);
+                cumulative_magnon_spectrum_(f, k)[0] += sqw[0] * conj(sqw[0]);
 
                 // S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
-                cumulative_magnon_spectrum_(a, f, k)[1] += sqw[1] * conj(sqw[1]);
+                cumulative_magnon_spectrum_(f, k)[1] += sqw[1] * conj(sqw[1]);
 
                 // Sz(q,w) Sz(-q,-w) => Sz(q,w) conj(Sz(q,w))
-                cumulative_magnon_spectrum_(a, f, k)[2] += sqw[2] * conj(sqw[2]);
+                cumulative_magnon_spectrum_(f, k)[2] += sqw[2] * conj(sqw[2]);
             }
         }
     }
