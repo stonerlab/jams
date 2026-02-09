@@ -43,7 +43,7 @@ public:
     using CmplxVecField = jams::MultiArray<Vec3cx, 3>;
 
     explicit SpectrumBaseMonitor(const libconfig::Setting &settings);
-    ~SpectrumBaseMonitor() override = default;
+    ~SpectrumBaseMonitor() override;
 
     void post_process() override = 0;
     void update(Solver& solver) override = 0;
@@ -112,6 +112,9 @@ protected:
 
     bool do_periodogram_update() const;
 
+  /// @brief Resets the periodogram for a new period, shifting data by the overlap
+  void reset_periodogram();
+
     /// @brief Fourier transform S(r) -> S(k) and store in the timeseries S(k,t)
     ///
     /// @param [in] data Spin data S(r)
@@ -127,10 +130,14 @@ protected:
     CmplxVecField compute_periodogram_spectrum(CmplxVecField &timeseries);
     CmplxVecField compute_periodogram_rotated_spectrum(CmplxVecField &timeseries, const jams::MultiArray<Mat3, 1>& rotations);
 
-    static void shift_periodogram_timeseries(CmplxVecField &timeseries, int overlap);
 
+    CmplxVecField& fft_timeseries_to_frequency(const CmplxVecField& timeseries);
 
-    static CmplxVecField fft_timeseries_to_frequency(CmplxVecField spectrum);
+  /// @brief Fourier transform the S(k,t) timeseries to S(k,w) at a single k-point
+  ///
+  /// @param [in] timeseries S(k,t) timeseries
+  /// @param [in] kpoint_index k-point index for which to perform the transform
+  jams::MultiArray<Vec3cx,2>& fft_sk_timeseries_to_skw(const CmplxVecField& timeseries, const int kpoint_index);
 
     static std::vector<jams::HKLIndex> generate_hkl_kspace_path(
         const std::vector<Vec3> &hkl_nodes, const Vec3i &kspace_size);
@@ -154,6 +161,22 @@ protected:
 
 private:
 
+  void shift_sk_timeseries_(int overlap);
+
+
+  void store_sublattice_magnetisation_(const jams::MultiArray<double, 2> &spin_state);
+  void shift_sublattice_magnetisation_timeseries_();
+
+  /// @brief Generate the window function for a width of num_time_samples.
+  ///
+  /// @details FFT window is normalised to unit RMS power so that windowing does not change overall power.
+  // For Welch/periodogram-style spectra, this makes amplitudes comparable across window choices.
+  static jams::MultiArray<double,1> generate_normalised_window_(const int num_time_samples);
+
+  /// @brief Generate unit cell phase factors phi_a(k) = exp(-2 pi i r_a.k) where a is a position in the unit cell basis
+  /// and k is a k point.
+  static jams::MultiArray<jams::ComplexHi, 2> generate_phase_factors_(const std::vector<Vec3>& r_frac, const std::vector<jams::HKLIndex>& kpoints);
+
   bool keep_negative_frequencies_ = false;
 
   /// @brief 3x3 complex matrix that defines how the Sx, Sy, Sz components are combined before
@@ -166,8 +189,19 @@ private:
   int num_motif_atoms_ = 0;
 
 
+  /// @brief Sublattice magnetisation directions for each basis site at each time sample in the current periodogram
+  /// @details Layout: mean_sublattice_directions_(basis_site, periodogram_index)
+  jams::MultiArray<Vec3, 2> sublattice_magnetisation_;
+
+
   /// @brief Output memory for the spectrum
   jams::MultiArray<Vec3cx,3> skw_spectrum_;
+
+  /// @brief Buffer for FFT S(k,t...) - S(k,w) for a single k index
+  fftw_plan sw_spectrum_fft_plan_ = nullptr;
+  jams::MultiArray<double,1> sw_window_;
+  jams::MultiArray<Vec3cx,2> sw_spectrum_buffer_;
+
 
 };
 

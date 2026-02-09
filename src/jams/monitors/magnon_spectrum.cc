@@ -20,7 +20,7 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
 
 
     zero(cumulative_magnon_spectrum_.resize(num_frequencies(), num_kpoints()));
-    zero(mean_sublattice_directions_.resize(globals::lattice->num_basis_sites(), num_periodogram_samples()));
+    zero(sublattice_magnetisation_.resize(globals::lattice->num_basis_sites(), num_periodogram_samples()));
 
     do_magnon_density_ = jams::config_optional<bool>(settings, "output_magnon_density", do_magnon_density_);
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
@@ -32,13 +32,6 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
 
 void MagnonSpectrumMonitor::update(Solver& solver)
 {
-    const auto p = periodogram_index();
-    for (auto i = 0; i < globals::num_spins; ++i)
-    {
-        Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
-        auto m = globals::lattice->lattice_site_basis_index(i);
-        mean_sublattice_directions_(m, p) += spin;
-    }
 
     fourier_transform_to_kspace_and_store(globals::s);
 
@@ -64,7 +57,7 @@ void MagnonSpectrumMonitor::update(Solver& solver)
             for (auto n = 0; n < num_periodogram_samples(); ++n)
             {
                 mean_directions(m) += fft_window_default(n, num_periodogram_samples()) *
-                    mean_sublattice_directions_(m, n);
+                    sublattice_magnetisation_(m, n);
             }
             if (wsum > 0.0) mean_directions(m) *= (1.0 / wsum);
         }
@@ -336,12 +329,12 @@ void MagnonSpectrumMonitor::shift_and_zero_mean_directions()
     for (std::size_t m = 0; m < M; ++m)
     {
         // Copy overlap block to the start: [src0, Ns) -> [0, ov)
-        auto*       dst = &mean_sublattice_directions_(m, 0);
-        const auto* src = &mean_sublattice_directions_(m, src0);
+        auto*       dst = &sublattice_magnetisation_(m, 0);
+        const auto* src = &sublattice_magnetisation_(m, src0);
         std::copy_n(src, ov, dst);
 
         // Zero the tail: [ov, Ns)
-        std::fill_n(&mean_sublattice_directions_(m, ov), Ns - ov, Vec3{0, 0, 0});
+        std::fill_n(&sublattice_magnetisation_(m, ov), Ns - ov, Vec3{0, 0, 0});
     }
 }
 

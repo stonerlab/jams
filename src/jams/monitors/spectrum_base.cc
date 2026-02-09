@@ -33,17 +33,17 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(const libconfig::Setting &settings) : M
   
   skw_spectrum_.resize(num_motif_atoms(), num_periodogram_samples(), num_kpoints());
 
-  sk_phase_factors_.resize(num_motif_atoms(), num_kpoints());
+  std::vector<Vec3> r_frac;
   for (auto a = 0; a < num_motif_atoms(); ++a)
   {
-    const Vec3 r = globals::lattice->basis_site_atom(a).position_frac;
-    for (auto k = 0; k < num_kpoints(); ++k)
-    {
-      auto q = kspace_paths_[k].hkl;
-      sk_phase_factors_(a, k) = exp(-kImagTwoPi * dot(q, r));
-    }
+    r_frac.push_back(globals::lattice->basis_site_atom(a).position_frac);
   }
+  sk_phase_factors_ = generate_phase_factors_(r_frac, kspace_paths_);
+}
 
+SpectrumBaseMonitor::~SpectrumBaseMonitor()
+{
+  fftw_destroy_plan(sw_spectrum_fft_plan_);
 }
 
 void SpectrumBaseMonitor::insert_full_kspace(Vec3i kspace_size) {
@@ -276,8 +276,100 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const 
   return hkl_path;
 }
 
-jams::MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(jams::MultiArray<Vec3cx, 3> spectrum) {
-  // pass spectrum by value to make a copy
+jams::MultiArray<Vec3cx,2>& SpectrumBaseMonitor::fft_sk_timeseries_to_skw(const CmplxVecField& timeseries, const int kpoint_index)
+{
+  const int num_sites         = timeseries.size(0);
+  const int num_time_samples  = timeseries.size(1);
+
+  // We need to resize and re-plan the fft if sw_spectrum_buffer_ or sw_spectrum_fft_plan_
+  // are uninitialised or sw_spectrum_buffer_ has changed size
+  if (
+    sw_window_.size() != num_time_samples
+    || sw_spectrum_buffer_.size(0) != num_sites
+    || sw_spectrum_buffer_.size(1) != num_time_samples
+    || !sw_spectrum_fft_plan_)
+  {
+
+    sw_window_ = generate_normalised_window_(num_time_samples);
+
+    sw_spectrum_buffer_.resize(num_sites, num_time_samples);
+
+    // Time FFT per (site, k-point). We transform 3 complex channels (Vec3cx) for each fixed (a,k)
+    // along the time dimension.
+    // Memory layout assumption for jams::MultiArray<Vec3cx,3> with indices (site, time, k):
+    // k is the fastest index, then time, then site. Each Vec3cx stores 3 complex values contiguously.
+
+    const int n[1] = { num_time_samples };
+    const int howmany = 3; // x/y/z or +/−/z channels
+
+    // Stride between successive time samples for a fixed (a,k), in units of fftw_complex.
+    // Advancing time by 1 jumps over all k-points worth of Vec3cx (each Vec3cx has 3 complex entries).
+    const int istride = howmany;
+    const int ostride = howmany;
+
+    // Distance between the start of each transform (channel) for a fixed (a,k), in units of fftw_complex.
+    // The 3 channels are stored contiguously within Vec3cx.
+    const int idist = 1;
+    const int odist = 1;
+
+    // Create a plan once and re-use it for all (a,k) by calling fftw_execute_dft with different pointers.
+    // Use a non-null dummy pointer to satisfy FFTW plan creation requirements.
+    auto* dummy = FFTW_COMPLEX_CAST(&sw_spectrum_buffer_(0, 0));
+
+    sw_spectrum_fft_plan_ = fftw_plan_many_dft(
+        /*rank=*/1,
+        /*n=*/n,
+        /*howmany=*/howmany,
+        /*in=*/dummy,
+        /*inembed=*/nullptr,
+        /*istride=*/istride,
+        /*idist=*/idist,
+        /*out=*/dummy,
+        /*onembed=*/nullptr,
+        /*ostride=*/ostride,
+        /*odist=*/odist,
+        /*sign=*/FFTW_FORWARD,
+        /*flags=*/FFTW_ESTIMATE);
+
+    assert(sw_spectrum_fft_plan_);
+  }
+
+
+
+  for (auto a = 0; a < num_sites; ++a)
+  {
+    for (auto t = 0; t < num_time_samples; ++t) {
+      sw_spectrum_buffer_(a, t) = timeseries(a, t, kpoint_index);
+    }
+  }
+
+  const double time_norm = 1.0 / static_cast<double>(num_time_samples);
+
+  // Remove the static component from the time series and apply the window function
+  for (auto a = 0; a < num_sites; ++a)
+  {
+    Vec3cx sk0{};
+    for (auto t = 0; t < num_time_samples; ++t) {
+      sk0 += time_norm * timeseries(a, t, kpoint_index);
+    }
+
+    for (auto t = 0; t < num_time_samples; ++t) {
+        sw_spectrum_buffer_(a, t) = time_norm * sw_window_(t) * (sw_spectrum_buffer_(a, t) - sk0);
+    }
+  }
+
+  for (int a = 0; a < num_sites; ++a)
+  {
+      auto* ptr = FFTW_COMPLEX_CAST(&sw_spectrum_buffer_(a, 0));
+      fftw_execute_dft(sw_spectrum_fft_plan_, ptr, ptr);
+  }
+
+  return sw_spectrum_buffer_;
+}
+
+SpectrumBaseMonitor::CmplxVecField& SpectrumBaseMonitor::fft_timeseries_to_frequency(const CmplxVecField& timeseries) {
+  // Make a local working copy for mean subtraction, windowing, and in-place FFT.
+  CmplxVecField spectrum = timeseries;
 
   const int num_sites         = spectrum.size(0);
   const int num_time_samples  = spectrum.size(1);
@@ -306,7 +398,6 @@ jams::MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(jams
       }
     }
 
-
     for (auto t = 0; t < num_time_samples; ++t) {
       for (auto k = 0; k < num_space_samples; ++k) {
         spectrum(a, t, k) = time_norm * win_norm * window(t) * (spectrum(a, t, k) - sk0(k));
@@ -314,75 +405,132 @@ jams::MultiArray<Vec3cx,3> SpectrumBaseMonitor::fft_timeseries_to_frequency(jams
     }
   }
 
-  const int rank = 1;
+  // Time FFT per (site, k-point). We transform 3 complex channels (Vec3cx) for each fixed (a,k)
+  // along the time dimension.
+  // Memory layout assumption for jams::MultiArray<Vec3cx,3> with indices (site, time, k):
+  // k is the fastest index, then time, then site. Each Vec3cx stores 3 complex values contiguously.
 
-  const int num_transforms_per_site   = num_space_samples * 3;   // transforms per site
-  const int istride_time = num_transforms_per_site;
-  const int ostride_time = num_transforms_per_site;
+  const int n[1] = { num_time_samples };
+  const int howmany = 3; // x/y/z or +/−/z channels
 
-  const int site_block   = num_time_samples * num_transforms_per_site;
+  // Stride between successive time samples for a fixed (a,k), in units of fftw_complex.
+  // Advancing time by 1 jumps over all k-points worth of Vec3cx (each Vec3cx has 3 complex entries).
+  const int istride = num_space_samples * howmany;
+  const int ostride = num_space_samples * howmany;
 
-  fftw_iodim dims[rank];
-  dims[0].n  = num_time_samples;
-  dims[0].is = istride_time;
-  dims[0].os = ostride_time;
+  // Distance between the start of each transform (channel) for a fixed (a,k), in units of fftw_complex.
+  // The 3 channels are stored contiguously within Vec3cx.
+  const int idist = 1;
+  const int odist = 1;
 
-  // Two howmany dimensions: (tr within site), then (site)
-  fftw_iodim howmany_dims[2];
+  // Create a plan once and re-use it for all (a,k) by calling fftw_execute_dft with different pointers.
+  // Use a non-null dummy pointer to satisfy FFTW plan creation requirements.
+  auto* dummy = FFTW_COMPLEX_CAST(&spectrum(0, 0, 0));
 
-  // Transform index (tr): contiguous
-  howmany_dims[0].n  = num_transforms_per_site;
-  howmany_dims[0].is = 1;
-  howmany_dims[0].os = 1;
-
-  // Site index (a): jump by whole site block
-  howmany_dims[1].n  = num_sites;
-  howmany_dims[1].is = site_block;
-  howmany_dims[1].os = site_block;
-
-  auto* data = FFTW_COMPLEX_CAST(&spectrum(0, 0, 0));
-
-  fftw_plan plan = fftw_plan_guru_dft(
-      rank, dims,
-      2, howmany_dims,
-      data, data,
-      FFTW_FORWARD, FFTW_ESTIMATE);
+  fftw_plan plan = fftw_plan_many_dft(
+      /*rank=*/1,
+      /*n=*/n,
+      /*howmany=*/howmany,
+      /*in=*/dummy,
+      /*inembed=*/nullptr,
+      /*istride=*/istride,
+      /*idist=*/idist,
+      /*out=*/dummy,
+      /*onembed=*/nullptr,
+      /*ostride=*/ostride,
+      /*odist=*/odist,
+      /*sign=*/FFTW_FORWARD,
+      /*flags=*/FFTW_ESTIMATE);
 
   assert(plan);
-  fftw_execute(plan);
+
+  for (int a = 0; a < num_sites; ++a)
+  {
+    for (int k = 0; k < num_space_samples; ++k)
+    {
+      auto* ptr = FFTW_COMPLEX_CAST(&spectrum(a, 0, k));
+      fftw_execute_dft(plan, ptr, ptr);
+    }
+  }
+
   fftw_destroy_plan(plan);
 
-  return spectrum;
+  const int num_freq_out = keep_negative_frequencies_
+                           ? num_time_samples
+                           : (num_time_samples / 2 + 1);
+
+  if (skw_spectrum_.size(0) != num_sites ||
+      skw_spectrum_.size(1) != num_freq_out ||
+      skw_spectrum_.size(2) != num_space_samples)
+  {
+    skw_spectrum_.resize(num_sites, num_freq_out, num_space_samples);
+  }
+
+  for (int a = 0; a < num_sites; ++a)
+  {
+    for (int f = 0; f < num_freq_out; ++f)
+    {
+      for (int k = 0; k < num_space_samples; ++k)
+      {
+        skw_spectrum_(a, f, k) = spectrum(a, f, k);
+      }
+    }
+  }
+
+  return skw_spectrum_;
 }
 
 bool SpectrumBaseMonitor::do_periodogram_update() const {
   return periodogram_index_ >= periodogram_props_.length && periodogram_props_.length > 0;
 }
 
-SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_spectrum(CmplxVecField &timeseries) {
-  auto spectrum = fft_timeseries_to_frequency(timeseries);
-  shift_periodogram_timeseries(timeseries, periodogram_props_.overlap);
-  // put the pointer to the overlap position
+void SpectrumBaseMonitor::reset_periodogram()
+{
+  shift_periodogram_timeseries();
+  shift_sublattice_magnetisation_timeseries_();
   periodogram_index_ = periodogram_props_.overlap;
   total_periods_++;
+}
 
+SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_spectrum(CmplxVecField &timeseries) {
+  auto& spectrum = fft_timeseries_to_frequency(timeseries);
+  shift_periodogram_timeseries(timeseries, periodogram_props_.overlap);
+  periodogram_index_ = periodogram_props_.overlap;
+  total_periods_++;
   return spectrum;
 }
 
-SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rotated_spectrum(CmplxVecField &timeseries, const jams::MultiArray<Mat3, 1>& rotations) {
+
+SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rotated_spectrum(
+    CmplxVecField &timeseries,
+    const jams::MultiArray<Mat3, 1>& rotations)
+{
   auto transformed_timeseries = timeseries;
+
   if (channel_mapping_ == ChannelMapping::RaiseLower)
   {
     apply_raise_lower_mapping(transformed_timeseries, rotations);
   }
 
-  auto spectrum = fft_timeseries_to_frequency(transformed_timeseries);
+  for (auto k = 0; k < transformed_timeseries.size(2); ++k)
+  {
+    auto sw_spectrum = fft_sk_timeseries_to_skw(transformed_timeseries, k);
+    for (auto a = 0; a < transformed_timeseries.size(0); ++a)
+    {
+      for (auto f = 0; f < sw_spectrum.size(1); ++f)
+      {
+        skw_spectrum_(a, f, k) = sw_spectrum(a, f);
+      }
+    }
+  }
+
+  // auto& spectrum = fft_timeseries_to_frequency(transformed_timeseries);
+
   shift_periodogram_timeseries(timeseries, periodogram_props_.overlap);
-  // put the pointer to the overlap position
   periodogram_index_ = periodogram_props_.overlap;
   total_periods_++;
 
-  return spectrum;
+  return skw_spectrum_;
 }
 
 // void SpectrumBaseMonitor::shift_periodogram_timeseries(CmplxVecField &timeseries, int overlap) {
@@ -397,11 +545,11 @@ SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rota
 //   }
 // }
 
-void SpectrumBaseMonitor::shift_periodogram_timeseries(CmplxVecField& timeseries, int overlap)
+void SpectrumBaseMonitor::shift_sk_timeseries_(int overlap)
 {
-  const std::size_t A = timeseries.size(0);
-  const std::size_t T = timeseries.size(1);
-  const std::size_t K = timeseries.size(2);
+  const std::size_t A = sk_timeseries_.size(0);
+  const std::size_t T = sk_timeseries_.size(1);
+  const std::size_t K = sk_timeseries_.size(2);
 
   assert(overlap >= 0);
   const std::size_t ov = static_cast<std::size_t>(overlap);
@@ -413,8 +561,8 @@ void SpectrumBaseMonitor::shift_periodogram_timeseries(CmplxVecField& timeseries
   {
     for (std::size_t i = 0; i < ov; ++i)
     {
-      auto*       dst = &timeseries(a, i, 0);
-      const auto* src = &timeseries(a, src0 + i, 0);
+      auto*       dst = &sk_timeseries_(a, i, 0);
+      const auto* src = &sk_timeseries_(a, src0 + i, 0);
       std::copy_n(src, K, dst);
     }
   }
@@ -435,6 +583,79 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
   }
 }
 
+void SpectrumBaseMonitor::store_sublattice_magnetisation_(const jams::MultiArray<double, 2>& spin_state)
+{
+  const auto p = periodogram_index();
+  for (auto i = 0; i < globals::num_spins; ++i)
+  {
+    Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};
+    auto m = globals::lattice->lattice_site_basis_index(i);
+    sublattice_magnetisation_(m, p) += spin;
+  }
+}
+
+void SpectrumBaseMonitor::shift_sublattice_magnetisation_timeseries_()
+{
+  const std::size_t M  = globals::lattice->num_basis_sites();
+  const std::size_t Ns = static_cast<std::size_t>(num_periodogram_samples());
+  const std::size_t ov = static_cast<std::size_t>(periodogram_overlap());
+
+  assert(ov < Ns);
+
+  const std::size_t src0 = Ns - ov;
+
+  for (std::size_t m = 0; m < M; ++m)
+  {
+    // Copy overlap block to the start: [src0, Ns) -> [0, ov)
+    auto*       dst = &sublattice_magnetisation_(m, 0);
+    const auto* src = &sublattice_magnetisation_(m, src0);
+    std::copy_n(src, ov, dst);
+
+    // Zero the tail: [ov, Ns)
+    std::fill_n(&sublattice_magnetisation_(m, ov), Ns - ov, Vec3{0, 0, 0});
+  }
+}
+
+jams::MultiArray<double, 1>
+SpectrumBaseMonitor::generate_normalised_window_(int num_time_samples)
+{
+  jams::MultiArray<double, 1> window(num_time_samples);
+
+  double w2sum = 0.0;
+  for (int i = 0; i < num_time_samples; ++i) {
+    const double w = fft_window_default(i, num_time_samples);
+    window(i) = w;
+    w2sum += w * w;
+  }
+
+  const double inv_rms =
+      (w2sum > 0.0) ? 1.0 / std::sqrt(w2sum / static_cast<double>(num_time_samples))
+                    : 1.0;
+
+  for (int i = 0; i < num_time_samples; ++i) {
+    window(i) *= inv_rms;
+  }
+
+  return window;
+}
+
+jams::MultiArray<jams::ComplexHi, 2> SpectrumBaseMonitor::generate_phase_factors_(const std::vector<Vec3>& r_frac,
+  const std::vector<jams::HKLIndex>& kpoints)
+{
+  jams::MultiArray<jams::ComplexHi, 2> phase_factors(r_frac.size(), kpoints.size());
+
+  for (auto a = 0; a < r_frac.size(); ++a)
+  {
+    const auto r = r_frac[a];
+    for (auto k = 0; k < kpoints.size(); ++k)
+    {
+      const auto q = kpoints[k].hkl;
+      phase_factors(a, k) = exp(-kImagTwoPi * dot(q, r));
+    }
+  }
+  return phase_factors;
+}
+
 void SpectrumBaseMonitor::fourier_transform_to_kspace_and_store(const jams::MultiArray<double, 2> &data) {
   fft_supercell_vector_field_to_kspace(
     data,
@@ -443,6 +664,7 @@ void SpectrumBaseMonitor::fourier_transform_to_kspace_and_store(const jams::Mult
     globals::lattice->kspace_size(),
     globals::lattice->num_basis_sites());
 
+  store_sublattice_magnetisation_(data);
   store_kspace_data_on_path(kspace_data_, kspace_paths_);
   periodogram_index_++;
 }

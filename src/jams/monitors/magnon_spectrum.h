@@ -43,9 +43,7 @@ private:
 
     void accumulate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum);
 
-    /// @brief Sublattice magnetisation directions for each basis site at each time sample in the current periodogram
-    /// @details Layout: mean_sublattice_directions_(basis_site, periodogram_index)
-    jams::MultiArray<Vec3, 2> mean_sublattice_directions_;
+
 
     /// @details cumulative_magnon_spectrum_(motif_index, frequency_index, k_index)[component]
     /// component: 0: +- | 1: -+ | 2: zz
