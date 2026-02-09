@@ -7,6 +7,7 @@
 #include <numeric>
 #include <iomanip>
 #include <fstream>
+#include <stdexcept>
 
 #include "jams/helpers/output.h"
 #include "jams/core/solver.h"
@@ -65,7 +66,7 @@ void NeutronScatteringMonitor::update(Solver& solver) {
   fourier_transform_to_kspace_and_store(globals::s);
 
   if (do_periodogram_update()) {
-    auto spectrum = compute_periodogram_spectrum(sk_timeseries_);
+    auto spectrum = compute_periodogram_spectrum();
 
     element_sum(total_unpolarized_neutron_cross_section_,
         calculate_unpolarized_cross_section(spectrum));
@@ -92,10 +93,13 @@ void NeutronScatteringMonitor::update(Solver& solver) {
  * @return
  */
 
-jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_section(const jams::MultiArray<Vec3cx, 3>& spectrum) {
+jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolarized_cross_section(const CmplxMappedSpectrum& spectrum) {
   const auto num_sites = spectrum.size(0);
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
+  if (spectrum.size(3) < 3) {
+    throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
+  }
 
   jams::MultiArray<jams::ComplexHi, 2> cross_section(num_freqencies, num_reciprocal_points);
   cross_section.zero();
@@ -113,8 +117,16 @@ jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolar
         auto sf = exp(-kImagTwoPi * dot(q, r_ab));
 
         for (auto f = 0; f < num_freqencies; ++f) {
-          auto s_a = conj(spectrum(a, f, k));
-          auto s_b = spectrum(b, f, k);
+          Vec3cx s_a = {
+              conj(spectrum(a, f, k, 0)),
+              conj(spectrum(a, f, k, 1)),
+              conj(spectrum(a, f, k, 2))
+          };
+          Vec3cx s_b = {
+              spectrum(b, f, k, 0),
+              spectrum(b, f, k, 1),
+              spectrum(b, f, k, 2)
+          };
           for (auto i : {0, 1, 2}) {
             for (auto j : {0, 1, 2}) {
               cross_section(f, k) += sf * ff * (kronecker_delta(i, j) - Q[i] * Q[j]) * s_a[i] * s_b[j];
@@ -127,10 +139,13 @@ jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolar
   return cross_section;
 }
 
-jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const jams::MultiArray<Vec3cx, 3>& spectrum, const std::vector<Vec3>& polarizations) {
+jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polarized_cross_sections(const CmplxMappedSpectrum& spectrum, const std::vector<Vec3>& polarizations) {
   const auto num_sites = spectrum.size(0);
   const auto num_freqencies = spectrum.size(1);
   const auto num_reciprocal_points = spectrum.size(2);
+  if (spectrum.size(3) < 3) {
+    throw std::runtime_error("NeutronScatteringMonitor requires at least 3 channels");
+  }
 
   jams::MultiArray<jams::ComplexHi, 3> convolved(polarizations.size(), num_freqencies, num_reciprocal_points);
   convolved.zero();
@@ -147,8 +162,16 @@ jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polariz
         auto sf = exp(-kImagTwoPi * dot(q, r_ab));
 
         for (auto f = 0; f < num_freqencies; ++f) {
-          auto s_a = conj(spectrum(a, f, k));
-          auto s_b = spectrum(b, f, k);
+          Vec3cx s_a = {
+              conj(spectrum(a, f, k, 0)),
+              conj(spectrum(a, f, k, 1)),
+              conj(spectrum(a, f, k, 2))
+          };
+          Vec3cx s_b = {
+              spectrum(b, f, k, 0),
+              spectrum(b, f, k, 1),
+              spectrum(b, f, k, 2)
+          };
           for (auto p = 0; p < polarizations.size(); ++p) {
             auto P = polarizations[p];
             auto PxQ = cross(P, Q);

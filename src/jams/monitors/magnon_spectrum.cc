@@ -13,6 +13,7 @@
 
 #include <complex>
 #include <cmath>
+#include <stdexcept>
 
 MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings) : SpectrumBaseMonitor(settings)
 {
@@ -26,7 +27,11 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
     do_magnon_spectrum_output_ = jams::config_optional<bool>(settings, "output_magnon_spectrum", do_magnon_spectrum_output_);
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
 
-    set_channel_mapping(ChannelMapping::RaiseLower);
+    set_channel_map(raise_lower_channel_map());
+    if (num_channels() < 3)
+    {
+        throw std::runtime_error("MagnonSpectrumMonitor requires at least 3 output channels");
+    }
 
     print_info();
 }
@@ -42,7 +47,6 @@ void MagnonSpectrumMonitor::update(Solver& solver)
         {
             accumulate_magnon_spectrum();
         }
-        shift_periodogram();
 
         // if (do_site_resolved_output_)
         // {
@@ -58,6 +62,8 @@ void MagnonSpectrumMonitor::update(Solver& solver)
         {
             output_magnon_density();
         }
+
+        shift_periodogram();
 
     }
 }
@@ -293,7 +299,7 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum()
 
     for (auto k = 0; k < num_kpoints(); ++k)
     {
-        const auto sw = fft_sk_timeseries_to_skw(k, sk_timeseries_);
+        const auto& sw = fft_sk_timeseries_to_skw(k);
         const auto time_points = num_periodogram_samples();
         const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
@@ -309,13 +315,13 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum()
                 const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
 
                 // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
-                cumulative_magnon_spectrum_(f, k)[0] += std::real(sw(a, f)[0] * conj(sw(a, f)[0]));
+                cumulative_magnon_spectrum_(f, k)[0] += std::real(sw(a, f, 0) * conj(sw(a, f, 0)));
 
                 // S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
-                cumulative_magnon_spectrum_(f, k)[1] += std::real(sw(a, f)[1] * conj(sw(a, f)[1]));
+                cumulative_magnon_spectrum_(f, k)[1] += std::real(sw(a, f, 1) * conj(sw(a, f, 1)));
 
                 // Sz(q,w) Sz(-q,-w) => Sz(q,w) conj(Sz(q,w))
-                cumulative_magnon_spectrum_(f, k)[2] += std::real(sw(a, f)[2] * conj(sw(a, f)[2]));
+                cumulative_magnon_spectrum_(f, k)[2] += std::real(sw(a, f, 2) * conj(sw(a, f, 2)));
             }
         }
     }
