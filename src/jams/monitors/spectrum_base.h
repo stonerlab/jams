@@ -105,6 +105,9 @@ public:
 
 protected:
 
+  /// @brief Resets the periodogram for a new period, shifting data by the overlap
+  void shift_periodogram();
+
     void insert_full_kspace(Vec3i kspace_size);
     void insert_continuous_kpath(libconfig::Setting& settings);
     void configure_kspace_paths(libconfig::Setting& settings);
@@ -112,8 +115,6 @@ protected:
 
     bool do_periodogram_update() const;
 
-  /// @brief Resets the periodogram for a new period, shifting data by the overlap
-  void reset_periodogram();
 
     /// @brief Fourier transform S(r) -> S(k) and store in the timeseries S(k,t)
     ///
@@ -128,7 +129,7 @@ protected:
 
 
     CmplxVecField compute_periodogram_spectrum(CmplxVecField &timeseries);
-    CmplxVecField compute_periodogram_rotated_spectrum(CmplxVecField &timeseries, const jams::MultiArray<Mat3, 1>& rotations);
+    CmplxVecField compute_periodogram_rotated_spectrum(CmplxVecField &timeseries);
 
 
     CmplxVecField& fft_timeseries_to_frequency(const CmplxVecField& timeseries);
@@ -137,14 +138,16 @@ protected:
   ///
   /// @param [in] timeseries S(k,t) timeseries
   /// @param [in] kpoint_index k-point index for which to perform the transform
-  jams::MultiArray<Vec3cx,2>& fft_sk_timeseries_to_skw(const CmplxVecField& timeseries, const int kpoint_index);
+  jams::MultiArray<Vec3cx,2>& fft_sk_timeseries_to_skw(
+  const int kpoint_index,
+  const CmplxVecField& timeseries);
 
     static std::vector<jams::HKLIndex> generate_hkl_kspace_path(
         const std::vector<Vec3> &hkl_nodes, const Vec3i &kspace_size);
 
     void store_kspace_data_on_path(const jams::MultiArray<Vec3cx,4> &kspace_data, const std::vector<jams::HKLIndex> &kspace_path);
 
-    bool do_full_kspace_ = false;
+  jams::MultiArray<Mat3, 1> generate_sublattice_rotations_();
 
     std::vector<jams::HKLIndex> kspace_paths_;
     std::vector<int>            kspace_continuous_path_ranges_;
@@ -161,11 +164,15 @@ protected:
 
 private:
 
-  void shift_sk_timeseries_(int overlap);
+
+
+  void shift_sk_timeseries_();
 
 
   void store_sublattice_magnetisation_(const jams::MultiArray<double, 2> &spin_state);
   void shift_sublattice_magnetisation_timeseries_();
+  jams::MultiArray<Vec3, 1> generate_sublattice_magnetisation_directions_();
+  jams::MultiArray<Mat3cx, 1> generate_sublattice_channel_mappings_();
 
   /// @brief Generate the window function for a width of num_time_samples.
   ///

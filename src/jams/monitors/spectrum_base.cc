@@ -47,7 +47,6 @@ SpectrumBaseMonitor::~SpectrumBaseMonitor()
 }
 
 void SpectrumBaseMonitor::insert_full_kspace(Vec3i kspace_size) {
-  assert(do_full_kspace_);
   std::vector<jams::HKLIndex> hkl_path;
 
   for (auto l = 0; l < kspace_size[0]; ++l) {
@@ -276,7 +275,10 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const 
   return hkl_path;
 }
 
-jams::MultiArray<Vec3cx,2>& SpectrumBaseMonitor::fft_sk_timeseries_to_skw(const CmplxVecField& timeseries, const int kpoint_index)
+jams::MultiArray<Vec3cx,2>& SpectrumBaseMonitor::fft_sk_timeseries_to_skw(
+  const int kpoint_index,
+  const CmplxVecField& timeseries
+  )
 {
   const int num_sites         = timeseries.size(0);
   const int num_time_samples  = timeseries.size(1);
@@ -335,11 +337,38 @@ jams::MultiArray<Vec3cx,2>& SpectrumBaseMonitor::fft_sk_timeseries_to_skw(const 
   }
 
 
-
-  for (auto a = 0; a < num_sites; ++a)
+  if (channel_mapping_ == ChannelMapping::Cartesian)
   {
-    for (auto t = 0; t < num_time_samples; ++t) {
-      sw_spectrum_buffer_(a, t) = timeseries(a, t, kpoint_index);
+    for (auto a = 0; a < num_sites; ++a)
+    {
+
+      for (auto t = 0; t < num_time_samples; ++t) {
+        sw_spectrum_buffer_(a, t) = timeseries(a, t, kpoint_index);
+      }
+    }
+  }
+
+  if (channel_mapping_ == ChannelMapping::RaiseLower)
+  {
+    auto rotations = generate_sublattice_rotations_();
+    for (auto a = 0; a < num_motif_atoms(); ++a)
+    {
+      const double mu        = globals::mus(a);                 // in mu_B
+      const double Slen      = mu / kElectronGFactor; // dimensionless spin length
+
+      for (auto t = 0; t < num_time_samples; ++t) {
+        auto x = timeseries(a, t, kpoint_index);
+        // Rotate unit spin into local frame, then scale by spin length to get physical components.
+        x = rotations(a) * x;
+        x *= Slen;
+
+        // Map (Sx,Sy,Sz) -> (S+, S-, Sz) with unitary 1/sqrt(2).
+        sw_spectrum_buffer_(a, t) = Vec3cx{
+          kInvSqrtTwo * (x[0] + kImagOne * x[1]),
+          kInvSqrtTwo * (x[0] - kImagOne * x[1]),
+          x[2]
+        };
+      }
     }
   }
 
@@ -350,7 +379,7 @@ jams::MultiArray<Vec3cx,2>& SpectrumBaseMonitor::fft_sk_timeseries_to_skw(const 
   {
     Vec3cx sk0{};
     for (auto t = 0; t < num_time_samples; ++t) {
-      sk0 += time_norm * timeseries(a, t, kpoint_index);
+      sk0 += time_norm * sw_spectrum_buffer_(a, t);
     }
 
     for (auto t = 0; t < num_time_samples; ++t) {
@@ -484,9 +513,9 @@ bool SpectrumBaseMonitor::do_periodogram_update() const {
   return periodogram_index_ >= periodogram_props_.length && periodogram_props_.length > 0;
 }
 
-void SpectrumBaseMonitor::reset_periodogram()
+void SpectrumBaseMonitor::shift_periodogram()
 {
-  shift_periodogram_timeseries();
+  shift_sk_timeseries_();
   shift_sublattice_magnetisation_timeseries_();
   periodogram_index_ = periodogram_props_.overlap;
   total_periods_++;
@@ -494,7 +523,7 @@ void SpectrumBaseMonitor::reset_periodogram()
 
 SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_spectrum(CmplxVecField &timeseries) {
   auto& spectrum = fft_timeseries_to_frequency(timeseries);
-  shift_periodogram_timeseries(timeseries, periodogram_props_.overlap);
+  shift_sk_timeseries_();
   periodogram_index_ = periodogram_props_.overlap;
   total_periods_++;
   return spectrum;
@@ -502,20 +531,16 @@ SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_spec
 
 
 SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rotated_spectrum(
-    CmplxVecField &timeseries,
-    const jams::MultiArray<Mat3, 1>& rotations)
+    CmplxVecField &timeseries)
 {
-  auto transformed_timeseries = timeseries;
 
-  if (channel_mapping_ == ChannelMapping::RaiseLower)
-  {
-    apply_raise_lower_mapping(transformed_timeseries, rotations);
-  }
+  auto sublattice_rotations = generate_sublattice_rotations_();
+  auto sublattice_channel_mappings = generate_sublattice_channel_mappings_();
 
-  for (auto k = 0; k < transformed_timeseries.size(2); ++k)
+  for (auto k = 0; k < timeseries.size(2); ++k)
   {
-    auto sw_spectrum = fft_sk_timeseries_to_skw(transformed_timeseries, k);
-    for (auto a = 0; a < transformed_timeseries.size(0); ++a)
+    auto sw_spectrum = fft_sk_timeseries_to_skw(k, timeseries);
+    for (auto a = 0; a < timeseries.size(0); ++a)
     {
       for (auto f = 0; f < sw_spectrum.size(1); ++f)
       {
@@ -526,14 +551,14 @@ SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rota
 
   // auto& spectrum = fft_timeseries_to_frequency(transformed_timeseries);
 
-  shift_periodogram_timeseries(timeseries, periodogram_props_.overlap);
+  shift_sk_timeseries_();
   periodogram_index_ = periodogram_props_.overlap;
   total_periods_++;
 
   return skw_spectrum_;
 }
 
-// void SpectrumBaseMonitor::shift_periodogram_timeseries(CmplxVecField &timeseries, int overlap) {
+// void SpectrumBaseMonitor::shift_sk_timeseries_(CmplxVecField &timeseries, int overlap) {
 //   assert(overlap < timeseries.size(1));
 //   // shift overlap data to the start of the range
 //   for (auto a = 0; a < timeseries.size(0); ++a) {           // motif atom
@@ -545,14 +570,13 @@ SpectrumBaseMonitor::CmplxVecField SpectrumBaseMonitor::compute_periodogram_rota
 //   }
 // }
 
-void SpectrumBaseMonitor::shift_sk_timeseries_(int overlap)
+void SpectrumBaseMonitor::shift_sk_timeseries_()
 {
   const std::size_t A = sk_timeseries_.size(0);
   const std::size_t T = sk_timeseries_.size(1);
   const std::size_t K = sk_timeseries_.size(2);
 
-  assert(overlap >= 0);
-  const std::size_t ov = static_cast<std::size_t>(overlap);
+  const std::size_t ov = periodogram_overlap();
   assert(ov < T);
 
   const std::size_t src0 = T - ov;
@@ -585,6 +609,10 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
 
 void SpectrumBaseMonitor::store_sublattice_magnetisation_(const jams::MultiArray<double, 2>& spin_state)
 {
+  if (sublattice_magnetisation_.empty())
+  {
+    sublattice_magnetisation_.resize(num_motif_atoms(), num_periodogram_samples());
+  }
   const auto p = periodogram_index();
   for (auto i = 0; i < globals::num_spins; ++i)
   {
@@ -598,7 +626,7 @@ void SpectrumBaseMonitor::shift_sublattice_magnetisation_timeseries_()
 {
   const std::size_t M  = globals::lattice->num_basis_sites();
   const std::size_t Ns = static_cast<std::size_t>(num_periodogram_samples());
-  const std::size_t ov = static_cast<std::size_t>(periodogram_overlap());
+  const std::size_t ov = periodogram_overlap();
 
   assert(ov < Ns);
 
@@ -614,6 +642,134 @@ void SpectrumBaseMonitor::shift_sublattice_magnetisation_timeseries_()
     // Zero the tail: [ov, Ns)
     std::fill_n(&sublattice_magnetisation_(m, ov), Ns - ov, Vec3{0, 0, 0});
   }
+}
+
+jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::generate_sublattice_magnetisation_directions_()
+{
+  if (sw_window_.empty())
+  {
+    sw_window_ = generate_normalised_window_(num_periodogram_samples());
+  }
+  jams::MultiArray<Vec3, 1> mean_directions(num_motif_atoms());
+  zero(mean_directions);
+
+  // Calculate the mean magnetisation direction for each sublattice across this periodogram period.
+  // We use the same windowing function as the FFT for consistency.
+  for (auto m = 0; m < num_motif_atoms(); ++m)
+  {
+    for (auto n = 0; n < num_periodogram_samples(); ++n)
+    {
+      mean_directions(m) += sw_window_(n) * sublattice_magnetisation_(m, n);
+    }
+
+    mean_directions(m) = normalize(mean_directions(m));
+  }
+
+  return mean_directions;
+}
+
+jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
+{
+  if (channel_mapping_ == ChannelMapping::Cartesian)
+  {
+    jams::MultiArray<Mat3, 1> rotations(num_motif_atoms());
+    for (auto a = 0; a < num_motif_atoms(); ++a)
+    {
+      rotations(a) = kIdentityMat3;
+    }
+    return rotations;
+  }
+
+  const auto mean_directions = generate_sublattice_magnetisation_directions_();
+
+  jams::MultiArray<Mat3, 1> rotations(mean_directions.size());
+        for (auto m = 0; m < mean_directions.size(); ++m)
+        {
+            // Construct a local transverse basis (e1,e2,n) with a fixed gauge.
+            // This avoids the ill-conditioning of "minimal rotation" when n ≈ z.
+            Vec3 n_hat = mean_directions(m);
+            const double n_norm = norm(n_hat);
+            if (n_norm <= 0.0)
+            {
+                rotations(m) = kIdentityMat3;
+                continue;
+            }
+            n_hat *= (1.0 / n_norm);
+
+            // Choose the global Cartesian axis least aligned with n_hat to avoid discontinuous gauge flips.
+            const Vec3 ex{1.0, 0.0, 0.0};
+            const Vec3 ey{0.0, 1.0, 0.0};
+            const Vec3 ez{0.0, 0.0, 1.0};
+
+            const double ax = std::abs(dot(ex, n_hat));
+            const double ay = std::abs(dot(ey, n_hat));
+            const double az = std::abs(dot(ez, n_hat));
+
+            Vec3 r = ex;
+            double a_min = ax;
+            if (ay < a_min)
+            {
+                r = ey;
+                a_min = ay;
+            }
+            if (az < a_min)
+            {
+                r = ez;
+                a_min = az;
+            }
+
+            // e1 = normalised projection of r into the plane normal to n
+            Vec3 e1 = r - dot(r, n_hat) * n_hat;
+            const double e1_norm = norm(e1);
+            if (e1_norm <= 0.0)
+            {
+                // Extremely unlikely after the fallback, but be safe.
+                rotations(m) = kIdentityMat3;
+                continue;
+            }
+            e1 *= (1.0 / e1_norm);
+
+            // e2 completes a right-handed orthonormal triad
+            Vec3 e2 = cross(n_hat, e1);
+
+            // Build rotation matrix that maps global -> local components:
+            // v_local = [e1^T; e2^T; n^T] v_global.
+            Mat3 R = kIdentityMat3;
+            R[0][0] = e1[0];    R[0][1] = e1[1];    R[0][2] = e1[2];
+            R[1][0] = e2[0];    R[1][1] = e2[1];    R[1][2] = e2[2];
+            R[2][0] = n_hat[0]; R[2][1] = n_hat[1]; R[2][2] = n_hat[2];
+
+            rotations(m) = R;
+        }
+  return rotations;
+}
+
+jams::MultiArray<Mat3cx, 1> SpectrumBaseMonitor::generate_sublattice_channel_mappings_()
+{
+  jams::MultiArray<Mat3cx, 1> channel_mappings(num_motif_atoms());
+
+  if (channel_mapping_ == ChannelMapping::Cartesian)
+  {
+    for (auto a = 0; a < num_motif_atoms(); ++a)
+    {
+      channel_mappings(a) = kIdentityMat3cx;
+    }
+  }
+
+  for (auto a = 0; a < num_motif_atoms(); ++a)
+  {
+    const double mu   = globals::mus(a); // in mu_B
+    const double Slen = mu / kElectronGFactor;
+
+    // First scale (Sx,Sy,Sz) by spin length Slen, then map to (S+,S-,Sz).
+    channel_mappings(a) = Mat3cx{
+      {
+        Slen * kInvSqrtTwo, +Slen * kImagOne * kInvSqrtTwo, 0.0,
+        Slen * kInvSqrtTwo, -Slen * kImagOne * kInvSqrtTwo, 0.0,
+        0.0,              0.0,                         Slen
+      }};
+  }
+  return channel_mappings;
 }
 
 jams::MultiArray<double, 1>
@@ -671,21 +827,20 @@ void SpectrumBaseMonitor::fourier_transform_to_kspace_and_store(const jams::Mult
 
 void SpectrumBaseMonitor::apply_raise_lower_mapping(CmplxVecField& timeseries, const jams::MultiArray<Mat3, 1>& rotations)
 {
-  const double kInvSqrt2 = 1.0/sqrt(2.0);
-
-  for (auto m = 0; m < timeseries.size(0); ++m) // num_sites
+  for (auto m = 0; m < timeseries.size(0); ++m) // motif/basis site
   {
-    const double S = kElectronGFactor * globals::mus(m);
-    const auto R = rotations(m);
+    const double mu   = globals::mus(m); // in mu_B
+    const double Slen = mu / kElectronGFactor;
+    const auto   R    = rotations(m);
     for (auto i = 0; i < timeseries.size(1); ++i) // periodogram_index
     {
       for (auto n = 0; n < timeseries.size(2); ++n) // kpath_index
       {
-        auto rotated_spin = S * (R *timeseries(m, i, n));
+        auto rotated_spin = Slen * (R * timeseries(m, i, n));
 
         Vec3cx remapped_spin = {
-          kInvSqrt2 * (rotated_spin[0] + kImagOne * rotated_spin[1]),
-          kInvSqrt2 * (rotated_spin[0] - kImagOne * rotated_spin[1]),
+          kInvSqrtTwo * (rotated_spin[0] + kImagOne * rotated_spin[1]),
+          kInvSqrtTwo * (rotated_spin[0] - kImagOne * rotated_spin[1]),
           rotated_spin[2] };
 
         timeseries(m, i, n) = remapped_spin;

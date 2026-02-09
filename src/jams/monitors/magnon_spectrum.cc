@@ -16,13 +16,14 @@
 
 MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings) : SpectrumBaseMonitor(settings)
 {
-
-
-
-    zero(cumulative_magnon_spectrum_.resize(num_frequencies(), num_kpoints()));
-    zero(sublattice_magnetisation_.resize(globals::lattice->num_basis_sites(), num_periodogram_samples()));
+    // Size frequency dimension consistently with keep_negative_frequencies()
+    const int time_points = num_periodogram_samples();
+    const int freq_bins = keep_negative_frequencies() ? time_points
+                                                      : (time_points / 2 + 1);
+    zero(cumulative_magnon_spectrum_.resize(freq_bins, num_kpoints()));
 
     do_magnon_density_ = jams::config_optional<bool>(settings, "output_magnon_density", do_magnon_density_);
+    do_magnon_spectrum_output_ = jams::config_optional<bool>(settings, "output_magnon_spectrum", do_magnon_spectrum_output_);
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
 
     set_channel_mapping(ChannelMapping::RaiseLower);
@@ -37,109 +38,27 @@ void MagnonSpectrumMonitor::update(Solver& solver)
 
     if (do_periodogram_update())
     {
-        jams::MultiArray<Vec3, 1> mean_directions(globals::lattice->num_basis_sites());
-        zero(mean_directions);
-
-        const double wsum = [&]()
+        if (do_magnon_spectrum_output_ || do_magnon_density_)
         {
-            double s = 0.0;
-            for (auto n = 0; n < num_periodogram_samples(); ++n)
-            {
-                s += fft_window_default(n, num_periodogram_samples());
-            }
-            return s;
-        }();
-
-        // Calculate the mean magnetisation direction for each sublattice across this periodogram period.
-        // We use the same windowing function as the FFT for consistency.
-        for (auto m = 0; m < globals::lattice->num_basis_sites(); ++m)
-        {
-            for (auto n = 0; n < num_periodogram_samples(); ++n)
-            {
-                mean_directions(m) += fft_window_default(n, num_periodogram_samples()) *
-                    sublattice_magnetisation_(m, n);
-            }
-            if (wsum > 0.0) mean_directions(m) *= (1.0 / wsum);
+            accumulate_magnon_spectrum();
         }
+        shift_periodogram();
 
-        jams::MultiArray<Mat3, 1> rotations(globals::lattice->num_basis_sites());
-        for (auto m = 0; m < globals::lattice->num_basis_sites(); ++m)
+        // if (do_site_resolved_output_)
+        // {
+        //     output_site_resolved_magnon_spectrum();
+        // }
+
+        if (do_magnon_spectrum_output_)
         {
-            // Construct a local transverse basis (e1,e2,n) with a fixed gauge.
-            // This avoids the ill-conditioning of "minimal rotation" when n ≈ z.
-            Vec3 n_hat = mean_directions(m);
-            const double n_norm = norm(n_hat);
-            if (n_norm <= 0.0)
-            {
-                rotations(m) = kIdentityMat3;
-                continue;
-            }
-            n_hat *= (1.0 / n_norm);
-
-            // Choose the global Cartesian axis least aligned with n_hat to avoid discontinuous gauge flips.
-            const Vec3 ex{1.0, 0.0, 0.0};
-            const Vec3 ey{0.0, 1.0, 0.0};
-            const Vec3 ez{0.0, 0.0, 1.0};
-
-            const double ax = std::abs(dot(ex, n_hat));
-            const double ay = std::abs(dot(ey, n_hat));
-            const double az = std::abs(dot(ez, n_hat));
-
-            Vec3 r = ex;
-            double a_min = ax;
-            if (ay < a_min)
-            {
-                r = ey;
-                a_min = ay;
-            }
-            if (az < a_min)
-            {
-                r = ez;
-                a_min = az;
-            }
-
-            // e1 = normalised projection of r into the plane normal to n
-            Vec3 e1 = r - dot(r, n_hat) * n_hat;
-            const double e1_norm = norm(e1);
-            if (e1_norm <= 0.0)
-            {
-                // Extremely unlikely after the fallback, but be safe.
-                rotations(m) = kIdentityMat3;
-                continue;
-            }
-            e1 *= (1.0 / e1_norm);
-
-            // e2 completes a right-handed orthonormal triad
-            Vec3 e2 = cross(n_hat, e1);
-
-            // Build rotation matrix that maps global -> local components:
-            // v_local = [e1^T; e2^T; n^T] v_global.
-            Mat3 R = kIdentityMat3;
-            R[0][0] = e1[0];    R[0][1] = e1[1];    R[0][2] = e1[2];
-            R[1][0] = e2[0];    R[1][1] = e2[1];    R[1][2] = e2[2];
-            R[2][0] = n_hat[0]; R[2][1] = n_hat[1]; R[2][2] = n_hat[2];
-
-            rotations(m) = R;
-
+            output_total_magnon_spectrum();
         }
-        auto spectrum = compute_periodogram_rotated_spectrum(sk_timeseries_, rotations);
-
-        accumulate_magnon_spectrum(spectrum);
-
-        if (do_site_resolved_output_)
-        {
-            output_site_resolved_magnon_spectrum();
-        }
-
-        output_total_magnon_spectrum();
 
         if (do_magnon_density_)
         {
             output_magnon_density();
         }
 
-
-        shift_and_zero_mean_directions();
     }
 }
 
@@ -161,7 +80,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
 
         // sample time is here because the fourier transform in time is not an integral
         // but a discrete sum
-        auto prefactor = (sample_time_interval() / num_periodogram_periods());
+        auto prefactor = (sample_time_interval() / (num_periodogram_periods()));
         auto time_points = num_periodogram_samples();
 
         auto path_begin = kspace_continuous_path_ranges_[n];
@@ -277,30 +196,48 @@ void MagnonSpectrumMonitor::output_magnon_density()
         ofs << jams::fmt::decimal << "density";
         ofs << std::endl;
 
-        // sample time is here because the fourier transform in time is not an integral
-        // but a discrete sum
-        auto prefactor = (sample_time_interval() / (num_periodogram_periods() * product(globals::lattice->kspace_size())));
-        auto time_points = cumulative_magnon_spectrum_.size(1);
+        const int time_points = num_periodogram_samples();
+        const std::size_t freq_bins = cumulative_magnon_spectrum_.size(0); // (freq)
 
-        jams::MultiArray<double, 1> total_magnon_density(cumulative_magnon_spectrum_.size(1));
+        const auto path_begin = static_cast<std::size_t>(kspace_continuous_path_ranges_[n]);
+        const auto path_end   = static_cast<std::size_t>(kspace_continuous_path_ranges_[n + 1]);
+        const std::size_t num_k_seg = (path_end > path_begin) ? (path_end - path_begin) : 0;
+
+        // Normalisation: average over periodograms and over the k-points included in this output.
+        // If the user requested the full k-space (hkl_path="full"), then num_k_seg == product(kspace_size).
+        const double prefactor = (num_k_seg > 0)
+          ? (sample_time_interval() / (num_periodogram_periods() * static_cast<double>(num_k_seg)))
+          : 0.0;
+
+        jams::MultiArray<double, 1> total_magnon_density(freq_bins);
         zero(total_magnon_density);
-        for (auto a = 0; a < cumulative_magnon_spectrum_.size(0); ++a)
+
+        // Sum S^{+-}(q,w) over k-points in this path segment to get a magnon density vs frequency.
+        for (std::size_t f = 0; f < freq_bins; ++f)
         {
-            for (auto f = 0; f < cumulative_magnon_spectrum_.size(1); ++f)
+            double acc = 0.0;
+            for (std::size_t k = path_begin; k < path_end; ++k)
             {
-                for (auto k = 0; k < cumulative_magnon_spectrum_.size(2); ++k)
-                {
-                    // [0][1] => S+-
-                    total_magnon_density(f) += std::abs(cumulative_magnon_spectrum_(f, k)[0]);
-                }
+                acc += std::abs(cumulative_magnon_spectrum_(f, k)[0]);
             }
+            total_magnon_density(f) = acc;
         }
 
         const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
+        assert(cumulative_magnon_spectrum_.size(0) >= static_cast<std::size_t>(freq_end));
         for (auto i = 0; i < freq_end; ++i)
         {
             const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
+
+            // One-sided spectrum (keep_negative_frequencies == false) represents both ±ω except at DC and Nyquist.
+            double wfreq = 1.0;
+            if (!keep_negative_frequencies()) {
+              const bool is_dc = (f == 0);
+              const bool is_nyquist = ((time_points % 2) == 0) && (f == (time_points / 2));
+              wfreq = (is_dc || is_nyquist) ? 1.0 : 2.0;
+            }
+
             const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
                                                            : static_cast<int>(f) - static_cast<int>(time_points);
             const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
@@ -308,7 +245,7 @@ void MagnonSpectrumMonitor::output_magnon_density()
             ofs << jams::fmt::decimal << freq_thz; // THz
             ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
 
-            ofs << jams::fmt::sci << prefactor * total_magnon_density(f);
+            ofs << jams::fmt::sci << (prefactor * wfreq) * total_magnon_density(static_cast<std::size_t>(f));
             ofs << "\n";
         }
 
@@ -316,29 +253,7 @@ void MagnonSpectrumMonitor::output_magnon_density()
     }
 }
 
-void MagnonSpectrumMonitor::shift_and_zero_mean_directions()
-{
-    const std::size_t M  = globals::lattice->num_basis_sites();
-    const std::size_t Ns = static_cast<std::size_t>(num_periodogram_samples());
-    const std::size_t ov = static_cast<std::size_t>(periodogram_overlap());
-
-    assert(ov < Ns);
-
-    const std::size_t src0 = Ns - ov;
-
-    for (std::size_t m = 0; m < M; ++m)
-    {
-        // Copy overlap block to the start: [src0, Ns) -> [0, ov)
-        auto*       dst = &sublattice_magnetisation_(m, 0);
-        const auto* src = &sublattice_magnetisation_(m, src0);
-        std::copy_n(src, ov, dst);
-
-        // Zero the tail: [ov, Ns)
-        std::fill_n(&sublattice_magnetisation_(m, ov), Ns - ov, Vec3{0, 0, 0});
-    }
-}
-
-void MagnonSpectrumMonitor::accumulate_magnon_spectrum(const jams::MultiArray<Vec3cx, 3>& spectrum)
+void MagnonSpectrumMonitor::accumulate_magnon_spectrum()
 {
     /// @brief Transverse dynamical structure factor @f$S^{+-}(\mathbf q,\omega)@f$.
     ///
@@ -375,23 +290,33 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum(const jams::MultiArray<Ve
     ///
     /// and the sqw array contains (through the channel mapping) components
     /// 0: +  |  1: -  |  2: z
-    for (auto a = 0; a < num_motif_atoms(); ++a)
+
+    for (auto k = 0; k < num_kpoints(); ++k)
     {
-        for (auto f = 0; f < num_frequencies(); ++f)
+        const auto sw = fft_sk_timeseries_to_skw(k, sk_timeseries_);
+        const auto time_points = num_periodogram_samples();
+        const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
+        const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
+
+        // Defensive: check that cumulative_magnon_spectrum_ is sized to hold freq_end and kpoints
+        assert(cumulative_magnon_spectrum_.size(0) >= static_cast<std::size_t>(freq_end));
+        assert(cumulative_magnon_spectrum_.size(1) >= static_cast<std::size_t>(num_kpoints()));
+
+        for (auto a = 0; a < num_motif_atoms(); ++a)
         {
-            for (auto k = 0; k < num_kpoints(); ++k)
+            for (auto i = 0; i < freq_end; ++i)
             {
-                const auto sqw = spectrum(a, f, k);
+                const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
+
                 // S+(q,w) S-(-q,-w) => S+(q,w) conj(S+(q,w))
-                cumulative_magnon_spectrum_(f, k)[0] += std::real(sqw[0] * conj(sqw[0]));
+                cumulative_magnon_spectrum_(f, k)[0] += std::real(sw(a, f)[0] * conj(sw(a, f)[0]));
 
                 // S-(q,w) S+(-q,-w) => S-(q,w) conj(S-(q,w))
-                cumulative_magnon_spectrum_(f, k)[1] += std::real(sqw[1] * conj(sqw[1]));
+                cumulative_magnon_spectrum_(f, k)[1] += std::real(sw(a, f)[1] * conj(sw(a, f)[1]));
 
                 // Sz(q,w) Sz(-q,-w) => Sz(q,w) conj(Sz(q,w))
-                cumulative_magnon_spectrum_(f, k)[2] += std::real(sqw[2] * conj(sqw[2]));
+                cumulative_magnon_spectrum_(f, k)[2] += std::real(sw(a, f)[2] * conj(sw(a, f)[2]));
             }
         }
     }
 }
-

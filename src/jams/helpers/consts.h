@@ -10,6 +10,7 @@ constexpr double kOne                   = 1.0;
 constexpr double kTwo                   = 2.0;
 constexpr double kThree                 = 3.0;
 constexpr double kSqrtTwo               = 1.41421356237309504880168872420969808;
+constexpr double kInvSqrtTwo            = 1.0 / kSqrtTwo;
 constexpr double kSqrtTwo_Pi            = 0.797884560802865355879892119868763737;
 constexpr double kSqrtOne_Two           = 0.707106781186547524400844362104849039;
 constexpr double kOne_SqrtTwoPi         = 0.398942280401432677939946059934381868;
