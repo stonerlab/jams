@@ -23,7 +23,6 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
                                                       : (time_points / 2 + 1);
     zero(cumulative_magnon_spectrum_.resize(freq_bins, num_kpoints()));
 
-    do_magnon_density_ = jams::config_optional<bool>(settings, "output_magnon_density", do_magnon_density_);
     do_magnon_spectrum_output_ = jams::config_optional<bool>(settings, "output_magnon_spectrum", do_magnon_spectrum_output_);
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
 
@@ -43,7 +42,7 @@ void MagnonSpectrumMonitor::update(Solver& solver)
 
     if (do_periodogram_update())
     {
-        if (do_magnon_spectrum_output_ || do_magnon_density_)
+        if (do_magnon_spectrum_output_)
         {
             accumulate_magnon_spectrum();
         }
@@ -56,11 +55,6 @@ void MagnonSpectrumMonitor::update(Solver& solver)
         if (do_magnon_spectrum_output_)
         {
             output_total_magnon_spectrum();
-        }
-
-        if (do_magnon_density_)
-        {
-            output_magnon_density();
         }
 
         shift_periodogram();
@@ -190,73 +184,6 @@ void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
     //         ofs.close();
     //     }
     // }
-}
-
-void MagnonSpectrumMonitor::output_magnon_density()
-{
-    for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n)
-    {
-        std::ofstream ofs(jams::output::full_path_filename_series("magnon_density_path.tsv", n, 1));
-        ofs << jams::fmt::decimal << "f_THz";
-        ofs << jams::fmt::decimal << "E_meV";
-        ofs << jams::fmt::decimal << "density";
-        ofs << std::endl;
-
-        const int time_points = num_periodogram_samples();
-        const std::size_t freq_bins = cumulative_magnon_spectrum_.size(0); // (freq)
-
-        const auto path_begin = static_cast<std::size_t>(kspace_continuous_path_ranges_[n]);
-        const auto path_end   = static_cast<std::size_t>(kspace_continuous_path_ranges_[n + 1]);
-        const std::size_t num_k_seg = (path_end > path_begin) ? (path_end - path_begin) : 0;
-
-        // Normalisation: average over periodograms and over the k-points included in this output.
-        // If the user requested the full k-space (hkl_path="full"), then num_k_seg == product(kspace_size).
-        const double prefactor = (num_k_seg > 0)
-          ? (sample_time_interval() / (num_periodogram_periods() * static_cast<double>(num_k_seg)))
-          : 0.0;
-
-        jams::MultiArray<double, 1> total_magnon_density(freq_bins);
-        zero(total_magnon_density);
-
-        // Sum S^{+-}(q,w) over k-points in this path segment to get a magnon density vs frequency.
-        for (std::size_t f = 0; f < freq_bins; ++f)
-        {
-            double acc = 0.0;
-            for (std::size_t k = path_begin; k < path_end; ++k)
-            {
-                acc += std::abs(cumulative_magnon_spectrum_(f, k)[0]);
-            }
-            total_magnon_density(f) = acc;
-        }
-
-        const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
-        const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
-        assert(cumulative_magnon_spectrum_.size(0) >= static_cast<std::size_t>(freq_end));
-        for (auto i = 0; i < freq_end; ++i)
-        {
-            const auto f = keep_negative_frequencies() ? (freq_start + i) % time_points : i;
-
-            // One-sided spectrum (keep_negative_frequencies == false) represents both ±ω except at DC and Nyquist.
-            double wfreq = 1.0;
-            if (!keep_negative_frequencies()) {
-              const bool is_dc = (f == 0);
-              const bool is_nyquist = ((time_points % 2) == 0) && (f == (time_points / 2));
-              wfreq = (is_dc || is_nyquist) ? 1.0 : 2.0;
-            }
-
-            const auto freq_index = (f <= time_points / 2) ? static_cast<int>(f)
-                                                           : static_cast<int>(f) - static_cast<int>(time_points);
-            const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
-
-            ofs << jams::fmt::decimal << freq_thz; // THz
-            ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
-
-            ofs << jams::fmt::sci << (prefactor * wfreq) * total_magnon_density(static_cast<std::size_t>(f));
-            ofs << "\n";
-        }
-
-        ofs.close();
-    }
 }
 
 void MagnonSpectrumMonitor::accumulate_magnon_spectrum()

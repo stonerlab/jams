@@ -12,6 +12,7 @@
 #include "jams/monitors/magnetisation.h"
 #include "jams/monitors/magnetisation_layers.h"
 #include "jams/monitors/magnetisation_rate.h"
+#include "jams/monitors/magnon_density.h"
 #include "jams/monitors/magnon_spectrum.h"
 #include "jams/monitors/skyrmion.h"
 #include "jams/monitors/smr.h"
@@ -88,6 +89,7 @@ Monitor* Monitor::create(const libconfig::Setting &settings) {
   DEFINED_MONITOR("magnetisation-rate", MagnetisationRateMonitor, settings);
   DEFINED_MONITOR("skyrmion", SkyrmionMonitor, settings);
   DEFINED_MONITOR("smr", SMRMonitor, settings);
+  DEFINED_MONITOR("magnon-density", MagnonDensityMonitor, settings);
   DEFINED_MONITOR("magnon-spectrum", MagnonSpectrumMonitor, settings);
   DEFINED_MONITOR("neutron-scattering", NeutronScatteringMonitor, settings);
   DEFINED_MONITOR("neutron-scattering-no-lattice", NeutronScatteringNoLatticeMonitor, settings);

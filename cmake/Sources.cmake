@@ -68,6 +68,7 @@ set(JAMS_SOURCES_CXX
         monitors/magnetisation.cc
         monitors/magnetisation_layers.cc
         monitors/magnetisation_rate.cc
+        monitors/magnon_density.cc
         monitors/magnon_spectrum.cc
         monitors/neutron_scattering.cc
         monitors/neutron_scattering_no_lattice.cc

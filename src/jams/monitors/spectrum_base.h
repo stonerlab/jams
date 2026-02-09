@@ -28,6 +28,12 @@ namespace jams {
 
 class SpectrumBaseMonitor : public Monitor {
 public:
+  enum class KSpacePathMode
+  {
+    FromSettings,
+    FullOnly
+  };
+
   struct ChannelMap
   {
     int output_channels = 3;
@@ -44,7 +50,8 @@ public:
   using CmplxMappedSpectrum = jams::MultiArray<jams::ComplexHi, 4>;  // (site, freq, k, channel)
   using CmplxMappedSlice = jams::MultiArray<jams::ComplexHi, 3>;     // (site, freq, channel)
 
-  explicit SpectrumBaseMonitor(const libconfig::Setting &settings);
+  explicit SpectrumBaseMonitor(const libconfig::Setting &settings,
+                               KSpacePathMode kspace_path_mode = KSpacePathMode::FromSettings);
   ~SpectrumBaseMonitor() override;
 
   void post_process() override = 0;
@@ -125,8 +132,8 @@ protected:
   /// @param [in] data Spin data S(r)
   void fourier_transform_to_kspace_and_store(const jams::MultiArray<double, 2> &data);
 
-  CmplxMappedSpectrum compute_periodogram_spectrum();
-  CmplxMappedSpectrum compute_periodogram_rotated_spectrum();
+  const CmplxMappedSpectrum& compute_periodogram_spectrum();
+  const CmplxMappedSpectrum& compute_periodogram_rotated_spectrum();
 
   /// @brief Fourier transform the S(k,t) timeseries to S(k,w) at a single k-point
   CmplxMappedSlice& fft_sk_timeseries_to_skw(int kpoint_index);
@@ -152,6 +159,12 @@ protected:
   CmplxMappedField sk_timeseries_;
 
 private:
+  enum class TimeseriesStorageMode
+  {
+    MappedChannels,
+    CartesianXYZ
+  };
+
   void shift_sk_timeseries_();
 
   void store_sublattice_magnetisation_(const jams::MultiArray<double, 2> &spin_state);
@@ -162,6 +175,7 @@ private:
                                       int channel_index,
                                       const Vec3cx& spin_xyz,
                                       const jams::MultiArray<Mat3, 1>* rotations) const;
+  Vec3cx read_cartesian_spin_(int basis_index, int time_index, int k_index) const;
   bool requires_dynamic_channel_mapping_() const;
   void resize_channel_storage_();
 
@@ -188,8 +202,8 @@ private:
   /// @details Layout: mean_sublattice_directions_(basis_site, periodogram_index)
   jams::MultiArray<Vec3, 2> sublattice_magnetisation_;
 
-  /// @brief Cartesian S(k,t) timeseries when channel mapping depends on per-period local-frame rotations.
-  jams::MultiArray<Vec3cx,3> sk_cartesian_timeseries_;
+  TimeseriesStorageMode timeseries_storage_mode_ = TimeseriesStorageMode::MappedChannels;
+  int stored_timeseries_channels_ = 0;
 
   /// @brief Output memory for the mapped spectrum
   CmplxMappedSpectrum skw_spectrum_;
