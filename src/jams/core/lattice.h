@@ -56,7 +56,8 @@ public:
     int size(int dimension) const;      // number of unitcell in each dimension
     Vec3i size() const;
 
-    double parameter() const;   // [m]
+    /// @brief Lattice parameter in meters
+    double parameter() const;
 
     Vec3 a1() const;
     Vec3 a2() const;

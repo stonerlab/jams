@@ -417,7 +417,8 @@ SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::fft_sk_timeseries_to
       {
         for (auto c = 0; c < channels; ++c)
         {
-          sw_spectrum_buffer_(a, t, c) = sk_timeseries_(a, t, kpoint_index, c);
+          const auto s = sk_timeseries_(a, t, kpoint_index, c);
+          sw_spectrum_buffer_(a, t, c) = jams::ComplexHi{s.real(), s.imag()};
         }
       }
     }
@@ -558,15 +559,16 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
 
       if (requires_dynamic_channel_mapping_())
       {
-        sk_timeseries_(a, i, k, 0) = spin_xyz[0];
-        sk_timeseries_(a, i, k, 1) = spin_xyz[1];
-        sk_timeseries_(a, i, k, 2) = spin_xyz[2];
+        sk_timeseries_(a, i, k, 0) = CmplxStored{static_cast<float>(spin_xyz[0].real()), static_cast<float>(spin_xyz[0].imag())};
+        sk_timeseries_(a, i, k, 1) = CmplxStored{static_cast<float>(spin_xyz[1].real()), static_cast<float>(spin_xyz[1].imag())};
+        sk_timeseries_(a, i, k, 2) = CmplxStored{static_cast<float>(spin_xyz[2].real()), static_cast<float>(spin_xyz[2].imag())};
       }
       else
       {
         for (auto c = 0; c < num_channels(); ++c)
         {
-          sk_timeseries_(a, i, k, c) = map_spin_component_(a, c, spin_xyz, nullptr);
+          const auto value = map_spin_component_(a, c, spin_xyz, nullptr);
+          sk_timeseries_(a, i, k, c) = CmplxStored{static_cast<float>(value.real()), static_cast<float>(value.imag())};
         }
       }
     }
@@ -733,10 +735,13 @@ Vec3cx SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
                                                  const int k_index) const
 {
   assert(stored_timeseries_channels_ >= 3);
+  const auto sx = sk_timeseries_(basis_index, time_index, k_index, 0);
+  const auto sy = sk_timeseries_(basis_index, time_index, k_index, 1);
+  const auto sz = sk_timeseries_(basis_index, time_index, k_index, 2);
   return Vec3cx{
-      sk_timeseries_(basis_index, time_index, k_index, 0),
-      sk_timeseries_(basis_index, time_index, k_index, 1),
-      sk_timeseries_(basis_index, time_index, k_index, 2)
+      jams::ComplexHi{sx.real(), sx.imag()},
+      jams::ComplexHi{sy.real(), sy.imag()},
+      jams::ComplexHi{sz.real(), sz.imag()}
   };
 }
 

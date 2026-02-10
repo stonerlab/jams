@@ -32,6 +32,7 @@ constexpr double kBohrMagnetonIU      = 0.0578838181;  // meV T^-1
 constexpr double kGyromagneticRatioIU = kElectronGFactor * kBohrMagnetonIU / kHBarIU;  // rad ps^-1 T^-1
 constexpr double kBoltzmannIU         = 0.0861733326;  // meV K^-1
 
+constexpr double kTHz2meV   = 4.13566770; // 1 THz in meV
 constexpr double kJoule2meV = 6.24150907e21; // 1 Joule in meV
 constexpr double kmRyd2meV  = 13.605693123; // 1 mRyd in meV
 constexpr double kKelvin2meV  = kBoltzmannIU; // 1 Kelvin in meV

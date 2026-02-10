@@ -13,6 +13,7 @@
 #include <jams/helpers/defaults.h>
 
 #include <array>
+#include <complex>
 
 namespace jams {
     struct HKLIndex {
@@ -47,6 +48,8 @@ public:
   };
 
   using CmplxMappedField = jams::MultiArray<jams::ComplexHi, 4>;     // (site, time, k, channel)
+  using CmplxStored = std::complex<float>;
+  using CmplxStoredField = jams::MultiArray<CmplxStored, 4>;          // (site, time, k, channel), compact storage
   using CmplxMappedSpectrum = jams::MultiArray<jams::ComplexHi, 4>;  // (site, freq, k, channel)
   using CmplxMappedSlice = jams::MultiArray<jams::ComplexHi, 3>;     // (site, freq, channel)
 
@@ -156,7 +159,7 @@ protected:
   /// @brief S(k, t) time series where only k along kpath are stored
   /// @details Layout: sk_timeseries_(basis_index, periodogram_index, kpath_index, channel)
   jams::MultiArray<jams::ComplexHi, 2> sk_phase_factors_;
-  CmplxMappedField sk_timeseries_;
+  CmplxStoredField sk_timeseries_;
 
 private:
   enum class TimeseriesStorageMode
@@ -193,9 +196,9 @@ private:
   bool keep_negative_frequencies_ = false;
   ChannelMap channel_map_ = cartesian_channel_map();
 
-  jams::PeriodogramProps periodogram_props_ {0, 0};
+  jams::PeriodogramProps periodogram_props_ {2000, 1000};
   int periodogram_index_ = 0;
-  int total_periods_ = 0;
+  int total_periods_ = 1; // First period is period 1
   int num_motif_atoms_ = 0;
 
   /// @brief Sublattice magnetisation directions for each basis site at each time sample in the current periodogram

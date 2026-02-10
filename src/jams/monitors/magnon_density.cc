@@ -9,6 +9,8 @@
 
 #include <cmath>
 
+#include "jams/core/lattice.h"
+
 MagnonDensityMonitor::MagnonDensityMonitor(const libconfig::Setting& settings)
     : SpectrumBaseMonitor(settings, KSpacePathMode::FullOnly)
 {
@@ -41,13 +43,44 @@ void MagnonDensityMonitor::output_magnon_density()
     std::ofstream ofs(jams::output::full_path_filename("magnon_density.tsv"));
     ofs << jams::fmt::decimal << "f_THz";
     ofs << jams::fmt::decimal << "E_meV";
-    ofs << jams::fmt::decimal << "density";
+    ofs << jams::fmt::decimal << "magnon_density_meV^-1_m^-3";
     ofs << std::endl;
 
     const int time_points = num_periodogram_samples();
-    const double prefactor = (num_kpoints() > 0)
-      ? (sample_time_interval() / (num_periodogram_periods() * static_cast<double>(num_kpoints())))
-      : 0.0;
+
+    // ---- Clean physical normalisation ----
+    // Convert |S+|^2 → magnon occupation
+    // Make spectrum integrate to magnon number
+    // Output per unit real-space volume
+
+    const double Nt = static_cast<double>(num_periodogram_samples());
+    (void)Nt;
+
+    // For a one-sided spectrum, we apply wfreq below. Here we normalise to magnons per (m^3 * meV).
+    // The discrete FFT bins have width df (THz). To convert a per-bin sum into a density, divide by df.
+    const double df_thz = frequency_resolution_thz();
+    const double inv_df_thz = 1.0 / df_thz;
+
+    // Total real-space volume of the simulated supercell in m^3
+    const double v = volume(globals::lattice->get_supercell()) * pow3(globals::lattice->parameter());
+
+    // Average spin length S = mu/g across motif sites.
+    // globals::mus is indexed by material, so look up via basis-site material_index.
+    double avg_S = 0.0;
+    for (int a = 0; a < num_motif_atoms(); ++a)
+    {
+        const double mu = globals::mus(a);        // Bohr magnetons
+        const double S  = mu / kElectronGFactor;    // dimensionless spin length
+        avg_S += S;
+    }
+    avg_S /= static_cast<double>(num_motif_atoms());
+
+    // Prefactor converts accumulated |S+(q, f)|^2 into magnon number density per meV per m^3:
+    //  - divide by avg_S to convert |S+|^2 -> occupation (a^\dagger a)
+    //  - average over periodograms and k-points
+    //  - divide by volume to get per m^3
+    //  - divide by df to get per THz, then divide by kTHz2meV at output to get per meV
+    const double prefactor = inv_df_thz / (avg_S * v * num_periodogram_periods());
 
     const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
     const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
@@ -68,8 +101,8 @@ void MagnonDensityMonitor::output_magnon_density()
         const auto freq_thz = static_cast<double>(freq_index) * frequency_resolution_thz();
 
         ofs << jams::fmt::decimal << freq_thz;
-        ofs << jams::fmt::decimal << freq_thz * 4.135668;
-        ofs << jams::fmt::sci << (prefactor * wfreq) * cumulative_magnon_density_(static_cast<std::size_t>(f));
+        ofs << jams::fmt::decimal << freq_thz * kTHz2meV;
+        ofs << jams::fmt::sci << (prefactor * wfreq / kTHz2meV) * cumulative_magnon_density_(static_cast<std::size_t>(f));
         ofs << "\n";
     }
 
