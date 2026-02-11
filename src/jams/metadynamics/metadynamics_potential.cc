@@ -411,6 +411,8 @@ double jams::MetadynamicsPotential::interpolated_potential(const std::array<doub
         cvar_sample_coordinates_[1][y2_index],
         Q11, Q12, Q21, Q22);
   }
+
+  throw std::runtime_error("MetadynamicsPotential::interpolated_potential: Invalid number of dimensions");
 }
 
 std::array<int, jams::MetadynamicsPotential::kMaxDimensions> jams::MetadynamicsPotential::potential_grid_indices(
