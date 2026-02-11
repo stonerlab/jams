@@ -194,7 +194,6 @@ protected:
   void store_sk_snapshot(const jams::MultiArray<double,2>& spin_state);
 
   const CmplxMappedSpectrum& finalise_periodogram_spectrum();
-  const CmplxMappedSpectrum& finalise_periodogram_spectrum_rotated();
 
   /// @brief Compute the frequency-domain spectrum S(k,ω) for a single k-point.
   ///

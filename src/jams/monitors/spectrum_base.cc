@@ -543,15 +543,7 @@ const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_pe
   }
 
   advance_periodogram_window();
-
-  periodogram_sample_index_ = periodogram_props_.overlap;
-  periodogram_window_count_++;
   return skw_buffer_;
-}
-
-const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_periodogram_spectrum_rotated()
-{
-  return finalise_periodogram_spectrum();
 }
 
 void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4> &kspace_data,
