@@ -61,13 +61,8 @@ void SkyrmionMonitor::update(Solver& solver) {
       std::vector<Vec3 > r_com(globals::lattice->num_materials(), {0.0, 0.0, 0.0});
       calc_center_of_mass(r_com, threshold);
 
-      int r_count[globals::lattice->num_materials()];
-      double radius_gyration[globals::lattice->num_materials()];
-
-      for (auto i = 0; i < globals::lattice->num_materials(); ++i) {
-        r_count[i] = 0;
-        radius_gyration[i] = 0.0;
-      }
+      std::vector<int> r_count(globals::lattice->num_materials(), 0);
+      std::vector<double> radius_gyration(globals::lattice->num_materials(), 0.0);
 
       for (auto i = 0; i < globals::num_spins; ++i) {
         auto type = globals::lattice->lattice_site_material_id(i);
@@ -150,11 +145,7 @@ void SkyrmionMonitor::calc_center_of_mass(std::vector<Vec3 > &r_com, const doubl
 
   std::vector<Vec3 > tube_x_com(num_types, {0.0, 0.0, 0.0});
   std::vector<Vec3 > tube_y_com(num_types, {0.0, 0.0, 0.0});
-  int r_count[num_types];
-
-  for (auto type = 0; type < num_types; ++type) {
-    r_count[type] = 0;
-  }
+  std::vector<int> r_count(num_types, 0);
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto type = globals::lattice->lattice_site_material_id(i);
@@ -219,5 +210,4 @@ std::string SkyrmionMonitor::tsv_header() {
   ss << "\n";
   return ss.str();
 }
-
 
