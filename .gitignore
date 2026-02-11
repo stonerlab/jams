@@ -33,3 +33,8 @@ cout
 
 # Allow .cfg files in the test directory
 !test/*.cfg
+
+# Python cache
+__pycache__/
+*.py[cod]
+.run/
