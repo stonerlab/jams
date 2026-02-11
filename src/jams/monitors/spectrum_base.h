@@ -241,10 +241,7 @@ protected:
   CmplxStoredField sk_time_series_;
 
 private:
-  void advance_sk_timeseries_();
-
   void store_sublattice_magnetisation_(const jams::MultiArray<double, 2> &spin_state);
-  void advance_sublattice_magnetisation_timeseries_();
   jams::MultiArray<Vec3, 1> compute_mean_basis_mag_directions_();
 
   jams::ComplexHi map_spin_component_(int basis_index,

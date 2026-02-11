@@ -462,11 +462,52 @@ bool SpectrumBaseMonitor::periodogram_window_complete() const
 
 void SpectrumBaseMonitor::advance_periodogram_window()
 {
-  advance_sk_timeseries_();
+  const std::size_t overlap = static_cast<std::size_t>(periodogram_overlap());
+
+  // Keep only the overlap tail of S(k,t) as the head of the next window.
+  const std::size_t num_basis = sk_time_series_.size(0);
+  const std::size_t num_time = sk_time_series_.size(1);
+  const std::size_t num_k = sk_time_series_.size(2);
+  const std::size_t num_channels = sk_time_series_.size(3);
+
+  assert(overlap < num_time);
+
+  const std::size_t source_time0 = num_time - overlap;
+  const std::size_t contiguous_row_size = num_k * num_channels;
+  for (std::size_t basis = 0; basis < num_basis; ++basis)
+  {
+    for (std::size_t t = 0; t < overlap; ++t)
+    {
+      auto* dst = &sk_time_series_(basis, t, 0, 0);
+      const auto* src = &sk_time_series_(basis, source_time0 + t, 0, 0);
+      std::copy_n(src, contiguous_row_size, dst);
+    }
+  }
+
   if (needs_local_frame_mapping_())
   {
-    advance_sublattice_magnetisation_timeseries_();
+    // Keep overlap for per-sublattice magnetisation and clear the non-overlap region.
+    const std::size_t num_sublattices = globals::lattice->num_basis_sites();
+    const std::size_t num_period_samples = static_cast<std::size_t>(periodogram_length());
+    if (num_period_samples > 0)
+    {
+      assert(overlap < num_period_samples);
+
+      const std::size_t mag_source0 = num_period_samples - overlap;
+
+      for (std::size_t sublattice = 0; sublattice < num_sublattices; ++sublattice)
+      {
+        auto* dst = &basis_mag_time_series_(sublattice, 0);
+        const auto* src = &basis_mag_time_series_(sublattice, mag_source0);
+        std::copy_n(src, overlap, dst);
+        std::fill_n(&basis_mag_time_series_(sublattice, overlap),
+                    num_period_samples - overlap,
+                    Vec3{0, 0, 0});
+      }
+    }
   }
+
+  // Reset write index to the overlap boundary for the next incoming sample.
   periodogram_sample_index_ = periodogram_props_.overlap;
   periodogram_window_count_++;
 }
@@ -511,29 +552,6 @@ const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_pe
 const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_periodogram_spectrum_rotated()
 {
   return finalise_periodogram_spectrum();
-}
-
-void SpectrumBaseMonitor::advance_sk_timeseries_()
-{
-  const std::size_t ov = static_cast<std::size_t>(periodogram_overlap());
-  const std::size_t A = sk_time_series_.size(0);
-  const std::size_t T = sk_time_series_.size(1);
-  const std::size_t K = sk_time_series_.size(2);
-  const std::size_t C = sk_time_series_.size(3);
-
-  assert(ov < T);
-
-  const std::size_t src0 = T - ov;
-  const std::size_t row_size = K * C;
-  for (std::size_t a = 0; a < A; ++a)
-  {
-    for (std::size_t i = 0; i < ov; ++i)
-    {
-      auto* dst = &sk_time_series_(a, i, 0, 0);
-      const auto* src = &sk_time_series_(a, src0 + i, 0, 0);
-      std::copy_n(src, row_size, dst);
-    }
-  }
 }
 
 void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4> &kspace_data,
@@ -587,30 +605,6 @@ void SpectrumBaseMonitor::store_sublattice_magnetisation_(const jams::MultiArray
     Vec3 spin = {spin_state(i, 0), spin_state(i, 1), spin_state(i, 2)};
     const auto m = globals::lattice->lattice_site_basis_index(i);
     basis_mag_time_series_(m, p) += spin;
-  }
-}
-
-void SpectrumBaseMonitor::advance_sublattice_magnetisation_timeseries_()
-{
-  const std::size_t M = globals::lattice->num_basis_sites();
-  const std::size_t Ns = static_cast<std::size_t>(periodogram_length());
-  const std::size_t ov = static_cast<std::size_t>(periodogram_overlap());
-
-  if (Ns == 0)
-  {
-    return;
-  }
-
-  assert(ov < Ns);
-
-  const std::size_t src0 = Ns - ov;
-
-  for (std::size_t m = 0; m < M; ++m)
-  {
-    auto* dst = &basis_mag_time_series_(m, 0);
-    const auto* src = &basis_mag_time_series_(m, src0);
-    std::copy_n(src, ov, dst);
-    std::fill_n(&basis_mag_time_series_(m, ov), Ns - ov, Vec3{0, 0, 0});
   }
 }
 
