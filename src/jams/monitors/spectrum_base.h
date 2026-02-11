@@ -220,10 +220,10 @@ protected:
   /// If dynamic channel mapping is enabled, Cartesian components (Sx,Sy,Sz) are stored
   /// for later rotation/mapping; otherwise the configured channel map is applied here.
   ///
-  /// @param kspace_data Full k-space field for the current time step (FFT output).
-  /// @param kspace_path List of k-points to extract (path or full grid) including r2c indices.
-  void append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4>& kspace_data,
-                                 const std::vector<jams::HKLIndex>& kspace_path);
+  /// @param sk_sample Full k-space field for the current time step (FFT output).
+  /// @param k_list List of k-points to extract (path or full grid) including r2c indices.
+  void append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4>& sk_sample,
+                                 const std::vector<jams::HKLIndex>& k_list);
 
   jams::MultiArray<Mat3, 1> generate_sublattice_rotations_();
 

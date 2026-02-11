@@ -546,25 +546,25 @@ const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_pe
   return skw_buffer_;
 }
 
-void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4> &kspace_data,
-                                                    const std::vector<jams::HKLIndex> &kspace_path)
+void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4> &sk_sample,
+                                                    const std::vector<jams::HKLIndex> &k_list)
 {
-  for (auto a = 0; a < kspace_data.size(3); ++a)
+  for (auto a = 0; a < sk_sample.size(3); ++a)
   {
-    for (auto k = 0; k < kspace_path.size(); ++k)
+    for (auto k = 0; k < k_list.size(); ++k)
     {
-      const auto kindex = kspace_path[k].index;
+      const auto [offset, conj] = k_list[k].index;
       const auto i = periodogram_sample_index_;
-      const auto idx = kindex.offset;
+      const auto idx = offset;
 
       Vec3cx spin_xyz;
-      if (kindex.conj)
+      if (conj)
       {
-        spin_xyz = basis_phase_factors_(a, k) * conj(kspace_data(idx[0], idx[1], idx[2], a));
+        spin_xyz = basis_phase_factors_(a, k) * conj(sk_sample(idx[0], idx[1], idx[2], a));
       }
       else
       {
-        spin_xyz = basis_phase_factors_(a, k) * kspace_data(idx[0], idx[1], idx[2], a);
+        spin_xyz = basis_phase_factors_(a, k) * sk_sample(idx[0], idx[1], idx[2], a);
       }
 
       if (needs_local_frame_mapping_())
