@@ -254,9 +254,9 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
     Vec3i displacement = absolute(end - start);
 
     Vec3i step = {
-        (end[0] > start[0]) ? 1 : -1,
-        (end[1] > start[1]) ? 1 : -1,
-        (end[2] > start[2]) ? 1 : -1};
+        (end[0] > start[0]) ? 1 : ((end[0] < start[0]) ? -1 : 0),
+        (end[1] > start[1]) ? 1 : ((end[1] < start[1]) ? -1 : 0),
+        (end[2] > start[2]) ? 1 : ((end[2] < start[2]) ? -1 : 0)};
 
     if (displacement[0] >= displacement[1] && displacement[0] >= displacement[2])
     {
@@ -336,7 +336,7 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
 
     Vec3 hkl = hadamard_product(end, 1.0 / to_double(kspace_size));
     Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
-    hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
+    hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(end, kspace_size)});
   }
 
   hkl_path.erase(unique(hkl_path.begin(), hkl_path.end()), hkl_path.end());
