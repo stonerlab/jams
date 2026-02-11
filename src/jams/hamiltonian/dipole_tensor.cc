@@ -21,16 +21,16 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
   }
 
   jams::InteractionNearTree<jams::Real> neartree(
-    array_cast<jams::Real>(globals::lattice->get_supercell().a1()),
-    array_cast<jams::Real>(globals::lattice->get_supercell().a2()),
-    array_cast<jams::Real>(globals::lattice->get_supercell().a3()),
+    jams::array_cast<jams::Real>(globals::lattice->get_supercell().a1()),
+    jams::array_cast<jams::Real>(globals::lattice->get_supercell().a2()),
+    jams::array_cast<jams::Real>(globals::lattice->get_supercell().a3()),
     globals::lattice->periodic_boundaries(), r_cutoff_, jams::defaults::lattice_tolerance);
 
   std::vector<Vec3R> positions;
   positions.reserve(globals::num_spins);
   for (auto i = 0; i < globals::num_spins; ++i)
   {
-    positions.push_back(array_cast<jams::Real>(Vec3{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}));
+    positions.push_back(jams::array_cast<jams::Real>(Vec3{globals::positions(i,0), globals::positions(i,1), globals::positions(i,2)}));
   }
   neartree.insert_sites(positions);
 
@@ -61,7 +61,7 @@ DipoleTensorHamiltonian::DipoleTensorHamiltonian(const libconfig::Setting &setti
       if (j == i) continue;
 
       const auto r_ij =  neighbour.first - r_i;
-      const auto r_abs = norm(r_ij);
+      const auto r_abs = jams::norm(r_ij);
       const auto r_hat = r_ij / r_abs;
 
       Mat3R dipole_tensor = kZeroMat3R;

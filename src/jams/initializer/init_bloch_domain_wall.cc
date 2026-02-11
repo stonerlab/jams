@@ -10,15 +10,15 @@
 void jams::InitBlochDomainWall::execute(const libconfig::Setting &settings) {
   double width = jams::config_required<double>(settings, "width");
   double center = jams::config_required<double>(settings, "center");
-  Vec3 normal = normalize(jams::config_optional<Vec3>(settings, "normal", {1, 0, 0}));
-  Vec3 domain = normalize(jams::config_optional<Vec3>(settings, "domain", {0, 0, 1}));
+  Vec3 normal = jams::normalize(jams::config_optional<Vec3>(settings, "normal", {1, 0, 0}));
+  Vec3 domain = jams::normalize(jams::config_optional<Vec3>(settings, "domain", {0, 0, 1}));
 
   for (auto i = 0; i < globals::num_spins; ++i) {
     auto r = globals::lattice->lattice_site_position_cart(i);
     // NOTE: The factor of pi here is an arbitrary convention. See the
     // documentation for jams::InitBlochDomainWall.
 
-    double x = dot(r, normal) - center;
+    double x = jams::dot(r, normal) - center;
     Vec3 m = {0, 1.0 / std::cosh(kPi * x / width), std::tanh(kPi * x / width)};
 
     Vec3 spin = {globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)};

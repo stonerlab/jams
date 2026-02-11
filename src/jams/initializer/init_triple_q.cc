@@ -24,7 +24,7 @@ void jams::InitTripleQ::execute(const libconfig::Setting &settings) {
     }
 
     Vec3 r = {globals::positions(i, 0), globals::positions(i, 1), globals::positions(i, 2)};
-    std::complex<double> phase = exp(kImagTwoPi * dot(h*K1 + k*K2 + l*K3, r));
+    std::complex<double> phase = exp(kImagTwoPi * jams::dot(h*K1 + k*K2 + l*K3, r));
 
     if (phase.imag() > 1e-5) {
       throw std::runtime_error("invalid triple Q parameters have given a complex phase");

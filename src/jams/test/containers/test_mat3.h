@@ -31,8 +31,8 @@ TEST_P(Mat3Test, rotation_matrix_between_vectors) {
   // Call GetParam() here to get the values
   std::pair<Vec3, Vec3> const& p = GetParam();
   auto R = rotation_matrix_between_vectors(p.first, p.second);
-  auto c = normalize(R * p.first);
-  EXPECT_THAT(normalize(p.second), Vec3Eq(c, eps));
+  auto c = jams::normalize(R * p.first);
+  EXPECT_THAT(jams::normalize(p.second), Vec3Eq(c, eps));
 }
 
 INSTANTIATE_TEST_SUITE_P(SpecialVectors, Mat3Test, ::testing::Values(

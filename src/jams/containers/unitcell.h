@@ -110,7 +110,7 @@ const Mat3 &UnitCell<Type>::inverse_vectors() const {
 
 template <class Type>
 inline double volume(const UnitCell<Type> &u) {
-  return scalar_triple_product(u.a(), u.b(), u.c());
+  return jams::scalar_triple_product(u.a(), u.b(), u.c());
 }
 
 #endif //JAMS_UNITCELL_H

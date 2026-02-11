@@ -30,8 +30,8 @@ void SpinTemperatureMonitor::update(Solver& solver) {
     const Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     const Vec3 field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
 
-    sum_s_cross_h += norm_squared(cross(spin, field));
-    sum_s_dot_h += dot(spin, field);
+    sum_s_cross_h += jams::norm_squared(jams::cross(spin, field));
+    sum_s_dot_h += jams::dot(spin, field);
   }
 
   const auto spin_temperature = sum_s_cross_h / (2.0 * kBoltzmannIU * sum_s_dot_h);

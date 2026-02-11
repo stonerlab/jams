@@ -52,9 +52,9 @@ CubicAnisotropySetting read_anisotropy_setting_cube(Setting &setting, std::strin
 
     if (setting.isList()) {
         result.energy = setting[0];
-        result.u = normalize(Vec3{setting[1][0], setting[1][1], setting[1][2]});
-        result.v = normalize(Vec3{setting[2][0], setting[2][1], setting[2][2]});
-        result.w = normalize(Vec3{setting[3][0], setting[3][1], setting[3][2]});
+        result.u = jams::normalize(Vec3{setting[1][0], setting[1][1], setting[1][2]});
+        result.v = jams::normalize(Vec3{setting[2][0], setting[2][1], setting[2][2]});
+        result.w = jams::normalize(Vec3{setting[3][0], setting[3][1], setting[3][2]});
     } else if (setting.isScalar()) {
         result.energy = setting;
     } else {
@@ -64,9 +64,9 @@ CubicAnisotropySetting read_anisotropy_setting_cube(Setting &setting, std::strin
 
   // The three axes must be orthogonal and normalised. We normalised when we read the input
   // but the orthogonality must be checked.
-  if (!approximately_zero(dot(result.u, result.v), jams::defaults::lattice_tolerance)
-  || !approximately_zero(dot(result.v, result.w), jams::defaults::lattice_tolerance)
-  || !approximately_zero(dot(result.w, result.u), jams::defaults::lattice_tolerance))
+  if (!approximately_zero(jams::dot(result.u, result.v), jams::defaults::lattice_tolerance)
+  || !approximately_zero(jams::dot(result.v, result.w), jams::defaults::lattice_tolerance)
+  || !approximately_zero(jams::dot(result.w, result.u), jams::defaults::lattice_tolerance))
   {
     throw runtime_error("Cubic anisotropy UVW axes must be orthogonal");
   }
@@ -133,9 +133,9 @@ jams::Real CubicAnisotropyHamiltonian::calculate_energy(const int i, jams::Real 
     Vec3 v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
     Vec3 w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
 
-    double Su2 = dot_squared(spin, u);
-    double Sv2 = dot_squared(spin, v);
-    double Sw2 = dot_squared(spin, w);
+    double Su2 = jams::dot_squared(spin, u);
+    double Sv2 = jams::dot_squared(spin, v);
+    double Sw2 = jams::dot_squared(spin, w);
 
     if(order_(i) == 1) {
       energy += -magnitude_(i) * (Su2 * Sv2 + Sv2 * Sw2 + Sw2 * Su2);
@@ -157,13 +157,13 @@ jams::Real CubicAnisotropyHamiltonian::calculate_energy_difference(int i, const 
     Vec3 v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
     Vec3 w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
 
-    double Su2_initial = dot_squared(spin_initial, u);
-    double Sv2_initial = dot_squared(spin_initial, v);
-    double Sw2_initial = dot_squared(spin_initial, w);
+    double Su2_initial = jams::dot_squared(spin_initial, u);
+    double Sv2_initial = jams::dot_squared(spin_initial, v);
+    double Sw2_initial = jams::dot_squared(spin_initial, w);
 
-    double Su2_final = dot_squared(spin_final, u);
-    double Sv2_final = dot_squared(spin_final, v);
-    double Sw2_final = dot_squared(spin_final, w);
+    double Su2_final = jams::dot_squared(spin_final, u);
+    double Sv2_final = jams::dot_squared(spin_final, v);
+    double Sw2_final = jams::dot_squared(spin_final, w);
 
     if(order_(i) == 1) {
       e_initial += -magnitude_(i) * (Su2_initial * Sv2_initial + Sv2_initial * Sw2_initial + Sw2_initial * Su2_initial);
@@ -191,9 +191,9 @@ Vec3R CubicAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) 
     Vec3 v = {v_axes_(i, 0), v_axes_(i, 1), v_axes_(i, 2)};
     Vec3 w = {w_axes_(i, 0), w_axes_(i, 1), w_axes_(i, 2)};
 
-    double Su = dot(spin, u);
-    double Sv = dot(spin, v);
-    double Sw = dot(spin, w);
+    double Su = jams::dot(spin, u);
+    double Sv = jams::dot(spin, v);
+    double Sw = jams::dot(spin, w);
 
     auto pre = 2.0 * magnitude_(i);
 
@@ -211,5 +211,5 @@ Vec3R CubicAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) 
       }
     }
 
-  return array_cast<jams::Real>(field);
+  return jams::array_cast<jams::Real>(field);
 }

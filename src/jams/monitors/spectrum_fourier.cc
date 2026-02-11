@@ -104,7 +104,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
       std::cout << "cfg_vec: " << cfg_vec << "\n";
     }
 
-    cfg_vec = hadamard_product(cfg_vec, globals::lattice->kspace_size());
+    cfg_vec = jams::hadamard_product(cfg_vec, globals::lattice->kspace_size());
 
     auto bz_vec = cfg_vec;
 
@@ -181,7 +181,7 @@ SpectrumFourierMonitor::SpectrumFourierMonitor(const libconfig::Setting &setting
         }
       }
 
-      bz_lengths.push_back(norm(bz_line_element));
+      bz_lengths.push_back(jams::norm(bz_line_element));
 
       b_uvw_points.push_back(bz_point);
       if (verbose_is_enabled()) {
@@ -380,7 +380,7 @@ void SpectrumFourierMonitor::fft_space() {
 
   fftw_execute(fft_plan_s_rspace_to_kspace);
 
-  const double norm = 1.0 / sqrt(product(globals::lattice->kspace_size()));
+  const double norm = 1.0 / sqrt(jams::product(globals::lattice->kspace_size()));
   std::transform(s_kspace.begin(), s_kspace.end(), s_kspace.begin(),
       [norm](const std::complex<double> &a)->std::complex<double> {return a * norm;});
 

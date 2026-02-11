@@ -44,7 +44,7 @@ void TorqueMonitor::update(Solver& solver) {
       const Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
       const Vec3 field = {hamiltonian->field(i, 0), hamiltonian->field(i, 1), hamiltonian->field(i, 2)};
 
-      torque += cross(spin, field);
+      torque += jams::cross(spin, field);
     }
 
     // In JAMS internal units energies are normalised by mu_B so we undo that

@@ -491,7 +491,7 @@ void Lattice::init_unit_cell(const libconfig::Setting &lattice_settings, const l
 
     for (auto i = 0; i < basis_sites_.size(); ++i) {
       for (auto j = i + 1; j < basis_sites_.size(); ++j) {
-        auto distance = norm(
+        auto distance = jams::norm(
             jams::minimum_image(unitcell.a1(), unitcell.a2(), unitcell.a3(),
                                 unitcell.periodic(),
                                 fractional_to_cartesian(basis_sites_[i].position_frac),
@@ -534,7 +534,7 @@ void Lattice::global_rotation(const Mat3& rotation_matrix) {
 
 void Lattice::global_reorientation(const Vec3 &reference, const Vec3 &vector) {
 
-  Vec3 orientation_cartesian_vector = normalize(unitcell.matrix() * vector);
+  Vec3 orientation_cartesian_vector = jams::normalize(unitcell.matrix() * vector);
 
   cout << "  orientation_axis " << reference << "\n";
   cout << "  orientation_lattice_vector " << vector << "\n";
@@ -603,7 +603,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
   // initialize everything to -1 so we can check for double assignment below
   lattice_map_.fill(-1);
 
-  const auto num_cells = product(lattice_dimensions_);
+  const auto num_cells = jams::product(lattice_dimensions_);
   const auto expected_num_atoms = num_basis_sites() * num_cells;
 
   cell_centers_.reserve(num_cells);
@@ -725,7 +725,7 @@ void Lattice::generate_supercell(const libconfig::Setting &lattice_settings)
 
     if (normalise_spins) {
       // ensure the spin is unit vector or a zero vector
-      spin = unit_vector(spin);
+      spin = jams::unit_vector(spin);
     }
 
     for (auto n = 0; n < 3; ++n) {
@@ -1135,7 +1135,7 @@ const std::vector<Mat3> &Lattice::lattice_site_point_group_symops(int lattice_si
             for (auto n = 0; n < sym_translations_.size(); ++n) {
                 // The point groups are found only from space group operations which do not include translation
                 // so we must skip any elements with a translation.
-                if (!approximately_zero(sym_translations_[n], jams::defaults::lattice_tolerance)) {
+                if (!jams::approximately_zero(sym_translations_[n], jams::defaults::lattice_tolerance)) {
                   continue;
                 }
 
@@ -1143,7 +1143,7 @@ const std::vector<Mat3> &Lattice::lattice_site_point_group_symops(int lattice_si
 
                 auto new_position = normalise_fractional_coordinate(rotation * motif_position);
                 // TODO: need to translate back into unit cell
-                if  (approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
+                if  (jams::approximately_equal(motif_position, new_position, jams::defaults::lattice_tolerance)) {
                     basis_site_point_group_symops_[m].push_back(rotation);
                 }
             }
@@ -1182,13 +1182,13 @@ double jams::maximum_interaction_length(const Vec3 &a1, const Vec3 &a2, const Ve
   // purposes of self interaction. Here is simply half the length along that
   // dimension.
   if (periodic_boundaries == Vec3b{true, false, false}) {
-    return 0.5 * norm(a1);
+    return 0.5 * jams::norm(a1);
   }
   if (periodic_boundaries == Vec3b{false, true, false}) {
-    return 0.5 * norm(a2);
+    return 0.5 * jams::norm(a2);
   }
   if (periodic_boundaries == Vec3b{false, false, true}) {
-    return 0.5 * norm(a3);
+    return 0.5 * jams::norm(a3);
   }
 
   // Open system (not periodic)

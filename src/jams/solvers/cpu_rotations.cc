@@ -89,7 +89,7 @@ void RotationSolver::run() {
         for (auto n = 0; n < num_phi_; ++n) {
 
           // rotate one spin
-          Vec3 spin = spherical_to_cartesian_vector(1.0, theta, phi);
+          Vec3 spin = jams::spherical_to_cartesian_vector(1.0, theta, phi);
           for (auto j = 0; j < 3; ++j) {
             globals::s(i, j) = spin[j];
           }

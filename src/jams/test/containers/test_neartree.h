@@ -30,7 +30,7 @@ TEST(NearTreeTest, L1Norm) {
     using NeartreeFunctorType = std::function<double(const Position& a, const Position& b)>;
 
     auto l1_norm = [](const Position& a, const Position& b)->double {
-      return sum(absolute(a.first-b.first));
+      return jams::sum(jams::absolute(a.first-b.first));
     };
 
     NearTree<Position, NeartreeFunctorType> near_tree(l1_norm, positions);
@@ -48,7 +48,7 @@ TEST(NearTreeTest, L1Norm) {
         // We need to use the same floating point comparison here as we use within the near_tree
         // otherwise we can very occasionally fail the test on the basis of the difference between
         // using '<' and doing a proper floating point comparison.
-        if (!definately_greater_than(sum(absolute( positions[i].first-positions[j].first)), radius, epsilon)) {
+        if (!definately_greater_than(jams::sum(jams::absolute( positions[i].first-positions[j].first)), radius, epsilon)) {
           brute_force_neighbours.push_back(positions[j]);
         }
       }
@@ -80,7 +80,7 @@ TEST(NearTreeTest, L2Norm) {
     using NeartreeFunctorType = std::function<double(const Position& a, const Position& b)>;
 
     auto distance_metric = [](const Position& a, const Position& b)->double {
-      return norm(a.first-b.first);
+      return jams::norm(a.first-b.first);
     };
 
     NearTree<Position, NeartreeFunctorType> near_tree(distance_metric, positions);
@@ -98,7 +98,7 @@ TEST(NearTreeTest, L2Norm) {
         // We need to use the same floating point comparison here as we use within the near_tree
         // otherwise we can very occasionally fail the test on the basis of the difference between
         // using '<' and doing a proper floating point comparison.
-        if (!definately_greater_than(norm(positions[i].first - positions[j].first), radius, epsilon)) {
+        if (!definately_greater_than(jams::norm(positions[i].first - positions[j].first), radius, epsilon)) {
           brute_force_neighbours.push_back(positions[j]);
         }
       }

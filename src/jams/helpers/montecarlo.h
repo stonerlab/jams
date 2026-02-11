@@ -83,7 +83,7 @@ namespace jams {
                     sigma_(sigma){}
 
             inline Vec3 operator()(const Vec3& spin) {
-              return normalize(fma(sigma_, uniform_random_sphere<double>(*gen_), spin));
+              return jams::normalize(jams::fma(sigma_, uniform_random_sphere<double>(*gen_), spin));
             }
 
         private:

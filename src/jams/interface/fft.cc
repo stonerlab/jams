@@ -105,7 +105,7 @@ void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspac
 fftw_plan fft_plan_rspace_to_kspace(std::complex<double> * rspace, std::complex<double> * kspace, const Vec3i& kspace_size, const int & motif_size) {
   assert(rspace != nullptr);
   assert(kspace != nullptr);
-  assert(sum(kspace_size) > 0);
+  assert(jams::sum(kspace_size) > 0);
 
   int rank            = 3;
   int stride          = 3 * motif_size;
@@ -153,7 +153,7 @@ jams::MultiArray<double, 5> fft_zero_pad_kspace(const jams::MultiArray<double, 2
 }
 
 void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data,  const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites) {
-  assert(rspace_data.elements() == 3 * num_sites * product(kspace_size));
+  assert(rspace_data.elements() == 3 * num_sites * jams::product(kspace_size));
 
   kspace_data.resize(kspace_padded_size[0], kspace_padded_size[1], kspace_padded_size[2]/2 + 1, num_sites);
 
@@ -175,7 +175,7 @@ void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rsp
       assert(plan);
       fftw_execute(plan);
       fftw_destroy_plan(plan);
-      element_scale(kspace_data, 1.0/sqrt(product(kspace_padded_size)));
+      element_scale(kspace_data, 1.0/sqrt(jams::product(kspace_padded_size)));
   };
 
   if (kspace_size == kspace_padded_size) {
@@ -187,7 +187,7 @@ void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rsp
 }
 
 void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites) {
-  assert(rspace_data.elements() == product(kspace_size));
+  assert(rspace_data.elements() == jams::product(kspace_size));
 
   // assuming this is not a costly operation because .resize() already checks if it is the same size
   kspace_data.resize(kspace_size[0], kspace_size[1], kspace_size[2]/2 + 1, num_sites);
@@ -210,5 +210,5 @@ void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rsp
   fftw_execute(plan);
   fftw_destroy_plan(plan);
 
-  element_scale(kspace_data, 1.0/sqrt(product(kspace_size)));
+  element_scale(kspace_data, 1.0/sqrt(jams::product(kspace_size)));
 }

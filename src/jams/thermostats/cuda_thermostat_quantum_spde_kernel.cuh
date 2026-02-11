@@ -115,7 +115,7 @@ __global__ inline void cuda_thermostat_quantum_spde_zero_point_kernel
 }
 
 
-__global__ inline void cuda_thermostat_quantum_spde_no_zero_kernel
+__global__ void cuda_thermostat_quantum_spde_no_zero_kernel
         (
                 jams::Real *noise,
                 double *zeta5,

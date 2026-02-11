@@ -87,7 +87,7 @@ InteractionNearTree<CoordType>::InteractionNearTree(
     c_(c),
     neartree_(
         [](const NearTreeDataType& a, const NearTreeDataType& b)->CoordType {
-          return norm(a.first-b.first);}){
+          return jams::norm(a.first-b.first);}){
 
     num_image_cells_[0] = pbc[0] ? int(ceil((r_cutoff) / jams::maths::parallelepiped_height(b, c, a))) : 0;
     num_image_cells_[1] = pbc[1] ? int(ceil((r_cutoff) / jams::maths::parallelepiped_height(c, a, b))) : 0;
@@ -117,9 +117,9 @@ void jams::InteractionNearTree<CoordType>::insert_sites(const std::vector<Positi
 // There are 6 surface normals for a parallelepiped but the parallel nature means each pair of opposite
   // surfaces has the same normal with opposite sign, so we only need calculate
   // 3 normals.
-  normal_ac_ = normalize(cross(a_, c_));
-  normal_cb_ = normalize(cross(c_, b_));
-  normal_ba_ = normalize(cross(b_, a_));
+  normal_ac_ = jams::normalize(jams::cross(a_, c_));
+  normal_cb_ = jams::normalize(jams::cross(c_, b_));
+  normal_ba_ = jams::normalize(jams::cross(b_, a_));
 
   std::vector<NearTreeDataType> haloed_sites;
 
@@ -132,7 +132,7 @@ void jams::InteractionNearTree<CoordType>::insert_sites(const std::vector<Positi
 
           const auto distance_to_plane = [&](const PositionType &normal,
                                              const PositionType &point_in_plane)->CoordType {
-              return dot(normal, r_image - point_in_plane);
+              return jams::dot(normal, r_image - point_in_plane);
           };
 
           // These are the signed distances to the infinite plane aligned with

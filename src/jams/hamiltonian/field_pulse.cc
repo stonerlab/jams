@@ -136,9 +136,9 @@ Vec3R FieldPulseHamiltonian::calculate_field(int i, jams::Real time) {
 }
 
 jams::Real FieldPulseHamiltonian::calculate_energy(int i, jams::Real time) {
-  Vec3R spin = array_cast<jams::Real>(Vec3{globals::s(i,0), globals::s(i, 1), globals::s(i, 2)});
+  Vec3R spin = jams::array_cast<jams::Real>(Vec3{globals::s(i,0), globals::s(i, 1), globals::s(i, 2)});
   Vec3R field = calculate_field(i, time);
-  return -dot(spin, field);
+  return -jams::dot(spin, field);
 }
 
 

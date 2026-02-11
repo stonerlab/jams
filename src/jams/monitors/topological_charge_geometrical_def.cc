@@ -97,8 +97,8 @@ void TopologicalGeometricalDefMonitor::calculate_elementary_triangles() {
   // + ----+          + ----+
   //
   // So here we detect the square lattice and compensate with a factor 1/2
-  if (approximately_equal(globals::lattice->a1(), Vec3{1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)
-  && approximately_equal(globals::lattice->a2(), Vec3{0.0, 1.0, 0.0}, jams::defaults::lattice_tolerance)) {
+  if (jams::approximately_equal(globals::lattice->a1(), Vec3{1.0, 0.0, 0.0}, jams::defaults::lattice_tolerance)
+  && jams::approximately_equal(globals::lattice->a2(), Vec3{0.0, 1.0, 0.0}, jams::defaults::lattice_tolerance)) {
     triangle_over_counting_ = 2.0;
   }
 
@@ -159,8 +159,8 @@ void TopologicalGeometricalDefMonitor::calculate_elementary_triangles() {
 
 }
 double TopologicalGeometricalDefMonitor::local_topological_charge(const Vec3 &s_i,const Vec3 &s_j,const Vec3 &s_k) const {
-  double triple_product = scalar_triple_product(s_i, s_j, s_k);
-  double denominator = 1 + dot(s_i, s_j) + dot(s_i, s_k) + dot(s_j, s_k);
+  double triple_product = jams::scalar_triple_product(s_i, s_j, s_k);
+  double denominator = 1 + jams::dot(s_i, s_j) + jams::dot(s_i, s_k) + jams::dot(s_j, s_k);
 
   return 2.0 * atan2(triple_product, denominator) * recip_num_layers_;
 
@@ -194,5 +194,4 @@ std::string TopologicalGeometricalDefMonitor::tsv_header(){
 
   return ss.str();
 }
-
 

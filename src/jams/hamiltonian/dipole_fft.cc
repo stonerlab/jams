@@ -153,9 +153,9 @@ jams::Real DipoleFFTHamiltonian::calculate_total_energy(jams::Real time) {
 }
 
 jams::Real DipoleFFTHamiltonian::calculate_energy(const int i, jams::Real time) {
-  const Vec3R s_i = array_cast<jams::Real>(Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
+  const Vec3R s_i = jams::array_cast<jams::Real>(Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
   const auto field = calculate_field(i, time);
-  return -0.5 * dot(s_i, field);
+  return -0.5 * jams::dot(s_i, field);
 }
 
 
@@ -212,7 +212,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
   rspace_tensor.zero();
   kspace_tensor.zero();
 
-  const double fft_normalization_factor = 1.0 / product(kspace_padded_size_);
+  const double fft_normalization_factor = 1.0 / jams::product(kspace_padded_size_);
   const double a3 = pow3(::globals::lattice->parameter());
   const double w0 = fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * a3);
 
@@ -228,7 +228,7 @@ DipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const int p
                                                          globals::lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
                                                                                                                                {nx, ny,
                                                                                                               nz}));
-        const auto r_abs_sq = norm_squared(r_ij);
+        const auto r_abs_sq = jams::norm_squared(r_ij);
 
         if (r_abs_sq > pow2(r_cutoff_ + r_distance_tolerance_)) {
           continue;

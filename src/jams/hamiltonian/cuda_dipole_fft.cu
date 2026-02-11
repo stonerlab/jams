@@ -179,8 +179,6 @@ CudaDipoleFFTHamiltonian::CudaDipoleFFTHamiltonian(const libconfig::Setting &set
   const int num_sites     = globals::lattice->num_basis_sites();
 
   int rank            = 3;
-  int stride          = 3 * num_sites;
-  int dist            = 1;
   int rspace_embed[3] = {kspace_size_[0], kspace_size_[1], kspace_size_[2]};
   int kspace_embed[3] = {kspace_padded_size_[0], kspace_padded_size_[1], kspace_padded_size_[2]/2 + 1};
 
@@ -388,7 +386,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
     rspace_tensor.zero();
     kspace_tensor_hi.zero();
 
-    const double fft_normalization_factor = 1.0 / product(kspace_size_);
+    const double fft_normalization_factor = 1.0 / jams::product(kspace_size_);
     const double v = pow(globals::lattice->parameter(), 3);
     const double w0 = fft_normalization_factor * kVacuumPermeabilityIU / (4.0 * kPi * v);
 
@@ -405,7 +403,7 @@ CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor(const int pos_i, const i
                                                    globals::lattice->generate_cartesian_lattice_position_from_fractional(r_frac_i,
                                                                                                                          {nx, ny, nz})); // generate_cartesian_lattice_position_from_fractional requires FRACTIONAL coordinate
 
-                const auto r_abs_sq = norm_squared(r_ij);
+                const auto r_abs_sq = jams::norm_squared(r_ij);
 
                 if (!std::isnormal(r_abs_sq)) {
                   throw std::runtime_error("fatal error in CudaDipoleFFTHamiltonian::generate_kspace_dipole_tensor: r_abs_sq is not normal");

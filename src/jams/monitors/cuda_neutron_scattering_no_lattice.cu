@@ -127,7 +127,7 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
   zero(s_conv);
   // **ASSUMPTION** kspace_path is a single straight line
   const auto delta_q = kspace_path_(1) - kspace_path_(0);
-  auto unit_q = unit_vector(delta_q);
+  auto unit_q = jams::unit_vector(delta_q);
 
 
   const unsigned int num_freq = num_time_samples / 2 + 1;
@@ -146,9 +146,9 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
     // **ASSUMPTION** the system is cubic so that Smith's method for minimum
     // image works for all distances, not just the in-sphere.
     jams::cuda_minimum_image(
-      array_cast<jams::Real>(globals::lattice->get_supercell().a1()),
-      array_cast<jams::Real>(globals::lattice->get_supercell().a2()),
-      array_cast<jams::Real>(globals::lattice->get_supercell().a3()),
+      jams::array_cast<jams::Real>(globals::lattice->get_supercell().a1()),
+      jams::array_cast<jams::Real>(globals::lattice->get_supercell().a2()),
+      jams::array_cast<jams::Real>(globals::lattice->get_supercell().a3()),
         globals::lattice->periodic_boundaries(), r_i, globals::positions, r_ij);
 
       spectrum_r_ij<<<grid_size, block_size>>>(
@@ -177,7 +177,7 @@ void CudaNeutronScatteringNoLatticeMonitor::output_spectrum() {
     for (auto k = 0; k < kspace_path_.size(); ++k) {
       ofs << jams::fmt::integer << k << "\t";
       ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
-      ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
+      ofs << jams::fmt::decimal << kTwoPi * jams::norm(kspace_path_(k)) / (
           globals::lattice->parameter() * 1e10) << "\t";
       ofs << jams::fmt::decimal << (w * freq_delta) << "\t"; // THz
       ofs << jams::fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV

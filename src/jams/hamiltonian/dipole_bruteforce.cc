@@ -41,16 +41,16 @@ DipoleBruteforceHamiltonian::DipoleBruteforceHamiltonian(const libconfig::Settin
 }
 
 jams::Real DipoleBruteforceHamiltonian::calculate_energy(const int i, jams::Real time) {
-  Vec3R s_i = array_cast<jams::Real>(Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
+  Vec3R s_i = jams::array_cast<jams::Real>(Vec3{globals::s(i, 0), globals::s(i, 1), globals::s(i, 2)});
   auto field = calculate_field(i, time);
-  return -0.5 * dot(s_i, field);
+  return -0.5 * jams::dot(s_i, field);
 }
 
 jams::Real DipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial,
                                                                 const Vec3 &spin_final, jams::Real time) {
   const auto field = calculate_field(i, time);
-  const jams::Real e_initial = -dot(spin_initial, field);
-  const jams::Real e_final = -dot(spin_final, field);
+  const jams::Real e_initial = -jams::dot(spin_initial, field);
+  const jams::Real e_final = -jams::dot(spin_final, field);
   return 0.5 * (e_final - e_initial);
 }
 
@@ -84,19 +84,19 @@ Vec3R DipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real time)
   for (auto j = 0; j < globals::num_spins; ++j) {
     if (j == i) continue;
 
-    const auto s_j = array_cast<jams::Real>(Vec3{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
-    auto r_ij = array_cast<jams::Real>(displacement(i, j));
+    const auto s_j = jams::array_cast<jams::Real>(Vec3{globals::s(j,0), globals::s(j,1), globals::s(j,2)});
+    auto r_ij = jams::array_cast<jams::Real>(displacement(i, j));
 
-    const jams::Real r_abs_sq = norm_squared(r_ij);
+    const jams::Real r_abs_sq = jams::norm_squared(r_ij);
 
     const jams::Real eps = jams::defaults::lattice_tolerance;
     if (definately_greater_than(r_abs_sq, r_cut_squared, eps)) continue;
-    hx += w0 * globals::mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) -
-        norm_squared(r_ij) * s_j[0]) / pow5(norm(r_ij));
-    hy += w0 * globals::mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) -
-        norm_squared(r_ij) * s_j[1]) / pow5(norm(r_ij));;
-    hz += w0 * globals::mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) -
-        norm_squared(r_ij) * s_j[2]) / pow5(norm(r_ij));;
+    hx += w0 * globals::mus(j) * (3.0 * r_ij[0] * jams::dot(s_j, r_ij) -
+        jams::norm_squared(r_ij) * s_j[0]) / pow5(jams::norm(r_ij));
+    hy += w0 * globals::mus(j) * (3.0 * r_ij[1] * jams::dot(s_j, r_ij) -
+        jams::norm_squared(r_ij) * s_j[1]) / pow5(jams::norm(r_ij));;
+    hz += w0 * globals::mus(j) * (3.0 * r_ij[2] * jams::dot(s_j, r_ij) -
+        jams::norm_squared(r_ij) * s_j[2]) / pow5(jams::norm(r_ij));;
   }
 
   return {hx, hy, hz};

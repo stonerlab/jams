@@ -32,6 +32,8 @@ using Vec4i = std::array<int, 4>;
 
 
 
+namespace jams {
+
 template <typename To, typename From, std::size_t N>
 constexpr std::array<To, N>
 array_cast(const std::array<From, N>& in)
@@ -50,6 +52,8 @@ array_cast(const std::array<From, N>& in)
     return out;
   }
 }
+
+} // namespace jams
 
 template <typename T>
 inline constexpr Vec<T,3> operator-(const Vec<T,3>& rhs) {
@@ -117,26 +121,32 @@ inline constexpr auto operator/=(Vec<T1,3>& lhs, const T2& rhs) -> Vec<decltype(
 }
 
 
+namespace jams {
+
 /// Returns true if all components of the Vec are exactly equal, false otherwise.
 template <typename T>
 inline constexpr bool equal(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
   return (lhs[0] == rhs[0]) && (lhs[1] == rhs[1]) && (lhs[2] == rhs[2]);
 }
 
+} // namespace jams
+
 template <typename T>
 inline constexpr bool operator==(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
-  return equal(lhs, rhs);
+  return jams::equal(lhs, rhs);
 }
 
 template <typename T>
 inline constexpr bool operator!=(const Vec<T,3>& lhs, const Vec<T,3>& rhs) {
-  return !equal(lhs, rhs);
+  return !jams::equal(lhs, rhs);
 }
 
 template <typename T>
 inline constexpr auto operator%(const Vec<T,3>& lhs, const Vec<T,3>& rhs) -> Vec<decltype(lhs[0] % rhs[0]), 3> {
   return {lhs[0] % rhs[0], lhs[1] % rhs[1], lhs[2] % rhs[2]};
 }
+
+namespace jams {
 
 
 /// Returns the fused-multiply-add operation elementwise on the vectors a,b and c.
@@ -274,7 +284,7 @@ inline auto normalize(const Vec<T,3>& a) -> Vec<decltype(a[0] / std::abs(a[0])),
 template <typename T>
 inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon) {
   for (auto n = 0; n < 3; ++n) {
-    if (!approximately_zero(a[n], epsilon)) {
+    if (!::approximately_zero(a[n], epsilon)) {
       return false;
     }
   }
@@ -287,7 +297,7 @@ inline bool approximately_zero(const Vec<T,3>& a, const T& epsilon) {
 template <typename T>
 inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& epsilon) {
   for (auto n = 0; n < 3; ++n) {
-    if (!approximately_equal(a[n], b[n], epsilon)) {
+    if (!::approximately_equal(a[n], b[n], epsilon)) {
       return false;
     }
   }
@@ -299,7 +309,7 @@ inline bool approximately_equal(const Vec<T,3>& a, const Vec<T,3>& b, const T& e
 template <typename T>
 inline auto unit_vector(const Vec<T, 3> &a, const T& epsilon = DBL_EPSILON) -> Vec<decltype(a[0] / std::abs(a[0])), 3> {
   const auto length = norm(a);
-  if (approximately_zero(length, epsilon)) {
+  if (::approximately_zero(length, epsilon)) {
     return a;
   }
 
@@ -370,6 +380,8 @@ Vec<T, N> normalize_components(const Vec<T, N>& a) {
   }
   return result;
 }
+
+} // namespace jams
 
 
 template <typename T>

@@ -30,7 +30,7 @@ Vec3 minimum_image_bruteforce(const Cell& cell, const Vec3& r_i_cart, const Vec3
     for (auto k = -N_b; k < N_b + 1; ++k) {
       for (auto l = -N_c; l < N_c + 1; ++l) {
         auto ds = r_ij + h * cell.a1() + k * cell.a2() + l * cell.a3();
-        if (norm_squared(ds) < norm_squared(r_ij_min)) {
+        if (jams::norm_squared(ds) < jams::norm_squared(r_ij_min)) {
           r_ij_min = ds;
         }
       }
@@ -68,9 +68,9 @@ Cell rotate(const Cell &cell, const Mat3& rotation_matrix) {
 }
 
 bool Cell::classify_orthogonal_basis() const {
-  return approximately_zero(dot(a1(), a2()), DBL_EPSILON)
-      && approximately_zero(dot(a2(), a3()), DBL_EPSILON)
-      && approximately_zero(dot(a3(), a1()), DBL_EPSILON);
+  return approximately_zero(jams::dot(a1(), a2()), DBL_EPSILON)
+      && approximately_zero(jams::dot(a2(), a3()), DBL_EPSILON)
+      && approximately_zero(jams::dot(a3(), a1()), DBL_EPSILON);
 }
 
 jams::LatticeSystem Cell::classify_lattice_system(const double& angle_eps) const {

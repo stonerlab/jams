@@ -106,7 +106,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
                 ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[2];
 
                 if (k + 1 < path_end) {
-                    total_distance += norm(k_points_[k].xyz - k_points_[k + 1].xyz);
+                    total_distance += jams::norm(k_points_[k].xyz - k_points_[k + 1].xyz);
                 }
                 ofs << "\n";
             }

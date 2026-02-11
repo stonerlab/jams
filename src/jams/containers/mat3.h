@@ -351,7 +351,7 @@ inline T max_abs(const Mat<T,3,3>& a) {
 /// See: https://en.wikipedia.org/wiki/Rotation_matrix
 inline Mat3 rotation_matrix(const Vec3& axis, const double theta) {
   // make sure we have a unit vector
-  const Vec3 u = unit_vector(axis);
+  const Vec3 u = jams::unit_vector(axis);
   const double c = cos(theta);
   const double s = sin(theta);
   return {
@@ -364,7 +364,7 @@ inline Mat3 rotation_matrix(const Vec3& axis, const double theta) {
 inline Mat3 rotation_matrix_from_axis_angle(const Vec3& axis, double angle) {
   constexpr double eps_axis = 1e-14;
 
-  const double n = norm(axis);
+  const double n = jams::norm(axis);
   if (n < eps_axis) return kIdentityMat3;
 
   const Vec3 u = axis / n;
@@ -391,17 +391,17 @@ inline Mat3 rotation_matrix_between_vectors(const Vec3& a, const Vec3& b) {
   constexpr double eps = 1e-14;      // for norms
   constexpr double eps_s2 = 1e-24;   // for sin^2
 
-  const double na = norm(a), nb = norm(b);
+  const double na = jams::norm(a), nb = jams::norm(b);
   if (na < eps || nb < eps) return kIdentityMat3;
 
   const Vec3 ua = a / na;
   const Vec3 ub = b / nb;
 
-  const double c_raw = dot(ua, ub);
+  const double c_raw = jams::dot(ua, ub);
   const double c = std::max(-1.0, std::min(1.0, c_raw));
 
-  Vec3 v = cross(ua, ub);
-  const double s2 = dot(v, v);
+  Vec3 v = jams::cross(ua, ub);
+  const double s2 = jams::dot(v, v);
 
   if (s2 < eps_s2) {
     if (c > 0.0) return kIdentityMat3; // parallel
@@ -410,7 +410,7 @@ inline Mat3 rotation_matrix_between_vectors(const Vec3& a, const Vec3& b) {
     if (std::abs(ua[0]) <= std::abs(ua[1]) && std::abs(ua[0]) <= std::abs(ua[2])) ortho = {1,0,0};
     else if (std::abs(ua[1]) <= std::abs(ua[2])) ortho = {0,1,0};
     else ortho = {0,0,1};
-    Vec3 axis = unit_vector(cross(ua, ortho));
+    Vec3 axis = jams::unit_vector(jams::cross(ua, ortho));
     return rotation_matrix_from_axis_angle(axis, kPi);
   }
 

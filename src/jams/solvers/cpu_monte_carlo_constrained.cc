@@ -43,7 +43,7 @@ void ConstrainedMCSolver::initialize(const libconfig::Setting& settings) {
   move_angle_sigma_        = jams::config_optional<double>(settings, "move_angle_sigma", jams::defaults::solver_monte_carlo_move_sigma);
   output_write_steps_      = jams::config_optional<int>(settings, "output_write_steps",  jams::defaults::monitor_output_steps);
 
-  constraint_vector_       = spherical_to_cartesian_vector(1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
+  constraint_vector_       = jams::spherical_to_cartesian_vector(1.0, deg_to_rad(constraint_theta_), deg_to_rad(constraint_phi_));
 
   // from cartesian into the constraint space
   rotation_matrix_         = rotation_matrix_y(-deg_to_rad(constraint_theta_))*rotation_matrix_z(-deg_to_rad(constraint_phi_));
@@ -304,12 +304,12 @@ void ConstrainedMCSolver::output_running_stats_info(std::ostream &os) {
 void ConstrainedMCSolver::validate_constraint() const {
   Vec3 m_total = total_transformed_magnetization();
 
-  const double actual_theta = rad_to_deg(polar_angle(m_total));
-  const double actual_phi = rad_to_deg(azimuthal_angle(m_total));
+  const double actual_theta = rad_to_deg(jams::polar_angle(m_total));
+  const double actual_phi = rad_to_deg(jams::azimuthal_angle(m_total));
 
   if (!approximately_equal(actual_theta, constraint_theta_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
     std::stringstream ss;
-    ss << "ConstrainedMCSolver -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(polar_angle(m_total)) << " deg)";
+    ss << "ConstrainedMCSolver -- theta constraint (" << jams::fmt::decimal << constraint_theta_ << ") violated (" << std::setprecision(10) << std::setw(12) << rad_to_deg(jams::polar_angle(m_total)) << " deg)";
     throw std::runtime_error(ss.str());
   }
 
@@ -319,7 +319,7 @@ void ConstrainedMCSolver::validate_constraint() const {
     if (!approximately_equal(actual_phi, constraint_phi_, jams::defaults::solver_monte_carlo_constraint_tolerance)) {
       std::stringstream ss;
       ss << "ConstrainedMCSolver -- phi constraint (" << jams::fmt::decimal << constraint_phi_ << ") violated ("
-         << std::setprecision(10) << std::setw(12) << rad_to_deg(azimuthal_angle(m_total)) << " deg)";
+         << std::setprecision(10) << std::setw(12) << rad_to_deg(jams::azimuthal_angle(m_total)) << " deg)";
       throw std::runtime_error(ss.str());
     }
   }

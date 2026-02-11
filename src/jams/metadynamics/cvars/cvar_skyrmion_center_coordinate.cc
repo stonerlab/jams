@@ -91,10 +91,10 @@ void jams::CVarSkyrmionCoreCoordinate::space_remapping() {
   // NOTE: This means that we are assuming lattice vectors a,b are in the
   // x,y plane and c is BOTH out of the plane and orthogonal to a,b. i.e.
   // it must be a vector along z. We do a check here for safety.
-  auto c_unit_vec = normalize(globals::lattice->get_unitcell().a3());
-  assert(approximately_zero(c_unit_vec[0], 1e-8)
-			 && approximately_zero(c_unit_vec[1], 1e-8)
-			 && approximately_equal(c_unit_vec[2], 1.0, 1e-8));
+  auto c_unit_vec = jams::normalize(globals::lattice->get_unitcell().a3());
+  assert(::approximately_zero(c_unit_vec[0], 1e-8)
+			 && ::approximately_zero(c_unit_vec[1], 1e-8)
+			 && ::approximately_equal(c_unit_vec[2], 1.0, 1e-8));
 
   Mat3 W = globals::lattice->get_unitcell().matrix();
   W[0][2] = 0.0;
@@ -270,5 +270,4 @@ Vec3 jams::CVarSkyrmionCoreCoordinate::center_of_mass_reverse_transform(const do
 
   return W*center_of_mass;
 }
-
 

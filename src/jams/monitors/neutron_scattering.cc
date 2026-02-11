@@ -110,11 +110,11 @@ jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolar
 
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = k_points_[k];
-        auto Q = unit_vector(kpoint.xyz);
+        auto Q = jams::unit_vector(kpoint.xyz);
         auto q = kpoint.hkl;
         auto ff = neutron_form_factors_(a, k) * neutron_form_factors_(b, k);
         // structure factor: note that q and r are in fractional coordinates (hkl, abc)
-        auto sf = exp(-kImagTwoPi * dot(q, r_ab));
+        auto sf = exp(-kImagTwoPi * jams::dot(q, r_ab));
 
         for (auto f = 0; f < num_freqencies; ++f) {
           Vec3cx s_a = {
@@ -155,11 +155,11 @@ jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polariz
       const Vec3 r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
         auto kpoint = k_points_[k];
-        auto Q = unit_vector(kpoint.xyz);
+        auto Q = jams::unit_vector(kpoint.xyz);
         auto q = kpoint.hkl;
         auto ff = neutron_form_factors_(a, k) * neutron_form_factors_(b, k);
         // structure factor: note that q and r are in fractional coordinates (hkl, abc)
-        auto sf = exp(-kImagTwoPi * dot(q, r_ab));
+        auto sf = exp(-kImagTwoPi * jams::dot(q, r_ab));
 
         for (auto f = 0; f < num_freqencies; ++f) {
           Vec3cx s_a = {
@@ -174,9 +174,9 @@ jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polariz
           };
           for (auto p = 0; p < polarizations.size(); ++p) {
             auto P = polarizations[p];
-            auto PxQ = cross(P, Q);
+            auto PxQ = jams::cross(P, Q);
 
-            convolved(p, f, k) += sf * ff * kImagOne * dot(P, cross(s_a, s_b));
+            convolved(p, f, k) += sf * ff * kImagOne * jams::dot(P, jams::cross(s_a, s_b));
 
             for (auto i : {0, 1, 2}) {
               for (auto j : {0, 1, 2}) {
@@ -229,7 +229,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
           ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
           ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
         }
-        total_distance += norm(k_points_[j].xyz - k_points_[j+1].xyz);
+        total_distance += jams::norm(k_points_[j].xyz - k_points_[j+1].xyz);
         ofs << "\n";
       }
       ofs << std::endl;

@@ -17,7 +17,7 @@ Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
                          const Vec3b &pbc, const Vec3 &r_i, const Vec3 &r_j, const double& epsilon) {
   // If the vectors a, b, c lie in a plane then the minimum image will
   // probably not work
-  assert(!approximately_zero(jams::maths::parallelepiped_volume(a, b, c), epsilon));
+  assert(!::approximately_zero(jams::maths::parallelepiped_volume(a, b, c), epsilon));
 
   if (is_open_system(pbc)) {
     // if there are no periodic boundaries then return the only solution
@@ -26,8 +26,8 @@ Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
 
   Vec3 r_ij = minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
 
-//  if ((dot(a, b) == 0 && dot(b, c) == 0 && dot(c, a) == 0) ||
-//      definately_less_than(norm(interaction_vector_cart), maths::parallelepiped_inradius(a, b, c), epsilon)) {
+//  if ((jams::dot(a, b) == 0 && jams::dot(b, c) == 0 && jams::dot(c, a) == 0) ||
+//      definately_less_than(jams::norm(interaction_vector_cart), maths::parallelepiped_inradius(a, b, c), epsilon)) {
 //    return interaction_vector_cart;
 //  }
 
@@ -48,7 +48,7 @@ Vec3 jams::minimum_image(const Vec3 &a, const Vec3 &b, const Vec3 &c,
   // points always fall back to the brute force algorithm--even though cubic
   // cells look simpler. It may be possible to solve the issue in other ways
   // with a more complex algorithm.
-  if (definately_less_than(norm(r_ij), maths::parallelepiped_inradius(a, b, c), epsilon)) {
+  if (definately_less_than(jams::norm(r_ij), maths::parallelepiped_inradius(a, b, c), epsilon)) {
     return r_ij;
   }
 
@@ -85,7 +85,7 @@ Vec3 jams::minimum_image_bruteforce_explicit_depth(const Vec3 &a, const Vec3 &b,
         // offset cell
         auto r_ik = r_i - ((h * a + k * b + l * c) + r_j);
 
-        if (definately_less_than(norm_squared(r_ik), norm_squared(r_ij), epsilon)) {
+        if (definately_less_than(jams::norm_squared(r_ik), jams::norm_squared(r_ij), epsilon)) {
           r_ij = r_ik;
         }
       }
@@ -109,7 +109,7 @@ Vec3 jams::minimum_image_bruteforce(const Vec3 &a, const Vec3 &b, const Vec3 &c,
   // Although the maximum possible distance is the longest diagonal, we only
   // need to search cells which are within |interaction_vector_cart| because we only care about
   // shorter distances.
-  const auto r_max = norm(r_ij);
+  const auto r_max = jams::norm(r_ij);
 
   // if the cell is periodic along a vector (a, b or c) then set the number of
   // offset repeats in that direction to search over

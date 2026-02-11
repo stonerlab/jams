@@ -62,7 +62,7 @@ AnisotropySetting read_anisotropy_setting(Setting &setting) {
       throw runtime_error("uniaxial anisotropy material is invalid");
     }
   }
-  result.axis = normalize(Vec3R{setting[1][0], setting[1][1], setting[1][2]});
+  result.axis = jams::normalize(Vec3R{setting[1][0], setting[1][1], setting[1][2]});
   result.energy = jams::Real(setting[2]);
   return result;
 }

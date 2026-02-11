@@ -113,8 +113,8 @@ NeutronScatteringNoLatticeMonitor::calculate_unpolarized_cross_section(const jam
 
   for (auto f = 0; f < num_freqencies; ++f) {
     for (auto k = 0; k < num_reciprocal_points; ++k) {
-          auto Q = unit_vector(kspace_path_(k));
-          auto s_a = conj(spectrum(f, k));
+          auto Q = jams::unit_vector(kspace_path_(k));
+          auto s_a = jams::conj(spectrum(f, k));
           auto s_b = spectrum(f, k);
 
           auto ff = pow2(neutron_form_factors_(0, k)); // NOTE: currently only supports one material
@@ -139,16 +139,16 @@ NeutronScatteringNoLatticeMonitor::calculate_polarized_cross_sections(const jams
 
   for (auto f = 0; f < num_freqencies; ++f) {
     for (auto k = 0; k < num_reciprocal_points; ++k) {
-      auto Q = unit_vector(kspace_path_(k));
-      auto s_a = conj(spectrum(f, k));
+      auto Q = jams::unit_vector(kspace_path_(k));
+      auto s_a = jams::conj(spectrum(f, k));
       auto s_b = spectrum(f, k);
       auto ff = pow2(neutron_form_factors_(0, k)); // NOTE: currently only supports one material
 
       for (auto p = 0; p < polarizations.size(); ++p) {
         auto P = polarizations[p];
-        auto PxQ = cross(P, Q);
+        auto PxQ = jams::cross(P, Q);
 
-        convolved(p, f, k) += ff * kImagOne * dot(P, cross(s_a, s_b));
+        convolved(p, f, k) += ff * kImagOne * jams::dot(P, jams::cross(s_a, s_b));
 
         for (auto i : {0, 1, 2}) {
           for (auto j : {0, 1, 2}) {
@@ -233,13 +233,13 @@ void NeutronScatteringNoLatticeMonitor::output_static_structure_factor() {
   for (auto k = 0; k < kspace_path_.size(); ++k) {
     ofs << jams::fmt::integer << k << "\t";
     ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
-    ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
+    ofs << jams::fmt::decimal << kTwoPi * jams::norm(kspace_path_(k)) / (
         globals::lattice->parameter() * 1e10) << "\t";
     for (auto i : {0,1,2}) {
       for (auto j : {0,1,2}) {
         auto s_a = static_structure_factor(k)[i] / double(num_time_points);
         auto s_b = static_structure_factor(k)[j] / double(num_time_points);
-        auto s_ab = conj(s_a) * s_b;
+        auto s_ab = std::conj(s_a) * s_b;
         ofs << jams::fmt::sci << s_ab.real() << "\t";
         ofs << jams::fmt::sci << s_ab.imag() << "\t";
       }
@@ -271,7 +271,7 @@ void NeutronScatteringNoLatticeMonitor::output_neutron_cross_section() {
       for (auto j = 0; j < kspace_path_.size(); ++j) {
         ofs << jams::fmt::integer << j << "\t";
         ofs << jams::fmt::decimal << kspace_path_(j) << "\t";
-        ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(j)) / (
+        ofs << jams::fmt::decimal << kTwoPi * jams::norm(kspace_path_(j)) / (
             globals::lattice->parameter() * 1e10) << "\t";
         ofs << jams::fmt::decimal << (i * freq_delta) << "\t"; // THz
         ofs << jams::fmt::decimal << (i * freq_delta) * 4.135668 << "\t"; // meV
@@ -302,10 +302,10 @@ void NeutronScatteringNoLatticeMonitor::store_kspace_data_on_path() {
     Vec3 r = rspace_displacement_(n);
 
     // this is effectively a window in rspace
-    if (norm(r) >= globals::lattice->max_interaction_radius()) continue;
+    if (jams::norm(r) >= globals::lattice->max_interaction_radius()) continue;
     auto delta_q = kspace_path_(1) - kspace_path_(0);
 
-    auto f0 = exp(-kImagTwoPi * dot(delta_q, r));
+    auto f0 = exp(-kImagTwoPi * jams::dot(delta_q, r));
     auto f = jams::ComplexHi{1.0, 0.0};
     for (auto k = 0; k < kspace_path_.size(); ++k) {
       kspace_spins_timeseries_(i, k) += f * spin;
@@ -450,7 +450,7 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
 
   // this assumes out kspace_path is a single straight line
   const auto delta_q = kspace_path_(1) - kspace_path_(0);
-  auto Q = unit_vector(delta_q);
+  auto Q = jams::unit_vector(delta_q);
 
   zero(sqw);
   for (auto i = 0; i < globals::num_spins; ++i) {
@@ -494,7 +494,7 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
         }
       }
 
-      const auto f0 = exp(-kImagTwoPi * dot(delta_q, r_ij));
+      const auto f0 = exp(-kImagTwoPi * jams::dot(delta_q, r_ij));
       auto f = jams::ComplexHi{1.0, 0.0};
       for (auto k = 0; k < kspace_path_.size(); ++k) {
         for (auto w = 0; w < num_time_samples / 2 + 1; ++w) {
@@ -521,7 +521,7 @@ void NeutronScatteringNoLatticeMonitor::output_fixed_spectrum() {
     for (auto k = 0; k < kspace_path_.size(); ++k) {
       ofs << jams::fmt::integer << k << "\t";
       ofs << jams::fmt::decimal << kspace_path_(k) << "\t";
-      ofs << jams::fmt::decimal << kTwoPi * norm(kspace_path_(k)) / (
+      ofs << jams::fmt::decimal << kTwoPi * jams::norm(kspace_path_(k)) / (
           globals::lattice->parameter() * 1e10) << "\t";
       ofs << jams::fmt::decimal << (w * freq_delta) << "\t"; // THz
       ofs << jams::fmt::decimal << (w * freq_delta) * 4.135668 << "\t"; // meV

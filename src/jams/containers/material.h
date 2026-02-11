@@ -47,7 +47,7 @@ public:
           if (length == 3) {
             spin = jams::config_required<Vec3>(cfg, "spin");
           } else if (length == 2) {
-            spin = spherical_to_cartesian_vector(1.0, deg_to_rad(double(cfg["spin"][0])), deg_to_rad(double(cfg["spin"][1])));
+            spin = jams::spherical_to_cartesian_vector(1.0, deg_to_rad(double(cfg["spin"][0])), deg_to_rad(double(cfg["spin"][1])));
           } else {
             throw std::runtime_error("spin setting array is not length 2 or 3");
           }

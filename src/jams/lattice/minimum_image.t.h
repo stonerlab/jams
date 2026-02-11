@@ -91,7 +91,7 @@ TEST_P(LatticeMinimumImageTest, minimum_image_smith_method) {
       Vec3 r_ij_smith, r_ij_brute;
 
       r_ij_smith = jams::minimum_image_smith_method(a, b, c, pbc, r_i, r_j);
-      if (!definately_less_than(norm(r_ij_smith),
+      if (!definately_less_than(jams::norm(r_ij_smith),
                                 jams::maths::parallelepiped_inradius(a, b, c),
                                 double_epsilon)) {
         continue;
@@ -153,7 +153,7 @@ TEST_P(LatticeMinimumImageTest, minimum_image) {
           testing::DoubleNear(r_ij_brute[2], double_epsilon)
       };
 
-      EXPECT_THAT(r_ij, ElementsAreArray(result)) << "|r_ij_test|: " << norm(r_ij) << "|r_ij_bruteforce|: " << norm(r_ij_brute);
+      EXPECT_THAT(r_ij, ElementsAreArray(result)) << "|r_ij_test|: " << jams::norm(r_ij) << "|r_ij_bruteforce|: " << jams::norm(r_ij_brute);
     }
   }
 }

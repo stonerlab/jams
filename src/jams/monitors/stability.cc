@@ -42,7 +42,7 @@ void StabilityMonitor::update(Solver& solver)
     double S2_err_mean = 0.0;
     for (auto i = 0; i < globals::num_spins; ++i) {
         const Vec3 s = {globals::s(i,0), globals::s(i, 1), globals::s(i,2)};
-        double S_err = norm_squared(s) - 1;
+        double S_err = jams::norm_squared(s) - 1;
         S_err_mean += S_err;
         S2_err_mean += S_err * S_err;
         if (std::abs(S_err) > max_S_err) max_S_err = std::abs(S_err);

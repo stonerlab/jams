@@ -42,7 +42,7 @@ void MagnetisationMonitor::update(Solver& solver) {
     values.push_back(mag[0] * normalising_factor);
     values.push_back(mag[1] * normalising_factor);
     values.push_back(mag[2] * normalising_factor);
-    values.push_back(norm(mag) * normalising_factor);
+    values.push_back(jams::norm(mag) * normalising_factor);
   }
 
   tsv_.write_row(values);

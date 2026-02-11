@@ -14,7 +14,7 @@ InducedSpinPulsePhysics::InducedSpinPulsePhysics(const libconfig::Setting &setti
   std::string material = jams::config_required<std::string>(settings, "material");
 
   if (pulse_is_coherent_) {
-    pulse_polarisation_ = normalize(jams::config_required<Vec3>(settings, "pulse_polarisation"));
+    pulse_polarisation_ = jams::normalize(jams::config_required<Vec3>(settings, "pulse_polarisation"));
   }
 
   std::vector<int> indices;

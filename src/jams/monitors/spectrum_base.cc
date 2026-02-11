@@ -133,7 +133,7 @@ void SpectrumBaseMonitor::append_full_k_grid(Vec3i kspace_size)
       for (auto n = 0; n < kspace_size[2]; ++n)
       {
         Vec3i coordinate = {l, m, n};
-        Vec3 hkl = hadamard_product(coordinate, 1.0 / to_double(kspace_size));
+        Vec3 hkl = jams::hadamard_product(coordinate, 1.0 / jams::to_double(kspace_size));
         Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
         hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(coordinate, kspace_size)});
       }
@@ -249,9 +249,9 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
 
   for (auto n = 0; n < static_cast<int>(hkl_nodes.size()) - 1; ++n)
   {
-    Vec3i start = to_int(hadamard_product(hkl_nodes[n], kspace_size));
-    Vec3i end = to_int(hadamard_product(hkl_nodes[n + 1], kspace_size));
-    Vec3i displacement = absolute(end - start);
+    Vec3i start = jams::to_int(jams::hadamard_product(hkl_nodes[n], kspace_size));
+    Vec3i end = jams::to_int(jams::hadamard_product(hkl_nodes[n + 1], kspace_size));
+    Vec3i displacement = jams::absolute(end - start);
 
     Vec3i step = {
         (end[0] > start[0]) ? 1 : ((end[0] < start[0]) ? -1 : 0),
@@ -264,7 +264,7 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
       int p2 = 2 * displacement[2] - displacement[0];
       while (start[0] != end[0])
       {
-        Vec3 hkl = hadamard_product(start, 1.0 / to_double(kspace_size));
+        Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
         Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
         hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
@@ -289,7 +289,7 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
       int p2 = 2 * displacement[2] - displacement[1];
       while (start[1] != end[1])
       {
-        Vec3 hkl = hadamard_product(start, 1.0 / to_double(kspace_size));
+        Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
         Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
         hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
@@ -314,7 +314,7 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
       int p2 = 2 * displacement[1] - displacement[2];
       while (start[2] != end[2])
       {
-        Vec3 hkl = hadamard_product(start, 1.0 / to_double(kspace_size));
+        Vec3 hkl = jams::hadamard_product(start, 1.0 / jams::to_double(kspace_size));
         Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
         hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(start, kspace_size)});
 
@@ -334,7 +334,7 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector
       }
     }
 
-    Vec3 hkl = hadamard_product(end, 1.0 / to_double(kspace_size));
+    Vec3 hkl = jams::hadamard_product(end, 1.0 / jams::to_double(kspace_size));
     Vec3 xyz = globals::lattice->get_unitcell().inv_fractional_to_cartesian(hkl);
     hkl_path.push_back(jams::HKLIndex{hkl, xyz, fftw_r2c_index(end, kspace_size)});
   }
@@ -553,14 +553,14 @@ void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec
   {
     for (auto k = 0; k < k_list.size(); ++k)
     {
-      const auto [offset, conj] = k_list[k].index;
+      const auto [offset, is_conjugate] = k_list[k].index;
       const auto i = periodogram_sample_index_;
       const auto idx = offset;
 
       Vec3cx spin_xyz;
-      if (conj)
+      if (is_conjugate)
       {
-        spin_xyz = basis_phase_factors_(a, k) * conj(sk_sample(idx[0], idx[1], idx[2], a));
+        spin_xyz = basis_phase_factors_(a, k) * jams::conj(sk_sample(idx[0], idx[1], idx[2], a));
       }
       else
       {
@@ -617,7 +617,7 @@ jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions
       mean_directions(m) += periodogram_window_(n) * basis_mag_time_series_(m, n);
     }
 
-    mean_directions(m) = normalize(mean_directions(m));
+    mean_directions(m) = jams::normalize(mean_directions(m));
   }
 
   return mean_directions;
@@ -641,7 +641,7 @@ jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
   for (auto m = 0; m < mean_directions.size(); ++m)
   {
     Vec3 n_hat = mean_directions(m);
-    const double n_norm = norm(n_hat);
+    const double n_norm = jams::norm(n_hat);
     if (n_norm <= 0.0)
     {
       rotations(m) = kIdentityMat3;
@@ -653,9 +653,9 @@ jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
     const Vec3 ey{0.0, 1.0, 0.0};
     const Vec3 ez{0.0, 0.0, 1.0};
 
-    const double ax = std::abs(dot(ex, n_hat));
-    const double ay = std::abs(dot(ey, n_hat));
-    const double az = std::abs(dot(ez, n_hat));
+    const double ax = std::abs(jams::dot(ex, n_hat));
+    const double ay = std::abs(jams::dot(ey, n_hat));
+    const double az = std::abs(jams::dot(ez, n_hat));
 
     Vec3 r = ex;
     double a_min = ax;
@@ -670,8 +670,8 @@ jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
       a_min = az;
     }
 
-    Vec3 e1 = r - dot(r, n_hat) * n_hat;
-    const double e1_norm = norm(e1);
+    Vec3 e1 = r - jams::dot(r, n_hat) * n_hat;
+    const double e1_norm = jams::norm(e1);
     if (e1_norm <= 0.0)
     {
       rotations(m) = kIdentityMat3;
@@ -679,7 +679,7 @@ jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
     }
     e1 *= (1.0 / e1_norm);
 
-    Vec3 e2 = cross(n_hat, e1);
+    Vec3 e2 = jams::cross(n_hat, e1);
 
     Mat3 R = kIdentityMat3;
     R[0][0] = e1[0];    R[0][1] = e1[1];    R[0][2] = e1[2];
@@ -766,7 +766,7 @@ jams::MultiArray<jams::ComplexHi, 2> SpectrumBaseMonitor::generate_phase_factors
     for (auto k = 0; k < kpoints.size(); ++k)
     {
       const auto q = kpoints[k].hkl;
-      phase_factors(a, k) = exp(-kImagTwoPi * dot(q, r));
+      phase_factors(a, k) = exp(-kImagTwoPi * jams::dot(q, r));
     }
   }
   return phase_factors;

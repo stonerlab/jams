@@ -94,7 +94,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
       auto type_j = globals::lattice->lattice_site_material_name(j);
       auto& [r_cutoff, functional] = exchange_functional_map[{type_i, type_j}];
 
-      const auto r = norm(rij);
+      const auto r = jams::norm(rij);
 
       if (less_than_approx_equal(r, r_cutoff, jams::defaults::lattice_tolerance)) {
         // don't allow self interaction

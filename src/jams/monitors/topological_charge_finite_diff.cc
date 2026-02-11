@@ -17,8 +17,8 @@ TopologicalFiniteDiffChargeMonitor::TopologicalFiniteDiffChargeMonitor(const lib
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
-      return approximately_equal(globals::lattice->a1(), a, jams::defaults::lattice_tolerance)
-             && approximately_equal(globals::lattice->a2(), b, jams::defaults::lattice_tolerance);
+      return jams::approximately_equal(globals::lattice->a1(), a, jams::defaults::lattice_tolerance)
+             && jams::approximately_equal(globals::lattice->a2(), b, jams::defaults::lattice_tolerance);
   };
 
   // Detect if we have a square or hexagonal lattice in the plane (all other
@@ -208,6 +208,5 @@ double TopologicalFiniteDiffChargeMonitor::local_topological_charge(const int i)
 
   Vec3 s_i = jams::montecarlo::get_spin(i);
 
-  return dot(s_i, cross(ds_x, ds_y));
+  return jams::dot(s_i, jams::cross(ds_x, ds_y));
 }
-

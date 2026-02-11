@@ -75,7 +75,7 @@ void jams::CVarTopologicalCharge::calculate_elementary_triangles(){
       const auto spin_j = nbr.second;
 
       // Only look for neighbours in the same layer
-      if (!approximately_equal(r_i[2], r_j[2], 1e-6)) {
+      if (!::approximately_equal(r_i[2], r_j[2], 1e-6)) {
         continue;
       }
 
@@ -129,8 +129,8 @@ void jams::CVarTopologicalCharge::calculate_elementary_triangles(){
 // is undefined for the topological charge (basically the texture must then
 // not be smooth and the denominator changes the sign of q_ijk)
 double jams::CVarTopologicalCharge::local_topological_charge(const Vec3& s_i, const Vec3& s_j, const Vec3& s_k) const {
-  double triple_product = scalar_triple_product(s_i, s_j, s_k);
-  double denominator = 1 + dot(s_i, s_j) + dot(s_i, s_k) + dot(s_j, s_k);
+  double triple_product = jams::scalar_triple_product(s_i, s_j, s_k);
+  double denominator = 1 + jams::dot(s_i, s_j) + jams::dot(s_i, s_k) + jams::dot(s_j, s_k);
 
   if (denominator <= 0.0) {
     return 0.0;

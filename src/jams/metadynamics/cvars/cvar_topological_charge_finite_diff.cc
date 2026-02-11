@@ -10,8 +10,8 @@ jams::CVarTopologicalChargeFiniteDiff::CVarTopologicalChargeFiniteDiff(
 
   // true if a and b are equal to the lattice a and b vectors.
   auto lattice_equal = [&](Vec3 a, Vec3 b) {
-    return approximately_equal(globals::lattice->a1(), a, defaults::lattice_tolerance)
-    && approximately_equal(globals::lattice->a2(), b, defaults::lattice_tolerance);
+    return jams::approximately_equal(globals::lattice->a1(), a, defaults::lattice_tolerance)
+    && jams::approximately_equal(globals::lattice->a2(), b, defaults::lattice_tolerance);
   };
 
   enum class LatticeType {Unsupported, Square, Hexagonal};
@@ -311,7 +311,7 @@ double jams::CVarTopologicalChargeFiniteDiff::local_topological_charge(const int
 
   Vec3 s_i = montecarlo::get_spin(i);
 
-  return dot(s_i, cross(ds_x, ds_y));
+  return jams::dot(s_i, jams::cross(ds_x, ds_y));
 }
 
 double jams::CVarTopologicalChargeFiniteDiff::topological_charge_difference(int index,

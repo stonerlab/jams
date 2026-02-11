@@ -43,7 +43,7 @@ ExchangeNeartreeHamiltonian::ExchangeNeartreeHamiltonian(const libconfig::Settin
     // check that no atoms in the unit cell are closer together than the shell width
     for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
       for (auto j = i+1; j < globals::lattice->num_basis_sites(); ++j) {
-        const auto distance = norm(
+        const auto distance = jams::norm(
           globals::lattice->basis_site_atom(i).position_frac
           - globals::lattice->basis_site_atom(j).position_frac);
         if(distance < shell_width_) {

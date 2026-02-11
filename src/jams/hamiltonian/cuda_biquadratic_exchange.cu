@@ -207,7 +207,7 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_total_energy(jams::Real
   for (auto i = 0; i < globals::num_spins; ++i) {
     Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
     Vec3 h_i = {field_(i,0), field_(i, 1), field_(i, 2)};
-    total_energy += -dot(s_i, 0.5*h_i);
+    total_energy += -jams::dot(s_i, 0.5*h_i);
   }
   return 0.5 * total_energy;
 }
@@ -229,11 +229,11 @@ Vec3R CudaBiquadraticExchangeHamiltonian::calculate_field(int i, jams::Real time
     Vec3 s_j = {s(j,0), s(j,1), s(j,2)};
 
     for (auto n = 0; n < 3; ++n) {
-      field[n] += 2.0 * B_ij * s(j,n) * dot(s_i, s_j);
+      field[n] += 2.0 * B_ij * s(j,n) * jams::dot(s_i, s_j);
     }
   }
 
-  return array_cast<jams::Real>(field);
+  return jams::array_cast<jams::Real>(field);
 }
 
 
@@ -242,7 +242,7 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy(int i, jams::Rea
   assert(is_finalized_);
   Vec3 s_i = {s(i,0), s(i,1), s(i,2)};
   auto field = calculate_field(i, time);
-  return -0.5*dot(s_i, field);
+  return -0.5*jams::dot(s_i, field);
 }
 
 
@@ -252,8 +252,8 @@ jams::Real CudaBiquadraticExchangeHamiltonian::calculate_energy_difference(int i
                                                                        jams::Real time) {
   assert(is_finalized_);
   auto field = calculate_field(i, time);
-  auto e_initial = -dot(spin_initial, 0.5*field);
-  auto e_final = -dot(spin_final, 0.5*field);
+  auto e_initial = -jams::dot(spin_initial, 0.5*field);
+  auto e_final = -jams::dot(spin_final, 0.5*field);
   return static_cast<jams::Real>(e_final - e_initial);
 }
 

@@ -46,7 +46,7 @@ void SpinPumpingMonitor::update(Solver& solver) {
     Vec3 s_old_i = {s_old_(i,0), s_old_(i, 1), s_old_(i,2)};
     Vec3 ds_dt_i = (s_i - s_old_i) * d_timestep;
 
-    spin_pumping_real[type] += cross(s_i, ds_dt_i);
+    spin_pumping_real[type] += jams::cross(s_i, ds_dt_i);
     spin_pumping_imag[type] += ds_dt_i;
   }
 

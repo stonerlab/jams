@@ -362,7 +362,7 @@ Vec3R CrystalFieldHamiltonian::calculate_field(int i, jams::Real time) {
   h[1] += C66*( 4.030159736288377*sy*(6.*(sx*sx*sx*sx*sx*sx) - 20.*(sx*sx*sx*sx)*(sy*sy) + 6.*(sx*sx)*(sy*sy*sy*sy) + (5.*(sx*sx*sx*sx) - 10.*(sx*sx)*(sy*sy) + sy*sy*sy*sy)*(sz*sz)) );
   h[2] += C66*( 4.030159736288377*(sx*sx*sx*sx*sx*sx - 15.*(sx*sx*sx*sx)*(sy*sy) + 15.*(sx*sx)*(sy*sy*sy*sy) - 1.*(sy*sy*sy*sy*sy*sy))*sz );
 
-  return array_cast<jams::Real>(h);
+  return jams::array_cast<jams::Real>(h);
 }
 
 jams::Real CrystalFieldHamiltonian::calculate_energy(int i, jams::Real time) {

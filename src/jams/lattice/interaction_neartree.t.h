@@ -65,13 +65,13 @@ protected:
         for (const auto &r_j : positions_) {
           auto r_ij = jams::minimum_image(supercell_size_*a_, supercell_size_*b_, supercell_size_*c_, pbc_, r_i.first,
                                           r_j.first, epsilon_);
-          if (norm(r_ij) < epsilon_) continue;
-          if (definately_greater_than(norm(r_ij), r_cutoff_, epsilon_)) continue;
+          if (jams::norm(r_ij) < epsilon_) continue;
+          if (definately_greater_than(jams::norm(r_ij), r_cutoff_, epsilon_)) continue;
           brute_force_neighbours.emplace_back(r_ij, r_j.second);
         }
 
         auto positions_are_equivalent = [&](const Position& a, const Position& b){
-            return approximately_equal(a.first, b.first, epsilon_) && a.second == b.second;
+            return jams::approximately_equal(a.first, b.first, epsilon_) && a.second == b.second;
         };
 
 //        std::cout << "bruteforce neighbours:   " << brute_force_neighbours.size() << "\n";

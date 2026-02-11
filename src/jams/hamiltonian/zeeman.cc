@@ -76,7 +76,7 @@ jams::Real ZeemanHamiltonian::calculate_energy(const int i, jams::Real time) {
     const Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     const auto field = calculate_field(i, time);
 
-    return -dot(s_i, field);
+    return -jams::dot(s_i, field);
 }
 
 
@@ -97,4 +97,3 @@ Vec3R ZeemanHamiltonian::calculate_field(const int i, jams::Real time) {
 
     return field;
 }
-

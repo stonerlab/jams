@@ -87,7 +87,7 @@ jams::Real CudaDipoleBruteforceHamiltonian::calculate_total_energy(jams::Real ti
 
 jams::Real CudaDipoleBruteforceHamiltonian::calculate_one_spin_energy(const int i, const Vec3 &s_i, jams::Real time) {
     const auto field = calculate_field(i, time);
-    return -dot(s_i, field) / 2;
+    return -jams::dot(s_i, field) / 2;
 }
 
 jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy(const int i, jams::Real time) {
@@ -97,8 +97,8 @@ jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy(const int i, jams::
 
 jams::Real CudaDipoleBruteforceHamiltonian::calculate_energy_difference(int i, const Vec3 &spin_initial, const Vec3 &spin_final, jams::Real time) {
     const auto field = calculate_field(i, time);
-    double e_initial = -dot(spin_initial, field);
-    double e_final = -dot(spin_final, field);
+    double e_initial = -jams::dot(spin_initial, field);
+    double e_final = -jams::dot(spin_final, field);
     return 0.5*(e_final - e_initial);
 }
 
@@ -141,17 +141,17 @@ Vec3R CudaDipoleBruteforceHamiltonian::calculate_field(const int i, jams::Real t
 
     Vec3 r_ij = displacement(i, j);
 
-    const jams::Real r_abs_sq = norm_squared(r_ij);
+    const jams::Real r_abs_sq = jams::norm_squared(r_ij);
 
       const auto eps = static_cast<jams::Real>(jams::defaults::lattice_tolerance*jams::defaults::lattice_tolerance);
     if (definately_greater_than(r_abs_sq, r_cut_squared, eps)) continue;
 
-    hx += w0 * globals::mus(j) * (3.0 * r_ij[0] * dot(s_j, r_ij) -
-        norm_squared(r_ij) * s_j[0]) / pow5(norm(r_ij));
-    hy += w0 * globals::mus(j) * (3.0 * r_ij[1] * dot(s_j, r_ij) -
-        norm_squared(r_ij) * s_j[1]) / pow5(norm(r_ij));;
-    hz += w0 * globals::mus(j) * (3.0 * r_ij[2] * dot(s_j, r_ij) -
-        norm_squared(r_ij) * s_j[2]) / pow5(norm(r_ij));;
+    hx += w0 * globals::mus(j) * (3.0 * r_ij[0] * jams::dot(s_j, r_ij) -
+        jams::norm_squared(r_ij) * s_j[0]) / pow5(jams::norm(r_ij));
+    hy += w0 * globals::mus(j) * (3.0 * r_ij[1] * jams::dot(s_j, r_ij) -
+        jams::norm_squared(r_ij) * s_j[1]) / pow5(jams::norm(r_ij));;
+    hz += w0 * globals::mus(j) * (3.0 * r_ij[2] * jams::dot(s_j, r_ij) -
+        jams::norm_squared(r_ij) * s_j[2]) / pow5(jams::norm(r_ij));;
   }
 
   return {hx, hy, hz};

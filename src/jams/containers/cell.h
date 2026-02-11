@@ -40,9 +40,9 @@ public:
     inline Vec3 b2() const { return inverse_matrix_[1]; }
     inline Vec3 b3() const { return inverse_matrix_[2]; }
 
-    inline double alpha() const {return rad_to_deg(angle(a2(), a3()));}
-    inline double beta() const {return rad_to_deg(angle(a3(), a1()));}
-    inline double gamma() const {return rad_to_deg(angle(a1(), a2()));}
+    inline double alpha() const {return rad_to_deg(jams::angle(a2(), a3()));}
+    inline double beta() const {return rad_to_deg(jams::angle(a3(), a1()));}
+    inline double gamma() const {return rad_to_deg(jams::angle(a1(), a2()));}
 
     inline bool has_orthogonal_basis() const { return has_orthogonal_basis_; };
     inline jams::LatticeSystem lattice_system() const { return lattice_system_; };

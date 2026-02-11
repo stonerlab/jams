@@ -21,7 +21,7 @@ namespace maths {
     inline T parallelogram_area(const Vec<T,3>& a, const Vec<T,3>& b)
     {
         require_fp<T>();
-        return norm(cross(a, b));
+        return jams::norm(jams::cross(a, b));
     }
 
     ///
@@ -41,7 +41,7 @@ namespace maths {
     inline T parallelogram_height(const Vec<T,3>& a, const Vec<T,3>& b)
     {
         require_fp<T>();
-        return parallelogram_area(a, b) / norm(b);
+        return parallelogram_area(a, b) / jams::norm(b);
     }
 
     ///
@@ -71,7 +71,7 @@ namespace maths {
                                    const Vec<T,3>& c)
     {
         require_fp<T>();
-        return std::abs(dot(cross(a, b), c));
+        return std::abs(jams::dot(jams::cross(a, b), c));
     }
 
     ///
@@ -96,7 +96,7 @@ namespace maths {
                                    const Vec<T,3>& c)
     {
         require_fp<T>();
-        return parallelepiped_volume(a, b, c) / norm(cross(a, b));
+        return parallelepiped_volume(a, b, c) / jams::norm(jams::cross(a, b));
     }
 
 
@@ -135,10 +135,10 @@ namespace maths {
     {
         require_fp<T>();
         return std::max({
-            norm(a + b + c),
-            norm(-a + b + c),
-            norm(a - b + c),
-            norm(a + b - c)
+            jams::norm(a + b + c),
+            jams::norm(-a + b + c),
+            jams::norm(a - b + c),
+            jams::norm(a + b - c)
         });
     }
 }

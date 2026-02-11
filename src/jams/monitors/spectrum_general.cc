@@ -27,7 +27,7 @@ namespace {
     std::vector<jams::ComplexHi> generate_expQR(const std::vector<Vec3> &qvecs, const Vec3& R) {
       std::vector<jams::ComplexHi> result(qvecs.size());
       for (auto q = 0; q < result.size(); ++q) {
-        result[q] = exp(kImagTwoPi * dot(qvecs[q], R));
+        result[q] = exp(kImagTwoPi * jams::dot(qvecs[q], R));
       }
       return result;
     }

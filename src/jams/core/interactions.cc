@@ -46,7 +46,7 @@ namespace { //anon
       // which case the optional return is falsey.
       for (int k = 0; k < globals::lattice->num_basis_sites(); ++k) {
         auto pos = globals::lattice->basis_site_atom(k).position_frac;
-        if (approximately_equal(pos, offset, tolerance)) {
+        if (jams::approximately_equal(pos, offset, tolerance)) {
           return k;
         }
       }
@@ -326,7 +326,7 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
   if (radius_cutoff > 0.0) {
     apply_predicate(interactions, [&](InteractionData J) -> bool {
-      return definately_greater_than(norm(J.interaction_vector_cart), radius_cutoff, jams::defaults::lattice_tolerance);});
+      return definately_greater_than(jams::norm(J.interaction_vector_cart), radius_cutoff, jams::defaults::lattice_tolerance);});
   }
 
   // calculate the lattice translation vectors
@@ -338,7 +338,7 @@ post_process_interactions(std::vector<InteractionData> &interactions, const Inte
 
     // If r_ij_frac + p_i_frac - p_j_frac is not a cell translation vector then there is a problem with the inputted
     // exchange vectors.
-    assert(approximately_zero(T - (r_ij_frac + p_i_frac - p_j_frac), distance_tolerance));
+    assert(jams::approximately_zero(T - (r_ij_frac + p_i_frac - p_j_frac), distance_tolerance));
 
     J.lattice_translation_vector = {int(T[0]), int(T[1]), int(T[2])};
     return J;
@@ -497,7 +497,7 @@ void neighbour_list_checks(const jams::InteractionList<Mat3, 2>& list, const std
             Mat3 J0 = std::accumulate(neighbour_list.begin(),
                                       neighbour_list.end(), kZeroMat3, lambda);
 
-            if (!approximately_equal(diag(J0),
+            if (!jams::approximately_equal(diag(J0),
                                      diag(motif_position_total_exchange[pos]),
                                      1e-6)) {
               throw std::runtime_error("inconsistent neighbour list: J0");
@@ -515,7 +515,7 @@ safety_check_distance_tolerance(const double &tolerance) {
 
   for (auto i = 0; i < globals::lattice->num_basis_sites(); ++i) {
     for (auto j = i + 1; j < globals::lattice->num_basis_sites(); ++j) {
-      const auto distance = norm(globals::lattice->basis_site_atom(i).position_frac - globals::lattice->basis_site_atom(
+      const auto distance = jams::norm(globals::lattice->basis_site_atom(i).position_frac - globals::lattice->basis_site_atom(
           j).position_frac);
       if (distance < tolerance) {
         throw jams::SanityException("Atoms ", i, " and ", j, " in the unit cell are close together (", distance,
@@ -542,7 +542,7 @@ void check_interaction_list_symmetry(const std::vector<InteractionData> &interac
       && sym_J.basis_site_j == J.basis_site_j
       && sym_J.type_i == J.type_i
       && sym_J.type_j == J.type_j
-      && approximately_equal(sym_J.interaction_vector_cart, J.interaction_vector_cart, jams::defaults::lattice_tolerance)
+      && jams::approximately_equal(sym_J.interaction_vector_cart, J.interaction_vector_cart, jams::defaults::lattice_tolerance)
       && approximately_equal(sym_J.interaction_value_tensor, J.interaction_value_tensor, 1e-4));
     });
 
@@ -565,7 +565,7 @@ write_interaction_data(std::ostream &output, const std::vector<InteractionData> 
     output << std::setw(12) << interaction.basis_site_j << "\t";
     output << std::setw(12) << interaction.type_i << "\t";
     output << std::setw(12) << interaction.type_j << "\t";
-    output << std::setw(12) << std::fixed << norm(interaction.interaction_vector_cart) << "\t";
+    output << std::setw(12) << std::fixed << jams::norm(interaction.interaction_vector_cart) << "\t";
     if (coord_format == CoordinateFormat::CARTESIAN) {
       output << std::setw(12) << std::fixed << interaction.interaction_vector_cart[0] << "\t";
       output << std::setw(12) << std::fixed << interaction.interaction_vector_cart[1] << "\t";
@@ -632,7 +632,7 @@ write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &
       output << jams::fmt::decimal << rij[0];
       output << jams::fmt::decimal << rij[1];
       output << jams::fmt::decimal << rij[2];
-      output << jams::fmt::decimal << norm(rij);
+      output << jams::fmt::decimal << jams::norm(rij);
       output << jams::fmt::sci << std::scientific << Jij[0][0];
       output << jams::fmt::sci << std::scientific << Jij[0][1];
       output << jams::fmt::sci << std::scientific << Jij[0][2];
@@ -644,4 +644,3 @@ write_neighbour_list(std::ostream &output, const jams::InteractionList<Mat3,2> &
       output << jams::fmt::sci << std::scientific << Jij[2][2] << "\n";
   }
 }
-

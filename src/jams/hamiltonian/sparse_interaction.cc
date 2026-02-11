@@ -85,8 +85,8 @@ jams::Real SparseInteractionHamiltonian::calculate_energy_difference(int i, cons
                                                                  const Vec3 &spin_final, jams::Real time) {
   assert(is_finalized_);
   auto field = calculate_field(i, time);
-  auto e_initial = -dot(spin_initial, field);
-  auto e_final = -dot(spin_final, field);
+  auto e_initial = -jams::dot(spin_initial, field);
+  auto e_final = -jams::dot(spin_final, field);
   return e_final - e_initial;
 }
 
@@ -94,7 +94,7 @@ jams::Real SparseInteractionHamiltonian::calculate_energy(const int i, jams::Rea
   assert(is_finalized_);
   Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
   auto field = calculate_field(i, time);
-  return -0.5 * dot(s_i, field);
+  return -0.5 * jams::dot(s_i, field);
 }
 
 jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time) {
@@ -117,7 +117,7 @@ jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time)
   for (auto i = 0; i < globals::num_spins; ++i) {
     Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     Vec3 h_i = {field_(i,0), field_(i, 1), field_(i, 2)};
-    total_energy += -dot(s_i, h_i);
+    total_energy += -jams::dot(s_i, h_i);
   }
   return total_energy;
 }

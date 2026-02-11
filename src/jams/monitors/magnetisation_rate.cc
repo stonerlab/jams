@@ -57,7 +57,7 @@ void MagnetisationRateMonitor::update(Solver& solver) {
     if (convergence_status_ != Monitor::ConvergenceStatus::kDisabled) {
       double total_dm_dt = 0.0;
       for (auto type = 0; type < globals::lattice->num_materials(); ++type) {
-        total_dm_dt += norm(dm_dt[type]);
+        total_dm_dt += jams::norm(dm_dt[type]);
       }
 
       magnetisation_stats_.add(total_dm_dt);

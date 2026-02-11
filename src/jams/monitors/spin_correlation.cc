@@ -44,7 +44,7 @@ void SpinCorrelationMonitor::post_process() {
   }
 
   for (double &n : avg_sz) {
-    n /= double(product(globals::lattice->size()) * num_samples_);
+    n /= double(jams::product(globals::lattice->size()) * num_samples_);
   }
 
   // subtract from the spin data
@@ -80,7 +80,7 @@ void SpinCorrelationMonitor::post_process() {
           sum += sz_data_(i, t) * sz_data_(j, t);
         }
 
-        const auto r_ij_sq = norm_squared(r_ij);
+        const auto r_ij_sq = jams::norm_squared(r_ij);
 
         if (do_in_plane) {
           in_plane_sz_corr_histogram_[r_ij_sq].count += num_samples_;

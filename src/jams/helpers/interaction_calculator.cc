@@ -44,7 +44,7 @@ namespace jams {
         auto origin = motif[n].position_frac;
 
         auto cartesian_distance = [unitcell, origin](const Atom &a) -> double {
-            return norm(unitcell.matrix() * (a.position_frac - origin));
+            return jams::norm(unitcell.matrix() * (a.position_frac - origin));
         };
 
         auto cartesian_distance_comp = [&](const Atom &a, const Atom &b) -> bool {
@@ -63,7 +63,7 @@ namespace jams {
         for (const auto &atom : atoms) {
           const auto radius = cartesian_distance(atom);
 
-          if (!approximately_equal(radius, shell.radius, eps)) {
+          if (!::approximately_equal(radius, shell.radius, eps)) {
             if (!shell.interactions.empty()) {
               interaction_shells.push_back(shell);
             }
@@ -73,7 +73,7 @@ namespace jams {
             shell.interactions.clear();
           }
 
-          if (approximately_zero(radius, jams::defaults::lattice_tolerance)) {  // self interaction
+          if (::approximately_zero(radius, jams::defaults::lattice_tolerance)) {  // self interaction
             continue;
           }
 

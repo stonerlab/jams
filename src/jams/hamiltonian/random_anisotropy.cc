@@ -73,8 +73,8 @@ jams::Real RandomAnisotropyHamiltonian::calculate_energy(const int i, jams::Real
 
 
 Vec3R RandomAnisotropyHamiltonian::calculate_field(const int i, jams::Real time) {
-  Vec3R s_i = array_cast<jams::Real>(Vec3{globals::s(i,0), globals::s(i,1), globals::s(i,2)});
-  return magnitude_[i] * dot(direction_[i], s_i) * direction_[i];
+  Vec3R s_i = jams::array_cast<jams::Real>(Vec3{globals::s(i,0), globals::s(i,1), globals::s(i,2)});
+  return magnitude_[i] * jams::dot(direction_[i], s_i) * direction_[i];
 }
 
 
