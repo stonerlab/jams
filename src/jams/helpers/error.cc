@@ -12,7 +12,7 @@ void jams_warning(const char *string, ...) {
   char buffer[1024];
 
   va_start(args, string);
-  vsprintf(buffer, string, args);
+  vsnprintf(buffer, sizeof(buffer), string, args);
   va_end(args);
 
   std::cerr << "\n********************************************************************************\n";
