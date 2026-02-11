@@ -24,7 +24,7 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
 : SpectrumBaseMonitor(settings) {
 
   // default to 1.0 in case no form factor is given in the settings
-  fill(neutron_form_factors_.resize(globals::lattice->num_basis_sites(), num_kpoints()), 1.0);
+  fill(neutron_form_factors_.resize(globals::lattice->num_basis_sites(), num_k_points()), 1.0);
   if (settings.exists("form_factor")) {
     configure_form_factors(settings["form_factor"]);
   }
@@ -34,9 +34,9 @@ NeutronScatteringMonitor::NeutronScatteringMonitor(const libconfig::Setting &set
   }
 
   zero(total_unpolarized_neutron_cross_section_.resize(
-      num_periodogram_samples(), num_kpoints()));
+      periodogram_length(), num_k_points()));
   zero(total_polarized_neutron_cross_sections_.resize(
-      neutron_polarizations_.size(), num_periodogram_samples(), num_kpoints()));
+      neutron_polarizations_.size(), periodogram_length(), num_k_points()));
 
   print_info();
 }
@@ -45,11 +45,11 @@ void NeutronScatteringMonitor::configure_form_factors(libconfig::Setting &settin
   auto gj = jams::read_form_factor_settings(settings);
 
   auto num_sites     = globals::lattice->num_basis_sites();
-  neutron_form_factors_.resize(num_sites, num_kpoints());
+  neutron_form_factors_.resize(num_sites, num_k_points());
   for (auto a = 0; a < num_sites; ++a) {
-    for (auto i = 0; i < num_kpoints(); ++i) {
+    for (auto i = 0; i < num_k_points(); ++i) {
       auto m = globals::lattice->basis_site_atom(a).material_index;
-      auto q = kspace_paths_[i].xyz;
+      auto q = k_points_[i].xyz;
       neutron_form_factors_(a, i) = form_factor(q, kMeterToAngstroms * globals::lattice->parameter(), gj.first[m], gj.second[m]);
     }
   }
@@ -63,10 +63,10 @@ void NeutronScatteringMonitor::configure_polarizations(libconfig::Setting &setti
 }
 
 void NeutronScatteringMonitor::update(Solver& solver) {
-  fourier_transform_to_kspace_and_store(globals::s);
+  store_sk_snapshot(globals::s);
 
-  if (do_periodogram_update()) {
-    const auto& spectrum = compute_periodogram_spectrum();
+  if (periodogram_window_complete()) {
+    const auto& spectrum = finalise_periodogram_spectrum();
 
     element_sum(total_unpolarized_neutron_cross_section_,
         calculate_unpolarized_cross_section(spectrum));
@@ -109,7 +109,7 @@ jams::MultiArray<jams::ComplexHi, 2> NeutronScatteringMonitor::calculate_unpolar
       Vec3 r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
 
       for (auto k = 0; k < num_reciprocal_points; ++k) {
-        auto kpoint = kspace_paths_[k];
+        auto kpoint = k_points_[k];
         auto Q = unit_vector(kpoint.xyz);
         auto q = kpoint.hkl;
         auto ff = neutron_form_factors_(a, k) * neutron_form_factors_(b, k);
@@ -154,7 +154,7 @@ jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polariz
     for (auto b = 0; b < num_sites; ++b) {
       const Vec3 r_ab = globals::lattice->basis_site_atom(b).position_frac - globals::lattice->basis_site_atom(a).position_frac;
       for (auto k = 0; k < num_reciprocal_points; ++k) {
-        auto kpoint = kspace_paths_[k];
+        auto kpoint = k_points_[k];
         auto Q = unit_vector(kpoint.xyz);
         auto q = kpoint.hkl;
         auto ff = neutron_form_factors_(a, k) * neutron_form_factors_(b, k);
@@ -194,7 +194,7 @@ jams::MultiArray<jams::ComplexHi, 3> NeutronScatteringMonitor::calculate_polariz
 
 void NeutronScatteringMonitor::output_neutron_cross_section() {
 
-  for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n) {
+  for (auto n = 0; n < k_segment_offsets_.size() - 1; ++n) {
     std::ofstream ofs(jams::output::full_path_filename_series("neutron_scattering_path.tsv", n));
 
     ofs << "index\t" << "q_total\t" << "h\t" << "k\t" << "l\t" << "qx\t" << "qy\t" << "qz\t";
@@ -206,20 +206,20 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
 
     // sample time is here because the fourier transform in time is not an integral
     // but a discrete sum
-    auto prefactor = (sample_time_interval() / num_periodogram_periods()) * (1.0 / (kTwoPi * kHBarIU))
+    auto prefactor = (sample_time_interval() / periodogram_window_count()) * (1.0 / (kTwoPi * kHBarIU))
                      * pow2((0.5 * kNeutronGFactor * pow2(kElementaryCharge)) / (kElectronMass * pow2(kSpeedOfLight)));
     auto barns_unitcell = prefactor / (1e-28 * globals::lattice->num_cells());
     auto time_points = total_unpolarized_neutron_cross_section_.size(0);
 
-    auto path_begin = kspace_continuous_path_ranges_[n];
-    auto path_end = kspace_continuous_path_ranges_[n + 1];
+    auto path_begin = k_segment_offsets_[n];
+    auto path_end = k_segment_offsets_[n + 1];
     for (auto i = 0; i < (time_points / 2) + 1; ++i) {
       double total_distance = 0.0;
       for (auto j = path_begin; j < path_end; ++j) {
         ofs << jams::fmt::integer << j << "\t";
         ofs << jams::fmt::decimal << total_distance << "\t";
-        ofs << jams::fmt::decimal << kspace_paths_[j].hkl << "\t";
-        ofs << jams::fmt::decimal << kspace_paths_[j].xyz << "\t";
+        ofs << jams::fmt::decimal << k_points_[j].hkl << "\t";
+        ofs << jams::fmt::decimal << k_points_[j].xyz << "\t";
         ofs << jams::fmt::decimal << i * frequency_resolution_thz() << "\t"; // THz
         ofs << jams::fmt::decimal << i * frequency_resolution_thz() * 4.135668 << "\t"; // meV
         // cross section output units are Barns Steradian^-1 Joules^-1 unitcell^-1
@@ -229,7 +229,7 @@ void NeutronScatteringMonitor::output_neutron_cross_section() {
           ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).real() << "\t";
           ofs << jams::fmt::sci << barns_unitcell * total_polarized_neutron_cross_sections_(k, i, j).imag() << "\t";
         }
-        total_distance += norm(kspace_paths_[j].xyz - kspace_paths_[j+1].xyz);
+        total_distance += norm(k_points_[j].xyz - k_points_[j+1].xyz);
         ofs << "\n";
       }
       ofs << std::endl;

@@ -61,6 +61,8 @@ void apply_kspace_phase_factors(jams::MultiArray<std::complex<double>, 5> &kspac
 void fft_supercell_vector_field_to_kspace(const jams::MultiArray<double, 2>& rspace_data, jams::MultiArray<Vec3cx,4>& kspace_data, const Vec3i& kspace_size, const Vec3i& kspace_padded_size, const int & num_sites);
 void fft_supercell_scalar_field_to_kspace(const jams::MultiArray<double, 1>& rspace_data, jams::MultiArray<jams::ComplexHi,4>& kspace_data, const Vec3i& kspace_size, const int & num_sites);
 
+/// @brief Struct to store the N dimensional array index of an FFTW frequency and whether the value should
+/// be conjugated for Hermitian symmetry.
 template <std::size_t N>
 struct FFTWHermitianIndex {
     Vec<int, N> offset;

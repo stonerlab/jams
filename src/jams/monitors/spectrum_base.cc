@@ -14,38 +14,38 @@
 #include <stdexcept>
 #include <vector>
 
-SpectrumBaseMonitor::ChannelMap SpectrumBaseMonitor::cartesian_channel_map()
+SpectrumBaseMonitor::ChannelTransform SpectrumBaseMonitor::cartesian_channel_map()
 {
-  return ChannelMap{};
+  return ChannelTransform{};
 }
 
-SpectrumBaseMonitor::ChannelMap SpectrumBaseMonitor::raise_lower_channel_map()
+SpectrumBaseMonitor::ChannelTransform SpectrumBaseMonitor::raise_lower_channel_map()
 {
-  ChannelMap m;
+  ChannelTransform m;
   m.output_channels = 3;
-  m.coeffs = {{
+  m.weights = {{
       {{kInvSqrtTwo, +kImagOne * kInvSqrtTwo, 0.0}},
       {{kInvSqrtTwo, -kImagOne * kInvSqrtTwo, 0.0}},
       {{0.0, 0.0, 1.0}}
   }};
-  m.rotate_to_sublattice_frame = true;
-  m.scale_by_spin_length = true;
+  m.use_local_frame = true;
+  m.scale_to_physical_spin = true;
   return m;
 }
 
 SpectrumBaseMonitor::SpectrumBaseMonitor(
     const libconfig::Setting &settings,
-    KSpacePathMode kspace_path_mode) : Monitor(settings)
+    KSamplingMode k_sampling_mode) : Monitor(settings)
 {
   keep_negative_frequencies_ = jams::config_optional<bool>(settings, "keep_negative_frequencies", keep_negative_frequencies_);
 
-  if (kspace_path_mode == KSpacePathMode::FullOnly)
+  if (k_sampling_mode == KSamplingMode::FullGrid)
   {
-    insert_full_kspace(globals::lattice->kspace_size());
+    append_full_k_grid(globals::lattice->kspace_size());
   }
   else
   {
-    configure_kspace_paths(settings["hkl_path"]);
+    configure_k_list(settings["hkl_path"]);
   }
 
   if (settings.exists("compute_periodogram"))
@@ -54,77 +54,75 @@ SpectrumBaseMonitor::SpectrumBaseMonitor(
   }
 
   const auto kspace_size = globals::lattice->kspace_size();
-  num_motif_atoms_ = globals::lattice->num_basis_sites();
+  num_basis_atoms_ = globals::lattice->num_basis_sites();
 
-  zero(kspace_data_.resize(
-      kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_motif_atoms_));
+  zero(sk_grid_.resize(
+      kspace_size[0], kspace_size[1], kspace_size[2] / 2 + 1, num_basis_atoms_));
 
   resize_channel_storage_();
 
   std::vector<Vec3> r_frac;
-  for (auto a = 0; a < num_motif_atoms(); ++a)
+  for (auto a = 0; a < num_basis_atoms(); ++a)
   {
     r_frac.push_back(globals::lattice->basis_site_atom(a).position_frac);
   }
-  sk_phase_factors_ = generate_phase_factors_(r_frac, kspace_paths_);
+  basis_phase_factors_ = generate_phase_factors_(r_frac, k_points_);
 }
 
 SpectrumBaseMonitor::~SpectrumBaseMonitor()
 {
-  fftw_destroy_plan(sw_spectrum_fft_plan_);
+  fftw_destroy_plan(sk_time_fft_plan_);
 }
 
-void SpectrumBaseMonitor::set_channel_map(const ChannelMap& channel_map)
+void SpectrumBaseMonitor::set_channel_map(const ChannelTransform& channel_map)
 {
   if (channel_map.output_channels < 1 || channel_map.output_channels > 3)
   {
     throw std::runtime_error("SpectrumBaseMonitor::set_channel_map output_channels must be in [1,3]");
   }
 
-  channel_map_ = channel_map;
+  channel_transform_ = channel_map;
   resize_channel_storage_();
 
-  if (sw_spectrum_fft_plan_)
+  if (sk_time_fft_plan_)
   {
-    fftw_destroy_plan(sw_spectrum_fft_plan_);
-    sw_spectrum_fft_plan_ = nullptr;
+    fftw_destroy_plan(sk_time_fft_plan_);
+    sk_time_fft_plan_ = nullptr;
   }
 }
 
-bool SpectrumBaseMonitor::requires_dynamic_channel_mapping_() const
+bool SpectrumBaseMonitor::needs_local_frame_mapping_() const
 {
-  return channel_map_.rotate_to_sublattice_frame;
+  return channel_transform_.use_local_frame;
 }
 
 void SpectrumBaseMonitor::resize_channel_storage_()
 {
   const int T = periodogram_props_.length;
-  const int K = static_cast<int>(kspace_paths_.size());
-  const int A = num_motif_atoms_;
+  const int K = static_cast<int>(k_points_.size());
+  const int A = num_basis_atoms_;
   const int C = num_channels();
 
-  if (requires_dynamic_channel_mapping_())
+  if (needs_local_frame_mapping_())
   {
-    timeseries_storage_mode_ = TimeseriesStorageMode::CartesianXYZ;
-    stored_timeseries_channels_ = 3;
+    stored_channel_count_ = 3;
   }
   else
   {
-    timeseries_storage_mode_ = TimeseriesStorageMode::MappedChannels;
-    stored_timeseries_channels_ = C;
+    stored_channel_count_ = C;
   }
-  zero(sk_timeseries_.resize(A, T, K, stored_timeseries_channels_));
+  zero(sk_time_series_.resize(A, T, K, stored_channel_count_));
 
   const int F = keep_negative_frequencies_ ? T : (T / 2 + 1);
-  zero(skw_spectrum_.resize(A, F, K, C));
+  zero(skw_buffer_.resize(A, F, K, C));
 
-  if (sw_window_.size() != T)
+  if (periodogram_window_.size() != T)
   {
-    sw_window_ = generate_normalised_window_(T);
+    periodogram_window_ = generate_normalised_window_(T);
   }
 }
 
-void SpectrumBaseMonitor::insert_full_kspace(Vec3i kspace_size)
+void SpectrumBaseMonitor::append_full_k_grid(Vec3i kspace_size)
 {
   std::vector<jams::HKLIndex> hkl_path;
 
@@ -142,16 +140,16 @@ void SpectrumBaseMonitor::insert_full_kspace(Vec3i kspace_size)
     }
   }
 
-  kspace_paths_.insert(end(kspace_paths_), begin(hkl_path), end(hkl_path));
+  k_points_.insert(end(k_points_), begin(hkl_path), end(hkl_path));
 
-  if (kspace_continuous_path_ranges_.empty())
+  if (k_segment_offsets_.empty())
   {
-    kspace_continuous_path_ranges_.push_back(0);
+    k_segment_offsets_.push_back(0);
   }
-  kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + static_cast<int>(hkl_path.size()));
+  k_segment_offsets_.push_back(k_segment_offsets_.back() + static_cast<int>(hkl_path.size()));
 }
 
-void SpectrumBaseMonitor::insert_continuous_kpath(libconfig::Setting& settings)
+void SpectrumBaseMonitor::append_k_path_segment(libconfig::Setting& settings)
 {
   if (!settings.isList())
   {
@@ -177,27 +175,27 @@ void SpectrumBaseMonitor::insert_continuous_kpath(libconfig::Setting& settings)
     }
   }
 
-  auto new_path = generate_hkl_kspace_path(hkl_path_nodes, globals::lattice->kspace_size());
-  kspace_paths_.insert(end(kspace_paths_), begin(new_path), end(new_path));
+  auto new_path = make_hkl_path(hkl_path_nodes, globals::lattice->kspace_size());
+  k_points_.insert(end(k_points_), begin(new_path), end(new_path));
 
-  if (kspace_continuous_path_ranges_.empty())
+  if (k_segment_offsets_.empty())
   {
-    kspace_continuous_path_ranges_.push_back(0);
+    k_segment_offsets_.push_back(0);
   }
-  kspace_continuous_path_ranges_.push_back(kspace_continuous_path_ranges_.back() + static_cast<int>(new_path.size()));
+  k_segment_offsets_.push_back(k_segment_offsets_.back() + static_cast<int>(new_path.size()));
 }
 
-void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings)
+void SpectrumBaseMonitor::configure_k_list(libconfig::Setting& settings)
 {
   if (settings.isString() && std::string(settings.c_str()) == "full")
   {
-    insert_full_kspace(globals::lattice->kspace_size());
+    append_full_k_grid(globals::lattice->kspace_size());
     return;
   }
 
   if (settings[0].isArray())
   {
-    insert_continuous_kpath(settings);
+    append_k_path_segment(settings);
     return;
   }
 
@@ -207,20 +205,20 @@ void SpectrumBaseMonitor::configure_kspace_paths(libconfig::Setting& settings)
     {
       if (settings[n].isArray())
       {
-        insert_continuous_kpath(settings[n]);
+        append_k_path_segment(settings[n]);
         continue;
       }
       if (settings[n].isString() && std::string(settings[n].c_str()) == "full")
       {
-        insert_full_kspace(globals::lattice->kspace_size());
+        append_full_k_grid(globals::lattice->kspace_size());
         continue;
       }
-      throw std::runtime_error("SpectrumBaseMonitor::configure_kspace_paths failed because a nodes is not an Array or String");
+      throw std::runtime_error("SpectrumBaseMonitor::configure_k_list failed because a nodes is not an Array or String");
     }
     return;
   }
 
-  throw std::runtime_error("SpectrumBaseMonitor::configure_kspace_paths failed because settings is not an Array, List or String");
+  throw std::runtime_error("SpectrumBaseMonitor::configure_k_list failed because settings is not an Array, List or String");
 }
 
 void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings)
@@ -244,7 +242,7 @@ void SpectrumBaseMonitor::configure_periodogram(libconfig::Setting &settings)
   }
 }
 
-std::vector<jams::HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const std::vector<Vec3> &hkl_nodes,
+std::vector<jams::HKLIndex> SpectrumBaseMonitor::make_hkl_path(const std::vector<Vec3> &hkl_nodes,
                                                                            const Vec3i &kspace_size)
 {
   std::vector<jams::HKLIndex> hkl_path;
@@ -345,29 +343,30 @@ std::vector<jams::HKLIndex> SpectrumBaseMonitor::generate_hkl_kspace_path(const 
   return hkl_path;
 }
 
-SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::fft_sk_timeseries_to_skw(const int kpoint_index)
+const SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::compute_frequency_spectrum_at_k(
+  const int kpoint_index)
 {
-  const int num_sites = num_motif_atoms();
-  const int num_time_samples = num_periodogram_samples();
+  const int num_sites = num_basis_atoms();
+  const int num_time_samples = periodogram_length();
   const int channels = num_channels();
 
-  if (sw_window_.size() != num_time_samples)
+  if (periodogram_window_.size() != num_time_samples)
   {
-    sw_window_ = generate_normalised_window_(num_time_samples);
+    periodogram_window_ = generate_normalised_window_(num_time_samples);
   }
 
-  if (!sw_spectrum_fft_plan_
-      || sw_spectrum_buffer_.size(0) != num_sites
-      || sw_spectrum_buffer_.size(1) != num_time_samples
-      || sw_spectrum_buffer_.size(2) != channels)
+  if (!sk_time_fft_plan_
+      || frequency_scratch_.size(0) != num_sites
+      || frequency_scratch_.size(1) != num_time_samples
+      || frequency_scratch_.size(2) != channels)
   {
-    if (sw_spectrum_fft_plan_)
+    if (sk_time_fft_plan_)
     {
-      fftw_destroy_plan(sw_spectrum_fft_plan_);
-      sw_spectrum_fft_plan_ = nullptr;
+      fftw_destroy_plan(sk_time_fft_plan_);
+      sk_time_fft_plan_ = nullptr;
     }
 
-    sw_spectrum_buffer_.resize(num_sites, num_time_samples, channels);
+    frequency_scratch_.resize(num_sites, num_time_samples, channels);
 
     const int n[1] = {num_time_samples};
     const int howmany = channels;
@@ -376,9 +375,9 @@ SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::fft_sk_timeseries_to
     const int idist = 1;
     const int odist = 1;
 
-    auto* dummy = FFTW_COMPLEX_CAST(&sw_spectrum_buffer_(0, 0, 0));
+    auto* dummy = FFTW_COMPLEX_CAST(&frequency_scratch_(0, 0, 0));
 
-    sw_spectrum_fft_plan_ = fftw_plan_many_dft(
+    sk_time_fft_plan_ = fftw_plan_many_dft(
         1,
         n,
         howmany,
@@ -393,32 +392,32 @@ SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::fft_sk_timeseries_to
         FFTW_FORWARD,
         FFTW_ESTIMATE);
 
-    assert(sw_spectrum_fft_plan_);
+    assert(sk_time_fft_plan_);
   }
 
-  const auto rotations = requires_dynamic_channel_mapping_()
+  const auto rotations = needs_local_frame_mapping_()
       ? generate_sublattice_rotations_()
       : jams::MultiArray<Mat3, 1>{};
-  const auto* rotations_ptr = requires_dynamic_channel_mapping_() ? &rotations : nullptr;
+  const auto* rotations_ptr = needs_local_frame_mapping_() ? &rotations : nullptr;
 
   for (auto a = 0; a < num_sites; ++a)
   {
     for (auto t = 0; t < num_time_samples; ++t)
     {
-      if (requires_dynamic_channel_mapping_())
+      if (needs_local_frame_mapping_())
       {
         const Vec3cx spin_xyz = read_cartesian_spin_(a, t, kpoint_index);
         for (auto c = 0; c < channels; ++c)
         {
-          sw_spectrum_buffer_(a, t, c) = map_spin_component_(a, c, spin_xyz, rotations_ptr);
+          frequency_scratch_(a, t, c) = map_spin_component_(a, c, spin_xyz, rotations_ptr);
         }
       }
       else
       {
         for (auto c = 0; c < channels; ++c)
         {
-          const auto s = sk_timeseries_(a, t, kpoint_index, c);
-          sw_spectrum_buffer_(a, t, c) = jams::ComplexHi{s.real(), s.imag()};
+          const auto s = sk_time_series_(a, t, kpoint_index, c);
+          frequency_scratch_(a, t, c) = jams::ComplexHi{s.real(), s.imag()};
         }
       }
     }
@@ -434,7 +433,7 @@ SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::fft_sk_timeseries_to
     {
       for (auto c = 0; c < channels; ++c)
       {
-        sk0[c] += time_norm * sw_spectrum_buffer_(a, t, c);
+        sk0[c] += time_norm * frequency_scratch_(a, t, c);
       }
     }
 
@@ -442,84 +441,85 @@ SpectrumBaseMonitor::CmplxMappedSlice& SpectrumBaseMonitor::fft_sk_timeseries_to
     {
       for (auto c = 0; c < channels; ++c)
       {
-        sw_spectrum_buffer_(a, t, c) = time_norm * sw_window_(t) * (sw_spectrum_buffer_(a, t, c) - sk0[c]);
+        frequency_scratch_(a, t, c) = time_norm * periodogram_window_(t) * (frequency_scratch_(a, t, c) - sk0[c]);
       }
     }
   }
 
   for (auto a = 0; a < num_sites; ++a)
   {
-    auto* ptr = FFTW_COMPLEX_CAST(&sw_spectrum_buffer_(a, 0, 0));
-    fftw_execute_dft(sw_spectrum_fft_plan_, ptr, ptr);
+    auto* ptr = FFTW_COMPLEX_CAST(&frequency_scratch_(a, 0, 0));
+    fftw_execute_dft(sk_time_fft_plan_, ptr, ptr);
   }
 
-  return sw_spectrum_buffer_;
+  return frequency_scratch_;
 }
 
-bool SpectrumBaseMonitor::do_periodogram_update() const
+bool SpectrumBaseMonitor::periodogram_window_complete() const
 {
-  return periodogram_index_ >= periodogram_props_.length && periodogram_props_.length > 0;
+  return periodogram_sample_index_ >= periodogram_props_.length && periodogram_props_.length > 0;
 }
 
-void SpectrumBaseMonitor::shift_periodogram()
+void SpectrumBaseMonitor::advance_periodogram_window()
 {
-  shift_sk_timeseries_();
-  if (requires_dynamic_channel_mapping_())
+  advance_sk_timeseries_();
+  if (needs_local_frame_mapping_())
   {
-    shift_sublattice_magnetisation_timeseries_();
+    advance_sublattice_magnetisation_timeseries_();
   }
-  periodogram_index_ = periodogram_props_.overlap;
-  total_periods_++;
+  periodogram_sample_index_ = periodogram_props_.overlap;
+  periodogram_window_count_++;
 }
 
-const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::compute_periodogram_spectrum()
+const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_periodogram_spectrum()
 {
-  const int num_sites = num_motif_atoms();
-  const int num_k = num_kpoints();
+  const int num_sites = num_basis_atoms();
+  const int num_k = num_k_points();
   const int channels = num_channels();
-  const int num_freq_out = keep_negative_frequencies_ ? num_periodogram_samples() : (num_periodogram_samples() / 2 + 1);
+  const int num_freq_out = keep_negative_frequencies_ ? periodogram_length() : (periodogram_length() / 2 + 1);
 
-  if (skw_spectrum_.size(0) != num_sites
-      || skw_spectrum_.size(1) != num_freq_out
-      || skw_spectrum_.size(2) != num_k
-      || skw_spectrum_.size(3) != channels)
+  if (skw_buffer_.size(0) != num_sites
+      || skw_buffer_.size(1) != num_freq_out
+      || skw_buffer_.size(2) != num_k
+      || skw_buffer_.size(3) != channels)
   {
-    skw_spectrum_.resize(num_sites, num_freq_out, num_k, channels);
+    skw_buffer_.resize(num_sites, num_freq_out, num_k, channels);
   }
 
   for (auto k = 0; k < num_k; ++k)
   {
-    auto& sw_spectrum = fft_sk_timeseries_to_skw(k);
+    auto& sw_spectrum = compute_frequency_spectrum_at_k(k);
     for (auto a = 0; a < num_sites; ++a)
     {
       for (auto f = 0; f < num_freq_out; ++f)
       {
         for (auto c = 0; c < channels; ++c)
         {
-          skw_spectrum_(a, f, k, c) = sw_spectrum(a, f, c);
+          skw_buffer_(a, f, k, c) = sw_spectrum(a, f, c);
         }
       }
     }
   }
 
-  shift_sk_timeseries_();
-  periodogram_index_ = periodogram_props_.overlap;
-  total_periods_++;
-  return skw_spectrum_;
+  advance_periodogram_window();
+
+  periodogram_sample_index_ = periodogram_props_.overlap;
+  periodogram_window_count_++;
+  return skw_buffer_;
 }
 
-const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::compute_periodogram_rotated_spectrum()
+const SpectrumBaseMonitor::CmplxMappedSpectrum& SpectrumBaseMonitor::finalise_periodogram_spectrum_rotated()
 {
-  return compute_periodogram_spectrum();
+  return finalise_periodogram_spectrum();
 }
 
-void SpectrumBaseMonitor::shift_sk_timeseries_()
+void SpectrumBaseMonitor::advance_sk_timeseries_()
 {
   const std::size_t ov = static_cast<std::size_t>(periodogram_overlap());
-  const std::size_t A = sk_timeseries_.size(0);
-  const std::size_t T = sk_timeseries_.size(1);
-  const std::size_t K = sk_timeseries_.size(2);
-  const std::size_t C = sk_timeseries_.size(3);
+  const std::size_t A = sk_time_series_.size(0);
+  const std::size_t T = sk_time_series_.size(1);
+  const std::size_t K = sk_time_series_.size(2);
+  const std::size_t C = sk_time_series_.size(3);
 
   assert(ov < T);
 
@@ -529,14 +529,14 @@ void SpectrumBaseMonitor::shift_sk_timeseries_()
   {
     for (std::size_t i = 0; i < ov; ++i)
     {
-      auto* dst = &sk_timeseries_(a, i, 0, 0);
-      const auto* src = &sk_timeseries_(a, src0 + i, 0, 0);
+      auto* dst = &sk_time_series_(a, i, 0, 0);
+      const auto* src = &sk_time_series_(a, src0 + i, 0, 0);
       std::copy_n(src, row_size, dst);
     }
   }
 }
 
-void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3cx,4> &kspace_data,
+void SpectrumBaseMonitor::append_sk_sample_for_k_list(const jams::MultiArray<Vec3cx,4> &kspace_data,
                                                     const std::vector<jams::HKLIndex> &kspace_path)
 {
   for (auto a = 0; a < kspace_data.size(3); ++a)
@@ -544,31 +544,31 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
     for (auto k = 0; k < kspace_path.size(); ++k)
     {
       const auto kindex = kspace_path[k].index;
-      const auto i = periodogram_index_;
+      const auto i = periodogram_sample_index_;
       const auto idx = kindex.offset;
 
       Vec3cx spin_xyz;
       if (kindex.conj)
       {
-        spin_xyz = sk_phase_factors_(a, k) * conj(kspace_data(idx[0], idx[1], idx[2], a));
+        spin_xyz = basis_phase_factors_(a, k) * conj(kspace_data(idx[0], idx[1], idx[2], a));
       }
       else
       {
-        spin_xyz = sk_phase_factors_(a, k) * kspace_data(idx[0], idx[1], idx[2], a);
+        spin_xyz = basis_phase_factors_(a, k) * kspace_data(idx[0], idx[1], idx[2], a);
       }
 
-      if (requires_dynamic_channel_mapping_())
+      if (needs_local_frame_mapping_())
       {
-        sk_timeseries_(a, i, k, 0) = CmplxStored{static_cast<float>(spin_xyz[0].real()), static_cast<float>(spin_xyz[0].imag())};
-        sk_timeseries_(a, i, k, 1) = CmplxStored{static_cast<float>(spin_xyz[1].real()), static_cast<float>(spin_xyz[1].imag())};
-        sk_timeseries_(a, i, k, 2) = CmplxStored{static_cast<float>(spin_xyz[2].real()), static_cast<float>(spin_xyz[2].imag())};
+        sk_time_series_(a, i, k, 0) = CmplxStored{static_cast<float>(spin_xyz[0].real()), static_cast<float>(spin_xyz[0].imag())};
+        sk_time_series_(a, i, k, 1) = CmplxStored{static_cast<float>(spin_xyz[1].real()), static_cast<float>(spin_xyz[1].imag())};
+        sk_time_series_(a, i, k, 2) = CmplxStored{static_cast<float>(spin_xyz[2].real()), static_cast<float>(spin_xyz[2].imag())};
       }
       else
       {
         for (auto c = 0; c < num_channels(); ++c)
         {
           const auto value = map_spin_component_(a, c, spin_xyz, nullptr);
-          sk_timeseries_(a, i, k, c) = CmplxStored{static_cast<float>(value.real()), static_cast<float>(value.imag())};
+          sk_time_series_(a, i, k, c) = CmplxStored{static_cast<float>(value.real()), static_cast<float>(value.imag())};
         }
       }
     }
@@ -577,23 +577,23 @@ void SpectrumBaseMonitor::store_kspace_data_on_path(const jams::MultiArray<Vec3c
 
 void SpectrumBaseMonitor::store_sublattice_magnetisation_(const jams::MultiArray<double, 2>& spin_state)
 {
-  if (sublattice_magnetisation_.empty())
+  if (basis_mag_time_series_.empty())
   {
-    sublattice_magnetisation_.resize(num_motif_atoms(), num_periodogram_samples());
+    basis_mag_time_series_.resize(num_basis_atoms(), periodogram_length());
   }
-  const auto p = periodogram_index();
+  const auto p = periodogram_sample_index();
   for (auto i = 0; i < globals::num_spins; ++i)
   {
     Vec3 spin = {spin_state(i, 0), spin_state(i, 1), spin_state(i, 2)};
     const auto m = globals::lattice->lattice_site_basis_index(i);
-    sublattice_magnetisation_(m, p) += spin;
+    basis_mag_time_series_(m, p) += spin;
   }
 }
 
-void SpectrumBaseMonitor::shift_sublattice_magnetisation_timeseries_()
+void SpectrumBaseMonitor::advance_sublattice_magnetisation_timeseries_()
 {
   const std::size_t M = globals::lattice->num_basis_sites();
-  const std::size_t Ns = static_cast<std::size_t>(num_periodogram_samples());
+  const std::size_t Ns = static_cast<std::size_t>(periodogram_length());
   const std::size_t ov = static_cast<std::size_t>(periodogram_overlap());
 
   if (Ns == 0)
@@ -607,28 +607,28 @@ void SpectrumBaseMonitor::shift_sublattice_magnetisation_timeseries_()
 
   for (std::size_t m = 0; m < M; ++m)
   {
-    auto* dst = &sublattice_magnetisation_(m, 0);
-    const auto* src = &sublattice_magnetisation_(m, src0);
+    auto* dst = &basis_mag_time_series_(m, 0);
+    const auto* src = &basis_mag_time_series_(m, src0);
     std::copy_n(src, ov, dst);
-    std::fill_n(&sublattice_magnetisation_(m, ov), Ns - ov, Vec3{0, 0, 0});
+    std::fill_n(&basis_mag_time_series_(m, ov), Ns - ov, Vec3{0, 0, 0});
   }
 }
 
-jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::generate_sublattice_magnetisation_directions_()
+jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::compute_mean_basis_mag_directions_()
 {
-  if (sw_window_.empty())
+  if (periodogram_window_.empty())
   {
-    sw_window_ = generate_normalised_window_(num_periodogram_samples());
+    periodogram_window_ = generate_normalised_window_(periodogram_length());
   }
 
-  jams::MultiArray<Vec3, 1> mean_directions(num_motif_atoms());
+  jams::MultiArray<Vec3, 1> mean_directions(num_basis_atoms());
   zero(mean_directions);
 
-  for (auto m = 0; m < num_motif_atoms(); ++m)
+  for (auto m = 0; m < num_basis_atoms(); ++m)
   {
-    for (auto n = 0; n < num_periodogram_samples(); ++n)
+    for (auto n = 0; n < periodogram_length(); ++n)
     {
-      mean_directions(m) += sw_window_(n) * sublattice_magnetisation_(m, n);
+      mean_directions(m) += periodogram_window_(n) * basis_mag_time_series_(m, n);
     }
 
     mean_directions(m) = normalize(mean_directions(m));
@@ -639,18 +639,18 @@ jams::MultiArray<Vec3, 1> SpectrumBaseMonitor::generate_sublattice_magnetisation
 
 jams::MultiArray<Mat3, 1> SpectrumBaseMonitor::generate_sublattice_rotations_()
 {
-  jams::MultiArray<Mat3, 1> rotations(num_motif_atoms());
-  for (auto a = 0; a < num_motif_atoms(); ++a)
+  jams::MultiArray<Mat3, 1> rotations(num_basis_atoms());
+  for (auto a = 0; a < num_basis_atoms(); ++a)
   {
     rotations(a) = kIdentityMat3;
   }
 
-  if (!channel_map_.rotate_to_sublattice_frame)
+  if (!channel_transform_.use_local_frame)
   {
     return rotations;
   }
 
-  const auto mean_directions = generate_sublattice_magnetisation_directions_();
+  const auto mean_directions = compute_mean_basis_mag_directions_();
 
   for (auto m = 0; m < mean_directions.size(); ++m)
   {
@@ -719,14 +719,14 @@ jams::ComplexHi SpectrumBaseMonitor::map_spin_component_(
     s = (*rotations)(basis_index) * s;
   }
 
-  if (channel_map_.scale_by_spin_length)
+  if (channel_transform_.scale_to_physical_spin)
   {
     const double mu = globals::mus(basis_index);
     const double spin_length = mu / kElectronGFactor;
     s *= spin_length;
   }
 
-  const auto& w = channel_map_.coeffs[channel_index];
+  const auto& w = channel_transform_.weights[channel_index];
   return w[0] * s[0] + w[1] * s[1] + w[2] * s[2];
 }
 
@@ -734,10 +734,10 @@ Vec3cx SpectrumBaseMonitor::read_cartesian_spin_(const int basis_index,
                                                  const int time_index,
                                                  const int k_index) const
 {
-  assert(stored_timeseries_channels_ >= 3);
-  const auto sx = sk_timeseries_(basis_index, time_index, k_index, 0);
-  const auto sy = sk_timeseries_(basis_index, time_index, k_index, 1);
-  const auto sz = sk_timeseries_(basis_index, time_index, k_index, 2);
+  assert(stored_channel_count_ >= 3);
+  const auto sx = sk_time_series_(basis_index, time_index, k_index, 0);
+  const auto sy = sk_time_series_(basis_index, time_index, k_index, 1);
+  const auto sz = sk_time_series_(basis_index, time_index, k_index, 2);
   return Vec3cx{
       jams::ComplexHi{sx.real(), sx.imag()},
       jams::ComplexHi{sy.real(), sy.imag()},
@@ -786,29 +786,29 @@ jams::MultiArray<jams::ComplexHi, 2> SpectrumBaseMonitor::generate_phase_factors
   return phase_factors;
 }
 
-void SpectrumBaseMonitor::fourier_transform_to_kspace_and_store(const jams::MultiArray<double, 2> &data)
+void SpectrumBaseMonitor::store_sk_snapshot(const jams::MultiArray<double, 2> &data)
 {
   fft_supercell_vector_field_to_kspace(
       data,
-      kspace_data_,
+      sk_grid_,
       globals::lattice->size(),
       globals::lattice->kspace_size(),
       globals::lattice->num_basis_sites());
 
-  if (requires_dynamic_channel_mapping_())
+  if (needs_local_frame_mapping_())
   {
     store_sublattice_magnetisation_(data);
   }
-  store_kspace_data_on_path(kspace_data_, kspace_paths_);
-  periodogram_index_++;
+  append_sk_sample_for_k_list(sk_grid_, k_points_);
+  periodogram_sample_index_++;
 }
 
 void SpectrumBaseMonitor::print_info() const
 {
   std::cout << "\n";
-  std::cout << "  number of samples " << num_periodogram_samples() << "\n";
+  std::cout << "  number of samples " << periodogram_length() << "\n";
   std::cout << "  sampling time (s) " << sample_time_interval() << "\n";
-  std::cout << "  acquisition time (s) " << sample_time_interval() * num_periodogram_samples() << "\n";
+  std::cout << "  acquisition time (s) " << sample_time_interval() * periodogram_length() << "\n";
   std::cout << "  frequency resolution (THz) " << frequency_resolution_thz() << "\n";
   std::cout << "  maximum frequency (THz) " << max_frequency_thz() << "\n";
   std::cout << "  channels " << num_channels() << "\n";

@@ -12,9 +12,9 @@
 #include "jams/core/lattice.h"
 
 MagnonDensityMonitor::MagnonDensityMonitor(const libconfig::Setting& settings)
-    : SpectrumBaseMonitor(settings, KSpacePathMode::FullOnly)
+    : SpectrumBaseMonitor(settings, KSamplingMode::FullGrid)
 {
-    const int time_points = num_periodogram_samples();
+    const int time_points = periodogram_length();
     const int freq_bins = keep_negative_frequencies() ? time_points
                                                       : (time_points / 2 + 1);
     zero(cumulative_magnon_density_.resize(freq_bins));
@@ -28,13 +28,13 @@ MagnonDensityMonitor::MagnonDensityMonitor(const libconfig::Setting& settings)
 
 void MagnonDensityMonitor::update(Solver& solver)
 {
-    fourier_transform_to_kspace_and_store(globals::s);
+    store_sk_snapshot(globals::s);
 
-    if (do_periodogram_update())
+    if (periodogram_window_complete())
     {
         accumulate_magnon_density();
         output_magnon_density();
-        shift_periodogram();
+        advance_periodogram_window();
     }
 }
 
@@ -46,14 +46,14 @@ void MagnonDensityMonitor::output_magnon_density()
     ofs << jams::fmt::decimal << "magnon_density_meV^-1_m^-3";
     ofs << std::endl;
 
-    const int time_points = num_periodogram_samples();
+    const int time_points = periodogram_length();
 
     // ---- Clean physical normalisation ----
     // Convert |S+|^2 → magnon occupation
     // Make spectrum integrate to magnon number
     // Output per unit real-space volume
 
-    const double Nt = static_cast<double>(num_periodogram_samples());
+    const double Nt = static_cast<double>(periodogram_length());
     (void)Nt;
 
     // For a one-sided spectrum, we apply wfreq below. Here we normalise to magnons per (m^3 * meV).
@@ -64,23 +64,23 @@ void MagnonDensityMonitor::output_magnon_density()
     // Total real-space volume of the simulated supercell in m^3
     const double v = volume(globals::lattice->get_supercell()) * pow3(globals::lattice->parameter());
 
-    // Average spin length S = mu/g across motif sites.
+    // Average spin length S = mu/g across basis sites.
     // globals::mus is indexed by material, so look up via basis-site material_index.
     double avg_S = 0.0;
-    for (int a = 0; a < num_motif_atoms(); ++a)
+    for (int a = 0; a < num_basis_atoms(); ++a)
     {
         const double mu = globals::mus(a);        // Bohr magnetons
         const double S  = mu / kElectronGFactor;    // dimensionless spin length
         avg_S += S;
     }
-    avg_S /= static_cast<double>(num_motif_atoms());
+    avg_S /= static_cast<double>(num_basis_atoms());
 
     // Prefactor converts accumulated |S+(q, f)|^2 into magnon number density per meV per m^3:
     //  - divide by avg_S to convert |S+|^2 -> occupation (a^\dagger a)
     //  - average over periodograms and k-points
     //  - divide by volume to get per m^3
     //  - divide by df to get per THz, then divide by kTHz2meV at output to get per meV
-    const double prefactor = inv_df_thz / (avg_S * v * num_periodogram_periods());
+    const double prefactor = inv_df_thz / (avg_S * v * periodogram_window_count());
 
     const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
     const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
@@ -111,16 +111,16 @@ void MagnonDensityMonitor::output_magnon_density()
 
 void MagnonDensityMonitor::accumulate_magnon_density()
 {
-    for (auto k = 0; k < num_kpoints(); ++k)
+    for (auto k = 0; k < num_k_points(); ++k)
     {
-        const auto& sw = fft_sk_timeseries_to_skw(k);
-        const auto time_points = num_periodogram_samples();
+        const auto& sw = compute_frequency_spectrum_at_k(k);
+        const auto time_points = periodogram_length();
         const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
 
         assert(cumulative_magnon_density_.size() >= static_cast<std::size_t>(freq_end));
 
-        for (auto a = 0; a < num_motif_atoms(); ++a)
+        for (auto a = 0; a < num_basis_atoms(); ++a)
         {
             for (auto i = 0; i < freq_end; ++i)
             {

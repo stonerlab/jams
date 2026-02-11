@@ -18,10 +18,10 @@
 MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings) : SpectrumBaseMonitor(settings)
 {
     // Size frequency dimension consistently with keep_negative_frequencies()
-    const int time_points = num_periodogram_samples();
+    const int time_points = periodogram_length();
     const int freq_bins = keep_negative_frequencies() ? time_points
                                                       : (time_points / 2 + 1);
-    zero(cumulative_magnon_spectrum_.resize(freq_bins, num_kpoints()));
+    zero(cumulative_magnon_spectrum_.resize(freq_bins, num_k_points()));
 
     do_magnon_spectrum_output_ = jams::config_optional<bool>(settings, "output_magnon_spectrum", do_magnon_spectrum_output_);
     do_site_resolved_output_ = jams::config_optional<bool>(settings, "site_resolved", do_site_resolved_output_);
@@ -38,9 +38,9 @@ MagnonSpectrumMonitor::MagnonSpectrumMonitor(const libconfig::Setting& settings)
 void MagnonSpectrumMonitor::update(Solver& solver)
 {
 
-    fourier_transform_to_kspace_and_store(globals::s);
+    store_sk_snapshot(globals::s);
 
-    if (do_periodogram_update())
+    if (periodogram_window_complete())
     {
         if (do_magnon_spectrum_output_)
         {
@@ -57,14 +57,14 @@ void MagnonSpectrumMonitor::update(Solver& solver)
             output_total_magnon_spectrum();
         }
 
-        shift_periodogram();
+        advance_periodogram_window();
 
     }
 }
 
 void MagnonSpectrumMonitor::output_total_magnon_spectrum()
 {
-    for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n)
+    for (auto n = 0; n < k_segment_offsets_.size() - 1; ++n)
     {
         std::ofstream ofs(jams::output::full_path_filename_series("magnon_spectrum_path.tsv", n, 1));
         ofs << jams::fmt::integer << "index";
@@ -80,11 +80,11 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
 
         // sample time is here because the fourier transform in time is not an integral
         // but a discrete sum
-        auto prefactor = (sample_time_interval() / (num_periodogram_periods()));
-        auto time_points = num_periodogram_samples();
+        auto prefactor = (sample_time_interval() / (periodogram_window_count()));
+        auto time_points = periodogram_length();
 
-        auto path_begin = kspace_continuous_path_ranges_[n];
-        auto path_end = kspace_continuous_path_ranges_[n + 1];
+        auto path_begin = k_segment_offsets_[n];
+        auto path_end = k_segment_offsets_[n + 1];
         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
         for (auto i = 0; i < num_frequencies(); ++i)
         {
@@ -97,8 +97,8 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
             {
                 ofs << jams::fmt::integer << k;
                 ofs << jams::fmt::decimal << total_distance;
-                ofs << jams::fmt::decimal << kspace_paths_[k].hkl;
-                ofs << jams::fmt::decimal << kspace_paths_[k].xyz;
+                ofs << jams::fmt::decimal << k_points_[k].hkl;
+                ofs << jams::fmt::decimal << k_points_[k].xyz;
                 ofs << jams::fmt::decimal << freq_thz; // THz
                 ofs << jams::fmt::decimal << freq_thz * 4.135668; // meV
                 ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[0];
@@ -106,7 +106,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
                 ofs << jams::fmt::sci << prefactor * cumulative_magnon_spectrum_(f, k)[2];
 
                 if (k + 1 < path_end) {
-                    total_distance += norm(kspace_paths_[k].xyz - kspace_paths_[k + 1].xyz);
+                    total_distance += norm(k_points_[k].xyz - k_points_[k + 1].xyz);
                 }
                 ofs << "\n";
             }
@@ -119,7 +119,7 @@ void MagnonSpectrumMonitor::output_total_magnon_spectrum()
 
 void MagnonSpectrumMonitor::output_site_resolved_magnon_spectrum()
 {
-    // for (auto site = 0; site < num_motif_atoms(); ++site)
+    // for (auto site = 0; site < num_basis_atoms(); ++site)
     // {
     //     for (auto n = 0; n < kspace_continuous_path_ranges_.size() - 1; ++n)
     //     {
@@ -224,10 +224,10 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum()
     /// and the sqw array contains (through the channel mapping) components
     /// 0: +  |  1: -  |  2: z
 
-    for (auto k = 0; k < num_kpoints(); ++k)
+    for (auto k = 0; k < num_k_points(); ++k)
     {
-        const auto& sw = fft_sk_timeseries_to_skw(k);
-        const auto time_points = num_periodogram_samples();
+        const auto& sw = compute_frequency_spectrum_at_k(k);
+        const auto time_points = periodogram_length();
         const auto freq_end = keep_negative_frequencies() ? time_points : (time_points / 2) + 1;
         const auto freq_start = (time_points % 2 == 0) ? (time_points / 2 + 1) : ((time_points + 1) / 2);
 
@@ -235,7 +235,7 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum()
         assert(cumulative_magnon_spectrum_.size(0) >= static_cast<std::size_t>(freq_end));
         assert(cumulative_magnon_spectrum_.size(1) >= static_cast<std::size_t>(num_kpoints()));
 
-        for (auto a = 0; a < num_motif_atoms(); ++a)
+        for (auto a = 0; a < num_basis_atoms(); ++a)
         {
             for (auto i = 0; i < freq_end; ++i)
             {
