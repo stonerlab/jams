@@ -233,7 +233,7 @@ void MagnonSpectrumMonitor::accumulate_magnon_spectrum()
 
         // Defensive: check that cumulative_magnon_spectrum_ is sized to hold freq_end and kpoints
         assert(cumulative_magnon_spectrum_.size(0) >= static_cast<std::size_t>(freq_end));
-        assert(cumulative_magnon_spectrum_.size(1) >= static_cast<std::size_t>(num_kpoints()));
+        assert(cumulative_magnon_spectrum_.size(1) >= static_cast<std::size_t>(num_k_points()));
 
         for (auto a = 0; a < num_basis_atoms(); ++a)
         {
