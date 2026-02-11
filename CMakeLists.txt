@@ -39,7 +39,11 @@ if (JAMS_BUILD_CUDA)
         set(CMAKE_CUDA_ARCHITECTURES $ENV{CUDA_ARCHITECTURES})
     else()
         # Default architectures if the environment variable is not set
-        set(CMAKE_CUDA_ARCHITECTURES "75;80;89;90")
+        # 80 -> Ampere (A30)
+        # 89 -> Ada Lovelace (L40s)
+        # 90 -> Hopper (H200)
+        # 120 -> Blackwell (RTX 5080/5090/6000)
+        set(CMAKE_CUDA_ARCHITECTURES "80;89;90;120")
     endif()
 
     set(MESSAGE_QUIET)
