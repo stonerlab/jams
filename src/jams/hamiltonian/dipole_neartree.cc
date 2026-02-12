@@ -6,7 +6,6 @@
 #include "jams/core/lattice.h"
 
 #include "jams/hamiltonian/dipole_neartree.h"
-#include "jams/interface/openmp.h"
 #include "jams/lattice/interaction_neartree.h"
 
 #include <iostream>

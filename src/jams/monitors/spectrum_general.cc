@@ -19,7 +19,6 @@
 #include "jams/helpers/random.h"
 #include "jams/core/lattice.h"
 #include "spectrum_general.h"
-#include "jams/interface/openmp.h"
 #include "jams/helpers/output.h"
 #include <jams/helpers/mixed_precision.h>
 
@@ -161,7 +160,6 @@ SpectrumGeneralMonitor::~SpectrumGeneralMonitor() {
         // precalculate the exponential factors for the spatial fourier transform
         const auto qfactors = generate_expQR(qvecs[n], globals::lattice->displacement(j, i));
 
-        OMP_PARALLEL_FOR
         for (unsigned w = 0; w < padded_size_ / 2 + 1; ++w) {
           for (unsigned q = 0; q < qfactors.size(); ++q) {
             // the spin_data_ multiplication uses convolution theory to avoid first calculating the time correlation

@@ -7,8 +7,6 @@
 
 #include <cstring>
 
-#include "jams/interface/openmp.h"
-
 namespace jams {
         template<typename MatType, typename X>
         [[gnu::hot]]
@@ -67,12 +65,10 @@ namespace jams {
             Y *y) {
 
           if (alpha == A(1) && beta == A(0)) {
-            OMP_PARALLEL_FOR
             for (auto i = 0; i < m; ++i) {  // iterate num_rows
               y[i] = Xcsrmv_general_row(csr_val, csr_col, csr_row, x, i);
             }
           } else {
-            OMP_PARALLEL_FOR
             for (auto i = 0; i < m; ++i) {  // iterate num_rows
               auto sum = Xcsrmv_general_row(csr_val, csr_col, csr_row, x, i);
               y[i] = beta * y[i] + alpha * sum;
@@ -94,11 +90,9 @@ namespace jams {
             Y *y) {
 
           if (alpha == A(1) && beta == A(0)) {
-            OMP_PARALLEL_FOR
             for (auto i = 0; i < m; ++i) {
               y[i] = Y(0);
             }
-            OMP_PARALLEL_FOR
             for (auto i = 0; i < nnz; ++i) {
               auto row = coo_row[i];
               auto col = coo_col[i];
@@ -106,11 +100,9 @@ namespace jams {
               y[row] += x[col] * val;
             }
           } else {
-            OMP_PARALLEL_FOR
             for (auto i = 0; i < m; ++i) {
               y[i] *= beta;
             }
-            OMP_PARALLEL_FOR
             for (auto i = 0; i < nnz; ++i) {
               auto row = coo_row[i];
               auto col = coo_col[i];

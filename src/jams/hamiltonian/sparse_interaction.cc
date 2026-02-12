@@ -112,7 +112,7 @@ jams::Real SparseInteractionHamiltonian::calculate_total_energy(jams::Real time)
   jams::Real total_energy = 0.0;
   calculate_fields(time);
   #if HAS_OMP
-  #pragma omp parallel for default(none) shared(num_spins, s, field_) reduction(+:total_energy)
+  #pragma omp parallel for default(none) shared(globals::num_spins, globals::s, field_) reduction(+:total_energy)
   #endif
   for (auto i = 0; i < globals::num_spins; ++i) {
     Vec3 s_i = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};

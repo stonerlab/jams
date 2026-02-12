@@ -10,7 +10,6 @@
 #include "jams/helpers/maths.h"
 #include "jams/core/globals.h"
 #include "jams/core/lattice.h"
-#include "jams/interface/openmp.h"
 #include "jams/helpers/output.h"
 
 #include "jams/monitors/magnetisation.h"

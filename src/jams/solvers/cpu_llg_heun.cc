@@ -10,7 +10,6 @@
 #include "jams/core/globals.h"
 #include "jams/core/physics.h"
 #include "jams/helpers/random.h"
-#include "jams/interface/openmp.h"
 
 void HeunLLGSolver::initialize(const libconfig::Setting& settings) {
   // convert input in seconds to picoseconds for internal units
@@ -55,7 +54,6 @@ void HeunLLGSolver::run() {
     std::generate(w_.begin(), w_.end(), [&](){return normal_distribution(random_generator_);});
 
     const auto sqrt_temperature = sqrt(physics_module_->temperature());
-    OMP_PARALLEL_FOR
     for (auto i = 0; i < globals::num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
         w_(i, j) = w_(i, j) * sigma_(i) * sqrt_temperature;
@@ -66,14 +64,12 @@ void HeunLLGSolver::run() {
   Solver::compute_fields();
 
   if (physics_module_->temperature() > 0.0) {
-    OMP_PARALLEL_FOR
     for (auto i = 0; i < globals::num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
         globals::h(i, j) = (w_(i, j) + globals::h(i, j) / globals::mus(i));
       }
     }
   } else {
-    OMP_PARALLEL_FOR
     for (auto i = 0; i < globals::num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
         globals::h(i, j) = globals::h(i, j) / globals::mus(i);
@@ -81,7 +77,6 @@ void HeunLLGSolver::run() {
     }
   }
 
-  OMP_PARALLEL_FOR
   for (auto i = 0; i < globals::num_spins; ++i) {
     Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     Vec3 field = {globals::h(i,0), globals::h(i,1), globals::h(i,2)};
@@ -106,14 +101,12 @@ void HeunLLGSolver::run() {
   Solver::compute_fields();
 
   if (physics_module_->temperature() > 0.0) {
-    OMP_PARALLEL_FOR
     for (auto i = 0; i < globals::num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
         globals::h(i, j) = (w_(i, j) + globals::h(i, j) / globals::mus(i));
       }
     }
   } else {
-    OMP_PARALLEL_FOR
     for (auto i = 0; i < globals::num_spins; ++i) {
       for (auto j = 0; j < 3; ++j) {
         globals::h(i, j) = globals::h(i, j) / globals::mus(i);
@@ -121,7 +114,6 @@ void HeunLLGSolver::run() {
     }
   }
 
-  OMP_PARALLEL_FOR
   for (auto i = 0; i < globals::num_spins; ++i) {
     Vec3 spin = {globals::s(i,0), globals::s(i,1), globals::s(i,2)};
     Vec3 spin_old = {s_old_(i,0), s_old_(i,1), s_old_(i,2)};

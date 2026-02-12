@@ -4,7 +4,6 @@
 #include "jams/core/globals.h"
 #include "spin_correlation.h"
 #include "jams/core/lattice.h"
-#include "jams/interface/openmp.h"
 #include "jams/helpers/output.h"
 
 SpinCorrelationMonitor::SpinCorrelationMonitor(const libconfig::Setting &settings) :
@@ -31,7 +30,6 @@ void SpinCorrelationMonitor::update(Solver& solver) {
   time_point_counter_++;
 }
 
-#pragma GCC optimize ("Ofast")
 void SpinCorrelationMonitor::post_process() {
   // calculate average sz of each position in unit cell
   std::vector<double> avg_sz(globals::lattice->num_basis_sites(), 0.0);
