@@ -182,22 +182,21 @@ double ExchangeFunctionalHamiltonian::functional_c3z(Vec3 rij,
 
   double term_0 = J0 * exp(-std::abs(r - d0)/l0);
 
-  double term_s1 = 0.0;
+  double sin_sum = 0.0;
   Vec3 qs[3] = {qs1, rotation_matrix_z(2*kPi / 3.0) * qs1, rotation_matrix_z(4*kPi / 3.0) * qs1};
   for (const auto & q : qs) {
-    term_s1 += sin(dot(q, r_para));
+    sin_sum += sin(dot(q, r_para));
   }
-  term_s1 *= J1s * exp(-std::abs(r - rstar) / l1s);
+  const double term_s1 = J1s * exp(-std::abs(r - rstar) / l1s) * sin_sum;;
 
-
-  double term_c1 = 0.0;
+  double cos_sum = 0.0;
   Vec3 qc[3] = {qc1, rotation_matrix_z(2*kPi / 3.0) * qc1, rotation_matrix_z(4*kPi / 3.0) * qc1};
-  for (const auto & i : qc) {
-    term_c1 += sin(dot(i, r_para));
+  for (const auto & q : qc) {
+    cos_sum += cos(dot(q, r_para));
   }
-  term_c1 *= J1c * exp(-std::abs(r - rstar) / l1c);
+  const double term_c1 = J1c * exp(-std::abs(r - rstar) / l1c) * cos_sum;
 
-  return term_0 + term_s1 + term_c1;
+  return (term_0 + term_s1 + term_c1);
 }
 
 
