@@ -31,8 +31,7 @@ private:
 
     ExchangeFunctionalType functional_from_params(const std::string& name, const std::vector<double>& params);
 
-    void output_exchange_functional(std::ostream &os, const ExchangeFunctionalType &functional, double r_cutoff,
-                                           double delta_r=0.1);
+    void output_exchange_functional(std::ostream &os, const ExchangeFunctionalType &functional, double r_cutoff);
 
     static double functional_step(Vec3 rij, double J0, double r_cut);
 

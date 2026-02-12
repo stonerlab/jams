@@ -70,7 +70,7 @@ ExchangeFunctionalHamiltonian::ExchangeFunctionalHamiltonian(const libconfig::Se
   if (output_functionals) {
     for (const auto& [type, functional] : exchange_functional_map) {
       std::ofstream functional_file(jams::output::full_path_filename("exchange_functional_" + type.first + "_" + type.second + ".tsv"));
-      output_exchange_functional(functional_file, functional.second, functional.first, 0.1);
+      output_exchange_functional(functional_file, functional.second, functional.first);
     }
   }
 
@@ -182,22 +182,21 @@ double ExchangeFunctionalHamiltonian::functional_c3z(Vec3 rij,
 
   double term_0 = J0 * exp(-std::abs(r - d0)/l0);
 
-  double term_s1 = 0.0;
+  double sin_sum = 0.0;
   Vec3 qs[3] = {qs1, rotation_matrix_z(2*kPi / 3.0) * qs1, rotation_matrix_z(4*kPi / 3.0) * qs1};
   for (const auto & q : qs) {
-    term_s1 += sin(dot(q, r_para));
+    sin_sum += sin(dot(q, r_para));
   }
-  term_s1 *= J1s * exp(-std::abs(r - rstar) / l1s);
+  const double term_s1 = J1s * exp(-std::abs(r - rstar) / l1s) * sin_sum;;
 
-
-  double term_c1 = 0.0;
+  double cos_sum = 0.0;
   Vec3 qc[3] = {qc1, rotation_matrix_z(2*kPi / 3.0) * qc1, rotation_matrix_z(4*kPi / 3.0) * qc1};
-  for (const auto & i : qc) {
-    term_c1 += sin(dot(i, r_para));
+  for (const auto & q : qc) {
+    cos_sum += cos(dot(q, r_para));
   }
-  term_c1 *= J1c * exp(-std::abs(r - rstar) / l1c);
+  const double term_c1 = J1c * exp(-std::abs(r - rstar) / l1c) * cos_sum;
 
-  return term_0 + term_s1 + term_c1;
+  return (term_0 + term_s1 + term_c1);
 }
 
 
@@ -245,8 +244,8 @@ ExchangeFunctionalHamiltonian::functional_from_params(const std::string& name, c
   }
   if (name == "c3z") {
     return std::bind(functional_c3z, _1,
-      input_distance_unit_conversion_ * Vec3{params[0], params[1], params[2]}, // qs
-      input_distance_unit_conversion_ * Vec3{params[3], params[4], params[5]}, // qc
+      (1.0 / input_distance_unit_conversion_) * Vec3{params[0], params[1], params[2]}, // qs
+      (1.0 / input_distance_unit_conversion_) * Vec3{params[3], params[4], params[5]}, // qc
       input_energy_unit_conversion_ * params[6], // J0
       input_energy_unit_conversion_ * params[7], // J1s
       input_energy_unit_conversion_ * params[8], // J1c
@@ -268,13 +267,12 @@ void
 ExchangeFunctionalHamiltonian::output_exchange_functional(
     std::ostream &os,
     const ExchangeFunctionalHamiltonian::ExchangeFunctionalType &functional,
-    double r_cutoff,
-    double delta_r)
+    double r_cutoff)
 {
   const double a = ::globals::lattice->parameter(); // metres
+  const auto delta_r = r_cutoff / 100.0;
 
   const int n = static_cast<int>(std::ceil(r_cutoff / delta_r));
-
   os << "x_nm  y_nm  z_nm  exchange_meV\n";
 
   for (int ix = -n; ix <= n; ++ix) {
