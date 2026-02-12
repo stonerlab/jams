@@ -68,7 +68,7 @@ endfunction()
 
 function(jams_set_fast_math target)
     if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
-        set(JAMS_FAST_MATH_OPT -Ofast -ffast-math CACHE STRING "enabled compiler fast math options")
+        set(JAMS_FAST_MATH_OPT -O3 -ffast-math CACHE STRING "enabled compiler fast math options")
         target_compile_options(${target} PRIVATE $<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANGUAGE:CXX>>:${JAMS_FAST_MATH_OPT}>)
     elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(JAMS_FAST_MATH_OPT -fno-math-errno -fno-rounding-math -fno-signaling-nans -fno-signed-zeros -fcx-limited-range CACHE STRING "enabled compiler fast math options")
